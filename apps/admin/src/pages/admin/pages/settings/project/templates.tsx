@@ -8,7 +8,6 @@ import { useApi } from '@/hooks/use-api';
 import { Icon } from '@/components/atoms/Icon';
 import { PageContainer } from '@/components/layouts';
 import { Tooltip } from '@/components/atoms/Tooltip';
-import { SettingsNav } from './SettingsNav';
 
 interface ObjectTypeWithRelationships {
   type: string;
@@ -454,9 +453,6 @@ export default function ProjectTemplatesSettingsPage() {
 
   return (
     <PageContainer maxWidth="6xl" testId="page-settings-project-templates">
-      {/* Settings Navigation */}
-      <SettingsNav />
-
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>

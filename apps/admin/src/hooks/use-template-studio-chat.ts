@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useAuth } from '@/contexts/useAuth';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useConfig } from '@/contexts/config';
 import { useApi } from '@/hooks/use-api';
 
@@ -168,11 +167,10 @@ export function useTemplateStudioChat(
     onSessionCreated,
   } = options;
 
-  const { getAccessToken } = useAuth();
   const {
     config: { activeProjectId },
   } = useConfig();
-  const { fetchJson } = useApi();
+  const { apiBase, buildHeaders, fetchJson } = useApi();
 
   // State
   const [session, setSession] = useState<StudioSession | null>(null);
@@ -186,22 +184,6 @@ export function useTemplateStudioChat(
   const streamingMessageIdRef = useRef<string | null>(null);
   // Track if we've already initiated session loading to prevent infinite loops
   const sessionLoadInitiatedRef = useRef<string | null>(null);
-
-  // Build API URL
-  const apiBase = useMemo(() => {
-    const env = (import.meta as any).env || {};
-    return env.VITE_API_BASE || '';
-  }, []);
-
-  const buildHeaders = useCallback((): Record<string, string> => {
-    const h: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    const t = getAccessToken?.();
-    if (t) h['Authorization'] = `Bearer ${t}`;
-    if (activeProjectId) h['X-Project-ID'] = activeProjectId;
-    return h;
-  }, [getAccessToken, activeProjectId]);
 
   /**
    * Create a new studio session

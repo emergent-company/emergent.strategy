@@ -1,7 +1,7 @@
 /**
  * MergeComparisonModal
- * Two-column comparison modal for merge suggestion tasks with chat interface
- * Shows Source | Target in left panel, Chat in right panel
+ * Three-column comparison modal for merge suggestion tasks with chat interface
+ * Shows Source | Target | Chat in equal-width columns
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Icon } from '@/components/atoms/Icon';
@@ -55,9 +55,10 @@ interface PropertyComparison {
 }
 
 /**
- * Modal that displays two-column comparison of two objects with chat interface
- * Left: Source | Target property comparison
- * Right: AI Chat for merge assistance
+ * Modal that displays three-column comparison of two objects with chat interface
+ * Column 1: Source object properties
+ * Column 2: Target object properties
+ * Column 3: AI Chat for merge assistance
  */
 export const MergeComparisonModal: React.FC<MergeComparisonModalProps> = ({
   task,
@@ -280,10 +281,10 @@ export const MergeComparisonModal: React.FC<MergeComparisonModalProps> = ({
           </button>
         </div>
 
-        {/* Content - Two Column Layout */}
-        <div className="flex-1 overflow-hidden flex">
-          {/* Left Panel - Property Comparison */}
-          <div className="flex-1 flex flex-col border-r border-base-300 min-w-0">
+        {/* Content - Three Equal Column Layout */}
+        <div className="flex-1 overflow-hidden grid grid-cols-3 min-h-0">
+          {/* Column 1 - Source Object */}
+          <div className="flex flex-col border-r border-base-300 min-w-0 overflow-hidden">
             {loading ? (
               <div className="flex-1 flex items-center justify-center">
                 <span className="loading loading-spinner loading-lg" />
@@ -297,104 +298,60 @@ export const MergeComparisonModal: React.FC<MergeComparisonModalProps> = ({
               </div>
             ) : (
               <>
-                {/* Column headers - 2 columns */}
-                <div className="grid grid-cols-2 gap-4 px-6 py-3 bg-base-200/50 border-b border-base-300 shrink-0">
+                {/* Source header */}
+                <div className="px-4 py-3 bg-base-200/50 border-b border-base-300 shrink-0">
                   <div className="flex items-center gap-2">
                     <span className="badge badge-primary badge-lg">Source</span>
                     <span className="font-semibold truncate">
                       {metadata?.sourceKey || sourceObject?.key || 'Unknown'}
                     </span>
-                    <span className="badge badge-ghost badge-sm">
-                      {metadata?.sourceType || sourceObject?.type}
-                    </span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="badge badge-secondary badge-lg">
-                      Target
-                    </span>
-                    <span className="font-semibold truncate">
-                      {metadata?.targetKey || targetObject?.key || 'Unknown'}
-                    </span>
-                    <span className="badge badge-ghost badge-sm">
-                      {metadata?.targetType || targetObject?.type}
-                    </span>
-                  </div>
+                  <span className="badge badge-ghost badge-sm mt-1">
+                    {metadata?.sourceType || sourceObject?.type}
+                  </span>
                 </div>
 
-                {/* Property comparison - 2 columns */}
-                <div className="flex-1 overflow-y-auto px-6 py-4">
+                {/* Source properties */}
+                <div className="flex-1 overflow-y-auto px-4 py-4">
                   {propertyComparisons.length === 0 ? (
                     <div className="text-center py-8 text-base-content/60">
                       <Icon
                         icon="lucide--file-question"
                         className="size-12 mx-auto mb-2 opacity-50"
                       />
-                      <p>No properties to compare</p>
+                      <p>No properties</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
                       {propertyComparisons.map((prop) => (
-                        <div key={prop.key} className="grid grid-cols-2 gap-4">
-                          {/* Source value */}
-                          <div
-                            className={`p-3 rounded border ${getDiffStyles(
-                              prop.diff,
-                              'source'
-                            )}`}
-                          >
-                            <div className="text-xs font-medium text-base-content/70 mb-1">
-                              {formatPropertyName(prop.key)}
-                              {prop.diff === 'only-source' && (
-                                <span className="badge badge-info badge-xs ml-2">
-                                  Only here
-                                </span>
-                              )}
-                              {prop.diff === 'different' && (
-                                <span className="badge badge-warning badge-xs ml-2">
-                                  Different
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-sm break-words whitespace-pre-wrap">
-                              {prop.diff === 'only-target' ? (
-                                <span className="italic text-base-content/40">
-                                  Not present
-                                </span>
-                              ) : (
-                                formatValue(prop.sourceValue)
-                              )}
-                            </div>
+                        <div
+                          key={prop.key}
+                          className={`p-3 rounded border ${getDiffStyles(
+                            prop.diff,
+                            'source'
+                          )}`}
+                        >
+                          <div className="text-xs font-medium text-base-content/70 mb-1">
+                            {formatPropertyName(prop.key)}
+                            {prop.diff === 'only-source' && (
+                              <span className="badge badge-info badge-xs ml-2">
+                                Only here
+                              </span>
+                            )}
+                            {prop.diff === 'different' && (
+                              <span className="badge badge-warning badge-xs ml-2">
+                                Different
+                              </span>
+                            )}
                           </div>
-
-                          {/* Target value */}
-                          <div
-                            className={`p-3 rounded border ${getDiffStyles(
-                              prop.diff,
-                              'target'
-                            )}`}
-                          >
-                            <div className="text-xs font-medium text-base-content/70 mb-1">
-                              {formatPropertyName(prop.key)}
-                              {prop.diff === 'only-target' && (
-                                <span className="badge badge-info badge-xs ml-2">
-                                  Only here
-                                </span>
-                              )}
-                              {prop.diff === 'different' && (
-                                <span className="badge badge-warning badge-xs ml-2">
-                                  Different
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-sm break-words whitespace-pre-wrap">
-                              {prop.diff === 'only-source' ? (
-                                <span className="italic text-base-content/40">
-                                  Not present
-                                </span>
-                              ) : (
-                                formatValue(prop.targetValue)
-                              )}
-                            </div>
+                          <div className="text-sm break-words whitespace-pre-wrap">
+                            {prop.diff === 'only-target' ? (
+                              <span className="italic text-base-content/40">
+                                Not present
+                              </span>
+                            ) : (
+                              formatValue(prop.sourceValue)
+                            )}
                           </div>
                         </div>
                       ))}
@@ -402,20 +359,16 @@ export const MergeComparisonModal: React.FC<MergeComparisonModalProps> = ({
                   )}
                 </div>
 
-                {/* Legend */}
-                <div className="px-6 py-3 border-t border-base-300 bg-base-200/30">
-                  <div className="flex items-center gap-4 text-xs text-base-content/60">
+                {/* Legend - Source column */}
+                <div className="px-4 py-2 border-t border-base-300 bg-base-200/30">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-base-content/60">
                     <div className="flex items-center gap-1">
-                      <div className="w-3 h-3 rounded bg-warning/30 border border-warning/50"></div>
+                      <div className="w-2 h-2 rounded bg-warning/30 border border-warning/50"></div>
                       <span>Different</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <div className="w-3 h-3 rounded bg-info/30 border border-info/50"></div>
+                      <div className="w-2 h-2 rounded bg-info/30 border border-info/50"></div>
                       <span>Unique</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <div className="w-3 h-3 rounded bg-base-200/50 border border-base-300"></div>
-                      <span>Same</span>
                     </div>
                   </div>
                 </div>
@@ -423,8 +376,103 @@ export const MergeComparisonModal: React.FC<MergeComparisonModalProps> = ({
             )}
           </div>
 
-          {/* Right Panel - Chat */}
-          <div className="w-[400px] shrink-0 flex flex-col">
+          {/* Column 2 - Target Object */}
+          <div className="flex flex-col border-r border-base-300 min-w-0 overflow-hidden">
+            {loading ? (
+              <div className="flex-1 flex items-center justify-center">
+                <span className="loading loading-spinner loading-lg" />
+              </div>
+            ) : error ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="alert alert-error max-w-md">
+                  <Icon icon="lucide--alert-circle" className="size-5" />
+                  <span>{error}</span>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Target header */}
+                <div className="px-4 py-3 bg-base-200/50 border-b border-base-300 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className="badge badge-secondary badge-lg">
+                      Target
+                    </span>
+                    <span className="font-semibold truncate">
+                      {metadata?.targetKey || targetObject?.key || 'Unknown'}
+                    </span>
+                  </div>
+                  <span className="badge badge-ghost badge-sm mt-1">
+                    {metadata?.targetType || targetObject?.type}
+                  </span>
+                </div>
+
+                {/* Target properties */}
+                <div className="flex-1 overflow-y-auto px-4 py-4">
+                  {propertyComparisons.length === 0 ? (
+                    <div className="text-center py-8 text-base-content/60">
+                      <Icon
+                        icon="lucide--file-question"
+                        className="size-12 mx-auto mb-2 opacity-50"
+                      />
+                      <p>No properties</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {propertyComparisons.map((prop) => (
+                        <div
+                          key={prop.key}
+                          className={`p-3 rounded border ${getDiffStyles(
+                            prop.diff,
+                            'target'
+                          )}`}
+                        >
+                          <div className="text-xs font-medium text-base-content/70 mb-1">
+                            {formatPropertyName(prop.key)}
+                            {prop.diff === 'only-target' && (
+                              <span className="badge badge-info badge-xs ml-2">
+                                Only here
+                              </span>
+                            )}
+                            {prop.diff === 'different' && (
+                              <span className="badge badge-warning badge-xs ml-2">
+                                Different
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm break-words whitespace-pre-wrap">
+                            {prop.diff === 'only-source' ? (
+                              <span className="italic text-base-content/40">
+                                Not present
+                              </span>
+                            ) : (
+                              formatValue(prop.targetValue)
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Legend - Target column */}
+                <div className="px-4 py-2 border-t border-base-300 bg-base-200/30">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-base-content/60">
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 rounded bg-warning/30 border border-warning/50"></div>
+                      <span>Different</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 rounded bg-info/30 border border-info/50"></div>
+                      <span>Unique</span>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Column 3 - Chat */}
+          <div className="flex flex-col min-w-0 overflow-hidden">
             {metadata?.sourceId && metadata?.targetId && task?.id && (
               <MergeChat
                 taskId={task.id}

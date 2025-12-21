@@ -1,9 +1,11 @@
 // Router guard: Ensures org and project exist before accessing admin routes
 // Redirects to /setup/* if missing, allowing tests to detect 302 vs 200
-import { useEffect, useRef } from 'react';
+// Also checks for pending invitations before redirecting new users to org setup
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { useConfig } from '@/contexts/config';
 import { useAccessTreeContext } from '@/contexts/access-tree';
+import { useAuth } from '@/contexts/useAuth';
 
 export interface SetupGuardProps {
   children: React.ReactNode;
@@ -17,7 +19,9 @@ export interface SetupGuardProps {
  * 1. Fetch access tree (orgs + projects) from shared context
  * 2. Validate localStorage IDs against tree data
  * 3. Auto-select first available org/project if stored IDs are invalid
- * 4. If no orgs exist → redirect to /setup/organization
+ * 4. If no orgs exist → check for pending invitations first
+ *    - If pending invitations → redirect to /invites/pending
+ *    - If no invitations → redirect to /setup/organization
  * 5. If no projects exist → redirect to /setup/project
  * 6. If both exist → render children (admin route)
  */
@@ -26,94 +30,173 @@ export function SetupGuard({ children }: SetupGuardProps) {
   const location = useLocation();
   const { config, setActiveOrg, setActiveProject } = useConfig();
   const { orgs, projects, loading, error } = useAccessTreeContext();
+  const { getAccessToken } = useAuth();
   const hasRedirectedRef = useRef(false);
 
+  // State for invitation check
+  const [checkingInvites, setCheckingInvites] = useState(false);
+  const [invitesChecked, setInvitesChecked] = useState(false);
+
+  /**
+   * Check for pending invitations when user has no orgs.
+   * If invitations exist, redirect to /invites/pending.
+   * If no invitations, proceed with org setup redirect.
+   */
+  const checkPendingInvitations = useCallback(async (): Promise<boolean> => {
+    console.log('[SetupGuard] Checking for pending invitations...');
+
+    const token = getAccessToken();
+    if (!token) {
+      console.log('[SetupGuard] No access token, skipping invite check');
+      return false;
+    }
+
+    try {
+      const response = await fetch('/api/invites/pending', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        console.warn(
+          '[SetupGuard] Failed to fetch pending invitations:',
+          response.status
+        );
+        return false;
+      }
+
+      const invites = await response.json();
+      console.log('[SetupGuard] Pending invitations:', invites.length);
+
+      return invites.length > 0;
+    } catch (err) {
+      console.error('[SetupGuard] Error checking pending invitations:', err);
+      return false;
+    }
+  }, [getAccessToken]);
+
   useEffect(() => {
-    console.log('[SetupGuard] useEffect triggered', {
-      pathname: location.pathname,
-      hasRedirected: hasRedirectedRef.current,
-      loading,
-      error,
-      orgsCount: orgs.length,
-      projectsCount: projects.length,
-      storedOrgId: config.activeOrgId,
-      storedProjectId: config.activeProjectId,
-    });
-
-    // Avoid redirect loops
-    if (hasRedirectedRef.current) {
-      return;
-    }
-
-    // Don't redirect during initial data loading
-    if (loading) {
-      return;
-    }
-
-    // If there's an API error, don't redirect - show error state instead
-    if (error) {
-      console.error(
-        '[SetupGuard] API error detected, showing error state:',
-        error
-      );
-      return;
-    }
-
-    // Redirect to setup if missing org (only when no error)
-    if (orgs.length === 0) {
-      console.log('[SetupGuard] No orgs found, redirecting to org setup');
-      hasRedirectedRef.current = true;
-      navigate('/setup/organization', {
-        replace: true,
-        state: { returnTo: location.pathname },
+    const runGuard = async () => {
+      console.log('[SetupGuard] useEffect triggered', {
+        pathname: location.pathname,
+        hasRedirected: hasRedirectedRef.current,
+        loading,
+        error,
+        orgsCount: orgs.length,
+        projectsCount: projects.length,
+        storedOrgId: config.activeOrgId,
+        storedProjectId: config.activeProjectId,
+        checkingInvites,
+        invitesChecked,
       });
-      return;
-    }
 
-    // Validate stored org ID and auto-select if invalid
-    const storedOrgId = config.activeOrgId;
-    const storedOrgExists =
-      storedOrgId && orgs.some((org) => org.id === storedOrgId);
+      // Avoid redirect loops
+      if (hasRedirectedRef.current) {
+        return;
+      }
 
-    if (!storedOrgExists) {
-      console.warn(
-        '[SetupGuard] Stored org ID not found in access tree, auto-selecting first org',
-        { storedOrgId, availableOrgs: orgs.map((o) => o.id) }
-      );
-      const firstOrg = orgs[0];
-      setActiveOrg(firstOrg.id, firstOrg.name);
-      // Wait for next render with correct org
-      return;
-    }
+      // Don't redirect during initial data loading
+      if (loading) {
+        return;
+      }
 
-    // Redirect to setup if missing projects
-    if (projects.length === 0) {
-      console.log(
-        '[SetupGuard] No projects found, redirecting to project setup'
-      );
-      hasRedirectedRef.current = true;
-      navigate('/setup/project', {
-        replace: true,
-        state: { returnTo: location.pathname },
-      });
-      return;
-    }
+      // If there's an API error, don't redirect - show error state instead
+      if (error) {
+        console.error(
+          '[SetupGuard] API error detected, showing error state:',
+          error
+        );
+        return;
+      }
 
-    // Validate stored project ID and auto-select if invalid
-    const storedProjectId = config.activeProjectId;
-    const storedProjectExists =
-      storedProjectId && projects.some((proj) => proj.id === storedProjectId);
+      // If no orgs exist, check for pending invitations first
+      if (orgs.length === 0) {
+        // Only check invites once
+        if (!invitesChecked && !checkingInvites) {
+          setCheckingInvites(true);
+          const hasPendingInvites = await checkPendingInvitations();
+          setInvitesChecked(true);
+          setCheckingInvites(false);
 
-    if (!storedProjectExists) {
-      console.warn(
-        '[SetupGuard] Stored project ID not found in access tree, auto-selecting first project',
-        { storedProjectId, availableProjects: projects.map((p) => p.id) }
-      );
-      const firstProject = projects[0];
-      setActiveProject(firstProject.id, firstProject.name);
-    }
+          if (hasPendingInvites) {
+            console.log(
+              '[SetupGuard] Found pending invitations, redirecting to /invites/pending'
+            );
+            hasRedirectedRef.current = true;
+            navigate('/invites/pending', {
+              replace: true,
+              state: { returnTo: location.pathname },
+            });
+            return;
+          }
+        }
 
-    console.log('[SetupGuard] Setup complete, rendering children');
+        // If still checking invites, wait
+        if (checkingInvites) {
+          return;
+        }
+
+        // No invitations found, redirect to org setup
+        console.log(
+          '[SetupGuard] No orgs found and no pending invitations, redirecting to org setup'
+        );
+        hasRedirectedRef.current = true;
+        navigate('/setup/organization', {
+          replace: true,
+          state: { returnTo: location.pathname },
+        });
+        return;
+      }
+
+      // Validate stored org ID and auto-select if invalid
+      const storedOrgId = config.activeOrgId;
+      const storedOrgExists =
+        storedOrgId && orgs.some((org) => org.id === storedOrgId);
+
+      if (!storedOrgExists) {
+        console.warn(
+          '[SetupGuard] Stored org ID not found in access tree, auto-selecting first org',
+          { storedOrgId, availableOrgs: orgs.map((o) => o.id) }
+        );
+        const firstOrg = orgs[0];
+        setActiveOrg(firstOrg.id, firstOrg.name);
+        // Wait for next render with correct org
+        return;
+      }
+
+      // Redirect to setup if missing projects
+      if (projects.length === 0) {
+        console.log(
+          '[SetupGuard] No projects found, redirecting to project setup'
+        );
+        hasRedirectedRef.current = true;
+        navigate('/setup/project', {
+          replace: true,
+          state: { returnTo: location.pathname },
+        });
+        return;
+      }
+
+      // Validate stored project ID and auto-select if invalid
+      const storedProjectId = config.activeProjectId;
+      const storedProjectExists =
+        storedProjectId && projects.some((proj) => proj.id === storedProjectId);
+
+      if (!storedProjectExists) {
+        console.warn(
+          '[SetupGuard] Stored project ID not found in access tree, auto-selecting first project',
+          { storedProjectId, availableProjects: projects.map((p) => p.id) }
+        );
+        const firstProject = projects[0];
+        setActiveProject(firstProject.id, firstProject.name);
+      }
+
+      console.log('[SetupGuard] Setup complete, rendering children');
+    };
+
+    void runGuard();
   }, [
     orgs,
     projects,
@@ -125,10 +208,13 @@ export function SetupGuard({ children }: SetupGuardProps) {
     config.activeProjectId,
     setActiveOrg,
     setActiveProject,
+    checkingInvites,
+    invitesChecked,
+    checkPendingInvitations,
   ]);
 
   // Show loading state while checking
-  if (loading) {
+  if (loading || checkingInvites) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <span className="loading loading-spinner loading-lg" />

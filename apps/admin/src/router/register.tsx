@@ -1,5 +1,6 @@
-import { JSX, LazyExoticComponent, lazy } from 'react';
+import { JSX, LazyExoticComponent, lazy, Suspense } from 'react';
 import { Navigate, RouteProps } from 'react-router';
+import { SettingsLayout } from '@/pages/admin/pages/settings/components';
 
 export type IRoutesProps = {
   path: RouteProps['path'];
@@ -8,6 +9,21 @@ export type IRoutesProps = {
 
 // Component Wrapper
 const cw = (Component: LazyExoticComponent<() => JSX.Element>) => <Component />;
+
+// Settings page wrapper - wraps component with SettingsLayout
+const sw = (Component: LazyExoticComponent<() => JSX.Element>) => (
+  <SettingsLayout>
+    <Suspense
+      fallback={
+        <div className="flex justify-center items-center py-12">
+          <span className="loading loading-spinner loading-lg"></span>
+        </div>
+      }
+    >
+      <Component />
+    </Suspense>
+  </SettingsLayout>
+);
 
 // Admin App routes (canonical)
 const dashboardRoutes: IRoutesProps[] = [
@@ -70,7 +86,7 @@ const dashboardRoutes: IRoutesProps[] = [
   },
   {
     path: '/admin/settings/ai/prompts',
-    element: cw(lazy(() => import('@/pages/admin/pages/settings/ai-prompts'))),
+    element: sw(lazy(() => import('@/pages/admin/pages/settings/ai-prompts'))),
   },
   {
     path: '/admin/settings/project',
@@ -78,32 +94,38 @@ const dashboardRoutes: IRoutesProps[] = [
   },
   {
     path: '/admin/settings/project/templates',
-    element: cw(
+    element: sw(
       lazy(() => import('@/pages/admin/pages/settings/project/templates'))
     ),
   },
   {
     path: '/admin/settings/project/auto-extraction',
-    element: cw(
+    element: sw(
       lazy(() => import('@/pages/admin/pages/settings/project/auto-extraction'))
     ),
   },
   {
     path: '/admin/settings/project/llm-settings',
-    element: cw(
+    element: sw(
       lazy(() => import('@/pages/admin/pages/settings/project/llm-settings'))
     ),
   },
   {
     path: '/admin/settings/project/chunking',
-    element: cw(
+    element: sw(
       lazy(() => import('@/pages/admin/pages/settings/project/chunking'))
     ),
   },
   {
     path: '/admin/settings/project/template-studio',
-    element: cw(
+    element: sw(
       lazy(() => import('@/pages/admin/pages/settings/project/template-studio'))
+    ),
+  },
+  {
+    path: '/admin/settings/project/members',
+    element: sw(
+      lazy(() => import('@/pages/admin/pages/settings/project/members'))
     ),
   },
   {
@@ -137,6 +159,10 @@ const authRoutes: IRoutesProps[] = [
     element: cw(lazy(() => import('@/pages/auth/callback'))),
   },
   {
+    path: '/auth/logged-out',
+    element: cw(lazy(() => import('@/pages/auth/logged-out'))),
+  },
+  {
     path: '/auth/register',
     element: cw(lazy(() => import('@/pages/auth/register'))),
   },
@@ -162,6 +188,18 @@ const setupRoutes: IRoutesProps[] = [
   },
 ];
 
+// Invitation routes (not guarded - for accepting invitations before org setup)
+const inviteRoutes: IRoutesProps[] = [
+  {
+    path: '/invites/pending',
+    element: cw(lazy(() => import('@/pages/invites/pending'))),
+  },
+  {
+    path: '/invites/accept',
+    element: cw(lazy(() => import('@/pages/invites/accept'))),
+  },
+];
+
 const pagesRoutes: IRoutesProps[] = [];
 
 const otherRoutes: IRoutesProps[] = [
@@ -179,6 +217,15 @@ const otherRoutes: IRoutesProps[] = [
     path: '/product-framework',
     element: cw(lazy(() => import('@/pages/product-framework'))),
   },
+  // Public release notes pages (no auth required)
+  {
+    path: '/releases',
+    element: cw(lazy(() => import('@/pages/releases'))),
+  },
+  {
+    path: '/releases/:version',
+    element: cw(lazy(() => import('@/pages/releases/[version]'))),
+  },
   { path: '*', element: cw(lazy(() => import('@/pages/not-found'))) },
 ];
 
@@ -186,5 +233,6 @@ export const registerRoutes = {
   admin: [...dashboardRoutes, ...appRoutes, ...pagesRoutes],
   auth: authRoutes,
   setup: setupRoutes,
+  invites: inviteRoutes,
   other: otherRoutes,
 };

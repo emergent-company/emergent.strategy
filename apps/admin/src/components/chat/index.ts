@@ -21,3 +21,13 @@ export {
   type ToolCallInfo,
 } from './ToolCallIndicator';
 export { stripSuggestionsFromContent, formatTimestamp } from './utils';
+
+// Re-export unified suggestion types for convenience
+export type {
+  UnifiedSuggestion,
+  AnySuggestionType,
+  SuggestionStatus,
+  RefinementSuggestionType,
+  MergeSuggestionType,
+  SchemaSuggestionType,
+} from '@/types/suggestion';

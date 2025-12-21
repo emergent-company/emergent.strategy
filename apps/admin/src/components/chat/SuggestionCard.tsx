@@ -1,20 +1,43 @@
 import { Icon } from '@/components/atoms/Icon';
 import { Tooltip } from '@/components/atoms/Tooltip';
-import type { RefinementSuggestion } from '@/types/object-refinement';
+import {
+  type AnySuggestionType,
+  type SuggestionStatus,
+  type UnifiedSuggestion,
+  isRefinementType,
+  isMergeType,
+  isSchemaType,
+} from '@/types/suggestion';
+
+// ============================================================================
+// Props Interface
+// ============================================================================
 
 export interface SuggestionCardProps {
-  suggestion: RefinementSuggestion;
+  /** The suggestion to display - supports refinement, merge, and schema types */
+  suggestion: UnifiedSuggestion;
+  /** Called when the user accepts the suggestion */
   onApply?: () => void;
+  /** Called when the user rejects the suggestion */
   onReject?: () => void;
 }
 
+// ============================================================================
+// Main Component
+// ============================================================================
+
 /**
- * SuggestionCard - Displays an AI suggestion with accept/reject actions
+ * SuggestionCard - Unified component for displaying AI suggestions
+ *
+ * Supports three types of suggestions:
+ * - Refinement: property changes, relationship edits, renames
+ * - Merge: source/target value selection, combine, drop
+ * - Schema: object type and relationship type modifications
  *
  * Features:
- * - Visual indicator for suggestion type (property change, relationship, rename)
+ * - Visual indicator for suggestion type (icon + label)
  * - Status badges (pending, accepted, rejected)
- * - Detailed preview of the change
+ * - Type-specific preview of the change
  * - Accept/reject action buttons
  */
 export function SuggestionCard({
@@ -26,35 +49,9 @@ export function SuggestionCard({
   const isAccepted = suggestion.status === 'accepted';
   const isRejected = suggestion.status === 'rejected';
 
-  const getTypeIcon = () => {
-    switch (suggestion.type) {
-      case 'property_change':
-        return 'lucide--edit-3';
-      case 'relationship_add':
-        return 'lucide--link';
-      case 'relationship_remove':
-        return 'lucide--unlink';
-      case 'rename':
-        return 'lucide--type';
-      default:
-        return 'lucide--sparkles';
-    }
-  };
-
-  const getTypeLabel = () => {
-    switch (suggestion.type) {
-      case 'property_change':
-        return 'Property Change';
-      case 'relationship_add':
-        return 'Add Relationship';
-      case 'relationship_remove':
-        return 'Remove Relationship';
-      case 'rename':
-        return 'Rename';
-      default:
-        return 'Suggestion';
-    }
-  };
+  const typeIcon = getTypeIcon(suggestion.type);
+  const typeLabel = getTypeLabel(suggestion);
+  const iconColorClass = getIconColorClass(suggestion.type, suggestion.status);
 
   return (
     <div
@@ -68,17 +65,22 @@ export function SuggestionCard({
     >
       {/* Header */}
       <div className="flex items-center gap-1.5 mb-1">
-        <Icon
-          icon={getTypeIcon()}
-          className={`size-3.5 ${
-            isAccepted
-              ? 'text-success'
-              : isRejected
-              ? 'text-error'
-              : 'text-primary'
-          }`}
-        />
-        <span className="text-xs font-medium">{getTypeLabel()}</span>
+        <Icon icon={typeIcon} className={`size-3.5 ${iconColorClass}`} />
+        <span className="text-xs font-medium">{typeLabel}</span>
+
+        {/* Extra badge for merge (propertyKey) and schema (target_type) */}
+        {isMergeType(suggestion.type) && suggestion.propertyKey && (
+          <span className="badge badge-ghost badge-xs ml-1">
+            {suggestion.propertyKey}
+          </span>
+        )}
+        {isSchemaType(suggestion.type) && suggestion.target_type && (
+          <span className="text-xs text-base-content/60 ml-1">
+            {suggestion.target_type}
+          </span>
+        )}
+
+        {/* Status badges */}
         {isAccepted && (
           <span className="badge badge-success badge-xs gap-1 ml-auto">
             <Icon icon="lucide--check" className="size-2.5" />
@@ -93,20 +95,15 @@ export function SuggestionCard({
         )}
       </div>
 
-      {/* Explanation */}
+      {/* Explanation / Description */}
       <p className="text-xs text-base-content/70 mb-1.5">
-        {suggestion.explanation}
+        {suggestion.explanation || suggestion.description}
       </p>
 
-      {/* Details Preview */}
-      {suggestion.details && (
-        <SuggestionDetailsPreview
-          type={suggestion.type}
-          details={suggestion.details}
-        />
-      )}
+      {/* Details Preview - type-specific rendering */}
+      <SuggestionDetailsPreview suggestion={suggestion} />
 
-      {/* Actions - bottom right */}
+      {/* Actions */}
       {isPending && onApply && onReject && (
         <div className="flex items-center justify-end gap-2 mt-2">
           <button
@@ -133,17 +130,136 @@ export function SuggestionCard({
   );
 }
 
-// --- Suggestion Details Preview ---
+// ============================================================================
+// Icon & Label Helpers
+// ============================================================================
+
+function getTypeIcon(type: AnySuggestionType): string {
+  // Refinement types
+  if (type === 'property_change') return 'lucide--edit-3';
+  if (type === 'relationship_add') return 'lucide--link';
+  if (type === 'relationship_remove') return 'lucide--unlink';
+  if (type === 'rename') return 'lucide--type';
+
+  // Merge types
+  if (type === 'keep_source') return 'lucide--arrow-left';
+  if (type === 'keep_target') return 'lucide--arrow-right';
+  if (type === 'combine') return 'lucide--combine';
+  if (type === 'new_value') return 'lucide--sparkles';
+  if (type === 'drop_property') return 'lucide--trash-2';
+  if (type === 'property_merge') return 'lucide--git-merge';
+
+  // Schema types
+  if (type === 'add_object_type') return 'lucide--plus-square';
+  if (type === 'modify_object_type') return 'lucide--edit-3';
+  if (type === 'remove_object_type') return 'lucide--minus-square';
+  if (type === 'add_relationship_type') return 'lucide--link';
+  if (type === 'modify_relationship_type') return 'lucide--unlink-2';
+  if (type === 'remove_relationship_type') return 'lucide--unlink';
+  if (type === 'update_ui_config') return 'lucide--palette';
+  if (type === 'update_extraction_prompt') return 'lucide--file-text';
+
+  return 'lucide--sparkles';
+}
+
+function getTypeLabel(suggestion: UnifiedSuggestion): string {
+  // Check for custom typeLabel in details (backwards compatibility)
+  const customLabel = suggestion.details?.typeLabel as string | undefined;
+  if (customLabel) return customLabel;
+
+  const { type } = suggestion;
+
+  // Refinement types
+  if (type === 'property_change') return 'Property Change';
+  if (type === 'relationship_add') return 'Add Relationship';
+  if (type === 'relationship_remove') return 'Remove Relationship';
+  if (type === 'rename') return 'Rename';
+
+  // Merge types
+  if (type === 'keep_source') return 'Keep Source';
+  if (type === 'keep_target') return 'Keep Target';
+  if (type === 'combine') return 'Combine';
+  if (type === 'new_value') return 'New Value';
+  if (type === 'drop_property') return 'Drop Property';
+  if (type === 'property_merge') return 'Merge Property';
+
+  // Schema types
+  if (type === 'add_object_type') return 'Add Object Type';
+  if (type === 'modify_object_type') return 'Modify Object Type';
+  if (type === 'remove_object_type') return 'Remove Object Type';
+  if (type === 'add_relationship_type') return 'Add Relationship';
+  if (type === 'modify_relationship_type') return 'Modify Relationship';
+  if (type === 'remove_relationship_type') return 'Remove Relationship';
+  if (type === 'update_ui_config') return 'Update UI Config';
+  if (type === 'update_extraction_prompt') return 'Update Extraction Prompt';
+
+  return 'Suggestion';
+}
+
+function getIconColorClass(
+  type: AnySuggestionType,
+  status: SuggestionStatus
+): string {
+  if (status === 'accepted') return 'text-success';
+  if (status === 'rejected') return 'text-error';
+
+  // Use different accent colors based on category
+  if (isMergeType(type)) return 'text-warning';
+  if (isSchemaType(type)) return 'text-info';
+  return 'text-primary'; // refinement
+}
+
+// ============================================================================
+// Details Preview Component
+// ============================================================================
 
 interface SuggestionDetailsPreviewProps {
-  type: RefinementSuggestion['type'];
-  details: Record<string, unknown>;
+  suggestion: UnifiedSuggestion;
 }
 
 function SuggestionDetailsPreview({
+  suggestion,
+}: SuggestionDetailsPreviewProps) {
+  const { type, details } = suggestion;
+
+  // --- Refinement Types ---
+  if (isRefinementType(type)) {
+    return <RefinementDetailsPreview type={type} details={details || {}} />;
+  }
+
+  // --- Merge Types ---
+  if (isMergeType(type)) {
+    return <MergeDetailsPreview suggestion={suggestion} />;
+  }
+
+  // --- Schema Types ---
+  if (isSchemaType(type)) {
+    return <SchemaDetailsPreview suggestion={suggestion} />;
+  }
+
+  // Fallback: show raw details if present
+  if (details && Object.keys(details).length > 0) {
+    return (
+      <div className="bg-base-200/50 rounded p-1.5 text-xs font-mono overflow-x-auto">
+        <pre className="text-[10px]">{JSON.stringify(details, null, 2)}</pre>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+// ============================================================================
+// Refinement Details Preview
+// ============================================================================
+
+function RefinementDetailsPreview({
   type,
   details,
-}: SuggestionDetailsPreviewProps) {
+}: {
+  type: string;
+  details: Record<string, unknown>;
+}) {
   if (type === 'property_change') {
     const { propertyKey, oldValue, newValue } = details as {
       propertyKey?: string;
@@ -259,15 +375,108 @@ function SuggestionDetailsPreview({
     );
   }
 
-  // Fallback: show raw details
+  return null;
+}
+
+// ============================================================================
+// Merge Details Preview
+// ============================================================================
+
+function MergeDetailsPreview({
+  suggestion,
+}: {
+  suggestion: UnifiedSuggestion;
+}) {
+  const { type, sourceValue, targetValue, suggestedValue } = suggestion;
+
+  // Drop property has special rendering
+  if (type === 'drop_property') {
+    return (
+      <div className="bg-base-200/50 rounded p-1.5 text-xs">
+        <span className="text-error line-through">
+          Property will be removed
+        </span>
+      </div>
+    );
+  }
+
+  // Normal merge: show sourceValue → targetValue → suggestedValue
   return (
-    <div className="bg-base-200/50 rounded p-1.5 text-xs font-mono overflow-x-auto">
-      <pre className="text-[10px]">{JSON.stringify(details, null, 2)}</pre>
+    <div className="bg-base-200/50 rounded p-1.5 text-xs">
+      <div className="flex items-center gap-2 min-w-0 flex-wrap">
+        {sourceValue !== undefined && (
+          <span className="text-primary truncate" title={String(sourceValue)}>
+            {formatPreviewValue(sourceValue)}
+          </span>
+        )}
+        {sourceValue !== undefined && targetValue !== undefined && (
+          <Icon
+            icon="lucide--arrow-right"
+            className="size-3 opacity-50 shrink-0"
+          />
+        )}
+        {targetValue !== undefined && (
+          <span className="text-secondary truncate" title={String(targetValue)}>
+            {formatPreviewValue(targetValue)}
+          </span>
+        )}
+        {suggestedValue !== undefined && (
+          <>
+            <Icon
+              icon="lucide--chevron-right"
+              className="size-3 opacity-50 shrink-0"
+            />
+            <span
+              className="text-success font-medium truncate"
+              title={String(suggestedValue)}
+            >
+              {formatPreviewValue(suggestedValue)}
+            </span>
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
-// --- Helper Functions ---
+// ============================================================================
+// Schema Details Preview
+// ============================================================================
+
+function SchemaDetailsPreview({
+  suggestion,
+}: {
+  suggestion: UnifiedSuggestion;
+}) {
+  const { before, after } = suggestion;
+
+  if (!before && !after) return null;
+
+  return (
+    <div className="bg-base-200/50 rounded p-1.5 text-xs font-mono space-y-1">
+      {before && (
+        <div className="text-error/80">
+          <span className="text-error font-medium">- </span>
+          <span className="opacity-80">
+            {truncateJson(JSON.stringify(before))}
+          </span>
+        </div>
+      )}
+      {after && (
+        <div className="text-success/80">
+          <span className="text-success font-medium">+ </span>
+          <span className="opacity-80">
+            {truncateJson(JSON.stringify(after))}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
 
 /**
  * Get the full string representation of a value for tooltips
@@ -292,4 +501,11 @@ function formatPreviewValue(value: unknown, maxLength = 50): string {
     return str.length > maxLength ? `${str.slice(0, maxLength)}...` : str;
   }
   return String(value);
+}
+
+/**
+ * Truncate a JSON string for schema previews
+ */
+function truncateJson(json: string, maxLength = 80): string {
+  return json.length > maxLength ? `${json.slice(0, maxLength)}...` : json;
 }

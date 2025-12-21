@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useAuth } from '@/contexts/useAuth';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useConfig } from '@/contexts/config';
 import { useApi } from '@/hooks/use-api';
 import type {
@@ -94,11 +93,10 @@ export function useMergeChat(options: UseMergeChatOptions): UseMergeChatReturn {
     pollInterval = 5000,
   } = options;
 
-  const { getAccessToken } = useAuth();
   const {
     config: { activeProjectId },
   } = useConfig();
-  const { fetchJson } = useApi();
+  const { apiBase, buildHeaders, fetchJson } = useApi();
 
   // State
   const [conversation, setConversation] =
@@ -115,23 +113,6 @@ export function useMergeChat(options: UseMergeChatOptions): UseMergeChatReturn {
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingMessageIdRef = useRef<string | null>(null);
   const pollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Build API URL
-  const apiBase = useMemo(() => {
-    const env = (import.meta as unknown as { env?: { VITE_API_BASE?: string } })
-      .env;
-    return env?.VITE_API_BASE || '';
-  }, []);
-
-  const buildHeaders = useCallback((): Record<string, string> => {
-    const h: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    const t = getAccessToken?.();
-    if (t) h['Authorization'] = `Bearer ${t}`;
-    if (activeProjectId) h['X-Project-ID'] = activeProjectId;
-    return h;
-  }, [getAccessToken, activeProjectId]);
 
   /**
    * Update merge preview and notify parent

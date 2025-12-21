@@ -138,21 +138,43 @@ const useHook = () => {
     },
     [updateConfig, htmlRef]
   );
-  const setActiveOrg = (id: string | undefined, name?: string) => {
-    // Skip if no change
-    if (config.activeOrgId === id && config.activeOrgName === name) return;
-    updateConfig({
-      activeOrgId: id,
-      activeOrgName: name,
-      activeProjectId: undefined,
-      activeProjectName: undefined,
-    });
-  };
-  const setActiveProject = (id: string | undefined, name?: string) => {
-    if (config.activeProjectId === id && config.activeProjectName === name)
-      return;
-    updateConfig({ activeProjectId: id, activeProjectName: name });
-  };
+  const setActiveOrg = useCallback(
+    (id: string | undefined, name?: string) => {
+      // Use functional update to avoid stale closure
+      setConfig((prevConfig) => {
+        if (
+          prevConfig.activeOrgId === id &&
+          prevConfig.activeOrgName === name
+        ) {
+          return prevConfig;
+        }
+        return {
+          ...prevConfig,
+          activeOrgId: id,
+          activeOrgName: name,
+          activeProjectId: undefined,
+          activeProjectName: undefined,
+        };
+      });
+    },
+    [setConfig]
+  );
+
+  const setActiveProject = useCallback(
+    (id: string | undefined, name?: string) => {
+      // Use functional update to avoid stale closure
+      setConfig((prevConfig) => {
+        if (
+          prevConfig.activeProjectId === id &&
+          prevConfig.activeProjectName === name
+        ) {
+          return prevConfig;
+        }
+        return { ...prevConfig, activeProjectId: id, activeProjectName: name };
+      });
+    },
+    [setConfig]
+  );
 
   const changeSidebarTheme = (sidebarTheme: IConfig['sidebarTheme']) => {
     updateConfig({ sidebarTheme });
