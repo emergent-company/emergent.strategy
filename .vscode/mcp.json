@@ -68,6 +68,10 @@
       "command": "npx",
       "args": ["tsx", "tools/workspace-mcp/src/index.ts"]
     },
+    "signoz": {
+      "type": "sse",
+      "url": "http://localhost:8001/mcp"
+    },
     "kb": {
       "type": "http",
       "url": "${KB_MCP_URL:-https://admin.dev.emergent-company.ai/api/mcp/rpc}",
