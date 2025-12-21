@@ -1,0 +1,50 @@
+{{!--
+  Invitation email template
+
+  Required context:
+  - recipientName: Name of the person being invited
+  - inviterName: Name of the person sending the invite
+  - organizationName: Name of the organization
+  - inviteUrl: URL to accept the invitation
+
+  Optional context:
+  - message: Custom message from inviter
+  - expiresAt: Invitation expiration date
+--}}
+<mj-text font-size="16px" padding-bottom="16px">
+  Hi{{#if recipientName}} {{recipientName}}{{/if}},
+</mj-text>
+
+<mj-text padding-bottom="16px">
+  {{#if inviterName}}{{inviterName}} has{{else}}You have been{{/if}} invited you to join <strong>{{organizationName}}</strong> on Emergent.
+</mj-text>
+
+{{#if message}}
+<mj-text padding-bottom="16px" font-style="italic" color="#6b7280">
+  "{{message}}"
+</mj-text>
+{{/if}}
+
+<mj-text padding-bottom="24px">
+  Click the button below to accept the invitation and get started.
+</mj-text>
+
+<mj-button href="{{inviteUrl}}">
+  Accept Invitation
+</mj-button>
+
+{{#if expiresAt}}
+<mj-text align="center" font-size="12px" color="#9ca3af" padding-top="24px">
+  This invitation will expire on {{expiresAt}}.
+</mj-text>
+{{/if}}
+
+<mj-divider border-color="#e5e7eb" padding-top="32px" padding-bottom="16px" />
+
+<mj-text font-size="12px" color="#6b7280">
+  If you didn't expect this invitation, you can safely ignore this email.
+  <br /><br />
+  If the button above doesn't work, copy and paste this URL into your browser:
+  <br />
+  <a href="{{inviteUrl}}" style="color: #4F46E5; word-break: break-all;">{{inviteUrl}}</a>
+</mj-text>
