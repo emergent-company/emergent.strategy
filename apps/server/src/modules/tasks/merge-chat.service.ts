@@ -481,26 +481,26 @@ Help the user decide how to merge these objects. When providing suggestions:
 
 1. Identify which properties differ between the objects
 2. Suggest whether to keep the source value, target value, combine them, or create a new value
-3. Explain your reasoning clearly
+3. Explain your reasoning clearly in natural language
 
 ## Response Format
-When making specific merge suggestions, include a JSON block with this structure:
-\`\`\`json
-{
-  "suggestions": [
-    {
-      "type": "keep_source" | "keep_target" | "combine" | "new_value" | "drop_property",
-      "propertyKey": "property_name",
-      "explanation": "Why this suggestion makes sense",
-      "sourceValue": <value from source>,
-      "targetValue": <value from target>,
-      "suggestedValue": <your recommended value>
-    }
-  ]
-}
-\`\`\`
+IMPORTANT: Write your suggestions in a conversational, natural language format. Do NOT show JSON code blocks to the user.
 
-Be conversational and helpful. You can discuss the merge without always providing structured suggestions.`;
+For each property suggestion, explain in plain language:
+- Which property you're addressing
+- What you recommend (keep source value, keep target value, combine them, or use a new value)
+- Why you're making that recommendation
+
+After your natural language explanation, include a HIDDEN data block for the system to parse.
+The hidden block MUST be placed at the very end of your response and formatted exactly like this:
+
+<!--MERGE_DATA
+{"suggestions":[{"type":"keep_source"|"keep_target"|"combine"|"new_value"|"drop_property","propertyKey":"property_name","explanation":"Brief reason","sourceValue":<value>,"targetValue":<value>,"suggestedValue":<recommended value>}]}
+MERGE_DATA-->
+
+The hidden data block will be automatically parsed to create interactive suggestion cards. Users will NOT see this block - they only see your natural language explanation.
+
+Be conversational and helpful. Focus on clear explanations that help users understand your recommendations.`;
   }
 
   /**
@@ -511,14 +511,20 @@ Be conversational and helpful. You can discuss the merge without always providin
     sourceObject: MergeObjectContext,
     targetObject: MergeObjectContext
   ): ParsedSuggestion[] {
-    // Try to find JSON block in response
+    // Try to find hidden MERGE_DATA block first (new format)
+    const hiddenMatch = response.match(
+      /<!--MERGE_DATA\s*([\s\S]*?)\s*MERGE_DATA-->/
+    );
+    // Fall back to JSON code block (legacy format)
     const jsonMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (!jsonMatch) {
+
+    const matchContent = hiddenMatch?.[1] || jsonMatch?.[1];
+    if (!matchContent) {
       return [];
     }
 
     try {
-      const parsed = JSON.parse(jsonMatch[1].trim());
+      const parsed = JSON.parse(matchContent.trim());
       if (!parsed.suggestions || !Array.isArray(parsed.suggestions)) {
         return [];
       }

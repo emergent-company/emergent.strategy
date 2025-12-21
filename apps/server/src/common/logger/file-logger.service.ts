@@ -2,6 +2,12 @@ import { LoggerService, LogLevel } from '@nestjs/common';
 import { appendFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { resolveLogDir } from './log-path.util';
+import {
+  SeverityNumber,
+  isOtelLogsEnabled,
+  getOtelLoggerProvider,
+} from '../../tracing';
+import { trace } from '@opentelemetry/api';
 
 /**
  * Caller location information extracted from stack trace
@@ -12,6 +18,19 @@ interface CallerInfo {
   column: number; // Column number
   method?: string; // Method/function name if available
 }
+
+/**
+ * Map NestJS log levels to OpenTelemetry severity numbers
+ * https://opentelemetry.io/docs/specs/otel/logs/data-model/#field-severitynumber
+ */
+const SEVERITY_MAP: Record<string, SeverityNumber> = {
+  verbose: SeverityNumber.DEBUG,
+  debug: SeverityNumber.DEBUG,
+  log: SeverityNumber.INFO,
+  warn: SeverityNumber.WARN,
+  error: SeverityNumber.ERROR,
+  fatal: SeverityNumber.FATAL,
+};
 
 /**
  * Custom File Logger for NestJS
@@ -35,6 +54,9 @@ export class FileLogger implements LoggerService {
   private isDevelopment: boolean;
   private isTest: boolean;
   private projectRoot: string;
+  // Debug flags for OTEL logging - only log once
+  private _otelDisabledLogged = false;
+  private _otelEmitLogged = false;
 
   constructor() {
     const baseLogDir = resolveLogDir();
@@ -156,6 +178,70 @@ export class FileLogger implements LoggerService {
     } catch (err) {
       // Swallow file I/O errors to prevent logger from crashing the app
       console.error('FileLogger: Failed to write log:', err);
+    }
+
+    // Also emit to OpenTelemetry if logs export is enabled
+    this.emitOtelLog(level, logEntry.message, context, caller, trace);
+  }
+
+  /**
+   * Emit log to OpenTelemetry for export to SigNoz
+   * This runs in parallel with file logging - failures are silently ignored
+   */
+  private emitOtelLog(
+    level: LogLevel,
+    message: string,
+    context?: string,
+    caller?: CallerInfo,
+    stackTrace?: string
+  ) {
+    if (!isOtelLogsEnabled) {
+      // Debug: Log once if OTEL logs are disabled
+      if (!this._otelDisabledLogged) {
+        console.log(
+          '[FileLogger] OTEL logs disabled, isOtelLogsEnabled:',
+          isOtelLogsEnabled
+        );
+        this._otelDisabledLogged = true;
+      }
+      return;
+    }
+
+    try {
+      // Use the LoggerProvider directly to avoid global provider mismatch issues
+      const loggerProvider = getOtelLoggerProvider();
+      if (!loggerProvider) {
+        return;
+      }
+      const logger = loggerProvider.getLogger('emergent-server');
+      const activeSpan = trace.getActiveSpan();
+      const spanContext = activeSpan?.spanContext();
+
+      // Debug: Log first emit
+      if (!this._otelEmitLogged) {
+        console.log('[FileLogger] First OTEL log emit, logger:', !!logger);
+        this._otelEmitLogged = true;
+      }
+
+      logger.emit({
+        severityNumber: SEVERITY_MAP[level] || SeverityNumber.INFO,
+        severityText: level.toUpperCase(),
+        body: message,
+        attributes: {
+          'log.context': context || 'App',
+          ...(caller?.file && { 'code.filepath': caller.file }),
+          ...(caller?.line && { 'code.lineno': caller.line }),
+          ...(caller?.method && { 'code.function': caller.method }),
+          ...(stackTrace && { 'exception.stacktrace': stackTrace }),
+          // Include trace context for correlation
+          ...(spanContext && {
+            trace_id: spanContext.traceId,
+            span_id: spanContext.spanId,
+          }),
+        },
+      });
+    } catch {
+      // Silently ignore OTEL errors - file logging is the primary path
     }
   }
 

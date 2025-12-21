@@ -67,7 +67,8 @@ type JsonRpcResponse = JsonRpcSuccessResponse | JsonRpcErrorResponse;
 /**
  * MCP Protocol Constants
  */
-const MCP_PROTOCOL_VERSION = '2025-06-18';
+const SUPPORTED_PROTOCOL_VERSIONS = ['2025-06-18', '2025-11-25'];
+const LATEST_PROTOCOL_VERSION = '2025-11-25';
 const SERVER_INFO = {
   name: 'nexus-mcp-server',
   version: '1.0.0',
@@ -399,13 +400,13 @@ You can provide it either:
     }
 
     // Validate protocol version
-    if (params.protocolVersion !== MCP_PROTOCOL_VERSION) {
+    if (!SUPPORTED_PROTOCOL_VERSIONS.includes(params.protocolVersion)) {
       throw {
         code: ErrorCode.INVALID_PARAMS,
         message: `Unsupported protocol version: ${params.protocolVersion}`,
         data: {
           requested: params.protocolVersion,
-          supported: [MCP_PROTOCOL_VERSION],
+          supported: SUPPORTED_PROTOCOL_VERSIONS,
         },
       };
     }
@@ -425,7 +426,7 @@ You can provide it either:
     }
 
     return {
-      protocolVersion: MCP_PROTOCOL_VERSION,
+      protocolVersion: params.protocolVersion, // Echo back the client's version
       capabilities: {
         tools: {
           listChanged: false, // We don't send tool list change notifications yet
