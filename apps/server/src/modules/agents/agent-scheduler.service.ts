@@ -5,6 +5,7 @@ import {
   OnModuleDestroy,
   Optional,
 } from '@nestjs/common';
+import { trace, SpanStatusCode, Tracer } from '@opentelemetry/api';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob } from 'cron';
 import { AgentService } from './agents.service';
@@ -23,6 +24,9 @@ import { LangfuseService } from '../langfuse/langfuse.service';
 export class AgentSchedulerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(AgentSchedulerService.name);
   private readonly runningJobs = new Map<string, boolean>();
+
+  // OpenTelemetry tracer for creating parent spans
+  private readonly tracer: Tracer = trace.getTracer('agent-scheduler');
 
   constructor(
     private readonly schedulerRegistry: SchedulerRegistry,
@@ -150,163 +154,202 @@ export class AgentSchedulerService implements OnModuleInit, OnModuleDestroy {
 
     this.runningJobs.set(id, true);
 
-    const strategy = this.strategyRegistry.get(role);
-    if (!strategy) {
-      this.logger.error(`No strategy for role "${role}"`);
-      this.runningJobs.set(id, false);
-      return;
-    }
+    return this.tracer.startActiveSpan(
+      'agent-scheduler.executeAgent',
+      async (span) => {
+        span.setAttribute('agent.id', id);
+        span.setAttribute('agent.name', name);
+        span.setAttribute('agent.role', role);
 
-    // Re-fetch agent to get latest config
-    const freshAgent = await this.agentService.findById(id);
-    if (!freshAgent || !freshAgent.enabled) {
-      this.logger.debug(`Agent "${name}" is disabled or deleted, skipping`);
-      this.runningJobs.set(id, false);
-      return;
-    }
-
-    // Start the run
-    const run = await this.agentService.startRun(id);
-
-    // Create Langfuse trace for this agent run
-    // Use agent role as trace type for filtering (e.g., 'merge-suggestion')
-    const traceId = this.langfuseService?.createJobTrace(
-      run.id,
-      {
-        name: `Agent: ${name}`,
-        agentId: id,
-        agentRole: role,
-        agentName: name,
-        cronSchedule: freshAgent.cronSchedule,
-      },
-      undefined, // environment (use default)
-      `agent-${role}` // traceType for filtering (e.g., 'agent-merge-suggestion')
-    );
-
-    const context: AgentExecutionContext = {
-      agent: freshAgent,
-      startedAt: run.startedAt,
-      runId: run.id,
-      traceId: traceId ?? undefined,
-    };
-
-    try {
-      // Check if should skip
-      if (strategy.shouldSkip) {
-        const skipSpan = traceId
-          ? this.langfuseService?.createSpan(traceId, 'shouldSkip', {
-              agentId: id,
-            }) ?? null
-          : null;
-
-        const skipReason = await strategy.shouldSkip(context);
-
-        if (skipReason) {
-          this.langfuseService?.endSpan(
-            skipSpan,
-            { skipped: true, reason: skipReason },
-            'success'
-          );
-          if (traceId) {
-            await this.langfuseService?.finalizeTrace(traceId, 'success', {
-              status: 'skipped',
-              skipReason,
-            });
-          }
-
-          this.logger.debug(`Agent "${name}" skipped: ${skipReason}`);
-          await this.agentService.skipRun(run.id, skipReason);
+        const strategy = this.strategyRegistry.get(role);
+        if (!strategy) {
+          this.logger.error(`No strategy for role "${role}"`);
+          span.setStatus({
+            code: SpanStatusCode.ERROR,
+            message: `No strategy for role "${role}"`,
+          });
+          span.end();
           this.runningJobs.set(id, false);
           return;
         }
 
-        this.langfuseService?.endSpan(skipSpan, { skipped: false }, 'success');
-      }
-
-      // Execute the strategy
-      const executeSpan = traceId
-        ? this.langfuseService?.createSpan(traceId, 'execute', {
-            agentId: id,
-            config: freshAgent.config,
-          }) ?? null
-        : null;
-
-      this.logger.debug(`Executing agent "${name}"...`);
-      const result = await strategy.execute(context);
-
-      if (result.skipReason) {
-        this.langfuseService?.endSpan(
-          executeSpan,
-          { skipped: true, reason: result.skipReason },
-          'success'
-        );
-        if (traceId) {
-          await this.langfuseService?.finalizeTrace(traceId, 'success', {
-            status: 'skipped',
-            skipReason: result.skipReason,
-          });
+        // Re-fetch agent to get latest config
+        const freshAgent = await this.agentService.findById(id);
+        if (!freshAgent || !freshAgent.enabled) {
+          this.logger.debug(`Agent "${name}" is disabled or deleted, skipping`);
+          span.setAttribute('agent.skipped', true);
+          span.setAttribute('agent.skip_reason', 'disabled_or_deleted');
+          span.setStatus({ code: SpanStatusCode.OK });
+          span.end();
+          this.runningJobs.set(id, false);
+          return;
         }
 
-        await this.agentService.skipRun(run.id, result.skipReason);
-        this.logger.debug(`Agent "${name}" skipped: ${result.skipReason}`);
-      } else if (result.success) {
-        this.langfuseService?.endSpan(
-          executeSpan,
-          { success: true, summary: result.summary },
-          'success'
-        );
-        if (traceId) {
-          await this.langfuseService?.finalizeTrace(traceId, 'success', {
-            status: 'success',
-            summary: result.summary,
-          });
-        }
+        // Start the run
+        const run = await this.agentService.startRun(id);
+        span.setAttribute('agent.run_id', run.id);
 
-        await this.agentService.completeRun(run.id, result.summary);
-        this.logger.log(
-          `Agent "${name}" completed successfully: ${JSON.stringify(
-            result.summary
-          )}`
-        );
-      } else {
-        this.langfuseService?.endSpan(
-          executeSpan,
-          { success: false, error: result.errorMessage },
-          'error',
-          result.errorMessage
-        );
-        if (traceId) {
-          await this.langfuseService?.finalizeTrace(traceId, 'error', {
-            status: 'error',
-            error: result.errorMessage,
-          });
-        }
-
-        await this.agentService.failRun(
+        // Create Langfuse trace for this agent run
+        // Use agent role as trace type for filtering (e.g., 'merge-suggestion')
+        const traceId = this.langfuseService?.createJobTrace(
           run.id,
-          result.errorMessage || 'Unknown error'
+          {
+            name: `Agent: ${name}`,
+            agentId: id,
+            agentRole: role,
+            agentName: name,
+            cronSchedule: freshAgent.cronSchedule,
+          },
+          undefined, // environment (use default)
+          `agent-${role}` // traceType for filtering (e.g., 'agent-merge-suggestion')
         );
-        this.logger.error(`Agent "${name}" failed: ${result.errorMessage}`);
-      }
-    } catch (error) {
-      const err = error as Error;
 
-      if (traceId) {
-        await this.langfuseService?.finalizeTrace(traceId, 'error', {
-          status: 'error',
-          error: err.message,
-          stack: err.stack,
-        });
-      }
+        const context: AgentExecutionContext = {
+          agent: freshAgent,
+          startedAt: run.startedAt,
+          runId: run.id,
+          traceId: traceId ?? undefined,
+        };
 
-      await this.agentService.failRun(run.id, err.message);
-      this.logger.error(
-        `Agent "${name}" threw error: ${err.message}`,
-        err.stack
-      );
-    } finally {
-      this.runningJobs.set(id, false);
-    }
+        try {
+          // Check if should skip
+          if (strategy.shouldSkip) {
+            const skipSpan = traceId
+              ? this.langfuseService?.createSpan(traceId, 'shouldSkip', {
+                  agentId: id,
+                }) ?? null
+              : null;
+
+            const skipReason = await strategy.shouldSkip(context);
+
+            if (skipReason) {
+              this.langfuseService?.endSpan(
+                skipSpan,
+                { skipped: true, reason: skipReason },
+                'success'
+              );
+              if (traceId) {
+                await this.langfuseService?.finalizeTrace(traceId, 'success', {
+                  status: 'skipped',
+                  skipReason,
+                });
+              }
+
+              this.logger.debug(`Agent "${name}" skipped: ${skipReason}`);
+              await this.agentService.skipRun(run.id, skipReason);
+              span.setAttribute('agent.skipped', true);
+              span.setAttribute('agent.skip_reason', skipReason);
+              span.setStatus({ code: SpanStatusCode.OK });
+              this.runningJobs.set(id, false);
+              return;
+            }
+
+            this.langfuseService?.endSpan(
+              skipSpan,
+              { skipped: false },
+              'success'
+            );
+          }
+
+          // Execute the strategy
+          const executeSpan = traceId
+            ? this.langfuseService?.createSpan(traceId, 'execute', {
+                agentId: id,
+                config: freshAgent.config,
+              }) ?? null
+            : null;
+
+          this.logger.debug(`Executing agent "${name}"...`);
+          const result = await strategy.execute(context);
+
+          if (result.skipReason) {
+            this.langfuseService?.endSpan(
+              executeSpan,
+              { skipped: true, reason: result.skipReason },
+              'success'
+            );
+            if (traceId) {
+              await this.langfuseService?.finalizeTrace(traceId, 'success', {
+                status: 'skipped',
+                skipReason: result.skipReason,
+              });
+            }
+
+            await this.agentService.skipRun(run.id, result.skipReason);
+            this.logger.debug(`Agent "${name}" skipped: ${result.skipReason}`);
+            span.setAttribute('agent.skipped', true);
+            span.setAttribute('agent.skip_reason', result.skipReason);
+            span.setStatus({ code: SpanStatusCode.OK });
+          } else if (result.success) {
+            this.langfuseService?.endSpan(
+              executeSpan,
+              { success: true, summary: result.summary },
+              'success'
+            );
+            if (traceId) {
+              await this.langfuseService?.finalizeTrace(traceId, 'success', {
+                status: 'success',
+                summary: result.summary,
+              });
+            }
+
+            await this.agentService.completeRun(run.id, result.summary);
+            this.logger.log(
+              `Agent "${name}" completed successfully: ${JSON.stringify(
+                result.summary
+              )}`
+            );
+            span.setAttribute('agent.success', true);
+            span.setStatus({ code: SpanStatusCode.OK });
+          } else {
+            this.langfuseService?.endSpan(
+              executeSpan,
+              { success: false, error: result.errorMessage },
+              'error',
+              result.errorMessage
+            );
+            if (traceId) {
+              await this.langfuseService?.finalizeTrace(traceId, 'error', {
+                status: 'error',
+                error: result.errorMessage,
+              });
+            }
+
+            await this.agentService.failRun(
+              run.id,
+              result.errorMessage || 'Unknown error'
+            );
+            this.logger.error(`Agent "${name}" failed: ${result.errorMessage}`);
+            span.setAttribute('agent.success', false);
+            span.setStatus({
+              code: SpanStatusCode.ERROR,
+              message: result.errorMessage || 'Unknown error',
+            });
+          }
+        } catch (error) {
+          const err = error as Error;
+
+          if (traceId) {
+            await this.langfuseService?.finalizeTrace(traceId, 'error', {
+              status: 'error',
+              error: err.message,
+              stack: err.stack,
+            });
+          }
+
+          await this.agentService.failRun(run.id, err.message);
+          this.logger.error(
+            `Agent "${name}" threw error: ${err.message}`,
+            err.stack
+          );
+          span.setStatus({ code: SpanStatusCode.ERROR, message: err.message });
+          span.recordException(err);
+        } finally {
+          span.end();
+          this.runningJobs.set(id, false);
+        }
+      }
+    );
   }
 
   /**
