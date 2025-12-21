@@ -537,6 +537,60 @@ The workspace MCP loads environment variables from multiple sources (later overr
 
 Use `get_config` to see which env files were loaded and their values (secrets masked by default).
 
+### Using SigNoz MCP
+
+The SigNoz MCP server provides AI assistants access to observability data including traces, logs, metrics, and alerts from the SigNoz platform.
+
+**Endpoint:** `http://localhost:8001/mcp`
+
+**Available Tools:**
+
+| Tool                                | Description          | Example                               |
+| ----------------------------------- | -------------------- | ------------------------------------- |
+| `signoz_list_services`              | List traced services | "What services are in SigNoz?"        |
+| `signoz_list_alerts`                | Get active alerts    | "Are there any alerts?"               |
+| `signoz_get_alert`                  | Get alert details    | "Get details for alert abc123"        |
+| `signoz_get_alert_history`          | Get alert timeline   | "Show alert history for rule xyz"     |
+| `signoz_get_error_logs`             | Get ERROR/FATAL logs | "Show error logs from the last hour"  |
+| `signoz_search_logs_by_service`     | Search logs          | "Search server logs for 'connection'" |
+| `signoz_search_traces_by_service`   | Search traces        | "Find slow traces for server"         |
+| `signoz_get_trace_details`          | Full trace info      | "Get details for trace abc123"        |
+| `signoz_get_trace_error_analysis`   | Error patterns       | "Analyze trace errors"                |
+| `signoz_get_trace_span_hierarchy`   | Span relationships   | "Show span hierarchy for trace xyz"   |
+| `signoz_list_dashboards`            | List dashboards      | "What dashboards exist?"              |
+| `signoz_get_dashboard`              | Get dashboard config | "Get the Host Metrics dashboard"      |
+| `signoz_list_metric_keys`           | List all metrics     | "What metrics are available?"         |
+| `signoz_search_metric_by_text`      | Search metrics       | "Find CPU metrics"                    |
+| `signoz_get_service_top_operations` | Top operations       | "What are top ops for server?"        |
+| `signoz_execute_builder_query`      | Execute queries      | "Run this Query Builder query"        |
+
+**Time Range Parameters:**
+
+Most tools accept a `timeRange` parameter:
+
+- `'30m'` - Last 30 minutes
+- `'2h'` - Last 2 hours
+- `'6h'` - Last 6 hours (default)
+- `'2d'` - Last 2 days
+- `'7d'` - Last 7 days
+
+**Example Queries:**
+
+- "Show me services in SigNoz from the last 2 hours"
+- "Get error logs for emergent-server"
+- "Find traces with errors in the server service"
+- "What are the top operations for emergent-server?"
+- "Show me the alert history for the last day"
+- "List all dashboards in SigNoz"
+- "Search for slow traces over 5 seconds"
+
+**Configuration:**
+
+The SigNoz MCP server runs as a Docker container in the SigNoz stack (`/root/emergent-infra/signoz/`). Configuration is in `.env`:
+
+- `SIGNOZ_API_KEY` - API key from SigNoz UI (Settings → API Keys)
+- `MCP_SERVER_PORT` - External port (default: 8001)
+
 ## 7. Database Queries
 
 When using the Postgres MCP server to query the database, **always consult the schema context first** to avoid trial-and-error queries.

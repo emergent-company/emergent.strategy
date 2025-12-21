@@ -72,6 +72,15 @@
     "api-client": {
       "type": "local",
       "command": ["npx", "tsx", "tools/api-client-mcp/src/index.ts"]
+    },
+    "signoz": {
+      "type": "local",
+      "command": ["./tools/bin/signoz-mcp-server"],
+      "environment": {
+        "SIGNOZ_URL": "http://localhost:3301",
+        "SIGNOZ_API_KEY": "[REDACTED_SIGNOZ_API_KEY]",
+        "LOG_LEVEL": "info"
+      }
     }
     // ,
     // "nx-mcp": {
