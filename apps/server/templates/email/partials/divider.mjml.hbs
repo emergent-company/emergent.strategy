@@ -1,0 +1,10 @@
+{{!--
+  Divider partial for visual separation
+  Usage: {{> divider}}
+  
+  Parameters:
+  - color: Optional border color (defaults to #e5e7eb)
+  - paddingTop: Optional top padding (defaults to 24px)
+  - paddingBottom: Optional bottom padding (defaults to 16px)
+--}}
+<mj-divider border-color="{{#if color}}{{color}}{{else}}#e5e7eb{{/if}}" padding-top="{{#if paddingTop}}{{paddingTop}}{{else}}24px{{/if}}" padding-bottom="{{#if paddingBottom}}{{paddingBottom}}{{else}}16px{{/if}}" />

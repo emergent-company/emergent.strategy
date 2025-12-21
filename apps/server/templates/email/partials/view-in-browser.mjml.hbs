@@ -1,0 +1,11 @@
+{{!--
+  View in browser link partial
+  Usage: {{> view-in-browser url="https://example.com/releases/v2024.12.19"}}
+  
+  Parameters:
+  - url: URL to view the content in browser (required)
+  - text: Optional link text (defaults to "View in browser")
+--}}
+<mj-text align="center" font-size="12px" color="#6b7280" padding-top="16px">
+  <a href="{{url}}" style="color: #4F46E5;">{{#if text}}{{text}}{{else}}View in browser{{/if}}</a>
+</mj-text>

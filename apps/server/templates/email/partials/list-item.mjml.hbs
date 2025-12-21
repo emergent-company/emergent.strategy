@@ -1,0 +1,12 @@
+{{!--
+  List item partial for bullet-pointed content
+  Usage: {{> list-item text="Feature description" bullet="•"}}
+  
+  Parameters:
+  - text: List item text (required)
+  - bullet: Optional bullet character (defaults to •)
+  - bold: Optional bold text to prepend
+--}}
+<mj-text padding-bottom="8px" padding-left="16px">
+  {{#if bullet}}{{bullet}}{{else}}•{{/if}} {{#if bold}}<strong>{{bold}}</strong> — {{/if}}{{text}}
+</mj-text>
