@@ -66,29 +66,52 @@ const createMockZitadelService = () =>
     getUserProjectRoles: vi.fn(),
   } as any);
 
+// Mock EmailService
+const createMockEmailService = () =>
+  ({
+    isEnabled: vi.fn(() => false),
+    sendTemplatedEmail: vi.fn().mockResolvedValue({ jobId: 'mock-job-id' }),
+    getJobStatus: vi.fn(),
+    getJobsBySource: vi.fn(),
+    getQueueStats: vi.fn(),
+    listTemplates: vi.fn(),
+  } as any);
+
 describe('InvitesService', () => {
   let inviteRepo: any;
   let userProfileRepo: any;
+  let userEmailRepo: any;
   let projectMembershipRepo: any;
   let orgMembershipRepo: any;
+  let projectRepo: any;
+  let orgRepo: any;
   let dataSource: FakeDataSource;
   let zitadel: any;
+  let emailService: any;
   let service: InvitesService;
 
   beforeEach(() => {
     inviteRepo = createMockRepository();
     userProfileRepo = createMockRepository();
+    userEmailRepo = createMockRepository();
     projectMembershipRepo = createMockRepository();
     orgMembershipRepo = createMockRepository();
+    projectRepo = createMockRepository();
+    orgRepo = createMockRepository();
     dataSource = new FakeDataSource([]);
     zitadel = createMockZitadelService();
+    emailService = createMockEmailService();
     service = new InvitesService(
       inviteRepo,
       userProfileRepo,
+      userEmailRepo,
       projectMembershipRepo,
       orgMembershipRepo,
+      projectRepo,
+      orgRepo,
       dataSource as any,
-      zitadel
+      zitadel,
+      emailService
     );
   });
 
@@ -222,26 +245,38 @@ describe('InvitesService', () => {
 describe('InvitesService - createWithUser (Zitadel Integration)', () => {
   let inviteRepo: any;
   let userProfileRepo: any;
+  let userEmailRepo: any;
   let projectMembershipRepo: any;
   let orgMembershipRepo: any;
+  let projectRepo: any;
+  let orgRepo: any;
   let dataSource: FakeDataSource;
   let zitadel: any;
+  let emailService: any;
   let service: InvitesService;
 
   beforeEach(() => {
     inviteRepo = createMockRepository();
     userProfileRepo = createMockRepository();
+    userEmailRepo = createMockRepository();
     projectMembershipRepo = createMockRepository();
     orgMembershipRepo = createMockRepository();
+    projectRepo = createMockRepository();
+    orgRepo = createMockRepository();
     dataSource = new FakeDataSource([]);
     zitadel = createMockZitadelService();
+    emailService = createMockEmailService();
     service = new InvitesService(
       inviteRepo,
       userProfileRepo,
+      userEmailRepo,
       projectMembershipRepo,
       orgMembershipRepo,
+      projectRepo,
+      orgRepo,
       dataSource as any,
-      zitadel
+      zitadel,
+      emailService
     );
   });
 
