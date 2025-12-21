@@ -1,0 +1,378 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "North Star Schema",
+  "description": "Defines the structure for documenting organizational strategic foundation - the enduring context that informs all EPF cycles.",
+  "type": "object",
+  "properties": {
+    "north_star": {
+      "type": "object",
+      "properties": {
+        "organization": {
+          "type": "string",
+          "description": "Organization name"
+        },
+        "last_reviewed": {
+          "type": "string",
+          "format": "date",
+          "description": "Date of last review"
+        },
+        "next_review": {
+          "type": "string",
+          "format": "date",
+          "description": "Scheduled next review date"
+        },
+        "version": {
+          "type": "string",
+          "description": "Document version"
+        },
+        "purpose": {
+          "type": "object",
+          "properties": {
+            "statement": {
+              "type": "string",
+              "description": "Clear, inspiring statement of why the organization exists"
+            },
+            "problem_we_solve": {
+              "type": "string",
+              "description": "The fundamental problem being addressed"
+            },
+            "who_we_serve": {
+              "type": "string",
+              "description": "Broadest definition of beneficiaries"
+            },
+            "impact_we_seek": {
+              "type": "string",
+              "description": "Ultimate change desired in the world"
+            }
+          },
+          "required": ["statement", "problem_we_solve", "who_we_serve", "impact_we_seek"]
+        },
+        "vision": {
+          "type": "object",
+          "properties": {
+            "vision_statement": {
+              "type": "string",
+              "description": "Vivid picture of the future (5-10 years)"
+            },
+            "timeframe": {
+              "type": "string",
+              "description": "Vision timeframe"
+            },
+            "success_looks_like": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Observable indicators of vision achievement"
+            },
+            "not_the_vision": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Clarifications on what we're NOT trying to become"
+            }
+          },
+          "required": ["vision_statement", "timeframe", "success_looks_like"]
+        },
+        "mission": {
+          "type": "object",
+          "properties": {
+            "mission_statement": {
+              "type": "string",
+              "description": "Clear statement of WHAT we do and FOR WHOM"
+            },
+            "what_we_do": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Core activities"
+            },
+            "how_we_deliver": {
+              "type": "object",
+              "properties": {
+                "approach": {
+                  "type": "string",
+                  "description": "Distinctive approach or methodology"
+                },
+                "key_capabilities": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "who_we_serve_specifically": {
+              "type": "string",
+              "description": "Specific segments, roles, or personas"
+            },
+            "boundaries": {
+              "type": "object",
+              "properties": {
+                "we_dont_do": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "why_not": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "required": ["mission_statement", "what_we_do"]
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "string",
+                "description": "Value name"
+              },
+              "definition": {
+                "type": "string",
+                "description": "What this value means in practice"
+              },
+              "behaviors_we_expect": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "behaviors_we_reject": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "example_decision": {
+                "type": "string",
+                "description": "Concrete example of value in action"
+              }
+            },
+            "required": ["value", "definition", "behaviors_we_expect"]
+          }
+        },
+        "value_conflicts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "tension": {
+                "type": "string"
+              },
+              "resolution_principle": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "core_beliefs": {
+          "type": "object",
+          "properties": {
+            "about_our_market": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "belief": {
+                    "type": "string"
+                  },
+                  "implication": {
+                    "type": "string"
+                  },
+                  "evidence": {
+                    "type": "string"
+                  }
+                },
+                "required": ["belief", "implication"]
+              }
+            },
+            "about_our_users": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "belief": {
+                    "type": "string"
+                  },
+                  "implication": {
+                    "type": "string"
+                  },
+                  "evidence": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "about_our_approach": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "belief": {
+                    "type": "string"
+                  },
+                  "implication": {
+                    "type": "string"
+                  },
+                  "evidence": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "about_value_creation": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "belief": {
+                    "type": "string"
+                  },
+                  "implication": {
+                    "type": "string"
+                  },
+                  "evidence": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "about_competition": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "belief": {
+                    "type": "string"
+                  },
+                  "implication": {
+                    "type": "string"
+                  },
+                  "evidence": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "belief_challenges": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "belief": {
+                    "type": "string"
+                  },
+                  "counter_evidence": {
+                    "type": "string"
+                  },
+                  "monitoring": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "alignment_checks": {
+          "type": "object",
+          "properties": {
+            "purpose_vision_alignment": {
+              "type": "string"
+            },
+            "mission_purpose_alignment": {
+              "type": "string"
+            },
+            "values_mission_alignment": {
+              "type": "string"
+            },
+            "beliefs_inform_strategy": {
+              "type": "string"
+            }
+          }
+        },
+        "evolution_history": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": "string",
+                "format": "date"
+              },
+              "what_changed": {
+                "type": "string"
+              },
+              "why": {
+                "type": "string"
+              },
+              "impact": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "next_review_triggers": {
+          "type": "object",
+          "properties": {
+            "scheduled": {
+              "type": "string"
+            },
+            "event_based": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "required": ["organization", "purpose", "vision", "mission", "values"]
+    },
+    "informs_ready_phase": {
+      "type": "object",
+      "properties": {
+        "insight_analyses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "opportunity": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "strategy_foundations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "strategy_formula": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "roadmap": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "usage_guidance": {
+      "type": "string"
+    }
+  },
+  "required": ["north_star"]
+}

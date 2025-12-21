@@ -30,6 +30,110 @@
 
 ---
 
+### 🤖 AI Agent Pre-Action Checklist (MANDATORY)
+
+**Before creating, modifying, or documenting ANYTHING in the canonical EPF repository, AI agents MUST verify:**
+
+#### Step 1: Confirm Repository Context
+```bash
+# Am I in the canonical EPF repository?
+pwd  # Should be: /Users/nikolaifasting/code/EPF
+     # If in product repo (twentyfirst, emergent, etc.) → Instance-specific content ALLOWED
+```
+
+#### Step 2: Check for Instance-Specific Content
+```bash
+# Does my content mention specific products?
+echo "proposed content" | grep -E "twentyfirst|huma-blueprint|lawmatics|emergent|<other-product-names>"
+# If match found → STOP! This violates purity rules
+```
+
+#### Step 3: Validate Content Type
+**Ask yourself:**
+- [ ] Is this a validation report or result? → ❌ Belongs in product repo
+- [ ] Does this contain product-specific examples? → ❌ Use fictional examples (AcmeCorp, ExampleProduct)
+- [ ] Does this reference specific organizations/teams? → ❌ Keep generic
+- [ ] Could this apply to ANY product/organization? → ✅ Can proceed if generic
+
+#### Step 4: Determine Correct Location
+**Decision Tree:**
+```
+Is content instance-specific? (mentions real products, validation results, etc.)
+  ├─ YES → Create in: /path/to/<product-repo>/docs/
+  │         Example: /Users/nikolaifasting/code/twentyfirst/docs/EPF_VALIDATION_REPORT.md
+  │
+  └─ NO → Is it framework-level documentation/templates?
+           ├─ YES → Allowed in canonical EPF
+           │         Check: Uses only generic examples/language
+           │
+           └─ NO → STOP and ask: Where does this truly belong?
+```
+
+#### Step 5: Final Verification
+Before committing ANY file in canonical EPF:
+- [ ] File contains NO real product names
+- [ ] File contains NO validation results for specific products
+- [ ] File contains NO organization-specific references
+- [ ] File uses fictional examples if examples are needed
+- [ ] File could be used as-is by any product/organization
+
+**If ANY checkbox is unchecked → STOP and move content to product repository.**
+
+### 📋 Common Violations & Corrections (Learn from Past Mistakes)
+
+#### Violation 1: Validation Reports in Canonical EPF
+```markdown
+❌ WRONG: /Users/nikolaifasting/code/EPF/docs/EPF_v1.12.0_VALIDATION_COMPLETE.md
+Content: "twentyfirst: 45/45 checks passed, emergent: 45/45 checks passed..."
+Why wrong: Mentions real product names, contains instance validation results
+
+✅ CORRECT: /Users/nikolaifasting/code/twentyfirst/docs/EPF_VALIDATION_REPORT.md
+Content: "EPF v1.12.0 validation for this product: 45/45 checks passed..."
+Why correct: Instance data lives in instance repository
+```
+
+#### Violation 2: Product-Specific Examples in Framework Docs
+```markdown
+❌ WRONG (in canonical EPF documentation):
+"For example, in the twentyfirst instance, we define group structures..."
+
+✅ CORRECT (in canonical EPF documentation):
+"For example, in a portfolio management product, you might define group structures..."
+or
+"For example, in the AcmeCorp instance, we define group structures..."
+```
+
+#### Violation 3: Screenshots Showing Real Products
+```markdown
+❌ WRONG: Screenshot showing twentyfirst UI in EPF framework docs
+✅ CORRECT: Generic mockup, wireframe, or fictional product screenshot
+✅ CORRECT: Screenshot placed in product repo's documentation
+```
+
+### 🔍 Quick Reference: Framework vs Instance Content
+
+| Content Type | Canonical EPF | Product Repo | Example |
+|--------------|---------------|--------------|---------|
+| Templates | ✅ YES | ❌ NO (use from EPF) | `templates/READY/02_strategy_foundations.yaml` |
+| Schemas | ✅ YES | ❌ NO (use from EPF) | `schemas/feature_definition_schema.json` |
+| Validation Scripts | ✅ YES | ❌ NO (use from EPF) | `scripts/health-check.sh` |
+| Generic Documentation | ✅ YES | ✅ YES (product-specific) | Framework: `docs/MAINTENANCE.md`, Product: `docs/SETUP.md` |
+| Feature Definitions | ❌ NO | ✅ YES | Product: `_instances/<product>/FIRE/fd-001.yaml` |
+| Validation Reports | ❌ NO | ✅ YES | Product: `docs/EPF_VALIDATION_REPORT.md` |
+| Product-Specific Examples | ❌ NO | ✅ YES | Product: `docs/examples/group-structures.md` |
+| Real Product Names | ❌ NEVER | ✅ YES | Product: `_meta.yaml` → `product_name: "twentyfirst"` |
+
+**GOLDEN RULE:** If it mentions a real product, it belongs in that product's repo, NOT in canonical EPF.
+
+### 📚 Additional Resources
+
+**For comprehensive AI agent guidance, see:**
+- [`CANONICAL_PURITY_RULES.md`](./CANONICAL_PURITY_RULES.md) - Detailed rules, examples, and decision trees
+- [`README.md`](./README.md) - Quick overview and warning section
+- [`_instances/README.md`](./_instances/README.md) - Instance structure guidelines
+
+---
+
 ## 🔢 Versioning Convention
 
 EPF uses **Semantic Versioning (SemVer)** for both the framework and instances, with clear rules for when to increment each part.
@@ -44,7 +148,7 @@ The EPF framework version is tracked in `README.md` and `MAINTENANCE.md`.
 | **MINOR (Y)** | New features, new artifact types, new optional fields, new wizards. Backward-compatible additions that enhance capability. | v1.9.0 → v1.10.0: Add new agent prompt |
 | **PATCH (Z)** | Bug fixes, documentation improvements, schema clarifications, typo fixes. No structural changes. | v1.9.3 → v1.9.4: Fix schema validation issue |
 
-**Current Framework Version:** v1.11.0
+**Current Framework Version:** v1.13.0
 
 **Version History Convention:**
 - Document version changes in `README.md` under "What's New in vX.Y.Z"
@@ -170,6 +274,160 @@ The health check validates:
 **Version:** 1.0  
 **Purpose:** Ensure all changes to the EPF repository maintain internal consistency, alignment with the framework philosophy, and proper traceability.
 
+---
+
+## 📦 Instance Structure Migration
+
+### When to Migrate
+
+Instances may need structural updates when:
+- The EPF framework introduces new required folders or artifacts
+- Health checks report warnings about missing instance structure
+- A new EPF version adds recommended organizational patterns
+- Instances were created before the complete structure was standardized
+
+### Complete Instance Structure
+
+All EPF instances should follow this directory structure:
+
+```
+_instances/{product-name}/
+├── _meta.yaml                    # Instance metadata (version, product info)
+├── README.md                     # Instance overview and guidance
+├── READY/                        # Strategy phase artifacts
+│   ├── 00-north-star.yaml
+│   ├── 01-insights-opportunities.yaml
+│   ├── 02-gap-analysis.yaml
+│   ├── 03-strategies.yaml
+│   ├── 04-roadmap-recipe.yaml
+│   └── 05-okrs.yaml
+├── FIRE/                         # Execution phase artifacts
+│   ├── feature_definitions/      # Feature definitions (fd-*)
+│   ├── value_models/             # Value modeling artifacts
+│   └── workflows/                # Workflow definitions
+├── AIM/                          # Assessment phase artifacts
+│   └── assessment_reports/       # Cycle assessments
+├── ad-hoc-artifacts/             # Unstructured work products
+│   └── README.md                 # Guidelines for ad-hoc content
+├── context-sheets/               # Context documentation
+├── cycles/                       # Archived completed cycles
+│   ├── cycle-001/
+│   ├── cycle-002/
+│   └── ...
+```
+
+### Migration Process
+
+#### Step 1: Check Current Structure
+
+Run the EPF health check to identify missing folders:
+
+```bash
+cd /path/to/product-repo
+./docs/EPF/scripts/epf-health-check.sh
+```
+
+Look for warnings like:
+```
+⚠️  Instance Validation: Missing folders: FIRE, AIM
+```
+
+#### Step 2: Add Missing Folders
+
+Use the `--update` flag to safely add missing folders to an existing instance:
+
+```bash
+./docs/EPF/scripts/create-instance-structure.sh --update {product-name}
+```
+
+**What happens during migration:**
+- ✅ Creates any missing folders from the complete structure
+- ✅ Adds `.gitkeep` files to empty folders for git tracking
+- ✅ Adds `ad-hoc-artifacts/README.md` template if missing
+- ✅ Preserves all existing files (_meta.yaml, README.md, artifacts)
+- ✅ Reports exactly what was added vs. what was skipped
+- ✅ Provides appropriate commit instructions
+
+**Example Output:**
+```
+Update mode: Adding missing folders to existing instance
+✅ Added directories:
+   + AIM
+   + ad-hoc-artifacts
+   + cycles
+
+ℹ️  Skipped existing directories:
+   ✓ READY (already exists)
+   ✓ FIRE (already exists)
+   ...
+
+🎉 Instance updated successfully! Added 3 missing folder(s).
+```
+
+#### Step 3: Commit Changes
+
+Follow the commit instructions provided by the script:
+
+```bash
+git add docs/EPF/_instances/{product-name}
+git commit -m "EPF: Update {product-name} instance with missing folders"
+git push
+```
+
+#### Step 4: Verify Completion
+
+Run the health check again to confirm all warnings are resolved:
+
+```bash
+./docs/EPF/scripts/epf-health-check.sh
+```
+
+Expected result:
+```
+Passed:          45
+Warnings:        0
+Errors:          0
+
+━━━ ALL HEALTH CHECKS PASSED ━━━
+```
+
+### Safety Guarantees
+
+The migration process is designed to be completely safe:
+
+1. **Non-Destructive:** Only adds folders, never removes or overwrites
+2. **Preserves Existing Files:** Skips `_meta.yaml`, `README.md`, and all artifacts
+3. **Idempotent:** Can run multiple times safely (will skip what exists)
+4. **Clear Reporting:** Shows exactly what changed and what was preserved
+5. **Validation:** Health checks confirm structure before and after
+
+### Migration Best Practices
+
+- **Run health checks first** to understand what's missing
+- **Review the update output** before committing
+- **Commit promptly** after successful migration
+- **Document any manual changes** needed in instance README
+- **Verify with health check** after committing
+- **Update `_meta.yaml`** `epf_version` if migrating to new framework version
+
+### Troubleshooting
+
+**Problem:** Script reports "Instance does not exist"  
+**Solution:** Remove `--update` flag to create new instance, or check product name spelling
+
+**Problem:** Folders exist but health check still warns  
+**Solution:** Ensure folders are committed to git (`.gitkeep` files should exist)
+
+**Problem:** Script reports errors during creation  
+**Solution:** Check write permissions, ensure you're in product repo with `docs/EPF/` subtree
+
+### Related Documentation
+
+- [Health Check Enhancement](docs/HEALTH_CHECK_ENHANCEMENT.md) - Structural validation details
+- [Create Instance Structure Script](scripts/create-instance-structure.sh) - Implementation details
+
+---
+
 ## 🔒 Core Principle
 
 **Every change to the EPF repository MUST be followed by a comprehensive consistency check across all artifacts, schemas, and documentation.**
@@ -198,18 +456,18 @@ After ANY modification to EPF files, **ALWAYS** run through this complete checkl
 **Check:** Do all YAML artifacts validate against their corresponding schemas?
 
 **Files to Review (EPF v1.9.4):**
-- [ ] `phases/READY/00_north_star.yaml` ↔ `schemas/north_star_schema.json` *(schema TBD)*
-- [ ] `phases/READY/01_insight_analyses.yaml` ↔ `schemas/insight_analyses_schema.json` *(schema TBD)*
-- [ ] `phases/READY/02_strategy_foundations.yaml` ↔ `schemas/strategy_foundations_schema.json` *(schema TBD)*
-- [ ] `phases/READY/03_insight_opportunity.yaml` ↔ `schemas/insight_opportunity_schema.json`
-- [ ] `phases/READY/04_strategy_formula.yaml` ↔ `schemas/strategy_formula_schema.json`
-- [ ] `phases/READY/05_roadmap_recipe.yaml` ↔ `schemas/roadmap_recipe_schema.json`
-- [ ] `phases/FIRE/value_models/*.yaml` ↔ `schemas/value_model_schema.json`
-- [ ] `phases/FIRE/feature_definitions/*.yaml` ↔ `schemas/feature_definition_schema.json`
-- [ ] `phases/FIRE/workflows/*.yaml` ↔ `schemas/workflow_schema.json`
-- [ ] `phases/FIRE/mappings.yaml` ↔ `schemas/mappings_schema.json`
-- [ ] `phases/AIM/assessment_report.yaml` ↔ `schemas/assessment_report_schema.json`
-- [ ] `phases/AIM/calibration_memo.yaml` ↔ `schemas/calibration_memo_schema.json`
+- [ ] `templates/READY/00_north_star.yaml` ↔ `schemas/north_star_schema.json` *(schema TBD)*
+- [ ] `templates/READY/01_insight_analyses.yaml` ↔ `schemas/insight_analyses_schema.json` *(schema TBD)*
+- [ ] `templates/READY/02_strategy_foundations.yaml` ↔ `schemas/strategy_foundations_schema.json` *(schema TBD)*
+- [ ] `templates/READY/03_insight_opportunity.yaml` ↔ `schemas/insight_opportunity_schema.json`
+- [ ] `templates/READY/04_strategy_formula.yaml` ↔ `schemas/strategy_formula_schema.json`
+- [ ] `templates/READY/05_roadmap_recipe.yaml` ↔ `schemas/roadmap_recipe_schema.json`
+- [ ] `templates/FIRE/value_models/*.yaml` ↔ `schemas/value_model_schema.json`
+- [ ] `templates/FIRE/feature_definitions/*.yaml` ↔ `schemas/feature_definition_schema.json`
+- [ ] `templates/FIRE/workflows/*.yaml` ↔ `schemas/workflow_schema.json`
+- [ ] `templates/FIRE/mappings.yaml` ↔ `schemas/mappings_schema.json`
+- [ ] `templates/AIM/assessment_report.yaml` ↔ `schemas/assessment_report_schema.json`
+- [ ] `templates/AIM/calibration_memo.yaml` ↔ `schemas/calibration_memo_schema.json`
 
 **Actions:**
 - If artifact structure changes, update the schema
@@ -266,8 +524,8 @@ After ANY modification to EPF files, **ALWAYS** run through this complete checkl
     ↓ drives
 05_roadmap_recipe.yaml (cycle roadmap)
     ↓ assessed by
-phases/AIM/assessment_report.yaml (roadmap_id)
-phases/AIM/calibration_memo.yaml (roadmap_id)
+templates/AIM/assessment_report.yaml (roadmap_id)
+templates/AIM/calibration_memo.yaml (roadmap_id)
 ```
 
 **Within Track-Based Roadmap:**
@@ -278,7 +536,7 @@ tracks.product.riskiest_assumptions[].linked_to_kr[] (asm-p-001 → kr-p-001)
 
 tracks.product.solution_scaffold.key_components[].maps_to_value_model
     ↓
-phases/FIRE/value_models/product.value_model.yaml (L2 components)
+templates/FIRE/value_models/product.value_model.yaml (L2 components)
 
 cross_track_dependencies[] (kr-c-001 depends on kr-p-001)
 ```
@@ -402,7 +660,7 @@ echo "All KR references are valid"
   - Updated workflow instructions
   - No references to deprecated files
   
-- [ ] `phases/READY/_legacy/README.md`
+- [ ] `templates/READY/_legacy/README.md`
   - Clearly explains why files are deprecated
   - Lists what replaced them
   
@@ -673,7 +931,7 @@ epf/
   NORTH_STAR.md
   STRATEGY_FOUNDATIONS.md
   TRACK_BASED_ROADMAP.md
-  phases/
+  templates/
     READY/
     FIRE/
     AIM/
@@ -689,7 +947,7 @@ docs/
   EPF/                      # ← Git subtree from epf repo
     README.md
     MAINTENANCE.md
-    phases/
+    templates/
     schemas/
     wizards/
     _instances/             # ← Product-specific, NOT synced back
@@ -701,7 +959,7 @@ docs/
 
 ### Key Principle
 
-- **Framework files** (phases/, schemas/, wizards/, docs/) are synced across all repos via git subtree
+- **Framework files** (templates/, schemas/, wizards/, docs/) are synced across all repos via git subtree
 - **Instance files** (`_instances/`) are product-specific and never synced to the EPF repo
 - Changes to the framework can be made in any product repo and pushed back to the EPF repo
 
@@ -854,7 +1112,7 @@ _instances/*
 **Recommended Workflow:**
 1. Use `sync-repos.sh init` to create the instance folder and .gitignore
 2. Use `create-instance-structure.sh` to build the complete directory structure
-3. Copy strategy templates from `phases/READY/` to your instance
+3. Copy strategy templates from `templates/READY/` to your instance
 4. Start filling in your strategy documents
 
 #### Sync Status Check
@@ -1163,7 +1421,7 @@ docs/EPF/
 ├── STRATEGY_FOUNDATIONS.md   # Strategic foundations guide
 ├── TRACK_BASED_ROADMAP.md    # Track-based roadmap methodology
 │
-├── phases/
+├── templates/
 │   ├── READY/                # Strategy & Planning phase
 │   │   ├── 00_north_star.yaml
 │   │   ├── 01_insight_analyses.yaml
@@ -1262,21 +1520,21 @@ mkdir -p docs/EPF/_instances/{product-name}/context-sheets
 mkdir -p docs/EPF/_instances/{product-name}/cycles
 
 # Copy READY phase template files
-cp docs/EPF/phases/READY/00_north_star.yaml docs/EPF/_instances/{product-name}/READY/
-cp docs/EPF/phases/READY/01_insight_analyses.yaml docs/EPF/_instances/{product-name}/READY/
-cp docs/EPF/phases/READY/02_strategy_foundations.yaml docs/EPF/_instances/{product-name}/READY/
-cp docs/EPF/phases/READY/03_insight_opportunity.yaml docs/EPF/_instances/{product-name}/READY/
-cp docs/EPF/phases/READY/04_strategy_formula.yaml docs/EPF/_instances/{product-name}/READY/
-cp docs/EPF/phases/READY/05_roadmap_recipe.yaml docs/EPF/_instances/{product-name}/READY/
+cp docs/EPF/templates/READY/00_north_star.yaml docs/EPF/_instances/{product-name}/READY/
+cp docs/EPF/templates/READY/01_insight_analyses.yaml docs/EPF/_instances/{product-name}/READY/
+cp docs/EPF/templates/READY/02_strategy_foundations.yaml docs/EPF/_instances/{product-name}/READY/
+cp docs/EPF/templates/READY/03_insight_opportunity.yaml docs/EPF/_instances/{product-name}/READY/
+cp docs/EPF/templates/READY/04_strategy_formula.yaml docs/EPF/_instances/{product-name}/READY/
+cp docs/EPF/templates/READY/05_roadmap_recipe.yaml docs/EPF/_instances/{product-name}/READY/
 
 # Copy FIRE phase template files
-cp docs/EPF/phases/FIRE/mappings.yaml docs/EPF/_instances/{product-name}/FIRE/
-cp -r docs/EPF/phases/FIRE/value_models/* docs/EPF/_instances/{product-name}/FIRE/value_models/
-cp -r docs/EPF/phases/FIRE/workflows/* docs/EPF/_instances/{product-name}/FIRE/workflows/
+cp docs/EPF/templates/FIRE/mappings.yaml docs/EPF/_instances/{product-name}/FIRE/
+cp -r docs/EPF/templates/FIRE/value_models/* docs/EPF/_instances/{product-name}/FIRE/value_models/
+cp -r docs/EPF/templates/FIRE/workflows/* docs/EPF/_instances/{product-name}/FIRE/workflows/
 
 # Copy AIM phase template files
-cp docs/EPF/phases/AIM/assessment_report.yaml docs/EPF/_instances/{product-name}/AIM/
-cp docs/EPF/phases/AIM/calibration_memo.yaml docs/EPF/_instances/{product-name}/AIM/
+cp docs/EPF/templates/AIM/assessment_report.yaml docs/EPF/_instances/{product-name}/AIM/
+cp docs/EPF/templates/AIM/calibration_memo.yaml docs/EPF/_instances/{product-name}/AIM/
 ```
 
 Then guide user to fill in product-specific content, starting with `READY/00_north_star.yaml`.
