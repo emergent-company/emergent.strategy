@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageContainer } from '@/components/layouts';
 import { Icon } from '@/components/atoms/Icon';
+import { Spinner } from '@/components/atoms/Spinner';
 import { Avatar } from '@/components/atoms/Avatar';
 import { useApi } from '@/hooks/use-api';
 import { useConfig } from '@/contexts/config';
@@ -108,7 +109,7 @@ function MemberRow({
           title={isCurrentUser ? 'Leave project' : 'Remove member'}
         >
           {isRemoving ? (
-            <span className="loading loading-spinner loading-xs" />
+            <Spinner size="xs" />
           ) : (
             <Icon icon="lucide--user-minus" className="size-4" />
           )}
@@ -177,7 +178,7 @@ function InviteRow({
             title="Cancel invitation"
           >
             {isCancelling ? (
-              <span className="loading loading-spinner loading-xs" />
+              <Spinner size="xs" />
             ) : (
               <Icon icon="lucide--x" className="size-4" />
             )}
@@ -489,7 +490,7 @@ export default function ProjectMembersPage() {
       {/* Loading State */}
       {loading ? (
         <div className="flex justify-center items-center py-12">
-          <span className="loading loading-spinner loading-lg"></span>
+          <Spinner size="lg" />
         </div>
       ) : (
         <div className="space-y-8">

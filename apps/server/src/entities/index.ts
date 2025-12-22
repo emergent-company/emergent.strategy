@@ -59,6 +59,7 @@ export { ReleaseNotificationState } from '../modules/releases/entities/release-n
 // Core Schema Entities
 export { UserProfile } from './user-profile.entity';
 export { UserEmail } from './user-email.entity';
+export { UserEmailPreferences } from './user-email-preferences.entity';
 export { Superadmin } from './superadmin.entity';
 
 // Array of all entities for TypeORM configuration
@@ -101,6 +102,7 @@ import { AgentRun } from './agent-run.entity';
 import { Task } from './task.entity';
 import { UserProfile } from './user-profile.entity';
 import { UserEmail } from './user-email.entity';
+import { UserEmailPreferences } from './user-email-preferences.entity';
 import { Superadmin } from './superadmin.entity';
 import { ExternalSource } from './external-source.entity';
 import { EmailJob } from './email-job.entity';
@@ -149,6 +151,7 @@ export const entities = [
   // Core Schema
   UserProfile,
   UserEmail,
+  UserEmailPreferences,
   Superadmin,
   // Agent System
   Agent,

@@ -16,6 +16,7 @@ import { Sidebar } from '@/components/organisms/Sidebar';
 import { Topbar } from '@/components/organisms/Topbar';
 import { Modal } from '@/components/organisms/Modal/Modal';
 import { Icon } from '@/components/atoms/Icon';
+import { Spinner } from '@/components/atoms/Spinner';
 
 import { OrgAndProjectGateRedirect } from '@/components/organisms/OrgAndProjectGate';
 
@@ -119,7 +120,7 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
   if (!isAuthenticated) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <div className="loading loading-spinner loading-lg" />
+        <Spinner size="lg" />
       </div>
     );
   }

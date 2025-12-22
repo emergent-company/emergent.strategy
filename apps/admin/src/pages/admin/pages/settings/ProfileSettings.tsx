@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Icon } from '@/components/atoms/Icon';
+import { Spinner } from '@/components/atoms/Spinner';
 import { PageContainer } from '@/components/layouts';
 import { FormField } from '@/components/molecules/FormField';
 import { useApi } from '@/hooks/use-api';
@@ -21,6 +22,12 @@ interface DeleteAccountResponse {
   removedMemberships: number;
 }
 
+interface EmailPreferencesDto {
+  releaseEmailsEnabled: boolean;
+  marketingEmailsEnabled: boolean;
+  unsubscribeToken: string;
+}
+
 export default function ProfileSettings() {
   const { fetchJson, apiBase } = useApi();
   const { showToast } = useToast();
@@ -34,8 +41,14 @@ export default function ProfileSettings() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
 
+  const [emailPreferences, setEmailPreferences] =
+    useState<EmailPreferencesDto | null>(null);
+  const [emailPrefsLoading, setEmailPrefsLoading] = useState(true);
+  const [emailPrefsSaving, setEmailPrefsSaving] = useState(false);
+
   useEffect(() => {
     loadProfile();
+    loadEmailPreferences();
   }, []);
 
   const loadProfile = async () => {
@@ -49,6 +62,53 @@ export default function ProfileSettings() {
       showToast({ message: 'Failed to load profile', variant: 'error' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadEmailPreferences = async () => {
+    try {
+      const data = await fetchJson<EmailPreferencesDto>(
+        `${apiBase}/api/user/email-preferences`
+      );
+      setEmailPreferences(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setEmailPrefsLoading(false);
+    }
+  };
+
+  const handleEmailPreferenceChange = async (
+    field: 'releaseEmailsEnabled' | 'marketingEmailsEnabled',
+    value: boolean
+  ) => {
+    if (!emailPreferences) return;
+
+    const updatedPrefs = { ...emailPreferences, [field]: value };
+    setEmailPreferences(updatedPrefs);
+    setEmailPrefsSaving(true);
+
+    try {
+      await fetchJson(`${apiBase}/api/user/email-preferences`, {
+        method: 'PUT',
+        body: {
+          releaseEmailsEnabled: updatedPrefs.releaseEmailsEnabled,
+          marketingEmailsEnabled: updatedPrefs.marketingEmailsEnabled,
+        },
+      });
+      showToast({
+        message: 'Email preferences updated',
+        variant: 'success',
+      });
+    } catch (err) {
+      console.error(err);
+      setEmailPreferences(emailPreferences);
+      showToast({
+        message: 'Failed to update email preferences',
+        variant: 'error',
+      });
+    } finally {
+      setEmailPrefsSaving(false);
     }
   };
 
@@ -118,7 +178,7 @@ export default function ProfileSettings() {
     return (
       <PageContainer maxWidth="4xl">
         <div className="flex items-center justify-center min-h-[400px]">
-          <span className="loading loading-spinner loading-lg"></span>
+          <Spinner size="lg" />
         </div>
       </PageContainer>
     );
@@ -232,7 +292,7 @@ export default function ProfileSettings() {
               >
                 {saving ? (
                   <>
-                    <span className="loading loading-spinner loading-xs"></span>
+                    <Spinner size="xs" />
                     Saving...
                   </>
                 ) : (
@@ -241,6 +301,66 @@ export default function ProfileSettings() {
               </button>
             </div>
           </form>
+        </div>
+      </div>
+
+      <div className="mt-8">
+        <h2 className="font-semibold text-lg">Email Preferences</h2>
+        <div className="bg-base-100 mt-4 card-border card">
+          <div className="card-body">
+            {emailPrefsLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <Spinner size="md" />
+              </div>
+            ) : emailPreferences ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-medium">Release Notifications</h3>
+                    <p className="text-sm text-base-content/70 mt-1">
+                      Receive emails about new features and product updates
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    className="toggle toggle-primary"
+                    checked={emailPreferences.releaseEmailsEnabled}
+                    onChange={(e) =>
+                      handleEmailPreferenceChange(
+                        'releaseEmailsEnabled',
+                        e.target.checked
+                      )
+                    }
+                    disabled={emailPrefsSaving}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-medium">Marketing Emails</h3>
+                    <p className="text-sm text-base-content/70 mt-1">
+                      Receive promotional content and special offers
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    className="toggle toggle-primary"
+                    checked={emailPreferences.marketingEmailsEnabled}
+                    onChange={(e) =>
+                      handleEmailPreferenceChange(
+                        'marketingEmailsEnabled',
+                        e.target.checked
+                      )
+                    }
+                    disabled={emailPrefsSaving}
+                  />
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-base-content/70">
+                Unable to load email preferences
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -327,7 +447,7 @@ export default function ProfileSettings() {
               >
                 {deleting ? (
                   <>
-                    <span className="loading loading-spinner loading-xs"></span>
+                    <Spinner size="xs" />
                     Deleting...
                   </>
                 ) : (

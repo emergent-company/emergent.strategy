@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Icon } from '@/components/atoms/Icon';
+import { Spinner } from '@/components/atoms/Spinner';
 import type {
   IntegrationsClient,
   ClickUpWorkspaceStructure,
@@ -200,7 +201,7 @@ export function ClickUpSyncModal({
             <div>
               {loading ? (
                 <div className="flex justify-center items-center py-20">
-                  <span className="loading loading-spinner loading-lg"></span>
+                  <Spinner size="lg" />
                 </div>
               ) : structure ? (
                 <>

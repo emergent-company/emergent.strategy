@@ -2,6 +2,7 @@ import { type ReactNode, useEffect } from 'react';
 import { useNavigate, Link, useLocation, Outlet } from 'react-router';
 import { useSuperadmin } from '@/hooks/use-superadmin';
 import { Icon } from '@/components/atoms/Icon';
+import { Spinner } from '@/components/atoms/Spinner';
 
 interface NavItem {
   path: string;
@@ -91,7 +92,7 @@ export function SuperadminLayout({ children }: SuperadminLayoutProps) {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
-        <span className="loading loading-spinner loading-lg" />
+        <Spinner size="lg" />
       </div>
     );
   }

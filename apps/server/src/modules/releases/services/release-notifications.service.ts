@@ -19,6 +19,7 @@ import {
 import { EmailTemplateService } from '../../email/email-template.service';
 import { MailgunProvider } from '../../email/mailgun.provider';
 import { ZitadelService } from '../../auth/zitadel.service';
+import { UserEmailPreferencesService } from '../../user-email-preferences/user-email-preferences.service';
 import {
   ChangelogResult,
   StructuredChangelog,
@@ -113,7 +114,8 @@ export class ReleaseNotificationsService {
     private readonly notificationsService: NotificationsService,
     private readonly emailTemplateService: EmailTemplateService,
     private readonly mailgunProvider: MailgunProvider,
-    private readonly zitadelService: ZitadelService
+    private readonly zitadelService: ZitadelService,
+    private readonly userEmailPreferencesService: UserEmailPreferencesService
   ) {}
 
   /**
@@ -645,31 +647,51 @@ export class ReleaseNotificationsService {
 
             // Send email if user has one
             if (user.email) {
-              const personalizedContext = {
-                ...emailContext,
-                recipientName: user.displayName,
-              };
+              // Check if user has opted out of release emails
+              const releaseEmailsEnabled =
+                await this.userEmailPreferencesService.isReleaseEmailsEnabled(
+                  user.id
+                );
 
-              const rendered = this.emailTemplateService.render(
-                'release-notification',
-                personalizedContext
-              );
-
-              const emailResult = await this.mailgunProvider.send({
-                to: user.email,
-                toName: user.displayName || undefined,
-                subject: `[Emergent] New Release: ${version}`,
-                html: rendered.html,
-                text: rendered.text,
-              });
-
-              if (emailResult.success) {
-                recipientResult.emailSent = true;
-                recipientResult.emailMessageId = emailResult.messageId;
-                emailsSent++;
+              if (!releaseEmailsEnabled) {
+                recipientResult.skipped = true;
+                recipientResult.skipReason = 'User opted out of release emails';
+                skippedUsers++;
               } else {
-                recipientResult.emailError = emailResult.error;
-                emailsFailed++;
+                // Get unsubscribe token for this user
+                const unsubscribeToken =
+                  await this.userEmailPreferencesService.getOrCreateUnsubscribeToken(
+                    user.id
+                  );
+                const unsubscribeUrl = `${adminUrl}/unsubscribe/${unsubscribeToken}`;
+
+                const personalizedContext = {
+                  ...emailContext,
+                  recipientName: user.displayName,
+                  unsubscribeUrl,
+                };
+
+                const rendered = this.emailTemplateService.render(
+                  'release-notification',
+                  personalizedContext
+                );
+
+                const emailResult = await this.mailgunProvider.send({
+                  to: user.email,
+                  toName: user.displayName || undefined,
+                  subject: `[Emergent] New Release: ${version}`,
+                  html: rendered.html,
+                  text: rendered.text,
+                });
+
+                if (emailResult.success) {
+                  recipientResult.emailSent = true;
+                  recipientResult.emailMessageId = emailResult.messageId;
+                  emailsSent++;
+                } else {
+                  recipientResult.emailError = emailResult.error;
+                  emailsFailed++;
+                }
               }
             } else {
               recipientResult.skipReason = 'No email address';
@@ -752,6 +774,7 @@ export class ReleaseNotificationsService {
 
   /**
    * Build email template context from changelog.
+   * Shows only 50% of items per category in email; full list on release page.
    */
   private buildEmailContext(
     changelog: StructuredChangelog,
@@ -766,20 +789,41 @@ export class ReleaseNotificationsService {
       day: 'numeric',
     });
 
+    // Helper to truncate array to 50% and return remaining count
+    const truncateForEmail = <T>(
+      items: T[]
+    ): { shown: T[]; remaining: number } => {
+      if (items.length <= 2) {
+        // Show all if 2 or fewer items
+        return { shown: items, remaining: 0 };
+      }
+      const halfCount = Math.ceil(items.length / 2);
+      return {
+        shown: items.slice(0, halfCount),
+        remaining: items.length - halfCount,
+      };
+    };
+
+    const breakingChangesTrunc = truncateForEmail(changelog.breakingChanges);
+    const featuresTrunc = truncateForEmail(changelog.features);
+    const improvementsTrunc = truncateForEmail(changelog.improvements);
+    const bugFixesTrunc = truncateForEmail(changelog.bugFixes);
+
     return {
       version,
       releaseDate,
       summary: changelog.summary,
-      hasBreakingChanges: changelog.breakingChanges.length > 0,
-      breakingChanges: changelog.breakingChanges,
-      hasFeatures: changelog.features.length > 0,
-      features: changelog.features,
-      hasImprovements: changelog.improvements.length > 0,
-      improvements: changelog.improvements,
-      hasBugFixes: changelog.bugFixes.length > 0,
-      bugFixes: changelog.bugFixes,
-      releaseNotesUrl: `${adminUrl}/releases/${version}`,
-      viewInBrowserUrl: `${adminUrl}/releases/${version}`,
+      changelog: {
+        breakingChanges: breakingChangesTrunc.shown,
+        features: featuresTrunc.shown,
+        improvements: improvementsTrunc.shown,
+        bugFixes: bugFixesTrunc.shown,
+      },
+      breakingChangesRemaining: breakingChangesTrunc.remaining,
+      featuresRemaining: featuresTrunc.remaining,
+      improvementsRemaining: improvementsTrunc.remaining,
+      bugFixesRemaining: bugFixesTrunc.remaining,
+      releaseUrl: `${adminUrl}/releases/${version}`,
       fromCommit,
       toCommit,
       commitRange: `${fromCommit}...${toCommit}`,

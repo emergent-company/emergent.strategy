@@ -4,6 +4,7 @@ import { useApi } from '@/hooks/use-api';
 import { useConfig } from '@/contexts/config';
 import { useDataUpdates } from '@/contexts/data-updates';
 import { Icon } from '@/components/atoms/Icon';
+import { Spinner } from '@/components/atoms/Spinner';
 import { PageContainer } from '@/components/layouts';
 
 interface ChunkData {
@@ -190,7 +191,7 @@ export default function ChunksPage() {
       {/* Loading State */}
       {loading && (
         <div className="flex justify-center items-center py-12">
-          <span className="loading loading-spinner loading-lg"></span>
+          <Spinner size="lg" />
         </div>
       )}
 

@@ -1,5 +1,6 @@
 import { Link } from 'react-router';
 import { Icon } from '@/components/atoms/Icon';
+import { Spinner } from '@/components/atoms/Spinner';
 import { Tooltip } from '@/components/atoms/Tooltip';
 import type { RefinementSuggestion } from '@/types/object-refinement';
 
@@ -189,7 +190,7 @@ export function ActionCard({
             aria-label="Reject suggestion"
           >
             {isLoading ? (
-              <span className="loading loading-spinner loading-xs" />
+              <Spinner size="xs" />
             ) : (
               <Icon icon="lucide--x" className="size-3" />
             )}
@@ -203,7 +204,7 @@ export function ActionCard({
             aria-label="Apply suggestion"
           >
             {isLoading ? (
-              <span className="loading loading-spinner loading-xs" />
+              <Spinner size="xs" />
             ) : (
               <Icon icon="lucide--check" className="size-3" />
             )}

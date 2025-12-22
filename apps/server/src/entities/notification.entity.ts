@@ -20,8 +20,8 @@ export class Notification {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'project_id', type: 'uuid' })
-  projectId: string;
+  @Column({ name: 'project_id', type: 'uuid', nullable: true })
+  projectId: string | null;
 
   @Column({ name: 'user_id', type: 'uuid' })
   userId: string;
@@ -118,9 +118,9 @@ export class Notification {
   @JoinColumn({ name: 'user_id' })
   user: UserProfile;
 
-  @ManyToOne(() => Project, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Project, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'project_id' })
-  project: Project;
+  project: Project | null;
 
   /**
    * Optional link to a task that this notification references.

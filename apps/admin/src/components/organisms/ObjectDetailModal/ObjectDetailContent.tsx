@@ -17,6 +17,7 @@ import {
   type ReactElement,
 } from 'react';
 import { Icon } from '@/components/atoms/Icon';
+import { Spinner } from '@/components/atoms/Spinner';
 import { GraphObject } from '../ObjectBrowser/ObjectBrowser';
 import { RelationshipGraph, TreeRelationshipGraph } from '../RelationshipGraph';
 import { useApi } from '@/hooks/use-api';
@@ -969,9 +970,7 @@ export const ObjectDetailContent: React.FC<ObjectDetailContentProps> = ({
                 className={compact ? 'size-4' : 'size-5'}
               />
               Relationships by Type
-              {loadingRelations && (
-                <span className="loading loading-spinner loading-xs"></span>
-              )}
+              {loadingRelations && <Spinner size="xs" />}
             </h4>
 
             {relatedObjectGroups.length > 0 ? (
@@ -1022,7 +1021,7 @@ export const ObjectDetailContent: React.FC<ObjectDetailContentProps> = ({
                               title={`${rel.type} - ${rel.name}`}
                             >
                               {loadingObjectName === rel.name ? (
-                                <span className="loading loading-spinner loading-xs"></span>
+                                <Spinner size="xs" />
                               ) : (
                                 <Icon
                                   icon="lucide--box"
@@ -1312,7 +1311,7 @@ export const ObjectDetailContent: React.FC<ObjectDetailContentProps> = ({
                     </span>
                   ) : embeddingJobStatus ? (
                     <span className="gap-2 badge badge-warning">
-                      <span className="loading loading-spinner loading-xs"></span>
+                      <Spinner size="xs" />
                       {embeddingJobStatus.status === 'pending'
                         ? 'Queued'
                         : 'Generating...'}
@@ -1383,7 +1382,7 @@ export const ObjectDetailContent: React.FC<ObjectDetailContentProps> = ({
                   >
                     {generatingEmbedding ? (
                       <>
-                        <span className="loading loading-spinner loading-xs"></span>
+                        <Spinner size="xs" />
                         Queueing...
                       </>
                     ) : (
@@ -1415,7 +1414,7 @@ export const ObjectDetailContent: React.FC<ObjectDetailContentProps> = ({
 
           {loadingVersions ? (
             <div className="flex justify-center p-4">
-              <span className="loading loading-spinner loading-md"></span>
+              <Spinner size="md" />
             </div>
           ) : versionsError ? (
             <div className="alert alert-error">

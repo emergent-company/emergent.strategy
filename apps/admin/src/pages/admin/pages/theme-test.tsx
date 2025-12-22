@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ThemeEditor } from '@/components/organisms/ThemeEditor';
 import { Icon } from '@/components/atoms/Icon';
 import { Button } from '@/components/atoms/Button';
+import { Spinner } from '@/components/atoms/Spinner';
 
 /**
  * Theme Testing Page
@@ -187,9 +188,9 @@ export default function ThemeTestPage() {
                 max="100"
               ></progress>
               <div className="flex gap-4">
-                <span className="loading loading-spinner loading-primary"></span>
-                <span className="loading loading-spinner loading-secondary"></span>
-                <span className="loading loading-spinner loading-accent"></span>
+                <Spinner className="text-primary" />
+                <Spinner className="text-secondary" />
+                <Spinner className="text-accent" />
               </div>
             </div>
           </div>

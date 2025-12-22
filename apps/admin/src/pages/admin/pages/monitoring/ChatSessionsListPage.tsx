@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useApi } from '../../../../hooks/use-api';
 import { useConfig } from '../../../../contexts/config';
 import { PageContainer } from '../../../../components/layouts';
+import { Spinner } from '../../../../components/atoms/Spinner';
 import { createMonitoringClient } from '../../../../api/monitoring';
 import { ChatSessionDetailModal } from '../../../../components/organisms/monitoring/ChatSessionDetailModal';
 import type {
@@ -165,7 +166,7 @@ export function ChatSessionsListPage() {
         >
           {loading ? (
             <>
-              <span className="loading loading-spinner loading-sm"></span>
+              <Spinner size="sm" />
               Loading...
             </>
           ) : (
@@ -264,7 +265,7 @@ export function ChatSessionsListPage() {
                 {loading ? (
                   <tr>
                     <td colSpan={6} className="py-8 text-center">
-                      <span className="loading loading-spinner loading-lg"></span>
+                      <Spinner size="lg" />
                       <p className="mt-2 text-base-content/70">
                         Loading sessions...
                       </p>

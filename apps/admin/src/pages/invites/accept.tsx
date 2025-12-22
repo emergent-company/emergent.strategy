@@ -14,6 +14,7 @@ import { useAccessTreeContext } from '@/contexts/access-tree';
 import { useApi } from '@/hooks/use-api';
 import { Icon } from '@/components/atoms/Icon';
 import { MetaData } from '@/components/atoms/MetaData';
+import { Spinner } from '@/components/atoms/Spinner';
 
 interface InviteDetails {
   id: string;
@@ -189,7 +190,7 @@ export default function AcceptInvitationPage() {
       <div className="flex justify-center items-center min-h-screen">
         <MetaData title="Accept Invitation" />
         <div className="text-center">
-          <span className="loading loading-spinner loading-lg" />
+          <Spinner size="lg" />
           <p className="mt-4 text-base-content/70">
             {!isInitialized ? 'Loading...' : 'Redirecting to sign in...'}
           </p>
@@ -204,7 +205,7 @@ export default function AcceptInvitationPage() {
       <div className="flex justify-center items-center min-h-screen">
         <MetaData title="Accept Invitation" />
         <div className="text-center">
-          <span className="loading loading-spinner loading-lg" />
+          <Spinner size="lg" />
           <p className="mt-4 text-base-content/70">Validating invitation...</p>
         </div>
       </div>
@@ -415,7 +416,7 @@ export default function AcceptInvitationPage() {
                 disabled={accepting}
               >
                 {accepting ? (
-                  <span className="loading loading-spinner loading-sm" />
+                  <Spinner size="sm" />
                 ) : (
                   <>
                     <Icon icon="lucide--check" className="size-4" />
