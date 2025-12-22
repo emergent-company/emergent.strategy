@@ -58,6 +58,8 @@ export interface AuditLogEntry {
   error_code?: string;
   error_message?: string;
   metadata?: Record<string, any>;
+  view_as_user_id?: string;
+  superadmin_user_id?: string;
 }
 
 /**

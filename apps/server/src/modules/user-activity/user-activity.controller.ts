@@ -6,7 +6,6 @@ import {
   Body,
   Param,
   UseGuards,
-  Req,
   ParseUUIDPipe,
   HttpCode,
   HttpStatus,
@@ -29,6 +28,11 @@ import {
   RecentItemDto,
 } from './dto/record-activity.dto';
 import { ApiStandardErrors } from '../../common/decorators/api-standard-errors';
+import {
+  OptionalProjectId,
+  OptionalProjectContext,
+  RequireUserId,
+} from '../../common/decorators/project-context.decorator';
 
 @ApiTags('User Activity')
 @Controller('user-activity')
@@ -47,14 +51,15 @@ export class UserActivityController {
   @ApiStandardErrors()
   @Scopes('user-activity:write')
   @HttpCode(HttpStatus.OK)
-  async recordActivity(@Req() req: any, @Body() body: RecordActivityDto) {
-    const userId = req.user?.id;
-    const projectId = req.headers['x-project-id'] as string | undefined;
-
+  async recordActivity(
+    @RequireUserId() userId: string,
+    @OptionalProjectId() ctx: OptionalProjectContext,
+    @Body() body: RecordActivityDto
+  ) {
     // Fire-and-forget: don't await, just let it run in background
     // This ensures the main request is not blocked
     this.userActivityService
-      .recordActivity(userId, projectId, body)
+      .recordActivity(userId, ctx.projectId, body)
       .catch(() => {
         // Error is already logged in the service
       });
@@ -74,13 +79,13 @@ export class UserActivityController {
   })
   @ApiStandardErrors()
   @Scopes('user-activity:read')
-  async getRecentItems(@Req() req: any) {
-    const userId = req.user?.id;
-    const projectId = req.headers['x-project-id'] as string | undefined;
-
+  async getRecentItems(
+    @RequireUserId() userId: string,
+    @OptionalProjectId() ctx: OptionalProjectContext
+  ) {
     const data = await this.userActivityService.getRecentItems(
       userId,
-      projectId
+      ctx.projectId
     );
 
     return { success: true, data };
@@ -104,15 +109,13 @@ export class UserActivityController {
   @ApiStandardErrors()
   @Scopes('user-activity:read')
   async getRecentItemsByType(
-    @Req() req: any,
+    @RequireUserId() userId: string,
+    @OptionalProjectId() ctx: OptionalProjectContext,
     @Param('type') type: 'document' | 'object'
   ) {
-    const userId = req.user?.id;
-    const projectId = req.headers['x-project-id'] as string | undefined;
-
     const data = await this.userActivityService.getRecentItemsByType(
       userId,
-      projectId,
+      ctx.projectId,
       type
     );
 
@@ -139,16 +142,14 @@ export class UserActivityController {
   @Scopes('user-activity:write')
   @HttpCode(HttpStatus.NO_CONTENT)
   async removeRecentItem(
-    @Req() req: any,
+    @RequireUserId() userId: string,
+    @OptionalProjectId() ctx: OptionalProjectContext,
     @Param('type') type: 'document' | 'object',
     @Param('resourceId', ParseUUIDPipe) resourceId: string
   ) {
-    const userId = req.user?.id;
-    const projectId = req.headers['x-project-id'] as string | undefined;
-
     await this.userActivityService.removeRecentItem(
       userId,
-      projectId,
+      ctx.projectId,
       type,
       resourceId
     );
@@ -164,10 +165,10 @@ export class UserActivityController {
   @ApiStandardErrors()
   @Scopes('user-activity:write')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async clearAllRecentItems(@Req() req: any) {
-    const userId = req.user?.id;
-    const projectId = req.headers['x-project-id'] as string | undefined;
-
-    await this.userActivityService.clearAllRecentItems(userId, projectId);
+  async clearAllRecentItems(
+    @RequireUserId() userId: string,
+    @OptionalProjectId() ctx: OptionalProjectContext
+  ) {
+    await this.userActivityService.clearAllRecentItems(userId, ctx.projectId);
   }
 }

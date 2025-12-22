@@ -1,21 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In } from 'typeorm';
 import { DatabaseService } from '../../common/database/database.service';
+import {
+  BaseJobQueueService,
+  BaseJobRow,
+  EnqueueJobOptions,
+} from '../../common/job-queue/base-job-queue.service';
 import { ChunkEmbeddingJob } from '../../entities/chunk-embedding-job.entity';
 
-export interface ChunkEmbeddingJobRow {
-  id: string;
+export interface ChunkEmbeddingJobRow extends BaseJobRow {
   chunk_id: string;
-  status: string;
-  attempt_count: number;
-  last_error: string | null;
-  priority: number;
-  scheduled_at: string;
-  started_at: string | null;
-  completed_at: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
 export type ChunkEmbeddingJobStatus =
@@ -32,70 +27,62 @@ export interface EnqueueChunkEmbeddingJobOptions {
 /**
  * ChunkEmbeddingJobsService - Job queue for chunk embedding generation
  *
- * Similar to EmbeddingJobsService for graph objects, this service manages
- * a job queue for generating chunk embeddings asynchronously.
+ * Extends BaseJobQueueService to provide:
+ * - Idempotent enqueue (won't create duplicate active jobs)
+ * - Atomic dequeue with FOR UPDATE SKIP LOCKED
+ * - Exponential backoff for retries (max 5 attempts)
+ * - Stale job recovery
+ * - Queue statistics
  *
- * This enables retry logic when embedding generation fails during document upload,
- * ensuring chunks eventually get embeddings even if Vertex AI is temporarily unavailable.
+ * Additional features:
+ * - enqueueBatch(): Batch enqueue for multiple chunks
+ * - getPendingCountForChunks(): Get pending job counts for UI status display
  */
 @Injectable()
-export class ChunkEmbeddingJobsService {
-  private readonly logger = new Logger(ChunkEmbeddingJobsService.name);
-
+export class ChunkEmbeddingJobsService extends BaseJobQueueService<
+  ChunkEmbeddingJob,
+  ChunkEmbeddingJobRow
+> {
   constructor(
     @InjectRepository(ChunkEmbeddingJob)
-    private readonly jobRepository: Repository<ChunkEmbeddingJob>,
-    private readonly dataSource: DataSource,
-    private readonly db: DatabaseService
-  ) {}
+    repository: Repository<ChunkEmbeddingJob>,
+    dataSource: DataSource,
+    db: DatabaseService
+  ) {
+    super(repository, dataSource, db, {
+      tableName: 'kb.chunk_embedding_jobs',
+      entityIdField: 'chunkId',
+      entityIdColumn: 'chunk_id',
+      maxAttempts: 5, // Chunk embeddings give up after 5 attempts
+    });
+  }
 
   /**
-   * Enqueue a chunk for embedding generation.
-   * Idempotent: if an active job exists, returns it instead of creating a new one.
+   * Convert entity to row format.
    */
-  async enqueue(
-    chunkId: string,
-    opts: EnqueueChunkEmbeddingJobOptions = {}
-  ): Promise<ChunkEmbeddingJobRow | null> {
-    // Check for existing active job
-    const existing = await this.jobRepository.findOne({
-      where: {
-        chunkId,
-        status: In(['pending', 'processing']),
-      },
-    });
-
-    if (existing) {
-      return this.toRow(existing);
-    }
-
-    const priority = opts.priority ?? 0;
-    const scheduleAt = opts.scheduleAt ?? new Date();
-
-    const job = this.jobRepository.create({
-      chunkId,
-      status: 'pending',
-      attemptCount: 0,
-      priority,
-      scheduledAt: scheduleAt,
-    });
-
-    const saved = await this.jobRepository.save(job);
-    return this.toRow(saved);
+  protected toRow(entity: ChunkEmbeddingJob): ChunkEmbeddingJobRow {
+    return {
+      ...this.toBaseRow(entity),
+      chunk_id: entity.chunkId,
+    };
   }
 
   /**
    * Enqueue multiple chunks for embedding generation.
    * Useful for batch operations after document upload failure.
+   *
+   * @param chunkIds - Array of chunk IDs to enqueue
+   * @param opts - Optional enqueue options (priority, scheduleAt)
+   * @returns Number of new jobs created
    */
   async enqueueBatch(
     chunkIds: string[],
-    opts: EnqueueChunkEmbeddingJobOptions = {}
+    opts: EnqueueJobOptions = {}
   ): Promise<number> {
     if (!chunkIds.length) return 0;
 
     // Find existing active jobs to avoid duplicates
-    const existingJobs = await this.jobRepository.find({
+    const existingJobs = await this.repository.find({
       where: {
         chunkId: In(chunkIds),
         status: In(['pending', 'processing']),
@@ -112,7 +99,7 @@ export class ChunkEmbeddingJobsService {
     const scheduleAt = opts.scheduleAt ?? new Date();
 
     const jobs = newChunkIds.map((chunkId) =>
-      this.jobRepository.create({
+      this.repository.create({
         chunkId,
         status: 'pending',
         attemptCount: 0,
@@ -121,169 +108,22 @@ export class ChunkEmbeddingJobsService {
       })
     );
 
-    await this.jobRepository.save(jobs);
+    await this.repository.save(jobs);
     return jobs.length;
   }
 
   /**
-   * Dequeue jobs for processing.
-   *
-   * Uses FOR UPDATE SKIP LOCKED for concurrent worker safety.
-   * This is strategic SQL that cannot be expressed in TypeORM.
-   */
-  async dequeue(batchSize = 10): Promise<ChunkEmbeddingJobRow[]> {
-    const res = await this.db.query<ChunkEmbeddingJobRow>(
-      `WITH cte AS (
-         SELECT id FROM kb.chunk_embedding_jobs
-         WHERE status='pending' AND scheduled_at <= now()
-         ORDER BY priority DESC, scheduled_at ASC
-         FOR UPDATE SKIP LOCKED
-         LIMIT $1
-       )
-       UPDATE kb.chunk_embedding_jobs j SET status='processing', started_at=now(), updated_at=now()
-       FROM cte WHERE j.id = cte.id
-       RETURNING j.id, j.chunk_id, j.status, j.attempt_count, j.last_error, j.priority, j.scheduled_at, j.started_at, j.completed_at, j.created_at, j.updated_at`,
-      [batchSize]
-    );
-    return res.rows;
-  }
-
-  /**
-   * Mark a job as failed and schedule for retry with exponential backoff.
-   */
-  async markFailed(
-    id: string,
-    error: Error,
-    retryDelaySec = 60
-  ): Promise<void> {
-    const job = await this.jobRepository.findOne({
-      where: { id },
-      select: ['id', 'attemptCount'],
-    });
-
-    if (!job) return;
-
-    const attempt = (job.attemptCount || 0) + 1;
-    const maxAttempts = 5;
-
-    if (attempt >= maxAttempts) {
-      // Mark as permanently failed after max attempts
-      await this.jobRepository.update(id, {
-        status: 'failed',
-        attemptCount: attempt,
-        lastError: error.message.slice(0, 500),
-      });
-      this.logger.warn(
-        `Chunk embedding job ${id} permanently failed after ${attempt} attempts: ${error.message}`
-      );
-      return;
-    }
-
-    // Exponential backoff: 60s, 240s, 540s, 960s (capped at 1h)
-    const delay = Math.min(3600, retryDelaySec * attempt * attempt);
-
-    await this.dataSource.query(
-      `UPDATE kb.chunk_embedding_jobs 
-       SET status='pending', attempt_count=$2, last_error=$3, 
-           scheduled_at=now() + ($4 || ' seconds')::interval, 
-           updated_at=now() 
-       WHERE id=$1`,
-      [id, attempt, error.message.slice(0, 500), delay.toString()]
-    );
-  }
-
-  /**
-   * Mark a job as completed.
-   */
-  async markCompleted(id: string): Promise<void> {
-    await this.jobRepository.update(id, {
-      status: 'completed',
-      completedAt: new Date(),
-    });
-  }
-
-  /**
-   * Recover stale jobs that got stuck in 'processing' status.
-   *
-   * This can happen when the server is restarted while jobs are being processed.
-   * Jobs stuck in 'processing' for longer than the threshold are reset to 'pending'
-   * so the worker can pick them up again.
-   *
-   * @param staleThresholdMinutes Jobs stuck in processing longer than this are considered stale (default: 10)
-   * @returns Number of jobs recovered
-   */
-  async recoverStaleJobs(staleThresholdMinutes = 10): Promise<number> {
-    const result = await this.dataSource.query(
-      `UPDATE kb.chunk_embedding_jobs 
-       SET status = 'pending', 
-           started_at = NULL, 
-           scheduled_at = now(),
-           updated_at = now()
-       WHERE status = 'processing' 
-         AND started_at < now() - ($1 || ' minutes')::interval
-       RETURNING id`,
-      [staleThresholdMinutes.toString()]
-    );
-
-    const count = Array.isArray(result) ? result.length : 0;
-
-    if (count > 0) {
-      this.logger.warn(
-        `Recovered ${count} stale chunk embedding job(s) stuck in 'processing' for > ${staleThresholdMinutes} minutes`
-      );
-    }
-
-    return count;
-  }
-
-  /**
-   * Get queue statistics.
-   */
-  async stats(): Promise<{
-    pending: number;
-    processing: number;
-    failed: number;
-    completed: number;
-  }> {
-    const [pending, processing, failed, completed] = await Promise.all([
-      this.jobRepository.count({ where: { status: 'pending' } }),
-      this.jobRepository.count({ where: { status: 'processing' } }),
-      this.jobRepository.count({ where: { status: 'failed' } }),
-      this.jobRepository.count({ where: { status: 'completed' } }),
-    ]);
-
-    return { pending, processing, failed, completed };
-  }
-
-  /**
-   * Get active job status for a specific chunk.
-   */
-  async getJobStatusForChunk(
-    chunkId: string
-  ): Promise<ChunkEmbeddingJobRow | null> {
-    const job = await this.jobRepository.findOne({
-      where: {
-        chunkId,
-        status: In(['pending', 'processing']),
-      },
-      order: {
-        createdAt: 'DESC',
-      },
-    });
-
-    if (!job) return null;
-    return this.toRow(job);
-  }
-
-  /**
    * Get pending job count for multiple chunks (for UI status display).
+   *
+   * @param chunkIds - Array of chunk IDs to check
+   * @returns Map of chunkId to pending job count
    */
   async getPendingCountForChunks(
     chunkIds: string[]
   ): Promise<Map<string, number>> {
     if (!chunkIds.length) return new Map();
 
-    const result = await this.jobRepository
+    const result = await this.repository
       .createQueryBuilder('job')
       .select('job.chunkId', 'chunk_id')
       .addSelect('COUNT(*)', 'count')
@@ -301,19 +141,14 @@ export class ChunkEmbeddingJobsService {
     return map;
   }
 
-  private toRow(job: ChunkEmbeddingJob): ChunkEmbeddingJobRow {
-    return {
-      id: job.id,
-      chunk_id: job.chunkId,
-      status: job.status,
-      attempt_count: job.attemptCount,
-      last_error: job.lastError,
-      priority: job.priority,
-      scheduled_at: job.scheduledAt.toISOString(),
-      started_at: job.startedAt?.toISOString() ?? null,
-      completed_at: job.completedAt?.toISOString() ?? null,
-      created_at: job.createdAt.toISOString(),
-      updated_at: job.updatedAt.toISOString(),
-    };
+  /**
+   * Get active job status for a specific chunk.
+   *
+   * @deprecated Use getActiveJobForEntity() instead
+   */
+  async getJobStatusForChunk(
+    chunkId: string
+  ): Promise<ChunkEmbeddingJobRow | null> {
+    return this.getActiveJobForEntity(chunkId);
   }
 }

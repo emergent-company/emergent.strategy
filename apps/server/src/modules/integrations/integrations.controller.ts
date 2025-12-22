@@ -34,6 +34,10 @@ import {
   PublicIntegrationDto,
 } from './dto/integration.dto';
 import { ImportConfig, ImportResult } from './base-integration';
+import {
+  OptionalProjectId,
+  OptionalProjectContext,
+} from '../../common/decorators/project-context.decorator';
 
 /**
  * Integrations Controller
@@ -107,12 +111,14 @@ export class IntegrationsController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async listIntegrations(
-    @Req() req: Request,
+    @OptionalProjectId() ctx: OptionalProjectContext,
     @Query() filters: ListIntegrationsDto
   ): Promise<IntegrationDto[]> {
-    const projectId = req.headers['x-project-id'] as string;
-    const orgId = req.headers['x-org-id'] as string;
-    return this.integrationsService.listIntegrations(projectId, orgId, filters);
+    return this.integrationsService.listIntegrations(
+      ctx.projectId as string,
+      ctx.orgId as string,
+      filters
+    );
   }
 
   /**
@@ -135,12 +141,14 @@ export class IntegrationsController {
   @ApiResponse({ status: 404, description: 'Integration not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getIntegration(
-    @Req() req: Request,
+    @OptionalProjectId() ctx: OptionalProjectContext,
     @Param('name') name: string
   ): Promise<IntegrationDto> {
-    const projectId = req.headers['x-project-id'] as string;
-    const orgId = req.headers['x-org-id'] as string;
-    return this.integrationsService.getIntegration(name, projectId, orgId);
+    return this.integrationsService.getIntegration(
+      name,
+      ctx.projectId as string,
+      ctx.orgId as string
+    );
   }
 
   /**
@@ -163,15 +171,13 @@ export class IntegrationsController {
   @ApiResponse({ status: 404, description: 'Integration not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getPublicIntegrationInfo(
-    @Req() req: Request,
+    @OptionalProjectId() ctx: OptionalProjectContext,
     @Param('name') name: string
   ): Promise<PublicIntegrationDto> {
-    const projectId = req.headers['x-project-id'] as string;
-    const orgId = req.headers['x-org-id'] as string;
     return this.integrationsService.getPublicIntegrationInfo(
       name,
-      projectId,
-      orgId
+      ctx.projectId as string,
+      ctx.orgId as string
     );
   }
 
@@ -247,16 +253,14 @@ export class IntegrationsController {
   @ApiResponse({ status: 400, description: 'Invalid update data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async updateIntegration(
-    @Req() req: Request,
+    @OptionalProjectId() ctx: OptionalProjectContext,
     @Param('name') name: string,
     @Body() dto: UpdateIntegrationDto
   ): Promise<IntegrationDto> {
-    const projectId = req.headers['x-project-id'] as string;
-    const orgId = req.headers['x-org-id'] as string;
     return this.integrationsService.updateIntegration(
       name,
-      projectId,
-      orgId,
+      ctx.projectId as string,
+      ctx.orgId as string,
       dto
     );
   }
@@ -279,14 +283,15 @@ export class IntegrationsController {
   @ApiResponse({ status: 404, description: 'Integration not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async testConnection(
-    @Req() req: Request,
+    @OptionalProjectId() ctx: OptionalProjectContext,
     @Param('name') name: string
   ): Promise<{ success: boolean; error?: string }> {
-    const projectId = req.headers['x-project-id'] as string;
-    const orgId = req.headers['x-org-id'] as string;
-
     try {
-      return this.integrationsService.testConnection(name, projectId, orgId);
+      return this.integrationsService.testConnection(
+        name,
+        ctx.projectId as string,
+        ctx.orgId as string
+      );
     } catch (error) {
       // For test connection, we want to return the result rather than throw
       // This allows the frontend to display test results appropriately
@@ -321,10 +326,9 @@ export class IntegrationsController {
   @ApiResponse({ status: 200, description: 'SSE stream started' })
   async triggerSyncStream(
     @Req() req: Request & { res: any },
+    @OptionalProjectId() ctx: OptionalProjectContext,
     @Param('name') name: string
   ): Promise<void> {
-    const projectId = req.headers['x-project-id'] as string;
-    const orgId = req.headers['x-org-id'] as string;
     const res = req.res;
 
     // Set SSE headers
@@ -343,8 +347,8 @@ export class IntegrationsController {
       // Start sync with progress callback
       const result = await this.integrationsService.triggerSyncWithProgress(
         name,
-        projectId,
-        orgId,
+        ctx.projectId as string,
+        ctx.orgId as string,
         {},
         (progress) => {
           sendEvent('progress', progress);
@@ -383,18 +387,15 @@ export class IntegrationsController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async triggerSync(
-    @Req() req: Request,
+    @OptionalProjectId() ctx: OptionalProjectContext,
     @Param('name') name: string,
     @Body() config?: ImportConfig
   ): Promise<ImportResult> {
-    const projectId = req.headers['x-project-id'] as string;
-    const orgId = req.headers['x-org-id'] as string;
-
     try {
       return this.integrationsService.triggerSync(
         name,
-        projectId,
-        orgId,
+        ctx.projectId as string,
+        ctx.orgId as string,
         config
       );
     } catch (error) {
@@ -469,14 +470,13 @@ export class IntegrationsController {
     description: 'ClickUp integration not found or not configured',
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getClickUpWorkspaceStructure(@Req() req: Request): Promise<any> {
-    const projectId = req.headers['x-project-id'] as string;
-    const orgId = req.headers['x-org-id'] as string;
-
+  async getClickUpWorkspaceStructure(
+    @OptionalProjectId() ctx: OptionalProjectContext
+  ): Promise<any> {
     try {
       return this.integrationsService.getClickUpWorkspaceStructure(
-        projectId,
-        orgId
+        ctx.projectId as string,
+        ctx.orgId as string
       );
     } catch (error) {
       const errorMessage =
@@ -553,16 +553,13 @@ export class IntegrationsController {
     description: 'ClickUp integration not found or space not found',
   })
   async getClickUpSpace(
-    @Req() req: Request,
+    @OptionalProjectId() ctx: OptionalProjectContext,
     @Param('spaceId') spaceId: string
   ): Promise<any> {
-    const projectId = req.headers['x-project-id'] as string;
-    const orgId = req.headers['x-org-id'] as string;
-
     try {
       return this.integrationsService.getClickUpSpace(
-        projectId,
-        orgId,
+        ctx.projectId as string,
+        ctx.orgId as string,
         spaceId
       );
     } catch (error) {
@@ -600,16 +597,13 @@ export class IntegrationsController {
     description: 'ClickUp integration not found or folder not found',
   })
   async getClickUpFolder(
-    @Req() req: Request,
+    @OptionalProjectId() ctx: OptionalProjectContext,
     @Param('folderId') folderId: string
   ): Promise<any> {
-    const projectId = req.headers['x-project-id'] as string;
-    const orgId = req.headers['x-org-id'] as string;
-
     try {
       return this.integrationsService.getClickUpFolder(
-        projectId,
-        orgId,
+        ctx.projectId as string,
+        ctx.orgId as string,
         folderId
       );
     } catch (error) {
@@ -643,11 +637,13 @@ export class IntegrationsController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteIntegration(
-    @Req() req: Request,
+    @OptionalProjectId() ctx: OptionalProjectContext,
     @Param('name') name: string
   ): Promise<void> {
-    const projectId = req.headers['x-project-id'] as string;
-    const orgId = req.headers['x-org-id'] as string;
-    return this.integrationsService.deleteIntegration(name, projectId, orgId);
+    return this.integrationsService.deleteIntegration(
+      name,
+      ctx.projectId as string,
+      ctx.orgId as string
+    );
   }
 }

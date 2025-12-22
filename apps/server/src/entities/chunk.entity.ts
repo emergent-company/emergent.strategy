@@ -7,7 +7,7 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { Document } from './document.entity';
+import type { Document } from './document.entity';
 
 /**
  * Metadata stored with each chunk to track chunking strategy and offsets.
@@ -52,7 +52,7 @@ export class Chunk {
   metadata!: ChunkMetadata | null;
 
   // Relations
-  @ManyToOne(() => Document, (document) => document.chunks, {
+  @ManyToOne('Document', 'chunks', {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'document_id' })

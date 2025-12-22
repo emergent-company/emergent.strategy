@@ -1,5 +1,12 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
-import { ChatConversation } from './chat-conversation.entity';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
+import type { ChatConversation } from './chat-conversation.entity';
 
 @Entity({ schema: 'kb', name: 'chat_messages' })
 export class ChatMessage {
@@ -21,7 +28,9 @@ export class ChatMessage {
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
-  @ManyToOne(() => ChatConversation, conversation => conversation.messages, { onDelete: 'CASCADE' })
+  @ManyToOne('ChatConversation', 'messages', {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'conversation_id' })
-  conversation: ChatConversation;
+  conversation!: ChatConversation;
 }

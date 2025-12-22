@@ -1,10 +1,12 @@
 import { JSX, LazyExoticComponent, lazy, Suspense } from 'react';
-import { Navigate, RouteProps } from 'react-router';
+import { Navigate, RouteProps, Outlet } from 'react-router';
 import { SettingsLayout } from '@/pages/admin/pages/settings/components';
+import { SuperadminLayout } from '@/pages/admin/superadmin/layout';
 
 export type IRoutesProps = {
   path: RouteProps['path'];
   element: RouteProps['element'];
+  children?: IRoutesProps[];
 };
 
 // Component Wrapper
@@ -135,6 +137,35 @@ const dashboardRoutes: IRoutesProps[] = [
   {
     path: '/admin/monitoring/analytics',
     element: cw(lazy(() => import('@/pages/admin/monitoring/analytics'))),
+  },
+  // Superadmin routes - nested under SuperadminLayout
+  {
+    path: '/admin/superadmin',
+    element: <SuperadminLayout />,
+    children: [
+      {
+        path: '',
+        element: <Navigate to="/admin/superadmin/users" replace />,
+      },
+      {
+        path: 'users',
+        element: cw(lazy(() => import('@/pages/admin/superadmin/users'))),
+      },
+      {
+        path: 'organizations',
+        element: cw(
+          lazy(() => import('@/pages/admin/superadmin/organizations'))
+        ),
+      },
+      {
+        path: 'projects',
+        element: cw(lazy(() => import('@/pages/admin/superadmin/projects'))),
+      },
+      {
+        path: 'emails',
+        element: cw(lazy(() => import('@/pages/admin/superadmin/emails'))),
+      },
+    ],
   },
   // Theme Editor - only available in development mode
   ...(import.meta.env.DEV

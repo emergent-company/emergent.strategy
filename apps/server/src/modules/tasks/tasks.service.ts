@@ -1,4 +1,10 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, DataSource } from 'typeorm';
 import { Task } from '../../entities/task.entity';
@@ -36,6 +42,7 @@ export class TasksService {
     private readonly userProfileRepo: Repository<UserProfile>,
     @InjectRepository(UserEmail)
     private readonly userEmailRepo: Repository<UserEmail>,
+    @Inject(forwardRef(() => ObjectMergeService))
     private readonly objectMergeService: ObjectMergeService,
     private readonly dataSource: DataSource
   ) {}

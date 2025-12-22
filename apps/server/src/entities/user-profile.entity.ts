@@ -9,7 +9,7 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-import { UserEmail } from './user-email.entity';
+import type { UserEmail } from './user-email.entity';
 
 @Entity({ schema: 'core', name: 'user_profiles' })
 @Index(['zitadelUserId'], { unique: true })
@@ -48,6 +48,14 @@ export class UserProfile {
   })
   welcomeEmailSentAt: Date | null;
 
+  /** Timestamp when profile was last synced from Zitadel */
+  @Column({ name: 'last_synced_at', type: 'timestamptz', nullable: true })
+  lastSyncedAt: Date | null;
+
+  /** Timestamp of last authenticated API activity (debounced, ~60s granularity) */
+  @Column({ name: 'last_activity_at', type: 'timestamptz', nullable: true })
+  lastActivityAt: Date | null;
+
   /** Soft delete timestamp (null = active, timestamp = deleted) */
   @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })
   deletedAt: Date | null;
@@ -60,6 +68,6 @@ export class UserProfile {
   @JoinColumn({ name: 'deleted_by' })
   deletedByUser: UserProfile | null;
 
-  @OneToMany(() => UserEmail, (email) => email.user)
-  emails: UserEmail[];
+  @OneToMany('UserEmail', 'user')
+  emails!: UserEmail[];
 }

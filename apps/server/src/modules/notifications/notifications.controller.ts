@@ -6,7 +6,6 @@ import {
   Query,
   Body,
   UseGuards,
-  Req,
   Delete,
   ParseUUIDPipe,
   ParseBoolPipe,
@@ -26,6 +25,7 @@ import { Scopes } from '../auth/scopes.decorator';
 import { NotificationsService } from './notifications.service';
 import { SnoozeNotificationDto } from './dto/create-notification.dto';
 import { ApiStandardErrors } from '../../common/decorators/api-standard-errors';
+import { RequireUserId } from '../../common/decorators/project-context.decorator';
 
 @ApiTags('Notifications')
 @Controller('notifications')
@@ -62,7 +62,7 @@ export class NotificationsController {
   @ApiStandardErrors()
   @Scopes('notifications:read')
   async getNotifications(
-    @Req() req: any,
+    @RequireUserId() userId: string,
     @Query('tab', new DefaultValuePipe('important'))
     tab: 'important' | 'other' | 'snoozed' | 'cleared',
     @Query('category') category?: string,
@@ -70,7 +70,6 @@ export class NotificationsController {
     unreadOnly?: boolean,
     @Query('search') search?: string
   ) {
-    const userId = req.user?.id;
     const notifications = await this.notificationsService.getForUser(
       userId,
       tab,
@@ -89,8 +88,7 @@ export class NotificationsController {
   @ApiOkResponse({ description: 'Notification counts by tab' })
   @ApiStandardErrors()
   @Scopes('notifications:read')
-  async getUnreadCounts(@Req() req: any) {
-    const userId = req.user?.id;
+  async getUnreadCounts(@RequireUserId() userId: string) {
     const counts = await this.notificationsService.getUnreadCounts(userId);
     return { success: true, data: counts };
   }
@@ -102,8 +100,7 @@ export class NotificationsController {
   @ApiOkResponse({ description: 'Notification statistics' })
   @ApiStandardErrors()
   @Scopes('notifications:read')
-  async getStats(@Req() req: any) {
-    const userId = req.user?.id;
+  async getStats(@RequireUserId() userId: string) {
     const stats = await this.notificationsService.getCounts(userId);
     return { success: true, data: stats };
   }
@@ -114,8 +111,10 @@ export class NotificationsController {
   @ApiOkResponse({ description: 'Notification marked as read' })
   @ApiStandardErrors()
   @Scopes('notifications:write')
-  async markRead(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
-    const userId = req.user?.id;
+  async markRead(
+    @RequireUserId() userId: string,
+    @Param('id', ParseUUIDPipe) id: string
+  ) {
     await this.notificationsService.markRead(id, userId);
     return { success: true };
   }
@@ -126,8 +125,10 @@ export class NotificationsController {
   @ApiOkResponse({ description: 'Notification marked as unread' })
   @ApiStandardErrors()
   @Scopes('notifications:write')
-  async markUnread(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
-    const userId = req.user?.id;
+  async markUnread(
+    @RequireUserId() userId: string,
+    @Param('id', ParseUUIDPipe) id: string
+  ) {
     await this.notificationsService.markUnread(id, userId);
     return { success: true };
   }
@@ -138,8 +139,10 @@ export class NotificationsController {
   @ApiOkResponse({ description: 'Notification dismissed' })
   @ApiStandardErrors()
   @Scopes('notifications:write')
-  async dismiss(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
-    const userId = req.user?.id;
+  async dismiss(
+    @RequireUserId() userId: string,
+    @Param('id', ParseUUIDPipe) id: string
+  ) {
     await this.notificationsService.dismiss(id, userId);
     return { success: true };
   }
@@ -150,8 +153,10 @@ export class NotificationsController {
   @ApiOkResponse({ description: 'Notification cleared' })
   @ApiStandardErrors()
   @Scopes('notifications:write')
-  async clear(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
-    const userId = req.user?.id;
+  async clear(
+    @RequireUserId() userId: string,
+    @Param('id', ParseUUIDPipe) id: string
+  ) {
     await this.notificationsService.clear(id, userId);
     return { success: true };
   }
@@ -162,8 +167,10 @@ export class NotificationsController {
   @ApiOkResponse({ description: 'Notification restored' })
   @ApiStandardErrors()
   @Scopes('notifications:write')
-  async unclear(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
-    const userId = req.user?.id;
+  async unclear(
+    @RequireUserId() userId: string,
+    @Param('id', ParseUUIDPipe) id: string
+  ) {
     await this.notificationsService.unclear(id, userId);
     return { success: true };
   }
@@ -180,11 +187,10 @@ export class NotificationsController {
   @ApiStandardErrors()
   @Scopes('notifications:write')
   async clearAll(
-    @Req() req: any,
+    @RequireUserId() userId: string,
     @Query('tab', new DefaultValuePipe('important'))
     tab: 'important' | 'other'
   ) {
-    const userId = req.user?.id;
     const count = await this.notificationsService.clearAll(userId, tab);
     return { success: true, cleared: count };
   }
@@ -196,11 +202,10 @@ export class NotificationsController {
   @ApiStandardErrors()
   @Scopes('notifications:write')
   async snooze(
-    @Req() req: any,
+    @RequireUserId() userId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: SnoozeNotificationDto
   ) {
-    const userId = req.user?.id;
     const until = new Date(body.until);
     await this.notificationsService.snooze(id, userId, until);
     return { success: true };
@@ -212,8 +217,10 @@ export class NotificationsController {
   @ApiOkResponse({ description: 'Notification unsnoozed' })
   @ApiStandardErrors()
   @Scopes('notifications:write')
-  async unsnooze(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
-    const userId = req.user?.id;
+  async unsnooze(
+    @RequireUserId() userId: string,
+    @Param('id', ParseUUIDPipe) id: string
+  ) {
     await this.notificationsService.unsnooze(id, userId);
     return { success: true };
   }
@@ -229,11 +236,10 @@ export class NotificationsController {
   @ApiStandardErrors()
   @Scopes('notifications:write')
   async resolve(
-    @Req() req: any,
+    @RequireUserId() userId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: { status: 'accepted' | 'rejected' }
   ) {
-    const userId = req.user?.id;
     await this.notificationsService.resolve(id, userId, body.status);
     return { success: true };
   }

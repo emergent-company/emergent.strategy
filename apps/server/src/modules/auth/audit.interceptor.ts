@@ -9,12 +9,11 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { AuditService } from './audit.service';
 import { AuditEventType, AuditOutcome } from './audit.types';
+import { ViewAsUser } from '../../common/middleware/view-as.middleware';
 
 /**
- * Phase 3: Authorization Audit Trail (6a)
- *
- * Interceptor to automatically log authorization events for all protected endpoints.
- * Captures successful requests and authorization failures.
+ * Audit interceptor for authorization events.
+ * Supports view-as impersonation: logs both superadminUser (actor) and viewAsUser (context).
  */
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
@@ -34,14 +33,23 @@ export class AuditInterceptor implements NestInterceptor {
     const res = context.switchToHttp().getResponse<any>();
     const user = req.user;
 
+    const superadminUser = req.superadminUser;
+    const viewAsUser: ViewAsUser | undefined = req.viewAsUser;
+    const isViewAs = !!superadminUser && !!viewAsUser;
+
+    const effectiveUserId = isViewAs ? viewAsUser.id : user?.sub;
+    const effectiveUserEmail = isViewAs ? undefined : user?.email;
+
     const requestData = {
       endpoint: req.route?.path || req.url,
       httpMethod: req.method,
-      userId: user?.sub,
-      userEmail: user?.email,
+      userId: effectiveUserId,
+      userEmail: effectiveUserEmail,
       ipAddress: req.ip || req.connection?.remoteAddress,
       userAgent: req.headers['user-agent'],
       requestId: req.headers['x-request-id'] || req.id,
+      superadminUserId: isViewAs ? superadminUser.sub : undefined,
+      viewAsUserId: isViewAs ? viewAsUser.id : undefined,
     };
 
     return next.handle().pipe(
@@ -103,6 +111,10 @@ export class AuditInterceptor implements NestInterceptor {
         requestId: data.requestId,
         metadata: {
           status_code: statusCode,
+          ...(data.superadminUserId && {
+            superadmin_user_id: data.superadminUserId,
+          }),
+          ...(data.viewAsUserId && { view_as_user_id: data.viewAsUserId }),
         },
       })
       .catch((err) => {
@@ -137,6 +149,10 @@ export class AuditInterceptor implements NestInterceptor {
           error_message: error.message,
           error_code: error.response?.error?.code || error.status,
           status_code: error.status,
+          ...(data.superadminUserId && {
+            superadmin_user_id: data.superadminUserId,
+          }),
+          ...(data.viewAsUserId && { view_as_user_id: data.viewAsUserId }),
         },
       })
       .catch((err) => {

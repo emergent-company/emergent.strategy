@@ -11,6 +11,7 @@ import {
   NotFoundException,
   ValidationPipe,
 } from '@nestjs/common';
+import { RequireUserId } from '../../common/decorators/project-context.decorator';
 import {
   ApiTags,
   ApiOkResponse,
@@ -27,7 +28,6 @@ import {
   CreateInviteWithUserDto,
   AcceptInviteDto,
   PendingInviteDto,
-  SentInviteDto,
 } from './dto/invite.dto';
 
 @ApiTags('Invites')
@@ -94,9 +94,9 @@ export class InvitesController {
   async accept(
     @Body(new ValidationPipe({ whitelist: true, transform: true }))
     dto: AcceptInviteDto,
-    @Req() req: any
+    @RequireUserId() userId: string
   ) {
-    return this.invites.accept(dto.token, req.user?.id);
+    return this.invites.accept(dto.token, userId);
   }
 
   /**
@@ -110,8 +110,10 @@ export class InvitesController {
     isArray: true,
   })
   @ApiStandardErrors()
-  async listPending(@Req() req: any): Promise<PendingInviteDto[]> {
-    return this.invites.listPendingForUser(req.user?.id);
+  async listPending(
+    @RequireUserId() userId: string
+  ): Promise<PendingInviteDto[]> {
+    return this.invites.listPendingForUser(userId);
   }
 
   /**
@@ -145,9 +147,9 @@ export class InvitesController {
   @ApiStandardErrors()
   async decline(
     @Param('id', new ParseUUIDPipe({ version: '4' })) inviteId: string,
-    @Req() req: any
+    @RequireUserId() userId: string
   ) {
-    return this.invites.decline(inviteId, req.user?.id);
+    return this.invites.decline(inviteId, userId);
   }
 
   /**
@@ -173,7 +175,7 @@ export class InvitesController {
   @ApiStandardErrors()
   async cancel(
     @Param('id', new ParseUUIDPipe({ version: '4' })) inviteId: string,
-    @Req() req: any
+    @RequireUserId() userId: string
   ) {
     // First verify the invite exists and get project info for authorization
     const invite = await this.invites.getById(inviteId);
@@ -183,6 +185,6 @@ export class InvitesController {
       });
     }
     // TODO: Additional authorization could check if user is admin of the project
-    return this.invites.cancel(inviteId, req.user?.id);
+    return this.invites.cancel(inviteId, userId);
   }
 }
