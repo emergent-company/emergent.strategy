@@ -1,0 +1,1 @@
+export { ViewAsBanner } from './ViewAsBanner';

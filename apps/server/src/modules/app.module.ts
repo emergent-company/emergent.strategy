@@ -48,6 +48,7 @@ import { UsersModule } from './users/users.module';
 import { EmailModule } from './email/email.module';
 import { ReleasesModule } from './releases/releases.module';
 import { SuperadminModule } from './superadmin/superadmin.module';
+import { UserEmailPreferencesModule } from './user-email-preferences/user-email-preferences.module';
 import { AppConfigService } from '../common/config/config.service';
 import { entities } from '../entities';
 
@@ -145,6 +146,7 @@ import { entities } from '../entities';
     EmailModule,
     ReleasesModule,
     SuperadminModule,
+    UserEmailPreferencesModule,
     TypeOrmModule.forFeature([UserProfile]),
   ],
 })

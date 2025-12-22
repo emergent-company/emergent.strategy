@@ -6,6 +6,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Icon } from '@/components/atoms/Icon';
 import { Button } from '@/components/atoms/Button';
+import { Spinner } from '@/components/atoms/Spinner';
 import { useApi } from '@/hooks/use-api';
 import { MergeChat } from './MergeChat';
 import type { Task } from '@/types/task';
@@ -287,7 +288,7 @@ export const MergeComparisonModal: React.FC<MergeComparisonModalProps> = ({
           <div className="flex flex-col border-r border-base-300 min-w-0 overflow-hidden">
             {loading ? (
               <div className="flex-1 flex items-center justify-center">
-                <span className="loading loading-spinner loading-lg" />
+                <Spinner size="lg" />
               </div>
             ) : error ? (
               <div className="flex-1 flex items-center justify-center">
@@ -380,7 +381,7 @@ export const MergeComparisonModal: React.FC<MergeComparisonModalProps> = ({
           <div className="flex flex-col border-r border-base-300 min-w-0 overflow-hidden">
             {loading ? (
               <div className="flex-1 flex items-center justify-center">
-                <span className="loading loading-spinner loading-lg" />
+                <Spinner size="lg" />
               </div>
             ) : error ? (
               <div className="flex-1 flex items-center justify-center">

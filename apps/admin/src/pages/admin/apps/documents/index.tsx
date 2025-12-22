@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Icon } from '@/components/atoms/Icon';
+import { Spinner } from '@/components/atoms/Spinner';
 import { PageContainer } from '@/components/layouts';
 import { useAuth } from '@/contexts/useAuth';
 import { useApi } from '@/hooks/use-api';
@@ -1171,7 +1172,7 @@ export default function DocumentsPage() {
             >
               {uploading ? (
                 <>
-                  <span className="loading loading-spinner loading-sm" />
+                  <Spinner size="sm" />
                   Uploading...
                 </>
               ) : (
@@ -1223,9 +1224,7 @@ export default function DocumentsPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {uploadProgress.stage !== 'complete' && (
-                  <span className="loading loading-spinner loading-sm" />
-                )}
+                {uploadProgress.stage !== 'complete' && <Spinner size="sm" />}
                 {uploadProgress.stage === 'complete' && (
                   <Icon
                     icon="lucide--check-circle"
@@ -1708,7 +1707,7 @@ export default function DocumentsPage() {
               <div className="mb-2 font-medium text-sm">Content:</div>
               {loadingPreviewContent ? (
                 <div className="flex justify-center items-center py-8">
-                  <span className="loading loading-spinner loading-md" />
+                  <Spinner size="md" />
                 </div>
               ) : (
                 <pre className="bg-base-200 p-4 rounded-box max-h-96 overflow-y-auto text-sm whitespace-pre-wrap">

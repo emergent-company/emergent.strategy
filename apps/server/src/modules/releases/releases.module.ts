@@ -11,6 +11,7 @@ import { EmailModule } from '../email/email.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AppConfigModule } from '../../common/config/config.module';
 import { AuthModule } from '../auth/auth.module';
+import { UserEmailPreferencesModule } from '../user-email-preferences/user-email-preferences.module';
 import { ReleaseChangelogService } from './services/release-changelog.service';
 import { ReleaseNotificationsService } from './services/release-notifications.service';
 import { ReleaseStatusService } from './services/release-status.service';
@@ -43,6 +44,7 @@ import { ReleasesController } from './releases.controller';
     NotificationsModule,
     AppConfigModule,
     AuthModule,
+    UserEmailPreferencesModule,
   ],
   controllers: [ReleasesController],
   providers: [

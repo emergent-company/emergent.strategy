@@ -8,6 +8,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '@/components/organisms/Modal/Modal';
 import { Icon } from '@/components/atoms/Icon';
+import { Spinner } from '@/components/atoms/Spinner';
 import { useApi } from '@/hooks/use-api';
 
 export interface ExtractionLogEntry {
@@ -316,7 +317,7 @@ export function ExtractionLogsModal({
     >
       {isLoading && (
         <div className="flex justify-center items-center py-12">
-          <span className="loading loading-spinner loading-lg" />
+          <Spinner size="lg" />
         </div>
       )}
 

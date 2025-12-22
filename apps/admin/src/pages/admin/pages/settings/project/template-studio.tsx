@@ -7,6 +7,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useConfig } from '@/contexts/config';
 import { Icon } from '@/components/atoms/Icon';
+import { Spinner } from '@/components/atoms/Spinner';
 import { Tooltip } from '@/components/atoms/Tooltip';
 import { Modal } from '@/components/organisms/Modal/Modal';
 import { FormField } from '@/components/molecules/FormField/FormField';
@@ -339,7 +340,7 @@ export default function TemplatePackStudioPage() {
       {isLoading && !session && (
         <div className="flex-1 flex items-center justify-center">
           <div className="flex flex-col items-center gap-3">
-            <span className="loading loading-spinner loading-lg text-primary"></span>
+            <Spinner size="lg" className="text-primary" />
             <span className="text-sm text-base-content/60">
               Loading studio session...
             </span>

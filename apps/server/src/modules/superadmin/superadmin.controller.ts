@@ -18,7 +18,7 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Request } from 'express';
 
 import { AuthGuard } from '../auth/auth.guard';
@@ -176,7 +176,7 @@ export class SuperadminController {
     const memberships =
       userIds.length > 0
         ? await this.orgMembershipRepo.find({
-            where: { userId: { $in: userIds } as any },
+            where: { userId: In(userIds) },
             relations: ['organization'],
           })
         : [];

@@ -14,6 +14,7 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import { Icon } from '@/components/atoms/Icon';
+import { Spinner } from '@/components/atoms/Spinner';
 import { GraphNode } from './GraphNode';
 import { GraphEdge } from './GraphEdge';
 import { GraphControls } from './GraphControls';
@@ -218,7 +219,7 @@ function RelationshipGraphInner({
       <div
         className={`flex flex-col items-center justify-center p-8 ${className}`}
       >
-        <span className="loading loading-spinner loading-lg text-primary mb-4"></span>
+        <Spinner size="lg" className="text-primary mb-4" />
         <p className="text-sm text-base-content/60">Loading graph...</p>
       </div>
     );
@@ -292,7 +293,7 @@ function RelationshipGraphInner({
       {/* Loading overlay */}
       {loading && nodes.length > 0 && (
         <div className="absolute top-4 right-4 flex items-center gap-2 bg-base-100 px-3 py-2 rounded-lg shadow-md border border-base-300">
-          <span className="loading loading-spinner loading-sm text-primary"></span>
+          <Spinner size="sm" className="text-primary" />
           <span className="text-sm text-base-content/70">Updating...</span>
         </div>
       )}

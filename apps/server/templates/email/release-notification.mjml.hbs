@@ -44,49 +44,69 @@
 {{!-- Breaking Changes (shown first with warning styling) --}}
 {{#if changelog.breakingChanges.length}}
 <mj-text font-size="16px" font-weight="600" color="#DC2626" padding-top="24px" padding-bottom="12px">
-  Breaking Changes
+  ⚠️ Breaking Changes
 </mj-text>
 {{#each changelog.breakingChanges}}
 <mj-text padding-bottom="8px" padding-left="16px">
   <strong>{{this.title}}</strong>{{#if this.description}} — {{this.description}}{{/if}}
 </mj-text>
 {{/each}}
+{{#if breakingChangesRemaining}}
+<mj-text padding-bottom="8px" padding-left="16px" color="#6b7280" font-style="italic">
+  ...and {{breakingChangesRemaining}} more
+</mj-text>
+{{/if}}
 {{/if}}
 
 {{!-- New Features --}}
 {{#if changelog.features.length}}
 <mj-text font-size="16px" font-weight="600" color="#374151" padding-top="24px" padding-bottom="12px">
-  New Features
+  ✨ New Features
 </mj-text>
 {{#each changelog.features}}
 <mj-text padding-bottom="8px" padding-left="16px">
   <strong>{{this.title}}</strong>{{#if this.description}} — {{this.description}}{{/if}}
 </mj-text>
 {{/each}}
+{{#if featuresRemaining}}
+<mj-text padding-bottom="8px" padding-left="16px" color="#6b7280" font-style="italic">
+  ...and {{featuresRemaining}} more
+</mj-text>
+{{/if}}
 {{/if}}
 
 {{!-- Improvements --}}
 {{#if changelog.improvements.length}}
 <mj-text font-size="16px" font-weight="600" color="#374151" padding-top="24px" padding-bottom="12px">
-  Improvements
+  🚀 Improvements
 </mj-text>
 {{#each changelog.improvements}}
 <mj-text padding-bottom="8px" padding-left="16px">
   <strong>{{this.title}}</strong>{{#if this.description}} — {{this.description}}{{/if}}
 </mj-text>
 {{/each}}
+{{#if improvementsRemaining}}
+<mj-text padding-bottom="8px" padding-left="16px" color="#6b7280" font-style="italic">
+  ...and {{improvementsRemaining}} more
+</mj-text>
+{{/if}}
 {{/if}}
 
 {{!-- Bug Fixes --}}
 {{#if changelog.bugFixes.length}}
 <mj-text font-size="16px" font-weight="600" color="#374151" padding-top="24px" padding-bottom="12px">
-  Bug Fixes
+  🐛 Bug Fixes
 </mj-text>
 {{#each changelog.bugFixes}}
 <mj-text padding-bottom="8px" padding-left="16px">
   <strong>{{this.title}}</strong>{{#if this.description}} — {{this.description}}{{/if}}
 </mj-text>
 {{/each}}
+{{#if bugFixesRemaining}}
+<mj-text padding-bottom="8px" padding-left="16px" color="#6b7280" font-style="italic">
+  ...and {{bugFixesRemaining}} more
+</mj-text>
+{{/if}}
 {{/if}}
 
 {{!-- CTA Button --}}

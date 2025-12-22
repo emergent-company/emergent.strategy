@@ -5,6 +5,7 @@
 import React from 'react';
 import { Icon } from '@/components/atoms/Icon';
 import { Button } from '@/components/atoms/Button';
+import { Spinner } from '@/components/atoms/Spinner';
 import type { PendingInvite } from '@/hooks/use-pending-invites';
 
 export interface PendingInvitationCardProps {
@@ -122,11 +123,7 @@ export const PendingInvitationCard: React.FC<PendingInvitationCardProps> = ({
             disabled={isLoading}
             className="min-w-[80px]"
           >
-            {isAccepting ? (
-              <span className="loading loading-spinner loading-xs" />
-            ) : (
-              'Accept'
-            )}
+            {isAccepting ? <Spinner size="xs" /> : 'Accept'}
           </Button>
           <Button
             size="sm"
@@ -135,11 +132,7 @@ export const PendingInvitationCard: React.FC<PendingInvitationCardProps> = ({
             disabled={isLoading}
             className="min-w-[80px]"
           >
-            {isDeclining ? (
-              <span className="loading loading-spinner loading-xs" />
-            ) : (
-              'Decline'
-            )}
+            {isDeclining ? <Spinner size="xs" /> : 'Decline'}
           </Button>
         </div>
       </div>

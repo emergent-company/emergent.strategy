@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { TaskRow } from '@/components/molecules/TaskRow';
 import { Button } from '@/components/atoms/Button';
 import { Icon } from '@/components/atoms/Icon';
+import { Spinner } from '@/components/atoms/Spinner';
 import type { Task, TaskCounts, TaskStatus } from '@/types/task';
 
 export interface TasksInboxProps {
@@ -147,7 +148,7 @@ export const TasksInbox: React.FC<TasksInboxProps> = ({
       <div className="flex-1 overflow-y-auto" role="tabpanel">
         {loading ? (
           <div className="flex justify-center items-center py-12">
-            <span className="loading loading-spinner loading-md" />
+            <Spinner size="md" />
           </div>
         ) : tasks.length === 0 ? (
           <div className="flex flex-col justify-center items-center gap-3 py-16 text-center">

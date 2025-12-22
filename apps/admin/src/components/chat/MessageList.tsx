@@ -3,6 +3,7 @@ import SimpleBar from 'simplebar-react';
 import 'simplebar-react/dist/simplebar.min.css';
 import type { UIMessage } from '@ai-sdk/react';
 import { format } from 'date-fns';
+import { Spinner } from '@/components/atoms/Spinner';
 import { MessageBubble } from './MessageBubble';
 import type { ActionTarget } from './ActionCard';
 import type { RefinementSuggestion } from '@/types/object-refinement';
@@ -168,7 +169,7 @@ export const MessageList = memo(function MessageList({
         {hasMoreMessages && (
           <div className="text-center py-4">
             {isLoadingMoreMessages ? (
-              <span className="loading loading-spinner loading-sm text-base-content/50"></span>
+              <Spinner size="sm" className="text-base-content/50" />
             ) : (
               <button
                 onClick={onLoadMoreMessages}

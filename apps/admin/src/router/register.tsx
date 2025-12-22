@@ -2,6 +2,7 @@ import { JSX, LazyExoticComponent, lazy, Suspense } from 'react';
 import { Navigate, RouteProps, Outlet } from 'react-router';
 import { SettingsLayout } from '@/pages/admin/pages/settings/components';
 import { SuperadminLayout } from '@/pages/admin/superadmin/layout';
+import { Spinner } from '@/components/atoms/Spinner';
 
 export type IRoutesProps = {
   path: RouteProps['path'];
@@ -18,7 +19,7 @@ const sw = (Component: LazyExoticComponent<() => JSX.Element>) => (
     <Suspense
       fallback={
         <div className="flex justify-center items-center py-12">
-          <span className="loading loading-spinner loading-lg"></span>
+          <Spinner size="lg" />
         </div>
       }
     >
@@ -256,6 +257,11 @@ const otherRoutes: IRoutesProps[] = [
   {
     path: '/releases/:version',
     element: cw(lazy(() => import('@/pages/releases/[version]'))),
+  },
+  // Public email unsubscribe page (no auth required)
+  {
+    path: '/unsubscribe/:token',
+    element: cw(lazy(() => import('@/pages/unsubscribe'))),
   },
   { path: '*', element: cw(lazy(() => import('@/pages/not-found'))) },
 ];
