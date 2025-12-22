@@ -15,6 +15,7 @@ import {
 } from '@nestjs/swagger';
 import { ApiStandardErrors } from '../../common/decorators/api-standard-errors';
 import { Scopes } from './scopes.decorator';
+import { RequireUserId } from '../../common/decorators/project-context.decorator';
 
 import { AuthGuard } from './auth.guard';
 import { ScopesGuard } from './scopes.guard';
@@ -46,8 +47,7 @@ export class AuthController {
     schema: { example: { error: { code: 'forbidden', message: 'Forbidden' } } },
   })
   @ApiStandardErrors({})
-  async me(@Req() req: any): Promise<UserProfileDto> {
-    const userId = req.user.id;
+  async me(@RequireUserId() userId: string): Promise<UserProfileDto> {
     const profile = await this.userProfileService.getById(userId);
     if (!profile) {
       throw new InternalServerErrorException('User profile not found');

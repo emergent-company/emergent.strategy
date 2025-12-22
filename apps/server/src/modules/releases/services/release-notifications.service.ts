@@ -18,6 +18,7 @@ import {
 } from '../../notifications/dto/create-notification.dto';
 import { EmailTemplateService } from '../../email/email-template.service';
 import { MailgunProvider } from '../../email/mailgun.provider';
+import { ZitadelService } from '../../auth/zitadel.service';
 import {
   ChangelogResult,
   StructuredChangelog,
@@ -111,7 +112,8 @@ export class ReleaseNotificationsService {
     private readonly dataSource: DataSource,
     private readonly notificationsService: NotificationsService,
     private readonly emailTemplateService: EmailTemplateService,
-    private readonly mailgunProvider: MailgunProvider
+    private readonly mailgunProvider: MailgunProvider,
+    private readonly zitadelService: ZitadelService
   ) {}
 
   /**
@@ -385,6 +387,7 @@ export class ReleaseNotificationsService {
 
   /**
    * Resolve target users based on targeting mode.
+   * Falls back to Zitadel API for users without email in local database.
    */
   private async resolveTargetUsers(
     targetMode: ReleaseTargetMode,
@@ -427,10 +430,10 @@ export class ReleaseNotificationsService {
       return [];
     }
 
-    // Get user profiles with emails
+    // Get user profiles with zitadelUserId for fallback lookup
     const users = await this.userProfileRepo.find({
       where: { id: In(userIds), deletedAt: IsNull() },
-      select: ['id', 'displayName', 'firstName', 'lastName'],
+      select: ['id', 'zitadelUserId', 'displayName', 'firstName', 'lastName'],
     });
 
     // Get primary emails for users
@@ -446,10 +449,82 @@ export class ReleaseNotificationsService {
       }
     }
 
+    // Find users without emails in local database
+    const usersWithoutEmail = users.filter(
+      (u) => !emailMap.has(u.id) && u.zitadelUserId
+    );
+
+    // Map userId to display name from Zitadel (for users without local name)
+    const zitadelNameMap = new Map<string, string>();
+
+    // Fetch emails from Zitadel for users without local email
+    if (usersWithoutEmail.length > 0) {
+      this.logger.log(
+        `Fetching ${usersWithoutEmail.length} emails from Zitadel...`
+      );
+      this.logger.log(
+        `Fetching ${usersWithoutEmail.length} emails from Zitadel...`
+      );
+
+      // Fetch in parallel with concurrency limit
+      const BATCH_SIZE = 10;
+      for (let i = 0; i < usersWithoutEmail.length; i += BATCH_SIZE) {
+        const batch = usersWithoutEmail.slice(i, i + BATCH_SIZE);
+        const results = await Promise.allSettled(
+          batch.map(async (user) => {
+            try {
+              const zitadelUser = await this.zitadelService.getUserById(
+                user.zitadelUserId
+              );
+              if (zitadelUser) {
+                const displayName =
+                  zitadelUser.profile?.displayName ||
+                  zitadelUser.profile?.firstName ||
+                  zitadelUser.userName;
+                return {
+                  userId: user.id,
+                  email: zitadelUser.email,
+                  displayName,
+                };
+              }
+              return null;
+            } catch (error) {
+              this.logger.debug(
+                `Failed to fetch Zitadel user ${user.zitadelUserId}: ${
+                  (error as Error).message
+                }`
+              );
+              return null;
+            }
+          })
+        );
+
+        // Add fetched data to maps
+        for (const result of results) {
+          if (result.status === 'fulfilled' && result.value) {
+            if (result.value.email) {
+              emailMap.set(result.value.userId, result.value.email);
+            }
+            if (result.value.displayName) {
+              zitadelNameMap.set(result.value.userId, result.value.displayName);
+            }
+          }
+        }
+      }
+
+      const fetchedCount = usersWithoutEmail.filter((u) =>
+        emailMap.has(u.id)
+      ).length;
+      this.logger.log(
+        `Fetched ${fetchedCount}/${usersWithoutEmail.length} emails from Zitadel`
+      );
+    }
+
     return users.map((u) => ({
       id: u.id,
       email: emailMap.get(u.id),
-      displayName: u.displayName || u.firstName || null,
+      displayName:
+        u.displayName || u.firstName || zitadelNameMap.get(u.id) || null,
     }));
   }
 

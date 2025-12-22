@@ -9,8 +9,6 @@ import {
   Res,
   Post,
   Body,
-  Req,
-  BadRequestException,
   Delete,
   UseGuards,
 } from '@nestjs/common';
@@ -23,6 +21,10 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { ApiStandardErrors } from '../../common/decorators/api-standard-errors';
+import {
+  RequireProjectId,
+  ProjectContext,
+} from '../../common/decorators/project-context.decorator';
 import { DocumentDto } from './dto/document.dto';
 import { DocumentsService } from './documents.service';
 import { AuthGuard } from '../auth/auth.guard';
@@ -91,22 +93,15 @@ export class DocumentsController {
   async list(
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
-    @Req() req?: any,
+    @RequireProjectId() ctx?: ProjectContext,
     @Res({ passthrough: true }) res?: Response
   ) {
     const n = limit
       ? Math.min(Math.max(parseInt(limit, 10) || 100, 1), 500)
       : 100;
     const decoded = this.documents.decodeCursor(cursor);
-    const projectId =
-      (req?.headers['x-project-id'] as string | undefined) || undefined;
-    if (!projectId) {
-      throw new BadRequestException({
-        error: { code: 'bad-request', message: 'x-project-id required' },
-      });
-    }
     const { items, nextCursor, total } = await this.documents.list(n, decoded, {
-      projectId,
+      projectId: ctx!.projectId,
     });
     if (nextCursor) res?.setHeader('x-next-cursor', nextCursor);
     return { documents: items, total, next_cursor: nextCursor };
@@ -125,17 +120,10 @@ export class DocumentsController {
   @Scopes('documents:read')
   async get(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Req() req: any
+    @RequireProjectId() ctx: ProjectContext
   ) {
-    const projectId =
-      (req.headers['x-project-id'] as string | undefined) || undefined;
-    if (!projectId) {
-      throw new BadRequestException({
-        error: { code: 'bad-request', message: 'x-project-id required' },
-      });
-    }
     const doc = await this.documents.get(id, {
-      projectId,
+      projectId: ctx.projectId,
     });
     if (!doc)
       throw new NotFoundException({
@@ -158,25 +146,21 @@ export class DocumentsController {
   @ApiOkResponse({ description: 'Created document', type: DocumentDto })
   @ApiStandardErrors()
   @Scopes('documents:write')
-  async create(@Body() body: CreateDocumentBody, @Req() req: any) {
-    const headerProjectId =
-      (req.headers['x-project-id'] as string | undefined) || undefined;
-    // New strict rule: require header project id; ignore body.projectId fallback
-    if (!headerProjectId)
-      throw new BadRequestException({
-        error: { code: 'bad-request', message: 'x-project-id header required' },
-      });
-    const projectId = headerProjectId;
+  async create(
+    @Body() body: CreateDocumentBody,
+    @RequireProjectId() ctx: ProjectContext
+  ) {
+    const projectId = ctx.projectId;
     const uuidV4Regex =
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (!uuidV4Regex.test(projectId))
-      throw new BadRequestException({
+      throw new NotFoundException({
         error: { code: 'bad-request', message: 'Invalid projectId format' },
       });
     // Always validate project existence before attempting insert to avoid FK 500
     const projectOrg = await this.documents.getProjectOrg(projectId);
     if (!projectOrg)
-      throw new BadRequestException({
+      throw new NotFoundException({
         error: { code: 'bad-request', message: 'Unknown projectId' },
       });
     // No longer need to validate orgId match - derived automatically
@@ -197,19 +181,11 @@ export class DocumentsController {
   @Scopes('documents:delete')
   async getDeletionImpact(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Req() req: any
+    @RequireProjectId() ctx: ProjectContext
   ) {
-    const projectId =
-      (req.headers['x-project-id'] as string | undefined) || undefined;
-    if (!projectId) {
-      throw new BadRequestException({
-        error: { code: 'bad-request', message: 'x-project-id required' },
-      });
-    }
-
     // Get document first for scope enforcement (RLS enforces project isolation)
     const doc = await this.documents.get(id, {
-      projectId,
+      projectId: ctx.projectId,
     });
     if (!doc)
       throw new NotFoundException({
@@ -236,21 +212,13 @@ export class DocumentsController {
   @Scopes('documents:delete')
   async getBulkDeletionImpact(
     @Body() body: BulkDeleteRequestDto,
-    @Req() req: any
+    @RequireProjectId() ctx: ProjectContext
   ) {
-    const projectId =
-      (req.headers['x-project-id'] as string | undefined) || undefined;
-    if (!projectId) {
-      throw new BadRequestException({
-        error: { code: 'bad-request', message: 'x-project-id required' },
-      });
-    }
-
     // Filter to only documents accessible by this project (RLS enforces isolation)
     const accessibleIds: string[] = [];
     for (const id of body.ids) {
       const doc = await this.documents.get(id, {
-        projectId,
+        projectId: ctx.projectId,
       });
       if (doc) {
         accessibleIds.push(id);
@@ -271,10 +239,10 @@ export class DocumentsController {
   @Scopes('documents:delete')
   async delete(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Req() req: any
+    @RequireProjectId() ctx: ProjectContext
   ) {
     // Reuse get logic for scope enforcement
-    const doc = await this.get(id, req);
+    const doc = await this.get(id, ctx);
     if (!doc)
       throw new NotFoundException({
         error: { code: 'not-found', message: 'Document not found' },
@@ -293,20 +261,15 @@ export class DocumentsController {
   })
   @ApiStandardErrors()
   @Scopes('documents:delete')
-  async bulkDelete(@Body() body: BulkDeleteRequestDto, @Req() req: any) {
-    const projectId =
-      (req.headers['x-project-id'] as string | undefined) || undefined;
-    if (!projectId) {
-      throw new BadRequestException({
-        error: { code: 'bad-request', message: 'x-project-id required' },
-      });
-    }
-
+  async bulkDelete(
+    @Body() body: BulkDeleteRequestDto,
+    @RequireProjectId() ctx: ProjectContext
+  ) {
     // Filter to only documents accessible by this project (RLS enforces isolation)
     const accessibleIds: string[] = [];
     for (const id of body.ids) {
       const doc = await this.documents.get(id, {
-        projectId,
+        projectId: ctx.projectId,
       });
       if (doc) {
         accessibleIds.push(id);
@@ -314,7 +277,7 @@ export class DocumentsController {
     }
 
     if (accessibleIds.length === 0) {
-      throw new BadRequestException({
+      throw new NotFoundException({
         error: {
           code: 'bad-request',
           message: 'No accessible documents found',
@@ -349,10 +312,10 @@ export class DocumentsController {
   @Scopes('documents:write')
   async recreateChunks(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Req() req: any
+    @RequireProjectId() ctx: ProjectContext
   ) {
     // Get document first for scope enforcement
-    const doc = await this.get(id, req);
+    const doc = await this.get(id, ctx);
     if (!doc)
       throw new NotFoundException({
         error: { code: 'not-found', message: 'Document not found' },

@@ -17,13 +17,19 @@ import { join } from 'path';
 // The DataSource is created at module load time, so env vars must be set before that
 // For E2E tests, the npm script uses `dotenv -e .env.e2e` which sets env vars
 // before this module is loaded
+//
+// Path from src/typeorm.config.ts:
+// - ../ = apps/server (where .env and .env.local are)
+// - ../../ = apps
+const serverDir = join(__dirname, '..');
 const envPath =
   process.env.POSTGRES_PORT === '5438'
-    ? join(__dirname, '../../.env.e2e')
-    : join(__dirname, '../../.env');
+    ? join(serverDir, '.env.e2e')
+    : join(serverDir, '.env');
 
 config({ path: envPath });
-config({ path: join(__dirname, '.env') });
+// Also load .env.local which may have additional overrides
+config({ path: join(serverDir, '.env.local') });
 
 export default new DataSource({
   type: 'postgres',

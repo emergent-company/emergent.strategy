@@ -25,6 +25,12 @@ import {
   UpdateTemplatePackAssignmentDto,
   ListTemplatePacksQueryDto,
 } from './dto/template-pack.dto';
+import {
+  RequireProjectId,
+  ProjectContext,
+  OptionalProjectId,
+  OptionalProjectContext,
+} from '../../common/decorators/project-context.decorator';
 
 @Controller('template-packs')
 @UseGuards(...(process.env.NODE_ENV === 'test' ? [] : [AuthGuard, ScopesGuard]))
@@ -32,17 +38,6 @@ export class TemplatePackController {
   private readonly logger = new Logger(TemplatePackController.name);
 
   constructor(private readonly templatePackService: TemplatePackService) {}
-
-  /**
-   * Helper to extract project ID from headers
-   */
-  private getProjectId(req: any): string {
-    const projectId = req.headers['x-project-id'] as string | undefined;
-    if (!projectId) {
-      throw new BadRequestException('x-project-id header required');
-    }
-    return projectId;
-  }
 
   private normalizeUserId(value?: string | null): string | undefined {
     if (!value) {

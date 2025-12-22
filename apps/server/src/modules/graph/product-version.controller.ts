@@ -5,12 +5,10 @@ import {
   Param,
   Post,
   Query,
-  Req,
-  Res,
   UseGuards,
-  BadRequestException,
   NotFoundException,
   HttpStatus,
+  HttpCode,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -21,9 +19,12 @@ import {
 import { AuthGuard } from '../auth/auth.guard';
 import { ScopesGuard } from '../auth/scopes.guard';
 import { Scopes } from '../auth/scopes.decorator';
+import {
+  RequireProjectId,
+  ProjectContext,
+} from '../../common/decorators/project-context.decorator';
 import { CreateProductVersionDto } from './dto/create-product-version.dto';
 import { ProductVersionService } from './product-version.service';
-import type { Response } from 'express';
 
 @ApiTags('Product Versions')
 @Controller('product-versions')
@@ -33,6 +34,7 @@ export class ProductVersionController {
 
   @Post()
   @Scopes('graph:write')
+  @HttpCode(HttpStatus.CREATED)
   @ApiOkResponse({
     description: 'Create product version snapshot',
     schema: {
@@ -56,17 +58,9 @@ export class ProductVersionController {
   })
   async create(
     @Body() body: CreateProductVersionDto,
-    @Req() req: any,
-    @Res() res: Response
+    @RequireProjectId() ctx: ProjectContext
   ) {
-    const projectId =
-      (req.headers['x-project-id'] as string | undefined) || null;
-    if (!projectId)
-      throw new BadRequestException({
-        error: { code: 'bad-request', message: 'x-project-id header required' },
-      });
-    const created = await this.svc.create(projectId, body);
-    return res.status(HttpStatus.CREATED).json(created);
+    return this.svc.create(ctx.projectId, body);
   }
 
   @Get()
@@ -105,36 +99,22 @@ export class ProductVersionController {
   async list(
     @Query('limit') limitStr: string | undefined,
     @Query('cursor') cursor: string | undefined,
-    @Req() req: any,
-    @Res() res: Response
+    @RequireProjectId() ctx: ProjectContext
   ) {
-    const projectId =
-      (req.headers['x-project-id'] as string | undefined) || null;
-    if (!projectId)
-      throw new BadRequestException({
-        error: { code: 'bad-request', message: 'x-project-id header required' },
-      });
     const limit = limitStr ? parseInt(limitStr, 10) : undefined;
-    const result = await this.svc.list(projectId, { limit, cursor });
-    return res.json(result);
+    return this.svc.list(ctx.projectId, { limit, cursor });
   }
 
   @Get(':id')
   @Scopes('graph:read')
   @ApiOkResponse({ description: 'Get product version snapshot' })
-  async get(@Param('id') id: string, @Req() req: any, @Res() res: Response) {
-    const projectId =
-      (req.headers['x-project-id'] as string | undefined) || null;
-    if (!projectId)
-      throw new BadRequestException({
-        error: { code: 'bad-request', message: 'x-project-id header required' },
-      });
-    const pv = await this.svc.get(projectId, id);
+  async get(@Param('id') id: string, @RequireProjectId() ctx: ProjectContext) {
+    const pv = await this.svc.get(ctx.projectId, id);
     if (!pv)
       throw new NotFoundException({
         error: { code: 'not-found', message: 'snapshot not found' },
       });
-    return res.json(pv);
+    return pv;
   }
 
   @Get(':id/diff/:otherId')
@@ -158,16 +138,8 @@ export class ProductVersionController {
   async diff(
     @Param('id') id: string,
     @Param('otherId') otherId: string,
-    @Req() req: any,
-    @Res() res: Response
+    @RequireProjectId() ctx: ProjectContext
   ) {
-    const projectId =
-      (req.headers['x-project-id'] as string | undefined) || null;
-    if (!projectId)
-      throw new BadRequestException({
-        error: { code: 'bad-request', message: 'x-project-id header required' },
-      });
-    const diff = await this.svc.diffReleases(projectId, id, otherId);
-    return res.json(diff);
+    return this.svc.diffReleases(ctx.projectId, id, otherId);
   }
 }

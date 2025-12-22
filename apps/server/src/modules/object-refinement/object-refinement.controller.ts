@@ -7,6 +7,7 @@ import {
   Req,
   Res,
   HttpStatus,
+  HttpCode,
   UseGuards,
   Logger,
   NotFoundException,
@@ -14,6 +15,13 @@ import {
   ForbiddenException,
   Optional,
 } from '@nestjs/common';
+import {
+  RequireProjectId,
+  ProjectContext,
+  OptionalProjectId,
+  OptionalProjectContext,
+  RequireUserId,
+} from '../../common/decorators/project-context.decorator';
 import {
   ApiTags,
   ApiOperation,
@@ -110,26 +118,6 @@ export class ObjectRefinementController {
     private readonly db: DatabaseService,
     @Optional() private readonly langfuseService?: LangfuseService
   ) {}
-
-  /**
-   * Extract request context (orgId, projectId, userId)
-   */
-  private extractContext(req: any): {
-    userId: string;
-    orgId: string | null;
-    projectId: string | null;
-  } {
-    const userId = req.user?.id;
-    if (!userId) {
-      throw new ForbiddenException('User not authenticated');
-    }
-
-    const orgId = (req.headers['x-org-id'] as string | undefined) || null;
-    const projectId =
-      (req.headers['x-project-id'] as string | undefined) || null;
-
-    return { userId, orgId, projectId };
-  }
 
   /**
    * Get organization ID from project ID for tool context
@@ -249,17 +237,14 @@ export class ObjectRefinementController {
   @ApiForbiddenResponse({ description: 'Access denied' })
   async getOrCreateConversation(
     @Param('objectId') objectId: string,
-    @Req() req: any
+    @RequireProjectId() ctx: ProjectContext,
+    @RequireUserId() userId: string
   ): Promise<{
     conversation: RefinementConversationDto;
     messages: RefinementChatMessageDto[];
     objectVersion: number;
   }> {
-    const { userId, projectId } = this.extractContext(req);
-
-    if (!projectId) {
-      throw new BadRequestException('x-project-id header required');
-    }
+    const { projectId } = ctx;
 
     // Verify access
     await this.verifyObjectAccess(objectId, projectId);
@@ -334,11 +319,19 @@ export class ObjectRefinementController {
   async sendMessage(
     @Param('objectId') objectId: string,
     @Body() dto: RefinementMessageDto,
+    @OptionalProjectId() ctx: OptionalProjectContext,
     @Req() req: any,
     @Res() res: Response
   ): Promise<void> {
-    const { userId, projectId } = this.extractContext(req);
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(HttpStatus.FORBIDDEN).json({
+        error: { code: 'forbidden', message: 'User not authenticated' },
+      });
+      return;
+    }
 
+    const { projectId } = ctx;
     if (!projectId) {
       res.status(HttpStatus.BAD_REQUEST).json({
         error: {
@@ -676,6 +669,7 @@ Use these tools when:
    * Apply a suggestion from the refinement chat
    */
   @Post(':objectId/refinement-chat/apply')
+  @HttpCode(HttpStatus.OK)
   @Scopes('graph:write')
   @ApiOperation({
     summary: 'Apply a suggestion to the object',
@@ -692,13 +686,10 @@ Use these tools when:
   async applySuggestion(
     @Param('objectId') objectId: string,
     @Body() dto: ApplySuggestionDto,
-    @Req() req: any
+    @RequireProjectId() ctx: ProjectContext,
+    @RequireUserId() userId: string
   ): Promise<ApplySuggestionResultDto> {
-    const { userId, projectId } = this.extractContext(req);
-
-    if (!projectId) {
-      throw new BadRequestException('x-project-id header required');
-    }
+    const { projectId } = ctx;
 
     // Verify access
     await this.verifyObjectAccess(objectId, projectId);
@@ -726,6 +717,7 @@ Use these tools when:
    * Reject a suggestion from the refinement chat
    */
   @Post(':objectId/refinement-chat/reject')
+  @HttpCode(HttpStatus.OK)
   @Scopes('graph:write')
   @ApiOperation({
     summary: 'Reject a suggestion',
@@ -746,13 +738,10 @@ Use these tools when:
   async rejectSuggestion(
     @Param('objectId') objectId: string,
     @Body() dto: RejectSuggestionDto,
-    @Req() req: any
+    @RequireProjectId() ctx: ProjectContext,
+    @RequireUserId() userId: string
   ): Promise<{ success: boolean; error?: string }> {
-    const { userId, projectId } = this.extractContext(req);
-
-    if (!projectId) {
-      throw new BadRequestException('x-project-id header required');
-    }
+    const { projectId } = ctx;
 
     // Verify access
     await this.verifyObjectAccess(objectId, projectId);
@@ -783,13 +772,10 @@ Use these tools when:
   @ApiNotFoundResponse({ description: 'Conversation not found' })
   async getMessages(
     @Param('objectId') objectId: string,
-    @Req() req: any
+    @RequireProjectId() ctx: ProjectContext,
+    @RequireUserId() userId: string
   ): Promise<RefinementChatMessageDto[]> {
-    const { projectId } = this.extractContext(req);
-
-    if (!projectId) {
-      throw new BadRequestException('x-project-id header required');
-    }
+    const { projectId } = ctx;
 
     // Verify access
     await this.verifyObjectAccess(objectId, projectId);
@@ -798,7 +784,7 @@ Use these tools when:
     const conversation = await this.refinementService.getOrCreateConversation(
       objectId,
       projectId,
-      req.user.id
+      userId
     );
 
     // Get messages

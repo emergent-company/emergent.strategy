@@ -20,19 +20,44 @@ export const Router = (props: RouteProps) => {
   return (
     <Routes>
       <Route>
-        {registerRoutes.admin.map((route, index) => (
-          <Route
-            key={'admin-' + index}
-            path={route.path}
-            element={
-              <GuardedAdmin>
-                <AdminLayout {...props}>
-                  <Suspense>{route.element}</Suspense>
-                </AdminLayout>
-              </GuardedAdmin>
-            }
-          />
-        ))}
+        {registerRoutes.admin.map((route, index) => {
+          if (route.children && route.children.length > 0) {
+            return (
+              <Route
+                key={'admin-' + index}
+                path={route.path}
+                element={
+                  <GuardedAdmin>
+                    <AdminLayout {...props}>
+                      <Suspense>{route.element}</Suspense>
+                    </AdminLayout>
+                  </GuardedAdmin>
+                }
+              >
+                {route.children.map((child, childIndex) => (
+                  <Route
+                    key={`admin-${index}-child-${childIndex}`}
+                    path={child.path}
+                    element={<Suspense>{child.element}</Suspense>}
+                  />
+                ))}
+              </Route>
+            );
+          }
+          return (
+            <Route
+              key={'admin-' + index}
+              path={route.path}
+              element={
+                <GuardedAdmin>
+                  <AdminLayout {...props}>
+                    <Suspense>{route.element}</Suspense>
+                  </AdminLayout>
+                </GuardedAdmin>
+              }
+            />
+          );
+        })}
       </Route>
       {/* Components gallery routes removed (replaced by Storybook) */}
       <Route>

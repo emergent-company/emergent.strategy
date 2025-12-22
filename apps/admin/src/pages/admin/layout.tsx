@@ -8,6 +8,7 @@ import { useOrganizations } from '@/hooks/use-organizations';
 import { useToast } from '@/hooks/use-toast';
 import { useApi } from '@/hooks/use-api';
 import { useAccessTreeContext } from '@/contexts/access-tree';
+import { useSuperadmin } from '@/hooks/use-superadmin';
 
 import { Footer } from '@/components/organisms/Footer';
 import { Rightbar } from '@/components/organisms/Rightbar';
@@ -28,6 +29,7 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
   const { showToast } = useToast();
   const { apiBase, fetchJson } = useApi();
   const { refresh: refreshTree } = useAccessTreeContext();
+  const { isSuperadmin } = useSuperadmin();
 
   // Modal states
   const [showOrgModal, setShowOrgModal] = useState(false);
@@ -307,6 +309,21 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
               </Sidebar.MenuItem>
             )}
           </Sidebar.Section>
+          {isSuperadmin && (
+            <Sidebar.Section
+              id="admin-superadmin"
+              title="System Admin"
+              className="mt-4"
+            >
+              <Sidebar.MenuItem
+                id="admin-superadmin-panel"
+                url="/admin/superadmin/users"
+                icon="lucide--shield"
+              >
+                Superadmin
+              </Sidebar.MenuItem>
+            </Sidebar.Section>
+          )}
         </Sidebar>
         <div className="flex flex-col min-w-0 h-screen overflow-auto grow">
           <Topbar />

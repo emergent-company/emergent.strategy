@@ -9,8 +9,8 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { Project } from './project.entity';
-import { Document } from './document.entity';
+import type { Project } from './project.entity';
+import type { Document } from './document.entity';
 
 /**
  * Type of external source provider
@@ -110,10 +110,10 @@ export class ExternalSource {
   updatedAt!: Date;
 
   // Relations
-  @ManyToOne(() => Project, { onDelete: 'CASCADE' })
+  @ManyToOne('Project', { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'project_id' })
   project!: Project;
 
-  @OneToMany(() => Document, (doc) => doc.externalSource)
+  @OneToMany('Document', 'externalSource')
   documents!: Document[];
 }

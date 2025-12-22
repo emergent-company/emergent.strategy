@@ -34,6 +34,7 @@ import {
   MergeChatRejectDto,
 } from './dto/merge-chat.dto';
 import { ApiStandardErrors } from '../../common/decorators/api-standard-errors';
+import { RequireUserId } from '../../common/decorators/project-context.decorator';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MergeSuggestionService } from './merge-suggestion.service';
 import { MergeChatService } from './merge-chat.service';
@@ -204,12 +205,10 @@ export class TasksController {
   @ApiStandardErrors()
   @Scopes('tasks:write')
   async resolve(
-    @Req() req: any,
+    @RequireUserId() userId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: ResolveTaskDto
   ) {
-    const userId = req.user?.id;
-
     // Resolve the task (and execute merge if applicable)
     const result = await this.tasksService.resolve(
       id,
@@ -239,11 +238,10 @@ export class TasksController {
   @ApiStandardErrors()
   @Scopes('tasks:write')
   async cancel(
-    @Req() req: any,
+    @RequireUserId() userId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: { reason?: string }
   ) {
-    const userId = req.user?.id;
     const task = await this.tasksService.cancel(id, userId, body.reason);
     return { success: true, data: task };
   }

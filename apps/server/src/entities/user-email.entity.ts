@@ -7,7 +7,7 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { UserProfile } from './user-profile.entity';
+import type { UserProfile } from './user-profile.entity';
 
 @Entity({ schema: 'core', name: 'user_emails' })
 @Index(['userId'])
@@ -28,7 +28,7 @@ export class UserEmail {
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
-  @ManyToOne(() => UserProfile, (profile) => profile.emails, { onDelete: 'CASCADE' })
+  @ManyToOne('UserProfile', 'emails', { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
-  user: UserProfile;
+  user!: UserProfile;
 }

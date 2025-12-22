@@ -3,7 +3,6 @@ import {
   Post,
   Get,
   UseGuards,
-  Request,
   HttpCode,
   HttpStatus,
   ForbiddenException,
@@ -21,6 +20,11 @@ import { Scopes } from '../auth/scopes.decorator';
 import { UserDeletionService, DeletionResult } from './user-deletion.service';
 import { UserAccessService } from './user-access.service';
 import { OrgWithProjectsDto } from './dto/user-access.dto';
+import {
+  RequireUserId,
+  RequireUserSubject,
+  UserSubjectContext,
+} from '../../common/decorators/project-context.decorator';
 
 /**
  * Controller for user-related endpoints.
@@ -82,13 +86,9 @@ export class UserDeletionController {
     },
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getOrgsAndProjects(@Request() req: any): Promise<OrgWithProjectsDto[]> {
-    const userId = req.user?.id; // Use internal UUID, not external sub
-
-    if (!userId) {
-      throw new ForbiddenException('User ID not found in request');
-    }
-
+  async getOrgsAndProjects(
+    @RequireUserId() userId: string
+  ): Promise<OrgWithProjectsDto[]> {
     return this.accessService.getAccessTree(userId);
   }
 
@@ -134,20 +134,16 @@ export class UserDeletionController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async deleteAccount(
-    @Request() req: any
+    @RequireUserSubject() user: UserSubjectContext
   ): Promise<{ message: string } & DeletionResult> {
-    const userId = req.user?.sub;
+    this.logger.warn(`User ${user.subject} initiated account deletion`);
 
-    if (!userId) {
-      throw new ForbiddenException('User ID not found in token');
-    }
-
-    this.logger.warn(`User ${userId} initiated account deletion`);
-
-    const result = await this.deletionService.deleteUserData(userId);
+    const result = await this.deletionService.deleteUserData(user.subject);
 
     this.logger.warn(
-      `Account deletion complete for user ${userId}: ${JSON.stringify(result)}`
+      `Account deletion complete for user ${user.subject}: ${JSON.stringify(
+        result
+      )}`
     );
 
     return {
@@ -179,33 +175,8 @@ export class UserDeletionController {
     description: 'Forbidden - not a test environment or test user',
   })
   async testCleanup(
-    @Request() req: any
+    @RequireUserSubject() user: UserSubjectContext
   ): Promise<{ message: string } & DeletionResult> {
-    const userId = req.user?.sub;
-    const userEmail = req.user?.email || req.user?.preferred_username;
-
-    this.logger.log(
-      `[TEST-CLEANUP] Request user object: ${JSON.stringify(
-        {
-          id: req.user?.id,
-          sub: req.user?.sub,
-          email: req.user?.email,
-          emailType: typeof req.user?.email,
-          emailIsUndefined: req.user?.email === undefined,
-          preferred_username: req.user?.preferred_username,
-          scopes: req.user?.scopes,
-          allKeys: Object.keys(req.user || {}),
-          fullUser: req.user,
-        },
-        null,
-        2
-      )}`
-    );
-
-    if (!userId) {
-      throw new ForbiddenException('User ID not found in token');
-    }
-
     // Safety check: Only allow in test environments
     if (!this.deletionService.isTestEnvironment()) {
       throw new ForbiddenException(
@@ -214,18 +185,22 @@ export class UserDeletionController {
     }
 
     // Safety check: Only allow test emails
-    if (!this.deletionService.isTestEmail(userEmail)) {
+    if (!user.email || !this.deletionService.isTestEmail(user.email)) {
       throw new ForbiddenException(
-        `Email ${userEmail} does not match test patterns. Only test accounts can use this endpoint.`
+        `Email ${
+          user.email ?? '(not provided)'
+        } does not match test patterns. Only test accounts can use this endpoint.`
       );
     }
 
-    this.logger.log(`Test cleanup initiated for user ${userId} (${userEmail})`);
+    this.logger.log(
+      `Test cleanup initiated for user ${user.subject} (${user.email})`
+    );
 
-    const result = await this.deletionService.deleteUserData(userId);
+    const result = await this.deletionService.deleteUserData(user.subject);
 
     this.logger.log(
-      `Test cleanup complete for ${userEmail}: ${JSON.stringify(result)}`
+      `Test cleanup complete for ${user.email}: ${JSON.stringify(result)}`
     );
 
     return {

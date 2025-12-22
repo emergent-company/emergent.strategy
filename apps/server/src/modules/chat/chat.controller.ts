@@ -14,6 +14,12 @@ import {
   Logger,
 } from '@nestjs/common';
 import {
+  RequireProjectId,
+  ProjectContext,
+  OptionalProjectId,
+  OptionalProjectContext,
+} from '../../common/decorators/project-context.decorator';
+import {
   ApiOkResponse,
   ApiTags,
   ApiNotFoundResponse,
@@ -281,19 +287,15 @@ export class ChatController {
   @ApiStandardErrors()
   // Listing conversations = chat usage scope
   @Scopes('chat:use')
-  async listConversations(@Req() req: any) {
+  async listConversations(
+    @RequireProjectId() ctx: ProjectContext,
+    @Req() req: any
+  ) {
     const userId = req.user?.id || null;
-    const orgId = (req.headers['x-org-id'] as string | undefined) || null;
-    const projectId =
-      (req.headers['x-project-id'] as string | undefined) || null;
-    if (!projectId)
-      throw new BadRequestException({
-        error: { code: 'bad-request', message: 'x-project-id header required' },
-      });
     const { shared, private: priv } = await this.chat.listConversations(
       userId,
-      orgId,
-      projectId
+      ctx.orgId || null,
+      ctx.projectId
     );
     // E2E tests expect an object with private array property (and optionally shared)
     return { shared, private: priv };
@@ -333,14 +335,12 @@ export class ChatController {
     const projectId =
       (req.headers['x-project-id'] as string | undefined) || null;
     if (!projectId)
-      return res
-        .status(HttpStatus.BAD_REQUEST)
-        .json({
-          error: {
-            code: 'bad-request',
-            message: 'x-project-id header required',
-          },
-        });
+      return res.status(HttpStatus.BAD_REQUEST).json({
+        error: {
+          code: 'bad-request',
+          message: 'x-project-id header required',
+        },
+      });
     const isPrivate =
       typeof body?.isPrivate === 'boolean' ? body.isPrivate : false; // default public for unauth tests
     const id = await this.chat.createConversationIfNeeded(
@@ -354,13 +354,11 @@ export class ChatController {
     const meta = await this.chat.getConversation(id, userId, orgId, projectId);
     // Creation semantics: respond with 201
     // Backward compatibility: include both conversationId and id in response (tests may use either field)
-    return res
-      .status(HttpStatus.CREATED)
-      .json({
-        conversationId: id,
-        id,
-        title: meta && meta !== 'forbidden' ? meta.title : message,
-      });
+    return res.status(HttpStatus.CREATED).json({
+      conversationId: id,
+      id,
+      title: meta && meta !== 'forbidden' ? meta.title : message,
+    });
   }
 
   @Get(':id')
@@ -391,11 +389,9 @@ export class ChatController {
       (req.headers['x-project-id'] as string | undefined) || null;
     const conv = await this.chat.getConversation(id, userId, orgId, projectId);
     if (conv === null)
-      return res
-        .status(HttpStatus.NOT_FOUND)
-        .json({
-          error: { code: 'not-found', message: 'Conversation not found' },
-        });
+      return res.status(HttpStatus.NOT_FOUND).json({
+        error: { code: 'not-found', message: 'Conversation not found' },
+      });
     if (conv === 'forbidden')
       return res
         .status(HttpStatus.FORBIDDEN)
@@ -472,32 +468,26 @@ export class ChatController {
     const projectId =
       (req.headers['x-project-id'] as string | undefined) || null;
     if (!projectId) {
-      return res
-        .status(HttpStatus.BAD_REQUEST)
-        .json({
-          error: {
-            code: 'bad-request',
-            message: 'x-project-id header required',
-          },
-        });
+      return res.status(HttpStatus.BAD_REQUEST).json({
+        error: {
+          code: 'bad-request',
+          message: 'x-project-id header required',
+        },
+      });
     }
     if (!ChatController.UUID_RE.test(id)) {
-      return res
-        .status(HttpStatus.NOT_FOUND)
-        .json({
-          error: { code: 'not-found', message: 'Conversation not found' },
-        });
+      return res.status(HttpStatus.NOT_FOUND).json({
+        error: { code: 'not-found', message: 'Conversation not found' },
+      });
     }
     // Check conversation existence & access BEFORE switching to SSE headers to return proper JSON errors.
     const userId = req.user?.id || null;
     const orgId = (req.headers['x-org-id'] as string | undefined) || null;
     const conv = await this.chat.getConversation(id, userId, orgId, projectId);
     if (conv === null) {
-      return res
-        .status(HttpStatus.NOT_FOUND)
-        .json({
-          error: { code: 'not-found', message: 'Conversation not found' },
-        });
+      return res.status(HttpStatus.NOT_FOUND).json({
+        error: { code: 'not-found', message: 'Conversation not found' },
+      });
     }
     if (conv === 'forbidden') {
       return res
@@ -828,7 +818,9 @@ export class ChatController {
       // Log persistence errors in debug mode but don't break the stream
       if (process.env.E2E_DEBUG_CHAT === '1') {
         this.logger.error(
-          `[stream] Failed to persist assistant message for conversation ${id}: ${(e as Error).message}`,
+          `[stream] Failed to persist assistant message for conversation ${id}: ${
+            (e as Error).message
+          }`,
           (e as Error).stack
         );
       }
@@ -883,11 +875,9 @@ export class ChatController {
     const projectId =
       (req.headers['x-project-id'] as string | undefined) || null;
     if (!ChatController.UUID_RE.test(id)) {
-      return res
-        .status(HttpStatus.NOT_FOUND)
-        .json({
-          error: { code: 'not-found', message: 'Conversation not found' },
-        });
+      return res.status(HttpStatus.NOT_FOUND).json({
+        error: { code: 'not-found', message: 'Conversation not found' },
+      });
     }
     const result = await this.chat.renameConversation(
       id,
@@ -897,11 +887,9 @@ export class ChatController {
       projectId
     );
     if (result === 'not-found')
-      return res
-        .status(HttpStatus.NOT_FOUND)
-        .json({
-          error: { code: 'not-found', message: 'Conversation not found' },
-        });
+      return res.status(HttpStatus.NOT_FOUND).json({
+        error: { code: 'not-found', message: 'Conversation not found' },
+      });
     if (result === 'forbidden')
       return res
         .status(HttpStatus.FORBIDDEN)
@@ -930,11 +918,9 @@ export class ChatController {
     const projectId =
       (req.headers['x-project-id'] as string | undefined) || null;
     if (!ChatController.UUID_RE.test(id)) {
-      return res
-        .status(HttpStatus.NOT_FOUND)
-        .json({
-          error: { code: 'not-found', message: 'Conversation not found' },
-        });
+      return res.status(HttpStatus.NOT_FOUND).json({
+        error: { code: 'not-found', message: 'Conversation not found' },
+      });
     }
     const result = await this.chat.deleteConversation(
       id,
@@ -943,11 +929,9 @@ export class ChatController {
       projectId
     );
     if (result === 'not-found')
-      return res
-        .status(HttpStatus.NOT_FOUND)
-        .json({
-          error: { code: 'not-found', message: 'Conversation not found' },
-        });
+      return res.status(HttpStatus.NOT_FOUND).json({
+        error: { code: 'not-found', message: 'Conversation not found' },
+      });
     if (result === 'forbidden')
       return res
         .status(HttpStatus.FORBIDDEN)
@@ -1024,14 +1008,12 @@ export class ChatController {
     const projectId =
       (req.headers['x-project-id'] as string | undefined) || null;
     if (!projectId)
-      return res
-        .status(HttpStatus.BAD_REQUEST)
-        .json({
-          error: {
-            code: 'bad-request',
-            message: 'x-project-id header required',
-          },
-        });
+      return res.status(HttpStatus.BAD_REQUEST).json({
+        error: {
+          code: 'bad-request',
+          message: 'x-project-id header required',
+        },
+      });
     const orgId = (req.headers['x-org-id'] as string | undefined) || null;
     const userId = req.user?.id || null;
     const topK = Math.min(Math.max(Number(body?.topK || 5), 1), 20);
@@ -1059,14 +1041,12 @@ export class ChatController {
         return res
           .status(HttpStatus.FORBIDDEN)
           .json({ error: { code: 'forbidden', message: 'Forbidden' } });
-      return res
-        .status(HttpStatus.INTERNAL_SERVER_ERROR)
-        .json({
-          error: {
-            code: 'internal',
-            message: 'failed to initialize conversation',
-          },
-        });
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        error: {
+          code: 'internal',
+          message: 'failed to initialize conversation',
+        },
+      });
     }
     // Prepare SSE headers (explicit 200 OK status)
     res.status(HttpStatus.OK);

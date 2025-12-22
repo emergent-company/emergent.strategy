@@ -13,7 +13,6 @@ import {
   ParseArrayPipe,
   Logger,
   NotFoundException,
-  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -23,6 +22,10 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { Scopes } from '../auth/scopes.decorator';
+import {
+  OptionalProjectId,
+  OptionalProjectContext,
+} from '../../common/decorators/project-context.decorator';
 import { GraphService } from './graph.service';
 import { CreateGraphObjectDto } from './dto/create-graph-object.dto';
 import { PatchGraphObjectDto } from './dto/patch-graph-object.dto';
@@ -67,35 +70,15 @@ export class GraphObjectsController {
   private _warnedSimilarLegacy = false;
   private readonly logger = new Logger(GraphObjectsController.name);
 
-  private extractContext(req?: any) {
-    if (!req?.headers) return undefined;
-    const normalize = (value?: string) => {
-      if (!value) return undefined;
-      const trimmed = value.trim();
-      if (
-        !trimmed ||
-        trimmed.toLowerCase() === 'null' ||
-        trimmed.toLowerCase() === 'undefined'
-      ) {
-        return undefined;
-      }
-      return trimmed;
-    };
-    const orgId = normalize(req.headers['x-org-id'] as string | undefined);
-    const projectId = normalize(
-      req.headers['x-project-id'] as string | undefined
-    );
-    if (!orgId && !projectId) return undefined;
-    return { orgId: orgId ?? null, projectId: projectId ?? null };
-  }
-
   @Post('objects')
   @Scopes('graph:write')
   @ApiOperation({ summary: 'Create a graph object (initial version)' })
   @ApiResponse({ status: 201, description: 'Created' })
   @ApiResponse({ status: 400, description: 'Validation error' })
-  create(@Body() dto: CreateGraphObjectDto, @Req() req: any) {
-    const ctx = this.extractContext(req);
+  create(
+    @Body() dto: CreateGraphObjectDto,
+    @OptionalProjectId() ctx: OptionalProjectContext
+  ) {
     return this.service.createObject(
       {
         ...dto,
@@ -160,16 +143,13 @@ export class GraphObjectsController {
     )
     ids?: string[],
     @Query('extraction_job_id') extraction_job_id?: string,
-    @Req() req?: any
+    @OptionalProjectId() ctx?: OptionalProjectContext
   ) {
     const parsedLimit = limit ? parseInt(limit, 10) : 20;
     const ord =
       order && (order.toLowerCase() === 'asc' || order.toLowerCase() === 'desc')
         ? (order.toLowerCase() as 'asc' | 'desc')
         : undefined;
-    const orgId = (req?.headers['x-org-id'] as string | undefined) || undefined;
-    const projectId =
-      (req?.headers['x-project-id'] as string | undefined) || undefined;
 
     // Parse branch_id: handle 'null' string as actual null
     let parsedBranchId: string | null | undefined = undefined;
@@ -192,13 +172,13 @@ export class GraphObjectsController {
         cursor,
         order: ord,
         branch_id: parsedBranchId,
-        organization_id: orgId,
-        project_id: projectId,
+        organization_id: ctx?.orgId,
+        project_id: ctx?.projectId,
         related_to_id,
         ids,
         properties,
       },
-      { orgId, projectId }
+      { orgId: ctx?.orgId, projectId: ctx?.projectId }
     );
   }
 
@@ -220,12 +200,9 @@ export class GraphObjectsController {
     @Query('type') type?: string,
     @Query('label') label?: string,
     @Query('branch_id') branch_id?: string,
-    @Req() req?: any
+    @OptionalProjectId() ctx?: OptionalProjectContext
   ) {
     const parsedLimit = limit ? parseInt(limit, 10) : 20;
-    const orgId = (req?.headers['x-org-id'] as string | undefined) || undefined;
-    const projectId =
-      (req?.headers['x-project-id'] as string | undefined) || undefined;
     return this.service.searchObjectsFts(
       {
         q,
@@ -233,10 +210,10 @@ export class GraphObjectsController {
         type,
         label,
         branch_id,
-        organization_id: orgId,
-        project_id: projectId,
+        organization_id: ctx?.orgId,
+        project_id: ctx?.projectId,
       },
-      { orgId, projectId }
+      { orgId: ctx?.orgId, projectId: ctx?.projectId }
     );
   }
 
@@ -257,8 +234,9 @@ export class GraphObjectsController {
       example: ['team-sync', 'weekly', 'engineering', 'roadmap'],
     },
   })
-  async getTags(@Req() req: any): Promise<string[]> {
-    const ctx = this.extractContext(req);
+  async getTags(
+    @OptionalProjectId() ctx?: OptionalProjectContext
+  ): Promise<string[]> {
     return this.service.getAllTags(ctx);
   }
 
@@ -281,11 +259,11 @@ export class GraphObjectsController {
   get(
     @Param('id') id: string,
     @Query('resolveHead') resolveHead?: string,
-    @Req() req?: any
+    @OptionalProjectId() ctx?: OptionalProjectContext
   ) {
     const shouldResolveHead =
       resolveHead === 'true' || resolveHead === '1' || resolveHead === 'yes';
-    return this.service.getObject(id, this.extractContext(req), {
+    return this.service.getObject(id, ctx, {
       resolveHead: shouldResolveHead,
     });
   }
@@ -299,9 +277,9 @@ export class GraphObjectsController {
   patch(
     @Param('id') id: string,
     @Body() dto: PatchGraphObjectDto,
-    @Req() req: any
+    @OptionalProjectId() ctx?: OptionalProjectContext
   ) {
-    return this.service.patchObject(id, dto, this.extractContext(req));
+    return this.service.patchObject(id, dto, ctx);
   }
 
   @Post('objects/bulk-update-status')
@@ -337,11 +315,13 @@ export class GraphObjectsController {
     },
   })
   @HttpCode(200)
-  async bulkUpdateStatus(@Body() body: BulkUpdateStatusDto, @Req() req: any) {
+  async bulkUpdateStatus(
+    @Body() body: BulkUpdateStatusDto,
+    @OptionalProjectId() ctx?: OptionalProjectContext
+  ) {
     this.logger.log(
       `[BULK-UPDATE] Starting bulk update for ${body.ids.length} objects to status="${body.status}"`
     );
-    const ctx = this.extractContext(req);
     this.logger.log(`[BULK-UPDATE] Context: ${JSON.stringify(ctx)}`);
 
     const startTime = Date.now();
@@ -398,8 +378,11 @@ export class GraphObjectsController {
     summary:
       'Soft delete (tombstone) an object (creates new version with deleted_at)',
   })
-  deleteObject(@Param('id') id: string, @Req() req: any) {
-    return this.service.deleteObject(id, this.extractContext(req));
+  deleteObject(
+    @Param('id') id: string,
+    @OptionalProjectId() ctx?: OptionalProjectContext
+  ) {
+    return this.service.deleteObject(id, ctx);
   }
 
   @Post('objects/:id/restore')
@@ -409,8 +392,11 @@ export class GraphObjectsController {
       'Restore a soft-deleted object (creates new version clearing deleted_at)',
   })
   @ApiResponse({ status: 201, description: 'Restored (new version created)' })
-  restoreObject(@Param('id') id: string, @Req() req: any) {
-    return this.service.restoreObject(id, this.extractContext(req));
+  restoreObject(
+    @Param('id') id: string,
+    @OptionalProjectId() ctx?: OptionalProjectContext
+  ) {
+    return this.service.restoreObject(id, ctx);
   }
 
   @Get('objects/:id/history')
@@ -422,15 +408,10 @@ export class GraphObjectsController {
     @Param('id') id: string,
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
-    @Req() req?: any
+    @OptionalProjectId() ctx?: OptionalProjectContext
   ) {
     const parsed = limit ? parseInt(limit, 10) : 20;
-    return this.service.listHistory(
-      id,
-      parsed,
-      cursor,
-      this.extractContext(req)
-    );
+    return this.service.listHistory(id, parsed, cursor, ctx);
   }
 
   // ---------------- Relationships ----------------
@@ -441,8 +422,10 @@ export class GraphObjectsController {
       'Create a relationship (initial version) or new version if properties changed',
   })
   @ApiResponse({ status: 201 })
-  async createRel(@Body() dto: CreateGraphRelationshipDto, @Req() req: any) {
-    const ctx = this.extractContext(req);
+  async createRel(
+    @Body() dto: CreateGraphRelationshipDto,
+    @OptionalProjectId() ctx?: OptionalProjectContext
+  ) {
     // Derive org/project from src object (authoritative) to avoid requiring client-supplied IDs
     const src = await this.service.getObject(dto.src_id, ctx);
     const orgId =
@@ -455,8 +438,11 @@ export class GraphObjectsController {
   @Get('relationships/:id')
   @Scopes('graph:read')
   @ApiOperation({ summary: 'Get relationship by id' })
-  getRel(@Param('id') id: string, @Req() req: any) {
-    return this.service.getRelationship(id, this.extractContext(req));
+  getRel(
+    @Param('id') id: string,
+    @OptionalProjectId() ctx?: OptionalProjectContext
+  ) {
+    return this.service.getRelationship(id, ctx);
   }
 
   @Get('relationships/search')
@@ -480,7 +466,7 @@ export class GraphObjectsController {
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
     @Query('order') order?: string,
-    @Req() req?: any
+    @OptionalProjectId() ctx?: OptionalProjectContext
   ) {
     const parsedLimit = limit ? parseInt(limit, 10) : 20;
     const ord =
@@ -489,7 +475,7 @@ export class GraphObjectsController {
         : undefined;
     return this.service.searchRelationships(
       { type, src_id, dst_id, limit: parsedLimit, cursor, order: ord },
-      this.extractContext(req)
+      ctx
     );
   }
 
@@ -502,24 +488,30 @@ export class GraphObjectsController {
   patchRel(
     @Param('id') id: string,
     @Body() dto: PatchGraphRelationshipDto,
-    @Req() req: any
+    @OptionalProjectId() ctx?: OptionalProjectContext
   ) {
-    return this.service.patchRelationship(id, dto, this.extractContext(req));
+    return this.service.patchRelationship(id, dto, ctx);
   }
 
   @Delete('relationships/:id')
   @Scopes('graph:write')
   @ApiOperation({ summary: 'Soft delete a relationship (tombstone version)' })
-  deleteRel(@Param('id') id: string, @Req() req: any) {
-    return this.service.deleteRelationship(id, this.extractContext(req));
+  deleteRel(
+    @Param('id') id: string,
+    @OptionalProjectId() ctx?: OptionalProjectContext
+  ) {
+    return this.service.deleteRelationship(id, ctx);
   }
 
   @Post('relationships/:id/restore')
   @Scopes('graph:write')
   @ApiOperation({ summary: 'Restore a soft-deleted relationship' })
   @ApiResponse({ status: 201, description: 'Restored (new version created)' })
-  restoreRel(@Param('id') id: string, @Req() req: any) {
-    return this.service.restoreRelationship(id, this.extractContext(req));
+  restoreRel(
+    @Param('id') id: string,
+    @OptionalProjectId() ctx?: OptionalProjectContext
+  ) {
+    return this.service.restoreRelationship(id, ctx);
   }
 
   @Get('relationships/:id/history')
@@ -530,15 +522,10 @@ export class GraphObjectsController {
     @Param('id') id: string,
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
-    @Req() req?: any
+    @OptionalProjectId() ctx?: OptionalProjectContext
   ) {
     const parsed = limit ? parseInt(limit, 10) : 20;
-    return this.service.listRelationshipHistory(
-      id,
-      parsed,
-      cursor,
-      this.extractContext(req)
-    );
+    return this.service.listRelationshipHistory(id, parsed, cursor, ctx);
   }
 
   @Get('objects/:id/edges')
@@ -548,7 +535,7 @@ export class GraphObjectsController {
     @Param('id') id: string,
     @Query('direction') direction?: string,
     @Query('limit') limit?: string,
-    @Req() req?: any
+    @OptionalProjectId() ctx?: OptionalProjectContext
   ) {
     const dir: 'out' | 'in' | 'both' =
       direction === 'out' || direction === 'in' || direction === 'both'
@@ -558,7 +545,7 @@ export class GraphObjectsController {
       id,
       dir,
       limit ? parseInt(limit, 10) : 50,
-      this.extractContext(req)
+      ctx
     );
   }
 
@@ -569,8 +556,11 @@ export class GraphObjectsController {
       'Traverse the graph from one or more root object ids (bounded BFS)',
   })
   @HttpCode(200)
-  traverse(@Body() dto: TraverseGraphDto, @Req() req: any) {
-    return this.service.traverse(dto, this.extractContext(req));
+  traverse(
+    @Body() dto: TraverseGraphDto,
+    @OptionalProjectId() ctx?: OptionalProjectContext
+  ) {
+    return this.service.traverse(dto, ctx);
   }
 
   @Post('expand')
@@ -580,11 +570,14 @@ export class GraphObjectsController {
       'Expand graph (single-pass bounded traversal with projection & edge property option)',
   })
   @HttpCode(200)
-  expand(@Body() dto: GraphExpandDto, @Req() req: any) {
+  expand(
+    @Body() dto: GraphExpandDto,
+    @OptionalProjectId() ctx?: OptionalProjectContext
+  ) {
     if (process.env.GRAPH_EXPAND_DISABLED === '1') {
       return { error: 'expand_disabled' };
     }
-    return this.service.expand(dto as any, this.extractContext(req));
+    return this.service.expand(dto as any, ctx);
   }
 
   // ---------------- Vector Similarity ----------------
@@ -727,7 +720,7 @@ Performs semantic search over graph objects and optionally retrieves their neigh
   @HttpCode(200)
   async searchWithNeighbors(
     @Body() dto: SearchObjectsWithNeighborsDto,
-    @Req() req: any
+    @OptionalProjectId() ctx?: OptionalProjectContext
   ) {
     return this.service.searchObjectsWithNeighbors(
       dto.query,
@@ -742,7 +735,7 @@ Performs semantic search over graph objects and optionally retrieves their neigh
         types: dto.types,
         labels: dto.labels,
       },
-      this.extractContext(req)
+      ctx
     );
   }
 
@@ -911,15 +904,11 @@ Performs semantic search over graph objects and optionally retrieves their neigh
   async mergeDryRun(
     @Param('targetBranchId') targetBranchId: string,
     @Body() dto: BranchMergeRequestDto,
-    @Req() req: any
+    @OptionalProjectId() ctx?: OptionalProjectContext
   ): Promise<BranchMergeSummaryDto> {
     if (!dto.sourceBranchId) {
       throw new BadRequestException('source_branch_required');
     }
-    return this.service.mergeBranchDryRun(
-      targetBranchId,
-      dto,
-      this.extractContext(req)
-    );
+    return this.service.mergeBranchDryRun(targetBranchId, dto, ctx);
   }
 }

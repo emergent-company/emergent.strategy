@@ -5,8 +5,9 @@
   "main": "dist/main.js",
   "scripts": {
     "start": "node dist/main.js",
-    "start:dev": "NODE_OPTIONS=--enable-source-maps ts-node-dev --respawn --no-notify --ignore-watch node_modules src/main.ts",
-    "start:dev:migrate": "tsx ../../scripts/run-migrations.ts && NODE_OPTIONS=--enable-source-maps ts-node-dev --respawn --no-notify --ignore-watch node_modules src/main.ts",
+    "start:dev": "nest start --watch",
+    "start:dev:migrate": "tsx ../../scripts/run-migrations.ts && nest start --watch",
+    "start:dev:legacy": "NODE_OPTIONS=--enable-source-maps ts-node-dev --transpile-only --respawn --no-notify --ignore-watch node_modules src/main.ts",
     "clean": "rimraf dist dist-openapi || true",
     "build": "npm run clean && tsc -p tsconfig.json",
     "openapi:run": "node dist/openapi-generate.js",
@@ -116,7 +117,10 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@nestjs/cli": "^11.0.14",
     "@nestjs/testing": "^10.3.0",
+    "@swc/cli": "^0.7.9",
+    "@swc/core": "~1.5.29",
     "@types/express": "^5.0.3",
     "@types/html-to-text": "^9.0.4",
     "@types/jest": "^29.5.12",

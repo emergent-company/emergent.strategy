@@ -3,7 +3,6 @@ import {
   Get,
   Param,
   Query,
-  Req,
   UseGuards,
   NotFoundException,
 } from '@nestjs/common';
@@ -13,11 +12,14 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { Request } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
 import { ScopesGuard } from '../auth/scopes.guard';
 import { Scopes } from '../auth/scopes.decorator';
 import { MonitoringService } from './monitoring.service';
+import {
+  RequireProjectId,
+  ProjectContext,
+} from '../../common/decorators/project-context.decorator';
 import {
   ResourceListResponseDto,
   ResourceDetailResponseDto,
@@ -79,15 +81,10 @@ export class MonitoringController {
   @ApiOperation({ summary: 'List extraction jobs with metrics' })
   @ApiResponse({ status: 200, type: ResourceListResponseDto })
   async listExtractionJobs(
-    @Req() req: Request,
+    @RequireProjectId() ctx: ProjectContext,
     @Query() query: ResourceQueryDto
   ): Promise<ResourceListResponseDto> {
-    const projectId = req.headers['x-project-id'] as string;
-    if (!projectId) {
-      throw new NotFoundException('X-Project-ID header is required');
-    }
-
-    return this.monitoringService.getExtractionJobs(projectId, query);
+    return this.monitoringService.getExtractionJobs(ctx.projectId, query);
   }
 
   /**
@@ -113,17 +110,12 @@ export class MonitoringController {
   @ApiResponse({ status: 200, type: ResourceDetailResponseDto })
   @ApiResponse({ status: 404, description: 'Job not found' })
   async getExtractionJobDetail(
-    @Req() req: Request,
+    @RequireProjectId() ctx: ProjectContext,
     @Param('id') jobId: string
   ): Promise<ResourceDetailResponseDto> {
-    const projectId = req.headers['x-project-id'] as string;
-    if (!projectId) {
-      throw new NotFoundException('X-Project-ID header is required');
-    }
-
     try {
       return await this.monitoringService.getExtractionJobDetail(
-        projectId,
+        ctx.projectId,
         jobId
       );
     } catch (error: any) {
