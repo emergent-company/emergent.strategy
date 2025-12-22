@@ -2,12 +2,8 @@
   Footer partial
   Displays copyright and optional unsubscribe link
 --}}
-<mj-text align="center" font-size="12px" color="#6b7280">
-  {{#if companyName}}{{companyName}}{{else}}Emergent{{/if}}
-  {{#if companyAddress}}<br />{{companyAddress}}{{/if}}
-</mj-text>
-<mj-text align="center" font-size="12px" color="#9ca3af" padding-top="8px">
-  {{currentYear}}. All rights reserved.
+<mj-text align="center" font-size="12px" color="#9ca3af">
+  {{#if companyName}}{{companyName}}{{else}}Emergent{{/if}} © {{currentYear}}. All rights reserved.
   {{#if unsubscribeUrl}}
   <br /><a href="{{unsubscribeUrl}}" style="color: #9ca3af;">Unsubscribe</a>
   {{/if}}

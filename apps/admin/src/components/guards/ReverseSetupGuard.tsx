@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { useAccessTreeContext } from '@/contexts/access-tree';
 import { useAuth } from '@/contexts/useAuth';
+import { Spinner } from '@/components/atoms/Spinner';
 
 export interface ReverseSetupGuardProps {
   children: React.ReactNode;
@@ -113,7 +114,7 @@ export function ReverseSetupGuard({ children }: ReverseSetupGuardProps) {
   if (!isInitialized || loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <span className="loading loading-spinner loading-lg" />
+        <Spinner size="lg" />
       </div>
     );
   }

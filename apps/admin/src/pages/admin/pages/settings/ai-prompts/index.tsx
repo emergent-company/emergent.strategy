@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router';
 import { Icon } from '@/components/atoms/Icon';
+import { Spinner } from '@/components/atoms/Spinner';
 import { TwoPanelLayout, Panel } from '@/components/layouts';
 import { useApi } from '@/hooks/use-api';
 import {
@@ -323,7 +324,7 @@ function PromptEditor({ prompt, state }: PromptEditorProps) {
       <Panel.Content className="p-4">
         {state.loading ? (
           <div className="flex items-center justify-center h-full">
-            <span className="loading loading-spinner loading-lg" />
+            <Spinner size="lg" />
           </div>
         ) : (
           <textarea
@@ -389,7 +390,7 @@ function PromptEditor({ prompt, state }: PromptEditorProps) {
             >
               {state.saving ? (
                 <>
-                  <span className="loading loading-spinner loading-xs" />
+                  <Spinner size="xs" />
                   Saving...
                 </>
               ) : state.notFound ? (

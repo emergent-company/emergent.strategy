@@ -16923,6 +16923,253 @@
         ]
       }
     },
+    "/user/email-preferences": {
+      "get": {
+        "operationId": "UserEmailPreferencesController_getPreferences",
+        "summary": "Get email preferences for current user",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailPreferencesDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "UserProfile"
+        ]
+      },
+      "put": {
+        "operationId": "UserEmailPreferencesController_updatePreferences",
+        "summary": "Update email preferences for current user",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEmailPreferencesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailPreferencesDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "UserProfile"
+        ]
+      }
+    },
+    "/unsubscribe/{token}": {
+      "get": {
+        "operationId": "UnsubscribeController_getUnsubscribeInfo",
+        "summary": "Get unsubscribe info for token",
+        "description": "Public endpoint to get masked email and current preferences for unsubscribe page",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnsubscribeInfoDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Invalid or expired token"
+          }
+        },
+        "tags": [
+          "Unsubscribe"
+        ]
+      },
+      "post": {
+        "operationId": "UnsubscribeController_unsubscribe",
+        "summary": "Unsubscribe from emails",
+        "description": "Public endpoint to unsubscribe from emails using token",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnsubscribeBodyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnsubscribeResultDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Unsubscribe"
+        ]
+      }
+    },
     "/superadmin/me": {
       "get": {
         "operationId": "SuperadminController_checkSuperadminStatus",
@@ -17439,6 +17686,9 @@
     },
     {
       "name": "Template Pack Studio"
+    },
+    {
+      "name": "Unsubscribe"
     },
     {
       "name": "user"
@@ -22514,6 +22764,95 @@
       "ReleaseDetailDto": {
         "type": "object",
         "properties": {}
+      },
+      "EmailPreferencesDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "User ID"
+          },
+          "releaseEmailsEnabled": {
+            "type": "boolean",
+            "description": "Whether user receives release notification emails",
+            "default": true
+          },
+          "marketingEmailsEnabled": {
+            "type": "boolean",
+            "description": "Whether user receives marketing emails",
+            "default": true
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "When preferences were last updated"
+          }
+        },
+        "required": [
+          "userId",
+          "releaseEmailsEnabled",
+          "marketingEmailsEnabled",
+          "updatedAt"
+        ]
+      },
+      "UpdateEmailPreferencesDto": {
+        "type": "object",
+        "properties": {
+          "releaseEmailsEnabled": {
+            "type": "boolean",
+            "description": "Enable/disable release notification emails"
+          },
+          "marketingEmailsEnabled": {
+            "type": "boolean",
+            "description": "Enable/disable marketing emails"
+          }
+        }
+      },
+      "UnsubscribeInfoDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Email address associated with this token"
+          },
+          "releaseEmailsEnabled": {
+            "type": "boolean",
+            "description": "Current release emails preference"
+          },
+          "marketingEmailsEnabled": {
+            "type": "boolean",
+            "description": "Current marketing emails preference"
+          }
+        },
+        "required": [
+          "email",
+          "releaseEmailsEnabled",
+          "marketingEmailsEnabled"
+        ]
+      },
+      "UnsubscribeBodyDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UnsubscribeResultDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether unsubscribe was successful"
+          },
+          "emailType": {
+            "type": "string",
+            "description": "Type of email unsubscribed from"
+          },
+          "message": {
+            "type": "string",
+            "description": "Message describing the result"
+          }
+        },
+        "required": [
+          "success",
+          "emailType"
+        ]
       },
       "UserOrgMembershipDto": {
         "type": "object",

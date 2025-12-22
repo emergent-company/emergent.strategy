@@ -17,6 +17,7 @@ import {
   type SelectionContext,
 } from '@/components/organisms/DataTable';
 import { Icon } from '@/components/atoms/Icon';
+import { Spinner } from '@/components/atoms/Spinner';
 import {
   createUserActivityClient,
   createRecordActivityFn,
@@ -1293,7 +1294,7 @@ export default function ObjectsPage() {
           >
             {loadingMore ? (
               <>
-                <span className="loading loading-spinner loading-sm"></span>
+                <Spinner size="sm" />
                 Loading...
               </>
             ) : (

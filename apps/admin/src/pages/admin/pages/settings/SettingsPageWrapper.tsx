@@ -6,6 +6,7 @@
  */
 import { Suspense, LazyExoticComponent, JSX } from 'react';
 import { SettingsLayout } from './components';
+import { Spinner } from '@/components/atoms/Spinner';
 
 interface SettingsPageWrapperProps {
   component: LazyExoticComponent<() => JSX.Element>;
@@ -19,7 +20,7 @@ export function SettingsPageWrapper({
       <Suspense
         fallback={
           <div className="flex justify-center items-center py-12">
-            <span className="loading loading-spinner loading-lg"></span>
+            <Spinner size="lg" />
           </div>
         }
       >

@@ -7,6 +7,7 @@ import { AuthProvider } from '@/contexts/auth';
 import { AccessTreeProvider } from '@/contexts/access-tree';
 import { ToastProvider } from '@/contexts/toast';
 import { DataUpdatesProvider } from '@/contexts/data-updates';
+import { ViewAsProvider } from '@/contexts/view-as';
 import { Router } from '@/router';
 import { ToastContainer } from '@/components/organisms/ToastContainer';
 
@@ -25,14 +26,16 @@ createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <ConfigProvider>
         <AuthProvider>
-          <DataUpdatesProvider>
-            <AccessTreeProvider>
-              <ToastProvider>
-                <Router />
-                <ToastContainer />
-              </ToastProvider>
-            </AccessTreeProvider>
-          </DataUpdatesProvider>
+          <ViewAsProvider>
+            <DataUpdatesProvider>
+              <AccessTreeProvider>
+                <ToastProvider>
+                  <Router />
+                  <ToastContainer />
+                </ToastProvider>
+              </AccessTreeProvider>
+            </DataUpdatesProvider>
+          </ViewAsProvider>
         </AuthProvider>
       </ConfigProvider>
     </BrowserRouter>

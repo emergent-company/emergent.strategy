@@ -1,6 +1,7 @@
 import { useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/useAuth';
 import { useConfig } from '@/contexts/config';
+import { getViewAsUserId } from '@/contexts/view-as';
 import { errorLogger } from '@/lib/error-logger';
 import { ApiError } from '@/lib/api-error';
 
@@ -35,6 +36,8 @@ export function useApi() {
       if (t) h['Authorization'] = `Bearer ${t}`;
       // Note: X-Org-ID removed - backend now derives org ID from project ID automatically
       if (activeProjectId) h['X-Project-ID'] = activeProjectId;
+      const viewAsUserId = getViewAsUserId();
+      if (viewAsUserId) h['X-View-As-User-ID'] = viewAsUserId;
       return h;
     },
     [getAccessToken, activeProjectId]

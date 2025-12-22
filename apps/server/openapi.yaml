@@ -10085,6 +10085,156 @@ paths:
                     code: internal
                     message: Unexpected error
       tags: *ref_132
+  /user/email-preferences:
+    get:
+      operationId: UserEmailPreferencesController_getPreferences
+      summary: Get email preferences for current user
+      parameters: []
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailPreferencesDto'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: &ref_133
+        - UserProfile
+    put:
+      operationId: UserEmailPreferencesController_updatePreferences
+      summary: Update email preferences for current user
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEmailPreferencesDto'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailPreferencesDto'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_133
+  /unsubscribe/{token}:
+    get:
+      operationId: UnsubscribeController_getUnsubscribeInfo
+      summary: Get unsubscribe info for token
+      description: Public endpoint to get masked email and current preferences for unsubscribe page
+      parameters:
+        - name: token
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnsubscribeInfoDto'
+        '404':
+          description: Invalid or expired token
+      tags: &ref_134
+        - Unsubscribe
+    post:
+      operationId: UnsubscribeController_unsubscribe
+      summary: Unsubscribe from emails
+      description: Public endpoint to unsubscribe from emails using token
+      parameters:
+        - name: token
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnsubscribeBodyDto'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnsubscribeResultDto'
+      tags: *ref_134
   /superadmin/me:
     get:
       operationId: SuperadminController_checkSuperadminStatus
@@ -10101,9 +10251,9 @@ paths:
                 properties:
                   isSuperadmin:
                     type: boolean
-      tags: &ref_133
+      tags: &ref_135
         - superadmin
-      security: &ref_134
+      security: &ref_136
         - bearer: []
   /superadmin/users:
     get:
@@ -10149,8 +10299,8 @@ paths:
                 $ref: '#/components/schemas/ListUsersResponseDto'
         '403':
           description: Superadmin access required
-      tags: *ref_133
-      security: *ref_134
+      tags: *ref_135
+      security: *ref_136
   /superadmin/organizations:
     get:
       operationId: SuperadminController_listOrganizations
@@ -10183,8 +10333,8 @@ paths:
                 $ref: '#/components/schemas/ListOrganizationsResponseDto'
         '403':
           description: Superadmin access required
-      tags: *ref_133
-      security: *ref_134
+      tags: *ref_135
+      security: *ref_136
   /superadmin/projects:
     get:
       operationId: SuperadminController_listProjects
@@ -10223,8 +10373,8 @@ paths:
                 $ref: '#/components/schemas/ListProjectsResponseDto'
         '403':
           description: Superadmin access required
-      tags: *ref_133
-      security: *ref_134
+      tags: *ref_135
+      security: *ref_136
   /superadmin/email-jobs:
     get:
       operationId: SuperadminController_listEmailJobs
@@ -10288,8 +10438,8 @@ paths:
                 $ref: '#/components/schemas/ListEmailJobsResponseDto'
         '403':
           description: Superadmin access required
-      tags: *ref_133
-      security: *ref_134
+      tags: *ref_135
+      security: *ref_136
   /superadmin/email-jobs/{id}/preview:
     get:
       operationId: SuperadminController_previewEmailJob
@@ -10312,8 +10462,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Email job not found
-      tags: *ref_133
-      security: *ref_134
+      tags: *ref_135
+      security: *ref_136
   /superadmin/email-jobs/{id}/preview-json:
     get:
       operationId: SuperadminController_previewEmailJobJson
@@ -10336,8 +10486,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Email job not found
-      tags: *ref_133
-      security: *ref_134
+      tags: *ref_135
+      security: *ref_136
 info:
   title: Spec Server API
   description: >-
@@ -10379,6 +10529,7 @@ tags:
   - name: Tags
   - name: Tasks
   - name: Template Pack Studio
+  - name: Unsubscribe
   - name: user
   - name: User Activity
   - name: UserProfile
@@ -11168,13 +11319,13 @@ components:
           type: string
           description: Deletion status
           example: deleted
-          enum: &ref_135
+          enum: &ref_137
             - deleted
             - partial
         summary:
           type: object
           description: Summary of deleted entities
-          example: &ref_136
+          example: &ref_138
             chunks: 42
             extractionJobs: 3
             graphObjects: 15
@@ -11190,11 +11341,11 @@ components:
           type: string
           description: Deletion status
           example: deleted
-          enum: *ref_135
+          enum: *ref_137
         summary:
           type: object
           description: Summary of deleted entities
-          example: *ref_136
+          example: *ref_138
         deleted:
           type: number
           description: Number of documents successfully deleted
@@ -11297,7 +11448,7 @@ components:
         chunkingStrategy:
           type: string
           description: 'Chunking strategy for splitting text into chunks. Options: character (default), sentence, paragraph'
-          enum: &ref_137
+          enum: &ref_139
             - character
             - sentence
             - paragraph
@@ -11327,7 +11478,7 @@ components:
         chunkingStrategy:
           type: string
           description: 'Chunking strategy for splitting text into chunks. Options: character (default), sentence, paragraph'
-          enum: *ref_137
+          enum: *ref_139
           default: character
           example: sentence
         chunkingOptions:
@@ -14189,6 +14340,71 @@ components:
     ReleaseDetailDto:
       type: object
       properties: {}
+    EmailPreferencesDto:
+      type: object
+      properties:
+        userId:
+          type: string
+          description: User ID
+        releaseEmailsEnabled:
+          type: boolean
+          description: Whether user receives release notification emails
+          default: true
+        marketingEmailsEnabled:
+          type: boolean
+          description: Whether user receives marketing emails
+          default: true
+        updatedAt:
+          type: string
+          description: When preferences were last updated
+      required:
+        - userId
+        - releaseEmailsEnabled
+        - marketingEmailsEnabled
+        - updatedAt
+    UpdateEmailPreferencesDto:
+      type: object
+      properties:
+        releaseEmailsEnabled:
+          type: boolean
+          description: Enable/disable release notification emails
+        marketingEmailsEnabled:
+          type: boolean
+          description: Enable/disable marketing emails
+    UnsubscribeInfoDto:
+      type: object
+      properties:
+        email:
+          type: string
+          description: Email address associated with this token
+        releaseEmailsEnabled:
+          type: boolean
+          description: Current release emails preference
+        marketingEmailsEnabled:
+          type: boolean
+          description: Current marketing emails preference
+      required:
+        - email
+        - releaseEmailsEnabled
+        - marketingEmailsEnabled
+    UnsubscribeBodyDto:
+      type: object
+      properties: {}
+    UnsubscribeResultDto:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Whether unsubscribe was successful
+        emailType:
+          type: string
+          description: Type of email unsubscribed from
+        message:
+          type: string
+          description: Message describing the result
+      required:
+        - success
+        - emailType
     UserOrgMembershipDto:
       type: object
       properties:

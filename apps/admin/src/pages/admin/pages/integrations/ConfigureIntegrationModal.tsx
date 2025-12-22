@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Icon } from '@/components/atoms/Icon';
+import { Spinner } from '@/components/atoms/Spinner';
 import type {
   AvailableIntegration,
   Integration,
@@ -288,9 +289,7 @@ export function ConfigureIntegrationModal({
               onClick={handleTest}
               disabled={loading || testing}
             >
-              {testing && (
-                <span className="loading loading-spinner loading-sm" />
-              )}
+              {testing && <Spinner size="sm" />}
               {testing ? 'Testing...' : 'Test Connection'}
             </button>
           )}
@@ -300,7 +299,7 @@ export function ConfigureIntegrationModal({
             disabled={loading || testing}
             data-testid={`${integration.name}-save-button`}
           >
-            {loading && <span className="loading loading-spinner loading-sm" />}
+            {loading && <Spinner size="sm" />}
             {loading
               ? 'Saving...'
               : configuredInstance

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Spinner } from '../../../components/atoms/Spinner';
 import { useApi } from '../../../hooks/use-api';
 import { useConfig } from '../../../contexts/config';
 import {
@@ -131,7 +132,7 @@ export function ChatSessionDetailModal({
         {/* Loading State */}
         {loading && (
           <div className="flex flex-1 justify-center items-center">
-            <span className="loading loading-spinner loading-lg"></span>
+            <Spinner size="lg" />
           </div>
         )}
 

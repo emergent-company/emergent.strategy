@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router';
 import { MetaData } from '@/components';
 import { useRelease } from '@/hooks/use-releases';
+import { Spinner } from '@/components/atoms/Spinner';
 import { ProductTopbar } from '@/components/organisms/ProductTopbar';
 import { Footer } from '@/pages/landing/components/Footer';
 
@@ -72,7 +73,7 @@ const ReleaseDetailPage = () => {
 
       <ProductTopbar />
 
-      <main className="min-h-screen bg-base-100">
+      <main className="min-h-screen bg-base-100 pt-16">
         <div className="container mx-auto px-4 py-12 max-w-4xl">
           {/* Back link */}
           <Link
@@ -99,7 +100,7 @@ const ReleaseDetailPage = () => {
           {/* Loading State */}
           {isLoading && (
             <div className="flex justify-center items-center py-12">
-              <span className="loading loading-spinner loading-lg"></span>
+              <Spinner size="lg" />
             </div>
           )}
 

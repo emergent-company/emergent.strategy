@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useConfig } from '@/contexts/config';
 import { useApi } from '@/hooks/use-api';
 import { Icon } from '@/components/atoms/Icon';
+import { Spinner } from '@/components/atoms/Spinner';
 import { PageContainer } from '@/components/layouts';
 import type { Project } from '@/hooks/use-projects';
 
@@ -236,7 +237,7 @@ export default function ProjectLLMSettingsPage() {
       {/* Loading State */}
       {loading ? (
         <div className="flex justify-center items-center py-12">
-          <span className="loading loading-spinner loading-lg"></span>
+          <Spinner size="lg" />
         </div>
       ) : (
         <div className="space-y-6">
@@ -493,7 +494,7 @@ export default function ProjectLLMSettingsPage() {
               >
                 {saving ? (
                   <>
-                    <span className="loading loading-spinner loading-sm"></span>
+                    <Spinner size="sm" />
                     Saving...
                   </>
                 ) : (

@@ -6,6 +6,7 @@
 
 import { useState, useRef, useEffect, memo } from 'react';
 import { Icon } from '@/components/atoms/Icon';
+import { Spinner } from '@/components/atoms/Spinner';
 import { useConfig } from '@/contexts/config';
 import { useApi } from '@/hooks/use-api';
 
@@ -184,7 +185,7 @@ function ExtractionConfigModalComponent({
             </label>
             {isLoadingTypes ? (
               <div className="flex justify-center items-center py-8">
-                <span className="loading loading-spinner loading-md" />
+                <Spinner size="md" />
               </div>
             ) : availableTypes.length === 0 ? (
               <div className="alert alert-warning">
@@ -571,7 +572,7 @@ function ExtractionConfigModalComponent({
             >
               {isLoading ? (
                 <>
-                  <span className="loading loading-spinner loading-sm" />
+                  <Spinner size="sm" />
                   Starting Extraction...
                 </>
               ) : (

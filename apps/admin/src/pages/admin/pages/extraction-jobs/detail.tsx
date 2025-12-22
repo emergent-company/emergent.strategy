@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { Icon } from '@/components/atoms/Icon';
+import { Spinner } from '@/components/atoms/Spinner';
 import { PageContainer } from '@/components/layouts';
 import { ExtractionJobStatusBadge } from '@/components/molecules/ExtractionJobStatusBadge';
 import { DebugInfoPanel } from '@/components/molecules/DebugInfoPanel';
@@ -330,7 +331,7 @@ export function ExtractionJobDetailPage() {
             >
               {isCancelling ? (
                 <>
-                  <span className="loading loading-spinner loading-xs" />
+                  <Spinner size="xs" />
                   Cancelling...
                 </>
               ) : (
@@ -349,7 +350,7 @@ export function ExtractionJobDetailPage() {
             >
               {isRetrying ? (
                 <>
-                  <span className="loading loading-spinner loading-xs" />
+                  <Spinner size="xs" />
                   Retrying...
                 </>
               ) : (
@@ -368,7 +369,7 @@ export function ExtractionJobDetailPage() {
             >
               {isDeleting ? (
                 <>
-                  <span className="loading loading-spinner loading-xs" />
+                  <Spinner size="xs" />
                   Deleting...
                 </>
               ) : (

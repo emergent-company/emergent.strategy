@@ -6,6 +6,7 @@ import { useNavigate, useLocation } from 'react-router';
 import { useConfig } from '@/contexts/config';
 import { useAccessTreeContext } from '@/contexts/access-tree';
 import { useAuth } from '@/contexts/useAuth';
+import { Spinner } from '@/components/atoms/Spinner';
 
 export interface SetupGuardProps {
   children: React.ReactNode;
@@ -217,7 +218,7 @@ export function SetupGuard({ children }: SetupGuardProps) {
   if (loading || checkingInvites) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <span className="loading loading-spinner loading-lg" />
+        <Spinner size="lg" />
       </div>
     );
   }

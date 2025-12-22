@@ -9,6 +9,7 @@ import {
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Icon } from '@/components/atoms/Icon';
+import { Spinner } from '@/components/atoms/Spinner';
 import {
   SuggestionCard,
   stripSuggestionsFromContent,
@@ -149,7 +150,7 @@ export function ObjectRefinementChat({
         {/* Loading State */}
         {isLoading && messages.length === 0 && (
           <div className="flex items-center justify-center py-8">
-            <span className="loading loading-spinner loading-md text-primary"></span>
+            <Spinner size="md" className="text-primary" />
           </div>
         )}
 

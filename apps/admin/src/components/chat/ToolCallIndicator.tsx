@@ -6,6 +6,7 @@
  */
 
 import { memo } from 'react';
+import { Spinner } from '@/components/atoms/Spinner';
 
 export interface ToolCallInfo {
   toolName: string;
@@ -59,9 +60,7 @@ export const ToolCallIndicator = memo(function ToolCallIndicator({
     <div className="flex items-center gap-2 text-xs text-base-content/50 py-1">
       <span className={`iconify ${icon} size-3.5`} />
       <span>{label}</span>
-      {isLoading && (
-        <span className="loading loading-spinner loading-xs"></span>
-      )}
+      {isLoading && <Spinner size="xs" />}
       {isComplete && (
         <span className="iconify lucide--check size-3.5 text-success" />
       )}

@@ -1,6 +1,7 @@
 import { Link } from 'react-router';
 import { MetaData } from '@/components';
 import { useReleases } from '@/hooks/use-releases';
+import { Spinner } from '@/components/atoms/Spinner';
 import { ProductTopbar } from '@/components/organisms/ProductTopbar';
 import { Footer } from '@/pages/landing/components/Footer';
 
@@ -29,7 +30,7 @@ const ReleasesPage = () => {
 
       <ProductTopbar />
 
-      <main className="min-h-screen bg-base-100">
+      <main className="min-h-screen bg-base-100 pt-16">
         <div className="container mx-auto px-4 py-12 max-w-4xl">
           {/* Header */}
           <div className="mb-12">
@@ -43,7 +44,7 @@ const ReleasesPage = () => {
           {/* Loading State */}
           {isLoading && (
             <div className="flex justify-center items-center py-12">
-              <span className="loading loading-spinner loading-lg"></span>
+              <Spinner size="lg" />
             </div>
           )}
 

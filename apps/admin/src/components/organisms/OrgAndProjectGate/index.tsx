@@ -7,6 +7,7 @@ import { useAccessTreeContext } from '@/contexts/access-tree';
 import { useConfig } from '@/contexts/config';
 import { Icon } from '@/components/atoms/Icon';
 import { useApi } from '@/hooks/use-api';
+import { Spinner } from '@/components/atoms/Spinner';
 
 export interface OrgAndProjectGateProps {
   children: React.ReactNode;
@@ -108,7 +109,7 @@ export function OrgAndProjectGate({ children }: OrgAndProjectGateProps) {
   if (loading && orgs.length === 0) {
     return (
       <div className="flex justify-center items-center min-h-[40vh]">
-        <span className="loading loading-spinner loading-lg" />
+        <Spinner size="lg" />
       </div>
     );
   }
@@ -163,10 +164,7 @@ export function OrgAndProjectGate({ children }: OrgAndProjectGateProps) {
               disabled={creatingOrg || orgName.trim().length < 2}
               type="submit"
             >
-              {creatingOrg && (
-                <span className="loading loading-spinner loading-sm" />
-              )}{' '}
-              Create organization
+              {creatingOrg && <Spinner size="sm" />} Create organization
             </button>
           </form>
         </div>
@@ -230,10 +228,7 @@ export function OrgAndProjectGate({ children }: OrgAndProjectGateProps) {
               disabled={creatingProject || projectName.trim().length < 2}
               type="submit"
             >
-              {creatingProject && (
-                <span className="loading loading-spinner loading-sm" />
-              )}{' '}
-              Create project
+              {creatingProject && <Spinner size="sm" />} Create project
             </button>
           </form>
         </div>
@@ -288,12 +283,7 @@ export function OrgAndProjectGate({ children }: OrgAndProjectGateProps) {
                 className="btn btn-primary"
                 disabled={creatingProject || projectName.trim().length < 2}
               >
-                {creatingProject && (
-                  <span
-                    className="me-2 loading loading-spinner loading-sm"
-                    aria-hidden
-                  />
-                )}
+                {creatingProject && <Spinner size="sm" className="me-2" />}
                 Create
               </button>
             </div>

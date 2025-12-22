@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useConfig } from '@/contexts/config';
 import { useApi } from '@/hooks/use-api';
 import { Icon } from '@/components/atoms/Icon';
+import { Spinner } from '@/components/atoms/Spinner';
 import { PageContainer } from '@/components/layouts';
 import type { Project } from '@/hooks/use-projects';
 import { KBPurposeEditor } from '@/components/organisms/KBPurposeEditor';
@@ -321,7 +322,7 @@ export default function ProjectAutoExtractionSettingsPage() {
       {/* Loading State */}
       {loading ? (
         <div className="flex justify-center items-center py-12">
-          <span className="loading loading-spinner loading-lg"></span>
+          <Spinner size="lg" />
         </div>
       ) : (
         <div className="space-y-6">
@@ -443,7 +444,7 @@ export default function ProjectAutoExtractionSettingsPage() {
 
                   {loadingTypes ? (
                     <div className="flex justify-center items-center py-8">
-                      <span className="loading loading-spinner loading-md"></span>
+                      <Spinner size="md" />
                     </div>
                   ) : availableObjectTypes.length === 0 ? (
                     <div className="bg-warning/5 p-4 border border-warning/20 rounded-lg">
@@ -717,7 +718,7 @@ export default function ProjectAutoExtractionSettingsPage() {
               >
                 {saving ? (
                   <>
-                    <span className="loading loading-spinner loading-sm"></span>
+                    <Spinner size="sm" />
                     Saving...
                   </>
                 ) : (

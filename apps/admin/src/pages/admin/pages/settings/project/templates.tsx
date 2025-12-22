@@ -6,6 +6,7 @@ import { Link } from 'react-router';
 import { useConfig } from '@/contexts/config';
 import { useApi } from '@/hooks/use-api';
 import { Icon } from '@/components/atoms/Icon';
+import { Spinner } from '@/components/atoms/Spinner';
 import { PageContainer } from '@/components/layouts';
 import { Tooltip } from '@/components/atoms/Tooltip';
 
@@ -502,7 +503,7 @@ export default function ProjectTemplatesSettingsPage() {
       {/* Loading State */}
       {loading ? (
         <div className="flex justify-center items-center py-12">
-          <span className="loading loading-spinner loading-lg"></span>
+          <Spinner size="lg" />
         </div>
       ) : (
         <div className="space-y-8">
@@ -754,7 +755,7 @@ export default function ProjectTemplatesSettingsPage() {
                               >
                                 {installing === pack.id ? (
                                   <>
-                                    <span className="loading loading-spinner loading-xs"></span>
+                                    <Spinner size="xs" />
                                     Installing...
                                   </>
                                 ) : (
@@ -883,7 +884,7 @@ export default function ProjectTemplatesSettingsPage() {
                               >
                                 {installing === pack.id ? (
                                   <>
-                                    <span className="loading loading-spinner loading-xs"></span>
+                                    <Spinner size="xs" />
                                     Installing...
                                   </>
                                 ) : (
@@ -972,7 +973,7 @@ export default function ProjectTemplatesSettingsPage() {
                 >
                   {installing === selectedPreview.id ? (
                     <>
-                      <span className="loading loading-spinner loading-xs"></span>
+                      <Spinner size="xs" />
                       Installing...
                     </>
                   ) : (

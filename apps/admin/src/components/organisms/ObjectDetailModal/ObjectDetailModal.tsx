@@ -7,6 +7,7 @@ import {
   type ReactElement,
 } from 'react';
 import { Icon } from '@/components/atoms/Icon';
+import { Spinner } from '@/components/atoms/Spinner';
 import { Tooltip } from '@/components/atoms/Tooltip';
 import { GraphObject } from '../ObjectBrowser/ObjectBrowser';
 import { RelationshipGraph, TreeRelationshipGraph } from '../RelationshipGraph';
@@ -1126,9 +1127,7 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
                   <h4 className="flex items-center gap-2 mb-3 font-semibold text-lg">
                     <Icon icon="lucide--network" className="size-5" />
                     Relationships by Type
-                    {loadingRelations && (
-                      <span className="loading loading-spinner loading-xs"></span>
-                    )}
+                    {loadingRelations && <Spinner size="xs" />}
                   </h4>
 
                   {relatedObjectGroups.length > 0 ? (
@@ -1180,7 +1179,7 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
                                     title={`${rel.type} - ${rel.name}`}
                                   >
                                     {loadingObjectName === rel.name ? (
-                                      <span className="loading loading-spinner loading-xs"></span>
+                                      <Spinner size="xs" />
                                     ) : (
                                       <Icon
                                         icon="lucide--box"
@@ -1413,7 +1412,7 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
                         </span>
                       ) : embeddingJobStatus ? (
                         <span className="gap-2 badge badge-warning">
-                          <span className="loading loading-spinner loading-xs"></span>
+                          <Spinner size="xs" />
                           {embeddingJobStatus.status === 'pending'
                             ? 'Queued'
                             : 'Generating...'}
@@ -1477,7 +1476,7 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
                       >
                         {generatingEmbedding ? (
                           <>
-                            <span className="loading loading-spinner loading-xs"></span>
+                            <Spinner size="xs" />
                             Queueing...
                           </>
                         ) : (
@@ -1503,7 +1502,7 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
 
                 {loadingVersions ? (
                   <div className="flex justify-center p-4">
-                    <span className="loading loading-spinner loading-md"></span>
+                    <Spinner size="md" />
                   </div>
                 ) : versionsError ? (
                   <div className="alert alert-error">

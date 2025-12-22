@@ -5,6 +5,7 @@ import { useNavigate, useLocation } from 'react-router';
 import { useAuth } from '@/contexts/useAuth';
 import { useAccessTreeContext } from '@/contexts/access-tree';
 import { Icon } from '@/components/atoms/Icon';
+import { Spinner } from '@/components/atoms/Spinner';
 
 interface PendingInvite {
   id: string;
@@ -199,7 +200,7 @@ export default function PendingInvitationsPage() {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <span className="loading loading-spinner loading-lg" />
+        <Spinner size="lg" />
       </div>
     );
   }
@@ -210,7 +211,7 @@ export default function PendingInvitationsPage() {
     // Return loading spinner while redirect happens
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <span className="loading loading-spinner loading-lg" />
+        <Spinner size="lg" />
       </div>
     );
   }
@@ -295,7 +296,7 @@ export default function PendingInvitationsPage() {
                         disabled={processingId === invite.id}
                       >
                         {processingId === invite.id ? (
-                          <span className="loading loading-spinner loading-xs" />
+                          <Spinner size="xs" />
                         ) : (
                           'Decline'
                         )}
@@ -306,7 +307,7 @@ export default function PendingInvitationsPage() {
                         disabled={processingId === invite.id}
                       >
                         {processingId === invite.id ? (
-                          <span className="loading loading-spinner loading-xs" />
+                          <Spinner size="xs" />
                         ) : (
                           'Accept'
                         )}

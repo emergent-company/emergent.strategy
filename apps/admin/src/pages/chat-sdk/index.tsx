@@ -10,6 +10,7 @@ import {
   ObjectPreviewProvider,
   useObjectPreview,
 } from '@/contexts/object-preview';
+import { Spinner } from '@/components/atoms/Spinner';
 import { ObjectPreviewDrawer } from '@/components/organisms/ObjectPreviewDrawer';
 import {
   MessageList,
@@ -1080,7 +1081,7 @@ function ChatSdkPageContent() {
           {/* Message List - Scrollable middle section */}
           {isLoadingConversation ? (
             <div className="flex-1 flex items-center justify-center overflow-hidden">
-              <div className="loading loading-spinner loading-lg"></div>
+              <Spinner size="lg" />
             </div>
           ) : (
             <div className="flex-1 overflow-hidden">

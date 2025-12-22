@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ConfirmActionModal } from '../ConfirmActionModal/ConfirmActionModal';
 import { DeletionImpact, BulkDeletionImpact } from '../../../api/documents';
+import { Spinner } from '@/components/atoms/Spinner';
 
 export interface DeletionConfirmationModalProps {
   /** Controlled open state */
@@ -89,7 +90,7 @@ export const DeletionConfirmationModal: React.FC<
     if (impactState.loading) {
       return (
         <div className="flex items-center justify-center py-4">
-          <div className="loading loading-spinner loading-md"></div>
+          <Spinner size="md" />
           <span className="ml-2 text-sm text-base-content/70">
             Analyzing impact...
           </span>
