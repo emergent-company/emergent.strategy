@@ -8,6 +8,7 @@ import {
   Req,
   Res,
   HttpStatus,
+  HttpCode,
   UseGuards,
   Logger,
   NotFoundException,
@@ -15,6 +16,11 @@ import {
   ForbiddenException,
   Optional,
 } from '@nestjs/common';
+import {
+  RequireProjectId,
+  ProjectContext,
+  RequireUserId,
+} from '../../common/decorators/project-context.decorator';
 import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 import {
   ApiTags,
@@ -237,24 +243,6 @@ export class TemplatePackStudioController {
   ) {}
 
   /**
-   * Extract request context (userId, projectId)
-   */
-  private extractContext(req: any): {
-    userId: string;
-    projectId: string | null;
-  } {
-    const userId = req.user?.id;
-    if (!userId) {
-      throw new ForbiddenException('User not authenticated');
-    }
-
-    const projectId =
-      (req.headers['x-project-id'] as string | undefined) || null;
-
-    return { userId, projectId };
-  }
-
-  /**
    * Get the system prompt for Template Studio.
    * Tries to fetch from Langfuse first, falls back to hardcoded prompt.
    */
@@ -296,6 +284,7 @@ export class TemplatePackStudioController {
    * Create a new studio session
    */
   @Post()
+  @HttpCode(HttpStatus.CREATED)
   @Scopes('templates:write')
   @ApiOperation({
     summary: 'Create a new studio session',
@@ -308,13 +297,10 @@ export class TemplatePackStudioController {
   @ApiBadRequestResponse({ description: 'Invalid request' })
   async createSession(
     @Body() dto: CreateStudioSessionDto,
-    @Req() req: any
+    @RequireProjectId() ctx: ProjectContext,
+    @RequireUserId() userId: string
   ): Promise<StudioSessionState> {
-    const { userId, projectId } = this.extractContext(req);
-
-    if (!projectId) {
-      throw new BadRequestException('x-project-id header required');
-    }
+    const { projectId } = ctx;
 
     const session = await this.studioService.createSession(
       userId,
@@ -333,6 +319,7 @@ export class TemplatePackStudioController {
    * Load an existing pack for editing
    */
   @Post(':packId')
+  @HttpCode(HttpStatus.CREATED)
   @Scopes('templates:write')
   @ApiOperation({
     summary: 'Load existing pack into studio',
@@ -345,13 +332,10 @@ export class TemplatePackStudioController {
   @ApiNotFoundResponse({ description: 'Pack not found' })
   async loadPackForEditing(
     @Param('packId') packId: string,
-    @Req() req: any
+    @RequireProjectId() ctx: ProjectContext,
+    @RequireUserId() userId: string
   ): Promise<StudioSessionState> {
-    const { userId, projectId } = this.extractContext(req);
-
-    if (!projectId) {
-      throw new BadRequestException('x-project-id header required');
-    }
+    const { projectId } = ctx;
 
     const session = await this.studioService.createSession(userId, projectId, {
       sourcePackId: packId,
@@ -379,10 +363,8 @@ export class TemplatePackStudioController {
   @ApiNotFoundResponse({ description: 'Session not found' })
   async getSession(
     @Param('sessionId') sessionId: string,
-    @Req() req: any
+    @RequireUserId() userId: string
   ): Promise<StudioSessionState> {
-    const { userId } = this.extractContext(req);
-
     const session = await this.studioService.getSession(sessionId, userId);
 
     if (!session) {
@@ -404,12 +386,12 @@ export class TemplatePackStudioController {
   @ApiOkResponse({
     description: 'List of active sessions',
   })
-  async getUserSessions(@Req() req: any): Promise<StudioSessionState[]> {
-    const { userId, projectId } = this.extractContext(req);
-
-    if (!projectId) {
-      throw new BadRequestException('x-project-id header required');
-    }
+  @HttpCode(HttpStatus.OK)
+  async getUserSessions(
+    @RequireProjectId() ctx: ProjectContext,
+    @RequireUserId() userId: string
+  ): Promise<StudioSessionState[]> {
+    const { projectId } = ctx;
 
     return this.studioService.getUserSessions(userId, projectId);
   }
@@ -450,7 +432,15 @@ export class TemplatePackStudioController {
     @Req() req: any,
     @Res() res: Response
   ): Promise<void> {
-    const { userId } = this.extractContext(req);
+    // Manual userId extraction required for SSE endpoints with @Res()
+    // Parameter decorators that throw don't work with @Res() (exception filters bypassed)
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(HttpStatus.FORBIDDEN).json({
+        error: { code: 'forbidden', message: 'User not authenticated' },
+      });
+      return;
+    }
 
     if (!dto.content?.trim()) {
       res.status(HttpStatus.BAD_REQUEST).json({
@@ -723,10 +713,8 @@ ${packContext}`;
   async applySuggestion(
     @Param('sessionId') sessionId: string,
     @Body() dto: ApplyStudioSuggestionDto,
-    @Req() req: any
+    @RequireUserId() userId: string
   ): Promise<{ success: boolean; error?: string; pack?: any }> {
-    const { userId } = this.extractContext(req);
-
     const result = await this.studioService.applySuggestion(
       sessionId,
       dto.messageId,
@@ -757,10 +745,8 @@ ${packContext}`;
   async rejectSuggestion(
     @Param('sessionId') sessionId: string,
     @Body() dto: RejectStudioSuggestionDto,
-    @Req() req: any
+    @RequireUserId() userId: string
   ): Promise<{ success: boolean; error?: string }> {
-    const { userId } = this.extractContext(req);
-
     return this.studioService.rejectSuggestion(
       sessionId,
       dto.messageId,
@@ -787,10 +773,8 @@ ${packContext}`;
   async savePack(
     @Param('sessionId') sessionId: string,
     @Body() dto: SavePackDto,
-    @Req() req: any
+    @RequireUserId() userId: string
   ): Promise<any> {
-    const { userId } = this.extractContext(req);
-
     const pack = await this.studioService.savePack(sessionId, userId, dto);
 
     this.logger.log(
@@ -815,10 +799,8 @@ ${packContext}`;
   @ApiNotFoundResponse({ description: 'Session not found' })
   async discardSession(
     @Param('sessionId') sessionId: string,
-    @Req() req: any
+    @RequireUserId() userId: string
   ): Promise<{ success: boolean }> {
-    const { userId } = this.extractContext(req);
-
     return this.studioService.discardSession(sessionId, userId);
   }
 
@@ -837,10 +819,8 @@ ${packContext}`;
   @ApiNotFoundResponse({ description: 'Session not found' })
   async getMessages(
     @Param('sessionId') sessionId: string,
-    @Req() req: any
+    @RequireUserId() userId: string
   ): Promise<any[]> {
-    const { userId } = this.extractContext(req);
-
     // Verify session access
     const session = await this.studioService.getSession(sessionId, userId);
     if (!session) {

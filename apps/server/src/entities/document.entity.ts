@@ -9,9 +9,9 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { Chunk } from './chunk.entity';
 import { Project } from './project.entity';
-import { ExternalSource } from './external-source.entity';
+import type { Chunk } from './chunk.entity';
+import type { ExternalSource } from './external-source.entity';
 
 /**
  * Source type for documents
@@ -79,10 +79,10 @@ export class Document {
   @JoinColumn({ name: 'project_id' })
   project!: Project | null;
 
-  @OneToMany(() => Chunk, (chunk) => chunk.document, { cascade: true })
+  @OneToMany('Chunk', 'document', { cascade: true })
   chunks!: Chunk[];
 
-  @ManyToOne(() => ExternalSource, (es) => es.documents, {
+  @ManyToOne('ExternalSource', 'documents', {
     onDelete: 'SET NULL',
   })
   @JoinColumn({ name: 'external_source_id' })

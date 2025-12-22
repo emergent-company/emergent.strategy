@@ -5,7 +5,6 @@ import {
   Inject,
   forwardRef,
 } from '@nestjs/common';
-import { GraphService } from './graph.service';
 import { DatabaseService } from '../../common/database/database.service';
 import { createHash } from 'crypto';
 
@@ -55,8 +54,8 @@ export class ObjectMergeService {
   private readonly logger = new Logger(ObjectMergeService.name);
 
   constructor(
-    @Inject(forwardRef(() => GraphService))
-    private readonly graphService: GraphService,
+    @Inject(forwardRef(() => require('./graph.service').GraphService))
+    private readonly graphService: /* GraphService */ any,
     private readonly db: DatabaseService
   ) {}
 

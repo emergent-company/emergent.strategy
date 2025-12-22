@@ -632,14 +632,16 @@ describe('Evaluation Functions', () => {
 
     describe('fuzzy entity matching in relationships', () => {
       it('should match relationships with minor entity name typos', () => {
+        // Use longer names (8+ chars) so single-char typo stays above 0.85 threshold
+        // Benjamin (8 chars) vs Banjamin = 7/8 = 0.875 similarity
         const extractedWithTypo = [
-          { temp_id: 'entity_1', name: 'Boaz', type: 'Person' },
-          { temp_id: 'entity_2', name: 'Ruthe', type: 'Person' }, // Typo
+          { temp_id: 'entity_1', name: 'Jonathan', type: 'Person' },
+          { temp_id: 'entity_2', name: 'Banjamin', type: 'Person' }, // Typo: Benjamin -> Banjamin
         ];
         const expected: ExpectedRelationship[] = [
           {
-            source_name: 'Boaz',
-            target_name: 'Ruth',
+            source_name: 'Jonathan',
+            target_name: 'Benjamin',
             relationship_type: 'married_to',
           },
         ];
@@ -662,14 +664,16 @@ describe('Evaluation Functions', () => {
       });
 
       it('should match inverse relationships with fuzzy entity names', () => {
+        // Use longer names (8+ chars) so single-char typo stays above 0.85 threshold
+        // Nehemiah (8 chars) vs Nehemich = 7/8 = 0.875 similarity
         const extractedWithTypo = [
-          { temp_id: 'entity_1', name: 'Boaz', type: 'Person' },
-          { temp_id: 'entity_2', name: 'Obede', type: 'Person' }, // Typo
+          { temp_id: 'entity_1', name: 'Jonathan', type: 'Person' },
+          { temp_id: 'entity_2', name: 'Nehemich', type: 'Person' }, // Typo: Nehemiah -> Nehemich
         ];
         const expected: ExpectedRelationship[] = [
           {
-            source_name: 'Boaz',
-            target_name: 'Obed',
+            source_name: 'Jonathan',
+            target_name: 'Nehemiah',
             relationship_type: 'parent_of',
           },
         ];
@@ -750,14 +754,16 @@ describe('Evaluation Functions', () => {
       });
 
       it('should pick fuzzy when exact is not available', () => {
+        // Use longer names (8+ chars) so single-char typo stays above 0.85 threshold
+        // Jeremiah (8 chars) vs Jeremich = 7/8 = 0.875 similarity
         const entities = [
-          { temp_id: 'e1', name: 'Alyce', type: 'Person' }, // Fuzzy match
+          { temp_id: 'e1', name: 'Jeremich', type: 'Person' }, // Typo: Jeremiah -> Jeremich
           { temp_id: 'e2', name: 'Bob', type: 'Person' },
         ];
 
         const expected: ExpectedRelationship[] = [
           {
-            source_name: 'Alice',
+            source_name: 'Jeremiah',
             target_name: 'Bob',
             relationship_type: 'supervises',
           },

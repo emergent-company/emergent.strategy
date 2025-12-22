@@ -1,6 +1,9 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OpenTelemetryModule } from 'nestjs-otel';
+import { ActivityTrackingMiddleware } from '../common/middleware/activity-tracking.middleware';
+import { ViewAsMiddleware } from '../common/middleware/view-as.middleware';
+import { UserProfile } from '../entities/user-profile.entity';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { SettingsModule } from './settings/settings.module';
@@ -44,6 +47,7 @@ import { ExternalSourcesModule } from './external-sources/external-sources.modul
 import { UsersModule } from './users/users.module';
 import { EmailModule } from './email/email.module';
 import { ReleasesModule } from './releases/releases.module';
+import { SuperadminModule } from './superadmin/superadmin.module';
 import { AppConfigService } from '../common/config/config.service';
 import { entities } from '../entities';
 
@@ -140,9 +144,15 @@ import { entities } from '../entities';
     DatabaseModule,
     EmailModule,
     ReleasesModule,
+    SuperadminModule,
+    TypeOrmModule.forFeature([UserProfile]),
   ],
 })
-export class AppModule {
-  // Note: TracingMiddleware is now handled directly in main.ts as raw Express middleware
-  // This ensures proper span creation BEFORE NestJS guards/interceptors
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // ViewAsMiddleware must run before ActivityTrackingMiddleware
+    // so activity is tracked under the impersonated user context
+    consumer.apply(ViewAsMiddleware).forRoutes('*');
+    consumer.apply(ActivityTrackingMiddleware).forRoutes('*');
+  }
 }

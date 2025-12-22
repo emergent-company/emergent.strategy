@@ -5,16 +5,18 @@ import {
   Delete,
   Body,
   Param,
-  Req,
   Logger,
   BadRequestException,
 } from '@nestjs/common';
-import { Request } from 'express';
 import {
   DiscoveryJobService,
   DiscoveryJobConfig,
 } from './discovery-job.service';
 import { Scopes } from '../auth/scopes.decorator';
+import {
+  RequireProjectId,
+  ProjectContext,
+} from '../../common/decorators/project-context.decorator';
 
 @Controller('discovery-jobs')
 export class DiscoveryJobController {
@@ -39,19 +41,10 @@ export class DiscoveryJobController {
   @Post('projects/:projectId/start')
   @Scopes('discovery:write')
   async startDiscovery(
-    @Req() req: Request,
+    @RequireProjectId({ requireOrg: true }) ctx: ProjectContext,
     @Param('projectId') projectId: string,
     @Body() config: DiscoveryJobConfig
   ) {
-    const orgId = req.headers['x-org-id'] as string;
-    const headerProjectId = req.headers['x-project-id'] as string;
-
-    if (!orgId || !headerProjectId) {
-      throw new BadRequestException(
-        'Missing required headers: X-Org-ID, X-Project-ID'
-      );
-    }
-
     if (!config.document_ids || config.document_ids.length === 0) {
       throw new BadRequestException(
         'document_ids array is required and cannot be empty'
@@ -64,7 +57,7 @@ export class DiscoveryJobController {
 
     const result = await this.discoveryService.startDiscovery(
       projectId,
-      orgId,
+      ctx.orgId!,
       config
     );
 
@@ -119,7 +112,7 @@ export class DiscoveryJobController {
   @Post(':jobId/finalize')
   @Scopes('discovery:write')
   async finalizeDiscovery(
-    @Req() req: Request,
+    @RequireProjectId({ requireOrg: true }) ctx: ProjectContext,
     @Param('jobId') jobId: string,
     @Body()
     body: {
@@ -143,23 +136,14 @@ export class DiscoveryJobController {
       }>;
     }
   ) {
-    const orgId = req.headers['x-org-id'] as string;
-    const projectId = req.headers['x-project-id'] as string;
-
-    if (!orgId || !projectId) {
-      throw new BadRequestException(
-        'Missing required headers: X-Org-ID, X-Project-ID'
-      );
-    }
-
     this.logger.log(
       `[FINALIZE DISCOVERY] Job ${jobId}, mode: ${body.mode}, pack: ${body.packName}`
     );
 
     const result = await this.discoveryService.finalizeDiscoveryAndCreatePack(
       jobId,
-      projectId,
-      orgId,
+      ctx.projectId,
+      ctx.orgId!,
       body.packName,
       body.mode,
       body.existingPackId,

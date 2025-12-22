@@ -9,10 +9,10 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { ChatMessage } from './chat-message.entity';
-import { UserProfile } from './user-profile.entity';
-import { Project } from './project.entity';
-import { GraphObject } from './graph-object.entity';
+import type { ChatMessage } from './chat-message.entity';
+import type { UserProfile } from './user-profile.entity';
+import type { Project } from './project.entity';
+import type { GraphObject } from './graph-object.entity';
 
 @Entity({ schema: 'kb', name: 'chat_conversations' })
 @Index(['canonicalId'], { unique: true, where: 'canonical_id IS NOT NULL' })
@@ -66,18 +66,18 @@ export class ChatConversation {
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 
-  @OneToMany(() => ChatMessage, (message) => message.conversation)
-  messages: ChatMessage[];
+  @OneToMany('ChatMessage', 'conversation')
+  messages!: ChatMessage[];
 
-  @ManyToOne(() => UserProfile, { onDelete: 'SET NULL' })
+  @ManyToOne('UserProfile', { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'owner_user_id' })
-  owner: UserProfile;
+  owner!: UserProfile;
 
-  @ManyToOne(() => Project, { onDelete: 'SET NULL', nullable: true })
+  @ManyToOne('Project', { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'project_id' })
-  project: Project | null;
+  project!: Project | null;
 
-  @ManyToOne(() => GraphObject, { onDelete: 'CASCADE', nullable: true })
+  @ManyToOne('GraphObject', { onDelete: 'CASCADE', nullable: true })
   @JoinColumn({ name: 'object_id' })
-  object: GraphObject | null;
+  object!: GraphObject | null;
 }
