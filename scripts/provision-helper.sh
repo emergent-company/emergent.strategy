@@ -101,7 +101,7 @@ if [ $? -eq 0 ]; then
     echo "Next steps:"
     echo "1. Review the generated JSON files"
     echo "2. Upload to production server (if deploying to remote)"
-    echo "3. Update Coolify environment variables"
+    echo "3. Update deployment environment variables"
     echo "4. Deploy and verify"
     echo ""
     echo "See docs/ZITADEL_DUAL_SERVICE_ACCOUNT_SETUP.md for details"
