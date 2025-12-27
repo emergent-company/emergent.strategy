@@ -14,4 +14,5 @@ export type {
   SortConfig,
   SelectionMode,
   SelectionContext,
+  PaginationConfig,
 } from './types';

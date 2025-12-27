@@ -20,6 +20,7 @@ import type {
   SortConfig,
   SelectionMode,
   SelectionContext,
+  PaginationConfig,
 } from './types';
 
 export function DataTable<T extends TableDataItem>({
@@ -50,6 +51,9 @@ export function DataTable<T extends TableDataItem>({
   toolbarActions,
   totalCount,
   className = '',
+  pagination,
+  onPageChange,
+  paginationItemLabel = 'items',
 }: DataTableProps<T>) {
   // State
   const [searchQuery, setSearchQuery] = useState('');
@@ -246,146 +250,160 @@ export function DataTable<T extends TableDataItem>({
   const someSelected = filteredData.some((item) => selectedIds.has(item.id));
   const selectedItems = filteredData.filter((item) => selectedIds.has(item.id));
 
+  // Check if toolbar should be rendered
+  const hasToolbarContent =
+    enableSearch ||
+    filtersWithCounts.length > 0 ||
+    toolbarActions ||
+    (enableViewToggle && renderCard) ||
+    enableExport;
+
   // Render toolbar
-  const renderToolbar = () => (
-    <div className="flex flex-wrap items-center gap-3 bg-base-200/50 p-3 border border-base-content/5 rounded-box">
-      {/* Search */}
-      {enableSearch && (
-        <label className="input input-sm min-w-64">
-          <Icon icon="lucide--search" className="opacity-50 size-4" />
-          <input
-            type="search"
-            placeholder={searchPlaceholder}
-            className="grow"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </label>
-      )}
+  const renderToolbar = () => {
+    if (!hasToolbarContent) return null;
 
-      <div className="flex flex-wrap items-center gap-3 ml-auto">
-        {/* Filter Dropdowns */}
-        {filtersWithCounts.map((filter) => {
-          const activeValues = activeFilters.get(filter.key) || [];
-          const isActive = activeValues.length > 0;
+    return (
+      <div className="flex flex-wrap items-center gap-3 bg-base-200/50 p-3 border border-base-content/5 rounded-box">
+        {/* Search */}
+        {enableSearch && (
+          <label className="input input-sm min-w-64">
+            <Icon icon="lucide--search" className="opacity-50 size-4" />
+            <input
+              type="search"
+              placeholder={searchPlaceholder}
+              className="grow"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </label>
+        )}
 
-          return (
-            <div
-              key={filter.key}
-              className={`dropdown ${
-                openDropdown === filter.key ? 'dropdown-open' : ''
-              }`}
-              ref={(el) => {
-                if (el) dropdownRefs.current.set(filter.key, el);
-              }}
-            >
-              <label
-                tabIndex={0}
-                className={`gap-2 btn btn-sm ${
-                  isActive
-                    ? `btn-${filter.badgeColor || 'primary'}`
-                    : 'btn-ghost'
+        <div className="flex flex-wrap items-center gap-3 ml-auto">
+          {/* Filter Dropdowns */}
+          {filtersWithCounts.map((filter) => {
+            const activeValues = activeFilters.get(filter.key) || [];
+            const isActive = activeValues.length > 0;
+
+            return (
+              <div
+                key={filter.key}
+                className={`dropdown ${
+                  openDropdown === filter.key ? 'dropdown-open' : ''
                 }`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  setOpenDropdown(
-                    openDropdown === filter.key ? null : filter.key
-                  );
+                ref={(el) => {
+                  if (el) dropdownRefs.current.set(filter.key, el);
                 }}
               >
-                {filter.icon && <Icon icon={filter.icon} className="size-4" />}
-                {isActive ? (
-                  <span>
-                    {filter.label} ({activeValues.length})
-                  </span>
-                ) : (
-                  <span>{filter.label}</span>
-                )}
-              </label>
-              <ul
-                tabIndex={0}
-                className="dropdown-content menu bg-base-100 rounded-box z-1 w-64 p-2 shadow-sm max-h-80 overflow-y-auto"
+                <label
+                  tabIndex={0}
+                  className={`gap-2 btn btn-sm ${
+                    isActive
+                      ? `btn-${filter.badgeColor || 'primary'}`
+                      : 'btn-ghost'
+                  }`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setOpenDropdown(
+                      openDropdown === filter.key ? null : filter.key
+                    );
+                  }}
+                >
+                  {filter.icon && (
+                    <Icon icon={filter.icon} className="size-4" />
+                  )}
+                  {isActive ? (
+                    <span>
+                      {filter.label} ({activeValues.length})
+                    </span>
+                  ) : (
+                    <span>{filter.label}</span>
+                  )}
+                </label>
+                <ul
+                  tabIndex={0}
+                  className="dropdown-content menu bg-base-100 rounded-box z-1 w-64 p-2 shadow-sm max-h-80 overflow-y-auto"
+                >
+                  {isActive && (
+                    <li className="mb-2">
+                      <button
+                        className="btn-block justify-between btn btn-xs btn-ghost"
+                        onClick={() => handleClearFilter(filter.key)}
+                      >
+                        <span className="opacity-70 text-xs">Clear filter</span>
+                        <Icon icon="lucide--x" className="size-3" />
+                      </button>
+                    </li>
+                  )}
+
+                  {filter.options.map((option) => (
+                    <li key={option.value}>
+                      <label className="flex justify-between items-center gap-2 cursor-pointer">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            className={`checkbox checkbox-sm checkbox-${
+                              filter.badgeColor || 'primary'
+                            }`}
+                            checked={activeValues.includes(option.value)}
+                            onChange={() =>
+                              handleToggleFilter(filter.key, option.value)
+                            }
+                          />
+                          <span className="font-medium">{option.label}</span>
+                        </div>
+                        <span className="badge badge-sm badge-ghost">
+                          {option.count || 0}
+                        </span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+
+          {/* Toolbar Actions */}
+          {toolbarActions}
+
+          {/* View Toggle */}
+          {enableViewToggle && renderCard && (
+            <div className="flex gap-1 join">
+              <button
+                className={`btn btn-sm join-item ${
+                  view === 'table' ? 'btn-active' : 'btn-ghost'
+                }`}
+                onClick={() => setView('table')}
+                title="Table view"
               >
-                {isActive && (
-                  <li className="mb-2">
-                    <button
-                      className="btn-block justify-between btn btn-xs btn-ghost"
-                      onClick={() => handleClearFilter(filter.key)}
-                    >
-                      <span className="opacity-70 text-xs">Clear filter</span>
-                      <Icon icon="lucide--x" className="size-3" />
-                    </button>
-                  </li>
-                )}
-
-                {filter.options.map((option) => (
-                  <li key={option.value}>
-                    <label className="flex justify-between items-center gap-2 cursor-pointer">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          className={`checkbox checkbox-sm checkbox-${
-                            filter.badgeColor || 'primary'
-                          }`}
-                          checked={activeValues.includes(option.value)}
-                          onChange={() =>
-                            handleToggleFilter(filter.key, option.value)
-                          }
-                        />
-                        <span className="font-medium">{option.label}</span>
-                      </div>
-                      <span className="badge badge-sm badge-ghost">
-                        {option.count || 0}
-                      </span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
+                <Icon icon="lucide--table" className="size-4" />
+              </button>
+              <button
+                className={`btn btn-sm join-item ${
+                  view === 'cards' ? 'btn-active' : 'btn-ghost'
+                }`}
+                onClick={() => setView('cards')}
+                title="Card view"
+              >
+                <Icon icon="lucide--layout-grid" className="size-4" />
+              </button>
             </div>
-          );
-        })}
+          )}
 
-        {/* Toolbar Actions */}
-        {toolbarActions}
-
-        {/* View Toggle */}
-        {enableViewToggle && renderCard && (
-          <div className="flex gap-1 join">
+          {/* Export Button */}
+          {enableExport && (
             <button
-              className={`btn btn-sm join-item ${
-                view === 'table' ? 'btn-active' : 'btn-ghost'
-              }`}
-              onClick={() => setView('table')}
-              title="Table view"
+              className="btn btn-sm btn-ghost"
+              title="Export"
+              aria-label="Export data"
+              onClick={() => onExport?.(filteredData)}
             >
-              <Icon icon="lucide--table" className="size-4" />
+              <Icon icon="lucide--download" className="size-4" />
             </button>
-            <button
-              className={`btn btn-sm join-item ${
-                view === 'cards' ? 'btn-active' : 'btn-ghost'
-              }`}
-              onClick={() => setView('cards')}
-              title="Card view"
-            >
-              <Icon icon="lucide--layout-grid" className="size-4" />
-            </button>
-          </div>
-        )}
-
-        {/* Export Button */}
-        {enableExport && (
-          <button
-            className="btn btn-sm btn-ghost"
-            title="Export"
-            aria-label="Export data"
-            onClick={() => onExport?.(filteredData)}
-          >
-            <Icon icon="lucide--download" className="size-4" />
-          </button>
-        )}
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // Render active filter badges
   const renderActiveFilters = () => {
@@ -819,12 +837,58 @@ export function DataTable<T extends TableDataItem>({
     );
   };
 
+  // Render pagination
+  const renderPagination = () => {
+    // Don't show pagination if not provided, loading, has error, no data, or only 1 page
+    if (
+      !pagination ||
+      loading ||
+      error ||
+      data.length === 0 ||
+      pagination.totalPages <= 1
+    ) {
+      return null;
+    }
+
+    const { page, totalPages, total, limit, hasPrev, hasNext } = pagination;
+    const startItem = (page - 1) * limit + 1;
+    const endItem = Math.min(page * limit, total);
+
+    return (
+      <div className="flex justify-between items-center mt-4">
+        <div className="text-sm text-base-content/70">
+          Showing {startItem} - {endItem} of {total} {paginationItemLabel}
+        </div>
+        <div className="join">
+          <button
+            className="join-item btn btn-sm"
+            onClick={() => onPageChange?.(page - 1)}
+            disabled={!hasPrev}
+          >
+            «
+          </button>
+          <button className="join-item btn btn-sm">
+            Page {page} of {totalPages}
+          </button>
+          <button
+            className="join-item btn btn-sm"
+            onClick={() => onPageChange?.(page + 1)}
+            disabled={!hasNext}
+          >
+            »
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className={`space-y-3 ${className}`}>
       {renderToolbar()}
       {renderActiveFilters()}
       {renderBulkActions()}
       {view === 'table' ? renderTableView() : renderCardView()}
+      {renderPagination()}
     </div>
   );
 }
