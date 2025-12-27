@@ -231,7 +231,7 @@ export class EmailWorkerService implements OnModuleInit, OnModuleDestroy {
           })
         : null;
 
-      const rendered = this.templates.render(
+      const rendered = await this.templates.render(
         job.template_name,
         job.template_data
       );

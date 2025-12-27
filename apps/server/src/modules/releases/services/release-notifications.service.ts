@@ -4,6 +4,7 @@ import { Repository, DataSource, In, IsNull } from 'typeorm';
 import {
   ReleaseNotification,
   ReleaseTargetMode,
+  ReleaseStatus,
 } from '../entities/release-notification.entity';
 import { ReleaseNotificationRecipient } from '../entities/release-notification-recipient.entity';
 import { ReleaseNotificationState } from '../entities/release-notification-state.entity';
@@ -18,6 +19,7 @@ import {
 } from '../../notifications/dto/create-notification.dto';
 import { EmailTemplateService } from '../../email/email-template.service';
 import { MailgunProvider } from '../../email/mailgun.provider';
+import { EmailService } from '../../email/email.service';
 import { ZitadelService } from '../../auth/zitadel.service';
 import { UserEmailPreferencesService } from '../../user-email-preferences/user-email-preferences.service';
 import {
@@ -78,9 +80,22 @@ export interface RecipientResult {
   skipReason?: string;
 }
 
-/**
- * Minimum time between release notifications (1 hour).
- */
+export interface CreateReleaseResult {
+  success: boolean;
+  releaseId?: string;
+  version?: string;
+  error?: string;
+}
+
+export interface SendForReleaseOptions {
+  userId?: string;
+  projectId?: string;
+  allUsers?: boolean;
+  dryRun?: boolean;
+  force?: boolean;
+  resend?: boolean;
+}
+
 const MIN_NOTIFICATION_INTERVAL_MS = 60 * 60 * 1000;
 
 /**
@@ -114,6 +129,7 @@ export class ReleaseNotificationsService {
     private readonly notificationsService: NotificationsService,
     private readonly emailTemplateService: EmailTemplateService,
     private readonly mailgunProvider: MailgunProvider,
+    private readonly emailService: EmailService,
     private readonly zitadelService: ZitadelService,
     private readonly userEmailPreferencesService: UserEmailPreferencesService
   ) {}
@@ -351,6 +367,510 @@ export class ReleaseNotificationsService {
       where: { version },
       relations: ['recipients'],
     });
+  }
+
+  async createRelease(
+    changelog: ChangelogResult,
+    triggeredBy?: string
+  ): Promise<CreateReleaseResult> {
+    try {
+      const release = this.releaseRepo.create({
+        version: changelog.version,
+        fromCommit: changelog.fromCommit,
+        toCommit: changelog.toCommit,
+        commitCount: changelog.commitCount,
+        changelogJson: changelog.changelogJson,
+        targetMode: 'all' as ReleaseTargetMode,
+        status: 'draft' as ReleaseStatus,
+        createdBy: triggeredBy,
+      });
+
+      const saved = await this.releaseRepo.save(release);
+
+      this.logger.log(`Created draft release ${saved.version} (${saved.id})`);
+
+      return {
+        success: true,
+        releaseId: saved.id,
+        version: saved.version,
+      };
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(`Failed to create release: ${err.message}`);
+      return {
+        success: false,
+        error: err.message,
+      };
+    }
+  }
+
+  async deleteRelease(
+    idOrVersion: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const release = await this.findReleaseByIdOrVersion(idOrVersion);
+
+      if (!release) {
+        return {
+          success: false,
+          error: `Release not found: ${idOrVersion}`,
+        };
+      }
+
+      if (release.status === 'published') {
+        return {
+          success: false,
+          error: 'Cannot delete a published release',
+        };
+      }
+
+      await this.releaseRepo.delete({ id: release.id });
+
+      this.logger.log(`Deleted release ${release.version} (${release.id})`);
+
+      return { success: true };
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(`Failed to delete release: ${err.message}`);
+      return {
+        success: false,
+        error: err.message,
+      };
+    }
+  }
+
+  async sendNotificationsForRelease(
+    releaseIdOrVersion: string,
+    options: SendForReleaseOptions
+  ): Promise<SendNotificationResult> {
+    const { dryRun = false, force = false, resend = false } = options;
+
+    const targetCount = [
+      options.userId,
+      options.projectId,
+      options.allUsers,
+    ].filter(Boolean).length;
+    if (targetCount !== 1) {
+      return {
+        success: false,
+        recipientCount: 0,
+        emailsSent: 0,
+        emailsFailed: 0,
+        inAppSent: 0,
+        skippedUsers: 0,
+        error:
+          'Must specify exactly one of: --user-id, --project-id, or --all-users',
+        dryRun,
+      };
+    }
+
+    const release = await this.findReleaseByIdOrVersion(releaseIdOrVersion);
+    if (!release) {
+      return {
+        success: false,
+        recipientCount: 0,
+        emailsSent: 0,
+        emailsFailed: 0,
+        inAppSent: 0,
+        skippedUsers: 0,
+        error: `Release not found: ${releaseIdOrVersion}`,
+        dryRun,
+      };
+    }
+
+    if (!force) {
+      const lastPublished = await this.getLastPublishedRelease();
+      if (lastPublished && lastPublished.id !== release.id) {
+        const timeSinceLastMs = Date.now() - lastPublished.createdAt.getTime();
+        if (timeSinceLastMs < MIN_NOTIFICATION_INTERVAL_MS) {
+          const minutesRemaining = Math.ceil(
+            (MIN_NOTIFICATION_INTERVAL_MS - timeSinceLastMs) / 60000
+          );
+          return {
+            success: false,
+            recipientCount: 0,
+            emailsSent: 0,
+            emailsFailed: 0,
+            inAppSent: 0,
+            skippedUsers: 0,
+            error: `Debounce: Last notification sent ${Math.floor(
+              timeSinceLastMs / 60000
+            )} minutes ago. Wait ${minutesRemaining} more minutes or use --force.`,
+            dryRun,
+          };
+        }
+      }
+    }
+
+    const targetMode: ReleaseTargetMode = options.userId
+      ? 'single'
+      : options.projectId
+      ? 'project'
+      : 'all';
+    const targetId = options.userId || options.projectId || undefined;
+
+    const existingReleaseId = resend ? undefined : release.id;
+    const targetUsers = await this.resolveTargetUsers(
+      targetMode,
+      targetId,
+      existingReleaseId
+    );
+
+    if (targetUsers.length === 0) {
+      return {
+        success: true,
+        releaseId: release.id,
+        version: release.version,
+        recipientCount: 0,
+        emailsSent: 0,
+        emailsFailed: 0,
+        inAppSent: 0,
+        skippedUsers: 0,
+        error: resend
+          ? 'No users found for resend.'
+          : 'All users already notified for this release.',
+        dryRun,
+      };
+    }
+
+    if (dryRun) {
+      return {
+        success: true,
+        releaseId: release.id,
+        version: release.version,
+        recipientCount: targetUsers.length,
+        emailsSent: 0,
+        emailsFailed: 0,
+        inAppSent: 0,
+        skippedUsers: 0,
+        dryRun: true,
+        recipients: targetUsers.map((u) => ({
+          userId: u.id,
+          email: u.email,
+          displayName: u.displayName || undefined,
+          emailSent: false,
+          inAppSent: false,
+          skipped: false,
+        })),
+      };
+    }
+
+    return this.sendForExistingRelease(
+      release,
+      targetUsers,
+      targetMode,
+      targetId,
+      resend
+    );
+  }
+
+  async resendToUsers(
+    releaseIdOrVersion: string,
+    userIds: string[],
+    dryRun: boolean = false
+  ): Promise<SendNotificationResult> {
+    const release = await this.findReleaseByIdOrVersion(releaseIdOrVersion);
+    if (!release) {
+      return {
+        success: false,
+        recipientCount: 0,
+        emailsSent: 0,
+        emailsFailed: 0,
+        inAppSent: 0,
+        skippedUsers: 0,
+        error: `Release not found: ${releaseIdOrVersion}`,
+        dryRun,
+      };
+    }
+
+    const targetUsers = await this.resolveTargetUsers('single', undefined);
+    const filteredUsers = targetUsers.filter((u) => userIds.includes(u.id));
+
+    if (filteredUsers.length === 0) {
+      return {
+        success: false,
+        recipientCount: 0,
+        emailsSent: 0,
+        emailsFailed: 0,
+        inAppSent: 0,
+        skippedUsers: 0,
+        error: 'No valid users found for resend.',
+        dryRun,
+      };
+    }
+
+    if (dryRun) {
+      return {
+        success: true,
+        releaseId: release.id,
+        version: release.version,
+        recipientCount: filteredUsers.length,
+        emailsSent: 0,
+        emailsFailed: 0,
+        inAppSent: 0,
+        skippedUsers: 0,
+        dryRun: true,
+        recipients: filteredUsers.map((u) => ({
+          userId: u.id,
+          email: u.email,
+          displayName: u.displayName || undefined,
+          emailSent: false,
+          inAppSent: false,
+          skipped: false,
+        })),
+      };
+    }
+
+    return this.sendForExistingRelease(
+      release,
+      filteredUsers,
+      'single',
+      undefined,
+      true
+    );
+  }
+
+  private async findReleaseByIdOrVersion(
+    idOrVersion: string
+  ): Promise<ReleaseNotification | null> {
+    if (idOrVersion.match(/^[0-9a-f-]{36}$/i)) {
+      return this.getReleaseById(idOrVersion);
+    }
+    return this.getReleaseByVersion(idOrVersion);
+  }
+
+  private async getLastPublishedRelease(): Promise<ReleaseNotification | null> {
+    return this.releaseRepo.findOne({
+      where: { status: 'published' as ReleaseStatus },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  private async sendForExistingRelease(
+    release: ReleaseNotification,
+    targetUsers: Array<{
+      id: string;
+      email?: string;
+      displayName?: string | null;
+    }>,
+    targetMode: ReleaseTargetMode,
+    targetId: string | undefined,
+    isResend: boolean
+  ): Promise<SendNotificationResult> {
+    const recipients: RecipientResult[] = [];
+    let emailsSent = 0;
+    let emailsFailed = 0;
+    let inAppSent = 0;
+    let skippedUsers = 0;
+
+    try {
+      return await this.dataSource.transaction(async (manager) => {
+        await manager.query(
+          `SELECT * FROM kb.release_notification_state 
+           WHERE branch = 'main' 
+           FOR UPDATE NOWAIT`
+        );
+
+        if (release.status === 'draft') {
+          await manager.update(ReleaseNotification, release.id, {
+            status: 'published' as ReleaseStatus,
+            targetMode,
+            targetId,
+          });
+        }
+
+        const changelog: StructuredChangelog = {
+          summary: '',
+          features: release.changelogJson.features.map((f) => ({
+            title: f,
+          })),
+          improvements: release.changelogJson.improvements.map((i) => ({
+            title: i,
+          })),
+          bugFixes: release.changelogJson.fixes.map((f) => ({ title: f })),
+          breakingChanges: [],
+        };
+
+        const adminUrl = process.env.ADMIN_URL || 'http://localhost:5176';
+        const emailContext = this.buildEmailContext(
+          changelog,
+          release.version,
+          release.fromCommit,
+          release.toCommit,
+          adminUrl
+        );
+
+        for (const user of targetUsers) {
+          const recipientResult: RecipientResult = {
+            userId: user.id,
+            email: user.email,
+            displayName: user.displayName || undefined,
+            emailSent: false,
+            inAppSent: false,
+            skipped: false,
+          };
+
+          try {
+            if (!isResend) {
+              const inAppNotification = await this.notificationsService.create({
+                subject_id: user.id,
+                category: NotificationCategory.RELEASE_DEPLOYED,
+                importance: NotificationImportance.OTHER,
+                title: `New Release: ${release.version}`,
+                message: `Release ${release.version} is now available.`,
+                details: {
+                  version: release.version,
+                  fromCommit: release.fromCommit,
+                  toCommit: release.toCommit,
+                  changelog: release.changelogJson,
+                },
+                source_type: NotificationSourceType.RELEASE,
+                source_id: release.id,
+                action_url: `/releases/${release.version}`,
+                action_label: 'View Release Notes',
+              });
+
+              if (inAppNotification) {
+                recipientResult.inAppSent = true;
+                recipientResult.inAppNotificationId = inAppNotification.id;
+                inAppSent++;
+              }
+            }
+
+            if (user.email) {
+              const releaseEmailsEnabled =
+                await this.userEmailPreferencesService.isReleaseEmailsEnabled(
+                  user.id
+                );
+
+              if (!releaseEmailsEnabled) {
+                recipientResult.skipped = true;
+                recipientResult.skipReason = 'User opted out of release emails';
+                skippedUsers++;
+              } else {
+                const unsubscribeToken =
+                  await this.userEmailPreferencesService.getOrCreateUnsubscribeToken(
+                    user.id
+                  );
+                const unsubscribeUrl = `${adminUrl}/unsubscribe/${unsubscribeToken}`;
+
+                const personalizedContext = {
+                  ...emailContext,
+                  recipientName: user.displayName,
+                  unsubscribeUrl,
+                };
+
+                // Queue email via unified email job system
+                const emailResult = await this.emailService.sendTemplatedEmail({
+                  templateName: 'release-notification',
+                  toEmail: user.email,
+                  toName: user.displayName || undefined,
+                  subject: `[Emergent] New Release: ${release.version}`,
+                  templateData: personalizedContext,
+                  sourceType: 'release-notification',
+                  sourceId: release.id,
+                });
+
+                if (emailResult.queued) {
+                  recipientResult.emailSent = true;
+                  recipientResult.emailMessageId = emailResult.jobId;
+                  emailsSent++;
+                } else {
+                  recipientResult.emailError = emailResult.error;
+                  emailsFailed++;
+                }
+              }
+            } else {
+              recipientResult.skipReason = 'No email address';
+              skippedUsers++;
+            }
+
+            if (!isResend) {
+              await manager.save(ReleaseNotificationRecipient, {
+                releaseNotificationId: release.id,
+                userId: user.id,
+                emailSent: recipientResult.emailSent,
+                emailSentAt: recipientResult.emailSent ? new Date() : undefined,
+                emailJobId: recipientResult.emailMessageId,
+                inAppNotificationId: recipientResult.inAppNotificationId,
+              });
+            } else {
+              await manager
+                .createQueryBuilder()
+                .update(ReleaseNotificationRecipient)
+                .set({
+                  emailSent: recipientResult.emailSent,
+                  emailSentAt: recipientResult.emailSent
+                    ? new Date()
+                    : undefined,
+                  emailJobId: recipientResult.emailMessageId,
+                })
+                .where('release_notification_id = :releaseId', {
+                  releaseId: release.id,
+                })
+                .andWhere('user_id = :userId', { userId: user.id })
+                .execute();
+            }
+          } catch (error) {
+            this.logger.error(
+              `Failed to notify user ${user.id}: ${(error as Error).message}`
+            );
+            recipientResult.emailError = (error as Error).message;
+            emailsFailed++;
+          }
+
+          recipients.push(recipientResult);
+        }
+
+        await manager.query(
+          `UPDATE kb.release_notification_state 
+           SET last_notified_commit = $1, last_notified_at = NOW(), updated_at = NOW() 
+           WHERE branch = 'main'`,
+          [release.toCommit]
+        );
+
+        return {
+          success: true,
+          releaseId: release.id,
+          version: release.version,
+          recipientCount: targetUsers.length,
+          emailsSent,
+          emailsFailed,
+          inAppSent,
+          skippedUsers,
+          dryRun: false,
+          recipients,
+        };
+      });
+    } catch (error) {
+      const err = error as Error;
+
+      if (err.message.includes('could not obtain lock')) {
+        return {
+          success: false,
+          recipientCount: 0,
+          emailsSent: 0,
+          emailsFailed: 0,
+          inAppSent: 0,
+          skippedUsers: 0,
+          error: 'Another release notification is in progress. Please wait.',
+          dryRun: false,
+        };
+      }
+
+      this.logger.error(`Failed to send notifications: ${err.message}`);
+      return {
+        success: false,
+        recipientCount: 0,
+        emailsSent,
+        emailsFailed,
+        inAppSent,
+        skippedUsers,
+        error: err.message,
+        dryRun: false,
+        recipients,
+      };
+    }
   }
 
   // ---------- Private Methods ----------
@@ -671,22 +1191,19 @@ export class ReleaseNotificationsService {
                   unsubscribeUrl,
                 };
 
-                const rendered = this.emailTemplateService.render(
-                  'release-notification',
-                  personalizedContext
-                );
-
-                const emailResult = await this.mailgunProvider.send({
-                  to: user.email,
+                const emailResult = await this.emailService.sendTemplatedEmail({
+                  templateName: 'release-notification',
+                  toEmail: user.email,
                   toName: user.displayName || undefined,
                   subject: `[Emergent] New Release: ${version}`,
-                  html: rendered.html,
-                  text: rendered.text,
+                  templateData: personalizedContext,
+                  sourceType: 'release-notification',
+                  sourceId: releaseId,
                 });
 
-                if (emailResult.success) {
+                if (emailResult.queued) {
                   recipientResult.emailSent = true;
-                  recipientResult.emailMessageId = emailResult.messageId;
+                  recipientResult.emailMessageId = emailResult.jobId;
                   emailsSent++;
                 } else {
                   recipientResult.emailError = emailResult.error;
@@ -704,8 +1221,7 @@ export class ReleaseNotificationsService {
               userId: user.id,
               emailSent: recipientResult.emailSent,
               emailSentAt: recipientResult.emailSent ? new Date() : undefined,
-              mailgunMessageId: recipientResult.emailMessageId,
-              emailStatus: recipientResult.emailSent ? 'pending' : undefined,
+              emailJobId: recipientResult.emailMessageId,
               inAppNotificationId: recipientResult.inAppNotificationId,
             });
           } catch (error) {
@@ -770,6 +1286,57 @@ export class ReleaseNotificationsService {
         recipients,
       };
     }
+  }
+
+  /**
+   * Render email preview HTML for a release.
+   * Returns the same HTML that would be sent in an actual email notification.
+   */
+  async renderEmailPreview(
+    releaseIdOrVersion: string,
+    recipientName?: string
+  ): Promise<{ html: string; version: string } | null> {
+    const release = await this.findReleaseByIdOrVersion(releaseIdOrVersion);
+    if (!release) {
+      return null;
+    }
+
+    const changelog: StructuredChangelog = {
+      summary: '',
+      features: release.changelogJson.features.map((f) => ({
+        title: f,
+      })),
+      improvements: release.changelogJson.improvements.map((i) => ({
+        title: i,
+      })),
+      bugFixes: release.changelogJson.fixes.map((f) => ({ title: f })),
+      breakingChanges: [],
+    };
+
+    const adminUrl = process.env.ADMIN_URL || 'http://localhost:5176';
+    const emailContext = this.buildEmailContext(
+      changelog,
+      release.version,
+      release.fromCommit,
+      release.toCommit,
+      adminUrl
+    );
+
+    const personalizedContext = {
+      ...emailContext,
+      recipientName: recipientName || 'User',
+      unsubscribeUrl: `${adminUrl}/unsubscribe/preview-token`,
+    };
+
+    const rendered = await this.emailTemplateService.render(
+      'release-notification',
+      personalizedContext
+    );
+
+    return {
+      html: rendered.html,
+      version: release.version,
+    };
   }
 
   /**

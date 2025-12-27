@@ -39,10 +39,19 @@ export interface StructuredChangelog {
  * Options for changelog generation.
  */
 export interface ChangelogOptions {
+  /** Start commit (for commit range) */
   fromCommit?: string;
+  /** End commit (for commit range, defaults to HEAD) */
   toCommit?: string;
+  /** Branch name (defaults to 'main') */
   branch?: string;
+  /** Date to get commits since (e.g., "2024-12-01", "1 week ago", "yesterday") */
+  since?: string;
+  /** Date to get commits until (defaults to now) */
+  until?: string;
+  /** Skip LLM processing, use raw commit messages */
   rawCommits?: boolean;
+  /** Trace ID for observability */
   traceId?: string;
 }
 
@@ -177,6 +186,52 @@ export class ReleaseChangelogService {
     }
   }
 
+  getCommitsSince(since: string, until?: string): GitCommit[] {
+    try {
+      const format =
+        '%H%x00%h%x00%s%x00%b%x00%an%x00%ae%x00%aI%x00END_COMMIT%x00';
+      let cmd = `git log --format="${format}" --since="${since}"`;
+      if (until) {
+        cmd += ` --until="${until}"`;
+      }
+
+      const output = execSync(cmd, {
+        cwd: this.gitDir,
+        encoding: 'utf-8',
+        maxBuffer: 10 * 1024 * 1024,
+      });
+
+      if (!output.trim()) {
+        return [];
+      }
+
+      const commits: GitCommit[] = [];
+      const commitStrings = output
+        .split('END_COMMIT\0')
+        .filter((s) => s.trim());
+
+      for (const commitStr of commitStrings) {
+        const parts = commitStr.split('\0');
+        if (parts.length >= 7) {
+          commits.push({
+            hash: parts[0].trim(),
+            shortHash: parts[1].trim(),
+            subject: parts[2].trim(),
+            body: parts[3].trim(),
+            authorName: parts[4].trim(),
+            authorEmail: parts[5].trim(),
+            date: new Date(parts[6].trim()),
+          });
+        }
+      }
+
+      return commits;
+    } catch (error) {
+      this.logger.error(`Failed to get commits since ${since}`, error);
+      throw new Error('Failed to get git commits');
+    }
+  }
+
   /**
    * Generate a changelog from commits using LLM.
    */
@@ -187,75 +242,117 @@ export class ReleaseChangelogService {
       fromCommit,
       toCommit = 'HEAD',
       branch = 'main',
+      since,
+      until,
       rawCommits = false,
       traceId,
     } = options;
 
-    // Determine the starting commit
-    let startCommit = fromCommit;
-    if (!startCommit) {
-      // Try to find the latest tag, or use a reasonable default
-      const latestTag = this.getLatestTag(branch);
-      if (latestTag) {
-        startCommit = latestTag;
-        this.logger.log(`Using latest tag as start: ${latestTag}`);
-      } else {
-        // Fallback: use last 50 commits
-        startCommit = `${toCommit}~50`;
-        this.logger.warn(
-          'No tags found, using last 50 commits as changelog source'
-        );
-      }
-    }
+    let commits: GitCommit[];
+    let startRef: string;
+    let endRef: string;
 
-    // Get commits
-    const endCommit = toCommit === 'HEAD' ? this.getCurrentCommit() : toCommit;
-    const commits = this.getCommitsBetween(startCommit, endCommit);
-
-    if (commits.length === 0) {
-      this.logger.warn(
-        `No commits found between ${startCommit} and ${endCommit}`
+    if (since) {
+      this.logger.log(
+        `Using date range: since "${since}"${until ? ` until "${until}"` : ''}`
       );
-      return {
-        version: this.generateVersion(),
-        fromCommit: startCommit.substring(0, 7),
-        toCommit: endCommit.substring(0, 7),
-        commitCount: 0,
-        commits: [],
-        changelog: {
-          summary: 'No changes in this release.',
-          features: [],
-          improvements: [],
-          bugFixes: [],
-          breakingChanges: [],
-        },
-        changelogJson: {
-          features: [],
-          fixes: [],
-          improvements: [],
-        },
-      };
+      commits = this.getCommitsSince(since, until);
+
+      if (commits.length === 0) {
+        this.logger.warn(`No commits found since ${since}`);
+        return {
+          version: this.generateVersion(),
+          fromCommit: since,
+          toCommit: until || 'now',
+          commitCount: 0,
+          commits: [],
+          changelog: {
+            summary: 'No changes in this release.',
+            features: [],
+            improvements: [],
+            bugFixes: [],
+            breakingChanges: [],
+          },
+          changelogJson: {
+            features: [],
+            fixes: [],
+            improvements: [],
+          },
+        };
+      }
+
+      startRef = commits[commits.length - 1].shortHash;
+      endRef = commits[0].shortHash;
+    } else {
+      let startCommit = fromCommit;
+      if (!startCommit) {
+        const latestTag = this.getLatestTag(branch);
+        if (latestTag) {
+          startCommit = latestTag;
+          this.logger.log(`Using latest tag as start: ${latestTag}`);
+        } else {
+          startCommit = `${toCommit}~50`;
+          this.logger.warn(
+            'No tags found, using last 50 commits as changelog source'
+          );
+        }
+      }
+
+      const endCommit =
+        toCommit === 'HEAD' ? this.getCurrentCommit() : toCommit;
+      commits = this.getCommitsBetween(startCommit, endCommit);
+
+      if (commits.length === 0) {
+        this.logger.warn(
+          `No commits found between ${startCommit} and ${endCommit}`
+        );
+        return {
+          version: this.generateVersion(),
+          fromCommit: startCommit.substring(0, 7),
+          toCommit: endCommit.substring(0, 7),
+          commitCount: 0,
+          commits: [],
+          changelog: {
+            summary: 'No changes in this release.',
+            features: [],
+            improvements: [],
+            bugFixes: [],
+            breakingChanges: [],
+          },
+          changelogJson: {
+            features: [],
+            fixes: [],
+            improvements: [],
+          },
+        };
+      }
+
+      startRef = startCommit.substring(0, 7);
+      endRef = endCommit.substring(0, 7);
     }
+
+    this.logger.log(`Found ${commits.length} commits (${startRef}..${endRef})`);
 
     this.logger.log(
-      `Found ${commits.length} commits between ${startCommit.substring(
-        0,
-        7
-      )} and ${endCommit.substring(0, 7)}`
+      `Changelog generation mode: ${
+        rawCommits ? 'RAW_COMMITS' : 'LLM_PROCESSED'
+      }`
     );
 
-    // If raw commits mode, skip LLM processing
     if (rawCommits) {
-      return this.createRawChangelog(commits, startCommit, endCommit);
+      return this.createRawChangelog(commits, startRef, endRef);
     }
 
-    // Generate changelog using LLM
+    this.logger.log('Calling generateChangelogWithLLM...');
     const changelog = await this.generateChangelogWithLLM(commits, traceId);
+    this.logger.log(
+      `LLM changelog generated with ${changelog.features.length} features, ${changelog.improvements.length} improvements, ${changelog.bugFixes.length} fixes`
+    );
 
     return {
       version: this.generateVersion(),
-      fromCommit: startCommit.substring(0, 7),
-      toCommit: endCommit.substring(0, 7),
+      fromCommit: startRef,
+      toCommit: endRef,
       commitCount: commits.length,
       commits,
       changelog,
@@ -328,7 +425,10 @@ export class ReleaseChangelogService {
     commits: GitCommit[],
     traceId?: string
   ): Promise<StructuredChangelog> {
-    if (!this.geminiService.isAvailable()) {
+    const isLLMAvailable = this.geminiService.isAvailable();
+    this.logger.log(`LLM service available: ${isLLMAvailable}`);
+
+    if (!isLLMAvailable) {
       this.logger.warn('LLM service not available, using raw changelog');
       return {
         summary: `This release includes ${commits.length} commits.`,
@@ -391,6 +491,9 @@ Return a JSON object with this structure:
 Return ONLY valid JSON, no markdown or explanation.`;
 
     try {
+      this.logger.log(
+        `Calling generateJsonFreeform with ${commits.length} commits...`
+      );
       const result =
         await this.geminiService.generateJsonFreeform<StructuredChangelog>(
           prompt,
@@ -406,11 +509,20 @@ Return ONLY valid JSON, no markdown or explanation.`;
             : undefined
         );
 
+      this.logger.log(
+        `LLM result: success=${
+          result.success
+        }, hasData=${!!result.data}, error=${result.error || 'none'}`
+      );
+
       if (result.success && result.data) {
+        this.logger.log('LLM changelog generated successfully, validating...');
         return this.validateChangelog(result.data);
       }
 
-      this.logger.warn('LLM changelog generation failed, using raw format');
+      this.logger.warn(
+        `LLM changelog generation failed (success=${result.success}, error=${result.error}), using raw format`
+      );
       return {
         summary: `This release includes ${commits.length} commits.`,
         features: [],

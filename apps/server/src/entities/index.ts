@@ -50,6 +50,8 @@ export {
 } from './external-source.entity';
 export { EmailJob } from './email-job.entity';
 export { EmailLog } from './email-log.entity';
+export { EmailTemplate, TemplateVariable } from './email-template.entity';
+export { EmailTemplateVersion } from './email-template-version.entity';
 
 // Release Notifications
 export { ReleaseNotification } from '../modules/releases/entities/release-notification.entity';
@@ -107,6 +109,8 @@ import { Superadmin } from './superadmin.entity';
 import { ExternalSource } from './external-source.entity';
 import { EmailJob } from './email-job.entity';
 import { EmailLog } from './email-log.entity';
+import { EmailTemplate } from './email-template.entity';
+import { EmailTemplateVersion } from './email-template-version.entity';
 import { ReleaseNotification } from '../modules/releases/entities/release-notification.entity';
 import { ReleaseNotificationRecipient } from '../modules/releases/entities/release-notification-recipient.entity';
 import { ReleaseNotificationState } from '../modules/releases/entities/release-notification-state.entity';
@@ -160,6 +164,8 @@ export const entities = [
   // Email System
   EmailJob,
   EmailLog,
+  EmailTemplate,
+  EmailTemplateVersion,
   // Release Notifications
   ReleaseNotification,
   ReleaseNotificationRecipient,

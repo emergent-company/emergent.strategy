@@ -7,6 +7,20 @@ import {
 } from 'typeorm';
 
 /**
+ * Email Delivery Status from Mailgun events
+ */
+export type EmailDeliveryStatus =
+  | 'pending'
+  | 'delivered'
+  | 'opened'
+  | 'clicked'
+  | 'bounced'
+  | 'soft_bounced'
+  | 'complained'
+  | 'unsubscribed'
+  | 'failed';
+
+/**
  * Email Job Entity
  *
  * Represents a queued email to be sent. The email worker processes pending jobs
@@ -68,4 +82,23 @@ export class EmailJob {
 
   @Column({ name: 'source_id', type: 'uuid', nullable: true })
   sourceId!: string | null;
+
+  // Delivery status fields (from Mailgun events sync)
+  @Column({
+    name: 'delivery_status',
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+  })
+  deliveryStatus!: EmailDeliveryStatus | null;
+
+  @Column({ name: 'delivery_status_at', type: 'timestamptz', nullable: true })
+  deliveryStatusAt!: Date | null;
+
+  @Column({
+    name: 'delivery_status_synced_at',
+    type: 'timestamptz',
+    nullable: true,
+  })
+  deliveryStatusSyncedAt!: Date | null;
 }

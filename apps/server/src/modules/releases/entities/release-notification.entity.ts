@@ -17,14 +17,10 @@ export interface ChangelogJson {
   truncatedCount?: number;
 }
 
-/**
- * Target mode for release notifications.
- */
 export type ReleaseTargetMode = 'single' | 'project' | 'all';
 
-/**
- * Release notification record with changelog content.
- */
+export type ReleaseStatus = 'draft' | 'published';
+
 @Entity({ schema: 'kb', name: 'release_notifications' })
 export class ReleaseNotification {
   @PrimaryGeneratedColumn('uuid')
@@ -32,6 +28,9 @@ export class ReleaseNotification {
 
   @Column({ type: 'varchar', length: 50 })
   version!: string;
+
+  @Column({ type: 'varchar', length: 20, default: 'draft' })
+  status!: ReleaseStatus;
 
   @Column({ name: 'from_commit', type: 'varchar', length: 40 })
   fromCommit!: string;
