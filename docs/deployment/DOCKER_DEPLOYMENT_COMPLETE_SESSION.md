@@ -2,7 +2,7 @@
 
 **Date**: November 2, 2024  
 **Duration**: Full debugging and fix session  
-**Initial Issue**: `pathRegexp is not a function` in Coolify deployment  
+**Initial Issue**: `pathRegexp is not a function` in Docker deployment  
 **Final Status**: ✅ All issues resolved, Docker image builds and runs successfully
 
 ## Timeline of Issues and Fixes
@@ -10,17 +10,20 @@
 ### Issue 1: Express Version Conflict ✅ FIXED
 
 **Error**:
+
 ```
 TypeError: pathRegexp is not a function
     at Layer.Layer (/app/node_modules/express/lib/router/layer.js:33:17)
 ```
 
-**Root Cause**: 
+**Root Cause**:
+
 - `@rekog/mcp-nest` was pulling Express 5.x as a dependency
 - NestJS requires Express 4.x
 - Express 5.x has breaking changes in routing API
 
 **Solution** (Commit 24fbc0d):
+
 ```json
 // package.json
 "dependencies": {
@@ -40,17 +43,20 @@ TypeError: pathRegexp is not a function
 ### Issue 2-4: Missing Passport Dependencies ✅ FIXED
 
 **Errors** (Sequential):
+
 1. `Cannot find module 'passport'`
 2. `Cannot find module 'passport-google-oauth20'`
 3. `Cannot find module 'passport-github'`
 4. `Cannot find module 'passport-azure-ad-oauth2'`
 
-**Root Cause**: 
+**Root Cause**:
+
 - These were peer dependencies of `@nestjs/passport`
 - npm ci in Docker didn't auto-install peer dependencies
 - Local npm install had installed them, hiding the issue
 
 **Solution** (Commits 077d4d6, 3ae017d):
+
 ```json
 // apps/server/package.json
 "dependencies": {
@@ -69,17 +75,20 @@ TypeError: pathRegexp is not a function
 ### Issue 5: Swagger path-to-regexp Incompatibility ✅ FIXED
 
 **Error**:
+
 ```
 TypeError: pathToRegexp.parse is not a function
     at SwaggerExplorer.validateRoutePath
 ```
 
 **Root Cause**:
+
 - `apps/server/package.json` had explicit `"path-to-regexp": "^8.3.0"`
 - Swagger requires path-to-regexp 3.x API
 - Version 8.x has breaking changes, removed `.parse()` method
 
 **Investigation**:
+
 - Found three isolated versions in lockfile:
   - 0.1.12 (Express 4.x internal) ✅
   - 3.3.0 (needed for Swagger) ⚠️
@@ -87,6 +96,7 @@ TypeError: pathToRegexp.parse is not a function
   - 8.3.0 (explicit server dependency) ❌
 
 **Solution** (Commits e4f4979, 72dda88, 172534f):
+
 ```json
 // apps/server/package.json
 "dependencies": {
@@ -109,6 +119,7 @@ TypeError: pathToRegexp.parse is not a function
 ### Issue 6: ClickUp SDK ES Module Loading ✅ FIXED
 
 **Error**:
+
 ```
 Error: Cannot find module '/app/.api/apis/clickup/index.mjs'
 SyntaxError: Unexpected token '{'
@@ -117,14 +128,16 @@ SyntaxError: Unexpected token '{'
 ```
 
 **Root Cause**:
+
 - ClickUp SDK is an ES module (`.mjs` files)
-- TypeScript config: `module: "CommonJS"` 
+- TypeScript config: `module: "CommonJS"`
 - TypeScript compiles `import()` → `require()`
 - CommonJS `require()` cannot load ES modules
 - SDK was local file dependency: `"@api/clickup": "file:.api/apis/clickup"`
 
 **Investigation**:
 Found 9 methods already using fetch(), 8 methods still using SDK:
+
 - ✅ Already using fetch: getWorkspaces, getSpaces, getFolders, getLists, getTasksInList, etc.
 - ❌ Using SDK: getTask, getTaskComments, getListComments, searchTasks, getDocs, getDoc, getDocPages, getPage
 
@@ -146,6 +159,7 @@ Replaced 8 SDK method calls with direct HTTP fetch():
 8. **getPage()** → `GET /api/v3/workspaces/:workspaceId/docs/:docId/pages/:pageId`
 
 Each method follows consistent pattern:
+
 ```typescript
 async method(): Promise<Type> {
     if (!this.apiToken) throw new Error('Not configured');
@@ -167,6 +181,7 @@ async method(): Promise<Type> {
 #### Phase 2: Remove SDK Code (100% Complete)
 
 Removed from `clickup-api.client.ts`:
+
 - SDK import comment
 - `private sdk: any` property
 - `private sdkInitPromise: Promise<void>` property
@@ -178,6 +193,7 @@ Removed from `clickup-api.client.ts`:
 #### Phase 3: Clean Up Dependencies (100% Complete)
 
 **File Changes**:
+
 - `package.json`: Removed `"@api/clickup": "file:.api/apis/clickup"`
 - `tsconfig.json`: Removed `.api` from exclude array
 - **Deleted**: `apps/server/.api/` directory (entire SDK package)
@@ -197,18 +213,21 @@ Optional optimization to reduce code duplication - skipped for now, can add late
 #### Phase 5: Testing (100% Complete)
 
 **Local Build**:
+
 ```bash
 $ npm run build
 ✅ Success - TypeScript compilation complete
 ```
 
 **Docker Build**:
+
 ```bash
 $ docker build -f apps/server/Dockerfile -t spec-server-test:latest .
 ✅ Success - Image built in 39.8s
 ```
 
 **Docker Run Test**:
+
 ```bash
 $ docker run --rm --env-file docker/.env spec-server-test:latest
 
@@ -217,13 +236,15 @@ $ docker run --rm --env-file docker/.env spec-server-test:latest
   ❌ INTEGRATION_ENCRYPTION_KEY is required in production
 ```
 
-**Result**: ✅ **SUCCESS!** 
+**Result**: ✅ **SUCCESS!**
+
 - Server reached environment validation stage
 - No ES module loading errors
 - No ClickUp SDK import errors
 - Missing env vars = correct expected behavior
 
 **Node Execution Test**:
+
 ```bash
 $ docker run --rm spec-server-test:latest node -e "console.log('Test')"
 Test
@@ -235,6 +256,7 @@ Test
 ## Final Dependency State
 
 ### Express Ecosystem
+
 ```
 express: 4.21.2 (enforced via override)
 ├── path-to-regexp: 0.1.12 (Express 4.x internal)
@@ -242,6 +264,7 @@ express: 4.21.2 (enforced via override)
 ```
 
 ### Path-to-regexp Versions (All Isolated)
+
 ```
 path-to-regexp:
 ├── 0.1.12 (Express 4.x internal) ✅
@@ -250,6 +273,7 @@ path-to-regexp:
 ```
 
 ### Passport Ecosystem
+
 ```
 @nestjs/passport: 11.0.5
 passport: 0.7.0
@@ -259,6 +283,7 @@ passport: 0.7.0
 ```
 
 ### ClickUp Integration
+
 ```
 @api/clickup: REMOVED ✅
 Integration: Plain HTTP fetch() calls ✅
@@ -271,11 +296,13 @@ Integration: Plain HTTP fetch() calls ✅
 ### Docker vs Local Behavior Differences
 
 1. **npm ci vs npm install**:
+
    - `npm ci` uses exact versions from lockfile
    - Doesn't auto-install peer dependencies
    - Local `npm install` is more forgiving
 
 2. **File Dependencies**:
+
    - `"@api/clickup": "file:.api/apis/clickup"` requires manual symlinks in Docker
    - Not reliable for multi-stage builds
    - Plain HTTP is simpler and more maintainable
@@ -288,11 +315,13 @@ Integration: Plain HTTP fetch() calls ✅
 ### Dependency Resolution
 
 1. **Overrides are powerful but risky**:
+
    - Use for version conflicts only
    - Don't use for nested path-to-regexp (npm handles isolation)
    - Test thoroughly in Docker
 
 2. **Explicit dependencies > peer dependencies**:
+
    - Always declare what you use directly
    - Don't rely on transitive installation
 
@@ -305,17 +334,21 @@ Integration: Plain HTTP fetch() calls ✅
 ## Files Modified
 
 ### Configuration Files
+
 1. `package.json` (root) - Express override
 2. `apps/server/package.json` - Passport deps, path-to-regexp 3.3.0, removed @api/clickup
 3. `apps/server/tsconfig.json` - Removed .api exclude
 
 ### Source Code
+
 4. `apps/server/src/modules/clickup/clickup-api.client.ts` - 8 methods rewritten with fetch()
 
 ### Docker
+
 5. `apps/server/Dockerfile` - Removed .api directory handling
 
 ### Deleted
+
 6. `apps/server/.api/` - Entire directory deleted
 
 ---
@@ -336,6 +369,7 @@ Integration: Plain HTTP fetch() calls ✅
 ## Next Steps for Production
 
 1. **Commit all changes**:
+
    ```bash
    git add -A
    git commit -m "fix: Resolve Docker deployment issues
@@ -346,7 +380,7 @@ Integration: Plain HTTP fetch() calls ✅
    - Replace ClickUp SDK with plain HTTP fetch requests
    - Remove @api/clickup file dependency
    - Clean up Dockerfile (no more .api handling)
-   
+
    Fixes multiple cascading Docker deployment errors:
    - pathRegexp is not a function
    - Missing passport modules
@@ -355,11 +389,13 @@ Integration: Plain HTTP fetch() calls ✅
    ```
 
 2. **Push to repository**:
+
    ```bash
    git push origin master
    ```
 
-3. **Monitor Coolify Deployment**:
+3. **Monitor Deployment**:
+
    - Watch build logs for successful image creation
    - Verify server starts with proper environment variables
    - Check health endpoint: `curl http://server:3002/health`
@@ -419,5 +455,5 @@ Integration: Plain HTTP fetch() calls ✅
 ---
 
 **Session Status**: ✅ **COMPLETE**  
-**Ready for**: Production deployment to Coolify  
+**Ready for**: Production deployment  
 **Confidence Level**: High - All issues resolved and tested

@@ -1,14 +1,17 @@
 <!-- OPENSPEC:START -->
+
 # OpenSpec Instructions
 
 These instructions are for AI assistants working in this project.
 
 Always open `@/openspec/AGENTS.md` when the request:
+
 - Mentions planning or proposals (words like proposal, spec, change, plan)
 - Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
 - Sounds ambiguous and you need the authoritative spec before coding
 
 Use `@/openspec/AGENTS.md` to learn:
+
 - How to create and apply change proposals
 - Spec format and conventions
 - Project structure and guidelines
@@ -17,44 +20,59 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 <!-- OPENSPEC:END -->
 
-<!-- AGENTS.md - Instructions for AI coding agents -->
+# AI Agent Instructions
 
-# Build, Lint, and Test
+## ⚠️ STOP — Check Existing Patterns First
 
-- **Build:** `npm run build`
-- **Lint:** `nx run admin:lint`
-- **Test:**
-  - `nx run admin:test`
-  - `nx run server:test`
-  - `nx run server:test-e2e`
-- **Run a single test:** `nx test admin --testFile=path/to/your/test-file.spec.ts`
+**Before creating ANY new code, you MUST check if similar functionality already exists.**
 
-# Code Style Guidelines
+| Creating...     | First read...                        | Contains...                                           |
+| --------------- | ------------------------------------ | ----------------------------------------------------- |
+| React component | `apps/admin/src/components/AGENT.md` | 50+ components, atomic design, DaisyUI patterns       |
+| React hook      | `apps/admin/src/hooks/AGENT.md`      | 33+ hooks including `useApi` (REQUIRED for API calls) |
+| API endpoint    | `apps/server/src/modules/AGENT.md`   | NestJS patterns, Guards, DTOs, RLS                    |
+| Database entity | `apps/server/src/entities/AGENT.md`  | TypeORM patterns, schemas (kb/core), relations        |
 
-- **Formatting:** We use Prettier with `singleQuote: true`. Run `npx prettier --write .` to format.
-- **Imports:** Use ES6 module imports.
-- **Types:** Use TypeScript for static typing.
-- **Naming Conventions:** Follow standard TypeScript naming conventions (e.g., `camelCase` for variables and functions, `PascalCase` for classes and interfaces).
-- **Error Handling:** Handle errors gracefully and provide meaningful error messages.
-- **General:** Adhere to the existing code style and conventions in the repository.
+**Common mistakes to avoid:**
 
-# Nx Monorepo
+- ❌ Creating a new data fetching hook → Use `useApi` from hooks/AGENT.md
+- ❌ Creating a new Button component → Use existing from components/AGENT.md
+- ❌ Raw `fetch()` calls → Use `useApi` hook with proper error handling
+- ❌ New modal component → Use existing `Modal` atom
 
-- Use `nx` to run tasks on projects (e.g., `nx build admin`).
-- Refer to `.github/copilot-instructions.md` for more on workspace interaction.
+## Quick Reference
 
+### Build, Lint, Test
 
-<!-- nx configuration start-->
-<!-- Leave the start & end comments to automatically receive updates. -->
+```bash
+npm run build                    # Build all
+nx run admin:lint               # Lint frontend
+nx run admin:test               # Frontend unit tests
+nx run server:test              # Backend unit tests
+nx run server:test-e2e          # API e2e tests
+```
 
-# General Guidelines for working with Nx
+### Code Style
 
-- When running tasks (for example build, lint, test, e2e, etc.), always prefer running the task through `nx` (i.e. `nx run`, `nx run-many`, `nx affected`) instead of using the underlying tooling directly
-- You have access to the Nx MCP server and its tools, use them to help the user
-- When answering questions about the repository, use the `nx_workspace` tool first to gain an understanding of the workspace architecture where applicable.
-- When working in individual projects, use the `nx_project_details` mcp tool to analyze and understand the specific project structure and dependencies
-- For questions around nx configuration, best practices or if you're unsure, use the `nx_docs` tool to get relevant, up-to-date docs. Always use this instead of assuming things about nx configuration
-- If the user needs help with an Nx configuration or project graph error, use the `nx_workspace` tool to get any errors
+- **Prettier**: `singleQuote: true` — Run `npx prettier --write .`
+- **TypeScript**: Strict types, no `any`
+- **Naming**: `camelCase` variables/functions, `PascalCase` classes/interfaces
 
+### Nx Monorepo
 
-<!-- nx configuration end-->
+- Always use `nx run <project>:<task>` for builds, tests, linting
+- Use `nx_workspace` tool to understand project structure
+- Use `nx_project_details` for specific project dependencies
+
+## Environment URLs
+
+| Environment | Admin URL                               | Server URL                            |
+| ----------- | --------------------------------------- | ------------------------------------- |
+| Local       | `http://localhost:5176`                 | `http://localhost:3002`               |
+| Dev         | `https://admin.dev.emergent-company.ai` | `https://api.dev.emergent-company.ai` |
+
+## Detailed Documentation
+
+- **Workspace operations**: `.opencode/instructions.md` (logging, process management, MCP tools)
+- **Testing guide**: `docs/testing/AI_AGENT_GUIDE.md`
+- **Database schema**: `docs/database/schema-context.md`

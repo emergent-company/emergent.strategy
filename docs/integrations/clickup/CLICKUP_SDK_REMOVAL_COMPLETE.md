@@ -16,33 +16,41 @@ Successfully removed the `@api/clickup` SDK dependency and replaced all SDK meth
 Replaced 8 SDK method calls with direct HTTP fetch() calls:
 
 1. ✅ **getTask()** - `GET /api/v2/task/:taskId`
+
    - Added query parameter support for `include_subtasks`
    - Full error handling with logging
 
 2. ✅ **getTaskComments()** - `GET /api/v2/task/:taskId/comment`
+
    - Returns array of comment objects
 
 3. ✅ **getListComments()** - `GET /api/v2/list/:listId/comment`
+
    - Returns array of comment objects
 
 4. ✅ **searchTasks()** - `GET /api/v2/team/:workspaceId/task`
+
    - Query parameters: `query`, `page`, `order_by`, `reverse`
    - Returns paginated task results
 
 5. ✅ **getDocs()** - `GET /api/v3/workspaces/:workspaceId/docs` (v3 API)
+
    - Query parameters: `cursor`, `parent`, `parent_type`
    - Supports pagination with next_cursor
 
 6. ✅ **getDoc()** - `GET /api/v3/workspaces/:workspaceId/docs/:docId` (v3 API)
+
    - Returns full document details
 
 7. ✅ **getDocPages()** - `GET /api/v3/workspaces/:workspaceId/docs/:docId/pages` (v3 API)
+
    - Returns array of pages (may be nested)
 
 8. ✅ **getPage()** - `GET /api/v3/workspaces/:workspaceId/docs/:docId/pages/:pageId` (v3 API)
    - Returns page details with full content
 
 **Pattern Used**:
+
 ```typescript
 async method(): Promise<Type> {
     if (!this.apiToken) throw new Error('Not configured');
@@ -100,6 +108,7 @@ Removed all SDK-related code from `clickup-api.client.ts`:
 ## Test Results
 
 ### Before Fix
+
 ```
 Error: Cannot find module '/app/.api/apis/clickup/index.mjs'
 SyntaxError: Unexpected token '{'
@@ -108,6 +117,7 @@ SyntaxError: Unexpected token '{'
 ```
 
 ### After Fix
+
 ```
 ❌ Environment Validation Failed:
   ❌ POSTGRES_HOST is required
@@ -115,6 +125,7 @@ SyntaxError: Unexpected token '{'
 ```
 
 **This is SUCCESS!** The server reached environment validation, meaning:
+
 - No ES module loading errors ✅
 - No ClickUp SDK import errors ✅
 - Server properly built and ready to run ✅
@@ -138,6 +149,7 @@ SyntaxError: Unexpected token '{'
 ## Next Steps for Deployment
 
 1. **Commit changes**:
+
    ```bash
    git add -A
    git commit -m "refactor: Replace ClickUp SDK with plain HTTP fetch requests
@@ -146,17 +158,19 @@ SyntaxError: Unexpected token '{'
    - Remove @api/clickup file dependency
    - Clean up Dockerfile (no more .api directory handling)
    - Fix ES module loading error in Docker deployment
-   
+
    Fixes: SyntaxError: Unexpected token '{' in index.mjs
    Benefits: Simpler code, better error handling, no ES module conflicts"
    ```
 
 2. **Push to origin**:
+
    ```bash
    git push origin master
    ```
 
-3. **Monitor Coolify deployment**:
+3. **Monitor deployment**:
+
    - Watch build logs for any issues
    - Verify server starts successfully
    - Check health endpoint
@@ -195,4 +209,4 @@ The ClickUp API client now uses plain HTTP fetch() calls. To add new endpoints:
 
 - ClickUp API v2: https://clickup.com/api/clickupreference/operation/GetAccessibleCustomFields/
 - ClickUp API v3 (Docs): https://clickup.com/api/clickupreference/operation/GetWorkspaceDocs/
-- Original issue: Docker ES module loading error in Coolify deployment
+- Original issue: Docker ES module loading error in deployment

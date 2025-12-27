@@ -215,70 +215,38 @@ The system favors forward progress; absence of advanced columns never blocks ing
 
 ---
 
-## Coolify Deployment Operations
+## Docker Compose Deployment Operations
 
 ### Deployment
 
-**Initial deployment:**
+**Start all services:**
 
 ```bash
-./scripts/deploy-coolify.sh
+docker compose up -d
 ```
-
-**Update environment variables:**
-
-```bash
-# Edit variables
-vim .env.production
-
-# Sync to Coolify
-export COOLIFY_APP_UUID=your-app-uuid
-export COOLIFY_TOKEN=your-api-token
-./scripts/sync-coolify-env.sh .env.production preview
-
-# Restart if needed
-coolify app restart $COOLIFY_APP_UUID --preview
-```
-
-**Manual deployment via CLI:**
-
-```bash
-coolify app deploy <APP_UUID> --preview
-coolify app logs <APP_UUID> --preview --follow
-```
-
-**Trigger from Git:**
-
-- Push to main branch (if auto-deploy enabled in Coolify)
-- Or manually trigger in Coolify UI: Application → Deployments → Deploy
-
-### Monitoring
 
 **View logs:**
 
 ```bash
 # Follow all service logs
-coolify app logs <APP_UUID> --preview --follow
+docker compose logs -f
 
 # View specific service
 docker compose logs -f server
 
 # Search for errors
-coolify app logs <APP_UUID> --preview | grep -E "(ERROR|FATAL|Exception)"
+docker compose logs | grep -E "(ERROR|FATAL|Exception)"
 
 # View last 100 lines
-coolify app logs <APP_UUID> --preview | tail -100
+docker compose logs --tail=100
 ```
 
 **Check service health:**
 
 ```bash
 # Via health endpoints
-curl https://api.yourdomain.com/health
-curl https://app.yourdomain.com/health
-
-# Via Coolify CLI
-coolify app get <APP_UUID>
+curl http://localhost:3002/health
+curl http://localhost:3000/
 
 # Via Docker
 docker compose ps
@@ -288,8 +256,6 @@ docker compose exec server curl http://localhost:3002/health
 **Monitor resources:**
 
 ```bash
-# In Coolify UI: Application → Metrics
-# Or via Docker:
 docker stats
 
 # Check service resource usage
@@ -297,33 +263,11 @@ docker compose exec server ps aux
 docker compose exec server df -h
 ```
 
-### Scaling
-
-**Horizontal scaling:**
-
-1. In Coolify UI: Application → Resources → Replicas
-2. Increase replicas for `server` and `admin` services
-3. Load balancing handled automatically by Traefik
-4. Database services should remain at 1 replica
-
-**Vertical scaling:**
-
-1. In Coolify UI: Application → Resources → Limits
-2. Adjust CPU and memory limits per service
-3. Recommended limits:
-   - server: 1 CPU, 1GB RAM
-   - admin: 0.5 CPU, 512MB RAM
-   - db: 2 CPU, 2GB RAM
-   - zitadel: 1 CPU, 1GB RAM
-
 ### Backup & Restore
 
 **Database backup:**
 
 ```bash
-# SSH into Coolify server
-ssh your-coolify-server
-
 # Create backup
 docker compose exec db pg_dump -U spec spec > backup_$(date +%Y%m%d_%H%M%S).sql
 
@@ -373,14 +317,12 @@ docker run --rm -v spec-server-2_postgres-data:/data -v $(pwd):/backup \
 **Update application code:**
 
 ```bash
-# 1. Push changes to Git
-git push origin main
+# 1. Pull latest changes
+git pull origin main
 
-# 2. Deploy updates
-./scripts/deploy-coolify.sh
-
-# Or via Coolify CLI
-coolify app deploy <APP_UUID> --preview
+# 2. Rebuild and restart
+docker compose build --no-cache
+docker compose up -d
 ```
 
 **Update dependencies:**
@@ -395,8 +337,9 @@ git add package*.json
 git commit -m "Update dependencies"
 git push
 
-# 3. Trigger rebuild
-./scripts/deploy-coolify.sh
+# 3. Rebuild
+docker compose build --no-cache
+docker compose up -d
 ```
 
 **Database migrations:**
@@ -415,19 +358,12 @@ docker compose exec db psql -U spec -d spec -c \
 **Clear Docker cache:**
 
 ```bash
-# Rebuild without cache
-coolify app deploy <APP_UUID> --preview --no-cache
-
-# Or via Docker
 docker compose build --no-cache
 ```
 
 **Restart services:**
 
 ```bash
-# Restart all services
-coolify app restart <APP_UUID> --preview
-
 # Restart specific service
 docker compose restart server
 
@@ -440,9 +376,6 @@ docker compose restart server && docker compose ps
 **Service won't start:**
 
 ```bash
-# Check logs
-coolify app logs <APP_UUID> --preview | tail -200
-
 # Check service status
 docker compose ps
 
@@ -482,23 +415,9 @@ docker compose exec server ps aux --sort=-rss | head
 docker compose restart server
 ```
 
-**SSL/Certificate issues:**
-
-```bash
-# Check certificate status in Coolify UI
-# Or test manually:
-curl -vI https://api.yourdomain.com 2>&1 | grep -E "(SSL|certificate|CN=)"
-
-# Force certificate renewal (if Coolify manages it)
-# Check Coolify docs for certificate refresh commands
-```
-
 **Build failures:**
 
 ```bash
-# Check build logs
-coolify app logs <APP_UUID> --preview | grep -A 50 "Building"
-
 # Test build locally
 docker compose build server
 
@@ -516,12 +435,10 @@ docker builder prune -af
 docker compose ps zitadel
 
 # Test Zitadel endpoint
-curl https://auth.yourdomain.com/.well-known/openid-configuration
+curl http://localhost:8100/.well-known/openid-configuration
 
 # Check Zitadel logs
 docker compose logs zitadel --tail=100
-
-# Verify OAuth client configuration in Zitadel UI
 ```
 
 ### Performance Tuning
@@ -577,16 +494,16 @@ docker compose up -d
 
 # Verify health
 docker compose ps
-curl https://api.yourdomain.com/health
+curl http://localhost:3002/health
 ```
 
 **Rollback deployment:**
 
 ```bash
-# Via Coolify UI: Application → Deployments → Rollback to previous
-# Or redeploy previous Git commit
+# Redeploy previous Git commit
 git checkout <previous-commit>
-./scripts/deploy-coolify.sh
+docker compose build --no-cache
+docker compose up -d
 ```
 
 **Database recovery:**
@@ -619,47 +536,7 @@ docker compose up -d
 # Migrations will run automatically if DB_AUTOINIT=true
 ```
 
-### Useful Coolify Commands
-
-```bash
-# Authentication
-coolify auth
-
-# List projects
-coolify project list
-
-# List applications
-coolify app list
-
-# Get app info
-coolify app get <APP_UUID>
-
-# Deploy
-coolify app deploy <APP_UUID> --preview
-
-# Restart
-coolify app restart <APP_UUID> --preview
-
-# Stop
-coolify app stop <APP_UUID> --preview
-
-# Start
-coolify app start <APP_UUID> --preview
-
-# View logs
-coolify app logs <APP_UUID> --preview --follow
-
-# List environment variables
-coolify app env list <APP_UUID> -s --format json
-
-# Execute command in container
-coolify app exec <APP_UUID> <SERVICE> -- <COMMAND>
-```
-
 ### References
 
-- **Deployment Guide**: [Coolify Deployment](./docs/deployment/coolify/deployment-ready.md)
-- **Deployment Plan**: [docs/plans/coolify-deployment.md](./docs/plans/coolify-deployment.md)
 - **Environment Variables**: [.env.production.example](./.env.production.example)
-- **Coolify Docs**: https://coolify.io/docs
 - **Docker Compose**: https://docs.docker.com/compose/

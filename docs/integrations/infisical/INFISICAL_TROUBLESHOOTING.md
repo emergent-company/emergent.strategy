@@ -3,6 +3,7 @@
 ## Error: "No valid login session found, triggering login flow"
 
 ### Symptoms
+
 ```
 🔐 Fetching secrets from Infisical...
 ✅ Secrets written to /secrets/.env.infisical
@@ -13,7 +14,9 @@ Failed to automatically trigger login flow. Please run [infisical login] manuall
 ```
 
 ### Root Cause
+
 The Infisical CLI is trying to use **interactive login** instead of the service token. This happens when:
+
 1. The token format is incorrect
 2. The token is not being passed as an environment variable correctly
 3. The token doesn't have access to the requested path
@@ -23,18 +26,20 @@ The Infisical CLI is trying to use **interactive login** instead of the service 
 #### 1. Verify Token Format
 
 **Correct format:**
+
 ```bash
 INFISICAL_TOKEN=st.dev.abc123def456...  # Starts with st.<env>.
 ```
 
 **Incorrect formats:**
+
 - ❌ Personal access token (different prefix)
 - ❌ Missing `st.` prefix
 - ❌ Truncated or partial token
 
-#### 2. Check Token in Coolify
+#### 2. Check Token in Deployment Environment
 
-In Coolify environment variables, verify:
+In your deployment environment variables, verify:
 
 ```bash
 # Should be a complete service token
@@ -46,6 +51,7 @@ INFISICAL_PROJECT_ID=2c273128-5d01-4156-a134-be9511d99c61
 #### 3. Verify Token Has Correct Permissions
 
 In Infisical UI:
+
 1. Go to **Settings** → **Service Tokens**
 2. Find your token
 3. Verify:
@@ -56,17 +62,18 @@ In Infisical UI:
 #### 4. Generate New Token if Needed
 
 If token is invalid:
+
 1. Go to https://infiscal.kucharz.net
 2. Navigate to **Settings** → **Service Tokens**
 3. Click **Create Service Token**
 4. Configure:
-   - **Name:** `coolify-dev`
+   - **Name:** `docker-dev`
    - **Environment:** `dev`
    - **Path:** `/` (root access)
    - **Expiration:** Never (or set appropriate duration)
    - **Permissions:** Read-only
 5. Copy the token immediately (shown only once!)
-6. Update in Coolify environment variables
+6. Update in deployment environment variables
 
 ## Verifying the Fix
 
@@ -79,6 +86,7 @@ docker compose logs infisical-secrets
 ```
 
 **Expected output:**
+
 ```
 🔐 Fetching secrets from Infisical...
 Environment: dev
@@ -95,6 +103,7 @@ docker compose exec infisical-secrets cat /secrets/.env.infisical
 ```
 
 **Should show:**
+
 ```
 POSTGRES_USER=spec
 POSTGRES_PASSWORD=...
@@ -117,7 +126,7 @@ docker compose exec infisical-secrets wc -l /secrets/.env.infisical
 # Check database service
 docker compose exec db env | grep POSTGRES_USER
 
-# Check Zitadel service  
+# Check Zitadel service
 docker compose exec zitadel env | grep ZITADEL_EXTERNALDOMAIN
 ```
 
@@ -130,9 +139,10 @@ docker compose exec zitadel env | grep ZITADEL_EXTERNALDOMAIN
 **Error:** `401 Unauthorized` or similar auth error
 
 **Solution:**
+
 1. Check token expiration in Infisical UI
 2. Generate new token
-3. Update in Coolify
+3. Update in deployment environment
 4. Restart deployment
 
 ### Issue 2: Wrong Environment
@@ -140,6 +150,7 @@ docker compose exec zitadel env | grep ZITADEL_EXTERNALDOMAIN
 **Error:** Secrets file empty or has wrong values
 
 **Solution:**
+
 1. Verify `INFISICAL_ENVIRONMENT` matches token's environment
 2. Check token was created for `dev` (not `staging` or `production`)
 3. Restart deployment
@@ -149,6 +160,7 @@ docker compose exec zitadel env | grep ZITADEL_EXTERNALDOMAIN
 **Error:** `403 Forbidden` or secrets file empty
 
 **Solution:**
+
 1. Check token has access to `/workspace` folder
 2. Verify token has at least read permissions
 3. If needed, create new token with proper permissions
@@ -160,6 +172,7 @@ docker compose exec zitadel env | grep ZITADEL_EXTERNALDOMAIN
 **Cause:** Healthcheck failing because file is empty or missing
 
 **Debug:**
+
 ```bash
 # Check exit code
 docker compose ps infisical-secrets
@@ -187,6 +200,7 @@ environment:
 ```
 
 Then check logs:
+
 ```bash
 docker compose logs infisical-secrets
 ```
@@ -223,14 +237,15 @@ If issues persist:
 ## Quick Fix Summary
 
 **Most common fix:**
+
 1. Generate new service token in Infisical UI
 2. Verify it starts with `st.dev.`
 3. Copy complete token (don't truncate)
-4. Update `INFISICAL_TOKEN` in Coolify
+4. Update `INFISICAL_TOKEN` in deployment environment
 5. Restart deployment
 6. Check logs for success message
 
 ---
 
 **Updated:** 2025-11-23 after fixing CLI authentication  
-**Related:** `COOLIFY_INFISICAL_SETUP.md`, `docker/README-INFISICAL.md`
+**Related:** `docker/README-INFISICAL.md`

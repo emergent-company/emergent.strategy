@@ -26,14 +26,14 @@ This follows the exact pattern used in `huma-blueprint-ui` project, where migrat
 async onModuleInit() {
     // ... establish pool ...
     await this.pool.query('SELECT 1');
-    
+
     // Run migrations automatically on startup
     if (process.env.SKIP_MIGRATIONS !== '1') {
         await this.runMigrations();
     } else {
         this.logger.log('Skipping migrations (SKIP_MIGRATIONS=1)');
     }
-    
+
     // ... continue with RLS role switch ...
     await this.switchToRlsApplicationRole();
     this.online = true;
@@ -41,6 +41,7 @@ async onModuleInit() {
 ```
 
 **Why This Works**:
+
 - `onModuleInit()` is a NestJS lifecycle hook that runs when the module initializes
 - At this point, the `DatabaseService` instance exists with full access to `this.pool`
 - No need to use DI container lookup (`app.get()`) - direct method call
@@ -52,21 +53,31 @@ async onModuleInit() {
 **File**: `apps/server/src/main.ts`
 
 **Removed**:
+
 ```typescript
 // Run database migrations automatically on startup
 if (process.env.SKIP_MIGRATIONS !== '1') {
-    try {
-        fileLogger.log('[startup] Running database migrations...', 'Bootstrap');
-        const databaseService = app.get('DatabaseService'); // ❌ FAILED HERE
-        await databaseService.runMigrations();
-        fileLogger.log('[startup] Database migrations completed successfully', 'Bootstrap');
-    } catch (error) {
-        const errMsg = error instanceof Error ? error.message : String(error);
-        fileLogger.error(`[startup] Database migration failed: ${errMsg}`, 'Bootstrap');
-        throw new Error('Failed to run database migrations');
-    }
+  try {
+    fileLogger.log('[startup] Running database migrations...', 'Bootstrap');
+    const databaseService = app.get('DatabaseService'); // ❌ FAILED HERE
+    await databaseService.runMigrations();
+    fileLogger.log(
+      '[startup] Database migrations completed successfully',
+      'Bootstrap'
+    );
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    fileLogger.error(
+      `[startup] Database migration failed: ${errMsg}`,
+      'Bootstrap'
+    );
+    throw new Error('Failed to run database migrations');
+  }
 } else {
-    fileLogger.log('[startup] Skipping migrations (SKIP_MIGRATIONS=1)', 'Bootstrap');
+  fileLogger.log(
+    '[startup] Skipping migrations (SKIP_MIGRATIONS=1)',
+    'Bootstrap'
+  );
 }
 ```
 
@@ -75,6 +86,7 @@ if (process.env.SKIP_MIGRATIONS !== '1') {
 ## Migration Flow
 
 ### Before (Broken)
+
 ```
 1. validateEnvironment()
 2. NestFactory.create(AppModule)  ← Modules initialize here
@@ -84,6 +96,7 @@ if (process.env.SKIP_MIGRATIONS !== '1') {
 ```
 
 ### After (Fixed)
+
 ```
 1. validateEnvironment()
 2. NestFactory.create(AppModule)
@@ -116,17 +129,17 @@ This implementation follows the exact pattern from `huma-blueprint-ui`:
 // huma-blueprint-ui/apps/server/src/common/database/database.service.ts
 async onModuleInit() {
     // ... connect to database ...
-    
+
     if (this.config.autoInitDb) {
         await this.ensureDatabase();  // Create DB if needed
     }
-    
+
     this.pool = new Pool({...});
-    
+
     if (this.config.autoInitDb) {
         await this.ensureSchema();    // ← Run migrations here
     }
-    
+
     this.online = true;
 }
 ```
@@ -147,27 +160,32 @@ Migration execution is logged at the `DatabaseService` level:
 ## Testing
 
 ### Local Development
+
 ```bash
 npm --prefix apps/server run build
 npm --prefix apps/server run start:dev
 ```
 
 Check logs for:
+
 - "Running database migrations..." message
 - Individual migration completion messages
 - "All migrations completed in Xms" summary
 - No DI errors
 
-### Production (Coolify)
-After pushing to master, Coolify will:
+### Production (Docker)
+
+After pushing to master, deployment will:
+
 1. Build Docker image
 2. Start container
 3. DatabaseService.onModuleInit() runs migrations
 4. Application starts accepting requests
 
-Monitor logs at: https://app.coolify.io
+Monitor logs in your deployment platform.
 
 Expected logs:
+
 ```
 Starting Nest application...
 [Nest] 1  - 11/02/2025, 2:30:45 PM     LOG [InstanceLoader] AppModule dependencies initialized
@@ -184,7 +202,7 @@ Starting Nest application...
 1. **Automatic**: Migrations run on every startup without manual intervention
 2. **Lifecycle Aware**: Uses proper NestJS initialization hooks
 3. **DI Compatible**: No container access issues
-4. **Production Ready**: Works in Docker/Coolify deployments
+4. **Production Ready**: Works in Docker deployments
 5. **Idempotent**: Safe to run multiple times (uses advisory locks)
 6. **Error Tolerant**: Warns on individual migration failures but continues
 7. **Configurable**: Can be skipped with `SKIP_MIGRATIONS=1` if needed

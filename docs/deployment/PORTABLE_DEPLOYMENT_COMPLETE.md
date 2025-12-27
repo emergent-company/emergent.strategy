@@ -12,24 +12,26 @@ We have successfully implemented a fully portable Docker deployment that elimina
 ### 1. ✅ Eliminated Host Path Dependencies
 
 **Before**: Required git repository checkout with relative paths
+
 ```yaml
 volumes:
-  - ./docker/init.sql:/docker-entrypoint-initdb.d/00-init.sql  # ❌ Host path
-  - ./docker/01-init-zitadel.sh:/docker-entrypoint-initdb.d/01-init-zitadel.sh  # ❌ Host path
-  - ./secrets/bootstrap:/machinekey  # ❌ Host directory
-  - /home/spec-server/zitadel-service-account.json:/service-account.json  # ❌ Absolute path
+  - ./docker/init.sql:/docker-entrypoint-initdb.d/00-init.sql # ❌ Host path
+  - ./docker/01-init-zitadel.sh:/docker-entrypoint-initdb.d/01-init-zitadel.sh # ❌ Host path
+  - ./secrets/bootstrap:/machinekey # ❌ Host directory
+  - /home/spec-server/zitadel-service-account.json:/service-account.json # ❌ Absolute path
 ```
 
 **After**: Uses Docker images and volumes only
+
 ```yaml
 db:
   build:
     context: ./docker
-    dockerfile: Dockerfile.postgres  # ✅ Scripts embedded in image
+    dockerfile: Dockerfile.postgres # ✅ Scripts embedded in image
 volumes:
-  - zitadel_machinekey:/machinekey  # ✅ Docker volume
+  - zitadel_machinekey:/machinekey # ✅ Docker volume
 environment:
-  - ZITADEL_CLIENT_JWT=${ZITADEL_CLIENT_JWT}  # ✅ Environment variable
+  - ZITADEL_CLIENT_JWT=${ZITADEL_CLIENT_JWT} # ✅ Environment variable
 ```
 
 ### 2. ✅ Created Custom Postgres Image
@@ -37,10 +39,12 @@ environment:
 **File**: `docker/Dockerfile.postgres`
 
 Embeds initialization scripts directly into the image:
+
 - `init.sql` - Database schema initialization
 - `01-init-zitadel.sh` - Zitadel user/database setup
 
 **Benefits**:
+
 - No need to mount scripts from host
 - Scripts are versioned with the image
 - Portable across any Docker environment
@@ -48,11 +52,13 @@ Embeds initialization scripts directly into the image:
 ### 3. ✅ Implemented Docker Volume for Zitadel PAT
 
 **Changes**:
+
 - Created `zitadel_machinekey` Docker volume
 - Updated bootstrap script to read from container: `docker-compose exec -T zitadel cat /machinekey/pat.txt`
 - Maintained backwards compatibility with legacy `./secrets/bootstrap/pat.txt` location
 
 **Benefits**:
+
 - PAT stored in Docker volume (portable)
 - No host directory dependencies
 - Automatic cleanup when volumes are removed
@@ -64,6 +70,7 @@ Embeds initialization scripts directly into the image:
 **Before**: Always required Infisical, would fail without it
 
 **After**: Conditional Infisical usage
+
 ```bash
 if [ -z "$INFISICAL_TOKEN" ]; then
   echo "⚠️  INFISICAL_TOKEN not set - running without Infisical"
@@ -75,6 +82,7 @@ fi
 ```
 
 **Benefits**:
+
 - Works with or without Infisical
 - Supports local development without secrets management
 - Production can use Infisical for enhanced security
@@ -84,6 +92,7 @@ fi
 **Updated Files**: `docker-compose.dev.yml` and `docker-compose.staging.yml`
 
 **Added Environment Variables**:
+
 ```yaml
 # Core configuration
 - ZITADEL_MASTERKEY=${ZITADEL_MASTERKEY:-MasterkeyNeedsToHave32Characters}
@@ -111,6 +120,7 @@ fi
 ```
 
 **Key Insight**: Zitadel's `start-from-init` command requires TWO sets of database credentials:
+
 1. **Admin credentials** - For schema creation (needs superuser)
 2. **Runtime credentials** - For normal operation (limited permissions)
 
@@ -119,11 +129,13 @@ fi
 **File**: `scripts/bootstrap-zitadel-fully-automated.sh`
 
 **Changes**:
+
 1. Updated `load_pat()` to read from Docker container first
 2. Fixed syntax error in manual PAT entry flow
 3. Maintained backwards compatibility with legacy location
 
 **Load Priority**:
+
 1. Docker container volume: `/machinekey/pat.txt` ✅ (portable)
 2. Legacy location: `./secrets/bootstrap/pat.txt` ⚠️ (backwards compatibility)
 3. Manual entry: Prompts user to create PAT 📝 (fallback)
@@ -135,9 +147,10 @@ fi
 ✅ **Database**: Started successfully with embedded init scripts  
 ✅ **Zitadel**: Initialized and reached healthy status  
 ✅ **Bootstrap**: Successfully provisioned all resources  
-✅ **Secrets**: Generated service account keys correctly  
+✅ **Secrets**: Generated service account keys correctly
 
 **Output**:
+
 ```
 ✓ Organization created (ID: 348011767659495427)
 ✓ Project created (ID: 348011767793713155)
@@ -150,9 +163,10 @@ fi
 ```
 
 **Generated Files**:
+
 ```
 secrets/zitadel-api-app-key.json (1.8KB)
-secrets/zitadel-api-service-account.json (1.8KB)  
+secrets/zitadel-api-service-account.json (1.8KB)
 secrets/zitadel-client-service-account.json (1.8KB)
 ```
 
@@ -187,7 +201,7 @@ secrets/zitadel-client-service-account.json (1.8KB)
    - Three-phase bootstrap process
    - Troubleshooting guide
 
-✅ .env.coolify.example (updated)
+✅ .env.example (updated)
    - Clear instructions about bootstrap process
    - Documented ZITADEL_CLIENT_JWT approach
 ```
@@ -228,54 +242,62 @@ docker-compose restart server admin
 ## Key Benefits
 
 ### 1. 🚀 Fully Portable
+
 - Works on any Docker host
 - No git repository checkout needed
 - No absolute paths
 - No host directory mounting
 
 ### 2. 🔒 Secure
+
 - Secrets in Docker volumes (not host filesystem)
 - Can use Infisical for enhanced secret management
 - No secrets in image layers
 
 ### 3. 🛠️ Flexible
+
 - Works with or without Infisical
 - Environment variables for configuration
-- Easy to deploy on Coolify, Docker Swarm, Kubernetes
+- Easy to deploy on Docker Swarm, Kubernetes, or any Docker platform
 
 ### 4. 📦 Version Controlled
+
 - Database init scripts embedded in image
 - Entrypoint scripts versioned
 - Reproducible builds
 
 ### 5. 🔄 Backwards Compatible
+
 - Bootstrap script supports legacy PAT location
 - Gradual migration path
 - No breaking changes to existing deployments
 
 ## Next Steps
 
-### For Coolify Deployment
+### For Docker Deployment
 
 1. **Build and push images**:
+
    ```bash
    docker-compose -f docker-compose.staging.yml build
    docker-compose -f docker-compose.staging.yml push
    ```
 
-2. **Deploy via Coolify**:
+2. **Deploy via Docker**:
+
    - Set basic env vars (domain, ports, database password)
    - Start services
    - SSH to server
 
 3. **Run bootstrap**:
+
    ```bash
    cd /path/to/deployment
    docker-compose exec zitadel /app/zitadel ready
    ./scripts/bootstrap-zitadel-fully-automated.sh provision
    ```
 
-4. **Update secrets in Coolify UI**:
+4. **Update secrets in deployment UI**:
    - Copy values from bootstrap output
    - Add to environment variables or Infisical
    - Restart server and admin services
@@ -290,26 +312,31 @@ docker-compose restart server admin
 ## Known Issues & Solutions
 
 ### Issue 1: POSTGRES_PASSWORD Not Set
+
 **Symptom**: `password authentication failed for user "spec"`
 
 **Solution**: Set in environment or .env:
+
 ```bash
 POSTGRES_PASSWORD=your_secure_password
 ZITADEL_DATABASE_POSTGRES_USER_PASSWORD=another_secure_password
 ```
 
 ### Issue 2: Zitadel Init Fails with "postgres" User
+
 **Symptom**: `failed SASL auth: FATAL: password authentication failed for user "postgres"`
 
 **Root Cause**: Zitadel tries to use "postgres" superuser, but database uses "spec"
 
 **Solution**: Point Zitadel admin config to actual superuser:
+
 ```yaml
 ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME: ${POSTGRES_USER:-spec}
 ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD: ${POSTGRES_PASSWORD}
 ```
 
 ### Issue 3: Infisical Login Prompt in Container
+
 **Symptom**: `Enter Credentials...` and container restarts
 
 **Root Cause**: Entrypoint tries Infisical without token
@@ -325,13 +352,13 @@ ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD: ${POSTGRES_PASSWORD}
 - [x] Service account JWT can be used as env var
 - [x] Staging config updated with same improvements
 - [x] Documentation created
-- [ ] Tested on clean Docker host (pending Coolify deployment)
+- [ ] Tested on clean Docker host (pending deployment)
 - [ ] Tested with Infisical integration (pending)
 
 ## Conclusion
 
-The deployment is now **fully portable** and ready for Coolify deployment. All host filesystem dependencies have been eliminated, and the system works with Docker volumes and environment variables only.
+The deployment is now **fully portable** and ready for production deployment. All host filesystem dependencies have been eliminated, and the system works with Docker volumes and environment variables only.
 
-The three-phase bootstrap process is clean and well-documented, making it easy to deploy on any Docker platform (Coolify, Portainer, Docker Swarm, Kubernetes, etc.).
+The three-phase bootstrap process is clean and well-documented, making it easy to deploy on any Docker platform (Portainer, Docker Swarm, Kubernetes, etc.).
 
 **Status**: ✅ Ready for Production Deployment

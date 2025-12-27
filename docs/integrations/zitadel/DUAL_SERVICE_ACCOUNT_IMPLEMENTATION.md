@@ -9,6 +9,7 @@ Successfully implemented dual service account architecture for Zitadel integrati
 ### Phase 1: Provisioning Automation ✅
 
 **Created:** `scripts/setup-zitadel-service-accounts.sh`
+
 - Automated script to create both service accounts via Zitadel Management API
 - Creates CLIENT service account (introspection-only permissions)
 - Creates API service account (Management API permissions)
@@ -20,10 +21,11 @@ Successfully implemented dual service account architecture for Zitadel integrati
 ### Phase 2: NestJS Refactoring ✅
 
 **Modified:** `apps/server/src/modules/auth/zitadel.service.ts`
+
 - Split `serviceAccountKey` → `clientServiceAccountKey` + `apiServiceAccountKey`
 - Split `cachedToken` → `cachedClientToken` + `cachedApiToken`
 - Created `loadClientServiceAccount()` and `loadApiServiceAccount()` methods
-- Extracted `parseServiceAccountKey()` helper (handles JSON loading, Coolify escaping, RSA key fixing)
+- Extracted `parseServiceAccountKey()` helper (handles JSON loading, escaping, RSA key fixing)
 - Updated `introspect()` to use CLIENT account via `getClientAccessToken()`
 - Updated `getAccessToken()` to use API account (with legacy fallback)
 - Updated `createJwtAssertion()` to accept service account parameter
@@ -31,6 +33,7 @@ Successfully implemented dual service account architecture for Zitadel integrati
 - **Status:** Compiles with 0 TypeScript errors ✅
 
 **Created:** `apps/server/src/modules/auth/auth.config.ts`
+
 - `ZitadelDualServiceAccountConfig` interface
 - `ZitadelServiceAccountKey` interface
 - Type-safe configuration for dual service accounts
@@ -38,6 +41,7 @@ Successfully implemented dual service account architecture for Zitadel integrati
 ### Phase 3: Configuration ✅
 
 **Modified:** `docker-compose.yml`
+
 - Added `ZITADEL_CLIENT_JWT` / `ZITADEL_CLIENT_JWT_PATH` environment variables
 - Added `ZITADEL_API_JWT` / `ZITADEL_API_JWT_PATH` environment variables
 - Added `ZITADEL_ORG_ID` and `ZITADEL_PROJECT_ID` variables
@@ -45,6 +49,7 @@ Successfully implemented dual service account architecture for Zitadel integrati
 - Maintains backward compatibility with existing single-account vars
 
 **Created:** Directory structure and documentation
+
 - `secrets/` directory (chmod 700, added to .gitignore)
 - `secrets/README.md` - Quick reference for secrets directory
 - `docs/ZITADEL_DUAL_SERVICE_ACCOUNT_SETUP.md` - Complete setup guide (200+ lines)
@@ -53,6 +58,7 @@ Successfully implemented dual service account architecture for Zitadel integrati
 ## Architecture
 
 ### Before (Single Account)
+
 ```
 ┌─────────────────────────────────────┐
 │   Single Service Account (JWT)      │
@@ -70,6 +76,7 @@ Successfully implemented dual service account architecture for Zitadel integrati
 ```
 
 ### After (Dual Accounts)
+
 ```
 ┌──────────────────────────────────────┐
 │  CLIENT Service Account (JWT)        │
@@ -122,7 +129,7 @@ export ZITADEL_PROJECT_ID="your-project-id"
 ### Step 2: Upload to Production Server
 
 ```bash
-# Upload JSON files to Coolify server
+# Upload JSON files to production server
 scp secrets/zitadel-client-service-account.json user@server:/app/secrets/
 scp secrets/zitadel-api-service-account.json user@server:/app/secrets/
 
@@ -130,9 +137,9 @@ scp secrets/zitadel-api-service-account.json user@server:/app/secrets/
 ssh user@server "chmod 600 /app/secrets/*.json && chmod 700 /app/secrets"
 ```
 
-### Step 3: Update Coolify Environment Variables
+### Step 3: Update Environment Variables
 
-Add these variables in Coolify:
+Add these environment variables:
 
 ```env
 ZITADEL_DOMAIN=your-production-instance.zitadel.cloud
@@ -160,7 +167,7 @@ least privilege principle for service accounts."
 
 git push origin master
 
-# Coolify will automatically redeploy
+# Redeploy the application
 ```
 
 ### Step 5: Verify Deployment
@@ -174,6 +181,7 @@ Check logs for success messages:
 ```
 
 Test introspection:
+
 ```bash
 # Should return user info without 500 errors
 curl -X POST https://api.your-domain.com/auth/introspect \
@@ -181,6 +189,7 @@ curl -X POST https://api.your-domain.com/auth/introspect \
 ```
 
 Test Management API:
+
 ```bash
 # Should create user successfully
 curl -X POST https://api.your-domain.com/users \
@@ -199,11 +208,13 @@ curl -X POST https://api.your-domain.com/users \
 ## Files Modified/Created
 
 ### Modified Files
+
 1. `apps/server/src/modules/auth/zitadel.service.ts` - Core refactoring
 2. `docker-compose.yml` - Environment variable configuration
 3. `.gitignore` - Added secrets/ directory
 
 ### Created Files
+
 1. `scripts/setup-zitadel-service-accounts.sh` - Provisioning automation
 2. `apps/server/src/modules/auth/auth.config.ts` - Type definitions
 3. `docs/ZITADEL_DUAL_SERVICE_ACCOUNT_SETUP.md` - Complete setup guide
@@ -225,11 +236,13 @@ curl -X POST https://api.your-domain.com/users \
 
 If issues occur:
 
-1. **Immediate:** Remove new environment variables from Coolify
+1. **Immediate:** Remove new environment variables from deployment
+
    - System will fall back to legacy single-account mode
    - No code changes needed (backward compatible)
 
 2. **Monitor:** Check if legacy mode resolves the issue
+
    - If yes: Problem is with dual account configuration
    - If no: Problem is unrelated to this change
 
@@ -249,6 +262,7 @@ If issues occur:
 ## Reference Implementation
 
 Based on production-proven pattern from `huma-blueprints-api` (Go project):
+
 - Dual service account architecture
 - Flexible configuration (inline JSON or file path)
 - Lazy loading and token caching
@@ -257,6 +271,7 @@ Based on production-proven pattern from `huma-blueprints-api` (Go project):
 ## Support
 
 See documentation for troubleshooting:
+
 - `docs/ZITADEL_DUAL_SERVICE_ACCOUNT_SETUP.md` - Setup and troubleshooting
 - `docs/ZITADEL_ENV_VARS.md` - Environment variable reference
 - `secrets/README.md` - Secrets management
@@ -265,7 +280,7 @@ See documentation for troubleshooting:
 
 - Provisioning script execution: 5 minutes
 - Upload files to production: 5 minutes
-- Update Coolify environment: 5 minutes
+- Update deployment environment: 5 minutes
 - Deploy and verify: 15 minutes
 - **Total deployment time: ~30 minutes**
 

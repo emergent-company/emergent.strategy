@@ -4,31 +4,44 @@
 
 This project has two Docker Compose configurations:
 
-### 1. `docker-compose.coolify.yml` (Production/Staging)
-- **Location:** `/docker-compose.coolify.yml` (root)
-- **Purpose:** Coolify deployments (staging/production)
-- **Configuration:** Uses explicit environment variables set in Coolify UI
+### 1. `docker-compose.yml` (Development)
+
+- **Location:** `/docker-compose.yml` (root)
+- **Purpose:** Local development
 - **Services:** db, zitadel, zitadel-login, server, admin
-- **Approach:** All secrets passed as environment variables from Coolify
 
-### 2. `docker-compose.dev.yml` (Development - IN PROGRESS)
-- **Location:** `/docker-compose.dev.yml` (root)
-- **Purpose:** Local development with Infisical integration
-- **Configuration:** Uses Infisical sidecar to fetch secrets
-- **Services:** infisical-secrets, db, zitadel, login
-- **Status:** ⚠️ **NOT READY** - Zitadel integration with distroless image needs fixing
+### 2. `docker-compose.staging.yml` (Staging/Production)
 
-## Coolify Deployment
+- **Location:** `/docker-compose.staging.yml` (root)
+- **Purpose:** Staging and production deployments
+- **Configuration:** Uses explicit environment variables
+- **Services:** db, server, admin
+
+## Docker Deployment
 
 ### Configuration Required
 
-In Coolify UI, set these environment variables:
+Set these environment variables in your deployment platform:
 
-#### Infisical (Optional - for server/admin if using secrets management)
+#### Infisical (Optional - for secrets management)
+
 ```bash
 INFISICAL_TOKEN=<your-service-token>
-INFISICAL_PROJECT_ID=2c273128-5d01-4156-a134-be9511d99c61
+INFISICAL_PROJECT_ID=<your-project-id>
 INFISICAL_ENVIRONMENT=dev
 ```
 
-####Human: Let's pivot from the approach. Let's forget about the dev versus production differences right now. I want to be sure we can deploy via Coolify first before we worry about differences in configurations. Rename `docker-compose.coolify.yml` to `docker-compose.yml` in the root folder (overwrite the one that's there). Let me know when that's done and what the next steps are.
+#### Direct Environment Variables
+
+See `.env.production.example` for the complete list of required variables.
+
+### Deployment Steps
+
+1. Configure environment variables in your deployment platform
+2. Build and deploy using Docker Compose:
+   ```bash
+   docker compose -f docker-compose.staging.yml up -d
+   ```
+3. Verify health endpoints:
+   - Server: `http://localhost:3002/health`
+   - Admin: `http://localhost:3000/`
