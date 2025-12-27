@@ -1,9 +1,9 @@
 #!/bin/bash
-# Pre-flight checks before Coolify deployment
+# Pre-flight checks before Docker deployment
 
 set -e
 
-echo "🔍 Running pre-flight checks for Coolify deployment..."
+echo "🔍 Running pre-flight checks for Docker deployment..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -70,25 +70,8 @@ fi
 
 echo ""
 
-# Check 3: Coolify CLI (optional)
-echo "3️⃣  Checking Coolify CLI..."
-if command -v coolify > /dev/null 2>&1; then
-    echo "   ✅ Coolify CLI installed"
-    if coolify project list > /dev/null 2>&1; then
-        echo "   ✅ Coolify authenticated"
-    else
-        echo "   ⚠️  Coolify not authenticated"
-        echo "   Run: coolify auth"
-    fi
-else
-    echo "   ⚠️  Coolify CLI not installed (optional)"
-    echo "   Install from: https://coolify.io/docs/cli"
-fi
-
-echo ""
-
-# Check 4: Git status
-echo "4️⃣  Checking Git status..."
+# Check 3: Git status
+echo "3️⃣  Checking Git status..."
 if command -v git &> /dev/null; then
     if git rev-parse --git-dir > /dev/null 2>&1; then
         if git diff-index --quiet HEAD -- 2>/dev/null; then
@@ -111,10 +94,10 @@ fi
 
 echo ""
 
-# Check 5: Build test
-echo "5️⃣  Testing builds..."
+# Check 4: Build test
+echo "4️⃣  Testing builds..."
 echo "   Building server..."
-if cd apps/server-nest && npm run build > /dev/null 2>&1; then
+if cd apps/server && npm run build > /dev/null 2>&1; then
     echo "   ✅ Server build successful"
     cd ../..
 else
@@ -135,10 +118,10 @@ fi
 
 echo ""
 
-# Check 6: Tests
-echo "6️⃣  Running tests..."
+# Check 5: Tests
+echo "5️⃣  Running tests..."
 echo "   Server tests..."
-if cd apps/server-nest && npm run test > /dev/null 2>&1; then
+if cd apps/server && npm run test > /dev/null 2>&1; then
     echo "   ✅ Server tests passed"
     cd ../..
 else
@@ -157,11 +140,11 @@ fi
 
 echo ""
 
-# Check 7: Required files
-echo "7️⃣  Checking required files..."
+# Check 6: Required files
+echo "6️⃣  Checking required files..."
 REQUIRED_FILES=(
     "docker-compose.yml"
-    "apps/server-nest/Dockerfile"
+    "apps/server/Dockerfile"
     "apps/admin/Dockerfile"
     ".dockerignore"
     ".env.production.example"
@@ -182,11 +165,11 @@ echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 if [[ $EXIT_CODE -eq 0 ]]; then
     echo "✅ All pre-flight checks passed!"
-    echo "🚀 Ready to deploy to Coolify"
+    echo "🚀 Ready for deployment"
     echo ""
     echo "Next steps:"
-    echo "   1. Sync environment variables: ./scripts/sync-coolify-env.sh"
-    echo "   2. Deploy: ./scripts/deploy-coolify.sh"
+    echo "   1. Review .env.production configuration"
+    echo "   2. Deploy: docker compose up -d"
 else
     echo "❌ Some pre-flight checks failed"
     echo "🔧 Please fix issues before deploying"

@@ -169,4 +169,4 @@ else
 fi
 
 echo ""
-echo "🚀 Ready for Coolify deployment!"
+echo "🚀 Ready for production deployment!"

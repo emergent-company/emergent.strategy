@@ -1,11 +1,10 @@
-# Docker Compose for Coolify Deployment
-# This file explicitly sets build contexts to help Coolify
-# understand the repository structure
+# Docker Compose for Staging Deployment
+# This file explicitly sets build contexts for Docker-based deployments
 #
 # NOTE: Zitadel is managed externally via emergent-infra/zitadel
 # Configure ZITADEL_ISSUER to point to the external Zitadel instance
 
-version: "3.8"
+version: '3.8'
 
 services:
   # PostgreSQL Database with pgvector extension
@@ -14,14 +13,14 @@ services:
       context: ./docker
       dockerfile: Dockerfile.postgres
     environment:
-      # Database can use either Infisical or direct env vars from Coolify
+      # Database can use either Infisical or direct env vars
       POSTGRES_USER: ${POSTGRES_USER:-spec}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-spec}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U spec -d spec"]
+      test: ['CMD-SHELL', 'pg_isready -U spec -d spec']
       interval: 5s
       timeout: 3s
       retries: 15
@@ -35,19 +34,19 @@ services:
       args:
         NODE_ENV: production
     expose:
-      - "3002"
+      - '3002'
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.server.rule=PathPrefix(`/api`)"
-      - "traefik.http.routers.server.entrypoints=web"
-      - "traefik.http.routers.server.priority=100"
-      - "traefik.http.middlewares.api-strip.stripprefix.prefixes=/api"
-      - "traefik.http.routers.server.middlewares=api-strip"
-      - "traefik.http.services.server.loadbalancer.server.port=3002"
-      - "traefik.http.routers.server.service=server"
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.server.rule=PathPrefix(`/api`)'
+      - 'traefik.http.routers.server.entrypoints=web'
+      - 'traefik.http.routers.server.priority=100'
+      - 'traefik.http.middlewares.api-strip.stripprefix.prefixes=/api'
+      - 'traefik.http.routers.server.middlewares=api-strip'
+      - 'traefik.http.services.server.loadbalancer.server.port=3002'
+      - 'traefik.http.routers.server.service=server'
     environment:
       # Infisical configuration (optional - can use direct env vars for flexibility)
-      # Server can use either Infisical or direct env vars from Coolify
+      # Server can use either Infisical or direct env vars
       # Comment out the following 4 lines to disable Infisical and use direct env vars
       INFISICAL_TOKEN: ${INFISICAL_TOKEN}
       INFISICAL_PROJECT_ID: ${INFISICAL_PROJECT_ID}
@@ -99,7 +98,7 @@ services:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:3002/health']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -116,18 +115,18 @@ services:
         VITE_ZITADEL_CLIENT_ID: ${VITE_ZITADEL_CLIENT_ID}
         VITE_APP_ENV: ${VITE_APP_ENV:-production}
     expose:
-      - "3000"
+      - '3000'
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.admin.rule=PathPrefix(`/`)"
-      - "traefik.http.routers.admin.entrypoints=web"
-      - "traefik.http.routers.admin.priority=1"
-      - "traefik.http.services.admin.loadbalancer.server.port=3000"
-      - "traefik.http.routers.admin.service=admin"
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.admin.rule=PathPrefix(`/`)'
+      - 'traefik.http.routers.admin.entrypoints=web'
+      - 'traefik.http.routers.admin.priority=1'
+      - 'traefik.http.services.admin.loadbalancer.server.port=3000'
+      - 'traefik.http.routers.admin.service=admin'
     depends_on:
       - server
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
       interval: 30s
       timeout: 10s
       retries: 3
