@@ -7,6 +7,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { ReleaseNotification } from './release-notification.entity';
+import { EmailJob } from '../../../entities/email-job.entity';
 
 /**
  * Email delivery status values.
@@ -33,6 +34,14 @@ export class ReleaseNotificationRecipient {
   @Column({ name: 'email_sent_at', type: 'timestamptz', nullable: true })
   emailSentAt?: Date;
 
+  @Column({ name: 'email_job_id', type: 'uuid', nullable: true })
+  emailJobId?: string;
+
+  @ManyToOne(() => EmailJob, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'email_job_id' })
+  emailJob?: EmailJob;
+
+  /** @deprecated Use emailJobId -> EmailJob.mailgunMessageId instead. Kept for historical data. */
   @Column({
     name: 'mailgun_message_id',
     type: 'varchar',
@@ -41,6 +50,7 @@ export class ReleaseNotificationRecipient {
   })
   mailgunMessageId?: string;
 
+  /** @deprecated Use emailJobId -> EmailJob.deliveryStatus instead. Kept for historical data. */
   @Column({
     name: 'email_status',
     type: 'varchar',
@@ -49,6 +59,7 @@ export class ReleaseNotificationRecipient {
   })
   emailStatus!: EmailDeliveryStatus;
 
+  /** @deprecated Use emailJobId -> EmailJob.deliveryStatusAt instead. Kept for historical data. */
   @Column({
     name: 'email_status_updated_at',
     type: 'timestamptz',

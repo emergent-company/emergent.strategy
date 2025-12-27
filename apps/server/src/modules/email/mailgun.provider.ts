@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import Mailgun from 'mailgun.js';
 import formData from 'form-data';
 import { EmailConfig } from './email.config';
@@ -17,6 +17,26 @@ export interface SendEmailResult {
   error?: string;
 }
 
+export interface GetEventsResult {
+  success: boolean;
+  events?: MailgunEvent[];
+  error?: string;
+}
+
+export interface MailgunEvent {
+  id: string;
+  event: string;
+  timestamp: number;
+  message?: {
+    headers?: {
+      'message-id'?: string;
+    };
+  };
+  recipient?: string;
+  reason?: string;
+  severity?: string;
+}
+
 /**
  * Mailgun Provider
  *
@@ -28,7 +48,7 @@ export class MailgunProvider {
   private readonly logger = new Logger(MailgunProvider.name);
   private client: ReturnType<Mailgun['client']> | null = null;
 
-  constructor(private readonly config: EmailConfig) {}
+  constructor(@Inject(EmailConfig) private readonly config: EmailConfig) {}
 
   /**
    * Initialize the Mailgun client.
@@ -109,6 +129,69 @@ export class MailgunProvider {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       this.logger.error(
         `Failed to send email to ${options.to}: ${errorMessage}`
+      );
+
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  }
+
+  /**
+   * Get events for a specific message from Mailgun Events API.
+   * Used to track delivery status (delivered, opened, bounced, etc.)
+   *
+   * @param messageId The Mailgun message ID (format: <id@domain>)
+   * @returns Events for the message, sorted by timestamp descending
+   */
+  async getEventsForMessage(messageId: string): Promise<GetEventsResult> {
+    if (!this.config.enabled) {
+      return {
+        success: false,
+        error: 'Email service is disabled',
+      };
+    }
+
+    const validationErrors = this.config.validate();
+    if (validationErrors.length > 0) {
+      return {
+        success: false,
+        error: validationErrors.join('; '),
+      };
+    }
+
+    try {
+      const client = this.getClient();
+      const cleanMessageId = messageId.replace(/^<|>$/g, '');
+
+      const response = await client.events.get(this.config.mailgunDomain, {
+        'message-id': cleanMessageId,
+        limit: 50,
+      });
+
+      const items = response?.items || [];
+
+      const events: MailgunEvent[] = items.map((item: any) => ({
+        id: item.id,
+        event: item.event,
+        timestamp: item.timestamp,
+        message: item.message,
+        recipient: item.recipient,
+        reason: item.reason,
+        severity: item.severity,
+      }));
+
+      events.sort((a, b) => b.timestamp - a.timestamp);
+
+      return {
+        success: true,
+        events,
+      };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      this.logger.error(
+        `Failed to get events for message ${messageId}: ${errorMessage}`
       );
 
       return {

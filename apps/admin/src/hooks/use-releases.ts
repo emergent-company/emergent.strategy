@@ -195,3 +195,358 @@ export function useLatestRelease() {
     refetch: fetchLatestRelease,
   };
 }
+
+/**
+ * Email preview response from the API
+ */
+export interface EmailPreviewResponse {
+  html: string;
+  version: string;
+}
+
+/**
+ * Hook for fetching email preview HTML for a release.
+ * Public endpoint - no auth required.
+ */
+export function useReleaseEmailPreview(version: string | undefined) {
+  const [emailPreview, setEmailPreview] = useState<EmailPreviewResponse | null>(
+    null
+  );
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const apiBase = useMemo(() => getApiBase(), []);
+
+  const fetchEmailPreview = useCallback(
+    async (recipientName?: string) => {
+      if (!version) {
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const params = new URLSearchParams();
+        if (recipientName) {
+          params.set('recipientName', recipientName);
+        }
+        const queryString = params.toString();
+        const url = `${apiBase}/api/releases/${encodeURIComponent(
+          version
+        )}/email-preview${queryString ? `?${queryString}` : ''}`;
+
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error(`Release ${version} not found`);
+          }
+          throw new Error(`Failed to fetch email preview: ${response.status}`);
+        }
+
+        const data: EmailPreviewResponse = await response.json();
+        setEmailPreview(data);
+        return data;
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        setError(error);
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [apiBase, version]
+  );
+
+  // Auto-fetch when version changes
+  useEffect(() => {
+    if (version) {
+      fetchEmailPreview();
+    } else {
+      setEmailPreview(null);
+    }
+  }, [version]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return {
+    emailPreview,
+    isLoading,
+    error,
+    refetch: fetchEmailPreview,
+  };
+}
+
+/**
+ * Git commit from preview response
+ */
+export interface GitCommit {
+  hash: string;
+  shortHash: string;
+  subject: string;
+  body: string;
+  authorName: string;
+  authorEmail: string;
+  date: string;
+}
+
+/**
+ * Changelog item structure
+ */
+export interface ChangelogItem {
+  title: string;
+  description?: string;
+}
+
+/**
+ * Preview response from the API
+ */
+export interface PreviewResponse {
+  version: string;
+  commitCount: number;
+  fromCommit: string;
+  toCommit: string;
+  commits: GitCommit[];
+  changelog: {
+    summary: string;
+    features: ChangelogItem[];
+    improvements: ChangelogItem[];
+    bugFixes: ChangelogItem[];
+    breakingChanges: ChangelogItem[];
+  };
+}
+
+/**
+ * Hook for previewing release commits
+ */
+export function useReleasePreview() {
+  const [preview, setPreview] = useState<PreviewResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const apiBase = useMemo(() => getApiBase(), []);
+
+  const fetchPreview = useCallback(
+    async (since: string, until?: string, rawCommits = true) => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const response = await fetch(`${apiBase}/api/releases/preview`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ since, until, rawCommits }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.message || `Failed to preview release: ${response.status}`
+          );
+        }
+
+        const data: PreviewResponse = await response.json();
+        setPreview(data);
+        return data;
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        setError(error);
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [apiBase]
+  );
+
+  const clearPreview = useCallback(() => {
+    setPreview(null);
+    setError(null);
+  }, []);
+
+  return {
+    preview,
+    isLoading,
+    error,
+    fetchPreview,
+    clearPreview,
+  };
+}
+
+/**
+ * Create release payload
+ */
+export interface CreateReleasePayload {
+  fromCommit?: string;
+  toCommit?: string;
+  since?: string;
+  until?: string;
+}
+
+/**
+ * Create release response
+ */
+export interface CreateReleaseResponse {
+  success: boolean;
+  releaseId?: string;
+  version?: string;
+  error?: string;
+}
+
+/**
+ * Send notifications payload
+ */
+export interface SendNotificationsPayload {
+  userId?: string;
+  projectId?: string;
+  allUsers?: boolean;
+  dryRun?: boolean;
+  force?: boolean;
+  resend?: boolean;
+}
+
+/**
+ * Send notifications response
+ */
+export interface SendNotificationsResponse {
+  success: boolean;
+  releaseId?: string;
+  version?: string;
+  recipientCount: number;
+  emailsSent: number;
+  emailsFailed: number;
+  inAppSent: number;
+  skippedUsers: number;
+  dryRun: boolean;
+  error?: string;
+}
+
+/**
+ * Hook for release actions (create, send notifications, delete)
+ */
+export function useReleaseActions() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const apiBase = useMemo(() => getApiBase(), []);
+
+  const createRelease = useCallback(
+    async (payload: CreateReleasePayload): Promise<CreateReleaseResponse> => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const response = await fetch(`${apiBase}/api/releases`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.message || `Failed to create release: ${response.status}`
+          );
+        }
+
+        return await response.json();
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        setError(error);
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [apiBase]
+  );
+
+  const sendNotifications = useCallback(
+    async (
+      version: string,
+      payload: SendNotificationsPayload
+    ): Promise<SendNotificationsResponse> => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const response = await fetch(
+          `${apiBase}/api/releases/${encodeURIComponent(version)}/send`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.message ||
+              `Failed to send notifications: ${response.status}`
+          );
+        }
+
+        return await response.json();
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        setError(error);
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [apiBase]
+  );
+
+  const deleteRelease = useCallback(
+    async (version: string): Promise<void> => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const response = await fetch(
+          `${apiBase}/api/releases/${encodeURIComponent(version)}`,
+          {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.message || `Failed to delete release: ${response.status}`
+          );
+        }
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        setError(error);
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [apiBase]
+  );
+
+  return {
+    isLoading,
+    error,
+    createRelease,
+    sendNotifications,
+    deleteRelease,
+  };
+}

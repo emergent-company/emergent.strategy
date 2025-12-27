@@ -2,63 +2,96 @@
 /**
  * Release Notification CLI
  *
- * Sends release notifications to users via email and in-app notifications.
+ * Two-step release notification system:
+ * 1. Create a release (draft) - generates changelog, stores in DB
+ * 2. Send notifications - references existing release by ID or version
  *
  * Usage:
  *   npx ts-node -r tsconfig-paths/register src/cli/release-notify.cli.ts [options]
  *
- * Targeting (exactly one required):
- *   --user-id <id>     Notify a single user
- *   --project-id <id>  Notify all members of a project
- *   --all-users        Notify all active users
+ * Commands:
+ *   --create           Create a release (draft) without sending notifications
+ *   --send <version>   Send notifications for an existing release (by version or ID)
+ *   --list             List recent releases (drafts and published)
  *
- * Commit range:
+ * Create options:
  *   --from <commit>    Start commit (defaults to last notified commit or tag)
  *   --to <commit>      End commit (defaults to HEAD)
+ *   --since <date>     Get commits since date (e.g., "2024-12-01", "1 week ago")
+ *   --until <date>     Get commits until date (defaults to now)
+ *   --raw-commits      Skip LLM changelog generation, use raw commit messages
  *
- * Options:
+ * Send options:
+ *   --user-id <id>     Send to a single user
+ *   --project-id <id>  Send to all members of a project
+ *   --all-users        Send to all active users
+ *   --resend           Force resend even if user already received this release
  *   --dry-run          Preview without sending
  *   --force            Bypass debounce window (1 hour)
- *   --expand-audience  Add recipients to existing release notification
- *   --reset            Reset notification state (for git history rewrites)
- *   --raw-commits      Skip LLM changelog generation, use raw commit messages
+ *
+ * Legacy mode (create + send in one step):
+ *   --user-id/--project-id/--all-users without --send triggers legacy mode
  *
  * Status:
  *   --status [id]      Check delivery status (optional release ID, defaults to latest)
  *   --status-count <n> Show status for last N releases (default: 5)
  *
- * Examples:
- *   # Send to a single user (dry run)
- *   npx ts-node src/cli/release-notify.cli.ts --user-id abc123 --dry-run
+ * Other:
+ *   --reset            Reset notification state (for git history rewrites)
+ *   --help, -h         Show this help message
  *
- *   # Send to all users
- *   npx ts-node src/cli/release-notify.cli.ts --all-users
+ * Examples:
+ *   # Step 1: Create a release (draft)
+ *   npx ts-node src/cli/release-notify.cli.ts --create
+ *
+ *   # Step 2: Preview sending to all users
+ *   npx ts-node src/cli/release-notify.cli.ts --send v2025.01.15 --all-users --dry-run
+ *
+ *   # Step 2: Actually send to all users
+ *   npx ts-node src/cli/release-notify.cli.ts --send v2025.01.15 --all-users
+ *
+ *   # Resend to a specific user who already received it
+ *   npx ts-node src/cli/release-notify.cli.ts --send v2025.01.15 --user-id abc123 --resend
+ *
+ *   # List recent releases
+ *   npx ts-node src/cli/release-notify.cli.ts --list
  *
  *   # Check delivery status
  *   npx ts-node src/cli/release-notify.cli.ts --status
  *
- *   # Force send within debounce window
- *   npx ts-node src/cli/release-notify.cli.ts --all-users --force
+ *   # Legacy: Create and send in one step (backward compatible)
+ *   npx ts-node src/cli/release-notify.cli.ts --all-users
  */
 
 import { NestFactory } from '@nestjs/core';
-import { Module, Logger } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppConfigModule } from '../common/config/config.module';
 import { AppConfigService } from '../common/config/config.service';
 import { ReleasesModule } from '../modules/releases/releases.module';
-import { ReleaseChangelogService } from '../modules/releases/services/release-changelog.service';
-import { ReleaseNotificationsService } from '../modules/releases/services/release-notifications.service';
+import {
+  ReleaseChangelogService,
+  ChangelogResult,
+} from '../modules/releases/services/release-changelog.service';
+import {
+  ReleaseNotificationsService,
+  SendNotificationResult,
+} from '../modules/releases/services/release-notifications.service';
 import { ReleaseStatusService } from '../modules/releases/services/release-status.service';
 import { entities } from '../entities';
 
-// CLI argument parsing
 interface CliArgs {
+  create: boolean;
+  send?: string;
+  list: boolean;
+  resend: boolean;
   userId?: string;
   projectId?: string;
   allUsers: boolean;
   from?: string;
   to?: string;
+  since?: string;
+  until?: string;
   dryRun: boolean;
   force: boolean;
   expandAudience: boolean;
@@ -66,12 +99,16 @@ interface CliArgs {
   rawCommits: boolean;
   status: boolean | string;
   statusCount: number;
+  listCount: number;
   help: boolean;
 }
 
 function parseArgs(): CliArgs {
   const args = process.argv.slice(2);
   const result: CliArgs = {
+    create: false,
+    list: false,
+    resend: false,
     allUsers: false,
     dryRun: false,
     force: false,
@@ -80,6 +117,7 @@ function parseArgs(): CliArgs {
     rawCommits: false,
     status: false,
     statusCount: 5,
+    listCount: 10,
     help: false,
   };
 
@@ -88,6 +126,28 @@ function parseArgs(): CliArgs {
     const nextArg = args[i + 1];
 
     switch (arg) {
+      case '--create':
+        result.create = true;
+        break;
+      case '--send':
+        if (nextArg && !nextArg.startsWith('--')) {
+          result.send = nextArg;
+          i++;
+        } else {
+          console.error('Error: --send requires a version or release ID');
+          process.exit(1);
+        }
+        break;
+      case '--list':
+        result.list = true;
+        break;
+      case '--list-count':
+        result.listCount = parseInt(nextArg, 10) || 10;
+        i++;
+        break;
+      case '--resend':
+        result.resend = true;
+        break;
       case '--user-id':
         result.userId = nextArg;
         i++;
@@ -107,6 +167,14 @@ function parseArgs(): CliArgs {
         result.to = nextArg;
         i++;
         break;
+      case '--since':
+        result.since = nextArg;
+        i++;
+        break;
+      case '--until':
+        result.until = nextArg;
+        i++;
+        break;
       case '--dry-run':
         result.dryRun = true;
         break;
@@ -123,7 +191,6 @@ function parseArgs(): CliArgs {
         result.rawCommits = true;
         break;
       case '--status':
-        // --status can be followed by an optional release ID
         if (nextArg && !nextArg.startsWith('--')) {
           result.status = nextArg;
           i++;
@@ -149,42 +216,71 @@ function printUsage() {
   console.log(`
 Release Notification CLI
 
-Usage: npx ts-node src/cli/release-notify.cli.ts [options]
+Usage: npx ts-node src/cli/release-notify.cli.ts [command] [options]
 
-Targeting (exactly one required):
-  --user-id <id>       Notify a single user by ID
-  --project-id <id>    Notify all members of a project
-  --all-users          Notify all active users
+Commands:
+  --create              Create a release (draft) without sending notifications
+  --send <version>      Send notifications for an existing release
+  --list                List recent releases (drafts and published)
 
-Commit range:
-  --from <commit>      Start commit (defaults to last notified or tag)
-  --to <commit>        End commit (defaults to HEAD)
+Create options (use with --create):
+  --from <commit>       Start commit (defaults to last notified or tag)
+  --to <commit>         End commit (defaults to HEAD)
+  --since <date>        Get commits since date (e.g., "2024-12-01", "1 week ago")
+  --until <date>        Get commits until date (defaults to now)
+  --raw-commits         Skip LLM processing, use raw commit messages
 
-Options:
-  --dry-run            Preview recipients without sending
-  --force              Bypass 1-hour debounce window
-  --expand-audience    Add new recipients to existing release
-  --reset              Reset notification state (use after git history rewrites)
-  --raw-commits        Skip LLM processing, use raw commit messages
+Note: Use either --from/--to (commit range) OR --since/--until (date range), not both.
+
+Send options (use with --send):
+  --user-id <id>        Send to a single user by ID
+  --project-id <id>     Send to all members of a project
+  --all-users           Send to all active users
+  --resend              Force resend even if user already received this release
+  --dry-run             Preview recipients without sending
+  --force               Bypass 1-hour debounce window
+
+Legacy mode (backward compatible):
+  Using --user-id/--project-id/--all-users without --send
+  will create AND send a release in one step (original behavior)
 
 Status:
-  --status [id]        Check delivery status (defaults to latest release)
-  --status-count <n>   Show status for last N releases (default: 5)
+  --status [id]         Check delivery status (defaults to latest release)
+  --status-count <n>    Show status for last N releases (default: 5)
 
-  --help, -h           Show this help message
+Other:
+  --expand-audience     Add new recipients to existing release
+  --reset               Reset notification state (use after git history rewrites)
+  --help, -h            Show this help message
 
 Examples:
-  # Preview sending to all users
-  npx ts-node src/cli/release-notify.cli.ts --all-users --dry-run
+  # Two-step workflow (recommended):
+  # Step 1: Create a draft release
+  npx ts-node src/cli/release-notify.cli.ts --create
 
-  # Send to a specific user
-  npx ts-node src/cli/release-notify.cli.ts --user-id abc-123
+  # Step 1 (alt): Create release from commits since a specific date
+  npx ts-node src/cli/release-notify.cli.ts --create --since "2024-12-01"
 
-  # Check delivery status of latest release
+  # Step 1 (alt): Create release from last week's commits (raw, no LLM)
+  npx ts-node src/cli/release-notify.cli.ts --create --since "1 week ago" --raw-commits
+
+  # Step 2: Preview sending
+  npx ts-node src/cli/release-notify.cli.ts --send v2025.01.15 --all-users --dry-run
+
+  # Step 2: Actually send
+  npx ts-node src/cli/release-notify.cli.ts --send v2025.01.15 --all-users
+
+  # Resend to specific user
+  npx ts-node src/cli/release-notify.cli.ts --send v2025.01.15 --user-id abc123 --resend
+
+  # List releases
+  npx ts-node src/cli/release-notify.cli.ts --list
+
+  # Check delivery status
   npx ts-node src/cli/release-notify.cli.ts --status
 
-  # Force send within debounce window
-  npx ts-node src/cli/release-notify.cli.ts --all-users --force
+  # Legacy: Create and send in one step
+  npx ts-node src/cli/release-notify.cli.ts --all-users --dry-run
 `);
 }
 
@@ -213,9 +309,6 @@ Examples:
 class ReleaseNotifyCLIModule {}
 
 async function main() {
-  // Suppress NestJS logs for cleaner CLI output
-  Logger.overrideLogger(false);
-
   const args = parseArgs();
 
   if (args.help) {
@@ -223,11 +316,10 @@ async function main() {
     process.exit(0);
   }
 
-  // Initialize NestJS application context
   const app = await NestFactory.createApplicationContext(
     ReleaseNotifyCLIModule,
     {
-      logger: false,
+      logger: ['error', 'warn'],
     }
   );
 
@@ -236,7 +328,6 @@ async function main() {
   const statusService = app.get(ReleaseStatusService);
 
   try {
-    // Handle --reset flag
     if (args.reset) {
       console.log('Resetting notification state...');
       await notificationsService.resetNotificationState();
@@ -245,151 +336,318 @@ async function main() {
       process.exit(0);
     }
 
-    // Handle --status flag
     if (args.status) {
       await handleStatus(statusService, args);
       await app.close();
       process.exit(0);
     }
 
-    // Validate targeting
-    const targetCount = [args.userId, args.projectId, args.allUsers].filter(
-      Boolean
-    ).length;
-    if (targetCount !== 1) {
-      console.error(
-        'Error: Must specify exactly one of: --user-id, --project-id, or --all-users'
-      );
-      printUsage();
-      process.exit(1);
+    if (args.list) {
+      await handleList(notificationsService, args);
+      await app.close();
+      process.exit(0);
     }
 
-    // Get notification state to determine starting commit
-    const state = await notificationsService.getNotificationState();
-    const fromCommit = args.from || state?.lastNotifiedCommit;
+    if (args.create) {
+      await handleCreate(changelogService, notificationsService, args);
+      await app.close();
+      process.exit(0);
+    }
 
-    console.log('='.repeat(60));
-    console.log('RELEASE NOTIFICATION');
-    console.log('='.repeat(60));
-    console.log(`Mode: ${args.dryRun ? 'DRY RUN (preview only)' : 'LIVE'}`);
-    console.log(
-      `Target: ${
-        args.userId
-          ? `User ${args.userId}`
-          : args.projectId
-          ? `Project ${args.projectId}`
-          : 'All Users'
-      }`
+    if (args.send) {
+      await handleSend(notificationsService, args);
+      await app.close();
+      process.exit(0);
+    }
+
+    const hasTarget = args.userId || args.projectId || args.allUsers;
+    if (hasTarget) {
+      await handleLegacyMode(changelogService, notificationsService, args);
+      await app.close();
+      process.exit(0);
+    }
+
+    console.error(
+      'Error: Must specify a command (--create, --send <version>, --list) or targeting (--user-id, --project-id, --all-users)'
     );
-    console.log(`From commit: ${fromCommit || '(auto-detect from tags)'}`);
-    console.log(`To commit: ${args.to || 'HEAD'}`);
-    if (args.force) console.log('Force: YES (bypassing debounce)');
-    if (args.expandAudience) console.log('Expand audience: YES');
-    if (args.rawCommits) console.log('Raw commits: YES (skipping LLM)');
-    console.log('');
-
-    // Generate changelog
-    console.log('Generating changelog...');
-    const changelog = await changelogService.generateChangelog({
-      fromCommit,
-      toCommit: args.to,
-      rawCommits: args.rawCommits,
-    });
-
-    console.log(`\nVersion: ${changelog.version}`);
-    console.log(
-      `Commits: ${changelog.commitCount} (${changelog.fromCommit}..${changelog.toCommit})`
-    );
-    console.log(`\nSummary: ${changelog.changelog.summary}`);
-
-    if (changelog.changelog.features.length > 0) {
-      console.log(`\nFeatures (${changelog.changelog.features.length}):`);
-      changelog.changelog.features.forEach((f) =>
-        console.log(`  • ${f.title}`)
-      );
-    }
-
-    if (changelog.changelog.improvements.length > 0) {
-      console.log(
-        `\nImprovements (${changelog.changelog.improvements.length}):`
-      );
-      changelog.changelog.improvements.forEach((i) =>
-        console.log(`  • ${i.title}`)
-      );
-    }
-
-    if (changelog.changelog.bugFixes.length > 0) {
-      console.log(`\nBug Fixes (${changelog.changelog.bugFixes.length}):`);
-      changelog.changelog.bugFixes.forEach((b) =>
-        console.log(`  • ${b.title}`)
-      );
-    }
-
-    if (changelog.changelog.breakingChanges.length > 0) {
-      console.log(
-        `\n⚠️  Breaking Changes (${changelog.changelog.breakingChanges.length}):`
-      );
-      changelog.changelog.breakingChanges.forEach((b) =>
-        console.log(`  • ${b.title}`)
-      );
-    }
-
-    // Send notifications
-    console.log('\n' + '-'.repeat(60));
-    console.log('Sending notifications...');
-    console.log('-'.repeat(60));
-
-    const result = await notificationsService.sendNotifications(changelog, {
-      userId: args.userId,
-      projectId: args.projectId,
-      allUsers: args.allUsers,
-      dryRun: args.dryRun,
-      force: args.force,
-      expandAudience: args.expandAudience,
-    });
-
-    // Print results
-    console.log('');
-    if (result.success) {
-      console.log('✓ SUCCESS');
-      if (result.releaseId) {
-        console.log(`  Release ID: ${result.releaseId}`);
-      }
-      if (result.version) {
-        console.log(`  Version: ${result.version}`);
-      }
-      console.log(`  Recipients: ${result.recipientCount}`);
-      console.log(`  Emails sent: ${result.emailsSent}`);
-      if (result.emailsFailed > 0) {
-        console.log(`  Emails failed: ${result.emailsFailed}`);
-      }
-      console.log(`  In-app notifications: ${result.inAppSent}`);
-      if (result.skippedUsers > 0) {
-        console.log(`  Skipped (no email): ${result.skippedUsers}`);
-      }
-
-      if (args.dryRun && result.recipients) {
-        console.log('\nRecipients (dry run):');
-        result.recipients.forEach((r) => {
-          const email = r.email || '(no email)';
-          const name = r.displayName || '(no name)';
-          console.log(`  • ${r.userId}: ${name} <${email}>`);
-        });
-      }
-    } else {
-      console.log('✗ FAILED');
-      console.log(`  Error: ${result.error}`);
-    }
-
-    console.log('');
+    printUsage();
+    process.exit(1);
   } catch (error) {
     console.error('Error:', (error as Error).message);
     await app.close();
     process.exit(1);
   }
+}
 
-  await app.close();
-  process.exit(0);
+async function handleCreate(
+  changelogService: ReleaseChangelogService,
+  notificationsService: ReleaseNotificationsService,
+  args: CliArgs
+) {
+  console.log('='.repeat(60));
+  console.log('CREATE RELEASE (DRAFT)');
+  console.log('='.repeat(60));
+
+  const state = await notificationsService.getNotificationState();
+  const fromCommit = args.from || state?.lastNotifiedCommit;
+
+  // Display parameters based on mode (date range vs commit range)
+  if (args.since) {
+    console.log(`Since: ${args.since}`);
+    if (args.until) console.log(`Until: ${args.until}`);
+  } else {
+    console.log(`From commit: ${fromCommit || '(auto-detect from tags)'}`);
+    console.log(`To commit: ${args.to || 'HEAD'}`);
+  }
+  if (args.rawCommits) console.log('Raw commits: YES (skipping LLM)');
+  console.log('');
+
+  console.log('Generating changelog...');
+  const changelog = await changelogService.generateChangelog({
+    fromCommit,
+    toCommit: args.to,
+    since: args.since,
+    until: args.until,
+    rawCommits: args.rawCommits,
+  });
+
+  printChangelogSummary(changelog);
+
+  console.log('\nCreating draft release...');
+  const result = await notificationsService.createRelease(changelog);
+
+  if (result.success) {
+    console.log('');
+    console.log('✓ DRAFT RELEASE CREATED');
+    console.log(`  Release ID: ${result.releaseId}`);
+    console.log(`  Version: ${result.version}`);
+    console.log('');
+    console.log('Next step: Send notifications with:');
+    console.log(
+      `  npx ts-node src/cli/release-notify.cli.ts --send ${result.version} --all-users --dry-run`
+    );
+  } else {
+    console.log('');
+    console.log('✗ FAILED');
+    console.log(`  Error: ${result.error}`);
+  }
+}
+
+async function handleSend(
+  notificationsService: ReleaseNotificationsService,
+  args: CliArgs
+) {
+  console.log('='.repeat(60));
+  console.log('SEND NOTIFICATIONS FOR RELEASE');
+  console.log('='.repeat(60));
+  console.log(`Mode: ${args.dryRun ? 'DRY RUN (preview only)' : 'LIVE'}`);
+  console.log(`Release: ${args.send}`);
+  console.log(
+    `Target: ${
+      args.userId
+        ? `User ${args.userId}`
+        : args.projectId
+        ? `Project ${args.projectId}`
+        : 'All Users'
+    }`
+  );
+  if (args.force) console.log('Force: YES (bypassing debounce)');
+  if (args.resend) console.log('Resend: YES (force resend to users)');
+  console.log('');
+
+  const targetCount = [args.userId, args.projectId, args.allUsers].filter(
+    Boolean
+  ).length;
+  if (targetCount !== 1) {
+    console.error(
+      'Error: Must specify exactly one of: --user-id, --project-id, or --all-users'
+    );
+    process.exit(1);
+  }
+
+  const result = await notificationsService.sendNotificationsForRelease(
+    args.send!,
+    {
+      userId: args.userId,
+      projectId: args.projectId,
+      allUsers: args.allUsers,
+      dryRun: args.dryRun,
+      force: args.force,
+      resend: args.resend,
+    }
+  );
+
+  printSendResult(result, args.dryRun);
+}
+
+async function handleList(
+  notificationsService: ReleaseNotificationsService,
+  args: CliArgs
+) {
+  console.log('='.repeat(60));
+  console.log('RELEASES');
+  console.log('='.repeat(60));
+
+  const releases = await notificationsService.getReleases(args.listCount, 0);
+
+  if (releases.length === 0) {
+    console.log('\nNo releases found.');
+    return;
+  }
+
+  console.log(`\nShowing ${releases.length} most recent releases:\n`);
+
+  for (const release of releases) {
+    const dateStr = release.createdAt.toISOString().split('T')[0];
+    const statusIcon = release.status === 'draft' ? '○' : '●';
+    const statusText = release.status === 'draft' ? '[DRAFT]' : '[PUBLISHED]';
+
+    console.log(`${statusIcon} ${release.version} (${dateStr}) ${statusText}`);
+    console.log(`    ID: ${release.id}`);
+    console.log(
+      `    Commits: ${release.commitCount} (${release.fromCommit?.substring(
+        0,
+        7
+      )}..${release.toCommit?.substring(0, 7)})`
+    );
+    console.log('');
+  }
+}
+
+async function handleLegacyMode(
+  changelogService: ReleaseChangelogService,
+  notificationsService: ReleaseNotificationsService,
+  args: CliArgs
+) {
+  const state = await notificationsService.getNotificationState();
+  const fromCommit = args.from || state?.lastNotifiedCommit;
+
+  console.log('='.repeat(60));
+  console.log('RELEASE NOTIFICATION (Legacy Mode)');
+  console.log('='.repeat(60));
+  console.log(`Mode: ${args.dryRun ? 'DRY RUN (preview only)' : 'LIVE'}`);
+  console.log(
+    `Target: ${
+      args.userId
+        ? `User ${args.userId}`
+        : args.projectId
+        ? `Project ${args.projectId}`
+        : 'All Users'
+    }`
+  );
+  if (args.since) {
+    console.log(`Since: ${args.since}`);
+    if (args.until) console.log(`Until: ${args.until}`);
+  } else {
+    console.log(`From commit: ${fromCommit || '(auto-detect from tags)'}`);
+    console.log(`To commit: ${args.to || 'HEAD'}`);
+  }
+  if (args.force) console.log('Force: YES (bypassing debounce)');
+  if (args.expandAudience) console.log('Expand audience: YES');
+  if (args.rawCommits) console.log('Raw commits: YES (skipping LLM)');
+  console.log('');
+
+  console.log('Generating changelog...');
+  const changelog = await changelogService.generateChangelog({
+    fromCommit,
+    toCommit: args.to,
+    since: args.since,
+    until: args.until,
+    rawCommits: args.rawCommits,
+  });
+
+  printChangelogSummary(changelog);
+
+  console.log('\n' + '-'.repeat(60));
+  console.log('Sending notifications...');
+  console.log('-'.repeat(60));
+
+  const result = await notificationsService.sendNotifications(changelog, {
+    userId: args.userId,
+    projectId: args.projectId,
+    allUsers: args.allUsers,
+    dryRun: args.dryRun,
+    force: args.force,
+    expandAudience: args.expandAudience,
+  });
+
+  printSendResult(result, args.dryRun);
+}
+
+function printChangelogSummary(changelog: ChangelogResult) {
+  console.log(`\nVersion: ${changelog.version}`);
+  console.log(
+    `Commits: ${changelog.commitCount} (${changelog.fromCommit}..${changelog.toCommit})`
+  );
+  console.log(`\nSummary: ${changelog.changelog.summary}`);
+
+  if (changelog.changelog.features.length > 0) {
+    console.log(`\nFeatures (${changelog.changelog.features.length}):`);
+    changelog.changelog.features.forEach((f: { title: string }) =>
+      console.log(`  • ${f.title}`)
+    );
+  }
+
+  if (changelog.changelog.improvements.length > 0) {
+    console.log(`\nImprovements (${changelog.changelog.improvements.length}):`);
+    changelog.changelog.improvements.forEach((i: { title: string }) =>
+      console.log(`  • ${i.title}`)
+    );
+  }
+
+  if (changelog.changelog.bugFixes.length > 0) {
+    console.log(`\nBug Fixes (${changelog.changelog.bugFixes.length}):`);
+    changelog.changelog.bugFixes.forEach((b: { title: string }) =>
+      console.log(`  • ${b.title}`)
+    );
+  }
+
+  if (changelog.changelog.breakingChanges.length > 0) {
+    console.log(
+      `\n⚠️  Breaking Changes (${changelog.changelog.breakingChanges.length}):`
+    );
+    changelog.changelog.breakingChanges.forEach((b: { title: string }) =>
+      console.log(`  • ${b.title}`)
+    );
+  }
+}
+
+function printSendResult(result: SendNotificationResult, dryRun: boolean) {
+  console.log('');
+  if (result.success) {
+    console.log('✓ SUCCESS');
+    if (result.releaseId) {
+      console.log(`  Release ID: ${result.releaseId}`);
+    }
+    if (result.version) {
+      console.log(`  Version: ${result.version}`);
+    }
+    console.log(`  Recipients: ${result.recipientCount}`);
+    console.log(`  Emails sent: ${result.emailsSent}`);
+    if (result.emailsFailed > 0) {
+      console.log(`  Emails failed: ${result.emailsFailed}`);
+    }
+    console.log(`  In-app notifications: ${result.inAppSent}`);
+    if (result.skippedUsers > 0) {
+      console.log(`  Skipped (no email): ${result.skippedUsers}`);
+    }
+
+    if (dryRun && result.recipients) {
+      console.log('\nRecipients (dry run):');
+      result.recipients.forEach(
+        (r: { userId: string; email?: string; displayName?: string }) => {
+          const email = r.email || '(no email)';
+          const name = r.displayName || '(no name)';
+          console.log(`  • ${r.userId}: ${name} <${email}>`);
+        }
+      );
+    }
+  } else {
+    console.log('✗ FAILED');
+    console.log(`  Error: ${result.error}`);
+  }
+
+  console.log('');
 }
 
 async function handleStatus(

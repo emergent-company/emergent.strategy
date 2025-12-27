@@ -1,5 +1,5 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { Injectable, Logger, Inject } from '@nestjs/common';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { DatabaseService } from '../../common/database/database.service';
 import { EmailJob } from '../../entities/email-job.entity';
@@ -55,39 +55,58 @@ export class EmailJobsService {
   constructor(
     @InjectRepository(EmailJob)
     private readonly emailJobRepository: Repository<EmailJob>,
+    @InjectDataSource()
     private readonly dataSource: DataSource,
     @Inject(DatabaseService) private readonly db: DatabaseService,
-    private readonly config: EmailConfig
+    @Inject(EmailConfig) private readonly config: EmailConfig
   ) {}
 
   /**
-   * Enqueue a new email job.
+   * 🔒 STRATEGIC RAW SQL - DO NOT MIGRATE TO TYPEORM
+   *
+   * enqueue - Create a new email job ready for immediate processing
+   *
+   * Why Strategic SQL:
+   * ------------------
+   * Uses PostgreSQL now() for next_retry_at to ensure clock consistency
+   * with the dequeue() query. JavaScript's new Date() may have clock skew
+   * relative to the database server, causing jobs to appear "in the future"
+   * and be skipped by dequeue().
    *
    * @param options Email job options
    * @returns The created job row
    */
   async enqueue(options: EnqueueEmailJobOptions): Promise<EmailJobRow> {
-    const job = this.emailJobRepository.create({
-      templateName: options.templateName,
-      toEmail: options.toEmail,
-      toName: options.toName ?? null,
-      subject: options.subject,
-      templateData: options.templateData ?? {},
-      status: 'pending',
-      attempts: 0,
-      maxAttempts: options.maxAttempts ?? this.config.maxRetries,
-      sourceType: options.sourceType ?? null,
-      sourceId: options.sourceId ?? null,
-      nextRetryAt: new Date(), // Ready to process immediately
-    });
+    const maxAttempts = options.maxAttempts ?? this.config.maxRetries;
 
-    const saved = await this.emailJobRepository.save(job);
-
-    this.logger.debug(
-      `Enqueued email job ${saved.id} for ${saved.toEmail} (template: ${saved.templateName})`
+    const result = await this.dataSource.query(
+      `INSERT INTO kb.email_jobs (
+        template_name, to_email, to_name, subject, template_data,
+        status, attempts, max_attempts, source_type, source_id, next_retry_at
+      ) VALUES ($1, $2, $3, $4, $5, 'pending', 0, $6, $7, $8, now())
+      RETURNING id, template_name, to_email, to_name, subject,
+                template_data, status, attempts, max_attempts,
+                last_error, mailgun_message_id, created_at,
+                processed_at, next_retry_at, source_type, source_id`,
+      [
+        options.templateName,
+        options.toEmail,
+        options.toName ?? null,
+        options.subject,
+        JSON.stringify(options.templateData ?? {}),
+        maxAttempts,
+        options.sourceType ?? null,
+        options.sourceId ?? null,
+      ]
     );
 
-    return this.toJobRow(saved);
+    const row = Array.isArray(result) ? result[0] : result;
+
+    this.logger.debug(
+      `Enqueued email job ${row.id} for ${row.to_email} (template: ${row.template_name})`
+    );
+
+    return row as EmailJobRow;
   }
 
   /**
@@ -111,7 +130,7 @@ export class EmailJobsService {
   async dequeue(batchSize?: number): Promise<EmailJobRow[]> {
     const batch = batchSize ?? this.config.workerBatchSize;
 
-    const res = await this.db.query<EmailJobRow>(
+    const result = await this.dataSource.query(
       `WITH cte AS (
          SELECT id FROM kb.email_jobs
          WHERE status='pending' 
@@ -131,7 +150,15 @@ export class EmailJobsService {
       [batch]
     );
 
-    return res.rows;
+    // TypeORM returns UPDATE...RETURNING as [[rows], affectedCount] or just [rows]
+    if (
+      Array.isArray(result) &&
+      result.length === 2 &&
+      Array.isArray(result[0])
+    ) {
+      return result[0] as EmailJobRow[];
+    }
+    return (result || []) as EmailJobRow[];
   }
 
   /**

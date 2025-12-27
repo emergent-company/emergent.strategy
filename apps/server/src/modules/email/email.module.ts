@@ -8,6 +8,7 @@ import { MailgunProvider } from './mailgun.provider';
 import { EmailTemplateService } from './email-template.service';
 import { EmailJobsService } from './email-jobs.service';
 import { EmailWorkerService } from './email-worker.service';
+import { EmailStatusSyncService } from './email-status-sync.service';
 import { EmailService } from './email.service';
 
 @Module({
@@ -18,6 +19,7 @@ import { EmailService } from './email.service';
     EmailTemplateService,
     EmailJobsService,
     EmailWorkerService,
+    EmailStatusSyncService,
     EmailService,
   ],
   exports: [EmailService, EmailTemplateService, MailgunProvider, EmailConfig],
