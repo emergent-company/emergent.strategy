@@ -53,14 +53,6 @@ function MemberRow({
     [member.firstName, member.lastName].filter(Boolean).join(' ') ||
     null;
 
-  const initials = (displayName || member.email)
-    .split(/[\s@]/)
-    .filter(Boolean)
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
-
   // Compare by email to detect current user
   const isCurrentUser =
     currentUserEmail &&
@@ -72,9 +64,8 @@ function MemberRow({
         <div className="flex items-center gap-3">
           <Avatar
             src={member.avatarUrl}
-            letters={initials}
+            name={displayName || member.email}
             size="sm"
-            color="neutral"
           />
           <div>
             <div className="font-medium">
@@ -142,11 +133,7 @@ function InviteRow({
     <tr className="hover:bg-base-200/50">
       <td>
         <div className="flex items-center gap-3">
-          <Avatar
-            letters={invite.email[0].toUpperCase()}
-            size="sm"
-            color="neutral"
-          />
+          <Avatar name={invite.email} size="sm" />
           <div>
             <div className="font-medium">{invite.email}</div>
           </div>

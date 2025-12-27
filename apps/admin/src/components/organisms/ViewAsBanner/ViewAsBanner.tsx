@@ -11,7 +11,7 @@ export function ViewAsBanner() {
   return (
     <div className="bg-warning text-warning-content px-4 py-2 flex items-center justify-between sticky top-0 z-50">
       <div className="flex items-center gap-2">
-        <Icon icon="lucide:eye" className="size-5" />
+        <Icon icon="lucide--eye" className="size-5" />
         <span className="font-medium">
           Viewing as:{' '}
           <span className="font-bold">{viewAsUser.displayName}</span>
@@ -24,7 +24,7 @@ export function ViewAsBanner() {
         onClick={stopViewAs}
         className="btn btn-sm btn-ghost hover:bg-warning-content/20"
       >
-        <Icon icon="lucide:x" className="size-4" />
+        <Icon icon="lucide--x" className="size-4" />
         Exit View As
       </button>
     </div>

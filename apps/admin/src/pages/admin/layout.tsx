@@ -326,9 +326,9 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
             </Sidebar.Section>
           )}
         </Sidebar>
-        <div className="flex flex-col min-w-0 h-screen overflow-auto grow">
+        <div className="flex flex-col min-w-0 h-screen overflow-hidden grow">
           <Topbar />
-          <div id="layout-content" className="flex-1 overflow-auto">
+          <div id="layout-content" className="flex-1 min-h-0 overflow-hidden">
             <OrgAndProjectGateRedirect>{children}</OrgAndProjectGateRedirect>
           </div>
           <Footer />

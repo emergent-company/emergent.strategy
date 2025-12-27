@@ -1,5 +1,11 @@
-import { Injectable, NestMiddleware, Logger } from '@nestjs/common';
-import { Request, Response, NextFunction } from 'express';
+import {
+  Injectable,
+  NestInterceptor,
+  ExecutionContext,
+  CallHandler,
+  Logger,
+} from '@nestjs/common';
+import { Observable } from 'rxjs';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserProfile } from '../../entities/user-profile.entity';
@@ -14,26 +20,32 @@ const DEBOUNCE_MS = 60_000;
 const activityCache = new Map<string, number>();
 
 /**
- * Middleware that tracks user activity by updating `lastActivityAt` timestamp.
+ * Interceptor that tracks user activity by updating `lastActivityAt` timestamp.
+ *
+ * NOTE: This is an interceptor (not middleware) because it needs to run AFTER
+ * AuthGuard populates req.user. NestJS lifecycle: Middleware → Guards → Interceptors.
+ *
  * @see openspec/changes/add-superadmin-panel/design.md (D3)
  */
 @Injectable()
-export class ActivityTrackingMiddleware implements NestMiddleware {
-  private readonly logger = new Logger(ActivityTrackingMiddleware.name);
+export class ActivityTrackingInterceptor implements NestInterceptor {
+  private readonly logger = new Logger(ActivityTrackingInterceptor.name);
 
   constructor(
     @InjectRepository(UserProfile)
     private readonly userProfileRepository: Repository<UserProfile>
   ) {}
 
-  use(req: Request, _res: Response, next: NextFunction) {
-    const user = (req as any).user;
-    if (!user?.id) {
-      return next();
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    const request = context.switchToHttp().getRequest();
+    const user = request.user;
+
+    // Track activity before proceeding (fire-and-forget)
+    if (user?.id) {
+      this.trackActivity(user.id as string);
     }
 
-    this.trackActivity(user.id as string);
-    next();
+    return next.handle();
   }
 
   private trackActivity(userId: string): void {

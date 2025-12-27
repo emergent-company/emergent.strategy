@@ -1,20 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useApi } from './use-api';
-import type { PaginationMeta } from '@/types/superadmin';
+import type {
+  PaginationMeta,
+  SuperadminOrg,
+  ListOrgsResponse,
+} from '@/types/superadmin';
 
-export interface SuperadminOrg {
-  id: string;
-  name: string;
-  memberCount: number;
-  projectCount: number;
-  createdAt: string;
-  deletedAt: string | null;
-}
-
-export interface ListOrgsResponse {
-  organizations: SuperadminOrg[];
-  meta: PaginationMeta;
-}
+// Re-export types for convenience
+export type { SuperadminOrg, ListOrgsResponse } from '@/types/superadmin';
 
 export interface UseSuperadminOrgsResult {
   organizations: SuperadminOrg[];

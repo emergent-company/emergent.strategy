@@ -146,7 +146,15 @@ const dashboardRoutes: IRoutesProps[] = [
     children: [
       {
         path: '',
-        element: <Navigate to="/admin/superadmin/users" replace />,
+        element: <Navigate to="/admin/superadmin/dashboard" replace />,
+      },
+      {
+        path: 'dashboard',
+        element: cw(lazy(() => import('@/pages/admin/superadmin/dashboard'))),
+      },
+      {
+        path: 'environment',
+        element: cw(lazy(() => import('@/pages/admin/superadmin/environment'))),
       },
       {
         path: 'users',
@@ -165,6 +173,22 @@ const dashboardRoutes: IRoutesProps[] = [
       {
         path: 'emails',
         element: cw(lazy(() => import('@/pages/admin/superadmin/emails'))),
+      },
+      {
+        path: 'releases',
+        element: cw(lazy(() => import('@/pages/admin/superadmin/releases'))),
+      },
+      {
+        path: 'email-templates',
+        element: cw(
+          lazy(() => import('@/pages/admin/superadmin/email-templates'))
+        ),
+      },
+      {
+        path: 'email-templates/:id',
+        element: cw(
+          lazy(() => import('@/pages/admin/superadmin/email-template-editor'))
+        ),
       },
     ],
   },

@@ -12,6 +12,16 @@ interface NavItem {
 
 const superadminNavItems: NavItem[] = [
   {
+    path: '/admin/superadmin/dashboard',
+    label: 'Dashboard',
+    icon: 'lucide--layout-dashboard',
+  },
+  {
+    path: '/admin/superadmin/environment',
+    label: 'Environment',
+    icon: 'lucide--settings',
+  },
+  {
     path: '/admin/superadmin/users',
     label: 'Users',
     icon: 'lucide--users',
@@ -31,12 +41,22 @@ const superadminNavItems: NavItem[] = [
     label: 'Email History',
     icon: 'lucide--mail',
   },
+  {
+    path: '/admin/superadmin/email-templates',
+    label: 'Email Templates',
+    icon: 'lucide--file-code',
+  },
+  {
+    path: '/admin/superadmin/releases',
+    label: 'Releases',
+    icon: 'lucide--rocket',
+  },
 ];
 
 function SuperadminSidebar() {
   const location = useLocation();
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => location.pathname.startsWith(path);
 
   return (
     <nav
@@ -102,13 +122,16 @@ export function SuperadminLayout({ children }: SuperadminLayoutProps) {
   }
 
   return (
-    <div className="flex min-h-full" data-testid="superadmin-layout">
-      <aside className="hidden lg:block w-56 shrink-0 border-r border-base-200">
-        <div className="sticky top-0 h-[calc(100vh-theme(spacing.16))] overflow-y-auto">
-          <SuperadminSidebar />
-        </div>
+    <div
+      className="flex h-full overflow-hidden"
+      data-testid="superadmin-layout"
+    >
+      <aside className="hidden lg:block w-56 shrink-0 border-r border-base-200 overflow-y-auto">
+        <SuperadminSidebar />
       </aside>
-      <main className="flex-1 min-w-0">{children || <Outlet />}</main>
+      <main className="flex-1 min-w-0 h-full overflow-hidden">
+        {children || <Outlet />}
+      </main>
     </div>
   );
 }
