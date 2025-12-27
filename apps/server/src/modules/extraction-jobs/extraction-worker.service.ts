@@ -35,6 +35,7 @@ import {
 } from '../../common/utils/chunker.service';
 import { EmbeddingsService } from '../embeddings/embeddings.service';
 import { ExtractionContextService } from './extraction-context.service';
+import { ObjectChunksService } from '../object-refinement/object-chunks.service';
 
 const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 
@@ -127,7 +128,8 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly embeddingsService: EmbeddingsService,
     private readonly vectorSearchService: GraphVectorSearchService,
     private readonly extractionContextService: ExtractionContextService,
-    private readonly verificationService: VerificationService
+    private readonly verificationService: VerificationService,
+    private readonly objectChunksService: ObjectChunksService
   ) {}
 
   /**
@@ -722,6 +724,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
 
           let documentContent: string | null = null;
           let documentChunks: string[] = [];
+          let documentChunkIds: string[] = [];
 
           // For document sources, ensure chunks and embeddings are ready
           if (job.source_type === 'document' && job.source_id) {
@@ -742,6 +745,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
 
             documentContent = readyResult.content;
             documentChunks = readyResult.chunkTexts;
+            documentChunkIds = readyResult.chunkIds;
 
             // Log chunk/embedding preparation details
             documentStep('success', {
@@ -1914,6 +1918,46 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
             },
           });
 
+          // 6d. Link created objects to source document chunks for provenance
+          if (documentChunkIds.length > 0 && createdObjectIds.length > 0) {
+            const chunkLinkStep = beginTimelineStep('link_object_chunks', {
+              chunk_count: documentChunkIds.length,
+              object_count: createdObjectIds.length,
+            });
+
+            try {
+              let totalLinked = 0;
+              for (const objectId of createdObjectIds) {
+                const linkedCount =
+                  await this.objectChunksService.bulkLinkChunks(
+                    objectId,
+                    documentChunkIds,
+                    job.id,
+                    0.8
+                  );
+                totalLinked += linkedCount;
+              }
+
+              chunkLinkStep('success', {
+                metadata: {
+                  objects_linked: createdObjectIds.length,
+                  chunks_per_object: documentChunkIds.length,
+                  total_links_created: totalLinked,
+                },
+              });
+
+              this.logger.log(
+                `Object-chunk linking: ${totalLinked} links created for ${createdObjectIds.length} objects from ${documentChunkIds.length} chunks`
+              );
+            } catch (chunkLinkError) {
+              const message = toErrorMessage(chunkLinkError);
+              chunkLinkStep('warning', { message });
+              this.logger.warn(
+                `Failed to link chunks to objects (non-fatal): ${message}`
+              );
+            }
+          }
+
           // 7. Mark job as completed or requires_review
           const requiresReview = reviewRequiredObjectIds.length > 0;
           const duration = Date.now() - startTime;
@@ -2506,6 +2550,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
   ): Promise<{
     success: boolean;
     content: string | null;
+    chunkIds: string[];
     chunkTexts: string[];
     chunksCreated: boolean;
     chunkCount: number;
@@ -2517,6 +2562,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
       return {
         success: false,
         content: null,
+        chunkIds: [],
         chunkTexts: [],
         chunksCreated: false,
         chunkCount: 0,
@@ -2540,6 +2586,7 @@ export class ExtractionWorkerService implements OnModuleInit, OnModuleDestroy {
     return {
       success: true,
       content,
+      chunkIds: chunkResult.chunkIds,
       chunkTexts: chunkResult.chunkTexts,
       chunksCreated: chunkResult.created,
       chunkCount: chunkResult.chunkIds.length,
