@@ -4,6 +4,17 @@ import { PaginationQueryDto, PaginationMetaDto } from './pagination.dto';
 
 export type EmailJobStatus = 'pending' | 'processing' | 'sent' | 'failed';
 
+export type EmailDeliveryStatus =
+  | 'pending'
+  | 'delivered'
+  | 'opened'
+  | 'clicked'
+  | 'bounced'
+  | 'soft_bounced'
+  | 'complained'
+  | 'unsubscribed'
+  | 'failed';
+
 export class ListEmailJobsQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({
     description: 'Filter by status',
@@ -79,6 +90,27 @@ export class SuperadminEmailJobDto {
 
   @ApiPropertyOptional({ description: 'Source entity ID' })
   sourceId: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Delivery status from Mailgun events',
+    enum: [
+      'pending',
+      'delivered',
+      'opened',
+      'clicked',
+      'bounced',
+      'soft_bounced',
+      'complained',
+      'unsubscribed',
+      'failed',
+    ],
+  })
+  deliveryStatus: EmailDeliveryStatus | null;
+
+  @ApiPropertyOptional({
+    description: 'When the delivery status event occurred',
+  })
+  deliveryStatusAt: Date | null;
 }
 
 export class ListEmailJobsResponseDto {

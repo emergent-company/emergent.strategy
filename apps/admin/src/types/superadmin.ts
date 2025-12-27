@@ -45,6 +45,7 @@ export interface SuperadminOrg {
   memberCount: number;
   projectCount: number;
   createdAt: string;
+  deletedAt: string | null;
 }
 
 export interface ListOrgsResponse {

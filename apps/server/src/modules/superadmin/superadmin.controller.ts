@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Delete,
   Param,
   Query,
   UseGuards,
@@ -8,6 +9,7 @@ import {
   Header,
   ParseUUIDPipe,
   Req,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -26,6 +28,7 @@ import { SuperadminGuard } from './superadmin.guard';
 import { Superadmin } from './superadmin.decorator';
 import { SuperadminService } from './superadmin.service';
 import { EmailTemplateService } from '../email/email-template.service';
+import { AppConfigService } from '../../common/config/config.service';
 
 import { UserProfile } from '../../entities/user-profile.entity';
 import { Org } from '../../entities/org.entity';
@@ -56,6 +59,13 @@ import {
   EmailJobPreviewResponseDto,
 } from './dto/email-jobs.dto';
 import { PaginationQueryDto } from './dto/pagination.dto';
+import {
+  SystemConfigResponseDto,
+  RevealEnvQueryDto,
+  ExternalServiceDto,
+  EnvironmentVariableDto,
+  DeploymentInfoDto,
+} from './dto/system-config.dto';
 
 @ApiTags('superadmin')
 @ApiBearerAuth()
@@ -73,7 +83,8 @@ export class SuperadminController {
     @InjectRepository(EmailJob)
     private readonly emailJobRepo: Repository<EmailJob>,
     private readonly emailTemplateService: EmailTemplateService,
-    private readonly superadminService: SuperadminService
+    private readonly superadminService: SuperadminService,
+    private readonly configService: AppConfigService
   ) {}
 
   /**
@@ -462,6 +473,8 @@ export class SuperadminController {
       processedAt: job.processedAt,
       sourceType: job.sourceType,
       sourceId: job.sourceId,
+      deliveryStatus: job.deliveryStatus,
+      deliveryStatusAt: job.deliveryStatusAt,
     }));
 
     const totalPages = Math.ceil(total / limit);
@@ -526,7 +539,7 @@ export class SuperadminController {
     }
 
     // Render the template with stored data
-    const result = this.emailTemplateService.render(
+    const result = await this.emailTemplateService.render(
       job.templateName,
       job.templateData
     );
@@ -576,7 +589,7 @@ export class SuperadminController {
     }
 
     // Render the template with stored data
-    const result = this.emailTemplateService.render(
+    const result = await this.emailTemplateService.render(
       job.templateName,
       job.templateData
     );
@@ -586,6 +599,394 @@ export class SuperadminController {
       subject: job.subject,
       toEmail: job.toEmail,
       toName: job.toName,
+    };
+  }
+
+  @Delete('users/:id')
+  @UseGuards(AuthGuard, SuperadminGuard)
+  @Superadmin()
+  @ApiOperation({
+    summary: 'Delete a user',
+    description: 'Soft deletes a user by setting deletedAt timestamp',
+  })
+  @ApiOkResponse({
+    description: 'User deleted successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+      },
+    },
+  })
+  @ApiNotFoundResponse({ description: 'User not found' })
+  @ApiForbiddenResponse({ description: 'Superadmin access required' })
+  async deleteUser(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request
+  ): Promise<{ success: boolean; message: string }> {
+    const currentUser = (req as any).user;
+
+    if (currentUser?.id === id) {
+      throw new ForbiddenException({
+        error: {
+          code: 'forbidden',
+          message: 'Cannot delete your own account',
+        },
+      });
+    }
+
+    const user = await this.userProfileRepo.findOne({
+      where: { id, deletedAt: null as any },
+    });
+
+    if (!user) {
+      throw new NotFoundException({
+        error: {
+          code: 'not_found',
+          message: 'User not found',
+        },
+      });
+    }
+
+    await this.userProfileRepo.update(id, {
+      deletedAt: new Date(),
+      deletedBy: currentUser?.id,
+    });
+
+    return {
+      success: true,
+      message: 'User deleted successfully',
+    };
+  }
+
+  @Delete('organizations/:id')
+  @UseGuards(AuthGuard, SuperadminGuard)
+  @Superadmin()
+  @ApiOperation({
+    summary: 'Delete an organization',
+    description: 'Soft deletes an organization by setting deletedAt timestamp',
+  })
+  @ApiOkResponse({
+    description: 'Organization deleted successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+      },
+    },
+  })
+  @ApiNotFoundResponse({ description: 'Organization not found' })
+  @ApiForbiddenResponse({ description: 'Superadmin access required' })
+  async deleteOrganization(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request
+  ): Promise<{ success: boolean; message: string }> {
+    const currentUser = (req as any).user;
+
+    const org = await this.orgRepo.findOne({
+      where: { id, deletedAt: null as any },
+    });
+
+    if (!org) {
+      throw new NotFoundException({
+        error: {
+          code: 'not_found',
+          message: 'Organization not found',
+        },
+      });
+    }
+
+    await this.orgRepo.update(id, {
+      deletedAt: new Date(),
+      deletedBy: currentUser?.id,
+    });
+
+    return {
+      success: true,
+      message: 'Organization deleted successfully',
+    };
+  }
+
+  @Delete('projects/:id')
+  @UseGuards(AuthGuard, SuperadminGuard)
+  @Superadmin()
+  @ApiOperation({
+    summary: 'Delete a project',
+    description: 'Soft deletes a project by setting deletedAt timestamp',
+  })
+  @ApiOkResponse({
+    description: 'Project deleted successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+      },
+    },
+  })
+  @ApiNotFoundResponse({ description: 'Project not found' })
+  @ApiForbiddenResponse({ description: 'Superadmin access required' })
+  async deleteProject(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request
+  ): Promise<{ success: boolean; message: string }> {
+    const currentUser = (req as any).user;
+
+    const project = await this.projectRepo.findOne({
+      where: { id, deletedAt: null as any },
+    });
+
+    if (!project) {
+      throw new NotFoundException({
+        error: {
+          code: 'not_found',
+          message: 'Project not found',
+        },
+      });
+    }
+
+    await this.projectRepo.update(id, {
+      deletedAt: new Date(),
+      deletedBy: currentUser?.id,
+    });
+
+    return {
+      success: true,
+      message: 'Project deleted successfully',
+    };
+  }
+
+  @Get('system-config')
+  @UseGuards(AuthGuard, SuperadminGuard)
+  @Superadmin()
+  @ApiOperation({
+    summary: 'Get system configuration',
+    description:
+      'Returns external service links, deployment information, and environment variables for the super admin dashboard',
+  })
+  @ApiOkResponse({
+    description: 'System configuration',
+    type: SystemConfigResponseDto,
+  })
+  @ApiForbiddenResponse({ description: 'Superadmin access required' })
+  async getSystemConfig(
+    @Query() query: RevealEnvQueryDto
+  ): Promise<SystemConfigResponseDto> {
+    const reveal = query.reveal === true;
+
+    const sensitivePatterns = [
+      /password/i,
+      /secret/i,
+      /key/i,
+      /token/i,
+      /credential/i,
+    ];
+
+    const isSensitive = (name: string): boolean => {
+      return sensitivePatterns.some((pattern) => pattern.test(name));
+    };
+
+    const maskValue = (value: string, sensitive: boolean): string => {
+      if (!sensitive || reveal) return value || '';
+      if (!value) return '';
+      if (value.length <= 8) return '••••••••';
+      return (
+        value.substring(0, 4) + '••••••••' + value.substring(value.length - 4)
+      );
+    };
+
+    const externalServices: ExternalServiceDto[] = [
+      {
+        name: 'Langfuse',
+        url: this.configService.langfuseHost || null,
+        enabled: this.configService.langfuseEnabled,
+      },
+      {
+        name: 'SigNoz',
+        url: process.env.SIGNOZ_HOST || process.env.SIGNOZ_URL || null,
+        enabled: !!(process.env.SIGNOZ_HOST || process.env.SIGNOZ_URL),
+      },
+      {
+        name: 'Zitadel',
+        url: process.env.ZITADEL_DOMAIN
+          ? `https://${process.env.ZITADEL_DOMAIN}`
+          : null,
+        enabled: !!process.env.ZITADEL_DOMAIN,
+      },
+    ];
+
+    const deployment: DeploymentInfoDto = {
+      environment: process.env.NODE_ENV || 'development',
+      nodeVersion: process.version,
+      adminPort: parseInt(process.env.ADMIN_PORT || '5176', 10),
+      serverPort: this.configService.port,
+      adminUrl:
+        process.env.ADMIN_URL ||
+        `http://localhost:${process.env.ADMIN_PORT || '5176'}`,
+      serverUrl:
+        process.env.SERVER_URL || `http://localhost:${this.configService.port}`,
+    };
+
+    const envVarDefinitions: Array<{
+      name: string;
+      value: string | undefined;
+      category: string;
+    }> = [
+      {
+        name: 'POSTGRES_HOST',
+        value: this.configService.dbHost,
+        category: 'Database',
+      },
+      {
+        name: 'POSTGRES_PORT',
+        value: String(this.configService.dbPort),
+        category: 'Database',
+      },
+      {
+        name: 'POSTGRES_DB',
+        value: this.configService.dbName,
+        category: 'Database',
+      },
+      {
+        name: 'POSTGRES_USER',
+        value: this.configService.dbUser,
+        category: 'Database',
+      },
+      {
+        name: 'POSTGRES_PASSWORD',
+        value: this.configService.dbPassword,
+        category: 'Database',
+      },
+
+      {
+        name: 'GCP_PROJECT_ID',
+        value: this.configService.gcpProjectId,
+        category: 'AI/LLM',
+      },
+      {
+        name: 'GOOGLE_API_KEY',
+        value: this.configService.googleApiKey,
+        category: 'AI/LLM',
+      },
+      {
+        name: 'VERTEX_AI_LOCATION',
+        value: this.configService.vertexAiLocation,
+        category: 'AI/LLM',
+      },
+      {
+        name: 'VERTEX_AI_MODEL',
+        value: this.configService.vertexAiModel,
+        category: 'AI/LLM',
+      },
+      {
+        name: 'EMBEDDING_PROVIDER',
+        value: process.env.EMBEDDING_PROVIDER,
+        category: 'AI/LLM',
+      },
+      {
+        name: 'EMBEDDING_DIMENSION',
+        value: String(this.configService.embeddingDimension),
+        category: 'AI/LLM',
+      },
+      {
+        name: 'CHAT_MODEL_ENABLED',
+        value: String(this.configService.chatModelEnabled),
+        category: 'AI/LLM',
+      },
+
+      {
+        name: 'EXTRACTION_WORKER_ENABLED',
+        value: String(this.configService.extractionWorkerEnabled),
+        category: 'Extraction',
+      },
+      {
+        name: 'EXTRACTION_METHOD',
+        value: this.configService.extractionMethod,
+        category: 'Extraction',
+      },
+      {
+        name: 'EXTRACTION_CHUNK_SIZE',
+        value: String(this.configService.extractionChunkSize),
+        category: 'Extraction',
+      },
+      {
+        name: 'EXTRACTION_VERIFICATION_ENABLED',
+        value: String(this.configService.extractionVerificationEnabled),
+        category: 'Extraction',
+      },
+      {
+        name: 'EXTRACTION_PIPELINE_MODE',
+        value: this.configService.extractionPipelineMode,
+        category: 'Extraction',
+      },
+
+      {
+        name: 'LANGFUSE_ENABLED',
+        value: String(this.configService.langfuseEnabled),
+        category: 'Observability',
+      },
+      {
+        name: 'LANGFUSE_HOST',
+        value: this.configService.langfuseHost,
+        category: 'Observability',
+      },
+      {
+        name: 'LANGFUSE_PUBLIC_KEY',
+        value: this.configService.langfusePublicKey,
+        category: 'Observability',
+      },
+      {
+        name: 'LANGFUSE_SECRET_KEY',
+        value: this.configService.langfuseSecretKey,
+        category: 'Observability',
+      },
+      {
+        name: 'LANGSMITH_TRACING',
+        value: String(this.configService.langsmithTracingEnabled),
+        category: 'Observability',
+      },
+
+      {
+        name: 'ZITADEL_DOMAIN',
+        value: process.env.ZITADEL_DOMAIN,
+        category: 'Authentication',
+      },
+      {
+        name: 'ZITADEL_CLIENT_ID',
+        value: process.env.ZITADEL_CLIENT_ID,
+        category: 'Authentication',
+      },
+
+      { name: 'NODE_ENV', value: process.env.NODE_ENV, category: 'Services' },
+      {
+        name: 'PORT',
+        value: String(this.configService.port),
+        category: 'Services',
+      },
+      {
+        name: 'ADMIN_PORT',
+        value: process.env.ADMIN_PORT,
+        category: 'Services',
+      },
+    ];
+
+    const environmentVariables: EnvironmentVariableDto[] =
+      envVarDefinitions.map(({ name, value, category }) => {
+        const sensitive = isSensitive(name);
+        return {
+          name,
+          value: maskValue(value || '', sensitive),
+          sensitive,
+          category,
+        };
+      });
+
+    return {
+      externalServices,
+      deployment,
+      environmentVariables,
     };
   }
 }

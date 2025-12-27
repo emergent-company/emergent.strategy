@@ -4,6 +4,17 @@ import type { PaginationMeta } from '@/types/superadmin';
 
 export type EmailJobStatus = 'pending' | 'processing' | 'sent' | 'failed';
 
+export type EmailDeliveryStatus =
+  | 'pending'
+  | 'delivered'
+  | 'opened'
+  | 'clicked'
+  | 'bounced'
+  | 'soft_bounced'
+  | 'complained'
+  | 'unsubscribed'
+  | 'failed';
+
 export interface SuperadminEmailJob {
   id: string;
   templateName: string;
@@ -18,6 +29,8 @@ export interface SuperadminEmailJob {
   processedAt: string | null;
   sourceType: string | null;
   sourceId: string | null;
+  deliveryStatus: EmailDeliveryStatus | null;
+  deliveryStatusAt: string | null;
 }
 
 export interface ListEmailJobsResponse {
