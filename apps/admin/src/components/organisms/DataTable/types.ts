@@ -248,6 +248,15 @@ export interface DataTableProps<T extends TableDataItem> {
 
   /** CSS class for table container */
   className?: string;
+
+  /** Server-side pagination configuration */
+  pagination?: PaginationConfig;
+
+  /** Callback when page changes (required if pagination is provided) */
+  onPageChange?: (page: number) => void;
+
+  /** Label for items in pagination text (e.g., "users", "emails") */
+  paginationItemLabel?: string;
 }
 
 /**
@@ -258,4 +267,34 @@ export interface SortConfig {
   key: string;
   /** Sort direction */
   direction: 'asc' | 'desc';
+}
+
+/**
+ * Pagination configuration for server-side pagination
+ */
+export interface PaginationConfig {
+  /** Current page number (1-indexed) */
+  page: number;
+  /** Total number of pages */
+  totalPages: number;
+  /** Total number of items across all pages */
+  total: number;
+  /** Number of items per page */
+  limit: number;
+  /** Whether there is a previous page */
+  hasPrev: boolean;
+  /** Whether there is a next page */
+  hasNext: boolean;
+}
+
+/**
+ * Pagination props for DataTable
+ */
+export interface DataTablePaginationProps {
+  /** Pagination state */
+  pagination: PaginationConfig;
+  /** Callback when page changes */
+  onPageChange: (page: number) => void;
+  /** Label for items (e.g., "users", "emails") - defaults to "items" */
+  itemLabel?: string;
 }
