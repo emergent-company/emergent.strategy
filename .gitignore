@@ -12,6 +12,7 @@ apps/server-nest/dist-openapi/
 # Environment files with secrets (never commit)
 .env.local
 **/.env.local
+.env.infisical
 
 # Environment files for specific deployments (never commit)
 .env.staging
