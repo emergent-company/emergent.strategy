@@ -7,6 +7,7 @@ This guide explains how to deploy the Spec Server application using Docker Compo
 ## Architecture
 
 The application consists of:
+
 - **PostgreSQL** (with pgvector extension) - Database
 - **Zitadel** - Identity Provider (OAuth/OIDC)
 - **Zitadel Login UI** - Custom login interface
@@ -34,6 +35,7 @@ docker-compose -f docker-compose.staging.yml up -d
 ```
 
 **What happens automatically:**
+
 - ✅ PostgreSQL starts and creates extensions (vector, pgcrypto)
 - ✅ PostgreSQL creates Zitadel database and user
 - ✅ Zitadel starts and creates bootstrap PAT (Personal Access Token)
@@ -53,6 +55,7 @@ docker-compose exec zitadel /app/zitadel ready
 ```
 
 **What the bootstrap script does:**
+
 1. Reads PAT from Zitadel container (auto-generated in Phase 1)
 2. Creates organization and project in Zitadel
 3. Creates OAuth application for frontend authentication
@@ -81,7 +84,8 @@ docker-compose restart server admin
 
 **Option B: Using Direct Environment Variables**
 
-Add to `.env` or Coolify environment:
+Add to `.env` or deployment environment:
+
 ```bash
 ZITADEL_CLIENT_JWT={"userId":"...","keyId":"...","key":"..."}
 ZITADEL_FRONTEND_CLIENT_ID=<oauth-client-id>
@@ -91,11 +95,13 @@ ZITADEL_PROJECT_ID=<project-id>
 ```
 
 Then restart:
+
 ```bash
 docker-compose restart server admin
 ```
 
 **System is now fully operational!**
+
 - ✅ Server can authenticate with Zitadel Management API
 - ✅ Users can login via OAuth
 - ✅ All features enabled
@@ -103,6 +109,7 @@ docker-compose restart server admin
 ## Key Improvements (No Host Path Dependencies!)
 
 ### 1. Database Init Scripts - Embedded in Image
+
 **Old approach:** Mount `./docker/init.sql` from host
 **New approach:** Embedded in custom `Dockerfile.postgres`
 
@@ -113,6 +120,7 @@ COPY 01-init-zitadel.sh /docker-entrypoint-initdb.d/01-init-zitadel.sh
 ```
 
 ### 2. Zitadel PAT Storage - Docker Volume
+
 **Old approach:** Mount `./secrets/bootstrap` from host
 **New approach:** Docker-managed volume
 
@@ -128,16 +136,18 @@ volumes:
 **Access PAT:** `docker-compose exec -T zitadel cat /machinekey/pat.txt`
 
 ### 3. Service Account JSON - Environment Variable
+
 **Old approach:** Mount `/home/spec-server/zitadel-service-account.json` from host
 **New approach:** Pass as environment variable
 
 ```yaml
 server:
   environment:
-    ZITADEL_CLIENT_JWT: ${ZITADEL_CLIENT_JWT}  # Full JSON in env var
+    ZITADEL_CLIENT_JWT: ${ZITADEL_CLIENT_JWT} # Full JSON in env var
 ```
 
 Server code automatically:
+
 1. Checks `ZITADEL_CLIENT_JWT` env var first
 2. Falls back to `ZITADEL_CLIENT_JWT_PATH` if file mount needed
 
@@ -195,6 +205,7 @@ When Infisical is configured, secrets are fetched automatically at runtime using
 ## Troubleshooting
 
 ### Services won't start
+
 ```bash
 # Check logs
 docker-compose logs db
@@ -206,6 +217,7 @@ docker-compose exec db pg_isready -U spec -d spec
 ```
 
 ### Bootstrap script can't find PAT
+
 ```bash
 # Check if Zitadel created the PAT
 docker-compose exec -T zitadel cat /machinekey/pat.txt
@@ -215,6 +227,7 @@ docker-compose logs zitadel | grep -i error
 ```
 
 ### Server can't authenticate with Zitadel
+
 ```bash
 # Verify service account JSON is set
 docker-compose exec server printenv ZITADEL_CLIENT_JWT
@@ -224,6 +237,7 @@ docker-compose logs server | grep -i "service account"
 ```
 
 ### Users can't login
+
 ```bash
 # Verify OAuth app configuration
 echo "Check these env vars match bootstrap output:"
@@ -234,34 +248,17 @@ echo "ZITADEL_FRONTEND_CLIENT_ID=$ZITADEL_FRONTEND_CLIENT_ID"
 docker-compose logs zitadel | grep -i "authentication"
 ```
 
-## Coolify Deployment
-
-For Coolify deployments:
-
-1. **Create new service** → Docker Compose
-2. **Point to repository** with `docker-compose.staging.yml`
-3. **Set environment variables** in Coolify UI:
-   - Add all required variables from "Environment Variables" section above
-   - Optionally add Infisical credentials
-4. **Deploy** - Coolify will build images and start services
-5. **Wait for Zitadel ready** (check logs)
-6. **SSH into server** and run bootstrap script:
-   ```bash
-   cd /path/to/deployment
-   ./scripts/bootstrap-zitadel-fully-automated.sh provision
-   ```
-7. **Update secrets** in Coolify UI with bootstrap output
-8. **Restart services** in Coolify
-
 ## Development vs Production
 
 ### Development (`docker-compose.dev.yml`)
+
 - Exposes ports for direct access
 - Uses `localhost` domain
 - Optional Infisical integration
 - Includes debug logging volume for database
 
 ### Production/Staging (`docker-compose.staging.yml`)
+
 - Uses Traefik labels for reverse proxy
 - Requires proper domain names
 - Recommended to use Infisical for secrets
@@ -289,6 +286,7 @@ For Coolify deployments:
 ## Reference
 
 - **Bootstrap script modes:**
+
   - `provision` - Full setup (default)
   - `status` - Show current configuration
   - `test` - Run comprehensive tests
@@ -296,6 +294,7 @@ For Coolify deployments:
   - `regenerate` - Regenerate service account keys
 
 - **Docker volumes:**
+
   - `postgres_data` - PostgreSQL database files
   - `zitadel_machinekey` - Zitadel bootstrap PAT
 

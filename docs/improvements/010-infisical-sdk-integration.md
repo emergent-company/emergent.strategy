@@ -15,12 +15,14 @@ Integration of Infisical SDK into server and admin applications to load secrets 
 **Problem:** Duplicate and misplaced environment variables across multiple Infisical folders.
 
 **Solution:** Created and executed consolidation script (`scripts/audit-infisical-duplicates.ts`):
+
 - **67 actions performed with 100% success rate**
 - Eliminated 7 duplicates
 - Created 3 missing variables
 - Moved 57 misplaced variables to correct folders
 
 **Final Structure:**
+
 ```
 /workspace (46 secrets):  Shared infrastructure (database, Zitadel, Docker, ports, E2E)
 /server (30 secrets):     Server-specific (GCP, Vertex AI, extraction, auth)
@@ -29,6 +31,7 @@ Integration of Infisical SDK into server and admin applications to load secrets 
 ```
 
 **Verification:**
+
 ```bash
 npm run audit-infisical-duplicates
 # Output: ✅ No duplicates found!
@@ -39,6 +42,7 @@ npm run audit-infisical-duplicates
 **Created:** `apps/server/src/config/infisical-loader.ts`
 
 **Features:**
+
 - Loads `.env` and `.env.local` files first (dotenv)
 - Supports both Universal Auth (client ID/secret) and Service Tokens
 - Automatic token selection based on environment (dev/staging/production)
@@ -49,6 +53,7 @@ npm run audit-infisical-duplicates
 - Controlled by `INFISICAL_ENABLED=true` environment variable
 
 **Integration Point:** `apps/server/src/main.ts`
+
 ```typescript
 import 'reflect-metadata';
 // Load Infisical secrets before anything else
@@ -61,12 +66,14 @@ await initializeInfisical();
 **Created:** `scripts/test-infisical-integration.ts`
 
 Tests Infisical connection without starting the full server:
+
 - Checks environment variables
 - Tests both Universal Auth and Service Token methods
 - Lists secrets from `/workspace` and `/server` folders
 - Provides detailed diagnostic output
 
 **Usage:**
+
 ```bash
 npx tsx scripts/test-infisical-integration.ts
 ```
@@ -76,6 +83,7 @@ npx tsx scripts/test-infisical-integration.ts
 **Updated:** `.env` file
 
 Added Infisical integration variables:
+
 ```bash
 INFISICAL_ENABLED=true
 INFISICAL_SITE_URL=https://infiscal.kucharz.net
@@ -85,6 +93,7 @@ INFISICAL_ENVIRONMENT=dev
 ```
 
 **Note:** `.env.local` already contains:
+
 - `INFISICAL_TOKEN_DEV` (Service Token)
 - `INFISICAL_TOKEN_STAGING` (Service Token)
 - `INFISICAL_TOKEN_PRODUCTION` (Service Token)
@@ -98,17 +107,20 @@ INFISICAL_ENVIRONMENT=dev
 **Problem:** All authentication methods failing with HTTP 401 "Token missing"
 
 **Attempted Solutions:**
+
 1. ✗ Service Token (INFISICAL_TOKEN_DEV) - Returns 401
 2. ✗ Universal Auth (client ID/secret) - Returns 401
 3. ✓ API is accessible (curl test successful)
 4. ✓ SDK version correct (@infisical/sdk@4.0.6)
 
 **Error Message:**
+
 ```
 [URL=/api/v3/secrets/raw] [Method=get] [StatusCode=401] Token missing
 ```
 
 **Possible Causes:**
+
 1. Service tokens expired/invalid (tokens from `.env.local` may be old)
 2. Universal Auth requires additional setup or different API flow
 3. Infisical SDK 4.x may have changed authentication patterns
@@ -117,6 +129,7 @@ INFISICAL_ENVIRONMENT=dev
 ### Next Steps to Unblock
 
 **Option 1: Generate New Service Tokens** (Recommended)
+
 1. Log into Infisical at `https://infiscal.kucharz.net`
 2. Navigate to Project Settings → Service Tokens
 3. Create new service tokens for dev/staging/production
@@ -129,12 +142,14 @@ INFISICAL_ENVIRONMENT=dev
 5. Run test script: `npx tsx scripts/test-infisical-integration.ts`
 
 **Option 2: Debug Universal Auth**
+
 1. Check Infisical SDK 4.x documentation for Universal Auth examples
 2. Verify Universal Auth is enabled in Infisical project settings
 3. Check if additional scopes/permissions are needed
 4. Test with Infisical CLI first: `infisical login --method universal-auth`
 
 **Option 3: Use Infisical CLI Wrapper**
+
 1. Install Infisical CLI: `brew install infisical/get-cli/infisical`
 2. Use CLI to inject secrets: `infisical run --env=dev -- npm run dev`
 3. Skip SDK integration entirely, rely on CLI for local dev
@@ -146,17 +161,20 @@ INFISICAL_ENVIRONMENT=dev
 Once authentication is working:
 
 1. **Test server startup with Infisical:**
+
    ```bash
    # Ensure INFISICAL_ENABLED=true in .env
    nx run workspace-cli:workspace:restart
    ```
 
 2. **Check server logs for Infisical messages:**
+
    ```bash
    nx run workspace-cli:workspace:logs -- --service=server | grep -A 10 "Infisical"
    ```
 
 3. **Expected output:**
+
    ```
    🔐 Infisical: Loading secrets...
       Site: https://infiscal.kucharz.net
@@ -169,6 +187,7 @@ Once authentication is working:
    ```
 
 4. **Verify database connection:**
+
    - Server should connect to PostgreSQL using Infisical secrets
    - Check for any database errors in logs
 
@@ -183,18 +202,21 @@ Once authentication is working:
 **Options:**
 
 **Option A: Build-Time Loading** (Recommended for development)
+
 - Load secrets in `apps/admin/vite.config.ts`
 - Inject into `import.meta.env` during build
 - Only load `/workspace` and `/admin` folders
 - Good for dev, but requires rebuild for secret changes
 
 **Option B: Runtime Loading** (Complex)
+
 - Create custom Vite plugin to proxy Infisical API
 - Load secrets on page load (browser → Vite dev server → Infisical)
 - Requires CORS setup and security considerations
 - More complex, but allows dynamic secret updates
 
 **Option C: Infisical CLI** (Simplest)
+
 - Use CLI to inject secrets at dev server startup:
   ```bash
   infisical run --env=dev -- nx run admin:dev
@@ -211,6 +233,7 @@ Once authentication is working:
 **Options:**
 
 **Option A: Infisical CLI in Entrypoint**
+
 ```dockerfile
 # In Dockerfile
 RUN npm install -g @infisical/cli
@@ -220,12 +243,14 @@ infisical run --env=$ENVIRONMENT -- <original-command>
 ```
 
 **Option B: Generate .env Files**
+
 - Script that runs before `docker-compose up`
 - Fetches secrets from Infisical
 - Writes to `.env.docker` file
 - Compose uses: `env_file: .env.docker`
 
 **Option C: Infisical Agent (Sidecar)**
+
 - Run Infisical Agent container alongside services
 - Agent provides HTTP API for secrets
 - Services fetch secrets from Agent
@@ -238,20 +263,24 @@ infisical run --env=$ENVIRONMENT -- <original-command>
 Files to update:
 
 1. **`QUICK_START_DEV.md`**
+
    - Add Infisical setup steps
    - Document how to get service tokens
    - Show how to configure `.env.local`
 
 2. **`RUNBOOK.md`**
+
    - Update variable structure documentation
    - Document Infisical folder organization
    - Add troubleshooting guide
 
 3. **`README.md`**
+
    - Mention Infisical integration
    - Link to setup documentation
 
 4. **`.env.example`**
+
    - Add Infisical variables with placeholders
    - Document which variables are required
 
@@ -263,21 +292,23 @@ Files to update:
 Once dev environment is working:
 
 1. **Staging:**
+
    ```bash
    # Set environment to staging
    export INFISICAL_ENVIRONMENT=staging
    export INFISICAL_SERVICE_TOKEN=$INFISICAL_TOKEN_STAGING
-   
+
    # Run consolidation script
    npm run audit-infisical-duplicates -- --fix
    ```
 
 2. **Production:**
+
    ```bash
    # Set environment to production
    export INFISICAL_ENVIRONMENT=production
    export INFISICAL_SERVICE_TOKEN=$INFISICAL_TOKEN_PRODUCTION
-   
+
    # Run consolidation script (dry-run first!)
    npm run audit-infisical-duplicates
    npm run audit-infisical-duplicates -- --fix
@@ -288,19 +319,23 @@ Once dev environment is working:
 ### Manual Testing
 
 1. **Start with Infisical enabled:**
+
    ```bash
    INFISICAL_ENABLED=true nx run workspace-cli:workspace:start
    ```
 
 2. **Verify secrets loaded:**
+
    - Check server logs for "Infisical: Loading secrets..."
    - Verify database connection works
    - Verify Zitadel authentication works
 
 3. **Test fallback to .env:**
+
    ```bash
    INFISICAL_ENABLED=false nx run workspace-cli:workspace:start
    ```
+
    - Should still work with local `.env` file
 
 4. **Test with missing secrets:**
@@ -313,11 +348,13 @@ Once dev environment is working:
 Add tests to verify:
 
 1. **Infisical loader unit tests:**
+
    - `getInfisicalConfig()` returns correct values
    - Token selection logic (dev/staging/production)
    - Graceful fallback on errors
 
 2. **Integration tests:**
+
    - Server starts with Infisical enabled
    - Database connection works with Infisical secrets
    - Zitadel auth works with Infisical secrets
@@ -358,15 +395,19 @@ Once fully implemented:
 ## Questions/Decisions Needed
 
 1. **Authentication Method:** Should we use Universal Auth or Service Tokens for production?
+
    - **Recommendation:** Universal Auth for CI/CD, Service Tokens for local dev
 
 2. **Admin Integration:** Build-time loading vs Runtime loading vs CLI?
+
    - **Recommendation:** Start with CLI, add build-time loading later if needed
 
 3. **Docker Strategy:** CLI in entrypoint vs .env generation vs Agent sidecar?
+
    - **Recommendation:** .env generation for local dev, Agent for production
 
 4. **Token Rotation:** How often should we rotate service tokens?
+
    - **Recommendation:** Every 90 days, or on team member departure
 
 5. **Fallback Strategy:** Should production fail open (use .env) or fail closed (crash)?
@@ -375,24 +416,28 @@ Once fully implemented:
 ## Next Actions
 
 ### Immediate (Unblock)
+
 1. Generate new service tokens in Infisical UI
 2. Update `.env.local` with new tokens
 3. Test with `npx tsx scripts/test-infisical-integration.ts`
 4. Verify server starts with Infisical integration
 
 ### Short-term (This Week)
+
 1. Implement admin Infisical integration (CLI approach)
 2. Update Docker Compose for dependencies
 3. Update documentation (QUICK_START_DEV.md, RUNBOOK.md)
 4. Test full stack with Infisical enabled
 
 ### Medium-term (Next Sprint)
+
 1. Sync staging environment
 2. Add automated tests
 3. Implement token rotation policy
 4. Consider Infisical Agent for production
 
 ### Long-term (Future)
+
 1. Sync production environment
 2. Remove `.env.local` from development workflow
 3. Implement build-time loading for admin
@@ -416,11 +461,13 @@ The authentication issue was resolved by:
 ### What Changed
 
 #### Before (Not Working)
+
 - Used Infisical SDK's built-in Universal Auth
 - SDK returned 401 "Token missing" errors
 - Service tokens were expired/invalid
 
 #### After (Working!)
+
 - Manual Universal Auth flow using fetch API
 - First authenticate to get access token: `POST /api/v1/auth/universal-auth/login`
 - Then fetch secrets using access token: `GET /api/v3/secrets/raw`
@@ -445,11 +492,13 @@ The authentication issue was resolved by:
 ### Files Modified
 
 1. **`apps/server/src/config/infisical-loader.ts`** - Rewrote to use manual Universal Auth
+
    - Removed dependency on Infisical SDK's auth handling
    - Direct HTTP calls using fetch API
    - Better error handling and logging
 
 2. **`apps/server/src/main.ts`** - Fixed top-level await issue
+
    - Moved `initializeInfisical()` call into `bootstrap()` function
    - Used dynamic import to avoid top-level await compilation errors
 
@@ -465,10 +514,11 @@ The authentication issue was resolved by:
 ### Verification
 
 Server successfully starts with Infisical integration:
+
 - ✅ Authentication successful
 - ✅ Secrets loaded from /workspace
 - ✅ Secrets loaded from /server
-- ✅ PG* variables derived from POSTGRES_*
+- ✅ PG* variables derived from POSTGRES\_*
 - ✅ Server starts and runs normally
 - ✅ Graceful fallback to .env files if Infisical unavailable
 
@@ -517,6 +567,7 @@ Each component uses the **official Infisical approach** documented for that use 
 **Implementation:**
 
 Created `apps/admin/vite-plugin-infisical.ts`:
+
 - Reuses authentication logic from server's `infisical-loader.ts`
 - Loads secrets from `/workspace` and `/admin` folders
 - Filters to only `VITE_*` prefixed secrets (browser security)
@@ -524,11 +575,13 @@ Created `apps/admin/vite-plugin-infisical.ts`:
 - Graceful fallback to `.env` files if Infisical unavailable
 
 **Modified Files:**
+
 - `apps/admin/vite-plugin-infisical.ts` - New plugin implementation
 - `apps/admin/vite.config.ts` - Made async, calls plugin, injects secrets
 - `apps/admin/tsconfig.node.json` - Added plugin to file list
 
 **Test Results:**
+
 ```bash
 🔐 Infisical: Loading secrets for Vite...
    Site: https://infiscal.kucharz.net
@@ -545,6 +598,7 @@ Created `apps/admin/vite-plugin-infisical.ts`:
 ```
 
 **Benefits:**
+
 - No CLI dependency required
 - Integrated into build process
 - Works with workspace-cli
@@ -560,6 +614,7 @@ Created `apps/admin/vite-plugin-infisical.ts`:
 **Implementation:**
 
 Added to `docker/docker-compose.yml`:
+
 ```yaml
 services:
   infisical-secrets:
@@ -570,14 +625,14 @@ services:
     command: export --format=dotenv-export --log-level=error
     profiles:
       - infisical
-  
+
   db:
     depends_on:
       - infisical-secrets
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-spec}
       # ... other vars from Infisical
-  
+
   zitadel:
     depends_on:
       infisical-secrets:
@@ -588,6 +643,7 @@ services:
 ```
 
 **Modified Files:**
+
 - `docker/docker-compose.yml` - Added infisical-secrets service
 - `docker/.env.example` - Added Infisical token configuration
 - `docker/README-INFISICAL.md` - Complete documentation
@@ -595,18 +651,21 @@ services:
 **Usage:**
 
 With Infisical:
+
 ```bash
 cd docker
 docker compose --profile infisical up -d
 ```
 
 Without Infisical (local fallback):
+
 ```bash
 cd docker
 docker compose up -d
 ```
 
 **Benefits:**
+
 - Centralized secret management for Zitadel and PostgreSQL
 - Easy configuration updates (edit Infisical UI, restart services)
 - No need to manually edit multiple files
@@ -649,20 +708,24 @@ docker compose up -d
 ### Complete File Manifest
 
 **Server:**
+
 - `apps/server/src/config/infisical-loader.ts` - Runtime loader
 - `apps/server/src/main.ts` - Initialization
 
 **Admin:**
+
 - `apps/admin/vite-plugin-infisical.ts` - Vite plugin
 - `apps/admin/vite.config.ts` - Config integration
 - `apps/admin/tsconfig.node.json` - TypeScript config
 
 **Docker:**
+
 - `docker/docker-compose.yml` - Service definitions
 - `docker/.env.example` - Configuration template
 - `docker/README-INFISICAL.md` - Documentation
 
 **Scripts:**
+
 - `scripts/audit-infisical-duplicates.ts` - Consolidation (already existed)
 - `scripts/test-infisical-integration.ts` - Server test
 - `scripts/test-universal-auth-login.ts` - Auth test
@@ -670,6 +733,7 @@ docker compose up -d
 - `scripts/update-client-secret.sh` - Update helper
 
 **Documentation:**
+
 - `docs/improvements/009-consolidate-duplicate-env-variables.md` - Variable consolidation
 - `docs/improvements/010-infisical-sdk-integration.md` - This document
 - `docker/README-INFISICAL.md` - Docker Compose integration guide
@@ -705,23 +769,26 @@ Why keep local `.env` files?
 ### Testing Checklist
 
 ✅ **Server Integration:**
+
 - [x] Server starts with INFISICAL_ENABLED=true
 - [x] Secrets loaded from /workspace folder
 - [x] Secrets loaded from /server folder
-- [x] PG* variables derived correctly
+- [x] PG\* variables derived correctly
 - [x] Database connection works
 - [x] Zitadel authentication works
 - [x] Graceful fallback to .env
 
 ✅ **Admin Integration:**
+
 - [x] Admin builds successfully
 - [x] Secrets loaded from /workspace folder
 - [x] Secrets loaded from /admin folder
-- [x] Only VITE_* secrets exposed
+- [x] Only VITE\_\* secrets exposed
 - [x] import.meta.env variables available
 - [x] Graceful fallback to .env
 
 ⏳ **Docker Integration:**
+
 - [ ] infisical-secrets service starts (requires Docker running)
 - [ ] Secrets exported to dependent services
 - [ ] PostgreSQL starts with Infisical secrets
@@ -731,16 +798,19 @@ Why keep local `.env` files?
 ### Remaining Work
 
 #### Immediate (Next Session)
+
 1. **Test Docker Integration** - Start Docker and verify infisical-secrets service
 2. **Update QUICK_START_DEV.md** - Add Infisical setup instructions
 3. **Update RUNBOOK.md** - Document Infisical usage patterns
 
 #### Short-term (This Week)
+
 1. **Sync Staging Environment** - Run consolidation script on staging
 2. **Add Automated Tests** - Unit tests for loaders, integration tests
 3. **CI/CD Integration** - Update deployment pipelines
 
 #### Medium-term (Next Sprint)
+
 1. **Sync Production Environment** - Careful rollout with monitoring
 2. **Token Rotation Policy** - Automate rotation every 90 days
 3. **Monitoring/Alerting** - Track Infisical API usage, failures
@@ -749,14 +819,16 @@ Why keep local `.env` files?
 ### Success Metrics
 
 **Achieved:**
+
 - ✅ 100% secret consolidation (67 actions with 0 failures)
 - ✅ 3 components integrated (server, admin, docker)
 - ✅ 0 secrets in git (all in Infisical or .env.local)
-- ✅ 6 VITE_* secrets exposed to admin
+- ✅ 6 VITE\_\* secrets exposed to admin
 - ✅ 46 workspace secrets shared across components
 - ✅ Graceful fallback working for all components
 
 **Target:**
+
 - 🎯 95%+ uptime for Infisical integration
 - 🎯 <5 second startup time overhead
 - 🎯 100% team adoption (remove .env.local sharing)
@@ -772,6 +844,7 @@ We've successfully implemented the **complete Infisical integration** across all
 3. **Docker** - infisical-secrets service (official Docker pattern)
 
 Each component uses the approach **officially recommended by Infisical** for that use case, giving us:
+
 - ✅ Centralized secret management
 - ✅ Easy configuration updates
 - ✅ No secrets in git
@@ -780,17 +853,138 @@ Each component uses the approach **officially recommended by Infisical** for tha
 
 The system is **production-ready** pending Docker testing and documentation updates.
 
+---
+
+## 🔄 UPDATE 4: File-Based Secrets (No Runtime API Calls)
+
+**Date:** 2025-12-22
+**Status:** ✅ COMPLETE - Recommended Approach
+
+### Summary
+
+We've moved from **runtime API calls** to a **file-based approach** where secrets are dumped to `.env.infisical` once, then apps simply read from files like any other `.env` file.
+
+This eliminates:
+
+- Runtime dependency on Infisical API availability
+- Authentication complexity at app startup
+- Cold start latency from API calls
+- Complex error handling for API failures
+
+### New Workflow
+
+```bash
+# 1. Dump secrets from Infisical (one-time, or when secrets change)
+npm run secrets:dump
+
+# 2. Start apps normally - they read from .env files
+npm run workspace:start
+```
+
+### How It Works
+
+**Before (Runtime API calls):**
+
+```
+App Startup → Authenticate to Infisical → Fetch secrets → Load into process.env → Continue
+```
+
+**After (File-based):**
+
+```
+App Startup → Load .env → Load .env.local → Load .env.infisical → Continue
+```
+
+### Files Changed
+
+1. **New: `scripts/dump-infisical-secrets.ts`**
+
+   - CLI script to fetch secrets from Infisical API
+   - Writes to `.env.infisical` file
+   - Supports `--environment`, `--output`, `--folders`, `--dry-run` flags
+   - Requires Infisical credentials in `.env.local`
+
+2. **Simplified: `apps/server/src/config/infisical-loader.ts`**
+
+   - No longer makes API calls
+   - Simply loads `.env`, `.env.local`, `.env.infisical` using dotenv
+   - Derives `PG*` variables from `POSTGRES_*` for compatibility
+
+3. **Simplified: `apps/admin/vite-plugin-infisical.ts`**
+
+   - No longer makes API calls
+   - Loads the same env files and filters `VITE_*` vars for browser
+
+4. **Updated: `.gitignore`**
+
+   - Added `.env.infisical` (contains secrets, never commit)
+
+5. **Updated: `package.json`**
+   - Added `secrets:dump` and `secrets:dump:dry-run` npm scripts
+
+### Configuration
+
+Required in `.env.local`:
+
+```bash
+INFISICAL_SITE_URL=https://infiscal.kucharz.net
+INFISICAL_CLIENT_ID=your-client-id
+INFISICAL_CLIENT_SECRET=your-client-secret
+INFISICAL_PROJECT_ID=your-project-id
+```
+
+### Usage Examples
+
+```bash
+# Dump dev secrets (default)
+npm run secrets:dump
+
+# Dump staging secrets
+npm run secrets:dump -- --environment=staging
+
+# Preview without writing
+npm run secrets:dump:dry-run
+
+# Custom output file
+npm run secrets:dump -- --output=.env.infisical.dev
+```
+
+### Load Order (Apps)
+
+Files are loaded in this order (later overrides earlier):
+
+1. `.env` - Default values (committed)
+2. `.env.local` - Local overrides (gitignored)
+3. `.env.infisical` - Secrets from Infisical (gitignored)
+
+### Benefits
+
+| Aspect         | Before (Runtime)  | After (File-based) |
+| -------------- | ----------------- | ------------------ |
+| Startup time   | +2-3s (API calls) | Instant            |
+| Offline dev    | Fails             | Works              |
+| Error handling | Complex           | Simple             |
+| Debugging      | Hard (API state)  | Easy (read file)   |
+| Dependencies   | Infisical API     | Local file only    |
+
+### When to Run `secrets:dump`
+
+- First time setup
+- When secrets change in Infisical
+- When switching environments (dev → staging)
+- After Infisical credential rotation
 
 ---
 
 ## 🔄 UPDATE 3: Simplified Environment Variable Pattern
 
 **Date:** 2025-11-23
-**Status:** ✅ Improved
+**Status:** ✅ Improved (Superseded by UPDATE 4)
 
 ### Change: Removed Environment-Specific Token Variables
 
 **Before (Redundant):**
+
 ```bash
 INFISICAL_ENVIRONMENT=dev
 INFISICAL_TOKEN_DEV=st.token-here
@@ -799,6 +993,7 @@ INFISICAL_TOKEN_PRODUCTION=st.token-here
 ```
 
 **After (Clean):**
+
 ```bash
 INFISICAL_ENVIRONMENT=dev  # or staging, or production
 INFISICAL_TOKEN=st.token-here
@@ -815,6 +1010,7 @@ INFISICAL_TOKEN=st.token-here
 ### Updated Configuration
 
 **For Coolify (any environment):**
+
 ```bash
 # Application auth (server & admin)
 INFISICAL_ENABLED=true
@@ -833,18 +1029,21 @@ INFISICAL_TOKEN=st.your-token-for-selected-environment
 ### Migration Path
 
 **Dev Environment:**
+
 ```bash
 INFISICAL_ENVIRONMENT=dev
 INFISICAL_TOKEN=st.dev-token-here
 ```
 
 **Staging Environment:**
+
 ```bash
 INFISICAL_ENVIRONMENT=staging
 INFISICAL_TOKEN=st.staging-token-here
 ```
 
 **Production Environment:**
+
 ```bash
 INFISICAL_ENVIRONMENT=production
 INFISICAL_TOKEN=st.production-token-here

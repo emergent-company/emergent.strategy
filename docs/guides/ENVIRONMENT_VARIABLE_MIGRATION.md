@@ -319,7 +319,7 @@ LANGSMITH_API_KEY=lsv2_pt_real_key
 
 Production should use:
 
-- Environment-specific secrets management (Coolify, AWS Secrets Manager, etc.)
+- Environment-specific secrets management (AWS Secrets Manager, Infisical, etc.)
 - `.env` files with safe defaults (if deployed via git)
 - Platform environment variables for secrets (not `.env.local`)
 

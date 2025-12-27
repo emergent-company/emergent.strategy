@@ -40,7 +40,7 @@ Spec Server is a minimal ingestion and knowledge management system that provides
 - **Package Manager:** npm (workspaces)
 - **Process Management:** PM2 (via workspace-cli)
 - **Containerization:** Docker Compose
-- **Deployment:** Coolify with Traefik proxy
+- **Deployment:** Docker Compose with Traefik proxy
 - **Git Hooks:** Husky 9.1.7
 
 ### Development Tools
@@ -152,6 +152,7 @@ npm run test:coverage:all            # All coverage reports
 **Test Development with DevTools MCP:**
 
 When writing E2E or integration tests, use Chrome DevTools MCP to verify functionality before writing tests:
+
 - Get test credentials: `./scripts/get-test-user-credentials.sh`
 - Start Chrome debug: `npm run chrome:debug`
 - Manually verify functionality and gather selectors
@@ -274,8 +275,7 @@ When writing E2E or integration tests, use Chrome DevTools MCP to verify functio
 ### Optional Services
 
 - **Vertex AI:** Alternative AI provider for enterprise deployments
-- **Coolify:** Deployment platform for production (Docker Compose orchestration)
-- **Traefik:** Reverse proxy managed by Coolify
+- **Traefik:** Reverse proxy for production deployments
 
 ### External APIs
 
