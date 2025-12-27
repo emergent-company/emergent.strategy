@@ -30,7 +30,7 @@ import {
 import { AuthGuard } from '../auth/auth.guard';
 import { ScopesGuard } from '../auth/scopes.guard';
 import { Scopes } from '../auth/scopes.decorator';
-import { RequireProjectId } from '../../common/decorators';
+import { RequireProjectId, ProjectContext } from '../../common/decorators';
 
 @ApiTags('Chunks')
 @Controller('chunks')
@@ -57,9 +57,9 @@ export class ChunksController {
   list(
     @Query('documentId', new ParseUUIDPipe({ version: '4', optional: true }))
     documentId?: string,
-    @RequireProjectId() projectId?: string
+    @RequireProjectId() ctx?: ProjectContext
   ) {
-    return this.chunks.list(documentId, projectId!);
+    return this.chunks.list(documentId, ctx!.projectId);
   }
 
   @Delete(':id')
@@ -86,9 +86,9 @@ export class ChunksController {
   @Scopes('chunks:write')
   async delete(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @RequireProjectId() projectId: string
+    @RequireProjectId() ctx: ProjectContext
   ) {
-    await this.chunks.delete(id, projectId);
+    await this.chunks.delete(id, ctx.projectId);
     return { success: true };
   }
 
@@ -132,14 +132,14 @@ export class ChunksController {
   @Scopes('chunks:write')
   async bulkDelete(
     @Body() body: { ids: string[] },
-    @RequireProjectId() projectId: string
+    @RequireProjectId() ctx: ProjectContext
   ) {
     if (!body.ids || !Array.isArray(body.ids) || body.ids.length === 0) {
       throw new BadRequestException({
         error: { code: 'bad-request', message: 'ids array is required' },
       });
     }
-    return this.chunks.bulkDelete(body.ids, projectId);
+    return this.chunks.bulkDelete(body.ids, ctx.projectId);
   }
 
   @Delete('by-document/:documentId')
@@ -174,9 +174,9 @@ export class ChunksController {
   async deleteByDocument(
     @Param('documentId', new ParseUUIDPipe({ version: '4' }))
     documentId: string,
-    @RequireProjectId() projectId: string
+    @RequireProjectId() ctx: ProjectContext
   ): Promise<DocumentChunksDeletionResult> {
-    return this.chunks.deleteByDocument(documentId, projectId);
+    return this.chunks.deleteByDocument(documentId, ctx.projectId);
   }
 
   @Delete('by-documents')
@@ -232,7 +232,7 @@ export class ChunksController {
   @Scopes('chunks:write')
   async bulkDeleteByDocuments(
     @Body() body: { documentIds: string[] },
-    @RequireProjectId() projectId: string
+    @RequireProjectId() ctx: ProjectContext
   ): Promise<BulkDocumentChunksDeletionSummary> {
     if (
       !body.documentIds ||
@@ -246,6 +246,6 @@ export class ChunksController {
         },
       });
     }
-    return this.chunks.bulkDeleteByDocuments(body.documentIds, projectId);
+    return this.chunks.bulkDeleteByDocuments(body.documentIds, ctx.projectId);
   }
 }
