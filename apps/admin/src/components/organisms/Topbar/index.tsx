@@ -13,6 +13,7 @@ import { TopbarProfileMenu } from '@/components/organisms/Topbar/partials/Topbar
 import { TopbarSearchButton } from '@/components/organisms/Topbar/partials/TopbarSearchButton';
 import { TopbarLeftmenuToggle } from '@/components/organisms/Topbar/partials/TopbarLeftmenuToggle';
 import { TopbarRightbarButton } from '@/components/organisms/Topbar/partials/TopbarRightbarButton';
+import { TopbarSuperadminButton } from '@/components/organisms/Topbar/partials/TopbarSuperadminButton';
 
 export interface TopbarProps {
   className?: string;
@@ -34,6 +35,7 @@ export const Topbar: React.FC<TopbarProps> = ({ className }) => {
         <TopbarSearchButton />
       </div>
       <div className="inline-flex items-center gap-0.5">
+        <TopbarSuperadminButton />
         <ThemeToggle className="btn btn-sm btn-circle btn-ghost" />
         <TopbarRightbarButton />
         <TopbarNotificationButton />

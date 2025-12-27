@@ -1,17 +1,35 @@
 import { useState } from 'react';
 import { Icon } from '@/components/atoms/Icon';
 import { Spinner } from '@/components/atoms/Spinner';
-import { useSuperadminProjects } from '@/hooks/use-superadmin-projects';
+import { TableAvatarCell } from '@/components/molecules/TableAvatarCell/TableAvatarCell';
+import {
+  DataTable,
+  type ColumnDef,
+  type RowAction,
+} from '@/components/organisms/DataTable';
+import {
+  useSuperadminProjects,
+  type SuperadminProject,
+} from '@/hooks/use-superadmin-projects';
 import { useSuperadminOrgs } from '@/hooks/use-superadmin-orgs';
+import { useApi } from '@/hooks/use-api';
+import { useToast } from '@/hooks/use-toast';
+import { ConfirmActionModal } from '@/components/organisms/ConfirmActionModal/ConfirmActionModal';
+
+type ProjectRow = SuperadminProject;
 
 export default function SuperadminProjectsPage() {
+  const { apiBase, fetchJson } = useApi();
+  const { showToast } = useToast();
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [orgIdFilter, setOrgIdFilter] = useState<string>('');
-  const [searchTimeout, setSearchTimeout] = useState<ReturnType<
-    typeof setTimeout
-  > | null>(null);
+
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<ProjectRow | null>(
+    null
+  );
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const { organizations, isLoading: orgsLoading } = useSuperadminOrgs({
     limit: 100,
@@ -20,18 +38,13 @@ export default function SuperadminProjectsPage() {
   const { projects, meta, isLoading, error, refetch } = useSuperadminProjects({
     page,
     limit: 20,
-    search: debouncedSearch || undefined,
+    search: searchQuery || undefined,
     orgId: orgIdFilter || undefined,
   });
 
-  const handleSearchChange = (value: string) => {
-    setSearch(value);
-    if (searchTimeout) clearTimeout(searchTimeout);
-    const timeout = setTimeout(() => {
-      setDebouncedSearch(value);
-      setPage(1);
-    }, 300);
-    setSearchTimeout(timeout);
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    setPage(1);
   };
 
   const handleOrgFilterChange = (orgId: string) => {
@@ -44,13 +57,119 @@ export default function SuperadminProjectsPage() {
     return new Date(dateStr).toLocaleDateString();
   };
 
+  const handleDeleteClick = (project: ProjectRow) => {
+    setProjectToDelete(project);
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!projectToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await fetchJson<{ success: boolean; message: string }>(
+        `${apiBase}/api/superadmin/projects/${projectToDelete.id}`,
+        { method: 'DELETE' }
+      );
+
+      if (response.success) {
+        showToast({
+          variant: 'success',
+          message: `Project "${projectToDelete.name}" deleted successfully`,
+        });
+        refetch();
+      }
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to delete project';
+      showToast({
+        variant: 'error',
+        message: errorMessage,
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeleteModalOpen(false);
+      setProjectToDelete(null);
+    }
+  };
+
   const totalPages = meta?.totalPages ?? 0;
+
+  const columns: ColumnDef<ProjectRow>[] = [
+    {
+      key: 'name',
+      label: 'Project',
+      width: 'w-64',
+      render: (project) => (
+        <TableAvatarCell
+          name={project.name}
+          subtitle={`${project.id.slice(0, 8)}...`}
+          size="sm"
+        />
+      ),
+    },
+    {
+      key: 'organizationName',
+      label: 'Organization',
+      sortable: true,
+      render: (project) => (
+        <div className="flex items-center gap-2">
+          <Icon
+            icon="lucide--building-2"
+            className="size-4 text-base-content/50"
+          />
+          <span>{project.organizationName}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'documentCount',
+      label: 'Documents',
+      sortable: true,
+      render: (project) => (
+        <div className="flex items-center gap-2">
+          <Icon
+            icon="lucide--file-text"
+            className="size-4 text-base-content/50"
+          />
+          <span>{project.documentCount}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'createdAt',
+      label: 'Created',
+      sortable: true,
+      render: (project) => formatDate(project.createdAt),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (project) =>
+        project.deletedAt ? (
+          <span className="badge badge-error badge-sm">Deleted</span>
+        ) : (
+          <span className="badge badge-success badge-sm">Active</span>
+        ),
+    },
+  ];
+
+  const rowActions: RowAction<ProjectRow>[] = [
+    {
+      label: 'Delete',
+      icon: 'lucide--trash-2',
+      variant: 'error',
+      onAction: handleDeleteClick,
+      hidden: (project) => !!project.deletedAt,
+    },
+  ];
 
   return (
     <div className="p-6">
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <Icon icon="lucide:folder" className="size-6 text-primary" />
+          <Icon icon="lucide--folder" className="size-6 text-primary" />
           <h1 className="text-2xl font-bold">Projects</h1>
           {meta && (
             <span className="badge badge-ghost">{meta.total} total</span>
@@ -64,7 +183,7 @@ export default function SuperadminProjectsPage() {
           {isLoading ? (
             <Spinner size="sm" />
           ) : (
-            <Icon icon="lucide:refresh-cw" className="size-4" />
+            <Icon icon="lucide--refresh-cw" className="size-4" />
           )}
           Refresh
         </button>
@@ -72,22 +191,25 @@ export default function SuperadminProjectsPage() {
 
       <div className="card bg-base-100 shadow-sm border border-base-200">
         <div className="card-body">
-          <div className="flex flex-col sm:flex-row gap-4 mb-4">
-            <div className="form-control flex-1">
-              <label className="input input-bordered flex items-center gap-2">
-                <Icon icon="lucide:search" className="size-4 opacity-50" />
-                <input
-                  type="text"
-                  placeholder="Search by project name..."
-                  className="grow"
-                  value={search}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                />
-              </label>
+          {error && (
+            <div className="alert alert-error mb-4">
+              <Icon icon="lucide--alert-circle" className="size-5" />
+              <span>{error.message}</span>
             </div>
-            <div className="form-control w-full sm:w-64">
+          )}
+
+          <DataTable<ProjectRow>
+            data={projects}
+            columns={columns}
+            loading={isLoading}
+            rowActions={rowActions}
+            useDropdownActions
+            enableSearch
+            searchPlaceholder="Search by project name..."
+            onSearch={handleSearch}
+            toolbarActions={
               <select
-                className="select select-bordered"
+                className="select select-bordered select-sm"
                 value={orgIdFilter}
                 onChange={(e) => handleOrgFilterChange(e.target.value)}
                 disabled={orgsLoading}
@@ -99,133 +221,48 @@ export default function SuperadminProjectsPage() {
                   </option>
                 ))}
               </select>
-            </div>
-          </div>
-
-          {error && (
-            <div className="alert alert-error mb-4">
-              <Icon icon="lucide:alert-circle" className="size-5" />
-              <span>{error.message}</span>
-            </div>
-          )}
-
-          <div className="overflow-x-auto">
-            <table className="table table-zebra">
-              <thead>
-                <tr>
-                  <th>Project</th>
-                  <th>Organization</th>
-                  <th>Documents</th>
-                  <th>Created</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={5} className="text-center py-8">
-                      <Spinner size="lg" />
-                      <p className="mt-2 text-base-content/70">
-                        Loading projects...
-                      </p>
-                    </td>
-                  </tr>
-                ) : projects.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="text-center py-8">
-                      <p className="text-base-content/70">No projects found</p>
-                      {(debouncedSearch || orgIdFilter) && (
-                        <p className="mt-1 text-sm text-base-content/50">
-                          Try adjusting your filters
-                        </p>
-                      )}
-                    </td>
-                  </tr>
-                ) : (
-                  projects.map((project) => (
-                    <tr key={project.id} className="hover">
-                      <td>
-                        <div className="flex items-center gap-3">
-                          <div className="avatar placeholder">
-                            <div className="bg-secondary text-secondary-content rounded-lg w-10">
-                              <Icon icon="lucide:folder" className="size-5" />
-                            </div>
-                          </div>
-                          <div>
-                            <div className="font-medium">{project.name}</div>
-                            <div className="text-sm text-base-content/50 font-mono">
-                              {project.id.slice(0, 8)}...
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <div className="flex items-center gap-2">
-                          <Icon
-                            icon="lucide:building-2"
-                            className="size-4 text-base-content/50"
-                          />
-                          <span>{project.organizationName}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <div className="flex items-center gap-2">
-                          <Icon
-                            icon="lucide:file-text"
-                            className="size-4 text-base-content/50"
-                          />
-                          <span>{project.documentCount}</span>
-                        </div>
-                      </td>
-                      <td>{formatDate(project.createdAt)}</td>
-                      <td>
-                        {project.deletedAt ? (
-                          <span className="badge badge-error badge-sm">
-                            Deleted
-                          </span>
-                        ) : (
-                          <span className="badge badge-success badge-sm">
-                            Active
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {!isLoading && projects.length > 0 && meta && (
-            <div className="flex justify-between items-center mt-4">
-              <div className="text-sm text-base-content/70">
-                Showing {(page - 1) * meta.limit + 1} -{' '}
-                {Math.min(page * meta.limit, meta.total)} of {meta.total}{' '}
-                projects
-              </div>
-              <div className="join">
-                <button
-                  className="join-item btn btn-sm"
-                  onClick={() => setPage((p) => p - 1)}
-                  disabled={!meta.hasPrev}
-                >
-                  «
-                </button>
-                <button className="join-item btn btn-sm">
-                  Page {page} of {totalPages}
-                </button>
-                <button
-                  className="join-item btn btn-sm"
-                  onClick={() => setPage((p) => p + 1)}
-                  disabled={!meta.hasNext}
-                >
-                  »
-                </button>
-              </div>
-            </div>
-          )}
+            }
+            emptyMessage="No projects found"
+            noResultsMessage={
+              searchQuery || orgIdFilter
+                ? 'No projects match your search criteria. Try adjusting your filters.'
+                : 'No projects found'
+            }
+            emptyIcon="lucide--folder"
+            pagination={
+              meta
+                ? {
+                    page,
+                    totalPages,
+                    total: meta.total,
+                    limit: meta.limit,
+                    hasPrev: meta.hasPrev,
+                    hasNext: meta.hasNext,
+                  }
+                : undefined
+            }
+            onPageChange={setPage}
+            paginationItemLabel="projects"
+          />
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmActionModal
+        open={deleteModalOpen}
+        onCancel={() => {
+          setDeleteModalOpen(false);
+          setProjectToDelete(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Delete Project"
+        description={`Are you sure you want to delete "${
+          projectToDelete?.name ?? ''
+        }"? This action cannot be undone.`}
+        confirmVariant="error"
+        confirmLabel="Delete"
+        confirmLoading={isDeleting}
+      />
     </div>
   );
 }

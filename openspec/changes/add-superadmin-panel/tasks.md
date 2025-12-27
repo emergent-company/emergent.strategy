@@ -104,11 +104,11 @@
 - [x] 11.3 Write E2E tests: View-as shows correct user context
 - [x] 11.4 Write E2E tests: Activity tracking updates timestamp
 - [x] 11.5 Write E2E tests: Email preview renders correctly
-- [ ] 11.6 Write unit tests for frontend superadmin hooks
+- [x] 11.6 Write unit tests for frontend superadmin hooks
 
 ## 12. Documentation
 
-- [ ] 12.1 Update `docs/spec/18-authorization-model.md` with superadmin role
-- [ ] 12.2 Create `docs/guides/SUPERADMIN_GUIDE.md` for operators
-- [ ] 12.3 Document CLI command for granting superadmin
-- [ ] 12.4 Update OpenAPI spec with new endpoints
+- [x] 12.1 Update `docs/spec/18-authorization-model.md` with superadmin role
+- [x] 12.2 Create `docs/guides/SUPERADMIN_GUIDE.md` for operators
+- [x] 12.3 Document CLI command for granting superadmin
+- [x] 12.4 Update OpenAPI spec with new endpoints
