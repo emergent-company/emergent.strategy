@@ -1,7 +1,8 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OpenTelemetryModule } from 'nestjs-otel';
-import { ActivityTrackingMiddleware } from '../common/middleware/activity-tracking.middleware';
+import { ActivityTrackingInterceptor } from '../common/interceptors/activity-tracking.interceptor';
 import { ViewAsMiddleware } from '../common/middleware/view-as.middleware';
 import { UserProfile } from '../entities/user-profile.entity';
 import { HealthModule } from './health/health.module';
@@ -149,12 +150,17 @@ import { entities } from '../entities';
     UserEmailPreferencesModule,
     TypeOrmModule.forFeature([UserProfile]),
   ],
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ActivityTrackingInterceptor,
+    },
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    // ViewAsMiddleware must run before ActivityTrackingMiddleware
-    // so activity is tracked under the impersonated user context
+    // ViewAsMiddleware runs as middleware to handle impersonation headers
+    // ActivityTracking is now an interceptor (runs after guards populate req.user)
     consumer.apply(ViewAsMiddleware).forRoutes('*');
-    consumer.apply(ActivityTrackingMiddleware).forRoutes('*');
   }
 }

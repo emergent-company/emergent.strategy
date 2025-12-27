@@ -112,7 +112,7 @@ export class LangGraphService implements OnModuleInit {
         },
         location: location,
         temperature: 0.3,
-        maxOutputTokens: 1000,
+        maxOutputTokens: 65535, // Maximum for Vertex AI to support full MJML templates
       });
 
       this.logger.log(`Vertex AI Chat initialized: model=${modelName}`);
