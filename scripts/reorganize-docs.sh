@@ -33,7 +33,7 @@ mkdir -p fixes/{schema,performance,ui,integration,config}
 mkdir -p testing/{e2e,coverage,guides}
 mkdir -p integrations/{clickup,mcp}
 mkdir -p ui-ux/{components,wizards,design}
-mkdir -p deployment/{coolify,infrastructure}
+mkdir -p deployment/infrastructure
 mkdir -p features/{auth,chat,discovery,extraction,monitoring,graph}
 mkdir -p technical/{database,config}
 mkdir -p guides/{development,operations}
@@ -44,7 +44,7 @@ echo ""
 
 # Move PLANS
 echo "📋 Moving plans & roadmaps..."
-mv COOLIFY_DEPLOYMENT_PLAN.md plans/coolify-deployment.md 2>/dev/null || true
+mv DEPLOYMENT_PLAN.md plans/ 2>/dev/null || true
 mv langfuse_integration_plan.md plans/langfuse-integration.md 2>/dev/null || true
 mv MONITORING_PHASE2_PLAN.md plans/monitoring-phase2.md 2>/dev/null || true
 mv AUTO_DISCOVERY_TESTING_PLAN.md plans/auto-discovery-testing.md 2>/dev/null || true
@@ -54,7 +54,7 @@ mv *_PLAN.md plans/ 2>/dev/null || true
 mv *_ROADMAP.md plans/ 2>/dev/null || true
 
 # Move from root
-mv "$ROOT/COOLIFY_DEPLOYMENT_READY.md" deployment/coolify/deployment-ready.md 2>/dev/null || true
+# (No longer using Coolify, so skip this migration)
 
 echo "✅ Plans moved"
 echo ""
@@ -235,7 +235,6 @@ cat > deployment/README.md << 'DEPLOY_README_EOF'
 Deployment, infrastructure, and operations documentation.
 
 ## Structure
-- **coolify/** - Coolify deployment guide and configuration
 - **infrastructure/** - Infrastructure docs (ports, PM2, Docker)
 DEPLOY_README_EOF
 

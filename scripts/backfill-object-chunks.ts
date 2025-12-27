@@ -56,11 +56,18 @@ async function main() {
   console.log('');
 
   const pool = new Pool({
-    host: process.env.DATABASE_HOST || 'localhost',
-    port: parseInt(process.env.DATABASE_PORT || '5432'),
-    user: process.env.DATABASE_USERNAME || 'postgres',
-    password: process.env.DATABASE_PASSWORD || 'postgres',
-    database: process.env.DATABASE_NAME || 'emergent',
+    host: process.env.POSTGRES_HOST || process.env.DATABASE_HOST || 'localhost',
+    port: parseInt(
+      process.env.POSTGRES_PORT || process.env.DATABASE_PORT || '5432'
+    ),
+    user:
+      process.env.POSTGRES_USER || process.env.DATABASE_USERNAME || 'postgres',
+    password:
+      process.env.POSTGRES_PASSWORD ||
+      process.env.DATABASE_PASSWORD ||
+      'postgres',
+    database:
+      process.env.POSTGRES_DB || process.env.DATABASE_NAME || 'emergent',
     ssl:
       process.env.DATABASE_SSL === 'true'
         ? { rejectUnauthorized: false }
