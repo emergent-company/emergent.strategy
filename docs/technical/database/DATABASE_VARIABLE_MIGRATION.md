@@ -16,32 +16,35 @@ Successfully migrated all database environment variables from PostgreSQL's defau
 
 ### Variable Mapping
 
-| Old (Removed) | New (Required) | Purpose |
-|---------------|----------------|---------|
-| `PGHOST` | `POSTGRES_HOST` | Database server hostname |
-| `PGPORT` | `POSTGRES_PORT` | Database server port |
-| `PGUSER` | `POSTGRES_USER` | Database username |
-| `PGPASSWORD` | `POSTGRES_PASSWORD` | Database password |
-| `PGDATABASE` | `POSTGRES_DB` | Database name |
-| `PGDATABASE_E2E` | `POSTGRES_DB_E2E` | E2E test database name |
+| Old (Removed)    | New (Required)      | Purpose                  |
+| ---------------- | ------------------- | ------------------------ |
+| `PGHOST`         | `POSTGRES_HOST`     | Database server hostname |
+| `PGPORT`         | `POSTGRES_PORT`     | Database server port     |
+| `PGUSER`         | `POSTGRES_USER`     | Database username        |
+| `PGPASSWORD`     | `POSTGRES_PASSWORD` | Database password        |
+| `PGDATABASE`     | `POSTGRES_DB`       | Database name            |
+| `PGDATABASE_E2E` | `POSTGRES_DB_E2E`   | E2E test database name   |
 
 ---
 
 ## Files Modified
 
 ### Core Application (6 files)
+
 1. ✅ `apps/server/src/common/config/config.schema.ts` - Schema definition
 2. ✅ `apps/server/src/common/config/config.service.ts` - Service getters
 3. ✅ `apps/server/tests/test-db-config.ts` - Test configuration helper
 4. ✅ `apps/server/tests/setup.ts` - Global test setup
 
 ### Environment Files (3 files)
+
 5. ✅ `.env` - Local development (user action completed)
 6. ✅ `.env.example` - Developer template
 7. ✅ `.env.production.example` - Production template
 8. ✅ `docker-compose.yml` - Production Docker Compose
 
 ### Scripts (11 files)
+
 9. ✅ `scripts/run-migrations.ts`
 10. ✅ `scripts/full-reset-db.ts`
 11. ✅ `scripts/reset-db.ts`
@@ -54,14 +57,17 @@ Successfully migrated all database environment variables from PostgreSQL's defau
 18. ✅ `apps/server/scripts/migrate.mjs`
 
 ### Test Files (4 files)
+
 19. ✅ `apps/server/tests/e2e/cleanup.cascades.e2e.spec.ts`
 20. ✅ `apps/server/tests/e2e/documents.chunking.e2e.spec.ts`
 21. ✅ `apps/server/tests/unit/schema.indexes.spec.ts`
 
 ### Workspace CLI (1 file)
+
 22. ✅ `tools/workspace-cli/src/config/dependency-processes.ts`
 
 ### Documentation (3 files)
+
 23. ✅ `README.md` - Added breaking change notice
 24. ✅ `CHANGELOG.md` - Added migration details
 25. ✅ `docs/DATABASE_VARIABLE_MIGRATION.md` - This file
@@ -73,24 +79,28 @@ Successfully migrated all database environment variables from PostgreSQL's defau
 ## Migration Steps (Completed)
 
 ### Phase 1: Core Application ✅
+
 - [x] Updated `config.schema.ts` with new variable names
 - [x] Updated `config.service.ts` getters
 - [x] Updated test configuration helpers
 - [x] Updated test setup
 
 ### Phase 2: Environment Files ✅
+
 - [x] Updated `.env.example` template
 - [x] Cleaned up `.env.production.example`
-- [x] Removed duplicate PG* from docker-compose.yml
+- [x] Removed duplicate PG\* from docker-compose.yml
 - [x] Updated local `.env` file
 
 ### Phase 3: Scripts & Tests ✅
+
 - [x] Batch updated all 11 scripts
 - [x] Updated all 4 test files
 - [x] Updated migrate.mjs (removed fallback)
 - [x] Updated workspace CLI
 
 ### Phase 4: Documentation ✅
+
 - [x] Added breaking change to CHANGELOG.md
 - [x] Added notice to README.md
 - [x] Created this migration document
@@ -108,14 +118,14 @@ All developers must update their `.env` files immediately.
 
 ### Impact Assessment
 
-| Area | Impact | Action Required |
-|------|--------|-----------------|
-| **Local Development** | High | Update `.env` file |
-| **Scripts** | High | Variables required for all scripts |
-| **Tests** | High | Tests will fail without new variables |
-| **Docker Compose** | High | Production deployment requires new vars |
-| **CI/CD** | High | Update environment variables |
-| **Coolify** | High | Update environment in deployment |
+| Area                  | Impact | Action Required                         |
+| --------------------- | ------ | --------------------------------------- |
+| **Local Development** | High   | Update `.env` file                      |
+| **Scripts**           | High   | Variables required for all scripts      |
+| **Tests**             | High   | Tests will fail without new variables   |
+| **Docker Compose**    | High   | Production deployment requires new vars |
+| **CI/CD**             | High   | Update environment variables            |
+| **Deployment**        | High   | Update environment in deployment        |
 
 ---
 
@@ -150,7 +160,8 @@ cat .env | grep POSTGRES
 ### For Production/CI
 
 Update environment variables in:
-- Coolify deployment configuration
+
+- Deployment configuration
 - CI/CD pipelines (GitHub Actions, etc.)
 - Any external scripts or tools
 - Documentation and runbooks
@@ -159,13 +170,13 @@ Update environment variables in:
 
 ## Rationale
 
-### Why POSTGRES_* ?
+### Why POSTGRES\_\* ?
 
 1. **Docker Standard**: Official PostgreSQL Docker images use `POSTGRES_*`
 2. **Explicit Naming**: More clear than abbreviated `PG*`
 3. **Consistency**: Matches pattern used by other services (`ZITADEL_*`, `GOOGLE_*`)
 4. **Modern Convention**: Industry trend toward explicit variable naming
-5. **Coolify Compatible**: New deployment infrastructure uses `POSTGRES_*`
+5. **Deployment Compatible**: New deployment infrastructure uses `POSTGRES_*`
 
 ### Why No Fallback?
 
@@ -222,6 +233,7 @@ nx test-e2e server
 **Cause**: Old `.env` file still using `PG*` variables
 
 **Fix**:
+
 ```bash
 # Update your .env file
 cp .env.example .env
@@ -233,6 +245,7 @@ cp .env.example .env
 **Cause**: Variable mismatch between config and actual values
 
 **Fix**:
+
 ```bash
 # Verify all POSTGRES_* variables are set
 env | grep POSTGRES
@@ -245,6 +258,7 @@ env | grep POSTGRES
 **Cause**: Test environment not updated
 
 **Fix**:
+
 ```bash
 # Update .env.test.local with POSTGRES_* variables
 cp .env.test.local.example .env.test.local
@@ -285,7 +299,7 @@ Old `PG*` variables removed for clarity.
 ## Success Criteria
 
 - [x] All 25 files updated
-- [x] Core configuration uses POSTGRES_*
+- [x] Core configuration uses POSTGRES\_\*
 - [x] All scripts migrated
 - [x] All tests migrated
 - [x] Environment templates updated
@@ -307,7 +321,7 @@ Old `PG*` variables removed for clarity.
 
 ### For DevOps
 
-1. ⏳ Update Coolify environment variables
+1. ⏳ Update deployment environment variables
 2. ⏳ Update CI/CD pipelines
 3. ⏳ Update production secrets
 4. ⏳ Update monitoring/alerting configs

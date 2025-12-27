@@ -5,11 +5,13 @@
 Add **ONE** of these at your DNS provider:
 
 ### Option A: Wildcard A Record (Recommended)
+
 ```
 *.dev.emergent-company.ai  A  94.130.12.194
 ```
 
 ### Option B: Wildcard CNAME
+
 ```
 *.dev.emergent-company.ai  CNAME  kucharz.net.
 ```
@@ -23,7 +25,7 @@ nslookup zitadel.dev.emergent-company.ai
 # 2. Run bootstrap from local machine (no SSH needed!)
 ./scripts/bootstrap-remote-zitadel.sh
 
-# 3. Copy IDs from output to Coolify environment variables
+# 3. Copy IDs from output to deployment environment variables
 # ZITADEL_ORG_ID=<from output>
 # ZITADEL_PROJECT_ID=<from output>
 
@@ -65,7 +67,7 @@ cat secrets-dev/BOOTSTRAP_SUMMARY.md
 1. Retrieves bootstrap PAT from Zitadel
 2. Creates organization: "Spec Organization Dev"
 3. Creates project: "Spec Server Dev"
-4. Saves IDs for Coolify environment variables
+4. Saves IDs for deployment environment variables
 5. Generates complete setup summary
 
 **Zero server file manipulation!** Everything via remote API calls.

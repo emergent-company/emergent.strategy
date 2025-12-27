@@ -3,6 +3,10 @@
 Documentation for all third-party service integrations.
 
 ## Integrations
+
 - **clickup/** - ClickUp project management integration
+- **infisical/** - Infisical secrets management
+- **langfuse/** - Langfuse observability for LLM tracing
+- **mailgun/** - Mailgun transactional email service
 - **mcp/** - Model Context Protocol integration
-- **langfuse/** - Langfuse observability (planned)
+- **zitadel/** - Zitadel authentication and authorization
