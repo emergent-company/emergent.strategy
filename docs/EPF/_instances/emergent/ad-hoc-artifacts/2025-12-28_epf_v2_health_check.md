@@ -1,6 +1,6 @@
 # EPF v2.0.0 Health & Consistency Report
 **Product**: emergent
-**Generated**: 2025-12-28 19:54:39
+**Generated**: 2025-12-28 19:59:32
 **EPF Framework Version**: 2.0.0
 
 ---
@@ -26,10 +26,10 @@
 ## 3. FIRE Phase Artifacts
 
 - **Feature Definitions**: 9 files
-- **Value Models**: 0 files
+- **Value Models**: 4 files
 - **Workflows**: 0 files
 - ✅ No legacy `value_propositions` field found (v2.0.0 compliant)
-- ⚠️ Mappings file missing
+- ✅ Mappings file present
 
 ## 4. Traceability Quick Check
 
