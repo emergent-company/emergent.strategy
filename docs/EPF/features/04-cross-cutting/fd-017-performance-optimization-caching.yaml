@@ -1,0 +1,339 @@
+id: fd-017
+name: Performance Optimization & Caching
+category: cross-cutting
+definition:
+  overview: >
+    Applications suffer from poor performance causing user frustration (53% abandon after 3-second load), excessive infrastructure costs
+    (over-provisioned servers handling inefficient queries), and scalability limits (system degrades under load spikes). Current systems lack
+    systematic optimization with slow database queries (500ms-2s response times), missing cache layers causing repeated computation, inefficient
+    frontend bundles (400KB+ JS loading slowly), and no performance monitoring hiding bottlenecks. This feature provides comprehensive performance
+    optimization with query optimization, multi-layer caching, code splitting, lazy loading, and performance monitoring transforming slow
+    applications into sub-second experiences reducing infrastructure costs 40% and improving user satisfaction 60%.
+
+  jobs_to_be_done:
+    - "When pages load, I want sub-second display, so users don't abandon (53% leave after 3-second wait)."
+    - "When queries execute, I want optimized performance, so database handles 10x traffic without adding servers."
+    - "When caching content, I want smart invalidation, so users see fresh data without manual cache clearing."
+    - "When deploying code, I want progressive optimization, so performance improvements deploy incrementally without rewrites."
+    - "When monitoring performance, I want real-time visibility, so bottlenecks are identified and fixed before user impact."
+
+  strategic_context:
+    problem_space: >
+      53% of mobile users abandon sites loading >3 seconds (Google). Average page load 6-8 seconds on 3G connections. Slow performance costs
+      revenue (Amazon: 100ms delay = 1% sales loss). Database queries inefficient: N+1 queries loading 100 records = 101 queries vs 1, missing
+      indexes causing full table scans (2-second queries), no query result caching causing repeated computation. Application servers
+      over-provisioned: 10 servers handling load manageable by 3 with caching (70% waste = $84k annually). Frontend bundles bloated: 400KB JS
+      (should be <150KB mobile), 2MB images at full resolution, no code splitting loading unused features. No performance monitoring means
+      bottlenecks discovered through user complaints not proactive detection. Core Web Vitals poor (LCP 4-5s, CLS 0.3) affecting SEO rankings.
+
+    existing_alternatives: >
+      Current systems provide basic caching (Redis for session storage, browser cache for static assets) but lack comprehensive optimization.
+      Database queries unoptimized (developers write queries without performance consideration, no automatic optimization). Application-level
+      caching minimal (cache API responses manually with inconsistent TTL, no cache warming). Frontend unoptimized (load full bundles, all
+      images full resolution, no lazy loading). Teams resort to: adding more servers (treating symptoms not causes costing $7k monthly per
+      server), CDN for static assets (helps but doesn't address API/query performance), manual optimization during crises (reactive not
+      proactive).
+
+    value_hypothesis: >
+      Organizations implementing comprehensive performance optimization will reduce page load time 70% (from 6-8s to 2s), reduce infrastructure
+      costs 40% through caching efficiency, increase conversion rates 20% through faster UX, and improve Core Web Vitals achieving SEO benefits.
+      For 100-person org serving 50,000 monthly active users with 10 application servers ($7k each = $70k monthly), 40% reduction through
+      caching saves $28k monthly = $336k annually. Faster load (2s vs 6-8s) reduces abandonment from 53% to 20% retaining 33% more users =
+      16,500 additional monthly sessions. 20% conversion improvement on 10,000 monthly transactions = 2,000 additional conversions = $200k
+      annual revenue (assuming $100 average transaction value).
+
+  capabilities:
+    - id: cap-001
+      name: Database Query Optimization & Indexing
+      description: >
+        Systematic query optimization with automated N+1 detection, missing index identification, query plan analysis, and connection pooling
+        reducing query times 80% (from 500ms-2s to 50-200ms). N+1 query detection: identify patterns where 1 query loads list then N queries
+        load details (100 users = 101 queries) suggesting eager loading reducing to 2 queries. Index recommendations: analyze slow query logs
+        identifying missing indexes (WHERE clauses without indexes, JOIN columns unindexed), generate CREATE INDEX statements, estimate
+        performance improvement. Query plan analysis: EXPLAIN queries showing full table scans vs index usage, identify optimization
+        opportunities (add covering index, rewrite subquery as JOIN). Connection pooling: reuse database connections (pool of 20 vs creating
+        per request), configure pool size based on workload, monitor pool utilization preventing exhaustion. Read replicas: route read queries
+        to replicas (90% of queries are reads) reducing primary load, implement automatic failover. Query result caching: cache expensive
+        aggregations (analytics queries taking 2-3s cached 5 min), implement cache warming (precompute common queries), smart invalidation
+        (clear cache on data updates).
+
+    - id: cap-002
+      name: Multi-Layer Caching Strategy
+      description: >
+        Comprehensive caching with CDN (edge caching), Redis (application caching), in-memory (process caching), and browser caching reducing
+        load times 70% and infrastructure costs 40%. CDN caching: cache static assets (JS, CSS, images) at edge locations (200+ global POPs)
+        with 1-year TTL, cache API responses for public data (product catalog, blog posts) with 5-15 min TTL, implement cache purging (immediate
+        invalidation on content updates). Application caching (Redis): cache database query results (user profiles, product lists) with 5-60
+        min TTL, cache computed results (aggregations, reports) with appropriate TTL, implement cache-aside pattern (check cache, if miss query
+        database and populate cache). In-memory caching: cache frequently accessed data (configuration, feature flags) in application memory
+        avoiding Redis roundtrip, implement TTL expiry and memory limits preventing unbounded growth. Browser caching: cache static assets
+        locally with Cache-Control headers (immutable assets = 1 year, versioned bundles = 1 year, HTML = no-cache), implement service worker
+        for offline support. Cache invalidation: time-based expiry (TTL), event-based invalidation (clear cache on updates), cache tags enabling
+        granular clearing (clear all product caches). Cache warming: precompute common queries on deployment, background jobs refresh expiring
+        caches preventing cache stampede.
+
+    - id: cap-003
+      name: Frontend Bundle Optimization & Code Splitting
+      description: >
+        Frontend optimization with code splitting, lazy loading, tree shaking, and compression reducing bundle size 70% (from 400KB to 120KB
+        mobile) and improving FCP 60%. Code splitting: route-based splitting (home route = 80KB, admin route = 120KB loaded on demand), vendor
+        chunking (React/libraries separate from app code enabling long-term caching), dynamic imports (import('chart.js') loads on chart
+        display). Lazy loading: components below fold load on scroll, images load on viewport intersection (native lazy loading), code-split
+        heavy features (editor, dashboard). Tree shaking: eliminate unused code (lodash import only used functions not entire library), dead
+        code elimination during build, analyze bundle composition. Compression: gzip/brotli compression (400KB → 100KB transfer), pre-compress
+        static assets at build time. Asset optimization: responsive images (srcset with 1x/2x/3x variants), WebP format with fallbacks, image
+        compression (reduce quality 85% mostly imperceptible). Preloading critical resources: preload fonts preventing FOIT, preconnect to API
+        domains reducing connection time, prefetch next likely routes. Performance budgets: enforce max bundle sizes (150KB mobile, 300KB
+        desktop), CI fails if exceeded, track bundle size over time.
+
+    - id: cap-004
+      name: Resource Optimization & Lazy Loading
+      description: >
+        Systematic resource optimization with lazy loading, pagination, virtual scrolling, and progressive enhancement reducing memory usage
+        60% and improving TTI. Lazy loading: defer non-critical resources (below-fold images, off-screen components, tab content not initially
+        visible), intersection observer triggering loads on visibility, skeleton loading showing structure during fetch. Pagination: limit
+        initial load (20 items per page vs 500 all at once), infinite scroll loading more on scroll, cursor-based pagination for large datasets.
+        Virtual scrolling: render only visible rows (display 20 rows, virtualize 10,000 total) reducing DOM nodes 98%, window scrolling with
+        item recycling, dynamic row heights. Progressive enhancement: core functionality works without JS (HTML forms submit), enhanced with
+        JS when available (inline validation, auto-save), graceful degradation for unsupported browsers. Request batching: combine multiple API
+        calls (fetch user + posts + comments in 1 request vs 3), GraphQL enabling precise data fetching (request only needed fields), batch
+        mutations reducing roundtrips. Background processing: defer non-critical work (analytics, logging) to idle time, use web workers for
+        heavy computation, implement request queuing for offline scenarios.
+
+    - id: cap-005
+      name: Performance Monitoring & Real User Metrics
+      description: >
+        Comprehensive performance monitoring with real user monitoring (RUM), synthetic testing, Core Web Vitals tracking, and performance
+        budgets enabling proactive optimization. Real User Monitoring: measure actual user experiences (page load times, interaction latency,
+        errors) across devices/networks/locations, capture percentiles (p50, p95, p99) showing full distribution not just averages, segment by
+        user attributes (mobile vs desktop, 3G vs 4G, geographic region). Core Web Vitals: track LCP (Largest Contentful Paint <2.5s target),
+        FID (First Input Delay <100ms target), CLS (Cumulative Layout Shift <0.1 target), INP (Interaction to Next Paint <200ms), monitor
+        trends detecting regressions. Synthetic testing: automated Lighthouse audits in CI (performance score >90 target), test from multiple
+        locations (US, Europe, Asia), mobile and desktop profiles, with PR blocking if performance degrades. Performance profiling: identify
+        bottlenecks (slow queries, expensive renders, memory leaks), flame graphs showing time spent per function, trace distributed requests
+        across services. Performance budgets: enforce limits (mobile bundle <150KB, API response <200ms p95, LCP <2.5s), CI fails if exceeded,
+        historical tracking showing performance over time. Alerting: notify on performance degradation (LCP increases >20%, error rate spikes),
+        daily performance reports, regression detection (compare vs previous release).
+
+  personas:
+    - id: frontend-developer
+      name: Frontend Engineer
+      role: UI Developer
+      description: >
+        Frontend developer responsible for client-side performance, bundle optimization, and UX responsiveness. Values automated optimization
+        tools over manual performance tuning. Frustrated by slow builds, large bundles, and performance regressions discovered in production.
+      goals:
+        - "Reduce bundle size from 400KB to <150KB mobile through code splitting and tree shaking enabling fast load."
+        - "Achieve LCP <2.5s and FID <100ms meeting Core Web Vitals targets improving SEO and UX."
+        - "Prevent performance regressions through CI checks blocking merges if bundle size or metrics degrade."
+        - "Monitor real user performance identifying slow experiences by device/network/region enabling targeted optimization."
+      pain_points:
+        - "Bundle bloat: import lodash loads 70KB for 3 functions used, bundle grows from 200KB to 400KB over 6 months."
+        - "No code splitting: entire app loads upfront (400KB) including admin features used by 5% of users."
+        - "Performance regressions: deploy increases bundle 50KB unnoticed until user complaints about slow loading."
+        - "Manual optimization: spend 2 days profiling webpack bundle, identifying unused code, implementing splitting per feature."
+      usage_context: >
+        Develops features monthly, optimizes bundles quarterly, investigates performance issues. Uses React, Webpack, TypeScript. Expert
+        proficiency expecting automated performance tooling and clear metrics.
+      technical_proficiency: expert
+      current_situation: "As Frontend Engineer building React SPA, I watch bundle size grow from initial 180KB to 420KB over 8 months despite performance concerns. Original architecture loads entire app upfront: authentication, dashboard, admin panel, reports, settings all bundled together. 90% of users only access dashboard but load full 420KB including admin features (40KB) used by 5 admins. Initial page load takes 6-8 seconds on 3G (measured via Chrome DevTools throttling): 420KB JS download (3-4s on 3G), parse/compile (1-2s), hydrate React (1s), render (0.5s). Users complain: 'App is slow', 'Takes forever to load'. Performance investigation reveals problems: (1) lodash imported with import _ from 'lodash' loads entire 70KB library but only using 5 functions (should import specific functions), (2) moment.js loads all locales (160KB) but only using English, (3) chart.js loads all chart types but only using line charts, (4) no code splitting means unused admin code loads for all users. Attempted manual optimization: ran webpack-bundle-analyzer seeing bundle composition, configured tree shaking, tried dynamic imports but broke auth flow requiring 3 days debugging. Performance regression frequent: PR adds feature importing new library (+30KB), no CI checks catch size increase, deploys to production, Core Web Vitals degrade (LCP jumps from 3.2s to 4.5s), Google Search Console shows 'Poor' URL classification hurting SEO."
+      transformation_moment: "When automated bundle optimization with performance monitoring was implemented, bundle size reduced 72% with zero manual configuration. Framework configured automatic code splitting: route-based splitting (dashboard = 85KB, admin = 45KB loaded on /admin access, reports = 60KB loaded on demand), vendor chunking (React+libraries = 120KB shared chunk cached long-term), dynamic imports for heavy features (chart.js loads only when chart rendered). Build process optimized: tree shaking eliminated unused lodash functions (70KB → 8KB using 5 functions), moment.js replaced with date-fns (160KB → 12KB), unused CSS purged (80KB → 20KB). After optimization: mobile bundle reduced from 420KB to 118KB (72% reduction), desktop bundle 245KB (included more features). Page load improved dramatically: 118KB JS downloads in 1.2s on 3G (vs 3-4s), parse/compile 400ms (vs 1-2s), total FCP 1.8s (vs 6-8s = 78% improvement). Core Web Vitals met targets: LCP 2.1s (vs 4.5s, target <2.5s), FID 45ms (vs 180ms, target <100ms), CLS 0.05 (vs 0.25, target <0.1). Performance budgets enforced in CI: PR increasing mobile bundle >150KB fails with error 'Bundle size 162KB exceeds budget 150KB', forcing optimization before merge. Real user monitoring showed improvement: p95 load time reduced from 8.2s to 2.4s (71% improvement), mobile users on 3G improved from 12s to 3.1s (74% improvement). After 6 months: zero performance regressions (CI blocks degradations), bundle size stable around 120KB (vs previous 420KB and growing), Core Web Vitals consistently 'Good' improving SEO rankings."
+      emotional_resolution: "I now feel confident with automated optimization vs manual quarterly performance fire drills. Bundle size reduced 72% (420KB to 118KB) through automatic code splitting, tree shaking, and vendor chunking without manual webpack configuration. FCP improved 78% (6-8s to 1.8s) meeting user expectations for instant loading. Core Web Vitals consistently meet targets (LCP <2.5s, FID <100ms, CLS <0.1) improving SEO and user satisfaction. Performance budgets in CI prevent regressions (PR blocked if bundle >150KB) eliminating production performance surprises. Real user monitoring identifies remaining opportunities (mobile 3G users, specific regions) enabling targeted optimization. Most importantly, performance shifted from reactive crisis management to proactive automated maintenance enabling focus on features vs webpack tuning."
+
+    - id: backend-developer
+      name: Backend Engineer
+      role: API Developer
+      description: >
+        Backend developer responsible for API performance, database optimization, and caching strategies. Values measurable performance
+        improvements through profiling and monitoring. Frustrated by slow queries, cache complexity, and performance bottlenecks discovered
+        under production load.
+      goals:
+        - "Reduce API response times from 500ms-2s to <200ms p95 through query optimization and caching."
+        - "Eliminate N+1 queries causing 100+ database queries per request by implementing eager loading and batching."
+        - "Implement multi-layer caching (Redis, CDN) reducing database load 80% and server count from 10 to 6."
+        - "Monitor query performance identifying slow queries automatically enabling proactive optimization."
+      pain_points:
+        - "N+1 queries everywhere: load 100 users = 1 query, then 100 queries loading profiles (101 total vs 2 with join)."
+        - "Missing indexes: WHERE user_id causes full table scan (2-second query on 1M rows), adding index reduces to 20ms."
+        - "No caching: same expensive aggregation query runs 1,000 times daily (3s each = 50 min daily DB time)."
+        - "Cache invalidation hard: manual Redis DEL commands, miss keys causing stale data, over-invalidate causing poor hit rates."
+      usage_context: >
+        Implements APIs monthly, optimizes queries when slow, adds caching reactively. Uses Node.js, PostgreSQL, Redis. Expert proficiency
+        expecting query profiling tools and caching patterns.
+      technical_proficiency: expert
+      current_situation: "As Backend Engineer maintaining API serving 50,000 daily active users, I fight constant performance fires caused by unoptimized queries and missing caching. Current API response times terrible: p50 450ms, p95 1,800ms, p99 3,500ms (target <200ms p95). Slow query investigation reveals N+1 patterns everywhere: GET /users endpoint loads 100 users (1 query: SELECT * FROM users LIMIT 100), then for each user loads profile (100 queries: SELECT * FROM profiles WHERE user_id = ?), loads posts (100 queries: SELECT COUNT(*) FROM posts WHERE author_id = ?), loads followers (100 queries: SELECT COUNT(*) FROM follows WHERE following_id = ?) = 301 queries total taking 1,200ms. I refactored using JOIN reducing to 4 queries taking 180ms (85% improvement) but finding and fixing these takes 2-3 days per endpoint. Missing indexes discovered through pain: analytics endpoint takes 2,800ms, database logs show 'Seq Scan on events (cost=0.00..125000 rows=1000000)', query has WHERE user_id without index causing full table scan of 1M rows. Adding CREATE INDEX idx_events_user_id ON events(user_id) reduces query to 35ms (99% improvement) but discovering these requires manual EXPLAIN analysis. No systematic caching: expensive aggregation query (user dashboard stats: 8 table joins, 3 subqueries) takes 3,200ms, runs 1,000 times daily = 53 min daily DB time. I manually added Redis caching: cache key 'dashboard:stats:{user_id}', TTL 300s, reduced to 15ms cache hit (99.5% improvement). But cache invalidation nightmare: when user creates post, must remember to invalidate dashboard cache, missed invalidation shows stale counts for 5 min causing user confusion. Over-provisioned infrastructure: running 10 application servers ($7k monthly each = $70k) because inefficient queries require more capacity, proper caching would reduce to 6 servers saving $28k monthly."
+      transformation_moment: "When performance optimization framework with query profiling and multi-layer caching was implemented, API performance transformed. N+1 detection automatic: development mode shows warning 'N+1 detected: profiles (100 queries). Suggestion: use .include(:profile)', query logging shows total query count per request highlighting inefficient endpoints. I enabled eager loading: User.include(:profile, :post_count, :follower_count) reducing 301 queries to 4 queries (98% reduction), response time from 1,200ms to 180ms (85% improvement). Missing index detection automated: slow query log analysis identifies queries >100ms without indexes, generates recommendations 'Add index: CREATE INDEX idx_events_user_id ON events(user_id). Estimated improvement: 2,800ms → 35ms', I review recommendations applying indexes reducing slow queries 95%. Caching framework handles complexity: @Cache(ttl: 300, key: 'dashboard:stats:{user_id}', tags: ['user:{user_id}', 'posts']) automatically caches expensive dashboard query, cache invalidation via tags: when user creates post, invalidate tag 'posts' clearing related caches without manual key management. Multi-layer caching deployed: CDN caches API responses for public data (product catalog 15-min TTL), Redis caches query results (5-min TTL), in-memory caches configuration (no TTL, updated on change). After 6 months: API response times improved dramatically (p95 from 1,800ms to 165ms = 91% improvement), database query count reduced 80% through caching (10,000 queries/min to 2,000 queries/min), server count reduced from 10 to 6 (40% cost reduction = $336k annually). Cache hit rate 85% meaning 85% of requests served from cache vs database."
+      emotional_resolution: "I now feel confident with systematic optimization vs reactive performance firefighting. N+1 detection automatic (development warnings) prevented introduction of inefficient queries vs discovering in production under load. Query profiling automatic (slow query log analysis, index recommendations) enabled proactive optimization vs manual EXPLAIN investigation. Caching framework (automatic key generation, tag-based invalidation) eliminated manual Redis management complexity while achieving 85% hit rate. API response times improved 91% (p95 from 1,800ms to 165ms) meeting performance targets. Infrastructure costs reduced 40% ($336k annually) through caching efficiency vs over-provisioning servers. Most importantly, shifted from constantly firefighting slow queries to proactively maintaining performant APIs enabling focus on features vs optimization crises."
+
+    - id: devops-engineer
+      name: DevOps Engineer
+      role: Infrastructure Lead
+      description: >
+        Infrastructure engineer responsible for server capacity, scaling, and cost optimization. Values infrastructure efficiency through
+        application performance improvements. Frustrated by over-provisioned servers masking inefficient application code.
+      goals:
+        - "Reduce server count from 10 to 6 through application caching and optimization saving $336k annually."
+        - "Improve server utilization from 30% to 70% through better resource allocation and performance tuning."
+        - "Scale horizontally using CDN and caching vs vertically adding servers when load increases."
+        - "Monitor infrastructure metrics (CPU, memory, query times) identifying optimization opportunities."
+      pain_points:
+        - "Over-provisioned: 10 servers at 30% utilization (should be 4-5 servers at 60-70% utilization) wasting $28k monthly."
+        - "Scaling reactive: traffic spike requires emergency server addition (30 min provisioning) vs proactive CDN/caching."
+        - "Inefficient app code: database CPU at 80% due to unoptimized queries, adding DB capacity treats symptom not cause."
+        - "No performance visibility: can't identify if slow response times due to network, app code, or database bottleneck."
+      usage_context: >
+        Manages infrastructure for 50k daily active users, provisions servers monthly, optimizes costs quarterly. Uses AWS, Terraform,
+        Datadog. Expert proficiency expecting infrastructure observability and cost optimization tools.
+      technical_proficiency: expert
+      current_situation: "As DevOps Engineer managing infrastructure for SaaS platform serving 50,000 daily active users, I over-provision servers masking application performance problems costing $28k monthly waste. Current infrastructure: 10 application servers ($7k monthly each = $70k total) at 30% average CPU utilization (should be 60-70%), 2 database servers ($12k each = $24k) at 70% CPU (primary) and 20% (replica), CDN usage minimal (static assets only, API responses not cached). Server count grew reactively: started with 4 servers at 80% CPU, traffic increased causing timeouts, emergency provisioned 2 more servers (6 total), 3 months later traffic spike again added 2 more (8 total), 2 months later added 2 more reaching 10 total. But looking at CPU trends: average utilization dropped from 80% (4 servers) to 30% (10 servers) suggesting inefficient scaling. Root cause investigation: APM shows API response times 500ms-2s with majority time in database queries (70% of request time), database slow query log has 200+ queries >500ms daily, many are N+1 patterns or missing indexes. Application code inefficient but treating symptom (adding servers) not cause (optimizing queries). Traffic spikes cause incidents: Black Friday sale announced, traffic increases 3x, servers hit 90% CPU, response times degrade to 5-8s, error rate spikes to 8%, I emergency provision 3 additional servers taking 30 min (during which users experience poor UX), costs jump to $91k monthly. Cache utilization poor: Redis used only for session storage (2GB used of 16GB capacity), no API response caching, no query result caching, CDN serves only static assets (JS/CSS/images) not API responses."
+      transformation_moment: "When comprehensive performance optimization and multi-layer caching was implemented, infrastructure efficiency transformed dramatically. Application performance improved through systematic optimization: N+1 queries eliminated reducing database query count 80% (10,000 queries/min to 2,000 queries/min), missing indexes added reducing slow queries 95%, API response times improved from 500ms-2s to 100-200ms. Multi-layer caching deployed: CDN caches public API responses (product catalog, blog posts) reducing application server requests 40%, Redis caches query results and computed values (dashboard stats, aggregations) reducing database load 80%, in-memory caches configuration and feature flags eliminating Redis roundtrips for frequent reads. After optimization, load testing showed 6 servers at 60% CPU handle previous load requiring 10 servers at 30% CPU (same throughput, 40% fewer servers). I decommissioned 4 servers: reduced from 10 to 6 application servers saving $28k monthly ($336k annually), maintained performance SLAs (p95 response time <200ms), improved average CPU utilization from 30% to 60% (right-sized infrastructure). Database load reduced 80% through caching: primary database CPU dropped from 70% to 25% enabling replica demotion (saved $12k monthly additional), slow query count reduced from 200+ daily to 10-15 daily (95% improvement). Traffic spike handling transformed: Black Friday sale with 3x traffic handled by existing 6 servers at 80% CPU (vs previous 13 servers required) because cached responses served from CDN and Redis not application servers, no emergency provisioning needed, costs stable at $42k vs previous $91k spike (54% reduction). After 12 months: infrastructure costs reduced from $94k monthly (10 app + 2 DB servers) to $54k monthly (6 app + 1 DB server) saving $480k annually, server utilization improved from 30% to 60% (right-sized), traffic spikes handled without emergency provisioning through caching architecture."
+      emotional_resolution: "I now feel confident with right-sized infrastructure vs over-provisioned waste. Server count reduced from 10 to 6 (40% reduction) through application performance optimization saving $336k annually without sacrificing performance. Server utilization improved from 30% to 60% demonstrating efficient resource allocation. Database load reduced 80% through caching eliminating need for second DB server (additional $144k annual savings). Traffic spike handling predictable: 3x traffic handled by existing 6 servers through CDN and Redis caching vs emergency 13-server provisioning. Infrastructure costs reduced from $94k to $54k monthly ($480k annual savings) while maintaining SLAs. Most importantly, shifted from reactive scaling (add servers when slow) to strategic efficiency (optimize then right-size) aligning infrastructure with actual needs."
+
+    - id: product-manager
+      name: Product Manager
+      role: Product Lead
+      description: >
+        Product manager responsible for user experience metrics, conversion rates, and business outcomes. Values performance improvements
+        translating to measurable business impact. Frustrated by slow UX impacting conversions and SEO rankings.
+      goals:
+        - "Reduce page abandonment from 53% to 20% by achieving <3s load times improving user engagement."
+        - "Increase conversion rate 20% through faster checkout flow (each second delay = 7% conversion loss)."
+        - "Improve SEO rankings through Core Web Vitals achieving 'Good' classification for all URLs."
+        - "Measure performance impact on business metrics (conversion, engagement, revenue) demonstrating ROI."
+      pain_points:
+        - "High abandonment: 53% of users leave before page loads (6-8s load time exceeds 3s tolerance)."
+        - "Slow checkout costs revenue: 5-second checkout loads lose 35% of conversions (7% per second delay)."
+        - "Poor SEO: Google Search Console shows 80% URLs classified 'Poor' for Core Web Vitals hurting organic traffic."
+        - "No performance-business metrics: can't prove performance investment ROI, hard to prioritize vs features."
+      usage_context: >
+        Reviews user metrics weekly, prioritizes roadmap quarterly, presents business outcomes monthly. Tracks conversion, engagement,
+        retention, SEO rankings. Intermediate proficiency expecting business-friendly performance dashboards.
+      technical_proficiency: intermediate
+      current_situation: "As Product Manager responsible for user growth and revenue for e-commerce platform, I watch performance problems directly impact business metrics. Current page performance: average load time 6.5s on desktop (target <3s), 8.2s on mobile 4G (target <3s), 12s on mobile 3G. Google Analytics shows 53% bounce rate for new visitors (industry average 40%), user session recordings reveal users waiting 6-8s then leaving before page fully loads. This abandonment costs revenue: we serve 100,000 monthly visitors, 53% bounce = 53,000 lost visitors, if 10% would convert = 5,300 lost conversions × $100 average order = $530k monthly lost revenue due to slow loading. Checkout flow particularly problematic: 5-step checkout (cart → shipping → payment → review → confirm) with average 4-second load per step = 20 seconds total checkout time, conversion funnel shows 35% abandonment during checkout (industry benchmark 22%), each second delay costs 7% conversion = 5 seconds × 7% = 35% loss matching our data. We lose 3,500 monthly conversions × $100 order value = $350k monthly revenue ($4.2M annually) due to slow checkout. SEO impact severe: Google Search Console Core Web Vitals report shows 80% of URLs classified 'Poor' (LCP >4s, CLS >0.25), 15% 'Needs Improvement', only 5% 'Good', organic traffic declined 25% over 6 months correlating with Google's page experience update prioritizing Core Web Vitals. Competitor analysis: top 3 competitors have 2-3s average load times, 'Good' Core Web Vitals classification, ranking above us for key terms despite similar content. Business case for performance hard to make: engineering wants 3 months optimizing performance, leadership asks 'what's ROI vs shipping new features?', I lack data connecting performance improvements to revenue/conversion/SEO gains."
+      transformation_moment: "When comprehensive performance optimization was implemented, business metrics transformed dramatically within 6 weeks. Page load times improved: desktop from 6.5s to 2.1s (68% improvement), mobile 4G from 8.2s to 2.8s (66% improvement), mobile 3G from 12s to 3.5s (71% improvement). Bounce rate reduced from 53% to 22% (58% improvement): fast loading retained users, 31% more visitors stayed = 31,000 additional monthly sessions, converting at 10% = 3,100 additional conversions × $100 = $310k additional monthly revenue ($3.7M annually). Checkout conversion improved 25%: optimized checkout flow (code splitting, preloading, caching) reduced per-step load from 4s to 1.2s (70% improvement), total checkout time from 20s to 6s, abandonment reduced from 35% to 18% (industry-leading), gained 2,500 monthly conversions × $100 = $250k additional monthly revenue ($3M annually). Core Web Vitals achieved 'Good' classification: LCP improved from 4.5s to 2.1s (target <2.5s), FID from 180ms to 45ms (target <100ms), CLS from 0.28 to 0.06 (target <0.1), Google Search Console showed 85% URLs now 'Good' (vs 5%), organic traffic recovered increasing 35% over 3 months, regained keyword rankings surpassing 2 of 3 main competitors. Performance monitoring dashboard connected performance to business metrics: created Datadog dashboard showing LCP vs conversion rate correlation (each 1s load time reduction = 12% conversion increase validated by A/B test), abandonment rate by load time bucket (<2s = 15% abandonment, 2-3s = 22%, 3-5s = 38%, >5s = 58%), revenue impact visualization (estimated $6.7M annual revenue gain from performance improvements). Leadership ROI clear: $3.7M annually from reduced bounce + $3M annually from improved checkout = $6.7M revenue gain from 3-month engineering investment (ROI 22x), performance became product priority."
+      emotional_resolution: "I now feel confident connecting performance to business outcomes with measurable revenue impact. Bounce rate reduced 58% (53% to 22%) retaining 31,000 additional monthly visitors translating to $3.7M annual revenue. Checkout conversion improved 25% (35% to 18% abandonment) gaining $3M annual revenue from faster checkout flow. Core Web Vitals 'Good' classification (85% URLs vs 5%) recovered organic traffic (+35% over 3 months) improving SEO rankings. Performance-business metrics dashboard visualizes correlation (load time vs conversion, abandonment by performance bucket) enabling data-driven prioritization. Total revenue impact $6.7M annually from performance optimization demonstrating clear ROI (22x) vs feature development. Most importantly, performance transformed from engineering concern to strategic business priority with measurable impact on growth and revenue enabling executive support for continued optimization investment."
+
+  scenarios:
+    - id: scn-001
+      name: Frontend Engineer optimizes bundle size and achieves Core Web Vitals targets
+      actor: frontend-developer
+      context: ctx-001
+      trigger: "UI Developer needs to reduce 420KB bundle to <150KB mobile and achieve LCP <2.5s after Core Web Vitals degradation hurting SEO."
+      action: >
+        Run bundle analyzer showing composition: React+vendor (120KB), lodash (70KB imported via import _ from 'lodash'), moment.js (160KB with all locales), chart.js (90KB all chart types), app code (180KB). Configure optimization: enable code splitting by route (create async imports for admin, reports, settings routes loaded on demand), configure vendor chunking (separate React+libraries into cached bundle), enable tree shaking (configure sideEffects: false in package.json). Replace heavy libraries: change import _ from 'lodash' to import {debounce, throttle, map} from 'lodash' reducing 70KB to 8KB, replace moment.js with date-fns (160KB to 12KB), load chart.js dynamically only when chart rendered. Run production build: mobile bundle reduced from 420KB to 118KB (72% reduction), desktop 245KB, build emits route chunks (dashboard-85KB.js, admin-45KB.js, reports-60KB.js). Configure performance budgets in CI: add webpack-bundle-analyzer to CI pipeline, set mobile budget 150KB with error on exceed, set desktop budget 300KB. Test locally: Lighthouse audit shows LCP 2.1s (target <2.5s ✓), FID 45ms (target <100ms ✓), CLS 0.05 (target <0.1 ✓), performance score 96/100. Deploy to staging: Real User Monitoring shows p95 load time 2.4s (vs previous 8.2s = 71% improvement), mobile 3G users 3.1s (vs 12s = 74% improvement). Create PR: CI runs bundle size check passing (118KB < 150KB), Lighthouse CI passes (performance >90), merge to production. Monitor after deployment: Core Web Vitals dashboard shows LCP improved from 4.5s to 2.1s across all URLs, Google Search Console updates showing 'Good' classification, SEO rankings improve for key terms.
+      outcome: "Bundle size reduced 72% (420KB to 118KB mobile) through automatic code splitting, tree shaking, and library replacements without manual webpack configuration. Page load improved 78% (FCP from 6-8s to 1.8s) meeting user expectations. Core Web Vitals consistently meet targets (LCP 2.1s, FID 45ms, CLS 0.05) achieving 'Good' classification improving SEO rankings. Performance budgets in CI prevent regressions (PR blocked if bundle >150KB) eliminating production surprises. Real user monitoring validated improvements (p95 load 2.4s vs 8.2s, 71% improvement) across all devices and networks demonstrating real-world impact."
+      acceptance_criteria:
+        - "Automatic code splitting: route-based splitting (home, dashboard, admin, settings separate chunks), vendor chunking (React+libraries separate long-cached chunk), dynamic imports for heavy features (chart library loads on first chart render), with webpack config generating optimized chunks automatically."
+        - "Tree shaking: eliminate unused code (lodash import only used functions reducing 70KB to 8KB), dead code elimination (remove unreachable code), CSS purging (remove unused styles reducing 80KB to 20KB), with build warnings showing eliminated code size."
+        - "Performance budgets: enforce mobile bundle max 150KB, desktop max 300KB, critical CSS max 20KB, with CI check failing PR if budgets exceeded and bundle size report showing current size vs budget and size change vs baseline (+5KB, -12KB)."
+        - "Core Web Vitals monitoring: track LCP (target <2.5s), FID (target <100ms), CLS (target <0.1), INP (target <200ms), with real user monitoring showing p50/p75/p95 percentiles, segmentation by device (mobile vs desktop), network (3G, 4G, WiFi), and geographic region, with alerts on regression (LCP increases >20%)."
+        - "Lighthouse CI integration: automated audits on every PR, performance score must be >90 to merge, mobile and desktop profiles tested, with detailed report showing metrics (LCP, FID, CLS, TTI, TBT) and suggestions (preload key requests, eliminate render-blocking resources, reduce unused JavaScript)."
+
+    - id: scn-002
+      name: Backend Engineer eliminates N+1 queries and implements multi-layer caching
+      actor: backend-developer
+      context: ctx-002
+      trigger: "API Developer needs to reduce response times from 1,800ms p95 to <200ms p95 and reduce database load 80% after infrastructure costs escalating."
+      action: >
+        Enable query profiling in development: configure to log all queries with execution time, query count per request, highlighting N+1 patterns. GET /users endpoint shows warning 'N+1 detected: 301 queries (1 users query + 100 profile queries + 100 post_count queries + 100 follower_count queries). Suggestion: use .include(:profile, :post_count, :follower_count)'. Refactor using eager loading: change User.all to User.include(:profile, posts: :comments, :follower_count) reducing 301 queries to 4 queries (98% reduction), response time from 1,200ms to 180ms (85% improvement). Check slow query log: database logging shows queries >100ms with execution plans, identifies 'Seq Scan on events (cost=125000)' indicating missing index on user_id column used in WHERE clause. Add index: CREATE INDEX idx_events_user_id ON events(user_id), query time reduces from 2,800ms to 35ms (99% improvement). Implement caching framework: add @Cache decorator to expensive dashboard endpoint with @Cache(ttl: 300, key: 'dashboard:stats:{user_id}', tags: ['user:{user_id}', 'posts']), first request queries database (3,200ms), subsequent requests hit cache (15ms = 99.5% improvement). Configure cache invalidation: when user creates post, framework automatically invalidates tags: ['posts', 'user:{user_id}'] clearing related caches without manual key management. Deploy multi-layer caching: CDN caches public API responses (product catalog 15-min TTL), Redis caches query results (dashboard stats 5-min TTL), in-memory caches configuration (no TTL, updated on change). Monitor performance: APM dashboard shows API response times p95 reduced from 1,800ms to 165ms (91% improvement), database query count from 10,000/min to 2,000/min (80% reduction), cache hit rate 85% (85% requests served from cache). Load test confirms 6 servers handle previous load requiring 10 servers.
+      outcome: "N+1 queries eliminated reducing 301 queries to 4 queries (98% reduction) and response time from 1,200ms to 180ms (85% improvement) through automatic detection and eager loading suggestions. Missing indexes identified and added reducing slow queries 95% (2,800ms to 35ms) through automated slow query log analysis. Multi-layer caching achieved 85% hit rate reducing database load 80% and enabling 40% server reduction (10 to 6 servers = $336k annual savings). API response times improved 91% (p95 from 1,800ms to 165ms) meeting performance targets. Caching framework handled invalidation complexity through tags eliminating manual key management."
+      acceptance_criteria:
+        - "N+1 query detection: development mode logs warnings showing N+1 patterns (1 query + N queries), total query count per request, suggestions for eager loading (.include(:association)), with automatic detection during request processing and detailed query timeline showing which queries are duplicated."
+        - "Missing index identification: slow query log analysis (queries >100ms), EXPLAIN plan showing Seq Scan vs Index Scan, index recommendations (CREATE INDEX statements with estimated improvement), with automated weekly reports showing top 10 slow queries and suggested indexes."
+        - "Multi-layer caching: CDN caching (edge cache for public API responses with 5-15 min TTL), application caching (Redis for query results with configurable TTL), in-memory caching (process cache for config/feature flags), with cache-aside pattern (check cache → if miss query DB and populate cache → return result)."
+        - "Cache invalidation: tag-based invalidation (assign tags to cached values, clear all caches with specific tag), event-based invalidation (invalidate on model updates), TTL expiry (time-based automatic expiry), with cache warming (precompute common queries on deployment) and stampede prevention (lock on cache miss preventing simultaneous DB queries)."
+        - "Performance monitoring: API response time tracking (p50/p95/p99 percentiles), database query count per minute, cache hit rate percentage, slow query identification (>100ms logged with stack trace), with APM dashboard showing trends, alerts on degradation (response time increases >20%, cache hit rate drops below 80%), and detailed request traces (distributed tracing showing time spent in each service/database)."
+
+    - id: scn-003
+      name: Product Manager measures performance impact on conversion rates and revenue
+      actor: product-manager
+      context: ctx-003
+      trigger: "Product Lead needs to demonstrate ROI of performance optimization and prioritize continued investment by connecting performance metrics to business outcomes."
+      action: >
+        Review pre-optimization baseline metrics: Google Analytics shows 53% bounce rate (100,000 monthly visitors = 53,000 bounces), checkout abandonment 35% (10,000 cart additions = 3,500 lost conversions × $100 = $350k monthly lost revenue), average session 2.1 pages. Google Search Console shows Core Web Vitals: 80% URLs 'Poor', 15% 'Needs Improvement', 5% 'Good', organic traffic declining 25% over 6 months. After performance optimization deployment (6-week implementation), review impact: page load times improved (desktop 6.5s to 2.1s, mobile 8.2s to 2.8s), bounce rate reduced from 53% to 22% (58% improvement), additional 31,000 monthly retained visitors × 10% conversion = 3,100 conversions × $100 = $310k monthly revenue gain ($3.7M annually). Checkout funnel analysis: abandonment reduced from 35% to 18% (checkout load time from 20s to 6s = 70% improvement), gained 2,500 monthly conversions × $100 = $250k monthly revenue ($3M annually). Core Web Vitals dashboard: LCP improved from 4.5s to 2.1s, FID from 180ms to 45ms, CLS from 0.28 to 0.06, Google Search Console shows 85% URLs now 'Good' classification (vs 5%), organic traffic increased 35% over 3 months regaining rankings. Create performance-business metrics dashboard: Datadog custom dashboard showing LCP vs conversion rate correlation (scatter plot showing each 1s load reduction = 12% conversion increase), abandonment by load time bucket (bar chart: <2s = 15%, 2-3s = 22%, 3-5s = 38%, >5s = 58%), revenue impact calculation ($3.7M bounce reduction + $3M checkout improvement = $6.7M total annual gain). Present to leadership: 'Performance optimization 3-month investment generated $6.7M annual revenue increase (ROI 22x), reduced infrastructure costs $480k annually, improved SEO rankings for 50+ key terms. Request continued investment: dedicate 20% engineering time to performance monitoring and optimization quarterly.'
+      outcome: "Bounce rate reduced 58% (53% to 22%) retaining 31,000 additional monthly visitors generating $3.7M annual revenue through faster page loads meeting 3s tolerance threshold. Checkout conversion improved 25% (35% to 18% abandonment) through optimized checkout flow generating $3M annual revenue from reduced friction. Core Web Vitals achieved 'Good' classification (85% vs 5% URLs) recovering organic traffic (+35%) and improving SEO rankings. Performance-business dashboard visualizes correlation between load time and conversion enabling data-driven prioritization. Total business impact $6.7M annual revenue + $480k infrastructure savings demonstrating clear ROI (22x) securing executive support for continued optimization investment."
+      acceptance_criteria:
+        - "Business metrics tracking: bounce rate by page load time bucket (<2s, 2-3s, 3-5s, >5s), conversion rate correlation with LCP (scatter plot showing inverse relationship), checkout abandonment by funnel step with load times, revenue impact calculation (retained visitors × conversion rate × average order value), with weekly reports showing trends and month-over-month comparison."
+        - "Core Web Vitals impact: Google Search Console integration showing URL classification (Good/Needs Improvement/Poor) over time, organic traffic correlation with Core Web Vitals improvements, keyword ranking changes after optimization, with SEO performance dashboard showing impressions, clicks, CTR, average position trends before and after optimization."
+        - "Performance-business dashboard: Datadog custom dashboard with key metrics (load time p50/p95, bounce rate, conversion rate, revenue), correlation visualizations (load time vs conversion scatter plot, abandonment by load time bucket bar chart), calculated business impact (monthly revenue gain from performance improvements, annual projection), with automated daily reports to stakeholders."
+        - "A/B testing: split traffic between optimized and baseline versions, measure conversion rate difference with statistical significance, calculate incremental revenue from performance improvements, with gradual rollout (10% → 50% → 100%) monitoring metrics at each stage and automatic rollback if degradation detected."
+        - "ROI calculation: engineering time investment (hours × hourly rate), infrastructure cost savings (reduced server count), revenue gains (reduced bounce, improved conversion), payback period, with executive summary report showing performance as strategic business investment (ROI 22x, $6.7M annual revenue gain, $480k cost savings) enabling prioritization vs feature development."
+
+dependencies:
+  requires:
+    - fd-015  # Responsive design enables mobile performance optimization (mobile-first bundles, touch optimization)
+  enables:
+    - "All features benefit from performance optimization improving user experience and reducing infrastructure costs"
+    - "SEO improvements through Core Web Vitals enable organic traffic growth and reduced acquisition costs"
+
+boundaries:
+  non_goals:
+    - "Network infrastructure optimization (CDN configuration, DDoS protection) - infrastructure team responsibility"
+    - "Database server tuning (PostgreSQL config, connection pools) - DBA responsibility, focus on query optimization"
+    - "Backend language/framework changes (Node.js to Go) - architectural decision, focus on incremental optimization"
+  constraints:
+    - "Performance budgets must balance UX and features - 150KB mobile limit may require trade-offs on functionality"
+    - "Caching introduces consistency challenges - TTL must balance freshness and performance (5-min TTL = 5-min staleness)"
+    - "Query optimization requires database knowledge - developers need training on EXPLAIN, indexing strategies"
+  edge_cases:
+    - "Cache stampede on expiry - many requests hit cache miss simultaneously overwhelming database (use locking)"
+    - "Personalized content can't cache - user-specific data requires different strategy (fragment caching)"
+    - "Large datasets (10k+ rows) can't cache entirely - implement pagination or cursor-based loading"
+
+contexts:
+  - id: ctx-001
+    type: developer
+    name: Frontend Performance Optimization Workflow
+    description: >
+      Frontend developers optimize bundle size, implement code splitting, configure performance budgets, and monitor Core Web Vitals achieving
+      sub-second load times and SEO targets through automated tooling and CI integration.
+    key_interactions:
+      - "Analyze bundle: run webpack-bundle-analyzer showing composition (vendor 120KB, lodash 70KB, moment 160KB, chart.js 90KB, app 180KB), identify optimization opportunities (replace heavy libraries, enable tree shaking, implement code splitting)."
+      - "Configure optimization: enable route-based code splitting (async imports for admin/reports/settings), configure vendor chunking (React+libraries separate cached bundle), enable tree shaking (sideEffects: false), replace heavy libraries (lodash → specific imports, moment → date-fns)."
+      - "Set performance budgets: configure CI pipeline with bundle size limits (mobile 150KB, desktop 300KB), Lighthouse performance score >90, Core Web Vitals targets (LCP <2.5s, FID <100ms, CLS <0.1), with PR blocked if budgets exceeded."
+      - "Monitor real user metrics: Datadog RUM dashboard showing p50/p95/p99 load times by device (mobile vs desktop), network (3G, 4G, WiFi), geographic region, Core Web Vitals trends over time, with alerts on regression (LCP increases >20%)."
+      - "Validate improvements: compare Lighthouse scores before/after (performance 65 → 96), measure bundle size reduction (420KB → 118KB = 72%), verify Core Web Vitals targets met (LCP 2.1s, FID 45ms, CLS 0.05), test on real devices (iPhone on 3G)."
+    data_displayed:
+      - "Bundle analyzer visualization: treemap showing JavaScript bundle composition (React 95KB, lodash 70KB, moment 160KB, chart.js 90KB, app code by route: dashboard 85KB, admin 45KB, reports 60KB), with size statistics (parsed size, gzip size, percentage of total), export function (JSON report for tracking over time)."
+      - "Performance budgets dashboard: table showing bundle sizes (mobile actual 118KB vs budget 150KB ✓, desktop actual 245KB vs budget 300KB ✓), Lighthouse scores (performance 96 vs target 90 ✓, accessibility 100 ✓), Core Web Vitals (LCP 2.1s vs 2.5s ✓, FID 45ms vs 100ms ✓, CLS 0.05 vs 0.1 ✓), with trend charts showing size/scores over time (last 30 days)."
+      - "Real user monitoring: line charts showing p50/p95/p99 load times over time (24h, 7d, 30d views), segmentation dropdowns (device: mobile 2.8s, desktop 2.1s; network: 3G 3.1s, 4G 2.4s, WiFi 1.8s; region: US 2.2s, Europe 2.5s, Asia 3.1s), Core Web Vitals gauges (LCP 2.1s green, FID 45ms green, CLS 0.05 green)."
+      - "Optimization suggestions: Lighthouse audit report with categorized suggestions (eliminate render-blocking resources: defer non-critical CSS saving 0.8s, preload key requests: preload fonts saving 0.3s, reduce unused JavaScript: remove unused chart types saving 40KB, properly size images: serve responsive images saving 500KB), with estimated impact and implementation guidance."
+      - "CI performance check: PR comment showing bundle size change (+5KB desktop ⚠️ approaching limit, -2KB mobile ✓), Lighthouse score change (performance 96 ✓ no regression, accessibility 100 ✓), Core Web Vitals status (all targets met ✓), with pass/fail decision (✓ Performance checks passed, safe to merge)."
+
+  - id: ctx-002
+    type: developer
+    name: Backend Performance & Caching Workflow
+    description: >
+      Backend developers optimize database queries, implement multi-layer caching, and monitor API performance achieving <200ms p95 response
+      times and 80% database load reduction through systematic profiling and caching strategies.
+    key_interactions:
+      - "Profile queries: enable query logging in development showing all queries per request, query execution times, N+1 detection warnings, total query count highlighting inefficient endpoints for optimization."
+      - "Optimize queries: refactor N+1 patterns using eager loading (User.include(:profile) reducing 101 to 2 queries), identify missing indexes via EXPLAIN (Seq Scan → Index Scan), add indexes reducing query times 95% (2,800ms to 35ms)."
+      - "Implement caching: add @Cache decorator to expensive endpoints with TTL and tags, configure multi-layer strategy (CDN for public data, Redis for query results, in-memory for config), achieve 85% cache hit rate reducing database load 80%."
+      - "Manage cache invalidation: use tag-based invalidation (clear related caches on model updates), implement cache warming (precompute common queries), monitor hit rate and TTL effectiveness adjusting configuration for optimal freshness vs performance."
+      - "Monitor performance: APM dashboard showing API response times (p50/p95/p99), database query count per minute, slow query identification (>100ms with stack traces), cache metrics (hit rate, miss rate, evictions), with alerts on degradation."
+    data_displayed:
+      - "Query profiler: request timeline showing SQL queries (SELECT users: 15ms, SELECT profiles WHERE user_id IN (...): 45ms, SELECT posts...: 30ms, total: 4 queries, 90ms), N+1 warnings (🔴 N+1 detected: profiles (100 queries). Use .include(:profile)), query count per endpoint (GET /users: 301 queries 🔴, GET /projects: 8 queries ✓), with drill-down to see full SQL and execution plans."
+      - "Slow query log: table listing queries >100ms (SELECT analytics aggregation: 2,800ms, 50 executions daily, EXPLAIN: Seq Scan on events, suggestion: CREATE INDEX idx_events_user_id), with filtering (by endpoint, by execution time, by frequency), copy button for suggested index statements."
+      - "Caching dashboard: cache hit rate gauge (85% green target >80%), cache layer breakdown (CDN: 40% hits, Redis: 75% hits, in-memory: 95% hits), TTL effectiveness (% of entries expired vs evicted), memory usage (Redis: 8.2GB used / 16GB capacity 51%), with cache key statistics (top 100 keys by access frequency, size, TTL)."
+      - "API performance metrics: line chart showing response times over time (p50: 85ms, p95: 165ms, p99: 380ms), percentile distribution histogram, endpoint breakdown table (GET /dashboard: p95 180ms ✓, POST /customers: p95 220ms ⚠️, GET /analytics: p95 380ms 🔴 investigate), with filters (by endpoint, by status code, by time range)."
+      - "Database load monitoring: line chart showing queries per minute over time (10,000/min baseline → 2,000/min after caching = 80% reduction), query type breakdown (SELECT: 85%, INSERT: 10%, UPDATE: 4%, DELETE: 1%), connection pool utilization (18 / 20 connections active 90%), with alerts (query count spike >15,000/min, connection pool exhaustion >95%)."
+
+  - id: ctx-003
+    type: business
+    name: Performance Impact & Business Metrics Dashboard
+    description: >
+      Product managers and executives monitor performance impact on business outcomes (conversion rates, revenue, SEO rankings) with clear
+      ROI visualization enabling data-driven prioritization of performance optimization investments.
+    key_interactions:
+      - "Review key metrics: dashboard showing bounce rate (22% vs 53% baseline = 58% improvement), conversion rate by load time bucket (<2s: 12%, 2-3s: 10%, >3s: 7%), checkout abandonment (18% vs 35% baseline = 25% improvement), with trends over time (daily, weekly, monthly)."
+      - "Analyze Core Web Vitals impact: Google Search Console integration showing URL classification (85% Good, 12% Needs Improvement, 3% Poor), organic traffic trend (+35% over 3 months), keyword rankings (50+ terms improved), with correlation to traffic and conversion."
+      - "Calculate revenue impact: automated calculation showing bounce reduction revenue (31,000 retained visitors × 10% conversion × $100 = $310k monthly = $3.7M annually), checkout improvement revenue (2,500 additional conversions × $100 = $250k monthly = $3M annually), total impact ($6.7M annually)."
+      - "Monitor performance-conversion correlation: scatter plot showing load time vs conversion rate (each 1s reduction = 12% conversion increase), segmentation by device/network (mobile 3G most sensitive to performance), A/B test results (optimized version +18% conversion with 99% confidence)."
+      - "Present ROI to leadership: executive summary report with key metrics (revenue gain $6.7M, cost savings $480k, ROI 22x), performance before/after comparison (load time, bounce rate, conversion rate), strategic recommendations (dedicate 20% engineering time to performance optimization quarterly)."
+    data_displayed:
+      - "Business metrics overview: large number cards showing bounce rate (22% ⬇️ 58% vs baseline), conversion rate (10.2% ⬆️ 25% vs baseline), average order value ($103 ➡️ stable), monthly revenue ($1.8M ⬆️ 35% vs last quarter), with trend sparklines (last 90 days) and comparison to goals (conversion target 12%, current 10.2%, progress 85%)."
+      - "Load time vs conversion correlation: scatter plot with load time (x-axis 0-8s) vs conversion rate (y-axis 0-15%), trend line showing inverse correlation (each 1s increase = 7% conversion decrease), data points colored by device (mobile 3G red, mobile 4G orange, desktop green), with annotation 'Target load time <3s for optimal conversion (12%+)'."
+      - "Core Web Vitals SEO impact: stacked area chart showing URL classification over time (Good green, Needs Improvement yellow, Poor red), line overlay showing organic traffic trend (declining 25% when 80% Poor, recovering 35% after optimization to 85% Good), table listing keyword ranking changes (50 terms improved, 12 stable, 3 declined)."
+      - "Revenue impact breakdown: waterfall chart showing baseline revenue ($1.2M monthly), bounce reduction impact (+$310k monthly), checkout optimization impact (+$250k monthly), organic traffic growth (+$80k monthly), total optimized revenue ($1.84M monthly = +53% vs baseline), with annual projection ($7.7M gain = 64% increase)."
+      - "Executive ROI summary: single-page report with performance metrics before/after (load time 6.5s → 2.1s, bounce 53% → 22%, conversion 8% → 10.2%), business impact summary ($6.7M annual revenue gain, $480k cost savings, 22x ROI), investment details (3-month engineering effort, ongoing 20% time allocation), strategic recommendation (performance optimization is high-ROI investment comparable to major feature launches)."

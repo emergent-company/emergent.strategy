@@ -1,0 +1,532 @@
+id: fd-019
+name: Data Privacy & GDPR Compliance
+category: cross-cutting
+definition:
+  overview: >
+    Organizations face severe privacy compliance risks with manual processes: GDPR fines averaging €20M for violations (€1.2B total 2023),
+    data breach costs $4.45M average (IBM 2024), and reputation damage from privacy incidents. Current systems lack comprehensive privacy
+    controls: scattered personal data across databases without inventory (unknown PII locations), manual consent management (spreadsheets
+    tracking consent losing accuracy), 30-day data deletion requests requiring engineering intervention (GDPR mandates completion), no
+    audit trails proving compliance (regulators demand evidence). This feature provides automated privacy compliance with data classification,
+    consent management, self-service data rights, audit trails, and privacy-by-design patterns reducing compliance costs 85% ($500k to $75k
+    annually) while eliminating regulatory risk.
+
+  jobs_to_be_done:
+    - "When handling user data, I want automatic classification, so I know what's PII vs maintaining manual inventory."
+    - "When users consent, I want granular tracking, so I prove compliance vs spreadsheet chaos losing accuracy."
+    - "When users request deletion, I want automated workflows, so completion takes hours vs 30-day manual engineering."
+    - "When audited, I want complete trails, so I demonstrate compliance instantly vs scrambling for evidence."
+    - "When building features, I want privacy patterns, so compliance is automatic vs afterthought retrofit."
+
+  strategic_context:
+    problem_space: >
+      GDPR fines severe: €1.2B total 2023, average €20M per violation (DLA Piper 2024). Data breach costs $4.45M average with 277-day
+      detection time (IBM Cost of Data Breach 2024). Organizations struggle: personal data scattered (customer DB, analytics, logs, backups)
+      without inventory, manual consent via checkboxes (no tracking who consented when to what), deletion requests require engineering (identify
+      PII across systems, write scripts, verify deletion taking 15-30 days vs GDPR 30-day mandate), no audit trails (can't prove when data
+      collected, consent obtained, or deletion completed). Privacy incidents cause reputation damage: 60% customers switch providers after
+      breach (PwC). Manual compliance expensive: $500k annually for 100-person company (legal review, engineering time, audit prep).
+
+    existing_alternatives: >
+      Current systems provide basic privacy: privacy policy (legal document users don't read), consent checkboxes (no tracking changes),
+      manual deletion (engineering writes SQL scripts per request). Teams implement workarounds: spreadsheet tracking consent (loses sync
+      with actual system), engineering on-call for deletion requests (takes 2-3 days per request), quarterly compliance audits (scramble
+      gathering evidence taking 50+ hours). Dedicated tools exist (OneTrust, TrustArc) but expensive ($50k+ annually) and require integration
+      effort.
+
+    value_hypothesis: >
+      Organizations implementing automated privacy compliance will reduce compliance costs 85% (from $500k to $75k annually), reduce deletion
+      request completion time 95% (from 15 days to 12 hours), eliminate regulatory risk (zero fines vs potential €20M penalties), and improve
+      customer trust (privacy-first brand). For 100-person org: automated consent tracking eliminates 2 hours weekly legal review × 52 weeks
+      × $300/hour = $31k value, automated deletion workflows eliminate 15 engineer-days per month × 12 months × $800/day = $144k value,
+      automated audit trails eliminate 50 hours quarterly audit prep × 4 quarters × $200/hour = $40k value, total $215k savings. Avoiding
+      single GDPR fine ($500k minimum) = massive risk reduction ROI.
+
+  capabilities:
+    - id: cap-001
+      name: Data Classification & PII Discovery
+      description: >
+        Automatic identification and classification of personal data across systems enabling comprehensive inventory and compliance tracking.
+        Automatic scanning: discover PII in databases (email, phone, address, SSN patterns), logs (PII in application logs requiring scrubbing),
+        analytics (user behavior tracking needing consent), backups (retention policies per data type). Classification framework: assign
+        sensitivity levels (public, internal, confidential, restricted) determining encryption and access requirements, regulatory categories
+        (PII, financial, health, biometric) triggering specific compliance rules. Data inventory: centralized registry showing all PII
+        locations (customer.email in users table, user_id in analytics events, request logs in CloudWatch), data lineage (source → processing
+        → storage → retention), data owners (who's responsible for each dataset). Retention policies: define rules per data type (analytics
+        events 90 days, customer data 7 years, logs 30 days), automatic deletion after retention period (GDPR Article 5 storage limitation),
+        legal hold support (preserve data for litigation overriding normal retention). PII masking: automatically redact PII in logs (replace
+        email@example.com with e***l@e***.com), mask in non-production environments (staging uses synthetic data not production PII), tokenization
+        for analytics (replace user_id with anonymous token enabling analysis without PII exposure).
+
+    - id: cap-002
+      name: Consent Management & Preference Center
+      description: >
+        Granular consent tracking with user-facing preference center enabling compliant data processing and marketing communication. Consent
+        framework: define purposes (marketing emails, product analytics, third-party sharing, personalization), track consent per purpose
+        (user opted in marketing but out of analytics), version tracking (consent for v1 privacy policy obtained 2024-01-15, v2 requires
+        re-consent). User preference center: self-service dashboard showing active consents (marketing: ON, analytics: OFF, sharing: OFF),
+        toggle controls (user changes preferences immediately effective), consent history (obtained 2024-01-15, modified 2024-06-20, withdrawn
+        2024-11-03). Consent enforcement: application checks consent before processing (before sending marketing email verify user consented),
+        API wrapper (@RequireConsent('marketing') decorator blocks execution if not consented), automatic data pipeline controls (analytics
+        ingestion only processes events from consented users). Consent proof: audit log records consent actions (timestamp, user_id, action
+        [granted/withdrawn], purpose, IP address, user agent), withdrawal propagation (user withdraws consent → queued job deletes related
+        data within 24 hours), regulatory reports (show consent rates, withdrawal rates, purposes per regulatory requirement). Cookie consent:
+        cookie banner implementation (required/functional cookies always allowed, analytics/marketing require consent), cookie scanning
+        (identify all cookies site uses), consent before cookie placement (GDPR ePrivacy directive compliance).
+
+    - id: cap-003
+      name: Data Subject Rights Automation
+      description: >
+        Self-service portal for GDPR rights (access, rectification, erasure, portability) with automated workflows completing requests within
+        hours vs 15-30 day manual processes. Right to access: user requests personal data copy, system generates comprehensive report (all
+        data from all systems: profile, orders, analytics, support tickets), delivered as downloadable JSON/PDF within 1 hour (vs 30-day
+        GDPR limit). Right to rectification: user corrects inaccurate data (update email, phone, address), changes propagate to all systems
+        (central identity service → downstream services via event bus), audit trail records changes (old value, new value, timestamp, reason).
+        Right to erasure (right to be forgotten): user requests deletion, workflow identifies all PII across systems (customer DB, analytics,
+        logs, backups, third-party services), automated deletion jobs (database rows, log files, analytics events, cached data), verification
+        report (confirms deletion completed), completion within 12 hours (vs 15-30 days engineering effort). Right to portability: export
+        data in machine-readable format (JSON, CSV), structured schema (standard format enabling import to competitors), includes all user
+        data (profile, content, interactions). Request dashboard: admin panel showing all data subject requests (pending, in-progress,
+        completed), SLA tracking (time remaining until GDPR deadline), automated escalation (if request approaching deadline alert privacy
+        officer). Exemption handling: certain data can't be deleted (legal obligations, contract performance), system flags exemptions with
+        justification, partial deletion (delete what's possible, retain what's required with explanation).
+
+    - id: cap-004
+      name: Privacy Audit Trails & Compliance Reporting
+      description: >
+        Comprehensive audit logging of privacy-related actions with automated compliance reporting demonstrating regulatory adherence.
+        Audit logging: record all privacy events (consent granted/withdrawn, data accessed, data modified, data deleted, user requests,
+        admin actions), immutable log storage (write-only preventing tampering), required fields (timestamp, user_id, action, resource,
+        outcome, IP address, user agent). Access logging: track who accessed PII when (admin viewed user profile, API endpoint returned
+        personal data, bulk export performed), purpose validation (require justification for PII access), anomaly detection (unusual access
+        patterns trigger security alerts). Data processing registry: GDPR Article 30 compliance (maintain record of processing activities),
+        document each processing purpose (what data, why collected, legal basis, retention period, third-party processors), controller
+        vs processor roles. Compliance reports: generate regulatory reports (consent rates by purpose, data subject request completion
+        times, data retention compliance, third-party processors used), executive dashboards (privacy program health, compliance risks,
+        request volume trends), audit preparation (regulator requests evidence → instant export of relevant audit logs). Breach notification:
+        automated detection (unusual data access, bulk export, unauthorized query), 72-hour notification workflow (GDPR Article 33 breach
+        notification), impact assessment (how many users affected, what data exposed, risk level), notification templates (authorities,
+        affected individuals).
+
+    - id: cap-005
+      name: Privacy-by-Design Patterns & Developer Tools
+      description: >
+        Framework patterns and developer tools embedding privacy into development process vs afterthought retrofit. Data minimization:
+        collect only necessary data (form fields require justification, analytics events reviewed for PII), default to privacy-preserving
+        alternatives (aggregate metrics vs individual tracking, anonymous surveys vs identified), retention limits enforced (temporary
+        data auto-deletes). Privacy design patterns: pseudonymization (replace identifiers with tokens), anonymization (remove identifying
+        fields), differential privacy (add noise to aggregates preventing individual identification), homomorphic encryption (computation
+        on encrypted data). Developer tooling: linting rules (flag PII in logs, block sensitive data in analytics), code annotations
+        (@PersonalData decorator marks PII fields), automated testing (test data deletion workflows, verify consent enforcement), privacy
+        review checklist (required for feature launches). Privacy impact assessments: template for high-risk features (what data, why
+        needed, alternatives considered, risks, mitigations), automated triggers (new PII fields, third-party integrations, data exports
+        require PIA), review workflow (privacy officer approval before production). Training: developer privacy training (GDPR basics,
+        privacy patterns, common mistakes), secure coding practices (PII handling, encryption, access controls), compliance awareness.
+
+  personas:
+    - id: privacy-officer
+      name: Privacy Officer
+      role: Data Protection Lead
+      description: >
+        Privacy professional ensuring GDPR compliance, managing data subject requests, and reducing regulatory risk. Values automated
+        compliance workflows vs manual processes. Frustrated by scattered data, manual deletion requests, and difficult audit preparation.
+      goals:
+        - "Complete deletion requests within 12 hours vs 15-30 days meeting GDPR deadlines eliminating violations."
+        - "Generate audit reports instantly vs 50-hour quarterly scramble demonstrating compliance to regulators."
+        - "Track consent comprehensively vs spreadsheet chaos proving compliant data processing."
+        - "Eliminate GDPR fines through robust compliance vs potential €20M penalties from violations."
+      pain_points:
+        - "Manual deletion: engineering requires 15-30 days per request identifying PII across systems and writing deletion scripts."
+        - "Scattered data: personal data in databases, logs, analytics, backups without comprehensive inventory."
+        - "Audit preparation: quarterly audits require 50+ hours gathering evidence from scattered systems."
+        - "Consent tracking: spreadsheet loses sync with actual system causing compliance gaps."
+      usage_context: >
+        Manages 50-100 monthly data subject requests, quarterly compliance audits, annual regulatory reporting. Expert proficiency expecting
+        automated compliance workflows and comprehensive audit trails.
+      technical_proficiency: expert
+      current_situation: "As Privacy Officer for 100,000-user platform, I struggle with manual compliance processes risking €20M GDPR fines. Current deletion request workflow nightmare: user submits deletion request via support ticket, I forward to engineering, engineering manually identifies PII locations (customer DB, analytics events table, application logs, CloudWatch logs, database backups, third-party analytics), writes custom SQL scripts per request (DELETE FROM users WHERE id=?; DELETE FROM analytics_events WHERE user_id=?; find logs containing user_id and redact), validates deletion across 8 systems taking 3-5 days per request. Monthly volume: 50-80 requests × 4 days average = 200-320 engineer-days monthly (5-6 full-time engineers just for deletions). GDPR mandates 30-day completion but average 22 days risking violations. Consent tracking inadequate: marketing team maintains spreadsheet (10,000 rows with email, consent_date, marketing_opt_in columns), loses sync with actual system (users unsubscribe via preference center but spreadsheet not updated), during audit discovered 2,000 discrepancies (users marked opted-in who actually unsubscribed = GDPR violation risk). Quarterly audit preparation exhausting: regulator requests evidence of compliant processing, I manually gather from multiple systems (export consent records from spreadsheet, query database for deletion completions, ask engineering for data retention policies, compile third-party processor list from contracts), takes 50-60 hours producing 200-page binder. One incomplete audit response resulted in €50k fine (failed to demonstrate consent for marketing emails sent to 500 users)."
+      transformation_moment: "When automated privacy compliance platform deployed, workflows transformed dramatically. Data subject request portal: users self-service submit requests (access, deletion, rectification, portability), automated workflow identifies all PII across systems using data inventory (found user data in 12 locations: users table, analytics_events, application logs [3 months retention], CloudWatch [30 days], database backups [90 days], Redis cache, third-party analytics [Mixpanel, Amplitude], customer support [Zendesk], email service [SendGrid]), automated deletion jobs execute (database cascading deletes, log scrubbing, cache invalidation, third-party API calls), verification report generated showing completion. Deletion request that previously took 22 days now completes in 8 hours (96% improvement). Monthly volume unchanged (50-80 requests) but engineering time reduced from 320 days to 0.5 days (one engineer monitors dashboard, 99.8% reduction). Consent management automated: user preference center replaced spreadsheet, users toggle preferences (marketing ON, analytics OFF, third-party sharing OFF) immediately effective, consent enforcement at application layer (before sending email check user.consents.marketing === true, before tracking analytics check user.consents.analytics === true), 100% sync between preferences and actual processing eliminating compliance gaps. Audit trail comprehensive: immutable log recording every consent action (timestamp, user_id, granted/withdrawn, purpose, IP, user agent), every data access (admin viewed profile, API returned PII, bulk export performed), every deletion (what deleted, when, verification hash). Quarterly audit now trivial: regulator requests evidence, I export audit reports (consent tracking: 95% opt-in rate for required processing, 42% for marketing; deletion requests: 156 completed, average 9 hours, 100% within 30 days; data retention: automated policies enforced; third-party processors: 8 documented with data processing agreements). Report generation: 2 hours vs 50 hours (96% reduction). After 18 months: zero GDPR violations (vs previous €50k fine), 156 deletion requests completed average 9 hours vs 22 days, audit prep reduced 96%, compliance costs reduced from $500k to $75k annually ($425k savings)."
+      emotional_resolution: "I now feel confident with comprehensive compliance vs constant violation risk. Automated deletion workflows complete requests in 9 hours average (vs 22 days) meeting GDPR 30-day mandate with buffer. Data inventory shows all PII locations (12 systems mapped) enabling systematic deletion vs guessing where data lives. Consent management synchronized (preference center → application enforcement) eliminating spreadsheet chaos and 2,000-discrepancy scenarios. Audit trails immutable (every consent, access, deletion logged) providing instant evidence vs 50-hour quarterly scramble. Most importantly, GDPR fine risk eliminated ($0 violations vs previous €50k fine, avoiding potential €20M penalties) while compliance costs reduced 85% ($425k savings annually) enabling privacy-first operations."
+
+    - id: end-user-privacy
+      name: Privacy-Conscious User
+      role: Platform User
+      description: >
+        User valuing data privacy and control over personal information. Values transparency and self-service data rights vs opaque processes.
+        Frustrated by lack of visibility into data usage and difficult data deletion.
+      goals:
+        - "Control data usage through granular consent vs all-or-nothing checkboxes."
+        - "Access personal data instantly vs waiting 30 days for manual export."
+        - "Delete account completely within hours vs weeks of engineering work."
+        - "Understand data practices through transparency vs opaque privacy policies."
+      pain_points:
+        - "Consent opacity: single checkbox 'I agree to Terms' without granular control over marketing vs analytics."
+        - "Data access delays: request personal data copy, wait 25-30 days for manual engineering export."
+        - "Deletion difficulty: submit deletion request, wait 3 weeks, unclear if completed, data may remain in backups."
+        - "No transparency: don't know what data collected, how used, who has access, can't verify compliance."
+      usage_context: >
+        Reviews privacy settings quarterly, exercises data rights occasionally, values privacy-first brands. Intermediate proficiency expecting
+        self-service privacy controls and transparency.
+      technical_proficiency: intermediate
+      current_situation: "As privacy-conscious user of social platform, I feel powerless over personal data lacking visibility and control. Recent experience: received marketing email despite believing I opted out months ago, checked account settings finding only binary choice 'Receive emails: ON/OFF' without granularity (want product updates but not promotional offers - can't separate). Discovered I'm actually opted into 'marketing emails' (forgot I checked box during signup 2 years ago buried in 50-page terms), no way to see consent history (when agreed? what specifically?). Attempted to review what data collected: no self-service option, submitted 'data access request' via support form, received auto-reply '30 days to respond per GDPR', waited 28 days, received 2MB ZIP file with JSON files (users.json, posts.json, comments.json) but missing analytics (don't know what behavior tracked), logs (can't see who accessed my data), third-party sharing (was my data sent to advertisers?). Decided to delete account: found 'Delete Account' button with warning 'Permanent action, cannot be undone', clicked confirm, account immediately inaccessible but uncertain about actual data deletion (is data truly deleted from backups? third-party analytics? logs?), no confirmation, no verification report. Three weeks later searched my name in site search still finding my old posts (content not deleted?), contacted support who explained 'deletion takes 4-6 weeks to complete across all systems' (unclear why so long, concerning data may persist indefinitely in some systems). Privacy policy 35 pages of legal text (incomprehensible), no plain-language explanation of data practices, no visibility into who accessed my data or for what purpose."
+      transformation_moment: "When privacy compliance features deployed, user experience transformed providing transparency and control. Preference center: discovered new 'Privacy Settings' section showing granular consent controls (marketing emails: ON, product announcements: ON, analytics tracking: OFF, third-party sharing: OFF, personalized ads: OFF), consent history visible (marketing emails: granted 2022-03-15 during signup, product announcements: granted 2023-06-20 when enabled new feature, analytics: never granted), toggle any preference immediately effective (turned off marketing emails, received confirmation 'No longer sending marketing emails, change effective immediately'). Plain-language privacy dashboard: 'Your Data' section showing what collected (profile: name, email, birthday; content: 47 posts, 203 comments; activity: last login, page views), how used (profile for account management, content displayed on platform, activity for analytics [but I opted out so not tracked]), who accessed (me: 152 logins last 30 days; support: 1 access on 2024-11-15 for ticket resolution; admin: 0 accesses), third-party sharing (none - opted out). Requested data export: clicked 'Download My Data', received notification '15 min', downloaded comprehensive ZIP (profile, posts, comments, consent history, access logs) in machine-readable JSON plus human-readable PDF summary. Data portability enabled switching providers without data lock-in. Deleted account with confidence: clicked 'Delete Account', confirmation dialog explained 'Deletion completes within 24 hours, includes all data across systems (database, logs, backups, third-party services), you'll receive verification report', confirmed, received email 18 hours later 'Account deletion complete' with attached verification report showing 12 systems where data deleted (users table, analytics_events, logs, cache, backups, Mixpanel, Amplitude, etc.) with deletion timestamps and verification hashes proving completion. After adoption: confidence in platform increased (transparency builds trust), recommended to privacy-conscious friends (positive word-of-mouth), willing to pay premium for privacy-first service (differentiator vs competitors)."
+      emotional_resolution: "I now feel empowered with data control vs powerless uncertainty. Granular consent (separate marketing, product, analytics) enables nuanced preferences vs all-or-nothing checkbox. Transparency dashboard shows exactly what data collected and how used vs opaque 35-page policy. Self-service data export (15 min) vs 28-day wait. Verified deletion (18 hours with confirmation report showing 12 systems) vs weeks of uncertainty whether data truly deleted. Access logging shows who viewed my data building trust. Most importantly, privacy transformed from anxiety-inducing black box to transparent controllable process strengthening platform trust."
+
+    - id: backend-dev-privacy
+      name: Backend Developer
+      role: Application Engineer
+      description: >
+        Engineer implementing features while ensuring privacy compliance. Values automated privacy patterns vs manual retrofit. Frustrated
+        by unclear privacy requirements and difficult data deletion implementation.
+      goals:
+        - "Implement privacy-compliant features through framework patterns vs manual retrofit."
+        - "Handle deletion requests automatically vs writing custom SQL scripts per request."
+        - "Enforce consent through declarative code vs manual checks scattered throughout."
+        - "Avoid privacy bugs through tooling vs post-launch violations."
+      pain_points:
+        - "Privacy retrofit: build feature, later told 'this violates GDPR' requiring expensive rework."
+        - "Manual deletion: each request requires custom SQL identifying tables, foreign keys, cascading deletes taking 4+ hours."
+        - "Scattered consent checks: manually verify consent before each operation (easy to forget causing violations)."
+        - "Unclear requirements: privacy policy legal text doesn't translate to technical requirements."
+      usage_context: >
+        Implements features monthly, handles deletion requests weekly, participates in privacy reviews. Expert proficiency expecting
+        privacy-by-design framework patterns and automated compliance.
+      technical_proficiency: expert
+      current_situation: "As Backend Developer, I struggle with privacy compliance lacking clear technical patterns. Recent feature: recommendation engine requiring user behavior tracking (page views, clicks, time spent), implemented analytics.track('page_view', { user_id, page, timestamp }), deployed to production, three weeks later privacy officer: 'This violates GDPR - tracking requires consent, users opted out are still tracked'. I added consent checks (if user.consents.analytics then track) throughout codebase (15 locations), missed 3 locations discovered during audit, one location checking wrong consent field (checking marketing instead of analytics), took 2 weeks fixing across codebase. Privacy review should have happened during design not post-launch. Deletion requests consume massive engineering time: weekly I receive 'User 12345 requested deletion', manually identify PII locations (users table, posts, comments, analytics_events, logs), write SQL per request (DELETE FROM users WHERE id=12345; DELETE FROM posts WHERE author_id=12345; DELETE FROM comments WHERE author_id=12345; UPDATE analytics_events SET user_id=NULL WHERE user_id=12345; -- can't delete analytics due to aggregates), search application logs for user_id redacting entries, takes 4-6 hours per request × 4 weekly = 16-24 hours weekly just for deletions (30-40% of my time). One deletion incomplete: forgot to delete from Redis cache, user complained 'profile still showing', emergency fix required. Data model lacks privacy patterns: PII fields unmarked (email, phone, address not distinguished from non-sensitive data), no cascading deletes (manually write DELETE for each table), no retention policies (all data kept forever unless manually deleted), PII in logs (console.log statements occasionally include email or user_id violating privacy)."
+      transformation_moment: "When privacy framework with developer tooling deployed, development transformed. Data model annotations: marked PII fields with @PersonalData decorator (email, phone, address, date_of_birth), framework automatically handles (encryption at rest, redaction in logs, inclusion in deletion workflows). Deletion automation: user requests deletion, workflow reads @PersonalData annotations discovering all tables with PII, executes cascading deletes (users → posts → comments → analytics → cache → logs), generates verification report, no manual SQL needed. Weekly deletion requests (4 requests × 0 hours = 0 hours vs previous 16-24 hours saving 30-40% of my time). Consent enforcement declarative: new feature recommendation engine, added @RequireConsent('analytics') decorator to tracking function, framework automatically checks consent before execution (if user opted out → function skipped, no tracking), single enforcement point vs 15 scattered checks eliminating 'forgot to check' bugs. Prevented 3 consent violations caught during code review (reviewer: 'tracking needs @RequireConsent decorator'). Privacy linting integrated: ESLint rules flag privacy issues (PII in console.log → error 'Personal data in logs', analytics tracking without consent check → warning 'Add @RequireConsent decorator', database queries returning PII without access logging → error 'Log PII access'), catch issues during development vs post-launch violations. Privacy design review embedded: create pull request for new feature → automated checklist triggers (Does feature collect PII? Justify necessity. Does feature require consent? Specify purpose. Does feature share data with third parties? Document processors.), privacy officer reviews before merge, catch issues at design time vs production violations. After 12 months: privacy bugs reduced 90% (tooling catches issues early), deletion request time reduced 100% (4-6 hours manual → fully automated), consent violations eliminated (declarative enforcement prevents 'forgot to check' bugs), development velocity increased (privacy patterns built-in vs afterthought retrofit reducing rework)."
+      emotional_resolution: "I now feel confident implementing privacy-compliant features vs constant violation risk. Data model annotations (@PersonalData) provide clear schema vs unmarked PII fields. Automated deletion (reads annotations, executes cascading deletes, generates verification) eliminates 16-24 weekly hours of manual SQL writing (30-40% time savings). Declarative consent enforcement (@RequireConsent decorator) prevents scattered checks and 'forgot to check' violations. Privacy linting (catches PII in logs, missing consent, unlogged access) identifies issues during development vs post-launch retrofits. Privacy review integrated into PR workflow ensures design-time compliance vs production violations requiring expensive rework. Most importantly, privacy transformed from confusing legal requirement to clear technical patterns enabling confident compliant development."
+
+    - id: legal-counsel
+      name: Legal Counsel
+      role: Compliance Attorney
+      description: >
+        Attorney ensuring regulatory compliance and managing legal risk. Values automated compliance evidence vs manual audit preparation.
+        Frustrated by insufficient documentation and difficult regulatory reporting.
+      goals:
+        - "Demonstrate compliance instantly through automated reports vs 60-hour manual audit prep."
+        - "Track third-party processors comprehensively vs scattered contract management."
+        - "Document legal basis for processing vs unclear justification risking violations."
+        - "Reduce regulatory fine risk from €20M potential to zero through robust compliance."
+      pain_points:
+        - "Audit preparation: regulator requests evidence, scramble for 60 hours compiling from scattered systems."
+        - "Insufficient documentation: can't prove consent obtained, data retention followed, deletion completed."
+        - "Third-party risk: processors scattered across contracts, can't enumerate who has access to data."
+        - "Unclear legal basis: engineering processes data without documented lawful basis (GDPR Article 6)."
+      usage_context: >
+        Annual regulatory audits, quarterly compliance reviews, contract management for processors. Expert legal proficiency expecting
+        comprehensive compliance documentation and automated reporting.
+      technical_proficiency: intermediate
+      current_situation: "As Legal Counsel ensuring GDPR compliance for SaaS company, I struggle with insufficient documentation risking €20M fines. Recent regulatory audit: data protection authority requested evidence of compliant processing (lawful basis per GDPR Article 6, consent records per Article 7, data retention per Article 5, processor agreements per Article 28, breach notification per Article 33), I spent 60+ hours manually compiling evidence from scattered systems (consent spreadsheet from marketing, deletion logs from engineering Slack messages, data retention policies from wiki [outdated], processor list from contract management [incomplete], breach incident reports from security team emails). Produced 300-page binder but gaps identified: couldn't prove consent for 2,000 users (records missing from spreadsheet), couldn't demonstrate timely deletion (some requests >30 days due to engineering backlog), processors incomplete (discovered 3 undocumented subprocessors during audit = GDPR Article 28 violation). Audit resulted in €50k fine (warning for consent gaps), required remediation plan (implement comprehensive consent tracking, document processors, demonstrate deletion within 30 days). Legal basis unclear: engineering collects user behavior analytics but documentation doesn't specify lawful basis (legitimate interest? consent? contract performance?), privacy impact assessment missing for high-risk processing (bulk data exports, third-party sharing), GDPR Article 30 processing registry incomplete (lists 8 processing activities but actual systems perform 20+). Third-party processor risk: contracts with 12 processors (AWS, SendGrid, Mixpanel, Stripe, Zendesk, etc.) but data processing agreements missing for 3 (non-compliant), no monitoring of subprocessors (primary processor engages subprocessors without notification), no data flow mapping (unclear what data sent where). Breach notification workflow undefined: security team discovers breach, informs me 5 days later (GDPR requires 72-hour notification to authorities), insufficient information about affected users and data types delaying notification, no template for regulator communication. Managing compliance manually unsustainable: costs $500k annually (my time, engineering effort, audit prep, external consultants) for 100-person company, high violation risk (one major incident = €20M fine = company bankruptcy)."
+      transformation_moment: "When automated compliance platform deployed, documentation and risk transformed. GDPR Article 30 processing registry: comprehensive database of all processing activities (user authentication: legal basis = contract performance, data collected = email/password, retention = account lifetime, processors = AWS; marketing emails: legal basis = consent, data = email/preferences, retention = until withdrawal, processors = SendGrid; analytics: legal basis = legitimate interest, data = behavior events, retention = 90 days, processors = Mixpanel; 18 activities total vs previous 8 documented), auto-generated from system configuration (reads @PersonalData annotations, consent requirements, retention policies) vs manual documentation losing sync. Consent records comprehensive: audit trail for every consent action (timestamp, user, purpose, version, IP, user agent), immutable storage (write-only preventing tampering), automated reports (consent rate by purpose: required processing 95%, marketing 42%, analytics 68%; withdrawal handling: average 18 hours to complete data deletion vs GDPR 30-day limit), instant evidence for auditors vs scrambling through spreadsheets. Third-party processor management: automated inventory (12 processors documented with data processing agreements attached, data flow mapping showing what data sent where, subprocessor tracking with notifications when added), contract management (DPA expiration alerts, renewal workflows), risk assessment per processor (criticality, data sensitivity, geographic location). Regulatory audit transformed: regulator requests evidence, I click 'Generate Compliance Report', receive comprehensive PDF (processing registry, consent records, deletion completions, processor agreements, retention policies, breach incidents, access logs) generated in 15 min vs 60+ hours manual compilation. Report demonstrates full compliance: consent tracking 100% covered (no gaps), deletion requests 100% completed within 30 days (average 9 hours), processors fully documented with DPAs, legal basis documented per processing activity, audit trail proving compliance. Breach notification workflow automated: security detects unusual access, system alerts me immediately with impact assessment (87 users affected, email/phone exposed, criticality = HIGH), notification templates pre-filled (regulator notification within 24 hours vs GDPR 72-hour limit, affected user notification drafted), timeline tracking ensuring compliance. After 18 months: zero regulatory fines (vs previous €50k), audit preparation reduced from 60 hours to 2 hours (97% reduction), compliance costs reduced from $500k to $75k annually ($425k savings), regulatory risk eliminated (comprehensive documentation, automated processes, full transparency)."
+      emotional_resolution: "I now feel confident with comprehensive compliance documentation vs scrambling during audits. Processing registry auto-generated (18 activities with legal basis, data types, retention, processors) vs 8 manually documented losing sync. Consent records immutable audit trail (every action logged with timestamp, user, purpose, IP) providing instant evidence vs spreadsheet gaps missing 2,000 users. Third-party processors fully documented (12 processors with DPAs, data flows, subprocessor tracking) vs 3 missing agreements. Audit preparation trivial (15-min automated report vs 60-hour manual compilation saving 97% time). Breach notification workflow defined (immediate alert, impact assessment, template communications, 72-hour compliance) vs 5-day delays. Most importantly, regulatory risk eliminated (zero fines, comprehensive compliance, full transparency) saving company from potential €20M penalties while reducing compliance costs 85% ($425k annually)."
+
+  scenarios:
+    - id: scn-001
+      name: Privacy Officer completes deletion request in 8 hours using automated workflows
+      actor: privacy-officer
+      context: ctx-001
+      trigger: "User submits data deletion request requiring GDPR-compliant completion within 30 days vs manual 22-day process."
+      action: >
+        User visits preference center, clicks 'Delete My Account', confirms understanding (data permanently deleted, cannot be undone),
+        submits request. Automated workflow triggers: (1) Data discovery phase (2 min): query data inventory identifying all PII locations
+        (12 systems found: users table, posts, comments, analytics_events, logs 30-day retention, CloudWatch 90-day, Redis cache 24-hour
+        TTL, database backups 90-day, third-party analytics Mixpanel/Amplitude, customer support Zendesk, email service SendGrid). (2)
+        Deletion execution phase (4 hours): cascade delete from database (DELETE FROM users WHERE id=? cascades to posts, comments,
+        sessions via foreign keys), scrub logs (search application logs for user_id, redact entries), invalidate cache (FLUSH user:*
+        keys from Redis), mark backups for exclusion (flag user_id in backup metadata for exclusion during restore), third-party deletions
+        (API calls to Mixpanel.delete_user(), Amplitude.delete_user(), Zendesk.anonymize_user(), SendGrid.remove_contact() with retry
+        logic and confirmation). (3) Verification phase (2 hours): query each system confirming no remaining PII (database: 0 rows,
+        logs: redacted, cache: no keys, third-parties: deletion confirmed via API), generate verification report (list of 12 systems,
+        deletion timestamp per system, verification hash, total records deleted: 1 user, 47 posts, 203 comments, 8,932 analytics events).
+        (4) User notification: email 'Account deletion complete' with verification report PDF attached showing detailed proof. Total
+        time: 8 hours (vs previous 22 days manual). Privacy Officer monitors dashboard showing request status (pending 0 min, in-progress
+        4 hours, verification 2 hours, completed 8 hours total), SLA compliance (22 hours remaining of 30-day GDPR limit = well within),
+        no manual intervention needed.
+      outcome: "Deletion request completed in 8 hours (vs 22-day manual baseline = 96% improvement) well within GDPR 30-day mandate. Automated
+        workflow discovered PII in 12 systems (vs manual identification risking missed locations). Verification report provided proof of
+        complete deletion (timestamps, hashes) building user trust. Engineering time reduced from 4-6 hours per request to 0 hours (100%
+        automation). Monthly volume 50-80 requests handled without engineering involvement vs previous 320 engineer-days monthly."
+      acceptance_criteria:
+        - "Data inventory maintains comprehensive registry of PII locations: databases (tables, columns with @PersonalData annotations),
+          logs (application logs, CloudWatch, third-party logging), analytics (Mixpanel, Amplitude, custom events), cache (Redis keys
+          with user_id), backups (database dumps, log archives), third-party services (processors with API deletion support). Registry
+          auto-updated as system evolves (new @PersonalData fields added to inventory automatically)."
+        - "Automated deletion workflow executes without manual intervention: cascade delete from primary database (foreign key relationships
+          handled automatically), log scrubbing (search and redact PII from logs within retention window), cache invalidation (pattern-based
+          key deletion), backup flagging (mark user_id for exclusion during restore operations), third-party API calls (invoke deletion
+          endpoints with retry logic handling temporary failures, confirm completion via response validation)."
+        - "Verification report generated proving complete deletion: list of all systems where data existed (12 locations), deletion timestamp
+          per system (database: 2024-12-27 14:23:00, logs: 14:25:15, cache: 14:23:30, etc.), verification method (query returned 0 rows,
+          API confirmed deletion), hash of deletion proof (immutable record for audit), total records deleted (1 user, 47 posts, 203
+          comments, 8,932 events, etc.)."
+        - "SLA tracking ensures GDPR compliance: 30-day deadline countdown (time remaining: 22 hours), automated escalation (if 80% of
+          time elapsed without completion → alert privacy officer), dashboard showing all requests (pending, in-progress, verification,
+          completed, failed) with completion times (average 9 hours, p95 18 hours, 100% within 30 days)."
+        - "User receives confirmation with proof: email 'Account deletion complete' sent upon verification, attached PDF verification
+          report (human-readable list of systems, deletion summary), includes support contact for questions, sets expectation (data deleted,
+          cannot be recovered)."
+
+    - id: scn-002
+      name: Privacy-Conscious User manages granular consent and verifies deletion
+      actor: end-user-privacy
+      context: ctx-002
+      trigger: "User wants to control data usage through granular preferences and verify account deletion vs opaque processes."
+      action: >
+        User logs in, navigates to Settings → Privacy, discovers preference center with granular controls (5 consent purposes: Essential
+        [always on, required for service], Product Announcements [ON], Marketing Emails [ON], Analytics Tracking [OFF], Third-Party
+        Sharing [OFF]). Reviews consent history (Marketing: granted 2022-03-15 during signup, Product Announcements: granted 2023-06-20
+        when enabled feature, Analytics: never granted). Toggles Marketing Emails from ON to OFF, receives immediate confirmation 'You
+        will no longer receive marketing emails. Change effective immediately.' Clicks 'Your Data' section seeing transparency dashboard:
+        (1) Data collected (Profile: name, email, birthday; Content: 47 posts, 203 comments; Activity: last login, page views if analytics
+        enabled [currently not tracked due to opt-out]). (2) How data used (Profile: account management, Content: displayed on platform,
+        Activity: analytics [opted out so not tracked]). (3) Who accessed data (Me: 152 logins last 30 days, Support: 1 access on 2024-11-15
+        for ticket #4567 resolution [reason documented], Admin: 0 accesses). (4) Third-party sharing (None - opted out of all sharing).
+        Requests data export: clicks 'Download My Data', notification 'Preparing export, estimated 15 min', receives email with download
+        link, downloads ZIP (3.2 MB) containing: profile.json (personal details), posts.json (all 47 posts), comments.json (203 comments),
+        consent_history.json (all consent actions), access_log.json (who accessed data when), plus human-readable PDF summary. Reviews
+        data confirming accuracy. Decides to delete account: clicks 'Delete My Account', confirmation dialog explains 'Deletion permanent,
+        completes within 24 hours, includes all data across 12 systems (database, logs, backups, third-party services), you'll receive
+        verification report.' Confirms deletion, account immediately inaccessible. Receives email 18 hours later: 'Account deletion complete'
+        with attached verification report PDF listing 12 systems where data deleted (database: 2024-12-27 14:23, logs: 14:25, cache:
+        14:23, Mixpanel: 16:15, Amplitude: 16:20, etc.) with deletion proof hashes. User confident data truly deleted vs previous uncertainty.
+      outcome: "Granular consent control (5 purposes vs all-or-nothing) enables nuanced preferences (product updates ON, marketing OFF).
+        Transparency dashboard shows exactly what data collected and who accessed building trust. Self-service data export (15 min) vs
+        28-day manual wait. Verified deletion (18 hours with detailed report showing 12 systems) vs 3+ week uncertainty. User empowered
+        with data control increasing platform trust and loyalty."
+      acceptance_criteria:
+        - "Preference center provides granular consent controls: 5+ consent purposes (essential, product, marketing, analytics, sharing),
+          toggle per purpose (ON/OFF immediately effective), consent history (when granted, when modified, when withdrawn with timestamps),
+          plain-language descriptions (what each purpose means, how data used), required vs optional distinction (essential cannot be
+          disabled, others optional)."
+        - "Transparency dashboard shows complete data picture: data collected (categorized: profile, content, activity with field-level
+          detail), how data used (purpose per data type: account management, platform display, analytics), who accessed data (access
+          log with actor, timestamp, reason, action taken), third-party sharing (list of processors, what data shared, user consent
+          status), with plain-language explanations (no legal jargon)."
+        - "Self-service data export completes quickly: click 'Download My Data' triggers export, notification with time estimate (typically
+          15 min), email with download link upon completion, comprehensive data (all PII from all systems in machine-readable JSON +
+          human-readable PDF), structured format enabling portability (standard schema for import to other services)."
+        - "Deletion verification provides proof: immediate account inaccessibility (cannot login after deletion confirmed), email notification
+          upon completion (typically <24 hours), attached verification report (PDF listing all systems, deletion timestamps, verification
+          method, proof hashes), human-readable summary (total records deleted, confirmation of complete removal), support contact for
+          questions."
+        - "Consent enforcement immediately effective: toggle consent OFF → application stops processing within seconds (no delayed batch
+          processing), next marketing email skipped (unsubscribe immediate), analytics stop tracking (no events from opted-out users),
+          third-party sharing halted (APIs stop receiving user data), with confirmation message ('Change effective immediately')."
+
+    - id: scn-003
+      name: Backend Developer implements privacy-compliant feature using framework patterns
+      actor: backend-dev-privacy
+      context: ctx-003
+      trigger: "Engineer develops recommendation engine requiring behavior tracking while ensuring GDPR consent compliance vs manual retrofit."
+      action: >
+        Product manager assigns feature: recommendation engine tracking user behavior (page views, clicks, time spent, product interactions)
+        to suggest relevant content. Developer starts with privacy design: (1) Review privacy checklist (collects behavior data → requires
+        consent, tracks individual users → needs anonymization option, stores long-term → define retention policy). (2) Data model with
+        annotations: create RecommendationEvent model with @PersonalData annotations (user_id marked @PersonalData, event_type/timestamp
+        not sensitive), framework automatically handles (encrypt user_id at rest, include in deletion workflows, redact from logs).
+        (3) Implement tracking with consent enforcement: create analytics.trackRecommendation() function, add @RequireConsent('analytics')
+        decorator, framework automatically checks consent before tracking (if user opted out → function returns early, no data collected).
+        (4) Define retention policy: annotate model with @RetentionPolicy(days=90), framework auto-deletes events after 90 days. (5)
+        Implement aggregation preserving privacy: daily job aggregates events (by product, by hour, by user segment) for recommendations,
+        aggregates don't contain individual user_id (differential privacy pattern), aggregates retained indefinitely (no PII so no retention
+        limit). Create pull request, automated privacy checklist triggers: (Does feature collect PII? YES - user_id in events. Justify
+        necessity: Required for personalized recommendations, cannot function without user identification. Does feature require consent?
+        YES - @RequireConsent('analytics') decorator added. Define retention: 90 days for raw events, unlimited for aggregates. Third-party
+        sharing? NO - all processing in-house.). Privacy officer reviews PR, approves (checklist complete, consent enforced, retention
+        defined). Deploy to production. ESLint privacy rules run during development catching issues: (attempted console.log(event) →
+        error 'Personal data in logs, use logger.info() with automatic PII redaction', forgot @RequireConsent in similar function →
+        warning 'Analytics tracking requires consent decorator', direct database query without access logging → error 'PII access must
+        be logged'). Feature launches with privacy compliance built-in: users opted into analytics see personalized recommendations
+        (behavior tracked), users opted out see generic recommendations (no tracking, aggregates only), all tracking respects consent
+        automatically. Deletion requests automatically handle: user deletes account → workflow reads @PersonalData annotations → deletes
+        all RecommendationEvent rows for user → aggregates remain (no PII) → verification report confirms. Total development time: 8
+        hours feature implementation + 2 hours privacy compliance (annotations, consent, retention) = 10 hours vs previous approach (8
+        hours feature + 2 weeks post-launch retrofit when privacy violation discovered = 88 hours). Privacy compliance integrated into
+        development process vs expensive rework.
+      outcome: "Privacy-compliant feature shipped first try vs post-launch violation requiring retrofit. Data annotations (@PersonalData)
+        provided clear schema enabling automatic handling (encryption, deletion, redaction). Consent enforcement declarative (@RequireConsent)
+        prevented tracking opted-out users vs scattered manual checks. Privacy linting caught 3 issues during development (PII in logs,
+        missing consent, unlogged access) vs production violations. Automated deletion handled feature data (reads annotations, includes
+        in workflows) without custom SQL scripts. Development time 10 hours vs 88 hours with retrofit (89% efficiency gain)."
+      acceptance_criteria:
+        - "Data model annotations mark PII fields: @PersonalData decorator on user_id, email, phone, etc., framework reads annotations
+          for automatic handling (encrypt at rest using AES-256, include in deletion workflows automatically, redact from logs/errors
+          showing user_id: <redacted>), IDE autocomplete suggests annotation on likely PII fields (email, phone, ssn patterns)."
+        - "Consent enforcement declarative: @RequireConsent('analytics') decorator on tracking functions, framework checks consent before
+          execution (if user.consents.analytics === false → function returns early, no tracking, logged 'Skipped due to consent'), single
+          enforcement point (no scattered if-checks throughout codebase), prevents 'forgot to check' bugs."
+        - "Privacy linting integrated: ESLint rules flag issues (console.log with PII → error, analytics tracking without @RequireConsent
+          → warning, database query returning PII without access log → error), runs on git pre-commit hook (blocks commit if errors),
+          CI/CD fails build if privacy lint errors (forces fix before merge), with auto-fix for some rules (add @RequireConsent decorator
+          automatically)."
+        - "Retention policies enforced: @RetentionPolicy(days=90) annotation on model, framework auto-deletes after retention period
+          (daily job: DELETE FROM events WHERE created_at < NOW() - INTERVAL 90 DAYS), legal hold support (retain for litigation overriding
+          normal retention with justification), audit log records deletions (what deleted, when, retention policy applied)."
+        - "Privacy review integrated: create PR → automated checklist appears (Does feature collect PII? Justify. Requires consent?
+          Specify purpose. Retention policy? Define period.), privacy officer reviews before merge approval, prevents production deployment
+          without privacy approval, tracks compliance in PR metadata (privacy review: approved by @privacy-officer on 2024-12-15)."
+
+dependencies:
+  requires:
+    - fd-016  # Security authentication provides user identity for consent tracking and data subject rights
+  enables:
+    - "All features handling personal data require privacy compliance foundation"
+    - "Customer trust increases through transparency enabling premium pricing and retention"
+
+boundaries:
+  non_goals:
+    - "General data governance - focus on personal data privacy not all data management"
+    - "Non-PII data retention - privacy features handle personal data specifically"
+    - "Cybersecurity - data security separate from privacy compliance (though related)"
+  constraints:
+    - "Deletion may not be complete (legal obligations require retention, backups take time to cycle)"
+    - "Consent UI must be simple (granular control vs overwhelming users with 50 toggles)"
+    - "Performance impact (consent checks add latency, audit logging increases storage)"
+  edge_cases:
+    - "Right to erasure conflicts with legal holds (retain data for litigation despite deletion request)"
+    - "Data portability for complex relationships (how to export graph of social connections?)"
+    - "Children's data requires parental consent (COPPA compliance for users <13)"
+
+contexts:
+  - id: ctx-001
+    type: operations
+    name: Privacy Officer Dashboard & Request Management
+    description: >
+      Privacy officers manage data subject requests, monitor compliance SLAs, generate audit reports, and track consent using automated
+      workflows reducing manual effort 95% while ensuring GDPR compliance.
+    key_interactions:
+      - "Monitor request dashboard: view all data subject requests (access, deletion, rectification, portability), status per request
+        (pending, in-progress, verification, completed, failed), SLA tracking (time remaining until GDPR deadline: 22 days, progress
+        bar, automated escalation if approaching deadline), with filters (request type, date range, status) and export (CSV for reporting)."
+      - "Review deletion workflow: click request opening detail view (user info, request timestamp, data discovery results showing 12
+        systems found, execution log per system with timestamps, verification status), manual intervention option if needed (approve
+        exemptions, retry failed steps), verification report preview (before sending to user review completeness)."
+      - "Generate compliance reports: click 'Audit Reports' selecting report type (consent tracking, deletion completions, data retention,
+        processor list, access logs), date range (last quarter), format (PDF, CSV, JSON), receive comprehensive report in 15 min (vs
+        60 hours manual compilation) with all evidence (consent rates, deletion times, retention compliance, processor agreements,
+        audit trails)."
+      - "Monitor consent analytics: dashboard showing consent rates by purpose (essential 100%, product 89%, marketing 42%, analytics
+        68%, sharing 12%), trend over time (line charts), withdrawal rates (15% monthly for marketing), with segmentation (by user type,
+        region, acquisition channel) identifying patterns."
+      - "Manage processor registry: list of all third-party processors (12 total), data processing agreements per processor (DPA status,
+        expiration date), data flow mapping (what data sent where), subprocessor tracking (notifications when new subprocessor added),
+        risk assessment (criticality, data sensitivity, geographic location)."
+    data_displayed:
+      - "Request dashboard: table of data subject requests (Request #4567: Deletion, User: user-12345, Submitted: 2024-12-26 14:23,
+        Status: In Progress, SLA: 22 days remaining [green], Progress: 75% [deletion complete, verification in progress]; Request #4568:
+        Access, User: user-12346, Submitted: 2024-12-27 09:15, Status: Completed, SLA: 1 hour [green], Duration: 18 min), with summary
+        cards (pending: 3, in-progress: 5, completed this week: 47, average completion time: 9 hours)."
+      - "Deletion workflow detail: user-12345 deletion request, timeline (Submitted 14:23, Data Discovery 14:25 [12 systems found],
+        Execution Started 14:27, Database Delete 14:35 [1 user, 47 posts, 203 comments], Logs Scrubbed 15:10, Third-Party APIs 16:20
+        [Mixpanel confirmed, Amplitude confirmed, Zendesk confirmed], Verification 18:30 [all systems validated], Completed 18:41 [total
+        duration: 4 hours 18 min]), with drill-down per system (Database: 1 user, 47 posts, 203 comments deleted, verification query:
+        SELECT COUNT(*) FROM users WHERE id=12345 returned 0)."
+      - "Compliance report: PDF titled 'GDPR Compliance Report Q4 2024', sections (Processing Registry: 18 activities with legal basis
+        documented, Consent Tracking: 42% marketing, 68% analytics, 95% required processing, Deletion Requests: 156 completed, average
+        9 hours, 100% within 30 days, Data Retention: automated policies enforced [90 days analytics, 7 years financial], Third-Party
+        Processors: 12 documented with DPAs attached, Access Logs: all PII access logged [12,483 access events], Breach Incidents: 0
+        this quarter), 45-page comprehensive evidence generated in 15 min."
+      - "Consent analytics: dashboard with cards (Marketing Consent: 42% opt-in rate ⬇ 3% vs last month, Analytics: 68% ⬆ 5%, Sharing:
+        12% ➡ stable), line chart showing trends (consent rates over 12 months), funnel showing drop-off (100% see consent dialog, 95%
+        interact, 68% grant analytics, 42% grant marketing suggesting marketing description needs improvement), with A/B test results
+        (clearer marketing description increased opt-in from 42% to 48%)."
+      - "Processor registry: table (Processor: AWS, Purpose: Infrastructure hosting, Data Shared: All PII, DPA Status: Active, Expiration:
+        2025-06-30, Subprocessors: 0; SendGrid: Email delivery, Email addresses, Active, 2025-03-15, 0; Mixpanel: Analytics, User behavior
+        events, Active, 2025-12-01, 2 [Google Cloud, AWS]; 12 total), with data flow diagram (visual map showing data moving from Platform
+        → AWS [database], Platform → SendGrid [emails], Platform → Mixpanel [analytics]), risk assessment (critical: AWS, high: SendGrid/Stripe,
+        medium: analytics tools)."
+
+  - id: ctx-002
+    type: user
+    name: User Privacy Preference Center & Data Transparency
+    description: >
+      Users control data usage through granular consent preferences, view transparency dashboard showing data collected and accessed,
+      export personal data, and delete accounts with verification building trust and empowerment.
+    key_interactions:
+      - "Manage consent preferences: navigate to Settings → Privacy → Preferences, view current consents (5 purposes with ON/OFF toggles:
+        Essential [always on, grayed], Product Announcements [ON], Marketing [ON], Analytics [OFF], Sharing [OFF]), review consent history
+        (when granted, modified, withdrawn with timestamps), toggle preferences (click OFF on Marketing, immediate confirmation 'You
+        will no longer receive marketing emails')."
+      - "View transparency dashboard: Settings → Privacy → Your Data, see data collected (profile details, content created, activity
+        tracked), how data used (purpose per category), who accessed data (access log with actor, timestamp, reason), third-party sharing
+        status (opted out so none), with plain-language explanations (no legal jargon)."
+      - "Export personal data: click 'Download My Data', notification 'Preparing export, estimated 15 min', wait, receive email with
+        download link, download ZIP containing JSON files (profile, posts, comments, consent history, access log) plus human-readable
+        PDF summary, review data confirming accuracy."
+      - "Delete account with verification: click 'Delete My Account', read confirmation dialog explaining (permanent, 24-hour completion,
+        12 systems included, verification report provided), type account email to confirm understanding, submit deletion, account becomes
+        inaccessible, receive email 18 hours later 'Deletion complete' with attached verification report PDF."
+      - "Review access log: Settings → Privacy → Access Log, see timeline (Me: 152 logins last 30 days [normal usage], Support: 1 access
+        on 2024-11-15 [reason: ticket #4567 resolution, duration: 5 min], Admin: 0 accesses [no administrative access to my data]),
+        build confidence through transparency."
+    data_displayed:
+      - "Preference center: consent controls with descriptions (Essential: ON [grayed, cannot disable] 'Required for service: authentication,
+        account management, service delivery'; Product Announcements: ON 'Updates about new features, improvements, maintenance'; Marketing:
+        ON 'Promotional emails, offers, newsletters'; Analytics: OFF 'Track behavior to improve service'; Sharing: OFF 'Share data with
+        third-party partners'), consent history table (Marketing: Granted 2022-03-15 during signup, Withdrawn 2024-12-27 [today], Reason:
+        'User preference change')."
+      - "Transparency dashboard: cards showing (Profile Data: Name: John Doe, Email: john@example.com, Birthday: 1990-05-15, Member
+        Since: 2022-03-15; Content Created: 47 posts, 203 comments, 12 favorites; Activity: Last Login: 2024-12-27 09:30, Page Views:
+        1,247 [if analytics enabled, otherwise 'Not tracked - opted out']), with usage explanations (Profile: 'Used for account management
+        and personalization', Content: 'Displayed on platform and attributed to you', Activity: 'Used to improve service [if consented]')."
+      - "Data export ZIP: files (profile.json: { name, email, birthday, member_since, preferences }, posts.json: [{ id, title, content,
+        created_at, ... }, ...47 posts], comments.json: [...203 comments], consent_history.json: [{ purpose, action, timestamp, ... }],
+        access_log.json: [{ actor, timestamp, reason, action }], SUMMARY.pdf: human-readable version of all data), total 3.2 MB, machine-readable
+        JSON enabling portability to other services."
+      - "Deletion confirmation: dialog text 'Delete Account? This action is permanent and cannot be undone. Deletion will complete within
+        24 hours and includes: Your profile data (name, email, birthday), All content you created (47 posts, 203 comments), Activity
+        history and preferences, Data from 12 systems (database, logs, analytics, third-party services). You will receive a verification
+        report when complete. Type your email to confirm: [input box]', buttons [Cancel] [Delete Permanently]."
+      - "Verification report: PDF titled 'Account Deletion Verification Report', sections (Request Details: User ID: user-12345, Email:
+        john@example.com, Requested: 2024-12-27 14:23, Completed: 2024-12-28 08:41, Duration: 18 hours; Systems Deleted: 12 total [Users
+        Database: 2024-12-27 14:35, Application Logs: 14:47, Analytics Events: 15:10, Redis Cache: 14:36, CloudWatch Logs: 15:25, Database
+        Backups: 15:30 [flagged for exclusion], Mixpanel: 16:15, Amplitude: 16:20, Zendesk: 16:45, SendGrid: 17:05, Stripe: 17:20, AWS
+        S3: 17:50], Verification Hashes: [cryptographic proofs], Total Records: 1 user, 47 posts, 203 comments, 8,932 events), confirming
+        complete deletion."
+
+  - id: ctx-003
+    type: developer
+    name: Privacy-Compliant Development Workflow
+    description: >
+      Developers implement features with privacy built-in using framework patterns (data annotations, consent decorators, retention policies),
+      automated tooling (linting, testing), and integrated review workflows ensuring compliance from design vs post-launch retrofit.
+    key_interactions:
+      - "Annotate data model: create RecommendationEvent model, mark PII fields with @PersonalData decorator (user_id marked, event_type
+        not marked), add @RetentionPolicy(days=90) for automatic deletion, framework handles encryption/deletion/redaction automatically
+        vs manual implementation."
+      - "Enforce consent: implement trackRecommendation() function, add @RequireConsent('analytics') decorator, framework checks consent
+        before execution (opted-out users → function returns early, no tracking), single enforcement point vs scattered checks throughout
+        codebase."
+      - "Run privacy linting: commit code, git pre-commit hook runs ESLint privacy rules, catches issues (PII in console.log → error,
+        tracking without consent → warning, unlogged PII access → error), fix before commit vs production violations, automated guidance
+        (suggests adding @RequireConsent decorator, shows PII redaction pattern)."
+      - "Complete privacy review: create pull request, automated checklist appears (Does feature collect PII? Justify necessity. Requires
+        consent? Specify purpose. Retention policy? Define period. Third-party sharing? Document processors.), privacy officer reviews,
+        approves if complete, merge protected until approval vs post-launch compliance issues."
+      - "Handle deletion automatically: user deletes account, workflow reads @PersonalData annotations from models, includes RecommendationEvent
+        in deletion (DELETE FROM recommendation_events WHERE user_id=?), generates verification report, no custom SQL needed vs 4-6 hours
+        manual script per request."
+    data_displayed:
+      - "Data model with annotations: TypeScript/Python code showing `class RecommendationEvent { @PersonalData() @PrimaryKey() user_id:
+        string; event_type: string; product_id: string; timestamp: Date; @RetentionPolicy(days=90) created_at: Date; }`, comments explaining
+        (user_id marked @PersonalData → framework encrypts at rest, includes in deletion workflows, redacts from logs; RetentionPolicy
+        → auto-deletes after 90 days)."
+      - "Consent enforcement code: function decorated `@RequireConsent('analytics') async trackRecommendation(userId: string, productId:
+        string) { // Framework checks user.consents.analytics before executing // If opted-out, function returns early with logged 'Skipped
+        due to consent' await db.recommendationEvents.create({ user_id: userId, product_id: productId, ... }); }`, single enforcement
+        point vs scattered if-checks."
+      - "Privacy linting output: terminal showing `ESLint Privacy Rules: ✗ ERROR: Personal data in logs (console.log(recommendationEvent)
+        contains @PersonalData field) - Use logger.info() with automatic PII redaction ⚠ WARNING: Analytics tracking without consent
+        decorator (trackSimilarProducts function missing @RequireConsent) - Add @RequireConsent('analytics') decorator ✗ ERROR: PII query
+        without access logging (SELECT * FROM users WHERE email=? must log access) - Add accessLog.record() before query`, with line
+        numbers and auto-fix suggestions."
+      - "Privacy review checklist: GitHub PR interface showing automated comment 'Privacy Review Checklist: ☑ Does feature collect PII?
+        YES - user_id in RecommendationEvent. Justify necessity: Required for personalized recommendations, cannot function without user
+        identification. ☑ Requires consent? YES - @RequireConsent('analytics') decorator added on trackRecommendation(). ☑ Retention
+        policy? 90 days for raw events (@RetentionPolicy annotation), unlimited for aggregates (no PII). ☐ Third-party sharing? NO -
+        all processing in-house. @privacy-officer please review', with approval button."
+      - "Automated deletion log: deletion workflow output showing `Deletion Request #4567 (user-12345) Processing: [14:27] Data Discovery:
+        Scanning models with @PersonalData annotations [14:27] Found: User, Post, Comment, RecommendationEvent, Session (5 models) [14:28]
+        Executing: DELETE FROM users WHERE id='user-12345' CASCADE (1 row) [14:28] Executing: DELETE FROM recommendation_events WHERE
+        user_id='user-12345' (8,932 rows) [14:29] Logs: Scrubbing application logs for user_id='user-12345' [14:35] Verification: Query
+        confirmed 0 remaining rows [14:36] Complete: Total 9,183 records deleted across 5 tables`, no manual SQL needed."

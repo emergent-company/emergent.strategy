@@ -1,0 +1,146 @@
+{
+  "version": "1.13.0",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Workflow Schema",
+  "description": "Defines the structure for state machines and workflow configurations that model process flows, lifecycle stages, approval chains, and operational procedures.",
+  "$comment": "WORKFLOW SYSTEM: This schema supports two primary artifacts: (1) State Machine Definitions that model the pure state/transition logic (what states exist, how things move between them), and (2) Workflow Configurations that layer operational policies, automation, and business rules on top of state machines. State machines are reusable definitions (e.g., 'feature-lifecycle', 'approval-process'); configurations bind them to specific contexts with policies, migrations, and notifications. Common patterns: Feature lifecycle workflows (idea → backlog → development → review → released → archived), approval chains (draft → review → approved/rejected), support ticket flows (new → triaged → in-progress → resolved → closed), operational runbooks (detect → investigate → remediate → verify), and deployment pipelines (build → test → stage → production). Best practices: (1) Keep state machines simple and focused (5-10 states typically sufficient), (2) Use configurations to handle context-specific logic rather than creating multiple machines, (3) Design for observability (every state should be monitorable), (4) Plan for error states and rollback transitions, (5) Document state semantics clearly (what does 'in-progress' mean?), (6) Consider SLA/SLO implications of state durations, (7) Enable auditing of transitions (who/when/why), (8) Support bulk state operations where needed. Examples: Feature workflow (states: idea, planned, developing, review, merged, released), Bug workflow (states: reported, triaged, assigned, fixing, resolved, verified, closed), Content workflow (states: draft, review, approved, published, archived), Deployment workflow (states: pending, building, testing, deploying, live, rolled-back), Approval workflow (states: submitted, pending-review, approved, rejected, expired). Anti-patterns to avoid: Overly complex machines (>15 states), business logic embedded in transition names, circular dependencies without clear exit paths, states that are actually events (use events to trigger transitions, not as states), missing error/rollback paths.",
+  "oneOf": [
+    {
+      "title": "State Machine Definition",
+      "type": "object",
+      "$comment": "STATE MACHINE DEFINITION: Pure state/transition model defining the valid states and legal transitions for a process or entity lifecycle. Think of this as the 'grammar' of your workflow—it defines what states exist and how entities can move between them, but doesn't specify business rules, automation, or policies (those go in Workflow Configuration). A good state machine is: (1) Complete (covers all meaningful states), (2) Deterministic (transitions have clear conditions), (3) Observable (every state is monitorable), (4) Recoverable (has error/rollback paths), (5) Reusable (can be applied to multiple contexts). Design principles: Start with the happy path (typical flow from start to completion), then add error states and recovery transitions, then add optimization shortcuts (e.g., fast-track transitions), finally add terminal/archive states. State naming conventions: Use verbs for transient states (developing, reviewing, deploying), nouns for stable states (draft, approved, live), and past tense for completed states (merged, released, closed). Transition naming: Use action verbs (submit, approve, deploy, cancel, rollback). Keep the machine focused—if you find yourself with >15 states, consider splitting into multiple machines or using state_policies in configurations for variations. Validate: Every state should be reachable from initial_state, every state should have at least one outgoing transition (except terminal states), no unreachable states, no orphaned transitions.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique identifier for this state machine (kebab-case recommended). Used to reference this machine from configurations and in monitoring/analytics. Should be descriptive and scoped (e.g., 'feature-lifecycle', 'support-ticket-flow', 'deployment-pipeline').",
+          "minLength": 3,
+          "maxLength": 80,
+          "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"
+        },
+        "initial_state": {
+          "type": "string",
+          "description": "The starting state for all new entities using this machine. Must be one of the states defined in the 'states' array. This is where entities begin their lifecycle—choose a state that represents 'newly created' or 'not yet processed'. Common initial states: 'draft', 'new', 'pending', 'submitted', 'created', 'idea'.",
+          "minLength": 2,
+          "maxLength": 50
+        },
+        "states": {
+          "type": "array",
+          "description": "Complete list of all possible states in this machine's lifecycle. Each state should represent a meaningful stage where the entity has distinct properties, behaviors, or SLA requirements. Order doesn't matter (transitions define flow), but grouping related states aids readability (e.g., all 'in-progress' variants together, all terminal states at end).",
+          "$comment": "STATE LIST DESIGN: A well-designed state list is: (1) Mutually exclusive (entity is in exactly one state at a time), (2) Collectively exhaustive (covers all meaningful stages), (3) Observable (each state is monitorable and has clear enter/exit criteria), (4) Actionable (transitions from each state are clear to users/systems). Common state categories: (a) Initial states (draft, new, created), (b) In-progress states (developing, reviewing, testing), (c) Blocked/waiting states (blocked, awaiting-approval, paused), (d) Completed states (done, approved, merged, released), (e) Terminal states (closed, archived, cancelled, deleted), (f) Error states (failed, rejected, invalid). Best practices: Use consistent naming patterns within a category (e.g., all gerunds for active states: developing, testing, deploying), avoid state explosion (if you have pending-team-a, pending-team-b, etc., consider one 'pending-review' state with metadata), include transitional states only if they have distinct SLAs or behaviors (otherwise use events), plan for edge cases (what happens if process stalls? fails? needs rollback?). State count guidelines: Simple workflows 3-7 states, moderate complexity 8-12 states, complex processes 13-15 states (if >15, consider splitting machine or using configuration policies for variants). Examples: Feature workflow (idea, backlog, developing, review, merged, released, archived), Support ticket (new, triaged, assigned, in-progress, waiting-customer, resolved, closed), Deployment (pending, building, testing, deploying, live, rolled-back, failed).",
+          "items": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 50,
+            "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"
+          },
+          "minItems": 2,
+          "maxItems": 20,
+          "uniqueItems": true
+        },
+        "transitions": {
+          "type": "array",
+          "description": "Defines all legal state transitions (edges in the state graph). Each transition specifies: (1) Which state(s) it starts from, (2) Which state it leads to, (3) A descriptive name for the action/event that triggers it. Collectively, transitions define the 'flow' through your state machine—what paths are valid, what actions are possible from each state.",
+          "$comment": "TRANSITION DESIGN: Transitions are the 'verbs' of your state machine—they represent actions, events, or decisions that move entities between states. A well-designed transition set is: (1) Complete (every non-terminal state has at least one exit), (2) Traceable (each transition has a clear business meaning), (3) Auditable (who triggered it, when, why), (4) Recoverable (error paths and rollbacks exist). Design patterns: (a) Happy path transitions (normal forward progress: submit, approve, deploy, complete), (b) Error transitions (handle failures: reject, cancel, fail, timeout), (c) Rollback transitions (undo/revert: rollback, reopen, unarchive), (d) Shortcut transitions (fast-track: auto-approve, skip-stage), (e) Loop transitions (retry same state: re-test, re-submit). Transition naming conventions: Use imperative verbs (approve, reject, deploy, cancel) or event nouns (timeout, failure, completion). Multi-source transitions (from array) are useful when: same action applies from multiple states (e.g., 'cancel' from any in-progress state), convergence points (multiple states → one state), error handling (any state → error state). Best practices: (1) Name transitions for user/system actions, not states ('approve' not 'move-to-approved'), (2) Avoid circular transitions without clear exit conditions, (3) Plan bidirectional transitions where needed (approve/reject, deploy/rollback), (4) Include timeout/expiry transitions where SLAs matter, (5) Consider bulk/batch transitions if operating at scale, (6) Document transition preconditions (what must be true to execute), (7) Enable transition hooks for automation (on-enter, on-exit callbacks). Examples: Feature workflow transitions (submit: draft→backlog, start-work: backlog→developing, submit-review: developing→review, approve: review→merged, deploy: merged→released), Approval flow (submit: draft→pending, approve: pending→approved, reject: pending→rejected, revise: rejected→draft), Deployment (build: pending→building, test: building→testing, deploy: testing→deploying, verify: deploying→live, rollback: [testing,deploying,live]→rolled-back).",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Descriptive name for this transition (the action or event that triggers state change). Use imperative verbs or event nouns that clearly communicate what's happening. Examples: 'approve', 'reject', 'deploy', 'cancel', 'timeout', 'complete', 'rollback', 'reopen'. This name appears in UIs, logs, and analytics—make it user-friendly and searchable.",
+                "minLength": 3,
+                "maxLength": 60
+              },
+              "from": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "description": "Single source state (most common case). The transition can only be triggered when entity is in this state. Example: {from: 'draft', to: 'review', name: 'submit'} allows submission only from draft state.",
+                    "minLength": 2,
+                    "maxLength": 50
+                  },
+                  {
+                    "type": "array",
+                    "description": "Multiple source states (convergent or multi-path transitions). The transition can be triggered from ANY of these states. Common uses: (1) Convergence (multiple paths → single state, e.g., [review, testing] → approved), (2) Uniform actions (same action available from multiple states, e.g., 'cancel' from [pending, in-progress, blocked]), (3) Error handling (any active state → error state), (4) Rollback paths (revert from multiple stages → previous stable state). Example: {from: ['testing', 'deploying', 'live'], to: 'rolled-back', name: 'rollback'} allows rollback from any deployment stage.",
+                    "items": { 
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 50
+                    },
+                    "minItems": 2,
+                    "maxItems": 10,
+                    "uniqueItems": true
+                  }
+                ],
+                "description": "Source state(s) from which this transition is valid. Single string for simple transitions, array for multi-source (convergent) transitions. All listed states must exist in the machine's 'states' array."
+              },
+              "to": {
+                "type": "string",
+                "description": "Destination state (where entity moves after transition). Must be one of the states defined in the 'states' array. This represents the outcome of the transition action. Example: transition 'approve' takes entity from 'review' to 'approved' state.",
+                "minLength": 2,
+                "maxLength": 50
+              }
+            },
+            "required": ["name", "from", "to"]
+          },
+          "minItems": 1,
+          "maxItems": 50
+        }
+      },
+      "required": ["name", "initial_state", "states", "transitions"]
+    },
+    {
+      "title": "Workflow Configuration",
+      "type": "object",
+      "$comment": "WORKFLOW CONFIGURATION: Operational layer that binds a State Machine Definition to a specific business context with policies, automation, and integration rules. While state machines define the pure state/transition logic, configurations add the 'how' and 'when'—what happens automatically when entering a state? Who gets notified? What business rules apply? What integrations trigger? Think of state machines as reusable templates and configurations as context-specific implementations. Use cases: (1) Same machine, different policies (e.g., 'approval-process' machine with different reviewers per team), (2) Environment-specific automation (e.g., different deployment configs for dev/staging/prod), (3) Customer-specific workflows (e.g., enterprise customers get custom states/notifications), (4) Gradual rollouts (enable new states/transitions via configuration without changing machine), (5) A/B testing workflow variations (different configs for different user segments). Configuration strategy: Create one configuration per unique combination of (machine, business context, environment). Examples: feature-workflow-team-alpha, approval-process-finance-dept, deployment-production-env, support-ticket-enterprise-sla. Best practices: (1) Reference machines by file path or unique name, (2) Use state_policies for state-specific automation/rules, (3) Use migrations for data/state transformations, (4) Use notifications for observer integration, (5) Version configurations alongside machines, (6) Test configurations in non-prod first, (7) Document configuration purpose/scope clearly, (8) Plan for config inheritance/defaults if needed, (9) Enable/disable features via config flags, (10) Log configuration changes for audit. Common patterns: SLA enforcement (state_policies set time limits per state), approval routing (state_policies define reviewers per state), auto-progression (state_policies trigger automatic transitions based on conditions), integration hooks (notifications trigger webhooks/events to external systems), data validation (migrations ensure state data meets requirements), permissions (state_policies define who can trigger transitions).",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique identifier for this workflow configuration (kebab-case recommended). Should indicate both the machine it configures and the specific context/environment. Examples: 'feature-workflow-platform-team', 'approval-process-finance-dept', 'deployment-config-production', 'support-tickets-enterprise-sla'.",
+          "minLength": 5,
+          "maxLength": 100,
+          "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"
+        },
+        "applies_to_machine": {
+          "type": "string",
+          "description": "Reference to the state machine this configuration operates on. Can be a file path (e.g., 'workflows/feature-lifecycle.json'), machine name (e.g., 'feature-lifecycle'), or URN (e.g., 'urn:workflow:feature-lifecycle'). Must reference a valid, deployed state machine. This binding determines which states/transitions are available—configuration cannot add states, only policies/automation for existing states.",
+          "minLength": 5,
+          "maxLength": 200
+        },
+        "state_policies": {
+          "type": "array",
+          "description": "State-specific policies, automation rules, and constraints. Each policy targets one state and defines: (1) What happens automatically on state entry/exit, (2) SLA/time limits for the state, (3) Who can view/act on entities in this state, (4) What validations must pass, (5) What integrations trigger. Common policy types: Auto-transitions (after N hours, move to next state), Notifications (alert when state entered), Validations (required fields per state), Permissions (role-based access per state), SLA enforcement (escalate if state duration exceeds threshold), Integration hooks (trigger external systems on state change).",
+          "$comment": "STATE POLICIES: State-specific operational rules that execute when entities enter, occupy, or exit states. Policies are where business logic lives—they turn the abstract state machine into a concrete operational workflow. Policy design principles: (1) Keep policies small and focused (one policy = one rule/automation), (2) Make policies observable (log execution, failures), (3) Make policies idempotent (safe to retry), (4) Handle policy failures gracefully (don't block transitions), (5) Version policies with configurations. Common policy patterns: (a) Entry policies (execute once when state entered: send notifications, create tasks, update metadata, trigger integrations), (b) Duration policies (execute after time in state: SLA warnings, auto-escalation, timeout transitions), (c) Exit policies (execute when leaving state: cleanup, archival, final validations), (d) Continuous policies (execute while in state: periodic checks, monitoring, heartbeats), (e) Conditional policies (execute only if conditions met: data thresholds, user roles, environment flags). Example use cases: Auto-assignment (on entering 'triaged' state, assign to available engineer), SLA monitoring (if in 'in-progress' >48h, escalate to manager), Approval routing (on entering 'pending-review', notify reviewers based on metadata), Deployment automation (on entering 'deploying' state, trigger CI/CD pipeline), Cleanup (on exiting 'live' state, archive logs and metrics). Policy structure recommendation: {state: string, on_event: 'enter'|'exit'|'duration', action: {type, params}, conditions: []}. Best practices: (1) Log policy execution (success, failure, duration), (2) Support policy disable/enable flags, (3) Handle async policy execution (don't block transitions), (4) Provide policy rollback/undo mechanisms, (5) Test policies in isolation, (6) Document policy side effects clearly, (7) Monitor policy performance impact, (8) Version policies separately if needed.",
+          "items": {
+            "type": "object",
+            "description": "Individual state policy defining automation, constraints, or business rules for a specific state. Typical structure: {state: string, rules: [], actions: [], conditions: []}. May include SLA timers, permission constraints, validation requirements, notification triggers, or integration hooks."
+          },
+          "minItems": 0,
+          "maxItems": 30
+        },
+        "migrations": {
+          "type": "array",
+          "description": "Data migration and transformation rules that execute during state transitions. Used to: (1) Validate data before allowing transition, (2) Transform/enrich data during transition, (3) Clean up data when exiting states, (4) Ensure data consistency across state boundaries, (5) Apply business rules that depend on both source and destination states. Common migration types: Data validation (required fields per destination state), Field transformations (calculate derived fields), Data enrichment (fetch additional data from APIs), Cleanup (remove temporary fields), Archival (move data to cold storage), Schema evolution (handle version upgrades).",
+          "$comment": "MIGRATION RULES: State transition-specific data transformations and validations. Migrations are the 'data layer' of your workflow—they ensure entities carry the right data as they flow through states. Think of migrations as transition middleware: they intercept state changes and apply transformations, validations, or enrichments. Migration design principles: (1) Migrations must be deterministic (same input → same output), (2) Migrations should be reversible where possible (support rollback), (3) Failed migrations should prevent transitions (don't leave data in inconsistent state), (4) Migrations should be testable in isolation, (5) Document migration data requirements clearly. Common migration patterns: (a) Pre-transition validation (ensure data meets destination state requirements before allowing transition: required fields, format validation, business rule checks), (b) Data transformation (modify data structure/values during transition: calculate fields, normalize formats, apply defaults), (c) Data enrichment (fetch/add data during transition: lookup reference data, call external APIs, compute aggregates), (d) Cleanup migrations (remove temporary/stale data when exiting states: clear cache, archive logs, remove flags), (e) Schema migrations (handle data model evolution: add new fields, migrate old formats, apply defaults for missing data). Example use cases: Feature workflow (on draft→backlog: validate feature has title/description, estimate effort), Approval workflow (on pending→approved: stamp approval metadata, notify stakeholders, update audit log), Deployment workflow (on testing→deploying: validate all tests passed, fetch deployment config, create deployment record), Support ticket (on in-progress→resolved: require resolution notes, calculate resolution time, update SLA metrics). Migration structure recommendation: {from: string|array, to: string, validations: [], transformations: [], enrichments: [], rollback: {}}. Best practices: (1) Keep migrations fast (they block transitions), (2) Handle migration failures gracefully (clear error messages), (3) Log all migration executions (input, output, errors), (4) Support dry-run mode (preview changes without applying), (5) Version migrations with configurations, (6) Test migrations with real data, (7) Monitor migration performance, (8) Provide migration rollback/undo where critical, (9) Document data requirements per state, (10) Consider batching for bulk state changes.",
+          "items": {
+            "type": "object",
+            "description": "Individual migration rule defining data transformations, validations, or enrichments for specific state transitions. Typical structure: {from: string|array, to: string, validations: [], transforms: [], on_failure: string}. Executes during transition, before state actually changes."
+          },
+          "minItems": 0,
+          "maxItems": 40
+        },
+        "notifications": {
+          "type": "array",
+          "description": "Notification and integration configurations that trigger on state changes or events. Used to: (1) Alert stakeholders of state changes, (2) Trigger external system integrations, (3) Post events to message buses/webhooks, (4) Update dashboards and metrics, (5) Create audit trail entries. Common notification types: Email/Slack alerts, Webhook calls, Event bus messages, Dashboard updates, Audit log entries, Analytics tracking.",
+          "$comment": "NOTIFICATION CONFIGURATION: Integration and alerting rules that execute when workflow events occur (state changes, transition triggers, policy executions, errors). Notifications are the 'observer pattern' of your workflow—they enable external systems and humans to react to workflow progress without coupling them to workflow logic. Notification design principles: (1) Notifications should be fire-and-forget (don't block workflow progress), (2) Failed notifications should be retried (with exponential backoff), (3) Notifications should be idempotent (safe to deliver multiple times), (4) Provide notification templates (don't hardcode messages), (5) Support notification channels (email, Slack, webhook, SMS, push). Common notification patterns: (a) State change notifications (alert when entity enters/exits specific states: stakeholder alerts, team notifications, escalation triggers), (b) SLA notifications (alert when time thresholds approached/breached: warning at 80% SLA, critical at 100% SLA), (c) Assignment notifications (alert when entity assigned to user/team: new work notifications, transfer alerts), (d) Completion notifications (alert when workflow completes: success/failure summaries, final outcomes), (e) Integration webhooks (trigger external systems on workflow events: CI/CD on code merged, deployment on release approved, ticket creation on incident detected), (f) Audit notifications (log all workflow activities for compliance: state changes, transition triggers, policy executions, errors). Example use cases: Feature workflow (notify team on feature merged, alert product on release deployed), Approval workflow (email reviewer on approval needed, Slack manager on rejection, webhook finance system on approved), Deployment workflow (webhook CI/CD on deploy triggered, alert on-call on deployment failed, dashboard update on live), Support ticket (email customer on ticket resolved, Slack team on SLA breach, metrics update on ticket closed). Notification structure recommendation: {event: string, channel: string, recipients: [], template: string, conditions: [], retry_policy: {}}. Best practices: (1) Use async delivery (queue notifications, don't block workflow), (2) Provide notification preferences (users opt-in/out), (3) Support notification throttling (avoid spam), (4) Log notification delivery (success, failure, retries), (5) Template notification content (support variables/placeholders), (6) Handle delivery failures gracefully (retry, fallback channels), (7) Monitor notification latency, (8) Support batch notifications (digest mode), (9) Enable notification testing/preview, (10) Respect notification channels (right message to right medium: urgent→SMS, FYI→email, team→Slack).",
+          "items": {
+            "type": "object",
+            "description": "Individual notification configuration defining trigger conditions, recipients, and message content/channel for workflow events. Typical structure: {event: string, channel: string, recipients: [], template: string, conditions: []}. May include retry policies, throttling, and delivery confirmations."
+          },
+          "minItems": 0,
+          "maxItems": 25
+        }
+      },
+      "required": ["name", "applies_to_machine"]
+    }
+  ]
+}

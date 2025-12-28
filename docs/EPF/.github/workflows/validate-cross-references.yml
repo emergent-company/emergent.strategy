@@ -1,0 +1,63 @@
+name: Validate EPF Cross-References
+
+on:
+  push:
+    paths:
+      - '_instances/**/*.yaml'
+      - '_instances/**/*.yml'
+      - 'templates/**/*.yaml'
+      - 'templates/**/*.yml'
+      - 'schemas/**/*.json'
+  pull_request:
+    paths:
+      - '_instances/**/*.yaml'
+      - '_instances/**/*.yml'
+      - 'templates/**/*.yaml'
+      - 'templates/**/*.yml'
+      - 'schemas/**/*.json'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Validate Cross-References
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Install dependencies
+        run: npm install js-yaml
+        
+      - name: Run validation
+        id: validate
+        run: |
+          node scripts/validate-cross-references.mjs --format=json > validation-report.json
+          node scripts/validate-cross-references.mjs --format=text > validation-report.txt
+        continue-on-error: true
+        
+      - name: Display results
+        if: always()
+        run: cat validation-report.txt
+        
+      - name: Upload validation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-reports
+          path: |
+            validation-report.json
+            validation-report.txt
+          retention-days: 30
+          
+      - name: Check validation status
+        if: steps.validate.outcome == 'failure'
+        run: |
+          echo "❌ Cross-reference validation failed"
+          echo "Review the validation report above for details"
+          exit 1

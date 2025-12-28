@@ -1,0 +1,292 @@
+# EPF v1.13.0 - North Star Template
+# NORTH STAR: Organizational Strategic Foundation
+# This document contains the enduring strategic context for the entire product organization.
+# These elements are relatively stable and inform all EPF cycles, but should be reviewed annually
+# or when fundamental strategic shifts occur.
+#
+# STABILITY: This document changes rarely (annually or during major pivots)
+# SCOPE: Organization-wide, not cycle-specific
+# INFORMS: All READY phase artifacts (analyses, opportunity, strategy, roadmap)
+#
+# Related Resources:
+# - Schema: ../../schemas/north_star_schema.json
+# - Guide: ../../docs/guides/NORTH_STAR_GUIDE.md
+
+north_star:
+  organization: "Your Organization Name"
+  last_reviewed: "YYYY-MM-DD"
+  next_review: "YYYY-MM-DD" # Recommended annual review
+  version: "1.0"
+  
+  # ============================================================================
+  # 1. PURPOSE - Why We Exist
+  # ============================================================================
+  # The fundamental reason for being - the problem we exist to solve in the world
+  
+  purpose:
+    statement: |
+      A clear, inspiring statement of why your organization exists.
+      Not what you do, but WHY you do it.
+      Should be timeless and aspirational.
+      
+      Example: "We exist to democratize access to world-class education"
+      Example: "We exist to eliminate preventable suffering in healthcare"
+      Example: "We exist to help teams do their best work without burnout"
+    
+    problem_we_solve: |
+      The fundamental human or organizational problem we're addressing.
+      This should be enduring - likely still relevant in 10+ years.
+    
+    who_we_serve: "The broadest definition of who benefits from our existence"
+    
+    impact_we_seek: |
+      The ultimate change we want to create in the world.
+      If we succeed wildly, what's different?
+  
+  # ============================================================================
+  # 2. VISION - Where We Imagine Being in the Future
+  # ============================================================================
+  # The picture of success - what the world looks like when we've fulfilled our purpose
+  
+  vision:
+    vision_statement: |
+      A vivid, inspiring picture of the future (5-10 years).
+      Should be ambitious but believable.
+      Should paint a picture anyone can understand.
+      
+      Example: "A world where every child has access to personalized learning"
+      Example: "Every team works with clarity, alignment, and joy"
+      Example: "Healthcare decisions are always informed by the best evidence"
+    
+    timeframe: "5-10 years"
+    
+    success_looks_like:
+      - "Observable indicator 1: What we see in the world"
+      - "Observable indicator 2: How people's lives are different"
+      - "Observable indicator 3: What our market/industry looks like"
+      - "Observable indicator 4: What our organization looks like"
+    
+    not_the_vision:
+      - "Clarification 1: What we're NOT trying to become"
+      - "Clarification 2: Boundaries on our ambition"
+  
+  # ============================================================================
+  # 3. MISSION - What We Do to Deliver Value
+  # ============================================================================
+  # The concrete activities and offerings that fulfill our purpose and move us toward vision
+  
+  mission:
+    mission_statement: |
+      A clear statement of WHAT we do and FOR WHOM.
+      More concrete than purpose, more stable than individual products.
+      
+      Example: "We build AI-powered learning platforms that adapt to each student's needs"
+      Example: "We create workflow tools that eliminate coordination overhead for distributed teams"
+      Example: "We provide clinical decision support that synthesizes the latest evidence"
+    
+    what_we_do:
+      - "Core activity 1: Primary thing we do"
+      - "Core activity 2: Another core activity"
+      - "Core activity 3: Supporting activity"
+    
+    how_we_deliver:
+      approach: |
+        Our distinctive approach or methodology.
+        What makes our way of delivering the mission unique?
+      
+      key_capabilities:
+        - "Capability 1: Core competency we build"
+        - "Capability 2: Another essential capability"
+    
+    who_we_serve_specifically: |
+      More specific than purpose - which segments, roles, or personas?
+      Can evolve as we expand, but should be clear now.
+    
+    boundaries:
+      we_dont_do:
+        - "Activity 1 we explicitly don't do"
+        - "Activity 2 that's out of scope"
+      
+      why_not: "Rationale for these boundaries (focus, competency, strategy)"
+  
+  # ============================================================================
+  # 4. VALUES - How We Behave and Conduct Ourselves
+  # ============================================================================
+  # Normative rules that guide decisions, behaviors, and culture
+  
+  values:
+    - value: "Value Name 1"
+      definition: |
+        What this value means in practice.
+        Should be specific enough to guide decisions.
+      
+      behaviors_we_expect:
+        - "Observable behavior 1 that demonstrates this value"
+        - "Observable behavior 2"
+      
+      behaviors_we_reject:
+        - "Anti-pattern 1 that violates this value"
+        - "Anti-pattern 2"
+      
+      example_decision: |
+        A concrete example of how this value influenced a real decision.
+        "When faced with [situation], we chose [action] because [value]."
+    
+    - value: "Value Name 2"
+      definition: |
+        What this value means.
+      
+      behaviors_we_expect:
+        - "Expected behavior 1"
+        - "Expected behavior 2"
+      
+      behaviors_we_reject:
+        - "Anti-pattern 1"
+      
+      example_decision: |
+        Concrete example of this value in action.
+    
+    - value: "Value Name 3"
+      definition: "What this value means."
+      behaviors_we_expect:
+        - "Expected behavior"
+      behaviors_we_reject:
+        - "Anti-pattern"
+      example_decision: "Example"
+    
+    # Typical values: Customer obsession, Bias for action, Ownership, Transparency, 
+    # Excellence, Simplicity, Speed, Learning, Collaboration, Impact, etc.
+  
+  value_conflicts:
+    - tension: "When two values conflict (e.g., Speed vs. Quality)"
+      resolution_principle: "How we resolve this tension"
+  
+  # ============================================================================
+  # 5. CORE BELIEFS - First Principles That Underpin Our Reasoning
+  # ============================================================================
+  # The fundamental assumptions and beliefs that guide our deductive reasoning
+  # These are the "axioms" from which we derive strategy and decisions
+  
+  core_beliefs:
+    about_our_market:
+      - belief: "First principle about market dynamics"
+        implication: "Therefore, we must/should..."
+        evidence: "What supports this belief"
+      
+      - belief: "Second principle about market"
+        implication: "Therefore..."
+        evidence: "Supporting evidence"
+    
+    about_our_users:
+      - belief: "Fundamental belief about user behavior or needs"
+        implication: "Therefore, we design/build/sell this way..."
+        evidence: "What validates this"
+      
+      - belief: "Another user-centric belief"
+        implication: "Therefore..."
+        evidence: "Evidence"
+    
+    about_our_approach:
+      - belief: "Core belief about how to solve problems in our domain"
+        implication: "Therefore, our products/features work this way..."
+        evidence: "What proves this approach works"
+      
+      - belief: "Another methodological belief"
+        implication: "Therefore..."
+        evidence: "Evidence"
+    
+    about_value_creation:
+      - belief: "Fundamental belief about how value is created/captured"
+        implication: "Therefore, our business model..."
+        evidence: "What supports this"
+    
+    about_competition:
+      - belief: "Core belief about competitive dynamics"
+        implication: "Therefore, we compete by..."
+        evidence: "What proves this"
+    
+    belief_challenges:
+      - belief: "Which core belief"
+        counter_evidence: "Evidence that might challenge this belief"
+        monitoring: "How we track if this belief still holds"
+  
+  # ============================================================================
+  # CONSISTENCY & ALIGNMENT
+  # ============================================================================
+  
+  alignment_checks:
+    purpose_vision_alignment: |
+      How does our vision fulfill our purpose?
+      Are they mutually reinforcing?
+    
+    mission_purpose_alignment: |
+      Does our mission (what we do) serve our purpose (why we exist)?
+      Is there a clear line?
+    
+    values_mission_alignment: |
+      Do our values support how we execute our mission?
+      Any conflicts between values and what we do?
+    
+    beliefs_inform_strategy: |
+      How do our core beliefs shape our strategic choices?
+      Are there beliefs that should influence current strategy work?
+  
+  # ============================================================================
+  # REVIEW & EVOLUTION
+  # ============================================================================
+  
+  evolution_history:
+    - date: "YYYY-MM-DD"
+      what_changed: "Which element(s) changed"
+      why: "Reason for change (market shift, learning, pivot, etc.)"
+      impact: "How this affects ongoing cycles"
+  
+  next_review_triggers:
+    scheduled: "Annual review date"
+    event_based:
+      - "Major market disruption"
+      - "Significant competitive shift"
+      - "Fundamental technology change"
+      - "Business model pivot"
+      - "Leadership change"
+
+# ============================================================================
+# HOW THIS INFORMS EPF CYCLES
+# ============================================================================
+
+informs_ready_phase:
+  insight_analyses:
+    - "Trend analysis should align with our beliefs about market dynamics"
+    - "User/problem analysis should validate beliefs about users"
+    - "SWOT should reflect capabilities needed for our mission"
+  
+  opportunity:
+    - "Opportunities should advance our vision"
+    - "Opportunities should align with our mission scope"
+  
+  strategy_foundations:
+    - "Product vision should be a stepping stone toward organizational vision"
+    - "Value proposition should reflect our beliefs about value creation"
+    - "Strategic sequencing should align with our approach beliefs"
+  
+  strategy_formula:
+    - "Positioning should be consistent with our mission"
+    - "Business model should reflect value creation beliefs"
+    - "Competitive moat should leverage our core beliefs about competition"
+  
+  roadmap:
+    - "OKRs should advance our mission"
+    - "Work should be conducted according to our values"
+    - "Assumptions should be testable against our core beliefs"
+
+# ============================================================================
+# USAGE NOTES
+# ============================================================================
+
+usage_guidance: |
+  1. REVIEW this document at the start of each major strategic planning cycle
+  2. REFERENCE it when making strategic trade-offs or decisions
+  3. UPDATE it only when fundamental organizational direction changes
+  4. VALIDATE that all READY phase artifacts align with this North Star
+  5. USE values and beliefs to resolve strategic tensions
+  6. COMMUNICATE this broadly - it should be known across the organization

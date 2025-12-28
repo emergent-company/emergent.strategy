@@ -1,0 +1,321 @@
+id: fd-013
+name: Data Visualization & Interactive Charts
+category: ux
+definition:
+  overview: >
+    Users struggle with raw data tables and static reports lacking visual patterns, trends, and insights causing analysis paralysis (72% report
+    difficulty identifying trends from tabular data), delayed decision-making (average 45 min to extract insights from spreadsheet vs 5 min from
+    interactive chart), and limited data literacy (58% of non-technical users cannot interpret complex tables effectively). Static PDF/Excel reports
+    prevent exploration (no filtering, no drill-down, no real-time updates) forcing analysts to regenerate reports for each question. This feature
+    provides comprehensive data visualization with interactive charts (line, bar, pie, scatter, heatmap), real-time filtering, drill-down capabilities,
+    and responsive rendering transforming static data into explorable insights reducing analysis time by 80% and democratizing data access across
+    technical and non-technical users.
+
+  jobs_to_be_done:
+    - "When I see data table, I want visual representation, so I can identify patterns and trends quickly without manual analysis."
+    - "When viewing chart, I want interactive filtering, so I can explore different segments without requesting new reports."
+    - "When I spot interesting data point, I want drill-down capability, so I can investigate underlying details immediately."
+    - "When I need specific view, I want to customize charts, so I can answer my exact question without analyst support."
+    - "When sharing insights, I want to export visualizations, so I can include them in presentations and documents."
+
+  strategic_context:
+    problem_space: >
+      Organizations generate massive datasets from operations, analytics, and user activity but struggle to extract actionable insights. 72% report
+      difficulty identifying trends from tabular data. Average 45 minutes to extract insights from spreadsheet vs 5 minutes from interactive chart
+      shows visualization efficiency. 58% of non-technical users (executives, managers, operations staff) cannot interpret complex tables limiting
+      data-driven decisions to technical analysts. Static reports (PDF, Excel exports) prevent exploration - each new question requires regenerating
+      report creating analyst bottleneck. Delayed insights (2-3 day turnaround for custom report) slow decision velocity. Limited data literacy across
+      organization concentrates decision-making with technical experts vs democratizing insights.
+
+    existing_alternatives: >
+      Current systems provide basic charts in BI tools (Tableau, Looker, Power BI) but require technical expertise to create dashboards and SQL
+      knowledge to query data. Excel pivot charts enable basic visualization but limited interactivity (no real-time filtering, slow with large
+      datasets, no drill-down). Static PDF reports distributed weekly/monthly show point-in-time data without exploration. Custom analyst-generated
+      reports with 2-3 day turnaround creating bottleneck. Users screenshot charts for sharing losing interactivity. No mobile-optimized visualizations
+      limiting on-the-go access.
+
+    value_hypothesis: >
+      Organizations implementing interactive data visualization will reduce analysis time by 80% (from 45 min to 9 min per insight), democratize data
+      access (58% of non-technical users enabled to self-serve vs requiring analyst support), accelerate decision velocity (real-time exploration vs
+      2-3 day report turnaround), and increase data-driven decisions by 40%. For 100-person org with 25 managers/executives spending 3 hours weekly
+      on data analysis, reducing time 80% saves 2.4 hours per person = 60 hours weekly = $3,000 weekly at $50/hr = $156k annually. Eliminating analyst
+      bottleneck (50% of custom report requests self-served) frees 20 analyst hours weekly = $2,000 weekly = $104k annually. Faster decision velocity
+      (days to minutes) estimated 5% productivity improvement = $260k annually. Total value: $520k annually.
+
+  capabilities:
+    - id: cap-001
+      name: Chart Type Library & Smart Defaults
+      description: >
+        Comprehensive chart types with automatic type selection based on data structure. Types: line (temporal trends), bar (categorical comparison),
+        pie (part-to-whole), scatter (correlation), heatmap (matrix patterns), area (cumulative trends), gauge (KPI progress), funnel (conversion).
+        Smart defaults analyze data structure (date column → line chart, categories → bar chart, percentages → pie chart) suggesting optimal
+        visualization. Chart configuration: axes (labels, scales, units), colors (categorical palettes, sequential gradients, diverging schemes),
+        legends (position, formatting), annotations (reference lines, target indicators). Real-time preview as configuration changes. Responsive
+        rendering across desktop/tablet/mobile with touch-optimized interactions.
+    
+    - id: cap-002
+      name: Interactive Filtering & Data Exploration
+      description: >
+        Real-time filtering without page reload enabling rapid hypothesis testing. Filter types: categorical (checkbox list for dimensions like
+        region, product, status), range (sliders for numeric/date ranges), search (text matching for labels). Multiple concurrent filters with AND/OR
+        logic. Filter state shown in chip UI (removable pills: "Region: West", "Date: Last 30 days") above chart. Chart updates instantly as filters
+        applied showing smooth animation transition. Filter persistence via URL parameters enabling shareable links ("dashboard?region=west&date=30d").
+        Filter history with undo/redo. "Clear all filters" quick reset. Mobile: filter panel as bottom sheet with apply/cancel.
+    
+    - id: cap-003
+      name: Drill-Down & Detail Navigation
+      description: >
+        Click chart elements to drill into underlying data. Hierarchy drill-down: click bar → see breakdown (Total Revenue → Revenue by Region →
+        Revenue by Product → Revenue by Customer). Click data point → detail modal with raw data table, related metrics, and further drill options.
+        Breadcrumb trail shows drill path (Total → West Region → Product A) with click-to-navigate-up. Drill-down preserves filters from parent level.
+        Cross-chart drill: click line chart point → related bar chart updates, click bar → scatter plot filters. Drill action indicators (cursor
+        changes, hover tooltip: "Click to see breakdown"). Keyboard navigation for accessibility (Tab to points, Enter to drill).
+    
+    - id: cap-004
+      name: Chart Customization & Configuration
+      description: >
+        User-configurable chart settings without code. Configuration panel: chart type selector (switch line→bar→pie with preview), axes editor
+        (labels, min/max, log scale, reverse), color scheme picker (categorical, sequential, diverging palettes with accessibility checking), series
+        settings (show/hide series, line style, marker shapes), legend options (position, format, show/hide), annotations (add reference line with
+        label: "Target: 100K", regions for date ranges). Real-time preview shows configuration changes immediately. Save custom configurations as
+        templates ("Weekly Sales Chart" reusable). Reset to defaults. Configuration export/import as JSON enabling duplication across dashboards.
+    
+    - id: cap-005
+      name: Export & Sharing Capabilities
+      description: >
+        Export charts as static images (PNG, SVG) or interactive embeds (iframe). Export options: resolution selection (screen, print, high-res),
+        include/exclude legend and annotations, white/transparent background. Copy chart as image to clipboard for quick paste into docs/slides.
+        Interactive embed generates iframe code with current filters/configuration preserved ("Embed this chart" → copy code snippet). Shareable links
+        with filter state encoded in URL ("Share link" → generates unique URL preserving all filters and config). Download underlying data as CSV/Excel
+        for offline analysis. Scheduled exports (email PNG weekly, save to drive daily). Print-optimized rendering (correct margins, page breaks).
+
+  personas:
+    - id: data-analyst
+      name: Data Analyst
+      role: Data Professional
+      description: >
+        Technical user creating dashboards and visualizations for stakeholder consumption. Expert SQL and BI tools. Values flexibility and
+        customization over simplicity. Frustrated by visualization tools lacking advanced features.
+      goals:
+        - "Create sophisticated multi-chart dashboards telling complete data story with interactive exploration."
+        - "Customize chart appearance (colors, annotations, scales) matching stakeholder preferences and brand guidelines."
+        - "Enable stakeholder self-service through interactive filters reducing ad-hoc report requests by 50%."
+        - "Export high-quality visualizations for presentations, documents, and executive reports."
+      pain_points:
+        - "BI tools require significant setup time (3-5 hours per dashboard) delaying insights delivery."
+        - "Limited customization options force compromise between technical capability and visual polish."
+        - "Static exports lose interactivity when shared with stakeholders requiring regeneration for follow-up questions."
+        - "No mobile optimization means dashboards unusable on tablets/phones limiting stakeholder access."
+      usage_context: >
+        Creates 2-3 new dashboards weekly and maintains 15-20 existing dashboards. Spends 60% of time on visualization and 40% on data preparation.
+        Receives 10-15 ad-hoc report requests weekly. Needs advanced features (custom color schemes, annotations, calculated fields).
+      technical_proficiency: expert
+      current_situation: "As Senior Business Analyst supporting sales and marketing teams with 15-20 active dashboards (weekly performance, monthly trends, quarterly forecasts, campaign analytics, customer segmentation), I spend significant time creating and maintaining visualizations while managing constant stream of ad-hoc report requests. Creating new dashboard requires 3-5 hours: writing SQL queries to prepare data, configuring charts in BI tool (axis labels, color schemes, legends), testing interactivity (filters, drill-downs), and iterating based on stakeholder feedback. Our current BI tool (Tableau) has steep learning curve - stakeholders cannot create their own charts so all 10-15 weekly ad-hoc requests ('Can you show revenue by product for West region?' 'What's the trend for last 90 days?' 'Break down by customer segment') require my intervention consuming 8-10 hours weekly (50% of my time on repetitive requests vs strategic analysis). Static exports (PNG, PDF) shared via email/Slack lose interactivity - when stakeholder has follow-up question ('Can we filter to just Q4?' 'Show only Product A'), I must regenerate entire report vs enabling self-serve exploration. Mobile access problematic - dashboards optimized for desktop don't render well on tablets/phones (charts too small, filters inaccessible) limiting executive access during travel. Customization limitations frustrating - cannot add custom annotations (reference lines for targets, shaded regions for periods), limited color palettes (cannot match brand guidelines), no template reuse (must reconfigure each chart individually)."
+      transformation_moment: "When interactive visualization system with self-service filtering and chart customization was implemented, my workflow transformed from bottleneck creator to insight enabler. First dashboard I created using new system took 45 minutes vs previous 3-5 hours: data connected via visual query builder (no SQL required for common cases), chart types auto-suggested based on data structure (date column → line chart with smart defaults), configuration panel enabled customization (brand colors, target reference lines, formatted legends) with real-time preview, and interactive filters (date range, category selectors, search) added with drag-and-drop. I shared dashboard link with sales team who immediately started self-serve exploration - they filtered by region (dropdown selector), adjusted date ranges (slider), and drilled into specific products (click bar to see breakdown) answering their own questions without creating tickets for me. My ad-hoc request volume dropped 60% (from 10-15 weekly to 4-6) because stakeholders self-served common questions ('show me last 90 days' → adjust date slider, 'break down by segment' → apply category filter). Requests I did receive were more sophisticated ('correlation between sales velocity and customer satisfaction' 'predictive model for Q1 forecasts') requiring actual analytical thinking vs repetitive reporting. Export capabilities supported multiple workflows: executives exported high-res PNGs for board presentations (1-click download with resolution selector), marketers embedded interactive charts in blog posts (iframe code with filters preserved), operations downloaded underlying CSV data for offline spreadsheet analysis. Mobile optimization meant executives accessed dashboards on tablets during travel - responsive rendering adapted charts to screen size, touch-optimized filters (bottom sheet on mobile), swipe gestures for chart navigation. After 1 month, I'd created 8 new dashboards (vs usual 2-3) because creation time reduced from 3-5 hours to under 1 hour, freed 25-30 hours monthly from ad-hoc requests enabling focus on strategic analysis (cohort modeling, predictive analytics, business intelligence)."
+      emotional_resolution: "I now feel like strategic analyst enabling data-driven culture vs report factory fulfilling repetitive requests. Dashboard creation time reduced 75% (from 3-5 hours to 45-60 minutes) through smart defaults, visual configuration, and template reuse freeing time for sophisticated analysis. Ad-hoc request volume dropped 60% (10-15 weekly to 4-6) because stakeholder self-service through interactive filters and drill-downs democratized data access - remaining requests are genuinely analytical vs simple filtering. Export and sharing capabilities support multiple stakeholder workflows: high-res images for presentations, interactive embeds for documentation, CSV downloads for offline analysis, shareable links with preserved filters. Mobile optimization expanded stakeholder access: executives review dashboards on tablets during travel, managers check metrics on phones between meetings, field teams access real-time data without desktop. Most importantly, my role shifted from bottleneck (all data access flows through me) to enabler (stakeholders self-serve common questions, I focus on complex analysis) increasing organizational data literacy and decision velocity while improving my job satisfaction through more intellectually engaging work."
+
+    - id: executive-viewer
+      name: Executive Viewer
+      role: Executive / Decision Maker
+      description: >
+        Non-technical senior leader using dashboards for business oversight and strategic decisions. Values clarity and speed over sophistication.
+        Frustrated by complex interfaces and inaccessible data. Needs mobile access during travel.
+      goals:
+        - "Quickly grasp business performance through visual KPIs without analyzing raw data or complex tables."
+        - "Explore data interactively to answer follow-up questions without requesting new reports from analysts."
+        - "Access dashboards on mobile during travel and between meetings for timely decision-making."
+        - "Share relevant insights with team through exports or links maintaining context and clarity."
+      pain_points:
+        - "Static PDF reports show point-in-time data without exploration - follow-up questions require waiting for analyst."
+        - "Cannot access desktop-only dashboards on mobile during travel limiting timely decisions."
+        - "Complex BI interfaces overwhelming - too many buttons, unclear what data represents, no guidance."
+        - "Exporting charts for presentations loses quality or requires analyst assistance."
+      usage_context: >
+        Reviews 3-5 key dashboards daily (5-10 min per session) for business pulse. Accesses 60% via mobile during commute/travel. Non-technical
+        with limited time for learning interfaces. Needs instant clarity without training.
+      technical_proficiency: basic
+      current_situation: "As VP of Sales reviewing business performance daily through combination of static PDF reports (emailed weekly by analytics team), Excel spreadsheets (sent by regional managers), and occasional Tableau dashboard access (when at desktop with VPN), I struggle with delayed insights and inability to explore data independently. Weekly PDF reports show high-level metrics (total revenue, win rate, pipeline value) but are static point-in-time snapshots - when I have follow-up question ('What's revenue trend for West region specifically?' 'How does Product A performance compare to Product B?'), I must email analytics team creating 24-48 hour delay for response. I'm often traveling (40% of time) with only mobile access but Tableau dashboards don't work on iPhone (desktop-optimized layout doesn't render, charts too small, filters inaccessible) forcing me to wait until returning to office for data access. During executive meetings discussing performance gaps, I cannot answer questions in real-time ('Show me customer acquisition cost by channel' 'What's retention rate for Q4 cohort?') without calling analyst mid-meeting or deferring answer to follow-up. Excel spreadsheets from regional managers are raw data tables (200+ rows of deals, leads, activities) without visualization - I cannot quickly identify trends or outliers requiring 15-20 minutes of manual analysis per spreadsheet. When I need to share insights with board or team, I screenshot charts from PDF reports or copy Excel tables into PowerPoint - images are low resolution, lose context, and cannot be updated if data changes requiring manual recreation."
+      transformation_moment: "When I received link to new interactive dashboard replacing weekly PDF reports, my business oversight experience transformed from delayed static reports to real-time explorable insights. Opening dashboard on laptop, I immediately saw clear visual KPIs: revenue trend line chart (last 90 days with targets), regional performance bar chart (ranked by quota attainment), pipeline funnel (leads to deals with conversion rates), win rate gauge (current vs target). Each metric visually clear in under 5 seconds vs 10-15 minutes analyzing PDF tables. When I had question about West region underperformance, I clicked 'Region' filter dropdown, selected 'West', and all charts updated instantly showing West-specific data - I discovered issue was concentrated in specific product category visible in filtered bar chart. This exploration took 30 seconds vs previous 24-48 hour email to analyst. During morning commute (phone access), I opened dashboard link seeing mobile-optimized responsive layout: KPIs stacked vertically with large touch targets, swipe between charts, tap chart to see detail modal, filters in bottom sheet. I reviewed business performance in 5 minutes on phone between meetings vs waiting until office desktop access. During executive meeting, board member asked 'What's customer acquisition cost trend by channel?' I pulled up dashboard on laptop, applied channel filter (paid vs organic), and showed comparative line chart in real-time answering question immediately vs deferring to follow-up. For board presentation, I clicked 'Export' button, selected high-resolution PNG, and got publication-quality image (1920x1080) with branded colors and clear labels - dropped directly into PowerPoint deck maintaining visual quality. Interactive filters became my default exploration tool - instead of requesting 5-8 custom analyst reports weekly, I answered 80% of questions through filtering (date ranges, regions, products, channels) only requesting analyst support for genuinely complex analysis (cohort modeling, predictive forecasting)."
+      emotional_resolution: "I now feel confident making data-driven decisions with real-time exploration vs delayed waiting for analyst reports. Interactive filters enable me to answer follow-up questions in seconds (select region, adjust date range, filter by product) vs 24-48 hour analyst turnaround freeing me from decision delays. Mobile optimization provides business oversight during travel and between meetings - I review KPIs on phone during commute (5 min daily), check metrics on tablet during flights (stay current despite 40% travel), respond to urgent questions via mobile dashboard access vs waiting for office desktop. Visual clarity of charts (line trends, bar comparisons, funnel flows, gauge progress) enables instant comprehension (5 seconds to grasp performance vs 10-15 minutes analyzing PDF tables) improving decision velocity. Export capabilities support my presentation needs - high-res PNG images for board decks, shareable links with filters preserved for team discussions, underlying CSV data for offline analysis when needed. Most importantly, self-service exploration democratized data access - I independently investigate performance questions through filters and drill-downs vs creating analyst bottleneck, enabling faster more informed decisions driving business outcomes."
+
+    - id: dashboard-designer
+      name: Dashboard Designer
+      role: UX/Product Designer
+      description: >
+        Designer defining visualization patterns and dashboard layouts. Values aesthetic quality, accessibility, and user-centered design. Frustrated
+        by visualization tools with poor visual design and limited customization.
+      goals:
+        - "Create visually polished dashboards matching brand guidelines and design standards for professional appearance."
+        - "Ensure charts are accessible meeting WCAG standards (color contrast, screen reader support, keyboard navigation)."
+        - "Design responsive layouts working across desktop, tablet, and mobile without separate implementations."
+        - "Establish reusable chart templates and style guides ensuring consistency across organization."
+      pain_points:
+        - "BI tools have dated visual design (2000s aesthetics) impossible to match modern brand guidelines."
+        - "Limited color customization forces compromise between data clarity and brand consistency."
+        - "No accessibility testing built-in - must manually verify WCAG compliance after creation."
+        - "Cannot create reusable templates - each dashboard requires individual styling from scratch."
+      usage_context: >
+        Designs 1-2 new dashboard layouts monthly and defines visualization standards for organization. Collaborates with analysts on implementation.
+        Needs design tools supporting brand consistency and accessibility without code.
+      technical_proficiency: intermediate
+      current_situation: "As UX Designer responsible for defining visualization standards and dashboard layouts across organization, I struggle with BI tools (Tableau, Looker) having dated visual design and limited customization preventing brand consistency and accessibility compliance. Our brand guidelines specify color palettes (primary, secondary, data visualization schemes with specific hex codes), typography (Inter for headings, system fonts for data), spacing (8px grid system), and component styling (rounded corners, subtle shadows, micro-interactions) but BI tools use default themes (harsh primary colors, system fonts, no spacing control, sharp edges) creating visual disconnect between dashboards and company's otherwise polished product design. Chart color customization limited - can choose colors individually but no palette management, no accessibility checking for color contrast (WCAG AA requires 4.5:1 contrast ratio), no color-blind safe palette enforcement. I export charts as PNGs and manually touch up in Figma (adjusting colors, fonts, spacing) before including in designs but this workflow breaks when data updates (must re-export and re-edit losing 2-3 hours per design iteration). Accessibility concerns unaddressed - charts lack semantic HTML for screen readers (chart data not announced), no keyboard navigation (cannot Tab through data points), insufficient color contrast (using both red and green without additional encoding creating color-blind issues), no alternative text for exported images. Cannot create reusable templates - when analyst implements my dashboard design, they must manually configure each chart (colors, fonts, spacing, annotations) matching my Figma mockup through trial-and-error often deviating from spec because configuration tedious. This manual translation process means 30-40% of deployed dashboards don't match design standards."
+      transformation_moment: "When visualization system with design-first customization and accessibility features was implemented, my workflow transformed from frustrated workarounds to native design-quality output. First time exploring chart configuration panel, I immediately saw design-oriented controls: brand color palette manager (import hex codes from brand guide, create categorical and sequential schemes, name palettes: 'Primary', 'Data Viz', 'Diverging'), typography controls (font family, weights, sizes, letter-spacing matching brand standards), spacing system (4px/8px/12px/16px grid options), and component styling (border radius, shadows, animations). I imported company brand palette (8 primary colors, 12 data visualization colors with accessibility-checked contrast ratios) and applied to chart seeing real-time preview with branded appearance. Typography panel let me specify Inter font family matching brand guidelines with different weights for headers vs data labels. Spacing controls used same 8px grid system as design system (chart margins: 16px, legend spacing: 8px, axis label padding: 12px) ensuring visual consistency with rest of product. Accessibility panel showed real-time compliance checks: color contrast ratios (green checkmark for WCAG AA pass, warning for borderline, error for fail), color-blind simulation preview (deuteranopia, protanopia, tritanopia views), keyboard navigation support indicators, screen reader markup status. When I selected red and green for chart series, accessibility panel flagged color-blind issue suggesting additional encoding (red series: solid line, green series: dashed line) making charts interpretable without color. I created reusable chart templates ('Weekly Performance Dashboard', 'Regional Comparison Chart', 'KPI Summary Card') with all styling pre-configured (colors, fonts, spacing, annotations) - analysts could select template and populate with data getting design-accurate output without manual configuration. After 1 month, dashboard design-to-implementation cycle improved from 3-4 weeks (design in Figma → translate to BI tool → iterate on mismatches) to 1 week (configure template in visualization system → analyst populates data → deploy) with 95%+ design fidelity vs previous 60-70%."
+      emotional_resolution: "I now feel proud of dashboard visual quality matching brand standards and design system vs previous compromise between data functionality and aesthetic quality. Brand color palette integration enables exact hex code matching, design-quality typography (Inter font with proper weights), consistent spacing (8px grid system), and polished component styling (rounded corners, subtle shadows) eliminating visual disconnect between dashboards and product. Accessibility features built into design workflow: real-time WCAG contrast checking, color-blind simulation previews, keyboard navigation support, screen reader semantic markup ensuring inclusive design without post-hoc audits. Reusable template system established organizational consistency - analysts select templates getting design-accurate output vs manual configuration with 30-40% deviation from standards. Design-to-implementation cycle accelerated from 3-4 weeks to 1 week with 95%+ fidelity because visualization system speaks design language (brand palettes, typography controls, spacing systems, component styling) vs BI tool technical configuration. Most importantly, data visualization became source of design pride vs previous compromise - dashboards showcase company's design quality and attention to detail reinforcing brand perception internally and externally."
+
+    - id: mobile-data-consumer
+      name: Mobile Data Consumer
+      role: Field / Remote Worker
+      description: >
+        User accessing dashboards primarily on mobile devices (phone/tablet) while traveling, in field, or between meetings. Values mobile-optimized
+        experience with touch interactions. Frustrated by desktop-only visualizations.
+      goals:
+        - "Access business metrics on mobile during commute, travel, or between meetings for timely awareness."
+        - "Interact with charts via touch gestures (tap, pinch, swipe) not desktop mouse interactions."
+        - "View clear visualizations on small screens without excessive zooming or scrolling."
+        - "Quickly grasp key insights through mobile-optimized layout prioritizing most important metrics."
+      pain_points:
+        - "Desktop dashboards don't render on mobile - charts tiny, filters inaccessible, layout broken."
+        - "Cannot interact with charts on touchscreen - hover tooltips don't work, click targets too small."
+        - "Excessive scrolling required to see full dashboard on mobile screen wasting time."
+        - "No offline access - lose dashboard when connection drops during travel."
+      usage_context: >
+        Accesses dashboards 2-3 times daily on iPhone during 20-30 min commute and between meetings. Rarely uses desktop. Needs quick mobile access
+        for staying current without deep analysis. Basic technical proficiency.
+      technical_proficiency: basic
+      current_situation: "As Regional Sales Manager spending 60% of time traveling between customer sites, partner meetings, and team visits, I rely on mobile access to business metrics (sales performance, pipeline health, team activity) for staying current and making field decisions but current desktop-only dashboards are unusable on phone. Opening Tableau dashboard link on iPhone shows desktop layout squeezed into mobile screen: charts render tiny (1-2 inch height) requiring pinch-zoom to see any detail, filters are inaccessible (dropdown menus don't work properly on mobile Safari, date picker doesn't open), layout is single-column forcing vertical scrolling through 8-10 screens to see full dashboard (spending 2-3 minutes scrolling vs instant desktop overview). Interactive features don't work on touchscreen: hover tooltips require mouse hovering (impossible on touch), chart drill-down needs precise clicking on small bars/points (frequently miss target requiring multiple attempts), filter panels designed for mouse have tiny checkboxes difficult to tap accurately. During morning commute (30 min train ride), I want to review yesterday's sales performance and today's priorities but mobile experience is so frustrating I often skip checking metrics arriving at office without current context. When customer asks unexpected question during meeting ('What's our delivery timeline for large orders?' 'How many units did similar customer purchase?'), I cannot access dashboard on phone for real-time data forcing me to defer answer ('I'll check and follow up tomorrow') reducing credibility and delaying customer decisions. No offline access means dashboard completely unavailable when connection drops (frequent during flights, remote sites, underground transit) creating blind spots during critical 4-6 hour travel windows."
+      transformation_moment: "When mobile-optimized dashboard with responsive design and touch interactions was deployed, my mobile experience transformed from unusable frustration to primary access method. Opening dashboard link on iPhone during morning commute, I immediately saw mobile-responsive layout: KPI summary cards stacked vertically (revenue, pipeline, win rate, activities) with large tap targets (80% of screen width), charts rendered at mobile-optimized size (3-4 inch height, legible without zooming), swipe-between-charts carousel (horizontal swipe to move between visualizations), filters in bottom sheet (tap filter icon opening overlay with touch-optimized controls). Each chart had touch interactions: tap bar to see detail tooltip, long-press to drill down into breakdown, pinch-to-zoom for time-range adjustment, swipe horizontally on line chart to pan through dates. Filter bottom sheet showed mobile-optimized controls: large checkboxes for categories (easy tapping), date range picker using native mobile widget (swipe to select dates), search input with mobile keyboard optimization. I reviewed full dashboard in under 3 minutes during commute: quick scan of KPI cards (revenue: ↑8% vs target, pipeline: ↓12% concerning, win rate: 28% stable, activities: 145 above goal), swipe through 4 charts (revenue trend, regional breakdown, product mix, pipeline funnel), tap concerning pipeline bar to drill into details (showing 3 large deals slipped from Q4 to Q1 explaining decline). During customer meeting when asked about delivery timelines, I pulled out phone, opened dashboard, tapped Operations section, and showed real-time fulfillment metrics answering question immediately vs deferring to follow-up. Offline mode cached most recent dashboard data - when connection dropped during flight (2-hour gap), I could still review metrics and drill into details from last sync (30 min before boarding) maintaining situational awareness during travel. After 1 month mobile usage, my dashboard access shifted from 20% mobile/80% desktop to 70% mobile/30% desktop because mobile experience was efficient and convenient for field work."
+      emotional_resolution: "I now feel connected to business metrics throughout day via mobile access vs previous blind during travel and field work. Mobile-responsive layout with KPI cards, swipe-between-charts, and bottom-sheet filters enables 3-minute dashboard review during commute vs previous frustration spending 5-10 min zooming and scrolling without insight. Touch interactions (tap for tooltips, long-press for drill-down, swipe for navigation, pinch for time-range) feel native and intuitive vs desktop mouse interactions failing on touchscreen. Real-time mobile access during customer meetings enables data-driven responses ('Let me show you our delivery metrics' tap, tap, answer) vs deferred follow-ups reducing credibility. Offline mode provides continuity during connection gaps (flights, remote sites, underground) - cached dashboard data maintains awareness during 2-4 hour travel windows vs complete blind spot. My dashboard access pattern shifted from desktop-primary (80%) to mobile-primary (70%) because mobile experience is optimized for my field workflow: quick metric checks between meetings, real-time customer question answering, commute performance review, maintaining awareness despite 60% travel time. Most importantly, mobile access transformed from tolerated necessity to preferred method for routine monitoring because touch-optimized responsive design sometimes exceeds desktop for rapid-fire metric checking and field decision support."
+
+  scenarios:
+    - id: scn-001
+      name: Data Analyst creates interactive dashboard with self-service filters reducing ad-hoc report requests
+      actor: data-analyst
+      context: ctx-001
+      trigger: "Senior Business Analyst receives 10-15 weekly ad-hoc report requests from sales team for filtered views (by region, by product, by date range) consuming 8-10 hours of repetitive work vs strategic analysis."
+      action: >
+        Create new dashboard: connect sales data via visual query builder (no SQL), add 4 charts (revenue trend line, regional bar, product pie, pipeline funnel), configure smart defaults analyzing data structure (date→line, categories→bar). Customize charts: apply brand color palette (imported from guidelines), add target reference lines (annual goal, quarterly milestones), format axes (currency, percentages), position legends. Add interactive filters: date range slider (drag to select period), region dropdown (multi-select checkboxes), product categories (filterable list), sales rep search (text input). Test interactivity: adjust date range seeing all charts update instantly with smooth transitions, select region filtering all charts, drill into bar chart seeing product breakdown. Save and share: generate shareable link with default filters (Last 90 days, All regions), embed code for wiki documentation, scheduled email exports (Monday morning summary to team). Sales team accesses dashboard: filters date range to Q4, selects West region, views product mix, drills into specific product seeing customer breakdown, exports PNG for presentation. Ad-hoc requests drop 60% from 10-15 weekly to 4-6 because team self-serves common filtering questions through interactive dashboard.
+      outcome: "Dashboard creation time reduced 75% from 3-5 hours to 45-60 minutes through visual builder, smart defaults, and real-time preview. Sales team self-service through interactive filters dropped ad-hoc requests 60% (10-15 weekly to 4-6) freeing 5-6 analyst hours weekly for strategic work. Remaining requests are genuinely analytical (correlation analysis, predictive modeling) vs simple filtering (show me West region, last 90 days). Export and sharing options support multiple workflows: shareable links for team access, high-res PNG for presentations, CSV downloads for offline analysis. Mobile optimization enables executive access during travel expanding dashboard reach 40% beyond desktop-only users."
+      acceptance_criteria:
+        - "Chart type library with 8+ types (line, bar, pie, scatter, heatmap, area, gauge, funnel) with smart default selection based on data structure (date column suggests line chart, categories suggest bar chart, percentages suggest pie)."
+        - "Real-time preview as configuration changes: color palette updates show immediately, axis scaling reflects instantly, legend positioning visible without saving, with smooth transitions between states."
+        - "Interactive filter types: categorical multi-select (checkboxes), range sliders (numeric, date), text search (fuzzy matching), with filter state shown as removable chips above charts ('Region: West', 'Date: Last 30 days')."
+        - "Instant chart updates as filters applied: smooth animation transitions between states (bars grow/shrink, lines redraw, pies re-slice), no full page reload, loading indicators for data fetch (if async), with 500ms max latency."
+        - "Drill-down via click: click bar chart shows breakdown (Revenue → Revenue by Product), click line chart point shows detail modal with raw data, breadcrumb trail shows drill path (Total → West Region → Product A) with click-to-navigate-up."
+        - "Export options: PNG/SVG image download with resolution selector (screen, print, high-res), copy to clipboard, CSV data export, interactive iframe embed code, shareable links with filter state in URL parameters."
+        - "Configuration templates: save customized chart as template ('Weekly Sales Chart'), apply template to new data, export/import template as JSON, with template library showing thumbnails and descriptions."
+
+    - id: scn-002
+      name: Executive Viewer explores business metrics on mobile during commute making data-driven decisions
+      actor: executive-viewer
+      context: ctx-002
+      trigger: "VP of Sales needs to review business performance during 30-minute commute using phone, explore data to answer follow-up questions, and respond to urgent Slack question about regional performance."
+      action: >
+        Open dashboard link on iPhone seeing mobile-responsive layout: KPI summary cards (revenue ↑8%, pipeline ↓12%, win rate 28%, activities 145) stacked vertically with large touch targets. Swipe horizontally through 4 charts (revenue trend line, regional performance bar, product mix pie, pipeline funnel) with smooth carousel animation. Tap concerning pipeline bar (↓12%) seeing detail tooltip (Q4 actual: $2.8M vs target: $3.2M, variance: -$400K). Long-press to drill down into pipeline breakdown showing 3 large deals slipped from Q4 to Q1 (Deal A: $180K, Deal B: $120K, Deal C: $95K = $395K explaining decline). Tap filter icon opening bottom sheet with touch-optimized controls: select 'West Region' from large checkboxes, choose 'Last 90 days' from date picker, apply filters seeing all charts update showing West-specific data. During team Slack discussion about West performance, pull up filtered dashboard showing Product A underperforming in West (−15% vs target), screenshot KPI card, paste into Slack with analysis ('Product A West is issue: −15% vs target, investigating with regional manager'). Export high-res PNG of regional chart for upcoming board presentation (tap Export → PNG → High Resolution → Download) getting publication-quality image in 10 seconds. Complete review session in 8 minutes during commute vs previous waiting until office desktop access.
+      outcome: "Mobile-optimized responsive layout enabled complete dashboard review in 8 minutes during commute on phone vs previous desktop-only limiting access to office hours. Touch interactions (tap for tooltips, long-press for drill-down, swipe between charts) provided native mobile UX vs desktop patterns failing on touchscreen. Interactive filters enabled self-service exploration answering follow-up question about regional performance in 30 seconds vs 24-48 hour analyst request. Real-time data access during Slack discussion enabled immediate response with screenshot evidence vs deferred answer reducing decision velocity. Export capability provided high-res image for board presentation in 10 seconds vs requesting analyst support or using low-quality screenshot. Mobile access shifted from desktop-only (100% office) to mobile-primary (70% mobile, 30% desktop) because phone experience optimized for executive rapid-review workflow."
+      acceptance_criteria:
+        - "Mobile-responsive layout: KPI cards stacked vertically (full width, 120px min height), charts rendered at mobile-optimized size (300px height min, legible text ≥14px), horizontal swipe carousel between visualizations, with 44px min touch target size."
+        - "Touch interactions: tap data point for tooltip (800ms delay to distinguish from scroll), long-press for drill-down (1s hold threshold with haptic feedback), pinch-to-zoom on charts (2-finger gesture), swipe horizontally to pan through time-series data."
+        - "Filter bottom sheet: slides up from screen bottom covering lower 60% of screen, touch-optimized controls (large checkboxes ≥44px, native date picker, search input with mobile keyboard), Apply/Cancel buttons (full-width, 56px height), drag-down-to-dismiss gesture."
+        - "Offline mode: cache most recent dashboard data (last successful fetch), show 'Offline' indicator with last-sync timestamp, enable full interactivity on cached data (filtering, drill-down), auto-sync when connection restored with visual feedback."
+        - "Export on mobile: tap Export button opening bottom sheet with format options (PNG, CSV, Copy Link), resolution selector for images (Screen, High-Res), download to device or share via system share sheet (Slack, Email, Messages, Save to Files)."
+        - "Performance on mobile: dashboard load time <3 seconds on 4G connection, chart render time <500ms, filter application instant (<100ms UI update), with skeleton loading states while data fetches."
+
+    - id: scn-003
+      name: Dashboard Designer creates accessible brand-consistent chart templates for organizational reuse
+      actor: dashboard-designer
+      context: ctx-003
+      trigger: "UX Designer needs to establish reusable visualization standards matching brand guidelines and WCAG accessibility requirements for consistent organizational dashboards."
+      action: >
+        Create brand color palette: import 8 primary brand colors and 12 data visualization colors from brand guide (hex codes), name palettes ('Primary', 'Data Viz Sequential', 'Data Viz Diverging'), run accessibility checker verifying WCAG AA contrast ratios (4.5:1 minimum) showing green checkmarks for passing colors and warnings for borderline. Configure typography: set font family to Inter (brand standard), specify weights (600 for headers, 400 for data labels), define sizes (24px titles, 16px axis labels, 14px data labels), set letter-spacing (-0.02em for headers). Apply spacing system: configure margins (16px chart margins, 12px axis padding), legend spacing (8px between items), grid system alignment (8px base unit) matching design system. Configure component styling: border radius (4px for cards, 2px for bars), shadows (subtle 0 2px 4px rgba(0,0,0,0.1)), animations (300ms ease transitions). Test accessibility: select red and green for line chart series triggering color-blind warning, review deuteranopia simulation showing indistinguishable colors, add additional encoding (red=solid line, green=dashed line) passing accessibility check. Create chart templates: 'Weekly Performance Dashboard' with 4 pre-styled charts (revenue trend, regional comparison, product mix, KPI cards), 'Regional Analysis Chart' with brand colors and annotations, 'Executive KPI Summary' with large numbers and trend indicators. Save templates to organizational library with thumbnails and descriptions enabling analyst reuse. Analyst implements dashboard: selects 'Weekly Performance Dashboard' template, connects sales data, charts render with exact brand styling (colors, fonts, spacing) matching design spec without manual configuration. Measure design fidelity: audit 20 deployed dashboards showing 95% match to design standards vs previous 60-70% before templates.
+      outcome: "Brand color palette integration enabled exact design match (hex codes, WCAG-checked contrast ratios) eliminating visual disconnect between dashboards and product. Typography controls (Inter font, proper weights, design-system sizing) and spacing system (8px grid) ensured design consistency. Built-in accessibility features (real-time contrast checking, color-blind simulation, keyboard navigation support) prevented WCAG violations during design vs post-hoc audits. Reusable templates established organizational standards with 95% design fidelity vs previous 60-70% manual implementation deviation. Design-to-implementation cycle accelerated from 3-4 weeks (design → translate → iterate) to 1 week (template → populate data) reducing designer overhead 75%."
+      acceptance_criteria:
+        - "Brand color palette manager: import colors via hex codes, create named palettes (Primary, Data Viz, Diverging), assign palettes to chart types (categorical uses Primary, sequential uses Data Viz), export palette as JSON, with palette preview showing all colors in grid."
+        - "Real-time accessibility checking: WCAG AA contrast ratio calculation (4.5:1 minimum) with visual indicators (✓ green for pass, ⚠ yellow for borderline, ✗ red for fail), color-blind simulation previews (deuteranopia, protanopia, tritanopia side-by-side), suggested fixes for violations (add pattern encoding, adjust color, increase contrast)."
+        - "Typography controls: font family selector (web-safe + Google Fonts), weight options (300/400/600/700), size specification in px/rem, letter-spacing adjustment, with real-time preview on sample chart showing typography changes immediately."
+        - "Spacing system: margin controls (chart margins, padding, gutters), grid alignment options (4px/8px/12px/16px base units), legend positioning and spacing, annotation placement, with visual guides showing spacing dimensions on hover."
+        - "Template creation: save configured chart as template with name and description, template library showing thumbnails (preview image of styled chart), apply template to new data (instant styling inheritance), export/import templates as JSON for sharing across teams."
+        - "Component styling: border radius sliders (0-12px), shadow presets (none, subtle, medium, large) with CSS values shown, animation speed selector (150ms/300ms/500ms/none), with style inspector showing all applied values for debugging."
+
+dependencies:
+  requires:
+    - fd-007  # Organization hierarchy for permission-based data filtering and team-specific dashboards
+    - fd-010  # Content lifecycle for dashboard versioning and approval workflows before publishing
+  enables:
+    - "Analytics and business intelligence features consume visualization library for data presentation"
+    - "Reporting and export features leverage chart rendering for PDF/Excel generation"
+
+boundaries:
+  non_goals:
+    - "Statistical analysis or ML modeling - focus is visualization not computation"
+    - "ETL or data pipeline management - assumes clean data available"
+    - "Custom chart types via code - library provides standard types only"
+  constraints:
+    - "Max 50,000 data points per chart for performance (larger datasets require aggregation)"
+    - "Interactive filters limited to 10 concurrent dimensions"
+    - "Export resolution max 4K (3840x2160) for performance"
+    - "Offline cache limited to 50MB per dashboard"
+  edge_cases:
+    - "Charts with missing data (show gaps in line charts, N/A labels in tables, empty state messaging)"
+    - "Real-time data updates while user viewing (show 'Data updated' notification with refresh option)"
+    - "Drill-down to data user lacks permission (show permission error with request access button)"
+    - "Mobile dashboard with 20+ charts (lazy load off-screen charts, infinite scroll pattern)"
+
+contexts:
+  - id: ctx-001
+    type: ui
+    name: Dashboard Creation Interface
+    description: >
+      Analysts configure multi-chart dashboards with data connections, chart types, styling, and interactive filters. Visual builder with real-time
+      preview enables dashboard creation without SQL or code reducing setup time from 3-5 hours to under 1 hour.
+    key_interactions:
+      - "Connect data source via visual query builder selecting tables, joining relationships, filtering rows without SQL syntax."
+      - "Add chart to dashboard choosing type from library (line, bar, pie, scatter, heatmap, area, gauge, funnel) with smart default suggestion."
+      - "Configure chart via property panel adjusting colors (palette selector), axes (labels, scales), legend (position, format), annotations (reference lines, targets)."
+      - "Add interactive filters dragging dimensions from data panel (region, date, product) with filter UI auto-generated (dropdown, slider, search)."
+      - "Preview dashboard interactivity testing filters, drill-downs, and responsive behavior before publishing to stakeholders."
+    data_displayed:
+      - "Data panel (left): available tables and fields with data types, relationships diagram, preview data sample (first 10 rows)."
+      - "Canvas (center): dashboard layout with charts, filters shown at top as chips, drag-to-reorder, resize handles, with grid snapping."
+      - "Property panel (right): chart configuration controls (type, colors, axes, legend, annotations), filter settings, export options."
+      - "Chart preview: real-time rendering as configuration changes, sample data shown, interactive elements functional (click to test drill-down)."
+
+  - id: ctx-002
+    type: ui
+    name: Mobile Dashboard View
+    description: >
+      Executives and field workers access dashboards on mobile devices (phone/tablet) with responsive layout, touch interactions, and offline support.
+      Mobile-optimized experience enables business oversight during commute, travel, and between meetings.
+    key_interactions:
+      - "View KPI summary cards stacked vertically with large touch targets showing key metrics (revenue, pipeline, win rate) at-a-glance."
+      - "Swipe horizontally between charts using carousel pattern for linear navigation through visualizations."
+      - "Tap data points for tooltips, long-press for drill-down, pinch-to-zoom for time-range adjustment using native touch gestures."
+      - "Open filter bottom sheet tapping filter icon, apply filters via touch-optimized controls (large checkboxes, native date picker)."
+      - "Export charts tapping Export button opening system share sheet (save to Photos, share via Slack/Email, copy link)."
+    data_displayed:
+      - "KPI summary cards: metric name, current value (large 32px font), trend indicator (↑8% green, ↓12% red), sparkline showing recent trend."
+      - "Chart carousel: horizontal swipe between charts with page dots indicator (•••), chart titles above, data labels sized for mobile (≥14px)."
+      - "Filter chips: active filters shown as pills at top ('Region: West', 'Date: Last 30d') with × to remove, tap for modification."
+      - "Offline indicator: banner at top when offline showing 'Last updated: 30 min ago' with sync button, cached data fully interactive."
+
+  - id: ctx-003
+    type: ui
+    name: Chart Template Configuration
+    description: >
+      Designers establish reusable chart templates with brand styling, accessibility compliance, and organizational standards. Template library
+      enables analysts to create brand-consistent dashboards without manual styling.
+    key_interactions:
+      - "Import brand color palette entering hex codes, naming palettes (Primary, Data Viz), assigning to chart types (categorical, sequential)."
+      - "Configure typography selecting font family (web-safe + Google Fonts), weights, sizes, letter-spacing with real-time preview."
+      - "Apply spacing system setting margins, padding, legend spacing using grid units (4px/8px/12px/16px) matching design system."
+      - "Test accessibility running contrast checker (WCAG AA 4.5:1), viewing color-blind simulations (deuteranopia, protanopia, tritanopia)."
+      - "Save configured chart as template with name, description, thumbnail preview, and make available in organizational library."
+    key_interactions:
+      - "Browse template library viewing thumbnails of pre-styled charts with descriptions and usage examples."
+      - "Apply template to new dashboard selecting from library, connecting data, inheriting all styling (colors, fonts, spacing)."
+      - "Customize template instance overriding specific properties (change colors, adjust annotations) while maintaining base styling."
+      - "Export template as JSON for sharing across teams or importing into different environments."
+    data_displayed:
+      - "Color palette panel: grid showing all palette colors with hex codes, contrast ratio indicators (WCAG pass/fail), usage examples."
+      - "Accessibility panel: real-time WCAG compliance status (✓/⚠/✗), color-blind simulation previews (side-by-side comparison), suggested fixes."
+      - "Template library: grid of templates with thumbnail previews, names, descriptions, usage count, last modified date, star for favorites."
+      - "Style inspector: all applied styling values (colors, fonts, spacing, borders, shadows) with ability to copy values or export as JSON."
