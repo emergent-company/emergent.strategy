@@ -1,0 +1,485 @@
+{
+  "version": "1.13.0",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Product Portfolio Schema",
+  "description": "Defines the structure for product portfolios with multiple product lines, their relationships, and brand associations. Product organizations can have several distinct product lines, each with its own product value model. Product lines can be interconnected (e.g., software controls hardware) or independent. Components and assemblies from product lines can be sold under specific brand names.",
+  "type": "object",
+  "properties": {
+    "portfolio": {
+      "type": "object",
+      "description": "The product portfolio defines all product lines and brands for a product organization",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^portfolio-[a-z0-9-]+$",
+          "description": "Unique identifier for the portfolio"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable name for the portfolio"
+        },
+        "description": {
+          "type": "string",
+          "description": "High-level description of the product portfolio"
+        },
+        "version": {
+          "type": "string",
+          "description": "Portfolio schema version"
+        },
+        "organization": {
+          "type": "object",
+          "description": "The organization that owns this portfolio",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "legal_entity": {
+              "type": "string",
+              "description": "Legal entity name if different from brand/trade name"
+            }
+          },
+          "required": ["name"]
+        },
+        "product_lines": {
+          "type": "array",
+          "description": "Distinct product lines, each with its own value model and potentially different target markets",
+          "items": {
+            "$ref": "#/definitions/product_line"
+          }
+        },
+        "product_line_relationships": {
+          "type": "array",
+          "description": "Relationships and dependencies between product lines",
+          "items": {
+            "$ref": "#/definitions/product_line_relationship"
+          }
+        },
+        "brands": {
+          "type": "array",
+          "description": "Brand identities under which products are sold. Brands can span multiple product lines.",
+          "items": {
+            "$ref": "#/definitions/brand"
+          }
+        },
+        "offerings": {
+          "type": "array",
+          "description": "Specific product offerings that combine components from product lines under a brand",
+          "items": {
+            "$ref": "#/definitions/offering"
+          }
+        }
+      },
+      "required": ["id", "name", "product_lines"]
+    }
+  },
+  "definitions": {
+    "product_line": {
+      "type": "object",
+      "description": "A distinct product line with its own value model, development track, and potentially different target market",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^pl-[a-z0-9-]+$",
+          "description": "Unique identifier for the product line (e.g., 'pl-software', 'pl-hardware')"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable name for the product line"
+        },
+        "codename": {
+          "type": "string",
+          "description": "Internal codename (e.g., 'Humatopia' for software platform)"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["software", "hardware", "service", "platform", "data", "hybrid", "other"],
+          "description": "The primary type of the product line"
+        },
+        "description": {
+          "type": "string",
+          "description": "What this product line delivers and to whom"
+        },
+        "value_model_ref": {
+          "type": "string",
+          "description": "Reference to the value model file (e.g., 'product.software.value_model.yaml')"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["concept", "development", "active", "mature", "sunset", "deprecated"],
+          "description": "Lifecycle status of the product line"
+        },
+        "target_market": {
+          "type": "object",
+          "description": "Primary target market for this product line",
+          "properties": {
+            "segments": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "verticals": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "geographies": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "key_components": {
+          "type": "array",
+          "description": "References to L1/L2 components from the value model that define this product line",
+          "items": {
+            "type": "object",
+            "properties": {
+              "component_ref": {
+                "type": "string",
+                "description": "Reference to value model component (e.g., 'InsightApp', 'DesignApp')"
+              },
+              "role": {
+                "type": "string",
+                "enum": ["core", "supporting", "optional"],
+                "description": "How central this component is to the product line"
+              }
+            },
+            "required": ["component_ref", "role"]
+          }
+        },
+        "versioning": {
+          "type": "object",
+          "description": "Version tracking for the product line",
+          "properties": {
+            "current_version": {
+              "type": "string"
+            },
+            "version_strategy": {
+              "type": "string",
+              "enum": ["semver", "date-based", "codename", "continuous"],
+              "description": "How versions are managed for this product line"
+            },
+            "release_cadence": {
+              "type": "string",
+              "description": "Expected release frequency (e.g., 'continuous', 'quarterly', 'on-demand')"
+            }
+          }
+        },
+        "dependencies": {
+          "type": "object",
+          "description": "External dependencies and requirements",
+          "properties": {
+            "requires_product_lines": {
+              "type": "array",
+              "description": "Other product lines this depends on",
+              "items": {
+                "type": "string"
+              }
+            },
+            "external_dependencies": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "required": ["id", "name", "type", "value_model_ref", "status"]
+    },
+    "product_line_relationship": {
+      "type": "object",
+      "description": "Defines how two product lines relate to each other",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^plr-[a-z0-9-]+$"
+        },
+        "from_product_line": {
+          "type": "string",
+          "description": "Source product line ID"
+        },
+        "to_product_line": {
+          "type": "string",
+          "description": "Target product line ID"
+        },
+        "relationship_type": {
+          "type": "string",
+          "enum": [
+            "controls",
+            "monitors",
+            "integrates_with",
+            "depends_on",
+            "enhances",
+            "enables",
+            "complements",
+            "bundles_with"
+          ],
+          "description": "The nature of the relationship"
+        },
+        "description": {
+          "type": "string",
+          "description": "Explanation of how the product lines interact"
+        },
+        "integration_points": {
+          "type": "array",
+          "description": "Specific technical or business integration points",
+          "items": {
+            "type": "object",
+            "properties": {
+              "from_component": {
+                "type": "string",
+                "description": "Component in source product line"
+              },
+              "to_component": {
+                "type": "string",
+                "description": "Component in target product line"
+              },
+              "integration_type": {
+                "type": "string",
+                "enum": ["api", "data_flow", "control_signal", "physical", "business_process"]
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "bidirectional": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether the relationship works in both directions"
+        }
+      },
+      "required": ["id", "from_product_line", "to_product_line", "relationship_type"]
+    },
+    "brand": {
+      "type": "object",
+      "description": "A brand identity under which products or product combinations are marketed and sold. Brands are flexible and can apply at various granularities: entire product lines (broad), specific components (narrow/ingredient), assemblies of components (grouped), or specific offerings/implementations (concrete products sold to customers).",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^brand-[a-z0-9-]+$",
+          "description": "Unique identifier for the brand"
+        },
+        "name": {
+          "type": "string",
+          "description": "The brand name as presented to customers"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["master", "product", "sub", "endorsed", "ingredient"],
+          "description": "Brand architecture type"
+        },
+        "description": {
+          "type": "string",
+          "description": "What the brand represents and its positioning"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["planned", "active", "transitioning", "deprecated", "retired"],
+          "description": "Current status of the brand"
+        },
+        "applies_to": {
+          "type": "object",
+          "description": "What this brand applies to. Brands can be applied at different granularities: (1) entire product lines for broad branding, (2) specific components for narrow/ingredient branding, (3) multiple components together as an implicit assembly, or (4) specific offerings which represent concrete implementations sold to customers.",
+          "properties": {
+            "product_lines": {
+              "type": "array",
+              "description": "Product line IDs this brand covers (broadest scope - entire product lines)",
+              "items": {
+                "type": "string"
+              }
+            },
+            "components": {
+              "type": "array",
+              "description": "Specific component IDs from value models. A single component = narrow/ingredient brand. Multiple components listed together = implicit assembly (a branded grouping of components).",
+              "items": {
+                "type": "string"
+              }
+            },
+            "offerings": {
+              "type": "array",
+              "description": "Specific offering IDs. Offerings represent concrete implementations - specific configurations, versions, and component combinations that are sold to customers.",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "brand_elements": {
+          "type": "object",
+          "description": "Key brand identity elements",
+          "properties": {
+            "tagline": {
+              "type": "string"
+            },
+            "value_proposition_summary": {
+              "type": "string"
+            },
+            "brand_personality": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "visual_identity_ref": {
+              "type": "string",
+              "description": "Reference to brand guidelines document"
+            }
+          }
+        },
+        "history": {
+          "type": "array",
+          "description": "Brand evolution history",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": "string",
+                "format": "date"
+              },
+              "event": {
+                "type": "string",
+                "enum": ["created", "renamed", "repositioned", "merged", "split", "deprecated", "retired"]
+              },
+              "description": {
+                "type": "string"
+              },
+              "previous_name": {
+                "type": "string",
+                "description": "If renamed, the previous brand name"
+              }
+            },
+            "required": ["date", "event"]
+          }
+        },
+        "parent_brand": {
+          "type": "string",
+          "description": "ID of parent brand in brand hierarchy (for sub-brands)"
+        }
+      },
+      "required": ["id", "name", "type", "status"]
+    },
+    "offering": {
+      "type": "object",
+      "description": "A specific product offering representing a concrete implementation - a particular configuration of components from one or more product lines, sold under a brand. Offerings are the 'implementations' layer: they specify exact component versions, pricing models, and market positioning for what customers actually purchase.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^offering-[a-z0-9-]+$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Commercial name of the offering"
+        },
+        "sku": {
+          "type": "string",
+          "description": "Stock keeping unit or product code"
+        },
+        "brand_id": {
+          "type": "string",
+          "description": "Brand under which this offering is sold"
+        },
+        "description": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["product", "bundle", "edition", "tier", "add-on", "service"],
+          "description": "Type of offering"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["planned", "preview", "active", "end-of-sale", "end-of-life"],
+          "description": "Offering lifecycle status"
+        },
+        "components": {
+          "type": "array",
+          "description": "Components from product lines included in this offering",
+          "items": {
+            "type": "object",
+            "properties": {
+              "product_line_id": {
+                "type": "string"
+              },
+              "component_ref": {
+                "type": "string",
+                "description": "Reference to L1/L2/L3 in value model"
+              },
+              "version_constraint": {
+                "type": "string",
+                "description": "Version requirement (e.g., '>=1.0.0', 'latest')"
+              },
+              "configuration": {
+                "type": "object",
+                "description": "Specific configuration for this component in this offering",
+                "additionalProperties": true
+              }
+            },
+            "required": ["product_line_id", "component_ref"]
+          }
+        },
+        "pricing_model": {
+          "type": "object",
+          "description": "How this offering is priced",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["one-time", "subscription", "usage-based", "hybrid", "custom"]
+            },
+            "tiers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "target_segment": {
+          "type": "string",
+          "description": "Primary customer segment for this offering"
+        },
+        "availability": {
+          "type": "object",
+          "properties": {
+            "regions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "channels": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "launch_date": {
+              "type": "string",
+              "format": "date"
+            },
+            "end_of_sale_date": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        }
+      },
+      "required": ["id", "name", "brand_id", "type", "status", "components"]
+    }
+  },
+  "required": ["portfolio"]
+}

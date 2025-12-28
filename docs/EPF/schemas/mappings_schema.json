@@ -1,0 +1,204 @@
+{
+  "version": "1.13.0",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "mappings_schema.json",
+  "title": "EPF Mappings Schema",
+  "description": "Schema for validating mapping files that trace value model sub-components to concrete implementation artifacts. Mappings create bidirectional traceability between strategic value paths and actual code, designs, docs, and tests. This enables impact analysis (what artifacts implement which value?) and coverage analysis (which value paths lack implementation?).",
+  "$comment": "Mappings YAML files live in templates/FIRE/ or _instances/{product}/mappings/. They create explicit links from Value Model L3 capabilities to implementation artifacts across all four strategic pillars (Product, Commercial, Strategy, OrgOps). Mappings support: (1) Traceability - which repos/files deliver which value, (2) Impact Analysis - what breaks if we change strategy, (3) Coverage Tracking - which value paths have no implementation, (4) Onboarding - help new devs understand strategic intent behind code. Mappings are living documents that evolve as codebase and strategy change. Tools can validate mappings against actual artifact existence and detect drift.",
+  "type": "object",
+  "required": ["product", "strategy", "org_ops", "commercial"],
+  "additionalProperties": false,
+  "properties": {
+    "product": {
+      "type": "array",
+      "description": "Maps Product value model L3 capabilities to implementation artifacts (code, design, docs, tests). Product pillar focuses on user-facing features and technical capabilities.",
+      "$comment": "Product mappings connect Value Model 'Product' pillar L3 capabilities to actual implementation. Each mapping contains: (1) sub_component_id - the L3 capability identifier from value_model.yaml, (2) artifacts array - list of repos/files/URLs that implement this capability. Product artifacts typically include: user interface code, API endpoints, database schemas, component libraries, design files (Figma/Sketch), API documentation, integration tests, E2E tests. Multiple artifacts per capability is normal - a single capability often spans frontend, backend, tests, docs. Example: 'Product.Operate.Monitoring' capability might map to: dashboard components (code), metrics service (code), monitoring dashboard (design), API spec (docs), metrics tests (test).",
+      "items": {
+        "type": "object",
+        "required": ["sub_component_id", "artifacts"],
+        "properties": {
+          "sub_component_id": {
+            "type": "string",
+            "pattern": "^(Product)\\.[A-Za-z]+\\.[A-Za-z]+$",
+            "description": "Value Model L3 capability ID from Product pillar. Format: Product.{L2_theme}.{L3_capability}",
+            "$comment": "Sub-component ID must reference a valid L3 capability from the Product pillar in value_model.yaml. Format is hierarchical: 'Product' (L1 pillar) + L2 theme + L3 capability. Examples: 'Product.Operate.Monitoring', 'Product.Decide.Analytics', 'Product.Execute.Automation'. The ID must match exactly what's defined in value_model.yaml - tools validate this cross-reference. Case-sensitive. Use PascalCase for theme and capability names.",
+            "examples": ["Product.Operate.Monitoring", "Product.Decide.Analytics", "Product.Execute.Automation", "Product.Collaborate.Communication"]
+          },
+          "artifacts": {
+            "type": "array",
+            "minItems": 1,
+            "description": "List of implementation artifacts (code files, design files, docs, tests) that deliver this capability. Each artifact has type, URL, and optional description.",
+            "$comment": "Artifacts array links strategy to implementation reality. Each artifact represents a concrete file, component, or resource. Include artifacts across the full implementation spectrum: (1) 'code' - source files, components, services, libraries, (2) 'design' - Figma files, design system components, mockups, (3) 'documentation' - API specs, architecture diagrams, user guides, (4) 'test' - unit tests, integration tests, E2E tests. URLs can be: GitHub repo URLs (with /tree/ or /blob/ paths for specific files), design tool URLs (Figma, Sketch, Adobe XD), documentation URLs (Confluence, Notion, internal docs sites), test report URLs. At minimum, provide 1 artifact per capability. Ideal: 2-5 artifacts covering code + tests at minimum. More comprehensive: code + design + docs + tests.",
+            "items": {
+              "type": "object",
+              "required": ["type", "url"],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["code", "design", "documentation", "test"],
+                  "description": "Artifact category: 'code' (source files, components), 'design' (UI/UX artifacts), 'documentation' (specs, guides), 'test' (test files, test reports)",
+                  "$comment": "Artifact type enables filtering and coverage analysis. 'code' = runnable source code (JS/TS/Python/etc files, React components, API services, database migrations). 'design' = visual design artifacts (Figma/Sketch files, design system components, mockups, prototypes). 'documentation' = written specs and guides (OpenAPI specs, architecture diagrams, user manuals, API docs, README files). 'test' = verification artifacts (unit test files, integration test suites, E2E test specs, test coverage reports). Choose type based on primary purpose - a README with code examples is 'documentation', not 'code'. Tools can analyze coverage by type: 'We have code but no tests' or 'We have design but no implementation'."
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "minLength": 1,
+                  "description": "URL pointing to the artifact. Can be GitHub file/directory, design tool link, documentation page, or test report. Should be persistent and accessible to team.",
+                  "$comment": "URL must be reachable by team members with appropriate access. Format varies by artifact type: GitHub URLs - use tree/blob paths for specific locations (e.g., https://github.com/org/repo/blob/main/src/components/Dashboard.tsx). Design URLs - direct links to Figma frames or files (e.g., https://figma.com/file/{id}/Dashboard). Documentation URLs - permalinks to docs pages (avoid generic /docs, use specific pages). Test URLs - link to test files in repo or test report dashboards. Use HTTPS. Relative paths not allowed - must be fully qualified URLs. Tools may validate URL reachability and detect broken links."
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 5,
+                  "maxLength": 300,
+                  "description": "Brief explanation of what this artifact contains and how it implements the capability. Focus on what, not how. Optional but recommended for clarity.",
+                  "$comment": "Description helps future readers understand why this artifact is linked. Good descriptions answer: (1) What is this artifact? (React component, API endpoint, database schema, etc.), (2) What part of the capability does it implement? (data fetching, UI rendering, business logic, etc.), (3) Any important context? (prototype vs. production, deprecated, requires environment setup, etc.). Keep concise: 1-2 sentences, 50-200 characters typical. Examples: 'React dashboard component with real-time metrics display', 'REST API endpoint for fetching monitoring data', 'Figma design system with dashboard component variants', 'Integration tests for monitoring data pipeline'. Avoid generic descriptions like 'The code' or 'Implementation'."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "strategy": {
+      "type": "array",
+      "description": "Maps Strategy value model L3 capabilities to implementation artifacts (alignment docs, planning tools, decision records, process artifacts). Strategy pillar focuses on organizational alignment and execution capabilities.",
+      "$comment": "Strategy mappings link Value Model 'Strategy' pillar capabilities to artifacts that embody strategic alignment and execution. Strategy artifacts differ from Product artifacts - they're often documents, processes, and tools rather than code. Typical strategy artifacts: strategic planning documents (roadmaps, OKRs), decision records (ADRs, RFCs), alignment artifacts (vision docs, strategy memos), process documentation (planning rituals, review processes), governance tools (strategy dashboards, decision logs). Example: 'Strategy.Align.Vision' might map to: vision document (documentation), quarterly planning template (documentation), strategy review slides (design). Strategy mappings validate that strategic capabilities have tangible implementation, not just good intentions.",
+      "items": {
+        "type": "object",
+        "required": ["sub_component_id", "artifacts"],
+        "properties": {
+          "sub_component_id": {
+            "type": "string",
+            "pattern": "^(Strategy)\\.[A-Za-z]+\\.[A-Za-z]+$",
+            "description": "Value Model L3 capability ID from Strategy pillar. Format: Strategy.{L2_theme}.{L3_capability}",
+            "$comment": "Strategy sub-component IDs reference capabilities like 'Strategy.Align.Vision', 'Strategy.Execute.Delivery', 'Strategy.Learn.Feedback'. Must match value_model.yaml exactly. Strategy capabilities are about HOW the organization plans, aligns, executes, and learns - not WHAT gets built (that's Product pillar).",
+            "examples": ["Strategy.Align.Vision", "Strategy.Execute.Delivery", "Strategy.Learn.Feedback", "Strategy.Decide.Portfolio"]
+          },
+          "artifacts": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Strategy implementation artifacts: alignment docs, planning tools, decision records, process guides, governance dashboards.",
+            "$comment": "Strategy artifacts validate that strategic capabilities have real implementation. Common artifact types: (1) documentation - vision docs, strategy memos, process guides, planning templates, (2) design - planning dashboards, strategy review slides, alignment workshops, (3) code - (rare) strategy tools, automation scripts, dashboard widgets, (4) test - (very rare) process validation, compliance checks. Most strategy artifacts are documentation or design. URLs often point to: Confluence/Notion pages, Google Docs/Slides, Miro boards, strategy dashboards.",
+            "items": {
+              "type": "object",
+              "required": ["type", "url"],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["code", "design", "documentation", "test"],
+                  "description": "Artifact category. Strategy artifacts are typically 'documentation' or 'design', occasionally 'code' for strategy tools."
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "minLength": 1,
+                  "description": "URL to the strategy artifact (doc, slide deck, dashboard, tool)."
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 5,
+                  "maxLength": 300,
+                  "description": "Brief explanation of the artifact's role in implementing this strategic capability."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "org_ops": {
+      "type": "array",
+      "description": "Maps OrgOps value model L3 capabilities to implementation artifacts (internal tools, processes, automation, operational docs). OrgOps pillar focuses on internal operational excellence and team enablement.",
+      "$comment": "OrgOps mappings connect Value Model 'OrgOps' pillar capabilities to internal operational artifacts. OrgOps is about making the organization itself work better - internal tooling, team processes, operational efficiency, knowledge management. Typical OrgOps artifacts: internal tools (admin panels, CI/CD pipelines, monitoring dashboards), process documentation (onboarding guides, incident response runbooks), automation scripts (deployment scripts, data migration tools), operational dashboards (team metrics, system health), knowledge bases (internal wikis, technical docs, architecture diagrams). Example: 'OrgOps.Develop.Velocity' might map to: CI/CD pipeline config (code), deployment dashboard (code), development workflow guide (documentation), pipeline tests (test). OrgOps artifacts often live in separate repos or sections than Product artifacts.",
+      "items": {
+        "type": "object",
+        "required": ["sub_component_id", "artifacts"],
+        "properties": {
+          "sub_component_id": {
+            "type": "string",
+            "pattern": "^(OrgOps)\\.[A-Za-z]+\\.[A-Za-z]+$",
+            "description": "Value Model L3 capability ID from OrgOps pillar. Format: OrgOps.{L2_theme}.{L3_capability}",
+            "$comment": "OrgOps sub-component IDs reference internal operational capabilities like 'OrgOps.Develop.Velocity', 'OrgOps.Operate.Reliability', 'OrgOps.Learn.Knowledge'. Must match value_model.yaml exactly. OrgOps capabilities are about internal operations - developer experience, team efficiency, operational excellence, knowledge management.",
+            "examples": ["OrgOps.Develop.Velocity", "OrgOps.Operate.Reliability", "OrgOps.Learn.Knowledge", "OrgOps.Collaborate.Communication"]
+          },
+          "artifacts": {
+            "type": "array",
+            "minItems": 1,
+            "description": "OrgOps implementation artifacts: internal tools, automation scripts, process docs, operational dashboards, runbooks.",
+            "$comment": "OrgOps artifacts implement internal operational capabilities. Common types: (1) code - internal tools (admin panels, CLI utilities), automation scripts (deployment, migrations), infrastructure-as-code (Terraform, K8s configs), monitoring/alerting configs, (2) documentation - process guides (incident response, deployment procedures), runbooks (operational procedures), architecture diagrams, API docs for internal services, (3) design - operational dashboards (Grafana, Datadog), team tooling UIs, internal wikis, (4) test - operational validation (smoke tests, healthchecks), infrastructure tests. URLs often point to: internal repos, ops documentation sites, monitoring dashboards, runbook pages.",
+            "items": {
+              "type": "object",
+              "required": ["type", "url"],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["code", "design", "documentation", "test"],
+                  "description": "Artifact category. OrgOps artifacts span all types, often heavy on 'code' (internal tools) and 'documentation' (processes)."
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "minLength": 1,
+                  "description": "URL to the OrgOps artifact (tool, script, dashboard, runbook, process doc)."
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 5,
+                  "maxLength": 300,
+                  "description": "Brief explanation of how this artifact implements the operational capability."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "commercial": {
+      "type": "array",
+      "description": "Maps Commercial value model L3 capabilities to implementation artifacts (sales tools, marketing materials, pricing models, GTM docs). Commercial pillar focuses on customer acquisition, retention, and revenue generation.",
+      "$comment": "Commercial mappings link Value Model 'Commercial' pillar capabilities to go-to-market and revenue artifacts. Commercial capabilities are about how we acquire, serve, and retain customers - sales, marketing, pricing, customer success. Typical commercial artifacts: (1) sales enablement (pitch decks, product demos, ROI calculators, competitive battlecards), (2) marketing materials (website pages, landing pages, email templates, ad campaigns), (3) pricing tools (pricing calculators, quoting tools, packaging/plan configs), (4) customer success (onboarding guides, help center articles, training materials, customer dashboards), (5) analytics (funnel dashboards, cohort analysis, revenue reports). Example: 'Commercial.Acquire.Discovery' might map to: product website page (design), demo video (documentation), trial signup flow (code), acquisition funnel dashboard (code). Commercial artifacts often live outside main product repos - marketing repos, CMS systems, customer-facing documentation sites.",
+      "items": {
+        "type": "object",
+        "required": ["sub_component_id", "artifacts"],
+        "properties": {
+          "sub_component_id": {
+            "type": "string",
+            "pattern": "^(Commercial)\\.[A-Za-z]+\\.[A-Za-z]+$",
+            "description": "Value Model L3 capability ID from Commercial pillar. Format: Commercial.{L2_theme}.{L3_capability}",
+            "$comment": "Commercial sub-component IDs reference go-to-market capabilities like 'Commercial.Acquire.Discovery', 'Commercial.Expand.Retention', 'Commercial.Monetize.Pricing'. Must match value_model.yaml exactly. Commercial capabilities focus on revenue generation and customer relationships - acquisition, expansion, monetization, retention.",
+            "examples": ["Commercial.Acquire.Discovery", "Commercial.Expand.Retention", "Commercial.Monetize.Pricing", "Commercial.Serve.Success"]
+          },
+          "artifacts": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Commercial implementation artifacts: sales materials, marketing content, pricing tools, customer success resources, GTM documentation.",
+            "$comment": "Commercial artifacts implement customer-facing and revenue-generating capabilities. Common types: (1) design - marketing websites, landing pages, email templates, pitch decks, product demos, ad campaigns, (2) documentation - sales playbooks, product guides, help center articles, onboarding materials, training docs, competitive analysis, (3) code - pricing calculators, quoting tools, trial flows, customer dashboards, funnel tracking, CRM integrations, (4) test - (less common) pricing model validation, funnel tracking tests. URLs often point to: public websites, design files (Figma/Sketch), documentation sites (Notion, Confluence), marketing repos, CMS systems, help centers (Intercom, Zendesk).",
+            "items": {
+              "type": "object",
+              "required": ["type", "url"],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["code", "design", "documentation", "test"],
+                  "description": "Artifact category. Commercial artifacts are often 'design' (marketing) or 'documentation' (sales/support), with 'code' for GTM tools."
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "minLength": 1,
+                  "description": "URL to the commercial artifact (marketing site, sales doc, pricing tool, support article)."
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 5,
+                  "maxLength": 300,
+                  "description": "Brief explanation of how this artifact supports the commercial capability."
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

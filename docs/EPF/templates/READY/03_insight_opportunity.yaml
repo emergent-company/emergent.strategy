@@ -1,0 +1,56 @@
+# EPF v1.13.0 - Insight Opportunity Template
+# INSIGHT Phase: Big Opportunity Identification
+# This is the first sub-phase of READY where we identify and validate a significant market/user opportunity.
+# This document synthesizes insights from 01_insight_analyses.yaml into a clear opportunity statement.
+# This opportunity must align with organizational North Star (00_north_star.yaml) and will inform:
+# - Strategic foundations (02_strategy_foundations.yaml)
+# - Strategy formula (04_strategy_formula.yaml)
+#
+# Related Resources:
+# - Schema: ../../schemas/insight_opportunity_schema.json
+# - Wizard: ../../wizards/synthesizer.agent_prompt.md
+
+# Reference to foundational analyses
+analyses_source: "01_insight_analyses.yaml"
+based_on_analyses: "01_insight_analyses.yaml"
+analyses_last_updated: null
+
+opportunity:
+  id: "opp-001"
+  title: "Example Big Opportunity"
+  description: "A clear, compelling statement of the opportunity we're pursuing."
+  
+  # Market/User Context
+  context:
+    target_segment: "TBD - Who are we serving?"
+    pain_points:
+      - "Primary pain point or unmet need"
+      - "Secondary pain point"
+    market_size: "TBD - TAM/SAM/SOM estimates if relevant"
+    urgency: "Why now? What's changed in the market/technology?"
+  
+  # Evidence Base
+  evidence:
+    quantitative:
+      - source: "e.g., Market research report"
+        insight: "Key quantitative finding"
+    qualitative:
+      - source: "e.g., User interviews"
+        insight: "Key qualitative finding"
+    competitive_landscape:
+      - "How are others addressing this? What gaps exist?"
+  
+  # Value Hypothesis
+  value_hypothesis:
+    user_value: "What fundamental value can we create for users?"
+    business_value: "What value does this create for our business?"
+    strategic_fit: "How does this align with our mission/vision?"
+  
+  # Opportunity Metrics
+  success_indicators:
+    - metric: "How will we know this opportunity is real?"
+      target: "TBD"
+  
+  status: "identified" # identified, validated, invalidated, deferred
+  confidence_level: "medium" # low, medium, high
+  validation_date: null

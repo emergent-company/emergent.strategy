@@ -1,0 +1,250 @@
+{
+  "version": "1.13.0",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Assessment Report Schema",
+  "description": "Defines the structure for cycle assessment reports based on roadmap execution. Assessments focus on OKR/KR-level outcomes, assumption validation, and strategic learning. Work package outcomes are tracked in spec-driven development tools (separate from strategic assessment).",
+  "$comment": "Assessment Reports document strategic progress and learning at the OKR/KR level after each FIRE cycle execution. They differ from Calibration Memos (which drive strategic decisions) and Work Package Tracking (which tracks tactical delivery). Assessment Reports answer: Did we achieve our intended outcomes? What did we learn? What evidence do we have? They feed directly into Calibration Memos by providing the OKR/KR performance data and assumption validation evidence needed for strategic decisions. Write Assessment Reports immediately after FIRE cycle completion, before writing Calibration Memos. Focus on objective outcomes (metrics, evidence, status) rather than strategic interpretation (save that for Calibration Memos). Assessment Reports are the 'what happened' that enables Calibration Memos to answer 'what should we do next'.",
+  "type": "object",
+  "properties": {
+    "roadmap_id": {
+      "type": "string",
+      "description": "Reference to the roadmap being assessed (e.g., 'mobile-app-v2', 'api-platform-refresh'). Must match a roadmap_id from roadmap_recipe_schema.json.",
+      "$comment": "The roadmap_id creates the assessment audit trail: Roadmap Recipe → FIRE Execution → Assessment Report → Calibration Memo. Use lowercase with hyphens, keep descriptive (5-50 chars). This link enables querying all assessments for a roadmap across cycles, tracking strategic trajectory over time. Example: 'customer-portal-rebuild' roadmap assessed over cycles 1-8 shows evolution from early exploration (low confidence, many invalidated assumptions) to mature execution (high confidence, validated strategy).",
+      "minLength": 5,
+      "maxLength": 50,
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "cycle": {
+      "type": "integer",
+      "description": "Cycle number for this assessment (1-100). Each cycle represents one FIRE execution iteration.",
+      "$comment": "Cycle number enables trend analysis across assessments: OKR achievement rates, assumption validation velocity, confidence evolution. Early cycles (1-3) typically show lower achievement rates and more assumption invalidation (learning phase). Mid cycles (4-7) show improvement as strategy refines. Late cycles (8+) should show consistent achievement or signal need for strategic pivot. Track cycle-to-cycle changes in metrics, evidence quality, and strategic insights to measure learning velocity. Example: Cycle 1 might achieve 40% of KRs (exploration), Cycle 5 achieves 80% (validated strategy), Cycle 9 drops to 50% (market shift requiring pivot).",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "okr_assessments": {
+      "type": "array",
+      "description": "Assessment of each OKR's performance during the cycle. Includes KR outcomes, supporting data, and cross-functional insights. Focus on objective measurement and evidence.",
+      "$comment": "OKR Assessments are the heart of Assessment Reports, documenting what was achieved (or not) at the strategic objective level. Each OKR gets one assessment covering all its Key Results. Structure your assessment narratively: What was the objective? What did we achieve? What evidence supports this? What surprised us? OKR Assessments feed directly into Calibration Memo reasoning by providing the performance data needed for strategic decisions. Good OKR assessments are: (1) Evidence-based - cite specific metrics and data, (2) Outcome-focused - measure results not activities, (3) Cross-functional - include insights from all contributing teams, (4) Trend-aware - compare to previous cycles, (5) Honest - document both successes and failures. Typical pattern: 1-5 OKR assessments per cycle, each with 2-5 Key Results. Early cycles may have fewer OKRs (exploration), later cycles may have more (execution scale).",
+      "minItems": 1,
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "properties": {
+          "okr_id": {
+            "type": "string",
+            "description": "Unique identifier for the OKR being assessed (e.g., 'okr-growth-retention-q4'). Must match OKR definitions in roadmap_recipe_schema.json.",
+            "$comment": "OKR IDs link assessment data back to strategic intent defined in the roadmap. Use descriptive IDs that convey the objective (e.g., 'okr-increase-activation', 'okr-reduce-churn', 'okr-expand-enterprise'). This enables tracking the same OKR across multiple cycles, showing learning progression. Example: 'okr-mobile-conversion' might appear in cycles 1-6, with improving KR achievement rates as strategy matures. Keep IDs stable across cycles for a given objective; create new IDs only for genuinely new objectives.",
+            "minLength": 5,
+            "maxLength": 50,
+            "pattern": "^okr-[a-z0-9-]+$"
+          },
+          "assessment": {
+            "type": "string",
+            "description": "Narrative assessment of the OKR's overall performance. Synthesizes KR outcomes, data summary, and cross-functional insights into a coherent story.",
+            "$comment": "The assessment narrative is your opportunity to tell the story of what happened with this objective during the cycle. Good structure: (1) Context - What was the objective and why? (2) Outcomes - What did we achieve? Cite specific KR statuses and metrics. (3) Evidence - What data supports these outcomes? Reference quantitative and qualitative data. (4) Insights - What did we learn? What surprised us? What cross-functional patterns emerged? (5) Implications - What does this mean for next cycle? Keep narrative form (not bullet points) but stay concise (300-1000 words typical). This narrative becomes the foundation for Calibration Memo reasoning. Example: 'We aimed to increase activation rate from 40% to 60%. We achieved 52% (partially met), driven primarily by onboarding flow improvements. User research revealed unexpected friction in payment setup that we hadn't anticipated. Engineering and Design teams collaborated effectively, but Product Marketing input came too late to influence messaging.'",
+            "minLength": 100,
+            "maxLength": 2000
+          },
+          "key_result_outcomes": {
+            "type": "array",
+            "description": "Outcomes for each Key Result under this OKR. Each KR gets assessed independently with target/actual comparison, status, and learnings.",
+            "$comment": "Key Result Outcomes are the atomic units of strategic measurement - this is where you document what actually happened vs what you intended. Each KR should be: (1) Measurable - have clear numeric or boolean outcomes, (2) Time-bound - assessed within cycle timeframe, (3) Comparable - target vs actual enables learning, (4) Evidence-backed - learnings cite specific data or observations. KR status progression across cycles shows strategic maturity: Early cycles often show 'missed' or 'partially_met' (exploration), mid cycles show more 'met' (validated approach), late cycles should consistently 'exceed' or signal pivot need. Common anti-pattern: too many KRs (>5 per OKR suggests poor focus). Good pattern: 2-4 KRs per OKR, each measuring a distinct dimension of the objective. Example: OKR 'Increase user activation' might have KRs for activation rate (%), time-to-activation (days), activation completion rate (%), and activation quality score (1-10).",
+            "minItems": 1,
+            "maxItems": 8,
+            "items": {
+              "type": "object",
+              "properties": {
+                "kr_id": {
+                  "type": "string",
+                  "description": "Unique identifier for this Key Result (e.g., 'kr-activation-rate', 'kr-ttv-reduction'). Must match KR definitions in roadmap_recipe_schema.json.",
+                  "$comment": "KR IDs enable tracking specific metrics across cycles. Use descriptive names that reveal what's being measured (e.g., 'kr-signup-conversion', 'kr-churn-rate', 'kr-nps-score'). Stable IDs across cycles enable trend analysis: 'kr-activation-rate' might show 45% → 52% → 58% → 62% over cycles 1-4, demonstrating progressive improvement. Format: 'kr-' prefix + metric name (lowercase, hyphens). Keep IDs stable even if targets change; the metric itself should remain consistent for comparison.",
+                  "minLength": 5,
+                  "maxLength": 50,
+                  "pattern": "^kr-[a-z0-9-]+$"
+                },
+                "target": {
+                  "type": "string",
+                  "description": "The intended outcome for this KR (e.g., '60% activation rate', 'Reduce time-to-value to 3 days', 'NPS ≥ 50'). Include units and comparison operators.",
+                  "$comment": "Targets should be specific, measurable, and time-bound within the cycle. Good targets include: (1) Numeric value with unit ('60%', '3 days', '$50K MRR'), (2) Comparison operator when relevant ('≥', '>', '<'), (3) Baseline context when helpful ('from 40% to 60%'). Avoid vague targets ('improve activation', 'reduce churn') - always quantify. Targets may evolve across cycles as you learn, but keep measurement consistent. Example targets: '60% activation rate', 'Reduce P95 latency to <200ms', 'Increase daily active users to 10K', 'NPS score ≥ 50', 'Zero critical bugs in production'.",
+                  "minLength": 5,
+                  "maxLength": 200
+                },
+                "actual": {
+                  "type": "string",
+                  "description": "The actual outcome achieved during the cycle (e.g., '52% activation rate', 'Time-to-value averaged 4.2 days', 'NPS = 48'). Use same format and units as target for comparison.",
+                  "$comment": "Actual outcomes must be measurable and verifiable from your data summary. Match the format of your target exactly for easy comparison. Include: (1) Numeric value with same units as target, (2) Measurement period if relevant ('week 1-4 average', 'end of cycle'), (3) Confidence level if uncertain ('~52%', '50-55% range'). The actual value becomes evidence for your assessment narrative and learning. If you can't measure the actual, document why ('Insufficient data: only 50 users in cohort', 'Measurement instrumentation failed') and update your data collection for next cycle. Example actuals: '52% activation rate (from 40% baseline)', 'P95 latency 180ms', 'Daily active users reached 8.5K', 'NPS score 48 (±3)', 'One critical bug in production (resolved in 2 hours)'.",
+                  "minLength": 5,
+                  "maxLength": 200
+                },
+                "status": {
+                  "type": "string",
+                  "enum": ["exceeded", "met", "partially_met", "missed"],
+                  "description": "Achievement status comparing actual to target. 'exceeded' = surpassed target, 'met' = achieved target, 'partially_met' = significant progress but fell short, 'missed' = little or no progress toward target.",
+                  "$comment": "Status provides at-a-glance strategic health assessment. Use consistently: (1) 'exceeded' - actual > target by meaningful margin (e.g., target 60%, actual 68%+), shows strategy working better than expected, (2) 'met' - actual ≈ target within acceptable variance (e.g., target 60%, actual 58-62%), strategy validated, (3) 'partially_met' - made progress but fell short (e.g., target 60%, actual 45-57%), strategy directionally correct but needs refinement, (4) 'missed' - little progress (e.g., target 60%, actual <45%), strategy may be wrong or execution blocked. Status distribution across cycles reveals strategic maturity: Early cycles expect mostly 'missed' and 'partially_met' (exploration), mid cycles should show more 'met' (validation), late cycles should consistently 'meet' or 'exceed' (execution) or signal need for pivot. Example: Cycle 1 might be 1 met, 3 partially_met, 2 missed (learning). Cycle 5 should be 4 met, 2 exceeded (validated strategy)."
+                },
+                "learnings": {
+                  "type": "array",
+                  "description": "Key insights and learnings from this KR's outcome. What did we learn about our strategy, assumptions, execution, or market?",
+                  "$comment": "Learnings are where measurement becomes wisdom. Each learning should connect the outcome to strategic implications. Good learnings: (1) Link evidence to conclusion ('We exceeded target because X, which suggests Y'), (2) Challenge or validate assumptions ('We assumed Z, but data shows W'), (3) Reveal causal relationships ('When we did A, users responded with B'), (4) Identify leverage points ('Changing X had outsized impact on Y'), (5) Surface surprises ('We expected P but observed Q'). Capture both successes and failures - often more learning in 'missed' KRs than 'exceeded' ones. Format: Complete sentences, 50-300 chars each. Example learnings: 'Mobile users activated 2x faster than web, suggesting we should prioritize mobile onboarding.', 'Users who completed tutorial had 3x retention, making tutorial completion a leading indicator.', 'Enterprise customers needed sales-assisted setup regardless of onboarding quality, requiring different approach.'",
+                  "minItems": 0,
+                  "maxItems": 10,
+                  "items": {
+                    "type": "string",
+                    "minLength": 30,
+                    "maxLength": 300
+                  }
+                }
+              },
+              "required": ["kr_id", "status"]
+            }
+          },
+          "data_summary": {
+            "type": "object",
+            "description": "Supporting data for the OKR assessment. Includes quantitative metrics and qualitative insights that provide evidence for KR outcomes and overall assessment narrative.",
+            "$comment": "Data Summary transforms raw data into strategic evidence. It bridges the gap between measurement (what numbers say) and meaning (what they mean for strategy). Organize data into quantitative (metrics, numbers, trends) and qualitative (user feedback, market signals, team observations). Good data summaries: (1) Support your KR outcomes and assessment narrative, (2) Include both expected and surprising findings, (3) Provide trend context (cycle-over-cycle comparison), (4) Balance breadth (multiple data sources) with depth (meaningful analysis), (5) Distinguish between data (facts) and interpretation (saved for assessment narrative). Common anti-pattern: data dump without connection to KRs or strategy. Good pattern: each data point explicitly supports a KR outcome or reveals a strategic insight. Example: If your assessment mentions 'unexpected mobile adoption', your data summary should include mobile vs web usage metrics that quantify this.",
+            "properties": {
+              "quantitative": {
+                "type": "array",
+                "description": "Quantitative metrics and measurements that support the OKR assessment. Include actual values, targets, and variance analysis.",
+                "$comment": "Quantitative data is your numerical evidence base. Each metric should: (1) Directly support a KR outcome or assessment claim, (2) Include context (target, baseline, trend), (3) Show variance/delta to reveal magnitude of change, (4) Cover appropriate time period (full cycle, not cherry-picked dates). Structure each metric clearly: what was measured, target, actual, variance. Good quantitative summaries balance breadth (multiple metrics) with relevance (all metrics matter for strategy). Include both leading indicators (early signals) and lagging indicators (final outcomes). Example metrics: 'Activation rate: target 60%, actual 52%, variance -8pp, up from 40% in cycle 1', 'Time-to-value: target <3 days, actual 4.2 days, variance +1.2 days, improved from 6.1 days in cycle 1', 'Daily active users: target 10K, actual 8.5K, variance -15%, grew from 5.2K in cycle 1 (+63%)'.",
+                "minItems": 0,
+                "maxItems": 20,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "metric": {
+                      "type": "string",
+                      "description": "Name of the metric being measured (e.g., 'Activation rate', 'Time-to-value', 'Customer NPS').",
+                      "minLength": 5,
+                      "maxLength": 100
+                    },
+                    "target": {
+                      "type": "string",
+                      "description": "Target value for this metric (e.g., '60%', '<3 days', '≥50').",
+                      "minLength": 1,
+                      "maxLength": 50
+                    },
+                    "actual": {
+                      "type": "string",
+                      "description": "Actual measured value (e.g., '52%', '4.2 days', '48').",
+                      "minLength": 1,
+                      "maxLength": 50
+                    },
+                    "variance": {
+                      "type": "string",
+                      "description": "Difference between target and actual (e.g., '-8pp', '+1.2 days', '-2 points'). Include direction and units.",
+                      "minLength": 1,
+                      "maxLength": 50
+                    }
+                  }
+                }
+              },
+              "qualitative": {
+                "type": "array",
+                "description": "Qualitative insights, user feedback, market observations, and team learnings that provide context for quantitative metrics.",
+                "$comment": "Qualitative data explains why the numbers are what they are. It surfaces patterns, contexts, and insights that metrics alone can't reveal. Good qualitative insights: (1) Connect to quantitative findings ('Metric X improved because of user behavior Y'), (2) Reveal causal mechanisms ('Users who did A were more likely to do B'), (3) Surface unexpected patterns ('We noticed surprising behavior Z'), (4) Include direct quotes or observations when possible, (5) Come from multiple sources (user research, support tickets, sales calls, market analysis, team retrospectives). Balance anecdotal evidence (specific examples) with pattern evidence (recurring themes). Each insight should include source (where it came from) and the insight itself. Example insights: 'Source: User interviews (n=15), Insight: Users understood value proposition but were confused by pricing tiers', 'Source: Support ticket analysis, Insight: 60% of activation failures due to unclear onboarding instructions', 'Source: Sales team feedback, Insight: Enterprise buyers require compliance certifications before evaluation'.",
+                "minItems": 0,
+                "maxItems": 15,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "source": {
+                      "type": "string",
+                      "description": "Where this insight came from (e.g., 'User interviews (n=20)', 'Support tickets analysis', 'Sales team feedback', 'Market research').",
+                      "minLength": 5,
+                      "maxLength": 100
+                    },
+                    "insight": {
+                      "type": "string",
+                      "description": "The qualitative insight or observation. What did you learn? What pattern did you observe?",
+                      "minLength": 20,
+                      "maxLength": 500
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "cross_functional_insights": {
+            "type": "array",
+            "description": "Insights about cross-functional collaboration, dependencies, and organizational patterns that emerged during this OKR's execution.",
+            "$comment": "Cross-functional insights reveal organizational and process patterns that impact strategic execution. They answer: How well did teams work together? What dependencies or blockers emerged? What organizational patterns helped or hindered progress? These insights are critical for process improvement and next-cycle planning. Good cross-functional insights: (1) Identify collaboration patterns ('Engineering-Design sync meetings accelerated iteration'), (2) Surface dependencies ('Delayed legal review blocked go-to-market by 3 weeks'), (3) Reveal communication gaps ('Product and Sales had different understanding of ICP'), (4) Highlight resource constraints ('One designer supporting 3 teams caused bottlenecks'), (5) Document process improvements ('New sprint planning format reduced context switching'). These insights often inform next_cycle_recommendations and organizational changes. Format: 50-300 chars, complete sentences. Example: 'Weekly Product-Engineering-Design trio meetings caught alignment issues early, reducing rework by ~40%.', 'Late involvement of Legal team created 2-week delays; need earlier engagement in future cycles.', 'Shared Slack channel for cross-functional questions resolved blockers within hours instead of days.'",
+            "minItems": 0,
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "minLength": 50,
+              "maxLength": 300
+            }
+          }
+        },
+        "required": ["okr_id", "assessment"]
+      }
+    },
+    "assumption_validations": {
+      "type": "array",
+      "description": "Validation status of strategic assumptions that were tested during this cycle. Each assumption gets assessed with evidence and confidence change.",
+      "$comment": "Assumption Validations are the bridge between strategy (beliefs about how the world works) and evidence (what data shows). They systematically test the 'core beliefs' from north_star_schema.json and 'strategic_assumptions' from roadmap_recipe_schema.json. This is how EPF enables evidence-based strategy evolution. Good assumption validation: (1) Links to specific assumption from earlier artifact (use same ID/description), (2) Provides clear evidence (not just opinion), (3) Assesses impact on confidence (did this evidence strengthen or weaken belief?), (4) Enables learning across cycles (track same assumption over multiple cycles). Assumption validation patterns by status: 'validated' (data supports assumption, increase confidence), 'invalidated' (data contradicts assumption, decrease confidence or pivot), 'inconclusive' (mixed signals, maintain confidence but gather more data), 'pending' (not yet testable, defer to next cycle). Track assumption lifecycle: typically start with multiple 'pending', move to 'inconclusive' as early data arrives, then 'validated' or 'invalidated' with sufficient evidence. Multiple cycles of 'inconclusive' suggests poor assumption design (not testable) or insufficient data collection (instrumentation gap). Example: Assumption 'Users will pay for premium features' might be 'pending' cycle 1 (building features), 'inconclusive' cycle 2 (limited user base), 'validated' cycle 3 (20% conversion to premium after launch).",
+      "minItems": 0,
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the assumption being validated (e.g., 'asmp-users-will-pay-premium', 'asmp-mobile-first-market'). Should match assumption IDs from roadmap_recipe_schema.json or north_star_schema.json core beliefs.",
+            "$comment": "Assumption IDs create the audit trail linking strategic beliefs to evidence. Use descriptive IDs that capture the essence of the assumption (e.g., 'asmp-viral-growth-possible', 'asmp-enterprise-self-service', 'asmp-api-first-integration'). Stable IDs across cycles enable tracking belief evolution: an assumption might be 'pending' cycle 1, 'inconclusive' cycle 2-3, 'validated' cycle 4, showing the evidence accumulation process. Format: 'asmp-' prefix + brief description (lowercase, hyphens). Keep assumption statements stable even if evidence changes; it's the evidence and confidence that evolve, not the assumption itself.",
+            "minLength": 10,
+            "maxLength": 80,
+            "pattern": "^asmp-[a-z0-9-]+$"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["validated", "invalidated", "inconclusive", "pending"],
+            "description": "Current validation status based on cycle evidence. 'validated' = evidence supports assumption, 'invalidated' = evidence contradicts, 'inconclusive' = mixed or insufficient evidence, 'pending' = not yet testable.",
+            "$comment": "Status reflects the relationship between your assumption and the evidence you gathered this cycle. Use rigorously: (1) 'validated' - strong evidence supports the assumption, confidence should increase, assumption can be treated as fact for planning. Example: 'Users will pay for premium' validated by 20% conversion rate with p<0.05. (2) 'invalidated' - strong evidence contradicts the assumption, confidence should decrease, strategy needs adjustment. Example: 'Viral growth will drive acquisition' invalidated by <5% share rate and no organic growth. (3) 'inconclusive' - mixed signals or insufficient data, maintain current confidence but plan better measurement. Example: 'Enterprise buyers need white-glove onboarding' inconclusive after 3 customers (too small sample). (4) 'pending' - assumption not yet testable (prerequisite work not complete, measurement not instrumented). Example: 'Users want collaboration features' pending until MVP ships. Status evolution across cycles shows learning velocity: too many 'inconclusive' or 'pending' after 3+ cycles suggests instrumentation or design issues. Healthy pattern: cycle 1-2 mostly 'pending', cycle 3-5 mix of 'inconclusive' and some 'validated'/'invalidated', cycle 6+ mostly 'validated' or clear 'invalidated' driving strategic pivots."
+          },
+          "evidence": {
+            "type": "string",
+            "description": "Specific evidence supporting the validation status. Cite data, metrics, user feedback, market signals, or other observations that informed this assessment.",
+            "$comment": "Evidence transforms assumption validation from opinion to fact-based learning. Good evidence: (1) Specific and measurable ('20% conversion rate across 500 users'), not vague ('users seem interested'), (2) Cites sources ('User interviews n=15, NPS survey n=200, usage analytics'), (3) Includes statistical confidence when relevant ('p<0.05', '95% CI: 18-22%'), (4) Distinguishes between leading indicators (early signals) and lagging indicators (final proof), (5) Documents both supporting and contradicting data points (honest assessment). Format your evidence narratively: What did you measure? What did you find? What does it mean? Reference specific data from data_summary sections when possible. Example evidence: 'Across 500 users offered premium features, 20% converted (n=100) at $20/month price point. This significantly exceeds our 10% threshold assumption. User interviews (n=15) confirmed value proposition resonates, though pricing tier structure needs refinement. Compare to industry benchmark of 5-8% for similar SaaS products, suggesting strong product-market fit.' Counter-example (weak evidence): 'Some users upgraded' - no data, no measurement, not useful for learning.",
+            "minLength": 50,
+            "maxLength": 800
+          },
+          "confidence_change": {
+            "type": "string",
+            "enum": ["increased", "decreased", "no change"],
+            "description": "How this cycle's evidence affected confidence in the assumption. 'increased' = stronger belief, 'decreased' = weaker belief, 'no change' = confidence unchanged.",
+            "$comment": "Confidence change tracks your Bayesian updating process - how evidence shifts your beliefs over time. Use consistently: (1) 'increased' - evidence strengthens the assumption, you're more confident it's true. Typically paired with 'validated' status but can occur with 'inconclusive' if direction is clear. Example: First evidence of users paying (even if below target) increases confidence that monetization is possible. (2) 'decreased' - evidence weakens the assumption, you're less confident or doubt it entirely. Paired with 'invalidated' or strongly negative 'inconclusive' signals. Example: Zero organic growth after viral features launch decreases confidence in viral-first strategy. (3) 'no change' - evidence neither strengthens nor weakens belief, confidence stable. Typically paired with 'pending' (no new data) or 'inconclusive' (mixed signals cancel out). Example: Small sample size (n=3) provides no confidence change even if directionally positive. Track confidence trajectory across cycles: assumption might start with 'no change' (pending), move to 'increased' with early positive signals (inconclusive), then strongly 'increased' with validation, showing progressive confidence building. Multiple cycles of 'decreased' confidence should trigger strategic pivot or assumption revision."
+          }
+        },
+        "required": ["id", "status"]
+      }
+    },
+    "strategic_insights": {
+      "type": "array",
+      "description": "Key strategic learnings or insights that emerged from this cycle's OKR execution and assumption validation. These are high-level patterns or realizations that inform strategic direction.",
+      "$comment": "Strategic insights synthesize your assessment data into actionable wisdom. They answer: What did we learn about our market, product, users, or organization? What strategic patterns emerged? What surprises challenged our mental models? Good strategic insights: (1) Connect multiple data points into patterns (not isolated observations), (2) Challenge or validate strategic assumptions (explicit linkage), (3) Inform next cycle planning (actionable, not just interesting), (4) Distinguish between correlation and causation (evidence-backed), (5) Balance optimism with realism (honest assessment). Strategic insights often emerge from: Cross-functional collaboration patterns (we discovered X when Y and Z worked together), Assumption validation outcomes (learning that assumption A was wrong led to insight B), Unexpected metric correlations (when X increased, Y decreased, suggesting Z), User behavior patterns (users do X when we expected Y), Market feedback (competitors doing X suggests Y opportunity). Format insights narratively: What did you observe? What does it mean? What strategic implications? Example insights: 'Enterprise customers require white-glove onboarding regardless of self-service product design - our PLG assumption needs adjustment', 'Users engage 3x more with collaborative features than solo features - suggests opportunity for team-based pricing tier', 'Engineering velocity increased 40% after design handoff process change - organizational structure matters as much as tooling', 'Churn correlates strongly with feature adoption (not usage frequency) - suggests onboarding is critical phase'. Capture 3-8 insights per cycle; more than 10 suggests lack of synthesis (combine related insights), fewer than 2 suggests insufficient reflection (dig deeper into patterns).",
+      "minItems": 0,
+      "maxItems": 10,
+      "items": {
+        "type": "string",
+        "minLength": 100,
+        "maxLength": 500
+      }
+    },
+    "next_cycle_recommendations": {
+      "type": "array",
+      "description": "Recommended actions, focus areas, or strategic adjustments for the next cycle based on this assessment. These flow into the next Calibration Memo.",
+      "$comment": "Next cycle recommendations bridge Assessment Reports (what happened) and Calibration Memos (what to do next). They answer: Based on what we learned, what should we do differently? What should we start, stop, continue? What deserves more/less investment? Good recommendations: (1) Directly linked to evidence from this assessment (cite specific OKR outcomes, assumption validations, or insights), (2) Actionable at appropriate level (strategic adjustments, not tactical tasks), (3) Prioritized implicitly (most important recommendations first), (4) Realistic given constraints (acknowledge resources, dependencies), (5) Testable next cycle (you can assess if recommendation was followed and effective). Recommendation patterns by type: Strategic pivots ('Focus on enterprise segment based on validation that SMB CAC too high for unit economics'), Capability builds ('Invest in analytics infrastructure given multiple assumptions blocked by measurement gaps'), Process improvements ('Implement weekly Product-Engineering sync after cross-functional insights revealed alignment issues'), Assumption refinement ('Revise viral growth assumption based on <5% share rate; test paid acquisition hypothesis instead'), OKR adjustments ('Reduce activation rate target from 60% to 45% based on cycle 1-2 data showing 45% is strong performance for this market'), De-prioritization ('Deprioritize collaboration features given low engagement and focus remaining cycles on core workflow'). Format recommendations actionably: What should change? Why (cite evidence)? What's the expected impact? Example recommendations: 'Pivot pricing strategy from usage-based to seat-based based on invalidation of assumption that users want pay-as-you-go model (evidence: 85% of sales calls requested seat pricing)', 'Invest in mobile experience next cycle - data shows 40% of users access on mobile but experience is suboptimal (3.2 app store rating vs 4.6 for web)', 'Add instrumentation for user collaboration patterns - assumption about team features is inconclusive for 3 cycles due to measurement gaps'. Aim for 4-8 recommendations per cycle; more than 12 suggests lack of focus (prioritize ruthlessly), fewer than 3 suggests insufficient learning or complacency.",
+      "minItems": 0,
+      "maxItems": 15,
+      "items": {
+        "type": "string",
+        "minLength": 100,
+        "maxLength": 600
+      }
+    }
+  },
+  "required": ["roadmap_id", "cycle", "okr_assessments", "assumption_validations"]
+}
