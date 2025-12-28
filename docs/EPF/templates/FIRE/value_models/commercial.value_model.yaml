@@ -1,0 +1,139 @@
+# This is the default, canonical value model for the Commercial track.
+# It provides a comprehensive starting point for most organizations.
+# The sections here form the basis of the living Commercial Requirement Document (CRD).
+
+track_name: "Commercial"
+version: "1.0.0"
+status: "active"
+description: "Drives market positioning, revenue generation, and partnerships."
+packaged_default: true
+activation_notes: 'Flip `active: true` on L3 sub-components as you invest. Start narrow.'
+layers:
+  - id: COMMERCIAL-L1-business-development-and-partnerships
+    name: BUSINESS DEVELOPMENT AND PARTNERSHIPS
+    active: false
+    components:
+    - id: COMMERCIAL-C-investor-relations
+      name: Investor Relations
+      active: false
+      subs: []
+    - id: COMMERCIAL-C-strategic-partnerships
+      name: Strategic Partnerships
+      active: false
+      subs:
+      - id: COMMERCIAL-S-partnership-scouting
+        name: Partnership scouting
+        active: false
+      - id: COMMERCIAL-S-negotiation-frameworks
+        name: Negotiation frameworks
+        active: false
+      - id: COMMERCIAL-S-partnership-metrics
+        name: Partnership metrics
+        active: false
+    - id: COMMERCIAL-C-alliance-management
+      name: Alliance Management
+      active: false
+      subs:
+      - id: COMMERCIAL-S-stakeholder-relationship-management
+        name: Stakeholder relationship management
+        active: false
+      - id: COMMERCIAL-S-agreement-reviews
+        name: Agreement reviews
+        active: false
+      - id: COMMERCIAL-S-joint-ventures
+        name: Joint ventures
+        active: false
+    - id: COMMERCIAL-C-collaboration-models
+      name: Collaboration Models
+      active: false
+      subs:
+      - id: COMMERCIAL-S-revenue-sharing-agreements
+        name: Revenue-sharing agreements
+        active: false
+      - id: COMMERCIAL-S-co-marketing-initiatives
+        name: Co-marketing initiatives
+        active: false
+      - id: COMMERCIAL-S-technology-integrations
+        name: Technology integrations
+        active: false
+  - id: COMMERCIAL-L1-brand-positioning
+    name: BRAND & POSITIONING
+    active: false
+    components:
+    - id: COMMERCIAL-C-brand-identity
+      name: Brand Identity
+      active: false
+      subs:
+      - id: COMMERCIAL-S-logo-and-visual-guidelines
+        name: Logo and visual guidelines
+        active: false
+      - id: COMMERCIAL-S-brand-voice-and-tone
+        name: Brand voice and tone
+        active: false
+      - id: COMMERCIAL-S-brand-storytelling
+        name: Brand storytelling
+        active: false
+    - id: COMMERCIAL-C-market-differentiation
+      name: Market Differentiation
+      active: false
+      subs:
+      - id: COMMERCIAL-S-differentiator-messaging
+        name: Differentiator messaging
+        active: false
+      - id: COMMERCIAL-S-pricing-strategies
+        name: Pricing strategies
+        active: false
+      - id: COMMERCIAL-S-packaging-models
+        name: Packaging models
+        active: false
+    - id: COMMERCIAL-C-competitive-positioning
+      name: Competitive Positioning
+      active: false
+      subs: []
+  - id: COMMERCIAL-L1-sales-and-marketing
+    name: SALES AND MARKETING
+    active: false
+    components:
+    - id: COMMERCIAL-C-lead-generation
+      name: Lead Generation
+      active: false
+      subs:
+      - id: COMMERCIAL-S-email-marketing-campaigns
+        name: Email marketing campaigns
+        active: false
+      - id: COMMERCIAL-S-social-media-outreach
+        name: Social media outreach
+        active: false
+      - id: COMMERCIAL-S-seo-strategies
+        name: SEO strategies
+        active: false
+    - id: COMMERCIAL-C-campaign-execution
+      name: Campaign Execution
+      active: false
+      subs:
+      - id: COMMERCIAL-S-multichannel-campaigns
+        name: Multichannel campaigns
+        active: false
+      - id: COMMERCIAL-S-ad-spend-optimization
+        name: Ad spend optimization
+        active: false
+      - id: COMMERCIAL-S-campaign-performance-analytics
+        name: Campaign performance analytics
+        active: false
+    - id: COMMERCIAL-C-customer-retention
+      name: Customer Retention
+      active: false
+      subs:
+      - id: COMMERCIAL-S-loyalty-programs
+        name: Loyalty programs
+        active: false
+      - id: COMMERCIAL-S-personalization-strategies
+        name: Personalization strategies
+        active: false
+      - id: COMMERCIAL-S-customer-support-systems
+        name: Customer support systems
+        active: false
+    - id: COMMERCIAL-C-content-production-management
+      name: Content Production & Management
+      active: false
+      subs: []

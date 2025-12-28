@@ -1,0 +1,320 @@
+id: fd-016
+name: Security Architecture & Authentication
+category: cross-cutting
+definition:
+  overview: >
+    Organizations face constant security threats (credential theft, unauthorized access, data breaches) with inadequate authentication causing
+    60% of breaches traced to weak/stolen credentials. Current systems use password-only authentication vulnerable to phishing, lack session
+    management enabling token theft, provide insufficient access controls allowing privilege escalation, and miss threat detection allowing
+    attacks to persist undetected. This feature provides comprehensive zero-trust security with MFA, session management, RBAC, API security,
+    and threat detection transforming vulnerable authentication into defense-in-depth architecture reducing security incidents 80%.
+
+  jobs_to_be_done:
+    - "When I authenticate, I want multi-factor verification, so unauthorized users can't access even with stolen password."
+    - "When I manage permissions, I want granular RBAC, so users access only needed resources following least-privilege principle."
+    - "When sessions exist, I want automatic invalidation, so stolen tokens expire quickly limiting breach impact."
+    - "When APIs are called, I want rate limiting and validation, so automated attacks are blocked before reaching application."
+    - "When threats occur, I want real-time detection, so security team responds within minutes vs hours or days."
+
+  strategic_context:
+    problem_space: >
+      60% of data breaches trace to compromised credentials (Verizon DBIR 2024). Password-only authentication vulnerable to phishing (35% of
+      users click phishing links), credential stuffing (1.5B stolen credentials available darknet), brute force. No MFA means single factor
+      compromised = full access. Session tokens persist indefinitely enabling theft via XSS/network sniffing. Coarse permissions (admin vs
+      user) enable privilege escalation. API endpoints lack rate limiting allowing brute force (1000+ requests/min), no request validation
+      allowing injection attacks. No threat detection means breaches discovered average 207 days after occurrence (IBM). Compliance
+      requirements (SOC2, ISO27001, GDPR) mandate security controls but implementations inconsistent.
+
+    existing_alternatives: >
+      Current systems provide basic authentication (username/password, JWT tokens) but lack comprehensive security. No MFA enforcement
+      (optional at best). Sessions never expire or use long timeouts (24+ hours). RBAC limited to 3-5 roles with broad permissions. API
+      security minimal (maybe API key, no rate limiting). No threat monitoring beyond basic logs. Users resort to: password managers for
+      complexity (addresses symptoms not root cause), VPN for network security (doesn't prevent credential theft), manual security audits
+      (quarterly at best, miss real-time threats).
+
+    value_hypothesis: >
+      Organizations implementing comprehensive security architecture will reduce security incidents 80% (from 10-15 monthly to 2-3), reduce
+      breach impact 90% through quick detection/response, achieve compliance certification (SOC2, ISO27001) enabling enterprise sales, and
+      reduce security team time 60% through automation. For 100-person org, reducing incidents 80% saves 8-10 incidents × 40 hours response
+      = 320-400 hours monthly security team time. Compliance certification enables $2M+ annual enterprise revenue previously blocked.
+      Automated threat detection reduces mean-time-to-detect from 207 days to < 1 day preventing extensive data exfiltration.
+
+  capabilities:
+    - id: cap-001
+      name: Multi-Factor Authentication & Passwordless Login
+      description: >
+        Mandatory MFA with TOTP (Google Authenticator, Authy), SMS codes, backup codes, and WebAuthn (biometric, hardware keys) reducing
+        credential theft 99.9%. Passwordless flows using magic links (email verification) or passkeys (device biometric) eliminating password
+        vulnerabilities. Adaptive authentication adjusting requirements based on risk (new device = additional verification, known device =
+        streamlined). Step-up authentication for sensitive operations (financial transactions, admin changes requiring re-authentication).
+        Account recovery with secure verification (backup codes, email + SMS, trusted device approval). MFA enforcement policies: require for
+        all users, grace period for enrollment, lockout after failed attempts. Integration with identity providers (Google, Microsoft, Okta)
+        via SAML/OIDC enabling SSO.
+
+    - id: cap-002
+      name: Session Management & Token Security
+      description: >
+        Secure session management with short-lived access tokens (15-min expiry), refresh tokens (7-day expiry with rotation), automatic
+        invalidation on suspicious activity. JWT tokens with secure signing (RS256), proper claims (iss, sub, exp, iat), encryption for
+        sensitive data. Session fingerprinting detecting token theft (IP change, user-agent change, geolocation jump triggering re-auth).
+        Concurrent session limits (max 3 active sessions, logout others when exceeded). Token revocation enabling immediate logout (distributed
+        blacklist, Redis-based invalidation). Secure storage (httpOnly cookies preventing XSS, sameSite strict preventing CSRF, secure flag
+        HTTPS-only). Refresh token rotation (new refresh token on each use, one-time-use preventing replay). Session monitoring dashboard
+        showing active sessions with device/location/last-active enabling user-initiated revocation.
+
+    - id: cap-003
+      name: Role-Based Access Control & Permissions
+      description: >
+        Granular RBAC with custom roles (Admin, Manager, Editor, Viewer, Custom), resource-level permissions (project.read, customer.write,
+        invoice.delete), attribute-based policies (own records only, department filtering). Least-privilege enforcement: users start with
+        minimal access, explicit grants required, no implicit permissions. Permission inheritance: roles inherit from others (Manager inherits
+        Editor), groups aggregate permissions, scoped permissions (org-level, project-level). Dynamic evaluation at request time preventing
+        stale permissions. Permission auditing: access logs showing who accessed what when, permission change history, regular review workflows
+        (quarterly access certification). Admin delegation enabling scoped admin roles (user admin, billing admin, security admin) without
+        full superuser. Service accounts for API access with limited scopes and API key rotation.
+
+    - id: cap-004
+      name: API Security & Rate Limiting
+      description: >
+        Comprehensive API security with authentication (API keys, OAuth tokens, JWT), request validation (JSON schema, required fields, type
+        checking), and rate limiting (100 req/min per user, 1000 req/min per org, 10 req/min for sensitive endpoints like password reset).
+        Input sanitization preventing injection (SQL injection, XSS, command injection through parameterized queries, output encoding).
+        CORS policies restricting origins. API versioning enabling security patches without breaking changes. Request logging: capture method,
+        path, user, IP, timestamp, response code enabling threat analysis. Automated blocking: IP blacklist after 10 failed auth attempts,
+        suspicious patterns (rapid endpoint scanning, abnormal request size). API keys with scopes limiting access to specific resources,
+        automatic rotation every 90 days, secure generation (32+ char random). GraphQL-specific: query depth limiting, field limiting, cost
+        analysis preventing expensive queries.
+
+    - id: cap-005
+      name: Threat Detection & Security Monitoring
+      description: >
+        Real-time threat detection identifying suspicious patterns: multiple failed logins (5 attempts in 10 min), impossible travel (login
+        from US then China 30 min later), unusual access patterns (midnight access by day-user, bulk data export by non-analyst), privilege
+        escalation attempts. Security events logged: authentication (success/failure), permission changes, data access, admin actions, API
+        calls. SIEM integration forwarding events to security platform (Splunk, Datadog, Elastic) for correlation. Automated responses:
+        account lockout after failed attempts, require MFA re-verification on suspicious activity, notify security team via Slack/PagerDuty.
+        Security dashboard showing: active threats, recent security events, failed login heatmap, unusual access alerts. Compliance reporting:
+        SOC2 access logs, GDPR data access records, ISO27001 security metrics. Vulnerability scanning: dependency checking (Snyk, npm audit),
+        penetration testing integration, security headers validation (CSP, HSTS, X-Frame-Options).
+
+  personas:
+    - id: security-admin
+      name: Security Administrator
+      role: Security Operations Lead
+      description: >
+        Security professional responsible for authentication policies, access controls, threat monitoring, and compliance. Needs real-time
+        threat visibility, automated responses, and audit trails. Frustrated by manual security tasks and delayed threat detection.
+      goals:
+        - "Enforce MFA organization-wide reducing credential theft risk enabling SOC2 compliance certification."
+        - "Detect threats real-time (not 207-day average) enabling response within minutes vs extensive breach."
+        - "Automate security responses (lockouts, alerts, log analysis) reducing manual security work 60%."
+        - "Maintain audit trails for compliance (SOC2, ISO27001, GDPR) enabling automated report generation."
+      pain_points:
+        - "Manual MFA enforcement: email users individually, track enrollment, no automated compliance checking."
+        - "Threats discovered weeks/months later: average 207-day breach detection leaving extensive damage."
+        - "Manual log analysis: grep 50MB daily logs finding suspicious patterns taking 2-3 hours daily."
+        - "Compliance reporting manual: compile access logs quarterly for auditors taking 20-30 hours per audit."
+      usage_context: >
+        Monitors security dashboard daily, responds to 3-5 security alerts weekly, conducts quarterly access reviews, prepares compliance
+        reports for SOC2/ISO27001 audits. Expert technical proficiency with security tools (SIEM, IDS, vulnerability scanners).
+      technical_proficiency: expert
+      current_situation: "As Security Operations Lead responsible for 100-person org authentication and access controls, I manually enforce security policies creating gaps attackers exploit. MFA adoption 40% despite policy requiring it: I email users requesting enrollment, track spreadsheet of compliant users, but no automated enforcement (users bypass MFA indefinitely). We experienced credential theft: user fell for phishing email entering password on fake site, attacker logged in from China (no MFA, no suspicious login detection), accessed customer database for 3 days before user noticed charges on credit card and reported. By then attacker exfiltrated 5,000 customer records. Post-incident: spent 80 hours investigating (manual log analysis finding attacker actions), notifying customers, coordinating response. Threat detection reactive: I grep 50MB daily auth logs for suspicious patterns (multiple failed logins, unusual IPs) taking 2-3 hours daily with 60% of threats missed due to time constraints. Permission management chaotic: we have Admin and User roles (coarse-grained), admins have excessive access enabling insider risk, no audit trail showing who accessed sensitive data. Compliance audit painful: SOC2 auditor requested access logs, I manually compiled from 3 months of logs taking 30 hours, found gaps (no session timeout logs, incomplete permission changes) requiring remediation delaying certification 6 weeks."
+      transformation_moment: "When comprehensive security architecture with MFA enforcement and threat detection was implemented, security posture transformed from reactive manual to proactive automated. MFA became mandatory with 2-week grace period: users saw banner 'MFA required by Dec 31', couldn't dismiss, on Jan 1 non-compliant users locked out until enrollment. Enrollment jumped from 40% to 100% in 3 weeks without manual emails. Credential theft prevented: user fell for phishing again, attacker tried login with stolen password, system required TOTP code (attacker doesn't have), login failed, user received email 'Failed login from China', reported immediately. Threat detection automated: system flagged 5 failed login attempts from same IP within 10 min, automatically blocked IP, notified me via Slack, I confirmed block in 5 min vs 3-day breach. Security dashboard showed real-time threats: failed login heatmap (visualizing attack patterns), impossible travel alerts (US to China 30-min login sequence), unusual access (midnight database queries by day-shift user). After 6 months: security incidents reduced from 12 to 2 (83% reduction), mean-time-to-detect reduced from 3 days to 15 min (99% improvement), my manual security work reduced from 15 hours weekly to 3 hours (80% reduction). SOC2 audit streamlined: automated compliance reports generated access logs showing MFA usage, session timeouts, permission changes, completed in 2 hours vs 30 hours."
+      emotional_resolution: "I now feel confident with proactive automated security vs reactive manual firefighting. MFA enforcement (100% adoption vs 40%) eliminated credential theft as primary attack vector. Automated threat detection (15-min response vs 3-day discovery) prevents extensive breaches enabling quick containment. Security dashboard (real-time threat visibility vs manual log analysis) reduced my daily security work from 3 hours to 30 min. Automated responses (IP blocking, account lockout, alerts) handle common threats without my intervention. Compliance reporting (automated audit trails vs manual log compilation) reduced quarterly audit prep from 30 hours to 2 hours. Security incidents reduced 83% through defense-in-depth architecture. Most importantly, shifted from constantly firefighting breaches to confidently maintaining secure posture enabling SOC2 certification and enterprise sales."
+
+    - id: end-user
+      name: End User
+      role: Platform User
+      description: >
+        Regular user accessing platform needing secure authentication without friction. Values convenience but understands security necessity.
+        Frustrated by password complexity requirements and lost access recovery difficulties.
+      goals:
+        - "Authenticate securely using MFA without excessive friction enabling protection with usability."
+        - "Use passwordless login (magic link, passkey) eliminating password management burden."
+        - "Recover account access quickly when locked out without 48-hour security team delays."
+        - "Manage active sessions seeing devices/locations and revoking suspicious logins independently."
+      pain_points:
+        - "Password requirements complex: 16+ chars, special characters, no dictionary words, change every 90 days causing resets."
+        - "MFA setup confusing: QR code scan unclear, backup codes lost, locked out when phone unavailable."
+        - "Account recovery slow: submit support ticket, wait 24-48 hours for manual verification."
+        - "No session visibility: can't see active logins, can't logout compromised sessions, feel vulnerable."
+      usage_context: >
+        Authenticates 2-3 times daily across devices (laptop, phone, tablet), occasionally needs account recovery, reviews session activity
+        monthly. Basic technical proficiency expecting consumer-app-quality security UX.
+      technical_proficiency: basic
+      current_situation: "As Marketing Manager accessing platform daily across laptop (office), iPhone (commute), iPad (home), I struggle with password complexity and MFA friction creating security fatigue. Password policy requires 16 chars with uppercase, lowercase, numbers, symbols, no dictionary words, change every 90 days. I forget password monthly requiring reset: click 'Forgot Password', receive email, create new password that meets requirements (rejected 3-4 times for violations like 'Password123!' too common), finally succeed after 5 min. Password manager helps but sometimes fails to autofill requiring manual copy-paste. MFA enabled but friction: login with password, wait for SMS code (sometimes delayed 30-60 sec), enter 6-digit code before expiry. When phone dead, I'm locked out completely (no backup codes, lost paper with codes). Last week phone stolen, I couldn't access platform for 2 days: submitted support ticket requesting MFA reset, waited 36 hours for security team response (manual identity verification), finally regained access but missed critical campaign deadline. I don't know if attacker accessed my account during phone theft: no visibility into active sessions, no way to check login history, no logout-all-devices option without support intervention."
+      transformation_moment: "When user-friendly security with passwordless and session management was implemented, authentication transformed from friction-filled to seamless. Passwordless login: instead of password, I enter email receiving magic link, click link on iPhone, authenticated instantly (15 sec total vs 2 min password + MFA). For returning devices, passkey login uses Face ID: open app, Face ID scan, authenticated in 3 sec. MFA setup improved: clear instructions with video, instant QR code scan verification, backup codes displayed prominently with 'Download' button, SMS fallback configured. When new laptop login attempted, email showed 'New device login from San Francisco. You?', I approved in email vs separate MFA code. Session management dashboard showed active sessions: MacBook Pro (San Francisco, 2 min ago), iPhone 14 (San Francisco, 15 min ago), iPad (Chicago, Dec 10 - suspicious, not mine). Clicked 'Revoke' on iPad session, instantly logged out potential attacker. Login history showed all access attempts including 3 failed logins from China 2 days ago (blocked automatically). After phone stolen, I logged in via laptop, immediately revoked all mobile sessions, re-enrolled MFA with new device in 5 min vs 2-day support wait. After 6 months: login time reduced from 2 min to 15 sec (88% faster), account lockouts reduced from monthly to zero (password resets eliminated), successfully revoked suspicious session preventing potential breach."
+      emotional_resolution: "I now feel secure without friction. Passwordless login (magic link, passkey) eliminated password management burden reducing authentication from 2 min to 15 sec. MFA setup clear with backup options (TOTP, SMS, backup codes) ensuring access even when primary device unavailable. Session management dashboard provides visibility (active devices, locations, login history) enabling self-service security vs blind trust. Quick session revocation (instant logout suspicious devices) enables immediate response to potential threats vs 36-hour support wait. Account recovery self-service (use backup device or backup codes) vs 2-day support ticket. Most importantly, security shifted from frustrating burden to confidence-building protection through user-friendly design balancing security and usability."
+
+    - id: backend-developer
+      name: Backend Developer
+      role: Platform Engineer
+      description: >
+        Engineer implementing authentication, authorization, and security features. Values security-by-default patterns and automated testing.
+        Frustrated by complex security libraries and missing security infrastructure.
+      goals:
+        - "Implement secure authentication using tested libraries vs writing custom crypto (95% of crypto implementations have flaws)."
+        - "Enforce permissions at API layer using declarative RBAC vs custom if-statements scattered across codebase."
+        - "Test security features automatically (auth flows, permission checks) vs manual security testing missing edge cases."
+        - "Monitor security events programmatically (failed logins, permission violations) vs ad-hoc logging."
+      pain_points:
+        - "Custom auth implementation: wrote JWT library from scratch, missed RS256 signature validation enabling forged tokens."
+        - "Permission checks scattered: 100+ if-statements checking user.role === 'admin' with inconsistent enforcement."
+        - "Security testing manual: QA tests auth flows manually missing 40% of edge cases (token expiry, concurrent sessions)."
+        - "No security observability: basic logs without structure, can't query 'failed logins by IP', painful security investigations."
+      usage_context: >
+        Implements 2-3 security features monthly (auth, permissions, API security), debugs security issues, maintains security infrastructure.
+        Expert proficiency with Node.js, TypeScript, PostgreSQL, Redis expecting comprehensive security framework.
+      technical_proficiency: expert
+      current_situation: "As Backend Engineer implementing authentication for SaaS platform, I wrote custom security code with vulnerabilities discovered in production. Built JWT authentication from scratch: generate tokens with user ID and role, sign with HS256 (symmetric key), verify on each request. Security audit found critical flaw: attacker modified token payload changing role: 'user' to role: 'admin', since symmetric key on server didn't validate properly (I used jwt.decode() vs jwt.verify()), forged admin token granted full access. Fixing required re-implementing with proper asymmetric RS256 and deploying emergency patch affecting 1,000+ users. Permission checks inconsistent: sprinkled 150+ if-statements across 40 endpoints checking user.role === 'admin' for admin operations, user.id === resource.owner_id for ownership. When adding Manager role needing partial admin access, I updated 80 of 150 checks missing 70 creating permission gaps (managers accessing restricted data). RBAC refactor took 3 weeks touching 40 files with 15 bugs. Security testing inadequate: wrote 20 tests for auth endpoints but missed token expiry handling (tokens persisted 7 days, user reported still logged in after logout), concurrent sessions (user logged in 5 devices, no session limit), refresh token rotation (same refresh token reused, replay attack possible). Security incident response painful: investigate suspicious activity by grepping 200MB logs taking 2 hours finding 'User 157 failed login from IP 1.2.3.4' 50 times but can't aggregate by IP or user without writing scripts."
+      transformation_moment: "When security framework with authentication utilities and permission middleware was implemented, security development transformed from error-prone custom code to battle-tested patterns. Authentication library handles JWT complexity: generateToken(user, { expiresIn: '15m' }) using RS256 automatically, refresh tokens with rotation, token verification with proper signature checking, fingerprinting detecting theft. I replaced 200 lines custom JWT code with 20 lines using library eliminating crypto vulnerabilities. Permission middleware declarative: @RequirePermission('customer:write') decorator on endpoint enforces permission automatically, removes scattered if-statements. Migrating from role checks to permissions took 2 days vs 3 weeks: add permission decorators to 40 endpoints, define permissions in YAML config (Admin has *, Manager has customer:*, Editor has customer:write). Permission testing automated: test suite checks all endpoints with different roles (Admin can POST /customers = success, Viewer can POST /customers = 403), refresh tokens rotate properly, concurrent sessions limited. Security observability built-in: structured event logging captures { event: 'auth.failed', user: 'user@example.com', ip: '1.2.3.4', reason: 'invalid_password' }, querying failed logins by IP takes 1 SQL query vs 2-hour log grep. After 6 months: security vulnerabilities reduced from 8 to 1 (87% reduction), permission bugs reduced from 15 to 2 (86% reduction), security test coverage improved from 30% to 95%, incident investigation time reduced from 2 hours to 15 min."
+      emotional_resolution: "I now feel confident implementing security correctly with battle-tested framework vs error-prone custom code. Authentication library (JWT with RS256, token rotation, fingerprinting) eliminated crypto vulnerabilities that plagued custom implementation. Declarative permission middleware (@RequirePermission decorators) replaced 150+ scattered if-statements enabling consistent enforcement and easy role changes. Automated security testing (auth flows, permissions, token handling) improved coverage from 30% to 95% catching edge cases before production. Structured security event logging enabled 15-min incident investigation vs 2-hour log grep. Security development time reduced 60% through provided patterns. Most importantly, shifted from writing security code (high risk of mistakes) to using proven security patterns enabling focus on business logic while maintaining strong security posture."
+
+    - id: compliance-manager
+      name: Compliance Manager
+      role: Compliance Officer
+      description: >
+        Professional ensuring platform meets compliance requirements (SOC2, ISO27001, GDPR). Needs audit trails, access logs, security controls
+        documentation. Frustrated by manual compliance data collection and missing security controls.
+      goals:
+        - "Achieve SOC2 Type II certification demonstrating security controls to enterprise customers enabling $2M+ annual revenue."
+        - "Generate compliance reports automatically (access logs, MFA usage, session management) vs 30-hour manual compilation."
+        - "Document security controls comprehensively (authentication, authorization, encryption) meeting auditor requirements."
+        - "Track security metrics (MFA adoption, failed logins, permission changes) showing continuous compliance improvement."
+      pain_points:
+        - "Manual audit data collection: compile 3 months of access logs from raw files taking 30 hours quarterly."
+        - "Missing security controls: auditor requires session timeout evidence, we have no session expiry (finding)."
+        - "Compliance reports manual: screenshot logs showing examples vs automated comprehensive reports."
+        - "No security metrics: can't show MFA adoption trend, failed login patterns, access certification completion rates."
+      usage_context: >
+        Prepares quarterly compliance reports, coordinates annual SOC2/ISO27001 audits, tracks security control implementation. Reviews
+        security metrics monthly. Intermediate proficiency needing automated compliance reporting tools.
+      technical_proficiency: intermediate
+      current_situation: "As Compliance Officer preparing SOC2 Type II audit for enterprise customer requirements, I manually compile evidence taking 40-50 hours per audit with gaps delaying certification. SOC2 requires demonstrating security controls: authentication (MFA enforcement, password policies), authorization (least-privilege access), session management (timeout, revocation), monitoring (failed login detection, threat response). For authentication evidence, I manually extracted logs showing MFA usage: opened 90 days of auth logs (15GB), grepped for 'mfa_verified' events, compiled spreadsheet showing 40% users with MFA (60% without violating policy), took 8 hours. Auditor flagged as finding requiring remediation. For authorization, auditor requested proof of least-privilege: I listed all users with roles manually (no export function), found 15 admins (should be 5), 8 users with excessive permissions, took 12 hours to document requiring 4 weeks remediation. Session management missing: auditor asked for session timeout evidence, we have no automatic expiry (sessions persist until manual logout), major finding requiring code changes delaying certification 8 weeks. Access logging incomplete: logs show 'User 157 accessed Customer 498' but missing context (what data viewed, reason for access), GDPR requires data access records for subject requests. When customer requested 'Who accessed my data last quarter?', I manually searched logs for 2 days finding partial records."
+      transformation_moment: "When automated compliance reporting with comprehensive audit trails was implemented, audit preparation transformed from 50-hour manual compilation to 2-hour automated generation. Compliance dashboard provides real-time metrics: MFA adoption (100% vs required 100% = compliant), session timeout (15-min expiry configured = compliant), permission reviews (quarterly certification 95% complete). For SOC2 audit, I clicked 'Generate SOC2 Report' selecting date range (Jan-Mar), system produced 80-page PDF with: authentication evidence (MFA enrollment timeline showing 40% to 100% adoption over 3 weeks, password policy config, failed login statistics), authorization evidence (user-role matrix showing 5 admins, least-privilege verification, quarterly access review records), session management evidence (timeout configuration, average session duration metrics, revocation logs), monitoring evidence (threat detection alerts, security incident response times, automated lockout examples). Report generation took 5 min vs 50 hours manual. Auditor reviewed report finding zero findings vs previous 6 findings, certification approved in 4 weeks vs 12 weeks. GDPR data access requests automated: customer requested access history, I entered customer ID, system generated report showing all access (user, timestamp, data viewed, reason: 'Customer support case #1234') in 30 seconds vs 2-day manual search. After 6 months: audit preparation time reduced from 50 hours to 2 hours (96% reduction), SOC2 findings reduced from 6 to 0 (100% improvement), certification timeline reduced from 12 weeks to 4 weeks enabling enterprise sales 8 weeks earlier = $500k additional revenue."
+      emotional_resolution: "I now feel confident with automated compliance reporting vs manual evidence compilation. Real-time compliance dashboard (MFA adoption, session management, permission reviews) shows continuous compliance vs quarterly snapshots. Automated report generation (80-page SOC2 report in 5 min vs 50 hours manual) eliminated tedious log compilation. Comprehensive audit trails (authentication, authorization, access logs with context) eliminated findings from missing evidence. GDPR data access reports (30-sec generation vs 2-day manual search) ensure regulatory compliance. Audit timeline reduced from 12 weeks to 4 weeks enabling faster enterprise sales. Most importantly, shifted from audit firefighting (last-minute evidence gathering, finding remediation) to continuous compliance confidence enabling strategic focus on security improvements vs reactive documentation."
+
+  scenarios:
+    - id: scn-001
+      name: Security Administrator enforces MFA and detects credential theft attempt in real-time
+      actor: security-admin
+      context: ctx-001
+      trigger: "Security Operations Lead needs to enforce organization-wide MFA and respond to credential theft attempt with previous experience of 3-day breach due to delayed detection."
+      action: >
+        Configure MFA enforcement policy: enable 'Require MFA for all users', set 2-week grace period (Dec 15-31), configure notification banner 'MFA required by Dec 31'. Non-compliant users see persistent banner on login, receive weekly email reminders. On Jan 1, policy active: non-compliant users redirected to MFA enrollment flow on login (can't dismiss), enrollment jumps from 45% to 85% in 3 days, reaches 100% by Jan 7. During enrollment, user falls for phishing email entering credentials on fake site. Attacker attempts login from China IP: enters stolen password correctly, system prompts for TOTP code (attacker doesn't have authenticator), 3 failed TOTP attempts trigger alert. Security dashboard shows real-time alert: 'Failed MFA - user@company.com - China IP - 3 attempts in 2 min', I click 'Investigate' seeing login timeline (normal US logins daily, sudden China login = impossible travel), click 'Block IP' adding to blacklist, click 'Notify User' sending email 'Suspicious login attempt detected from China. Your account is secure.' User receives email, confirms suspicious activity, I click 'Require Password Reset' forcing new password. Check threat detection summary: blocked IP attempted 15 additional logins across 8 user accounts (credential stuffing attack), all blocked at MFA stage preventing any access. Review security dashboard metrics: MFA adoption 100% (vs 45% pre-enforcement), failed MFA attempts 127 last 7 days (credential theft attempts blocked), impossible travel alerts 3 (all investigated within 15 min). Generate security report for leadership showing MFA enforcement success and threat prevention.
+      outcome: "MFA enforcement automated increasing adoption from 45% to 100% in 3 weeks without manual user emails eliminating credential theft as attack vector. Real-time threat detection identified suspicious login within 2 min vs previous 3-day discovery enabling immediate response (IP block, user notification, password reset) preventing breach. Credential stuffing attack blocked at MFA stage (attacker had passwords for 8 accounts but no TOTP codes) demonstrating defense-in-depth effectiveness. Security investigation time reduced from 3 hours manual log grep to 5 min dashboard review. Mean-time-to-detect reduced from 3 days to 2 min (99.9% improvement) preventing extensive data exfiltration. Organization achieved SOC2 compliance through demonstrated MFA enforcement and threat detection controls."
+      acceptance_criteria:
+        - "MFA enforcement policy: configurable grace period (0-90 days), notification methods (banner, email, Slack), enforcement date (users locked until enrollment after date), with 100% enrollment tracking and compliance dashboard showing adoption metrics over time."
+        - "MFA methods supported: TOTP (QR code enrollment with Authenticator apps), SMS codes (phone verification with 6-digit codes), backup codes (10 one-time codes generated on enrollment, downloadable), WebAuthn (biometric or hardware key for passwordless), with fallback ordering (TOTP primary, SMS fallback, backup codes emergency)."
+        - "Real-time threat detection: failed MFA attempts (≥3 in 10 min = alert), impossible travel (login from different countries within 2 hours = alert), unusual access patterns (midnight access by day-user = suspicious), with alert severity (low, medium, high, critical) and automated responses (IP block after 10 failed attempts, account lockout after 5 attempts, security team notification via Slack/PagerDuty)."
+        - "Security dashboard: real-time alerts (failed logins, MFA attempts, impossible travel), threat timeline (chronological security events), investigation tools (click alert to see user history, IP lookup, session details), automated responses (block IP, revoke session, notify user, require password reset), with 5-min alert-to-response target."
+        - "Metrics tracking: MFA adoption percentage over time (daily snapshots), failed authentication attempts per day, impossible travel detections per week, mean-time-to-detect (alert generation to investigation), mean-time-to-respond (alert to remediation), with trends showing security posture improvement."
+
+    - id: scn-002
+      name: End User authenticates via passwordless login and manages active sessions
+      actor: end-user
+      context: ctx-002
+      trigger: "Marketing Manager needs quick authentication across devices and wants to revoke suspicious session after noticing unknown login."
+      action: >
+        Open platform on iPhone: tap 'Login', enter email 'sarah@company.com', tap 'Send Magic Link', receive email instantly, tap link in email, redirected to app authenticated in 15 sec total (vs 2 min password + MFA). Close app. Next day open app: Face ID scan prompts automatically (passkey enrolled), hold phone for Face ID, authenticated in 3 sec without entering anything. Later at office, open laptop: click 'Login', instead of password click 'Passwordless Login', enter email, notification appears on iPhone 'Approve login from MacBook Pro?', tap 'Approve', laptop authenticated immediately (15 sec cross-device auth). That evening receive email: 'New device login detected: iPad, Chicago, IL - Dec 15, 8:45 PM. Was this you?' Not me (iPad stolen 2 weeks ago, forgot to report). Click 'Manage Sessions' in email opening session dashboard. See active sessions: (1) MacBook Pro, San Francisco, 10 min ago, (2) iPhone 14, San Francisco, 30 min ago, (3) iPad, Chicago, 8:45 PM - suspicious. Click 'Revoke' on iPad session seeing confirmation 'Session revoked. Device logged out immediately.' Check login history: iPad had 3 logins over last week (Dec 10, 12, 15 all Chicago), click 'Report as Suspicious' triggering security investigation. Enable additional security: click 'Require MFA for new devices', now new device logins need email approval + TOTP code (step-up authentication). Review settings: backup codes (10 codes remaining, download updated list), trusted devices (MacBook, iPhone marked trusted = streamlined login), account recovery (recovery email verified, backup phone configured). Feel confident account secured despite stolen device.
+      outcome: "Passwordless authentication reduced login time from 2 min to 15 sec (88% faster) via magic link on new devices and 3 sec via passkey on known devices eliminating password management friction. Cross-device authentication (approve login on phone for laptop) balanced security and convenience. Session management visibility (active devices, locations, login history) enabled user to independently identify and revoke suspicious iPad session within 5 min vs 36-hour support ticket. Self-service security (revoke sessions, report suspicious activity, configure step-up auth) eliminated support dependency. Multiple authentication factors (email, passkey, TOTP) with backup options (recovery email, backup codes) ensured account access without lockout risk. User maintained productivity while securing compromised device immediately."
+      acceptance_criteria:
+        - "Passwordless authentication: magic link via email (15-sec flow: enter email → receive email → click link → authenticated), passkey using biometric (3-sec flow: Face ID/Touch ID → authenticated), with device enrollment (trust device on first use, streamlined on subsequent logins) and cross-device approval (authenticate laptop via phone notification)."
+        - "Session management dashboard: active sessions list (device type, browser, OS, location, IP, last active timestamp), session revocation (immediate logout across distributed system, token invalidation in Redis within 5 sec), login history (last 90 days, all attempts including failed, IP geolocation), with suspicious session flagging (new country, unusual timing, rapid location changes)."
+        - "New device detection: email notification on first login from unrecognized device (device fingerprint: user-agent + IP + geolocation), user approval workflow (click 'Approve' in email OR enter TOTP code for extra security), device trust option (mark device as trusted = no approval needed for 90 days), with step-up authentication (require TOTP for sensitive operations even on trusted device)."
+        - "Self-service security controls: revoke all sessions (logout everywhere immediately), download backup codes (10 single-use codes for emergency access), add/remove trusted devices (trust expires after 90 days inactivity), configure recovery options (backup email, phone number), with account security score (shows MFA enabled, trusted devices count, recent suspicious activity)."
+        - "Account recovery: multiple options (magic link to recovery email, SMS to backup phone, use backup codes), secure verification (must prove identity via 2+ factors), gradual lockout (3 failed recovery attempts = 15-min cooldown, 10 attempts = 24-hour lockdown + security team review), with recovery initiated by user (no support ticket needed unless locked out after failed attempts)."
+
+    - id: scn-003
+      name: Backend Developer implements permission-based API using declarative middleware
+      actor: backend-developer
+      context: ctx-003
+      trigger: "Platform Engineer needs to migrate scattered role checks to granular RBAC with comprehensive security testing after previous permission bugs enabled unauthorized access."
+      action: >
+        Refactor API endpoint from custom permission checks to declarative middleware. Original code: if (user.role !== 'admin') return 403; if (user.id !== customer.owner_id) return 403; - 15 lines repeated in 40 endpoints. Install permission library, define permissions YAML: Admin role has ['*'] (all permissions), Manager has ['customer:read', 'customer:write', 'project:read'], Editor has ['customer:write'], Viewer has ['customer:read']. Add decorator to endpoint: @RequirePermission('customer:write') async updateCustomer() { ... } - replaces 15 lines custom checks with 1 line. Test permission: create test user with Manager role, POST /customers expecting 200 success (Manager has customer:write), same user DELETE /customers expecting 403 forbidden (Manager lacks customer:delete). All tests pass. Migrate 40 endpoints in 2 days: add decorators to each endpoint matching required permission (customer:write, project:read, invoice:delete), remove custom if-statements (reduced from 150 lines to 40 decorators = 73% code reduction). Write comprehensive security test suite: for each endpoint test all roles (Admin succeeds, Manager succeeds for customer endpoints but forbidden for billing, Editor succeeds for write but forbidden for delete, Viewer forbidden for all write operations) = 160 test cases covering permission matrix. Tests catch 3 bugs: (1) forgot permission check on analytics endpoint (any user could access), (2) Manager had project:delete but should only have project:read, (3) token expiry not tested (15-min tokens persisted 24 hours due to missing validation). Fix bugs, all tests green. Deploy with confidence: permission enforcement consistent across codebase, comprehensive test coverage (95% vs 30%), automated security testing in CI (all permission checks verified on every PR). Create permission audit tool: script listing all endpoints with required permissions showing coverage (40 endpoints, 40 with permissions = 100% vs previous 60%).
+      outcome: "Permission implementation time reduced from 3 weeks to 2 days (85% faster) using declarative middleware vs custom checks. Code reduced 73% (150 lines scattered if-statements to 40 decorators) improving maintainability and consistency. Permission bugs reduced from 15 to 2 during migration (87% reduction) caught by comprehensive test suite before production. Security test coverage improved from 30% to 95% through automated permission matrix testing. Permission changes simplified: add Manager customer:delete permission by editing YAML config vs finding and updating 15 endpoints. Audit trail automatic: every permission check logged enabling security investigation. Developer confidence increased through compile-time permission validation (TypeScript types showing available permissions preventing typos)."
+      acceptance_criteria:
+        - "Declarative permission middleware: @RequirePermission decorator accepting permission strings ('customer:read', 'project:write'), OR conditions (@RequirePermission(['customer:read', 'project:read']) = either sufficient), AND conditions (multiple decorators = all required), with compile-time validation (TypeScript types showing available permissions preventing typos)."
+        - "Permission definition: YAML config defining roles and permissions (Admin: ['*'], Manager: ['customer:*', 'project:read']), resource-level permissions (customer:read, customer:write, customer:delete), permission inheritance (Manager inherits Editor permissions), with permission validation on startup (invalid permissions fail fast with clear error messages)."
+        - "Automated permission testing: test matrix covering all endpoints × all roles (Admin can access 40/40 endpoints, Manager 25/40, Editor 15/40, Viewer 10/40), token expiry testing (15-min access tokens expire correctly, refresh tokens rotate properly), session limit testing (max 3 concurrent sessions enforced), with CI integration (all tests run on PR, merge blocked if failures)."
+        - "Permission audit tools: script listing all endpoints with required permissions showing coverage percentage, permission change tracking (git history of permissions YAML showing who changed what when), runtime permission logs (every permission check logged with user, resource, permission, result), with security dashboard showing permission violations (403 responses, unauthorized attempts) by user and endpoint."
+        - "Security observability: structured event logging ({ event: 'permission.denied', user: 'user@example.com', permission: 'customer:delete', resource: 'customer-123' }), query interface (find all permission violations for user, find all attempts to access resource), alerting (notify on repeated permission violations = potential privilege escalation attempt), with integration to SIEM (forward security events to Datadog, Splunk, Elastic)."
+
+dependencies:
+  requires:
+    - fd-008  # API Design patterns provide foundation for API security and rate limiting
+  enables:
+    - "All platform features depend on authentication and authorization for security"
+    - "Compliance certifications (SOC2, ISO27001) enable enterprise sales through demonstrated security"
+
+boundaries:
+  non_goals:
+    - "Network security (firewalls, DDoS protection) - infrastructure concern not application security"
+    - "Data encryption at rest - database/storage concern with separate encryption feature"
+    - "Physical security (datacenter access) - cloud provider responsibility not application feature"
+  constraints:
+    - "MFA required for all users after grace period - no opt-out for convenience"
+    - "Session tokens expire after 15 min requiring refresh - balance security vs UX friction"
+    - "Permission checks on every API request - performance overhead (2-3ms per check) necessary for security"
+  edge_cases:
+    - "User in multiple timezones rapidly (flight from US to Asia) may trigger impossible travel false positive"
+    - "Shared computer (family device, library terminal) may show multiple users same device fingerprint"
+    - "Emergency access (locked out during incident) requires admin override or backup codes"
+
+contexts:
+  - id: ctx-001
+    type: admin
+    name: Security Operations Dashboard
+    description: >
+      Security administrators monitor threats in real-time, configure authentication policies, investigate security incidents, and prepare
+      compliance reports through centralized security dashboard with automated threat detection and response.
+    key_interactions:
+      - "Configure MFA enforcement: set grace period (0-90 days), enable notifications (banner, email), activate policy locking non-compliant users until enrollment."
+      - "Monitor security dashboard: view real-time alerts (failed logins, MFA attempts, impossible travel), investigate alerts (click to see user timeline, IP details, session info), take actions (block IP, revoke session, notify user, require password reset)."
+      - "Review security metrics: MFA adoption percentage over time (trend chart), failed authentication rate (daily counts), impossible travel detections (weekly summary), mean-time-to-detect and mean-time-to-respond (performance metrics)."
+      - "Generate compliance reports: click 'Generate SOC2 Report' selecting date range, receive 80-page PDF with authentication evidence (MFA usage, password policies), authorization evidence (user roles, access reviews), session management evidence (timeout config, revocation logs), monitoring evidence (threat detection examples)."
+      - "Investigate security incidents: search failed logins by user or IP, view login timeline showing normal patterns vs anomalies, check associated sessions and access patterns, export incident report for documentation."
+    data_displayed:
+      - "Real-time threat alerts: card showing alert severity (critical, high, medium, low), event type (failed MFA, impossible travel, unusual access), affected user, source IP/location, timestamp, with 'Investigate' button opening detailed timeline and 'Take Action' menu (block IP, revoke session, notify user)."
+      - "Security metrics dashboard: MFA adoption percentage (100% target, current 98%, trend chart showing growth from 45%), failed authentication attempts (127 last 7 days, 18 avg daily, peak 45 on Dec 10), impossible travel alerts (3 last 7 days, all investigated within 15 min), with color-coded status (green = compliant, yellow = attention, red = critical)."
+      - "Compliance evidence: automated SOC2 report showing authentication section (MFA enrollment timeline, password policy config, failed login statistics with screenshots), authorization section (user-role matrix, quarterly access review records), session management section (timeout configuration, average session duration, revocation examples), monitoring section (threat detection alerts, incident response times)."
+      - "Threat investigation timeline: chronological view of user activity (Dec 15 9:00 AM: normal login San Francisco, 9:30 AM: normal activity, 2:00 PM: login attempt China BLOCKED, 2:02 PM: 3 failed MFA attempts, 2:03 PM: IP blacklisted), with context (IP geolocation map, user-agent details, associated sessions), actions taken (automated block, manual investigation, user notification), and similar patterns (IP attempted 15 logins across 8 accounts)."
+      - "Permission audit: table listing all users with roles and permissions (John Admin ['*'], Sarah Manager ['customer:*', 'project:read'], Mark Editor ['customer:write']), recent permission changes (Sarah promoted Manager adding 15 permissions - Dec 10 by John), quarterly access review status (95% complete, 3 users pending review, due Dec 31), with export function for auditor evidence."
+
+  - id: ctx-002
+    type: user
+    name: User Authentication & Session Management
+    description: >
+      End users authenticate via passwordless methods (magic link, passkey, cross-device approval) and manage active sessions (view devices,
+      locations, revoke suspicious logins) with self-service security controls and account recovery options.
+    key_interactions:
+      - "Passwordless login: enter email receiving magic link (click link in email, authenticated in 15 sec), OR use passkey (Face ID/Touch ID scan, authenticated in 3 sec), OR cross-device approval (enter email on laptop, approve on phone, authenticated in 15 sec)."
+      - "Manage active sessions: view session dashboard (list of devices, locations, last active time), revoke session (click 'Revoke' on suspicious device, logout immediately), mark device as trusted (streamlined login for 90 days), with new device notifications (email alert when login from unrecognized device)."
+      - "Configure security settings: enable step-up authentication (require TOTP for new devices), download backup codes (10 single-use codes for emergency), add recovery options (backup email, phone number), view account security score (shows MFA enabled, 2 trusted devices, no recent suspicious activity)."
+      - "Review login history: see all login attempts last 90 days (successful and failed), check IP geolocation (map showing login locations), identify suspicious patterns (3 failed logins from China Dec 10), report suspicious activity (flags for security team investigation)."
+      - "Recover account: use magic link to recovery email, OR SMS code to backup phone, OR backup codes, with gradual lockout (3 failed attempts = 15-min cooldown, 10 attempts = 24-hour lockdown requiring security team review)."
+    data_displayed:
+      - "Passwordless login screen: email input field with 'Send Magic Link' button (opens email for link), 'Use Passkey' button (triggers biometric Face ID/Touch ID), 'Authenticate with Phone' button (sends approval notification to registered mobile device), with fallback option 'Use Password + MFA' for traditional auth if needed."
+      - "Active sessions dashboard: cards for each session showing device icon (laptop, phone, tablet), device details (MacBook Pro, Chrome 120, macOS 14.2), location (San Francisco, CA, US), IP address (192.168.1.1), last active (2 min ago), with 'Revoke' button (red, confirms logout) and 'Trust Device' toggle (green, enables streamlined login for 90 days)."
+      - "New device notification email: subject 'New device login detected', body showing device (iPad), location (Chicago, IL), timestamp (Dec 15, 8:45 PM), 'Was this you?' with buttons 'Yes, this was me' (dismisses alert) and 'No, secure my account' (opens session management, prompts password reset, revokes all sessions), with session screenshot for reference."
+      - "Login history timeline: table with date/time, device, location, IP, status (success/failed/blocked), with filters (last 7/30/90 days, failed only, specific IP, specific location), map visualization (pins on world map showing login locations), export function (CSV for personal records), and 'Report Suspicious' button on each entry."
+      - "Security settings: MFA status (enabled, TOTP configured, backup codes: 10 remaining), trusted devices (2 devices: MacBook Pro expires Mar 15, iPhone 14 expires Mar 20), recovery options (recovery email verified, backup phone +1 555-0123 verified), security score (95/100: MFA enabled +50, trusted devices configured +20, no suspicious activity +25), with recommendations (enable WebAuthn +5, review permissions quarterly +5)."
+
+  - id: ctx-003
+    type: developer
+    name: Security Development & Testing Workflow
+    description: >
+      Backend developers implement authentication and authorization using security frameworks with declarative permission middleware, automated
+      testing, and security observability enabling secure development with 95% test coverage and comprehensive audit trails.
+    key_interactions:
+      - "Implement permissions: add @RequirePermission('customer:write') decorator to endpoint replacing custom if-statements, define permissions in YAML config (Manager: ['customer:*', 'project:read']), with TypeScript autocomplete showing available permissions."
+      - "Write security tests: create permission matrix tests (test each endpoint with each role expecting correct 200/403), test token expiry (access token expires after 15 min), test session limits (max 3 concurrent sessions), test refresh token rotation (new token on each use), with 95% coverage target."
+      - "Debug security issues: query structured logs (find all permission denials for user), view security event timeline (user authentication flow, permission checks, session creation), check session fingerprint (detect token theft via IP/user-agent change), with detailed error messages for investigation."
+      - "Monitor security metrics: view API endpoint permission coverage (40 endpoints, 40 with permission checks = 100%), track permission violations by endpoint and user, monitor failed authentication rate, measure session creation performance (2-3ms overhead acceptable), with dashboards showing trends."
+      - "Audit security implementation: run permission audit script listing all endpoints with required permissions, review permission change history (git log permissions.yaml), verify test coverage (jest --coverage showing 95% security code tested), check for hardcoded secrets (automated scan in CI)."
+    data_displayed:
+      - "Permission middleware code: TypeScript decorator @RequirePermission('customer:write') with autocomplete showing available permissions (['customer:read', 'customer:write', 'customer:delete', 'project:read', ...]), OR conditions (@RequirePermission(['customer:read', 'project:read'])), error handling (automatic 403 response with structured error { error: 'permission_denied', required: 'customer:write', user_permissions: ['customer:read'] })."
+      - "Permission test suite: Jest tests organized by endpoint (describe('/customers POST', () => { test('Admin can create', ...); test('Manager can create', ...); test('Viewer forbidden', expect(403)); })), permission matrix table (rows = endpoints, columns = roles, cells = expected status 200/403), coverage report (95% statements, 100% branches in auth code), with CI integration (tests run on PR, merge blocked if failures)."
+      - "Security event logs: structured JSON logs ({ timestamp: '2024-12-27T14:30:00Z', event: 'permission.denied', user: 'mark@company.com', permission: 'customer:delete', resource: 'customer-123', endpoint: 'DELETE /customers/123', ip: '192.168.1.1', user_agent: 'Chrome/120' }), with query interface (Elasticsearch/Datadog showing aggregations: permission violations by user, by endpoint, by permission, over time)."
+      - "Permission audit report: table listing all 40 API endpoints with path (POST /customers, GET /projects/:id), required permission ('customer:write', 'project:read'), roles with access ([Admin, Manager], [Admin, Manager, Editor, Viewer]), coverage status (40/40 = 100% green), with filters (uncovered endpoints, by resource, by role), export function (CSV for security review)."
+      - "Security dashboard: metrics showing MFA adoption (100%), active sessions (247 currently), failed logins last 24h (18), permission violations last 24h (3), session creation latency (2.1ms avg, 4.5ms p95), with alerts (red if failed logins >50, yellow if permission violations >10), trends (line charts showing metrics over 30 days), and links to detailed investigation (click metric to see events)."

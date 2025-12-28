@@ -1,0 +1,19 @@
+# This is a placeholder for a workflow configuration file.
+name: "Example Workflow Configuration"
+applies_to_machine: "placeholder.state_machine.yaml"
+
+state_policies:
+  - state: "StateA"
+    rules:
+      - "Example rule for StateA"
+
+migrations:
+  - from: "StateC"
+    to: "StateA"
+    conditions:
+      - "Example migration condition"
+
+notifications:
+  - trigger: "on_enter_StateB"
+    recipients: ["initiator"]
+    message: "You have entered StateB"
