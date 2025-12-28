@@ -1,0 +1,235 @@
+id: "fd-004"
+name: "Model Context Protocol Server"
+slug: "mcp-server"
+status: "delivered"
+
+strategic_context:
+  contributes_to:
+    - "Product.Core.MCPServer"
+    - "Product.Core.RemoteAccess"
+    - "Product.Innovation.ClaudeIntegration"
+  tracks:
+    - "product"
+  assumptions_tested:
+    - "asm-p-007" # MCP enables valuable IDE integrations
+    - "asm-p-008" # Remote KB access via MCP improves LLM accuracy
+
+definition:
+  job_to_be_done: |
+    When I'm working in Claude Desktop or other MCP-compatible tools,
+    I want to access my knowledge base directly from the tool,
+    so I can get contextual information without switching applications.
+
+  solution_approach: |
+    A Model Context Protocol (MCP) server implementation that:
+    - Exposes knowledge base as MCP tools (search, retrieve, create)
+    - Integrates with Claude Desktop via stdio transport
+    - Provides authenticated remote access with tenant isolation
+    - Enables IDE extensions to query organizational knowledge
+    - Supports pilot programs with target users
+
+  capabilities:
+    - id: "cap-019"
+      name: "MCP Tool Definitions"
+      description: "Search, retrieve, and create entities via MCP protocol"
+    
+    - id: "cap-020"
+      name: "Claude Desktop Integration"
+      description: "Native integration with Anthropic's Claude Desktop client"
+    
+    - id: "cap-021"
+      name: "Remote KB Access"
+      description: "Secure access to knowledge base from external tools"
+    
+    - id: "cap-022"
+      name: "Tenant Isolation"
+      description: "API key-based authentication with org/project scoping"
+
+implementation:
+  design_guidance:
+    principles:
+      - "Protocol compliance (strict MCP spec adherence)"
+      - "Security first (all requests authenticated and scoped)"
+      - "Performance (< 500ms tool execution)"
+      - "Error transparency (clear error messages to LLM)"
+    
+    inspirations:
+      - "Anthropic MCP documentation"
+      - "GitHub Copilot integration patterns"
+      - "VS Code extension architecture"
+
+  contexts:
+    - id: "ctx-009"
+      type: "integration"
+      name: "Claude Desktop Configuration"
+      description: "User configures MCP server in Claude Desktop"
+      scenarios:
+        - id: "scn-012"
+          name: "Configure MCP Server"
+          description: "Add server to claude_desktop_config.json"
+          example_request: |
+            {
+              "mcpServers": {
+                "emergent": {
+                  "command": "node",
+                  "args": ["/path/to/mcp-server.js"],
+                  "env": {
+                    "API_KEY": "proj_abc123..."
+                  }
+                }
+              }
+            }
+          success_criteria:
+            - "Server starts without errors"
+            - "Tools appear in Claude Desktop"
+            - "Search queries return results"
+    
+    - id: "ctx-010"
+      type: "api"
+      name: "MCP Tool Execution"
+      description: "Claude calls MCP tools to access knowledge base"
+      scenarios:
+        - id: "scn-013"
+          name: "Search Knowledge Base"
+          description: "search_kb tool finds relevant entities"
+          example_request: |
+            {
+              "method": "tools/call",
+              "params": {
+                "name": "search_kb",
+                "arguments": {
+                  "query": "project risks",
+                  "limit": 5
+                }
+              }
+            }
+          success_criteria:
+            - "Returns top 5 relevant entities"
+            - "Includes snippets and scores"
+            - "Response time < 500ms"
+
+technical_specifications:
+  protocol:
+    name: "Model Context Protocol"
+    version: "1.0"
+    transport: "stdio"
+    message_format: "JSON-RPC 2.0"
+  
+  tools:
+    - name: "search_kb"
+      description: "Search knowledge base using natural language query"
+      parameters:
+        - name: "query"
+          type: "string"
+          required: true
+        - name: "limit"
+          type: "integer"
+          default: 10
+      returns: "Array of entities with snippets and scores"
+    
+    - name: "get_entity"
+      description: "Retrieve full entity details by ID"
+      parameters:
+        - name: "entity_id"
+          type: "string"
+          required: true
+      returns: "Complete entity with properties and relationships"
+    
+    - name: "create_entity"
+      description: "Create new entity in knowledge base"
+      parameters:
+        - name: "type_name"
+          type: "string"
+          required: true
+        - name: "name"
+          type: "string"
+          required: true
+        - name: "properties"
+          type: "object"
+          required: false
+      returns: "Created entity with ID"
+  
+  authentication:
+    method: "API key in environment variable"
+    key_format: "proj_[a-z0-9]{32}"
+    scoping: "Project-level isolation"
+  
+  database:
+    access_pattern: "Uses existing GraphModule, UnifiedSearchModule"
+    tables: "kb.graph_objects, kb.graph_relationships"
+  
+  modules:
+    - name: "McpModule"
+      path: "apps/server/src/modules/mcp"
+      purpose: "MCP protocol server and tool implementations"
+
+validation_criteria:
+  performance:
+    - metric: "Tool execution latency"
+      target: "< 500ms p95"
+      measurement: "Time from MCP request to response"
+    
+    - metric: "Server startup time"
+      target: "< 2 seconds"
+      measurement: "Time until tools available"
+  
+  quality:
+    - metric: "Pilot user adoption"
+      target: "5+ active users (kr-p-003)"
+      measurement: "Unique API keys with >10 requests/week"
+    
+    - metric: "Search relevance"
+      target: "MRR@5 > 0.8"
+      measurement: "User feedback on search quality"
+
+dependencies:
+  internal:
+    - "GraphModule (entity CRUD)"
+    - "UnifiedSearchModule (search)"
+    - "AuthModule (API key validation)"
+  
+  external:
+    - service: "Claude Desktop"
+      purpose: "Primary MCP client"
+      criticality: "high"
+    
+    - service: "@modelcontextprotocol/sdk"
+      purpose: "MCP protocol implementation"
+      criticality: "critical"
+
+risks_and_mitigations:
+  - risk: "MCP spec changes break compatibility"
+    likelihood: "medium"
+    impact: "high"
+    mitigation: "Pin SDK version; monitor spec repo; version MCP server"
+  
+  - risk: "API key leakage exposes knowledge base"
+    likelihood: "low"
+    impact: "high"
+    mitigation: "Key rotation; rate limiting; audit logging; project-level scoping"
+  
+  - risk: "Low pilot adoption (< 5 users)"
+    likelihood: "medium"
+    impact: "medium"
+    mitigation: "Target developer-heavy teams; provide setup documentation; gather feedback early"
+
+current_state:
+  implementation_status: "shipped"
+  version: "1.0"
+  deployed_environments:
+    - "production (via npm package)"
+  known_limitations:
+    - "Stdio transport only (no HTTP server mode)"
+    - "Read-only tools (no entity updates yet)"
+    - "No streaming responses (entire results returned)"
+    - "Limited to 3 tools (search, get, create)"
+
+metadata:
+  created_at: "2025-12-16"
+  created_by: "Nikolai Fasting"
+  last_updated: "2025-12-16"
+  tags:
+    - "mcp"
+    - "claude-desktop"
+    - "integration"
+    - "remote-access"

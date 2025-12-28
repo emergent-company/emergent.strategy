@@ -1,0 +1,227 @@
+id: "fd-001"
+name: "Knowledge Graph Engine"
+slug: "knowledge-graph-engine"
+status: "delivered"
+
+strategic_context:
+  contributes_to:
+    - "Product.Discovery.KnowledgeExploration"
+    - "Product.Search.SemanticFindability"
+    - "Product.Intelligence.ContextualUnderstanding"
+  tracks:
+    - "product"
+  assumptions_tested:
+    - "asm-p-001" # Users discover more value through relationship exploration than keyword search alone
+    - "asm-p-002" # Semantic similarity helps users find information even with different terminology
+
+definition:
+  job_to_be_done: >
+    When I'm searching for information across our knowledge base, I want to discover not just exact keyword matches 
+    but also conceptually related content and understand how different pieces connect, so I can build comprehensive 
+    understanding and find insights I didn't know existed.
+
+  solution_approach: >
+    A knowledge graph that understands meaning and relationships. When you search or explore, the system shows you 
+    related entities, discovers connections across different content types, and helps you navigate through relationships. 
+    It learns what things mean (not just what they're called) and shows you how different pieces of knowledge connect 
+    to each other. Think of it like a map of your organization's knowledge where you can zoom in on details or zoom 
+    out to see patterns, and the system suggests relevant connections you might not have thought to look for.
+
+  capabilities:
+    - id: "cap-001"
+      name: "Semantic Discovery"
+      description: >
+        Find information by meaning, not just keywords. Search for "renewable energy investments" and discover 
+        related content about "solar projects" and "green financing" even when different words are used.
+    
+    - id: "cap-002"
+      name: "Relationship Navigation"
+      description: >
+        Explore how different entities connect. See that a project depends on a supplier, which relates to 
+        a contract, which references specific regulations. Follow these connections to build understanding.
+    
+    - id: "cap-003"
+      name: "Flexible Knowledge Modeling"
+      description: >
+        Model your domain in ways that match how your team thinks. Define custom entity types (projects, risks, 
+        stakeholders) and relationships that reflect your business reality, not rigid database constraints.
+    
+    - id: "cap-004"
+      name: "Unified Search Experience"
+      description: >
+        Search across all your knowledge in one place. Results combine document matches, related entities, 
+        and suggested connections. Find what you're looking for and discover what you didn't know to look for.
+    
+    - id: "cap-005"
+      name: "Contextual Intelligence"
+      description: >
+        The system understands context. When viewing a project, see related risks, stakeholders, documents, 
+        and dependencies automatically. The graph builds context so you don't have to.
+
+implementation:
+  design_guidance:
+    principles:
+      - "Understanding over Keywords: Search understands meaning, not just text matching"
+      - "Exploration over Consumption: Enable discovery of unknown unknowns through relationships"
+      - "Progressive Disclosure: Start with overview, drill into detail as needed"
+      - "Context Awareness: Show relevant connections automatically based on what user is viewing"
+    
+    inspirations:
+      - "Roam Research for bidirectional linking and graph thinking"
+      - "Neo4j Bloom for intuitive graph exploration"
+      - "Notion for flexible entity modeling without rigid schemas"
+      - "Google Knowledge Graph for entity disambiguation and relationship understanding"
+    
+    interaction_patterns:
+      - "Type-ahead search with semantic suggestions showing related concepts"
+      - "Graph visualization with zoom in/out for different levels of detail"
+      - "Related entities sidebar showing contextual connections"
+      - "Relationship path highlighting when exploring connections"
+      - "Filter by entity type, relationship type, or property values"
+
+  contexts:
+    - id: "ctx-001"
+      type: "ui"
+      name: "Knowledge Explorer Dashboard"
+      description: >
+        Primary interface for searching and exploring the knowledge graph. Shows search bar, 
+        graph visualization, and related entities panel.
+      key_elements:
+        - "Semantic search bar with autocomplete"
+        - "Graph visualization canvas (zoomable, pannable)"
+        - "Entity detail panel showing properties and relationships"
+        - "Related entities sidebar with similarity scores"
+        - "Breadcrumb navigation for relationship paths"
+      user_actions:
+        - "Search by text to find entities"
+        - "Click entity to see details and relationships"
+        - "Expand related entities to explore connections"
+        - "Filter by entity type or relationship type"
+        - "Save frequent searches or graph views"
+      data_displayed:
+        - "Entity name, type, key properties"
+        - "Relationships with other entities"
+        - "Semantic similarity scores"
+        - "Property values with metadata"
+        - "Relationship paths between entities"
+    
+    - id: "ctx-002"
+      type: "api"
+      name: "Graph Query API"
+      description: >
+        RESTful and GraphQL endpoints for querying entities, relationships, and performing semantic search
+      key_elements:
+        - "POST /api/graph/search - Semantic search endpoint"
+        - "GET /api/graph/objects/:id - Entity details"
+        - "GET /api/graph/objects/:id/related - Relationship navigation"
+        - "POST /api/graph/objects - Create entity"
+        - "GraphQL endpoint for complex queries"
+      user_actions:
+        - "Query by semantic similarity"
+        - "Traverse relationships up to N hops"
+        - "Filter results by type and properties"
+        - "Create and link new entities"
+      data_displayed:
+        - "Entity objects with all properties"
+        - "Relationship objects with metadata"
+        - "Search results with relevance scores"
+        - "Type definitions from schema registry"
+    
+    - id: "ctx-003"
+      type: "ui"
+      name: "Entity Type Manager"
+      description: >
+        Admin interface for defining and evolving entity types and relationship schemas
+      key_elements:
+        - "Type definition editor (name, properties, validation rules)"
+        - "Relationship schema builder"
+        - "Property type picker (text, number, date, reference, etc.)"
+        - "Validation rule configuration"
+        - "Usage statistics per type"
+      user_actions:
+        - "Define new entity type"
+        - "Add properties to existing type"
+        - "Define relationship schemas"
+        - "Set validation rules"
+        - "View type usage across graph"
+      data_displayed:
+        - "All defined entity types"
+        - "Properties for each type with types and constraints"
+        - "Relationship schemas between types"
+        - "Entity count per type"
+
+  scenarios:
+    - id: "scn-001"
+      actor: "Knowledge worker"
+      action: "Searches for 'renewable energy investments' and explores results"
+      outcome: "Discovers related projects, stakeholders, and documents through semantic similarity and relationship navigation"
+      acceptance_criteria:
+        - "Search returns semantically similar entities even with different keywords"
+        - "Results show relationship paths to clicked entity"
+        - "Can filter results by entity type"
+        - "Related entities update when selection changes"
+    
+    - id: "scn-002"
+      actor: "Data architect"
+      action: "Defines new entity type 'Project Risk' with custom properties and relationships to 'Project' and 'Mitigation'"
+      outcome: "New type is immediately available for entity creation without database migration"
+      acceptance_criteria:
+        - "Type definition saved to registry"
+        - "Properties include validation rules"
+        - "New entities of this type can be created immediately"
+        - "Relationship schemas enforce type constraints"
+    
+    - id: "scn-003"
+      actor: "Product manager"
+      action: "Views a feature entity and explores its relationships to customer requests, technical decisions, and team members"
+      outcome: "Builds comprehensive context through multi-hop relationship traversal"
+      acceptance_criteria:
+        - "Entity view shows all direct relationships"
+        - "Can expand related entities to see their relationships"
+        - "Relationship paths show connection chains"
+        - "Can navigate back through breadcrumb trail"
+    
+    - id: "scn-004"
+      actor: "Integration system"
+      action: "Queries API for 'projects similar to project-X in EU region' and receives ranked results"
+      outcome: "Gets structured entity data with similarity scores and relationship context"
+      acceptance_criteria:
+        - "API returns entities ranked by similarity"
+        - "Results include similarity scores"
+        - "Can filter by property values (region)"
+        - "Response includes relationship metadata"
+        - "Query completes in < 200ms for 10K entity corpus"
+
+  external_integrations:
+    - name: "Google Vertex AI"
+      purpose: "Generate 768-dimension text embeddings for semantic search"
+      direction: "outbound"
+    
+    - name: "Document Processing Pipeline"
+      purpose: "Receive extracted entities from document analysis"
+      direction: "inbound"
+    
+    - name: "Chat Interface"
+      purpose: "Provide graph context for AI chat responses"
+      direction: "bidirectional"
+
+boundaries:
+  non_goals:
+    - "Not a document storage system (stores entities extracted from documents)"
+    - "Not a visualization-first tool (API-first with UI for human interaction)"
+    - "Not a replacement for OLAP analytics (optimized for exploration, not aggregation)"
+    - "Not a full-text search engine (semantic and graph-focused)"
+  
+  constraints:
+    - "Single PostgreSQL instance (no distributed graph at launch)"
+    - "Max 100K entities before considering sharding"
+    - "Requires Google Cloud for Vertex AI embeddings"
+    - "Graph visualization limited to 100 nodes in UI for performance"
+
+dependencies:
+  requires:
+    - "fd-007" # Authentication and multi-tenancy for access control
+  enables:
+    - "fd-003" # AI Chat uses graph for contextual responses
+    - "fd-002" # Document ingestion extracts entities into graph
+

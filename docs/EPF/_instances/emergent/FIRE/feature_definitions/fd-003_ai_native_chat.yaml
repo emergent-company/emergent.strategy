@@ -1,0 +1,298 @@
+id: "fd-003"
+name: "AI-Native Chat Interface"
+slug: "ai-native-chat"
+status: "delivered"
+
+strategic_context:
+  contributes_to:
+    - "Product.Core.ConversationalAccess"
+    - "Product.Core.RAGRetrieval"
+    - "Product.Core.AgenticWorkflows"
+  tracks:
+    - "product"
+  assumptions_tested:
+    - "asm-p-005" # Chat is preferred interface for knowledge retrieval
+    - "asm-p-006" # RAG improves answer quality over pure LLM
+
+definition:
+  job_to_be_done: |
+    When I need to find or understand information from the knowledge base,
+    I want to ask natural language questions and get contextual answers with citations,
+    so I can quickly get accurate information without manually searching documents.
+
+  solution_approach: |
+    A conversational AI interface combining:
+    - Natural language question understanding
+    - RAG (Retrieval-Augmented Generation) with graph and vector search
+    - Multi-turn conversation with context retention
+    - Source citations and confidence indicators
+    - Streaming responses for perceived performance
+    - Agent-based workflows for complex queries
+    - Observability via Langfuse integration
+
+  capabilities:
+    - id: "cap-012"
+      name: "Conversational Question Answering"
+      description: "Natural language Q&A with context from previous messages"
+    
+    - id: "cap-013"
+      name: "RAG Retrieval"
+      description: "Combines vector search, graph traversal, and lexical search for context"
+    
+    - id: "cap-014"
+      name: "Source Citations"
+      description: "Links answers to source documents and chunks with confidence scores"
+    
+    - id: "cap-015"
+      name: "Streaming Responses"
+      description: "Server-sent events deliver tokens as generated for responsive UX"
+    
+    - id: "cap-016"
+      name: "Agent Workflows"
+      description: "Multi-step reasoning for complex queries requiring graph exploration"
+    
+    - id: "cap-017"
+      name: "Conversation Management"
+      description: "Create, list, resume, and organize chat sessions"
+    
+    - id: "cap-018"
+      name: "Observability"
+      description: "Langfuse tracing for debugging RAG pipelines and measuring quality"
+
+implementation:
+  design_guidance:
+    principles:
+      - "Fast perceived performance (streaming delivery, optimistic UI updates)"
+      - "Transparent sourcing (always cite sources, link to original documents)"
+      - "Graceful degradation (fallback to search results if generation fails)"
+      - "User control (edit queries, regenerate responses, provide explicit feedback)"
+    
+    inspirations:
+      - name: "ChatGPT"
+        aspect: "Conversational UX with natural back-and-forth flow"
+      - name: "Perplexity AI"
+        aspect: "Citation-heavy answers with inline source references"
+      - name: "GitHub Copilot Chat"
+        aspect: "IDE integration patterns and context awareness"
+      - name: "Notion AI"
+        aspect: "Inline assistance seamlessly integrated into workspace"
+    
+    interaction_patterns:
+      - pattern: "Streaming Conversation"
+        description: "Tokens appear progressively as generated; user sees thinking in real-time"
+      - pattern: "Citation Bubbles"
+        description: "Inline [1], [2] numbers expand to show source document and excerpt"
+      - pattern: "Suggested Follow-ups"
+        description: "System proposes related questions based on answer content"
+      - pattern: "Conversation Threading"
+        description: "Sidebar shows conversation history; click to resume any thread"
+
+  contexts:
+    - id: "ctx-006"
+      type: "api"
+      name: "Chat API"
+      description: "REST and SSE endpoints for conversational AI interaction"
+      
+      key_interactions:
+        - "POST /api/chat/conversations → Create new conversation thread"
+        - "POST /api/chat/conversations/{id}/messages → Send user message, receive SSE stream"
+        - "GET /api/chat/conversations/{id}/messages → Retrieve conversation history"
+        - "DELETE /api/chat/conversations/{id} → Delete conversation thread"
+      
+      data_displayed:
+        - "Conversation ID and title"
+        - "Message role (user|assistant) and content"
+        - "Citations array with chunk_id, document_id, similarity score"
+        - "Streaming tokens with event types (token|citation|done|error)"
+        - "Langfuse trace ID for debugging"
+    
+    - id: "ctx-007"
+      type: "ui"
+      name: "Chat Interface (Admin)"
+      description: "Web-based conversational UI in admin panel"
+      
+      key_interactions:
+        - "Type question in auto-resizing textarea → Press Enter to send"
+        - "Click citation number [1] → Expand inline to show source excerpt"
+        - "Click suggested follow-up question → Auto-fills as new message"
+        - "Hover over streaming answer → Show regenerate button"
+        - "Click conversation in sidebar → Resume previous thread"
+      
+      data_displayed:
+        - "Conversation history (chronological message list)"
+        - "User message bubbles (left-aligned, with timestamp)"
+        - "Assistant response bubbles (right-aligned, streaming)"
+        - "Inline citation links ([1], [2], [3]) with hover previews"
+        - "Typing indicator during generation"
+        - "Feedback buttons (thumbs up/down) on each response"
+    
+    - id: "ctx-008"
+      type: "integration"
+      name: "Chat SDK"
+      description: "JavaScript/TypeScript SDK for embedding chat in third-party apps"
+      
+      key_interactions:
+        - "npm install @emergent/chat-sdk → Add package to project"
+        - "<ChatWidget projectKey={key} /> → Render embedded chat"
+        - "SDK authenticates via project API key → Maintains tenant isolation"
+        - "Custom theme props → Style widget to match host app"
+      
+      data_displayed:
+        - "Chat widget (modal or inline) with minimize/maximize controls"
+        - "Conversation interface matching admin UX patterns"
+        - "Organization and project context visible in UI"
+        - "Error messages if API key invalid or quota exceeded"
+
+scenarios:
+  - id: "scn-008"
+    name: "Send Chat Message"
+    actor: "Knowledge Worker"
+    context: "ctx-006"
+    trigger: "User types 'What are the main risks in Q3 client review?' and presses Enter"
+    
+    action: |
+      1. User sends POST /api/chat/conversations/123/messages with message content
+      2. API creates user message record (role='user') in kb.chat_messages
+      3. API initiates RAG pipeline: hybrid search (vector + lexical + graph traversal)
+      4. Retrieval returns top 10 chunks with similarity scores (min 0.7 threshold)
+      5. API constructs context window (8,000 tokens max) with retrieved chunks
+      6. API calls Gemini Pro with generation params (temp=0.7, max_tokens=2048)
+      7. API streams response via SSE: token events for each generated word
+      8. API extracts citations from answer, sends citation events with chunk IDs
+      9. API sends done event when generation completes, stores assistant message
+    
+    outcome: |
+      - User sees answer streaming token-by-token within 1 second of sending
+      - Answer includes 3 inline citations [1], [2], [3] linking to source documents
+      - Total generation completes within 5 seconds for typical query
+      - Conversation history updates with both user question and assistant answer
+      - Langfuse trace created for full pipeline (retrieval → generation → citations)
+    
+    acceptance_criteria:
+      - "Time to First Token (TTFT) < 1 second p95"
+      - "Answer generation completes < 5 seconds p95"
+      - "Citations link to verifiable source documents (> 90% accuracy)"
+      - "SSE stream includes token, citation, and done events in correct order"
+
+  - id: "scn-009"
+    name: "Conversation History Retrieval"
+    actor: "Knowledge Worker"
+    context: "ctx-006"
+    trigger: "User clicks on previous conversation in sidebar to resume thread"
+    
+    action: |
+      1. UI sends GET /api/chat/conversations/123/messages
+      2. API queries kb.chat_messages WHERE conversation_id=123 ORDER BY created_at
+      3. API returns messages array with user and assistant messages interleaved
+      4. API paginates if > 50 messages (returns first page with cursor)
+      5. UI renders conversation history in chronological order
+    
+    outcome: |
+      - User sees complete conversation history from previous session
+      - Messages display in correct chronological order (oldest to newest)
+      - Citations in historical assistant messages remain clickable
+      - User can send new message to continue conversation thread
+    
+    acceptance_criteria:
+      - "Messages returned in chronological order (created_at ascending)"
+      - "Includes both user messages and assistant responses"
+      - "Citations in historical messages remain valid (chunk IDs resolve)"
+      - "Pagination cursor works for conversations > 50 messages"
+
+  - id: "scn-010"
+    name: "Ask Question with Streaming Answer"
+    actor: "Knowledge Worker"
+    context: "ctx-007"
+    trigger: "User types question in chat interface and presses Enter"
+    
+    action: |
+      1. User types 'Summarize project timeline' in auto-resizing textarea
+      2. Textarea grows to fit content (max 5 lines before scrolling)
+      3. User presses Enter; UI disables input and shows typing indicator
+      4. UI opens SSE connection to /api/chat/conversations/{id}/messages/stream
+      5. UI receives token events and appends to answer bubble character-by-character
+      6. UI receives citation events and renders inline [1], [2] with hover previews
+      7. UI receives done event, hides typing indicator, enables input again
+      8. UI shows feedback buttons (thumbs up/down) below completed answer
+    
+    outcome: |
+      - Answer appears progressively, giving immediate sense of progress
+      - Citations appear inline as answer streams (not batched at end)
+      - User can click citation number to expand source excerpt
+      - Conversation history scrolls to show new messages
+      - Input field remains responsive for immediate follow-up question
+    
+    acceptance_criteria:
+      - "Textarea expands automatically as user types (max 5 lines)"
+      - "Send button enabled only when text present"
+      - "Answer streams token-by-token with < 100ms latency per token"
+      - "Citations appear as clickable inline links ([1], [2], [3])"
+      - "Conversation history auto-scrolls to newest message"
+
+  - id: "scn-011"
+    name: "Embed Chat Widget in Third-Party App"
+    actor: "Developer"
+    context: "ctx-008"
+    trigger: "Developer wants to add AI chat to their product documentation site"
+    
+    action: |
+      1. Developer runs: npm install @emergent/chat-sdk
+      2. Developer obtains project API key from Emergent admin panel
+      3. Developer adds <ChatWidget projectKey="pk_abc123" theme="dark" /> to React app
+      4. SDK initializes, authenticates with API key, establishes SSE connection
+      5. User in third-party app clicks chat icon, widget slides in from bottom-right
+      6. User types question; SDK handles message sending and response streaming
+      7. Widget respects tenant isolation (org/project context from API key)
+    
+    outcome: |
+      - Chat widget renders seamlessly in host application
+      - Widget styling matches host app theme (dark mode, brand colors)
+      - Questions answered using project-specific knowledge base
+      - Tenant isolation prevents cross-project data leakage
+      - Widget provides same UX as admin panel chat interface
+    
+    acceptance_criteria:
+      - "npm install succeeds with no peer dependency conflicts"
+      - "Widget authenticates via project API key (no user login required)"
+      - "Respects org/project context (queries scoped to correct tenant)"
+      - "Customizable styling via theme prop (colors, fonts, sizing)"
+      - "Widget can be minimized/maximized without losing conversation state"
+
+dependencies:
+  requires:
+    - id: "fd-001"
+      name: "Knowledge Graph Engine"
+      reason: "Graph traversal provides entity context for richer retrieval"
+    
+    - id: "fd-002"
+      name: "Document Ingestion Pipeline"
+      reason: "Chat searches ingested document chunks and entities"
+    
+    - id: "cap-013"
+      name: "RAG Retrieval"
+      reason: "Hybrid search (vector + lexical + graph) powers answer generation"
+    
+    - id: "cap-003"
+      name: "Vector Search"
+      reason: "Semantic similarity search finds relevant document chunks"
+  
+  enables:
+    - id: "fd-005"
+      name: "Template Packs System"
+      reason: "Chat interface can suggest templates based on conversation context"
+    
+    - id: "fd-008"
+      name: "Collaboration & Sharing"
+      reason: "Conversations become shareable artifacts of team knowledge work"
+
+metadata:
+  created_at: "2025-12-16"
+  created_by: "Nikolai Fasting"
+  last_updated: "2025-12-16"
+  tags:
+    - "chat"
+    - "rag"
+    - "conversational-ai"
+    - "langfuse"
+    - "streaming"
+    - "agents"

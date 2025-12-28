@@ -1,10 +1,15 @@
-# EPF Framework .gitignore
-# This is the CANONICAL EPF repo - instances should NOT be here
+# EPF Framework .gitignore - PRODUCT REPO TEMPLATE
+# Copy this file to .gitignore and replace emergent with your product name
+#
+# This file should track YOUR product's instance while ignoring other instances
+# that might appear from framework syncs.
 
-# Instance folders - always ignored in canonical repo
-# Each product repo has its own instances in _instances/{product-name}/
+# Instance folders - only YOUR product instance is tracked
+# Other instances are ignored (they belong to other product repos)
 _instances/*
 !_instances/README.md
+!_instances/emergent
+!_instances/emergent/**
 
 # OS files
 .DS_Store

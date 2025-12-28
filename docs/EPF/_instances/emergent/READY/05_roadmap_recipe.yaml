@@ -1,0 +1,416 @@
+# ROADMAP Phase: Recipe for Solution
+# This is the third sub-phase of READY where we create the actionable plan.
+# 
+# STRUCTURE: The roadmap is organized by TRACKS (Product, Strategy, Org/Ops, Commercial)
+# to align with the four value models in the FIRE phase. Each track has its own OKRs,
+# assumptions, and solution scaffold.
+#
+# KEY PRINCIPLE: Key Results (KRs) are the lowest level EPF defines. KRs are measurable
+# milestones that are handed off to spec-driven development tools (Linear, Jira, etc.)
+# which create work packages, tasks, and tickets for implementation.
+#
+# The roadmap defines WHAT outcomes we want and WHY (strategic traceability).
+# Work packages define HOW we achieve those outcomes (implementation detail).
+
+roadmap:
+  id: "roadmap-001"
+  strategy_id: "strat-001" # Links back to the strategy from 03_strategy_formula.yaml
+  cycle: 1
+  timeframe: "Q1 2025 (Jan-Mar)"
+  
+  # TRACK-SPECIFIC ROADMAPS
+  # Each track aligns with a value model: product.value_model.yaml, strategy.value_model.yaml, etc.
+  
+  tracks:
+    
+    # ============================================================================
+    # PRODUCT TRACK - Core product development
+    # Aligns with: phases/FIRE/value_models/product.value_model.yaml
+    # ============================================================================
+    product:
+      track_objective: "Establish Emergent Core as the knowledge layer that AI agents can reason over"
+      
+      okrs:
+        - id: "okr-p-001"
+          objective: "Ship production-ready Knowledge Graph with AI-native query capabilities"
+          key_results:
+            - id: "kr-p-001"
+              description: "Knowledge Graph supports 10,000+ objects with sub-200ms query response"
+              target: "10,000 objects, <200ms p95 latency"
+              measurement_method: "Load testing with production-like data; Grafana metrics"
+              baseline: "Current: 1,000 objects tested, ~150ms latency"
+            - id: "kr-p-002"
+              description: "Document ingestion pipeline processes PDF, Markdown, and code files"
+              target: "3 file types with 95%+ extraction accuracy"
+              measurement_method: "Extraction quality tests against labeled dataset"
+              baseline: "Current: Markdown only, ~90% accuracy"
+            - id: "kr-p-003"
+              description: "MCP server enables Claude/Cursor to query knowledge graph contextually"
+              target: "MCP integration live with 5+ active pilot users"
+              measurement_method: "MCP server logs showing successful context retrievals"
+              baseline: "Current: MCP server in development"
+        
+        - id: "okr-p-002"
+          objective: "EPF becomes self-hosting (Emergent uses EPF to build Emergent)"
+          key_results:
+            - id: "kr-p-004"
+              description: "All READY phase artifacts populated with real Emergent strategy"
+              target: "6/6 READY artifacts complete and validated"
+              measurement_method: "EPF health check passes with 0 TBD markers"
+              baseline: "Current: 1/6 complete (North Star)"
+            - id: "kr-p-005"
+              description: "Feature definitions created for Core, EPF, OpenSpec product lines"
+              target: "15+ feature definitions in FIRE phase"
+              measurement_method: "Feature definition count in /FIRE/feature_definitions/"
+              baseline: "Current: 0 feature definitions"
+      
+      riskiest_assumptions:
+        - id: "asm-p-001"
+          description: "AI agents will meaningfully use knowledge graph context to improve outputs"
+          type: "desirability"
+          criticality: "high"
+          confidence: "medium"
+          evidence_required: "A/B test showing measurable improvement in AI task completion with vs without Emergent context"
+          linked_to_kr: ["kr-p-001", "kr-p-003"]
+        - id: "asm-p-002"
+          description: "Document extraction accuracy is good enough for reliable knowledge graph"
+          type: "feasibility"
+          criticality: "high"
+          confidence: "medium"
+          evidence_required: "Extraction tests showing >95% accuracy on diverse document set"
+          linked_to_kr: ["kr-p-002"]
+        - id: "asm-p-003"
+          description: "EPF structure is intuitive enough for teams to adopt without extensive training"
+          type: "desirability"
+          criticality: "medium"
+          confidence: "low"
+          evidence_required: "New user can create first EPF instance in <30 minutes without assistance"
+          linked_to_kr: ["kr-p-004", "kr-p-005"]
+      
+      solution_scaffold:
+        description: "Emergent Core architecture: Knowledge Engine + AI Integration Layer"
+        key_components:
+          - id: "comp-p-001"
+            name: "Knowledge Graph Engine"
+            purpose: "Store and query interconnected product knowledge (entities, relationships, embeddings)"
+            priority: "must-have"
+            maps_to_value_model: "PRODUCT-L2-knowledge-engine"
+          - id: "comp-p-002"
+            name: "Document Ingestion Pipeline"
+            purpose: "Extract structured knowledge from unstructured documents (PDFs, Markdown, code)"
+            priority: "must-have"
+            maps_to_value_model: "PRODUCT-L2-ingestion"
+          - id: "comp-p-003"
+            name: "MCP Server"
+            purpose: "Expose knowledge graph to AI agents via Model Context Protocol"
+            priority: "must-have"
+            maps_to_value_model: "PRODUCT-L2-mcp-integration"
+          - id: "comp-p-004"
+            name: "Admin UI"
+            purpose: "Web interface for managing projects, documents, and knowledge exploration"
+            priority: "should-have"
+            maps_to_value_model: "PRODUCT-L2-admin-ui"
+        architecture_principles:
+          - "Git-native: Strategy artifacts live in the repo, not a SaaS silo"
+          - "AI-first: Every data structure designed for machine readability"
+          - "Layered emergence: Simple primitives combine into complex capabilities"
+          - "Schema-driven: YAML schemas enable validation and tooling"
+        technical_constraints:
+          - "Must work with existing AI tools (Cursor, Claude, GitHub Copilot)"
+          - "PostgreSQL + pgvector for knowledge storage (leverage existing infra)"
+          - "NestJS backend, React frontend (consistent with Eyedea stack)"
+    
+    # ============================================================================
+    # STRATEGY TRACK - Strategic positioning and market approach
+    # Aligns with: phases/FIRE/value_models/strategy.value_model.yaml
+    # ============================================================================
+    strategy:
+      track_objective: "Establish Emergent as the 'context layer' category leader for AI-native development"
+      
+      okrs:
+        - id: "okr-s-001"
+          objective: "Define and own the 'Design by Emergence' narrative"
+          key_results:
+            - id: "kr-s-001"
+              description: "Product Framework landing page live with differentiated positioning"
+              target: "Page live at emergent.sh/product-framework with <3s load time"
+              measurement_method: "Lighthouse score >90, page analytics active"
+              baseline: "Current: Page exists with placeholder content"
+            - id: "kr-s-002"
+              description: "EPF white paper published and distributed"
+              target: "White paper downloaded 100+ times in Q1"
+              measurement_method: "Download tracking via analytics"
+              baseline: "Current: White paper draft exists"
+            - id: "kr-s-003"
+              description: "Clear competitive differentiation documented against 5 key competitors"
+              target: "Battle cards for Notion AI, Linear, ProductBoard, Cursor, Codeium"
+              measurement_method: "Battle cards created and used in sales conversations"
+              baseline: "Current: Informal competitive knowledge only"
+      
+      riskiest_assumptions:
+        - id: "asm-s-001"
+          description: "'Context layer for AI' is a category that resonates with technical buyers"
+          type: "viability"
+          criticality: "high"
+          confidence: "medium"
+          evidence_required: "Landing page conversion rate >5%; positive feedback from 10+ prospects"
+          linked_to_kr: ["kr-s-001"]
+        - id: "asm-s-002"
+          description: "Technical founders will invest time in strategic frameworks (EPF adoption)"
+          type: "desirability"
+          criticality: "high"
+          confidence: "low"
+          evidence_required: "3+ external teams adopt EPF for their own products"
+          linked_to_kr: ["kr-s-002"]
+      
+      solution_scaffold:
+        description: "Market positioning as infrastructure for emergent product development"
+        key_components:
+          - id: "comp-s-001"
+            name: "Category Creation: Context Layer"
+            purpose: "Establish new category—'the layer AI agents need to understand your product'"
+            priority: "must-have"
+            maps_to_value_model: "STRATEGY-L2-positioning"
+          - id: "comp-s-002"
+            name: "Design by Emergence Narrative"
+            purpose: "Differentiated story: 'building blocks + rules = emergent capabilities'"
+            priority: "must-have"
+            maps_to_value_model: "STRATEGY-L2-narrative"
+          - id: "comp-s-003"
+            name: "Thought Leadership Content"
+            purpose: "White papers, blog posts, conference talks establishing expertise"
+            priority: "should-have"
+            maps_to_value_model: "STRATEGY-L2-content"
+    
+    # ============================================================================
+    # ORG/OPS TRACK - Organizational and operational capabilities
+    # Aligns with: phases/FIRE/value_models/org_ops.value_model.yaml
+    # ============================================================================
+    org_ops:
+      track_objective: "Build operational foundation for scaling from 3 internal products to external adoption"
+      
+      okrs:
+        - id: "okr-o-001"
+          objective: "Establish development practices that 'eat our own dog food'"
+          key_results:
+            - id: "kr-o-001"
+              description: "All Emergent development uses EPF for strategic planning"
+              target: "100% of new features traced to EPF Key Results"
+              measurement_method: "Linear tickets linked to EPF KRs; audit monthly"
+              baseline: "Current: ~30% traceability"
+            - id: "kr-o-002"
+              description: "AI agents in development workflow have access to Emergent context"
+              target: "Cursor/Claude configured with MCP server for all developers"
+              measurement_method: "Developer survey: 'Do AI tools understand our product?'"
+              baseline: "Current: AI tools have no product context"
+            - id: "kr-o-003"
+              description: "Documentation and knowledge automatically flows into knowledge graph"
+              target: "Weekly sync of /docs folder to knowledge graph"
+              measurement_method: "Automated pipeline running; freshness <7 days"
+              baseline: "Current: Manual document uploads"
+      
+      riskiest_assumptions:
+        - id: "asm-o-001"
+          description: "Team will adopt EPF discipline without excessive overhead"
+          type: "adaptability"
+          criticality: "medium"
+          confidence: "medium"
+          evidence_required: "Team retrospective feedback: EPF adds value vs friction"
+          linked_to_kr: ["kr-o-001"]
+        - id: "asm-o-002"
+          description: "MCP integration improves developer productivity measurably"
+          type: "desirability"
+          criticality: "high"
+          confidence: "low"
+          evidence_required: "Developer time-tracking shows reduced context-switching"
+          linked_to_kr: ["kr-o-002"]
+      
+      solution_scaffold:
+        description: "Internal practices that validate and demonstrate Emergent value"
+        key_components:
+          - id: "comp-o-001"
+            name: "EPF-Driven Development"
+            purpose: "All work traces from North Star → OKR → KR → Linear ticket"
+            priority: "must-have"
+            maps_to_value_model: "ORG_OPS-L2-process"
+          - id: "comp-o-002"
+            name: "AI-Augmented Development"
+            purpose: "Developers use Emergent-connected AI tools daily"
+            priority: "should-have"
+            maps_to_value_model: "ORG_OPS-L2-ai-integration"
+          - id: "comp-o-003"
+            name: "Continuous Knowledge Sync"
+            purpose: "Docs, decisions, learnings flow into knowledge graph automatically"
+            priority: "should-have"
+            maps_to_value_model: "ORG_OPS-L2-knowledge-ops"
+    
+    # ============================================================================
+    # COMMERCIAL TRACK - Go-to-market and revenue generation
+    # Aligns with: phases/FIRE/value_models/commercial.value_model.yaml
+    # ============================================================================
+    commercial:
+      track_objective: "Validate commercial model with early design partners before broader launch"
+      
+      okrs:
+        - id: "okr-c-001"
+          objective: "Secure design partners to co-develop and validate Emergent"
+          key_results:
+            - id: "kr-c-001"
+              description: "3 external teams actively using Emergent Core for their products"
+              target: "3 design partners with weekly usage"
+              measurement_method: "Partner activity in telemetry; weekly sync calls"
+              baseline: "Current: 0 external users"
+            - id: "kr-c-002"
+              description: "Design partners provide structured feedback on value and gaps"
+              target: "Monthly feedback sessions documented; NPS >30"
+              measurement_method: "Feedback forms; NPS survey"
+              baseline: "Current: No external feedback loop"
+            - id: "kr-c-003"
+              description: "Preliminary pricing model validated with design partners"
+              target: "2+ partners indicate willingness to pay at proposed price point"
+              measurement_method: "Pricing conversation outcomes documented"
+              baseline: "Current: No pricing tested"
+      
+      riskiest_assumptions:
+        - id: "asm-c-001"
+          description: "Teams will pay for 'context layer' as infrastructure (not just nice-to-have)"
+          type: "viability"
+          criticality: "high"
+          confidence: "low"
+          evidence_required: "Design partners commit to paid pilot or express strong purchase intent"
+          linked_to_kr: ["kr-c-003"]
+        - id: "asm-c-002"
+          description: "Self-serve onboarding is possible for technical teams"
+          type: "feasibility"
+          criticality: "medium"
+          confidence: "low"
+          evidence_required: "Design partner completes setup without hands-on support"
+          linked_to_kr: ["kr-c-001"]
+      
+      solution_scaffold:
+        description: "Design partner program leading to broader launch"
+        key_components:
+          - id: "comp-c-001"
+            name: "Design Partner Program"
+            purpose: "Co-develop with early adopters; validate product-market fit"
+            priority: "must-have"
+            maps_to_value_model: "COMMERCIAL-L2-partnerships"
+          - id: "comp-c-002"
+            name: "Usage-Based Pricing Model"
+            purpose: "Price based on knowledge graph size / AI queries (align cost with value)"
+            priority: "should-have"
+            maps_to_value_model: "COMMERCIAL-L2-pricing"
+          - id: "comp-c-003"
+            name: "Self-Serve Onboarding"
+            purpose: "Teams can start using Emergent without sales touchpoint"
+            priority: "could-have"
+            maps_to_value_model: "COMMERCIAL-L2-onboarding"
+  
+  # ============================================================================
+  # CROSS-TRACK COORDINATION
+  # ============================================================================
+  
+  cross_track_dependencies:
+    # Product → Strategy: Core product enables positioning claims
+    - from_kr: "kr-s-001"
+      to_kr: "kr-p-003"
+      dependency_type: "requires"
+      description: "Landing page claims require working MCP integration to demonstrate"
+    
+    # Strategy → Commercial: Positioning informs partner conversations
+    - from_kr: "kr-c-001"
+      to_kr: "kr-s-001"
+      dependency_type: "requires"
+      description: "Design partner outreach requires clear value proposition from landing page"
+    
+    # Product → Org/Ops: Internal dogfooding validates product
+    - from_kr: "kr-o-002"
+      to_kr: "kr-p-003"
+      dependency_type: "requires"
+      description: "Internal MCP usage requires MCP server to be functional"
+    
+    # Org/Ops → Product: Dogfooding drives feature priorities
+    - from_kr: "kr-p-004"
+      to_kr: "kr-o-001"
+      dependency_type: "informs"
+      description: "EPF completion is driven by internal adoption requirements"
+    
+    # Commercial → Product: Partner feedback shapes roadmap
+    - from_kr: "kr-p-002"
+      to_kr: "kr-c-002"
+      dependency_type: "informs"
+      description: "Partner feedback will inform document ingestion priorities"
+  
+  # Execution Plan (KR-level view)
+  execution_plan:
+    sequencing_rationale: |
+      Phase 1 (Jan): Foundation - Complete EPF artifacts, basic MCP server, landing page
+      Phase 2 (Feb): Integration - MCP integration, internal dogfooding, partner outreach
+      Phase 3 (Mar): Validation - Design partner onboarding, feedback loops, pricing tests
+    
+    critical_path: 
+      - "product:kr-p-003"   # MCP server is foundation for everything
+      - "strategy:kr-s-001"  # Positioning enables outreach
+      - "commercial:kr-c-001" # Partners validate product-market fit
+    
+    parallel_tracks:
+      - name: "Foundation Sprint (January)"
+        key_results: 
+          - "product:kr-p-004"  # EPF artifacts complete
+          - "product:kr-p-005"  # Feature definitions
+          - "strategy:kr-s-001" # Landing page live
+        timeframe: "Jan 1-31, 2025"
+      
+      - name: "Integration Sprint (February)"
+        key_results:
+          - "product:kr-p-001"  # Knowledge graph performance
+          - "product:kr-p-002"  # Document ingestion
+          - "product:kr-p-003"  # MCP server live
+          - "org_ops:kr-o-001"  # EPF-driven development
+          - "org_ops:kr-o-002"  # AI tools configured
+        timeframe: "Feb 1-28, 2025"
+        depends_on: ["product:kr-p-004"]
+      
+      - name: "Validation Sprint (March)"
+        key_results:
+          - "commercial:kr-c-001" # Design partners active
+          - "commercial:kr-c-002" # Feedback loops
+          - "commercial:kr-c-003" # Pricing validation
+          - "strategy:kr-s-002"   # White paper distributed
+          - "strategy:kr-s-003"   # Battle cards
+          - "org_ops:kr-o-003"    # Knowledge sync automated
+        timeframe: "Mar 1-31, 2025"
+        depends_on: ["product:kr-p-003", "strategy:kr-s-001"]
+    
+    key_milestones:
+      - date: "2025-01-31"
+        milestone: "EPF Self-Hosting Complete"
+        description: "All Emergent EPF artifacts populated; development fully traceable"
+        key_results: ["product:kr-p-004", "product:kr-p-005"]
+      
+      - date: "2025-02-15"
+        milestone: "MCP Integration Live"
+        description: "Developers can query Emergent knowledge graph from Cursor/Claude"
+        key_results: ["product:kr-p-003", "org_ops:kr-o-002"]
+      
+      - date: "2025-02-28"
+        milestone: "Internal Dogfooding Complete"
+        description: "All Emergent development uses EPF + AI context; ready for external users"
+        key_results: ["org_ops:kr-o-001", "org_ops:kr-o-002", "product:kr-p-001", "product:kr-p-002"]
+      
+      - date: "2025-03-15"
+        milestone: "First Design Partners Active"
+        description: "3 external teams using Emergent Core for their products"
+        key_results: ["commercial:kr-c-001"]
+      
+      - date: "2025-03-31"
+        milestone: "Q1 Cycle Complete"
+        description: "Product-market fit signals from design partners; pricing validated"
+        key_results: ["commercial:kr-c-002", "commercial:kr-c-003", "strategy:kr-s-002", "strategy:kr-s-003"]
+  
+  # Review & Approval
+  status: "approved"
+  approved_by: "Nikolai Fasting"
+  approval_date: "2025-12-11"
+  start_date: "2025-01-01"
+  target_completion_date: "2025-03-31"

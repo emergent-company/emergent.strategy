@@ -1,0 +1,392 @@
+id: "fd-007"
+name: "Authentication & Multi-Tenancy"
+slug: "authentication-multi-tenancy"
+status: "delivered"
+
+strategic_context:
+  contributes_to:
+    - "Product.Core.IdentityManagement"
+    - "Product.Core.MultiTenancy"
+    - "Product.Core.Security"
+  tracks:
+    - "product"
+  assumptions_tested:
+    - "asm-p-013" # Organization-level isolation prevents data leakage
+    - "asm-p-014" # Project-level granularity provides sufficient flexibility
+    - "asm-p-015" # Invite-based onboarding reduces friction
+
+definition:
+  job_to_be_done: |
+    When I'm working with sensitive organizational data,
+    I want strict tenant isolation and secure authentication,
+    so I'm confident my data is protected and only accessible to authorized users.
+
+  solution_approach: |
+    A multi-tenant architecture with:
+    - OIDC authentication via Zitadel
+    - Three-tier hierarchy: Organization → Project → User
+    - Row-level security (RLS) enforced at database layer
+    - API key-based programmatic access
+    - Invite-based user onboarding with role management
+
+  capabilities:
+    - id: "cap-032"
+      name: "OIDC Authentication"
+      description: "Secure login via Zitadel with JWT token validation"
+    
+    - id: "cap-033"
+      name: "Organization Management"
+      description: "Create and manage isolated organizations"
+    
+    - id: "cap-034"
+      name: "Project Isolation"
+      description: "Project-level data boundaries within organizations"
+    
+    - id: "cap-035"
+      name: "Row-Level Security"
+      description: "PostgreSQL RLS policies enforce tenant isolation"
+    
+    - id: "cap-036"
+      name: "Role-Based Access Control"
+      description: "Granular permissions via organization roles"
+    
+    - id: "cap-037"
+      name: "Invite Management"
+      description: "Email-based user invitations with expiration"
+
+implementation:
+  design_guidance:
+    principles:
+      - "Security by default (RLS always enabled except for service accounts)"
+      - "Fail closed (missing tenant context = reject request)"
+      - "Audit all (log authentication events and permission checks)"
+      - "Least privilege (roles grant minimum necessary permissions)"
+    
+    inspirations:
+      - "Auth0 multi-tenancy patterns"
+      - "PostgreSQL RLS best practices (Supabase)"
+      - "Zitadel OIDC integration guides"
+
+  contexts:
+    - id: "ctx-015"
+      type: "ui"
+      name: "User Login"
+      description: "User authenticates via Zitadel OIDC"
+      scenarios:
+        - id: "scn-018"
+          name: "First-Time Login"
+          description: "User logs in for first time; profile created"
+          user_flow:
+            - "User clicks 'Sign In' button"
+            - "Redirect to Zitadel login page"
+            - "User enters email/password (or SSO)"
+            - "Zitadel validates credentials"
+            - "Redirect to app with authorization code"
+            - "App exchanges code for JWT access token"
+            - "Backend validates JWT; creates user profile"
+            - "User lands on dashboard"
+          success_criteria:
+            - "JWT signature verified"
+            - "User profile created in core.users"
+            - "User assigned to default organization"
+            - "Dashboard loads with correct tenant context"
+    
+    - id: "ctx-016"
+      type: "api"
+      name: "Project API Key Access"
+      description: "Developer uses API key for programmatic access"
+      scenarios:
+        - id: "scn-019"
+          name: "API Key Authentication"
+          description: "Script calls API with project key; validates scope"
+          example_request: |
+            GET /api/search?query=requirements
+            Authorization: Bearer proj_abc123def456...
+          success_criteria:
+            - "API key validated against kb.project_api_keys"
+            - "Project context set from key"
+            - "RLS policies applied automatically"
+            - "Response scoped to project data only"
+    
+    - id: "ctx-017"
+      type: "api"
+      name: "Invite User"
+      description: "Admin invites new user to organization"
+      scenarios:
+        - id: "scn-020"
+          name: "Send Organization Invite"
+          description: "Admin creates invite; email sent; recipient joins"
+          example_request: |
+            POST /api/orgs/{orgId}/invites
+            X-Org-ID: acme-corp
+            X-Project-ID: proj-123
+            {
+              "email": "alice@example.com",
+              "role": "member"
+            }
+          success_criteria:
+            - "Invite created in core.invites"
+            - "Token generated (UUID)"
+            - "Email sent with invite link"
+            - "Link expires in 7 days"
+
+technical_specifications:
+  authentication:
+    provider: "Zitadel"
+    protocol: "OpenID Connect (OIDC)"
+    token_type: "JWT (RS256 signature)"
+    token_claims:
+      - "sub (user ID)"
+      - "email"
+      - "email_verified"
+      - "name"
+      - "preferred_username"
+    token_validation:
+      - "Verify RS256 signature using Zitadel public key"
+      - "Check exp (expiration) claim"
+      - "Validate aud (audience) matches API identifier"
+    session_duration: "24 hours (configurable)"
+  
+  tenant_hierarchy:
+    organization:
+      identifier: "org_id (text slug, e.g., 'acme-corp')"
+      storage: "core.organizations"
+      isolation: "Complete data separation; cannot see other orgs"
+    
+    project:
+      identifier: "project_id (uuid)"
+      storage: "core.projects"
+      isolation: "Scoped within organization; kb.* tables filtered by project_id"
+      relationship: "Many projects per organization"
+    
+    user:
+      identifier: "user_id (uuid)"
+      storage: "core.users"
+      memberships: "core.organization_members (user_id, org_id, role)"
+  
+  row_level_security:
+    policies:
+      - table: "kb.graph_objects"
+        policy: |
+          USING (
+            project_id::text = current_setting('app.current_project', true)
+            AND organization_id = current_setting('app.current_org', true)
+          )
+      
+      - table: "kb.chunks"
+        policy: |
+          USING (
+            project_id::text = current_setting('app.current_project', true)
+          )
+      
+      - table: "kb.documents"
+        policy: |
+          USING (
+            project_id::text = current_setting('app.current_project', true)
+          )
+    
+    session_variables:
+      - name: "app.current_org"
+        set_by: "DatabaseService.runWithTenantContext()"
+        usage: "RLS policies filter by organization"
+      
+      - name: "app.current_project"
+        set_by: "DatabaseService.runWithTenantContext()"
+        usage: "RLS policies filter by project"
+    
+    bypass_mechanism:
+      - "Service accounts (API keys with bypass_rls = true)"
+      - "Background jobs (set session variables explicitly)"
+  
+  api_keys:
+    format: "proj_[a-z0-9]{32} (e.g., proj_abc123def456...)"
+    storage: "kb.project_api_keys (key_hash text, project_id uuid)"
+    hashing: "bcrypt (hash stored, not plaintext)"
+    scoping: "Tied to single project; cannot access other projects"
+    permissions: "Read-only by default; write scope requires explicit grant"
+  
+  invite_system:
+    storage: "core.invites"
+    fields:
+      - "id (uuid)"
+      - "org_id (text)"
+      - "email (text)"
+      - "role (text: 'admin', 'member')"
+      - "token (uuid)"
+      - "expires_at (timestamp, default 7 days)"
+      - "accepted_at (timestamp nullable)"
+    email_template: "Invite email with link to /accept-invite?token={token}"
+    acceptance_flow:
+      - "User clicks link; redirected to accept page"
+      - "User signs up/logs in via Zitadel"
+      - "Backend validates invite token"
+      - "Creates organization_members entry"
+      - "Marks invite.accepted_at"
+  
+  database:
+    schemas:
+      - "core (users, organizations, projects, invites)"
+      - "kb (knowledge base tables with RLS)"
+    
+    tables:
+      - name: "core.users"
+        columns:
+          - "id (uuid primary key)"
+          - "external_id (text: Zitadel user ID)"
+          - "email (text unique)"
+          - "name (text)"
+          - "created_at (timestamp)"
+      
+      - name: "core.organizations"
+        columns:
+          - "id (text primary key: slug)"
+          - "name (text)"
+          - "created_at (timestamp)"
+      
+      - name: "core.projects"
+        columns:
+          - "id (uuid primary key)"
+          - "org_id (text reference organizations)"
+          - "name (text)"
+          - "kb_purpose (text nullable)"
+          - "created_at (timestamp)"
+      
+      - name: "core.organization_members"
+        columns:
+          - "id (uuid primary key)"
+          - "org_id (text reference organizations)"
+          - "user_id (uuid reference users)"
+          - "role (text: 'admin', 'member')"
+          - "joined_at (timestamp)"
+      
+      - name: "core.invites"
+        columns:
+          - "id (uuid primary key)"
+          - "org_id (text reference organizations)"
+          - "email (text)"
+          - "role (text)"
+          - "token (uuid unique)"
+          - "expires_at (timestamp)"
+          - "accepted_at (timestamp nullable)"
+      
+      - name: "kb.project_api_keys"
+        columns:
+          - "id (uuid primary key)"
+          - "project_id (uuid reference projects)"
+          - "key_hash (text)"
+          - "name (text: user-provided label)"
+          - "created_at (timestamp)"
+  
+  modules:
+    - name: "AuthModule"
+      path: "apps/server/src/modules/auth"
+      purpose: "JWT validation, OIDC integration, guards"
+    
+    - name: "OrgsModule"
+      path: "apps/server/src/modules/orgs"
+      purpose: "Organization CRUD, membership management"
+    
+    - name: "ProjectsModule"
+      path: "apps/server/src/modules/projects"
+      purpose: "Project CRUD, API key generation"
+    
+    - name: "UserModule"
+      path: "apps/server/src/modules/users"
+      purpose: "User profile management"
+    
+    - name: "UserProfileModule"
+      path: "apps/server/src/modules/user-profile"
+      purpose: "User preferences and settings"
+    
+    - name: "InvitesModule"
+      path: "apps/server/src/modules/invites"
+      purpose: "Invite creation, acceptance flow"
+
+validation_criteria:
+  security:
+    - metric: "RLS enforcement rate"
+      target: "100% of kb.* queries filtered"
+      measurement: "Audit all queries; verify session variables set"
+    
+    - metric: "JWT validation success"
+      target: "> 99.9% valid tokens pass"
+      measurement: "Log validation failures; investigate anomalies"
+    
+    - metric: "Cross-tenant leak incidents"
+      target: "0 incidents per year"
+      measurement: "Security audits, penetration testing"
+  
+  performance:
+    - metric: "Login flow completion time"
+      target: "< 3 seconds from click to dashboard"
+      measurement: "Time from 'Sign In' to first API response"
+    
+    - metric: "API key validation latency"
+      target: "< 50ms p95"
+      measurement: "Time to hash key and query database"
+  
+  quality:
+    - metric: "Invite acceptance rate"
+      target: "> 80% invites accepted within 7 days"
+      measurement: "Count accepted_at vs expired invites"
+
+dependencies:
+  internal:
+    - "DatabaseService (RLS session variable management)"
+    - "EncryptionService (API key hashing)"
+  
+  external:
+    - service: "Zitadel"
+      purpose: "OIDC authentication provider"
+      criticality: "critical"
+    
+    - service: "Email Service (Mailgun)"
+      purpose: "Send invite emails"
+      criticality: "high"
+
+risks_and_mitigations:
+  - risk: "Zitadel outage blocks all logins"
+    likelihood: "low"
+    impact: "critical"
+    mitigation: "Graceful degradation; cached tokens valid for 24h; monitoring with alerts"
+  
+  - risk: "RLS policy bug leaks data across tenants"
+    likelihood: "low"
+    impact: "critical"
+    mitigation: "Comprehensive test suite; manual audits; row counts validation"
+  
+  - risk: "API key compromise exposes project data"
+    likelihood: "medium"
+    impact: "high"
+    mitigation: "Key rotation; revocation endpoint; audit logs; rate limiting"
+  
+  - risk: "Invite token leaked or guessed"
+    likelihood: "low"
+    impact: "medium"
+    mitigation: "UUID tokens (128-bit entropy); 7-day expiration; single-use enforcement"
+
+current_state:
+  implementation_status: "shipped"
+  version: "1.0"
+  deployed_environments:
+    - "production"
+    - "staging"
+  known_limitations:
+    - "No SSO beyond OIDC (e.g., SAML for enterprise)"
+    - "No 2FA support (relies on Zitadel)"
+    - "Single role per user per organization (no custom roles)"
+    - "API key revocation requires manual database update"
+    - "No audit log UI (logs in database only)"
+
+metadata:
+  created_at: "2025-12-16"
+  created_by: "Nikolai Fasting"
+  last_updated: "2025-12-16"
+  tags:
+    - "authentication"
+    - "authorization"
+    - "multi-tenancy"
+    - "oidc"
+    - "zitadel"
+    - "rls"
+    - "security"

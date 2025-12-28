@@ -1,0 +1,26 @@
+1.2.0
+
+# EPF Instance Version for Emergent
+# Format: MAJOR.MINOR.PATCH
+# 
+# MAJOR: Breaking changes to strategy/architecture
+# MINOR: New features or significant updates
+# PATCH: Refinements and documentation updates
+#
+# Changelog:
+# 1.2.0 - Schema compliance fixes (2025-12-09)
+#   - product_portfolio.yaml: Moved to instance root (not in READY/)
+#   - product_portfolio.yaml: Updated root key from product_portfolio: to portfolio:
+#   - product_portfolio.yaml: Updated IDs to match patterns (pl-*, portfolio-*, plr-*, brand-*)
+#   - READY/: Removed duplicate template files (02_insight_opportunity, 03_insight_opportunity, etc.)
+#   - _meta.yaml: Added portfolio configuration section
+#
+# 1.1.0 - Content population (2025-12-09)
+#   - 00_north_star.yaml: Populated with Emergent vision, mission, strategic pillars
+#   - 01_insight_analyses.yaml: Populated with market analysis, competitive landscape, SWOT
+#
+# 1.0.0 - Initial READY phase structure (2025-12)
+#   - Created READY phase template files following EPF v1.10.1
+#   - Created FIRE/feature_definitions/ and FIRE/roadmaps/ directories
+#   - Created AIM/assessments/ directory
+
