@@ -1,0 +1,225 @@
+id: "fd-005"
+name: "Template Packs System"
+slug: "template-packs"
+status: "delivered"
+
+strategic_context:
+  contributes_to:
+    - "Product.Core.TemplateManagement"
+    - "Product.Core.Scaffolding"
+    - "Product.Innovation.RapidSetup"
+  tracks:
+    - "product"
+  assumptions_tested:
+    - "asm-p-009" # Reusable templates accelerate project setup
+    - "asm-p-010" # Domain-specific packs provide immediate value
+
+definition:
+  job_to_be_done: |
+    When I'm starting a new project or feature,
+    I want to quickly scaffold entity types and relationships from proven patterns,
+    so I can focus on domain-specific work instead of schema design.
+
+  solution_approach: |
+    A template pack system that:
+    - Bundles entity types, relationships, and sample data
+    - Provides domain-specific packs (product development, risk management, etc.)
+    - Enables one-click installation into projects
+    - Supports custom pack creation and sharing
+    - Includes versioning and dependency management
+
+  capabilities:
+    - id: "cap-023"
+      name: "Pack Installation"
+      description: "One-click installation of template packs into projects"
+    
+    - id: "cap-024"
+      name: "Entity Type Scaffolding"
+      description: "Automatic creation of type definitions with properties"
+    
+    - id: "cap-025"
+      name: "Pack Marketplace"
+      description: "Browse, preview, and install available template packs"
+    
+    - id: "cap-026"
+      name: "Custom Pack Creation"
+      description: "Export existing project schemas as reusable packs"
+
+implementation:
+  design_guidance:
+    principles:
+      - "Idempotency (safe to install multiple times)"
+      - "Conflict detection (warn about type name collisions)"
+      - "Versioning (semantic versioning for packs)"
+      - "Composability (packs can depend on other packs)"
+    
+    inspirations:
+      - "npm package system"
+      - "WordPress plugin marketplace"
+      - "Figma design system libraries"
+
+  contexts:
+    - id: "ctx-011"
+      type: "ui"
+      name: "Browse Template Packs"
+      description: "User discovers and installs template packs"
+      scenarios:
+        - id: "scn-014"
+          name: "Install Product Development Pack"
+          description: "User installs pre-built pack for product management"
+          user_flow:
+            - "Navigate to Settings → Template Packs"
+            - "Browse available packs in marketplace"
+            - "Preview 'Product Development' pack contents"
+            - "Click 'Install' button"
+            - "System validates pack and checks for conflicts"
+            - "Pack installed; 20+ entity types now available"
+          success_criteria:
+            - "Pack contents visible in preview"
+            - "Installation completes in < 5 seconds"
+            - "Entity types appear in type selector"
+    
+    - id: "ctx-012"
+      type: "api"
+      name: "Pack Installation API"
+      description: "Programmatic pack installation for automation"
+      scenarios:
+        - id: "scn-015"
+          name: "Install Pack via API"
+          description: "Install template pack using REST API"
+          example_request: |
+            POST /api/template-packs/install
+            {
+              "pack_id": "product-development",
+              "version": "1.2.0",
+              "project_id": "proj_abc123",
+              "options": {
+                "include_sample_data": false
+              }
+            }
+          success_criteria:
+            - "Returns installation report with created types"
+            - "Atomic transaction (all or nothing)"
+            - "Idempotent (safe to retry)"
+
+technical_specifications:
+  pack_format:
+    manifest:
+      required_fields:
+        - "id (unique identifier)"
+        - "name (display name)"
+        - "version (semantic version)"
+        - "description (markdown text)"
+      optional_fields:
+        - "author (creator info)"
+        - "dependencies (other pack IDs)"
+        - "tags (categorization)"
+    
+    entity_types:
+      format: |
+        {
+          "name": "Product Feature",
+          "slug": "product-feature",
+          "properties": [
+            {"name": "status", "type": "enum", "values": ["planned", "in-progress", "shipped"]}
+          ]
+        }
+    
+    relationships:
+      format: |
+        {
+          "from_type": "Product Feature",
+          "to_type": "User Story",
+          "name": "implements",
+          "cardinality": "one-to-many"
+        }
+  
+  storage:
+    packs_table: "kb.template_packs"
+    columns:
+      - "id (uuid primary key)"
+      - "name (text)"
+      - "version (text)"
+      - "manifest (jsonb)"
+      - "created_at (timestamp)"
+    
+    installation_log: "kb.template_pack_installations"
+    columns:
+      - "id (uuid primary key)"
+      - "pack_id (uuid reference)"
+      - "project_id (uuid reference)"
+      - "installed_at (timestamp)"
+      - "types_created (jsonb array)"
+  
+  modules:
+    - name: "TemplatePackModule"
+      path: "apps/server/src/modules/template-packs"
+      purpose: "Pack management, installation, and marketplace"
+
+validation_criteria:
+  performance:
+    - metric: "Pack installation time"
+      target: "< 5 seconds for typical pack"
+      measurement: "Time from API call to completion"
+    
+    - metric: "Pack preview load time"
+      target: "< 500ms"
+      measurement: "Time to display pack contents"
+  
+  quality:
+    - metric: "Pack adoption rate"
+      target: "50% of new projects use at least one pack"
+      measurement: "Projects with installed packs / total projects"
+    
+    - metric: "Conflict rate"
+      target: "< 5% installation failures due to conflicts"
+      measurement: "Failed installations / total attempts"
+
+dependencies:
+  internal:
+    - "TypeRegistryModule (type creation)"
+    - "GraphModule (relationship creation)"
+    - "ProjectsModule (project context)"
+  
+  external:
+    - service: "PostgreSQL jsonb"
+      purpose: "Store pack manifests"
+      criticality: "critical"
+
+risks_and_mitigations:
+  - risk: "Type name conflicts break existing projects"
+    likelihood: "medium"
+    impact: "high"
+    mitigation: "Conflict detection; preview mode; user confirmation before install"
+  
+  - risk: "Low-quality packs confuse users"
+    likelihood: "high"
+    impact: "medium"
+    mitigation: "Curated marketplace; user ratings; verification badge for official packs"
+  
+  - risk: "Pack versioning causes incompatibility"
+    likelihood: "medium"
+    impact: "medium"
+    mitigation: "Semantic versioning; dependency resolution; migration guides"
+
+current_state:
+  implementation_status: "shipped"
+  version: "1.0"
+  deployed_environments:
+    - "production"
+    - "staging"
+  known_limitations:
+    - "No automatic updates (manual reinstall required)"
+    - "No pack uninstallation (types remain after removal)"
+    - "Limited to 3 official packs (need more domain coverage)"
+    - "No custom pack creation UI (API only)"
+
+metadata:
+  created_at: "2025-12-16"
+  created_by: "Nikolai Fasting"
+  last_updated: "2025-12-16"
+  tags:
+    - "templates"
+    - "scaffolding"
+    - "marketplace"
+    - "types"

@@ -1,0 +1,294 @@
+id: "fd-009"
+name: "Admin Tools & Configuration"
+slug: "admin-tools-configuration"
+status: "delivered"
+
+strategic_context:
+  contributes_to:
+    - "Product.Core.SystemManagement"
+    - "Product.Core.UserManagement"
+    - "Product.Core.Configuration"
+  tracks:
+    - "product"
+  assumptions_tested:
+    - "asm-p-018" # Admin UI reduces manual database operations
+    - "asm-p-019" # Configuration UI improves system customization
+
+definition:
+  job_to_be_done: |
+    When I'm administering the system,
+    I want centralized tools to manage users, projects, and system settings,
+    so I don't have to manually edit database records or run scripts.
+
+  solution_approach: |
+    An admin interface that:
+    - Provides organization and project management
+    - Handles user invitations and role assignment
+    - Configures system-wide settings and feature flags
+    - Monitors system health and usage metrics
+    - Manages API keys and credentials
+
+  capabilities:
+    - id: "cap-043"
+      name: "Organization Management"
+      description: "Create, update, delete organizations"
+    
+    - id: "cap-044"
+      name: "Project Configuration"
+      description: "Manage projects, set KB purpose, generate API keys"
+    
+    - id: "cap-045"
+      name: "User Administration"
+      description: "Invite users, assign roles, revoke access"
+    
+    - id: "cap-046"
+      name: "Settings Management"
+      description: "Configure LLM providers, embedding models, system limits"
+    
+    - id: "cap-047"
+      name: "System Monitoring"
+      description: "View logs, track usage, monitor health"
+
+implementation:
+  design_guidance:
+    principles:
+      - "Self-service first (reduce support burden)"
+      - "Audit everything (compliance and debugging)"
+      - "Fail safe (confirm destructive actions)"
+      - "Progressive disclosure (hide advanced settings)"
+    
+    inspirations:
+      - "Stripe Dashboard (clean admin UI)"
+      - "Firebase Console (project settings)"
+      - "Auth0 Management Dashboard (user admin)"
+
+  contexts:
+    - id: "ctx-021"
+      type: "ui"
+      name: "Create Organization"
+      description: "Admin creates new organization for client"
+      scenarios:
+        - id: "scn-024"
+          name: "New Organization Setup"
+          description: "Admin provisions new org; sets defaults; invites owner"
+          user_flow:
+            - "Navigate to Settings → Organizations"
+            - "Click 'New Organization' button"
+            - "Enter org name ('Acme Corp') and slug ('acme-corp')"
+            - "Set default project settings (LLM model, embedding model)"
+            - "Click 'Create Organization'"
+            - "System creates org in database"
+            - "Admin prompted to invite org owner"
+            - "Owner invited via email"
+          success_criteria:
+            - "Organization created with unique slug"
+            - "Audit log entry recorded"
+            - "Owner invite email sent"
+            - "Admin can access new org immediately"
+    
+    - id: "ctx-022"
+      type: "ui"
+      name: "Generate Project API Key"
+      description: "User generates API key for programmatic access"
+      scenarios:
+        - id: "scn-025"
+          name: "API Key Creation"
+          description: "User creates key for CI/CD integration"
+          user_flow:
+            - "Navigate to Project Settings → API Keys"
+            - "Click 'Generate New Key'"
+            - "Enter key name ('CI/CD Pipeline')"
+            - "Select permissions (Read-only / Read-Write)"
+            - "Click 'Generate'"
+            - "System creates key_hash in database"
+            - "Plaintext key shown ONCE (proj_abc123...)"
+            - "User copies key (cannot view again)"
+            - "Key appears in list as '****123'"
+          success_criteria:
+            - "Key generated with cryptographically secure random"
+            - "Plaintext shown exactly once"
+            - "Key hash stored in database"
+            - "Key listed with name and creation date"
+    
+    - id: "ctx-023"
+      type: "ui"
+      name: "Configure LLM Settings"
+      description: "Admin changes Vertex AI model or parameters"
+      scenarios:
+        - id: "scn-026"
+          name: "Update LLM Configuration"
+          description: "Admin switches from Gemini 1.5 to future model"
+          user_flow:
+            - "Navigate to Settings → AI Configuration"
+            - "See current model (gemini-1.5-pro)"
+            - "Click 'Edit Configuration'"
+            - "Select new model from dropdown"
+            - "Adjust temperature, max_tokens sliders"
+            - "Click 'Save Changes'"
+            - "System validates credentials work with new model"
+            - "Settings saved; effective immediately"
+          success_criteria:
+            - "Settings persisted to database"
+            - "Validation confirms model accessible"
+            - "No server restart required"
+            - "Audit log entry created"
+
+technical_specifications:
+  settings_storage:
+    table: "core.settings"
+    columns:
+      - "id (uuid primary key)"
+      - "project_id (uuid reference, nullable for global)"
+      - "key (text: 'llm.model', 'embedding.provider', etc.)"
+      - "value (jsonb)"
+      - "updated_at (timestamp)"
+      - "updated_by (uuid reference users)"
+    
+    setting_keys:
+      - "llm.provider (text: 'vertex-ai')"
+      - "llm.model (text: 'gemini-1.5-pro')"
+      - "llm.temperature (number: 0.7)"
+      - "llm.max_tokens (number: 2048)"
+      - "embedding.provider (text: 'vertex-ai')"
+      - "embedding.model (text: 'text-embedding-004')"
+      - "extraction.enabled (boolean: true)"
+      - "search.top_k (number: 10)"
+  
+  audit_logging:
+    table: "core.audit_logs"
+    columns:
+      - "id (uuid primary key)"
+      - "user_id (uuid reference)"
+      - "org_id (text reference)"
+      - "action (text: 'create_org', 'invite_user', 'update_settings', etc.)"
+      - "resource_type (text: 'organization', 'project', 'user', 'settings')"
+      - "resource_id (text)"
+      - "before_state (jsonb nullable)"
+      - "after_state (jsonb nullable)"
+      - "ip_address (inet)"
+      - "user_agent (text)"
+      - "created_at (timestamp)"
+    
+    actions_tracked:
+      - "Organization: create, update, delete"
+      - "Project: create, update, delete, generate_api_key"
+      - "User: invite, remove, change_role"
+      - "Settings: update"
+      - "Integration: connect, disconnect, sync"
+  
+  role_permissions:
+    admin:
+      - "Create/delete organizations"
+      - "Invite/remove users"
+      - "Change user roles"
+      - "Update all settings"
+      - "Generate API keys"
+      - "View audit logs"
+    
+    member:
+      - "View projects (read-only)"
+      - "Use chat interface"
+      - "Run searches"
+      - "View own profile"
+  
+  database:
+    tables:
+      - name: "core.settings"
+        purpose: "System-wide and project-level configuration"
+        rls: "Admin-only write; org members read"
+      
+      - name: "core.audit_logs"
+        purpose: "Track all administrative actions"
+        rls: "Admin-only read"
+  
+  modules:
+    - name: "OrgsModule"
+      path: "apps/server/src/modules/orgs"
+      purpose: "Organization CRUD, membership management"
+    
+    - name: "ProjectsModule"
+      path: "apps/server/src/modules/projects"
+      purpose: "Project CRUD, API key generation, settings"
+    
+    - name: "SettingsModule"
+      path: "apps/server/src/modules/settings"
+      purpose: "Settings CRUD, validation, defaults"
+
+validation_criteria:
+  usability:
+    - metric: "Admin task completion time"
+      target: "< 2 minutes for common operations"
+      measurement: "Time from nav to completion (invite user, generate key)"
+    
+    - metric: "Error rate on admin actions"
+      target: "< 1% operations fail"
+      measurement: "Failed actions / total actions"
+  
+  auditability:
+    - metric: "Audit log coverage"
+      target: "100% of write operations logged"
+      measurement: "Audit all endpoints; verify log entries"
+    
+    - metric: "Log retention period"
+      target: "> 1 year of history"
+      measurement: "Oldest audit log entry date"
+  
+  security:
+    - metric: "Unauthorized access attempts"
+      target: "0 successful bypasses of role checks"
+      measurement: "Penetration testing; log analysis"
+
+dependencies:
+  internal:
+    - "AuthModule (role validation)"
+    - "DatabaseService (RLS enforcement)"
+  
+  external:
+    - service: "Email Service (Mailgun)"
+      purpose: "Send invite emails"
+      criticality: "high"
+
+risks_and_mitigations:
+  - risk: "Admin accidentally deletes organization"
+    likelihood: "medium"
+    impact: "critical"
+    mitigation: "Confirmation modal; soft delete; 30-day recovery period; audit log"
+  
+  - risk: "API key leaked publicly"
+    likelihood: "medium"
+    impact: "high"
+    mitigation: "Key rotation; revocation endpoint; rate limiting; usage monitoring"
+  
+  - risk: "Settings change breaks system"
+    likelihood: "low"
+    impact: "high"
+    mitigation: "Validation before save; rollback option; settings versioning; audit trail"
+  
+  - risk: "Role escalation exploit"
+    likelihood: "low"
+    impact: "critical"
+    mitigation: "Backend guards on all admin endpoints; audit all role changes; penetration testing"
+
+current_state:
+  implementation_status: "shipped"
+  version: "1.0"
+  deployed_environments:
+    - "production"
+    - "staging"
+  known_limitations:
+    - "No bulk operations (e.g., bulk user invite)"
+    - "Settings UI exposes all keys (no grouping/tabs)"
+    - "Audit logs not searchable from UI (database query required)"
+    - "No role customization (only 'admin' and 'member')"
+    - "API key revocation requires manual database update"
+
+metadata:
+  created_at: "2025-12-16"
+  created_by: "Nikolai Fasting"
+  last_updated: "2025-12-16"
+  tags:
+    - "admin"
+    - "configuration"
+    - "settings"
+    - "audit-logs"
+    - "user-management"
