@@ -1,0 +1,248 @@
+id: "fd-006"
+name: "Integration Framework"
+slug: "integration-framework"
+status: "delivered"
+
+strategic_context:
+  contributes_to:
+    - "Product.Core.Integrations"
+    - "Product.Core.DataSynchronization"
+    - "Product.Innovation.ThirdPartyConnectors"
+  tracks:
+    - "product"
+  assumptions_tested:
+    - "asm-p-011" # Third-party integrations reduce manual data entry
+    - "asm-p-012" # ClickUp integration provides PM workflow value
+
+definition:
+  job_to_be_done: |
+    When I'm managing work in external tools like ClickUp,
+    I want to automatically sync relevant data to my knowledge base,
+    so I don't have to manually duplicate information across systems.
+
+  solution_approach: |
+    An integration framework that:
+    - Provides connector architecture for third-party services
+    - Implements OAuth flows and API key management
+    - Syncs data bidirectionally with conflict resolution
+    - Maps external entities to knowledge graph objects
+    - Supports webhook-based real-time updates
+
+  capabilities:
+    - id: "cap-027"
+      name: "ClickUp Integration"
+      description: "Sync tasks, lists, and spaces from ClickUp"
+    
+    - id: "cap-028"
+      name: "OAuth Authentication"
+      description: "Secure OAuth flows for third-party services"
+    
+    - id: "cap-029"
+      name: "Data Synchronization"
+      description: "Bidirectional sync with conflict resolution"
+    
+    - id: "cap-030"
+      name: "Entity Mapping"
+      description: "Map external entities to graph objects"
+    
+    - id: "cap-031"
+      name: "Webhook Handling"
+      description: "Real-time updates via service webhooks"
+
+implementation:
+  design_guidance:
+    principles:
+      - "Security first (OAuth tokens encrypted at rest)"
+      - "Idempotency (safe to rerun syncs)"
+      - "Fault tolerance (retry with exponential backoff)"
+      - "Observability (log all sync operations)"
+    
+    inspirations:
+      - "Zapier connector architecture"
+      - "Airbyte data integration patterns"
+      - "Mulesoft API gateway design"
+
+  contexts:
+    - id: "ctx-013"
+      type: "ui"
+      name: "Connect ClickUp Integration"
+      description: "User authorizes ClickUp and selects sync scope"
+      scenarios:
+        - id: "scn-016"
+          name: "Initial ClickUp Connection"
+          description: "User connects ClickUp workspace for first time"
+          user_flow:
+            - "Navigate to Settings → Integrations"
+            - "Click 'Connect' on ClickUp card"
+            - "Redirect to ClickUp OAuth consent screen"
+            - "User authorizes access to workspace"
+            - "Return to app; select spaces to sync"
+            - "Click 'Start Sync' button"
+            - "System syncs selected spaces; creates graph objects"
+          success_criteria:
+            - "OAuth flow completes without errors"
+            - "User can select specific spaces"
+            - "Initial sync completes in < 30 seconds for typical workspace"
+    
+    - id: "ctx-014"
+      type: "api"
+      name: "Webhook Event Processing"
+      description: "ClickUp sends webhook when task updated"
+      scenarios:
+        - id: "scn-017"
+          name: "Task Updated Webhook"
+          description: "ClickUp notifies of task change; system syncs delta"
+          example_request: |
+            POST /webhooks/clickup
+            X-Signature: sha256=abc123...
+            {
+              "event": "taskUpdated",
+              "task_id": "86fz9p2t3",
+              "webhook_id": "webhook_123"
+            }
+          success_criteria:
+            - "Signature verified"
+            - "Task delta fetched from ClickUp API"
+            - "Graph object updated with new data"
+            - "Webhook acknowledged in < 1 second"
+
+technical_specifications:
+  supported_integrations:
+    - name: "ClickUp"
+      status: "production"
+      auth_method: "OAuth 2.0"
+      sync_direction: "unidirectional (ClickUp → KB)"
+      entities: ["spaces", "lists", "tasks", "comments"]
+      refresh_interval: "webhook + hourly full sync"
+  
+  oauth_configuration:
+    provider: "ClickUp OAuth"
+    scopes: ["read:tasks", "read:lists", "read:spaces"]
+    token_storage: "kb.integrations.settings_encrypted (bytea)"
+    encryption_algorithm: "AES-256-CBC"
+  
+  entity_mapping:
+    clickup_task_to_graph:
+      type_name: "Task"
+      property_mapping:
+        - "name → name"
+        - "description → description"
+        - "status.status → status"
+        - "url → source_url"
+      metadata:
+        - "external_id → task_id"
+        - "external_source → 'clickup'"
+        - "last_synced_at → timestamp"
+  
+  database:
+    tables:
+      - name: "kb.integrations"
+        columns:
+          - "id (uuid primary key)"
+          - "name (text: 'clickup', 'github', etc.)"
+          - "org_id (text)"
+          - "project_id (uuid)"
+          - "settings_encrypted (bytea)"
+          - "enabled (boolean)"
+          - "created_at (timestamp)"
+      
+      - name: "kb.integration_sync_logs"
+        columns:
+          - "id (uuid primary key)"
+          - "integration_id (uuid reference)"
+          - "started_at (timestamp)"
+          - "completed_at (timestamp)"
+          - "status (text: 'success', 'failed')"
+          - "entities_synced (integer)"
+          - "error_message (text nullable)"
+  
+  modules:
+    - name: "IntegrationsModule"
+      path: "apps/server/src/modules/integrations"
+      purpose: "Core integration framework, OAuth flows"
+    
+    - name: "ClickUpModule"
+      path: "apps/server/src/modules/clickup"
+      purpose: "ClickUp-specific connector and sync logic"
+
+validation_criteria:
+  performance:
+    - metric: "Initial sync time"
+      target: "< 30 seconds for 500 tasks"
+      measurement: "Time from 'Start Sync' to completion"
+    
+    - metric: "Webhook processing time"
+      target: "< 1 second from receipt to acknowledgment"
+      measurement: "Webhook endpoint response time"
+    
+    - metric: "Incremental sync time"
+      target: "< 5 seconds for delta updates"
+      measurement: "Time to process webhook and update graph"
+  
+  quality:
+    - metric: "Sync reliability"
+      target: "> 99% successful syncs"
+      measurement: "Success rate in integration_sync_logs"
+    
+    - metric: "Data accuracy"
+      target: "> 95% fields mapped correctly"
+      measurement: "Manual audit of synced entities"
+
+dependencies:
+  internal:
+    - "GraphModule (entity creation)"
+    - "AuthModule (OAuth token management)"
+    - "EncryptionService (credential storage)"
+  
+  external:
+    - service: "ClickUp API"
+      purpose: "Task and workspace data"
+      criticality: "high"
+    
+    - service: "ClickUp Webhooks"
+      purpose: "Real-time update notifications"
+      criticality: "medium"
+
+risks_and_mitigations:
+  - risk: "OAuth token expiration breaks sync"
+    likelihood: "high"
+    impact: "high"
+    mitigation: "Automatic refresh flow; user notification; graceful degradation"
+  
+  - risk: "Rate limits cause sync failures"
+    likelihood: "medium"
+    impact: "medium"
+    mitigation: "Exponential backoff; batch requests; respect rate limit headers"
+  
+  - risk: "Webhook signature spoofing"
+    likelihood: "low"
+    impact: "high"
+    mitigation: "Strict signature verification; IP allowlisting; logging"
+  
+  - risk: "Large workspace sync timeouts"
+    likelihood: "medium"
+    impact: "medium"
+    mitigation: "Paginated sync; background job queue; progress indicators"
+
+current_state:
+  implementation_status: "shipped"
+  version: "1.0"
+  deployed_environments:
+    - "production"
+    - "staging"
+  known_limitations:
+    - "ClickUp only (no other integrations yet)"
+    - "Unidirectional sync (no KB → ClickUp writes)"
+    - "No conflict resolution UI (last-write-wins)"
+    - "Hourly full sync (no incremental-only mode)"
+
+metadata:
+  created_at: "2025-12-16"
+  created_by: "Nikolai Fasting"
+  last_updated: "2025-12-16"
+  tags:
+    - "integrations"
+    - "clickup"
+    - "oauth"
+    - "sync"
+    - "webhooks"

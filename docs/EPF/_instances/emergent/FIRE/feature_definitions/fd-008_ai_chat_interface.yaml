@@ -1,0 +1,310 @@
+id: "fd-008"
+name: "AI Chat Interface"
+slug: "ai-chat-interface"
+status: "delivered"
+
+strategic_context:
+  contributes_to:
+    - "Product.Core.ChatInterface"
+    - "Product.Core.ConversationManagement"
+    - "Product.Innovation.LLMIntegration"
+  tracks:
+    - "product"
+  assumptions_tested:
+    - "asm-p-016" # Chat interface preferred for knowledge exploration
+    - "asm-p-017" # Conversation history improves context understanding
+
+definition:
+  job_to_be_done: |
+    When I need to find information in my knowledge base,
+    I want to ask questions in natural language and receive contextual answers,
+    so I can quickly discover insights without learning complex query syntax.
+
+  solution_approach: |
+    A conversational AI interface that:
+    - Provides chat-based interaction with knowledge base
+    - Uses LLM (Vertex AI) for natural language understanding
+    - Maintains conversation history for context
+    - Streams responses in real-time for better UX
+    - Cites sources from knowledge base in answers
+
+  capabilities:
+    - id: "cap-038"
+      name: "Chat Interface"
+      description: "Natural language Q&A over knowledge base"
+    
+    - id: "cap-039"
+      name: "Conversation History"
+      description: "Persistent chat threads with context retention"
+    
+    - id: "cap-040"
+      name: "Streaming Responses"
+      description: "Real-time token streaming for low perceived latency"
+    
+    - id: "cap-041"
+      name: "Source Citations"
+      description: "Answers include references to source entities"
+    
+    - id: "cap-042"
+      name: "Multi-Turn Dialogue"
+      description: "Follow-up questions use conversation context"
+
+implementation:
+  design_guidance:
+    principles:
+      - "Stream by default (better perceived performance)"
+      - "Always cite sources (trust and verifiability)"
+      - "Context window limits (prevent token overflow)"
+      - "Graceful degradation (fallback if LLM unavailable)"
+    
+    inspirations:
+      - "ChatGPT conversation interface"
+      - "Perplexity.ai source citations"
+      - "Notion AI chat integration"
+
+  contexts:
+    - id: "ctx-018"
+      type: "ui"
+      name: "Start New Chat"
+      description: "User initiates conversation with knowledge base"
+      scenarios:
+        - id: "scn-021"
+          name: "Ask First Question"
+          description: "User creates new conversation; asks query; receives answer"
+          user_flow:
+            - "User clicks 'New Chat' button"
+            - "Empty conversation created"
+            - "User types 'What are our product requirements?'"
+            - "User presses Enter"
+            - "System searches knowledge base for relevant chunks"
+            - "LLM generates answer with citations"
+            - "Answer streams into UI token by token"
+            - "Citations appear below answer"
+          success_criteria:
+            - "First token appears < 2 seconds after Enter"
+            - "Answer includes 2+ citations"
+            - "Citations link to source entities"
+            - "Conversation saved automatically"
+    
+    - id: "ctx-019"
+      type: "ui"
+      name: "Follow-Up Question"
+      description: "User asks clarifying question in existing conversation"
+      scenarios:
+        - id: "scn-022"
+          name: "Multi-Turn Dialogue"
+          description: "User asks follow-up; AI uses conversation context"
+          user_flow:
+            - "After initial answer, user types 'What about risks?'"
+            - "System includes previous messages in context"
+            - "LLM generates answer referencing prior context"
+            - "Answer streams; cites risk entities"
+          success_criteria:
+            - "Answer demonstrates context awareness"
+            - "References previous answer if relevant"
+            - "No repeated citations from first answer"
+    
+    - id: "ctx-020"
+      type: "api"
+      name: "Stream Chat Response"
+      description: "API streams LLM response via SSE"
+      scenarios:
+        - id: "scn-023"
+          name: "Server-Sent Events Stream"
+          description: "Client receives streamed tokens from LLM"
+          example_request: |
+            POST /api/chat/stream
+            X-Project-ID: proj-123
+            {
+              "conversation_id": "conv-abc",
+              "message": "What are the risks?",
+              "stream": true
+            }
+          example_response: |
+            data: {"type": "token", "content": "The"}
+            data: {"type": "token", "content": " main"}
+            data: {"type": "token", "content": " risks"}
+            data: {"type": "token", "content": " are"}
+            data: {"type": "citations", "sources": [...]}
+            data: {"type": "done"}
+          success_criteria:
+            - "Tokens streamed in real-time (< 100ms between tokens)"
+            - "Citations included in final event"
+            - "Connection closed cleanly on completion"
+
+technical_specifications:
+  llm_configuration:
+    provider: "Google Vertex AI"
+    model: "gemini-1.5-pro"
+    parameters:
+      temperature: 0.7
+      max_output_tokens: 2048
+      top_p: 0.9
+      top_k: 40
+    prompt_template: |
+      You are a helpful assistant with access to a knowledge base.
+      Use the following context to answer the user's question.
+      
+      Context:
+      {retrieved_chunks}
+      
+      Conversation history:
+      {previous_messages}
+      
+      User question: {user_query}
+      
+      Provide a clear, accurate answer with citations.
+  
+  retrieval_configuration:
+    search_method: "Hybrid (vector + keyword)"
+    vector_similarity: "Cosine distance on 768-dim embeddings"
+    top_k: 10
+    reranking: "LLM-based reranking of top 10 to select best 5"
+    chunk_overlap: "100 tokens (for context preservation)"
+  
+  conversation_storage:
+    table: "kb.chat_conversations"
+    columns:
+      - "id (uuid primary key)"
+      - "project_id (uuid reference)"
+      - "title (text, generated from first message)"
+      - "created_at (timestamp)"
+      - "updated_at (timestamp)"
+    
+    messages_table: "kb.chat_messages"
+    columns:
+      - "id (uuid primary key)"
+      - "conversation_id (uuid reference)"
+      - "role (text: 'user' | 'assistant')"
+      - "content (text)"
+      - "citations (jsonb nullable, array of {entity_id, name, snippet})"
+      - "created_at (timestamp)"
+  
+  streaming_protocol:
+    transport: "Server-Sent Events (SSE)"
+    content_type: "text/event-stream"
+    event_types:
+      - "token (LLM output token)"
+      - "citations (source references)"
+      - "error (generation failure)"
+      - "done (stream complete)"
+    keep_alive: "30-second heartbeat"
+  
+  context_window_management:
+    max_tokens: 32768
+    message_truncation:
+      - "Keep most recent 10 messages"
+      - "Summarize older messages if > 10"
+      - "Always include system prompt"
+    
+    chunk_budget:
+      - "Reserve 2048 tokens for output"
+      - "Reserve 1000 tokens for conversation history"
+      - "Use remaining for retrieved chunks (~29K tokens)"
+  
+  database:
+    tables:
+      - name: "kb.chat_conversations"
+        purpose: "Store conversation threads"
+        rls: "Project-level isolation"
+      
+      - name: "kb.chat_messages"
+        purpose: "Store individual messages"
+        rls: "Inherited from conversation"
+  
+  modules:
+    - name: "ChatModule"
+      path: "apps/server/src/modules/chat"
+      purpose: "Chat API, conversation management, SSE streaming"
+    
+    - name: "LLMModule"
+      path: "apps/server/src/modules/llm"
+      purpose: "Vertex AI integration, prompt engineering, token management"
+
+validation_criteria:
+  performance:
+    - metric: "Time to first token"
+      target: "< 2 seconds p95"
+      measurement: "Time from request to first SSE data event"
+    
+    - metric: "Streaming throughput"
+      target: "> 20 tokens/second"
+      measurement: "Average tokens per second during generation"
+    
+    - metric: "End-to-end latency"
+      target: "< 10 seconds for typical answer (200 tokens)"
+      measurement: "Time from Enter to stream completion"
+  
+  quality:
+    - metric: "Answer relevance"
+      target: "> 80% user satisfaction (thumbs up)"
+      measurement: "Feedback buttons on answers"
+    
+    - metric: "Citation accuracy"
+      target: "> 95% citations point to relevant sources"
+      measurement: "Manual audit of random sample"
+    
+    - metric: "Context retention"
+      target: "> 90% follow-ups demonstrate context awareness"
+      measurement: "User study with multi-turn conversations"
+
+dependencies:
+  internal:
+    - "UnifiedSearchModule (chunk retrieval)"
+    - "EmbeddingModule (query embedding)"
+    - "GraphModule (entity citations)"
+  
+  external:
+    - service: "Google Vertex AI"
+      purpose: "LLM inference (Gemini 1.5 Pro)"
+      criticality: "critical"
+    
+    - service: "PostgreSQL pgvector"
+      purpose: "Vector similarity search"
+      criticality: "critical"
+
+risks_and_mitigations:
+  - risk: "LLM generates hallucinated information"
+    likelihood: "high"
+    impact: "high"
+    mitigation: "Strict prompt engineering; always require citations; user feedback loop"
+  
+  - risk: "Vertex AI rate limits cause failures"
+    likelihood: "medium"
+    impact: "high"
+    mitigation: "Exponential backoff; request queue; graceful error messages"
+  
+  - risk: "Streaming breaks on network interruptions"
+    likelihood: "medium"
+    impact: "medium"
+    mitigation: "Client reconnection logic; resume from last token; timeout handling"
+  
+  - risk: "Context window overflow truncates important info"
+    likelihood: "medium"
+    impact: "medium"
+    mitigation: "Smart summarization; user warning when truncating; conversation reset option"
+
+current_state:
+  implementation_status: "shipped"
+  version: "1.0"
+  deployed_environments:
+    - "production"
+    - "staging"
+  known_limitations:
+    - "No conversation sharing (private to user only)"
+    - "No conversation search (must browse chronologically)"
+    - "Citation snippets limited to 200 chars"
+    - "No regenerate answer option"
+    - "Context window fixed at 10 messages (no user control)"
+
+metadata:
+  created_at: "2025-12-16"
+  created_by: "Nikolai Fasting"
+  last_updated: "2025-12-16"
+  tags:
+    - "chat"
+    - "llm"
+    - "rag"
+    - "vertex-ai"
+    - "streaming"
+    - "conversation"

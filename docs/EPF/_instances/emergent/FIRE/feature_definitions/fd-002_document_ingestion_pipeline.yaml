@@ -1,0 +1,324 @@
+id: "fd-002"
+name: "Document Ingestion Pipeline"
+slug: "document-ingestion-pipeline"
+status: "delivered"
+
+strategic_context:
+  contributes_to:
+    - "Product.Core.DocumentProcessing"
+    - "Product.Core.ContentExtraction"
+    - "Product.Core.AutomaticIndexing"
+  tracks:
+    - "product"
+  assumptions_tested:
+    - "asm-p-003" # LLM-based extraction improves accuracy over rule-based approaches
+    - "asm-p-004" # Chunking at 1000 tokens provides good semantic coherence
+
+definition:
+  job_to_be_done: |
+    When I upload documents to the knowledge base,
+    I want them automatically processed, chunked, and indexed,
+    so I can immediately search and query their contents without manual setup.
+
+  solution_approach: |
+    An automated multi-stage pipeline that processes uploaded documents:
+    - File upload and storage
+    - Text extraction from various formats (PDF, DOCX, TXT, MD)
+    - Intelligent chunking preserving semantic boundaries
+    - LLM-powered entity and relationship extraction
+    - Automatic embedding generation and indexing
+    - Background job queue with progress tracking
+
+  capabilities:
+    - id: "cap-006"
+      name: "Multi-Format Document Upload"
+      description: "Accept PDF, DOCX, TXT, Markdown with automatic format detection"
+    
+    - id: "cap-007"
+      name: "Semantic Chunking"
+      description: "Split documents into semantically coherent chunks (~1000 tokens) while preserving context"
+    
+    - id: "cap-008"
+      name: "LLM Entity Extraction"
+      description: "Extract structured entities, relationships, and metadata using LLM prompts"
+    
+    - id: "cap-009"
+      name: "Automatic Embedding"
+      description: "Generate vector embeddings for chunks and extracted entities via Vertex AI"
+    
+    - id: "cap-010"
+      name: "Background Job Processing"
+      description: "Queue-based ingestion with status tracking and error handling"
+    
+    - id: "cap-011"
+      name: "Discovery Workflow"
+      description: "User-guided extraction targeting specific entity types and relationships"
+
+implementation:
+  design_guidance:
+    principles:
+      - "Automatic where possible, guided where necessary (minimize manual configuration)"
+      - "Preserve original documents unchanged (immutable source of truth)"
+      - "Graceful degradation on extraction failures (never block pipeline completely)"
+      - "Transparent progress visibility (users see what's happening at each stage)"
+    
+    inspirations:
+      - name: "Notion Import Experience"
+        aspect: "Drag-and-drop simplicity with instant visual feedback"
+      
+      - name: "Roam Research Auto-linking"
+        aspect: "Automatic entity recognition and bidirectional linking"
+      
+      - name: "Dataiku Pipeline Monitoring"
+        aspect: "Clear visualization of multi-stage processing with progress tracking"
+      
+      - name: "GitHub Actions Workflow Logs"
+        aspect: "Expandable step-by-step logs showing exactly what happened"
+    
+    interaction_patterns:
+      - pattern: "Optimistic Upload"
+        description: "Files appear in UI immediately; processing happens in background"
+      
+      - pattern: "Progressive Disclosure"
+        description: "Basic upload requires no configuration; power users access Discovery wizard"
+      
+      - pattern: "Status Polling"
+        description: "Frontend polls job status endpoints to update progress bars in real-time"
+      
+      - pattern: "Entity Preview & Confirm"
+        description: "Discovery workflow shows extracted entities before committing to graph"
+
+  contexts:
+    - id: "ctx-003"
+      type: "api"
+      name: "Document Upload API"
+      description: "REST endpoints for uploading files and triggering background ingestion"
+      
+      key_interactions:
+        - "POST /api/documents/bulk → Upload multiple files (multipart/form-data)"
+        - "GET /api/extraction-jobs/{id}/status → Poll ingestion progress"
+        - "DELETE /api/extraction-jobs/{id} → Cancel running job"
+      
+      data_displayed:
+        - "Job ID and status (queued|running|completed|failed)"
+        - "Progress metrics (processed_items/total_items)"
+        - "Current pipeline stage (extracting|chunking|embedding|indexing)"
+        - "Error messages with actionable guidance"
+    
+    - id: "ctx-004"
+      type: "ui"
+      name: "Document Upload Interface"
+      description: "Admin dashboard for drag-and-drop upload and job monitoring"
+      
+      key_interactions:
+        - "Drag files onto drop zone → Instant upload start with progress indicators"
+        - "Click 'View Details' on job card → Expand to show per-document status"
+        - "Click 'Cancel' button → Abort in-progress extraction job"
+      
+      data_displayed:
+        - "Grid of active and queued jobs with thumbnail previews"
+        - "Per-job progress bars showing chunking/extraction/embedding stages"
+        - "Estimated time remaining based on average throughput"
+        - "Success/failure badges on completed jobs"
+    
+    - id: "ctx-005"
+      type: "ui"
+      name: "Discovery Wizard"
+      description: "Guided workflow for targeted entity extraction with user review"
+      
+      key_interactions:
+        - "Select documents from library → Add to extraction batch"
+        - "Choose entity types from dropdown (People, Companies, Concepts, etc.)"
+        - "Provide KB purpose context → Guide LLM extraction focus"
+        - "Review extracted entities table → Edit/delete before committing"
+        - "Click 'Commit to Graph' → Create/link entities in knowledge graph"
+      
+      data_displayed:
+        - "Document selector with upload date and size metadata"
+        - "Entity type multi-select with custom type input"
+        - "KB purpose textarea (populated from project settings)"
+        - "Preview table: Entity Name | Type | Confidence | Source Chunk | Actions"
+        - "Commit button (disabled until entities reviewed)"
+
+scenarios:
+  - id: "scn-004"
+    name: "Bulk Document Upload"
+    actor: "Content Manager"
+    context: "ctx-003"
+    trigger: "User selects 10 research reports to upload via API"
+    
+    action: |
+      1. User sends POST /api/documents/bulk with multipart/form-data (10 PDF files)
+      2. API validates file types (all PDFs < 50MB each)
+      3. API creates 10 document records with status 'uploading'
+      4. API returns array of job IDs for tracking
+      5. Background workers begin extraction pipeline for each document
+    
+    outcome: |
+      - All 10 documents successfully queued for processing
+      - User receives job IDs to poll for progress
+      - Documents appear in UI with "Processing..." badges
+      - Background jobs complete within 10-15 minutes average
+    
+    acceptance_criteria:
+      - "API accepts up to 10 files per request (configurable limit)"
+      - "Each file validated for type (PDF, DOCX, TXT, MD) and size (< 50MB)"
+      - "Job IDs returned immediately (< 500ms response time)"
+      - "Error messages specify which files failed validation and why"
+  
+  - id: "scn-005"
+    name: "Ingestion Status Check"
+    actor: "Content Manager"
+    context: "ctx-003"
+    trigger: "User wants to track extraction progress for uploaded documents"
+    
+    action: |
+      1. User polls GET /api/extraction-jobs/123/status every 2 seconds
+      2. API returns current job status:
+         - status: "running"
+         - stage: "extracting"
+         - processed_items: 3
+         - total_items: 10
+         - successful_items: 3
+         - failed_items: 0
+      3. Frontend updates progress bar to 30% with "Extracting entities..." label
+    
+    outcome: |
+      - User sees real-time progress without refreshing page
+      - Progress bar shows accurate percentage (processed/total)
+      - Current stage label updates (uploading → extracting → chunking → embedding → complete)
+      - Errors surface immediately with actionable messages
+    
+    acceptance_criteria:
+      - "Status endpoint returns within 100ms (cached job state)"
+      - "Stage transitions visible (extracting → chunking → embedding → complete)"
+      - "Progress metrics accurate (processed_items updated after each document)"
+      - "Error messages include document filename and specific failure reason"
+  
+  - id: "scn-006"
+    name: "Upload Progress Dashboard"
+    actor: "Content Manager"
+    context: "ctx-004"
+    trigger: "User navigates to Documents admin page to monitor ongoing ingestion"
+    
+    action: |
+      1. User opens /admin/documents page
+      2. UI loads active extraction jobs from backend
+      3. Dashboard displays grid of job cards:
+         - Job ID, document count, start time
+         - Progress bar (30% - Extracting entities)
+         - "View Details" and "Cancel" buttons
+      4. Every 3 seconds, UI polls job status endpoints and updates progress bars
+      5. When job completes, card shows "Complete ✓" badge with summary stats
+    
+    outcome: |
+      - User sees all active/queued jobs at a glance
+      - Progress bars update in real-time without page refresh
+      - Completed jobs show success/failure summary
+      - User can cancel jobs that are taking too long or were uploaded in error
+    
+    acceptance_criteria:
+      - "Dashboard shows active and queued jobs (not completed/failed older than 24h)"
+      - "Progress bars accurate to nearest 5% (avoid jitter from frequent updates)"
+      - "Cancel button disables after clicked (prevent duplicate cancel requests)"
+      - "Job cards auto-remove from view 5 seconds after completion"
+  
+  - id: "scn-007"
+    name: "Targeted Entity Extraction via Discovery"
+    actor: "Researcher"
+    context: "ctx-005"
+    trigger: "User wants to extract specific entity types (e.g., 'Technologies', 'Methodologies') from research papers"
+    
+    action: |
+      1. User opens Discovery Wizard from Documents page
+      2. User selects 5 academic papers from document library
+      3. User specifies target entity types: "Technologies", "Methodologies", "Research Institutions"
+      4. User provides KB purpose: "Analyze emerging AI research trends and methodologies"
+      5. System triggers LLM extraction with focused prompts (not full auto-extraction)
+      6. After 2-3 minutes, preview table shows ~50 extracted entities:
+         - Entity: "Transformer Architecture" | Type: Technology | Confidence: 95% | Source: paper-1.pdf chunk 3
+         - Entity: "Few-Shot Learning" | Type: Methodology | Confidence: 88% | Source: paper-2.pdf chunk 7
+      7. User reviews table, edits 3 entity names, deletes 2 low-confidence duplicates
+      8. User clicks "Commit to Graph" → 48 entities created/linked in knowledge graph
+    
+    outcome: |
+      - User successfully extracts targeted entities without processing irrelevant content
+      - Preview allows quality control before polluting knowledge graph
+      - Entity types align with user's research focus (not generic extraction)
+      - Knowledge graph gains 48 new nodes with proper type classification
+    
+    acceptance_criteria:
+      - "Extraction focuses on user-specified entity types (not open-ended extraction)"
+      - "Preview table shows confidence scores (< 70% flagged for review)"
+      - "User can edit entity names and types in preview table"
+      - "Commit operation atomic (all-or-nothing to prevent partial graph corruption)"
+      - "Duplicate detection prevents creating redundant entities (fuzzy name matching)"
+
+dependencies:
+  requires:
+    - id: "fd-001"
+      name: "Knowledge Graph Engine"
+      reason: "Extracted entities must be stored in graph with proper relationships"
+    
+    - id: "cap-001"
+      name: "Graph Object CRUD"
+      reason: "Pipeline creates graph objects for extracted entities"
+    
+    - id: "cap-003"
+      name: "Vector Search"
+      reason: "Chunk embeddings enable semantic search after ingestion"
+  
+  enables:
+    - id: "fd-003"
+      name: "AI-Native Chat Interface"
+      reason: "Ingested documents provide searchable knowledge base for chat"
+    
+    - id: "fd-005"
+      name: "Template Packs System"
+      reason: "Template-driven extraction relies on ingestion pipeline infrastructure"
+
+      purpose: "LLM extraction (Gemini) and embeddings"
+      criticality: "critical"
+    
+    - service: "File storage (local or cloud)"
+      purpose: "Original document persistence"
+      criticality: "high"
+
+risks_and_mitigations:
+  - risk: "LLM extraction failures on complex documents"
+    likelihood: "medium"
+    impact: "medium"
+    mitigation: "Fallback to simpler extraction; manual review mode; store raw text for reprocessing"
+  
+  - risk: "Large document processing times exceed user patience"
+    likelihood: "high"
+    impact: "medium"
+    mitigation: "Clear progress indicators; email notifications; incremental results display"
+  
+  - risk: "Chunking splits important entities across boundaries"
+    likelihood: "medium"
+    impact: "low"
+    mitigation: "Overlap between chunks; entity linking across chunks; user can adjust chunk size"
+
+current_state:
+  implementation_status: "shipped"
+  version: "1.0"
+  deployed_environments:
+    - "production"
+    - "staging"
+  known_limitations:
+    - "No OCR for scanned PDFs"
+    - "Limited to English language extraction"
+    - "Extraction job retry logic basic (max 3 attempts)"
+    - "No support for structured data formats (CSV, Excel)"
+
+metadata:
+  created_at: "2025-12-16"
+  created_by: "Nikolai Fasting"
+  last_updated: "2025-12-16"
+  tags:
+    - "document-processing"
+    - "llm-extraction"
+    - "ingestion-pipeline"
+    - "chunking"
+    - "background-jobs"
