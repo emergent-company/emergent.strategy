@@ -61,6 +61,13 @@ Schema (JSON)       →  Validates your work
 
 ## Available Guides
 
+### Getting Started
+
+| Guide | Purpose | When to Read |
+|-------|---------|--------------|
+| `ADOPTION_GUIDE.md` | **NEW:** Choose your starting level (0-3), escalate organically as complexity grows | **First time adopting EPF** - read before INSTANTIATION_GUIDE |
+| `INSTANTIATION_GUIDE.md` | Complete workflow for creating product instance from scratch | After choosing adoption level - detailed artifact creation steps |
+
 ### Strategic Foundation Guides (READY Phase)
 
 | Guide | Template | Schema | Purpose |
@@ -86,7 +93,6 @@ Schema (JSON)       →  Validates your work
 
 | Guide | Purpose |
 |-------|---------|
-| `INSTANTIATION_GUIDE.md` | Complete workflow for creating product instance from scratch |
 | `FEATURE_DEFINITION_IMPLEMENTATION_GUIDE.md` | End-to-end walkthrough for creating schema-compliant feature definitions |
 | `VERSION_MANAGEMENT_AUTOMATED.md` | Automated version management using bump-version.sh script |
 

@@ -29,6 +29,62 @@ This repository contains the complete skeleton for managing product, strategy, o
 
 ---
 
+## 🤖 AI Agent Quick Start
+
+**First time working with EPF?** Read documentation in this order:
+
+1. ⚡ **Pre-Flight** (5 min): [`.github/copilot-instructions.md`](.github/copilot-instructions.md)
+   - Quick checklist before any EPF work
+   - Answers: "Where am I? What am I doing? Is this framework or instance work?"
+
+2. 📋 **Purity Rules** (10 min): [`CANONICAL_PURITY_RULES.md`](CANONICAL_PURITY_RULES.md)
+   - Framework vs instance separation (critical to understand)
+   - Decision trees and violation examples
+
+3. 🔧 **Framework Overview** (15 min): This README
+   - EPF structure, phases, artifacts, version history
+
+**Daily Operations:**
+
+- 🧙 **Creating artifacts?** → [`wizards/README.md`](wizards/README.md) (find right wizard)
+- ✅ **Validating work?** → [`scripts/README.md`](scripts/README.md) (find right validator)
+- 📖 **Understanding concepts?** → [`docs/guides/README.md`](docs/guides/README.md) (find right guide)
+- 📐 **Schema questions?** → [`schemas/README.md`](schemas/README.md) (schema-template-guide pattern)
+
+**Maintaining EPF?**
+
+- 🔧 **Complete protocol** → [`MAINTENANCE.md`](MAINTENANCE.md) (STEP 0-5 consistency protocol)
+- 📚 **Learn from past mistakes** → [`.github/instructions/self-learning.instructions.md`](.github/instructions/self-learning.instructions.md)
+
+---
+
+## 🚀 Getting Started: Choose Your Adoption Level
+
+**First time adopting EPF in your organization?** EPF is designed for **organic growth** - you don't implement "full EPF" on day one.
+
+**Why this matters now:** We're entering an era where **1-5 person teams can build products that previously required 20-50 people**. AI amplifies capability across strategy, code, design, data, and content. But small teams building complex products need a **product operating system** that scales seamlessly from Day 1 to Day 1000 without migrations. EPF provides this: start minimal (2-3 hours), scale organically (add artifacts as complexity emerges), maintain strategic coherence regardless of team size.
+
+**Start simple, add artifacts as organizational complexity grows:**
+
+| Your Situation | Team Size | Start At | Time Investment |
+|----------------|-----------|----------|-----------------|
+| Solo founder | 1-2 | **Level 0** (North Star only) | 2-3 hours initial |
+| Small startup | 3-5 | **Level 1** (Add Evidence + Roadmap) | 4-6 hrs/quarter |
+| Growing startup | 6-15 | **Level 2** (Add Value Models + 4 tracks) | 8-12 hrs/quarter |
+| Product org | 15-50+ | **Level 3** (Full validation) | 20-30 hrs/quarter |
+
+**📖 Complete adoption guide:** See [`docs/guides/ADOPTION_GUIDE.md`](docs/guides/ADOPTION_GUIDE.md) for:
+- AI-enabled small team thesis (why EPF matters for 1-5 person teams)
+- Detailed escalation model (Level 0 → Level 3)
+- Growth triggers ("when to add next artifact type")
+- Time breakdowns per level
+- Success metrics and common mistakes
+- Special cases (open source, enterprise teams, multiple products)
+
+**Philosophy:** Like a coral reef growing one polyp at a time, EPF grows one artifact at a time. The system emerges as your strategic complexity emerges. Just as AI enables small teams to build big products, EPF's simple rules generate sophisticated strategic systems - that's why it's called the **Emergent** Product Framework.
+
+---
+
 ## What's New in v2.0.0
 
 **Balance Checker Wizard (2025-12-28):**
