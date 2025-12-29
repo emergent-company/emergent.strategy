@@ -1,3 +1,4 @@
+# EPF v1.13.0 - Strategy Foundations Template
 # STRATEGY Phase: Foundational Strategic Artifacts
 # This is a living document containing four core strategic definitions that inform the winning formula.
 # These artifacts must be consistent with:
@@ -6,6 +7,10 @@
 # - Opportunity statement (03_insight_opportunity.yaml)
 #
 # CHANGE PROTOCOL: If any of these foundations change, you MUST update 04_strategy_formula.yaml to maintain consistency
+#
+# Related Resources:
+# - Schema: ../../schemas/strategy_foundations_schema.json
+# - Guide: ../../docs/guides/STRATEGY_FOUNDATIONS_GUIDE.md
 
 strategy_foundations:
   opportunity_id: "opp-001" # Reference to the opportunity this strategy addresses

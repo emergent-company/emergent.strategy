@@ -63,6 +63,37 @@ scenarios:  # ← TOP LEVEL
       - "Compliance status updates in real-time on dashboard"
 ```
 
+---
+
+## Quick Reference Resources
+
+**BEFORE starting feature definition creation:**
+
+- [ ] **Read schema requirements**: [`schemas/feature_definition_schema.json`](../schemas/feature_definition_schema.json) (861 lines, v2.0.0)
+- [ ] **Copy template**: [`templates/FIRE/feature_definitions/feature_definition_template.yaml`](../templates/FIRE/feature_definitions/feature_definition_template.yaml)
+- [ ] **Review examples**: [`features/`](../features/) directory (21 validated examples demonstrating quality patterns)
+
+**WHILE creating your feature definition:**
+
+- Keep this wizard open for guidance on avoiding common mistakes
+- Reference schema for structure requirements and validation rules
+- Check examples for pattern inspiration (persona narratives, scenario structure, dependency explanations)
+
+**AFTER creating your feature definition:**
+
+- **Validate**: `./scripts/validate-feature-quality.sh {your-file}.yaml`
+- Fix any errors reported by validation script
+- Re-validate until you achieve **0 errors**
+- **Commit only after passing validation** (0 errors required)
+
+**Why YAML format?** Feature definitions use structured YAML because:
+- Complex nested data (personas, scenarios, dependencies) requires structure
+- JSON Schema validation ensures quality and consistency  
+- Automated validation with `yq` and `ajv-cli` tools
+- Easy consumption by implementation tools (parseable by any YAML parser)
+
+---
+
 ### ❌ WRONG: Simple String Dependencies
 ```yaml
 dependencies:
@@ -495,3 +526,13 @@ These files demonstrate the correct structure, narrative depth, and EPF schema v
 - With practice and templates: 45-60 minutes
 
 The time investment pays off in implementation clarity and reduced rework!
+
+---
+
+## Related Resources
+
+- **Feature Definition Schema (v2.0)**: [../schemas/feature_definition_schema.json](../schemas/feature_definition_schema.json)
+- **Value Model Business Language Guide**: [../docs/guides/VALUE_MODEL_BUSINESS_LANGUAGE_GUIDE.md](../docs/guides/VALUE_MODEL_BUSINESS_LANGUAGE_GUIDE.md)
+- **Schema Enhancement Recommendations**: [../docs/guides/technical/schema_enhancement_recommendations.md](../docs/guides/technical/schema_enhancement_recommendations.md)
+- **Product Architect Wizard**: [./product_architect.agent_prompt.md](./product_architect.agent_prompt.md)
+- **Roadmap Recipe Template**: [../templates/READY/05_roadmap_recipe.yaml](../templates/READY/05_roadmap_recipe.yaml)

@@ -1,5 +1,7 @@
 # Product Portfolio: Product Lines and Brands
 
+> **Last updated**: EPF v1.13.0 | **Status**: Current
+
 ## Overview
 
 EPF v1.10.1 introduces the **Product Portfolio** concept to support product organizations that develop multiple distinct product lines under various brand identities. This enables EPF to track:
@@ -304,3 +306,10 @@ If you started with a single `product.value_model.yaml` and now need multiple pr
 3. Create additional value models for new product lines
 4. Update `_meta.yaml` to reflect the portfolio structure
 5. Review feature definitions for product line associations
+
+## Related Resources
+
+- **Template**: [06_product_portfolio.yaml](../../templates/READY/06_product_portfolio.yaml) - Template for documenting multi-product portfolios
+- **Schema**: [product_portfolio_schema.json](../../schemas/product_portfolio_schema.json) - Validation schema for product portfolio structure
+- **Schema**: [value_model_schema.json](../../schemas/value_model_schema.json) - Schema for individual product line value models
+- **Guide**: [VALUE_MODEL_BUSINESS_LANGUAGE_GUIDE.md](./VALUE_MODEL_BUSINESS_LANGUAGE_GUIDE.md) - Guidelines for documenting value models with business-focused language

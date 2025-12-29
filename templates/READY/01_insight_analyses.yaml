@@ -1,9 +1,17 @@
+# EPF v1.13.0 - Insight Analyses Template
 # INSIGHT Phase: Foundational Analyses
 # These documents provide the analytical foundation for opportunity identification.
 # They are living documents that get refined through multiple cycles based on AIM phase learnings.
 # Must be informed by and consistent with organizational North Star (00_north_star.yaml).
 #
 # CHANGE PROTOCOL: If these analyses change significantly, update 03_insight_opportunity.yaml
+#
+# Related Resources:
+# - Schema: ../../schemas/insight_analyses_schema.json
+# - Wizard: ../../wizards/01_trend_scout.agent_prompt.md (Trend Scout)
+# - Wizard: ../../wizards/02_market_mapper.agent_prompt.md (Market Mapper)
+# - Wizard: ../../wizards/03_internal_mirror.agent_prompt.md (Internal Mirror)
+# - Wizard: ../../wizards/04_problem_detective.agent_prompt.md (Problem Detective)
 
 ## Document Status
 # Each analysis should track when it was last updated and its current confidence level

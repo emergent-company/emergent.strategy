@@ -2,6 +2,8 @@
 
 This directory is intentionally empty in the canonical EPF framework repository.
 
+**For complete instance creation workflow**, see [`docs/guides/INSTANTIATION_GUIDE.md`](../docs/guides/INSTANTIATION_GUIDE.md).
+
 ## Where are the instances?
 
 Product-specific instances live in their respective product repositories:

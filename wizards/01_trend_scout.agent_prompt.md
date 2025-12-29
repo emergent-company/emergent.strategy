@@ -151,3 +151,9 @@ You're done when:
 ## Hand-off
 
 After completing: "Great! Your Trend Analysis is drafted. This is your v1 - expect to refine it after your first few cycles as you gather more evidence. Ready to move to Market Analysis next?"
+
+## Related Resources
+
+- **Schema**: [insight_analyses_schema.json](../schemas/insight_analyses_schema.json) - Validation schema for insight analyses including trend analysis
+- **Template**: [00_insight_analyses.yaml](../templates/READY/00_insight_analyses.yaml) - Template for documenting trend and market insights
+- **Guide**: [INSTANTIATION_GUIDE.md](../docs/guides/INSTANTIATION_GUIDE.md) - Guidelines for populating EPF instances

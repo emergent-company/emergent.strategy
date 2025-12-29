@@ -12,33 +12,41 @@ Templates provide:
 
 ## How to Use Templates
 
-### 1. Copy Template to Your Instance
+### 1. Read the Guide FIRST
+
+**Before copying any template**, read its corresponding guide in `docs/guides/`:
+- Understand **what** the artifact is and why it matters
+- Learn **when** to create/update it
+- See **how** to fill it out effectively
+- Review **examples** of good completed artifacts
+
+### 2. Copy Template to Your Instance
 
 ```bash
 # Example: Copy North Star template to your instance
 cp templates/READY/00_north_star.yaml _instances/{your-product}/READY/00_north_star.yaml
 ```
 
-### 2. Fill in Your Content
+### 3. Fill in Your Content
 
 - Replace placeholder values with your actual content
 - Remove instructional comments (lines starting with `#`)
 - Keep structure intact (don't change field names)
 
-### 3. Validate Against Schema
+### 4. Validate Against Schema
 
 ```bash
 # Validate your instance against the schema
 ./scripts/validate-schemas.sh _instances/{your-product}/READY/00_north_star.yaml
 ```
 
-### 4. Read the Guide
+### 5. Iterate with Guide
 
-Each template has a corresponding guide in `docs/guides/` that explains:
-- **What** the artifact is and why it matters
-- **When** to create/update it
-- **How** to fill it out effectively
-- **Examples** of good completed artifacts
+Refer back to the guide to:
+- Clarify field meanings
+- Check examples for inspiration
+- Verify strategic coherence
+- Learn from best practices
 
 ## Template Structure
 

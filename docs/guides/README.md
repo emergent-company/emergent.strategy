@@ -1,5 +1,7 @@
 # EPF Guides
 
+> **Last updated**: EPF v1.13.0 | **Status**: Current
+
 This directory contains **conceptual guides** that explain EPF artifacts, their purpose, and how to create them effectively.
 
 ## Purpose
@@ -59,25 +61,52 @@ Schema (JSON)       →  Validates your work
 
 ## Available Guides
 
-### Strategic Foundation Guides
+### Getting Started
+
+| Guide | Purpose | When to Read |
+|-------|---------|--------------|
+| `ADOPTION_GUIDE.md` | **NEW:** Choose your starting level (0-3), escalate organically as complexity grows | **First time adopting EPF** - read before INSTANTIATION_GUIDE |
+| `INSTANTIATION_GUIDE.md` | Complete workflow for creating product instance from scratch | After choosing adoption level - detailed artifact creation steps |
+
+### Strategic Foundation Guides (READY Phase)
 
 | Guide | Template | Schema | Purpose |
 |-------|----------|--------|---------|
 | `NORTH_STAR_GUIDE.md` | `templates/READY/00_north_star.yaml` | `schemas/north_star_schema.json` | Organizational strategic foundation |
 | `STRATEGY_FOUNDATIONS_GUIDE.md` | `templates/READY/02_strategy_foundations.yaml` | `schemas/strategy_foundations_schema.json` | Strategic pillars and principles |
+| `VALUE_MODEL_BUSINESS_LANGUAGE_GUIDE.md` | `templates/FIRE/value_model.yaml` | `schemas/value_model_schema.json` | Business value articulation system |
 | `PRODUCT_PORTFOLIO_GUIDE.md` | `templates/READY/product_portfolio.yaml` | `schemas/product_portfolio_schema.json` | Product lines, brands, offerings |
+
+### Reference Guides
+
+| Guide | Purpose |
+|-------|---------|
+| `VALUE_MODEL_ANTI_PATTERNS_REFERENCE.md` | Common pitfalls in value model creation and how to avoid them |
 
 ### Architectural Guides
 
 | Guide | Purpose |
 |-------|---------|
-| `TRACK_BASED_ARCHITECTURE.md` | EPF's track-based product development model |
+| `TRACK_BASED_ARCHITECTURE.md` | EPF's track-based product development model (Learning vs Execution) |
 
-### Workflow Guides
+### Workflow & Process Guides
 
 | Guide | Purpose |
 |-------|---------|
-| `INSTANTIATION_GUIDE.md` | Complete workflow for creating product instance |
+| `FEATURE_DEFINITION_IMPLEMENTATION_GUIDE.md` | End-to-end walkthrough for creating schema-compliant feature definitions |
+| `VERSION_MANAGEMENT_AUTOMATED.md` | Automated version management using bump-version.sh script |
+
+### Technical Documentation (Advanced)
+
+Technical guides are located in `technical/` subdirectory:
+
+| Guide | Purpose | Audience |
+|-------|---------|----------|
+| `technical/EPF_SCHEMA_V2_QUALITY_SYSTEM.md` | Comprehensive quality system for EPF schemas | Schema maintainers, framework developers |
+| `technical/HEALTH_CHECK_ENHANCEMENT.md` | Enhanced health check system for instance validation | Framework developers, automation maintainers |
+| `technical/schema_enhancement_recommendations.md` | Schema v2.0 evolution (from 8-hour rework learnings, Dec 2025) | Schema designers, product architects |
+
+**Total: 13 guides** (10 main directory + 3 technical subdirectory)
 
 ## Guide Structure
 
@@ -145,3 +174,11 @@ When adding new guides:
 - Templates are **operational and structured**
 - Schemas are **validation and enforcement**
 - All three work together to support artifact creation
+
+## Related Resources
+
+- **Templates Directory**: [../../templates/](../../templates/) - All EPF artifact templates organized by phase
+- **Schemas Directory**: [../../schemas/](../../schemas/) - JSON schemas for validation
+- **Wizards Directory**: [../../wizards/](../../wizards/) - Interactive AI-guided artifact creation
+- **Guide**: [INSTANTIATION_GUIDE.md](./INSTANTIATION_GUIDE.md) - Complete workflow for creating EPF instances
+- **Root**: [../../README.md](../../README.md) - EPF framework overview and structure

@@ -1,5 +1,7 @@
 # EPF Schema v2.0 Quality System
 
+> **Last updated**: EPF v1.13.0 | **Status**: Current
+
 **Version**: 2.0.0  
 **Status**: ✅ Complete (All 4 phases implemented)  
 **Date**: 2025-01-XX  
@@ -1171,3 +1173,11 @@ The EPF Schema v2.0 Quality System represents a comprehensive transformation fro
 4. Establish as standard for all future EPF instances
 
 **Success Metric**: Zero rework hours for next EPF project implementation.
+
+## Related Resources
+
+- **Schema**: [feature_definition_schema.json](../../../schemas/feature_definition_schema.json) - JSON Schema v2.0 with enhanced validation
+- **Guide**: [schema_enhancement_recommendations.md](./schema_enhancement_recommendations.md) - Detailed schema enhancement recommendations
+- **Wizard**: [feature_definition.wizard.md](../../../wizards/feature_definition.wizard.md) - Human-guided feature definition creation
+- **Wizard**: [product_architect.agent_prompt.md](../../../wizards/product_architect.agent_prompt.md) - AI-guided feature definition creation
+- **Script**: [validate-feature-definition.mjs](../../../scripts/validate-feature-definition.mjs) - Validation script for quality checks

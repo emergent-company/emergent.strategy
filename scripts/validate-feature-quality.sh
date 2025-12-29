@@ -79,7 +79,7 @@ log_info() {
 
 check_persona_count() {
     local file="$1"
-    local count=$(yq eval '.definition.value_propositions | length' "$file")
+    local count=$(yq eval '.definition.personas | length' "$file")
     
     ((total_checks++))
     if [ "$count" -eq 4 ]; then
@@ -97,15 +97,15 @@ check_narrative_richness() {
     local has_errors=0
     
     # Get all personas
-    local persona_count=$(yq eval '.definition.value_propositions | length' "$file")
+    local persona_count=$(yq eval '.definition.personas | length' "$file")
     
     for ((i=0; i<persona_count; i++)); do
-        local persona_name=$(yq eval ".definition.value_propositions[$i].persona" "$file")
+        local persona_name=$(yq eval ".definition.personas[$i].name" "$file")
         
         # Check each narrative field
         for field in "current_situation" "transformation_moment" "emotional_resolution"; do
             ((total_checks++))
-            local narrative=$(yq eval ".definition.value_propositions[$i].$field" "$file" | tr -d '\n' | wc -c | tr -d ' ')
+            local narrative=$(yq eval ".definition.personas[$i].$field" "$file" | tr -d '\n' | wc -c | tr -d ' ')
             
             if [ "$narrative" -ge 200 ]; then
                 log_pass "Narrative richness: $persona_name.$field has $narrative chars (≥200)"

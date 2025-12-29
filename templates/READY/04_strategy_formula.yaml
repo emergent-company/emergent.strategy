@@ -1,7 +1,11 @@
+# EPF v1.13.0 - Strategy Formula Template
 # STRATEGY Phase: Winning Formula Identification
 # This is the second sub-phase of READY where we define HOW we'll win in the identified opportunity space.
 # This synthesizes strategic foundations (02_strategy_foundations.yaml) into actionable positioning.
 # Must align with organizational North Star (00_north_star.yaml).
+#
+# Related Resources:
+# - Schema: ../../schemas/strategy_formula_schema.json
 
 strategy:
   id: "strat-001"

@@ -1,4 +1,5 @@
 {
+  "version": "1.13.0",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Product Portfolio Schema",
   "description": "Defines the structure for product portfolios with multiple product lines, their relationships, and brand associations. Product organizations can have several distinct product lines, each with its own product value model. Product lines can be interconnected (e.g., software controls hardware) or independent. Components and assemblies from product lines can be sold under specific brand names.",

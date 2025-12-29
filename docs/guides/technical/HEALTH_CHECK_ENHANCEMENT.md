@@ -1,5 +1,7 @@
 # EPF Health Check Enhancement - Instance Structure Validation
 
+> **Last updated**: EPF v1.13.0 | **Status**: Current
+
 **Date:** December 12, 2024  
 **Version:** v1.11.0  
 **Status:** ✅ Deployed to all repositories
@@ -204,3 +206,11 @@ touch docs/EPF/_instances/{name}/AIM/.gitkeep
 This enhancement addresses user feedback: *"emergent has no FIRE folder, we need to make sure that EPF spots such discrepancies and suggests to update it."*
 
 The issue was discovered after deploying the `create-instance-structure.sh` script, which establishes the complete structure standard for NEW instances. However, existing instances created before this standard weren't updated, creating a gap that the health check now detects and guides users to fix.
+
+## Related Resources
+
+- **Script**: [epf-health-check.sh](../../../scripts/epf-health-check.sh) - Health check script for EPF instances
+- **Script**: [create-instance-structure.sh](../../../scripts/create-instance-structure.sh) - Instance structure creation script
+- **Guide**: [VERSION_MANAGEMENT_AUTOMATED.md](../VERSION_MANAGEMENT_AUTOMATED.md) - Version management and validation protocols
+- **Guide**: [INSTANTIATION_GUIDE.md](../INSTANTIATION_GUIDE.md) - Complete workflow for creating EPF instances
+- **Doc**: [MAINTENANCE.md](../../../MAINTENANCE.md) - Maintenance procedures and instance migration guidance

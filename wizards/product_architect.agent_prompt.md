@@ -374,3 +374,14 @@ EPF doesn't prescribe which implementation tools consume feature definitions. Yo
 4. Let the tool ecosystem evolve independently
 
 The feature definition is the **sharp interface** between EPF (strategic) and implementation (tactical).
+
+---
+
+## Related Resources
+
+- **Value Model Schema**: [../schemas/value_model_schema.json](../schemas/value_model_schema.json)
+- **Value Model Business Language Guide**: [../docs/guides/VALUE_MODEL_BUSINESS_LANGUAGE_GUIDE.md](../docs/guides/VALUE_MODEL_BUSINESS_LANGUAGE_GUIDE.md)
+- **Value Model Anti-Patterns Reference**: [../docs/guides/VALUE_MODEL_ANTI_PATTERNS_REFERENCE.md](../docs/guides/VALUE_MODEL_ANTI_PATTERNS_REFERENCE.md)
+- **Feature Definition Schema**: [../schemas/feature_definition_schema.json](../schemas/feature_definition_schema.json)
+- **Mappings Template**: [../templates/FIRE/mappings.yaml](../templates/FIRE/mappings.yaml)
+- **Roadmap Recipe Template**: [../templates/READY/05_roadmap_recipe.yaml](../templates/READY/05_roadmap_recipe.yaml)

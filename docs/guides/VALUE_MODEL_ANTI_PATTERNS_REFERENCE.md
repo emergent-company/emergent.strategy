@@ -1,5 +1,7 @@
 # Value Model Anti-Patterns Quick Reference
 
+> **Last updated**: EPF v1.13.0 | **Status**: Current
+
 **Purpose:** Fast lookup table for converting technical terms to business language during value model creation.
 
 **Usage:** When writing component names or UVPs, check this table first. If the term appears in the "❌ Avoid" column, use the "✅ Use Instead" abstraction.
@@ -253,3 +255,9 @@ Before committing, verify:
 - [ ] **5 questions:** All pass (investor, BD, regulator, WHO/WHAT, protocol tests)
 
 **For complete guidance, see:** `docs/guides/VALUE_MODEL_BUSINESS_LANGUAGE_GUIDE.md`
+
+## Related Resources
+
+- **Guide**: [VALUE_MODEL_BUSINESS_LANGUAGE_GUIDE.md](./VALUE_MODEL_BUSINESS_LANGUAGE_GUIDE.md) - Comprehensive guide to business-focused value model language
+- **Schema**: [value_model_schema.json](../../schemas/value_model_schema.json) - Validation schema for value model structure
+- **Wizard**: [product_architect.agent_prompt.md](../../wizards/product_architect.agent_prompt.md) - Interactive guidance for creating value models

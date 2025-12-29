@@ -1,4 +1,4 @@
-# Emergent Product Framework (EPF) Repository - v1.12.0
+# Emergent Product Framework (EPF) Repository - v2.0.0
 
 This repository contains the complete skeleton for managing product, strategy, org & ops, and commercial development using the Emergent Product Framework. It is designed to be an **executable operating system**, managed by a human-in-the-loop with the assistance of an AI Knowledge Agent.
 
@@ -28,6 +28,103 @@ This repository contains the complete skeleton for managing product, strategy, o
 **📖 Maintenance Guide:** See [`MAINTENANCE.md`](./MAINTENANCE.md) for framework/instance separation enforcement rules.
 
 ---
+
+## 🤖 AI Agent Quick Start
+
+**First time working with EPF?** Read documentation in this order:
+
+1. ⚡ **Pre-Flight** (5 min): [`.github/copilot-instructions.md`](.github/copilot-instructions.md)
+   - Quick checklist before any EPF work
+   - Answers: "Where am I? What am I doing? Is this framework or instance work?"
+
+2. 📋 **Purity Rules** (10 min): [`CANONICAL_PURITY_RULES.md`](CANONICAL_PURITY_RULES.md)
+   - Framework vs instance separation (critical to understand)
+   - Decision trees and violation examples
+
+3. 🔧 **Framework Overview** (15 min): This README
+   - EPF structure, phases, artifacts, version history
+
+**Daily Operations:**
+
+- 🧙 **Creating artifacts?** → [`wizards/README.md`](wizards/README.md) (find right wizard)
+- ✅ **Validating work?** → [`scripts/README.md`](scripts/README.md) (find right validator)
+- 📖 **Understanding concepts?** → [`docs/guides/README.md`](docs/guides/README.md) (find right guide)
+- 📐 **Schema questions?** → [`schemas/README.md`](schemas/README.md) (schema-template-guide pattern)
+
+**Maintaining EPF?**
+
+- 🔧 **Complete protocol** → [`MAINTENANCE.md`](MAINTENANCE.md) (STEP 0-5 consistency protocol)
+- 📚 **Learn from past mistakes** → [`.github/instructions/self-learning.instructions.md`](.github/instructions/self-learning.instructions.md)
+
+---
+
+## 🚀 Getting Started: Choose Your Adoption Level
+
+**First time adopting EPF in your organization?** EPF is designed for **organic growth** - you don't implement "full EPF" on day one.
+
+**Why this matters now:** We're entering an era where **1-5 person teams can build products that previously required 20-50 people**. AI amplifies capability across strategy, code, design, data, and content. But small teams building complex products need a **product operating system** that scales seamlessly from Day 1 to Day 1000 without migrations. EPF provides this: start minimal (2-3 hours), scale organically (add artifacts as complexity emerges), maintain strategic coherence regardless of team size.
+
+**Start simple, add artifacts as organizational complexity grows:**
+
+| Your Situation | Team Size | Start At | Time Investment |
+|----------------|-----------|----------|-----------------|
+| Solo founder | 1-2 | **Level 0** (North Star only) | 2-3 hours initial |
+| Small startup | 3-5 | **Level 1** (Add Evidence + Roadmap) | 4-6 hrs/quarter |
+| Growing startup | 6-15 | **Level 2** (Add Value Models + 4 tracks) | 8-12 hrs/quarter |
+| Product org | 15-50+ | **Level 3** (Full validation) | 20-30 hrs/quarter |
+
+**📖 Complete adoption guide:** See [`docs/guides/ADOPTION_GUIDE.md`](docs/guides/ADOPTION_GUIDE.md) for:
+- AI-enabled small team thesis (why EPF matters for 1-5 person teams)
+- Detailed escalation model (Level 0 → Level 3)
+- Growth triggers ("when to add next artifact type")
+- Time breakdowns per level
+- Success metrics and common mistakes
+- Special cases (open source, enterprise teams, multiple products)
+
+**Philosophy:** Like a coral reef growing one polyp at a time, EPF grows one artifact at a time. The system emerges as your strategic complexity emerges. Just as AI enables small teams to build big products, EPF's simple rules generate sophisticated strategic systems - that's why it's called the **Emergent** Product Framework.
+
+---
+
+## What's New in v2.0.0
+
+**Balance Checker Wizard (2025-12-28):**
+- **NEW**: AI-powered roadmap viability assessment wizard (`wizards/balance_checker.agent_prompt.md`)
+- Pre-FIRE phase validation across 4 dimensions: Resource Viability (30%), Portfolio Balance (25%), Coherence (25%), Strategic Alignment (20%)
+- Prevents common pitfalls: over-commitment, imbalanced portfolios, circular dependencies, timeline infeasibility
+- Iterative refinement workflow: assess → recommend → adjust → re-assess until ≥75/100 viability score
+- Comprehensive guidance: 5 real-world scenarios, detailed algorithms, troubleshooting, best practices
+- **Why this matters**: EPF's "braided model" has 4 interdependent tracks (Product, Strategy, OrgOps, Commercial) - balance checking ensures mutual support before FIRE phase commitment
+
+**AI Instruction File Consolidation (2025-12-28):**
+- Consolidated AI instruction files from 4 overlapping files into 3 focused files with clear purposes
+- **NEW**: Comprehensive "AI Agent Consistency Protocol" section added to `MAINTENANCE.md` (STEP 0-5 complete operating protocol)
+- **UPDATED**: Simplified `.github/copilot-instructions.md` to quick reference + links (was 432 lines of duplication, now 150 lines focused)
+- **REMOVED**: Duplicate files eliminated (.ai-agent-instructions.md, .github/instructions/epf-framework.instructions.md had 95% overlap)
+- **KEPT**: `.github/instructions/self-learning.instructions.md` (unique learning log - continues growing)
+- Single source of truth: MAINTENANCE.md is now THE authoritative maintenance reference
+- Clearer file purposes: no more "which file do I read?" confusion
+- Better AI agent guidance: pre-flight checklist → quick start (copilot-instructions) → comprehensive protocol (MAINTENANCE.md) → learning log (self-learning)
+
+BREAKING CHANGE: Remove value_propositions field from feature_definition_schema.json
+
+The value_propositions field has been removed from the feature definition schema as it duplicated functionality provided by the enhanced personas field structure. All persona narratives are now exclusively defined within the personas field using the comprehensive 11-field structure.
+
+Migration Impact:
+- 7/7 feature definitions migrated successfully (100% coverage)
+- ~1,314 lines of duplicate content removed
+- All instances validated and passing quality checks
+- Migration guide: docs/VALUE_PROPOSITIONS_REMOVAL_COMPLETE.md
+
+This is a breaking change requiring instance migration. The enhanced personas field provides superior organization with dedicated slots for target personas, pain points, solutions, benefits, and outcomes - eliminating the need for a separate value_propositions section.
+
+## What's New in v1.13.0
+
+* **Value Model Business Language Enforcement:** New comprehensive guide (`docs/guides/VALUE_MODEL_BUSINESS_LANGUAGE_GUIDE.md`) ensuring value models use business language understandable to stakeholders while remaining actionable for engineers. Includes forbidden technical terms list and context tags pattern.
+* **Value Model Anti-Patterns Reference:** Complete reference guide (`docs/guides/VALUE_MODEL_ANTI_PATTERNS_REFERENCE.md`) documenting common mistakes in value modeling with corrected examples.
+* **Product Architect Wizard:** Enhanced AI agent prompt (`wizards/product_architect.agent_prompt.md`) for FIRE phase execution with detailed value model creation guidance.
+* **Enhanced Value Models:** Updated commercial, org_ops, product, and strategy value model templates with richer examples and business language patterns.
+* **AI Agent Pre-Flight Checklist:** Strengthened canonical purity enforcement in `.ai-agent-instructions.md` to prevent instance contamination.
+* **Sync Script Improvements:** Enhanced `scripts/sync-repos.sh` with automatic fallback for broken git subtree states and improved error handling.
 
 ## What's New in v1.12.0
 

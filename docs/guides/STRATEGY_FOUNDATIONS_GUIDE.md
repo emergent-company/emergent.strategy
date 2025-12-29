@@ -1,5 +1,7 @@
 # Strategy Foundations: Living Strategic Artifacts
 
+> **Last updated**: EPF v1.13.0 | **Status**: Current
+
 ## Overview
 
 As of EPF v1.9.3, the STRATEGY phase includes a **two-tier structure**:
@@ -167,9 +169,11 @@ The **Pathfinder agent** guides teams through both tiers:
 
 This ensures strategy is grounded in thorough strategic thinking, not just high-level positioning.
 
-## See Also
+## Related Resources
 
-- `01_strategy_foundations.yaml` - Complete template with all four foundations
-- `03_strategy_formula.yaml` - Shows how formula synthesizes foundations
-- `wizards/pathfinder.agent_prompt.md` - Guidance for creating foundations
-- `MAINTENANCE.md` - Consistency checking protocols
+- **Template**: [02_strategy_foundations.yaml](../../templates/READY/02_strategy_foundations.yaml) - Template for documenting product vision, value proposition, strategic thrusts, and success metrics
+- **Template**: [04_strategy_formula.yaml](../../templates/READY/04_strategy_formula.yaml) - Template showing how to synthesize foundations into winning formula
+- **Schema**: [strategy_foundations_schema.json](../../schemas/strategy_foundations_schema.json) - Validation schema for strategic foundations
+- **Schema**: [strategy_formula_schema.json](../../schemas/strategy_formula_schema.json) - Validation schema for strategy formula
+- **Guide**: [NORTH_STAR_GUIDE.md](./NORTH_STAR_GUIDE.md) - Organizational-level strategic foundation that shapes cycle strategy
+- **Wizard**: [pathfinder.agent_prompt.md](../../wizards/pathfinder.agent_prompt.md) - AI assistant for creating strategic foundations

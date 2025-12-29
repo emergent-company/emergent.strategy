@@ -1,3 +1,4 @@
+# EPF v1.13.0 - Roadmap Recipe Template
 # ROADMAP Phase: Recipe for Solution
 # This is the third sub-phase of READY where we create the actionable plan.
 # 
@@ -9,6 +10,10 @@
 # to align with the four value models in the FIRE phase. Each track has its own OKRs,
 # assumptions, and solution scaffold. Feature definitions (in FIRE phase) translate
 # KR intent into capabilities that spec-driven tools consume.
+#
+# Related Resources:
+# - Schema: ../../schemas/roadmap_recipe_schema.json
+# - Guide: ../../docs/guides/TRACK_BASED_ARCHITECTURE.md
 
 roadmap:
   id: "roadmap-001"

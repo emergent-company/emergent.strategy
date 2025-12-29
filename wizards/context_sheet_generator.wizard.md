@@ -153,3 +153,9 @@ Done! Context sheet updated with:
 
 The context sheet is ready to copy-paste into external AI tools.
 ```
+
+## Related Resources
+
+- **Template**: [context_sheet_template.md](./context_sheet_template.md) - Base template used to generate product-specific context sheets
+- **Guide**: [INSTANTIATION_GUIDE.md](../docs/guides/INSTANTIATION_GUIDE.md) - Guidelines for creating and maintaining EPF instances
+- **Schema**: [value_model_schema.json](../schemas/value_model_schema.json) - Structure for product value models used in context sheets

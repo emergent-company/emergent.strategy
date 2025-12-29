@@ -1,11 +1,11 @@
 # EPF Integration Specification
 # Machine-readable contract for spec-driven development tools
-# Version: 1.13.0 (EPF v1.9.7)
+# Version: 2.0.0 (EPF v2.0.0)
 
 specification:
   name: "EPF Tool Integration Specification"
-  version: "1.13.0"
-  epf_version: "1.9.7"
+  version: "2.0.0"
+  epf_version: "2.0.0"
   purpose: |
     This file defines the interface contract between the Emergent Product Framework (EPF)
     and any spec-driven software development tool (e.g., OpenSpec, SpecIt, AI coding agents).
@@ -513,7 +513,752 @@ versioning:
     will document the changes and provide migration guidance.
 
 # ============================================================================
-# SECTION 8: EXAMPLE TOOL PROMPT
+# SECTION 8: TOOL CAPABILITIES MATRIX
+# ============================================================================
+
+tool_capabilities:
+  description: |
+    Different tools serve different purposes in the EPF ecosystem.
+    This matrix defines what capabilities each tool type should provide.
+
+  tool_types:
+    - type: "Specification Generator"
+      examples: ["OpenSpec", "SpecIt", "AI Spec Agent"]
+      primary_inputs: ["Feature Definitions"]
+      primary_outputs: ["Implementation Specs", "API Contracts", "Data Models"]
+      required_capabilities:
+        - "Parse EPF feature definitions"
+        - "Generate technical specifications from capabilities"
+        - "Create test case skeletons from scenarios"
+        - "Maintain EPF traceability links"
+        - "Register specs back to EPF"
+      optional_capabilities:
+        - "Generate OpenAPI/GraphQL schemas"
+        - "Create architecture diagrams"
+        - "Suggest implementation patterns"
+      
+    - type: "Development Agent"
+      examples: ["Cursor", "GitHub Copilot Workspace", "Aider"]
+      primary_inputs: ["Implementation Specs", "Feature Definitions"]
+      primary_outputs: ["Source Code", "Tests", "Documentation"]
+      required_capabilities:
+        - "Read feature definitions for context"
+        - "Implement code from specs"
+        - "Write tests linked to EPF scenarios"
+        - "Update implementation status"
+      optional_capabilities:
+        - "Generate spec from code (reverse engineering)"
+        - "Suggest refactorings based on boundaries"
+        - "Auto-update implementation_references"
+      
+    - type: "Project Management Integration"
+      examples: ["Linear", "Jira", "GitHub Projects"]
+      primary_inputs: ["Feature Definitions", "Key Results"]
+      primary_outputs: ["Issues", "Epics", "Milestones"]
+      required_capabilities:
+        - "Create issues from capabilities"
+        - "Link issues to EPF IDs"
+        - "Sync status bidirectionally"
+        - "Report coverage metrics"
+      optional_capabilities:
+        - "Auto-create sprints from roadmap"
+        - "Generate burndown charts"
+        - "Alert on scope changes"
+      
+    - type: "Testing Orchestrator"
+      examples: ["Playwright", "Cypress", "Test Agent"]
+      primary_inputs: ["Scenarios", "Acceptance Criteria"]
+      primary_outputs: ["Test Suites", "Test Reports"]
+      required_capabilities:
+        - "Generate test cases from scenarios"
+        - "Link tests to EPF scenario IDs"
+        - "Report test coverage per feature"
+      optional_capabilities:
+        - "Visual regression testing"
+        - "Performance benchmarking"
+        - "Accessibility audits"
+      
+    - type: "Documentation Generator"
+      examples: ["Docusaurus", "MkDocs", "Notion Sync"]
+      primary_inputs: ["All EPF Artifacts"]
+      primary_outputs: ["User Docs", "API Docs", "Architecture Docs"]
+      required_capabilities:
+        - "Generate user-facing docs from feature definitions"
+        - "Create API docs from specs"
+        - "Maintain doc-to-EPF traceability"
+      optional_capabilities:
+        - "Interactive examples"
+        - "Versioned documentation"
+        - "Search integration"
+
+  capability_requirements:
+    minimum_viable_tool:
+      description: "Minimum capabilities for EPF integration"
+      must_have:
+        - "Read feature_definitions YAML files"
+        - "Parse status field and filter to 'ready'"
+        - "Extract capabilities list"
+        - "Maintain epf_feature_id in outputs"
+      
+    recommended_tool:
+      description: "Recommended capabilities for good integration"
+      should_have:
+        - "All minimum viable capabilities"
+        - "Parse scenarios and generate test skeletons"
+        - "Surface non_goals as guardrails"
+        - "Update implementation_references in EPF"
+        - "Report capability coverage metrics"
+      
+    advanced_tool:
+      description: "Advanced capabilities for deep integration"
+      could_have:
+        - "All recommended capabilities"
+        - "Validate against EPF schemas"
+        - "Detect assumption invalidations"
+        - "Generate calibration inputs for AIM phase"
+        - "Auto-sync status bidirectionally"
+        - "Create visualizations of EPF structure"
+
+# ============================================================================
+# SECTION 9: VALIDATION REQUIREMENTS
+# ============================================================================
+
+validation_requirements:
+  description: |
+    What tools must validate before processing EPF artifacts.
+
+  pre_processing_validation:
+    - check: "EPF version compatibility"
+      description: "Verify tool supports the EPF version in _meta.yaml"
+      location: "_instances/{product}/_meta.yaml → epf_version"
+      action_on_failure: "Abort with clear error message"
+      example: |
+        if epf_version < tool.min_supported_version:
+          raise Error(f"EPF {epf_version} not supported. Minimum: {tool.min_supported_version}")
+    
+    - check: "Integration spec version"
+      description: "Verify integration spec version is compatible"
+      location: "integration_specification.yaml → versioning.this_spec_version"
+      action_on_failure: "Warn user, attempt graceful degradation"
+      example: |
+        if spec_version.major > tool.max_spec_version.major:
+          warn("Integration spec may have breaking changes. Proceed with caution.")
+    
+    - check: "Feature definition schema validation"
+      description: "Validate feature YAML against schema before processing"
+      location: "schemas/feature_definition_schema.json"
+      action_on_failure: "Report validation errors, skip invalid features"
+      example: |
+        errors = validate_yaml(feature_yaml, schema)
+        if errors:
+          log.error(f"Feature {feature.id} failed validation: {errors}")
+          skip_feature(feature)
+    
+    - check: "Required fields present"
+      description: "Ensure minimum required fields exist"
+      required_fields: ["id", "name", "status", "definition.capabilities"]
+      action_on_failure: "Skip feature with warning"
+      example: |
+        if not all([feature.id, feature.name, feature.status, feature.definition.capabilities]):
+          warn(f"Feature {feature.id} missing required fields")
+          skip_feature(feature)
+    
+    - check: "Status validity"
+      description: "Only process features with implementable status"
+      valid_statuses: ["ready", "in-progress", "delivered"]
+      action_on_failure: "Skip with info message"
+      example: |
+        if feature.status not in ["ready", "in-progress", "delivered"]:
+          info(f"Skipping {feature.id} - status '{feature.status}' not implementable")
+          skip_feature(feature)
+
+  runtime_validation:
+    - check: "Capability IDs unique"
+      description: "Verify no duplicate capability IDs in feature"
+      action_on_failure: "Warn, use first occurrence"
+      example: |
+        cap_ids = [c.id for c in feature.capabilities]
+        if len(cap_ids) != len(set(cap_ids)):
+          warn(f"Duplicate capability IDs in {feature.id}")
+    
+    - check: "Scenario IDs unique"
+      description: "Verify no duplicate scenario IDs in feature"
+      action_on_failure: "Warn, use first occurrence"
+      example: |
+        scn_ids = [s.id for s in feature.scenarios]
+        if len(scn_ids) != len(set(scn_ids)):
+          warn(f"Duplicate scenario IDs in {feature.id}")
+    
+    - check: "Cross-references resolvable"
+      description: "Verify referenced features/assumptions exist"
+      action_on_failure: "Warn, continue processing"
+      example: |
+        for dep in feature.dependencies:
+          if not feature_exists(dep):
+            warn(f"{feature.id} references non-existent feature {dep}")
+    
+    - check: "Contributes_to paths valid"
+      description: "Verify value model paths are well-formed"
+      action_on_failure: "Warn, skip invalid paths"
+      example: |
+        for path in feature.contributes_to:
+          if not is_valid_value_path(path):
+            warn(f"Invalid value path in {feature.id}: {path}")
+
+  post_processing_validation:
+    - check: "All capabilities addressed"
+      description: "Verify all capabilities from feature are in generated specs"
+      action_on_failure: "Warn about missing capabilities"
+      example: |
+        implemented = get_implemented_capabilities(specs)
+        missing = set(feature.capabilities) - set(implemented)
+        if missing:
+          warn(f"Capabilities not implemented: {missing}")
+    
+    - check: "All scenarios have tests"
+      description: "Verify each scenario has corresponding test case"
+      action_on_failure: "Warn about untested scenarios"
+      example: |
+        tested_scenarios = get_tested_scenarios(tests)
+        untested = set(feature.scenarios) - set(tested_scenarios)
+        if untested:
+          warn(f"Scenarios without tests: {untested}")
+    
+    - check: "Non-goals not implemented"
+      description: "Verify implementation doesn't violate non_goals"
+      action_on_failure: "Error, flag for review"
+      example: |
+        violations = check_non_goals_violations(specs, feature.non_goals)
+        if violations:
+          error(f"Implementation violates non-goals: {violations}")
+
+# ============================================================================
+# SECTION 10: ERROR HANDLING PATTERNS
+# ============================================================================
+
+error_handling:
+  description: |
+    Common errors and recommended handling strategies.
+
+  common_errors:
+    - error: "Feature definition not found"
+      cause: "Referenced feature ID doesn't exist"
+      recommended_action: |
+        1. Check if feature was moved or renamed
+        2. Search by name in case ID changed
+        3. If truly missing, create placeholder or skip dependency
+      example_message: |
+        "Feature fd-042 referenced in fd-001 dependencies not found.
+         Check if feature exists in another instance or was renamed."
+      
+    - error: "Schema validation failure"
+      cause: "Feature YAML doesn't match schema"
+      recommended_action: |
+        1. Show specific validation errors
+        2. Suggest corrections based on schema
+        3. Offer to skip feature or auto-correct simple issues
+      example_message: |
+        "Feature fd-001 validation failed:
+         - definition.capabilities: required field missing
+         - implementation.scenarios[0]: 'id' is required
+         Run: validate-schemas.sh for details"
+      
+    - error: "Circular dependency detected"
+      cause: "Feature A depends on B, B depends on A"
+      recommended_action: |
+        1. Visualize dependency chain
+        2. Suggest breaking the cycle
+        3. Allow override with warning if intentional
+      example_message: |
+        "Circular dependency: fd-001 → fd-002 → fd-001
+         This will cause implementation deadlock.
+         Review dependencies and break the cycle."
+      
+    - error: "Status transition invalid"
+      cause: "Tool trying to change status inappropriately"
+      recommended_action: |
+        1. Show valid state transitions
+        2. Suggest correct workflow
+        3. Require manual approval for unusual transitions
+      example_message: |
+        "Cannot transition fd-001 from 'draft' to 'delivered'.
+         Valid transitions from 'draft': ready, cancelled
+         Ensure feature is complete before marking delivered."
+      
+    - error: "Assumption invalidation detected"
+      cause: "Implementation reveals EPF assumption is wrong"
+      recommended_action: |
+        1. Document the finding clearly
+        2. Create calibration input for AIM phase
+        3. Continue with adjusted scope
+        4. Flag for EPF strategic review
+      example_message: |
+        "Assumption asm-001 invalidated during implementation of fd-001:
+         'Users will accept 5s load time' - actual user feedback requires <2s.
+         Create calibration_memo entry for next AIM phase."
+      
+    - error: "EPF version mismatch"
+      cause: "Tool expects different EPF version"
+      recommended_action: |
+        1. Show version compatibility matrix
+        2. Suggest upgrade path
+        3. Allow read-only mode if minor version difference
+      example_message: |
+        "EPF version 1.9.7 detected, tool supports 1.9.x.
+         Minor version difference - proceeding with caution.
+         Some features may not be available."
+
+  error_severity_levels:
+    critical:
+      description: "Abort processing immediately"
+      examples:
+        - "EPF root directory not found"
+        - "Integration spec version incompatible (major version mismatch)"
+        - "Malformed YAML that can't be parsed"
+      
+    error:
+      description: "Skip current artifact, continue with others"
+      examples:
+        - "Feature definition fails schema validation"
+        - "Required field missing"
+        - "Circular dependency detected"
+      
+    warning:
+      description: "Process with degraded functionality"
+      examples:
+        - "Optional field missing"
+        - "Cross-reference not resolvable"
+        - "Minor version mismatch"
+      
+    info:
+      description: "Informational, no action needed"
+      examples:
+        - "Feature status is 'draft', skipping"
+        - "No implementation_references yet (first run)"
+        - "Using default value for optional field"
+
+# ============================================================================
+# SECTION 11: CONCRETE INTEGRATION EXAMPLES
+# ============================================================================
+
+integration_examples:
+  description: |
+    Real-world examples of EPF integration with popular tools.
+
+  example_openspec:
+    tool_name: "OpenSpec"
+    tool_purpose: "Spec-driven development with markdown specifications"
+    integration_approach: |
+      OpenSpec reads EPF feature definitions and generates markdown specs
+      in the openspec/specs/ directory. Each spec covers one or more
+      capabilities from a feature definition.
+    
+    directory_structure: |
+      project/
+      ├── docs/EPF/
+      │   └── _instances/myproduct/
+      │       └── feature_definitions/
+      │           └── digital-twin.yaml
+      └── openspec/
+          └── specs/
+              ├── digital-twin-data-model.md  (implements cap-001, cap-002)
+              └── digital-twin-api.md         (implements cap-003)
+    
+    spec_header_example: |
+      # Digital Twin Data Model
+      
+      **EPF Traceability:**
+      - Feature: `fd-001` (Digital Twin Ecosystem)
+      - Capabilities: `cap-001`, `cap-002`
+      - KR: `kr-p-001`
+      
+      **Status:** in-progress
+      
+      ## Context
+      
+      From EPF feature definition:
+      > Job to be done: "Connect physical assets to digital representations
+      > so operators can monitor and analyze equipment remotely"
+      
+      This spec defines the data model for digital twin representations.
+    
+    epf_reference_update: |
+      # In digital-twin.yaml
+      implementation_references:
+        tool_name: "openspec"
+        specs:
+          - id: "spec-dt-data-model"
+            path: "openspec/specs/digital-twin-data-model.md"
+            capability_coverage: ["cap-001", "cap-002"]
+            status: "in-progress"
+          - id: "spec-dt-api"
+            path: "openspec/specs/digital-twin-api.md"
+            capability_coverage: ["cap-003"]
+            status: "planned"
+        last_sync: "2025-12-23T10:30:00Z"
+
+  example_cursor:
+    tool_name: "Cursor / AI Coding Agent"
+    tool_purpose: "AI-assisted code generation and refactoring"
+    integration_approach: |
+      Cursor agents read EPF feature definitions to understand context,
+      then generate code that implements the specified capabilities.
+      The agent includes EPF references in code comments and test files.
+    
+    code_header_example: |
+      // DigitalTwinService.ts
+      
+      /**
+       * Digital Twin Data Service
+       * 
+       * EPF Feature: fd-001 (Digital Twin Ecosystem)
+       * Implements: cap-001 (Real-time data ingestion)
+       * 
+       * From EPF:
+       * "Ingest sensor data from IoT devices and update twin state in real-time"
+       * 
+       * Constraints (from EPF boundaries):
+       * - Must handle 10,000 sensors concurrently
+       * - Max 100ms latency from sensor to twin update
+       * - No ML inference in this capability (see cap-005)
+       */
+      
+      export class DigitalTwinService {
+        // Implementation...
+      }
+    
+    test_header_example: |
+      // DigitalTwinService.test.ts
+      
+      describe('DigitalTwinService', () => {
+        /**
+         * EPF Scenario: scn-001
+         * "Operator connects new sensor and sees data within 5 seconds"
+         * 
+         * Acceptance Criteria:
+         * - Sensor auto-discovery completes within 2s
+         * - First data point appears within 5s total
+         * - Twin state reflects current sensor reading
+         */
+        it('should connect new sensor within 5 seconds', async () => {
+          // Test implementation...
+        });
+      });
+    
+    epf_reference_update: |
+      # In digital-twin.yaml
+      implementation_references:
+        tool_name: "cursor-agent"
+        specs:
+          - id: "src/services/DigitalTwinService.ts"
+            path: "src/services/DigitalTwinService.ts"
+            capability_coverage: ["cap-001"]
+            status: "implemented"
+          - id: "src/services/DigitalTwinService.test.ts"
+            path: "src/services/DigitalTwinService.test.ts"
+            scenario_coverage: ["scn-001", "scn-002"]
+            status: "implemented"
+        last_sync: "2025-12-23T14:20:00Z"
+
+  example_linear:
+    tool_name: "Linear"
+    tool_purpose: "Issue tracking and project management"
+    integration_approach: |
+      Linear integration creates issues from EPF capabilities,
+      organized under epics that represent Key Results.
+      Status syncs bidirectionally between Linear and EPF.
+    
+    issue_structure: |
+      Epic: KR-P-001 - Achieve TRL 6 for LMC Technology
+      └── Issue: [FD-001/CAP-001] Real-time sensor data ingestion
+          ├── Description: (from capability definition)
+          ├── Labels: epf-feature-fd-001, capability-cap-001
+          ├── Custom Field: EPF Feature = fd-001
+          └── Custom Field: EPF Capability = cap-001
+    
+    issue_description_template: |
+      **EPF Feature:** fd-001 (Digital Twin Ecosystem)
+      **Capability:** cap-001 (Real-time data ingestion)
+      
+      **Job to be Done:**
+      Connect physical assets to digital representations so operators can
+      monitor and analyze equipment remotely.
+      
+      **Capability Description:**
+      Ingest sensor data from IoT devices and update twin state in real-time.
+      Must handle 10,000 concurrent sensors with <100ms latency.
+      
+      **Acceptance Criteria** (from EPF scenarios):
+      - [ ] scn-001: Operator connects new sensor, sees data within 5s
+      - [ ] scn-002: Operator views historical data for past 30 days
+      
+      **Constraints:**
+      - No ML inference in this capability (see cap-005)
+      - Use existing IoT Hub infrastructure (no new platforms)
+      
+      **Value:** (from EPF value model)
+      Contributes to "Operational Visibility" → "Reduced Downtime"
+    
+    sync_protocol: |
+      Linear → EPF:
+      - When issue moves to "In Progress" → update feature status
+      - When issue moves to "Done" → update capability status in implementation_references
+      
+      EPF → Linear:
+      - When feature status changes → update epic status
+      - When scenarios are added → add to issue acceptance criteria
+      - When constraints change → update issue description
+
+# ============================================================================
+# SECTION 12: ARTIFACT LIFECYCLE HOOKS
+# ============================================================================
+
+lifecycle_hooks:
+  description: |
+    When tools should act during the EPF artifact lifecycle.
+
+  feature_definition_lifecycle:
+    - state: "draft"
+      description: "Feature being defined, not ready for implementation"
+      tool_actions:
+        do:
+          - "Monitor for status changes"
+          - "Provide early feedback on feasibility"
+          - "Pre-validate technical constraints"
+        dont:
+          - "Generate implementation specs"
+          - "Create work items"
+          - "Allocate resources"
+      
+    - state: "ready"
+      description: "Feature complete, ready for implementation"
+      tool_actions:
+        do:
+          - "Generate implementation specs"
+          - "Create work items from capabilities"
+          - "Set up test case skeletons"
+          - "Register implementation_references"
+          - "Alert relevant teams"
+        dont:
+          - "Modify EPF strategic content"
+          - "Implement before dependencies are met"
+      
+    - state: "in-progress"
+      description: "Implementation actively underway"
+      tool_actions:
+        do:
+          - "Track capability completion"
+          - "Update implementation_references status"
+          - "Report progress metrics"
+          - "Flag assumption invalidations"
+          - "Maintain bidirectional links"
+        dont:
+          - "Change feature scope without EPF review"
+          - "Skip required scenarios"
+      
+    - state: "delivered"
+      description: "Implementation complete and deployed"
+      tool_actions:
+        do:
+          - "Generate coverage report"
+          - "Link final test results"
+          - "Document what was/wasn't implemented"
+          - "Provide input for calibration_memo"
+        dont:
+          - "Continue modifying implementation_references"
+          - "Accept new work items for this feature"
+      
+    - state: "cancelled"
+      description: "Feature cancelled before completion"
+      tool_actions:
+        do:
+          - "Archive work items"
+          - "Document lessons learned"
+          - "Clean up partial implementations"
+        dont:
+          - "Continue implementation"
+          - "Keep work items active"
+
+  recommended_triggers:
+    - trigger: "On EPF commit/push"
+      description: "When EPF artifacts are updated"
+      recommended_actions:
+        - "Scan for new 'ready' features"
+        - "Detect status changes in existing features"
+        - "Re-validate dependencies"
+        - "Update implementation references if changed"
+      example_implementation: |
+        # GitHub Action / CI hook
+        on:
+          push:
+            paths:
+              - 'docs/EPF/_instances/*/feature_definitions/*.yaml'
+        jobs:
+          sync-specs:
+            - name: Detect EPF changes
+              run: python tools/epf-sync.py detect-changes
+            - name: Generate new specs
+              run: python tools/epf-sync.py generate-specs
+            - name: Update Linear issues
+              run: python tools/epf-sync.py sync-linear
+    
+    - trigger: "On implementation status change"
+      description: "When spec status or code is merged"
+      recommended_actions:
+        - "Update EPF implementation_references"
+        - "Check if all capabilities are complete"
+        - "Suggest feature status update"
+        - "Generate coverage report"
+      example_implementation: |
+        # Post-merge hook
+        on:
+          pull_request:
+            types: [closed]
+            branches: [main]
+        jobs:
+          update-epf:
+            - name: Extract EPF references from PR
+              run: |
+                epf_refs=$(git log -1 --format=%B | grep -oP 'fd-\d+')
+            - name: Update implementation references
+              run: python tools/update-epf-refs.py $epf_refs
+    
+    - trigger: "On test execution"
+      description: "When test suites run"
+      recommended_actions:
+        - "Map test results to EPF scenarios"
+        - "Calculate scenario coverage"
+        - "Report untested scenarios"
+        - "Link test artifacts to feature"
+      example_implementation: |
+        # Post-test hook
+        after_test:
+          - name: Parse test results
+            run: python tools/parse-test-results.py
+          - name: Map to EPF scenarios
+            run: python tools/map-scenarios.py
+          - name: Update coverage report
+            run: python tools/update-coverage.py
+
+# ============================================================================
+# SECTION 13: TOOL REGISTRATION PROTOCOL
+# ============================================================================
+
+tool_registration:
+  description: |
+    How tools announce themselves to EPF and establish communication.
+
+  registration_file:
+    location: "_instances/{product}/_tools.yaml"
+    purpose: "Declare which tools are integrated with this EPF instance"
+    schema:
+      tools:
+        - name: "Tool name"
+          type: "Tool type (from capabilities matrix)"
+          version: "Tool version"
+          integration_spec_version: "Which integration spec version it supports"
+          status: "active|inactive|testing"
+          capabilities: "List of capabilities from matrix"
+          endpoints: "API endpoints if applicable"
+          last_sync: "Timestamp of last successful sync"
+          contact: "Email/Slack for tool owner"
+    
+    example: |
+      # _instances/myproduct/_tools.yaml
+      tools:
+        - name: "openspec"
+          type: "Specification Generator"
+          version: "0.2.0"
+          integration_spec_version: "1.13.0"
+          status: "active"
+          capabilities:
+            - "Parse EPF feature definitions"
+            - "Generate markdown specs"
+            - "Maintain traceability links"
+            - "Register specs back to EPF"
+          config:
+            specs_directory: "openspec/specs"
+            auto_sync: true
+          last_sync: "2025-12-23T10:30:00Z"
+          contact: "dev-team@company.com"
+        
+        - name: "linear"
+          type: "Project Management Integration"
+          version: "1.0.0"
+          integration_spec_version: "1.13.0"
+          status: "active"
+          capabilities:
+            - "Create issues from capabilities"
+            - "Sync status bidirectionally"
+            - "Report coverage metrics"
+          config:
+            workspace_id: "company"
+            team_key: "ENG"
+            api_key_env: "LINEAR_API_KEY"
+          endpoints:
+            webhook: "https://api.company.com/webhooks/linear"
+          last_sync: "2025-12-23T14:00:00Z"
+          contact: "pm-team@company.com"
+
+  handshake_protocol:
+    description: |
+      How tools should announce themselves and verify compatibility.
+    
+    steps:
+      - step: 1
+        action: "Read EPF metadata"
+        detail: "Parse _instances/{product}/_meta.yaml"
+        validation: "Check epf_version is compatible"
+      
+      - step: 2
+        action: "Read integration spec"
+        detail: "Parse integration_specification.yaml"
+        validation: "Check integration spec version is compatible"
+      
+      - step: 3
+        action: "Register tool"
+        detail: "Add/update entry in _tools.yaml"
+        validation: "Include all required fields"
+      
+      - step: 4
+        action: "Test connection"
+        detail: "Perform a read-only test operation"
+        validation: "Successfully parse at least one feature definition"
+      
+      - step: 5
+        action: "Confirm registration"
+        detail: "Commit _tools.yaml or notify EPF maintainer"
+        validation: "Tool is now discoverable by other tools"
+
+  discovery_protocol:
+    description: |
+      How tools discover each other in the EPF ecosystem.
+    
+    use_case: "Spec generator needs to notify project management tool when specs are ready"
+    
+    approach: |
+      1. Tool A reads _tools.yaml to discover other tools
+      2. Tool A finds Tool B's endpoint/webhook
+      3. Tool A sends notification to Tool B
+      4. Tool B reads updated EPF artifacts and reacts
+    
+    example: |
+      # OpenSpec discovers Linear integration
+      tools = read_yaml("_instances/myproduct/_tools.yaml")
+      linear = [t for t in tools if t.name == "linear"][0]
+      
+      if linear.status == "active" and linear.endpoints.webhook:
+        notify_webhook(
+          url=linear.endpoints.webhook,
+          payload={
+            "event": "spec_created",
+            "feature_id": "fd-001",
+            "spec_path": "openspec/specs/digital-twin.md"
+          }
+        )
+
+# ============================================================================
+# SECTION 14: EXAMPLE TOOL PROMPT
 # ============================================================================
 
 example_tool_prompt:
@@ -534,6 +1279,25 @@ example_tool_prompt:
        - Surface `boundaries.non_goals` as explicit out-of-scope markers
        - Apply `boundaries.constraints` as design constraints
 
+    ## Validation Rules (CRITICAL)
+    Before processing any feature, you MUST validate:
+    - EPF version compatibility (_meta.yaml)
+    - Feature definition against schema
+    - Required fields present (id, name, status, capabilities)
+    - Status is one of: ready, in-progress, delivered
+    - All cross-references are resolvable
+    
+    See SECTION 9 for complete validation requirements.
+
+    ## Error Handling
+    When errors occur:
+    - CRITICAL errors: Abort immediately (see SECTION 10)
+    - ERROR level: Skip feature, continue with others
+    - WARNING level: Process with degraded functionality
+    - INFO level: Note and continue normally
+    
+    Always provide clear error messages with suggested corrections.
+
     ## Traceability Rules
     - Always reference EPF feature ID (e.g., "Implements fd-001")
     - Map your specs to capability IDs (e.g., "cap-001 → ComponentX")
@@ -551,7 +1315,7 @@ example_tool_prompt:
              path: "path/to/spec.md"
              capability_coverage: ["cap-001", "cap-002"]
              status: "in-progress"
-         last_sync: "2025-12-01T10:30:00Z"
+         last_sync: "2025-12-23T10:30:00Z"
        ```
     
     2. Include EPF references in your specs:
@@ -566,6 +1330,25 @@ example_tool_prompt:
     3. Update status as work progresses:
        - planned → in-progress → implemented → tested
 
+    ## Lifecycle Hooks (See SECTION 12)
+    React to EPF artifact changes:
+    - When feature moves to "ready": Generate specs, create work items
+    - When feature is "in-progress": Track progress, update references
+    - When feature is "delivered": Generate coverage report
+    
+    ## Tool Registration (See SECTION 13)
+    Register yourself in _tools.yaml so you're discoverable:
+    ```yaml
+    tools:
+      - name: "your-tool-name"
+        type: "Specification Generator"  # or other type
+        version: "1.0.0"
+        integration_spec_version: "1.13.0"
+        status: "active"
+        capabilities: [...]
+        last_sync: "2025-12-23T10:30:00Z"
+    ```
+
     ## What You Do NOT Do
     - Do not modify EPF strategic artifacts (roadmap, strategy, etc.)
     - Do not duplicate strategic context (job-to-be-done, value propositions)
@@ -575,10 +1358,32 @@ example_tool_prompt:
     ## When Implementation Reveals Problems
     If you discover that an EPF assumption is incorrect or a capability is infeasible,
     do NOT silently adjust scope. Instead:
-    1. Document the finding
+    1. Document the finding (see error_handling.common_errors.assumption_invalidation_detected)
     2. Flag it for EPF's AIM phase (calibration_memo.yaml)
     3. Continue with what IS feasible, clearly marking scope changes
     4. Report partial coverage in implementation_references
 
-    ## Integration Specification
+    ## Integration Examples
+    See SECTION 11 for concrete examples of EPF integration with:
+    - OpenSpec (markdown specs)
+    - Cursor (code generation)
+    - Linear (project management)
+
+    ## Complete Integration Specification
     Read the full contract at: docs/EPF/integration_specification.yaml
+    
+    This file contains 14 sections covering:
+    - Work hierarchy and handoff point
+    - EPF provides (inputs to tools)
+    - EPF expects (outputs from tools)
+    - Interface contract
+    - Recommended behaviors
+    - Bi-directional traceability
+    - File discovery
+    - Versioning and compatibility
+    - Tool capabilities matrix (NEW)
+    - Validation requirements (NEW)
+    - Error handling patterns (NEW)
+    - Concrete integration examples (NEW)
+    - Artifact lifecycle hooks (NEW)
+    - Tool registration protocol (NEW)

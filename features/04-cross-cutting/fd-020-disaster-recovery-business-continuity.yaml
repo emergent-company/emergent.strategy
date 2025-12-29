@@ -1,0 +1,378 @@
+id: fd-020
+name: Disaster Recovery & Business Continuity
+category: cross-cutting
+definition:
+  overview: >
+    Organizations face catastrophic data loss and extended outages: average downtime costs $5,600/minute ($336k/hour), data loss from
+    ransomware/failures averages 3-7 days of work, recovery time 24+ hours vs 4-hour RTO targets. Current backup/recovery inadequate:
+    untested backups (40% fail when needed), manual recovery requiring 12-24 hours, no failover automation, unclear runbooks. This
+    feature provides comprehensive disaster recovery with automated backups, tested restore procedures, failover automation, RTO/RPO
+    targets (4-hour/1-hour), and incident playbooks reducing recovery time 85% (24 hours to 3.5 hours) preventing millions in losses.
+
+  jobs_to_be_done:
+    - "When disaster strikes, I want automated failover, so service restores in 4 hours vs 24+ hour manual recovery."
+    - "When data corrupts, I want tested backups, so restore completes successfully vs 40% backup failures."
+    - "When recovering, I want clear runbooks, so any engineer executes vs waiting for experts."
+    - "When testing DR, I want non-disruptive validation, so confidence builds without production risk."
+    - "When planning continuity, I want documented procedures, so business survives major incidents."
+
+  strategic_context:
+    problem_space: >
+      Downtime costs severe: $5,600/minute average = $336k/hour (Gartner 2024). Extended outages destroy companies: 60% of SMBs close
+      within 6 months of major data loss (National Archives). Common disasters: ransomware (costs $4.54M average per IBM), regional
+      outages (AWS us-east-1 outage 2021 affected thousands), data corruption, human error, natural disasters. Current DR inadequate:
+      backups untested (40% fail when needed), manual recovery (12-24 hours), no automation, unclear procedures. Organizations lack:
+      documented RTO/RPO targets (recovery time/point objectives undefined), tested recovery procedures (backups assumed working but
+      never validated), failover automation (manual steps error-prone under pressure), incident playbooks (chaos during disasters).
+
+    existing_alternatives: >
+      Current systems provide basic backups: database snapshots daily, file backups weekly, but lack automation and testing. Manual
+      recovery: DBA restores database backup (4-6 hours), engineering redeploys application (2-4 hours), DNS updates (1-2 hours),
+      validation (2-4 hours) = 12-24 hours total. No failover: single-region deployment means regional outage = complete unavailability.
+      Teams attempt testing but disruptive (require production maintenance window, risk data corruption, time-consuming).
+
+    value_hypothesis: >
+      Organizations implementing automated disaster recovery reduce RTO 85% (24 hours to 3.5 hours), increase recovery success rate
+      from 60% to 98% through testing, prevent data loss through 1-hour RPO vs 24-hour backups, and avoid downtime costs ($336k/hour
+      saved per incident). For company experiencing 2 major incidents yearly: reducing downtime from 24 to 4 hours saves 20 hours ×
+      2 incidents × $336k/hour = $13.4M annually. Preventing ransomware data loss (3-day RPO vs 1-hour) saves 71 hours work × 500
+      employees × $150/hour = $5.3M value. Tested backups reducing failure rate from 40% to 2% prevents catastrophic loss scenarios.
+
+  capabilities:
+    - id: cap-001
+      name: Automated Backup & Retention Management
+      description: >
+        Comprehensive automated backups with retention policies, versioning, and encryption. Database backups: full daily, incremental
+        hourly, transaction log continuous (1-hour RPO), automated snapshots with consistency checks. File backups: critical files
+        hourly, full system daily, with deduplication (80% storage reduction). Multi-region replication: sync backups to 3 regions
+        (primary + 2 geographic backups) within 15 min. Retention policies: hourly 7 days, daily 30 days, weekly 1 year, monthly 7
+        years (compliance requirements). Encryption: AES-256 at rest, TLS in transit, key rotation quarterly. Backup verification:
+        automated integrity checks (checksums validate corruption-free), test restores monthly (validate recoverability), compliance
+        reports (SOC2 backup requirements).
+
+    - id: cap-002
+      name: Disaster Recovery Testing & Validation
+      description: >
+        Non-disruptive DR testing validating recovery procedures without production risk. Automated test environment: spin up isolated
+        environment, restore backups, validate functionality, teardown = 2-hour full test. Monthly DR drills: restore database to
+        point-in-time, deploy application, validate endpoints, measure RTO/RPO achievement (target 4 hours/1 hour). Chaos engineering:
+        inject failures (kill database, network partition, disk full) validating automated recovery. Test reporting: success rate,
+        RTO/RPO measurements, gaps identified, remediation tracking. Compliance validation: demonstrate tested backups for audits
+        (SOC2 requires tested recovery).
+
+    - id: cap-003
+      name: Automated Failover & High Availability
+      description: >
+        Multi-region active-passive failover with automated detection and recovery. Health monitoring: continuous checks (database
+        reachable, API responding, latency <500ms), failure detection within 2 min. Automated failover: primary region fails → traffic
+        routes to secondary within 15 min, database promotes read replica to primary, DNS updates via Route53 health checks. Data
+        consistency: replication lag monitored (<30 sec target), failover blocked if lag excessive (prevents data loss), manual override
+        available. Failback automation: primary region recovers → gradual traffic shift (10% → 50% → 100% over 2 hours), replication
+        reestablished, monitoring validates.
+
+    - id: cap-004
+      name: Incident Response Playbooks & Runbooks
+      description: >
+        Documented procedures enabling any engineer to execute recovery. Disaster scenarios: database corruption (restore from backup,
+        validate integrity, promote to primary = 3-hour procedure), regional outage (trigger failover, validate secondary, update
+        status page = 45-min procedure), ransomware (isolate infected systems, restore from clean backup, security scan = 4-hour
+        procedure), data center failure (failover to cloud, restore services, communicate stakeholders). Runbooks: step-by-step with
+        commands (terraform apply, kubectl rollout, database restore), expected outcomes per step, rollback procedures, escalation
+        paths. Role assignments: incident commander (coordinates), technical lead (executes recovery), communications (updates
+        stakeholders), validation (confirms functionality).
+
+    - id: cap-005
+      name: Business Continuity Planning & Communication
+      description: >
+        Organizational preparedness with documented procedures, stakeholder communication, and resilience planning. Business impact
+        analysis: critical services ranked (payment processing RTO 2 hours, customer support RTO 8 hours, reporting RTO 24 hours),
+        dependencies mapped (payment depends on database + payment gateway + fraud detection). Communication plans: status page updates,
+        customer notifications, internal coordination, executive briefings. Supplier resilience: alternative vendors identified (backup
+        payment gateway, secondary cloud provider), contracts include SLAs, failover tested. Insurance: cyber insurance covering
+        ransomware, business interruption insurance for extended outages. Training: quarterly DR drills, role assignments practiced,
+        lessons documented.
+
+  personas:
+    - id: infra-lead
+      name: Infrastructure Lead
+      role: Operations Manager
+      description: Infrastructure manager responsible for system reliability and disaster recovery. Values automated failover and tested recovery procedures. Frustrated by manual recovery and untested backups failing during incidents.
+      goals:
+        - "Achieve 4-hour RTO through automated failover vs 24-hour manual recovery reducing downtime 83%."
+        - "Ensure 1-hour RPO through continuous backups vs 24-hour snapshots preventing data loss."
+        - "Validate recovery quarterly through non-disruptive testing vs untested backups failing 40%."
+        - "Document procedures enabling any engineer to recover vs expert dependency bottleneck."
+      pain_points:
+        - "Manual recovery: 24+ hours requiring expert DBA (single point of failure, error-prone under pressure)."
+        - "Untested backups: assumed working but 40% fail when needed (discovered during disasters)."
+        - "No automation: failover requires manual DNS updates, database promotion, application redeployment."
+        - "Unclear procedures: incident chaos with engineers scrambling vs documented runbooks."
+      usage_context: Manages 99.9% SLA target, coordinates DR drills quarterly, responds to incidents. Expert proficiency expecting automated DR and comprehensive testing.
+      technical_proficiency: expert
+      current_situation: "Infrastructure Lead managing 50k DAU platform, experienced nightmare disaster: 3 AM database corruption (disk failure), woke DBA who attempted restore from daily backup (23 hours old), restore failed (backup corrupted), tried previous backup (48 hours old), took 6 hours finding working backup (72 hours old), restore completed 8 AM (5 hours), application redeployment 10 AM (2 hours), validation 12 PM (2 hours) = 9-hour outage. Lost 72 hours of data (3,500 transactions), cost: 9 hours × $336k = $3M downtime + $2.1M lost transactions = $5.1M disaster. Post-mortem revealed: backups untested (monthly snapshots assumed working but 3 of 5 corrupted), manual recovery (no automation, DBA required, error-prone), no verification (integrity checks never run), no failover (single region = regional issue means complete outage). Insurance covered $2M (remainder $3.1M loss). Quarterly DR drill attempted but disruptive: required 4-hour maintenance window, risk of corrupting production, engineering team burned weekend, abandoned after 1 attempt. Current state: backing up to S3 daily, no testing, no automation, praying backups work when needed."
+      transformation_moment: "Automated DR platform deployed transforming preparedness. Continuous backups: full daily, incremental hourly, transaction log streaming (achieving 5-min RPO vs 24-hour), multi-region replication (us-east-1 primary, us-west-2 hot standby, eu-west-1 cold backup), automated integrity checks (checksums validate corruption-free). Monthly automated testing: spin up isolated test environment, restore latest backup, run validation suite (API endpoints, database queries, authentication), teardown = 2 hours no production impact. First test revealed backup corruption (caught before disaster), fixed backup scripts. After 6 months: tested 6 backups, 100% success rate vs previous 60%. Next disaster: database corruption detected 2:30 AM, automated monitoring triggered alert, on-call followed runbook (1. Isolate corrupted primary, 2. Promote read replica, 3. Validate integrity, 4. Update DNS), recovery completed 4:15 AM = 1.75 hours (vs 9 hours baseline = 80% improvement). Data loss: 12 min (from last transaction log vs 72 hours = 99.9% improvement). Downtime cost: 1.75 hours × $336k = $588k vs $3M = 81% reduction. Automated failover tested: simulated regional outage, traffic automatically shifted to us-west-2 within 12 min (DNS propagation), validated endpoints functional, total RTO 15 min (vs 24-hour manual). After 18 months: 3 incidents handled, average RTO 2.8 hours vs 24-hour baseline, zero data loss >30 min, recovery success rate 100% vs 60%."
+      emotional_resolution: "Now confident with tested recovery vs praying backups work. Automated testing validates recovery monthly (100% success rate) vs discovering 40% failure during disasters. Continuous backups achieve 5-min RPO vs 24-hour preventing massive data loss (12 min vs 72 hours = 99.9% improvement). Automated failover enables 15-min RTO for regional outages vs 24-hour manual. Documented runbooks enable any engineer to recover (3 incidents, 3 successes) vs expert DBA dependency. Downtime costs reduced 81% ($588k vs $3M per incident) preventing millions in losses annually."
+
+    - id: dba
+      name: Database Administrator
+      role: Data Reliability Engineer
+      description: DBA ensuring database availability and data integrity. Values automated backup/restore vs manual procedures. Frustrated by error-prone manual recovery and high-pressure incident response.
+      goals:
+        - "Automate backup/restore reducing recovery from 6 hours manual to 2 hours automated."
+        - "Validate backup integrity continuously vs discovering corruption during disasters."
+        - "Achieve point-in-time recovery enabling restore to any second vs daily snapshots."
+        - "Document database recovery procedures enabling team execution vs single-person dependency."
+      pain_points:
+        - "Manual restore: 6+ hours executing commands, high-pressure (entire company waiting), error-prone."
+        - "Backup corruption: discover during disasters when too late to fix."
+        - "Limited recovery points: daily backups mean lose up to 24 hours of data."
+        - "Expert dependency: only DBA can recover creating bottleneck and burnout."
+      usage_context: Manages production databases, performs weekly backups, responds to corruption incidents. Expert proficiency expecting automated database recovery and continuous validation.
+      technical_proficiency: expert
+      current_situation: "DBA maintaining PostgreSQL cluster (2TB production data), manual backup procedures exhausting. Weekly full backup: Friday midnight start pg_dump (takes 4 hours dumping 2TB), compress (2 hours), upload to S3 (3 hours) = 9-hour process requiring monitoring (if fails must restart Monday), daily incremental backups (1 hour each). Backups untested: assume working but during last corruption incident discovered 3 of 5 backups corrupted (compression errors, incomplete dumps, S3 upload truncated). Manual restore painful: receive 3 AM alert database corruption, download backup from S3 (1 hour for 2TB), decompress (1 hour), restore via pg_restore (3 hours), validate integrity (check tables, counts, foreign keys = 1 hour), promote to primary (30 min) = 6.5 hours high-pressure work. Last incident: first backup corrupted, tried second (corrupted), third worked but 72 hours old (massive data loss). Point-in-time recovery impossible: only daily snapshots, cannot restore to specific time (customer requests 'restore to before accidental DELETE' impossible). Expert dependency: only I understand backup procedures, during vacation backup failed (team couldn't fix), returned to 3 days without backups (terrifying)."
+      transformation_moment: "Automated backup/recovery platform deployed eliminating manual procedures. Continuous backups: full daily 2 AM (4-hour pg_dump), incremental hourly (pg_basebackup), WAL archiving continuous (transaction logs streamed to S3 every 5 min achieving 5-min RPO). Automated integrity: checksums verify corruption-free, monthly test restores to isolated environment (restore backup, run validation queries, confirm table counts, teardown), first test caught corruption (fixed backup compression settings). Multi-region replication: streaming replication to us-west-2 read replica (30-sec lag), backup snapshots to eu-west-1 (daily sync). Point-in-time recovery enabled: WAL archives allow restore to any 5-min window vs daily snapshots. Next corruption incident: 2:30 AM alert, checked runbook (step 1: identify corruption scope = 1 table, step 2: isolate primary, step 3: promote replica, step 4: validate, step 5: update connection strings), executed recovery using automated scripts (promote-replica.sh, validate-db.sh), completed 4:15 AM = 1.75 hours vs 6.5 hours (73% improvement). Data loss: 8 min (from last WAL archive vs 72 hours = 99.9% improvement). Team enablement: documented procedures allowed junior DBA to execute recovery successfully during my vacation, removed single-point-of-failure dependency. After 12 months: 4 recovery incidents, average 2.2 hours vs 6.5-hour baseline, zero backup failures vs 40%, point-in-time recovery used 3 times (restore before accidental DELETE saving hours of manual data reconstruction)."
+      emotional_resolution: "Now confident with automated reliable backups vs manual error-prone procedures. Continuous backups with WAL archiving achieve 5-min RPO vs 24-hour snapshots preventing massive data loss. Automated integrity checks catch corruption proactively (100% success rate) vs discovering during disasters (previous 60% failure rate). Point-in-time recovery enables restore to any moment vs daily snapshots only. Documented runbooks enabled team to execute recovery (junior DBA succeeded during my vacation) vs expert dependency. Recovery time reduced 73% (2.2 hours vs 6.5 hours) with less pressure through automation vs high-stress manual execution."
+
+    - id: devops-sre
+      name: DevOps SRE
+      role: Reliability Engineer
+      description: SRE ensuring system resilience and incident response. Values chaos engineering and automated failover. Frustrated by lack of DR testing and manual failover procedures.
+      goals:
+        - "Test DR procedures quarterly validating readiness vs untested assumptions failing during incidents."
+        - "Automate failover achieving 15-min RTO vs 4-hour manual DNS/deployment updates."
+        - "Practice chaos engineering proving resilience vs discovering failures during real disasters."
+        - "Measure SLO achievement (99.9% uptime = 43 min monthly downtime budget) vs unknown reliability."
+      pain_points:
+        - "Untested DR: procedures never validated, discover issues during real incidents."
+        - "Manual failover: requires coordinating DNS, load balancer, database, application updates = 4+ hours."
+        - "No chaos testing: resilience assumed but never proven until disasters expose gaps."
+        - "Unclear SLO impact: don't know if disaster response meets 99.9% target."
+      usage_context: Implements reliability improvements, conducts DR drills, responds to incidents, measures SLO achievement. Expert proficiency expecting automated chaos testing and comprehensive DR validation.
+      technical_proficiency: expert
+      current_situation: "SRE responsible for 99.9% SLA (43-min monthly downtime budget), DR procedures untested creating anxiety. Current architecture: single region us-east-1 (if region fails = complete outage), manual failover plan exists (40-page document: Step 1: provision servers in us-west-2, Step 2: restore database, Step 3: deploy application, Step 4: update DNS) but never executed (estimated 4-8 hours). Attempted DR drill but disruptive: required 4-hour maintenance window (customers impacted), risk of corrupting production (accidental DNS misconfig could route traffic to test environment), entire team burned weekend, abandoned after frustrating experience. Chaos testing nonexistent: assumed systems resilient but never proven (what if database fails? load balancer crashes? network partitions?). Last regional outage: AWS us-east-1 degradation (not complete outage but slow), attempted manual failover following 40-page runbook, Step 8 failed (terraform state outdated, manual fix required), Step 15 failed (DNS propagation took 2 hours not 15 min), completed failover after 6 hours (missed 4-hour RTO target), total downtime 8 hours (11 monthly SLA budget used = 25% of yearly budget in one incident). Post-mortem: runbook outdated (written 2 years ago, infrastructure changed), no automation (manual steps error-prone), no practice (first time executing under pressure = chaos)."
+      transformation_moment: "Automated DR platform with chaos engineering deployed transforming reliability. Multi-region active-passive: primary us-east-1, hot standby us-west-2 (read replica continuously syncing, infrastructure pre-provisioned, application deployed ready), automated health checks (every 30 sec: database reachable? API responding? latency <500ms?). Automated failover: primary unhealthy → traffic automatically routes to us-west-2 within 15 min (Route53 health check triggers DNS update in 60 sec, read replica promotes to primary in 8 min, validation suite runs 5 min, total 15 min vs 6-hour manual). Monthly DR drills non-disruptive: automated script simulates regional failure in test environment, triggers failover, measures RTO (target <30 min for test), validates functionality, teardown = 2-hour drill with zero production impact. First drill revealed: replication lag 5 min (acceptable), DNS propagation 90 sec (good), application startup 12 min (optimized to 6 min through warm standby), total RTO 18 min (within 30-min target). Chaos engineering implemented: automated fault injection (kill database pod, partition network, fill disk), validates recovery (application auto-recovers? alerts trigger? data consistent?), runs weekly in staging, monthly in production controlled manner. After 9 months tested: database failure (application reconnected automatically in 30 sec), network partition (raft consensus maintained cluster), load balancer crash (backup took over in 15 sec), disk full (auto-scaling added storage). Real incident: us-east-1 degradation detected 3:20 AM (latency spiked 2,500ms vs 200ms target), automated failover triggered 3:22 AM, traffic shifted to us-west-2 completed 3:35 AM = 15-min total (vs 6-hour manual = 96% improvement), validated: 99.9% requests succeeded during failover, zero data loss (replication lag was 12 sec), SLO impact: 15 min = 35% of monthly 43-min budget (vs 8 hours = 1100% = year's budget blown)."
+      emotional_resolution: "Now confident with tested resilience vs untested assumptions. Monthly non-disruptive DR drills validate recovery (18-min RTO measured) vs never-tested 40-page runbook that failed first execution. Automated failover achieves 15-min RTO (real incident) vs 6-hour manual (96% improvement). Chaos engineering proves resilience proactively (tested 8 failure scenarios, all recovered automatically) vs discovering gaps during disasters. SLO achievement protected (15-min incident = 35% monthly budget vs 8-hour = 1100% = year blown) enabling 99.9% reliability target vs constant violation anxiety."
+
+    - id: cto-exec
+      name: CTO
+      role: Technology Executive
+      description: Technology executive ensuring business continuity and managing disaster risk. Values documented procedures and compliance. Frustrated by lack of DR testing and unclear business impact.
+      goals:
+        - "Prevent business-ending disasters through tested recovery vs untested procedures failing catastrophically."
+        - "Demonstrate compliance through documented DR testing vs failing SOC2 audits."
+        - "Minimize downtime costs achieving 4-hour RTO vs 24-hour outages costing $8M."
+        - "Enable business continuity through supplier resilience and communication plans vs chaos during incidents."
+      pain_points:
+        - "Untested DR: board asks 'can we survive major disaster?' - unclear answer creates liability."
+        - "Compliance failures: SOC2 requires tested backups but none performed = audit findings."
+        - "Unknown costs: disaster impacts unclear, cannot quantify risk for insurance/budget."
+        - "No BC plan: major incident causes chaos (customers confused, suppliers uncoordinated, team scrambling)."
+      usage_context: Reports to board on technology risk, ensures compliance, manages vendor relationships, approves DR investments. Executive proficiency expecting business continuity planning and compliance demonstration.
+      technical_proficiency: intermediate
+      current_situation: "CTO presenting to board quarterly on technology risk, DR question creates anxiety. Board member: 'If AWS us-east-1 has major outage tomorrow, what happens?' Current answer: 'We have backups and can recover in 24-48 hours' (internally: untested backups might fail, recovery never practiced, actual time unknown, could be 72+ hours). Board dissatisfied (competitor had 72-hour outage killing company). Insurance broker asks 'document DR testing for cyber insurance renewal', we have none (premium increased 40%, $200k additional cost). SOC2 audit finding: 'Backup procedures documented but not tested per SOC2 CC9.1 control - requires quarterly DR drills', failed audit (delayed customer contract worth $2M due to security concerns). Last disaster cost analysis: 9-hour database outage = 9 hours × $336k/hour downtime + 72 hours lost data = 3,500 transactions × $600 average = $2.1M + $3M downtime = $5.1M total (insurance covered $2M, company absorbed $3.1M = 15% of annual profit). Risk quantification unclear: how often do disasters occur? (2-3 yearly), what's expected cost? ($5M per?), should we invest $500k in DR? (ROI unclear), board asks 'what's our backup plan if primary payment gateway fails?' (don't have one = single point of failure), 'what if key DBA quits during disaster?' (no documented procedures = expert dependency)."
+      transformation_moment: "Comprehensive DR program with business continuity planning implemented transforming risk profile. Automated DR platform: continuous backups (5-min RPO), automated failover (15-min RTO measured), monthly non-disruptive testing (100% success rate demonstrating readiness), compliance reports (quarterly testing documented for SOC2/audit). Business impact analysis: critical services prioritized (payment processing RTO 2 hours, customer portal RTO 4 hours, reporting RTO 24 hours), dependencies mapped (payment requires database + Stripe + fraud detection), alternative suppliers identified (backup payment gateway Adyen, secondary cloud provider GCP). Communication plans: status page (automated updates during incidents), customer notification templates (email drafted ready to send), internal coordination (Slack channels, role assignments), executive briefing (board notification within 1 hour of major incident). Insurance: cyber coverage increased to $10M (premium decreased 20% due to demonstrated DR testing = $40k annual savings), business interruption coverage for extended outages. Next board presentation: 'Q4 DR program update: Conducted 3 non-disruptive DR drills, average RTO 18 min vs 4-hour target (beating target 93%), validated backup success rate 100% vs industry 60%, handled 1 real incident (database corruption recovery in 1.75 hours, zero data loss beyond 8 min), SOC2 audit passed DR controls (quarterly testing documented), insurance premium reduced 20% ($40k savings), estimated disaster cost reduced from $5.1M to $600k per incident (88% risk reduction)'. Board satisfied (documented readiness, tested procedures, quantified risk reduction). After 18 months: zero business-ending disasters (vs previous $5M incident), $120k insurance savings over 3 years, SOC2 compliance maintained, customer confidence increased (DR testing demonstrates reliability differentiating from competitors)."
+      emotional_resolution: "Now confident answering board 'can we survive disaster?' with documented evidence vs unclear anxiety. Quarterly DR testing demonstrates 18-min RTO measured (beating 4-hour target 93%) vs untested 24-48 hour estimate. SOC2 compliance achieved through documented testing vs audit findings threatening customer contracts. Disaster costs reduced 88% ($600k vs $5.1M per incident) through automation and testing preventing business-ending scenarios. Business continuity planning provides coordination (status page, supplier alternatives, communication plans) vs chaos. Insurance savings $40k annually through demonstrated preparedness (20% premium reduction) while increasing coverage $10M protecting company."
+
+  scenarios:
+    - id: scn-001
+      name: Infrastructure Lead recovers from database corruption in 1.75 hours achieving 4-hour RTO
+      actor: infra-lead
+      context: ctx-001
+      trigger: "Database corruption detected requiring recovery within 4-hour RTO target vs 24-hour manual baseline."
+      action: >
+        2:30 AM automated monitoring detects database corruption (query failures, checksum errors), PagerDuty alert sent with context
+        (database primary corrupted, read replica healthy, corruption scope = 1 table). On-call infrastructure lead wakes, opens runbook
+        'Database Corruption Recovery': Step 1: Assess (corruption isolated? YES - 1 table, replica clean), Step 2: Isolate (mark
+        primary read-only preventing further corruption), Step 3: Promote (execute promote-replica.sh promoting us-west-2 read replica
+        to primary takes 8 min), Step 4: Validate (run validate-db.sh checking table counts, foreign keys, query performance - all
+        pass), Step 5: Update (update-connections.sh redirects application to new primary via DNS/config, gradual rollout 10% → 100%
+        over 15 min), Step 6: Communicate (post status page update 'Resolved: Database issue, service restored', send customer email
+        using template). Recovery completes 4:15 AM = 1 hour 45 min total (vs 9-hour baseline = 81% improvement). Data loss: 8 min
+        (from last transaction log vs 72 hours = 99.9% improvement). Downtime cost: 1.75 hours × $336k = $588k vs $3M = 81% reduction.
+        Post-incident: automated report generated (timeline, data loss, cost impact, root cause = disk failure), incident review scheduled,
+        runbook updated (validation step added based on learnings). Team validates RTO target met (1.75 hours < 4-hour target), RPO
+        target met (8 min < 1-hour target), SLA preserved (1.75 hours = 4% monthly downtime budget used, 99.9% target maintained).
+      outcome: "Recovery completed 1.75 hours vs 9-hour baseline (81% improvement) meeting 4-hour RTO target. Documented runbook enabled
+        any engineer to execute (no expert DBA needed). Automated promotion reduced manual error risk. Data loss minimal (8 min vs 72
+        hours = 99.9% improvement). Downtime costs reduced $2.4M ($588k vs $3M). Continuous backups with WAL archiving enabled point-in-time
+        recovery. Post-incident report automated providing timeline and cost impact."
+      acceptance_criteria:
+        - "Automated monitoring detects corruption within 2 min: checksums validate data integrity, query failures trigger alerts, replication
+          lag monitored (<30 sec healthy, >5 min triggers investigation), with context (affected tables, corruption scope, replica health)."
+        - "Documented runbook provides step-by-step recovery: assess corruption scope (isolated table vs systemic), isolate corrupted
+          primary (mark read-only, prevent further damage), promote read replica (automated script executes promotion in <10 min), validate
+          integrity (checksums, table counts, foreign keys, query tests), update connections (DNS/config updates route traffic to new
+          primary), communicate (status page, customer notification templates), with expected outcomes per step and rollback procedures."
+        - "Automated promotion reduces manual effort: promote-replica.sh executes (promotes read replica to primary, updates replication
+          configuration, runs validation tests, updates monitoring), completes in <10 min vs 30-min manual, with validation (confirms
+          promotion successful, replication healthy, no data loss), error handling (rolls back if validation fails)."
+        - "Point-in-time recovery enabled through WAL archiving: transaction logs streamed continuously (5-min archive frequency achieving
+          5-min RPO), restore to any archived point (pg_pitr --target-time '2024-12-28 02:30:00' restores to specific second), with
+          validation (confirm data consistent, no transaction loss within RPO window)."
+        - "Post-incident reporting automated: timeline generated (corruption detected 2:30, isolated 2:35, promoted 2:43, validated
+          2:50, completed 4:15), data loss calculated (8 min = 47 transactions), cost impact ($588k downtime), root cause (disk failure),
+          with lessons learned (validation step improved recovery confidence, runbook updated)."
+
+    - id: scn-002
+      name: DevOps SRE tests DR failover achieving 15-min RTO through monthly non-disruptive drills
+      actor: devops-sre
+      context: ctx-002
+      trigger: "Monthly DR drill required to validate recovery procedures and measure RTO/RPO achievement vs 99.9% SLA target."
+      action: >
+        DevOps SRE schedules monthly DR drill non-disruptive to production. Automated test environment: spin up isolated VPC in us-west-2,
+        deploy infrastructure (terraform apply creating database, application servers, load balancer takes 8 min), restore latest backup
+        (database snapshot from 6 hours ago, incremental since then = 12-min restore), deploy application (docker containers from registry,
+        5-min startup), run validation suite (API endpoint tests, database queries, authentication flow, payment processing simulation
+        = 8-min test suite). Simulate regional failure: execute dr-drill.sh script triggering automated failover (marks primary region
+        unhealthy in Route53, promotes us-west-2 read replica to primary, updates DNS routing traffic, runs validation ensuring functionality),
+        measures RTO (time from failure trigger to validated recovery). Results: DNS propagation 90 sec, database promotion 8 min, application
+        validation 5 min, total RTO 18 min (vs 30-min target = beating target 40%, vs 6-hour manual baseline = 95% improvement). Validates
+        data consistency (replication lag was 12 sec = well within 1-hour RPO target). Test report generated: RTO 18 min ✓, RPO 12 sec
+        ✓, API success rate 99.9% ✓, data loss 12 sec = 8 transactions ✓. Teardown test environment (destroy infrastructure, cleanup
+        = 5 min), total drill duration 2 hours with zero production impact. Identified improvement: application startup 12 min initially,
+        optimized to 6 min through warm standby (keep containers running), next drill validates 6-min improvement (new RTO target 12
+        min). After 6 drills: average RTO 18 min, 100% success rate, team confident in procedures vs untested anxiety.
+      outcome: "Non-disruptive DR drill completed 2 hours total with zero production impact. Measured RTO 18 min beating 30-min target
+        40%. Validated RPO 12 sec well within 1-hour target. Automated failover procedures proven reliable (100% success over 6 drills).
+        Team practiced incident response building confidence. Identified optimization opportunity (application startup) reducing RTO further.
+        Demonstrates readiness for SOC2 compliance (quarterly testing requirement met)."
+      acceptance_criteria:
+        - "Non-disruptive test environment: isolated VPC (separate from production, no risk of traffic misrouting), automated provisioning
+          (terraform creates infrastructure in 8 min), backup restore (latest snapshot + incremental = 12-min recovery), with validation
+          (test suite confirms functionality before declaring success), teardown (automatic cleanup after test preventing resource waste)."
+        - "Automated failover simulation: dr-drill.sh script triggers (marks primary unhealthy simulating regional failure, promotes
+          read replica to primary, updates DNS routing, runs validation suite), measures RTO (timestamp failure trigger to validated
+          recovery), validates data consistency (replication lag acceptable, zero data corruption), with reporting (RTO/RPO metrics,
+          success/failure, issues identified)."
+        - "RTO/RPO measurement: timestamps per step (failure detected t=0, DNS updated t=90s, database promoted t=8min, application validated
+          t=18min = total RTO), compares to target (18 min vs 30-min target = beating by 40%), tracks over time (trend analysis showing
+          improvement from 24 min initially to 18 min after optimizations), with SLA impact calculation (18-min incident = 42% of 43-min
+          monthly budget)."
+        - "Optimization identification: drill results analyzed (application startup 12 min = 67% of RTO, database promotion 8 min = 44%),
+          improvements prioritized (optimize startup through warm standby, parallel initialization, smaller images), next drill validates
+          (RTO improved from 18 to 12 min = 33% reduction), with trend tracking (show continuous improvement over drills)."
+        - "Compliance demonstration: drill documentation (date conducted, participants, RTO/RPO achieved, issues/resolutions, next drill
+          scheduled), quarterly cadence (meets SOC2 CC9.1 requirement), audit trail (evidence for auditors showing consistent testing),
+          with reports (export PDF for compliance reviews)."
+
+    - id: scn-003
+      name: CTO presents DR program to board demonstrating 88% risk reduction through tested procedures
+      actor: cto-exec
+      context: ctx-003
+      trigger: "Board quarterly review requiring CTO to demonstrate disaster recovery preparedness and quantified risk reduction."
+      action: >
+        CTO prepares quarterly DR program update for board presentation. Compile metrics: 3 DR drills conducted (Jan/Apr/Jul, average
+        RTO 18 min vs 4-hour target beating by 93%), 1 real incident (database corruption July, recovered in 1.75 hours meeting target),
+        backup success rate 100% (vs industry average 60%), compliance status (SOC2 audit passed, quarterly testing documented). Financial
+        impact: previous disaster cost $5.1M (9-hour outage + 72-hour data loss), current disaster cost $588k (1.75-hour outage + 8-min
+        data loss) = 88% risk reduction, insurance premium reduced 20% due to demonstrated preparedness ($40k annual savings), estimated
+        3-year cost avoidance $13M (3 disasters yearly × $4.5M savings = $13.5M prevented). Business continuity planning: critical services
+        mapped (payment RTO 2 hours, portal 4 hours, reporting 24 hours), supplier alternatives identified (backup payment gateway Adyen,
+        secondary cloud GCP), communication plans (status page automated, customer templates ready, board notification <1 hour). Present
+        to board: slide 1 'Q4 DR Program Update', slide 2 'Testing Results: 3 drills conducted, 18-min average RTO (93% better than
+        target), 100% success rate', slide 3 'Real Incident: Database corruption July, recovered 1.75 hours (beating 4-hour target),
+        data loss 8 min (within 1-hour RPO), cost $588k vs $5.1M baseline (88% reduction)', slide 4 'Compliance: SOC2 passed, quarterly
+        testing documented, insurance premium reduced 20% ($40k savings)', slide 5 'Business Continuity: Supplier alternatives mapped,
+        communication plans ready, board notification automated', slide 6 'Risk Quantification: 88% disaster cost reduction, 3-year
+        avoidance $13.5M, company protected from business-ending scenarios'. Board Q&A: 'If AWS us-east-1 fails tomorrow, what happens?'
+        Answer: 'Automated failover to us-west-2 within 15 min, tested monthly with 100% success rate, measured RTO 18 min vs 4-hour
+        target.' Board member: 'How do you know backups work?' Answer: 'Monthly automated test restores, 100% success over 12 months,
+        vs industry 60% failure rate.' Board satisfied, approves continued DR investment ($500k annually, ROI demonstrated through $13M
+        risk reduction).
+      outcome: "Board presentation demonstrated quantified risk reduction (88% disaster cost decrease, $13.5M 3-year avoidance). Tested
+        procedures provide confidence (18-min RTO measured, 100% success rate) vs untested anxiety. Compliance demonstrated (SOC2 passed,
+        quarterly testing) enabling customer contracts. Insurance savings $40k annually through documented preparedness. Business continuity
+        planning provides coordination (supplier alternatives, communication plans) vs chaos. Board approval secured for continued investment
+        based on demonstrated ROI."
+      acceptance_criteria:
+        - "DR metrics dashboard: testing cadence (3 drills quarterly = meets SOC2 requirement), RTO measurement (18-min average, 93%
+          better than 4-hour target), RPO achievement (12-sec average, 99% better than 1-hour target), success rate (100% over 12 months
+          vs 60% industry average), with trend visualization (RTO improving from 24 to 18 to 15 min over 3 quarters)."
+        - "Financial impact analysis: previous disaster cost ($5.1M = 9 hours × $336k + 72 hours data loss), current disaster cost ($588k
+          = 1.75 hours × $336k + 8 min data loss), risk reduction (88% decrease), 3-year cost avoidance (3 disasters/year × $4.5M savings
+          = $13.5M prevented), insurance impact (20% premium reduction = $40k annual savings), with ROI calculation ($500k annual DR
+          investment, $13.5M 3-year value = 27x ROI)."
+        - "Compliance demonstration: SOC2 audit status (passed CC9.1 backup/recovery controls), quarterly testing documentation (dates,
+          participants, results, issues), audit trail (evidence for regulators), with exportable reports (PDF for board/auditors showing
+          compliance adherence)."
+        - "Business continuity planning: critical services prioritized (payment RTO 2 hours, portal 4 hours, reporting 24 hours with
+          justification per service), supplier alternatives (backup payment gateway Adyen tested quarterly, secondary cloud GCP infrastructure
+          pre-provisioned), communication plans (status page templates, customer notifications, board briefing <1 hour of major incident),
+          with role assignments (incident commander, technical lead, communications, validation)."
+        - "Board reporting: executive summary (1-page overview with key metrics), detailed slides (testing results, real incidents, compliance,
+          BC planning, financial impact), Q&A preparation (common questions anticipated with data-backed answers), with quarterly cadence
+          (consistent reporting building confidence over time)."
+
+dependencies:
+  requires:
+    - fd-016  # Security controls protect backup encryption and access
+    - fd-018  # Observability monitors system health and detects failures
+  enables:
+    - "Business survives major disasters vs company-ending outages"
+    - "Customer confidence through demonstrated reliability"
+
+boundaries:
+  non_goals:
+    - "Active-active multi-region - focuses on active-passive failover (simpler, lower cost)"
+    - "Zero data loss (RPO=0) - targets 1-hour RPO (balance cost vs risk)"
+    - "Instant failover - targets 15-min RTO (acceptable for business continuity)"
+  constraints:
+    - "Cost: multi-region infrastructure increases costs 40-60% (justified by risk reduction)"
+    - "Complexity: DR automation requires sophisticated orchestration and testing"
+    - "Data consistency: failover with replication lag risks data loss (mitigated through monitoring)"
+  edge_cases:
+    - "Simultaneous multi-region failure (extremely rare, no cloud provider protects)"
+    - "Catastrophic data corruption (affects primary and replicas if logical error)"
+    - "Ransomware encrypting backups (requires offline backups, extended recovery)"
+
+contexts:
+  - id: ctx-001
+    type: operations
+    name: Incident Response & Recovery Execution
+    description: Infrastructure leads and DBAs execute recovery procedures using documented runbooks, automated failover, and validated backups achieving 4-hour RTO/1-hour RPO targets.
+    key_interactions:
+      - "Receive incident alert: PagerDuty notification (database corruption detected, read replica healthy, corruption scope = 1 table), click alert opening runbook, assess context (primary corrupted, replica clean, proceed with promotion)."
+      - "Execute recovery runbook: follow documented steps (isolate corrupted primary, promote read replica script, validate integrity suite, update connections, communicate status), check off steps as completed, total 1.75 hours."
+      - "Promote read replica: run promote-replica.sh (promotes us-west-2 to primary, updates replication config, runs validation, updates monitoring), automated script completes 8 min vs 30-min manual."
+      - "Validate recovery: execute validate-db.sh (check table counts, foreign keys, query performance), confirms database healthy, application endpoints responding, users can transact."
+      - "Generate incident report: automated post-mortem (timeline, data loss 8 min, cost $588k, root cause disk failure, lessons learned), schedule team review, update runbook based on learnings."
+    data_displayed:
+      - "PagerDuty alert: 'CRITICAL: Database corruption detected at 02:30 AM | Primary: us-east-1 (corrupted, checksum errors), Replica: us-west-2 (healthy, replication lag 12 sec), Corruption scope: 1 table (transactions), Link to runbook: [Database Corruption Recovery]'."
+      - "Recovery runbook: step-by-step checklist (☐ Step 1: Assess corruption [Is replica clean? YES], ☐ Step 2: Isolate primary [Mark read-only, ETA 2 min], ☐ Step 3: Promote replica [Run promote-replica.sh, ETA 8 min], ☐ Step 4: Validate [Run validate-db.sh, ETA 5 min], ☐ Step 5: Update connections [Update DNS/config, ETA 15 min], ☐ Step 6: Communicate [Post status page update])."
+      - "Promotion script output: 'Promoting us-west-2 read replica to primary... [02:35] Stopping replication... OK [02:36] Promoting to primary... OK [02:38] Updating replication config... OK [02:40] Running validation tests... Table counts: OK, Foreign keys: OK, Query performance: OK [02:43] Promotion complete. New primary: us-west-2'."
+      - "Validation dashboard: green checkmarks (✓ Database primary promoted, ✓ Table counts match expected, ✓ Foreign keys intact, ✓ Query performance <200ms, ✓ Application endpoints responding 200 OK, ✓ Authentication working, ✓ Transactions processing), with metrics (replication lag: 0 sec [now primary], queries/sec: 1,245 [normal], error rate: 0.2% [baseline])."
+      - "Incident report: 'Database Corruption Recovery - July 15, 2024 | Timeline: Detected 02:30, Isolated 02:35, Promoted 02:43, Validated 02:50, Completed 04:15 | Duration: 1 hour 45 min | Data loss: 8 min (47 transactions) | Cost: $588k downtime | Root cause: Disk failure on primary | Lessons: Validation step improved confidence, runbook updated with detailed validation checklist'."
+
+  - id: ctx-002
+    type: testing
+    name: DR Testing & Validation Environment
+    description: DevOps SREs conduct monthly non-disruptive DR drills measuring RTO/RPO, validating procedures, and identifying optimizations proving resilience without production risk.
+    key_interactions:
+      - "Schedule monthly DR drill: calendar invite team, automated script dr-drill.sh provisions isolated test environment (separate VPC, no production traffic risk), executes failover simulation, measures RTO/RPO."
+      - "Execute failover simulation: script triggers (marks primary unhealthy, promotes replica, updates DNS, validates functionality), timestamps each step measuring RTO (DNS 90s, promotion 8min, validation 5min = 18min total)."
+      - "Validate functionality: test suite runs (API endpoints, database queries, authentication, payment processing simulation), confirms 99.9% success rate, identifies any failures for remediation."
+      - "Analyze results: compare RTO to target (18 min vs 30-min = beating 40%), validate RPO (12-sec lag acceptable), identify optimizations (application startup 12 min = largest component, optimize to 6 min)."
+      - "Generate drill report: automated documentation (date, participants, RTO/RPO achieved, success/failure, optimizations identified, next drill scheduled), store for compliance (SOC2 quarterly testing requirement)."
+    data_displayed:
+      - "DR drill scheduler: calendar showing 'Monthly DR Drill - December 15, 10:00 AM | Participants: DevOps team (5 engineers) | Duration: 2 hours | Environment: Isolated test VPC us-west-2 | Zero production impact | Automated script: dr-drill.sh'."
+      - "Failover simulation output: terminal showing 'DR Drill: Regional Failure Simulation [10:00] Provisioning test environment... VPC created, Database restored, Application deployed [10:15] Simulating primary failure... Marking us-east-1 unhealthy [10:16] Triggering automated failover... [10:17] DNS updated (90 sec), [10:23] Database promoted (8 min), [10:28] Validation complete (5 min) [10:28] Total RTO: 18 min [Target: 30 min, Beating by 40%]'."
+      - "Test suite results: dashboard (✓ API endpoints: 156/156 passed [100%], ✓ Database queries: 89/89 passed, ✓ Authentication: 12/12 scenarios passed, ✓ Payment processing: 5/5 simulations successful, ✓ Data consistency: No corruption detected, ✓ Replication lag: 12 sec [within 1-hour RPO]), Overall: 99.9% success rate."
+      - "RTO analysis: bar chart showing time breakdown (DNS propagation: 90 sec [5%], Database promotion: 8 min [44%], Application startup: 12 min [67%], Validation: 5 min [28%]), total 18 min. Optimization opportunity: Application startup largest component, recommendation: Implement warm standby (keep containers running), estimated improvement: reduce 12 min to 6 min = new RTO 12 min."
+      - "Drill report: PDF 'DR Drill Report - December 15, 2024 | RTO: 18 min ✓ (target 30 min, beating 40%) | RPO: 12 sec ✓ (target 1 hour, beating 99.7%) | Success rate: 100% (6th consecutive successful drill) | Optimizations: Application startup reduction from 12 to 6 min (implement warm standby) | Next drill: March 15, 2025 | Compliance: Meets SOC2 CC9.1 quarterly testing requirement'."
+
+  - id: ctx-003
+    type: executive
+    name: Board Reporting & Risk Communication
+    description: CTO presents disaster recovery program status to board demonstrating tested preparedness, quantified risk reduction, and compliance through metrics and financial analysis.
+    key_interactions:
+      - "Compile quarterly DR metrics: testing cadence (3 drills conducted), RTO/RPO achievement (18 min average beating target 93%), real incidents (1 database corruption, recovered 1.75 hours), compliance (SOC2 passed), financial impact ($13.5M 3-year risk reduction)."
+      - "Analyze financial impact: previous disaster cost ($5.1M), current disaster cost ($588k), risk reduction (88% decrease), insurance savings ($40k annual from 20% premium reduction), ROI calculation ($500k DR investment, 27x return through risk reduction)."
+      - "Prepare board presentation: executive summary (1-page key metrics), detailed slides (testing, incidents, compliance, BC planning, financials), anticipate Q&A (practice answers to 'What if AWS fails?' with data-backed responses)."
+      - "Present to board: walk through slides (testing results, real incident response, compliance status, financial impact, BC planning), answer questions confidently using measured data, request approval for continued investment ($500k annually)."
+      - "Document board feedback: capture questions, concerns, directives, share with team, adjust DR program based on guidance, schedule next quarterly review."
+    data_displayed:
+      - "Executive DR dashboard: cards showing (Testing: 3 drills quarterly ✓, 18-min RTO ✓ [beating target 93%], 100% success rate ✓ | Incidents: 1 real incident ✓, 1.75-hour recovery ✓ [within 4-hour target], $588k cost ✓ [vs $5.1M baseline] | Compliance: SOC2 passed ✓, Quarterly testing ✓ [meets requirement], Insurance savings $40k ✓ | Risk: 88% cost reduction ✓, $13.5M 3-year avoidance ✓)."
+      - "Financial impact slide: comparison table (Previous disaster: 9 hours downtime × $336k = $3M + 72 hours data loss = $2.1M = Total $5.1M | Current disaster: 1.75 hours × $336k = $588k + 8 min data loss = $0 = Total $588k | Risk reduction: 88% decrease | 3-year value: 3 disasters/year × $4.5M savings = $13.5M prevented | Insurance: 20% premium reduction = $40k annual savings | ROI: $500k investment, $13.5M value = 27x return)."
+      - "Board presentation slide: title 'Q4 DR Program Update' with key points (✓ 3 non-disruptive drills conducted, 18-min RTO (93% better than target), ✓ 1 real incident handled successfully (1.75 hours, within target), ✓ SOC2 audit passed (quarterly testing documented), ✓ $13.5M 3-year risk reduction (88% disaster cost decrease), ✓ Business continuity planning complete (supplier alternatives, communication plans), ✓ Request: Continue $500k annual DR investment [ROI: 27x])."
+      - "BC planning summary: critical services prioritized (Payment Processing: RTO 2 hours [revenue critical, affects all customers] | Customer Portal: RTO 4 hours [customer experience, self-service] | Reporting: RTO 24 hours [internal use, lower priority]) | Supplier alternatives (Backup payment gateway: Adyen [tested quarterly, ready for failover], Secondary cloud: GCP [infrastructure pre-provisioned]) | Communication plans (Status page: Automated updates, Customer emails: Templates ready, Board notification: <1 hour of major incident)."
+      - "Q&A preparation: anticipated questions with data-backed answers (Q: 'If AWS us-east-1 fails tomorrow?' A: 'Automated failover to us-west-2 within 15 min, tested monthly with 100% success rate.' | Q: 'How do you know backups work?' A: '100% success over 12 months monthly test restores, vs 60% industry failure rate.' | Q: 'What if database person quits?' A: 'Documented runbooks enable any engineer to recover, proven in July incident.' | Q: 'Is $500k worth it?' A: '27x ROI through $13.5M risk reduction, prevents business-ending $5M disasters.')."

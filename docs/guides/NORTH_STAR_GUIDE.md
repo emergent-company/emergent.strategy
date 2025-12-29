@@ -1,5 +1,7 @@
 # North Star: Organizational Strategic Foundation
 
+> **Last updated**: EPF v1.13.0 | **Status**: Current
+
 ## Overview
 
 As of EPF v1.9.4, the framework includes an **organizational-level strategic foundation** that sits above cycle-specific work: the **North Star** (`00_north_star.yaml`).
@@ -200,6 +202,15 @@ If you're starting fresh:
 - Purpose: "We exist to help teams do their best work without burnout"
 - Vision: "Every distributed team works with clarity and joy"
 - Mission: "We build workflow intelligence tools for remote teams"
+
+---
+
+## Related Resources
+
+- **Template**: [00_north_star.yaml](../../templates/READY/00_north_star.yaml) - Template for documenting organizational purpose, vision, and mission
+- **Schema**: [north_star_schema.json](../../schemas/north_star_schema.json) - Validation schema for North Star strategic foundation
+- **Guide**: [STRATEGY_FOUNDATIONS_GUIDE.md](./STRATEGY_FOUNDATIONS_GUIDE.md) - Cycle-specific strategy that operates within North Star boundaries
+- **Guide**: [INSTANTIATION_GUIDE.md](./INSTANTIATION_GUIDE.md) - Guidelines for creating and maintaining EPF instances
 - Values: Simplicity, Speed, User obsession
 - Belief: "Async-first is the future of knowledge work"
 

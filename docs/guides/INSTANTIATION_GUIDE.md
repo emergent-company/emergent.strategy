@@ -1,5 +1,7 @@
 # EPF Instantiation Guide
 
+> **Last updated**: EPF v1.13.0 | **Status**: Current
+
 Complete workflow for creating an EPF instance for your product organization.
 
 ## Overview
@@ -158,6 +160,48 @@ Create strategic foundation artifacts that guide all product decisions.
 5. Validate: `../../scripts/validate-schemas.sh READY/05_roadmap_recipe.yaml`
 
 **Deliverable**: `READY/05_roadmap_recipe.yaml` (validated)
+
+### Artifact 8: Balance Check (30-60 minutes) ✨ NEW
+
+**Purpose**: Validate roadmap viability before committing to FIRE phase execution.
+
+**Why This Matters**: EPF's "braided model" has 4 interdependent tracks (Product, Strategy, OrgOps, Commercial). Having more short-term ambitious goals than your financing and organization can deliver makes no sense. The Balance Checker prevents over-commitment, imbalanced portfolios, circular dependencies, and timeline infeasibility.
+
+**Steps**:
+1. **Prepare Context**:
+   - Gather team size, budget, and constraint information
+   - Ensure North Star (`00_north_star.yaml`) is complete
+   - Ensure Roadmap (`05_roadmap_recipe.yaml`) is filled with real KRs
+2. **Run Balance Checker**:
+   - Open AI agent (GitHub Copilot, Claude, etc.)
+   - Reference: `@wizards/balance_checker.agent_prompt.md`
+   - Provide roadmap file and constraint data
+3. **Review Viability Assessment**:
+   - Overall score (threshold: ≥75/100 for FIRE phase commitment)
+   - Resource Viability (30%): Capacity vs requirements
+   - Portfolio Balance (25%): Track distribution (ideal: 35-45% Product, 20-30% Strategy, 15-25% OrgOps, 15-25% Commercial)
+   - Coherence (25%): Dependency graph, circular detection, timeline feasibility
+   - Strategic Alignment (20%): Semantic overlap with North Star
+4. **Iterate if Needed** (if score < 75):
+   - Review AI recommendations (prioritized by impact)
+   - Adjust roadmap (add/remove KRs, rebalance tracks, resolve conflicts)
+   - Re-run balance check
+   - Repeat until viable (max 5 iterations recommended)
+5. **Document Decision**:
+   - Save balance assessment report to `.epf-work/balance_assessment_{cycle}.md`
+   - Commit roadmap once viability confirmed
+   - Note: Balance assessment is working artifact (ephemeral, not tracked in git)
+
+**Deliverable**: Viable roadmap (score ≥75/100) ready for FIRE phase commitment
+
+**Common Issues Caught**:
+- **Over-commitment**: 120% capacity utilization → Reduce KRs or extend timeline
+- **Imbalanced portfolio**: 80% Product, 0% Strategy → Rebalance tracks
+- **Circular dependencies**: KR-A requires KR-B, KR-B requires KR-A → Resolve dependency conflict
+- **Timeline infeasibility**: Critical path 20 weeks, cycle only 12 weeks → Adjust scope or timeline
+- **Ghost tracks**: 0 OrgOps KRs but Product KRs depend on hiring → Add OrgOps KRs
+
+**Pro Tip**: Run balance check early in roadmap planning (not at the end). It's easier to adjust when roadmap is still draft.
 
 ## Phase 2: FIRE - Execution (Ongoing)
 
@@ -350,3 +394,11 @@ After completing initial instantiation:
 5. **Scale to Team**: Train team members on using/updating artifacts
 
 Remember: EPF is a living system. Initial creation is just the beginning - value comes from continuous use and evolution.
+
+## Related Resources
+
+- **Templates**: All templates in [templates/](../../templates/) directory organized by phase (READY, FIRE, AIM)
+- **Schemas**: All validation schemas in [schemas/](../../schemas/) directory
+- **Guide**: [README.md](./README.md) - Index of all EPF guides
+- **Guide**: [NORTH_STAR_GUIDE.md](./NORTH_STAR_GUIDE.md) - Organizational strategic foundation
+- **Guide**: [VERSION_MANAGEMENT_AUTOMATED.md](./VERSION_MANAGEMENT_AUTOMATED.md) - Version management protocols

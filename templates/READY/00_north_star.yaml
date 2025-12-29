@@ -1,3 +1,4 @@
+# EPF v1.13.0 - North Star Template
 # NORTH STAR: Organizational Strategic Foundation
 # This document contains the enduring strategic context for the entire product organization.
 # These elements are relatively stable and inform all EPF cycles, but should be reviewed annually
@@ -6,6 +7,10 @@
 # STABILITY: This document changes rarely (annually or during major pivots)
 # SCOPE: Organization-wide, not cycle-specific
 # INFORMS: All READY phase artifacts (analyses, opportunity, strategy, roadmap)
+#
+# Related Resources:
+# - Schema: ../../schemas/north_star_schema.json
+# - Guide: ../../docs/guides/NORTH_STAR_GUIDE.md
 
 north_star:
   organization: "Your Organization Name"

@@ -212,3 +212,9 @@ You're done when:
 ## Hand-off
 
 "Great! Your Market Analysis is drafted. You now have a clear view of your competitive landscape and where opportunity exists. Ready to move to Internal Analysis (SWOT) next?"
+
+## Related Resources
+
+- **Schema**: [insight_analyses_schema.json](../schemas/insight_analyses_schema.json) - Validation schema for market analysis section
+- **Template**: [00_insight_analyses.yaml](../templates/READY/00_insight_analyses.yaml) - Template for documenting market analysis and competitive landscape
+- **Guide**: [INSTANTIATION_GUIDE.md](../docs/guides/INSTANTIATION_GUIDE.md) - Guidelines for EPF instance creation

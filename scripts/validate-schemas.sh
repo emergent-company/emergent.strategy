@@ -1,6 +1,6 @@
 #!/bin/bash
 # EPF Schema Validation Script
-# Version: 1.12.0
+# Version: 1.13.0
 #
 # This script validates that EPF YAML artifacts conform to their JSON schemas.
 # It uses yq for YAML-to-JSON conversion and ajv-cli for schema validation.

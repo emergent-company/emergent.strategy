@@ -1,5 +1,7 @@
 # Schema Enhancement Recommendations for EPF Feature Definitions
 
+> **Last updated**: EPF v1.13.0 | **Status**: Current
+
 **Date:** 2025-12-16  
 **Context:** Lessons learned from emergent instance rework (9 feature definitions)  
 **Goal:** Make feature definitions "correct by construction" rather than "correct by rework"
@@ -789,3 +791,11 @@ contexts:
    - Run `node scripts/validate-feature-definition.mjs your-file.yaml`
    - Fix any errors
    - Commit with message: "feat: migrate to EPF schema v2.0"
+
+## Related Resources
+
+- **Schema**: [feature_definition_schema.json](../../../schemas/feature_definition_schema.json) - JSON Schema for feature definitions (current version)
+- **Guide**: [EPF_SCHEMA_V2_QUALITY_SYSTEM.md](./EPF_SCHEMA_V2_QUALITY_SYSTEM.md) - Complete v2.0 quality system design
+- **Template**: [feature_definition.yaml](../../../templates/FIRE/feature_definition.yaml) - Template implementing schema recommendations
+- **Script**: [validate-feature-definition.mjs](../../../scripts/validate-feature-definition.mjs) - Validation script for quality enforcement
+- **Wizard**: [feature_definition.wizard.md](../../../wizards/feature_definition.wizard.md) - Human-guided creation following v2.0 standards

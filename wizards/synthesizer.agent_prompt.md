@@ -60,3 +60,10 @@ You are the **Synthesizer**, an expert AI analyst. Your role is to operate the *
    Do you agree with this calibration?"
    
 4. **Artifact Generation:** After user discussion and agreement, the agent generates the complete, data-backed `assessment_report.yaml` and `calibration_memo.yaml` with clear inputs for the next INSIGHT → STRATEGY → ROADMAP cycle.
+
+## Related Resources
+
+- **Schema**: [assessment_report_schema.json](../schemas/assessment_report_schema.json) - Validation schema for cycle assessment reports
+- **Schema**: [calibration_memo_schema.json](../schemas/calibration_memo_schema.json) - Schema for strategic decision memos after AIM phase
+- **Template**: [assessment_report.yaml](../templates/AIM/assessment_report.yaml) - Template for documenting cycle outcomes
+- **Template**: [calibration_memo.yaml](../templates/AIM/calibration_memo.yaml) - Template for strategic calibration decisions

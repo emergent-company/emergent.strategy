@@ -1,4 +1,5 @@
 {
+  "version": "1.13.0",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Strategy Formula Schema",
   "description": "Defines the structure for documenting the winning formula in the STRATEGY phase. Supports both simple string-based entries and rich structured objects for detailed strategic documentation.",

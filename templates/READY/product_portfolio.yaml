@@ -1,3 +1,4 @@
+# EPF v1.13.0 - Product Portfolio Template
 # Product Portfolio Template
 # Schema: schemas/product_portfolio_schema.json
 #
@@ -12,6 +13,11 @@
 # - You have multiple distinct product lines (e.g., software + hardware)
 # - Products need to integrate or depend on each other
 # - You sell under multiple brand names
+#
+# Related Resources:
+# - Schema: ../../schemas/product_portfolio_schema.json
+# - Guide: ../../docs/guides/PRODUCT_PORTFOLIO_GUIDE.md
+
 # - You need to map components to market offerings
 #
 # INSTRUCTIONS:

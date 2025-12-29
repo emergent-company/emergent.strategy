@@ -1,5 +1,7 @@
 # Value Model Business Language Guide
 
+> **Last updated**: EPF v1.13.0 | **Status**: Current
+
 **Version:** 1.0  
 **Last Updated:** 21 December 2025  
 **Purpose:** Ensure value models focus on business outcomes and user value, not technical implementation details
@@ -434,11 +436,9 @@ Before committing any value model, ensure:
 
 ---
 
-## Additional Resources
+## Related Resources
 
-- **Power Trading Value Model Review:** Comprehensive before/after examples from real refactoring project
-- **EPF Schema v2.0:** Validation requirements for value models
-- **Product Architect Wizard:** Step-by-step guidance for value model creation
-- **Value Model Template:** Starting structure for product value models
-
-**For questions or clarification, see:** `docs/EPF/_instances/<your-product>/FIRE/value_models/*_REVIEW.md` files for project-specific examples.
+- **Schema**: [value_model_schema.json](../../schemas/value_model_schema.json) - Validation schema for value model structure
+- **Anti-Patterns**: [VALUE_MODEL_ANTI_PATTERNS_REFERENCE.md](./VALUE_MODEL_ANTI_PATTERNS_REFERENCE.md) - Common mistakes to avoid in value model documentation
+- **Guide**: [PRODUCT_PORTFOLIO_GUIDE.md](./PRODUCT_PORTFOLIO_GUIDE.md) - Managing multiple product lines with distinct value models
+- **Wizard**: [product_architect.agent_prompt.md](../../wizards/product_architect.agent_prompt.md) - Step-by-step guidance for value model creation

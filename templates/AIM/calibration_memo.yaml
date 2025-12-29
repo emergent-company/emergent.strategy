@@ -1,6 +1,11 @@
+# EPF v1.13.0 - Calibration Memo Template
 # This document records the team's final decision for the cycle.
 # It's a collaborative artifact created by the team and the AI Knowledge Agent.
 # It determines the direction for the next READY phase (INSIGHT → STRATEGY → ROADMAP).
+#
+# Related Resources:
+# - Schema: ../../schemas/calibration_memo_schema.json
+# - Wizard: ../../wizards/synthesizer.agent_prompt.md
 
 roadmap_id: "roadmap-001" # Reference to the completed roadmap
 cycle: 1

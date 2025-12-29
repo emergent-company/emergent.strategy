@@ -216,3 +216,9 @@ When creating content for {PRODUCT_NAME}, follow these rules:
 - "Draft a one-page product overview for a sales meeting"
 - "Write talking points explaining why we're better than {COMPETITOR}"
 - "Create a blog post about {INDUSTRY_CHALLENGE}"
+
+## Related Resources
+
+- **Generator**: [context_sheet_generator.wizard.md](./context_sheet_generator.wizard.md) - Wizard for generating product-specific context sheets from EPF instances
+- **Schema**: [north_star_schema.json](../schemas/north_star_schema.json) - Structure for purpose, vision, mission used in context sheets
+- **Schema**: [strategy_foundations_schema.json](../schemas/strategy_foundations_schema.json) - Structure for positioning and target customer information

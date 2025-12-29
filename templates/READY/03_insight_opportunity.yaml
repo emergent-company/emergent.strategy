@@ -1,9 +1,14 @@
+# EPF v1.13.0 - Insight Opportunity Template
 # INSIGHT Phase: Big Opportunity Identification
 # This is the first sub-phase of READY where we identify and validate a significant market/user opportunity.
 # This document synthesizes insights from 01_insight_analyses.yaml into a clear opportunity statement.
 # This opportunity must align with organizational North Star (00_north_star.yaml) and will inform:
 # - Strategic foundations (02_strategy_foundations.yaml)
 # - Strategy formula (04_strategy_formula.yaml)
+#
+# Related Resources:
+# - Schema: ../../schemas/insight_opportunity_schema.json
+# - Wizard: ../../wizards/synthesizer.agent_prompt.md
 
 # Reference to foundational analyses
 analyses_source: "01_insight_analyses.yaml"

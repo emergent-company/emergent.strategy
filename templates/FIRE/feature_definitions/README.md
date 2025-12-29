@@ -1,22 +1,32 @@
 # Feature Definitions Directory
 
-This directory contains feature definition files that bridge EPF's strategic artifacts to implementation tools.
+This directory contains **feature definition templates** for creating implementation-ready specifications.
 
-## Purpose
+**For conceptual overview**, see [Root README - Feature Definitions section](../../../README.md#feature-definitions-the-bridge-to-implementation).
 
-Feature definitions are the **primary output** of EPF consumed by external spec-driven development tools. They translate strategic intent (from value models and roadmaps) into actionable specifications that implementation tools can parse and execute.
+## Template Files
+
+- **`feature_definition_template.yaml`** - Complete YAML template with placeholders and instructional comments (200+ lines)
+
+## Quick Reference
+
+Feature definitions are the **primary output** of EPF consumed by external spec-driven development tools. They translate strategic intent (value models, roadmaps) into actionable specifications.
+
+---
 
 ## File Naming Convention
 
-Each feature definition is a single YAML file:
+Each feature definition follows this pattern:
 ```
-{feature-slug}.yaml
+fd-{number}-{slug}.yaml
 ```
 
-Examples:
-- `digital-twin-ecosystem.yaml`
-- `bim-service-integration.yaml`
-- `predictive-control-system.yaml`
+**Examples**:
+- `fd-001-document-ingestion.yaml`
+- `fd-007-organization-workspace-management.yaml`
+- `fd-012-navigation-information-architecture.yaml`
+
+---
 
 ## Template Structure
 
@@ -102,27 +112,18 @@ dependencies:
     - fd-{dependent-feature-id}
 ```
 
-## Principles
+## Core Principles
 
-### 1. One File Per Feature
-Each feature gets its own YAML file. No nested folder hierarchies. Git handles history.
+For detailed explanation of principles (N:M mapping, tool-agnostic design, lean documentation), see [Root README - Feature Definitions section](../../../README.md#feature-definitions-the-bridge-to-implementation).
 
-### 2. N:M Mapping to Value Model
-Features are cross-cutting - they often contribute value to multiple L2/L3 components. Don't force 1:1 mapping.
+**Quick summary:**
+- One file per feature (no nested hierarchies)
+- N:M mapping to value model (features are cross-cutting)
+- Loose references for traceability (not rigid dependencies)
+- Tool-agnostic format (parseable by any implementation tool)
+- Lean documentation (git handles versioning)
 
-### 3. Loose References
-The `contributes_to`, `tracks`, and `assumptions_tested` fields are pointers for traceability, not rigid dependencies. They help AI agents and humans understand context.
-
-### 4. Tool-Agnostic Format
-EPF doesn't know which spec-driven tool will consume these definitions. The structure should be parseable by any tool that needs to understand WHAT to build.
-
-### 5. Lean Documentation
-- Git handles versioning - no version fields needed
-- No change history in the file - git log provides this
-- Minimal structure - only what's needed for implementation tools
-- Let AI infer context from git history and related artifacts
-
-### 6. Status Flow
+### Status Flow
 ```
 draft → ready → in-progress → delivered
 ```
@@ -131,26 +132,51 @@ draft → ready → in-progress → delivered
 - `in-progress`: Actively being implemented
 - `delivered`: Feature is live
 
-## Relationship to Other Artifacts
-
-```
-┌─────────────────┐     ┌──────────────────────┐     ┌─────────────────────┐
-│  Value Model    │     │  Feature Definition  │     │  Spec-Driven Tool   │
-│  (WHY valuable) │────▶│  (WHAT to build)     │────▶│  (HOW to implement) │
-└─────────────────┘     └──────────────────────┘     └─────────────────────┘
-         │                        │                           │
-         │                        │                           │
-         ▼                        ▼                           ▼
-   "Value generation"     "Sharp interface"        "Implementation specs,
-    perspective"          between EPF and          code, tests, etc."
-                          external tools"
-```
+---
 
 ## Creating Feature Definitions
 
-Feature definitions should be created when:
-1. A work package in the roadmap is ready for detailed specification
-2. The value model components that will receive value are identified
-3. The team is ready to hand off to implementation (or implementation tools)
+### Prerequisites
 
-Use the Product Architect wizard prompt to help create feature definitions interactively.
+Before creating feature definitions, ensure you have:
+1. **Value model components** identified (which L2/L3 paths receive value)
+2. **Roadmap Key Results** defined (which KRs does this feature serve)
+3. **Riskiest assumptions** identified (what does this feature help validate)
+
+### Creation Process
+
+1. **Read the wizard guidance**: [`wizards/feature_definition.wizard.md`](../../../wizards/feature_definition.wizard.md)
+2. **Copy this template** to your instance: `_instances/{product}/FIRE/feature_definitions/`
+3. **Fill in content** following template structure
+4. **Validate schema**: `scripts/validate-feature-quality.sh features/{file}.yaml`
+5. **Review examples**: [`features/`](../../../features/) directory contains reference implementations
+
+### Quality Standards
+
+All feature definitions must meet schema v2.0 requirements:
+- ✅ Exactly 4 distinct personas with character names and metrics
+- ✅ 3-paragraph narratives per persona (200+ chars each)
+- ✅ Scenarios at top-level with rich context/trigger/action/outcome
+- ✅ Rich dependency objects with WHY explanations (30+ chars)
+- ✅ Comprehensive capabilities, contexts, scenarios coverage
+
+### Validation
+
+```bash
+# Validate against schema
+./scripts/validate-feature-quality.sh _instances/{product}/FIRE/feature_definitions/{feature}.yaml
+
+# Schema location
+schemas/feature_definition_schema.json
+```
+
+---
+
+## Resources
+
+- **Conceptual Overview**: [Root README - Feature Definitions](../../../README.md#feature-definitions-the-bridge-to-implementation)
+- **Creation Wizard**: [`wizards/feature_definition.wizard.md`](../../../wizards/feature_definition.wizard.md)
+- **AI Agent Guidance**: [`wizards/product_architect.agent_prompt.md`](../../../wizards/product_architect.agent_prompt.md)
+- **Validation Schema**: [`schemas/feature_definition_schema.json`](../../../schemas/feature_definition_schema.json)
+- **Example Features**: [`features/`](../../../features/) directory
+- **Quality System Docs**: [`docs/technical/EPF_SCHEMA_V2_QUALITY_SYSTEM.md`](../../../docs/technical/EPF_SCHEMA_V2_QUALITY_SYSTEM.md)

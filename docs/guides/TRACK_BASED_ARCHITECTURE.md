@@ -1,5 +1,7 @@
 # Track-Based Roadmap Architecture
 
+> **Last updated**: EPF v1.13.0 | **Status**: Current
+
 ## Overview
 
 As of EPF v1.9.7, the roadmap (`05_roadmap_recipe.yaml`) is structured around **four parallel tracks** that align directly with the four value models in the FIRE phase:
@@ -189,3 +191,11 @@ EPF does NOT prescribe which tools to use. The roadmap is tool-agnostic - any sp
 - `schemas/roadmap_recipe_schema.json` - JSON schema for validation
 - `MAINTENANCE.md` - Section 3 for traceability rules
 - `wizards/pathfinder.agent_prompt.md` - Guidance for creating track-based roadmaps
+
+## Related Resources
+
+- **Template**: [05_roadmap_recipe.yaml](../../templates/READY/05_roadmap_recipe.yaml) - Template for track-based roadmaps with OKRs and milestones
+- **Schema**: [roadmap_recipe_schema.json](../../schemas/roadmap_recipe_schema.json) - Validation schema for roadmap structure
+- **Schema**: [value_model_schema.json](../../schemas/value_model_schema.json) - Schema for FIRE phase value models that roadmaps reference
+- **Wizard**: [pathfinder.agent_prompt.md](../../wizards/pathfinder.agent_prompt.md) - Interactive guidance for creating track-based roadmaps
+- **Guide**: [STRATEGY_FOUNDATIONS_GUIDE.md](./STRATEGY_FOUNDATIONS_GUIDE.md) - Strategy foundations that inform roadmap priorities

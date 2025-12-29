@@ -231,3 +231,9 @@ You're done when:
 ## Hand-off
 
 "Your SWOT is complete. You now have a clear view of your competitive position and strategic constraints. Ready to move to User/Problem Analysis next?"
+
+## Related Resources
+
+- **Schema**: [insight_analyses_schema.json](../schemas/insight_analyses_schema.json) - Validation schema for SWOT analysis section
+- **Template**: [00_insight_analyses.yaml](../templates/READY/00_insight_analyses.yaml) - Template for documenting internal SWOT analysis
+- **Guide**: [STRATEGY_FOUNDATIONS_GUIDE.md](../docs/guides/STRATEGY_FOUNDATIONS_GUIDE.md) - Strategic foundations that build on SWOT insights

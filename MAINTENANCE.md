@@ -30,6 +30,99 @@
 
 ---
 
+### 📁 Temporary & Working Documents Convention
+
+**EPF maintains a clean separation between framework files and temporary/working documents.**
+
+#### The `.epf-work/` Directory
+
+**Purpose:** Temporary documents that support EPF development but are NOT part of the framework itself.
+
+**Location:** `.epf-work/` (dot-prefix indicates hidden/non-framework directory)
+
+**What Goes Here:**
+- ✅ Analysis documents (e.g., `AI_INSTRUCTION_FILES_ANALYSIS.md`)
+- ✅ Review documents (e.g., `EPF_DOCUMENTATION_REVIEW.md` - may move here)
+- ✅ Todo lists and task tracking documents
+- ✅ Draft proposals and RFC-style documents
+- ✅ Investigation notes and findings
+- ✅ Temporary implementation notes
+- ✅ Migration planning documents
+
+**What Does NOT Go Here:**
+- ❌ Framework documentation (goes in `docs/`)
+- ❌ Templates (goes in `templates/`)
+- ❌ Schemas (goes in `schemas/`)
+- ❌ Wizards (goes in `wizards/`)
+- ❌ Scripts (goes in `scripts/`)
+- ❌ Guides (goes in `docs/guides/`)
+- ❌ Instance data (goes in `_instances/` in product repos)
+
+#### Naming Convention
+
+**Format:** `{CATEGORY}_{DESCRIPTIVE_NAME}.md`
+
+**Categories:**
+- `ANALYSIS_` - Investigation and analysis documents
+- `REVIEW_` - Review and assessment documents
+- `PROPOSAL_` - Proposals for framework changes
+- `RFC_` - Request for Comments documents
+- `TODO_` - Task tracking and checklists
+- `MIGRATION_` - Migration planning and notes
+- `NOTES_` - General investigation notes
+
+**Examples:**
+- `.epf-work/ANALYSIS_AI_INSTRUCTION_FILES.md`
+- `.epf-work/REVIEW_EPF_DOCUMENTATION_2025-12-28.md`
+- `.epf-work/PROPOSAL_FEATURE_ECOSYSTEM_RATIONALIZATION.md`
+- `.epf-work/TODO_STRUCTURAL_IMPROVEMENTS.md`
+
+#### Lifecycle Management
+
+**Creation:**
+- AI agents and contributors should automatically create working documents in `.epf-work/`
+- No need to ask permission - this is the designated space for temporary work
+
+**Retention:**
+- Documents stay in `.epf-work/` during active development
+- Once work is complete and framework updated, documents can be:
+  - Moved to `docs/` if they become permanent documentation
+  - Archived (if valuable for future reference)
+  - Deleted (if no longer needed)
+
+**Git Tracking:**
+- `.epf-work/` is tracked in git (not in `.gitignore`)
+- Provides transparency into framework development process
+- Future contributors can see how decisions were made
+
+#### Why This Matters
+
+**Before this convention:**
+- Temporary documents scattered throughout framework structure
+- Confusion about what's framework vs. what's working material
+- Review documents (like `EPF_DOCUMENTATION_REVIEW.md`) polluting root directory
+- No clear place to put analysis and proposal documents
+
+**After this convention:**
+- Clear separation: framework files vs. working documents
+- Predictable location for temporary materials
+- Easier to understand what's part of EPF framework vs. what's supporting documentation
+- AI agents know where to create investigation documents without polluting framework
+
+#### Related Rules
+
+**Canonical Purity:**
+- `.epf-work/` documents MUST NOT contain product-specific information (unless explicitly analyzing a product integration pattern)
+- Working documents follow same purity rules as framework files
+- If a working document needs to reference specific products for analysis, use generic names or clear "Example:" prefixes
+
+**Version Control:**
+- Working documents do NOT have version fields
+- Git history tracks evolution of working documents
+- Reference framework version if needed: "Analysis for EPF v2.0.0"
+
+---
+
 ### 🤖 AI Agent Pre-Action Checklist (MANDATORY)
 
 **Before creating, modifying, or documenting ANYTHING in the canonical EPF repository, AI agents MUST verify:**
@@ -134,6 +227,411 @@ or
 
 ---
 
+## 🤖 AI Agent Consistency Protocol
+
+**This section defines the complete operating protocol for AI agents maintaining EPF consistency.**
+
+**When to use:** Whenever ANY file in the EPF repository is created, modified, or deleted.
+
+**Purpose:** Ensure the EPF repository remains internally consistent, traceable, and aligned with its framework philosophy at all times.
+
+### 📚 Core Principles to Uphold
+
+#### Lean Documentation
+- **Git is the source of truth for versioning** - don't add version fields or change history to YAML files
+- **One file per concept** - features, components, artifacts each get their own file
+- **Minimal structure** - only include what implementation tools need to consume
+- **Let AI infer** - context derivable from git history or related artifacts doesn't need duplication
+
+#### Immutable Ledger Philosophy
+- Every git commit is a decision record
+- The history of what was tried (including what NOT to do) is valuable organizational memory
+- Don't delete history - git handles this
+
+#### Tool-Agnostic Design
+- EPF doesn't prescribe implementation tools
+- Feature definitions are the interface consumed by external tools
+- Structure for parseability, not for specific tool requirements
+
+---
+
+### STEP 0: Pre-Flight Decision Gate ⚠️ READ THIS FIRST
+
+**Before proposing OR implementing ANY change to EPF, run this checklist:**
+
+#### Breaking Change Detection
+
+Answer these questions about your proposed change:
+
+- [ ] **Will this remove or rename** a schema field, template section, or core concept?
+- [ ] **Will existing YAML files fail validation** after this change?
+- [ ] **Will instance owners need to migrate** their files?
+- [ ] **Will this change how tools consume** EPF artifacts (parsing, structure, fields)?
+
+**If ANY answer is YES** → 🔴 **BREAKING CHANGE DETECTED**
+
+#### Version Impact Assessment (Required for Breaking Changes)
+
+1. **Read MAINTENANCE.md** "Framework Versioning (EPF vX.Y.Z)" section
+2. **Determine version impact:**
+   - BREAKING CHANGE = **MAJOR version bump** required (X.0.0)
+   - New optional features = **MINOR version bump** (X.Y.0)
+   - Bug fixes/clarifications = **PATCH version bump** (X.Y.Z)
+3. **Check current version:**
+   ```bash
+   cat VERSION
+   ```
+
+#### Proposal Protocol
+
+**For BREAKING changes:**
+1. ✅ **State the change**: "Remove value_propositions field from feature_definition_schema.json"
+2. ✅ **State version impact**: "Requires EPF v2.0.0 → v3.0.0 (MAJOR bump)"
+3. ✅ **Explain reasoning**: "Per MAINTENANCE.md: incompatible schema change requiring migration"
+4. ⏸️ **Wait for approval** of BOTH change AND version bump
+5. ✅ **Only then proceed** with implementation
+
+**For NON-BREAKING changes:**
+- Proceed normally (STEP 1 onwards)
+- Version bump may still be needed (MINOR/PATCH)
+- Mention in your proposal if applicable
+
+#### 🚨 CRITICAL RULE
+
+**Never implement breaking changes without discussing version impact first!**
+
+If you catch yourself thinking:
+- "I'll just remove this field..."
+- "Let's update the schema..."
+- "All instances need to change..."
+
+**STOP** → You're likely proposing a MAJOR version bump → Run this checklist!
+
+#### 🚦 Trigger Word Detection
+
+If your proposal includes these words, **STOP and check version impact:**
+
+**Action words (on core concepts/fields):**
+- "remove", "delete", "rename", "deprecate"
+- "replace", "restructure", "refactor"
+
+**Impact phrases:**
+- "breaking", "incompatible", "non-backward-compatible"
+- "requires migration", "all instances must", "mandatory update"
+- "will fail validation", "no longer valid"
+
+**If detected** → You're likely proposing MAJOR version bump → Run STEP 0 checklist
+
+---
+
+### STEP 1: Detect EPF Changes
+
+When you create, modify, or delete ANY file in the EPF repository:
+- Immediately flag this as an EPF change
+- Read `MAINTENANCE.md` if you haven't already this session
+- Proceed to STEP 2
+
+### STEP 2: Assess Change Impact
+
+Determine the change scope:
+- Single artifact modification?
+- Schema change?
+- New artifact type?
+- Feature definition change?
+- Workflow/process change?
+- Documentation update?
+- Terminology change?
+
+### STEP 3: Run Consistency Checks
+
+**Always check these (no exceptions):**
+
+#### 1. Framework Version Consistency ⚠️ AUTOMATED - USE SCRIPT!
+
+- **NEVER manually update version files** - this causes inconsistencies that confuse AI agents!
+- EPF version is stored in **one place**: `VERSION` file (single source of truth)
+- README.md and other files reference this version via automation
+   
+- **TO BUMP VERSION:** Use the automated script (prevents inconsistencies):
+  ```bash
+  ./scripts/bump-framework-version.sh "X.Y.Z" "Release notes describing changes"
+  ```
+
+- **NEVER do version bumps manually:**
+  - ❌ Don't edit VERSION file directly
+  - ❌ Don't edit README.md header directly  
+  - ❌ Don't edit MAINTENANCE.md version directly
+  - ❌ Don't forget to add "What's New" section to README.md
+
+- **The automated script handles:**
+  - Updates VERSION file
+  - Updates README.md header
+  - Adds "What's New in vX.Y.Z" section to README.md with your release notes
+  - Verifies consistency across all files before finishing
+  - Provides exact git commit command to use
+  - Shows summary of all changes made
+
+- **Verification check after ANY version-related change:**
+  ```bash
+  grep -E "v[0-9]+\.[0-9]+\.[0-9]+" VERSION README.md MAINTENANCE.md
+  ```
+  All files must show the SAME version! If they don't, version bump was done incorrectly.
+
+- Verify all instance folders (`_instances/*/`) follow the SAME version structure
+- **CRITICAL: Check `_meta.yaml` in each instance has matching `epf_version`**
+- **CRITICAL: Check all `template_version` fields in instance YAML files match framework version**
+
+#### 2. Instance Structure Validation
+
+- Instance folders (`_instances/*/`) MUST contain:
+  - `00_north_star.yaml` (organizational foundation)
+  - `01_insight_analyses.yaml` (living document)
+  - `02_strategy_foundations.yaml` (living document)
+  - `03_insight_opportunity.yaml` (cycle artifact)
+  - `04_strategy_formula.yaml` (cycle artifact)
+  - `05_roadmap_recipe.yaml` (cycle artifact)
+  - `feature_definitions/` directory (feature specs - one file per feature)
+  - `value_models/` directory (instance-specific value models for all 4 tracks)
+  - `workflows/` directory (instance-specific workflow configurations)
+  - `mappings.yaml` (instance-specific implementation mappings)
+  - `README.md`, `GAP_ANALYSIS.md`, `_meta.yaml` (documentation)
+  - `cycles/` directory (archived completed cycles)
+- Framework FIRE phase (`/templates/FIRE/`) contains TEMPLATES:
+  - `value_models/` with placeholder templates for each track
+  - `workflows/` with canonical state machines
+  - `mappings.yaml` template
+  - `feature_definitions/README.md` with template and guidance
+- Action: Ensure instance-specific content is in instance folder, templates stay in framework
+
+#### 3. Feature Definition Validation
+
+- Each feature definition file should:
+  - Have a unique `id` (fd-{number})
+  - Have a valid `status` (draft | ready | in-progress | delivered)
+  - Have `contributes_to` references that exist in value model
+  - Have `tracks` that match valid roadmap tracks
+  - Have `assumptions_tested` that reference valid assumption IDs
+  - NOT have version fields or change history (git handles this)
+- Validate against `feature_definition_schema.json` if it exists
+- Action: Flag invalid references or suggest fixes
+
+#### 4. Schema ↔ Artifact Alignment
+
+- **BEFORE changing schema**: Run STEP 0 to determine if breaking change
+- **If breaking**: Propose version bump before implementation
+- If an artifact changed: Does it still match its schema?
+- If a schema changed: Do all corresponding artifacts still validate?
+- Schema-to-artifact mapping:
+  - `insight_opportunity_schema.json` → `03_insight_opportunity.yaml`
+  - `strategy_formula_schema.json` → `04_strategy_formula.yaml`
+  - `roadmap_recipe_schema.json` → `05_roadmap_recipe.yaml`
+  - `value_model_schema.json` → `value_models/*.yaml`
+  - `workflow_schema.json` → `workflows/*.yaml`
+  - `mappings_schema.json` → `mappings.yaml`
+  - `assessment_report_schema.json` → `cycles/*/assessment_report.yaml`
+  - `calibration_memo_schema.json` → `cycles/*/calibration_memo.yaml`
+- **Automated validation**: Run `./scripts/validate-schemas.sh <instance-path>`
+- **Migration help**: Run `./scripts/schema-migration.sh list-schemas`
+- Action: Update both sides to maintain alignment. **After schema changes**, migrate ALL instances.
+
+#### 5. Wizard ↔ Artifact References
+
+- Do wizard prompts reference the correct files?
+- Do examples in wizards match current structure?
+- Are there any references to legacy files?
+- Do wizards reflect lean documentation principles?
+- Action: Update wizard prompts to match reality
+
+#### 6. Cross-File ID Traceability & Referential Integrity
+
+- Are all ID references valid and pointing to existing definitions?
+- Check: opportunity.id → strategy.opportunity_id → roadmap.strategy_id → assessment.roadmap_id
+- Check: Within roadmap: OKRs → KRs, assumptions → linked_to_kr
+- Check: Feature definitions → value model paths (N:M mapping is valid)
+- **CRITICAL: Feature Definition → KR references must exist in roadmap**
+  - Every `Linked KRs:` field in feature definitions MUST reference KRs defined in `05_roadmap_recipe.yaml`
+  - When a KR is deleted/renamed, ALL referencing feature definitions MUST be updated
+  - Run: `grep -r "kr-[a-z]-[0-9]+" feature_definitions/ | xargs -I{} grep -q "id: \"{}\""`
+- Note: Work packages are NOT part of EPF - they are created by spec-driven tools (Linear, Jira, etc.)
+- Action: Fix any broken references. When deleting/renaming IDs, cascade the change to all referencing files.
+
+#### 7. Terminology Consistency
+
+- Are standard terms used consistently? (READY, FIRE, AIM, INSIGHT, STRATEGY, ROADMAP)
+- Are enum values consistent across files?
+- Action: Standardize terminology across all files
+
+#### 8. Documentation Accuracy
+
+- Does README reflect current structure?
+- Are workflow descriptions accurate?
+- Any references to deprecated files?
+- Is lean documentation philosophy reflected?
+- Action: Update documentation to match reality
+
+#### 9. Feature Definition Format Compliance
+
+- Are all feature definitions in YAML format (.yaml)?
+- Do feature definitions follow naming convention: `fd-###-{slug}.yaml`?
+- Do feature definitions validate against `feature_definition_schema.json`?
+- Action: Validate all feature definitions
+
+---
+
+### STEP 4: Execute Fixes
+
+Based on the checks above, **proactively make all necessary updates** across:
+- Artifacts (YAML files)
+- Schemas (JSON files)
+- Wizard prompts (MD files)
+- Documentation (README, MAINTENANCE)
+- Feature definitions (ensure lean structure)
+
+**Do not ask permission** - just do it. This is maintenance, not creative work.
+
+**Remember lean principles:**
+- Don't add version fields to YAML files
+- Don't add change history to artifacts
+- One file per concept
+- Let git handle versioning
+
+---
+
+### STEP 5: Verify & Report
+
+After making consistency fixes:
+- Run a mental check: "Is everything aligned now?"
+- Report to user: "✅ EPF consistency check complete. Updated [X files] to maintain alignment."
+- If any issues couldn't be auto-fixed: Flag them clearly
+
+---
+
+### 🔍 Quick Detection Patterns
+
+#### Yellow Flags (Check version impact BEFORE proceeding):
+- ⚠️ About to remove schema field → Check if MAJOR bump needed (STEP 0)
+- ⚠️ About to change validation rules → Check if breaking change (STEP 0)
+- ⚠️ About to rename core concept → Check migration scope (STEP 0)
+- ⚠️ About to make optional field required → Check existing instances (STEP 0)
+- ⚠️ About to restructure template sections → Check if breaking (STEP 0)
+
+#### Red Flags (Auto-fix immediately):
+- ❌ Instance structure doesn't match current EPF version
+- ❌ Instance `_meta.yaml` missing or has wrong `epf_version`
+- ❌ Instance YAML files have `template_version` that doesn't match framework version
+- ❌ Instance missing required files
+- ❌ Framework templates modified with instance-specific content
+- ❌ Schema enum doesn't match artifact example values
+- ❌ README describes old file structure or wrong version
+- ❌ Example IDs in different files don't align
+- ❌ Inconsistent terminology
+- ❌ Feature definitions with version fields or change history
+- ❌ Feature definitions with invalid value model references
+- ❌ **Feature definitions reference KRs that don't exist in roadmap**
+- ❌ **Orphan KR references after KR deletion**
+- ❌ Complex folder hierarchies where one file per concept would suffice
+
+#### Green Flags (Good to go):
+- ✅ All instances follow current EPF version structure
+- ✅ Instance `_meta.yaml` exists with correct `epf_version`
+- ✅ All `template_version` fields in instance YAMLs match framework version
+- ✅ Instance contains populated value_models/, workflows/, mappings.yaml
+- ✅ Framework FIRE phase contains only generic templates
+- ✅ All references use current file names
+- ✅ Traceability chain is intact
+- ✅ Feature definitions are lean
+- ✅ Feature definitions have valid N:M references to value model
+- ✅ Schemas validate their artifacts
+- ✅ Examples tell a coherent story
+- ✅ No legacy references in active files
+- ✅ Wizards reflect lean documentation principles
+
+---
+
+### 📋 Post-Change Checklist
+
+After EVERY EPF change, verify:
+
+- [ ] Does this match the current EPF version structure?
+- [ ] Does `_meta.yaml` exist with correct `epf_version`?
+- [ ] Do all `template_version` fields match framework version?
+- [ ] Are value models/workflows/mappings in correct locations?
+- [ ] Does the framework FIRE phase contain only generic templates?
+- [ ] Does the instance contain all required directories?
+- [ ] Are feature definitions in correct format?
+- [ ] Did I update the corresponding schema?
+- [ ] Did I update wizard examples?
+- [ ] Did I check cross-file references?
+- [ ] Did I verify all KR references exist?
+- [ ] If I deleted/renamed IDs, did I cascade updates?
+- [ ] Did I verify terminology is consistent?
+- [ ] Did I update README if needed?
+- [ ] Are there any legacy file references?
+- [ ] Do the example IDs align across files?
+- [ ] Is the traceability chain intact?
+- [ ] Do feature definitions follow lean principles?
+- [ ] Are feature definition value model references valid?
+- [ ] Is the tool-agnostic design preserved?
+
+---
+
+### 🔄 After Framework Version Changes (MANDATORY)
+
+When the framework version is bumped, you MUST:
+
+1. **Immediately check all instances** for version mismatch
+2. **Update `_meta.yaml`** in each instance: `epf_version: "{new_version}"`
+3. **Update `template_version`** in all instance YAML files that have this field
+4. **Run verification command:**
+   ```bash
+   grep "Repository.*v[0-9]" README.md && \
+   grep -E "v[0-9]+\.[0-9]+\.[0-9]+" VERSION README.md MAINTENANCE.md && \
+   grep -r "epf_version\|template_version" _instances/ --include="*.yaml"
+   ```
+5. **Commit version sync separately** from content changes
+
+**This is not optional. Version drift breaks traceability and causes confusion.**
+
+---
+
+### 🚨 When to Alert the User
+
+Alert the user (don't just fix) when:
+- A change would be **breaking** (requires migration)
+- A conceptual inconsistency exists (framework philosophy conflict)
+- Multiple valid approaches exist (design decision needed)
+- Something seems fundamentally wrong (shouldn't happen)
+
+---
+
+### 💡 Proactive Suggestions
+
+If you notice patterns like:
+- Repeated updates in the same area → Suggest structural improvement
+- Complex cross-references becoming hard to maintain → Suggest simplification
+- Growing file size → Suggest splitting
+- Terminology drift → Suggest glossary
+
+---
+
+### 🎓 Learning Mode
+
+Each time you run consistency checks:
+- Build a mental model of EPF structure
+- Remember common inconsistency patterns
+- Get faster at detecting issues
+- Anticipate what needs updating
+
+---
+
+### ✅ AI Agent Commitment
+
+**"I will not allow EPF repository changes to leave the system in an inconsistent state. I will automatically maintain alignment across artifacts, schemas, wizards, and documentation with every change. This is my core responsibility when working with the EPF repository."**
+
+**For learning from past mistakes, see:** `.github/instructions/self-learning.instructions.md`
+
+---
+
 ## 🔢 Versioning Convention
 
 EPF uses **Semantic Versioning (SemVer)** for both the framework and instances, with clear rules for when to increment each part.
@@ -148,7 +646,7 @@ The EPF framework version is tracked in `README.md` and `MAINTENANCE.md`.
 | **MINOR (Y)** | New features, new artifact types, new optional fields, new wizards. Backward-compatible additions that enhance capability. | v1.9.0 → v1.10.0: Add new agent prompt |
 | **PATCH (Z)** | Bug fixes, documentation improvements, schema clarifications, typo fixes. No structural changes. | v1.9.3 → v1.9.4: Fix schema validation issue |
 
-**Current Framework Version:** v1.13.0
+**Current Framework Version:** v2.0.0
 
 **Version History Convention:**
 - Document version changes in `README.md` under "What's New in vX.Y.Z"
@@ -224,15 +722,40 @@ When the EPF framework is updated:
 
 ### Version Increment Checklist
 
-**Before releasing a framework version:**
+**⚠️ IMPORTANT: Use the automated script to bump versions!**
+
+Manual version bumps are error-prone and have caused AI agent confusion. **Always use the automation:**
+
+```bash
+# Bump framework version (updates VERSION, README.md, MAINTENANCE.md consistently)
+./scripts/bump-framework-version.sh "X.Y.Z" "Release notes describing changes"
+
+# The script automatically:
+# - Updates all three version files consistently
+# - Adds "What's New in vX.Y.Z" section to README.md
+# - Verifies consistency before finishing
+# - Shows git commit command to use
+```
+
+**Install the pre-commit hook to prevent inconsistent versions:**
+```bash
+./scripts/install-version-hooks.sh
+```
+
+This blocks any commit that would create version inconsistencies across VERSION, README.md, and MAINTENANCE.md.
+
+---
+
+**Before releasing a framework version (automated by script above):**
 - [ ] Determine correct version increment (MAJOR/MINOR/PATCH)
-- [ ] Update version in `VERSION` file (single source of truth)
-- [ ] Update version in `README.md` header
-- [ ] Update "What's New" section
+- [ ] ✅ VERSION file updated (script does this)
+- [ ] ✅ README.md header updated (script does this)
+- [ ] ✅ "What's New" section added (script does this)
+- [ ] ✅ MAINTENANCE.md version updated (script does this)
 - [ ] If MAJOR: provide migration guide
-- [ ] Update `MAINTENANCE.md` "Current Framework Version" if conventions changed
-- [ ] Update script version headers (`scripts/validate-schemas.sh`, `scripts/epf-health-check.sh`)
+- [ ] Update script version headers if needed (`scripts/validate-schemas.sh`, `scripts/epf-health-check.sh`)
 - [ ] **Run health check:** `./scripts/epf-health-check.sh` (must pass before commit)
+- [ ] **Verify consistency:** `grep -E "v1\.[0-9]+\.[0-9]+" VERSION README.md MAINTENANCE.md` (all must match!)
 
 **Before incrementing an instance version:**
 - [ ] Determine correct version increment

@@ -1,6 +1,6 @@
 #!/bin/bash
 # EPF Health Check Script
-# Version: 1.12.0
+# Version: 1.13.0
 #
 # This script performs comprehensive validation of the EPF framework,
 # including version consistency, YAML parsing, schema validation, and
@@ -207,6 +207,26 @@ check_version_consistency() {
     local health_version=$(grep -o 'Version: [0-9]\+\.[0-9]\+\.[0-9]\+' "$EPF_ROOT/scripts/epf-health-check.sh" 2>/dev/null | head -1 | sed 's/Version: //')
     if [ -n "$health_version" ] && [ "$health_version" != "$CANONICAL_VERSION" ]; then
         log_warning "epf-health-check.sh version ($health_version) differs from VERSION ($CANONICAL_VERSION)"
+    fi
+    
+    # Check integration_specification.yaml
+    if [ -f "$EPF_ROOT/integration_specification.yaml" ]; then
+        local integration_spec_version=$(grep -E '^# Version:' "$EPF_ROOT/integration_specification.yaml" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        log_verbose "integration_specification.yaml version: $integration_spec_version"
+        
+        if [ -n "$integration_spec_version" ] && [ "$integration_spec_version" != "$CANONICAL_VERSION" ]; then
+            log_warning "integration_specification.yaml version ($integration_spec_version) differs from VERSION ($CANONICAL_VERSION)"
+            if [ "$FIX_MODE" = true ]; then
+                # Fix all 4 version references in integration_specification.yaml
+                sed -i '' "s/^# Version: [0-9]\+\.[0-9]\+\.[0-9]\+/# Version: $CANONICAL_VERSION/" "$EPF_ROOT/integration_specification.yaml"
+                sed -i '' "s/^  version: \"[0-9]\+\.[0-9]\+\.[0-9]\+\"/  version: \"$CANONICAL_VERSION\"/" "$EPF_ROOT/integration_specification.yaml"
+                sed -i '' "s/^  this_spec_version: \"[0-9]\+\.[0-9]\+\.[0-9]\+\"/  this_spec_version: \"$CANONICAL_VERSION\"/" "$EPF_ROOT/integration_specification.yaml"
+                # Note: History version updates are intentionally excluded as they represent past releases
+                log_info "  → Fixed integration_specification.yaml version"
+            fi
+        else
+            log_pass "integration_specification.yaml version matches"
+        fi
     fi
     
     # Note: We intentionally do NOT check version references in documentation files

@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "1.13.0",
   "title": "Strategy Foundations Schema",
   "description": "Defines the structure for core strategic definitions (Product Vision, Value Proposition, Strategic Sequencing, Information Architecture) that inform the Winning Formula.",
   "type": "object",

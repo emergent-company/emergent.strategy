@@ -271,3 +271,9 @@ You're done when:
 ## Hand-off
 
 "Excellent! You now have clear problem definitions to guide your solution design. You've completed all four foundational analyses. Ready to synthesize these into your Big Opportunity statement?"
+
+## Related Resources
+
+- **Schema**: [insight_opportunity_schema.json](../schemas/insight_opportunity_schema.json) - Validation schema for opportunity statements based on user/problem analysis
+- **Template**: [03_insight_opportunity.yaml](../templates/READY/03_insight_opportunity.yaml) - Template for documenting validated opportunity based on user problems
+- **Guide**: [VALUE_MODEL_BUSINESS_LANGUAGE_GUIDE.md](../docs/guides/VALUE_MODEL_BUSINESS_LANGUAGE_GUIDE.md) - Guidelines for articulating user value and Jobs-to-be-Done
