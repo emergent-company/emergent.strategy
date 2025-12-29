@@ -109,6 +109,99 @@ This file documents lessons learned during AI-assisted development sessions. Eac
 
 ---
 
+### 2025-12-29 - Created Working File in Wrong Directory (docs/ vs .epf-work/)
+
+**Context**: During white paper development session, created analysis file `EPF_WHITE_PAPER_COVERAGE_ANALYSIS.md` to compare white paper coverage against live website and emergent repo documentation.
+
+**Mistake**: Placed the file in `docs/EPF_WHITE_PAPER_COVERAGE_ANALYSIS.md` instead of `.epf-work/EPF_WHITE_PAPER_COVERAGE_ANALYSIS.md`. This violated canonical EPF purity rules by putting temporary working documentation in the permanent framework documentation directory.
+
+**Why It Was Wrong**:
+1. **`docs/` is for permanent framework documentation** - guides, technical references, architecture decisions that are part of the framework itself
+2. **`.epf-work/` exists specifically for temporary analysis** - working documents, AI reasoning logs, session-specific insights
+3. **File was session-specific analysis** - comparing white paper to other sources, not explaining the framework
+4. **Canonical purity violation** - temporary work artifacts pollute the permanent documentation structure
+5. **User had to intervene** - spotted the misplaced file and asked about it
+
+**Root Cause**:
+- Didn't consult `.epf-work/README.md` before deciding where to place analysis file
+- Assumed `docs/` was general-purpose documentation directory
+- Didn't apply CANONICAL_PURITY_RULES.md Pre-Flight Checklist before file creation
+- Created file based on convenience ("it's a markdown doc, goes in docs/") instead of purpose-based structure
+
+**Correct Approach - Purpose-Based File Placement**:
+
+1. **Before creating ANY file in EPF repo**, ask:
+   - Is this **permanent framework documentation**? → `docs/`, `docs/guides/`, or root-level
+   - Is this **temporary analysis or working doc**? → `.epf-work/`
+   - Is this **product-specific**? → Product repo, not canonical EPF
+
+2. **Read `.epf-work/README.md`** to understand what belongs there:
+   ```bash
+   read_file: .epf-work/README.md (lines 1-50)
+   ```
+
+3. **Apply directory purpose rules**:
+   - `docs/` = Permanent guides explaining framework concepts to users
+   - `.epf-work/` = Temporary analysis, AI reasoning, session work
+   - `features/` = Validated feature definition examples (corpus)
+   - `schemas/` = JSON Schema definitions
+   - `templates/` = YAML templates for instances
+   - `wizards/` = AI-assisted creation guides
+
+4. **Check existing files in target directory** to validate pattern:
+   ```bash
+   list_dir: docs/ (see what's there)
+   list_dir: .epf-work/ (see similar files)
+   ```
+
+5. **Use descriptive filenames** that indicate purpose and date:
+   - `.epf-work/WHITE_PAPER_COVERAGE_ANALYSIS_2025-12-29.md` ✅
+   - `docs/EPF_WHITE_PAPER_COVERAGE_ANALYSIS.md` ❌
+
+**Directory Purpose Reference** (memorize for EPF work):
+
+| Directory | Purpose | Examples |
+|-----------|---------|----------|
+| `docs/` | Permanent framework documentation | `EPF_WHITE_PAPER.md`, guides explaining concepts |
+| `.epf-work/` | Temporary analysis, AI reasoning logs | `ANALYSIS_*.md`, `COMPONENT_*_COMPLETE.md` |
+| `docs/guides/` | How-to guides for users | `ADOPTION_GUIDE.md`, `GETTING_STARTED.md` |
+| `docs/guides/technical/` | Advanced framework internals | Schema design, validation architecture |
+| `features/` | Validated feature examples (corpus) | `fd-001-*.yaml`, `fd-002-*.yaml` |
+| `schemas/` | JSON Schema definitions | `feature_definition_schema.json` |
+| `templates/` | YAML templates for instances | `00_north_star_principle.yaml` |
+| `wizards/` | AI-assisted creation guides | `lean_start.agent_prompt.md` |
+| `_instances/` | Instance structure documentation | `README.md` only (no actual instances) |
+| `.github/instructions/` | AI agent instructions | `self-learning.instructions.md` |
+
+**Prevention Checklist** (use for EVERY file creation in EPF):
+- [ ] Identify file purpose: permanent documentation, temporary analysis, or product-specific?
+- [ ] Consult relevant README (`.epf-work/README.md`, `docs/guides/README.md`, etc.)
+- [ ] Check existing files in target directory to validate pattern
+- [ ] Apply CANONICAL_PURITY_RULES.md Pre-Flight Checklist (Question 3)
+- [ ] Use descriptive filename indicating purpose and date if temporary
+- [ ] If unsure, default to `.epf-work/` for working files (can always promote later)
+
+**Time Cost**:
+- Wrong approach (create in docs/ → user spots error → remove → explain): ~15 minutes
+- Correct approach (check README → place in .epf-work/): ~2 minutes
+- **Wasted time**: ~13 minutes, plus user interruption and trust impact
+
+**Impact**:
+- User had to spot and correct the mistake
+- Canonical EPF repo temporarily polluted with working file
+- Committed the file before realizing error (had to create removal commit)
+- Demonstrates lack of understanding of repository structure and purpose
+
+**Key Takeaway**: **DIRECTORY STRUCTURE HAS PURPOSE, NOT JUST CONVENTION.** Before creating any file, understand the repository's organizational philosophy and consult the relevant README. Working files belong in `.epf-work/`, not `docs/`. When in doubt, ask or default to the working directory - it's easier to promote a working file to permanent documentation than to clean up misplaced files.
+
+**Related Files/Conventions**:
+- `/Users/nikolai/Code/epf/.epf-work/README.md` (explains what belongs in working directory)
+- `/Users/nikolai/Code/epf/CANONICAL_PURITY_RULES.md` (Pre-Flight Checklist, Question 3)
+- `/Users/nikolai/Code/epf/docs/guides/README.md` (explains docs/guides/ structure)
+- This applies to ANY repository with explicit directory structure and purpose documentation
+
+---
+
 ## Instructions for Future Sessions
 
 When you encounter this file:
