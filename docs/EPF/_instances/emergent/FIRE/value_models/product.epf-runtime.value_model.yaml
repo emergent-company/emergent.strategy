@@ -10,13 +10,113 @@
 #
 product_line_id: "pl-epf-runtime"
 product_line_name: "EPF-Runtime"
-version: "0.1.0"
+version: "0.2.0"
 status: "development"
+last_updated: "2025-12-30"
 description: |
   EPF-Runtime is a headless workflow orchestration system that enables AI agents
   and humans to execute EPF methodology cycles programmatically. It provides
   durable workflow execution, schema validation, multi-tenancy, and deep
   integration with Emergent Core knowledge graph.
+  
+  ARCHITECTURE: EPF-Runtime shares authentication, authorization, multi-tenancy,
+  and Row-Level Security (RLS) infrastructure with Emergent Core. It is designed
+  with a long-term vision to become the "OS layer" for Emergent ecosystem, where
+  Core and other applications run as native apps on the EPF-Runtime platform.
+
+# ============================================================================
+# ARCHITECTURAL DECISIONS (2025-12-30)
+# ============================================================================
+architectural_decisions:
+  decision_date: "2025-12-30"
+  decision_context: |
+    These decisions define MVP scope and strategic direction for EPF-Runtime
+    integration with Emergent Core shared infrastructure.
+  
+  decisions:
+    - id: "arch-001"
+      title: "Artifact Visibility Scope"
+      decision: "Project-scoped only (no cross-project search)"
+      rationale: |
+        EPF artifacts (workflows, roadmaps, features) share the same project
+        isolation as Emergent Core documents. Users must explicitly switch
+        projects to access different product strategies. This maintains
+        consistency with existing multi-tenant patterns and simplifies RLS
+        implementation.
+      alternatives_considered:
+        - "Organization-wide search with project filtering (rejected: complexity)"
+        - "Public artifact library/marketplace (deferred to Phase 4)"
+      impact: "MVP Stage 2 (Artifact Storage) uses existing RLS patterns"
+    
+    - id: "arch-002"
+      title: "Notification System"
+      decision: "In-app notifications only for MVP"
+      rationale: |
+        Workflow status updates (completion, failures, validation errors) will
+        use Emergent Core's existing in-app notification system (kb.notifications
+        table + WebSocket). Email notifications deferred to post-MVP based on
+        user feedback.
+      alternatives_considered:
+        - "Email + in-app (rejected: MVP scope creep)"
+        - "Webhook-only (rejected: poor UX for human users)"
+      impact: "MVP Stage 3 (UI Integration) reuses notification infrastructure"
+    
+    - id: "arch-003"
+      title: "Cross-Tool Navigation Pattern"
+      decision: "Separate apps with switcher for MVP"
+      rationale: |
+        EPF-Runtime appears as separate top-level app in Emergent's app switcher
+        (like "Knowledge Base" vs "EPF Runtime"). This allows independent UI
+        evolution while maintaining shared infrastructure. Future: unified sidebar
+        integration when product matures.
+      alternatives_considered:
+        - "Integrated sidebar sections (rejected: too coupled for MVP)"
+        - "Completely separate deployment (rejected: violates native integration goal)"
+      impact: "MVP Stage 3 (UI Integration) adds switcher entry, separate routes"
+    
+    - id: "arch-004"
+      title: "Temporal Workflow Deployment"
+      decision: "Same Temporal cluster as other Emergent workloads"
+      rationale: |
+        Reuse existing Temporal infrastructure with separate task queue (epf-runtime)
+        for workflow isolation. Reduces operational overhead while maintaining
+        logical separation. Temporal namespace per project (epf-{projectId}) aligns
+        with multi-tenant isolation pattern.
+      alternatives_considered:
+        - "Dedicated Temporal cluster (rejected: operational overhead)"
+        - "Shared task queue (rejected: insufficient isolation)"
+      impact: "MVP Stage 4 (Temporal Workflows) reuses existing cluster, new task queue"
+    
+    - id: "arch-005"
+      title: "MVP Implementation Scope"
+      decision: "Full 4-stage implementation (Foundation + Storage + UI + Temporal)"
+      rationale: |
+        Commit to complete end-to-end functionality (8 weeks, 4x2-week stages).
+        Delivers fully functional workflow orchestration with UI by MVP completion.
+        Partial implementation would not validate core value proposition.
+      alternatives_considered:
+        - "Stage 1-2 only (rejected: insufficient validation)"
+        - "All stages + enterprise features (rejected: scope too large)"
+      impact: "8-week MVP timeline with clear stage boundaries"
+    
+    - id: "arch-006"
+      title: "Strategic Vision: Runtime as OS Layer"
+      decision: "Design for future where EPF-Runtime becomes platform OS"
+      rationale: |
+        Long-term vision (12-24 months): EPF-Runtime evolves into the "OS layer"
+        for Emergent ecosystem, where Emergent Core runs as an application on the
+        Runtime platform. This architecture enables:
+        - Centralized auth/authz across all Emergent apps
+        - Shared workflow orchestration for all product lines
+        - Event bus for app-to-app communication
+        - Platform APIs for third-party integrations
+        
+        Current approach: "Somewhat separate but native feel" - shared infrastructure
+        foundation while maintaining modularity for future architectural evolution.
+      alternatives_considered:
+        - "Runtime as permanent separate app (rejected: limits future options)"
+        - "Immediate deep integration (rejected: premature, blocks independent evolution)"
+      impact: "Design patterns support future inversion (Core → Runtime dependency)"
 
 # WHY - Strategic Alignment (shared with emergent workspace)
 alignment:
@@ -390,14 +490,72 @@ success_metrics:
     description: "Number of autonomous AI agents using Runtime"
 
 # ============================================================================
-# ROADMAP ALIGNMENT
+# ROADMAP ALIGNMENT & MVP SCOPE
 # ============================================================================
+mvp_scope:
+  decision_date: "2025-12-30"
+  implementation_stages:
+    - stage: 1
+      name: "Foundation (Weeks 1-2)"
+      description: "Shared infrastructure integration (auth, RLS, basic API)"
+      components_activated:
+        - "WorkflowInitiation (L1)"
+        - "ArtifactValidation (L1)"
+        - "PhaseOrchestration (L2)"
+        - "SchemaEnforcement (L2)"
+      outcome: "EPF workflows can be created via API with RLS isolation"
+    
+    - stage: 2
+      name: "Artifact Storage (Weeks 3-4)"
+      description: "Store EPF artifacts in Emergent Core knowledge graph"
+      components_activated:
+        - "KnowledgeGraphIntegration (L3)"
+        - "SemanticSearchOverArtifacts (L3)"
+      outcome: "EPF artifacts stored as graph objects with vector embeddings"
+    
+    - stage: 3
+      name: "UI Integration (Weeks 5-6)"
+      description: "Admin UI for workflow management with app switcher"
+      components_activated:
+        - "WorkflowMonitoring (L1)"
+        - "CIIntegration (L1)"
+      outcome: "Users can manage workflows via web UI with in-app notifications"
+    
+    - stage: 4
+      name: "Temporal Workflows (Weeks 7-8)"
+      description: "READY/FIRE/AIM durable workflow execution"
+      components_activated:
+        - "DurableExecution (L2)"
+        - "AutomaticRetries (L2)"
+      outcome: "Full READY/FIRE/AIM cycles executable as durable workflows"
+  
+  deferred_to_post_mvp:
+    - "LocalWorkflowTesting (L1) - Local CLI execution without cloud"
+    - "ParallelFeatureExecution (L2) - Concurrent feature workflows"
+    - "CrossReferenceValidation (L2) - Validate artifact dependencies"
+    - "WorkspaceIsolation (L3) - Full multi-tenant workspace management"
+    - "ExternalIntegrations (L3) - GitHub/Jira webhooks"
+    - "All Layer 4 components - Infrastructure/Operations features"
+  
+  mvp_success_criteria:
+    - "AI agent can create workflow via API"
+    - "Workflow executes READY phase with validation"
+    - "Artifacts stored in knowledge graph with RLS"
+    - "User can monitor workflow progress in web UI"
+    - "Workflow survives infrastructure restart (Temporal durability)"
+
 roadmap_notes: |
-  EPF-Runtime development follows the emergent workspace roadmap. Initial
-  focus is on core workflow orchestration (L2) and API surface (L1) to
-  enable early adopters (AI agents, DevOps engineers). Multi-tenancy (L3)
-  and enterprise features (L4) will be activated after validating core
-  value proposition with pilot customers.
+  EPF-Runtime development follows 4-stage MVP approach (8 weeks total, 2025 Q1).
+  Initial focus is on shared infrastructure integration (Stage 1) and core workflow
+  orchestration (Stage 2-4) to validate value proposition with pilot customers
+  (AI agents, DevOps engineers).
+  
+  Multi-tenancy (L3 WorkspaceIsolation) and enterprise features (L4) will be
+  activated in post-MVP iterations after validating core functionality.
+  
+  Strategic vision: EPF-Runtime designed to become "OS layer" for Emergent ecosystem,
+  where Core and other apps run as native applications on the Runtime platform
+  (12-24 month evolution path).
   
   See ../../READY/05_roadmap_recipe.yaml for detailed quarterly OKRs and
   assumption testing plan.

@@ -9,7 +9,7 @@
 
 strategy_foundations:
   opportunity_id: "opp-001" # Reference: Design by Emergence opportunity
-  last_updated: "2025-12-11"
+  last_updated: "2025-12-30"
   confidence_level: "high" # Based on validated opportunity + internal dogfooding
   
   # ============================================================================
@@ -163,6 +163,7 @@ strategy_foundations:
         new_value_delivered:
           - "Project-based knowledge organization and reuse"
           - "Client-specific knowledge graphs with access controls"
+          - "EPF-Runtime MVP for programmatic workflow orchestration (Q1-Q2 2026)"
           - "Integration with common consulting tools (SharePoint, Box, etc.)"
         
         success_criteria:
@@ -175,6 +176,12 @@ strategy_foundations:
           Higher willingness to pay (billable hour optimization). Existing consulting 
           relationships provide warm introductions. Similar adoption pattern (team-led, 
           not enterprise-sales-first).
+          
+          EPF-Runtime launches in Phase 2 because: (1) Core infrastructure proven and stable,
+          (2) Consulting teams need structured methodologies for complex client work,
+          (3) AI agents require orchestration for multi-step strategic processes,
+          (4) Native integration with Core (shared auth, RLS, multi-tenancy) de-risks deployment,
+          (5) Validates methodology automation value before enterprise-wide adoption.
       
       - phase: 3
         name: "Scale: Enterprise Knowledge Infrastructure"
@@ -324,8 +331,12 @@ strategy_foundations:
       - "Integrations are first-class, not afterthoughts"
     
     competitive_ia_comparison:
-      competitor_approach: "Notion: page-centric with sidebar. Glean: search-first with filters. Confluence: space/page hierarchy."
-      our_differentiation: "Knowledge graph as first-class citizen. AI chat embedded everywhere. Developer-friendly APIs exposed in UI."
+      competitor_approach: "Notion: page-centric with sidebar. Glean: search-first with filters. Confluence: space/page hierarchy. Retool Workflows / n8n: visual workflow builders for automation."
+      our_differentiation: |
+        Knowledge graph as first-class citizen. AI chat embedded everywhere. 
+        Developer-friendly APIs exposed in UI. EPF-Runtime provides headless 
+        methodology orchestration (vs visual workflow tools) optimized for 
+        AI agent consumption with structured inputs/outputs and durable execution.
     
     consistency_check:
       reflects_user_problems: "IA prioritizes search/chat (finding info) and graph (connecting info)—the core problems"

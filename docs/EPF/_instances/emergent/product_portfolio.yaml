@@ -200,9 +200,9 @@ portfolio:
           - "Node.js runtime"
           - "Third-party APIs (ClickUp, Notion, etc.)"
 
-    # --------------------------------
-    # EPF-Runtime
-    # --------------------------------
+    # --------------------------------------------------------------------------
+    # EPF-Runtime: Workflow Orchestration for EPF Methodology
+    # --------------------------------------------------------------------------
     - id: "pl-epf-runtime"
       name: "EPF-Runtime"
       codename: "Runtime"
@@ -213,8 +213,18 @@ portfolio:
         API/CLI. Provides Temporal-based workflow engine, multi-tenancy support, and
         deep integration with Emergent Core knowledge graph for artifact storage and
         semantic search over product strategy documents.
+        
+        NATIVE INTEGRATION: EPF-Runtime shares authentication, authorization,
+        multi-tenancy, and Row-Level Security (RLS) infrastructure with Emergent Core.
+        Users log in once and access both Core and Runtime with same credentials.
+        Artifacts are project-scoped with automatic isolation via RLS policies.
+        
+        STRATEGIC VISION: Designed to evolve into "OS layer" for Emergent ecosystem,
+        where Core and other applications run as native apps on the Runtime platform
+        (12-24 month evolution path).
       value_model_ref: "product.epf-runtime.value_model.yaml"
       status: "development"
+      last_updated: "2025-12-30"
       target_market:
         segments:
           - "AI Agents (autonomous EPF execution)"

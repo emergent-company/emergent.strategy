@@ -8,7 +8,7 @@
 # Reference to foundational analyses
 analyses_source: "01_insight_analyses.yaml"
 based_on_analyses: "01_insight_analyses.yaml"
-analyses_last_updated: "2025-12-11"
+analyses_last_updated: "2025-12-30"
 
 opportunity:
   id: "opp-001"
@@ -32,6 +32,7 @@ opportunity:
       - "Knowledge is scattered across wikis, Notion, Confluence, Slack—never where you need it"
       - "No single source of truth connecting 'why we build' to 'what we build' to 'how we build'"
       - "Onboarding new team members takes months because tribal knowledge isn't captured"
+      - "AI agents can chat but can't execute multi-step methodologies reliably (EPF cycles require discipline that LLMs alone lack)"
     market_size: |
       TAM: $50B+ (Developer tools + Product management software)
       SAM: $5B (AI-enhanced development infrastructure)
@@ -63,7 +64,8 @@ opportunity:
       - "Linear/Jira: Great for work tracking, no strategic context or AI integration"
       - "Cursor/Copilot: Great for code, blind to product intent and architecture"
       - "ProductBoard/Productplan: Strategy tools, but SaaS silos not git-native"
-      - "GAP: No one owns the 'context layer' that connects strategy → knowledge → code for AI agents"
+      - "Retool Workflows / n8n: Visual workflow automation, not optimized for AI agent consumption or methodology execution"
+      - "GAP: No one owns the 'context layer' that connects strategy → knowledge → code for AI agents, nor the 'orchestration layer' for durable methodology execution"
   
   # Value Hypothesis
   value_hypothesis:
