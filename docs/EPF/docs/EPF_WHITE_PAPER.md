@@ -1343,12 +1343,277 @@ If your score is below 75, the wizard tells you **exactly what's wrong**:
 
 **Purpose:** Build features that deliver the strategy established in READY.
 
-**Artifacts created:**
-- `feature_definition_*.yaml` - Detailed feature specifications
-- `value_model_*.yaml` - Value driver mappings (features → business outcomes)
-- `feature_value_mapping_*.yaml` - N:M relationships between features and value drivers
+**Core principle:** EPF is **outcome-oriented**, not feature-oriented. The value model comes first, features follow.
 
-**The pattern:** Features → Value → Traceability
+#### The Information Architecture Hierarchy
+
+**Critical architectural principle:** The product value model is **more fundamental** than feature definitions.
+
+**The WHY-HOW-WHAT continuum:** Each level contains overlapping WHY-HOW-WHAT elements (Simon Sinek framework). The WHAT from one level becomes context for the next level's HOW decisions. This tight coupling ensures emergence—the complete solution emerges from overlapping, interconnected pieces. "In a well-functioning organism, the parts cannot be too loosely coupled."
+
+**The hierarchy (4 levels):**
+
+```
+1. VALUE MODEL (Foundation) - EPF CORE
+   ↓ WHY: "Why do we exist? What purpose do we serve?"
+   ↓ HOW: "How does value flow through capabilities?"
+   ↓ WHAT: High-level components (minimal)
+   ↓ Value drivers, capabilities, common vocabulary
+   ↓ Persistent, changes infrequently
+   ↓ Artifact: product.value_model.yaml
+   ↓
+2. FEATURE DEFINITION (Strategic Specification) - EPF CORE
+   ↓ WHY: Inherited from value model (via contributes_to)
+   ↓ HOW: "How do users achieve outcomes?" (scenarios, workflows)
+   ↓ WHAT: "What value is delivered?" (contexts, outcomes, criteria - strategic, non-implementation)
+   ↓ Personas, scenarios, acceptance criteria, value mapping
+   ↓ Changes as product evolves (quarterly or less)
+   ↓ Artifact: feature_definition_*.yaml (YAML, ~1000 lines)
+   ↓ ▼▼▼ HANDOFF POINT ▼▼▼
+   ↓ The WHAT from Level 2 (acceptance criteria) becomes the WHY for Level 3 (requirements)
+   ↓
+3. FEATURE IMPLEMENTATION SPEC (Technical Specification) - OUTSIDE EPF
+   ↓ WHY: Inherited acceptance criteria become requirements
+   ↓ HOW: "How to technically build it?" (architecture, APIs, algorithms)
+   ↓ WHAT: "What technologies to use?" (endpoints, schemas, tech stack)
+   ↓ Technical design, API contracts, database schemas, architecture diagrams
+   ↓ Changes as technology/implementation evolves (monthly)
+   ↓ Artifact: Technical specs, PRD, architecture docs, API specs
+   ↓
+4. IMPLEMENTED FEATURE (Code) - OUTSIDE EPF
+   ↓ WHY: Inherited requirements (minimal)
+   ↓ HOW: Algorithms, functions
+   ↓ WHAT: "The actual running software" (dominant)
+   ↓ Source code, tests, deployment configs
+   ↓ Changes continuously (daily/weekly)
+   ↓ Artifact: Code repositories, CI/CD, production systems
+```
+
+**Why this hierarchy matters:**
+
+**Level 1 - Value model defines "WHY we exist + HOW value flows":**
+- **WHY (Purpose):** The reason the product exists, the value drivers users care about ("reduce meeting overhead", "enable async collaboration")
+- **HOW (Capabilities):** The value layers and capabilities that deliver those outcomes ("threaded conversations", "notification system")
+- **WHAT (Components):** High-level components (minimal focus)
+- **Common vocabulary:** Terms everyone in the organization understands and uses consistently
+- **EPF responsibility:** Define and maintain
+
+**Level 2 - Feature definition specifies "HOW users achieve outcomes + WHAT value is delivered (strategic)":**
+- **WHY:** Inherited from value model (explicit `contributes_to` mapping)
+- **HOW (dominant):** Personas interact through scenarios and workflows to achieve outcomes
+- **WHAT (strategic, non-implementation):** Contexts, jobs-to-be-done, acceptance criteria, outcomes
+  - Example WHAT: "Alert delivered within 30 seconds of threshold breach" (outcome, not implementation)
+  - NOT: "WebSocket endpoint `/ws/alerts` using Kafka" (that's Level 3 technical WHAT)
+- **Contains:** Personas (4 required), scenarios, contexts, acceptance criteria, value mapping
+- **EPF responsibility:** Define and maintain
+- **Critical distinction:** Contains WHAT on a **strategic level** (what outcomes, what user experiences, what acceptance criteria). Does NOT contain WHAT on a **technical level** (what APIs, what database tables, what architecture patterns).
+
+**Level 3 - Feature implementation spec defines "HOW to build technically + WHAT technologies to use":**
+- **WHY:** Inherited from feature definition (acceptance criteria become requirements)
+- **HOW (dominant):** API contracts, database schemas, architecture diagrams, system design
+- **WHAT (technical):** Specific technologies, endpoints, schemas, performance targets
+  - Example WHAT: "WebSocket endpoint `/ws/alerts` using Kafka event stream, Redis cache, PostgreSQL alerts table"
+- **EPF responsibility:** NONE - this is outside EPF scope
+
+**Level 4 - Implemented feature is "the actual WHAT (running software)":**
+- **WHAT (dominant):** Source code, tests, deployment configs, CI/CD pipelines
+- **HOW:** Algorithms, functions
+- **WHY:** Inherited requirements (minimal)
+- **EPF responsibility:** NONE - standard engineering practices
+
+**The critical distinctions:**
+
+| Question | WHY-HOW-WHAT | Answered By | EPF Scope? | Changes |
+|----------|--------------|-------------|------------|---------|
+| "Why does our product exist?" | WHY | Value model | ✅ YES | Infrequently (annual) |
+| "How does value flow?" | HOW | Value model | ✅ YES | Infrequently (annual) |
+| "How do users achieve outcomes?" | HOW | Feature definition (scenarios, workflows) | ✅ YES | Quarterly |
+| "What value is delivered?" | WHAT (strategic) | Feature definition (contexts, outcomes, criteria) | ✅ YES | Quarterly |
+| "How to build it technically?" | HOW | Feature implementation spec (architecture, APIs) | ❌ NO | Monthly |
+| "What technologies to use?" | WHAT (technical) | Feature implementation spec (endpoints, schemas) | ❌ NO | Monthly |
+| "What is the running code?" | WHAT (concrete) | Implemented feature (source code) | ❌ NO | Daily/weekly |
+
+**Organizational communication levels:**
+
+The value model is the **cross-organizational language**:
+- **Everyone** in a product organization should know the value drivers and value layers
+- **Everyone** should use the same terms when discussing product capabilities
+
+**Depth of engagement by role:**
+
+| Role | Engages With | Example Tasks |
+|------|--------------|---------------|
+| **Executives** | Value model only | Strategic planning, investor pitches, roadmap prioritization |
+| **Product Managers** | Value model + Feature definitions | Persona development, scenario design, value mapping |
+| **Product Designers** | Value model + Feature definitions | UX flows, interaction design based on scenarios |
+| **Engineering Leads** | Feature definitions + Implementation specs | Translate definitions into technical architecture |
+| **Engineers** | Implementation specs + Code | Build according to technical specifications |
+
+**Example conversation showing the levels:**
+
+```
+Executive: "How's our async collaboration value driver performing?"
+
+PM: "Strong. The 'threaded conversation' capability is delivering a 40% reduction
+     in meeting overhead based on usage data from our 3 key personas."
+     [Speaking at value model + feature definition level]
+
+Engineering Lead: "The threaded conversation feature is implemented using a
+                  message-queue architecture with PostgreSQL for persistence
+                  and Redis for real-time updates."
+                  [Speaking at implementation spec + code level]
+
+Executive: [Understands PM's strategic context; doesn't need engineering detail]
+```
+
+**Why value model persistence matters:**
+
+Your product's **core value proposition** should be relatively stable. If you're constantly changing what value you deliver, you don't have product-market fit.
+
+**Feature definitions** will change more frequently than value models, but less frequently than implementation:
+- New personas emerge as market expands
+- Scenarios evolve based on user feedback
+- Acceptance criteria adjust to reflect learning
+
+**Feature implementation specs** will change more frequently as technology and architecture evolve.
+
+**Code** changes continuously as engineering iterates.
+
+**The value model provides strategic stability while feature definitions provide tactical flexibility, and implementation provides technical agility.**
+
+### EPF's Scope: What's In, What's Out
+
+**EPF is responsible for strategic and outcome-oriented artifacts. Technical implementation is outside EPF's scope.**
+
+| Artifact | EPF Scope? | Rationale |
+|----------|-----------|-----------|
+| **Value model** | ✅ IN | Defines product's core value proposition |
+| **Feature definition** | ✅ IN | Defines what value feature delivers, to whom, in what contexts |
+| **Personas (in feature definition)** | ✅ IN | Defines who benefits and their motivations |
+| **Scenarios (in feature definition)** | ✅ IN | Defines how value is delivered through user interactions |
+| **Acceptance criteria (in feature definition)** | ✅ IN | Defines outcome-based success criteria ("user can...") |
+| **Technical PRD** | ❌ OUT | Engineering team's responsibility |
+| **API specifications** | ❌ OUT | Engineering team's responsibility |
+| **Database schemas** | ❌ OUT | Engineering team's responsibility |
+| **Architecture diagrams** | ❌ OUT | Engineering team's responsibility (though ADRs may reference strategy) |
+| **Source code** | ❌ OUT | Engineering team's responsibility |
+| **Test specifications** | ❌ OUT | Engineering team's responsibility |
+
+**Why this boundary matters:**
+
+1. **Clear ownership** - Product defines outcomes, engineering defines implementation
+2. **Flexibility** - Implementation can change without changing strategic definition
+3. **Focus** - Each team focuses on their domain expertise
+4. **Traceability** - Implementation specs trace to feature definitions, which trace to value model
+
+**The handoff point:**
+
+```
+Product team (EPF artifacts):
+- Creates value model (strategic foundation)
+- Creates feature definition (personas, scenarios, value mapping)
+- Defines success criteria (outcome-oriented acceptance criteria)
+
+↓ HANDOFF ↓
+
+Engineering team (technical artifacts):
+- Creates technical specification (APIs, data models, architecture)
+- Implements feature (code, tests, deployment)
+- Measures against acceptance criteria from feature definition
+```
+
+**Feature definition example (EPF scope):**
+
+```yaml
+scenario:
+  name: "Technical Lead Creates Threaded Discussion"
+  actor: "technical_lead"
+  trigger: "Needs to coordinate async decision across 3 teams"
+  action: "Creates thread, @mentions team leads, attaches context docs"
+  outcome: "All teams respond within 24hrs, decision documented"
+  acceptance_criteria:
+    - "User can create thread with @mentions"
+    - "Mentioned users receive notifications"
+    - "Thread persists and is searchable"
+    - "80% of threads resolved within 48hrs (measured)"
+```
+
+**Feature implementation spec example (outside EPF scope):**
+
+```yaml
+# Engineering team creates this based on feature definition above
+
+api_endpoint: POST /api/v1/threads
+request_schema:
+  title: string
+  content: markdown
+  mentions: user_id[]
+  attachments: file_id[]
+
+database_schema:
+  threads:
+    id: uuid (primary key)
+    workspace_id: uuid (foreign key)
+    author_id: uuid (foreign key)
+    created_at: timestamp
+    updated_at: timestamp
+  
+  thread_messages:
+    id: uuid (primary key)
+    thread_id: uuid (foreign key)
+    author_id: uuid (foreign key)
+    content: text
+    mentions: jsonb
+
+architecture:
+  - React frontend with TanStack Query
+  - NestJS backend with PostgreSQL
+  - Redis for real-time notifications
+  - WebSocket for live updates
+```
+
+**The key difference:** Feature definition says WHAT and WHY (outcome-oriented). Implementation spec says HOW (technically-oriented).
+
+**When feature definitions change (quarterly or less):**
+- New persona emerges (market expansion)
+- Scenario needs adjustment (user feedback)
+- Acceptance criteria refined (learning from measurements)
+- Value mapping updated (strategic shift)
+
+**When implementation specs change (monthly):**
+- Better API design discovered
+- Technology improvement (GraphQL → tRPC)
+- Performance optimization required
+- Security vulnerability addressed
+
+**When value model changes (rarely):**
+- You've pivoted to a new market segment (value drivers change)
+- You've discovered new core value (add layers)
+- You're sunsetting a capability (deprecate layers)
+
+**When features change (frequently):**
+- Better UX for existing capability
+- New technology for same value driver
+- Iteration based on usage data
+- Competitive feature parity
+
+**Artifacts created in FIRE phase:**
+
+1. **`value_model_*.yaml`** (First - defines the product)
+   - Value drivers and their strategic importance
+   - Value layers (capabilities that deliver drivers)
+   - Component structure (how layers are organized)
+   
+2. **`feature_definition_*.yaml`** (Second - implements value model)
+   - Detailed feature specifications
+   - User scenarios and acceptance criteria
+   - References to value model layers
+   
+3. **`mappings.yaml`** (Connects features to value)
+   - N:M relationships between features and value drivers
+   - Traceability from implementation to strategic intent
+
+**The pattern:** Value Model → Features → Traceability
 
 FIRE phase is where actual product development happens. But unlike traditional "sprint planning," every feature connects explicitly to strategic value.
 
@@ -1359,27 +1624,42 @@ Product Architect: "Which roadmap initiative are we implementing?"
 
 PM: "Async communication - the Q1 priority from our roadmap"
 
-Product Architect: "I see this initiative targets 3 value drivers:
-                    - Reduce meeting overhead
-                    - Enable timezone-flexible collaboration
-                    - Increase documented decision-making
+Product Architect: "Let's start by defining the value model for this initiative.
                     
-                    Let's create a feature definition. What's the feature name?"
+                    What value drivers does async communication enable?
+                    (Value drivers = outcomes users care about)"
 
-PM: "Threaded conversation workspace"
+PM: "Reduce meeting overhead, enable timezone-flexible collaboration,
+     increase documented decision-making"
 
-Product Architect: "Define 4 personas who'll use this..."
+Product Architect: "What capabilities deliver those drivers?
+                    (Layers = product capabilities)"
+
+PM: "Threaded conversations, notification system, decision documentation"
+
+Product Architect: "✓ Value model complete (value_model.async_collab.yaml)
+                    
+                    Now let's create features that implement these capabilities.
+                    
+                    Feature 1: Threaded conversation workspace
+                    - Maps to layer: 'Threaded conversations'
+                    - Delivers drivers: 'Reduce meeting overhead', 'Enable async collab'
+                    
+                    Define 4 personas who'll use this..."
 
 [Wizard guides persona creation, scenario definition, contexts]
 
-Product Architect: "✓ Feature definition complete.
-                    Creating value model to map this feature to strategic value..."
+Product Architect: "✓ Feature definition complete (fd-023-threaded-conversations.yaml)
+                    ✓ Feature mapped to value model in mappings.yaml
+                    
+                    This feature implements the 'Threaded conversations' layer
+                    and delivers 2 of your 3 value drivers."
 ```
 
-**The result:** 
-- Feature definition (fd-023-threaded-conversations.yaml)
-- Value model (vm-008-async-collab.yaml) 
-- Feature-value mapping showing which personas/scenarios deliver which value drivers
+**The result (in order of creation):**
+1. Value model (value_model.async_collab.yaml) - **First: defines "what" we're delivering**
+2. Feature definition (fd-023-threaded-conversations.yaml) - **Second: defines "how"**
+3. Feature-value mapping (mappings.yaml updated) - **Third: connects implementation to value**
 
 **Key difference from traditional PM:**
 
