@@ -13,7 +13,7 @@ strategy:
   opportunity_id: "opp-001" # Links back to 03_insight_opportunity.yaml
   informed_by_foundations: "02_strategy_foundations.yaml"
   title: "Design by Emergence: The Context Layer for AI-Native Development"
-  last_updated: "2025-12-11"
+  last_updated: "2025-12-30"
   
   # ============================================================================
   # STRATEGIC POSITIONING
@@ -225,44 +225,42 @@ strategy:
   
   ecosystem_differentiation:
     summary: |
-      Emergent Core doesn't exist in isolation—it's the engine of a larger ecosystem
-      of interconnected products and methodologies. This ecosystem creates compounding
-      value: EPF structures strategy, OpenSpec structures specifications, Core makes
-      both searchable and AI-accessible, and Tools connect everything to external systems.
+      Emergent Core doesn't exist in isolation—it's the brain of a three-product ecosystem.
+      This ecosystem creates compounding value through biological integration: Core (Brain)
+      provides intelligence and memory, Runtime (Nervous System) orchestrates workflows,
+      and Tools (Circulatory System) connect everything to external systems.
     
     ecosystem_components:
       - component: "Emergent Core"
-        role: "The knowledge engine"
+        metaphor: "The Brain"
+        role: "Intelligence, memory, and reasoning"
         standalone_value: "Document ingestion, semantic search, AI chat, knowledge graph"
-        ecosystem_value: "Powers all other products; accumulates organizational intelligence"
+        ecosystem_value: "Powers all other products; accumulates organizational intelligence; provides shared infrastructure (auth, multi-tenancy, RLS)"
       
-      - component: "EPF (Emergent Product Framework)"
-        role: "Strategy methodology"
-        standalone_value: "Structured product development phases, schema-driven planning"
-        ecosystem_value: "Strategy artifacts feed into Core; AI reasons over product strategy"
-      
-      - component: "OpenSpec"
-        role: "Specification framework"
-        standalone_value: "AI-assisted technical specifications and proposals"
-        ecosystem_value: "Specs stored in Core; traceable from strategy to implementation"
+      - component: "EPF-Runtime"
+        metaphor: "The Nervous System"
+        role: "Orchestration and coordination"
+        standalone_value: "Headless execution of EPF workflows, artifact storage, durable state"
+        ecosystem_value: "Enables autonomous AI agent execution of multi-step methodologies; makes EPF Framework programmable; coordinates actions across Core and Tools"
       
       - component: "Emergent Tools"
-        role: "Integration layer"
-        standalone_value: "CLI access, MCP server, integration adapters"
-        ecosystem_value: "Bridges Core to external AI agents and third-party systems"
+        metaphor: "The Circulatory System"
+        role: "Connectors, bridges, and interfaces"
+        standalone_value: "Git Bridge, Deploy Tracker, Slack Bot, SDK, Feedback Aggregator"
+        ecosystem_value: "Closes feedback loops (strategy ↔ code ↔ production ↔ users); bridges Core/Runtime to external systems; developer extensibility"
     
     ecosystem_synergies:
-      - synergy: "Strategy → Knowledge → Code traceability"
-        how: "EPF artifacts in Core + OpenSpec proposals = audit trail from 'why' to 'what' to 'how'"
-        unique_to_us: "No competitor connects product strategy to knowledge infrastructure"
+      - synergy: "Strategy → Code → Production → Feedback traceability"
+        how: "EPF artifacts in Core → Git Bridge links commits → Deploy Tracker tracks releases → Feedback Aggregator captures user response"
+        unique_to_us: "No competitor connects complete product development loop from strategy to user feedback"
       
       - synergy: "AI agents understand product intent"
-        how: "MCP server exposes EPF strategy + Core knowledge to AI coding assistants"
-        unique_to_us: "AI helpers know not just code, but business goals and architecture decisions"
+        how: "MCP server exposes Core knowledge to AI coding assistants; Runtime executes methodologies autonomously; Tools integrate external context"
+        unique_to_us: "AI helpers know not just code, but business goals, architecture decisions, and can run full product cycles"
       
       - synergy: "Methodology creates lock-in without lock-in"
-        how: "Teams adopt EPF patterns → artifacts accumulate in Core → switching cost is knowledge loss"
-        unique_to_us: "Value accrues through methodology adoption, not proprietary formats"
+        how: "Teams adopt EPF patterns → artifacts accumulate in Core → Runtime workflows become operational dependencies → Tools integrate into daily workflows → switching cost is knowledge loss + re-training"
+        unique_to_us: "Value accrues through methodology adoption and orchestration, not proprietary formats"
       
       - synergy: "Recursive improvement"
         how: "Emergent builds Emergent—dogfooding compounds product quality"
@@ -274,11 +272,14 @@ strategy:
       - Glean: Enterprise search
       - LangChain: RAG framework
       - Notion AI: Workspace AI assistant
+      - Retool Workflows: Visual automation builder
       
-      Emergent offers an integrated TOOLCHAIN:
-      - Methodology (EPF) + Specifications (OpenSpec) + Knowledge Engine (Core) + Integrations (Tools)
+      Emergent offers an integrated ORGANISM:
+      - Core (Brain) + Runtime (Nervous System) + Tools (Circulatory System) = living product development system
       - Each works independently but compounds when combined
       - External AI tools (Cursor, Claude) become part of the ecosystem via MCP
+      - Runtime makes the entire system programmable and autonomous
+      - EPF Framework (maintained separately) provides methodology that all three products support
     
     ecosystem_expansion_vectors:
       - vector: "Vertical integrations"
