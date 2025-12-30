@@ -123,6 +123,15 @@ layers:
   - layer_number: 1
     layer_name: "User Interfaces"
     layer_description: "API and CLI interfaces for interacting with EPF-Runtime"
+    solution_steps:
+      - step: "Expose RESTful and GraphQL APIs for workflow operations"
+        outcome: "AI agents and DevOps pipelines can initiate/monitor workflows programmatically"
+      - step: "Implement real-time validation endpoint for immediate feedback"
+        outcome: "Teams catch schema errors during artifact creation, not after commit"
+      - step: "Provide CLI for local workflow testing and CI/CD integration"
+        outcome: "Developers validate workflows locally before deploying to production"
+      - step: "Enable webhook subscriptions for workflow events"
+        outcome: "External tools receive real-time notifications of workflow progress"
     components:
       - component_name: "ProgrammaticAccess"
         uvp: "EPF cycles are initiated and monitored via API so that AI agents can orchestrate product development autonomously, which helps us enable machine-driven planning."
@@ -165,6 +174,15 @@ layers:
   - layer_number: 2
     layer_name: "Workflow Engine"
     layer_description: "Durable workflow orchestration for EPF cycles"
+    solution_steps:
+      - step: "Implement READY/FIRE/AIM phases as durable Temporal workflows"
+        outcome: "Workflow state persists across infrastructure failures and survives restarts"
+      - step: "Enforce sequential phase execution with validation gates"
+        outcome: "Teams cannot skip mandatory artifacts, ensuring methodology discipline"
+      - step: "Validate all artifacts against EPF JSON schemas in real-time"
+        outcome: "Invalid artifacts rejected before storage, maintaining data integrity"
+      - step: "Integrate automatic retry logic for transient failures"
+        outcome: "Network hiccups don't block workflows, improving reliability"
     components:
       - component_name: "DurableExecution"
         uvp: "Workflow state persists across infrastructure failures so that long-running EPF cycles complete reliably, which helps us prevent lost planning work."
@@ -207,6 +225,15 @@ layers:
   - layer_number: 3
     layer_name: "Platform Services"
     layer_description: "Multi-tenancy, access control, and external integrations"
+    solution_steps:
+      - step: "Implement workspace isolation with row-level security and Temporal namespaces"
+        outcome: "Multiple product lines operate independently without data leakage"
+      - step: "Enforce role-based access control at API and workflow levels"
+        outcome: "Sensitive strategies remain confidential, meeting enterprise security requirements"
+      - step: "Build webhook engine for external tool integration (GitHub, Jira, Notion)"
+        outcome: "EPF cycles trigger actions in existing tools, fitting into current workflows"
+      - step: "Automate workspace provisioning via API"
+        outcome: "Sales can onboard customers instantly without engineering intervention"
     components:
       - component_name: "WorkspaceIsolation"
         uvp: "Multiple product lines operate independently so that teams don't interfere with each other, which helps us support enterprise customers."
@@ -244,6 +271,15 @@ layers:
   - layer_number: 4
     layer_name: "Infrastructure"
     layer_description: "Deployment, monitoring, and operational support"
+    solution_steps:
+      - step: "Implement blue-green deployment with Temporal graceful shutdown"
+        outcome: "Platform updates deploy without interrupting running workflows, maintaining SLA"
+      - step: "Deploy comprehensive monitoring with Prometheus, Grafana, and PagerDuty"
+        outcome: "System failures detected instantly before users are impacted"
+      - step: "Enable immutable audit logging via Temporal history and Elasticsearch"
+        outcome: "All workflow actions logged for compliance and forensic analysis"
+      - step: "Configure PostgreSQL continuous archiving and cross-region replication"
+        outcome: "Data survives catastrophic failures with point-in-time recovery capability"
     components:
       - component_name: "ReliableDeployment"
         uvp: "Platform updates deploy without interrupting running workflows so that teams experience zero downtime, which helps us maintain SLA commitments."
