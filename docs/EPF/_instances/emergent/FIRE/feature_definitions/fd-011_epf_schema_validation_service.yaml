@@ -1,0 +1,305 @@
+id: "fd-011"
+name: "EPF Schema Validation Service"
+slug: "epf-schema-validation-service"
+status: "planned"
+
+strategic_context:
+  problem_statement: |
+    Teams create EPF artifacts (North Stars, roadmaps, value models) that violate schema requirements, causing integration failures when artifacts are ingested into Emergent Core. Schema violations are discovered late—after hours of work—when validation scripts run during Git commits or CI builds. Error messages from command-line validators are cryptic (YAML path notation, no context), forcing authors to manually trace through 500+ line documents to find issues. Teams waste 3-5 hours per week debugging schema violations that could be caught in real-time during artifact creation. No programmatic validation exists for AI agents or automation tools creating artifacts.
+  
+  market_context: |
+    Real-time validation services (JSON Schema validators, OpenAPI validators, GraphQL validators) have become standard in developer tooling. Modern IDEs provide inline validation for code, configuration, and data formats. Our opportunity is to bring IDE-quality validation to EPF artifacts, enabling confident artifact creation by humans and reliable artifact generation by AI systems. This unblocks autonomous AI agents creating EPF artifacts programmatically.
+  
+  success_metrics:
+    - metric: "Validation error detection time"
+      target: "<500ms from artifact submission to detailed error response"
+      measurement: "API latency monitoring (p95) for POST /validate requests"
+    - metric: "Schema violation reduction"
+      target: "60% reduction in artifacts rejected during CI/CD validation (currently 15% rejection rate)"
+      measurement: "Compare pre-commit hook failures before/after real-time validation adoption"
+    - metric: "AI agent artifact quality"
+      target: "95%+ of AI-generated artifacts pass schema validation on first attempt"
+      measurement: "Track validation success rate for artifacts submitted by autonomous agents"
+
+definition:
+  job_to_be_done: >
+    When I'm creating or generating EPF artifacts programmatically, I want immediate validation feedback with clear error messages showing exactly what's wrong and where, so I can fix issues in seconds rather than debugging for hours after Git commit failures.
+
+  solution_approach: >
+    A stateless validation API service that accepts EPF artifacts (YAML/JSON), validates against versioned schemas, and returns structured error responses with line numbers, field paths, and human-readable explanations. Integrates with workflow execution (validates artifacts during phase transitions), provides standalone validation endpoint for development tools, and supports schema version negotiation (validate against specific EPF framework versions). Think "TypeScript compiler errors for EPF artifacts" - precise, actionable, immediate.
+
+  capabilities:
+    - id: "cap-011-001"
+      name: "Real-Time Artifact Validation"
+      description: >
+        POST /api/validate endpoint accepts artifacts with artifact_type (north_star, roadmap, value_model, feature_definition) and content. Returns validation result within 500ms with pass/fail status and detailed errors if validation fails.
+    
+    - id: "cap-011-002"
+      name: "Structured Error Responses"
+      description: >
+        Validation errors include field path (YAML path notation), line number (if source has line info), violated constraint (required field missing, wrong type, pattern mismatch), and human-readable explanation with fix suggestions.
+    
+    - id: "cap-011-003"
+      name: "Schema Version Compatibility"
+      description: >
+        Accepts schema_version parameter to validate against specific EPF framework versions. Defaults to latest schema version. Enables gradual migration when schemas evolve (validate old artifacts against old schemas, new artifacts against new schemas).
+    
+    - id: "cap-011-004"
+      name: "Workflow Integration Validation"
+      description: >
+        Temporal workflows call validation service automatically during phase transitions. If artifacts fail validation, workflow pauses and notifies author with error details. Prevents invalid artifacts from progressing to next phase.
+
+  personas:
+    - name: "Marcus Chen, AI Autonomy Engineer at AutoPlan AI"
+      current_situation: |
+        Marcus's autonomous agent generates EPF artifacts by calling OpenAI API with structured prompts. The agent produces YAML artifacts that look correct but often contain subtle schema violations—missing required fields, incorrect data types, malformed references. Currently, Marcus discovers violations when his agent commits to Git and pre-commit hooks fail. The agent lacks visibility into failure reasons because hook output is designed for human interpretation. Marcus manually reviews failed artifacts, identifies issues, updates agent prompts, and retries. This debugging loop takes 2-4 hours per schema violation. His agent's artifact success rate is 73%, meaning 27% of attempts require manual intervention.
+      
+      transformation_moment: |
+        With the validation API, Marcus's agent calls POST /validate immediately after generating artifacts. The API returns structured JSON errors that the agent's error-handling logic can parse. When validation fails, the agent receives field paths ("definition.personas[0].current_situation"), constraint violations ("minimum 200 characters, found 147"), and fix suggestions ("Add more detail about user's current workflow challenges"). The agent automatically retries with corrected prompts, iterating until validation passes. Marcus configures 3-retry limit before escalating to human review. What took 2-4 hours of manual debugging per violation now completes in 30-90 seconds of automated retry loops. Agent artifact success rate improves from 73% to 97%.
+      
+      emotional_resolution: |
+        Marcus feels confident deploying his agent to production because artifact quality is validated programmatically, not discovered through Git commit failures. He's shifted from "debugging brittle prompt engineering" to "optimizing automated validation-retry loops." His relationship with customers has improved—agents produce reliable artifacts without manual intervention. He presents at AI conferences about building validation-aware autonomous agents, positioning his company as leaders in reliable AI planning systems. The validation API unlocked autonomous multi-phase planning—agents confidently create artifacts knowing real-time feedback prevents schema drift.
+
+    - name: "Priya Sharma, DevOps Platform Engineer at CloudScale Systems"
+      current_situation: |
+        Priya maintains CI/CD pipelines that run EPF schema validation via pre-commit hooks and validation scripts. When validation fails, pipelines fail, blocking deployments. Error messages appear in Jenkins logs as YAML path errors: ".definition.scenarios[2].trigger: field required". Developers struggle interpreting these cryptic messages—which file? which line? what should trigger contain? They ping Priya asking "what does this error mean?", and she spends 30-45 minutes per day helping developers decode validation errors. Validation failures block pipelines for 2-3 hours on average while developers debug, reformat, and resubmit. Teams complain that validation "slows them down" rather than helping them.
+      
+      transformation_moment: |
+        With the validation API integrated into CI pipelines, validation happens before Git commit via pre-commit hooks that call the API. The API returns structured errors with line numbers, allowing hooks to display: "north_star.yaml:45 - definition.success_metrics[1].target: must be string, found number". Developers see exactly which file, line, and field has issues. Pipeline validation failures include API-generated fix suggestions: "Did you mean to quote the target value? Example: target: '95%'". Priya configures IDE extensions that call validation API on file save, catching issues before commit. What took 2-3 hours to debug per validation failure now completes in 5-10 minutes. Validation-related pipeline blocks reduced by 75%.
+      
+      emotional_resolution: |
+        Priya feels proud that validation improves developer experience rather than frustrating teams. She's shifted from "firefighting cryptic validation errors" to "proactively preventing artifact quality issues." Her relationship with developers has improved—they see validation as helpful guardrails, not obstacles. She presents at DevOps conferences about building developer-friendly validation pipelines, highlighting real-time feedback loops. The validation API integration freed her to work on platform capabilities instead of being trapped in validation support tickets.
+
+    - name: "Alex Rivera, Startup CTO at VentureFlow"
+      current_situation: |
+        Alex's team creates EPF artifacts in Notion using custom templates, then copies content to YAML files for Git storage. During copy-paste, formatting breaks—indentation errors, quote escaping issues, field name typos. The team commits YAML files hoping validation passes, but 30% of commits fail validation. Error messages are technical ("expected mapping, found scalar at line 87"), confusing non-technical team members. Alex spends 1-2 hours weekly fixing teammates' validation errors manually. The team fears EPF validation, viewing it as "that annoying thing that breaks our commits" rather than quality assurance. They've started skipping proper YAML formatting, storing artifacts only in Notion, which breaks CI/CD integration.
+      
+      transformation_moment: |
+        With validation API integrated into Notion via webhook automation, artifacts are validated immediately after creation in Notion—before any YAML conversion. When team members click "Publish to EPF" button, automation calls validation API with Notion content converted to YAML. If validation fails, inline error messages appear in Notion: "Success Metrics section needs at least 3 metrics (found 2)". Team members fix issues directly in Notion, never touching YAML. Validation catches formatting issues before Git commit. What took 1-2 hours of manual cleanup weekly now happens automatically. Team views validation as "helpful spell-check for planning docs" rather than "scary technical gatekeeper". Validation failure rate drops from 30% to 5%.
+      
+      emotional_resolution: |
+        Alex feels relieved that non-technical team members can confidently create EPF artifacts without YAML expertise. He's shifted from "fixing teammates' validation errors" to "trusting automated quality checks." His relationship with the team has improved—they appreciate validation preventing mistakes rather than punishing errors. He pitches to investors that their planning process has "enterprise-grade quality controls" despite small team size. The validation integration removed friction from EPF adoption, enabling faster execution of planning methodology without technical bottlenecks.
+
+    - name: "Dr. Emily Watson, Product Research Lead at InnovateLabs"
+      current_situation: |
+        Emily reviews EPF artifacts created by 8 project teams. Teams submit artifacts via pull requests, and Emily discovers schema violations during quarterly reviews—weeks after artifacts were created. Common issues: incomplete personas (missing transformation_moment paragraphs), scenarios without acceptance criteria, dependencies as strings instead of objects. By the time Emily provides feedback, authors have moved on to other projects and don't remember context. She documents validation errors in spreadsheet, emails teams asking for corrections, and waits weeks for updates. This async correction loop means artifacts remain invalid for 4-6 weeks on average. She cannot enforce validation standards consistently because manual review scales poorly across 8 teams.
+      
+      transformation_moment: |
+        With validation API integrated into project management workflow, teams validate artifacts before submitting for Emily's review. GitHub PR templates include "Validation Status" section showing API validation results. Emily's dashboard shows validation pass/fail status per project in real-time. She filters for "validation failed" projects and provides targeted feedback on specific errors (API provides error summaries). Teams fix validation issues before requesting review, allowing Emily to focus on strategic feedback rather than schema compliance. What took 4-6 weeks of async corrections now completes in 2-3 days. Emily exports validation metrics to identify which teams struggle most, providing targeted training.
+      
+      emotional_resolution: |
+        Emily feels empowered enforcing quality standards programmatically rather than through time-consuming manual review. She's shifted from "reactive quality auditor" to "proactive methodology coach." Her relationship with teams has improved—validation catches tactical errors automatically, freeing her to provide strategic guidance on artifact content. She presents at research conferences about scaling quality assurance across innovation portfolios using automated validation. The validation API enabled her to scale oversight to 12+ teams without increasing headcount, positioning her as expert in systematic innovation governance.
+
+  scenarios:
+    - id: "scn-011-001"
+      name: "AI Agent Validates Generated Artifact Before Commit"
+      actor: "Marcus Chen's AutoPlan AI Agent"
+      context: "Agent generated North Star artifact via OpenAI API. Before committing to Git, agent needs to verify artifact passes schema validation."
+      trigger: "Agent completes artifact generation and prepares to commit YAML file"
+      action: |
+        1. Agent constructs validation request with artifact_type: "north_star", content: {generated YAML}, schema_version: "2.0" (from agent config)
+        2. Agent includes API key in Authorization header
+        3. Agent sends POST request to /api/validate endpoint
+        4. API responds within 300ms with validation result
+        5. If valid: Agent receives {valid: true, schema_version: "2.0"} and proceeds to Git commit
+        6. If invalid: Agent receives {valid: false, errors: [{field: "definition.success_metrics[1].target", constraint: "minimum 3 metrics", message: "Success metrics must include at least 3 distinct metrics"}]}
+        7. Agent parses error, logs validation failure, updates generation prompt with error context, and retries (up to 3 attempts)
+      outcome: |
+        On first attempt, validation fails with 2 errors (missing metric, incomplete persona narrative). Agent retries with enhanced prompt emphasizing those requirements. Second attempt passes validation. Agent commits artifact to Git. Pre-commit hook validation passes immediately (same API, cached result). CI pipeline succeeds without validation blocks.
+      acceptance_criteria:
+        - "API responds within 500ms with validation result"
+        - "Response includes valid (boolean), schema_version (string), errors array if invalid"
+        - "Each error includes field path (YAML notation), constraint name, human-readable message"
+        - "Agent can parse errors programmatically and construct retry prompts"
+        - "Validation is idempotent: same artifact returns same result across multiple calls"
+
+    - id: "scn-011-002"
+      name: "Developer Validates Artifact in IDE Before Commit"
+      actor: "Junior Developer (Sarah) on Priya's Team"
+      context: "Sarah editing roadmap.yaml in VS Code. She added new OKR but unsure if format is correct. VS Code has validation extension that calls EPF validation API on file save."
+      trigger: "Sarah saves roadmap.yaml file (Cmd+S)"
+      action: |
+        1. VS Code extension detects file save, reads file content
+        2. Extension calls validation API with artifact_type: "roadmap", content: {file content}, schema_version: "auto" (detects from file metadata)
+        3. API validates and returns result within 400ms
+        4. If valid: Extension shows green checkmark in status bar "✓ Roadmap validated"
+        5. If invalid: Extension shows error squiggles under problematic lines, hover tooltip displays error message from API
+        6. Sarah hovers over squiggle at line 78: "Key results: minimum 3 items required per objective (found 2)"
+        7. Sarah adds third key result, saves again, extension calls API, validation passes
+      outcome: |
+        Sarah fixes validation issue within 30 seconds based on inline error message. When she commits to Git, pre-commit hook validation passes immediately (same artifact, cached validation result). No CI pipeline failures. Sarah learns schema requirements through real-time feedback, improving future artifact quality.
+      acceptance_criteria:
+        - "VS Code extension can call API with file content on save"
+        - "API returns errors with line numbers (if source includes line info)"
+        - "Extension displays errors inline with actionable messages"
+        - "Validation completes fast enough for save-on-type workflows (<500ms)"
+        - "Multiple validation calls for same artifact use cached result (via content hash)"
+
+    - id: "scn-011-003"
+      name: "No-Code Tool Validates Notion Content Before Export"
+      actor: "Alex Rivera's Team Member (Jamie) via Notion Integration"
+      context: "Jamie completed value model in Notion using team template. Ready to export to YAML for Git storage. Notion has 'Publish to EPF' button that triggers Zapier automation."
+      trigger: "Jamie clicks 'Publish to EPF' button in Notion page"
+      action: |
+        1. Zapier captures button click webhook from Notion
+        2. Zapier script extracts Notion content, converts to YAML structure using template mapping
+        3. Zapier calls validation API with artifact_type: "value_model", content: {generated YAML}
+        4. If valid: Zapier commits YAML to GitHub via API, posts success message in Notion page: "✅ Published to EPF (validation passed)"
+        5. If invalid: Zapier posts error message in Notion: "❌ Validation failed: [error summary]. Fix these issues and try again."
+        6. Error message includes clickable sections linking to fields needing correction
+        7. Jamie fixes issues in Notion, clicks button again
+      outcome: |
+        First attempt fails validation: "Layer 2 components missing required 'deliverable' field". Jamie adds deliverable descriptions to Layer 2 components in Notion. Second attempt passes. YAML committed to Git. Team never touches YAML directly. Non-technical member successfully publishes EPF-compliant artifact.
+      acceptance_criteria:
+        - "Zapier can call validation API via HTTP Request action"
+        - "API accepts YAML or JSON content interchangeably"
+        - "Error messages are non-technical enough for non-developer audiences"
+        - "Validation errors map back to Notion field names (not just YAML paths)"
+        - "Idempotency: Same Notion content validated multiple times returns consistent result"
+
+    - id: "scn-011-004"
+      name: "Workflow Validates Artifact During Phase Transition"
+      actor: "EPF Runtime Temporal Workflow (READY → FIRE Transition)"
+      context: "READY phase workflow completing. User submitted final artifacts (North Star, roadmap). Workflow needs to validate artifacts before advancing to FIRE phase."
+      trigger: "User clicks 'Complete READY Phase' in workflow dashboard"
+      action: |
+        1. Temporal workflow activity calls validation service with all READY artifacts (North Star, roadmap)
+        2. Validation service validates each artifact, returns aggregate result
+        3. If all valid: Workflow transitions to FIRE phase, dashboard shows success message
+        4. If any invalid: Workflow pauses at "Validation" step, dashboard shows error summary with artifact-specific errors
+        5. User clicks "View Validation Errors" to see detailed report
+        6. User fixes artifacts in editor, clicks "Re-validate"
+        7. Workflow activity re-calls validation service
+        8. Once validation passes, workflow auto-resumes transition
+      outcome: |
+        North Star passes validation. Roadmap fails: "OKR 2 missing key results array". User edits roadmap, adds key results, clicks re-validate. Validation passes. Workflow transitions to FIRE automatically. Invalid artifacts never reach next phase. Quality enforced programmatically.
+      acceptance_criteria:
+        - "Workflow can call validation service via activity (retry-safe, idempotent)"
+        - "Validation failure pauses workflow without failing entire workflow"
+        - "Dashboard displays validation errors with links to fix artifacts"
+        - "Re-validation triggers workflow resume when passing"
+        - "Validation results logged in workflow history for audit trail"
+
+  contexts:
+    - id: "ctx-011-001"
+      type: "api"
+      name: "Validation Endpoint"
+      description: |
+        RESTful API endpoint for validating EPF artifacts against versioned schemas. Accepts artifact content (YAML/JSON), returns structured validation result with pass/fail status and detailed errors. Stateless service suitable for high-frequency validation during development.
+      
+      key_interactions:
+        - "POST /api/validate - Submit artifact for validation"
+        - "Include Authorization: Bearer {api_key} header"
+        - "Specify artifact_type (north_star, roadmap, value_model, feature_definition) in request body"
+        - "Optionally specify schema_version (e.g., '2.0', '2.1') or 'auto' to detect from artifact"
+        - "Parse JSON response: {valid: boolean, schema_version: string, errors: array}"
+        - "Handle response codes: 200 OK (validation complete), 400 Bad Request (malformed), 422 Unprocessable Entity (invalid type)"
+      
+      data_displayed:
+        - "valid: Boolean indicating if artifact passes all schema constraints"
+        - "schema_version: Which EPF schema version was used for validation"
+        - "errors: Array of validation error objects (empty if valid: true)"
+        - "error.field: YAML path to problematic field (e.g., 'definition.personas[0].name')"
+        - "error.constraint: Which schema rule was violated (required, type, minLength, pattern)"
+        - "error.message: Human-readable explanation with fix suggestions"
+        - "error.line: Line number in source artifact (if available)"
+
+    - id: "ctx-011-002"
+      type: "integration"
+      name: "IDE Extension Integration"
+      description: |
+        VS Code extension that provides real-time validation for EPF artifacts during editing. Calls validation API on file save, displays inline errors with squiggles and hover tooltips. Caches validation results to avoid redundant API calls for unchanged content.
+      
+      key_interactions:
+        - "Extension detects .yaml files in docs/EPF/_instances/ directories"
+        - "On file save, extension reads file content and artifact type from file path"
+        - "Extension calls validation API with file content, receives errors"
+        - "Extension displays error squiggles at line numbers from API response"
+        - "Hover tooltip shows error.message from validation API"
+        - "Status bar shows validation summary: '✓ Validated' or '3 errors'"
+        - "Problems panel lists all validation errors with click-to-navigate"
+      
+      data_displayed:
+        - "Inline error squiggles (red underline) at problematic lines"
+        - "Hover tooltips with constraint name and fix suggestion"
+        - "Status bar validation status (pass/fail, error count)"
+        - "Problems panel with all errors: file, line, message"
+        - "Validation response time indicator (to show API performance)"
+
+    - id: "ctx-011-003"
+      type: "integration"
+      name: "CI/CD Pipeline Validation"
+      description: |
+        Pre-commit hook and CI pipeline scripts that validate artifacts before allowing commits or deploys. Calls validation API for all modified EPF artifacts, fails commit/build if validation fails, displays errors in developer-friendly format.
+      
+      key_interactions:
+        - "Pre-commit hook detects modified .yaml files in EPF directories"
+        - "Hook calls validation API for each modified artifact"
+        - "If validation passes: Allow commit to proceed"
+        - "If validation fails: Block commit, display errors in terminal with file:line format"
+        - "CI pipeline runs same validation on all EPF artifacts in repository"
+        - "Pipeline fails if any artifacts invalid, logs errors to build output"
+        - "Slack/Teams notification includes validation error summary with file links"
+      
+      data_displayed:
+        - "Terminal output: 'north_star.yaml:45 - definition.success_metrics[1]: missing target field'"
+        - "CI logs showing validation results per artifact (pass/fail)"
+        - "Build failure summary: 'EPF Validation failed: 3 artifacts invalid'"
+        - "Slack notification with error count and links to failed artifacts in Git"
+        - "Validation timing: 'Validated 12 artifacts in 1.8s'"
+
+    - id: "ctx-011-004"
+      type: "screen"
+      name: "Workflow Validation Dashboard"
+      description: |
+        UI panel within workflow dashboard showing validation status of artifacts during phase transitions. Displays validation errors with links to edit artifacts, provides re-validate button, and shows validation history (attempts, error evolution).
+      
+      key_interactions:
+        - "Click 'Complete Phase' button triggers validation"
+        - "Dashboard shows validation progress: 'Validating 2 artifacts...'"
+        - "If validation passes: Dashboard shows success message, advances phase automatically"
+        - "If validation fails: Dashboard pauses at 'Validation' step, shows error summary"
+        - "Click artifact name to view detailed errors for that artifact"
+        - "Click 'Edit Artifact' to open editor with errors highlighted"
+        - "Click 'Re-validate' after fixing errors to retry validation"
+        - "View validation history: past attempts, error evolution, time to fix"
+      
+      data_displayed:
+        - "Validation status badge: 'Validating', 'Passed', 'Failed (3 errors)'"
+        - "Error summary: 'North Star: passed, Roadmap: 3 errors'"
+        - "Detailed errors per artifact: field path, constraint, message"
+        - "Validation attempt counter: 'Attempt 2 of 3' (before workflow failure)"
+        - "Time spent fixing: 'Errors detected 5 minutes ago'"
+        - "Validation history timeline: attempt 1 (4 errors) → attempt 2 (1 error) → attempt 3 (passed)"
+
+  dependencies:
+    requires:
+      - id: "fd-010"
+        name: "Workflow Initiation API"
+        reason: "Workflow validation happens during phase transitions initiated via workflow API. Validation service needs workflow_id context to associate validation results with specific workflow instances. Without workflow API, validation would be standalone tool without integration into automated EPF cycle execution. Workflow context enables validation results to pause workflows, notify users, and track validation history per workflow run."
+    
+    enables:
+      - id: "fd-012"
+        name: "CLI for Local Workflow Testing"
+        reason: "CLI provides 'validate' command that wraps validation API, allowing developers to test artifacts locally before committing. Without validation API, CLI would need to bundle schema validation logic, making it heavyweight and hard to keep synchronized with server-side schemas. API-backed validation ensures CLI users validate against same schemas as CI/CD pipelines and workflows."
+      
+      - id: "fd-013"
+        name: "Core Knowledge Graph Integration"
+        reason: "Before artifacts are ingested into knowledge graph, they must pass schema validation. Integration service calls validation API before graph writes, preventing invalid artifacts from corrupting graph structure. Without validation API, integration would need duplicate validation logic or risk ingesting malformed artifacts that break semantic queries and AI chat features."
+
+  boundaries:
+    non_goals:
+      - "Artifact content quality assessment (semantic validation, not schema compliance)"
+      - "Artifact formatting/beautification (only validates, doesn't reformat)"
+      - "Cross-artifact consistency checks (e.g., roadmap references valid North Star - covered by separate fd-016 Cross-Reference Validation)"
+      - "Schema evolution/migration tools (covered by framework tooling, not runtime)"
+      - "Validation rule customization (schemas are fixed per EPF version)"
+    
+    constraints:
+      - "API rate limit: 1000 validations per hour per API key"
+      - "Maximum artifact size: 1MB (larger artifacts rejected with 413 Payload Too Large)"
+      - "Validation timeout: Must complete within 500ms or return partial results"
+      - "Supported formats: YAML and JSON only (no XML, TOML, etc.)"
+      - "Schema versions: Only EPF 2.x schemas supported (1.x deprecated)"
+      - "Error detail level: Maximum 50 errors per artifact (truncates beyond that with summary)"
+      - "Cache TTL: Validation results cached for 5 minutes per content hash"

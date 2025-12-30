@@ -1,0 +1,281 @@
+id: "fd-010"
+name: "Workflow Initiation API"
+slug: "workflow-initiation-api"
+status: "planned"
+
+strategic_context:
+  problem_statement: |
+    AI agents and DevOps engineers cannot programmatically start EPF cycles. They must manually create YAML files, commit to Git, and manage phase transitions by hand. This prevents automation of product planning and limits EPF adoption to teams comfortable with manual YAML editing. The lack of an API means no CI/CD integration, no autonomous agent orchestration, and no real-time workflow monitoring. Teams spend 4-6 hours per week on manual EPF artifact management when this could be automated.
+  
+  market_context: |
+    Workflow orchestration platforms (Temporal, Airflow, Prefect) are growing 35% annually as teams automate complex processes. Developer platforms increasingly expose "everything as code" APIs. Our opportunity is to make EPF methodology executable by machines, enabling a new category of AI-native product development where agents orchestrate planning cycles autonomously.
+  
+  success_metrics:
+    - metric: "Workflow initiation time"
+      target: "API responds within 500ms and returns workflow ID"
+      measurement: "API latency monitoring (p95)"
+    - metric: "AI agent adoption"
+      target: "3 autonomous agents successfully initiate EPF cycles via API"
+      measurement: "Track unique agent API keys and workflow creation count"
+    - metric: "Error rate for workflow creation"
+      target: "<1% (99%+ success rate for valid requests)"
+      measurement: "Monitor 4xx/5xx responses and validation failures"
+
+definition:
+  job_to_be_done: >
+    When I'm building an AI agent or DevOps pipeline that needs to start an EPF planning cycle, I want a simple REST API endpoint that accepts workflow parameters and returns a workflow ID, so I can trigger READY/FIRE/AIM phases programmatically without manual YAML file manipulation.
+
+  solution_approach: >
+    A RESTful API endpoint that accepts workflow initiation requests with minimal required parameters (phase type, workspace ID, optional pre-filled data). The API validates the request, creates a Temporal workflow, and immediately returns a workflow ID for monitoring. It handles authentication via API keys, supports idempotency for reliable retries, and provides clear error messages when validation fails. Think "Stripe API for EPF workflows" - simple, predictable, well-documented.
+
+  capabilities:
+    - id: "cap-010-001"
+      name: "Workflow Creation Endpoint"
+      description: >
+        POST /api/workflows endpoint accepts phase type (READY/FIRE/AIM), workspace ID, and optional initial data. Returns workflow ID within 500ms for monitoring and status checks.
+    
+    - id: "cap-010-002"
+      name: "Request Validation"
+      description: >
+        Validates workspace ID exists, phase type is valid (READY/FIRE/AIM), and optional data matches expected schema. Returns detailed error messages with field-level validation failures.
+    
+    - id: "cap-010-003"
+      name: "Idempotent Workflow Creation"
+      description: >
+        Supports idempotency keys in request headers to prevent duplicate workflows. If same key sent twice, returns existing workflow ID instead of creating duplicate.
+    
+    - id: "cap-010-004"
+      name: "API Key Authentication"
+      description: >
+        Authenticates requests using API keys in Authorization header. Each key scoped to specific workspace(s) and rate-limited to prevent abuse.
+
+  personas:
+    - name: "Marcus Chen, AI Autonomy Engineer at AutoPlan AI"
+      current_situation: |
+        Marcus maintains an autonomous AI agent that should orchestrate product planning for client companies. Currently, the agent can analyze market data and generate strategy recommendations, but it cannot start EPF cycles programmatically. Marcus wrote custom scripts that clone Git repos, generate YAML files from templates, commit them, and push. This brittle approach breaks when template formats change, fails silently if Git auth expires, and provides no feedback about workflow progress. He spends 8-10 hours per month debugging workflow automation issues and manually intervening when automation fails. His agent can think about product strategy but cannot act on it reliably.
+      
+      transformation_moment: |
+        With the Workflow Initiation API, Marcus's agent makes HTTP POST requests to start EPF cycles. The API returns workflow IDs immediately, allowing the agent to monitor progress via status endpoints. When workspace parameters are invalid, the API returns clear JSON errors the agent can parse and fix automatically. Marcus configures API keys with workspace-scoped permissions, eliminating Git credential management. He wraps the API client in the agent's orchestration layer, enabling fully autonomous EPF cycle initiation. What took 8-10 hours of debugging monthly now requires 30 minutes of initial API integration and runs reliably thereafter.
+      
+      emotional_resolution: |
+        Marcus feels confident demonstrating AutoPlan AI to potential enterprise customers because the agent actually completes planning cycles end-to-end without human intervention. He's shifted from "firefighting brittle scripts" to "scaling autonomous planning capabilities." His relationship with customers has transformed from apologizing for automation failures to showcasing reliable AI-driven planning. He's become the go-to expert on EPF automation in his company, leading API integration workshops for other engineering teams. The agent's reliability has unlocked new revenue opportunities—clients trust it to manage planning for multiple products simultaneously.
+
+    - name: "Priya Sharma, DevOps Platform Engineer at CloudScale Systems"
+      current_situation: |
+        Priya maintains CI/CD pipelines for 23 product teams at CloudScale. Teams want EPF planning integrated into their deployment workflows—trigger READY phase when creating new features, update FIRE phase when merging PRs, initiate AIM retrospectives after releases. Currently, Priya's pipelines can run tests and deploy code, but they cannot interact with EPF workflows. She explored Git-based automation (commit YAML files from CI), but teams use different Git workflows and merging strategy files conflicts with code merges. She spends 4-5 hours per week helping teams manually sync EPF artifacts with their development workflow. Pipeline integration would save teams 20+ hours per week across the organization.
+      
+      transformation_moment: |
+        With the Workflow Initiation API, Priya adds EPF workflow triggers to existing CI/CD pipelines. GitHub Actions call the API when features are created, CircleCI initiates retrospectives after deployments, and GitLab pipelines start READY phases for new epics. She configures API keys per team with workspace isolation, ensuring each team only affects their own EPF cycles. The API's idempotency keys prevent duplicate workflows when pipelines retry. Error responses provide actionable feedback that appears in CI logs, helping teams fix integration issues quickly. What required manual intervention 4-5 hours weekly now runs automatically as part of standard development workflow.
+      
+      emotional_resolution: |
+        Priya feels proud demonstrating the platform's EPF integration to leadership because it shows DevOps enabling strategic planning, not just code deployment. She's shifted from "firefighting manual process gaps" to "architecting planning automation at scale." Her relationship with product teams has improved—they see DevOps as enablers of better planning practices, not just infrastructure maintainers. She's presented the integration at internal engineering summits, positioning DevOps as strategic partners in product development. The automation freed her to tackle more sophisticated platform challenges instead of being trapped in manual workflow coordination.
+
+    - name: "Alex Rivera, Startup CTO at VentureFlow"
+      current_situation: |
+        Alex runs a 6-person startup building SaaS products. They adopted EPF methodology but struggle with discipline—cycles get skipped under deadline pressure, artifacts become stale, and retrospectives happen sporadically. Alex wants to enforce EPF discipline programmatically but lacks engineering bandwidth to build custom tooling. The team uses Notion for planning, GitHub for code, and Slack for communication. Alex manually creates EPF artifacts in Notion, copies them to YAML when needed, and reminds teammates about phase transitions. This fragmented approach means EPF becomes overhead rather than enabling structure. The team completes only 60% of planned EPF cycles, and artifact quality declines over time.
+      
+      transformation_moment: |
+        With the Workflow Initiation API, Alex integrates EPF into existing tools via webhook automation (Zapier, Make). When epics are created in Notion, webhooks call the API to initiate READY phase. When PRs merge in GitHub, automation starts FIRE workflows. Slack reminders trigger AIM retrospective workflows automatically. The API's validation ensures artifacts meet EPF standards before workflows proceed. Alex configures workspace permissions so the whole team can monitor workflows via status API. What required constant manual reminders and copy-pasting between tools now happens automatically as part of the team's existing workflow. EPF cycle completion rate improves from 60% to 90%.
+      
+      emotional_resolution: |
+        Alex feels relieved that EPF discipline is enforced by systems, not his constant attention. He's shifted from "nagging the team about planning discipline" to "trusting automated process enforcement." His relationship with the team has improved—they appreciate structured planning without feeling micromanaged. He confidently pitches product quality to investors because artifacts prove systematic planning practices. The automation gives the small team enterprise-grade planning rigor without enterprise-sized overhead. Alex has time to focus on product strategy and customer development instead of process coordination.
+
+    - name: "Dr. Emily Watson, Product Research Lead at InnovateLabs"
+      current_situation: |
+        Emily leads product research across 8 concurrent projects at InnovateLabs. Each project should follow EPF methodology, but teams interpret phases differently, skip validation steps, and rarely complete AIM retrospectives. Emily reviews EPF artifacts manually during quarterly check-ins, discovering incomplete documentation weeks after phases should have completed. She lacks real-time visibility into which projects are following methodology rigorously versus cutting corners. Manually tracking workflow status across 8 projects consumes 6-8 hours per week. She cannot identify methodology bottlenecks (which phase teams struggle with most) because she lacks aggregated workflow data. Projects that skip rigorous planning have 40% higher failure rates, but she discovers issues too late to intervene.
+      
+      transformation_moment: |
+        With the Workflow Initiation API integrated with project management tools, workflows are initiated automatically when projects start. Emily monitors all 8 projects via workflow status dashboard showing which phases are active, blocked, or overdue. When teams initiate workflows via API, she receives notifications about phase completions and can review artifacts in real-time. The API's validation ensures minimum quality standards before workflows advance. She exports workflow metrics to analyze which phases take longest, where teams get stuck, and which project types benefit most from rigorous EPF. What required 6-8 hours of manual tracking weekly now provides real-time visibility with 30 minutes of dashboard review.
+      
+      emotional_resolution: |
+        Emily feels empowered making evidence-based recommendations about methodology improvements because workflow data reveals actual usage patterns. She's shifted from "reactive quality auditor" to "proactive methodology optimizer." Her relationship with project teams has improved—she catches issues early and provides support during phases instead of critique after failure. She presents data-driven insights at research conferences about how systematic methodology improves innovation outcomes. The visibility lets her focus on strategic methodology evolution instead of administrative tracking. She's become the organization's expert on scaling rigorous product development practices across portfolio.
+
+  scenarios:
+    - id: "scn-010-001"
+      name: "AI Agent Initiates READY Phase Workflow"
+      actor: "Marcus Chen's AutoPlan AI Agent"
+      context: "Agent has analyzed market data for new product opportunity and generated initial strategy recommendations. Agent needs to start EPF READY phase to structure planning artifacts."
+      trigger: "Agent's orchestration layer decides sufficient market analysis complete to begin structured planning"
+      action: |
+        1. Agent constructs API request with workspace_id (from agent config), phase_type: "READY", and optional initial_data containing market analysis summary
+        2. Agent includes API key in Authorization header and generates idempotency key (UUID) for retry safety
+        3. Agent sends POST request to /api/workflows endpoint
+        4. Agent receives JSON response with workflow_id, status: "initiated", and created_at timestamp
+        5. Agent stores workflow_id in internal state for subsequent status monitoring
+        6. Agent logs successful workflow initiation with workflow_id for debugging
+      outcome: |
+        API returns workflow_id: "wf-abc123" with 201 Created status within 450ms. Temporal workflow is created and begins executing READY phase steps. Agent can immediately query workflow status via GET /api/workflows/wf-abc123. Dashboard shows new workflow in "initiated" state for workspace.
+      acceptance_criteria:
+        - "API responds within 500ms with 201 Created status"
+        - "Response includes workflow_id (string), status (string), created_at (ISO 8601 timestamp)"
+        - "Temporal workflow is created and visible in Temporal UI within 1 second"
+        - "Workspace dashboard shows new workflow in real-time (no page refresh needed)"
+        - "Idempotency: Sending same idempotency key returns existing workflow_id with 200 OK"
+
+    - id: "scn-010-002"
+      name: "DevOps Pipeline Triggers FIRE Workflow"
+      actor: "Priya Sharma's CI/CD Pipeline"
+      context: "GitHub Actions workflow running after feature branch PR merged to main. Pipeline needs to initiate FIRE phase to track feature implementation."
+      trigger: "GitHub Actions 'on: pull_request: types: [closed]' event with merged=true"
+      action: |
+        1. GitHub Actions script extracts PR metadata (feature name, description, assignees)
+        2. Script calls API with workspace_id, phase_type: "FIRE", feature_name from PR title, and assignees as contributors
+        3. Script includes team API key (stored in GitHub Secrets) and generates idempotency key from PR ID
+        4. Script handles API response: Success (201) → logs workflow_id; Error (4xx) → fails job with error details
+        5. On success, script posts comment to PR with workflow_id and link to status dashboard
+      outcome: |
+        API creates FIRE workflow and returns workflow_id within 400ms. PR comment appears with message: "🚀 EPF FIRE workflow initiated: wf-def456. Track progress: https://epf-runtime.example.com/workflows/wf-def456". Team members see workflow in their dashboard. Pipeline job completes successfully.
+      acceptance_criteria:
+        - "API accepts feature metadata in initial_data payload"
+        - "Response includes workflow_id that can be shared via PR comment"
+        - "Pipeline job succeeds when API returns 2xx status"
+        - "Pipeline job fails with clear error when API returns 4xx (invalid workspace, bad auth, etc.)"
+        - "Error responses include actionable error message and affected fields (e.g., 'workspace_id: not found')"
+
+    - id: "scn-010-003"
+      name: "Startup Founder Initiates Retrospective via Zapier"
+      actor: "Alex Rivera (CTO) via Zapier Automation"
+      context: "Deployment completed to production. Zapier monitors deployment webhook from hosting platform. Alex configured Zap to trigger AIM retrospective after successful deployments."
+      trigger: "Zapier receives deployment success webhook from Vercel/Netlify"
+      action: |
+        1. Zapier Webhook trigger captures deployment metadata (version, timestamp, deployed_by)
+        2. Zapier HTTP Request action sends POST to /api/workflows with workspace_id, phase_type: "AIM", deployment_metadata
+        3. Zapier includes API key from configuration and generates idempotency key from deployment ID
+        4. On success, Zapier sends Slack message to #product channel: "🎯 Retrospective workflow started for v2.4.0: [workflow link]"
+        5. On failure, Zapier sends Slack DM to Alex with error details
+      outcome: |
+        API creates AIM workflow and returns workflow_id. Slack message appears in #product channel with link. Team clicks link to view retrospective dashboard. Workflow prompts team to complete assessment artifacts. No-code automation successfully initiated EPF cycle.
+      acceptance_criteria:
+        - "API accepts arbitrary metadata in initial_data for retrospective context"
+        - "No-code tools (Zapier, Make) can successfully call API using HTTP Request actions"
+        - "Idempotency works across multiple automation retry attempts"
+        - "Error responses are human-readable for Slack notification (not just error codes)"
+        - "Workflow starts within 5 seconds of deployment completion"
+
+    - id: "scn-010-004"
+      name: "Research Lead Monitors Cross-Project Workflow Status"
+      actor: "Dr. Emily Watson, Product Research Lead"
+      context: "Emily opens EPF Runtime dashboard to review workflow status across all 8 projects she oversees. Three workflows were initiated via API overnight by automated systems."
+      trigger: "Emily navigates to /dashboard after morning standup meetings"
+      action: |
+        1. Emily sees workflow list showing 8 active workspaces with workflow counts
+        2. She filters by status: "in_progress" to see active workflows (5 shown)
+        3. She clicks Project Alpha's READY workflow (initiated 2 days ago) to view details
+        4. Dashboard loads workflow timeline showing completed steps, current step (pending artifact validation), and estimated completion
+        5. Emily exports workflow data to CSV for quarterly reporting
+      outcome: |
+        Emily identifies that Project Alpha's READY phase is blocked waiting for stakeholder input (artifact validation pending). She messages project lead to unblock. Dashboard shows real-time status for all workflows initiated via API. CSV export contains workflow metadata for trend analysis.
+      acceptance_criteria:
+        - "Dashboard displays workflows initiated via API alongside any manual workflows"
+        - "Status values (initiated, in_progress, completed, failed) are consistent with API responses"
+        - "Workflow timeline shows which steps were automated vs manual"
+        - "Dashboard loads within 2 seconds even with 50+ workflows across 8 workspaces"
+        - "CSV export includes workflow_id, workspace, phase, status, created_at, completed_at fields"
+
+  contexts:
+    - id: "ctx-010-001"
+      type: "api"
+      name: "Workflow Initiation Endpoint"
+      description: |
+        RESTful API endpoint for creating new EPF workflow instances. Accepts JSON payloads with workflow parameters, validates input, creates Temporal workflow, and returns workflow identifier. Primary integration point for AI agents, DevOps pipelines, and no-code automation tools.
+      
+      key_interactions:
+        - "POST /api/workflows - Create new workflow with phase type and workspace ID"
+        - "Include Authorization: Bearer {api_key} header for authentication"
+        - "Include Idempotency-Key: {uuid} header for retry safety"
+        - "Handle 201 Created (success), 400 Bad Request (validation), 401 Unauthorized (auth), 404 Not Found (workspace)"
+        - "Parse JSON response containing workflow_id, status, created_at fields"
+      
+      data_displayed:
+        - "workflow_id: Unique identifier for monitoring (string, format: wf-{random})"
+        - "status: Current state (enum: initiated, in_progress, completed, failed)"
+        - "created_at: Timestamp of workflow creation (ISO 8601 format)"
+        - "phase_type: Which EPF phase this workflow executes (READY/FIRE/AIM)"
+        - "workspace_id: Workspace scope for this workflow (string)"
+        - "errors: Array of validation errors if request fails (4xx responses)"
+
+    - id: "ctx-010-002"
+      type: "screen"
+      name: "Workflow Monitoring Dashboard"
+      description: |
+        Web UI showing real-time status of all workflows across user's authorized workspaces. Displays workflow list with filtering, individual workflow details with timeline, and export capabilities. Primary interface for monitoring programmatically-initiated workflows.
+      
+      key_interactions:
+        - "Filter workflows by status (initiated, in_progress, completed, failed)"
+        - "Filter workflows by phase type (READY, FIRE, AIM)"
+        - "Filter workflows by workspace (multi-select dropdown)"
+        - "Sort by created_at, completed_at, or alphabetically by workspace name"
+        - "Click workflow row to view detailed timeline and artifact status"
+        - "Export filtered workflow list to CSV for reporting"
+        - "View API-initiated vs manually-created workflow distinction"
+      
+      data_displayed:
+        - "Workflow list table: ID, workspace, phase, status, created date, completion date"
+        - "Status badges with color coding (green: completed, yellow: in-progress, red: failed, blue: initiated)"
+        - "Workflow count per status category (e.g., '5 in progress, 12 completed today')"
+        - "Detailed timeline showing workflow steps: which completed, which pending, which failed"
+        - "Initiator information: API key name, automation source (GitHub Actions, Zapier, etc.)"
+        - "Real-time updates via WebSocket (no page refresh needed for status changes)"
+
+    - id: "ctx-010-003"
+      type: "integration"
+      name: "CI/CD Pipeline Integration"
+      description: |
+        Pattern for integrating EPF workflow initiation into continuous integration and deployment pipelines. Demonstrates API usage in GitHub Actions, GitLab CI, CircleCI, and Jenkins. Provides reusable scripts and action definitions for common CI platforms.
+      
+      key_interactions:
+        - "Store API keys in CI secrets/environment variables (never hardcode)"
+        - "Generate idempotency keys from deterministic pipeline metadata (PR ID, commit SHA, job ID)"
+        - "Construct API request with pipeline metadata in initial_data payload"
+        - "Handle API response: success (2xx) → continue, failure (4xx) → fail job with error"
+        - "Post workflow_id back to PR comments, commit statuses, or chat notifications"
+        - "Implement exponential backoff retry for transient API failures (5xx)"
+      
+      data_displayed:
+        - "CI logs showing API request/response (sanitized API keys)"
+        - "Pipeline job status: Success with workflow_id or Failure with error details"
+        - "PR comments with workflow link and status badge"
+        - "Commit status check showing 'EPF workflow initiated' with link"
+        - "Chat notifications (Slack, Teams) with workflow details"
+
+  dependencies:
+    requires:
+      - id: "fd-001"
+        name: "Knowledge Graph Engine"
+        reason: "Workflow metadata (workspace associations, artifact references, stakeholder assignments) must be stored in the knowledge graph for semantic querying and relationship tracking. The API writes workflow records to the graph immediately after Temporal workflow creation, enabling dashboard queries and cross-workflow analysis. Without graph storage, workflows would be invisible to other EPF Runtime components and dashboard could not display real-time status."
+      
+      - id: "fd-007"
+        name: "Authentication & Multi-Tenancy"
+        reason: "API keys must be scoped to specific workspaces and rate-limited to prevent abuse. Authentication system provides API key validation, workspace authorization checks, and usage tracking. Without tenant isolation, workflows from different organizations could interfere with each other and sensitive planning data could leak across workspace boundaries. Multi-tenancy ensures Enterprise customers can safely use shared infrastructure."
+    
+    enables:
+      - id: "fd-011"
+        name: "EPF Schema Validation Service"
+        reason: "Once workflows are initiated programmatically, validation must happen automatically during workflow execution. The validation service uses workflow_id to fetch workflow state, validates artifacts against EPF schemas, and updates workflow status. Without workflow initiation API, validation would remain manual and ad-hoc rather than integrated into automated workflow steps."
+      
+      - id: "fd-012"
+        name: "CLI for Local Workflow Testing"
+        reason: "Developers need to test workflow initiation locally before deploying to CI/CD pipelines. The CLI wraps the workflow initiation API, providing a command-line interface for starting workflows with local configuration. Without the API endpoint, CLI would have no target for workflow operations and developers would lack a way to validate API integration before production use."
+      
+      - id: "fd-013"
+        name: "Core Knowledge Graph Integration"
+        reason: "After workflows are created via API, their artifacts (North Stars, roadmaps, value models) must be stored in Emergent Core's knowledge graph for semantic search and AI chat. The initiation API provides workflow_id that downstream integrations use to correlate artifacts with their originating workflows. Without programmatic workflow creation, artifact storage would remain manual file uploads rather than automated pipeline integration."
+
+  boundaries:
+    non_goals:
+      - "Workflow status polling (covered by separate fd-014 Status Monitoring API)"
+      - "Workflow cancellation or modification (deferred to Phase 2)"
+      - "Artifact upload during initiation (workflows start empty, artifacts added in later steps)"
+      - "Temporal workflow execution logic (this is API interface only, not workflow definitions)"
+      - "Dashboard UI implementation details (covered by separate fd-015 Workflow Dashboard)"
+      - "WebSocket real-time updates (uses HTTP polling in MVP, WebSocket in Phase 2)"
+      - "GraphQL endpoint (REST only in MVP, GraphQL wrapper added later)"
+    
+    constraints:
+      - "API rate limit: 100 requests per minute per API key"
+      - "Maximum initial_data payload size: 10KB (larger data passed via artifact upload endpoints)"
+      - "Workflow initiation timeout: Must respond within 500ms or return 503 Service Unavailable"
+      - "Idempotency key TTL: 24 hours (after that, duplicate key creates new workflow)"
+      - "Supported phase types: READY, FIRE, AIM only (custom phases not supported in MVP)"
+      - "Authentication: API key only (OAuth2/JWT deferred to Phase 2)"
+      - "Workspace limit: 100 active workflows per workspace (Enterprise plan: 500)"
