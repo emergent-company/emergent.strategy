@@ -10,7 +10,7 @@
 # CHANGE PROTOCOL: If these analyses change significantly, update 03_insight_opportunity.yaml
 
 ## Document Status
-last_updated: "2025-12-09"
+last_updated: "2025-12-30"
 confidence_level: "medium" # Based on market observation, not primary research
 next_review_date: "2026-03-01"
 
@@ -42,6 +42,13 @@ trends:
       implications_for_us: |
         MCP integration positions us as infrastructure for AI agents.
         Knowledge becomes consumable by external AI systems.
+      implications_by_product:
+        emergent_core: "MCP server exposes knowledge graphs to AI agents"
+        epf_runtime: |
+          AI agents need structured methodologies to execute reliably.
+          Runtime provides programmatic API for autonomous EPF execution,
+          enabling agents to run full product development cycles without
+          manual intervention. This is the automation layer for agent-driven work.
         
     - trend: "Multi-modal AI capabilities expanding"
       impact: "medium"
@@ -128,6 +135,7 @@ key_insights:
   - "The 'grounding problem' (making AI answers verifiable) is unsolved at enterprise scale"
   - "'Why now' = Enterprises ready to invest, but need solutions that actually work and can be trusted"
   - "MCP and agent architectures create new distribution channel for knowledge infrastructure"
+  - "AI agents need structured methodologies: Generic LLMs can chat but struggle with multi-step strategic work requiring discipline, iteration, and traceability. EPF-Runtime addresses this by providing durable workflow orchestration for methodology execution."
 
 ## 2. MARKET ANALYSIS: AI-Powered Knowledge Management
 
