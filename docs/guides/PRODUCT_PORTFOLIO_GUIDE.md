@@ -11,6 +11,59 @@ EPF v1.10.1 introduces the **Product Portfolio** concept to support product orga
 - **Brand Architecture**: Flexible brand identities that can apply at various granularities — from entire product lines (broad) to specific components (narrow/ingredient) to assemblies (grouped components) to specific implementations (offerings)
 - **Offerings (Implementations)**: Specific commercial products representing concrete implementations of the abstract product model — what customers actually purchase
 
+## ⭐ Core EPF Principle: One Instance, Multiple Product Lines
+
+**The Fundamental Rule:**
+
+Product lines that share a **North Star** and **operational structure** belong in the **same EPF instance**. If they don't share these, they are separate products entirely and should have separate instances.
+
+### The Test
+
+Ask yourself:
+- **Do these products share the same North Star (purpose, vision, mission, values)?**
+- **Do these products operate on the same cadence (same READY/FIRE/AIM cycles)?**
+- **Do these products need strategic coordination?**
+
+**If YES to all three** → **Multiple product lines in ONE instance**  
+**If NO to any** → **Separate products, separate instances**
+
+### Why This Matters
+
+**✅ Benefits of one instance with multiple product lines:**
+- **Strategic coherence** - Unified vision drives all product lines
+- **Coordination** - Teams see how their work relates across lines
+- **Transparency** - Leadership has portfolio-level oversight
+- **Cross-line features** - Integration features can span multiple lines
+- **Roadmap coordination** - KRs can target single or multiple product lines
+- **Operational efficiency** - Shared READY artifacts (strategy, analyses, roadmap)
+
+**❌ Dangers of fragmenting into separate instances:**
+- Destroys strategic coherence (no shared North Star)
+- Breaks coordination (teams work in silos)
+- Kills transparency (no portfolio view)
+- Makes cross-line features impossible
+- Duplicates strategy work
+- Prevents roadmap coordination
+
+### Product Lines vs Separate Products
+
+| Criterion | Product Lines (Same Instance) | Separate Products (Different Instances) |
+|-----------|------------------------------|----------------------------------------|
+| North Star | ✅ Shared | ❌ Different |
+| Operational cadence | ✅ Same READY/FIRE/AIM cycles | ❌ Different cycles |
+| Strategic coordination | ✅ Required | ❌ Independent |
+| Teams | Same organization | Different organizations/divisions |
+| Integration | Cross-line features common | Rare or formal APIs only |
+| Roadmap | Coordinated with cross-line KRs | Independent roadmaps |
+
+**Example of product lines (same instance):**
+- Huma: Hardware platform + Software platform + Power trading (shared North Star: "decarbonize industrial heat")
+- Emergent: Core platform + EPF framework + Runtime + Tools (shared North Star: "emergent understanding")
+
+**Example of separate products (different instances):**
+- Slack + Salesforce (acquired company with different vision)
+- Google Search + Gmail (completely different purposes, could be separate companies)
+
 ## Key Concepts
 
 | Layer | Description | Examples |
@@ -269,6 +322,139 @@ The roadmap can organize work by product line while tracking cross-product-line 
 ### Commercial Value Model
 The `commercial.value_model.yaml` can reference the portfolio's offerings and pricing models.
 
+## Feature Definitions: Single-Line and Cross-Line
+
+**Critical architectural decision:** All feature definitions live in a **single folder** (`FIRE/feature_definitions/`), not split by product line.
+
+### Why No Separate Folders Per Product Line?
+
+**❌ Don't do this:**
+```
+FIRE/
+└── feature_definitions/
+    ├── line1/           # ❌ Separate folder per line
+    ├── line2/           # ❌ Separate folder per line
+    └── cross_line/      # ❌ Where do integration features go?
+```
+
+**Problems:**
+- Breaks traceability (can't see all features in one place)
+- Cross-line features don't fit cleanly
+- Roadmap coordination becomes complex
+- Leadership loses complete feature portfolio view
+- Artificial structure that doesn't match reality
+
+**✅ Do this:**
+```
+FIRE/
+└── feature_definitions/
+    ├── fd-001_hardware_core.yaml       # Single line
+    ├── fd-002_software_ui.yaml         # Single line
+    ├── fd-003_integration.yaml         # Cross-line
+    └── ...
+```
+
+### How Features Map to Product Lines
+
+Use `mappings.yaml` to associate features with product lines:
+
+**Single product line feature:**
+```yaml
+feature_to_value_model:
+  - feature_id: "fd-001_hardware_core"
+    track: "product"
+    value_model_file: "product.hardware.value_model.yaml"
+    layer_id: "CoreTechnology"
+```
+
+**Cross product line feature:**
+```yaml
+  - feature_id: "fd-003_integration"
+    track: "product"
+    value_model_files:  # Note plural
+      - file: "product.software.value_model.yaml"
+        layer_id: "OperateApp"
+      - file: "product.hardware.value_model.yaml"
+        layer_id: "IOInterfaces"
+    description: "Software controls hardware via API"
+```
+
+### Benefits
+
+- **Traceability**: All features visible in one location
+- **Cross-line features**: Integration features naturally span multiple lines
+- **Roadmap clarity**: KRs can reference any feature, regardless of product line
+- **Oversight**: Leadership sees complete feature portfolio
+
+## Roadmap Coordination Across Product Lines
+
+The roadmap (`05_roadmap_recipe.yaml`) enables strategic coordination through:
+
+1. **Product-line-specific KRs** - Target one product line
+2. **Cross-product-line KRs** - Target multiple product lines (integration)
+3. **Mixed roadmaps** - Combination of both for coordinated execution
+
+### Pattern for Product-Line-Specific KRs
+
+```yaml
+roadmap:
+  objectives:
+    - id: "obj-hardware"
+      track: "Product"
+      objective: "Deliver Hardware Platform MVP"
+      key_results:
+        - id: "kr-hardware-001"
+          product_line: "pl-hardware"  # ⭐ Single product line
+          key_result: "Validate TRL 6 performance"
+          target: "Third-party validation complete"
+```
+
+### Pattern for Cross-Product-Line KRs
+
+```yaml
+    - id: "obj-integration"
+      track: "Product"
+      objective: "Enable Software-Hardware Integration"
+      key_results:
+        - id: "kr-integration-001"
+          product_lines: ["pl-software", "pl-hardware"]  # ⭐ Multiple lines
+          key_result: "Software can control hardware via API"
+          target: "100% of control signals working"
+          dependencies:
+            - kr_id: "kr-hardware-001"
+              reason: "Need hardware API first"
+```
+
+### Benefits of Roadmap Coordination
+
+| Benefit | Description |
+|---------|-------------|
+| **Visibility** | Leadership sees how product lines work together |
+| **Dependencies** | Cross-line KRs explicitly show integration points |
+| **Sequencing** | Dependencies between lines visible in roadmap |
+| **Resource allocation** | Can balance work across product lines |
+| **Risk management** | Can see if one line blocks another |
+
+### Real-World Example
+
+**Huma roadmap coordination:**
+
+1. **Hardware KR** (pl-hardware only):
+   - "Validate LMC chemistry at TRL 6"
+   
+2. **Software KR** (pl-software only):
+   - "Build thermal simulation engine"
+   
+3. **Cross-line KR** (both pl-software + pl-hardware):
+   - "Software can accurately simulate hardware performance"
+   - Depends on: Both KRs above
+   - Integration point: Simulation engine uses hardware specs API
+
+This coordination ensures:
+- Hardware team knows simulation needs their API
+- Software team waits for hardware specs before finalizing simulation
+- Leadership sees the dependency and can sequence work appropriately
+
 ## File Location
 
 ```
@@ -285,17 +471,39 @@ _instances/{product}/
 
 ## When to Use Product Portfolio
 
-**Use Product Portfolio when:**
-- You have multiple distinct products with different value propositions
-- Products have different technical architectures or development cycles
-- You sell under multiple brand names
-- Products can be combined into bundles or solutions
-- You need to track product line interdependencies
+### Use Multiple Product Lines (Same Instance) When:
 
-**Don't need Product Portfolio when:**
-- You have a single product (even if complex)
-- All components are part of one cohesive value model
-- You have only one brand identity
+✅ **Different value propositions** - Hardware device vs software platform, but share North Star  
+✅ **Different target markets** - Enterprise vs SMB, but serve same company vision  
+✅ **Different development lifecycles** - Hardware (slow) vs software (fast), but coordinate  
+✅ **Different business models** - One-time vs subscription, but part of portfolio  
+✅ **Can be sold independently** - Customer can buy Product Line A without B  
+✅ **Need coordination** - Integration features, cross-line roadmap dependencies  
+
+**Examples:**
+- Huma: Hardware storage + Software platform + Power trading (shared North Star: decarbonize heat)
+- Apple: Hardware devices + Software OS + Services (shared North Star: user experience)
+- Emergent: Core platform + EPF framework + Runtime + Tools (shared North Star: emergent understanding)
+
+### Use Separate Instances When:
+
+❌ **Completely different North Stars** - Different company purposes/visions  
+❌ **No operational coordination** - Teams don't collaborate, different cycles  
+❌ **Independent businesses** - Separate P&Ls, could be separate companies  
+❌ **No integration needed** - Products never interact or depend on each other  
+
+**Examples:**
+- Alphabet: Google + Verily + Waymo (separate companies under holding company)
+- Meta: Facebook + Oculus (acquired company, initially separate visions)
+
+### Don't Use Product Portfolio When:
+
+**Single product cases:**
+- ❌ You have just different **features/modules** of same product (use single value model)
+- ❌ You have just different **editions/tiers** (Basic/Pro/Enterprise - use offerings, not product lines)
+- ❌ You have just different **deployment options** (cloud vs on-premise - use configuration)
+
+**Rule of thumb:** If it's just "the same product with different options," it's not a product line.
 
 ## Migration from Single Product Model
 
