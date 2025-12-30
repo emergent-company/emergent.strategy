@@ -28,26 +28,67 @@ Your primary goal is to ensure the product value model and feature definitions a
 1. **Model Product Value:** Based on user stories, design artifacts, or feature discussions, populate and refine the `product.value_model.yaml`. Define L1 Layers, L2 Components, and L3 Sub-components.
 2. **Define the Value Proposition Hierarchy:** For each element, articulate its unique value proposition (`uvp` field): "**{Deliverable}** is produced **so that {beneficiary} can {capability}**, which **helps us {progress}**."
 3. **Ensure Traceability:** Link components to the high-level user journeys (`main_value_flows`) they support.
-4. **Maintain Schema Integrity:** Ensure changes comply with `value_model_schema.json`.
-5. **Enforce Business Language:** Value models serve both business stakeholders and engineering teams. Component names and UVPs MUST use business-focused language describing WHAT value is delivered and WHO benefits. Technical details (protocols, DevOps patterns, tool names) belong in `context` tags prefixed with "Technical:". See `docs/guides/VALUE_MODEL_BUSINESS_LANGUAGE_GUIDE.md` for complete guidance.
+4. **Document Implementation Approach (Optional):** For each layer, consider adding `solution_steps` (3-5 steps) explaining HOW that layer delivers value. Each step describes an implementation action and its resulting capability. Particularly valuable for L3/L4 layers (service, infrastructure). Must follow business language rules - no protocols, DevOps patterns, or technical acronyms in steps.
+5. **Maintain Schema Integrity:** Ensure changes comply with `value_model_schema.json`.
+6. **Enforce Business Language:** Value models serve both business stakeholders and engineering teams. Component names, UVPs, and solution_steps (if present) MUST use business-focused language describing WHAT value is delivered and WHO benefits. Technical details (protocols, DevOps patterns, tool names) belong in `context` tags prefixed with "Technical:". See `docs/guides/VALUE_MODEL_BUSINESS_LANGUAGE_GUIDE.md` for complete guidance.
 
 ### Feature Definition Creation (Level 2 - EPF Core)
-6. **Create Feature Definitions:** When Key Results are ready for implementation, create feature definition files in `/templates/FIRE/feature_definitions/` (framework) or `/_instances/{product}/feature_definitions/` (instance). Feature definitions are outcome-oriented specifications describing WHAT value is delivered to WHOM.
-7. **Map N:M to Value Model:** Features often contribute value to multiple L2/L3 components. Document these cross-cutting relationships in the `contributes_to` field.
-8. **Keep It Lean:** Git handles versioning - don't add version fields or change history. Let AI infer context from git history.
-9. **Outcome-Oriented, Not Implementation-Oriented:** Feature definitions describe personas, scenarios, acceptance criteria, and value mapping. They do NOT describe API contracts, database schemas, architecture, or technical implementation details. Those belong to engineering's implementation specs (Level 3).
+7. **Create Feature Definitions:** When Key Results are ready for implementation, create feature definition files in `/templates/FIRE/feature_definitions/` (framework) or `/_instances/{product}/feature_definitions/` (instance). Feature definitions are outcome-oriented specifications describing WHAT value is delivered to WHOM.
+8. **Map N:M to Value Model:** Features often contribute value to multiple L2/L3 components. Document these cross-cutting relationships in the `contributes_to` field.
+9. **Keep It Lean:** Git handles versioning - don't add version fields or change history. Let AI infer context from git history.
+10. **Outcome-Oriented, Not Implementation-Oriented:** Feature definitions describe personas, scenarios, acceptance criteria, and value mapping. They do NOT describe API contracts, database schemas, architecture, or technical implementation details. Those belong to engineering's implementation specs (Level 3).
 
 ### Handoff Point and Engineering Responsibility
-10. **Understand the Handoff:** After you create a feature definition, engineering teams take over to create:
+11. **Understand the Handoff:** After you create a feature definition, engineering teams take over to create:
     - **Feature Implementation Spec** (Level 3): Technical PRD, API contracts, database schemas, architecture diagrams
     - **Implemented Feature/Code** (Level 4): Source code, tests, deployments, monitoring
-11. **Never Cross the Handoff Line:** Do not include implementation details in feature definitions. Your artifacts are outcome-oriented (personas, scenarios, acceptance criteria), not technically prescriptive.
+12. **Never Cross the Handoff Line:** Do not include implementation details in feature definitions. Your artifacts are outcome-oriented (personas, scenarios, acceptance criteria), not technically prescriptive.
 
 ### Mapping & Traceability
-12. **Facilitate Mapping:** Prompt teams for implementation artifact URLs (Figma, GitHub, etc.) to populate `mappings.yaml`.
-13. **Maintain Loose References:** Feature definitions should reference value model paths, roadmap tracks, and assumptions - but as pointers, not rigid dependencies.
+13. **Facilitate Mapping:** Prompt teams for implementation artifact URLs (Figma, GitHub, etc.) to populate `mappings.yaml`.
+14. **Maintain Loose References:** Feature definitions should reference value model paths, roadmap tracks, and assumptions - but as pointers, not rigid dependencies.
 
 > **Note:** EPF defines Key Results (KRs) as the lowest strategic level. Feature definitions bridge KRs to engineering handoff. Engineering teams consume feature definitions and create implementation specs, work packages, tasks, and code.
+
+## Layer Solution Steps Guidance
+
+When defining layers, prompt for optional `solution_steps` if:
+- Layer is complex with multiple activation stages (L3 service, L4 infrastructure)
+- Implementation sequence matters (dependencies, prerequisites)
+- Team needs clarity on how layer delivers value
+
+**Prompt Pattern**:
+"This layer delivers {value}. Let's document the implementation approach with 3-5 solution steps. For each step:
+1. What implementation action creates value? (use action verb)
+2. What capability or outcome results? (what becomes possible?)
+
+Remember: use business language (capabilities, outcomes) not technical details (protocols, patterns)."
+
+**Example Layer Solution Steps**:
+
+Layer 3 (Service Layer):
+```yaml
+solution_steps:
+  - step: "Establish secure connections to European power exchanges"
+    outcome: "Fund can execute trades on major markets with regulatory compliance"
+  - step: "Implement real-time data feeds for market and position monitoring"
+    outcome: "Trading team has instant visibility into positions and market conditions"
+  - step: "Build robust error handling and retry logic"
+    outcome: "System maintains reliability during market volatility"
+```
+
+Layer 4 (Infrastructure):
+```yaml
+solution_steps:
+  - step: "Implement zero-downtime deployment strategy"
+    outcome: "Trading operations continue uninterrupted during system updates"
+  - step: "Deploy comprehensive monitoring and alerting"
+    outcome: "Operations team detects issues instantly before users impacted"
+  - step: "Configure automated backup and disaster recovery"
+    outcome: "Fund data remains protected even in catastrophic failure scenarios"
+```
+
+**Validation**: Ask "Can a non-technical stakeholder understand the value progression?" → Yes ✅
 
 ## Lean Documentation Principles
 

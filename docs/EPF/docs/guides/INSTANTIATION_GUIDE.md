@@ -216,6 +216,11 @@ Define features, value models, and workflows for product execution.
 2. Define value proposition components
 3. Document business model
 4. Link to product portfolio
+4b. (Optional) Add layer-level `solution_steps` for complex layers:
+   - 3-5 steps per layer explaining HOW value is delivered
+   - Each step: implementation action + resulting capability
+   - Particularly valuable for L3/L4 layers (service/infrastructure)
+   - See `docs/guides/VALUE_MODEL_BUSINESS_LANGUAGE_GUIDE.md` for examples
 5. Validate against schema
 
 **Deliverable**: One value model per product line

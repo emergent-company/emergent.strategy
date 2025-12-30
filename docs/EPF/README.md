@@ -1,4 +1,4 @@
-# Emergent Product Framework (EPF) Repository - v2.0.2
+# Emergent Product Framework (EPF) Repository - v2.1.0
 
 This repository contains the complete skeleton for managing product, strategy, org & ops, and commercial development using the Emergent Product Framework. It is designed to be an **executable operating system**, managed by a human-in-the-loop with the assistance of an AI Knowledge Agent.
 
@@ -84,6 +84,27 @@ This repository contains the complete skeleton for managing product, strategy, o
 **Philosophy:** Like a coral reef growing one polyp at a time, EPF grows one artifact at a time. The system emerges as your strategic complexity emerges. Just as AI enables small teams to build big products, EPF's simple rules generate sophisticated strategic systems - that's why it's called the **Emergent** Product Framework.
 
 ---
+
+## What's New in v2.1.0
+
+Add layer-level solution_steps support to value model schema
+
+MINOR version bump - adds new optional field to layer structure
+
+What changed:
+- Added solution_steps field to layer properties in value_model_schema.json
+- Updated product.value_model.yaml template with solution_steps examples
+- Pattern: Each layer can now have 3-5 solution steps explaining HOW value is delivered
+
+Why this matters:
+- Bridges strategic intent (high_level_model solution_steps) with architectural execution (layer-specific steps)
+- Helps teams understand implementation sequence and priorities at each architectural level
+- Provides actionable guidance for layer activation
+
+Backward compatible:
+- solution_steps is optional at layer level (existing models remain valid)
+- No breaking changes to existing schema structure
+- Enhances value model expressiveness without requiring updates
 
 ## What's New in v2.0.0
 
