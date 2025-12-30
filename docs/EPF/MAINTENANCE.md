@@ -253,6 +253,35 @@ or
 - Feature definitions are the interface consumed by external tools
 - Structure for parseability, not for specific tool requirements
 
+#### EPF's Information Architecture Hierarchy (4 Levels)
+
+**CRITICAL: EPF covers ONLY Levels 1-2. Levels 3-4 are OUTSIDE EPF scope.**
+
+**The WHY-HOW-WHAT Continuum:** Each level contains overlapping WHY-HOW-WHAT elements. The WHAT from one level becomes context for the next level's HOW decisions. This tight coupling ensures emergence.
+
+| Level | Artifact | WHY-HOW-WHAT | EPF Scope | Owner | Changes | Description |
+|-------|----------|--------------|-----------|-------|---------|-------------|
+| **1** | **Value Model** | **WHY + HOW** (strategic) | ✅ YES | Product team | Annually or less | WHY: Purpose, value drivers, beneficiaries<br>HOW: Value flows, capabilities, logical structure |
+| **2** | **Feature Definition** | **HOW + WHAT** (tactical/strategic) | ✅ YES | Product team | Quarterly or less | Inherits WHY from Level 1<br>HOW: User workflows, scenarios, interactions<br>WHAT: Contexts, outcomes, acceptance criteria (high-level, non-implementation) |
+| **3** | **Feature Implementation Spec** | **HOW + WHAT** (technical) | ❌ NO | Engineering team | Monthly | Technical HOW: Architecture, APIs, algorithms<br>Technical WHAT: Specific technologies, endpoints, schemas |
+| **4** | **Implemented Feature/Code** | **WHAT** (concrete) | ❌ NO | Engineering team | Daily/weekly | The actual running software: Source code, tests, deployments |
+
+**Handoff Point:** Between Levels 2 and 3 (Product team → Engineering team)
+
+**What This Means for AI Agents:**
+- ✅ **DO create/modify:** Value models (WHY + strategic HOW), feature definitions (tactical HOW + strategic WHAT)
+- ❌ **DO NOT create/modify:** Technical PRDs, API specs, database schemas, architecture diagrams, source code (technical HOW + technical WHAT)
+- ✅ **Feature definitions INCLUDE:** Personas, scenarios, contexts, workflows, acceptance criteria, jobs-to-be-done (strategic WHAT)
+- ❌ **Feature definitions DO NOT include:** API endpoints, database tables, technology choices, implementation algorithms (technical WHAT)
+
+**Why This Matters - The Emergence Principle:**
+- Each level **overlaps** with the next—they are not discretely separated
+- The WHAT from Level 2 (acceptance criteria) becomes the WHY for Level 3 (requirements)
+- Value models and feature definitions are **outcome-oriented** (WHY we exist, HOW users succeed, WHAT outcomes they experience)
+- Implementation specs and code are **technically prescriptive** (HOW to build it technically, WHAT specific technologies)
+- EPF defines strategic WHY + HOW. Engineering defines technical HOW + WHAT.
+- **Tight coupling is essential:** "In a well-functioning organism, the parts cannot be too loosely coupled." The complete solution emerges from overlapping, interconnected pieces.
+
 ---
 
 ### STEP 0: Pre-Flight Decision Gate ⚠️ READ THIS FIRST
@@ -646,7 +675,7 @@ The EPF framework version is tracked in `README.md` and `MAINTENANCE.md`.
 | **MINOR (Y)** | New features, new artifact types, new optional fields, new wizards. Backward-compatible additions that enhance capability. | v1.9.0 → v1.10.0: Add new agent prompt |
 | **PATCH (Z)** | Bug fixes, documentation improvements, schema clarifications, typo fixes. No structural changes. | v1.9.3 → v1.9.4: Fix schema validation issue |
 
-**Current Framework Version:** v2.0.0
+**Current Framework Version:** v2.0.2
 
 **Version History Convention:**
 - Document version changes in `README.md` under "What's New in vX.Y.Z"

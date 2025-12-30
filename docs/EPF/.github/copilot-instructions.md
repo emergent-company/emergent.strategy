@@ -35,6 +35,136 @@ pwd  # Check your current working directory
 
 ---
 
+## ⚠️ CRITICAL: Pre-Commit Checklist for Framework Changes
+
+**BEFORE committing ANY changes to canonical EPF framework, run this checklist:**
+
+### Step 1: Classify Your Change Type
+
+```bash
+# Use automated classifier (RECOMMENDED)
+./scripts/classify-changes.sh
+
+# Or check specific changes:
+./scripts/classify-changes.sh --staged              # Check staged changes
+./scripts/classify-changes.sh --since-commit HEAD~1  # Check last commit
+
+# Script will:
+# 1. Analyze changed files
+# 2. Classify change type (schema, docs, templates, etc.)
+# 3. Recommend version bump type (MAJOR/MINOR/PATCH)
+# 4. Calculate next version suggestions
+# 5. Exit with error if version bump needed
+```
+
+**Manual classification if script unavailable:**
+
+```
+What did you change?
+├─ Schemas (JSON Schema files)?
+│   └─ Breaking changes (removed fields, changed types)? → MAJOR version
+│   └─ New optional fields? → MINOR version
+│   └─ Clarifications, fixes? → PATCH version
+├─ Templates (YAML templates)?
+│   └─ New templates? → MINOR version
+│   └─ Template improvements? → PATCH version
+├─ Documentation (README, guides, white paper)?
+│   └─ Affects how users understand EPF? → PATCH version
+│   └─ Typo fixes only? → PATCH version
+├─ Wizards (AI prompts)?
+│   └─ New wizard? → MINOR version
+│   └─ Wizard improvements? → PATCH version
+├─ Scripts (validation, automation)?
+│   └─ New functionality? → MINOR version
+│   └─ Bug fixes? → PATCH version
+└─ Working files (.epf-work/)?
+    └─ NO VERSION BUMP NEEDED (not part of framework)
+```
+
+### Step 2: Version Bump Decision
+
+```
+Does your change affect the framework?
+├─ YES → Continue to Step 3
+└─ NO (only .epf-work/ or .github/) → Skip to commit
+```
+
+**Rule:** If you changed docs, schemas, templates, wizards, or scripts → VERSION BUMP REQUIRED
+
+### Step 3: Determine Version Type
+
+| Change Type | Version | Examples |
+|-------------|---------|----------|
+| **Breaking changes** | MAJOR (X.0.0) | Removed schema fields, incompatible changes |
+| **New features** | MINOR (0.Y.0) | New templates, new wizards, new optional fields |
+| **Improvements/fixes** | PATCH (0.0.Z) | Documentation clarification, bug fixes, typos |
+
+**This session example:**
+- Changed: 11 documentation files (README, MAINTENANCE, guides, wizards)
+- Impact: Clarifies WHY-HOW-WHAT ontology (affects understanding)
+- Breaking? NO | New features? NO | Improvement? YES
+- **Verdict: PATCH (2.0.0 → 2.0.1)** ✅
+
+### Step 4: Use Automated Version Bump
+
+```bash
+# Run automated script (PREFERRED - prevents inconsistencies)
+./scripts/bump-framework-version.sh "X.Y.Z" "Brief description of changes"
+
+# Script will:
+# 1. Prompt for confirmation
+# 2. Update VERSION, README.md, MAINTENANCE.md, integration_specification.yaml
+# 3. Create version bump commit
+# 4. Git hook validates consistency before commit succeeds
+```
+
+### Step 5: If Manual Bump Needed
+
+Only if automated script unavailable, update ALL 4 files:
+
+1. **VERSION** - Change first line to `X.Y.Z`
+2. **README.md** - Update title: `# Emergent Product Framework (EPF) Repository - vX.Y.Z`
+3. **MAINTENANCE.md** - Update: `**Current Framework Version:** vX.Y.Z`
+4. **integration_specification.yaml** - Update both:
+   - Line 3: `# Version: X.Y.Z (EPF vX.Y.Z)`
+   - Line 7: `version: "X.Y.Z"`
+   - Line 8: `epf_version: "X.Y.Z"`
+
+**Git pre-commit hook will BLOCK if versions are inconsistent.** ✅
+
+### Step 6: Commit with Descriptive Message
+
+```bash
+git add <changed files>
+git commit -m "Brief title
+
+- Change 1 (what and why)
+- Change 2 (what and why)
+- Change 3 (what and why)
+
+Version: X.Y.Z (MAJOR|MINOR|PATCH)
+Impact: <who is affected and how>
+Breaking: <YES|NO>"
+```
+
+### Quick Reference: "Should I Bump Version?"
+
+**✅ YES - Bump version when:**
+- Changing docs that affect how users understand EPF
+- Adding/removing/changing schemas
+- Adding/modifying templates or wizards
+- Fixing bugs in validation scripts
+- Adding new features or capabilities
+
+**❌ NO - Skip version bump when:**
+- Only editing `.epf-work/` files (working documents)
+- Only editing `.github/` files (CI/CD, instructions)
+- Git operations (merging, rebasing) without content changes
+
+**When in doubt → Bump the version (PATCH).** Over-versioning is safer than under-versioning.
+
+---
+
 ## When User Asks to "Add EPF" to a New Repo
 
 Run this command from the target product repository:
@@ -129,6 +259,14 @@ See **.github/instructions/self-learning.instructions.md** for:
 ```bash
 # Check current EPF version
 cat VERSION
+
+# Classify changes and check if version bump needed (NEW in v2.0.1) ✨
+./scripts/classify-changes.sh                    # Check uncommitted changes
+./scripts/classify-changes.sh --staged           # Check staged changes
+./scripts/classify-changes.sh --since-commit HEAD~1  # Check last commit
+
+# Bump framework version (automated - prevents inconsistencies)
+./scripts/bump-framework-version.sh "X.Y.Z" "Release notes"
 
 # Validate an instance
 ./scripts/validate-instance.sh _instances/{product-name}

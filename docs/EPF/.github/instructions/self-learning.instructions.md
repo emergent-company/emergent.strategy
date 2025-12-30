@@ -4,6 +4,11 @@ applyTo: "**"
 
 # Self-Learning Log
 
+**🔔 BEFORE COMMITTING FRAMEWORK CHANGES, ALWAYS RUN:**
+```bash
+./scripts/classify-changes.sh  # Checks if version bump needed
+```
+
 This file documents lessons learned during AI-assisted development sessions. Each entry captures a mistake, why it happened, and how to prevent it in the future.
 
 ---
@@ -199,6 +204,111 @@ This file documents lessons learned during AI-assisted development sessions. Eac
 - `/Users/nikolai/Code/epf/CANONICAL_PURITY_RULES.md` (Pre-Flight Checklist, Question 3)
 - `/Users/nikolai/Code/epf/docs/guides/README.md` (explains docs/guides/ structure)
 - This applies to ANY repository with explicit directory structure and purpose documentation
+
+---
+
+### 2025-12-30 - Failed to Bump Version After Significant Documentation Changes
+
+**Context**: After completing comprehensive WHY-HOW-WHAT ontology alignment across 11 EPF documentation files (README, MAINTENANCE, white paper, guides, wizards), committed changes without bumping framework version. User had to notice and ask "Why are we not updating the EPF versioning?"
+
+**Mistake**: Treated significant documentation clarification as "just docs updates" rather than recognizing it as a framework change worthy of version bump. Committed documentation changes (commit 2304023) without updating VERSION, README header, MAINTENANCE current version, or integration_specification version fields.
+
+**Why It Was Wrong**:
+1. **EPF has explicit version management protocol** - documented in MAINTENANCE.md
+2. **Automated tooling exists** - `./scripts/bump-framework-version.sh` for this exact purpose
+3. **Git hook enforces consistency** - pre-commit check validates all 4 version markers match
+4. **Documentation changes affect framework usage** - ontology clarification changes how users understand EPF
+5. **User had to catch the mistake** - demonstrates lack of process discipline
+
+**Root Cause**:
+- Didn't consult MAINTENANCE.md version management section before committing
+- Failed to recognize documentation clarification as PATCH-worthy change
+- Assumed version bumps only needed for schema/structural changes
+- Didn't treat version management as mandatory step in change workflow
+- No mental checklist for "what happens after making framework changes"
+
+**Correct Approach - Version Management Discipline**:
+
+1. **Before Committing Framework Changes**, ask:
+   - Does this change affect how users understand or apply EPF? (YES → version bump)
+   - Does this change schemas, add features, fix bugs, or clarify docs? (YES → version bump)
+   - Is this MAJOR (breaking), MINOR (features), or PATCH (docs/fixes)?
+
+2. **Consult Version Management Rules** (MAINTENANCE.md):
+   ```bash
+   read_file: MAINTENANCE.md (version management section ~660-690)
+   ```
+
+3. **Determine Version Bump Type**:
+   - MAJOR (X): Breaking schema changes, removed fields, incompatible updates
+   - MINOR (Y): New features, new artifact types, new optional fields, backward-compatible additions
+   - PATCH (Z): Bug fixes, documentation improvements, schema clarifications, typo fixes
+
+4. **Use Automated Script** (prevents inconsistencies):
+   ```bash
+   ./scripts/bump-framework-version.sh "X.Y.Z" "Release notes describing changes"
+   # Script updates: VERSION, README.md, MAINTENANCE.md, integration_specification.yaml
+   # Script enforces consistency, creates commit, prevents human error
+   ```
+
+5. **If Manual Bump Required**, update ALL 4 files:
+   - VERSION (line 1)
+   - README.md (header: "# Emergent Product Framework (EPF) Repository - vX.Y.Z")
+   - MAINTENANCE.md ("**Current Framework Version:** vX.Y.Z")
+   - integration_specification.yaml (version: "X.Y.Z", epf_version: "X.Y.Z")
+
+6. **Git Hook Will Validate** before commit succeeds
+
+**Version Bump Decision Tree**:
+
+```
+Making framework changes?
+├─ YES → Will this affect how users understand/use EPF?
+│   ├─ YES → Determine type:
+│   │   ├─ Breaking changes? → MAJOR (X.0.0)
+│   │   ├─ New features? → MINOR (0.Y.0)
+│   │   └─ Docs/fixes? → PATCH (0.0.Z)
+│   └─ Run ./scripts/bump-framework-version.sh
+└─ NO → Proceed with commit
+```
+
+**This Case Analysis**:
+- Change: WHY-HOW-WHAT ontology alignment across all docs
+- Impact: Clarifies fundamental framework concepts, affects understanding
+- Breaking? NO (no schema changes)
+- New features? NO (no new capabilities)
+- Docs/fixes? YES (documentation clarification)
+- **Verdict: PATCH release (2.0.0 → 2.0.1)**
+
+**Prevention Checklist** (use BEFORE committing framework changes):
+- [ ] Have I made changes to docs, schemas, templates, or wizards?
+- [ ] Will this change how users understand or apply EPF?
+- [ ] Have I consulted MAINTENANCE.md version management rules?
+- [ ] Have I determined if this is MAJOR, MINOR, or PATCH?
+- [ ] Have I run ./scripts/bump-framework-version.sh with release notes?
+- [ ] OR have I manually updated all 4 version markers consistently?
+- [ ] Will the git pre-commit hook pass (version consistency check)?
+
+**Time Cost**:
+- Wrong approach (commit docs → user notices → bump version → separate commit): ~10 minutes
+- Correct approach (bump version as part of change workflow): ~3 minutes
+- **Wasted time**: ~7 minutes, plus user interruption and trust impact
+- **Reputational cost**: User questions "Why didn't the EPF process notice this?"
+
+**Impact**:
+- Demonstrates lack of process discipline and checklist thinking
+- User had to catch something that should be automatic
+- Framework changes appeared "incomplete" without version update
+- Committed documentation changes without corresponding version metadata
+- Raises question about AI agent's ability to follow EPF's own protocols
+
+**Key Takeaway**: **VERSION MANAGEMENT IS NOT OPTIONAL.** EPF has explicit protocols for version bumps, automated tooling to prevent mistakes, and git hooks to enforce consistency. Before committing ANY framework change (docs, schemas, templates, wizards), check if version bump is needed. Documentation clarifications that affect understanding ARE version-worthy (PATCH). Use the version bump decision tree. When in doubt, bump the version—over-versioning is better than under-versioning.
+
+**Related Files/Conventions**:
+- `/Users/nikolai/Code/epf/MAINTENANCE.md` (Version Management section, lines 660-690)
+- `/Users/nikolai/Code/epf/scripts/bump-framework-version.sh` (automated version bump tool)
+- `/Users/nikolai/Code/epf/.git/hooks/pre-commit` (version consistency enforcement)
+- This applies to ANY framework repository with semantic versioning and release management
 
 ---
 

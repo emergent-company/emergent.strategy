@@ -1,25 +1,114 @@
 # EPF Integration Specification
 # Machine-readable contract for spec-driven development tools
-# Version: 2.0.0 (EPF v2.0.0)
+# Version: 2.0.2 (EPF v2.0.2)
 
 specification:
   name: "EPF Tool Integration Specification"
-  version: "2.0.0"
-  epf_version: "2.0.0"
+  version: "2.0.2"
+  epf_version: "2.0.2"
   purpose: |
     This file defines the interface contract between the Emergent Product Framework (EPF)
     and any spec-driven software development tool (e.g., OpenSpec, SpecIt, AI coding agents).
     Tools should read this file to understand what EPF provides and what is expected of them.
 
 # ============================================================================
-# SECTION 1: WORK HIERARCHY AND HANDOFF POINT
+# SECTION 1: INFORMATION ARCHITECTURE HIERARCHY AND HANDOFF POINT
 # ============================================================================
+
+information_architecture:
+  description: |
+    EPF defines a 4-level information architecture hierarchy with clear scope boundaries.
+    EPF owns the first 2 levels (strategic artifacts). Engineering owns the last 2 levels (technical implementation).
+    
+    THE WHY-HOW-WHAT CONTINUUM:
+    Each level contains overlapping WHY-HOW-WHAT elements (Simon Sinek framework). The WHAT from one level
+    becomes context for the next level's HOW decisions. This tight coupling ensures emergence—the complete
+    solution emerges from overlapping, interconnected pieces.
+    
+    CRITICAL DISTINCTION:
+    - EPF Level 2 "Feature Definition" = HOW users achieve outcomes + WHAT value delivered (strategic)
+      → Includes: personas, scenarios, workflows, contexts, outcomes, acceptance criteria
+      → Excludes: technical WHAT (API contracts, schemas, architecture)
+    - Engineering Level 3 "Feature Implementation Spec" = HOW to build technically + WHAT technologies
+      → Includes: architecture, APIs, database schemas, technology choices
+    
+    These are TWO DIFFERENT ARTIFACTS with different owners, purposes, and lifecycles.
+
+  hierarchy:
+    - level: "1. Value Model"
+      owner: "EPF (Product Team)"
+      epf_responsibility: true
+      why_how_what: "WHY + HOW (strategic)"
+      why_how_what_detail: |
+        WHY: Purpose, value drivers, beneficiaries
+        HOW: Value flows, capabilities, logical structure
+        WHAT: High-level components (minimal)
+      description: |
+        WHY we exist (purpose, value drivers) + HOW value flows (capabilities, logical structure).
+        Persistent information architecture defining what the product does, for whom, and why.
+        Example: Product value model with L1 Layers → L2 Components → L3 Sub-components
+      location: "_instances/{product}/value_models/product.value_model.yaml"
+      changes_frequency: "Annually or less (pivots, major strategy shifts)"
+
+    - level: "2. Feature Definition"
+      owner: "EPF (Product Team)"
+      epf_responsibility: true
+      why_how_what: "HOW + WHAT (tactical/strategic)"
+      why_how_what_detail: |
+        WHY: Inherited from value model (via contributes_to)
+        HOW: User scenarios, workflows, interactions (dominant)
+        WHAT: Contexts, jobs-to-be-done, acceptance criteria, outcomes (strategic, non-implementation)
+      description: |
+        Inherits WHY from value model + HOW users achieve outcomes (scenarios, workflows) + WHAT value
+        is delivered (contexts, outcomes, criteria). Outcome-oriented specification with personas, scenarios,
+        contexts, and acceptance criteria.
+        
+        Contains WHAT on a STRATEGIC level (what outcomes, what user experiences, what acceptance criteria).
+        Does NOT contain WHAT on a TECHNICAL level (what APIs, what database tables, what architecture patterns).
+        
+        Example: "fd-001: Digital Twin Ecosystem" with 4 personas, 8 scenarios, value mapping
+      location: "_instances/{product}/feature_definitions/{feature-slug}.yaml"
+      changes_frequency: "Quarterly or less (iteration, learning)"
+      handoff_artifact: true
+      note: |
+        ▼▼▼ HANDOFF POINT: Product team creates this, engineering team consumes it ▼▼▼
+        The WHAT from Level 2 (acceptance criteria, outcomes) becomes the WHY for Level 3 (requirements).
+
+    - level: "3. Feature Implementation Specification"
+      owner: "Engineering Team"
+      epf_responsibility: false
+      why_how_what: "HOW + WHAT (technical)"
+      why_how_what_detail: |
+        WHY: Inherited from feature definition (acceptance criteria become requirements)
+        HOW: Architecture, APIs, algorithms (dominant)
+        WHAT: Specific technologies, endpoints, schemas
+      description: |
+        HOW to technically build it + WHAT technologies to use. Technical PRD with API contracts,
+        database schemas, architecture diagrams, system design, and technology choices.
+        Created by engineering team AFTER receiving feature definition from product team.
+        Example: API specification, database schema, microservices architecture, tech stack
+      location: "Defined by engineering tools (Notion, Confluence, Swagger, etc.)"
+      changes_frequency: "Monthly (technical evolution, architecture updates)"
+
+    - level: "4. Implemented Feature / Code"
+      owner: "Engineering Team"
+      epf_responsibility: false
+      why_how_what: "WHAT (concrete)"
+      why_how_what_detail: |
+        WHY: Inherited requirements (minimal)
+        HOW: Algorithms, functions
+        WHAT: The actual running software (dominant)
+      description: |
+        Implemented WHAT (the actual running software). Source code, tests, deployments, monitoring, CI/CD.
+        Created by engineering team based on implementation specification.
+        Example: TypeScript code, Jest tests, Kubernetes deployments, Datadog monitoring
+      location: "Defined by engineering tools (GitHub, GitLab, Jira, Linear, etc.)"
+      changes_frequency: "Daily/weekly (sprints, continuous deployment)"
 
 work_hierarchy:
   description: |
-    EPF and spec-driven tools have a clear division of responsibility.
-    EPF owns strategic planning (O → KR → Feature Definitions).
-    Tools own implementation details (Work Packages → Tasks).
+    Within EPF's strategic domain, there is a work hierarchy connecting objectives to features.
+    This hierarchy supports EPF's READY → FIRE → AIM cycle.
 
   hierarchy:
     - level: "Objective (O)"
@@ -33,71 +122,84 @@ work_hierarchy:
       owner: "EPF"
       description: |
         Measurable milestone toward the objective. The "meta work package" that
-        gets handed off to spec-driven tools. KRs define WHAT success looks like.
+        connects strategic intent to feature work. KRs define WHAT success looks like.
         Example: "Achieve TRL 6 for LMC technology by Q2"
       location: "05_roadmap_recipe.yaml → tracks.{track}.okrs[].key_results[]"
 
     - level: "Feature Definition (FD)"
-      owner: "EPF (interface layer)"
+      owner: "EPF (Product Team)"
       description: |
-        Detailed specification of a product capability. Feature definitions
-        are the PRIMARY INTERFACE consumed by spec-driven tools.
-        They translate KR intent into capabilities, scenarios, and boundaries.
+        Outcome-oriented specification of WHAT value is delivered to WHOM.
+        Includes personas, scenarios, acceptance criteria, and value model mappings.
+        Does NOT include technical implementation details - those belong to engineering's
+        implementation specs (Level 3 of information architecture).
         Example: "fd-001: Digital Twin Ecosystem"
       location: "_instances/{product}/feature_definitions/{feature-slug}.yaml"
 
-    - level: "Work Package"
-      owner: "Spec-Driven Tool"
-      description: |
-        Implementation unit created by spec tools. Work packages decompose
-        feature definitions into buildable components.
-        Example: "Implement real-time sensor data ingestion pipeline"
-      location: "Defined by spec tool (e.g., OpenSpec specs, GitHub issues)"
-
-    - level: "Task"
-      owner: "Spec-Driven Tool"
-      description: |
-        Atomic implementation unit. Individual coding tasks, tests,
-        documentation items, etc.
-        Example: "Create WebSocket handler for sensor updates"
-      location: "Defined by spec tool (e.g., task tracker, PR descriptions)"
-
   handoff_diagram: |
     ┌─────────────────────────────────────────────────────────────────────────┐
-    │                           EPF DOMAIN                                     │
-    │  ┌─────────────┐                                                        │
-    │  │  Objective  │  "What are we trying to achieve?"                      │
-    │  └──────┬──────┘                                                        │
-    │         │                                                               │
-    │  ┌──────▼──────┐                                                        │
-    │  │ Key Results │  "Measurable milestone" (the meta work package)        │
-    │  └──────┬──────┘                                                        │
-    │         │                                                               │
-    │  ┌──────▼──────────────┐                                                │
-    │  │ Feature Definitions │  "Capabilities, scenarios, boundaries"         │
-    │  └──────┬──────────────┘                                                │
-    ├─────────┼───────────────────────────────────────────────────────────────┤
-    │         │            ▼▼▼ HANDOFF POINT ▼▼▼                              │
-    ├─────────┼───────────────────────────────────────────────────────────────┤
-    │         │                    SPEC-DRIVEN TOOL DOMAIN                    │
-    │  ┌──────▼──────────┐                                                    │
-    │  │  Work Packages  │  "How do we break this into buildable units?"      │
-    │  └──────┬──────────┘                                                    │
-    │         │                                                               │
-    │  ┌──────▼──────┐                                                        │
-    │  │    Tasks    │  "What are the atomic implementation steps?"           │
-    │  └─────────────┘                                                        │
+    │                    EPF STRATEGIC DOMAIN (Product Team)                  │
+    │                                                                          │
+    │  ┌─────────────────┐                                                    │
+    │  │  Value Model    │  Level 1: What product does, for whom, why         │
+    │  │  (persistent)   │  Changes: Annually or less                         │
+    │  └────────┬────────┘                                                    │
+    │           │ informs                                                     │
+    │  ┌────────▼────────┐                                                    │
+    │  │   Objective     │  "What are we trying to achieve?"                  │
+    │  └────────┬────────┘                                                    │
+    │           │                                                             │
+    │  ┌────────▼─────────┐                                                   │
+    │  │   Key Results    │  "Measurable milestones"                          │
+    │  └────────┬─────────┘                                                   │
+    │           │                                                             │
+    │  ┌────────▼────────────────────┐                                        │
+    │  │  Feature Definition         │  Level 2: What value delivered to whom │
+    │  │  (outcome-oriented)         │  Changes: Quarterly                    │
+    │  │                             │                                        │
+    │  │  Personas, scenarios,       │                                        │
+    │  │  acceptance criteria        │                                        │
+    │  └────────┬────────────────────┘                                        │
+    ├───────────┼────────────────────────────────────────────────────────────┤
+    │           │            ▼▼▼ HANDOFF POINT ▼▼▼                            │
+    ├───────────┼────────────────────────────────────────────────────────────┤
+    │           │         ENGINEERING DOMAIN (Engineering Team)              │
+    │           │                                                             │
+    │  ┌────────▼─────────────────────┐                                       │
+    │  │  Feature Implementation Spec │  Level 3: How it's technically built  │
+    │  │  (technical)                 │  Changes: Monthly                     │
+    │  │                              │                                       │
+    │  │  API contracts, DB schemas,  │                                       │
+    │  │  architecture, tech stack    │                                       │
+    │  └────────┬─────────────────────┘                                       │
+    │           │                                                             │
+    │  ┌────────▼─────────────────────┐                                       │
+    │  │  Implemented Feature / Code  │  Level 4: The actual software         │
+    │  │  (running software)          │  Changes: Daily/weekly                │
+    │  │                              │                                       │
+    │  │  Source code, tests, CI/CD,  │                                       │
+    │  │  deployments, monitoring     │                                       │
+    │  └──────────────────────────────┘                                       │
     └─────────────────────────────────────────────────────────────────────────┘
 
   key_principles:
-    - principle: "KRs are the meta work packages"
+    - principle: "EPF covers Levels 1-2, NOT Levels 3-4"
       description: |
-        Key Results define measurable milestones. They are what gets handed off
-        to spec-driven tools. EPF does not decompose KRs into work packages -
-        that's the tool's responsibility.
+        EPF is outcome-oriented and strategic. It defines WHAT value is delivered
+        and WHY it matters (value model + feature definitions). It does NOT define
+        HOW features are implemented (implementation specs + code). That's engineering's domain.
 
-    - principle: "Feature definitions are the interface"
+    - principle: "Feature Definition ≠ Feature Implementation Spec"
       description: |
+        Feature Definition (EPF Level 2) = Outcome-oriented, personas, scenarios, acceptance criteria
+        Feature Implementation Spec (Engineering Level 3) = Technical, API contracts, schemas, architecture
+        These are TWO DIFFERENT ARTIFACTS. Product team creates definitions, engineering creates specs.
+
+    - principle: "Handoff point is between product and engineering"
+      description: |
+        Product team creates value models and feature definitions (EPF artifacts).
+        Engineering team receives feature definitions and creates implementation specs and code.
+        EPF does not prescribe technical implementation - that's engineering's responsibility.
         Feature definitions translate KR intent into something spec-driven
         tools can parse: capabilities, scenarios, acceptance criteria.
         They are the "API" between EPF and implementation.

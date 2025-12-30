@@ -1,4 +1,4 @@
-# Emergent Product Framework (EPF) Repository - v2.0.0
+# Emergent Product Framework (EPF) Repository - v2.0.2
 
 This repository contains the complete skeleton for managing product, strategy, org & ops, and commercial development using the Emergent Product Framework. It is designed to be an **executable operating system**, managed by a human-in-the-loop with the assistance of an AI Knowledge Agent.
 
@@ -300,51 +300,106 @@ EPF is built on a few key principles:
 
 ## Work Hierarchy and Handoff Point
 
-EPF defines a clear hierarchy of work, with a defined handoff point to spec-driven implementation tools:
+EPF defines a 4-level information architecture hierarchy, with clear boundaries between strategic artifacts (EPF's domain) and technical implementation (outside EPF):
 
 ```
-EPF DOMAIN                              SPEC-DRIVEN TOOL DOMAIN
+EPF STRATEGIC DOMAIN (✅)               ENGINEERING DOMAIN (❌)
 ──────────────────────────────────────  ──────────────────────────────
-Objective (O)                           
-  │ "What are we trying to achieve?"    
+Value Model                             
+  │ WHY we exist (purpose, value drivers)
+  │ HOW value flows (capabilities, logical structure)
+  │ (persistent foundation)
   │                                     
-  └──► Key Result (KR)                  
-        │ "Measurable milestone"        
-        │ (the meta work package)       
+  └──► Feature Definition                
+        │ Inherits WHY from value model
+        │ HOW users achieve outcomes (scenarios, workflows)
+        │ WHAT value is delivered (contexts, outcomes, criteria)
+        │ (outcome-oriented, non-implementation)
         │                               
-        └──► Feature Definition          
-              │ "Capabilities,          
-              │  scenarios, boundaries" 
-              │                         
+        │ Includes: Personas, scenarios,
+        │ acceptance criteria, value    
+        │ mapping                       
+        │                               
         ══════╪═════════════════════════  ◄── HANDOFF POINT
               │                         
-              └──────────────────────────► Work Packages
-                                            │ "Buildable units"
+              └──────────────────────────► Feature Implementation Spec
+                                            │ HOW to technically build it
+                                            │ WHAT technologies to use
+                                            │ (architecture, APIs, schemas)
                                             │
-                                            └──► Tasks
-                                                  "Atomic implementation"
+                                            │ Includes: API specs, database
+                                            │ schemas, architecture, PRDs
+                                            │
+                                            └──► Implemented Feature/Code
+                                                  │ Implemented WHAT
+                                                  │ (the actual running software)
+                                                  │
+                                                  │ Includes: Source code, tests,
+                                                  │ deployments, monitoring
+
+WITHIN EPF STRATEGIC DOMAIN:
+
+Objective (O) → Key Result (KR) → Feature Definition
+  │               │                    │
+  │               │                    └─► Links to Value Model paths
+  │               └─────────────────────► Measures feature success
+  └─────────────────────────────────────► Sets strategic direction
 ```
 
-### Key Principles
+### EPF's Scope: What's In, What's Out
 
-- **Objectives set direction.** They answer "What are we trying to achieve?"
-- **Key Results are the meta work packages.** They define measurable milestones that get handed off.
-- **Feature Definitions are the interface.** They translate KR intent into capabilities, scenarios, and boundaries that tools can parse.
-- **Work Packages and Tasks belong to spec tools.** EPF doesn't define or track implementation-level decomposition - that's the tool's domain.
+| Artifact Level | WHY-HOW-WHAT | EPF Responsibility | Owner | Changes |
+|----------------|--------------|-------------------|-------|---------|
+| **1. Value Model** | **WHY + HOW** (strategic) | ✅ YES - Define WHY (purpose, value drivers) and HOW (value flows, capabilities) | Product team | Annually or less |
+| **2. Feature Definition** | **HOW + WHAT** (tactical/strategic) | ✅ YES - Define HOW (user workflows, scenarios) and WHAT (outcomes, contexts, criteria on high level) | Product team | Quarterly or less |
+| **3. Feature Implementation Spec** | **HOW + WHAT** (technical) | ❌ NO - Technical HOW (architecture, APIs) and technical WHAT (specific technologies) | Engineering team | Monthly |
+| **4. Implemented Feature/Code** | **WHAT** (concrete) | ❌ NO - The actual running software | Engineering team | Daily/weekly |
+
+### Key Principles: The WHY-HOW-WHAT Continuum
+
+- **Value Model defines strategic WHY + HOW.** It answers "WHY do we exist?" (purpose, value drivers) and "HOW does value flow?" (capabilities, logical structure). This is persistent information architecture.
+
+- **Feature Definitions inherit WHY and define tactical HOW + strategic WHAT.** They answer "HOW do users achieve outcomes?" (scenarios, workflows) and "WHAT value is delivered?" (contexts, jobs-to-be-done, acceptance criteria) on a high, non-implementation level.
+
+- **Each level overlaps with the next.** The WHAT from one level becomes context for the next level's HOW decisions. This tight coupling ensures emergence—the complete solution emerges from overlapping, interconnected pieces.
+
+- **EPF covers WHY + HOW, NOT technical WHAT.** EPF defines purpose and approach (strategic/tactical). Engineering defines technical implementation (architecture, code).
+
+- **Handoff Point is between Product and Engineering.** Product team creates WHY + HOW artifacts (Levels 1-2). Engineering team creates technical HOW + WHAT artifacts (Levels 3-4).
 
 See `integration_specification.yaml` for the complete machine-readable contract.
 
 ## Feature Definitions: The Bridge to Implementation
 
-Feature definitions are the **primary output** of EPF that gets consumed by external implementation tools. They bridge the gap between EPF's strategic artifacts (value model, roadmap) and spec-driven development tools (specification frameworks, AI coding agents, etc.).
+Feature definitions are the **primary output** of EPF that serves as the handoff point to engineering teams. They bridge the gap between EPF's strategic artifacts (value model, roadmap) and technical implementation (API specs, database schemas, architecture, code).
 
-### Purpose
+### Purpose and Scope
 
-While the value model answers **WHY** something is valuable (the value generation perspective), feature definitions answer **WHAT** will be built (the implementation perspective). They translate strategic intent into actionable specifications.
+**What Feature Definitions ARE (EPF Scope ✅):**
+- **Tactical HOW + Strategic WHAT specifications** inheriting WHY from value model
+- Define **HOW users achieve outcomes** through scenarios and workflows
+- Define **WHAT value is delivered** through contexts, jobs-to-be-done, and acceptance criteria (on high, non-implementation level)
+- Business-focused documents with personas, scenarios, and acceptance criteria
+- Outcome-oriented specifications that engineering uses to create technical specs
+- YAML artifacts maintained by product team
+
+**What Feature Definitions are NOT (Outside EPF ❌):**
+- Technical implementation specifications (API contracts, database schemas)
+- Architecture diagrams or system design documents (technical HOW)
+- Technology choices or specific endpoints (technical WHAT)
+- Source code or test specifications
+
+**The Critical Distinction:**
+- Feature Definition WHAT: "Alert delivered within 30 seconds" (outcome, acceptance criteria)
+- Implementation Spec WHAT: "WebSocket endpoint `/ws/alerts` using Kafka" (technical, specific)
+
+Feature definitions contain WHAT on a **strategic level** (what outcomes, what user experiences, what acceptance criteria). They do NOT contain WHAT on a **technical level** (what APIs, what database tables, what architecture patterns).
+
+**The Handoff:** Product team creates feature definitions → Engineering team creates implementation specs → Engineers write code.
 
 ### N:M Mapping to Value Model
 
-Feature definitions do NOT map 1:1 to value model components:
+Feature definitions derive from and map to value model components. This relationship is many-to-many (N:M):
 - A single feature may contribute value to multiple L2/L3 components
 - A single L2/L3 component may receive value from multiple features
 - This many-to-many relationship is by design - features are cross-cutting concerns
@@ -363,11 +418,13 @@ Feature definitions maintain loose references to:
 
 These are **pointers for traceability**, not rigid dependencies.
 
-### Tool-Agnostic Design
+### Engineering's Responsibility
 
-EPF is intentionally agnostic about which spec-driven development tools consume feature definitions:
-- Feature definitions define WHAT needs to exist
-- External tools (OpenSpec, SpecIt, AI coding agents, etc.) define HOW to implement
+After receiving a feature definition, engineering teams create:
+1. **Feature Implementation Specification** (technical PRD, API contracts, database schemas, architecture)
+2. **Implemented Feature** (source code, tests, deployments)
+
+EPF does not define or prescribe HOW features are implemented - that's engineering's domain.
 - The interface is the feature definition file itself - tools learn to parse it
 
 **For tool developers:** See `integration_specification.yaml` for the machine-readable contract that defines:

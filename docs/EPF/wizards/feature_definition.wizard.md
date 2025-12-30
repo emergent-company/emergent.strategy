@@ -500,6 +500,98 @@ These files demonstrate the correct structure, narrative depth, and EPF schema v
 
 ---
 
+## What Comes Next: The Handoff to Engineering
+
+**IMPORTANT: Feature definitions are the handoff point between product and engineering teams.**
+
+### EPF's Scope: Levels 1-2 Only (WHY + HOW Strategic)
+
+EPF uses Simon Sinek's WHY-HOW-WHAT framework. Each level contains overlapping WHY-HOW-WHAT elements. The WHAT from one level becomes context for the next level's HOW decisions. This tight coupling ensures emergence.
+
+Your feature definition (Level 2) describes **HOW** users achieve outcomes (scenarios, workflows) and **WHAT** value is delivered (contexts, outcomes, criteria - strategic, not technical). It does NOT describe **HOW** to build it technically or **WHAT** technologies to use. That's engineering's responsibility.
+
+| Level | Artifact | WHY-HOW-WHAT | Your Responsibility | Engineering's Responsibility |
+|-------|----------|--------------|---------------------|------------------------------|
+| **1** | Value Model | WHY + HOW (strategic) | ✅ Create/maintain | Read for context |
+| **2** | Feature Definition | HOW + WHAT (tactical/strategic) | ✅ Create/maintain | Read and consume |
+| **3** | Implementation Spec | HOW + WHAT (technical) | ❌ Not your domain | ✅ Create (APIs, schemas, architecture) |
+| **4** | Code | WHAT (concrete) | ❌ Not your domain | ✅ Create (source code, tests, deployments) |
+
+**Critical Distinction - Strategic WHAT vs Technical WHAT:**
+- Level 2 WHAT: "Alert within 30 seconds of threshold breach" ✅ (outcome, acceptance criteria)
+- Level 3 WHAT: "WebSocket endpoint `/ws/alerts` using Kafka" ❌ (technical, specific)
+
+### After You Create a Feature Definition
+
+Engineering teams take your feature definition and create:
+
+1. **Feature Implementation Specification** (Level 3 - HOW technical + WHAT technologies)
+   - **WHY:** Your acceptance criteria become their requirements
+   - **HOW (dominant):** Technical PRD, API contracts, database schemas, architecture
+   - **WHAT (technical):** Specific technologies, endpoints, performance targets
+   - Example: "WebSocket endpoint `/ws/risk-alerts` + Kafka event stream + Redis cache + PostgreSQL alerts table"
+
+2. **Implemented Feature/Code** (Level 4 - WHAT concrete)
+   - **WHAT (dominant):** Source code, tests, deployment configs, CI/CD pipelines
+   - **HOW:** Algorithms, functions
+   - **WHY:** Inherited requirements (minimal)
+   - Example: `RiskAlertService.ts`, Jest tests, Kubernetes deployments
+
+### What Feature Definitions Should Include
+
+✅ **DO include (HOW users + strategic WHAT):**
+- **WHY:** Inherited from value model (via `contributes_to`)
+- **HOW (dominant):** Personas with rich narratives, scenarios describing workflows
+- **WHAT (strategic):** Contexts showing where interactions occur, outcomes delivered, acceptance criteria, jobs-to-be-done
+- Value model mappings (which capabilities this supports)
+- Dependencies on other features (with rationale)
+
+❌ **DO NOT include (technical HOW/WHAT):**
+- **Technical HOW:** API endpoint URLs, request/response formats, architecture diagrams, algorithms
+- **Technical WHAT:** Database tables/columns, technology choices (React, Node.js, PostgreSQL), infrastructure patterns
+
+### Example: Feature Definition vs Implementation Spec
+
+**Feature Definition (Your Work - Level 2: HOW users + strategic WHAT):**
+```yaml
+scenarios:
+  - id: scn-001
+    name: "Upload and Process Compliance Document"
+    actor: "Sarah Martinez, Compliance Officer"
+    context: "Project missing required certificate"
+    trigger: "Sarah notices compliance gap"
+    action: "Sarah uploads certificate PDF and assigns to project"
+    outcome: "System processes document, validates compliance, updates dashboard"
+    acceptance_criteria:
+      - "Document uploaded within 5 seconds" ✅ Strategic WHAT (outcome)
+      - "Compliance status updates in real-time" ✅ Strategic WHAT (experience)
+      - "User receives confirmation notification" ✅ Strategic WHAT (criteria)
+```
+
+**Feature Implementation Spec (Engineering's Work - Level 3: HOW technical + WHAT technologies):**
+```markdown
+# Technical Implementation Specification
+
+## API Endpoints (HOW + WHAT technical)
+- POST /api/documents/upload (multipart/form-data) ← Technical WHAT
+- GET /api/projects/{id}/compliance-status ← Technical WHAT
+- WebSocket /ws/compliance-updates ← Technical WHAT
+
+## Database Schema (HOW + WHAT technical)
+- documents table (id, project_id, file_path, uploaded_at, metadata_json)
+- compliance_rules table (id, rule_type, requirement_text)
+- compliance_status table (project_id, rule_id, status, last_checked)
+
+## Architecture (HOW technical)
+- Upload service (Node.js, S3 storage) ← Technology choices
+- Processing pipeline (AWS Lambda, OCR with Textract) ← Specific tech
+- Real-time notifications (WebSocket server, Redis pub/sub) ← Implementation details
+```
+
+**Notice the handoff:** Your strategic WHAT ("within 5 seconds", "real-time updates") becomes their WHY (requirements). They then define technical HOW (architecture, APIs) and technical WHAT (specific technologies).**See the difference?** Your feature definition is outcome-oriented and business-focused. Engineering's implementation spec is technically prescriptive.
+
+---
+
 ## Need Help?
 
 **Before creating a feature definition:**

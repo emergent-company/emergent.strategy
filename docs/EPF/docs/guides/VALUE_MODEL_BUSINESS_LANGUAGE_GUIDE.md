@@ -3,8 +3,134 @@
 > **Last updated**: EPF v1.13.0 | **Status**: Current
 
 **Version:** 1.0  
-**Last Updated:** 21 December 2025  
+**Last Updated:** 30 December 2025  
 **Purpose:** Ensure value models focus on business outcomes and user value, not technical implementation details
+
+---
+
+## ⭐ The Value Model's Foundational Role
+
+**Critical principle:** The value model is **more fundamental** than feature definitions in EPF's information architecture.
+
+### The WHY-HOW-WHAT Continuum
+
+EPF uses Simon Sinek's WHY-HOW-WHAT framework. Each level contains overlapping WHY-HOW-WHAT elements. The WHAT from one level becomes context for the next level's HOW decisions. This tight coupling ensures emergence—the complete solution emerges from overlapping, interconnected pieces.
+
+**"In a well-functioning organism, the parts cannot be too loosely coupled."**
+
+### The Hierarchy
+
+EPF is **outcome-oriented**. The value model comes first, features follow, implementation follows features.
+
+```
+1. VALUE MODEL (Foundation) - EPF CORE
+   ↓ WHY: "Why do we exist?" (purpose, value drivers)
+   ↓ HOW: "How does value flow?" (capabilities, logical structure)
+   ↓ WHAT: High-level components (minimal)
+   ↓ Common vocabulary for entire organization
+   ↓ Persistent, changes infrequently
+   ↓
+2. FEATURE DEFINITION (Strategic Specification) - EPF CORE
+   ↓ WHY: Inherited from value model (via contributes_to)
+   ↓ HOW: "How do users achieve outcomes?" (scenarios, workflows)
+   ↓ WHAT: "What value is delivered?" (contexts, outcomes, criteria - strategic, non-implementation)
+   ↓ Personas, scenarios, acceptance criteria
+   ↓ Changes more frequently (quarterly)
+   ↓ ▼▼▼ HANDOFF POINT ▼▼▼
+   ↓ The WHAT from Level 2 becomes the WHY for Level 3
+   ↓
+3. FEATURE IMPLEMENTATION SPEC (Technical Specification) - OUTSIDE EPF
+   ↓ WHY: Inherited acceptance criteria become requirements
+   ↓ HOW: "How to technically build it?" (architecture, APIs)
+   ↓ WHAT: "What technologies to use?" (endpoints, schemas)
+   ↓ Technical design, contracts, diagrams
+   ↓ Changes frequently (monthly)
+   ↓
+4. IMPLEMENTED FEATURE (Code) - OUTSIDE EPF
+   ↓ WHY: Inherited requirements (minimal)
+   ↓ HOW: Algorithms, functions
+   ↓ WHAT: "The actual running software" (dominant)
+   ↓ Source code, tests, deployment
+   ↓ Changes continuously (daily/weekly)
+```
+
+**Critical distinctions:**
+
+| Level | WHY-HOW-WHAT | Answers | EPF Scope? | Owner |
+|-------|--------------|---------|------------|-------|
+| Value model | WHY + HOW (strategic) | "Why do we exist? How does value flow?" | ✅ YES | Product team |
+| Feature definition | HOW + WHAT (tactical/strategic) | "How do users achieve outcomes? What value delivered?" | ✅ YES | Product team |
+| Implementation spec | HOW + WHAT (technical) | "How to build? What technologies?" | ❌ NO | Engineering team |
+| Code | WHAT (concrete) | "The actual software" | ❌ NO | Engineering team |
+
+### Why Value Model Comes First
+
+**The value model defines "WHY we exist + HOW value flows":**
+- **WHY (Purpose):** Value drivers - The outcomes users care about
+- **HOW (Capabilities):** Value layers - The capabilities that deliver those outcomes
+- **WHAT (Components):** High-level components (minimal)
+- **Common vocabulary:** Terms everyone in the organization uses
+
+**Feature definitions specify "HOW users achieve outcomes + WHAT value delivered (strategic)":**
+- **WHY:** Inherited from value model (explicit `contributes_to` mapping)
+- **HOW (dominant):** Personas achieve outcomes through scenarios and workflows
+- **WHAT (strategic, non-implementation):** Contexts, jobs-to-be-done, acceptance criteria
+  - Example: "Alert within 30 seconds" (outcome) NOT "WebSocket /ws/alerts" (technical)
+- Changes more frequently than value model
+
+**Feature implementation specs define "HOW to build technically + WHAT technologies":**
+- **WHY:** Inherited acceptance criteria become requirements
+- **HOW (dominant):** API contracts, data models, architecture
+- **WHAT (technical):** Specific technologies, endpoints, schemas
+- **Outside EPF scope** - engineering team's responsibility
+- Changes even more frequently (technology evolution)
+
+**Implemented features are "the actual WHAT (running software)":**
+- **WHAT (dominant):** Source code, tests, deployment
+- **HOW:** Algorithms, functions
+- **WHY:** Inherited requirements (minimal)
+- **Outside EPF scope** - standard engineering practices
+- Changes continuously
+
+### Persistence vs Flexibility
+
+| Artifact | WHY-HOW-WHAT Emphasis | Changes | Why | EPF Scope |
+|----------|-----------------------|---------|-----|-----------|
+| **Value model** | WHY + HOW (strategic) | Infrequently (annually or major pivots) | Core value proposition should be stable | ✅ YES |
+| **Feature definitions** | HOW + WHAT (tactical/strategic) | Quarterly or less | Personas, scenarios evolve with product | ✅ YES |
+| **Implementation specs** | HOW + WHAT (technical) | Monthly | Technology and architecture evolve | ❌ NO |
+| **Code** | WHAT (concrete) | Continuously (daily/weekly) | Engineering iteration | ❌ NO |
+
+**If your value model changes frequently, you don't have product-market fit.**
+
+### Cross-Organizational Language
+
+The value model is the **common vocabulary** for everyone in the product organization:
+
+| Audience | Uses Value Model For |
+|----------|---------------------|
+| **Executives** | Strategic discussions, investor pitches, roadmap priorities |
+| **Product Managers** | Feature planning, value mapping, cross-team alignment |
+| **Engineering** | Understanding business context for technical decisions |
+| **Sales/BD** | Articulating value proposition to customers |
+| **Customer Success** | Helping customers maximize value from product |
+
+**Everyone should know the value drivers (WHY). Not everyone needs to know every feature detail (HOW/WHAT).**
+
+### When Value Model Changes (Rare)
+
+- **Pivot to new market segment** - Value drivers change (different outcomes matter)
+- **Discover new core value** - Add layers (new capabilities)
+- **Sunset a capability** - Deprecate layers (no longer offered)
+
+### When Features Change (Common)
+
+- **Better UX** - Improved interaction patterns for same capability
+- **New technology** - Better implementation of same value driver
+- **User feedback** - Iteration based on usage data
+- **Competitive response** - Feature parity for strategic reasons
+
+**The value model provides strategic stability (WHY + HOW) while features provide tactical flexibility (HOW + WHAT).**
 
 ---
 
