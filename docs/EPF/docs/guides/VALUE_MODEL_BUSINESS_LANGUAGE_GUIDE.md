@@ -316,6 +316,61 @@ sub_components:
 
 ---
 
+### Layer Solution Steps (Optional Enhancement)
+
+**Purpose**: Document HOW each layer delivers value through a sequence of implementation actions and their resulting capabilities.
+
+**When to Use**:
+- Complex layers with multiple activation stages
+- Infrastructure/operations layers with technical implementation sequences
+- Layers where implementation order matters
+- When bridging strategic intent to architectural execution
+
+**Pattern**: Each solution step has two parts:
+- **step**: Action-oriented implementation approach (30-150 chars)
+  - Use action verbs: Implement, Build, Enable, Provide, Configure, Deploy
+  - Focus on capabilities being created, not technical details
+  - Keep layer-appropriate scope (broader than component-level details)
+- **outcome**: Resulting capability or value unlocked (30-200 chars)
+  - Answers "So that..." - what becomes possible after this step?
+  - Focus on user/business benefits, not technical specifications
+
+**Business Language Requirement**: Solution steps MUST follow same business language rules as component names and UVPs:
+- ❌ NO technical protocols (FIX, GraphQL, REST, WebSocket)
+- ❌ NO DevOps patterns (Blue-Green, Canary, CI/CD, MLOps)
+- ❌ NO technical acronyms (API, DB, K8s, JSON)
+- ✅ YES capabilities and outcomes (what becomes possible)
+- ✅ YES beneficiaries (who gains capability)
+
+**Examples**:
+
+Layer 1 (User Experience):
+```yaml
+solution_steps:
+  - step: "Implement responsive design supporting mobile and web platforms"
+    outcome: "Investors can access portfolio information from any device, improving engagement"
+  - step: "Provide real-time data synchronization across all client platforms"
+    outcome: "Users see consistent information regardless of access point"
+```
+
+Layer 4 (Infrastructure):
+```yaml
+solution_steps:
+  - step: "Implement zero-downtime deployment strategy"
+    outcome: "Trading operations continue uninterrupted during system updates"
+  - step: "Deploy comprehensive monitoring and alerting"
+    outcome: "Operations team detects issues instantly before users impacted"
+```
+
+**Validation Checklist** (add to existing 5-Question checklist):
+- [ ] Each step uses action verb and describes capability being created
+- [ ] Each outcome describes what becomes possible (not how it's done)
+- [ ] Steps build upon each other in logical sequence
+- [ ] Solution steps use business language (no protocols, patterns, acronyms)
+- [ ] Non-technical stakeholder can understand value progression
+
+---
+
 ## Validation Checklist
 
 Before committing a value model, validate with these **5 questions**:
@@ -380,6 +435,24 @@ Before committing a value model, validate with these **5 questions**:
 **Fail Examples:**
 - ❌ Any component name containing "API", "Pipeline", "Deployment"
 - ❌ Any UVP mentioning protocols or patterns
+
+### 6. Solution Steps Validation (If Present)
+**Question:** "Do solution steps describe capabilities being created (not technical implementation)?"
+
+**Pass Criteria:**
+- ✅ Each step uses action verb (Implement, Build, Enable, Provide, Configure)
+- ✅ Each outcome describes capability unlocked (what becomes possible)
+- ✅ Steps build upon each other in logical sequence
+- ✅ Business language (no protocols, patterns, acronyms)
+- ✅ Non-technical stakeholder can understand value progression
+
+**Pass Examples:**
+- ✅ "Deploy comprehensive monitoring and alerting" → "Operations team detects issues instantly"
+- ✅ "Implement workspace isolation with row-level security" → "Multiple product lines operate independently"
+
+**Fail Examples:**
+- ❌ "Configure Kubernetes cluster with Helm charts" → "K8s pods auto-scale"
+- ❌ "Implement REST API with GraphQL federation" → "Microservices communicate efficiently"
 
 ---
 

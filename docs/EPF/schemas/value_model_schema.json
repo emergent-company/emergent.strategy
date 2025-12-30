@@ -67,6 +67,28 @@
             "minLength": 50,
             "maxLength": 1000
           },
+          "solution_steps": {
+            "type": "array",
+            "description": "Layer-specific implementation approach explaining HOW this layer delivers value. Each step describes a concrete implementation action and its resulting capability. This complements the layer description (WHAT the layer does) by explaining the activation sequence (HOW value is generated). Typically 3-5 steps per layer. Examples: Step 'Expose RESTful and GraphQL APIs for workflow operations' → Outcome 'AI agents can initiate workflows programmatically'. Pattern: action-oriented steps that build upon each other, outcomes that describe capabilities unlocked.",
+            "items": {
+              "type": "object",
+              "required": ["step", "outcome"],
+              "properties": {
+                "step": {
+                  "type": "string",
+                  "description": "Implementation action describing HOW value is delivered at this layer. Use action verbs (Implement, Build, Enable, Provide, Configure). Focus on capabilities being created, not technical details. Keep layer-appropriate scope (broader than component-level details). Examples: 'Implement workspace isolation with row-level security', 'Expose REST/GraphQL API for workflow operations', 'Deploy comprehensive monitoring stack'. Should be 30-150 characters.",
+                  "minLength": 30,
+                  "maxLength": 150
+                },
+                "outcome": {
+                  "type": "string",
+                  "description": "Resulting capability or value unlocked by this step. Answers 'So that...' - what becomes possible after this step is complete? Focus on user/business benefits, not technical specifications. Examples: 'Multiple product lines operate independently without data leakage', 'AI agents can initiate workflows programmatically', 'System failures detected instantly before users impacted'. Should be 30-200 characters.",
+                  "minLength": 30,
+                  "maxLength": 200
+                }
+              }
+            }
+          },
           "components": {
             "type": "array",
             "description": "L2 components: functional groupings of related sub-components within this layer. Components are mid-level organizing structure—they answer 'how is value in this layer delivered? what are the key functional areas?' Typically 3-8 components per layer. Components evolve more than layers but less than sub-components—they might be added as new capabilities emerge or removed as areas consolidate. Examples: 'Data Management' component within 'Core Platform' layer contains sub-components like CSV Import, Excel Sync, API Connectors.",

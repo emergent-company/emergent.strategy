@@ -314,6 +314,8 @@ These are Product track KRs. For Strategy/OrgOps/Commercial, we'll add placehold
 - L2 Components: 3-5 major features you're building (e.g., 'Pipeline Builder', 'Monitoring Dashboard')
 - L3 Sub-components: 5-10 specific capabilities (e.g., 'Drag-and-drop editor', 'Real-time metrics')
 
+**Optional for complex layers:** You can add `solution_steps` (3-5 steps) to L1 layers to explain HOW that layer delivers value. This is particularly useful for infrastructure or service layers. We'll skip this for MVP to keep things simple - you can add it later when you escalate to Adoption Level 2.
+
 Everything else goes in 'future' state - documented but not active."
 
 **Example - MVP Value Model for Data Platform:**
