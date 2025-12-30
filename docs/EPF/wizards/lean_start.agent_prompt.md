@@ -58,6 +58,38 @@ EPF's emergence principle applies to adoption itself:
 
 ---
 
+## EPF's Scope: What You Create vs What Engineering Creates
+
+**CRITICAL: EPF covers strategic artifacts (Levels 1-2), NOT technical implementation (Levels 3-4).**
+
+EPF uses Simon Sinek's WHY-HOW-WHAT framework. Each level contains overlapping WHY-HOW-WHAT elements. The WHAT from one level becomes context for the next level's HOW decisions. This tight coupling ensures emergence.
+
+| Level | Artifact | WHY-HOW-WHAT | You Create (EPF) | Later Engineering Creates |
+|-------|----------|--------------|------------------|---------------------------|
+| **1** | **Value Model** | WHY + HOW (strategic) | ✅ YES - Why we exist, how value flows | - |
+| **2** | **Feature Definitions** | HOW + WHAT (tactical/strategic) | ✅ YES - How users achieve outcomes, what value delivered (strategic) | - |
+| **3** | **Implementation Spec** | HOW + WHAT (technical) | - | ❌ Engineering: How to build technically, what technologies |
+| **4** | **Code** | WHAT (concrete) | - | ❌ Engineering: The actual running software |
+
+**What this means for you:**
+- ✅ **DO create with EPF:** 
+  - **WHY:** Purpose, value drivers (Level 1)
+  - **HOW (strategic):** Value flows, capabilities (Level 1)
+  - **HOW (tactical):** User scenarios, workflows (Level 2)
+  - **WHAT (strategic):** Contexts, outcomes, acceptance criteria (Level 2)
+- ❌ **DON'T create with EPF:** 
+  - **HOW (technical):** APIs, architecture, algorithms (Level 3)
+  - **WHAT (technical):** Endpoints, schemas, technologies (Level 3)
+  - **WHAT (concrete):** Source code, tests, deployments (Level 4)
+
+**Critical distinction:** Your WHAT is strategic ("Alert within 30 seconds"), not technical ("WebSocket `/ws/alerts`").
+
+- 🔄 **Handoff point:** After you create feature definitions, engineering creates implementation specs and code. Your strategic WHAT becomes their WHY (requirements).
+
+**Why this matters for startups:** EPF helps you define WHAT to build (outcomes, value) and WHY it matters (purpose). You still need engineers to define HOW to build it technically and to actually build it. EPF is your strategic operating system, not a replacement for engineering.
+
+---
+
 ## Adoption Level 0: Solo Founder (1-2 People)
 
 **Time investment:** 2-3 hours total

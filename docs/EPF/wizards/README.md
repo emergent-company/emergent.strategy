@@ -14,6 +14,25 @@ AI-assisted artifact creation and validation guides.
 
 Wizards provide conversational, adaptive guidance for AI agents assisting humans through EPF workflows.
 
+### EPF's Scope: Strategic Artifacts Only
+
+**IMPORTANT:** EPF wizards help create **strategic artifacts** (value models + feature definitions), NOT technical implementation (implementation specs + code).
+
+EPF uses Simon Sinek's WHY-HOW-WHAT framework. Each level contains overlapping WHY-HOW-WHAT elements. The WHAT from one level becomes context for the next level's HOW decisions. This tight coupling ensures emergence.
+
+| Level | Artifact | WHY-HOW-WHAT | EPF Creates (✅) | Engineering Creates (❌) |
+|-------|----------|--------------|------------------|--------------------------|
+| **1** | Value Model | WHY + HOW (strategic) | ✅ Purpose, value drivers, capabilities | - |
+| **2** | Feature Definition | HOW + WHAT (tactical/strategic) | ✅ Scenarios, contexts, outcomes, criteria | - |
+| **3** | Implementation Spec | HOW + WHAT (technical) | - | ❌ APIs, schemas, architecture |
+| **4** | Code | WHAT (concrete) | - | ❌ Source code, tests, deployments |
+
+**Critical Distinction:** Feature definitions contain strategic WHAT (outcomes like "Alert within 30 seconds"), NOT technical WHAT (endpoints like "WebSocket `/ws/alerts`").
+
+**Handoff Point:** EPF artifacts (Levels 1-2: strategic WHY+HOW) → Engineering artifacts (Levels 3-4: technical HOW+WHAT)
+
+Wizards guide you through creating outcome-oriented strategic specifications. Engineering teams use your EPF artifacts to create technical specifications and code.
+
 ---
 
 ## When to Use Wizards

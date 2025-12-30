@@ -70,6 +70,47 @@ This guide is for:
 
 **Before starting, ensure you have:**
 
+### Conceptual Prerequisites
+
+**⭐ CRITICAL: Value Model Comes First**
+
+Feature definitions **implement** your product's value model. Before creating features, you should have:
+
+1. **Product value model defined** (`product.{line}.value_model.yaml`)
+   - WHY: Purpose, value drivers (outcomes users care about)
+   - HOW: Value flows, capabilities (logical structure that delivers outcomes)
+   - WHAT: High-level components (minimal)
+   - Common vocabulary established
+
+2. **Strategic context established** (READY phase complete)
+   - North Star defining overall vision
+   - Strategy foundations with evidence
+   - Roadmap with prioritized initiatives
+
+**Why this matters:** EPF is outcome-oriented. EPF uses Simon Sinek's WHY-HOW-WHAT framework with overlapping layers:
+
+- **Value Model (Level 1):** WHY we exist + HOW value flows (strategic foundation)
+- **Feature Definition (Level 2):** Inherits WHY + HOW users achieve outcomes + WHAT value delivered (strategic, not technical)
+- **Implementation Spec (Level 3 - outside EPF):** HOW to build technically + WHAT technologies (engineering's responsibility)
+- **Code (Level 4 - outside EPF):** The actual running WHAT (software)
+
+**The WHAT from one level becomes context for the next level's HOW.** This tight coupling ensures emergence.
+
+**Feature definitions contain strategic WHAT** (contexts, scenarios, outcomes, acceptance criteria), NOT technical WHAT (APIs, schemas, architecture). Example:
+- Feature Definition WHAT: "Alert within 30 seconds of threshold breach" ✅
+- Implementation Spec WHAT: "WebSocket endpoint `/ws/alerts` using Kafka" ❌ (that's Level 3)
+
+If you jump straight to features without a value model, you're building without strategic foundation.
+
+**Quick check:**
+```bash
+# Do you have a value model?
+ls FIRE/value_models/product.*.value_model.yaml
+
+# If not, create value model FIRST using value model template
+# Then return to feature definitions
+```
+
 ### Environment Setup
 ```bash
 # 1. Verify yq is installed (required for validation)
