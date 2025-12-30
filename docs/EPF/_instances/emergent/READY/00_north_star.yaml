@@ -7,15 +7,17 @@
 # SCOPE: Organization-wide, not cycle-specific
 # INFORMS: All READY phase artifacts (analyses, opportunity, strategy, roadmap)
 #
-# ARCHITECTURE:
-#   Emergent (umbrella) → Product Lines:
-#     - Emergent Core: Knowledge engine (formerly "Spec Server")
-#     - Emergent Frameworks: Methodologies & tooling (EPF, etc.)
-#     - Emergent Tools: Standalone utilities & integrations
+# ARCHITECTURE (Biological Metaphors):
+#   Emergent (umbrella) → Three Product Lines:
+#     - Emergent Core: The Brain - Intelligence, memory, and reasoning
+#     - EPF-Runtime: The Nervous System - Orchestration and coordination
+#     - Emergent Tools: The Circulatory System - Connectors, bridges, interfaces
+#   
+#   NOTE: EPF Framework now maintained as separate repository (github.com/eyedea-io/epf)
 
 north_star:
   organization: "Emergent (by Eyedea)"
-  last_reviewed: "2025-12-11"
+  last_reviewed: "2025-12-30"
   next_review: "2026-06-01"
   version: "1.2"
   
@@ -68,7 +70,6 @@ north_star:
     
     success_looks_like:
       - "Emergent Core powers thousands of organizations' knowledge infrastructure"
-      - "Emergent frameworks (like EPF) become standard methodologies in product teams"
       - "AI assistants answer questions with citations grounded in organizational knowledge"
       - "Knowledge graphs auto-emerge from unstructured content—building blocks form higher-level building blocks"
       - "Teams discover connections and insights they couldn't have predicted—emergent intelligence"
@@ -98,7 +99,8 @@ north_star:
     what_we_do:
       products:
         emergent_core:
-          description: "The knowledge management engine—AI-powered document intelligence"
+          metaphor: "The Brain"
+          description: "Knowledge engine—intelligence, memory, and reasoning"
           formerly: "Spec Server"
           capabilities:
             - "Ingest documents from any source (URLs, file uploads, integrations)"
@@ -107,20 +109,27 @@ north_star:
             - "Provide AI chat grounded in documents with source citations"
             - "Expose knowledge via MCP for AI agent integration"
         
-        emergent_frameworks:
-          description: "Methodologies and structured approaches for product teams"
-          examples:
-            - name: "EPF (Emergent Product Framework)"
-              purpose: "Structured approach to product strategy and execution"
-            - name: "OpenSpec"
-              purpose: "AI-assisted specification and proposal management"
+        epf_runtime:
+          metaphor: "The Nervous System"
+          description: "Orchestration engine for workflow execution and coordination"
+          formerly: null
+          capabilities:
+            - "Execute EPF phases (READY/FIRE/AIM) as durable Temporal workflows"
+            - "Store EPF artifacts in knowledge graph with semantic search"
+            - "Provide programmatic API for AI agent consumption"
+            - "Monitor workflow execution and handle manual interventions"
+            - "Native integration: shares auth, multi-tenancy, RLS with Core"
         
         emergent_tools:
-          description: "Standalone utilities and integrations"
-          examples:
-            - "CLI tools for knowledge management"
-            - "MCP servers for AI agent integration"
-            - "Integration adapters for third-party systems"
+          metaphor: "The Circulatory System"
+          description: "Connectors, bridges, and interfaces that close feedback loops"
+          formerly: null
+          capabilities:
+            - "Connect strategy artifacts to Git commits and deployments (Git Bridge, Deploy Tracker)"
+            - "Aggregate user feedback into Core knowledge (Feedback Aggregator)"
+            - "Make knowledge accessible in Slack, CLI, and IDEs (Slack Bot, SDK)"
+            - "Trigger Runtime workflows from external events (Workflow Automator)"
+            - "Developer extensibility via TypeScript/Python SDK"
     
     how_we_deliver:
       approach: |
@@ -476,56 +485,117 @@ product_portfolio:
         - "Zitadel for authentication"
     
     # -------------------------------------------------------------------------
-    # EMERGENT FRAMEWORKS
-    # -------------------------------------------------------------------------
-    - id: "emergent-frameworks"
-      name: "Emergent Frameworks"
-      tagline: "Structured approaches for product teams"
-      status: "active-development"
-      description: |
-        Methodologies, templates, and structured approaches that help product teams
-        operate more effectively. These frameworks can be used standalone or integrated
-        with Emergent Core for AI-enhanced execution.
-      
-      frameworks:
-        - id: "epf"
-          name: "Emergent Product Framework (EPF)"
-          description: |
-            A structured approach to product development with three phases:
-            READY (strategy), FIRE (execution), and AIM (assessment).
-            Schema-driven with YAML artifacts and AI wizard support.
-          status: "stable"
-          components:
-            - "Phase templates (READY, FIRE, AIM)"
-            - "JSON schemas for validation"
-            - "AI wizards for content generation"
-            - "Multi-product instance support"
-        
-        - id: "openspec"
-          name: "OpenSpec"
-          description: |
-            AI-assisted specification and proposal management. Helps teams
-            create, review, and track technical specifications.
-          status: "in-development"
-    
-    # -------------------------------------------------------------------------
     # EMERGENT TOOLS
     # -------------------------------------------------------------------------
     - id: "emergent-tools"
       name: "Emergent Tools"
-      tagline: "Standalone utilities and integrations"
+      tagline: "The Circulatory System—Connectors, bridges, and interfaces"
       status: "planned"
       description: |
-        CLI tools, MCP servers, and integration adapters that extend the
-        Emergent ecosystem. These can work standalone or with Core.
+        Integration layer that connects Core (knowledge engine) and Runtime 
+        (orchestration engine) to external systems and developer workflows. Tools
+        close critical feedback loops between strategy, code, deployment, and users.
       
-      planned_tools:
-        - name: "Emergent CLI"
-          purpose: "Command-line interface for Core operations"
-        - name: "Emergent MCP Server"
-          purpose: "Model Context Protocol server for AI agents"
-        - name: "Integration Adapters"
-          purpose: "Connectors for third-party systems (ClickUp, Notion, etc.)"
+      metaphor: "The Circulatory System"
+      purpose: "Make Emergent accessible where teams already work without forcing tool consolidation"
+      
+      tier_1_tools:
+        - name: "Git Bridge"
+          purpose: "Automatically link strategy artifacts to code commits and PRs"
+          closes_loop: "Strategy → Code"
+        
+        - name: "Deploy Tracker"
+          purpose: "Track feature deployment status from roadmap to production"
+          closes_loop: "Code → Production"
+        
+        - name: "Slack Bot"
+          purpose: "Query Core knowledge directly in Slack channels (no context switching)"
+          closes_loop: "Team → Knowledge"
+        
+        - name: "SDK (TypeScript/Python)"
+          purpose: "Enable developers to extend Emergent with custom integrations"
+          closes_loop: "Developers → Platform"
+      
+      tool_categories:
+        - "Code Integration (Git Bridge, Code Annotator)"
+        - "Deployment & Observability (Deploy Tracker, Metrics Bridge)"
+        - "Customer Feedback (Feedback Aggregator, User Interview Processor)"
+        - "Collaboration (Slack Bot, Meeting Assistant)"
+        - "Developer Experience (CLI, SDK, Template Generator)"
+        - "Intelligence & Automation (Workflow Automator, Insight Engine)"
+        - "Governance & Compliance (Audit Logger, Access Control)"
+        - "Enterprise Integration (SSO Connector, API Gateway)"
+    
+    # -------------------------------------------------------------------------
+    # EPF-RUNTIME
+    # -------------------------------------------------------------------------
+    - id: "epf-runtime"
+      name: "EPF-Runtime"
+      tagline: "Headless orchestration for methodology execution"
+      status: "in-development"
+      description: |
+        A programmatic execution engine for EPF workflows, enabling AI agents to
+        autonomously execute structured product development cycles. Runtime shares
+        authentication, authorization, multi-tenancy, and RLS infrastructure with
+        Core for native integration. Designed to evolve into the OS layer for the
+        Emergent ecosystem where Core and other applications run as native apps.
+      
+      capability_layers:
+        - id: "workflow-engine"
+          name: "Workflow Orchestration"
+          description: |
+            Durable execution of EPF phases (READY/FIRE/AIM) via Temporal workflows.
+            State persistence, retry logic, and long-running process support.
+          key_features:
+            - "READY/FIRE/AIM phase workflow templates"
+            - "Durable execution with Temporal"
+            - "Workflow state persistence and resumption"
+            - "Event-driven phase transitions"
+        
+        - id: "api-layer"
+          name: "Programmatic Access"
+          description: |
+            RESTful API for creating, executing, and monitoring EPF workflows.
+            Designed for AI agent consumption with structured inputs/outputs.
+          key_features:
+            - "Workflow CRUD operations"
+            - "Execution triggering and monitoring"
+            - "Artifact submission endpoints"
+            - "Status polling and webhooks"
+        
+        - id: "artifact-storage"
+          name: "Knowledge Graph Integration"
+          description: |
+            Store EPF artifacts (North Star, Roadmap, Features) as typed graph
+            objects with semantic search and relationship tracking.
+          key_features:
+            - "Artifact versioning and history"
+            - "Semantic search across artifacts"
+            - "Cross-artifact dependency tracking"
+            - "Schema validation for artifact types"
+        
+        - id: "ui-integration"
+          name: "Web Interface"
+          description: |
+            Workflow monitoring, artifact viewing, and manual interventions
+            when AI agents need human guidance.
+          key_features:
+            - "Workflow execution dashboard"
+            - "Artifact editor with validation"
+            - "Notification center for events"
+            - "App switcher for Core ↔ Runtime navigation"
+      
+      technology_stack:
+        - "Shared: NestJS API, PostgreSQL with RLS, Zitadel auth"
+        - "Shared: React/Vite UI with same design system as Core"
+        - "New: Temporal workflow engine (durable execution)"
+        - "New: EPF artifact schemas and validation"
+      
+      strategic_vision: |
+        Long-term evolution path: Runtime becomes the platform layer ("OS") for
+        Emergent ecosystem. Core transitions from standalone app to first-class
+        application running on Runtime platform. Enables third-party apps to
+        leverage same infrastructure (auth, multi-tenancy, workflows, knowledge graphs).
 
   cross_cutting_concerns:
     shared_values:
