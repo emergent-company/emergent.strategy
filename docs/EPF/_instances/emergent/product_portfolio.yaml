@@ -200,6 +200,70 @@ portfolio:
           - "Node.js runtime"
           - "Third-party APIs (ClickUp, Notion, etc.)"
 
+    # --------------------------------
+    # EPF-Runtime
+    # --------------------------------
+    - id: "pl-epf-runtime"
+      name: "EPF-Runtime"
+      codename: "Runtime"
+      type: "software"
+      description: |
+        Headless workflow orchestration system for EPF framework. Enables AI agents
+        and humans to execute EPF cycles (READY, FIRE, AIM) programmatically via
+        API/CLI. Provides Temporal-based workflow engine, multi-tenancy support, and
+        deep integration with Emergent Core knowledge graph for artifact storage and
+        semantic search over product strategy documents.
+      value_model_ref: "product.epf-runtime.value_model.yaml"
+      status: "development"
+      target_market:
+        segments:
+          - "AI Agents (autonomous EPF execution)"
+          - "DevOps Engineers (pipeline integration)"
+          - "Power-User Product Managers (programmatic workflows)"
+        verticals:
+          - "Software Development"
+          - "Product Organizations"
+          - "AI Research & Development"
+        geographies:
+          - "Global"
+      key_components:
+        - component_ref: "WorkflowOrchestrator"
+          role: core
+          description: "Temporal-based orchestrator for EPF cycle workflows"
+        - component_ref: "EPFCycleAPI"
+          role: core
+          description: "REST/GraphQL API for READY/FIRE/AIM operations"
+        - component_ref: "TemporalEngine"
+          role: core
+          description: "Durable workflow execution engine"
+        - component_ref: "MultiTenancy"
+          role: core
+          description: "Workspace isolation and tenant management"
+        - component_ref: "SchemaValidator"
+          role: core
+          description: "Validates artifacts against EPF JSON schemas"
+        - component_ref: "CLIInterface"
+          role: supporting
+          description: "Command-line interface for local/CI usage"
+        - component_ref: "WebhookEngine"
+          role: supporting
+          description: "Event-driven integrations with external tools"
+      versioning:
+        current_version: "0.0.1"
+        version_strategy: "semver"
+        release_cadence: "continuous"
+      dependencies:
+        requires_product_lines:
+          - "pl-emergent-core"
+          - "pl-epf"
+        external_dependencies:
+          - "Temporal (workflow orchestration)"
+          - "Node.js runtime"
+          - "NestJS (API framework)"
+          - "TypeORM (data layer)"
+          - "PostgreSQL (state store)"
+          - "Redis (caching/queuing)"
+
   # ============================================================================
   # PRODUCT LINE RELATIONSHIPS
   # ============================================================================
@@ -265,6 +329,57 @@ portfolio:
           description: "Spec drafting uses Core's RAG for context"
       bidirectional: true
 
+    - id: "plr-runtime-extends-core"
+      from_product_line: "pl-epf-runtime"
+      to_product_line: "pl-emergent-core"
+      relationship_type: "depends_on"
+      description: |
+        EPF-Runtime extends Core by providing programmatic orchestration of
+        EPF workflows. Uses Core's APIs for document ingestion, knowledge
+        graph queries, and AI chat integration within workflow steps. Runtime
+        stores all EPF artifacts (North Star, roadmaps, value models, feature
+        definitions) in Core's knowledge graph, enabling semantic search and
+        AI-powered insights across product strategy documents.
+      integration_points:
+        - from_component: "WorkflowOrchestrator"
+          to_component: "CoreAPI"
+          integration_type: "api"
+          description: "Orchestrator calls Core APIs during workflow execution"
+        - from_component: "EPFCycleAPI"
+          to_component: "KnowledgeGraph"
+          integration_type: "data_flow"
+          description: "EPF artifacts stored in Core knowledge graph"
+        - from_component: "SchemaValidator"
+          to_component: "AIChat"
+          integration_type: "api"
+          description: "AI-assisted validation and artifact improvement"
+      bidirectional: false
+
+    - id: "plr-runtime-implements-epf"
+      from_product_line: "pl-epf-runtime"
+      to_product_line: "pl-epf"
+      relationship_type: "implements"
+      description: |
+        EPF-Runtime is the programmatic executor of EPF methodology. Takes
+        EPF schemas and templates as authoritative input, orchestrates
+        READY/FIRE/AIM workflows as durable Temporal workflows, validates
+        all artifacts against JSON schemas, and provides API/CLI interfaces
+        for automated EPF cycle execution by AI agents and DevOps pipelines.
+      integration_points:
+        - from_component: "EPFCycleAPI"
+          to_component: "PhaseTemplates"
+          integration_type: "schema_driven"
+          description: "Templates define workflow structure and artifact schemas"
+        - from_component: "WorkflowOrchestrator"
+          to_component: "JSONSchemas"
+          integration_type: "validation"
+          description: "All artifacts validated against EPF schemas"
+        - from_component: "CLIInterface"
+          to_component: "AIWizards"
+          integration_type: "process"
+          description: "CLI can invoke wizard-guided artifact creation"
+      bidirectional: false
+
   # ============================================================================
   # BRANDS
   # ============================================================================
@@ -283,6 +398,7 @@ portfolio:
           - "pl-epf"
           - "pl-openspec"
           - "pl-emergent-tools"
+          - "pl-epf-runtime"
       brand_elements:
         tagline: "Where understanding emerges from information"
         value_proposition_summary: |
