@@ -11,8 +11,8 @@ instance:
     - Emergent Frameworks: EPF, OpenSpec, and other methodologies
     - Emergent Tools: CLI utilities, MCP servers, and integrations
   
-  epf_version: "2.0.0"
-  instance_version: "1.2.0"
+  epf_version: "2.0.2"
+  instance_version: "1.3.0"
   created_date: "2025-12-01"
   
   current_cycle:
@@ -45,6 +45,9 @@ instance:
       - id: "pl-emergent-tools"
         name: "Emergent Tools"
         value_model: "FIRE/value_models/product.tools.value_model.yaml"
+      - id: "pl-epf-runtime"
+        name: "EPF-Runtime"
+        value_model: "FIRE/value_models/product.epf-runtime.value_model.yaml"
 
   # Track evolution of instance structure
   history:
@@ -64,3 +67,6 @@ instance:
       - version: "1.2.0"
         date: "2025-12-09"
         description: "Added product portfolio configuration following canonical schema; corrected product line IDs to match schema patterns (pl-*)"
+      - version: "1.3.0"
+        date: "2025-12-30"
+        description: "Added EPF-Runtime product line (headless workflow orchestration); updated to EPF v2.0.2 (WHY-HOW-WHAT ontology alignment + process improvements)"
