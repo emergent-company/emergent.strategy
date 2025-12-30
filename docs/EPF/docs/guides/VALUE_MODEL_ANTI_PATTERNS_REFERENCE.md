@@ -241,6 +241,48 @@ When you encounter technical language:
 
 ---
 
+## Solution Steps Anti-Patterns (If Present)
+
+Solution steps explain HOW a layer delivers value. They must follow business language rules.
+
+### Technical Implementation (Bad)
+
+| ❌ Avoid | ✅ Use Instead | Why |
+|---------|---------------|-----|
+| Configure Kubernetes cluster with Helm charts | Deploy scalable container orchestration | Kubernetes/Helm are tools |
+| Implement REST API with GraphQL federation | Expose flexible data query interface | REST/GraphQL are protocols |
+| Set up Blue-Green deployment pipeline | Implement zero-downtime deployment strategy | Blue-Green is DevOps pattern |
+| Configure Redis cache with TTL policies | Enable high-speed data access with expiration | Redis/TTL are technical details |
+| Deploy MLOps pipeline with model versioning | Enable continuous algorithm improvement | MLOps is technical domain |
+
+### Tool-Focused (Bad)
+
+| ❌ Avoid | ✅ Use Instead | Why |
+|---------|---------------|-----|
+| Install Docker containers on AWS ECS | Deploy portable services to cloud infrastructure | Docker/ECS are tools |
+| Configure Vault for secret management | Implement secure credential storage | Vault is tool name |
+| Set up Kafka for event streaming | Enable real-time event distribution | Kafka is tool name |
+| Deploy Elasticsearch for search | Provide fast search across all content | Elasticsearch is tool name |
+
+### Missing Outcomes (Bad)
+
+| ❌ Avoid (no outcome) | ✅ Use Instead (with outcome) | Why |
+|----------------------|------------------------------|-----|
+| Implement monitoring system | Deploy comprehensive monitoring → Operations team detects issues instantly | Must explain what becomes possible |
+| Build API gateway | Establish service access control → External partners integrate securely | Must describe capability unlocked |
+| Configure database replication | Implement data redundancy → System survives infrastructure failures | Must show value delivered |
+
+### Good Solution Steps Pattern
+
+**Pattern**: Action verb + capability focus → Outcome describing what becomes possible
+
+**Examples**:
+- ✅ "Deploy comprehensive monitoring and alerting" → "Operations team detects issues instantly before users impacted"
+- ✅ "Implement workspace isolation with row-level security" → "Multiple product lines operate independently without data leakage"
+- ✅ "Establish secure connections to power exchanges" → "Fund can execute trades on major markets with regulatory compliance"
+
+---
+
 ## Summary Checklist
 
 Before committing, verify:
@@ -252,6 +294,8 @@ Before committing, verify:
 - [ ] **UVP pattern:** "{Deliverable} so that {beneficiary} can {capability}, which helps us {progress}"
 - [ ] **Context tags:** Technical details prefixed "Technical:"
 - [ ] **Layer 3-4:** Focus on outcomes not implementation
+- [ ] **Solution steps (if present):** Use action verbs, focus on capabilities, include outcomes
+- [ ] **Solution steps (if present):** No protocols, DevOps patterns, or tool names
 - [ ] **5 questions:** All pass (investor, BD, regulator, WHO/WHAT, protocol tests)
 
 **For complete guidance, see:** `docs/guides/VALUE_MODEL_BUSINESS_LANGUAGE_GUIDE.md`
