@@ -115,3 +115,26 @@ For comprehensive testing guidance, refer to **`docs/testing/AI_AGENT_GUIDE.md`*
   ```bash
   nx run server:test-e2e
   ```
+
+## 4. EPF Working Directory
+
+When working with the Emergent Product Framework (EPF), **all temporary working documents** (analysis, summaries, session notes, implementation docs) go in:
+
+```
+docs/EPF/.epf-work/
+```
+
+**Key Rules:**
+- ✅ **DO** create subdirectories by session/topic: `docs/EPF/.epf-work/skattefunn-wizard-selection/`
+- ✅ **DO** place ALL EPF-related working documents there (summaries, analysis, decisions, session notes)
+- ❌ **DON'T** create `.epf-work/` at repository root
+- ❌ **DON'T** create `.epf-work/` inside `_instances/`
+- ❌ **DON'T** place working documents in canonical EPF directories (schemas, wizards, templates)
+
+**Why one location?**
+- Single source of truth for all EPF working documents
+- Easy to find session notes and analysis
+- Clear separation: `docs/EPF/` = canonical framework, `docs/EPF/.epf-work/` = temporary work
+- Version-controlled with EPF for context preservation
+
+See `docs/EPF/.github/copilot-instructions.md` for complete EPF contribution guidelines.
