@@ -1,0 +1,318 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SkatteFUNN Application Generator Schema",
+  "description": "Input parameters and EPF requirements for Norwegian R&D Tax Deduction application generation",
+  "version": "1.0.0",
+  "type": "object",
+  "required": [
+    "organization",
+    "contact",
+    "timeline",
+    "budget",
+    "technical_details",
+    "epf_sources"
+  ],
+  "properties": {
+    "organization": {
+      "type": "object",
+      "required": ["name", "org_number", "manager_name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Official company name",
+          "example": "OUTBLOCKS AS"
+        },
+        "org_number": {
+          "type": "string",
+          "pattern": "^[0-9]{9}$",
+          "description": "Norwegian organization number (9 digits)",
+          "example": "929475909"
+        },
+        "manager_name": {
+          "type": "string",
+          "description": "CEO or managing director name",
+          "example": "Nikolai Fasting"
+        }
+      }
+    },
+    "contact": {
+      "type": "object",
+      "required": ["project_leader", "org_representative"],
+      "properties": {
+        "project_leader": {
+          "type": "object",
+          "required": ["name", "email", "phone"],
+          "properties": {
+            "name": {"type": "string"},
+            "email": {"type": "string", "format": "email"},
+            "phone": {"type": "string", "pattern": "^\\+47[0-9]{8}$"}
+          }
+        },
+        "org_representative": {
+          "type": "object",
+          "required": ["name", "email", "phone"],
+          "properties": {
+            "name": {"type": "string"},
+            "email": {"type": "string", "format": "email"},
+            "phone": {"type": "string", "pattern": "^\\+47[0-9]{8}$"}
+          }
+        }
+      }
+    },
+    "timeline": {
+      "type": "object",
+      "required": ["start_date", "end_date", "application_date"],
+      "properties": {
+        "start_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Project start date (YYYY-MM-DD)"
+        },
+        "end_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Project end date (YYYY-MM-DD), max 48 months from start"
+        },
+        "application_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Date of application submission"
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "required": ["total_nok", "yearly_breakdown"],
+      "properties": {
+        "total_nok": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 25000000,
+          "description": "Total project budget in NOK (max 25M per company per year)"
+        },
+        "yearly_breakdown": {
+          "type": "array",
+          "description": "Budget allocation per year",
+          "items": {
+            "type": "object",
+            "required": ["year", "amount_nok", "months_active"],
+            "properties": {
+              "year": {"type": "integer", "minimum": 2020, "maximum": 2030},
+              "amount_nok": {"type": "integer", "minimum": 0},
+              "months_active": {"type": "integer", "minimum": 1, "maximum": 12},
+              "monthly_rate_nok": {"type": "integer", "minimum": 0},
+              "notes": {"type": "string"}
+            }
+          }
+        },
+        "cost_categories": {
+          "type": "object",
+          "description": "Percentage breakdown (should sum to 100)",
+          "properties": {
+            "personnel_pct": {"type": "number", "minimum": 0, "maximum": 100, "default": 60},
+            "equipment_pct": {"type": "number", "minimum": 0, "maximum": 100, "default": 25},
+            "overhead_pct": {"type": "number", "minimum": 0, "maximum": 100, "default": 15}
+          }
+        }
+      }
+    },
+    "technical_details": {
+      "type": "object",
+      "required": ["trl_start", "trl_end", "scientific_discipline"],
+      "properties": {
+        "trl_start": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 7,
+          "description": "Starting Technology Readiness Level (typically 2-3)"
+        },
+        "trl_end": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 7,
+          "description": "Target TRL at project end (max 7 for SkatteFUNN eligibility)"
+        },
+        "scientific_discipline": {
+          "type": "string",
+          "description": "Primary research field",
+          "examples": [
+            "Computer Science - Artificial Intelligence",
+            "Software Engineering",
+            "Data Science and Machine Learning",
+            "Information Systems"
+          ]
+        }
+      }
+    },
+    "epf_sources": {
+      "type": "object",
+      "required": ["instance_path"],
+      "properties": {
+        "instance_path": {
+          "type": "string",
+          "description": "Path to EPF instance directory (e.g., docs/EPF/_instances/emergent)"
+        },
+        "required_files": {
+          "type": "object",
+          "properties": {
+            "north_star": {"type": "string", "default": "READY/00_north_star.yaml"},
+            "strategy_formula": {"type": "string", "default": "READY/04_strategy_formula.yaml"},
+            "roadmap_recipe": {"type": "string", "default": "READY/05_roadmap_recipe.yaml"},
+            "value_models_dir": {"type": "string", "default": "FIRE/value_models"}
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "epf_requirements": {
+      "description": "Required EPF data fields for generation",
+      "type": "object",
+      "properties": {
+        "north_star_fields": {
+          "type": "array",
+          "items": {"type": "string"},
+          "default": [
+            "vision.tagline",
+            "mission.what_we_do",
+            "context.problem_space",
+            "vision.long_term_goal"
+          ]
+        },
+        "strategy_formula_fields": {
+          "type": "array",
+          "items": {"type": "string"},
+          "default": [
+            "technology.innovation_areas",
+            "core_competencies",
+            "differentiation.technical"
+          ]
+        },
+        "roadmap_recipe_fields": {
+          "type": "array",
+          "items": {"type": "string"},
+          "default": [
+            "phases",
+            "phases[].name",
+            "phases[].duration_months",
+            "phases[].milestones",
+            "tracks.research_and_development",
+            "tracks.research_and_development.okrs",
+            "tracks.research_and_development.okrs[].key_results",
+            "tracks.research_and_development.okrs[].key_results[].id",
+            "tracks.research_and_development.okrs[].key_results[].description",
+            "tracks.research_and_development.okrs[].key_results[].technical_hypothesis",
+            "tracks.research_and_development.okrs[].key_results[].experiment_design",
+            "tracks.research_and_development.okrs[].key_results[].success_criteria",
+            "tracks.research_and_development.okrs[].key_results[].uncertainty_addressed",
+            "tracks.research_and_development.okrs[].key_results[].trl_start",
+            "tracks.research_and_development.okrs[].key_results[].trl_target",
+            "tracks.research_and_development.okrs[].key_results[].trl_progression",
+            "tracks.research_and_development.okrs[].key_results[].estimated_duration",
+            "tracks.research_and_development.okrs[].key_results[].estimated_budget",
+            "tracks.research_and_development.okrs[].key_results[].budget_breakdown",
+            "tracks.research_and_development.okrs[].key_results[].measurement_method",
+            "tracks.research_and_development.okrs[].key_results[].deliverables"
+          ],
+          "description": "Fields extracted from roadmap_recipe.yaml - includes R&D track with TRL-specific KR fields for SkatteFUNN eligibility (TRL 2-7)"
+        },
+        "value_model_fields": {
+          "type": "array",
+          "items": {"type": "string"},
+          "default": [
+            "problem.description",
+            "solution.technical_approach",
+            "solution.innovation_points"
+          ]
+        }
+      }
+    },
+    "trl_validation_rules": {
+      "description": "Validation rules for Technology Readiness Level (TRL) fields in Key Results. Note: EPF supports full TRL scale (1-9), but SkatteFUNN funding only covers TRL 2-7 (R&D phase). The generator will filter/validate based on funding requirements.",
+      "type": "object",
+      "properties": {
+        "trl_full_range": {
+          "description": "Full TRL scale supported by EPF (1-9): TRL 1 (basic research), TRL 2-3 (concept/POC), TRL 4-6 (validation/demonstration), TRL 7 (operational prototype), TRL 8-9 (production/proven). All EPF roadmaps should use this full scale.",
+          "type": "object",
+          "properties": {
+            "min": {"type": "integer", "const": 1},
+            "max": {"type": "integer", "const": 9}
+          }
+        },
+        "skattefunn_eligible_range": {
+          "description": "SkatteFUNN eligibility: TRL 2-7 only (technology concept → system prototype). TRL 1 (basic research) and TRL 8-9 (production) are NOT eligible for SkatteFUNN funding. Generator will validate that ≥80% of budget is for TRL 2-7 KRs.",
+          "type": "object",
+          "properties": {
+            "min": {"type": "integer", "const": 2},
+            "max": {"type": "integer", "const": 7}
+          }
+        },
+        "trl_start_rules": {
+          "description": "Starting TRL level for the KR work (full range 1-9 in EPF, filtered 2-7 for SkatteFUNN)",
+          "type": "object",
+          "properties": {
+            "type": {"const": "integer"},
+            "minimum": {"const": 1},
+            "maximum": {"const": 9},
+            "required": {"const": true},
+            "validation": {
+              "type": "string",
+              "default": "trl_start must be between 1-9 (full TRL scale). SkatteFUNN generator will filter to 2-7 for funding eligibility."
+            }
+          }
+        },
+        "trl_target_rules": {
+          "description": "Target TRL level after completing the KR (full range 1-9 in EPF, filtered 2-7 for SkatteFUNN)",
+          "type": "object",
+          "properties": {
+            "type": {"const": "integer"},
+            "minimum": {"const": 1},
+            "maximum": {"const": 9},
+            "required": {"const": true},
+            "validation": {
+              "type": "string",
+              "default": "trl_target must be between 1-9 and >= trl_start. SkatteFUNN generator will filter to 2-7 for funding eligibility."
+            }
+          }
+        },
+        "trl_progression_rules": {
+          "description": "Human-readable TRL progression (e.g., 'TRL 3 → TRL 5')",
+          "type": "object",
+          "properties": {
+            "type": {"const": "string"},
+            "pattern": {"const": "^TRL [1-9] → TRL [1-9]$"},
+            "required": {"const": true},
+            "validation": {
+              "type": "string",
+              "default": "trl_progression must match 'TRL X → TRL Y' where X <= Y and both in range 1-9"
+            },
+            "consistency_check": {
+              "type": "string",
+              "default": "trl_progression must be consistent with trl_start and trl_target values"
+            }
+          }
+        },
+        "trl_semantics": {
+          "description": "Semantic meaning of each TRL level (full scale 1-9)",
+          "type": "object",
+          "properties": {
+            "TRL_1": {"const": "Basic principles observed and reported"},
+            "TRL_2": {"const": "Technology concept formulated"},
+            "TRL_3": {"const": "Experimental proof of concept"},
+            "TRL_4": {"const": "Technology validated in lab"},
+            "TRL_5": {"const": "Technology validated in relevant environment"},
+            "TRL_6": {"const": "Technology demonstrated in relevant environment"},
+            "TRL_7": {"const": "System prototype demonstration in operational environment"},
+            "TRL_8": {"const": "System complete and qualified"},
+            "TRL_9": {"const": "Actual system proven in operational environment"}
+          }
+        },
+        "trl_work_interpretation": {
+          "description": "What it means to work at a specific TRL level",
+          "type": "string",
+          "default": "Work to reach a KR happens AT the starting TRL level(s) and ACHIEVES transition to the target TRL level. For example, 'TRL 3 → TRL 5' means work is conducted at TRL 3-4 to demonstrate readiness for TRL 5."
+        }
+      }
+    }
+  }
+}

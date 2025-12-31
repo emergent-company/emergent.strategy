@@ -346,6 +346,108 @@
                       "minLength": 3,
                       "maxLength": 100,
                       "examples": ["0 users", "200 DAU", "15% adoption", "$500 CAC", "N/A", "2 engineers", "70% uptime"]
+                    },
+                    "trl_start": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9,
+                      "description": "OPTIONAL (required for R&D funding applications like SkatteFUNN): Technology Readiness Level where work begins (current maturity). Uses NASA TRL scale 1-9: TRL 1 (basic research), TRL 2-3 (concept/experimental POC), TRL 4-6 (validation/demonstration), TRL 7 (prototype operational), TRL 8-9 (production/proven). Applies to ALL tracks: Product (technical maturity), Strategy (market positioning maturity), OrgOps (process maturity), Commercial (business model maturity). TRL 1-6 typically qualifies for innovation funding, TRL 7-9 is execution of proven methods. Omit for non-R&D work or when not applying for grants/tax credits. See docs/EPF/schemas/UNIVERSAL_TRL_FRAMEWORK.md for track-specific interpretations.",
+                      "examples": [2, 3, 4, 5, 6, 7, 8]
+                    },
+                    "trl_target": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9,
+                      "description": "OPTIONAL (required for R&D funding applications): Technology Readiness Level to be achieved after completing this KR. Must be ≥ trl_start (can't go backwards). Represents desired maturity advancement. Common progressions: TRL 2→3 (concept to POC), TRL 3→5 (POC to validation), TRL 4→6 (lab to demonstration), TRL 5→7 (validation to operational prototype), TRL 7→9 (prototype to production). Multi-level jumps (e.g., TRL 2→6) are possible but should be justified—single KR achieving >3 TRL levels may indicate need for decomposition. Omit for non-R&D work.",
+                      "examples": [3, 4, 5, 6, 7, 8, 9]
+                    },
+                    "trl_progression": {
+                      "type": "string",
+                      "pattern": "^TRL [1-9] → TRL [1-9]$",
+                      "description": "OPTIONAL (required for R&D funding applications): Human-readable summary of TRL advancement. Format: 'TRL X → TRL Y' where X = trl_start, Y = trl_target. Must be consistent with trl_start and trl_target values. Provides at-a-glance view of maturity advancement. Examples: 'TRL 2 → TRL 3' (concept to proof), 'TRL 3 → TRL 5' (proof to validation), 'TRL 7 → TRL 9' (prototype to production). This field enables quick filtering and reporting on innovation vs execution KRs. Omit for non-R&D work.",
+                      "examples": ["TRL 2 → TRL 3", "TRL 3 → TRL 5", "TRL 4 → TRL 6", "TRL 5 → TRL 7", "TRL 7 → TRL 9"]
+                    },
+                    "technical_hypothesis": {
+                      "type": "string",
+                      "description": "OPTIONAL (required for R&D funding applications): Statement of what you believe will work and why. Format: 'We believe [approach] will [outcome] because [reasoning]'. For innovation KRs (TRL 1-6), this captures the uncertainty being addressed. For execution KRs (TRL 7-9), may be omitted (using proven methods). Product track: technical approach hypothesis. Strategy track: market/positioning hypothesis. OrgOps track: process improvement hypothesis. Commercial track: business model hypothesis. Length: 50-500 characters.",
+                      "minLength": 50,
+                      "maxLength": 500,
+                      "examples": [
+                        "Fine-tuned embedding models will outperform general-purpose models by 20%+ precision on technical documentation because domain-specific training captures specialized terminology and concepts",
+                        "Developer-first positioning will generate 2x more qualified leads than enterprise-first because developers are primary product users and drive bottom-up adoption",
+                        "Async-first sprint planning will improve distributed team efficiency by 30% because it eliminates timezone constraints and enables thoughtful contribution"
+                      ]
+                    },
+                    "experiment_design": {
+                      "type": "string",
+                      "description": "OPTIONAL (required for R&D funding): Description of how hypothesis will be tested. Includes: (1) What will be built/tested, (2) What data will be collected, (3) How long experiment will run, (4) Success/failure criteria. For innovation KRs (TRL 1-6), this is critical for validating advancement. For execution KRs (TRL 7-9), may describe rollout approach. Should be specific enough to reproduce. Length: 100-600 characters.",
+                      "minLength": 100,
+                      "maxLength": 600,
+                      "examples": [
+                        "Benchmark 5 embedding models (OpenAI, Cohere, E5-large, BGE-M3, SentenceTransformers) on 1000+ technical Q&A pairs collected from documentation sites. Measure precision@k, recall@k, and F1 score. Run for 4 weeks with weekly result reviews. Success: ≥1 model achieves 85%+ precision@10.",
+                        "A/B test two landing page variants (developer-focused vs enterprise-focused) with $5k ad spend to each. Track click-through rate, sign-up conversion, and meeting booking rate over 30 days. Minimum 1000 visitors per variant for statistical significance."
+                      ]
+                    },
+                    "success_criteria": {
+                      "type": "string",
+                      "description": "OPTIONAL (required for R&D funding): Explicit definition of what proves hypothesis correct and justifies TRL advancement. Should be measurable and unambiguous. For innovation KRs, defines evidence required to progress to next TRL. For execution KRs, defines operational readiness. Often more detailed than the 'target' field. Length: 30-400 characters.",
+                      "minLength": 30,
+                      "maxLength": 400,
+                      "examples": [
+                        "At least one embedding model achieves ≥85% precision@10 on held-out test set of 200+ technical queries. Model must maintain performance across 3+ documentation domains (API refs, architecture docs, troubleshooting guides).",
+                        "Developer positioning generates ≥100 marketing-qualified leads with 40%+ meeting booking rate, 2x better than enterprise positioning control group.",
+                        "All 5 product teams adopt async sprint planning process, average planning time reduces by 30%, team satisfaction scores ≥4.5/5.0, velocity variance <5%."
+                      ]
+                    },
+                    "uncertainty_addressed": {
+                      "type": "string",
+                      "description": "OPTIONAL (required for R&D funding): Description of what technical, market, process, or business model uncertainty this KR resolves. Explicitly states the risk being mitigated or knowledge gap being filled. Critical for innovation funding applications (demonstrates R&D nature). For execution KRs (TRL 7-9), may describe operational risks instead. Length: 50-400 characters.",
+                      "minLength": 50,
+                      "maxLength": 400,
+                      "examples": [
+                        "Whether semantic search is accurate enough for technical domains where precision is critical (vs general consumer search where 60-70% precision is acceptable). Risk: building on insufficient technology leads to poor UX and churn.",
+                        "Which market segment (developers vs enterprises) has stronger product-market fit and will drive sustainable growth. Risk: targeting wrong segment wastes GTM resources and delays PMF.",
+                        "Whether distributed teams can maintain velocity and alignment using async processes (vs traditional synchronous planning). Risk: reduced cohesion and coordination overhead offset efficiency gains."
+                      ]
+                    },
+                    "estimated_duration": {
+                      "type": "string",
+                      "description": "OPTIONAL: Estimated time to complete this Key Result. Format: '{number} {unit}' (e.g., '3 months', '6 weeks', '1 quarter') or quarter range (e.g., 'Q1-Q2 2025'). Used for timeline planning and resource allocation. For R&D funding, shows time budget. For execution KRs, shows deployment timeline. Length: 5-50 characters.",
+                      "minLength": 5,
+                      "maxLength": 50,
+                      "examples": ["3 months", "6 weeks", "Q1 2025", "Q1-Q2 2025", "8 weeks", "1 quarter", "4 months"]
+                    },
+                    "estimated_budget": {
+                      "type": "integer",
+                      "description": "OPTIONAL (required for R&D funding): Estimated cost in NOK to achieve this Key Result. Used for: (1) R&D funding applications (must show budget breakdown), (2) Resource allocation across KRs, (3) ROI analysis. For innovation KRs (TRL 1-6), includes R&D costs. For execution KRs (TRL 7-9), includes deployment/operations costs. Typical range: 100,000-2,000,000 NOK per KR depending on scope and duration.",
+                      "minimum": 0,
+                      "examples": [450000, 650000, 280000, 180000, 850000, 1200000]
+                    },
+                    "budget_breakdown": {
+                      "type": "object",
+                      "description": "OPTIONAL (required for R&D funding): Percentage breakdown of estimated_budget across cost categories. Must sum to 100. Standard categories: personnel (salaries, benefits), equipment (cloud, tools, software), overhead (facilities, admin, indirect). Typical software R&D split: 70% personnel, 20% equipment, 10% overhead. Hardware/lab R&D may have higher equipment percentage.",
+                      "properties": {
+                        "personnel": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 100,
+                          "description": "Percentage of budget for personnel costs (salaries, benefits, contractors). Typically 60-80% for software R&D, 40-60% for hardware/lab work."
+                        },
+                        "equipment": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 100,
+                          "description": "Percentage of budget for equipment, tools, software licenses, cloud infrastructure. Typically 15-30% for software R&D, 30-50% for hardware/lab work."
+                        },
+                        "overhead": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 100,
+                          "description": "Percentage of budget for overhead costs (facilities, administration, indirect costs). Typically 10-15% across all R&D types."
+                        }
+                      },
+                      "required": ["personnel", "equipment", "overhead"],
+                      "additionalProperties": false
                     }
                   },
                   "required": ["id", "description", "target"]
