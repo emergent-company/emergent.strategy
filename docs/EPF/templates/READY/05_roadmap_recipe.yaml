@@ -11,6 +11,24 @@
 # assumptions, and solution scaffold. Feature definitions (in FIRE phase) translate
 # KR intent into capabilities that spec-driven tools consume.
 #
+# ============================================================================
+# TRL FIELDS (Technology Readiness Levels) - When to add them
+# ============================================================================
+# Add TRL fields to Key Results when:
+# 1. Applying for R&D funding (SkatteFUNN, Horizon Europe, etc.)
+# 2. Proving technical feasibility of novel approaches (TRL 2-7)
+# 3. Tracking technical maturity progression in product development
+# 4. Documenting experimental validation for grants/investors
+#
+# TRL fields are OPTIONAL - only add when you need to:
+# - Demonstrate R&D work for tax credits/grants
+# - Track technical uncertainty resolution
+# - Provide evidence of systematic experimentation
+#
+# The Pathfinder wizard can enrich existing roadmaps with TRL fields
+# using Mode B (Roadmap Enrichment). See examples in Product Track below.
+# ============================================================================
+#
 # Related Resources:
 # - Schema: ../../schemas/roadmap_recipe_schema.json
 # - Guide: ../../docs/guides/TRACK_BASED_ARCHITECTURE.md
@@ -45,11 +63,55 @@ roadmap:
               baseline: "Current state if known"
               # Feature definitions that implement this KR are created in:
               # _instances/{product}/feature_definitions/
+              
+              # === TRL Fields (Optional - add if applying for R&D funding) ===
+              # TRL progression shows technical maturity journey
+              trl_start: 4  # TRL 4 = Lab prototype exists, needs integration
+              trl_target: 6  # TRL 6 = Prototype validated in relevant environment
+              
+              # Technical hypothesis being tested (what are you trying to prove?)
+              technical_hypothesis: "A [specific technology/approach] can achieve [quantifiable outcome] under [defined conditions]"
+              
+              # How will you validate the hypothesis? (experiments, prototypes, tests)
+              experiment_design: "Build prototype → Test under realistic load → Measure performance metrics"
+              
+              # Quantitative success criteria (must be measurable)
+              success_criteria: "Response time <200ms at 10K concurrent users with 99.9% uptime"
+              
+              # What technical unknowns are you resolving?
+              uncertainty_addressed: "Whether [technology] scales to [target capacity] while maintaining [performance characteristic]"
+              
+              # Time and budget allocation for this KR
+              duration_months: 4  # How long to complete this KR (realistic timeline)
+              budget_allocation_nok: 350000  # Budget in Norwegian Kroner (NOK)
+              
+              # Budget breakdown (should sum to budget_allocation_nok)
+              budget_breakdown:
+                personnel: 250000  # Developer/researcher time (largest portion typically)
+                equipment: 30000   # Hardware, software licenses, cloud infrastructure
+                subcontractors: 50000  # External consultants, testing services
+                other: 20000  # Travel, training, miscellaneous costs
+            
             - id: "kr-p-002"
               description: "Example Product Key Result 2"
               target: "TBD"
               measurement_method: "How will we measure this?"
               baseline: "Current state if known"
+              
+              # === TRL Fields Example 2 (Lower TRL range - early stage R&D) ===
+              trl_start: 2  # TRL 2 = Technology concept formulated
+              trl_target: 4  # TRL 4 = Lab prototype validated
+              technical_hypothesis: "Algorithm X can reduce computation time by 50% compared to baseline approach Y"
+              experiment_design: "Implement both algorithms → Benchmark on standard datasets → Measure accuracy and speed"
+              success_criteria: "50% speed improvement with <5% accuracy loss on benchmark suite"
+              uncertainty_addressed: "Whether theoretical algorithm performance translates to practical implementation gains"
+              duration_months: 3
+              budget_allocation_nok: 200000
+              budget_breakdown:
+                personnel: 150000
+                equipment: 20000
+                subcontractors: 20000
+                other: 10000
       
       riskiest_assumptions:
         - id: "asm-p-001"

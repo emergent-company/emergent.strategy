@@ -13,6 +13,66 @@ This file documents lessons learned during AI-assisted development sessions. Eac
 
 ---
 
+### 2025-12-30 - Work Files Belong in .epf-work/, Not Production Directories
+
+**Context**: After migrating EPF output validators from TypeScript to shell scripts, created several analysis and implementation documents in `docs/EPF/outputs/` directory.
+
+**Mistake**: Created temporary work/analysis documents directly in production directory:
+- `docs/EPF/outputs/VALIDATOR_ARCHITECTURE_DECISION.md`
+- `docs/EPF/outputs/IMPLEMENTATION_SUMMARY.md`
+- `docs/EPF/outputs/INVESTOR_MEMO_IMPLEMENTATION.md`
+- `docs/EPF/outputs/validation/*.archived` files
+
+User had to remind me MULTIPLE TIMES that these belong in `.epf-work/` directory.
+
+**Why It Was Wrong**:
+- Production directories should only contain files that are part of the actual system
+- Work documents, analysis, implementation notes, and archived files clutter production structure
+- Makes it unclear what's "real" vs "temporary" for other developers
+- This is not the first time - the pattern has been established and corrected multiple times
+
+**Correct Approach**:
+1. **ALWAYS put work/analysis documents in `.epf-work/`** with appropriate subdirectory:
+   ```bash
+   .epf-work/validator-migration/      # For this session's work
+   .epf-work/feature-analysis/
+   .epf-work/debugging-sessions/
+   ```
+
+2. **Production directories contain ONLY**:
+   - Schemas (JSON Schema files)
+   - Wizards (generator instructions)
+   - Templates (output templates)
+   - Validation scripts (executable validators)
+   - README.md (user documentation)
+
+3. **Work documents include** (ALL go to .epf-work/):
+   - Architecture decision records (DECISION in name)
+   - Implementation summaries (IMPLEMENTATION/SUMMARY in name)
+   - Analysis documents (ANALYSIS in name)
+   - Session notes
+   - Archived/old versions (.archived extension)
+
+**Prevention - MANDATORY PRE-CHECK**:
+- **BEFORE creating ANY .md document**, STOP and ask:
+  - Q: "Is this explaining how to USE the production system?"
+    - YES → Can go in production directory (like README.md)
+    - NO → Must go in .epf-work/
+  - Q: "Does the filename contain DECISION, IMPLEMENTATION, ANALYSIS, SUMMARY, ARCHIVED?"
+    - YES → Must go in .epf-work/
+  - Q: "Is this documenting the development process vs. the end product?"
+    - Development process → .epf-work/
+    - End product → Production directory
+
+**Related Files/Conventions**:
+- `.epf-work/` - Root directory for ALL temporary/work files
+- `docs/EPF/outputs/` - Production output system files ONLY
+- Pattern applies to ALL workspace areas, not just EPF
+
+**Key Takeaway**: `.epf-work/` exists specifically for this purpose. Work documents pollute production directories and confuse structure. This is an established project convention that MUST be followed EVERY TIME.
+
+---
+
 ### 2025-12-27 - Generated Feature Definition from Memory Instead of Schema
 
 **Context**: Creating first business feature (fd-007-organization-workspace-management.yaml) for EPF Feature Corpus after successfully validating 6 technical features (fd-001 through fd-006).

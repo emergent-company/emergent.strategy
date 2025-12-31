@@ -324,3 +324,128 @@ See `MAINTENANCE.md` for complete instructions on:
 - AI assistant decision tree
 - Complete consistency protocol
 
+---
+
+## 🚨 AI Self-Learning: Common Mistakes & Prevention
+
+### Mistake #1: Polluting Canonical Directories with Working Documents
+
+**What I did wrong (2025-12-31):**
+- Created `TRL_UNIVERSAL_IMPLEMENTATION_SUMMARY.md` in `docs/EPF/schemas/`
+- Created `UNIVERSAL_TRL_FRAMEWORK.md` in `docs/EPF/schemas/`
+- These are WORKING/SUMMARY documents, not canonical framework files
+
+**Why it's wrong:**
+- `docs/EPF/schemas/` is for **JSON Schema files only** (framework validation rules)
+- Working documents, summaries, analysis belong in `.epf-work/` directory
+- Pollutes canonical EPF with temporary/session-specific content
+- User has corrected this mistake MULTIPLE times
+
+**Root cause:**
+- When completing a task (schema update), I instinctively want to "document what I did"
+- I see an existing directory (schemas/) and think "this is related, put summary here"
+- I forget the fundamental rule: **EPF directories are type-specific, not topic-specific**
+
+**Correct approach:**
+1. **Before creating ANY file in docs/EPF/**, ask: "Is this a canonical framework file?"
+2. **Canonical framework files** (allowed in docs/EPF/):
+   - JSON Schema files (`.json`) in `schemas/`
+   - YAML templates (`.yaml`) in `templates/`
+   - AI prompts (`.md`) in `wizards/`
+   - Shell scripts (`.sh`) in `scripts/`
+   - Framework documentation (`README.md`, `MAINTENANCE.md`, `CANONICAL_PURITY_RULES.md`)
+3. **Working/summary documents** (MUST go in `.epf-work/`):
+   - Implementation summaries
+   - Session notes
+   - Analysis documents
+   - Decision records
+   - Any file with words like: SUMMARY, IMPLEMENTATION, ANALYSIS, DECISION, NOTES, SESSION
+
+**Decision tree for file placement:**
+```
+Creating a new .md file?
+├─ Is it an AI wizard prompt (agent_prompt.md)? → docs/EPF/wizards/
+├─ Is it core framework docs (README, MAINTENANCE, etc.)? → docs/EPF/
+└─ Is it a summary/analysis/session note? → .epf-work/{session-name}/
+```
+
+**Prevention checklist:**
+- [ ] File name contains: SUMMARY, IMPLEMENTATION, ANALYSIS, DECISION, SESSION, NOTES? → `.epf-work/`
+- [ ] File documents "what I just did" vs "how to use EPF"? → `.epf-work/`
+- [ ] File is specific to one task/session vs reusable framework? → `.epf-work/`
+- [ ] Would this file help future EPF users or just explain this change? → If latter, `.epf-work/`
+
+**Quick fix when I make this mistake:**
+```bash
+# Move working documents from canonical to EPF .epf-work
+mv docs/EPF/schemas/SUMMARY_FILE.md docs/EPF/.epf-work/{session-name}/
+```
+
+**Remember:** EPF is a FRAMEWORK. Working documents are PROJECT-SPECIFIC. Keep them separate!
+
+---
+
+### Mistake #2: Creating Multiple .epf-work Directories at Different Levels
+
+**What I did wrong (2025-12-31):**
+- Created `.epf-work/` at repository root (`/emergent/.epf-work`)
+- Created `.epf-work/` at EPF level (`/emergent/docs/EPF/.epf-work`)
+- Created `.epf-work/` at instance level (`/emergent/docs/EPF/_instances/emergent/.epf-work`)
+- Result: 3 different working directories across the repository!
+
+**Why it's wrong:**
+- Confusing: Where should new working documents go?
+- Inconsistent: Files scattered across multiple locations
+- Hard to find: Need to check 3 locations to find session notes
+- Violates single source of truth principle
+
+**Root cause:**
+- When working at repository root, created `.epf-work/` there
+- When working in EPF directory, created `.epf-work/` there
+- When working on instance, created `.epf-work/` there
+- Didn't stop to ask: "Is there already a canonical working directory?"
+
+**Correct approach:**
+1. **ONLY ONE .epf-work directory**: `docs/EPF/.epf-work/`
+2. **ALL working documents go there**, regardless of where I'm working in the repo
+3. **Use subdirectories** to organize by session/topic:
+   ```
+   docs/EPF/.epf-work/
+   ├── skattefunn-wizard-selection/
+   ├── validator-work/
+   ├── emergent-instance-work/
+   └── schema-enhancement-2025-12-28/
+   ```
+
+**Decision tree for working document placement:**
+```
+Creating a working document?
+├─ Is it EPF-related? → docs/EPF/.epf-work/{session-name}/
+└─ Is it product-specific (non-EPF)? → Still docs/EPF/.epf-work/ (EPF is framework for all product work)
+```
+
+**Why docs/EPF/.epf-work/ is the canonical location:**
+- EPF is the framework for ALL product development work
+- Working documents are analysis/notes about using EPF
+- Keeping them with EPF ensures they're version-controlled with framework
+- Easy to find: single location for all temporary work
+- Instance-specific work still belongs here (instances are EPF usage examples)
+
+**Prevention checklist:**
+- [ ] Before creating `.epf-work/` directory, check: Does `docs/EPF/.epf-work/` exist? → Use it!
+- [ ] Before creating session subdirectory, check: Is this session already documented? → Add to existing!
+- [ ] Never create `.epf-work/` at repository root
+- [ ] Never create `.epf-work/` inside `_instances/`
+
+**Quick fix when I make this mistake:**
+```bash
+# Consolidate all .epf-work directories to canonical location
+mv .epf-work/* docs/EPF/.epf-work/{session-name}/
+rmdir .epf-work/
+
+# Or move from instance directory
+mv docs/EPF/_instances/{product}/.epf-work/* docs/EPF/.epf-work/{session-name}/
+rmdir docs/EPF/_instances/{product}/.epf-work/
+```
+
+**Remember:** ONE working directory (`docs/EPF/.epf-work/`), organized by sessions. Check for existing location before creating new!
