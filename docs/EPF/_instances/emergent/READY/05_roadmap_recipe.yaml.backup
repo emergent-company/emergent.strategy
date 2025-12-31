@@ -40,6 +40,7 @@ roadmap:
               measurement_method: "Load testing with production-like data; Grafana metrics"
               baseline: "Current: 1,000 objects tested, ~150ms latency"
               
+              # TRL Fields (SkatteFUNN R&D Tax Credit Application)
               trl_start: 4
               trl_target: 6
               trl_progression: "TRL 4 → TRL 6 (Component validated in lab → System prototype demonstrated)"
@@ -47,12 +48,20 @@ roadmap:
               experiment_design: "Build production-scale test environment with 10,000+ real objects (documents, entities, relationships). Run load tests simulating 10-50 concurrent AI agent queries with realistic query patterns (semantic search + graph traversal). Measure p50/p95/p99 latency under sustained load over 7 days. Test with different object distributions (document-heavy, entity-heavy, relationship-heavy) to identify performance bottlenecks. Include failover testing: measure graceful degradation when vector index is unavailable (should fall back to pure graph traversal with acceptable latency increase)."
               success_criteria: "p95 latency ≤200ms for 95%+ of queries under 20 concurrent users sustained over 7 days. p99 latency ≤500ms. Zero query failures. Graceful degradation to <1s latency if vector index fails."
               uncertainty_addressed: "Whether Neo4j with vector indexing can scale to production requirements (10K+ objects) while maintaining AI-agent-acceptable latency (<200ms). Unknowns: memory usage at scale, vector index rebuild time, query optimization strategies for mixed semantic+graph queries, failover behavior, concurrent write impact on read latency, impact of embedding dimensionality (768d vs 1536d) on index size and query performance."
+              duration_months: 4
+              budget_allocation_nok: 450000
+              budget_breakdown:
+                personnel_percent: 75
+                equipment_percent: 18
+                subcontractors_percent: 7
+                other_percent: 0
             - id: "kr-p-002"
               description: "Document ingestion pipeline processes PDF, Markdown, and code files"
               target: "3 file types with 95%+ extraction accuracy"
               measurement_method: "Extraction quality tests against labeled dataset"
               baseline: "Current: Markdown only, ~90% accuracy"
               
+              # TRL Fields (SkatteFUNN R&D Tax Credit Application)
               trl_start: 3
               trl_target: 5
               trl_progression: "TRL 3 → TRL 5 (Experimental proof of concept → Component validated in relevant environment)"
@@ -60,12 +69,20 @@ roadmap:
               experiment_design: "Build labeled test dataset of 200+ documents (mix of PDF/Markdown/code with known entities/relationships). Implement format-specific extractors using GPT-4 with structured outputs. Measure precision/recall against labeled data. Iterate on prompt engineering and validation rules. Test edge cases: scanned PDFs, malformed Markdown, minified code. Compare cost per document across different LLM providers (GPT-4, Claude, Gemini)."
               success_criteria: "≥95% extraction accuracy (F1 score) on held-out test set across all 3 formats. Per-format accuracy: PDF ≥92%, Markdown ≥97%, Code ≥93%. Processing time <30s per document on average. Cost <$0.10 per document extraction."
               uncertainty_addressed: "Whether LLM extraction can maintain high accuracy across diverse document formats without extensive manual rules. Unknowns: optimal chunking strategy for PDFs, handling of code comments vs code logic, Markdown table extraction, cost per document at scale, robustness to document quality variations (scanned vs native PDF)."
+              duration_months: 3
+              budget_allocation_nok: 380000
+              budget_breakdown:
+                personnel_percent: 70
+                equipment_percent: 25
+                subcontractors_percent: 5
+                other_percent: 0
             - id: "kr-p-003"
               description: "MCP server enables Claude/Cursor to query knowledge graph contextually"
               target: "MCP integration live with 5+ active pilot users"
               measurement_method: "MCP server logs showing successful context retrievals"
               baseline: "Current: MCP server in development"
               
+              # TRL Fields (SkatteFUNN R&D Tax Credit Application)
               trl_start: 3
               trl_target: 6
               trl_progression: "TRL 3 → TRL 6 (Proof of concept → System prototype demonstrated in relevant environment)"
@@ -73,6 +90,13 @@ roadmap:
               experiment_design: "Implement MCP server exposing knowledge graph via standardized protocol. Deploy to 5 pilot users (internal developers). A/B test AI task completion with vs without MCP context access. Measure: task completion time, code quality (via review scores), hallucination rate (incorrect assumptions), and user satisfaction. Track MCP query patterns, latency, and cache hit rates. Document failure modes and edge cases where context retrieval doesn't help or misleads."
               success_criteria: "5+ pilot users actively using MCP server daily. ≥20% improvement in task completion quality (measured via code review scores). ≥30% reduction in hallucination incidents. MCP query latency <500ms p95. Pilot user satisfaction score ≥8/10."
               uncertainty_addressed: "Whether AI agents will meaningfully use knowledge graph context to improve outputs. Unknowns: optimal context retrieval strategies (when to query graph vs rely on training data), context window size limits, latency sensitivity for developer experience, whether developers trust AI suggestions more with explicit context citations."
+              duration_months: 3
+              budget_allocation_nok: 420000
+              budget_breakdown:
+                personnel_percent: 72
+                equipment_percent: 20
+                subcontractors_percent: 8
+                other_percent: 0
         
         - id: "okr-p-002"
           objective: "EPF becomes self-hosting (Emergent uses EPF to build Emergent)"
@@ -83,6 +107,7 @@ roadmap:
               measurement_method: "EPF health check passes with 0 TBD markers"
               baseline: "Current: 1/6 complete (North Star)"
               
+              # TRL Fields (SkatteFUNN R&D Tax Credit Application)
               trl_start: 2
               trl_target: 4
               trl_progression: "TRL 2 → TRL 4 (Technology concept formulated → Component validated in laboratory environment)"
@@ -90,12 +115,20 @@ roadmap:
               experiment_design: "Complete all 6 READY artifacts for Emergent (North Star, Insight, Strategy, Value Models, Roadmap, Integration Spec). Validate each artifact against schema. Track time spent per artifact, blockers encountered, questions raised. Document patterns that emerge across artifacts (e.g., common traceability links, typical assumption types). Test with one external team: provide framework, minimal guidance, measure completion time and quality."
               success_criteria: "6/6 READY artifacts pass schema validation. EPF health check shows 0 TBD markers. Traceability complete: every KR traces to North Star. External team completes first READY artifact in <4 hours with only written guidance (no live support). Internal team satisfaction: framework clarity ≥8/10."
               uncertainty_addressed: "Whether EPF structure is intuitive enough for teams to adopt without extensive training. Unknowns: optimal level of artifact detail (too rigid vs too flexible), whether schema validation catches meaningful errors vs creates friction, how much guidance is needed for first-time users, whether traceability overhead is worth the strategic clarity benefit."
+              duration_months: 2
+              budget_allocation_nok: 280000
+              budget_breakdown:
+                personnel_percent: 80
+                equipment_percent: 10
+                subcontractors_percent: 5
+                other_percent: 5
             - id: "kr-p-005"
               description: "Feature definitions created for Core, EPF, OpenSpec product lines"
               target: "15+ feature definitions in FIRE phase"
               measurement_method: "Feature definition count in /FIRE/feature_definitions/"
               baseline: "Current: 0 feature definitions"
               
+              # TRL Fields (SkatteFUNN R&D Tax Credit Application)
               trl_start: 2
               trl_target: 4
               trl_progression: "TRL 2 → TRL 4 (Concept formulated → Component validated in laboratory)"
@@ -103,6 +136,13 @@ roadmap:
               experiment_design: "Design feature definition template based on EPF principles (Why/How/What ontology, traceability, AI-readability). Create 15 feature definitions across three product lines (Core: 7, EPF: 5, OpenSpec: 3). Validate each definition: (1) traces cleanly to roadmap KR, (2) AI agent (Claude/GPT-4) can generate implementation plan from definition alone, (3) developer can understand scope without asking questions. A/B test: give developers feature definition vs traditional ticket, measure time to first commit and rework rate."
               success_criteria: "15+ feature definitions created and validated. 100% traceability to roadmap KRs. AI agent generates accurate implementation plan in ≥90% of cases (human review). Developers prefer feature definitions over traditional tickets (satisfaction survey ≥8/10). Rework rate <15% (vs baseline 30% for tickets)."
               uncertainty_addressed: "Whether structured feature definitions reduce ambiguity enough to improve development velocity. Unknowns: optimal definition granularity (too detailed vs too abstract), whether AI agents can reliably generate implementation plans from definitions, if traceability overhead is worth strategic clarity, how to balance flexibility with structure."
+              duration_months: 3
+              budget_allocation_nok: 320000
+              budget_breakdown:
+                personnel_percent: 75
+                equipment_percent: 15
+                subcontractors_percent: 5
+                other_percent: 5
         
         - id: "okr-p-003"
           objective: "Ship EPF-Runtime MVP enabling programmatic workflow orchestration"
@@ -113,6 +153,7 @@ roadmap:
               measurement_method: "E2E tests pass for workflow CRUD with multi-tenant isolation"
               baseline: "Current: EPF-Runtime in design phase, no implementation"
               
+              # TRL Fields (SkatteFUNN R&D Tax Credit Application)
               trl_start: 2
               trl_target: 5
               trl_progression: "TRL 2 → TRL 5 (Technology concept formulated → Component validated in relevant environment)"
@@ -120,12 +161,20 @@ roadmap:
               experiment_design: "Implement EPF-Runtime API layer using existing Emergent Core infrastructure (Zitadel OAuth2, PostgreSQL RLS, NestJS). Create REST endpoints for workflow CRUD operations. Write comprehensive E2E tests covering: multi-tenant isolation (tenant A cannot access tenant B workflows), scope-based authorization (user with 'workflow:read' cannot write), RLS enforcement at database level. Load test with 100 concurrent tenants, measure p95 latency and memory usage. Security audit: attempt cross-tenant access exploits."
               success_criteria: "Workflow CRUD API functional with 100% E2E test pass rate. Multi-tenant isolation verified: 0 cross-tenant data leaks in security audit. API latency <500ms p95 under 100 concurrent tenants. Scope-based auth correctly denies unauthorized operations (0 false positives/negatives in auth tests). Database RLS policies enforce isolation (direct SQL queries cannot bypass)."
               uncertainty_addressed: "Whether shared infrastructure can scale for Runtime workloads without architectural changes. Unknowns: performance impact of additional RLS policies on workflow tables, memory overhead of maintaining 100+ tenant contexts, optimal caching strategy for workflow metadata, whether scope model granularity is sufficient for workflow permissions (might need resource-level scopes)."
+              duration_months: 4
+              budget_allocation_nok: 550000
+              budget_breakdown:
+                personnel_percent: 70
+                equipment_percent: 22
+                subcontractors_percent: 8
+                other_percent: 0
             - id: "kr-p-007"
               description: "Stage 2 (Artifact Storage): EPF artifacts stored in knowledge graph"
               target: "EPF artifacts stored as graph objects with vector embeddings and semantic search"
               measurement_method: "Can query 'Find roadmaps similar to X' and get relevant results"
               baseline: "Current: No artifact storage integration"
               
+              # TRL Fields (SkatteFUNN R&D Tax Credit Application)
               trl_start: 2
               trl_target: 5
               trl_progression: "TRL 2 → TRL 5 (Concept formulated → Component validated in relevant environment)"
@@ -133,12 +182,20 @@ roadmap:
               experiment_design: "Extend knowledge graph schema to support EPF artifact types. Implement ingestion pipeline: YAML → graph object + vector embedding. Test semantic search: 'Find roadmaps similar to Emergent Q1 2025' should return relevant matches. Compare semantic search vs keyword search: measure precision/recall on 50 test queries. Test cross-artifact queries: 'Which features trace to knowledge graph KRs?' Measure query latency and relevance scoring accuracy."
               success_criteria: "All EPF artifact types (6) supported in graph schema. Semantic search precision ≥85% (returns relevant artifacts in top 5 results). Semantic search outperforms keyword search by ≥30% on precision/recall. Cross-artifact traceability queries work correctly (100% accurate linkage). Query latency <300ms p95 for semantic search."
               uncertainty_addressed: "Whether vector embeddings capture strategic similarity between EPF artifacts meaningfully. Unknowns: optimal embedding model for strategic documents (vs code/general text), chunking strategy for long artifacts (roadmaps), how to weight different artifact fields (objective vs key results vs assumptions), whether semantic similarity aligns with human judgment of strategic relevance."
+              duration_months: 3
+              budget_allocation_nok: 380000
+              budget_breakdown:
+                personnel_percent: 70
+                equipment_percent: 23
+                subcontractors_percent: 7
+                other_percent: 0
             - id: "kr-p-008"
               description: "Stage 3 (UI Integration): Workflow management UI with app switcher"
               target: "Users can create, monitor, and manage workflows via web UI with in-app notifications"
               measurement_method: "User can complete full workflow lifecycle from admin UI"
               baseline: "Current: No Runtime UI"
               
+              # TRL Fields (SkatteFUNN R&D Tax Credit Application)
               trl_start: 2
               trl_target: 6
               trl_progression: "TRL 2 → TRL 6 (No UI → System prototype demonstrated in operational environment)"
@@ -146,12 +203,20 @@ roadmap:
               experiment_design: "Design and implement Runtime UI components: workflow list, workflow detail, workflow creation wizard, execution timeline, in-app notifications. Integrate with existing admin UI via app switcher (top nav icon). Conduct usability testing with 5 pilot users: measure task completion time (create → execute → monitor workflow), error rate, satisfaction. Test notification system: workflow status changes trigger real-time notifications. Measure context-switching overhead (time to switch apps vs manual navigation)."
               success_criteria: "Users can complete full workflow lifecycle in UI without API access. Task completion time <10 minutes for simple workflow (create → start → monitor). Usability satisfaction ≥8/10. Notification delivery latency <2s. App switcher reduces context-switching time by ≥50% vs manual navigation. Zero critical UI bugs (data loss, auth bypass) in security review."
               uncertainty_addressed: "Whether app switcher pattern provides sufficient integration between Core and Runtime without full UI merge. Unknowns: optimal notification frequency (too many vs too few), whether users understand workflow state transitions from timeline view, if wizard-based creation is easier than form-based, how to surface workflow errors/failures effectively without overwhelming user."
+              duration_months: 4
+              budget_allocation_nok: 425000
+              budget_breakdown:
+                personnel_percent: 73
+                equipment_percent: 18
+                subcontractors_percent: 9
+                other_percent: 0
             - id: "kr-p-009"
               description: "Stage 4 (Temporal Workflows): Durable READY/FIRE/AIM execution"
               target: "Full EPF cycle executable as durable Temporal workflow surviving restarts"
               measurement_method: "Workflow completes READY phase, survives service restart, continues to FIRE"
               baseline: "Current: No Temporal integration"
               
+              # TRL Fields (SkatteFUNN R&D Tax Credit Application)
               trl_start: 2
               trl_target: 5
               trl_progression: "TRL 2 → TRL 5 (No orchestration → Component validated in relevant environment)"
@@ -159,6 +224,13 @@ roadmap:
               experiment_design: "Implement Temporal workflow definitions for READY phase: artifact validation, approval routing, state transitions. Test restart scenarios: stop Temporal worker mid-workflow, restart, measure time to resume. Test state persistence: verify workflow history survives restart, check no data loss. Implement error handling: transient failures (retry), permanent failures (compensating actions). Measure recovery metrics: time from restart to workflow resumption, state consistency checks, error recovery success rate. Compare vs in-memory orchestration baseline."
               success_criteria: "Workflow completes full READY phase (validation → approval → state transition). Workflow survives service restart without data loss. Workflow resumes execution within 30s of restart. State history 100% accurate (no missing steps). Error handling works for transient failures (auto-retry succeeds) and permanent failures (compensating action triggered). Zero workflow corruption cases (invalid state transitions)."
               uncertainty_addressed: "Whether Temporal learning curve is acceptable for team (new paradigm vs traditional API orchestration). Unknowns: optimal activity granularity (fine-grained vs coarse), how to handle long-running approvals (hours to days), state serialization size limits for complex workflows, error categorization strategy (which errors are transient vs permanent), local development complexity (Temporal server setup)."
+              duration_months: 3
+              budget_allocation_nok: 320000
+              budget_breakdown:
+                personnel_percent: 75
+                equipment_percent: 18
+                subcontractors_percent: 7
+                other_percent: 0
       
       riskiest_assumptions:
         - id: "asm-p-001"
