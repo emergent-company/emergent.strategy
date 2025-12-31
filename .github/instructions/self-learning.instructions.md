@@ -30,6 +30,63 @@ Each entry should follow this structure:
 
 ## Lessons Learned
 
+### 2025-12-30 - Work Files Belong in .epf-work/, Not Production Directories
+
+**Context**: After migrating EPF output validators from TypeScript to shell scripts, created several analysis and implementation documents in `docs/EPF/outputs/` directory.
+
+**Mistake**: Created temporary work/analysis documents directly in production directory:
+- `docs/EPF/outputs/VALIDATOR_ARCHITECTURE_DECISION.md`
+- `docs/EPF/outputs/IMPLEMENTATION_SUMMARY.md`
+- `docs/EPF/outputs/INVESTOR_MEMO_IMPLEMENTATION.md`
+- `docs/EPF/outputs/validation/*.archived` files
+
+User had to remind me that these belong in `.epf-work/` directory.
+
+**Why It Was Wrong**:
+- Production directories should only contain files that are part of the actual system
+- Work documents, analysis, implementation notes, and archived files clutter production structure
+- Makes it unclear what's "real" vs "temporary" for other developers
+- This is the SECOND time user has had to remind me about this pattern (forgot the established convention)
+
+**Correct Approach**:
+1. **ALWAYS put work/analysis documents in `.epf-work/`** with appropriate subdirectory:
+   ```bash
+   .epf-work/validator-migration/
+   .epf-work/feature-analysis/
+   .epf-work/debugging-sessions/
+   ```
+
+2. **Production directories contain ONLY**:
+   - Schemas (JSON Schema files)
+   - Wizards (generator instructions)
+   - Templates (output templates)
+   - Validation scripts (executable validators)
+   - README.md (user documentation)
+
+3. **Work documents include**:
+   - Architecture decision records
+   - Implementation summaries
+   - Analysis documents
+   - Session notes
+   - Archived/old versions
+
+**Prevention**:
+- **BEFORE creating ANY .md document**, ask: "Is this a production file or work document?"
+- If it contains: "DECISION", "IMPLEMENTATION", "ANALYSIS", "SUMMARY", "ARCHIVED" → `.epf-work/`
+- If it explains how to USE the system → production directory (e.g., `README.md`)
+- When archiving old code, delete it OR move to `.epf-work/archived-*`
+- Check `.epf-work/` directory structure FIRST before creating new analysis docs
+- Remember: User has corrected this pattern multiple times - it's a core convention!
+
+**Related Files/Conventions**:
+- `.epf-work/` - Root directory for ALL temporary/work files
+- `docs/EPF/outputs/` - Production output system files ONLY
+- Pattern applies to ALL workspace areas, not just EPF
+
+**Key Takeaway**: `.epf-work/` exists specifically for this purpose. Work documents pollute production directories and confuse structure. This is an established project convention that must be followed consistently.
+
+---
+
 ### 2025-11-10 - Testing Sprint Session 9 - Database Migration to 99.6% Coverage (Excellence Achieved!)
 
 **Context**: Pushing from 98.7% (Session 8) to 99%+ coverage. User chose "Option B" - database migration approach to fix pgvector dimension mismatch blocking 11 graph-vector tests.
