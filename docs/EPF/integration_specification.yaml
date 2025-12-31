@@ -580,8 +580,8 @@ file_discovery:
 # ============================================================================
 
 versioning:
-  this_spec_version: "1.13.0"
-  epf_version_required: ">=1.9.6"
+  this_spec_version: "2.2.0"
+  epf_version_required: ">=2.2.0"
   
   compatibility_notes: |
     - This specification is versioned independently from EPF
@@ -590,6 +590,9 @@ versioning:
     - New optional fields increment MINOR version
     
   changelog:
+    - version: "2.2.0"
+      date: "2025-12-31"
+      changes: "Add comprehensive output generators system with validation (context-sheet, investor-memo, skattefunn-application) and shell-based validators"
     - version: "1.13.0"
       date: "2025-12-21"
       changes: "Add business language guides, product architect wizard, and enhanced value models"
