@@ -1,4 +1,4 @@
-# Emergent Product Framework (EPF) Repository - v2.1.0
+# Emergent Product Framework (EPF) Repository - v2.2.0
 
 This repository contains the complete skeleton for managing product, strategy, org & ops, and commercial development using the Emergent Product Framework. It is designed to be an **executable operating system**, managed by a human-in-the-loop with the assistance of an AI Knowledge Agent.
 
@@ -85,6 +85,10 @@ This repository contains the complete skeleton for managing product, strategy, o
 **Philosophy:** Like a coral reef growing one polyp at a time, EPF grows one artifact at a time. The system emerges as your strategic complexity emerges. Just as AI enables small teams to build big products, EPF's simple rules generate sophisticated strategic systems - that's why it's called the **Emergent** Product Framework.
 
 ---
+
+## What's New in v2.2.0
+
+Add comprehensive output generators system with validation infrastructure. New generators: context-sheet (product context), investor-memo (investor materials), skattefunn-application (Norwegian R&D grant). Each includes JSON schema, wizard instructions, and shell validator. Enhanced documentation with QUICK_START, STRUCTURE, and VALIDATION_README guides.
 
 ## What's New in v2.1.0
 
