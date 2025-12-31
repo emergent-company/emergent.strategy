@@ -46,7 +46,8 @@ This repository contains the complete skeleton for managing product, strategy, o
 
 **Daily Operations:**
 
-- 🧙 **Creating artifacts?** → [`wizards/README.md`](wizards/README.md) (find right wizard)
+- 🧙 **Creating EPF artifacts?** → [`wizards/README.md`](wizards/README.md) (find right wizard)
+- 📤 **Generating external outputs?** → [`outputs/README.md`](outputs/README.md) (context sheets, investor memos, etc.)
 - ✅ **Validating work?** → [`scripts/README.md`](scripts/README.md) (find right validator)
 - 📖 **Understanding concepts?** → [`docs/guides/README.md`](docs/guides/README.md) (find right guide)
 - 📐 **Schema questions?** → [`schemas/README.md`](schemas/README.md) (schema-template-guide pattern)
