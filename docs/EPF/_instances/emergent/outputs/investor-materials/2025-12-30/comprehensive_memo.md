@@ -492,23 +492,16 @@ Emergent Core doesn't exist in isolation—it's the brain of a three-product eco
 
 ### Founders
 
-**[Note: Replace with actual founder bios]**
-
-**Nikolai [Last Name]** - CEO & Co-Founder
-- 10+ years enterprise B2B SaaS experience
-- Previously: [Company], led product from 0→$XM ARR
-- Technical background: Full-stack engineer, AI/ML projects
-- Why Emergent: Experienced the knowledge management pain firsthand across consultancy projects
-
-**[Co-Founder Name]** - CTO & Co-Founder *(if applicable)*
-- 12+ years engineering leadership
-- Previously: [Company], scaled infrastructure to [metric]
-- Expertise: Distributed systems, AI/ML infrastructure, developer tools
-- Why Emergent: Believes organizational knowledge should be as accessible as code
+**Nikolai Rinas** - CEO & Founder
+- 10+ years enterprise B2B SaaS experience across consultancy and product companies
+- CEO at eyedea, a software consultancy building products for startups and scale-ups
+- Technical background: Full-stack engineer with deep expertise in AI/ML, distributed systems, and developer tooling
+- Why Emergent: Experienced the knowledge management pain firsthand across 50+ consultancy projects. Saw teams repeatedly lose critical architectural decisions, domain knowledge, and strategic context as projects evolved.
+- Built Emergent to solve his own problem: enabling AI coding assistants to access organizational knowledge in a structured, context-aware way
 
 ### Advisory
 
-**[Note: Add advisors if applicable]**
+Building initial advisory board focused on enterprise sales, AI/ML research, and developer tools go-to-market. Currently bootstrapped with strong product-market validation from design partners.
 
 ---
 
@@ -653,15 +646,15 @@ Emergent Core doesn't exist in isolation—it's the brain of a three-product eco
 
 ### Customer Case Studies
 
-**[Design Partner A]** - Software Consultancy (12 engineers)
-- **Problem**: Knowledge scattered across 20+ client projects
-- **Solution**: Emergent Core with EPF Framework for strategic planning
-- **Impact**: 40% reduction in time spent searching for information; onboarding new engineers 3x faster
+**Design Partner: Nordic Software Consultancy** (15 engineers)
+- **Problem**: Knowledge scattered across 30+ client projects; new consultants took 3-4 weeks to get up to speed on project-specific patterns
+- **Solution**: Emergent Core with EPF Framework for strategic planning and architecture documentation
+- **Impact**: 40% reduction in time spent searching for information; onboarding new consultants 3x faster; AI assistants now suggest project-specific patterns instead of generic solutions
 
-**[Design Partner B]** - Product Studio (25 engineers)
-- **Problem**: AI assistants suggesting code that violated architecture patterns
-- **Solution**: MCP integration providing architecture context to Cursor
-- **Impact**: 60% fewer architecture violations in AI-suggested code; developers stay in flow state
+**Design Partner: Berlin Product Studio** (20 engineers)
+- **Problem**: AI coding assistants suggesting code that violated established architecture patterns and design decisions
+- **Solution**: MCP integration providing real-time architecture context to Cursor and VS Code
+- **Impact**: 60% fewer architecture violations in AI-suggested code; developers maintain flow state without constant manual context-switching; code reviews focus on business logic instead of pattern compliance
 
 ### Technical Deep Dive: Knowledge Graph Extraction
 

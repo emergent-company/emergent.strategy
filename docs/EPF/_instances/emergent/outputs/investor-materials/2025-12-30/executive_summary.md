@@ -322,15 +322,11 @@ This ecosystem creates compounding value: strategy artifacts (EPF) live in Core,
 
 ### Founders
 
-**Nikolai [Last Name]** - CEO & Co-Founder
-- 10+ years enterprise B2B SaaS experience
-- Previously: [Company], led product from 0→$XM ARR
-- Technical background: Full-stack engineer, AI/ML projects
-
-**[Co-Founder Name]** - CTO & Co-Founder *(if applicable)*
-- 12+ years engineering leadership
-- Previously: [Company], scaled infrastructure to [metric]
-- Expertise: Distributed systems, AI/ML infrastructure
+**Nikolai Rinas** - CEO & Founder
+- 10+ years enterprise B2B SaaS experience across consultancy and product companies
+- CEO at eyedea, a software consultancy with 50+ successful client engagements
+- Technical background: Full-stack engineer with deep expertise in AI/ML, distributed systems, and developer tooling
+- Built Emergent to solve his own problem: enabling AI coding assistants to access organizational knowledge in a structured, context-aware way
 
 **Why This Team**:
 - Experienced the problem firsthand across consultancy projects

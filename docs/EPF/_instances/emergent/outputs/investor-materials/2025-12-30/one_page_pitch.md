@@ -104,17 +104,13 @@
 
 ## Team (10 seconds)
 
-**Nikolai [Last Name]** - CEO & Co-Founder
+**Nikolai Rinas** - CEO & Founder
 - 10+ years enterprise B2B SaaS experience
-- Previously: [Company], product from 0→$XM ARR
-- Technical background: Full-stack engineer, AI/ML projects
+- CEO at eyedea, a software consultancy with 50+ client engagements
+- Technical background: Full-stack engineer with AI/ML expertise
+- Built Emergent to solve his own problem: enabling AI assistants to access organizational knowledge
 
-**[Co-Founder]** - CTO & Co-Founder *(if applicable)*
-- 12+ years engineering leadership
-- Previously: [Company], scaled infrastructure to [metric]
-- Expertise: Distributed systems, AI/ML infrastructure
-
-**Why This Team**: Experienced the problem firsthand; technical depth for sophisticated AI/ML product; B2B SaaS go-to-market experience; dogfooding Emergent with Emergent.
+**Why This Team**: Experienced the problem firsthand across consultancy projects; technical depth for sophisticated AI/ML product; B2B SaaS go-to-market experience; dogfooding Emergent with Emergent.
 
 ---
 
