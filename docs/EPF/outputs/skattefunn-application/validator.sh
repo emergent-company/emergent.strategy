@@ -327,14 +327,85 @@ validate_semantic() {
         done
     fi
     
-    # Character limit validation (informational)
-    log_info "Character limit checks (manual review recommended):"
-    log_info "  - Title fields: 100 chars max"
-    log_info "  - Short name: 60 chars max"
-    log_info "  - Primary objective, project summary: 1000 chars max"
-    log_info "  - Background, activities, R&D content, differentiation: 2000 chars max"
-    log_info "  - WP challenges, activity descriptions: 500 chars max"
-    log_info "Use official form's built-in character counters during copy/paste"
+    # Character limit validation
+    log_info "Validating character limits..."
+    
+    local file="$APPLICATION_PATH"
+    local char_errors=0
+    
+    # Extract and check title fields (100 chars max)
+    local title_en=$(grep -A 1 "Title (English):" "$file" | grep "^\*\*" | sed 's/\*\*//g' | sed 's/Title (English): //g' | head -n 1)
+    local title_no=$(grep -A 1 "Title (Norwegian):" "$file" | grep "^\*\*" | sed 's/\*\*//g' | sed 's/Title (Norwegian): //g' | head -n 1)
+    
+    if [[ ${#title_en} -gt 100 ]]; then
+        log_error "English title exceeds 100 characters (${#title_en} chars): \"${title_en:0:50}...\""
+        ((char_errors++))
+    fi
+    
+    if [[ ${#title_no} -gt 100 ]]; then
+        log_error "Norwegian title exceeds 100 characters (${#title_no} chars): \"${title_no:0:50}...\""
+        ((char_errors++))
+    fi
+    
+    # Extract and check short name (60 chars max)
+    local short_name=$(grep -A 1 "Short Name:" "$file" | grep "^\*\*" | sed 's/\*\*//g' | sed 's/Short Name: //g' | head -n 1)
+    
+    if [[ ${#short_name} -gt 60 ]]; then
+        log_error "Short name exceeds 60 characters (${#short_name} chars): \"$short_name\""
+        ((char_errors++))
+    fi
+    
+    # Check WP activity descriptions (500 chars max)
+    # Activity descriptions are in format: *[Max 500 characters: XXX/500]*
+    # Detect: 501-999 (50[1-9], 5[1-9][0-9], [6-9][0-9][0-9]) OR 1000+ ([0-9]{4,})
+    local activity_violations=$(grep -n "\[Max 500 characters: \(50[1-9]\|5[1-9][0-9]\|[6-9][0-9][0-9]\|[0-9]\{4,\}\)" "$file" | wc -l | tr -d ' ')
+    
+    if [[ $activity_violations -gt 0 ]]; then
+        log_error "Found $activity_violations activity descriptions exceeding 500 characters"
+        # Show first 3 violations as examples
+        grep -n "\[Max 500 characters: \(50[1-9]\|5[1-9][0-9]\|[6-9][0-9][0-9]\|[0-9]\{4,\}\)" "$file" | head -n 3 | while IFS=: read -r line_num text; do
+            local char_count=$(echo "$text" | grep -o "\(50[1-9]\|5[1-9][0-9]\|[6-9][0-9][0-9]\|[0-9]\{4,\}\)/500" | cut -d'/' -f1)
+            log_error "  Line $line_num: $char_count/500 characters (exceeds limit by $((char_count - 500)))"
+        done
+        if [[ $activity_violations -gt 3 ]]; then
+            log_error "  ... and $((activity_violations - 3)) more violations"
+        fi
+        ((char_errors += activity_violations))
+    fi
+    
+    # Check 1000-char fields (Primary Objective)
+    # Detect: 1001-9999 (100[1-9], 10[1-9][0-9], 1[1-9][0-9][0-9], [2-9][0-9]{3}) OR 10000+ ([0-9]{5,})
+    local obj_violations=$(grep -n "\[Max 1000 characters: \(100[1-9]\|10[1-9][0-9]\|1[1-9][0-9][0-9]\|[2-9][0-9]\{3\}\|[0-9]\{5,\}\)" "$file" | wc -l | tr -d ' ')
+    
+    if [[ $obj_violations -gt 0 ]]; then
+        log_error "Found $obj_violations fields exceeding 1000 characters"
+        grep -n "\[Max 1000 characters: \(100[1-9]\|10[1-9][0-9]\|1[1-9][0-9][0-9]\|[2-9][0-9]\{3\}\|[0-9]\{5,\}\)" "$file" | while IFS=: read -r line_num text; do
+            local char_count=$(echo "$text" | grep -o "\(100[1-9]\|10[1-9][0-9]\|1[1-9][0-9][0-9]\|[2-9][0-9]\{3\}\|[0-9]\{5,\}\)/1000" | cut -d'/' -f1)
+            log_error "  Line $line_num: $char_count/1000 characters (exceeds limit by $((char_count - 1000)))"
+        done
+        ((char_errors += obj_violations))
+    fi
+    
+    # Check 2000-char fields (Background, Market Differentiation, R&D Content)
+    # Detect: 2001-9999 (200[1-9], 20[1-9][0-9], 2[1-9][0-9][0-9], [3-9][0-9]{3}) OR 10000+ ([0-9]{5,})
+    local long_violations=$(grep -n "\[Max 2000 characters: \(200[1-9]\|20[1-9][0-9]\|2[1-9][0-9][0-9]\|[3-9][0-9]\{3\}\|[0-9]\{5,\}\)" "$file" | wc -l | tr -d ' ')
+    
+    if [[ $long_violations -gt 0 ]]; then
+        log_error "Found $long_violations fields exceeding 2000 characters"
+        grep -n "\[Max 2000 characters: \(200[1-9]\|20[1-9][0-9]\|2[1-9][0-9][0-9]\|[3-9][0-9]\{3\}\|[0-9]\{5,\}\)" "$file" | while IFS=: read -r line_num text; do
+            local char_count=$(echo "$text" | grep -o "\(200[1-9]\|20[1-9][0-9]\|2[1-9][0-9][0-9]\|[3-9][0-9]\{3\}\|[0-9]\{5,\}\)/2000" | cut -d'/' -f1)
+            log_error "  Line $line_num: $char_count/2000 characters (exceeds limit by $((char_count - 2000)))"
+        done
+        ((char_errors += long_violations))
+    fi
+    
+    if [[ $char_errors -eq 0 ]]; then
+        log_success "All character limits validated (titles ≤100, short name ≤60, activities ≤500, objectives ≤1000, long fields ≤2000)"
+    else
+        log_error "Total character limit violations: $char_errors"
+        log_info "Fix with: bash docs/EPF/outputs/skattefunn-application/trim-violations.sh \"$file\""
+        ((SEMANTIC_ERRORS += char_errors))
+    fi
 }
 
 # ============================================================================
