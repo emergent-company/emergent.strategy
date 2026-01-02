@@ -2,7 +2,25 @@
 
 > **Purpose**: This directory contains wizards, schemas, and validation scripts for **external artifacts** that EPF helps generate but are not core EPF framework files. These are outputs derived FROM EPF data, not EPF methodology artifacts themselves.
 
-## 🚀 Quick Start
+## � Framework vs Instance Outputs
+
+**This directory (`docs/EPF/outputs/`)** contains:
+- **Output generator definitions** (wizards, schemas, validators)
+- **Templates and documentation** for each output type
+- **Framework-level tools** that can be used across all EPF instances
+
+**Generated outputs location** (`docs/EPF/_instances/{product}/outputs/`):
+- **Actual generated artifacts** for specific products
+- **Instance-specific outputs** (e.g., Emergent's context sheet, investor memo)
+- **Product deliverables** created by running the generators in this directory
+
+> 💡 **Think of it this way**: This directory is the "factory" (tools/blueprints), and `_instances/{product}/outputs/` is the "warehouse" (finished products).
+
+**See also**: [`docs/EPF/_instances/emergent/outputs/README.md`](../_instances/emergent/outputs/README.md) for the generated artifacts directory.
+
+---
+
+## �🚀 Quick Start
 
 **New to EPF outputs?** Start here: [`QUICK_START.md`](./QUICK_START.md) (5-minute guide)
 
