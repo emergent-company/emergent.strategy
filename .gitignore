@@ -69,3 +69,6 @@ apps/pids/
 storybook-static
 logs
 apps/server-nest/migrations/_archive_*/
+
+# Duplicate detection reports
+/reports/jscpd/
