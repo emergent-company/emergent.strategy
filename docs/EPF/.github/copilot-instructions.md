@@ -328,7 +328,7 @@ See `MAINTENANCE.md` for complete instructions on:
 
 ## 🚨 AI Self-Learning: Common Mistakes & Prevention
 
-### Mistake #1: Polluting Canonical Directories with Working Documents
+### Mistake 1: Polluting Canonical Directories with Working Documents
 
 **What I did wrong (2025-12-31):**
 - Created `TRL_UNIVERSAL_IMPLEMENTATION_SUMMARY.md` in `docs/EPF/schemas/`
@@ -385,7 +385,7 @@ mv docs/EPF/schemas/SUMMARY_FILE.md docs/EPF/.epf-work/{session-name}/
 
 ---
 
-### Mistake #2: Creating Multiple .epf-work Directories at Different Levels
+### Mistake 2: Creating Multiple .epf-work Directories at Different Levels
 
 **What I did wrong (2025-12-31):**
 - Created `.epf-work/` at repository root (`/emergent/.epf-work`)
