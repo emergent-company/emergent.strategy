@@ -32,6 +32,7 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 | React hook      | `apps/admin/src/hooks/AGENT.md`      | 33+ hooks including `useApi` (REQUIRED for API calls) |
 | API endpoint    | `apps/server/src/modules/AGENT.md`   | NestJS patterns, Guards, DTOs, RLS                    |
 | Database entity | `apps/server/src/entities/AGENT.md`  | TypeORM patterns, schemas (kb/core), relations        |
+| Backend tests   | `apps/server/tests/AGENT.md`         | Test patterns, FakeGraphDb, E2E context, auth helpers |
 
 **Common mistakes to avoid:**
 
