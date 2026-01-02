@@ -99,7 +99,9 @@
     "reset-embedding-jobs:execute": "tsx scripts/reset-embedding-jobs.ts --execute",
     "backfill-chunk-embeddings": "tsx scripts/backfill-chunk-embeddings.ts",
     "backfill-chunk-embeddings:execute": "tsx scripts/backfill-chunk-embeddings.ts --execute",
-    "verify-env": "node scripts/verify-env.mjs"
+    "verify-env": "node scripts/verify-env.mjs",
+    "lint:duplicates": "jscpd apps/ --config .jscpd.json",
+    "lint:duplicates:full": "jscpd apps/ --min-lines 10 --min-tokens 50 --reporters console,json --output ./reports/jscpd --ignore '**/node_modules/**'"
   },
   "dependencies": {
     "@ai-sdk/langchain": "^1.0.104",

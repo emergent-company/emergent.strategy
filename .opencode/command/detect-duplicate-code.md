@@ -13,6 +13,65 @@ Identify code duplication across the monorepo to:
 
 ## Analysis Scope
 
+## Automated Detection with jscpd
+
+### Quick Start
+
+```bash
+# Run duplicate detection (uses .jscpd.json config)
+npm run lint:duplicates
+
+# Full analysis including tests and stories
+npm run lint:duplicates:full
+
+# Generate HTML report for detailed review
+npx jscpd apps/ --reporters console,json,html --output ./reports/jscpd
+```
+
+### Configuration
+
+The project uses `.jscpd.json` for configuration:
+
+| Setting     | Value             | Description                          |
+| ----------- | ----------------- | ------------------------------------ |
+| `threshold` | 7%                | CI fails if duplication exceeds this |
+| `minLines`  | 10                | Minimum lines to consider a clone    |
+| `minTokens` | 50                | Minimum tokens to consider a clone   |
+| `output`    | `./reports/jscpd` | Report output directory              |
+
+### Interpreting Results
+
+```
+Clones found: 558
+Duplicated lines: 15,440 (6.51%)
+```
+
+**Severity Guidelines**:
+
+- 🔴 **≥50 lines**: High priority - should be refactored
+- 🟠 **20-49 lines**: Medium priority - review for patterns
+- ⚪ **<20 lines**: Low priority - often acceptable
+
+### Ignoring False Positives
+
+Add patterns to `.jscpd.json` `ignore` array:
+
+```json
+{
+  "ignore": ["**/migrations/**", "**/some-intentional-duplicate/**"]
+}
+```
+
+Or use inline comments (limited support):
+
+```typescript
+/* jscpd:ignore-start */
+// Intentionally duplicated code
+/* jscpd:ignore-end */
+```
+
+---
+
 ### Frontend (Admin App)
 
 | Directory                    | What to Check                                   |
