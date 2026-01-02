@@ -159,6 +159,53 @@ roadmap:
               experiment_design: "Implement Temporal workflow definitions for READY phase: artifact validation, approval routing, state transitions. Test restart scenarios: stop Temporal worker mid-workflow, restart, measure time to resume. Test state persistence: verify workflow history survives restart, check no data loss. Implement error handling: transient failures (retry), permanent failures (compensating actions). Measure recovery metrics: time from restart to workflow resumption, state consistency checks, error recovery success rate. Compare vs in-memory orchestration baseline."
               success_criteria: "Workflow completes full READY phase (validation → approval → state transition). Workflow survives service restart without data loss. Workflow resumes execution within 30s of restart. State history 100% accurate (no missing steps). Error handling works for transient failures (auto-retry succeeds) and permanent failures (compensating action triggered). Zero workflow corruption cases (invalid state transitions)."
               uncertainty_addressed: "Whether Temporal learning curve is acceptable for team (new paradigm vs traditional API orchestration). Unknowns: optimal activity granularity (fine-grained vs coarse), how to handle long-running approvals (hours to days), state serialization size limits for complex workflows, error categorization strategy (which errors are transient vs permanent), local development complexity (Temporal server setup)."
+        
+        - id: "okr-p-004"
+          objective: "Extend knowledge graph with multi-modal and temporal capabilities"
+          key_results:
+            - id: "kr-p-010"
+              description: "Multi-modal knowledge graph supports image/diagram embeddings"
+              target: "Knowledge graph stores images with visual embeddings, enabling 'find similar diagrams' queries"
+              measurement_method: "Visual similarity search returns relevant architecture diagrams with ≥75% precision"
+              baseline: "Current: Text-only embeddings, no image support"
+              
+              trl_start: 2
+              trl_target: 4
+              trl_progression: "TRL 2 → TRL 4 (Applied research → Component validated in laboratory)"
+              technical_hypothesis: "Image embeddings (CLIP or similar vision-language model) can enhance knowledge graph context for AI agents by enabling visual similarity search on architecture diagrams, UI mockups, and flowcharts that text extraction misses"
+              experiment_design: "Extend graph schema to support image nodes with visual embeddings. Implement image ingestion: extract images from PDFs, generate CLIP embeddings. Build test dataset of 100+ architecture diagrams with known similarity relationships. Implement visual search endpoint: 'Find diagrams similar to X'. Measure precision/recall against labeled similarity data. Test cross-modal queries: 'Find diagrams related to Feature Y' (text→image search). Compare visual embeddings vs OCR text embeddings for diagram retrieval."
+              success_criteria: "Image nodes stored in graph with visual embeddings. Visual similarity search returns relevant diagrams with ≥75% precision@5. Cross-modal search (text query → image results) works with ≥70% precision. Query latency <400ms p95. Storage overhead <5MB per image (embedding + metadata only, not raw image)."
+              uncertainty_addressed: "Whether visual embeddings provide meaningful retrieval for technical diagrams (architecture, flowcharts) vs natural images. Unknowns: optimal embedding model (CLIP vs specialized tech diagram models), how to handle diagram text (OCR + visual embedding vs visual only), whether cross-modal search (text→image) works for technical queries, storage/compute overhead at scale (1000+ images)."
+            - id: "kr-p-011"
+              description: "Temporal knowledge graph enables version control and time-travel queries"
+              target: "Knowledge graph tracks entity/relationship changes over time, supporting 'what changed?' queries"
+              measurement_method: "Can query 'Show Feature X as it existed on date Y' and get accurate historical state"
+              baseline: "Current: No version tracking, only current state"
+              
+              trl_start: 3
+              trl_target: 5
+              trl_progression: "TRL 3 → TRL 5 (Proof of concept → Component validated in relevant environment)"
+              technical_hypothesis: "Bitemporal tracking (transaction time + valid time) for knowledge graph entities and relationships enables time-travel queries that AI agents can use to understand 'why did this change?' without significant storage overhead (<2x current size)"
+              experiment_design: "Implement temporal schema: add valid_from/valid_to timestamps to entities and relationships. Create temporal query API: 'Get entity state at timestamp T', 'Show changes between T1 and T2', 'Why did relationship R change?'. Test with 1000+ entities evolving over 6 months (simulate realistic change rate). Measure storage overhead vs non-temporal baseline. Test query latency for temporal vs current-state queries. Build test cases: feature evolution (added/removed dependencies), decision tracking (why was architecture changed?), temporal graph traversal (relationships valid at time T)."
+              success_criteria: "Temporal schema deployed with valid_from/valid_to tracking. Time-travel queries return accurate historical state with 100% correctness. Storage overhead ≤2x non-temporal baseline. Temporal query latency <500ms p95 (acceptable for AI agent context retrieval). Can reconstruct complete graph state at any historical timestamp. Change tracking queries show full audit trail (who, what, when, why)."
+              uncertainty_addressed: "Whether bitemporal tracking provides sufficient value to justify storage/complexity overhead. Unknowns: optimal granularity for change tracking (every field change vs significant updates only), how to handle relationship changes (entity A→B changed to A→C), query patterns that agents will actually use (full state reconstruction vs delta queries), performance impact of temporal indexes, how to visualize temporal evolution in UI."
+        
+        - id: "okr-p-005"
+          objective: "Establish EPF framework quality and evolution infrastructure"
+          key_results:
+            - id: "kr-p-012"
+              description: "EPF schema evolution system with backward-compatible migrations"
+              target: "Schema versioning and migration tooling enables framework updates without breaking existing artifacts"
+              measurement_method: "Can migrate 10+ real artifacts from v1 to v2 schema with 100% success rate"
+              baseline: "Current: No versioning system, manual schema updates"
+              
+              trl_start: 2
+              trl_target: 4
+              trl_progression: "TRL 2 → TRL 4 (Applied research → Component validated in laboratory)"
+              technical_hypothesis: "Semantic versioning for EPF schemas with automated migration scripts can enable framework evolution while maintaining backward compatibility, reducing adoption friction by eliminating 'version lock-in' fear"
+              experiment_design: "Design schema versioning system: version field in each artifact, schema registry with compatibility rules. Create migration framework: detect schema version, apply transformation pipeline, validate output against target schema. Test with real breaking changes: add required field (with default), rename field (with mapping), restructure nested object. Build test corpus: 10 real EPF artifacts (North Stars, Roadmaps). Measure migration success rate, identify failure modes. Test bidirectional migration (v2→v1 for rollback scenarios). Document migration strategy patterns (additive, transformative, breaking)."
+              success_criteria: "Schema versioning system deployed across all EPF artifact types. Migration tooling can upgrade 10+ real artifacts from v1→v2 with 100% success (no data loss). Backward compatibility maintained: v2 system can read v1 artifacts. Migration validates output against target schema (100% pass rate). Clear upgrade path documented for users. Migration framework is extensible (can add new transformation rules)."
+              uncertainty_addressed: "Whether automated schema migration is feasible for complex strategic artifacts (vs simple data structures). Unknowns: how to handle semantic changes that require human judgment (e.g., 'desirability' assumption renamed to 'demand' - are they equivalent?), whether bidirectional migration is necessary (can users roll back?), optimal migration granularity (per-field vs whole artifact), how to communicate breaking changes to users (changelog, deprecation warnings)."
       
       riskiest_assumptions:
         - id: "asm-p-001"
@@ -203,6 +250,27 @@ roadmap:
           confidence: "high"
           evidence_required: "Workflows successfully resume within 30s after infrastructure restart"
           linked_to_kr: ["kr-p-009"]
+        - id: "asm-p-007"
+          description: "Visual embeddings for technical diagrams provide meaningful retrieval for AI agents"
+          type: "feasibility"
+          criticality: "medium"
+          confidence: "medium"
+          evidence_required: "Visual similarity search returns relevant architecture diagrams with ≥75% precision"
+          linked_to_kr: ["kr-p-010"]
+        - id: "asm-p-008"
+          description: "Temporal graph tracking provides sufficient value to justify storage/complexity overhead"
+          type: "viability"
+          criticality: "medium"
+          confidence: "medium"
+          evidence_required: "AI agents actively use time-travel queries in ≥20% of context retrieval operations"
+          linked_to_kr: ["kr-p-011"]
+        - id: "asm-p-009"
+          description: "Automated schema migration can handle semantic changes in strategic artifacts"
+          type: "feasibility"
+          criticality: "low"
+          confidence: "medium"
+          evidence_required: "Migration tooling successfully upgrades 10+ real artifacts with 100% accuracy"
+          linked_to_kr: ["kr-p-012"]
       
       solution_scaffold:
         description: "Emergent Core architecture: Knowledge Engine + AI Integration Layer"
@@ -481,14 +549,16 @@ roadmap:
   # Execution Plan (KR-level view)
   execution_plan:
     sequencing_rationale: |
-      Phase 1 (Jan): Foundation - Complete EPF artifacts, basic MCP server, landing page
-      Phase 2 (Feb): Integration - MCP integration, internal dogfooding, partner outreach
-      Phase 3 (Mar): Validation - Design partner onboarding, feedback loops, pricing tests
+      Phase 1 (Q1 2025 Jan-Mar): Foundation - Complete EPF artifacts, basic MCP server, landing page, internal dogfooding
+      Phase 2 (Q2 2025 Apr-Jun): Enhancement - Multi-modal knowledge graph, temporal tracking, schema evolution
+      Phase 3 (Q3-Q4 2025): Validation - Design partner onboarding, feedback loops, pricing tests, Runtime MVP completion
     
     critical_path: 
       - "product:kr-p-003"   # MCP server is foundation for everything
       - "strategy:kr-s-001"  # Positioning enables outreach
       - "commercial:kr-c-001" # Partners validate product-market fit
+      - "product:kr-p-010"   # Multi-modal enhances AI context quality
+      - "product:kr-p-011"   # Temporal tracking enables evolution understanding
     
     parallel_tracks:
       - name: "Foundation Sprint (January)"
@@ -518,6 +588,27 @@ roadmap:
           - "org_ops:kr-o-003"    # Knowledge sync automated
         timeframe: "Mar 1-31, 2025"
         depends_on: ["product:kr-p-003", "strategy:kr-s-001"]
+      
+      - name: "Multi-Modal Enhancement Sprint (Q2 2025)"
+        key_results:
+          - "product:kr-p-010"  # Multi-modal knowledge graph (images/diagrams)
+        timeframe: "Apr-Jun 2025"
+        depends_on: ["product:kr-p-001", "product:kr-p-003"]
+        rationale: "Extends knowledge graph with visual embeddings after core text-based system validated"
+      
+      - name: "Temporal Tracking Sprint (Q2-Q3 2025)"
+        key_results:
+          - "product:kr-p-011"  # Temporal knowledge graph (version control)
+        timeframe: "May-Aug 2025"
+        depends_on: ["product:kr-p-001"]
+        rationale: "Adds time-travel query capability to production-validated knowledge graph"
+      
+      - name: "Schema Evolution Sprint (Q1 2026)"
+        key_results:
+          - "product:kr-p-012"  # EPF schema evolution & migration
+        timeframe: "Jan-Mar 2026"
+        depends_on: ["product:kr-p-004", "product:kr-p-005"]
+        rationale: "Enables EPF framework to evolve after initial adoption demonstrates need for changes"
     
     key_milestones:
       - date: "2025-01-31"
@@ -544,10 +635,25 @@ roadmap:
         milestone: "Q1 Cycle Complete"
         description: "Product-market fit signals from design partners; pricing validated"
         key_results: ["commercial:kr-c-002", "commercial:kr-c-003", "strategy:kr-s-002", "strategy:kr-s-003"]
+      
+      - date: "2025-06-30"
+        milestone: "Multi-Modal Knowledge Graph Live"
+        description: "Knowledge graph supports images/diagrams with visual embeddings; AI agents can search architecture diagrams"
+        key_results: ["product:kr-p-010"]
+      
+      - date: "2025-08-31"
+        milestone: "Temporal Tracking Operational"
+        description: "Time-travel queries enable 'what changed and why' analysis; full audit trail of knowledge evolution"
+        key_results: ["product:kr-p-011"]
+      
+      - date: "2026-03-31"
+        milestone: "EPF Framework Evolution Infrastructure"
+        description: "Schema versioning and migration enable framework updates without breaking existing users"
+        key_results: ["product:kr-p-012"]
   
   # Review & Approval
   status: "approved"
   approved_by: "Nikolai Fasting"
-  approval_date: "2025-12-11"
+  approval_date: "2026-01-01"
   start_date: "2025-01-01"
-  target_completion_date: "2025-03-31"
+  target_completion_date: "2026-03-31"
