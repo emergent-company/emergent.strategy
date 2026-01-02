@@ -9,12 +9,30 @@ applyTo: '**'
 
 Before implementing new features, **always check** these domain-specific AGENT.md files to understand existing patterns and avoid recreating functionality:
 
-| File                                 | Domain              | Key Topics                                                                          |
-| ------------------------------------ | ------------------- | ----------------------------------------------------------------------------------- |
-| `apps/admin/src/components/AGENT.md` | Frontend Components | Atomic design (atoms/molecules/organisms), DaisyUI + Tailwind, available components |
-| `apps/admin/src/hooks/AGENT.md`      | Frontend Hooks      | `useApi` (MUST use for all API calls), all 33+ hooks categorized                    |
-| `apps/server/src/modules/AGENT.md`   | Backend NestJS      | Module/Controller/Service/Repository pattern, Guards, DTOs, RLS                     |
-| `apps/server/src/entities/AGENT.md`  | TypeORM Entities    | Schema usage (kb/core), column types, relations, indexes                            |
+### Frontend
+
+| File                                                     | Domain              | Key Topics                                                                          |
+| -------------------------------------------------------- | ------------------- | ----------------------------------------------------------------------------------- |
+| `apps/admin/src/components/AGENT.md`                     | Frontend Components | Atomic design (atoms/molecules/organisms), DaisyUI + Tailwind, available components |
+| `apps/admin/src/components/organisms/DataTable/AGENT.md` | DataTable Patterns  | Table configuration, columns, sorting, filtering, pagination                        |
+| `apps/admin/src/contexts/AGENT.md`                       | React Contexts      | Auth, Theme, Toast, Modal contexts and provider patterns                            |
+| `apps/admin/src/hooks/AGENT.md`                          | Frontend Hooks      | `useApi` (MUST use for all API calls), all 33+ hooks categorized                    |
+| `apps/admin/src/pages/AGENT.md`                          | Page Patterns       | Route structure, page layouts, data loading patterns                                |
+
+### Backend
+
+| File                                     | Domain            | Key Topics                                                      |
+| ---------------------------------------- | ----------------- | --------------------------------------------------------------- |
+| `apps/server/src/common/AGENT.md`        | Backend Utilities | Decorators, guards, interceptors, pipes, filters                |
+| `apps/server/src/entities/AGENT.md`      | TypeORM Entities  | Schema usage (kb/core), column types, relations, indexes        |
+| `apps/server/src/modules/AGENT.md`       | Backend NestJS    | Module/Controller/Service/Repository pattern, Guards, DTOs, RLS |
+| `apps/server/src/modules/graph/AGENT.md` | Graph Module      | Graph service, relationships, traversal, search patterns        |
+| `apps/server/tests/AGENT.md`             | Testing Patterns  | FakeGraphDb, E2E context, auth helpers, test utilities          |
+
+### Maintenance
+
+- **Update command**: Use `/update-agent-docs` to review and update all AGENT.md files
+- **Changelog**: See `docs/AGENT_DOCS_CHANGELOG.md` for update history
 
 ## Environment URLs
 
