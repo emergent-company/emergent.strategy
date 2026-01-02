@@ -23,7 +23,10 @@
 #   2 - File not found
 #   3 - Warnings only (strict mode off)
 
-set -e
+# NOTE: We do NOT use 'set -e' because a validation script should collect
+# ALL errors across all layers, not exit on the first problem.
+# Each validation layer explicitly increments error counters and the final
+# exit code is determined by the total error count in main().
 
 # ============================================================================
 # Configuration
@@ -133,14 +136,17 @@ validate_schema() {
     
     local file="$APPLICATION_PATH"
     
-    # Check required sections (6 main sections)
+    # Check required sections (8 main sections + EPF Traceability)
     local required_sections=(
-        "## 1. Project Owner"
-        "## 2. Roles in the Project"
-        "## 3. Project Details"
-        "## 4. Timeline and Work Packages"
-        "## 5. Budget and Tax Deduction"
-        "## 6. EPF Traceability"
+        "## Section 1: Project Owner and Roles"
+        "## Section 2: About the Project"
+        "## Section 3: Background and Company Activities"
+        "## Section 4: Primary Objective and Innovation"
+        "## Section 5: R&D Content"
+        "## Section 6: Project Summary"
+        "## Section 7: Work Packages"
+        "## Section 8: Total Budget and Tax Deduction"
+        "## EPF Traceability"
     )
     
     for section in "${required_sections[@]}"; do
@@ -176,13 +182,8 @@ validate_schema() {
         log_success "Found Project Period"
     fi
     
-    # Check for total budget
-    if ! grep -q "Total Budget:" "$file"; then
-        log_error "Missing Total Budget field"
-        ((SCHEMA_ERRORS++))
-    else
-        log_success "Found Total Budget"
-    fi
+    # Note: Total budget is extracted and validated in Layer 3 from Section 8.1
+    # No separate metadata field "Total Budget:" is required
     
     # Check for organization number format (9 digits)
     if ! grep -q "Org. No.: [0-9]\{3\} [0-9]\{3\} [0-9]\{3\}" "$file"; then
@@ -191,12 +192,28 @@ validate_schema() {
         log_success "Organization number format valid"
     fi
     
-    # Check for Frascati criteria section
-    if ! grep -q "Frascati Criteria" "$file"; then
-        log_error "Missing Frascati Criteria Compliance section"
+    # Check for Work Package subsections (at least 1 required)
+    local wp_count=$(grep -c "^### Work Package [0-9]:" "$file" || echo 0)
+    if [[ $wp_count -lt 1 ]]; then
+        log_error "No work packages found (minimum 1 required)"
         ((SCHEMA_ERRORS++))
     else
-        log_success "Found Frascati Criteria section"
+        log_success "Found $wp_count work packages"
+    fi
+    
+    # Check for Section 8 budget summary tables
+    if ! grep -q "### 8.1 Budget Summary by Year and Cost Code" "$file"; then
+        log_error "Missing Section 8.1 (Budget Summary by Year and Cost Code)"
+        ((SCHEMA_ERRORS++))
+    else
+        log_success "Found Section 8.1 budget summary"
+    fi
+    
+    if ! grep -q "### 8.2 Budget Allocation by Work Package" "$file"; then
+        log_error "Missing Section 8.2 (Budget Allocation by Work Package)"
+        ((SCHEMA_ERRORS++))
+    else
+        log_success "Found Section 8.2 WP budget allocation"
     fi
 }
 
@@ -212,11 +229,11 @@ validate_semantic() {
     # Check for placeholder text
     local placeholders=(
         "XXX"
-        "[Not entered]"
-        "[TODO"
+        "\\[Not entered\\]"
+        "\\[TODO"
         "PLACEHOLDER"
-        "[TBD"
-        "[FILL"
+        "\\[TBD"
+        "\\[FILL"
     )
     
     local found_placeholders=false
@@ -236,36 +253,13 @@ validate_semantic() {
         log_success "No placeholder text found"
     fi
     
-    # Check for required R&D activity fields
-    local required_rd_fields=(
-        "Technical Hypothesis:"
-        "Experiment Design:"
-        "Success Criteria:"
-        "Uncertainty Addressed:"
-        "TRL Progression:"
-        "Duration:"
-        "Allocated Budget:"
-    )
-    
-    local missing_fields=false
-    for field in "${required_rd_fields[@]}"; do
-        if ! grep -q "\\*\\*${field}\\*\\*" "$file"; then
-            log_warning "R&D field '$field' may be missing (expected in activities)"
-            missing_fields=true
-        fi
-    done
-    
-    if ! $missing_fields; then
-        log_success "All required R&D activity fields present"
-    fi
-    
     # Check TRL ranges (should be TRL 2-7, no TRL 1 or TRL 8-9)
-    if grep -qi "TRL 1[^0-9]" "$file"; then
+    if grep -qiE "TRL[[:space:]]+1([[:space:]]|$)" "$file"; then
         log_error "Found TRL 1 (basic research - not eligible for SkatteFUNN)"
         ((SEMANTIC_ERRORS++))
     fi
     
-    if grep -qiE "TRL [89]" "$file"; then
+    if grep -qiE "TRL[[:space:]]+[89]([[:space:]]|$)" "$file"; then
         log_error "Found TRL 8 or TRL 9 (production/operations - not eligible for SkatteFUNN)"
         ((SEMANTIC_ERRORS++))
     fi
@@ -276,31 +270,8 @@ validate_semantic() {
         log_warning "No explicit TRL ranges found (should specify TRL 2-7)"
     fi
     
-    # Check for Frascati criteria markers
-    local frascati_criteria=(
-        "Novel"
-        "Creative"
-        "Uncertain"
-        "Systematic"
-        "Transferable"
-    )
-    
-    local frascati_count=0
-    for criterion in "${frascati_criteria[@]}"; do
-        if grep -q "✓.*${criterion}" "$file" || grep -q "${criterion}:" "$file"; then
-            ((frascati_count++))
-        fi
-    done
-    
-    if [[ $frascati_count -eq 5 ]]; then
-        log_success "All 5 Frascati criteria addressed (Novel, Creative, Uncertain, Systematic, Transferable)"
-    else
-        log_error "Missing Frascati criteria (found $frascati_count/5)"
-        ((SEMANTIC_ERRORS++))
-    fi
-    
     # Check for technical uncertainty language
-    if grep -qi "unpredictable\|uncertain\|cannot be determined analytically" "$file"; then
+    if grep -qi "unpredictable\|uncertain\|cannot be determined analytically\|systematic investigation\|technical uncertainty" "$file"; then
         log_success "Technical uncertainty language present"
     else
         log_warning "Missing technical uncertainty language (required for SkatteFUNN)"
@@ -312,6 +283,58 @@ validate_semantic() {
     else
         log_warning "Missing state-of-the-art comparison (recommended for strong application)"
     fi
+    
+    # Validate work package structure
+    local wp_count=$(grep -c "^### Work Package [0-9]:" "$file" || echo 0)
+    
+    if [[ $wp_count -gt 0 ]]; then
+        log_info "Checking work package structure for $wp_count packages..."
+        
+        for ((i=1; i<=wp_count; i++)); do
+            local wp_header="### Work Package $i:"
+            
+            # Check for required WP subsections (increased context window to 50 lines)
+            if ! grep -A 50 "$wp_header" "$file" | grep -q "^#### R&D Challenges"; then
+                log_error "Work Package $i missing 'R&D Challenges' section"
+                ((SEMANTIC_ERRORS++))
+            fi
+            
+            if ! grep -A 50 "$wp_header" "$file" | grep -q "^#### Method and Approach"; then
+                log_error "Work Package $i missing 'Method and Approach' section"
+                ((SEMANTIC_ERRORS++))
+            fi
+            
+            if ! grep -A 50 "$wp_header" "$file" | grep -q "^#### Activities"; then
+                log_error "Work Package $i missing 'Activities' section"
+                ((SEMANTIC_ERRORS++))
+            fi
+            
+            # Check activity count (2-8 required per WP) - activities are numbered lists under #### Activities
+            # Extract only the Activities section (between #### Activities and next ####) for this WP
+            # First get the WP section, then extract Activities subsection
+            local wp_section=$(sed -n "/^$wp_header/,/^### Work Package [0-9]/p" "$file")
+            local activity_count=$(echo "$wp_section" | sed -n "/^#### Activities/,/^####/p" | grep -c "^[0-9]\+\. \*\*" || echo 0)
+            
+            if [[ $activity_count -lt 2 ]]; then
+                log_error "Work Package $i has only $activity_count activities (minimum 2 required)"
+                ((SEMANTIC_ERRORS++))
+            elif [[ $activity_count -gt 8 ]]; then
+                log_error "Work Package $i has $activity_count activities (maximum 8 allowed)"
+                ((SEMANTIC_ERRORS++))
+            else
+                log_success "Work Package $i has $activity_count activities (valid range 2-8)"
+            fi
+        done
+    fi
+    
+    # Character limit validation (informational)
+    log_info "Character limit checks (manual review recommended):"
+    log_info "  - Title fields: 100 chars max"
+    log_info "  - Short name: 60 chars max"
+    log_info "  - Primary objective, project summary: 1000 chars max"
+    log_info "  - Background, activities, R&D content, differentiation: 2000 chars max"
+    log_info "  - WP challenges, activity descriptions: 500 chars max"
+    log_info "Use official form's built-in character counters during copy/paste"
 }
 
 # ============================================================================
@@ -323,27 +346,33 @@ validate_budget() {
     
     local file="$APPLICATION_PATH"
     
-    # Extract total budget
-    local total_budget=$(grep "Total Budget:" "$file" | head -1 | grep -oE "[0-9,]+" | tr -d ',' | head -1)
+    # Extract total budget from Section 8.1 (last bold value in Total row)
+    # Section 8.1 has format: | **Total** | **2,640,000** | **176,000** | **113,000** | **2,929,000** |
+    # We want the LAST value (5th column = total per year)
+    # Use sed to extract ONLY Section 8.1 (between ### 8.1 and ### 8.2) to avoid matching WP budget tables
+    local section_8_1=$(sed -n '/^### 8\.1/,/^### 8\.2/p' "$file")
+    local total_budget=$(echo "$section_8_1" | grep "| \*\*Total\*\*" | grep -oE "\*\*[0-9,]+\*\*" | tail -1 | grep -oE "[0-9,]+" | tr -d ',')
     
     if [[ -z "$total_budget" ]]; then
-        log_error "Could not extract total budget amount"
+        log_error "Could not extract total budget from Section 8.1"
         ((BUDGET_ERRORS++))
         return
     fi
     
     log_info "Total Budget: $total_budget NOK"
     
-    # Check yearly budgets don't exceed 25M NOK
-    local yearly_budgets=$(grep -A 10 "### 5.1 Total Budget Overview" "$file" | grep "| [0-9]\{4\}" | grep -oE "\| [0-9,]+ \|" | grep -oE "[0-9,]+" | tr -d ',')
+    # Check yearly budgets don't exceed 25M NOK (extract from Year Total column)
+    local yearly_budgets=$(grep -E "^\| [0-9]{4}" "$file" | grep -oE "\*\*[0-9,]+\*\*" | grep -oE "[0-9,]+" | tr -d ',')
     
     local max_year_budget=0
     local year_count=0
     while IFS= read -r year_budget; do
-        if [[ $year_budget -gt $max_year_budget ]]; then
-            max_year_budget=$year_budget
+        if [[ -n "$year_budget" ]] && [[ $year_budget -gt 0 ]]; then
+            if [[ $year_budget -gt $max_year_budget ]]; then
+                max_year_budget=$year_budget
+            fi
+            ((year_count++))
         fi
-        ((year_count++))
     done <<< "$yearly_budgets"
     
     if [[ $max_year_budget -gt $MAX_BUDGET_YEAR ]]; then
@@ -353,47 +382,69 @@ validate_budget() {
         log_success "All yearly budgets within limit (max: $max_year_budget NOK)"
     fi
     
-    # Check cost category percentages (70/20/10 typical for software R&D)
-    local personnel_pct=$(grep "Personnel" "$file" | grep -oE "[0-9]+%" | head -1 | tr -d '%')
-    local equipment_pct=$(grep "Equipment" "$file" | grep -oE "[0-9]+%" | head -1 | tr -d '%')
-    local overhead_pct=$(grep "Overhead" "$file" | grep -oE "[0-9]+%" | head -1 | tr -d '%')
+    # Check cost code totals from Section 8.1 (Total row has all bold values)
+    # Row format: | **Total** | **2,640,000** | **176,000** | **113,000** | **2,929,000** |
+    # Extract ONLY from Section 8.1 (between ### 8.1 and ### 8.2)
+    local project_total_row=$(echo "$section_8_1" | grep "| \*\*Total\*\*")
+    local cost_values=$(echo "$project_total_row" | grep -oE "\*\*[0-9,]+\*\*" | grep -oE "[0-9,]+" | tr -d ',')
     
-    if [[ -n "$personnel_pct" ]] && [[ -n "$equipment_pct" ]] && [[ -n "$overhead_pct" ]]; then
-        log_info "Cost categories: Personnel $personnel_pct%, Equipment $equipment_pct%, Overhead $overhead_pct%"
+    # Extract values by position: Personnel (1st), Equipment (2nd), Other Costs (3rd), Total (4th)
+    local personnel_total=$(echo "$cost_values" | sed -n '1p')
+    local equipment_total=$(echo "$cost_values" | sed -n '2p')
+    local other_costs_total=$(echo "$cost_values" | sed -n '3p')
+    local extracted_total=$(echo "$cost_values" | sed -n '4p')
+    
+    if [[ -n "$personnel_total" ]] && [[ -n "$equipment_total" ]] && [[ -n "$other_costs_total" ]]; then
+        log_info "Cost codes: Personnel $personnel_total NOK, Equipment $equipment_total NOK, Other $other_costs_total NOK"
         
-        # Check if percentages are within typical ranges
-        if [[ $personnel_pct -lt 65 ]] || [[ $personnel_pct -gt 75 ]]; then
-            log_warning "Personnel cost ($personnel_pct%) outside typical 65-75% range for software R&D"
+        # Calculate percentages
+        local personnel_pct=$((100 * personnel_total / total_budget))
+        local equipment_pct=$((100 * equipment_total / total_budget))
+        local other_pct=$((100 * other_costs_total / total_budget))
+        
+        log_info "Cost ratios: Personnel $personnel_pct%, Equipment $equipment_pct%, Other $other_pct%"
+        
+        # Check if percentages are within typical ranges for software R&D
+        if [[ $personnel_pct -lt 85 ]] || [[ $personnel_pct -gt 95 ]]; then
+            log_warning "Personnel cost ($personnel_pct%) outside typical 85-95% range for software R&D"
         else
-            log_success "Personnel cost within typical range (65-75%)"
+            log_success "Personnel cost within typical range (85-95%)"
         fi
         
-        if [[ $equipment_pct -lt 15 ]] || [[ $equipment_pct -gt 25 ]]; then
-            log_warning "Equipment cost ($equipment_pct%) outside typical 15-25% range for software R&D"
+        if [[ $equipment_pct -lt 3 ]] || [[ $equipment_pct -gt 10 ]]; then
+            log_warning "Equipment cost ($equipment_pct%) outside typical 3-10% range for software R&D"
         else
-            log_success "Equipment cost within typical range (15-25%)"
+            log_success "Equipment cost within typical range (3-10%)"
         fi
         
-        if [[ $overhead_pct -lt 10 ]] || [[ $overhead_pct -gt 15 ]]; then
-            log_warning "Overhead cost ($overhead_pct%) outside typical 10-15% range"
+        if [[ $other_pct -lt 2 ]] || [[ $other_pct -gt 8 ]]; then
+            log_warning "Other costs ($other_pct%) outside typical 2-8% range"
         else
-            log_success "Overhead cost within typical range (10-15%)"
+            log_success "Other costs within typical range (2-8%)"
         fi
         
-        # Check if percentages sum to 100%
-        local total_pct=$((personnel_pct + equipment_pct + overhead_pct))
-        if [[ $total_pct -ne 100 ]]; then
-            log_error "Cost category percentages don't sum to 100% (got $total_pct%)"
+        # Check if cost codes sum to total (within tolerance)
+        local cost_sum=$((personnel_total + equipment_total + other_costs_total))
+        
+        local cost_diff=$((total_budget - cost_sum))
+        if [[ $cost_diff -lt 0 ]]; then
+            cost_diff=$((-cost_diff))
+        fi
+        
+        if [[ $cost_diff -le $BUDGET_TOLERANCE ]]; then
+            log_success "Cost codes sum to total (diff: $cost_diff NOK, tolerance: $BUDGET_TOLERANCE NOK)"
+        else
+            log_error "Cost codes don't sum to total (diff: $cost_diff NOK > tolerance: $BUDGET_TOLERANCE NOK)"
             ((BUDGET_ERRORS++))
-        else
-            log_success "Cost category percentages sum to 100%"
         fi
     else
-        log_warning "Could not extract cost category percentages"
+        log_warning "Could not extract all cost code totals from Section 8.1"
     fi
     
-    # Check WP budgets sum to total (within tolerance)
-    local wp_budgets=$(grep -A 20 "### 5.2 Budget Allocation by Work Package" "$file" | grep "^| WP[0-9]" | grep -oE "[0-9,]+" | head -n 20 | grep -E "^[0-9,]{7,}$" | tr -d ',')
+    # Check WP budgets from Section 8.2
+    # Row format: | WP1: Production-Ready Knowledge Graph | Aug 2025 - Jul 2026 (12 months) | 1,830,000 | 56.3% |
+    # We want the 3rd column (Total Budget)
+    local wp_budgets=$(grep -E "^\| WP[0-9]:" "$file" | grep -oE "\| [0-9,]+ \|" | grep -oE "[0-9,]+" | tr -d ',')
     
     local wp_sum=0
     local wp_count=0
@@ -419,7 +470,175 @@ validate_budget() {
             ((BUDGET_ERRORS++))
         fi
     else
-        log_warning "Could not extract Work Package budgets for reconciliation"
+        log_warning "Could not extract Work Package budgets from Section 8.2 for reconciliation"
+    fi
+    
+    # Validate work package budget structure
+    local wp_section_count=$(grep -c "^### Work Package [0-9]:" "$file" 2>/dev/null || echo "0")
+    wp_section_count=$(echo "$wp_section_count" | head -1 | tr -d '\n')
+    
+    if [[ "$wp_section_count" -gt 0 ]]; then
+        log_info "Validating budget sections for $wp_section_count work packages..."
+        
+        for ((i=1; i<=wp_section_count; i++)); do
+            local wp_header="### Work Package $i:"
+            
+            # Check for Budget subsection (look ahead 70 lines to accommodate longer WP descriptions)
+            if grep -A 70 "$wp_header" "$file" | grep -q "^#### Budget"; then
+                # Check for cost code breakdown
+                local has_personnel=$(grep -A 10 "^#### Budget" "$file" | grep -c "Personnel:" 2>/dev/null || echo "0")
+                has_personnel=$(echo "$has_personnel" | head -1 | tr -d '\n')
+                local has_equipment=$(grep -A 10 "^#### Budget" "$file" | grep -c "Equipment:" 2>/dev/null || echo "0")
+                has_equipment=$(echo "$has_equipment" | head -1 | tr -d '\n')
+                local has_overhead=$(grep -A 10 "^#### Budget" "$file" | grep -c "Overhead:" 2>/dev/null || echo "0")
+                has_overhead=$(echo "$has_overhead" | head -1 | tr -d '\n')
+                
+                if [[ "$has_personnel" -gt 0 ]] && [[ "$has_equipment" -gt 0 ]] && [[ "$has_overhead" -gt 0 ]]; then
+                    log_success "Work Package $i has complete budget breakdown (Personnel/Equipment/Overhead)"
+                else
+                    log_warning "Work Package $i missing some cost code categories"
+                fi
+            else
+                log_error "Work Package $i missing Budget section"
+                ((BUDGET_ERRORS++))
+            fi
+        done
+    fi
+    
+    # ========================================================================
+    # Budget Temporal Consistency Validation (CRITICAL)
+    # ========================================================================
+    
+    log_info ""
+    log_info "Validating budget temporal consistency..."
+    log_info "(Checking that budget years match work package durations)"
+    log_info ""
+    
+    # For each work package, validate budget years are within WP duration
+    local temporal_errors=0
+    local temporal_warnings=0
+    
+    for ((i=1; i<=wp_section_count; i++)); do
+        local wp_header="### Work Package $i:"
+        
+        # Extract WP duration (escape ** for grep)
+        local wp_duration=$(grep -A 5 "$wp_header" "$file" | grep "^\*\*Duration:\*\*" | head -1)
+        
+        if [[ -z "$wp_duration" ]]; then
+            log_warning "Could not extract duration for Work Package $i"
+            continue
+        fi
+        
+        # Parse start and end years from duration
+        # Expected format: "**Duration:** August 2025 to July 2026 (12 months)"
+        local start_year=$(echo "$wp_duration" | grep -oE '20[0-9]{2}' | head -1)
+        local end_year=$(echo "$wp_duration" | grep -oE '20[0-9]{2}' | tail -1)
+        
+        if [[ -z "$start_year" ]] || [[ -z "$end_year" ]]; then
+            log_warning "Could not parse years from WP$i duration: $wp_duration"
+            continue
+        fi
+        
+        # Extract budget years from WP budget table
+        # Look for lines like "| 2025 | 534,100 | 152,600 | 76,300 | 763,000 |"
+        local budget_section=$(grep -A 200 "$wp_header" "$file" | sed -n '/^#### Budget/,/^####/p' | head -n 50)
+        local budget_years=$(echo "$budget_section" | grep -E "^\| [0-9]{4}" | grep -oE "^\| [0-9]{4}" | grep -oE "[0-9]{4}" || echo "")
+        
+        if [[ -z "$budget_years" ]]; then
+            log_warning "Could not extract budget years from WP$i budget table"
+            continue
+        fi
+        
+        # Validate each budget year is within [start_year, end_year]
+        local invalid_years=""
+        local budget_year_count=0
+        while IFS= read -r year; do
+            if [[ -n "$year" ]]; then
+                ((budget_year_count++))
+                if [[ $year -lt $start_year ]] || [[ $year -gt $end_year ]]; then
+                    if [[ -n "$invalid_years" ]]; then
+                        invalid_years="$invalid_years, $year"
+                    else
+                        invalid_years="$year"
+                    fi
+                fi
+            fi
+        done <<< "$budget_years"
+        
+        if [[ -n "$invalid_years" ]]; then
+            log_error "Work Package $i has budget entries in year(s) [$invalid_years] OUTSIDE its duration (years $start_year-$end_year)"
+            log_error "  Duration: $wp_duration"
+            log_error "  Valid budget years: $start_year through $end_year"
+            log_error "  Found budget years: $(echo "$budget_years" | tr '\n' ', ' | sed 's/,$//')"
+            log_error "  FIX REQUIRED: Remove budget entries for year(s) $invalid_years"
+            log_error "  Budget must be reallocated proportionally to valid years ($start_year-$end_year)"
+            ((temporal_errors++))
+            ((BUDGET_ERRORS++))
+        else
+            log_success "Work Package $i budget years ($budget_year_count years) within duration ($start_year-$end_year)"
+        fi
+        
+        # Validate proportional allocation (warning only)
+        # Check if budget split roughly matches month distribution
+        if [[ $budget_year_count -eq 2 ]] && [[ $start_year -ne $end_year ]]; then
+            # Extract month names from duration
+            local start_month=$(echo "$wp_duration" | grep -oE '(January|February|March|April|May|June|July|August|September|October|November|December)' | head -1)
+            local end_month=$(echo "$wp_duration" | grep -oE '(January|February|March|April|May|June|July|August|September|October|November|December)' | tail -1)
+            
+            # Calculate expected month distribution (simplified)
+            # If start in Aug and end in Jul: 5 months in first year, 7 in second
+            # If start in Aug and end in Jan: 5 months in first year, 1 in second
+            
+            if [[ -n "$start_month" ]] && [[ -n "$end_month" ]]; then
+                # Extract budget amounts for each year
+                local year1_budget=$(echo "$budget_section" | grep "^| $start_year" | grep -oE "\| [0-9,]+ \|" | tail -1 | grep -oE "[0-9,]+" | tr -d ',')
+                local year2_budget=$(echo "$budget_section" | grep "^| $end_year" | grep -oE "\| [0-9,]+ \|" | tail -1 | grep -oE "[0-9,]+" | tr -d ',')
+                
+                if [[ -n "$year1_budget" ]] && [[ -n "$year2_budget" ]] && [[ $year1_budget -gt 0 ]] && [[ $year2_budget -gt 0 ]]; then
+                    # Calculate ratio
+                    local ratio=$((year1_budget * 100 / year2_budget))
+                    
+                    # Warn if too close to 50/50 (even split) when months are unequal
+                    if [[ $ratio -ge 90 ]] && [[ $ratio -le 110 ]]; then
+                        log_warning "Work Package $i has nearly even budget split ($year1_budget vs $year2_budget NOK)"
+                        log_warning "  Consider: Is budget proportional to active months in each year?"
+                        log_warning "  Example: 5 months in $start_year, 1 month in $end_year → 5:1 ratio expected"
+                        ((temporal_warnings++))
+                    else
+                        log_info "Work Package $i budget ratio: $year1_budget:$year2_budget NOK (appears proportional)"
+                    fi
+                fi
+            fi
+        fi
+    done
+    
+    # Temporal validation summary
+    if [[ $temporal_errors -gt 0 ]]; then
+        log_error ""
+        log_error "BUDGET TEMPORAL CONSISTENCY ERRORS: $temporal_errors"
+        log_error "Budget years MUST fall within work package duration boundaries"
+        log_error "Example fix for WP ending July 2026 with 2027 budget:"
+        log_error "  1. Remove 2027 budget row from WP budget table"
+        log_error "  2. Redistribute 2027 amount proportionally to 2025/2026"
+        log_error "  3. If WP has 12 months (5 in 2025, 7 in 2026):"
+        log_error "     - 2025: total × (5/12)"
+        log_error "     - 2026: total × (7/12)"
+        log_error "  4. Update Section 8.1 and 8.3 yearly totals to match"
+        log_error ""
+    fi
+    
+    if [[ $temporal_warnings -gt 0 ]]; then
+        log_warning ""
+        log_warning "Budget proportionality warnings: $temporal_warnings"
+        log_warning "Review recommended: Ensure budgets proportional to active months"
+        log_warning ""
+    fi
+    
+    if [[ $temporal_errors -eq 0 ]] && [[ $temporal_warnings -eq 0 ]]; then
+        log_success ""
+        log_success "Budget temporal consistency: PASSED"
+        log_success "All work package budgets within duration boundaries"
+        log_success ""
     fi
 }
 
@@ -432,8 +651,8 @@ validate_traceability() {
     
     local file="$APPLICATION_PATH"
     
-    # Check for EPF traceability section
-    if ! grep -q "## 6. EPF Traceability" "$file"; then
+    # Check for EPF traceability section (now Section 9)
+    if ! grep -q "## EPF Traceability" "$file"; then
         log_error "Missing EPF Traceability section"
         ((TRACEABILITY_ERRORS++))
         return
@@ -457,9 +676,10 @@ validate_traceability() {
     if grep -q "Direct Traceability:" "$file"; then
         log_success "Found Direct Traceability mapping section"
         
-        # Count WP -> KR mappings
-        local mapping_count=$(grep -cE "WP[0-9] Activity [0-9\.]+ → kr-p-[0-9]{3}" "$file" || echo 0)
-        if [[ $mapping_count -gt 0 ]]; then
+        # Count WP -> KR mappings (using extended regex with -E)
+        local mapping_count=$(grep -cE "WP[0-9] Activity [0-9.]+ → kr-p-[0-9]{3}" "$file" 2>/dev/null || echo "0")
+        mapping_count=$(echo "$mapping_count" | head -1 | tr -d '\n')
+        if [[ "$mapping_count" -gt 0 ]]; then
             log_success "Found $mapping_count work package to KR mappings"
         else
             log_warning "No explicit WP → KR mappings found (recommended for traceability)"

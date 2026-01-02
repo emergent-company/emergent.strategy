@@ -2,7 +2,7 @@
 
 **Application Date:** 31 December 2025  
 **Status:** Draft  
-**Project Period:** 1 August 2025 to 31 July 2027 (24 months)  
+**Project Period:** 1 August 2025 to 31 December 2027 (29 months)  
 **Total Budget:** 3,250,000 NOK
 
 ---
@@ -148,7 +148,7 @@ This project develops Emergent Core—an AI-native knowledge graph system that a
 
 ## 4. Timeline and Work Packages
 
-**Project Duration:** 1 August 2025 to 31 July 2027 (24 months)
+**Project Duration:** 1 August 2025 to 31 December 2027 (29 months)
 
 ### WP1: Production-Ready Knowledge Graph with AI-Native Query Capabilities
 **Duration:** 12 months (overlapping activities)  
@@ -350,8 +350,8 @@ Whether structured feature definitions reduce ambiguity enough to improve develo
 ---
 
 ### WP3: EPF-Runtime MVP with Durable Workflow Orchestration
-**Duration:** 12 months  
-**Period:** August 2026 to July 2027  
+**Duration:** 17 months  
+**Period:** August 2026 to December 2027  
 **Budget:** 810,000 NOK
 
 **Technical Objective:**  
@@ -513,10 +513,10 @@ Whether Temporal learning curve is acceptable for team (new paradigm vs traditio
 |------|---------------|--------------|--------------|
 | 2025 | Aug-Dec (5 months) | 500,000 | 100,000 |
 | 2026 | Jan-Jun, Aug-Dec (11 months) | 1,100,000 | 100,000 |
-| 2027 | Jan-Jun, Aug (7 months) | 1,650,000 | 150,000 |
-| **Total** | **23 months active** | **3,250,000** | - |
+| 2027 | Jan-Dec (11 months, excluding July) | 1,650,000 | 150,000 |
+| **Total** | **27 months active** | **3,250,000** | - |
 
-**Note:** July excluded in 2026 and 2027 per budget specification.
+**Note:** July excluded in 2026 and 2027 per budget specification (vacation period).
 
 ### 5.2 Budget Allocation by Work Package
 
@@ -524,10 +524,10 @@ Whether Temporal learning curve is acceptable for team (new paradigm vs traditio
 |--------------|----------|--------------|-----------------|-----------------|----------------|
 | WP1: Production-Ready Knowledge Graph | 12 months | 1,830,000 | 1,281,000 | 366,000 | 183,000 |
 | WP2: EPF Self-Hosting & Feature Definitions | 6 months | 610,000 | 427,000 | 122,000 | 61,000 |
-| WP3: EPF-Runtime MVP with Durable Workflows | 12 months | 810,000 | 567,000 | 162,000 | 81,000 |
-| **Total** | **30 months** | **3,250,000** | **2,275,000** | **650,000** | **325,000** |
+| WP3: EPF-Runtime MVP with Durable Workflows | 17 months | 810,000 | 567,000 | 162,000 | 81,000 |
+| **Total** | **35 months** | **3,250,000** | **2,275,000** | **650,000** | **325,000** |
 
-**Note:** Work packages overlap in execution. Total calendar time: 24 months (Aug 2025 - Jul 2027).
+**Note:** Work packages overlap in execution. Total calendar time: 29 months (Aug 2025 - Dec 2027, excluding Jul 2026/2027).
 
 ### 5.3 Cost Category Breakdown
 
@@ -618,7 +618,7 @@ All R&D activities in this application are within TRL 2-7 range (SkatteFUNN elig
    - Confirm budget numbers match accounting projections and cash flow
    - Verify cost category allocations (70/20/10 split) follow SkatteFUNN guidelines
    - Check compliance with 25M NOK cap (currently 3.25M - well within limit)
-   - Validate July exclusions reflect actual work schedule (vacation periods)
+   - Validate July exclusions in 2026/2027 reflect actual work schedule (vacation periods)
    - Ensure retroactive costs (Aug-Dec 2025) have proper documentation
 
 4. **Complete Contact Information**
@@ -648,7 +648,7 @@ All R&D activities in this application are within TRL 2-7 range (SkatteFUNN elig
    - SkatteFUNN accepts applications year-round
    - Processing time: typically 4-6 weeks from submission
    - Retroactive applications allowed (Aug-Dec 2025 costs already incurred)
-   - Project period: 1 Aug 2025 - 31 Jul 2027 (24 calendar months, 23 active months)
+   - Project period: 1 Aug 2025 - 31 Dec 2027 (29 calendar months, 27 active months excluding Jul 2026/2027)
    - Must apply before significant R&D costs are incurred (retroactive window limited)
 
 **Questions?**  

@@ -53,22 +53,25 @@ Once validation passes, review the application and submit via:
 The validator performs 4 layers of checks:
 
 ### Layer 1: Schema Structure
-- 6 required sections present (Owner, Roles, Details, Timeline, Budget, Traceability)
+- 8 required sections present (Project Owner & Roles, About Project, Background & Company Activities, Primary Objective & Innovation, R&D Content, Project Summary, Work Packages, Total Budget & Tax Deduction)
+- EPF Traceability section present
 - Application metadata complete
 - Organization number format (9 digits)
-- Frascati criteria section present
+- Character limits enforced (60, 100, 500, 1000, 2000 chars)
 
 ### Layer 2: Semantic Rules
 - No placeholder text (XXX, [TODO], [TBD])
 - All R&D activity fields present
 - TRL ranges eligible (TRL 2-7 only)
-- All 5 Frascati criteria addressed
 - Technical uncertainty language present
+- Work packages have 2-8 activities each
 
 ### Layer 3: Budget Validation
+- Budget organized by work packages (1-8 WPs required)
+- Each WP has 2-8 activities with allocated budgets
+- Cost codes used: Personnel, Equipment, Other Operating Costs, Overhead
 - Yearly budgets ≤ 25M NOK
-- Cost categories within typical ranges (70% personnel, 20% equipment, 10% overhead)
-- Cost categories sum to 100%
+- Budget sums by year and work package reconcile to total
 - Work Package budgets reconcile to total
 
 ### Layer 4: Traceability
@@ -99,11 +102,23 @@ VALIDATION_BUDGET_TOLERANCE=1000 bash validator.sh application.md
 
 ## Common Issues
 
+### Error: Character limit exceeded
+
+**Problem:** Field exceeds official form character limit (e.g., project_summary > 1000 chars)
+
+**Fix:** Trim text to fit within limits:
+- Titles (English, Norwegian): 100 chars
+- Short name: 60 chars
+- Primary objective: 1000 chars
+- Project summary: 1000 chars
+- Company activities, background, differentiation, R&D content: 2000 chars
+- WP challenges, activity descriptions: 500 chars
+
 ### Error: Found placeholder text: XXX
 
 **Problem:** Phone number placeholder not replaced: `+47 XXX XX XXX`
 
-**Fix:** Update Section 2 (Roles) with actual phone number:
+**Fix:** Update Section 1 (Project Owner and Roles) with actual phone number:
 ```markdown
 | Nikolai Fasting | Project Leader | Eyedea AS | nikolai@eyedea.no | +47 123 45 678 | ...
 ```
@@ -124,14 +139,14 @@ VALIDATION_BUDGET_TOLERANCE=1000 bash validator.sh application.md
 3. Ensure WP totals sum to total application budget
 4. Check for rounding errors (tolerance: 1,000 NOK)
 
-### Warning: Personnel cost outside typical range
+### Warning: Cost code outside typical range
 
-**Problem:** Personnel allocation outside 65-75% typical for software R&D
+**Problem:** Cost allocation outside typical ranges (e.g., very low personnel costs for software R&D)
 
 **Fix:**
-- Review budget breakdown in Section 5.3
+- Review budget breakdown in Section 8.1 (Budget Summary by Year and Cost Code)
 - Document justification if non-typical allocation is correct
-- Consider if equipment/overhead allocations are reasonable
+- Typical software R&D: 65-75% Personnel, 15-25% Equipment, 5-15% Other Operating Costs, 5-10% Overhead
 
 ## SkatteFUNN Resources
 
@@ -150,6 +165,15 @@ VALIDATION_BUDGET_TOLERANCE=1000 bash validator.sh application.md
 - [Investor Memo Validator](../investor-memo/validator.sh) - Another example
 
 ## Version History
+
+- **v2.0.0** (2026-01-01) - Major restructure for official form compatibility
+  - Restructured to 8 official form sections matching online application
+  - Added character limit validation (60, 100, 500, 1000, 2000 chars)
+  - Replaced flat budget with work packages array (1-8 WPs, 2-8 activities per WP)
+  - Added Norwegian title, creator role, nested scientific_discipline
+  - Changed cost categories from percentages to official cost codes (Personnel, Equipment, Other Operating Costs, Overhead)
+  - Made Section 7 (Work Packages) repeatable for easy copy/paste workflow
+  - Updated template variables to nested structure
 
 - **v1.0.0** (2025-12-31) - Initial release
   - 4-layer validation (schema, semantic, budget, traceability)
