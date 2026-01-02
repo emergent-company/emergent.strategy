@@ -441,7 +441,7 @@ Example:
 Add a post-merge hook to prompt for regeneration:
 
 ```bash
-#!/bin/bash
+# !/bin/bash
 # .git/hooks/post-merge
 
 # Check if EPF source files changed
@@ -450,6 +450,8 @@ if git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD | grep -q "docs/EP
   echo "Command: Ask AI to 'regenerate context sheet for [product]'"
 fi
 ```
+
+**Note:** Remove the space after the hash symbol in the shebang when creating the actual file.
 
 ### CI/CD Integration
 
