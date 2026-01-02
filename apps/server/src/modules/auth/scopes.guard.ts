@@ -36,8 +36,12 @@ export class ScopesGuard implements CanActivate {
     if (!user) return false;
 
     // Use internal UUID for permission lookup, not external Zitadel ID
-    const computed = await this.perms.compute(user.id);
-    req.effectivePermissions = computed;
+    // Check if already computed for this request (avoids redundant DB queries)
+    let computed = req.effectivePermissions;
+    if (!computed) {
+      computed = await this.perms.compute(user.id);
+      req.effectivePermissions = computed;
+    }
     const dynamicScopes = computed.scopes || [];
     user.permissions = { ...(user.permissions || {}), scopes: dynamicScopes };
 

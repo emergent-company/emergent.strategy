@@ -120,6 +120,24 @@ export class ZitadelService implements OnModuleInit {
   private lastFailureTime = 0;
   private readonly CIRCUIT_BREAKER_COOLDOWN = 30000; // 30 seconds
 
+  private userinfoCache = new Map<
+    string,
+    {
+      data: {
+        sub?: string;
+        email?: string;
+        email_verified?: boolean;
+        name?: string;
+        given_name?: string;
+        family_name?: string;
+        preferred_username?: string;
+      };
+      expiresAt: number;
+    }
+  >();
+  private readonly USERINFO_CACHE_TTL_MS = 60_000;
+  private readonly USERINFO_CACHE_MAX_SIZE = 1000;
+
   constructor(private readonly cacheService: PostgresCacheService) {}
 
   onModuleInit(): void {
@@ -577,6 +595,13 @@ export class ZitadelService implements OnModuleInit {
     family_name?: string;
     preferred_username?: string;
   } | null> {
+    const cacheKey = this.hashToken(accessToken);
+    const cached = this.userinfoCache.get(cacheKey);
+    if (cached && Date.now() < cached.expiresAt) {
+      this.logger.debug('Userinfo cache hit');
+      return cached.data;
+    }
+
     const userinfoUrl = `${this.getBaseUrl()}/oidc/v1/userinfo`;
 
     try {
@@ -601,6 +626,9 @@ export class ZitadelService implements OnModuleInit {
           userinfo.name || '(none)'
         }`
       );
+
+      this.cacheUserinfo(cacheKey, userinfo);
+
       return userinfo;
     } catch (error) {
       this.logger.error(
@@ -608,6 +636,36 @@ export class ZitadelService implements OnModuleInit {
       );
       return null;
     }
+  }
+
+  private hashToken(token: string): string {
+    const { createHash } = require('crypto');
+    return createHash('sha256').update(token).digest('hex').substring(0, 32);
+  }
+
+  private cacheUserinfo(
+    cacheKey: string,
+    data: {
+      sub?: string;
+      email?: string;
+      email_verified?: boolean;
+      name?: string;
+      given_name?: string;
+      family_name?: string;
+      preferred_username?: string;
+    }
+  ): void {
+    if (this.userinfoCache.size >= this.USERINFO_CACHE_MAX_SIZE) {
+      const oldestKey = this.userinfoCache.keys().next().value;
+      if (oldestKey) {
+        this.userinfoCache.delete(oldestKey);
+      }
+    }
+
+    this.userinfoCache.set(cacheKey, {
+      data,
+      expiresAt: Date.now() + this.USERINFO_CACHE_TTL_MS,
+    });
   }
 
   /**
