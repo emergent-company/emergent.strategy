@@ -1,8 +1,10 @@
 # SkatteFUNN Application Generator - Wizard Instructions
 
-**Version:** 1.1.0  
+**Version:** 2.0.0  
+**Schema Version:** 2.0.0  
+**Template Version:** 2.0.0  
 **Purpose:** Generate Norwegian R&D Tax Deduction Scheme applications from EPF data  
-**Output Format:** Markdown document following Research Council of Norway requirements
+**Output Format:** Markdown document following Research Council of Norway official form structure (8 sections)
 
 ---
 
@@ -12,6 +14,7 @@ This wizard MUST be executed sequentially. Each phase depends on the previous on
 
 ## Generation Process Overview
 
+### ✅ **Phase 0.0: Project Information Collection (MANDATORY - User provides timeline, budget, organization)**
 ### ✅ Phase 0: R&D Eligibility Validation (MANDATORY - TRL 2-7 filtering)
 ### ✅ **Phase 0.5: Interactive Key Result Selection (MANDATORY - User chooses which KRs to include)**
 ### Phase 1: Pre-flight Validation
@@ -21,6 +24,335 @@ This wizard MUST be executed sequentially. Each phase depends on the previous on
 ### Phase 5: Budget Allocation
 
 **⚠️ STOP AFTER PHASE 0.5 AND GET USER CONFIRMATION BEFORE PROCEEDING TO PHASE 1**
+
+---
+
+## Phase 0.0: Project Information Collection
+
+⚠️ **MANDATORY FIRST STEP - EPF DOES NOT CONTAIN THIS INFORMATION**
+
+**Critical Context:** The EPF roadmap contains strategic Key Results with TRL progression and technical hypotheses, but it does NOT contain:
+- Specific project start/end dates (EPF has phases/cycles, not calendar dates)
+- Total budget amounts (EPF has strategic goals, not detailed financial planning)
+- Organization details (name, org number, contact persons)
+
+These are **implementation details** that exist outside EPF and must be provided by the user.
+
+### Step 0.0.1: Collect Organization Information
+
+```python
+print("=" * 80)
+print("📋 SKATTEFUNN APPLICATION SETUP - Organization Information")
+print("=" * 80)
+print()
+print("First, I need information about your organization.")
+print("This information is required for Section 1 of the application.")
+print()
+
+# Organization details
+org_name = input("Organization name (legal entity): ").strip()
+if not org_name:
+    print("❌ Organization name is required")
+    exit(1)
+
+org_number = input("Organization number (9 digits): ").strip()
+if not org_number or len(org_number) != 9 or not org_number.isdigit():
+    print("❌ Valid 9-digit organization number is required")
+    exit(1)
+
+manager_name = input("Manager/CEO name: ").strip()
+if not manager_name:
+    print("❌ Manager name is required")
+    exit(1)
+
+print()
+print("The SkatteFUNN application requires 3 mandatory roles:")
+print("1. Creator of Application (person submitting)")
+print("2. Organization Representative (person approving)")
+print("3. Project Leader (person managing R&D activities)")
+print()
+print("Note: The same person can fill multiple roles.")
+print()
+
+# Role 1: Creator
+print("--- Role 1: Creator of Application ---")
+creator_name = input("Name: ").strip()
+creator_email = input("Email: ").strip()
+creator_phone = input("Phone (format: +47 XX XX XX XX): ").strip()
+
+# Role 2: Organization Representative
+print()
+print("--- Role 2: Organization Representative ---")
+print(f"Use same person as Creator ({creator_name})? [Y/n]: ", end='')
+same_as_creator = input().strip().lower()
+
+if same_as_creator in ['y', 'yes', '']:
+    org_rep_name = creator_name
+    org_rep_email = creator_email
+    org_rep_phone = creator_phone
+else:
+    org_rep_name = input("Name: ").strip()
+    org_rep_email = input("Email: ").strip()
+    org_rep_phone = input("Phone: ").strip()
+
+# Role 3: Project Leader
+print()
+print("--- Role 3: Project Leader ---")
+print(f"Use same person as Creator ({creator_name})? [Y/n]: ", end='')
+same_as_creator_pl = input().strip().lower()
+
+if same_as_creator_pl in ['y', 'yes', '']:
+    project_leader_name = creator_name
+    project_leader_email = creator_email
+    project_leader_phone = creator_phone
+else:
+    project_leader_name = input("Name: ").strip()
+    project_leader_email = input("Email: ").strip()
+    project_leader_phone = input("Phone: ").strip()
+
+# Store organization data
+organization_info = {
+    'name': org_name,
+    'org_number': org_number,
+    'manager_name': manager_name,
+    'creator': {
+        'name': creator_name,
+        'email': creator_email,
+        'phone': creator_phone
+    },
+    'org_representative': {
+        'name': org_rep_name,
+        'email': org_rep_email,
+        'phone': org_rep_phone
+    },
+    'project_leader': {
+        'name': project_leader_name,
+        'email': project_leader_email,
+        'phone': project_leader_phone
+    }
+}
+
+print()
+print("✅ Organization information collected")
+print()
+```
+
+### Step 0.0.2: Collect Project Timeline
+
+```python
+print("=" * 80)
+print("📅 PROJECT TIMELINE")
+print("=" * 80)
+print()
+print("SkatteFUNN applications need specific start and end dates.")
+print("Note: EPF roadmap has phases/cycles but not calendar dates.")
+print()
+print("Guidelines:")
+print("- Applications can be retroactive (costs already incurred can be claimed)")
+print("- Maximum project duration: 48 months (4 years)")
+print("- Projects can span multiple calendar years")
+print()
+
+# Project start date
+while True:
+    start_date_str = input("Project start date (YYYY-MM-DD): ").strip()
+    try:
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        break
+    except ValueError:
+        print("❌ Invalid date format. Use YYYY-MM-DD (e.g., 2025-01-01)")
+
+# Project end date
+while True:
+    end_date_str = input("Project end date (YYYY-MM-DD): ").strip()
+    try:
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        
+        # Validate end date is after start date
+        if end_date <= start_date:
+            print("❌ End date must be after start date")
+            continue
+        
+        # Calculate duration
+        duration_days = (end_date - start_date).days
+        duration_months = round(duration_days / 30.44)  # Average month length
+        
+        # Validate maximum duration (48 months)
+        if duration_months > 48:
+            print(f"❌ Project duration is {duration_months} months (maximum 48 months allowed)")
+            print(f"   Consider splitting into multiple applications or shortening timeline")
+            continue
+        
+        print(f"✅ Project duration: {duration_months} months ({duration_days} days)")
+        break
+        
+    except ValueError:
+        print("❌ Invalid date format. Use YYYY-MM-DD (e.g., 2027-12-31)")
+
+# Store timeline data
+timeline_info = {
+    'start_date': start_date,
+    'end_date': end_date,
+    'duration_months': duration_months,
+    'duration_days': duration_days,
+    'application_date': datetime.now().date()
+}
+
+print()
+print("✅ Project timeline collected")
+print()
+```
+
+### Step 0.0.3: Collect Budget Information
+
+```python
+print("=" * 80)
+print("💰 TOTAL BUDGET")
+print("=" * 80)
+print()
+print("SkatteFUNN requires a total R&D budget for the project period.")
+print("Note: EPF roadmap defines strategic goals, not detailed budgets.")
+print()
+print("Guidelines:")
+print("- Maximum base: 25 million NOK per company per income year")
+print("- Budget should cover: Personnel, Equipment, Other Operating Costs, Overhead")
+print("- We'll allocate this total across work packages based on selected Key Results")
+print()
+
+while True:
+    total_budget_str = input("Total R&D budget (NOK, e.g., 3250000): ").strip()
+    try:
+        total_budget = int(total_budget_str.replace(' ', '').replace(',', ''))
+        
+        if total_budget <= 0:
+            print("❌ Budget must be positive")
+            continue
+        
+        if total_budget > 25_000_000:
+            print(f"⚠️  WARNING: Budget ({total_budget:,} NOK) exceeds SkatteFUNN annual maximum (25M NOK)")
+            print(f"   You can still apply, but only 25M NOK per year is eligible for tax deduction")
+            confirm = input("   Continue with this budget? [y/N]: ").strip().lower()
+            if confirm not in ['y', 'yes']:
+                continue
+        
+        print(f"✅ Total budget: {total_budget:,} NOK")
+        break
+        
+    except ValueError:
+        print("❌ Invalid number format. Enter digits only (e.g., 3250000)")
+
+# Calculate years covered by project
+years_covered = []
+current_year = start_date.year
+while current_year <= end_date.year:
+    years_covered.append(current_year)
+    current_year += 1
+
+print(f"   Project spans {len(years_covered)} calendar years: {', '.join(map(str, years_covered))}")
+
+# Store budget data
+budget_info = {
+    'total_budget': total_budget,
+    'years_covered': years_covered,
+    'num_years': len(years_covered)
+}
+
+print()
+print("✅ Budget information collected")
+print()
+```
+
+### Step 0.0.4: Collect EPF Instance Path
+
+```python
+print("=" * 80)
+print("📁 EPF INSTANCE PATH")
+print("=" * 80)
+print()
+print("Finally, I need the path to your EPF instance (READY phase artifacts).")
+print()
+print("Example: docs/EPF/_instances/emergent")
+print("This directory should contain READY/ folder with:")
+print("  - 00_north_star.yaml")
+print("  - 04_strategy_formula.yaml")
+print("  - 05_roadmap_recipe.yaml")
+print("  - (other EPF artifacts)")
+print()
+
+while True:
+    epf_instance_path = input("EPF instance path: ").strip()
+    
+    # Validate path exists
+    ready_path = f"{epf_instance_path}/READY"
+    if not os.path.exists(ready_path):
+        print(f"❌ Path does not exist: {ready_path}")
+        print(f"   Make sure you're providing the path to the EPF instance directory")
+        continue
+    
+    # Check for required files
+    required_files = [
+        '00_north_star.yaml',
+        '05_roadmap_recipe.yaml'
+    ]
+    
+    missing_files = []
+    for filename in required_files:
+        filepath = f"{ready_path}/{filename}"
+        if not os.path.exists(filepath):
+            missing_files.append(filename)
+    
+    if missing_files:
+        print(f"❌ Missing required EPF files in {ready_path}:")
+        for filename in missing_files:
+            print(f"   - {filename}")
+        continue
+    
+    print(f"✅ EPF instance found: {epf_instance_path}")
+    break
+
+# Store EPF path
+epf_info = {
+    'instance_path': epf_instance_path,
+    'ready_path': ready_path
+}
+
+print()
+print("✅ EPF instance path collected")
+print()
+```
+
+### Step 0.0.5: Confirmation Summary
+
+```python
+print("=" * 80)
+print("✅ PROJECT INFORMATION COLLECTION COMPLETE")
+print("=" * 80)
+print()
+print("Summary of collected information:")
+print()
+print(f"Organization: {organization_info['name']} ({organization_info['org_number']})")
+print(f"Project Period: {timeline_info['start_date']} to {timeline_info['end_date']} ({timeline_info['duration_months']} months)")
+print(f"Total Budget: {budget_info['total_budget']:,} NOK across {budget_info['num_years']} years")
+print(f"EPF Instance: {epf_info['instance_path']}")
+print()
+print(f"Contact Persons:")
+print(f"  - Creator: {organization_info['creator']['name']} ({organization_info['creator']['email']})")
+print(f"  - Org Representative: {organization_info['org_representative']['name']}")
+print(f"  - Project Leader: {organization_info['project_leader']['name']}")
+print()
+print("Proceeding to Phase 0: R&D Eligibility Validation...")
+print()
+
+# Store all user input for later phases
+user_input = {
+    'organization': organization_info,
+    'timeline': timeline_info,
+    'budget': budget_info,
+    'epf': epf_info
+}
+```
+
+**⚠️ CRITICAL:** This user_input object is now available for ALL subsequent phases. Do NOT invent or assume any of these values in later phases.
 
 ---
 
@@ -40,7 +372,8 @@ All Key Results in the roadmap MUST have TRL fields (trl_start, trl_target, trl_
 ### Step 0.1: Load Roadmap and Validate TRL Fields
 
 ```python
-roadmap_path = f"{user_input.epf_sources.instance_path}/READY/05_roadmap_recipe.yaml"
+# Use EPF path collected in Phase 0.0
+roadmap_path = f"{user_input['epf']['ready_path']}/05_roadmap_recipe.yaml"
 roadmap_data = load_yaml(roadmap_path)
 
 # Extract ALL tracks (product, strategy, org_ops, commercial, research_and_development)
@@ -301,11 +634,11 @@ def validate_timeline_coverage(eligible_krs, budget_period):
 ### Step 0.5: Execute Validation and Report Results
 
 ```python
-# Execute full validation pipeline
+# Build budget_period from user_input collected in Phase 0.0
 budget_period = {
-    'start_date': user_input.timeline.project_start,
-    'end_date': user_input.timeline.project_end,
-    'total_budget': user_input.budget.total_amount
+    'start_date': user_input['timeline']['start_date'],
+    'end_date': user_input['timeline']['end_date'],
+    'total_budget': user_input['budget']['total_budget']
 }
 
 print("🔍 Validating SkatteFUNN eligibility (TRL 2-7 filter)...")
@@ -1020,6 +1353,38 @@ extracted_data:
       solution: "{value_model_2.solution}"
 ```
 
+### Generate Norwegian Title (Required for v2.0.0)
+
+```python
+def generate_norwegian_title(english_title):
+    """
+    Generate Norwegian translation of project title.
+    Schema v2.0.0 requires both title_english and title_norwegian.
+    
+    Maximum length: 100 characters (enforced by official form)
+    """
+    # If user_input already has title_norwegian, use it
+    if hasattr(user_input.project_info, 'title_norwegian') and user_input.project_info.title_norwegian:
+        norwegian_title = user_input.project_info.title_norwegian
+    else:
+        # Interactive translation prompt
+        print(f"📝 English title: {english_title}")
+        print(f"   Length: {len(english_title)} characters")
+        print()
+        norwegian_title = input("Enter Norwegian translation (max 100 chars): ").strip()
+    
+    # Enforce character limit
+    if len(norwegian_title) > 100:
+        print(f"⚠️ Title too long ({len(norwegian_title)} chars). Truncating to 100 chars...")
+        norwegian_title = norwegian_title[:97] + "..."
+    
+    return norwegian_title
+
+# Usage in Phase 2
+synthesized_title_english = synthesize_project_title(extracted_data)
+synthesized_title_norwegian = generate_norwegian_title(synthesized_title_english)
+```
+
 ---
 
 ## Phase 3: Content Synthesis (Frascati Compliance)
@@ -1040,7 +1405,8 @@ Transform EPF content into SkatteFUNN-compliant language. **This is the core int
 - Remove marketing language
 - Focus on the technical capability being developed
 - Use phrases like: "Development of...", "Novel approach to...", "Advanced system for..."
-- Maximum 100 characters
+- **ENFORCE: Maximum 100 characters** (official form limit)
+- If synthesized text > 100 chars, trim and warn user
 
 ### Synthesis Rule 2: Project Background (Section 3.2)
 
@@ -1063,6 +1429,7 @@ Transform EPF content into SkatteFUNN-compliant language. **This is the core int
 - Cite specific existing approaches by name (RAG, vector databases, etc.)
 - Explain WHY they fail technically (not just that they're "not good enough")
 - Avoid business/market language - focus on technical/scientific gap
+- **ENFORCE: Maximum 2000 characters** (official form limit for background/activities fields)
 ```
 
 **Example Transformation:**
@@ -1096,6 +1463,7 @@ documentation sources without manual intervention."
 ```markdown
 **Structure:**
 Main Goal: [Technical capability to be achieved]
+- **ENFORCE: Maximum 1000 characters** (official form limit)
 
 Sub-goals:
 1. [Specific technical outcome 1]
@@ -1475,78 +1843,1137 @@ Quantitative analysis of experimental results
 
 ## Phase 4: Document Assembly
 
-### Section Structure
+**⚠️ STOP - MANDATORY PRE-FLIGHT CHECK**
 
-```markdown
-# SkatteFUNN - Tax Deduction Scheme Application
+**Before proceeding with Phase 4, answer these questions honestly:**
 
-**Application Date:** {timeline.application_date}  
-**Status:** Draft  
-**Project Period:** {timeline.start_date} to {timeline.end_date} ({duration} months)
+1. **Have you completed Phases 0-3?** [Y/N]
+   - Phase 0: R&D eligibility validation (TRL 2-7 filtering)
+   - Phase 0.5: Interactive KR selection (user chose which KRs)
+   - Phase 1: Pre-flight validation (EPF data completeness)
+   - Phase 2: EPF data extraction (loaded YAML files)
+   - Phase 3: Content synthesis (Frascati-compliant language)
+
+2. **Do you have all required data in memory?** [Y/N]
+   - `selected_krs` - List of Key Results chosen in Phase 0.5
+   - `extracted_data` - Parsed EPF YAML content from Phase 2
+   - `synthesized_content` - Generated text fields from Phase 3
+   - `work_packages` - Built from selected KRs in Phase 5
+
+3. **Are you about to read template.md file?** [Y/N]
+   - You MUST use `read_file` tool to load template.md
+   - You MUST use template.md content as base for output
+   - You will NOT invent your own structure
+
+**If ANY answer is "N", STOP immediately:**
+- ❌ Do NOT proceed to Step 4.0
+- ❌ Do NOT generate any output
+- ❌ Go back and complete missing phases
+
+**If ALL answers are "Y", proceed to Step 4.0.**
 
 ---
 
-## 1. Project Owner
+### The ONLY Valid Generation Approach
 
-{organization.name} (Org. No.: {organization.org_number})  
-**Manager:** {organization.manager_name}
+```
+✅ CORRECT:
+   Load template.md → Parse structure → Replace {{variables}} → Write output
+
+❌ WRONG:
+   Invent structure → Use wizard reference → Generate content → Write output
+```
+
+**⚠️ CRITICAL: MUST read template.md file BEFORE generating output.**
+
+### Step 4.0: Load and Validate Template (MANDATORY)
+
+**Purpose:** Load the authoritative template file and extract structure/limits.
+
+**Why This Step Exists:** The embedded structure example in Step 4.1 is for REFERENCE ONLY. The actual authoritative source is `template.md`. Without reading this file, the AI will generate non-compliant output.
+
+```python
+# Read the authoritative template file
+template_path = "docs/EPF/outputs/skattefunn-application/template.md"
+print(f"📖 Reading template from: {template_path}")
+
+# MUST use read_file tool - do not skip this step
+template_content = read_file(template_path)
+print(f"✅ Template loaded ({len(template_content)} characters, {template_content.count(chr(10))} lines)")
+
+# Extract section titles from template using regex
+import re
+section_pattern = r'^## Section \d+:.*$'
+template_sections = re.findall(section_pattern, template_content, re.MULTILINE)
+
+print(f"✅ Found {len(template_sections)} sections in template")
+
+# Verify all 8 required sections present
+required_sections = [
+    "## Section 1: Project Owner and Roles",
+    "## Section 2: About the Project",
+    "## Section 3: Background and Company Activities",
+    "## Section 4: Primary Objective and Innovation",
+    "## Section 5: R&D Content",
+    "## Section 6: Project Summary",
+    "## Section 7: Work Packages",
+    "## Section 8: Total Budget and Estimated Tax Deduction"
+]
+
+# Validate template structure
+missing_sections = []
+for section_title in required_sections:
+    if section_title not in template_content:
+        missing_sections.append(section_title)
+
+if missing_sections:
+    print("❌ Template validation failed - missing sections:")
+    for section in missing_sections:
+        print(f"   - {section}")
+    raise ValueError(f"Template incomplete: {len(missing_sections)} sections missing")
+
+print("✅ Template validation complete - all 8 sections present")
+print("\n📋 Section titles to use (from template.md):")
+for i, section in enumerate(required_sections, 1):
+    print(f"   {i}. {section}")
+
+# Extract character limits from template comments
+# Format: {{variable}} <!-- max N characters -->
+# Example: {{project_info.title_english}} <!-- max 100 characters -->
+char_limits = {}
+limit_pattern = r'{{([^}]+)}}[^<]*<!-- max (\d+) characters -->'
+for match in re.finditer(limit_pattern, template_content):
+    field_name = match.group(1)
+    limit = int(match.group(2))
+    char_limits[field_name] = limit
+
+print(f"\n✅ Extracted {len(char_limits)} character limits from template")
+if char_limits:
+    print("📏 Character limits found:")
+    for field, limit in sorted(char_limits.items())[:5]:  # Show first 5
+        print(f"   - {field}: {limit} chars")
+    if len(char_limits) > 5:
+        print(f"   ... and {len(char_limits) - 5} more")
+
+# Store for use in generation
+template_structure = {
+    'sections': required_sections,
+    'char_limits': char_limits,
+    'full_content': template_content
+}
+
+print("\n⚠️  CRITICAL: You MUST use template.md content - DO NOT invent structure")
+print("⚠️  The ONLY valid approach: Load template.md → Replace variables → Write output")
+print("⚠️  Step 4.1 shows variable mapping ONLY (not document structure)")
+```
+
+**Validation Checklist Before Proceeding:**
+
+- [ ] ✅ template.md file read successfully
+- [ ] ✅ All 8 section titles extracted
+- [ ] ✅ Character limits extracted from comments
+- [ ] ✅ Template structure stored in memory
+- [ ] ✅ You understand: template.md is THE structure (not Step 4.1)
+- [ ] ✅ You will use template_structure['full_content'] as base for output
+- [ ] ✅ You will ONLY replace {{variables}} with actual values
+
+**If ANY checkbox is unchecked, DO NOT proceed to Step 4.1.**
+
+**If you proceed without loading template.md, you will generate INVALID output.**
 
 ---
 
-## 2. Roles in the Project
+### Step 4.1: Build Template Variable Dictionary (DO NOT Generate Structure Yet)
 
-### Mandatory Roles
+```python
+# Map extracted and synthesized data to template variables
+template_vars = {
+    # Organization (nested structure)
+    'organization': {
+        'name': user_input.organization.name,
+        'org_number': user_input.organization.org_number,
+        'manager_name': user_input.organization.manager_name
+    },
+    
+    # Contact (3 roles: creator, project_leader, org_representative)
+    'contact': {
+        'creator': {
+            'name': user_input.contact.creator.name,
+            'email': user_input.contact.creator.email,
+            'phone': user_input.contact.creator.phone
+        },
+        'project_leader': {
+            'name': user_input.contact.project_leader.name,
+            'email': user_input.contact.project_leader.email,
+            'phone': user_input.contact.project_leader.phone
+        },
+        'org_representative': {
+            'name': user_input.contact.org_representative.name,
+            'email': user_input.contact.org_representative.email,
+            'phone': user_input.contact.org_representative.phone
+        }
+    },
+    
+    # Project Info (nested with character limits enforced)
+    'project_info': {
+        'title_english': synthesized_title_english[:100],  # Truncate if needed
+        'title_norwegian': synthesized_title_norwegian[:100],
+        'short_name': user_input.project_info.short_name[:60],
+        'scientific_discipline': {
+            'subject_area': user_input.project_info.scientific_discipline.subject_area,
+            'subject_group': user_input.project_info.scientific_discipline.subject_group,
+            'subject_discipline': user_input.project_info.scientific_discipline.subject_discipline
+        },
+        'area_of_use': user_input.project_info.area_of_use,
+        'continuation': user_input.project_info.continuation,
+        'other_applicants': user_input.project_info.other_applicants,
+        'company_activities': synthesized_company_activities[:2000],
+        'project_background': synthesized_project_background[:2000],
+        'primary_objective': synthesized_primary_objective[:1000],
+        'market_differentiation': synthesized_market_differentiation[:2000],
+        'rd_content': synthesized_rd_content[:2000],
+        'project_summary': synthesized_project_summary[:1000]
+    },
+    
+    # Timeline
+    'timeline': {
+        'start_date': user_input.timeline.start_date,
+        'end_date': user_input.timeline.end_date,
+        'duration_months': user_input.timeline.duration_months,
+        'application_date': user_input.timeline.application_date
+    },
+    
+    # Work Packages (array, populated in Phase 5)
+    'work_packages': []  # Will be built from selected KRs
+}
+```
 
-| Name | Role | Organisation | E-mail | Phone | Access |
-|------|------|--------------|--------|-------|--------|
-| {contact.project_leader.name} | Creator of Application | {org.name} | {email} | {phone} | Delete, Submit, Edit, Read, Withdraw, ChangeAccess |
-| {contact.org_representative.name} | Organisation Representative | {org.name} | {email} | {phone} | Edit, Read, Approve |
-| {contact.project_leader.name} | Project Leader | {org.name} | {email} | {phone} | Delete, Submit, Edit, Read, Withdraw, ChangeAccess |
+**⚠️ DO NOT INVENT DOCUMENT STRUCTURE - You MUST use template.md**
+
+The document structure is defined in `template.md` (loaded in Step 4.0).  
+Your ONLY job in this step is to map extracted data to template variables.
+
+**Proceed immediately to Step 4.2 for template variable substitution.**
+
+### Step 4.2: Template Variable Substitution and Document Generation (Incremental)
+
+**⚠️ CRITICAL: Use incremental generation to avoid token limits**
+
+**Why Incremental Generation:**
+- With 12 work packages, full document ~2600 lines (exceeds single response token limit)
+- Generate section by section, write incrementally to avoid hitting limits
+- Provide progress feedback after each section
+
+**Incremental Generation Approach:**
+
+```python
+# Step 1: Set up output file path
+output_filename = f"emergent-skattefunn-application-{date.today().isoformat()}.md"
+output_path = os.path.join(OUTPUT_DIR, output_filename)
+
+print(f"📝 Starting incremental document generation")
+print(f"   Output: {output_path}")
+print(f"   Strategy: Write sections incrementally to avoid token limits\n")
+
+# Step 2: Build replacement dictionary for simple variables
+replacements = {
+    # Organization
+    '{{organization.name}}': template_vars['organization']['name'],
+    '{{organization.org_number}}': template_vars['organization']['org_number'],
+    '{{organization.manager_name}}': template_vars['organization']['manager_name'],
+    
+    # Timeline
+    '{{application_date}}': template_vars['application_date'],
+    '{{start_date}}': template_vars['start_date'],
+    '{{end_date}}': template_vars['end_date'],
+    '{{duration_months}}': str(template_vars['duration_months']),
+    
+    # Contact roles (all 3 mandatory roles)
+    '{{contact.creator.name}}': template_vars['contact']['creator']['name'],
+    '{{contact.creator.email}}': template_vars['contact']['creator']['email'],
+    '{{contact.creator.phone}}': template_vars['contact']['creator']['phone'],
+    '{{contact.project_leader.name}}': template_vars['contact']['project_leader']['name'],
+    '{{contact.project_leader.email}}': template_vars['contact']['project_leader']['email'],
+    '{{contact.project_leader.phone}}': template_vars['contact']['project_leader']['phone'],
+    '{{contact.org_representative.name}}': template_vars['contact']['org_representative']['name'],
+    '{{contact.org_representative.email}}': template_vars['contact']['org_representative']['email'],
+    '{{contact.org_representative.phone}}': template_vars['contact']['org_representative']['phone'],
+    
+    # Project info
+    '{{project_info.title_english}}': template_vars['project_info']['title_english'],
+    '{{project_info.title_norwegian}}': template_vars['project_info']['title_norwegian'],
+    '{{project_info.short_name}}': template_vars['project_info']['short_name'],
+    '{{project_info.scientific_discipline.subject_area}}': template_vars['project_info']['scientific_discipline']['subject_area'],
+    '{{project_info.scientific_discipline.subject_group}}': template_vars['project_info']['scientific_discipline']['subject_group'],
+    '{{project_info.scientific_discipline.subject_discipline}}': template_vars['project_info']['scientific_discipline']['subject_discipline'],
+    '{{project_info.area_of_use}}': template_vars['project_info']['area_of_use'],
+    '{{project_info.continuation}}': template_vars['project_info']['continuation'],
+    '{{project_info.other_applicants}}': template_vars['project_info']['other_applicants'],
+    '{{project_info.company_activities}}': template_vars['project_info']['company_activities'],
+    '{{project_info.project_background}}': template_vars['project_info']['project_background'],
+    '{{project_info.primary_objective}}': template_vars['project_info']['primary_objective'],
+    '{{project_info.market_differentiation}}': template_vars['project_info']['market_differentiation'],
+    '{{project_info.rd_content}}': template_vars['project_info']['rd_content'],
+    '{{project_info.project_summary}}': template_vars['project_info']['project_summary'],
+    
+    # Budget
+    '{{total_budget_nok}}': f"{template_vars['total_budget_nok']:,}",
+    '{{company_size}}': template_vars.get('company_size', 'small company'),
+    '{{tax_rate}}': str(template_vars.get('tax_rate', 20)),
+    '{{total_eligible_costs_nok}}': f"{template_vars['total_eligible_costs_nok']:,}",
+    '{{total_tax_deduction_nok}}': f"{template_vars['total_tax_deduction_nok']:,}",
+    
+    # EPF traceability
+    '{{epf_sources.north_star_path}}': template_vars['epf_sources']['north_star_path'],
+    '{{epf_sources.strategy_formula_path}}': template_vars['epf_sources']['strategy_formula_path'],
+    '{{epf_sources.roadmap_recipe_path}}': template_vars['epf_sources']['roadmap_recipe_path'],
+    '{{epf_sources.value_models_path}}': template_vars['epf_sources'].get('value_models_path', 'N/A'),
+    '{{generation_timestamp}}': datetime.now().isoformat(),
+    '{{epf_version}}': template_vars.get('epf_version', '2.0.2'),
+}
+
+def apply_replacements(content, replacements_dict):
+    """Helper: Apply variable replacements to content"""
+    for placeholder, value in replacements_dict.items():
+        content = content.replace(placeholder, str(value))
+    return content
+
+# Step 3: Extract sections from template for incremental writing
+template_content = template_structure['full_content']
+
+# Find section boundaries (assumes template uses "## Section N: Title" format)
+section_pattern = r'(## Section \d+:.*?)(?=## Section \d+:|$)'
+section_matches = re.finditer(section_pattern, template_content, re.DOTALL)
+sections = {m.group(0).split(':')[0].strip(): m.group(0) for m in section_matches}
+
+print(f"📋 Extracted {len(sections)} sections from template\n")
+
+# Step 4: Generate and write header + Sections 1-6 (non-loop sections)
+print("📝 Generating header and Sections 1-6...")
+
+header_content = template_content.split('## Section 1:')[0]  # Extract document header
+header_content = apply_replacements(header_content, replacements)
+
+with open(output_path, 'w', encoding='utf-8') as f:
+    f.write(header_content)
+
+print("✅ Header written\n")
+
+# Write Sections 1-6 (replace variables in each)
+for section_num in range(1, 7):
+    section_key = f"## Section {section_num}"
+    if section_key in sections:
+        print(f"📝 Generating Section {section_num}...")
+        section_content = sections[section_key]
+        section_content = apply_replacements(section_content, replacements)
+        
+        with open(output_path, 'a', encoding='utf-8') as f:
+            f.write(section_content)
+        
+        print(f"✅ Section {section_num} written\n")
+
+# Step 5: Generate Section 7 (Work Packages) - one WP at a time to avoid token limit
+print(f"📝 Generating Section 7: Work Packages (1-{len(template_vars['work_packages'])})...\n")
+
+# Write Section 7 header
+section_7_header = """## Section 7: Work Packages
+
+This section describes the individual work packages that comprise the R&D project.
+
+"""
+with open(output_path, 'a', encoding='utf-8') as f:
+    f.write(section_7_header)
+
+print("✅ Section 7 header written")
+
+# Generate each work package individually
+for i, wp in enumerate(template_vars['work_packages'], 1):
+    print(f"📝 Generating Work Package {i}/{len(template_vars['work_packages'])}: {wp['name'][:50]}...")
+    
+    # Build work package content
+    wp_content = f"""
+### Work Package {i}: {wp['name']}
+
+**Duration:** {wp['start_date']} to {wp['end_date']} ({wp['duration_months']} months)
+
+**Key Challenges:**
+{wp['challenges']}
+
+**Research Method:**
+{wp['method']}
+
+**Specific Activities:**
+{wp['activities']}
+
+**Budget Allocation:**
+
+| Cost Category | Amount (NOK) | Percentage |
+|--------------|--------------|------------|
+| Personnel | {wp['budget']['personnel']:,} | {wp['budget']['personnel_pct']:.1f}% |
+| Equipment | {wp['budget']['equipment']:,} | {wp['budget']['equipment_pct']:.1f}% |
+| Overhead | {wp['budget']['overhead']:,} | {wp['budget']['overhead_pct']:.1f}% |
+| **Total** | **{wp['budget']['total']:,}** | **100%** |
+
+**EPF Traceability:**
+- KR ID: {wp['kr_id']}
+- Roadmap Phase: {wp['roadmap_phase']}
+- TRL Progression: {wp['trl_start']} → {wp['trl_end']}
+
+---
+"""
+    
+    with open(output_path, 'a', encoding='utf-8') as f:
+        f.write(wp_content)
+    
+    print(f"✅ Work Package {i}/{len(template_vars['work_packages'])} written\n")
+
+# Step 6: Generate Section 8 (Budget Summary)
+print("📝 Generating Section 8: Total Budget and Tax Deduction...\n")
+
+section_8_content = f"""## Section 8: Total Budget and Estimated Tax Deduction
+
+### Budget Summary by Year
+
+| Year | Personnel (NOK) | Equipment (NOK) | Overhead (NOK) | Total (NOK) |
+|------|----------------|-----------------|----------------|-------------|
+"""
+
+# Add yearly budget rows
+for year_data in template_vars['budget_summary_by_year']:
+    section_8_content += f"""| {year_data['year']} | {year_data['personnel']:,} | {year_data['equipment']:,} | {year_data['overhead']:,} | {year_data['total']:,} |
+"""
+
+section_8_content += f"""| **Total** | **{template_vars['total_personnel_nok']:,}** | **{template_vars['total_equipment_nok']:,}** | **{template_vars['total_overhead_nok']:,}** | **{template_vars['total_budget_nok']:,}** |
+
+### Work Package Budget Allocation
+
+| Work Package | Duration | Total Cost (NOK) | Personnel | Equipment | Overhead |
+|-------------|----------|------------------|-----------|-----------|----------|
+"""
+
+# Add work package rows
+for wp in template_vars['work_packages']:
+    section_8_content += f"""| WP{wp['number']}: {wp['name'][:40]} | {wp['duration_months']}m | {wp['budget']['total']:,} | {wp['budget']['personnel']:,} | {wp['budget']['equipment']:,} | {wp['budget']['overhead']:,} |
+"""
+
+section_8_content += f"""
+### Tax Deduction Calculation
+
+**Company Size:** {template_vars.get('company_size', 'Small company')} ({template_vars.get('tax_rate', 20)}% deduction rate)
+
+**Total Eligible R&D Costs:** {template_vars['total_eligible_costs_nok']:,} NOK
+
+**Estimated Tax Deduction:** {template_vars['total_tax_deduction_nok']:,} NOK
+
+#### Tax Deduction by Year
+
+| Year | Eligible Costs (NOK) | Tax Deduction (NOK) |
+|------|---------------------|---------------------|
+"""
+
+# Add yearly tax deduction rows
+for year_data in template_vars['tax_deduction_by_year']:
+    section_8_content += f"""| {year_data['year']} | {year_data['eligible_costs']:,} | {year_data['tax_deduction']:,} |
+"""
+
+section_8_content += f"""| **Total** | **{template_vars['total_eligible_costs_nok']:,}** | **{template_vars['total_tax_deduction_nok']:,}** |
 
 ---
 
-## 3. Project Details
+**Document Generation Details:**
+- Generated: {template_vars.get('generation_timestamp', datetime.now().isoformat())}
+- EPF Version: {template_vars.get('epf_version', '2.0.2')}
+- Work Packages: {len(template_vars['work_packages'])}
+- Total Budget: {template_vars['total_budget_nok']:,} NOK
+- Project Duration: {template_vars.get('duration_months', 'N/A')} months
+"""
 
-### 3.1 General Information
+with open(output_path, 'a', encoding='utf-8') as f:
+    f.write(section_8_content)
 
-**Title (English):** {synthesized_title}
+print("✅ Section 8 written\n")
 
-**Project Short Name:** {org_name_short}-{product_name}-RD
+# Step 7: Final validation
+print(f"✅ Application generation complete: {output_path}")
 
-**Scientific Discipline:** {technical_details.scientific_discipline}
+# Count lines in generated file
+with open(output_path, 'r', encoding='utf-8') as f:
+    line_count = len(f.readlines())
 
-### 3.2 Project Background and Company Activities
+print(f"   Total lines: {line_count}")
+print(f"   Work packages: {len(template_vars['work_packages'])}")
+print(f"   Budget: {template_vars['total_budget_nok']:,} NOK\n")
 
-**Company Activities:**
-{synthesized_from: north_star.mission.what_we_do}
+# Verify no unreplaced variables remain
+with open(output_path, 'r', encoding='utf-8') as f:
+    final_content = f.read()
 
-**Project Background:**
-{synthesized_content - see Synthesis Rule 2}
+unreplaced = re.findall(r'{{[^}]+}}', final_content)
+if unreplaced:
+    print(f"⚠️  WARNING: {len(unreplaced)} unreplaced variables found:")
+    for var in unreplaced[:10]:  # Show first 10
+        print(f"   - {var}")
+    if len(unreplaced) > 10:
+        print(f"   ... and {len(unreplaced) - 10} more")
+else:
+    print("✅ All template variables replaced successfully")
 
-### 3.3 Objectives and Innovation
+print("\n🎉 Incremental generation complete - no token limit issues!")
+```
 
-**Primary Objective:**
-{synthesized_content - see Synthesis Rule 3}
+**Pre-Generation Validation:**
 
-**R&D Content and Technical Challenges:**
-{synthesized_content - see Synthesis Rule 4}
+```python
+# Before starting incremental generation, verify you have everything needed
+pre_gen_checklist = {
+    'template_loaded': template_structure is not None,
+    'template_has_content': 'full_content' in template_structure and len(template_structure['full_content']) > 1000,
+    'sections_extracted': len(template_structure['sections']) == 8,
+    'char_limits_extracted': len(template_structure['char_limits']) > 0,
+    'variables_populated': template_vars is not None,
+    'work_packages_generated': len(template_vars.get('work_packages', [])) > 0,
+    'budget_calculated': 'total_budget_nok' in template_vars,
+    'output_dir_exists': os.path.exists(OUTPUT_DIR)
+}
 
-**State-of-the-Art Comparison:**
-{synthesized_content - see Synthesis Rule 5}
+print("\n🔍 Pre-Generation Validation:")
+all_passed = True
+for check_name, passed in pre_gen_checklist.items():
+    status = "✅" if passed else "❌"
+    print(f"   {status} {check_name}")
+    if not passed:
+        all_passed = False
 
-**Project Summary:**
-{Combine above sections into 200-300 word executive summary}
+if not all_passed:
+    print("\n❌ Pre-generation validation failed. Cannot proceed with document generation.")
+    print("   Review Phase 3 (Content Synthesis) and Phase 5 (Budget Allocation) outputs.")
+    sys.exit(1)
 
-**Technology Readiness Level:**
-- Starting TRL: {technical_details.trl_start}
-- Target TRL: {technical_details.trl_end}
+print("\n✅ All pre-generation checks passed. Proceeding with incremental generation...\n")
+```
 
-**Frascati Criteria Compliance:**
-✓ **Novel:** {Explain how project generates new findings}
-✓ **Creative:** {Explain original concepts/hypotheses}
-✓ **Uncertain:** {Explain technical unpredictability}
-✓ **Systematic:** {Explain planned methodology}
-✓ **Transferable:** {Explain how results advance field}
+**Generation Strategy:**
+- **Sections 1-6:** Generate from template with variable replacement, write individually
+- **Section 7:** Generate each work package separately (avoid token limit with 12 WPs)
+- **Section 8:** Generate budget tables with yearly/WP breakdowns
+- **Progress feedback:** "✅ Section N written" after each section
+- **Final validation:** Check for unreplaced variables, count lines, verify output
+
+**Proceed to Step 4.2 above to execute incremental generation.**
+
+---
+
+if not all_passed:
+    print("\n❌ Pre-generation validation FAILED")
+    print("   STOP: You cannot generate output without template.md content")
+    print("   Go back to Step 4.0 and load template.md")
+    raise ValueError("Pre-generation validation failed. Cannot proceed.")
+
+print("\n✅ All pre-generation checks passed")
+print("📝 Ready to generate output using template structure")
+```
+
+**Post-Generation Validation:**
+
+```python
+# After generating output_content, validate before writing file
+
+required_sections = template_structure['sections']
+
+# 1. Check all sections present
+print("\n🔍 Post-Generation Validation:")
+missing_sections = []
+for section_title in required_sections:
+    if section_title not in output_content:
+        missing_sections.append(section_title)
+        print(f"   ❌ Missing: {section_title}")
+    else:
+        print(f"   ✅ Found: {section_title}")
+
+if missing_sections:
+    raise ValueError(f"Generated content missing {len(missing_sections)} required sections. "
+                    f"This indicates you did NOT use template.md as base.")
+
+# 2. Check section order
+section_positions = []
+for section_title in required_sections:
+    pos = output_content.find(section_title)
+    section_positions.append((section_title, pos))
+
+section_positions.sort(key=lambda x: x[1])
+order_correct = True
+for i, (title, pos) in enumerate(section_positions):
+    expected_title = required_sections[i]
+    if title != expected_title:
+        print(f"   ❌ Section order incorrect at position {i}: found '{title}', expected '{expected_title}'")
+        order_correct = False
+
+if not order_correct:
+    raise ValueError("Section order incorrect. This indicates you did NOT use template.md as base.")
+
+print("✅ Post-generation validation complete")
+print("✅ Output uses correct template structure")
+print("✅ Ready to write to file")
+```
+
+---
+
+## Phase 5: Work Package Generation from Selected KRs
+
+**⚠️ CRITICAL:** Work packages are built DIRECTLY from selected KRs (from Phase 0.5), NOT synthesized.
+
+### Step 5.1: Create Work Package Structure
+
+```python
+def create_work_packages_from_selected_krs(selected_krs, project_start_date, budget_period):
+    """
+    Convert selected Key Results into SkatteFUNN Work Packages.
+    Each KR becomes one Work Package (1-8 WPs allowed).
+    
+    Returns: list of work_package dicts ready for template
+    """
+    work_packages = []
+    
+    for i, kr_data in enumerate(selected_krs, 1):
+        kr = kr_data['kr']
+        
+        # Calculate WP timeline in project months
+        start_month = calculate_project_month(kr.get('start_date'), project_start_date)
+        end_month = calculate_project_month(kr.get('end_date'), project_start_date)
+        
+        # Determine R&D category based on TRL progression
+        if kr['trl_start'] <= 3:
+            rd_category = "Industrial Research"  # TRL 2-3 = exploratory
+        else:
+            rd_category = "Experimental Development"  # TRL 4-7 = applied
+        
+        # Extract activities from KR (2-8 required per WP)
+        activities = generate_activities_from_kr(kr)
+        
+        if len(activities) < 2:
+            # Pad with documentation activity
+            activities.append({
+                'title': 'Documentation and Knowledge Transfer',
+                'description': 'Document findings, create technical reports, transfer knowledge to team.'
+            })
+        
+        # Build budget allocation by year
+        budget_nok = kr.get('estimated_budget', 0)
+        yearly_costs = allocate_budget_by_year(
+            budget_nok, 
+            start_month, 
+            end_month, 
+            kr.get('budget_breakdown', {'personnel': 0.7, 'equipment': 0.2, 'overhead': 0.1})
+        )
+        
+        # Create work package
+        work_package = {
+            'name': truncate(kr.get('description', f'Work Package {i}'), 100),
+            'start_month': start_month,
+            'end_month': end_month,
+            'rd_category': rd_category,
+            'rd_challenges': truncate(kr.get('uncertainty_addressed', ''), 500),
+            'method_approach': truncate(
+                f"{kr.get('experiment_design', '')} {kr.get('measurement_method', '')}", 
+                1000
+            ),
+            'activities': activities,
+            'budget': {
+                'yearly_costs': yearly_costs,
+                'cost_specification': truncate(kr.get('budget_notes', 'See detailed budget breakdown'), 500)
+            },
+            'total_budget_nok': budget_nok
+        }
+        
+        work_packages.append(work_package)
+    
+    # Validate 1-8 WPs
+    if len(work_packages) < 1 or len(work_packages) > 8:
+        raise ValueError(f"Invalid WP count: {len(work_packages)} (must be 1-8)")
+    
+    return work_packages
+
+
+def generate_activities_from_kr(kr):
+    """
+    Extract 2-8 activities from KR deliverables or experiment steps.
+    Each activity needs title (≤100 chars) and description (≤500 chars).
+    """
+    activities = []
+    
+    # Try extracting from deliverables first
+    deliverables = kr.get('deliverables', [])
+    
+    if deliverables and len(deliverables) >= 2:
+        for deliverable in deliverables[:8]:  # Max 8
+            activities.append({
+                'title': truncate(deliverable.get('title', 'Activity'), 100),
+                'description': truncate(deliverable.get('description', ''), 500)
+            })
+    else:
+        # Parse experiment_design into steps
+        experiment_steps = parse_experiment_steps(kr.get('experiment_design', ''))
+        
+        for step in experiment_steps[:8]:
+            activities.append({
+                'title': truncate(step.get('title', 'Experiment Step'), 100),
+                'description': truncate(step.get('description', ''), 500)
+            })
+    
+    # Ensure 2-8 activities
+    if len(activities) < 2:
+        # Add generic activities to meet minimum
+        activities.extend([
+            {
+                'title': 'Experimentation and Testing',
+                'description': 'Execute systematic experiments to test hypothesis and measure outcomes.'
+            },
+            {
+                'title': 'Analysis and Documentation',
+                'description': 'Analyze results, document findings, and prepare technical reports.'
+            }
+        ])
+    
+    return activities[:8]  # Enforce maximum
+
+
+def allocate_budget_by_year(total_budget_nok, start_month, end_month, budget_breakdown):
+    """
+    Distribute KR budget across years using cost codes.
+    
+    Args:
+        total_budget_nok: Total KR budget
+        start_month: Start month in project timeline (1-based)
+        end_month: End month in project timeline
+        budget_breakdown: Dict with keys: personnel, equipment, overhead (as ratios 0-1)
+    
+    Returns: List of {year, cost_code, amount_nok} dicts
+    """
+    # Calculate months per year
+    duration_months = end_month - start_month + 1
+    years_covered = set()
+    
+    # Determine which calendar years are covered
+    # (This requires project_start_date context - simplified example)
+    # In real implementation, map project months to calendar years
+    
+    yearly_costs = []
+    
+    # Simplified: assume linear distribution across years
+    # Real implementation should map project months to calendar years properly
+    
+    # For each cost code, create yearly allocations
+    cost_codes = {
+        'Personnel': budget_breakdown.get('personnel', 0.7),
+        'Equipment': budget_breakdown.get('equipment', 0.2),
+        'Other Operating Costs': budget_breakdown.get('other_operating', 0),
+        'Overhead': budget_breakdown.get('overhead', 0.1)
+    }
+    
+    for cost_code, ratio in cost_codes.items():
+        if ratio > 0:
+            amount = int(total_budget_nok * ratio)
+            yearly_costs.append({
+                'year': 2025,  # Placeholder - calculate from project timeline
+                'cost_code': cost_code,
+                'amount_nok': amount
+            })
+    
+    return yearly_costs
+
+
+def truncate(text, max_length):
+    """Truncate text to max_length, adding ellipsis if needed."""
+    if not text:
+        return ""
+    if len(text) <= max_length:
+        return text
+    return text[:max_length-3] + "..."
+
+
+def calculate_project_month(date_str, project_start_date):
+    """Convert date to project month number (1-based)."""
+    # Implementation depends on date format in roadmap
+    # Return integer month number relative to project start
+    pass
+```
+
+### Step 5.2: Generate Budget Summaries
+
+```python
+def calculate_budget_summaries(work_packages):
+    """
+    Generate Section 8 summary tables from work package budgets.
+    
+    Returns: Dict with budget_summary_by_year and totals
+    """
+    # Aggregate by year and cost code
+    budget_by_year = {}
+    
+    for wp in work_packages:
+        for year_cost in wp['budget']['yearly_costs']:
+            year = year_cost['year']
+            cost_code = year_cost['cost_code']
+            amount = year_cost['amount_nok']
+            
+            if year not in budget_by_year:
+                budget_by_year[year] = {
+                    'personnel_nok': 0,
+                    'equipment_nok': 0,
+                    'other_operating_costs_nok': 0,
+                    'overhead_nok': 0
+                }
+            
+            # Map cost code to summary field
+            if cost_code == 'Personnel':
+                budget_by_year[year]['personnel_nok'] += amount
+            elif cost_code == 'Equipment':
+                budget_by_year[year]['equipment_nok'] += amount
+            elif cost_code == 'Other Operating Costs':
+                budget_by_year[year]['other_operating_costs_nok'] += amount
+            elif cost_code == 'Overhead':
+                budget_by_year[year]['overhead_nok'] += amount
+    
+    # Calculate year totals
+    budget_summary_by_year = []
+    for year in sorted(budget_by_year.keys()):
+        year_data = budget_by_year[year]
+        year_total = sum([
+            year_data['personnel_nok'],
+            year_data['equipment_nok'],
+            year_data['other_operating_costs_nok'],
+            year_data['overhead_nok']
+        ])
+        year_data['year'] = year
+        year_data['year_total_nok'] = year_total
+        budget_summary_by_year.append(year_data)
+    
+    # Calculate project totals
+    total_budget_nok = sum(wp['total_budget_nok'] for wp in work_packages)
+    
+    # Estimate tax deduction (20% for small companies, 18% for large)
+    # Assume small company unless specified
+    company_size = user_input.get('company_size', 'small')
+    tax_rate = 0.20 if company_size == 'small' else 0.18
+    estimated_tax_deduction_nok = int(total_budget_nok * tax_rate)
+    
+    return {
+        'budget_summary_by_year': budget_summary_by_year,
+        'total_budget_nok': total_budget_nok,
+        'estimated_tax_deduction_nok': estimated_tax_deduction_nok
+    }
+```
+
+### Step 5.3: Update Template Variables
+
+```python
+# After generating work packages and summaries
+work_packages = create_work_packages_from_selected_krs(selected_krs, project_start_date, budget_period)
+summaries = calculate_budget_summaries(work_packages)
+
+# Add to template variables (from Phase 4)
+template_vars['work_packages'] = work_packages
+template_vars['budget_summary_by_year'] = summaries['budget_summary_by_year']
+template_vars['total_budget_nok'] = summaries['total_budget_nok']
+template_vars['estimated_tax_deduction_nok'] = summaries['estimated_tax_deduction_nok']
+```
+
+### Step 5.4: Budget Validation
+
+```python
+# Validate budget reconciliation
+total_wp_budget = sum(wp['total_budget_nok'] for wp in work_packages)
+user_specified_budget = user_input.budget.total_nok
+
+tolerance = 1000  # 1,000 NOK tolerance
+if abs(total_wp_budget - user_specified_budget) > tolerance:
+    print(f"⚠️ WARNING: Work package budgets ({total_wp_budget:,} NOK) "
+          f"don't match specified total ({user_specified_budget:,} NOK)")
+    print(f"   Difference: {abs(total_wp_budget - user_specified_budget):,} NOK")
+    print(f"   Please verify KR estimated_budget values in roadmap")
+
+# Validate cost code ratios
+total_personnel = sum(
+    year_cost['amount_nok'] 
+    for wp in work_packages 
+    for year_cost in wp['budget']['yearly_costs'] 
+    if year_cost['cost_code'] == 'Personnel'
+)
+personnel_ratio = total_personnel / total_wp_budget if total_wp_budget > 0 else 0
+
+if not (0.65 <= personnel_ratio <= 0.75):
+    print(f"⚠️ WARNING: Personnel ratio ({personnel_ratio:.1%}) outside typical 65-75% range")
+    print(f"   Typical for software R&D projects")
+```
+
+### Step 5.5: Budget Temporal Consistency Validation ⚠️ **CRITICAL**
+
+**Purpose:** Ensure budget allocations respect work package temporal boundaries. 
+
+**Problem Statement:** Each work package has a defined duration (start date to end date). Budget table entries MUST only include years within that duration. A WP running "August 2025 to July 2026" cannot have budget entries for 2027.
+
+**Validation Algorithm:**
+
+```python
+def validate_budget_temporal_consistency(work_packages):
+    """
+    Validate that each WP's budget entries only cover years within its duration.
+    
+    Prevents critical error: WP ending July 2026 having 2027 budget entries.
+    """
+    errors = []
+    warnings = []
+    
+    for wp_idx, wp in enumerate(work_packages, start=1):
+        # Extract WP temporal boundaries
+        wp_start_date = wp['start_date']  # e.g., "August 2025"
+        wp_end_date = wp['end_date']      # e.g., "July 2026"
+        
+        # Parse years from dates
+        wp_start_year = extract_year(wp_start_date)  # e.g., 2025
+        wp_end_year = extract_year(wp_end_date)      # e.g., 2026
+        
+        # Extract all budget years for this WP
+        budget_years = set()
+        for year_cost in wp['budget']['yearly_costs']:
+            budget_years.add(year_cost['year'])
+        
+        # CRITICAL VALIDATION: Budget years ⊆ [start_year, end_year]
+        invalid_years = []
+        for year in budget_years:
+            if year < wp_start_year or year > wp_end_year:
+                invalid_years.append(year)
+        
+        if invalid_years:
+            error_msg = (
+                f"❌ ERROR: WP{wp_idx} '{wp['title']}' has budget entries "
+                f"in year(s) {invalid_years} OUTSIDE its duration "
+                f"({wp_start_date} to {wp_end_date} = years {wp_start_year}-{wp_end_year})"
+            )
+            errors.append(error_msg)
+            print(error_msg)
+            
+            # Show detailed breakdown
+            print(f"   WP{wp_idx} Duration: {wp_start_date} → {wp_end_date}")
+            print(f"   Valid Years: {wp_start_year} through {wp_end_year}")
+            print(f"   Budget Years: {sorted(budget_years)}")
+            print(f"   INVALID: {invalid_years}")
+            print()
+        
+        # PROPORTIONAL ALLOCATION VALIDATION
+        # Check if budget is proportional to active months in each year
+        total_wp_months = calculate_months_duration(wp_start_date, wp_end_date)
+        
+        for year in sorted(budget_years):
+            if year < wp_start_year or year > wp_end_year:
+                continue  # Already flagged as error
+            
+            # Count active months in this year
+            active_months = count_active_months_in_year(
+                wp_start_date, wp_end_date, year
+            )
+            
+            # Expected budget proportion
+            expected_proportion = active_months / total_wp_months
+            
+            # Actual budget for this year
+            year_budget = sum(
+                yc['amount_nok'] 
+                for yc in wp['budget']['yearly_costs'] 
+                if yc['year'] == year
+            )
+            actual_proportion = year_budget / wp['total_budget_nok']
+            
+            # Allow 5% tolerance for rounding
+            proportion_diff = abs(expected_proportion - actual_proportion)
+            if proportion_diff > 0.05:
+                warning_msg = (
+                    f"⚠️ WARNING: WP{wp_idx} year {year} budget proportion "
+                    f"({actual_proportion:.1%}) differs from active months proportion "
+                    f"({expected_proportion:.1%} = {active_months}/{total_wp_months} months)"
+                )
+                warnings.append(warning_msg)
+                print(warning_msg)
+    
+    # Summary
+    print("\n" + "=" * 70)
+    print("Budget Temporal Consistency Validation Summary")
+    print("=" * 70)
+    if errors:
+        print(f"❌ {len(errors)} ERROR(S) FOUND - MUST FIX BEFORE GENERATION")
+        for error in errors:
+            print(f"   {error}")
+        print("\nFIX REQUIRED: Budget years must be within WP duration boundaries")
+        print("EXAMPLE FIX:")
+        print("   WP1 duration: Aug 2025 - Jul 2026 (12 months)")
+        print("   Valid years: [2025, 2026]")
+        print("   Budget allocation:")
+        print("     2025: 1,830,000 × (5 months / 12 months) = 762,500 NOK")
+        print("     2026: 1,830,000 × (7 months / 12 months) = 1,067,500 NOK")
+        print("     2027: MUST NOT EXIST (WP ends July 2026)")
+        raise ValueError("Budget temporal consistency errors - cannot proceed")
+    
+    if warnings:
+        print(f"⚠️ {len(warnings)} WARNING(S) - Review recommended")
+        for warning in warnings:
+            print(f"   {warning}")
+    else:
+        print("✅ All work package budgets temporally consistent")
+        print("   Budget years match WP durations")
+        print("   Budget allocations proportional to active months")
+    print("=" * 70 + "\n")
+    
+    return len(errors) == 0
+
+
+def extract_year(date_str):
+    """
+    Extract year from date string like 'August 2025' or 'July 2026'.
+    
+    Args:
+        date_str: Date string in format "Month YYYY"
+    
+    Returns: Integer year (e.g., 2025)
+    """
+    # Simple implementation - extract 4-digit year
+    import re
+    match = re.search(r'\b(20\d{2})\b', date_str)
+    if match:
+        return int(match.group(1))
+    raise ValueError(f"Could not extract year from date: {date_str}")
+
+
+def calculate_months_duration(start_date, end_date):
+    """
+    Calculate total months between start and end dates.
+    
+    Args:
+        start_date: "Month YYYY" format (e.g., "August 2025")
+        end_date: "Month YYYY" format (e.g., "July 2026")
+    
+    Returns: Integer number of months (inclusive)
+    """
+    from datetime import datetime
+    
+    # Parse dates
+    start = datetime.strptime(start_date, "%B %Y")
+    end = datetime.strptime(end_date, "%B %Y")
+    
+    # Calculate months difference
+    months = (end.year - start.year) * 12 + (end.month - start.month) + 1
+    return months
+
+
+def count_active_months_in_year(start_date, end_date, year):
+    """
+    Count how many months of a WP fall within a specific calendar year.
+    
+    Args:
+        start_date: WP start date "Month YYYY"
+        end_date: WP end date "Month YYYY"
+        year: Calendar year to check (e.g., 2025)
+    
+    Returns: Integer count of active months in that year
+    
+    Example:
+        WP runs "August 2025" to "July 2026"
+        count_active_months_in_year(..., ..., 2025) → 5 (Aug, Sep, Oct, Nov, Dec)
+        count_active_months_in_year(..., ..., 2026) → 7 (Jan, Feb, Mar, Apr, May, Jun, Jul)
+    """
+    from datetime import datetime
+    
+    start = datetime.strptime(start_date, "%B %Y")
+    end = datetime.strptime(end_date, "%B %Y")
+    
+    # Year boundaries
+    year_start = datetime(year, 1, 1)
+    year_end = datetime(year, 12, 31)
+    
+    # Find overlap
+    overlap_start = max(start, year_start)
+    overlap_end = min(end, year_end)
+    
+    if overlap_start > overlap_end:
+        return 0  # No overlap
+    
+    # Count months in overlap
+    months = (overlap_end.year - overlap_start.year) * 12 + \
+             (overlap_end.month - overlap_start.month) + 1
+    
+    return months
+
+
+# Execute validation BEFORE generating application
+print("\n🔍 Validating budget temporal consistency...")
+if not validate_budget_temporal_consistency(work_packages):
+    print("\n❌ CRITICAL: Budget validation failed. Fix errors before proceeding.")
+    sys.exit(1)
+else:
+    print("\n✅ Budget validation passed. Proceeding to application generation...")
+```
+
+**Why This Matters:**
+
+1. **Prevents Invalid Applications:**
+   - WP ending July 2026 cannot have 2027 costs → immediate rejection
+   - Budget years outside WP duration = nonsensical application
+
+2. **Ensures Proportional Allocation:**
+   - WP running 6 months (5 in 2025, 1 in 2026) should have ~5:1 budget split
+   - Not even 50/50 split (which wizard was generating incorrectly)
+
+3. **Catches Logic Errors Early:**
+   - Fails fast during generation, not during submission
+   - Provides specific fix examples in error messages
+
+**Integration Point:**
+
+This validation runs at the END of Phase 5, after all work packages and budgets are generated but BEFORE writing the final application document. If validation fails, wizard halts and shows detailed error messages with fix examples.
+
+**Expected Output (Successful):**
+
+```
+🔍 Validating budget temporal consistency...
+
+======================================================================
+Budget Temporal Consistency Validation Summary
+======================================================================
+✅ All work package budgets temporally consistent
+   Budget years match WP durations
+   Budget allocations proportional to active months
+======================================================================
+
+✅ Budget validation passed. Proceeding to application generation...
+```
+
+**Expected Output (Error - Before Fix):**
+
+```
+🔍 Validating budget temporal consistency...
+
+❌ ERROR: WP1 'Knowledge Graph, Extraction & MCP Server' has budget entries 
+in year(s) [2027] OUTSIDE its duration (August 2025 to July 2026 = years 2025-2026)
+   WP1 Duration: August 2025 → July 2026
+   Valid Years: 2025 through 2026
+   Budget Years: [2025, 2026, 2027]
+   INVALID: [2027]
+
+======================================================================
+Budget Temporal Consistency Validation Summary
+======================================================================
+❌ 1 ERROR(S) FOUND - MUST FIX BEFORE GENERATION
+   ❌ ERROR: WP1 'Knowledge Graph, Extraction & MCP Server' has budget entries in year(s) [2027] OUTSIDE its duration (August 2025 to July 2026 = years 2025-2026)
+
+FIX REQUIRED: Budget years must be within WP duration boundaries
+EXAMPLE FIX:
+   WP1 duration: Aug 2025 - Jul 2026 (12 months)
+   Valid years: [2025, 2026]
+   Budget allocation:
+     2025: 1,830,000 × (5 months / 12 months) = 762,500 NOK
+     2026: 1,830,000 × (7 months / 12 months) = 1,067,500 NOK
+     2027: MUST NOT EXIST (WP ends July 2026)
+ValueError: Budget temporal consistency errors - cannot proceed
+```
 
 ---
 
@@ -1847,6 +3274,487 @@ Include at end of document:
 
 ---
 
+## Phase 6: Self-Validation
+
+**Purpose:** Run independent validator on generated application to catch any errors before user submission.
+
+### Step 6.0: Prepare for Validation
+
+**Action:** Inform user that self-validation will now run.
+
+**Message to user:**
+```
+I'll now perform self-validation on the generated application in two steps:
+
+Step 1: Character Limit Enforcement
+- Scan for all character count violations
+- Automatically trim content to meet limits
+- Preserve meaning and technical accuracy
+
+Step 2: Independent Validator (validator.sh)
+- Layer 1: Schema Structure (all required sections present)
+- Layer 2: Semantic Rules (TRL ranges, placeholders, activity counts)
+- Layer 3: Budget Validation (totals, percentages, temporal consistency)
+- Layer 4: Traceability (KR references, EPF sources)
+
+This typically takes 10-15 seconds...
+```
+
+### Step 6.1: Character Limit Enforcement (Auto-Trim)
+
+**Purpose:** Detect and automatically fix all character limit violations BEFORE running validator.sh.
+
+**Character Limits (from template.md):**
+- Section 2.1: Project titles (100 chars EN/NO, 60 chars short name)
+- Section 4.1: Primary Objective (1000 chars)
+- Section 4.2: Market Differentiation (2000 chars)
+- Section 5: R&D Content (2000 chars)
+- Section 6: Project Summary (1000 chars)
+- Work Package Challenges: 500 chars
+- Work Package Methods: 1000 chars
+- Activity Titles: 100 chars
+- Activity Descriptions: 500 chars
+
+**Process:**
+
+1. **Read the generated application file completely**
+
+2. **Scan for all character count markers**
+   - Pattern: `*[Max {limit} characters: {actual}/{limit}]*`
+   - Example: `*[Max 500 characters: 588/500]*`
+   - Also detect warning markers: `⚠️ *[Exceeded by {N} characters - will trim]*`
+
+3. **Identify violations**
+   - Parse actual vs limit: `actual > limit` = violation
+   - Extract line numbers and section context
+   - Build list of violations: `[(line_num, actual, limit, section_name)]`
+
+4. **For each violation, apply intelligent trimming:**
+
+   **Trimming Strategy:**
+   ```python
+   def trim_text_intelligently(text, target_length):
+       """
+       Trim text to target_length while preserving meaning and readability.
+       
+       Rules:
+       1. Remove filler phrases first
+       2. Condense verbose explanations
+       3. Use shorter synonyms
+       4. Preserve technical terms and key details
+       5. Maintain sentence boundaries (don't cut mid-sentence)
+       6. Keep first and last sentences if possible (thesis + conclusion)
+       """
+       
+       # Step 1: Remove common filler phrases
+       fillers = [
+           "it is important to note that",
+           "it should be noted that",
+           "in order to",
+           "for the purpose of",
+           "with the aim of",
+           "it is worth mentioning",
+           "as previously mentioned",
+           "as mentioned earlier",
+           "at this point in time",
+           "due to the fact that"
+       ]
+       
+       for filler in fillers:
+           text = text.replace(filler, "")
+       
+       # Step 2: Condense parentheticals
+       # "(e.g., example one, example two, example three)" → "(e.g., examples)"
+       
+       # Step 3: Check length
+       if len(text) <= target_length:
+           return text.strip()
+       
+       # Step 4: Sentence-level trimming (preserve first + last)
+       sentences = text.split('. ')
+       if len(sentences) > 2:
+           # Keep first and last, trim middle
+           first = sentences[0]
+           last = sentences[-1]
+           middle = sentences[1:-1]
+           
+           # Try removing middle sentences until fits
+           while len('. '.join([first, last])) > target_length and middle:
+               middle.pop(0)  # Remove from middle first
+           
+           result = '. '.join([first] + middle + [last])
+           if len(result) <= target_length:
+               return result.strip()
+       
+       # Step 5: Hard truncate at sentence boundary (last resort)
+       truncated = text[:target_length]
+       last_period = truncated.rfind('. ')
+       if last_period > target_length * 0.8:  # If we're >80% there
+           return truncated[:last_period + 1].strip()
+       else:
+           # No good sentence boundary, truncate at word
+           last_space = truncated.rfind(' ')
+           return truncated[:last_space].strip() + "..."
+   ```
+
+5. **Update the application file:**
+   - For each violation:
+     a. Extract the text content (between heading and character marker)
+     b. Apply `trim_text_intelligently(text, limit)`
+     c. Replace old text with trimmed text
+     d. Update character count marker: `*[Max {limit} characters: {new_actual}/{limit}]*`
+     e. Remove warning marker: `⚠️ *[Exceeded by X characters - will trim]*`
+   
+6. **Verify all violations fixed:**
+   - Re-scan file for character count markers
+   - Ensure all show `actual <= limit`
+   - Count fixes applied
+
+7. **Report to user:**
+   ```markdown
+   ### Character Limit Enforcement Complete
+   
+   **Violations Found:** {N}
+   **Violations Fixed:** {N}
+   
+   **Details:**
+   - Section 4.1 Challenge: 588/500 → 498/500 (trimmed 90 chars)
+   - WP1 Activity 1: 523/500 → 497/500 (trimmed 26 chars)
+   - WP2 Method: 1082/1000 → 998/1000 (trimmed 84 chars)
+   - ... (list all fixes)
+   
+   **Trimming Preserved:**
+   ✅ Technical accuracy
+   ✅ Key details and hypotheses
+   ✅ Sentence readability
+   ✅ Meaning and context
+   
+   **Verification:**
+   ✅ All character limits now compliant
+   ✅ No warning markers remaining
+   ✅ Ready for validator.sh
+   ```
+
+**Implementation Notes:**
+
+- **Extract text sections** using line ranges from character markers
+- **Common sections requiring trimming:**
+  - Work Package R&D Challenges (500 char limit)
+  - Work Package Methods (1000 char limit)
+  - Activity descriptions (500 char limit)
+  - Section 4.1 Primary Objective (1000 char limit)
+  - Section 5 R&D Content (2000 char limit)
+
+- **Preserve formatting:**
+  - Keep markdown structure (bold, italics)
+  - Maintain list formats
+  - Don't break technical terms across lines
+
+- **Quality checks:**
+  - Verify trimmed text still reads naturally
+  - Ensure no orphaned words or broken sentences
+  - Maintain professional tone
+
+**Example Before/After:**
+
+**Before (588 chars):**
+```
+Can structured feature definition format bridge product vision and engineering 
+implementation while supporting AI-assisted development? Challenge: design 
+specification structure capturing functional requirements, technical constraints, 
+acceptance criteria in machine-readable format usable by both humans and AI coding 
+agents. Unknown: whether format reduces specification ambiguity, enables automated 
+validation, and improves dev team alignment. It is important to note that failure 
+mode: specifications remain ambiguous, AI agents misinterpret requirements, format 
+adds overhead without value.
+```
+
+**After (497 chars):**
+```
+Can structured feature definition format bridge product vision and engineering 
+implementation while supporting AI-assisted development? Challenge: design 
+specification structure capturing functional requirements, technical constraints, 
+acceptance criteria in machine-readable format usable by both humans and AI coding 
+agents. Unknown: whether format reduces specification ambiguity, enables automated 
+validation, and improves dev team alignment. Failure mode: specifications remain 
+ambiguous, AI agents misinterpret requirements, format adds overhead without value.
+```
+
+**Changes:** Removed filler "It is important to note that" (27 chars + spaces = 30 chars saved).
+
+---
+
+### Step 6.2: Execute Validator
+
+**Command:** Run validator.sh on the generated application file (AFTER character limit enforcement).
+
+**Location:** `docs/EPF/outputs/skattefunn-application/validator.sh`
+
+**Syntax:**
+```bash
+bash validator.sh /path/to/generated-application.md
+```
+
+**Expected Output Format:**
+```
+╔═══════════════════════════════════════════════════════╗
+║      SkatteFUNN Application Validator v1.0.0         ║
+╚═══════════════════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Layer 1: Schema Structure
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ Found section: ## Section 1: Project Owner and Roles
+...
+✗ ERROR: Missing section: ...
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Validation Summary
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Errors by Layer:
+  Schema:        0
+  Semantic:      0
+  Budget:        0
+  Traceability:  0
+
+Total Errors:    0
+Total Warnings:  3
+
+Exit Code: 0 (VALIDATION PASSED) or 1 (VALIDATION FAILED)
+```
+
+### Step 6.3: Parse Validator Output
+
+**Parse the following information from validator output:**
+
+1. **Exit Code**
+   - `0` = Validation passed (0 errors)
+   - `1` = Validation failed (1+ errors)
+
+2. **Error Counts by Layer**
+   - Schema errors (missing sections, wrong format)
+   - Semantic errors (TRL issues, placeholder text, activity counts)
+   - Budget errors (totals mismatch, temporal consistency, percentages)
+   - Traceability errors (missing KR references, EPF sources)
+
+3. **Specific Error Messages**
+   - Each error line starts with `✗ ERROR:`
+   - Extract error details for root cause analysis
+
+4. **Warning Counts**
+   - Warnings don't block submission but should be reviewed
+   - Lines starting with `⚠ WARNING:`
+
+### Step 6.4: Report Results to User
+
+**Scenario A: Zero Errors (Exit Code 0)**
+
+**Message:**
+```markdown
+## ✅ Validation PASSED
+
+The application passed all validation checks!
+
+**Summary:**
+- ✅ Layer 1 (Schema): 0 errors
+- ✅ Layer 2 (Semantic): 0 errors  
+- ✅ Layer 3 (Budget): 0 errors
+- ✅ Layer 4 (Traceability): 0 errors
+
+⚠️ Warnings: {N}
+{List warnings if any}
+
+**Status:** Application is ready for review and submission.
+
+**Next Steps:**
+1. Review the generated application for accuracy
+2. Verify budget numbers match your accounting records
+3. Copy content to SkatteFUNN portal when ready
+```
+
+**Action:** Proceed to Phase 7 (completion).
+
+---
+
+**Scenario B: Warnings Only (Exit Code 0 but warnings present)**
+
+**Message:**
+```markdown
+## ✅ Validation PASSED (with warnings)
+
+The application passed validation but has {N} warnings:
+
+{List each warning with context}
+
+**Warnings Explanation:**
+- Most warnings are informational reminders
+- Common warnings:
+  * "Organization number format may be incorrect" - Check XXX XXX XXX format
+  * "Work Package X missing some cost code categories" - Usually acceptable
+  * "No explicit WP → KR mappings" - Traceability section exists but could be enhanced
+  * Character limit checks - Verify manually during copy/paste
+
+**Status:** Application is acceptable for submission. Review warnings and decide if fixes needed.
+```
+
+**Action:** User decides whether to address warnings or proceed.
+
+---
+
+**Scenario C: Errors Present (Exit Code 1)**
+
+**Analyze error type and determine if auto-fixable:**
+
+**Auto-Fixable Errors (attempt automatic correction):**
+1. **Budget Temporal Errors**
+   - WP has budget entries outside its duration
+   - **Fix:** Redistribute budget years to match WP duration
+   - **Example:** WP1 ends July 2026 but has 2027 costs → move to 2025/2026
+
+2. **Section Order Errors**
+   - Section 4 and Section 5 swapped
+   - **Fix:** Reorder sections
+
+3. **Missing Budget Subsections**
+   - WP missing #### Budget section
+   - **Fix:** Add budget breakdown from Section 8.2 data
+
+**Non-Fixable Errors (require user input):**
+1. **Missing Required Sections**
+   - Indicates generation failure
+   - **Action:** Report to user, request re-generation
+
+2. **TRL Ineligibility (TRL 1 or TRL 8+)**
+   - Cannot auto-correct without changing KR selection
+   - **Action:** Report to user, suggest KR filtering
+
+3. **Placeholder Text (XXX)**
+   - Requires real data from user
+   - **Action:** Report locations, ask user to provide info
+
+### Step 6.5: Auto-Fix Attempt (if errors are auto-fixable)
+
+**Maximum Iterations:** 2
+
+**Process:**
+1. Identify error type from validator output
+2. Apply appropriate fix logic
+3. Re-run validator
+4. If still failing after 2 attempts, report to user
+
+**Example: Budget Temporal Error Fix**
+
+**Validator Error:**
+```
+✗ ERROR: Work Package 1 has budget entries in year(s) [2027] OUTSIDE its duration (years 2025-2026)
+✗ ERROR:   Duration: August 2025 to July 2026 (12 months)
+✗ ERROR:   Valid budget years: 2025 through 2026
+```
+
+**Fix Logic:**
+1. Extract WP1 duration: Aug 2025 - Jul 2026
+2. Identify invalid years: 2027
+3. Extract 2027 budget amount: {amount}
+4. Calculate proportional distribution:
+   - 2025: 5 months (Aug-Dec) = 5/12 of WP budget
+   - 2026: 7 months (Jan-Jul) = 7/12 of WP budget
+5. Remove 2027 row from WP1 budget table
+6. Add 2027 amount proportionally to 2025 and 2026
+7. Update Section 8.1 yearly totals
+8. Update Section 8.3 yearly totals (if exists)
+
+**Report to User:**
+```markdown
+### Auto-Fix Applied: Budget Temporal Consistency
+
+**Issue:** Work Package 1 had budget entries in 2027, but its duration ends July 2026.
+
+**Fix Applied:**
+- Removed 2027 budget row (252,000 NOK)
+- Redistributed amount proportionally:
+  * Added 105,000 NOK to 2025 (5/12 months)
+  * Added 147,000 NOK to 2026 (7/12 months)
+- Updated Section 8.1 yearly totals
+- Updated WP1 budget table
+
+**Re-running validator...**
+```
+
+### Step 6.6: Final Validation Report
+
+**After auto-fix attempts (or if no auto-fix needed):**
+
+**Message:**
+```markdown
+## Validation Final Report
+
+**Iterations:** {N}/2
+
+**Final Status:** {PASSED | FAILED}
+
+**Errors Remaining:** {N}
+{List any errors that could not be auto-fixed}
+
+**Warnings:** {N}
+{List warnings if any}
+
+---
+
+**Recommendations:**
+{Provide specific guidance based on remaining errors}
+
+**Status:** 
+- If 0 errors: ✅ Ready for submission
+- If 1-5 errors: ⚠️ Requires manual fixes (listed above)
+- If 6+ errors: ❌ Significant issues detected, recommend re-generation
+```
+
+### Step 6.7: Abort Conditions
+
+**Abort generation and report to user if:**
+
+1. **Critical Schema Failures**
+   - 5+ missing required sections
+   - Indicates generation process failed
+   - **Action:** Offer to re-run Phases 1-5
+
+2. **Validation Script Errors**
+   - validator.sh returns unexpected output
+   - Script crashes or times out
+   - **Action:** Report technical issue, continue without validation
+
+3. **Cannot Parse Validator Output**
+   - Output format doesn't match expected structure
+   - **Action:** Show raw output to user, continue without parsing
+
+### Validation Output Parsing Examples
+
+**Example 1: Parse Error Count**
+```
+Input: "Total Errors:    3"
+Extract: errors = 3
+```
+
+**Example 2: Parse Temporal Error**
+```
+Input: "✗ ERROR: Work Package 2 has budget entries in year(s) [2027, 2027] OUTSIDE its duration (years 2025-2026)"
+Extract:
+  - wp_number = 2
+  - invalid_years = [2027, 2027]
+  - valid_range = (2025, 2026)
+```
+
+**Example 3: Parse Warning**
+```
+Input: "⚠ WARNING: Work Package 1 missing some cost code categories"
+Extract:
+  - warning_type = "missing_cost_codes"
+  - wp_number = 1
+```
+
+---
+
 ## AI Assistant Execution Checklist
 
 **Before starting generation, the AI assistant MUST confirm:**
@@ -1856,6 +3764,9 @@ Include at end of document:
 - [ ] ⚠️ **STOP: Did I show the user ALL eligible KRs and let them choose? If NO, STOP NOW.**
 - [ ] ✅ User confirmed selected KRs and budget allocation
 - [ ] ✅ Only proceeding to document generation AFTER user confirmation
+- [ ] ✅ Phase 6 Step 6.1: Character limit enforcement will run automatically (auto-trim violations)
+- [ ] ✅ Phase 6 Step 6.2: Self-Validation will run automatically after character enforcement
+- [ ] ✅ Validator output will be parsed and auto-fixes attempted (max 2 iterations)
 
 **Red flags that indicate I skipped Phase 0.5:**
 - ❌ I did not show the user a list of eligible KRs
@@ -1882,9 +3793,18 @@ Phase 3: Content Synthesis
     ↓
 Phase 4: Document Assembly
     ↓
-Phase 5: Budget Allocation
+Phase 5: Budget Allocation (includes Step 5.5: Budget Temporal Validation)
     ↓
-Final Output: Application Document
+Phase 6: Self-Validation
+    ├─ Step 6.1: Character Limit Enforcement (auto-trim violations)
+    ├─ Step 6.2: Run validator.sh (4-layer validation)
+    ├─ Step 6.3: Parse validator output
+    ├─ Step 6.4: Report results to user
+    ├─ Step 6.5: Auto-fix budget/temporal errors (max 2 iterations)
+    ├─ Step 6.6: Final validation report
+    └─ Step 6.7: Abort conditions (if critical failures)
+    ↓
+Final Output: Application Document (character limits enforced, validated & ready for submission)
 ```
 
 **Remember: selected_krs (from Phase 0.5) != eligible_krs (from Phase 0)**

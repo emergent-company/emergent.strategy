@@ -1,15 +1,15 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "SkatteFUNN Application Generator Schema",
-  "description": "Input parameters and EPF requirements for Norwegian R&D Tax Deduction application generation",
-  "version": "1.0.0",
+  "description": "Input parameters and EPF requirements for Norwegian R&D Tax Deduction application generation (aligned with official SkatteFUNN online form)",
+  "version": "2.0.0",
   "type": "object",
   "required": [
     "organization",
     "contact",
+    "project_info",
     "timeline",
-    "budget",
-    "technical_details",
+    "work_packages",
     "epf_sources"
   ],
   "properties": {
@@ -19,49 +19,148 @@
       "properties": {
         "name": {
           "type": "string",
-          "description": "Official company name",
-          "example": "OUTBLOCKS AS"
+          "description": "Official company name (automatically retrieved from Brønnøysund Register)",
+          "example": "Eyedea AS"
         },
         "org_number": {
           "type": "string",
           "pattern": "^[0-9]{9}$",
           "description": "Norwegian organization number (9 digits)",
-          "example": "929475909"
+          "example": "926006985"
         },
         "manager_name": {
           "type": "string",
-          "description": "CEO or managing director name",
+          "description": "The person responsible for running the project in accordance with contract documents",
           "example": "Nikolai Fasting"
         }
       }
     },
     "contact": {
       "type": "object",
-      "required": ["project_leader", "org_representative"],
+      "required": ["project_leader", "org_representative", "creator"],
       "properties": {
-        "project_leader": {
+        "creator": {
           "type": "object",
           "required": ["name", "email", "phone"],
+          "description": "Creator of Application - person filling out the form",
           "properties": {
             "name": {"type": "string"},
             "email": {"type": "string", "format": "email"},
-            "phone": {"type": "string", "pattern": "^\\+47[0-9]{8}$"}
+            "phone": {"type": "string", "pattern": "^\\+47[0-9 ]{8,15}$"}
+          }
+        },
+        "project_leader": {
+          "type": "object",
+          "required": ["name", "email", "phone"],
+          "description": "Project Leader - person managing the R&D project",
+          "properties": {
+            "name": {"type": "string"},
+            "email": {"type": "string", "format": "email"},
+            "phone": {"type": "string", "pattern": "^\\+47[0-9 ]{8,15}$"}
           }
         },
         "org_representative": {
           "type": "object",
           "required": ["name", "email", "phone"],
+          "description": "Organisation Representative - legal signatory for the company",
           "properties": {
             "name": {"type": "string"},
             "email": {"type": "string", "format": "email"},
-            "phone": {"type": "string", "pattern": "^\\+47[0-9]{8}$"}
+            "phone": {"type": "string", "pattern": "^\\+47[0-9 ]{8,15}$"}
           }
+        }
+      }
+    },
+    "project_info": {
+      "type": "object",
+      "required": [
+        "title_english",
+        "title_norwegian",
+        "short_name",
+        "scientific_discipline",
+        "area_of_use",
+        "company_activities",
+        "project_background",
+        "primary_objective",
+        "market_differentiation",
+        "rd_content",
+        "project_summary"
+      ],
+      "properties": {
+        "title_english": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Project title in English (max 100 characters)"
+        },
+        "title_norwegian": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Project title in Norwegian (max 100 characters)"
+        },
+        "short_name": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Short name for the project (max 60 characters)"
+        },
+        "scientific_discipline": {
+          "type": "object",
+          "required": ["subject_area", "subject_group", "subject_discipline"],
+          "properties": {
+            "subject_area": {"type": "string", "example": "Natural Sciences"},
+            "subject_group": {"type": "string", "example": "Computer and Information Sciences"},
+            "subject_discipline": {"type": "string", "example": "Software Engineering and AI Systems"}
+          }
+        },
+        "area_of_use": {
+          "type": "string",
+          "description": "Industry where results will be used",
+          "example": "Software development and AI services"
+        },
+        "continuation": {
+          "type": "boolean",
+          "default": false,
+          "description": "Is this a continuation of a previously approved SkatteFUNN project?"
+        },
+        "other_applicants": {
+          "type": "boolean",
+          "default": false,
+          "description": "Are other companies applying for this same project?"
+        },
+        "company_activities": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Describe products, markets, and company stage (max 2000 characters)"
+        },
+        "project_background": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Describe why the project is important for the company (max 2000 characters)"
+        },
+        "primary_objective": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Concrete and verifiable goals and new/improved goods or services (max 1000 characters)"
+        },
+        "market_differentiation": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "How the solution differs from existing products or competitor offerings (max 2000 characters)"
+        },
+        "rd_content": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "R&D challenge with no known solution, why R&D is required, systematic method (max 2000 characters)"
+        },
+        "project_summary": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Short presentation of background, objective, challenges, and approach - published publicly if approved (max 1000 characters)"
         }
       }
     },
     "timeline": {
       "type": "object",
-      "required": ["start_date", "end_date", "application_date"],
+      "required": ["start_date", "end_date", "duration_months", "application_date"],
       "properties": {
         "start_date": {
           "type": "string",
@@ -73,6 +172,12 @@
           "format": "date",
           "description": "Project end date (YYYY-MM-DD), max 48 months from start"
         },
+        "duration_months": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 48,
+          "description": "Total project duration in months (1-48)"
+        },
         "application_date": {
           "type": "string",
           "format": "date",
@@ -80,67 +185,104 @@
         }
       }
     },
-    "budget": {
-      "type": "object",
-      "required": ["total_nok", "yearly_breakdown"],
-      "properties": {
-        "total_nok": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 25000000,
-          "description": "Total project budget in NOK (max 25M per company per year)"
-        },
-        "yearly_breakdown": {
-          "type": "array",
-          "description": "Budget allocation per year",
-          "items": {
+    "work_packages": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "description": "Work packages (min 1, max 8)",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "start_month",
+          "end_month",
+          "rd_category",
+          "rd_challenges",
+          "method_approach",
+          "activities",
+          "budget"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Name of work package (max 100 characters)"
+          },
+          "start_month": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Start month within project period (1 = first month)"
+          },
+          "end_month": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "End month within project period"
+          },
+          "rd_category": {
+            "type": "string",
+            "enum": ["Experimental Development", "Industrial Research"],
+            "description": "R&D category for this work package"
+          },
+          "rd_challenges": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "Challenges with no known solution today (max 500 characters)"
+          },
+          "method_approach": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "Systematic process to solve the challenge (max 1000 characters)"
+          },
+          "activities": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 8,
+            "description": "Activities within this work package (2-8 per WP)",
+            "items": {
+              "type": "object",
+              "required": ["title", "description"],
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "maxLength": 100,
+                  "description": "Activity title (max 100 characters)"
+                },
+                "description": {
+                  "type": "string",
+                  "maxLength": 500,
+                  "description": "Activity description (max 500 characters)"
+                }
+              }
+            }
+          },
+          "budget": {
             "type": "object",
-            "required": ["year", "amount_nok", "months_active"],
+            "required": ["yearly_costs"],
             "properties": {
-              "year": {"type": "integer", "minimum": 2020, "maximum": 2030},
-              "amount_nok": {"type": "integer", "minimum": 0},
-              "months_active": {"type": "integer", "minimum": 1, "maximum": 12},
-              "monthly_rate_nok": {"type": "integer", "minimum": 0},
-              "notes": {"type": "string"}
+              "yearly_costs": {
+                "type": "array",
+                "description": "Budget per year with cost codes",
+                "items": {
+                  "type": "object",
+                  "required": ["year", "cost_code", "amount_nok"],
+                  "properties": {
+                    "year": {"type": "integer", "minimum": 2020, "maximum": 2035},
+                    "cost_code": {
+                      "type": "string",
+                      "enum": ["Personnel", "Equipment", "Other Operating Costs", "Overhead"],
+                      "description": "SkatteFUNN cost category"
+                    },
+                    "amount_nok": {"type": "integer", "minimum": 0}
+                  }
+                }
+              },
+              "cost_specification": {
+                "type": "string",
+                "maxLength": 500,
+                "description": "Elaborate or explain costs if necessary (max 500 characters)"
+              }
             }
           }
-        },
-        "cost_categories": {
-          "type": "object",
-          "description": "Percentage breakdown (should sum to 100)",
-          "properties": {
-            "personnel_pct": {"type": "number", "minimum": 0, "maximum": 100, "default": 60},
-            "equipment_pct": {"type": "number", "minimum": 0, "maximum": 100, "default": 25},
-            "overhead_pct": {"type": "number", "minimum": 0, "maximum": 100, "default": 15}
-          }
-        }
-      }
-    },
-    "technical_details": {
-      "type": "object",
-      "required": ["trl_start", "trl_end", "scientific_discipline"],
-      "properties": {
-        "trl_start": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 7,
-          "description": "Starting Technology Readiness Level (typically 2-3)"
-        },
-        "trl_end": {
-          "type": "integer",
-          "minimum": 2,
-          "maximum": 7,
-          "description": "Target TRL at project end (max 7 for SkatteFUNN eligibility)"
-        },
-        "scientific_discipline": {
-          "type": "string",
-          "description": "Primary research field",
-          "examples": [
-            "Computer Science - Artificial Intelligence",
-            "Software Engineering",
-            "Data Science and Machine Learning",
-            "Information Systems"
-          ]
         }
       }
     },

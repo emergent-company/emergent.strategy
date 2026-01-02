@@ -1,8 +1,9 @@
-# SkatteFUNN Application Template
+# SkatteFUNN Application Template v2.0.0
 
-This template defines the output structure for SkatteFUNN (Norwegian R&D Tax Deduction Scheme) applications.
+This template defines the output structure for SkatteFUNN (Norwegian R&D Tax Deduction Scheme) applications, aligned with the official online form at https://kunde.forskningsradet.no/skattefunn/
 
-**Variables are denoted with {{variable_name}} and will be replaced during generation.**
+**Variables are denoted with {{variable_name}} and will be replaced during generation.**  
+**Character limits are enforced per official SkatteFUNN requirements.**
 
 ---
 
@@ -14,177 +15,317 @@ This template defines the output structure for SkatteFUNN (Norwegian R&D Tax Ded
 
 ---
 
-## 1. Project Owner
+## Section 1: Project Owner and Roles
+
+### 1.1 Project Owner
 
 The Project Owner is responsible for running the project in accordance with the contract documents.
 
-| Organisation name | Organisation number | Manager |
+| Organisation Name | Organisation Number | Manager |
 | --- | --- | --- |
-| {{organization_name}} | {{organization_number}} | {{manager_name}} |
+| {{organization.name}} | {{organization.org_number}} | {{organization.manager_name}} |
+
+### 1.2 Roles in the Project
+
+Three mandatory roles required:
+
+| Name | Role | E-mail | Phone | Access Rights |
+| --- | --- | --- | --- | --- |
+| {{contact.creator.name}} | **Creator of Application** | {{contact.creator.email}} | {{contact.creator.phone}} | Delete, Submit, Edit, Read, Withdraw, ChangeAccess |
+| {{contact.org_representative.name}} | **Organisation Representative** | {{contact.org_representative.email}} | {{contact.org_representative.phone}} | Edit, Read, Approve |
+| {{contact.project_leader.name}} | **Project Leader** | {{contact.project_leader.email}} | {{contact.project_leader.phone}} | Delete, Submit, Edit, Read, Withdraw, ChangeAccess |
 
 ---
 
-## 2. Roles in the Project
+## Section 2: About the Project
 
-A project must have a project manager (responsible for scientific implementation) and an organisation representative (authorized to enter legal agreements).
+### 2.1 Project Title
 
-### Mandatory Roles
+**Title (English):** {{project_info.title_english}}  
+*[Max 100 characters]*
 
-| Name | Role | Organisation | E-mail | Phone | Access |
-| --- | --- | --- | --- | --- | --- |
-| {{project_leader_name}} | Creator of Application | {{organization_name}} | {{project_leader_email}} | {{project_leader_phone}} | Delete, Submit, Edit, Read, Withdraw, ChangeAccess |
-| {{org_rep_name}} | Organisation Representative | {{organization_name}} | {{org_rep_email}} | {{org_rep_phone}} | Edit, Read, Approve |
-| {{project_leader_name}} | Project Leader | {{organization_name}} | {{project_leader_email}} | {{project_leader_phone}} | Delete, Submit, Edit, Read, Withdraw, ChangeAccess |
+**Title (Norwegian):** {{project_info.title_norwegian}}  
+*[Max 100 characters]*
 
----
+**Short Name:** {{project_info.short_name}}  
+*[Max 60 characters]*
 
-## 3. Project Details
+### 2.2 Scientific Classification
 
-### 3.1 General Information
+**Subject Area:** {{project_info.scientific_discipline.subject_area}}  
+**Subject Group:** {{project_info.scientific_discipline.subject_group}}  
+**Subject Discipline:** {{project_info.scientific_discipline.subject_discipline}}
 
-**Title (English):** {{project_title}}
+### 2.3 Additional Information
 
-**Project Short Name:** {{project_short_name}}
+**Area of Use:** {{project_info.area_of_use}}  
+*(Industry where project results will be applied)*
 
-**Scientific Discipline:** {{scientific_discipline}}
-
-### 3.2 Project Background and Company Activities
-
-**Company Activities:**
-
-{{company_activities}}
-
-**Project Background:**
-
-{{project_background}}
-
-### 3.3 Objectives and Innovation
-
-**Primary Objective:**
-
-{{primary_objective}}
-
-**R&D Content and Technical Challenges:**
-
-{{rd_challenges}}
-
-**State-of-the-Art Comparison:**
-
-{{state_of_art}}
-
-**Project Summary:**
-
-{{project_summary}}
-
-**Technology Readiness Level:**
-- Starting TRL: {{trl_start}}
-- Target TRL: {{trl_end}}
-
-**Frascati Criteria Compliance:**
-
-{{frascati_compliance}}
+**Continuation of Previous Project:** {{project_info.continuation}}  
+**Other Companies Applying for This Project:** {{project_info.other_applicants}}
 
 ---
 
-## 4. Timeline and Work Packages
+## Section 3: Background and Company Activities
 
-**Project Duration:** {{start_date}} to {{end_date}} ({{duration_months}} months)
+### 3.1 Company Activities
 
-{{work_packages}}
+{{project_info.company_activities}}
+
+*[Max 2000 characters]*
+
+*Describe your products/services, markets, and company stage (startup/scale-up/established).*
+
+### 3.2 Project Background
+
+{{project_info.project_background}}
+
+*[Max 2000 characters]*
+
+*Explain why this project is important for your company's development.*
 
 ---
 
-## 5. Budget and Tax Deduction
+## Section 4: Primary Objective and Innovation
 
-### 5.1 Total Budget Overview
+### 4.1 Primary Objective
 
-| Year | Months Active | Amount (NOK) | Monthly Rate (NOK) |
-|------|---------------|--------------|-------------------|
-{{budget_yearly_table}}
+{{project_info.primary_objective}}
 
-**Total Project Budget:** {{total_budget_nok}} NOK
+*[Max 1000 characters]*
 
-### 5.2 Budget Allocation by Work Package
+*State concrete, verifiable goals and describe what new or improved goods/services will result.*
 
-| Work Package | Duration | Budget (NOK) | Personnel (60%) | Equipment (25%) | Overhead (15%) |
-|--------------|----------|--------------|-----------------|-----------------|----------------|
-{{budget_wp_table}}
+### 4.2 Market Differentiation
 
-### 5.3 Cost Category Breakdown
+{{project_info.market_differentiation}}
 
-| Category | Percentage | Amount (NOK) | Description |
-|----------|------------|--------------|-------------|
-| Personnel | 60% | {{personnel_total}} | Salaries for R&D staff |
-| Equipment & Tools | 25% | {{equipment_total}} | Computing infrastructure, software licenses |
-| Overhead | 15% | {{overhead_total}} | Facilities, administration |
-| **Total** | **100%** | **{{total_budget_nok}}** | |
+*[Max 2000 characters]*
 
-### 5.4 Estimated Tax Deduction
+*Explain how your solution differs from existing products or competitor offerings (state-of-the-art comparison).*
+
+---
+
+## Section 5: R&D Content
+
+{{project_info.rd_content}}
+
+*[Max 2000 characters]*
+
+*Describe the technical/scientific challenge with no known solution today, why R&D is required, and the systematic method you will use.*
+
+---
+
+## Section 6: Project Summary
+
+{{project_info.project_summary}}
+
+*[Max 1000 characters]*
+
+*Brief summary of background, objectives, challenges, and approach. This will be published publicly if your application is approved.*
+
+---
+
+## Section 7: Work Packages
+
+{{#each work_packages}}
+
+### Work Package {{@index}}: {{this.name}}
+
+**Duration:** Month {{this.start_month}} to Month {{this.end_month}}  
+**R&D Category:** {{this.rd_category}}
+
+#### R&D Challenges
+
+{{this.rd_challenges}}
+
+*[Max 500 characters]*
+
+*Describe the challenge where no solution exists today.*
+
+#### Method and Approach
+
+{{this.method_approach}}
+
+*[Max 1000 characters]*
+
+*Describe the systematic process to solve the challenge.*
+
+#### Activities
+
+{{#each this.activities}}
+##### Activity {{@index}}: {{this.title}}
+
+*[Max 100 characters]*
+
+{{this.description}}
+
+*[Max 500 characters]*
+
+{{/each}}
+
+#### Budget
+
+**Yearly Costs:**
+
+| Year | Cost Code | Amount (NOK) |
+|------|-----------|--------------|
+{{#each this.budget.yearly_costs}}
+| {{this.year}} | {{this.cost_code}} | {{this.amount_nok}} |
+{{/each}}
+
+**Cost Specification:**
+
+{{this.budget.cost_specification}}
+
+*[Max 500 characters - optional elaboration]*
+
+{{/each}}
+
+
+---
+
+## Section 8: Total Budget and Estimated Tax Deduction
+
+### 8.1 Budget Summary by Year and Cost Code
+
+| Year | Cost Code | Amount (NOK) |
+|------|-----------|--------------|
+{{#each budget_summary_by_year}}
+| {{this.year}} | **Personnel** | {{this.personnel_nok}} |
+| {{this.year}} | **Equipment** | {{this.equipment_nok}} |
+| {{this.year}} | **Other Operating Costs** | {{this.other_operating_costs_nok}} |
+| {{this.year}} | **Overhead** | {{this.overhead_nok}} |
+| {{this.year}} | **Year Total** | **{{this.year_total_nok}}** |
+{{/each}}
+
+**Grand Total:** **{{total_budget_nok}} NOK**
+
+### 8.2 Budget Allocation by Work Package
+
+| Work Package | Duration | Budget (NOK) |
+|--------------|----------|--------------|
+{{#each work_packages}}
+| {{this.name}} | Month {{this.start_month}}-{{this.end_month}} | {{this.total_budget_nok}} |
+{{/each}}
+| **Total** | {{duration_months}} months | **{{total_budget_nok}} NOK** |
+
+### 8.3 Estimated Tax Deduction
 
 Based on SkatteFUNN rates:
-- Small companies (<50 employees, <€10M revenue): **20% of eligible costs**
-- Large companies: **18% of eligible costs**
+- **Small companies** (<50 employees, <€10M revenue): **20% of eligible costs**
+- **Large companies**: **18% of eligible costs**
 
-**Estimated tax deduction (assuming small company at 20% rate):**
+**Estimated tax deduction (assuming {{company_size}} at {{tax_rate}}% rate):**
 
-{{tax_deduction_breakdown}}
+| Year | Eligible Costs (NOK) | Tax Deduction (NOK) |
+|------|----------------------|---------------------|
+{{#each tax_deduction_by_year}}
+| {{this.year}} | {{this.eligible_costs_nok}} | {{this.deduction_nok}} |
+{{/each}}
+| **Total** | **{{total_eligible_costs_nok}}** | **{{total_tax_deduction_nok}}** |
 
-**Total estimated deduction:** {{total_tax_deduction}} NOK
-
-> **Note:** Actual tax deduction calculated by Norwegian Tax Administration based on auditor-approved returns. Maximum base amount: 25 million NOK per company per income year.
+> **Important Notes:**
+> - Actual tax deduction calculated by Norwegian Tax Administration based on auditor-approved returns
+> - Maximum base amount: **25 million NOK** per company per income year
+> - Deduction applies only to approved R&D costs (personnel, equipment, overhead, subcontracting)
+> - Overhead limited to **18% of wage costs** for R&D personnel
+> - Equipment purchases must be used primarily (≥50%) for approved R&D activities
 
 ---
 
-## 6. EPF Traceability
+## EPF Traceability
 
 This application was generated from the following EPF sources:
 
 | EPF Source | Path | Used For |
 |------------|------|----------|
-| North Star | {{north_star_path}} | Vision, mission, problem context |
-| Strategy Formula | {{strategy_formula_path}} | Technology strategy, differentiation |
-| Roadmap Recipe | {{roadmap_recipe_path}} | Timeline, work packages |
-| Value Models | {{value_models_path}} | Problem definition, solution approach |
+| North Star | {{epf_sources.north_star_path}} | Vision, mission, problem context |
+| Strategy Formula | {{epf_sources.strategy_formula_path}} | Technology strategy, differentiation |
+| Roadmap Recipe | {{epf_sources.roadmap_recipe_path}} | Timeline, work packages, Key Results |
+| Value Models | {{epf_sources.value_models_path}} | Problem definition, solution approach |
 
 **Generated:** {{generation_timestamp}}  
-**Generator Version:** 1.0.0  
-**EPF Version:** 2.1.0
+**Generator Version:** 2.0.0  
+**Schema Version:** 2.0.0  
+**EPF Version:** {{epf_version}}
 
 ---
 
 ## Next Steps for Submission
 
-1. **Review for Accuracy**
-   - Verify all organization details
-   - Check contact information
-   - Confirm timeline feasibility
+### 1. Review for Accuracy
+- ✓ Verify all organization details (name, org number, manager)
+- ✓ Check contact information for all 3 roles (creator, org rep, project leader)
+- ✓ Confirm timeline feasibility (start/end dates, duration)
+- ✓ Validate character limits (counts shown above each field)
 
-2. **Technical Review**
-   - Have technical lead review R&D challenge descriptions
-   - Ensure state-of-the-art comparison is accurate
-   - Validate work package activities
+### 2. Technical Review
+- Have technical lead review R&D challenge descriptions in each work package
+- Ensure state-of-the-art comparison (market differentiation) is accurate
+- Validate work package activities and timelines
+- Confirm R&D category (Experimental Development vs Industrial Research) is correct
 
-3. **Budget Verification**
-   - Confirm budget numbers match accounting records
-   - Verify cost category allocations
-   - Check compliance with 25M NOK cap
+### 3. Budget Verification
+- Confirm budget numbers match accounting records and projections
+- Verify cost code allocations (Personnel, Equipment, Other Operating Costs, Overhead)
+- Check compliance with 25M NOK annual cap per company
+- Ensure overhead does not exceed 18% of R&D personnel wage costs
+- Validate equipment costs relate primarily (≥50%) to approved R&D activities
 
-4. **Translation (if needed)**
-   - This draft is in English
-   - Research Council accepts applications in English
-   - Consider Norwegian version for clarity
+### 4. Character Limit Compliance
+Review all character-limited fields (use online form's built-in counter):
+- Titles: 100 chars (English, Norwegian)
+- Short name: 60 chars
+- WP name: 100 chars
+- Activity title: 100 chars
+- WP challenges: 500 chars
+- Activity description: 500 chars
+- Cost specification: 500 chars
+- Primary objective: 1000 chars
+- WP method/approach: 1000 chars
+- Project summary: 1000 chars
+- Company activities: 2000 chars
+- Project background: 2000 chars
+- Market differentiation: 2000 chars
+- R&D content: 2000 chars
 
-5. **Official Submission**
-   - Submit via Research Council portal: https://kunde.forskningsradet.no/
-   - Attach auditor documentation for historical costs (2025 budget)
-   - Include organizational documents if first application
+### 5. Translation (if needed)
+- This draft includes both English and Norwegian titles
+- Research Council accepts applications in Norwegian or English
+- If submitting in Norwegian, translate all section content
+- Project summary will be published publicly in submitted language
 
-6. **Timeline Note**
-   - SkatteFUNN accepts applications year-round
-   - Processing time: typically 4-6 weeks
-   - Retroactive applications allowed (costs already incurred)
+### 6. Official Submission
+- Submit via Research Council portal: https://kunde.forskningsradet.no/skattefunn/
+- Copy/paste each section into the corresponding online form field
+- Use character counters in online form to verify compliance
+- Attach auditor documentation for historical costs (if retroactive application)
+- Include organizational documents if this is your first SkatteFUNN application
+- Ensure all 3 roles sign/approve in portal before final submission
 
-**Questions?**  
-Contact Research Council of Norway SkatteFUNN team:
+### 7. Timeline Note
+- SkatteFUNN accepts applications **year-round** (no deadlines)
+- Processing time: typically **4-6 weeks** from submission
+- Retroactive applications allowed (costs already incurred can be claimed)
+- Approval valid for project duration (up to 48 months)
+
+### 8. Questions and Support
+
+**Contact Research Council of Norway SkatteFUNN team:**
 - Email: skattefunn@forskningsradet.no
 - Phone: +47 22 03 70 00
+- Portal: https://kunde.forskningsradet.no/skattefunn/
+
+**Official SkatteFUNN Resources:**
+- Program guidelines: https://www.forskningsradet.no/en/apply-for-funding/who-can-apply/skattefunn/
+- Cost eligibility rules: https://www.forskningsradet.no/en/apply-for-funding/who-can-apply/skattefunn/eligible-costs/
+- FAQ: https://www.forskningsradet.no/en/apply-for-funding/who-can-apply/skattefunn/frequently-asked-questions/
+
+**Norwegian Tax Administration (for approved projects):**
+- Tax deduction claims: https://www.skatteetaten.no/en/business-and-organisation/tax-and-duties/tax-deduction-research-and-development/
+- Auditor requirements: https://www.skatteetaten.no/en/business-and-organisation/tax-and-duties/tax-deduction-research-and-development/auditor-certification/
+
+---
+
+**End of Application**
