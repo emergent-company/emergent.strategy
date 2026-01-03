@@ -1,6 +1,6 @@
 # EPF Output Generators - Directory Structure
 
-**Last Updated:** December 31, 2025
+**Last Updated:** January 3, 2026
 
 ---
 
@@ -9,9 +9,11 @@
 Each output generator is **self-contained** in its own folder with all necessary files:
 - `schema.json` - Input validation (required fields, types, constraints)
 - `wizard.instructions.md` - Generation logic and transformation rules
+- `validator.sh` - Output validation script
+- `README.md` - Quick reference guide
 - `template.md` - Output structure (optional, if fixed template exists)
-- `validator.sh` - Output validation script (optional)
-- Additional documentation (QUICK_REFERENCE.md, TEST_RUN_REPORT.md, etc.)
+
+**For complete guide on building generators, see [`GENERATOR_GUIDE.md`](./GENERATOR_GUIDE.md).**
 
 ---
 
@@ -21,74 +23,94 @@ Each output generator is **self-contained** in its own folder with all necessary
 docs/EPF/outputs/
 ├── README.md                           # Main documentation
 ├── QUICK_START.md                      # Getting started guide
+├── GENERATOR_GUIDE.md                  # Generator development guide ✨ NEW
 ├── VALIDATION_README.md                # Validation documentation
 ├── STRUCTURE.md                        # This file
 │
 ├── context-sheet/                      # Context Sheet Generator
 │   ├── schema.json                     # Input validation (11.8 KB)
 │   ├── wizard.instructions.md          # Generation logic (15.0 KB)
-│   └── validator.sh                    # Output validation (20.4 KB)
+│   ├── validator.sh                    # Output validation (20.4 KB)
+│   └── README.md                       # Quick reference (9.5 KB) ✅
 │
 ├── investor-memo/                      # Investor Materials Generator
 │   ├── schema.json                     # Input validation (17.1 KB)
 │   ├── wizard.instructions.md          # Generation logic (34.3 KB)
-│   └── validator.sh                    # Output validation (30.6 KB)
+│   ├── validator.sh                    # Output validation (30.6 KB)
+│   └── README.md                       # Quick reference (11.2 KB) ✅
 │
 └── skattefunn-application/             # SkatteFUNN (Norwegian R&D Tax) Generator
     ├── schema.json                     # Input validation (6.8 KB)
     ├── wizard.instructions.md          # Generation logic (23.4 KB)
     ├── template.md                     # Output template (5.6 KB)
-    ├── QUICK_REFERENCE.md              # Usage guide (17.4 KB)
-    └── TEST_RUN_REPORT.md              # Validation proof (24.7 KB)
+    ├── validator.sh                    # Output validation (33.5 KB)
+    └── README.md                       # Quick reference (7.2 KB)
 ```
 
 ---
 
 ## Generator Status
 
-| Generator | Status | Schema | Wizard | Template | Validator | Docs |
-|-----------|--------|--------|--------|----------|-----------|------|
-| **context-sheet** | ✅ Production | ✅ | ✅ | - | ✅ | - |
-| **investor-memo** | ✅ Production | ✅ | ✅ | - | ✅ | - |
-| **skattefunn-application** | ✅ Production | ✅ | ✅ | ✅ | ⏳ TBD | ✅ |
+| Generator | Status | Schema | Wizard | Template | Validator | README |
+|-----------|--------|--------|--------|----------|-----------|--------|
+| **context-sheet** | ✅ Production | ✅ | ✅ | - | ✅ | ✅ |
+| **investor-memo** | ✅ Production | ✅ | ✅ | - | ✅ | ✅ |
+| **skattefunn-application** | ✅ Production | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+**✅ All generators now have complete documentation!** skattefunn-application represents the **canonical architecture** - all generators follow this pattern. See [`GENERATOR_GUIDE.md`](./GENERATOR_GUIDE.md).
 
 ---
 
 ## Adding a New Generator
 
-### 1. Create Generator Folder
+**📖 See [`GENERATOR_GUIDE.md`](./GENERATOR_GUIDE.md) for comprehensive instructions.**
+
+### Quick Start
+
+1. Copy skattefunn-application as template:
 
 ```bash
 cd docs/EPF/outputs
-mkdir my-new-generator
+cp -r skattefunn-application my-new-generator
 cd my-new-generator
 ```
 
-### 2. Create Required Files
+2. Customize all files for your domain (see [`GENERATOR_GUIDE.md`](./GENERATOR_GUIDE.md))
 
-**Minimum Required:**
-- `schema.json` - Input validation
-- `wizard.instructions.md` - Generation logic
+3. Update `docs/EPF/outputs/README.md` to register generator
 
-**Recommended:**
-- `template.md` - Output template (if fixed structure)
-- `validator.sh` - Output validation script
-- `QUICK_REFERENCE.md` - Usage guide for future users
+---
 
-### 3. File Naming Conventions
+## Mandatory Generator Components
 
-| File | Naming | Purpose |
-|------|--------|---------|
-| Schema | `schema.json` | Input validation, NOT `{generator}_schema.json` |
-| Wizard | `wizard.instructions.md` | Generation logic, NOT `{generator}_generator.wizard.md` |
-| Template | `template.md` | Output structure, NOT `{generator}_template.md` |
-| Validator | `validator.sh` | Output validation, NOT `validate-{generator}.sh` |
+All generators **MUST** include:
 
-**Rationale:** Since each generator is in its own folder, file names can be simple and consistent across all generators.
+```
+{generator-name}/
+├── schema.json                 # Input parameter validation
+├── wizard.instructions.md      # Generation logic
+├── validator.sh                # Output validation
+└── README.md                   # Quick reference guide
+```
 
-### 4. Update Main README
+**Optional components:**
+- `template.md` - If output has fixed structure
+- `{domain}-util.sh` - Domain-specific utilities
+- `examples/` - Sample inputs/outputs
 
-Edit `docs/EPF/outputs/README.md`:
+---
+
+## File Naming Conventions
+
+| File | Correct Name | ❌ Avoid |
+|------|--------------|---------|
+| Schema | `schema.json` | `{generator}_schema.json` |
+| Wizard | `wizard.instructions.md` | `{generator}_generator.wizard.md` |
+| Template | `template.md` | `{generator}_template.md` |
+| Validator | `validator.sh` | `validate-{generator}.sh` |
+| README | `README.md` | `QUICK_REFERENCE.md` |
+
+**Rationale:** Folder provides namespacing; simple names are consistent and predictable.
 - Add generator to directory structure
 - Update generator status table
 - Add usage example
