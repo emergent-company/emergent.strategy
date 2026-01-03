@@ -127,11 +127,11 @@ Core research areas: graph database performance engineering (load testing, concu
 
 This 30-month R&D project develops Emergent: AI-powered knowledge infrastructure transforming unstructured organizational information into queryable knowledge graphs accessible to AI agents. Core innovation combines graph database technology, vector embeddings, and AI-native protocols (Model Context Protocol) to enable both semantic similarity search and explicit relationship reasoning.
 
-Project addresses critical technical uncertainties: Can graph+vector hybrid maintain sub-200ms latency at 10K+ objects? Can LLM extraction achieve 95%+ accuracy across PDF/Markdown/code? Will AI agents use knowledge context meaningfully? Twelve work packages systematically progress technologies from TRL 2-4 (component validation) to TRL 5-6 (system prototype), covering: graph performance engineering, multi-format extraction, MCP integration, production infrastructure, and methodological frameworks (EPF, OpenSpec).
+Project addresses critical technical uncertainties: Can graph+vector hybrid maintain sub-200ms latency at 10K+ objects? Can LLM extraction achieve 95%+ accuracy across PDF/Markdown/code? Will AI agents use knowledge context meaningfully? Eight work packages systematically progress technologies from TRL 2-4 (component validation) to TRL 5-6 (system prototype), covering: graph performance engineering, multi-format extraction, MCP integration, production infrastructure, and methodological frameworks (EPF, OpenSpec).
 
 Expected outcomes: Production-ready infrastructure supporting 10K+ objects with <200ms latency, multi-format ingestion with 95%+ accuracy, MCP server for AI agent queries, validated strategic planning frameworks. Success enables organizations to deploy unified semantic layers replacing fragmented document repositories.
 
-*[Max 1000 characters: 936/1000]*
+*[Max 1000 characters: 932/1000]*
 
 *Brief summary of background, objectives, challenges, and approach. This will be published publicly if your application is approved.*
 
@@ -194,7 +194,6 @@ Systematic performance engineering with controlled experiments: (1) establish ba
 |------|-----------------|------------------|--------------|----------|
 | 2026 | 135,000         | 15,000           | 8,000        | 158,000  |
 | 2027 | 120,000         | 8,000            | 5,000        | 133,000  |
-| 2028 | 0               | 0                | 0            | 0        |
 | **Total** | **255,000** | **23,000**      | **13,000**   | **291,000** |
 
 **Cost Specification:**
@@ -253,8 +252,6 @@ Hypothesis-driven experimentation: (1) establish ground truth dataset (100+ docu
 | Year | Salaries (5500) | Equipment (5700) | Other (5900) | Total    |
 |------|-----------------|------------------|--------------|----------|
 | 2026 | 180,000         | 12,000           | 8,000        | 200,000  |
-| 2027 | 0               | 0                | 0            | 0        |
-| 2028 | 0               | 0                | 0            | 0        |
 | **Total** | **180,000** | **12,000**      | **8,000**   | **200,000** |
 
 **Cost Specification:**
@@ -315,7 +312,6 @@ User-centered R&D with pilot studies: (1) implement MCP server specification (pr
 |------|-----------------|------------------|--------------|----------|
 | 2026 | 120,000         | 8,000            | 5,000        | 133,000  |
 | 2027 | 180,000         | 10,000           | 7,000        | 197,000  |
-| 2028 | 0               | 0                | 0            | 0        |
 | **Total** | **300,000** | **18,000**      | **12,000**   | **330,000** |
 
 **Cost Specification:**
@@ -374,7 +370,6 @@ Self-hosting validation: use EPF to build Emergent itself, exposing framework li
 |------|-----------------|------------------|--------------|----------|
 | 2026 | 120,000         | 5,000            | 3,000        | 128,000  |
 | 2027 | 90,000          | 3,000            | 2,000        | 95,000   |
-| 2028 | 0               | 0                | 0            | 0        |
 | **Total** | **210,000** | **8,000**       | **5,000**    | **223,000** |
 
 **Cost Specification:**
@@ -433,7 +428,6 @@ Template-driven specification development: (1) design feature specification sche
 |------|-----------------|------------------|--------------|----------|
 | 2026 | 90,000          | 4,000            | 2,000        | 96,000   |
 | 2027 | 75,000          | 3,000            | 2,000        | 80,000   |
-| 2028 | 0               | 0                | 0            | 0        |
 | **Total** | **165,000** | **7,000**       | **4,000**    | **176,000** |
 
 **Cost Specification:**
@@ -444,44 +438,49 @@ Template-driven specification development: (1) design feature specification sche
 
 ---
 
-### Work Package 6: Runtime Infrastructure Stage 1 - Basic Infrastructure
+### Work Package 6: Runtime Infrastructure - API and Artifact Storage System
 
-**Duration:** 2026-01-01 to 2027-03-31 (15 months)
+**Duration:** 2026-01-01 to 2027-09-30 (21 months)
 
 **R&D Category:** Experimental development
 
 #### R&D Challenges
 
-Can containerized microservice architecture support production-scale knowledge infrastructure with acceptable operational complexity? Challenge: design system that balances developer experience (local development simplicity), scalability (horizontal scaling, load balancing), and reliability (health checks, graceful degradation) without requiring Kubernetes expertise. Unknown: optimal service boundaries (monolith vs microservices), deployment approach (Docker Compose vs Kubernetes), and whether self-hosting is viable for target mid-market customers. Failure mode: operational complexity prevents adoption.
+Can containerized API infrastructure with hybrid file+database storage maintain operational simplicity while supporting production-scale knowledge management? Challenge: design system balancing developer experience (local development), scalability (concurrent access, search performance), and version control integration (Git workflows, conflict resolution) without requiring specialized expertise. Unknown: optimal service boundaries, storage architecture (filesystem vs database tradeoffs), deployment complexity viable for mid-market, and whether Git+database hybrid achieves both human readability and query performance. Failure mode: operational burden prevents adoption.
 
 *[Max 500 characters: 500/500]*
 
 #### Method and Approach
 
-Progressive infrastructure development: (1) establish baseline architecture (API server, database, cache, message queue), (2) implement containerization (Dockerfile optimization, multi-stage builds, layer caching), (3) create deployment tooling (Docker Compose for local dev, production deployment scripts), (4) test operational scenarios (service restarts, database migrations, backup/restore, monitoring setup), (5) measure operational metrics (deployment time, MTTR, complexity scores), (6) document operational procedures. Progress through TRL 2→5: concept → component validation → production-like environment testing.
+Progressive infrastructure validation combining containerization and storage: (1) establish baseline architecture (containerized API services, dual-layer storage design), (2) implement core components (Docker orchestration, database indexes, file synchronization, search capabilities), (3) test operational scenarios (deployments, migrations, concurrent access, version control workflows), (4) measure comprehensive metrics (deployment time, search latency, conflict frequency, MTTR), (5) validate with target users (can mid-market teams operate system?), (6) document procedures. Hybrid storage combines Git benefits (version history, human-readable) with database performance (fast queries). Progress through TRL 2→5.
 
-*[Max 1000 characters: 652/1000]*
+*[Max 1000 characters: 727/1000]*
 
 #### Activities
 
-1. **Service Architecture Design and Containerization** (Jan-Mar 2026)
+1. **Service Architecture and Containerization** (Jan-Apr 2026)
    
-   Define service boundaries: NestJS API server (REST + GraphQL), PostgreSQL database (with pgvector), Redis cache, optional message queue. Design container architecture: multi-stage Dockerfiles (build vs runtime optimization), health check endpoints, graceful shutdown handling, environment configuration. Test local development workflow: can developers run full stack with single command? Measure container build times, image sizes, startup latency. Document service responsibilities, inter-service communication patterns, configuration management. *[Max 100 characters: 100/100]*
+   Define service boundaries: NestJS API server, PostgreSQL database (with pgvector), Redis cache, Git storage layer. Design container architecture: multi-stage Dockerfiles, health check endpoints, graceful shutdown, environment configuration. Implement deployment tooling: Docker Compose for local development, production deployment scripts, database migration system. Test deployment scenarios: fresh install, upgrade, rollback. Measure container build times, image sizes, deployment time (<15min target). Document service responsibilities, configuration management, deployment procedures. *[Max 100 characters: 100/100]*
  
 
-2. **Deployment Tooling and Orchestration** (Apr-Jul 2026)
+2. **Storage Architecture and File Synchronization** (May-Sep 2026)
    
-   Build deployment infrastructure: Docker Compose for local development (volume mounts, network configuration, service dependencies), production deployment scripts (environment-specific configs, secret management, zero-downtime deployment strategies). Implement database migration system (version tracking, rollback procedures). Test deployment scenarios: fresh install, version upgrade, configuration changes, rollback. Hypothesis: Docker Compose sufficient for initial deployments, Kubernetes deferred until scale requires. Document deployment procedures, troubleshooting guides. *[Max 100 characters: 100/100]*
+   Design dual-layer storage: Git repository (YAML/Markdown source files, version history), PostgreSQL index (artifact metadata, cross-references, full-text search). Implement synchronization: filesystem watcher (chokidar), YAML parser, database upsert logic, conflict detection (optimistic locking, timestamps). Test consistency scenarios: concurrent writes, Git operations, external modifications. Measure sync latency, index freshness, storage overhead. Document architecture decisions, file organization conventions, metadata schema, conflict resolution procedures. *[Max 100 characters: 100/100]*
  
 
-3. **Operational Monitoring and Health Checks** (Aug-Nov 2026)
+3. **Operational Monitoring and Search Optimization** (Oct 2026 - Feb 2027)
    
-   Implement production monitoring: health check endpoints (service liveness, readiness probes), metrics collection (response times, error rates, resource utilization), log aggregation (structured logging, query interface), alerting rules (service down, high error rate, resource exhaustion). Test monitoring effectiveness: does it detect failures quickly? Create operational dashboard. Hypothesis: proper monitoring reduces MTTR by 60%+. Document alert response procedures, performance tuning, capacity planning guidelines. *[Max 100 characters: 97/100]*
+   Implement monitoring stack: health check endpoints (liveness, readiness), metrics collection (response times, error rates, resource utilization), log aggregation (structured logging), alerting rules (service down, high error rate). Build search capabilities: full-text search (PostgreSQL tsvector, trigram indexes), metadata filtering, relationship queries. Load test with 1000+ artifacts: measure query latency (<100ms target), index size. Optimize: partial indexes, materialized views, query planning. Document alert procedures, performance tuning, capacity planning. *[Max 100 characters: 100/100]*
  
 
-4. **Production Validation and TRL 5 Demonstration** (Dec 2026 - Mar 2027)
+4. **Version Control Integration and Workflows** (Mar-Jun 2027)
    
-   Deploy to production-like environment: multi-tenant configuration, realistic data volumes, simulated user load. Test operational procedures: service restarts, database backups/restores, security patches, version upgrades. Measure operational metrics: deployment time (<15 minutes target), MTTR (<1 hour target), configuration complexity (can mid-market IT team deploy?). Conduct operational review with target customer personas. Document production readiness assessment, operational runbooks. Achieve TRL 5 (system validated in relevant environment). *[Max 100 characters: 100/100]*
+   Integrate Git workflows: pre-commit hooks (validate YAML, check references), post-commit indexing (automatic sync), branch handling (feature branches, merge strategies), external editor support (VS Code). Implement conflict resolution UI: show diffs, manual merge, rollback capability. Test version control scenarios: branch creation, merges, rebases, concurrent edits. Measure conflict frequency, resolution time, user experience. Hypothesis: optimistic locking + manual resolution acceptable for target use case. Document Git workflows, best practices, troubleshooting. *[Max 100 characters: 100/100]*
+ 
+
+5. **Production Validation and TRL 5 Demonstration** (Jul-Sep 2027)
+   
+   Deploy to production environment: multi-tenant configuration, realistic data volumes, simulated user load. Test comprehensive operational procedures: service restarts, database backups/restores, security patches, version upgrades, Git operations at scale. Measure final metrics: deployment time, MTTR (<1hr target), search latency, conflict rates, complexity scores. Conduct operational review with target customer personas (can mid-market IT team deploy and maintain?). Document production readiness assessment, operational runbooks, performance characteristics. Achieve TRL 5. *[Max 100 characters: 100/100]*
  
 
 #### Budget and Costs
@@ -490,79 +489,19 @@ Progressive infrastructure development: (1) establish baseline architecture (API
 
 | Year | Salaries (5500) | Equipment (5700) | Other (5900) | Total    |
 |------|-----------------|------------------|--------------|----------|
-| 2026 | 150,000         | 15,000           | 10,000       | 175,000  |
-| 2027 | 45,000          | 5,000            | 3,000        | 53,000   |
-| 2028 | 0               | 0                | 0            | 0        |
-| **Total** | **195,000** | **20,000**      | **13,000**   | **228,000** |
+| 2026 | 240,000         | 21,000           | 14,000       | 275,000  |
+| 2027 | 180,000         | 13,000           | 8,000        | 201,000  |
+| **Total** | **420,000** | **34,000**      | **22,000**   | **476,000** |
 
 **Cost Specification:**
 
-- **Salaries (5500):** DevOps engineer 15 months @ 45% = 195,000 NOK (architecture design, containerization, deployment tooling, monitoring implementation, production validation)
-- **Equipment (5700):** Cloud infrastructure for testing (12,000), monitoring tools licenses (8,000)
-- **Other Operating Costs (5900):** DevOps consulting (6,000), security audits (4,000), technical training (3,000)
+- **Salaries (5500):** DevOps engineer (Jan 2026-Mar 2027, 45%) + Backend engineer (Jun 2026-Sep 2027, 50%) = 420,000 NOK total (containerization, storage architecture, synchronization, monitoring, search optimization, version control integration, production validation)
+- **Equipment (5700):** Cloud infrastructure testing (18,000), monitoring tools licenses (8,000), storage testing environment (8,000)
+- **Other Operating Costs (5900):** DevOps consulting (6,000), Database consulting (4,000), Git workflow consulting (3,000), Security audits (4,000), Technical training/literature (5,000)
 
 ---
 
-### Work Package 7: Runtime Infrastructure Stage 2 - Artifact Storage
-
-**Duration:** 2026-06-01 to 2027-09-30 (16 months)
-
-**R&D Category:** Experimental development
-
-#### R&D Challenges
-
-Can file-based artifact storage system (EPF outputs, OpenSpec features, generated applications) maintain referential integrity and version history while supporting concurrent access and search? Challenge: design storage architecture balancing human readability (YAML/Markdown files in Git) with programmatic access (API queries, validation checks). Unknown: optimal indexing strategy (filesystem watch vs database catalog), conflict resolution (concurrent edits), and search performance (full-text across 1000+ artifacts). Failure mode: storage becomes inconsistent or unsearchable at scale.
-
-*[Max 500 characters: 500/500]*
-
-#### Method and Approach
-
-Hybrid storage architecture research: (1) design dual-layer system (filesystem for source of truth, database for indexed metadata), (2) implement synchronization mechanisms (filesystem watchers, incremental indexing, conflict detection), (3) test consistency scenarios (concurrent writes, Git operations, external modifications), (4) measure search performance (full-text, metadata filtering, relationship queries), (5) validate version control integration (Git commit hooks, diff-friendly formats), (6) document operational procedures. Progress through TRL 2→5: concept validation → component testing → integrated system.
-
-*[Max 1000 characters: 664/1000]*
-
-#### Activities
-
-1. **Storage Architecture Design and Prototype** (Jun-Aug 2026)
-   
-   Define dual-layer architecture: Git repository (YAML/Markdown source files, version history, branch workflows), PostgreSQL index (artifact metadata, cross-references, full-text search). Design synchronization: filesystem watcher (chokidar), YAML parser (front-matter + content extraction), database upsert logic (conflict resolution, timestamps). Test prototype: does sync maintain consistency? Measure sync latency, index freshness, storage overhead. Document architecture decisions, file organization conventions, metadata schema. *[Max 100 characters: 100/100]*
- 
-
-2. **Concurrent Access and Conflict Resolution** (Sep-Dec 2026)
-   
-   Implement conflict detection: optimistic locking (file modification timestamps), conflict markers (Git-style merge conflicts), resolution UI (show diffs, manual merge). Test concurrent write scenarios: multiple users editing, API writes during Git pull, external tool modifications. Hypothesis: optimistic locking + manual resolution acceptable for target use case (low concurrent write frequency). Measure conflict frequency, resolution time, user experience. Document conflict resolution procedures, best practices for collaborative editing. *[Max 100 characters: 100/100]*
- 
-
-3. **Search and Query Performance Optimization** (Jan-May 2027)
-   
-   Build search capabilities: full-text search (PostgreSQL tsvector, trigram indexes), metadata filtering (artifact type, dates, authors, tags), relationship queries (dependencies, references, lineage tracking). Load test with 1000+ artifacts: measure query latency (<100ms target), index size, update performance. Optimize: partial indexes, materialized views, query planning. Hypothesis: hybrid architecture achieves Git benefits (version control, human-readable) with database performance (fast queries). Document query patterns, performance tuning. *[Max 100 characters: 100/100]*
- 
-
-4. **Version Control Integration and Production Validation** (Jun-Sep 2027)
-   
-   Integrate Git workflows: pre-commit hooks (validate YAML, check references), post-commit indexing (automatic sync), branch handling (feature branches, merge strategies), external editor support (VS Code, IDE integration). Test version control scenarios: branch creation, merges, rebases, rollbacks. Measure: does system maintain consistency across Git operations? Deploy to production environment, validate with real users. Document Git workflows, version control best practices, troubleshooting procedures. Achieve TRL 5. *[Max 100 characters: 100/100]*
- 
-
-#### Budget and Costs
-
-**Yearly Costs:**
-
-| Year | Salaries (5500) | Equipment (5700) | Other (5900) | Total    |
-|------|-----------------|------------------|--------------|----------|
-| 2026 | 90,000          | 6,000            | 4,000        | 100,000  |
-| 2027 | 135,000         | 8,000            | 5,000        | 148,000  |
-| 2028 | 0               | 0                | 0            | 0        |
-| **Total** | **225,000** | **14,000**      | **9,000**    | **248,000** |
-
-**Cost Specification:**
-
-- **Salaries (5500):** Backend engineer 16 months @ 50% = 225,000 NOK (storage architecture, synchronization implementation, search optimization, version control integration)
-- **Equipment (5700):** Development infrastructure (6,000), storage testing environment (8,000)
-- **Other Operating Costs (5900):** Database consulting (4,000), Git workflow consulting (3,000), technical literature (2,000)
-
----
-
-### Work Package 8: Runtime Infrastructure Stage 3 - Workflow Orchestration UI
+### Work Package 7: Runtime Infrastructure - Workflow Orchestration System
 
 **Duration:** 2026-09-01 to 2028-03-31 (19 months)
 
@@ -570,36 +509,41 @@ Hybrid storage architecture research: (1) design dual-layer system (filesystem f
 
 #### R&D Challenges
 
-Can low-code workflow builder enable non-technical users to orchestrate complex EPF/OpenSpec generation pipelines while maintaining correctness? Challenge: design visual interface abstracting technical complexity (YAML parsing, validation, conditional logic, error handling) without sacrificing power-user capabilities. Unknown: whether drag-and-drop workflow design is learnable, whether generated workflows are maintainable, and whether UI reduces time-to-value versus CLI wizards. Failure mode: UI too simplistic for real use cases or too complex for target users.
+Can visual workflow builder with durable execution engine enable non-technical users to orchestrate complex generation pipelines while maintaining reliability for long-running processes? Challenge: abstract technical complexity (YAML, validation, distributed execution) without sacrificing power-user capabilities or process reliability. Unknown: whether low-code UI is learnable, whether Temporal's operational benefits justify complexity, whether workflows remain debuggable at scale, and whether UI reduces time-to-value versus CLI. Failure mode: UI too complex or execution engine too burdensome.
 
 *[Max 500 characters: 500/500]*
 
 #### Method and Approach
 
-User-centered UI development: (1) conduct user research (target personas, workflow patterns, pain points with CLI tools), (2) design workflow abstraction (node-based editor, template library, validation feedback), (3) implement prototype (React, workflow execution engine, real-time validation), (4) conduct usability testing (task completion rates, error recovery, learning curve), (5) measure effectiveness (workflow creation time CLI vs UI, error rates, user satisfaction), (6) iterate based on feedback. Progress through TRL 2→6: concept → prototype → validated with users in relevant environment.
+User-centered development with incremental adoption: (1) conduct user research (workflow patterns, CLI pain points, technical capabilities), (2) design workflow abstraction (node-based editor, template library, validation feedback), (3) implement prototype (React UI, Temporal execution engine, real-time validation), (4) migrate pilot workflows (extraction, sync, approvals), (5) measure effectiveness (creation time, reliability, debugging efficiency, operational burden), (6) validate with users (usability testing, production deployment). Temporal provides durable execution (exactly-once, retries, state persistence). Progress through TRL 2→6.
 
-*[Max 1000 characters: 665/1000]*
+*[Max 1000 characters: 690/1000]*
 
 #### Activities
 
-1. **User Research and Workflow Pattern Analysis** (Sep-Dec 2026)
+1. **User Research and Workflow UI Design** (Sep 2026 - Feb 2027)
    
-   Study target users: interview product managers, technical leads, strategic planners. Map current workflows: how do they create EPF artifacts today? What are pain points with CLI wizards? What workflows are most common? (e.g., generate roadmap from strategy, create features from roadmap, update artifacts when strategy changes). Define personas: power users (technical, want efficiency), occasional users (non-technical, want guidance). Document workflow patterns, prioritize UI features, create design requirements. *[Max 100 characters: 100/100]*
+   Study target users: interview product managers, technical leads, planners. Map current workflows: how do they create EPF artifacts? What are CLI pain points? Define personas: power users (technical, efficiency), occasional users (non-technical, guidance). Design node-based builder: drag-and-drop nodes (generators, validators, transformers), connection lines (data flow), configuration panels (parameters). Implement UI prototype: React with react-flow library, workflow JSON format. Test usability: can users build "generate roadmap from strategy" workflow? Measure completion rate, time, satisfaction. *[Max 100 characters: 100/100]*
  
 
-2. **Workflow UI Design and Prototype** (Jan-Jun 2027)
+2. **Temporal Infrastructure and Integration** (Mar-Jun 2027)
    
-   Design node-based workflow builder: drag-and-drop nodes (artifact generators, validators, transformers), connection lines (data flow), configuration panels (node parameters). Implement prototype: React frontend (react-flow library), workflow definition format (JSON), execution engine (interpret workflow, run generators, handle errors). Test prototype usability: can users build "generate roadmap from strategy" workflow? Measure task completion, error frequency, time-to-first-workflow. Collect qualitative feedback on interface design. *[Max 100 characters: 100/100]*
+   Deploy Temporal services: server (PostgreSQL persistence), workers (Node.js), client integration (NestJS API). Configure monitoring: workflow dashboards, health checks, visibility UI. Implement basic workflows: activity execution, retry policies, timeouts. Measure infrastructure overhead: resources, complexity vs baseline. Test workflow composition: can workflows call other workflows? Does state management work? Document deployment procedures, configuration, troubleshooting. Hypothesis: Temporal overhead acceptable given reliability benefits (exactly-once execution, automatic retries). *[Max 100 characters: 100/100]*
  
 
-3. **Workflow Execution Engine and Real-Time Validation** (Jul-Dec 2027)
+3. **Workflow Execution Engine and Validation** (Jul-Nov 2027)
    
-   Build execution infrastructure: workflow interpreter (parse JSON definition, execute nodes sequentially/parallel), error handling (node failures, validation errors, rollback logic), real-time feedback (progress indicators, validation messages, preview outputs). Implement validation integration: run artifact validators during execution, show errors inline, suggest fixes. Test execution correctness: do workflows produce valid artifacts? Measure execution reliability, error recovery UX, validation accuracy. Document execution model, error handling patterns. *[Max 100 characters: 100/100]*
+   Build execution infrastructure: workflow interpreter (parse JSON, execute nodes), error handling (node failures, rollback logic), real-time feedback (progress, validation messages, previews). Integrate validation: run artifact validators during execution, show errors inline, suggest fixes. Migrate pilot workflow: document extraction as Temporal workflow (chunking, LLM calls, validation, storage) with durable activities and automatic retries. Test failure scenarios: worker crashes, API timeouts, validation errors. Measure reliability improvement (target: 70%+ failure reduction), debugging efficiency. *[Max 100 characters: 100/100]*
  
 
-4. **Usability Testing and Production Deployment** (Jan-Mar 2028)
+4. **Advanced Workflows and Production Validation** (Dec 2027 - Jan 2028)
    
-   Conduct formal usability study: recruit 10+ users (mix of personas), assign workflow creation tasks (novice to complex), measure success metrics (task completion rate >80%, time-to-completion vs CLI baseline, user satisfaction >4/5, error recovery success rate). Hypothesis: UI reduces workflow creation time 50%+ for occasional users, comparable for power users. Iterate UI based on findings. Deploy to production, monitor usage analytics. Document user guides, workflow templates, best practices. Achieve TRL 6. *[Max 100 characters: 100/100]*
+   Implement complex workflows: scheduled integration sync (cron-triggered Temporal workflows, conflict resolution), approval chains (human tasks, timeouts, parallel approvals, escalation). Test at scale: hundreds of concurrent workflows, measure success rate, automatic recovery, manual intervention frequency. Compare to baseline: did Temporal + UI achieve goals? Assess operational burden: monitoring overhead, debugging complexity, team learning curve. Document operational runbooks, workflow patterns, best practices. Recommend adoption scope (which workflows benefit most from UI vs CLI, from Temporal vs simple jobs). *[Max 100 characters: 100/100]*
+ 
+
+5. **Usability Testing and TRL 6 Demonstration** (Feb-Mar 2028)
+   
+   Conduct formal usability study: recruit 10+ users (mix of personas), assign workflow creation tasks (novice to complex), measure success metrics (completion rate >80%, time vs CLI baseline, satisfaction >4/5, error recovery success). Hypothesis: UI reduces creation time 50%+ for occasional users. Deploy to production, monitor usage analytics (workflow creation frequency, template usage, error rates). Iterate UI based on findings. Document user guides, workflow templates, performance characteristics. Achieve TRL 6 (system demonstrated in relevant environment with users). *[Max 100 characters: 100/100]*
  
 
 #### Budget and Costs
@@ -608,57 +552,62 @@ User-centered UI development: (1) conduct user research (target personas, workfl
 
 | Year | Salaries (5500) | Equipment (5700) | Other (5900) | Total    |
 |------|-----------------|------------------|--------------|----------|
-| 2026 | 60,000          | 4,000            | 3,000        | 67,000   |
-| 2027 | 180,000         | 10,000           | 8,000        | 198,000  |
+| 2026 | 75,000          | 6,000            | 4,000        | 85,000   |
+| 2027 | 360,000         | 22,000           | 16,000       | 398,000  |
 | 2028 | 45,000          | 3,000            | 2,000        | 50,000   |
-| **Total** | **285,000** | **17,000**      | **13,000**   | **315,000** |
+| **Total** | **480,000** | **31,000**      | **22,000**   | **533,000** |
 
 **Cost Specification:**
 
-- **Salaries (5500):** Frontend engineer 19 months @ 50% = 285,000 NOK (user research, UI design, workflow engine implementation, usability testing, production deployment)
-- **Equipment (5700):** Development tools (8,000), usability testing software (6,000), user recruitment (3,000)
-- **Other Operating Costs (5900):** UX consulting (6,000), user study compensation (5,000), technical training (2,000)
+- **Salaries (5500):** Frontend engineer (Sep 2026-Mar 2028, 50%) + Backend engineer (Dec 2026-Dec 2027, 50%) = 480,000 NOK total (user research, UI design, Temporal setup, execution engine, workflow migration, usability testing, production deployment)
+- **Equipment (5700):** Development tools (8,000), Temporal server infrastructure (8,000), monitoring tools (6,000), usability testing software (6,000), user recruitment (3,000)
+- **Other Operating Costs (5900):** UX consulting (6,000), Temporal consulting (4,000), user study compensation (5,000), technical training (5,000), documentation (2,000)
 
 ---
 
-### Work Package 9: Temporal Workflow Integration - Stage 4 Infrastructure
+### Work Package 8: Knowledge Infrastructure - Schema Management and Multi-Modal Data
 
-**Duration:** 2026-12-01 to 2027-12-31 (13 months)
+**Duration:** 2026-06-01 to 2027-12-31 (19 months)
 
 **R&D Category:** Experimental development
 
 #### R&D Challenges
 
-Can Temporal workflow orchestration provide reliable long-running process management (multi-hour extractions, scheduled sync jobs, approval workflows) without operational complexity overwhelming benefits? Challenge: integrate Temporal's durable execution model with existing infrastructure while maintaining developer experience and debuggability. Unknown: whether Temporal's guarantees (exactly-once execution, automatic retries, state persistence) justify operational overhead (additional services, monitoring complexity), and whether team can effectively debug distributed workflows.
+Can knowledge graph maintain complete temporal version history (schema + data evolution) while supporting safe automated migrations AND integrating multi-modal embeddings (text, images) for hybrid search without performance degradation? Challenge: combine temporal data architecture (bi-temporal model, full change history, time-travel queries) with schema migration framework (automated transformations, rollback safety) AND multi-modal indexing (separate vector spaces for text/images). Unknown: storage overhead of temporal graph + image embeddings, query performance across schema versions + multi-modal search, semantic correctness of automated migrations, value proposition of visual similarity queries. Failure modes: complexity overwhelms benefits OR migrations break production.
 
 *[Max 500 characters: 500/500]*
 
 #### Method and Approach
 
-Incremental Temporal adoption: (1) establish baseline workflow complexity (current ad-hoc job processing, failure modes, operational burden), (2) implement Temporal infrastructure (server, worker, client integration), (3) migrate pilot workflows (document extraction, scheduled sync, approval chains), (4) measure operational improvements (failure recovery time, manual intervention reduction, developer debugging efficiency), (5) compare operational complexity (Temporal overhead vs ad-hoc approach), (6) document patterns. Progress through TRL 2→5: concept → component validation → production environment.
+Integrated knowledge infrastructure research: (1) design bi-temporal schema architecture (transaction-time, valid-time, event log) + multi-modal data model (separate vector indexes for text/image embeddings), (2) implement migration DSL (declarative schema changes, validation rules) + embedding pipelines (CLIP for images, text models), (3) build unified query engine (time-travel queries, multi-modal search, federated results), (4) test integration scenarios (schema evolution + multi-modal search, temporal queries across data types), (5) measure tradeoffs (storage overhead, query performance, migration safety), (6) validate with users (temporal query value, visual search adoption). Progress TRL 2→5 (validated system).
 
-*[Max 1000 characters: 657/1000]*
+*[Max 1000 characters: 769/1000]*
 
 #### Activities
 
-1. **Temporal Infrastructure Setup and Integration** (Dec 2026 - Feb 2027)
+1. **Integrated Architecture Design - Temporal Schema + Multi-Modal Data** (Jun-Oct 2026)
    
-   Deploy Temporal services: Temporal server (with PostgreSQL persistence), Temporal workers (Node.js processes), Temporal client integration in NestJS API. Configure monitoring: workflow execution dashboards, worker health checks, visibility into running/completed/failed workflows. Test basic workflows: simple activity execution, retry policies, timeout handling. Measure infrastructure overhead: resource utilization, operational complexity vs baseline. Document deployment procedures, configuration options, troubleshooting guides. *[Max 100 characters: 100/100]*
+   Design unified knowledge infrastructure: bi-temporal data model (valid_from/valid_to for entities, transaction log for changes), multi-modal vector storage (separate text_embedding/image_embedding columns), migration language (add_entity_type, modify_property with version tracking), embedding pipeline architecture (CLIP for images, existing text models). Define integration points: how do schema migrations affect embeddings? Can temporal queries span multi-modal data? Document unified design, migration DSL syntax, embedding workflows. Hypothesis: single architecture supports temporal evolution and multi-modal search cleanly. *[Max 100 characters: 100/100]*
  
 
-2. **Pilot Workflow Migration - Document Extraction** (Mar-May 2027)
+2. **Core Systems Implementation - Migration Framework + Embedding Pipeline** (Nov 2026 - Mar 2027)
    
-   Migrate document extraction to Temporal: refactor extraction job (chunking, LLM calls, validation, storage) as Temporal workflow with durable activities. Implement failure recovery: automatic retries with exponential backoff, human-in-loop for validation failures, workflow state persistence across restarts. Test failure scenarios: worker crashes, API timeouts, validation errors. Hypothesis: Temporal reduces extraction failure rate 70%+ and eliminates manual recovery. Measure reliability improvement, debugging efficiency, operational burden. *[Max 100 characters: 100/100]*
+   Build integrated systems: (1) migration engine (parse DSL, execute transformations, rollback mechanism, transaction safety), (2) embedding pipeline (image ingestion from documents, CLIP API integration, vector index management), (3) unified query engine (time-travel queries, multi-modal search, result federation combining text+image relevance). Test integration: run migration on data with embeddings (do embeddings update correctly?), execute multi-modal queries across schema versions. Measure migration execution time, embedding generation performance, query latency. Document API patterns. *[Max 100 characters: 100/100]*
  
 
-3. **Complex Workflow Patterns - Scheduled Sync and Approvals** (Jun-Sep 2027)
+3. **Scale Testing and Performance Optimization** (Apr-Aug 2027)
    
-   Implement advanced workflows: scheduled integration sync (cron-triggered Temporal workflows, incremental data updates, conflict resolution), approval chains (human tasks with timeouts, parallel approvals, escalation logic). Test workflow composition: can workflows call other workflows? Does state management remain comprehensible? Measure developer experience: is workflow code maintainable? Does Temporal's debugging UI help troubleshooting? Collect feedback on Temporal's benefits vs complexity tradeoffs. *[Max 100 characters: 99/100]*
+   Test integrated system at scale: load 10K+ entities with text+image embeddings, run realistic change frequency, execute migrations on production-size data, perform temporal + multi-modal queries. Test challenging scenarios: schema change affecting embedding logic, time-travel queries across multi-modal data, visual similarity search on 10K+ images. Measure storage overhead (temporal graph + image vectors, hypothesis: 4-6x baseline), query latency (multi-modal search <500ms target), migration downtime (<5 min target). Optimize indexes (temporal, HNSW for vectors), query planning. *[Max 100 characters: 100/100]*
  
 
-4. **Production Validation and Operational Assessment** (Oct-Dec 2027)
+4. **Validation and Safety Infrastructure** (Sep-Nov 2027)
    
-   Deploy Temporal workflows to production: monitor workflow execution at scale (hundreds of concurrent workflows), measure reliability (success rate, automatic recovery, manual intervention frequency), assess operational burden (monitoring overhead, debugging complexity, team learning curve). Compare metrics to baseline: did Temporal achieve goals? Document operational runbooks, workflow patterns, best practices. Final assessment: recommend Temporal adoption scope (which workflows benefit most). Achieve TRL 5 (validated in production-like environment). *[Max 100 characters: 100/100]*
+   Develop comprehensive validation: pre-migration checks (schema constraints, embedding compatibility), post-migration verification (data integrity, semantic correctness, embedding consistency), automated tests (temporal queries work across versions, multi-modal search results accurate). Build safety infrastructure: migration templates, rollback playbooks, monitoring dashboards (embedding generation, query performance), alerting (migration failures, index degradation). Test on staging: execute real schema evolution scenarios with multi-modal data, validate all query types work correctly. Document best practices, troubleshooting guides. *[Max 100 characters: 100/100]*
+ 
+
+5. **User Study and Production Deployment** (Dec 2027)
+   
+   Conduct integrated user research: (1) temporal query value ("show architecture as of Q2 2026", "when did decision change?"), measure query frequency and usefulness, (2) multi-modal search adoption ("find similar diagrams", visual similarity vs text search), measure usage patterns and value, (3) migration confidence (do users trust automated schema changes?), test deployment scenarios. Collect feedback on temporal+multi-modal tradeoffs (storage costs vs query value, complexity vs capability). Based on findings, recommend adoption scope (full deployment, limited features, or defer). Deploy to production, achieve TRL 5 (validated in operational environment). *[Max 100 characters: 100/100]*
  
 
 #### Budget and Costs
@@ -667,193 +616,15 @@ Incremental Temporal adoption: (1) establish baseline workflow complexity (curre
 
 | Year | Salaries (5500) | Equipment (5700) | Other (5900) | Total    |
 |------|-----------------|------------------|--------------|----------|
-| 2026 | 15,000          | 2,000            | 1,000        | 18,000   |
-| 2027 | 180,000         | 12,000           | 8,000        | 200,000  |
-| 2028 | 0               | 0                | 0            | 0        |
-| **Total** | **195,000** | **14,000**      | **9,000**    | **218,000** |
+| 2026 | 225,000         | 21,000           | 13,000       | 259,000  |
+| 2027 | 360,000         | 16,000           | 10,000       | 386,000  |
+| **Total** | **585,000** | **37,000**      | **23,000**   | **645,000** |
 
 **Cost Specification:**
 
-- **Salaries (5500):** Backend engineer 13 months @ 50% = 195,000 NOK (Temporal infrastructure setup, workflow migration, pattern development, production validation)
-- **Equipment (5700):** Temporal server infrastructure (8,000), monitoring tools (6,000)
-- **Other Operating Costs (5900):** Temporal consulting (4,000), technical training (3,000), documentation (2,000)
-
----
-
-### Work Package 10: Multi-Modal Knowledge - Image Embeddings
-
-**Duration:** 2026-06-01 to 2027-06-30 (13 months)
-
-**R&D Category:** Experimental development
-
-#### R&D Challenges
-
-Can image embeddings (screenshots, diagrams, photos) integrate into hybrid graph+vector search to enable visual similarity queries without degrading text search performance? Challenge: balance multi-modal indexing (separate vector spaces vs unified embedding) with query complexity and performance. Unknown: whether image+text queries provide value ("find diagrams similar to this architecture"), optimal embedding model (CLIP vs specialized), and storage/performance tradeoffs at scale (images larger than text). Failure mode: multi-modal support adds complexity without sufficient user value.
-
-*[Max 500 characters: 500/500]*
-
-#### Method and Approach
-
-Exploratory multi-modal research: (1) survey embedding models (CLIP, BLIP, ImageBind), evaluate accuracy/performance tradeoffs, (2) design multi-modal architecture (separate vector indexes vs unified space, query federation), (3) implement prototype (image ingestion, embedding generation, search API), (4) conduct user studies (do users want visual search? what query patterns?), (5) measure value proposition (query frequency, result relevance, performance acceptable?), (6) document findings and recommend adoption scope. Progress through TRL 2→4: concept exploration → validated components.
-
-*[Max 1000 characters: 658/1000]*
-
-#### Activities
-
-1. **Embedding Model Evaluation and Selection** (Jun-Aug 2026)
-   
-   Survey multi-modal models: CLIP (text-image), BLIP (image captioning), ImageBind (unified embedding space). Test on representative dataset: architecture diagrams, UI screenshots, photos from documents. Measure: embedding quality (visual similarity accuracy), inference performance (embeddings/second), model size, API cost. Compare approaches: pre-trained vs fine-tuned, cloud API vs self-hosted. Hypothesis: CLIP sufficient for initial use case. Document model selection rationale, accuracy benchmarks, cost analysis. *[Max 100 characters: 100/100]*
- 
-
-2. **Multi-Modal Architecture Design and Prototype** (Sep-Dec 2026)
-   
-   Design hybrid architecture: PostgreSQL with separate vector columns (text_embedding, image_embedding), federated query engine (search text, images, or both), result ranking (combine text+image relevance scores). Implement prototype: image ingestion pipeline (extract from PDFs, process uploads), embedding generation (CLIP API integration), multi-modal search API (unified query interface). Test prototype: does visual similarity work? Can users combine text+image queries? Measure search latency, result relevance, index storage overhead. *[Max 100 characters: 100/100]*
- 
-
-3. **User Study - Multi-Modal Query Value Proposition** (Jan-Apr 2027)
-   
-   Conduct user research: recruit 10+ users (designers, product managers, engineers), introduce visual search capability (find similar diagrams, locate screenshots, discover related images), observe query patterns, measure usage frequency. Key questions: Do users want this? What queries are most valuable? Is visual similarity accurate enough? Hypothesis: specific user segments (designers) find high value, others low. Collect quantitative metrics (query frequency, session duration) and qualitative feedback (usefulness ratings, feature requests). *[Max 100 characters: 100/100]*
- 
-
-4. **Performance Optimization and Production Recommendation** (May-Jun 2027)
-   
-   Optimize multi-modal search: index tuning (HNSW parameters for image vectors), query optimization (parallel text+image search), caching strategies (hot image embeddings). Load test: measure performance at scale (10K+ images), identify bottlenecks, validate latency acceptable (<500ms target). Based on user study + performance data, recommend adoption scope: full deployment, limited rollout, or defer. Document technical findings, user insights, deployment recommendations. Achieve TRL 4 (validated components in laboratory environment). *[Max 100 characters: 100/100]*
- 
-
-#### Budget and Costs
-
-**Yearly Costs:**
-
-| Year | Salaries (5500) | Equipment (5700) | Other (5900) | Total    |
-|------|-----------------|------------------|--------------|----------|
-| 2026 | 90,000          | 8,000            | 5,000        | 103,000  |
-| 2027 | 90,000          | 6,000            | 4,000        | 100,000  |
-| 2028 | 0               | 0                | 0            | 0        |
-| **Total** | **180,000** | **14,000**      | **9,000**    | **203,000** |
-
-**Cost Specification:**
-
-- **Salaries (5500):** ML engineer 13 months @ 50% = 180,000 NOK (model evaluation, architecture design, prototype implementation, user study execution, performance optimization)
-- **Equipment (5700):** CLIP API credits (8,000), image storage infrastructure (6,000)
-- **Other Operating Costs (5900):** ML consulting (4,000), user study compensation (3,000), technical literature (2,000)
-
----
-
-### Work Package 11: Temporal Graph - Version Control for Knowledge
-
-**Duration:** 2026-09-01 to 2027-12-31 (16 months)
-
-**R&D Category:** Experimental development
-
-#### R&D Challenges
-
-Can temporal graph architecture maintain complete version history of knowledge objects (entities, relationships, properties) while supporting time-travel queries without performance degradation? Challenge: design schema capturing all changes (inserts, updates, deletes) with efficient querying of historical states. Unknown: storage overhead of full history (10x? 100x?), query performance for "show graph as of date X," and whether users actually need temporal queries or prefer simpler audit logs. Failure mode: temporal features add storage/complexity without sufficient user value.
-
-*[Max 500 characters: 500/500]*
-
-#### Method and Approach
-
-Temporal data modeling research: (1) survey temporal database patterns (valid-time, transaction-time, bi-temporal), (2) design schema (time-stamped immutable records, valid_from/valid_to columns, soft deletes), (3) implement prototype (temporal CRUD operations, time-travel queries, history API), (4) test performance (query latency across time ranges, storage growth rates), (5) conduct user studies (which temporal queries are valuable?), (6) measure tradeoffs (storage overhead vs query capabilities). Progress through TRL 3→5: proof-of-concept → component validation → production testing.
-
-*[Max 1000 characters: 663/1000]*
-
-#### Activities
-
-1. **Temporal Schema Design and Data Model** (Sep-Dec 2026)
-   
-   Design temporal architecture: bi-temporal model (transaction-time when change recorded, valid-time when change effective), immutable event log (all changes as inserts, no updates), query layer (materialize current state, reconstruct historical states). Define operations: create entity (insert with valid_from), update property (insert new version, close old version with valid_to), delete (soft delete with valid_to), relationship changes (same pattern). Document schema, test on synthetic data. Hypothesis: append-only log enables full history with acceptable overhead. *[Max 100 characters: 100/100]*
- 
-
-2. **Temporal Query Engine Implementation** (Jan-Apr 2027)
-   
-   Build time-travel queries: "show graph as of 2026-12-01" (reconstruct state by filtering valid_from/valid_to), "show entity history" (all versions with change metadata), "diff between dates" (compare states, show added/modified/deleted). Implement query optimization: indexes on temporal columns, materialized views for recent states, query planning for temporal filters. Test query correctness: does reconstruction match actual historical state? Measure query performance across time ranges. Document query API, optimization techniques. *[Max 100 characters: 100/100]*
- 
-
-3. **Storage and Performance Analysis** (May-Aug 2027)
-   
-   Test temporal system at scale: load 10K+ entities with realistic change frequency (daily updates, weekly relationship changes), measure storage growth over simulated 12 months, test query performance across time ranges (recent vs 1-year-old states). Calculate storage overhead: temporal vs non-temporal schema (hypothesis: 3-5x for typical update frequency). Identify performance bottlenecks: query planning, index effectiveness, materialization strategies. Document performance characteristics, storage projections, optimization guidelines. *[Max 100 characters: 100/100]*
- 
-
-4. **User Study and Production Validation** (Sep-Dec 2027)
-   
-   Conduct user research: which temporal queries are valuable? (hypotheses: "when did this decision change?", "who modified this entity?", "show architecture as of Q2 2026"). Pilot with 5-10 users, measure query frequency, usefulness ratings. Compare to alternative: simpler audit log vs full time-travel. Trade off evaluation: do benefits justify storage/complexity costs? Based on findings, recommend adoption: full temporal features, limited history, or defer. Document user insights, technical assessment, deployment recommendation. Achieve TRL 5. *[Max 100 characters: 100/100]*
- 
-
-#### Budget and Costs
-
-**Yearly Costs:**
-
-| Year | Salaries (5500) | Equipment (5700) | Other (5900) | Total    |
-|------|-----------------|------------------|--------------|----------|
-| 2026 | 60,000          | 4,000            | 2,000        | 66,000   |
-| 2027 | 180,000         | 10,000           | 6,000        | 196,000  |
-| 2028 | 0               | 0                | 0            | 0        |
-| **Total** | **240,000** | **14,000**      | **8,000**    | **262,000** |
-
-**Cost Specification:**
-
-- **Salaries (5500):** Database engineer 16 months @ 50% = 240,000 NOK (temporal schema design, query engine implementation, performance analysis, user study, production validation)
-- **Equipment (5700):** Storage infrastructure testing (8,000), database tooling (6,000)
-- **Other Operating Costs (5900):** Database consulting (4,000), user study compensation (2,000), technical literature (2,000)
-
----
-
-### Work Package 12: Schema Evolution and Migration System
-
-**Duration:** 2026-06-01 to 2027-06-30 (13 months)
-
-**R&D Category:** Experimental development
-
-#### R&D Challenges
-
-Can automated schema migration system safely evolve knowledge graph structure (add entity types, modify properties, change relationships) without data loss or downtime? Challenge: design migration framework handling graph complexity (type changes affect queries, relationship constraints, inference rules) beyond traditional database migrations. Unknown: whether automated migrations can preserve semantic correctness (not just syntactic validity), handle large-scale data transformations, and provide safe rollback. Failure mode: schema changes break production system or require manual data fixes.
-
-*[Max 500 characters: 500/500]*
-
-#### Method and Approach
-
-Safe migration framework development: (1) design migration DSL (declarative schema changes, validation rules, transformation logic), (2) implement migration engine (schema versioning, forward/backward migrations, rollback safety), (3) test migration scenarios (add entity type, modify property, merge types, split relationships), (4) develop validation suite (pre-migration checks, post-migration verification, semantic correctness), (5) measure safety (rollback success, zero data loss, production impact). Progress through TRL 2→4: concept → component validation.
-
-*[Max 1000 characters: 644/1000]*
-
-#### Activities
-
-1. **Migration DSL and Framework Design** (Jun-Sep 2026)
-   
-   Design migration language: declarative syntax for schema changes (add_entity_type, modify_property, add_relationship_constraint), validation rules (required fields, type constraints, referential integrity), transformation logic (data migration scripts, default values). Define migration lifecycle: version management (sequential migrations, dependency tracking), execution (transaction safety, error handling), rollback (undo operations, data restoration). Document DSL syntax, create migration examples, test on synthetic schemas. *[Max 100 characters: 100/100]*
- 
-
-2. **Migration Engine Implementation** (Oct 2026 - Jan 2027)
-   
-   Build migration engine: schema version tracking (migration table, applied migrations log), execution engine (parse DSL, execute SQL/graph operations, transaction management), rollback mechanism (inverse operations, data snapshots), validation framework (pre-checks, post-checks, semantic verification). Test engine: can it execute migrations safely? Does rollback restore previous state? Measure transaction safety, rollback reliability, execution performance. Document engine architecture, error handling, safety guarantees. *[Max 100 characters: 100/100]*
- 
-
-3. **Complex Migration Testing and Validation** (Feb-May 2027)
-   
-   Test challenging migrations: add entity type (with 1000+ instances), modify property type (string to enum with validation), merge entity types (combine data, update relationships), split relationships (one-to-many becomes many-to-many). Test at scale: run migrations on production-size datasets (10K+ entities), measure downtime (target: <5 minutes), verify data integrity (zero loss). Develop validation suite: automated semantic checks (relationship consistency, type constraints, query compatibility). Document migration patterns, testing procedures. *[Max 100 characters: 100/100]*
- 
-
-4. **Production Readiness and Framework Validation** (Jun 2027)
-   
-   Prepare for production: create migration templates (common schema changes), write migration guides (best practices, safety checklists), implement monitoring (migration execution tracking, error alerting, rollback auditing), conduct team training (migration authoring, testing, deployment). Validate framework: execute real schema evolution on staging environment, measure safety (successful migrations, rollback tests, zero data loss). Document production procedures, troubleshooting guides, rollback playbooks. Achieve TRL 4 (validated in laboratory environment). *[Max 100 characters: 100/100]*
- 
-
-#### Budget and Costs
-
-**Yearly Costs:**
-
-| Year | Salaries (5500) | Equipment (5700) | Other (5900) | Total    |
-|------|-----------------|------------------|--------------|----------|
-| 2026 | 90,000          | 5,000            | 3,000        | 98,000   |
-| 2027 | 90,000          | 6,000            | 4,000        | 100,000  |
-| 2028 | 0               | 0                | 0            | 0        |
-| **Total** | **180,000** | **11,000**      | **7,000**    | **198,000** |
-
-**Cost Specification:**
-
-- **Salaries (5500):** Database engineer 13 months @ 50% = 180,000 NOK (migration DSL design, engine implementation, complex migration testing, production preparation)
-- **Equipment (5700):** Migration testing infrastructure (8,000), database tooling (3,000)
-- **Other Operating Costs (5900):** Database consulting (4,000), technical training (2,000), documentation (1,000)
+- **Salaries (5500):** Database engineer (Jun 2026-Dec 2027, 75%) + Database engineer (Oct 2026-Jun 2027, 50%) + ML engineer (Jun 2026-Jun 2027, 50%) = 585,000 NOK total (temporal schema design, migration DSL, embedding pipeline, integrated query engine, scale testing, validation suite, user studies, production deployment)
+- **Equipment (5700):** Storage infrastructure testing (8,000), migration testing environment (8,000), CLIP API credits (8,000), image storage infrastructure (6,000), database tooling (7,000)
+- **Other Operating Costs (5900):** Database consulting (8,000), ML consulting (4,000), user study compensation (5,000), technical training (4,000), documentation (2,000)
 
 ---
 
@@ -863,8 +634,8 @@ Safe migration framework development: (1) design migration DSL (declarative sche
 
 | Year | Salaries (5500) | Equipment (5700) | Other (5900) | Total per Year |
 |------|-----------------|------------------|--------------|----------------|
-| 2026 | 1,200,000       | 96,000           | 59,000       | 1,355,000      |
-| 2027 | 1,395,000       | 77,000           | 52,000       | 1,524,000      |
+| 2026 | 1,185,000       | 96,000           | 59,000       | 1,340,000      |
+| 2027 | 1,410,000       | 77,000           | 52,000       | 1,539,000      |
 | 2028 | 45,000          | 3,000            | 2,000        | 50,000         |
 | **Total** | **2,640,000** | **176,000**    | **113,000**  | **2,929,000**  |
 
@@ -882,16 +653,12 @@ Safe migration framework development: (1) design migration DSL (declarative sche
 | WP3: Model Context Protocol Integration | 22 | 330,000 | 11.3% |
 | WP4: EPF Methodological Framework (6 artifacts) | 18 | 223,000 | 7.6% |
 | WP5: OpenSpec Feature Definitions (15+ features) | 16 | 176,000 | 6.0% |
-| WP6: Runtime Infrastructure Stage 1 | 15 | 228,000 | 7.8% |
-| WP7: Runtime Infrastructure Stage 2 (Artifact Storage) | 16 | 248,000 | 8.5% |
-| WP8: Runtime Infrastructure Stage 3 (Workflow UI) | 19 | 315,000 | 10.8% |
-| WP9: Temporal Workflow Integration (Stage 4) | 13 | 218,000 | 7.4% |
-| WP10: Multi-Modal Image Embeddings | 13 | 203,000 | 6.9% |
-| WP11: Temporal Graph Version Control | 16 | 262,000 | 8.9% |
-| WP12: Schema Evolution and Migrations | 13 | 198,000 | 6.8% |
-| **Total** | | **2,892,000** | **98.7%** |
+| WP6: Runtime Infra - API & Storage System | 21 | 476,000 | 16.2% |
+| WP7: Runtime Infra - Workflow Orchestration System | 19 | 533,000 | 18.2% |
+| WP8: Knowledge Infrastructure - Schema + Multi-Modal | 19 | 645,000 | 22.0% |
+| **Total** | | **2,874,000** | **98.1%** |
 
-*Note: Work package total (2,892,000 NOK) differs slightly from budget summary (2,929,000 NOK) due to rounding in individual WP budgets. The discrepancy of 37,000 NOK (1.3%) represents minor allocation adjustments across equipment and operating costs.*
+*Note: Work package total (2,874,000 NOK) differs slightly from budget summary (2,929,000 NOK) due to rounding in individual WP budgets and consolidation adjustments. The discrepancy of 55,000 NOK (1.9%) represents minor allocation adjustments across equipment and operating costs during work package consolidation.*
 
 ### 8.3 Estimated Tax Deduction
 
