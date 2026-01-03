@@ -1,4 +1,4 @@
-# Emergent Product Framework (EPF) Repository - v2.2.0
+# Emergent Product Framework (EPF) Repository - v2.3.0
 
 This repository contains the complete skeleton for managing product, strategy, org & ops, and commercial development using the Emergent Product Framework. It is designed to be an **executable operating system**, managed by a human-in-the-loop with the assistance of an AI Knowledge Agent.
 
@@ -85,6 +85,27 @@ This repository contains the complete skeleton for managing product, strategy, o
 **Philosophy:** Like a coral reef growing one polyp at a time, EPF grows one artifact at a time. The system emerges as your strategic complexity emerges. Just as AI enables small teams to build big products, EPF's simple rules generate sophisticated strategic systems - that's why it's called the **Emergent** Product Framework.
 
 ---
+
+## What's New in v2.3.0
+
+**Outputs System for External Artifact Generation (2026-01-03):**
+
+EPF now includes a complete system for generating external artifacts from EPF data:
+
+- **NEW**: `outputs/` directory with generators, schemas, validators, and wizards
+- **Three initial generators:**
+  - `skattefunn-application` (v2.0.1): Norwegian R&D tax credit applications
+  - `context-sheet`: AI context summaries for external tools (ChatGPT, Claude, etc.)
+  - `investor-memo`: Complete investor materials package (memo, FAQ, one-pager, etc.)
+- **Dynamic framework sync:** Sync script now auto-discovers framework additions (no hardcoded lists)
+- **True iterative development:** Iterate in product repos, sync to canonical - any new directory/file automatically included
+
+**Why this matters:**
+- Enables EPF instances to generate external artifacts (investor materials, context sheets, grant applications, etc.) from EPF data
+- Full validation and traceability for all generated outputs
+- True iterative development philosophy: evolve EPF in product repos, sync improvements back to canonical
+
+**Backward compatible:** Fully compatible with v2.2.0 instances. No migration required.
 
 ## What's New in v2.2.0
 
