@@ -1,11 +1,11 @@
 # EPF Integration Specification
 # Machine-readable contract for spec-driven development tools
-# Version: 2.3.1 (EPF v2.3.1)
+# Version: 2.3.2 (EPF v2.3.2)
 
 specification:
   name: "EPF Tool Integration Specification"
-  version: "2.3.1"
-  epf_version: "2.3.1"
+  version: "2.3.2"
+  epf_version: "2.3.2"
   purpose: |
     This file defines the interface contract between the Emergent Product Framework (EPF)
     and any spec-driven software development tool (e.g., OpenSpec, SpecIt, AI coding agents).
@@ -580,7 +580,7 @@ file_discovery:
 # ============================================================================
 
 versioning:
-  this_spec_version: "2.3.0"
+  this_spec_version: "2.3.2"
   epf_version_required: ">=2.3.0"
   
   compatibility_notes: |
@@ -590,29 +590,29 @@ versioning:
     - New optional fields increment MINOR version
     
   changelog:
-    - version: "2.3.0"
+    - version: "2.3.2"
       date: "2026-01-03"
       changes: "Add outputs/ system for external artifact generation (skattefunn-application v2.0.1, context-sheet, investor-memo). Dynamic sync script for framework additions."
-    - version: "2.2.0"
+    - version: "2.3.2"
       date: "2025-12-31"
       changes: "Add comprehensive output generators system with validation (context-sheet, investor-memo, skattefunn-application) and shell-based validators"
-    - version: "1.13.0"
+    - version: "2.3.2"
       date: "2025-12-21"
       changes: "Add business language guides, product architect wizard, and enhanced value models"
-    - version: "1.4.0"
+    - version: "2.3.2"
       date: "2025-12-05"
       changes: "Extended feature_definition_schema with value_propositions, architecture_patterns, design_guidance, enhanced contexts with key_elements/user_actions/data_displayed, jtbd_category for scenarios, and external_integrations"
-    - version: "1.3.0"
+    - version: "2.3.2"
       changes:
         - "Added SECTION 5: Bi-directional Traceability"
         - "Defined implementation_references field for feature definitions"
         - "Defined sync protocol between EPF and spec-driven tools"
         - "Added coverage tracking metrics"
-    - version: "1.2.0"
+    - version: "2.3.2"
       changes:
         - "Updated work hierarchy to remove work_packages from EPF"
         - "Clarified KRs as meta work packages"
-    - version: "1.1.0"
+    - version: "2.3.2"
       changes:
         - "Initial integration specification"
 
