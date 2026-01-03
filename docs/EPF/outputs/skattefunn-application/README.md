@@ -166,6 +166,10 @@ VALIDATION_BUDGET_TOLERANCE=1000 bash validator.sh application.md
 
 ## Version History
 
+- **v2.0.1** (2026-01-03) - Validator bug fixes
+  - Fixed budget temporal consistency validation (awk-based WP extraction eliminates false positives)
+  - Added 8 work package maximum enforcement per SkatteFUNN regulations (already documented in schema)
+
 - **v2.0.0** (2026-01-01) - Major restructure for official form compatibility
   - Restructured to 8 official form sections matching online application
   - Added character limit validation (60, 100, 500, 1000, 2000 chars)
