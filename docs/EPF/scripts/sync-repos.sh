@@ -1,16 +1,22 @@
 #!/bin/bash
-# EPF Sync Script v2.1
+# EPF Sync Script v2.2
 # Ensures EPF framework is synchronized across canonical repo and product instances
 #
 # CRITICAL: git subtree push CANNOT exclude directories, so we use a different approach:
 # - PULL: Uses git subtree (safe, canonical → product), auto-restores product .gitignore
 # - PUSH: Clones canonical, copies files, commits, pushes (excludes _instances/)
 #
-# Usage: ./sync-repos.sh [push|pull|check|validate]
-#   push  - Push framework changes from this repo to canonical EPF (excludes _instances/)
-#   pull  - Pull framework updates from canonical EPF to this repo
-#   check - Verify sync status without making changes
+# Version 2.2 Changes:
+# - Integrated with classify-changes.sh for version bump detection
+# - Push operations now require version bump if framework content changed
+# - Recommends classify-changes.sh instead of manual version management
+#
+# Usage: ./sync-repos.sh [push|pull|check|validate|classify]
+#   push     - Push framework changes from this repo to canonical EPF (excludes _instances/)
+#   pull     - Pull framework updates from canonical EPF to this repo
+#   check    - Verify sync status without making changes
 #   validate - Check version consistency
+#   classify - Run change classifier to check if version bump needed
 
 set -e
 
@@ -141,7 +147,8 @@ validate_version_consistency() {
         return 0
     else
         log_error "Fix version inconsistencies before syncing!"
-        log_info "Use: ./scripts/bump-version.sh <version> \"<description>\""
+        log_warn "RECOMMENDED: Use ./scripts/classify-changes.sh to check if version bump needed"
+        log_info "Then: ./scripts/bump-framework-version.sh \"X.Y.Z\" \"Description\""
         return 1
     fi
 }
@@ -221,9 +228,47 @@ check_sync_status() {
     fi
 }
 
+check_framework_changes() {
+    log_info "Checking for framework content changes..."
+    
+    if [[ ! -f "$EPF_PREFIX/scripts/classify-changes.sh" ]]; then
+        log_warn "classify-changes.sh not found - skipping change classification"
+        return 0
+    fi
+    
+    # Run classifier in check mode (doesn't exit on version bump needed)
+    cd "$EPF_PREFIX"
+    local classifier_output=$(./scripts/classify-changes.sh 2>&1)
+    local classifier_exit=$?
+    cd - > /dev/null
+    
+    echo "$classifier_output"
+    
+    if [[ $classifier_exit -ne 0 ]]; then
+        echo ""
+        log_error "⚠️  Framework changes detected that require version bump!"
+        log_warn "You must bump the version before pushing to canonical EPF"
+        echo ""
+        log_info "Steps to fix:"
+        log_info "  1. Review changes: ./docs/EPF/scripts/classify-changes.sh"
+        log_info "  2. Bump version: ./docs/EPF/scripts/bump-framework-version.sh \"X.Y.Z\" \"Description\""
+        log_info "  3. Commit version bump"
+        log_info "  4. Try push again: ./docs/EPF/scripts/sync-repos.sh push"
+        echo ""
+        return 1
+    fi
+    
+    log_info "No framework changes requiring version bump ✓"
+    return 0
+}
+
 push_to_canonical() {
     log_info "Pushing framework changes to canonical EPF repo..."
     log_warn "This uses file copy (not git subtree) to exclude _instances/"
+    echo ""
+    
+    # CRITICAL: Check if version bump is needed BEFORE pushing
+    check_framework_changes || exit 1
     echo ""
     
     check_remote
@@ -574,20 +619,30 @@ case "${1:-check}" in
     validate)
         validate_version_consistency
         ;;
+    classify)
+        check_framework_changes
+        ;;
     init)
         init_product_instance "$2"
         ;;
     *)
-        echo "EPF Sync Script v2.1"
+        echo "EPF Sync Script v2.2"
         echo ""
         echo "Usage: $0 [command]"
         echo ""
         echo "Commands:"
         echo "  check       Verify sync status (default)"
         echo "  validate    Check version consistency within files"
+        echo "  classify    Run change classifier (check if version bump needed)"
         echo "  push        Push framework to canonical repo (excludes _instances/)"
         echo "  pull        Pull framework from canonical repo (auto-restores .gitignore)"
         echo "  init <name> Initialize a new product instance"
+        echo ""
+        echo "⚠️  IMPORTANT: Before pushing framework changes:"
+        echo "  1. Run: ./sync-repos.sh classify"
+        echo "  2. If version bump needed, run: ./scripts/bump-framework-version.sh"
+        echo "  3. Commit version bump"
+        echo "  4. Then: ./sync-repos.sh push"
         echo ""
         echo "The push command uses file copy instead of git subtree to properly"
         echo "exclude _instances/ which should never be in the canonical repo."

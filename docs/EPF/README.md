@@ -1,4 +1,4 @@
-# Emergent Product Framework (EPF) Repository - v2.3.1
+# Emergent Product Framework (EPF) Repository - v2.3.2
 
 This repository contains the complete skeleton for managing product, strategy, org & ops, and commercial development using the Emergent Product Framework. It is designed to be an **executable operating system**, managed by a human-in-the-loop with the assistance of an AI Knowledge Agent.
 
@@ -85,6 +85,27 @@ This repository contains the complete skeleton for managing product, strategy, o
 **Philosophy:** Like a coral reef growing one polyp at a time, EPF grows one artifact at a time. The system emerges as your strategic complexity emerges. Just as AI enables small teams to build big products, EPF's simple rules generate sophisticated strategic systems - that's why it's called the **Emergent** Product Framework.
 
 ---
+
+## What's New in v2.3.2
+
+Integrate classify-changes.sh with sync-repos.sh
+
+- sync-repos.sh now checks for framework changes before push
+- Added 'classify' command to sync-repos.sh
+- Push operations require version bump if framework content changed
+- Updated copilot instructions to reflect new workflow
+- Prevents accidental pushes without proper versioning
+- Fixed bump-framework-version.sh regex issues (use sed -E for portability)
+
+## What's New in v2.3.2
+
+Integrate classify-changes.sh with sync-repos.sh
+
+- sync-repos.sh now checks for framework changes before push
+- Added 'classify' command to sync-repos.sh
+- Push operations require version bump if framework content changed
+- Updated copilot instructions to reflect new workflow
+- Prevents accidental pushes without proper versioning
 
 ## What's New in v2.3.1
 

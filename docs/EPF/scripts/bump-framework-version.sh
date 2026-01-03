@@ -70,10 +70,10 @@ echo "✅ [1/4] Updated VERSION"
 # 2. Update README.md header
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS
-    sed -i '' "s/# Emergent Product Framework (EPF) Repository - v[0-9]\+\.[0-9]\+\.[0-9]\+/# Emergent Product Framework (EPF) Repository - v$VERSION/" README.md
+    sed -i '' -E "s/# Emergent Product Framework \(EPF\) Repository - v[0-9]+\.[0-9]+\.[0-9]+/# Emergent Product Framework (EPF) Repository - v$VERSION/" README.md
 else
     # Linux
-    sed -i "s/# Emergent Product Framework (EPF) Repository - v[0-9]\+\.[0-9]\+\.[0-9]\+/# Emergent Product Framework (EPF) Repository - v$VERSION/" README.md
+    sed -i -E "s/# Emergent Product Framework \(EPF\) Repository - v[0-9]+\.[0-9]+\.[0-9]+/# Emergent Product Framework (EPF) Repository - v$VERSION/" README.md
 fi
 echo "✅ [2/4] Updated README.md header"
 
@@ -102,26 +102,26 @@ echo "✅ [3/4] Added 'What's New in v$VERSION' to README.md"
 # 4. Update MAINTENANCE.md version reference
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS
-    sed -i '' "s/\*\*Current Framework Version:\*\* v[0-9]\+\.[0-9]\+\.[0-9]\+/**Current Framework Version:** v$VERSION/" MAINTENANCE.md
+    sed -i '' -E "s/\*\*Current Framework Version:\*\* v[0-9]+\.[0-9]+\.[0-9]+/**Current Framework Version:** v$VERSION/" MAINTENANCE.md
 else
     # Linux
-    sed -i "s/\*\*Current Framework Version:\*\* v[0-9]\+\.[0-9]\+\.[0-9]\+/**Current Framework Version:** v$VERSION/" MAINTENANCE.md
+    sed -i -E "s/\*\*Current Framework Version:\*\* v[0-9]+\.[0-9]+\.[0-9]+/**Current Framework Version:** v$VERSION/" MAINTENANCE.md
 fi
 echo "✅ [4/5] Updated MAINTENANCE.md"
 
 # 5. Update integration_specification.yaml (4 version references)
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS
-    sed -i '' "s/^# Version: [0-9]\+\.[0-9]\+\.[0-9]\+/# Version: $VERSION/" integration_specification.yaml
-    sed -i '' "s/^  version: \"[0-9]\+\.[0-9]\+\.[0-9]\+\"/  version: \"$VERSION\"/" integration_specification.yaml
-    sed -i '' "s/^  this_spec_version: \"[0-9]\+\.[0-9]\+\.[0-9]\+\"/  this_spec_version: \"$VERSION\"/" integration_specification.yaml
-    sed -i '' "s/^    - version: \"[0-9]\+\.[0-9]\+\.[0-9]\+\"/    - version: \"$VERSION\"/" integration_specification.yaml
+    sed -i '' -E "s/^# Version: [0-9]+\.[0-9]+\.[0-9]+/# Version: $VERSION/" integration_specification.yaml
+    sed -i '' -E "s/^  version: \"[0-9]+\.[0-9]+\.[0-9]+\"/  version: \"$VERSION\"/" integration_specification.yaml
+    sed -i '' -E "s/^  this_spec_version: \"[0-9]+\.[0-9]+\.[0-9]+\"/  this_spec_version: \"$VERSION\"/" integration_specification.yaml
+    sed -i '' -E "s/^    - version: \"[0-9]+\.[0-9]+\.[0-9]+\"/    - version: \"$VERSION\"/" integration_specification.yaml
 else
     # Linux
-    sed -i "s/^# Version: [0-9]\+\.[0-9]\+\.[0-9]\+/# Version: $VERSION/" integration_specification.yaml
-    sed -i "s/^  version: \"[0-9]\+\.[0-9]\+\.[0-9]\+\"/  version: \"$VERSION\"/" integration_specification.yaml
-    sed -i "s/^  this_spec_version: \"[0-9]\+\.[0-9]\+\.[0-9]\+\"/  this_spec_version: \"$VERSION\"/" integration_specification.yaml
-    sed -i "s/^    - version: \"[0-9]\+\.[0-9]\+\.[0-9]\+\"/    - version: \"$VERSION\"/" integration_specification.yaml
+    sed -i -E "s/^# Version: [0-9]+\.[0-9]+\.[0-9]+/# Version: $VERSION/" integration_specification.yaml
+    sed -i -E "s/^  version: \"[0-9]+\.[0-9]+\.[0-9]+\"/  version: \"$VERSION\"/" integration_specification.yaml
+    sed -i -E "s/^  this_spec_version: \"[0-9]+\.[0-9]+\.[0-9]+\"/  this_spec_version: \"$VERSION\"/" integration_specification.yaml
+    sed -i -E "s/^    - version: \"[0-9]+\.[0-9]+\.[0-9]+\"/    - version: \"$VERSION\"/" integration_specification.yaml
 fi
 echo "✅ [5/5] Updated integration_specification.yaml"
 
@@ -131,10 +131,10 @@ echo ""
 
 # Verify all files have been updated
 VERSION_IN_VERSION=$(cat VERSION)
-VERSION_IN_README=$(grep "^# Emergent Product Framework (EPF) Repository - v" README.md | sed 's/.*v\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
-VERSION_IN_MAINTENANCE=$(grep "**Current Framework Version:**" MAINTENANCE.md | sed 's/.*v\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
-VERSION_IN_INTEGRATION_SPEC=$(grep "^# Version:" integration_specification.yaml | sed 's/.*: \([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
-WHATS_NEW_COUNT=$(grep -c "## What's New in v$VERSION" README.md)
+VERSION_IN_README=$(grep "^# Emergent Product Framework (EPF) Repository - v" README.md | sed -E 's/.*v([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+VERSION_IN_MAINTENANCE=$(grep "\*\*Current Framework Version:\*\*" MAINTENANCE.md | sed -E 's/.*v([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+VERSION_IN_INTEGRATION_SPEC=$(grep "^# Version:" integration_specification.yaml | sed -E 's/.*: ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+WHATS_NEW_COUNT=$(grep -c "## What's New in v$VERSION" README.md || echo "0")
 
 echo "   VERSION file:             $VERSION_IN_VERSION"
 echo "   README.md header:         $VERSION_IN_README"

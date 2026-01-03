@@ -9,6 +9,22 @@
 
 ---
 
+## 📦 Product Repositories Using EPF
+
+**Complete list of product repos that use EPF framework:**
+
+1. **emergent** - `/Users/nikolai/Code/emergent` (branch: `master`)
+2. **twentyfirst** - `/Users/nikolai/Code/twentyfirst` (branch: `develop`)
+3. **lawmatics** - `/Users/nikolai/Code/lawmatics` (branch: `dev`)
+4. **huma-blueprint-ui** - `/Users/nikolai/Code/huma-blueprint-ui` (branch: `develop`)
+
+**When user says "all product repos" or "all products", these are THE FOUR repositories.**
+
+**Sync method:** ALWAYS use `./docs/EPF/scripts/sync-repos.sh pull` from product repo  
+**NEVER use:** `git subtree push` or `git subtree pull` directly (legacy method, deprecated)
+
+---
+
 ## ⚠️ CRITICAL: Pre-Flight Checklist for AI Agents
 
 **BEFORE doing ANYTHING with EPF, answer these questions:**
@@ -165,7 +181,11 @@ Breaking: <YES|NO>"
 
 ---
 
-## When User Asks to "Add EPF" to a New Repo
+## 📝 Adding a New Product Repository to EPF
+
+When adding a new product repo to the EPF ecosystem, follow this procedure:
+
+### Step 1: Add EPF to the Product Repo
 
 Run this command from the target product repository:
 
@@ -194,18 +214,107 @@ git add docs/EPF/_instances/
 git commit -m "EPF: Initialize {product-name} instance"
 ```
 
+### Step 2: Update Canonical EPF Documentation
+
+Edit `.github/copilot-instructions.md` in the **canonical EPF repo** to add the new product:
+
+**Files to update:**
+
+1. **Section: "📦 Product Repositories Using EPF"** (lines ~16-20)
+   - Add new line: `5. **{product-name}** - `/Users/nikolai/Code/{product-name}` (branch: `{branch-name}`)`
+   - Update count: "When user says 'all product repos', these are THE **FIVE** repositories."
+
+2. **Section: "Sync updates to all product repos"** (lines ~246-249)
+   - Add new line: `cd /Users/nikolai/Code/{product-name} && ./docs/EPF/scripts/sync-repos.sh pull && git push`
+
+3. **Section: "Quick Command Reference"** (lines ~363-366)
+   - Add new line: `cd /path/to/{product-name} && ./docs/EPF/scripts/sync-repos.sh pull && git push`
+
+4. **Commit the changes:**
+   ```bash
+   cd /Users/nikolai/Code/epf
+   git add .github/copilot-instructions.md
+   git commit -m "docs: Add {product-name} to product repos list"
+   git push origin main
+   ```
+
+### Step 3: Sync to All Product Repos (including new one)
+
+```bash
+# Sync the updated instructions to all product repos
+cd /Users/nikolai/Code/emergent && ./docs/EPF/scripts/sync-repos.sh pull && git push
+cd /Users/nikolai/Code/twentyfirst && ./docs/EPF/scripts/sync-repos.sh pull && git push
+cd /Users/nikolai/Code/lawmatics && ./docs/EPF/scripts/sync-repos.sh pull && git push
+cd /Users/nikolai/Code/huma-blueprint-ui && ./docs/EPF/scripts/sync-repos.sh pull && git push
+cd /Users/nikolai/Code/{product-name} && ./docs/EPF/scripts/sync-repos.sh pull && git push
+```
+
+### Why This Matters
+
+- **sync-repos.sh auto-detects** product names from `_instances/` folder (no code changes needed)
+- **Copilot instructions define** what "all product repos" means for AI agents
+- **Without updating copilot-instructions.md**, AI won't know the new repo exists when you say "sync all products"
+
 ---
 
 ## Syncing EPF
 
-**Pull framework updates:**
+**Pull framework updates (recommended method):**
 ```bash
-git subtree pull --prefix=docs/EPF epf main --squash -m "EPF: Pull updates"
+# From product repository (e.g., emergent, twentyfirst, lawmatics, huma-blueprint-ui)
+./docs/EPF/scripts/sync-repos.sh pull
 ```
 
-**Push framework improvements:**
+**Push framework improvements (from canonical EPF repo):**
 ```bash
-git subtree push --prefix=docs/EPF epf main
+# CRITICAL: Always check if version bump needed FIRST
+./scripts/classify-changes.sh
+
+# If version bump needed:
+./scripts/bump-framework-version.sh "X.Y.Z" "Description"
+git add VERSION README.md MAINTENANCE.md integration_specification.yaml
+git commit -m "chore(version): Bump to vX.Y.Z"
+
+# Then push to canonical
+git push origin main
+```
+
+**Sync updates to all product repos:**
+
+When EPF framework is updated in canonical repo, propagate to all product repos:
+
+```bash
+# ⚠️ IMPORTANT: Product repos are: emergent, twentyfirst, lawmatics, huma-blueprint-ui
+# ALWAYS use sync-repos.sh (NOT git subtree commands directly)
+
+# Method 1: Manual sync (run from each product repo)
+cd /Users/nikolai/Code/emergent && ./docs/EPF/scripts/sync-repos.sh pull && git push
+cd /Users/nikolai/Code/twentyfirst && ./docs/EPF/scripts/sync-repos.sh pull && git push
+cd /Users/nikolai/Code/lawmatics && ./docs/EPF/scripts/sync-repos.sh pull && git push
+cd /Users/nikolai/Code/huma-blueprint-ui && ./docs/EPF/scripts/sync-repos.sh pull && git push
+
+# Method 2: Automated sync (when user asks to "update all product repos")
+# For EACH of the 4 repos above, sequentially:
+#   1. cd to repo directory
+#   2. Run: ./docs/EPF/scripts/sync-repos.sh pull
+#   3. Handle conflicts: git checkout --theirs <files> && git add .
+#   4. Commit: git commit (if needed)
+#   5. Push: git push
+```
+
+**⛔ DEPRECATED: Manual subtree operations (DO NOT USE):**
+```bash
+# ❌ NEVER USE THESE COMMANDS - They cannot exclude _instances/ properly
+# ❌ ALWAYS use sync-repos.sh instead
+
+# git subtree pull --prefix=docs/EPF epf main --squash
+# git subtree push --prefix=docs/EPF epf main
+
+# Why deprecated:
+# - git subtree push cannot exclude directories (_instances/ would pollute canonical)
+# - No version bump checks before push
+# - No conflict resolution for product .gitignore
+# - sync-repos.sh handles all these issues correctly
 ```
 
 ---
@@ -293,6 +402,13 @@ cat VERSION
 
 # Bump framework version (automated - prevents inconsistencies)
 ./scripts/bump-framework-version.sh "X.Y.Z" "Release notes"
+
+# Sync EPF updates to product repos (after pushing to canonical)
+# Run from each product repo:
+cd /path/to/emergent && ./docs/EPF/scripts/sync-repos.sh pull && git push
+cd /path/to/twentyfirst && ./docs/EPF/scripts/sync-repos.sh pull && git push
+cd /path/to/lawmatics && ./docs/EPF/scripts/sync-repos.sh pull && git push
+cd /path/to/huma-blueprint-ui && ./docs/EPF/scripts/sync-repos.sh pull && git push
 ```
 
 ---
