@@ -1,11 +1,11 @@
 # EPF Integration Specification
 # Machine-readable contract for spec-driven development tools
-# Version: 2.2.0 (EPF v2.2.0)
+# Version: 2.3.0 (EPF v2.3.0)
 
 specification:
   name: "EPF Tool Integration Specification"
-  version: "2.2.0"
-  epf_version: "2.2.0"
+  version: "2.3.0"
+  epf_version: "2.3.0"
   purpose: |
     This file defines the interface contract between the Emergent Product Framework (EPF)
     and any spec-driven software development tool (e.g., OpenSpec, SpecIt, AI coding agents).
@@ -580,8 +580,8 @@ file_discovery:
 # ============================================================================
 
 versioning:
-  this_spec_version: "2.2.0"
-  epf_version_required: ">=2.2.0"
+  this_spec_version: "2.3.0"
+  epf_version_required: ">=2.3.0"
   
   compatibility_notes: |
     - This specification is versioned independently from EPF
@@ -590,6 +590,9 @@ versioning:
     - New optional fields increment MINOR version
     
   changelog:
+    - version: "2.3.0"
+      date: "2026-01-03"
+      changes: "Add outputs/ system for external artifact generation (skattefunn-application v2.0.1, context-sheet, investor-memo). Dynamic sync script for framework additions."
     - version: "2.2.0"
       date: "2025-12-31"
       changes: "Add comprehensive output generators system with validation (context-sheet, investor-memo, skattefunn-application) and shell-based validators"
