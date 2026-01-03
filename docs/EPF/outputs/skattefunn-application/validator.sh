@@ -795,7 +795,7 @@ validate_traceability() {
 main() {
     echo ""
     echo -e "${BLUE}╔═══════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║      SkatteFUNN Application Validator v1.0.0         ║${NC}"
+    echo -e "${BLUE}║      SkatteFUNN Application Validator v1.0.1         ║${NC}"
     echo -e "${BLUE}╚═══════════════════════════════════════════════════════╝${NC}"
     echo ""
     log_info "Validating: $APPLICATION_PATH"
