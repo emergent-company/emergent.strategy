@@ -397,8 +397,27 @@ pull_from_canonical() {
         git clone --depth=1 --branch "$CANONICAL_BRANCH" "$CANONICAL_URL" "$temp_epf" --quiet
         
         log_step "Fallback: Copying framework files (excluding _instances/)..."
+        
+        # Get all framework items dynamically from canonical repo
+        local framework_items=()
+        while IFS= read -r item; do
+            local basename=$(basename "$item")
+            
+            # Skip instance folders and ephemeral work
+            if [[ "$basename" == "_instances" || "$basename" == ".epf-work" ]]; then
+                continue
+            fi
+            
+            # Skip product-specific backup files
+            if [[ "$basename" == *.product-backup ]]; then
+                continue
+            fi
+            
+            framework_items+=("$basename")
+        done < <(find "$temp_epf" -mindepth 1 -maxdepth 1 -print0 2>/dev/null)
+        
         local copied=0
-        for item in "${FRAMEWORK_ITEMS[@]}"; do
+        for item in "${framework_items[@]}"; do
             if [[ -e "$temp_epf/$item" ]]; then
                 if [[ -d "$temp_epf/$item" ]]; then
                     rm -rf "$EPF_PREFIX/$item"
