@@ -35,17 +35,41 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # Framework files/directories to sync (NOT _instances/)
-FRAMEWORK_ITEMS=(
+# NOTE: This function dynamically discovers all items in docs/EPF/
+# EXCEPT: _instances/, .epf-work/, and product-specific files
+get_framework_items() {
+    local epf_dir="$EPF_PREFIX"
+    local items=()
+    
+    # Get all items in EPF root, excluding product-specific content
+    while IFS= read -r -d '' item; do
+        local basename=$(basename "$item")
+        
+        # Skip instance folders and ephemeral work
+        if [[ "$basename" == "_instances" || "$basename" == ".epf-work" ]]; then
+            continue
+        fi
+        
+        # Skip product-specific backup files
+        if [[ "$basename" == *.product-backup ]]; then
+            continue
+        fi
+        
+        # Add to items list (relative path from EPF root)
+        items+=("$basename")
+    done < <(find "$epf_dir" -mindepth 1 -maxdepth 1 -print0 2>/dev/null)
+    
+    printf '%s\n' "${items[@]}"
+}
+
+# Legacy: Keep for backward compatibility and validation checks
+# These are the MINIMUM expected framework items
+FRAMEWORK_ITEMS_LEGACY=(
     "VERSION"
     "README.md"
     "MAINTENANCE.md"
-    "NORTH_STAR.md"
-    "STRATEGY_FOUNDATIONS.md"
-    "TRACK_BASED_ARCHITECTURE.md"
-    "PRODUCT_PORTFOLIO.md"
     ".ai-agent-instructions.md"
     "integration_specification.yaml"
-    "phases"
     "schemas"
     "wizards"
     "scripts"
@@ -161,9 +185,15 @@ check_sync_status() {
     if [[ "$local_ver" == "$remote_ver" ]]; then
         log_info "Versions match - checking for file differences..."
         
+        # Get framework items dynamically
+        local framework_items=()
+        while IFS= read -r item; do
+            framework_items+=("$item")
+        done < <(get_framework_items)
+        
         # Compare key files
         local diffs=0
-        for item in "${FRAMEWORK_ITEMS[@]}"; do
+        for item in "${framework_items[@]}"; do
             if [[ -f "$EPF_PREFIX/$item" ]]; then
                 local remote_content=$(git show "$CANONICAL_REMOTE/$CANONICAL_BRANCH:$item" 2>/dev/null || echo "")
                 local local_content=$(cat "$EPF_PREFIX/$item" 2>/dev/null || echo "")
@@ -204,8 +234,16 @@ push_to_canonical() {
     rm -rf "$TEMP_DIR"
     git clone --depth=1 "$CANONICAL_URL" "$TEMP_DIR" --quiet
     
-    log_step "2/5: Copying framework files (excluding _instances/)..."
-    for item in "${FRAMEWORK_ITEMS[@]}"; do
+    log_step "2/5: Copying framework files (excluding _instances/ and .epf-work/)..."
+    
+    # Get all framework items dynamically
+    local framework_items=()
+    while IFS= read -r item; do
+        framework_items+=("$item")
+    done < <(get_framework_items)
+    
+    local copied_count=0
+    for item in "${framework_items[@]}"; do
         if [[ -e "$EPF_PREFIX/$item" ]]; then
             if [[ -d "$EPF_PREFIX/$item" ]]; then
                 rm -rf "$TEMP_DIR/$item"
@@ -214,8 +252,11 @@ push_to_canonical() {
                 cp "$EPF_PREFIX/$item" "$TEMP_DIR/$item"
             fi
             echo "  Copied: $item"
+            ((copied_count++))
         fi
     done
+    
+    log_info "Copied $copied_count framework items (auto-discovered) ✓"
     
     log_step "3/5: Checking for changes..."
     cd "$TEMP_DIR"
@@ -356,8 +397,27 @@ pull_from_canonical() {
         git clone --depth=1 --branch "$CANONICAL_BRANCH" "$CANONICAL_URL" "$temp_epf" --quiet
         
         log_step "Fallback: Copying framework files (excluding _instances/)..."
+        
+        # Get all framework items dynamically from canonical repo
+        local framework_items=()
+        while IFS= read -r item; do
+            local basename=$(basename "$item")
+            
+            # Skip instance folders and ephemeral work
+            if [[ "$basename" == "_instances" || "$basename" == ".epf-work" ]]; then
+                continue
+            fi
+            
+            # Skip product-specific backup files
+            if [[ "$basename" == *.product-backup ]]; then
+                continue
+            fi
+            
+            framework_items+=("$basename")
+        done < <(find "$temp_epf" -mindepth 1 -maxdepth 1 -print0 2>/dev/null)
+        
         local copied=0
-        for item in "${FRAMEWORK_ITEMS[@]}"; do
+        for item in "${framework_items[@]}"; do
             if [[ -e "$temp_epf/$item" ]]; then
                 if [[ -d "$temp_epf/$item" ]]; then
                     rm -rf "$EPF_PREFIX/$item"
