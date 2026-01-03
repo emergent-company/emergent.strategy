@@ -29,7 +29,10 @@
 # @package EPF Outputs Framework
 # @version 1.0.0
 
-set -e
+# NOTE: We do NOT use 'set -e' because a validation script should collect
+# ALL errors across all layers, not exit on the first problem.
+# Each validation layer explicitly increments error counters and the final
+# exit code is determined by the total error count in main().
 
 # Colors for output
 RED='\033[0;31m'

@@ -2,7 +2,11 @@
 
 > **Purpose**: This directory contains wizards, schemas, and validation scripts for **external artifacts** that EPF helps generate but are not core EPF framework files. These are outputs derived FROM EPF data, not EPF methodology artifacts themselves.
 
-## � Framework vs Instance Outputs
+> **📚 Documentation Index**: See **[INDEX.md](./INDEX.md)** for complete navigation guide
+
+---
+
+## 📖 Framework vs Instance Outputs
 
 **This directory (`docs/EPF/outputs/`)** contains:
 - **Output generator definitions** (wizards, schemas, validators)
@@ -20,13 +24,33 @@
 
 ---
 
-## �🚀 Quick Start
+## 🚀 Quick Start
 
 **New to EPF outputs?** Start here: [`QUICK_START.md`](./QUICK_START.md) (5-minute guide)
 
-**Ready to experiment?** See: [`IMPLEMENTATION_SUMMARY.md`](./IMPLEMENTATION_SUMMARY.md) (complete implementation details)
+**Building a new generator?** See: [`GENERATOR_GUIDE.md`](./GENERATOR_GUIDE.md) (comprehensive development guide)
+
+**Want more powerful generators?** See: [`GENERATOR_ENHANCEMENTS.md`](./GENERATOR_ENHANCEMENTS.md) (v2.0 Studio-inspired features) ✨
 
 **Want to generate?** Ask your AI: `"Generate a context sheet for [product] using the EPF output generator"`
+
+---
+
+## 🔮 Future Work (v2.0 Enhancements)
+
+**Status:** All generators standardized at v1.0 (production-ready) ✅  
+**Next:** Optional v2.0 enhancements for interactive studio experience
+
+**📍 Single Source of Truth:** [`GENERATOR_ENHANCEMENTS.md`](./GENERATOR_ENHANCEMENTS.md)
+
+This file contains:
+- ✅ Complete v2.0 specification (Phase 0.4, 0.6, 6, 7)
+- ✅ Bash implementation examples (no Python!)
+- ✅ 4-milestone implementation roadmap (8-10 weeks)
+- ✅ Testing checklist and success criteria
+- ✅ Clear guidance for future AI sessions
+
+**Future AI: Start here** → Read `GENERATOR_ENHANCEMENTS.md` first, then follow Milestone 1 (implement Phase 0.4 in investor-memo).
 
 ---
 
@@ -36,7 +60,9 @@
 outputs/
 ├── README.md                           # This file
 ├── QUICK_START.md                      # Quick start guide
+├── GENERATOR_GUIDE.md                  # Generator development guide
 ├── VALIDATION_README.md                # Validation documentation
+├── STRUCTURE.md                        # Directory structure overview
 ├── context-sheet/                      # Context Sheet generator
 │   ├── schema.json                     # Input validation
 │   ├── wizard.instructions.md          # Generation logic
@@ -49,12 +75,11 @@ outputs/
     ├── schema.json                     # Input validation
     ├── wizard.instructions.md          # Generation logic
     ├── template.md                     # Output template
-    ├── validator.sh                    # Output validation (TBD)
-    ├── QUICK_REFERENCE.md              # Usage guide
-    └── TEST_RUN_REPORT.md              # Validation proof
+    ├── validator.sh                    # Output validation
+    └── README.md                       # Quick reference
 ```
 
-**Note**: Each generator is self-contained in its own folder with all necessary files (schema, wizard, template, validator, documentation).
+**Note**: Each generator is self-contained in its own folder with all necessary files (schema, wizard, validator, README). See [`GENERATOR_GUIDE.md`](./GENERATOR_GUIDE.md) for the standardized architecture.
 
 ## 🎯 What Belongs Here vs. Core EPF
 
