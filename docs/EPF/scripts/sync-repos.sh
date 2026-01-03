@@ -49,6 +49,7 @@ FRAMEWORK_ITEMS=(
     "schemas"
     "wizards"
     "scripts"
+    "outputs"
     ".github"
 )
 
