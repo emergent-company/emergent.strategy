@@ -192,10 +192,13 @@ validate_schema() {
         log_success "Organization number format valid"
     fi
     
-    # Check for Work Package subsections (at least 1 required)
+    # Check for Work Package subsections (1-8 required per SkatteFUNN rules)
     local wp_count=$(grep -c "^### Work Package [0-9]:" "$file" || echo 0)
     if [[ $wp_count -lt 1 ]]; then
         log_error "No work packages found (minimum 1 required)"
+        ((SCHEMA_ERRORS++))
+    elif [[ $wp_count -gt 8 ]]; then
+        log_error "Too many work packages found ($wp_count). Maximum 8 allowed per SkatteFUNN rules"
         ((SCHEMA_ERRORS++))
     else
         log_success "Found $wp_count work packages"
@@ -612,7 +615,9 @@ validate_budget() {
         
         # Extract budget years from WP budget table
         # Look for lines like "| 2025 | 534,100 | 152,600 | 76,300 | 763,000 |"
-        local budget_section=$(grep -A 200 "$wp_header" "$file" | sed -n '/^#### Budget/,/^####/p' | head -n 50)
+        # Strategy: Extract from WP header to next WP (or end), then find Budget section, then only table rows
+        local wp_content=$(awk "/^### Work Package $i:/{flag=1; next} /^### Work Package [0-9]+:/{flag=0} flag" "$file")
+        local budget_section=$(echo "$wp_content" | sed -n '/^#### Budget/,/^---$/p')
         local budget_years=$(echo "$budget_section" | grep -E "^\| [0-9]{4}" | grep -oE "^\| [0-9]{4}" | grep -oE "[0-9]{4}" || echo "")
         
         if [[ -z "$budget_years" ]]; then
