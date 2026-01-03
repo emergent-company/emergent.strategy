@@ -1,0 +1,101 @@
+# EPF Framework Content Definition
+# 
+# This file explicitly defines what counts as "framework content" for versioning.
+# Any changes to files matching these patterns require a version bump.
+#
+# Used by: scripts/classify-changes.sh
+# Last updated: 2026-01-03
+
+# ============================================================================
+# FRAMEWORK CONTENT (Changes require version bump)
+# ============================================================================
+
+# Core schemas (validation rules)
+schemas/*.json
+schemas/_legacy/*.json
+
+# Templates (READY/FIRE/AIM artifacts)
+templates/**/*.yaml
+templates/**/*.md
+
+# Documentation (framework guides)
+docs/*.md
+docs/guides/*.md
+docs/guides/technical/*.md
+README.md
+MAINTENANCE.md
+CANONICAL_PURITY_RULES.md
+
+# Wizards (AI-assisted content creation)
+wizards/*.md
+
+# Scripts (automation, validation, hooks)
+scripts/*.sh
+scripts/hooks/*.sh
+
+# Output generators (external artifact generation)
+outputs/**/*.json
+outputs/**/*.md
+outputs/**/*.sh
+outputs/**/*.yaml
+
+# Feature corpus (validated feature definitions)
+features/**/*.yaml
+features/**/*.md
+
+# Integration specification
+integration_specification.yaml
+
+# Version tracking
+VERSION
+
+# Instance structure documentation (but NOT instances themselves)
+_instances/README.md
+
+# ============================================================================
+# NON-FRAMEWORK CONTENT (Changes do NOT require version bump)
+# ============================================================================
+# These are explicitly excluded from version bump requirements:
+#
+# .epf-work/               - Temporary working files, session notes
+# .github/                 - CI/CD config, GitHub infrastructure
+# _instances/*/**          - Instance examples (except README.md)
+# _legacy/**               - Deprecated/archived content (except schemas/_legacy/)
+# .gitignore, .git/        - Git configuration
+# node_modules/, venv/     - Dependencies (should not be committed)
+
+# ============================================================================
+# ADDING NEW FRAMEWORK CONTENT
+# ============================================================================
+#
+# When adding a NEW directory that is framework content:
+#
+# 1. Add pattern to this file under "FRAMEWORK CONTENT"
+# 2. Update scripts/classify-changes.sh:
+#    - Add counter variable (e.g., NEW_DIR_CHANGED=0)
+#    - Add case pattern in classification loop
+#    - Add display line in summary
+#    - Add logic to set NEEDS_VERSION_BUMP and RECOMMENDED_TYPE
+# 3. Determine default bump type:
+#    - MAJOR: Breaking changes to existing functionality
+#    - MINOR: New features, additive changes
+#    - PATCH: Fixes, documentation improvements
+# 4. Test with: ./scripts/classify-changes.sh
+# 5. Update this file's "Last updated" date
+# 6. Commit changes to classifier
+#
+# Example workflow:
+#   # You create new directory: modules/
+#   echo "modules/**/*.ts" >> .epf-framework-content
+#   # Update classify-changes.sh (add MODULES_CHANGED counter, case, logic)
+#   ./scripts/classify-changes.sh  # Test it works
+#   git add .epf-framework-content scripts/classify-changes.sh
+#   git commit -m "feat(scripts): Add modules/ as framework content"
+#
+# ============================================================================
+
+# Future-proofing notes:
+# - If unsure whether something is framework content, err on the side of YES
+# - Unclassified files trigger warnings in classify-changes.sh
+# - Review this file when restructuring EPF
+# - Keep patterns specific (use **/ for recursive, * for single level)
