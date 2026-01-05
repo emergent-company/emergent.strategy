@@ -1,36 +1,49 @@
-# EPF Copilot Instructions
+# EPF Quick Reference (Copilot Instructions)
 
-⚠️ **STOP! Before doing ANYTHING with EPF, read the AI Agent Workflow Protocol below** ⚠️
+## ⚠️ READ THIS FIRST ⚠️
 
-**Purpose:** Quick reference for EPF setup and daily usage  
-**When to use:** Adding EPF to a new repository, syncing framework updates, quick pre-flight checks  
-**See also:**
-- `MAINTENANCE.md` → Comprehensive consistency protocol (see "AI Agent Consistency Protocol" section)
-- `CANONICAL_PURITY_RULES.md` → Framework vs instance separation rules
-- `.github/instructions/self-learning.instructions.md` → Learn from past AI mistakes
+**All comprehensive EPF guidelines are in:** `docs/EPF/.ai-agent-instructions.md`
+
+**You MUST read `.ai-agent-instructions.md` before doing ANY EPF work.** 
+
+This file is just a quick reference for common commands and repo locations. For:
+- Schema-first enrichment workflow → `.ai-agent-instructions.md`
+- Version management → `.ai-agent-instructions.md`
+- Breaking change protocol → `.ai-agent-instructions.md`
+- Validation procedures → `.ai-agent-instructions.md`
+- Consistency checks → `.ai-agent-instructions.md`
 
 ---
 
-## ⚡ MOST COMMON MISTAKES (Read This First!)
+## ⚡ Quick Command Reference
 
-**❌ DON'T:**
-- Manually copy files between repos (use `sync-repos.sh`)
-- Edit VERSION files directly (use `bump-framework-version.sh`)
-- Use `git subtree` commands (deprecated, use `sync-repos.sh`)
-- Invent custom scripts when EPF already has tooling
-- Use `rsync`, `cp`, or manual file operations for syncing
+**Sync between repos:**
+```bash
+./docs/EPF/scripts/sync-repos.sh push   # Sync TO canonical
+./docs/EPF/scripts/sync-repos.sh pull   # Sync FROM canonical
+```
 
-**✅ DO:**
-- Run `ls docs/EPF/scripts/` BEFORE implementing anything
-- Use `./docs/EPF/scripts/sync-repos.sh push` to sync TO canonical
-- Use `./docs/EPF/scripts/sync-repos.sh pull` to sync FROM canonical
-- Check copilot-instructions.md when in doubt
+**Version management:**
+```bash
+./docs/EPF/scripts/bump-framework-version.sh "X.Y.Z" "Release notes"
+```
+
+**Validation:**
+```bash
+./docs/EPF/scripts/validate-schemas.sh path/to/file.yaml
+./docs/EPF/scripts/analyze-field-coverage.sh path/to/instance/
+```
+
+**Available scripts:**
+```bash
+ls docs/EPF/scripts/  # Always check existing tooling first
+```
 
 ---
 
 ## 📦 Product Repositories Using EPF
 
-**Complete list of product repos that use EPF framework:**
+**Complete list of product repos with EPF framework:**
 
 1. **emergent** - `/Users/nikolai/Code/emergent` (branch: `master`)
 2. **twentyfirst** - `/Users/nikolai/Code/twentyfirst` (branch: `develop`)
@@ -41,144 +54,32 @@
 
 ---
 
-## 🔄 SYNCING EPF (Critical - Read Carefully!)
+## 📖 Full Documentation
 
-### To Push Framework Changes TO Canonical:
-```bash
-./docs/EPF/scripts/sync-repos.sh push
-```
-**What it does:** Copies framework files (excluding _instances/) to canonical repo
+**For comprehensive guidelines, workflows, and protocols:**
 
-### To Pull Framework Updates FROM Canonical:
-```bash
-./docs/EPF/scripts/sync-repos.sh pull
-```
-**What it does:** Updates local framework from canonical, preserves your _instances/
+**→ Read `docs/EPF/.ai-agent-instructions.md`**
 
-### ❌ NEVER DO THIS:
-```bash
-# DON'T use git subtree directly (deprecated)
-git subtree push --prefix=docs/EPF epf main
+That file contains:
+- Schema-first enrichment workflow (how to populate EPF artifacts correctly)
+- Version management and breaking change protocol
+- Comprehensive validation procedures
+- Consistency check protocols
+- Canonical vs product repo rules
 
-# DON'T use rsync manually
-rsync -av docs/EPF/ ~/code/epf/
-
-# DON'T copy files manually
-cp docs/EPF/scripts/* ~/code/epf/scripts/
-```
-
-**Why?** The sync script:
-- Automatically excludes _instances/ (you'll leak product data if you don't)
-- Handles version checks
-- Validates canonical repo purity
-- Commits with proper messages
+**Additional references:**
+- `MAINTENANCE.md` - Detailed consistency protocol
+- `CANONICAL_PURITY_RULES.md` - Framework vs instance separation
+- `docs/EPF/outputs/README.md` - Output generator documentation
+- `.github/instructions/self-learning.instructions.md` - Historical lessons learned
 
 ---
 
-## 🤖 AI Agent Workflow Protocol
+## ⚠️ Remember
 
-**MANDATORY: When working on EPF framework, follow this decision hierarchy:**
+**Everything else (workflows, validation, protocols) → `docs/EPF/.ai-agent-instructions.md`**
 
-### Rule 1: Use EPF's Own Tooling First
-
-**BEFORE implementing ANY solution, check if EPF already provides it:**
-
-1. **Check scripts/** directory:
-   ```bash
-   ls scripts/  # List all available scripts
-   cat scripts/README.md  # Read script documentation
-   ```
-
-2. **Check wizards/** directory:
-   ```bash
-   ls wizards/  # List all available wizards
-   # Wizards are AI prompts for guided workflows
-   ```
-
-3. **Check docs/guides/** for established patterns:
-   ```bash
-   ls docs/guides/  # Technical guides and methodologies
-   ```
-
-**Examples of EPF tooling you MUST use:**
-- **Version bumps**: `./scripts/bump-framework-version.sh` (NEVER manual edits)
-- **Validation**: `./scripts/validate-*.sh` (schema, instance, cross-references, etc.)
-- **Health checks**: 
-  - `./scripts/analyze-field-coverage.sh` - field coverage analysis
-  - `./scripts/check-version-alignment.sh` - version drift detection
-  - `./scripts/migrate-artifact.sh` - interactive artifact enrichment
-  - `./scripts/batch-migrate.sh` - batch artifact migration
-- **Sync operations**: `./scripts/sync-repos.sh` (NEVER git subtree directly)
-- **Change classification**: `./scripts/classify-changes.sh` (before commits)
-- **Content creation**: `@wizards/*.agent_prompt.md` (for guided workflows)
-
-### Rule 2: If No Tooling Exists, ASK Before Creating
-
-If EPF doesn't provide a script/wizard for the task:
-
-**❌ WRONG: Silently implement your own approach**
-```bash
-# Example of what NOT to do:
-# Inventing custom version bump logic
-# Creating ad-hoc validation scripts
-# Manual git subtree operations
-```
-
-**✅ CORRECT: Propose approach and get approval**
-```
-"I need to [task], but EPF doesn't have a script/wizard for this.
-I propose:
-1. [Approach option 1]
-2. [Approach option 2]
-
-Which approach should I take? Or should I create a new EPF script for this?"
-```
-
-### Rule 3: Major Changes Require Explicit Agreement
-
-**What counts as "major changes":**
-- Schema modifications (adding/removing/changing fields)
-- Template structure changes
-- New validation rules
-- Breaking changes to existing workflows
-- New framework concepts or abstractions
-
-**Process:**
-1. **Explain what you want to do**: "I need to add X field to Y schema because..."
-2. **Show the impact**: "This will affect: [list artifacts/users/workflows]"
-3. **Propose the change**: "I suggest: [specific implementation]"
-4. **Wait for approval**: User responds with "go ahead" or "let's adjust"
-
-### Rule 4: Document New Tooling
-
-If you create a NEW script or wizard (after user approval):
-
-1. **Add to appropriate directory**: `scripts/` or `wizards/`
-2. **Include header documentation**:
-   ```bash
-   #!/bin/bash
-   # Purpose: [What this does]
-   # Usage: [How to use it]
-   # Example: [Concrete example]
-   ```
-3. **Update README.md** in that directory
-4. **Add to Quick Command Reference** section in this file
-5. **Consider version bump**: New tooling = MINOR version bump
-
-### Rule 5: Trust EPF's Existing Patterns
-
-**EPF has established patterns for:**
-- Version management (VERSION, README, MAINTENANCE, integration_specification)
-- Directory structure (schemas/, templates/, wizards/, scripts/, docs/)
-- Validation workflows (schema → validate → commit)
-- Sync operations (canonical → product repos)
-
-**If you think a pattern should change:**
-- DON'T silently deviate from it
-- DO propose the change with reasoning
-- DO wait for user decision
-
----
+This quick reference is intentionally minimal. For any EPF work beyond basic commands, read the comprehensive instructions first.
 
 ## ⚠️ CRITICAL: Pre-Flight Checklist for AI Agents
 
