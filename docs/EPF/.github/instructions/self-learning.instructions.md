@@ -2,16 +2,33 @@
 applyTo: "**"
 ---
 
-# Self-Learning Log
+# Self-Learning Log (Historical Lessons)
 
-**🔔 BEFORE COMMITTING FRAMEWORK CHANGES, ALWAYS RUN:**
+## ⚠️ BEFORE Reading This File ⚠️
+
+**This file contains historical lessons learned. For current guidelines:**
+
+**→ Read `docs/EPF/.ai-agent-instructions.md` FIRST**
+
+That file contains:
+- Schema-first enrichment workflow (mandatory for any EPF work)
+- Current validation and consistency protocols
+- Version management procedures
+
+This file documents past mistakes to provide context, but `.ai-agent-instructions.md` is the authoritative source.
+
+---
+
+## 🔔 Quick Reminder
+
+**Before committing framework changes:**
 ```bash
 ./scripts/classify-changes.sh  # Checks if version bump needed
 ```
 
-This file documents lessons learned during AI-assisted development sessions. Each entry captures a mistake, why it happened, and how to prevent it in the future.
-
 ---
+
+## Historical Mistakes (Permanent Archive)
 
 ### 2025-12-30 - Work Files Belong in .epf-work/, Not Production Directories
 
