@@ -14,15 +14,15 @@
 # ============================================================================
 # TRL FIELDS (Technology Readiness Levels) - When to add them
 # ============================================================================
-# Add TRL fields to Key Results when:
-# 1. Applying for R&D funding (SkatteFUNN, Horizon Europe, etc.)
-# 2. Proving technical feasibility of novel approaches (TRL 2-7)
-# 3. Tracking technical maturity progression in product development
-# 4. Documenting experimental validation for grants/investors
+# Add TRL fields to Key Results when tracking innovation maturity progression:
+# 1. Proving technical feasibility of novel approaches (TRL 2-7)
+# 2. Tracking technical maturity progression in product development
+# 3. Documenting learning and experimental validation
+# 4. Distinguishing innovation work (TRL 1-6) from execution (TRL 7-9)
 #
 # TRL fields are OPTIONAL - only add when you need to:
-# - Demonstrate R&D work for tax credits/grants
-# - Track technical uncertainty resolution
+# - Track learning and uncertainty resolution
+# - Document innovation maturity advancement
 # - Provide evidence of systematic experimentation
 #
 # The Pathfinder wizard can enrich existing roadmaps with TRL fields
@@ -80,17 +80,6 @@ roadmap:
               
               # What technical unknowns are you resolving?
               uncertainty_addressed: "Whether [technology] scales to [target capacity] while maintaining [performance characteristic]"
-              
-              # Time and budget allocation for this KR
-              duration_months: 4  # How long to complete this KR (realistic timeline)
-              budget_allocation_nok: 350000  # Budget in Norwegian Kroner (NOK)
-              
-              # Budget breakdown (should sum to budget_allocation_nok)
-              budget_breakdown:
-                personnel: 250000  # Developer/researcher time (largest portion typically)
-                equipment: 30000   # Hardware, software licenses, cloud infrastructure
-                subcontractors: 50000  # External consultants, testing services
-                other: 20000  # Travel, training, miscellaneous costs
             
             - id: "kr-p-002"
               description: "Example Product Key Result 2"
@@ -105,13 +94,6 @@ roadmap:
               experiment_design: "Implement both algorithms → Benchmark on standard datasets → Measure accuracy and speed"
               success_criteria: "50% speed improvement with <5% accuracy loss on benchmark suite"
               uncertainty_addressed: "Whether theoretical algorithm performance translates to practical implementation gains"
-              duration_months: 3
-              budget_allocation_nok: 200000
-              budget_breakdown:
-                personnel: 150000
-                equipment: 20000
-                subcontractors: 20000
-                other: 10000
       
       riskiest_assumptions:
         - id: "asm-p-001"
@@ -158,6 +140,23 @@ roadmap:
               target: "TBD"
               measurement_method: "How will we measure this?"
               baseline: "Current state"
+              
+              # === TRL Fields for STRATEGY innovation ===
+              # Strategy track TRL: Market positioning & approach maturity
+              trl_start: 3  # TRL 3 = Market hypothesis formulated, initial validation
+              trl_target: 5  # TRL 5 = Market approach validated in realistic conditions
+              
+              # Strategic hypothesis being tested
+              technical_hypothesis: "A [specific positioning/approach] can capture [market segment] by delivering [unique value proposition]"
+              
+              # How will you validate the market hypothesis?
+              experiment_design: "Define target segment → Test messaging with 100 prospects → Measure conversion and feedback"
+              
+              # Quantitative success criteria for market validation
+              success_criteria: "20% conversion rate in target segment with NPS >40 and clear differentiation from competitors"
+              
+              # What strategic unknowns are you resolving?
+              uncertainty_addressed: "Whether our positioning resonates with target customers and creates defensible competitive advantage"
       
       riskiest_assumptions:
         - id: "asm-s-001"
@@ -193,6 +192,23 @@ roadmap:
               target: "TBD"
               measurement_method: "How will we measure this?"
               baseline: "Current state"
+              
+              # === TRL Fields for ORG/OPS innovation ===
+              # Org/Ops track TRL: Process & method maturity
+              trl_start: 2  # TRL 2 = Process concept defined, paper-based approach
+              trl_target: 5  # TRL 5 = Process validated in operational environment
+              
+              # Process hypothesis being tested
+              technical_hypothesis: "An [async-first planning method] can maintain team alignment while reducing meeting overhead by [60%]"
+              
+              # How will you validate the process innovation?
+              experiment_design: "Pilot with 2 teams → Track alignment metrics and meeting time → Compare with baseline synchronous approach"
+              
+              # Quantitative success criteria for process validation
+              success_criteria: "60% reduction in meeting hours while maintaining >80% alignment score and <10% rework rate"
+              
+              # What operational unknowns are you resolving?
+              uncertainty_addressed: "Whether distributed teams can maintain velocity and context without synchronous planning ceremonies"
       
       riskiest_assumptions:
         - id: "asm-o-001"
@@ -228,6 +244,23 @@ roadmap:
               target: "TBD"
               measurement_method: "How will we measure this?"
               baseline: "Current state"
+              
+              # === TRL Fields for COMMERCIAL innovation ===
+              # Commercial track TRL: Business model & revenue approach maturity
+              trl_start: 4  # TRL 4 = Pricing model tested with pilot customers
+              trl_target: 7  # TRL 7 = Business model validated at operational scale
+              
+              # Business model hypothesis being tested
+              technical_hypothesis: "A [usage-based pricing model] can achieve [€50 ARPU] while maintaining [<20% churn] in [SMB segment]"
+              
+              # How will you validate the business model?
+              experiment_design: "Launch with 50 pilot customers → Track usage, revenue, and retention → Compare with alternative pricing models"
+              
+              # Quantitative success criteria for business model validation
+              success_criteria: "€50+ ARPU, <20% monthly churn, >70% customers exceeding base tier within 3 months"
+              
+              # What commercial unknowns are you resolving?
+              uncertainty_addressed: "Whether usage-based pricing creates sustainable unit economics while aligning incentives with customer value realization"
       
       riskiest_assumptions:
         - id: "asm-c-001"

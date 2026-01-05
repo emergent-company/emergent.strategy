@@ -1,0 +1,225 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "1.0.0",
+  "title": "EPF Field Importance Taxonomy",
+  "description": "Defines relative importance, ROI, and effort for optional fields across EPF schemas. Used by coverage analyzer to prioritize migration recommendations.",
+  
+  "roadmap_recipe_schema.json": {
+    "key_results": {
+      "critical": {
+        "fields": ["trl_start", "trl_target", "trl_progression", "technical_hypothesis"],
+        "reason": "Technology Readiness Level tracking for learning and innovation maturity progression",
+        "value": "Understand innovation maturity journey, track learning progression from concept to deployment, identify knowledge gaps and technical risks early",
+        "effort_hours": "2-3 hours for full roadmap (identifying R&D-qualifying work and assessing maturity levels)",
+        "applies_to": ["Product track (technical innovation)", "Strategy track (market research innovation)", "OrgOps track (process innovation)", "Commercial track (business model innovation)"],
+        "documentation": "docs/EPF/schemas/UNIVERSAL_TRL_FRAMEWORK.md",
+        "context": "TRL fields track innovation maturity progression (WHY: what are we learning?, HOW: what's the innovation journey?). Not all work involves genuine innovation - use only when resolving technical uncertainty or advancing state-of-the-art. TRL 1-3: concept/research, TRL 4-6: validation/demonstration, TRL 7-9: deployment/scaling. This is about LEARNING and MATURITY, not execution details or funding.",
+        "examples": [
+          "Product: Novel DAG-based permission algorithm (TRL 2 → TRL 6) - learning how to handle cyclic inheritance",
+          "Strategy: AI-driven market segmentation (TRL 3 → TRL 5) - learning if ML can predict customer archetypes",
+          "OrgOps: Automated workflow orchestration (TRL 2 → TRL 4) - learning integration patterns",
+          "Commercial: Dynamic pricing with RL (TRL 3 → TRL 6) - learning optimal pricing models"
+        ]
+      },
+      "high": {
+        "fields": ["success_criteria", "uncertainty_addressed", "experiment_design"],
+        "reason": "Hypothesis-driven development, learning focus, faster pivots based on evidence",
+        "value": "Transform output-focused roadmap into learning-focused. Enables evidence-based pivots, reduces sunk cost fallacy, validates assumptions early",
+        "effort_hours": "2-3 hours for full roadmap (strategic thinking required to articulate hypotheses and experiments)",
+        "applies_to": ["High-risk KRs linked to critical assumptions"],
+        "documentation": "Lean Startup methodology, hypothesis-driven development",
+        "context": "Most valuable for uncertain/novel work where 'build it and they will come' is risky. Forces articulation of what evidence would prove/disprove assumptions. This is strategic HOW (how will we learn?) not execution WHAT (how will we build?).",
+        "examples": [
+          "success_criteria: ['DAG query <500ms for 100+ entities', 'Zero permission conflicts in pilot', '80%+ usability satisfaction']",
+          "uncertainty_addressed: ['Technical feasibility of DAG inheritance', 'UI usability for non-technical users', 'Customer willingness to pay premium']",
+          "experiment_design: '3-phase: (1) Technical spike 2 weeks, (2) UI prototype 2 weeks, (3) Pilot 8 weeks. Success = performance + usability + conversion targets met'"
+        ]
+      },
+      "medium": {
+        "fields": [],
+        "reason": "No medium priority fields for roadmap - all optional fields are either CRITICAL (learning/maturity) or HIGH (hypothesis testing)",
+        "value": "N/A",
+        "effort_hours": "N/A",
+        "applies_to": [],
+        "documentation": "N/A",
+        "context": "Roadmap optional fields are focused on learning and strategic HOW. No medium-priority cosmetic fields.",
+        "examples": []
+      }
+    }
+  },
+  
+  "feature_definition_schema.json": {
+    "personas": {
+      "critical": {
+        "fields": ["current_situation", "transformation_moment", "emotional_resolution"],
+        "reason": "EPF v2.0 schema requirement - exactly 4 personas with 200+ character narratives",
+        "value": "Deep customer empathy, better product-market fit understanding, narrative-driven development",
+        "effort_hours": "2-3 hours per feature (customer research + synthesis)",
+        "applies_to": ["All feature definitions"],
+        "documentation": "docs/EPF/schemas/feature_definition_schema.json (persona narrative structure)",
+        "context": "Minimum 200 characters each for current_situation, transformation_moment, emotional_resolution. Shallow personas ('Sarah, 35, busy professional') provide minimal value. Deep narratives capture context, pain, desire, resolution.",
+        "min_length": 200,
+        "examples": [
+          "current_situation: 'Marcus manages compliance for 18 portfolio companies across Norway and Sweden. Every month, he manually opens each company's board portal, exports the latest compliance report, copies key metrics into a master spreadsheet, and checks for overdue action items. This takes 4-5 hours of tedious work that he describes as death by a thousand clicks. He's terrified of missing a critical regulatory deadline buried in one of the 18 separate dashboards.'",
+          "transformation_moment: 'When Marcus discovers he can view consolidated compliance status across all 18 companies in a single dashboard, see all overdue items highlighted in red, and receive automated alerts for approaching deadlines, he feels an immediate sense of relief. The anxiety of potentially missing something critical evaporates. He completes his monthly compliance review in 20 minutes instead of 5 hours.'",
+          "emotional_resolution: 'Marcus now confidently tells his CEO that he has complete visibility into compliance across the portfolio. He sleeps better knowing the system alerts him if anything falls through the cracks. The tedious manual work that made him question his career choice is replaced by strategic governance work he actually enjoys. His family appreciates he no longer works late into the evening during board season.'"
+        ]
+      },
+      "high": {
+        "fields": ["demographics", "psychographics", "pain_points", "goals"],
+        "reason": "Enriched persona context - demographic/psychographic segmentation, explicit pain/goal articulation",
+        "value": "Better targeting, more precise positioning, clearer value proposition communication",
+        "effort_hours": "1-2 hours per feature (structured data extraction)",
+        "applies_to": ["All feature definitions"],
+        "documentation": "Standard persona frameworks (demographics, psychographics, jobs-to-be-done)",
+        "context": "Optional enrichment fields. Demographics = age, role, company size, industry. Psychographics = values, motivations, behaviors. Pain points = current frustrations. Goals = desired outcomes.",
+        "examples": [
+          "demographics: {age_range: '35-55', role: 'Portfolio Manager / Chief Governance Officer', company_size: '15-50 portfolio companies', industry: 'Private Equity, Venture Capital, Holding Companies'}",
+          "psychographics: {values: ['Thoroughness', 'Risk mitigation', 'Efficiency'], motivations: ['Avoid regulatory penalties', 'Impress board with preparedness', 'Free up time for strategic work']}",
+          "pain_points: ['Manual dashboard checking across many companies', 'Fear of missing critical deadlines', 'Tedious spreadsheet consolidation']",
+          "goals: ['Complete compliance review in <30 min', 'Never miss a regulatory deadline', 'Proactive alerts vs reactive discovery']"
+        ]
+      }
+    }
+  },
+  
+  "north_star_schema.json": {
+    "meta": {
+      "low": {
+        "fields": ["epf_version"],
+        "reason": "Version tracking for instance-to-framework alignment (cosmetic only)",
+        "value": "Consistency, easier troubleshooting, no functional impact",
+        "effort_hours": "1 minute (automated script available)",
+        "applies_to": ["All artifacts"],
+        "documentation": "EPF versioning conventions (semantic versioning)",
+        "context": "Updating epf_version from v1.9.6 to v2.3.2 doesn't change artifact behavior. Purely for tracking which framework version the instance uses. Helpful when debugging or when schema evolves significantly.",
+        "examples": [
+          "Before: epf_version: '1.9.6'",
+          "After: epf_version: '2.3.2'"
+        ]
+      }
+    }
+  },
+  
+  "strategy_schema.json": {
+    "meta": {
+      "low": {
+        "fields": ["epf_version"],
+        "reason": "Version tracking (cosmetic)",
+        "value": "Consistency",
+        "effort_hours": "1 minute",
+        "applies_to": ["All strategy documents"],
+        "documentation": "EPF versioning conventions",
+        "context": "Same as north_star_schema",
+        "examples": ["epf_version: '2.3.2'"]
+      }
+    }
+  },
+  
+  "value_model_schema.json": {
+    "meta": {
+      "low": {
+        "fields": ["epf_version"],
+        "reason": "Version tracking (cosmetic)",
+        "value": "Consistency",
+        "effort_hours": "1 minute",
+        "applies_to": ["All value models"],
+        "documentation": "EPF versioning conventions",
+        "context": "Same as north_star_schema",
+        "examples": ["epf_version: '2.3.2'"]
+      }
+    }
+  },
+  
+  "insight_analyses_schema.json": {
+    "meta": {
+      "low": {
+        "fields": ["epf_version"],
+        "reason": "Version tracking (cosmetic)",
+        "value": "Consistency",
+        "effort_hours": "1 minute",
+        "applies_to": ["All insight analyses"],
+        "documentation": "EPF versioning conventions",
+        "context": "Same as north_star_schema",
+        "examples": ["epf_version: '2.3.2'"]
+      }
+    }
+  },
+  
+  "strategy_foundations_schema.json": {
+    "meta": {
+      "low": {
+        "fields": ["epf_version"],
+        "reason": "Version tracking (cosmetic)",
+        "value": "Consistency",
+        "effort_hours": "1 minute",
+        "applies_to": ["All strategy foundations"],
+        "documentation": "EPF versioning conventions",
+        "context": "Same as north_star_schema",
+        "examples": ["epf_version: '2.3.2'"]
+      }
+    }
+  },
+  
+  "insight_opportunity_schema.json": {
+    "meta": {
+      "low": {
+        "fields": ["epf_version"],
+        "reason": "Version tracking (cosmetic)",
+        "value": "Consistency",
+        "effort_hours": "1 minute",
+        "applies_to": ["All insight opportunities"],
+        "documentation": "EPF versioning conventions",
+        "context": "Same as north_star_schema",
+        "examples": ["epf_version: '2.3.2'"]
+      }
+    }
+  },
+  
+  "strategy_formula_schema.json": {
+    "meta": {
+      "low": {
+        "fields": ["epf_version"],
+        "reason": "Version tracking (cosmetic)",
+        "value": "Consistency",
+        "effort_hours": "1 minute",
+        "applies_to": ["All strategy formulas"],
+        "documentation": "EPF versioning conventions",
+        "context": "Same as north_star_schema",
+        "examples": ["epf_version: '2.3.2'"]
+      }
+    }
+  },
+  
+  "_notes": {
+    "taxonomy_versioning": "Increment version when field importance changes or new fields are added",
+    "epf_principles": {
+      "why_how_what": "EPF focuses on strategic WHY (purpose) and HOW (approach), NOT execution WHAT (technical details, budgets, timelines)",
+      "simon_sinek": "Based on Simon Sinek's Golden Circle - EPF artifacts are outcome-oriented and strategic, NOT technically prescriptive",
+      "scope": "EPF covers Levels 1-2 (Value Model: WHY+HOW strategic, Feature Definition: HOW+WHAT tactical/strategic). Engineering covers Levels 3-4 (Implementation Spec, Code).",
+      "handoff": "EPF's strategic WHAT (outcomes, criteria) becomes Engineering's WHY (requirements)"
+    },
+    "importance_levels": {
+      "critical": "High strategic value, urgent for learning/maturity tracking. Priority 0.",
+      "high": "Significant strategic value, recommended for hypothesis-driven development. Priority 1.",
+      "medium": "Valuable but not urgent. Priority 2.",
+      "low": "Nice to have, minimal impact (metadata, cosmetic). Priority 3."
+    },
+    "effort_estimation": {
+      "per_field": "Estimate includes research, writing, validation, not just typing time",
+      "compound_fields": "TRL fields should be added together (all 4), not individually",
+      "context_dependent": "Effort varies by: (1) availability of source data, (2) team familiarity with concepts, (3) artifact complexity"
+    },
+    "roi_calculation": {
+      "strategic_value": "TRL fields = track learning progression and innovation maturity (strategic WHY/HOW)",
+      "hypothesis_testing": "success_criteria, uncertainty_addressed, experiment_design = enable evidence-based pivots",
+      "NOT_execution": "Budgets, timelines, resource allocation are execution WHAT - belong in project management tools, NOT EPF roadmaps",
+      "time_value": "Hours invested now in strategic clarity save days/weeks downstream via better decisions"
+    },
+    "common_mistakes": {
+      "budget_fields": "DO NOT add estimated_budget, budget_breakdown to roadmap - these are execution WHAT, not strategic WHY/HOW",
+      "funding_specific": "DO NOT frame TRL as 'for SkatteFUNN funding' - TRL is about learning/maturity, not specific funding mechanisms",
+      "technical_details": "EPF roadmaps should not contain API specs, database schemas, technology choices - these are Level 3+ (engineering scope)"
+    }
+  }
+}

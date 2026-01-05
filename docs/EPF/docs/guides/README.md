@@ -67,6 +67,7 @@ Schema (JSON)       →  Validates your work
 |-------|---------|--------------|
 | `ADOPTION_GUIDE.md` | **NEW:** Choose your starting level (0-3), escalate organically as complexity grows | **First time adopting EPF** - read before INSTANTIATION_GUIDE |
 | `INSTANTIATION_GUIDE.md` | Complete workflow for creating product instance from scratch | After choosing adoption level - detailed artifact creation steps |
+| `HEALTH_CHECK_GUIDE.md` | **NEW:** 3-tier validation system (compliance, coverage, alignment), migration workflows | **When validating artifacts** - understand beyond schema compliance |
 
 ### Strategic Foundation Guides (READY Phase)
 
@@ -82,6 +83,7 @@ Schema (JSON)       →  Validates your work
 | Guide | Purpose |
 |-------|---------|
 | `VALUE_MODEL_ANTI_PATTERNS_REFERENCE.md` | Common pitfalls in value model creation and how to avoid them |
+| `UNIVERSAL_TRL_FRAMEWORK.md` | **NEW:** Complete TRL 1-9 scale guidance for all tracks (Product, Strategy, OrgOps, Commercial) |
 
 ### Architectural Guides
 
