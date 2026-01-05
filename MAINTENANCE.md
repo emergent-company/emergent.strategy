@@ -375,7 +375,27 @@ Determine the change scope:
 
 **Always check these (no exceptions):**
 
-#### 1. Framework Version Consistency ⚠️ AUTOMATED - USE SCRIPT!
+#### 1. Framework Health Check (Automated)
+
+**Run framework integrity validation before committing:**
+```bash
+./scripts/epf-health-check.sh              # Check framework integrity
+./scripts/epf-health-check.sh --fix        # Auto-fix VERSION issues
+```
+
+**What it checks:**
+- VERSION file consistency across all framework files
+- Schema JSON validity
+- YAML parsing at framework level
+- Documentation structure
+- File organization
+
+**Use for:**
+- Before framework commits
+- After version bumps
+- During maintenance
+
+#### 2. Framework Version Consistency ⚠️ AUTOMATED - USE SCRIPT!
 
 - **NEVER manually update version files** - this causes inconsistencies that confuse AI agents!
 - EPF version is stored in **one place**: `VERSION` file (single source of truth)
@@ -410,7 +430,44 @@ Determine the change scope:
 - **CRITICAL: Check `_meta.yaml` in each instance has matching `epf_version`**
 - **CRITICAL: Check all `template_version` fields in instance YAML files match framework version**
 
-#### 2. Instance Structure Validation
+#### 3. Instance Health Check (Recommended)
+
+**For product teams working on instance artifacts:**
+
+Run 3-tier validation to assess artifact quality:
+```bash
+# Tier 1-3 Dashboard (all checks in one)
+./scripts/validate-instance.sh _instances/my-product
+
+# Deep analysis by tier:
+./scripts/analyze-field-coverage.sh _instances/my-product     # Tier 2: Coverage
+./scripts/check-version-alignment.sh _instances/my-product    # Tier 3: Currency
+```
+
+**When to run:**
+- After creating/updating major artifacts (roadmaps, features)
+- Before milestone reviews or stakeholder presentations
+- After EPF framework updates
+- Quarterly health checks
+
+**What it checks:**
+- **Tier 1:** Required fields present (schema compliance)
+- **Tier 2:** Optional field coverage (strategic completeness, Grade A-D)
+- **Tier 3:** Artifact version vs schema version (currency, CURRENT/BEHIND/STALE/OUTDATED)
+
+**Migration support:**
+```bash
+# Interactive enrichment (wizard-guided)
+./scripts/migrate-artifact.sh path/to/artifact.yaml
+
+# Batch migration (prioritized)
+./scripts/batch-migrate.sh _instances/my-product --dry-run
+./scripts/batch-migrate.sh _instances/my-product --priority high
+```
+
+#### 4. Instance Structure Validation
+
+#### 4. Instance Structure Validation
 
 - Instance folders (`_instances/*/`) MUST contain:
   - `00_north_star.yaml` (organizational foundation)
@@ -432,7 +489,7 @@ Determine the change scope:
   - `feature_definitions/README.md` with template and guidance
 - Action: Ensure instance-specific content is in instance folder, templates stay in framework
 
-#### 3. Feature Definition Validation
+#### 5. Feature Definition Validation
 
 - Each feature definition file should:
   - Have a unique `id` (fd-{number})
@@ -444,7 +501,7 @@ Determine the change scope:
 - Validate against `feature_definition_schema.json` if it exists
 - Action: Flag invalid references or suggest fixes
 
-#### 4. Schema ↔ Artifact Alignment
+#### 6. Schema ↔ Artifact Alignment
 
 - **BEFORE changing schema**: Run STEP 0 to determine if breaking change
 - **If breaking**: Propose version bump before implementation
