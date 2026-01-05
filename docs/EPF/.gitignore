@@ -1,5 +1,5 @@
 # EPF Framework .gitignore - PRODUCT REPO TEMPLATE
-# Copy this file to .gitignore and replace emergent with your product name
+# Copy this file to .gitignore and replace twentyfirst with your product name
 #
 # This file should track YOUR product's instance while ignoring other instances
 # that might appear from framework syncs.
@@ -8,8 +8,8 @@
 # Other instances are ignored (they belong to other product repos)
 _instances/*
 !_instances/README.md
-!_instances/emergent
-!_instances/emergent/**
+!_instances/twentyfirst
+!_instances/twentyfirst/**
 
 # OS files
 .DS_Store

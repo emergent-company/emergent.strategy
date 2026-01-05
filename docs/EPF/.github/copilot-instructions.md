@@ -1,11 +1,30 @@
 # EPF Copilot Instructions
 
+⚠️ **STOP! Before doing ANYTHING with EPF, read the AI Agent Workflow Protocol below** ⚠️
+
 **Purpose:** Quick reference for EPF setup and daily usage  
 **When to use:** Adding EPF to a new repository, syncing framework updates, quick pre-flight checks  
 **See also:**
 - `MAINTENANCE.md` → Comprehensive consistency protocol (see "AI Agent Consistency Protocol" section)
 - `CANONICAL_PURITY_RULES.md` → Framework vs instance separation rules
 - `.github/instructions/self-learning.instructions.md` → Learn from past AI mistakes
+
+---
+
+## ⚡ MOST COMMON MISTAKES (Read This First!)
+
+**❌ DON'T:**
+- Manually copy files between repos (use `sync-repos.sh`)
+- Edit VERSION files directly (use `bump-framework-version.sh`)
+- Use `git subtree` commands (deprecated, use `sync-repos.sh`)
+- Invent custom scripts when EPF already has tooling
+- Use `rsync`, `cp`, or manual file operations for syncing
+
+**✅ DO:**
+- Run `ls docs/EPF/scripts/` BEFORE implementing anything
+- Use `./docs/EPF/scripts/sync-repos.sh push` to sync TO canonical
+- Use `./docs/EPF/scripts/sync-repos.sh pull` to sync FROM canonical
+- Check copilot-instructions.md when in doubt
 
 ---
 
@@ -20,8 +39,144 @@
 
 **When user says "all product repos" or "all products", these are THE FOUR repositories.**
 
-**Sync method:** ALWAYS use `./docs/EPF/scripts/sync-repos.sh pull` from product repo  
-**NEVER use:** `git subtree push` or `git subtree pull` directly (legacy method, deprecated)
+---
+
+## 🔄 SYNCING EPF (Critical - Read Carefully!)
+
+### To Push Framework Changes TO Canonical:
+```bash
+./docs/EPF/scripts/sync-repos.sh push
+```
+**What it does:** Copies framework files (excluding _instances/) to canonical repo
+
+### To Pull Framework Updates FROM Canonical:
+```bash
+./docs/EPF/scripts/sync-repos.sh pull
+```
+**What it does:** Updates local framework from canonical, preserves your _instances/
+
+### ❌ NEVER DO THIS:
+```bash
+# DON'T use git subtree directly (deprecated)
+git subtree push --prefix=docs/EPF epf main
+
+# DON'T use rsync manually
+rsync -av docs/EPF/ ~/code/epf/
+
+# DON'T copy files manually
+cp docs/EPF/scripts/* ~/code/epf/scripts/
+```
+
+**Why?** The sync script:
+- Automatically excludes _instances/ (you'll leak product data if you don't)
+- Handles version checks
+- Validates canonical repo purity
+- Commits with proper messages
+
+---
+
+## 🤖 AI Agent Workflow Protocol
+
+**MANDATORY: When working on EPF framework, follow this decision hierarchy:**
+
+### Rule 1: Use EPF's Own Tooling First
+
+**BEFORE implementing ANY solution, check if EPF already provides it:**
+
+1. **Check scripts/** directory:
+   ```bash
+   ls scripts/  # List all available scripts
+   cat scripts/README.md  # Read script documentation
+   ```
+
+2. **Check wizards/** directory:
+   ```bash
+   ls wizards/  # List all available wizards
+   # Wizards are AI prompts for guided workflows
+   ```
+
+3. **Check docs/guides/** for established patterns:
+   ```bash
+   ls docs/guides/  # Technical guides and methodologies
+   ```
+
+**Examples of EPF tooling you MUST use:**
+- **Version bumps**: `./scripts/bump-framework-version.sh` (NEVER manual edits)
+- **Validation**: `./scripts/validate-*.sh` (schema, instance, cross-references, etc.)
+- **Health checks**: 
+  - `./scripts/analyze-field-coverage.sh` - field coverage analysis
+  - `./scripts/check-version-alignment.sh` - version drift detection
+  - `./scripts/migrate-artifact.sh` - interactive artifact enrichment
+  - `./scripts/batch-migrate.sh` - batch artifact migration
+- **Sync operations**: `./scripts/sync-repos.sh` (NEVER git subtree directly)
+- **Change classification**: `./scripts/classify-changes.sh` (before commits)
+- **Content creation**: `@wizards/*.agent_prompt.md` (for guided workflows)
+
+### Rule 2: If No Tooling Exists, ASK Before Creating
+
+If EPF doesn't provide a script/wizard for the task:
+
+**❌ WRONG: Silently implement your own approach**
+```bash
+# Example of what NOT to do:
+# Inventing custom version bump logic
+# Creating ad-hoc validation scripts
+# Manual git subtree operations
+```
+
+**✅ CORRECT: Propose approach and get approval**
+```
+"I need to [task], but EPF doesn't have a script/wizard for this.
+I propose:
+1. [Approach option 1]
+2. [Approach option 2]
+
+Which approach should I take? Or should I create a new EPF script for this?"
+```
+
+### Rule 3: Major Changes Require Explicit Agreement
+
+**What counts as "major changes":**
+- Schema modifications (adding/removing/changing fields)
+- Template structure changes
+- New validation rules
+- Breaking changes to existing workflows
+- New framework concepts or abstractions
+
+**Process:**
+1. **Explain what you want to do**: "I need to add X field to Y schema because..."
+2. **Show the impact**: "This will affect: [list artifacts/users/workflows]"
+3. **Propose the change**: "I suggest: [specific implementation]"
+4. **Wait for approval**: User responds with "go ahead" or "let's adjust"
+
+### Rule 4: Document New Tooling
+
+If you create a NEW script or wizard (after user approval):
+
+1. **Add to appropriate directory**: `scripts/` or `wizards/`
+2. **Include header documentation**:
+   ```bash
+   #!/bin/bash
+   # Purpose: [What this does]
+   # Usage: [How to use it]
+   # Example: [Concrete example]
+   ```
+3. **Update README.md** in that directory
+4. **Add to Quick Command Reference** section in this file
+5. **Consider version bump**: New tooling = MINOR version bump
+
+### Rule 5: Trust EPF's Existing Patterns
+
+**EPF has established patterns for:**
+- Version management (VERSION, README, MAINTENANCE, integration_specification)
+- Directory structure (schemas/, templates/, wizards/, scripts/, docs/)
+- Validation workflows (schema → validate → commit)
+- Sync operations (canonical → product repos)
+
+**If you think a pattern should change:**
+- DON'T silently deviate from it
+- DO propose the change with reasoning
+- DO wait for user decision
 
 ---
 
@@ -362,8 +517,115 @@ See **.github/instructions/self-learning.instructions.md** for:
 - Time cost analysis of rework
 
 ---
+## 🏥 Health Check & Quality Validation
 
-## Quick Command Reference
+EPF provides **two complementary validation systems**:
+
+### 1. Framework Health Check (for EPF maintainers)
+```bash
+# Check framework integrity before committing framework changes
+./scripts/epf-health-check.sh
+
+# Auto-fix VERSION mismatches
+./scripts/epf-health-check.sh --fix
+```
+
+**Use when:**
+- Making framework changes (schemas, templates, docs)
+- Before committing to canonical EPF repository
+- After version bumps (`bump-framework-version.sh`)
+
+**Checks:** VERSION consistency, schema validity, YAML parsing, documentation structure
+
+---
+
+### 2. Instance Health Check (for product teams)
+
+EPF provides a **3-tier validation system** for assessing instance artifact quality:
+
+#### Tier 1: Schema Compliance (Always Required)
+```bash
+# Validate all artifacts pass schema validation
+./scripts/validate-schemas.sh _instances/my-product
+./scripts/validate-instance.sh _instances/my-product
+
+# Exit code 0 = valid, 1 = errors
+```
+
+### Tier 2: Field Coverage Analysis (Recommended for Quality)
+```bash
+# Analyze how complete artifacts are (beyond just "valid")
+./scripts/analyze-field-coverage.sh _instances/my-product
+
+# Shows:
+# - Coverage percentage (0-100%)
+# - Missing CRITICAL/HIGH/MEDIUM fields
+# - ROI and effort estimates for enrichment
+# - Health grade (A/B/C/D)
+```
+
+**When to use Tier 2:**
+- After creating/updating major artifacts (roadmap, features)
+- Before milestone reviews or stakeholder presentations
+- When artifacts feel "incomplete" but pass validation
+- To identify high-value enrichment opportunities
+
+### Tier 3: Version Alignment (Recommended for Currency)
+```bash
+# Check if artifacts lag behind schema evolution
+./scripts/check-version-alignment.sh _instances/my-product
+
+# Classifications:
+# - CURRENT: matches schema (0 versions behind)
+# - BEHIND: 1-2 minor versions behind
+# - STALE: 3+ minor versions behind
+# - OUTDATED: major version behind (breaking changes)
+```
+
+**When to use Tier 3:**
+- After EPF framework updates (version bumps)
+- Before starting new READY/FIRE cycles
+- When artifacts haven't been updated in months
+- To identify migration priorities
+
+### Migration & Enrichment
+```bash
+# Interactive migration (wizard-guided)
+./scripts/migrate-artifact.sh _instances/my-product/READY/05_roadmap_recipe.yaml
+
+# Batch migration (prioritized)
+./scripts/batch-migrate.sh _instances/my-product --dry-run
+./scripts/batch-migrate.sh _instances/my-product --priority high
+```
+
+**Workflow:**
+1. Run Tier 1 (compliance) - must pass
+2. Run Tier 2 (coverage) - identify gaps
+3. Run Tier 3 (alignment) - check currency
+4. Migrate/enrich artifacts with guidance
+5. Re-validate to confirm improvements
+
+**Complete documentation:** See [`scripts/README.md`](../scripts/README.md) - Enhanced Health Check System section
+
+---
+## 🔧 Quick Command Reference
+
+### Health Check Commands
+
+```bash
+# Framework health (for EPF maintainers)
+./scripts/epf-health-check.sh              # Check framework integrity
+./scripts/epf-health-check.sh --fix        # Auto-fix VERSION issues
+
+# Instance health (for product teams)
+./scripts/validate-instance.sh _instances/{product}          # Tier 1-3 dashboard
+./scripts/analyze-field-coverage.sh _instances/{product}     # Tier 2 deep dive
+./scripts/check-version-alignment.sh _instances/{product}    # Tier 3 deep dive
+./scripts/migrate-artifact.sh path/to/artifact.yaml          # Interactive enrichment
+./scripts/batch-migrate.sh _instances/{product} --dry-run    # Batch migration
+```
+
+### Version Management
 
 ```bash
 # Check current EPF version
@@ -376,7 +638,11 @@ cat VERSION
 
 # Bump framework version (automated - prevents inconsistencies)
 ./scripts/bump-framework-version.sh "X.Y.Z" "Release notes"
+```
 
+### Validation
+
+```bash
 # Validate an instance
 ./scripts/validate-instance.sh _instances/{product-name}
 

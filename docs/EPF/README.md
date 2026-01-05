@@ -86,6 +86,48 @@ This repository contains the complete skeleton for managing product, strategy, o
 
 ---
 
+## What's New in v2.3.3
+
+**Enhanced Health Check & Migration System (2026-01-05):**
+
+EPF now includes a comprehensive 3-tier health check system that goes beyond basic schema validation to assess strategic completeness and guide artifact enrichment.
+
+**New Tools:**
+- **Tier 2 - Field Coverage:** `analyze-field-coverage.sh` calculates coverage percentages, identifies CRITICAL/HIGH/MEDIUM field gaps, and provides ROI estimates for enrichment
+- **Tier 3 - Version Alignment:** `check-version-alignment.sh` detects schema drift (CURRENT/BEHIND/STALE/OUTDATED) and recommends migrations
+- **Interactive Migration:** `migrate-artifact.sh` guides users through enriching artifacts with wizard support and validation
+- **Batch Migration:** `batch-migrate.sh` prioritizes and migrates multiple artifacts with dry-run mode
+- **Integrated Dashboard:** `validate-instance.sh` now includes all 3 tiers in consolidated health report
+
+**Field Importance Taxonomy:**
+- `schemas/field-importance-taxonomy.json` defines strategic value of optional fields across all artifact types
+- Categories: CRITICAL (innovation maturity, learning), HIGH (hypothesis testing, strategic direction), MEDIUM (tracking, evidence), LOW (nice-to-have)
+- Includes value statements, effort estimates, and migration guidance
+
+**Migration Wizards:**
+- `wizards/roadmap_enrichment.wizard.md` (25+ pages): Complete guide for adding TRL fields to roadmaps with examples for all 4 tracks (Product, Strategy, Org&Ops, Commercial)
+- `wizards/feature_enrichment.wizard.md` (20+ pages): Guide for upgrading feature definitions v1.x→v2.0 (contexts→personas) with transformation moment and emotional resolution focus
+
+**Why This Matters:**
+- **Beyond Compliance:** "Valid" doesn't mean "complete" - artifacts can pass schema validation but miss 60-70% of strategic fields
+- **Guided Enrichment:** Automated gap detection with clear ROI and effort estimates guides teams to high-value improvements
+- **Version Currency:** Track schema evolution and get migration recommendations before artifacts become severely outdated
+- **Organic Growth:** Teams can start minimal and enrich artifacts as they mature, with clear guidance on what to add next
+
+**Example Impact:**
+- twentyfirst roadmap: 41% coverage → identified 2 CRITICAL gaps (TRL fields worth "millions in funding visibility")
+- Automated prioritization: Batch migration tool scores artifacts (0-100) combining version gaps + artifact importance + naming hints
+- Clear upgrade paths: "OUTDATED" feature definitions get step-by-step persona upgrade guidance
+
+**Documentation:**
+- Complete usage guide: [`scripts/README.md`](scripts/README.md) (Enhanced Health Check System section)
+- See [`docs/guides/`](docs/guides/) for methodology guides
+- Proposal document: [`.epf-work/enhanced-health-check-proposal.md`](.epf-work/enhanced-health-check-proposal.md)
+
+**Backward Compatible:** All new tools are optional enhancements. Existing validation continues to work unchanged.
+
+---
+
 ## What's New in v2.3.2
 
 Integrate classify-changes.sh with sync-repos.sh
@@ -512,6 +554,78 @@ Feature definitions follow the lean documentation principle:
 - **Git handles versioning** - no version fields or change history in the YAML
 - **Minimal structure** - only what's needed for implementation tools to consume
 - **Let AI infer** - context that can be derived from git history doesn't need explicit documentation
+
+---
+
+## Health Check & Artifact Quality
+
+EPF provides **two complementary validation systems**:
+
+### Framework Health Check
+**Tool:** `epf-health-check.sh`  
+**Purpose:** Validate EPF framework repository integrity  
+**Scope:** Framework files (schemas, templates, documentation)  
+**Use:** Before committing framework changes
+
+Checks VERSION consistency, schema validity, YAML parsing, documentation structure. See [scripts/README.md](scripts/README.md) for details.
+
+### Instance Health Check (3-Tier System)
+**Purpose:** Assess strategic completeness and currency of product artifacts  
+**Scope:** Instance artifacts (roadmaps, features, strategies)  
+**Use:** During product development, milestone reviews
+
+EPF provides a **3-tier validation system** that ensures both compliance and strategic completeness:
+
+### Tier 1: Schema Compliance (Required)
+Basic validation that all required fields are present and types are correct. This is the minimum bar - an artifact must pass schema validation to be considered "valid."
+
+**Tools:** `validate-schemas.sh`, `validate-instance.sh`  
+**Checks:** Required fields, type correctness, structure validity  
+**Pass/Fail:** Binary (valid or invalid)
+
+### Tier 2: Field Coverage Analysis (Recommended)
+Analyzes what percentage of optional fields are populated and identifies high-value missing fields. An artifact can be "valid" but only 40% complete.
+
+**Tool:** `analyze-field-coverage.sh`  
+**Provides:**
+- Coverage percentage (0-100%)
+- Health grade (A/B/C/D)
+- Missing fields by importance (CRITICAL/HIGH/MEDIUM/LOW)
+- ROI and effort estimates for enrichment
+- Strategic impact assessment
+
+**Example:** twentyfirst roadmap = 41% coverage, Grade C
+- Missing CRITICAL fields: TRL tracking (innovation maturity)
+- Missing HIGH fields: Hypothesis validation structure
+- Recommendation: Add TRL fields (2-3 hours, high strategic value)
+
+### Tier 3: Version Alignment (Recommended)
+Detects when artifact internal versions lag behind schema evolution. Ensures artifacts remain current as EPF framework evolves.
+
+**Tool:** `check-version-alignment.sh`  
+**Classifications:**
+- **CURRENT** (0 versions behind) ✅ - Artifact matches current schema
+- **BEHIND** (1-2 minor behind) ⚠️ - Minor enrichment available
+- **STALE** (3+ minor behind) ⚠️ - Significant new fields available
+- **OUTDATED** (major version behind) 🚨 - Breaking changes, migration required
+
+**Example:** feature definition v1.5 when schema is v2.0 = OUTDATED
+- Action: Migrate contexts→personas (breaking change)
+- Tool: `migrate-artifact.sh` with feature_enrichment.wizard.md
+
+### Migration Support
+
+When Tier 2/3 identify gaps, EPF provides guided migration:
+
+- **Interactive:** `migrate-artifact.sh` - Wizard-guided enrichment with validation
+- **Batch:** `batch-migrate.sh` - Prioritized migration of multiple artifacts
+- **Wizards:** 
+  - `roadmap_enrichment.wizard.md` - TRL fields for all 4 tracks
+  - `feature_enrichment.wizard.md` - v1.x→v2.0 persona upgrade
+
+**Complete documentation:** [`scripts/README.md`](scripts/README.md) - Enhanced Health Check System section
+
+---
 
 ## The READY Phase Structure
 
