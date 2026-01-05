@@ -1,6 +1,6 @@
 #!/bin/bash
 # EPF Instance Validation Script
-# Version: 1.10.2
+# Version: 1.11.0
 # 
 # This script validates that an EPF instance follows the framework structure
 # and conventions. Run this script from the EPF root directory or pass the
@@ -15,10 +15,14 @@
 #   1 - Validation errors found
 #
 # Changelog:
+#   v1.11.0 - Integrated enhanced health check (Tiers 2-3: coverage + alignment)
 #   v1.10.2 - Added product_portfolio.yaml validation for multi-product orgs
 #   v1.9.7 - Fixed feature definition validation to accept YAML format per schema
 
 set -e
+
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Colors for output
 RED='\033[0;31m'
@@ -431,30 +435,133 @@ done
 log_pass "Instance does not contain framework directories"
 
 # =============================================================================
+# Section 9: Enhanced Health Check (Tiers 2-3)
+# =============================================================================
+log_section "9. Enhanced Health Check"
+
+# Tier 2: Field Coverage Analysis
+if [ -f "$SCRIPT_DIR/analyze-field-coverage.sh" ]; then
+    echo -e "${BLUE}Running Tier 2: Field Coverage Analysis...${NC}"
+    COVERAGE_OUTPUT=$("$SCRIPT_DIR/analyze-field-coverage.sh" "$INSTANCE_PATH" 2>/dev/null || true)
+    
+    if [ -n "$COVERAGE_OUTPUT" ]; then
+        # Extract overall grade and critical gaps count
+        OVERALL_GRADE=$(echo "$COVERAGE_OUTPUT" | grep "Overall Grade:" | awk '{print $NF}' || echo "Unknown")
+        CRITICAL_GAPS=$(echo "$COVERAGE_OUTPUT" | grep "CRITICAL gaps:" | awk '{print $(NF-2)}' || echo "0")
+        HIGH_GAPS=$(echo "$COVERAGE_OUTPUT" | grep "HIGH gaps:" | awk '{print $(NF-2)}' || echo "0")
+        
+        echo -e "  Field Coverage Grade: ${BOLD}$OVERALL_GRADE${NC}"
+        
+        if [ "$CRITICAL_GAPS" != "0" ]; then
+            log_warning "Field Coverage: $CRITICAL_GAPS CRITICAL field gap(s) found"
+            echo -e "    ${GRAY}Run: ./scripts/analyze-field-coverage.sh $INSTANCE_PATH${NC}"
+        elif [ "$HIGH_GAPS" != "0" ]; then
+            log_warning "Field Coverage: $HIGH_GAPS HIGH priority field gap(s) found"
+        else
+            log_pass "Field coverage analysis complete"
+        fi
+    else
+        echo -e "  ${GRAY}Coverage analysis skipped${NC}"
+    fi
+else
+    echo -e "  ${GRAY}Tier 2 checker not available${NC}"
+fi
+
+# Tier 3: Version Alignment Check
+if [ -f "$SCRIPT_DIR/check-version-alignment.sh" ]; then
+    echo -e "${BLUE}Running Tier 3: Version Alignment Check...${NC}"
+    ALIGNMENT_OUTPUT=$("$SCRIPT_DIR/check-version-alignment.sh" "$INSTANCE_PATH" 2>/dev/null || true)
+    
+    if [ -n "$ALIGNMENT_OUTPUT" ]; then
+        # Extract metrics
+        STALE_COUNT=$(echo "$ALIGNMENT_OUTPUT" | grep "⚠ Stale:" | awk '{print $3}' || echo "0")
+        OUTDATED_COUNT=$(echo "$ALIGNMENT_OUTPUT" | grep "⚠ Outdated:" | awk '{print $3}' || echo "0")
+        
+        if [ "$OUTDATED_COUNT" != "0" ]; then
+            log_warning "Version Alignment: $OUTDATED_COUNT artifact(s) OUTDATED (major version behind)"
+            echo -e "    ${GRAY}Run: ./scripts/check-version-alignment.sh $INSTANCE_PATH${NC}"
+        elif [ "$STALE_COUNT" != "0" ]; then
+            log_warning "Version Alignment: $STALE_COUNT artifact(s) STALE (3+ versions behind)"
+            echo -e "    ${GRAY}Consider enrichment: ./scripts/batch-migrate.sh $INSTANCE_PATH${NC}"
+        else
+            log_pass "Version alignment check complete"
+        fi
+    else
+        echo -e "  ${GRAY}Alignment check skipped${NC}"
+    fi
+else
+    echo -e "  ${GRAY}Tier 3 checker not available${NC}"
+fi
+
+# =============================================================================
 # Summary
 # =============================================================================
 echo ""
 echo "╔══════════════════════════════════════════════════════════════════╗"
-echo "║                        VALIDATION SUMMARY                         ║"
+echo "║                   EPF INSTANCE HEALTH REPORT                     ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo ""
 echo -e "Instance: ${BLUE}$INSTANCE_NAME${NC}"
 echo ""
-echo -e "${GREEN}Passed:${NC}   $PASSED"
-echo -e "${YELLOW}Warnings:${NC} $WARNINGS"
-echo -e "${RED}Errors:${NC}   $ERRORS"
+echo -e "${BOLD}Tier 1: Compliance (Required Fields)${NC}"
+echo -e "  ${GREEN}Passed:${NC}   $PASSED"
+echo -e "  ${YELLOW}Warnings:${NC} $WARNINGS"
+echo -e "  ${RED}Errors:${NC}   $ERRORS"
+
+if [ -n "${OVERALL_GRADE:-}" ] && [ "$OVERALL_GRADE" != "Unknown" ]; then
+    echo ""
+    echo -e "${BOLD}Tier 2: Coverage (Optional Fields)${NC}"
+    echo -e "  Overall Grade: $OVERALL_GRADE"
+    if [ "${CRITICAL_GAPS:-0}" != "0" ]; then
+        echo -e "  ${RED}Critical gaps: $CRITICAL_GAPS${NC}"
+    fi
+    if [ "${HIGH_GAPS:-0}" != "0" ]; then
+        echo -e "  ${YELLOW}High-priority gaps: $HIGH_GAPS${NC}"
+    fi
+fi
+
+if [ -n "${STALE_COUNT:-}" ] || [ -n "${OUTDATED_COUNT:-}" ]; then
+    echo ""
+    echo -e "${BOLD}Tier 3: Version Alignment${NC}"
+    if [ "${OUTDATED_COUNT:-0}" != "0" ]; then
+        echo -e "  ${RED}Outdated artifacts: $OUTDATED_COUNT${NC}"
+    fi
+    if [ "${STALE_COUNT:-0}" != "0" ]; then
+        echo -e "  ${YELLOW}Stale artifacts: $STALE_COUNT${NC}"
+    fi
+    if [ "${OUTDATED_COUNT:-0}" == "0" ] && [ "${STALE_COUNT:-0}" == "0" ]; then
+        echo -e "  ${GREEN}All artifacts current${NC}"
+    fi
+fi
+
 echo ""
 
 if [ "$ERRORS" -gt 0 ]; then
     echo -e "${RED}━━━ VALIDATION FAILED ━━━${NC}"
     echo ""
     echo "Please fix the errors above before proceeding."
+    echo ""
+    echo -e "${BOLD}Next Steps:${NC}"
+    echo "  1. Fix schema validation errors"
+    echo "  2. Ensure all required files are present"
+    echo "  3. Run validation again: ./scripts/validate-instance.sh $INSTANCE_PATH"
     exit 1
 else
-    if [ "$WARNINGS" -gt 0 ]; then
-        echo -e "${YELLOW}━━━ VALIDATION PASSED WITH WARNINGS ━━━${NC}"
+    if [ "$WARNINGS" -gt 0 ] || [ "${CRITICAL_GAPS:-0}" != "0" ] || [ "${STALE_COUNT:-0}" != "0" ] || [ "${OUTDATED_COUNT:-0}" != "0" ]; then
+        echo -e "${YELLOW}━━━ VALIDATION PASSED WITH RECOMMENDATIONS ━━━${NC}"
+        echo ""
+        echo -e "${BOLD}Recommendations:${NC}"
+        if [ "${CRITICAL_GAPS:-0}" != "0" ] || [ "${HIGH_GAPS:-0}" != "0" ]; then
+            echo "  • Review field coverage gaps: ./scripts/analyze-field-coverage.sh $INSTANCE_PATH"
+        fi
+        if [ "${STALE_COUNT:-0}" != "0" ] || [ "${OUTDATED_COUNT:-0}" != "0" ]; then
+            echo "  • Enrich stale artifacts: ./scripts/batch-migrate.sh $INSTANCE_PATH"
+        fi
+        echo "  • See detailed alignment: ./scripts/check-version-alignment.sh $INSTANCE_PATH"
     else
-        echo -e "${GREEN}━━━ VALIDATION PASSED ━━━${NC}"
+        echo -e "${GREEN}━━━ EXCELLENT HEALTH ━━━${NC}"
+        echo ""
+        echo "Instance is compliant with all required fields and well-maintained."
     fi
     echo ""
     exit 0
