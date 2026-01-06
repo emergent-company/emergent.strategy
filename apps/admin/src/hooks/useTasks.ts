@@ -177,3 +177,99 @@ export function useTaskMutations(onSuccess?: () => void) {
     error,
   };
 }
+
+/**
+ * Hook to fetch tasks across all projects the user has access to
+ */
+export function useAllTasks(filters: TaskFilter = {}) {
+  const { apiBase, fetchJson } = useApi();
+  const tasksApi = useMemo(
+    () => createTasksClient(apiBase, fetchJson),
+    [apiBase, fetchJson]
+  );
+
+  const [data, setData] = useState<Task[]>([]);
+  const [total, setTotal] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  // Memoize filter values to prevent infinite loops from object recreation
+  const { status, type, page, limit } = filters;
+  const memoizedFilters = useMemo(
+    () => ({ status, type, page, limit }),
+    [status, type, page, limit]
+  );
+
+  const refetch = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await tasksApi.getAllTasks(memoizedFilters);
+      setData(response.tasks);
+      setTotal(response.total);
+    } catch (err) {
+      const error = err as Error;
+      setError(error);
+      console.log('Failed to fetch all tasks:', error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [tasksApi, memoizedFilters]);
+
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+
+  return { data, total, isLoading, error, refetch };
+}
+
+/**
+ * Hook to fetch task counts across all projects the user has access to
+ * Pauses polling when tab is not visible
+ */
+export function useAllTaskCounts() {
+  const { apiBase, fetchJson } = useApi();
+  const isVisible = usePageVisibility();
+  const tasksApi = useMemo(
+    () => createTasksClient(apiBase, fetchJson),
+    [apiBase, fetchJson]
+  );
+
+  const [data, setData] = useState<TaskCounts>({
+    pending: 0,
+    accepted: 0,
+    rejected: 0,
+    cancelled: 0,
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  const refetch = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const counts = await tasksApi.getAllTaskCounts();
+      setData(counts);
+    } catch (err) {
+      const error = err as Error;
+      setError(error);
+      console.log('Failed to fetch all task counts:', error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [tasksApi]);
+
+  useEffect(() => {
+    // Don't poll when tab is hidden
+    if (!isVisible) return;
+
+    refetch();
+    // Refetch every minute
+    const interval = setInterval(() => {
+      refetch();
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [refetch, isVisible]);
+
+  return { data, isLoading, error, refetch };
+}

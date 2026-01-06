@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/useAuth';
 import { useNotificationCounts } from '@/hooks/useNotifications';
-import { useTaskCounts } from '@/hooks/useTasks';
+import { useTaskCounts, useAllTaskCounts } from '@/hooks/useTasks';
 import { useExtractionJobsCount } from '@/hooks/useExtractionJobsCount';
 import { useConfig } from '@/contexts/config';
 import { useOrganizations } from '@/hooks/use-organizations';
@@ -26,6 +26,7 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
   const { counts: extractionJobsCounts } = useExtractionJobsCount();
   const { config, setActiveProject, setActiveOrg } = useConfig();
   const { data: taskCounts } = useTaskCounts(config.activeProjectId || null);
+  const { data: allTaskCounts } = useAllTaskCounts();
   const { createOrg } = useOrganizations();
   const { showToast } = useToast();
   const { apiBase, fetchJson } = useApi();
@@ -133,34 +134,13 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
     <div className="size-full">
       <div className="flex">
         <Sidebar>
-          <Sidebar.ProjectDropdown
-            activeProjectId={config.activeProjectId}
-            activeProjectName={config.activeProjectName}
-            onSelectProject={(
-              projectId: string,
-              projectName: string,
-              orgId: string,
-              orgName: string
-            ) => {
-              // Always set org first to ensure proper context
-              // setActiveOrg clears projectId, then we set it explicitly
-              if (orgId !== config.activeOrgId) {
-                setActiveOrg(orgId, orgName);
-              }
-              setActiveProject(projectId, projectName);
-            }}
-            onAddOrganization={() => setShowOrgModal(true)}
-            onAddProject={(orgId: string, orgName: string) => {
-              setTargetOrgId(orgId);
-              setTargetOrgName(orgName);
-              setShowProjectModal(true);
-            }}
-          />
-          <Sidebar.Section id="admin-primary" title="Overview">
+          {/* Cross-project items - above project picker, no section title */}
+          <Sidebar.Section id="global-items" className="pt-0">
             <Sidebar.MenuItem
-              id="admin-inbox"
+              id="global-inbox"
               url="/admin/inbox"
               icon="lucide--inbox"
+              iconClassName="!size-5"
               badges={
                 totalUnread > 0
                   ? [
@@ -177,6 +157,52 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
             >
               Inbox
             </Sidebar.MenuItem>
+            <Sidebar.MenuItem
+              id="global-all-tasks"
+              url="/admin/all-tasks"
+              icon="lucide--list-checks"
+              iconClassName="!size-5"
+              badges={
+                (allTaskCounts?.pending || 0) > 0
+                  ? [
+                      {
+                        label:
+                          (allTaskCounts?.pending || 0) > 99
+                            ? '99+'
+                            : (allTaskCounts?.pending || 0).toString(),
+                        variant: 'warning',
+                      },
+                    ]
+                  : undefined
+              }
+            >
+              All Tasks
+            </Sidebar.MenuItem>
+          </Sidebar.Section>
+          <Sidebar.Section id="admin-primary" title="Project" className="mt-4">
+            <Sidebar.ProjectDropdown
+              activeProjectId={config.activeProjectId}
+              activeProjectName={config.activeProjectName}
+              onSelectProject={(
+                projectId: string,
+                projectName: string,
+                orgId: string,
+                orgName: string
+              ) => {
+                // Always set org first to ensure proper context
+                // setActiveOrg clears projectId, then we set it explicitly
+                if (orgId !== config.activeOrgId) {
+                  setActiveOrg(orgId, orgName);
+                }
+                setActiveProject(projectId, projectName);
+              }}
+              onAddOrganization={() => setShowOrgModal(true)}
+              onAddProject={(orgId: string, orgName: string) => {
+                setTargetOrgId(orgId);
+                setTargetOrgName(orgName);
+                setShowProjectModal(true);
+              }}
+            />
             <Sidebar.MenuItem
               id="admin-recent"
               url="/admin/recent"
@@ -232,19 +258,19 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
             >
               Chat
             </Sidebar.MenuItem>
+            <Sidebar.MenuItem
+              id="admin-agents"
+              url="/admin/agents"
+              icon="lucide--bot"
+            >
+              Agents
+            </Sidebar.MenuItem>
           </Sidebar.Section>
           <Sidebar.Section
             id="admin-monitoring"
             title="System Monitoring"
             className="mt-4"
           >
-            <Sidebar.MenuItem
-              id="admin-monitoring-dashboard"
-              url="/admin/monitoring/dashboard"
-              icon="lucide--activity"
-            >
-              Dashboard
-            </Sidebar.MenuItem>
             <Sidebar.MenuItem
               id="extraction-jobs"
               url="/admin/extraction-jobs"
@@ -265,13 +291,6 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
               }
             >
               Extraction Jobs
-            </Sidebar.MenuItem>
-            <Sidebar.MenuItem
-              id="admin-agents"
-              url="/admin/agents"
-              icon="lucide--bot"
-            >
-              Agents
             </Sidebar.MenuItem>
           </Sidebar.Section>
           <Sidebar.Section
@@ -328,7 +347,7 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
         </Sidebar>
         <div className="flex flex-col min-w-0 h-screen overflow-hidden grow">
           <Topbar />
-          <div id="layout-content" className="flex-1 min-h-0 overflow-hidden">
+          <div id="layout-content" className="flex-1 min-h-0 overflow-y-auto">
             <OrgAndProjectGateRedirect>{children}</OrgAndProjectGateRedirect>
           </div>
           <Footer />

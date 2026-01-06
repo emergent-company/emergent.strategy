@@ -12,6 +12,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { GraphModule } from '../graph/graph.module';
 import { DatabaseModule } from '../../common/database/database.module';
 import { ChatUiModule } from '../chat-ui/chat-ui.module';
+import { UserModule } from '../user/user.module';
 import { MergeSuggestionService } from './merge-suggestion.service';
 import { MergeSuggestionPromptBuilder } from './merge-suggestion-prompt-builder.service';
 import { MergeChatService } from './merge-chat.service';
@@ -30,6 +31,7 @@ import { MergeChatService } from './merge-chat.service';
     forwardRef(() => GraphModule), // For executing merge operations
     DatabaseModule, // For merge suggestion service
     ChatUiModule, // For LangGraph service
+    UserModule, // For UserAccessService (cross-project task fetching)
   ],
   controllers: [TasksController],
   providers: [
