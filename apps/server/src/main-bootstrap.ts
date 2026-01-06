@@ -22,9 +22,11 @@ import { HttpLoggerInterceptor } from './common/interceptors/http-logger.interce
 import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
 import { FileLogger } from './common/logger/file-logger.service';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import yaml from 'js-yaml';
+import { config as dotenvConfig } from 'dotenv';
+import { logTs, errorTs } from './common/logger/timestamp';
 
 /**
  * Validate critical environment variables before starting the server
@@ -101,12 +103,53 @@ function validateEnvironment() {
   console.log('✅ Environment validation passed\n');
 }
 
-async function bootstrap() {
-  console.log('[main-bootstrap] Starting NestJS bootstrap...');
+/**
+ * Load environment variables from .env and .env.local files
+ * This replaces the previous Infisical loader with standard dotenv loading
+ */
+function loadEnvironment(): void {
+  // Find project root directory
+  let rootDir = process.cwd();
+  if (rootDir.includes('apps/server')) {
+    rootDir = rootDir.replace(/\/apps\/server.*$/, '');
+  }
 
-  // Load Infisical secrets before anything else
-  const { initializeInfisical } = await import('./config/infisical-loader');
-  await initializeInfisical();
+  const envFiles = [
+    { path: join(rootDir, '.env'), name: '.env' },
+    { path: join(rootDir, '.env.local'), name: '.env.local' },
+  ];
+
+  let loadedCount = 0;
+  for (const { path, name } of envFiles) {
+    if (existsSync(path)) {
+      dotenvConfig({ path, override: true });
+      loadedCount++;
+      console.log(`   ✅ Loaded ${name}`);
+    }
+  }
+
+  if (loadedCount === 0) {
+    console.log('   ⚠️  No .env files found');
+    return;
+  }
+
+  // Set PG* aliases for TypeORM compatibility
+  if (process.env.POSTGRES_HOST && !process.env.PGHOST) {
+    process.env.PGHOST = process.env.POSTGRES_HOST;
+    process.env.PGPORT = process.env.POSTGRES_PORT || '5432';
+    process.env.PGUSER = process.env.POSTGRES_USER;
+    process.env.PGPASSWORD = process.env.POSTGRES_PASSWORD;
+    process.env.PGDATABASE = process.env.POSTGRES_DB;
+  }
+
+  console.log(`   🔐 Environment loaded from ${loadedCount} file(s)\n`);
+}
+
+async function bootstrap() {
+  logTs('[main-bootstrap] Starting NestJS bootstrap...');
+
+  // Load environment variables from .env and .env.local
+  loadEnvironment();
 
   // Validate environment before doing anything else
   validateEnvironment();
@@ -176,7 +219,7 @@ async function bootstrap() {
   // BEFORE this module was dynamically imported. This ensures HTTP instrumentation
   // patches are applied correctly before NestJS/Express modules are loaded.
 
-  console.log('[main-bootstrap] Creating NestJS application...');
+  logTs('[main-bootstrap] Creating NestJS application...');
 
   // Bootstrap the NestJS application
   const app = await NestFactory.create(AppModule, {
@@ -185,13 +228,13 @@ async function bootstrap() {
     bufferLogs: true,
   });
 
-  console.log('[main-bootstrap] NestJS application created');
+  logTs('[main-bootstrap] NestJS application created');
 
   // Verify OpenTelemetry HTTP instrumentation is properly patched
   const httpServer = app.getHttpServer();
   const serverEmit = httpServer.emit.toString();
   const otelPatched = serverEmit.includes('incomingRequest');
-  console.log(
+  logTs(
     `[main-bootstrap] HTTP instrumentation: ${
       otelPatched ? '✓ patched' : '✗ NOT patched'
     }`
@@ -326,7 +369,7 @@ async function bootstrap() {
     'Bootstrap'
   );
   // eslint-disable-next-line no-console
-  console.log('[startup] chat-model:', chatModelInfo);
+  logTs('[startup] chat-model:', chatModelInfo);
 
   const port = configService.port;
   await app.listen(port);
@@ -334,12 +377,12 @@ async function bootstrap() {
   const serverInfo = `API listening on http://localhost:${port} (default 3001) (Swagger UI: http://localhost:${port}/api)`;
   fileLogger.log(serverInfo, 'Bootstrap');
   // eslint-disable-next-line no-console
-  console.log(serverInfo);
+  logTs(serverInfo);
 }
 
 bootstrap().catch((err) => {
   // eslint-disable-next-line no-console
-  console.error('Bootstrap failure', err);
+  errorTs('Bootstrap failure', err);
   const fileLogger = new FileLogger();
   fileLogger.fatal('Bootstrap failure', err.stack, 'Bootstrap');
   process.exit(1);

@@ -402,4 +402,112 @@ export class AppConfigService {
   get langfusePromptLabel(): string {
     return this.env.LANGFUSE_PROMPT_LABEL ?? 'production';
   }
+
+  // --- Storage Configuration (MinIO / S3-compatible) ---
+
+  /**
+   * Storage provider type: 'minio', 's3', or 'gcs'
+   */
+  get storageProvider(): string {
+    return this.env.STORAGE_PROVIDER || 'minio';
+  }
+
+  /**
+   * Storage endpoint URL (e.g., http://localhost:9010 for MinIO)
+   */
+  get storageEndpoint(): string | undefined {
+    return this.env.STORAGE_ENDPOINT;
+  }
+
+  /**
+   * Storage access key
+   */
+  get storageAccessKey(): string | undefined {
+    return this.env.STORAGE_ACCESS_KEY;
+  }
+
+  /**
+   * Storage secret key
+   */
+  get storageSecretKey(): string | undefined {
+    return this.env.STORAGE_SECRET_KEY;
+  }
+
+  /**
+   * Bucket name for document storage
+   */
+  get storageBucketDocuments(): string {
+    return this.env.STORAGE_BUCKET_DOCUMENTS || 'documents';
+  }
+
+  /**
+   * Bucket name for temporary files
+   */
+  get storageBucketTemp(): string {
+    return this.env.STORAGE_BUCKET_TEMP || 'document-temp';
+  }
+
+  /**
+   * Storage region (default: us-east-1)
+   */
+  get storageRegion(): string {
+    return this.env.STORAGE_REGION || 'us-east-1';
+  }
+
+  /**
+   * Whether storage is configured and ready to use
+   */
+  get storageEnabled(): boolean {
+    return !!(
+      this.storageEndpoint &&
+      this.storageAccessKey &&
+      this.storageSecretKey
+    );
+  }
+
+  // --- Kreuzberg Document Parsing Service ---
+
+  /**
+   * Kreuzberg service URL
+   */
+  get kreuzbergServiceUrl(): string {
+    return this.env.KREUZBERG_SERVICE_URL || 'http://localhost:8000';
+  }
+
+  /**
+   * Kreuzberg service timeout in milliseconds
+   */
+  get kreuzbergServiceTimeout(): number {
+    return this.env.KREUZBERG_SERVICE_TIMEOUT || 300000;
+  }
+
+  /**
+   * Whether Kreuzberg document parsing is enabled
+   */
+  get kreuzbergEnabled(): boolean {
+    return !!this.env.KREUZBERG_ENABLED;
+  }
+
+  // --- Document Parsing Worker ---
+
+  /**
+   * Whether the document parsing worker is enabled
+   */
+  get documentParsingWorkerEnabled(): boolean {
+    return !!this.env.DOCUMENT_PARSING_WORKER_ENABLED;
+  }
+
+  /**
+   * Document parsing worker poll interval in milliseconds
+   */
+  get documentParsingWorkerPollIntervalMs(): number {
+    return this.env.DOCUMENT_PARSING_WORKER_POLL_INTERVAL_MS || 5000;
+  }
+
+  /**
+   * Document parsing worker batch size
+   */
+  get documentParsingWorkerBatchSize(): number {
+    return this.env.DOCUMENT_PARSING_WORKER_BATCH_SIZE || 5;
+  }
 }

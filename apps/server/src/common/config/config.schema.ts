@@ -241,6 +241,61 @@ export class EnvVariables {
   @IsString()
   @IsOptional()
   LANGFUSE_PROMPT_LABEL?: string; // Default label for prompts (default: 'production')
+
+  // --- Storage Configuration (MinIO / S3-compatible) ---
+  @IsString()
+  @IsOptional()
+  STORAGE_PROVIDER?: string; // 'minio' | 's3' | 'gcs' (default: 'minio')
+
+  @IsString()
+  @IsOptional()
+  STORAGE_ENDPOINT?: string; // Storage endpoint URL (e.g., http://localhost:9010)
+
+  @IsString()
+  @IsOptional()
+  STORAGE_ACCESS_KEY?: string; // Storage access key
+
+  @IsString()
+  @IsOptional()
+  STORAGE_SECRET_KEY?: string; // Storage secret key
+
+  @IsString()
+  @IsOptional()
+  STORAGE_BUCKET_DOCUMENTS?: string; // Documents bucket (default: 'documents')
+
+  @IsString()
+  @IsOptional()
+  STORAGE_BUCKET_TEMP?: string; // Temporary files bucket (default: 'document-temp')
+
+  @IsString()
+  @IsOptional()
+  STORAGE_REGION?: string; // Storage region (default: 'us-east-1')
+
+  // --- Kreuzberg Document Parsing Service ---
+  @IsString()
+  @IsOptional()
+  KREUZBERG_SERVICE_URL?: string; // Kreuzberg service URL (default: http://localhost:8000)
+
+  @IsNumber()
+  @IsOptional()
+  KREUZBERG_SERVICE_TIMEOUT?: number; // Timeout in ms (default: 300000 = 5 minutes)
+
+  @IsBoolean()
+  @IsOptional()
+  KREUZBERG_ENABLED?: boolean; // Enable Kreuzberg document parsing
+
+  // --- Document Parsing Worker ---
+  @IsBoolean()
+  @IsOptional()
+  DOCUMENT_PARSING_WORKER_ENABLED?: boolean; // Enable document parsing worker
+
+  @IsNumber()
+  @IsOptional()
+  DOCUMENT_PARSING_WORKER_POLL_INTERVAL_MS?: number; // Poll interval (default: 5000)
+
+  @IsNumber()
+  @IsOptional()
+  DOCUMENT_PARSING_WORKER_BATCH_SIZE?: number; // Batch size (default: 5)
 }
 
 export function validate(config: Record<string, unknown>): EnvVariables {
@@ -318,6 +373,28 @@ export function validate(config: Record<string, unknown>): EnvVariables {
     // LangFuse Prompt Management
     LANGFUSE_PROMPT_CACHE_TTL: process.env.LANGFUSE_PROMPT_CACHE_TTL || '60',
     LANGFUSE_PROMPT_LABEL: process.env.LANGFUSE_PROMPT_LABEL || 'production',
+    // Storage Configuration
+    STORAGE_PROVIDER: process.env.STORAGE_PROVIDER || 'minio',
+    STORAGE_ENDPOINT: process.env.STORAGE_ENDPOINT,
+    STORAGE_ACCESS_KEY: process.env.STORAGE_ACCESS_KEY,
+    STORAGE_SECRET_KEY: process.env.STORAGE_SECRET_KEY,
+    STORAGE_BUCKET_DOCUMENTS:
+      process.env.STORAGE_BUCKET_DOCUMENTS || 'documents',
+    STORAGE_BUCKET_TEMP: process.env.STORAGE_BUCKET_TEMP || 'document-temp',
+    STORAGE_REGION: process.env.STORAGE_REGION || 'us-east-1',
+    // Kreuzberg Document Parsing
+    KREUZBERG_SERVICE_URL:
+      process.env.KREUZBERG_SERVICE_URL || 'http://localhost:8000',
+    KREUZBERG_SERVICE_TIMEOUT:
+      process.env.KREUZBERG_SERVICE_TIMEOUT || '300000',
+    KREUZBERG_ENABLED: process.env.KREUZBERG_ENABLED,
+    // Document Parsing Worker
+    DOCUMENT_PARSING_WORKER_ENABLED:
+      process.env.DOCUMENT_PARSING_WORKER_ENABLED,
+    DOCUMENT_PARSING_WORKER_POLL_INTERVAL_MS:
+      process.env.DOCUMENT_PARSING_WORKER_POLL_INTERVAL_MS || '5000',
+    DOCUMENT_PARSING_WORKER_BATCH_SIZE:
+      process.env.DOCUMENT_PARSING_WORKER_BATCH_SIZE || '5',
     ...config,
   };
   const transformed = plainToInstance(EnvVariables, {
@@ -387,6 +464,22 @@ export function validate(config: Record<string, unknown>): EnvVariables {
       ? Number(withDefaults.LANGFUSE_PROMPT_CACHE_TTL)
       : 60,
     LANGFUSE_PROMPT_LABEL: withDefaults.LANGFUSE_PROMPT_LABEL || 'production',
+    // Storage conversions (strings stay as-is, no numeric conversions needed)
+    // Kreuzberg conversions
+    KREUZBERG_SERVICE_TIMEOUT: Number(withDefaults.KREUZBERG_SERVICE_TIMEOUT),
+    KREUZBERG_ENABLED:
+      withDefaults.KREUZBERG_ENABLED === 'true' ||
+      withDefaults.KREUZBERG_ENABLED === true,
+    // Document Parsing Worker conversions
+    DOCUMENT_PARSING_WORKER_ENABLED:
+      withDefaults.DOCUMENT_PARSING_WORKER_ENABLED === 'true' ||
+      withDefaults.DOCUMENT_PARSING_WORKER_ENABLED === true,
+    DOCUMENT_PARSING_WORKER_POLL_INTERVAL_MS: Number(
+      withDefaults.DOCUMENT_PARSING_WORKER_POLL_INTERVAL_MS
+    ),
+    DOCUMENT_PARSING_WORKER_BATCH_SIZE: Number(
+      withDefaults.DOCUMENT_PARSING_WORKER_BATCH_SIZE
+    ),
   });
   const errors = validateSync(transformed, { skipMissingProperties: false });
   if (errors.length) {
