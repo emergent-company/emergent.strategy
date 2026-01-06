@@ -870,7 +870,42 @@ The health check validates:
 3. **JSON Schemas**: All schema files are valid JSON
 4. **Documentation Completeness**: Required docs exist
 5. **File Structure**: Required directories exist
-6. **Instance Validation**: Instance metadata is present and valid
+6. **FIRE Phase Content**: Canonical templates validate, instance value models check with quality analysis
+7. **Instance Validation**: Instance metadata is present and valid
+8. **Content Quality Assessment**: Analyzes READY phase artifacts for:
+   - Template pattern detection (placeholder content, examples, TODOs)
+   - Critical field completeness
+   - Strategic depth and specificity
+   - Readiness scores (0-100) with letter grades (A-F)
+
+**Content Quality Dashboard:**
+
+The health check now provides a comprehensive quality assessment:
+```
+Content Quality Assessment
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Instance: YourProduct
+✓   01_insight_analyses.yaml: 100/100 (Grade: A)
+⚠   00_north_star.yaml: 70/100 (Grade: C)
+✗   05_roadmap_recipe.yaml: 50/100 (Grade: D) - needs enrichment
+
+Instance average: 73/100 across 6 artifacts
+
+Content Quality Summary:
+  Total artifacts analyzed: 6
+  High quality (A-B): 2 (33%)
+  Medium quality (C): 2 (33%)
+  Low quality (D-F): 2 (33%)
+```
+
+**For detailed content analysis:**
+```bash
+# Analyze specific artifact with enrichment recommendations
+./scripts/check-content-readiness.sh _instances/YourProduct/READY/00_north_star.yaml
+
+# Analyze entire READY phase
+./scripts/check-content-readiness.sh _instances/YourProduct/READY
+```
 
 **Exit codes:**
 - `0` - All checks passed ✅
