@@ -13,12 +13,14 @@
  * This ensures HTTP module patching happens before NestJS loads it.
  */
 
+import { logTs, errorTs } from './common/logger/timestamp';
+
 // DIAGNOSTIC: Check if http module is already loaded BEFORE any imports
 // We check the require.cache WITHOUT loading http to avoid pre-loading it
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const httpCacheCheck = !!require.cache[require.resolve('http')];
 const expressCacheCheck = !!require.cache[require.resolve('express')];
-console.log(
+logTs(
   `[bootstrap-diag] BEFORE imports: http in cache=${httpCacheCheck}, express in cache=${expressCacheCheck}`
 );
 
@@ -26,23 +28,23 @@ console.log(
 // tracing.ts loads .env via dotenv at the top, so env vars are available
 import { startOtelSdkSync, isOtelEnabled } from './tracing';
 
-console.log('[bootstrap] Starting OpenTelemetry bootstrap...');
-console.log(
+logTs('[bootstrap] Starting OpenTelemetry bootstrap...');
+logTs(
   `[bootstrap] OTEL_ENABLED=${process.env.OTEL_ENABLED}, isOtelEnabled=${isOtelEnabled}`
 );
 
 // Start OTEL SDK synchronously BEFORE importing NestJS
 if (isOtelEnabled || process.env.OTEL_ENABLED === 'true') {
-  console.log('[bootstrap] Starting OTEL SDK synchronously...');
+  logTs('[bootstrap] Starting OTEL SDK synchronously...');
   startOtelSdkSync();
-  console.log('[bootstrap] OTEL SDK started, now importing main module...');
+  logTs('[bootstrap] OTEL SDK started, now importing main module...');
 } else {
-  console.log('[bootstrap] OTEL disabled, skipping SDK start');
+  logTs('[bootstrap] OTEL disabled, skipping SDK start');
 }
 
 // Step 2: Dynamically import the main bootstrap logic
 // This MUST happen AFTER SDK is started so HTTP instrumentation is active
 import('./main-bootstrap').catch((err) => {
-  console.error('[bootstrap] Failed to load main-bootstrap:', err);
+  errorTs('[bootstrap] Failed to load main-bootstrap:', err);
   process.exit(1);
 });

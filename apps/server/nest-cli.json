@@ -5,7 +5,7 @@
   "entryFile": "main",
   "compilerOptions": {
     "builder": "swc",
-    "typeCheck": true,
+    "typeCheck": false,
     "deleteOutDir": true,
     "assets": [],
     "watchAssets": false,

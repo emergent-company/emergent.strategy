@@ -41,10 +41,7 @@ export default new DataSource({
   entities: [join(__dirname, '**', '*.entity{.ts,.js}')],
   migrations: [join(__dirname, 'migrations', '*{.ts,.js}')],
   synchronize: false, // NEVER true - always use migrations
-  logging:
-    process.env.NODE_ENV === 'development'
-      ? ['query', 'error', 'warn', 'migration']
-      : ['error', 'warn', 'migration'],
+  logging: ['error', 'warn', 'migration'],
   migrationsTableName: 'typeorm_migrations',
   migrationsRun: false, // Run manually or via app startup
 });
