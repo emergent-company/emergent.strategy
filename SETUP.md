@@ -5,7 +5,6 @@ This guide gets you from zero to a locally running stack with secure OAuth/OIDC 
 > **📚 New:** For comprehensive multi-environment setup (local, dev, staging, production), see the **[Environment Setup Guide](docs/guides/ENVIRONMENT_SETUP.md)** which covers:
 >
 > - Environment comparison and architecture patterns
-> - Infisical configuration and workflows
 > - Environment variable reference (150+ variables)
 > - Production-grade security and operations
 > - Troubleshooting across all environments

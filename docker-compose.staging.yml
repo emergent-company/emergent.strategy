@@ -13,7 +13,6 @@ services:
       context: ./docker
       dockerfile: Dockerfile.postgres
     environment:
-      # Database can use either Infisical or direct env vars
       POSTGRES_USER: ${POSTGRES_USER:-spec}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-spec}
@@ -45,15 +44,7 @@ services:
       - 'traefik.http.services.server.loadbalancer.server.port=3002'
       - 'traefik.http.routers.server.service=server'
     environment:
-      # Infisical configuration (optional - can use direct env vars for flexibility)
-      # Server can use either Infisical or direct env vars
-      # Comment out the following 4 lines to disable Infisical and use direct env vars
-      INFISICAL_TOKEN: ${INFISICAL_TOKEN}
-      INFISICAL_PROJECT_ID: ${INFISICAL_PROJECT_ID}
-      INFISICAL_ENVIRONMENT: ${INFISICAL_ENVIRONMENT:-prod}
-      INFISICAL_API_URL: ${INFISICAL_API_URL}
-
-      # Database (can also come from Infisical)
+      # Database
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
       POSTGRES_USER: ${POSTGRES_USER:-spec}
@@ -65,8 +56,6 @@ services:
       ZITADEL_FRONTEND_CLIENT_ID: ${ZITADEL_FRONTEND_CLIENT_ID}
 
       # Zitadel - Backend Service Account (for Management API)
-      # Option 1: Use ZITADEL_CLIENT_JWT env var with JSON content (recommended for Infisical)
-      # Option 2: Use ZITADEL_CLIENT_JWT_PATH with file path (requires volume mount)
       ZITADEL_CLIENT_JWT: ${ZITADEL_CLIENT_JWT:-}
       ZITADEL_SERVICE_CLIENT_ID: ${ZITADEL_SERVICE_CLIENT_ID}
       ZITADEL_SERVICE_CLIENT_SECRET: ${ZITADEL_SERVICE_CLIENT_SECRET}
