@@ -245,6 +245,7 @@ export class DocumentParsingController {
         fileSizeBytes: file.size,
         storageKey,
         documentId: createResult.document.id, // Link to document
+        maxRetries: 0, // No automatic retries - user can manually retry via UI
         metadata: {
           autoExtract: autoExtract === 'true',
           needsKreuzberg: true,

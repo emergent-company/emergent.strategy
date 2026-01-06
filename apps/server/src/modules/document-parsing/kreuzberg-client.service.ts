@@ -52,6 +52,22 @@ const KREUZBERG_ERROR_MESSAGES: Record<string, string> = {
     'This file exceeds the maximum size limit for processing. Please try splitting it into smaller parts.',
   'Processing timeout':
     'The file took too long to process. Large or complex files may require more time than allowed.',
+
+  // Missing dependency errors (LibreOffice required for legacy formats)
+  LibreOffice:
+    'This file format requires LibreOffice for conversion. LibreOffice is not installed on the document processing server.',
+  libreoffice:
+    'This file format requires LibreOffice for conversion. LibreOffice is not installed on the document processing server.',
+  MissingDependency:
+    'A required system dependency is missing on the document processing server.',
+  'soffice not found':
+    'LibreOffice (soffice) is not installed. Legacy Office formats (.doc, .ppt, .xls) require LibreOffice for conversion.',
+
+  // Server errors
+  'Request failed with status code 500':
+    'The document processing service encountered an internal error. Legacy formats like .doc or .ppt may require LibreOffice to be installed on the server.',
+  'status code 500':
+    'The document processing service encountered an internal error. This file format may not be fully supported.',
 };
 
 /**
@@ -69,6 +85,10 @@ function getHumanFriendlyMessage(
       technicalMessage.includes(pattern) ||
       (detail && detail.includes(pattern))
     ) {
+      // Include technical detail if it provides additional context
+      if (detail && !friendlyMessage.includes(detail)) {
+        return `${friendlyMessage} (${detail})`;
+      }
       return friendlyMessage;
     }
   }
@@ -83,7 +103,15 @@ function getHumanFriendlyMessage(
     }. This may be due to an unsupported format or corrupted file.`;
   }
 
-  // Return the original message if no mapping found
+  // For 500 errors with detail, include the detail
+  if (technicalMessage.includes('500') && detail) {
+    return `The document processing service encountered an error: ${detail}`;
+  }
+
+  // Return the original message with detail if available
+  if (detail) {
+    return `${technicalMessage} (${detail})`;
+  }
   return technicalMessage;
 }
 
@@ -329,12 +357,50 @@ export class KreuzbergClientService {
 
     const statusCode = error.response?.status ?? 500;
     const responseData = error.response?.data as
-      | { error?: string; detail?: string }
+      | {
+          error?: string;
+          detail?: string;
+          message?: string;
+          type?: string;
+          context?: Record<string, unknown>;
+        }
+      | string
       | undefined;
 
-    const message =
-      responseData?.error ?? error.message ?? 'Unknown Kreuzberg error';
-    const detail = responseData?.detail;
+    // Log the full error response for debugging
+    this.logger.warn(
+      `Kreuzberg error for ${context}: status=${statusCode}, response=${JSON.stringify(
+        responseData
+      )}`
+    );
+
+    // Extract error message from various response formats
+    let message: string;
+    let detail: string | undefined;
+
+    if (typeof responseData === 'string') {
+      // Plain text error response
+      message = responseData || error.message || 'Unknown Kreuzberg error';
+    } else if (responseData) {
+      // JSON error response - Kreuzberg may return { error, detail } or { message, type, context }
+      message =
+        responseData.error ||
+        responseData.message ||
+        error.message ||
+        'Unknown Kreuzberg error';
+      detail = responseData.detail;
+
+      // Include type and context in detail if available
+      if (responseData.type && !detail) {
+        detail = `Error type: ${responseData.type}`;
+      }
+      if (responseData.context) {
+        const contextStr = JSON.stringify(responseData.context);
+        detail = detail ? `${detail}. Context: ${contextStr}` : contextStr;
+      }
+    } else {
+      message = error.message ?? 'Unknown Kreuzberg error';
+    }
 
     return new KreuzbergError(message, statusCode, detail);
   }
