@@ -127,7 +127,7 @@ export function SidebarProjectDropdown({
 
   return (
     <div
-      className={`dropdown-bottom w-full dropdown dropdown-end ${className}`.trim()}
+      className={`dropdown-bottom w-full dropdown dropdown-end mb-2 ${className}`.trim()}
       role="listbox"
       aria-label="Project selector"
     >
@@ -137,35 +137,21 @@ export function SidebarProjectDropdown({
         role="button"
         aria-haspopup="listbox"
         aria-expanded="false"
-        className="flex items-center gap-2.5 bg-base-200 hover:bg-base-300 mx-2.5 mt-1 px-3 py-2 rounded-box transition-all cursor-pointer"
+        className="group flex items-center gap-2 px-2.5 py-1.5 cursor-pointer"
         onKeyDown={handleTriggerKeyDown}
       >
-        <div className="flex justify-center items-center bg-primary/20 rounded-box size-8">
-          <div className="bg-primary size-5 mask mask-hexagon-2" />
-        </div>
-        <div className="-space-y-0.5 grow">
+        <div className="bg-primary shrink-0 size-3.5 mask mask-hexagon-2" />
+        <div className="grow min-w-0">
           <p className="font-medium text-sm truncate" title={label}>
             {label}
           </p>
-          {isActive && activeOrgName && (
-            <p
-              className="text-xs text-base-content/60 truncate"
-              title={activeOrgName}
-            >
-              {activeOrgName}
-            </p>
-          )}
-          {isActive && !activeOrgName && (
-            <p className="text-xs text-base-content/60">No organization</p>
-          )}
-          {!isActive && (
-            <p className="text-xs text-base-content/60">No project selected</p>
-          )}
         </div>
-        <Icon
-          icon="lucide--chevrons-up-down"
-          className="size-4 text-base-content/60"
-        />
+        <div className="flex items-center justify-center size-6 rounded group-hover:bg-base-200 transition-colors">
+          <Icon
+            icon="lucide--chevrons-up-down"
+            className="size-4 text-base-content/60"
+          />
+        </div>
       </div>
       <div
         tabIndex={0}
@@ -200,7 +186,6 @@ export function SidebarProjectDropdown({
                       ref={itemProps.ref as React.Ref<HTMLButtonElement>}
                       project={project}
                       active={project.id === activeProjectId}
-                      orgName={org.name}
                       tabIndex={itemProps.tabIndex}
                       onKeyDown={itemProps.onKeyDown}
                       onFocus={itemProps.onFocus}
