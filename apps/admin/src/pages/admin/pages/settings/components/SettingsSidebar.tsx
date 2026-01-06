@@ -66,6 +66,17 @@ const settingsGroups: NavGroup[] = [
     ],
   },
   {
+    id: 'integrations',
+    title: 'Integrations',
+    items: [
+      {
+        path: '/admin/settings/project/mcp',
+        label: 'MCP Integration',
+        icon: 'lucide--plug',
+      },
+    ],
+  },
+  {
     id: 'team',
     title: 'Team',
     items: [

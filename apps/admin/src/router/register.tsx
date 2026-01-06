@@ -135,6 +135,10 @@ const dashboardRoutes: IRoutesProps[] = [
       lazy(() => import('@/pages/admin/pages/settings/project/members'))
     ),
   },
+  {
+    path: '/admin/settings/project/mcp',
+    element: sw(lazy(() => import('@/pages/admin/pages/settings/project/mcp'))),
+  },
   // Superadmin routes - nested under SuperadminLayout
   {
     path: '/admin/superadmin',
