@@ -15,7 +15,9 @@ apps/server/src/entities/
 ├── graph-object.entity.ts      # Knowledge graph objects
 ├── graph-relationship.entity.ts # Knowledge graph relationships
 ├── object-extraction-job.entity.ts # Background job tracking
-└── ... (47 entities total)
+├── agent.entity.ts                 # Background agents
+├── email-job.entity.ts             # Email queue
+└── ... (47 entity files total)
 ```
 
 ## Database Schemas
@@ -362,13 +364,22 @@ status!: string; // 'queued' | 'processing' | 'completed' | 'failed'
 
 ### Knowledge Graph
 
-| Entity              | Table                  | Purpose              |
-| ------------------- | ---------------------- | -------------------- |
-| `GraphObject`       | kb.graph_objects       | Graph nodes          |
-| `GraphRelationship` | kb.graph_relationships | Graph edges          |
-| `ObjectChunk`       | kb.object_chunks       | Object-chunk mapping |
-| `Branch`            | kb.branches            | Version branches     |
-| `BranchLineage`     | kb.branch_lineage      | Branch ancestry      |
+| Entity              | Table                  | Purpose                            |
+| ------------------- | ---------------------- | ---------------------------------- |
+| `GraphObject`       | kb.graph_objects       | Graph nodes                        |
+| `GraphRelationship` | kb.graph_relationships | Graph edges                        |
+| `ObjectChunk`       | kb.object_chunks       | Object-chunk mapping               |
+| `Branch`            | kb.branches            | Version branches                   |
+| `BranchLineage`     | kb.branch_lineage      | Branch ancestry                    |
+| `MergeProvenance`   | kb.merge_provenance    | Version merge parent/child records |
+| `Tag`               | kb.tags                | Object tags within product version |
+
+### Product Versions
+
+| Entity                 | Table                      | Purpose                          |
+| ---------------------- | -------------------------- | -------------------------------- |
+| `ProductVersion`       | kb.product_versions        | Named snapshots of graph objects |
+| `ProductVersionMember` | kb.product_version_members | Object membership in versions    |
 
 ### Multi-tenancy
 
@@ -381,12 +392,13 @@ status!: string; // 'queued' | 'processing' | 'completed' | 'failed'
 
 ### Users
 
-| Entity                 | Table                       | Purpose       |
-| ---------------------- | --------------------------- | ------------- |
-| `UserProfile`          | core.user_profiles          | User accounts |
-| `UserEmail`            | core.user_emails            | User emails   |
-| `UserEmailPreferences` | core.user_email_preferences | Email prefs   |
-| `Superadmin`           | core.superadmins            | Admin users   |
+| Entity                 | Table                       | Purpose                |
+| ---------------------- | --------------------------- | ---------------------- |
+| `UserProfile`          | core.user_profiles          | User accounts          |
+| `UserEmail`            | core.user_emails            | User emails            |
+| `UserEmailPreferences` | core.user_email_preferences | Email prefs            |
+| `Superadmin`           | core.superadmins            | System-wide admin      |
+| `UserRecentItem`       | kb.user_recent_items        | Recent activity tracks |
 
 ### Background Jobs
 
@@ -396,6 +408,14 @@ status!: string; // 'queued' | 'processing' | 'completed' | 'failed'
 | `ObjectExtractionLog` | kb.object_extraction_logs | Job step logs        |
 | `ChunkEmbeddingJob`   | kb.chunk_embedding_jobs   | Embedding jobs       |
 | `GraphEmbeddingJob`   | kb.graph_embedding_jobs   | Graph embedding jobs |
+| `LlmCallLog`          | kb.llm_call_logs          | LLM API call logging |
+
+### Agents (Background Automation)
+
+| Entity     | Table         | Purpose                            |
+| ---------- | ------------- | ---------------------------------- |
+| `Agent`    | kb.agents     | Configurable background agents     |
+| `AgentRun` | kb.agent_runs | Agent execution history and status |
 
 ### Chat
 
@@ -406,12 +426,50 @@ status!: string; // 'queued' | 'processing' | 'completed' | 'failed'
 
 ### Configuration
 
-| Entity                      | Table                           | Purpose           |
-| --------------------------- | ------------------------------- | ----------------- |
-| `ObjectTypeSchema`          | kb.object_type_schemas          | Type definitions  |
-| `ProjectObjectTypeRegistry` | kb.project_object_type_registry | Per-project types |
-| `EmbeddingPolicy`           | kb.embedding_policies           | Embedding config  |
-| `Setting`                   | kb.settings                     | App settings      |
+| Entity                      | Table                           | Purpose                         |
+| --------------------------- | ------------------------------- | ------------------------------- |
+| `ObjectTypeSchema`          | kb.object_type_schemas          | Type definitions                |
+| `ProjectObjectTypeRegistry` | kb.project_object_type_registry | Per-project types               |
+| `EmbeddingPolicy`           | kb.embedding_policies           | Embedding config                |
+| `Setting`                   | kb.settings                     | App settings                    |
+| `Integration`               | kb.integrations                 | Third-party integration configs |
+
+### Invitations
+
+| Entity   | Table      | Purpose                        |
+| -------- | ---------- | ------------------------------ |
+| `Invite` | kb.invites | Project/org membership invites |
+
+### Integrations (ClickUp)
+
+| Entity             | Table                  | Purpose                  |
+| ------------------ | ---------------------- | ------------------------ |
+| `ClickUpImportLog` | kb.clickup_import_logs | ClickUp import step logs |
+| `ClickUpSyncState` | kb.clickup_sync_state  | ClickUp sync progress    |
+
+### Email System
+
+| Entity                 | Table                      | Purpose                    |
+| ---------------------- | -------------------------- | -------------------------- |
+| `EmailJob`             | kb.email_jobs              | Queued emails for delivery |
+| `EmailLog`             | kb.email_logs              | Email event audit trail    |
+| `EmailTemplate`        | kb.email_templates         | Email template definitions |
+| `EmailTemplateVersion` | kb.email_template_versions | Template version history   |
+
+### Notifications & Tasks
+
+| Entity         | Table            | Purpose                         |
+| -------------- | ---------------- | ------------------------------- |
+| `Notification` | kb.notifications | User notification inbox         |
+| `Task`         | kb.tasks         | Project-scoped actionable items |
+
+### System
+
+| Entity                   | Table                       | Purpose                         |
+| ------------------------ | --------------------------- | ------------------------------- |
+| `SystemProcessLog`       | kb.system_process_logs      | Background process logs         |
+| `AuditLog`               | kb.audit_log                | Security and activity audit log |
+| `AuthIntrospectionCache` | kb.auth_introspection_cache | Token introspection cache       |
 
 ## Common Patterns
 

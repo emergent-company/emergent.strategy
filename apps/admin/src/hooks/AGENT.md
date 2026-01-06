@@ -2,6 +2,8 @@
 
 This document helps AI assistants understand the custom hooks architecture and avoid recreating existing functionality.
 
+**Total hooks: 33** (see full list in tables below)
+
 ## Central API Hook: `use-api`
 
 **All API calls MUST go through `useApi()`**. Never use raw `fetch` directly.

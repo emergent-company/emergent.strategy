@@ -64,28 +64,54 @@ logs/
 
 Services use PID-based process management via workspace CLI or **Workspace MCP server**.
 
-### Hot Reload (Default)
+### Hot Reload (Default) — DO NOT RESTART AFTER CODE CHANGES
 
-**Both server (NestJS) and admin (Vite) have hot reload enabled.** Usually you do NOT need to restart:
+**Both server (NestJS) and admin (Vite) have hot reload enabled.**
 
-- ✅ Editing TypeScript files, React components, styles
-- ❌ **MUST restart:** New NestJS modules, `app.module.ts` changes, env var changes, after `npm/pnpm install`
+⚠️ **IMPORTANT: Never restart services after making code changes.** Hot reload automatically picks up changes within 1-2 seconds. Restarting takes ~1.5 minutes and is unnecessary.
+
+**When hot reload works (DO NOT restart):**
+
+- ✅ Editing TypeScript files (services, controllers, etc.)
+- ✅ Editing React components, hooks, styles
+- ✅ Modifying DTOs, entities, utilities
+- ✅ Changing business logic
+
+**When to restart (rare cases only):**
+
+- ❌ Adding NEW NestJS modules to `app.module.ts`
+- ❌ Changing environment variables
+- ❌ After `npm install` / `pnpm install`
+- ❌ Server is not responding (check with `pnpm run workspace:status`)
+
+### Checking Service Health
+
+Before restarting, **always check if the server is actually down:**
+
+```bash
+pnpm run workspace:status    # Check if services are running
+curl http://localhost:3002/health   # Direct health check
+```
+
+Only restart if `workspace:status` shows the service is offline or unhealthy.
 
 ### Commands
 
 ```bash
-nx run workspace-cli:workspace:restart   # Restart all services
-nx run workspace-cli:workspace:start     # Start all services
-nx run workspace-cli:workspace:stop      # Stop all services
-nx run workspace-cli:workspace:status    # Check status
+pnpm run workspace:status    # Check status (USE THIS FIRST)
+pnpm run workspace:restart   # Restart all services (ONLY IF NEEDED)
+pnpm run workspace:start     # Start all services
+pnpm run workspace:stop      # Stop all services
 ```
 
 **Common mistakes:**
 
-| Wrong                                   | Right                                    |
-| --------------------------------------- | ---------------------------------------- |
-| `nx run server:build` then manually run | `nx run workspace-cli:workspace:restart` |
-| Killing processes with `kill -9`        | `nx run workspace-cli:workspace:stop`    |
+| Wrong                                           | Right                                       |
+| ----------------------------------------------- | ------------------------------------------- |
+| Restarting after editing a service file         | Just save the file, hot reload handles it   |
+| Restarting to "make sure changes are picked up" | Check logs to confirm hot reload worked     |
+| `nx run server:build` then manually run         | Hot reload, or `pnpm run workspace:restart` |
+| Killing processes with `kill -9`                | `pnpm run workspace:stop`                   |
 
 ## 3. Testing
 

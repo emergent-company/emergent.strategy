@@ -2,6 +2,8 @@
 
 This document helps AI assistants understand the backend module architecture and follow established patterns.
 
+**Total modules: 45** (see full list in "Existing Modules" section below)
+
 ## Module Architecture
 
 Each feature follows the **Module → Controller → Service → Repository** pattern:
@@ -324,17 +326,110 @@ async list(@Query('cursor') cursor?: string) {
 
 ## Existing Modules (Reference)
 
-| Module          | Description              | Key Patterns                            |
-| --------------- | ------------------------ | --------------------------------------- |
-| `documents`     | Document CRUD + chunking | Cursor pagination, RLS, extraction jobs |
-| `auth`          | Authentication           | Guards, token validation                |
-| `organizations` | Org management           | Multi-tenant, invitations               |
-| `projects`      | Project management       | Org scoping                             |
-| `graph`         | Knowledge graph          | Complex queries, traversal              |
-| `chat`          | AI chat                  | SSE streaming, Langfuse tracing         |
-| `search`        | Vector/lexical search    | Hybrid search, embeddings               |
-| `extraction`    | Entity extraction        | Background jobs, Langfuse               |
-| `events`        | SSE events               | Real-time notifications                 |
+### Core Domain
+
+| Module             | Description                  | Key Patterns                            |
+| ------------------ | ---------------------------- | --------------------------------------- |
+| `documents`        | Document CRUD + chunking     | Cursor pagination, RLS, extraction jobs |
+| `chunks`           | Document chunk management    | Embedding jobs, vector storage          |
+| `graph`            | Knowledge graph CRUD         | Complex queries, versioning, branches   |
+| `graph-search`     | Graph traversal & search     | BFS/DFS traversal, relationship queries |
+| `search`           | Vector/lexical search        | Hybrid search, embeddings               |
+| `unified-search`   | Cross-entity search          | Search across docs, objects, chunks     |
+| `external-sources` | External document sources    | URL ingestion, sync workers             |
+| `ingestion`        | Document processing pipeline | Chunking, extraction orchestration      |
+
+### Authentication & Authorization
+
+| Module          | Description              | Key Patterns                     |
+| --------------- | ------------------------ | -------------------------------- |
+| `auth`          | Token validation         | Guards, Zitadel integration      |
+| `auth-password` | Password management      | Reset flows, validation          |
+| `superadmin`    | System-wide admin access | SuperadminGuard, email templates |
+
+### Multi-tenancy
+
+| Module     | Description             | Key Patterns              |
+| ---------- | ----------------------- | ------------------------- |
+| `orgs`     | Organization management | Multi-tenant, memberships |
+| `projects` | Project management      | Org scoping, members      |
+| `invites`  | Membership invitations  | Token-based invite flow   |
+
+### Chat & AI
+
+| Module              | Description                | Key Patterns                    |
+| ------------------- | -------------------------- | ------------------------------- |
+| `chat`              | AI chat conversations      | SSE streaming, Langfuse tracing |
+| `chat-sdk`          | Vercel AI SDK integration  | Tool use, structured output     |
+| `chat-ui`           | Chat message rendering     | Frontend-friendly responses     |
+| `llm`               | LLM provider abstraction   | Vertex AI, model selection      |
+| `langfuse`          | Observability integration  | Tracing, prompt management      |
+| `object-refinement` | Interactive object editing | Chat-based refinement, prompts  |
+
+### Extraction & Processing
+
+| Module            | Description             | Key Patterns                       |
+| ----------------- | ----------------------- | ---------------------------------- |
+| `extraction-jobs` | Background extraction   | Job queue, status tracking         |
+| `discovery-jobs`  | Document discovery      | Auto-discovery, LLM classification |
+| `embeddings`      | Vector embedding jobs   | Batch processing, retry logic      |
+| `type-registry`   | Object type schemas     | Per-project type configuration     |
+| `verification`    | Extraction verification | NLI, LLM judge, exact match        |
+
+### Email System
+
+| Module                   | Description               | Key Patterns                  |
+| ------------------------ | ------------------------- | ----------------------------- |
+| `email`                  | Email sending service     | Resend integration, templates |
+| `user-email-preferences` | Email preference settings | Opt-in/opt-out management     |
+
+### Notifications & Tasks
+
+| Module          | Description               | Key Patterns                     |
+| --------------- | ------------------------- | -------------------------------- |
+| `notifications` | User notification inbox   | In-app notifications, read state |
+| `tasks`         | Merge suggestions & tasks | AI-generated suggestions         |
+| `releases`      | Release notes management  | Version announcements            |
+
+### Agents (Background Automation)
+
+| Module   | Description                 | Key Patterns                |
+| -------- | --------------------------- | --------------------------- |
+| `agents` | Scheduled background agents | Cron scheduling, agent runs |
+
+### Integrations
+
+| Module         | Description              | Key Patterns                          |
+| -------------- | ------------------------ | ------------------------------------- |
+| `integrations` | Third-party integrations | Encrypted settings, provider registry |
+| `clickup`      | ClickUp integration      | OAuth, webhook, document import       |
+
+### User Management
+
+| Module          | Description             | Key Patterns              |
+| --------------- | ----------------------- | ------------------------- |
+| `user`          | Current user operations | Profile, preferences      |
+| `users`         | User admin operations   | User listing, management  |
+| `user-profile`  | Profile management      | Avatar, display name      |
+| `user-activity` | Activity tracking       | Recent items, audit trail |
+
+### Infrastructure
+
+| Module        | Description           | Key Patterns              |
+| ------------- | --------------------- | ------------------------- |
+| `events`      | SSE event streaming   | Real-time notifications   |
+| `health`      | Health checks         | Database, service health  |
+| `monitoring`  | System monitoring     | Process logs, metrics     |
+| `settings`    | App settings          | Per-project configuration |
+| `client-logs` | Browser error logging | Frontend error capture    |
+| `mcp`         | MCP server endpoints  | Model Context Protocol    |
+| `openapi`     | API documentation     | Swagger/OpenAPI spec      |
+
+### Template Management
+
+| Module           | Description                | Key Patterns         |
+| ---------------- | -------------------------- | -------------------- |
+| `template-packs` | Object type template packs | Seed data, studio UI |
 
 ## Common Decorators
 
