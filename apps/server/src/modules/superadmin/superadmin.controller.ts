@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Delete,
+  Post,
+  Body,
   Param,
   Query,
   UseGuards,
@@ -36,6 +38,10 @@ import { Project } from '../../entities/project.entity';
 import { OrganizationMembership } from '../../entities/organization-membership.entity';
 import { Document } from '../../entities/document.entity';
 import { EmailJob } from '../../entities/email-job.entity';
+import { GraphEmbeddingJob } from '../../entities/graph-embedding-job.entity';
+import { ChunkEmbeddingJob } from '../../entities/chunk-embedding-job.entity';
+import { ObjectExtractionJob } from '../../entities/object-extraction-job.entity';
+import { DocumentParsingJob } from '../../entities/document-parsing-job.entity';
 
 import {
   ListUsersQueryDto,
@@ -60,12 +66,41 @@ import {
 } from './dto/email-jobs.dto';
 import { PaginationQueryDto } from './dto/pagination.dto';
 import {
+  ListEmbeddingJobsQueryDto,
+  ListEmbeddingJobsResponseDto,
+  EmbeddingJobDto,
+  EmbeddingJobStatsDto,
+  DeleteEmbeddingJobsDto,
+  DeleteEmbeddingJobsResponseDto,
+  CleanupOrphanJobsResponseDto,
+} from './dto/embedding-jobs.dto';
+import {
   SystemConfigResponseDto,
   RevealEnvQueryDto,
   ExternalServiceDto,
   EnvironmentVariableDto,
   DeploymentInfoDto,
 } from './dto/system-config.dto';
+import {
+  ListExtractionJobsQueryDto,
+  ListExtractionJobsResponseDto,
+  ExtractionJobDto,
+  ExtractionJobStatsDto,
+  DeleteExtractionJobsDto,
+  DeleteExtractionJobsResponseDto,
+  CancelExtractionJobsDto,
+  CancelExtractionJobsResponseDto,
+} from './dto/extraction-jobs.dto';
+import {
+  ListDocumentParsingJobsQueryDto,
+  ListDocumentParsingJobsResponseDto,
+  DocumentParsingJobDto,
+  DocumentParsingJobStatsDto,
+  DeleteDocumentParsingJobsDto,
+  DeleteDocumentParsingJobsResponseDto,
+  RetryDocumentParsingJobsDto,
+  RetryDocumentParsingJobsResponseDto,
+} from './dto/document-parsing-jobs.dto';
 
 @ApiTags('superadmin')
 @ApiBearerAuth()
@@ -82,6 +117,14 @@ export class SuperadminController {
     private readonly orgMembershipRepo: Repository<OrganizationMembership>,
     @InjectRepository(EmailJob)
     private readonly emailJobRepo: Repository<EmailJob>,
+    @InjectRepository(GraphEmbeddingJob)
+    private readonly graphJobRepo: Repository<GraphEmbeddingJob>,
+    @InjectRepository(ChunkEmbeddingJob)
+    private readonly chunkJobRepo: Repository<ChunkEmbeddingJob>,
+    @InjectRepository(ObjectExtractionJob)
+    private readonly extractionJobRepo: Repository<ObjectExtractionJob>,
+    @InjectRepository(DocumentParsingJob)
+    private readonly documentParsingJobRepo: Repository<DocumentParsingJob>,
     private readonly emailTemplateService: EmailTemplateService,
     private readonly superadminService: SuperadminService,
     private readonly configService: AppConfigService
@@ -987,6 +1030,758 @@ export class SuperadminController {
       externalServices,
       deployment,
       environmentVariables,
+    };
+  }
+
+  /**
+   * List embedding jobs with filters and stats
+   */
+  @Get('embedding-jobs')
+  @UseGuards(AuthGuard, SuperadminGuard)
+  @Superadmin()
+  @ApiOperation({
+    summary: 'List embedding jobs',
+    description:
+      'Returns paginated list of embedding jobs (graph and chunk) with optional filters and statistics',
+  })
+  @ApiOkResponse({
+    description: 'List of embedding jobs with stats',
+    type: ListEmbeddingJobsResponseDto,
+  })
+  @ApiForbiddenResponse({ description: 'Superadmin access required' })
+  async listEmbeddingJobs(
+    @Query() query: ListEmbeddingJobsQueryDto
+  ): Promise<ListEmbeddingJobsResponseDto> {
+    const { page = 1, limit = 20, type, status, hasError } = query;
+    const skip = (page - 1) * limit;
+
+    // Collect jobs from both tables based on filters
+    const jobs: EmbeddingJobDto[] = [];
+
+    // Helper to map jobs to DTOs
+    const mapGraphJob = (job: GraphEmbeddingJob): EmbeddingJobDto => ({
+      id: job.id,
+      type: 'graph',
+      targetId: job.objectId,
+      status: job.status as any,
+      attemptCount: job.attemptCount,
+      lastError: job.lastError || undefined,
+      priority: job.priority,
+      scheduledAt: job.scheduledAt,
+      startedAt: job.startedAt || undefined,
+      completedAt: job.completedAt || undefined,
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt,
+    });
+
+    const mapChunkJob = (job: ChunkEmbeddingJob): EmbeddingJobDto => ({
+      id: job.id,
+      type: 'chunk',
+      targetId: job.chunkId,
+      status: job.status as any,
+      attemptCount: job.attemptCount,
+      lastError: job.lastError || undefined,
+      priority: job.priority,
+      scheduledAt: job.scheduledAt,
+      startedAt: job.startedAt || undefined,
+      completedAt: job.completedAt || undefined,
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt,
+    });
+
+    // Get graph jobs if not filtered to chunk only
+    if (!type || type === 'graph') {
+      const graphQb = this.graphJobRepo.createQueryBuilder('job');
+
+      if (status) {
+        graphQb.andWhere('job.status = :status', { status });
+      }
+      if (hasError === true) {
+        graphQb.andWhere('job.lastError IS NOT NULL');
+      } else if (hasError === false) {
+        graphQb.andWhere('job.lastError IS NULL');
+      }
+
+      const graphJobs = await graphQb
+        .orderBy('job.createdAt', 'DESC')
+        .getMany();
+      jobs.push(...graphJobs.map(mapGraphJob));
+    }
+
+    // Get chunk jobs if not filtered to graph only
+    if (!type || type === 'chunk') {
+      const chunkQb = this.chunkJobRepo.createQueryBuilder('job');
+
+      if (status) {
+        chunkQb.andWhere('job.status = :status', { status });
+      }
+      if (hasError === true) {
+        chunkQb.andWhere('job.lastError IS NOT NULL');
+      } else if (hasError === false) {
+        chunkQb.andWhere('job.lastError IS NULL');
+      }
+
+      const chunkJobs = await chunkQb
+        .orderBy('job.createdAt', 'DESC')
+        .getMany();
+      jobs.push(...chunkJobs.map(mapChunkJob));
+    }
+
+    // Sort combined results by createdAt descending
+    jobs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+    // Paginate
+    const total = jobs.length;
+    const paginatedJobs = jobs.slice(skip, skip + limit);
+
+    // Calculate stats (always for both types, regardless of filter)
+    const [graphStats, chunkStats] = await Promise.all([
+      this.graphJobRepo
+        .createQueryBuilder('job')
+        .select([
+          'COUNT(*) as total',
+          "SUM(CASE WHEN job.status = 'pending' THEN 1 ELSE 0 END) as pending",
+          "SUM(CASE WHEN job.status = 'completed' THEN 1 ELSE 0 END) as completed",
+          "SUM(CASE WHEN job.status = 'failed' THEN 1 ELSE 0 END) as failed",
+          'SUM(CASE WHEN job.lastError IS NOT NULL THEN 1 ELSE 0 END) as withErrors',
+        ])
+        .getRawOne(),
+      this.chunkJobRepo
+        .createQueryBuilder('job')
+        .select([
+          'COUNT(*) as total',
+          "SUM(CASE WHEN job.status = 'pending' THEN 1 ELSE 0 END) as pending",
+          "SUM(CASE WHEN job.status = 'completed' THEN 1 ELSE 0 END) as completed",
+          "SUM(CASE WHEN job.status = 'failed' THEN 1 ELSE 0 END) as failed",
+          'SUM(CASE WHEN job.lastError IS NOT NULL THEN 1 ELSE 0 END) as withErrors',
+        ])
+        .getRawOne(),
+    ]);
+
+    const stats: EmbeddingJobStatsDto = {
+      graphTotal: parseInt(graphStats?.total || '0', 10),
+      graphPending: parseInt(graphStats?.pending || '0', 10),
+      graphCompleted: parseInt(graphStats?.completed || '0', 10),
+      graphFailed: parseInt(graphStats?.failed || '0', 10),
+      graphWithErrors: parseInt(graphStats?.witherrors || '0', 10),
+      chunkTotal: parseInt(chunkStats?.total || '0', 10),
+      chunkPending: parseInt(chunkStats?.pending || '0', 10),
+      chunkCompleted: parseInt(chunkStats?.completed || '0', 10),
+      chunkFailed: parseInt(chunkStats?.failed || '0', 10),
+      chunkWithErrors: parseInt(chunkStats?.witherrors || '0', 10),
+    };
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      jobs: paginatedJobs,
+      stats,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  }
+
+  /**
+   * Bulk delete embedding jobs
+   */
+  @Post('embedding-jobs/delete')
+  @UseGuards(AuthGuard, SuperadminGuard)
+  @Superadmin()
+  @ApiOperation({
+    summary: 'Delete embedding jobs',
+    description: 'Bulk delete embedding jobs by IDs and type',
+  })
+  @ApiOkResponse({
+    description: 'Jobs deleted successfully',
+    type: DeleteEmbeddingJobsResponseDto,
+  })
+  @ApiForbiddenResponse({ description: 'Superadmin access required' })
+  async deleteEmbeddingJobs(
+    @Body() body: DeleteEmbeddingJobsDto
+  ): Promise<DeleteEmbeddingJobsResponseDto> {
+    const { ids, type } = body;
+
+    if (ids.length === 0) {
+      return {
+        success: true,
+        deletedCount: 0,
+        message: 'No jobs to delete',
+      };
+    }
+
+    let deletedCount = 0;
+
+    if (type === 'graph') {
+      const result = await this.graphJobRepo.delete({ id: In(ids) });
+      deletedCount = result.affected || 0;
+    } else {
+      const result = await this.chunkJobRepo.delete({ id: In(ids) });
+      deletedCount = result.affected || 0;
+    }
+
+    return {
+      success: true,
+      deletedCount,
+      message: `Deleted ${deletedCount} ${type} embedding job(s)`,
+    };
+  }
+
+  /**
+   * Cleanup orphan embedding jobs
+   */
+  @Post('embedding-jobs/cleanup-orphans')
+  @UseGuards(AuthGuard, SuperadminGuard)
+  @Superadmin()
+  @ApiOperation({
+    summary: 'Cleanup orphan embedding jobs',
+    description:
+      'Delete all embedding jobs that have object_missing error (orphan jobs)',
+  })
+  @ApiOkResponse({
+    description: 'Orphan jobs cleaned up successfully',
+    type: CleanupOrphanJobsResponseDto,
+  })
+  @ApiForbiddenResponse({ description: 'Superadmin access required' })
+  async cleanupOrphanJobs(): Promise<CleanupOrphanJobsResponseDto> {
+    // Delete graph jobs with object_missing error
+    const graphResult = await this.graphJobRepo
+      .createQueryBuilder()
+      .delete()
+      .where('last_error = :error', { error: 'object_missing' })
+      .execute();
+
+    // Delete chunk jobs with similar errors (chunk_missing)
+    const chunkResult = await this.chunkJobRepo
+      .createQueryBuilder()
+      .delete()
+      .where('last_error LIKE :error', { error: '%missing%' })
+      .execute();
+
+    const totalDeleted =
+      (graphResult.affected || 0) + (chunkResult.affected || 0);
+
+    return {
+      success: true,
+      deletedCount: totalDeleted,
+      message: `Cleaned up ${totalDeleted} orphan embedding job(s) (${
+        graphResult.affected || 0
+      } graph, ${chunkResult.affected || 0} chunk)`,
+    };
+  }
+
+  /**
+   * List extraction jobs with filters and stats
+   */
+  @Get('extraction-jobs')
+  @UseGuards(AuthGuard, SuperadminGuard)
+  @Superadmin()
+  @ApiOperation({
+    summary: 'List extraction jobs',
+    description:
+      'Returns paginated list of extraction jobs with optional filters and statistics',
+  })
+  @ApiOkResponse({
+    description: 'List of extraction jobs with stats',
+    type: ListExtractionJobsResponseDto,
+  })
+  @ApiForbiddenResponse({ description: 'Superadmin access required' })
+  async listExtractionJobs(
+    @Query() query: ListExtractionJobsQueryDto
+  ): Promise<ListExtractionJobsResponseDto> {
+    const {
+      page = 1,
+      limit = 20,
+      status,
+      jobType,
+      projectId,
+      hasError,
+    } = query;
+    const skip = (page - 1) * limit;
+
+    // Build query
+    const qb = this.extractionJobRepo
+      .createQueryBuilder('job')
+      .leftJoin('job.project', 'project')
+      .leftJoin('job.document', 'document')
+      .select([
+        'job.id AS id',
+        'job.projectId AS "projectId"',
+        'project.name AS "projectName"',
+        'job.documentId AS "documentId"',
+        'document.filename AS "documentName"',
+        'job.chunkId AS "chunkId"',
+        'job.jobType AS "jobType"',
+        'job.status AS status',
+        'job.objectsCreated AS "objectsCreated"',
+        'job.relationshipsCreated AS "relationshipsCreated"',
+        'job.retryCount AS "retryCount"',
+        'job.maxRetries AS "maxRetries"',
+        'job.errorMessage AS "errorMessage"',
+        'job.startedAt AS "startedAt"',
+        'job.completedAt AS "completedAt"',
+        'job.createdAt AS "createdAt"',
+        'job.updatedAt AS "updatedAt"',
+        'job.totalItems AS "totalItems"',
+        'job.processedItems AS "processedItems"',
+        'job.successfulItems AS "successfulItems"',
+        'job.failedItems AS "failedItems"',
+      ]);
+
+    // Apply filters
+    if (status) {
+      qb.andWhere('job.status = :status', { status });
+    }
+    if (jobType) {
+      qb.andWhere('job.jobType = :jobType', { jobType });
+    }
+    if (projectId) {
+      qb.andWhere('job.projectId = :projectId', { projectId });
+    }
+    if (hasError === true) {
+      qb.andWhere('job.errorMessage IS NOT NULL');
+    } else if (hasError === false) {
+      qb.andWhere('job.errorMessage IS NULL');
+    }
+
+    // Get count for pagination
+    const countQb = this.extractionJobRepo.createQueryBuilder('job');
+    if (status) {
+      countQb.andWhere('job.status = :status', { status });
+    }
+    if (jobType) {
+      countQb.andWhere('job.jobType = :jobType', { jobType });
+    }
+    if (projectId) {
+      countQb.andWhere('job.projectId = :projectId', { projectId });
+    }
+    if (hasError === true) {
+      countQb.andWhere('job.errorMessage IS NOT NULL');
+    } else if (hasError === false) {
+      countQb.andWhere('job.errorMessage IS NULL');
+    }
+
+    const [rawResults, total] = await Promise.all([
+      qb
+        .orderBy('job.createdAt', 'DESC')
+        .offset(skip)
+        .limit(limit)
+        .getRawMany(),
+      countQb.getCount(),
+    ]);
+
+    // Map to DTOs
+    const jobs: ExtractionJobDto[] = rawResults.map((row) => ({
+      id: row.id,
+      projectId: row.projectId,
+      projectName: row.projectName || undefined,
+      documentId: row.documentId || undefined,
+      documentName: row.documentName || undefined,
+      chunkId: row.chunkId || undefined,
+      jobType: row.jobType,
+      status: row.status,
+      objectsCreated: row.objectsCreated || 0,
+      relationshipsCreated: row.relationshipsCreated || 0,
+      retryCount: row.retryCount || 0,
+      maxRetries: row.maxRetries || 3,
+      errorMessage: row.errorMessage || undefined,
+      startedAt: row.startedAt || undefined,
+      completedAt: row.completedAt || undefined,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      totalItems: row.totalItems || 0,
+      processedItems: row.processedItems || 0,
+      successfulItems: row.successfulItems || 0,
+      failedItems: row.failedItems || 0,
+    }));
+
+    // Calculate stats
+    const statsRaw = await this.extractionJobRepo
+      .createQueryBuilder('job')
+      .select([
+        'COUNT(*) as total',
+        "SUM(CASE WHEN job.status = 'queued' THEN 1 ELSE 0 END) as queued",
+        "SUM(CASE WHEN job.status = 'processing' THEN 1 ELSE 0 END) as processing",
+        "SUM(CASE WHEN job.status = 'completed' THEN 1 ELSE 0 END) as completed",
+        "SUM(CASE WHEN job.status = 'failed' THEN 1 ELSE 0 END) as failed",
+        "SUM(CASE WHEN job.status = 'cancelled' THEN 1 ELSE 0 END) as cancelled",
+        'SUM(CASE WHEN job.errorMessage IS NOT NULL THEN 1 ELSE 0 END) as withErrors',
+        'SUM(job.objectsCreated) as totalObjectsCreated',
+        'SUM(job.relationshipsCreated) as totalRelationshipsCreated',
+      ])
+      .getRawOne();
+
+    const stats: ExtractionJobStatsDto = {
+      total: parseInt(statsRaw?.total || '0', 10),
+      queued: parseInt(statsRaw?.queued || '0', 10),
+      processing: parseInt(statsRaw?.processing || '0', 10),
+      completed: parseInt(statsRaw?.completed || '0', 10),
+      failed: parseInt(statsRaw?.failed || '0', 10),
+      cancelled: parseInt(statsRaw?.cancelled || '0', 10),
+      withErrors: parseInt(statsRaw?.witherrors || '0', 10),
+      totalObjectsCreated: parseInt(statsRaw?.totalobjectscreated || '0', 10),
+      totalRelationshipsCreated: parseInt(
+        statsRaw?.totalrelationshipscreated || '0',
+        10
+      ),
+    };
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      jobs,
+      stats,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  }
+
+  /**
+   * Bulk delete extraction jobs
+   */
+  @Post('extraction-jobs/delete')
+  @UseGuards(AuthGuard, SuperadminGuard)
+  @Superadmin()
+  @ApiOperation({
+    summary: 'Delete extraction jobs',
+    description: 'Bulk delete extraction jobs by IDs',
+  })
+  @ApiOkResponse({
+    description: 'Jobs deleted successfully',
+    type: DeleteExtractionJobsResponseDto,
+  })
+  @ApiForbiddenResponse({ description: 'Superadmin access required' })
+  async deleteExtractionJobs(
+    @Body() body: DeleteExtractionJobsDto
+  ): Promise<DeleteExtractionJobsResponseDto> {
+    const { ids } = body;
+
+    if (ids.length === 0) {
+      return {
+        success: true,
+        deletedCount: 0,
+        message: 'No jobs to delete',
+      };
+    }
+
+    const result = await this.extractionJobRepo.delete({ id: In(ids) });
+    const deletedCount = result.affected || 0;
+
+    return {
+      success: true,
+      deletedCount,
+      message: `Deleted ${deletedCount} extraction job(s)`,
+    };
+  }
+
+  /**
+   * Cancel queued/processing extraction jobs
+   */
+  @Post('extraction-jobs/cancel')
+  @UseGuards(AuthGuard, SuperadminGuard)
+  @Superadmin()
+  @ApiOperation({
+    summary: 'Cancel extraction jobs',
+    description: 'Cancel queued or processing extraction jobs by IDs',
+  })
+  @ApiOkResponse({
+    description: 'Jobs cancelled successfully',
+    type: CancelExtractionJobsResponseDto,
+  })
+  @ApiForbiddenResponse({ description: 'Superadmin access required' })
+  async cancelExtractionJobs(
+    @Body() body: CancelExtractionJobsDto
+  ): Promise<CancelExtractionJobsResponseDto> {
+    const { ids } = body;
+
+    if (ids.length === 0) {
+      return {
+        success: true,
+        cancelledCount: 0,
+        message: 'No jobs to cancel',
+      };
+    }
+
+    // Only cancel jobs that are queued or processing
+    const result = await this.extractionJobRepo
+      .createQueryBuilder()
+      .update()
+      .set({ status: 'cancelled' })
+      .where('id IN (:...ids)', { ids })
+      .andWhere('status IN (:...statuses)', {
+        statuses: ['queued', 'processing'],
+      })
+      .execute();
+
+    const cancelledCount = result.affected || 0;
+
+    return {
+      success: true,
+      cancelledCount,
+      message: `Cancelled ${cancelledCount} extraction job(s)`,
+    };
+  }
+
+  /**
+   * List document parsing jobs (conversion jobs) with filters and stats
+   */
+  @Get('document-parsing-jobs')
+  @UseGuards(AuthGuard, SuperadminGuard)
+  @Superadmin()
+  @ApiOperation({
+    summary: 'List document parsing jobs',
+    description:
+      'Returns paginated list of document parsing (conversion) jobs with optional filters and statistics',
+  })
+  @ApiOkResponse({
+    description: 'List of document parsing jobs with stats',
+    type: ListDocumentParsingJobsResponseDto,
+  })
+  @ApiForbiddenResponse({ description: 'Superadmin access required' })
+  async listDocumentParsingJobs(
+    @Query() query: ListDocumentParsingJobsQueryDto
+  ): Promise<ListDocumentParsingJobsResponseDto> {
+    const { page = 1, limit = 20, status, projectId, hasError } = query;
+    const skip = (page - 1) * limit;
+
+    // Build query
+    const qb = this.documentParsingJobRepo
+      .createQueryBuilder('job')
+      .leftJoin('job.project', 'project')
+      .leftJoin(Org, 'org', 'org.id = job.organizationId')
+      .select([
+        'job.id AS id',
+        'job.organizationId AS "organizationId"',
+        'org.name AS "organizationName"',
+        'job.projectId AS "projectId"',
+        'project.name AS "projectName"',
+        'job.status AS status',
+        'job.sourceType AS "sourceType"',
+        'job.sourceFilename AS "sourceFilename"',
+        'job.mimeType AS "mimeType"',
+        'job.fileSizeBytes AS "fileSizeBytes"',
+        'job.storageKey AS "storageKey"',
+        'job.documentId AS "documentId"',
+        'job.extractionJobId AS "extractionJobId"',
+        'LENGTH(job.parsedContent) AS "parsedContentLength"',
+        'job.errorMessage AS "errorMessage"',
+        'job.retryCount AS "retryCount"',
+        'job.maxRetries AS "maxRetries"',
+        'job.nextRetryAt AS "nextRetryAt"',
+        'job.createdAt AS "createdAt"',
+        'job.startedAt AS "startedAt"',
+        'job.completedAt AS "completedAt"',
+        'job.updatedAt AS "updatedAt"',
+        'job.metadata AS metadata',
+      ]);
+
+    // Apply filters
+    if (status) {
+      qb.andWhere('job.status = :status', { status });
+    }
+    if (projectId) {
+      qb.andWhere('job.projectId = :projectId', { projectId });
+    }
+    if (hasError === true) {
+      qb.andWhere('job.errorMessage IS NOT NULL');
+    } else if (hasError === false) {
+      qb.andWhere('job.errorMessage IS NULL');
+    }
+
+    // Get count for pagination
+    const countQb = this.documentParsingJobRepo.createQueryBuilder('job');
+    if (status) {
+      countQb.andWhere('job.status = :status', { status });
+    }
+    if (projectId) {
+      countQb.andWhere('job.projectId = :projectId', { projectId });
+    }
+    if (hasError === true) {
+      countQb.andWhere('job.errorMessage IS NOT NULL');
+    } else if (hasError === false) {
+      countQb.andWhere('job.errorMessage IS NULL');
+    }
+
+    const [rawResults, total] = await Promise.all([
+      qb
+        .orderBy('job.createdAt', 'DESC')
+        .offset(skip)
+        .limit(limit)
+        .getRawMany(),
+      countQb.getCount(),
+    ]);
+
+    // Map to DTOs
+    const jobs: DocumentParsingJobDto[] = rawResults.map((row) => ({
+      id: row.id,
+      organizationId: row.organizationId,
+      organizationName: row.organizationName || undefined,
+      projectId: row.projectId,
+      projectName: row.projectName || undefined,
+      status: row.status,
+      sourceType: row.sourceType,
+      sourceFilename: row.sourceFilename || undefined,
+      mimeType: row.mimeType || undefined,
+      fileSizeBytes: row.fileSizeBytes
+        ? parseInt(row.fileSizeBytes, 10)
+        : undefined,
+      storageKey: row.storageKey || undefined,
+      documentId: row.documentId || undefined,
+      extractionJobId: row.extractionJobId || undefined,
+      parsedContentLength: row.parsedContentLength
+        ? parseInt(row.parsedContentLength, 10)
+        : undefined,
+      errorMessage: row.errorMessage || undefined,
+      retryCount: row.retryCount || 0,
+      maxRetries: row.maxRetries || 3,
+      nextRetryAt: row.nextRetryAt || undefined,
+      createdAt: row.createdAt,
+      startedAt: row.startedAt || undefined,
+      completedAt: row.completedAt || undefined,
+      updatedAt: row.updatedAt,
+      metadata: row.metadata || undefined,
+    }));
+
+    // Calculate stats
+    const statsRaw = await this.documentParsingJobRepo
+      .createQueryBuilder('job')
+      .select([
+        'COUNT(*) as total',
+        "SUM(CASE WHEN job.status = 'pending' THEN 1 ELSE 0 END) as pending",
+        "SUM(CASE WHEN job.status = 'processing' THEN 1 ELSE 0 END) as processing",
+        "SUM(CASE WHEN job.status = 'completed' THEN 1 ELSE 0 END) as completed",
+        "SUM(CASE WHEN job.status = 'failed' THEN 1 ELSE 0 END) as failed",
+        "SUM(CASE WHEN job.status = 'retry_pending' THEN 1 ELSE 0 END) as retryPending",
+        'SUM(CASE WHEN job.errorMessage IS NOT NULL THEN 1 ELSE 0 END) as withErrors',
+        'COALESCE(SUM(job.fileSizeBytes), 0) as totalFileSizeBytes',
+      ])
+      .getRawOne();
+
+    const stats: DocumentParsingJobStatsDto = {
+      total: parseInt(statsRaw?.total || '0', 10),
+      pending: parseInt(statsRaw?.pending || '0', 10),
+      processing: parseInt(statsRaw?.processing || '0', 10),
+      completed: parseInt(statsRaw?.completed || '0', 10),
+      failed: parseInt(statsRaw?.failed || '0', 10),
+      retryPending: parseInt(statsRaw?.retrypending || '0', 10),
+      withErrors: parseInt(statsRaw?.witherrors || '0', 10),
+      totalFileSizeBytes: parseInt(statsRaw?.totalfilesizebytes || '0', 10),
+    };
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      jobs,
+      stats,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  }
+
+  /**
+   * Bulk delete document parsing jobs
+   */
+  @Post('document-parsing-jobs/delete')
+  @UseGuards(AuthGuard, SuperadminGuard)
+  @Superadmin()
+  @ApiOperation({
+    summary: 'Delete document parsing jobs',
+    description: 'Bulk delete document parsing jobs by IDs',
+  })
+  @ApiOkResponse({
+    description: 'Jobs deleted successfully',
+    type: DeleteDocumentParsingJobsResponseDto,
+  })
+  @ApiForbiddenResponse({ description: 'Superadmin access required' })
+  async deleteDocumentParsingJobs(
+    @Body() body: DeleteDocumentParsingJobsDto
+  ): Promise<DeleteDocumentParsingJobsResponseDto> {
+    const { ids } = body;
+
+    if (ids.length === 0) {
+      return {
+        success: true,
+        deletedCount: 0,
+        message: 'No jobs to delete',
+      };
+    }
+
+    const result = await this.documentParsingJobRepo.delete({ id: In(ids) });
+    const deletedCount = result.affected || 0;
+
+    return {
+      success: true,
+      deletedCount,
+      message: `Deleted ${deletedCount} document parsing job(s)`,
+    };
+  }
+
+  /**
+   * Retry failed document parsing jobs
+   */
+  @Post('document-parsing-jobs/retry')
+  @UseGuards(AuthGuard, SuperadminGuard)
+  @Superadmin()
+  @ApiOperation({
+    summary: 'Retry document parsing jobs',
+    description: 'Reset failed jobs to pending status for retry',
+  })
+  @ApiOkResponse({
+    description: 'Jobs queued for retry',
+    type: RetryDocumentParsingJobsResponseDto,
+  })
+  @ApiForbiddenResponse({ description: 'Superadmin access required' })
+  async retryDocumentParsingJobs(
+    @Body() body: RetryDocumentParsingJobsDto
+  ): Promise<RetryDocumentParsingJobsResponseDto> {
+    const { ids } = body;
+
+    if (ids.length === 0) {
+      return {
+        success: true,
+        retriedCount: 0,
+        message: 'No jobs to retry',
+      };
+    }
+
+    // Only retry jobs that are failed or retry_pending
+    const result = await this.documentParsingJobRepo
+      .createQueryBuilder()
+      .update()
+      .set({
+        status: 'pending',
+        errorMessage: null,
+        retryCount: () => 'retry_count + 1',
+      })
+      .where('id IN (:...ids)', { ids })
+      .andWhere('status IN (:...statuses)', {
+        statuses: ['failed', 'retry_pending'],
+      })
+      .execute();
+
+    const retriedCount = result.affected || 0;
+
+    return {
+      success: true,
+      retriedCount,
+      message: `Queued ${retriedCount} job(s) for retry`,
     };
   }
 }

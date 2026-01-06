@@ -8,6 +8,10 @@ import { OrganizationMembership } from '../../entities/organization-membership.e
 import { EmailJob } from '../../entities/email-job.entity';
 import { EmailTemplate } from '../../entities/email-template.entity';
 import { EmailTemplateVersion } from '../../entities/email-template-version.entity';
+import { GraphEmbeddingJob } from '../../entities/graph-embedding-job.entity';
+import { ChunkEmbeddingJob } from '../../entities/chunk-embedding-job.entity';
+import { ObjectExtractionJob } from '../../entities/object-extraction-job.entity';
+import { DocumentParsingJob } from '../../entities/document-parsing-job.entity';
 import { SuperadminService } from './superadmin.service';
 import { SuperadminGuard } from './superadmin.guard';
 import { SuperadminController } from './superadmin.controller';
@@ -29,6 +33,10 @@ import { AppConfigModule } from '../../common/config/config.module';
       EmailJob,
       EmailTemplate,
       EmailTemplateVersion,
+      GraphEmbeddingJob,
+      ChunkEmbeddingJob,
+      ObjectExtractionJob,
+      DocumentParsingJob,
     ]),
     EmailModule,
     AuthModule,

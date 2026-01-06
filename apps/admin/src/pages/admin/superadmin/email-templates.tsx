@@ -119,24 +119,22 @@ export default function SuperadminEmailTemplatesPage() {
       </div>
 
       <div className="card bg-base-100 shadow-sm border border-base-200">
-        <div className="card-body">
-          {error && (
-            <div className="alert alert-error mb-4">
-              <Icon icon="lucide--alert-circle" className="size-5" />
-              <span>{error.message}</span>
-            </div>
-          )}
+        {error && (
+          <div className="alert alert-error mb-4">
+            <Icon icon="lucide--alert-circle" className="size-5" />
+            <span>{error.message}</span>
+          </div>
+        )}
 
-          <DataTable<EmailTemplateListItem>
-            data={templates}
-            columns={columns}
-            loading={isLoading}
-            onRowClick={handleRowClick}
-            emptyMessage="No email templates found"
-            noResultsMessage="No templates match your search"
-            emptyIcon="lucide--file-code"
-          />
-        </div>
+        <DataTable<EmailTemplateListItem>
+          data={templates}
+          columns={columns}
+          loading={isLoading}
+          onRowClick={handleRowClick}
+          emptyMessage="No email templates found"
+          noResultsMessage="No templates match your search"
+          emptyIcon="lucide--file-code"
+        />
       </div>
     </div>
   );
