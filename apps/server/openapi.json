@@ -3144,7 +3144,16 @@
     "/chat-ui/conversations": {
       "get": {
         "operationId": "getConversations",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "x-project-id",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "List user conversations"
@@ -3163,6 +3172,14 @@
             "name": "id",
             "required": true,
             "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-project-id",
+            "required": true,
+            "in": "header",
             "schema": {
               "type": "string"
             }
@@ -3187,6 +3204,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "x-project-id",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3205,6 +3230,14 @@
             "name": "id",
             "required": true,
             "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-project-id",
+            "required": true,
+            "in": "header",
             "schema": {
               "type": "string"
             }
@@ -3228,6 +3261,14 @@
             "name": "id",
             "required": true,
             "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-project-id",
+            "required": true,
+            "in": "header",
             "schema": {
               "type": "string"
             }
@@ -3270,6 +3311,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "x-project-id",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3290,6 +3339,14 @@
             "name": "id",
             "required": true,
             "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-project-id",
+            "required": true,
+            "in": "header",
             "schema": {
               "type": "string"
             }
@@ -4500,6 +4557,90 @@
         ]
       }
     },
+    "/documents/{id}/download": {
+      "get": {
+        "operationId": "downloadFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Document UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Redirect to signed download URL for original file"
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Documents"
+        ]
+      }
+    },
     "/documents/{id}/deletion-impact": {
       "get": {
         "operationId": "getDeletionImpact",
@@ -4727,6 +4868,111 @@
                           "type": "object"
                         }
                       }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Documents"
+        ]
+      }
+    },
+    "/documents/{id}/retry-conversion": {
+      "post": {
+        "operationId": "retryConversion",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Document UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retry document conversion for a failed document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "jobId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Conversion retry started"
                     }
                   }
                 }
@@ -5350,6 +5596,419 @@
         },
         "tags": [
           "Chunks"
+        ]
+      }
+    },
+    "/document-parsing-jobs/upload": {
+      "post": {
+        "operationId": "uploadDocument",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Document file to upload and parse"
+                  },
+                  "autoExtract": {
+                    "type": "boolean",
+                    "description": "Automatically trigger object extraction after parsing"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Document uploaded (parsing job created if conversion needed)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentUploadResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Document Parsing"
+        ]
+      }
+    },
+    "/document-parsing-jobs/{id}": {
+      "get": {
+        "operationId": "getJob",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Parsing job UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Document parsing job details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentParsingJobResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Document Parsing"
+        ]
+      }
+    },
+    "/document-parsing-jobs": {
+      "get": {
+        "operationId": "listJobs",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Filter by status",
+            "schema": {
+              "enum": [
+                "pending",
+                "processing",
+                "completed",
+                "failed",
+                "retry_pending"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "projectId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by project ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of results to return",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "description": "Number of results to skip",
+            "schema": {
+              "minimum": 0,
+              "default": 0,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of document parsing jobs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DocumentParsingJobResponseDto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Document Parsing"
+        ]
+      }
+    },
+    "/document-parsing-jobs/{id}/download": {
+      "get": {
+        "operationId": "downloadFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Parsing job UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Redirect to signed download URL"
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Document Parsing"
         ]
       }
     },
@@ -8813,6 +9472,211 @@
         ]
       }
     },
+    "/tasks/all": {
+      "get": {
+        "operationId": "getAllTasks",
+        "summary": "Get tasks across all projects the user has access to",
+        "description": "Returns tasks from all projects the authenticated user can access, with project name included for each task.",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Filter by status",
+            "schema": {
+              "enum": [
+                "pending",
+                "accepted",
+                "rejected",
+                "cancelled"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "Filter by type (e.g., \"merge_suggestion\")",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number (1-based)",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Page size (default 50)",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of tasks across all accessible projects"
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/tasks/all/counts": {
+      "get": {
+        "operationId": "getAllCounts",
+        "summary": "Get task counts by status across all accessible projects",
+        "description": "Returns aggregated task counts from all projects the authenticated user can access.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Aggregated task counts"
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/tasks/{id}": {
       "get": {
         "operationId": "getTask",
@@ -10799,6 +11663,147 @@
         },
         "tags": [
           "Notifications"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/user/orgs-and-projects": {
+      "get": {
+        "operationId": "getOrgsAndProjects",
+        "summary": "Get user access tree (organizations and projects with roles)",
+        "description": "Returns hierarchical access tree with orgs and nested projects, including user roles at each level",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Access tree retrieved successfully",
+            "schema": {
+              "example": [
+                {
+                  "id": "550e8400-e29b-41d4-a716-446655440000",
+                  "name": "Acme Corp",
+                  "role": "org_admin",
+                  "projects": [
+                    {
+                      "id": "550e8400-e29b-41d4-a716-446655440001",
+                      "name": "Product Docs",
+                      "orgId": "550e8400-e29b-41d4-a716-446655440000",
+                      "role": "project_admin"
+                    }
+                  ]
+                }
+              ]
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OrgWithProjectsDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "tags": [
+          "user"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/user/delete-account": {
+      "post": {
+        "operationId": "deleteAccount",
+        "summary": "Delete user account and all data",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Account deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "deleted": {
+                      "type": "object",
+                      "properties": {
+                        "organizations": {
+                          "type": "number"
+                        },
+                        "projects": {
+                          "type": "number"
+                        },
+                        "documents": {
+                          "type": "number"
+                        },
+                        "chunks": {
+                          "type": "number"
+                        },
+                        "embeddings": {
+                          "type": "number"
+                        },
+                        "extractionJobs": {
+                          "type": "number"
+                        },
+                        "graphObjects": {
+                          "type": "number"
+                        },
+                        "integrations": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "duration_ms": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "tags": [
+          "user"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/user/test-cleanup": {
+      "post": {
+        "operationId": "testCleanup",
+        "summary": "Clean up test user data (test environments only)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Test data cleaned up successfully"
+          },
+          "403": {
+            "description": "Forbidden - not a test environment or test user"
+          }
+        },
+        "tags": [
+          "user"
         ],
         "security": [
           {
@@ -12921,147 +13926,6 @@
         },
         "tags": [
           "MCP Server (JSON-RPC 2.0)"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      }
-    },
-    "/user/orgs-and-projects": {
-      "get": {
-        "operationId": "getOrgsAndProjects",
-        "summary": "Get user access tree (organizations and projects with roles)",
-        "description": "Returns hierarchical access tree with orgs and nested projects, including user roles at each level",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Access tree retrieved successfully",
-            "schema": {
-              "example": [
-                {
-                  "id": "550e8400-e29b-41d4-a716-446655440000",
-                  "name": "Acme Corp",
-                  "role": "org_admin",
-                  "projects": [
-                    {
-                      "id": "550e8400-e29b-41d4-a716-446655440001",
-                      "name": "Product Docs",
-                      "orgId": "550e8400-e29b-41d4-a716-446655440000",
-                      "role": "project_admin"
-                    }
-                  ]
-                }
-              ]
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/OrgWithProjectsDto"
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized"
-          }
-        },
-        "tags": [
-          "user"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      }
-    },
-    "/user/delete-account": {
-      "post": {
-        "operationId": "deleteAccount",
-        "summary": "Delete user account and all data",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Account deleted successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string"
-                    },
-                    "deleted": {
-                      "type": "object",
-                      "properties": {
-                        "organizations": {
-                          "type": "number"
-                        },
-                        "projects": {
-                          "type": "number"
-                        },
-                        "documents": {
-                          "type": "number"
-                        },
-                        "chunks": {
-                          "type": "number"
-                        },
-                        "embeddings": {
-                          "type": "number"
-                        },
-                        "extractionJobs": {
-                          "type": "number"
-                        },
-                        "graphObjects": {
-                          "type": "number"
-                        },
-                        "integrations": {
-                          "type": "number"
-                        }
-                      }
-                    },
-                    "duration_ms": {
-                      "type": "number"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized"
-          }
-        },
-        "tags": [
-          "user"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      }
-    },
-    "/user/test-cleanup": {
-      "post": {
-        "operationId": "testCleanup",
-        "summary": "Clean up test user data (test environments only)",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Test data cleaned up successfully"
-          },
-          "403": {
-            "description": "Forbidden - not a test environment or test user"
-          }
-        },
-        "tags": [
-          "user"
         ],
         "security": [
           {
@@ -16166,6 +17030,521 @@
         ]
       }
     },
+    "/superadmin/embedding-jobs": {
+      "get": {
+        "operationId": "listEmbeddingJobs",
+        "summary": "List embedding jobs",
+        "description": "Returns paginated list of embedding jobs (graph and chunk) with optional filters and statistics",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number (1-indexed)",
+            "schema": {
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items per page",
+            "schema": {
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "Filter by job type",
+            "schema": {
+              "enum": [
+                "graph",
+                "chunk"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Filter by status",
+            "schema": {
+              "enum": [
+                "pending",
+                "processing",
+                "completed",
+                "failed"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "hasError",
+            "required": false,
+            "in": "query",
+            "description": "Filter by jobs with errors only",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of embedding jobs with stats",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListEmbeddingJobsResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Superadmin access required"
+          }
+        },
+        "tags": [
+          "superadmin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/superadmin/embedding-jobs/delete": {
+      "post": {
+        "operationId": "deleteEmbeddingJobs",
+        "summary": "Delete embedding jobs",
+        "description": "Bulk delete embedding jobs by IDs and type",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteEmbeddingJobsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Jobs deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteEmbeddingJobsResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Superadmin access required"
+          }
+        },
+        "tags": [
+          "superadmin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/superadmin/embedding-jobs/cleanup-orphans": {
+      "post": {
+        "operationId": "cleanupOrphanJobs",
+        "summary": "Cleanup orphan embedding jobs",
+        "description": "Delete all embedding jobs that have object_missing error (orphan jobs)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Orphan jobs cleaned up successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CleanupOrphanJobsResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Superadmin access required"
+          }
+        },
+        "tags": [
+          "superadmin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/superadmin/extraction-jobs": {
+      "get": {
+        "operationId": "listExtractionJobs",
+        "summary": "List extraction jobs",
+        "description": "Returns paginated list of extraction jobs with optional filters and statistics",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number (1-indexed)",
+            "schema": {
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items per page",
+            "schema": {
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Filter by status",
+            "schema": {
+              "enum": [
+                "queued",
+                "processing",
+                "completed",
+                "failed",
+                "cancelled"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "jobType",
+            "required": false,
+            "in": "query",
+            "description": "Filter by job type",
+            "schema": {
+              "enum": [
+                "full_extraction",
+                "incremental",
+                "reprocessing",
+                "chunk_extraction"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "projectId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by project ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hasError",
+            "required": false,
+            "in": "query",
+            "description": "Filter by jobs with errors only",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of extraction jobs with stats",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListExtractionJobsResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Superadmin access required"
+          }
+        },
+        "tags": [
+          "superadmin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/superadmin/extraction-jobs/delete": {
+      "post": {
+        "operationId": "deleteExtractionJobs",
+        "summary": "Delete extraction jobs",
+        "description": "Bulk delete extraction jobs by IDs",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteExtractionJobsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Jobs deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteExtractionJobsResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Superadmin access required"
+          }
+        },
+        "tags": [
+          "superadmin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/superadmin/extraction-jobs/cancel": {
+      "post": {
+        "operationId": "cancelExtractionJobs",
+        "summary": "Cancel extraction jobs",
+        "description": "Cancel queued or processing extraction jobs by IDs",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelExtractionJobsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Jobs cancelled successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancelExtractionJobsResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Superadmin access required"
+          }
+        },
+        "tags": [
+          "superadmin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/superadmin/document-parsing-jobs": {
+      "get": {
+        "operationId": "listDocumentParsingJobs",
+        "summary": "List document parsing jobs",
+        "description": "Returns paginated list of document parsing (conversion) jobs with optional filters and statistics",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number (1-indexed)",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items per page",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Filter by status",
+            "schema": {
+              "enum": [
+                "pending",
+                "processing",
+                "completed",
+                "failed",
+                "retry_pending"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "projectId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by project ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hasError",
+            "required": false,
+            "in": "query",
+            "description": "Filter by jobs with errors",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of document parsing jobs with stats",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListDocumentParsingJobsResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Superadmin access required"
+          }
+        },
+        "tags": [
+          "superadmin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/superadmin/document-parsing-jobs/delete": {
+      "post": {
+        "operationId": "deleteDocumentParsingJobs",
+        "summary": "Delete document parsing jobs",
+        "description": "Bulk delete document parsing jobs by IDs",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteDocumentParsingJobsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Jobs deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteDocumentParsingJobsResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Superadmin access required"
+          }
+        },
+        "tags": [
+          "superadmin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/superadmin/document-parsing-jobs/retry": {
+      "post": {
+        "operationId": "retryDocumentParsingJobs",
+        "summary": "Retry document parsing jobs",
+        "description": "Reset failed jobs to pending status for retry",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetryDocumentParsingJobsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Jobs queued for retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetryDocumentParsingJobsResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Superadmin access required"
+          }
+        },
+        "tags": [
+          "superadmin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/superadmin/email-templates": {
       "get": {
         "operationId": "listTemplates",
@@ -17616,6 +18995,43 @@
             "nullable": true,
             "example": 15,
             "description": "Number of objects extracted in the most recent extraction job"
+          },
+          "conversionStatus": {
+            "type": "string",
+            "nullable": true,
+            "example": "completed",
+            "description": "Status of document conversion (text extraction): pending, processing, completed, failed, not_required",
+            "enum": [
+              "pending",
+              "processing",
+              "completed",
+              "failed",
+              "not_required"
+            ]
+          },
+          "conversionError": {
+            "type": "object",
+            "nullable": true,
+            "example": "The file format is not supported for text extraction",
+            "description": "Human-friendly error message explaining why conversion failed (only set when status is failed)"
+          },
+          "conversionCompletedAt": {
+            "type": "object",
+            "nullable": true,
+            "example": "2025-01-01T00:05:00.000Z",
+            "description": "Timestamp when conversion was completed (success or failure)"
+          },
+          "storageKey": {
+            "type": "object",
+            "nullable": true,
+            "example": "documents/abc123/original.pdf",
+            "description": "Storage key for the original uploaded file in MinIO"
+          },
+          "fileSizeBytes": {
+            "type": "object",
+            "nullable": true,
+            "example": 1048576,
+            "description": "Size of the original file in bytes"
           }
         },
         "required": [
@@ -17841,6 +19257,122 @@
           "size",
           "hasEmbedding",
           "text"
+        ]
+      },
+      "DocumentParsingJobResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Job ID"
+          },
+          "organizationId": {
+            "type": "string",
+            "description": "Organization ID"
+          },
+          "projectId": {
+            "type": "string",
+            "description": "Project ID"
+          },
+          "status": {
+            "type": "string",
+            "description": "Job status",
+            "enum": [
+              "pending",
+              "processing",
+              "completed",
+              "failed",
+              "retry_pending"
+            ]
+          },
+          "sourceType": {
+            "type": "string",
+            "description": "Source type",
+            "enum": [
+              "upload",
+              "url"
+            ]
+          },
+          "sourceFilename": {
+            "type": "object",
+            "description": "Original filename"
+          },
+          "mimeType": {
+            "type": "object",
+            "description": "MIME type"
+          },
+          "fileSizeBytes": {
+            "type": "object",
+            "description": "File size in bytes"
+          },
+          "documentId": {
+            "type": "object",
+            "description": "Document ID"
+          },
+          "errorMessage": {
+            "type": "object",
+            "description": "Error message"
+          },
+          "retryCount": {
+            "type": "number",
+            "description": "Retry count"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Created timestamp"
+          },
+          "startedAt": {
+            "type": "object",
+            "description": "Started timestamp"
+          },
+          "completedAt": {
+            "type": "object",
+            "description": "Completed timestamp"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Updated timestamp"
+          }
+        },
+        "required": [
+          "id",
+          "organizationId",
+          "projectId",
+          "status",
+          "sourceType",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "DocumentUploadResponseDto": {
+        "type": "object",
+        "properties": {
+          "document": {
+            "type": "object",
+            "description": "The created document"
+          },
+          "isDuplicate": {
+            "type": "boolean",
+            "description": "Whether this was a duplicate file (same file already uploaded)"
+          },
+          "existingDocumentId": {
+            "type": "string",
+            "description": "ID of existing document if duplicate"
+          },
+          "parsingJob": {
+            "description": "The parsing job (if conversion is required)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DocumentParsingJobResponseDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "document",
+          "isDuplicate"
         ]
       },
       "ChunkingOptionsDto": {
@@ -19524,6 +21056,43 @@
           "until"
         ]
       },
+      "OrgWithProjectsDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Organization UUID",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "name": {
+            "type": "string",
+            "description": "Organization name",
+            "example": "Acme Corp"
+          },
+          "role": {
+            "type": "string",
+            "description": "User role in organization",
+            "example": "org_admin",
+            "enum": [
+              "org_admin",
+              "org_member"
+            ]
+          },
+          "projects": {
+            "description": "Projects within organization that user has access to",
+            "items": {
+              "type": "array"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "role",
+          "projects"
+        ]
+      },
       "ExtractionJobResourceDto": {
         "type": "object",
         "properties": {
@@ -21011,43 +22580,6 @@
           "version",
           "schema_hash",
           "created_at"
-        ]
-      },
-      "OrgWithProjectsDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "description": "Organization UUID",
-            "example": "550e8400-e29b-41d4-a716-446655440000"
-          },
-          "name": {
-            "type": "string",
-            "description": "Organization name",
-            "example": "Acme Corp"
-          },
-          "role": {
-            "type": "string",
-            "description": "User role in organization",
-            "example": "org_admin",
-            "enum": [
-              "org_admin",
-              "org_member"
-            ]
-          },
-          "projects": {
-            "description": "Projects within organization that user has access to",
-            "items": {
-              "type": "array"
-            },
-            "type": "array"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "role",
-          "projects"
         ]
       },
       "CreateConversationDto": {
@@ -22695,6 +24227,669 @@
           "externalServices",
           "deployment",
           "environmentVariables"
+        ]
+      },
+      "EmbeddingJobDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Job ID"
+          },
+          "type": {
+            "type": "string",
+            "description": "Job type",
+            "enum": [
+              "graph",
+              "chunk"
+            ]
+          },
+          "targetId": {
+            "type": "string",
+            "description": "Object or Chunk ID being embedded"
+          },
+          "status": {
+            "type": "string",
+            "description": "Job status",
+            "enum": [
+              "pending",
+              "processing",
+              "completed",
+              "failed"
+            ]
+          },
+          "attemptCount": {
+            "type": "number",
+            "description": "Number of processing attempts"
+          },
+          "lastError": {
+            "type": "string",
+            "description": "Last error message if any"
+          },
+          "priority": {
+            "type": "number",
+            "description": "Job priority"
+          },
+          "scheduledAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When the job is scheduled to run"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When processing started"
+          },
+          "completedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When processing completed"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When the job was created"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When the job was last updated"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "targetId",
+          "status",
+          "attemptCount",
+          "priority",
+          "scheduledAt",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "EmbeddingJobStatsDto": {
+        "type": "object",
+        "properties": {
+          "graphTotal": {
+            "type": "number",
+            "description": "Total graph jobs"
+          },
+          "graphPending": {
+            "type": "number",
+            "description": "Pending graph jobs"
+          },
+          "graphCompleted": {
+            "type": "number",
+            "description": "Completed graph jobs"
+          },
+          "graphFailed": {
+            "type": "number",
+            "description": "Failed graph jobs"
+          },
+          "graphWithErrors": {
+            "type": "number",
+            "description": "Graph jobs with errors"
+          },
+          "chunkTotal": {
+            "type": "number",
+            "description": "Total chunk jobs"
+          },
+          "chunkPending": {
+            "type": "number",
+            "description": "Pending chunk jobs"
+          },
+          "chunkCompleted": {
+            "type": "number",
+            "description": "Completed chunk jobs"
+          },
+          "chunkFailed": {
+            "type": "number",
+            "description": "Failed chunk jobs"
+          },
+          "chunkWithErrors": {
+            "type": "number",
+            "description": "Chunk jobs with errors"
+          }
+        },
+        "required": [
+          "graphTotal",
+          "graphPending",
+          "graphCompleted",
+          "graphFailed",
+          "graphWithErrors",
+          "chunkTotal",
+          "chunkPending",
+          "chunkCompleted",
+          "chunkFailed",
+          "chunkWithErrors"
+        ]
+      },
+      "ListEmbeddingJobsResponseDto": {
+        "type": "object",
+        "properties": {
+          "jobs": {
+            "description": "List of embedding jobs",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EmbeddingJobDto"
+            }
+          },
+          "stats": {
+            "description": "Job statistics",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EmbeddingJobStatsDto"
+              }
+            ]
+          },
+          "meta": {
+            "description": "Pagination metadata",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaginationMetaDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "jobs",
+          "stats",
+          "meta"
+        ]
+      },
+      "DeleteEmbeddingJobsDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "description": "Job IDs to delete",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "type": {
+            "type": "string",
+            "description": "Job type for the IDs",
+            "enum": [
+              "graph",
+              "chunk"
+            ]
+          }
+        },
+        "required": [
+          "ids",
+          "type"
+        ]
+      },
+      "DeleteEmbeddingJobsResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the operation was successful"
+          },
+          "deletedCount": {
+            "type": "number",
+            "description": "Number of jobs deleted"
+          },
+          "message": {
+            "type": "string",
+            "description": "Message describing the result"
+          }
+        },
+        "required": [
+          "success",
+          "deletedCount",
+          "message"
+        ]
+      },
+      "CleanupOrphanJobsResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the operation was successful"
+          },
+          "deletedCount": {
+            "type": "number",
+            "description": "Number of orphan jobs deleted"
+          },
+          "message": {
+            "type": "string",
+            "description": "Message describing the result"
+          }
+        },
+        "required": [
+          "success",
+          "deletedCount",
+          "message"
+        ]
+      },
+      "ExtractionJobStatsDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number",
+            "description": "Total jobs"
+          },
+          "queued": {
+            "type": "number",
+            "description": "Queued jobs"
+          },
+          "processing": {
+            "type": "number",
+            "description": "Processing jobs"
+          },
+          "completed": {
+            "type": "number",
+            "description": "Completed jobs"
+          },
+          "failed": {
+            "type": "number",
+            "description": "Failed jobs"
+          },
+          "cancelled": {
+            "type": "number",
+            "description": "Cancelled jobs"
+          },
+          "withErrors": {
+            "type": "number",
+            "description": "Jobs with errors"
+          },
+          "totalObjectsCreated": {
+            "type": "number",
+            "description": "Total objects created"
+          },
+          "totalRelationshipsCreated": {
+            "type": "number",
+            "description": "Total relationships created"
+          }
+        },
+        "required": [
+          "total",
+          "queued",
+          "processing",
+          "completed",
+          "failed",
+          "cancelled",
+          "withErrors",
+          "totalObjectsCreated",
+          "totalRelationshipsCreated"
+        ]
+      },
+      "ListExtractionJobsResponseDto": {
+        "type": "object",
+        "properties": {
+          "jobs": {
+            "description": "List of extraction jobs",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExtractionJobDto"
+            }
+          },
+          "stats": {
+            "description": "Job statistics",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExtractionJobStatsDto"
+              }
+            ]
+          },
+          "meta": {
+            "description": "Pagination metadata",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaginationMetaDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "jobs",
+          "stats",
+          "meta"
+        ]
+      },
+      "DeleteExtractionJobsDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "description": "Job IDs to delete",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
+      "DeleteExtractionJobsResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the operation was successful"
+          },
+          "deletedCount": {
+            "type": "number",
+            "description": "Number of jobs deleted"
+          },
+          "message": {
+            "type": "string",
+            "description": "Message describing the result"
+          }
+        },
+        "required": [
+          "success",
+          "deletedCount",
+          "message"
+        ]
+      },
+      "CancelExtractionJobsDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "description": "Job IDs to cancel",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
+      "CancelExtractionJobsResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the operation was successful"
+          },
+          "cancelledCount": {
+            "type": "number",
+            "description": "Number of jobs cancelled"
+          },
+          "message": {
+            "type": "string",
+            "description": "Message describing the result"
+          }
+        },
+        "required": [
+          "success",
+          "cancelledCount",
+          "message"
+        ]
+      },
+      "DocumentParsingJobDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Job ID"
+          },
+          "organizationId": {
+            "type": "string",
+            "description": "Organization ID"
+          },
+          "organizationName": {
+            "type": "string",
+            "description": "Organization name"
+          },
+          "projectId": {
+            "type": "string",
+            "description": "Project ID"
+          },
+          "projectName": {
+            "type": "string",
+            "description": "Project name"
+          },
+          "status": {
+            "type": "object",
+            "description": "Job status"
+          },
+          "sourceType": {
+            "type": "string",
+            "description": "Source type (upload or url)"
+          },
+          "sourceFilename": {
+            "type": "string",
+            "description": "Source filename"
+          },
+          "mimeType": {
+            "type": "string",
+            "description": "MIME type"
+          },
+          "fileSizeBytes": {
+            "type": "number",
+            "description": "File size in bytes"
+          },
+          "storageKey": {
+            "type": "string",
+            "description": "Storage key in MinIO"
+          },
+          "documentId": {
+            "type": "string",
+            "description": "Associated document ID"
+          },
+          "extractionJobId": {
+            "type": "string",
+            "description": "Associated extraction job ID"
+          },
+          "parsedContentLength": {
+            "type": "number",
+            "description": "Parsed content length (characters)"
+          },
+          "errorMessage": {
+            "type": "string",
+            "description": "Error message if failed"
+          },
+          "retryCount": {
+            "type": "number",
+            "description": "Retry count"
+          },
+          "maxRetries": {
+            "type": "number",
+            "description": "Max retries"
+          },
+          "nextRetryAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Next retry timestamp"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Created timestamp"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Started timestamp"
+          },
+          "completedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Completed timestamp"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Updated timestamp"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Job metadata"
+          }
+        },
+        "required": [
+          "id",
+          "organizationId",
+          "projectId",
+          "status",
+          "sourceType",
+          "retryCount",
+          "maxRetries",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "DocumentParsingJobStatsDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number",
+            "description": "Total jobs"
+          },
+          "pending": {
+            "type": "number",
+            "description": "Pending jobs"
+          },
+          "processing": {
+            "type": "number",
+            "description": "Processing jobs"
+          },
+          "completed": {
+            "type": "number",
+            "description": "Completed jobs"
+          },
+          "failed": {
+            "type": "number",
+            "description": "Failed jobs"
+          },
+          "retryPending": {
+            "type": "number",
+            "description": "Retry pending jobs"
+          },
+          "withErrors": {
+            "type": "number",
+            "description": "Jobs with errors"
+          },
+          "totalFileSizeBytes": {
+            "type": "number",
+            "description": "Total file size processed (bytes)"
+          }
+        },
+        "required": [
+          "total",
+          "pending",
+          "processing",
+          "completed",
+          "failed",
+          "retryPending",
+          "withErrors",
+          "totalFileSizeBytes"
+        ]
+      },
+      "ListDocumentParsingJobsResponseDto": {
+        "type": "object",
+        "properties": {
+          "jobs": {
+            "description": "List of jobs",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DocumentParsingJobDto"
+            }
+          },
+          "stats": {
+            "description": "Job statistics",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DocumentParsingJobStatsDto"
+              }
+            ]
+          },
+          "meta": {
+            "description": "Pagination metadata",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaginationMetaDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "jobs",
+          "stats",
+          "meta"
+        ]
+      },
+      "DeleteDocumentParsingJobsDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "description": "Job IDs to delete",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
+      "DeleteDocumentParsingJobsResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Success status"
+          },
+          "deletedCount": {
+            "type": "number",
+            "description": "Number of jobs deleted"
+          },
+          "message": {
+            "type": "string",
+            "description": "Result message"
+          }
+        },
+        "required": [
+          "success",
+          "deletedCount",
+          "message"
+        ]
+      },
+      "RetryDocumentParsingJobsDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "description": "Job IDs to retry",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
+      "RetryDocumentParsingJobsResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Success status"
+          },
+          "retriedCount": {
+            "type": "number",
+            "description": "Number of jobs queued for retry"
+          },
+          "message": {
+            "type": "string",
+            "description": "Result message"
+          }
+        },
+        "required": [
+          "success",
+          "retriedCount",
+          "message"
         ]
       },
       "EmailTemplateListItemDto": {

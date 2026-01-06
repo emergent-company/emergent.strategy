@@ -1889,7 +1889,12 @@ paths:
   /chat-ui/conversations:
     get:
       operationId: getConversations
-      parameters: []
+      parameters:
+        - name: x-project-id
+          required: true
+          in: header
+          schema:
+            type: string
       responses:
         '200':
           description: List user conversations
@@ -1904,6 +1909,11 @@ paths:
           in: path
           schema:
             type: string
+        - name: x-project-id
+          required: true
+          in: header
+          schema:
+            type: string
       responses:
         '200':
           description: Get conversation details
@@ -1914,6 +1924,11 @@ paths:
         - name: id
           required: true
           in: path
+          schema:
+            type: string
+        - name: x-project-id
+          required: true
+          in: header
           schema:
             type: string
       responses:
@@ -1928,6 +1943,11 @@ paths:
           in: path
           schema:
             type: string
+        - name: x-project-id
+          required: true
+          in: header
+          schema:
+            type: string
       responses:
         '200':
           description: Delete conversation
@@ -1939,6 +1959,11 @@ paths:
         - name: id
           required: true
           in: path
+          schema:
+            type: string
+        - name: x-project-id
+          required: true
+          in: header
           schema:
             type: string
         - name: limit
@@ -1964,6 +1989,11 @@ paths:
           in: path
           schema:
             type: string
+        - name: x-project-id
+          required: true
+          in: header
+          schema:
+            type: string
       responses:
         '200':
           description: Update conversation draft text
@@ -1975,6 +2005,11 @@ paths:
         - name: id
           required: true
           in: path
+          schema:
+            type: string
+        - name: x-project-id
+          required: true
+          in: header
           schema:
             type: string
       responses:
@@ -2710,6 +2745,56 @@ paths:
                     code: internal
                     message: Unexpected error
       tags: *ref_10
+  /documents/{id}/download:
+    get:
+      operationId: downloadFile
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Document UUID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Redirect to signed download URL for original file
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_10
   /documents/{id}/deletion-impact:
     get:
       operationId: getDeletionImpact
@@ -2853,6 +2938,70 @@ paths:
                         example: sentence
                       config:
                         type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_10
+  /documents/{id}/retry-conversion:
+    post:
+      operationId: retryConversion
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Document UUID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Retry document conversion for a failed document
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  jobId:
+                    type: string
+                    format: uuid
+                  message:
+                    type: string
+                    example: Conversion retry started
         '400':
           description: Bad request
           content:
@@ -3224,6 +3373,260 @@ paths:
                     code: internal
                     message: Unexpected error
       tags: *ref_11
+  /document-parsing-jobs/upload:
+    post:
+      operationId: uploadDocument
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Document file to upload and parse
+                autoExtract:
+                  type: boolean
+                  description: Automatically trigger object extraction after parsing
+      responses:
+        '200':
+          description: Document uploaded (parsing job created if conversion needed)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentUploadResponseDto'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: &ref_12
+        - Document Parsing
+  /document-parsing-jobs/{id}:
+    get:
+      operationId: getJob
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Parsing job UUID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Document parsing job details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentParsingJobResponseDto'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_12
+  /document-parsing-jobs:
+    get:
+      operationId: listJobs
+      parameters:
+        - name: status
+          required: false
+          in: query
+          description: Filter by status
+          schema:
+            enum:
+              - pending
+              - processing
+              - completed
+              - failed
+              - retry_pending
+            type: string
+        - name: projectId
+          required: false
+          in: query
+          description: Filter by project ID
+          schema:
+            type: string
+        - name: limit
+          required: false
+          in: query
+          description: Number of results to return
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            type: number
+        - name: offset
+          required: false
+          in: query
+          description: Number of results to skip
+          schema:
+            minimum: 0
+            default: 0
+            type: number
+      responses:
+        '200':
+          description: List of document parsing jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DocumentParsingJobResponseDto'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_12
+  /document-parsing-jobs/{id}/download:
+    get:
+      operationId: downloadFile
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Parsing job UUID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Redirect to signed download URL
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_12
   /ingest/upload:
     post:
       operationId: upload
@@ -3283,7 +3686,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_12
+      tags: &ref_13
         - Ingestion
   /ingest/url:
     post:
@@ -3344,7 +3747,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_12
+      tags: *ref_13
   /ingest/upload-batch:
     post:
       operationId: uploadBatch
@@ -3465,7 +3868,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_12
+      tags: *ref_13
   /admin/extraction-jobs:
     post:
       operationId: createJob
@@ -3491,9 +3894,9 @@ paths:
           description: Invalid request data
         '401':
           description: Unauthorized
-      tags: &ref_13
+      tags: &ref_14
         - Extraction Jobs
-      security: &ref_14
+      security: &ref_15
         - bearer: []
   /admin/extraction-jobs/projects/{projectId}:
     get:
@@ -3562,8 +3965,8 @@ paths:
                 $ref: '#/components/schemas/ExtractionJobListDto'
         '401':
           description: Unauthorized
-      tags: *ref_13
-      security: *ref_14
+      tags: *ref_14
+      security: *ref_15
   /admin/extraction-jobs/{jobId}:
     get:
       operationId: getJob
@@ -3587,8 +3990,8 @@ paths:
           description: Unauthorized
         '404':
           description: Job not found
-      tags: *ref_13
-      security: *ref_14
+      tags: *ref_14
+      security: *ref_15
     patch:
       operationId: updateJob
       summary: Update extraction job
@@ -3619,8 +4022,8 @@ paths:
           description: Unauthorized
         '404':
           description: Job not found
-      tags: *ref_13
-      security: *ref_14
+      tags: *ref_14
+      security: *ref_15
     delete:
       operationId: deleteJob
       summary: Delete extraction job
@@ -3641,8 +4044,8 @@ paths:
           description: Unauthorized
         '404':
           description: Job not found
-      tags: *ref_13
-      security: *ref_14
+      tags: *ref_14
+      security: *ref_15
   /admin/extraction-jobs/{jobId}/retry:
     post:
       operationId: retryJob
@@ -3670,8 +4073,8 @@ paths:
           description: Unauthorized
         '404':
           description: Job not found
-      tags: *ref_13
-      security: *ref_14
+      tags: *ref_14
+      security: *ref_15
   /admin/extraction-jobs/{jobId}/cancel:
     post:
       operationId: cancelJob
@@ -3697,8 +4100,8 @@ paths:
           description: Unauthorized
         '404':
           description: Job not found
-      tags: *ref_13
-      security: *ref_14
+      tags: *ref_14
+      security: *ref_15
   /admin/extraction-jobs/projects/{projectId}/bulk-cancel:
     post:
       operationId: bulkCancelJobs
@@ -3727,8 +4130,8 @@ paths:
                     example: Cancelled 5 jobs
         '401':
           description: Unauthorized
-      tags: *ref_13
-      security: *ref_14
+      tags: *ref_14
+      security: *ref_15
   /admin/extraction-jobs/projects/{projectId}/bulk-delete:
     delete:
       operationId: bulkDeleteJobs
@@ -3757,8 +4160,8 @@ paths:
                     example: Deleted 10 jobs
         '401':
           description: Unauthorized
-      tags: *ref_13
-      security: *ref_14
+      tags: *ref_14
+      security: *ref_15
   /admin/extraction-jobs/projects/{projectId}/bulk-retry:
     post:
       operationId: bulkRetryJobs
@@ -3787,8 +4190,8 @@ paths:
                     example: Retrying 3 jobs
         '401':
           description: Unauthorized
-      tags: *ref_13
-      security: *ref_14
+      tags: *ref_14
+      security: *ref_15
   /admin/extraction-jobs/projects/{projectId}/statistics:
     get:
       operationId: getStatistics
@@ -3838,8 +4241,8 @@ paths:
                     example: 15
         '401':
           description: Unauthorized
-      tags: *ref_13
-      security: *ref_14
+      tags: *ref_14
+      security: *ref_15
   /admin/extraction-jobs/_debug/available-models:
     get:
       operationId: listAvailableModels
@@ -3882,8 +4285,8 @@ paths:
                           type: number
         '500':
           description: Failed to fetch models from API
-      tags: *ref_13
-      security: *ref_14
+      tags: *ref_14
+      security: *ref_15
   /admin/extraction-jobs/{jobId}/logs:
     get:
       operationId: getExtractionLogs
@@ -3982,8 +4385,8 @@ paths:
           description: Access denied to this extraction job
         '404':
           description: Extraction job not found
-      tags: *ref_13
-      security: *ref_14
+      tags: *ref_14
+      security: *ref_15
   /graph/objects:
     post:
       operationId: create
@@ -4000,7 +4403,7 @@ paths:
           description: Created
         '400':
           description: Validation error
-      tags: &ref_15
+      tags: &ref_16
         - Graph
   /graph/objects/search:
     get:
@@ -4076,7 +4479,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_15
+      tags: *ref_16
   /graph/objects/fts:
     get:
       operationId: ftsSearch
@@ -4115,7 +4518,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_15
+      tags: *ref_16
   /graph/objects/tags:
     get:
       operationId: getTags
@@ -4130,7 +4533,7 @@ paths:
                 type: array
                 items:
                   type: string
-      tags: *ref_15
+      tags: *ref_16
   /graph/objects/{id}:
     get:
       operationId: get
@@ -4159,7 +4562,7 @@ paths:
           description: ''
         '404':
           description: Not found
-      tags: *ref_15
+      tags: *ref_16
     patch:
       operationId: patch
       summary: Patch (create new version) of a graph object
@@ -4182,7 +4585,7 @@ paths:
           description: No effective change
         '404':
           description: Not found
-      tags: *ref_15
+      tags: *ref_16
     delete:
       operationId: deleteObject
       summary: Soft delete (tombstone) an object (creates new version with deleted_at)
@@ -4195,7 +4598,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_15
+      tags: *ref_16
   /graph/objects/bulk-update-status:
     post:
       operationId: bulkUpdateStatus
@@ -4236,7 +4639,7 @@ paths:
                           type: boolean
                         error:
                           type: string
-      tags: *ref_15
+      tags: *ref_16
   /graph/objects/{id}/restore:
     post:
       operationId: restoreObject
@@ -4250,7 +4653,7 @@ paths:
       responses:
         '201':
           description: Restored (new version created)
-      tags: *ref_15
+      tags: *ref_16
   /graph/objects/{id}/history:
     get:
       operationId: history
@@ -4280,7 +4683,7 @@ paths:
                 $ref: '#/components/schemas/ObjectHistoryResponseDto'
         '404':
           description: Not found
-      tags: *ref_15
+      tags: *ref_16
   /graph/relationships:
     post:
       operationId: createRel
@@ -4297,7 +4700,7 @@ paths:
       responses:
         '201':
           description: ''
-      tags: *ref_15
+      tags: *ref_16
   /graph/relationships/{id}:
     get:
       operationId: getRel
@@ -4311,7 +4714,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_15
+      tags: *ref_16
     patch:
       operationId: patchRel
       summary: Patch (create new version) of a relationship (only head version allowed)
@@ -4330,7 +4733,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_15
+      tags: *ref_16
     delete:
       operationId: deleteRel
       summary: Soft delete a relationship (tombstone version)
@@ -4343,7 +4746,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_15
+      tags: *ref_16
   /graph/relationships/search:
     get:
       operationId: searchRels
@@ -4391,7 +4794,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_15
+      tags: *ref_16
   /graph/relationships/{id}/restore:
     post:
       operationId: restoreRel
@@ -4405,7 +4808,7 @@ paths:
       responses:
         '201':
           description: Restored (new version created)
-      tags: *ref_15
+      tags: *ref_16
   /graph/relationships/{id}/history:
     get:
       operationId: historyRel
@@ -4433,7 +4836,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RelationshipHistoryResponseDto'
-      tags: *ref_15
+      tags: *ref_16
   /graph/objects/{id}/edges:
     get:
       operationId: edges
@@ -4457,7 +4860,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_15
+      tags: *ref_16
   /graph/traverse:
     post:
       operationId: traverse
@@ -4472,7 +4875,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_15
+      tags: *ref_16
   /graph/expand:
     post:
       operationId: expand
@@ -4489,7 +4892,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_15
+      tags: *ref_16
   /graph/objects/vector-search:
     post:
       operationId: vectorSearch
@@ -4509,7 +4912,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_15
+      tags: *ref_16
   /graph/objects/{id}/similar:
     get:
       operationId: similar
@@ -4596,7 +4999,7 @@ paths:
       responses:
         '200':
           description: ''
-      tags: *ref_15
+      tags: *ref_16
   /graph/search-with-neighbors:
     post:
       operationId: searchWithNeighbors
@@ -4674,7 +5077,7 @@ paths:
                       type: array
                       items:
                         type: object
-      tags: *ref_15
+      tags: *ref_16
   /graph/embedding-policies:
     post:
       operationId: createEmbeddingPolicy
@@ -4695,7 +5098,7 @@ paths:
                 $ref: '#/components/schemas/EmbeddingPolicyResponseDto'
         '400':
           description: Validation error or duplicate policy
-      tags: *ref_15
+      tags: *ref_16
     get:
       operationId: listEmbeddingPolicies
       summary: List all embedding policies for a project
@@ -4721,7 +5124,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/EmbeddingPolicyResponseDto'
-      tags: *ref_15
+      tags: *ref_16
   /graph/embedding-policies/{id}:
     get:
       operationId: getEmbeddingPolicy
@@ -4747,7 +5150,7 @@ paths:
                 $ref: '#/components/schemas/EmbeddingPolicyResponseDto'
         '404':
           description: Policy not found
-      tags: *ref_15
+      tags: *ref_16
     patch:
       operationId: updateEmbeddingPolicy
       summary: Update an embedding policy
@@ -4780,7 +5183,7 @@ paths:
           description: Validation error
         '404':
           description: Policy not found
-      tags: *ref_15
+      tags: *ref_16
     delete:
       operationId: deleteEmbeddingPolicy
       summary: Delete an embedding policy
@@ -4801,7 +5204,7 @@ paths:
           description: Policy deleted
         '404':
           description: Policy not found
-      tags: *ref_15
+      tags: *ref_16
   /graph/branches/{targetBranchId}/merge:
     post:
       operationId: mergeDryRun
@@ -4838,7 +5241,7 @@ paths:
           description: Missing sourceBranchId or validation error
         '404':
           description: Branch not found
-      tags: *ref_15
+      tags: *ref_16
   /graph/embeddings/object/{id}/status:
     get:
       operationId: getEmbeddingJobStatus
@@ -4890,7 +5293,7 @@ paths:
                     format: date-time
         '404':
           description: No active job found for this object
-      tags: &ref_16
+      tags: &ref_17
         - Graph
   /graph/embeddings/object/{id}:
     post:
@@ -4917,7 +5320,7 @@ paths:
           description: Embedding job created or found
         '404':
           description: Object not found
-      tags: *ref_16
+      tags: *ref_17
   /graph/embeddings/batch:
     post:
       operationId: triggerEmbeddingsBatch
@@ -4940,7 +5343,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EmbeddingJobResponseDto'
-      tags: *ref_16
+      tags: *ref_17
   /graph/embeddings/regenerate-project:
     post:
       operationId: triggerEmbeddingsProject
@@ -4966,7 +5369,7 @@ paths:
                 $ref: '#/components/schemas/EmbeddingJobResponseDto'
         '400':
           description: Invalid project ID
-      tags: *ref_16
+      tags: *ref_17
   /graph/branches:
     post:
       operationId: create
@@ -5014,7 +5417,7 @@ paths:
                   error:
                     code: product_version_name_exists
                     message: Name already exists
-      tags: &ref_17
+      tags: &ref_18
         - Product Versions
     get:
       operationId: list
@@ -5048,7 +5451,7 @@ paths:
                       member_count: 42
                       base_product_version_id: null
                   next_cursor: '2025-01-01T00:00:00Z'
-      tags: *ref_17
+      tags: *ref_18
   /product-versions/{id}:
     get:
       operationId: get
@@ -5061,7 +5464,7 @@ paths:
       responses:
         '200':
           description: Get product version snapshot
-      tags: *ref_17
+      tags: *ref_18
   /product-versions/{id}/diff/{otherId}:
     get:
       operationId: diff
@@ -5093,7 +5496,7 @@ paths:
                     removed: 2
                     modified: 10
                     unchanged: 100
-      tags: *ref_17
+      tags: *ref_18
   /tags:
     post:
       operationId: create
@@ -5125,7 +5528,7 @@ paths:
                   error:
                     code: tag_name_exists
                     message: Tag name already exists
-      tags: &ref_18
+      tags: &ref_19
         - Tags
     get:
       operationId: list
@@ -5156,7 +5559,7 @@ paths:
                       description: null
                       created_at: '2025-09-30T00:00:00Z'
                   next_cursor: '2025-09-30T00:00:00Z'
-      tags: *ref_18
+      tags: *ref_19
   /tags/{id}:
     get:
       operationId: get
@@ -5171,7 +5574,7 @@ paths:
           description: Get tag by ID
         '404':
           description: Tag not found
-      tags: *ref_18
+      tags: *ref_19
     put:
       operationId: update
       parameters:
@@ -5191,7 +5594,7 @@ paths:
           description: Update tag
         '404':
           description: Tag not found
-      tags: *ref_18
+      tags: *ref_19
     delete:
       operationId: delete
       parameters:
@@ -5205,7 +5608,7 @@ paths:
           description: Tag deleted
         '404':
           description: Tag not found
-      tags: *ref_18
+      tags: *ref_19
   /tags/by-name/{name}:
     get:
       operationId: getByName
@@ -5220,7 +5623,7 @@ paths:
           description: Get tag by name
         '404':
           description: Tag not found
-      tags: *ref_18
+      tags: *ref_19
   /type-registry/projects/{projectId}:
     get:
       operationId: getProjectTypes
@@ -5443,9 +5846,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_19
+      tags: &ref_20
         - Tasks
-      security: &ref_20
+      security: &ref_21
         - bearer: []
   /tasks/counts:
     get:
@@ -5497,8 +5900,135 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_20
+      security: *ref_21
+  /tasks/all:
+    get:
+      operationId: getAllTasks
+      summary: Get tasks across all projects the user has access to
+      description: >-
+        Returns tasks from all projects the authenticated user can access, with
+        project name included for each task.
+      parameters:
+        - name: status
+          required: false
+          in: query
+          description: Filter by status
+          schema:
+            enum:
+              - pending
+              - accepted
+              - rejected
+              - cancelled
+            type: string
+        - name: type
+          required: false
+          in: query
+          description: Filter by type (e.g., "merge_suggestion")
+          schema:
+            type: string
+        - name: page
+          required: false
+          in: query
+          description: Page number (1-based)
+          schema:
+            type: number
+        - name: limit
+          required: false
+          in: query
+          description: Page size (default 50)
+          schema:
+            type: number
+      responses:
+        '200':
+          description: List of tasks across all accessible projects
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_20
+      security: *ref_21
+  /tasks/all/counts:
+    get:
+      operationId: getAllCounts
+      summary: Get task counts by status across all accessible projects
+      description: >-
+        Returns aggregated task counts from all projects the authenticated user
+        can access.
+      parameters: []
+      responses:
+        '200':
+          description: Aggregated task counts
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_20
+      security: *ref_21
   /tasks/{id}:
     get:
       operationId: getTask
@@ -5549,8 +6079,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_20
+      security: *ref_21
   /tasks/{id}/merge-suggestion:
     get:
       operationId: getMergeSuggestion
@@ -5604,8 +6134,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_20
+      security: *ref_21
   /tasks/{id}/resolve:
     post:
       operationId: resolve
@@ -5666,8 +6196,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_20
+      security: *ref_21
   /tasks/{id}/cancel:
     post:
       operationId: cancel
@@ -5719,8 +6249,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_20
+      security: *ref_21
   /tasks/{id}/merge-chat:
     get:
       operationId: getMergeChat
@@ -5779,8 +6309,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_20
+      security: *ref_21
     post:
       operationId: sendMergeChatMessage
       summary: Send a message to the merge chat
@@ -5847,8 +6377,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_20
+      security: *ref_21
   /tasks/{id}/merge-chat/messages:
     get:
       operationId: getMergeChatMessages
@@ -5905,8 +6435,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_20
+      security: *ref_21
   /tasks/{id}/merge-chat/apply:
     post:
       operationId: applyMergeSuggestion
@@ -5966,8 +6496,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_20
+      security: *ref_21
   /tasks/{id}/merge-chat/reject:
     post:
       operationId: rejectMergeSuggestion
@@ -6025,8 +6555,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_19
-      security: *ref_20
+      tags: *ref_20
+      security: *ref_21
   /notifications:
     get:
       operationId: getNotifications
@@ -6100,9 +6630,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_21
+      tags: &ref_22
         - Notifications
-      security: &ref_22
+      security: &ref_23
         - bearer: []
     delete:
       operationId: clearAll
@@ -6156,8 +6686,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_21
-      security: *ref_22
+      tags: *ref_22
+      security: *ref_23
   /notifications/counts:
     get:
       operationId: getUnreadCounts
@@ -6202,8 +6732,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_21
-      security: *ref_22
+      tags: *ref_22
+      security: *ref_23
   /notifications/stats:
     get:
       operationId: getStats
@@ -6248,8 +6778,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_21
-      security: *ref_22
+      tags: *ref_22
+      security: *ref_23
   /notifications/{id}/read:
     post:
       operationId: markRead
@@ -6300,8 +6830,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_21
-      security: *ref_22
+      tags: *ref_22
+      security: *ref_23
   /notifications/{id}/unread:
     post:
       operationId: markUnread
@@ -6352,8 +6882,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_21
-      security: *ref_22
+      tags: *ref_22
+      security: *ref_23
   /notifications/{id}/dismiss:
     post:
       operationId: dismiss
@@ -6404,8 +6934,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_21
-      security: *ref_22
+      tags: *ref_22
+      security: *ref_23
   /notifications/{id}:
     delete:
       operationId: clear
@@ -6456,8 +6986,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_21
-      security: *ref_22
+      tags: *ref_22
+      security: *ref_23
   /notifications/{id}/unclear:
     post:
       operationId: unclear
@@ -6508,8 +7038,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_21
-      security: *ref_22
+      tags: *ref_22
+      security: *ref_23
   /notifications/{id}/snooze:
     post:
       operationId: snooze
@@ -6566,8 +7096,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_21
-      security: *ref_22
+      tags: *ref_22
+      security: *ref_23
   /notifications/{id}/unsnooze:
     post:
       operationId: unsnooze
@@ -6618,8 +7148,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_21
-      security: *ref_22
+      tags: *ref_22
+      security: *ref_23
   /notifications/{id}/resolve:
     post:
       operationId: resolve
@@ -6674,8 +7204,93 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_21
-      security: *ref_22
+      tags: *ref_22
+      security: *ref_23
+  /user/orgs-and-projects:
+    get:
+      operationId: getOrgsAndProjects
+      summary: Get user access tree (organizations and projects with roles)
+      description: >-
+        Returns hierarchical access tree with orgs and nested projects,
+        including user roles at each level
+      parameters: []
+      responses:
+        '200':
+          description: Access tree retrieved successfully
+          schema:
+            example:
+              - id: 550e8400-e29b-41d4-a716-446655440000
+                name: Acme Corp
+                role: org_admin
+                projects:
+                  - id: 550e8400-e29b-41d4-a716-446655440001
+                    name: Product Docs
+                    orgId: 550e8400-e29b-41d4-a716-446655440000
+                    role: project_admin
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrgWithProjectsDto'
+        '401':
+          description: Unauthorized
+      tags: &ref_24
+        - user
+      security: &ref_25
+        - bearer: []
+  /user/delete-account:
+    post:
+      operationId: deleteAccount
+      summary: Delete user account and all data
+      parameters: []
+      responses:
+        '200':
+          description: Account deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  deleted:
+                    type: object
+                    properties:
+                      organizations:
+                        type: number
+                      projects:
+                        type: number
+                      documents:
+                        type: number
+                      chunks:
+                        type: number
+                      embeddings:
+                        type: number
+                      extractionJobs:
+                        type: number
+                      graphObjects:
+                        type: number
+                      integrations:
+                        type: number
+                  duration_ms:
+                    type: number
+        '401':
+          description: Unauthorized
+      tags: *ref_24
+      security: *ref_25
+  /user/test-cleanup:
+    post:
+      operationId: testCleanup
+      summary: Clean up test user data (test environments only)
+      parameters: []
+      responses:
+        '200':
+          description: Test data cleaned up successfully
+        '403':
+          description: Forbidden - not a test environment or test user
+      tags: *ref_24
+      security: *ref_25
   /monitoring/extraction-jobs:
     get:
       operationId: listExtractionJobs
@@ -6739,9 +7354,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ResourceListResponseDto'
-      tags: &ref_23
+      tags: &ref_26
         - monitoring
-      security: &ref_24
+      security: &ref_27
         - bearer: []
   /monitoring/extraction-jobs/{id}:
     get:
@@ -6762,8 +7377,8 @@ paths:
                 $ref: '#/components/schemas/ResourceDetailResponseDto'
         '404':
           description: Job not found
-      tags: *ref_23
-      security: *ref_24
+      tags: *ref_26
+      security: *ref_27
   /monitoring/extraction-jobs/{id}/logs:
     get:
       operationId: getExtractionJobLogs
@@ -6815,8 +7430,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/LogEntryDto'
-      tags: *ref_23
-      security: *ref_24
+      tags: *ref_26
+      security: *ref_27
   /monitoring/extraction-jobs/{id}/llm-calls:
     get:
       operationId: getExtractionJobLLMCalls
@@ -6836,8 +7451,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/LLMCallDto'
-      tags: *ref_23
-      security: *ref_24
+      tags: *ref_26
+      security: *ref_27
   /prompts/{name}:
     get:
       operationId: getPrompt
@@ -6860,7 +7475,7 @@ paths:
                 $ref: '#/components/schemas/PromptResponse'
         '404':
           description: Prompt not found
-      tags: &ref_25
+      tags: &ref_28
         - Prompts
     put:
       operationId: updatePrompt
@@ -6885,7 +7500,7 @@ paths:
           description: Prompt updated successfully
         '400':
           description: Invalid request
-      tags: *ref_25
+      tags: *ref_28
   /objects/{objectId}/refinement-chat:
     get:
       operationId: getOrCreateConversation
@@ -6910,7 +7525,7 @@ paths:
           description: Access denied
         '404':
           description: Object not found
-      tags: &ref_26
+      tags: &ref_29
         - Object Refinement
     post:
       operationId: sendMessage
@@ -6948,7 +7563,7 @@ paths:
           description: Access denied
         '404':
           description: Object not found
-      tags: *ref_26
+      tags: *ref_29
   /objects/{objectId}/refinement-chat/apply:
     post:
       operationId: applySuggestion
@@ -6981,7 +7596,7 @@ paths:
           description: Access denied
         '404':
           description: Object or suggestion not found
-      tags: *ref_26
+      tags: *ref_29
   /objects/{objectId}/refinement-chat/reject:
     post:
       operationId: rejectSuggestion
@@ -7015,7 +7630,7 @@ paths:
           description: Access denied
         '404':
           description: Suggestion not found
-      tags: *ref_26
+      tags: *ref_29
   /objects/{objectId}/refinement-chat/messages:
     get:
       operationId: getMessages
@@ -7038,7 +7653,7 @@ paths:
                   $ref: '#/components/schemas/RefinementChatMessageDto'
         '404':
           description: Conversation not found
-      tags: *ref_26
+      tags: *ref_29
   /search/unified:
     post:
       operationId: search
@@ -7172,7 +7787,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_27
+      tags: &ref_30
         - Chat
     post:
       operationId: createConversation
@@ -7196,7 +7811,7 @@ paths:
                   error:
                     code: bad-request
                     message: message required
-      tags: *ref_27
+      tags: *ref_30
   /chat/{id}:
     get:
       operationId: getConversation
@@ -7254,7 +7869,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_27
+      tags: *ref_30
     patch:
       operationId: rename
       parameters:
@@ -7291,7 +7906,7 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_27
+      tags: *ref_30
     delete:
       operationId: delete
       parameters:
@@ -7318,7 +7933,7 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_27
+      tags: *ref_30
   /chat/{id}/stream:
     get:
       operationId: streamGet
@@ -7389,7 +8004,7 @@ paths:
                   error:
                     code: not-found
                     message: Conversation not found
-      tags: *ref_27
+      tags: *ref_30
   /chat/stream:
     post:
       operationId: streamPost
@@ -7487,7 +8102,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_27
+      tags: *ref_30
   /discovery-jobs/projects/{projectId}/start:
     post:
       operationId: startDiscovery
@@ -7560,9 +8175,9 @@ paths:
           description: Available integrations retrieved successfully
         '401':
           description: Unauthorized
-      tags: &ref_28
+      tags: &ref_31
         - Integrations
-      security: &ref_29
+      security: &ref_32
         - bearer: []
   /integrations:
     get:
@@ -7575,8 +8190,8 @@ paths:
           description: Integrations retrieved successfully
         '401':
           description: Unauthorized
-      tags: *ref_28
-      security: *ref_29
+      tags: *ref_31
+      security: *ref_32
     post:
       operationId: createIntegration
       summary: Create integration
@@ -7597,8 +8212,8 @@ paths:
           description: Unauthorized
         '409':
           description: Integration already exists for this project
-      tags: *ref_28
-      security: *ref_29
+      tags: *ref_31
+      security: *ref_32
   /integrations/{name}:
     get:
       operationId: getIntegration
@@ -7618,8 +8233,8 @@ paths:
           description: Unauthorized
         '404':
           description: Integration not found
-      tags: *ref_28
-      security: *ref_29
+      tags: *ref_31
+      security: *ref_32
     put:
       operationId: updateIntegration
       summary: Update integration
@@ -7646,8 +8261,8 @@ paths:
           description: Unauthorized
         '404':
           description: Integration not found
-      tags: *ref_28
-      security: *ref_29
+      tags: *ref_31
+      security: *ref_32
     delete:
       operationId: deleteIntegration
       summary: Delete integration
@@ -7666,8 +8281,8 @@ paths:
           description: Unauthorized
         '404':
           description: Integration not found
-      tags: *ref_28
-      security: *ref_29
+      tags: *ref_31
+      security: *ref_32
   /integrations/{name}/public:
     get:
       operationId: getPublicIntegrationInfo
@@ -7687,8 +8302,8 @@ paths:
           description: Unauthorized
         '404':
           description: Integration not found
-      tags: *ref_28
-      security: *ref_29
+      tags: *ref_31
+      security: *ref_32
   /integrations/{name}/test:
     post:
       operationId: testConnection
@@ -7708,8 +8323,8 @@ paths:
           description: Unauthorized
         '404':
           description: Integration not found
-      tags: *ref_28
-      security: *ref_29
+      tags: *ref_31
+      security: *ref_32
   /integrations/{name}/sync/stream:
     get:
       operationId: triggerSyncStream
@@ -7725,8 +8340,8 @@ paths:
       responses:
         '200':
           description: SSE stream started
-      tags: *ref_28
-      security: *ref_29
+      tags: *ref_31
+      security: *ref_32
   /integrations/{name}/sync:
     post:
       operationId: triggerSync
@@ -7748,8 +8363,8 @@ paths:
           description: Unauthorized
         '404':
           description: Integration not found
-      tags: *ref_28
-      security: *ref_29
+      tags: *ref_31
+      security: *ref_32
   /integrations/clickup/structure:
     get:
       operationId: getClickUpWorkspaceStructure
@@ -7765,8 +8380,8 @@ paths:
           description: Unauthorized
         '404':
           description: ClickUp integration not found or not configured
-      tags: *ref_28
-      security: *ref_29
+      tags: *ref_31
+      security: *ref_32
   /integrations/clickup/spaces/{spaceId}:
     get:
       operationId: getClickUpSpace
@@ -7784,8 +8399,8 @@ paths:
           description: Space details retrieved successfully
         '404':
           description: ClickUp integration not found or space not found
-      tags: *ref_28
-      security: *ref_29
+      tags: *ref_31
+      security: *ref_32
   /integrations/clickup/folders/{folderId}:
     get:
       operationId: getClickUpFolder
@@ -7803,8 +8418,8 @@ paths:
           description: Folder details retrieved successfully
         '404':
           description: ClickUp integration not found or folder not found
-      tags: *ref_28
-      security: *ref_29
+      tags: *ref_31
+      security: *ref_32
   /mcp/schema/version:
     get:
       operationId: getSchemaVersion
@@ -7841,9 +8456,9 @@ paths:
                     details:
                       missing:
                         - schema:read
-      tags: &ref_30
+      tags: &ref_33
         - MCP
-      security: &ref_31
+      security: &ref_34
         - bearer: []
   /mcp/schema/changelog:
     get:
@@ -7891,8 +8506,8 @@ paths:
                     details:
                       missing:
                         - schema:read
-      tags: *ref_30
-      security: *ref_31
+      tags: *ref_33
+      security: *ref_34
   /mcp/rpc:
     post:
       operationId: handleRpc
@@ -8060,91 +8675,6 @@ paths:
         - MCP Server (JSON-RPC 2.0)
       security:
         - bearer: []
-  /user/orgs-and-projects:
-    get:
-      operationId: getOrgsAndProjects
-      summary: Get user access tree (organizations and projects with roles)
-      description: >-
-        Returns hierarchical access tree with orgs and nested projects,
-        including user roles at each level
-      parameters: []
-      responses:
-        '200':
-          description: Access tree retrieved successfully
-          schema:
-            example:
-              - id: 550e8400-e29b-41d4-a716-446655440000
-                name: Acme Corp
-                role: org_admin
-                projects:
-                  - id: 550e8400-e29b-41d4-a716-446655440001
-                    name: Product Docs
-                    orgId: 550e8400-e29b-41d4-a716-446655440000
-                    role: project_admin
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/OrgWithProjectsDto'
-        '401':
-          description: Unauthorized
-      tags: &ref_32
-        - user
-      security: &ref_33
-        - bearer: []
-  /user/delete-account:
-    post:
-      operationId: deleteAccount
-      summary: Delete user account and all data
-      parameters: []
-      responses:
-        '200':
-          description: Account deleted successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                  deleted:
-                    type: object
-                    properties:
-                      organizations:
-                        type: number
-                      projects:
-                        type: number
-                      documents:
-                        type: number
-                      chunks:
-                        type: number
-                      embeddings:
-                        type: number
-                      extractionJobs:
-                        type: number
-                      graphObjects:
-                        type: number
-                      integrations:
-                        type: number
-                  duration_ms:
-                    type: number
-        '401':
-          description: Unauthorized
-      tags: *ref_32
-      security: *ref_33
-  /user/test-cleanup:
-    post:
-      operationId: testCleanup
-      summary: Clean up test user data (test environments only)
-      parameters: []
-      responses:
-        '200':
-          description: Test data cleaned up successfully
-        '403':
-          description: Forbidden - not a test environment or test user
-      tags: *ref_32
-      security: *ref_33
   /chat-sdk/conversations:
     post:
       operationId: createConversation
@@ -8162,7 +8692,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CreateConversationResponseDto'
-      tags: &ref_34
+      tags: &ref_35
         - Chat SDK
   /chat-sdk/tools:
     get:
@@ -8175,7 +8705,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ToolDefinitionsResponseDto'
-      tags: *ref_34
+      tags: *ref_35
   /chat-sdk:
     post:
       operationId: chat
@@ -8194,7 +8724,7 @@ paths:
               schema:
                 type: string
                 description: Vercel AI SDK UI Message protocol stream
-      tags: *ref_34
+      tags: *ref_35
   /external-sources/import:
     post:
       operationId: importFromUrl
@@ -8248,7 +8778,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_35
+      tags: &ref_36
         - External Sources
   /external-sources:
     get:
@@ -8322,7 +8852,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_35
+      tags: *ref_36
   /external-sources/{id}:
     get:
       operationId: getById
@@ -8376,7 +8906,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_35
+      tags: *ref_36
     patch:
       operationId: update
       parameters:
@@ -8435,7 +8965,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_35
+      tags: *ref_36
     delete:
       operationId: delete
       parameters:
@@ -8495,7 +9025,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_35
+      tags: *ref_36
   /external-sources/{id}/sync:
     post:
       operationId: triggerSync
@@ -8555,7 +9085,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_35
+      tags: *ref_36
   /user-activity/record:
     post:
       operationId: recordActivity
@@ -8609,9 +9139,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_36
+      tags: &ref_37
         - User Activity
-      security: &ref_37
+      security: &ref_38
         - bearer: []
   /user-activity/recent:
     get:
@@ -8664,8 +9194,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_36
-      security: *ref_37
+      tags: *ref_37
+      security: *ref_38
     delete:
       operationId: clearAllRecentItems
       summary: Clear all recent items
@@ -8710,8 +9240,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_36
-      security: *ref_37
+      tags: *ref_37
+      security: *ref_38
   /user-activity/recent/{type}:
     get:
       operationId: getRecentItemsByType
@@ -8774,8 +9304,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_36
-      security: *ref_37
+      tags: *ref_37
+      security: *ref_38
   /user-activity/recent/{type}/{resourceId}:
     delete:
       operationId: removeRecentItem
@@ -8836,8 +9366,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_36
-      security: *ref_37
+      tags: *ref_37
+      security: *ref_38
   /admin/agents:
     get:
       operationId: listAgents
@@ -8882,9 +9412,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_38
+      tags: &ref_39
         - Agents
-      security: &ref_39
+      security: &ref_40
         - bearer: []
   /admin/agents/{id}:
     get:
@@ -8936,8 +9466,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_38
-      security: *ref_39
+      tags: *ref_39
+      security: *ref_40
     patch:
       operationId: updateAgent
       summary: Update agent configuration
@@ -9002,8 +9532,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_38
-      security: *ref_39
+      tags: *ref_39
+      security: *ref_40
   /admin/agents/{id}/runs:
     get:
       operationId: getAgentRuns
@@ -9054,8 +9584,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_38
-      security: *ref_39
+      tags: *ref_39
+      security: *ref_40
   /admin/agents/{id}/trigger:
     post:
       operationId: triggerAgent
@@ -9106,8 +9636,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_38
-      security: *ref_39
+      tags: *ref_39
+      security: *ref_40
   /events/stream:
     get:
       operationId: stream
@@ -9139,7 +9669,7 @@ paths:
           description: Missing projectId query parameter
         '401':
           description: Unauthorized
-      tags: &ref_40
+      tags: &ref_41
         - Events
       security:
         - bearer: []
@@ -9151,7 +9681,7 @@ paths:
       responses:
         '200':
           description: Connection count
-      tags: *ref_40
+      tags: *ref_41
       security:
         - bearer: []
   /logs/client:
@@ -9252,7 +9782,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_41
+      tags: &ref_42
         - Releases
     post:
       operationId: create
@@ -9281,7 +9811,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_41
+      tags: *ref_42
   /releases/preview:
     post:
       operationId: preview
@@ -9310,7 +9840,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_41
+      tags: *ref_42
   /releases/latest:
     get:
       operationId: getLatest
@@ -9342,7 +9872,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_41
+      tags: *ref_42
   /releases/{version}:
     get:
       operationId: getByVersion
@@ -9381,7 +9911,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_41
+      tags: *ref_42
     delete:
       operationId: deleteRelease
       parameters:
@@ -9415,7 +9945,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_41
+      tags: *ref_42
   /releases/{version}/email-preview:
     get:
       operationId: getEmailPreview
@@ -9467,7 +9997,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_41
+      tags: *ref_42
   /releases/{version}/send:
     post:
       operationId: sendNotifications
@@ -9505,7 +10035,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_41
+      tags: *ref_42
   /user/email-preferences:
     get:
       operationId: getPreferences
@@ -9554,7 +10084,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_42
+      tags: &ref_43
         - UserProfile
     put:
       operationId: updatePreferences
@@ -9609,7 +10139,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_42
+      tags: *ref_43
   /unsubscribe/{token}:
     get:
       operationId: getUnsubscribeInfo
@@ -9632,7 +10162,7 @@ paths:
                 $ref: '#/components/schemas/UnsubscribeInfoDto'
         '404':
           description: Invalid or expired token
-      tags: &ref_43
+      tags: &ref_44
         - Unsubscribe
     post:
       operationId: unsubscribe
@@ -9657,7 +10187,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UnsubscribeResultDto'
-      tags: *ref_43
+      tags: *ref_44
   /superadmin/me:
     get:
       operationId: checkSuperadminStatus
@@ -9674,9 +10204,9 @@ paths:
                 properties:
                   isSuperadmin:
                     type: boolean
-      tags: &ref_44
+      tags: &ref_45
         - superadmin
-      security: &ref_45
+      security: &ref_46
         - bearer: []
   /superadmin/users:
     get:
@@ -9724,8 +10254,8 @@ paths:
                 $ref: '#/components/schemas/ListUsersResponseDto'
         '403':
           description: Superadmin access required
-      tags: *ref_44
-      security: *ref_45
+      tags: *ref_45
+      security: *ref_46
   /superadmin/organizations:
     get:
       operationId: listOrganizations
@@ -9760,8 +10290,8 @@ paths:
                 $ref: '#/components/schemas/ListOrganizationsResponseDto'
         '403':
           description: Superadmin access required
-      tags: *ref_44
-      security: *ref_45
+      tags: *ref_45
+      security: *ref_46
   /superadmin/projects:
     get:
       operationId: listProjects
@@ -9802,8 +10332,8 @@ paths:
                 $ref: '#/components/schemas/ListProjectsResponseDto'
         '403':
           description: Superadmin access required
-      tags: *ref_44
-      security: *ref_45
+      tags: *ref_45
+      security: *ref_46
   /superadmin/email-jobs:
     get:
       operationId: listEmailJobs
@@ -9869,8 +10399,8 @@ paths:
                 $ref: '#/components/schemas/ListEmailJobsResponseDto'
         '403':
           description: Superadmin access required
-      tags: *ref_44
-      security: *ref_45
+      tags: *ref_45
+      security: *ref_46
   /superadmin/email-jobs/{id}/preview:
     get:
       operationId: previewEmailJob
@@ -9893,8 +10423,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Email job not found
-      tags: *ref_44
-      security: *ref_45
+      tags: *ref_45
+      security: *ref_46
   /superadmin/email-jobs/{id}/preview-json:
     get:
       operationId: previewEmailJobJson
@@ -9917,8 +10447,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Email job not found
-      tags: *ref_44
-      security: *ref_45
+      tags: *ref_45
+      security: *ref_46
   /superadmin/users/{id}:
     delete:
       operationId: deleteUser
@@ -9946,8 +10476,8 @@ paths:
           description: Superadmin access required
         '404':
           description: User not found
-      tags: *ref_44
-      security: *ref_45
+      tags: *ref_45
+      security: *ref_46
   /superadmin/organizations/{id}:
     delete:
       operationId: deleteOrganization
@@ -9975,8 +10505,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Organization not found
-      tags: *ref_44
-      security: *ref_45
+      tags: *ref_45
+      security: *ref_46
   /superadmin/projects/{id}:
     delete:
       operationId: deleteProject
@@ -10004,8 +10534,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Project not found
-      tags: *ref_44
-      security: *ref_45
+      tags: *ref_45
+      security: *ref_46
   /superadmin/system-config:
     get:
       operationId: getSystemConfig
@@ -10030,8 +10560,327 @@ paths:
                 $ref: '#/components/schemas/SystemConfigResponseDto'
         '403':
           description: Superadmin access required
-      tags: *ref_44
-      security: *ref_45
+      tags: *ref_45
+      security: *ref_46
+  /superadmin/embedding-jobs:
+    get:
+      operationId: listEmbeddingJobs
+      summary: List embedding jobs
+      description: >-
+        Returns paginated list of embedding jobs (graph and chunk) with optional
+        filters and statistics
+      parameters:
+        - name: page
+          required: false
+          in: query
+          description: Page number (1-indexed)
+          schema:
+            default: 1
+            type: number
+        - name: limit
+          required: false
+          in: query
+          description: Number of items per page
+          schema:
+            default: 20
+            type: number
+        - name: type
+          required: false
+          in: query
+          description: Filter by job type
+          schema:
+            enum:
+              - graph
+              - chunk
+            type: string
+        - name: status
+          required: false
+          in: query
+          description: Filter by status
+          schema:
+            enum:
+              - pending
+              - processing
+              - completed
+              - failed
+            type: string
+        - name: hasError
+          required: false
+          in: query
+          description: Filter by jobs with errors only
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of embedding jobs with stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListEmbeddingJobsResponseDto'
+        '403':
+          description: Superadmin access required
+      tags: *ref_45
+      security: *ref_46
+  /superadmin/embedding-jobs/delete:
+    post:
+      operationId: deleteEmbeddingJobs
+      summary: Delete embedding jobs
+      description: Bulk delete embedding jobs by IDs and type
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteEmbeddingJobsDto'
+      responses:
+        '200':
+          description: Jobs deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteEmbeddingJobsResponseDto'
+        '403':
+          description: Superadmin access required
+      tags: *ref_45
+      security: *ref_46
+  /superadmin/embedding-jobs/cleanup-orphans:
+    post:
+      operationId: cleanupOrphanJobs
+      summary: Cleanup orphan embedding jobs
+      description: Delete all embedding jobs that have object_missing error (orphan jobs)
+      parameters: []
+      responses:
+        '200':
+          description: Orphan jobs cleaned up successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CleanupOrphanJobsResponseDto'
+        '403':
+          description: Superadmin access required
+      tags: *ref_45
+      security: *ref_46
+  /superadmin/extraction-jobs:
+    get:
+      operationId: listExtractionJobs
+      summary: List extraction jobs
+      description: >-
+        Returns paginated list of extraction jobs with optional filters and
+        statistics
+      parameters:
+        - name: page
+          required: false
+          in: query
+          description: Page number (1-indexed)
+          schema:
+            default: 1
+            type: number
+        - name: limit
+          required: false
+          in: query
+          description: Number of items per page
+          schema:
+            default: 20
+            type: number
+        - name: status
+          required: false
+          in: query
+          description: Filter by status
+          schema:
+            enum:
+              - queued
+              - processing
+              - completed
+              - failed
+              - cancelled
+            type: string
+        - name: jobType
+          required: false
+          in: query
+          description: Filter by job type
+          schema:
+            enum:
+              - full_extraction
+              - incremental
+              - reprocessing
+              - chunk_extraction
+            type: string
+        - name: projectId
+          required: false
+          in: query
+          description: Filter by project ID
+          schema:
+            type: string
+        - name: hasError
+          required: false
+          in: query
+          description: Filter by jobs with errors only
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of extraction jobs with stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListExtractionJobsResponseDto'
+        '403':
+          description: Superadmin access required
+      tags: *ref_45
+      security: *ref_46
+  /superadmin/extraction-jobs/delete:
+    post:
+      operationId: deleteExtractionJobs
+      summary: Delete extraction jobs
+      description: Bulk delete extraction jobs by IDs
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteExtractionJobsDto'
+      responses:
+        '200':
+          description: Jobs deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteExtractionJobsResponseDto'
+        '403':
+          description: Superadmin access required
+      tags: *ref_45
+      security: *ref_46
+  /superadmin/extraction-jobs/cancel:
+    post:
+      operationId: cancelExtractionJobs
+      summary: Cancel extraction jobs
+      description: Cancel queued or processing extraction jobs by IDs
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelExtractionJobsDto'
+      responses:
+        '200':
+          description: Jobs cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelExtractionJobsResponseDto'
+        '403':
+          description: Superadmin access required
+      tags: *ref_45
+      security: *ref_46
+  /superadmin/document-parsing-jobs:
+    get:
+      operationId: listDocumentParsingJobs
+      summary: List document parsing jobs
+      description: >-
+        Returns paginated list of document parsing (conversion) jobs with
+        optional filters and statistics
+      parameters:
+        - name: page
+          required: false
+          in: query
+          description: Page number (1-indexed)
+          schema:
+            minimum: 1
+            default: 1
+            type: number
+        - name: limit
+          required: false
+          in: query
+          description: Number of items per page
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            type: number
+        - name: status
+          required: false
+          in: query
+          description: Filter by status
+          schema:
+            enum:
+              - pending
+              - processing
+              - completed
+              - failed
+              - retry_pending
+            type: string
+        - name: projectId
+          required: false
+          in: query
+          description: Filter by project ID
+          schema:
+            type: string
+        - name: hasError
+          required: false
+          in: query
+          description: Filter by jobs with errors
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of document parsing jobs with stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListDocumentParsingJobsResponseDto'
+        '403':
+          description: Superadmin access required
+      tags: *ref_45
+      security: *ref_46
+  /superadmin/document-parsing-jobs/delete:
+    post:
+      operationId: deleteDocumentParsingJobs
+      summary: Delete document parsing jobs
+      description: Bulk delete document parsing jobs by IDs
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteDocumentParsingJobsDto'
+      responses:
+        '200':
+          description: Jobs deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteDocumentParsingJobsResponseDto'
+        '403':
+          description: Superadmin access required
+      tags: *ref_45
+      security: *ref_46
+  /superadmin/document-parsing-jobs/retry:
+    post:
+      operationId: retryDocumentParsingJobs
+      summary: Retry document parsing jobs
+      description: Reset failed jobs to pending status for retry
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RetryDocumentParsingJobsDto'
+      responses:
+        '200':
+          description: Jobs queued for retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetryDocumentParsingJobsResponseDto'
+        '403':
+          description: Superadmin access required
+      tags: *ref_45
+      security: *ref_46
   /superadmin/email-templates:
     get:
       operationId: listTemplates
@@ -10047,9 +10896,9 @@ paths:
                 $ref: '#/components/schemas/ListEmailTemplatesResponseDto'
         '403':
           description: Superadmin access required
-      tags: &ref_46
+      tags: &ref_47
         - superadmin
-      security: &ref_47
+      security: &ref_48
         - bearer: []
   /superadmin/email-templates/{id}:
     get:
@@ -10073,8 +10922,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Template not found
-      tags: *ref_46
-      security: *ref_47
+      tags: *ref_47
+      security: *ref_48
     put:
       operationId: updateTemplate
       summary: Update email template
@@ -10106,8 +10955,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Template not found
-      tags: *ref_46
-      security: *ref_47
+      tags: *ref_47
+      security: *ref_48
   /superadmin/email-templates/{id}/preview:
     post:
       operationId: previewTemplate
@@ -10136,8 +10985,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Template not found
-      tags: *ref_46
-      security: *ref_47
+      tags: *ref_47
+      security: *ref_48
   /superadmin/email-templates/preview-mjml:
     post:
       operationId: previewMjml
@@ -10163,8 +11012,8 @@ paths:
           description: Invalid MJML content
         '403':
           description: Superadmin access required
-      tags: *ref_46
-      security: *ref_47
+      tags: *ref_47
+      security: *ref_48
   /superadmin/email-templates/{id}/versions:
     get:
       operationId: listVersions
@@ -10204,8 +11053,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Template not found
-      tags: *ref_46
-      security: *ref_47
+      tags: *ref_47
+      security: *ref_48
   /superadmin/email-templates/{id}/rollback:
     post:
       operationId: rollbackToVersion
@@ -10234,8 +11083,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Template or version not found
-      tags: *ref_46
-      security: *ref_47
+      tags: *ref_47
+      security: *ref_48
   /superadmin/email-templates/{id}/reset:
     post:
       operationId: resetToDefault
@@ -10260,8 +11109,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Template not found
-      tags: *ref_46
-      security: *ref_47
+      tags: *ref_47
+      security: *ref_48
   /superadmin/email-templates/{id}/refinement-chat:
     get:
       operationId: getRefinementConversation
@@ -10286,8 +11135,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Template not found
-      tags: *ref_46
-      security: *ref_47
+      tags: *ref_47
+      security: *ref_48
     post:
       operationId: sendRefinementMessage
       summary: Send message to refinement chat
@@ -10313,8 +11162,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Template not found
-      tags: *ref_46
-      security: *ref_47
+      tags: *ref_47
+      security: *ref_48
   /superadmin/email-templates/{id}/refinement-chat/apply:
     post:
       operationId: applySuggestion
@@ -10347,8 +11196,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Template not found
-      tags: *ref_46
-      security: *ref_47
+      tags: *ref_47
+      security: *ref_48
 info:
   title: Spec Server API
   description: >-
@@ -11096,6 +11945,41 @@ components:
           nullable: true
           example: 15
           description: Number of objects extracted in the most recent extraction job
+        conversionStatus:
+          type: string
+          nullable: true
+          example: completed
+          description: >-
+            Status of document conversion (text extraction): pending,
+            processing, completed, failed, not_required
+          enum:
+            - pending
+            - processing
+            - completed
+            - failed
+            - not_required
+        conversionError:
+          type: object
+          nullable: true
+          example: The file format is not supported for text extraction
+          description: >-
+            Human-friendly error message explaining why conversion failed (only
+            set when status is failed)
+        conversionCompletedAt:
+          type: object
+          nullable: true
+          example: '2025-01-01T00:05:00.000Z'
+          description: Timestamp when conversion was completed (success or failure)
+        storageKey:
+          type: object
+          nullable: true
+          example: documents/abc123/original.pdf
+          description: Storage key for the original uploaded file in MinIO
+        fileSizeBytes:
+          type: object
+          nullable: true
+          example: 1048576
+          description: Size of the original file in bytes
       required:
         - id
         - name
@@ -11169,13 +12053,13 @@ components:
           type: string
           description: Deletion status
           example: deleted
-          enum: &ref_48
+          enum: &ref_49
             - deleted
             - partial
         summary:
           type: object
           description: Summary of deleted entities
-          example: &ref_49
+          example: &ref_50
             chunks: 42
             extractionJobs: 3
             graphObjects: 15
@@ -11191,11 +12075,11 @@ components:
           type: string
           description: Deletion status
           example: deleted
-          enum: *ref_48
+          enum: *ref_49
         summary:
           type: object
           description: Summary of deleted entities
-          example: *ref_49
+          example: *ref_50
         deleted:
           type: number
           description: Number of documents successfully deleted
@@ -11259,6 +12143,92 @@ components:
         - size
         - hasEmbedding
         - text
+    DocumentParsingJobResponseDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Job ID
+        organizationId:
+          type: string
+          description: Organization ID
+        projectId:
+          type: string
+          description: Project ID
+        status:
+          type: string
+          description: Job status
+          enum:
+            - pending
+            - processing
+            - completed
+            - failed
+            - retry_pending
+        sourceType:
+          type: string
+          description: Source type
+          enum:
+            - upload
+            - url
+        sourceFilename:
+          type: object
+          description: Original filename
+        mimeType:
+          type: object
+          description: MIME type
+        fileSizeBytes:
+          type: object
+          description: File size in bytes
+        documentId:
+          type: object
+          description: Document ID
+        errorMessage:
+          type: object
+          description: Error message
+        retryCount:
+          type: number
+          description: Retry count
+        createdAt:
+          format: date-time
+          type: string
+          description: Created timestamp
+        startedAt:
+          type: object
+          description: Started timestamp
+        completedAt:
+          type: object
+          description: Completed timestamp
+        updatedAt:
+          format: date-time
+          type: string
+          description: Updated timestamp
+      required:
+        - id
+        - organizationId
+        - projectId
+        - status
+        - sourceType
+        - createdAt
+        - updatedAt
+    DocumentUploadResponseDto:
+      type: object
+      properties:
+        document:
+          type: object
+          description: The created document
+        isDuplicate:
+          type: boolean
+          description: Whether this was a duplicate file (same file already uploaded)
+        existingDocumentId:
+          type: string
+          description: ID of existing document if duplicate
+        parsingJob:
+          description: The parsing job (if conversion is required)
+          allOf:
+            - $ref: '#/components/schemas/DocumentParsingJobResponseDto'
+      required:
+        - document
+        - isDuplicate
     ChunkingOptionsDto:
       type: object
       properties:
@@ -11300,7 +12270,7 @@ components:
           description: >-
             Chunking strategy for splitting text into chunks. Options: character
             (default), sentence, paragraph
-          enum: &ref_50
+          enum: &ref_51
             - character
             - sentence
             - paragraph
@@ -11332,7 +12302,7 @@ components:
           description: >-
             Chunking strategy for splitting text into chunks. Options: character
             (default), sentence, paragraph
-          enum: *ref_50
+          enum: *ref_51
           default: character
           example: sentence
         chunkingOptions:
@@ -12575,6 +13545,34 @@ components:
           description: ISO 8601 datetime string for snooze until time
       required:
         - until
+    OrgWithProjectsDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Organization UUID
+          example: 550e8400-e29b-41d4-a716-446655440000
+        name:
+          type: string
+          description: Organization name
+          example: Acme Corp
+        role:
+          type: string
+          description: User role in organization
+          example: org_admin
+          enum:
+            - org_admin
+            - org_member
+        projects:
+          description: Projects within organization that user has access to
+          items:
+            type: array
+          type: array
+      required:
+        - id
+        - name
+        - role
+        - projects
     ExtractionJobResourceDto:
       type: object
       properties:
@@ -13684,34 +14682,6 @@ components:
         - version
         - schema_hash
         - created_at
-    OrgWithProjectsDto:
-      type: object
-      properties:
-        id:
-          type: string
-          description: Organization UUID
-          example: 550e8400-e29b-41d4-a716-446655440000
-        name:
-          type: string
-          description: Organization name
-          example: Acme Corp
-        role:
-          type: string
-          description: User role in organization
-          example: org_admin
-          enum:
-            - org_admin
-            - org_member
-        projects:
-          description: Projects within organization that user has access to
-          items:
-            type: array
-          type: array
-      required:
-        - id
-        - name
-        - role
-        - projects
     CreateConversationDto:
       type: object
       properties:
@@ -14943,6 +15913,488 @@ components:
         - externalServices
         - deployment
         - environmentVariables
+    EmbeddingJobDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Job ID
+        type:
+          type: string
+          description: Job type
+          enum:
+            - graph
+            - chunk
+        targetId:
+          type: string
+          description: Object or Chunk ID being embedded
+        status:
+          type: string
+          description: Job status
+          enum:
+            - pending
+            - processing
+            - completed
+            - failed
+        attemptCount:
+          type: number
+          description: Number of processing attempts
+        lastError:
+          type: string
+          description: Last error message if any
+        priority:
+          type: number
+          description: Job priority
+        scheduledAt:
+          format: date-time
+          type: string
+          description: When the job is scheduled to run
+        startedAt:
+          format: date-time
+          type: string
+          description: When processing started
+        completedAt:
+          format: date-time
+          type: string
+          description: When processing completed
+        createdAt:
+          format: date-time
+          type: string
+          description: When the job was created
+        updatedAt:
+          format: date-time
+          type: string
+          description: When the job was last updated
+      required:
+        - id
+        - type
+        - targetId
+        - status
+        - attemptCount
+        - priority
+        - scheduledAt
+        - createdAt
+        - updatedAt
+    EmbeddingJobStatsDto:
+      type: object
+      properties:
+        graphTotal:
+          type: number
+          description: Total graph jobs
+        graphPending:
+          type: number
+          description: Pending graph jobs
+        graphCompleted:
+          type: number
+          description: Completed graph jobs
+        graphFailed:
+          type: number
+          description: Failed graph jobs
+        graphWithErrors:
+          type: number
+          description: Graph jobs with errors
+        chunkTotal:
+          type: number
+          description: Total chunk jobs
+        chunkPending:
+          type: number
+          description: Pending chunk jobs
+        chunkCompleted:
+          type: number
+          description: Completed chunk jobs
+        chunkFailed:
+          type: number
+          description: Failed chunk jobs
+        chunkWithErrors:
+          type: number
+          description: Chunk jobs with errors
+      required:
+        - graphTotal
+        - graphPending
+        - graphCompleted
+        - graphFailed
+        - graphWithErrors
+        - chunkTotal
+        - chunkPending
+        - chunkCompleted
+        - chunkFailed
+        - chunkWithErrors
+    ListEmbeddingJobsResponseDto:
+      type: object
+      properties:
+        jobs:
+          description: List of embedding jobs
+          type: array
+          items:
+            $ref: '#/components/schemas/EmbeddingJobDto'
+        stats:
+          description: Job statistics
+          allOf:
+            - $ref: '#/components/schemas/EmbeddingJobStatsDto'
+        meta:
+          description: Pagination metadata
+          allOf:
+            - $ref: '#/components/schemas/PaginationMetaDto'
+      required:
+        - jobs
+        - stats
+        - meta
+    DeleteEmbeddingJobsDto:
+      type: object
+      properties:
+        ids:
+          description: Job IDs to delete
+          type: array
+          items:
+            type: string
+        type:
+          type: string
+          description: Job type for the IDs
+          enum:
+            - graph
+            - chunk
+      required:
+        - ids
+        - type
+    DeleteEmbeddingJobsResponseDto:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Whether the operation was successful
+        deletedCount:
+          type: number
+          description: Number of jobs deleted
+        message:
+          type: string
+          description: Message describing the result
+      required:
+        - success
+        - deletedCount
+        - message
+    CleanupOrphanJobsResponseDto:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Whether the operation was successful
+        deletedCount:
+          type: number
+          description: Number of orphan jobs deleted
+        message:
+          type: string
+          description: Message describing the result
+      required:
+        - success
+        - deletedCount
+        - message
+    ExtractionJobStatsDto:
+      type: object
+      properties:
+        total:
+          type: number
+          description: Total jobs
+        queued:
+          type: number
+          description: Queued jobs
+        processing:
+          type: number
+          description: Processing jobs
+        completed:
+          type: number
+          description: Completed jobs
+        failed:
+          type: number
+          description: Failed jobs
+        cancelled:
+          type: number
+          description: Cancelled jobs
+        withErrors:
+          type: number
+          description: Jobs with errors
+        totalObjectsCreated:
+          type: number
+          description: Total objects created
+        totalRelationshipsCreated:
+          type: number
+          description: Total relationships created
+      required:
+        - total
+        - queued
+        - processing
+        - completed
+        - failed
+        - cancelled
+        - withErrors
+        - totalObjectsCreated
+        - totalRelationshipsCreated
+    ListExtractionJobsResponseDto:
+      type: object
+      properties:
+        jobs:
+          description: List of extraction jobs
+          type: array
+          items:
+            $ref: '#/components/schemas/ExtractionJobDto'
+        stats:
+          description: Job statistics
+          allOf:
+            - $ref: '#/components/schemas/ExtractionJobStatsDto'
+        meta:
+          description: Pagination metadata
+          allOf:
+            - $ref: '#/components/schemas/PaginationMetaDto'
+      required:
+        - jobs
+        - stats
+        - meta
+    DeleteExtractionJobsDto:
+      type: object
+      properties:
+        ids:
+          description: Job IDs to delete
+          type: array
+          items:
+            type: string
+      required:
+        - ids
+    DeleteExtractionJobsResponseDto:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Whether the operation was successful
+        deletedCount:
+          type: number
+          description: Number of jobs deleted
+        message:
+          type: string
+          description: Message describing the result
+      required:
+        - success
+        - deletedCount
+        - message
+    CancelExtractionJobsDto:
+      type: object
+      properties:
+        ids:
+          description: Job IDs to cancel
+          type: array
+          items:
+            type: string
+      required:
+        - ids
+    CancelExtractionJobsResponseDto:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Whether the operation was successful
+        cancelledCount:
+          type: number
+          description: Number of jobs cancelled
+        message:
+          type: string
+          description: Message describing the result
+      required:
+        - success
+        - cancelledCount
+        - message
+    DocumentParsingJobDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Job ID
+        organizationId:
+          type: string
+          description: Organization ID
+        organizationName:
+          type: string
+          description: Organization name
+        projectId:
+          type: string
+          description: Project ID
+        projectName:
+          type: string
+          description: Project name
+        status:
+          type: object
+          description: Job status
+        sourceType:
+          type: string
+          description: Source type (upload or url)
+        sourceFilename:
+          type: string
+          description: Source filename
+        mimeType:
+          type: string
+          description: MIME type
+        fileSizeBytes:
+          type: number
+          description: File size in bytes
+        storageKey:
+          type: string
+          description: Storage key in MinIO
+        documentId:
+          type: string
+          description: Associated document ID
+        extractionJobId:
+          type: string
+          description: Associated extraction job ID
+        parsedContentLength:
+          type: number
+          description: Parsed content length (characters)
+        errorMessage:
+          type: string
+          description: Error message if failed
+        retryCount:
+          type: number
+          description: Retry count
+        maxRetries:
+          type: number
+          description: Max retries
+        nextRetryAt:
+          format: date-time
+          type: string
+          description: Next retry timestamp
+        createdAt:
+          format: date-time
+          type: string
+          description: Created timestamp
+        startedAt:
+          format: date-time
+          type: string
+          description: Started timestamp
+        completedAt:
+          format: date-time
+          type: string
+          description: Completed timestamp
+        updatedAt:
+          format: date-time
+          type: string
+          description: Updated timestamp
+        metadata:
+          type: object
+          description: Job metadata
+      required:
+        - id
+        - organizationId
+        - projectId
+        - status
+        - sourceType
+        - retryCount
+        - maxRetries
+        - createdAt
+        - updatedAt
+    DocumentParsingJobStatsDto:
+      type: object
+      properties:
+        total:
+          type: number
+          description: Total jobs
+        pending:
+          type: number
+          description: Pending jobs
+        processing:
+          type: number
+          description: Processing jobs
+        completed:
+          type: number
+          description: Completed jobs
+        failed:
+          type: number
+          description: Failed jobs
+        retryPending:
+          type: number
+          description: Retry pending jobs
+        withErrors:
+          type: number
+          description: Jobs with errors
+        totalFileSizeBytes:
+          type: number
+          description: Total file size processed (bytes)
+      required:
+        - total
+        - pending
+        - processing
+        - completed
+        - failed
+        - retryPending
+        - withErrors
+        - totalFileSizeBytes
+    ListDocumentParsingJobsResponseDto:
+      type: object
+      properties:
+        jobs:
+          description: List of jobs
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentParsingJobDto'
+        stats:
+          description: Job statistics
+          allOf:
+            - $ref: '#/components/schemas/DocumentParsingJobStatsDto'
+        meta:
+          description: Pagination metadata
+          allOf:
+            - $ref: '#/components/schemas/PaginationMetaDto'
+      required:
+        - jobs
+        - stats
+        - meta
+    DeleteDocumentParsingJobsDto:
+      type: object
+      properties:
+        ids:
+          description: Job IDs to delete
+          type: array
+          items:
+            type: string
+      required:
+        - ids
+    DeleteDocumentParsingJobsResponseDto:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Success status
+        deletedCount:
+          type: number
+          description: Number of jobs deleted
+        message:
+          type: string
+          description: Result message
+      required:
+        - success
+        - deletedCount
+        - message
+    RetryDocumentParsingJobsDto:
+      type: object
+      properties:
+        ids:
+          description: Job IDs to retry
+          type: array
+          items:
+            type: string
+      required:
+        - ids
+    RetryDocumentParsingJobsResponseDto:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Success status
+        retriedCount:
+          type: number
+          description: Number of jobs queued for retry
+        message:
+          type: string
+          description: Result message
+      required:
+        - success
+        - retriedCount
+        - message
     EmailTemplateListItemDto:
       type: object
       properties:
