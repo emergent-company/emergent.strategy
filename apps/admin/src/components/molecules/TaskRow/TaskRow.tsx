@@ -15,12 +15,15 @@ export interface TaskRowProps {
     notes?: string
   ) => void;
   onClick?: (task: Task) => void;
+  /** Show project name badge (for cross-project views) */
+  showProjectName?: boolean;
 }
 
 export const TaskRow: React.FC<TaskRowProps> = ({
   task,
   onResolve,
   onClick,
+  showProjectName = false,
 }) => {
   const isPending = task.status === 'pending';
   const isResolved = task.status === 'accepted' || task.status === 'rejected';
@@ -107,6 +110,11 @@ export const TaskRow: React.FC<TaskRowProps> = ({
           <span className="badge badge-sm badge-ghost">
             {getTypeLabel(task.type)}
           </span>
+          {showProjectName && task.projectName && (
+            <span className="badge badge-sm badge-outline badge-primary">
+              {task.projectName}
+            </span>
+          )}
         </div>
 
         {/* Title */}

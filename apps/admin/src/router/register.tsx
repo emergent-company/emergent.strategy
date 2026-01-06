@@ -78,6 +78,10 @@ const dashboardRoutes: IRoutesProps[] = [
     element: cw(lazy(() => import('@/pages/admin/tasks/index'))),
   },
   {
+    path: '/admin/all-tasks',
+    element: cw(lazy(() => import('@/pages/admin/all-tasks/index'))),
+  },
+  {
     path: '/admin/settings',
     element: <Navigate to="/admin/settings/ai/prompts" replace />,
   },
@@ -131,14 +135,6 @@ const dashboardRoutes: IRoutesProps[] = [
       lazy(() => import('@/pages/admin/pages/settings/project/members'))
     ),
   },
-  {
-    path: '/admin/monitoring/dashboard',
-    element: cw(lazy(() => import('@/pages/admin/monitoring/dashboard'))),
-  },
-  {
-    path: '/admin/monitoring/analytics',
-    element: cw(lazy(() => import('@/pages/admin/monitoring/analytics'))),
-  },
   // Superadmin routes - nested under SuperadminLayout
   {
     path: '/admin/superadmin',
@@ -169,6 +165,28 @@ const dashboardRoutes: IRoutesProps[] = [
       {
         path: 'projects',
         element: cw(lazy(() => import('@/pages/admin/superadmin/projects'))),
+      },
+      {
+        path: 'jobs',
+        element: cw(lazy(() => import('@/pages/admin/superadmin/jobs/index'))),
+      },
+      {
+        path: 'jobs/extraction',
+        element: cw(
+          lazy(() => import('@/pages/admin/superadmin/jobs/extraction'))
+        ),
+      },
+      {
+        path: 'jobs/embedding',
+        element: cw(
+          lazy(() => import('@/pages/admin/superadmin/jobs/embedding'))
+        ),
+      },
+      {
+        path: 'jobs/conversion',
+        element: cw(
+          lazy(() => import('@/pages/admin/superadmin/jobs/conversion'))
+        ),
       },
       {
         path: 'emails',

@@ -124,6 +124,79 @@ export class TasksController {
     return { success: true, data: counts };
   }
 
+  @Get('all')
+  @ApiOperation({
+    summary: 'Get tasks across all projects the user has access to',
+    description:
+      'Returns tasks from all projects the authenticated user can access, with project name included for each task.',
+  })
+  @ApiOkResponse({
+    description: 'List of tasks across all accessible projects',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: TaskStatus,
+    description: 'Filter by status',
+  })
+  @ApiQuery({
+    name: 'type',
+    required: false,
+    description: 'Filter by type (e.g., "merge_suggestion")',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number (1-based)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Page size (default 50)',
+  })
+  @ApiStandardErrors()
+  @Scopes('tasks:read')
+  async getAllTasks(
+    @RequireUserId() userId: string,
+    @Query('status') status?: TaskStatus,
+    @Query('type') type?: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit?: number
+  ) {
+    const result = await this.tasksService.getAllForUser(userId, {
+      status,
+      type,
+      page,
+      limit,
+    });
+
+    return {
+      success: true,
+      data: result.tasks,
+      meta: {
+        total: result.total,
+        page,
+        limit,
+      },
+    };
+  }
+
+  @Get('all/counts')
+  @ApiOperation({
+    summary: 'Get task counts by status across all accessible projects',
+    description:
+      'Returns aggregated task counts from all projects the authenticated user can access.',
+  })
+  @ApiOkResponse({ description: 'Aggregated task counts' })
+  @ApiStandardErrors()
+  @Scopes('tasks:read')
+  async getAllCounts(@RequireUserId() userId: string) {
+    const counts = await this.tasksService.getAllCounts(userId);
+    return { success: true, data: counts };
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get a single task by ID' })
   @ApiParam({ name: 'id', description: 'Task ID' })

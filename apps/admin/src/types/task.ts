@@ -34,6 +34,10 @@ export interface Task {
   // Timestamps
   createdAt: string;
   updatedAt: string;
+
+  // Cross-project view fields (optional)
+  projectName?: string; // Project name for cross-project task views
+  isOutdated?: boolean; // For merge_suggestion tasks: true if versions are no longer HEAD
 }
 
 export interface TaskCounts {

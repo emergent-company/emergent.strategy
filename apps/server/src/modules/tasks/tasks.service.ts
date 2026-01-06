@@ -12,6 +12,7 @@ import { UserProfile } from '../../entities/user-profile.entity';
 import { UserEmail } from '../../entities/user-email.entity';
 import { CreateTaskDto, TaskStatus } from './dto/task.dto';
 import { ObjectMergeService, MergeResult } from '../graph/object-merge.service';
+import { UserAccessService } from '../user/user-access.service';
 
 /**
  * Task with resolved user display info and freshness status
@@ -21,6 +22,8 @@ export interface TaskWithUser extends Omit<Task, 'resolvedBy'> {
   resolvedByName: string | null;
   /** For merge_suggestion tasks: true if source/target versions are no longer HEAD */
   isOutdated?: boolean;
+  /** Project name for cross-project task views */
+  projectName?: string;
 }
 
 /**
@@ -44,7 +47,8 @@ export class TasksService {
     private readonly userEmailRepo: Repository<UserEmail>,
     @Inject(forwardRef(() => ObjectMergeService))
     private readonly objectMergeService: ObjectMergeService,
-    private readonly dataSource: DataSource
+    private readonly dataSource: DataSource,
+    private readonly userAccessService: UserAccessService
   ) {}
 
   /**
@@ -629,6 +633,186 @@ export class TasksService {
     const pendingMergeTasks = await this.taskRepo.find({
       where: {
         projectId,
+        type: 'merge_suggestion',
+        status: 'pending' as TaskStatus,
+      },
+    });
+
+    // Filter out those with deleted objects
+    let validMergeTaskCount = 0;
+    if (pendingMergeTasks.length > 0) {
+      const objectIds: string[] = [];
+      for (const task of pendingMergeTasks) {
+        const metadata = task.metadata as {
+          sourceId?: string;
+          targetId?: string;
+        };
+        if (metadata?.sourceId) objectIds.push(metadata.sourceId);
+        if (metadata?.targetId) objectIds.push(metadata.targetId);
+      }
+
+      const existingIds = await this.getExistingObjectIds(objectIds);
+
+      for (const task of pendingMergeTasks) {
+        const metadata = task.metadata as {
+          sourceId?: string;
+          targetId?: string;
+        };
+        const sourceExists =
+          !metadata?.sourceId || existingIds.has(metadata.sourceId);
+        const targetExists =
+          !metadata?.targetId || existingIds.has(metadata.targetId);
+        if (sourceExists && targetExists) {
+          validMergeTaskCount++;
+        }
+      }
+    }
+
+    return {
+      pending: (parseInt(result.pending_other, 10) || 0) + validMergeTaskCount,
+      accepted: parseInt(result.accepted, 10) || 0,
+      rejected: parseInt(result.rejected, 10) || 0,
+      cancelled: parseInt(result.cancelled, 10) || 0,
+    };
+  }
+
+  /**
+   * Get all project IDs that a user has access to
+   */
+  private async getUserProjectIds(userId: string): Promise<string[]> {
+    const accessTree = await this.userAccessService.getAccessTree(userId);
+    const projectIds: string[] = [];
+    for (const org of accessTree) {
+      for (const project of org.projects) {
+        projectIds.push(project.id);
+      }
+    }
+    return projectIds;
+  }
+
+  /**
+   * Get project names for a list of project IDs
+   */
+  private async getProjectNames(
+    projectIds: string[]
+  ): Promise<Map<string, string>> {
+    if (projectIds.length === 0) return new Map();
+
+    const result = await this.dataSource.query(
+      `SELECT id, name FROM kb.projects WHERE id = ANY($1)`,
+      [projectIds]
+    );
+
+    const names = new Map<string, string>();
+    for (const row of result) {
+      names.set(row.id, row.name);
+    }
+    return names;
+  }
+
+  /**
+   * Get tasks across all projects the user has access to
+   */
+  async getAllForUser(
+    userId: string,
+    options: {
+      status?: TaskStatus;
+      type?: string;
+      page?: number;
+      limit?: number;
+    } = {}
+  ): Promise<{ tasks: TaskWithUser[]; total: number }> {
+    const { status, type, page = 1, limit = 50 } = options;
+
+    // Get all project IDs user has access to
+    const projectIds = await this.getUserProjectIds(userId);
+
+    if (projectIds.length === 0) {
+      return { tasks: [], total: 0 };
+    }
+
+    const qb = this.taskRepo
+      .createQueryBuilder('t')
+      .where('t.projectId IN (:...projectIds)', { projectIds });
+
+    // Order by creation date (newest first)
+    qb.orderBy('t.createdAt', 'DESC');
+
+    if (status) {
+      qb.andWhere('t.status = :status', { status });
+    }
+
+    if (type) {
+      qb.andWhere('t.type = :type', { type });
+    }
+
+    const total = await qb.getCount();
+    let tasks = await qb
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getMany();
+
+    // Filter out merge_suggestion tasks where objects have been deleted
+    tasks = await this.filterTasksWithDeletedObjects(tasks);
+
+    // Check which merge_suggestion tasks are outdated
+    const outdatedTaskIds = await this.getOutdatedMergeSuggestionIds(tasks);
+
+    // Get user display names for resolved tasks
+    const resolvedByIds = tasks
+      .map((t) => t.resolvedBy)
+      .filter((id): id is string => id !== null);
+    const userNames = await this.getUserDisplayNames(resolvedByIds);
+
+    // Get project names for all tasks
+    const taskProjectIds = [...new Set(tasks.map((t) => t.projectId))];
+    const projectNames = await this.getProjectNames(taskProjectIds);
+
+    // Transform tasks to include resolvedByName, isOutdated, and projectName
+    const tasksWithUsers: TaskWithUser[] = tasks.map((task) => ({
+      ...task,
+      resolvedByName: task.resolvedBy
+        ? userNames.get(task.resolvedBy) || null
+        : null,
+      isOutdated: outdatedTaskIds.has(task.id),
+      projectName: projectNames.get(task.projectId) || undefined,
+    }));
+
+    return { tasks: tasksWithUsers, total };
+  }
+
+  /**
+   * Get task counts by status across all projects the user has access to
+   */
+  async getAllCounts(userId: string): Promise<{
+    pending: number;
+    accepted: number;
+    rejected: number;
+    cancelled: number;
+  }> {
+    // Get all project IDs user has access to
+    const projectIds = await this.getUserProjectIds(userId);
+
+    if (projectIds.length === 0) {
+      return { pending: 0, accepted: 0, rejected: 0, cancelled: 0 };
+    }
+
+    // Get base counts for non-pending and non-merge_suggestion tasks
+    const result = await this.taskRepo
+      .createQueryBuilder('t')
+      .select([
+        `COUNT(*) FILTER (WHERE status = 'accepted') as accepted`,
+        `COUNT(*) FILTER (WHERE status = 'rejected') as rejected`,
+        `COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled`,
+        `COUNT(*) FILTER (WHERE status = 'pending' AND type != 'merge_suggestion') as pending_other`,
+      ])
+      .where('t.projectId IN (:...projectIds)', { projectIds })
+      .getRawOne();
+
+    // For pending merge_suggestion tasks, we need to check if objects still exist
+    const pendingMergeTasks = await this.taskRepo.find({
+      where: {
+        projectId: In(projectIds),
         type: 'merge_suggestion',
         status: 'pending' as TaskStatus,
       },
