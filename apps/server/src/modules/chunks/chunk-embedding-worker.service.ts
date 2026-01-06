@@ -181,7 +181,6 @@ export class ChunkEmbeddingWorkerService
           if (!this.embeddings) {
             this.logger.warn('Embeddings service not available');
             batchSpan.setStatus({ code: SpanStatusCode.OK });
-            batchSpan.end();
             return;
           }
 
@@ -197,7 +196,6 @@ export class ChunkEmbeddingWorkerService
 
           if (!batch.length) {
             batchSpan.setStatus({ code: SpanStatusCode.OK });
-            batchSpan.end();
             return;
           }
 
