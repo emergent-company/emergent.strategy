@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Icon } from '@/components/atoms/Icon';
 import { Spinner } from '@/components/atoms/Spinner';
+import { Tooltip } from '@/components/atoms/Tooltip';
 import { PageContainer } from '@/components/layouts';
 import { useAuth } from '@/contexts/useAuth';
 import { useApi } from '@/hooks/use-api';
@@ -366,26 +367,60 @@ export default function DocumentsPage() {
       'application/pdf',
       'application/msword', // .doc
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
+      'application/vnd.oasis.opendocument.text', // .odt
+
+      // Spreadsheets (Kreuzberg extraction)
+      'application/vnd.ms-excel', // .xls
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-      'application/rtf', // .rtf
-      'text/html',
+      'application/vnd.ms-excel.sheet.macroEnabled.12', // .xlsm
+      'application/vnd.ms-excel.sheet.binary.macroEnabled.12', // .xlsb
+      'application/vnd.oasis.opendocument.spreadsheet', // .ods
+
+      // Presentations (Kreuzberg extraction)
+      'application/vnd.ms-powerpoint', // .ppt
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
+
       // Images (Kreuzberg OCR)
       'image/png',
       'image/jpeg',
-      'image/tiff',
-      'image/bmp',
       'image/gif',
+      'image/bmp',
+      'image/tiff',
       'image/webp',
+      'image/jp2',
+      'image/jpx',
+      'image/x-portable-anymap',
+      'image/x-portable-bitmap',
+      'image/x-portable-graymap',
+      'image/x-portable-pixmap',
+      'image/svg+xml',
+
+      // Email (Kreuzberg extraction)
+      'message/rfc822', // .eml
+      'application/vnd.ms-outlook', // .msg
+
+      // Web & Markup (Kreuzberg conversion)
+      'text/html',
+      'application/rtf',
+
+      // Archives (Kreuzberg extraction)
+      'application/zip',
+      'application/x-tar',
+      'application/gzip',
+      'application/x-gzip',
+      'application/x-7z-compressed',
+
       // Plain text (direct read)
       'text/plain',
       'text/markdown',
       'text/csv',
+      'text/tab-separated-values',
       'text/xml',
       'application/json',
       'application/xml',
       'application/x-yaml',
       'text/yaml',
+      'application/toml',
     ],
     []
   );
@@ -396,29 +431,58 @@ export default function DocumentsPage() {
       '.pdf',
       '.doc',
       '.docx',
-      '.pptx',
+      '.odt',
+      // Spreadsheets
+      '.xls',
       '.xlsx',
-      '.rtf',
-      '.html',
-      '.htm',
+      '.xlsm',
+      '.xlsb',
+      '.ods',
+      // Presentations
+      '.ppt',
+      '.pptx',
       // Images
       '.png',
       '.jpg',
       '.jpeg',
+      '.gif',
+      '.bmp',
       '.tiff',
       '.tif',
-      '.bmp',
-      '.gif',
       '.webp',
+      '.jp2',
+      '.jpx',
+      '.jpm',
+      '.mj2',
+      '.pnm',
+      '.pbm',
+      '.pgm',
+      '.ppm',
+      '.svg',
+      // Email
+      '.eml',
+      '.msg',
+      // Web & Markup
+      '.html',
+      '.htm',
+      '.rtf',
+      // Archives
+      '.zip',
+      '.tar',
+      '.tgz',
+      '.gz',
+      '.7z',
       // Plain text
       '.txt',
       '.md',
       '.markdown',
       '.csv',
+      '.tsv',
       '.json',
       '.xml',
       '.yaml',
       '.yml',
+      '.toml',
     ],
     []
   );
@@ -875,6 +939,32 @@ export default function DocumentsPage() {
     return byMime || byExt;
   }
 
+  // Legacy Office formats (.doc, .xls, .ppt) require LibreOffice on the server
+  // These may fail if LibreOffice is not installed in the Kreuzberg Docker image
+  const LEGACY_OFFICE_EXTENSIONS = ['.doc', '.xls', '.ppt'];
+  const LEGACY_OFFICE_MIMES = [
+    'application/msword', // .doc
+    'application/vnd.ms-excel', // .xls
+    'application/vnd.ms-powerpoint', // .ppt
+  ];
+
+  function isLegacyOfficeFormat(file: File): boolean {
+    const name = file.name.toLowerCase();
+    const extMatch = LEGACY_OFFICE_EXTENSIONS.some(
+      (ext) => name.endsWith(ext) && !name.endsWith(`${ext}x`) // .doc but not .docx
+    );
+    const mimeMatch = LEGACY_OFFICE_MIMES.includes(file.type);
+    return extMatch || mimeMatch;
+  }
+
+  function getLegacyFormatSuggestion(filename: string): string {
+    const name = filename.toLowerCase();
+    if (name.endsWith('.doc')) return '.docx';
+    if (name.endsWith('.xls')) return '.xlsx';
+    if (name.endsWith('.ppt')) return '.pptx';
+    return 'a modern Office format';
+  }
+
   // Estimate processing time based on file size
   function estimateProcessingTime(fileSize: number): number {
     // Rough estimates based on typical processing:
@@ -904,6 +994,16 @@ export default function DocumentsPage() {
         variant: 'error',
       });
       return;
+    }
+
+    // Warn about legacy Office formats that require LibreOffice
+    if (isLegacyOfficeFormat(file)) {
+      const suggestion = getLegacyFormatSuggestion(file.name);
+      showToast({
+        message: `"${file.name}" is a legacy Office format (.doc/.xls/.ppt) that requires LibreOffice on the server. If conversion fails, try converting to ${suggestion} first.`,
+        variant: 'warning',
+        duration: 8000,
+      });
     }
 
     setUploading(true);
@@ -1145,6 +1245,21 @@ export default function DocumentsPage() {
           .join(', ')}${invalidFiles.length > 3 ? '...' : ''}`,
         variant: 'warning',
         duration: 5000,
+      });
+    }
+
+    // Warn about legacy Office formats that require LibreOffice
+    const legacyFiles = validFiles.filter(isLegacyOfficeFormat);
+    if (legacyFiles.length > 0) {
+      const fileNames = legacyFiles
+        .slice(0, 3)
+        .map((f) => f.name)
+        .join(', ');
+      const suffix = legacyFiles.length > 3 ? '...' : '';
+      showToast({
+        message: `${legacyFiles.length} legacy Office file(s) (${fileNames}${suffix}) require LibreOffice on the server. If conversion fails, try converting to .docx/.xlsx/.pptx first.`,
+        variant: 'warning',
+        duration: 8000,
       });
     }
 
@@ -1802,17 +1917,31 @@ export default function DocumentsPage() {
                   }
 
                   if (status === 'failed') {
+                    const errorMessage =
+                      doc.conversionError || 'Conversion failed';
                     return (
-                      <div
-                        className="flex items-center gap-2"
-                        title={doc.conversionError || 'Conversion failed'}
+                      <Tooltip
+                        content={
+                          <div className="max-w-xs">
+                            <div className="font-medium mb-1">
+                              Conversion Error
+                            </div>
+                            <div className="text-sm opacity-90">
+                              {errorMessage}
+                            </div>
+                          </div>
+                        }
+                        placement="top"
+                        color="error"
                       >
-                        <Icon
-                          icon="lucide--alert-circle"
-                          className="size-4 text-error"
-                        />
-                        <span className="text-sm text-error">Failed</span>
-                      </div>
+                        <div className="flex items-center gap-2 cursor-help">
+                          <Icon
+                            icon="lucide--alert-circle"
+                            className="size-4 text-error"
+                          />
+                          <span className="text-sm text-error">Failed</span>
+                        </div>
+                      </Tooltip>
                     );
                   }
 
