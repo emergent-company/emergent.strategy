@@ -1,8 +1,12 @@
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, IsNull } from 'typeorm';
 import type { JWTPayload, JWTVerifyGetKey } from 'jose';
+import { createHash } from 'crypto';
 import { UserProfileService } from '../user-profile/user-profile.service';
 import { ZitadelService } from './zitadel.service';
 import type { IntrospectionResult } from './zitadel.service';
+import { ApiToken } from '../../entities/api-token.entity';
 
 export interface AuthUser {
   /** Internal UUID primary key from user_profiles.id */
@@ -11,6 +15,10 @@ export interface AuthUser {
   sub: string;
   email?: string;
   scopes?: string[];
+  /** Project ID if authenticated via API token (for scope enforcement) */
+  apiTokenProjectId?: string;
+  /** API token ID if authenticated via API token (for audit logging) */
+  apiTokenId?: string;
   // Debug only (present when DEBUG_AUTH_CLAIMS=1)
   _debugClaimKeys?: string[];
   _debugScopeSource?: string;
@@ -66,7 +74,9 @@ export class AuthService implements OnModuleInit {
 
   constructor(
     private readonly userProfileService: UserProfileService,
-    private readonly zitadelService: ZitadelService
+    private readonly zitadelService: ZitadelService,
+    @InjectRepository(ApiToken)
+    private readonly apiTokenRepository: Repository<ApiToken>
   ) {}
 
   onModuleInit(): void {
@@ -91,6 +101,11 @@ export class AuthService implements OnModuleInit {
 
   async validateToken(token: string | undefined): Promise<AuthUser | null> {
     if (!token) return null;
+
+    // Check for API token (emt_ prefix)
+    if (token.startsWith('emt_')) {
+      return this.validateApiToken(token);
+    }
 
     // Helper to create deterministic UUID from seed (for mock/test tokens)
     const toUuid = (seed: string) => {
@@ -264,6 +279,65 @@ export class AuthService implements OnModuleInit {
       return mapped;
     } catch (e) {
       Logger.error(`[AUTH] JWT verification failed: ${e}`, 'AuthService');
+      return null;
+    }
+  }
+
+  /**
+   * Validate an API token (emt_ prefix).
+   *
+   * @param token - Full API token string (emt_<64-char-hex>)
+   * @returns AuthUser with token scopes and project context, or null if invalid
+   */
+  private async validateApiToken(token: string): Promise<AuthUser | null> {
+    try {
+      // Compute SHA-256 hash of the token
+      const tokenHash = createHash('sha256').update(token).digest('hex');
+
+      // Look up token by hash (must be active - not revoked)
+      const apiToken = await this.apiTokenRepository.findOne({
+        where: {
+          tokenHash,
+          revokedAt: IsNull(),
+        },
+        relations: ['user'],
+      });
+
+      if (!apiToken) {
+        Logger.warn('[AUTH] API token not found or revoked', 'AuthService');
+        return null;
+      }
+
+      // Update last used timestamp (fire and forget)
+      this.apiTokenRepository
+        .update(apiToken.id, { lastUsedAt: new Date() })
+        .catch((err) => {
+          Logger.warn(
+            `[AUTH] Failed to update lastUsedAt for API token: ${err}`,
+            'AuthService'
+          );
+        });
+
+      Logger.log(
+        `[AUTH] API token validated for user ${apiToken.userId}, project ${apiToken.projectId}`,
+        'AuthService'
+      );
+
+      // Return AuthUser with token's scopes and project context
+      return {
+        id: apiToken.userId,
+        sub:
+          apiToken.user?.zitadelUserId || `api-token-user-${apiToken.userId}`,
+        email: undefined, // API tokens don't need email context
+        scopes: apiToken.scopes,
+        apiTokenProjectId: apiToken.projectId,
+        apiTokenId: apiToken.id,
+      };
+    } catch (error) {
+      Logger.error(
+        `[AUTH] API token validation error: ${error}`,
+        'AuthService'
+      );
       return null;
     }
   }
