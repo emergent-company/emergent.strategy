@@ -2,13 +2,16 @@
 /**
  * Dump Infisical secrets to .env.infisical file
  *
- * This script fetches secrets from Infisical and writes them to a local file,
- * eliminating the need for runtime API calls to Infisical.
+ * This script fetches secrets from Infisical and writes them to a local file.
+ *
+ * NOTE: Apps do NOT automatically load .env.infisical. After running this script,
+ * copy the needed variables to .env.local for your local development, or use
+ * --output=.env.local to write directly to .env.local.
  *
  * Usage:
  *   npx tsx scripts/dump-infisical-secrets.ts
  *   npx tsx scripts/dump-infisical-secrets.ts --environment=staging
- *   npx tsx scripts/dump-infisical-secrets.ts --output=.env.infisical.dev
+ *   npx tsx scripts/dump-infisical-secrets.ts --output=.env.local
  *
  * Required env vars (in .env.local):
  *   INFISICAL_SITE_URL
