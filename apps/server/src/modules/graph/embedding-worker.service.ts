@@ -177,7 +177,6 @@ export class EmbeddingWorkerService implements OnModuleInit, OnModuleDestroy {
 
           if (!batch.length) {
             batchSpan.setStatus({ code: SpanStatusCode.OK });
-            batchSpan.end();
             return;
           }
 

@@ -8,6 +8,7 @@ import {
   Param,
   Query,
   Res,
+  Headers,
   HttpStatus,
   Logger,
   BadRequestException,
@@ -38,6 +39,7 @@ export class ChatUiController {
   @ApiOkResponse({ description: 'List user conversations' })
   async getConversations(
     @CurrentUser() user: AuthenticatedUser | null,
+    @Headers('x-project-id') projectId?: string,
     @Query('limit') limit?: unknown
   ) {
     const parsedLimit = limit ? parseInt(String(limit), 10) : 50;
@@ -45,64 +47,90 @@ export class ChatUiController {
 
     return this.conversationService.getUserConversations(
       user?.id || null,
+      projectId || null,
       safeLimit
     );
   }
 
   @Get('conversations/:id')
   @ApiOkResponse({ description: 'Get conversation details' })
-  async getConversation(@Param('id') id: string) {
-    // TODO: Check ownership if auth is required
-    return this.conversationService.getConversation(id);
+  async getConversation(
+    @Param('id') id: string,
+    @Headers('x-project-id') projectId?: string
+  ) {
+    return this.conversationService.getConversation(id, projectId);
   }
 
   @Get('conversations/:id/messages')
   @ApiOkResponse({ description: 'Get paginated conversation messages' })
   async getConversationMessages(
     @Param('id') id: string,
+    @Headers('x-project-id') projectId?: string,
     @Query('limit') limit?: string,
     @Query('beforeId') beforeId?: string
   ) {
     const parsedLimit = limit ? parseInt(limit, 10) : 50;
     const safeLimit = isNaN(parsedLimit) ? 50 : Math.min(parsedLimit, 100); // Cap at 100
 
-    return this.conversationService.getConversationMessages(id, {
-      limit: safeLimit,
-      beforeId: beforeId || undefined,
-    });
+    return this.conversationService.getConversationMessages(
+      id,
+      {
+        limit: safeLimit,
+        beforeId: beforeId || undefined,
+      },
+      projectId
+    );
   }
 
   @Patch('conversations/:id')
   @ApiOkResponse({ description: 'Update conversation title' })
   async updateConversation(
     @Param('id') id: string,
-    @Body('title') title: string
+    @Headers('x-project-id') projectId?: string,
+    @Body('title') title?: string
   ) {
-    return this.conversationService.updateConversationTitle(id, title);
+    return this.conversationService.updateConversationTitle(
+      id,
+      title || '',
+      projectId
+    );
   }
 
   @Patch('conversations/:id/draft')
   @ApiOkResponse({ description: 'Update conversation draft text' })
   async updateConversationDraft(
     @Param('id') id: string,
-    @Body('draftText') draftText: string
+    @Headers('x-project-id') projectId?: string,
+    @Body('draftText') draftText?: string
   ) {
-    return this.conversationService.updateConversationDraft(id, draftText);
+    return this.conversationService.updateConversationDraft(
+      id,
+      draftText || '',
+      projectId
+    );
   }
 
   @Patch('conversations/:id/tools')
   @ApiOkResponse({ description: 'Update conversation enabled tools' })
   async updateConversationTools(
     @Param('id') id: string,
-    @Body('enabledTools') enabledTools: string[] | null
+    @Headers('x-project-id') projectId?: string,
+    @Body('enabledTools') enabledTools?: string[] | null
   ) {
-    return this.conversationService.updateEnabledTools(id, enabledTools);
+    return this.conversationService.updateEnabledTools(
+      id,
+      enabledTools ?? null,
+      projectId
+    );
   }
 
   @Delete('conversations/:id')
   @ApiOkResponse({ description: 'Delete conversation' })
-  async deleteConversation(@Param('id') id: string) {
-    return this.conversationService.deleteConversation(id);
+  async deleteConversation(
+    @Param('id') id: string,
+    @Headers('x-project-id') projectId?: string
+  ) {
+    return this.conversationService.deleteConversation(id, projectId);
   }
 
   @Post()
@@ -120,6 +148,7 @@ export class ChatUiController {
   async chat(
     @Body() body: ChatRequestDto,
     @CurrentUser() user: AuthenticatedUser | null,
+    @Headers('x-project-id') projectId: string | undefined,
     @Res() res: ExpressResponse
   ): Promise<void> {
     const { messages, conversationId } = body;
@@ -127,7 +156,9 @@ export class ChatUiController {
     this.logger.log(
       `Chat request from user ${user?.id}: ${
         messages.length
-      } messages, conversationId: ${conversationId || 'new'}`
+      } messages, conversationId: ${conversationId || 'new'}, projectId: ${
+        projectId || 'none'
+      }`
     );
 
     // Check if LangGraph service is ready
@@ -162,19 +193,21 @@ export class ChatUiController {
 
         const conversation = await this.conversationService.createConversation(
           title,
-          user?.id // Save owner user ID
+          user?.id, // Save owner user ID
+          projectId // Save project ID for filtering
         );
         dbConversationId = conversation.id;
         isFirstExchange = true; // Mark as first exchange
 
         this.logger.log(
-          `Created new conversation: ${dbConversationId} for user ${user?.id}`
+          `Created new conversation: ${dbConversationId} for user ${user?.id} in project ${projectId}`
         );
       } else {
         // Check if this conversation has any messages yet
         // If not, this is the first exchange
         const conversation = await this.conversationService.getConversation(
-          dbConversationId
+          dbConversationId,
+          projectId
         );
         isFirstExchange = conversation.messages.length === 0;
       }
@@ -183,7 +216,9 @@ export class ChatUiController {
       await this.conversationService.addMessage(
         dbConversationId,
         'user',
-        latestMessage.content
+        latestMessage.content,
+        undefined,
+        projectId
       );
 
       // Use conversationId as threadId for LangGraph conversation memory
@@ -229,7 +264,9 @@ export class ChatUiController {
         await this.conversationService.addMessage(
           dbConversationId,
           'assistant',
-          fullAssistantResponse
+          fullAssistantResponse,
+          undefined,
+          projectId
         );
       }
 
@@ -251,7 +288,8 @@ export class ChatUiController {
         this.generateConversationTitle(
           dbConversationId,
           latestMessage.content,
-          fullAssistantResponse
+          fullAssistantResponse,
+          projectId
         ).catch((error: Error) => {
           this.logger.error(
             `Background title generation failed for conversation ${dbConversationId}`,
@@ -281,7 +319,8 @@ export class ChatUiController {
   private async generateConversationTitle(
     conversationId: string,
     userMessage: string,
-    assistantMessage: string
+    assistantMessage: string,
+    projectId?: string
   ): Promise<void> {
     this.logger.log(`Generating title for conversation ${conversationId}`);
 
@@ -311,7 +350,8 @@ Title:`;
           .trim()
           .replace(/^["']|["']$/g, '') // Remove leading/trailing quotes
           .substring(0, 50);
-      }
+      },
+      projectId
     );
   }
 }

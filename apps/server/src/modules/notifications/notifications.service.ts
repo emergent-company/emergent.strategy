@@ -102,30 +102,32 @@ export class NotificationsService {
       .limit(100);
 
     // Tab filtering
+    // Note: Using raw SQL column names (snake_case) since andWhere with raw strings
+    // does not automatically translate TypeORM property names to column names
     switch (tab) {
       case 'important':
         qb.andWhere(`n.importance = 'important'`)
-          .andWhere('n.clearedAt IS NULL')
-          .andWhere('(n.snoozedUntil IS NULL OR n.snoozedUntil < now())');
+          .andWhere('n.cleared_at IS NULL')
+          .andWhere('(n.snoozed_until IS NULL OR n.snoozed_until < now())');
         break;
       case 'other':
         qb.andWhere(`n.importance = 'other'`)
-          .andWhere('n.clearedAt IS NULL')
-          .andWhere('(n.snoozedUntil IS NULL OR n.snoozedUntil < now())');
+          .andWhere('n.cleared_at IS NULL')
+          .andWhere('(n.snoozed_until IS NULL OR n.snoozed_until < now())');
         break;
       case 'snoozed':
-        qb.andWhere('n.snoozedUntil > now()').andWhere('n.clearedAt IS NULL');
+        qb.andWhere('n.snoozed_until > now()').andWhere('n.cleared_at IS NULL');
         break;
       case 'cleared':
-        qb.andWhere('n.clearedAt IS NOT NULL').andWhere(
-          "n.clearedAt > now() - interval '30 days'"
+        qb.andWhere('n.cleared_at IS NOT NULL').andWhere(
+          "n.cleared_at > now() - interval '30 days'"
         );
         break;
     }
 
     // Additional filters
     if (filters.unread_only) {
-      qb.andWhere('n.readAt IS NULL');
+      qb.andWhere('n.read_at IS NULL');
     }
 
     if (filters.category && filters.category !== 'all') {
@@ -276,10 +278,10 @@ export class NotificationsService {
       .createQueryBuilder()
       .update()
       .set({ clearedAt: () => 'now()' })
-      .where('userId = :userId', { userId })
+      .where('user_id = :userId', { userId })
       .andWhere('importance = :tab', { tab })
-      .andWhere('clearedAt IS NULL')
-      .andWhere('(snoozedUntil IS NULL OR snoozedUntil < now())')
+      .andWhere('cleared_at IS NULL')
+      .andWhere('(snoozed_until IS NULL OR snoozed_until < now())')
       .execute();
 
     return result.affected || 0;
