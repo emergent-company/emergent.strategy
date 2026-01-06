@@ -4,3 +4,6 @@ export * from './organizations.dto';
 export * from './projects.dto';
 export * from './email-jobs.dto';
 export * from './email-templates.dto';
+export * from './embedding-jobs.dto';
+export * from './extraction-jobs.dto';
+export * from './document-parsing-jobs.dto';

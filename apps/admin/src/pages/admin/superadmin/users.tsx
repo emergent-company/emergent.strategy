@@ -274,63 +274,61 @@ export default function SuperadminUsersPage() {
       </div>
 
       <div className="card bg-base-100 shadow-sm border border-base-200">
-        <div className="card-body">
-          {error && (
-            <div className="alert alert-error mb-4">
-              <Icon icon="lucide--alert-circle" className="size-5" />
-              <span>{error.message}</span>
-            </div>
-          )}
+        {error && (
+          <div className="alert alert-error mb-4">
+            <Icon icon="lucide--alert-circle" className="size-5" />
+            <span>{error.message}</span>
+          </div>
+        )}
 
-          <DataTable<UserRow>
-            data={users}
-            columns={columns}
-            loading={isLoading}
-            rowActions={rowActions}
-            bulkActions={bulkActions}
-            enableSelection
-            useDropdownActions
-            enableSearch
-            searchPlaceholder="Search by name or email..."
-            onSearch={handleSearch}
-            toolbarActions={
-              <select
-                className="select select-bordered select-sm"
-                value={orgIdFilter}
-                onChange={(e) => handleOrgFilterChange(e.target.value)}
-                disabled={orgsLoading}
-              >
-                <option value="">All Organizations</option>
-                {organizations.map((org) => (
-                  <option key={org.id} value={org.id}>
-                    {org.name} ({org.memberCount})
-                  </option>
-                ))}
-              </select>
-            }
-            emptyMessage="No users found"
-            noResultsMessage={
-              searchQuery || orgIdFilter
-                ? 'No users match your search criteria. Try adjusting your filters.'
-                : 'No users found'
-            }
-            emptyIcon="lucide--users"
-            pagination={
-              meta
-                ? {
-                    page,
-                    totalPages,
-                    total: meta.total,
-                    limit: meta.limit,
-                    hasPrev: meta.hasPrev,
-                    hasNext: meta.hasNext,
-                  }
-                : undefined
-            }
-            onPageChange={setPage}
-            paginationItemLabel="users"
-          />
-        </div>
+        <DataTable<UserRow>
+          data={users}
+          columns={columns}
+          loading={isLoading}
+          rowActions={rowActions}
+          bulkActions={bulkActions}
+          enableSelection
+          useDropdownActions
+          enableSearch
+          searchPlaceholder="Search by name or email..."
+          onSearch={handleSearch}
+          toolbarActions={
+            <select
+              className="select select-bordered select-sm"
+              value={orgIdFilter}
+              onChange={(e) => handleOrgFilterChange(e.target.value)}
+              disabled={orgsLoading}
+            >
+              <option value="">All Organizations</option>
+              {organizations.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.name} ({org.memberCount})
+                </option>
+              ))}
+            </select>
+          }
+          emptyMessage="No users found"
+          noResultsMessage={
+            searchQuery || orgIdFilter
+              ? 'No users match your search criteria. Try adjusting your filters.'
+              : 'No users found'
+          }
+          emptyIcon="lucide--users"
+          pagination={
+            meta
+              ? {
+                  page,
+                  totalPages,
+                  total: meta.total,
+                  limit: meta.limit,
+                  hasPrev: meta.hasPrev,
+                  hasNext: meta.hasNext,
+                }
+              : undefined
+          }
+          onPageChange={setPage}
+          paginationItemLabel="users"
+        />
       </div>
 
       {/* Delete Confirmation Modal */}

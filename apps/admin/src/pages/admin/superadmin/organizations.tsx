@@ -173,46 +173,44 @@ export default function SuperadminOrganizationsPage() {
       </div>
 
       <div className="card bg-base-100 shadow-sm border border-base-200">
-        <div className="card-body">
-          {error && (
-            <div className="alert alert-error mb-4">
-              <Icon icon="lucide--alert-circle" className="size-5" />
-              <span>{error.message}</span>
-            </div>
-          )}
+        {error && (
+          <div className="alert alert-error mb-4">
+            <Icon icon="lucide--alert-circle" className="size-5" />
+            <span>{error.message}</span>
+          </div>
+        )}
 
-          <DataTable<OrgRow>
-            data={organizations}
-            columns={columns}
-            loading={isLoading}
-            rowActions={rowActions}
-            useDropdownActions
-            enableSearch
-            searchPlaceholder="Search by organization name..."
-            onSearch={handleSearch}
-            emptyMessage="No organizations found"
-            noResultsMessage={
-              searchQuery
-                ? 'No organizations match your search. Try adjusting your search.'
-                : 'No organizations found'
-            }
-            emptyIcon="lucide--building-2"
-            pagination={
-              meta
-                ? {
-                    page,
-                    totalPages,
-                    total: meta.total,
-                    limit: meta.limit,
-                    hasPrev: meta.hasPrev,
-                    hasNext: meta.hasNext,
-                  }
-                : undefined
-            }
-            onPageChange={setPage}
-            paginationItemLabel="organizations"
-          />
-        </div>
+        <DataTable<OrgRow>
+          data={organizations}
+          columns={columns}
+          loading={isLoading}
+          rowActions={rowActions}
+          useDropdownActions
+          enableSearch
+          searchPlaceholder="Search by organization name..."
+          onSearch={handleSearch}
+          emptyMessage="No organizations found"
+          noResultsMessage={
+            searchQuery
+              ? 'No organizations match your search. Try adjusting your search.'
+              : 'No organizations found'
+          }
+          emptyIcon="lucide--building-2"
+          pagination={
+            meta
+              ? {
+                  page,
+                  totalPages,
+                  total: meta.total,
+                  limit: meta.limit,
+                  hasPrev: meta.hasPrev,
+                  hasNext: meta.hasNext,
+                }
+              : undefined
+          }
+          onPageChange={setPage}
+          paginationItemLabel="organizations"
+        />
       </div>
 
       {/* Delete Confirmation Modal */}

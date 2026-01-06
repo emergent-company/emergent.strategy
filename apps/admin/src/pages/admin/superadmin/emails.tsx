@@ -273,64 +273,60 @@ export default function SuperadminEmailsPage() {
       </div>
 
       <div className="card bg-base-100 shadow-sm border border-base-200">
-        <div className="card-body">
-          {error && (
-            <div className="alert alert-error mb-4">
-              <Icon icon="lucide--alert-circle" className="size-5" />
-              <span>{error.message}</span>
-            </div>
-          )}
+        {error && (
+          <div className="alert alert-error mb-4">
+            <Icon icon="lucide--alert-circle" className="size-5" />
+            <span>{error.message}</span>
+          </div>
+        )}
 
-          <DataTable<SuperadminEmailJob>
-            data={emailJobs}
-            columns={columns}
-            loading={isLoading}
-            rowActions={rowActions}
-            useDropdownActions
-            onRowClick={handlePreview}
-            enableSearch
-            searchPlaceholder="Search by recipient email..."
-            onSearch={handleSearch}
-            toolbarActions={
-              <select
-                className="select select-bordered select-sm"
-                value={statusFilter}
-                onChange={(e) =>
-                  handleStatusFilterChange(
-                    e.target.value as EmailJobStatus | ''
-                  )
+        <DataTable<SuperadminEmailJob>
+          data={emailJobs}
+          columns={columns}
+          loading={isLoading}
+          rowActions={rowActions}
+          useDropdownActions
+          onRowClick={handlePreview}
+          enableSearch
+          searchPlaceholder="Search by recipient email..."
+          onSearch={handleSearch}
+          toolbarActions={
+            <select
+              className="select select-bordered select-sm"
+              value={statusFilter}
+              onChange={(e) =>
+                handleStatusFilterChange(e.target.value as EmailJobStatus | '')
+              }
+            >
+              <option value="">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="processing">Processing</option>
+              <option value="sent">Sent</option>
+              <option value="failed">Failed</option>
+            </select>
+          }
+          emptyMessage="No emails found"
+          noResultsMessage={
+            searchQuery || statusFilter
+              ? 'No emails match your search criteria. Try adjusting your filters.'
+              : 'No emails found'
+          }
+          emptyIcon="lucide--mail"
+          pagination={
+            meta
+              ? {
+                  page,
+                  totalPages,
+                  total: meta.total,
+                  limit: meta.limit,
+                  hasPrev: meta.hasPrev,
+                  hasNext: meta.hasNext,
                 }
-              >
-                <option value="">All Statuses</option>
-                <option value="pending">Pending</option>
-                <option value="processing">Processing</option>
-                <option value="sent">Sent</option>
-                <option value="failed">Failed</option>
-              </select>
-            }
-            emptyMessage="No emails found"
-            noResultsMessage={
-              searchQuery || statusFilter
-                ? 'No emails match your search criteria. Try adjusting your filters.'
-                : 'No emails found'
-            }
-            emptyIcon="lucide--mail"
-            pagination={
-              meta
-                ? {
-                    page,
-                    totalPages,
-                    total: meta.total,
-                    limit: meta.limit,
-                    hasPrev: meta.hasPrev,
-                    hasNext: meta.hasNext,
-                  }
-                : undefined
-            }
-            onPageChange={setPage}
-            paginationItemLabel="emails"
-          />
-        </div>
+              : undefined
+          }
+          onPageChange={setPage}
+          paginationItemLabel="emails"
+        />
       </div>
 
       {/* Email Preview Modal */}
