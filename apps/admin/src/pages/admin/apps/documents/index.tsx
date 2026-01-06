@@ -1922,7 +1922,7 @@ export default function DocumentsPage() {
                     return (
                       <Tooltip
                         content={
-                          <div className="max-w-xs">
+                          <div className="max-w-xl">
                             <div className="font-medium mb-1">
                               Conversion Error
                             </div>
@@ -1931,7 +1931,7 @@ export default function DocumentsPage() {
                             </div>
                           </div>
                         }
-                        placement="top"
+                        placement="bottom"
                         color="error"
                       >
                         <div className="flex items-center gap-2 cursor-help">
