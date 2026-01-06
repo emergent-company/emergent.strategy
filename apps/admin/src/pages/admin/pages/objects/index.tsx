@@ -137,7 +137,10 @@ export default function ObjectsPage() {
   );
   const [isModalOpen, setIsModalOpen] = useState(false);
   // Use refs for document names cache to prevent re-render loops
-  const documentNamesCacheRef = useRef<Record<string, string>>({});
+  // Cache stores { name, deleted } to track if document was not found
+  const documentNamesCacheRef = useRef<
+    Record<string, { name: string; deleted: boolean }>
+  >({});
   const inFlightRequestsRef = useRef<Set<string>>(new Set());
   // Counter to trigger re-render when cache is updated
   const [cacheVersion, setCacheVersion] = useState(0);
@@ -377,18 +380,25 @@ export default function ObjectsPage() {
           id: string;
           filename?: string;
           name?: string;
-        }>(`${apiBase}/api/documents/${documentId}`);
+        }>(`${apiBase}/api/documents/${documentId}`, {
+          // Suppress error logging - 404s are expected when documents are deleted
+          suppressErrorLog: true,
+        });
         const name = doc.filename || doc.name || documentId.substring(0, 8);
 
         // Update cache (ref, no re-render)
-        documentNamesCacheRef.current[documentId] = name;
+        documentNamesCacheRef.current[documentId] = { name, deleted: false };
 
-        return name;
-      } catch (err) {
-        console.error(`Failed to fetch document name for ${documentId}:`, err);
+        return { name, deleted: false };
+      } catch {
+        // Document not found or other error - use truncated ID as fallback
+        // This is expected when documents are deleted, so no error logging needed
         const fallback = documentId.substring(0, 8) + '...';
-        documentNamesCacheRef.current[documentId] = fallback;
-        return fallback;
+        documentNamesCacheRef.current[documentId] = {
+          name: fallback,
+          deleted: true,
+        };
+        return { name: fallback, deleted: true };
       } finally {
         // Remove from in-flight
         inFlightRequestsRef.current.delete(documentId);
@@ -491,6 +501,19 @@ export default function ObjectsPage() {
     });
     setAvailableStatuses(orderedStatuses);
   }, [objects]);
+
+  // Clear state when project changes to prevent stale data fetches
+  useEffect(() => {
+    // Clear objects and document names cache when switching projects
+    setObjects([]);
+    setTotalCount(0);
+    documentNamesCacheRef.current = {};
+    inFlightRequestsRef.current.clear();
+    setCacheVersion(0);
+    setNextCursor(undefined);
+    setHasMore(false);
+    setSelectedExtractionJobId(null);
+  }, [config.activeProjectId]);
 
   useEffect(() => {
     loadObjects();
@@ -967,9 +990,23 @@ export default function ObjectsPage() {
 
         // Handle document sources with icon and document name
         if (obj.source === 'document' && obj.source_id) {
-          // Use cached document name from ref (fetched via useEffect batch)
-          const documentName =
-            documentNamesCacheRef.current[obj.source_id] || 'Loading...';
+          // Use cached document info from ref (fetched via useEffect batch)
+          const docInfo = documentNamesCacheRef.current[obj.source_id];
+          const documentName = docInfo?.name || 'Loading...';
+          const isDeleted = docInfo?.deleted || false;
+
+          if (isDeleted) {
+            // Show deleted document indicator (not clickable)
+            return (
+              <div
+                className="flex items-center gap-2 min-w-0 text-base-content/50"
+                title="Document no longer exists"
+              >
+                <Icon icon="lucide--file-x" className="size-4 shrink-0" />
+                <span className="text-sm truncate italic">Deleted</span>
+              </div>
+            );
+          }
 
           return (
             <a
