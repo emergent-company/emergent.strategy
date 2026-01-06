@@ -18,6 +18,7 @@ import { AuditLog } from '../../entities/audit-log.entity';
 import { AuthIntrospectionCache } from '../../entities/auth-introspection-cache.entity';
 import { OrganizationMembership } from '../../entities/organization-membership.entity';
 import { ProjectMembership } from '../../entities/project-membership.entity';
+import { ApiToken } from '../../entities/api-token.entity';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { ProjectMembership } from '../../entities/project-membership.entity';
       AuthIntrospectionCache,
       OrganizationMembership,
       ProjectMembership,
+      ApiToken,
     ]),
     PassportModule,
     forwardRef(() => UserProfileModule),
