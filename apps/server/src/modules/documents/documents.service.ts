@@ -12,12 +12,20 @@ import { HashService } from '../../common/utils/hash.service';
 import { DatabaseService } from '../../common/database/database.service';
 import { AppConfigService } from '../../common/config/config.service';
 import { DocumentDto } from './dto/document.dto';
-import { Document } from '../../entities/document.entity';
+import {
+  Document,
+  DocumentConversionStatus,
+} from '../../entities/document.entity';
 import { Chunk } from '../../entities/chunk.entity';
 import { Project } from '../../entities/project.entity';
 import { ChunkerService } from '../../common/utils/chunker.service';
 import { ChunkEmbeddingJobsService } from '../chunks/chunk-embedding-jobs.service';
 import { EventsService } from '../events/events.service';
+import { StorageService } from '../storage/storage.service';
+import {
+  sanitizeForPostgres,
+  sanitizeObjectForPostgres,
+} from '../../common/utils';
 
 interface DocumentRow {
   id: string;
@@ -36,6 +44,12 @@ interface DocumentRow {
   extraction_status: string | null;
   extraction_completed_at: string | null;
   extraction_objects_count: number | null;
+  // Conversion status fields
+  conversion_status: string | null;
+  conversion_error: string | null;
+  conversion_completed_at: string | null;
+  storage_key: string | null;
+  file_size_bytes: number | null;
 }
 
 @Injectable()
@@ -55,6 +69,8 @@ export class DocumentsService {
     private readonly chunker: ChunkerService,
     private readonly chunkEmbeddingJobs: ChunkEmbeddingJobsService,
     private readonly config: AppConfigService,
+    @Optional()
+    private readonly storageService?: StorageService,
     @Optional()
     @Inject(EventsService)
     private readonly eventsService?: EventsService
@@ -99,6 +115,8 @@ export class DocumentsService {
       const result = await this.db.query(
         `SELECT d.id, d.project_id, d.filename, d.source_url, d.mime_type, d.created_at, d.updated_at,
                       d.integration_metadata,
+                      d.conversion_status, d.conversion_error, d.conversion_completed_at,
+                      d.storage_key, d.file_size_bytes,
                       LENGTH(d.content) AS content_length,
                       COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id),0) AS chunks,
                       COALESCE((SELECT SUM(LENGTH(c.text))::int FROM kb.chunks c WHERE c.document_id = d.id),0) AS total_chars,
@@ -153,6 +171,8 @@ export class DocumentsService {
       const result = await this.db.query(
         `SELECT d.id, d.project_id, d.filename, d.source_url, d.mime_type, d.content, d.created_at, d.updated_at,
                       d.integration_metadata,
+                      d.conversion_status, d.conversion_error, d.conversion_completed_at,
+                      d.storage_key, d.file_size_bytes,
                       COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id),0) AS chunks,
                       ej.status AS extraction_status,
                       ej.completed_at AS extraction_completed_at,
@@ -179,6 +199,50 @@ export class DocumentsService {
 
     if (!rows || rows.length === 0) return null;
     return this.mapRow(rows[0]);
+  }
+
+  /**
+   * Get document with storage information for downloads.
+   * Returns basic document info plus storage_key for file retrieval.
+   */
+  async getWithStorageInfo(
+    id: string,
+    filter?: { projectId?: string }
+  ): Promise<{
+    id: string;
+    filename: string | null;
+    storageKey: string | null;
+    mimeType: string | null;
+    fileSizeBytes: number | null;
+    organizationId: string;
+    conversionStatus: string | null;
+  } | null> {
+    const queryFn = async () => {
+      const result = await this.db.query(
+        `SELECT id, filename, storage_key, mime_type, file_size_bytes, organization_id, conversion_status 
+         FROM kb.documents WHERE id = $1`,
+        [id]
+      );
+      return result.rows;
+    };
+
+    const rows = filter?.projectId
+      ? await this.db.runWithTenantContext(filter.projectId, queryFn)
+      : await queryFn();
+
+    if (!rows || rows.length === 0) return null;
+
+    return {
+      id: rows[0].id,
+      filename: rows[0].filename,
+      storageKey: rows[0].storage_key,
+      mimeType: rows[0].mime_type,
+      fileSizeBytes: rows[0].file_size_bytes
+        ? Number(rows[0].file_size_bytes)
+        : null,
+      organizationId: rows[0].organization_id,
+      conversionStatus: rows[0].conversion_status,
+    };
   }
 
   async create(body: {
@@ -299,6 +363,280 @@ export class DocumentsService {
       extractionCompletedAt: undefined,
       extractionObjectsCount: undefined,
     };
+  }
+
+  /**
+   * Create a document from an uploaded file BEFORE parsing.
+   * This is the document-first approach where:
+   * 1. Document is created immediately and visible to user
+   * 2. Parsing/conversion happens asynchronously
+   * 3. User can see and retry failed conversions
+   *
+   * @param params - Upload parameters
+   * @returns Document info and whether it was a duplicate
+   */
+  async createFromUpload(params: {
+    projectId: string;
+    storageKey: string;
+    filename: string;
+    mimeType: string;
+    fileSizeBytes: number;
+    fileHash: string;
+    requiresConversion: boolean;
+  }): Promise<{
+    document: DocumentDto;
+    isDuplicate: boolean;
+    existingDocumentId?: string;
+  }> {
+    const {
+      projectId,
+      storageKey,
+      filename,
+      mimeType,
+      fileSizeBytes,
+      fileHash,
+      requiresConversion,
+    } = params;
+
+    // Verify project exists
+    const project = await this.projectRepository.findOne({
+      where: { id: projectId },
+      select: ['id', 'organizationId'],
+    });
+
+    if (!project) {
+      throw new BadRequestException(`Project not found: ${projectId}`);
+    }
+
+    // Check for duplicate file by file_hash (same file uploaded before)
+    const existingByFileHash = await this.documentRepository.findOne({
+      where: {
+        projectId,
+        fileHash,
+      },
+    });
+
+    if (existingByFileHash) {
+      this.logger.log(
+        `Duplicate file detected by file_hash: ${existingByFileHash.id} (${filename})`
+      );
+      return {
+        document: {
+          id: existingByFileHash.id,
+          orgId: undefined,
+          projectId: existingByFileHash.projectId ?? undefined,
+          name: existingByFileHash.filename || filename,
+          sourceUrl: existingByFileHash.sourceUrl ?? undefined,
+          mimeType: existingByFileHash.mimeType ?? mimeType,
+          createdAt: existingByFileHash.createdAt.toISOString(),
+          updatedAt: existingByFileHash.updatedAt.toISOString(),
+          chunks: 0,
+          conversionStatus: existingByFileHash.conversionStatus,
+          conversionError: existingByFileHash.conversionError,
+          conversionCompletedAt:
+            existingByFileHash.conversionCompletedAt?.toISOString() ?? null,
+          storageKey: existingByFileHash.storageKey,
+          fileSizeBytes: existingByFileHash.fileSizeBytes
+            ? Number(existingByFileHash.fileSizeBytes)
+            : undefined,
+        },
+        isDuplicate: true,
+        existingDocumentId: existingByFileHash.id,
+      };
+    }
+
+    // Determine conversion status based on file type
+    const conversionStatus: DocumentConversionStatus = requiresConversion
+      ? 'pending'
+      : 'not_required';
+
+    // Create document
+    const document = this.documentRepository.create({
+      projectId,
+      storageKey,
+      filename,
+      mimeType,
+      fileSizeBytes,
+      fileHash,
+      sourceType: 'upload',
+      conversionStatus,
+      content: null, // Will be filled after conversion (or read directly for plain text)
+      metadata: {
+        originalFilename: filename,
+        uploadedAt: new Date().toISOString(),
+      },
+    });
+
+    let savedDoc: Document;
+    try {
+      savedDoc = await this.documentRepository.save(document);
+    } catch (error: any) {
+      // Handle race condition: document was created between our check and insert
+      if (error?.code === '23505') {
+        // Unique constraint violation - another request created the document
+        const raceDoc = await this.documentRepository.findOne({
+          where: {
+            projectId,
+            fileHash,
+          },
+        });
+        if (raceDoc) {
+          return {
+            document: {
+              id: raceDoc.id,
+              orgId: undefined,
+              projectId: raceDoc.projectId ?? undefined,
+              name: raceDoc.filename || filename,
+              sourceUrl: raceDoc.sourceUrl ?? undefined,
+              mimeType: raceDoc.mimeType ?? mimeType,
+              createdAt: raceDoc.createdAt.toISOString(),
+              updatedAt: raceDoc.updatedAt.toISOString(),
+              chunks: 0,
+              conversionStatus: raceDoc.conversionStatus,
+              conversionError: raceDoc.conversionError,
+              conversionCompletedAt:
+                raceDoc.conversionCompletedAt?.toISOString() ?? null,
+              storageKey: raceDoc.storageKey,
+              fileSizeBytes: raceDoc.fileSizeBytes
+                ? Number(raceDoc.fileSizeBytes)
+                : undefined,
+            },
+            isDuplicate: true,
+            existingDocumentId: raceDoc.id,
+          };
+        }
+        throw error; // Unexpected: constraint violation but can't find the doc
+      }
+      throw error;
+    }
+
+    // Emit real-time event for document creation
+    if (this.eventsService && savedDoc.projectId) {
+      this.eventsService.emitCreated(
+        'document',
+        savedDoc.id,
+        savedDoc.projectId,
+        {
+          filename: savedDoc.filename,
+          conversionStatus: savedDoc.conversionStatus,
+          fileSizeBytes: savedDoc.fileSizeBytes,
+        }
+      );
+    }
+
+    this.logger.log(
+      `Created document ${savedDoc.id} from upload: ${filename} (conversion: ${conversionStatus})`
+    );
+
+    return {
+      document: {
+        id: savedDoc.id,
+        orgId: undefined,
+        projectId: savedDoc.projectId ?? undefined,
+        name: savedDoc.filename || filename,
+        sourceUrl: savedDoc.sourceUrl ?? undefined,
+        mimeType: savedDoc.mimeType ?? mimeType,
+        createdAt: savedDoc.createdAt.toISOString(),
+        updatedAt: savedDoc.updatedAt.toISOString(),
+        chunks: 0,
+        conversionStatus: savedDoc.conversionStatus,
+        conversionError: savedDoc.conversionError,
+        conversionCompletedAt:
+          savedDoc.conversionCompletedAt?.toISOString() ?? null,
+        storageKey: savedDoc.storageKey,
+        fileSizeBytes: savedDoc.fileSizeBytes
+          ? Number(savedDoc.fileSizeBytes)
+          : undefined,
+      },
+      isDuplicate: false,
+    };
+  }
+
+  /**
+   * Update document after conversion completes (success or failure).
+   * Called by the document parsing worker after processing.
+   */
+  async updateConversionStatus(
+    documentId: string,
+    status: 'completed' | 'failed',
+    options: {
+      content?: string;
+      contentHash?: string;
+      error?: string;
+      metadata?: Record<string, any>;
+    }
+  ): Promise<void> {
+    const updateData: {
+      conversionStatus: DocumentConversionStatus;
+      conversionCompletedAt: Date;
+      content?: string | null;
+      contentHash?: string | null;
+      conversionError?: string | null;
+      metadata?: Record<string, any>;
+    } = {
+      conversionStatus: status,
+      conversionCompletedAt: new Date(),
+    };
+
+    if (status === 'completed' && options.content !== undefined) {
+      updateData.content = sanitizeForPostgres(options.content);
+      updateData.contentHash = options.contentHash ?? null;
+    }
+
+    if (status === 'failed' && options.error) {
+      updateData.conversionError = options.error;
+    }
+
+    if (options.metadata) {
+      // Merge with existing metadata
+      const existing = await this.documentRepository.findOne({
+        where: { id: documentId },
+        select: ['metadata'],
+      });
+      updateData.metadata = {
+        ...existing?.metadata,
+        ...sanitizeObjectForPostgres(options.metadata),
+      };
+    }
+
+    await this.documentRepository.update(documentId, updateData);
+
+    this.logger.log(
+      `Updated document ${documentId} conversion status: ${status}`
+    );
+
+    // Emit event for status change
+    const doc = await this.documentRepository.findOne({
+      where: { id: documentId },
+      select: ['id', 'projectId'],
+    });
+    if (this.eventsService && doc?.projectId) {
+      this.eventsService.emitUpdated('document', documentId, doc.projectId, {
+        conversionStatus: status,
+        conversionError: options.error,
+      });
+    }
+  }
+
+  /**
+   * Mark document as processing (conversion started).
+   */
+  async markConversionProcessing(documentId: string): Promise<void> {
+    await this.documentRepository.update(documentId, {
+      conversionStatus: 'processing',
+      conversionError: null, // Clear any previous error
+    });
+  }
+
+  /**
+   * Reset document conversion status to pending (for retry).
+   */
+  async resetConversionStatus(documentId: string): Promise<void> {
+    await this.documentRepository.update(documentId, {
+      conversionStatus: 'pending',
+      conversionError: null, // Clear any previous error
+      conversionCompletedAt: null,
+    });
   }
 
   async getProjectOrg(projectId: string): Promise<string | null> {
@@ -520,7 +858,15 @@ export class DocumentsService {
       notifications: number;
     };
   }> {
-    return await this.dataSource.transaction(async (manager) => {
+    // Get storage key before starting transaction (for cleanup after DB deletion)
+    let storageKey: string | null = null;
+    const storageResult = await this.dataSource.query(
+      `SELECT storage_key FROM kb.documents WHERE id = $1`,
+      [documentId]
+    );
+    storageKey = storageResult[0]?.storage_key || null;
+
+    const result = await this.dataSource.transaction(async (manager) => {
       const summary = {
         chunks: 0,
         extractionJobs: 0,
@@ -596,6 +942,21 @@ export class DocumentsService {
 
       return { status: 'deleted' as const, summary };
     });
+
+    // Clean up storage file after successful DB deletion
+    if (storageKey && this.storageService) {
+      try {
+        await this.storageService.delete(storageKey);
+        this.logger.debug(`Deleted storage file: ${storageKey}`);
+      } catch (err) {
+        // Log warning but don't fail the deletion - DB is source of truth
+        this.logger.warn(
+          `Failed to delete storage file ${storageKey} for document ${documentId}: ${err}`
+        );
+      }
+    }
+
+    return result;
   }
 
   /**
@@ -628,7 +989,16 @@ export class DocumentsService {
       };
     }
 
-    return await this.dataSource.transaction(async (manager) => {
+    // Get storage keys before starting transaction (for cleanup after DB deletion)
+    const storageKeysResult = await this.dataSource.query(
+      `SELECT storage_key FROM kb.documents WHERE id = ANY($1) AND storage_key IS NOT NULL`,
+      [documentIds]
+    );
+    const storageKeys: string[] = storageKeysResult
+      .map((row: any) => row.storage_key)
+      .filter((key: string | null) => key !== null);
+
+    const result = await this.dataSource.transaction(async (manager) => {
       // Check which documents exist
       const existingDocsResult = await manager.query(
         `SELECT id FROM kb.documents WHERE id = ANY($1)`,
@@ -727,6 +1097,21 @@ export class DocumentsService {
         summary,
       };
     });
+
+    // Clean up storage files after successful DB deletion
+    if (storageKeys.length > 0 && this.storageService) {
+      for (const key of storageKeys) {
+        try {
+          await this.storageService.delete(key);
+          this.logger.debug(`Deleted storage file: ${key}`);
+        } catch (err) {
+          // Log warning but don't fail the deletion - DB is source of truth
+          this.logger.warn(`Failed to delete storage file ${key}: ${err}`);
+        }
+      }
+    }
+
+    return result;
   }
 
   decodeCursor(cursor?: string): { createdAt: string; id: string } | undefined {
@@ -762,6 +1147,12 @@ export class DocumentsService {
       extractionStatus: r.extraction_status || undefined,
       extractionCompletedAt: r.extraction_completed_at || undefined,
       extractionObjectsCount: r.extraction_objects_count || undefined,
+      // Conversion status fields
+      conversionStatus: r.conversion_status || undefined,
+      conversionError: r.conversion_error,
+      conversionCompletedAt: r.conversion_completed_at,
+      storageKey: r.storage_key,
+      fileSizeBytes: r.file_size_bytes ? Number(r.file_size_bytes) : undefined,
     };
   }
 
@@ -913,6 +1304,187 @@ export class DocumentsService {
     return {
       status: result.status,
       summary: result.summary,
+    };
+  }
+
+  /**
+   * Create or update a Document from a completed document parsing job.
+   * This is called by the DocumentParsingWorkerService after parsing completes.
+   *
+   * The document will be created with:
+   * - Reference to storage (storageKey) - content stays in MinIO, not in DB
+   * - Metadata from parsing (page count, word count, etc.)
+   * - Chunks generated from parsed content
+   * - Embedding jobs queued for chunks
+   */
+  async createFromParsingJob(params: {
+    projectId: string;
+    organizationId: string;
+    storageKey: string;
+    filename: string;
+    mimeType: string;
+    fileSizeBytes: number;
+    parsedContent: string;
+    metadata?: Record<string, any>;
+  }): Promise<{
+    documentId: string;
+    chunksCreated: number;
+    embeddingJobsQueued: number;
+  }> {
+    const {
+      projectId,
+      organizationId,
+      storageKey,
+      filename,
+      mimeType,
+      fileSizeBytes,
+      metadata: rawMetadata = {},
+    } = params;
+
+    // Sanitize content for PostgreSQL storage (safety net - content should already be sanitized)
+    const parsedContent = sanitizeForPostgres(params.parsedContent);
+
+    // Sanitize metadata for PostgreSQL JSONB storage
+    const metadata = sanitizeObjectForPostgres(rawMetadata);
+
+    // Generate content hash for deduplication
+    const contentHash = this.hash.sha256(parsedContent);
+
+    // Check for existing document with same content (deduplication)
+    const existing = await this.documentRepository.findOne({
+      where: {
+        projectId,
+        contentHash,
+      },
+    });
+
+    if (existing) {
+      this.logger.log(
+        `Document with same content hash already exists: ${existing.id}, updating storage reference`
+      );
+
+      // Update existing document with new storage info if it was missing
+      if (!existing.storageKey) {
+        await this.documentRepository.update(existing.id, {
+          storageKey,
+          fileSizeBytes,
+          filename,
+          mimeType,
+          metadata: { ...existing.metadata, ...metadata },
+        });
+      }
+
+      return {
+        documentId: existing.id,
+        chunksCreated: 0,
+        embeddingJobsQueued: 0,
+      };
+    }
+
+    // Get project for chunking configuration
+    const project = await this.projectRepository.findOne({
+      where: { id: projectId },
+      select: ['id', 'chunkingConfig'],
+    });
+
+    if (!project) {
+      throw new BadRequestException(`Project not found: ${projectId}`);
+    }
+
+    // Create document in a transaction
+    const result = await this.dataSource.transaction(async (manager) => {
+      // Create document WITHOUT content in DB - only reference to storage
+      const document = manager.create(Document, {
+        projectId,
+        storageKey,
+        filename,
+        mimeType,
+        fileSizeBytes,
+        contentHash,
+        content: null, // Content stays in MinIO, not in DB
+        sourceType: 'upload',
+        metadata: {
+          ...metadata,
+          parsedContentLength: parsedContent.length,
+        },
+      });
+
+      const savedDoc = await manager.save(document);
+
+      // Generate chunks from parsed content using project's chunking config
+      const chunkingConfig = project.chunkingConfig || {};
+      const chunksWithMeta = this.chunker.chunkWithMetadata(
+        parsedContent,
+        chunkingConfig
+      );
+
+      // Insert chunks
+      let chunkIds: string[] = [];
+      if (chunksWithMeta.length > 0) {
+        // Use parameterized query for safety
+        for (let i = 0; i < chunksWithMeta.length; i++) {
+          const chunk = chunksWithMeta[i];
+          // Sanitize chunk text and metadata for PostgreSQL
+          const sanitizedChunkText = sanitizeForPostgres(chunk.text);
+          const sanitizedChunkMetadata = sanitizeObjectForPostgres(
+            chunk.metadata
+          );
+          const insertResult = await manager.query(
+            `INSERT INTO kb.chunks (document_id, chunk_index, text, metadata) 
+             VALUES ($1, $2, $3, $4) RETURNING id`,
+            [
+              savedDoc.id,
+              i + 1,
+              sanitizedChunkText,
+              JSON.stringify(sanitizedChunkMetadata),
+            ]
+          );
+          chunkIds.push(insertResult[0].id);
+        }
+      }
+
+      return {
+        documentId: savedDoc.id,
+        chunkIds,
+        chunksCreated: chunksWithMeta.length,
+      };
+    });
+
+    // Queue embedding jobs for the chunks (outside transaction)
+    let embeddingJobsQueued = 0;
+    if (result.chunkIds.length > 0) {
+      embeddingJobsQueued = await this.chunkEmbeddingJobs.enqueueBatch(
+        result.chunkIds
+      );
+      this.logger.log(
+        `Queued ${embeddingJobsQueued} embedding jobs for document ${result.documentId}`
+      );
+
+      if (!this.config.embeddingsEnabled) {
+        this.logger.warn(
+          `Embeddings are disabled. ${embeddingJobsQueued} jobs queued but will NOT be processed.`
+        );
+      }
+    }
+
+    // Emit real-time event for document creation
+    if (this.eventsService) {
+      this.eventsService.emitCreated('document', result.documentId, projectId, {
+        filename,
+        storageKey,
+        chunksCreated: result.chunksCreated,
+      });
+    }
+
+    this.logger.log(
+      `Created document ${result.documentId} from parsing job: ` +
+        `${result.chunksCreated} chunks, ${embeddingJobsQueued} embedding jobs queued`
+    );
+
+    return {
+      documentId: result.documentId,
+      chunksCreated: result.chunksCreated,
+      embeddingJobsQueued,
     };
   }
 }

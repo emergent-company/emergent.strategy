@@ -1,7 +1,12 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import {
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+  DynamicModule,
+} from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { OpenTelemetryModule } from 'nestjs-otel';
+// OpenTelemetryModule imported conditionally below to avoid hang when OTEL is disabled
 import { ActivityTrackingInterceptor } from '../common/interceptors/activity-tracking.interceptor';
 import { ViewAsMiddleware } from '../common/middleware/view-as.middleware';
 import { UserProfile } from '../entities/user-profile.entity';
@@ -50,18 +55,39 @@ import { EmailModule } from './email/email.module';
 import { ReleasesModule } from './releases/releases.module';
 import { SuperadminModule } from './superadmin/superadmin.module';
 import { UserEmailPreferencesModule } from './user-email-preferences/user-email-preferences.module';
+import { StorageModule } from './storage/storage.module';
+import { DocumentParsingModule } from './document-parsing/document-parsing.module';
 import { AppConfigService } from '../common/config/config.service';
 import { entities } from '../entities';
 
-@Module({
-  imports: [
-    // OpenTelemetry Module - provides @Span, @Traceable decorators and TraceService
-    // Must be imported early to ensure proper context propagation
+// Conditionally load OpenTelemetry module to avoid startup hang when OTEL is disabled
+// The nestjs-otel package imports @opentelemetry/auto-instrumentations-node which hangs
+const isOtelEnabled = process.env.OTEL_ENABLED === 'true';
+let OpenTelemetryModule: any = null;
+if (isOtelEnabled) {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  OpenTelemetryModule = require('nestjs-otel').OpenTelemetryModule;
+}
+
+// Build imports array conditionally
+const getOtelImports = (): DynamicModule[] => {
+  if (!isOtelEnabled || !OpenTelemetryModule) {
+    return [];
+  }
+  return [
     OpenTelemetryModule.forRoot({
       metrics: {
         hostMetrics: true, // Collect host CPU, memory metrics
       },
     }),
+  ];
+};
+
+@Module({
+  imports: [
+    // OpenTelemetry Module - conditionally loaded based on OTEL_ENABLED
+    // Must be imported early to ensure proper context propagation
+    ...getOtelImports(),
     // TypeORM Configuration
     TypeOrmModule.forRootAsync({
       imports: [AppConfigModule],
@@ -148,6 +174,8 @@ import { entities } from '../entities';
     ReleasesModule,
     SuperadminModule,
     UserEmailPreferencesModule,
+    StorageModule,
+    DocumentParsingModule,
     TypeOrmModule.forFeature([UserProfile]),
   ],
   providers: [
