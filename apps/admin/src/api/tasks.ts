@@ -60,6 +60,16 @@ export interface TasksClient {
    * Get LLM-powered merge suggestion for a merge_suggestion task
    */
   getMergeSuggestion(taskId: string): Promise<MergeSuggestionResult | null>;
+
+  /**
+   * Get tasks across all projects the user has access to
+   */
+  getAllTasks(filters?: TaskFilter): Promise<TasksResponse>;
+
+  /**
+   * Get task counts across all projects the user has access to
+   */
+  getAllTaskCounts(): Promise<TaskCounts>;
 }
 
 /**
@@ -150,6 +160,42 @@ export function createTasksClient(
         throw new Error(response.error || 'Failed to get merge suggestion');
       }
       return response.data || null;
+    },
+
+    async getAllTasks(filters: TaskFilter = {}) {
+      const params = new URLSearchParams();
+
+      if (filters.status) params.append('status', filters.status);
+      if (filters.type) params.append('type', filters.type);
+      if (filters.page) params.append('page', String(filters.page));
+      if (filters.limit) params.append('limit', String(filters.limit));
+
+      const queryString = params.toString();
+      const url = queryString
+        ? `${baseUrl}/all?${queryString}`
+        : `${baseUrl}/all`;
+
+      const response = await fetchJson<
+        TaskApiResponse<Task[]> & {
+          meta?: { total: number; page: number; limit: number };
+        }
+      >(url);
+
+      return {
+        tasks: response.data || [],
+        total: response.meta?.total || 0,
+        page: response.meta?.page || 1,
+        limit: response.meta?.limit || 50,
+      };
+    },
+
+    async getAllTaskCounts() {
+      const response = await fetchJson<TaskApiResponse<TaskCounts>>(
+        `${baseUrl}/all/counts`
+      );
+      return (
+        response.data || { pending: 0, accepted: 0, rejected: 0, cancelled: 0 }
+      );
     },
   };
 }
