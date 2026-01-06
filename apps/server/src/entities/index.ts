@@ -72,6 +72,7 @@ export { UserProfile } from './user-profile.entity';
 export { UserEmail } from './user-email.entity';
 export { UserEmailPreferences } from './user-email-preferences.entity';
 export { Superadmin } from './superadmin.entity';
+export { ApiToken } from './api-token.entity';
 
 // Array of all entities for TypeORM configuration
 import { Document } from './document.entity';
@@ -115,6 +116,7 @@ import { UserProfile } from './user-profile.entity';
 import { UserEmail } from './user-email.entity';
 import { UserEmailPreferences } from './user-email-preferences.entity';
 import { Superadmin } from './superadmin.entity';
+import { ApiToken } from './api-token.entity';
 import { ExternalSource } from './external-source.entity';
 import { EmailJob } from './email-job.entity';
 import { EmailLog } from './email-log.entity';
@@ -168,6 +170,7 @@ export const entities = [
   UserEmail,
   UserEmailPreferences,
   Superadmin,
+  ApiToken,
   // Agent System
   Agent,
   AgentRun,
