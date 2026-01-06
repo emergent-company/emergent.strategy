@@ -30,7 +30,8 @@
     },
     "gh_grep": {
       "type": "remote",
-      "url": "https://mcp.grep.app"
+      "url": "https://mcp.grep.app",
+      "timeout": 50000
     },
     //    "react-daisyui Docs": {
     //      "type": "remote",
@@ -56,7 +57,8 @@
     },
     "langfuse-docs": {
       "type": "remote",
-      "url": "https://langfuse.com/api/mcp"
+      "url": "https://langfuse.com/api/mcp",
+      "timeout": 50000
     },
     "langfuse": {
       "type": "local",
