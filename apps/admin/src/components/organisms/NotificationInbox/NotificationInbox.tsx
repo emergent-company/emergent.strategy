@@ -57,6 +57,7 @@ export const NotificationInbox: React.FC<NotificationInboxProps> = ({
       { title: 'Today', notifications: [] },
       { title: 'Yesterday', notifications: [] },
       { title: 'Last 7 days', notifications: [] },
+      { title: 'Earlier', notifications: [] },
     ];
 
     notifs.forEach((notif) => {
@@ -67,6 +68,8 @@ export const NotificationInbox: React.FC<NotificationInboxProps> = ({
         groups[1].notifications.push(notif);
       } else if (date >= lastWeek) {
         groups[2].notifications.push(notif);
+      } else {
+        groups[3].notifications.push(notif);
       }
     });
 
