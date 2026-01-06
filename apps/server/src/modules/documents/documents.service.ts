@@ -214,12 +214,12 @@ export class DocumentsService {
     storageKey: string | null;
     mimeType: string | null;
     fileSizeBytes: number | null;
-    organizationId: string;
+    projectId: string;
     conversionStatus: string | null;
   } | null> {
     const queryFn = async () => {
       const result = await this.db.query(
-        `SELECT id, filename, storage_key, mime_type, file_size_bytes, organization_id, conversion_status 
+        `SELECT id, filename, storage_key, mime_type, file_size_bytes, project_id, conversion_status 
          FROM kb.documents WHERE id = $1`,
         [id]
       );
@@ -240,7 +240,7 @@ export class DocumentsService {
       fileSizeBytes: rows[0].file_size_bytes
         ? Number(rows[0].file_size_bytes)
         : null,
-      organizationId: rows[0].organization_id,
+      projectId: rows[0].project_id,
       conversionStatus: rows[0].conversion_status,
     };
   }
