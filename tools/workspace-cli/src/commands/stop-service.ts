@@ -14,6 +14,7 @@ import {
   stopDockerComposeService,
   getDockerComposeServiceStatus,
 } from '../process/docker.js';
+import { timestamp } from '../utils/format.js';
 
 export async function runStopCommand(argv: readonly string[]): Promise<void> {
   const args = parseCliArgs(argv);
@@ -22,11 +23,14 @@ export async function runStopCommand(argv: readonly string[]): Promise<void> {
   // Check if we should skip Docker dependencies (remote mode)
   const skipDockerDeps = process.env.SKIP_DOCKER_DEPS === 'true';
   if (skipDockerDeps && (args.dependenciesOnly || args.all || args.workspace)) {
-    process.stdout.write('🌐 Remote mode: Skipping Docker dependencies (using remote services)\n\n');
+    process.stdout.write(
+      `[${timestamp()}] 🌐 Remote mode: Skipping Docker dependencies (using remote services)\n\n`
+    );
   }
 
   const includeDependencies =
-    !skipDockerDeps && (args.includeDependencies ||
+    !skipDockerDeps &&
+    (args.includeDependencies ||
       args.dependenciesOnly ||
       args.all ||
       args.workspace);
@@ -56,7 +60,7 @@ export async function runStopCommand(argv: readonly string[]): Promise<void> {
 
   if (serviceIds.length === 0 && dependencyIds.length === 0) {
     process.stdout.write(
-      '⚠️  No services or dependencies requested for stop command.\n'
+      `[${timestamp()}] ⚠️  No services or dependencies requested for stop command.\n`
     );
     return;
   }
@@ -64,7 +68,7 @@ export async function runStopCommand(argv: readonly string[]): Promise<void> {
   // Stop services first (before dependencies)
   if (serviceIds.length > 0) {
     process.stdout.write(
-      `⏹️  Stopping services [${serviceIds.join(
+      `[${timestamp()}] ⏹️  Stopping services [${serviceIds.join(
         ', '
       )}] with profile ${profileId}\n`
     );
@@ -74,18 +78,21 @@ export async function runStopCommand(argv: readonly string[]): Promise<void> {
         const status = await getProcessStatus(serviceId);
 
         if (!status.running) {
-          process.stdout.write(`∙ ${serviceId} is not running\n`);
+          process.stdout.write(
+            `[${timestamp()}] ∙ ${serviceId} is not running\n`
+          );
           continue;
         }
 
         process.stdout.write(
-          `∙ Stopping ${serviceId} (PID ${status.pid})...\n`
+          `[${timestamp()}] ∙ Stopping ${serviceId} (PID ${status.pid})...\n`
         );
         await stopProcess(serviceId, { timeout: 10000 });
-        process.stdout.write(`  ✓ Stopped ${serviceId}\n`);
+        process.stdout.write(`[${timestamp()}]   ✓ Stopped ${serviceId}\n`);
       } catch (error) {
         process.stderr.write(
-          `  ✗ Failed to stop ${serviceId}: ${error instanceof Error ? error.message : String(error)
+          `[${timestamp()}]   ✗ Failed to stop ${serviceId}: ${
+            error instanceof Error ? error.message : String(error)
           }\n`
         );
       }
@@ -97,7 +104,9 @@ export async function runStopCommand(argv: readonly string[]): Promise<void> {
   // Stop dependencies
   if (dependencyIds.length > 0) {
     process.stdout.write(
-      `🛑 Stopping dependencies [${dependencyIds.join(', ')}]\n`
+      `[${timestamp()}] 🛑 Stopping dependencies [${dependencyIds.join(
+        ', '
+      )}]\n`
     );
 
     for (const depId of dependencyIds) {
@@ -112,29 +121,38 @@ export async function runStopCommand(argv: readonly string[]): Promise<void> {
           );
 
           if (!dockerStatus.running) {
-            process.stdout.write(`∙ ${depId} is not running\n`);
+            process.stdout.write(
+              `[${timestamp()}] ∙ ${depId} is not running\n`
+            );
             continue;
           }
 
-          process.stdout.write(`∙ Stopping ${depId} (Docker)...\n`);
+          process.stdout.write(
+            `[${timestamp()}] ∙ Stopping ${depId} (Docker)...\n`
+          );
           await stopDockerComposeService(depProfile.composeService);
-          process.stdout.write(`  ✓ Stopped ${depId}\n`);
+          process.stdout.write(`[${timestamp()}]   ✓ Stopped ${depId}\n`);
         } else {
           // Regular process-based dependency
           const status = await getProcessStatus(depId);
 
           if (!status.running) {
-            process.stdout.write(`∙ ${depId} is not running\n`);
+            process.stdout.write(
+              `[${timestamp()}] ∙ ${depId} is not running\n`
+            );
             continue;
           }
 
-          process.stdout.write(`∙ Stopping ${depId} (PID ${status.pid})...\n`);
+          process.stdout.write(
+            `[${timestamp()}] ∙ Stopping ${depId} (PID ${status.pid})...\n`
+          );
           await stopProcess(depId, { timeout: 10000 });
-          process.stdout.write(`  ✓ Stopped ${depId}\n`);
+          process.stdout.write(`[${timestamp()}]   ✓ Stopped ${depId}\n`);
         }
       } catch (error) {
         process.stderr.write(
-          `  ✗ Failed to stop ${depId}: ${error instanceof Error ? error.message : String(error)
+          `[${timestamp()}]   ✗ Failed to stop ${depId}: ${
+            error instanceof Error ? error.message : String(error)
           }\n`
         );
       }
@@ -143,5 +161,5 @@ export async function runStopCommand(argv: readonly string[]): Promise<void> {
     process.stdout.write('\n');
   }
 
-  process.stdout.write('✅ Stop command complete\n');
+  process.stdout.write(`[${timestamp()}] ✅ Stop command complete\n`);
 }

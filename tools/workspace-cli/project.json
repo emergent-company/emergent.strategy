@@ -28,57 +28,65 @@
     },
     "workspace:start": {
       "executor": "nx:run-commands",
+      "dependsOn": ["build"],
       "options": {
-        "command": "npx tsx tools/workspace-cli/src/cli.ts start --workspace",
+        "command": "node tools/workspace-cli/dist/cli.js start --workspace",
         "forwardAllArgs": true
       }
     },
     "workspace:start-all": {
       "executor": "nx:run-commands",
+      "dependsOn": ["build"],
       "options": {
-        "command": "npx tsx tools/workspace-cli/src/cli.ts start --all",
+        "command": "node tools/workspace-cli/dist/cli.js start --all",
         "forwardAllArgs": true
       }
     },
     "workspace:restart": {
       "executor": "nx:run-commands",
+      "dependsOn": ["build"],
       "options": {
-        "command": "npx tsx tools/workspace-cli/src/cli.ts restart --workspace",
+        "command": "node tools/workspace-cli/dist/cli.js restart --workspace",
         "forwardAllArgs": true
       }
     },
     "workspace:stop": {
       "executor": "nx:run-commands",
+      "dependsOn": ["build"],
       "options": {
-        "command": "npx tsx tools/workspace-cli/src/cli.ts stop --workspace",
+        "command": "node tools/workspace-cli/dist/cli.js stop --workspace",
         "forwardAllArgs": true
       }
     },
     "workspace:deps:start": {
       "executor": "nx:run-commands",
+      "dependsOn": ["build"],
       "options": {
-        "command": "npx tsx tools/workspace-cli/src/cli.ts start --deps-only",
+        "command": "node tools/workspace-cli/dist/cli.js start --deps-only",
         "forwardAllArgs": true
       }
     },
     "workspace:deps:restart": {
       "executor": "nx:run-commands",
+      "dependsOn": ["build"],
       "options": {
-        "command": "npx tsx tools/workspace-cli/src/cli.ts restart --deps-only",
+        "command": "node tools/workspace-cli/dist/cli.js restart --deps-only",
         "forwardAllArgs": true
       }
     },
     "workspace:deps:stop": {
       "executor": "nx:run-commands",
+      "dependsOn": ["build"],
       "options": {
-        "command": "npx tsx tools/workspace-cli/src/cli.ts stop --deps-only",
+        "command": "node tools/workspace-cli/dist/cli.js stop --deps-only",
         "forwardAllArgs": true
       }
     },
     "workspace:status": {
       "executor": "nx:run-commands",
+      "dependsOn": ["build"],
       "options": {
-        "command": "npx tsx tools/workspace-cli/src/cli.ts status --workspace --dependencies",
+        "command": "node tools/workspace-cli/dist/cli.js status --workspace --dependencies",
         "forwardAllArgs": true
       }
     }

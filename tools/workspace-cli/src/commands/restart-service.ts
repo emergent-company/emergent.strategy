@@ -12,8 +12,9 @@ import {
   restartProcess,
   getProcessStatus,
   type StartProcessOptions,
+  type StartProcessResult,
 } from '../process/manager.js';
-import { waitForHealthy } from '../process/health-check.js';
+import { waitForHealthy, waitForUnhealthy } from '../process/health-check.js';
 import {
   getDependencyProcess,
   listDefaultDependencyProcesses,
@@ -26,6 +27,7 @@ import {
   restartDockerComposeService,
   getDockerComposeServiceStatus,
 } from '../process/docker.js';
+import { timestamp } from '../utils/format.js';
 
 export async function runRestartCommand(
   argv: readonly string[]
@@ -43,10 +45,16 @@ export async function runRestartCommand(
   // Check if we should skip Docker dependencies (remote mode)
   const skipDockerDeps = process.env.SKIP_DOCKER_DEPS === 'true';
   if (skipDockerDeps) {
-    process.stdout.write('🌐 Remote mode: Skipping local Docker dependencies\n');
+    process.stdout.write(
+      `[${timestamp()}] 🌐 Remote mode: Skipping local Docker dependencies\n`
+    );
     process.stdout.write('   Using remote services:\n');
     if (process.env.POSTGRES_HOST) {
-      process.stdout.write(`   • Database: ${process.env.POSTGRES_HOST}:${process.env.POSTGRES_PORT || 5432}\n`);
+      process.stdout.write(
+        `   • Database: ${process.env.POSTGRES_HOST}:${
+          process.env.POSTGRES_PORT || 5432
+        }\n`
+      );
     }
     if (process.env.ZITADEL_DOMAIN) {
       process.stdout.write(`   • Zitadel: ${process.env.ZITADEL_DOMAIN}\n`);
@@ -55,7 +63,8 @@ export async function runRestartCommand(
   }
 
   const includeDependencies =
-    !skipDockerDeps && (args.includeDependencies ||
+    !skipDockerDeps &&
+    (args.includeDependencies ||
       args.dependenciesOnly ||
       args.all ||
       args.workspace);
@@ -85,7 +94,7 @@ export async function runRestartCommand(
 
   if (serviceIds.length === 0 && dependencyIds.length === 0) {
     process.stdout.write(
-      '⚠️  No services or dependencies requested for restart command.\n'
+      `[${timestamp()}] ⚠️  No services or dependencies requested for restart command.\n`
     );
     return;
   }
@@ -93,7 +102,9 @@ export async function runRestartCommand(
   // Restart dependencies first
   if (dependencyIds.length > 0) {
     process.stdout.write(
-      `🔄 Restarting dependencies [${dependencyIds.join(', ')}]\n`
+      `[${timestamp()}] 🔄 Restarting dependencies [${dependencyIds.join(
+        ', '
+      )}]\n`
     );
 
     for (const depId of dependencyIds) {
@@ -108,13 +119,19 @@ export async function runRestartCommand(
           );
 
           if (dockerStatus.running) {
-            process.stdout.write(`∙ Restarting ${depId} (Docker)...\n`);
+            process.stdout.write(
+              `[${timestamp()}] ∙ Restarting ${depId} (Docker)...\n`
+            );
           } else {
-            process.stdout.write(`∙ Starting ${depId} (was not running)...\n`);
+            process.stdout.write(
+              `[${timestamp()}] ∙ Starting ${depId} (was not running)...\n`
+            );
           }
 
           await restartDockerComposeService(depProfile.composeService);
-          process.stdout.write(`  ✓ Restarted ${depId} (Docker)\n`);
+          process.stdout.write(
+            `[${timestamp()}]   ✓ Restarted ${depId} (Docker)\n`
+          );
         } else {
           // Regular process-based dependency
           const status = await getProcessStatus(depId);
@@ -132,18 +149,23 @@ export async function runRestartCommand(
 
           if (status.running) {
             process.stdout.write(
-              `∙ Restarting ${depId} (PID ${status.pid})...\n`
+              `[${timestamp()}] ∙ Restarting ${depId} (PID ${status.pid})...\n`
             );
           } else {
-            process.stdout.write(`∙ Starting ${depId} (was not running)...\n`);
+            process.stdout.write(
+              `[${timestamp()}] ∙ Starting ${depId} (was not running)...\n`
+            );
           }
 
           const pid = await restartProcess(startOptions);
-          process.stdout.write(`  ✓ Restarted ${depId} (PID ${pid})\n`);
+          process.stdout.write(
+            `[${timestamp()}]   ✓ Restarted ${depId} (PID ${pid})\n`
+          );
         }
       } catch (error) {
         process.stderr.write(
-          `  ✗ Failed to restart ${depId}: ${error instanceof Error ? error.message : String(error)
+          `[${timestamp()}]   ✗ Failed to restart ${depId}: ${
+            error instanceof Error ? error.message : String(error)
           }\n`
         );
       }
@@ -155,7 +177,7 @@ export async function runRestartCommand(
   // Restart services
   if (serviceIds.length > 0) {
     process.stdout.write(
-      `🔁 Restarting services [${serviceIds.join(
+      `[${timestamp()}] 🔁 Restarting services [${serviceIds.join(
         ', '
       )}] with profile ${profileId}\n`
     );
@@ -175,24 +197,55 @@ export async function runRestartCommand(
             ...envProfile.variables,
             ...envOverrides,
           },
+          // Pass the port for proper socket cleanup during restart
+          port: profile.exposedPorts?.[0]
+            ? parseInt(profile.exposedPorts[0], 10)
+            : undefined,
         };
 
         if (status.running) {
           process.stdout.write(
-            `∙ Restarting ${serviceId} (PID ${status.pid})...\n`
+            `[${timestamp()}] ∙ Restarting ${serviceId} (PID ${
+              status.pid
+            })...\n`
           );
+
+          // If health check is configured, wait for old server to become unhealthy first
+          if (profile.healthCheck?.url && !args.skipHealthCheck) {
+            process.stdout.write(
+              `[${timestamp()}]   ⏳ Waiting for old process to stop...`
+            );
+            const unhealthyResult = await waitForUnhealthy({
+              url: profile.healthCheck.url,
+              timeoutMs: 2000,
+              maxWaitMs: 15000, // Wait up to 15s for old server to die
+            });
+            if (unhealthyResult.unhealthy) {
+              process.stdout.write(` ✓ Stopped\n`);
+            } else {
+              process.stdout.write(` ⚠️  Old process may still be running\n`);
+            }
+          }
         } else {
           process.stdout.write(
-            `∙ Starting ${serviceId} (was not running)...\n`
+            `[${timestamp()}] ∙ Starting ${serviceId} (was not running)...\n`
           );
         }
 
-        const pid = await restartProcess(startOptions);
-        process.stdout.write(`  ✓ Restarted ${serviceId} (PID ${pid})\n`);
+        const result = await restartProcess(startOptions);
 
-        // Run health check if configured
-        if (profile.healthCheck?.url) {
-          process.stdout.write(`  ⏳ Checking health...`);
+        if (!result.startedSuccessfully) {
+          process.stderr.write(`[${timestamp()}]   ✗ ${result.errorMessage}\n`);
+          continue; // Skip health check for failed process
+        }
+
+        process.stdout.write(
+          `[${timestamp()}]   ✓ Restarted ${serviceId} (PID ${result.pid})\n`
+        );
+
+        // Run health check if configured (and not skipped)
+        if (profile.healthCheck?.url && !args.skipHealthCheck) {
+          process.stdout.write(`[${timestamp()}]   ⏳ Checking health...`);
           const healthResult = await waitForHealthy({
             url: profile.healthCheck.url,
             timeoutMs: 5000,
@@ -205,10 +258,15 @@ export async function runRestartCommand(
             const errorMsg = healthResult.error ?? 'Unknown error';
             process.stdout.write(` ⚠️  Health check failed: ${errorMsg}\n`);
           }
+        } else if (args.skipHealthCheck) {
+          process.stdout.write(
+            `[${timestamp()}]   ⏭️  Health check skipped (--no-health-check)\n`
+          );
         }
       } catch (error) {
         process.stderr.write(
-          `  ✗ Failed to restart ${serviceId}: ${error instanceof Error ? error.message : String(error)
+          `[${timestamp()}]   ✗ Failed to restart ${serviceId}: ${
+            error instanceof Error ? error.message : String(error)
           }\n`
         );
       }
@@ -217,5 +275,5 @@ export async function runRestartCommand(
     process.stdout.write('\n');
   }
 
-  process.stdout.write('✅ Restart command complete\n');
+  process.stdout.write(`[${timestamp()}] ✅ Restart command complete\n`);
 }

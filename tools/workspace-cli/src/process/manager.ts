@@ -21,6 +21,27 @@ export interface StartProcessOptions {
   readonly args?: readonly string[];
   readonly cwd?: string;
   readonly env?: Record<string, string>;
+  /**
+   * How long to wait (ms) before declaring the process started.
+   * During this period, if the process exits, it's considered a startup failure.
+   * Default: 2000ms
+   */
+  readonly startupWaitMs?: number;
+  /**
+   * Port to wait for during restart (ensures old process releases the socket)
+   */
+  readonly port?: number;
+  /**
+   * How long to wait (ms) for the port to become free during restart.
+   * Default: 3000ms
+   */
+  readonly waitForPortMs?: number;
+}
+
+export interface StartProcessResult {
+  readonly pid: number;
+  readonly startedSuccessfully: boolean;
+  readonly errorMessage?: string;
 }
 
 export interface ProcessStatus {
@@ -47,8 +68,15 @@ function getLogFilePaths(name: string) {
 
 export async function startProcess(
   options: StartProcessOptions
-): Promise<number> {
-  const { name, command, args = [], cwd = process.cwd(), env = {} } = options;
+): Promise<StartProcessResult> {
+  const {
+    name,
+    command,
+    args = [],
+    cwd = process.cwd(),
+    env = {},
+    startupWaitMs = 2000,
+  } = options;
 
   // Check if already running
   const existingPid = await readPidFile(name);
@@ -80,6 +108,10 @@ export async function startProcess(
       ...env,
     };
 
+    // Track if process exited during startup
+    let exitedDuringStartup = false;
+    let exitCode: number | null = null;
+
     // Spawn the process
     const child: ChildProcess = spawn(command, [...args], {
       cwd,
@@ -93,6 +125,12 @@ export async function startProcess(
     }
 
     const pid = child.pid;
+
+    // Listen for early exit during startup period
+    child.on('exit', (code) => {
+      exitedDuringStartup = true;
+      exitCode = code;
+    });
 
     // Write PID and metadata
     await writePidFile(name, pid);
@@ -113,18 +151,34 @@ export async function startProcess(
     // Detach the child process so it continues running after parent exits
     child.unref();
 
-    // Wait a bit to ensure process started successfully
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Wait for startup period to detect early failures
+    // Check periodically during startup wait
+    const checkInterval = 200;
+    const checks = Math.ceil(startupWaitMs / checkInterval);
 
-    if (!isPidRunning(pid)) {
-      await deletePidFile(name);
-      await deleteMetadata(name);
-      throw new Error(
-        `Process ${name} failed to start. Check logs at ${logFiles.error}`
-      );
+    for (let i = 0; i < checks; i++) {
+      await new Promise((resolve) => setTimeout(resolve, checkInterval));
+
+      // Check if process exited during startup
+      if (exitedDuringStartup || !isPidRunning(pid)) {
+        await deletePidFile(name);
+        await deleteMetadata(name);
+        const errorMsg =
+          exitCode !== null
+            ? `Process ${name} exited with code ${exitCode} during startup. Check logs at ${logFiles.error}`
+            : `Process ${name} failed to start. Check logs at ${logFiles.error}`;
+        return {
+          pid,
+          startedSuccessfully: false,
+          errorMessage: errorMsg,
+        };
+      }
     }
 
-    return pid;
+    return {
+      pid,
+      startedSuccessfully: true,
+    };
   } finally {
     // Close file descriptors
     await outFd.close();
@@ -240,17 +294,51 @@ export async function getProcessStatus(name: string): Promise<ProcessStatus> {
 
 export async function restartProcess(
   options: StartProcessOptions
-): Promise<number> {
-  const { name } = options;
+): Promise<StartProcessResult> {
+  const { name, waitForPortMs = 3000, port } = options;
 
   // Try to stop if running
   const status = await getProcessStatus(name);
   if (status.running) {
     await stopProcess(name);
+
+    // If a port is specified, wait for it to become available
+    // This ensures the old process has fully released the socket
+    if (port) {
+      const startTime = Date.now();
+      while (Date.now() - startTime < waitForPortMs) {
+        const isPortFree = await checkPortFree(port);
+        if (isPortFree) {
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+    } else {
+      // Default wait to ensure socket cleanup
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
   }
 
   // Start the process
   return startProcess(options);
+}
+
+/**
+ * Check if a port is free (not in use)
+ */
+async function checkPortFree(port: number): Promise<boolean> {
+  const net = await import('node:net');
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.once('error', () => {
+      resolve(false); // Port is in use
+    });
+    server.once('listening', () => {
+      server.close();
+      resolve(true); // Port is free
+    });
+    server.listen(port, '127.0.0.1');
+  });
 }
 
 export async function listProcesses(): Promise<ProcessStatus[]> {

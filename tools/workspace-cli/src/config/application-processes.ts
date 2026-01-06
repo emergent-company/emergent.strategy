@@ -34,69 +34,78 @@ function getServerPort(): string {
   return getRequiredEnvVar('SERVER_PORT');
 }
 
-const APPLICATION_PROFILES: readonly ApplicationProcessProfile[] = [
-  {
-    processId: 'admin',
-    entryPoint: 'npm',
-    args: ['run', 'dev'],
-    cwd: 'apps/admin',
-    envProfile: 'development',
-    restartPolicy: DEFAULT_RESTART_POLICY,
-    logs: buildLogConfig('admin'),
-    healthCheck: {
-      url: `http://localhost:${getAdminPort()}/__workspace_health`,
-      timeoutMs: 15000,
-    },
-    dependencies: [],
-    namespace: WORKSPACE_NAMESPACE,
-    defaultEnabled: true,
-    setupCommands: ['npm install'],
-    exposedPorts: [getAdminPort()],
-    environmentOverrides: {
-      staging: {
-        VITE_APP_ENV: 'staging',
+// Lazy-loaded profiles to avoid reading env vars at module load time
+// This allows loadEnvironmentVariables() to run before these are accessed
+let _applicationProfiles: readonly ApplicationProcessProfile[] | null = null;
+
+function getApplicationProfiles(): readonly ApplicationProcessProfile[] {
+  if (_applicationProfiles === null) {
+    _applicationProfiles = [
+      {
+        processId: 'admin',
+        entryPoint: 'npm',
+        args: ['run', 'dev'],
+        cwd: 'apps/admin',
+        envProfile: 'development',
+        restartPolicy: DEFAULT_RESTART_POLICY,
+        logs: buildLogConfig('admin'),
+        healthCheck: {
+          url: `http://localhost:${getAdminPort()}/__workspace_health`,
+          timeoutMs: 60000, // 60s - Vite can take 18s+ on cold start with dependency re-optimization
+        },
+        dependencies: [],
+        namespace: WORKSPACE_NAMESPACE,
+        defaultEnabled: true,
+        setupCommands: ['npm install'],
+        exposedPorts: [getAdminPort()],
+        environmentOverrides: {
+          staging: {
+            VITE_APP_ENV: 'staging',
+          },
+          production: {
+            VITE_APP_ENV: 'production',
+          },
+        },
       },
-      production: {
-        VITE_APP_ENV: 'production',
+      {
+        processId: 'server',
+        entryPoint: 'npm',
+        args: ['run', 'start:dev'],
+        cwd: 'apps/server',
+        envProfile: 'development',
+        restartPolicy: DEFAULT_RESTART_POLICY,
+        logs: buildLogConfig('server'),
+        healthCheck: {
+          url: `http://localhost:${getServerPort()}/health`,
+          timeoutMs: 180000, // 180s (3 min) - SWC compilation + NestJS init can take 2.5+ minutes on cold start
+        },
+        dependencies: [],
+        namespace: WORKSPACE_NAMESPACE,
+        defaultEnabled: true,
+        setupCommands: ['npm install'],
+        exposedPorts: [getServerPort()],
+        environmentOverrides: {
+          staging: {
+            NODE_ENV: 'staging',
+          },
+          production: {
+            NODE_ENV: 'production',
+          },
+        },
       },
-    },
-  },
-  {
-    processId: 'server',
-    entryPoint: 'npm',
-    args: ['run', 'start:dev'],
-    cwd: 'apps/server',
-    envProfile: 'development',
-    restartPolicy: DEFAULT_RESTART_POLICY,
-    logs: buildLogConfig('server'),
-    healthCheck: {
-      url: `http://localhost:${getServerPort()}/health`,
-      timeoutMs: 30000,
-    },
-    dependencies: [],
-    namespace: WORKSPACE_NAMESPACE,
-    defaultEnabled: true,
-    setupCommands: ['npm install'],
-    exposedPorts: [getServerPort()],
-    environmentOverrides: {
-      staging: {
-        NODE_ENV: 'staging',
-      },
-      production: {
-        NODE_ENV: 'production',
-      },
-    },
-  },
-] satisfies readonly ApplicationProcessProfile[];
+    ] satisfies readonly ApplicationProcessProfile[];
+  }
+  return _applicationProfiles;
+}
 
 export function listApplicationProcesses(): readonly ApplicationProcessProfile[] {
-  return APPLICATION_PROFILES;
+  return getApplicationProfiles();
 }
 
 export function getApplicationProcess(
   processId: string
 ): ApplicationProcessProfile {
-  const profile = APPLICATION_PROFILES.find(
+  const profile = getApplicationProfiles().find(
     (item) => item.processId === processId
   );
 
@@ -108,7 +117,7 @@ export function getApplicationProcess(
 }
 
 export function listDefaultApplicationProcesses(): readonly ApplicationProcessProfile[] {
-  return APPLICATION_PROFILES.filter((profile) => profile.defaultEnabled);
+  return getApplicationProfiles().filter((profile) => profile.defaultEnabled);
 }
 
 export function resolveEnvironmentOverrides(

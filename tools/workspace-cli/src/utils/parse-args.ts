@@ -12,6 +12,7 @@ export interface ParsedCliArgs {
   readonly json: boolean;
   readonly logLines: number;
   readonly follow: boolean;
+  readonly skipHealthCheck: boolean;
   readonly unknown: readonly string[];
 }
 
@@ -44,6 +45,7 @@ export function parseCliArgs(argv: readonly string[]): ParsedCliArgs {
   let json = false;
   let logLines = 100;
   let follow = false;
+  let skipHealthCheck = false;
 
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
@@ -164,6 +166,13 @@ export function parseCliArgs(argv: readonly string[]): ParsedCliArgs {
         follow = true;
         break;
 
+      case 'no-health-check':
+      case 'skip-health-check':
+      case 'noHealthCheck':
+      case 'skipHealthCheck':
+        skipHealthCheck = true;
+        break;
+
       case 'lines':
       case 'n': {
         let value = rawValue;
@@ -192,7 +201,9 @@ export function parseCliArgs(argv: readonly string[]): ParsedCliArgs {
     }
   }
 
-  const envProfile = (process.env[PROFILE_ENV_KEY] as EnvironmentProfileId | undefined) ?? DEFAULT_PROFILE;
+  const envProfile =
+    (process.env[PROFILE_ENV_KEY] as EnvironmentProfileId | undefined) ??
+    DEFAULT_PROFILE;
 
   return {
     profile: profile ?? envProfile,
@@ -206,6 +217,7 @@ export function parseCliArgs(argv: readonly string[]): ParsedCliArgs {
     json,
     logLines,
     follow,
-    unknown
+    skipHealthCheck,
+    unknown,
   };
 }
