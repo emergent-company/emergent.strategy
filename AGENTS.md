@@ -65,12 +65,22 @@ nx run server:test-e2e          # API e2e tests
 - Use `nx_workspace` tool to understand project structure
 - Use `nx_project_details` for specific project dependencies
 
+### ⚠️ Hot Reload — DO NOT RESTART AFTER CODE CHANGES
+
+**Both server and admin have hot reload.** Changes are picked up automatically in 1-2 seconds.
+
+- ✅ **Just save the file** — hot reload handles TypeScript, React, DTOs, services, etc.
+- ❌ **Only restart if** server is down (check with `pnpm run workspace:status`)
+- ❌ **Restart required for:** new modules in `app.module.ts`, env var changes, after `npm install`
+
 ## Environment URLs
 
-| Environment | Admin URL                               | Server URL                            |
-| ----------- | --------------------------------------- | ------------------------------------- |
-| Local       | `http://localhost:5176`                 | `http://localhost:3002`               |
-| Dev         | `https://admin.dev.emergent-company.ai` | `https://api.dev.emergent-company.ai` |
+Local and Dev refer to the **same environment** accessible via two methods. Prefer domain URLs for consistency with production patterns.
+
+| Access Method      | Admin URL                               | Server URL                            |
+| ------------------ | --------------------------------------- | ------------------------------------- |
+| Domain (preferred) | `https://admin.dev.emergent-company.ai` | `https://api.dev.emergent-company.ai` |
+| Localhost          | `http://localhost:5176`                 | `http://localhost:3002`               |
 
 ## Detailed Documentation
 

@@ -8,9 +8,9 @@ Components follow **Atomic Design** methodology:
 
 ```
 components/
-├── atoms/          # Basic building blocks (Button, Icon, Spinner, Avatar)
-├── molecules/      # Compositions of atoms (FormField, FileUploader, Dropdown)
-├── organisms/      # Complex UI sections (ThemeEditor, page-level components)
+├── atoms/          # 12 basic building blocks (Button, Icon, Spinner, Avatar)
+├── molecules/      # 29 compositions of atoms (FormField, FileUploader, Dropdown)
+├── organisms/      # 41 complex UI sections (DataTable, Sidebar, Modals)
 ├── chat/           # Chat-specific components (MessageBubble, ChatInput, etc.)
 ├── guards/         # Route guards (SetupGuard, ReverseSetupGuard)
 └── wireframes/     # Prototypes and wireframes
@@ -110,23 +110,79 @@ import { FaHome } from 'react-icons/fa';
 
 ## Available Molecules (MUST use, DO NOT recreate)
 
-| Component                  | Location                                          | Usage                                      |
-| -------------------------- | ------------------------------------------------- | ------------------------------------------ |
-| `FormField`                | `@/components/molecules/FormField`                | Form inputs with label, error, description |
-| `FileUploader`             | `@/components/molecules/FileUploader`             | File upload with FilePond                  |
-| `IconButton`               | `@/components/molecules/IconButton`               | Icon-only buttons                          |
-| `Dropdown`                 | `@/components/molecules/Dropdown`                 | Dropdown menus                             |
-| `PageTitle`                | `@/components/molecules/PageTitle`                | Page headers                               |
-| `PageTitleHero`            | `@/components/molecules/PageTitleHero`            | Hero-style page headers                    |
-| `ThemeToggle`              | `@/components/molecules/ThemeToggle`              | Theme switcher                             |
-| `ThemePicker`              | `@/components/molecules/ThemePicker`              | Theme selection                            |
-| `AvatarGroup`              | `@/components/molecules/AvatarGroup`              | Stacked avatars                            |
-| `TableEmptyState`          | `@/components/molecules/TableEmptyState`          | Empty table states                         |
-| `ChatPromptComposer`       | `@/components/molecules/ChatPromptComposer`       | Chat input composer                        |
-| `NotificationBell`         | `@/components/molecules/NotificationBell`         | Notification indicator                     |
-| `ExtractionJobStatusBadge` | `@/components/molecules/ExtractionJobStatusBadge` | Job status badges                          |
-| `ObjectRefCard`            | `@/components/molecules/ObjectRefCard`            | Object reference cards                     |
-| `ObjectRefLink`            | `@/components/molecules/ObjectRefLink`            | Object reference links                     |
+### Form & Input
+
+| Component      | Location                              | Usage                                      |
+| -------------- | ------------------------------------- | ------------------------------------------ |
+| `FormField`    | `@/components/molecules/FormField`    | Form inputs with label, error, description |
+| `FileUploader` | `@/components/molecules/FileUploader` | File upload with FilePond                  |
+| `Dropdown`     | `@/components/molecules/Dropdown`     | Dropdown menus                             |
+| `ThemeToggle`  | `@/components/molecules/ThemeToggle`  | Theme switcher                             |
+| `ThemePicker`  | `@/components/molecules/ThemePicker`  | Theme selection                            |
+
+### Page Layout
+
+| Component       | Location                               | Usage                     |
+| --------------- | -------------------------------------- | ------------------------- |
+| `PageTitle`     | `@/components/molecules/PageTitle`     | Page headers              |
+| `PageTitleHero` | `@/components/molecules/PageTitleHero` | Hero-style page headers   |
+| `IconButton`    | `@/components/molecules/IconButton`    | Icon-only buttons         |
+| `IconBadge`     | `@/components/molecules/IconBadge`     | Icon with badge indicator |
+
+### Sidebar Components
+
+| Component            | Location                                    | Usage                    |
+| -------------------- | ------------------------------------------- | ------------------------ |
+| `SidebarMenuItem`    | `@/components/molecules/SidebarMenuItem`    | Sidebar navigation items |
+| `SidebarProjectItem` | `@/components/molecules/SidebarProjectItem` | Project item in sidebar  |
+
+### Table Components
+
+| Component         | Location                                 | Usage                  |
+| ----------------- | ---------------------------------------- | ---------------------- |
+| `TableEmptyState` | `@/components/molecules/TableEmptyState` | Empty table states     |
+| `TableAvatarCell` | `@/components/molecules/TableAvatarCell` | Avatar cell for tables |
+
+### User & Avatar
+
+| Component     | Location                             | Usage           |
+| ------------- | ------------------------------------ | --------------- |
+| `AvatarGroup` | `@/components/molecules/AvatarGroup` | Stacked avatars |
+
+### Chat Components
+
+| Component            | Location                                    | Usage                      |
+| -------------------- | ------------------------------------------- | -------------------------- |
+| `ChatPromptComposer` | `@/components/molecules/ChatPromptComposer` | Chat input composer        |
+| `ChatPromptActions`  | `@/components/molecules/ChatPromptActions`  | Chat prompt action buttons |
+| `ChatCtaCard`        | `@/components/molecules/ChatCtaCard`        | Chat call-to-action cards  |
+| `NewChatCtas`        | `@/components/molecules/NewChatCtas`        | New chat starter prompts   |
+
+### Notifications & Tasks
+
+| Component               | Location                                       | Usage                              |
+| ----------------------- | ---------------------------------------------- | ---------------------------------- |
+| `NotificationBell`      | `@/components/molecules/NotificationBell`      | Notification indicator in header   |
+| `NotificationRow`       | `@/components/molecules/NotificationRow`       | Single notification row            |
+| `NotificationTabButton` | `@/components/molecules/NotificationTabButton` | Tab button for notification types  |
+| `TaskRow`               | `@/components/molecules/TaskRow`               | Single task/suggestion row         |
+| `TaskActionsPanel`      | `@/components/molecules/TaskActionsPanel`      | Actions panel for tasks            |
+| `PendingInvitationCard` | `@/components/molecules/PendingInvitationCard` | Pending membership invitation card |
+
+### Object & Extraction
+
+| Component                  | Location                                          | Usage                  |
+| -------------------------- | ------------------------------------------------- | ---------------------- |
+| `ObjectRefCard`            | `@/components/molecules/ObjectRefCard`            | Object reference cards |
+| `ObjectRefLink`            | `@/components/molecules/ObjectRefLink`            | Object reference links |
+| `ExtractionJobStatusBadge` | `@/components/molecules/ExtractionJobStatusBadge` | Job status badges      |
+
+### System Status
+
+| Component              | Location                                      | Usage                         |
+| ---------------------- | --------------------------------------------- | ----------------------------- |
+| `SystemStatusDropdown` | `@/components/molecules/SystemStatusDropdown` | System health status dropdown |
+| `DebugInfoPanel`       | `@/components/molecules/DebugInfoPanel`       | Debug information panel       |
 
 ### FormField Example
 
@@ -167,6 +223,87 @@ import { FileUploader } from '@/components/molecules/FileUploader';
 // ❌ WRONG: Build custom file input
 <input type="file" onChange={handleChange} />
 ```
+
+## Available Organisms (MUST use, DO NOT recreate)
+
+### Layout
+
+| Component                | Location                                        | Usage                        |
+| ------------------------ | ----------------------------------------------- | ---------------------------- |
+| `Sidebar`                | `@/components/organisms/Sidebar`                | Main navigation sidebar      |
+| `SidebarSection`         | `@/components/organisms/SidebarSection`         | Sidebar section grouping     |
+| `SidebarProjectDropdown` | `@/components/organisms/SidebarProjectDropdown` | Project selector in sidebar  |
+| `Topbar`                 | `@/components/organisms/Topbar`                 | Top navigation bar           |
+| `Rightbar`               | `@/components/organisms/Rightbar`               | Right sidebar panel          |
+| `Footer`                 | `@/components/organisms/Footer`                 | Page footer                  |
+| `ToastContainer`         | `@/components/organisms/ToastContainer`         | Toast notification container |
+
+### Data Display
+
+| Component             | Location                                     | Usage                                   |
+| --------------------- | -------------------------------------------- | --------------------------------------- |
+| `DataTable`           | `@/components/organisms/DataTable`           | Reusable data table with sorting/paging |
+| `ObjectBrowser`       | `@/components/organisms/ObjectBrowser`       | Browse knowledge graph objects          |
+| `ObjectDetailModal`   | `@/components/organisms/ObjectDetailModal`   | Object detail view modal                |
+| `ObjectPreviewDrawer` | `@/components/organisms/ObjectPreviewDrawer` | Object preview slide-out drawer         |
+| `RelationshipGraph`   | `@/components/organisms/RelationshipGraph`   | Interactive relationship visualization  |
+| `GraphViewerModal`    | `@/components/organisms/GraphViewerModal`    | Full-screen graph viewer                |
+
+### Modals & Dialogs
+
+| Component                   | Location                                           | Usage                                  |
+| --------------------------- | -------------------------------------------------- | -------------------------------------- |
+| `Modal`                     | `@/components/organisms/Modal`                     | Base modal component                   |
+| `ConfirmActionModal`        | `@/components/organisms/ConfirmActionModal`        | Confirmation dialog                    |
+| `DeletionConfirmationModal` | `@/components/organisms/DeletionConfirmationModal` | Deletion confirmation with impact info |
+| `DocumentMetadataModal`     | `@/components/organisms/DocumentMetadataModal`     | Document metadata editor               |
+| `ExtractionConfigModal`     | `@/components/organisms/ExtractionConfigModal`     | Extraction configuration               |
+| `ExtractionLogsModal`       | `@/components/organisms/ExtractionLogsModal`       | View extraction job logs               |
+| `MergeComparisonModal`      | `@/components/organisms/MergeComparisonModal`      | Compare objects for merge              |
+
+### Extraction & Jobs
+
+| Component              | Location                                      | Usage                      |
+| ---------------------- | --------------------------------------------- | -------------------------- |
+| `ExtractionJobCard`    | `@/components/organisms/ExtractionJobCard`    | Single extraction job card |
+| `ExtractionJobList`    | `@/components/organisms/ExtractionJobList`    | List of extraction jobs    |
+| `ExtractionJobFilters` | `@/components/organisms/ExtractionJobFilters` | Filter controls for jobs   |
+| `JobDetailsView`       | `@/components/organisms/JobDetailsView`       | Detailed job view          |
+
+### Chat Components
+
+| Component        | Location                                | Usage                     |
+| ---------------- | --------------------------------------- | ------------------------- |
+| `ChatObjectRefs` | `@/components/organisms/ChatObjectRefs` | Object references in chat |
+| `CodeDiffViewer` | `@/components/organisms/CodeDiffViewer` | Code diff display         |
+
+### Notifications & Tasks
+
+| Component           | Location                                   | Usage                         |
+| ------------------- | ------------------------------------------ | ----------------------------- |
+| `NotificationInbox` | `@/components/organisms/NotificationInbox` | Full notification inbox panel |
+| `TasksInbox`        | `@/components/organisms/TasksInbox`        | Task/suggestion inbox panel   |
+
+### Wizards & Guides
+
+| Component         | Location                                 | Usage                                |
+| ----------------- | ---------------------------------------- | ------------------------------------ |
+| `DiscoveryWizard` | `@/components/organisms/DiscoveryWizard` | Document discovery flow wizard       |
+| `KBPurposeEditor` | `@/components/organisms/KBPurposeEditor` | Knowledge base purpose configuration |
+
+### Guards & Gates
+
+| Component           | Location                                   | Usage                            |
+| ------------------- | ------------------------------------------ | -------------------------------- |
+| `OrgAndProjectGate` | `@/components/organisms/OrgAndProjectGate` | Require org and project selected |
+| `ProjectGate`       | `@/components/organisms/ProjectGate`       | Require project selected         |
+| `ViewAsBanner`      | `@/components/organisms/ViewAsBanner`      | Impersonation mode banner        |
+
+### Monitoring
+
+| Component     | Location                             | Usage                           |
+| ------------- | ------------------------------------ | ------------------------------- |
+| (monitoring/) | `@/components/organisms/monitoring/` | Monitoring dashboard components |
 
 ## Component Creation Guidelines
 
