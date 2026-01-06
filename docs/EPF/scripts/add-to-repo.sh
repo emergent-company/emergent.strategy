@@ -145,85 +145,54 @@ git subtree add --prefix=docs/EPF epf main --squash
 
 echo -e "${GREEN}✓ EPF framework added to docs/EPF/${NC}"
 echo ""
-
 # -----------------------------------------------------------------------------
-# Step 5: Create product instance folder
+# Step 5: Create product instance structure
 # -----------------------------------------------------------------------------
-echo -e "${YELLOW}Step 5: Creating product instance folder...${NC}"
+echo -e "${YELLOW}Step 5: Creating product instance structure...${NC}"
 
-INSTANCE_DIR="docs/EPF/_instances/$PRODUCT_NAME"
-mkdir -p "$INSTANCE_DIR"
-mkdir -p "$INSTANCE_DIR/feature_definitions"
-mkdir -p "$INSTANCE_DIR/value_models"
-mkdir -p "$INSTANCE_DIR/workflows"
+# Use the create-instance-structure script
+bash docs/EPF/scripts/create-instance-structure.sh "$PRODUCT_NAME"
 
-# Create _meta.yaml
-cat > "$INSTANCE_DIR/_meta.yaml" << EOF
-# EPF Instance Metadata
-# Generated on $(date +%Y-%m-%d)
-
-product_name: "$PRODUCT_NAME"
-epf_version: "1.9.4"
-cycle: 1
-status: "initializing"
-
-created_at: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-created_by: "EPF add-to-repo script"
-
-notes: |
-  This instance was created automatically.
-  Start by filling out 00_north_star.yaml with your product's vision.
-EOF
-
-# Copy starter templates
-echo "  Copying starter templates..."
-cp docs/EPF/phases/READY/00_north_star.yaml "$INSTANCE_DIR/"
-cp docs/EPF/phases/READY/01_insight_analyses.yaml "$INSTANCE_DIR/"
-cp docs/EPF/phases/READY/02_strategy_foundations.yaml "$INSTANCE_DIR/"
-cp docs/EPF/phases/READY/03_insight_opportunity.yaml "$INSTANCE_DIR/"
-cp docs/EPF/phases/READY/04_strategy_formula.yaml "$INSTANCE_DIR/"
-cp docs/EPF/phases/READY/05_roadmap_recipe.yaml "$INSTANCE_DIR/"
-
-# Create instance README
-cat > "$INSTANCE_DIR/README.md" << EOF
-# $PRODUCT_NAME EPF Instance
-
-This folder contains the EPF (Emergent Product Framework) instance for **$PRODUCT_NAME**.
-
-## Getting Started
-
-1. Start with \`00_north_star.yaml\` - define your product vision
-2. Work through the READY phase files in order (00 → 05)
-3. Use the wizards in \`docs/EPF/wizards/\` for AI-assisted filling
-
-## Files
-
-| File | Purpose | Status |
-|------|---------|--------|
-| \`00_north_star.yaml\` | Product vision and north star metrics | 🔲 Not started |
-| \`01_insight_analyses.yaml\` | Market and internal analyses | 🔲 Not started |
-| \`02_strategy_foundations.yaml\` | Strategic foundations | 🔲 Not started |
-| \`03_insight_opportunity.yaml\` | Opportunities from insights | 🔲 Not started |
-| \`04_strategy_formula.yaml\` | Strategic initiatives | 🔲 Not started |
-| \`05_roadmap_recipe.yaml\` | Roadmap and work packages | 🔲 Not started |
-
-## Cycle Information
-
-- **Current Cycle:** 1
-- **EPF Version:** 1.9.4
-- **Created:** $(date +%Y-%m-%d)
-
-## Need Help?
-
-- See \`docs/EPF/MAINTENANCE.md\` for framework documentation
-- Use wizards in \`docs/EPF/wizards/\` for AI-assisted content creation
-- Check schemas in \`docs/EPF/schemas/\` for validation
-EOF
-
-echo -e "${GREEN}✓ Product instance folder created: $INSTANCE_DIR${NC}"
+# Copy READY phase templates to instance
 echo ""
+echo "  Copying READY phase templates..."
+cp docs/EPF/templates/READY/*.yaml docs/EPF/_instances/"$PRODUCT_NAME"/READY/
 
-# -----------------------------------------------------------------------------
+# Copy FIRE phase value model templates
+echo "  Copying FIRE phase value model templates..."
+cp docs/EPF/templates/FIRE/value_models/*.yaml docs/EPF/_instances/"$PRODUCT_NAME"/FIRE/value_models/
+
+# Set up .gitignore to track only this product's instance
+echo ""
+echo "  Configuring .gitignore..."
+cat > docs/EPF/.gitignore << GITIGNORE
+# EPF Framework .gitignore - $PRODUCT_NAME Product Repo
+# This file tracks the $PRODUCT_NAME product instance while ignoring other instances
+
+# Instance folders - only $PRODUCT_NAME instance is tracked
+_instances/*
+!_instances/README.md
+!_instances/$PRODUCT_NAME
+!_instances/$PRODUCT_NAME/**
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Temporary files
+*.tmp
+*.temp
+GITIGNORE
+
+echo -e "${GREEN}✓ Product instance structure created${NC}"
+echo ""
 # Step 6: Commit changes
 # -----------------------------------------------------------------------------
 echo -e "${YELLOW}Step 6: Committing changes...${NC}"

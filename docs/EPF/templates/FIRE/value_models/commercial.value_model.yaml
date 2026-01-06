@@ -9,131 +9,131 @@ description: "Drives market positioning, revenue generation, and partnerships."
 packaged_default: true
 activation_notes: 'Flip `active: true` on L3 sub-components as you invest. Start narrow.'
 layers:
-  - id: COMMERCIAL-L1-business-development-and-partnerships
+  - id: commercial-l1-business-development-and-partnerships
     name: BUSINESS DEVELOPMENT AND PARTNERSHIPS
     active: false
     components:
-    - id: COMMERCIAL-C-investor-relations
+    - id: commercial-c-investor-relations
       name: Investor Relations
       active: false
       subs: []
-    - id: COMMERCIAL-C-strategic-partnerships
+    - id: commercial-c-strategic-partnerships
       name: Strategic Partnerships
       active: false
       subs:
-      - id: COMMERCIAL-S-partnership-scouting
+      - id: commercial-s-partnership-scouting
         name: Partnership scouting
         active: false
-      - id: COMMERCIAL-S-negotiation-frameworks
+      - id: commercial-s-negotiation-frameworks
         name: Negotiation frameworks
         active: false
-      - id: COMMERCIAL-S-partnership-metrics
+      - id: commercial-s-partnership-metrics
         name: Partnership metrics
         active: false
-    - id: COMMERCIAL-C-alliance-management
+    - id: commercial-c-alliance-management
       name: Alliance Management
       active: false
       subs:
-      - id: COMMERCIAL-S-stakeholder-relationship-management
+      - id: commercial-s-stakeholder-relationship-management
         name: Stakeholder relationship management
         active: false
-      - id: COMMERCIAL-S-agreement-reviews
+      - id: commercial-s-agreement-reviews
         name: Agreement reviews
         active: false
-      - id: COMMERCIAL-S-joint-ventures
+      - id: commercial-s-joint-ventures
         name: Joint ventures
         active: false
-    - id: COMMERCIAL-C-collaboration-models
+    - id: commercial-c-collaboration-models
       name: Collaboration Models
       active: false
       subs:
-      - id: COMMERCIAL-S-revenue-sharing-agreements
+      - id: commercial-s-revenue-sharing-agreements
         name: Revenue-sharing agreements
         active: false
-      - id: COMMERCIAL-S-co-marketing-initiatives
+      - id: commercial-s-co-marketing-initiatives
         name: Co-marketing initiatives
         active: false
-      - id: COMMERCIAL-S-technology-integrations
+      - id: commercial-s-technology-integrations
         name: Technology integrations
         active: false
-  - id: COMMERCIAL-L1-brand-positioning
+  - id: commercial-l1-brand-positioning
     name: BRAND & POSITIONING
     active: false
     components:
-    - id: COMMERCIAL-C-brand-identity
+    - id: commercial-c-brand-identity
       name: Brand Identity
       active: false
       subs:
-      - id: COMMERCIAL-S-logo-and-visual-guidelines
+      - id: commercial-s-logo-and-visual-guidelines
         name: Logo and visual guidelines
         active: false
-      - id: COMMERCIAL-S-brand-voice-and-tone
+      - id: commercial-s-brand-voice-and-tone
         name: Brand voice and tone
         active: false
-      - id: COMMERCIAL-S-brand-storytelling
+      - id: commercial-s-brand-storytelling
         name: Brand storytelling
         active: false
-    - id: COMMERCIAL-C-market-differentiation
+    - id: commercial-c-market-differentiation
       name: Market Differentiation
       active: false
       subs:
-      - id: COMMERCIAL-S-differentiator-messaging
+      - id: commercial-s-differentiator-messaging
         name: Differentiator messaging
         active: false
-      - id: COMMERCIAL-S-pricing-strategies
+      - id: commercial-s-pricing-strategies
         name: Pricing strategies
         active: false
-      - id: COMMERCIAL-S-packaging-models
+      - id: commercial-s-packaging-models
         name: Packaging models
         active: false
-    - id: COMMERCIAL-C-competitive-positioning
+    - id: commercial-c-competitive-positioning
       name: Competitive Positioning
       active: false
       subs: []
-  - id: COMMERCIAL-L1-sales-and-marketing
+  - id: commercial-l1-sales-and-marketing
     name: SALES AND MARKETING
     active: false
     components:
-    - id: COMMERCIAL-C-lead-generation
+    - id: commercial-c-lead-generation
       name: Lead Generation
       active: false
       subs:
-      - id: COMMERCIAL-S-email-marketing-campaigns
+      - id: commercial-s-email-marketing-campaigns
         name: Email marketing campaigns
         active: false
-      - id: COMMERCIAL-S-social-media-outreach
+      - id: commercial-s-social-media-outreach
         name: Social media outreach
         active: false
-      - id: COMMERCIAL-S-seo-strategies
+      - id: commercial-s-seo-strategies
         name: SEO strategies
         active: false
-    - id: COMMERCIAL-C-campaign-execution
+    - id: commercial-c-campaign-execution
       name: Campaign Execution
       active: false
       subs:
-      - id: COMMERCIAL-S-multichannel-campaigns
+      - id: commercial-s-multichannel-campaigns
         name: Multichannel campaigns
         active: false
-      - id: COMMERCIAL-S-ad-spend-optimization
+      - id: commercial-s-ad-spend-optimization
         name: Ad spend optimization
         active: false
-      - id: COMMERCIAL-S-campaign-performance-analytics
+      - id: commercial-s-campaign-performance-analytics
         name: Campaign performance analytics
         active: false
-    - id: COMMERCIAL-C-customer-retention
+    - id: commercial-c-customer-retention
       name: Customer Retention
       active: false
       subs:
-      - id: COMMERCIAL-S-loyalty-programs
+      - id: commercial-s-loyalty-programs
         name: Loyalty programs
         active: false
-      - id: COMMERCIAL-S-personalization-strategies
+      - id: commercial-s-personalization-strategies
         name: Personalization strategies
         active: false
-      - id: COMMERCIAL-S-customer-support-systems
+      - id: commercial-s-customer-support-systems
         name: Customer support systems
         active: false
-    - id: COMMERCIAL-C-content-production-management
+    - id: commercial-c-content-production-management
       name: Content Production & Management
       active: false
       subs: []

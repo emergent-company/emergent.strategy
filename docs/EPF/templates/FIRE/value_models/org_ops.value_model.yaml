@@ -9,276 +9,276 @@ description: "Builds and maintains the company's operational and cultural engine
 packaged_default: true
 activation_notes: 'Flip `active: true` on L3 sub-components as you invest. Start narrow.'
 layers:
-  - id: ORGOPS-L1-talent-management
+  - id: orgops-l1-talent-management
     name: TALENT MANAGEMENT
     active: false
     components:
-    - id: ORGOPS-C-workforce-planning
+    - id: orgops-c-workforce-planning
       name: Workforce Planning
       active: false
       subs: []
-    - id: ORGOPS-C-onboarding
+    - id: orgops-c-onboarding
       name: Onboarding
       active: false
       subs:
-      - id: ORGOPS-S-orientation-programs
+      - id: orgops-s-orientation-programs
         name: Orientation programs
         active: false
-      - id: ORGOPS-S-training-sessions
+      - id: orgops-s-training-sessions
         name: Training sessions
         active: false
-      - id: ORGOPS-S-system-access-and-setup
+      - id: orgops-s-system-access-and-setup
         name: System access and setup
         active: false
-    - id: ORGOPS-C-training-programs
+    - id: orgops-c-training-programs
       name: Training Programs
       active: false
       subs:
-      - id: ORGOPS-S-skill-specific-training
+      - id: orgops-s-skill-specific-training
         name: Skill-specific training
         active: false
-      - id: ORGOPS-S-leadership-workshops
+      - id: orgops-s-leadership-workshops
         name: Leadership workshops
         active: false
-      - id: ORGOPS-S-external-certifications
+      - id: orgops-s-external-certifications
         name: External certifications
         active: false
-    - id: ORGOPS-C-career-progression
+    - id: orgops-c-career-progression
       name: Career Progression
       active: false
       subs:
-      - id: ORGOPS-S-mentorship-programs
+      - id: orgops-s-mentorship-programs
         name: Mentorship programs
         active: false
-      - id: ORGOPS-S-promotion-guidelines
+      - id: orgops-s-promotion-guidelines
         name: Promotion guidelines
         active: false
-      - id: ORGOPS-S-succession-planning
+      - id: orgops-s-succession-planning
         name: Succession planning
         active: false
-    - id: ORGOPS-C-feedback-performance
+    - id: orgops-c-feedback-performance
       name: Feedback & Performance
       active: false
       subs:
-      - id: ORGOPS-S-performance-reviews
+      - id: orgops-s-performance-reviews
         name: Performance reviews
         active: false
-      - id: ORGOPS-S-360-degree-feedback
+      - id: orgops-s-360-degree-feedback
         name: 360-degree feedback
         active: false
-      - id: ORGOPS-S-goal-setting-frameworks
+      - id: orgops-s-goal-setting-frameworks
         name: Goal-setting frameworks
         active: false
-    - id: ORGOPS-C-compensation-and-benefits
+    - id: orgops-c-compensation-and-benefits
       name: Compensation and Benefits
       active: false
       subs:
-      - id: ORGOPS-S-salary-benchmarking
+      - id: orgops-s-salary-benchmarking
         name: Salary benchmarking
         active: false
-      - id: ORGOPS-S-bonus-structures
+      - id: orgops-s-bonus-structures
         name: Bonus structures
         active: false
-      - id: ORGOPS-S-health-and-wellness-programs
+      - id: orgops-s-health-and-wellness-programs
         name: Health and wellness programs
         active: false
-  - id: ORGOPS-L1-culture-internal-communications
+  - id: orgops-l1-culture-internal-communications
     name: CULTURE & INTERNAL COMMUNICATIONS
     active: false
     components:
-    - id: ORGOPS-C-values-and-principles
+    - id: orgops-c-values-and-principles
       name: Values and Principles
       active: false
       subs:
-      - id: ORGOPS-S-code-of-conduct
+      - id: orgops-s-code-of-conduct
         name: Code of conduct
         active: false
-      - id: ORGOPS-S-mission-reinforcement
+      - id: orgops-s-mission-reinforcement
         name: Mission reinforcement
         active: false
-      - id: ORGOPS-S-diversity-and-inclusion-initiatives
+      - id: orgops-s-diversity-and-inclusion-initiatives
         name: Diversity and inclusion initiatives
         active: false
-    - id: ORGOPS-C-collaboration-protocols
+    - id: orgops-c-collaboration-protocols
       name: Collaboration Protocols
       active: false
       subs:
-      - id: ORGOPS-S-meeting-etiquette
+      - id: orgops-s-meeting-etiquette
         name: Meeting etiquette
         active: false
-      - id: ORGOPS-S-decision-making-frameworks
+      - id: orgops-s-decision-making-frameworks
         name: Decision-making frameworks
         active: false
-      - id: ORGOPS-S-knowledge-sharing-platforms
+      - id: orgops-s-knowledge-sharing-platforms
         name: Knowledge sharing platforms
         active: false
-    - id: ORGOPS-C-feedback-mechanisms
+    - id: orgops-c-feedback-mechanisms
       name: Feedback Mechanisms
       active: false
       subs:
-      - id: ORGOPS-S-pulse-surveys
+      - id: orgops-s-pulse-surveys
         name: Pulse surveys
         active: false
-      - id: ORGOPS-S-retrospectives
+      - id: orgops-s-retrospectives
         name: Retrospectives
         active: false
-      - id: ORGOPS-S-anonymous-suggestion-boxes
+      - id: orgops-s-anonymous-suggestion-boxes
         name: Anonymous suggestion boxes
         active: false
-    - id: ORGOPS-C-internal-events
+    - id: orgops-c-internal-events
       name: Internal Events
       active: false
       subs:
-      - id: ORGOPS-S-all-hands-meetings
+      - id: orgops-s-all-hands-meetings
         name: All-hands meetings
         active: false
-      - id: ORGOPS-S-team-building-activities
+      - id: orgops-s-team-building-activities
         name: Team-building activities
         active: false
-      - id: ORGOPS-S-celebrations-and-milestones
+      - id: orgops-s-celebrations-and-milestones
         name: Celebrations and milestones
         active: false
-  - id: ORGOPS-L1-financial-legal
+  - id: orgops-l1-financial-legal
     name: FINANCIAL & LEGAL
     active: false
     components:
-    - id: ORGOPS-C-budgeting
+    - id: orgops-c-budgeting
       name: Budgeting
       active: false
       subs:
-      - id: ORGOPS-S-departmental-budgets
+      - id: orgops-s-departmental-budgets
         name: Departmental budgets
         active: false
-      - id: ORGOPS-S-financial-forecasting
+      - id: orgops-s-financial-forecasting
         name: Financial forecasting
         active: false
-      - id: ORGOPS-S-resource-allocation
+      - id: orgops-s-resource-allocation
         name: Resource allocation
         active: false
-    - id: ORGOPS-C-accounting
+    - id: orgops-c-accounting
       name: Accounting
       active: false
       subs:
-      - id: ORGOPS-S-bookkeeping
+      - id: orgops-s-bookkeeping
         name: Bookkeeping
         active: false
-      - id: ORGOPS-S-financial-reporting
+      - id: orgops-s-financial-reporting
         name: Financial reporting
         active: false
-      - id: ORGOPS-S-audit-and-compliance
+      - id: orgops-s-audit-and-compliance
         name: Audit and compliance
         active: false
-    - id: ORGOPS-C-compliance
+    - id: orgops-c-compliance
       name: Compliance
       active: false
       subs:
-      - id: ORGOPS-S-regulatory-adherence
+      - id: orgops-s-regulatory-adherence
         name: Regulatory adherence
         active: false
-      - id: ORGOPS-S-policy-management
+      - id: orgops-s-policy-management
         name: Policy management
         active: false
-      - id: ORGOPS-S-ethical-guidelines
+      - id: orgops-s-ethical-guidelines
         name: Ethical guidelines
         active: false
-    - id: ORGOPS-C-risk-management
+    - id: orgops-c-risk-management
       name: Risk Management
       active: false
       subs:
-      - id: ORGOPS-S-risk-assessment-frameworks
+      - id: orgops-s-risk-assessment-frameworks
         name: Risk assessment frameworks
         active: false
-      - id: ORGOPS-S-business-continuity-planning
+      - id: orgops-s-business-continuity-planning
         name: Business continuity planning
         active: false
-      - id: ORGOPS-S-insurance-and-liabilities
+      - id: orgops-s-insurance-and-liabilities
         name: Insurance and liabilities
         active: false
-    - id: ORGOPS-C-financial-transactions
+    - id: orgops-c-financial-transactions
       name: Financial transactions
       active: false
       subs:
-      - id: ORGOPS-S-payroll-processing
+      - id: orgops-s-payroll-processing
         name: Payroll processing
         active: false
-      - id: ORGOPS-S-invoice-management
+      - id: orgops-s-invoice-management
         name: Invoice management
         active: false
-      - id: ORGOPS-S-expense-reimbursement
+      - id: orgops-s-expense-reimbursement
         name: Expense reimbursement
         active: false
-  - id: ORGOPS-L1-facilities-it
+  - id: orgops-l1-facilities-it
     name: FACILITIES & IT
     active: false
     components:
-    - id: ORGOPS-C-infrastructure-management
+    - id: orgops-c-infrastructure-management
       name: Infrastructure Management
       active: false
       subs:
-      - id: ORGOPS-S-office-space-planning
+      - id: orgops-s-office-space-planning
         name: Office space planning
         active: false
-      - id: ORGOPS-S-remote-work-infrastructure
+      - id: orgops-s-remote-work-infrastructure
         name: Remote work infrastructure
         active: false
-      - id: ORGOPS-S-health-and-safety-protocols
+      - id: orgops-s-health-and-safety-protocols
         name: Health and safety protocols
         active: false
-    - id: ORGOPS-C-it-systems
+    - id: orgops-c-it-systems
       name: IT Systems
       active: false
       subs:
-      - id: ORGOPS-S-network-security
+      - id: orgops-s-network-security
         name: Network security
         active: false
-      - id: ORGOPS-S-software-licensing
+      - id: orgops-s-software-licensing
         name: Software licensing
         active: false
-      - id: ORGOPS-S-it-support-helpdesk
+      - id: orgops-s-it-support-helpdesk
         name: IT support/helpdesk
         active: false
-    - id: ORGOPS-C-tools-and-platforms
+    - id: orgops-c-tools-and-platforms
       name: Tools and Platforms
       active: false
       subs:
-      - id: ORGOPS-S-productivity-tools
+      - id: orgops-s-productivity-tools
         name: Productivity tools
         active: false
-      - id: ORGOPS-S-collaboration-platforms
+      - id: orgops-s-collaboration-platforms
         name: Collaboration platforms
         active: false
-      - id: ORGOPS-S-data-management-systems
+      - id: orgops-s-data-management-systems
         name: Data management systems
         active: false
-    - id: ORGOPS-C-data-compliance
+    - id: orgops-c-data-compliance
       name: Data compliance
       active: false
       subs: []
-  - id: ORGOPS-L1-company-governance-compliance
+  - id: orgops-l1-company-governance-compliance
     name: COMPANY GOVERNANCE & COMPLIANCE
     active: false
     components:
-    - id: ORGOPS-C-data-compliance
+    - id: orgops-c-data-compliance
       name: Data compliance
       active: false
       subs: []
-    - id: ORGOPS-C-board
+    - id: orgops-c-board
       name: Board
       active: false
       subs: []
-    - id: ORGOPS-C-shareholders-investors
+    - id: orgops-c-shareholders-investors
       name: Shareholders & investors
       active: false
       subs: []
-    - id: ORGOPS-C-strategy-execution
+    - id: orgops-c-strategy-execution
       name: Strategy execution
       active: false
       subs: []
-  - id: ORGOPS-L1-operational-structure
+  - id: orgops-l1-operational-structure
     name: OPERATIONAL STRUCTURE
     active: false
     components:
-    - id: ORGOPS-C-strategy-execution
+    - id: orgops-c-strategy-execution
       name: Strategy execution
       active: false
       subs: []

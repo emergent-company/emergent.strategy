@@ -30,8 +30,18 @@ This file is just a quick reference for common commands and repo locations. For:
 
 **Validation:**
 ```bash
+# Comprehensive health check (run before commits)
+./docs/EPF/scripts/epf-health-check.sh
+
+# Schema validation
 ./docs/EPF/scripts/validate-schemas.sh path/to/file.yaml
+
+# Field coverage analysis
 ./docs/EPF/scripts/analyze-field-coverage.sh path/to/instance/
+
+# Content quality assessment (scores, grades, enrichment guidance)
+./docs/EPF/scripts/check-content-readiness.sh path/to/artifact.yaml
+./docs/EPF/scripts/check-content-readiness.sh path/to/instance/READY
 ```
 
 **Available scripts:**

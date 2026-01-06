@@ -1,4 +1,4 @@
-# Emergent Product Framework (EPF) Repository - v2.3.2
+# Emergent Product Framework (EPF) Repository - v2.3.3
 
 This repository contains the complete skeleton for managing product, strategy, org & ops, and commercial development using the Emergent Product Framework. It is designed to be an **executable operating system**, managed by a human-in-the-loop with the assistance of an AI Knowledge Agent.
 
@@ -86,7 +86,69 @@ This repository contains the complete skeleton for managing product, strategy, o
 
 ---
 
+## 🏥 Health Check & Validation
+
+**Before committing any EPF changes, run the health check:**
+
+```bash
+./docs/EPF/scripts/epf-health-check.sh
+```
+
+**What it validates:**
+
+1. **Framework Integrity** - Version consistency, schemas, documentation
+2. **Instance Structure** - Folder structure, metadata, FIRE phase content  
+3. **Content Quality** - Analyzes READY phase artifacts for:
+   - Template patterns and placeholder content
+   - Critical field completeness
+   - Strategic depth and specificity
+   - **Readiness scores (0-100) with letter grades (A-F)**
+
+**Example output:**
+```
+Content Quality Assessment
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Instance: YourProduct
+✓   01_insight_analyses.yaml: 100/100 (Grade: A)
+⚠   00_north_star.yaml: 70/100 (Grade: C)
+✗   05_roadmap_recipe.yaml: 50/100 (Grade: D) - needs enrichment
+
+Instance average: 73/100 across 6 artifacts
+```
+
+**For detailed content analysis:**
+```bash
+# Analyze specific artifact with enrichment recommendations
+./scripts/check-content-readiness.sh _instances/YourProduct/READY/00_north_star.yaml
+
+# Analyze entire READY phase
+./scripts/check-content-readiness.sh _instances/YourProduct/READY
+```
+
+**📖 Complete validation documentation:** [`scripts/README.md`](scripts/README.md)
+
+---
+
 ## What's New in v2.3.3
+
+**Bug Fixes & Quality Improvements (2026-01-06):**
+
+Fixed critical bugs discovered through real-world usage in product repositories:
+
+**Fixed Issues:**
+- **Validation Script Phase Structure (v1.13.1):** Updated `validate-schemas.sh` to support phase-based instance structure (READY/, FIRE/, AIM/). Script now works with both new phase-based and legacy flat structures.
+- **Canonical Value Model IDs:** Fixed all canonical value model templates (Strategy, Commercial, OrgOps) to use lowercase kebab-case IDs matching schema requirements. Templates now validate successfully.
+- **Add-to-Repo Script:** Fixed `add-to-repo.sh` to copy FIRE phase value model templates when creating new instances.
+
+**Documentation:**
+- Added `KNOWN_ISSUES.md` to track framework issues discovered during product repo usage
+- Improved "eating your own dog food" quality process
+
+All canonical templates now validate successfully. These fixes improve the out-of-box experience for new EPF users.
+
+---
+
+## What's New in v2.3.2
 
 **Enhanced Health Check & Migration System (2026-01-05):**
 
