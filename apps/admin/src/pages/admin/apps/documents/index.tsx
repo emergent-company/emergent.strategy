@@ -362,19 +362,64 @@ export default function DocumentsPage() {
 
   const acceptedMimeTypes = useMemo(
     () => [
+      // Documents (Kreuzberg extraction)
       'application/pdf',
+      'application/msword', // .doc
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
       'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'application/rtf', // .rtf
+      'text/html',
+      // Images (Kreuzberg OCR)
+      'image/png',
+      'image/jpeg',
+      'image/tiff',
+      'image/bmp',
+      'image/gif',
+      'image/webp',
+      // Plain text (direct read)
       'text/plain',
       'text/markdown',
-      'text/html',
+      'text/csv',
+      'text/xml',
+      'application/json',
+      'application/xml',
+      'application/x-yaml',
+      'text/yaml',
     ],
     []
   );
 
   const acceptedExtensions = useMemo(
-    () => ['.pdf', '.docx', '.pptx', '.xlsx', '.txt', '.md', '.html', '.htm'],
+    () => [
+      // Documents
+      '.pdf',
+      '.doc',
+      '.docx',
+      '.pptx',
+      '.xlsx',
+      '.rtf',
+      '.html',
+      '.htm',
+      // Images
+      '.png',
+      '.jpg',
+      '.jpeg',
+      '.tiff',
+      '.tif',
+      '.bmp',
+      '.gif',
+      '.webp',
+      // Plain text
+      '.txt',
+      '.md',
+      '.markdown',
+      '.csv',
+      '.json',
+      '.xml',
+      '.yaml',
+      '.yml',
+    ],
     []
   );
 
