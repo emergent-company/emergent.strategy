@@ -57,6 +57,7 @@ import { SuperadminModule } from './superadmin/superadmin.module';
 import { UserEmailPreferencesModule } from './user-email-preferences/user-email-preferences.module';
 import { StorageModule } from './storage/storage.module';
 import { DocumentParsingModule } from './document-parsing/document-parsing.module';
+import { ApiTokensModule } from './api-tokens/api-tokens.module';
 import { AppConfigService } from '../common/config/config.service';
 import { entities } from '../entities';
 
@@ -176,6 +177,7 @@ const getOtelImports = (): DynamicModule[] => {
     UserEmailPreferencesModule,
     StorageModule,
     DocumentParsingModule,
+    ApiTokensModule,
     TypeOrmModule.forFeature([UserProfile]),
   ],
   providers: [
