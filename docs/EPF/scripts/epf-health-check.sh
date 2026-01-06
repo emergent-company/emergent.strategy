@@ -1,6 +1,6 @@
 #!/bin/bash
 # EPF Health Check Script
-# Version: 1.13.0
+# Version: 1.13.1
 #
 # This script performs comprehensive validation of the EPF framework,
 # including version consistency, YAML parsing, schema validation, and
@@ -310,16 +310,39 @@ check_documentation() {
     
     local EPF_ROOT="$1"
     
-    # Required documentation files
-    local required_docs=("README.md" "MAINTENANCE.md" "TRACK_BASED_ARCHITECTURE.md" "NORTH_STAR.md" "STRATEGY_FOUNDATIONS.md")
+    # Required documentation files - check both root and docs/guides/ locations
+    if [ -f "$EPF_ROOT/README.md" ]; then
+        log_pass "README.md exists"
+    else
+        log_error "Required documentation missing: README.md"
+    fi
     
-    for doc in "${required_docs[@]}"; do
-        if [ -f "$EPF_ROOT/$doc" ]; then
-            log_pass "$doc exists"
-        else
-            log_error "Required documentation missing: $doc"
-        fi
-    done
+    if [ -f "$EPF_ROOT/MAINTENANCE.md" ]; then
+        log_pass "MAINTENANCE.md exists"
+    else
+        log_error "Required documentation missing: MAINTENANCE.md"
+    fi
+    
+    # Track-based architecture guide
+    if [ -f "$EPF_ROOT/TRACK_BASED_ARCHITECTURE.md" ] || [ -f "$EPF_ROOT/docs/guides/TRACK_BASED_ARCHITECTURE.md" ]; then
+        log_pass "Track-based architecture documentation exists"
+    else
+        log_error "Required documentation missing: TRACK_BASED_ARCHITECTURE.md (or docs/guides/TRACK_BASED_ARCHITECTURE.md)"
+    fi
+    
+    # North Star guide
+    if [ -f "$EPF_ROOT/NORTH_STAR.md" ] || [ -f "$EPF_ROOT/docs/guides/NORTH_STAR_GUIDE.md" ]; then
+        log_pass "North Star documentation exists"
+    else
+        log_error "Required documentation missing: NORTH_STAR.md (or docs/guides/NORTH_STAR_GUIDE.md)"
+    fi
+    
+    # Strategy Foundations guide
+    if [ -f "$EPF_ROOT/STRATEGY_FOUNDATIONS.md" ] || [ -f "$EPF_ROOT/docs/guides/STRATEGY_FOUNDATIONS_GUIDE.md" ]; then
+        log_pass "Strategy Foundations documentation exists"
+    else
+        log_error "Required documentation missing: STRATEGY_FOUNDATIONS.md (or docs/guides/STRATEGY_FOUNDATIONS_GUIDE.md)"
+    fi
     
     # Check for orphan schemas (schemas without documentation references)
     for schema_file in "$EPF_ROOT"/schemas/*.json; do
@@ -360,6 +383,259 @@ check_file_structure() {
         log_pass "VERSION file format is correct (semver)"
     else
         log_error "VERSION file should contain only semver (e.g., 1.10.1), found: '$version_content'"
+    fi
+}
+
+# =============================================================================
+# FIRE PHASE CONTENT VALIDATION
+# =============================================================================
+check_fire_phase_content() {
+    log_section "FIRE Phase Content Validation"
+    
+    local EPF_ROOT="$1"
+    
+    # Check canonical templates first
+    log_info "Validating canonical FIRE templates..."
+    
+    if [ -d "$EPF_ROOT/templates/FIRE/value_models" ]; then
+        local template_errors=0
+        for vm_template in "$EPF_ROOT"/templates/FIRE/value_models/*.yaml; do
+            [ -f "$vm_template" ] || continue
+            local template_name=$(basename "$vm_template")
+            
+            # Check if template is valid YAML
+            if python3 -c "import yaml; yaml.safe_load(open('$vm_template'))" 2>/dev/null; then
+                # Check if template validates against schema
+                if command -v yq &> /dev/null && command -v ajv &> /dev/null; then
+                    local temp_json="/tmp/epf_health_vm_$$.json"
+                    yq -o=json eval '.' "$vm_template" > "$temp_json" 2>/dev/null
+                    
+                    # Check if this is a placeholder template
+                    local status=$(yq eval '.status' "$vm_template" 2>/dev/null)
+                    local layers_count=$(yq eval '.layers | length' "$vm_template" 2>/dev/null)
+                    
+                    if ajv validate -s "$EPF_ROOT/schemas/value_model_schema.json" -d "$temp_json" --strict=false 2>/dev/null; then
+                        log_pass "  Template $template_name validates"
+                    elif [ "$status" = "placeholder" ] || [ "$layers_count" = "0" ] || [ "$layers_count" = "null" ]; then
+                        log_warning "  Template $template_name is a placeholder (expected to be customized)"
+                    else
+                        log_error "  Template $template_name FAILS schema validation"
+                        template_errors=$((template_errors + 1))
+                    fi
+                    rm -f "$temp_json"
+                else
+                    log_verbose "  $template_name YAML is valid (schema validation skipped - yq/ajv not available)"
+                fi
+            else
+                log_error "  Template $template_name has YAML syntax errors"
+                template_errors=$((template_errors + 1))
+            fi
+        done
+        
+        if [ $template_errors -gt 0 ]; then
+            log_warning "  $template_errors canonical template(s) have issues"
+        fi
+    else
+        log_warning "  No canonical value model templates found at templates/FIRE/value_models/"
+    fi
+    
+    # Check instances' FIRE content with quality analysis
+    log_info "Validating instance FIRE content quality..."
+    
+    local instances_with_fire=0
+    local instances_with_value_models=0
+    local instances_with_features=0
+    
+    for instance_dir in "$EPF_ROOT"/_instances/*/; do
+        [ -d "$instance_dir" ] || continue
+        local instance_name=$(basename "$instance_dir")
+        
+        if [ ! -d "$instance_dir/FIRE" ]; then
+            continue
+        fi
+        
+        instances_with_fire=$((instances_with_fire + 1))
+        log_verbose "  Checking $instance_name..."
+        
+        # Check value models
+        if [ -d "$instance_dir/FIRE/value_models" ]; then
+            local vm_count=0
+            local vm_valid=0
+            local vm_invalid=0
+            local total_components=0
+            local total_active_components=0
+            local product_vm_exists=false
+            local product_is_placeholder=false
+            
+            for vm_file in "$instance_dir"/FIRE/value_models/*.yaml; do
+                [ -f "$vm_file" ] || continue
+                vm_count=$((vm_count + 1))
+                local vm_name=$(basename "$vm_file")
+                
+                # Check if this is the product value model
+                if [[ "$vm_name" == "product.value_model.yaml" ]]; then
+                    product_vm_exists=true
+                fi
+                
+                # Basic YAML validity
+                if ! python3 -c "import yaml; yaml.safe_load(open('$vm_file'))" 2>/dev/null; then
+                    log_error "    $instance_name: $vm_name has YAML syntax errors"
+                    vm_invalid=$((vm_invalid + 1))
+                    continue
+                fi
+                
+                # Content quality checks using yq
+                if command -v yq &> /dev/null; then
+                    local status=$(yq eval '.status' "$vm_file" 2>/dev/null)
+                    local layers_count=$(yq eval '.layers | length' "$vm_file" 2>/dev/null)
+                    
+                    # Check if product model is still placeholder
+                    if [[ "$vm_name" == "product.value_model.yaml" ]]; then
+                        if [ "$status" = "placeholder" ] || [ "$layers_count" = "0" ] || [ "$layers_count" = "null" ]; then
+                            product_is_placeholder=true
+                        fi
+                    fi
+                    
+                    # Count total and active sub-components across all layers
+                    if [ "$layers_count" != "0" ] && [ "$layers_count" != "null" ]; then
+                        for ((i=0; i<$layers_count; i++)); do
+                            local components_count=$(yq eval ".layers[$i].components | length" "$vm_file" 2>/dev/null)
+                            if [ "$components_count" != "0" ] && [ "$components_count" != "null" ]; then
+                                for ((j=0; j<$components_count; j++)); do
+                                    local subcomponents=$(yq eval ".layers[$i].components[$j].sub_components // []" "$vm_file" 2>/dev/null)
+                                    local subcomp_count=$(yq eval ".layers[$i].components[$j].sub_components | length" "$vm_file" 2>/dev/null)
+                                    if [ "$subcomp_count" != "0" ] && [ "$subcomp_count" != "null" ]; then
+                                        total_components=$((total_components + subcomp_count))
+                                        # Count active ones
+                                        local active_count=$(yq eval "[.layers[$i].components[$j].sub_components[] | select(.active == true)] | length" "$vm_file" 2>/dev/null)
+                                        if [ "$active_count" != "null" ] && [ "$active_count" != "" ]; then
+                                            total_active_components=$((total_active_components + active_count))
+                                        fi
+                                    fi
+                                done
+                            fi
+                        done
+                    fi
+                fi
+                
+                # Schema validation if tools available
+                if command -v yq &> /dev/null && command -v ajv &> /dev/null; then
+                    local temp_json="/tmp/epf_health_vm_inst_$$.json"
+                    yq -o=json eval '.' "$vm_file" > "$temp_json" 2>/dev/null
+                    
+                    if ajv validate -s "$EPF_ROOT/schemas/value_model_schema.json" -d "$temp_json" --strict=false 2>/dev/null; then
+                        vm_valid=$((vm_valid + 1))
+                        log_verbose "    $vm_name validates"
+                    else
+                        vm_invalid=$((vm_invalid + 1))
+                        log_warning "    $instance_name: $vm_name fails schema validation"
+                    fi
+                    rm -f "$temp_json"
+                else
+                    vm_valid=$((vm_valid + 1))
+                fi
+            done
+            
+            if [ $vm_count -gt 0 ]; then
+                instances_with_value_models=$((instances_with_value_models + 1))
+                
+                # Report validation status
+                if [ $vm_invalid -eq 0 ]; then
+                    log_pass "    $instance_name: $vm_count value model(s) - all valid"
+                else
+                    log_warning "    $instance_name: $vm_valid valid, $vm_invalid invalid out of $vm_count value models"
+                fi
+                
+                # Content quality checks
+                if [ "$product_vm_exists" = true ] && [ "$product_is_placeholder" = true ]; then
+                    log_warning "    $instance_name: Product value model is still placeholder/empty - needs real product data"
+                fi
+                
+                # Report on active components
+                if [ $total_components -gt 0 ]; then
+                    if [ $total_active_components -eq 0 ]; then
+                        log_info "    $instance_name: 0 active sub-components out of $total_components (no builds planned yet)"
+                    else
+                        local percent=$((total_active_components * 100 / total_components))
+                        log_info "    $instance_name: $total_active_components/$total_components sub-components active (${percent}%)"
+                    fi
+                fi
+            else
+                log_info "    $instance_name: No value models yet"
+            fi
+        fi
+        
+        # Check feature definitions and coverage
+        if [ -d "$instance_dir/FIRE/feature_definitions" ]; then
+            local fd_count=0
+            local covered_components_list=""
+            
+            for fd_file in "$instance_dir"/FIRE/feature_definitions/*.yaml "$instance_dir"/FIRE/feature_definitions/*.yml; do
+                [ -f "$fd_file" ] || continue
+                local fd_name=$(basename "$fd_file")
+                
+                # Skip underscore-prefixed files
+                [[ "$fd_name" == _* ]] && continue
+                
+                fd_count=$((fd_count + 1))
+                
+                # Extract contributes_to IDs if yq is available
+                if command -v yq &> /dev/null; then
+                    local contributes_to=$(yq eval '.contributes_to[]?' "$fd_file" 2>/dev/null)
+                    if [ -n "$contributes_to" ]; then
+                        covered_components_list="$covered_components_list"$'\n'"$contributes_to"
+                    fi
+                fi
+            done
+            
+            if [ $fd_count -gt 0 ]; then
+                instances_with_features=$((instances_with_features + 1))
+                log_pass "    $instance_name: $fd_count feature definition(s)"
+                
+                # Calculate coverage if we have component data
+                if [ $total_components -gt 0 ] && [ -n "$covered_components_list" ]; then
+                    # Count unique component IDs
+                    local covered_components=$(echo "$covered_components_list" | sort -u | grep -v '^$' | wc -l | tr -d ' ')
+                    local coverage_percent=$((covered_components * 100 / total_components))
+                    
+                    if [ $coverage_percent -lt 30 ]; then
+                        log_warning "    $instance_name: Feature coverage is low - $covered_components/$total_components components (${coverage_percent}%) have feature definitions"
+                    else
+                        log_info "    $instance_name: Feature coverage - $covered_components/$total_components components (${coverage_percent}%) have definitions"
+                    fi
+                elif [ $total_components -gt 0 ]; then
+                    log_info "    $instance_name: Feature coverage assessment requires contributes_to mappings"
+                fi
+            else
+                # No features but we have value models with components
+                if [ $total_components -gt 0 ] && [ $total_active_components -gt 0 ]; then
+                    log_warning "    $instance_name: No feature definitions yet - cannot build active components without documentation"
+                fi
+            fi
+        elif [ $total_components -gt 0 ] && [ $total_active_components -gt 0 ]; then
+            # No feature_definitions directory at all
+            log_warning "    $instance_name: No feature definitions - active components lack implementation documentation"
+        fi
+        
+        # Check mappings.yaml if it exists
+        if [ -f "$instance_dir/FIRE/mappings.yaml" ]; then
+            if python3 -c "import yaml; yaml.safe_load(open('$instance_dir/FIRE/mappings.yaml'))" 2>/dev/null; then
+                log_pass "    $instance_name: mappings.yaml is valid"
+            else
+                log_error "    $instance_name: mappings.yaml has YAML syntax errors"
+            fi
+        fi
+    done
+    
+    # Summary
+    echo ""
+    log_info "FIRE Phase Summary:"
+    log_info "  Instances with FIRE structure: $instances_with_fire"
+    log_info "  Instances with value models: $instances_with_value_models"
+    log_info "  Instances with feature definitions: $instances_with_features"
+    
+    if [ $instances_with_fire -eq 0 ]; then
+        log_warning "  No instances have FIRE phase content yet"
     fi
 }
 
@@ -441,12 +717,114 @@ check_instances() {
 }
 
 # =============================================================================
+# CONTENT QUALITY CHECK
+# =============================================================================
+check_content_quality() {
+    log_section "Content Quality Assessment"
+    
+    local EPF_ROOT="$1"
+    local content_script="$EPF_ROOT/scripts/check-content-readiness.sh"
+    
+    # Check if content readiness script exists
+    if [ ! -f "$content_script" ]; then
+        log_warning "Content readiness script not found - skipping quality assessment"
+        return 0
+    fi
+    
+    log_info "Analyzing READY phase content quality for instances..."
+    echo ""
+    
+    # Track overall content quality
+    local total_artifacts=0
+    local high_quality=0  # A grade
+    local medium_quality=0  # B-C grade
+    local low_quality=0   # D-F grade
+    
+    for instance_dir in "$EPF_ROOT"/_instances/*/; do
+        [ -d "$instance_dir" ] || continue
+        local instance_name=$(basename "$instance_dir")
+        
+        if [ ! -d "$instance_dir/READY" ]; then
+            continue
+        fi
+        
+        log_info "Instance: $instance_name"
+        
+        # Find and analyze READY phase artifacts
+        local artifact_count=0
+        local instance_avg_score=0
+        
+        for artifact in "$instance_dir"/READY/*.yaml; do
+            [ -f "$artifact" ] || continue
+            
+            local artifact_name=$(basename "$artifact")
+            
+            # Run content readiness check and capture score
+            local output
+            output=$(bash "$content_script" "$artifact" 2>&1)
+            local score=$(echo "$output" | grep "Content Readiness Score:" | sed 's/.*Score: \([0-9]*\).*/\1/')
+            local grade=$(echo "$output" | grep "Content Readiness Score:" | sed 's/.*Grade: \([A-F]\)).*/\1/')
+            
+            if [ -n "$score" ]; then
+                artifact_count=$((artifact_count + 1))
+                total_artifacts=$((total_artifacts + 1))
+                instance_avg_score=$((instance_avg_score + score))
+                
+                # Categorize by grade
+                case "$grade" in
+                    A|B) high_quality=$((high_quality + 1)) ;;
+                    C) medium_quality=$((medium_quality + 1)) ;;
+                    D|F) low_quality=$((low_quality + 1)) ;;
+                esac
+                
+                # Display score with color coding
+                if [ "$score" -ge 75 ]; then
+                    log_pass "  $artifact_name: $score/100 (Grade: $grade)"
+                elif [ "$score" -ge 60 ]; then
+                    log_warning "  $artifact_name: $score/100 (Grade: $grade)"
+                else
+                    log_error "  $artifact_name: $score/100 (Grade: $grade) - needs enrichment"
+                fi
+            fi
+        done
+        
+        # Calculate and display instance average
+        if [ $artifact_count -gt 0 ]; then
+            local avg=$((instance_avg_score / artifact_count))
+            log_info "  Instance average: $avg/100 across $artifact_count artifacts"
+        else
+            log_info "  No READY artifacts found"
+        fi
+        
+        echo ""
+    done
+    
+    # Summary statistics
+    if [ $total_artifacts -gt 0 ]; then
+        echo ""
+        log_info "Content Quality Summary:"
+        log_info "  Total artifacts analyzed: $total_artifacts"
+        log_info "  High quality (A-B): $high_quality ($(( high_quality * 100 / total_artifacts ))%)"
+        log_info "  Medium quality (C): $medium_quality ($(( medium_quality * 100 / total_artifacts ))%)"
+        log_info "  Low quality (D-F): $low_quality ($(( low_quality * 100 / total_artifacts ))%)"
+        
+        if [ $low_quality -gt 0 ]; then
+            echo ""
+            log_warning "  $low_quality artifact(s) need enrichment before strategic use"
+            log_info "  Run: bash scripts/check-content-readiness.sh <artifact-file> for detailed analysis"
+        fi
+    else
+        log_info "  No artifacts found to analyze"
+    fi
+}
+
+# =============================================================================
 # MAIN
 # =============================================================================
 main() {
     echo ""
     echo "╔══════════════════════════════════════════════════════════════════╗"
-    echo "║              EPF Health Check Script v1.11.0                     ║"
+    echo "║              EPF Health Check Script v1.13.1                     ║"
     echo "╚══════════════════════════════════════════════════════════════════╝"
     echo ""
     
@@ -475,7 +853,9 @@ main() {
     check_json_schemas "$EPF_ROOT"
     check_documentation "$EPF_ROOT"
     check_file_structure "$EPF_ROOT"
+    check_fire_phase_content "$EPF_ROOT"
     check_instances "$EPF_ROOT"
+    check_content_quality "$EPF_ROOT"
     
     # ==========================================================================
     # Summary

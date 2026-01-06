@@ -144,7 +144,7 @@ infer_artifact_type() {
 detect_template_patterns() {
   local file="$1"
   local total_matches=0
-  local pattern_details=()
+  local pattern_details=""
   
   for pattern_name in $TEMPLATE_PATTERN_NAMES; do
     # Use case statement to map pattern names to variables (works with set -u)
@@ -163,11 +163,15 @@ detect_template_patterns() {
     
     if [ "$matches" -gt 0 ]; then
       total_matches=$((total_matches + matches))
-      pattern_details+=("${pattern_name}:${matches}")
+      if [ -z "$pattern_details" ]; then
+        pattern_details="${pattern_name}:${matches}"
+      else
+        pattern_details="$pattern_details ${pattern_name}:${matches}"
+      fi
     fi
   done
   
-  echo "$total_matches|${pattern_details[*]}"
+  echo "$total_matches|$pattern_details"
 }
 
 # Check for empty or placeholder values in critical fields
@@ -450,18 +454,21 @@ main() {
   
   # Check if target is directory or file
   if [ -d "$TARGET" ]; then
-    # Analyze all YAML files in directory
-    local yaml_files
-    mapfile -t yaml_files < <(find "$TARGET" -name "*.yaml" -type f | grep -E "(01_insight|02_strategy|05_roadmap|fd-)" | sort)
+    # Analyze all YAML files in directory (portable approach)
+    local yaml_count=0
     
-    if [ ${#yaml_files[@]} -eq 0 ]; then
+    # Find and process files
+    while IFS= read -r file; do
+      [ -f "$file" ] || continue
+      analyze_artifact "$file"
+      yaml_count=$((yaml_count + 1))
+    done < <(find "$TARGET" -name "*.yaml" -type f 2>/dev/null | grep -E "(00_north|01_insight|02_strategy|03_insight|04_strategy|05_roadmap|fd-)" | sort)
+    
+    if [ $yaml_count -eq 0 ]; then
       echo "No relevant YAML files found in $TARGET"
+      echo "Searched for: north star, insights, strategy, roadmap, and feature definitions"
       exit 1
     fi
-    
-    for file in "${yaml_files[@]}"; do
-      analyze_artifact "$file"
-    done
   elif [ -f "$TARGET" ]; then
     analyze_artifact "$TARGET"
   else

@@ -1,15 +1,11 @@
-# EPF Framework .gitignore - PRODUCT REPO TEMPLATE
-# Copy this file to .gitignore and replace twentyfirst with your product name
-#
-# This file should track YOUR product's instance while ignoring other instances
-# that might appear from framework syncs.
+# EPF Framework .gitignore - GMS Product Repo
+# This file tracks the GMS product instance while ignoring other instances
 
-# Instance folders - only YOUR product instance is tracked
-# Other instances are ignored (they belong to other product repos)
+# Instance folders - only GMS instance is tracked
 _instances/*
 !_instances/README.md
-!_instances/twentyfirst
-!_instances/twentyfirst/**
+!_instances/GMS
+!_instances/GMS/**
 
 # OS files
 .DS_Store

@@ -2,7 +2,111 @@
 
 This directory contains automation scripts for EPF framework management, validation, and maintenance.
 
-## Validation Scripts
+## 🏥 Health Check & Quality Assessment
+
+### epf-health-check.sh ⭐ PRIMARY HEALTH CHECK
+
+**Comprehensive health check for EPF framework and instances.** This is the primary tool for validating EPF integrity - runs all validation checks in a single command.
+
+**What it checks:**
+1. **Version Consistency** - VERSION file matches README.md, MAINTENANCE.md, script headers
+2. **YAML Parsing** - All YAML files parse without syntax errors
+3. **JSON Schemas** - All schema files are valid JSON
+4. **Documentation Completeness** - Required docs exist (README, guides, etc.)
+5. **File Structure** - Required directories exist (schemas, scripts, wizards, _instances)
+6. **FIRE Phase Content** - Canonical templates validate, instance value models check
+7. **Instance Validation** - Instance metadata, folder structure, FIRE subfolders
+8. **Content Quality Assessment** - Analyzes READY phase artifacts for template patterns, placeholder content, strategic depth
+
+**Usage:**
+```bash
+# Run complete health check (recommended before commits)
+./scripts/epf-health-check.sh
+
+# Auto-fix version mismatches
+./scripts/epf-health-check.sh --fix
+
+# Detailed output
+./scripts/epf-health-check.sh --verbose
+```
+
+**Output:**
+- ✅ Passed: Checks that succeeded
+- ⚠️ Warnings: Issues that should be addressed
+- ❌ Errors: Problems that must be fixed before commit
+- 🚨 Critical: Blockers - DO NOT COMMIT
+
+**Content Quality Dashboard:**
+```
+Content Quality Assessment
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Instance: GMS
+✓   01_insight_analyses.yaml: 100/100 (Grade: A)
+⚠   00_north_star.yaml: 70/100 (Grade: C)
+✗   05_roadmap_recipe.yaml: 50/100 (Grade: D) - needs enrichment
+
+Instance average: 77/100 across 6 artifacts
+```
+
+**Exit codes:**
+- `0` - All checks passed ✅
+- `1` - Errors found (should fix before commit)
+- `2` - Warnings only (consider fixing)
+- `3` - Missing dependencies or EPF root not found
+
+### check-content-readiness.sh
+
+**Deep content quality analysis for individual artifacts.** Goes beyond schema validation to assess strategic depth, detect template patterns, and identify placeholder content.
+
+**What it checks:**
+- **Template Patterns** - Detects "Example:", "TBD", "TODO", placeholder dates
+- **Critical Fields** - Verifies required fields have real content (not templates)
+- **Content Richness** - Assesses depth and specificity of strategic content
+- **Readiness Score** - 0-100 score with letter grade (A-F)
+
+**Usage:**
+```bash
+# Analyze single artifact
+./scripts/check-content-readiness.sh _instances/GMS/READY/01_insight_analyses.yaml
+
+# Analyze entire instance READY phase
+./scripts/check-content-readiness.sh _instances/GMS/READY
+
+# With AI assessment prompt (placeholder for future integration)
+./scripts/check-content-readiness.sh --ai-assess _instances/GMS/READY/00_north_star.yaml
+```
+
+**Output:**
+```
+Content Readiness Score: 70/100 (Grade: C)
+
+⚠️  Template Content Detected: 6 matches
+  - example: 3 occurrences
+  - template_markers: 3 occurrences
+
+✅ All critical fields populated
+
+Recommendations:
+⚠️  MODERATE: Some template content remains
+   Consider enriching for better strategic clarity.
+
+Enrichment wizards for this artifact:
+  - docs/EPF/wizards/01_trend_scout.agent_prompt.md
+```
+
+**Grading scale:**
+- **A (90-100)**: Production-ready, minimal refinements needed
+- **B (75-89)**: Good quality, minor improvements suggested
+- **C (60-74)**: Moderate template content, needs enrichment
+- **D (40-59)**: Significant placeholder content, requires work
+- **F (0-39)**: Mostly template, not ready for strategic use
+
+**Integration:**
+- Called automatically by `epf-health-check.sh` for all instances
+- Can be run standalone for detailed analysis and enrichment guidance
+- Provides wizard recommendations for content improvement
+
+## 🔍 Validation Scripts
 
 ### validate-feature-quality.sh
 
