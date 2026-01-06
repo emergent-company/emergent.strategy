@@ -445,6 +445,17 @@ export class DocumentsController {
     // Reset conversion status to pending
     await this.documents.resetConversionStatus(id);
 
+    // Get organization ID from project
+    const organizationId = await this.documents.getProjectOrg(ctx.projectId);
+    if (!organizationId) {
+      throw new BadRequestException({
+        error: {
+          code: 'bad-request',
+          message: 'Cannot determine organization for project',
+        },
+      });
+    }
+
     // Create new parsing job for this document
     const job = await this.parsingJobService.createJob({
       storageKey: doc.storageKey,
@@ -453,8 +464,9 @@ export class DocumentsController {
       mimeType: doc.mimeType || 'application/octet-stream',
       fileSizeBytes: doc.fileSizeBytes || 0,
       projectId: ctx.projectId,
-      organizationId: doc.organizationId,
+      organizationId,
       documentId: id, // Link to existing document
+      maxRetries: 0, // No automatic retries - user can manually retry via UI
     });
 
     this.logger.log(
