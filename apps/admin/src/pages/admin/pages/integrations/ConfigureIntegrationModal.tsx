@@ -39,13 +39,20 @@ export function ConfigureIntegrationModal({
   } | null>(null);
 
   // Mount/Unmount handling for dialog
+  // Note: We only call showModal() on mount. We don't call close() in cleanup
+  // because that triggers the onClose event which would set selectedIntegration
+  // to null. In React 18 StrictMode, effects run twice (mount, cleanup, mount),
+  // so calling close() in cleanup would close the dialog before the second mount.
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-    if (!dialog.open) dialog.showModal();
-    return () => {
-      if (dialog.open) dialog.close();
-    };
+    if (!dialog.open) {
+      dialog.showModal();
+    }
+    // Intentionally NOT closing in cleanup - the dialog closes via:
+    // 1. User clicking close button (calls onClose prop)
+    // 2. User clicking backdrop (form method="dialog" calls onClose)
+    // 3. Pressing Escape (native dialog behavior, triggers onClose event)
   }, []);
 
   // Initialize settings from configured instance or defaults
