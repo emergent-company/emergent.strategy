@@ -132,10 +132,10 @@ export default function McpSettingsPage() {
     setError(null);
 
     try {
-      const data = await fetchJson<ApiToken[]>(
+      const data = await fetchJson<{ tokens: ApiToken[]; total: number }>(
         `${apiBase}/projects/${config.activeProjectId}/tokens`
       );
-      setTokens(data);
+      setTokens(data.tokens);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load tokens');
     } finally {
@@ -242,7 +242,7 @@ export default function McpSettingsPage() {
   // Project gate
   if (!config.activeProjectId) {
     return (
-      <PageContainer>
+      <PageContainer maxWidth="full" className="px-4">
         <div className="alert alert-warning">
           <Icon icon="lucide--alert-circle" />
           <span>Please select a project to configure MCP integration</span>
@@ -252,7 +252,7 @@ export default function McpSettingsPage() {
   }
 
   return (
-    <PageContainer maxWidth="4xl" testId="page-mcp-settings">
+    <PageContainer maxWidth="full" className="px-4" testId="page-mcp-settings">
       {/* Page header */}
       <h1 className="font-semibold text-xl">MCP Integration</h1>
       <p className="mt-2 text-base-content/70">
