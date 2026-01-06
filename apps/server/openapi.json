@@ -18074,6 +18074,424 @@
           }
         ]
       }
+    },
+    "/projects/{projectId}/tokens": {
+      "post": {
+        "operationId": "create",
+        "summary": "Create API token",
+        "description": "Generate a new API token for MCP access. The token value is only returned once.",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "description": "Project ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiTokenDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Token created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateApiTokenResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "API Tokens"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "list",
+        "summary": "List API tokens",
+        "description": "List all API tokens for a project. Token values are not included.",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "description": "Project ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of tokens",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiTokenListResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "API Tokens"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/projects/{projectId}/tokens/{tokenId}": {
+      "get": {
+        "operationId": "get",
+        "summary": "Get API token details",
+        "description": "Get details of a specific API token. Token value is not included.",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "description": "Project ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tokenId",
+            "required": true,
+            "in": "path",
+            "description": "Token ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiTokenDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "API Tokens"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "revoke",
+        "summary": "Revoke API token",
+        "description": "Revoke an API token. The token will immediately stop working for authentication.",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "description": "Project ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tokenId",
+            "required": true,
+            "in": "path",
+            "description": "Token ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "status": "revoked"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "bad-request",
+                      "message": "Invalid request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "unauthorized",
+                      "message": "Missing or invalid credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "forbidden",
+                      "message": "Insufficient permissions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "error": {
+                      "code": "internal",
+                      "message": "Unexpected error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "API Tokens"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
     }
   },
   "info": {
@@ -25404,6 +25822,166 @@
         },
         "required": [
           "success"
+        ]
+      },
+      "CreateApiTokenDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Human-readable name for the token",
+            "example": "Claude Desktop",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "scopes": {
+            "type": "array",
+            "description": "Scopes to grant to this token",
+            "example": [
+              "schema:read",
+              "data:read"
+            ],
+            "items": {
+              "type": "string",
+              "enum": [
+                "schema:read",
+                "data:read",
+                "data:write"
+              ]
+            }
+          }
+        },
+        "required": [
+          "name",
+          "scopes"
+        ]
+      },
+      "CreateApiTokenResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Token ID (UUID)"
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable name"
+          },
+          "tokenPrefix": {
+            "type": "string",
+            "description": "Token prefix for identification (first 12 chars)",
+            "example": "emt_a1b2c3d4"
+          },
+          "scopes": {
+            "description": "Scopes granted to this token",
+            "example": [
+              "schema:read",
+              "data:read"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When the token was created"
+          },
+          "lastUsedAt": {
+            "type": "object",
+            "description": "Last time the token was used",
+            "nullable": true
+          },
+          "isRevoked": {
+            "type": "boolean",
+            "description": "Whether the token is revoked"
+          },
+          "token": {
+            "type": "string",
+            "description": "The full token value. IMPORTANT: This is only returned once at creation time.",
+            "example": "emt_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "tokenPrefix",
+          "scopes",
+          "createdAt",
+          "isRevoked",
+          "token"
+        ]
+      },
+      "ApiTokenDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Token ID (UUID)"
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable name"
+          },
+          "tokenPrefix": {
+            "type": "string",
+            "description": "Token prefix for identification (first 12 chars)",
+            "example": "emt_a1b2c3d4"
+          },
+          "scopes": {
+            "description": "Scopes granted to this token",
+            "example": [
+              "schema:read",
+              "data:read"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When the token was created"
+          },
+          "lastUsedAt": {
+            "type": "object",
+            "description": "Last time the token was used",
+            "nullable": true
+          },
+          "isRevoked": {
+            "type": "boolean",
+            "description": "Whether the token is revoked"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "tokenPrefix",
+          "scopes",
+          "createdAt",
+          "isRevoked"
+        ]
+      },
+      "ApiTokenListResponseDto": {
+        "type": "object",
+        "properties": {
+          "tokens": {
+            "description": "List of API tokens",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApiTokenDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "Total number of tokens"
+          }
+        },
+        "required": [
+          "tokens",
+          "total"
         ]
       }
     }
