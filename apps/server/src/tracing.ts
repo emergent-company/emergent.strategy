@@ -32,7 +32,8 @@ config({ path: envPath });
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { PgInstrumentation } from '@opentelemetry/instrumentation-pg';
-import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+// Note: getNodeAutoInstrumentations is imported dynamically below ONLY when OTEL is enabled
+// to avoid startup hangs caused by the @opentelemetry/auto-instrumentations-node package
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import * as resourcesModule from '@opentelemetry/resources';
 import { B3Propagator, B3InjectEncoding } from '@opentelemetry/propagator-b3';
@@ -323,6 +324,12 @@ if (!isEnabled) {
     `  - requireParentforOutgoingSpans: ${httpConfig?.requireParentforOutgoingSpans}`
   );
 
+  // Dynamic require to avoid loading the heavy auto-instrumentations package at module load time
+  // This package causes startup hangs in some environments
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const {
+    getNodeAutoInstrumentations,
+  } = require('@opentelemetry/auto-instrumentations-node');
   const autoInstrumentations = getNodeAutoInstrumentations({
     // Disable HTTP in auto-instrumentations since we configure it explicitly above
     '@opentelemetry/instrumentation-http': { enabled: false },

@@ -246,15 +246,40 @@ export class FileLogger implements LoggerService {
   }
 
   /**
+   * Format timestamp for console output (HH:MM:SS.mmm)
+   */
+  private formatTime(): string {
+    const now = new Date();
+    return (
+      now.toTimeString().split(' ')[0] +
+      '.' +
+      String(now.getMilliseconds()).padStart(3, '0')
+    );
+  }
+
+  /**
+   * Format a console log line with timestamp, context, and caller info
+   */
+  private formatConsole(
+    message: any,
+    context?: string,
+    caller?: CallerInfo,
+    prefix?: string
+  ): string {
+    const time = this.formatTime();
+    const ctx = context || 'App';
+    const loc = caller ? `${caller.file}:${caller.line}` : 'unknown';
+    const pre = prefix ? `[${prefix}] ` : '';
+    return `[${time}] ${pre}[${ctx}] ${loc} - ${message}`;
+  }
+
+  /**
    * Log a message
    */
   log(message: any, context?: string) {
     this.writeToFile('log', message, context);
     if (!this.isTest) {
-      const caller = this.getCallerInfo();
-      console.log(
-        `[${context || 'App'}] ${caller.file}:${caller.line} - ${message}`
-      );
+      console.log(this.formatConsole(message, context, this.getCallerInfo()));
     }
   }
 
@@ -264,10 +289,7 @@ export class FileLogger implements LoggerService {
   error(message: any, trace?: string, context?: string) {
     this.writeToFile('error', message, context, trace);
     if (!this.isTest) {
-      const caller = this.getCallerInfo();
-      console.error(
-        `[${context || 'App'}] ${caller.file}:${caller.line} - ${message}`
-      );
+      console.error(this.formatConsole(message, context, this.getCallerInfo()));
       if (trace) console.error(trace);
     }
   }
@@ -278,10 +300,7 @@ export class FileLogger implements LoggerService {
   warn(message: any, context?: string) {
     this.writeToFile('warn', message, context);
     if (!this.isTest) {
-      const caller = this.getCallerInfo();
-      console.warn(
-        `[${context || 'App'}] ${caller.file}:${caller.line} - ${message}`
-      );
+      console.warn(this.formatConsole(message, context, this.getCallerInfo()));
     }
   }
 
@@ -291,10 +310,7 @@ export class FileLogger implements LoggerService {
   debug(message: any, context?: string) {
     this.writeToFile('debug', message, context);
     if (this.isDevelopment && !this.isTest) {
-      const caller = this.getCallerInfo();
-      console.debug(
-        `[${context || 'App'}] ${caller.file}:${caller.line} - ${message}`
-      );
+      console.debug(this.formatConsole(message, context, this.getCallerInfo()));
     }
   }
 
@@ -304,11 +320,8 @@ export class FileLogger implements LoggerService {
   verbose(message: any, context?: string) {
     this.writeToFile('verbose', message, context);
     if (this.isDevelopment && !this.isTest) {
-      const caller = this.getCallerInfo();
       console.log(
-        `[VERBOSE] [${context || 'App'}] ${caller.file}:${
-          caller.line
-        } - ${message}`
+        this.formatConsole(message, context, this.getCallerInfo(), 'VERBOSE')
       );
     }
   }
@@ -318,9 +331,8 @@ export class FileLogger implements LoggerService {
    */
   fatal(message: any, trace?: string, context?: string) {
     this.writeToFile('fatal', message, context, trace);
-    const caller = this.getCallerInfo();
     console.error(
-      `[FATAL] [${context || 'App'}] ${caller.file}:${caller.line} - ${message}`
+      this.formatConsole(message, context, this.getCallerInfo(), 'FATAL')
     );
     if (trace) console.error(trace);
   }
