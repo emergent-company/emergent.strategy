@@ -15,24 +15,7 @@ import {
   printValidationErrors,
 } from '../config/env-validation.js';
 import { getDockerComposeServiceStatus } from '../process/docker.js';
-
-function formatUptime(ms: number): string {
-  const seconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-
-  if (days > 0) {
-    return `${days}d ${hours % 24}h`;
-  }
-  if (hours > 0) {
-    return `${hours}h ${minutes % 60}m`;
-  }
-  if (minutes > 0) {
-    return `${minutes}m ${seconds % 60}s`;
-  }
-  return `${seconds}s`;
-}
+import { timestamp, formatUptime } from '../utils/format.js';
 
 function formatStatus(status: ProcessStatus): string {
   if (status.running) {
@@ -126,18 +109,24 @@ export async function runStatusCommand(argv: readonly string[]): Promise<void> {
     }
   }
 
-  process.stdout.write(`\n📊 Workspace Status (profile: ${profileId})\n`);
+  process.stdout.write(
+    `\n[${timestamp()}] 📊 Workspace Status (profile: ${profileId})\n`
+  );
 
   // Show remote services info if applicable
   if (skipDockerDeps) {
     process.stdout.write('\n🌐 Remote Services Mode:\n');
     process.stdout.write('─'.repeat(80) + '\n');
     if (process.env.POSTGRES_HOST) {
-      const dbInfo = `${process.env.POSTGRES_HOST}:${process.env.POSTGRES_PORT || 5432}/${process.env.POSTGRES_DB || 'zitadel'}`;
+      const dbInfo = `${process.env.POSTGRES_HOST}:${
+        process.env.POSTGRES_PORT || 5432
+      }/${process.env.POSTGRES_DB || 'zitadel'}`;
       process.stdout.write(`  Database:  ${dbInfo}\n`);
     }
     if (process.env.ZITADEL_DOMAIN) {
-      const zitadelInfo = `${process.env.ZITADEL_DOMAIN}:${process.env.ZITADEL_URL?.includes(':8100') ? '8100' : '8080'}`;
+      const zitadelInfo = `${process.env.ZITADEL_DOMAIN}:${
+        process.env.ZITADEL_URL?.includes(':8100') ? '8100' : '8080'
+      }`;
       process.stdout.write(`  Zitadel:   ${zitadelInfo}\n`);
     }
     if (process.env.ZITADEL_ORG_ID) {
@@ -175,7 +164,8 @@ export async function runStatusCommand(argv: readonly string[]): Promise<void> {
       } catch (error) {
         // Process not found in configuration
         process.stdout.write(
-          `${status.name.padEnd(15)} ${formatStatus(status).padEnd(12)} ${status.pid?.toString().padEnd(8) || '-'.padEnd(8)
+          `${status.name.padEnd(15)} ${formatStatus(status).padEnd(12)} ${
+            status.pid?.toString().padEnd(8) || '-'.padEnd(8)
           } -               -\n`
         );
       }
@@ -213,7 +203,8 @@ export async function runStatusCommand(argv: readonly string[]): Promise<void> {
       } catch (error) {
         // Process not found in configuration
         process.stdout.write(
-          `${status.name.padEnd(15)} ${formatStatus(status).padEnd(12)} ${status.pid?.toString().padEnd(8) || '-'.padEnd(8)
+          `${status.name.padEnd(15)} ${formatStatus(status).padEnd(12)} ${
+            status.pid?.toString().padEnd(8) || '-'.padEnd(8)
           } -               -\n`
         );
       }

@@ -12,6 +12,7 @@ import {
   startProcess,
   getProcessStatus,
   type StartProcessOptions,
+  type StartProcessResult,
 } from '../process/manager.js';
 import { waitForHealthy } from '../process/health-check.js';
 import {
@@ -28,6 +29,7 @@ import {
   startDockerComposeService,
   getDockerComposeServiceStatus,
 } from '../process/docker.js';
+import { timestamp } from '../utils/format.js';
 
 export async function runStartCommand(argv: readonly string[]): Promise<void> {
   // Validate required environment variables first
@@ -59,10 +61,16 @@ export async function runStartCommand(argv: readonly string[]): Promise<void> {
   // Check if we should skip Docker dependencies (remote mode)
   const skipDockerDeps = process.env.SKIP_DOCKER_DEPS === 'true';
   if (skipDockerDeps) {
-    process.stdout.write('🌐 Remote mode: Skipping local Docker dependencies\n');
+    process.stdout.write(
+      `[${timestamp()}] 🌐 Remote mode: Skipping local Docker dependencies\n`
+    );
     process.stdout.write(`   Using remote services:\n`);
     if (process.env.POSTGRES_HOST) {
-      process.stdout.write(`   • Database: ${process.env.POSTGRES_HOST}:${process.env.POSTGRES_PORT || 5432}\n`);
+      process.stdout.write(
+        `   • Database: ${process.env.POSTGRES_HOST}:${
+          process.env.POSTGRES_PORT || 5432
+        }\n`
+      );
     }
     if (process.env.ZITADEL_DOMAIN) {
       process.stdout.write(`   • Zitadel: ${process.env.ZITADEL_DOMAIN}\n`);
@@ -102,7 +110,7 @@ export async function runStartCommand(argv: readonly string[]): Promise<void> {
 
   if (serviceIds.length === 0 && dependencyIds.length === 0) {
     process.stdout.write(
-      '⚠️  No services or dependencies requested for start command.\n'
+      `[${timestamp()}] ⚠️  No services or dependencies requested for start command.\n`
     );
     return;
   }
@@ -110,7 +118,9 @@ export async function runStartCommand(argv: readonly string[]): Promise<void> {
   // Start dependencies first
   if (dependencyIds.length > 0) {
     process.stdout.write(
-      `🛢️  Starting dependencies [${dependencyIds.join(', ')}]\n`
+      `[${timestamp()}] 🛢️  Starting dependencies [${dependencyIds.join(
+        ', '
+      )}]\n`
     );
 
     for (const depId of dependencyIds) {
@@ -125,19 +135,27 @@ export async function runStartCommand(argv: readonly string[]): Promise<void> {
           );
 
           if (dockerStatus.running) {
-            process.stdout.write(`∙ ${depId} is already running (Docker)\n`);
+            process.stdout.write(
+              `[${timestamp()}] ∙ ${depId} is already running (Docker)\n`
+            );
             continue;
           }
 
-          process.stdout.write(`∙ Starting ${depId} (Docker)...\n`);
+          process.stdout.write(
+            `[${timestamp()}] ∙ Starting ${depId} (Docker)...\n`
+          );
           await startDockerComposeService(depProfile.composeService);
-          process.stdout.write(`  ✓ Started ${depId} (Docker)\n`);
+          process.stdout.write(
+            `[${timestamp()}]   ✓ Started ${depId} (Docker)\n`
+          );
         } else {
           // Regular process-based dependency
           const status = await getProcessStatus(depId);
           if (status.running) {
             process.stdout.write(
-              `∙ ${depId} is already running (PID ${status.pid})\n`
+              `[${timestamp()}] ∙ ${depId} is already running (PID ${
+                status.pid
+              })\n`
             );
             continue;
           }
@@ -154,13 +172,16 @@ export async function runStartCommand(argv: readonly string[]): Promise<void> {
             },
           };
 
-          process.stdout.write(`∙ Starting ${depId}...\n`);
+          process.stdout.write(`[${timestamp()}] ∙ Starting ${depId}...\n`);
           const pid = await startProcess(startOptions);
-          process.stdout.write(`  ✓ Started ${depId} (PID ${pid})\n`);
+          process.stdout.write(
+            `[${timestamp()}]   ✓ Started ${depId} (PID ${pid})\n`
+          );
         }
       } catch (error) {
         process.stderr.write(
-          `  ✗ Failed to start ${depId}: ${error instanceof Error ? error.message : String(error)
+          `[${timestamp()}]   ✗ Failed to start ${depId}: ${
+            error instanceof Error ? error.message : String(error)
           }\n`
         );
       }
@@ -172,7 +193,7 @@ export async function runStartCommand(argv: readonly string[]): Promise<void> {
   // Start services
   if (serviceIds.length > 0) {
     process.stdout.write(
-      `🚀 Starting services [${serviceIds.join(
+      `[${timestamp()}] 🚀 Starting services [${serviceIds.join(
         ', '
       )}] with profile ${profileId}\n`
     );
@@ -185,7 +206,9 @@ export async function runStartCommand(argv: readonly string[]): Promise<void> {
         const status = await getProcessStatus(serviceId);
         if (status.running) {
           process.stdout.write(
-            `∙ ${serviceId} is already running (PID ${status.pid})\n`
+            `[${timestamp()}] ∙ ${serviceId} is already running (PID ${
+              status.pid
+            })\n`
           );
           continue;
         }
@@ -203,13 +226,21 @@ export async function runStartCommand(argv: readonly string[]): Promise<void> {
           },
         };
 
-        process.stdout.write(`∙ Starting ${serviceId}...\n`);
-        const pid = await startProcess(startOptions);
-        process.stdout.write(`  ✓ Started ${serviceId} (PID ${pid})\n`);
+        process.stdout.write(`[${timestamp()}] ∙ Starting ${serviceId}...\n`);
+        const result = await startProcess(startOptions);
 
-        // Run health check if configured
-        if (profile.healthCheck?.url) {
-          process.stdout.write(`  ⏳ Checking health...`);
+        if (!result.startedSuccessfully) {
+          process.stderr.write(`[${timestamp()}]   ✗ ${result.errorMessage}\n`);
+          continue; // Skip health check for failed process
+        }
+
+        process.stdout.write(
+          `[${timestamp()}]   ✓ Started ${serviceId} (PID ${result.pid})\n`
+        );
+
+        // Run health check if configured (and not skipped)
+        if (profile.healthCheck?.url && !args.skipHealthCheck) {
+          process.stdout.write(`[${timestamp()}]   ⏳ Checking health...`);
           const healthResult = await waitForHealthy({
             url: profile.healthCheck.url,
             timeoutMs: 5000,
@@ -222,10 +253,15 @@ export async function runStartCommand(argv: readonly string[]): Promise<void> {
             const errorMsg = healthResult.error ?? 'Unknown error';
             process.stdout.write(` ⚠️  Health check failed: ${errorMsg}\n`);
           }
+        } else if (args.skipHealthCheck) {
+          process.stdout.write(
+            `[${timestamp()}]   ⏭️  Health check skipped (--no-health-check)\n`
+          );
         }
       } catch (error) {
         process.stderr.write(
-          `  ✗ Failed to start ${serviceId}: ${error instanceof Error ? error.message : String(error)
+          `[${timestamp()}]   ✗ Failed to start ${serviceId}: ${
+            error instanceof Error ? error.message : String(error)
           }\n`
         );
       }
@@ -234,5 +270,5 @@ export async function runStartCommand(argv: readonly string[]): Promise<void> {
     process.stdout.write('\n');
   }
 
-  process.stdout.write('✅ Start command complete\n');
+  process.stdout.write(`[${timestamp()}] ✅ Start command complete\n`);
 }
