@@ -104,4 +104,48 @@ export class DocumentDto {
       'Number of objects extracted in the most recent extraction job',
   })
   extractionObjectsCount?: number;
+
+  // Conversion status fields (for text extraction from uploaded files)
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: 'completed',
+    description:
+      'Status of document conversion (text extraction): pending, processing, completed, failed, not_required',
+    enum: ['pending', 'processing', 'completed', 'failed', 'not_required'],
+  })
+  conversionStatus?: string;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: 'The file format is not supported for text extraction',
+    description:
+      'Human-friendly error message explaining why conversion failed (only set when status is failed)',
+  })
+  conversionError?: string | null;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: '2025-01-01T00:05:00.000Z',
+    description: 'Timestamp when conversion was completed (success or failure)',
+  })
+  conversionCompletedAt?: string | null;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: 'documents/abc123/original.pdf',
+    description: 'Storage key for the original uploaded file in MinIO',
+  })
+  storageKey?: string | null;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: 1048576,
+    description: 'Size of the original file in bytes',
+  })
+  fileSizeBytes?: number | null;
 }

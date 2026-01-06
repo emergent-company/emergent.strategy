@@ -52,6 +52,15 @@ export { EmailJob } from './email-job.entity';
 export { EmailLog } from './email-log.entity';
 export { EmailTemplate, TemplateVariable } from './email-template.entity';
 export { EmailTemplateVersion } from './email-template-version.entity';
+export {
+  DocumentParsingJob,
+  DocumentParsingJobStatus,
+  DocumentParsingJobSourceType,
+} from './document-parsing-job.entity';
+export {
+  DocumentArtifact,
+  DocumentArtifactType,
+} from './document-artifact.entity';
 
 // Release Notifications
 export { ReleaseNotification } from '../modules/releases/entities/release-notification.entity';
@@ -114,6 +123,8 @@ import { EmailTemplateVersion } from './email-template-version.entity';
 import { ReleaseNotification } from '../modules/releases/entities/release-notification.entity';
 import { ReleaseNotificationRecipient } from '../modules/releases/entities/release-notification-recipient.entity';
 import { ReleaseNotificationState } from '../modules/releases/entities/release-notification-state.entity';
+import { DocumentParsingJob } from './document-parsing-job.entity';
+import { DocumentArtifact } from './document-artifact.entity';
 
 export const entities = [
   // KB Schema
@@ -170,4 +181,7 @@ export const entities = [
   ReleaseNotification,
   ReleaseNotificationRecipient,
   ReleaseNotificationState,
+  // Document Parsing
+  DocumentParsingJob,
+  DocumentArtifact,
 ];

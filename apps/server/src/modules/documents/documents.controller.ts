@@ -11,6 +11,10 @@ import {
   Body,
   Delete,
   UseGuards,
+  Logger,
+  BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import {
@@ -41,6 +45,8 @@ import {
   DeletionSummaryDto,
   BulkDeletionSummaryDto,
 } from './dto/deletion-summary.dto';
+import { StorageService } from '../storage/storage.service';
+import { DocumentParsingJobService } from '../document-parsing/document-parsing-job.service';
 
 import { IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
@@ -63,7 +69,14 @@ class CreateDocumentBody {
 @Controller('documents')
 @UseGuards(AuthGuard, ScopesGuard)
 export class DocumentsController {
-  constructor(private readonly documents: DocumentsService) {}
+  private readonly logger = new Logger(DocumentsController.name);
+
+  constructor(
+    private readonly documents: DocumentsService,
+    private readonly storageService: StorageService,
+    @Inject(forwardRef(() => DocumentParsingJobService))
+    private readonly parsingJobService: DocumentParsingJobService
+  ) {}
   @Get()
   @UseInterceptors(CachingInterceptor)
   @ApiOkResponse({
@@ -131,6 +144,59 @@ export class DocumentsController {
       });
     // Authorization is now enforced by RLS policies via derived org ID
     return doc;
+  }
+
+  /**
+   * Download the original file for a document.
+   * Returns a redirect to a signed URL for the file in storage.
+   */
+  @Get(':id/download')
+  @ApiOkResponse({
+    description: 'Redirect to signed download URL for original file',
+  })
+  @ApiParam({ name: 'id', description: 'Document UUID' })
+  @ApiStandardErrors()
+  @Scopes('documents:read')
+  async downloadFile(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @RequireProjectId() ctx: ProjectContext,
+    @Res() res: Response
+  ) {
+    // Get document with storage info
+    const doc = await this.documents.getWithStorageInfo(id, {
+      projectId: ctx.projectId,
+    });
+
+    if (!doc) {
+      throw new NotFoundException({
+        error: { code: 'not-found', message: 'Document not found' },
+      });
+    }
+
+    if (!doc.storageKey) {
+      throw new NotFoundException({
+        error: {
+          code: 'not-found',
+          message: 'No original file stored for this document',
+        },
+      });
+    }
+
+    // Generate signed URL for download
+    const signedUrl = await this.storageService.getSignedDownloadUrl(
+      doc.storageKey,
+      {
+        expiresIn: 3600, // 1 hour
+        responseContentDisposition: doc.filename
+          ? `attachment; filename="${doc.filename}"`
+          : undefined,
+      }
+    );
+
+    this.logger.debug(`Download redirect for document ${id} to ${signedUrl}`);
+
+    // Redirect to signed URL
+    return res.redirect(signedUrl);
   }
 
   @Post()
@@ -323,5 +389,82 @@ export class DocumentsController {
 
     // Recreate chunks
     return await this.documents.recreateChunks(id);
+  }
+
+  @Post(':id/retry-conversion')
+  @ApiOkResponse({
+    description: 'Retry document conversion for a failed document',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        jobId: { type: 'string', format: 'uuid' },
+        message: { type: 'string', example: 'Conversion retry started' },
+      },
+    },
+  })
+  @ApiParam({ name: 'id', description: 'Document UUID' })
+  @ApiStandardErrors()
+  @Scopes('documents:write')
+  async retryConversion(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @RequireProjectId() ctx: ProjectContext
+  ) {
+    // Get document with storage info for scope enforcement
+    const doc = await this.documents.getWithStorageInfo(id, {
+      projectId: ctx.projectId,
+    });
+
+    if (!doc) {
+      throw new NotFoundException({
+        error: { code: 'not-found', message: 'Document not found' },
+      });
+    }
+
+    // Verify document has failed conversion status
+    if (doc.conversionStatus !== 'failed') {
+      throw new BadRequestException({
+        error: {
+          code: 'bad-request',
+          message: `Cannot retry conversion: document status is "${doc.conversionStatus}", expected "failed"`,
+        },
+      });
+    }
+
+    // Verify document has a storage key (original file)
+    if (!doc.storageKey) {
+      throw new BadRequestException({
+        error: {
+          code: 'bad-request',
+          message:
+            'Cannot retry conversion: no original file stored for this document',
+        },
+      });
+    }
+
+    // Reset conversion status to pending
+    await this.documents.resetConversionStatus(id);
+
+    // Create new parsing job for this document
+    const job = await this.parsingJobService.createJob({
+      storageKey: doc.storageKey,
+      sourceFilename: doc.filename || 'document',
+      sourceType: 'upload', // Retry always treats as uploaded file
+      mimeType: doc.mimeType || 'application/octet-stream',
+      fileSizeBytes: doc.fileSizeBytes || 0,
+      projectId: ctx.projectId,
+      organizationId: doc.organizationId,
+      documentId: id, // Link to existing document
+    });
+
+    this.logger.log(
+      `Retry conversion started for document ${id}, job ${job.id}`
+    );
+
+    return {
+      success: true,
+      jobId: job.id,
+      message: 'Conversion retry started',
+    };
   }
 }

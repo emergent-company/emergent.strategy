@@ -9,6 +9,27 @@ import { useConfig } from '@/contexts/config';
 import { useToast } from '@/hooks/use-toast';
 import { useDataUpdates } from '@/contexts/data-updates';
 import {
+  useDocumentParsing,
+  type DocumentParsingJob,
+} from '@/hooks/use-document-parsing';
+
+// Response type for document-first upload endpoint
+type DocumentUploadResponse = {
+  document: {
+    id: string;
+    name: string;
+    mimeType?: string | null;
+    fileSizeBytes?: number | null;
+    conversionStatus: string;
+    conversionError?: string | null;
+    storageKey?: string | null;
+    createdAt: string;
+  };
+  isDuplicate: boolean;
+  existingDocumentId?: string;
+  parsingJob?: DocumentParsingJob;
+};
+import {
   ExtractionConfigModal,
   type ExtractionConfig,
 } from '@/components/organisms/ExtractionConfigModal';
@@ -55,6 +76,16 @@ type DocumentRow = {
   extractionObjectsCount?: number;
   // Integration metadata
   integrationMetadata?: Record<string, any> | null;
+  // Conversion status fields (document-first architecture)
+  conversionStatus?:
+    | 'pending'
+    | 'processing'
+    | 'completed'
+    | 'failed'
+    | 'not_required'
+    | null;
+  conversionError?: string | null;
+  conversionCompletedAt?: string | null;
 };
 
 function normalize(doc: DocumentRow) {
@@ -85,19 +116,29 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<boolean>(false);
   const [uploadProgress, setUploadProgress] = useState<{
-    stage: 'uploading' | 'processing' | 'complete';
+    stage: 'uploading' | 'parsing' | 'processing' | 'complete' | 'failed';
     fileName: string;
     fileSize: number;
     estimatedSeconds: number;
+    jobId?: string;
+    jobStatus?: string;
+    errorMessage?: string;
   } | null>(null);
   // Batch upload state
   const [batchUploadProgress, setBatchUploadProgress] = useState<{
     files: Array<{
       name: string;
       size: number;
-      status: 'pending' | 'uploading' | 'success' | 'duplicate' | 'failed';
+      status:
+        | 'pending'
+        | 'uploading'
+        | 'parsing'
+        | 'success'
+        | 'duplicate'
+        | 'failed';
       error?: string;
       documentId?: string;
+      jobId?: string;
       chunks?: number;
     }>;
     current: number;
@@ -189,6 +230,13 @@ export default function DocumentsPage() {
   // Activity tracking client for Recent Items feature
   const activityClient = createUserActivityClient(apiBase, fetchJson);
   const recordActivity = createRecordActivityFn(activityClient);
+
+  // Document parsing hook for Kreuzberg integration
+  const {
+    uploadDocument: uploadDocumentParsing,
+    getJobStatus,
+    pollJobUntilComplete,
+  } = useDocumentParsing();
 
   // Deletion modal state
   const [isDeletionModalOpen, setIsDeletionModalOpen] = useState(false);
@@ -674,6 +722,50 @@ export default function DocumentsPage() {
     }
   };
 
+  // Handle retry conversion for failed documents
+  const handleRetryConversion = async (doc: DocumentRow) => {
+    if (doc.conversionStatus !== 'failed') {
+      showToast({
+        message: 'Only failed documents can be retried',
+        variant: 'warning',
+      });
+      return;
+    }
+
+    try {
+      showToast({
+        message: `Retrying conversion for "${doc.filename}"...`,
+        variant: 'info',
+        duration: 3000,
+      });
+
+      // Call retry endpoint
+      await fetchJson<{ success: boolean; jobId: string }>(
+        `${apiBase}/api/documents/${doc.id}/retry-conversion`,
+        {
+          method: 'POST',
+        }
+      );
+
+      showToast({
+        message:
+          'Conversion retry started. Document will be updated when complete.',
+        variant: 'success',
+        duration: 5000,
+      });
+
+      // Refresh documents list
+      await refreshDocuments();
+    } catch (err) {
+      console.error('Failed to retry conversion:', err);
+      showToast({
+        message:
+          err instanceof Error ? err.message : 'Failed to retry conversion',
+        variant: 'error',
+      });
+    }
+  };
+
   // Confirm deletion from modal
   const handleConfirmDeletion = async () => {
     try {
@@ -759,10 +851,11 @@ export default function DocumentsPage() {
       });
       return;
     }
-    const max = 10 * 1024 * 1024; // 10MB
+    // Kreuzberg supports up to 100MB files
+    const max = 100 * 1024 * 1024; // 100MB
     if (file.size > max) {
       showToast({
-        message: 'File is larger than 10MB limit.',
+        message: 'File is larger than 100MB limit.',
         variant: 'error',
       });
       return;
@@ -780,41 +873,138 @@ export default function DocumentsPage() {
     });
 
     try {
+      // Create FormData for upload
       const fd = new FormData();
       fd.append('file', file);
-      if (config.activeProjectId)
-        fd.append('projectId', config.activeProjectId);
-      const t = getAccessToken();
+      fd.append('autoExtract', 'false');
 
-      // Update to processing stage before actual upload
-      setUploadProgress({
-        stage: 'processing',
-        fileName: file.name,
-        fileSize: file.size,
-        estimatedSeconds,
-      });
+      // Upload to document-parsing-jobs endpoint (document-first architecture)
+      const response = await fetchForm<DocumentUploadResponse>(
+        `${apiBase}/api/document-parsing-jobs/upload`,
+        fd
+      );
 
-      const result = await fetchForm<{
-        documentId: string;
-        chunks: number;
-        alreadyExists: boolean;
-      }>(`${apiBase}/api/ingest/upload`, fd, {
-        method: 'POST',
-        headers: t ? buildHeaders({ json: false }) : {},
-      });
-
-      // Mark as complete (skip banner for duplicates - they're instant)
-      if (!result.alreadyExists) {
+      // Handle duplicate files
+      if (response.isDuplicate) {
         setUploadProgress({
           stage: 'complete',
           fileName: file.name,
           fileSize: file.size,
           estimatedSeconds,
         });
+        showToast({
+          message: `File already exists: ${response.document.name}`,
+          variant: 'info',
+          duration: 4000,
+        });
+        // Reload documents to show the existing one
+        const t2 = getAccessToken();
+        const json = await fetchJson<
+          DocumentRow[] | { documents: DocumentRow[] }
+        >(`${apiBase}/api/documents?_t=${Date.now()}`, {
+          headers: t2 ? { ...buildHeaders({ json: false }) } : {},
+          json: false,
+        });
+        const docs = (Array.isArray(json) ? json : json.documents).map(
+          normalize
+        );
+        setData(docs);
+        return;
       }
 
-      // Reload documents WITHOUT hiding the table (no setLoading(true))
-      // Add cache-busting parameter to ensure fresh data after upload
+      // If no parsing job needed (plain text files), document is ready immediately
+      if (!response.parsingJob) {
+        setUploadProgress({
+          stage: 'complete',
+          fileName: file.name,
+          fileSize: file.size,
+          estimatedSeconds,
+        });
+        // Reload documents
+        const t2 = getAccessToken();
+        const json = await fetchJson<
+          DocumentRow[] | { documents: DocumentRow[] }
+        >(`${apiBase}/api/documents?_t=${Date.now()}`, {
+          headers: t2 ? { ...buildHeaders({ json: false }) } : {},
+          json: false,
+        });
+        const docs = (Array.isArray(json) ? json : json.documents).map(
+          normalize
+        );
+        setData(docs);
+        showToast({
+          message: `Document uploaded successfully!`,
+          variant: 'success',
+          duration: 4000,
+        });
+        return;
+      }
+
+      // Update to parsing stage with job ID
+      const job = response.parsingJob;
+      setUploadProgress({
+        stage: 'parsing',
+        fileName: file.name,
+        fileSize: file.size,
+        estimatedSeconds,
+        jobId: job.id,
+        jobStatus: job.status,
+      });
+
+      // Poll until job completes
+      const completedJob = await pollJobUntilComplete(job.id, (j) => {
+        setUploadProgress((prev) => {
+          if (!prev) return null;
+
+          // If job is in retry_pending state, show error message and retry info
+          if (j.status === 'retry_pending' && j.errorMessage) {
+            const retryCount = j.retryCount ?? 0;
+            const maxRetries = 3; // Default from backend
+            return {
+              ...prev,
+              stage: 'parsing',
+              jobStatus: j.status,
+              errorMessage: `${j.errorMessage} (retry ${retryCount}/${maxRetries})`,
+            };
+          }
+
+          return {
+            ...prev,
+            stage: 'parsing',
+            jobStatus: j.status,
+            errorMessage: undefined, // Clear error if not in retry state
+          };
+        });
+      });
+
+      if (completedJob.status === 'failed') {
+        setUploadProgress({
+          stage: 'failed',
+          fileName: file.name,
+          fileSize: file.size,
+          estimatedSeconds,
+          jobId: completedJob.id,
+          jobStatus: completedJob.status,
+          errorMessage: completedJob.errorMessage || 'Parsing failed',
+        });
+        showToast({
+          message: completedJob.errorMessage || 'Document parsing failed',
+          variant: 'error',
+        });
+        return;
+      }
+
+      // Mark as complete
+      setUploadProgress({
+        stage: 'complete',
+        fileName: file.name,
+        fileSize: file.size,
+        estimatedSeconds,
+        jobId: completedJob.id,
+        jobStatus: completedJob.status,
+      });
+
+      // Reload documents WITHOUT hiding the table
       try {
         const t2 = getAccessToken();
         const json = await fetchJson<
@@ -828,48 +1018,43 @@ export default function DocumentsPage() {
         );
         setData(docs);
 
-        // Show appropriate message based on whether document was duplicate
-        if (result.alreadyExists) {
-          showToast({
-            message: `Document already exists (duplicate detected). Showing existing document with ${result.chunks} chunks.`,
-            variant: 'warning',
-            duration: 6000,
-          });
-        } else {
-          showToast({
-            message: `Document processed successfully! Created ${result.chunks} chunks.`,
-            variant: 'success',
-            duration: 4000,
-          });
-        }
+        showToast({
+          message: `Document parsed and processed successfully!`,
+          variant: 'success',
+          duration: 4000,
+        });
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : 'Failed to refresh list';
         setError(msg);
       }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Upload failed';
+      setUploadProgress((prev) =>
+        prev
+          ? {
+              ...prev,
+              stage: 'failed',
+              errorMessage: msg,
+            }
+          : null
+      );
       showToast({ message: msg, variant: 'error' });
     } finally {
       setUploading(false);
       // Clear progress banner after showing completion state
-      if (uploadProgress && uploadProgress.stage === 'complete') {
-        setTimeout(() => setUploadProgress(null), 5000);
-      } else {
-        // For duplicates or errors, clear immediately since we skip the banner
-        setUploadProgress(null);
-      }
+      setTimeout(() => setUploadProgress(null), 5000);
     }
   }
 
   /**
    * Handle batch upload of multiple files.
-   * Uses the /api/ingest/upload-batch endpoint for efficient processing.
+   * Uses the document-parsing-jobs endpoint with Kreuzberg for efficient processing.
    */
   async function handleBatchUpload(files: File[]): Promise<void> {
     // Filter and validate files
     const validFiles: File[] = [];
     const invalidFiles: { name: string; reason: string }[] = [];
-    const max = 10 * 1024 * 1024; // 10MB
+    const max = 100 * 1024 * 1024; // 100MB (Kreuzberg supports larger files)
 
     for (const file of files) {
       if (!isAccepted(file)) {
@@ -880,7 +1065,7 @@ export default function DocumentsPage() {
       } else if (file.size > max) {
         invalidFiles.push({
           name: file.name,
-          reason: 'File exceeds 10MB limit',
+          reason: 'File exceeds 100MB limit',
         });
       } else {
         validFiles.push(file);
@@ -931,138 +1116,206 @@ export default function DocumentsPage() {
     });
     setUploading(true);
 
-    try {
-      // Create FormData with all files
-      const fd = new FormData();
-      for (const file of validFiles) {
-        fd.append('files', file);
-      }
-      if (config.activeProjectId) {
-        fd.append('projectId', config.activeProjectId);
-      }
-      if (config.activeOrgId) {
-        fd.append('orgId', config.activeOrgId);
-      }
+    let successCount = 0;
+    let failCount = 0;
 
-      const t = getAccessToken();
+    // Process files sequentially to avoid overwhelming the server
+    for (let i = 0; i < validFiles.length; i++) {
+      const file = validFiles[i];
 
-      // Update status to uploading
-      setBatchUploadProgress((prev) =>
-        prev
-          ? {
-              ...prev,
-              files: prev.files.map((f) => ({
-                ...f,
-                status: 'uploading' as const,
-              })),
-            }
-          : null
-      );
-
-      const result = await fetchForm<{
-        summary: {
-          total: number;
-          successful: number;
-          duplicates: number;
-          failed: number;
-        };
-        results: Array<{
-          filename: string;
-          status: 'success' | 'duplicate' | 'failed';
-          documentId?: string;
-          chunks?: number;
-          error?: string;
-        }>;
-      }>(`${apiBase}/api/ingest/upload-batch`, fd, {
-        method: 'POST',
-        headers: t ? buildHeaders({ json: false }) : {},
-      });
-
-      // Update progress with results
+      // Update status to uploading for current file
       setBatchUploadProgress((prev) => {
         if (!prev) return null;
-        const updatedFiles = prev.files.map((f) => {
-          const resultItem = result.results.find((r) => r.filename === f.name);
-          if (resultItem) {
-            return {
-              ...f,
-              status: resultItem.status,
-              documentId: resultItem.documentId,
-              chunks: resultItem.chunks,
-              error: resultItem.error,
-            };
-          }
-          return f;
-        });
-        return {
-          ...prev,
-          files: updatedFiles,
-          current: result.summary.total,
-          isProcessing: false,
-        };
+        const newFiles = [...prev.files];
+        newFiles[i] = { ...newFiles[i], status: 'uploading' };
+        return { ...prev, files: newFiles };
       });
 
-      // Show summary toast
-      const { summary } = result;
-      if (summary.failed === 0 && summary.duplicates === 0) {
-        showToast({
-          message: `Successfully uploaded ${summary.successful} document${
-            summary.successful !== 1 ? 's' : ''
-          }!`,
-          variant: 'success',
-          duration: 4000,
-        });
-      } else if (summary.successful === 0 && summary.duplicates === 0) {
-        showToast({
-          message: `All ${summary.failed} uploads failed.`,
-          variant: 'error',
-          duration: 6000,
-        });
-      } else {
-        const parts = [];
-        if (summary.successful > 0)
-          parts.push(`${summary.successful} successful`);
-        if (summary.duplicates > 0)
-          parts.push(`${summary.duplicates} duplicates`);
-        if (summary.failed > 0) parts.push(`${summary.failed} failed`);
-        showToast({
-          message: `Batch complete: ${parts.join(', ')}`,
-          variant: summary.failed > 0 ? 'warning' : 'success',
-          duration: 6000,
-        });
-      }
-
-      // Reload documents WITHOUT hiding the table
       try {
-        const t2 = getAccessToken();
-        const json = await fetchJson<
-          DocumentRow[] | { documents: DocumentRow[]; total?: number }
-        >(`${apiBase}/api/documents?_t=${Date.now()}`, {
-          headers: t2 ? { ...buildHeaders({ json: false }) } : {},
-          json: false,
-        });
-        const docsList = Array.isArray(json) ? json : json.documents;
-        const total =
-          !Array.isArray(json) && 'total' in json
-            ? json.total
-            : docsList.length;
-        const docs = docsList.map(normalize);
-        setData(docs);
-        setTotalCount(total || docs.length);
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : 'Failed to refresh list';
-        setError(msg);
-      }
+        // Create FormData for this file
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('autoExtract', 'false');
 
-      // Clear progress after delay
-      setTimeout(() => setBatchUploadProgress(null), 8000);
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Batch upload failed';
-      showToast({ message: msg, variant: 'error' });
-      setBatchUploadProgress(null);
-    } finally {
-      setUploading(false);
+        // Upload to document-parsing-jobs endpoint (document-first architecture)
+        const response = await fetchForm<DocumentUploadResponse>(
+          `${apiBase}/api/document-parsing-jobs/upload`,
+          fd
+        );
+
+        // Handle duplicate files
+        if (response.isDuplicate) {
+          setBatchUploadProgress((prev) => {
+            if (!prev) return null;
+            const newFiles = [...prev.files];
+            newFiles[i] = {
+              ...newFiles[i],
+              status: 'duplicate',
+              documentId: response.existingDocumentId,
+            };
+            return {
+              ...prev,
+              files: newFiles,
+              current: prev.current + 1,
+            };
+          });
+          successCount++; // Duplicates count as success (document exists)
+          continue;
+        }
+
+        // If no parsing job needed (plain text files), document is ready immediately
+        if (!response.parsingJob) {
+          setBatchUploadProgress((prev) => {
+            if (!prev) return null;
+            const newFiles = [...prev.files];
+            newFiles[i] = {
+              ...newFiles[i],
+              status: 'success',
+              documentId: response.document.id,
+            };
+            return {
+              ...prev,
+              files: newFiles,
+              current: prev.current + 1,
+            };
+          });
+          successCount++;
+          continue;
+        }
+
+        const job = response.parsingJob;
+
+        // Update status to parsing with job ID
+        setBatchUploadProgress((prev) => {
+          if (!prev) return null;
+          const newFiles = [...prev.files];
+          newFiles[i] = {
+            ...newFiles[i],
+            status: 'parsing',
+            jobId: job.id,
+          };
+          return { ...prev, files: newFiles };
+        });
+
+        // Poll until job completes
+        const completedJob = await pollJobUntilComplete(job.id, (j) => {
+          setBatchUploadProgress((prev) => {
+            if (!prev) return null;
+            const newFiles = [...prev.files];
+
+            // Show retry status if in retry_pending
+            let errorMsg: string | undefined;
+            if (j.status === 'retry_pending' && j.errorMessage) {
+              const retryCount = j.retryCount ?? 0;
+              const maxRetries = 3;
+              errorMsg = `${j.errorMessage} (retry ${retryCount}/${maxRetries})`;
+            }
+
+            newFiles[i] = {
+              ...newFiles[i],
+              jobId: j.id,
+              error: errorMsg,
+            };
+            return { ...prev, files: newFiles };
+          });
+        });
+
+        // Update with final status
+        const isSuccess = completedJob.status === 'completed';
+        setBatchUploadProgress((prev) => {
+          if (!prev) return null;
+          const newFiles = [...prev.files];
+          newFiles[i] = {
+            ...newFiles[i],
+            status: isSuccess ? 'success' : 'failed',
+            documentId: completedJob.documentId || response.document.id,
+            error: isSuccess
+              ? undefined
+              : completedJob.errorMessage || 'Parsing failed',
+          };
+          return {
+            ...prev,
+            files: newFiles,
+            current: prev.current + 1,
+          };
+        });
+
+        if (isSuccess) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      } catch (e) {
+        const errorMsg = e instanceof Error ? e.message : 'Upload failed';
+        setBatchUploadProgress((prev) => {
+          if (!prev) return null;
+          const newFiles = [...prev.files];
+          newFiles[i] = {
+            ...newFiles[i],
+            status: 'failed',
+            error: errorMsg,
+          };
+          return {
+            ...prev,
+            files: newFiles,
+            current: prev.current + 1,
+          };
+        });
+        failCount++;
+      }
     }
+
+    // Mark batch as complete
+    setBatchUploadProgress((prev) =>
+      prev ? { ...prev, isProcessing: false } : null
+    );
+    setUploading(false);
+
+    // Show summary toast
+    if (failCount === 0) {
+      showToast({
+        message: `Successfully uploaded ${successCount} document${
+          successCount !== 1 ? 's' : ''
+        }!`,
+        variant: 'success',
+        duration: 4000,
+      });
+    } else if (successCount === 0) {
+      showToast({
+        message: `All ${failCount} uploads failed.`,
+        variant: 'error',
+        duration: 6000,
+      });
+    } else {
+      showToast({
+        message: `Batch complete: ${successCount} successful, ${failCount} failed`,
+        variant: 'warning',
+        duration: 6000,
+      });
+    }
+
+    // Reload documents WITHOUT hiding the table
+    try {
+      const t2 = getAccessToken();
+      const json = await fetchJson<
+        DocumentRow[] | { documents: DocumentRow[]; total?: number }
+      >(`${apiBase}/api/documents?_t=${Date.now()}`, {
+        headers: t2 ? { ...buildHeaders({ json: false }) } : {},
+        json: false,
+      });
+      const docsList = Array.isArray(json) ? json : json.documents;
+      const total =
+        !Array.isArray(json) && 'total' in json ? json.total : docsList.length;
+      const docs = docsList.map(normalize);
+      setData(docs);
+      setTotalCount(total || docs.length);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Failed to refresh list';
+      setError(msg);
+    }
+
+    // Clear progress after delay
+    setTimeout(() => setBatchUploadProgress(null), 8000);
   }
 
   function onFileInputChange(e: React.ChangeEvent<HTMLInputElement>): void {
@@ -1159,7 +1412,7 @@ export default function DocumentsPage() {
                 Click to upload or drag & drop (multiple files supported)
               </div>
               <div className="opacity-70 text-sm">
-                Accepted: pdf, docx, pptx, xlsx, md, html, txt. Max 10MB per
+                Accepted: pdf, docx, pptx, xlsx, md, html, txt. Max 100MB per
                 file, 100 files per batch.
               </div>
             </div>
@@ -1191,55 +1444,88 @@ export default function DocumentsPage() {
         </div>
       </div>
 
-      {/* Show detailed progress indicator when uploading/processing (skip for instant duplicates) */}
+      {/* Show detailed progress indicator when uploading/parsing/processing */}
       {uploadProgress && (
         <div
           role="alert"
           className={`mt-4 alert ${
-            uploadProgress.stage === 'complete' ? 'alert-success' : 'alert-info'
+            uploadProgress.stage === 'complete'
+              ? 'alert-success'
+              : uploadProgress.stage === 'failed'
+              ? 'alert-error'
+              : uploadProgress.errorMessage
+              ? 'alert-warning'
+              : 'alert-info'
           }`}
         >
-          <Icon icon="lucide--file-text" className="size-5" />
-          <div className="flex-1">
-            <div className="flex justify-between items-center gap-4">
-              <div className="flex-1">
-                <div className="font-medium">
-                  {uploadProgress.stage === 'uploading' &&
-                    'Uploading document...'}
-                  {uploadProgress.stage === 'processing' &&
-                    'Processing and creating chunks...'}
-                  {uploadProgress.stage === 'complete' &&
-                    'Processing complete!'}
-                </div>
-                <div className="text-sm opacity-80">
-                  {uploadProgress.fileName} (
-                  {(uploadProgress.fileSize / 1024).toFixed(1)} KB)
-                  {uploadProgress.stage === 'processing' && (
-                    <span>
-                      {' '}
-                      • Estimated time: ~{uploadProgress.estimatedSeconds}{' '}
-                      seconds
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {uploadProgress.stage !== 'complete' && <Spinner size="sm" />}
-                {uploadProgress.stage === 'complete' && (
-                  <Icon
-                    icon="lucide--check-circle"
-                    className="size-5 text-success"
-                  />
-                )}
-              </div>
+          {/* Left icon */}
+          <Icon
+            icon={
+              uploadProgress.stage === 'failed'
+                ? 'lucide--alert-circle'
+                : uploadProgress.errorMessage
+                ? 'lucide--alert-triangle'
+                : 'lucide--file-text'
+            }
+            className="size-5 shrink-0"
+          />
+
+          {/* Center content */}
+          <div className="flex-1 min-w-0">
+            <div className="font-medium">
+              {uploadProgress.stage === 'uploading' && 'Uploading document...'}
+              {uploadProgress.stage === 'parsing' &&
+                (uploadProgress.errorMessage
+                  ? 'Retrying document parsing...'
+                  : 'Parsing document with Kreuzberg...')}
+              {uploadProgress.stage === 'processing' &&
+                'Processing and creating chunks...'}
+              {uploadProgress.stage === 'complete' &&
+                'Document uploaded and parsed successfully!'}
+              {uploadProgress.stage === 'failed' && 'Document upload failed'}
             </div>
-            {/* Show progress bar only during processing */}
-            {uploadProgress.stage === 'processing' && (
+            <div className="text-sm opacity-80">
+              {uploadProgress.fileName} (
+              {(uploadProgress.fileSize / 1024).toFixed(1)} KB)
+              {(uploadProgress.stage === 'parsing' ||
+                uploadProgress.stage === 'processing') &&
+                !uploadProgress.errorMessage && (
+                  <span>
+                    {' '}
+                    • Estimated time: ~{uploadProgress.estimatedSeconds} seconds
+                  </span>
+                )}
+              {/* Show error message during retries (parsing stage) or final failure */}
+              {uploadProgress.errorMessage && (
+                <span className="font-medium">
+                  {' '}
+                  • {uploadProgress.errorMessage}
+                </span>
+              )}
+            </div>
+            {/* Show progress bar during parsing/processing */}
+            {(uploadProgress.stage === 'parsing' ||
+              uploadProgress.stage === 'processing') && (
               <progress
                 className="progress progress-primary w-full mt-2"
-                value="50"
+                value={uploadProgress.stage === 'parsing' ? 30 : 70}
                 max="100"
               />
+            )}
+          </div>
+
+          {/* Right icon/spinner */}
+          <div className="shrink-0">
+            {uploadProgress.stage !== 'complete' &&
+              uploadProgress.stage !== 'failed' && <Spinner size="sm" />}
+            {uploadProgress.stage === 'complete' && (
+              <Icon
+                icon="lucide--check-circle"
+                className="size-5 text-success"
+              />
+            )}
+            {uploadProgress.stage === 'failed' && (
+              <Icon icon="lucide--x-circle" className="size-5 text-error" />
             )}
           </div>
         </div>
@@ -1293,6 +1579,8 @@ export default function DocumentsPage() {
                           : file.status === 'failed'
                           ? 'lucide--x-circle'
                           : file.status === 'uploading'
+                          ? 'lucide--upload'
+                          : file.status === 'parsing'
                           ? 'lucide--loader-2'
                           : 'lucide--file'
                       }
@@ -1304,7 +1592,9 @@ export default function DocumentsPage() {
                           : file.status === 'failed'
                           ? 'text-error'
                           : file.status === 'uploading'
-                          ? 'text-info animate-spin'
+                          ? 'text-info'
+                          : file.status === 'parsing'
+                          ? 'text-primary animate-spin'
                           : 'text-base-content/50'
                       }`}
                     />
@@ -1319,6 +1609,16 @@ export default function DocumentsPage() {
                     {file.status === 'success' && file.chunks && (
                       <span className="badge badge-success badge-sm">
                         {file.chunks} chunks
+                      </span>
+                    )}
+                    {file.status === 'parsing' && (
+                      <span className="badge badge-primary badge-sm">
+                        parsing
+                      </span>
+                    )}
+                    {file.status === 'uploading' && (
+                      <span className="badge badge-info badge-sm">
+                        uploading
                       </span>
                     )}
                     {file.status === 'duplicate' && (
@@ -1374,7 +1674,7 @@ export default function DocumentsPage() {
 
       {/* Documents Table */}
       <div
-        className={`mt-4 ${
+        className={`mt-4 card bg-base-100 shadow-sm border border-base-200 ${
           uploading || isDeleting ? 'opacity-60 pointer-events-none' : ''
         }`}
       >
@@ -1397,6 +1697,84 @@ export default function DocumentsPage() {
                     {doc.filename || '(no name)'}
                   </span>
                 ),
+              },
+              {
+                key: 'conversionStatus',
+                label: 'Conversion',
+                sortable: true,
+                width: 'w-32',
+                render: (doc) => {
+                  const status = doc.conversionStatus;
+
+                  // No conversion needed (plain text files) - show dash
+                  if (!status || status === 'not_required') {
+                    return (
+                      <span className="text-sm text-base-content/40">—</span>
+                    );
+                  }
+
+                  // Conversion completed successfully
+                  if (status === 'completed') {
+                    return (
+                      <div className="flex items-center gap-2">
+                        <Icon
+                          icon="lucide--check-circle"
+                          className="size-4 text-success"
+                        />
+                        <span className="text-sm text-base-content/70">
+                          Ready
+                        </span>
+                      </div>
+                    );
+                  }
+
+                  if (status === 'pending') {
+                    return (
+                      <div className="flex items-center gap-2">
+                        <Icon
+                          icon="lucide--clock"
+                          className="size-4 text-warning animate-pulse"
+                        />
+                        <span className="text-sm text-base-content/70">
+                          Pending
+                        </span>
+                      </div>
+                    );
+                  }
+
+                  if (status === 'processing') {
+                    return (
+                      <div className="flex items-center gap-2">
+                        <Icon
+                          icon="lucide--loader-circle"
+                          className="size-4 text-info animate-spin"
+                        />
+                        <span className="text-sm text-base-content/70">
+                          Converting
+                        </span>
+                      </div>
+                    );
+                  }
+
+                  if (status === 'failed') {
+                    return (
+                      <div
+                        className="flex items-center gap-2"
+                        title={doc.conversionError || 'Conversion failed'}
+                      >
+                        <Icon
+                          icon="lucide--alert-circle"
+                          className="size-4 text-error"
+                        />
+                        <span className="text-sm text-error">Failed</span>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <span className="text-sm text-base-content/40">—</span>
+                  );
+                },
               },
               {
                 key: 'totalChars',
@@ -1559,6 +1937,13 @@ export default function DocumentsPage() {
                 icon: 'lucide--info',
                 onAction: handleViewMetadata,
                 hidden: (doc: DocumentRow) => !doc.integrationMetadata,
+              },
+              {
+                label: 'Retry conversion',
+                icon: 'lucide--rotate-ccw',
+                onAction: handleRetryConversion,
+                hidden: (doc: DocumentRow) => doc.conversionStatus !== 'failed',
+                variant: 'warning',
               },
               {
                 label: 'Delete',
