@@ -9,7 +9,7 @@
   },
   "scripts": {
     "precommit:validate": "node ../../scripts/validate-story-duplicates.mjs",
-    "dev": "npx dotenv-cli -e .env -e .env.local -- vite",
+    "dev": "dotenv -e .env -e .env.local -- vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
