@@ -11,7 +11,7 @@ This guide provides comprehensive instructions for setting up the Spec Server ap
 5. [Staging Environment Setup](#staging-environment-setup)
 6. [Production Environment Setup](#production-environment-setup)
 7. [Environment Variables Reference](#environment-variables-reference)
-8. [Infisical Configuration](#infisical-configuration)
+8. [Infisical CLI (Optional)](#infisical-cli-optional)
 9. [Zitadel Bootstrap](#zitadel-bootstrap)
 10. [Troubleshooting](#troubleshooting)
 
@@ -27,8 +27,8 @@ The Spec Server system supports four distinct deployment environments, each with
 | **Dependencies**       | Docker containers on local PC                     | Hosted within dev environment                          | Full Docker Compose       | Full Docker Compose         |
 | **Applications**       | Run on host via workspace CLI                     | Run within dev environment                             | Docker containers         | Docker containers           |
 | **Domains**            | localhost with ports                              | Dev-specific domains                                   | Staging domains with SSL  | Production domains with SSL |
-| **Configuration**      | .env files + Infisical (optional)                 | Infisical required                                     | Infisical required        | Infisical required          |
-| **Secrets Management** | .env fallback available                           | Infisical only                                         | Infisical only            | Infisical only              |
+| **Configuration**      | .env + .env.local files                           | .env + .env.local files                                | Docker env files          | Docker env files            |
+| **Secrets Management** | .env.local for secrets                            | .env.local for secrets                                 | Docker secrets/env files  | Docker secrets/env files    |
 
 ### Infrastructure Patterns
 
@@ -89,7 +89,7 @@ The Spec Server system supports four distinct deployment environments, each with
 
 ### 🚀 Fast Track - Local Development (Copy & Paste)
 
-**Prerequisites:** Node.js 18+, Docker Desktop, Infisical CLI installed and authenticated
+**Prerequisites:** Node.js 18+, Docker Desktop
 
 ```bash
 # Complete local setup in one command sequence
@@ -99,7 +99,7 @@ cp .env.example .env && \
 echo "ENVIRONMENT=local" >> .env && \
 npm install && \
 npm run workspace:deps:start && \
-./scripts/bootstrap-zitadel-fully-automated.sh provision --push-to-infisical && \
+./scripts/bootstrap-zitadel-fully-automated.sh provision && \
 npm run workspace:start
 ```
 
@@ -119,48 +119,28 @@ npm run workspace:start
 
 - **Node.js**: v18 or higher
 - **npm**: v9 or higher
-- **Infisical CLI**: Recommended for all environments, required for dev/staging/production
+- **Infisical CLI**: Optional - useful for dumping secrets from Infisical vault to `.env.local`
 
   ```bash
-  # Install Infisical CLI
+  # Install Infisical CLI (optional)
   brew install infisical/get-cli/infisical  # macOS
   # Or see https://infisical.com/docs/cli/overview for other platforms
   ```
 
-**Infisical Authentication (Choose One Method):**
+**Note:** Applications load configuration from `.env` and `.env.local` files only. Infisical CLI can be used to export secrets from the vault, but apps do not connect to Infisical at runtime.
 
-**Option 1: Interactive Login (Local Development - Recommended)**
+**Infisical CLI Authentication (Optional - for exporting secrets):**
+
+If you want to use Infisical CLI to export secrets from the vault:
 
 ```bash
 # Login and initialize (one-time setup)
 infisical login
 infisical init  # Select your project and environment
+
+# Export secrets to .env.local
+npm run secrets:dump -- --output=.env.local
 ```
-
-**Option 2: Service Token (CI/CD, Remote Environments)**
-
-Get your service token from [https://infiscal.kucharz.net](https://infiscal.kucharz.net) and add to `.env.local`:
-
-```bash
-# Create .env.local with your Infisical token
-cat >> .env.local << 'EOF'
-# Infisical Service Token (SECRET - never commit)
-INFISICAL_TOKEN=st.your-token-here
-INFISICAL_PROJECT_ID=2c273128-5d01-4156-a134-be9511d99c61
-
-# Self-hosted Infisical (our instance)
-INFISICAL_HOST=infiscal.kucharz.net
-EOF
-```
-
-**Why use service tokens?**
-
-- CI/CD pipelines (GitHub Actions, GitLab CI, etc.)
-- Remote servers where interactive login isn't practical
-- Shared development environments
-- Automated deployment workflows
-
-**Note:** Scripts automatically construct the API URL as `https://{INFISICAL_HOST}/api`. For Infisical Cloud, omit `INFISICAL_HOST`.
 
 **Local Only:**
 
@@ -170,7 +150,7 @@ EOF
 **Dev/Staging/Production:**
 
 - Access to environment infrastructure
-- Infisical authentication credentials (service token recommended)
+- `.env` files with appropriate configuration
 - Environment-specific domain access
 
 ### Step-by-Step Setup (If You Need Details)
@@ -186,13 +166,15 @@ npm install
 # 2. Start Docker dependencies
 npm run workspace:deps:start
 
-# 3. Bootstrap Zitadel with automatic Infisical push
-./scripts/bootstrap-zitadel-fully-automated.sh provision --push-to-infisical
+# 3. Bootstrap Zitadel (outputs config to copy to .env files)
+./scripts/bootstrap-zitadel-fully-automated.sh provision
 
-# 4. Start applications
+# 4. Copy bootstrap output to .env files (see bootstrap output for values)
+
+# 5. Start applications
 npm run workspace:start
 
-# 5. Verify
+# 6. Verify
 npm run workspace:status
 ```
 
@@ -223,7 +205,7 @@ Your PC
 
 1. **Node.js** v18+
 2. **Docker Desktop** or Docker Engine with Docker Compose v2
-3. **Infisical CLI** (recommended but optional - .env fallback available)
+3. **Infisical CLI** (optional - for exporting secrets from vault)
 
 ### Step-by-Step Setup
 
@@ -242,31 +224,27 @@ node --version  # Should show v18 or higher
 npm --version   # Should show v9 or higher
 ```
 
-#### 2. Configure Infisical (Optional but Recommended)
+#### 2. Configure Environment Files
 
-If using Infisical for secrets management:
+Copy the example environment file:
 
 ```bash
-# Install Infisical CLI
+cp .env.example .env
+```
+
+If you have access to Infisical and want to export secrets:
+
+```bash
+# Install Infisical CLI (optional)
 brew install infisical/get-cli/infisical  # macOS
-# Or see https://infisical.com/docs/cli/overview
 
-# Login to Infisical
+# Login and export secrets
 infisical login
-
-# Initialize for this project
 infisical init
-# Select your project and "local" environment
+npm run secrets:dump -- --output=.env.local
 ```
 
-**Verification:**
-
-```bash
-infisical secrets list --env local
-# Should show existing secrets or empty list
-```
-
-**Fallback:** If not using Infisical, you'll copy bootstrap output to .env files (Step 6).
+**Alternative:** Manually create `.env.local` with your secrets (see `.env.example` for required variables).
 
 #### 3. Start Docker Dependencies
 
@@ -328,77 +306,50 @@ curl http://localhost:8200/debug/healthz
 
 #### 4. Run Zitadel Bootstrap
 
-Bootstrap Zitadel with dev-specific domains and redirect URIs:
+Bootstrap Zitadel with local-specific domains and redirect URIs:
 
 ```bash
-# Set environment for dev
-export INFISICAL_ENV=dev
-
-# Run bootstrap with automatic Infisical push (recommended)
-# Make sure .env has ENVIRONMENT=dev set
-./scripts/bootstrap-zitadel-fully-automated.sh provision --push-to-infisical
-
-# Or override environment explicitly
-./scripts/bootstrap-zitadel-fully-automated.sh provision \
-  --push-to-infisical \
-  --infisical-env dev
-
-# Or without automatic push (manual update required)
+# Run bootstrap
 ./scripts/bootstrap-zitadel-fully-automated.sh provision
 ```
 
-**Dev-Specific Configuration:**
+The bootstrap script will output configuration values that you need to add to your `.env` or `.env.local` files.
 
-- **ZITADEL_DOMAIN**: `auth-dev.example.com` (not localhost)
+**Local-Specific Configuration:**
+
+- **ZITADEL_DOMAIN**: `localhost:8200`
 - **Redirect URIs**:
-  - Admin: `https://app-dev.example.com/auth/callback`
-  - Server: `https://api-dev.example.com/auth/callback`
-- **PAT**: Provided manually (not from Docker volume)
+  - Admin: `http://localhost:5176/auth/callback`
+  - Server: `http://localhost:3002/auth/callback`
+- **PAT**: Loaded automatically from Docker volume
 
 **Verification:**
 
 ```bash
-./scripts/bootstrap-zitadel-fully-automated.sh status --env dev
-./scripts/bootstrap-zitadel-fully-automated.sh verify --env dev
+./scripts/bootstrap-zitadel-fully-automated.sh status
+./scripts/bootstrap-zitadel-fully-automated.sh verify
 ```
 
-#### 5. Update Infisical with Bootstrap Output
+#### 5. Update Environment Files with Bootstrap Output
 
-> **💡 Tip:** If you used `--push-to-infisical` flag, this step is already done! Skip to step 6 (Start Applications).
-
-Update Infisical secrets for dev environment manually:
+Copy the bootstrap output values to your `.env` or `.env.local` files:
 
 ```bash
-# Update workspace secrets
-infisical secrets set ZITADEL_ORG_ID="<org-id>" --env dev --path /workspace
-infisical secrets set ZITADEL_PROJECT_ID="<project-id>" --env dev --path /workspace
-
-# Update server secrets
-infisical secrets set ZITADEL_ORG_ID="<org-id>" --env dev --path /server
-infisical secrets set ZITADEL_PROJECT_ID="<project-id>" --env dev --path /server
-infisical secrets set ZITADEL_OAUTH_CLIENT_ID="<oauth-client-id>" --env dev --path /server
-
-# Update admin secrets
-infisical secrets set VITE_ZITADEL_CLIENT_ID="<oauth-client-id>" --env dev --path /admin
-infisical secrets set VITE_ZITADEL_ISSUER="https://auth-dev.example.com" --env dev --path /admin
-infisical secrets set VITE_API_BASE="https://api-dev.example.com" --env dev --path /admin
+# Add to .env.local (or .env)
+echo "ZITADEL_ORG_ID=<org-id-from-bootstrap>" >> .env.local
+echo "ZITADEL_PROJECT_ID=<project-id-from-bootstrap>" >> .env.local
+echo "ZITADEL_OAUTH_CLIENT_ID=<oauth-client-id-from-bootstrap>" >> .env.local
+echo "VITE_ZITADEL_CLIENT_ID=<oauth-client-id-from-bootstrap>" >> .env.local
 ```
 
-**Command Options:**
+**Important Variables to Update:**
 
-- `--push-to-infisical` - Automatically push generated secrets to Infisical after bootstrap
-- `--infisical-env ENV` - Target Infisical environment (default: from `ENVIRONMENT` in .env, or `local`)
-- `--infisical-path PATH` - Target Infisical path (default: `/server`)
+- `ZITADEL_ORG_ID` - Organization ID from bootstrap
+- `ZITADEL_PROJECT_ID` - Project ID from bootstrap
+- `ZITADEL_OAUTH_CLIENT_ID` - OAuth client ID from bootstrap
+- `VITE_ZITADEL_CLIENT_ID` - Same as ZITADEL_OAUTH_CLIENT_ID (for admin)
 
-**Environment Configuration:**
-
-Set `ENVIRONMENT` in your `.env` file to avoid passing `--infisical-env` every time:
-
-```bash
-echo "ENVIRONMENT=dev" >> .env
-```
-
-Then all scripts will use `dev` as the default environment.
+**Note:** The server loads JWT keys automatically from `secrets/` directory. No need to update JWT path variables unless you moved the files.
 
 **What Happens:**
 
@@ -410,8 +361,7 @@ Then all scripts will use `dev` as the default environment.
 - Creates two service accounts (CLIENT and API with dual SA pattern)
 - Creates three user accounts (admin, test, e2e-test)
 - Generates JWT keys saved to `secrets/` directory
-- Outputs configuration to update in Infisical or .env files
-- **If `--push-to-infisical`:** Automatically pushes secrets to Infisical
+- Outputs configuration values to add to your `.env` files
 
 **Expected Output:**
 
@@ -433,37 +383,8 @@ Users Created:
   E2E: e2e-test@example.com / <password>
 
 Next Steps:
-1. Update Infisical with these values (or copy to .env files)
+1. Copy these values to your .env or .env.local files
 2. Restart services to load new configuration
-
-=== Pushing secrets to Infisical ===
-Environment: local
-Path: /server
-
-✓ Pushed to Infisical:
-  - ZITADEL_ORG_ID
-  - ZITADEL_PROJECT_ID
-  - ZITADEL_OAUTH_CLIENT_ID
-  - ZITADEL_API_CLIENT_ID
-  - ZITADEL_CLIENT_JWT
-
-Next steps:
-1. Verify secrets: infisical secrets --env=local --path=/server
-2. Restart services: npm run workspace:restart
-3. Look for: 'Dual service account mode active' in logs
-```
-
-**Verification:**
-
-```bash
-# Verify bootstrap status
-./scripts/bootstrap-zitadel-fully-automated.sh status
-
-# Run comprehensive verification
-./scripts/bootstrap-zitadel-fully-automated.sh verify
-
-# Run test suite
-./scripts/bootstrap-zitadel-fully-automated.sh test
 ```
 
 **Troubleshooting:**
@@ -472,85 +393,6 @@ Next steps:
 - **Connection refused**: Verify Zitadel is running at localhost:8200
 - **Organization already exists**: Script will reuse existing organization
 - **Script fails mid-way**: Run `verify` mode to see which steps succeeded
-
-#### 5. Update Infisical with Bootstrap Output
-
-> **💡 Tip:** If you used `--push-to-infisical` flag during bootstrap, this step is already done! Skip to step 6 (Restart Services).
-
-**Method A: Automatic Push (Recommended - New!)**
-
-Use the `--push-to-infisical` flag when running bootstrap to automatically push secrets:
-
-```bash
-./scripts/bootstrap-zitadel-fully-automated.sh provision --push-to-infisical
-
-# For different environments
-./scripts/bootstrap-zitadel-fully-automated.sh provision \
-  --push-to-infisical \
-  --infisical-env dev \
-  --infisical-path /server
-```
-
-This automatically pushes:
-
-- `ZITADEL_ORG_ID`
-- `ZITADEL_PROJECT_ID`
-- `ZITADEL_OAUTH_CLIENT_ID`
-- `ZITADEL_OAUTH_CLIENT_SECRET` (if applicable)
-- `ZITADEL_API_CLIENT_ID`
-- `ZITADEL_CLIENT_JWT` (service account JSON)
-
-**Method B: Manual Infisical CLI Update**
-
-If you didn't use `--push-to-infisical`, update secrets manually:
-
-```bash
-# Update workspace secrets (/workspace path)
-infisical secrets set ZITADEL_ORG_ID="<org-id>" --env local --path /workspace
-infisical secrets set ZITADEL_PROJECT_ID="<project-id>" --env local --path /workspace
-
-# Update server secrets (/server path)
-infisical secrets set ZITADEL_ORG_ID="<org-id>" --env local --path /server
-infisical secrets set ZITADEL_PROJECT_ID="<project-id>" --env local --path /server
-infisical secrets set ZITADEL_OAUTH_CLIENT_ID="<oauth-client-id>" --env local --path /server
-
-# Update admin secrets (/admin path)
-infisical secrets set VITE_ZITADEL_CLIENT_ID="<oauth-client-id>" --env local --path /admin
-```
-
-**Method C: Using Infisical Dashboard**
-
-1. Open https://app.infisical.com
-2. Navigate to your project > "local" environment
-3. Update secrets in `/workspace`, `/server`, and `/admin` folders
-4. Copy values from bootstrap output
-
-**Method D: Fallback to .env Files (No Infisical)**
-
-If Infisical is not available, copy bootstrap output to .env files:
-
-```bash
-# Update root .env
-echo "ZITADEL_ORG_ID=<org-id>" >> .env
-echo "ZITADEL_PROJECT_ID=<project-id>" >> .env
-
-# Update server .env
-echo "ZITADEL_ORG_ID=<org-id>" >> apps/server/.env
-echo "ZITADEL_PROJECT_ID=<project-id>" >> apps/server/.env
-echo "ZITADEL_OAUTH_CLIENT_ID=<oauth-client-id>" >> apps/server/.env
-
-# Update admin .env
-echo "VITE_ZITADEL_CLIENT_ID=<oauth-client-id>" >> apps/admin/.env
-```
-
-**Important Variables to Update:**
-
-- `ZITADEL_ORG_ID` - Organization ID from bootstrap
-- `ZITADEL_PROJECT_ID` - Project ID from bootstrap
-- `ZITADEL_OAUTH_CLIENT_ID` - OAuth client ID from bootstrap
-- `VITE_ZITADEL_CLIENT_ID` - Same as ZITADEL_OAUTH_CLIENT_ID (for admin)
-
-**Note:** The server loads JWT keys automatically from `secrets/` directory. No need to update JWT path variables unless you moved the files.
 
 #### 6. Start Application Services
 
@@ -742,7 +584,7 @@ This section covers setting up the Spec Server in a shared development environme
 
 ### 🚀 Fast Track - Dev Environment (Copy & Paste)
 
-**Prerequisites:** Access to dev environment, Infisical CLI authenticated, dev dependencies running
+**Prerequisites:** Access to dev environment, dev dependencies running
 
 ```bash
 # SSH to dev environment (if needed)
@@ -753,7 +595,8 @@ cd spec-server-2 && \
 cp .env.example .env && \
 echo "ENVIRONMENT=dev" >> .env && \
 npm install && \
-./scripts/bootstrap-zitadel-fully-automated.sh provision --push-to-infisical && \
+./scripts/bootstrap-zitadel-fully-automated.sh provision && \
+# Copy bootstrap output to .env.local
 npm run workspace:start
 ```
 
@@ -782,14 +625,13 @@ Dev Environment (Remote)
 ### Prerequisites
 
 1. **Access** to dev environment infrastructure
-2. **Infisical CLI** installed and authenticated
-3. **Dev environment credentials** (Infisical, SSH, etc.)
-4. **Dev domain access** (VPN, network access, or public domains)
+2. **Dev environment credentials** (SSH, etc.)
+3. **Dev domain access** (VPN, network access, or public domains)
+4. **Infisical CLI** (optional - for exporting secrets from vault)
 
 ### Key Differences from Local
 
 - **No Docker on your PC**: Dependencies run as hosted services in dev environment
-- **Infisical required**: No .env fallback for dev environment
 - **Domain-based**: Uses dev-specific domains, not localhost
 - **Shared resources**: Team members share the same dev environment
 
@@ -804,28 +646,19 @@ ssh user@dev-environment.example.com
 # Or ensure VPN connection if dev services are internal
 ```
 
-#### 2. Configure Infisical for Dev Environment
+#### 2. Configure Environment Files
 
 ```bash
-# Ensure Infisical CLI is installed
-infisical --version
+# Copy example and set environment
+cp .env.example .env
+echo "ENVIRONMENT=dev" >> .env
 
-# Login to Infisical
+# If using Infisical CLI to export secrets:
 infisical login
-
-# Initialize for dev environment
 infisical init
-# Select project
-# Select "dev" environment
-```
+npm run secrets:dump -- --output=.env.local --env=dev
 
-**Verification:**
-
-```bash
-# List secrets in dev environment
-infisical secrets list --env dev --path /workspace
-infisical secrets list --env dev --path /server
-infisical secrets list --env dev --path /admin
+# Or manually create .env.local with dev-specific values
 ```
 
 #### 3. Verify Dev Dependencies
@@ -852,9 +685,6 @@ curl https://auth-dev.example.com/debug/healthz
 Bootstrap Zitadel with dev-specific domains and redirect URIs:
 
 ```bash
-# Set environment for dev
-export INFISICAL_ENV=dev
-
 # Run bootstrap
 ./scripts/bootstrap-zitadel-fully-automated.sh provision --env dev
 ```
@@ -874,24 +704,18 @@ export INFISICAL_ENV=dev
 ./scripts/bootstrap-zitadel-fully-automated.sh verify --env dev
 ```
 
-#### 5. Update Infisical with Bootstrap Output
+#### 5. Update Environment Files with Bootstrap Output
 
-Update Infisical secrets for dev environment:
+Copy the bootstrap output values to your `.env.local` file:
 
 ```bash
-# Update workspace secrets
-infisical secrets set ZITADEL_ORG_ID="<org-id>" --env dev --path /workspace
-infisical secrets set ZITADEL_PROJECT_ID="<project-id>" --env dev --path /workspace
-
-# Update server secrets
-infisical secrets set ZITADEL_ORG_ID="<org-id>" --env dev --path /server
-infisical secrets set ZITADEL_PROJECT_ID="<project-id>" --env dev --path /server
-infisical secrets set ZITADEL_OAUTH_CLIENT_ID="<oauth-client-id>" --env dev --path /server
-
-# Update admin secrets
-infisical secrets set VITE_ZITADEL_CLIENT_ID="<oauth-client-id>" --env dev --path /admin
-infisical secrets set VITE_ZITADEL_ISSUER="https://auth-dev.example.com" --env dev --path /admin
-infisical secrets set VITE_API_BASE="https://api-dev.example.com" --env dev --path /admin
+# Add to .env.local
+echo "ZITADEL_ORG_ID=<org-id>" >> .env.local
+echo "ZITADEL_PROJECT_ID=<project-id>" >> .env.local
+echo "ZITADEL_OAUTH_CLIENT_ID=<oauth-client-id>" >> .env.local
+echo "VITE_ZITADEL_CLIENT_ID=<oauth-client-id>" >> .env.local
+echo "VITE_ZITADEL_ISSUER=https://auth-dev.example.com" >> .env.local
+echo "VITE_API_BASE=https://api-dev.example.com" >> .env.local
 ```
 
 #### 6. Start Applications in Dev Environment
@@ -947,16 +771,14 @@ npm run workspace:logs -- --env dev
 # Restart services
 npm run workspace:restart -- --env dev
 
-# Update secrets
-infisical secrets set KEY="value" --env dev --path /server
+# Update environment - edit .env.local and restart
 ```
 
 ### Troubleshooting Dev Environment
 
 - **Cannot connect to Zitadel**: Verify domain accessibility, check firewall/VPN
-- **Database connection failed**: Verify POSTGRES_HOST and credentials
+- **Database connection failed**: Verify POSTGRES_HOST and credentials in .env
 - **Redirect URI mismatch**: Ensure bootstrap used dev domains
-- **Infisical authentication failed**: Run `infisical login` again
 - **SSL certificate errors**: Verify dev SSL certificates are valid
 
 ## Staging Environment Setup
@@ -965,7 +787,7 @@ This section covers deploying Spec Server to a staging environment using **full 
 
 ### 🚀 Fast Track - Staging Deployment (Copy & Paste)
 
-**Prerequisites:** SSH access to staging server, Docker + Docker Compose installed, Infisical CLI authenticated, staging DNS configured
+**Prerequisites:** SSH access to staging server, Docker + Docker Compose installed, staging DNS configured
 
 ```bash
 # SSH to staging server
@@ -977,9 +799,10 @@ git pull origin main && \
 cp .env.example .env && \
 echo "ENVIRONMENT=staging" >> .env && \
 npm install && \
-infisical export --env staging > .env.staging && \
+# Configure .env.staging with staging-specific values
 docker compose -f docker/docker-compose.staging.yml --env-file .env.staging up -d && \
-./scripts/bootstrap-zitadel-fully-automated.sh provision --push-to-infisical && \
+./scripts/bootstrap-zitadel-fully-automated.sh provision && \
+# Copy bootstrap output to .env.staging
 docker compose -f docker/docker-compose.staging.yml restart
 ```
 
@@ -1011,9 +834,8 @@ All services run within Docker network with external access via staging domains.
 
 1. **Server access** (SSH to staging server)
 2. **Docker** and **Docker Compose v2** installed on staging server
-3. **Infisical CLI** on staging server
-4. **Staging domains** configured (DNS, SSL certificates)
-5. **Infisical authentication** for staging environment
+3. **Staging domains** configured (DNS, SSL certificates)
+4. **Infisical CLI** (optional - for exporting secrets from vault)
 
 ### Step-by-Step Setup
 
@@ -1043,50 +865,41 @@ cd spec-server-2
 npm install  # For build scripts if needed
 ```
 
-#### 3. Configure Infisical for Staging
+#### 3. Configure Environment Files
+
+Create `.env.staging` with staging-specific configuration:
 
 ```bash
-# Install Infisical CLI
+# Copy example and customize for staging
+cp .env.example .env.staging
+
+# Edit .env.staging with staging values:
+# ENVIRONMENT=staging
+# POSTGRES_HOST=postgres
+# POSTGRES_USER=postgres
+# POSTGRES_PASSWORD=<secure-password>
+# POSTGRES_DB=spec_db
+# ZITADEL_DOMAIN=auth-staging.example.com
+# ZITADEL_ISSUER=https://auth-staging.example.com
+# VITE_API_BASE=https://api-staging.example.com
+# VITE_ZITADEL_ISSUER=https://auth-staging.example.com
+# VITE_ZITADEL_REDIRECT_URI=https://app-staging.example.com/auth/callback
+```
+
+**Alternative - Export from Infisical (if available):**
+
+```bash
+# Install Infisical CLI (optional)
 curl -1sLf 'https://dl.cloudsmith.io/public/infisical/infisical-cli/setup.deb.sh' | sudo -E bash
 sudo apt-get update && sudo apt-get install -y infisical
 
-# Login
+# Login and export
 infisical login
-
-# Initialize for staging
 infisical init
-# Select project
-# Select "staging" environment
+npm run secrets:dump -- --output=.env.staging --env=staging
 ```
 
-#### 4. Configure Staging Environment Variables
-
-Update Infisical with staging-specific configuration:
-
-```bash
-# Workspace variables (/workspace)
-infisical secrets set ZITADEL_DOMAIN="auth-staging.example.com" --env staging --path /workspace
-infisical secrets set ADMIN_PORT="5176" --env staging --path /workspace
-infisical secrets set SERVER_PORT="3002" --env staging --path /workspace
-
-# Docker variables (/docker)
-infisical secrets set POSTGRES_HOST="postgres" --env staging --path /docker
-infisical secrets set POSTGRES_USER="postgres" --env staging --path /docker
-infisical secrets set POSTGRES_PASSWORD="<secure-password>" --env staging --path /docker
-infisical secrets set POSTGRES_DB="spec_db" --env staging --path /docker
-
-# Server variables (/server)
-infisical secrets set POSTGRES_HOST="postgres" --env staging --path /server
-infisical secrets set ZITADEL_ISSUER="https://auth-staging.example.com" --env staging --path /server
-infisical secrets set ZITADEL_DOMAIN="auth-staging.example.com" --env staging --path /server
-
-# Admin variables (/admin)
-infisical secrets set VITE_API_BASE="https://api-staging.example.com" --env staging --path /admin
-infisical secrets set VITE_ZITADEL_ISSUER="https://auth-staging.example.com" --env staging --path /admin
-infisical secrets set VITE_ZITADEL_REDIRECT_URI="https://app-staging.example.com/auth/callback" --env staging --path /admin
-```
-
-#### 5. Configure SSL Certificates
+#### 4. Configure SSL Certificates
 
 Staging requires SSL certificates for HTTPS access:
 
@@ -1112,9 +925,7 @@ sudo certbot certonly --standalone -d api-staging.example.com
 #### 6. Deploy with Docker Compose
 
 ```bash
-# Export Infisical secrets to .env file for Docker Compose
-infisical export --env staging > .env.staging
-
+# Ensure .env.staging has all required variables (from step 3)
 # Start services with staging configuration
 docker compose -f docker/docker-compose.staging.yml --env-file .env.staging up -d
 ```
@@ -1129,13 +940,7 @@ docker compose -f docker/docker-compose.staging.yml --env-file .env.staging up -
 #### 7. Run Zitadel Bootstrap for Staging
 
 ```bash
-# Bootstrap with staging environment and automatic Infisical push (recommended)
-./scripts/bootstrap-zitadel-fully-automated.sh provision \
-  --push-to-infisical \
-  --infisical-env staging \
-  --infisical-path /server
-
-# Or without automatic push (manual update required)
+# Bootstrap Zitadel for staging environment
 INFISICAL_ENV=staging ./scripts/bootstrap-zitadel-fully-automated.sh provision --env staging
 ```
 
@@ -1147,26 +952,22 @@ INFISICAL_ENV=staging ./scripts/bootstrap-zitadel-fully-automated.sh provision -
   - Server: `https://api-staging.example.com/auth/callback`
 - **PAT**: Manually provided (prompt during bootstrap)
 
-#### 8. Update Infisical with Bootstrap Output
+#### 8. Update Environment Files with Bootstrap Output
 
-> **💡 Tip:** If you used `--push-to-infisical` flag, this step is already done! Skip to step 9 (Restart Services).
+After bootstrap completes, update `.env.staging` with the generated values:
 
 ```bash
-# Update staging Infisical with bootstrap results
-infisical secrets set ZITADEL_ORG_ID="<org-id>" --env staging --path /workspace
-infisical secrets set ZITADEL_PROJECT_ID="<project-id>" --env staging --path /workspace
-infisical secrets set ZITADEL_OAUTH_CLIENT_ID="<client-id>" --env staging --path /server
-infisical secrets set VITE_ZITADEL_CLIENT_ID="<client-id>" --env staging --path /admin
+# Add bootstrap outputs to .env.staging
+echo 'ZITADEL_ORG_ID=<org-id>' >> .env.staging
+echo 'ZITADEL_PROJECT_ID=<project-id>' >> .env.staging
+echo 'ZITADEL_OAUTH_CLIENT_ID=<client-id>' >> .env.staging
+echo 'VITE_ZITADEL_CLIENT_ID=<client-id>' >> .env.staging
 ```
 
 #### 9. Restart Services to Load New Configuration
 
 ```bash
-# Restart all containers
-docker compose -f docker/docker-compose.staging.yml restart
-
-# Or rebuild and restart
-infisical export --env staging > .env.staging
+# Restart all containers with updated configuration
 docker compose -f docker/docker-compose.staging.yml --env-file .env.staging up -d --force-recreate
 ```
 
@@ -1229,11 +1030,8 @@ docker compose -f docker/docker-compose.staging.yml restart server
 #### Updating Configuration
 
 ```bash
-# Update Infisical secrets
-infisical secrets set KEY="value" --env staging --path /server
-
-# Export to .env
-infisical export --env staging > .env.staging
+# Edit .env.staging with new values
+nano .env.staging
 
 # Recreate containers with new config
 docker compose -f docker/docker-compose.staging.yml --env-file .env.staging up -d --force-recreate
@@ -1281,7 +1079,7 @@ This section covers deploying Spec Server to production using **full Docker Comp
 
 **⚠️ CRITICAL:** Only run this after verifying all security prerequisites below!
 
-**Prerequisites:** Production server, Docker + Docker Compose, Infisical CLI authenticated, SSL certificates configured, firewall rules in place, monitoring configured
+**Prerequisites:** Production server, Docker + Docker Compose, SSL certificates configured, firewall rules in place, monitoring configured, `.env.production` file prepared
 
 ```bash
 # SSH to production server
@@ -1290,15 +1088,11 @@ ssh user@production.example.com
 # Complete production deployment in one command sequence
 cd spec-server-2 && \
 git pull origin main && \
-cp .env.example .env && \
-echo "ENVIRONMENT=production" >> .env && \
 npm install && \
-infisical export --env production > .env.production && \
-chmod 600 .env.production && \
 docker compose -f docker/docker-compose.yml --env-file .env.production up -d && \
-./scripts/bootstrap-zitadel-fully-automated.sh provision --push-to-infisical && \
-docker compose -f docker/docker-compose.yml restart && \
-rm .env.production
+./scripts/bootstrap-zitadel-fully-automated.sh provision --env production && \
+# Update .env.production with bootstrap output values, then:
+docker compose -f docker/docker-compose.yml --env-file .env.production up -d --force-recreate
 ```
 
 **⚠️ SECURITY CHECKLIST AFTER DEPLOYMENT:**
@@ -1337,11 +1131,12 @@ Production Server
 
 **Security:**
 
-- ✅ Infisical for all secrets (no .env files with production credentials)
+- ✅ Secure `.env.production` file (chmod 600, not committed to git)
 - ✅ SSL/TLS certificates from trusted CA
 - ✅ Strong passwords and JWT keys
 - ✅ Firewall rules limiting access
 - ✅ Regular security audits
+- ✅ Optional: Use Infisical CLI (`npm run secrets:dump`) to export secrets to `.env.production`
 
 **Reliability:**
 
@@ -1363,11 +1158,12 @@ Production Server
 
 1. **Production server** with adequate resources (4+ CPU, 8GB+ RAM)
 2. **Docker** and **Docker Compose v2**
-3. **Infisical CLI** (production authentication)
+3. **`.env.production`** file with all required secrets
 4. **Production domains** with valid SSL certificates
 5. **Backup storage** (S3, network storage, etc.)
 6. **Monitoring system** (Prometheus, Datadog, etc.)
 7. **Access control** (SSH keys, VPN, IP allowlisting)
+8. **Optional**: Infisical CLI for exporting secrets to `.env.production`
 
 ### Step-by-Step Setup
 
@@ -1406,53 +1202,53 @@ cd spec-server-2
 git status
 ```
 
-#### 3. Configure Infisical for Production
+#### 3. Configure Environment Files for Production
+
+Create and configure `.env.production` with all required secrets:
 
 ```bash
-# Install Infisical CLI
-curl -1sLf 'https://dl.cloudsmith.io/public/infisical/infisical-cli/setup.deb.sh' | sudo -E bash
-sudo apt-get update && sudo apt-get install -y infisical
+# Copy example and configure
+cp .env.example .env.production
+chmod 600 .env.production  # Restrict permissions immediately
 
-# Login with production credentials
-infisical login
-
-# Initialize for production environment
-infisical init
-# Select project
-# Select "production" environment
+# Edit with production values
+nano .env.production
 ```
 
-**⚠️ CRITICAL**: Production Infisical setup requires:
+**Optional:** If you have Infisical CLI configured, you can export secrets:
 
-- Separate Infisical project or strict access control
-- MFA enabled for all Infisical accounts
-- Audit logging enabled
-- Separate service tokens for CI/CD vs manual access
+```bash
+# Export from Infisical to .env.production
+npm run secrets:dump > .env.production
+chmod 600 .env.production
+```
 
-#### 4. Configure Production Secrets in Infisical
+#### 4. Configure Production Secrets in .env.production
 
 **⚠️ Use strong, unique values for production. Never reuse dev/staging credentials.**
 
+Edit `.env.production` with these values (use `openssl rand -base64 32` for passwords):
+
 ```bash
-# Workspace variables (/workspace)
-infisical secrets set ZITADEL_DOMAIN="auth.example.com" --env production --path /workspace
-infisical secrets set ADMIN_PORT="5176" --env production --path /workspace
-infisical secrets set SERVER_PORT="3002" --env production --path /workspace
+# Workspace variables
+ZITADEL_DOMAIN=auth.example.com
+ADMIN_PORT=5176
+SERVER_PORT=3002
 
-# Docker variables (/docker) - STRONG PASSWORDS REQUIRED
-infisical secrets set POSTGRES_PASSWORD="$(openssl rand -base64 32)" --env production --path /docker
-infisical secrets set ZITADEL_MASTERKEY="$(openssl rand -base64 32)" --env production --path /docker
+# Docker variables - STRONG PASSWORDS REQUIRED
+POSTGRES_PASSWORD=<generate-with-openssl>
+ZITADEL_MASTERKEY=<generate-with-openssl>
 
-# Server variables (/server)
-infisical secrets set POSTGRES_HOST="postgres" --env production --path /server
-infisical secrets set ZITADEL_ISSUER="https://auth.example.com" --env production --path /server
-infisical secrets set GOOGLE_API_KEY="<production-api-key>" --env production --path /server
-infisical secrets set SESSION_SECRET="$(openssl rand -base64 32)" --env production --path /server
+# Server variables
+POSTGRES_HOST=postgres
+ZITADEL_ISSUER=https://auth.example.com
+GOOGLE_API_KEY=<production-api-key>
+SESSION_SECRET=<generate-with-openssl>
 
-# Admin variables (/admin)
-infisical secrets set VITE_API_BASE="https://api.example.com" --env production --path /admin
-infisical secrets set VITE_ZITADEL_ISSUER="https://auth.example.com" --env production --path /admin
-infisical secrets set VITE_ZITADEL_REDIRECT_URI="https://app.example.com/auth/callback" --env production --path /admin
+# Admin variables
+VITE_API_BASE=https://api.example.com
+VITE_ZITADEL_ISSUER=https://auth.example.com
+VITE_ZITADEL_REDIRECT_URI=https://app.example.com/auth/callback
 ```
 
 #### 5. Configure Production SSL Certificates
@@ -1482,9 +1278,7 @@ sudo certbot certonly --dns-<provider> -d *.example.com -d example.com
 #### 6. Deploy with Production Docker Compose
 
 ```bash
-# Export production secrets (never commit this file)
-infisical export --env production > .env.production
-
+# Verify .env.production has all required values
 # Set restrictive permissions
 chmod 600 .env.production
 
@@ -1498,13 +1292,7 @@ docker compose -f docker/docker-compose.yml ps
 #### 7. Run Zitadel Bootstrap for Production
 
 ```bash
-# Bootstrap with production environment and automatic Infisical push (recommended)
-./scripts/bootstrap-zitadel-fully-automated.sh provision \
-  --push-to-infisical \
-  --infisical-env production \
-  --infisical-path /server
-
-# Or without automatic push (manual update required)
+# Bootstrap for production environment
 INFISICAL_ENV=production ./scripts/bootstrap-zitadel-fully-automated.sh provision --env production
 ```
 
@@ -1514,24 +1302,24 @@ INFISICAL_ENV=production ./scripts/bootstrap-zitadel-fully-automated.sh provisio
 - **Redirect URIs**: Production domains with HTTPS
 - **Admin credentials**: Strong unique password
 - **Service account keys**: Long expiration (production stability)
-- **PAT**: Securely stored after bootstrap (Infisical, secrets manager)
+- **PAT**: Securely stored after bootstrap (password manager, secrets vault)
 
 **⚠️ IMMEDIATELY SECURE**:
 
-- Save bootstrap output to secure location (password manager, Infisical)
+- Save bootstrap output to secure location (password manager)
 - Delete any local files with credentials
 - Rotate PAT after initial setup
 
-#### 8. Update Infisical with Bootstrap Output
+#### 8. Update Environment Files with Bootstrap Output
 
-> **💡 Tip:** If you used `--push-to-infisical` flag, this step is already done! Skip to step 9 (Restart Services).
+After bootstrap completes, update `.env.production` with the generated values:
 
 ```bash
-# Update production Infisical
-infisical secrets set ZITADEL_ORG_ID="<org-id>" --env production --path /workspace
-infisical secrets set ZITADEL_PROJECT_ID="<project-id>" --env production --path /workspace
-infisical secrets set ZITADEL_OAUTH_CLIENT_ID="<client-id>" --env production --path /server
-infisical secrets set VITE_ZITADEL_CLIENT_ID="<client-id>" --env production --path /admin
+# Add bootstrap outputs to .env.production
+echo 'ZITADEL_ORG_ID=<org-id>' >> .env.production
+echo 'ZITADEL_PROJECT_ID=<project-id>' >> .env.production
+echo 'ZITADEL_OAUTH_CLIENT_ID=<client-id>' >> .env.production
+echo 'VITE_ZITADEL_CLIENT_ID=<client-id>' >> .env.production
 
 # CRITICAL: Save admin/test user credentials to secure storage
 # DO NOT store in plaintext anywhere
@@ -1540,10 +1328,6 @@ infisical secrets set VITE_ZITADEL_CLIENT_ID="<client-id>" --env production --pa
 #### 9. Restart Services with Updated Configuration
 
 ```bash
-# Re-export Infisical secrets
-infisical export --env production > .env.production
-chmod 600 .env.production
-
 # Restart with new configuration
 docker compose -f docker/docker-compose.yml --env-file .env.production up -d --force-recreate
 
@@ -1686,7 +1470,7 @@ docker compose -f docker/docker-compose.yml up -d
 - **Rotate secrets** every 90 days (database passwords, API keys)
 - **Update dependencies** regularly (Docker images, npm packages)
 - **Review access logs** weekly
-- **Audit Infisical access** monthly
+- **Audit secrets access** monthly (if using secrets manager)
 - **Test disaster recovery** quarterly
 
 ### Production Troubleshooting
@@ -1745,13 +1529,13 @@ docker compose logs -f server | grep ERROR
 
 ### Production Security Best Practices
 
-1. **Never use .env files** - Always use Infisical for production secrets
+1. **Secure .env files** - Use `chmod 600` for production `.env.production` files, never commit to git
 2. **Rotate credentials regularly** - Passwords, API keys, JWT keys
-3. **Enable MFA** - For all production access (Infisical, SSH, cloud console)
+3. **Enable MFA** - For all production access (SSH, cloud console, secrets vault)
 4. **Audit logging** - Enable and review access logs
 5. **Principle of least privilege** - Limit access to production systems
 6. **Encrypted backups** - Encrypt database and secret backups
-7. **Secure secrets at rest** - Use Infisical, AWS Secrets Manager, or HashiCorp Vault
+7. **Secure secrets at rest** - Use secrets manager (Infisical, AWS Secrets Manager, or HashiCorp Vault)
 8. **Monitor security events** - Failed logins, unusual traffic
 9. **Incident response plan** - Document procedures for security incidents
 10. **Regular security audits** - Quarterly reviews of configurations and access
@@ -1770,18 +1554,18 @@ Variables are classified into three categories:
 
 ### Infisical Folder Structure
 
-Variables are organized into four Infisical paths:
+Variables are organized into four Infisical paths (for reference when using Infisical CLI):
 
-| Path         | Purpose                 | ~Count | Loaded by                       | When               |
-| ------------ | ----------------------- | ------ | ------------------------------- | ------------------ |
-| `/workspace` | Workspace configuration | ~15    | Workspace CLI, bootstrap script | Startup, bootstrap |
-| `/docker`    | Docker dependencies     | ~11    | Docker Compose                  | Startup            |
-| `/server`    | Backend application     | ~118   | Server app via Infisical SDK    | Runtime            |
-| `/admin`     | Frontend application    | ~10    | Admin build via Vite plugin     | Build time         |
+| Path         | Purpose                 | ~Count | Loaded by                  | When               |
+| ------------ | ----------------------- | ------ | -------------------------- | ------------------ |
+| `/workspace` | Workspace configuration | ~15    | `.env` files               | Startup, bootstrap |
+| `/docker`    | Docker dependencies     | ~11    | Docker Compose `.env` file | Startup            |
+| `/server`    | Backend application     | ~118   | `.env` files               | Runtime            |
+| `/admin`     | Frontend application    | ~10    | `.env` files               | Build time         |
 
 ### Workspace Variables
 
-Located in Infisical path: `/workspace` or root `.env` file
+Located in: `.env` file (or Infisical path `/workspace` for export)
 
 | Variable                 | Default                | Used When           | Changes After Bootstrap | Required | Description                          |
 | ------------------------ | ---------------------- | ------------------- | ----------------------- | -------- | ------------------------------------ |
@@ -1812,7 +1596,7 @@ Located in Infisical path: `/workspace` or root `.env` file
 
 ### Server Variables
 
-Located in Infisical path: `/server` or `apps/server/.env`
+Located in: `apps/server/.env` or `.env.local`
 
 #### Core Configuration
 
@@ -1891,7 +1675,7 @@ Located in Infisical path: `/server` or `apps/server/.env`
 
 ### Admin Variables
 
-Located in Infisical path: `/admin` or `apps/admin/.env`
+Located in: `apps/admin/.env` or `.env.local`
 
 **⚠️ Only `VITE_*` variables are exposed to the browser.**
 
@@ -1919,7 +1703,7 @@ Located in Infisical path: `/admin` or `apps/admin/.env`
 
 ### Docker Dependency Variables
 
-Located in Infisical path: `/docker` or `docker/.env`
+Located in: `docker/.env` or `.env.staging` / `.env.production`
 
 | Variable                                  | Default                            | Used When | Changes After Bootstrap | Required | Description                              |
 | ----------------------------------------- | ---------------------------------- | --------- | ----------------------- | -------- | ---------------------------------------- |
@@ -1949,24 +1733,30 @@ Variables are loaded in this order (later overrides earlier):
 
 1. **Default values** in code
 2. **`.env.example`** files (template, not loaded at runtime)
-3. **Infisical** (environment-specific: local/dev/staging/production)
-4. **`.env`** files (local only, fallback when Infisical unavailable)
-5. **`.env.local`** files (local only, user-specific overrides)
-6. **Environment variables** (CI/CD, Docker Compose)
+3. **`.env`** files (base configuration)
+4. **`.env.local`** files (user-specific overrides, gitignored)
+5. **Environment variables** (CI/CD, Docker Compose)
 
 **Important Notes:**
 
-- **Local**: Infisical recommended, `.env` fallback available
-- **Dev/Staging/Production**: Infisical required, no `.env` fallback
-- **Bootstrap outputs** must be updated in Infisical after running bootstrap
+- **All environments**: Apps load configuration from `.env` and `.env.local` files only
+- **Infisical CLI** is optional and can be used to export secrets with `npm run secrets:dump`
+- **Bootstrap outputs** must be updated in `.env.local` (local) or `.env.staging`/`.env.production`
 - **Never commit** `.env` files with real credentials (use `.env.example` templates)
-- **Production** must use Infisical or secure secrets management (never `.env` files)
+- **Production**: Use `.env.production` with secure file permissions (chmod 600)
 
-## Infisical Configuration
+## Infisical CLI (Optional)
 
-This section covers Infisical CLI setup, folder structure, and workflows for managing secrets across environments.
+Infisical CLI is an **optional tool** for managing secrets in a centralized vault. Apps load configuration from `.env` files, not from Infisical at runtime. You can use Infisical CLI to export secrets to `.env` files.
 
-### Infisical CLI Installation
+### When to Use Infisical CLI
+
+- **Team environments**: Share secrets across team members without committing to git
+- **Secret rotation**: Centrally manage and rotate secrets
+- **Backup**: Keep a backup of secrets in a secure vault
+- **Export**: Use `npm run secrets:dump` to export secrets to `.env` files
+
+### Installation (Optional)
 
 **macOS:**
 
@@ -1987,7 +1777,7 @@ sudo apt-get update && sudo apt-get install -y infisical
 infisical --version
 ```
 
-### Initial Authentication
+### Authentication
 
 ```bash
 # Login to Infisical
@@ -2011,193 +1801,57 @@ infisical init
 
 This creates `.infisical.json` in project root (gitignored).
 
-### Folder/Path Structure
+### Exporting Secrets to .env Files
 
-Infisical secrets are organized into four paths per environment:
+The primary use case for Infisical CLI is exporting secrets:
+
+```bash
+# Export all secrets to .env.local
+npm run secrets:dump > .env.local
+
+# Or use infisical directly
+infisical export --env local > .env.local
+
+# Export for specific environment
+infisical export --env staging > .env.staging
+infisical export --env production > .env.production
+
+# Set secure permissions for production
+chmod 600 .env.production
+```
+
+### Common CLI Commands
+
+```bash
+# List secrets
+infisical secrets list --env local
+
+# Get specific secret
+infisical secrets get ZITADEL_ORG_ID --env local
+
+# Set a secret (updates vault, not local .env)
+infisical secrets set KEY="value" --env local
+
+# Delete a secret
+infisical secrets delete KEY_NAME --env local
+```
+
+### Folder Structure in Infisical
+
+Secrets are organized by path in Infisical (for reference):
 
 ```
 Project: Spec Server
 ├── Environment: local
-│   ├── /workspace  (~15 secrets) - Workspace CLI config
-│   ├── /docker     (~11 secrets) - Docker dependency config
-│   ├── /server     (~118 secrets) - Backend app config
-│   └── /admin      (~10 secrets) - Frontend app config
-├── Environment: dev
-│   ├── /workspace
-│   ├── /docker
-│   ├── /server
-│   └── /admin
-├── Environment: staging
-│   └── ... (same structure)
+│   ├── /workspace  - Workspace CLI config
+│   ├── /docker     - Docker dependency config
+│   ├── /server     - Backend app config
+│   └── /admin      - Frontend app config
 └── Environment: production
     └── ... (same structure)
 ```
 
-### Loading Patterns
-
-**1. Bootstrap Script** (reads from `/workspace` and `/docker`):
-
-```bash
-# Bootstrap loads from Infisical paths:
-# - /workspace: ZITADEL_DOMAIN, NAMESPACE, ports
-# - /docker: POSTGRES_* for database connection
-./scripts/bootstrap-zitadel-fully-automated.sh provision
-```
-
-**2. Server Runtime** (loads from `/server` via Infisical SDK):
-
-```javascript
-// apps/server/src/config/infisical.ts
-// Automatically loads at runtime if INFISICAL_ENABLED=true
-```
-
-**3. Admin Build Time** (loads from `/admin` via Vite plugin):
-
-```javascript
-// apps/admin/vite.config.ts
-// Loads VITE_* variables during build
-```
-
-**4. Docker Compose** (loads from `/docker` via sidecar or export):
-
-```bash
-# Export to .env file for Docker Compose
-infisical export --env staging --path /docker > docker/.env
-```
-
-### Common Workflows
-
-#### View Secrets
-
-```bash
-# List all secrets in workspace path
-infisical secrets list --env local --path /workspace
-
-# List server secrets
-infisical secrets list --env local --path /server
-
-# Get specific secret
-infisical secrets get ZITADEL_ORG_ID --env local --path /server
-```
-
-#### Set/Update Secrets
-
-```bash
-# Set a single secret
-infisical secrets set ZITADEL_ORG_ID="123456789" --env local --path /workspace
-
-# Set multiple secrets
-infisical secrets set KEY1="value1" KEY2="value2" --env local --path /server
-
-# Update from .env file (use cautiously)
-infisical secrets set --from-file .env --env local --path /server
-```
-
-#### Delete Secrets
-
-```bash
-# Delete a secret
-infisical secrets delete KEY_NAME --env local --path /server
-```
-
-#### Export Secrets
-
-```bash
-# Export to .env format
-infisical export --env local --path /server > apps/server/.env
-
-# Export all paths (combined)
-infisical export --env local > .env.local-backup
-
-# Export for Docker Compose
-infisical export --env staging --path /docker > docker/.env.staging
-```
-
-### After Bootstrap Workflow
-
-**1. Bootstrap generates values:**
-
-```bash
-./scripts/bootstrap-zitadel-fully-automated.sh provision
-# Outputs: ZITADEL_ORG_ID, ZITADEL_PROJECT_ID, ZITADEL_OAUTH_CLIENT_ID, etc.
-```
-
-**2. Update Infisical (REQUIRED):**
-
-```bash
-# Update workspace secrets
-infisical secrets set ZITADEL_ORG_ID="<value>" --env local --path /workspace
-infisical secrets set ZITADEL_PROJECT_ID="<value>" --env local --path /workspace
-
-# Update server secrets
-infisical secrets set ZITADEL_ORG_ID="<value>" --env local --path /server
-infisical secrets set ZITADEL_PROJECT_ID="<value>" --env local --path /server
-infisical secrets set ZITADEL_OAUTH_CLIENT_ID="<value>" --env local --path /server
-
-# Update admin secrets
-infisical secrets set VITE_ZITADEL_CLIENT_ID="<value>" --env local --path /admin
-```
-
-**3. Restart services:**
-
-```bash
-npm run workspace:restart
-```
-
-**Alternative: Using Infisical Dashboard**
-
-1. Open https://app.infisical.com
-2. Navigate to project > environment (local/dev/staging/production)
-3. Click folder (/workspace, /server, /admin)
-4. Edit secrets directly in UI
-5. Restart services
-
-### Fallback to .env Files (Local Only)
-
-If Infisical is unavailable for local development:
-
-```bash
-# Export from Infisical to .env files
-infisical export --env local --path /workspace > .env
-infisical export --env local --path /server > apps/server/.env
-infisical export --env local --path /admin > apps/admin/.env
-
-# Restart services to load .env files
-npm run workspace:restart
-```
-
-**⚠️ Limitations:**
-
-- `.env` fallback only for local development
-- Dev/staging/production MUST use Infisical
-- `.env` files are not monitored for changes (must restart services)
-- `.env` files should never contain production credentials
-
-### Best Practices
-
-**Security:**
-
-- ✅ Use different secrets per environment
-- ✅ Never commit .env files with real credentials
-- ✅ Enable MFA for Infisical accounts
-- ✅ Use service tokens for CI/CD
-- ✅ Regularly rotate secrets
-
-**Organization:**
-
-- ✅ Use consistent naming across paths
-- ✅ Document custom variables in .env.example
-- ✅ Keep /workspace, /server, /admin, /docker paths separate
-- ✅ Use environment-specific values (no localhost in production)
-
-**Operations:**
-
-- ✅ Export backups before major changes
-- ✅ Test changes in lower environments first
-- ✅ Document bootstrap output → Infisical mapping
-- ✅ Automate secret updates in CI/CD
-
-### Troubleshooting Infisical
+### Troubleshooting Infisical CLI
 
 **Authentication failed:**
 
@@ -2217,20 +1871,11 @@ rm .infisical.json
 infisical init
 ```
 
-**Wrong environment selected:**
+**Wrong environment:**
 
 ```bash
 # Specify environment explicitly
-infisical secrets list --env production --path /server
-```
-
-**Secrets not loading at runtime:**
-
-```bash
-# Verify INFISICAL_ENABLED=true
-# Verify INFISICAL_CLIENT_ID and INFISICAL_CLIENT_SECRET set
-# Check server logs for Infisical errors
-npm run workspace:logs -- --service server | grep -i infisical
+infisical secrets list --env production
 ```
 
 ## Troubleshooting
@@ -2363,16 +2008,15 @@ cd ..
 **Checks:**
 
 ```bash
-# 1. Verify OAuth client ID matches
-infisical secrets get VITE_ZITADEL_CLIENT_ID --env local --path /admin
-infisical secrets get ZITADEL_OAUTH_CLIENT_ID --env local --path /server
+# 1. Verify OAuth client IDs match in .env/.env.local
+grep ZITADEL_CLIENT_ID .env .env.local apps/admin/.env apps/server/.env
 
 # 2. Verify redirect URI configured in Zitadel
 # 3. Check server logs
 npm run workspace:logs -- --service server | grep -i "token\|auth"
 
-# 4. Verify CORS settings
-infisical secrets get CORS_ORIGIN --env local --path /server
+# 4. Verify CORS settings in .env
+grep CORS_ORIGIN .env .env.local
 ```
 
 #### Token introspection fails
@@ -2465,8 +2109,8 @@ docker ps | grep postgres
 # Test connection
 psql -h localhost -U spec -d spec_db -c "SELECT version();"
 
-# Check host/port/credentials match
-infisical secrets list --env local --path /server | grep POSTGRES
+# Check host/port/credentials match in .env files
+grep POSTGRES .env .env.local
 ```
 
 #### Migrations fail
@@ -2566,9 +2210,9 @@ docker inspect <container-name> | grep -i memory
 # Restart containers with new limits
 ```
 
-### Infisical Issues
+### Infisical CLI Issues
 
-See [Infisical Configuration > Troubleshooting](#troubleshooting-infisical) section above.
+See [Infisical CLI (Optional) > Troubleshooting](#troubleshooting-infisical-cli) section above.
 
 ### Getting Help
 

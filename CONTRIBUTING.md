@@ -123,6 +123,29 @@ nx run server:test-e2e
 nx test admin --testFile=path/to/test.spec.ts
 ```
 
+### Type Checking
+
+The NestJS server uses SWC for fast compilation with `typeCheck: false` in `nest-cli.json` for optimal startup performance (~34s vs ~3min). TypeScript type checking is not performed during development hot-reload.
+
+**Options for type checking:**
+
+```bash
+# Run type checking on-demand
+cd apps/server && npm run typecheck
+
+# Watch mode for continuous type checking (in a separate terminal)
+cd apps/server && npm run typecheck:watch
+
+# Full build (includes type checking)
+npm run build
+```
+
+**Best practices:**
+
+- Rely on your IDE (VS Code) for real-time type errors while developing
+- Run `npm run typecheck` before committing changes
+- CI pipeline will catch type errors during build
+
 ### Database Migrations
 
 ```bash
