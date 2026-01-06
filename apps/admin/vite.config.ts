@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import * as fs from 'fs';
 import path from 'path';
 import { defineConfig, UserConfig } from 'vite';
-import { infisicalPlugin } from './vite-plugin-infisical';
+import { envPlugin } from './vite-env-plugin';
 
 // In dev mode, the root .env is loaded by the npm script (via dotenv-cli or similar)
 // In production Docker builds, all env vars come from --build-arg, so dotenv is not needed
@@ -56,13 +56,35 @@ function logHttpRequest(
   httpLogStream.write(logLine);
 }
 
+/**
+ * Workspace health check plugin - provides /__workspace_health endpoint
+ * for workspace-cli to verify Vite dev server is running
+ */
+function workspaceHealthPlugin() {
+  return {
+    name: 'workspace-health',
+    configureServer(server: any) {
+      server.middlewares.use((req: any, res: any, next: any) => {
+        if (req.url === '/__workspace_health') {
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ status: 'ok', service: 'admin' }));
+          return;
+        }
+        next();
+      });
+    },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig(async (): Promise<UserConfig> => {
-  // Load secrets from Infisical at build time
-  const infisicalSecrets = await infisicalPlugin();
+  // Load env vars from .env and .env.local at build time
+  const envSecrets = await envPlugin();
 
   return {
     plugins: [
+      workspaceHealthPlugin(),
       tailwindcss() as any,
       react({
         babel: {
@@ -76,8 +98,8 @@ export default defineConfig(async (): Promise<UserConfig> => {
         },
       }),
     ],
-    // Inject Infisical secrets into import.meta.env
-    define: infisicalSecrets,
+    // Inject env secrets into import.meta.env
+    define: envSecrets,
     resolve: {
       alias: {
         '@': path.resolve(path.resolve(), 'src'),
