@@ -457,19 +457,36 @@ validate_budget() {
     fi
     
     # Check cost code totals from Section 8.1 (Total row has all bold values)
-    # Row format: | **Total** | **2,640,000** | **176,000** | **113,000** | **2,929,000** |
+    # Row format: | **Total** | **2,971,500** | **175,000** | **175,000** | **178,500** | **3,500,000** |
     # Extract ONLY from Section 8.1 (between ### 8.1 and ### 8.2)
     local project_total_row=$(echo "$section_8_1" | grep "| \*\*Total\*\*")
     local cost_values=$(echo "$project_total_row" | grep -oE "\*\*[0-9,]+\*\*" | grep -oE "[0-9,]+" | tr -d ',')
     
-    # Extract values by position: Personnel (1st), Equipment (2nd), Other Costs (3rd), Total (4th)
+    # Count how many cost code columns we have (should be 4 or 5 values: Personnel, Equipment, Other, [Overhead], Total)
+    local value_count=$(echo "$cost_values" | wc -l | tr -d ' ')
+    
+    # Extract values by position
     local personnel_total=$(echo "$cost_values" | sed -n '1p')
     local equipment_total=$(echo "$cost_values" | sed -n '2p')
     local other_costs_total=$(echo "$cost_values" | sed -n '3p')
-    local extracted_total=$(echo "$cost_values" | sed -n '4p')
+    local overhead_total=0
+    local extracted_total=0
+    
+    if [[ "$value_count" -eq 5 ]]; then
+        # Modern format with explicit Overhead column: Personnel, Equipment, Other, Overhead, Total
+        overhead_total=$(echo "$cost_values" | sed -n '4p')
+        extracted_total=$(echo "$cost_values" | sed -n '5p')
+    elif [[ "$value_count" -eq 4 ]]; then
+        # Legacy format without Overhead column: Personnel, Equipment, Other, Total
+        extracted_total=$(echo "$cost_values" | sed -n '4p')
+    fi
     
     if [[ -n "$personnel_total" ]] && [[ -n "$equipment_total" ]] && [[ -n "$other_costs_total" ]]; then
-        log_info "Cost codes: Personnel $personnel_total NOK, Equipment $equipment_total NOK, Other $other_costs_total NOK"
+        if [[ "$overhead_total" -gt 0 ]]; then
+            log_info "Cost codes: Personnel $personnel_total NOK, Equipment $equipment_total NOK, Other $other_costs_total NOK, Overhead $overhead_total NOK"
+        else
+            log_info "Cost codes: Personnel $personnel_total NOK, Equipment $equipment_total NOK, Other $other_costs_total NOK"
+        fi
         
         # Calculate percentages
         local personnel_pct=$((100 * personnel_total / total_budget))
@@ -498,7 +515,7 @@ validate_budget() {
         fi
         
         # Check if cost codes sum to total (within tolerance)
-        local cost_sum=$((personnel_total + equipment_total + other_costs_total))
+        local cost_sum=$((personnel_total + equipment_total + other_costs_total + overhead_total))
         
         local cost_diff=$((total_budget - cost_sum))
         if [[ $cost_diff -lt 0 ]]; then
@@ -515,10 +532,10 @@ validate_budget() {
         log_warning "Could not extract all cost code totals from Section 8.1"
     fi
     
-    # Check WP budgets from Section 8.2
-    # Row format: | WP1: Production-Ready Knowledge Graph | Aug 2025 - Jul 2026 (12 months) | 1,830,000 | 56.3% |
-    # We want the 3rd column (Total Budget)
-    local wp_budgets=$(grep -E "^\| WP[0-9]:" "$file" | grep -oE "\| [0-9,]+ \|" | grep -oE "[0-9,]+" | tr -d ',')
+    # Check WP budgets from Section 8.2 table
+    # Row format: | WP1: Outcome Hierarchy UX | 594,300 | 35,000 | 35,000 | 35,700 | **700,000** | 3→6 |
+    # We want the bold Total column: **700,000**
+    local wp_budgets=$(grep -E "^\| WP[0-9]:" "$file" | grep -oE "\*\*[0-9,]+\*\*" | grep -oE "[0-9,]+" | tr -d ',')
     
     local wp_sum=0
     local wp_count=0
@@ -557,14 +574,17 @@ validate_budget() {
         for ((i=1; i<=wp_section_count; i++)); do
             local wp_header="### Work Package $i:"
             
-            # Check for Budget subsection (look ahead 70 lines to accommodate longer WP descriptions)
-            if grep -A 70 "$wp_header" "$file" | grep -q "^#### Budget"; then
-                # Check for cost code breakdown
-                local has_personnel=$(grep -A 10 "^#### Budget" "$file" | grep -c "Personnel:" 2>/dev/null || echo "0")
+            # Extract just this work package's content (up to next WP or end of Section 7)
+            local wp_content=$(sed -n "/^### Work Package $i:/,/^### Work Package [0-9]/p" "$file" | sed '$d' 2>/dev/null || sed -n "/^### Work Package $i:/,/^## Section 8:/p" "$file" | sed '$d' 2>/dev/null)
+            
+            # Check for Budget subsection within this WP only
+            if echo "$wp_content" | grep -q "^#### Budget"; then
+                # Check for cost code breakdown within this WP's content
+                local has_personnel=$(echo "$wp_content" | grep -A 10 "^#### Budget" | grep -c "Personnel:" 2>/dev/null || echo "0")
                 has_personnel=$(echo "$has_personnel" | head -1 | tr -d '\n')
-                local has_equipment=$(grep -A 10 "^#### Budget" "$file" | grep -c "Equipment:" 2>/dev/null || echo "0")
+                local has_equipment=$(echo "$wp_content" | grep -A 10 "^#### Budget" | grep -c "Equipment:" 2>/dev/null || echo "0")
                 has_equipment=$(echo "$has_equipment" | head -1 | tr -d '\n')
-                local has_overhead=$(grep -A 10 "^#### Budget" "$file" | grep -c "Overhead:" 2>/dev/null || echo "0")
+                local has_overhead=$(echo "$wp_content" | grep -A 10 "^#### Budget" | grep -c "Overhead:" 2>/dev/null || echo "0")
                 has_overhead=$(echo "$has_overhead" | head -1 | tr -d '\n')
                 
                 if [[ "$has_personnel" -gt 0 ]] && [[ "$has_equipment" -gt 0 ]] && [[ "$has_overhead" -gt 0 ]]; then

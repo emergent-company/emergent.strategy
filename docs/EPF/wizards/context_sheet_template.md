@@ -11,7 +11,7 @@
   
   Source: docs/EPF/wizards/context_sheet_template.md
   Generator: docs/EPF/wizards/context_sheet_generator.wizard.md
-  Output: docs/EPF/_instances/{product}/context-sheets/{product}_context_sheet.md
+  Output: docs/EPF/_instances/{product}/outputs/context-sheets/{product}_context_sheet.md
 -->
 
 # {PRODUCT_NAME} - AI Context Sheet

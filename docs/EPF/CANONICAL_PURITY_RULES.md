@@ -64,29 +64,109 @@ Product Repo Structure:
 
 ## 🤖 For AI Coding Agents - PRE-FLIGHT CHECKLIST
 
-**Before creating/modifying ANY file in canonical EPF, ask:**
+**⚠️ STOP - Before creating/modifying ANY file, complete this checklist:**
 
-### Question 1: Am I in the canonical EPF repository?
+### Step 1: Identify Repository Context
 ```bash
-pwd  # Check if you're in /Users/nikolaifasting/code/EPF
+pwd  # Check current directory
 ```
-- If YES → Proceed to Question 2
-- If NO (you're in a product repo) → Instance-specific content is ALLOWED
 
-### Question 2: Does this content mention specific products?
+**Am I in a product repo with EPF subtree?**
+- Path looks like: `/Users/.../code/{product}/docs/EPF/`
+- YES → I can create files in `_instances/{product}/` subdirectories
+- NO → Proceed to Step 2
+
+**Am I in the canonical EPF repository?**
+- Path looks like: `/Users/.../code/epf/` or similar
+- YES → **MAXIMUM CAUTION** - Proceed to Step 2
+- NO → Ask user for clarification
+
+### Step 2: Content Analysis - What Type of File Is This?
+
+**A) Framework Improvement** (schema, template, wizard, validator enhancement)
+- Examples: New schema field, template update, wizard phase addition
+- Location: ✅ Canonical EPF (`docs/EPF/schemas/`, `docs/EPF/outputs/{generator}/`)
+- Proceed to Step 3 for validation
+
+**B) Generated Output** (application, memo, report, artifact)
+- Examples: SkatteFUNN application, investor memo, calibration report
+- Location: ✅ Product repo (`_instances/{product}/outputs/{generator}/`)
+- ❌ NEVER in canonical EPF
+
+**C) Learning Document** (proposal, analysis, retrospective, notes)
+- Examples: Improvement proposals, mistake analysis, planning docs
+- Location: ✅ Product repo (`_instances/{product}/ad-hoc-artifacts/`)
+- ❌ NEVER in canonical EPF
+
+**D) Preparation Document** (quick reference, checklist, planning)
+- Examples: Generator preparation notes, execution checklists
+- Location: ✅ Product repo (`_instances/{product}/outputs/{generator}/`)
+- ❌ NEVER in instance root or canonical EPF
+
+### Step 3: Canonical Purity Validation (If Type A - Framework Improvement)
+
+**Question 3.1: Does this content mention specific products?**
 ```bash
-grep -r "twentyfirst\|huma-blueprint\|lawmatics\|emergent" proposed-file.md
+# Check for product names
+grep -iE "twentyfirst|huma-blueprint|lawmatics|emergent|epf-fresh-test" proposed-file.md
 ```
-- If matches found → ❌ STOP! This violates purity rules
-- If no matches → Proceed to Question 3
+- If matches found → ❌ STOP! Use generic examples (AcmeCorp, ExampleProduct)
+- If no matches → Proceed to Question 3.2
 
-### Question 3: Is this a validation report or result?
-- If it contains validation output/results → ❌ STOP! Belongs in product repo
-- If it's framework documentation → Proceed to Question 4
+**Question 3.2: Does this contain validation results or instance data?**
+- Check for: "45/45 checks passed", "Product X validation", specific metrics
+- If YES → ❌ STOP! This belongs in product repo
+- If NO → Proceed to Question 3.3
 
-### Question 4: Could this apply to ANY product?
-- If specific to one product/organization → ❌ STOP! Move to product repo
+**Question 3.3: Could this apply to ANY product using EPF?**
+- If specific to one product/organization → ❌ STOP! Move to `_instances/{product}/ad-hoc-artifacts/`
 - If generic and reusable → ✅ ALLOWED in canonical EPF
+- If uncertain → **ASK USER** before proceeding
+
+### Step 4: File Location Decision Tree
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ START: What am I creating?                                  │
+└─────────────────────────────────────────────────────────────┘
+                         │
+                         ▼
+            ┌────────────────────────┐
+            │ Is it product-specific?│
+            └────────────────────────┘
+                 │              │
+                YES            NO (framework improvement)
+                 │              │
+                 ▼              ▼
+    ┌────────────────────┐   ┌────────────────────────┐
+    │ Generated output?  │   │ Does it mention        │
+    └────────────────────┘   │ specific products?     │
+         │          │         └────────────────────────┘
+        YES        NO              │              │
+         │          │             YES            NO
+         │          ▼              │              │
+         │   ┌──────────────┐     ▼              ▼
+         │   │ Preparation? │   ❌ STOP        ✅ Canonical
+         │   └──────────────┘   Use generic      EPF OK
+         │      │          │     examples
+         │     YES        NO
+         │      │          │
+         ▼      ▼          ▼
+    outputs/  outputs/  ad-hoc-
+    {gen}/    {gen}/    artifacts/
+```
+
+### Step 5: Final Validation Before File Creation
+
+**Checklist:**
+- [ ] File location matches content type (output vs learning vs framework)
+- [ ] No instance root clutter (no loose files at `_instances/{product}/`)
+- [ ] No canonical contamination (no product data in `docs/EPF/` outside `_instances/`)
+- [ ] If canonical: No product names, no specific validation results, no org references
+- [ ] If uncertain: **Asked user for confirmation**
+
+**If all checked → Proceed with file creation**  
+**If any unchecked → STOP and reconsider location**
 
 ## 🔍 Common Violations & Corrections
 

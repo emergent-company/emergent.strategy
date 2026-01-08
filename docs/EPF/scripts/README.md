@@ -658,9 +658,52 @@ Automated framework version bumping with consistency checks.
 
 ## Repository Management
 
+### create-epf-product-repo.sh ⭐ NEW
+
+**Complete automation:** Creates GitHub repository, clones it, adds EPF framework, and pushes - all in one command.
+
+**What it does:**
+1. Creates private repository under eyedea-io organization
+2. Clones repository locally to specified directory
+3. Creates initial commit (required for git subtree)
+4. Runs `add-to-repo.sh` to add EPF framework
+5. Pushes everything to GitHub
+
+**Prerequisites:**
+- GitHub CLI (`gh`) installed: `brew install gh`
+- Authenticated with GitHub: `gh auth login`
+- Access to eyedea-io organization
+
+**Usage:**
+```bash
+# Create repo in default location (~/code/)
+./scripts/create-epf-product-repo.sh my-new-product
+
+# Create repo in specific location
+./scripts/create-epf-product-repo.sh my-new-product /Users/me/projects
+
+# Exit codes: 0 = success, 1 = error
+```
+
+**Example workflow:**
+```bash
+# Create repository with EPF
+./scripts/create-epf-product-repo.sh acme-platform
+
+# Output:
+# ✓ Repository created: https://github.com/eyedea-io/acme-platform
+# ✓ Cloned to ~/code/acme-platform
+# ✓ EPF framework added
+# ✓ Pushed to GitHub
+
+# Start working
+cd ~/code/acme-platform
+open docs/EPF/_instances/acme-platform/READY/00_north_star.yaml
+```
+
 ### add-to-repo.sh
 
-Adds EPF framework to a new product repository as git subtree.
+Adds EPF framework to an **existing** product repository as git subtree.
 
 **Usage:**
 ```bash
