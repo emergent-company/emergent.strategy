@@ -1,5 +1,18 @@
 # EPF Quick Reference (Copilot Instructions)
 
+> **File Purpose**: Quick command reference and product repo operations  
+> **When to use**: Daily work in **product repos** OR need quick commands/sync procedures  
+> **For other contexts**: See "When to Use Which File" below
+
+## 📁 When to Use Which File
+
+| Your Situation | Use This File |
+|----------------|---------------|
+| **User adopting EPF for first time** | → [`.ai-agent-first-contact.md`](../.ai-agent-first-contact.md) |
+| **Daily operations in product repo** (commands, sync) | → **This file** (you're in the right place) |
+| **Modifying EPF framework** (schemas, templates) | → [`.ai-agent-instructions.md`](../.ai-agent-instructions.md) |
+| **Enriching instance artifacts** (YAML files) | → [`.ai-agent-instructions.md`](../.ai-agent-instructions.md) |
+
 ## ⚠️ READ THIS FIRST ⚠️
 
 **All comprehensive EPF guidelines are in:** `docs/EPF/.ai-agent-instructions.md`
@@ -16,6 +29,11 @@ This file is just a quick reference for common commands and repo locations. For:
 ---
 
 ## ⚡ Quick Command Reference
+
+**Check EPF version:**
+```bash
+./docs/EPF/scripts/check-epf-version.sh  # Check if EPF is up to date
+```
 
 **Sync between repos:**
 ```bash
@@ -103,7 +121,20 @@ pwd  # Check your current working directory
 - If you are in `/Users/*/Code/epf` (or similar canonical EPF path) → **STOP!** Read `CANONICAL_PURITY_RULES.md`
 - If you are in `/Users/*/Code/{product-name}` (e.g., huma-blueprint-ui, twentyfirst, lawmatics) → Proceed
 
-### Question 2: What is the user asking me to do?
+### Question 2: Is my EPF framework up to date?
+```bash
+./docs/EPF/scripts/check-epf-version.sh
+```
+
+- ✅ **If up to date**: Proceed with EPF work
+- ⚠️ **If behind**: Offer to sync before proceeding:
+  ```bash
+  ./docs/EPF/scripts/sync-repos.sh pull
+  ```
+  
+**Why this matters**: Working with outdated EPF may use deprecated schemas, miss bug fixes, or lack new features. Always sync to latest before major EPF work.
+
+### Question 3: What is the user asking me to do?
 
 - **"Create an instance"** or **"Add a product line"** → Instance work (must be in product repo)
 - **"Update EPF framework"** or **"Fix schema"** → Framework work (can be in canonical EPF)
@@ -199,6 +230,9 @@ Does your change affect the framework?
 # 3. Create version bump commit
 # 4. Git hook validates consistency before commit succeeds
 ```
+
+**For detailed breaking change protocol and version impact assessment:**  
+→ See [`.ai-agent-instructions.md`](../.ai-agent-instructions.md) STEP 0
 
 ### Step 5: If Manual Bump Needed
 

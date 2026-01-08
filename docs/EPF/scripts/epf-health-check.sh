@@ -169,21 +169,24 @@ check_version_consistency() {
         local maint_version=$(grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' "$maintenance_file" | head -1 | sed 's/^v//')
         log_verbose "MAINTENANCE.md version reference: $maint_version"
         
-        # MAINTENANCE.md might not have a version in header, check for framework version reference
-        # Account for markdown bold syntax (**...**) around the line
-        if grep -qE "(Current Framework Version:?\*?\*?|Framework Version:?) v?$CANONICAL_VERSION" "$maintenance_file"; then
-            log_pass "MAINTENANCE.md references correct framework version"
-        elif grep -qE "Current Framework Version|Framework Version:" "$maintenance_file"; then
+        # MAINTENANCE.md **MUST** have a "Current Framework Version" marker (CRITICAL for AI agents)
+        if grep -qE "Current Framework Version.*v$CANONICAL_VERSION" "$maintenance_file"; then
+            log_pass "MAINTENANCE.md references correct framework version (v$CANONICAL_VERSION)"
+        elif grep -qE "Current Framework Version" "$maintenance_file"; then
             # Extract actual version mentioned
-            local found_version=$(grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' "$maintenance_file" | head -1)
-            if [ "$found_version" = "v$CANONICAL_VERSION" ]; then
-                log_pass "MAINTENANCE.md references correct framework version ($found_version)"
+            local found_version=$(grep -E "Current Framework Version" "$maintenance_file" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+            log_critical "MAINTENANCE.md 'Current Framework Version' is outdated (found: $found_version, expected: v$CANONICAL_VERSION) - framework version inconsistency!"
+            if [ "$FIX_MODE" = true ]; then
+                sed -i '' "s/Current Framework Version:\*\* v[0-9]\+\.[0-9]\+\.[0-9]\+/Current Framework Version:** v$CANONICAL_VERSION/" "$maintenance_file"
+                log_info "  → Fixed MAINTENANCE.md version"
             else
-                log_warning "MAINTENANCE.md 'Current Framework Version' may be outdated (found: $found_version, expected: v$CANONICAL_VERSION)"
+                log_info "  → Run with --fix to auto-correct, or use: ./scripts/bump-framework-version.sh \"$CANONICAL_VERSION\" \"Version alignment fix\""
             fi
         else
-            log_verbose "MAINTENANCE.md doesn't have explicit version reference (OK)"
+            log_critical "MAINTENANCE.md missing 'Current Framework Version' marker - this is required for AI agent orientation!"
         fi
+    else
+        log_error "MAINTENANCE.md not found"
     fi
     
     # Check validate-schemas.sh
@@ -209,24 +212,28 @@ check_version_consistency() {
         log_warning "epf-health-check.sh version ($health_version) differs from VERSION ($CANONICAL_VERSION)"
     fi
     
-    # Check integration_specification.yaml
+    # Check integration_specification.yaml (CRITICAL - required for framework version consistency)
     if [ -f "$EPF_ROOT/integration_specification.yaml" ]; then
         local integration_spec_version=$(grep -E '^# Version:' "$EPF_ROOT/integration_specification.yaml" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
         log_verbose "integration_specification.yaml version: $integration_spec_version"
         
         if [ -n "$integration_spec_version" ] && [ "$integration_spec_version" != "$CANONICAL_VERSION" ]; then
-            log_warning "integration_specification.yaml version ($integration_spec_version) differs from VERSION ($CANONICAL_VERSION)"
+            log_critical "integration_specification.yaml version ($integration_spec_version) differs from VERSION ($CANONICAL_VERSION) - framework version inconsistency!"
             if [ "$FIX_MODE" = true ]; then
-                # Fix all 4 version references in integration_specification.yaml
-                sed -i '' "s/^# Version: [0-9]\+\.[0-9]\+\.[0-9]\+/# Version: $CANONICAL_VERSION/" "$EPF_ROOT/integration_specification.yaml"
+                # Fix all version references in integration_specification.yaml
+                sed -i '' "s/^# Version: [0-9]\+\.[0-9]\+\.[0-9]\+ (EPF v[0-9]\+\.[0-9]\+\.[0-9]\+)/# Version: $CANONICAL_VERSION (EPF v$CANONICAL_VERSION)/" "$EPF_ROOT/integration_specification.yaml"
                 sed -i '' "s/^  version: \"[0-9]\+\.[0-9]\+\.[0-9]\+\"/  version: \"$CANONICAL_VERSION\"/" "$EPF_ROOT/integration_specification.yaml"
-                sed -i '' "s/^  this_spec_version: \"[0-9]\+\.[0-9]\+\.[0-9]\+\"/  this_spec_version: \"$CANONICAL_VERSION\"/" "$EPF_ROOT/integration_specification.yaml"
+                sed -i '' "s/^  epf_version: \"[0-9]\+\.[0-9]\+\.[0-9]\+\"/  epf_version: \"$CANONICAL_VERSION\"/" "$EPF_ROOT/integration_specification.yaml"
                 # Note: History version updates are intentionally excluded as they represent past releases
                 log_info "  → Fixed integration_specification.yaml version"
+            else
+                log_info "  → Run with --fix to auto-correct, or use: ./scripts/bump-framework-version.sh \"$CANONICAL_VERSION\" \"Version alignment fix\""
             fi
         else
             log_pass "integration_specification.yaml version matches"
         fi
+    else
+        log_warning "integration_specification.yaml not found (optional but recommended)"
     fi
     
     # Note: We intentionally do NOT check version references in documentation files
@@ -706,7 +713,7 @@ check_instances() {
         echo "  1. Review current instance content and back up if needed"
         echo "  2. Run: ./docs/EPF/scripts/create-instance-structure.sh --update <instance-name>"
         echo "  3. Or manually create missing folders:"
-        echo "     mkdir -p docs/EPF/_instances/<name>/{READY,AIM,ad-hoc-artifacts,context-sheets,cycles}"
+        echo "     mkdir -p docs/EPF/_instances/<name>/{READY,AIM,ad-hoc-artifacts,cycles,outputs}"
         echo "     mkdir -p docs/EPF/_instances/<name>/FIRE/{feature_definitions,value_models,workflows}"
         echo "     touch docs/EPF/_instances/<name>/FIRE/.gitkeep"  
         echo "     touch docs/EPF/_instances/<name>/AIM/.gitkeep"

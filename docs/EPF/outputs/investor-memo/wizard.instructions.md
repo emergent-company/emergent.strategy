@@ -10,6 +10,34 @@
 
 ---
 
+## 🤖 FOR AI ASSISTANTS: READ THIS BEFORE PROCEEDING
+
+⚠️ **STOP - DO NOT CREATE CUSTOM CODE**
+
+If you are an AI assistant asked to generate investor materials:
+
+❌ **DO NOT** create a custom Python/Node/etc script  
+❌ **DO NOT** try to "optimize" or "simplify" this wizard  
+❌ **DO NOT** skip phases or combine steps  
+❌ **DO NOT** invent your own narrative structure  
+
+✅ **DO** follow this 1,342-line wizard EXACTLY as written  
+✅ **DO** execute each phase sequentially  
+✅ **DO** use the official `template.md` structures (5 separate documents)  
+✅ **DO** validate with `validator.sh` (must be 0 errors)  
+
+**Why this matters:**
+- This wizard encodes **seed-stage investor expectations** (tested with 20+ funds)
+- The package structure is designed for **different reading contexts** (partner meeting vs quick scan)
+- Custom code WILL produce generic content that fails to differentiate your product
+- The multi-document approach is strategic - investors use different docs at different stages
+
+**This wizard IS the implementation.** It has been refined through actual fundraising cycles. Your job is to EXECUTE it, not rewrite it.
+
+**See also:** `docs/EPF/outputs/AI_INSTRUCTIONS.md` for complete guidance.
+
+---
+
 ## Overview
 
 This wizard generates a **complete investor materials package** suitable for seed-stage fundraising, consisting of:

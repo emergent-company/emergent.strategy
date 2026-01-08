@@ -2,6 +2,67 @@
 
 This output generator creates comprehensive investor memos from EPF data for fundraising, partnerships, and strategic discussions.
 
+## 📋 Before You Start - Decision Tree
+
+**Are you sure you want to generate investor materials?**
+
+```
+┌──────────────────────────────────────────────────┐
+│ Do you have complete EPF strategic artifacts?   │
+│ - North Star (vision, personas, design)         │
+│ - Strategy Formula (market, positioning, moat)  │
+│ - Strategy Foundations (value prop, sequencing) │
+│ - Roadmap Recipe (OKRs, Key Results)           │
+└──────────────────────────────────────────────────┘
+         │                            │
+        YES                          NO
+         │                            │
+         ▼                            ▼
+┌──────────────────────┐    ┌────────────────────┐
+│ Do you have FIRE     │    │ Complete missing   │
+│ feature definitions? │    │ EPF artifacts first│
+│ (3-5 features min)   │    └────────────────────┘
+└──────────────────────┘              │
+         │                            │
+        YES                          STOP
+         │
+         ▼
+┌──────────────────────────────────────┐
+│ Is your product positioning clear?   │
+│ - Target market defined              │
+│ - Competitive moat articulated       │
+│ - Value props differentiated         │
+└──────────────────────────────────────┘
+         │                      │
+        YES                    NO
+         │                      │
+         ▼                      ▼
+┌──────────────────┐   ┌────────────────────┐
+│ Do you have:     │   │ Refine strategy    │
+│ - Market size    │   │ artifacts before   │
+│ - Growth metrics │   │ creating investor  │
+│ - Team info      │   │ materials          │
+└──────────────────┘   └────────────────────┘
+         │                      │
+        YES                    STOP
+         │
+         ▼
+┌────────────────────────────────────┐
+│ ✅ READY TO GENERATE               │
+│                                    │
+│ Next steps:                        │
+│ 1. Open wizard.instructions.md    │
+│ 2. Execute data extraction phase  │
+│ 3. Generate all 5 documents       │
+│ 4. Validate with validator.sh     │
+│ 5. Review for consistency         │
+└────────────────────────────────────┘
+```
+
+**Key Decision Point:** Investor materials require COMPLETE strategic foundation. Gaps will be obvious to investors.
+
+---
+
 ## Quick Start
 
 ### 1. Generate Investor Memo

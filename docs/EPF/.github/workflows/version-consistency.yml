@@ -1,0 +1,95 @@
+name: EPF Version Consistency Check
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'VERSION'
+      - 'README.md'
+      - 'MAINTENANCE.md'
+      - 'integration_specification.yaml'
+      - 'schemas/**'
+      - 'scripts/**'
+      - 'templates/**'
+      - 'wizards/**'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'VERSION'
+      - 'README.md'
+      - 'MAINTENANCE.md'
+      - 'integration_specification.yaml'
+      - 'schemas/**'
+      - 'scripts/**'
+      - 'templates/**'
+      - 'wizards/**'
+
+jobs:
+  version-consistency:
+    name: Validate Version Consistency
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Check version consistency
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "  EPF Version Consistency Check"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          
+          # Get versions from all 4 critical files
+          VERSION_FILE=$(cat VERSION | tr -d '\n\r' | xargs)
+          README_VERSION=$(grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' README.md | head -1 | sed 's/^v//')
+          MAINT_VERSION=$(grep "Current Framework Version" MAINTENANCE.md | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1 | sed 's/^v//')
+          SPEC_VERSION=$(grep "^# Version:" integration_specification.yaml | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          
+          echo "VERSION file:                  $VERSION_FILE"
+          echo "README.md:                     $README_VERSION"
+          echo "MAINTENANCE.md:                $MAINT_VERSION"
+          echo "integration_specification:     $SPEC_VERSION"
+          echo ""
+          
+          # Check consistency
+          ERRORS=0
+          
+          if [ "$VERSION_FILE" != "$README_VERSION" ]; then
+            echo "❌ ERROR: VERSION ($VERSION_FILE) != README.md ($README_VERSION)"
+            ERRORS=$((ERRORS + 1))
+          fi
+          
+          if [ "$VERSION_FILE" != "$MAINT_VERSION" ]; then
+            echo "❌ ERROR: VERSION ($VERSION_FILE) != MAINTENANCE.md ($MAINT_VERSION)"
+            ERRORS=$((ERRORS + 1))
+          fi
+          
+          if [ "$VERSION_FILE" != "$SPEC_VERSION" ]; then
+            echo "❌ ERROR: VERSION ($VERSION_FILE) != integration_specification.yaml ($SPEC_VERSION)"
+            ERRORS=$((ERRORS + 1))
+          fi
+          
+          if [ $ERRORS -eq 0 ]; then
+            echo "✅ All versions consistent: $VERSION_FILE"
+            echo ""
+            exit 0
+          else
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "  VERSION INCONSISTENCY DETECTED"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo ""
+            echo "To fix this issue:"
+            echo "  1. Run: ./scripts/bump-framework-version.sh \"$VERSION_FILE\" \"Version fix\""
+            echo "  2. Or run: ./scripts/epf-health-check.sh --fix"
+            echo "  3. Commit the fixes"
+            echo ""
+            echo "These 4 files MUST always have the same version:"
+            echo "  - VERSION"
+            echo "  - README.md (header)"
+            echo "  - MAINTENANCE.md (Current Framework Version)"
+            echo "  - integration_specification.yaml (# Version: and version:)"
+            echo ""
+            exit 1
+          fi

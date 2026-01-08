@@ -732,7 +732,7 @@ The EPF framework version is tracked in `README.md` and `MAINTENANCE.md`.
 | **MINOR (Y)** | New features, new artifact types, new optional fields, new wizards. Backward-compatible additions that enhance capability. | v1.9.0 → v1.10.0: Add new agent prompt |
 | **PATCH (Z)** | Bug fixes, documentation improvements, schema clarifications, typo fixes. No structural changes. | v1.9.3 → v1.9.4: Fix schema validation issue |
 
-**Current Framework Version:** v2.3.2
+**Current Framework Version:** v2.4.3
 
 **Version History Convention:**
 - Document version changes in `README.md` under "What's New in vX.Y.Z"
@@ -953,7 +953,7 @@ _instances/{product-name}/
 │   └── assessment_reports/       # Cycle assessments
 ├── ad-hoc-artifacts/             # Unstructured work products
 │   └── README.md                 # Guidelines for ad-hoc content
-├── context-sheets/               # Context documentation
+├── outputs/                      # Generated outputs (context-sheets, memos, etc.)
 ├── cycles/                       # Archived completed cycles
 │   ├── cycle-001/
 │   ├── cycle-002/
@@ -1746,7 +1746,7 @@ _instances/*
 #   - FIRE/ (execution phase with feature_definitions/, value_models/, workflows/)
 #   - AIM/ (learning phase)
 #   - ad-hoc-artifacts/ (non-authoritative documents)
-#   - context-sheets/ (additional context)
+#   - outputs/ (generated outputs)
 #   - cycles/ (archived cycles)
 # Copies templates and adds .gitkeep files
 # Generates _meta.yaml and README.md
@@ -2100,7 +2100,7 @@ docs/EPF/
     └── {product-name}/
         ├── _meta.yaml            # Instance metadata
         ├── README.md             # Instance overview
-        ├── context-sheets/       # Context documents (optional)
+        ├── outputs/              # Generated outputs (context-sheets, memos, etc.)
         ├── cycles/               # Archived cycle artifacts
         │
         ├── READY/                # Strategy & Planning Phase
@@ -2160,7 +2160,7 @@ mkdir -p docs/EPF/_instances/{product-name}/FIRE/feature_definitions
 mkdir -p docs/EPF/_instances/{product-name}/FIRE/value_models
 mkdir -p docs/EPF/_instances/{product-name}/FIRE/workflows
 mkdir -p docs/EPF/_instances/{product-name}/AIM
-mkdir -p docs/EPF/_instances/{product-name}/context-sheets
+mkdir -p docs/EPF/_instances/{product-name}/outputs
 mkdir -p docs/EPF/_instances/{product-name}/cycles
 
 # Copy READY phase template files

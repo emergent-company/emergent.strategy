@@ -1,6 +1,38 @@
-# Emergent Product Framework (EPF) Repository - v2.3.3
+# Emergent Product Framework (EPF) Repository - v2.4.3
 
 This repository contains the complete skeleton for managing product, strategy, org & ops, and commercial development using the Emergent Product Framework. It is designed to be an **executable operating system**, managed by a human-in-the-loop with the assistance of an AI Knowledge Agent.
+
+---
+
+## What's New in v2.4.3
+
+Add proactive EPF version checking for AI agents
+
+New Features:
+- check-epf-version.sh: Standalone script to compare local EPF version with canonical remote
+- AI agent pre-flight checklist now includes mandatory version check (Question 2)
+- Exit codes: 0 (up-to-date), 1 (behind - triggers offer to sync), 2 (error)
+
+Benefits:
+- AI agents can detect stale EPF frameworks before starting work
+- Prevents working with outdated schemas, templates, or scripts
+- Provides clear sync instructions when behind
+- Reduces risk of validation errors from schema mismatches
+
+This addresses the gap where agents might work with outdated EPF without realizing it.
+
+## What's New in v2.4.2
+
+**PATCH Release**: Enhanced EPF sync safety and automation
+
+### Framework Improvements
+- **sync-repos.sh**: Added prominent warning banner with explicit DO NOT / ALWAYS DO examples
+- **sync-repos.sh**: Added check for recent commits needing version bump (prevents syncing unbumped changes)
+- **create-epf-product-repo.sh**: Auto-generates `.github/copilot-instructions.md` in new product repos
+- **create-epf-product-repo.sh**: Auto-generates `.vscode/settings.json` to load EPF guidance
+
+### Why This Matters
+These improvements prevent AI assistants from using manual git commands on EPF subtree, protecting the canonical repo from product data contamination. Multi-layer protection at workspace, script, and IDE levels.
 
 ---
 
@@ -31,17 +63,23 @@ This repository contains the complete skeleton for managing product, strategy, o
 
 ## 🤖 AI Agent Quick Start
 
-**First time working with EPF?** Read documentation in this order:
+**Choose your entry point based on what you're doing:**
 
-1. ⚡ **Pre-Flight** (5 min): [`.github/copilot-instructions.md`](.github/copilot-instructions.md)
-   - Quick checklist before any EPF work
-   - Answers: "Where am I? What am I doing? Is this framework or instance work?"
+| Your Situation | Start Here | Purpose |
+|----------------|------------|----------|
+| 🆕 **User adopting EPF for first time** | [`.ai-agent-first-contact.md`](.ai-agent-first-contact.md) | Discovery & onboarding workflow |
+| 📋 **Daily work in product repo** | [`.github/copilot-instructions.md`](.github/copilot-instructions.md) | Quick commands & sync procedures |
+| 🔧 **Modifying EPF framework** | [`.ai-agent-instructions.md`](.ai-agent-instructions.md) | Consistency protocol & maintenance |
+| 📝 **Enriching instance artifacts** | [`.ai-agent-instructions.md`](.ai-agent-instructions.md) | Schema-first enrichment workflow |
+| 🚨 **User asks "validate work"** | [`.github/copilot-instructions.md`](.github/copilot-instructions.md) | Validation commands |
 
-2. 📋 **Purity Rules** (10 min): [`CANONICAL_PURITY_RULES.md`](CANONICAL_PURITY_RULES.md)
+**Essential reading for ALL EPF work:**
+
+1. 📋 **Purity Rules** (10 min): [`CANONICAL_PURITY_RULES.md`](CANONICAL_PURITY_RULES.md)
    - Framework vs instance separation (critical to understand)
    - Decision trees and violation examples
 
-3. 🔧 **Framework Overview** (15 min): This README
+2. 🔧 **Framework Overview** (15 min): This README
    - EPF structure, phases, artifacts, version history
 
 **Daily Operations:**
@@ -128,6 +166,14 @@ Instance average: 73/100 across 6 artifacts
 **📖 Complete validation documentation:** [`scripts/README.md`](scripts/README.md)
 
 ---
+
+## What's New in v2.4.1
+
+Enhanced pre-commit hook to automatically check for version bump requirements using classify-changes.sh
+
+## What's New in v2.4.0
+
+Add AI agent discovery system with first-contact guidance and improve file coordination
 
 ## What's New in v2.3.3
 
