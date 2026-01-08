@@ -75,7 +75,7 @@ for dir in \
     "FIRE/workflows" \
     "AIM" \
     "ad-hoc-artifacts" \
-    "context-sheets" \
+    "outputs" \
     "cycles"; do
     
     if [ ! -d "$INSTANCE_ROOT/$dir" ]; then
@@ -111,7 +111,7 @@ echo "   │   ├── value_models/"
 echo "   │   └── workflows/"
 echo "   ├── AIM/"
 echo "   ├── ad-hoc-artifacts/"
-echo "   ├── context-sheets/"
+echo "   ├── outputs/"
 echo "   └── cycles/"
 echo ""
 
@@ -122,7 +122,7 @@ if [ -f "docs/EPF/phases/READY/ad-hoc-artifacts_README_template.md" ] && [ ! -f 
 fi
 
 # Create placeholder .gitkeep files in empty directories
-for dir in READY FIRE/feature_definitions FIRE/value_models FIRE/workflows AIM context-sheets cycles; do
+for dir in READY FIRE/feature_definitions FIRE/value_models FIRE/workflows AIM outputs cycles; do
     if [ -z "$(ls -A "$INSTANCE_ROOT/$dir" 2>/dev/null)" ]; then
         touch "$INSTANCE_ROOT/$dir/.gitkeep"
     fi
@@ -176,7 +176,7 @@ $PRODUCT_NAME/
 │   └── (Assessment artifacts go here)
 │
 ├── ad-hoc-artifacts/       # Generated convenience documents
-├── context-sheets/         # Additional context documents
+├── outputs/                # Generated outputs (context-sheets, memos, etc.)
 └── cycles/                 # Archived cycle artifacts
 \`\`\`
 

@@ -117,7 +117,7 @@ while IFS= read -r file; do
         templates/*)
             TEMPLATES_CHANGED=$((TEMPLATES_CHANGED + 1))
             ;;
-        docs/*.md|docs/guides/*.md|docs/guides/technical/*.md|README.md|MAINTENANCE.md|CANONICAL_PURITY_RULES.md)
+        docs/*.md|docs/guides/*.md|docs/guides/technical/*.md|README.md|MAINTENANCE.md|CANONICAL_PURITY_RULES.md|.ai-agent-*.md)
             DOCS_CHANGED=$((DOCS_CHANGED + 1))
             ;;
         wizards/*)

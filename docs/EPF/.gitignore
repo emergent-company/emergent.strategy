@@ -1,11 +1,11 @@
-# EPF Framework .gitignore - GMS Product Repo
-# This file tracks the GMS product instance while ignoring other instances
+# EPF Framework .gitignore - epf-fresh-test2 Product Repo
+# This file tracks the epf-fresh-test2 product instance while ignoring other instances
 
-# Instance folders - only GMS instance is tracked
+# Instance folders - only epf-fresh-test2 instance is tracked
 _instances/*
 !_instances/README.md
-!_instances/GMS
-!_instances/GMS/**
+!_instances/epf-fresh-test2
+!_instances/epf-fresh-test2/**
 
 # OS files
 .DS_Store

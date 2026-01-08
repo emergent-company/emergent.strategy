@@ -1,14 +1,29 @@
 #!/bin/bash
 # Install EPF version consistency checks
-# Run this once to set up the pre-commit hook
+# Run this once to set up pre-commit and post-merge hooks
+#
+# Usage: ./scripts/install-version-hooks.sh [--quiet]
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EPF_ROOT="$(dirname "$SCRIPT_DIR")"
-HOOK_SOURCE="$SCRIPT_DIR/pre-commit-version-check.sh"
-HOOK_DEST="$EPF_ROOT/.git/hooks/pre-commit"
+PRECOMMIT_SOURCE="$SCRIPT_DIR/pre-commit-version-check.sh"
+PRECOMMIT_DEST="$EPF_ROOT/.git/hooks/pre-commit"
+POSTMERGE_SOURCE="$SCRIPT_DIR/post-merge-hook.sh"
+POSTMERGE_DEST="$EPF_ROOT/.git/hooks/post-merge"
 
-echo "🔧 Installing EPF version consistency pre-commit hook..."
-echo ""
+QUIET=false
+if [ "$1" = "--quiet" ]; then
+    QUIET=true
+fi
+
+log() {
+    if [ "$QUIET" = false ]; then
+        echo "$@"
+    fi
+}
+
+log "🔧 Installing EPF version consistency hooks..."
+log ""
 
 # Check if .git directory exists
 if [ ! -d "$EPF_ROOT/.git" ]; then
@@ -17,27 +32,40 @@ if [ ! -d "$EPF_ROOT/.git" ]; then
     exit 1
 fi
 
-# Check if hook source exists
-if [ ! -f "$HOOK_SOURCE" ]; then
-    echo "❌ Error: Hook source not found at $HOOK_SOURCE"
+# Install pre-commit hook
+if [ ! -f "$PRECOMMIT_SOURCE" ]; then
+    echo "❌ Error: Pre-commit hook source not found at $PRECOMMIT_SOURCE"
     exit 1
 fi
 
-# Backup existing hook if it exists
-if [ -f "$HOOK_DEST" ]; then
-    echo "📋 Backing up existing pre-commit hook to pre-commit.backup"
-    cp "$HOOK_DEST" "$HOOK_DEST.backup"
+if [ -f "$PRECOMMIT_DEST" ] && [ "$QUIET" = false ]; then
+    log "📋 Backing up existing pre-commit hook to pre-commit.backup"
+    cp "$PRECOMMIT_DEST" "$PRECOMMIT_DEST.backup"
 fi
 
-# Copy and make executable
-cp "$HOOK_SOURCE" "$HOOK_DEST"
-chmod +x "$HOOK_DEST"
+cp "$PRECOMMIT_SOURCE" "$PRECOMMIT_DEST"
+chmod +x "$PRECOMMIT_DEST"
+log "✅ Pre-commit hook installed (version consistency check)"
 
-echo "✅ Pre-commit hook installed!"
-echo ""
-echo "The hook will automatically check version consistency before each commit."
-echo "It will block commits if VERSION, README.md, and MAINTENANCE.md don't match."
-echo ""
-echo "💡 To bump version correctly, use:"
-echo "   ./scripts/bump-framework-version.sh \"X.Y.Z\" \"Release notes\""
-echo ""
+# Install post-merge hook
+if [ -f "$POSTMERGE_SOURCE" ]; then
+    if [ -f "$POSTMERGE_DEST" ] && [ "$QUIET" = false ]; then
+        log "📋 Backing up existing post-merge hook to post-merge.backup"
+        cp "$POSTMERGE_DEST" "$POSTMERGE_DEST.backup"
+    fi
+    
+    cp "$POSTMERGE_SOURCE" "$POSTMERGE_DEST"
+    chmod +x "$POSTMERGE_DEST"
+    log "✅ Post-merge hook installed (auto-reinstall after pulls)"
+fi
+
+log ""
+log "🎯 Version consistency protection is now active!"
+log ""
+log "What happens now:"
+log "  • Pre-commit: Blocks commits if VERSION/README/MAINTENANCE/integration_spec don't match"
+log "  • Post-merge: Auto-reinstalls hooks after pulling updates"
+log ""
+log "💡 To bump version correctly, use:"
+log "   ./scripts/bump-framework-version.sh \"X.Y.Z\" \"Release notes\""
+log ""

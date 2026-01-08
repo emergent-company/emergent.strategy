@@ -2,6 +2,86 @@
 
 This output generator creates Norwegian R&D Tax Deduction (SkatteFUNN) applications from EPF data.
 
+---
+
+## 🤖 FOR AI ASSISTANTS: CRITICAL INSTRUCTIONS
+
+**⚠️ BEFORE generating, READ:** [`../AI_INSTRUCTIONS.md`](../AI_INSTRUCTIONS.md)
+
+**MUST DO:**
+- ✅ Read and follow `wizard.instructions.md` (all 1,868 lines)
+- ✅ Execute phases sequentially (Phase 0 → 0.5 → 1 → 2 → 3 → 4 → 5)
+- ✅ Use `template.md` structure exactly
+- ✅ Validate with `validator.sh` (must pass with 0 errors)
+
+**NEVER DO:**
+- ❌ Create custom Python/JS generator scripts
+- ❌ Skip wizard and invent synthesis logic
+- ❌ Skip Phase 0.5 (mandatory interactive KR selection)
+- ❌ Ignore validator requirements
+
+**Why:** Wizard contains Frascati Manual compliance rules, validated synthesis patterns, and exact template structure. Custom code will fail validation.
+
+---
+
+## 📋 Before You Start - Decision Tree
+
+**Are you sure you want to generate a SkatteFUNN application?**
+
+```
+┌──────────────────────────────────────────────────┐
+│ Do you have all required EPF artifacts?         │
+│ - North Star (vision, mission)                  │
+│ - Strategy Foundations (value proposition)      │
+│ - Roadmap Recipe (OKRs with TRL data)          │
+└──────────────────────────────────────────────────┘
+         │                            │
+        YES                          NO
+         │                            │
+         ▼                            ▼
+┌──────────────────────┐    ┌────────────────────┐
+│ Do your Key Results  │    │ Complete missing   │
+│ have TRL data?       │    │ EPF artifacts first│
+│ (trl_start/target)   │    └────────────────────┘
+└──────────────────────┘              │
+         │                            │
+        YES                          STOP
+         │
+         ▼
+┌──────────────────────────────────────┐
+│ Are KRs in TRL 2-7 range?           │
+│ (SkatteFUNN only covers R&D phase)  │
+└──────────────────────────────────────┘
+         │                      │
+        YES                    NO
+         │                      │
+         ▼                      ▼
+┌──────────────────┐   ┌────────────────────┐
+│ Do you have:     │   │ Adjust TRL targets │
+│ - Org info       │   │ or select different│
+│ - Timeline       │   │ Key Results        │
+│ - Budget         │   └────────────────────┘
+└──────────────────┘            │
+         │                      │
+        YES                    STOP
+         │
+         ▼
+┌────────────────────────────────────┐
+│ ✅ READY TO GENERATE               │
+│                                    │
+│ Next steps:                        │
+│ 1. Open wizard.instructions.md    │
+│ 2. Execute Phase 0 (validation)   │
+│ 3. Execute Phase 0.5 (selection)  │
+│ 4. Continue through Phase 5       │
+│ 5. Validate with validator.sh     │
+└────────────────────────────────────┘
+```
+
+**Key Decision Point:** If you don't have TRL data or KRs are outside TRL 2-7, STOP and prepare data first.
+
+---
+
 ## Quick Start
 
 ### 1. Generate Application
