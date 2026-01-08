@@ -2,6 +2,43 @@
 # EPF Sync Script v2.2
 # Ensures EPF framework is synchronized across canonical repo and product instances
 #
+# ═══════════════════════════════════════════════════════════════════════════════
+# 🚨 🤖 CRITICAL FOR AI ASSISTANTS 🤖 🚨
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# ⛔ NEVER USE MANUAL GIT COMMANDS FOR EPF SYNC ⛔
+#
+# ❌ DO NOT DO THIS:
+#    git push origin main
+#    git add docs/EPF/
+#    git commit -m "update EPF"
+#    git subtree push --prefix=docs/EPF epf main
+#
+# ✅ ALWAYS DO THIS INSTEAD:
+#    ./docs/EPF/scripts/sync-repos.sh push    # Push TO canonical
+#    ./docs/EPF/scripts/sync-repos.sh pull    # Pull FROM canonical
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# WHY THIS SCRIPT EXISTS:
+# - Product repos have docs/EPF/ (framework) + docs/EPF/_instances/ (product data)
+# - Manual git commands CANNOT distinguish between these
+# - This script EXCLUDES _instances/ to prevent canonical contamination
+# - Manual push would upload product secrets/data to public EPF repo
+#
+# WHAT THIS SCRIPT DOES:
+# - Automatically excludes _instances/ directory (product data)
+# - Validates version consistency before syncing
+# - Uses safe clone-copy-push workflow
+# - Prevents canonical contamination with product-specific content
+#
+# USAGE:
+#   ./docs/EPF/scripts/sync-repos.sh         # Interactive mode
+#   ./docs/EPF/scripts/sync-repos.sh push    # Push changes to canonical
+#   ./docs/EPF/scripts/sync-repos.sh pull    # Pull updates from canonical
+#
+# See: docs/EPF/.ai-agent-instructions.md for complete guidance
+#
 # CRITICAL: git subtree push CANNOT exclude directories, so we use a different approach:
 # - PULL: Uses git subtree (safe, canonical → product), auto-restores product .gitignore
 # - PUSH: Clones canonical, copies files, commits, pushes (excludes _instances/)
@@ -117,39 +154,56 @@ get_remote_version() {
 }
 
 validate_version_consistency() {
-    log_info "Validating version consistency..."
+    log_info "Validating version consistency across all framework files..."
     
-    local file="$EPF_PREFIX/integration_specification.yaml"
-    
-    if [[ ! -f "$file" ]]; then
-        log_error "File not found: $file"
-        return 1
-    fi
-    
-    local comment_version=$(grep "^# Version:" "$file" | sed 's/.*Version: \([0-9.]*\).*/\1/')
-    local spec_version=$(grep "^  version:" "$file" | head -1 | sed 's/.*"\(.*\)".*/\1/')
-    local changelog_version=$(grep -A2 "^  changelog:" "$file" | grep "version:" | head -1 | sed 's/.*"\(.*\)".*/\1/')
-    
-    local errors=0
-    
-    if [[ "$comment_version" != "$spec_version" ]]; then
-        log_error "Version mismatch: header comment ($comment_version) != spec.version ($spec_version)"
-        ((errors++))
-    fi
-    
-    if [[ "$spec_version" != "$changelog_version" ]]; then
-        log_error "Version mismatch: spec.version ($spec_version) != latest changelog ($changelog_version)"
-        ((errors++))
-    fi
-    
-    if [[ $errors -eq 0 ]]; then
-        log_info "All versions consistent: $spec_version ✓"
+    # Use the comprehensive health check for version validation
+    if [[ -f "$EPF_PREFIX/scripts/epf-health-check.sh" ]]; then
+        cd "$EPF_PREFIX"
+        
+        # Run health check in silent mode, capture output
+        local health_output=$(./scripts/epf-health-check.sh 2>&1)
+        local health_exit=$?
+        
+        cd - > /dev/null
+        
+        # If health check failed, display relevant output
+        if [[ $health_exit -ne 0 ]]; then
+            echo ""
+            log_error "EPF health check failed - version inconsistency detected!"
+            echo "$health_output" | grep -E "(CRITICAL|ERROR|Version)" || echo "$health_output"
+            echo ""
+            log_error "Cannot push to canonical EPF with version inconsistencies!"
+            log_warn "RECOMMENDED FIXES:"
+            log_info "  Auto-fix: ./docs/EPF/scripts/epf-health-check.sh --fix"
+            log_info "  Or manual: ./docs/EPF/scripts/bump-framework-version.sh \"X.Y.Z\" \"Description\""
+            echo ""
+            return 1
+        fi
+        
+        log_info "All versions consistent and framework health verified ✓"
         return 0
     else
-        log_error "Fix version inconsistencies before syncing!"
-        log_warn "RECOMMENDED: Use ./scripts/classify-changes.sh to check if version bump needed"
-        log_info "Then: ./scripts/bump-framework-version.sh \"X.Y.Z\" \"Description\""
-        return 1
+        # Fallback to basic integration_specification.yaml check
+        log_warn "epf-health-check.sh not found - using basic version check"
+        
+        local file="$EPF_PREFIX/integration_specification.yaml"
+        
+        if [[ ! -f "$file" ]]; then
+            log_error "File not found: $file"
+            return 1
+        fi
+        
+        local comment_version=$(grep "^# Version:" "$file" | sed 's/.*Version: \([0-9.]*\).*/\1/')
+        local spec_version=$(grep "^  version:" "$file" | head -1 | sed 's/.*"\(.*\)".*/\1/')
+        
+        if [[ "$comment_version" != "$spec_version" ]]; then
+            log_error "Version mismatch in integration_specification.yaml"
+            log_error "  Header: $comment_version vs Spec: $spec_version"
+            return 1
+        fi
+        
+        log_info "integration_specification.yaml version consistent: $spec_version ✓"
+        return 0
     fi
 }
 
@@ -236,17 +290,16 @@ check_framework_changes() {
         return 0
     fi
     
-    # Run classifier in check mode (doesn't exit on version bump needed)
+    # Check 1: Uncommitted changes
     cd "$EPF_PREFIX"
-    local classifier_output=$(./scripts/classify-changes.sh 2>&1)
-    local classifier_exit=$?
-    cd - > /dev/null
+    local uncommitted_output=$(./scripts/classify-changes.sh 2>&1)
+    local uncommitted_exit=$?
     
-    echo "$classifier_output"
-    
-    if [[ $classifier_exit -ne 0 ]]; then
+    if [[ $uncommitted_exit -ne 0 ]]; then
+        cd - > /dev/null
+        echo "$uncommitted_output"
         echo ""
-        log_error "⚠️  Framework changes detected that require version bump!"
+        log_error "⚠️  Uncommitted framework changes require version bump!"
         log_warn "You must bump the version before pushing to canonical EPF"
         echo ""
         log_info "Steps to fix:"
@@ -258,6 +311,52 @@ check_framework_changes() {
         return 1
     fi
     
+    # Check 2: Recent commits (HEAD~5..HEAD) for framework changes without version bump
+    log_info "Checking recent commits for version bump compliance..."
+    
+    # Get list of files changed in recent commits, excluding non-framework paths
+    local changed_files=$(git log --name-only --format="" --no-merges HEAD~5..HEAD 2>/dev/null | sort -u)
+    
+    # Filter to framework files only (exclude instances, work files, etc.)
+    local framework_changes=""
+    while IFS= read -r file; do
+        [[ -z "$file" ]] && continue
+        case "$file" in
+            _instances/*|.epf-work/*|.github/*|_legacy/*|VERSION|integration_specification.yaml)
+                continue
+                ;;
+            *)
+                framework_changes="yes"
+                break
+                ;;
+        esac
+    done <<< "$changed_files"
+    
+    if [[ -n "$framework_changes" ]]; then
+        # Check if any recent commits also modified VERSION file
+        local version_commits=$(git log --oneline --no-merges HEAD~5..HEAD -- VERSION integration_specification.yaml 2>/dev/null)
+        
+        if [[ -z "$version_commits" ]]; then
+            cd - > /dev/null
+            echo ""
+            log_error "⚠️  Recent framework commits found without version bump!"
+            echo ""
+            echo "Framework commits (last 5):"
+            git log --oneline --no-merges HEAD~5..HEAD 2>/dev/null | head -3
+            echo ""
+            log_warn "Framework changes require version bump before syncing to canonical"
+            echo ""
+            log_info "Steps to fix:"
+            log_info "  1. Review recent changes: git log --oneline HEAD~5..HEAD -- docs/EPF/"
+            log_info "  2. Classify changes: cd docs/EPF && ./scripts/classify-changes.sh --since-commit HEAD~5"
+            log_info "  3. Bump version: ./docs/EPF/scripts/bump-framework-version.sh \"X.Y.Z\" \"Description\""
+            log_info "  4. Try push again: ./docs/EPF/scripts/sync-repos.sh push"
+            echo ""
+            return 1
+        fi
+    fi
+    
+    cd - > /dev/null
     log_info "No framework changes requiring version bump ✓"
     return 0
 }

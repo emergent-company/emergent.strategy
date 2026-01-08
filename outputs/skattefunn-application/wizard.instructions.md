@@ -8,6 +8,35 @@
 
 ---
 
+## 🤖 FOR AI ASSISTANTS: READ THIS BEFORE PROCEEDING
+
+⚠️ **STOP - DO NOT CREATE CUSTOM CODE**
+
+If you are an AI assistant asked to generate a SkatteFUNN application:
+
+❌ **DO NOT** create a custom Python/Node/etc script  
+❌ **DO NOT** try to "optimize" or "simplify" this wizard  
+❌ **DO NOT** skip phases or combine steps  
+❌ **DO NOT** invent your own synthesis logic  
+
+✅ **DO** follow this 1,868-line wizard EXACTLY as written  
+✅ **DO** execute each phase sequentially (0 → 0.5 → 1 → 2 → 3 → 4 → 5)  
+✅ **DO** stop at Phase 0.5 for mandatory user selection  
+✅ **DO** use the official `template.md` structure  
+✅ **DO** validate with `validator.sh` (must be 0 errors)  
+
+**Why this matters:**
+- This wizard encodes **Frascati Manual** R&D classification rules (international standard)
+- SkatteFUNN applications must pass **Research Council of Norway** validation
+- Custom code WILL fail with 10-20+ validation errors
+- The template structure is legally required - deviations are rejected
+
+**This wizard IS the implementation.** It has been battle-tested on real applications. Your job is to EXECUTE it, not rewrite it.
+
+**See also:** `docs/EPF/outputs/AI_INSTRUCTIONS.md` for complete guidance.
+
+---
+
 ## ⚠️ CRITICAL: ALWAYS RUN PHASES IN ORDER - DO NOT SKIP
 
 This wizard MUST be executed sequentially. Each phase depends on the previous one.

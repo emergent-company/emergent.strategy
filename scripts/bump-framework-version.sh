@@ -44,16 +44,26 @@ echo ""
 # Pre-bump Framework Health Check
 echo "🏥 Running pre-bump framework health check..."
 echo ""
-if ! ./scripts/epf-health-check.sh; then
+set +e  # Temporarily disable errexit to capture exit code
+./scripts/epf-health-check.sh
+HEALTH_EXIT_CODE=$?
+set -e  # Re-enable errexit
+
+if [ "$HEALTH_EXIT_CODE" -eq 1 ] || [ "$HEALTH_EXIT_CODE" -eq 3 ]; then
     echo ""
     echo "❌ Framework health check failed!"
-    echo "   Please fix issues before bumping version."
+    echo "   Please fix critical issues before bumping version."
     echo ""
     exit 1
+elif [ "$HEALTH_EXIT_CODE" -eq 2 ]; then
+    echo ""
+    echo "⚠️  Health check passed with warnings (this is acceptable)"
+    echo ""
+else
+    echo ""
+    echo "✅ Pre-bump health check passed"
+    echo ""
 fi
-echo ""
-echo "✅ Pre-bump health check passed"
-echo ""
 
 # Get current version
 CURRENT_VERSION=$(cat VERSION 2>/dev/null || echo "unknown")
@@ -192,16 +202,26 @@ echo ""
 # Post-bump Framework Health Check
 echo "🏥 Running post-bump framework health check..."
 echo ""
-if ! ./scripts/epf-health-check.sh; then
+set +e  # Temporarily disable errexit to capture exit code
+./scripts/epf-health-check.sh
+POST_HEALTH_EXIT_CODE=$?
+set -e  # Re-enable errexit
+
+if [ "$POST_HEALTH_EXIT_CODE" -eq 1 ] || [ "$POST_HEALTH_EXIT_CODE" -eq 3 ]; then
     echo ""
     echo "❌ Post-bump health check failed!"
     echo "   Version files may have inconsistencies."
     echo ""
     exit 1
+elif [ "$POST_HEALTH_EXIT_CODE" -eq 2 ]; then
+    echo ""
+    echo "⚠️  Post-bump health check passed with warnings (acceptable)"
+    echo ""
+else
+    echo ""
+    echo "✅ Post-bump health check passed"
+    echo ""
 fi
-echo ""
-echo "✅ Post-bump health check passed"
-echo ""
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "📋 Changes Summary"

@@ -6,6 +6,24 @@
 
 ---
 
+## 🤖 FOR AI ASSISTANTS: READ THIS FIRST
+
+**⚠️ CRITICAL:** Before generating ANY output, read **[AI_INSTRUCTIONS.md](./AI_INSTRUCTIONS.md)**
+
+**TL;DR for AI:**
+- ✅ **ALWAYS use** `wizard.instructions.md` (never create custom scripts)
+- ✅ **ALWAYS follow** phases sequentially (0 → 1 → 2 → ...)
+- ✅ **ALWAYS use** `template.md` structure if provided
+- ✅ **ALWAYS validate** with `validator.sh`
+- ❌ **NEVER skip** the wizard and invent your own logic
+- ❌ **NEVER** create custom Python/JS generator scripts
+
+**Why:** Wizards contain validated methodology (1,000-4,000 lines), compliance rules (Frascati, investor standards), and exact output structure. Your custom code WILL fail validation.
+
+**Read:** [`AI_INSTRUCTIONS.md`](./AI_INSTRUCTIONS.md) (10 min) before starting any generation task.
+
+---
+
 ## 📖 Framework vs Instance Outputs
 
 **This directory (`docs/EPF/outputs/`)** contains:
