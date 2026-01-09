@@ -61,9 +61,11 @@ A full-stack knowledge platform combining:
 
 - **Knowledge Graph:** Entity-relationship modeling with semantic understanding
 - **Vector Search:** Embedded LanceDB for semantic retrieval (on-disk, privacy-first)
+- **Unified Search Engine:** 5 fusion strategies (weighted, RRF, interleave, graph-first, text-first) with <300ms p95 latency
 - **RAG Pipeline:** Multi-stage retrieval, reranking, source citation
 - **Agent Framework:** Configurable AI agents with tool use and multi-agent orchestration
 - **MCP Integration:** Model Context Protocol support for extensibility
+- **API Token Management:** Dual authentication (OAuth2 + programmatic tokens) with scoped permissions for AI agents and scripts
 - **Template Packs:** Domain-specific customization without code changes
 
 **Built on proven technologies:**
@@ -114,6 +116,17 @@ The Tech Stack isn't just a collection of tools—it's a technical implementatio
 - **Multi-agent orchestration:** Agents call other agents (Pathfinder → Research Assistant)
 - **MCP servers:** Connect to external systems (Playwright, Postgres, custom tools)
 - **Observability:** LangSmith tracing for every agent interaction
+
+**Real-World Example:**
+
+The Emergent admin UI demonstrates this in production:
+
+1. **Token Setup**: Developer creates API token with `search:read` scope (30 seconds)
+2. **MCP Configuration**: Add token to Cursor/Claude MCP settings (1 minute)
+3. **Contextual Queries**: AI assistant now queries knowledge graph directly
+4. **Activity Tracking**: System learns from queries, surfaces recent items automatically
+
+**Result:** Developer setup time reduced from >30 minutes (OAuth2 flow, troubleshooting) to <5 minutes (token + paste). AI assistants gain organizational context without developers leaving their IDE.
 
 **Why It Matters:** Agents become cognitive partners—synthesize understanding, anticipate needs, execute tedious workflows.
 
@@ -312,7 +325,7 @@ Deep dive into the intelligent knowledge infrastructure.
 ## Metadata
 
 **Page Title:** Emergent Tech Stack - Build Adaptive Systems on Proven Infrastructure  
-**Meta Description:** Full-stack knowledge platform with knowledge graphs, semantic search, RAG, and AI agents. Open, extensible, privacy-first. From prototype to production in weeks.  
+**Meta Description:** Operational AI infrastructure: Knowledge graphs + semantic search + MCP + token auth. Sub-300ms unified search with 5 fusion strategies. Ship intelligent applications in weeks, not months.  
 **Open Graph Image:** Architecture diagram of emergent.core stack layers  
 **Canonical URL:** https://emergent.ai/tech-stack
 
