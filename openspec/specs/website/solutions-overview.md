@@ -49,9 +49,40 @@ Not another project management tool. Not another document repository. Not anothe
 
 Built on the three Emergent principles. Applied to real organizational challenges.
 
+**Infrastructure that's operational:**
+
+- **Unified Search** (Nov 2025): 5 fusion strategies operational
+- **MCP Token Auth** (Dec 2025): AI agent setup <5 minutes
+- **Activity Tracking** (Dec 2025): Recent items & contextual navigation live
+- **External Service Integration** (Nov 2025): Kreuzberg parsing demonstrates extensibility
+
+Foundation proven. Applications scaling.
+
 ---
 
 ## Section 2: Current Solutions
+
+### Operational Status (January 2026)
+
+**Foundation Infrastructure: ✅ Operational**
+
+- Knowledge graph with semantic search
+- MCP integration with token authentication
+- Unified search with 5 fusion strategies
+- Activity tracking and contextual navigation
+- Multi-tenant architecture with RLS
+
+**EPF Agent Suite: 🚧 In Development**
+
+- Pathfinder Agent: Design phase
+- Product Architect Agent: Design phase
+- Synthesizer Agent: Design phase
+
+**Target Availability:** Q2 2026 (April-June)
+
+**Early Access:** Contact us for design partner opportunities
+
+---
 
 ### emergent.product: The Operating System for Product Strategy
 
@@ -119,7 +150,7 @@ Three AI agents aligned to the READY-FIRE-AIM operating loop:
 
 #### 3. The READY-FIRE-AIM Loop (Adaptive Loops)
 
-EPF v1.8.0 operating loop for continuous learning:
+EPF v2.0.2 operating loop for continuous learning:
 
 **READY (Sense & Frame):**
 
