@@ -1,0 +1,23 @@
+# EPF Framework .gitignore - GMS Product Repo
+# This file tracks the GMS product instance while ignoring other instances
+
+# Instance folders - only GMS instance is tracked
+_instances/*
+!_instances/README.md
+!_instances/GMS
+!_instances/GMS/**
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Temporary files
+*.tmp
+*.temp

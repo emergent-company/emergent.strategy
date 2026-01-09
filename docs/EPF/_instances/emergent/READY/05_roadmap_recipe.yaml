@@ -65,13 +65,18 @@ roadmap:
               target: "MCP integration live with 5+ active pilot users"
               measurement_method: "MCP server logs showing successful context retrievals"
               baseline: "Current: MCP server in development"
+              status: "completed"
+              completion_date: "2025-12-15"
+              actual_result: "MCP server operational with token-based authentication. MCP settings UI implemented for token management. Internal team actively using MCP integration."
               
               trl_start: 3
               trl_target: 6
-              trl_progression: "TRL 3 → TRL 6 (Proof of concept → System prototype demonstrated in relevant environment)"
+              trl_achieved: 7
+              trl_progression: "TRL 3 → TRL 7 (Proof of concept → System prototype demonstrated in operational environment + Management UI)"
               technical_hypothesis: "Model Context Protocol (MCP) server integration can provide AI agents with relevant knowledge graph context that measurably improves task completion quality and reduces hallucinations"
               experiment_design: "Implement MCP server exposing knowledge graph via standardized protocol. Deploy to 5 pilot users (internal developers). A/B test AI task completion with vs without MCP context access. Measure: task completion time, code quality (via review scores), hallucination rate (incorrect assumptions), and user satisfaction. Track MCP query patterns, latency, and cache hit rates. Document failure modes and edge cases where context retrieval doesn't help or misleads."
               success_criteria: "5+ pilot users actively using MCP server daily. ≥20% improvement in task completion quality (measured via code review scores). ≥30% reduction in hallucination incidents. MCP query latency <500ms p95. Pilot user satisfaction score ≥8/10."
+              achievement_notes: "Added token management UI for easier setup. API token system allows both OAuth2 and token-based auth for flexibility."
               uncertainty_addressed: "Whether AI agents will meaningfully use knowledge graph context to improve outputs. Unknowns: optimal context retrieval strategies (when to query graph vs rely on training data), context window size limits, latency sensitivity for developer experience, whether developers trust AI suggestions more with explicit context citations."
         
         - id: "okr-p-002"
@@ -206,6 +211,77 @@ roadmap:
               experiment_design: "Design schema versioning system: version field in each artifact, schema registry with compatibility rules. Create migration framework: detect schema version, apply transformation pipeline, validate output against target schema. Test with real breaking changes: add required field (with default), rename field (with mapping), restructure nested object. Build test corpus: 10 real EPF artifacts (North Stars, Roadmaps). Measure migration success rate, identify failure modes. Test bidirectional migration (v2→v1 for rollback scenarios). Document migration strategy patterns (additive, transformative, breaking)."
               success_criteria: "Schema versioning system deployed across all EPF artifact types. Migration tooling can upgrade 10+ real artifacts from v1→v2 with 100% success (no data loss). Backward compatibility maintained: v2 system can read v1 artifacts. Migration validates output against target schema (100% pass rate). Clear upgrade path documented for users. Migration framework is extensible (can add new transformation rules)."
               uncertainty_addressed: "Whether automated schema migration is feasible for complex strategic artifacts (vs simple data structures). Unknowns: how to handle semantic changes that require human judgment (e.g., 'desirability' assumption renamed to 'demand' - are they equivalent?), whether bidirectional migration is necessary (can users roll back?), optimal migration granularity (per-field vs whole artifact), how to communicate breaking changes to users (changelog, deprecation warnings)."
+        
+        - id: "okr-p-006"
+          objective: "Enhance search and user experience with advanced capabilities"
+          key_results:
+            - id: "kr-p-013"
+              description: "Unified Search endpoint combines graph and text search with fusion strategies"
+              target: "Single endpoint supporting 5 fusion strategies with <300ms p95 latency"
+              measurement_method: "E2E tests covering all fusion strategies; latency monitoring"
+              baseline: "Current: Separate graph and text search endpoints"
+              status: "completed"
+              completion_date: "2025-11-19"
+              actual_result: "Unified search endpoint shipped with 5 fusion strategies (weighted, rrf, interleave, graph_first, text_first). Supports relationship expansion and result type filtering. 15 E2E test scenarios passing."
+              
+              trl_start: 2
+              trl_target: 6
+              trl_achieved: 7
+              trl_progression: "TRL 2 → TRL 7 (Concept → System operational and integrated)"
+              technical_hypothesis: "Hybrid search combining graph objects and text chunks with multiple fusion strategies provides better retrieval quality than either approach alone"
+              success_criteria: "Single API endpoint operational. All 5 fusion strategies functional. Query latency <300ms p95. Precision@5 ≥80% on test queries. Authorization (search:read, search:debug scopes) working correctly."
+              achievement_notes: "Parallel execution optimizes performance. Debug mode provides score distributions. Relationship expansion enables graph traversal in search results."
+            
+            - id: "kr-p-014"
+              description: "Recent Items page tracks user activity for contextual navigation"
+              target: "Recent documents and objects accessible with <2s page load time"
+              measurement_method: "Page load metrics; user activity tracking analytics"
+              baseline: "Current: No activity tracking"
+              status: "completed"
+              completion_date: "2025-12-15"
+              actual_result: "Recent Items page live with dual-table layout showing recent documents and objects. Relative time display and action badges implemented. Fire-and-forget recording pattern ensures non-blocking performance."
+              
+              trl_start: 2
+              trl_target: 6
+              trl_achieved: 6
+              trl_progression: "TRL 2 → TRL 6 (Concept → System prototype in operational environment)"
+              technical_hypothesis: "Activity-based navigation reduces context switching time and improves user productivity by surfacing frequently accessed items"
+              success_criteria: "Page loads in <2s. Activity recording is non-blocking (fire-and-forget). Recent items limited to 10 per type per user/project. Navigation to document/object detail works correctly."
+              achievement_notes: "kb.user_recent_items table with upsert behavior. New scopes: user-activity:read, user-activity:write. Frontend utility formatRelativeTime using native Intl API."
+            
+            - id: "kr-p-015"
+              description: "API token management enables programmatic access alongside OAuth2"
+              target: "Token CRUD operations with scoped permissions and UI management"
+              measurement_method: "Token creation/revocation working; MCP auth using tokens"
+              baseline: "Current: OAuth2 only"
+              status: "completed"
+              completion_date: "2025-12-20"
+              actual_result: "Complete API token management system with kb.api_tokens entity, token service, controller, and MCP settings UI. Token-based auth integrated into auth service alongside OAuth2."
+              
+              trl_start: 2
+              trl_target: 6
+              trl_achieved: 6
+              trl_progression: "TRL 2 → TRL 6 (Concept → System operational with management UI)"
+              technical_hypothesis: "Token-based authentication lowers friction for AI agents and programmatic access compared to OAuth2 flow"
+              success_criteria: "Token CRUD API functional. Tokens work for MCP authentication. Scoped permissions enforced. Management UI allows token creation and revocation. E2E and unit tests passing."
+              achievement_notes: "Dual auth system: OAuth2 for interactive users, tokens for AI agents. Reduces MCP setup complexity significantly."
+            
+            - id: "kr-p-016"
+              description: "Document parsing service integration via Kreuzberg for enhanced extraction"
+              target: "External parsing service handles complex document formats"
+              measurement_method: "Document parsing succeeds for expanded file types; service integration stable"
+              baseline: "Current: In-app parsing only"
+              status: "completed"
+              completion_date: "2025-11-25"
+              actual_result: "Kreuzberg parsing service integrated as external dependency. Document parsing refactored to use external service. Expanded file type support beyond PDF/Markdown."
+              
+              trl_start: 3
+              trl_target: 5
+              trl_achieved: 5
+              trl_progression: "TRL 3 → TRL 5 (Proof of concept → External service integration validated)"
+              technical_hypothesis: "External specialized parsing service provides better extraction quality and format support than in-app parsing"
+              success_criteria: "Kreuzberg client operational. Parsing requests succeed. File type support expanded. Error handling for service unavailability."
+              achievement_notes: "Architecture pattern established for external service integration. Enables specialized processing without bloating core app."
       
       riskiest_assumptions:
         - id: "asm-p-001"
@@ -271,6 +347,27 @@ roadmap:
           confidence: "medium"
           evidence_required: "Migration tooling successfully upgrades 10+ real artifacts with 100% accuracy"
           linked_to_kr: ["kr-p-012"]
+        - id: "asm-p-010"
+          description: "Unified search fusion strategies provide measurably better results than single-method search"
+          type: "feasibility"
+          criticality: "medium"
+          confidence: "high"
+          evidence_required: "A/B testing shows unified search outperforms graph-only or text-only by ≥20% on precision/recall"
+          linked_to_kr: ["kr-p-013"]
+        - id: "asm-p-011"
+          description: "Activity tracking improves user productivity without privacy concerns"
+          type: "desirability"
+          criticality: "low"
+          confidence: "high"
+          evidence_required: "User analytics show increased engagement; privacy feedback positive"
+          linked_to_kr: ["kr-p-014"]
+        - id: "asm-p-012"
+          description: "Token-based auth reduces MCP setup friction significantly compared to OAuth2"
+          type: "desirability"
+          criticality: "high"
+          confidence: "high"
+          evidence_required: "Setup time for new MCP users reduced from >30min to <5min"
+          linked_to_kr: ["kr-p-015"]
       
       solution_scaffold:
         description: "Emergent Core architecture: Knowledge Engine + AI Integration Layer"
@@ -310,6 +407,26 @@ roadmap:
             purpose: "Store EPF artifacts in knowledge graph with semantic search"
             priority: "must-have"
             maps_to_value_model: "EPF-RUNTIME-L3-knowledge-graph-integration"
+          - id: "comp-p-008"
+            name: "Unified Search Engine"
+            purpose: "Combine graph and text search with multiple fusion strategies for optimal retrieval"
+            priority: "must-have"
+            maps_to_value_model: "PRODUCT-L2-search-engine"
+          - id: "comp-p-009"
+            name: "User Activity Tracking"
+            purpose: "Track recent items and user activity for contextual navigation"
+            priority: "should-have"
+            maps_to_value_model: "PRODUCT-L3-user-experience"
+          - id: "comp-p-010"
+            name: "API Token Management"
+            purpose: "Enable programmatic access via tokens alongside OAuth2 for AI agents"
+            priority: "must-have"
+            maps_to_value_model: "PRODUCT-L2-authentication"
+          - id: "comp-p-011"
+            name: "External Document Parsing"
+            purpose: "Integrate specialized parsing services for enhanced document extraction"
+            priority: "should-have"
+            maps_to_value_model: "PRODUCT-L2-ingestion"
         architecture_principles:
           - "Git-native: Strategy artifacts live in the repo, not a SaaS silo"
           - "AI-first: Every data structure designed for machine readability"
@@ -615,16 +732,43 @@ roadmap:
         milestone: "EPF Self-Hosting Complete"
         description: "All Emergent EPF artifacts populated; development fully traceable"
         key_results: ["product:kr-p-004", "product:kr-p-005"]
+        status: "in-progress"
       
-      - date: "2025-02-15"
+      - date: "2025-11-19"
+        milestone: "Unified Search Operational"
+        description: "Graph and text search combined with fusion strategies"
+        key_results: ["product:kr-p-013"]
+        status: "completed"
+        completion_date: "2025-11-19"
+      
+      - date: "2025-12-15"
         milestone: "MCP Integration Live"
-        description: "Developers can query Emergent knowledge graph from Cursor/Claude"
-        key_results: ["product:kr-p-003", "org_ops:kr-o-002"]
+        description: "Developers can query Emergent knowledge graph from Cursor/Claude with token-based auth"
+        key_results: ["product:kr-p-003", "product:kr-p-015", "org_ops:kr-o-002"]
+        status: "completed"
+        completion_date: "2025-12-20"
+        notes: "Token management UI added for easier setup; dual auth system (OAuth2 + tokens) operational"
+      
+      - date: "2025-12-15"
+        milestone: "Enhanced User Experience Live"
+        description: "Recent Items page and activity tracking operational"
+        key_results: ["product:kr-p-014"]
+        status: "completed"
+        completion_date: "2025-12-15"
+      
+      - date: "2025-11-25"
+        milestone: "External Document Parsing Integrated"
+        description: "Kreuzberg parsing service operational; expanded file type support"
+        key_results: ["product:kr-p-016"]
+        status: "completed"
+        completion_date: "2025-11-25"
       
       - date: "2025-02-28"
         milestone: "Internal Dogfooding Complete"
         description: "All Emergent development uses EPF + AI context; ready for external users"
         key_results: ["org_ops:kr-o-001", "org_ops:kr-o-002", "product:kr-p-001", "product:kr-p-002"]
+        status: "at-risk"
+        notes: "MCP integration completed, but full EPF adoption and knowledge graph performance validation still in progress"
       
       - date: "2025-03-15"
         milestone: "First Design Partners Active"
@@ -652,8 +796,28 @@ roadmap:
         key_results: ["product:kr-p-012"]
   
   # Review & Approval
-  status: "approved"
+  status: "in-progress"
   approved_by: "Nikolai Fasting"
   approval_date: "2026-01-01"
+  last_updated: "2026-01-09"
   start_date: "2025-01-01"
   target_completion_date: "2026-03-31"
+  
+  # Progress Summary as of 2026-01-09
+  progress_summary:
+    completed_krs: 4
+    total_krs: 21
+    completion_percentage: "19%"
+    notable_achievements:
+      - "MCP server integration operational with token-based authentication"
+      - "Unified Search with 5 fusion strategies shipped"
+      - "Recent Items activity tracking live"
+      - "API token management system complete"
+      - "External document parsing via Kreuzberg integrated"
+      - "Major infrastructure improvements: RLS hardening, X-Org-ID removal, env var standardization"
+    remaining_priorities:
+      - "Complete EPF self-hosting (all READY artifacts populated)"
+      - "Validate knowledge graph performance at 10,000+ object scale"
+      - "Complete document ingestion pipeline for PDF/Markdown/code"
+      - "Begin EPF-Runtime development (Stage 1-4)"
+      - "Launch design partner program"

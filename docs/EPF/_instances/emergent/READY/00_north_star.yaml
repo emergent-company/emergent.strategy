@@ -17,9 +17,9 @@
 
 north_star:
   organization: "Emergent (by Eyedea)"
-  last_reviewed: "2025-12-30"
+  last_reviewed: "2026-01-09"
   next_review: "2026-06-01"
-  version: "1.2"
+  version: "1.3"
   
   # ============================================================================
   # 1. PURPOSE - Why We Exist
@@ -105,9 +105,12 @@ north_star:
           capabilities:
             - "Ingest documents from any source (URLs, file uploads, integrations)"
             - "Build knowledge graphs automatically using LLM extraction"
-            - "Enable hybrid semantic + full-text search over organizational knowledge"
+            - "Enable hybrid semantic + full-text search over organizational knowledge (Unified Search with 5 fusion strategies)"
             - "Provide AI chat grounded in documents with source citations"
-            - "Expose knowledge via MCP for AI agent integration"
+            - "Expose knowledge via MCP for AI agent integration with token-based authentication"
+            - "Track user activity and recent items for contextual navigation"
+            - "Parse documents via Kreuzberg service for enhanced extraction"
+            - "Support API token management for programmatic access alongside OAuth2"
         
         epf_runtime:
           metaphor: "The Nervous System"
