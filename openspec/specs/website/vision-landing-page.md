@@ -145,6 +145,10 @@ Intelligent agency means:
 - **Anticipation over reaction.** "This Work Package depends on an unvalidated assumption—should we prioritize testing it?" The system doesn't wait to be asked.
 - **Execution over assistance.** "Generate a board deck from Q4 progress data." The agent queries the graph, assembles artifacts, formats outputs. In 15 minutes, not 15 hours.
 
+Today, this is reality: Developers query knowledge graphs directly from their IDE via Model Context Protocol integration. AI agents use token-based authentication to access organizational context programmatically. Search combines graph traversal with semantic vectors using multiple fusion strategies—weighted, reciprocal rank fusion, interleaved, graph-first, or text-first—automatically choosing the best retrieval method for each query.
+
+This isn't a vision for tomorrow. **This is infrastructure shipping today.**
+
 **What This Enables**
 
 AI agents become **cognitive partners**. They amplify judgment without replacing it. Solo founders compress 3 weeks of strategy work into 3 days. Product leaders generate stakeholder artifacts in minutes, not hours. Engineers get proactive alerts when dependencies become blockers.
