@@ -25,11 +25,20 @@ export interface SchemaSuggestion {
   status: SuggestionStatus;
 }
 
+export interface ToolCall {
+  id: string;
+  tool: string;
+  args?: Record<string, unknown>;
+  result?: unknown;
+  status: 'pending' | 'completed';
+}
+
 export interface StudioMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   suggestions?: SchemaSuggestion[];
+  toolCalls?: ToolCall[];
   createdAt: string;
 }
 
@@ -48,16 +57,22 @@ export interface TemplatePack {
 
 export interface StudioSession {
   id: string;
-  status: 'active' | 'completed' | 'discarded' | 'expired';
+  status: 'active' | 'completed' | 'discarded';
   pack: TemplatePack;
   messages: StudioMessage[];
   createdAt: string;
   updatedAt: string;
-  expiresAt: string;
 }
 
 export interface StudioStreamEvent {
-  type: 'meta' | 'token' | 'suggestions' | 'error' | 'done';
+  type:
+    | 'meta'
+    | 'token'
+    | 'suggestions'
+    | 'error'
+    | 'done'
+    | 'tool_call'
+    | 'tool_result';
   sessionId?: string;
   packId?: string;
   token?: string;
@@ -65,6 +80,11 @@ export interface StudioStreamEvent {
   error?: string;
   generation_error?: string;
   generation_disabled?: boolean;
+  // Tool-related fields
+  toolCallId?: string;
+  tool?: string;
+  args?: Record<string, unknown>;
+  result?: unknown;
 }
 
 export interface ApplySuggestionResult {
@@ -145,6 +165,7 @@ export interface UseTemplateStudioChatReturn {
     description?: string;
     version: string;
   }) => Promise<TemplatePack | null>;
+  renamePack: (name: string) => Promise<{ success: boolean; error?: string }>;
   discardSession: () => Promise<boolean>;
   refresh: () => Promise<void>;
 }
@@ -251,7 +272,39 @@ export function useTemplateStudioChat(
         const result = await fetchJson<StudioSession>(url);
 
         setSession(result);
-        setMessages(result.messages || []);
+        // Merge server messages with client-side toolCalls data
+        // Server doesn't store toolCalls, so we preserve them from current state
+        // Match by position since IDs may differ between client (optimistic) and server
+        setMessages((currentMessages) => {
+          const serverMessages = result.messages || [];
+
+          // Build a map of toolCalls by assistant message index
+          // (index among assistant messages only)
+          const toolCallsByAssistantIndex = new Map<number, ToolCall[]>();
+          let assistantIndex = 0;
+          for (const msg of currentMessages) {
+            if (msg.role === 'assistant') {
+              if (msg.toolCalls && msg.toolCalls.length > 0) {
+                toolCallsByAssistantIndex.set(assistantIndex, msg.toolCalls);
+              }
+              assistantIndex++;
+            }
+          }
+
+          // Apply toolCalls to server messages by assistant index
+          let serverAssistantIndex = 0;
+          return serverMessages.map((serverMsg) => {
+            if (serverMsg.role === 'assistant') {
+              const toolCalls =
+                toolCallsByAssistantIndex.get(serverAssistantIndex);
+              serverAssistantIndex++;
+              if (toolCalls) {
+                return { ...serverMsg, toolCalls };
+              }
+            }
+            return serverMsg;
+          });
+        });
       } catch (err) {
         const msg =
           err instanceof Error ? err.message : 'Failed to load session';
@@ -328,6 +381,7 @@ export function useTemplateStudioChat(
         let buffer = '';
         let accumulatedContent = '';
         let receivedSuggestions: SchemaSuggestion[] = [];
+        let toolCalls: ToolCall[] = [];
 
         while (true) {
           const { done, value } = await reader.read();
@@ -361,8 +415,44 @@ export function useTemplateStudioChat(
                     setMessages((prev) =>
                       prev.map((m) =>
                         m.id === assistantMsgId
-                          ? { ...m, content: accumulatedContent }
+                          ? { ...m, content: accumulatedContent, toolCalls }
                           : m
+                      )
+                    );
+                  }
+                  break;
+
+                case 'tool_call':
+                  if (event.toolCallId && event.tool) {
+                    const newToolCall: ToolCall = {
+                      id: event.toolCallId,
+                      tool: event.tool,
+                      args: event.args,
+                      status: 'pending',
+                    };
+                    toolCalls = [...toolCalls, newToolCall];
+                    setMessages((prev) =>
+                      prev.map((m) =>
+                        m.id === assistantMsgId ? { ...m, toolCalls } : m
+                      )
+                    );
+                  }
+                  break;
+
+                case 'tool_result':
+                  if (event.toolCallId) {
+                    toolCalls = toolCalls.map((tc) =>
+                      tc.id === event.toolCallId
+                        ? {
+                            ...tc,
+                            result: event.result,
+                            status: 'completed' as const,
+                          }
+                        : tc
+                    );
+                    setMessages((prev) =>
+                      prev.map((m) =>
+                        m.id === assistantMsgId ? { ...m, toolCalls } : m
                       )
                     );
                   }
@@ -596,6 +686,49 @@ export function useTemplateStudioChat(
   );
 
   /**
+   * Rename the pack
+   */
+  const renamePack = useCallback(
+    async (name: string): Promise<{ success: boolean; error?: string }> => {
+      if (!session?.id || !activeProjectId) {
+        return { success: false, error: 'Invalid state' };
+      }
+
+      if (!name.trim()) {
+        return { success: false, error: 'Name is required' };
+      }
+
+      try {
+        const url = `${apiBase}/api/template-packs/studio/session/${session.id}/name`;
+        const result = await fetchJson<{
+          success: boolean;
+          pack?: TemplatePack;
+          error?: string;
+        }>(url, {
+          method: 'PATCH',
+          body: { name: name.trim() },
+        });
+
+        if (result.success && result.pack) {
+          // Update pack in session
+          setSession((prev) =>
+            prev ? { ...prev, pack: result.pack as TemplatePack } : null
+          );
+          onPackUpdated?.(result.pack);
+        }
+
+        return { success: result.success, error: result.error };
+      } catch (err) {
+        const msg =
+          err instanceof Error ? err.message : 'Failed to rename pack';
+        console.error('[useTemplateStudioChat] renamePack error:', err);
+        return { success: false, error: msg };
+      }
+    },
+    [session?.id, activeProjectId, apiBase, fetchJson, onPackUpdated]
+  );
+
+  /**
    * Discard the session
    */
   const discardSession = useCallback(async (): Promise<boolean> => {
@@ -689,6 +822,7 @@ export function useTemplateStudioChat(
     applySuggestion,
     rejectSuggestion,
     savePack,
+    renamePack,
     discardSession,
     refresh,
   };

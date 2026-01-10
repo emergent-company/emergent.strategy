@@ -13,11 +13,7 @@ import { GraphTemplatePack } from './graph-template-pack.entity';
 /**
  * Template Pack Studio session status
  */
-export type StudioSessionStatus =
-  | 'active'
-  | 'completed'
-  | 'discarded'
-  | 'expired';
+export type StudioSessionStatus = 'active' | 'completed' | 'discarded';
 
 /**
  * Template Pack Studio session entity
@@ -61,9 +57,6 @@ export class TemplatePackStudioSession {
 
   @UpdateDateColumn({ type: 'timestamptz', default: () => 'now()' })
   updated_at: Date;
-
-  @Column({ type: 'timestamptz', default: () => "now() + INTERVAL '24 hours'" })
-  expires_at: Date;
 }
 
 /**
