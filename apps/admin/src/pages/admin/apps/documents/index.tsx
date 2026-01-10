@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useSearchParams } from 'react-router';
 import { Icon } from '@/components/atoms/Icon';
+import { useSourceTypes } from '@/hooks/use-source-types';
+import {
+  getSourceTypePlugin,
+  getSourceTypeDisplayName,
+  getSourceTypeIcon,
+  getAllSourceTypePlugins,
+} from '@/lib/source-type-plugins';
 import { Spinner } from '@/components/atoms/Spinner';
 import { Tooltip } from '@/components/atoms/Tooltip';
 import { PageContainer } from '@/components/layouts';
@@ -36,6 +43,10 @@ import {
 } from '@/components/organisms/ExtractionConfigModal';
 import { DocumentMetadataModal } from '@/components/organisms/DocumentMetadataModal';
 import { DeletionConfirmationModal } from '@/components/organisms/DeletionConfirmationModal';
+import {
+  DocumentDetailModal,
+  type DocumentRow as DetailDocumentRow,
+} from '@/components/organisms/DocumentDetailModal';
 import { createExtractionJobsClient } from '@/api/extraction-jobs';
 import { createDocumentsClient } from '@/api/documents';
 import {
@@ -75,8 +86,10 @@ type DocumentRow = {
   extractionStatus?: string;
   extractionCompletedAt?: string;
   extractionObjectsCount?: number;
-  // Integration metadata
+  // Integration metadata (from external sources like Gmail, ClickUp)
   integrationMetadata?: Record<string, any> | null;
+  // Document metadata (processing info, original file details)
+  metadata?: Record<string, any> | null;
   // Conversion status fields (document-first architecture)
   conversionStatus?:
     | 'pending'
@@ -87,6 +100,22 @@ type DocumentRow = {
     | null;
   conversionError?: string | null;
   conversionCompletedAt?: string | null;
+  // Source type for document origin (upload, email, url, etc.)
+  sourceType?: string | null;
+  // Parent document ID (for child documents like email attachments)
+  parentDocumentId?: string | null;
+  // Child document count
+  childCount?: number | null;
+  // Storage and system fields
+  projectId?: string | null;
+  externalSourceId?: string | null;
+  dataSourceIntegrationId?: string | null;
+  storageKey?: string | null;
+  storageUrl?: string | null;
+  fileHash?: string | null;
+  contentHash?: string | null;
+  syncVersion?: number | null;
+  fileSizeBytes?: number | null;
 };
 
 function normalize(doc: DocumentRow) {
@@ -106,11 +135,38 @@ function normalize(doc: DocumentRow) {
 }
 
 export default function DocumentsPage() {
-  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { getAccessToken, user } = useAuth();
   const { buildHeaders, apiBase, fetchJson, fetchForm } = useApi();
   const { config } = useConfig();
   const { showToast } = useToast();
+
+  // Source type filtering from URL
+  const selectedSourceType = searchParams.get('sourceType') || null;
+  const {
+    sourceTypes,
+    allPlugins,
+    totalCount: sourceTypeTotalCount,
+    refetch: refetchSourceTypes,
+    loading: sourceTypesLoading,
+  } = useSourceTypes();
+
+  // Clear filter if selected source type no longer has any documents
+  useEffect(() => {
+    // Wait for source types to load before checking
+    if (sourceTypesLoading || !selectedSourceType) return;
+
+    // Check if the selected source type exists in the available source types
+    const sourceTypeExists = sourceTypes.some(
+      (st) => st.sourceType === selectedSourceType
+    );
+
+    // If selected source type has no documents, clear the filter
+    if (!sourceTypeExists) {
+      setSearchParams({});
+    }
+  }, [selectedSourceType, sourceTypes, sourceTypesLoading, setSearchParams]);
+
   const [data, setData] = useState<DocumentRow[] | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -165,56 +221,9 @@ export default function DocumentsPage() {
   const [selectedDocumentForMetadata, setSelectedDocumentForMetadata] =
     useState<DocumentRow | null>(null);
 
-  // Preview modal state
-  const [preview, setPreview] = useState<DocumentRow | null>(null);
-  const [previewContent, setPreviewContent] = useState<string | null>(null);
-  const [loadingPreviewContent, setLoadingPreviewContent] = useState(false);
-
-  // Fetch document content when preview modal opens
-  useEffect(() => {
-    if (!preview) {
-      setPreviewContent(null);
-      return;
-    }
-
-    let cancelled = false;
-    setLoadingPreviewContent(true);
-
-    async function fetchContent() {
-      if (!preview) return; // Type guard
-
-      try {
-        const t = getAccessToken();
-        const doc = await fetchJson<DocumentRow>(
-          `${apiBase}/api/documents/${preview.id}`,
-          {
-            headers: t ? buildHeaders({ json: false }) : {},
-            json: false,
-          }
-        );
-        if (!cancelled) {
-          // Check both possible field names for content
-          const content = (doc as any).content || '';
-          setPreviewContent(content);
-        }
-      } catch (err) {
-        console.error('Failed to load document content:', err);
-        if (!cancelled) {
-          setPreviewContent('Failed to load document content.');
-        }
-      } finally {
-        if (!cancelled) {
-          setLoadingPreviewContent(false);
-        }
-      }
-    }
-
-    fetchContent();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [preview, apiBase, getAccessToken, buildHeaders, fetchJson]);
+  // Document detail modal state
+  const [selectedDocumentForDetail, setSelectedDocumentForDetail] =
+    useState<DocumentRow | null>(null);
 
   const extractionClient = createExtractionJobsClient(
     apiBase,
@@ -245,6 +254,21 @@ export default function DocumentsPage() {
   const [deletionDocumentIds, setDeletionDocumentIds] = useState<string[]>([]);
 
   const apiBaseMemo = useMemo(() => apiBase, [apiBase]);
+
+  // Helper to build documents API URL with optional sourceType filter
+  const buildDocumentsUrl = useCallback(
+    (bustCache = false) => {
+      const urlParams = new URLSearchParams();
+      if (bustCache) {
+        urlParams.set('_t', Date.now().toString());
+      }
+      if (selectedSourceType) {
+        urlParams.set('sourceType', selectedSourceType);
+      }
+      return `${apiBase}/api/documents?${urlParams.toString()}`;
+    },
+    [apiBase, selectedSourceType]
+  );
 
   // Load documents only when an active org & project are selected (prevents 403 on first-login with no org).
   useEffect(() => {
@@ -277,11 +301,17 @@ export default function DocumentsPage() {
         const t = getAccessToken();
         // Include projectId in URL to bust browser cache when project changes
         // (X-Project-ID header alone doesn't affect HTTP cache key)
+        // Build URL with optional sourceType filter
+        const urlParams = new URLSearchParams();
+        urlParams.set('projectId', config.activeProjectId!);
+        if (selectedSourceType) {
+          urlParams.set('sourceType', selectedSourceType);
+        }
         const json = await fetchJson<
           | DocumentRow[]
           | { documents: DocumentRow[]; total?: number }
           | { documents: DocumentRow[] }
-        >(`${apiBase}/api/documents?projectId=${config.activeProjectId}`, {
+        >(`${apiBase}/api/documents?${urlParams.toString()}`, {
           headers: t ? { ...buildHeaders({ json: false }) } : {},
           json: false,
         });
@@ -315,6 +345,7 @@ export default function DocumentsPage() {
     fetchJson,
     config.activeOrgId,
     config.activeProjectId,
+    selectedSourceType,
   ]);
 
   // Refresh documents function for real-time updates (silent refresh without loading state)
@@ -327,7 +358,7 @@ export default function DocumentsPage() {
         | DocumentRow[]
         | { documents: DocumentRow[]; total?: number }
         | { documents: DocumentRow[] }
-      >(`${apiBase}/api/documents?_t=${Date.now()}`, {
+      >(buildDocumentsUrl(true), {
         headers: t ? { ...buildHeaders({ json: false }) } : {},
         json: false,
       });
@@ -342,7 +373,7 @@ export default function DocumentsPage() {
       console.error('[Documents] Failed to refresh:', e);
     }
   }, [
-    apiBase,
+    buildDocumentsUrl,
     getAccessToken,
     buildHeaders,
     fetchJson,
@@ -356,6 +387,22 @@ export default function DocumentsPage() {
     (event) => {
       console.debug('[Documents] Real-time event:', event.type, event.id);
       // Refresh on any document change (created, updated, deleted)
+      void refreshDocuments();
+    },
+    [refreshDocuments]
+  );
+
+  // Subscribe to extraction job events to update extraction status column
+  useDataUpdates(
+    'extraction_job:*',
+    (event) => {
+      console.debug(
+        '[Documents] Extraction job event:',
+        event.type,
+        event.id,
+        event.data
+      );
+      // Refresh documents to show updated extraction status
       void refreshDocuments();
     },
     [refreshDocuments]
@@ -539,19 +586,21 @@ export default function DocumentsPage() {
         ...(isValidUuid && { subject_id: user.sub }), // Canonical internal user ID (UUID)
       });
 
-      // Close modal and navigate to job detail page
+      // Close modal and show success toast
       setIsExtractionModalOpen(false);
       setSelectedDocumentForExtraction(null);
 
-      // Show success message briefly before navigation
+      // Show success message
       showToast({
-        message: 'Extraction job created successfully! Redirecting...',
+        message: `Extraction started for "${
+          selectedDocumentForExtraction.filename || 'document'
+        }"`,
         variant: 'success',
-        duration: 3000,
+        duration: 4000,
       });
-      setTimeout(() => {
-        navigate(`/admin/extraction-jobs/${job.id}`);
-      }, 1000);
+
+      // Refresh documents to show updated extraction status
+      void refreshDocuments();
     } catch (err) {
       console.error('Failed to create extraction job:', err);
       showToast({
@@ -744,9 +793,9 @@ export default function DocumentsPage() {
       // Show summary
       if (failCount === 0) {
         showToast({
-          message: `Successfully created ${successCount} extraction job${
+          message: `Extraction started for ${successCount} document${
             successCount !== 1 ? 's' : ''
-          }. View them in the Extraction Jobs page.`,
+          }`,
           variant: 'success',
           duration: 5000,
         });
@@ -760,7 +809,7 @@ export default function DocumentsPage() {
         });
       } else {
         showToast({
-          message: `Created ${successCount} extraction job${
+          message: `Extraction started for ${successCount} document${
             successCount !== 1 ? 's' : ''
           }, but ${failCount} failed. Failed: ${failedDocs.join(', ')}`,
           variant: 'warning',
@@ -768,11 +817,9 @@ export default function DocumentsPage() {
         });
       }
 
-      // Navigate to extraction jobs page after a delay
+      // Refresh documents to show updated extraction status
       if (successCount > 0) {
-        setTimeout(() => {
-          navigate('/admin/extraction-jobs');
-        }, 2000);
+        void refreshDocuments();
       }
     } catch (err) {
       console.error('Batch extraction failed:', err);
@@ -891,16 +938,16 @@ export default function DocumentsPage() {
         // Bulk deletion
         const result = await documentsClient.bulkDeleteDocuments(documentIds);
 
-        if (result.totalFailed === 0) {
+        if (result.notFound.length === 0) {
           showToast({
-            message: `Successfully deleted ${result.totalDeleted} document${
-              result.totalDeleted !== 1 ? 's' : ''
+            message: `Successfully deleted ${result.deleted} document${
+              result.deleted !== 1 ? 's' : ''
             }`,
             variant: 'success',
           });
         } else {
           showToast({
-            message: `Deleted ${result.totalDeleted} documents, but ${result.totalFailed} failed`,
+            message: `Deleted ${result.deleted} documents, but ${result.notFound.length} failed`,
             variant: 'warning',
             duration: 10000,
           });
@@ -1046,7 +1093,7 @@ export default function DocumentsPage() {
         const t2 = getAccessToken();
         const json = await fetchJson<
           DocumentRow[] | { documents: DocumentRow[] }
-        >(`${apiBase}/api/documents?_t=${Date.now()}`, {
+        >(buildDocumentsUrl(true), {
           headers: t2 ? { ...buildHeaders({ json: false }) } : {},
           json: false,
         });
@@ -1069,7 +1116,7 @@ export default function DocumentsPage() {
         const t2 = getAccessToken();
         const json = await fetchJson<
           DocumentRow[] | { documents: DocumentRow[] }
-        >(`${apiBase}/api/documents?_t=${Date.now()}`, {
+        >(buildDocumentsUrl(true), {
           headers: t2 ? { ...buildHeaders({ json: false }) } : {},
           json: false,
         });
@@ -1154,7 +1201,7 @@ export default function DocumentsPage() {
         const t2 = getAccessToken();
         const json = await fetchJson<
           DocumentRow[] | { documents: DocumentRow[] }
-        >(`${apiBase}/api/documents?_t=${Date.now()}`, {
+        >(buildDocumentsUrl(true), {
           headers: t2 ? { ...buildHeaders({ json: false }) } : {},
           json: false,
         });
@@ -1459,7 +1506,7 @@ export default function DocumentsPage() {
       const t2 = getAccessToken();
       const json = await fetchJson<
         DocumentRow[] | { documents: DocumentRow[]; total?: number }
-      >(`${apiBase}/api/documents?_t=${Date.now()}`, {
+      >(buildDocumentsUrl(true), {
         headers: t2 ? { ...buildHeaders({ json: false }) } : {},
         json: false,
       });
@@ -1529,80 +1576,179 @@ export default function DocumentsPage() {
     <PageContainer maxWidth="full" className="px-4" testId="page-documents">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="font-bold text-2xl inline-flex items-center gap-2">
-          Documents
-          {!loading && (
-            <span className="badge badge-ghost badge-lg font-normal">
-              {totalCount}
-            </span>
-          )}
-        </h1>
-        <p className="mt-1 text-base-content/70">
-          Upload and manage documents for knowledge extraction
-        </p>
-      </div>
-
-      {/* Upload controls */}
-      <div
-        className={
-          'mt-4 border-2 border-dashed rounded-box p-6 transition-colors ' +
-          (dragOver
-            ? 'border-primary bg-primary/5'
-            : 'border-base-300 bg-base-200/50')
-        }
-        onDragOver={onDragOver}
-        onDragEnter={onDragOver}
-        onDragLeave={onDragLeave}
-        onDrop={onDrop}
-        role="button"
-        aria-label="Upload documents. Click to choose files or drag and drop multiple files."
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            openChooser();
-          }
-        }}
-      >
-        <div className="flex justify-between items-center gap-4">
-          <div className="flex items-center gap-3">
-            <Icon icon="lucide--upload-cloud" className="size-6" aria-hidden />
-            <div>
-              <div className="font-medium">
-                Click to upload or drag & drop (multiple files supported)
-              </div>
-              <div className="opacity-70 text-sm">
-                Accepted: pdf, docx, pptx, xlsx, md, html, txt. Max 100MB per
-                file, 100 files per batch.
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              className="btn btn-primary"
-              onClick={openChooser}
-              disabled={uploading}
-            >
-              {uploading ? (
-                <>
-                  <Spinner size="sm" />
-                  Uploading...
-                </>
-              ) : (
-                'Upload documents'
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="font-bold text-2xl inline-flex items-center gap-2">
+              Data
+              {!loading && (
+                <span className="badge badge-ghost badge-lg font-normal">
+                  {totalCount}
+                </span>
               )}
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="hidden"
-              accept={[...acceptedMimeTypes, ...acceptedExtensions].join(',')}
-              onChange={onFileInputChange}
-              multiple
-            />
+            </h1>
+            <p className="mt-1 text-base-content/70">
+              {selectedSourceType
+                ? `${getSourceTypeDisplayName(
+                    selectedSourceType,
+                    true
+                  )} in your knowledge base`
+                : 'All data sources for knowledge extraction'}
+            </p>
+          </div>
+          {/* Source Type Filter Dropdown */}
+          <div className="flex items-center gap-2">
+            <div className="dropdown dropdown-end">
+              <label tabIndex={0} className="btn btn-outline btn-sm gap-2">
+                <Icon
+                  icon={
+                    selectedSourceType
+                      ? getSourceTypeIcon(selectedSourceType)
+                      : 'lucide--database'
+                  }
+                  className="size-4"
+                />
+                {selectedSourceType
+                  ? getSourceTypeDisplayName(selectedSourceType, true)
+                  : 'All Sources'}
+                <Icon icon="lucide--chevron-down" className="size-4" />
+              </label>
+              <ul
+                tabIndex={0}
+                className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-56 border border-base-200"
+              >
+                {/* All Sources option */}
+                <li>
+                  <button
+                    className={!selectedSourceType ? 'active' : ''}
+                    onClick={() => {
+                      setSearchParams({});
+                    }}
+                  >
+                    <Icon icon="lucide--database" className="size-4" />
+                    All Sources
+                    <span className="badge badge-ghost badge-sm ml-auto">
+                      {sourceTypeTotalCount}
+                    </span>
+                  </button>
+                </li>
+                <li className="menu-title">
+                  <span>Filter by source</span>
+                </li>
+                {/* Source type options from API (have documents) */}
+                {sourceTypes.map((st) => (
+                  <li key={st.sourceType}>
+                    <button
+                      className={
+                        selectedSourceType === st.sourceType ? 'active' : ''
+                      }
+                      onClick={() => {
+                        setSearchParams({ sourceType: st.sourceType });
+                      }}
+                    >
+                      <Icon
+                        icon={st.plugin?.icon || 'lucide--file-question'}
+                        className="size-4"
+                      />
+                      {st.plugin?.displayNamePlural || st.sourceType}
+                      <span className="badge badge-ghost badge-sm ml-auto">
+                        {st.count}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+                {/* Show registered plugins without documents (grayed out) */}
+                {allPlugins
+                  .filter(
+                    (p) =>
+                      !sourceTypes.find((st) => st.sourceType === p.sourceType)
+                  )
+                  .map((plugin) => (
+                    <li key={plugin.sourceType}>
+                      <button
+                        className="opacity-50 cursor-not-allowed"
+                        disabled
+                      >
+                        <Icon icon={plugin.icon} className="size-4" />
+                        {plugin.displayNamePlural}
+                        <span className="badge badge-ghost badge-sm ml-auto">
+                          0
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Upload controls - only show when viewing all sources or upload source type */}
+      {(!selectedSourceType || selectedSourceType === 'upload') && (
+        <div
+          className={
+            'mt-4 border-2 border-dashed rounded-box p-6 transition-colors ' +
+            (dragOver
+              ? 'border-primary bg-primary/5'
+              : 'border-base-300 bg-base-200/50')
+          }
+          onDragOver={onDragOver}
+          onDragEnter={onDragOver}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
+          role="button"
+          aria-label="Upload documents. Click to choose files or drag and drop multiple files."
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              openChooser();
+            }
+          }}
+        >
+          <div className="flex justify-between items-center gap-4">
+            <div className="flex items-center gap-3">
+              <Icon
+                icon="lucide--upload-cloud"
+                className="size-6"
+                aria-hidden
+              />
+              <div>
+                <div className="font-medium">
+                  Click to upload or drag & drop (multiple files supported)
+                </div>
+                <div className="opacity-70 text-sm">
+                  Accepted: pdf, docx, pptx, xlsx, md, html, txt. Max 100MB per
+                  file, 100 files per batch.
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                className="btn btn-primary"
+                onClick={openChooser}
+                disabled={uploading}
+              >
+                {uploading ? (
+                  <>
+                    <Spinner size="sm" />
+                    Uploading...
+                  </>
+                ) : (
+                  'Upload documents'
+                )}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                accept={[...acceptedMimeTypes, ...acceptedExtensions].join(',')}
+                onChange={onFileInputChange}
+                multiple
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Show detailed progress indicator when uploading/parsing/processing */}
       {uploadProgress && (
@@ -1833,344 +1979,479 @@ export default function DocumentsPage() {
       )}
 
       {/* Documents Table */}
-      <div
-        className={`mt-4 card bg-base-100 shadow-sm border border-base-200 ${
-          uploading || isDeleting ? 'opacity-60 pointer-events-none' : ''
-        }`}
-      >
-        <DataTable<DocumentRow>
-          data={data || []}
-          columns={
-            [
-              {
-                key: 'filename',
-                label: 'Document',
-                sortable: true,
-                width: 'max-w-[250px] sm:max-w-[350px] md:max-w-[450px]',
-                cellClassName:
-                  'max-w-[250px] sm:max-w-[350px] md:max-w-[450px]',
-                render: (doc) => (
-                  <span
-                    className="font-medium truncate block"
-                    title={doc.filename || ''}
-                  >
-                    {doc.filename || '(no name)'}
-                  </span>
-                ),
-              },
-              {
-                key: 'conversionStatus',
-                label: 'Conversion',
-                sortable: true,
-                width: 'w-32',
-                render: (doc) => {
-                  const status = doc.conversionStatus;
-
-                  // No conversion needed (plain text files) - show dash
-                  if (!status || status === 'not_required') {
-                    return (
-                      <span className="text-sm text-base-content/40">—</span>
-                    );
-                  }
-
-                  // Conversion completed successfully
-                  if (status === 'completed') {
-                    return (
-                      <div className="flex items-center gap-2">
-                        <Icon
-                          icon="lucide--check-circle"
-                          className="size-4 text-success"
-                        />
-                        <span className="text-sm text-base-content/70">
-                          Ready
-                        </span>
-                      </div>
-                    );
-                  }
-
-                  if (status === 'pending') {
-                    return (
-                      <div className="flex items-center gap-2">
-                        <Icon
-                          icon="lucide--clock"
-                          className="size-4 text-warning animate-pulse"
-                        />
-                        <span className="text-sm text-base-content/70">
-                          Pending
-                        </span>
-                      </div>
-                    );
-                  }
-
-                  if (status === 'processing') {
-                    return (
-                      <div className="flex items-center gap-2">
-                        <Icon
-                          icon="lucide--loader-circle"
-                          className="size-4 text-info animate-spin"
-                        />
-                        <span className="text-sm text-base-content/70">
-                          Converting
-                        </span>
-                      </div>
-                    );
-                  }
-
-                  if (status === 'failed') {
-                    const errorMessage =
-                      doc.conversionError || 'Conversion failed';
-                    return (
-                      <Tooltip
-                        content={
-                          <div className="max-w-xl">
-                            <div className="font-medium mb-1">
-                              Conversion Error
-                            </div>
-                            <div className="text-sm opacity-90">
-                              {errorMessage}
-                            </div>
-                          </div>
-                        }
-                        placement="bottom"
-                        color="error"
-                      >
-                        <div className="flex items-center gap-2 cursor-help">
-                          <Icon
-                            icon="lucide--alert-circle"
-                            className="size-4 text-error"
-                          />
-                          <span className="text-sm text-error">Failed</span>
-                        </div>
-                      </Tooltip>
-                    );
-                  }
-
+      <DataTable<DocumentRow>
+        data={data || []}
+        columns={
+          [
+            {
+              key: 'filename',
+              label: 'Document',
+              sortable: true,
+              width: 'max-w-[250px] sm:max-w-[350px] md:max-w-[450px]',
+              cellClassName: 'max-w-[250px] sm:max-w-[350px] md:max-w-[450px]',
+              render: (doc) => (
+                <span
+                  className="font-medium truncate block"
+                  title={doc.filename || ''}
+                >
+                  {doc.filename || '(no name)'}
+                </span>
+              ),
+            },
+            {
+              key: 'mimeType',
+              label: 'Type',
+              sortable: true,
+              width: 'w-24',
+              render: (doc) => {
+                const mime = doc.mime_type || doc.mimeType;
+                if (!mime) {
                   return (
                     <span className="text-sm text-base-content/40">—</span>
                   );
-                },
+                }
+                // Map common MIME types to friendly short labels
+                const mimeLabels: Record<string, string> = {
+                  'application/pdf': 'PDF',
+                  'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+                    'DOCX',
+                  'application/msword': 'DOC',
+                  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
+                    'XLSX',
+                  'application/vnd.ms-excel': 'XLS',
+                  'application/vnd.openxmlformats-officedocument.presentationml.presentation':
+                    'PPTX',
+                  'application/vnd.ms-powerpoint': 'PPT',
+                  'text/plain': 'TXT',
+                  'text/markdown': 'MD',
+                  'text/csv': 'CSV',
+                  'text/html': 'HTML',
+                  'application/json': 'JSON',
+                  'application/xml': 'XML',
+                  'text/xml': 'XML',
+                  'image/png': 'PNG',
+                  'image/jpeg': 'JPEG',
+                  'image/gif': 'GIF',
+                  'image/webp': 'WEBP',
+                  'message/rfc822': 'EML',
+                  'application/vnd.ms-outlook': 'MSG',
+                };
+                const label =
+                  mimeLabels[mime] ||
+                  mime.split('/').pop()?.toUpperCase() ||
+                  mime;
+                return (
+                  <span
+                    className="text-sm text-base-content/70 badge badge-ghost badge-sm"
+                    title={mime}
+                  >
+                    {label}
+                  </span>
+                );
               },
-              {
-                key: 'totalChars',
-                label: 'Chars',
-                sortable: true,
-                width: 'w-24',
-                render: (doc) => {
-                  const chars = doc.totalChars ?? 0;
-                  if (chars === 0) {
-                    return (
-                      <span className="text-sm text-base-content/40">—</span>
-                    );
-                  }
-                  // Format with thousands separator
+            },
+            {
+              key: 'conversionStatus',
+              label: 'Conversion',
+              sortable: true,
+              width: 'w-32',
+              render: (doc) => {
+                const status = doc.conversionStatus;
+
+                // No conversion needed (plain text files) - show dash
+                if (!status || status === 'not_required') {
                   return (
-                    <span className="text-sm text-base-content/70">
-                      {chars.toLocaleString()}
-                    </span>
+                    <span className="text-sm text-base-content/40">—</span>
                   );
-                },
-              },
-              {
-                key: 'embeddingStatus',
-                label: 'Embeddings',
-                sortable: true,
-                width: 'w-32',
-                render: (doc) => {
-                  const embedded = doc.embeddedChunks ?? 0;
-                  const total = doc.chunks ?? 0;
+                }
 
-                  if (total === 0) {
-                    return (
-                      <span className="text-sm text-base-content/40">—</span>
-                    );
-                  }
-
-                  const isComplete = embedded === total;
-                  const hasNone = embedded === 0;
-                  const iconColor = isComplete
-                    ? 'text-success'
-                    : hasNone
-                    ? 'text-warning'
-                    : 'text-info';
-                  const icon = isComplete
-                    ? 'lucide--check-circle'
-                    : hasNone
-                    ? 'lucide--clock'
-                    : 'lucide--loader-circle';
-                  // Pulse animation for pending (orange) or in-progress states
-                  const pulseClass = !isComplete ? 'animate-pulse' : '';
-
+                // Conversion completed successfully
+                if (status === 'completed') {
                   return (
                     <div className="flex items-center gap-2">
                       <Icon
-                        icon={icon}
-                        className={`size-4 ${iconColor} ${pulseClass}`}
+                        icon="lucide--check-circle"
+                        className="size-4 text-success"
                       />
                       <span className="text-sm text-base-content/70">
-                        {embedded}/{total}
+                        Ready
                       </span>
                     </div>
                   );
-                },
+                }
+
+                if (status === 'pending') {
+                  return (
+                    <div className="flex items-center gap-2">
+                      <Icon
+                        icon="lucide--clock"
+                        className="size-4 text-warning animate-pulse"
+                      />
+                      <span className="text-sm text-base-content/70">
+                        Pending
+                      </span>
+                    </div>
+                  );
+                }
+
+                if (status === 'processing') {
+                  return (
+                    <div className="flex items-center gap-2">
+                      <Icon
+                        icon="lucide--loader-circle"
+                        className="size-4 text-info animate-spin"
+                      />
+                      <span className="text-sm text-base-content/70">
+                        Converting
+                      </span>
+                    </div>
+                  );
+                }
+
+                if (status === 'failed') {
+                  const errorMessage =
+                    doc.conversionError || 'Conversion failed';
+                  return (
+                    <Tooltip
+                      content={
+                        <div className="max-w-xl">
+                          <div className="font-medium mb-1">
+                            Conversion Error
+                          </div>
+                          <div className="text-sm opacity-90">
+                            {errorMessage}
+                          </div>
+                        </div>
+                      }
+                      placement="bottom"
+                      color="error"
+                    >
+                      <div className="flex items-center gap-2 cursor-help">
+                        <Icon
+                          icon="lucide--alert-circle"
+                          className="size-4 text-error"
+                        />
+                        <span className="text-sm text-error">Failed</span>
+                      </div>
+                    </Tooltip>
+                  );
+                }
+
+                return <span className="text-sm text-base-content/40">—</span>;
               },
-              {
-                key: 'chunks',
-                label: 'Chunks',
-                sortable: true,
-                width: 'w-24',
-                render: (doc) => (
-                  <a
-                    href={`/admin/apps/chunks?docId=${doc.id}`}
-                    className="badge-outline hover:underline no-underline badge"
-                    title="View chunks for this document"
-                  >
-                    {doc.chunks}
-                  </a>
-                ),
-              },
-            ] as ColumnDef<DocumentRow>[]
-          }
-          filters={[
-            {
-              key: 'status',
-              label: 'Filter by Status',
-              icon: 'lucide--activity',
-              options: [
-                { value: 'completed', label: 'Completed' },
-                { value: 'running', label: 'Running' },
-                { value: 'pending', label: 'Pending' },
-                { value: 'failed', label: 'Failed' },
-              ],
-              getValue: (doc) => doc.extractionStatus || 'pending',
-              badgeColor: 'info',
             },
             {
-              key: 'type',
-              label: 'Filter by Type',
-              icon: 'lucide--file-type',
-              options: [
-                { value: 'application/pdf', label: 'PDF' },
-                {
-                  value:
-                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                  label: 'Word',
-                },
-                {
-                  value:
-                    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-                  label: 'PowerPoint',
-                },
-                {
-                  value:
-                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                  label: 'Excel',
-                },
-                { value: 'text/plain', label: 'Text' },
-                { value: 'text/markdown', label: 'Markdown' },
-                { value: 'text/html', label: 'HTML' },
-              ],
-              getValue: (doc) => doc.mime_type || 'unknown',
-              badgeColor: 'secondary',
+              key: 'totalChars',
+              label: 'Chars',
+              sortable: true,
+              width: 'w-24',
+              render: (doc) => {
+                const chars = doc.totalChars ?? 0;
+                if (chars === 0) {
+                  return (
+                    <span className="text-sm text-base-content/40">—</span>
+                  );
+                }
+                // Format with thousands separator
+                return (
+                  <span className="text-sm text-base-content/70">
+                    {chars.toLocaleString()}
+                  </span>
+                );
+              },
             },
-          ]}
-          rowActions={
-            [
+            {
+              key: 'embeddingStatus',
+              label: 'Embeddings',
+              sortable: true,
+              width: 'w-32',
+              render: (doc) => {
+                const embedded = doc.embeddedChunks ?? 0;
+                const total = doc.chunks ?? 0;
+
+                if (total === 0) {
+                  return (
+                    <span className="text-sm text-base-content/40">—</span>
+                  );
+                }
+
+                const isComplete = embedded === total;
+                const hasNone = embedded === 0;
+                const iconColor = isComplete
+                  ? 'text-success'
+                  : hasNone
+                  ? 'text-warning'
+                  : 'text-info';
+                const icon = isComplete
+                  ? 'lucide--check-circle'
+                  : hasNone
+                  ? 'lucide--clock'
+                  : 'lucide--loader-circle';
+                // Pulse animation for pending (orange) or in-progress states
+                const pulseClass = !isComplete ? 'animate-pulse' : '';
+
+                return (
+                  <div className="flex items-center gap-2">
+                    <Icon
+                      icon={icon}
+                      className={`size-4 ${iconColor} ${pulseClass}`}
+                    />
+                    <span className="text-sm text-base-content/70">
+                      {embedded}/{total}
+                    </span>
+                  </div>
+                );
+              },
+            },
+            {
+              key: 'extractionStatus',
+              label: 'Extraction',
+              sortable: true,
+              width: 'w-28',
+              render: (doc) => {
+                const status = doc.extractionStatus;
+
+                // No extraction yet
+                if (!status) {
+                  return (
+                    <span className="text-sm text-base-content/40">—</span>
+                  );
+                }
+
+                // Queued - waiting to start
+                if (status === 'queued') {
+                  return (
+                    <div className="flex items-center gap-2">
+                      <Icon
+                        icon="lucide--clock"
+                        className="size-4 text-warning animate-pulse"
+                      />
+                      <span className="text-sm text-base-content/70">
+                        Queued
+                      </span>
+                    </div>
+                  );
+                }
+
+                // Running - extraction in progress
+                if (status === 'running') {
+                  return (
+                    <div className="flex items-center gap-2">
+                      <Icon
+                        icon="lucide--loader-circle"
+                        className="size-4 text-info animate-spin"
+                      />
+                      <span className="text-sm text-base-content/70">
+                        Running
+                      </span>
+                    </div>
+                  );
+                }
+
+                // Completed successfully
+                if (status === 'completed') {
+                  return (
+                    <div className="flex items-center gap-2">
+                      <Icon
+                        icon="lucide--check-circle"
+                        className="size-4 text-success"
+                      />
+                      <span className="text-sm text-base-content/70">Done</span>
+                    </div>
+                  );
+                }
+
+                // Requires review
+                if (status === 'requires_review') {
+                  return (
+                    <div className="flex items-center gap-2">
+                      <Icon
+                        icon="lucide--alert-triangle"
+                        className="size-4 text-warning"
+                      />
+                      <span className="text-sm text-base-content/70">
+                        Review
+                      </span>
+                    </div>
+                  );
+                }
+
+                // Failed
+                if (status === 'failed') {
+                  return (
+                    <div className="flex items-center gap-2">
+                      <Icon
+                        icon="lucide--alert-circle"
+                        className="size-4 text-error"
+                      />
+                      <span className="text-sm text-error">Failed</span>
+                    </div>
+                  );
+                }
+
+                // Unknown status - show as-is
+                return (
+                  <span className="text-sm text-base-content/70">{status}</span>
+                );
+              },
+            },
+            {
+              key: 'chunks',
+              label: 'Chunks',
+              sortable: true,
+              width: 'w-24',
+              render: (doc) => (
+                <a
+                  href={`/admin/apps/chunks?docId=${doc.id}`}
+                  className="badge-outline hover:underline no-underline badge"
+                  title="View chunks for this document"
+                >
+                  {doc.chunks}
+                </a>
+              ),
+            },
+          ] as ColumnDef<DocumentRow>[]
+        }
+        filters={[
+          {
+            key: 'status',
+            label: 'Filter by Status',
+            icon: 'lucide--activity',
+            options: [
+              { value: 'completed', label: 'Completed' },
+              { value: 'running', label: 'Running' },
+              { value: 'pending', label: 'Pending' },
+              { value: 'failed', label: 'Failed' },
+            ],
+            getValue: (doc) => doc.extractionStatus || 'pending',
+            badgeColor: 'info',
+          },
+          {
+            key: 'type',
+            label: 'Filter by Type',
+            icon: 'lucide--file-type',
+            options: [
+              { value: 'application/pdf', label: 'PDF' },
               {
-                label: 'Preview',
-                icon: 'lucide--eye',
-                onAction: (doc) => {
-                  setPreview(doc);
-                  // Record activity for Recent Items feature (fire-and-forget)
-                  recordActivity({
-                    resourceType: 'document',
-                    resourceId: doc.id,
-                    resourceName: doc.filename || undefined,
-                    resourceSubtype: doc.mime_type || undefined,
-                    actionType: 'viewed',
-                  });
-                },
+                value:
+                  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                label: 'Word',
               },
               {
-                label: 'Extract',
-                icon: 'lucide--sparkles',
-                onAction: handleExtractObjects,
+                value:
+                  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                label: 'PowerPoint',
               },
               {
-                label: 'View chunks',
-                icon: 'lucide--list',
-                asLink: true,
-                href: (doc) => `/admin/apps/chunks?docId=${doc.id}`,
+                value:
+                  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                label: 'Excel',
               },
-              {
-                label: 'Recreate chunks',
-                icon: 'lucide--refresh-cw',
-                onAction: handleRecreateChunks,
+              { value: 'text/plain', label: 'Text' },
+              { value: 'text/markdown', label: 'Markdown' },
+              { value: 'text/html', label: 'HTML' },
+            ],
+            getValue: (doc) => doc.mime_type || 'unknown',
+            badgeColor: 'secondary',
+          },
+        ]}
+        rowActions={
+          [
+            {
+              label: 'View Details',
+              icon: 'lucide--eye',
+              onAction: (doc) => {
+                setSelectedDocumentForDetail(doc);
+                // Record activity for Recent Items feature (fire-and-forget)
+                recordActivity({
+                  resourceType: 'document',
+                  resourceId: doc.id,
+                  resourceName: doc.filename || undefined,
+                  resourceSubtype: doc.mime_type || undefined,
+                  actionType: 'viewed',
+                });
               },
-              {
-                label: 'View metadata',
-                icon: 'lucide--info',
-                onAction: handleViewMetadata,
-                hidden: (doc: DocumentRow) => !doc.integrationMetadata,
-              },
-              {
-                label: 'Retry conversion',
-                icon: 'lucide--rotate-ccw',
-                onAction: handleRetryConversion,
-                hidden: (doc: DocumentRow) => doc.conversionStatus !== 'failed',
-                variant: 'warning',
-              },
-              {
-                label: 'Delete',
-                icon: 'lucide--trash-2',
-                onAction: handleDeleteDocument,
-                variant: 'error',
-              },
-            ] as RowAction<DocumentRow>[]
-          }
-          bulkActions={
-            [
-              {
-                key: 'extract',
-                label: 'Extract',
-                icon: 'lucide--sparkles',
-                variant: 'primary',
-                style: 'solid',
-                onAction: handleBulkExtract,
-              },
-              {
-                key: 'recreate-chunks',
-                label: 'Recreate Chunks',
-                icon: 'lucide--refresh-cw',
-                variant: 'secondary',
-                style: 'outline',
-                onAction: handleBulkRecreateChunks,
-              },
-              {
-                key: 'delete',
-                label: 'Delete',
-                icon: 'lucide--trash-2',
-                variant: 'error',
-                style: 'outline',
-                onAction: handleBulkDelete,
-              },
-            ] as BulkAction<DocumentRow>[]
-          }
-          loading={loading}
-          error={error}
-          enableSelection={true}
-          enableSearch={true}
-          searchPlaceholder="Search documents..."
-          getSearchText={(doc) =>
-            `${doc.filename || ''} ${doc.source_url || ''} ${
-              doc.mime_type || ''
-            }`
-          }
-          emptyMessage="No documents uploaded yet. Upload a document to get started."
-          emptyIcon="lucide--file-text"
-          formatDate={(date) => new Date(date).toLocaleDateString()}
-          useDropdownActions={true}
-        />
-      </div>
+            },
+            {
+              label: 'Extract',
+              icon: 'lucide--sparkles',
+              onAction: handleExtractObjects,
+            },
+            {
+              label: 'View chunks',
+              icon: 'lucide--list',
+              asLink: true,
+              href: (doc) => `/admin/apps/chunks?docId=${doc.id}`,
+            },
+            {
+              label: 'Recreate chunks',
+              icon: 'lucide--refresh-cw',
+              onAction: handleRecreateChunks,
+            },
+            {
+              label: 'View metadata',
+              icon: 'lucide--info',
+              onAction: handleViewMetadata,
+              hidden: (doc: DocumentRow) => !doc.integrationMetadata,
+            },
+            {
+              label: 'Retry conversion',
+              icon: 'lucide--rotate-ccw',
+              onAction: handleRetryConversion,
+              hidden: (doc: DocumentRow) => doc.conversionStatus !== 'failed',
+              variant: 'warning',
+            },
+            {
+              label: 'Delete',
+              icon: 'lucide--trash-2',
+              onAction: handleDeleteDocument,
+              variant: 'error',
+            },
+          ] as RowAction<DocumentRow>[]
+        }
+        bulkActions={
+          [
+            {
+              key: 'extract',
+              label: 'Extract',
+              icon: 'lucide--sparkles',
+              variant: 'primary',
+              style: 'solid',
+              onAction: handleBulkExtract,
+            },
+            {
+              key: 'recreate-chunks',
+              label: 'Recreate Chunks',
+              icon: 'lucide--refresh-cw',
+              variant: 'secondary',
+              style: 'outline',
+              onAction: handleBulkRecreateChunks,
+            },
+            {
+              key: 'delete',
+              label: 'Delete',
+              icon: 'lucide--trash-2',
+              variant: 'error',
+              style: 'outline',
+              onAction: handleBulkDelete,
+            },
+          ] as BulkAction<DocumentRow>[]
+        }
+        loading={loading}
+        error={error}
+        enableSelection={true}
+        enableSearch={true}
+        searchPlaceholder="Search documents..."
+        getSearchText={(doc) =>
+          `${doc.filename || ''} ${doc.source_url || ''} ${doc.mime_type || ''}`
+        }
+        emptyMessage="No documents uploaded yet. Upload a document to get started."
+        emptyIcon="lucide--file-text"
+        formatDate={(date) => new Date(date).toLocaleDateString()}
+        useDropdownActions={true}
+        disabled={uploading || isDeleting}
+        className="mt-4"
+      />
 
       {/* Extraction Configuration Modal */}
       <ExtractionConfigModal
@@ -2221,75 +2502,62 @@ export default function DocumentsPage() {
         fetchImpact={fetchDeletionImpact}
       />
 
-      {/* Document Preview Modal */}
-      {preview && (
-        <dialog className="modal" open>
-          <div className="max-w-5xl modal-box">
-            <h3 className="card-title">{preview.filename || '(no name)'}</h3>
-            <div className="mt-2 text-sm text-base-content/70">
-              {preview.mime_type && (
-                <span className="mr-3">Type: {preview.mime_type}</span>
-              )}
-              {preview.source_url && (
-                <a
-                  href={preview.source_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="link link-primary"
-                >
-                  View source
-                </a>
-              )}
-            </div>
-            <div className="space-y-2 mt-4">
-              <div className="text-sm">
-                <span className="font-medium">Chunks:</span> {preview.chunks}
-              </div>
-              {preview.created_at && (
-                <div className="text-sm">
-                  <span className="font-medium">Created:</span>{' '}
-                  {new Date(preview.created_at).toLocaleString()}
-                </div>
-              )}
-              {preview.extractionStatus && (
-                <div className="text-sm">
-                  <span className="font-medium">Extraction:</span>{' '}
-                  {preview.extractionStatus}
-                  {preview.extractionObjectsCount &&
-                    ` (${preview.extractionObjectsCount} objects)`}
-                </div>
-              )}
-            </div>
-
-            {/* Document Content */}
-            <div className="mt-6">
-              <div className="mb-2 font-medium text-sm">Content:</div>
-              {loadingPreviewContent ? (
-                <div className="flex justify-center items-center py-8">
-                  <Spinner size="md" />
-                </div>
-              ) : (
-                <pre className="bg-base-200 p-4 rounded-box max-h-96 overflow-y-auto text-sm whitespace-pre-wrap">
-                  {previewContent || '(empty)'}
-                </pre>
-              )}
-            </div>
-
-            <div className="modal-action">
-              <button className="btn" onClick={() => setPreview(null)}>
-                Close
-              </button>
-            </div>
-          </div>
-          <form
-            method="dialog"
-            className="modal-backdrop"
-            onSubmit={() => setPreview(null)}
-          >
-            <button>close</button>
-          </form>
-        </dialog>
-      )}
+      {/* Document Detail Modal */}
+      <DocumentDetailModal
+        document={
+          selectedDocumentForDetail
+            ? ({
+                id: selectedDocumentForDetail.id,
+                filename: selectedDocumentForDetail.filename,
+                name: selectedDocumentForDetail.name,
+                source_url: selectedDocumentForDetail.source_url,
+                sourceUrl: selectedDocumentForDetail.sourceUrl,
+                mime_type: selectedDocumentForDetail.mime_type,
+                mimeType: selectedDocumentForDetail.mimeType,
+                created_at: selectedDocumentForDetail.created_at,
+                createdAt: selectedDocumentForDetail.createdAt,
+                updated_at: selectedDocumentForDetail.updated_at,
+                updatedAt: selectedDocumentForDetail.updatedAt,
+                content: selectedDocumentForDetail.content,
+                content_length: selectedDocumentForDetail.content_length,
+                contentLength: selectedDocumentForDetail.contentLength,
+                chunks: selectedDocumentForDetail.chunks,
+                totalChars: selectedDocumentForDetail.totalChars,
+                embeddedChunks: selectedDocumentForDetail.embeddedChunks,
+                extractionStatus: selectedDocumentForDetail.extractionStatus,
+                extractionCompletedAt:
+                  selectedDocumentForDetail.extractionCompletedAt,
+                extractionObjectsCount:
+                  selectedDocumentForDetail.extractionObjectsCount,
+                integrationMetadata:
+                  selectedDocumentForDetail.integrationMetadata,
+                metadata: selectedDocumentForDetail.metadata,
+                conversionStatus: selectedDocumentForDetail.conversionStatus,
+                conversionError: selectedDocumentForDetail.conversionError,
+                conversionCompletedAt:
+                  selectedDocumentForDetail.conversionCompletedAt,
+                sourceType: selectedDocumentForDetail.sourceType,
+                parentDocumentId: selectedDocumentForDetail.parentDocumentId,
+                childCount: selectedDocumentForDetail.childCount,
+                projectId: selectedDocumentForDetail.projectId,
+                externalSourceId: selectedDocumentForDetail.externalSourceId,
+                dataSourceIntegrationId:
+                  selectedDocumentForDetail.dataSourceIntegrationId,
+                storageKey: selectedDocumentForDetail.storageKey,
+                storageUrl: selectedDocumentForDetail.storageUrl,
+                fileHash: selectedDocumentForDetail.fileHash,
+                contentHash: selectedDocumentForDetail.contentHash,
+                syncVersion: selectedDocumentForDetail.syncVersion,
+                fileSizeBytes: selectedDocumentForDetail.fileSizeBytes,
+              } as DetailDocumentRow)
+            : null
+        }
+        isOpen={!!selectedDocumentForDetail}
+        onClose={() => setSelectedDocumentForDetail(null)}
+        onDocumentChange={(doc) =>
+          setSelectedDocumentForDetail(normalize(doc as any))
+        }
+      />
     </PageContainer>
   );
 }

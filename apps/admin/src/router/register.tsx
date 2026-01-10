@@ -51,16 +51,7 @@ const dashboardRoutes: IRoutesProps[] = [
     path: '/admin/objects',
     element: cw(lazy(() => import('@/pages/admin/pages/objects/index'))),
   },
-  {
-    path: '/admin/extraction-jobs',
-    element: cw(lazy(() => import('@/pages/admin/pages/extraction-jobs'))),
-  },
-  {
-    path: '/admin/extraction-jobs/:jobId',
-    element: cw(
-      lazy(() => import('@/pages/admin/pages/extraction-jobs/detail'))
-    ),
-  },
+
   {
     path: '/admin/integrations',
     element: cw(lazy(() => import('@/pages/admin/pages/integrations'))),
@@ -68,6 +59,48 @@ const dashboardRoutes: IRoutesProps[] = [
   {
     path: '/admin/agents',
     element: cw(lazy(() => import('@/pages/admin/pages/agents'))),
+  },
+  // Data Sources routes
+  {
+    path: '/admin/data-sources',
+    element: <Navigate to="/admin/apps/documents" replace />,
+  },
+  // Redirect old email route to new unified Data page with email filter
+  {
+    path: '/admin/data-sources/email',
+    element: <Navigate to="/admin/apps/documents?sourceType=email" replace />,
+  },
+  // Redirect old upload route to new unified Data page with upload filter
+  {
+    path: '/admin/data-sources/upload',
+    element: <Navigate to="/admin/apps/documents?sourceType=upload" replace />,
+  },
+  // Redirect old drive route to new unified Data page with drive filter
+  {
+    path: '/admin/data-sources/drive',
+    element: <Navigate to="/admin/apps/documents?sourceType=drive" replace />,
+  },
+  {
+    path: '/admin/data-sources/:sourceType',
+    element: cw(lazy(() => import('@/pages/admin/data-sources/source-type'))),
+  },
+  {
+    path: '/admin/data-sources/integrations',
+    element: cw(
+      lazy(() => import('@/pages/admin/data-sources/integrations/index'))
+    ),
+  },
+  {
+    path: '/admin/data-sources/integrations/new',
+    element: cw(
+      lazy(() => import('@/pages/admin/data-sources/integrations/new'))
+    ),
+  },
+  {
+    path: '/admin/data-sources/integrations/:id',
+    element: cw(
+      lazy(() => import('@/pages/admin/data-sources/integrations/detail'))
+    ),
   },
   {
     path: '/admin/inbox',
@@ -191,6 +224,10 @@ const dashboardRoutes: IRoutesProps[] = [
         element: cw(
           lazy(() => import('@/pages/admin/superadmin/jobs/conversion'))
         ),
+      },
+      {
+        path: 'jobs/sync',
+        element: cw(lazy(() => import('@/pages/admin/superadmin/jobs/sync'))),
       },
       {
         path: 'emails',

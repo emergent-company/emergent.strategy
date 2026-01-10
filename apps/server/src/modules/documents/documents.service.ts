@@ -38,6 +38,7 @@ interface DocumentRow {
   created_at: string;
   updated_at: string;
   integration_metadata: Record<string, any> | null;
+  metadata: Record<string, any> | null;
   chunks: number;
   total_chars: number | null;
   embedded_chunks: number | null;
@@ -49,7 +50,34 @@ interface DocumentRow {
   conversion_error: string | null;
   conversion_completed_at: string | null;
   storage_key: string | null;
+  storage_url: string | null;
   file_size_bytes: number | null;
+  // Data source fields
+  source_type: string | null;
+  data_source_integration_id: string | null;
+  parent_document_id: string | null;
+  child_count: number | null;
+  // Additional system fields
+  external_source_id: string | null;
+  sync_version: number | null;
+  file_hash: string | null;
+  content_hash: string | null;
+}
+
+/**
+ * Filter options for listing documents.
+ */
+interface DocumentListFilter {
+  orgId?: string;
+  projectId?: string;
+  /** Filter by source type (e.g., 'upload', 'email', 'url') */
+  sourceType?: string;
+  /** Filter by data source integration ID */
+  dataSourceIntegrationId?: string;
+  /** If true, only return root documents (no parent) */
+  rootOnly?: boolean;
+  /** Filter by parent document ID (get children of a specific document) */
+  parentDocumentId?: string;
 }
 
 @Injectable()
@@ -79,7 +107,7 @@ export class DocumentsService {
   async list(
     limit = 100,
     cursor?: { createdAt: string; id: string },
-    filter?: { orgId?: string; projectId?: string }
+    filter?: DocumentListFilter
   ): Promise<{
     items: DocumentDto[];
     nextCursor: string | null;
@@ -95,32 +123,70 @@ export class DocumentsService {
     if (cursor) {
       params.push(cursor.createdAt, cursor.id);
       conds.push(
-        `(d.created_at < $${paramIdx} OR (d.created_at = $${paramIdx} AND d.id < $${
+        `(d.created_at < $${paramIdx}::timestamptz OR (d.created_at = $${paramIdx}::timestamptz AND d.id < $${
           paramIdx + 1
-        }))`
+        }::uuid))`
       );
       paramIdx += 2;
+    }
+
+    // Filter by source type
+    if (filter?.sourceType) {
+      params.push(filter.sourceType);
+      conds.push(`d.source_type = $${paramIdx}::text`);
+      paramIdx++;
+    }
+
+    // Filter by data source integration ID
+    if (filter?.dataSourceIntegrationId) {
+      params.push(filter.dataSourceIntegrationId);
+      conds.push(`d.data_source_integration_id = $${paramIdx}::uuid`);
+      paramIdx++;
+    }
+
+    // Filter to root documents only (no parent)
+    if (filter?.rootOnly) {
+      conds.push(`d.parent_document_id IS NULL`);
+    }
+
+    // Filter by parent document ID (get children of a specific document)
+    if (filter?.parentDocumentId) {
+      params.push(filter.parentDocumentId);
+      conds.push(`d.parent_document_id = $${paramIdx}::uuid`);
+      paramIdx++;
     }
 
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
 
     // Use DatabaseService to ensure RLS context is set
     const queryFn = async () => {
-      // Get total count first (respecting RLS)
+      // Build count query with same filters (respecting RLS)
+      // Re-number parameters for count query since we exclude the limit param ($1)
+      const countConds = conds.map((cond) =>
+        cond.replace(/\$(\d+)/g, (_, num) => `$${parseInt(num, 10) - 1}`)
+      );
+      const countWhere = countConds.length
+        ? `WHERE ${countConds.join(' AND ')}`
+        : '';
+      const countParams = params.slice(1); // Remove limit param
       const countResult = await this.db.query(
-        `SELECT COUNT(*)::int as total FROM kb.documents`
+        `SELECT COUNT(*)::int as total FROM kb.documents d ${countWhere}`,
+        countParams
       );
       const total = countResult.rows[0]?.total || 0;
 
       const result = await this.db.query(
         `SELECT d.id, d.project_id, d.filename, d.source_url, d.mime_type, d.created_at, d.updated_at,
-                      d.integration_metadata,
+                      d.integration_metadata, d.metadata,
                       d.conversion_status, d.conversion_error, d.conversion_completed_at,
-                      d.storage_key, d.file_size_bytes,
+                      d.storage_key, d.storage_url, d.file_size_bytes,
+                      d.source_type, d.data_source_integration_id, d.parent_document_id,
+                      d.external_source_id, d.sync_version, d.file_hash, d.content_hash,
                       LENGTH(d.content) AS content_length,
                       COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id),0) AS chunks,
                       COALESCE((SELECT SUM(LENGTH(c.text))::int FROM kb.chunks c WHERE c.document_id = d.id),0) AS total_chars,
                       COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id AND c.embedding IS NOT NULL),0) AS embedded_chunks,
+                      COALESCE((SELECT COUNT(*)::int FROM kb.documents child WHERE child.parent_document_id = d.id),0) AS child_count,
                       ej.status AS extraction_status,
                       ej.completed_at AS extraction_completed_at,
                       ej.objects_created AS extraction_objects_count
@@ -170,10 +236,16 @@ export class DocumentsService {
       // We only filter by document ID - RLS ensures it's from the correct project
       const result = await this.db.query(
         `SELECT d.id, d.project_id, d.filename, d.source_url, d.mime_type, d.content, d.created_at, d.updated_at,
-                      d.integration_metadata,
+                      d.integration_metadata, d.metadata,
                       d.conversion_status, d.conversion_error, d.conversion_completed_at,
-                      d.storage_key, d.file_size_bytes,
+                      d.storage_key, d.storage_url, d.file_size_bytes,
+                      d.source_type, d.data_source_integration_id, d.parent_document_id,
+                      d.external_source_id, d.sync_version, d.file_hash, d.content_hash,
+                      LENGTH(d.content) AS content_length,
                       COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id),0) AS chunks,
+                      COALESCE((SELECT SUM(LENGTH(c.text))::int FROM kb.chunks c WHERE c.document_id = d.id),0) AS total_chars,
+                      COALESCE((SELECT COUNT(*)::int FROM kb.chunks c WHERE c.document_id = d.id AND c.embedding IS NOT NULL),0) AS embedded_chunks,
+                      COALESCE((SELECT COUNT(*)::int FROM kb.documents child WHERE child.parent_document_id = d.id),0) AS child_count,
                       ej.status AS extraction_status,
                       ej.completed_at AS extraction_completed_at,
                       ej.objects_created AS extraction_objects_count
@@ -199,6 +271,48 @@ export class DocumentsService {
 
     if (!rows || rows.length === 0) return null;
     return this.mapRow(rows[0]);
+  }
+
+  /**
+   * Get distinct source types with document counts for a project.
+   * Useful for building a sidebar showing available document sources.
+   * Only counts root documents (parent_document_id IS NULL) to match table view.
+   */
+  async getSourceTypesWithCounts(projectId: string): Promise<
+    Array<{
+      sourceType: string;
+      count: number;
+      dataSourceIntegrationId?: string;
+      integrationName?: string;
+    }>
+  > {
+    const queryFn = async () => {
+      // Get counts grouped by source_type and data_source_integration_id
+      // Only count root documents (no parent) to match the table view which uses rootOnly=true
+      const result = await this.db.query(
+        `SELECT 
+           d.source_type,
+           d.data_source_integration_id,
+           dsi.name as integration_name,
+           COUNT(*)::int as count
+         FROM kb.documents d
+         LEFT JOIN kb.data_source_integrations dsi ON dsi.id = d.data_source_integration_id
+         WHERE d.parent_document_id IS NULL
+         GROUP BY d.source_type, d.data_source_integration_id, dsi.name
+         ORDER BY count DESC, d.source_type`,
+        []
+      );
+      return result.rows;
+    };
+
+    const rows = await this.db.runWithTenantContext(projectId, queryFn);
+
+    return rows.map((row: any) => ({
+      sourceType: row.source_type || 'upload',
+      count: row.count,
+      dataSourceIntegrationId: row.data_source_integration_id || undefined,
+      integrationName: row.integration_name || undefined,
+    }));
   }
 
   /**
@@ -242,6 +356,33 @@ export class DocumentsService {
         : null,
       projectId: rows[0].project_id,
       conversionStatus: rows[0].conversion_status,
+    };
+  }
+
+  /**
+   * Get just the content of a document.
+   * Useful for lazy loading content in UIs without fetching full document metadata.
+   */
+  async getContent(
+    id: string,
+    filter?: { projectId?: string }
+  ): Promise<{ content: string | null } | null> {
+    const queryFn = async () => {
+      const result = await this.db.query(
+        `SELECT content FROM kb.documents WHERE id = $1`,
+        [id]
+      );
+      return result.rows;
+    };
+
+    const rows = filter?.projectId
+      ? await this.db.runWithTenantContext(filter.projectId, queryFn)
+      : await queryFn();
+
+    if (!rows || rows.length === 0) return null;
+
+    return {
+      content: rows[0].content,
     };
   }
 
@@ -639,6 +780,28 @@ export class DocumentsService {
     });
   }
 
+  /**
+   * Mark document conversion as failed with an error message.
+   */
+  async markConversionFailed(documentId: string, error: string): Promise<void> {
+    await this.documentRepository.update(documentId, {
+      conversionStatus: 'failed',
+      conversionError: error,
+      conversionCompletedAt: new Date(),
+    });
+  }
+
+  /**
+   * Mark document as not requiring conversion.
+   */
+  async markConversionNotRequired(documentId: string): Promise<void> {
+    await this.documentRepository.update(documentId, {
+      conversionStatus: 'not_required',
+      conversionError: null,
+      conversionCompletedAt: null,
+    });
+  }
+
   async getProjectOrg(projectId: string): Promise<string | null> {
     const project = await this.projectRepository.findOne({
       where: { id: projectId },
@@ -762,6 +925,7 @@ export class DocumentsService {
 
   /**
    * Get bulk deletion impact analysis for multiple documents
+   * Uses batched SQL queries for efficiency with large numbers of documents
    */
   async getBulkDeletionImpact(documentIds: string[]): Promise<{
     totalDocuments: number;
@@ -797,27 +961,197 @@ export class DocumentsService {
       };
     }
 
-    // Get per-document impact by calling getDeletionImpact for each document
-    const perDocumentImpacts = await Promise.all(
-      documentIds.map(async (docId) => {
-        const impact = await this.getDeletionImpact(docId);
-        return impact;
-      })
+    // Use batched queries for efficiency instead of per-document queries
+    // This is critical for bulk operations with many documents (e.g., 50-100+)
+
+    // 1. Get all documents info in one query
+    const docsResult = await this.dataSource.query(
+      `SELECT id, filename, source_url, created_at 
+       FROM kb.documents 
+       WHERE id = ANY($1)`,
+      [documentIds]
     );
 
-    // Filter out null results (documents that don't exist)
-    const validImpacts = perDocumentImpacts.filter((impact) => impact !== null);
+    if (docsResult.length === 0) {
+      return {
+        totalDocuments: 0,
+        impact: {
+          chunks: 0,
+          extractionJobs: 0,
+          graphObjects: 0,
+          graphRelationships: 0,
+          notifications: 0,
+        },
+        documents: [],
+      };
+    }
+
+    const existingDocIds = docsResult.map((row: any) => row.id);
+
+    // 2. Count chunks per document in one query
+    const chunksResult = await this.dataSource.query(
+      `SELECT document_id, COUNT(*)::int as count 
+       FROM kb.chunks 
+       WHERE document_id = ANY($1) 
+       GROUP BY document_id`,
+      [existingDocIds]
+    );
+    const chunksMap = new Map<string, number>(
+      chunksResult.map((row: any) => [row.document_id, row.count])
+    );
+
+    // 3. Count extraction jobs per document in one query
+    const jobsResult = await this.dataSource.query(
+      `SELECT document_id, COUNT(*)::int as count 
+       FROM kb.object_extraction_jobs 
+       WHERE document_id = ANY($1) 
+       GROUP BY document_id`,
+      [existingDocIds]
+    );
+    const jobsMap = new Map<string, number>(
+      jobsResult.map((row: any) => [row.document_id, row.count])
+    );
+
+    // 4. Get all extraction job IDs for these documents in one query
+    const jobIdsResult = await this.dataSource.query(
+      `SELECT id, document_id 
+       FROM kb.object_extraction_jobs 
+       WHERE document_id = ANY($1)`,
+      [existingDocIds]
+    );
+    const allJobIds = jobIdsResult.map((row: any) => row.id);
+    const jobIdsByDoc = new Map<string, string[]>();
+    for (const row of jobIdsResult) {
+      const existing = jobIdsByDoc.get(row.document_id) || [];
+      existing.push(row.id);
+      jobIdsByDoc.set(row.document_id, existing);
+    }
+
+    // 5. Count graph objects per extraction job (then aggregate per document)
+    let objectsMap = new Map<string, number>();
+    let allObjectIds: string[] = [];
+    let objectIdsByDoc = new Map<string, string[]>();
+
+    if (allJobIds.length > 0) {
+      const objectsResult = await this.dataSource.query(
+        `SELECT extraction_job_id, COUNT(*)::int as count 
+         FROM kb.graph_objects 
+         WHERE extraction_job_id = ANY($1) 
+         GROUP BY extraction_job_id`,
+        [allJobIds]
+      );
+      const objectsByJob = new Map<string, number>(
+        objectsResult.map((row: any) => [row.extraction_job_id, row.count])
+      );
+
+      // Aggregate objects per document
+      for (const [docId, jobIds] of jobIdsByDoc) {
+        const total = jobIds.reduce(
+          (sum, jobId) => sum + (objectsByJob.get(jobId) || 0),
+          0
+        );
+        objectsMap.set(docId, total);
+      }
+
+      // Get all object IDs for relationship counting
+      const objectIdsResult = await this.dataSource.query(
+        `SELECT id, extraction_job_id 
+         FROM kb.graph_objects 
+         WHERE extraction_job_id = ANY($1)`,
+        [allJobIds]
+      );
+      allObjectIds = objectIdsResult.map((row: any) => row.id);
+
+      // Map object IDs to documents via extraction jobs
+      const jobToDoc = new Map<string, string>();
+      for (const [docId, jobIds] of jobIdsByDoc) {
+        for (const jobId of jobIds) {
+          jobToDoc.set(jobId, docId);
+        }
+      }
+      for (const row of objectIdsResult) {
+        const docId = jobToDoc.get(row.extraction_job_id);
+        if (docId) {
+          const existing = objectIdsByDoc.get(docId) || [];
+          existing.push(row.id);
+          objectIdsByDoc.set(docId, existing);
+        }
+      }
+    }
+
+    // 6. Count relationships per document (objects where src or dst belongs to doc)
+    let relationshipsMap = new Map<string, number>();
+    if (allObjectIds.length > 0) {
+      // For bulk, just get total count - per-document breakdown would require complex query
+      const relResult = await this.dataSource.query(
+        `SELECT COUNT(*)::int as count 
+         FROM kb.graph_relationships 
+         WHERE src_id = ANY($1) OR dst_id = ANY($1)`,
+        [allObjectIds]
+      );
+      const totalRelationships = relResult[0]?.count || 0;
+
+      // Distribute relationships proportionally based on object count per doc
+      // This is an approximation for the summary, exact per-doc would need subqueries
+      const totalObjects = allObjectIds.length;
+      for (const [docId, objIds] of objectIdsByDoc) {
+        const proportion = objIds.length / totalObjects;
+        relationshipsMap.set(
+          docId,
+          Math.round(totalRelationships * proportion)
+        );
+      }
+    }
+
+    // 7. Count notifications per document in one query
+    const notificationsResult = await this.dataSource.query(
+      `SELECT related_resource_id, COUNT(*)::int as count 
+       FROM kb.notifications 
+       WHERE related_resource_type = 'document' AND related_resource_id = ANY($1) 
+       GROUP BY related_resource_id`,
+      [existingDocIds]
+    );
+    const notificationsMap = new Map<string, number>(
+      notificationsResult.map((row: any) => [
+        row.related_resource_id,
+        row.count,
+      ])
+    );
+
+    // Build per-document results
+    type DocumentImpact = {
+      document: { id: string; name: string; createdAt: string };
+      impact: {
+        chunks: number;
+        extractionJobs: number;
+        graphObjects: number;
+        graphRelationships: number;
+        notifications: number;
+      };
+    };
+    const documents: DocumentImpact[] = docsResult.map((doc: any) => ({
+      document: {
+        id: doc.id as string,
+        name: (doc.filename || doc.source_url || 'unknown') as string,
+        createdAt: new Date(doc.created_at).toISOString(),
+      },
+      impact: {
+        chunks: chunksMap.get(doc.id) || 0,
+        extractionJobs: jobsMap.get(doc.id) || 0,
+        graphObjects: objectsMap.get(doc.id) || 0,
+        graphRelationships: relationshipsMap.get(doc.id) || 0,
+        notifications: notificationsMap.get(doc.id) || 0,
+      },
+    }));
 
     // Aggregate total impact
-    const totalImpact = validImpacts.reduce(
+    const totalImpact = documents.reduce(
       (acc, curr) => {
-        if (curr) {
-          acc.chunks += curr.impact.chunks;
-          acc.extractionJobs += curr.impact.extractionJobs;
-          acc.graphObjects += curr.impact.graphObjects;
-          acc.graphRelationships += curr.impact.graphRelationships;
-          acc.notifications += curr.impact.notifications;
-        }
+        acc.chunks += curr.impact.chunks;
+        acc.extractionJobs += curr.impact.extractionJobs;
+        acc.graphObjects += curr.impact.graphObjects;
+        acc.graphRelationships += curr.impact.graphRelationships;
+        acc.notifications += curr.impact.notifications;
         return acc;
       },
       {
@@ -830,18 +1164,9 @@ export class DocumentsService {
     );
 
     return {
-      totalDocuments: validImpacts.length,
+      totalDocuments: documents.length,
       impact: totalImpact,
-      documents: validImpacts as Array<{
-        document: { id: string; name: string; createdAt: string };
-        impact: {
-          chunks: number;
-          extractionJobs: number;
-          graphObjects: number;
-          graphRelationships: number;
-          notifications: number;
-        };
-      }>,
+      documents,
     };
   }
 
@@ -1141,6 +1466,7 @@ export class DocumentsService {
       createdAt: r.created_at,
       updatedAt: r.updated_at,
       integrationMetadata: r.integration_metadata || undefined,
+      metadata: r.metadata || undefined,
       chunks: r.chunks,
       totalChars: r.total_chars ?? undefined,
       embeddedChunks: r.embedded_chunks ?? undefined,
@@ -1152,7 +1478,18 @@ export class DocumentsService {
       conversionError: r.conversion_error,
       conversionCompletedAt: r.conversion_completed_at,
       storageKey: r.storage_key,
+      storageUrl: r.storage_url,
       fileSizeBytes: r.file_size_bytes ? Number(r.file_size_bytes) : undefined,
+      // Data source fields
+      sourceType: r.source_type || undefined,
+      dataSourceIntegrationId: r.data_source_integration_id || undefined,
+      parentDocumentId: r.parent_document_id || undefined,
+      childCount: r.child_count ?? undefined,
+      // Additional system fields
+      externalSourceId: r.external_source_id || undefined,
+      syncVersion: r.sync_version ?? undefined,
+      fileHash: r.file_hash || undefined,
+      contentHash: r.content_hash || undefined,
     };
   }
 
@@ -1486,5 +1823,221 @@ export class DocumentsService {
       chunksCreated: result.chunksCreated,
       embeddingJobsQueued,
     };
+  }
+
+  /**
+   * Find documents that have content but no chunks.
+   * Useful for identifying documents imported before chunking was implemented.
+   */
+  async findUnchunkedDocuments(
+    projectId: string,
+    options?: {
+      sourceTypes?: string[];
+      limit?: number;
+    }
+  ): Promise<{ id: string; filename: string; sourceType: string }[]> {
+    const limit = options?.limit || 100;
+
+    let query = `
+      SELECT d.id, d.filename, d.source_type as "sourceType"
+      FROM kb.documents d
+      WHERE d.project_id = $1
+        AND d.content IS NOT NULL
+        AND d.content != ''
+        AND NOT EXISTS (
+          SELECT 1 FROM kb.chunks c WHERE c.document_id = d.id
+        )
+    `;
+
+    const params: any[] = [projectId];
+
+    if (options?.sourceTypes && options.sourceTypes.length > 0) {
+      query += ` AND d.source_type = ANY($2)`;
+      params.push(options.sourceTypes);
+    }
+
+    query += ` ORDER BY d.created_at ASC LIMIT $${params.length + 1}`;
+    params.push(limit);
+
+    return this.dataSource.query(query, params);
+  }
+
+  /**
+   * Bulk recreate chunks for multiple documents.
+   * Processes documents sequentially to avoid overwhelming the system.
+   */
+  async bulkRecreateChunks(
+    documentIds: string[],
+    options?: {
+      onProgress?: (processed: number, total: number, docId: string) => void;
+    }
+  ): Promise<{
+    total: number;
+    successful: number;
+    failed: number;
+    errors: { documentId: string; error: string }[];
+  }> {
+    const result = {
+      total: documentIds.length,
+      successful: 0,
+      failed: 0,
+      errors: [] as { documentId: string; error: string }[],
+    };
+
+    for (let i = 0; i < documentIds.length; i++) {
+      const docId = documentIds[i];
+
+      try {
+        await this.recreateChunks(docId);
+        result.successful++;
+        this.logger.debug(
+          `Chunked document ${i + 1}/${documentIds.length}: ${docId}`
+        );
+      } catch (error: any) {
+        result.failed++;
+        result.errors.push({
+          documentId: docId,
+          error: error.message,
+        });
+        this.logger.warn(`Failed to chunk document ${docId}: ${error.message}`);
+      }
+
+      if (options?.onProgress) {
+        options.onProgress(i + 1, documentIds.length, docId);
+      }
+    }
+
+    this.logger.log(
+      `Bulk chunking complete: ${result.successful} successful, ${result.failed} failed out of ${result.total}`
+    );
+
+    return result;
+  }
+
+  /**
+   * Update document fields for email source type.
+   * Used when converting an uploaded email file to properly mark it as email type.
+   */
+  async updateDocumentForEmail(
+    documentId: string,
+    options: {
+      sourceType: 'email';
+      filename: string;
+    }
+  ): Promise<void> {
+    await this.documentRepository.update(documentId, {
+      sourceType: options.sourceType,
+      filename: options.filename,
+    });
+    this.logger.debug(
+      `Updated document ${documentId} as email: "${options.filename}"`
+    );
+  }
+
+  /**
+   * Create a child document from an email attachment.
+   * Sets up the document with parentDocumentId and triggers a parsing job.
+   */
+  async createFromEmailAttachment(options: {
+    projectId: string;
+    organizationId: string;
+    parentDocumentId: string;
+    storageKey: string;
+    filename: string;
+    mimeType: string;
+    fileSizeBytes: number;
+  }): Promise<{ documentId: string }> {
+    const {
+      projectId,
+      parentDocumentId,
+      storageKey,
+      filename,
+      mimeType,
+      fileSizeBytes,
+    } = options;
+
+    // Check if this is a plain text file that doesn't need conversion
+    const needsConversion = this.needsConversion(mimeType, filename);
+
+    // Create the document
+    const document = this.documentRepository.create({
+      projectId,
+      parentDocumentId,
+      sourceType: 'upload', // Attachment inherits upload type
+      filename,
+      mimeType,
+      storageKey,
+      fileSizeBytes,
+      conversionStatus: needsConversion ? 'pending' : 'not_required',
+      metadata: {
+        isEmailAttachment: true,
+        parentDocumentId,
+      },
+    });
+
+    const savedDoc = await this.documentRepository.save(document);
+    this.logger.debug(
+      `Created email attachment document ${savedDoc.id}: ${filename}`
+    );
+
+    // Note: The parsing job is created by the caller (DocumentParsingWorkerService)
+    // to avoid circular dependencies between DocumentsService and DocumentParsingJobService
+
+    // Emit event
+    if (this.eventsService && projectId) {
+      this.eventsService.emitCreated('document', savedDoc.id, projectId, {
+        filename,
+        sourceType: 'upload',
+        parentDocumentId,
+      });
+    }
+
+    return { documentId: savedDoc.id };
+  }
+
+  /**
+   * Check if a file needs conversion based on MIME type and filename.
+   */
+  private needsConversion(
+    mimeType: string | null,
+    filename: string | null
+  ): boolean {
+    // Plain text types don't need conversion
+    const plainTextMimeTypes = [
+      'text/plain',
+      'text/markdown',
+      'text/csv',
+      'text/xml',
+      'application/json',
+      'application/xml',
+      'text/yaml',
+      'application/x-yaml',
+    ];
+
+    if (mimeType && plainTextMimeTypes.includes(mimeType)) {
+      return false;
+    }
+
+    // Check extension
+    const plainTextExtensions = [
+      '.txt',
+      '.md',
+      '.markdown',
+      '.csv',
+      '.json',
+      '.xml',
+      '.yaml',
+      '.yml',
+    ];
+
+    if (filename) {
+      const ext = filename.toLowerCase().split('.').pop();
+      if (ext && plainTextExtensions.includes(`.${ext}`)) {
+        return false;
+      }
+    }
+
+    // Default to needing conversion
+    return true;
   }
 }

@@ -68,6 +68,16 @@ export class DocumentDto {
       'Parent document ID for hierarchical structures (e.g., ClickUp page hierarchy)',
   })
   parentDocumentId?: string | null;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: 5,
+    description:
+      'Number of child documents (e.g., attachments for emails, files in a folder)',
+  })
+  childCount?: number | null;
+
   @ApiProperty({
     required: false,
     nullable: true,
@@ -80,6 +90,19 @@ export class DocumentDto {
       'Integration-specific metadata (ClickUp IDs, creator info, etc.)',
   })
   integrationMetadata?: Record<string, any> | null;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: {
+      originalFilename: 'document.pdf',
+      originalMimeType: 'application/pdf',
+      processingTimeMs: 1234,
+    },
+    description:
+      'Document metadata (processing info, original file details, etc.)',
+  })
+  metadata?: Record<string, any> | null;
   @ApiProperty({
     required: false,
     nullable: true,
@@ -148,4 +171,62 @@ export class DocumentDto {
     description: 'Size of the original file in bytes',
   })
   fileSizeBytes?: number | null;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: 'upload',
+    description:
+      'Source type of the document: upload, url, google_drive, dropbox, external, email, or a custom type',
+  })
+  sourceType?: string | null;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+    description:
+      'ID of the DataSourceIntegration that created this document (null for manual uploads)',
+  })
+  dataSourceIntegrationId?: string | null;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+    description: 'ID of the external source this document was imported from',
+  })
+  externalSourceId?: string | null;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: 1,
+    description: 'Sync version number for incremental sync support',
+  })
+  syncVersion?: number | null;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: 'https://storage.example.com/documents/abc123.pdf',
+    description: 'Public or signed URL for accessing the stored file',
+  })
+  storageUrl?: string | null;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: 'sha256:abc123def456...',
+    description: 'Hash of the original uploaded file for deduplication',
+  })
+  fileHash?: string | null;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: 'sha256:abc123def456...',
+    description: 'Hash of the extracted text content',
+  })
+  contentHash?: string | null;
 }
