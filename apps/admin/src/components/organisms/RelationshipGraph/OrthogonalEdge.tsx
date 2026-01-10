@@ -9,6 +9,16 @@ import { memo } from 'react';
 import { EdgeLabelRenderer, type Position } from '@xyflow/react';
 import type { GraphEdgeData } from './useGraphData';
 
+/**
+ * Configuration for orthogonal edge rendering - easily adjustable
+ */
+export const ORTHOGONAL_EDGE_CONFIG = {
+  /** Minimum horizontal distance from node border to first/last path segment */
+  NODE_MARGIN: 20,
+  /** Minimum offset for same-column edges (loop distance to the right) */
+  SAME_COLUMN_LOOP_OFFSET: 60,
+};
+
 export interface OrthogonalEdgeComponentProps {
   id: string;
   sourceX: number;
@@ -23,33 +33,72 @@ export interface OrthogonalEdgeComponentProps {
 }
 
 /**
- * Build a simple orthogonal step path with offset on the middle segment
- * Creates a path: source → horizontal to midX → vertical segment (with offset) → horizontal to target
+ * Build an orthogonal step path with offset on the middle segment
+ * Handles both cross-column and same-column (loop) edge cases
+ *
+ * Cross-column: source → horizontal to midX → vertical → horizontal to target
+ * Same-column (loop): source → right → vertical → back to target (both nodes use right handles)
  */
 function buildOrthogonalPath(
   sourceX: number,
   sourceY: number,
   targetX: number,
   targetY: number,
-  edgeOffsetY: number
+  edgeOffsetX: number,
+  isSameColumn: boolean
 ): { path: string; labelX: number; labelY: number } {
-  // Midpoint X for the vertical segment
-  const midX = (sourceX + targetX) / 2 + edgeOffsetY; // offset applied to X for the vertical segment
+  const { NODE_MARGIN, SAME_COLUMN_LOOP_OFFSET } = ORTHOGONAL_EDGE_CONFIG;
+
+  if (isSameColumn) {
+    // Same-column edge: create a loop to the right of both nodes
+    // Both source and target use right-side handles
+    const loopX =
+      Math.max(sourceX, targetX) +
+      SAME_COLUMN_LOOP_OFFSET +
+      Math.abs(edgeOffsetX);
+
+    // Path: go right from source → down/up to target Y → back left to target
+    const startX = sourceX + NODE_MARGIN;
+    const endX = targetX + NODE_MARGIN;
+
+    const path =
+      `M ${startX} ${sourceY} ` +
+      `L ${loopX} ${sourceY} ` +
+      `L ${loopX} ${targetY} ` +
+      `L ${endX} ${targetY}`;
+
+    return {
+      path,
+      labelX: loopX,
+      labelY: (sourceY + targetY) / 2,
+    };
+  }
+
+  // Cross-column edge: standard orthogonal path with margins
+  // Determine direction: left-to-right or right-to-left
+  const goingRight = targetX > sourceX;
+
+  const startX = goingRight ? sourceX + NODE_MARGIN : sourceX - NODE_MARGIN;
+  const endX = goingRight ? targetX - NODE_MARGIN : targetX + NODE_MARGIN;
+
+  // Midpoint X for the vertical segment (with offset for bidirectional edges)
+  const midX = (startX + endX) / 2 + edgeOffsetX;
 
   // Classic step path:
-  // 1. Start at source
+  // 1. Start at source (with margin)
   // 2. Go horizontally to midX (at sourceY)
   // 3. Go vertically to targetY (at midX)
-  // 4. Go horizontally to target (at targetY)
-  const path = `M ${sourceX} ${sourceY} L ${midX} ${sourceY} L ${midX} ${targetY} L ${targetX} ${targetY}`;
-
-  // Label position is at the midpoint of the vertical segment
-  const labelY = (sourceY + targetY) / 2;
+  // 4. Go horizontally to target (with margin)
+  const path =
+    `M ${startX} ${sourceY} ` +
+    `L ${midX} ${sourceY} ` +
+    `L ${midX} ${targetY} ` +
+    `L ${endX} ${targetY}`;
 
   return {
     path,
     labelX: midX,
-    labelY,
+    labelY: (sourceY + targetY) / 2,
   };
 }
 
@@ -68,15 +117,23 @@ export const OrthogonalEdge = memo(function OrthogonalEdge({
 }: OrthogonalEdgeComponentProps) {
   const label = data?.label || '';
   const labelOffsetY = data?.labelOffsetY || 0;
-  const edgeOffsetY = data?.edgeOffsetY || 0;
+  const edgeOffsetX = data?.edgeOffsetX || 0;
+  const isSameColumn = data?.isSameColumn ?? false;
   const isHighlighted = data?.isHighlighted ?? false;
 
-  // Build custom path with offset on the horizontal segment
+  // Build custom path with offset and same-column detection
   const {
     path: edgePath,
     labelX,
     labelY,
-  } = buildOrthogonalPath(sourceX, sourceY, targetX, targetY, edgeOffsetY);
+  } = buildOrthogonalPath(
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    edgeOffsetX,
+    isSameColumn
+  );
 
   // Unique marker ID for this edge to ensure proper coloring
   const markerId = `orthogonal-arrow-${id}-${isHighlighted ? 'hl' : 'def'}`;

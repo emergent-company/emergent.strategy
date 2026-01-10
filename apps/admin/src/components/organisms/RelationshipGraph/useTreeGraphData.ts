@@ -19,6 +19,43 @@ const EDGE_SPACING = 10;
 const VERTICAL_SPACING = 80;
 
 /**
+ * Get display name from object properties using case-insensitive lookup.
+ * Checks for common name properties in order of priority:
+ * name, Name, NAME, title, Title, TITLE, label, Label, LABEL, displayName, DisplayName
+ */
+function getDisplayName(
+  properties: Record<string, unknown> | undefined,
+  key: string | undefined,
+  type: string,
+  id: string
+): string {
+  if (properties) {
+    // Property names to check in order of priority
+    const nameProps = ['name', 'title', 'label', 'displayName'];
+
+    // Check each property name case-insensitively
+    for (const propName of nameProps) {
+      for (const key of Object.keys(properties)) {
+        if (key.toLowerCase() === propName.toLowerCase()) {
+          const value = properties[key];
+          if (typeof value === 'string' && value.trim()) {
+            return value;
+          }
+        }
+      }
+    }
+  }
+
+  // Fallback to key if available
+  if (key && key.trim()) {
+    return key;
+  }
+
+  // Final fallback to type-id format
+  return `${type}-${id.substring(0, 8)}`;
+}
+
+/**
  * Calculate offsets for edges to prevent overlapping arrows.
  * Only offsets bidirectional edges (A→B and B→A pairs).
  * Offset is applied to the vertical segment's X position.
@@ -236,16 +273,28 @@ function adjustForOverlaps(
 function calculateEdgeHandles(
   srcDepth: number,
   dstDepth: number
-): { sourceHandle: string; targetHandle: string } {
+): { sourceHandle: string; targetHandle: string; isSameColumn: boolean } {
   if (dstDepth > srcDepth) {
     // Forward edge: parent to child (left to right)
-    return { sourceHandle: 'source-right', targetHandle: 'target-left' };
+    return {
+      sourceHandle: 'source-right',
+      targetHandle: 'target-left',
+      isSameColumn: false,
+    };
   } else if (dstDepth < srcDepth) {
     // Back edge: child to parent (right side curves back to left)
-    return { sourceHandle: 'source-left', targetHandle: 'target-right' };
+    return {
+      sourceHandle: 'source-left',
+      targetHandle: 'target-right',
+      isSameColumn: false,
+    };
   } else {
     // Same column: use right handles for both (creates a loop-back curve)
-    return { sourceHandle: 'source-right', targetHandle: 'target-right' };
+    return {
+      sourceHandle: 'source-right',
+      targetHandle: 'target-right',
+      isSameColumn: true,
+    };
   }
 }
 
@@ -391,11 +440,12 @@ export function useTreeGraphData({
       }
 
       // Create root node at center
-      const rootName =
-        (rootApiNode.properties?.name as string) ||
-        (rootApiNode.properties?.title as string) ||
-        rootApiNode.key ||
-        `${rootApiNode.type}-${rootApiNode.id.substring(0, 8)}`;
+      const rootName = getDisplayName(
+        rootApiNode.properties,
+        rootApiNode.key ?? undefined,
+        rootApiNode.type,
+        rootApiNode.id
+      );
 
       const rootNode: Node<GraphNodeData> = {
         id: objectId,
@@ -447,11 +497,12 @@ export function useTreeGraphData({
         const apiNode = response.nodes.find((n) => n.id === childId);
         if (!apiNode) return;
 
-        const name =
-          (apiNode.properties?.name as string) ||
-          (apiNode.properties?.title as string) ||
-          apiNode.key ||
-          `${apiNode.type}-${apiNode.id.substring(0, 8)}`;
+        const name = getDisplayName(
+          apiNode.properties,
+          apiNode.key ?? undefined,
+          apiNode.type,
+          apiNode.id
+        );
 
         nodeDepthsRef.current.set(childId, 1);
         nodeParentsRef.current.set(childId, objectId);
@@ -511,6 +562,7 @@ export function useTreeGraphData({
             targetHandle: handles.targetHandle,
             data: {
               label: edge.type.replace(/_/g, ' '),
+              isSameColumn: handles.isSameColumn,
             },
           };
         });
@@ -524,14 +576,15 @@ export function useTreeGraphData({
         }))
       );
 
-      // Apply edge path offsets
+      // Apply edge path offsets (use edgeOffsetX for orthogonal edges)
       const edgesWithPathOffsets: Edge<GraphEdgeData>[] = graphEdges.map(
         (edge) => ({
           ...edge,
           data: {
             ...edge.data,
             label: edge.data?.label || '',
-            edgeOffsetY: edgeOffsets.get(edge.id) || 0,
+            edgeOffsetX: edgeOffsets.get(edge.id) || 0,
+            edgeOffsetY: edgeOffsets.get(edge.id) || 0, // Keep for bezier edge compatibility
           },
         })
       );
@@ -646,11 +699,12 @@ export function useTreeGraphData({
           const position = newPositions.get(childId);
           if (!position) return;
 
-          const name =
-            (apiNode.properties?.name as string) ||
-            (apiNode.properties?.title as string) ||
-            apiNode.key ||
-            `${apiNode.type}-${apiNode.id.substring(0, 8)}`;
+          const name = getDisplayName(
+            apiNode.properties,
+            apiNode.key ?? undefined,
+            apiNode.type,
+            apiNode.id
+          );
 
           nodeDepthsRef.current.set(childId, newDepth);
           nodeParentsRef.current.set(childId, nodeId);
@@ -709,6 +763,7 @@ export function useTreeGraphData({
               targetHandle: handles.targetHandle,
               data: {
                 label: edge.type.replace(/_/g, ' '),
+                isSameColumn: handles.isSameColumn,
               },
             };
           });
@@ -732,14 +787,15 @@ export function useTreeGraphData({
           }))
         );
 
-        // Apply edge offsets to edge data
+        // Apply edge offsets to edge data (use edgeOffsetX for orthogonal edges)
         const edgesWithOffsets: Edge<GraphEdgeData>[] = allEdges.map(
           (edge) => ({
             ...edge,
             data: {
               ...edge.data,
               label: edge.data?.label || '',
-              edgeOffsetY: edgeOffsets.get(edge.id) || 0,
+              edgeOffsetX: edgeOffsets.get(edge.id) || 0,
+              edgeOffsetY: edgeOffsets.get(edge.id) || 0, // Keep for bezier edge compatibility
             },
           })
         );
@@ -776,71 +832,83 @@ export function useTreeGraphData({
 
   /**
    * Collapse a node by removing nodes that were added when expanding it
+   * Uses functional setState to avoid stale closure issues
    */
   const collapseNode = useCallback(
     (nodeId: string) => {
-      if (nodeId === objectId || !expandedNodes.has(nodeId)) return;
+      if (nodeId === objectId) return;
 
-      // Find all descendant nodes (nodes whose parent chain includes this node)
-      const nodesToRemove = new Set<string>();
+      // Use functional setState to get current state and avoid stale closures
+      setExpandedNodes((currentExpandedNodes) => {
+        if (!currentExpandedNodes.has(nodeId)) return currentExpandedNodes;
 
-      // Find direct children first
-      nodes.forEach((node) => {
-        if (nodeParentsRef.current.get(node.id) === nodeId) {
-          nodesToRemove.add(node.id);
-        }
-      });
+        // Update nodes using functional setState with current nodes
+        setNodes((currentNodes) => {
+          // Find all descendant nodes (nodes whose parent chain includes this node)
+          const nodesToRemove = new Set<string>();
 
-      // Recursively find all descendants
-      const processQueue = [...nodesToRemove];
-      while (processQueue.length > 0) {
-        const current = processQueue.shift()!;
-        nodes.forEach((node) => {
-          if (
-            nodeParentsRef.current.get(node.id) === current &&
-            !nodesToRemove.has(node.id)
-          ) {
-            nodesToRemove.add(node.id);
-            processQueue.push(node.id);
+          // Find direct children first
+          currentNodes.forEach((node) => {
+            if (nodeParentsRef.current.get(node.id) === nodeId) {
+              nodesToRemove.add(node.id);
+            }
+          });
+
+          // Recursively find all descendants
+          const processQueue = [...nodesToRemove];
+          while (processQueue.length > 0) {
+            const current = processQueue.shift()!;
+            currentNodes.forEach((node) => {
+              if (
+                nodeParentsRef.current.get(node.id) === current &&
+                !nodesToRemove.has(node.id)
+              ) {
+                nodesToRemove.add(node.id);
+                processQueue.push(node.id);
+              }
+            });
           }
+
+          // Clean up refs for removed nodes
+          nodesToRemove.forEach((id) => {
+            nodeDepthsRef.current.delete(id);
+            nodeParentsRef.current.delete(id);
+          });
+
+          // Update edges using functional setState
+          setEdges((currentEdges) =>
+            currentEdges.filter(
+              (e) =>
+                !nodesToRemove.has(e.source) && !nodesToRemove.has(e.target)
+            )
+          );
+
+          // Filter out removed nodes and update the collapsed node's hasMore status
+          return currentNodes
+            .filter((n) => !nodesToRemove.has(n.id))
+            .map((node) => {
+              if (node.id === nodeId) {
+                return {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    hasMore: true, // Can be expanded again
+                  },
+                };
+              }
+              return node;
+            });
         });
-      }
 
-      // Remove nodes and their edges
-      const remainingNodes = nodes.filter((n) => !nodesToRemove.has(n.id));
-      const remainingEdges = edges.filter(
-        (e) => !nodesToRemove.has(e.source) && !nodesToRemove.has(e.target)
-      );
+        setLastExpandedNodeId(null);
 
-      // Update expanded nodes set
-      const newExpandedNodes = new Set(expandedNodes);
-      newExpandedNodes.delete(nodeId);
-      nodesToRemove.forEach((id) => {
-        newExpandedNodes.delete(id);
-        nodeDepthsRef.current.delete(id);
-        nodeParentsRef.current.delete(id);
+        // Return new expanded nodes set without the collapsed node
+        const newExpandedNodes = new Set(currentExpandedNodes);
+        newExpandedNodes.delete(nodeId);
+        return newExpandedNodes;
       });
-
-      // Update the collapsed node's hasMore status
-      const updatedNodes = remainingNodes.map((node) => {
-        if (node.id === nodeId) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              hasMore: true, // Can be expanded again
-            },
-          };
-        }
-        return node;
-      });
-
-      setNodes(updatedNodes);
-      setEdges(remainingEdges);
-      setExpandedNodes(newExpandedNodes);
-      setLastExpandedNodeId(null);
     },
-    [objectId, nodes, edges, expandedNodes]
+    [objectId]
   );
 
   /**

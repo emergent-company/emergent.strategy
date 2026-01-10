@@ -1,2 +1,2 @@
 export { GraphViewerModal } from './GraphViewerModal';
-export type { GraphViewerModalProps, GraphLayout } from './GraphViewerModal';
+export type { GraphViewerModalProps } from './GraphViewerModal';
