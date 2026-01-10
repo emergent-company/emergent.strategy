@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan } from 'typeorm';
+import { Repository } from 'typeorm';
 import {
   GraphTemplatePack,
   TemplatePackStudioSession,
@@ -45,6 +45,13 @@ export interface SavePackDto {
 }
 
 /**
+ * DTO for updating pack name
+ */
+export interface UpdatePackNameDto {
+  name: string;
+}
+
+/**
  * Result of applying a suggestion
  */
 export interface ApplySuggestionResult {
@@ -63,7 +70,6 @@ export interface StudioSessionState {
   messages: TemplatePackStudioMessage[];
   createdAt: Date;
   updatedAt: Date;
-  expiresAt: Date;
 }
 
 /**
@@ -150,7 +156,6 @@ export class TemplatePackStudioService {
       project_id: projectId,
       pack_id: draftPack.id,
       status: 'active',
-      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
     });
 
     const savedSession = await this.sessionRepository.save(session);
@@ -165,7 +170,6 @@ export class TemplatePackStudioService {
       messages: [],
       createdAt: savedSession.created_at,
       updatedAt: savedSession.updated_at,
-      expiresAt: savedSession.expires_at,
     };
   }
 
@@ -190,12 +194,6 @@ export class TemplatePackStudioService {
       return null;
     }
 
-    // Check if expired
-    if (session.expires_at < new Date() && session.status === 'active') {
-      await this.sessionRepository.update(sessionId, { status: 'expired' });
-      session.status = 'expired';
-    }
-
     return {
       id: session.id,
       status: session.status,
@@ -203,7 +201,6 @@ export class TemplatePackStudioService {
       messages: session.messages || [],
       createdAt: session.created_at,
       updatedAt: session.updated_at,
-      expiresAt: session.expires_at,
     };
   }
 
@@ -231,7 +228,6 @@ export class TemplatePackStudioService {
       messages: [],
       createdAt: session.created_at,
       updatedAt: session.updated_at,
-      expiresAt: session.expires_at,
     }));
   }
 
@@ -492,6 +488,45 @@ export class TemplatePackStudioService {
   }
 
   /**
+   * Update the pack name for a session
+   */
+  async updatePackName(
+    sessionId: string,
+    userId: string,
+    name: string
+  ): Promise<{ success: boolean; pack?: GraphTemplatePack; error?: string }> {
+    const session = await this.sessionRepository.findOne({
+      where: { id: sessionId },
+      relations: ['pack'],
+    });
+
+    if (!session || session.user_id !== userId) {
+      return { success: false, error: 'Session not found or unauthorized' };
+    }
+
+    if (session.status !== 'active') {
+      return { success: false, error: 'Session is not active' };
+    }
+
+    if (!session.pack) {
+      return { success: false, error: 'Pack not found' };
+    }
+
+    // Update the pack name
+    session.pack.name = name;
+    const updatedPack = await this.templatePackRepository.save(session.pack);
+
+    // Update session timestamp
+    await this.sessionRepository.update(sessionId, {
+      updated_at: new Date(),
+    });
+
+    this.logger.log(`Updated pack name to "${name}" for session ${sessionId}`);
+
+    return { success: true, pack: updatedPack };
+  }
+
+  /**
    * Discard a studio session and its draft pack
    */
   async discardSession(
@@ -536,45 +571,6 @@ export class TemplatePackStudioService {
     });
 
     return session?.pack || null;
-  }
-
-  /**
-   * Clean up expired sessions
-   * Called periodically by a scheduled task
-   */
-  async cleanupExpiredSessions(): Promise<number> {
-    const now = new Date();
-
-    // Find expired active sessions
-    const expiredSessions = await this.sessionRepository.find({
-      where: {
-        status: 'active',
-        expires_at: LessThan(now),
-      },
-    });
-
-    let cleaned = 0;
-    for (const session of expiredSessions) {
-      // Delete draft packs for expired sessions
-      if (session.pack_id) {
-        await this.templatePackRepository.delete({
-          id: session.pack_id,
-          draft: true,
-        });
-      }
-
-      await this.sessionRepository.update(session.id, {
-        status: 'expired',
-        pack_id: undefined,
-      });
-      cleaned++;
-    }
-
-    if (cleaned > 0) {
-      this.logger.log(`Cleaned up ${cleaned} expired studio sessions`);
-    }
-
-    return cleaned;
   }
 
   /**
@@ -626,6 +622,65 @@ export class TemplatePackStudioService {
   }
 
   /**
+   * Delete empty schema drafts for a user
+   * Empty drafts are those with zero object types AND zero relationship types
+   */
+  async deleteEmptySchemaDrafts(
+    userId: string,
+    projectId: string
+  ): Promise<{ deleted: number; sessionIds: string[] }> {
+    // Get user's active sessions with their packs
+    const sessions = await this.sessionRepository.find({
+      where: {
+        user_id: userId,
+        project_id: projectId,
+        status: 'active',
+      },
+      relations: ['pack'],
+    });
+
+    const deletedSessionIds: string[] = [];
+
+    for (const session of sessions) {
+      if (!session.pack) continue;
+
+      const objectTypeCount = Object.keys(
+        session.pack.object_type_schemas || {}
+      ).length;
+      const relationshipTypeCount = Object.keys(
+        session.pack.relationship_type_schemas || {}
+      ).length;
+
+      // Delete if both are empty
+      if (objectTypeCount === 0 && relationshipTypeCount === 0) {
+        const packId = session.pack.id;
+
+        // Delete messages first (foreign key constraint)
+        await this.messageRepository.delete({ session_id: session.id });
+
+        // Delete session
+        await this.sessionRepository.delete(session.id);
+
+        // Delete draft pack
+        await this.templatePackRepository.delete({
+          id: packId,
+          draft: true,
+        });
+
+        deletedSessionIds.push(session.id);
+        this.logger.log(
+          `Deleted empty draft session ${session.id} and pack ${packId}`
+        );
+      }
+    }
+
+    return {
+      deleted: deletedSessionIds.length,
+      sessionIds: deletedSessionIds,
+    };
+  }
+
+  /**
    * Apply a schema change to a pack
    */
   private async applySchemaChange(
@@ -637,14 +692,20 @@ export class TemplatePackStudioService {
         if (!suggestion.target_type || !suggestion.after) {
           throw new Error('Invalid add_object_type suggestion');
         }
-        pack.object_type_schemas[suggestion.target_type] = suggestion.after;
-        // Initialize empty UI config and extraction prompt
-        if (!pack.ui_configs[suggestion.target_type]) {
-          pack.ui_configs[suggestion.target_type] = {
-            icon: 'file',
-            color: '#6B7280',
-          };
-        }
+        // Extract ui_config if embedded in the after field
+        const objectAfter = suggestion.after as Record<string, unknown>;
+        const objectUiConfig = objectAfter.ui_config as
+          | Record<string, unknown>
+          | undefined;
+        // Store schema without ui_config
+        const objectSchema = { ...objectAfter };
+        delete objectSchema.ui_config;
+        pack.object_type_schemas[suggestion.target_type] = objectSchema;
+        // Use embedded ui_config or default
+        pack.ui_configs[suggestion.target_type] = objectUiConfig || {
+          icon: 'file',
+          color: '#6B7280',
+        };
         break;
 
       case 'modify_object_type':
@@ -670,8 +731,19 @@ export class TemplatePackStudioService {
         if (!suggestion.target_type || !suggestion.after) {
           throw new Error('Invalid add_relationship_type suggestion');
         }
-        pack.relationship_type_schemas[suggestion.target_type] =
-          suggestion.after;
+        // Extract ui_config if embedded in the after field
+        const relAfter = suggestion.after as Record<string, unknown>;
+        const relUiConfig = relAfter.ui_config as
+          | Record<string, unknown>
+          | undefined;
+        // Store schema without ui_config
+        const relSchema = { ...relAfter };
+        delete relSchema.ui_config;
+        pack.relationship_type_schemas[suggestion.target_type] = relSchema;
+        // Store ui_config if provided
+        if (relUiConfig) {
+          pack.ui_configs[suggestion.target_type] = relUiConfig;
+        }
         break;
 
       case 'modify_relationship_type':

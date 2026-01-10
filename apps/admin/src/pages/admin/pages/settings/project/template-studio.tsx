@@ -10,6 +10,7 @@ import { Icon } from '@/components/atoms/Icon';
 import { Spinner } from '@/components/atoms/Spinner';
 import { Tooltip } from '@/components/atoms/Tooltip';
 import { Modal } from '@/components/organisms/Modal/Modal';
+import { SchemaGraph } from '@/components/organisms/SchemaGraph';
 import { FormField } from '@/components/molecules/FormField/FormField';
 import { SplitPanelLayout } from '@/components/layouts';
 import {
@@ -25,6 +26,7 @@ import {
   type StudioMessage,
   type SchemaSuggestion,
   type TemplatePack,
+  type ToolCall,
 } from '@/hooks/use-template-studio-chat';
 
 // ============================================================================
@@ -149,6 +151,11 @@ export default function TemplatePackStudioPage() {
   const [saveVersion, setSaveVersion] = useState('1.0.0');
   const [saveLoading, setSaveLoading] = useState(false);
 
+  // Rename dialog state
+  const [showRenameDialog, setShowRenameDialog] = useState(false);
+  const [renameName, setRenameName] = useState('');
+  const [renameLoading, setRenameLoading] = useState(false);
+
   // Discard confirmation state
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
@@ -167,6 +174,7 @@ export default function TemplatePackStudioPage() {
     applySuggestion,
     rejectSuggestion,
     savePack,
+    renamePack,
     discardSession,
   } = useTemplateStudioChat({
     sessionId: sessionIdParam || undefined,
@@ -247,6 +255,26 @@ export default function TemplatePackStudioPage() {
     }
   };
 
+  const handleOpenRename = () => {
+    setRenameName(session?.pack?.name || '');
+    setShowRenameDialog(true);
+  };
+
+  const handleRename = async () => {
+    if (!renameName.trim()) return;
+    setRenameLoading(true);
+    try {
+      const result = await renamePack(renameName.trim());
+      if (result.success) {
+        setShowRenameDialog(false);
+      } else {
+        console.error('Failed to rename pack:', result.error);
+      }
+    } finally {
+      setRenameLoading(false);
+    }
+  };
+
   const handleApplySuggestion = useCallback(
     async (messageId: string, suggestionId: string) => {
       const result = await applySuggestion(messageId, suggestionId);
@@ -265,6 +293,28 @@ export default function TemplatePackStudioPage() {
       }
     },
     [rejectSuggestion]
+  );
+
+  const handleApplyAllSuggestions = useCallback(
+    async (messageId: string) => {
+      // Find the message and apply all pending suggestions
+      const message = messages.find((m) => m.id === messageId);
+      if (!message?.suggestions) return;
+
+      const pendingSuggestions = message.suggestions.filter(
+        (s) => s.status === 'pending'
+      );
+
+      // Apply suggestions sequentially to avoid race conditions
+      for (const suggestion of pendingSuggestions) {
+        const result = await applySuggestion(messageId, suggestion.id);
+        if (!result.success && result.error) {
+          console.error('Failed to apply suggestion:', result.error);
+          // Continue with remaining suggestions even if one fails
+        }
+      }
+    },
+    [messages, applySuggestion]
   );
 
   if (!config.activeProjectId) {
@@ -298,10 +348,19 @@ export default function TemplatePackStudioPage() {
               <Icon icon="lucide--sparkles" className="size-5 text-primary" />
               Template Pack Studio
             </h1>
-            <p className="text-sm text-base-content/60">
+            <p className="text-sm text-base-content/60 flex items-center gap-1">
               {session?.pack?.name || 'Creating new pack...'}
               {session?.pack?.draft && (
-                <span className="badge badge-warning badge-sm ml-2">Draft</span>
+                <span className="badge badge-warning badge-sm ml-1">Draft</span>
+              )}
+              {session && (
+                <button
+                  className="btn btn-ghost btn-xs btn-circle ml-1"
+                  onClick={handleOpenRename}
+                  title="Rename pack"
+                >
+                  <Icon icon="lucide--pencil" className="size-3" />
+                </button>
               )}
             </p>
           </div>
@@ -362,6 +421,7 @@ export default function TemplatePackStudioPage() {
               onStop={stop}
               onApplySuggestion={handleApplySuggestion}
               onRejectSuggestion={handleRejectSuggestion}
+              onApplyAllSuggestions={handleApplyAllSuggestions}
               onShowKeyboardShortcuts={() => setShowKeyboardShortcuts(true)}
             />
           </SplitPanelLayout.Right>
@@ -442,6 +502,39 @@ export default function TemplatePackStudioPage() {
         ]}
       />
 
+      {/* Rename Dialog */}
+      <Modal
+        open={showRenameDialog}
+        onOpenChange={(open) => !open && setShowRenameDialog(false)}
+        title="Rename Template Pack"
+        sizeClassName="max-w-sm"
+        actions={[
+          {
+            label: 'Cancel',
+            variant: 'ghost',
+            disabled: renameLoading,
+            onClick: () => setShowRenameDialog(false),
+          },
+          {
+            label: renameLoading ? 'Saving...' : 'Save',
+            variant: 'primary',
+            disabled: renameLoading || !renameName.trim(),
+            autoFocus: true,
+            onClick: handleRename,
+          },
+        ]}
+      >
+        <FormField
+          label="Pack Name"
+          required
+          type="text"
+          value={renameName}
+          onChange={(e) => setRenameName(e.target.value)}
+          placeholder="My Template Pack"
+          autoFocus
+        />
+      </Modal>
+
       {/* Keyboard Shortcuts Modal */}
       <KeyboardShortcutsModal
         isOpen={showKeyboardShortcuts}
@@ -455,15 +548,27 @@ export default function TemplatePackStudioPage() {
 // Schema Preview Panel
 // ============================================================================
 
+type PreviewTab = 'list' | 'graph' | 'json';
+
 interface SchemaPreviewPanelProps {
   pack: TemplatePack;
 }
 
 function SchemaPreviewPanel({ pack }: SchemaPreviewPanelProps) {
-  const [showJson, setShowJson] = useState(false);
+  const [activeTab, setActiveTab] = useState<PreviewTab>('list');
 
-  const objectTypes = pack.object_type_schemas || {};
-  const relationshipTypes = pack.relationship_type_schemas || {};
+  const objectTypes = (pack.object_type_schemas || {}) as Record<
+    string,
+    Record<string, unknown>
+  >;
+  const relationshipTypes = (pack.relationship_type_schemas || {}) as Record<
+    string,
+    Record<string, unknown>
+  >;
+  const uiConfigs = (pack.ui_configs || {}) as Record<
+    string,
+    Record<string, unknown>
+  >;
 
   const objectTypeCount = Object.keys(objectTypes).length;
   const relationshipTypeCount = Object.keys(relationshipTypes).length;
@@ -475,8 +580,8 @@ function SchemaPreviewPanel({ pack }: SchemaPreviewPanelProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Panel Header */}
-      <div className="px-4 py-3 border-b border-base-300 shrink-0">
-        <div className="flex items-center justify-between">
+      <div className="px-4 py-3 border-b border-base-300 shrink-0 min-h-[68px] flex items-center">
+        <div className="flex items-center justify-between w-full">
           <div>
             <h2 className="font-semibold text-sm flex items-center gap-2">
               <Icon icon="lucide--file-json" className="size-4 text-primary" />
@@ -487,22 +592,46 @@ function SchemaPreviewPanel({ pack }: SchemaPreviewPanelProps) {
               relationship types
             </p>
           </div>
-          <button
-            className={`btn btn-ghost btn-sm gap-1 ${
-              showJson ? 'btn-active' : ''
-            }`}
-            onClick={() => setShowJson(!showJson)}
-          >
-            <Icon icon="lucide--code" className="size-3.5" />
-            {showJson ? 'Hide JSON' : 'Show JSON'}
-          </button>
+          {/* View Toggle Tabs */}
+          <div className="flex items-center gap-1 bg-base-200 rounded-lg p-1">
+            <button
+              className={`btn btn-xs gap-1 ${
+                activeTab === 'list' ? 'btn-primary' : 'btn-ghost'
+              }`}
+              onClick={() => setActiveTab('list')}
+              title="List View"
+            >
+              <Icon icon="lucide--list" className="size-3.5" />
+              List
+            </button>
+            <button
+              className={`btn btn-xs gap-1 ${
+                activeTab === 'graph' ? 'btn-primary' : 'btn-ghost'
+              }`}
+              onClick={() => setActiveTab('graph')}
+              title="Graph View"
+            >
+              <Icon icon="lucide--git-branch" className="size-3.5" />
+              Graph
+            </button>
+            <button
+              className={`btn btn-xs gap-1 ${
+                activeTab === 'json' ? 'btn-primary' : 'btn-ghost'
+              }`}
+              onClick={() => setActiveTab('json')}
+              title="JSON View"
+            >
+              <Icon icon="lucide--code" className="size-3.5" />
+              JSON
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {showJson ? (
-          // Raw JSON view
+      {activeTab === 'json' ? (
+        // Raw JSON view
+        <div className="flex-1 overflow-y-auto p-4">
           <div className="bg-base-200 rounded-lg p-3">
             <pre className="text-xs font-mono overflow-x-auto whitespace-pre-wrap">
               {JSON.stringify(
@@ -518,35 +647,45 @@ function SchemaPreviewPanel({ pack }: SchemaPreviewPanelProps) {
               )}
             </pre>
           </div>
-        ) : (
-          // Object types with integrated relationships
-          <>
-            {objectTypeCount === 0 ? (
-              <EmptyStateCard
-                icon="lucide--boxes"
-                title="No object types yet"
-                description="Start chatting to add object types to your template pack"
-              />
-            ) : (
-              Object.entries(objectTypes).map(([typeName, schema]) => {
-                const rels = relationshipsByType[typeName] || {
-                  outgoing: [],
-                  incoming: [],
-                };
-                return (
-                  <ObjectTypeCard
-                    key={typeName}
-                    typeName={typeName}
-                    schema={schema as Record<string, unknown>}
-                    outgoingRelationships={rels.outgoing}
-                    incomingRelationships={rels.incoming}
-                  />
-                );
-              })
-            )}
-          </>
-        )}
-      </div>
+        </div>
+      ) : activeTab === 'graph' ? (
+        // Graph view
+        <div className="flex-1 min-h-0">
+          <SchemaGraph
+            objectTypes={objectTypes}
+            relationshipTypes={relationshipTypes}
+            className="h-full"
+          />
+        </div>
+      ) : (
+        // List view - Object types with integrated relationships
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {objectTypeCount === 0 ? (
+            <EmptyStateCard
+              icon="lucide--boxes"
+              title="No object types yet"
+              description="Start chatting to add object types to your template pack"
+            />
+          ) : (
+            Object.entries(objectTypes).map(([typeName, schema]) => {
+              const rels = relationshipsByType[typeName] || {
+                outgoing: [],
+                incoming: [],
+              };
+              return (
+                <ObjectTypeCard
+                  key={typeName}
+                  typeName={typeName}
+                  schema={schema as Record<string, unknown>}
+                  uiConfig={uiConfigs[typeName]}
+                  outgoingRelationships={rels.outgoing}
+                  incomingRelationships={rels.incoming}
+                />
+              );
+            })
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -558,6 +697,7 @@ function SchemaPreviewPanel({ pack }: SchemaPreviewPanelProps) {
 interface ObjectTypeCardProps {
   typeName: string;
   schema: Record<string, unknown>;
+  uiConfig?: Record<string, unknown>;
   outgoingRelationships?: RelationshipInfo[];
   incomingRelationships?: RelationshipInfo[];
 }
@@ -565,6 +705,7 @@ interface ObjectTypeCardProps {
 function ObjectTypeCard({
   typeName,
   schema,
+  uiConfig,
   outgoingRelationships = [],
   incomingRelationships = [],
 }: ObjectTypeCardProps) {
@@ -573,6 +714,18 @@ function ObjectTypeCard({
   const description = schema.description as string | undefined;
   const properties = schema.properties as Record<string, unknown> | undefined;
   const required = schema.required as string[] | undefined;
+  // Check ui_config from props first, then schema.ui_config, then schema.icon
+  const schemaUiConfig = schema.ui_config as
+    | Record<string, unknown>
+    | undefined;
+  const rawIcon = (uiConfig?.icon || schemaUiConfig?.icon || schema.icon) as
+    | string
+    | undefined;
+  const entityIcon = rawIcon
+    ? rawIcon.includes('--')
+      ? rawIcon
+      : `lucide--${rawIcon}`
+    : 'lucide--box';
 
   const propertyCount = properties ? Object.keys(properties).length : 0;
   const totalRelationships =
@@ -589,7 +742,7 @@ function ObjectTypeCard({
             icon={isExpanded ? 'lucide--chevron-down' : 'lucide--chevron-right'}
             className="size-4 shrink-0 text-base-content/60"
           />
-          <Icon icon="lucide--box" className="size-4 shrink-0 text-primary" />
+          <Icon icon={entityIcon} className="size-4 shrink-0 text-primary" />
           <span className="font-semibold truncate">{typeName}</span>
         </div>
         <div className="flex items-center gap-2">
@@ -896,6 +1049,7 @@ interface TemplateStudioChatProps {
   onStop: () => void;
   onApplySuggestion: (messageId: string, suggestionId: string) => void;
   onRejectSuggestion: (messageId: string, suggestionId: string) => void;
+  onApplyAllSuggestions: (messageId: string) => void;
   onShowKeyboardShortcuts?: () => void;
 }
 
@@ -906,14 +1060,19 @@ function TemplateStudioChat({
   onStop,
   onApplySuggestion,
   onRejectSuggestion,
+  onApplyAllSuggestions,
   onShowKeyboardShortcuts,
 }: TemplateStudioChatProps) {
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const prevMessageCountRef = useRef(messages.length);
 
-  // Scroll to bottom when new messages arrive
+  // Scroll to bottom only when new messages arrive (not when suggestions are updated)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length > prevMessageCountRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+    prevMessageCountRef.current = messages.length;
   }, [messages]);
 
   const handleSubmit = useCallback(
@@ -937,7 +1096,7 @@ function TemplateStudioChat({
   return (
     <div className="flex flex-col h-full bg-base-100">
       {/* Header */}
-      <div className="shrink-0 px-4 py-3 border-b border-base-300">
+      <div className="shrink-0 px-4 py-3 border-b border-base-300 min-h-[68px] flex items-center">
         <div className="flex items-center gap-2">
           <Icon icon="lucide--message-square" className="size-5 text-primary" />
           <div>
@@ -973,6 +1132,7 @@ function TemplateStudioChat({
             message={message}
             onApplySuggestion={onApplySuggestion}
             onRejectSuggestion={onRejectSuggestion}
+            onApplyAllSuggestions={onApplyAllSuggestions}
           />
         ))}
 
@@ -1006,6 +1166,194 @@ function TemplateStudioChat({
 }
 
 // ============================================================================
+// Tool Calls Display - Shows AI tool usage in collapsed, dimmed format
+// ============================================================================
+
+interface ToolCallsDisplayProps {
+  toolCalls: ToolCall[];
+}
+
+/**
+ * Get a human-readable label for a tool name
+ */
+function getToolLabel(toolName: string): string {
+  const labels: Record<string, string> = {
+    search_icons: 'Searching icons',
+    validate_icon: 'Validating icon',
+    refine_request: 'Thinking...',
+  };
+  return labels[toolName] || toolName.replace(/_/g, ' ');
+}
+
+/**
+ * Get an icon for a tool name
+ */
+function getToolIcon(toolName: string): string {
+  const icons: Record<string, string> = {
+    search_icons: 'lucide--search',
+    validate_icon: 'lucide--check-circle',
+    refine_request: 'lucide--brain',
+  };
+  return icons[toolName] || 'lucide--wrench';
+}
+
+/**
+ * Format the analyze_request tool's args into a human-readable display
+ */
+function formatThinkingArgs(args: Record<string, unknown>): React.ReactNode {
+  const userMessage = args.userMessage as string | undefined;
+  const packContext = args.packContext as string | undefined;
+
+  return (
+    <div className="space-y-2">
+      {userMessage && (
+        <div>
+          <div className="text-base-content/50 text-[10px] uppercase tracking-wide mb-0.5">
+            User Request
+          </div>
+          <div className="text-base-content/80 text-xs">"{userMessage}"</div>
+        </div>
+      )}
+      {packContext && (
+        <div>
+          <div className="text-base-content/50 text-[10px] uppercase tracking-wide mb-0.5">
+            Current Pack
+          </div>
+          <div className="text-base-content/70 text-[11px] whitespace-pre-wrap">
+            {packContext}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Format generic tool args as a property list
+ */
+function formatGenericArgs(args: Record<string, unknown>): React.ReactNode {
+  return (
+    <div className="space-y-1">
+      {Object.entries(args).map(([key, value]) => (
+        <div key={key} className="flex gap-2">
+          <span className="text-base-content/50">{key}:</span>
+          <span className="text-base-content/70">
+            {typeof value === 'string'
+              ? value.length > 100
+                ? value.slice(0, 100) + '...'
+                : value
+              : JSON.stringify(value)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ToolCallItem({ toolCall }: { toolCall: ToolCall }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const label = getToolLabel(toolCall.tool);
+  const icon = getToolIcon(toolCall.tool);
+  const isPending = toolCall.status === 'pending';
+  const isThinking = toolCall.tool === 'refine_request';
+
+  // For thinking tool, show the result text directly (not in expanded view)
+  const thinkingResult =
+    isThinking && !isPending && typeof toolCall.result === 'string'
+      ? toolCall.result
+      : null;
+
+  return (
+    <div
+      className={`text-xs ${
+        isThinking ? 'text-primary/60' : 'text-base-content/50'
+      }`}
+    >
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className={`flex items-center gap-1.5 transition-colors w-full text-left py-0.5 ${
+          isThinking ? 'hover:text-primary/80' : 'hover:text-base-content/70'
+        }`}
+      >
+        <Icon
+          icon={icon}
+          className={`size-3 ${isThinking && isPending ? 'animate-pulse' : ''}`}
+        />
+        <span className={`flex-1 ${isThinking ? 'italic' : ''}`}>{label}</span>
+        {isPending ? (
+          <span className="loading loading-spinner loading-xs" />
+        ) : (
+          <Icon icon="lucide--check" className="size-3 text-success/70" />
+        )}
+        <Icon
+          icon={isExpanded ? 'lucide--chevron-up' : 'lucide--chevron-down'}
+          className="size-3 opacity-50"
+        />
+      </button>
+
+      {/* For thinking tool: show the result summary below the header */}
+      {thinkingResult && !isExpanded && (
+        <div className="ml-4 mt-1 text-[11px] text-base-content/70 italic leading-relaxed">
+          {thinkingResult}
+        </div>
+      )}
+
+      {isExpanded && (
+        <div className="ml-4 mt-2 space-y-3 text-[11px] bg-base-300/30 rounded p-3">
+          {/* Args section */}
+          {toolCall.args && Object.keys(toolCall.args).length > 0 && (
+            <div>
+              {isThinking ? (
+                formatThinkingArgs(toolCall.args)
+              ) : (
+                <>
+                  <div className="text-base-content/50 text-[10px] uppercase tracking-wide mb-1">
+                    Input
+                  </div>
+                  {formatGenericArgs(toolCall.args)}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Result section */}
+          {toolCall.result !== undefined && (
+            <div>
+              <div className="text-base-content/50 text-[10px] uppercase tracking-wide mb-1">
+                {isThinking ? 'Analysis' : 'Result'}
+              </div>
+              <div className="text-base-content/80">
+                {typeof toolCall.result === 'string' ? (
+                  <div className={isThinking ? 'italic' : ''}>
+                    {toolCall.result}
+                  </div>
+                ) : (
+                  <pre className="text-[10px] overflow-x-auto">
+                    {JSON.stringify(toolCall.result, null, 2).slice(0, 500)}
+                  </pre>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ToolCallsDisplay({ toolCalls }: ToolCallsDisplayProps) {
+  if (!toolCalls || toolCalls.length === 0) return null;
+
+  return (
+    <div className="border-l-2 border-base-300/50 pl-2 mb-2 space-y-0.5">
+      {toolCalls.map((toolCall) => (
+        <ToolCallItem key={toolCall.id} toolCall={toolCall} />
+      ))}
+    </div>
+  );
+}
+
+// ============================================================================
 // Studio Message Item
 // ============================================================================
 
@@ -1013,15 +1361,22 @@ interface StudioMessageItemProps {
   message: StudioMessage;
   onApplySuggestion: (messageId: string, suggestionId: string) => void;
   onRejectSuggestion: (messageId: string, suggestionId: string) => void;
+  onApplyAllSuggestions?: (messageId: string) => void;
 }
 
 function StudioMessageItem({
   message,
   onApplySuggestion,
   onRejectSuggestion,
+  onApplyAllSuggestions,
 }: StudioMessageItemProps) {
   const isAssistant = message.role === 'assistant';
   const formattedTime = formatTimestamp(message.createdAt);
+
+  // Count pending suggestions
+  const pendingSuggestions =
+    message.suggestions?.filter((s) => s.status === 'pending') || [];
+  const hasPendingSuggestions = pendingSuggestions.length > 1;
 
   return (
     <div className={`chat ${isAssistant ? 'chat-start' : 'chat-end'}`}>
@@ -1043,11 +1398,17 @@ function StudioMessageItem({
         } max-w-[85%]`}
       >
         {isAssistant ? (
-          <div className="prose prose-sm max-w-none prose-neutral dark:prose-invert">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {stripSuggestionsFromContent(message.content)}
-            </ReactMarkdown>
-          </div>
+          <>
+            {/* Tool Calls - displayed before message content */}
+            {message.toolCalls && message.toolCalls.length > 0 && (
+              <ToolCallsDisplay toolCalls={message.toolCalls} />
+            )}
+            <div className="prose prose-sm max-w-none prose-neutral dark:prose-invert">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {stripSuggestionsFromContent(message.content)}
+              </ReactMarkdown>
+            </div>
+          </>
         ) : (
           <div className="whitespace-pre-wrap text-sm">{message.content}</div>
         )}
@@ -1063,6 +1424,19 @@ function StudioMessageItem({
                 onReject={() => onRejectSuggestion(message.id, suggestion.id)}
               />
             ))}
+
+            {/* Accept All button - only show when multiple pending suggestions */}
+            {hasPendingSuggestions && onApplyAllSuggestions && (
+              <div className="pt-2 border-t border-base-300">
+                <button
+                  className="btn btn-primary btn-sm w-full gap-2"
+                  onClick={() => onApplyAllSuggestions(message.id)}
+                >
+                  <Icon icon="lucide--check-check" className="size-4" />
+                  Accept All ({pendingSuggestions.length} suggestions)
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

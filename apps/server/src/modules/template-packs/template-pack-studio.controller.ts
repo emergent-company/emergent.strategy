@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Param,
   Body,
@@ -44,11 +45,15 @@ import {
   CreateStudioSessionDto,
   SavePackDto,
   StudioSessionState,
+  UpdatePackNameDto,
 } from './template-pack-studio.service';
 import { LangGraphService } from '../chat-ui/services/langgraph.service';
 import { LangfuseService } from '../langfuse/langfuse.service';
 import { TEMPLATE_STUDIO_PROMPT_NAMES } from '../langfuse/prompts/types';
 import { isAIMessage } from '@langchain/core/messages';
+import { isToolMessage } from '@langchain/core/messages';
+import { createIconSearchTool } from './tools/icon-search.tool';
+import { createQueryRefinementTool } from './tools/query-refinement.tool';
 
 // DTO classes for API documentation
 class StudioMessageDto {
@@ -79,6 +84,12 @@ class RejectStudioSuggestionDto {
   @IsOptional()
   @IsString()
   reason?: string;
+}
+
+class UpdatePackNameRequestDto {
+  @IsString()
+  @IsNotEmpty()
+  name!: string;
 }
 
 // SSE event types for streaming
@@ -119,6 +130,31 @@ You help users define object types and relationship types using JSON Schema. Eac
 - UI configuration (icon, color)
 - Optional extraction prompts for AI-assisted data extraction
 
+## CRITICAL: Use refine_request Tool for Complex Requests
+For complex, ambiguous, or multi-part requests, use the **refine_request** tool FIRST, then EXECUTE based on its output.
+
+**When to use refine_request:**
+- User requests multiple types/entities (e.g., "I need to track projects, tasks, and team members")
+- Request is ambiguous or could be interpreted multiple ways
+- User describes a domain/scenario without specifying exact types
+- You need to think through the relationships between entities
+
+**When you can skip refine_request:**
+- Simple, single-type requests (e.g., "Add a phone field to Person")
+- Clear, specific modifications (e.g., "Change the icon for Task to check-square")
+- Follow-up questions or clarifications
+
+**IMPORTANT: The refine_request tool returns a REFINED INSTRUCTION. You MUST then generate schema suggestions based on that instruction.**
+
+**Example workflow:**
+1. User: "I want to model a project management system"
+2. You: Call refine_request({ userMessage: "I want to model a project management system", packContext: "Empty pack" })
+3. Tool returns refined instruction: "Create Project type with name, description, status properties... Create Task type with... Create ASSIGNED_TO relationship..."
+4. You: Generate add_object_type and add_relationship_type suggestions based on the refined instruction (NOT the original user message)
+5. You: Explain to the user what you're suggesting and why
+
+**DO NOT just acknowledge the refined instruction. You MUST generate actual schema suggestions based on it.**
+
 ## JSON Schema Best Practices
 When creating schemas:
 1. Use descriptive property names in camelCase
@@ -143,6 +179,28 @@ Examples are especially useful for:
 - Properties where the expected format might be ambiguous
 - Properties that will be extracted by AI from documents
 
+## Icon Usage (IMPORTANT)
+When suggesting UI configurations with icons, you MUST use the search_icons tool to find valid Lucide icon names.
+
+**Workflow for icons:**
+1. Before creating an update_ui_config suggestion, call search_icons with a relevant term
+2. Use only icons that are returned by the tool
+3. If you're unsure about an icon name, use validate mode: search_icons({ query: "icon-name", validate: true })
+
+**Common icons you can use without searching:**
+- People: user, users, user-circle, contact, id-card
+- Documents: file, file-text, folder, clipboard
+- Communication: mail, message-square, phone, bell
+- Business: briefcase, building, building-2, landmark, credit-card, dollar-sign, package
+- Time: calendar, calendar-days, clock, timer, history
+- Data: chart-bar, chart-line, chart-pie, trending-up, activity
+- Objects: box, gift, key, lock, tag, bookmark, star, heart, flag
+- Technology: laptop, smartphone, server, database, globe, link, code
+- Navigation: home, settings, search, menu, plus, check, x, arrow-right, arrow-left
+- Status: info, alert-circle, alert-triangle, help-circle, check-circle, x-circle
+
+Icon names use lowercase with hyphens (e.g., "user-circle", "calendar-days").
+
 ## Response Format
 When suggesting schema changes, include structured suggestions in your response using this format:
 
@@ -158,7 +216,8 @@ When suggesting schema changes, include structured suggestions in your response 
         "name": { "type": "string", "description": "Full name", "examples": ["John Smith", "Jane Doe", "Robert Johnson"] },
         "email": { "type": "string", "format": "email", "description": "Email address", "examples": ["john@example.com", "jane.doe@company.org"] }
       },
-      "required": ["name"]
+      "required": ["name"],
+      "ui_config": { "icon": "user", "color": "#3B82F6" }
     }
   },
   {
@@ -174,10 +233,13 @@ When suggesting schema changes, include structured suggestions in your response 
     "description": "Employment relationship between Person and Organization",
     "after": {
       "type": "object",
+      "source_types": ["Person"],
+      "target_types": ["Organization"],
       "properties": {
         "role": { "type": "string", "description": "Job title or role", "examples": ["Software Engineer", "Product Manager", "CEO"] },
         "startDate": { "type": "string", "format": "date", "examples": ["2024-01-15", "2023-06-01"] }
-      }
+      },
+      "ui_config": { "icon": "arrow-right", "color": "#6B7280" }
     }
   },
   {
@@ -194,6 +256,64 @@ When suggesting schema changes, include structured suggestions in your response 
 ]
 \`\`\`
 
+## IMPORTANT: Include ui_config in add_object_type and add_relationship_type
+When creating new object types or relationship types, ALWAYS include the \`ui_config\` object inside the \`after\` field. Do NOT create separate \`update_ui_config\` suggestions for new types.
+
+**Correct (include ui_config in after):**
+\`\`\`json
+{
+  "type": "add_object_type",
+  "target_type": "Task",
+  "description": "A work item to be completed",
+  "after": {
+    "type": "object",
+    "properties": { "title": { "type": "string" } },
+    "ui_config": { "icon": "check-square", "color": "#10B981" }
+  }
+}
+\`\`\`
+
+**Incorrect (separate ui_config suggestion - DO NOT do this):**
+\`\`\`json
+// First suggestion
+{ "type": "add_object_type", "target_type": "Task", "after": { ... } }
+// Second suggestion - WRONG!
+{ "type": "update_ui_config", "target_type": "Task", "after": { "icon": "check-square", "color": "#10B981" } }
+\`\`\`
+
+Use \`update_ui_config\` ONLY when modifying the icon/color of an EXISTING type that was created earlier in the conversation or already exists in the pack.
+
+## IMPORTANT: Include source_types and target_types in relationship types
+When creating relationship types, ALWAYS include \`source_types\` and \`target_types\` arrays in the \`after\` field. These specify which object types the relationship connects.
+
+**Correct (include source_types and target_types):**
+\`\`\`json
+{
+  "type": "add_relationship_type",
+  "target_type": "ATTENDS",
+  "description": "Links attendees to meetings",
+  "after": {
+    "type": "object",
+    "source_types": ["Attendee"],
+    "target_types": ["Meeting"],
+    "properties": { "role": { "type": "string" } },
+    "ui_config": { "icon": "arrow-right", "color": "#6B7280" }
+  }
+}
+\`\`\`
+
+**Incorrect (missing source_types/target_types - DO NOT do this):**
+\`\`\`json
+{
+  "type": "add_relationship_type",
+  "target_type": "ATTENDS",
+  "after": {
+    "type": "object",
+    "properties": { "role": { "type": "string" } }
+  }
+}
+\`\`\`
+
 Suggestion types:
 - **add_object_type**: Create a new object type with schema
 - **modify_object_type**: Update an existing object type's schema
@@ -205,12 +325,14 @@ Suggestion types:
 - **update_extraction_prompt**: Set AI extraction guidance for a type
 
 ## Guidelines
-1. Start by understanding what domain the user wants to model
-2. Suggest object types that represent key entities in their domain
-3. Suggest relationship types that capture how entities relate
-4. Be specific about property types and constraints
-5. Explain why each suggestion improves the template pack
-6. If the user's request is unclear, ask clarifying questions first`;
+1. For complex requests, use refine_request tool FIRST, then GENERATE SUGGESTIONS based on its output
+2. Start by understanding what domain the user wants to model
+3. Suggest object types that represent key entities in their domain
+4. Suggest relationship types that capture how entities relate
+5. Be specific about property types and constraints
+6. Explain why each suggestion improves the template pack
+7. If the user's request is unclear, ask clarifying questions first
+8. ALWAYS use the search_icons tool to validate icon names before suggesting them`;
 
 /**
  * Controller for Template Pack Studio functionality
@@ -244,14 +366,26 @@ export class TemplatePackStudioController {
 
   /**
    * Get the system prompt for Template Studio.
-   * Tries to fetch from Langfuse first, falls back to hardcoded prompt.
+   *
+   * NOTE: Temporarily bypassing Langfuse to use the updated fallback prompt
+   * with the correct 'refine_request' tool name. Once Langfuse prompt is updated,
+   * remove the BYPASS_LANGFUSE flag.
+   *
+   * TODO: Update Langfuse prompt 'template-studio-system' to use 'refine_request'
+   * instead of 'analyze_request', then set BYPASS_LANGFUSE to false.
    */
   private async getSystemPrompt(): Promise<{
     prompt: string;
     fromLangfuse: boolean;
     version?: number;
   }> {
-    if (this.langfuseService?.isPromptManagementAvailable()) {
+    // TEMPORARY: Bypass Langfuse until the prompt is updated with 'refine_request'
+    const BYPASS_LANGFUSE = true;
+
+    if (
+      !BYPASS_LANGFUSE &&
+      this.langfuseService?.isPromptManagementAvailable()
+    ) {
       try {
         const langfusePrompt = await this.langfuseService.getTextPrompt(
           TEMPLATE_STUDIO_PROMPT_NAMES.TEMPLATE_STUDIO_SYSTEM
@@ -274,6 +408,8 @@ export class TemplatePackStudioController {
         );
       }
     }
+
+    this.logger.debug('Using fallback system prompt for Template Studio');
     return {
       prompt: TEMPLATE_STUDIO_SYSTEM_PROMPT_FALLBACK,
       fromLangfuse: false,
@@ -375,6 +511,38 @@ export class TemplatePackStudioController {
   }
 
   /**
+   * Update pack name for a session
+   */
+  @Patch('session/:sessionId/name')
+  @Scopes('templates:write')
+  @ApiOperation({
+    summary: 'Update pack name',
+    description: 'Updates the name of the draft pack in a studio session.',
+  })
+  @ApiOkResponse({
+    description: 'Pack name updated',
+  })
+  @ApiNotFoundResponse({ description: 'Session not found' })
+  @ApiBadRequestResponse({ description: 'Invalid request' })
+  async updatePackName(
+    @Param('sessionId') sessionId: string,
+    @Body() dto: UpdatePackNameRequestDto,
+    @RequireUserId() userId: string
+  ): Promise<{ success: boolean; pack?: any; error?: string }> {
+    const result = await this.studioService.updatePackName(
+      sessionId,
+      userId,
+      dto.name
+    );
+
+    if (!result.success) {
+      throw new BadRequestException(result.error);
+    }
+
+    return result;
+  }
+
+  /**
    * Get active sessions for current user
    */
   @Get('sessions')
@@ -394,6 +562,36 @@ export class TemplatePackStudioController {
     const { projectId } = ctx;
 
     return this.studioService.getUserSessions(userId, projectId);
+  }
+
+  /**
+   * Delete all empty schema drafts for the current user
+   */
+  @Delete('sessions/empty')
+  @Scopes('templates:write')
+  @ApiOperation({
+    summary: 'Delete empty draft templates',
+    description:
+      'Deletes all draft templates that have zero object types and zero relationship types.',
+  })
+  @ApiOkResponse({
+    description: 'Number of deleted drafts',
+    schema: {
+      type: 'object',
+      properties: {
+        deleted: { type: 'number' },
+        sessionIds: { type: 'array', items: { type: 'string' } },
+      },
+    },
+  })
+  @HttpCode(HttpStatus.OK)
+  async deleteEmptyDrafts(
+    @RequireProjectId() ctx: ProjectContext,
+    @RequireUserId() userId: string
+  ): Promise<{ deleted: number; sessionIds: string[] }> {
+    const { projectId } = ctx;
+
+    return this.studioService.deleteEmptySchemaDrafts(userId, projectId);
   }
 
   /**
@@ -552,14 +750,72 @@ ${packContext}`;
             await this.langGraphService.streamConversation({
               message: dto.content,
               threadId: `studio-${sessionId}`,
-              tools: [], // No tools for now - pure schema design
+              tools: [createQueryRefinementTool(), createIconSearchTool()],
               systemMessage: systemPrompt,
             });
+
+          // Track emitted tool calls to avoid duplicates
+          const emittedToolCalls = new Set<string>();
 
           // Process the stream
           for await (const chunk of langGraphStream) {
             if (chunk.messages && Array.isArray(chunk.messages)) {
               const lastMessage = chunk.messages[chunk.messages.length - 1];
+
+              // Detect tool calls from AI messages
+              if (
+                isAIMessage(lastMessage) &&
+                lastMessage.additional_kwargs?.tool_calls
+              ) {
+                for (const tc of lastMessage.additional_kwargs
+                  .tool_calls as any[]) {
+                  const toolCallId = tc.id || tc.function?.name;
+                  if (tc.function?.name && !emittedToolCalls.has(toolCallId)) {
+                    emittedToolCalls.add(toolCallId);
+                    // Parse arguments if they're a string
+                    let args = tc.function.arguments;
+                    if (typeof args === 'string') {
+                      try {
+                        args = JSON.parse(args);
+                      } catch {
+                        // Keep as string if parsing fails
+                      }
+                    }
+                    // Emit tool_call event (AI requesting tool use)
+                    res.write(
+                      `data: ${JSON.stringify({
+                        type: 'tool_call',
+                        toolCallId,
+                        tool: tc.function.name,
+                        args,
+                      })}\n\n`
+                    );
+                  }
+                }
+              }
+
+              // Detect tool results
+              if (isToolMessage(lastMessage)) {
+                const toolCallId = lastMessage.tool_call_id;
+                // Parse the result if it's JSON
+                let result = lastMessage.content;
+                if (typeof result === 'string') {
+                  try {
+                    result = JSON.parse(result);
+                  } catch {
+                    // Keep as string if parsing fails
+                  }
+                }
+                // Emit tool_result event
+                res.write(
+                  `data: ${JSON.stringify({
+                    type: 'tool_result',
+                    toolCallId,
+                    tool: lastMessage.name,
+                    result,
+                  })}\n\n`
+                );
+              }
 
               if (isAIMessage(lastMessage)) {
                 const content =
