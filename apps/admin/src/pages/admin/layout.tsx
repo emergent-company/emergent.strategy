@@ -2,13 +2,14 @@ import { type ReactNode, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/useAuth';
 import { useNotificationCounts } from '@/hooks/useNotifications';
 import { useTaskCounts, useAllTaskCounts } from '@/hooks/useTasks';
-import { useExtractionJobsCount } from '@/hooks/useExtractionJobsCount';
+
 import { useConfig } from '@/contexts/config';
 import { useOrganizations } from '@/hooks/use-organizations';
 import { useToast } from '@/hooks/use-toast';
 import { useApi } from '@/hooks/use-api';
 import { useAccessTreeContext } from '@/contexts/access-tree';
 import { useSuperadmin } from '@/hooks/use-superadmin';
+import { useSourceTypes } from '@/hooks/use-source-types';
 
 import { Footer } from '@/components/organisms/Footer';
 import { Rightbar } from '@/components/organisms/Rightbar';
@@ -23,7 +24,6 @@ import { OrgAndProjectGateRedirect } from '@/components/organisms/OrgAndProjectG
 const AdminLayout = ({ children }: { children: ReactNode }) => {
   const { ensureAuthenticated, isAuthenticated } = useAuth();
   const { data: notificationCounts } = useNotificationCounts();
-  const { counts: extractionJobsCounts } = useExtractionJobsCount();
   const { config, setActiveProject, setActiveOrg } = useConfig();
   const { data: taskCounts } = useTaskCounts(config.activeProjectId || null);
   const { data: allTaskCounts } = useAllTaskCounts();
@@ -32,6 +32,7 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
   const { apiBase, fetchJson } = useApi();
   const { refresh: refreshTree } = useAccessTreeContext();
   const { isSuperadmin } = useSuperadmin();
+  const { sourceTypes } = useSourceTypes();
 
   // Modal states
   const [showOrgModal, setShowOrgModal] = useState(false);
@@ -231,13 +232,6 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
               Tasks
             </Sidebar.MenuItem>
             <Sidebar.MenuItem
-              id="apps-documents"
-              url="/admin/apps/documents"
-              icon="lucide--file-text"
-            >
-              Documents
-            </Sidebar.MenuItem>
-            <Sidebar.MenuItem
               id="apps-chunks"
               url="/admin/apps/chunks"
               icon="lucide--square-stack"
@@ -267,30 +261,23 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
             </Sidebar.MenuItem>
           </Sidebar.Section>
           <Sidebar.Section
-            id="admin-monitoring"
-            title="System Monitoring"
+            id="admin-data-sources"
+            title="Data Sources"
             className="mt-4"
           >
             <Sidebar.MenuItem
-              id="extraction-jobs"
-              url="/admin/extraction-jobs"
-              icon="lucide--workflow"
-              badges={
-                extractionJobsCounts.total > 0
-                  ? [
-                      {
-                        label:
-                          extractionJobsCounts.total > 99
-                            ? '99+'
-                            : extractionJobsCounts.total.toString(),
-                        variant:
-                          extractionJobsCounts.running > 0 ? 'info' : 'warning',
-                      },
-                    ]
-                  : undefined
-              }
+              id="data-sources-integrations"
+              url="/admin/data-sources/integrations"
+              icon="lucide--plug-2"
             >
-              Extraction Jobs
+              Integrations
+            </Sidebar.MenuItem>
+            <Sidebar.MenuItem
+              id="data-sources-data"
+              url="/admin/apps/documents"
+              icon="lucide--database"
+            >
+              Data
             </Sidebar.MenuItem>
           </Sidebar.Section>
           <Sidebar.Section

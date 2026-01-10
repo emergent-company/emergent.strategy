@@ -136,6 +136,124 @@ export function DocumentMetadataModal({
           </div>
         )}
 
+        {/* Email Info */}
+        {metadata.messageId && (
+          <div className="bg-base-200 card">
+            <div className="p-4 card-body">
+              <h3 className="flex items-center gap-2 mb-3 font-semibold text-sm">
+                <Icon icon="lucide--mail" className="w-4 h-4 text-blue-500" />
+                Email Details
+              </h3>
+              <div className="space-y-2 text-sm">
+                {metadata.subject && (
+                  <div className="flex items-start gap-2">
+                    <span className="min-w-24 font-medium text-base-content/70">
+                      Subject:
+                    </span>
+                    <span className="flex-1 font-semibold">
+                      {metadata.subject}
+                    </span>
+                  </div>
+                )}
+                {metadata.from && Array.isArray(metadata.from) && (
+                  <div className="flex items-start gap-2">
+                    <span className="min-w-24 font-medium text-base-content/70">
+                      From:
+                    </span>
+                    <span className="flex-1">
+                      {metadata.from
+                        .map((a: { name?: string; address: string }) =>
+                          a.name ? `${a.name} <${a.address}>` : a.address
+                        )
+                        .join(', ')}
+                    </span>
+                  </div>
+                )}
+                {metadata.to && Array.isArray(metadata.to) && (
+                  <div className="flex items-start gap-2">
+                    <span className="min-w-24 font-medium text-base-content/70">
+                      To:
+                    </span>
+                    <span className="flex-1">
+                      {metadata.to
+                        .map((a: { name?: string; address: string }) =>
+                          a.name ? `${a.name} <${a.address}>` : a.address
+                        )
+                        .join(', ')}
+                    </span>
+                  </div>
+                )}
+                {metadata.cc &&
+                  Array.isArray(metadata.cc) &&
+                  metadata.cc.length > 0 && (
+                    <div className="flex items-start gap-2">
+                      <span className="min-w-24 font-medium text-base-content/70">
+                        CC:
+                      </span>
+                      <span className="flex-1">
+                        {metadata.cc
+                          .map((a: { name?: string; address: string }) =>
+                            a.name ? `${a.name} <${a.address}>` : a.address
+                          )
+                          .join(', ')}
+                      </span>
+                    </div>
+                  )}
+                {metadata.date && (
+                  <div className="flex items-start gap-2">
+                    <span className="min-w-24 font-medium text-base-content/70">
+                      Date:
+                    </span>
+                    <span className="flex-1">
+                      {new Date(metadata.date).toLocaleString()}
+                    </span>
+                  </div>
+                )}
+                {metadata.hasAttachments && (
+                  <div className="flex items-start gap-2">
+                    <span className="min-w-24 font-medium text-base-content/70">
+                      Attachments:
+                    </span>
+                    <span className="badge badge-sm badge-primary">
+                      {metadata.attachmentCount || 'Yes'}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-start gap-2">
+                  <span className="min-w-24 font-medium text-base-content/70">
+                    Message ID:
+                  </span>
+                  <code className="flex-1 bg-base-100 px-2 py-1 rounded text-xs break-all">
+                    {metadata.messageId}
+                  </code>
+                </div>
+                {metadata.folder && (
+                  <div className="flex items-start gap-2">
+                    <span className="min-w-24 font-medium text-base-content/70">
+                      Folder:
+                    </span>
+                    <span className="flex-1">{metadata.folder}</span>
+                  </div>
+                )}
+                {metadata.provider && (
+                  <div className="flex items-start gap-2">
+                    <span className="min-w-24 font-medium text-base-content/70">
+                      Source:
+                    </span>
+                    <span className="badge badge-sm badge-outline">
+                      {metadata.provider === 'upload'
+                        ? 'Uploaded File'
+                        : metadata.provider === 'gmail_oauth'
+                        ? 'Gmail'
+                        : metadata.provider}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ClickUp Integration Info */}
         {metadata.clickup_id && (
           <div className="bg-base-200 card">

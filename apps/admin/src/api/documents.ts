@@ -81,14 +81,16 @@ export interface DeletionSummary {
  * Bulk deletion summary
  */
 export interface BulkDeletionSummary {
-  totalDeleted: number;
-  totalFailed: number;
-  results: Array<{
-    documentId: string;
-    success: boolean;
-    error?: string;
-    summary?: DeletionSummary;
-  }>;
+  status: 'deleted' | 'partial';
+  deleted: number;
+  notFound: string[];
+  summary: {
+    chunks: number;
+    extractionJobs: number;
+    graphObjects: number;
+    graphRelationships: number;
+    notifications: number;
+  };
 }
 
 /**
