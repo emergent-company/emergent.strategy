@@ -1,13 +1,20 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Modal } from '@/components/organisms/Modal/Modal';
 import { Icon } from '@/components/atoms/Icon';
 import { Spinner } from '@/components/atoms/Spinner';
+import {
+  SyncOptionsForm,
+  type SyncOptions,
+  type FolderRef,
+  type SyncOptionsApiFunctions,
+} from '@/components/organisms/SyncOptionsForm';
+import type { TreeNode } from '@/components/organisms/TreeSelector';
+import type { EmailFilters } from '@/components/organisms/EmailFilterForm';
 import {
   SyncConfiguration,
   SyncConfigurationListResponse,
   CreateSyncConfigurationPayload,
   UpdateSyncConfigurationPayload,
-  SyncOptions,
 } from './sync-config-types';
 
 /**
@@ -20,6 +27,63 @@ type FetchJsonInit<B = unknown> = {
   credentials?: RequestCredentials;
   json?: boolean;
 };
+
+/**
+ * Browse result item from the server (for Drive folders)
+ */
+interface BrowseItem {
+  id: string;
+  itemId: string;
+  name: string;
+  path?: string;
+  isFolder: boolean;
+  mimeType?: string;
+  size?: number;
+  modifiedTime?: string;
+  webViewLink?: string;
+  isSharedDrive?: boolean;
+}
+
+/**
+ * Browse result from the server
+ */
+interface BrowseResult {
+  items: BrowseItem[];
+  total: number;
+  hasMore: boolean;
+  nextOffset?: number;
+}
+
+/**
+ * ClickUp browse item from the server
+ */
+interface ClickUpBrowseItem {
+  id: string;
+  name: string;
+  type: 'workspace' | 'space' | 'doc';
+  path: string;
+  isFolder: boolean;
+  archived?: boolean;
+  docCount?: number;
+}
+
+/**
+ * ClickUp browse result
+ */
+interface ClickUpBrowseResult {
+  items: ClickUpBrowseItem[];
+  total: number;
+  hasMore: boolean;
+}
+
+/**
+ * Folder count response from the server
+ */
+interface FolderCountResponse {
+  folderId: string;
+  estimatedCount: number;
+  isExact: boolean;
+}
 
 export interface SyncConfigurationsModalProps {
   open: boolean;
@@ -37,6 +101,23 @@ export interface SyncConfigurationsModalProps {
 }
 
 type ViewMode = 'list' | 'create' | 'edit';
+
+interface FormData {
+  name: string;
+  description: string;
+  isDefault: boolean;
+  options: SyncOptions;
+}
+
+const DEFAULT_FORM_DATA: FormData = {
+  name: '',
+  description: '',
+  isDefault: false,
+  options: {
+    limit: 100,
+    incrementalOnly: true,
+  },
+};
 
 /**
  * Modal for managing sync configurations (named presets)
@@ -62,23 +143,21 @@ export function SyncConfigurationsModal({
   const [editingConfig, setEditingConfig] = useState<SyncConfiguration | null>(
     null
   );
-  const [formData, setFormData] = useState<{
-    name: string;
-    description: string;
-    isDefault: boolean;
-    limit: number;
-    incrementalOnly: boolean;
-  }>({
-    name: '',
-    description: '',
-    isDefault: false,
-    limit: 100,
-    incrementalOnly: true,
-  });
+  const [formData, setFormData] = useState<FormData>(DEFAULT_FORM_DATA);
 
   // Delete confirmation
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // ClickUp workspace ID (needed for space browsing)
+  const [clickUpWorkspaceId, setClickUpWorkspaceId] = useState<string | null>(
+    null
+  );
+
+  const isDrive = sourceType === 'drive';
+  const isClickUp = sourceType === 'clickup-document';
+  const isEmail = sourceType === 'email';
+  const hasTreeSelector = isDrive || isClickUp;
 
   const baseUrl = `${apiBase}/api/data-source-integrations/${integrationId}/sync-configurations`;
 
@@ -97,15 +176,140 @@ export function SyncConfigurationsModal({
     }
   }, [baseUrl, fetchJson]);
 
+  // Load ClickUp workspace ID (needed for space browsing)
+  const loadClickUpWorkspace = useCallback(async () => {
+    if (!isClickUp) return;
+    try {
+      const data = await fetchJson<ClickUpBrowseResult>(
+        `${apiBase}/api/data-source-integrations/${integrationId}/browse`,
+        {
+          method: 'POST',
+          body: { folder: null, limit: 1 },
+        }
+      );
+      if (data.items.length > 0) {
+        setClickUpWorkspaceId(data.items[0].id);
+      }
+    } catch (err) {
+      console.error('Failed to load ClickUp workspace:', err);
+    }
+  }, [isClickUp, apiBase, integrationId, fetchJson]);
+
   // Load on open
   useEffect(() => {
     if (open) {
       setViewMode('list');
       setEditingConfig(null);
       setDeleteConfirmId(null);
+      setFormData(DEFAULT_FORM_DATA);
       loadConfigurations();
+      if (isClickUp) {
+        loadClickUpWorkspace();
+      }
     }
-  }, [open, loadConfigurations]);
+  }, [open, loadConfigurations, isClickUp, loadClickUpWorkspace]);
+
+  // API functions for TreeSelector
+  const apiFunctions: SyncOptionsApiFunctions = useMemo(() => {
+    if (!hasTreeSelector) return {};
+
+    return {
+      loadRootNodes: async (): Promise<TreeNode[]> => {
+        try {
+          if (isDrive) {
+            const data = await fetchJson<BrowseResult>(
+              `${apiBase}/api/data-source-integrations/${integrationId}/browse`,
+              {
+                method: 'POST',
+                body: { folder: null, limit: 100 },
+              }
+            );
+            return data.items
+              .filter((item) => item.isFolder)
+              .map((item) => ({
+                id: item.id,
+                name: item.name,
+                hasChildren: true,
+                metadata: { isSharedDrive: item.isSharedDrive },
+              }));
+          } else if (isClickUp && clickUpWorkspaceId) {
+            // For ClickUp, load spaces from the workspace
+            const data = await fetchJson<ClickUpBrowseResult>(
+              `${apiBase}/api/data-source-integrations/${integrationId}/browse`,
+              {
+                method: 'POST',
+                body: { folder: `workspace:${clickUpWorkspaceId}`, limit: 100 },
+              }
+            );
+            return data.items.map((item) => ({
+              id: item.id,
+              name: item.name,
+              hasChildren: false, // Spaces don't have children for our purposes
+              metadata: { type: item.type, docCount: item.docCount },
+            }));
+          }
+          return [];
+        } catch (err) {
+          console.error('Failed to load root nodes:', err);
+          return [];
+        }
+      },
+
+      loadChildren: async (nodeId: string): Promise<TreeNode[]> => {
+        try {
+          if (isDrive) {
+            const data = await fetchJson<BrowseResult>(
+              `${apiBase}/api/data-source-integrations/${integrationId}/browse`,
+              {
+                method: 'POST',
+                body: { folder: nodeId, limit: 100 },
+              }
+            );
+            return data.items
+              .filter((item) => item.isFolder)
+              .map((item) => ({
+                id: item.id,
+                name: item.name,
+                hasChildren: true,
+                metadata: { isSharedDrive: item.isSharedDrive },
+              }));
+          }
+          // ClickUp spaces don't have children
+          return [];
+        } catch (err) {
+          console.error('Failed to load children:', err);
+          return [];
+        }
+      },
+
+      getItemCount: async (nodeId: string): Promise<number> => {
+        try {
+          if (isDrive) {
+            const result = await fetchJson<FolderCountResponse>(
+              `${apiBase}/api/data-source-integrations/${integrationId}/folder-count`,
+              {
+                method: 'POST',
+                body: { folderId: nodeId },
+              }
+            );
+            return result.estimatedCount;
+          }
+          return 0;
+        } catch (err) {
+          console.error('Failed to get item count:', err);
+          return 0;
+        }
+      },
+    };
+  }, [
+    hasTreeSelector,
+    isDrive,
+    isClickUp,
+    clickUpWorkspaceId,
+    apiBase,
+    integrationId,
+    fetchJson,
+  ]);
 
   // Reset form for create
   const startCreate = () => {
@@ -113,8 +317,10 @@ export function SyncConfigurationsModal({
       name: '',
       description: '',
       isDefault: configurations.length === 0, // First config is default
-      limit: 100,
-      incrementalOnly: true,
+      options: {
+        limit: 100,
+        incrementalOnly: true,
+      },
     });
     setEditingConfig(null);
     setViewMode('create');
@@ -126,11 +332,21 @@ export function SyncConfigurationsModal({
       name: config.name,
       description: config.description || '',
       isDefault: config.isDefault,
-      limit: config.options.limit || 100,
-      incrementalOnly: config.options.incrementalOnly !== false,
+      options: {
+        limit: config.options.limit || 100,
+        incrementalOnly: config.options.incrementalOnly !== false,
+        selectedFolders: config.options.selectedFolders,
+        excludedFolders: config.options.excludedFolders,
+        filters: config.options.filters,
+      },
     });
     setEditingConfig(config);
     setViewMode('edit');
+  };
+
+  // Handle options change from SyncOptionsForm
+  const handleOptionsChange = (options: SyncOptions) => {
+    setFormData((prev) => ({ ...prev, options }));
   };
 
   // Save configuration (create or update)
@@ -144,17 +360,37 @@ export function SyncConfigurationsModal({
     setError(null);
 
     try {
-      const options: SyncOptions = {
-        limit: formData.limit,
-        incrementalOnly: formData.incrementalOnly,
+      // Clean up options - remove empty arrays/objects
+      const cleanOptions: SyncOptions = {
+        limit: formData.options.limit,
+        incrementalOnly: formData.options.incrementalOnly,
       };
+
+      if (
+        formData.options.selectedFolders &&
+        formData.options.selectedFolders.length > 0
+      ) {
+        cleanOptions.selectedFolders = formData.options.selectedFolders;
+      }
+      if (
+        formData.options.excludedFolders &&
+        formData.options.excludedFolders.length > 0
+      ) {
+        cleanOptions.excludedFolders = formData.options.excludedFolders;
+      }
+      if (
+        formData.options.filters &&
+        Object.keys(formData.options.filters).length > 0
+      ) {
+        cleanOptions.filters = formData.options.filters;
+      }
 
       if (viewMode === 'create') {
         const payload: CreateSyncConfigurationPayload = {
           name: formData.name.trim(),
           description: formData.description.trim() || undefined,
           isDefault: formData.isDefault,
-          options,
+          options: cleanOptions,
         };
 
         await fetchJson<SyncConfiguration, CreateSyncConfigurationPayload>(
@@ -169,7 +405,7 @@ export function SyncConfigurationsModal({
           name: formData.name.trim(),
           description: formData.description.trim() || undefined,
           isDefault: formData.isDefault,
-          options,
+          options: cleanOptions,
         };
 
         await fetchJson<SyncConfiguration, UpdateSyncConfigurationPayload>(
@@ -244,6 +480,32 @@ export function SyncConfigurationsModal({
       default:
         return 'items';
     }
+  };
+
+  // Get config summary for display
+  const getConfigSummary = (config: SyncConfiguration) => {
+    const parts: string[] = [];
+    parts.push(`${config.options.limit || 100} ${getSourceTypeLabel()}`);
+
+    if (config.options.incrementalOnly !== false) {
+      parts.push('incremental');
+    }
+
+    if (
+      config.options.selectedFolders &&
+      config.options.selectedFolders.length > 0
+    ) {
+      parts.push(`${config.options.selectedFolders.length} folder(s)`);
+    }
+
+    if (
+      config.options.filters &&
+      Object.keys(config.options.filters).length > 0
+    ) {
+      parts.push(`${Object.keys(config.options.filters).length} filter(s)`);
+    }
+
+    return parts.join(' | ');
   };
 
   // Render list view
@@ -328,11 +590,7 @@ export function SyncConfigurationsModal({
                       </p>
                     )}
                     <div className="text-xs text-base-content/50 mt-2">
-                      Limit: {config.options.limit || 100}{' '}
-                      {getSourceTypeLabel()}
-                      {config.options.incrementalOnly !== false && (
-                        <span className="ml-2">| Incremental only</span>
-                      )}
+                      {getConfigSummary(config)}
                     </div>
                   </div>
 
@@ -386,8 +644,6 @@ export function SyncConfigurationsModal({
 
   // Render create/edit form
   const renderForm = () => {
-    const isEdit = viewMode === 'edit';
-
     return (
       <div className="space-y-4">
         {/* Name */}
@@ -422,57 +678,6 @@ export function SyncConfigurationsModal({
           />
         </div>
 
-        <div className="divider">Sync Options</div>
-
-        {/* Limit */}
-        <div className="form-control">
-          <label className="label">
-            <span className="label-text">
-              Maximum {getSourceTypeLabel()} to sync
-            </span>
-            <span className="label-text-alt">{formData.limit}</span>
-          </label>
-          <input
-            type="range"
-            min="10"
-            max="500"
-            step="10"
-            value={formData.limit}
-            onChange={(e) =>
-              setFormData({ ...formData, limit: parseInt(e.target.value) })
-            }
-            className="range range-primary"
-          />
-          <div className="flex justify-between text-xs px-2 mt-1">
-            <span>10</span>
-            <span>100</span>
-            <span>250</span>
-            <span>500</span>
-          </div>
-        </div>
-
-        {/* Incremental Only (email-specific but shown for all) */}
-        <div className="form-control">
-          <label className="label cursor-pointer">
-            <div className="flex flex-col">
-              <span className="label-text">Incremental sync only</span>
-              <span className="label-text text-xs opacity-60">
-                {formData.incrementalOnly
-                  ? 'Only syncs items received after last sync'
-                  : 'Re-scans all items (can re-import deleted items)'}
-              </span>
-            </div>
-            <input
-              type="checkbox"
-              checked={formData.incrementalOnly}
-              onChange={(e) =>
-                setFormData({ ...formData, incrementalOnly: e.target.checked })
-              }
-              className="checkbox checkbox-primary"
-            />
-          </label>
-        </div>
-
         {/* Default Toggle */}
         <div className="form-control">
           <label className="label cursor-pointer">
@@ -492,6 +697,17 @@ export function SyncConfigurationsModal({
             />
           </label>
         </div>
+
+        <div className="divider">Sync Options</div>
+
+        {/* Sync Options Form */}
+        <SyncOptionsForm
+          sourceType={sourceType}
+          options={formData.options}
+          onChange={handleOptionsChange}
+          apiFunctions={hasTreeSelector ? apiFunctions : undefined}
+          maxLimit={sourceType === 'drive' ? 1000 : 500}
+        />
       </div>
     );
   };
@@ -545,6 +761,10 @@ export function SyncConfigurationsModal({
     ];
   };
 
+  // Use larger modal when showing tree selector
+  const modalSize =
+    hasTreeSelector && viewMode !== 'list' ? 'max-w-3xl' : 'max-w-xl';
+
   return (
     <Modal
       open={open}
@@ -554,7 +774,7 @@ export function SyncConfigurationsModal({
         }
       }}
       title={getTitle()}
-      sizeClassName="max-w-xl"
+      sizeClassName={modalSize}
       actions={getActions()}
     >
       {/* Error message */}

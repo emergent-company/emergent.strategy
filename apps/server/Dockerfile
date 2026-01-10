@@ -1,10 +1,9 @@
-# syntax=docker/dockerfile:1.4
 # Dockerfile for NestJS Backend API
 # Build context: REPOSITORY ROOT (.) - workspace-aware build
 # Usage: docker build -f apps/server/Dockerfile .
 #
 # BuildKit optimizations:
-# - Cache mounts for npm (50-80% faster dependency installs)
+# - Cache mounts for pnpm (50-80% faster dependency installs)
 # - Optimized layer ordering for better caching
 # - Parallel builds with BuildKit
 #
@@ -17,27 +16,31 @@ FROM node:20-slim AS builder
 # Set NODE_ENV to development for build stage
 ENV NODE_ENV=development
 
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
 WORKDIR /build
 
 # Copy root workspace package files first
-COPY package.json package-lock.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
-# Copy server package files (no package-lock.json - workspace uses root lock file)
+# Copy server package files
 COPY apps/server/package.json ./apps/server/
+
+# Copy .api folder (generated ClickUp API client - local dependency)
+COPY .api ./.api
 
 # Copy root tsconfig.json (extended by server tsconfig)
 COPY tsconfig.json ./
 
-# Install dependencies with npm cache mount (workspace-aware, skip prepare scripts like husky)
-# Using --legacy-peer-deps to handle LangChain peer dependency conflicts
-RUN --mount=type=cache,target=/root/.npm \
-    npm install --workspace=apps/server --ignore-scripts --legacy-peer-deps
+# Install dependencies (workspace-aware, skip prepare scripts like husky)
+RUN pnpm install --filter=server... --ignore-scripts
 
 # Copy server source code
 COPY apps/server ./apps/server
 
 # Build the application
-RUN cd apps/server && npm run build
+RUN cd apps/server && pnpm run build
 
 # Production stage
 FROM node:20-slim
