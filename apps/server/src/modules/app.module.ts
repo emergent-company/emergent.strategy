@@ -58,6 +58,7 @@ import { UserEmailPreferencesModule } from './user-email-preferences/user-email-
 import { StorageModule } from './storage/storage.module';
 import { DocumentParsingModule } from './document-parsing/document-parsing.module';
 import { ApiTokensModule } from './api-tokens/api-tokens.module';
+import { DataSourcesModule } from './data-sources/data-sources.module';
 import { AppConfigService } from '../common/config/config.service';
 import { entities } from '../entities';
 
@@ -178,6 +179,7 @@ const getOtelImports = (): DynamicModule[] => {
     StorageModule,
     DocumentParsingModule,
     ApiTokensModule,
+    DataSourcesModule,
     TypeOrmModule.forFeature([UserProfile]),
   ],
   providers: [
