@@ -19,10 +19,11 @@ import {
 import { Icon } from '@/components/atoms/Icon';
 import { Spinner } from '@/components/atoms/Spinner';
 import { GraphObject } from '../ObjectBrowser/ObjectBrowser';
-import { RelationshipGraph, TreeRelationshipGraph } from '../RelationshipGraph';
+import { TreeRelationshipGraph } from '../RelationshipGraph';
 import { useApi } from '@/hooks/use-api';
 import { useConfig } from '@/contexts/config';
 import { useDataUpdates } from '@/contexts/data-updates';
+import { useSuperadmin } from '@/hooks/use-superadmin';
 import type {
   ObjectVersion,
   ObjectHistoryResponse,
@@ -35,9 +36,6 @@ export type ObjectDetailTab =
   | 'relationships'
   | 'system'
   | 'history';
-
-/** Graph layout options */
-type GraphLayout = 'radial' | 'tree' | 'orthogonal';
 
 interface GraphObjectResponse {
   id: string;
@@ -58,8 +56,6 @@ interface GraphObjectResponse {
 export interface ObjectDetailContentVariant {
   /** Whether to show inline graph visualization (modal) or just "Open Graph" button (drawer) */
   showInlineGraph?: boolean;
-  /** Whether to show graph layout toggle */
-  showGraphLayoutToggle?: boolean;
   /** Whether to show embedding generation controls */
   showEmbeddingControls?: boolean;
   /** Whether to show fullscreen mode (for sizing calculations) */
@@ -89,7 +85,6 @@ export interface ObjectDetailContentProps {
 
 const defaultVariant: ObjectDetailContentVariant = {
   showInlineGraph: true,
-  showGraphLayoutToggle: true,
   showEmbeddingControls: true,
   isFullscreen: false,
   showMinimap: false,
@@ -110,18 +105,15 @@ export const ObjectDetailContent: React.FC<ObjectDetailContentProps> = ({
 }) => {
   const { fetchJson, apiBase } = useApi();
   const { config } = useConfig();
+  const { isSuperadmin } = useSuperadmin();
 
   const {
     showInlineGraph = true,
-    showGraphLayoutToggle = true,
     showEmbeddingControls = true,
     isFullscreen = false,
     showMinimap = false,
     compact = false,
   } = variant;
-
-  // Graph layout state
-  const [graphLayout, setGraphLayout] = useState<GraphLayout>('radial');
 
   // Version history state
   const [versions, setVersions] = useState<ObjectVersion[]>([]);
@@ -476,7 +468,6 @@ export const ObjectDetailContent: React.FC<ObjectDetailContentProps> = ({
       setVersions([]);
       setVersionsError(null);
       setRelatedObjectGroups([]);
-      setGraphLayout('radial');
     }
   }, [object, loadVersionHistory, loadRelatedObjects]);
 
@@ -871,8 +862,8 @@ export const ObjectDetailContent: React.FC<ObjectDetailContentProps> = ({
       {/* Relationships Tab */}
       {activeTab === 'relationships' && (
         <div className={spacing}>
-          {/* Graph Layout Toggle (modal variant) */}
-          {showInlineGraph && showGraphLayoutToggle && (
+          {/* Graph Header (shown when inline graph is enabled) */}
+          {showInlineGraph && (
             <div className="flex items-center justify-between">
               <h4
                 className={`flex items-center gap-2 font-semibold ${headingSize}`}
@@ -883,41 +874,6 @@ export const ObjectDetailContent: React.FC<ObjectDetailContentProps> = ({
                 />
                 Relationship Graph
               </h4>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-base-content/60">Layout:</span>
-                <div className="join">
-                  <button
-                    className={`join-item btn btn-xs ${
-                      graphLayout === 'radial' ? 'btn-primary' : 'btn-ghost'
-                    }`}
-                    onClick={() => setGraphLayout('radial')}
-                    title="Radial layout"
-                  >
-                    <Icon icon="lucide--circle-dot" className="size-3 mr-1" />
-                    Radial
-                  </button>
-                  <button
-                    className={`join-item btn btn-xs ${
-                      graphLayout === 'tree' ? 'btn-primary' : 'btn-ghost'
-                    }`}
-                    onClick={() => setGraphLayout('tree')}
-                    title="Tree layout"
-                  >
-                    <Icon icon="lucide--git-branch" className="size-3 mr-1" />
-                    Tree
-                  </button>
-                  <button
-                    className={`join-item btn btn-xs ${
-                      graphLayout === 'orthogonal' ? 'btn-primary' : 'btn-ghost'
-                    }`}
-                    onClick={() => setGraphLayout('orthogonal')}
-                    title="Orthogonal layout"
-                  >
-                    <Icon icon="lucide--layout-grid" className="size-3 mr-1" />
-                    Ortho
-                  </button>
-                </div>
-              </div>
             </div>
           )}
 
@@ -927,24 +883,13 @@ export const ObjectDetailContent: React.FC<ObjectDetailContentProps> = ({
               className="bg-base-200/30 border border-base-300 rounded-lg overflow-hidden"
               style={{ height: isFullscreen ? 'calc(100vh - 400px)' : '450px' }}
             >
-              {graphLayout === 'radial' ? (
-                <RelationshipGraph
-                  objectId={object.id}
-                  onNodeDoubleClick={handleObjectIdClick}
-                  initialDepth={1}
-                  showMinimap={showMinimap}
-                />
-              ) : (
-                <TreeRelationshipGraph
-                  objectId={object.id}
-                  onNodeDoubleClick={handleObjectIdClick}
-                  initialDepth={1}
-                  showMinimap={showMinimap}
-                  edgeStyle={
-                    graphLayout === 'orthogonal' ? 'orthogonal' : 'bezier'
-                  }
-                />
-              )}
+              <TreeRelationshipGraph
+                objectId={object.id}
+                onNodeDoubleClick={handleObjectIdClick}
+                initialDepth={1}
+                showMinimap={showMinimap}
+                edgeStyle="orthogonal"
+              />
             </div>
           )}
 
@@ -1206,14 +1151,20 @@ export const ObjectDetailContent: React.FC<ObjectDetailContentProps> = ({
                     >
                       Extraction Job
                     </span>
-                    <a
-                      href={`/admin/extraction-jobs/${extractionMetadata._extraction_job_id}`}
-                      className="gap-1 btn btn-sm btn-ghost"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Icon icon="lucide--zap" className="size-3" />
-                      View Job
-                    </a>
+                    {isSuperadmin ? (
+                      <a
+                        href={`/admin/superadmin/jobs/extraction?jobId=${extractionMetadata._extraction_job_id}`}
+                        className="gap-1 btn btn-sm btn-ghost"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Icon icon="lucide--zap" className="size-3" />
+                        View Job
+                      </a>
+                    ) : (
+                      <code className="bg-base-200 px-2 py-1 rounded text-xs">
+                        {extractionMetadata._extraction_job_id}
+                      </code>
+                    )}
                   </div>
                 )}
 
@@ -1587,15 +1538,22 @@ export const ObjectDetailContent: React.FC<ObjectDetailContentProps> = ({
                         const jobId = props._extraction_job_id;
                         if (!jobId) return null;
 
-                        return (
+                        return isSuperadmin ? (
                           <a
-                            href={`/admin/extraction-jobs/${String(jobId)}`}
+                            href={`/admin/superadmin/jobs/extraction?jobId=${String(
+                              jobId
+                            )}`}
                             className="inline-flex gap-1 mt-2 btn btn-xs btn-ghost"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <Icon icon="lucide--zap" className="size-2" />
                             From Extraction
                           </a>
+                        ) : (
+                          <span className="inline-flex gap-1 mt-2 text-xs text-base-content/60">
+                            <Icon icon="lucide--zap" className="size-2" />
+                            From Extraction
+                          </span>
                         );
                       })()}
                     </div>

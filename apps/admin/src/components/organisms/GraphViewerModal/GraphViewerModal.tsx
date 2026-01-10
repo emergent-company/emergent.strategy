@@ -2,16 +2,10 @@
  * GraphViewerModal - Full-screen modal for viewing relationship graphs
  * Used by ObjectPreviewDrawer to show expanded graph view
  */
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { Modal } from '@/components/organisms/Modal/Modal';
 import { Icon } from '@/components/atoms/Icon';
-import {
-  RelationshipGraph,
-  TreeRelationshipGraph,
-  type TreeEdgeStyle,
-} from '@/components/organisms/RelationshipGraph';
-
-export type GraphLayout = 'radial' | 'tree' | 'orthogonal';
+import { TreeRelationshipGraph } from '@/components/organisms/RelationshipGraph';
 
 export interface GraphViewerModalProps {
   /** Whether the modal is open */
@@ -26,12 +20,6 @@ export interface GraphViewerModalProps {
   onNodeNavigate?: (objectId: string) => void;
 }
 
-const layoutOptions: { value: GraphLayout; label: string; icon: string }[] = [
-  { value: 'radial', label: 'Radial', icon: 'lucide--circle-dot' },
-  { value: 'tree', label: 'Tree', icon: 'lucide--git-branch' },
-  { value: 'orthogonal', label: 'Orthogonal', icon: 'lucide--git-fork' },
-];
-
 export function GraphViewerModal({
   isOpen,
   onClose,
@@ -39,8 +27,6 @@ export function GraphViewerModal({
   objectName,
   onNodeNavigate,
 }: GraphViewerModalProps) {
-  const [layout, setLayout] = useState<GraphLayout>('tree');
-
   const handleOpenChange = useCallback(
     (open: boolean) => {
       if (!open) {
@@ -60,13 +46,6 @@ export function GraphViewerModal({
     [onNodeNavigate, onClose]
   );
 
-  // Get edge style for tree layouts
-  const getEdgeStyle = (): TreeEdgeStyle | undefined => {
-    if (layout === 'orthogonal') return 'orthogonal';
-    if (layout === 'tree') return 'bezier';
-    return undefined;
-  };
-
   return (
     <Modal
       open={isOpen}
@@ -75,7 +54,7 @@ export function GraphViewerModal({
       className="!p-0"
       hideCloseButton
     >
-      {/* Custom header with layout controls */}
+      {/* Custom header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-base-300 bg-base-100 shrink-0">
         <div className="flex items-center gap-3">
           <Icon icon="lucide--git-branch" className="size-5 text-primary" />
@@ -87,56 +66,26 @@ export function GraphViewerModal({
           </div>
         </div>
 
-        {/* Layout toggle */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-base-content/60 mr-1">Layout:</span>
-          <div className="join">
-            {layoutOptions.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                className={`join-item btn btn-sm ${
-                  layout === option.value ? 'btn-primary' : 'btn-ghost'
-                }`}
-                onClick={() => setLayout(option.value)}
-                title={option.label}
-              >
-                <Icon icon={option.icon} className="size-4" />
-                <span className="hidden sm:inline ml-1">{option.label}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Close button */}
-          <button
-            type="button"
-            className="btn btn-sm btn-circle btn-ghost ml-2"
-            onClick={onClose}
-            aria-label="Close graph viewer"
-          >
-            <Icon icon="lucide--x" className="size-4" />
-          </button>
-        </div>
+        {/* Close button */}
+        <button
+          type="button"
+          className="btn btn-sm btn-circle btn-ghost"
+          onClick={onClose}
+          aria-label="Close graph viewer"
+        >
+          <Icon icon="lucide--x" className="size-4" />
+        </button>
       </div>
 
       {/* Graph container */}
       <div className="flex-1 h-full min-h-0">
-        {layout === 'radial' ? (
-          <RelationshipGraph
-            objectId={objectId}
-            onNodeDoubleClick={handleNodeDoubleClick}
-            showMinimap={true}
-            className="h-full"
-          />
-        ) : (
-          <TreeRelationshipGraph
-            objectId={objectId}
-            onNodeDoubleClick={handleNodeDoubleClick}
-            showMinimap={true}
-            edgeStyle={getEdgeStyle()}
-            className="h-full"
-          />
-        )}
+        <TreeRelationshipGraph
+          objectId={objectId}
+          onNodeDoubleClick={handleNodeDoubleClick}
+          showMinimap={true}
+          edgeStyle="orthogonal"
+          className="h-full"
+        />
       </div>
 
       {/* Help text */}

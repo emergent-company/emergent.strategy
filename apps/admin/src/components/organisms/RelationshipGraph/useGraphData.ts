@@ -48,8 +48,12 @@ export interface GraphEdgeData extends Record<string, unknown> {
   label: string;
   /** Vertical offset for label to avoid overlapping with reverse edges */
   labelOffsetY?: number;
-  /** Vertical offset for the edge path itself (to separate parallel edges) */
+  /** Vertical offset for the edge path itself (to separate parallel edges) - used by bezier edges */
   edgeOffsetY?: number;
+  /** Horizontal offset for the edge path (to separate parallel edges) - used by orthogonal edges */
+  edgeOffsetX?: number;
+  /** Whether source and target nodes are in the same column (same depth) - for orthogonal edges */
+  isSameColumn?: boolean;
   /** Whether this edge should be highlighted (connected to hovered node) */
   isHighlighted?: boolean;
 }

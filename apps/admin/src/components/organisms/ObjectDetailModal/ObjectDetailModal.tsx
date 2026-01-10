@@ -10,10 +10,11 @@ import { Icon } from '@/components/atoms/Icon';
 import { Spinner } from '@/components/atoms/Spinner';
 import { Tooltip } from '@/components/atoms/Tooltip';
 import { GraphObject } from '../ObjectBrowser/ObjectBrowser';
-import { RelationshipGraph, TreeRelationshipGraph } from '../RelationshipGraph';
+import { TreeRelationshipGraph } from '../RelationshipGraph';
 import { useApi } from '@/hooks/use-api';
 import { useConfig } from '@/contexts/config';
 import { useDataUpdates } from '@/contexts/data-updates';
+import { useSuperadmin } from '@/hooks/use-superadmin';
 import { ObjectRefinementChat } from './ObjectRefinementChat';
 import type {
   ObjectVersion,
@@ -23,9 +24,6 @@ import type { TypeRegistryEntryDto } from '@/api/type-registry';
 
 /** Tab names for the modal */
 type ModalTab = 'properties' | 'relationships' | 'system' | 'history';
-
-/** Graph layout options */
-type GraphLayout = 'radial' | 'tree' | 'orthogonal';
 
 interface GraphObjectResponse {
   id: string;
@@ -71,12 +69,12 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
 }) => {
   const { fetchJson, apiBase } = useApi();
   const { config } = useConfig();
+  const { isSuperadmin } = useSuperadmin();
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   // Tab and fullscreen state
   const [activeTab, setActiveTab] = useState<ModalTab>('properties');
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [graphLayout, setGraphLayout] = useState<GraphLayout>('radial');
   // Default to hidden on mobile (< 1024px), visible on larger screens
   const [showRefinementChat, setShowRefinementChat] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -504,7 +502,6 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
       // Reset tab and fullscreen state
       setActiveTab('properties');
       setIsFullscreen(false);
-      setGraphLayout('radial');
     }
   }, [isOpen, object, loadVersionHistory, loadRelatedObjects]);
 
@@ -1045,54 +1042,6 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
                     <Icon icon="lucide--git-branch" className="size-5" />
                     Relationship Graph
                   </h4>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-base-content/60">
-                      Layout:
-                    </span>
-                    <div className="join">
-                      <button
-                        className={`join-item btn btn-xs ${
-                          graphLayout === 'radial' ? 'btn-primary' : 'btn-ghost'
-                        }`}
-                        onClick={() => setGraphLayout('radial')}
-                        title="Radial layout - auto-arranges nodes in a radial pattern"
-                      >
-                        <Icon
-                          icon="lucide--circle-dot"
-                          className="size-3 mr-1"
-                        />
-                        Radial
-                      </button>
-                      <button
-                        className={`join-item btn btn-xs ${
-                          graphLayout === 'tree' ? 'btn-primary' : 'btn-ghost'
-                        }`}
-                        onClick={() => setGraphLayout('tree')}
-                        title="Tree layout - curved edges, expands left-to-right"
-                      >
-                        <Icon
-                          icon="lucide--git-branch"
-                          className="size-3 mr-1"
-                        />
-                        Tree
-                      </button>
-                      <button
-                        className={`join-item btn btn-xs ${
-                          graphLayout === 'orthogonal'
-                            ? 'btn-primary'
-                            : 'btn-ghost'
-                        }`}
-                        onClick={() => setGraphLayout('orthogonal')}
-                        title="Orthogonal tree - right-angle edges"
-                      >
-                        <Icon
-                          icon="lucide--layout-grid"
-                          className="size-3 mr-1"
-                        />
-                        Ortho
-                      </button>
-                    </div>
-                  </div>
                 </div>
 
                 {/* Interactive Graph Visualization */}
@@ -1102,24 +1051,13 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
                     height: isFullscreen ? 'calc(100vh - 400px)' : '450px',
                   }}
                 >
-                  {graphLayout === 'radial' ? (
-                    <RelationshipGraph
-                      objectId={object.id}
-                      onNodeDoubleClick={handleObjectIdClick}
-                      initialDepth={1}
-                      showMinimap={isFullscreen}
-                    />
-                  ) : (
-                    <TreeRelationshipGraph
-                      objectId={object.id}
-                      onNodeDoubleClick={handleObjectIdClick}
-                      initialDepth={1}
-                      showMinimap={isFullscreen}
-                      edgeStyle={
-                        graphLayout === 'orthogonal' ? 'orthogonal' : 'bezier'
-                      }
-                    />
-                  )}
+                  <TreeRelationshipGraph
+                    objectId={object.id}
+                    onNodeDoubleClick={handleObjectIdClick}
+                    initialDepth={1}
+                    showMinimap={isFullscreen}
+                    edgeStyle="orthogonal"
+                  />
                 </div>
 
                 {/* Relationship Groups Section */}
@@ -1334,14 +1272,20 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
                           <span className="font-medium text-sm">
                             Extraction Job
                           </span>
-                          <a
-                            href={`/admin/extraction-jobs/${extractionMetadata._extraction_job_id}`}
-                            className="gap-1 btn btn-sm btn-ghost"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Icon icon="lucide--zap" className="size-3" />
-                            View Job
-                          </a>
+                          {isSuperadmin ? (
+                            <a
+                              href={`/admin/superadmin/jobs/extraction?jobId=${extractionMetadata._extraction_job_id}`}
+                              className="gap-1 btn btn-sm btn-ghost"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Icon icon="lucide--zap" className="size-3" />
+                              View Job
+                            </a>
+                          ) : (
+                            <code className="bg-base-200 px-2 py-1 rounded text-xs">
+                              {extractionMetadata._extraction_job_id}
+                            </code>
+                          )}
                         </div>
                       )}
 
@@ -1658,9 +1602,9 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
                               const jobId = props._extraction_job_id;
                               if (!jobId) return null;
 
-                              return (
+                              return isSuperadmin ? (
                                 <a
-                                  href={`/admin/extraction-jobs/${String(
+                                  href={`/admin/superadmin/jobs/extraction?jobId=${String(
                                     jobId
                                   )}`}
                                   className="inline-flex gap-1 mt-2 btn btn-xs btn-ghost"
@@ -1669,6 +1613,11 @@ export const ObjectDetailModal: React.FC<ObjectDetailModalProps> = ({
                                   <Icon icon="lucide--zap" className="size-2" />
                                   From Extraction
                                 </a>
+                              ) : (
+                                <span className="inline-flex gap-1 mt-2 text-xs text-base-content/60">
+                                  <Icon icon="lucide--zap" className="size-2" />
+                                  From Extraction
+                                </span>
                               );
                             })()}
                           </div>
