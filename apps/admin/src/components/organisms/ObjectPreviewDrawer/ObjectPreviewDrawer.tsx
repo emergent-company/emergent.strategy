@@ -260,7 +260,6 @@ export function ObjectPreviewDrawer({
                   loading={loading}
                   variant={{
                     showInlineGraph: false, // Drawer shows "Open Graph" button instead
-                    showGraphLayoutToggle: false,
                     showEmbeddingControls: false, // Keep drawer simple
                     isFullscreen: false,
                     showMinimap: false,
