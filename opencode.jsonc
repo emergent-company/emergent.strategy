@@ -1,5 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "model": "github-copilot/claude-opus-4.5",
   "theme": "tokyonight",
   "mcp": {
     // "figma": {
@@ -16,22 +17,21 @@
     // },
     "postgres": {
       "type": "local",
-      "command": ["./scripts/mcp-postgres-wrapper.sh"]
+      "command": ["./scripts/mcp-postgres-wrapper.sh"],
+      "timeout": 60000
     },
     "context7": {
-      "type": "local",
-      "command": [
-        "npx",
-        "-y",
-        "@upstash/context7-mcp",
-        "--api-key",
-        "ctx7sk-77ad3f0a-32a5-4b23-8b82-1431d078b1c6"
-      ]
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "ctx7sk-77ad3f0a-32a5-4b23-8b82-1431d078b1c6"
+      },
+      "timeout": 60000
     },
     "gh_grep": {
       "type": "remote",
-      "url": "https://mcp.grep.app",
-      "timeout": 50000
+      "url": "https://mcp.grep.app/sse",
+      "timeout": 60000
     },
     //    "react-daisyui Docs": {
     //      "type": "remote",
@@ -45,16 +45,19 @@
         "chrome-devtools-mcp@latest",
         "--browserUrl",
         "http://127.0.0.1:9222"
-      ]
+      ],
+      "timeout": 120000
     },
-    "daisyui-blueprint": {
-      "type": "local",
-      "command": ["npx", "-y", "daisyui-blueprint@latest"],
-      "environment": {
-        "LICENSE": "19B37-Q9DO7-1YBUL-SUX2D-VHYR4",
-        "EMAIL": "maciej@kucharz.net"
-      }
-    },
+    // daisyui-blueprint - disabled due to startup issues
+    // "daisyui-blueprint": {
+    //   "type": "local",
+    //   "command": ["npx", "-y", "daisyui-blueprint@latest"],
+    //   "environment": {
+    //     "LICENSE": "19B37-Q9DO7-1YBUL-SUX2D-VHYR4",
+    //     "EMAIL": "maciej@kucharz.net"
+    //   },
+    //   "timeout": 120000
+    // },
     "langfuse-docs": {
       "type": "remote",
       "url": "https://langfuse.com/api/mcp",
@@ -62,19 +65,23 @@
     },
     "langfuse": {
       "type": "local",
-      "command": ["./scripts/mcp-langfuse-wrapper.sh"]
+      "command": ["./scripts/mcp-langfuse-wrapper.sh"],
+      "timeout": 60000
     },
     "logs": {
       "type": "local",
-      "command": ["npx", "tsx", "tools/logs-mcp/src/index.ts"]
+      "command": ["npx", "tsx", "tools/logs-mcp/src/index.ts"],
+      "timeout": 60000
     },
     "workspace": {
       "type": "local",
-      "command": ["npx", "tsx", "tools/workspace-mcp/src/index.ts"]
+      "command": ["npx", "tsx", "tools/workspace-mcp/src/index.ts"],
+      "timeout": 60000
     },
     "api-client": {
       "type": "local",
-      "command": ["npx", "tsx", "tools/api-client-mcp/src/index.ts"]
+      "command": ["npx", "tsx", "tools/api-client-mcp/src/index.ts"],
+      "timeout": 60000
     },
     "signoz": {
       "type": "local",
@@ -83,7 +90,8 @@
         "SIGNOZ_URL": "http://localhost:3301",
         "SIGNOZ_API_KEY": "ek35B2Ka34ADSeOMLI+xV/1eZbXi7waouH3LfgafOkM=",
         "LOG_LEVEL": "info"
-      }
+      },
+      "timeout": 60000
     }
     // ,
     // "nx-mcp": {
