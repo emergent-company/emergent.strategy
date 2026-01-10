@@ -1,6 +1,5 @@
-# syntax=docker/dockerfile:1.4
 # Dockerfile for Frontend Admin App
-# Build context: apps/admin directory
+# Build context: REPOSITORY ROOT (.) - workspace-aware build
 # 
 # Build arguments:
 #   - VITE_API_URL: API endpoint URL (baked into build)
@@ -9,7 +8,7 @@
 #   - VITE_APP_ENV: Environment (production/staging)
 #
 # BuildKit optimizations:
-# - Cache mounts for npm (50-80% faster dependency installs)
+# - Cache mounts for pnpm (50-80% faster dependency installs)
 # - Optimized layer ordering for better caching
 # - Parallel builds with BuildKit
 
@@ -32,36 +31,29 @@ ENV VITE_ZITADEL_ISSUER=${VITE_ZITADEL_ISSUER}
 ENV VITE_ZITADEL_CLIENT_ID=${VITE_ZITADEL_CLIENT_ID}
 ENV VITE_APP_ENV=${VITE_APP_ENV}
 
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
 WORKDIR /build
 
 # Copy root package files for workspace
-COPY package*.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 # Copy admin app package files
-COPY apps/admin/package*.json ./apps/admin/
+COPY apps/admin/package.json ./apps/admin/
 
-# Debug: Show what was copied
-RUN echo "====== BUILD CONTEXT DEBUG ======" && \
-    echo "Working directory: $(pwd)" && \
-    echo "Root files:" && \
-    ls -la && \
-    echo "Admin files:" && \
-    ls -la apps/admin/ && \
-    echo "Root package-lock.json exists:" && \
-    test -f package-lock.json && echo "YES ($(wc -l < package-lock.json) lines)" || echo "NO" && \
-    echo "================================="
+# Copy .api folder (generated ClickUp API client - local dependency)
+COPY .api ./.api
 
-# Install dependencies with npm cache mount (skip prepare scripts like husky in Docker)
-# Using --legacy-peer-deps to handle LangChain peer dependency conflicts
-RUN --mount=type=cache,target=/root/.npm \
-    npm install --workspace=apps/admin --ignore-scripts --legacy-peer-deps && \
+# Install dependencies (skip prepare scripts like husky in Docker)
+RUN pnpm install --filter=admin... --ignore-scripts && \
     echo "Dependencies installed successfully"
 
 # Copy application source
 COPY apps/admin ./apps/admin
 
 # Build the application
-RUN cd apps/admin && npm run build
+RUN cd apps/admin && pnpm run build
 
 # Production stage - serve with nginx
 FROM nginx:alpine

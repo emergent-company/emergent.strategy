@@ -1736,6 +1736,31 @@ paths:
         '404':
           description: Session not found
       tags: *ref_7
+  /template-packs/studio/session/{sessionId}/name:
+    patch:
+      operationId: updatePackName
+      summary: Update pack name
+      description: Updates the name of the draft pack in a studio session.
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePackNameRequestDto'
+      responses:
+        '200':
+          description: Pack name updated
+        '400':
+          description: Invalid request
+        '404':
+          description: Session not found
+      tags: *ref_7
   /template-packs/studio/sessions:
     get:
       operationId: getUserSessions
@@ -1745,6 +1770,29 @@ paths:
       responses:
         '200':
           description: List of active sessions
+      tags: *ref_7
+  /template-packs/studio/sessions/empty:
+    delete:
+      operationId: deleteEmptyDrafts
+      summary: Delete empty draft templates
+      description: >-
+        Deletes all draft templates that have zero object types and zero
+        relationship types.
+      parameters: []
+      responses:
+        '200':
+          description: Number of deleted drafts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: number
+                  sessionIds:
+                    type: array
+                    items:
+                      type: string
       tags: *ref_7
   /template-packs/studio/session/{sessionId}/chat:
     post:
@@ -2473,6 +2521,33 @@ paths:
           in: query
           schema:
             type: string
+        - name: sourceType
+          required: false
+          in: query
+          description: Filter by source type (e.g., upload, email, url)
+          schema:
+            type: string
+        - name: integrationId
+          required: false
+          in: query
+          description: Filter by data source integration ID
+          schema:
+            type: string
+            format: uuid
+        - name: rootOnly
+          required: false
+          in: query
+          description: If true, only return root documents (no parent)
+          schema:
+            type: boolean
+            default: false
+        - name: parentDocumentId
+          required: false
+          in: query
+          description: Filter by parent document ID (get children of a specific document)
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: List ingested documents
@@ -2638,6 +2713,73 @@ paths:
                     code: internal
                     message: Unexpected error
       tags: *ref_10
+  /documents/source-types:
+    get:
+      operationId: getSourceTypes
+      parameters: []
+      responses:
+        '200':
+          description: Get distinct source types with document counts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sourceTypes:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        sourceType:
+                          type: string
+                          example: email
+                        count:
+                          type: number
+                          example: 42
+                        dataSourceIntegrationId:
+                          type: string
+                          format: uuid
+                          nullable: true
+                        integrationName:
+                          type: string
+                          nullable: true
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_10
   /documents/{id}:
     get:
       operationId: get
@@ -2708,6 +2850,65 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeletionSummaryDto'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_10
+  /documents/{id}/content:
+    get:
+      operationId: getContent
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Document UUID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Get document content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: string
+                    nullable: true
+                    description: The text content of the document
         '400':
           description: Bad request
           content:
@@ -2987,7 +3188,7 @@ paths:
             type: string
       responses:
         '200':
-          description: Retry document conversion for a failed document
+          description: Retry document conversion for a failed or pending document
           content:
             application/json:
               schema:
@@ -3002,6 +3203,222 @@ paths:
                   message:
                     type: string
                     example: Conversion retry started
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_10
+  /documents/{id}/cancel-conversion:
+    post:
+      operationId: cancelConversion
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Document UUID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cancel document conversion for a pending/processing document
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  cancelledJobs:
+                    type: number
+                    example: 1
+                  message:
+                    type: string
+                    example: Conversion cancelled
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_10
+  /documents/unchunked:
+    get:
+      operationId: listUnchunkedDocuments
+      parameters:
+        - name: sourceTypes
+          required: false
+          in: query
+          description: Filter by source types (comma-separated, e.g., email,drive)
+          schema:
+            type: string
+        - name: limit
+          required: false
+          in: query
+          description: Maximum number of documents to return
+          schema:
+            type: number
+            minimum: 1
+            maximum: 500
+            default: 100
+      responses:
+        '200':
+          description: List documents that have content but no chunks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  documents:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        filename:
+                          type: string
+                        sourceType:
+                          type: string
+                  total:
+                    type: number
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: bad-request
+                    message: Invalid request
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: unauthorized
+                    message: Missing or invalid credentials
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: forbidden
+                    message: Insufficient permissions
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                example:
+                  error:
+                    code: internal
+                    message: Unexpected error
+      tags: *ref_10
+  /documents/bulk-chunk-unchunked:
+    post:
+      operationId: bulkChunkUnchunked
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkChunkUnchunkedBody'
+      responses:
+        '200':
+          description: Create chunks for documents that have content but no chunks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: number
+                    description: Total documents processed
+                  successful:
+                    type: number
+                    description: Successfully chunked
+                  failed:
+                    type: number
+                    description: Failed to chunk
+                  errors:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        documentId:
+                          type: string
+                          format: uuid
+                        error:
+                          type: string
         '400':
           description: Bad request
           content:
@@ -8675,6 +9092,93 @@ paths:
         - MCP Server (JSON-RPC 2.0)
       security:
         - bearer: []
+  /mcp/sse/{projectId}:
+    get:
+      operationId: sseConnect
+      summary: MCP SSE Connection
+      description: >-
+
+        Establish an SSE connection for MCP communication.
+
+
+        **Transport:** Server-Sent Events (SSE)
+
+        **Authentication:** Bearer token via Authorization header
+
+
+        After connecting, the server sends an 'endpoint' event with the message
+        URL.
+
+        Use that URL to send JSON-RPC requests via POST.
+
+
+        **Example connection:**
+
+        ```
+
+        GET /mcp/sse/599c92f7-4fdb-41f8-b26b-ead42f97b1e8
+
+        Authorization: Bearer emt_abc123...
+
+        Accept: text/event-stream
+
+        ```
+            
+      parameters:
+        - name: projectId
+          required: true
+          in: path
+          description: Project UUID
+          schema:
+            type: string
+        - name: authorization
+          required: true
+          in: header
+          schema:
+            type: string
+      responses:
+        '200':
+          description: SSE stream established
+        '401':
+          description: Unauthorized
+        '404':
+          description: Project not found
+      tags: &ref_35
+        - MCP Server (SSE Transport)
+      security: &ref_36
+        - bearer: []
+  /mcp/sse/{projectId}/message:
+    post:
+      operationId: handleMessage
+      summary: Send MCP Message
+      description: |-
+
+        Send a JSON-RPC 2.0 message to the MCP server.
+
+        **Protocol:** JSON-RPC 2.0
+        **Methods:** initialize, tools/list, tools/call
+
+        The response is sent back via the SSE stream, not as an HTTP response.
+            
+      parameters:
+        - name: projectId
+          required: true
+          in: path
+          description: Project UUID
+          schema:
+            type: string
+        - name: authorization
+          required: true
+          in: header
+          schema:
+            type: string
+      responses:
+        '202':
+          description: Message accepted
+        '401':
+          description: Unauthorized
+      tags: *ref_35
+      security: *ref_36
   /chat-sdk/conversations:
     post:
       operationId: createConversation
@@ -8692,7 +9196,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CreateConversationResponseDto'
-      tags: &ref_35
+      tags: &ref_37
         - Chat SDK
   /chat-sdk/tools:
     get:
@@ -8705,7 +9209,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ToolDefinitionsResponseDto'
-      tags: *ref_35
+      tags: *ref_37
   /chat-sdk:
     post:
       operationId: chat
@@ -8724,7 +9228,7 @@ paths:
               schema:
                 type: string
                 description: Vercel AI SDK UI Message protocol stream
-      tags: *ref_35
+      tags: *ref_37
   /external-sources/import:
     post:
       operationId: importFromUrl
@@ -8778,7 +9282,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_36
+      tags: &ref_38
         - External Sources
   /external-sources:
     get:
@@ -8852,7 +9356,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_36
+      tags: *ref_38
   /external-sources/{id}:
     get:
       operationId: getById
@@ -8906,7 +9410,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_36
+      tags: *ref_38
     patch:
       operationId: update
       parameters:
@@ -8965,7 +9469,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_36
+      tags: *ref_38
     delete:
       operationId: delete
       parameters:
@@ -9025,7 +9529,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_36
+      tags: *ref_38
   /external-sources/{id}/sync:
     post:
       operationId: triggerSync
@@ -9085,7 +9589,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_36
+      tags: *ref_38
   /user-activity/record:
     post:
       operationId: recordActivity
@@ -9139,9 +9643,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_37
+      tags: &ref_39
         - User Activity
-      security: &ref_38
+      security: &ref_40
         - bearer: []
   /user-activity/recent:
     get:
@@ -9194,8 +9698,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_37
-      security: *ref_38
+      tags: *ref_39
+      security: *ref_40
     delete:
       operationId: clearAllRecentItems
       summary: Clear all recent items
@@ -9240,8 +9744,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_37
-      security: *ref_38
+      tags: *ref_39
+      security: *ref_40
   /user-activity/recent/{type}:
     get:
       operationId: getRecentItemsByType
@@ -9304,8 +9808,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_37
-      security: *ref_38
+      tags: *ref_39
+      security: *ref_40
   /user-activity/recent/{type}/{resourceId}:
     delete:
       operationId: removeRecentItem
@@ -9366,8 +9870,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_37
-      security: *ref_38
+      tags: *ref_39
+      security: *ref_40
   /admin/agents:
     get:
       operationId: listAgents
@@ -9412,9 +9916,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_39
+      tags: &ref_41
         - Agents
-      security: &ref_40
+      security: &ref_42
         - bearer: []
   /admin/agents/{id}:
     get:
@@ -9466,8 +9970,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_39
-      security: *ref_40
+      tags: *ref_41
+      security: *ref_42
     patch:
       operationId: updateAgent
       summary: Update agent configuration
@@ -9532,8 +10036,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_39
-      security: *ref_40
+      tags: *ref_41
+      security: *ref_42
   /admin/agents/{id}/runs:
     get:
       operationId: getAgentRuns
@@ -9584,8 +10088,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_39
-      security: *ref_40
+      tags: *ref_41
+      security: *ref_42
   /admin/agents/{id}/trigger:
     post:
       operationId: triggerAgent
@@ -9636,8 +10140,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_39
-      security: *ref_40
+      tags: *ref_41
+      security: *ref_42
   /events/stream:
     get:
       operationId: stream
@@ -9669,7 +10173,7 @@ paths:
           description: Missing projectId query parameter
         '401':
           description: Unauthorized
-      tags: &ref_41
+      tags: &ref_43
         - Events
       security:
         - bearer: []
@@ -9681,7 +10185,7 @@ paths:
       responses:
         '200':
           description: Connection count
-      tags: *ref_41
+      tags: *ref_43
       security:
         - bearer: []
   /logs/client:
@@ -9782,7 +10286,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_42
+      tags: &ref_44
         - Releases
     post:
       operationId: create
@@ -9811,7 +10315,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_42
+      tags: *ref_44
   /releases/preview:
     post:
       operationId: preview
@@ -9840,7 +10344,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_42
+      tags: *ref_44
   /releases/latest:
     get:
       operationId: getLatest
@@ -9872,7 +10376,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_42
+      tags: *ref_44
   /releases/{version}:
     get:
       operationId: getByVersion
@@ -9911,7 +10415,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_42
+      tags: *ref_44
     delete:
       operationId: deleteRelease
       parameters:
@@ -9945,7 +10449,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_42
+      tags: *ref_44
   /releases/{version}/email-preview:
     get:
       operationId: getEmailPreview
@@ -9997,7 +10501,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_42
+      tags: *ref_44
   /releases/{version}/send:
     post:
       operationId: sendNotifications
@@ -10035,7 +10539,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_42
+      tags: *ref_44
   /user/email-preferences:
     get:
       operationId: getPreferences
@@ -10084,7 +10588,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_43
+      tags: &ref_45
         - UserProfile
     put:
       operationId: updatePreferences
@@ -10139,7 +10643,7 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_43
+      tags: *ref_45
   /unsubscribe/{token}:
     get:
       operationId: getUnsubscribeInfo
@@ -10162,7 +10666,7 @@ paths:
                 $ref: '#/components/schemas/UnsubscribeInfoDto'
         '404':
           description: Invalid or expired token
-      tags: &ref_44
+      tags: &ref_46
         - Unsubscribe
     post:
       operationId: unsubscribe
@@ -10187,7 +10691,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UnsubscribeResultDto'
-      tags: *ref_44
+      tags: *ref_46
   /superadmin/me:
     get:
       operationId: checkSuperadminStatus
@@ -10204,9 +10708,9 @@ paths:
                 properties:
                   isSuperadmin:
                     type: boolean
-      tags: &ref_45
+      tags: &ref_47
         - superadmin
-      security: &ref_46
+      security: &ref_48
         - bearer: []
   /superadmin/users:
     get:
@@ -10254,8 +10758,8 @@ paths:
                 $ref: '#/components/schemas/ListUsersResponseDto'
         '403':
           description: Superadmin access required
-      tags: *ref_45
-      security: *ref_46
+      tags: *ref_47
+      security: *ref_48
   /superadmin/organizations:
     get:
       operationId: listOrganizations
@@ -10290,8 +10794,8 @@ paths:
                 $ref: '#/components/schemas/ListOrganizationsResponseDto'
         '403':
           description: Superadmin access required
-      tags: *ref_45
-      security: *ref_46
+      tags: *ref_47
+      security: *ref_48
   /superadmin/projects:
     get:
       operationId: listProjects
@@ -10332,8 +10836,8 @@ paths:
                 $ref: '#/components/schemas/ListProjectsResponseDto'
         '403':
           description: Superadmin access required
-      tags: *ref_45
-      security: *ref_46
+      tags: *ref_47
+      security: *ref_48
   /superadmin/email-jobs:
     get:
       operationId: listEmailJobs
@@ -10399,8 +10903,8 @@ paths:
                 $ref: '#/components/schemas/ListEmailJobsResponseDto'
         '403':
           description: Superadmin access required
-      tags: *ref_45
-      security: *ref_46
+      tags: *ref_47
+      security: *ref_48
   /superadmin/email-jobs/{id}/preview:
     get:
       operationId: previewEmailJob
@@ -10423,8 +10927,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Email job not found
-      tags: *ref_45
-      security: *ref_46
+      tags: *ref_47
+      security: *ref_48
   /superadmin/email-jobs/{id}/preview-json:
     get:
       operationId: previewEmailJobJson
@@ -10447,8 +10951,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Email job not found
-      tags: *ref_45
-      security: *ref_46
+      tags: *ref_47
+      security: *ref_48
   /superadmin/users/{id}:
     delete:
       operationId: deleteUser
@@ -10476,8 +10980,8 @@ paths:
           description: Superadmin access required
         '404':
           description: User not found
-      tags: *ref_45
-      security: *ref_46
+      tags: *ref_47
+      security: *ref_48
   /superadmin/organizations/{id}:
     delete:
       operationId: deleteOrganization
@@ -10505,8 +11009,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Organization not found
-      tags: *ref_45
-      security: *ref_46
+      tags: *ref_47
+      security: *ref_48
   /superadmin/projects/{id}:
     delete:
       operationId: deleteProject
@@ -10534,8 +11038,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Project not found
-      tags: *ref_45
-      security: *ref_46
+      tags: *ref_47
+      security: *ref_48
   /superadmin/system-config:
     get:
       operationId: getSystemConfig
@@ -10560,8 +11064,8 @@ paths:
                 $ref: '#/components/schemas/SystemConfigResponseDto'
         '403':
           description: Superadmin access required
-      tags: *ref_45
-      security: *ref_46
+      tags: *ref_47
+      security: *ref_48
   /superadmin/embedding-jobs:
     get:
       operationId: listEmbeddingJobs
@@ -10610,6 +11114,12 @@ paths:
           description: Filter by jobs with errors only
           schema:
             type: boolean
+        - name: projectId
+          required: false
+          in: query
+          description: Filter by project ID
+          schema:
+            type: string
       responses:
         '200':
           description: List of embedding jobs with stats
@@ -10619,8 +11129,8 @@ paths:
                 $ref: '#/components/schemas/ListEmbeddingJobsResponseDto'
         '403':
           description: Superadmin access required
-      tags: *ref_45
-      security: *ref_46
+      tags: *ref_47
+      security: *ref_48
   /superadmin/embedding-jobs/delete:
     post:
       operationId: deleteEmbeddingJobs
@@ -10642,8 +11152,8 @@ paths:
                 $ref: '#/components/schemas/DeleteEmbeddingJobsResponseDto'
         '403':
           description: Superadmin access required
-      tags: *ref_45
-      security: *ref_46
+      tags: *ref_47
+      security: *ref_48
   /superadmin/embedding-jobs/cleanup-orphans:
     post:
       operationId: cleanupOrphanJobs
@@ -10659,8 +11169,8 @@ paths:
                 $ref: '#/components/schemas/CleanupOrphanJobsResponseDto'
         '403':
           description: Superadmin access required
-      tags: *ref_45
-      security: *ref_46
+      tags: *ref_47
+      security: *ref_48
   /superadmin/extraction-jobs:
     get:
       operationId: listExtractionJobs
@@ -10727,8 +11237,8 @@ paths:
                 $ref: '#/components/schemas/ListExtractionJobsResponseDto'
         '403':
           description: Superadmin access required
-      tags: *ref_45
-      security: *ref_46
+      tags: *ref_47
+      security: *ref_48
   /superadmin/extraction-jobs/delete:
     post:
       operationId: deleteExtractionJobs
@@ -10750,8 +11260,8 @@ paths:
                 $ref: '#/components/schemas/DeleteExtractionJobsResponseDto'
         '403':
           description: Superadmin access required
-      tags: *ref_45
-      security: *ref_46
+      tags: *ref_47
+      security: *ref_48
   /superadmin/extraction-jobs/cancel:
     post:
       operationId: cancelExtractionJobs
@@ -10773,8 +11283,8 @@ paths:
                 $ref: '#/components/schemas/CancelExtractionJobsResponseDto'
         '403':
           description: Superadmin access required
-      tags: *ref_45
-      security: *ref_46
+      tags: *ref_47
+      security: *ref_48
   /superadmin/document-parsing-jobs:
     get:
       operationId: listDocumentParsingJobs
@@ -10833,8 +11343,8 @@ paths:
                 $ref: '#/components/schemas/ListDocumentParsingJobsResponseDto'
         '403':
           description: Superadmin access required
-      tags: *ref_45
-      security: *ref_46
+      tags: *ref_47
+      security: *ref_48
   /superadmin/document-parsing-jobs/delete:
     post:
       operationId: deleteDocumentParsingJobs
@@ -10856,8 +11366,8 @@ paths:
                 $ref: '#/components/schemas/DeleteDocumentParsingJobsResponseDto'
         '403':
           description: Superadmin access required
-      tags: *ref_45
-      security: *ref_46
+      tags: *ref_47
+      security: *ref_48
   /superadmin/document-parsing-jobs/retry:
     post:
       operationId: retryDocumentParsingJobs
@@ -10879,8 +11389,135 @@ paths:
                 $ref: '#/components/schemas/RetryDocumentParsingJobsResponseDto'
         '403':
           description: Superadmin access required
-      tags: *ref_45
-      security: *ref_46
+      tags: *ref_47
+      security: *ref_48
+  /superadmin/sync-jobs:
+    get:
+      operationId: listSyncJobs
+      summary: List data source sync jobs
+      description: >-
+        Returns paginated list of data source sync jobs with optional filters
+        and statistics
+      parameters:
+        - name: page
+          required: false
+          in: query
+          description: Page number (1-indexed)
+          schema:
+            default: 1
+            type: number
+        - name: limit
+          required: false
+          in: query
+          description: Number of items per page
+          schema:
+            default: 20
+            type: number
+        - name: status
+          required: false
+          in: query
+          description: Filter by status
+          schema:
+            enum:
+              - pending
+              - running
+              - completed
+              - failed
+              - cancelled
+            type: string
+        - name: projectId
+          required: false
+          in: query
+          description: Filter by project ID
+          schema:
+            type: string
+        - name: hasError
+          required: false
+          in: query
+          description: Filter by jobs with errors only
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of sync jobs with stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListSyncJobsResponseDto'
+        '403':
+          description: Superadmin access required
+      tags: *ref_47
+      security: *ref_48
+  /superadmin/sync-jobs/delete:
+    post:
+      operationId: deleteSyncJobs
+      summary: Delete sync jobs
+      description: Bulk delete sync jobs by IDs
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteSyncJobsDto'
+      responses:
+        '200':
+          description: Jobs deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteSyncJobsResponseDto'
+        '403':
+          description: Superadmin access required
+      tags: *ref_47
+      security: *ref_48
+  /superadmin/sync-jobs/cancel:
+    post:
+      operationId: cancelSyncJobs
+      summary: Cancel sync jobs
+      description: Cancel pending or running sync jobs by IDs
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelSyncJobsDto'
+      responses:
+        '200':
+          description: Jobs cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelSyncJobsResponseDto'
+        '403':
+          description: Superadmin access required
+      tags: *ref_47
+      security: *ref_48
+  /superadmin/sync-jobs/{id}/logs:
+    get:
+      operationId: getSyncJobLogs
+      summary: Get sync job logs
+      description: Returns detailed logs for a specific sync job
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Sync job logs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncJobLogsResponseDto'
+        '403':
+          description: Superadmin access required
+        '404':
+          description: Sync job not found
+      tags: *ref_47
+      security: *ref_48
   /superadmin/email-templates:
     get:
       operationId: listTemplates
@@ -10896,9 +11533,9 @@ paths:
                 $ref: '#/components/schemas/ListEmailTemplatesResponseDto'
         '403':
           description: Superadmin access required
-      tags: &ref_47
+      tags: &ref_49
         - superadmin
-      security: &ref_48
+      security: &ref_50
         - bearer: []
   /superadmin/email-templates/{id}:
     get:
@@ -10922,8 +11559,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Template not found
-      tags: *ref_47
-      security: *ref_48
+      tags: *ref_49
+      security: *ref_50
     put:
       operationId: updateTemplate
       summary: Update email template
@@ -10955,8 +11592,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Template not found
-      tags: *ref_47
-      security: *ref_48
+      tags: *ref_49
+      security: *ref_50
   /superadmin/email-templates/{id}/preview:
     post:
       operationId: previewTemplate
@@ -10985,8 +11622,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Template not found
-      tags: *ref_47
-      security: *ref_48
+      tags: *ref_49
+      security: *ref_50
   /superadmin/email-templates/preview-mjml:
     post:
       operationId: previewMjml
@@ -11012,8 +11649,8 @@ paths:
           description: Invalid MJML content
         '403':
           description: Superadmin access required
-      tags: *ref_47
-      security: *ref_48
+      tags: *ref_49
+      security: *ref_50
   /superadmin/email-templates/{id}/versions:
     get:
       operationId: listVersions
@@ -11053,8 +11690,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Template not found
-      tags: *ref_47
-      security: *ref_48
+      tags: *ref_49
+      security: *ref_50
   /superadmin/email-templates/{id}/rollback:
     post:
       operationId: rollbackToVersion
@@ -11083,8 +11720,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Template or version not found
-      tags: *ref_47
-      security: *ref_48
+      tags: *ref_49
+      security: *ref_50
   /superadmin/email-templates/{id}/reset:
     post:
       operationId: resetToDefault
@@ -11109,8 +11746,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Template not found
-      tags: *ref_47
-      security: *ref_48
+      tags: *ref_49
+      security: *ref_50
   /superadmin/email-templates/{id}/refinement-chat:
     get:
       operationId: getRefinementConversation
@@ -11135,8 +11772,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Template not found
-      tags: *ref_47
-      security: *ref_48
+      tags: *ref_49
+      security: *ref_50
     post:
       operationId: sendRefinementMessage
       summary: Send message to refinement chat
@@ -11162,8 +11799,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Template not found
-      tags: *ref_47
-      security: *ref_48
+      tags: *ref_49
+      security: *ref_50
   /superadmin/email-templates/{id}/refinement-chat/apply:
     post:
       operationId: applySuggestion
@@ -11196,8 +11833,8 @@ paths:
           description: Superadmin access required
         '404':
           description: Template not found
-      tags: *ref_47
-      security: *ref_48
+      tags: *ref_49
+      security: *ref_50
   /projects/{projectId}/tokens:
     post:
       operationId: create
@@ -11261,9 +11898,9 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: &ref_49
+      tags: &ref_51
         - API Tokens
-      security: &ref_50
+      security: &ref_52
         - bearer: []
     get:
       operationId: list
@@ -11319,8 +11956,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_49
-      security: *ref_50
+      tags: *ref_51
+      security: *ref_52
   /projects/{projectId}/tokens/{tokenId}:
     get:
       operationId: get
@@ -11382,8 +12019,8 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_49
-      security: *ref_50
+      tags: *ref_51
+      security: *ref_52
     delete:
       operationId: revoke
       summary: Revoke API token
@@ -11447,8 +12084,818 @@ paths:
                   error:
                     code: internal
                     message: Unexpected error
-      tags: *ref_49
-      security: *ref_50
+      tags: *ref_51
+      security: *ref_52
+  /data-source-integrations/oauth/status:
+    get:
+      operationId: getOAuthStatus
+      summary: Get OAuth configuration status
+      parameters: []
+      responses:
+        '200':
+          description: OAuth configuration status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthStatusDto'
+      tags: &ref_53
+        - Data Source Integrations
+      security: &ref_54
+        - bearer: []
+  /data-source-integrations/oauth/google/start:
+    post:
+      operationId: startGoogleOAuth
+      summary: Start Google OAuth flow
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthStartRequestDto'
+      responses:
+        '200':
+          description: OAuth authorization URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthStartResponseDto'
+        '400':
+          description: OAuth not configured
+      tags: *ref_53
+      security: *ref_54
+  /data-source-integrations/oauth/google/callback:
+    get:
+      operationId: handleGoogleOAuthCallback
+      summary: Google OAuth callback handler
+      parameters:
+        - name: code
+          required: false
+          in: query
+          description: Authorization code
+          schema:
+            type: string
+        - name: state
+          required: true
+          in: query
+          description: State parameter
+          schema:
+            type: string
+        - name: error
+          required: false
+          in: query
+          description: Error code
+          schema:
+            type: string
+        - name: error_description
+          required: false
+          in: query
+          description: Error description
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to frontend
+      tags: *ref_53
+      security: *ref_54
+  /data-source-integrations/providers:
+    get:
+      operationId: listProviders
+      summary: List available data source providers
+      parameters: []
+      responses:
+        '200':
+          description: List of available providers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProviderMetadataDto'
+      tags: *ref_53
+      security: *ref_54
+  /data-source-integrations/providers/{providerType}/schema:
+    get:
+      operationId: getProviderSchema
+      summary: Get configuration schema for a provider
+      parameters:
+        - name: providerType
+          required: true
+          in: path
+          description: Provider type (e.g., imap)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Provider configuration schema
+        '404':
+          description: Provider not found
+      tags: *ref_53
+      security: *ref_54
+  /data-source-integrations/test-config:
+    post:
+      operationId: testConfig
+      summary: Test a provider configuration without creating an integration
+      parameters: []
+      responses:
+        '200':
+          description: Connection test result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestConnectionResultDto'
+        '404':
+          description: Provider not found
+      tags: *ref_53
+      security: *ref_54
+  /data-source-integrations:
+    get:
+      operationId: list
+      summary: List data source integrations for current project
+      parameters:
+        - name: providerType
+          required: false
+          in: query
+          description: Filter by provider type
+          schema:
+            example: imap
+            type: string
+        - name: sourceType
+          required: false
+          in: query
+          description: Filter by source type
+          schema:
+            example: email
+            type: string
+        - name: status
+          required: false
+          in: query
+          description: Filter by status
+          schema:
+            enum:
+              - active
+              - error
+              - disabled
+            type: string
+        - name: includeConfigurations
+          required: false
+          in: query
+          description: Include sync configurations in response
+          schema:
+            example: true
+            type: boolean
+      responses:
+        '200':
+          description: List of integrations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DataSourceIntegrationDto'
+      tags: *ref_53
+      security: *ref_54
+    post:
+      operationId: create
+      summary: Create a new data source integration
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDataSourceIntegrationDto'
+      responses:
+        '201':
+          description: Integration created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSourceIntegrationDto'
+        '400':
+          description: Invalid provider type or configuration
+      tags: *ref_53
+      security: *ref_54
+  /data-source-integrations/source-types:
+    get:
+      operationId: getSourceTypes
+      summary: Get source types with document counts
+      parameters: []
+      responses:
+        '200':
+          description: Source types with counts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    sourceType:
+                      type: string
+                    count:
+                      type: number
+      tags: *ref_53
+      security: *ref_54
+  /data-source-integrations/{id}:
+    get:
+      operationId: getById
+      summary: Get a data source integration by ID
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Integration ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Integration details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSourceIntegrationDto'
+        '404':
+          description: Integration not found
+      tags: *ref_53
+      security: *ref_54
+    patch:
+      operationId: update
+      summary: Update a data source integration
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Integration ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDataSourceIntegrationDto'
+      responses:
+        '200':
+          description: Integration updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSourceIntegrationDto'
+        '404':
+          description: Integration not found
+      tags: *ref_53
+      security: *ref_54
+    delete:
+      operationId: delete
+      summary: Delete a data source integration
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Integration ID
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Integration deleted
+        '404':
+          description: Integration not found
+      tags: *ref_53
+      security: *ref_54
+  /data-source-integrations/{id}/test-connection:
+    post:
+      operationId: testConnection
+      summary: Test connection for an integration
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Integration ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Connection test result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestConnectionResultDto'
+        '404':
+          description: Integration not found
+      tags: *ref_53
+      security: *ref_54
+  /data-source-integrations/{id}/browse:
+    post:
+      operationId: browse
+      summary: Browse content available in the data source
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Integration ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BrowseRequestDto'
+      responses:
+        '200':
+          description: Browse results
+        '404':
+          description: Integration not found
+      tags: *ref_53
+      security: *ref_54
+  /data-source-integrations/{id}/import:
+    post:
+      operationId: import
+      summary: Import items from the data source
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Integration ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportRequestDto'
+      responses:
+        '200':
+          description: Import result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportResultDto'
+        '404':
+          description: Integration not found
+      tags: *ref_53
+      security: *ref_54
+  /data-source-integrations/{id}/sync-preview:
+    post:
+      operationId: getSyncPreview
+      summary: Get sync preview with folder stats and email counts
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Integration ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncOptionsDto'
+      responses:
+        '200':
+          description: Sync preview with statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncPreviewDto'
+        '404':
+          description: Integration not found
+      tags: *ref_53
+      security: *ref_54
+  /data-source-integrations/{id}/folder-config:
+    get:
+      operationId: getFolderConfig
+      summary: Get saved folder configuration for recurring syncs
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Integration ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Saved folder configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateFolderConfigDto'
+        '404':
+          description: Integration not found
+      tags: *ref_53
+      security: *ref_54
+    patch:
+      operationId: updateFolderConfig
+      summary: Update folder configuration for recurring syncs
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Integration ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFolderConfigDto'
+      responses:
+        '200':
+          description: Folder configuration updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '404':
+          description: Integration not found
+      tags: *ref_53
+      security: *ref_54
+  /data-source-integrations/{id}/folder-count:
+    post:
+      operationId: getFolderFileCount
+      summary: Get estimated file count for a folder (recursive)
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Integration ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FolderCountRequestDto'
+      responses:
+        '200':
+          description: Estimated file count
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FolderCountResponseDto'
+        '404':
+          description: Integration not found
+      tags: *ref_53
+      security: *ref_54
+  /data-source-integrations/{id}/sync-configurations:
+    get:
+      operationId: listSyncConfigurations
+      summary: List sync configurations for an integration
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Integration ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of sync configurations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncConfigurationListDto'
+        '404':
+          description: Integration not found
+      tags: *ref_53
+      security: *ref_54
+    post:
+      operationId: createSyncConfiguration
+      summary: Create a new sync configuration
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Integration ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSyncConfigurationDto'
+      responses:
+        '201':
+          description: Sync configuration created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncConfigurationDto'
+        '404':
+          description: Integration not found
+        '409':
+          description: Configuration name already exists
+      tags: *ref_53
+      security: *ref_54
+  /data-source-integrations/{id}/sync-configurations/{configId}:
+    get:
+      operationId: getSyncConfiguration
+      summary: Get a specific sync configuration
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Integration ID
+          schema:
+            type: string
+        - name: configId
+          required: true
+          in: path
+          description: Configuration ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Sync configuration details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncConfigurationDto'
+        '404':
+          description: Integration or configuration not found
+      tags: *ref_53
+      security: *ref_54
+    patch:
+      operationId: updateSyncConfiguration
+      summary: Update a sync configuration
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Integration ID
+          schema:
+            type: string
+        - name: configId
+          required: true
+          in: path
+          description: Configuration ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSyncConfigurationDto'
+      responses:
+        '200':
+          description: Sync configuration updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncConfigurationDto'
+        '404':
+          description: Integration or configuration not found
+        '409':
+          description: Configuration name already exists
+      tags: *ref_53
+      security: *ref_54
+    delete:
+      operationId: deleteSyncConfiguration
+      summary: Delete a sync configuration
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Integration ID
+          schema:
+            type: string
+        - name: configId
+          required: true
+          in: path
+          description: Configuration ID
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Sync configuration deleted
+        '404':
+          description: Integration or configuration not found
+      tags: *ref_53
+      security: *ref_54
+  /data-source-integrations/{id}/sync-configurations/{configId}/run:
+    post:
+      operationId: runSyncConfiguration
+      summary: Run a sync using a specific configuration
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Integration ID
+          schema:
+            type: string
+        - name: configId
+          required: true
+          in: path
+          description: Configuration ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Sync job created and started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    description: Sync job ID
+                  integrationId:
+                    type: string
+                  configurationId:
+                    type: string
+                  configurationName:
+                    type: string
+                  status:
+                    type: string
+                    enum:
+                      - pending
+                      - running
+                  message:
+                    type: string
+        '404':
+          description: Integration or configuration not found
+      tags: *ref_53
+      security: *ref_54
+  /data-source-integrations/{id}/sync:
+    post:
+      operationId: triggerSync
+      summary: Start async sync for an integration (returns immediately with job ID)
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Integration ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncOptionsDto'
+      responses:
+        '200':
+          description: Sync job created and started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    description: Sync job ID
+                  integrationId:
+                    type: string
+                  status:
+                    type: string
+                    enum:
+                      - pending
+                      - running
+                  message:
+                    type: string
+        '404':
+          description: Integration not found
+      tags: *ref_53
+      security: *ref_54
+  /data-source-integrations/{id}/sync-jobs:
+    get:
+      operationId: listSyncJobs
+      summary: List sync jobs for an integration
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Integration ID
+          schema:
+            type: string
+        - name: limit
+          required: false
+          in: query
+          description: 'Maximum number of jobs to return (default: 10)'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of sync jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    integrationId:
+                      type: string
+                    status:
+                      type: string
+                      enum:
+                        - pending
+                        - running
+                        - completed
+                        - failed
+                        - cancelled
+                    totalItems:
+                      type: number
+                    processedItems:
+                      type: number
+                    successfulItems:
+                      type: number
+                    failedItems:
+                      type: number
+                    skippedItems:
+                      type: number
+                    currentPhase:
+                      type: string
+                    statusMessage:
+                      type: string
+                    createdAt:
+                      type: string
+                      format: date-time
+                    startedAt:
+                      type: string
+                      format: date-time
+                    completedAt:
+                      type: string
+                      format: date-time
+      tags: *ref_53
+      security: *ref_54
+  /data-source-integrations/{id}/sync-jobs/latest:
+    get:
+      operationId: getLatestSyncJob
+      summary: Get the latest sync job for an integration
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Integration ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Latest sync job or null if none exists
+      tags: *ref_53
+      security: *ref_54
+  /data-source-integrations/{id}/sync-jobs/{jobId}:
+    get:
+      operationId: getSyncJob
+      summary: Get a specific sync job by ID
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Integration ID
+          schema:
+            type: string
+        - name: jobId
+          required: true
+          in: path
+          description: Sync job ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Sync job details
+        '404':
+          description: Sync job not found
+      tags: *ref_53
+      security: *ref_54
+  /data-source-integrations/{id}/sync-jobs/{jobId}/cancel:
+    post:
+      operationId: cancelSyncJob
+      summary: Cancel a running sync job
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: Integration ID
+          schema:
+            type: string
+        - name: jobId
+          required: true
+          in: path
+          description: Sync job ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Sync job cancelled
+        '404':
+          description: Sync job not found
+      tags: *ref_53
+      security: *ref_54
 info:
   title: Spec Server API
   description: >-
@@ -11938,6 +13385,9 @@ components:
     StudioStreamDoneEvent:
       type: object
       properties: {}
+    UpdatePackNameRequestDto:
+      type: object
+      properties: {}
     StudioMessageDto:
       type: object
       properties: {}
@@ -12166,6 +13616,13 @@ components:
           description: >-
             Parent document ID for hierarchical structures (e.g., ClickUp page
             hierarchy)
+        childCount:
+          type: object
+          nullable: true
+          example: 5
+          description: >-
+            Number of child documents (e.g., attachments for emails, files in a
+            folder)
         integrationMetadata:
           type: object
           nullable: true
@@ -12174,6 +13631,14 @@ components:
             doc_id: 4bj41-33735
             workspace_id: '4573313'
           description: Integration-specific metadata (ClickUp IDs, creator info, etc.)
+        metadata:
+          type: object
+          nullable: true
+          example:
+            originalFilename: document.pdf
+            originalMimeType: application/pdf
+            processingTimeMs: 1234
+          description: Document metadata (processing info, original file details, etc.)
         extractionStatus:
           type: string
           nullable: true
@@ -12231,6 +13696,45 @@ components:
           nullable: true
           example: 1048576
           description: Size of the original file in bytes
+        sourceType:
+          type: object
+          nullable: true
+          example: upload
+          description: >-
+            Source type of the document: upload, url, google_drive, dropbox,
+            external, email, or a custom type
+        dataSourceIntegrationId:
+          type: object
+          nullable: true
+          example: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+          description: >-
+            ID of the DataSourceIntegration that created this document (null for
+            manual uploads)
+        externalSourceId:
+          type: object
+          nullable: true
+          example: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+          description: ID of the external source this document was imported from
+        syncVersion:
+          type: object
+          nullable: true
+          example: 1
+          description: Sync version number for incremental sync support
+        storageUrl:
+          type: object
+          nullable: true
+          example: https://storage.example.com/documents/abc123.pdf
+          description: Public or signed URL for accessing the stored file
+        fileHash:
+          type: object
+          nullable: true
+          example: sha256:abc123def456...
+          description: Hash of the original uploaded file for deduplication
+        contentHash:
+          type: object
+          nullable: true
+          example: sha256:abc123def456...
+          description: Hash of the extracted text content
       required:
         - id
         - name
@@ -12304,13 +13808,13 @@ components:
           type: string
           description: Deletion status
           example: deleted
-          enum: &ref_51
+          enum: &ref_55
             - deleted
             - partial
         summary:
           type: object
           description: Summary of deleted entities
-          example: &ref_52
+          example: &ref_56
             chunks: 42
             extractionJobs: 3
             graphObjects: 15
@@ -12326,11 +13830,11 @@ components:
           type: string
           description: Deletion status
           example: deleted
-          enum: *ref_51
+          enum: *ref_55
         summary:
           type: object
           description: Summary of deleted entities
-          example: *ref_52
+          example: *ref_56
         deleted:
           type: number
           description: Number of documents successfully deleted
@@ -12346,6 +13850,9 @@ components:
         - status
         - summary
         - deleted
+    BulkChunkUnchunkedBody:
+      type: object
+      properties: {}
     ChunkDto:
       type: object
       properties:
@@ -12521,7 +14028,7 @@ components:
           description: >-
             Chunking strategy for splitting text into chunks. Options: character
             (default), sentence, paragraph
-          enum: &ref_53
+          enum: &ref_57
             - character
             - sentence
             - paragraph
@@ -12553,7 +14060,7 @@ components:
           description: >-
             Chunking strategy for splitting text into chunks. Options: character
             (default), sentence, paragraph
-          enum: *ref_53
+          enum: *ref_57
           default: character
           example: sentence
         chunkingOptions:
@@ -15101,36 +16608,36 @@ components:
     ImportResultDto:
       type: object
       properties:
-        success:
-          type: boolean
-          description: Whether the import was successful
-        externalSourceId:
-          type: string
-          description: External source ID (if created/found)
-        documentId:
-          type: string
-          description: Document ID (if created immediately)
-        status:
-          type: string
-          description: Import status
-          enum:
-            - created
-            - duplicate
-            - queued
-            - error
-            - updated
-        jobId:
-          type: string
-          description: Job ID (if queued for background)
-        error:
-          type: string
-          description: Error message (if failed)
-        details:
-          type: object
-          description: Additional details
+        totalImported:
+          type: number
+          description: Total items successfully imported
+        totalFailed:
+          type: number
+          description: Total items that failed
+        totalSkipped:
+          type: number
+          description: Total items skipped (duplicates)
+        documentIds:
+          description: IDs of documents created
+          type: array
+          items:
+            type: string
+        errors:
+          type: array
+          description: Errors encountered
+          items:
+            type: object
+            properties:
+              itemId:
+                type: string
+              error:
+                type: string
       required:
-        - success
-        - status
+        - totalImported
+        - totalFailed
+        - totalSkipped
+        - documentIds
+        - errors
     ExternalSourceResponseDto:
       type: object
       properties:
@@ -16179,6 +17686,12 @@ components:
         targetId:
           type: string
           description: Object or Chunk ID being embedded
+        projectId:
+          type: string
+          description: Project ID
+        projectName:
+          type: string
+          description: Project name
         status:
           type: string
           description: Job status
@@ -16646,6 +18159,256 @@ components:
         - success
         - retriedCount
         - message
+    SyncJobDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Job ID
+        integrationId:
+          type: string
+          description: Integration ID
+        integrationName:
+          type: string
+          description: Integration name
+        projectId:
+          type: string
+          description: Project ID
+        projectName:
+          type: string
+          description: Project name
+        providerType:
+          type: string
+          description: Provider type (gmail_oauth, imap, etc.)
+        status:
+          type: string
+          description: Job status
+          enum:
+            - pending
+            - running
+            - completed
+            - failed
+            - cancelled
+        totalItems:
+          type: number
+          description: Total items to sync
+        processedItems:
+          type: number
+          description: Items processed
+        successfulItems:
+          type: number
+          description: Items successfully imported
+        failedItems:
+          type: number
+          description: Items that failed to import
+        skippedItems:
+          type: number
+          description: Items skipped
+        currentPhase:
+          type: string
+          description: Current phase of sync
+        statusMessage:
+          type: string
+          description: Human-readable status message
+        errorMessage:
+          type: string
+          description: Error message if any
+        triggerType:
+          type: string
+          description: Trigger type
+          enum:
+            - manual
+            - scheduled
+        createdAt:
+          format: date-time
+          type: string
+          description: When the job was created
+        startedAt:
+          format: date-time
+          type: string
+          description: When processing started
+        completedAt:
+          format: date-time
+          type: string
+          description: When processing completed
+      required:
+        - id
+        - integrationId
+        - projectId
+        - status
+        - totalItems
+        - processedItems
+        - successfulItems
+        - failedItems
+        - skippedItems
+        - triggerType
+        - createdAt
+    SyncJobStatsDto:
+      type: object
+      properties:
+        total:
+          type: number
+          description: Total jobs
+        pending:
+          type: number
+          description: Pending jobs
+        running:
+          type: number
+          description: Running jobs
+        completed:
+          type: number
+          description: Completed jobs
+        failed:
+          type: number
+          description: Failed jobs
+        cancelled:
+          type: number
+          description: Cancelled jobs
+        withErrors:
+          type: number
+          description: Jobs with errors
+        totalItemsImported:
+          type: number
+          description: Total items imported across all jobs
+      required:
+        - total
+        - pending
+        - running
+        - completed
+        - failed
+        - cancelled
+        - withErrors
+        - totalItemsImported
+    ListSyncJobsResponseDto:
+      type: object
+      properties:
+        jobs:
+          description: List of sync jobs
+          type: array
+          items:
+            $ref: '#/components/schemas/SyncJobDto'
+        stats:
+          description: Job statistics
+          allOf:
+            - $ref: '#/components/schemas/SyncJobStatsDto'
+        meta:
+          description: Pagination metadata
+          allOf:
+            - $ref: '#/components/schemas/PaginationMetaDto'
+      required:
+        - jobs
+        - stats
+        - meta
+    DeleteSyncJobsDto:
+      type: object
+      properties:
+        ids:
+          description: Job IDs to delete
+          type: array
+          items:
+            type: string
+      required:
+        - ids
+    DeleteSyncJobsResponseDto:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Whether the operation was successful
+        deletedCount:
+          type: number
+          description: Number of jobs deleted
+        message:
+          type: string
+          description: Message describing the result
+      required:
+        - success
+        - deletedCount
+        - message
+    CancelSyncJobsDto:
+      type: object
+      properties:
+        ids:
+          description: Job IDs to cancel
+          type: array
+          items:
+            type: string
+      required:
+        - ids
+    CancelSyncJobsResponseDto:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Whether the operation was successful
+        cancelledCount:
+          type: number
+          description: Number of jobs cancelled
+        message:
+          type: string
+          description: Message describing the result
+      required:
+        - success
+        - cancelledCount
+        - message
+    SyncJobLogEntryDto:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          description: Timestamp of the log entry
+        level:
+          type: string
+          description: Log level
+          enum:
+            - debug
+            - info
+            - warn
+            - error
+        message:
+          type: string
+          description: Log message
+        details:
+          type: object
+          description: Additional details
+      required:
+        - timestamp
+        - level
+        - message
+    SyncJobLogsResponseDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Job ID
+        status:
+          type: object
+          description: Job status
+        logs:
+          description: Log entries
+          type: array
+          items:
+            $ref: '#/components/schemas/SyncJobLogEntryDto'
+        errorMessage:
+          type: string
+          description: Error message if any
+        createdAt:
+          format: date-time
+          type: string
+          description: When the job was created
+        startedAt:
+          format: date-time
+          type: string
+          description: When processing started
+        completedAt:
+          format: date-time
+          type: string
+          description: When processing completed
+      required:
+        - id
+        - status
+        - logs
+        - createdAt
     EmailTemplateListItemDto:
       type: object
       properties:
@@ -17052,7 +18815,7 @@ components:
           example: emt_a1b2c3d4
         scopes:
           description: Scopes granted to this token
-          example: &ref_54
+          example: &ref_58
             - schema:read
             - data:read
           type: array
@@ -17098,7 +18861,7 @@ components:
           example: emt_a1b2c3d4
         scopes:
           description: Scopes granted to this token
-          example: *ref_54
+          example: *ref_58
           type: array
           items:
             type: string
@@ -17134,6 +18897,637 @@ components:
       required:
         - tokens
         - total
+    OAuthStatusDto:
+      type: object
+      properties:
+        provider:
+          type: string
+          description: OAuth provider (e.g., google)
+        configured:
+          type: boolean
+          description: Whether OAuth is configured on the server
+        supportedProviders:
+          description: Supported provider types
+          type: array
+          items:
+            type: string
+      required:
+        - provider
+        - configured
+    OAuthStartRequestDto:
+      type: object
+      properties:
+        integrationId:
+          type: string
+          description: Existing integration ID to update (optional for new integrations)
+        providerType:
+          type: string
+          description: Provider type for the OAuth flow (e.g., gmail_oauth)
+          example: gmail_oauth
+        returnUrl:
+          type: string
+          description: URL to redirect to after OAuth completion
+          example: /data-sources/integrations
+        name:
+          type: string
+          description: Name for the new integration (required for new integrations)
+          example: My Gmail Account
+        description:
+          type: string
+          description: Description for the new integration
+          example: Personal email account
+      required:
+        - providerType
+    OAuthStartResponseDto:
+      type: object
+      properties:
+        authUrl:
+          type: string
+          description: URL to redirect user to for OAuth
+        state:
+          type: string
+          description: State parameter for verification
+      required:
+        - authUrl
+        - state
+    ProviderMetadataDto:
+      type: object
+      properties:
+        providerType:
+          type: string
+          description: Provider type identifier
+        displayName:
+          type: string
+          description: Human-readable name
+        description:
+          type: string
+          description: Description
+        sourceType:
+          type: string
+          description: Source type this provider produces
+        icon:
+          type: string
+          description: Icon identifier
+        configSchema:
+          type: object
+          description: JSON schema for configuration
+      required:
+        - providerType
+        - displayName
+        - description
+        - sourceType
+        - icon
+        - configSchema
+    TestConnectionResultDto:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Whether connection was successful
+        error:
+          type: string
+          description: Error message if failed
+        info:
+          type: object
+          description: Additional info
+      required:
+        - success
+    DataSourceIntegrationDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Integration ID
+        projectId:
+          type: string
+          description: Project ID
+        providerType:
+          type: string
+          description: Provider type
+        sourceType:
+          type: string
+          description: Source type
+        name:
+          type: string
+          description: Display name
+        description:
+          type: object
+          description: Description
+        syncMode:
+          type: string
+          description: Sync mode
+          enum:
+            - manual
+            - recurring
+        syncIntervalMinutes:
+          type: object
+          description: Sync interval in minutes
+        lastSyncedAt:
+          type: object
+          description: Last synced timestamp
+        nextSyncAt:
+          type: object
+          description: Next sync timestamp
+        status:
+          type: string
+          description: Status
+          enum:
+            - active
+            - error
+            - disabled
+        errorMessage:
+          type: object
+          description: Error message if status is error
+        lastErrorAt:
+          type: object
+          description: Last error timestamp
+        errorCount:
+          type: number
+          description: Error count
+        metadata:
+          type: object
+          description: Metadata
+        createdBy:
+          type: object
+          description: Created by user ID
+        createdAt:
+          format: date-time
+          type: string
+          description: Created at timestamp
+        updatedAt:
+          format: date-time
+          type: string
+          description: Updated at timestamp
+        hasConfig:
+          type: boolean
+          description: Whether configuration has been set
+        configurations:
+          type: array
+          description: Sync configurations (only when includeConfigurations=true)
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              description:
+                type: string
+              isDefault:
+                type: boolean
+              options:
+                type: object
+              schedule:
+                type: object
+              createdAt:
+                type: string
+              updatedAt:
+                type: string
+      required:
+        - id
+        - projectId
+        - providerType
+        - sourceType
+        - name
+        - syncMode
+        - status
+        - errorCount
+        - metadata
+        - createdAt
+        - updatedAt
+        - hasConfig
+    CreateDataSourceIntegrationDto:
+      type: object
+      properties:
+        providerType:
+          type: string
+          description: Provider type (e.g., imap, gmail_api)
+          example: imap
+        sourceType:
+          type: string
+          description: Source type this integration produces (e.g., email)
+          example: email
+        name:
+          type: string
+          description: User-defined display name
+          example: Work Gmail
+        description:
+          type: string
+          description: Optional description
+          example: My work email account
+        config:
+          type: object
+          description: Provider-specific configuration (will be encrypted)
+          example:
+            host: imap.gmail.com
+            port: 993
+            username: user@gmail.com
+            password: app-password
+        syncMode:
+          type: string
+          description: Sync mode
+          enum:
+            - manual
+            - recurring
+          default: manual
+        syncIntervalMinutes:
+          type: number
+          description: Sync interval in minutes (for recurring sync)
+          example: 60
+      required:
+        - providerType
+        - sourceType
+        - name
+        - config
+    UpdateDataSourceIntegrationDto:
+      type: object
+      properties:
+        name:
+          type: string
+          description: User-defined display name
+          example: Work Gmail
+        description:
+          type: string
+          description: Optional description
+          example: My work email account
+        config:
+          type: object
+          description: >-
+            Provider-specific configuration (will be encrypted). Partial update
+            supported.
+          example:
+            password: new-app-password
+        syncMode:
+          type: string
+          description: Sync mode
+          enum:
+            - manual
+            - recurring
+        syncIntervalMinutes:
+          type: number
+          description: Sync interval in minutes (for recurring sync)
+          example: 60
+        status:
+          type: string
+          description: Integration status
+          enum:
+            - active
+            - error
+            - disabled
+    BrowseRequestDto:
+      type: object
+      properties:
+        folder:
+          type: string
+          description: Folder/path to browse
+          example: INBOX
+        offset:
+          type: number
+          description: Offset for pagination
+          example: 0
+        limit:
+          type: number
+          description: Limit for pagination
+          example: 100
+        filters:
+          type: object
+          description: Filter criteria (provider-specific)
+          example:
+            from: alice@example.com
+            subject: Report
+    ImportRequestDto:
+      type: object
+      properties:
+        itemIds:
+          description: IDs of items to import
+          example:
+            - msg-123
+            - msg-456
+          type: array
+          items:
+            type: string
+        options:
+          type: object
+          description: Additional options for import
+          example:
+            includeAttachments: true
+      required:
+        - itemIds
+    EmailFilterDto:
+      type: object
+      properties:
+        from:
+          type: string
+          description: Filter by sender email address
+          example: alice@example.com
+        to:
+          type: string
+          description: Filter by recipient email address
+          example: bob@example.com
+        subject:
+          type: string
+          description: Filter by subject (partial match)
+          example: Report
+        text:
+          type: string
+          description: Filter by body text (partial match)
+          example: meeting notes
+        since:
+          type: string
+          description: Filter emails after this date (ISO 8601)
+          example: '2024-01-01'
+        before:
+          type: string
+          description: Filter emails before this date (ISO 8601)
+          example: '2024-12-31'
+        seen:
+          type: boolean
+          description: Filter by read/unread status
+        flagged:
+          type: boolean
+          description: Filter by flagged/starred status
+        folders:
+          description: Folders to include (defaults to INBOX)
+          example:
+            - INBOX
+            - '[Gmail]/Sent Mail'
+          type: array
+          items:
+            type: string
+    SyncOptionsDto:
+      type: object
+      properties:
+        limit:
+          type: number
+          description: 'Maximum number of emails to sync (default: 100)'
+          example: 100
+          minimum: 1
+          maximum: 1000
+        filters:
+          description: Filter criteria for emails
+          allOf:
+            - $ref: '#/components/schemas/EmailFilterDto'
+        incrementalOnly:
+          type: boolean
+          description: 'Whether to sync only new emails since last sync (default: true)'
+        selectedFolders:
+          description: Selected folders for Google Drive sync (overrides saved config)
+          example:
+            - id: folder123
+              name: My Documents
+          type: array
+          items:
+            type: string
+        excludedFolders:
+          description: Folders to exclude from sync (subfolders of selected folders)
+          example:
+            - id: folder456
+              name: Archived
+          type: array
+          items:
+            type: string
+    FolderStatsDto:
+      type: object
+      properties:
+        path:
+          type: string
+          description: Folder path
+        name:
+          type: string
+          description: Folder display name
+        totalMessages:
+          type: number
+          description: Total messages in folder
+        unreadMessages:
+          type: number
+          description: Unread messages in folder
+      required:
+        - path
+        - name
+        - totalMessages
+        - unreadMessages
+    SyncPreviewDto:
+      type: object
+      properties:
+        folders:
+          description: Folder statistics
+          type: array
+          items:
+            $ref: '#/components/schemas/FolderStatsDto'
+        totalEmails:
+          type: number
+          description: Total emails across all folders
+        totalUnread:
+          type: number
+          description: Total unread emails
+        matchingEmails:
+          type: number
+          description: Emails matching current filters
+        importedEmails:
+          type: number
+          description: Emails already imported
+        newEmails:
+          type: number
+          description: New emails available to sync
+        lastSyncedAt:
+          format: date-time
+          type: string
+          description: Last sync timestamp
+        appliedFilters:
+          description: Filters applied for preview
+          allOf:
+            - $ref: '#/components/schemas/EmailFilterDto'
+      required:
+        - folders
+        - totalEmails
+        - totalUnread
+        - matchingEmails
+        - importedEmails
+        - newEmails
+    UpdateFolderConfigDto:
+      type: object
+      properties:
+        selectedFolders:
+          description: Folders to sync recursively
+          example:
+            - id: folder123
+              name: Documents
+          type: array
+          items:
+            type: string
+        excludedFolders:
+          description: Folders to exclude (subfolders of selected)
+          example:
+            - id: folder456
+              name: Archive
+          type: array
+          items:
+            type: string
+      required:
+        - selectedFolders
+    FolderCountRequestDto:
+      type: object
+      properties:
+        folderId:
+          type: string
+          description: Folder ID to count files in
+          example: folder123
+      required:
+        - folderId
+    FolderCountResponseDto:
+      type: object
+      properties:
+        folderId:
+          type: string
+          description: Folder ID
+        estimatedCount:
+          type: number
+          description: Estimated file count
+        isExact:
+          type: boolean
+          description: Whether the count is exact or estimated
+      required:
+        - folderId
+        - estimatedCount
+        - isExact
+    SyncScheduleDto:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          description: Whether scheduled sync is enabled
+          example: true
+        intervalMinutes:
+          type: number
+          description: Sync interval in minutes (15 min to 24 hours)
+          example: 60
+          minimum: 15
+          maximum: 1440
+        lastRunAt:
+          type: string
+          description: Last scheduled run timestamp (ISO 8601)
+        nextRunAt:
+          type: string
+          description: Next scheduled run timestamp (ISO 8601)
+      required:
+        - enabled
+        - intervalMinutes
+    SyncConfigurationDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the configuration
+          example: 550e8400-e29b-41d4-a716-446655440000
+        name:
+          type: string
+          description: Configuration name (unique within integration)
+          example: Quick Daily Check
+        description:
+          type: string
+          description: Optional description of the configuration
+          example: Fast sync of recent emails from inbox only
+        isDefault:
+          type: boolean
+          description: Whether this is the default configuration
+          example: true
+        options:
+          description: Sync options for this configuration
+          allOf:
+            - $ref: '#/components/schemas/SyncOptionsDto'
+        schedule:
+          description: Schedule settings for automated runs
+          allOf:
+            - $ref: '#/components/schemas/SyncScheduleDto'
+        createdBy:
+          type: string
+          description: User ID who created this configuration
+        updatedBy:
+          type: string
+          description: User ID who last updated this configuration
+        createdAt:
+          type: string
+          description: Creation timestamp (ISO 8601)
+        updatedAt:
+          type: string
+          description: Last update timestamp (ISO 8601)
+      required:
+        - id
+        - name
+        - isDefault
+        - options
+        - createdAt
+        - updatedAt
+    SyncConfigurationListDto:
+      type: object
+      properties:
+        configurations:
+          description: List of sync configurations
+          type: array
+          items:
+            $ref: '#/components/schemas/SyncConfigurationDto'
+        total:
+          type: number
+          description: Total number of configurations
+          example: 3
+      required:
+        - configurations
+        - total
+    CreateSyncConfigurationDto:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Configuration name (unique within integration)
+          example: Quick Daily Check
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          description: Optional description of the configuration
+          example: Fast sync of recent emails from inbox only
+          maxLength: 500
+        isDefault:
+          type: boolean
+          description: Set as default configuration (defaults to true if first)
+          example: false
+        options:
+          description: Sync options for this configuration
+          allOf:
+            - $ref: '#/components/schemas/SyncOptionsDto'
+        schedule:
+          description: Schedule settings for automated runs
+          allOf:
+            - $ref: '#/components/schemas/SyncScheduleDto'
+      required:
+        - name
+        - options
+    UpdateSyncConfigurationDto:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Configuration name (unique within integration)
+          example: Quick Daily Check
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          description: Optional description of the configuration
+          example: Fast sync of recent emails from inbox only
+          maxLength: 500
+        isDefault:
+          type: boolean
+          description: Set as default configuration
+          example: true
+        options:
+          description: Sync options for this configuration
+          allOf:
+            - $ref: '#/components/schemas/SyncOptionsDto'
+        schedule:
+          description: Schedule settings for automated runs
+          allOf:
+            - $ref: '#/components/schemas/SyncScheduleDto'
 x-tagGroups:
   - name: Health & Auth
     tags:
