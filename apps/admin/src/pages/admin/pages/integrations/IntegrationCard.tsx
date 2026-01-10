@@ -12,7 +12,7 @@ export interface IntegrationCardProps {
 }
 
 const integrationIcons: Record<string, string> = {
-  clickup: 'lucide--mouse-pointer-click',
+  clickup: 'simple-icons--clickup',
   github: 'lucide--github',
   jira: 'lucide--list-checks',
   slack: 'lucide--message-circle',
