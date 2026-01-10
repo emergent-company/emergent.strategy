@@ -274,7 +274,7 @@ export default function ProjectAutoExtractionSettingsPage() {
 
   if (!config.activeProjectId) {
     return (
-      <PageContainer>
+      <PageContainer maxWidth="full" className="px-4">
         <div className="alert alert-warning">
           <Icon icon="lucide--alert-triangle" className="size-5" />
           <span>
@@ -286,7 +286,11 @@ export default function ProjectAutoExtractionSettingsPage() {
   }
 
   return (
-    <PageContainer maxWidth="4xl" testId="page-settings-auto-extraction">
+    <PageContainer
+      maxWidth="full"
+      className="px-4"
+      testId="page-settings-auto-extraction"
+    >
       {/* Header */}
       <div className="mb-6">
         <h1 className="font-bold text-2xl">Auto-Extraction Settings</h1>

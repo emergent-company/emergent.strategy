@@ -290,7 +290,7 @@ export default function ProjectChunkingSettingsPage() {
 
   if (!config.activeProjectId) {
     return (
-      <PageContainer>
+      <PageContainer maxWidth="full" className="px-4">
         <div className="alert alert-warning">
           <Icon icon="lucide--alert-triangle" className="size-5" />
           <span>
@@ -302,7 +302,11 @@ export default function ProjectChunkingSettingsPage() {
   }
 
   return (
-    <PageContainer maxWidth="4xl" testId="page-settings-chunking">
+    <PageContainer
+      maxWidth="full"
+      className="px-4"
+      testId="page-settings-chunking"
+    >
       {/* Header */}
       <div className="mb-6">
         <h1 className="font-bold text-2xl">Document Processing</h1>
