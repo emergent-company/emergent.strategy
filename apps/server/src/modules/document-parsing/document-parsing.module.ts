@@ -5,6 +5,7 @@ import { DocumentParsingJob } from '../../entities/document-parsing-job.entity';
 import { DocumentArtifact } from '../../entities/document-artifact.entity';
 import { Project } from '../../entities/project.entity';
 import { KreuzbergClientService } from './kreuzberg-client.service';
+import { EmailFileParserService } from './email-file-parser.service';
 import { DocumentParsingJobService } from './document-parsing-job.service';
 import { DocumentParsingWorkerService } from './document-parsing-worker.service';
 import { DocumentParsingController } from './document-parsing.controller';
@@ -60,9 +61,14 @@ import { UtilsModule } from '../../common/utils/utils.module';
   controllers: [DocumentParsingController],
   providers: [
     KreuzbergClientService,
+    EmailFileParserService,
     DocumentParsingJobService,
     DocumentParsingWorkerService,
   ],
-  exports: [DocumentParsingJobService, KreuzbergClientService],
+  exports: [
+    DocumentParsingJobService,
+    KreuzbergClientService,
+    EmailFileParserService,
+  ],
 })
 export class DocumentParsingModule {}

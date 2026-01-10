@@ -13,16 +13,25 @@ import { Project } from './project.entity';
 import type { Chunk } from './chunk.entity';
 import type { ExternalSource } from './external-source.entity';
 import type { DocumentArtifact } from './document-artifact.entity';
+import type { DataSourceIntegration } from './data-source-integration.entity';
 
 /**
- * Source type for documents
+ * Source type for documents.
+ *
+ * This is now a plain string to support plugin extensibility.
+ * Well-known values are defined in SOURCE_TYPES constant.
+ *
+ * @deprecated Use SOURCE_TYPES constant for well-known values.
+ *             This type is kept for backward compatibility.
  */
 export type DocumentSourceType =
   | 'upload'
   | 'url'
   | 'google_drive'
   | 'dropbox'
-  | 'external';
+  | 'external'
+  | 'email'
+  | string;
 
 /**
  * Conversion status for documents.
@@ -42,6 +51,9 @@ export type DocumentConversionStatus =
 })
 @Index(['projectId'])
 @Index(['externalSourceId'])
+@Index(['sourceType'])
+@Index(['dataSourceIntegrationId'])
+@Index(['parentDocumentId'])
 export class Document {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -76,6 +88,13 @@ export class Document {
 
   @Column({ name: 'external_source_id', type: 'uuid', nullable: true })
   externalSourceId!: string | null;
+
+  /**
+   * Reference to the DataSourceIntegration that created this document.
+   * Null for manually uploaded documents (source_type = 'upload').
+   */
+  @Column({ name: 'data_source_integration_id', type: 'uuid', nullable: true })
+  dataSourceIntegrationId!: string | null;
 
   @Column({ name: 'sync_version', type: 'int', default: 1 })
   syncVersion!: number;
@@ -134,6 +153,28 @@ export class Document {
   })
   @JoinColumn({ name: 'external_source_id' })
   externalSource!: ExternalSource | null;
+
+  @ManyToOne('DataSourceIntegration', 'documents', {
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'data_source_integration_id' })
+  dataSourceIntegration!: DataSourceIntegration | null;
+
+  /**
+   * Self-reference for parent document (e.g., email → attachment)
+   */
+  @ManyToOne('Document', 'children', {
+    onDelete: 'CASCADE',
+    nullable: true,
+  })
+  @JoinColumn({ name: 'parent_document_id' })
+  parentDocument!: Document | null;
+
+  /**
+   * Child documents (e.g., attachments for an email)
+   */
+  @OneToMany('Document', 'parentDocument')
+  children!: Document[];
 
   @OneToMany('DocumentArtifact', 'document', { cascade: true })
   artifacts!: DocumentArtifact[];

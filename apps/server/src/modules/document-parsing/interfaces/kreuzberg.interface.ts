@@ -294,3 +294,49 @@ export function shouldUseKreuzberg(
 export function isKreuzbergSupported(mimeType: string): boolean {
   return KREUZBERG_SUPPORTED_MIME_TYPES.includes(mimeType as any);
 }
+
+/**
+ * MIME types for email files that should be processed by EmailFileParserService
+ * instead of Kreuzberg (to extract full metadata and attachments)
+ */
+export const EMAIL_MIME_TYPES = [
+  'message/rfc822', // .eml (RFC 822 standard email)
+  'application/vnd.ms-outlook', // .msg (Microsoft Outlook)
+] as const;
+
+/**
+ * File extensions for email files
+ */
+export const EMAIL_EXTENSIONS = ['.eml', '.msg'] as const;
+
+/**
+ * Check if a file is an email file that should use EmailFileParserService
+ *
+ * Email files are routed to our native parser instead of Kreuzberg because:
+ * - Kreuzberg only extracts limited metadata (from, to, cc, bcc, messageId)
+ * - Kreuzberg does NOT extract: subject, date, inReplyTo, references
+ * - Kreuzberg does NOT extract attachment binary content (only filenames)
+ *
+ * @param mimeType - MIME type of the file
+ * @param filename - Original filename
+ * @returns true if the file should be processed as an email
+ */
+export function isEmailFile(
+  mimeType: string | null | undefined,
+  filename: string | null | undefined
+): boolean {
+  // Check MIME type first (most reliable)
+  if (mimeType && EMAIL_MIME_TYPES.includes(mimeType as any)) {
+    return true;
+  }
+
+  // Check file extension as fallback
+  if (filename) {
+    const ext = filename.toLowerCase().split('.').pop();
+    if (ext && EMAIL_EXTENSIONS.includes(`.${ext}` as any)) {
+      return true;
+    }
+  }
+
+  return false;
+}

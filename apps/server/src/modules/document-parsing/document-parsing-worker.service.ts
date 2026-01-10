@@ -10,8 +10,9 @@ import { AppConfigService } from '../../common/config/config.service';
 import { StorageService } from '../storage/storage.service';
 import { DocumentParsingJobService } from './document-parsing-job.service';
 import { KreuzbergClientService } from './kreuzberg-client.service';
+import { EmailFileParserService } from './email-file-parser.service';
 import { DocumentParsingJob } from '../../entities/document-parsing-job.entity';
-import { shouldUseKreuzberg } from './interfaces';
+import { shouldUseKreuzberg, isEmailFile } from './interfaces';
 import { DocumentsService } from '../documents/documents.service';
 import { sanitizeForPostgresWithStats } from '../../common/utils';
 
@@ -53,6 +54,7 @@ export class DocumentParsingWorkerService
     private readonly storage: StorageService,
     private readonly jobService: DocumentParsingJobService,
     private readonly kreuzbergClient: KreuzbergClientService,
+    private readonly emailFileParser: EmailFileParserService,
     @Inject(forwardRef(() => DocumentsService))
     private readonly documentsService: DocumentsService
   ) {}
@@ -220,12 +222,48 @@ export class DocumentParsingWorkerService
       // Download file from storage
       const fileBuffer = await this.downloadFile(job.storageKey);
 
-      // Determine processing path
-      const useKreuzberg = shouldUseKreuzberg(job.mimeType, job.sourceFilename);
+      // Determine processing path: email > kreuzberg > plain text
+      const isEmail = isEmailFile(job.mimeType, job.sourceFilename);
+      const useKreuzberg =
+        !isEmail && shouldUseKreuzberg(job.mimeType, job.sourceFilename);
       let parsedContent: string;
       let metadata: Record<string, any> = {};
+      let emailAttachments: Array<{
+        filename: string;
+        contentType: string;
+        size: number;
+        content: Buffer;
+      }> = [];
+      let emailSourceType = false;
 
-      if (useKreuzberg) {
+      if (isEmail) {
+        // Email file (.eml or .msg) - use our native parser for full metadata extraction
+        const emailResult = await this.emailFileParser.parseEmailFile(
+          fileBuffer,
+          job.mimeType,
+          job.sourceFilename
+        );
+
+        // Build content in same format as Gmail/IMAP integration
+        parsedContent = this.emailFileParser.buildEmailContent(emailResult);
+        metadata = {
+          extractionMethod: 'email_native',
+          ...this.emailFileParser.buildEmailMetadata(emailResult, {
+            provider: 'upload',
+          }),
+        };
+
+        // Store attachments for later processing
+        if (emailResult.attachments && emailResult.attachments.length > 0) {
+          emailAttachments = emailResult.attachments;
+        }
+
+        emailSourceType = true;
+
+        this.logger.debug(
+          `Parsed email: "${emailResult.subject}", ${emailAttachments.length} attachments`
+        );
+      } else if (useKreuzberg) {
         // Binary document - use Kreuzberg for extraction
         const result = await this.kreuzbergClient.extractText(
           fileBuffer,
@@ -302,9 +340,20 @@ export class DocumentParsingWorkerService
             metadata: {
               ...metadata,
               processingTimeMs: Date.now() - startTime,
+              originalMimeType: job.mimeType,
+              originalFilename: job.sourceFilename,
+              originalSizeBytes: job.fileSizeBytes,
             },
           }
         );
+
+        // For email files, update sourceType and filename (use subject as filename)
+        if (emailSourceType) {
+          await this.documentsService.updateDocumentForEmail(job.documentId, {
+            sourceType: 'email',
+            filename: metadata.subject || '(No Subject)',
+          });
+        }
 
         // Create chunks from the parsed content
         try {
@@ -330,6 +379,15 @@ export class DocumentParsingWorkerService
             }`
           );
           // Don't fail - document has content, just no chunks yet
+        }
+
+        // Process email attachments as child documents
+        if (emailSourceType && emailAttachments.length > 0) {
+          await this.processEmailAttachments(
+            job,
+            job.documentId,
+            emailAttachments
+          );
         }
 
         this.logger.log(
@@ -463,5 +521,92 @@ export class DocumentParsingWorkerService
       successRate:
         this.processedCount > 0 ? this.successCount / this.processedCount : 1.0,
     };
+  }
+
+  /**
+   * Process email attachments as child documents.
+   *
+   * Each attachment is uploaded to storage and a new parsing job is created.
+   * Child documents reference the parent email document via parentDocumentId.
+   */
+  private async processEmailAttachments(
+    parentJob: DocumentParsingJob,
+    parentDocumentId: string,
+    attachments: Array<{
+      filename: string;
+      contentType: string;
+      size: number;
+      content: Buffer;
+    }>
+  ): Promise<void> {
+    this.logger.log(
+      `Processing ${attachments.length} email attachments for document ${parentDocumentId}`
+    );
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const attachment of attachments) {
+      try {
+        // Skip inline images and very small files (likely signatures)
+        if (attachment.size < 100) {
+          this.logger.debug(
+            `Skipping tiny attachment: ${attachment.filename} (${attachment.size} bytes)`
+          );
+          continue;
+        }
+
+        // Upload attachment to storage
+        const uploadResult = await this.storage.uploadDocument(
+          attachment.content,
+          {
+            orgId: parentJob.organizationId,
+            projectId: parentJob.projectId,
+            filename: attachment.filename,
+            contentType: attachment.contentType,
+          }
+        );
+
+        // Create child document via DocumentsService
+        const result = await this.documentsService.createFromEmailAttachment({
+          projectId: parentJob.projectId,
+          organizationId: parentJob.organizationId,
+          parentDocumentId,
+          storageKey: uploadResult.key,
+          filename: attachment.filename,
+          mimeType: attachment.contentType,
+          fileSizeBytes: attachment.size,
+        });
+
+        // Create parsing job for the attachment (so it gets processed)
+        await this.jobService.createJob({
+          organizationId: parentJob.organizationId,
+          projectId: parentJob.projectId,
+          sourceType: 'upload',
+          sourceFilename: attachment.filename,
+          mimeType: attachment.contentType,
+          fileSizeBytes: attachment.size,
+          storageKey: uploadResult.key,
+          documentId: result.documentId,
+        });
+
+        this.logger.debug(
+          `Created child document ${result.documentId} with parsing job for attachment ${attachment.filename}`
+        );
+
+        successCount++;
+      } catch (error) {
+        this.logger.error(
+          `Failed to process attachment ${attachment.filename}: ${
+            (error as Error).message
+          }`
+        );
+        failCount++;
+      }
+    }
+
+    this.logger.log(
+      `Email attachment processing complete: ${successCount} succeeded, ${failCount} failed`
+    );
   }
 }

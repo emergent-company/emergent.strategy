@@ -25,7 +25,11 @@ export type DocumentParsingJobStatus =
 /**
  * Source type for document parsing jobs
  */
-export type DocumentParsingJobSourceType = 'upload' | 'url';
+export type DocumentParsingJobSourceType =
+  | 'upload'
+  | 'url'
+  | 'email_attachment'
+  | 'drive';
 
 /**
  * Document parsing job entity for tracking document extraction via Kreuzberg.
