@@ -41,7 +41,7 @@
 /* Typography (prose classes for markdown) */
 @plugin "@tailwindcss/typography";
 
-/* Iconify (Lucide icons) */
+/* Iconify (Lucide icons + logos for brand icons) */
 @plugin "@iconify/tailwind4" {
-  prefixes: lucide, hugeicons, ri;
+  prefixes: lucide, hugeicons, ri, logos;
 }
