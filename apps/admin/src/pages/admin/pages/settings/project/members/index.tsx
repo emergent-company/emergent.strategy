@@ -431,7 +431,7 @@ export default function ProjectMembersPage() {
 
   if (!projectId) {
     return (
-      <PageContainer>
+      <PageContainer maxWidth="full" className="px-4">
         <div className="alert alert-warning">
           <Icon icon="lucide--alert-triangle" className="size-5" />
           <span>Please select a project to manage members</span>
@@ -441,7 +441,11 @@ export default function ProjectMembersPage() {
   }
 
   return (
-    <PageContainer maxWidth="4xl" testId="page-settings-project-members">
+    <PageContainer
+      maxWidth="full"
+      className="px-4"
+      testId="page-settings-project-members"
+    >
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
