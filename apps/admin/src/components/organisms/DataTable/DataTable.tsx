@@ -51,6 +51,7 @@ export function DataTable<T extends TableDataItem>({
   toolbarActions,
   totalCount,
   className = '',
+  disabled = false,
   pagination,
   onPageChange,
   paginationItemLabel = 'items',
@@ -883,7 +884,11 @@ export function DataTable<T extends TableDataItem>({
   };
 
   return (
-    <div className={`space-y-3 ${className}`}>
+    <div
+      className={`space-y-3 ${className} ${
+        disabled ? 'opacity-60 pointer-events-none' : ''
+      }`}
+    >
       {renderToolbar()}
       {renderActiveFilters()}
       {renderBulkActions()}

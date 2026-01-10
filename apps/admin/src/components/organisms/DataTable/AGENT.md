@@ -410,37 +410,38 @@ export function ProjectsPage() {
 
 ## Props Reference
 
-| Prop                  | Type                                        | Default                | Description                                   |
-| --------------------- | ------------------------------------------- | ---------------------- | --------------------------------------------- |
-| `data`                | `T[]`                                       | **required**           | Array of items (must have `id: string`)       |
-| `columns`             | `ColumnDef<T>[]`                            | **required**           | Column definitions                            |
-| `loading`             | `boolean`                                   | `false`                | Show skeleton loading state                   |
-| `error`               | `string \| null`                            | `null`                 | Error message to display                      |
-| `enableSelection`     | `boolean`                                   | `false`                | Show row checkboxes                           |
-| `enableSearch`        | `boolean`                                   | `true`                 | Show search input                             |
-| `searchPlaceholder`   | `string`                                    | `'Search...'`          | Search input placeholder                      |
-| `getSearchText`       | `(item: T) => string`                       | -                      | Extract searchable text (client-side)         |
-| `onSearch`            | `(query: string) => void`                   | -                      | Server-side search callback (debounced 300ms) |
-| `filters`             | `FilterConfig<T>[]`                         | `[]`                   | Filter dropdown configurations                |
-| `bulkActions`         | `BulkAction<T>[]`                           | `[]`                   | Actions for selected rows                     |
-| `rowActions`          | `RowAction<T>[]`                            | `[]`                   | Per-row action buttons                        |
-| `useDropdownActions`  | `boolean`                                   | `false`                | Render row actions as dropdown                |
-| `enableViewToggle`    | `boolean`                                   | `false`                | Show table/cards toggle                       |
-| `defaultView`         | `'table' \| 'cards'`                        | `'table'`              | Initial view mode                             |
-| `renderCard`          | `(item, isSelected, onSelect) => ReactNode` | -                      | Card renderer for card view                   |
-| `onRowClick`          | `(item: T) => void`                         | -                      | Row click handler                             |
-| `onSelectionChange`   | `(ids: string[], items: T[]) => void`       | -                      | Selection change callback                     |
-| `totalCount`          | `number`                                    | -                      | Total items (enables "select all X")          |
-| `pagination`          | `PaginationConfig`                          | -                      | Server-side pagination state                  |
-| `onPageChange`        | `(page: number) => void`                    | -                      | Page change callback                          |
-| `paginationItemLabel` | `string`                                    | `'items'`              | Label in pagination text                      |
-| `emptyMessage`        | `string`                                    | `'No data available.'` | Empty state message                           |
-| `emptyIcon`           | `string`                                    | `'lucide--inbox'`      | Empty state icon                              |
-| `noResultsMessage`    | `string`                                    | `'No items match...'`  | Filtered empty state                          |
-| `enableExport`        | `boolean`                                   | `false`                | Show export button                            |
-| `onExport`            | `(items: T[]) => void`                      | -                      | Export handler                                |
-| `toolbarActions`      | `ReactNode`                                 | -                      | Custom toolbar buttons                        |
-| `className`           | `string`                                    | `''`                   | Container CSS class                           |
+| Prop                  | Type                                        | Default                | Description                                    |
+| --------------------- | ------------------------------------------- | ---------------------- | ---------------------------------------------- |
+| `data`                | `T[]`                                       | **required**           | Array of items (must have `id: string`)        |
+| `columns`             | `ColumnDef<T>[]`                            | **required**           | Column definitions                             |
+| `loading`             | `boolean`                                   | `false`                | Show skeleton loading state                    |
+| `error`               | `string \| null`                            | `null`                 | Error message to display                       |
+| `enableSelection`     | `boolean`                                   | `false`                | Show row checkboxes                            |
+| `enableSearch`        | `boolean`                                   | `true`                 | Show search input                              |
+| `searchPlaceholder`   | `string`                                    | `'Search...'`          | Search input placeholder                       |
+| `getSearchText`       | `(item: T) => string`                       | -                      | Extract searchable text (client-side)          |
+| `onSearch`            | `(query: string) => void`                   | -                      | Server-side search callback (debounced 300ms)  |
+| `filters`             | `FilterConfig<T>[]`                         | `[]`                   | Filter dropdown configurations                 |
+| `bulkActions`         | `BulkAction<T>[]`                           | `[]`                   | Actions for selected rows                      |
+| `rowActions`          | `RowAction<T>[]`                            | `[]`                   | Per-row action buttons                         |
+| `useDropdownActions`  | `boolean`                                   | `false`                | Render row actions as dropdown                 |
+| `enableViewToggle`    | `boolean`                                   | `false`                | Show table/cards toggle                        |
+| `defaultView`         | `'table' \| 'cards'`                        | `'table'`              | Initial view mode                              |
+| `renderCard`          | `(item, isSelected, onSelect) => ReactNode` | -                      | Card renderer for card view                    |
+| `onRowClick`          | `(item: T) => void`                         | -                      | Row click handler                              |
+| `onSelectionChange`   | `(ids: string[], items: T[]) => void`       | -                      | Selection change callback                      |
+| `totalCount`          | `number`                                    | -                      | Total items (enables "select all X")           |
+| `pagination`          | `PaginationConfig`                          | -                      | Server-side pagination state                   |
+| `onPageChange`        | `(page: number) => void`                    | -                      | Page change callback                           |
+| `paginationItemLabel` | `string`                                    | `'items'`              | Label in pagination text                       |
+| `emptyMessage`        | `string`                                    | `'No data available.'` | Empty state message                            |
+| `emptyIcon`           | `string`                                    | `'lucide--inbox'`      | Empty state icon                               |
+| `noResultsMessage`    | `string`                                    | `'No items match...'`  | Filtered empty state                           |
+| `enableExport`        | `boolean`                                   | `false`                | Show export button                             |
+| `onExport`            | `(items: T[]) => void`                      | -                      | Export handler                                 |
+| `toolbarActions`      | `ReactNode`                                 | -                      | Custom toolbar buttons                         |
+| `className`           | `string`                                    | `''`                   | Container CSS class                            |
+| `disabled`            | `boolean`                                   | `false`                | Disable interaction (opacity + pointer-events) |
 
 ---
 
@@ -486,3 +487,5 @@ const navigate = useNavigate();
 | Mix client-side and server-side search      | Pick one approach                                                 |
 | Provide both `getSearchText` and `onSearch` | Use `getSearchText` for client-side OR `onSearch` for server-side |
 | Forget `totalCount` when using bulk actions | Always provide for "select all" feature                           |
+| Wrap DataTable in a card container          | DataTable includes its own styling - use it directly              |
+| Custom error alerts outside DataTable       | Use the `error` prop - DataTable handles error display            |

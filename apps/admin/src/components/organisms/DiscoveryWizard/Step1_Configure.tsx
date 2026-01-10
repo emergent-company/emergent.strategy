@@ -64,8 +64,11 @@ export function Step1_Configure({
       try {
         setLoading(true);
         setError(null);
-        const docs = await fetchJson<Document[]>(`${apiBase}/api/documents`);
-        setDocuments(docs);
+        const response = await fetchJson<{
+          documents: Document[];
+          total: number;
+        }>(`${apiBase}/api/documents`);
+        setDocuments(response.documents || []);
       } catch (err) {
         setError(
           err instanceof Error ? err.message : 'Failed to load documents'

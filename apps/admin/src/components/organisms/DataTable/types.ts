@@ -249,6 +249,9 @@ export interface DataTableProps<T extends TableDataItem> {
   /** CSS class for table container */
   className?: string;
 
+  /** Disable interaction (adds opacity and prevents pointer events) */
+  disabled?: boolean;
+
   /** Server-side pagination configuration */
   pagination?: PaginationConfig;
 
