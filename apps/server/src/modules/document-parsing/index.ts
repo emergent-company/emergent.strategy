@@ -19,6 +19,12 @@ export {
   KreuzbergError,
 } from './kreuzberg-client.service';
 export { DocumentParsingWorkerService } from './document-parsing-worker.service';
+export {
+  EmailFileParserService,
+  ParsedEmailFile,
+  ParsedEmailAttachment,
+  EmailAddress,
+} from './email-file-parser.service';
 
 // DTOs
 export * from './dto';
