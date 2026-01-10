@@ -15,11 +15,15 @@ import {
   API_TOKEN_SCOPES,
 } from '@/api/tokens';
 
-// MCP Server endpoint - use API base URL
-const getMcpEndpoint = (apiBase: string, projectId: string) => {
-  // Convert API URL to MCP endpoint
-  const baseUrl = apiBase.replace(/\/api\/v1$/, '').replace(/\/$/, '');
-  return `${baseUrl}/mcp/${projectId}`;
+// MCP Server endpoint - use the actual API server URL
+const getMcpEndpoint = (projectId: string) => {
+  const env = (import.meta as any).env || {};
+  // Use VITE_API_URL for the actual API server URL
+  // Fall back to current origin with /mcp path for local development
+  const apiUrl =
+    env.VITE_API_URL || window.location.origin.replace(/:\d+$/, ':3002');
+  const baseUrl = apiUrl.replace(/\/+$/, '');
+  return `${baseUrl}/mcp/sse/${projectId}`;
 };
 
 // Agent configuration templates
@@ -133,7 +137,7 @@ export default function McpSettingsPage() {
 
     try {
       const data = await fetchJson<{ tokens: ApiToken[]; total: number }>(
-        `${apiBase}/projects/${config.activeProjectId}/tokens`
+        `${apiBase}/api/projects/${config.activeProjectId}/tokens`
       );
       setTokens(data.tokens);
     } catch (err) {
@@ -154,7 +158,7 @@ export default function McpSettingsPage() {
     setCreating(true);
     try {
       const response = await fetchJson<CreateApiTokenResponse>(
-        `${apiBase}/projects/${config.activeProjectId}/tokens`,
+        `${apiBase}/api/projects/${config.activeProjectId}/tokens`,
         {
           method: 'POST',
           body: {
@@ -194,7 +198,7 @@ export default function McpSettingsPage() {
     setRevoking(true);
     try {
       await fetchJson(
-        `${apiBase}/projects/${config.activeProjectId}/tokens/${tokenToRevoke.id}`,
+        `${apiBase}/api/projects/${config.activeProjectId}/tokens/${tokenToRevoke.id}`,
         { method: 'DELETE' }
       );
 
@@ -233,7 +237,7 @@ export default function McpSettingsPage() {
 
   // Get MCP endpoint URL
   const mcpEndpoint = config.activeProjectId
-    ? getMcpEndpoint(apiBase, config.activeProjectId)
+    ? getMcpEndpoint(config.activeProjectId)
     : '';
 
   // Get active tokens for config examples

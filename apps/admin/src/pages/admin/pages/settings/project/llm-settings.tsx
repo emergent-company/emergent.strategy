@@ -192,7 +192,7 @@ export default function ProjectLLMSettingsPage() {
 
   if (!config.activeProjectId) {
     return (
-      <PageContainer>
+      <PageContainer maxWidth="full" className="px-4">
         <div className="alert alert-warning">
           <Icon icon="lucide--alert-triangle" className="size-5" />
           <span>Please select a project to configure LLM settings</span>
@@ -202,7 +202,7 @@ export default function ProjectLLMSettingsPage() {
   }
 
   return (
-    <PageContainer maxWidth="4xl" testId="page-settings-llm">
+    <PageContainer maxWidth="full" className="px-4" testId="page-settings-llm">
       {/* Header */}
       <div className="mb-6">
         <h1 className="font-bold text-2xl">LLM Settings</h1>

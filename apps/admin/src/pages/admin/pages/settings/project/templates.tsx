@@ -56,6 +56,22 @@ interface TemplatePack {
   published_at: string;
 }
 
+interface DraftSession {
+  id: string;
+  status: string;
+  pack: {
+    id: string;
+    name: string;
+    version: string;
+    description?: string;
+    object_type_schemas: Record<string, unknown>;
+    relationship_type_schemas: Record<string, unknown>;
+  };
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string;
+}
+
 interface InstalledPack {
   id: string;
   template_pack: {
@@ -271,6 +287,7 @@ export default function ProjectTemplatesSettingsPage() {
 
   const [availablePacks, setAvailablePacks] = useState<TemplatePack[]>([]);
   const [installedPacks, setInstalledPacks] = useState<InstalledPack[]>([]);
+  const [draftSessions, setDraftSessions] = useState<DraftSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [installing, setInstalling] = useState<string | null>(null);
@@ -288,18 +305,22 @@ export default function ProjectTemplatesSettingsPage() {
     setError(null);
 
     try {
-      // Load available and installed packs in parallel
-      const [available, installed] = await Promise.all([
+      // Load available, installed packs, and draft sessions in parallel
+      const [available, installed, drafts] = await Promise.all([
         fetchJson<TemplatePack[]>(
           `${apiBase}/api/template-packs/projects/${config.activeProjectId}/available`
         ),
         fetchJson<InstalledPack[]>(
           `${apiBase}/api/template-packs/projects/${config.activeProjectId}/installed`
         ),
+        fetchJson<DraftSession[]>(
+          `${apiBase}/api/template-packs/studio/sessions`
+        ),
       ]);
 
       setAvailablePacks(available || []);
       setInstalledPacks(installed || []);
+      setDraftSessions(drafts || []);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Failed to load template packs'
@@ -441,9 +462,37 @@ export default function ProjectTemplatesSettingsPage() {
     }
   };
 
+  const handleDeleteDraft = async (sessionId: string, packName: string) => {
+    if (
+      !window.confirm(
+        `Are you sure you want to delete the draft "${
+          packName || 'Untitled Draft'
+        }"? This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    setError(null);
+
+    try {
+      await fetchJson(
+        `${apiBase}/api/template-packs/studio/session/${sessionId}`,
+        {
+          method: 'DELETE',
+        }
+      );
+
+      // Reload packs to refresh draft list
+      await loadTemplatePacks();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete draft');
+    }
+  };
+
   if (!config.activeProjectId) {
     return (
-      <PageContainer>
+      <PageContainer maxWidth="full" className="px-4">
         <div className="alert alert-warning">
           <Icon icon="lucide--alert-triangle" className="size-5" />
           <span>Please select a project to manage template packs</span>
@@ -453,7 +502,11 @@ export default function ProjectTemplatesSettingsPage() {
   }
 
   return (
-    <PageContainer maxWidth="6xl" testId="page-settings-project-templates">
+    <PageContainer
+      maxWidth="full"
+      className="px-4"
+      testId="page-settings-project-templates"
+    >
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
@@ -653,6 +706,112 @@ export default function ProjectTemplatesSettingsPage() {
               </div>
             )}
           </section>
+
+          {/* Draft Templates */}
+          {draftSessions.length > 0 && (
+            <section>
+              <h2 className="mb-4 font-semibold text-xl flex items-center gap-2">
+                <Icon
+                  icon="lucide--file-edit"
+                  className="size-5 text-warning"
+                />
+                Draft Templates
+                <span className="badge badge-warning badge-sm">
+                  {draftSessions.length}
+                </span>
+              </h2>
+              <div className="space-y-3">
+                {draftSessions.map((session) => {
+                  const objectTypeCount = Object.keys(
+                    session.pack.object_type_schemas || {}
+                  ).length;
+                  const relationshipTypeCount = Object.keys(
+                    session.pack.relationship_type_schemas || {}
+                  ).length;
+                  const expiresAt = new Date(session.expiresAt);
+                  const isExpiringSoon =
+                    expiresAt.getTime() - Date.now() < 6 * 60 * 60 * 1000; // 6 hours
+
+                  return (
+                    <div
+                      key={session.id}
+                      className="bg-base-100 border border-warning/30 hover:border-warning/50 transition-colors card"
+                    >
+                      <div className="card-body">
+                        <div className="flex justify-between items-start gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3">
+                              <Icon
+                                icon="lucide--pencil"
+                                className="size-5 text-warning"
+                              />
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h3 className="font-semibold text-lg">
+                                    {session.pack.name || 'Untitled Draft'}
+                                  </h3>
+                                  <span className="badge badge-warning badge-sm">
+                                    Draft
+                                  </span>
+                                  {isExpiringSoon && (
+                                    <Tooltip content="Expires soon - continue editing to save">
+                                      <span className="badge badge-error badge-sm gap-1">
+                                        <Icon
+                                          icon="lucide--clock"
+                                          className="size-3"
+                                        />
+                                        Expiring
+                                      </span>
+                                    </Tooltip>
+                                  )}
+                                </div>
+                                <p className="text-sm text-base-content/60">
+                                  v{session.pack.version}
+                                </p>
+                              </div>
+                            </div>
+                            {session.pack.description && (
+                              <p className="mt-2 text-sm text-base-content/70">
+                                {session.pack.description}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-4 mt-3 text-sm text-base-content/60">
+                              <span>{objectTypeCount} object types</span>
+                              <span>•</span>
+                              <span>{relationshipTypeCount} relationships</span>
+                              <span>•</span>
+                              <span>
+                                Last edited{' '}
+                                {new Date(session.updatedAt).toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              className="btn btn-sm btn-ghost text-error gap-1"
+                              onClick={() =>
+                                handleDeleteDraft(session.id, session.pack.name)
+                              }
+                              title="Delete draft"
+                            >
+                              <Icon icon="lucide--trash-2" className="size-4" />
+                            </button>
+                            <Link
+                              to={`/admin/settings/project/template-studio?session=${session.id}`}
+                              className="btn btn-sm btn-primary gap-1"
+                            >
+                              <Icon icon="lucide--edit-2" className="size-4" />
+                              Continue Editing
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           {/* Available Template Packs */}
           <section>
