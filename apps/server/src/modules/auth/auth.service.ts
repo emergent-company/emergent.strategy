@@ -421,13 +421,41 @@ export class AuthService implements OnModuleInit {
     let displayName =
       typeof payload.name === 'string' ? payload.name : undefined;
 
-    // If email is missing from JWT, try to fetch from Zitadel OIDC userinfo endpoint
+    // If email is missing from JWT, first check if we have it cached in the user profile
+    // This avoids redundant Zitadel API calls on every request
+    if (!email) {
+      try {
+        const cachedProfile = await this.userProfileService.getWithEmail(
+          normalizedSub
+        );
+        if (cachedProfile?.email) {
+          email = cachedProfile.email;
+          if (!firstName && cachedProfile.firstName) {
+            firstName = cachedProfile.firstName;
+          }
+          if (!lastName && cachedProfile.lastName) {
+            lastName = cachedProfile.lastName;
+          }
+          if (!displayName && cachedProfile.displayName) {
+            displayName = cachedProfile.displayName;
+          }
+          Logger.debug(
+            `[AUTH] Using cached profile data for user ${normalizedSub}`,
+            'AuthService'
+          );
+        }
+      } catch {
+        // Ignore cache lookup errors, will try Zitadel next
+      }
+    }
+
+    // If email is still missing, try to fetch from Zitadel OIDC userinfo endpoint
     // This happens when Zitadel returns opaque access tokens without user claims
     // We use the user's own access token to call the userinfo endpoint (no service account needed)
     if (!email && accessToken && this.zitadelService.isConfigured()) {
       try {
-        Logger.log(
-          `[AUTH] Email missing from JWT, fetching userinfo from Zitadel for user ${normalizedSub}`,
+        Logger.debug(
+          `[AUTH] Email missing from JWT and cache, fetching userinfo from Zitadel for user ${normalizedSub}`,
           'AuthService'
         );
         const userinfo = await this.zitadelService.getUserInfoWithToken(
@@ -445,7 +473,7 @@ export class AuthService implements OnModuleInit {
           if (!displayName && userinfo.name) {
             displayName = userinfo.name;
           }
-          Logger.log(
+          Logger.debug(
             `[AUTH] Got userinfo from Zitadel: email=${email}, name=${displayName}`,
             'AuthService'
           );
