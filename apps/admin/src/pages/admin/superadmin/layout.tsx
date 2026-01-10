@@ -62,6 +62,11 @@ const superadminNavItems: NavItem[] = [
         label: 'Conversion Jobs',
         icon: 'lucide--file-cog',
       },
+      {
+        path: '/admin/superadmin/jobs/sync',
+        label: 'Data Source Sync',
+        icon: 'lucide--refresh-cw',
+      },
     ],
   },
   {

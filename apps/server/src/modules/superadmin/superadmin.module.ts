@@ -12,6 +12,8 @@ import { GraphEmbeddingJob } from '../../entities/graph-embedding-job.entity';
 import { ChunkEmbeddingJob } from '../../entities/chunk-embedding-job.entity';
 import { ObjectExtractionJob } from '../../entities/object-extraction-job.entity';
 import { DocumentParsingJob } from '../../entities/document-parsing-job.entity';
+import { DataSourceSyncJob } from '../../entities/data-source-sync-job.entity';
+import { DataSourceIntegration } from '../../entities/data-source-integration.entity';
 import { SuperadminService } from './superadmin.service';
 import { SuperadminGuard } from './superadmin.guard';
 import { SuperadminController } from './superadmin.controller';
@@ -37,6 +39,8 @@ import { AppConfigModule } from '../../common/config/config.module';
       ChunkEmbeddingJob,
       ObjectExtractionJob,
       DocumentParsingJob,
+      DataSourceSyncJob,
+      DataSourceIntegration,
     ]),
     EmailModule,
     AuthModule,

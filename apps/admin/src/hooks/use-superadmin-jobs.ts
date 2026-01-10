@@ -57,7 +57,7 @@ export function useSuperadminJobs(
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const { page = 1, limit = 20, type, status, hasError } = params;
+  const { page = 1, limit = 20, type, status, hasError, projectId } = params;
 
   const fetchJobs = useCallback(async () => {
     try {
@@ -70,6 +70,7 @@ export function useSuperadminJobs(
       if (type) queryParams.set('type', type);
       if (status) queryParams.set('status', status);
       if (hasError !== undefined) queryParams.set('hasError', String(hasError));
+      if (projectId) queryParams.set('projectId', projectId);
 
       const response = await fetchJson<ListEmbeddingJobsResponse>(
         `${apiBase}/api/superadmin/embedding-jobs?${queryParams.toString()}`
@@ -86,7 +87,7 @@ export function useSuperadminJobs(
     } finally {
       setIsLoading(false);
     }
-  }, [apiBase, fetchJson, page, limit, type, status, hasError]);
+  }, [apiBase, fetchJson, page, limit, type, status, hasError, projectId]);
 
   const deleteJobs = useCallback(
     async (

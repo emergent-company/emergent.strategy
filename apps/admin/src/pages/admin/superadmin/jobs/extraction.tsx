@@ -8,6 +8,7 @@ import {
   type BulkAction,
 } from '@/components/organisms/DataTable';
 import { useSuperadminExtractionJobs } from '@/hooks/use-superadmin-extraction-jobs';
+import { useSuperadminProjects } from '@/hooks/use-superadmin-projects';
 import { useToast } from '@/hooks/use-toast';
 import { ConfirmActionModal } from '@/components/organisms/ConfirmActionModal/ConfirmActionModal';
 import type {
@@ -49,6 +50,7 @@ export default function SuperadminExtractionJobsPage() {
   const [errorFilter, setErrorFilter] = useState<boolean | undefined>(
     undefined
   );
+  const [projectFilter, setProjectFilter] = useState<string>('');
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [jobsToDelete, setJobsToDelete] = useState<JobRow[]>([]);
@@ -57,6 +59,10 @@ export default function SuperadminExtractionJobsPage() {
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [jobsToCancel, setJobsToCancel] = useState<JobRow[]>([]);
   const [isCancelling, setIsCancelling] = useState(false);
+
+  const { projects, isLoading: projectsLoading } = useSuperadminProjects({
+    limit: 100,
+  });
 
   const {
     jobs,
@@ -72,6 +78,7 @@ export default function SuperadminExtractionJobsPage() {
     limit: 20,
     status: statusFilter || undefined,
     jobType: jobTypeFilter || undefined,
+    projectId: projectFilter || undefined,
     hasError: errorFilter,
   });
 
@@ -219,7 +226,10 @@ export default function SuperadminExtractionJobsPage() {
       label: 'Status',
       width: 'w-28',
       render: (job) => {
-        const badge = STATUS_BADGES[job.status];
+        const badge = STATUS_BADGES[job.status] ?? {
+          className: 'badge-neutral',
+          label: job.status,
+        };
         return (
           <span className={`badge badge-sm ${badge.className}`}>
             {badge.label}
@@ -228,42 +238,15 @@ export default function SuperadminExtractionJobsPage() {
       },
     },
     {
-      key: 'progress',
-      label: 'Progress',
-      width: 'w-32',
-      render: (job) => {
-        if (job.totalItems === 0) {
-          return <span className="text-base-content/50">-</span>;
-        }
-        const percent = Math.round((job.processedItems / job.totalItems) * 100);
-        return (
-          <div className="flex items-center gap-2">
-            <div className="w-16 h-2 bg-base-200 rounded-full overflow-hidden">
-              <div
-                className={`h-full ${
-                  job.status === 'failed'
-                    ? 'bg-error'
-                    : job.status === 'completed'
-                    ? 'bg-success'
-                    : 'bg-info'
-                }`}
-                style={{ width: `${percent}%` }}
-              />
-            </div>
-            <span className="text-xs text-base-content/60">
-              {job.processedItems}/{job.totalItems}
-            </span>
-          </div>
-        );
-      },
-    },
-    {
       key: 'objectsCreated',
       label: 'Objects',
       width: 'w-20',
-      render: (job) => (
-        <span className="text-success font-medium">{job.objectsCreated}</span>
-      ),
+      render: (job) =>
+        job.objectsCreated > 0 ? (
+          <span className="font-medium">{job.objectsCreated}</span>
+        ) : (
+          <span className="text-base-content/50">-</span>
+        ),
     },
     {
       key: 'errorMessage',
@@ -389,88 +372,96 @@ export default function SuperadminExtractionJobsPage() {
         </div>
       )}
 
-      <div className="card bg-base-100 shadow-sm border border-base-200">
-        {error && (
-          <div className="alert alert-error mb-4">
-            <Icon icon="lucide--alert-circle" className="size-5" />
-            <span>{error.message}</span>
+      <DataTable<JobRow>
+        data={jobs}
+        columns={columns}
+        loading={isLoading}
+        error={error?.message}
+        rowActions={rowActions}
+        bulkActions={bulkActions}
+        enableSelection
+        useDropdownActions
+        toolbarActions={
+          <div className="flex gap-2">
+            <select
+              className="select select-bordered select-sm"
+              value={projectFilter}
+              onChange={(e) => {
+                setProjectFilter(e.target.value);
+                setPage(1);
+              }}
+              disabled={projectsLoading}
+            >
+              <option value="">All Projects</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
+            <select
+              className="select select-bordered select-sm"
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value as ExtractionJobStatus | '');
+                setPage(1);
+              }}
+            >
+              <option value="">All Statuses</option>
+              <option value="queued">Queued</option>
+              <option value="processing">Processing</option>
+              <option value="completed">Completed</option>
+              <option value="failed">Failed</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="requires_review">Requires Review</option>
+            </select>
+            <select
+              className="select select-bordered select-sm"
+              value={jobTypeFilter}
+              onChange={(e) => {
+                setJobTypeFilter(e.target.value as ExtractionJobType | '');
+                setPage(1);
+              }}
+            >
+              <option value="">All Types</option>
+              <option value="full_extraction">Full Extraction</option>
+              <option value="incremental">Incremental</option>
+              <option value="reprocessing">Reprocessing</option>
+              <option value="chunk_extraction">Chunk Extraction</option>
+            </select>
+            <select
+              className="select select-bordered select-sm"
+              value={errorFilter === undefined ? '' : String(errorFilter)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setErrorFilter(val === '' ? undefined : val === 'true');
+                setPage(1);
+              }}
+            >
+              <option value="">All Jobs</option>
+              <option value="true">With Errors</option>
+              <option value="false">Without Errors</option>
+            </select>
           </div>
-        )}
-
-        <DataTable<JobRow>
-          data={jobs}
-          columns={columns}
-          loading={isLoading}
-          rowActions={rowActions}
-          bulkActions={bulkActions}
-          enableSelection
-          useDropdownActions
-          toolbarActions={
-            <div className="flex gap-2">
-              <select
-                className="select select-bordered select-sm"
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value as ExtractionJobStatus | '');
-                  setPage(1);
-                }}
-              >
-                <option value="">All Statuses</option>
-                <option value="queued">Queued</option>
-                <option value="processing">Processing</option>
-                <option value="completed">Completed</option>
-                <option value="failed">Failed</option>
-                <option value="cancelled">Cancelled</option>
-                <option value="requires_review">Requires Review</option>
-              </select>
-              <select
-                className="select select-bordered select-sm"
-                value={jobTypeFilter}
-                onChange={(e) => {
-                  setJobTypeFilter(e.target.value as ExtractionJobType | '');
-                  setPage(1);
-                }}
-              >
-                <option value="">All Types</option>
-                <option value="full_extraction">Full Extraction</option>
-                <option value="incremental">Incremental</option>
-                <option value="reprocessing">Reprocessing</option>
-                <option value="chunk_extraction">Chunk Extraction</option>
-              </select>
-              <select
-                className="select select-bordered select-sm"
-                value={errorFilter === undefined ? '' : String(errorFilter)}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setErrorFilter(val === '' ? undefined : val === 'true');
-                  setPage(1);
-                }}
-              >
-                <option value="">All Jobs</option>
-                <option value="true">With Errors</option>
-                <option value="false">Without Errors</option>
-              </select>
-            </div>
-          }
-          emptyMessage="No extraction jobs found"
-          noResultsMessage="No jobs match your filter criteria. Try adjusting your filters."
-          emptyIcon="lucide--file-search"
-          pagination={
-            meta
-              ? {
-                  page,
-                  totalPages,
-                  total: meta.total,
-                  limit: meta.limit,
-                  hasPrev: meta.hasPrev,
-                  hasNext: meta.hasNext,
-                }
-              : undefined
-          }
-          onPageChange={setPage}
-          paginationItemLabel="jobs"
-        />
-      </div>
+        }
+        emptyMessage="No extraction jobs found"
+        noResultsMessage="No jobs match your filter criteria. Try adjusting your filters."
+        emptyIcon="lucide--file-search"
+        pagination={
+          meta
+            ? {
+                page,
+                totalPages,
+                total: meta.total,
+                limit: meta.limit,
+                hasPrev: meta.hasPrev,
+                hasNext: meta.hasNext,
+              }
+            : undefined
+        }
+        onPageChange={setPage}
+        paginationItemLabel="jobs"
+      />
 
       {/* Delete Confirmation Modal */}
       <ConfirmActionModal

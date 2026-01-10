@@ -8,6 +8,7 @@ import {
   type BulkAction,
 } from '@/components/organisms/DataTable';
 import { useSuperadminDocumentParsingJobs } from '@/hooks/use-superadmin-document-parsing-jobs';
+import { useSuperadminProjects } from '@/hooks/use-superadmin-projects';
 import { useToast } from '@/hooks/use-toast';
 import { ConfirmActionModal } from '@/components/organisms/ConfirmActionModal/ConfirmActionModal';
 import type {
@@ -51,6 +52,7 @@ export default function SuperadminConversionJobsPage() {
   const [errorFilter, setErrorFilter] = useState<boolean | undefined>(
     undefined
   );
+  const [projectFilter, setProjectFilter] = useState<string>('');
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [jobsToDelete, setJobsToDelete] = useState<JobRow[]>([]);
@@ -59,6 +61,10 @@ export default function SuperadminConversionJobsPage() {
   const [retryModalOpen, setRetryModalOpen] = useState(false);
   const [jobsToRetry, setJobsToRetry] = useState<JobRow[]>([]);
   const [isRetrying, setIsRetrying] = useState(false);
+
+  const { projects, isLoading: projectsLoading } = useSuperadminProjects({
+    limit: 100,
+  });
 
   const {
     jobs,
@@ -73,6 +79,7 @@ export default function SuperadminConversionJobsPage() {
     page,
     limit: 20,
     status: statusFilter || undefined,
+    projectId: projectFilter || undefined,
     hasError: errorFilter,
   });
 
@@ -379,75 +386,83 @@ export default function SuperadminConversionJobsPage() {
         </div>
       )}
 
-      <div className="card bg-base-100 shadow-sm border border-base-200">
-        {error && (
-          <div className="alert alert-error mb-4">
-            <Icon icon="lucide--alert-circle" className="size-5" />
-            <span>{error.message}</span>
+      <DataTable<JobRow>
+        data={jobs}
+        columns={columns}
+        loading={isLoading}
+        error={error?.message}
+        rowActions={rowActions}
+        bulkActions={bulkActions}
+        enableSelection
+        useDropdownActions
+        toolbarActions={
+          <div className="flex gap-2">
+            <select
+              className="select select-bordered select-sm"
+              value={projectFilter}
+              onChange={(e) => {
+                setProjectFilter(e.target.value);
+                setPage(1);
+              }}
+              disabled={projectsLoading}
+            >
+              <option value="">All Projects</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
+            <select
+              className="select select-bordered select-sm"
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(
+                  e.target.value as DocumentParsingJobStatus | ''
+                );
+                setPage(1);
+              }}
+            >
+              <option value="">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="processing">Processing</option>
+              <option value="completed">Completed</option>
+              <option value="failed">Failed</option>
+              <option value="retry_pending">Retry Pending</option>
+            </select>
+            <select
+              className="select select-bordered select-sm"
+              value={errorFilter === undefined ? '' : String(errorFilter)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setErrorFilter(val === '' ? undefined : val === 'true');
+                setPage(1);
+              }}
+            >
+              <option value="">All Jobs</option>
+              <option value="true">With Errors</option>
+              <option value="false">Without Errors</option>
+            </select>
           </div>
-        )}
-
-        <DataTable<JobRow>
-          data={jobs}
-          columns={columns}
-          loading={isLoading}
-          rowActions={rowActions}
-          bulkActions={bulkActions}
-          enableSelection
-          useDropdownActions
-          toolbarActions={
-            <div className="flex gap-2">
-              <select
-                className="select select-bordered select-sm"
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(
-                    e.target.value as DocumentParsingJobStatus | ''
-                  );
-                  setPage(1);
-                }}
-              >
-                <option value="">All Statuses</option>
-                <option value="pending">Pending</option>
-                <option value="processing">Processing</option>
-                <option value="completed">Completed</option>
-                <option value="failed">Failed</option>
-                <option value="retry_pending">Retry Pending</option>
-              </select>
-              <select
-                className="select select-bordered select-sm"
-                value={errorFilter === undefined ? '' : String(errorFilter)}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setErrorFilter(val === '' ? undefined : val === 'true');
-                  setPage(1);
-                }}
-              >
-                <option value="">All Jobs</option>
-                <option value="true">With Errors</option>
-                <option value="false">Without Errors</option>
-              </select>
-            </div>
-          }
-          emptyMessage="No conversion jobs found"
-          noResultsMessage="No jobs match your filter criteria. Try adjusting your filters."
-          emptyIcon="lucide--file-cog"
-          pagination={
-            meta
-              ? {
-                  page,
-                  totalPages,
-                  total: meta.total,
-                  limit: meta.limit,
-                  hasPrev: meta.hasPrev,
-                  hasNext: meta.hasNext,
-                }
-              : undefined
-          }
-          onPageChange={setPage}
-          paginationItemLabel="jobs"
-        />
-      </div>
+        }
+        emptyMessage="No conversion jobs found"
+        noResultsMessage="No jobs match your filter criteria. Try adjusting your filters."
+        emptyIcon="lucide--file-cog"
+        pagination={
+          meta
+            ? {
+                page,
+                totalPages,
+                total: meta.total,
+                limit: meta.limit,
+                hasPrev: meta.hasPrev,
+                hasNext: meta.hasNext,
+              }
+            : undefined
+        }
+        onPageChange={setPage}
+        paginationItemLabel="jobs"
+      />
 
       {/* Delete Confirmation Modal */}
       <ConfirmActionModal

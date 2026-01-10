@@ -42,6 +42,8 @@ import { GraphEmbeddingJob } from '../../entities/graph-embedding-job.entity';
 import { ChunkEmbeddingJob } from '../../entities/chunk-embedding-job.entity';
 import { ObjectExtractionJob } from '../../entities/object-extraction-job.entity';
 import { DocumentParsingJob } from '../../entities/document-parsing-job.entity';
+import { DataSourceSyncJob } from '../../entities/data-source-sync-job.entity';
+import { DataSourceIntegration } from '../../entities/data-source-integration.entity';
 
 import {
   ListUsersQueryDto,
@@ -101,6 +103,17 @@ import {
   RetryDocumentParsingJobsDto,
   RetryDocumentParsingJobsResponseDto,
 } from './dto/document-parsing-jobs.dto';
+import {
+  ListSyncJobsQueryDto,
+  ListSyncJobsResponseDto,
+  SyncJobDto,
+  SyncJobStatsDto,
+  DeleteSyncJobsDto,
+  DeleteSyncJobsResponseDto,
+  CancelSyncJobsDto,
+  CancelSyncJobsResponseDto,
+  SyncJobLogsResponseDto,
+} from './dto/sync-jobs.dto';
 
 @ApiTags('superadmin')
 @ApiBearerAuth()
@@ -125,6 +138,10 @@ export class SuperadminController {
     private readonly extractionJobRepo: Repository<ObjectExtractionJob>,
     @InjectRepository(DocumentParsingJob)
     private readonly documentParsingJobRepo: Repository<DocumentParsingJob>,
+    @InjectRepository(DataSourceSyncJob)
+    private readonly syncJobRepo: Repository<DataSourceSyncJob>,
+    @InjectRepository(DataSourceIntegration)
+    private readonly integrationRepo: Repository<DataSourceIntegration>,
     private readonly emailTemplateService: EmailTemplateService,
     private readonly superadminService: SuperadminService,
     private readonly configService: AppConfigService
@@ -1052,17 +1069,23 @@ export class SuperadminController {
   async listEmbeddingJobs(
     @Query() query: ListEmbeddingJobsQueryDto
   ): Promise<ListEmbeddingJobsResponseDto> {
-    const { page = 1, limit = 20, type, status, hasError } = query;
+    const { page = 1, limit = 20, type, status, hasError, projectId } = query;
     const skip = (page - 1) * limit;
 
     // Collect jobs from both tables based on filters
     const jobs: EmbeddingJobDto[] = [];
 
-    // Helper to map jobs to DTOs
-    const mapGraphJob = (job: GraphEmbeddingJob): EmbeddingJobDto => ({
+    // Helper to map jobs to DTOs (with project info from raw results)
+    const mapGraphJob = (
+      job: GraphEmbeddingJob,
+      projId?: string,
+      projName?: string
+    ): EmbeddingJobDto => ({
       id: job.id,
       type: 'graph',
       targetId: job.objectId,
+      projectId: projId,
+      projectName: projName,
       status: job.status as any,
       attemptCount: job.attemptCount,
       lastError: job.lastError || undefined,
@@ -1074,10 +1097,16 @@ export class SuperadminController {
       updatedAt: job.updatedAt,
     });
 
-    const mapChunkJob = (job: ChunkEmbeddingJob): EmbeddingJobDto => ({
+    const mapChunkJob = (
+      job: ChunkEmbeddingJob,
+      projId?: string,
+      projName?: string
+    ): EmbeddingJobDto => ({
       id: job.id,
       type: 'chunk',
       targetId: job.chunkId,
+      projectId: projId,
+      projectName: projName,
       status: job.status as any,
       attemptCount: job.attemptCount,
       lastError: job.lastError || undefined,
@@ -1091,40 +1120,65 @@ export class SuperadminController {
 
     // Get graph jobs if not filtered to chunk only
     if (!type || type === 'graph') {
-      const graphQb = this.graphJobRepo.createQueryBuilder('job');
+      const graphQb = this.graphJobRepo
+        .createQueryBuilder('job')
+        .leftJoin('kb.graph_objects', 'obj', 'obj.id = job.object_id')
+        .leftJoin('kb.projects', 'proj', 'proj.id = obj.project_id')
+        .addSelect('obj.project_id', 'projectId')
+        .addSelect('proj.name', 'projectName');
 
+      if (projectId) {
+        graphQb.andWhere('obj.project_id = :projectId', { projectId });
+      }
       if (status) {
         graphQb.andWhere('job.status = :status', { status });
       }
       if (hasError === true) {
-        graphQb.andWhere('job.lastError IS NOT NULL');
+        graphQb.andWhere('job.last_error IS NOT NULL');
       } else if (hasError === false) {
-        graphQb.andWhere('job.lastError IS NULL');
+        graphQb.andWhere('job.last_error IS NULL');
       }
 
-      const graphJobs = await graphQb
-        .orderBy('job.createdAt', 'DESC')
-        .getMany();
-      jobs.push(...graphJobs.map(mapGraphJob));
+      const graphResults = await graphQb
+        .orderBy('job.created_at', 'DESC')
+        .getRawAndEntities();
+
+      graphResults.entities.forEach((job, index) => {
+        const raw = graphResults.raw[index];
+        jobs.push(mapGraphJob(job, raw?.projectId, raw?.projectName));
+      });
     }
 
     // Get chunk jobs if not filtered to graph only
     if (!type || type === 'chunk') {
-      const chunkQb = this.chunkJobRepo.createQueryBuilder('job');
+      const chunkQb = this.chunkJobRepo
+        .createQueryBuilder('job')
+        .leftJoin('kb.chunks', 'chunk', 'chunk.id = job.chunk_id')
+        .leftJoin('kb.documents', 'doc', 'doc.id = chunk.document_id')
+        .leftJoin('kb.projects', 'proj', 'proj.id = doc.project_id')
+        .addSelect('doc.project_id', 'projectId')
+        .addSelect('proj.name', 'projectName');
 
+      if (projectId) {
+        chunkQb.andWhere('doc.project_id = :projectId', { projectId });
+      }
       if (status) {
         chunkQb.andWhere('job.status = :status', { status });
       }
       if (hasError === true) {
-        chunkQb.andWhere('job.lastError IS NOT NULL');
+        chunkQb.andWhere('job.last_error IS NOT NULL');
       } else if (hasError === false) {
-        chunkQb.andWhere('job.lastError IS NULL');
+        chunkQb.andWhere('job.last_error IS NULL');
       }
 
-      const chunkJobs = await chunkQb
-        .orderBy('job.createdAt', 'DESC')
-        .getMany();
-      jobs.push(...chunkJobs.map(mapChunkJob));
+      const chunkResults = await chunkQb
+        .orderBy('job.created_at', 'DESC')
+        .getRawAndEntities();
+
+      chunkResults.entities.forEach((job, index) => {
+        const raw = chunkResults.raw[index];
+        jobs.push(mapChunkJob(job, raw?.projectId, raw?.projectName));
+      });
     }
 
     // Sort combined results by createdAt descending
@@ -1305,20 +1359,21 @@ export class SuperadminController {
     const skip = (page - 1) * limit;
 
     // Build query
+    // Note: document info is stored in source_type/source_id/source_metadata, not document_id
+    // Objects created count is in created_objects JSONB array, not objects_created integer
     const qb = this.extractionJobRepo
       .createQueryBuilder('job')
       .leftJoin('job.project', 'project')
-      .leftJoin('job.document', 'document')
       .select([
         'job.id AS id',
         'job.projectId AS "projectId"',
         'project.name AS "projectName"',
-        'job.documentId AS "documentId"',
-        'document.filename AS "documentName"',
+        'CASE WHEN job.source_type = \'document\' THEN job.source_id ELSE job.documentId::text END AS "documentId"',
+        "COALESCE(job.source_metadata->>'filename', '') AS \"documentName\"",
         'job.chunkId AS "chunkId"',
         'job.jobType AS "jobType"',
         'job.status AS status',
-        'job.objectsCreated AS "objectsCreated"',
+        'COALESCE(jsonb_array_length(job.created_objects), job.objectsCreated, 0) AS "objectsCreated"',
         'job.relationshipsCreated AS "relationshipsCreated"',
         'job.retryCount AS "retryCount"',
         'job.maxRetries AS "maxRetries"',
@@ -1385,7 +1440,7 @@ export class SuperadminController {
       chunkId: row.chunkId || undefined,
       jobType: row.jobType,
       status: row.status,
-      objectsCreated: row.objectsCreated || 0,
+      objectsCreated: parseInt(row.objectsCreated, 10) || 0,
       relationshipsCreated: row.relationshipsCreated || 0,
       retryCount: row.retryCount || 0,
       maxRetries: row.maxRetries || 3,
@@ -1411,7 +1466,7 @@ export class SuperadminController {
         "SUM(CASE WHEN job.status = 'failed' THEN 1 ELSE 0 END) as failed",
         "SUM(CASE WHEN job.status = 'cancelled' THEN 1 ELSE 0 END) as cancelled",
         'SUM(CASE WHEN job.errorMessage IS NOT NULL THEN 1 ELSE 0 END) as withErrors',
-        'SUM(job.objectsCreated) as totalObjectsCreated',
+        'SUM(COALESCE(jsonb_array_length(job.created_objects), job.objectsCreated, 0)) as totalObjectsCreated',
         'SUM(job.relationshipsCreated) as totalRelationshipsCreated',
       ])
       .getRawOne();
@@ -1782,6 +1837,286 @@ export class SuperadminController {
       success: true,
       retriedCount,
       message: `Queued ${retriedCount} job(s) for retry`,
+    };
+  }
+
+  /**
+   * List data source sync jobs with filters and stats
+   */
+  @Get('sync-jobs')
+  @UseGuards(AuthGuard, SuperadminGuard)
+  @Superadmin()
+  @ApiOperation({
+    summary: 'List data source sync jobs',
+    description:
+      'Returns paginated list of data source sync jobs with optional filters and statistics',
+  })
+  @ApiOkResponse({
+    description: 'List of sync jobs with stats',
+    type: ListSyncJobsResponseDto,
+  })
+  @ApiForbiddenResponse({ description: 'Superadmin access required' })
+  async listSyncJobs(
+    @Query() query: ListSyncJobsQueryDto
+  ): Promise<ListSyncJobsResponseDto> {
+    const { page = 1, limit = 20, status, projectId, hasError } = query;
+    const skip = (page - 1) * limit;
+
+    // Build query
+    const qb = this.syncJobRepo
+      .createQueryBuilder('job')
+      .leftJoin('job.project', 'project')
+      .leftJoin('job.integration', 'integration')
+      .select([
+        'job.id AS id',
+        'job.integrationId AS "integrationId"',
+        'integration.name AS "integrationName"',
+        'integration.providerType AS "providerType"',
+        'job.projectId AS "projectId"',
+        'project.name AS "projectName"',
+        'job.status AS status',
+        'job.totalItems AS "totalItems"',
+        'job.processedItems AS "processedItems"',
+        'job.successfulItems AS "successfulItems"',
+        'job.failedItems AS "failedItems"',
+        'job.skippedItems AS "skippedItems"',
+        'job.currentPhase AS "currentPhase"',
+        'job.statusMessage AS "statusMessage"',
+        'job.errorMessage AS "errorMessage"',
+        'job.triggerType AS "triggerType"',
+        'job.createdAt AS "createdAt"',
+        'job.startedAt AS "startedAt"',
+        'job.completedAt AS "completedAt"',
+      ]);
+
+    // Apply filters
+    if (status) {
+      qb.andWhere('job.status = :status', { status });
+    }
+    if (projectId) {
+      qb.andWhere('job.projectId = :projectId', { projectId });
+    }
+    if (hasError === true) {
+      qb.andWhere('job.errorMessage IS NOT NULL');
+    } else if (hasError === false) {
+      qb.andWhere('job.errorMessage IS NULL');
+    }
+
+    // Get count for pagination
+    const countQb = this.syncJobRepo.createQueryBuilder('job');
+    if (status) {
+      countQb.andWhere('job.status = :status', { status });
+    }
+    if (projectId) {
+      countQb.andWhere('job.projectId = :projectId', { projectId });
+    }
+    if (hasError === true) {
+      countQb.andWhere('job.errorMessage IS NOT NULL');
+    } else if (hasError === false) {
+      countQb.andWhere('job.errorMessage IS NULL');
+    }
+
+    const [rawResults, total] = await Promise.all([
+      qb
+        .orderBy('job.createdAt', 'DESC')
+        .offset(skip)
+        .limit(limit)
+        .getRawMany(),
+      countQb.getCount(),
+    ]);
+
+    // Map to DTOs
+    const jobs: SyncJobDto[] = rawResults.map((row) => ({
+      id: row.id,
+      integrationId: row.integrationId,
+      integrationName: row.integrationName || undefined,
+      projectId: row.projectId,
+      projectName: row.projectName || undefined,
+      providerType: row.providerType || undefined,
+      status: row.status,
+      totalItems: row.totalItems || 0,
+      processedItems: row.processedItems || 0,
+      successfulItems: row.successfulItems || 0,
+      failedItems: row.failedItems || 0,
+      skippedItems: row.skippedItems || 0,
+      currentPhase: row.currentPhase || undefined,
+      statusMessage: row.statusMessage || undefined,
+      errorMessage: row.errorMessage || undefined,
+      triggerType: row.triggerType || 'manual',
+      createdAt: row.createdAt,
+      startedAt: row.startedAt || undefined,
+      completedAt: row.completedAt || undefined,
+    }));
+
+    // Calculate stats
+    const statsRaw = await this.syncJobRepo
+      .createQueryBuilder('job')
+      .select([
+        'COUNT(*) as total',
+        "SUM(CASE WHEN job.status = 'pending' THEN 1 ELSE 0 END) as pending",
+        "SUM(CASE WHEN job.status = 'running' THEN 1 ELSE 0 END) as running",
+        "SUM(CASE WHEN job.status = 'completed' THEN 1 ELSE 0 END) as completed",
+        "SUM(CASE WHEN job.status = 'failed' THEN 1 ELSE 0 END) as failed",
+        "SUM(CASE WHEN job.status = 'cancelled' THEN 1 ELSE 0 END) as cancelled",
+        'SUM(CASE WHEN job.errorMessage IS NOT NULL THEN 1 ELSE 0 END) as withErrors',
+        'COALESCE(SUM(job.successfulItems), 0) as totalItemsImported',
+      ])
+      .getRawOne();
+
+    const stats: SyncJobStatsDto = {
+      total: parseInt(statsRaw?.total || '0', 10),
+      pending: parseInt(statsRaw?.pending || '0', 10),
+      running: parseInt(statsRaw?.running || '0', 10),
+      completed: parseInt(statsRaw?.completed || '0', 10),
+      failed: parseInt(statsRaw?.failed || '0', 10),
+      cancelled: parseInt(statsRaw?.cancelled || '0', 10),
+      withErrors: parseInt(statsRaw?.witherrors || '0', 10),
+      totalItemsImported: parseInt(statsRaw?.totalitemsimported || '0', 10),
+    };
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      jobs,
+      stats,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  }
+
+  /**
+   * Bulk delete sync jobs
+   */
+  @Post('sync-jobs/delete')
+  @UseGuards(AuthGuard, SuperadminGuard)
+  @Superadmin()
+  @ApiOperation({
+    summary: 'Delete sync jobs',
+    description: 'Bulk delete sync jobs by IDs',
+  })
+  @ApiOkResponse({
+    description: 'Jobs deleted successfully',
+    type: DeleteSyncJobsResponseDto,
+  })
+  @ApiForbiddenResponse({ description: 'Superadmin access required' })
+  async deleteSyncJobs(
+    @Body() body: DeleteSyncJobsDto
+  ): Promise<DeleteSyncJobsResponseDto> {
+    const { ids } = body;
+
+    if (ids.length === 0) {
+      return {
+        success: true,
+        deletedCount: 0,
+        message: 'No jobs to delete',
+      };
+    }
+
+    const result = await this.syncJobRepo.delete({ id: In(ids) });
+    const deletedCount = result.affected || 0;
+
+    return {
+      success: true,
+      deletedCount,
+      message: `Deleted ${deletedCount} sync job(s)`,
+    };
+  }
+
+  /**
+   * Cancel pending/running sync jobs
+   */
+  @Post('sync-jobs/cancel')
+  @UseGuards(AuthGuard, SuperadminGuard)
+  @Superadmin()
+  @ApiOperation({
+    summary: 'Cancel sync jobs',
+    description: 'Cancel pending or running sync jobs by IDs',
+  })
+  @ApiOkResponse({
+    description: 'Jobs cancelled successfully',
+    type: CancelSyncJobsResponseDto,
+  })
+  @ApiForbiddenResponse({ description: 'Superadmin access required' })
+  async cancelSyncJobs(
+    @Body() body: CancelSyncJobsDto
+  ): Promise<CancelSyncJobsResponseDto> {
+    const { ids } = body;
+
+    if (ids.length === 0) {
+      return {
+        success: true,
+        cancelledCount: 0,
+        message: 'No jobs to cancel',
+      };
+    }
+
+    // Only cancel jobs that are pending or running
+    const result = await this.syncJobRepo
+      .createQueryBuilder()
+      .update()
+      .set({
+        status: 'cancelled',
+        completedAt: new Date(),
+      })
+      .where('id IN (:...ids)', { ids })
+      .andWhere('status IN (:...statuses)', {
+        statuses: ['pending', 'running'],
+      })
+      .execute();
+
+    const cancelledCount = result.affected || 0;
+
+    return {
+      success: true,
+      cancelledCount,
+      message: `Cancelled ${cancelledCount} sync job(s)`,
+    };
+  }
+
+  /**
+   * Get logs for a specific sync job
+   */
+  @Get('sync-jobs/:id/logs')
+  @UseGuards(AuthGuard, SuperadminGuard)
+  @Superadmin()
+  @ApiOperation({
+    summary: 'Get sync job logs',
+    description: 'Returns detailed logs for a specific sync job',
+  })
+  @ApiOkResponse({
+    description: 'Sync job logs',
+    type: SyncJobLogsResponseDto,
+  })
+  @ApiNotFoundResponse({ description: 'Sync job not found' })
+  @ApiForbiddenResponse({ description: 'Superadmin access required' })
+  async getSyncJobLogs(
+    @Param('id', ParseUUIDPipe) id: string
+  ): Promise<SyncJobLogsResponseDto> {
+    const job = await this.syncJobRepo.findOne({ where: { id } });
+
+    if (!job) {
+      throw new NotFoundException({
+        error: {
+          code: 'not_found',
+          message: 'Sync job not found',
+        },
+      });
+    }
+
+    return {
+      id: job.id,
+      status: job.status,
+      logs: job.logs || [],
+      errorMessage: job.errorMessage || undefined,
+      createdAt: job.createdAt,
+      startedAt: job.startedAt || undefined,
+      completedAt: job.completedAt || undefined,
     };
   }
 }
