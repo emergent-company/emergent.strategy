@@ -510,4 +510,34 @@ export class AppConfigService {
   get documentParsingWorkerBatchSize(): number {
     return this.env.DOCUMENT_PARSING_WORKER_BATCH_SIZE || 5;
   }
+
+  // --- Google OAuth (Gmail, Google Drive integrations) ---
+
+  /**
+   * Google OAuth 2.0 client ID from Google Cloud Console
+   */
+  get googleOAuthClientId(): string | undefined {
+    return this.env.GOOGLE_OAUTH_CLIENT_ID;
+  }
+
+  /**
+   * Google OAuth 2.0 client secret
+   */
+  get googleOAuthClientSecret(): string | undefined {
+    return this.env.GOOGLE_OAUTH_CLIENT_SECRET;
+  }
+
+  /**
+   * Base URL for OAuth callbacks (e.g., http://localhost:3002)
+   */
+  get apiBaseUrl(): string {
+    return this.env.API_BASE_URL || 'http://localhost:3002';
+  }
+
+  /**
+   * Whether Google OAuth is configured and ready to use
+   */
+  get googleOAuthEnabled(): boolean {
+    return !!(this.googleOAuthClientId && this.googleOAuthClientSecret);
+  }
 }

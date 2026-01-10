@@ -157,6 +157,29 @@ export class UserProfileService {
     return this.mapEntity(profile);
   }
 
+  /**
+   * Get user profile with primary email for auth purposes.
+   * Used by auth service to avoid redundant Zitadel API calls.
+   * Returns cached profile data including the user's primary email if available.
+   */
+  async getWithEmail(
+    zitadelUserId: string
+  ): Promise<(UserProfileDto & { email?: string }) | null> {
+    const profile = await this.get(zitadelUserId);
+    if (!profile) return null;
+
+    // Fetch primary email (first one added)
+    const primaryEmail = await this.userEmailRepository.findOne({
+      where: { userId: profile.id },
+      order: { createdAt: 'ASC' },
+    });
+
+    return {
+      ...profile,
+      email: primaryEmail?.email,
+    };
+  }
+
   async upsertBase(
     subjectId: string,
     profile?: {

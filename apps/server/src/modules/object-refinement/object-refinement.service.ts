@@ -63,7 +63,7 @@ export class ObjectRefinementService {
    * Each object has at most one active refinement conversation.
    * Conversations are tied to the canonical ID (not version ID) so they
    * persist across object patches/updates.
-   * If none exists, creates a new one.
+   * If none exists, creates a new one using upsert to handle race conditions.
    */
   async getOrCreateConversation(
     objectId: string,
@@ -93,26 +93,62 @@ export class ObjectRefinementService {
     });
 
     if (!conversation) {
-      // Create new conversation
+      // Create new conversation using upsert to handle race conditions
       const objectName =
         (object.properties?.name as string) ||
         (object.properties?.key as string) ||
         object.id.substring(0, 8);
       const title = `Refinement: ${objectName} (${object.type})`;
 
-      conversation = this.conversationRepository.create({
-        title,
-        canonicalId,
-        objectId: object.id, // Store current version for reference (deprecated)
-        projectId,
-        ownerUserId: userId,
-        isPrivate: false, // Refinement chats are shared by default
-      });
+      try {
+        // Use INSERT ... ON CONFLICT DO NOTHING to handle race conditions
+        // The unique constraint is on (object_id) or (canonical_id, project_id)
+        await this.conversationRepository
+          .createQueryBuilder()
+          .insert()
+          .into(ChatConversation)
+          .values({
+            title,
+            canonicalId,
+            objectId: object.id, // Store current version for reference (deprecated)
+            projectId,
+            ownerUserId: userId,
+            isPrivate: false, // Refinement chats are shared by default
+          })
+          .orIgnore() // ON CONFLICT DO NOTHING
+          .execute();
 
-      conversation = await this.conversationRepository.save(conversation);
-      this.logger.log(
-        `Created refinement conversation ${conversation.id} for canonical object ${canonicalId}`
-      );
+        // Fetch the conversation (either just created or existing from race condition)
+        conversation = await this.conversationRepository.findOne({
+          where: {
+            canonicalId,
+            projectId,
+          },
+        });
+
+        if (!conversation) {
+          // This shouldn't happen, but handle it gracefully
+          throw new Error(
+            `Failed to create or retrieve conversation for canonical object ${canonicalId}`
+          );
+        }
+
+        this.logger.log(
+          `Ensured refinement conversation ${conversation.id} exists for canonical object ${canonicalId}`
+        );
+      } catch (error) {
+        // If upsert failed, try to fetch existing conversation (may have been created by another request)
+        conversation = await this.conversationRepository.findOne({
+          where: {
+            canonicalId,
+            projectId,
+          },
+        });
+
+        if (!conversation) {
+          throw error;
+        }
+      }
     }
 
     // Get message count

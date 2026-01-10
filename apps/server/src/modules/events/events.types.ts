@@ -15,7 +15,8 @@ export type EntityType =
   | 'chunk'
   | 'extraction_job'
   | 'graph_object'
-  | 'notification';
+  | 'notification'
+  | 'sync_job';
 
 /**
  * Entity event payload sent via SSE
