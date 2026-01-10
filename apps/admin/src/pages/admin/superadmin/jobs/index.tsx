@@ -4,6 +4,7 @@ import { Spinner } from '@/components/atoms/Spinner';
 import { useSuperadminJobs } from '@/hooks/use-superadmin-jobs';
 import { useSuperadminExtractionJobs } from '@/hooks/use-superadmin-extraction-jobs';
 import { useSuperadminDocumentParsingJobs } from '@/hooks/use-superadmin-document-parsing-jobs';
+import { useSuperadminSyncJobs } from '@/hooks/use-superadmin-sync-jobs';
 
 const formatFileSize = (bytes?: number): string => {
   if (!bytes) return '-';
@@ -31,7 +32,14 @@ export default function SuperadminJobsOverviewPage() {
     error: conversionError,
   } = useSuperadminDocumentParsingJobs({ limit: 1 });
 
-  const isLoading = embeddingLoading || extractionLoading || conversionLoading;
+  const {
+    stats: syncStats,
+    isLoading: syncLoading,
+    error: syncError,
+  } = useSuperadminSyncJobs({ limit: 1 });
+
+  const isLoading =
+    embeddingLoading || extractionLoading || conversionLoading || syncLoading;
 
   return (
     <div className="p-6">
@@ -212,6 +220,74 @@ export default function SuperadminJobsOverviewPage() {
             )}
           </div>
 
+          {/* Data Source Sync Jobs Section */}
+          <div className="card bg-base-100 shadow-sm border border-base-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Icon
+                  icon="lucide--refresh-cw"
+                  className="size-5 text-primary"
+                />
+                <h2 className="text-lg font-semibold">Data Source Sync Jobs</h2>
+              </div>
+              <Link
+                to="/admin/superadmin/jobs/sync"
+                className="btn btn-sm btn-ghost"
+              >
+                View All
+                <Icon icon="lucide--arrow-right" className="size-4" />
+              </Link>
+            </div>
+
+            {syncError && (
+              <div className="alert alert-error mb-4">
+                <Icon icon="lucide--alert-circle" className="size-5" />
+                <span>{syncError.message}</span>
+              </div>
+            )}
+
+            {syncStats && (
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="stat bg-base-200/50 rounded-lg p-4">
+                  <div className="stat-title text-xs">Total</div>
+                  <div className="stat-value text-xl">{syncStats.total}</div>
+                </div>
+                <div className="stat bg-base-200/50 rounded-lg p-4">
+                  <div className="stat-title text-xs">Running</div>
+                  <div className="stat-value text-xl text-info">
+                    {syncStats.running}
+                  </div>
+                </div>
+                <div className="stat bg-base-200/50 rounded-lg p-4">
+                  <div className="stat-title text-xs">Completed</div>
+                  <div className="stat-value text-xl text-success">
+                    {syncStats.completed}
+                  </div>
+                </div>
+                <div className="stat bg-base-200/50 rounded-lg p-4">
+                  <div className="stat-title text-xs">Failed</div>
+                  <div className="stat-value text-xl text-error">
+                    {syncStats.failed}
+                  </div>
+                </div>
+                <div className="stat bg-base-200/50 rounded-lg p-4">
+                  <div className="stat-title text-xs">Items Imported</div>
+                  <div className="stat-value text-xl text-primary">
+                    {syncStats.totalItemsImported}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {syncStats && syncStats.withErrors > 0 && (
+              <div className="mt-4 flex items-center gap-4 text-sm text-base-content/70">
+                <span className="text-error">
+                  {syncStats.withErrors} with errors
+                </span>
+              </div>
+            )}
+          </div>
+
           {/* Embedding Jobs Section */}
           <div className="card bg-base-100 shadow-sm border border-base-200 p-6">
             <div className="flex items-center justify-between mb-4">
@@ -323,6 +399,13 @@ export default function SuperadminJobsOverviewPage() {
               >
                 <Icon icon="lucide--file-x" className="size-4" />
                 View Failed Conversion Jobs
+              </Link>
+              <Link
+                to="/admin/superadmin/jobs/sync?status=failed"
+                className="btn btn-error btn-outline btn-sm"
+              >
+                <Icon icon="lucide--refresh-cw" className="size-4" />
+                View Failed Sync Jobs
               </Link>
               <Link
                 to="/admin/superadmin/jobs/embedding?hasError=true"

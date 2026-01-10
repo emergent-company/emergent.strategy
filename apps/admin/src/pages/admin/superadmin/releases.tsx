@@ -281,48 +281,40 @@ export default function SuperadminReleasesPage() {
         </div>
       </div>
 
-      {error && (
-        <div className="alert alert-error mb-4">
-          <Icon icon="lucide--alert-circle" className="size-5" />
-          <span>{error.message}</span>
+      <DataTable<ReleaseListItem>
+        data={releases}
+        columns={columns}
+        loading={isLoading}
+        error={error?.message}
+        rowActions={rowActions}
+        useDropdownActions
+        enableSearch={false}
+        emptyMessage="No releases found"
+        emptyIcon="lucide--rocket"
+      />
+
+      {!isLoading && (page > 1 || hasMore) && (
+        <div className="flex justify-between items-center mt-4">
+          <div className="text-sm text-base-content/70">Page {page}</div>
+          <div className="join">
+            <button
+              className="join-item btn btn-sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >
+              «
+            </button>
+            <button className="join-item btn btn-sm">Page {page}</button>
+            <button
+              className="join-item btn btn-sm"
+              onClick={() => setPage((p) => p + 1)}
+              disabled={!hasMore}
+            >
+              »
+            </button>
+          </div>
         </div>
       )}
-
-      <div className="card bg-base-100 shadow-sm border border-base-200">
-        <DataTable<ReleaseListItem>
-          data={releases}
-          columns={columns}
-          loading={isLoading}
-          rowActions={rowActions}
-          useDropdownActions
-          enableSearch={false}
-          emptyMessage="No releases found"
-          emptyIcon="lucide--rocket"
-        />
-
-        {!isLoading && (page > 1 || hasMore) && (
-          <div className="flex justify-between items-center mt-4 p-4">
-            <div className="text-sm text-base-content/70">Page {page}</div>
-            <div className="join">
-              <button
-                className="join-item btn btn-sm"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-              >
-                «
-              </button>
-              <button className="join-item btn btn-sm">Page {page}</button>
-              <button
-                className="join-item btn btn-sm"
-                onClick={() => setPage((p) => p + 1)}
-                disabled={!hasMore}
-              >
-                »
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
 
       {/* Create Release Modal */}
       <dialog ref={createModalRef} className="modal">

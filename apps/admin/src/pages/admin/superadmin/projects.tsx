@@ -189,61 +189,53 @@ export default function SuperadminProjectsPage() {
         </button>
       </div>
 
-      <div className="card bg-base-100 shadow-sm border border-base-200">
-        {error && (
-          <div className="alert alert-error mb-4">
-            <Icon icon="lucide--alert-circle" className="size-5" />
-            <span>{error.message}</span>
-          </div>
-        )}
-
-        <DataTable<ProjectRow>
-          data={projects}
-          columns={columns}
-          loading={isLoading}
-          rowActions={rowActions}
-          useDropdownActions
-          enableSearch
-          searchPlaceholder="Search by project name..."
-          onSearch={handleSearch}
-          toolbarActions={
-            <select
-              className="select select-bordered select-sm"
-              value={orgIdFilter}
-              onChange={(e) => handleOrgFilterChange(e.target.value)}
-              disabled={orgsLoading}
-            >
-              <option value="">All Organizations</option>
-              {organizations.map((org) => (
-                <option key={org.id} value={org.id}>
-                  {org.name} ({org.projectCount})
-                </option>
-              ))}
-            </select>
-          }
-          emptyMessage="No projects found"
-          noResultsMessage={
-            searchQuery || orgIdFilter
-              ? 'No projects match your search criteria. Try adjusting your filters.'
-              : 'No projects found'
-          }
-          emptyIcon="lucide--folder"
-          pagination={
-            meta
-              ? {
-                  page,
-                  totalPages,
-                  total: meta.total,
-                  limit: meta.limit,
-                  hasPrev: meta.hasPrev,
-                  hasNext: meta.hasNext,
-                }
-              : undefined
-          }
-          onPageChange={setPage}
-          paginationItemLabel="projects"
-        />
-      </div>
+      <DataTable<ProjectRow>
+        data={projects}
+        columns={columns}
+        loading={isLoading}
+        error={error?.message}
+        rowActions={rowActions}
+        useDropdownActions
+        enableSearch
+        searchPlaceholder="Search by project name..."
+        onSearch={handleSearch}
+        toolbarActions={
+          <select
+            className="select select-bordered select-sm"
+            value={orgIdFilter}
+            onChange={(e) => handleOrgFilterChange(e.target.value)}
+            disabled={orgsLoading}
+          >
+            <option value="">All Organizations</option>
+            {organizations.map((org) => (
+              <option key={org.id} value={org.id}>
+                {org.name} ({org.projectCount})
+              </option>
+            ))}
+          </select>
+        }
+        emptyMessage="No projects found"
+        noResultsMessage={
+          searchQuery || orgIdFilter
+            ? 'No projects match your search criteria. Try adjusting your filters.'
+            : 'No projects found'
+        }
+        emptyIcon="lucide--folder"
+        pagination={
+          meta
+            ? {
+                page,
+                totalPages,
+                total: meta.total,
+                limit: meta.limit,
+                hasPrev: meta.hasPrev,
+                hasNext: meta.hasNext,
+              }
+            : undefined
+        }
+        onPageChange={setPage}
+        paginationItemLabel="projects"
+      />
 
       {/* Delete Confirmation Modal */}
       <ConfirmActionModal
