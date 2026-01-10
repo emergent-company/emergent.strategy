@@ -8,6 +8,7 @@ import {
   type BulkAction,
 } from '@/components/organisms/DataTable';
 import { useSuperadminJobs } from '@/hooks/use-superadmin-jobs';
+import { useSuperadminProjects } from '@/hooks/use-superadmin-projects';
 import { useToast } from '@/hooks/use-toast';
 import { ConfirmActionModal } from '@/components/organisms/ConfirmActionModal/ConfirmActionModal';
 import type {
@@ -44,6 +45,7 @@ export default function SuperadminJobsPage() {
   const [errorFilter, setErrorFilter] = useState<boolean | undefined>(
     undefined
   );
+  const [projectFilter, setProjectFilter] = useState<string>('');
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [jobsToDelete, setJobsToDelete] = useState<JobRow[]>([]);
@@ -51,6 +53,10 @@ export default function SuperadminJobsPage() {
 
   const [cleanupModalOpen, setCleanupModalOpen] = useState(false);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
+
+  const { projects, isLoading: projectsLoading } = useSuperadminProjects({
+    limit: 100,
+  });
 
   const {
     jobs,
@@ -66,6 +72,7 @@ export default function SuperadminJobsPage() {
     limit: 20,
     type: typeFilter || undefined,
     status: statusFilter || undefined,
+    projectId: projectFilter || undefined,
     hasError: errorFilter,
   });
 
@@ -173,6 +180,20 @@ export default function SuperadminJobsPage() {
           </span>
         );
       },
+    },
+    {
+      key: 'projectName',
+      label: 'Project',
+      width: 'w-40',
+      render: (job) => (
+        <span
+          className="truncate"
+          title={job.projectName || job.projectId || '-'}
+        >
+          {job.projectName ||
+            (job.projectId ? job.projectId.substring(0, 8) + '...' : '-')}
+        </span>
+      ),
     },
     {
       key: 'targetId',
@@ -326,84 +347,92 @@ export default function SuperadminJobsPage() {
         </div>
       )}
 
-      <div className="card bg-base-100 shadow-sm border border-base-200">
-        {error && (
-          <div className="alert alert-error mb-4">
-            <Icon icon="lucide--alert-circle" className="size-5" />
-            <span>{error.message}</span>
+      <DataTable<JobRow>
+        data={jobs}
+        columns={columns}
+        loading={isLoading}
+        error={error?.message}
+        rowActions={rowActions}
+        bulkActions={bulkActions}
+        enableSelection
+        useDropdownActions
+        toolbarActions={
+          <div className="flex gap-2">
+            <select
+              className="select select-bordered select-sm"
+              value={projectFilter}
+              onChange={(e) => {
+                setProjectFilter(e.target.value);
+                setPage(1);
+              }}
+              disabled={projectsLoading}
+            >
+              <option value="">All Projects</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
+            <select
+              className="select select-bordered select-sm"
+              value={typeFilter}
+              onChange={(e) => {
+                setTypeFilter(e.target.value as EmbeddingJobType | '');
+                setPage(1);
+              }}
+            >
+              <option value="">All Types</option>
+              <option value="graph">Graph</option>
+              <option value="chunk">Chunk</option>
+            </select>
+            <select
+              className="select select-bordered select-sm"
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value as EmbeddingJobStatus | '');
+                setPage(1);
+              }}
+            >
+              <option value="">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="processing">Processing</option>
+              <option value="completed">Completed</option>
+              <option value="failed">Failed</option>
+            </select>
+            <select
+              className="select select-bordered select-sm"
+              value={errorFilter === undefined ? '' : String(errorFilter)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setErrorFilter(val === '' ? undefined : val === 'true');
+                setPage(1);
+              }}
+            >
+              <option value="">All Jobs</option>
+              <option value="true">With Errors</option>
+              <option value="false">Without Errors</option>
+            </select>
           </div>
-        )}
-
-        <DataTable<JobRow>
-          data={jobs}
-          columns={columns}
-          loading={isLoading}
-          rowActions={rowActions}
-          bulkActions={bulkActions}
-          enableSelection
-          useDropdownActions
-          toolbarActions={
-            <div className="flex gap-2">
-              <select
-                className="select select-bordered select-sm"
-                value={typeFilter}
-                onChange={(e) => {
-                  setTypeFilter(e.target.value as EmbeddingJobType | '');
-                  setPage(1);
-                }}
-              >
-                <option value="">All Types</option>
-                <option value="graph">Graph</option>
-                <option value="chunk">Chunk</option>
-              </select>
-              <select
-                className="select select-bordered select-sm"
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value as EmbeddingJobStatus | '');
-                  setPage(1);
-                }}
-              >
-                <option value="">All Statuses</option>
-                <option value="pending">Pending</option>
-                <option value="processing">Processing</option>
-                <option value="completed">Completed</option>
-                <option value="failed">Failed</option>
-              </select>
-              <select
-                className="select select-bordered select-sm"
-                value={errorFilter === undefined ? '' : String(errorFilter)}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setErrorFilter(val === '' ? undefined : val === 'true');
-                  setPage(1);
-                }}
-              >
-                <option value="">All Jobs</option>
-                <option value="true">With Errors</option>
-                <option value="false">Without Errors</option>
-              </select>
-            </div>
-          }
-          emptyMessage="No embedding jobs found"
-          noResultsMessage="No jobs match your filter criteria. Try adjusting your filters."
-          emptyIcon="lucide--cpu"
-          pagination={
-            meta
-              ? {
-                  page,
-                  totalPages,
-                  total: meta.total,
-                  limit: meta.limit,
-                  hasPrev: meta.hasPrev,
-                  hasNext: meta.hasNext,
-                }
-              : undefined
-          }
-          onPageChange={setPage}
-          paginationItemLabel="jobs"
-        />
-      </div>
+        }
+        emptyMessage="No embedding jobs found"
+        noResultsMessage="No jobs match your filter criteria. Try adjusting your filters."
+        emptyIcon="lucide--cpu"
+        pagination={
+          meta
+            ? {
+                page,
+                totalPages,
+                total: meta.total,
+                limit: meta.limit,
+                hasPrev: meta.hasPrev,
+                hasNext: meta.hasNext,
+              }
+            : undefined
+        }
+        onPageChange={setPage}
+        paginationItemLabel="jobs"
+      />
 
       {/* Delete Confirmation Modal */}
       <ConfirmActionModal

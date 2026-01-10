@@ -72,6 +72,8 @@ export interface EmbeddingJob {
   id: string;
   type: EmbeddingJobType;
   targetId: string;
+  projectId?: string;
+  projectName?: string;
   status: EmbeddingJobStatus;
   attemptCount: number;
   lastError?: string;
@@ -108,6 +110,7 @@ export interface ListEmbeddingJobsParams {
   type?: EmbeddingJobType;
   status?: EmbeddingJobStatus;
   hasError?: boolean;
+  projectId?: string;
 }
 
 export interface DeleteEmbeddingJobsResponse {
@@ -269,4 +272,88 @@ export interface RetryDocumentParsingJobsResponse {
   success: boolean;
   retriedCount: number;
   message: string;
+}
+
+// Data Source Sync Jobs Types
+export type SyncJobStatus =
+  | 'pending'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'cancelled';
+
+export interface SyncJobLogEntry {
+  timestamp: string;
+  level: 'info' | 'warn' | 'error' | 'debug';
+  message: string;
+  details?: Record<string, any>;
+}
+
+export interface SyncJob {
+  id: string;
+  integrationId: string;
+  integrationName?: string;
+  projectId: string;
+  projectName?: string;
+  providerType?: string;
+  status: SyncJobStatus;
+  totalItems: number;
+  processedItems: number;
+  successfulItems: number;
+  failedItems: number;
+  skippedItems: number;
+  currentPhase?: string;
+  statusMessage?: string;
+  errorMessage?: string;
+  triggerType: 'manual' | 'scheduled';
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
+}
+
+export interface SyncJobStats {
+  total: number;
+  pending: number;
+  running: number;
+  completed: number;
+  failed: number;
+  cancelled: number;
+  withErrors: number;
+  totalItemsImported: number;
+}
+
+export interface ListSyncJobsResponse {
+  jobs: SyncJob[];
+  stats: SyncJobStats;
+  meta: PaginationMeta;
+}
+
+export interface ListSyncJobsParams {
+  page?: number;
+  limit?: number;
+  status?: SyncJobStatus;
+  projectId?: string;
+  hasError?: boolean;
+}
+
+export interface DeleteSyncJobsResponse {
+  success: boolean;
+  deletedCount: number;
+  message: string;
+}
+
+export interface CancelSyncJobsResponse {
+  success: boolean;
+  cancelledCount: number;
+  message: string;
+}
+
+export interface SyncJobLogsResponse {
+  id: string;
+  status: SyncJobStatus;
+  logs: SyncJobLogEntry[];
+  errorMessage?: string;
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
 }

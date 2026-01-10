@@ -7,3 +7,4 @@ export * from './email-templates.dto';
 export * from './embedding-jobs.dto';
 export * from './extraction-jobs.dto';
 export * from './document-parsing-jobs.dto';
+export * from './sync-jobs.dto';

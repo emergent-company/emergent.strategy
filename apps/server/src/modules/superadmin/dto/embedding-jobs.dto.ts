@@ -48,6 +48,11 @@ export class ListEmbeddingJobsQueryDto {
   @IsOptional()
   @Type(() => Boolean)
   hasError?: boolean;
+
+  @ApiPropertyOptional({ description: 'Filter by project ID' })
+  @IsOptional()
+  @IsUUID('4')
+  projectId?: string;
 }
 
 export class EmbeddingJobDto {
@@ -59,6 +64,12 @@ export class EmbeddingJobDto {
 
   @ApiProperty({ description: 'Object or Chunk ID being embedded' })
   targetId: string;
+
+  @ApiPropertyOptional({ description: 'Project ID' })
+  projectId?: string;
+
+  @ApiPropertyOptional({ description: 'Project name' })
+  projectName?: string;
 
   @ApiProperty({
     description: 'Job status',
