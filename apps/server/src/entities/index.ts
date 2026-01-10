@@ -61,6 +61,18 @@ export {
   DocumentArtifact,
   DocumentArtifactType,
 } from './document-artifact.entity';
+export {
+  DataSourceIntegration,
+  DataSourceSyncMode,
+  DataSourceIntegrationStatus,
+  DATA_SOURCE_PROVIDER_TYPES,
+  SOURCE_TYPES,
+} from './data-source-integration.entity';
+export {
+  DataSourceSyncJob,
+  DataSourceSyncJobStatus,
+  SyncJobLogEntry,
+} from './data-source-sync-job.entity';
 
 // Release Notifications
 export { ReleaseNotification } from '../modules/releases/entities/release-notification.entity';
@@ -127,6 +139,8 @@ import { ReleaseNotificationRecipient } from '../modules/releases/entities/relea
 import { ReleaseNotificationState } from '../modules/releases/entities/release-notification-state.entity';
 import { DocumentParsingJob } from './document-parsing-job.entity';
 import { DocumentArtifact } from './document-artifact.entity';
+import { DataSourceIntegration } from './data-source-integration.entity';
+import { DataSourceSyncJob } from './data-source-sync-job.entity';
 
 export const entities = [
   // KB Schema
@@ -187,4 +201,7 @@ export const entities = [
   // Document Parsing
   DocumentParsingJob,
   DocumentArtifact,
+  // Data Source Integrations
+  DataSourceIntegration,
+  DataSourceSyncJob,
 ];
