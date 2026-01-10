@@ -48,7 +48,16 @@ import {
 import { StorageService } from '../storage/storage.service';
 import { DocumentParsingJobService } from '../document-parsing/document-parsing-job.service';
 
-import { IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  IsArray,
+  IsNumber,
+  Min,
+  Max,
+} from 'class-validator';
 
 class CreateDocumentBody {
   @IsOptional()
@@ -63,6 +72,19 @@ class CreateDocumentBody {
   @IsOptional()
   @IsString()
   content?: string;
+}
+
+class BulkChunkUnchunkedBody {
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  sourceTypes?: string[];
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(500)
+  limit?: number;
 }
 
 @ApiTags('Documents')
@@ -95,6 +117,31 @@ export class DocumentsController {
     required: false,
     schema: { type: 'number', minimum: 1, maximum: 500, default: 100 },
   })
+  @ApiQuery({
+    name: 'sourceType',
+    required: false,
+    description: 'Filter by source type (e.g., upload, email, url)',
+    schema: { type: 'string' },
+  })
+  @ApiQuery({
+    name: 'integrationId',
+    required: false,
+    description: 'Filter by data source integration ID',
+    schema: { type: 'string', format: 'uuid' },
+  })
+  @ApiQuery({
+    name: 'rootOnly',
+    required: false,
+    description: 'If true, only return root documents (no parent)',
+    schema: { type: 'boolean', default: false },
+  })
+  @ApiQuery({
+    name: 'parentDocumentId',
+    required: false,
+    description:
+      'Filter by parent document ID (get children of a specific document)',
+    schema: { type: 'string', format: 'uuid' },
+  })
   @ApiBadRequestResponse({
     description: 'Bad request',
     schema: {
@@ -106,6 +153,10 @@ export class DocumentsController {
   async list(
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
+    @Query('sourceType') sourceType?: string,
+    @Query('integrationId') integrationId?: string,
+    @Query('rootOnly') rootOnly?: string,
+    @Query('parentDocumentId') parentDocumentId?: string,
     @RequireProjectId() ctx?: ProjectContext,
     @Res({ passthrough: true }) res?: Response
   ) {
@@ -115,9 +166,48 @@ export class DocumentsController {
     const decoded = this.documents.decodeCursor(cursor);
     const { items, nextCursor, total } = await this.documents.list(n, decoded, {
       projectId: ctx!.projectId,
+      sourceType,
+      dataSourceIntegrationId: integrationId,
+      rootOnly: rootOnly === 'true',
+      parentDocumentId,
     });
     if (nextCursor) res?.setHeader('x-next-cursor', nextCursor);
     return { documents: items, total, next_cursor: nextCursor };
+  }
+
+  @Get('source-types')
+  @UseInterceptors(CachingInterceptor)
+  @ApiOkResponse({
+    description: 'Get distinct source types with document counts',
+    schema: {
+      type: 'object',
+      properties: {
+        sourceTypes: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              sourceType: { type: 'string', example: 'email' },
+              count: { type: 'number', example: 42 },
+              dataSourceIntegrationId: {
+                type: 'string',
+                format: 'uuid',
+                nullable: true,
+              },
+              integrationName: { type: 'string', nullable: true },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiStandardErrors()
+  @Scopes('documents:read')
+  async getSourceTypes(@RequireProjectId() ctx: ProjectContext) {
+    const sourceTypes = await this.documents.getSourceTypesWithCounts(
+      ctx.projectId
+    );
+    return { sourceTypes };
   }
 
   @Get(':id')
@@ -144,6 +234,41 @@ export class DocumentsController {
       });
     // Authorization is now enforced by RLS policies via derived org ID
     return doc;
+  }
+
+  /**
+   * Get just the content of a document.
+   * Useful for lazy loading content in UIs without fetching full document metadata.
+   */
+  @Get(':id/content')
+  @ApiOkResponse({
+    description: 'Get document content',
+    schema: {
+      type: 'object',
+      properties: {
+        content: {
+          type: 'string',
+          nullable: true,
+          description: 'The text content of the document',
+        },
+      },
+    },
+  })
+  @ApiParam({ name: 'id', description: 'Document UUID' })
+  @ApiStandardErrors()
+  @Scopes('documents:read')
+  async getContent(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @RequireProjectId() ctx: ProjectContext
+  ) {
+    const result = await this.documents.getContent(id, {
+      projectId: ctx.projectId,
+    });
+    if (!result)
+      throw new NotFoundException({
+        error: { code: 'not-found', message: 'Document not found' },
+      });
+    return result;
   }
 
   /**
@@ -393,7 +518,7 @@ export class DocumentsController {
 
   @Post(':id/retry-conversion')
   @ApiOkResponse({
-    description: 'Retry document conversion for a failed document',
+    description: 'Retry document conversion for a failed or pending document',
     schema: {
       type: 'object',
       properties: {
@@ -421,12 +546,16 @@ export class DocumentsController {
       });
     }
 
-    // Verify document has failed conversion status
-    if (doc.conversionStatus !== 'failed') {
+    // Verify document has a conversion status that can be retried
+    // Allow: failed, pending (for stuck documents without jobs)
+    const retriableStatuses = ['failed', 'pending'];
+    if (!retriableStatuses.includes(doc.conversionStatus || '')) {
       throw new BadRequestException({
         error: {
           code: 'bad-request',
-          message: `Cannot retry conversion: document status is "${doc.conversionStatus}", expected "failed"`,
+          message: `Cannot retry conversion: document status is "${
+            doc.conversionStatus
+          }", expected one of: ${retriableStatuses.join(', ')}`,
         },
       });
     }
@@ -441,6 +570,9 @@ export class DocumentsController {
         },
       });
     }
+
+    // Cancel any existing pending/processing jobs for this document
+    await this.parsingJobService.cancelJobsForDocument(id);
 
     // Reset conversion status to pending
     await this.documents.resetConversionStatus(id);
@@ -477,6 +609,191 @@ export class DocumentsController {
       success: true,
       jobId: job.id,
       message: 'Conversion retry started',
+    };
+  }
+
+  @Post(':id/cancel-conversion')
+  @ApiOkResponse({
+    description: 'Cancel document conversion for a pending/processing document',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        cancelledJobs: { type: 'number', example: 1 },
+        message: { type: 'string', example: 'Conversion cancelled' },
+      },
+    },
+  })
+  @ApiParam({ name: 'id', description: 'Document UUID' })
+  @ApiStandardErrors()
+  @Scopes('documents:write')
+  async cancelConversion(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @RequireProjectId() ctx: ProjectContext
+  ) {
+    // Get document for scope enforcement
+    const doc = await this.documents.getWithStorageInfo(id, {
+      projectId: ctx.projectId,
+    });
+
+    if (!doc) {
+      throw new NotFoundException({
+        error: { code: 'not-found', message: 'Document not found' },
+      });
+    }
+
+    // Verify document has a conversion status that can be cancelled
+    const cancellableStatuses = ['pending', 'processing'];
+    if (!cancellableStatuses.includes(doc.conversionStatus || '')) {
+      throw new BadRequestException({
+        error: {
+          code: 'bad-request',
+          message: `Cannot cancel conversion: document status is "${
+            doc.conversionStatus
+          }", expected one of: ${cancellableStatuses.join(', ')}`,
+        },
+      });
+    }
+
+    // Cancel any pending/processing jobs for this document
+    const cancelledJobs = await this.parsingJobService.cancelJobsForDocument(
+      id
+    );
+
+    // Update document status to failed (or not_required if no file)
+    if (doc.storageKey) {
+      await this.documents.markConversionFailed(id, 'Cancelled by user');
+    } else {
+      await this.documents.markConversionNotRequired(id);
+    }
+
+    this.logger.log(
+      `Conversion cancelled for document ${id}, ${cancelledJobs} jobs cancelled`
+    );
+
+    return {
+      success: true,
+      cancelledJobs,
+      message: 'Conversion cancelled',
+    };
+  }
+
+  @Get('unchunked')
+  @ApiOkResponse({
+    description: 'List documents that have content but no chunks',
+    schema: {
+      type: 'object',
+      properties: {
+        documents: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string', format: 'uuid' },
+              filename: { type: 'string' },
+              sourceType: { type: 'string' },
+            },
+          },
+        },
+        total: { type: 'number' },
+      },
+    },
+  })
+  @ApiQuery({
+    name: 'sourceTypes',
+    required: false,
+    description: 'Filter by source types (comma-separated, e.g., email,drive)',
+    schema: { type: 'string' },
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Maximum number of documents to return',
+    schema: { type: 'number', minimum: 1, maximum: 500, default: 100 },
+  })
+  @ApiStandardErrors()
+  @Scopes('documents:read')
+  async listUnchunkedDocuments(
+    @RequireProjectId() ctx: ProjectContext,
+    @Query('sourceTypes') sourceTypesStr?: string,
+    @Query('limit') limitStr?: string
+  ) {
+    const sourceTypes = sourceTypesStr
+      ? sourceTypesStr.split(',').map((s) => s.trim())
+      : undefined;
+    const limit = limitStr ? parseInt(limitStr, 10) : 100;
+
+    const documents = await this.documents.findUnchunkedDocuments(
+      ctx.projectId,
+      { sourceTypes, limit }
+    );
+
+    return {
+      documents,
+      total: documents.length,
+    };
+  }
+
+  @Post('bulk-chunk-unchunked')
+  @ApiOkResponse({
+    description: 'Create chunks for documents that have content but no chunks',
+    schema: {
+      type: 'object',
+      properties: {
+        total: { type: 'number', description: 'Total documents processed' },
+        successful: { type: 'number', description: 'Successfully chunked' },
+        failed: { type: 'number', description: 'Failed to chunk' },
+        errors: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              documentId: { type: 'string', format: 'uuid' },
+              error: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiBody({ type: BulkChunkUnchunkedBody })
+  @ApiStandardErrors()
+  @Scopes('documents:write')
+  async bulkChunkUnchunked(
+    @RequireProjectId() ctx: ProjectContext,
+    @Body() body: BulkChunkUnchunkedBody
+  ) {
+    // Find unchunked documents
+    const documents = await this.documents.findUnchunkedDocuments(
+      ctx.projectId,
+      {
+        sourceTypes: body.sourceTypes,
+        limit: body.limit || 100,
+      }
+    );
+
+    if (documents.length === 0) {
+      return {
+        total: 0,
+        successful: 0,
+        failed: 0,
+        errors: [],
+        message: 'No unchunked documents found',
+      };
+    }
+
+    this.logger.log(
+      `Starting bulk chunking of ${documents.length} unchunked documents for project ${ctx.projectId}`
+    );
+
+    // Process documents
+    const result = await this.documents.bulkRecreateChunks(
+      documents.map((d) => d.id)
+    );
+
+    return {
+      ...result,
+      message: `Processed ${result.total} documents: ${result.successful} successful, ${result.failed} failed`,
     };
   }
 }

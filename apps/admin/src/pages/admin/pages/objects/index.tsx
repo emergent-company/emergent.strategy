@@ -57,13 +57,38 @@ interface GraphObject extends TableDataItem {
   embedding_updated_at?: string | null;
 }
 
+/**
+ * Get display name from object properties using case-insensitive lookup.
+ * Checks for common name properties in order of priority.
+ */
+function getDisplayName(
+  properties: Record<string, unknown> | undefined,
+  key: string | undefined,
+  type: string,
+  id: string
+): string {
+  if (properties) {
+    const nameProps = ['name', 'title', 'label', 'displayName'];
+    for (const propName of nameProps) {
+      for (const objKey of Object.keys(properties)) {
+        if (objKey.toLowerCase() === propName.toLowerCase()) {
+          const value = properties[objKey];
+          if (typeof value === 'string' && value.trim()) {
+            return value;
+          }
+        }
+      }
+    }
+  }
+  if (key && key.trim()) {
+    return key;
+  }
+  return `${type}-${id.substring(0, 8)}`;
+}
+
 const transformObject = (obj: GraphObjectResponse): GraphObject => ({
   id: obj.id,
-  name:
-    (obj.properties?.name as string) ||
-    (obj.properties?.title as string) ||
-    obj.key ||
-    `${obj.type}-${obj.id.substring(0, 8)}`,
+  name: getDisplayName(obj.properties, obj.key ?? undefined, obj.type, obj.id),
   type: obj.type,
   status: obj.status || undefined,
   source:
@@ -1195,133 +1220,131 @@ export default function ObjectsPage() {
       </div>
 
       {/* DataTable */}
-      <div className="card bg-base-100 shadow-sm border border-base-200">
-        <DataTable<GraphObject>
-          data={objects}
-          columns={columns}
-          loading={loading}
-          error={error}
-          enableSelection={true}
-          enableSearch={true}
-          searchPlaceholder="Search objects..."
-          onSearch={handleSearchChange}
-          filters={filters}
-          bulkActions={bulkActions}
-          totalCount={totalCount}
-          rowActions={[
-            {
-              label: 'View Details',
-              icon: 'lucide--eye',
-              onAction: handleObjectClick,
-            },
-            {
-              label: 'Generate Embedding',
-              icon: 'lucide--sparkles',
-              onAction: (obj) => handleGenerateEmbedding(obj.id),
-              hidden: (obj: GraphObject) => !!obj.embedding,
-            },
-            {
-              label: 'Regenerate Embedding',
-              icon: 'lucide--refresh-cw',
-              onAction: (obj) => handleGenerateEmbedding(obj.id),
-              hidden: (obj: GraphObject) => !obj.embedding,
-            },
-            {
-              label: 'Accept',
-              icon: 'lucide--check-circle',
-              onAction: (obj) => handleAcceptObject(obj.id),
-              hidden: (obj: GraphObject) => obj.status === 'accepted',
-              variant: 'success',
-            },
-            {
-              label: 'Delete',
-              icon: 'lucide--trash-2',
-              onAction: (obj) => handleDelete(obj.id),
-              variant: 'error',
-            },
-          ]}
-          useDropdownActions={true}
-          onRowClick={handleObjectClick}
-          onSelectionChange={handleBulkSelect}
-          emptyMessage="No objects found. Objects will appear here after extraction jobs complete."
-          emptyIcon="lucide--inbox"
-          noResultsMessage="No objects match current filters."
-          formatDate={(date) => new Date(date).toLocaleDateString()}
-          toolbarActions={
-            extractionJobs.length > 0 ? (
-              <div
-                ref={extractionDropdownRef}
-                className={`dropdown ${
-                  extractionDropdownOpen ? 'dropdown-open' : ''
+      <DataTable<GraphObject>
+        data={objects}
+        columns={columns}
+        loading={loading}
+        error={error}
+        enableSelection={true}
+        enableSearch={true}
+        searchPlaceholder="Search objects..."
+        onSearch={handleSearchChange}
+        filters={filters}
+        bulkActions={bulkActions}
+        totalCount={totalCount}
+        rowActions={[
+          {
+            label: 'View Details',
+            icon: 'lucide--eye',
+            onAction: handleObjectClick,
+          },
+          {
+            label: 'Generate Embedding',
+            icon: 'lucide--sparkles',
+            onAction: (obj) => handleGenerateEmbedding(obj.id),
+            hidden: (obj: GraphObject) => !!obj.embedding,
+          },
+          {
+            label: 'Regenerate Embedding',
+            icon: 'lucide--refresh-cw',
+            onAction: (obj) => handleGenerateEmbedding(obj.id),
+            hidden: (obj: GraphObject) => !obj.embedding,
+          },
+          {
+            label: 'Accept',
+            icon: 'lucide--check-circle',
+            onAction: (obj) => handleAcceptObject(obj.id),
+            hidden: (obj: GraphObject) => obj.status === 'accepted',
+            variant: 'success',
+          },
+          {
+            label: 'Delete',
+            icon: 'lucide--trash-2',
+            onAction: (obj) => handleDelete(obj.id),
+            variant: 'error',
+          },
+        ]}
+        useDropdownActions={true}
+        onRowClick={handleObjectClick}
+        onSelectionChange={handleBulkSelect}
+        emptyMessage="No objects found. Objects will appear here after extraction jobs complete."
+        emptyIcon="lucide--inbox"
+        noResultsMessage="No objects match current filters."
+        formatDate={(date) => new Date(date).toLocaleDateString()}
+        toolbarActions={
+          extractionJobs.length > 0 ? (
+            <div
+              ref={extractionDropdownRef}
+              className={`dropdown ${
+                extractionDropdownOpen ? 'dropdown-open' : ''
+              }`}
+            >
+              <label
+                tabIndex={0}
+                className={`gap-2 btn btn-sm ${
+                  selectedExtractionJobId ? 'btn-info' : 'btn-ghost'
                 }`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setExtractionDropdownOpen(!extractionDropdownOpen);
+                }}
               >
-                <label
-                  tabIndex={0}
-                  className={`gap-2 btn btn-sm ${
-                    selectedExtractionJobId ? 'btn-info' : 'btn-ghost'
-                  }`}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setExtractionDropdownOpen(!extractionDropdownOpen);
-                  }}
-                >
-                  <Icon icon="lucide--file-search" className="size-4" />
-                  {selectedExtractionJobId ? (
-                    <span>Extraction (1)</span>
-                  ) : (
-                    <span>Filter by Extraction</span>
-                  )}
-                </label>
-                <ul
-                  tabIndex={0}
-                  className="dropdown-content menu bg-base-100 rounded-box z-50 w-80 p-2 shadow-sm max-h-80 overflow-y-auto"
-                >
-                  {selectedExtractionJobId && (
-                    <li className="mb-2">
-                      <button
-                        className="btn-block justify-between btn btn-xs btn-ghost"
-                        onClick={() => {
-                          setSelectedExtractionJobId(null);
-                          setSearchParams({});
-                          setExtractionDropdownOpen(false);
-                        }}
-                      >
-                        <span className="opacity-70 text-xs">Clear filter</span>
-                        <Icon icon="lucide--x" className="size-3" />
-                      </button>
-                    </li>
-                  )}
-                  {extractionJobs.map((job) => (
-                    <li key={job.id}>
-                      <label className="flex justify-between items-center gap-2 cursor-pointer">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="radio"
-                            name="extraction-filter"
-                            className="radio radio-sm radio-info"
-                            checked={selectedExtractionJobId === job.id}
-                            onChange={() => {
-                              setSelectedExtractionJobId(job.id);
-                              setSearchParams({ extraction_job_id: job.id });
-                              setExtractionDropdownOpen(false);
-                            }}
-                          />
-                          <span className="font-medium truncate max-w-40">
-                            {getExtractionFilename(job)}
-                          </span>
-                        </div>
-                        <span className="badge badge-sm badge-ghost whitespace-nowrap">
-                          {formatRelativeTime(job.created_at)}
+                <Icon icon="lucide--file-search" className="size-4" />
+                {selectedExtractionJobId ? (
+                  <span>Extraction (1)</span>
+                ) : (
+                  <span>Filter by Extraction</span>
+                )}
+              </label>
+              <ul
+                tabIndex={0}
+                className="dropdown-content menu bg-base-100 rounded-box z-50 w-80 p-2 shadow-sm max-h-80 overflow-y-auto"
+              >
+                {selectedExtractionJobId && (
+                  <li className="mb-2">
+                    <button
+                      className="btn-block justify-between btn btn-xs btn-ghost"
+                      onClick={() => {
+                        setSelectedExtractionJobId(null);
+                        setSearchParams({});
+                        setExtractionDropdownOpen(false);
+                      }}
+                    >
+                      <span className="opacity-70 text-xs">Clear filter</span>
+                      <Icon icon="lucide--x" className="size-3" />
+                    </button>
+                  </li>
+                )}
+                {extractionJobs.map((job) => (
+                  <li key={job.id}>
+                    <label className="flex justify-between items-center gap-2 cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="extraction-filter"
+                          className="radio radio-sm radio-info"
+                          checked={selectedExtractionJobId === job.id}
+                          onChange={() => {
+                            setSelectedExtractionJobId(job.id);
+                            setSearchParams({ extraction_job_id: job.id });
+                            setExtractionDropdownOpen(false);
+                          }}
+                        />
+                        <span className="font-medium truncate max-w-40">
+                          {getExtractionFilename(job)}
                         </span>
-                      </label>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : undefined
-          }
-        />
-      </div>
+                      </div>
+                      <span className="badge badge-sm badge-ghost whitespace-nowrap">
+                        {formatRelativeTime(job.created_at)}
+                      </span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : undefined
+        }
+      />
 
       {/* Load More Button */}
       {hasMore && !loading && (
