@@ -296,6 +296,19 @@ export class EnvVariables {
   @IsNumber()
   @IsOptional()
   DOCUMENT_PARSING_WORKER_BATCH_SIZE?: number; // Batch size (default: 5)
+
+  // --- Google OAuth (Gmail Integration) ---
+  @IsString()
+  @IsOptional()
+  GOOGLE_OAUTH_CLIENT_ID?: string; // OAuth 2.0 client ID from Google Cloud Console
+
+  @IsString()
+  @IsOptional()
+  GOOGLE_OAUTH_CLIENT_SECRET?: string; // OAuth 2.0 client secret
+
+  @IsString()
+  @IsOptional()
+  API_BASE_URL?: string; // Base URL for OAuth callback (e.g., http://localhost:3002)
 }
 
 export function validate(config: Record<string, unknown>): EnvVariables {
@@ -395,6 +408,10 @@ export function validate(config: Record<string, unknown>): EnvVariables {
       process.env.DOCUMENT_PARSING_WORKER_POLL_INTERVAL_MS || '5000',
     DOCUMENT_PARSING_WORKER_BATCH_SIZE:
       process.env.DOCUMENT_PARSING_WORKER_BATCH_SIZE || '5',
+    // Google OAuth (Gmail, Google Drive integrations)
+    GOOGLE_OAUTH_CLIENT_ID: process.env.GOOGLE_OAUTH_CLIENT_ID,
+    GOOGLE_OAUTH_CLIENT_SECRET: process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+    API_BASE_URL: process.env.API_BASE_URL || 'http://localhost:3002',
     ...config,
   };
   const transformed = plainToInstance(EnvVariables, {

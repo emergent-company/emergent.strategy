@@ -23,6 +23,19 @@ export interface GetEventsResult {
   error?: string;
 }
 
+export interface GetEventsOptions {
+  /**
+   * When the email was sent. Used to calculate an efficient time range for the query.
+   * If not provided, defaults to searching the last 7 days.
+   */
+  sentAt?: Date;
+  /**
+   * Number of days after sentAt to search for events.
+   * Default: 7 days (covers delayed opens and bounces)
+   */
+  lookbackDays?: number;
+}
+
 export interface MailgunEvent {
   id: string;
   event: string;
@@ -139,13 +152,17 @@ export class MailgunProvider {
   }
 
   /**
-   * Get events for a specific message from Mailgun Events API.
+   * Get events for a specific message from Mailgun Logs API.
    * Used to track delivery status (delivered, opened, bounced, etc.)
    *
    * @param messageId The Mailgun message ID (format: <id@domain>)
+   * @param options Optional time range options for efficient querying
    * @returns Events for the message, sorted by timestamp descending
    */
-  async getEventsForMessage(messageId: string): Promise<GetEventsResult> {
+  async getEventsForMessage(
+    messageId: string,
+    options?: GetEventsOptions
+  ): Promise<GetEventsResult> {
     if (!this.config.enabled) {
       return {
         success: false,
@@ -165,17 +182,36 @@ export class MailgunProvider {
       const client = this.getClient();
       const cleanMessageId = messageId.replace(/^<|>$/g, '');
 
-      const response = await client.events.get(this.config.mailgunDomain, {
-        'message-id': cleanMessageId,
-        limit: 50,
+      // Calculate time range for the query
+      const { start, end } = this.calculateTimeRange(options);
+
+      // Use the new logs.list API (replaces deprecated events.get)
+      const response = await client.logs.list({
+        start,
+        end,
+        filter: {
+          AND: [
+            {
+              attribute: 'message.headers.message-id',
+              comparator: '=',
+              values: [{ label: cleanMessageId, value: cleanMessageId }],
+            },
+          ],
+        },
+        pagination: { limit: 50 },
       });
 
       const items = response?.items || [];
 
+      // Map new response format to existing MailgunEvent interface
       const events: MailgunEvent[] = items.map((item: any) => ({
         id: item.id,
         event: item.event,
-        timestamp: item.timestamp,
+        // Convert Date to Unix timestamp (seconds) for backward compatibility
+        timestamp:
+          item['@timestamp'] instanceof Date
+            ? item['@timestamp'].getTime() / 1000
+            : new Date(item['@timestamp']).getTime() / 1000,
         message: item.message,
         recipient: item.recipient,
         reason: item.reason,
@@ -199,5 +235,33 @@ export class MailgunProvider {
         error: errorMessage,
       };
     }
+  }
+
+  /**
+   * Calculate the time range for querying Mailgun logs.
+   * Uses sentAt if provided, otherwise defaults to last 7 days.
+   */
+  private calculateTimeRange(options?: GetEventsOptions): {
+    start: Date;
+    end: Date;
+  } {
+    const now = new Date();
+    const lookbackDays = options?.lookbackDays ?? 7;
+    const msPerDay = 24 * 60 * 60 * 1000;
+
+    if (options?.sentAt) {
+      // Start from when email was sent
+      const start = options.sentAt;
+      // End at either lookbackDays after sent, or now (whichever is earlier)
+      const endFromSent = new Date(
+        options.sentAt.getTime() + lookbackDays * msPerDay
+      );
+      const end = endFromSent < now ? endFromSent : now;
+      return { start, end };
+    }
+
+    // Fallback: last 7 days
+    const start = new Date(now.getTime() - lookbackDays * msPerDay);
+    return { start, end: now };
   }
 }

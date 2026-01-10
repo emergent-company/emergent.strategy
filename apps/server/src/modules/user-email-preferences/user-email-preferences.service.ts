@@ -140,21 +140,51 @@ export class UserEmailPreferencesService {
     return prefs?.marketingEmailsEnabled ?? true;
   }
 
+  /**
+   * Create default preferences using upsert to handle race conditions.
+   * If another request creates preferences simultaneously, we fetch the existing record.
+   */
   private async createDefaultPreferences(
     userId: string
   ): Promise<UserEmailPreferences> {
     const token = randomBytes(32).toString('hex');
 
-    const prefs = this.prefsRepository.create({
-      userId,
-      releaseEmailsEnabled: true,
-      marketingEmailsEnabled: true,
-      unsubscribeToken: token,
-    });
+    try {
+      // Use upsert with ON CONFLICT DO NOTHING to handle race conditions
+      await this.prefsRepository
+        .createQueryBuilder()
+        .insert()
+        .into(UserEmailPreferences)
+        .values({
+          userId,
+          releaseEmailsEnabled: true,
+          marketingEmailsEnabled: true,
+          unsubscribeToken: token,
+        })
+        .orIgnore() // ON CONFLICT DO NOTHING
+        .execute();
 
-    const saved = await this.prefsRepository.save(prefs);
-    this.logger.log(`Created default email preferences for user ${userId}`);
-    return saved;
+      // Fetch the record (either just created or existing from race condition)
+      const prefs = await this.prefsRepository.findOne({ where: { userId } });
+      if (!prefs) {
+        // This shouldn't happen, but handle it gracefully
+        throw new Error(
+          `Failed to create or retrieve email preferences for user ${userId}`
+        );
+      }
+
+      this.logger.log(`Ensured email preferences exist for user ${userId}`);
+      return prefs;
+    } catch (error) {
+      // If upsert failed for any reason, try to fetch existing record
+      const existing = await this.prefsRepository.findOne({
+        where: { userId },
+      });
+      if (existing) {
+        return existing;
+      }
+      throw error;
+    }
   }
 
   private mapToDto(prefs: UserEmailPreferences): EmailPreferencesDto {

@@ -40,7 +40,8 @@ export class EmailStatusSyncService implements OnModuleInit, OnModuleDestroy {
   private running = false;
   private syncInProgress = false;
   private readonly BATCH_SIZE = 50;
-  private readonly MAX_AGE_DAYS = 30;
+  private readonly MAX_SYNC_HOURS = 72;
+  private readonly SYNC_INTERVAL_MINUTES = 15;
 
   constructor(
     @InjectRepository(EmailJob)
@@ -97,8 +98,12 @@ export class EmailStatusSyncService implements OnModuleInit, OnModuleDestroy {
     let errors = 0;
 
     try {
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - this.MAX_AGE_DAYS);
+      const cutoffDate = new Date(
+        Date.now() - this.MAX_SYNC_HOURS * 60 * 60 * 1000
+      );
+      const syncThreshold = new Date(
+        Date.now() - this.SYNC_INTERVAL_MINUTES * 60 * 1000
+      );
 
       const jobsToSync = await this.emailJobRepo
         .createQueryBuilder('job')
@@ -107,9 +112,7 @@ export class EmailStatusSyncService implements OnModuleInit, OnModuleDestroy {
         .andWhere('job.createdAt >= :cutoff', { cutoff: cutoffDate })
         .andWhere(
           '(job.deliveryStatusSyncedAt IS NULL OR job.deliveryStatusSyncedAt < :syncThreshold)',
-          {
-            syncThreshold: new Date(Date.now() - 30 * 60 * 1000),
-          }
+          { syncThreshold }
         )
         .orderBy('job.createdAt', 'DESC')
         .take(this.BATCH_SIZE)

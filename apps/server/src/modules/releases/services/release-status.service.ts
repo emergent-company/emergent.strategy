@@ -1,34 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import Mailgun from 'mailgun.js';
-import formData from 'form-data';
-import { EmailConfig } from '../../email/email.config';
+import { MailgunProvider } from '../../email/mailgun.provider';
 import { ReleaseNotification } from '../entities/release-notification.entity';
 import {
   ReleaseNotificationRecipient,
   EmailDeliveryStatus,
 } from '../entities/release-notification-recipient.entity';
-
-/**
- * Mailgun event data.
- */
-export interface MailgunEvent {
-  event: string;
-  timestamp: number;
-  recipient?: string;
-  message?: {
-    headers?: {
-      'message-id'?: string;
-    };
-  };
-  'delivery-status'?: {
-    code?: number;
-    message?: string;
-    description?: string;
-  };
-  reason?: string;
-}
 
 /**
  * Delivery status summary for a release.
@@ -59,39 +37,20 @@ export interface RecipientDeliveryStatus {
 }
 
 /**
- * Service for checking release notification delivery status via Mailgun Events API.
+ * Service for checking release notification delivery status via Mailgun Logs API.
  */
 @Injectable()
 export class ReleaseStatusService {
   private readonly logger = new Logger(ReleaseStatusService.name);
-  private client: ReturnType<Mailgun['client']> | null = null;
+  private readonly MAX_SYNC_HOURS = 72;
 
   constructor(
     @InjectRepository(ReleaseNotification)
     private readonly releaseRepo: Repository<ReleaseNotification>,
     @InjectRepository(ReleaseNotificationRecipient)
     private readonly recipientRepo: Repository<ReleaseNotificationRecipient>,
-    private readonly config: EmailConfig
+    private readonly mailgunProvider: MailgunProvider
   ) {}
-
-  /**
-   * Get the Mailgun client.
-   */
-  private getClient(): ReturnType<Mailgun['client']> | null {
-    if (!this.config.enabled) {
-      return null;
-    }
-
-    if (!this.client) {
-      const mailgun = new Mailgun(formData);
-      this.client = mailgun.client({
-        username: 'api',
-        key: this.config.mailgunApiKey,
-        url: this.config.mailgunApiUrl,
-      });
-    }
-    return this.client;
-  }
 
   /**
    * Get delivery status for a release.
@@ -202,21 +161,23 @@ export class ReleaseStatusService {
   }
 
   /**
-   * Update recipient statuses from Mailgun Events API.
+   * Update recipient statuses from Mailgun Logs API.
+   * Only syncs emails sent within the last 72 hours.
    */
   private async updateRecipientStatuses(
     recipients: ReleaseNotificationRecipient[]
   ): Promise<void> {
-    const client = this.getClient();
-    if (!client) {
-      this.logger.debug('Email disabled, skipping Mailgun status update');
-      return;
-    }
+    const cutoffDate = new Date(
+      Date.now() - this.MAX_SYNC_HOURS * 60 * 60 * 1000
+    );
 
     // Filter recipients with message IDs that need status check
+    // Only sync emails sent within the last 72 hours
     const toCheck = recipients.filter(
       (r) =>
         r.mailgunMessageId &&
+        r.emailSentAt &&
+        r.emailSentAt >= cutoffDate &&
         r.emailStatus !== 'failed' &&
         r.emailStatus !== 'opened'
     );
@@ -227,7 +188,7 @@ export class ReleaseStatusService {
 
     for (const recipient of toCheck) {
       try {
-        await this.updateSingleRecipientStatus(client, recipient);
+        await this.updateSingleRecipientStatus(recipient);
       } catch (error) {
         this.logger.warn(
           `Failed to get status for message ${recipient.mailgunMessageId}: ${
@@ -239,32 +200,28 @@ export class ReleaseStatusService {
   }
 
   /**
-   * Update status for a single recipient.
+   * Update status for a single recipient using MailgunProvider.
    */
   private async updateSingleRecipientStatus(
-    client: ReturnType<Mailgun['client']>,
     recipient: ReleaseNotificationRecipient
   ): Promise<void> {
     if (!recipient.mailgunMessageId) {
       return;
     }
 
-    // The message ID from Mailgun is in format <id@domain>
-    // We need to extract just the ID part for the events API
-    let messageId = recipient.mailgunMessageId;
-    if (messageId.startsWith('<') && messageId.endsWith('>')) {
-      messageId = messageId.slice(1, -1);
-    }
-
     try {
-      // Query events for this message
-      // Note: Mailgun events API requires the domain
-      const events = await client.events.get(this.config.mailgunDomain, {
-        'message-id': messageId,
-        limit: 10,
-      });
+      // Use MailgunProvider to get events for this message
+      const result = await this.mailgunProvider.getEventsForMessage(
+        recipient.mailgunMessageId,
+        { sentAt: recipient.emailSentAt }
+      );
 
-      if (!events || !events.items || events.items.length === 0) {
+      if (!result.success || !result.events || result.events.length === 0) {
+        if (result.error) {
+          this.logger.debug(
+            `Could not fetch events for message ${recipient.mailgunMessageId}: ${result.error}`
+          );
+        }
         return;
       }
 
@@ -272,7 +229,7 @@ export class ReleaseStatusService {
       let newStatus: EmailDeliveryStatus = recipient.emailStatus;
       let latestTimestamp = 0;
 
-      for (const event of events.items as MailgunEvent[]) {
+      for (const event of result.events) {
         const eventTime = event.timestamp * 1000;
         if (eventTime <= latestTimestamp) {
           continue;
@@ -313,9 +270,9 @@ export class ReleaseStatusService {
         );
       }
     } catch (error) {
-      // Log but don't fail - events API may have rate limits
+      // Log but don't fail - Logs API may have rate limits
       this.logger.debug(
-        `Could not fetch events for message ${messageId}: ${
+        `Could not fetch events for message ${recipient.mailgunMessageId}: ${
           (error as Error).message
         }`
       );
@@ -334,11 +291,6 @@ export class ReleaseStatusService {
       throw new Error(`Recipient not found: ${recipientId}`);
     }
 
-    const client = this.getClient();
-    if (!client) {
-      throw new Error('Email is disabled');
-    }
-
-    await this.updateSingleRecipientStatus(client, recipient);
+    await this.updateSingleRecipientStatus(recipient);
   }
 }
