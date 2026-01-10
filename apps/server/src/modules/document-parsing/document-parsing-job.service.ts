@@ -490,4 +490,48 @@ export class DocumentParsingJobService {
     const delay = baseDelayMs * Math.pow(multiplier, retryCount);
     return Math.min(delay, maxDelayMs);
   }
+
+  /**
+   * Find jobs by document ID.
+   *
+   * @param documentId - Document ID
+   * @returns Array of jobs associated with the document
+   */
+  async findByDocumentId(documentId: string): Promise<DocumentParsingJob[]> {
+    return this.repository.find({
+      where: { documentId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  /**
+   * Cancel pending/processing jobs for a document.
+   * Sets job status to 'failed' with a cancellation message.
+   *
+   * @param documentId - Document ID to cancel jobs for
+   * @returns Number of jobs cancelled
+   */
+  async cancelJobsForDocument(documentId: string): Promise<number> {
+    const result = await this.repository.update(
+      {
+        documentId,
+        status: In(['pending', 'processing', 'retry_pending']),
+      },
+      {
+        status: 'failed',
+        errorMessage: 'Cancelled by user',
+        completedAt: new Date(),
+        updatedAt: new Date(),
+      }
+    );
+
+    const count = result.affected ?? 0;
+    if (count > 0) {
+      this.logger.log(
+        `Cancelled ${count} parsing jobs for document ${documentId}`
+      );
+    }
+
+    return count;
+  }
 }
