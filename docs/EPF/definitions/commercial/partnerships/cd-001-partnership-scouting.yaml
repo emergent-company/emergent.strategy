@@ -1,0 +1,499 @@
+# Commercial Process Definition: Partnership Scouting
+# Schema: commercial_definition_schema.json v1.1.0
+# EPF Track: Commercial > Business Development > Strategic Partnerships
+
+id: cd-001
+name: Partnership Scouting
+slug: partnership-scouting
+track: commercial
+status: ready
+
+contributes_to:
+  - Commercial.Strategic Partnerships.partnership-scouting
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Opportunistic partnership exploration"
+    includes:
+      - Founder-driven partner identification
+      - Informal conversations with potential partners
+      - Ad-hoc evaluation of partnership opportunities
+      - Basic tracking in spreadsheet/CRM
+    effort: "2-4 hours/week when actively scouting"
+    
+  tier_2_intermediate:
+    description: "Systematic partner identification"
+    adds:
+      - Partner landscape map (categories, tiers)
+      - Partner evaluation criteria/scorecard
+      - Pipeline tracking (stages, next steps)
+      - Dedicated BD time/role
+    effort: "8-12 hours/week, clear BD ownership"
+    
+  tier_3_advanced:
+    description: "Strategic partnership program"
+    adds:
+      - Partner ecosystem strategy
+      - Partner marketing/enablement materials
+      - Partner tiers with defined benefits
+      - Partner revenue/attribution tracking
+    effort: "Dedicated BD team, ongoing program"
+
+definition:
+  purpose: |
+    Partnerships can accelerate growth - distribution, credibility, product 
+    enhancement - but most partnership conversations waste time. The difference 
+    between productive partnerships and partnership theater is systematic scouting: 
+    knowing WHO to approach, WHY they'd partner, and WHAT you're actually offering.
+    
+    Partnership scouting is the top-of-funnel for BD. It answers: "Who should we 
+    talk to, and why would they care?" Without scouting, you waste time on 
+    conversations that were never going to close. With good scouting, every 
+    conversation has a real chance of value creation.
+    
+    Common failure modes:
+    - Spray and pray (pitch everyone, convert no one)
+    - Partner logo collecting (announced, never activated)
+    - Mutual masturbation (meet often, do nothing)
+    - Asymmetric value (you need them, they don't need you)
+    
+  outcome: |
+    A prioritized list of partnership targets with clear rationale for each.
+    Initial conversations convert to deeper exploration at >30% rate.
+    Partnerships pursued are realistic and mutually valuable.
+    
+  owner: CEO / BD Lead
+  
+  inputs:
+    - name: Company strategy
+      description: What are we trying to achieve? Where do we need help?
+      source: North Star, roadmap, growth strategy
+    - name: Partner landscape
+      description: Who's in the ecosystem? Who has what we need?
+      source: Market research, competitor analysis, industry knowledge
+    - name: Mutual value hypothesis
+      description: Why would they partner with us? What do we offer?
+      source: Value proposition, competitive advantage, unique assets
+    - name: Network/access
+      description: How do we reach potential partners?
+      source: Investors, advisors, customers, direct outreach
+      
+  outputs:
+    - name: Partner target list
+      description: Prioritized list of potential partners with rationale
+      consumer: BD activities, outreach
+    - name: Partner scorecards
+      description: Evaluation of each partner opportunity
+      consumer: Decision-making on which to pursue
+    - name: Outreach materials
+      description: Tailored pitch for each partner category
+      consumer: Initial partner conversations
+      
+  steps:
+    - step: 1
+      action: Define partnership strategy
+      responsible: CEO + BD Lead
+      duration: "2-4 hours"
+      deliverable: Partnership goals and constraints
+      questions:
+        - "What business outcomes do we want from partnerships?"
+        - "What types of partnerships make sense for our stage?"
+        - "What are we NOT willing to do in a partnership?"
+        - "How much time/resources can we invest in BD?"
+      partnership_types:
+        - "Distribution: Partner sells/refers your product"
+        - "Integration: Products work together"
+        - "Co-marketing: Joint campaigns, events, content"
+        - "Technology: Build on or with partner's platform"
+        - "Channel: Reseller or implementation partner"
+      
+    - step: 2
+      action: Map the partner landscape
+      responsible: BD Lead
+      duration: "4-8 hours"
+      deliverable: Partner landscape document
+      categories:
+        - "Adjacent products (complement what we do)"
+        - "Platforms (where our customers are)"
+        - "Agencies/consultants (who advises our customers)"
+        - "Industry leaders (credibility boost)"
+        - "Technology providers (build on their stack)"
+      for_each_category:
+        - "List 10-20 potential partners"
+        - "Note: size, relevance, accessibility"
+        - "Note: what they'd get from us"
+      
+    - step: 3
+      action: Develop evaluation criteria
+      responsible: BD Lead + CEO
+      duration: "1-2 hours"
+      deliverable: Partner scorecard
+      criteria:
+        - "Strategic fit: Does this advance our goals? (1-5)"
+        - "Mutual value: What's in it for them? (1-5)"
+        - "Accessibility: Can we reach decision-maker? (1-5)"
+        - "Effort: How hard is this partnership to activate? (1-5)"
+        - "Risk: What could go wrong? (1-5)"
+      scoring: |
+        Total score = Strategic fit × 3 + Mutual value × 2 + Accessibility + (5 - Effort) + (5 - Risk)
+        Above 25: High priority
+        18-25: Medium priority
+        Below 18: Low priority or pass
+      
+    - step: 4
+      action: Score and prioritize targets
+      responsible: BD Lead
+      duration: "2-4 hours"
+      deliverable: Prioritized partner list (top 10-20)
+      output_format:
+        - "Rank, Company, Type, Score"
+        - "What they get from us"
+        - "What we get from them"
+        - "Access path (who can intro)"
+        - "First ask (what do we want from conversation?)"
+      
+    - step: 5
+      action: Develop outreach approach
+      responsible: BD Lead
+      duration: "2-4 hours"
+      deliverable: Outreach templates and materials
+      components:
+        - "Tailored pitch for each partner category"
+        - "One-pager: who we are, why partner"
+        - "Specific ask for first conversation"
+        - "Warm intro request template"
+        - "Cold outreach template (if needed)"
+      principles:
+        - "Lead with THEIR value, not yours"
+        - "Be specific about what you're proposing"
+        - "Respect their time - clear ask"
+      
+    - step: 6
+      action: Execute outreach
+      responsible: BD Lead + CEO for tier 1
+      duration: "Ongoing"
+      deliverable: Partner conversations initiated
+      approach:
+        - "Tier 1 partners: CEO reaches out or gets warm intro"
+        - "Tier 2 partners: BD Lead outreach"
+        - "Track in CRM: company, contact, status, next step"
+        - "Follow up cadence: 3 touches before giving up"
+      
+    - step: 7
+      action: Qualify conversations
+      responsible: BD Lead
+      duration: "Per conversation"
+      deliverable: Qualified or disqualified partner
+      qualification_questions:
+        - "Is there mutual value? (Not just for us)"
+        - "Is there a champion internally?"
+        - "Can we define a concrete first project?"
+        - "Is timeline realistic for both sides?"
+        - "Do we have executive sponsorship?"
+
+  cadence:
+    frequency: Continuous with quarterly review
+    trigger: BD initiative, growth strategy, or partnership inbound
+    duration: "4-8 hours/week during active scouting"
+    rhythm: |
+      - Weekly: Outreach activities, follow-ups
+      - Monthly: Pipeline review, add new targets
+      - Quarterly: Strategy review, landscape update
+    
+  participants:
+    - role: CEO
+      responsibility: Strategy, tier 1 outreach, executive conversations
+      time_commitment: "2-4 hours/week during active BD"
+    - role: BD Lead
+      responsibility: Landscape, outreach, pipeline management
+      time_commitment: "8-12 hours/week (if dedicated BD)"
+    - role: Product Lead
+      responsibility: Input on integration partnerships
+      time_commitment: "1-2 hours/month"
+
+  success_criteria:
+    - Partner landscape documented with 50+ potential partners
+    - Top 20 partners scored and prioritized
+    - ">30% of outreach converts to first meeting"
+    - ">50% of first meetings convert to second conversation"
+    - At least 1 meaningful partnership per quarter
+
+operational_context:
+  prerequisites:
+    - Clear company value proposition
+    - Time/resources for BD activities
+    - Network for warm introductions
+    
+  common_blockers:
+    - "No one responds → Lead with their value, get warmer intros"
+    - "Conversations go nowhere → Be more specific about partnership shape"
+    - "Can't reach decision-makers → Go through advisors, investors, customers"
+    - "Partnerships announced but not activated → Define success before launch"
+    - "Too many partners, too little depth → Fewer, deeper partnerships"
+    
+  metrics:
+    - name: Outreach to meeting rate
+      description: "% of outreach that becomes meeting"
+      target: ">30%"
+      tier: 1
+    - name: Meeting to partnership rate
+      description: "% of meetings that become partnerships"
+      target: ">20%"
+      tier: 2
+    - name: Partner-sourced outcomes
+      description: Revenue, customers, or integrations from partners
+      target: "Track and grow"
+      tier: 2
+
+tools_ecosystem:
+  recommended:
+    - category: CRM/Pipeline
+      examples:
+        - HubSpot
+        - Pipedrive
+        - Notion
+        - Airtable
+      purpose: Track partners, stages, activities
+    - category: Partner Research
+      examples:
+        - LinkedIn Sales Navigator
+        - Crunchbase
+        - G2/Capterra (integrations)
+      purpose: Identify and research potential partners
+    - category: Outreach
+      examples:
+        - LinkedIn (direct)
+        - Email
+        - Warm intros (investors, customers)
+      purpose: Initial contact with partners
+    - category: Partnership Materials
+      examples:
+        - Partner one-pager
+        - Integration documentation
+        - Co-marketing templates
+      purpose: Support partner conversations
+
+# Practitioner Scenarios - How This Plays Out in Real Organizations
+practitioner_scenarios:
+  - id: ps-001
+    name: "First BD hire doesn't know where to start"
+    practitioner: "Head of Business Development"
+    organization_context: "20-person Series A, just hired first BD person, no partnership infrastructure"
+    situation: |
+      Alex (new BD hire) joined to "build partnerships." The founders have done 
+      ad-hoc partner conversations but nothing systematic. There's a vague sense 
+      that "we should partner with more companies" but no strategy for who or why. 
+      Alex has a quota to "close 5 partnerships in 6 months" but no target list, 
+      no materials, and no clarity on what a "partnership" even means.
+    trigger: "New BD hire, unclear mandate, need to build from scratch"
+    actions: |
+      1. Alex starts by interviewing the founders: "What do we need from partnerships?"
+         - Distribution: access to more customers (high priority)
+         - Credibility: "who we work with" signaling (medium priority)
+         - Product: integrations that make product stickier (medium priority)
+      2. Asks: "Who have we already talked to?"
+         - Found 15 scattered partner conversations in Slack, email, nowhere centralized
+         - 3 had potential, 12 were dead ends
+         - No notes on why conversations died
+      3. Maps the landscape: creates spreadsheet with categories:
+         - Adjacent products (complementary SaaS) - 25 companies
+         - Platforms (where customers live) - 10 companies
+         - Agencies (who advises customers) - 15 agencies
+         - Industry leaders (credibility) - 5 companies
+      4. Develops scorecard with founders. Realizes: "We say 'partnership' but 
+         mean different things." Aligns on: integration partnerships for product, 
+         referral partnerships for distribution.
+      5. Scores top 50 partners. Top 10: all are platforms or adjacent products 
+         with clear integration potential. Gets intros from investors for 6 of 10.
+      6. Creates pitch: "We help your users [outcome]. Here's how [specific]. 
+         Interested in exploring an integration?"
+      7. First 3 months: 8 meetings from outreach, 3 advance to technical 
+         discussion, 1 integration launched.
+    outcome: |
+      By month 6: 3 integration partnerships live, 2 referral partnerships active. 
+      Pipeline of 15 more in conversation. Key learning: the scorecard forced 
+      prioritization - without it, would have chased everyone.
+    lessons:
+      - "Start by understanding what company actually needs from partnerships"
+      - "Audit existing partner conversations before starting new"
+      - "Build the landscape before scoring - need to see the whole board"
+      - "Scorecard forces prioritization and alignment"
+      - "Investor intros significantly improve response rate"
+      - "Define 'partnership' specifically - too vague otherwise"
+
+  - id: ps-002
+    name: "Scouting a platform partnership"
+    practitioner: "CEO / Founder"
+    organization_context: "12-person startup, wants to build on a major platform (Salesforce/HubSpot/Shopify type), never done this before"
+    situation: |
+      Maya (CEO) runs a marketing tool. She wants to be in the HubSpot ecosystem - 
+      their customers are her customers, and an integration would drive distribution. 
+      But HubSpot has 1,000+ app partners. She doesn't know anyone there. She's not 
+      sure if HubSpot would even take a meeting, or what she'd ask for if they did.
+    trigger: "Strategic decision to pursue platform partnership, no access or experience"
+    actions: |
+      1. Maya researches how HubSpot's partner ecosystem works:
+         - App marketplace (anyone can list with approved integration)
+         - Partner tiers (starter, silver, gold, platinum based on co-sell)
+         - Partner programs (agency, solutions, app partners - different)
+         She realizes: she doesn't need a "meeting with HubSpot" - she needs to 
+         build an integration and get listed.
+      2. Finds the self-serve path:
+         - Join app partner program (free)
+         - Build integration (their API, her dev time)
+         - Get listed on marketplace (review process)
+         - Then: HubSpot only cares if she drives volume
+      3. Talks to 3 companies already in HubSpot ecosystem:
+         - "Listing is easy, traction is hard"
+         - "Focus on mutual customers who'd use both"
+         - "HubSpot BD only talks to you if you have traction"
+      4. Identifies 10 mutual customers (use her product + HubSpot). Asks them:
+         - "Would you use this integration?" 7 say yes.
+         - "Would you pay more for integrated version?" 4 say yes.
+         This becomes her business case.
+      5. Builds MVP integration (2 weeks dev time). Lists in marketplace with 
+         strong copy focused on HubSpot user pain points.
+      6. Gets first 20 installs organically. Writes case study with happy customer.
+      7. NOW reaches out to HubSpot partnership team with proof: "We have 20 
+         active users, here's a case study, here's our growth plan. How do we 
+         become a recommended partner?"
+    outcome: |
+      6 months later: 200 installs, featured in HubSpot newsletter, invited to 
+      partner event. Key learning: platform partnerships are earned with traction, 
+      not asked for in meetings.
+    lessons:
+      - "Platform partnerships often don't need 'permission' - build first"
+      - "Study the ecosystem structure before approaching"
+      - "Talk to companies already in the ecosystem - they'll share honestly"
+      - "Validate with mutual customers before building"
+      - "Traction gets you the meeting - not the other way around"
+      - "Platform BD cares about volume you drive, not your pitch"
+
+  - id: ps-003
+    name: "Wasting 6 months on a partnership that wasn't real"
+    practitioner: "VP of Partnerships"
+    organization_context: "45-person Series B, spent 6 months on partnership that never activated, post-mortem"
+    situation: |
+      Jake (VP Partnerships) just ended a 6-month partnership pursuit that went 
+      nowhere. The partner (Fortune 500 company) had multiple meetings, internal 
+      champions, exciting conversations about "transformational partnership." 
+      But it never activated - legal delays, priority shifts, champion left. 
+      Jake wasted 6 months and needs to prevent this from happening again.
+    trigger: "Post-mortem on failed partnership pursuit, need better qualification"
+    actions: |
+      1. Jake runs post-mortem: what went wrong?
+         - Signals were there from the start:
+           - No executive sponsor (just mid-level champion)
+           - Couldn't define first concrete project
+           - "Legal review" took 3 months (they weren't prioritizing)
+           - Champion had no budget or decision authority
+      2. Creates "partnership red flags" checklist:
+         - No executive sponsor → Warning
+         - Can't define Phase 1 concretely → Warning
+         - Internal champion not empowered → Warning
+         - No budget identified → Warning
+         - Legal/security as blocker for months → Walk away
+         - "Check back next quarter" repeatedly → Walk away
+      3. Adds qualification gates to partnership process:
+         - Gate 1 (after first meeting): Is there mutual value articulated?
+         - Gate 2 (after 3 meetings): Is there executive sponsor?
+         - Gate 3 (before major effort): Is Phase 1 defined with timeline and owner?
+         If any gate fails, deprioritize or walk away.
+      4. Changes outreach approach: "We're exploring a small pilot to [specific]. 
+         Would you have 30 minutes to see if it makes sense?" Smaller ask, faster 
+         qualification.
+      5. Implements "time limit" rule: if no material progress in 60 days, 
+         explicitly pause and evaluate whether to continue.
+      6. Tests with next partnership: large fintech wants to explore. After 2 
+         meetings, no executive sponsor identified. Jake raises this directly: 
+         "We'd love to continue, but we need to know this has leadership support. 
+         Can you arrange an intro?" They couldn't. Jake walked away politely. 
+         Saved 4 months of wasted effort.
+    outcome: |
+      Next 6 months: 2 partnerships closed instead of 0, both with clear 
+      qualification upfront. Average time from first meeting to decision: 45 days 
+      (down from 90+). Key learning: qualification is about respecting everyone's 
+      time, not being negative.
+    lessons:
+      - "Partnerships fail in qualification, not execution - qualify harder"
+      - "Executive sponsor is non-negotiable - no sponsor, no deal"
+      - "If you can't define Phase 1, the partnership isn't real"
+      - "'Legal is reviewing' for months means you're not a priority"
+      - "Time limits force decisions - set them and stick to them"
+      - "Walking away from bad partnerships is as valuable as closing good ones"
+
+# Risks - What Can Go Wrong and How to Prevent/Handle
+risks:
+  execution_risks:
+    - risk: "Spray and pray - too many conversations, no depth"
+      likelihood: high
+      impact: medium
+      mitigation: |
+        Score and prioritize ruthlessly. Focus on top 10-20, go deep. Better to 
+        have 5 meaningful conversations than 50 superficial ones. Track time 
+        spent per partner to prevent spreading too thin.
+        
+    - risk: "No response to outreach"
+      likelihood: high
+      impact: medium
+      mitigation: |
+        Lead with THEIR value, not yours. Get warm intros whenever possible.
+        Be specific about what you're proposing. Follow up 3x before giving up.
+        Test different channels (LinkedIn, email, intro).
+        
+    - risk: "Conversations that go nowhere"
+      likelihood: high
+      impact: high
+      mitigation: |
+        Qualify harder upfront. Require executive sponsor, concrete Phase 1,
+        timeline with accountability. Set time limits - 60 days to material 
+        progress or deprioritize. Ask directly: "Is this a priority for you?"
+        
+    - risk: "Partner says yes but doesn't execute"
+      likelihood: medium
+      impact: high
+      mitigation: |
+        Define success before announcing. Require commitments, not enthusiasm.
+        Start with small pilot before big commitment. Monthly check-ins with 
+        clear metrics. Don't PR the partnership until it's activated.
+        
+  organizational_risks:
+    - risk: "Partnership time displaces sales/product time"
+      impact: |
+        BD becomes distraction from core business. Team stretched across 
+        partnerships that don't pay off. Direct sales suffers. Opportunity 
+        cost of engineering on integrations vs. core product.
+      prevention: |
+        Clear partnership strategy with ROI criteria. Time limits on BD 
+        activities. Regular assessment: "Is this working? Should we continue?"
+        Partnerships should accelerate business, not complicate it.
+        
+    - risk: "Partner logo collecting without substance"
+      impact: |
+        Announce partnerships that don't activate. Credibility loss when 
+        customers ask "but what does the partnership DO?" Team cynicism 
+        about BD function. Investor skepticism about traction claims.
+      prevention: |
+        Never announce until activated. Define activation criteria before 
+        launch. Track partner-sourced outcomes, not just partner count.
+        Quality > quantity.
+
+domain_context:
+  related_l2: "Strategic Partnerships"
+  related_l1: "BUSINESS DEVELOPMENT AND PARTNERSHIPS"
+  synergies:
+    - "cd-002 (Partner Outreach): Next step after scouting"
+    - "cd-003 (Partnership Agreement): Formalizing relationships"
+    - "cd-004 (Partner Activation): Making partnerships work"
+    - "sd-001 (Trends): Trends inform partnership strategy"
+  artifacts_produced:
+    - "Partner landscape map"
+    - "Partner scorecard"
+    - "Prioritized target list"
+    - "Outreach materials"
+  prerequisites:
+    - "Clear company strategy (what partnerships for)"
+    - "Value proposition (what you offer partners)"
+    - "Network for warm introductions"

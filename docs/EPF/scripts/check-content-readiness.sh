@@ -32,12 +32,34 @@ AI_ASSESS=false
 
 # Template patterns that indicate placeholder content
 # Using format: pattern_name=pattern
-TEMPLATE_PATTERN_EXAMPLE="Example:|Example: |e.g.,|for example:"
-TEMPLATE_PATTERN_PLACEHOLDER="TBD|TODO|FIXME|PLACEHOLDER|\[FILL|{FILL|<FILL"
+#
+# IMPORTANT: These patterns are designed to AVOID false positives:
+# - Patterns match placeholder MARKERS, not product names (e.g., "Template Pack" is a product)
+# - Negation contexts are filtered ("0 TBD markers" describes goals, not placeholders)
+# - Past-tense contexts are filtered ("replaced placeholder" is completed work)
+# 
+# Pattern design principles:
+# 1. Use word boundaries where possible (e.g., standalone "TBD" not "TBD" in "TBD markers")
+# 2. Match instructional markers ("Change this:") not descriptive mentions
+# 3. Match structural placeholders ([FILL IN], {TODO}) not references to them
+
+# Patterns with reduced false positives:
+TEMPLATE_PATTERN_EXAMPLE="^[[:space:]]*-?[[:space:]]*Example:|Example:[[:space:]]$|e\.g\.\,$"
+TEMPLATE_PATTERN_PLACEHOLDER="\[TBD\]|\{TBD\}|: TBD$|^TBD$|TODO:|FIXME:|PLACEHOLDER:|^\[FILL|^\{FILL|^<FILL"
 TEMPLATE_PATTERN_DATES="YYYY-MM-DD|YYYY/MM/DD|20XX-|202X-"
-TEMPLATE_PATTERN_GENERIC="lorem ipsum|sample text|test data|dummy|mock"
-TEMPLATE_PATTERN_EMPTY_EXAMPLES="description: \"Specific|description: \"Primary|description: \"Key"
-TEMPLATE_PATTERN_MARKERS="Template|TEMPLATE|Change this|Replace this|Update this"
+# "test data" only as standalone, not "test dataset" which is legitimate in experiment descriptions
+TEMPLATE_PATTERN_GENERIC="lorem ipsum|sample text|^[[:space:]]*test data[[:space:]]*$"
+TEMPLATE_PATTERN_EMPTY_EXAMPLES="description: \"Specific example|description: \"Primary example|description: \"Key example"
+TEMPLATE_PATTERN_MARKERS="Change this:|Replace this:|Update this:|Insert your|Add your|Fill in your"
+
+# Exclusion patterns (context that makes a match a FALSE POSITIVE)
+# These are checked after initial match to filter out false positives
+EXCLUSION_PATTERN_NEGATION="0 TBD|zero TBD|no TBD|0 TODO|zero TODO|no TODO|eliminate TBD|eliminating TBD"
+EXCLUSION_PATTERN_PAST_TENSE="replaced placeholder|replacing placeholder|removed TBD|completed TODO"
+EXCLUSION_PATTERN_PRODUCT_NAMES="Template Pack|Template Packs|template schema"
+EXCLUSION_PATTERN_SUCCESS_CRITERIA="success_criteria.*TBD|measurement.*TBD"
+# "test data" in context of experiment design or dataset building is legitimate
+EXCLUSION_PATTERN_EXPERIMENT_CONTEXT="test dataset|test data.*of|labeled test|training.*test data|validation.*test data"
 
 # List of pattern names for iteration
 TEMPLATE_PATTERN_NAMES="example placeholder dates generic empty_examples template_markers"
@@ -140,7 +162,35 @@ infer_artifact_type() {
   esac
 }
 
-# Count template patterns in file
+# Check if a line matches any exclusion pattern (returns 0 if excluded, 1 if valid match)
+is_excluded_match() {
+  local line="$1"
+  
+  # Check against all exclusion patterns
+  if echo "$line" | grep -Eiq "$EXCLUSION_PATTERN_NEGATION"; then
+    return 0  # Excluded (e.g., "0 TBD markers")
+  fi
+  
+  if echo "$line" | grep -Eiq "$EXCLUSION_PATTERN_PAST_TENSE"; then
+    return 0  # Excluded (e.g., "replaced placeholder")
+  fi
+  
+  if echo "$line" | grep -Eiq "$EXCLUSION_PATTERN_PRODUCT_NAMES"; then
+    return 0  # Excluded (e.g., "Template Packs" product name)
+  fi
+  
+  if echo "$line" | grep -Eiq "$EXCLUSION_PATTERN_SUCCESS_CRITERIA"; then
+    return 0  # Excluded (e.g., success criteria measuring TBD reduction)
+  fi
+  
+  if echo "$line" | grep -Eiq "$EXCLUSION_PATTERN_EXPERIMENT_CONTEXT"; then
+    return 0  # Excluded (e.g., "test dataset" in experiment design context)
+  fi
+  
+  return 1  # Not excluded - this is a real match
+}
+
+# Count template patterns in file with context-aware exclusions
 detect_template_patterns() {
   local file="$1"
   local total_matches=0
@@ -158,15 +208,20 @@ detect_template_patterns() {
       template_markers) pattern="$TEMPLATE_PATTERN_MARKERS" ;;
     esac
     
-    local matches
-    matches=$(grep -Eio "$pattern" "$file" 2>/dev/null | wc -l | tr -d ' ')
+    # Get matching lines with context and filter out excluded matches
+    local real_matches=0
+    while IFS= read -r line; do
+      if [ -n "$line" ] && ! is_excluded_match "$line"; then
+        real_matches=$((real_matches + 1))
+      fi
+    done < <(grep -Ei "$pattern" "$file" 2>/dev/null)
     
-    if [ "$matches" -gt 0 ]; then
-      total_matches=$((total_matches + matches))
+    if [ "$real_matches" -gt 0 ]; then
+      total_matches=$((total_matches + real_matches))
       if [ -z "$pattern_details" ]; then
-        pattern_details="${pattern_name}:${matches}"
+        pattern_details="${pattern_name}:${real_matches}"
       else
-        pattern_details="$pattern_details ${pattern_name}:${matches}"
+        pattern_details="$pattern_details ${pattern_name}:${real_matches}"
       fi
     fi
   done

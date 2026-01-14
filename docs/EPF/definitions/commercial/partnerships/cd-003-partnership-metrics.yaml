@@ -1,0 +1,453 @@
+# Commercial Process Definition: Partnership Metrics
+# Schema: commercial_definition_schema.json v1.1.0
+
+id: cd-003
+name: Partnership Metrics
+slug: partnership-metrics
+track: commercial
+status: ready
+
+contributes_to:
+  - Commercial.Strategic Partnerships.partnership-metrics
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Track 3-5 key partnership metrics manually"
+    includes:
+      - Monthly revenue by partner (spreadsheet)
+      - Lead source tracking in CRM
+      - Quarterly partner health reviews
+      - Basic contract milestone tracking
+    effort: "4-6 hours initial setup, 2 hours/week ongoing"
+    
+  tier_2_intermediate:
+    description: "Dashboard with automated data collection"
+    adds:
+      - Partnership dashboard (Notion/Airtable or dedicated tool)
+      - Automated revenue attribution from accounting
+      - Partner scoring framework
+      - Quarterly Business Reviews (QBRs) with top partners
+      - Churn prediction signals
+    effort: "2-3 weeks to establish, 4 hours/week ongoing"
+    
+  tier_3_advanced:
+    description: "Predictive analytics and optimization"
+    adds:
+      - Real-time partnership contribution reporting
+      - Cohort analysis (partner performance over time)
+      - Automated alerts for at-risk partnerships
+      - Partner ROI calculation per channel/type
+      - Integration with revenue forecasting
+    effort: "6-8 weeks full implementation"
+
+definition:
+  purpose: |
+    Partnership metrics transform gut-feel relationship management into evidence-based 
+    decisions. Without measurement, companies invest heavily in partnerships that 
+    underperform while neglecting high-potential relationships. Metrics reveal which 
+    partnerships actually drive revenue, which require intervention, and which should 
+    be deprioritized. For early-stage companies, this means making smart bets on 
+    limited partnership capacity. For scaling companies, it means allocating resources 
+    efficiently across a growing partner ecosystem.
+    
+  outcome: |
+    Clear visibility into partnership performance with actionable insights. Partners 
+    ranked by revenue contribution, growth trajectory, and strategic value. Early 
+    warning system for declining partnerships. Data-driven decisions on where to 
+    invest partnership resources. Quantified ROI on partnership programs.
+    
+  owner: Head of Partnerships / Head of BD / CEO (early stage)
+  
+  inputs:
+    - name: Revenue data by source
+      description: Ability to attribute revenue to partnership channels
+      source: CRM, accounting system, or manual tracking
+      
+    - name: Partnership agreements
+      description: Contract terms including revenue shares, commitments, milestones
+      source: Legal/contracts repository
+      
+    - name: Activity data
+      description: Leads generated, deals supported, co-marketing activities
+      source: CRM, marketing automation, partner portal
+      
+  outputs:
+    - name: Partnership Scorecard
+      description: "Monthly ranking of partners by performance across key metrics"
+      consumer: Leadership, partnership team
+      
+    - name: QBR Deck Template
+      description: "Quarterly business review structure for partner meetings"
+      consumer: Partnership managers
+      
+    - name: At-Risk Partner Alert
+      description: "Automated notification when partner metrics decline"
+      consumer: Partnership owner
+
+  steps:
+    - step: 1
+      action: Define partnership metric framework
+      responsible: Head of Partnerships
+      duration: "Half day"
+      deliverable: Partnership metric taxonomy
+      metric_categories:
+        revenue_metrics:
+          - "Partner-Sourced Revenue: Deals that started from partner referral"
+          - "Partner-Influenced Revenue: Deals where partner helped but didn't source"
+          - "Partner-Attributed ARR: Total ARR from partner channel"
+          - "Revenue Share Paid: What you're paying partners (cost of channel)"
+        activity_metrics:
+          - "Leads Generated: Referrals or leads from partner"
+          - "Deals in Pipeline: Active opportunities with partner involvement"
+          - "Co-Marketing Activities: Joint campaigns, events, content"
+          - "Integration Usage: If tech partnership, product integration adoption"
+        health_metrics:
+          - "Partner Engagement Score: Combination of activity signals"
+          - "Time to First Deal: How quickly new partners produce value"
+          - "Partner Retention: Percentage of partners renewing/remaining active"
+          - "Partner Satisfaction: NPS or satisfaction scores from partners"
+        efficiency_metrics:
+          - "Partner CAC: Cost to acquire customers through partner channel"
+          - "Partner LTV:CAC: Unit economics of partner-sourced customers"
+          - "Revenue per Partner: Average revenue generated per active partner"
+          - "Partner Ramp Time: Time from signing to meaningful contribution"
+      best_practices:
+        - "Start with 5-7 metrics maximum - you can add more later"
+        - "Ensure you can actually collect data for each metric before committing"
+        - "Have at least one metric from each category (revenue, activity, health, efficiency)"
+        - "Define 'active partner' clearly - inactive partners distort averages"
+      avoid:
+        - Tracking too many metrics and tracking none well
+        - Measuring only revenue (lagging) without activity (leading) indicators
+        - Not having clear data sources for each metric
+        - Comparing all partners equally regardless of tier or type
+
+    - step: 2
+      action: Set up data collection
+      responsible: Head of Partnerships + RevOps
+      duration: "1-2 weeks"
+      deliverable: Attribution rules document
+      data_collection_matrix:
+        - metric: Partner-Sourced Revenue
+          source: Salesforce
+          method: Opportunity Source field
+          frequency: Real-time
+          owner: Sales Ops
+        - metric: Leads Generated
+          source: HubSpot
+          method: Lead Source + Partner field
+          frequency: Real-time
+          owner: Marketing Ops
+        - metric: Partner Engagement
+          source: Email + Slack
+          method: Activity log
+          frequency: Weekly
+          owner: Partnership team
+        - metric: Revenue Share Paid
+          source: QuickBooks
+          method: AP reports by vendor
+          frequency: Monthly
+          owner: Finance
+      attribution_rules:
+        partner_sourced: "Partner created opportunity or made intro. First-touch attribution. Must be marked in CRM within 30 days."
+        partner_influenced: "Partner participated in sales process. 50 percent credit if also sourced, 25 percent otherwise."
+        attribution_window: "12 months from first partner touch"
+      best_practices:
+        - "Automate collection wherever possible - manual entry degrades over time"
+        - "Make attribution rules clear BEFORE disputes arise"
+        - "Include partner in attribution (they should know their credit)"
+        - "Audit data quality monthly for first 3 months"
+      avoid:
+        - Relying on sales reps to manually tag partner involvement
+        - No attribution window (disputes over old relationships)
+        - Different definitions of partner-sourced across teams
+        - Not validating data until quarterly report reveals problems
+
+    - step: 3
+      action: Build partnership scorecard
+      responsible: Head of Partnerships
+      duration: "2-3 days"
+      deliverable: Partnership scorecard (spreadsheet or dashboard)
+      header_metrics:
+        - "Total Partner-Attributed Revenue (MTD/QTD/YTD)"
+        - "Percentage of Total Revenue from Partners"
+        - "Active Partner Count (vs. signed partner count)"
+        - "Average Revenue per Active Partner"
+      partner_tiers:
+        strategic: "Top 10 percent by revenue, deep integration, executive relationship"
+        growth: "Strong performance, potential for strategic tier"
+        standard: "Meets baseline expectations, limited investment"
+        at_risk: "Declining metrics, below threshold, needs intervention or exit"
+      health_score_components:
+        revenue_trajectory: "25 percent - Growing, flat, or declining?"
+        activity_level: "25 percent - Leads, deals, engagement"
+        relationship_quality: "25 percent - Communication, responsiveness"
+        strategic_alignment: "25 percent - Fit with company direction"
+      best_practices:
+        - "Review scorecard weekly, but only take action monthly"
+        - "Include trend arrows - direction matters more than absolute numbers"
+        - "Limit Strategic tier to 5-10 partners regardless of company size"
+        - "Share scorecard with partners (their section only) for alignment"
+      avoid:
+        - Too many tiers (3-4 is optimal)
+        - Promoting partners to Strategic without capacity to support them
+        - Not including action recommendations in scorecard
+        - Reviewing data but not acting on it
+
+    - step: 4
+      action: Establish review cadence
+      responsible: Head of Partnerships
+      duration: "1 week to establish"
+      deliverable: Review calendar and meeting templates
+      internal_reviews:
+        weekly:
+          duration: "15 min"
+          focus: "Scan for at-risk alerts and wins/losses"
+        monthly:
+          duration: "1 hour"
+          focus: "Full scorecard review, tier changes, intervention planning"
+        quarterly:
+          duration: "Half day"
+          focus: "Strategic partner deep dives, channel economics, program changes"
+      partner_qbrs:
+        strategic: "Quarterly, 60-90 min, executive attendance, joint goal setting"
+        growth: "Semi-annual, 30-45 min, performance review focus"
+        standard: "Annual or as needed, 30 min, relationship maintenance"
+      best_practices:
+        - "Block these reviews as recurring calendar events NOW"
+        - "Send QBR invites 6 weeks ahead (executives calendar up fast)"
+        - "Prepare scorecards 48 hours before internal reviews"
+        - "Always send partner their numbers before QBR (no surprises)"
+      avoid:
+        - Scheduling reviews but not preparing materials
+        - QBRs that are presentations, not conversations
+        - Skipping reviews when busy
+        - Same format for all partners regardless of tier
+
+    - step: 5
+      action: Create at-risk intervention protocol
+      responsible: Head of Partnerships
+      duration: "Half day"
+      deliverable: Intervention playbook
+      trigger_definitions:
+        - trigger: Revenue Cliff
+          condition: "50 percent or more decline QoQ"
+          response_time: Within 1 week
+        - trigger: Activity Drop
+          condition: No leads/deals for 60 days
+          response_time: Within 2 weeks
+        - trigger: Health Score Drop
+          condition: Drops below 50
+          response_time: Within 2 weeks
+        - trigger: Engagement Death
+          condition: No communication for 90 days
+          response_time: Within month
+      intervention_levels:
+        level_1:
+          name: Reach Out
+          days: "1-7"
+          actions: "Call partner contact, open conversation, offer support, document"
+        level_2:
+          name: Executive Escalation
+          days: "8-21"
+          actions: "Escalate to leadership both sides, joint problem-solving, commitments"
+        level_3:
+          name: Formal Review
+          days: "22-60"
+          actions: "Written communication, clear metrics for good standing, timeline"
+        level_4:
+          name: Exit
+          days: "61+"
+          actions: "Termination discussion, transition plan, post-mortem"
+      best_practices:
+        - "Early intervention prevents costly exits"
+        - "Always understand partner perspective before escalating"
+        - "Document all intervention conversations"
+        - "Be willing to invest in recovery before giving up"
+
+    - step: 6
+      action: Report to stakeholders
+      responsible: Head of Partnerships
+      duration: "Ongoing (monthly/quarterly)"
+      deliverable: Executive summary and board slides
+      executive_summary_structure:
+        headline: "Partner channel contributed $X revenue (+Y percent MoM)"
+        key_metrics: "Partner Revenue, Active Partners, Avg Rev/Partner (with trends)"
+        wins: "Top 2-3 accomplishments"
+        concerns: "Key issues with intervention plans"
+        next_focus: "Priority actions for next month"
+      board_slides:
+        slide_1: "Partner Channel Health - revenue trend, percent of revenue, count by tier"
+        slide_2: "Strategic Partner Update - top 5, wins/losses, pipeline"
+        slide_3: "Partner Program ROI - CAC comparison, investment vs return"
+      best_practices:
+        - "Lead with business impact, not activity metrics"
+        - "Always include trend (this month vs. last month/quarter)"
+        - "Have one key insight ready beyond the numbers"
+        - "Know the questions board will ask and have answers ready"
+      avoid:
+        - Too many metrics (stick to 5-7 per report)
+        - No narrative (data without story is forgettable)
+        - Different metrics every month (hard to track trends)
+        - Hiding bad news
+
+  cadence:
+    frequency: "Weekly scan, Monthly review, Quarterly deep dive"
+    trigger: "New partnership signing, at-risk alert, or quarterly cycle"
+    duration: "2-4 hours weekly ongoing"
+    ongoing:
+      - Update scorecard weekly
+      - Conduct QBRs per cadence by tier
+      - Audit data quality monthly
+      - Refine metric definitions annually
+
+practitioner_scenarios:
+  - id: ps-001
+    name: "Founder Building First Partner Metrics"
+    practitioner: "CEO / Founder"
+    organization_context: |
+      15-person B2B SaaS startup. Three active partnerships (one integration, 
+      two resellers). No formal tracking - founder tracks informally via 
+      monthly check-ins. Board asking for partner channel contribution.
+    situation: |
+      The CEO has been managing partner relationships personally but can't 
+      answer board's question about ROI on partnership investment. Revenue 
+      is tagged in CRM inconsistently, and there's no scorecard or review 
+      process. CEO suspects one partner is underperforming but has no data.
+    trigger: |
+      Board meeting in 2 weeks. Need to present partnership contribution and 
+      answer questions about partner channel strategy.
+    actions: |
+      1. Defined minimal metric set: partner-sourced revenue, leads per partner, 
+         health score (manual rating 1-5 based on engagement).
+      2. Spent 4 hours in Salesforce auditing and fixing partner source 
+         attribution on all opportunities from past 6 months.
+      3. Built simple scorecard in Google Sheets: 3 partners, 5 metrics each, 
+         with month-over-month trend.
+      4. Calculated partner CAC: total investment in partnerships divided by 
+         partner-sourced customers.
+      5. Discovered integration partner had 80 percent of partner revenue; one 
+         reseller had zero revenue in 6 months.
+      6. Created one-page summary showing partner channel at 22 percent of revenue.
+    outcome: |
+      Board meeting went well - clear answers to ROI questions. CEO identified 
+      underperforming reseller and initiated exit conversation. Integration 
+      partner recognized as strategic (scheduled executive QBR). Monthly 
+      scorecard review added to calendar.
+    lessons:
+      - Simple metrics are better than no metrics
+      - Auditing CRM data revealed attribution gaps that would have compounded
+      - Board appreciated transparency about underperforming partner
+      - Framework made future partner decisions easier to evaluate
+
+  - id: ps-002
+    name: "Partnership Manager Scaling from 5 to 25 Partners"
+    practitioner: "Head of Partnerships"
+    organization_context: |
+      60-person B2B company with dedicated partnerships function. Currently 
+      5 partners contributing $400K ARR. Goal to grow to 25 partners and 
+      $2M partner-attributed revenue in 18 months.
+    situation: |
+      Current tracking is relationship-based: Head of Partnerships knows 
+      each partner personally and manages through conversation. This won't 
+      scale to 25 partners. Need systematic tracking, tiering, and review 
+      cadence to grow without losing quality.
+    trigger: |
+      CEO approved headcount for partnerships team (3 people total). Need 
+      infrastructure to onboard new team members and scale efficiently.
+    actions: |
+      1. Audited current partner tracking: discovered tribal knowledge and 
+         inconsistent CRM usage. Documented everything known about 5 partners.
+      2. Built partnership dashboard in Notion: partner profiles, metric 
+         tracking, QBR notes, and action items in one place.
+      3. Defined partner tiers with specific criteria: Strategic (over $100K ARR), 
+         Growth ($25-100K), Standard (under $25K).
+      4. Created QBR templates differentiated by tier.
+      5. Established weekly team review cadence: 30-minute standup reviewing 
+         alerts and priorities.
+      6. Built partner onboarding playbook with 30-60-90 day milestones.
+    outcome: |
+      Scaled from 5 to 18 partners in 12 months with systematic tracking. 
+      New team members ramped in 30 days using documented processes. Identified 
+      that reseller partners had 3x better unit economics than integration 
+      partners. Partner-attributed revenue grew from $400K to $1.4M.
+    lessons:
+      - Documenting tribal knowledge is prerequisite to scaling
+      - Tier-based service levels prevent over-investing in small partners
+      - Team review cadences create shared accountability
+      - Data revealed insights that contradicted assumptions
+
+  - id: ps-003
+    name: "Executive Presenting Partner Program ROI to Board"
+    practitioner: "VP Business Development"
+    organization_context: |
+      150-person Series B company with mature partner program. 45 active 
+      partners across reseller, integration, and referral types. $3M 
+      partner-attributed ARR. Board questioning continued investment.
+    situation: |
+      Some board members are skeptical of partnership investment. Direct 
+      sales has predictable ROI; partnerships feel soft and hard to measure. 
+      VP needs to demonstrate concrete ROI and defend the program.
+    trigger: |
+      Upcoming board meeting includes partnership strategy review. CFO sent 
+      pointed questions about partner program costs vs. returns.
+    actions: |
+      1. Built comprehensive ROI model: total partnership investment vs. 
+         partner-attributed revenue and pipeline.
+      2. Calculated partner CAC vs. direct CAC: partner at $850, direct at 
+         $1,400. Partner LTV:CAC at 4.2x vs. direct at 3.1x.
+      3. Segmented analysis by partner type: referral partners had 6x ROI, 
+         resellers had 2x, some integration partners were negative.
+      4. Created graduated view showing how partner revenue compounds over time.
+      5. Prepared honest assessment: acknowledged 12 underperforming partners 
+         flagged for exit, with projected savings.
+      6. Built forward-looking model: path to 25 percent of revenue from partners.
+    outcome: |
+      Board approved continued partnership investment with refinements. 
+      Skeptical board member became advocate after seeing CAC comparison. 
+      Agreed to exit 12 underperforming partners ($180K savings). Shifted 
+      integration partner strategy based on ROI analysis.
+    lessons:
+      - Board skepticism often comes from lack of data, not opposition
+      - Comparing partner CAC to direct CAC tells a compelling story
+      - Proactively addressing underperformers shows strategic thinking
+      - Segmented analysis reveals where to double down vs. cut
+
+operational_context:
+  prerequisites:
+    - CRM or system of record with partner attribution capability
+    - Access to revenue data by source/channel
+    - Clear partnership agreements defining terms
+    
+  common_blockers:
+    - "Sales won't tag partner involvement - Make it mandatory, audit regularly"
+    - "No budget for dashboard tools - Start with spreadsheets; upgrade at 15 partners"
+    - "Partners dispute our numbers - Share methodology, align on attribution in contract"
+    - "Too many metrics to track - Start with 5-7, add more only when solid"
+    
+  integration_points:
+    - Sales: Attribution tagging, deal involvement tracking
+    - Finance: Revenue share payments, program cost tracking
+    - Product: Integration partner usage data
+    - Marketing: Co-marketing activity tracking
+
+risks:
+  if_skipped: |
+    Invest heavily in partnerships that don't perform. Miss warning signs of 
+    declining partners. Can't answer board questions about ROI. Allocate 
+    resources based on relationships rather than results.
+    
+  if_over_engineered: |
+    Spend more time measuring than managing. Paralyze partners with reporting 
+    requirements. Create metric gaming behavior. Lose sight of relationship 
+    quality in pursuit of numbers.
+
+domain_context:
+  related_l2: "Strategic Partnerships"
+  related_l1: "BUSINESS DEVELOPMENT AND PARTNERSHIPS"
+  synergies:
+    - "Partnership Scouting (cd-001): Metrics inform partner selection criteria"
+    - "Negotiation Frameworks (cd-002): Historical data informs deal structures"
+    - "Agreement Reviews (cd-005): Metrics trigger contract renegotiations"

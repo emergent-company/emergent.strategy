@@ -409,6 +409,44 @@
                         "Which market segment (developers vs enterprises) has stronger product-market fit and will drive sustainable growth. Risk: targeting wrong segment wastes GTM resources and delays PMF.",
                         "Whether distributed teams can maintain velocity and alignment using async processes (vs traditional synchronous planning). Risk: reduced cohesion and coordination overhead offset efficiency gains."
                       ]
+                    },
+                    "value_model_target": {
+                      "type": "object",
+                      "description": "OPTIONAL: Links this KR to specific Value Model component(s) for maturity tracking. When this KR is achieved, it provides evidence toward advancing the maturity of the targeted component. This enables bidirectional traceability: Roadmap KR achievements flow into Value Model maturity assessments.",
+                      "$comment": "VALUE MODEL MATURITY LINK: This field connects execution (roadmap KRs) to strategic value delivery (Value Model maturity). When a KR is completed, it provides evidence that the targeted component has advanced in maturity. Examples: A KR 'Achieve 1000 DAU' might target 'CorePlatform.DataManagement.CSVImport' to advance from 'emerging' to 'proven'. This enables: (1) Tracking which KRs contribute to maturity milestones, (2) Understanding ROI of roadmap investments in terms of value delivery, (3) Identifying gaps where value model components have no roadmap support, (4) Evidence-based maturity advancement (not guesswork).",
+                      "properties": {
+                        "track": {
+                          "type": "string",
+                          "enum": ["product", "strategy", "org_ops", "commercial"],
+                          "description": "Which track's Value Model contains the target component"
+                        },
+                        "component_path": {
+                          "type": "string",
+                          "description": "Dot-notation path to the component: 'L1LayerId.L2ComponentId.L3SubComponentId'. Full path to L3 is preferred for precise tracking. L1.L2 path is acceptable for broader targeting. Examples: 'core-platform.data-management.csv-import', 'market-expansion.enterprise-gtm'.",
+                          "pattern": "^[a-z][a-z0-9-]*[a-z0-9](\\.[a-z][a-z0-9-]*[a-z0-9]){1,2}$",
+                          "examples": [
+                            "core-platform.data-management.csv-import",
+                            "core-platform.workflow-automation.scheduled-sync",
+                            "market-expansion.enterprise-gtm.executive-engagement",
+                            "engineering-excellence.developer-tooling"
+                          ]
+                        },
+                        "target_maturity": {
+                          "type": "string",
+                          "enum": ["emerging", "proven", "scaled"],
+                          "description": "Target maturity stage to advance TO when this KR is achieved. Cannot be 'hypothetical' (that's the starting state). 'emerging' = establishing early evidence, 'proven' = achieving Value-Recipient Fit, 'scaled' = achieving Sustainable-Domain Fit."
+                        },
+                        "maturity_rationale": {
+                          "type": "string",
+                          "description": "Brief explanation of why achieving this KR advances the component to target_maturity. Links outcome evidence to maturity criteria.",
+                          "maxLength": 300,
+                          "examples": [
+                            "1000 DAU demonstrates consistent value delivery to target users, meeting proven stage criteria",
+                            "Enterprise logo acquisitions validate GTM approach works in target market",
+                            "95% uptime at scale confirms sustainable operational capability"
+                          ]
+                        }
+                      }
                     }
                   },
                   "required": ["id", "description", "target"]

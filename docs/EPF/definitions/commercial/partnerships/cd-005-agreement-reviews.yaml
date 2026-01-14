@@ -1,0 +1,724 @@
+# Commercial Process Definition: Agreement Reviews
+# Schema: commercial_definition_schema.json v1.1.0
+
+id: cd-005
+name: Agreement Reviews
+slug: agreement-reviews
+track: commercial
+status: ready
+
+contributes_to:
+  - Commercial.Alliance Management.agreement-reviews
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Reactive agreement review by founders"
+    includes:
+      - Founder-led contract review
+      - Basic legal counsel for critical deals
+      - Ad-hoc approval process
+      - Simple contract templates
+    effort: "2-4 hours per agreement"
+    
+  tier_2_intermediate:
+    description: "Structured review process with playbooks"
+    adds:
+      - Standardized review checklist
+      - Tiered approval thresholds
+      - Contract playbook for negotiations
+      - Organized contract repository
+    effort: "1-2 hours per agreement, 1-2 days playbook setup"
+    
+  tier_3_advanced:
+    description: "Scalable contract management system"
+    adds:
+      - CLM system (Ironclad, ContractPodAi)
+      - Automated workflow routing
+      - Contract analytics and renewal tracking
+      - Self-service for standard terms
+    effort: "1-2 months implementation, ongoing optimization"
+
+definition:
+  purpose: |
+    Agreement reviews ensure that commercial contracts protect company 
+    interests, allocate risk appropriately, and enable rather than 
+    block business. Every agreement you sign creates obligations - 
+    some obvious, some hidden - that can affect the company for years.
+    
+    Why systematic agreement review matters:
+    
+    1. Contracts are asymmetric. The other party drafted the agreement 
+       with their interests in mind. Default terms favor them.
+    
+    2. Risks compound. One bad indemnification clause across many 
+       customer contracts creates massive aggregate exposure.
+    
+    3. Time is the enemy. Deals arrive with urgency. Without a 
+       systematic process, either deals slow down or risks get missed.
+    
+    4. Institutional memory. When the person who negotiated leaves, 
+       you need to understand what was agreed and why.
+    
+    Agreement types requiring review:
+    - Customer contracts (SaaS, enterprise, pilot)
+    - Vendor and supplier agreements
+    - Partnership and reseller agreements
+    - Employment and contractor agreements
+    - Investor documents (term sheets, SHAs, SAFE/convertibles)
+    - Real estate (office leases)
+    - IP and licensing agreements
+    - NDAs (counterparty paper)
+    
+  outcome: |
+    Contracts that protect company interests while enabling business 
+    velocity. Clear understanding of obligations and risks. Consistent 
+    positions across similar deals. Audit-ready contract repository.
+    
+  owner: Legal (if exists) / CEO or COO (early stage) / BD or Sales (commercial terms)
+  
+  inputs:
+    - name: Agreement document
+      description: "Contract requiring review"
+      source: Counterparty or internal template
+      
+    - name: Deal context
+      description: "Business rationale, value, urgency"
+      source: Deal owner (Sales, BD, etc.)
+      
+    - name: Company positions
+      description: "Standard positions, fallbacks, redlines"
+      source: Contract playbook, Legal
+      
+    - name: Historical precedent
+      description: "Similar deals and what was agreed"
+      source: Contract repository, institutional memory
+      
+  outputs:
+    - name: Review summary
+      description: "Analysis of key terms and recommendations"
+      consumer: Deal owner, Approvers
+      
+    - name: Redlines
+      description: "Proposed changes to agreement"
+      consumer: Counterparty via deal owner
+      
+    - name: Signed agreement
+      description: "Executed contract"
+      consumer: Contract repository, Finance
+
+  steps:
+    - step: 1
+      action: Triage and route the agreement
+      responsible: Deal Owner + Legal/Ops
+      duration: "15-30 minutes"
+      deliverable: Routed agreement with context
+      triage_questions:
+        deal_type:
+          - "What type of agreement is this?"
+          - "Is this inbound (their paper) or outbound (our paper)?"
+          - "Is this a new deal or renewal/amendment?"
+        deal_value:
+          - "What is the contract value (ACV, TCV)?"
+          - "What is the strategic importance beyond value?"
+          - "Is this a new customer segment or use case?"
+        urgency:
+          - "When does the deal need to close?"
+          - "What happens if we miss the deadline?"
+          - "Is this a real deadline or manufactured?"
+        complexity:
+          - "Is this a standard or non-standard deal?"
+          - "Are there unusual terms being requested?"
+          - "Are there regulatory or compliance implications?"
+      routing_tiers:
+        self_service:
+          criteria: "Standard terms, below threshold, our paper"
+          examples:
+            - "Standard SaaS agreement, under $50K ACV"
+            - "Standard NDA, our template"
+            - "Vendor agreement under $10K"
+          process: "Use standard template, minimal review"
+          turnaround: "Same day"
+        standard_review:
+          criteria: "Some customization, moderate value"
+          examples:
+            - "Customer agreement $50K-250K"
+            - "Vendor agreement $10K-100K"
+            - "Minor modifications to standard terms"
+          process: "Checklist review, standard approval"
+          turnaround: "2-3 business days"
+        full_review:
+          criteria: "Complex terms, high value, strategic"
+          examples:
+            - "Enterprise deal over $250K"
+            - "Partnership or reseller agreement"
+            - "Unusual terms or significant redlines"
+          process: "Legal review, executive approval"
+          turnaround: "3-5 business days"
+        executive_review:
+          criteria: "Material risk, precedent-setting"
+          examples:
+            - "Unlimited liability requests"
+            - "Non-standard IP terms"
+            - "Strategic partnership"
+          process: "Full legal + CEO/CFO approval"
+          turnaround: "5-10 business days"
+      intake_form:
+        fields:
+          - "Agreement type"
+          - "Counterparty"
+          - "Deal value"
+          - "Deal owner"
+          - "Requested close date"
+          - "Key issues or concerns"
+          - "Link to agreement"
+      best_practices:
+        - "Context is essential - require intake form"
+        - "Triage quickly to set expectations"
+        - "Push back on fake urgency"
+        - "Self-service enables velocity"
+
+    - step: 2
+      action: Review key terms
+      responsible: Legal or Designated Reviewer
+      duration: "1-4 hours depending on complexity"
+      deliverable: Review summary and issues list
+      review_areas:
+        commercial_terms:
+          scope:
+            - "What exactly is being bought/sold?"
+            - "What are the deliverables and acceptance criteria?"
+            - "What is included/excluded?"
+          pricing:
+            - "Payment terms and timing"
+            - "Price protection or escalation"
+            - "True-up and usage terms"
+          term_and_renewal:
+            - "Initial term length"
+            - "Renewal mechanics (auto-renew, notice period)"
+            - "Price increase limits on renewal"
+        liability_and_risk:
+          indemnification:
+            - "What are we indemnifying for?"
+            - "Are indemnification obligations mutual?"
+            - "Are there carve-outs for IP, data, gross negligence?"
+          limitation_of_liability:
+            - "Is liability capped?"
+            - "What is the cap (typically 12 months fees)?"
+            - "Are there uncapped exceptions?"
+          insurance:
+            - "Insurance requirements"
+            - "Proof of insurance required?"
+          warranty:
+            - "What warranties are given?"
+            - "Warranty disclaimer language"
+        intellectual_property:
+          ownership:
+            - "Who owns pre-existing IP?"
+            - "Who owns newly created IP?"
+            - "Work product ownership"
+          licenses:
+            - "What licenses are granted?"
+            - "Exclusivity provisions"
+            - "Sublicense rights"
+          restrictions:
+            - "Non-compete or exclusivity"
+            - "Field of use restrictions"
+        data_and_privacy:
+          data_ownership:
+            - "Who owns the data?"
+            - "Rights to use aggregated/anonymized data"
+          data_processing:
+            - "DPA required?"
+            - "Data location restrictions"
+          security:
+            - "Security standards required"
+            - "Audit rights"
+            - "Breach notification"
+        termination:
+          for_cause:
+            - "Grounds for termination"
+            - "Cure periods"
+          for_convenience:
+            - "Notice period"
+            - "Refund obligations"
+          effects:
+            - "Wind-down provisions"
+            - "Data return/destruction"
+            - "Survival provisions"
+        miscellaneous:
+          governing_law:
+            - "Which jurisdiction?"
+            - "Dispute resolution (courts, arbitration)"
+          assignment:
+            - "Can they assign without consent?"
+            - "Change of control provisions"
+          audit_rights:
+            - "What can they audit?"
+            - "How often, at whose cost?"
+      review_output:
+        summary_format:
+          deal_overview: "Brief description of the deal"
+          key_issues: "Material concerns requiring attention"
+          recommendations: "Accept/negotiate/redline"
+          approval_requirement: "Who needs to approve"
+      best_practices:
+        - "Focus on material terms, not wordsmithing"
+        - "Flag issues with recommended positions"
+        - "Document unusual terms for reference"
+        - "Compare to historical precedent"
+
+    - step: 3
+      action: Negotiate terms
+      responsible: Deal Owner + Legal Support
+      duration: "Variable - days to weeks"
+      deliverable: Negotiated agreement
+      negotiation_approach:
+        preparation:
+          understand_position:
+            - "What do we need (must-haves)?"
+            - "What do we want (nice-to-haves)?"
+            - "What can we give (tradeables)?"
+            - "What are our redlines (walk-aways)?"
+          understand_counterparty:
+            - "What is their standard position?"
+            - "What is their flexibility?"
+            - "Who are the decision makers?"
+            - "What is their motivation/timeline?"
+        playbook_reference:
+          starting_position: "Our standard terms"
+          fallback_position: "Acceptable alternatives"
+          redline_position: "Non-negotiable limits"
+        common_negotiations:
+          liability_cap:
+            their_ask: "Unlimited liability or high multiple"
+            our_position: "12 months fees, mutual"
+            fallback: "12 months fees or $X, uncapped for IP, data breach, gross negligence"
+            redline: "No unlimited liability for general claims"
+          indemnification:
+            their_ask: "Broad indemnification for any breach"
+            our_position: "Mutual, limited to specific categories"
+            fallback: "IP indemnification mutual, data breach mutual"
+            redline: "No indemnification for their own actions"
+          termination:
+            their_ask: "Termination for convenience with short notice"
+            our_position: "12-month commitment, 90-day notice"
+            fallback: "6-month minimum, 30-day notice"
+            redline: "No immediate termination without cause"
+          payment:
+            their_ask: "Net 60 or longer, pay on usage"
+            our_position: "Annual upfront or Net 30"
+            fallback: "Quarterly, Net 45"
+            redline: "No pay-when-we-feel-like-it terms"
+      negotiation_tactics:
+        give_to_get: "Trade something they want for something we want"
+        reference_market: "This is our standard term that X% of customers accept"
+        package_deal: "We can do X if you do Y and Z"
+        escalate_appropriately: "Let me check with legal/leadership on that"
+        walk_away: "If this is a redline for you, we may not be a fit"
+      communication:
+        format:
+          - "Track changes in document"
+          - "Summary email explaining positions"
+          - "Call for complex discussions"
+        documentation:
+          - "Keep email trail"
+          - "Document verbal agreements in writing"
+          - "Version control on documents"
+      best_practices:
+        - "Know your BATNA (best alternative)"
+        - "Pick your battles - not everything matters"
+        - "Build relationship while negotiating terms"
+        - "Get verbal agreement before papering"
+
+    - step: 4
+      action: Obtain approvals
+      responsible: Deal Owner
+      duration: "1-3 days depending on tier"
+      deliverable: Approved agreement ready for signature
+      approval_matrix:
+        standard_terms:
+          value_threshold: "Under $100K ACV"
+          approvers: "Sales Manager or VP Sales"
+          documentation: "Email approval sufficient"
+        modified_terms:
+          value_threshold: "$100K-500K ACV or non-standard terms"
+          approvers: "VP Sales + Legal"
+          documentation: "Summary of modifications + email approval"
+        significant_terms:
+          value_threshold: "Over $500K ACV or material deviations"
+          approvers: "VP Sales + Legal + CFO"
+          documentation: "Deal memo + formal approval"
+        exception_terms:
+          value_threshold: "Outside playbook or precedent-setting"
+          approvers: "VP Sales + Legal + CFO + CEO"
+          documentation: "Exception request with risk analysis"
+      approval_documentation:
+        deal_summary:
+          - "Deal overview and value"
+          - "Customer/counterparty context"
+          - "Non-standard terms agreed"
+          - "Risk assessment"
+          - "Business justification"
+        attachment:
+          - "Final agreement (clean + redline)"
+          - "Relevant correspondence"
+      approval_process:
+        routing:
+          - "Submit via defined channel (email, Slack, system)"
+          - "Include all required documentation"
+          - "Flag urgency and deadline"
+        follow_up:
+          - "Track approval status"
+          - "Escalate if deadline at risk"
+          - "Document approvals"
+      best_practices:
+        - "Get approvals before committing to counterparty"
+        - "Document why exceptions were approved"
+        - "Make it easy for approvers (clear summary)"
+        - "Build approval time into deal timeline"
+
+    - step: 5
+      action: Execute and store agreement
+      responsible: Deal Owner + Ops/Legal
+      duration: "1-2 hours"
+      deliverable: Executed agreement in repository
+      execution_process:
+        signature_method:
+          electronic:
+            tools: "DocuSign, HelloSign, Adobe Sign"
+            benefits: "Fast, trackable, audit trail"
+            use_case: "Most commercial agreements"
+          wet_ink:
+            when: "Some jurisdictions, real estate, notarized"
+            process: "Print, sign, scan, store original"
+            use_case: "Specific legal requirements only"
+        signing_authority:
+          who_can_sign:
+            - "Board-authorized officers (CEO, CFO)"
+            - "Designated signatories for specific types"
+            - "Power of attorney for specific matters"
+          verification:
+            - "Confirm counterparty signer has authority"
+            - "Request proof if uncertain"
+        execution_checklist:
+          - "All terms finalized and agreed"
+          - "Approvals documented"
+          - "Correct version attached"
+          - "Signature blocks complete"
+          - "Exhibits and schedules attached"
+          - "Counterparty information correct"
+      storage_and_filing:
+        contract_repository:
+          organization:
+            - "By counterparty"
+            - "By contract type"
+            - "By date"
+          naming_convention: "[Counterparty]_[Type]_[Date]_[Version]"
+          required_fields:
+            - "Counterparty name"
+            - "Contract type"
+            - "Effective date"
+            - "Term/expiration"
+            - "Value"
+            - "Key terms summary"
+            - "Owner"
+        tools:
+          simple: "Google Drive or Dropbox with structure"
+          intermediate: "Notion or Airtable database"
+          advanced: "CLM system (Ironclad, ContractPodAi)"
+        access_control:
+          - "Limit access to need-to-know"
+          - "Track who accessed when"
+          - "Protect confidential terms"
+      post_execution:
+        distribution:
+          - "Send fully executed copy to counterparty"
+          - "Distribute internally to stakeholders"
+          - "Notify Finance of billing/payment terms"
+        calendar:
+          - "Set reminder for renewal date"
+          - "Set reminder for notice period"
+          - "Track milestones and deliverables"
+      best_practices:
+        - "Always store final executed version"
+        - "Include summary for quick reference"
+        - "Set up renewal tracking immediately"
+        - "Maintain version history"
+
+    - step: 6
+      action: Monitor and renew
+      responsible: Ops/Legal + Original Deal Owner
+      duration: "Ongoing"
+      deliverable: Managed contract lifecycle
+      ongoing_management:
+        obligation_tracking:
+          delivery_obligations:
+            - "What do we owe?"
+            - "What are the deadlines?"
+            - "Who is responsible?"
+          payment_obligations:
+            - "What are payment terms?"
+            - "When are payments due?"
+            - "Finance aware?"
+          performance_obligations:
+            - "SLAs and service levels"
+            - "Reporting requirements"
+            - "Compliance requirements"
+        renewal_management:
+          renewal_calendar:
+            - "Track expiration dates"
+            - "Track notice periods"
+            - "Set alerts at 90, 60, 30 days out"
+          renewal_decisions:
+            review_factors:
+              - "Is relationship healthy?"
+              - "Are terms still appropriate?"
+              - "Are there better alternatives?"
+              - "What leverage do we have?"
+            timing:
+              - "Begin renewal discussion 90+ days out"
+              - "Do not wait for auto-renewal trap"
+          renewal_process:
+            - "Review performance under current agreement"
+            - "Identify desired changes"
+            - "Negotiate renewal terms"
+            - "Execute renewal or new agreement"
+        amendment_management:
+          when_needed:
+            - "Scope changes"
+            - "Pricing changes"
+            - "Term extensions"
+            - "Party changes"
+          process:
+            - "Document what is changing"
+            - "Reference original agreement"
+            - "Follow approval process"
+            - "Store with original"
+      reporting:
+        contract_portfolio_view:
+          - "Total contracts by type"
+          - "Value by category"
+          - "Upcoming renewals"
+          - "Expiring contracts"
+        risk_monitoring:
+          - "Non-standard terms in portfolio"
+          - "Aggregate liability exposure"
+          - "Concentration risk"
+      best_practices:
+        - "Never let contracts auto-renew by accident"
+        - "Review before renewal, not after"
+        - "Track aggregate exposure"
+        - "Build institutional memory"
+
+  cadence:
+    frequency: "As agreements arrive"
+    trigger: "New agreement, Renewal approaching, Amendment needed"
+    duration: "1 hour to several weeks depending on complexity"
+    ongoing:
+      - Daily triage and routing
+      - Ongoing negotiations
+      - Monthly renewal calendar review
+      - Quarterly portfolio review
+
+practitioner_scenarios:
+  - id: ps-001
+    name: "Founder Reviewing First Enterprise Contract"
+    practitioner: "CEO / Founder"
+    organization_context: |
+      Seed-stage startup, 8 people. First enterprise deal ($150K ACV) 
+      arrived. Customer sent their standard procurement agreement. 
+      Founder has never negotiated enterprise contract.
+    situation: |
+      Customer sent 40-page Master Services Agreement with their standard 
+      terms. Deal needs to close in 3 weeks. Founder overwhelmed by 
+      legal language and concerned about risk.
+    trigger: |
+      Sales champion at customer sent contract with note saying 
+      procurement needs signed agreement to process purchase order.
+    actions: |
+      1. First reaction was panic at document length. Took deep breath 
+         and started systematically.
+      2. Skimmed entire document to understand structure. Identified 
+         key sections: Commercial Terms, Liability, IP, Data, Termination.
+      3. Focused on sections with highest risk:
+         - Found unlimited indemnification for any breach
+         - Found 60-day termination for convenience by customer
+         - Found broad IP license grant
+         - Found security audit rights with 24-hour notice
+      4. Engaged lawyer for 2-hour review. Lawyer flagged same issues 
+         plus governing law (unfamiliar jurisdiction) and audit scope.
+      5. Created issues list with three categories:
+         - Must change: Unlimited indemnification, broad IP grant
+         - Should change: Termination notice period, audit rights
+         - Accept: Payment terms, governing law
+      6. Drafted redlines with explanations. Sent to customer champion 
+         with note explaining these are standard positions for SaaS 
+         vendors.
+      7. Customer pushed back on indemnification. Compromised on 12x 
+         monthly fees cap with carve-out for IP and data breach 
+         (uncapped for those).
+      8. Negotiation took 2 weeks of back and forth. CEO stayed 
+         involved but let lawyer handle technical drafting.
+      9. Final agreement signed. Filed in Drive with summary of key 
+         terms negotiated.
+    outcome: |
+      First enterprise deal closed with acceptable terms. Liability 
+      capped appropriately. IP protected. Process took longer than 
+      expected but created template for future deals.
+    lessons:
+      - Enterprise contracts require real review
+      - Focus on material terms not every clause
+      - Lawyer helps but you must understand the deal
+      - Document what was negotiated for future reference
+
+  - id: ps-002
+    name: "VP Sales Scaling Contract Review"
+    practitioner: "VP Sales"
+    organization_context: |
+      Series A company, 40 people, moving upmarket. Volume of contracts 
+      increasing. CEO previously reviewed all contracts but cannot 
+      keep up. Need to scale process without adding legal headcount.
+    situation: |
+      Contract review becoming bottleneck. Deals waiting days for CEO 
+      review. Some deals using customer paper without review. Reps 
+      frustrated with delays.
+    trigger: |
+      Lost deal because contract review took 2 weeks and customer 
+      went with competitor who moved faster.
+    actions: |
+      1. Analyzed contract volume: 15-20 agreements/month. Breakdown: 
+         60% standard SMB, 30% mid-market, 10% enterprise.
+      2. Created contract playbook:
+         - Standard positions for top 10 issues
+         - Fallback positions for each
+         - Redlines we will not accept
+         - Examples and language
+      3. Built tiered process:
+         - Tier 1 (our paper, under $50K): Self-service, rep signs
+         - Tier 2 (minor changes, $50-200K): Manager review
+         - Tier 3 (customer paper or over $200K): VP Sales + lawyer
+         - Tier 4 (exceptions): VP Sales + lawyer + CEO
+      4. Created review checklist for reps to self-assess:
+         - 10 yes/no questions
+         - Any no triggers escalation
+         - Takes 5 minutes
+      5. Trained sales team on playbook. Role-played common 
+         negotiations. Built confidence to handle Tier 1/2.
+      6. Set up contract tracker in Salesforce:
+         - Stage (review, negotiation, approval, signature)
+         - Issues list
+         - Owner and escalation
+         - Target close date
+      7. Established SLAs: Tier 1 same day, Tier 2 2 days, Tier 3 
+         5 days, Tier 4 negotiated.
+      8. Monthly review of what is getting escalated. Identified 
+         patterns, updated playbook, improved training.
+    outcome: |
+      Contract review time reduced 60%. CEO involvement reduced 80%. 
+      Reps empowered to handle standard deals. Consistent terms 
+      across deals. Lost fewer deals to speed.
+    lessons:
+      - Process scales, people do not
+      - Tiered approach enables velocity
+      - Playbooks create consistency
+      - Training reps pays off
+
+  - id: ps-003
+    name: "Legal Counsel Managing Partner Agreement"
+    practitioner: "General Counsel"
+    organization_context: |
+      Series B company with in-house legal. Negotiating strategic 
+      partnership with major enterprise software vendor. High-value, 
+      complex agreement with significant ongoing obligations.
+    situation: |
+      Partner sent 80-page partnership agreement with extensive terms. 
+      Partnership is strategically important but terms are heavily 
+      one-sided. BD team wants to sign quickly.
+    trigger: |
+      VP BD asked for quick turnaround on partnership agreement. 
+      GC reviewed and found multiple material concerns.
+    actions: |
+      1. Conducted thorough review (8 hours). Created 5-page analysis 
+         of key issues:
+         - Exclusivity provisions broader than discussed
+         - Revenue share below market (15% vs. typical 25-30%)
+         - IP assignment of joint development to partner
+         - Termination only for cause, 12-month notice
+         - Non-compete restricting our market activity
+      2. Met with BD lead to understand priorities. BD felt:
+         - Revenue share negotiable, expected pushback
+         - Exclusivity was discussed, thought it was narrower
+         - Did not realize IP implications
+         - Need partnership, willing to accept some risk
+      3. Created negotiation strategy:
+         - Must win: Narrow exclusivity, reasonable IP terms
+         - Important: Better revenue share, termination flexibility
+         - Tradeable: Support obligations, marketing commitments
+         - Redline: No full IP assignment, no broad non-compete
+      4. Drafted comprehensive redline with 40+ changes. Organized 
+         by priority and impact.
+      5. Prepared negotiation summary for partner:
+         - Top 5 issues requiring resolution
+         - Proposed alternatives for each
+         - Business justification
+      6. Led 3 negotiation calls with partner legal. CEO joined 
+         for commercial terms call.
+      7. Negotiated for 6 weeks. Key outcomes:
+         - Exclusivity narrowed to specific use case
+         - Revenue share improved to 22%
+         - IP remains with creator, license granted
+         - Mutual termination for convenience with 90 days
+         - Non-compete removed
+      8. Obtained board approval for strategic partnership.
+      9. Executed agreement, created summary for ongoing management.
+    outcome: |
+      Partnership signed with materially improved terms. Protected 
+      IP and market freedom. Established good precedent for partner 
+      agreements. GC built credibility as business enabler.
+    lessons:
+      - Complex agreements require thorough review
+      - Align with business on priorities before negotiating
+      - Be creative with solutions not just positions
+      - Document for ongoing management
+
+operational_context:
+  prerequisites:
+    - Agreement to review
+    - Deal context and business justification
+    - Contract playbook or positions
+    - Legal support access (internal or external)
+    
+  common_blockers:
+    - "Deal team wants to skip review - Enforce process, highlight risk"
+    - "Counterparty will not negotiate - Know your walkaway point"
+    - "No legal support - Build playbook, use external counsel strategically"
+    - "Review takes too long - Tier process, self-service for standard"
+    
+  integration_points:
+    - Sales: Customer agreements
+    - BD: Partnership agreements
+    - Finance: Vendor agreements, payment terms
+    - HR: Employment agreements
+    - Procurement: Supplier agreements
+
+risks:
+  if_skipped: |
+    Sign agreements with hidden risks. Inconsistent terms across 
+    deals. Aggregate liability exposure. Audit and compliance 
+    failures. Lost institutional memory.
+    
+  if_over_engineered: |
+    Deals slow down, lost to faster competitors. Legal becomes 
+    blocker instead of enabler. Over-negotiation damages 
+    relationships. Excessive cost for low-risk deals.
+
+domain_context:
+  related_l2: "Alliance Management"
+  related_l1: "BUSINESS DEVELOPMENT AND PARTNERSHIPS"
+  synergies:
+    - "Negotiation Frameworks (cd-002): Negotiation principles apply"
+    - "Partnership Metrics (cd-003): Track agreement outcomes"
+    - "Stakeholder Relationship (cd-004): Relationship context"
+    - "Term Sheet Negotiations (cd-012): Investor agreements"

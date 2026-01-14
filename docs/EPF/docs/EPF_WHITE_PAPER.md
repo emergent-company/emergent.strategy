@@ -1,7 +1,7 @@
 # Emergent Product Framework: An Operating System for AI-Augmented Product Organizations
 
-**Version:** 2.0.0  
-**Date:** December 2025  
+**Version:** 2.6.0  
+**Date:** January 2026  
 **Status:** Foundational White Paper
 
 ---
@@ -28,6 +28,7 @@ This white paper presents the philosophical foundations, organizational implicat
 - The Universe as a Lego Set
 - The Four Classes of Systems
 - Why "Emergent" Product Framework
+- Bidirectional Emergence: Top-Down AND Bottom-Up Simultaneously
 - From Atoms to Organizations: The EPF Layers
 - The Math of Strategic Creativity
 - Computational Irreducibility
@@ -45,6 +46,7 @@ This white paper presents the philosophical foundations, organizational implicat
 - Executable Knowledge, Not Static Documents
 - Human-AI Collaboration as Default Mode
 - The Four-Track Braided Model
+- Canonical vs Non-Canonical Tracks (v2.6.0)
 - Evidence-Based Decision Making
 - Version-Controlled Strategy
 - Correct by Construction
@@ -193,6 +195,122 @@ This is **design by control.** You try to predict and specify everything upfront
 **You don't design the strategy. You grow it.**
 
 Like a coral reef: each polyp follows local rules, the reef emerges.
+
+---
+
+## Bidirectional Emergence: Top-Down AND Bottom-Up Simultaneously
+
+The word "emergence" might suggest EPF is purely bottom-up—local rules producing global patterns. **This is half the picture.**
+
+EPF's power comes from **bidirectional emergence**: constraints flow downward while learning flows upward, simultaneously and continuously.
+
+### The Two Flows
+
+**Top-Down Flow (Constraints):**
+```
+North Star (vision, guardrails)
+  ↓ constrains
+Strategy Foundations (market position, competitive moves)
+  ↓ constrains
+Roadmap (OKRs, assumptions, track allocation)
+  ↓ constrains
+Feature Definitions (what we build, for whom, why)
+  ↓ constrains
+Implementation (code, design, operations)
+```
+
+Every artifact downstream must align with artifacts upstream. Features can't contradict the North Star. Roadmaps can't ignore Strategy Foundations. This is the **gravitational pull** of strategic coherence.
+
+**Bottom-Up Flow (Learning):**
+```
+Implementation (actual usage data, metrics, outcomes)
+  ↑ informs
+Feature Definitions (which features delivered value?)
+  ↑ informs
+Roadmap (which assumptions were validated/invalidated?)
+  ↑ informs
+Strategy Foundations (what did we learn about the market?)
+  ↑ informs
+North Star (should we evolve our vision based on evidence?)
+```
+
+Every artifact upstream gets updated based on artifacts downstream. Failed assumptions change roadmaps. Unexpected feature success informs strategy. This is the **adaptive pulse** of organizational learning.
+
+### Why Both Directions Are Essential
+
+**Top-down without bottom-up = Rigid Planning**
+- "We decided X, so we execute X regardless of evidence"
+- Classic waterfall: plan perfectly, execute blindly
+- Organizations become brittle—unable to adapt to reality
+
+**Bottom-up without top-down = Chaotic Reactivity**
+- "Whatever the data says, we pivot to"
+- Feature factory: build whatever users ask for
+- Organizations lose strategic coherence—everything seems urgent
+
+**Both simultaneously = Hypothesis-Driven Organization**
+- "We believe X (top-down), let's test it (bottom-up), and adjust our beliefs based on evidence"
+- READY sets hypotheses, FIRE tests them, AIM updates beliefs
+- Organizations become **antifragile**—they get stronger from stress
+
+### The Practical Mechanism
+
+EPF enforces bidirectional flow through:
+
+1. **Downward constraints (validation scripts):**
+   - `validate-value-model-references.sh` — Features must connect to value drivers
+   - `validate-roadmap-references.sh` — Features must test roadmap assumptions
+   - Balance Checker — Roadmaps must be viable given North Star constraints
+
+2. **Upward learning (AIM phase artifacts):**
+   - `assessment_*.yaml` — What assumptions were validated/invalidated?
+   - `calibration_*.yaml` — What strategic beliefs should change?
+   - These calibration artifacts trigger updates to upstream documents
+
+3. **Cross-references (the connective tissue):**
+   - Every feature tracks `assumptions_tested` — linking execution to hypotheses
+   - Every calibration cites evidence — linking belief change to data
+   - The knowledge graph is bidirectional by design
+
+### The Complete Picture
+
+```
+        ┌─────────────────────────────────────────┐
+        │            NORTH STAR                   │
+        │   (Vision, Guardrails, Success Metric)  │
+        └───────────────┬─────────────────────────┘
+                        │ ↓ constrains
+                        │ ↑ calibration informs
+        ┌───────────────▼─────────────────────────┐
+        │        STRATEGY FOUNDATIONS             │
+        │  (Market analysis, Competitive moves)   │
+        └───────────────┬─────────────────────────┘
+                        │ ↓ constrains
+                        │ ↑ assessment informs
+        ┌───────────────▼─────────────────────────┐
+        │           ROADMAP                       │
+        │  (OKRs, Assumptions, 4-Track Allocation)│
+        └───────────────┬─────────────────────────┘
+                        │ ↓ constrains
+                        │ ↑ tested assumptions
+        ┌───────────────▼─────────────────────────┐
+        │       FEATURE DEFINITIONS               │
+        │  (Personas, Scenarios, Value Mapping)   │
+        └───────────────┬─────────────────────────┘
+                        │ ↓ specifies
+                        │ ↑ usage data, outcomes
+        ┌───────────────▼─────────────────────────┐
+        │         IMPLEMENTATION                  │
+        │    (Code, Design, Operations, GTM)      │
+        └─────────────────────────────────────────┘
+```
+
+**The arrows go both ways.** This is not a waterfall. It's a living system where:
+- Strategy informs execution (top-down)
+- Evidence updates strategy (bottom-up)
+- Both happen continuously, not in phases
+
+**The result:** A **hypothesis-driven, data-informed organization** that maintains strategic coherence while adapting to reality. You get the focus of top-down planning AND the adaptability of bottom-up learning.
 
 ---
 
@@ -839,6 +957,41 @@ When you plan with EPF, you don't just plan product features. You plan across al
 
 If you try to execute Product track without Strategy track, you build features no one knows about. If you try to execute Commercial track without OrgOps track, you sell what you can't support. **The tracks must stay synchronized.**
 
+### Canonical vs Non-Canonical Tracks (v2.6.0)
+
+An important distinction emerged in EPF v2.6.0: **not all tracks are equally product-specific.**
+
+| Track | Status | Definition Count | Reusability |
+|-------|--------|------------------|-------------|
+| **Strategy** | Canonical | 39 definitions | Universal across organizations |
+| **OrgOps** | Canonical | 54 definitions | Universal across organizations |
+| **Commercial** | Canonical | 38 definitions | Universal across organizations |
+| **Product** | Examples Only | 22 examples | Unique to each product |
+
+**Why the distinction?**
+
+**Canonical tracks (Strategy, OrgOps, Commercial)** contain definitions that apply to *any* organization:
+- **Strategy Definitions (sd-*):** Competitive positioning, market analysis, partnership structures—strategic patterns that transcend any specific product
+- **OrgOps Definitions (pd-*):** Hiring processes, capability building, governance models—organizational patterns that work across domains
+- **Commercial Definitions (cd-*):** Pricing models, GTM strategies, customer success frameworks—commercial patterns that apply universally
+
+These 131 canonical definitions form a **reusable library**. When you create a roadmap, you reference these definitions rather than reinventing them.
+
+**The Product track (fd-*)** is fundamentally different:
+- Every product has unique features
+- Feature definitions describe *your specific product's* capabilities
+- No two products share the same feature corpus
+
+The 22 feature definitions in EPF are **quality examples** demonstrating schema compliance and depth—not templates to copy. They show what good looks like, but you write your own.
+
+**Practical implications:**
+
+When building your EPF instance:
+1. **Strategy/OrgOps/Commercial:** Reference canonical definitions, customize only if your org has unique patterns
+2. **Product:** Create from scratch using the feature definition schema and examples as guides
+
+This design reflects a fundamental truth: *how* you compete, organize, and sell follows recognizable patterns, but *what* you build is unique to your product vision.
+
 ### The Balance Checker
 
 EPF's balance checker wizard validates track coherence before you commit resources:
@@ -1188,7 +1341,7 @@ Now you **cannot create** an invalid feature definition:
 
 **Attempt to create incomplete feature:**
 ```bash
-./scripts/validate-feature-quality.sh features/my-feature.yaml
+./scripts/validate-feature-quality.sh definitions/product/my-feature.yaml
 
 ❌ FAILED: Persona count validation
    Expected: exactly 4 personas
@@ -3105,18 +3258,18 @@ Merge: Contribution aligns with strategic intent
 
 **Activities:**
 1. Read feature definition schema: `schemas/feature_definition_schema.json` (20 min)
-2. Review validated example: `features/01-technical/fd-002-knowledge-graph-engine.yaml` (15 min)
+2. Review validated example: `definitions/product/01-technical/fd-002-knowledge-graph-engine.yaml` (15 min)
 3. Run Product Architect wizard: `@wizards/product_architect.agent_prompt.md` (45 min)
    - Define 4 personas
    - Create 5-8 scenarios
    - Document 3-5 contexts
-4. Validate feature: `./scripts/validate-feature-quality.sh features/{your-feature}.yaml`
+4. Validate feature: `./scripts/validate-feature-quality.sh _instances/{product}/FIRE/feature_definitions/{your-feature}.yaml`
 5. Fix any validation errors
 6. Commit feature definition
 
 **Time investment:** 2-3 hours
 
-**Output:** First valid `feature_definition_*.yaml` in your features/ directory
+**Output:** First valid `feature_definition_*.yaml` in your instance's feature_definitions/ directory
 
 **Success criteria:**
 - Schema validation passes (all required fields present)
@@ -3277,9 +3430,15 @@ EPF is the git moment for product strategy.
 
 **Balance Checker:** Wizard evaluating roadmap feasibility across 4 dimensions (v2.0.0)
 
+**Bidirectional Emergence:** EPF's core model where constraints flow top-down (North Star → Features) while learning flows bottom-up (Evidence → Calibration) simultaneously, creating a hypothesis-driven organization
+
 **Braided Model:** EPF's 4-track interdependent approach (Product, Strategy, OrgOps, Commercial)
 
 **Calibration:** Strategic adjustment based on evidence (AIM phase output)
+
+**Canonical Track:** Track with reusable definitions (Strategy, OrgOps, Commercial) that apply universally across organizations (v2.6.0)
+
+**Commercial Definition (cd-*):** Canonical definition for Commercial track (pricing, GTM, customer success patterns)
 
 **Correct by Construction:** Quality enforced during creation, not review (schema + wizard pattern)
 
@@ -3287,9 +3446,13 @@ EPF is the git moment for product strategy.
 
 **Evidence:** Source material supporting strategic claims (market research, user data, etc.)
 
-**Feature Definition:** Structured specification with personas, scenarios, contexts, dependencies
+**Feature Definition (fd-*):** Structured specification with personas, scenarios, contexts, dependencies—unique to each product
+
+**Hypothesis-Driven Organization:** Organization where strategic beliefs are treated as hypotheses to be tested, not truths to be executed—enabled by bidirectional emergence
 
 **Immutable Ledger:** Git-based approach where strategy reversals are new commits, not deletions
+
+**OrgOps Definition (pd-*):** Canonical definition for OrgOps track (hiring, governance, capability building patterns)
 
 **Pathfinder:** AI wizard generating initial READY phase artifacts from interview
 
@@ -3303,7 +3466,11 @@ EPF is the git moment for product strategy.
 
 **Schema:** JSON Schema defining structure and validation rules for artifacts
 
+**Strategy Definition (sd-*):** Canonical definition for Strategy track (positioning, competitive analysis, partnership patterns)
+
 **Synthesizer:** AI wizard guiding retrospective assessment (AIM phase)
+
+**Track Definition:** Reusable component within a canonical track (Strategy, OrgOps, or Commercial)
 
 **Traceability:** Ability to follow connections from North Star → Strategy → Roadmap → Features
 
@@ -3329,6 +3496,12 @@ EPF is the git moment for product strategy.
 **AIM Phase Artifacts:**
 - `assessment_*.yaml` - Retrospective analysis
 - `calibration_*.yaml` - Strategic adjustments
+
+**Canonical Track Definitions (v2.6.0):**
+- `definitions/strategy/sd-*.yaml` - 39 Strategy definitions (positioning, competitive, partnerships)
+- `definitions/org_ops/pd-*.yaml` - 54 OrgOps definitions (hiring, governance, capabilities)
+- `definitions/commercial/cd-*.yaml` - 38 Commercial definitions (pricing, GTM, customer success)
+- `definitions/product/fd-*.yaml` - 22 Product examples (for reference only—create your own)
 
 **Key Wizards:**
 - Pathfinder: Generate READY artifacts (30-60 min interview)

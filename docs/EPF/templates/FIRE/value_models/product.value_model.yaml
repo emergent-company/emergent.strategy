@@ -16,6 +16,25 @@ track_name: "Product"
 version: "1.0.0"
 status: "placeholder"
 description: "This is a placeholder for the Product Value Model. It should be developed from scratch for your specific product."
+
+# VALUE MODEL MATURITY (VMM) - Track Level Summary
+# Tracks where this value model is on its journey from hypothesis to scaled value delivery.
+# Maturity EMERGES from L3 sub-component evidence, calculated upward using 80% rule.
+# See docs/guides/VALUE_MODEL_MATURITY_GUIDE.md for full documentation.
+track_maturity:
+  overall_stage: "hypothetical"  # hypothetical | emerging | proven | scaled
+  stage_override: false          # Set true if stage was manually set, not calculated
+  value_domain: ""               # Example: "Target market", "Enterprise segment", "SMB customers"
+  current_milestone: "none"      # none | problem_approach_fit | value_recipient_fit | sustainable_domain_fit
+  next_milestone_criteria:
+    - description: "Define criteria for next milestone..."
+      status: "not_met"          # not_met | in_progress | met
+  l1_distribution:               # Count of L1 layers at each stage
+    hypothetical: 0
+    emerging: 0
+    proven: 0
+    scaled: 0
+
 high_level_model:
   product_mission: ""
   main_goal: ""

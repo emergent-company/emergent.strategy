@@ -1,0 +1,544 @@
+# OrgOps Process Definition: Board Governance Meetings
+# Schema: org_ops_definition_schema.json v1.1.0
+#
+# Rationale for placement: Board governance is a compliance and oversight function,
+# not a commercial/investor acquisition function. Commercial acquires investors;
+# OrgOps handles governance, compliance, and board operations.
+
+id: pd-055
+name: Board Governance Meetings
+slug: board-governance-meetings
+track: org_ops
+status: ready
+
+contributes_to:
+  - OrgOps.Board.board-meeting-cadence
+  - OrgOps.Board.board-governance-policies
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Basic board meetings with minimal structure"
+    includes:
+      - Quarterly board meetings scheduled
+      - Basic deck with financials and updates
+      - Meeting minutes captured
+      - Action items tracked
+    effort: "1-2 days prep per meeting"
+    
+  tier_2_intermediate:
+    description: "Structured governance with strategic focus"
+    adds:
+      - Pre-read materials sent in advance
+      - Strategic discussion topics prioritized
+      - Committee meetings (audit, comp) if applicable
+      - Board calendar and annual planning
+    effort: "3-4 days prep per meeting"
+    
+  tier_3_advanced:
+    description: "Best-practice board governance"
+    adds:
+      - Board evaluation and improvement
+      - Director development and onboarding
+      - Executive sessions (independent directors)
+      - Formal governance policies
+    effort: "5+ days prep, ongoing governance work"
+
+definition:
+  purpose: |
+    Governance meetings - primarily your board meetings - are the formal 
+    mechanism for strategic oversight of the company. Done well, board 
+    meetings provide valuable strategic input, hold leadership accountable, 
+    and create a forcing function for organizational reflection.
+    
+    Done poorly, board meetings become performative exercises where 
+    leadership presents optimistic slides, board members ask predictable 
+    questions, and no real value is created. Worse, poor governance 
+    creates legal and fiduciary risks.
+    
+    The goal is to make your board a strategic asset, not just a compliance 
+    requirement. This means structuring meetings for discussion, not just 
+    presentation, and treating board members as partners in building the 
+    company.
+    
+    Warning signs of governance problems:
+    - Board meetings that are all presentation, no discussion
+    - Board members who seem disengaged or unprepared
+    - Lack of candor about challenges and risks
+    - Decisions made without proper board involvement
+    - No follow-through on board action items
+    
+  outcome: |
+    Board meetings that provide genuine strategic value, maintain proper 
+    oversight, and create accountability. Board members who are engaged, 
+    informed, and helpful. Governance practices that scale with the company.
+    
+  owner: CEO (meeting owner) / CoS or EA (logistics) / Board chair (if different from CEO)
+  
+  inputs:
+    - name: Board deck
+      description: "Presentation materials for the meeting"
+      source: CEO, CFO, functional leads
+      
+    - name: Pre-read materials
+      description: "Supporting documents for advance review"
+      source: Various - financials, reports, analysis
+      
+    - name: Strategic topics
+      description: "Items requiring board input or decision"
+      source: CEO, leadership team
+      
+    - name: Meeting logistics
+      description: "Scheduling, location, video setup"
+      source: EA or CoS
+      
+  outputs:
+    - name: Meeting minutes
+      description: "Record of discussions and decisions"
+      consumer: Board, Legal, future reference
+      
+    - name: Action items
+      description: "Follow-up tasks from meeting"
+      consumer: Leadership team, Board
+      
+    - name: Board resolutions
+      description: "Formal approvals when required"
+      consumer: Legal, Corporate records
+
+  steps:
+    - step: 1
+      action: Plan the annual board calendar
+      responsible: CEO + EA/CoS
+      duration: "2 hours annually"
+      deliverable: Annual board meeting schedule
+      calendar_planning:
+        typical_rhythm:
+          - "Q1: Year-end review and annual planning"
+          - "Q2: Strategy deep-dive"
+          - "Q3: Mid-year assessment"
+          - "Q4: Budget approval and next year planning"
+        scheduling_considerations:
+          - "Align with quarter-end for financials"
+          - "Avoid investor travel conflicts"
+          - "Consider time zones for remote members"
+          - "Build in 3-4 weeks prep time before each meeting"
+        meeting_formats:
+          in_person: "At least 1-2 per year if possible"
+          video: "Standard for most meetings"
+          hybrid: "Challenging - try to avoid"
+        meeting_duration:
+          seed_stage: "2-3 hours"
+          series_a: "3-4 hours"
+          later_stage: "4-5 hours with committee meetings"
+      annual_planning_topics:
+        map_to_quarters:
+          - "Annual budget (Q4 for following year)"
+          - "Compensation review (typically Q1)"
+          - "Fundraising planning (as applicable)"
+          - "Strategy review (at least annual)"
+      best_practices:
+        - "Lock in dates 6-12 months ahead"
+        - "Send calendar invites immediately"
+        - "Plan one in-person meeting per year minimum"
+        - "Build in dinners for relationship building"
+
+    - step: 2
+      action: Prepare meeting materials
+      responsible: CEO + CFO + CoS
+      duration: "3-5 days before meeting"
+      deliverable: Board deck and pre-read package
+      deck_structure:
+        executive_summary:
+          content: "Key metrics, wins, challenges, decisions needed"
+          format: "1-2 slides, scannable"
+        financial_review:
+          content: "P&L, cash position, burn, runway"
+          format: "Actual vs. budget, trends"
+          owner: "CFO presents"
+        operational_review:
+          content: "Key metrics, product progress, team"
+          format: "Metrics with context"
+          owner: "CEO or functional leads"
+        strategic_discussion:
+          content: "Topics requiring board input"
+          format: "Background, options, recommendation"
+          owner: "CEO facilitates"
+        closed_session:
+          content: "Topics for board only (no management)"
+          format: "Reserved time, board chair leads"
+      pre_read_materials:
+        what_to_include:
+          - "Board deck (sent 3-5 days before)"
+          - "Detailed financials (P&L, balance sheet)"
+          - "Key contract or agreement for approval"
+          - "Background reading for strategic topics"
+        distribution:
+          - "Use consistent portal or folder"
+          - "Send with clear deadline to review"
+          - "Flag what is for approval vs. information"
+      timing:
+        materials_sent: "5 business days before meeting"
+        feedback_deadline: "2 days before meeting"
+        last_minute_updates: "Avoid if possible"
+      best_practices:
+        - "Keep deck to 20-30 slides max"
+        - "Send materials consistently early"
+        - "Flag decisions needed clearly"
+        - "Expect board to have read materials"
+
+    - step: 3
+      action: Design meeting agenda
+      responsible: CEO + Board Chair
+      duration: "1-2 hours"
+      deliverable: Meeting agenda
+      agenda_structure:
+        opening:
+          duration: "15 minutes"
+          content: "Call to order, agenda review, prior minutes"
+        ceo_update:
+          duration: "20-30 minutes"
+          content: "State of the business, key updates"
+        financial_review:
+          duration: "30-45 minutes"
+          content: "Financial performance, outlook"
+        operational_review:
+          duration: "30-45 minutes"
+          content: "Product, sales, team updates"
+        strategic_discussion:
+          duration: "45-60 minutes"
+          content: "Topics for board input or decision"
+        committee_reports:
+          duration: "15-30 minutes"
+          content: "Audit, comp, other committee updates"
+        closed_session:
+          duration: "15-30 minutes"
+          content: "Board only, no management"
+        wrap_up:
+          duration: "15 minutes"
+          content: "Action items, next meeting, closing"
+      discussion_time_allocation:
+        principle: "Aim for 40% discussion, 60% presentation"
+        how: "Send materials in advance, move fast through updates"
+        strategic_topics: "Pick 1-2 topics for real discussion"
+      agenda_best_practices:
+        - "Share agenda with materials"
+        - "Prioritize discussion topics"
+        - "Time-box each section"
+        - "Identify decision items clearly"
+
+    - step: 4
+      action: Run the meeting
+      responsible: CEO or Board Chair
+      duration: "3-4 hours typical"
+      deliverable: Productive board meeting
+      meeting_facilitation:
+        opening:
+          - "Start on time"
+          - "Confirm attendance and quorum"
+          - "Approve prior meeting minutes"
+        presentation_sections:
+          - "Present key points, not every slide"
+          - "Pause for questions"
+          - "Keep pace moving"
+        discussion_sections:
+          - "Frame the question clearly"
+          - "Invite all board members to contribute"
+          - "Summarize key points"
+          - "Capture decisions"
+        closed_session:
+          - "Management excused"
+          - "Board chair leads"
+          - "CEO feedback shared after"
+        closing:
+          - "Review action items"
+          - "Confirm next meeting date"
+          - "Thank board members"
+      board_dynamics:
+        handling_disagreement:
+          - "Welcome debate; healthy boards disagree"
+          - "Focus on interests, not positions"
+          - "CEO decides when board provides input (not votes)"
+        managing_difficult_members:
+          - "Redirect tangents politely"
+          - "Address offline if needed"
+          - "Board chair can help manage"
+        getting_value_from_board:
+          - "Ask specific questions"
+          - "Request expertise on specific topics"
+          - "Follow up on offers to help"
+      best_practices:
+        - "Start and end on time"
+        - "Limit presentation time"
+        - "Create space for candid discussion"
+        - "Take notes on action items"
+
+    - step: 5
+      action: Document and follow up
+      responsible: CEO or CoS
+      duration: "2-4 hours post-meeting"
+      deliverable: Meeting minutes and action tracking
+      meeting_minutes:
+        legal_purpose: "Record of board oversight and decisions"
+        content_to_include:
+          - "Date, time, attendees, quorum confirmed"
+          - "Summary of reports and discussions"
+          - "Motions, votes, and resolutions"
+          - "Action items and owners"
+          - "Next meeting date"
+        content_to_avoid:
+          - "Detailed blow-by-blow of discussion"
+          - "Individual opinions attributed by name"
+          - "Anything that creates unnecessary legal risk"
+        approval_process:
+          - "Draft within 1 week of meeting"
+          - "Circulate to board for review"
+          - "Formally approve at next meeting"
+      action_item_tracking:
+        format: "Simple list with owner, deadline, status"
+        follow_up: "Update board between meetings on progress"
+        accountability: "CEO owns ensuring follow-through"
+      resolutions:
+        when_needed:
+          - "Approving stock grants"
+          - "Approving major contracts"
+          - "Authorizing fundraising"
+          - "Approving officer appointments"
+        format: "Formal resolution language"
+        signature: "May require board signatures"
+      best_practices:
+        - "Draft minutes while meeting is fresh"
+        - "Keep minutes factual and concise"
+        - "Track action items in visible place"
+        - "Close loop on action items at next meeting"
+
+    - step: 6
+      action: Maintain board relationships
+      responsible: CEO
+      duration: "Ongoing"
+      deliverable: Strong board relationships
+      between_meeting_engagement:
+        individual_check_ins:
+          frequency: "Monthly or bi-weekly"
+          format: "30-minute call or coffee"
+          content: "Pulse check, advice, relationship building"
+        updates:
+          frequency: "Monthly or as needed"
+          format: "Brief email update"
+          content: "Key developments, asks"
+        ad_hoc:
+          when: "Major news, decisions, crises"
+          format: "Call or detailed email"
+          content: "Situation, context, what you need"
+      leveraging_board_expertise:
+        approach:
+          - "Know each member's strengths"
+          - "Ask specific questions, not vague help"
+          - "Follow up and report back"
+        examples:
+          - "Customer intro from partner background"
+          - "Hiring advice from operating experience"
+          - "Fundraising guidance from investor"
+      managing_board_chair:
+        relationship: "Close partnership"
+        communication: "Weekly or bi-weekly check-ins"
+        role: "Ally in managing board dynamics"
+      board_member_feedback:
+        giving_feedback:
+          - "Share what is working"
+          - "Address issues directly"
+          - "Be specific about asks"
+        receiving_feedback:
+          - "Listen without defensiveness"
+          - "Ask for specifics"
+          - "Demonstrate follow-through"
+      best_practices:
+        - "Invest in individual relationships"
+        - "No surprises - communicate proactively"
+        - "Ask for specific help"
+        - "Show appreciation"
+
+  cadence:
+    frequency: "Quarterly board meetings, ongoing relationship"
+    trigger: "Quarterly schedule, Major events"
+    duration: "3-5 days prep, 3-4 hour meeting, 1 day follow-up"
+    ongoing:
+      - Quarterly board meetings
+      - Monthly individual check-ins
+      - Between-meeting updates
+      - Annual calendar planning
+
+practitioner_scenarios:
+  - id: ps-001
+    name: "First-Time Founder Running First Board Meeting"
+    practitioner: "CEO / Founder"
+    organization_context: |
+      First-time founder, just closed seed round. First formal board 
+      meeting coming up. Board is CEO, lead investor, independent 
+      advisor. Founder has never run a board meeting.
+    situation: |
+      Closed $2.5M seed 2 months ago. First board meeting in 2 weeks. 
+      Founder nervous about running meeting and managing investor 
+      expectations.
+    trigger: |
+      Lead investor asked to schedule first board meeting. Founder 
+      needs to prepare and run meeting professionally.
+    actions: |
+      1. Asked lead investor for advice on meeting format. Investor 
+         shared expectations and offered to help with agenda.
+      2. Scheduled 3-hour meeting, 6 weeks post-close, in person at 
+         investor office.
+      3. Created 20-slide deck covering: company update, financials 
+         (basic P&L and runway), metrics, product progress, team, 
+         goals for next quarter.
+      4. Sent materials 5 days ahead with cover note explaining first 
+         meeting structure.
+      5. Identified one strategic discussion topic: should we pursue 
+         enterprise customers or stay SMB focused?
+      6. Prepared for tough questions: what if growth slows, what if 
+         we cannot raise Series A, etc.
+      7. Ran meeting: opened with welcome, moved through updates 
+         efficiently, spent 45 minutes on enterprise vs. SMB 
+         discussion (valuable input received).
+      8. Took notes on action items. Sent minutes within 3 days.
+      9. Scheduled monthly check-in calls with each board member.
+    outcome: |
+      First board meeting went smoothly. Investor praised preparation 
+      and openness to discussion. Strategic input on enterprise vs. 
+      SMB was genuinely useful. Established good governance rhythm 
+      that continued quarterly.
+    lessons:
+      - Ask experienced board members for guidance
+      - Preparation reduces nervousness
+      - Focus on one strategic topic for real discussion
+      - Relationship building starts at first meeting
+
+  - id: ps-002
+    name: "CEO Managing Difficult Board Dynamics"
+    practitioner: "CEO"
+    organization_context: |
+      Series B company with 5-person board. Two investor directors 
+      have different views on strategy. One pushes for aggressive 
+      growth, other for profitability. Meetings have become tense.
+    situation: |
+      Last two board meetings featured open disagreement between 
+      investor directors. CEO caught in middle. Meetings are 
+      unproductive and uncomfortable.
+    trigger: |
+      Board chair (independent) called CEO after last meeting to 
+      discuss improving board dynamics.
+    actions: |
+      1. CEO met with board chair to understand root cause. Chair 
+         saw issue as legitimate strategic disagreement, not personal.
+      2. CEO scheduled individual calls with each investor director 
+         to understand their perspectives and concerns deeply.
+      3. Framed next meeting around the strategic question: What is 
+         the right balance between growth and profitability given 
+         market conditions?
+      4. Created pre-read analysis showing scenarios for different 
+         approaches (aggressive growth, balanced, profitable growth) 
+         with trade-offs clearly laid out.
+      5. Asked board chair to facilitate strategic discussion section 
+         to keep it productive.
+      6. In meeting, CEO presented analysis, then chair facilitated 
+         structured discussion with each member sharing perspective.
+      7. Ended with CEO stating decision and rationale, informed by 
+         board input but ultimately CEO's call.
+      8. Established norm: healthy disagreement is good, CEO decides 
+         on operations, board provides oversight.
+    outcome: |
+      Board dynamics improved significantly. Strategic disagreement 
+      was channeled productively. Both investor directors felt heard. 
+      CEO felt empowered to make decisions. Subsequent meetings were 
+      more productive.
+    lessons:
+      - Address dynamics issues directly, not avoid them
+      - Board chair is ally in managing dynamics
+      - Frame disagreements as legitimate strategic questions
+      - CEO decides on operations; board provides input
+
+  - id: ps-003
+    name: "COO Professionalizing Board Operations"
+    practitioner: "COO"
+    organization_context: |
+      100-person Series C company preparing for IPO in 18-24 months. 
+      Board operations have been informal. Need to establish 
+      professional governance practices.
+    situation: |
+      CEO recognizes board operations need to mature for public company 
+      readiness. COO tasked with professionalizing governance without 
+      making it bureaucratic.
+    trigger: |
+      Investment banker mentioned governance as area needing 
+      improvement during IPO preparation discussion.
+    actions: |
+      1. Audited current state: inconsistent materials, no formal 
+         minutes, no committee structure, informal meeting management.
+      2. Researched best practices: reviewed public company governance 
+         requirements, spoke with other pre-IPO companies.
+      3. Created governance improvement plan:
+         - Standardized board deck template
+         - Formal minutes process
+         - Audit committee establishment
+         - Compensation committee establishment
+         - Annual board calendar
+         - Board portal for materials
+      4. Proposed charter documents for audit and compensation 
+         committees. Board approved.
+      5. Implemented board portal (BoardEffect). Established 
+         consistent process for materials.
+      6. Created board meeting checklist: materials timeline, agenda 
+         template, minutes template, action item tracking.
+      7. Ran first improved board meeting. Solicited feedback from 
+         directors on process.
+      8. Established executive session as regular agenda item.
+      9. Planned board evaluation for 1 year out.
+    outcome: |
+      Governance practices met institutional standards. Investment 
+      bankers approved governance in due diligence. Board members 
+      appreciated improved process. Established foundation for public 
+      company governance.
+    lessons:
+      - Start governance improvements early, not at IPO
+      - Templates and process create consistency
+      - Committees provide oversight structure
+      - Balance formality with efficiency
+
+operational_context:
+  prerequisites:
+    - Board members appointed
+    - Meeting scheduling ability
+    - Financial and operational data for reports
+    - Basic corporate governance understanding
+    
+  common_blockers:
+    - "Board members too busy - Schedule meetings far in advance"
+    - "Meetings are unproductive - Focus on discussion, not presentation"
+    - "Board is disengaged - Invest in individual relationships"
+    - "Governance feels bureaucratic - Keep it simple at early stage"
+    
+  integration_points:
+    - Quarterly Reporting: Board meeting uses same data
+    - Stakeholder Updates: Board is key stakeholder
+    - Legal: Corporate secretary, minutes, resolutions
+    - Finance: Financial reporting for board
+
+risks:
+  if_skipped: |
+    Lose strategic value of board. Miss fiduciary duties. Create legal 
+    exposure. Disengage board members. Make poor decisions without 
+    proper oversight.
+    
+  if_over_engineered: |
+    Spend too much time on governance vs. operations. Create 
+    bureaucracy that slows decision-making. Make meetings feel like 
+    performance rather than partnership.
+
+domain_context:
+  related_l2: "Financial Structuring"
+  related_l1: "FINANCING"
+  synergies:
+    - "Quarterly Reporting (cd-017): Board meeting builds on quarterly data"
+    - "Stakeholder Updates (cd-018): Board is key stakeholder group"
+    - "Term Sheet Negotiations (cd-012): Terms determine board structure"
+    - "Corporate governance: Legal structure and compliance"

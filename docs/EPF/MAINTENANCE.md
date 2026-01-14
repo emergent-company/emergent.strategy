@@ -732,7 +732,7 @@ The EPF framework version is tracked in `README.md` and `MAINTENANCE.md`.
 | **MINOR (Y)** | New features, new artifact types, new optional fields, new wizards. Backward-compatible additions that enhance capability. | v1.9.0 → v1.10.0: Add new agent prompt |
 | **PATCH (Z)** | Bug fixes, documentation improvements, schema clarifications, typo fixes. No structural changes. | v1.9.3 → v1.9.4: Fix schema validation issue |
 
-**Current Framework Version:** v2.4.3
+**Current Framework Version:** v2.6.3
 
 **Version History Convention:**
 - Document version changes in `README.md` under "What's New in vX.Y.Z"
@@ -1099,15 +1099,15 @@ After ANY modification to EPF files, **ALWAYS** run through this complete checkl
 
 **Check:** Do all YAML artifacts validate against their corresponding schemas?
 
-**Files to Review (EPF v1.9.4):**
-- [ ] `templates/READY/00_north_star.yaml` ↔ `schemas/north_star_schema.json` *(schema TBD)*
-- [ ] `templates/READY/01_insight_analyses.yaml` ↔ `schemas/insight_analyses_schema.json` *(schema TBD)*
-- [ ] `templates/READY/02_strategy_foundations.yaml` ↔ `schemas/strategy_foundations_schema.json` *(schema TBD)*
+**Files to Review:**
+- [ ] `templates/READY/00_north_star.yaml` ↔ `schemas/north_star_schema.json`
+- [ ] `templates/READY/01_insight_analyses.yaml` ↔ `schemas/insight_analyses_schema.json`
+- [ ] `templates/READY/02_strategy_foundations.yaml` ↔ `schemas/strategy_foundations_schema.json`
 - [ ] `templates/READY/03_insight_opportunity.yaml` ↔ `schemas/insight_opportunity_schema.json`
 - [ ] `templates/READY/04_strategy_formula.yaml` ↔ `schemas/strategy_formula_schema.json`
 - [ ] `templates/READY/05_roadmap_recipe.yaml` ↔ `schemas/roadmap_recipe_schema.json`
 - [ ] `templates/FIRE/value_models/*.yaml` ↔ `schemas/value_model_schema.json`
-- [ ] `templates/FIRE/feature_definitions/*.yaml` ↔ `schemas/feature_definition_schema.json`
+- [ ] `definitions/product/_template/*.yaml` ↔ `schemas/feature_definition_schema.json`
 - [ ] `templates/FIRE/workflows/*.yaml` ↔ `schemas/workflow_schema.json`
 - [ ] `templates/FIRE/mappings.yaml` ↔ `schemas/mappings_schema.json`
 - [ ] `templates/AIM/assessment_report.yaml` ↔ `schemas/assessment_report_schema.json`

@@ -1,0 +1,251 @@
+# OrgOps Process Definition: Promotion Process
+# Schema: org_ops_definition_schema.json v1.0.0
+
+id: pd-034
+name: Promotion Process
+slug: promotion-process
+track: org_ops
+status: ready
+
+contributes_to:
+  - OrgOps.Career Progression.individual-development-plans
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Manager-driven promotions"
+    includes:
+      - Manager nomination
+      - Leadership approval
+      - Basic criteria
+    effort: "1-2 hours per promotion"
+    
+  tier_2_intermediate:
+    description: "Structured promotion process"
+    adds:
+      - Clear criteria per level
+      - Calibration across teams
+      - Promotion committee
+      - Documented rationale
+    effort: "4-8 hours per promotion cycle"
+    
+  tier_3_advanced:
+    description: "Systematic talent advancement"
+    adds:
+      - Promotion readiness development
+      - Succession pipeline
+      - Analytics on advancement
+      - DEI lens on promotions
+    effort: "Ongoing talent management"
+
+definition:
+  purpose: |
+    Promotions recognize growth and create career paths. Without a clear 
+    process, promotions are inconsistent, frustrating, and potentially 
+    biased. A good promotion process ensures fairness and transparency 
+    in career advancement.
+    
+  outcome: |
+    Employees know how to advance. Promotions are based on clear criteria. 
+    Decisions are consistent across the organization. High performers 
+    have growth paths.
+    
+  owner: People Lead or HR
+  
+  inputs:
+    - name: Level definitions
+      description: What each level requires
+      source: Career framework
+    - name: Performance data
+      description: Track record of the candidate
+      source: Performance reviews
+    - name: Manager assessment
+      description: Readiness for next level
+      source: Manager
+      
+  outputs:
+    - name: Promotion decision
+      description: Yes/no with rationale
+      consumer: Employee, payroll
+    - name: Updated level
+      description: New title and compensation
+      consumer: HR records
+      
+  steps:
+    - step: 1
+      action: Manager identifies candidate
+      responsible: Manager
+      duration: "30 min"
+      deliverable: Promotion nomination
+      considers:
+        - Performing at next level already
+        - Sustained performance (6+ months)
+        - Business need for the role
+      
+    - step: 2
+      action: Build promotion case
+      responsible: Manager
+      duration: "1-2 hours"
+      deliverable: Promotion packet
+      includes:
+        - Evidence of next-level performance
+        - Key accomplishments
+        - Growth demonstrated
+        - Peer/stakeholder feedback
+      
+    - step: 3
+      action: Review and calibrate
+      responsible: Leadership + People Lead
+      duration: "1-2 hours"
+      deliverable: Calibrated decisions
+      ensures:
+        - Consistent application of criteria
+        - Similar bar across teams
+        - Budget considerations
+      
+    - step: 4
+      action: Final approval
+      responsible: CEO or department head
+      duration: "30 min"
+      deliverable: Approved promotions
+      
+    - step: 5
+      action: Communicate decision
+      responsible: Manager
+      duration: "30 min per person"
+      deliverable: Employee informed
+      includes:
+        - New title/level
+        - Compensation change
+        - Rationale
+        - If not promoted: feedback
+      
+    - step: 6
+      action: Update systems
+      responsible: People Lead
+      duration: "15 min"
+      deliverable: Records updated
+      
+  cadence:
+    frequency: semi-annually
+    trigger: Promotion cycle (often aligned with reviews)
+    duration: "1-2 weeks for full cycle"
+    
+  participants:
+    - role: Manager
+      responsibility: Nominate, build case
+      time_commitment: "2-4 hours"
+    - role: People Lead
+      responsibility: Coordinate process
+      time_commitment: "4-8 hours"
+    - role: Leadership
+      responsibility: Calibrate and approve
+      time_commitment: "2-4 hours"
+
+  success_criteria:
+    - Clear criteria applied consistently
+    - Decisions communicated with rationale
+    - High performers advancing
+    - DEI lens on outcomes
+
+operational_context:
+  prerequisites:
+    - Career ladder with level definitions
+    - Performance history
+    - Compensation budget
+    
+  common_blockers:
+    - "No clear criteria → Define levels first"
+    - "Inconsistent bar → Calibration session"
+    - "Budget constraints → Prioritize, set expectations"
+    
+  metrics:
+    - name: Promotion rate
+      description: Percentage promoted per cycle
+      target: "10-20% (varies)"
+      tier: 2
+    - name: Consistency
+      description: Similar rates across teams
+      target: "No significant variance"
+      tier: 2
+
+tools_ecosystem:
+  recommended:
+    - category: HRIS
+      examples:
+        - Lattice
+        - Culture Amp
+        - BambooHR
+      purpose: Track promotions, levels
+    - category: Documentation
+      examples:
+        - Notion
+        - Google Docs
+      purpose: Promotion packets
+
+related_definitions:
+  - id: pd-006
+    relationship: requires
+    description: "Performance data informs promotions"
+  - id: pd-012
+    relationship: requires
+    description: "Career framework defines levels"
+  - id: pd-032
+    relationship: enables
+    description: "Promotions trigger comp changes"
+
+adaptation:
+  customize:
+    - Promotion cycles (quarterly/semi/annual)
+    - Who approves
+    - Calibration process
+  preserve:
+    - Clear criteria
+    - Calibration for consistency
+    - Communication
+  common_variations:
+    - "Early startup: As-needed promotions"
+    - "Growing: Semi-annual cycles"
+    - "Enterprise: Formal committee, quotas"
+
+# Promotion Criteria Template
+criteria_template:
+  readiness_signals:
+    - "Already performing at next level for 3-6 months"
+    - "Demonstrates all competencies of next level"
+    - "Has scope and impact of next level"
+    - "Peer and stakeholder recognition"
+    
+  common_mistakes:
+    - "Tenure alone (time in role ≠ readiness)"
+    - "Potential without evidence"
+    - "Rewarding current role excellence (should be next level)"
+    - "Inflation pressure"
+
+# Promotion Packet Template
+packet_template:
+  candidate: "[Name]"
+  current_level: "[Current]"
+  proposed_level: "[Proposed]"
+  manager: "[Manager name]"
+  
+  next_level_performance:
+    - accomplishment: "[What they did at next level]"
+      impact: "[Measurable result]"
+    - accomplishment: "[Second example]"
+      impact: "[Measurable result]"
+      
+  competencies_demonstrated:
+    - competency: "[Key competency of next level]"
+      evidence: "[How they've shown this]"
+      
+  growth_shown:
+    - "[How they've developed since current level]"
+    
+  stakeholder_feedback:
+    - "[Summary of peer/cross-functional input]"
+    
+  manager_recommendation:
+    summary: "[Why this person is ready]"
+    areas_for_development: "[Growth areas at new level]"

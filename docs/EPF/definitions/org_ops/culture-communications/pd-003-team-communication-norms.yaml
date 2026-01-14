@@ -1,0 +1,215 @@
+# OrgOps Process Definition: Team Communication Norms
+# Schema: org_ops_definition_schema.json v1.0.0
+
+id: pd-003
+name: Team Communication Norms
+slug: team-communication-norms
+track: org_ops
+status: ready
+
+contributes_to:
+  - OrgOps.Collaboration Protocols.meeting-cadences
+  - OrgOps.Collaboration Protocols.cross-team-workflows
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Simple, documented team agreements"
+    includes:
+      - Written communication norms doc
+      - Meeting basics (camera, mute, agenda)
+      - Response time expectations
+    effort: "1-2 hours to create, 30 min review per quarter"
+    
+  tier_2_intermediate:
+    description: "Team-wide adoption with regular reinforcement"
+    adds:
+      - Onboarding inclusion
+      - Quarterly retrospectives on norms
+      - Channel/tool conventions
+      - Async vs sync guidelines
+    effort: "Half day to establish, 1 hour quarterly"
+    
+  tier_3_advanced:
+    description: "Company-wide standards with measurement"
+    adds:
+      - Cross-team norm alignment
+      - Meeting health metrics
+      - Calendar hygiene audits
+      - Communication tool analytics
+    effort: "1-2 weeks to roll out, ongoing monitoring"
+
+definition:
+  purpose: |
+    Without explicit communication norms, teams develop inconsistent practices that 
+    lead to meeting fatigue, unclear expectations, and collaboration friction. 
+    Especially in remote/hybrid environments, unclear norms cause anxiety and 
+    inefficiency. This process establishes explicit team agreements.
+    
+  outcome: |
+    Team has documented, agreed-upon communication norms that everyone understands. 
+    New members can quickly learn expectations. Friction from mismatched 
+    expectations is reduced.
+    
+  owner: Team Lead or Manager
+  
+  inputs:
+    - name: Team context
+      description: Size, timezone spread, work type, tools used
+      source: Team observation
+    - name: Pain points
+      description: Current communication friction areas
+      source: Team feedback
+    - name: Company guidelines
+      description: Any existing company-wide policies
+      source: HR / Operations
+      
+  outputs:
+    - name: Communication norms document
+      description: Written team agreements on communication
+      consumer: All team members, new hires
+    - name: Quick reference guide
+      description: 1-page summary of key norms
+      consumer: Daily reference
+      
+  steps:
+    - step: 1
+      action: Gather team input on communication pain points
+      responsible: Team Lead
+      duration: "30 minutes"
+      tools:
+        - Survey (Typeform, Google Forms)
+        - Team discussion
+      deliverable: List of issues to address
+      
+    - step: 2
+      action: Draft initial norms covering key areas
+      responsible: Team Lead
+      duration: "30 minutes"
+      deliverable: Draft norms document
+      
+    - step: 3
+      action: Review draft with team, gather feedback
+      responsible: Team Lead + Team
+      duration: "30 minutes"
+      deliverable: Feedback collected
+      
+    - step: 4
+      action: Finalize norms with team consensus
+      responsible: Team Lead
+      duration: "15 minutes"
+      deliverable: Agreed norms document
+      
+    - step: 5
+      action: Publish and share with all team members
+      responsible: Team Lead
+      duration: "10 minutes"
+      tools:
+        - Notion, Confluence, or team wiki
+        - Slack/Teams pinned message
+      deliverable: Norms accessible to all
+      
+  cadence:
+    frequency: quarterly
+    trigger: Team formation, or quarterly review
+    duration: "1.5-2 hours for initial creation"
+    
+  participants:
+    - role: Team Lead
+      responsibility: Facilitate process, document outcomes
+      time_commitment: "1.5 hours"
+    - role: Team Members
+      responsibility: Provide input, commit to norms
+      time_commitment: "30-45 minutes"
+      
+  success_criteria:
+    - Written norms document exists and is accessible
+    - All team members know where to find norms
+    - Norms cover key areas (meetings, async, response times)
+    - Team references norms when conflicts arise
+    - New hires receive norms during onboarding
+
+operational_context:
+  prerequisites:
+    - Team has been working together (at least 2-4 weeks)
+    - Willingness to have open discussion about improvements
+    
+  common_blockers:
+    - "Disagreement on norms → Vote, try for 1 quarter, revisit"
+    - "Too many norms → Limit to 5-7 key agreements"
+    - "Norms ignored → Leader must model, address violations"
+    
+  metrics:
+    - name: Meeting effectiveness score
+      description: Team rating of meeting quality
+      target: "> 4/5"
+      tier: 2
+    - name: Response time adherence
+      description: Percentage of responses within agreed times
+      target: "> 90%"
+      tier: 2
+
+tools_ecosystem:
+  recommended:
+    - category: Documentation
+      examples:
+        - Notion
+        - Confluence
+        - Google Docs
+      purpose: Store and share norms
+    - category: Team Chat
+      examples:
+        - Slack
+        - Microsoft Teams
+      purpose: Pin norms, quick reference
+  integrations:
+    - Onboarding checklist → Include norms review
+
+related_definitions:
+  - id: pd-004
+    relationship: enables
+    description: "Communication norms support decision making framework"
+  - id: pd-001
+    relationship: enables
+    description: "New hires learn norms during orientation"
+
+adaptation:
+  customize:
+    - Specific tools and channels used
+    - Timezone-specific considerations
+    - Industry or role-specific needs
+  preserve:
+    - Team involvement in creating norms
+    - Written documentation
+    - Regular review cadence
+  common_variations:
+    - "All-remote: Emphasis on async, video on/off preferences"
+    - "Customer-facing: Availability windows, escalation"
+    - "Creative teams: Focus time blocks, no-meeting days"
+
+# Key Norm Areas to Cover
+norm_areas:
+  meetings:
+    - "Default meeting length (25/50 min vs 30/60)"
+    - "Agenda required for meetings > 30 min"
+    - "Camera on/off expectations"
+    - "Start/end on time"
+    - "Notes and action items captured"
+    
+  asynchronous:
+    - "Default to async unless urgent"
+    - "Expected response times by channel"
+    - "When to escalate to sync"
+    - "Working hours and availability"
+    
+  channels:
+    - "Which tool for what purpose"
+    - "When to use DM vs channel"
+    - "Thread vs new message"
+    - "Status/availability indicators"
+    
+  focus_time:
+    - "Blocked calendar time respected"
+    - "No-meeting windows"
+    - "Notification expectations"

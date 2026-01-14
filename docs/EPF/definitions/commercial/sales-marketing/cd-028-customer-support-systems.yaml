@@ -1,0 +1,787 @@
+# Commercial Process Definition: Customer Support Systems
+# Schema: commercial_definition_schema.json v1.1.0
+
+id: cd-028
+name: Customer Support Systems
+slug: customer-support-systems
+track: commercial
+status: ready
+
+contributes_to:
+  - Commercial.Customer Success.customer-support-systems
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Shared inbox with basic tracking"
+    includes:
+      - Email-based support
+      - Simple ticket management
+      - Basic documentation
+      - Founder/team response
+    effort: "Ad-hoc, shared responsibility"
+    
+  tier_2_intermediate:
+    description: "Structured support with SLAs"
+    adds:
+      - Help desk platform
+      - Knowledge base
+      - SLA tracking
+      - Dedicated support role
+    effort: "Part-time to full-time support"
+    
+  tier_3_advanced:
+    description: "Scalable multi-channel support"
+    adds:
+      - Omnichannel support
+      - Self-service portal
+      - AI-assisted support
+      - Tiered support model
+    effort: "Support team + platform"
+
+definition:
+  purpose: |
+    Customer support systems enable efficient, high-quality 
+    help when customers need it. Great support builds loyalty, 
+    reduces churn, and provides product feedback.
+    
+    Why support matters:
+    
+    1. Retention driver. Poor support causes churn. Good 
+       support turns problems into loyalty.
+    
+    2. Product feedback. Support is frontline for product 
+       issues and improvement ideas.
+    
+    3. Customer success. Helping customers succeed with 
+       your product drives value realization.
+    
+    4. Competitive advantage. Support quality differentiates 
+       in crowded markets.
+    
+    5. Efficiency enabler. Systems scale support without 
+       linear team growth.
+    
+    Support system components:
+    
+    1. Channels: How customers reach you
+    2. Ticketing: How requests are managed
+    3. Knowledge: Self-service resources
+    4. Team: Who provides support
+    5. Metrics: How quality is measured
+    
+  outcome: |
+    Fast, effective support that resolves issues. High 
+    customer satisfaction scores. Efficient support 
+    operations. Product feedback loop. Reduced churn.
+    
+  owner: Customer Success / Support
+  
+  inputs:
+    - name: Customer requests
+      description: "Questions, issues, feedback"
+      source: Customers
+      
+    - name: Product knowledge
+      description: "How product works"
+      source: Product, Engineering
+      
+    - name: Customer context
+      description: "Account info, history"
+      source: CRM, product usage
+      
+    - name: Support resources
+      description: "Team, tools, budget"
+      source: Leadership
+      
+  outputs:
+    - name: Issue resolution
+      description: "Solved customer problems"
+      consumer: Customers
+      
+    - name: Knowledge content
+      description: "Documentation and guides"
+      consumer: Customers, team
+      
+    - name: Product feedback
+      description: "Issues and requests"
+      consumer: Product team
+
+  steps:
+    - step: 1
+      action: Define support model
+      responsible: Customer Success leadership
+      duration: "1-2 weeks"
+      deliverable: Support strategy
+      support_model:
+        channel_strategy:
+          channels:
+            email:
+              description: "Primary async channel"
+              pros: "Documented, flexible timing"
+              cons: "Slower, less immediate"
+              when: "Default for most issues"
+            chat:
+              description: "Real-time support"
+              pros: "Fast, convenient"
+              cons: "Requires availability"
+              when: "Simple questions, sales"
+            phone:
+              description: "Voice support"
+              pros: "Personal, complex issues"
+              cons: "Resource intensive"
+              when: "Enterprise, urgent issues"
+            self_service:
+              description: "Docs, knowledge base"
+              pros: "Always available, scalable"
+              cons: "Requires content investment"
+              when: "Common questions, how-to"
+          selection:
+            early_stage:
+              - "Email (primary)"
+              - "Documentation"
+              - "Optional: chat for sales"
+            growth_stage:
+              - "Email + chat"
+              - "Knowledge base"
+              - "Phone for enterprise"
+        tier_model:
+          single_tier:
+            description: "One team handles all"
+            when: "Small team, low volume"
+            approach: "Generalists handle everything"
+          two_tier:
+            tier_1:
+              handles: "Common issues, quick answers"
+              skills: "Product basics, troubleshooting"
+            tier_2:
+              handles: "Complex, technical issues"
+              skills: "Deep product, engineering"
+            when: "Growing volume, varied complexity"
+          three_tier:
+            add_tier_3:
+              handles: "Engineering escalation"
+              skills: "Development, bug fixes"
+            when: "Significant technical issues"
+        sla_definition:
+          components:
+            first_response:
+              definition: "Time to first meaningful reply"
+              typical:
+                standard: "24 hours"
+                priority: "4 hours"
+                urgent: "1 hour"
+            resolution:
+              definition: "Time to resolve issue"
+              typical:
+                simple: "24 hours"
+                moderate: "48 hours"
+                complex: "1 week"
+          by_customer_tier:
+            enterprise: "Faster SLAs, dedicated support"
+            standard: "Standard SLAs"
+      best_practices:
+        - "Match channels to customer needs"
+        - "Set realistic SLAs"
+        - "Document escalation paths"
+        - "Review and adjust"
+
+    - step: 2
+      action: Implement support tooling
+      responsible: Operations / Support lead
+      duration: "2-4 weeks"
+      deliverable: Support infrastructure
+      help_desk_platform:
+        selection_criteria:
+          - "Ticket management"
+          - "Multi-channel support"
+          - "Knowledge base integration"
+          - "Reporting and analytics"
+          - "Integrations (CRM, etc.)"
+        platform_options:
+          simple:
+            examples:
+              - "Gmail + labels"
+              - "Front"
+              - "Help Scout"
+            when: "Early stage, simple needs"
+          intermediate:
+            examples:
+              - "Zendesk"
+              - "Freshdesk"
+              - "Intercom"
+            when: "Growing, need features"
+          advanced:
+            examples:
+              - "Zendesk Enterprise"
+              - "Salesforce Service Cloud"
+            when: "Large scale, enterprise needs"
+        key_features:
+          ticket_management:
+            - "Create, assign, track tickets"
+            - "Status and priority"
+            - "Tags and categories"
+          workflow:
+            - "Assignment rules"
+            - "Escalation rules"
+            - "SLA tracking"
+          collaboration:
+            - "Internal notes"
+            - "Team assignment"
+            - "Escalation"
+          reporting:
+            - "Ticket volume"
+            - "Response times"
+            - "Resolution times"
+            - "CSAT"
+      integrations:
+        essential:
+          crm:
+            purpose: "Customer context"
+            integration: "See account info in tickets"
+          product:
+            purpose: "Usage context"
+            integration: "See user activity"
+        valuable:
+          slack:
+            purpose: "Internal collaboration"
+          documentation:
+            purpose: "Self-service"
+      setup:
+        steps:
+          - "Select and configure platform"
+          - "Set up channels"
+          - "Create workflows"
+          - "Configure integrations"
+          - "Train team"
+      best_practices:
+        - "Start simple, add features"
+        - "Integrate with existing tools"
+        - "Focus on workflow, not features"
+        - "Train thoroughly"
+
+    - step: 3
+      action: Build knowledge base
+      responsible: Support + Content
+      duration: "4-8 weeks initial, ongoing"
+      deliverable: Self-service resources
+      knowledge_strategy:
+        purpose:
+          - "Enable self-service"
+          - "Reduce ticket volume"
+          - "Consistent answers"
+          - "Onboarding resource"
+        content_types:
+          getting_started:
+            - "Setup guides"
+            - "Quick start"
+            - "First steps"
+          how_to:
+            - "Task-based guides"
+            - "Feature documentation"
+            - "Video tutorials"
+          troubleshooting:
+            - "Common issues"
+            - "Error messages"
+            - "Workarounds"
+          reference:
+            - "Feature reference"
+            - "Settings"
+            - "API docs"
+          faq:
+            - "Common questions"
+            - "Quick answers"
+      content_creation:
+        process:
+          identify:
+            source: "Common ticket topics"
+            priority: "High volume, easy to document"
+          create:
+            - "Clear, step-by-step"
+            - "Screenshots/videos"
+            - "Consistent format"
+          review:
+            - "Technical accuracy"
+            - "User testing"
+          publish:
+            - "Categorize appropriately"
+            - "Make discoverable"
+        maintenance:
+          - "Regular review"
+          - "Update for product changes"
+          - "Add new content"
+          - "Retire outdated"
+      platform:
+        options:
+          simple:
+            - "Notion (public pages)"
+            - "GitBook"
+            - "Docs as code"
+          integrated:
+            - "Zendesk Guide"
+            - "Intercom Articles"
+            - "Freshdesk Knowledge Base"
+        features:
+          - "Search"
+          - "Categories"
+          - "Analytics"
+          - "Feedback"
+      metrics:
+        - "Article views"
+        - "Search behavior"
+        - "Ticket deflection"
+        - "User feedback"
+      best_practices:
+        - "Write for users, not experts"
+        - "Use screenshots and examples"
+        - "Keep updated"
+        - "Measure effectiveness"
+
+    - step: 4
+      action: Establish support processes
+      responsible: Support lead
+      duration: "1-2 weeks"
+      deliverable: Support playbook
+      ticket_handling:
+        triage:
+          - "Categorize by type"
+          - "Assess priority"
+          - "Assign appropriately"
+        priority_levels:
+          urgent:
+            criteria: "Production down, blocking"
+            response: "1 hour"
+            handling: "All hands, immediate"
+          high:
+            criteria: "Major feature broken"
+            response: "4 hours"
+            handling: "Priority queue"
+          normal:
+            criteria: "Standard issue"
+            response: "24 hours"
+            handling: "Normal queue"
+          low:
+            criteria: "Questions, feedback"
+            response: "48 hours"
+            handling: "Batch processing"
+      response_process:
+        first_response:
+          - "Acknowledge receipt"
+          - "Set expectations"
+          - "Ask clarifying questions"
+        investigation:
+          - "Reproduce issue"
+          - "Check known issues"
+          - "Research solution"
+        resolution:
+          - "Provide solution"
+          - "Confirm resolution"
+          - "Document for future"
+        escalation:
+          when:
+            - "Beyond skill level"
+            - "Bug requiring engineering"
+            - "Customer escalates"
+          how:
+            - "Document fully"
+            - "Escalate to appropriate tier"
+            - "Maintain ownership"
+      quality_standards:
+        response_quality:
+          - "Clear and helpful"
+          - "Complete answer"
+          - "Friendly tone"
+          - "Next steps if needed"
+        resolution_quality:
+          - "Actually solves problem"
+          - "Customer confirms"
+          - "Documented"
+      documentation:
+        internal:
+          - "Runbooks for common issues"
+          - "Escalation procedures"
+          - "Product updates"
+        external:
+          - "Knowledge base articles"
+          - "Status page"
+      best_practices:
+        - "Own the issue"
+        - "Communicate proactively"
+        - "Document everything"
+        - "Close the loop"
+
+    - step: 5
+      action: Build and develop team
+      responsible: Support leadership
+      duration: "Ongoing"
+      deliverable: Capable support team
+      team_structure:
+        early_stage:
+          model: "Shared responsibility"
+          who: "Founders, early employees"
+          approach: "Everyone does support"
+        growth_stage:
+          model: "Dedicated support"
+          roles:
+            support_rep:
+              responsibilities:
+                - "Handle tickets"
+                - "Create documentation"
+                - "Escalate as needed"
+              skills:
+                - "Product knowledge"
+                - "Customer empathy"
+                - "Written communication"
+            support_lead:
+              responsibilities:
+                - "Manage team"
+                - "Handle escalations"
+                - "Improve processes"
+        scale_stage:
+          add_roles:
+            - "Technical support specialists"
+            - "Support engineers"
+            - "Knowledge manager"
+      hiring:
+        key_traits:
+          - "Customer empathy"
+          - "Problem-solving"
+          - "Communication skills"
+          - "Patience"
+          - "Technical aptitude"
+        interview:
+          - "Customer scenario role-play"
+          - "Writing sample"
+          - "Technical assessment"
+      training:
+        onboarding:
+          week_1:
+            - "Product deep dive"
+            - "Tool training"
+            - "Shadow experienced reps"
+          week_2:
+            - "Handle simple tickets (supervised)"
+            - "Knowledge base contribution"
+          week_3_4:
+            - "Full ticket queue"
+            - "Regular check-ins"
+        ongoing:
+          - "Product updates"
+          - "Skill development"
+          - "Best practice sharing"
+      development:
+        career_paths:
+          - "Senior support"
+          - "Support lead/manager"
+          - "Customer success"
+          - "Technical support engineer"
+          - "Product (support insight)"
+      best_practices:
+        - "Hire for empathy"
+        - "Invest in training"
+        - "Create career paths"
+        - "Recognize great work"
+
+    - step: 6
+      action: Measure and improve
+      responsible: Support leadership
+      duration: "Ongoing"
+      deliverable: Support metrics and optimization
+      key_metrics:
+        volume:
+          tickets:
+            - "Ticket volume"
+            - "Volume by channel"
+            - "Volume by category"
+          trends:
+            - "Week over week"
+            - "Seasonality"
+        speed:
+          first_response_time:
+            definition: "Time to first reply"
+            target: "Per SLA"
+            measure: "Average, median, percentile"
+          resolution_time:
+            definition: "Time to resolve"
+            target: "Per issue type"
+          one_touch_resolution:
+            definition: "Resolved in single reply"
+            target: "High for simple issues"
+        quality:
+          csat:
+            definition: "Customer satisfaction score"
+            measurement: "Post-resolution survey"
+            target: "90%+ satisfied"
+          nps:
+            definition: "Net Promoter Score"
+            measurement: "Periodic survey"
+          resolution_rate:
+            definition: "Issues actually resolved"
+            target: "High"
+        efficiency:
+          tickets_per_rep:
+            definition: "Volume handled"
+            context: "Balance with quality"
+          cost_per_ticket:
+            definition: "Support cost / tickets"
+            context: "Efficiency measure"
+      improvement_process:
+        analysis:
+          - "Review metrics weekly"
+          - "Identify trends and issues"
+          - "Root cause analysis"
+        improvement_areas:
+          reduce_volume:
+            - "Better documentation"
+            - "Product improvements"
+            - "Proactive communication"
+          improve_speed:
+            - "Better tooling"
+            - "Canned responses"
+            - "Process optimization"
+          improve_quality:
+            - "Training"
+            - "QA reviews"
+            - "Knowledge sharing"
+        feedback_to_product:
+          - "Aggregate common issues"
+          - "Share feature requests"
+          - "Prioritize impact"
+      reporting:
+        internal:
+          - "Weekly team metrics"
+          - "Monthly summary"
+        leadership:
+          - "Monthly dashboard"
+          - "Quarterly review"
+        customer:
+          - "Status page"
+          - "Incident communication"
+      best_practices:
+        - "Measure what matters"
+        - "Balance speed and quality"
+        - "Use data to improve"
+        - "Close feedback loops"
+
+  cadence:
+    frequency: "Always running"
+    trigger: "Customer requests"
+    duration: "Ongoing"
+    ongoing:
+      - Real-time ticket handling
+      - Daily queue management
+      - Weekly metrics review
+      - Monthly process review
+
+practitioner_scenarios:
+  - id: ps-001
+    name: "Founder Managing Support Personally"
+    practitioner: "CEO / Founder"
+    organization_context: |
+      Pre-seed startup with 30 customers. No dedicated 
+      support. Founder handles all customer requests 
+      via email. Want to maintain quality while scaling.
+    situation: |
+      Handling support personally but taking significant 
+      time. Customers happy but not sustainable. Need 
+      to systematize without losing personal touch.
+    trigger: |
+      Support volume increasing. Can't maintain quality 
+      with growing customers. Need system before first 
+      support hire.
+    actions: |
+      1. Assessed current state:
+         - 15-20 tickets per week
+         - Average response: 4 hours
+         - Common topics: 5 categories
+         - Resolution time: 1-2 days
+      2. Set up simple tooling:
+         - Moved to Help Scout (shared inbox)
+         - Tagged tickets by category
+         - Created saved replies for common issues
+         - Set up CSAT survey
+      3. Created initial documentation:
+         - 10 articles for top issues
+         - Getting started guide
+         - FAQ page
+         - Published on Notion
+      4. Established basic process:
+         - Priority levels defined
+         - Response time targets
+         - Escalation to engineering
+      5. Results (3 months):
+         - Response time: 4 hours → 2 hours
+         - 30% ticket reduction from docs
+         - CSAT: 95%
+         - Foundation for hire
+      6. Ready for first hire:
+         - Playbook documented
+         - Tools in place
+         - Knowledge base started
+    outcome: |
+      Systematized support without losing quality. 
+      Reduced founder time. Foundation for scaling. 
+      Ready for first support hire.
+    lessons:
+      - Simple tools work
+      - Documentation reduces volume
+      - Process before people
+      - Personal touch still matters
+
+  - id: ps-002
+    name: "Support Lead Professionalizing Operations"
+    practitioner: "Support Lead"
+    organization_context: |
+      Series A startup with 500 customers. One support 
+      person (became lead). Ad hoc processes. Need to 
+      build real support operation.
+    situation: |
+      Handling all support alone. No formal processes. 
+      Basic help desk. Growing volume overwhelming. 
+      Need to hire and build team.
+    trigger: |
+      Volume exceeding capacity. Response times slipping. 
+      Approved to hire two support reps. Need to build 
+      proper operation.
+    actions: |
+      1. Audited current state:
+         - 100+ tickets per week
+         - Response time: 8 hours average
+         - No SLAs, informal processes
+         - Basic knowledge base
+      2. Upgraded tooling:
+         - Migrated to Zendesk
+         - Set up proper workflows
+         - Integrated with CRM
+         - Implemented SLA tracking
+      3. Defined support model:
+         - SLAs by priority
+         - Two-tier support
+         - Escalation process
+         - Quality standards
+      4. Built knowledge base:
+         - Migrated and organized content
+         - Created 50 new articles
+         - Video tutorials for key tasks
+      5. Hired and trained team:
+         - Hired 2 support reps
+         - Created training program
+         - Onboarding playbook
+         - Ongoing coaching
+      6. Implemented metrics:
+         - Dashboard in Zendesk
+         - Weekly reviews
+         - CSAT tracking
+         - Monthly reporting
+      7. Results (6 months):
+         - Response time: 8 hours → 2 hours
+         - CSAT: 85% → 94%
+         - Ticket volume handled: 2x
+         - Team satisfaction high
+    outcome: |
+      Professional support operation. Scalable 
+      processes. Happy team. High customer satisfaction. 
+      Ready for continued growth.
+    lessons:
+      - Process enables scale
+      - Right tools matter
+      - Invest in knowledge base
+      - Hire for attitude, train skills
+
+  - id: ps-003
+    name: "VP Support Building Enterprise-Grade Operation"
+    practitioner: "VP Customer Success"
+    organization_context: |
+      Series B company with 1000+ customers including 
+      enterprise. Support team of 8. Need enterprise-
+      grade support for upmarket move.
+    situation: |
+      Enterprise customers expecting more. Current support 
+      adequate for SMB but not enterprise. Need to build 
+      tiered support model with premium support.
+    trigger: |
+      Largest customer threatened to churn due to support. 
+      Enterprise sales blocked by support concerns. Board 
+      asked for enterprise support strategy.
+    actions: |
+      1. Developed enterprise support strategy:
+         - Tiered support model
+         - Premium support offering
+         - Enterprise SLAs
+         - Dedicated support option
+      2. Created support tiers:
+         - Standard: Email, 24-hour response
+         - Premium: Chat + phone, 4-hour response
+         - Enterprise: Dedicated support, 1-hour urgent
+      3. Upgraded infrastructure:
+         - Zendesk Enterprise
+         - Phone support via Aircall
+         - Chat support via Intercom
+         - Status page (Statuspage)
+      4. Built premium support:
+         - Dedicated enterprise support reps
+         - Technical account managers
+         - Escalation to engineering
+         - Quarterly business reviews
+      5. Implemented 24/7 coverage:
+         - Follow-the-sun model
+         - On-call for urgent issues
+         - Incident management process
+      6. Enhanced metrics:
+         - Tier-specific SLAs
+         - Enterprise dashboards
+         - Executive reporting
+      7. Results (12 months):
+         - Enterprise CSAT: 96%
+         - Churn reduction in enterprise
+         - Sales won citing support
+         - Team grew to 15
+    outcome: |
+      Enterprise-grade support operation. Premium 
+      support as competitive advantage. Enabled 
+      upmarket motion. Happy enterprise customers.
+    lessons:
+      - Enterprise requires investment
+      - Premium support can be differentiator
+      - 24/7 is table stakes for enterprise
+      - Support sells
+
+operational_context:
+  prerequisites:
+    - Customer base to support
+    - Product knowledge
+    - Communication channels
+    - Resources for team
+    
+  common_blockers:
+    - "No time - Systematize to free time"
+    - "No budget - Start simple"
+    - "No knowledge - Document as you go"
+    - "Product issues - Feed back to product"
+    
+  integration_points:
+    - Product: Feedback and escalation
+    - Sales: Customer context, escalation
+    - Customer Success: Account health
+    - Engineering: Technical escalation
+
+risks:
+  if_skipped: |
+    Poor customer experience. Increased churn. 
+    Bad reviews and reputation. No product 
+    feedback loop.
+    
+  if_over_engineered: |
+    Expensive infrastructure for low volume. 
+    Bureaucratic processes. Slow response from 
+    over-process. Lost personal touch.
+
+domain_context:
+  related_l2: "Customer Success"
+  related_l1: "MARKETING AND BRAND"
+  synergies:
+    - "Loyalty Programs (cd-026): Support in loyalty"
+    - "Personalization (cd-027): Support personalization"
+    - "Content Strategy (cd-029): Documentation"
+    - "All commercial: Customer touchpoint"

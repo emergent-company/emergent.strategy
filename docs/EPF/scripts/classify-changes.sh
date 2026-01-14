@@ -26,7 +26,8 @@ set -e
 #   🧙 wizards/          - AI-assisted creation prompts
 #   🔧 scripts/          - Automation scripts, validators, hooks
 #   📤 outputs/          - Output generators (context-sheet, investor-memo, etc.)
-#   🎯 features/         - Feature corpus (validated feature definitions)
+#   🎯 features/         - Feature corpus (validated feature definitions) [DEPRECATED]
+#   📦 definitions/      - Track definitions (strategy, org_ops, commercial, product)
 #   📖 Root docs         - README.md, MAINTENANCE.md, CANONICAL_PURITY_RULES.md
 #   📋 Integration spec  - integration_specification.yaml
 #   🏷️  VERSION          - Framework version file
@@ -102,6 +103,7 @@ WIZARDS_CHANGED=0
 SCRIPTS_CHANGED=0
 OUTPUTS_CHANGED=0
 FEATURES_CHANGED=0
+DEFINITIONS_CHANGED=0
 METADATA_CHANGED=0
 WORK_FILES_CHANGED=0
 GITHUB_FILES_CHANGED=0
@@ -132,6 +134,9 @@ while IFS= read -r file; do
         features/*)
             FEATURES_CHANGED=$((FEATURES_CHANGED + 1))
             ;;
+        definitions/*)
+            DEFINITIONS_CHANGED=$((DEFINITIONS_CHANGED + 1))
+            ;;
         .epf-framework-content)
             METADATA_CHANGED=$((METADATA_CHANGED + 1))
             ;;
@@ -160,6 +165,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 [ $SCRIPTS_CHANGED -gt 0 ] && echo "  🔧 Scripts:           $SCRIPTS_CHANGED file(s)"
 [ $OUTPUTS_CHANGED -gt 0 ] && echo "  📤 Output Generators: $OUTPUTS_CHANGED file(s) (outputs/)"
 [ $FEATURES_CHANGED -gt 0 ] && echo "  🎯 Feature Corpus:    $FEATURES_CHANGED file(s) (features/)"
+[ $DEFINITIONS_CHANGED -gt 0 ] && echo "  📦 Track Definitions: $DEFINITIONS_CHANGED file(s) (definitions/)"
 [ $METADATA_CHANGED -gt 0 ] && echo "  📋 Framework Metadata: $METADATA_CHANGED file(s) (.epf-framework-content)"
 [ $WORK_FILES_CHANGED -gt 0 ] && echo "  📝 Work files:        $WORK_FILES_CHANGED file(s) (.epf-work/)"
 [ $GITHUB_FILES_CHANGED -gt 0 ] && echo "  ⚙️  GitHub config:     $GITHUB_FILES_CHANGED file(s) (.github/)"
@@ -243,6 +249,14 @@ if [ $FEATURES_CHANGED -gt 0 ]; then
         RECOMMENDED_TYPE="MINOR"
     fi
     REASONING+=("Feature corpus modified ($FEATURES_CHANGED file(s))")
+fi
+
+if [ $DEFINITIONS_CHANGED -gt 0 ]; then
+    NEEDS_VERSION_BUMP=true
+    if [ -z "$RECOMMENDED_TYPE" ] || [ "$RECOMMENDED_TYPE" = "PATCH" ]; then
+        RECOMMENDED_TYPE="MINOR"
+    fi
+    REASONING+=("Track definitions modified ($DEFINITIONS_CHANGED file(s))")
 fi
 
 if [ $METADATA_CHANGED -gt 0 ]; then

@@ -1,0 +1,85 @@
+# Strategy Process Definition: Alignment With Mission
+# Schema: strategy_definition_schema.json v1.1.0
+
+id: sd-014
+name: Alignment With Mission
+slug: alignment-with-mission
+track: strategy
+status: draft
+
+contributes_to:
+  - Strategy.Goal Prioritization.alignment-with-mission
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Minimal viable approach to alignment with mission"
+    includes:
+      - Basic documentation
+      - Ad-hoc execution
+      - Manual tracking
+    effort: "2-4 hours initial setup"
+    
+  tier_2_intermediate:
+    description: "Structured and repeatable process"
+    adds:
+      - Standardized templates
+      - Regular cadence
+      - Basic metrics
+      - Stakeholder communication
+    effort: "1-2 weeks to establish"
+    
+  tier_3_advanced:
+    description: "Optimized and integrated approach"
+    adds:
+      - Automated workflows
+      - Advanced analytics
+      - Cross-functional integration
+      - Continuous improvement
+    effort: "1-2 months full implementation"
+
+definition:
+  purpose: |
+    Strategic processes require clear documentation and consistent execution. Without structured alignment with mission, organizations struggle to maintain alignment and make informed decisions.
+    
+  outcome: |
+    Clear, documented approach to alignment with mission that enables consistent strategic execution and organizational alignment.
+    
+  owner: TBD - Assign based on organizational structure
+  
+  inputs:
+    - name: Relevant data/context
+      description: Information needed to execute this process
+      source: Various sources
+      
+  outputs:
+    - name: Process deliverable
+      description: Primary output of this process
+      consumer: Stakeholders
+
+practitioner_scenarios:
+  startup_founder:
+    context: "Early-stage founder managing alignment with mission personally"
+    approach: "Start with Tier 1, focus on documenting decisions for future reference"
+    time_investment: "2-4 hours/week initially"
+    
+  scale_up_leader:
+    context: "Growing team needs more structure around alignment with mission"
+    approach: "Implement Tier 2 with clear ownership and cadence"
+    time_investment: "Dedicated role or significant time allocation"
+    
+  enterprise_executive:
+    context: "Large organization optimizing alignment with mission"
+    approach: "Full Tier 3 with automation and integration"
+    time_investment: "Cross-functional team effort"
+
+risks:
+  if_skipped: "Inconsistent execution, missed opportunities, organizational misalignment"
+  if_over_engineered: "Analysis paralysis, slow decision-making, excessive overhead"
+
+domain_context:
+  related_l2: "Goal Prioritization"
+  related_l1: "STRATEGIC ROADMAP"
+  synergies:
+    - "Coordinates with other Goal Prioritization processes"
