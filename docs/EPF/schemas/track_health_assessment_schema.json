@@ -1,0 +1,231 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://emergent.company/epf/schemas/track_health_assessment_schema.json",
+  "title": "Track Health Assessment (THA) - Signal Collection",
+  "description": "Signal collection mechanism for updating the Living Reality Assessment during each AIM cycle. THA captures current track health signals which flow into CRA's evolution_log and update track_baselines.",
+  "$comment": "THA and CRA are the same concept at different lifecycle stages. CRA is the persistent 'source of truth' about current reality. THA is how that truth gets updated. Each AIM cycle: (1) collect THA signals, (2) compare to CRA track_baselines, (3) if significant delta, update CRA and append to evolution_log. THA is ephemeral collection; CRA is persistent evolution. At adoption levels 0-1, only Product track signals may be collected. At levels 2-3, all four tracks should have signals. This solves the track balancing problem: EPF primarily drives Product, but other tracks also need attention. Rather than making EPF an operational management system, THA provides minimal signal interface. Signals from execution domains flow INTO AIM; insights flow back OUT to inform attention allocation.",
+  "type": "object",
+  "required": ["assessment_date", "tracks"],
+  "properties": {
+    "assessment_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of this track health assessment"
+    },
+    "cycle_reference": {
+      "type": "string",
+      "description": "Reference to the roadmap cycle this assessment is part of",
+      "examples": ["cycle-2024-q4", "cycle-2025-h1-1"]
+    },
+    "adoption_level": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3,
+      "description": "Current adoption level (determines expected track coverage)"
+    },
+    "tracks": {
+      "type": "object",
+      "description": "Health signals for each track",
+      "$comment": "Each track gets assessed with simple signal vocabulary. At L0-1, only product may have signals. At L2-3, all tracks should have signals. Absent signals for a track at higher adoption levels is itself a signal (attention gap).",
+      "properties": {
+        "product": {
+          "$ref": "#/$defs/track_health_signals"
+        },
+        "strategy": {
+          "$ref": "#/$defs/track_health_signals"
+        },
+        "org_ops": {
+          "$ref": "#/$defs/track_health_signals"
+        },
+        "commercial": {
+          "$ref": "#/$defs/track_health_signals"
+        }
+      },
+      "required": ["product"]
+    },
+    "coherence_assessment": {
+      "type": "object",
+      "description": "Cross-track coherence analysis",
+      "$comment": "Coherence assessment looks at how well tracks are working together. Strong Product velocity with degrading Org health might indicate burnout risk. Commercial acceleration without Product support might indicate overpromising. This section synthesizes track signals into strategic insight.",
+      "properties": {
+        "overall_status": {
+          "type": "string",
+          "enum": ["healthy", "warning", "critical"],
+          "description": "Overall cross-track coherence status",
+          "$comment": "'healthy' = tracks are reasonably balanced and supporting each other. 'warning' = one or more tracks showing strain, attention may need rebalancing. 'critical' = severe imbalance threatening strategic execution, immediate attention required."
+        },
+        "imbalances_detected": {
+          "type": "array",
+          "description": "Specific track imbalances or tensions identified",
+          "items": {
+            "type": "object",
+            "required": ["description", "tracks_involved", "severity"],
+            "properties": {
+              "description": {
+                "type": "string",
+                "minLength": 20,
+                "maxLength": 300,
+                "description": "What imbalance was detected",
+                "examples": [
+                  "Product velocity accelerating while Org capacity is blocked - burnout risk",
+                  "Commercial pipeline growing faster than Product can deliver - expectation gap forming",
+                  "Strategy track has been neglected for 2 cycles - positioning may be drifting"
+                ]
+              },
+              "tracks_involved": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": ["product", "strategy", "org_ops", "commercial"]
+                },
+                "minItems": 1,
+                "maxItems": 4,
+                "description": "Which tracks are involved in this imbalance"
+              },
+              "severity": {
+                "type": "string",
+                "enum": ["low", "medium", "high"],
+                "description": "How severe is this imbalance"
+              },
+              "recommended_response": {
+                "type": "string",
+                "maxLength": 200,
+                "description": "Suggested action to address imbalance"
+              }
+            }
+          }
+        },
+        "attention_rebalancing_needed": {
+          "type": "boolean",
+          "description": "Does attention allocation need adjustment?",
+          "$comment": "If true, the coherence_recommendation should include specific rebalancing suggestions for the next cycle."
+        },
+        "coherence_recommendation": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Overall recommendation for maintaining/restoring coherence",
+          "$comment": "This recommendation flows into next_cycle_recommendations in the assessment_report. It's the 'so what' of the THA - given track health signals, what should change?"
+        }
+      }
+    },
+    "signal_sources": {
+      "type": "array",
+      "description": "Where track health signals came from",
+      "$comment": "Documenting signal sources improves signal quality over time. Good sources: OKR check-ins, team retros, customer feedback themes, operational metrics. Poor sources: single person's opinion, stale data, hearsay.",
+      "items": {
+        "type": "object",
+        "required": ["source_type", "track"],
+        "properties": {
+          "source_type": {
+            "type": "string",
+            "enum": [
+              "okr_checkin",
+              "team_retro",
+              "customer_feedback",
+              "operational_metrics",
+              "stakeholder_interview",
+              "agent_observation",
+              "external_signal",
+              "founder_assessment"
+            ],
+            "description": "Type of signal source"
+          },
+          "track": {
+            "type": "string",
+            "enum": ["product", "strategy", "org_ops", "commercial"],
+            "description": "Which track this source informs"
+          },
+          "freshness": {
+            "type": "string",
+            "enum": ["current", "recent", "dated"],
+            "description": "How fresh is this data? current=this cycle, recent=last cycle, dated=older",
+            "default": "current"
+          },
+          "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low"],
+            "description": "Confidence in signal quality",
+            "default": "medium"
+          }
+        }
+      }
+    },
+    "recalibration_signals": {
+      "type": "object",
+      "description": "Signals that may trigger out-of-cycle recalibration",
+      "$comment": "These signals connect to aim_trigger_config. If any recalibration signals are strong, they may trigger early AIM phase rather than waiting for scheduled cycle end. This is how execution domain signals can accelerate strategic response.",
+      "properties": {
+        "urgent_attention_required": {
+          "type": "boolean",
+          "description": "Is immediate strategic attention needed?",
+          "default": false
+        },
+        "trigger_recommendation": {
+          "type": "string",
+          "enum": ["none", "monitor_closely", "schedule_review", "immediate_aim"],
+          "description": "What level of trigger response is recommended",
+          "$comment": "'none' = normal operation. 'monitor_closely' = increase signal collection frequency. 'schedule_review' = plan AIM review before cycle end. 'immediate_aim' = trigger full AIM now (rare, for critical situations)."
+        },
+        "trigger_rationale": {
+          "type": "string",
+          "maxLength": 300,
+          "description": "Why this trigger level is recommended"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "track_health_signals": {
+      "type": "object",
+      "description": "Health signals for a single track using simple signal vocabulary",
+      "$comment": "Signal vocabulary is intentionally simple: 4 levels for each dimension. This prevents over-engineering while providing actionable information. Signals are qualitative assessments, not metrics. They answer 'how does this track feel' not 'what are the exact numbers'.",
+      "properties": {
+        "velocity_signal": {
+          "type": "string",
+          "enum": ["accelerating", "stable", "slowing", "blocked"],
+          "description": "Is this track making faster or slower progress?",
+          "$comment": "'accelerating' = progress is speeding up, momentum building. 'stable' = consistent pace, predictable progress. 'slowing' = progress is decelerating, friction increasing. 'blocked' = little or no forward motion, major impediment."
+        },
+        "quality_signal": {
+          "type": "string",
+          "enum": ["excellent", "healthy", "degrading", "critical"],
+          "description": "What's the quality of outputs from this track?",
+          "$comment": "'excellent' = outputs exceed expectations, high confidence. 'healthy' = outputs meet expectations, acceptable quality. 'degrading' = quality declining, shortcuts being taken, technical debt accumulating. 'critical' = quality unacceptable, major problems emerging."
+        },
+        "attention_backlog": {
+          "type": "string",
+          "enum": ["clear", "manageable", "growing", "blocking"],
+          "description": "How much unaddressed work/decisions are piling up?",
+          "$comment": "Attention backlog measures decision debt, not task debt. 'clear' = decisions being made timely, no bottleneck. 'manageable' = some backlog but under control. 'growing' = backlog increasing, decisions being deferred. 'blocking' = decision backlog is preventing progress."
+        },
+        "capacity_utilization": {
+          "type": "string",
+          "enum": ["underutilized", "optimal", "stretched", "overloaded"],
+          "description": "How well is available capacity being used?",
+          "$comment": "'underutilized' = significant spare capacity, could take on more. 'optimal' = good balance of capacity and work. 'stretched' = running near limits, little buffer. 'overloaded' = beyond sustainable capacity, burnout risk."
+        },
+        "assessment_note": {
+          "type": "string",
+          "maxLength": 300,
+          "description": "Brief narrative assessment of track health",
+          "examples": [
+            "Product velocity high but quality starting to slip - may need to slow down",
+            "Strategy track hasn't had attention in 2 cycles, still running on implicit assumptions",
+            "Commercial pipeline healthy but conversion process unclear"
+          ]
+        },
+        "key_signal": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Single most important signal from this track",
+          "$comment": "If you could only communicate one thing about this track's health, what would it be? This is the headline for executive summaries and quick coherence checks."
+        },
+        "attention_needed": {
+          "type": "boolean",
+          "description": "Does this track need increased attention next cycle?",
+          "default": false
+        }
+      }
+    }
+  }
+}

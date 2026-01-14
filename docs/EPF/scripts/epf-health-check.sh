@@ -1,10 +1,10 @@
 #!/bin/bash
 # EPF Health Check Script
-# Version: 1.13.1
+# Version: 1.14.0
 #
 # This script performs comprehensive validation of the EPF framework,
-# including version consistency, YAML parsing, schema validation, and
-# documentation alignment.
+# including version consistency, YAML parsing, schema validation,
+# documentation alignment, and reality baseline context checks.
 #
 # Usage:
 #   ./scripts/epf-health-check.sh [--fix] [--verbose]
@@ -699,6 +699,33 @@ check_instances() {
             if [ ${#missing_fire_folders[@]} -gt 0 ]; then
                 log_warning "  Missing FIRE subfolders: ${missing_fire_folders[*]}"
             fi
+        fi
+
+        # Check Reality Baseline context - READY artifacts should not exist in a vacuum
+        # See: docs/protocols/reality_baseline_protocol.md
+        local has_ready_artifacts=false
+        local has_living_reality_assessment=false
+        
+        # Check if any READY artifacts exist
+        if [ -d "$instance_dir/READY" ]; then
+            local ready_artifact_count=$(find "$instance_dir/READY" -name "*.yaml" -type f 2>/dev/null | wc -l | tr -d ' ')
+            if [ "$ready_artifact_count" -gt 0 ]; then
+                has_ready_artifacts=true
+            fi
+        fi
+        
+        # Check for Living Reality Assessment
+        if [ -f "$instance_dir/AIM/living_reality_assessment.yaml" ]; then
+            has_living_reality_assessment=true
+            log_pass "  Living Reality Assessment exists (context continuity)"
+        fi
+        
+        # Warn if READY artifacts exist without baseline context
+        if [ "$has_ready_artifacts" = true ] && [ "$has_living_reality_assessment" = false ]; then
+            log_warning "  Has READY artifacts but no Living Reality Assessment"
+            log_info "    → Consider creating AIM/living_reality_assessment.yaml for context continuity"
+            log_info "    → Artifacts without context may lose strategic grounding over time"
+            log_verbose "    Template: templates/AIM/living_reality_assessment.yaml"
         fi
     done
     
