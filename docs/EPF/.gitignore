@@ -1,11 +1,11 @@
-# EPF Framework .gitignore - epf-fresh-test2 Product Repo
-# This file tracks the epf-fresh-test2 product instance while ignoring other instances
+# EPF Framework .gitignore - Emergent Product Repo
+# This file tracks the emergent product instance while ignoring other instances
 
-# Instance folders - only epf-fresh-test2 instance is tracked
+# Instance folders - only emergent instance is tracked
 _instances/*
 !_instances/README.md
-!_instances/epf-fresh-test2
-!_instances/epf-fresh-test2/**
+!_instances/emergent
+!_instances/emergent/**
 
 # OS files
 .DS_Store
