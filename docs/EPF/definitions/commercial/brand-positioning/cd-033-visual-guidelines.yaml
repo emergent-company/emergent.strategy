@@ -1,0 +1,441 @@
+# Commercial Process Definition: Visual Guidelines
+# Schema: commercial_definition_schema.json v1.1.0
+
+id: cd-033
+name: Visual Guidelines
+slug: visual-guidelines
+track: commercial
+status: ready
+
+contributes_to:
+  - Commercial.Brand Identity.visual-guidelines
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Documented core visual identity for consistency"
+    includes:
+      - Logo usage rules (clear space, minimum size, backgrounds)
+      - Primary and secondary color palette with hex codes
+      - Typography selections for headings and body (2-3 fonts)
+      - Basic do's and don'ts with visual examples
+    effort: "4-8 hours initial setup"
+    
+  tier_2_intermediate:
+    description: "Comprehensive brand visual system"
+    adds:
+      - Photography and illustration style guidelines
+      - Icon and graphic element library
+      - Template files for common materials (decks, docs)
+      - Color accessibility compliance (WCAG)
+      - Motion and animation principles
+    effort: "2-4 weeks to establish"
+    
+  tier_3_advanced:
+    description: "Integrated design system with governance"
+    adds:
+      - Component-level design system (UI kit)
+      - Automated brand compliance checking
+      - Asset management platform
+      - Localization adaptations
+      - Regular brand audits and refresh cycles
+    effort: "2-4 months full implementation"
+
+definition:
+  purpose: |
+    Every touchpoint with your brand creates an impression. Visual inconsistency 
+    signals organizational chaos to customers, partners, and prospects. It makes 
+    a growing company look amateur while competitors with inferior products 
+    appear more professional.
+    
+    Visual guidelines ensure that everyone—founders, marketers, contractors, 
+    partners—represents the brand consistently. Not to stifle creativity, but 
+    to create a foundation that makes creativity easier. When the rules are 
+    clear, people spend less time debating colors and more time on the message.
+    
+    For startups, this doesn't mean a 100-page brand book. It means documenting 
+    the essential decisions: What are our colors? What fonts do we use? How does 
+    our logo work on different backgrounds? Most early-stage companies have 
+    these answers in someone's head—the job is to get them documented so everyone 
+    can execute consistently.
+    
+    The cost of not having visual guidelines compounds. Every inconsistent 
+    touchpoint undermines brand equity you're trying to build. Every "let me 
+    ask the founder what color to use" slows execution. Every contractor who 
+    invents new visual elements creates confusion.
+    
+  outcome: |
+    Anyone creating brand materials can execute consistently without asking 
+    questions. Materials look professionally cohesive. Brand equity builds 
+    instead of fragmenting. Design reviews focus on content, not visual debates.
+    
+  owner: Head of Marketing / Brand Lead / Founder (early stage)
+  
+  inputs:
+    - name: Logo files (all formats)
+      description: Vector files (SVG, EPS, AI) and raster exports (PNG)
+      source: Designer / Founding team
+    - name: Color decisions
+      description: Primary and secondary colors with intended usage
+      source: Brand designer / Founding vision
+    - name: Typography selections
+      description: Font families for different uses
+      source: Brand designer / Existing materials
+      
+  outputs:
+    - name: Visual guidelines document
+      description: Living document with all visual standards
+      consumer: Marketing, Product, External agencies, Partners
+    - name: Asset library
+      description: Logo files, color palettes, templates, fonts
+      consumer: Anyone creating brand materials
+    - name: Quick reference card
+      description: One-page summary for common use cases
+      consumer: Non-designers who need to use brand assets
+
+  steps:
+    - step: 1
+      action: "Audit existing visual assets and usage"
+      responsible: Marketing Lead / Designer
+      duration: "2-4 hours"
+      deliverable: "Current state inventory"
+      templates:
+        - "Brand asset audit checklist"
+        - "Touchpoint inventory (where brand appears)"
+      best_practices:
+        - Screenshot every touchpoint—website, social, pitch decks, emails
+        - Note inconsistencies but don't judge—just document
+        - Include partner and third-party uses of your brand
+      avoid:
+        - Skipping this step—inconsistencies reveal what guidelines must address
+        - Only auditing marketing materials (product, sales, support all use brand)
+        
+    - step: 2
+      action: "Document logo usage rules"
+      responsible: Designer / Brand Lead
+      duration: "2-4 hours"
+      deliverable: "Logo guidelines section"
+      templates:
+        - "Logo anatomy diagram"
+        - "Clear space and minimum size specifications"
+        - "Approved and prohibited usage examples"
+      best_practices:
+        - Show examples of correct and incorrect usage
+        - Provide files in every format people need (SVG, PNG, EPS)
+        - Include light/dark background versions
+        - Define when to use wordmark vs. icon vs. full logo
+      avoid:
+        - Rules so restrictive nobody can use the logo
+        - Missing common scenarios (email signatures, social avatars)
+        
+    - step: 3
+      action: "Define and document color palette"
+      responsible: Designer / Brand Lead
+      duration: "1-2 hours"
+      deliverable: "Color guidelines section"
+      templates:
+        - "Primary and secondary color swatches"
+        - "Color usage ratios (60/30/10 rule)"
+        - "Accessibility contrast checker results"
+      best_practices:
+        - Include all color formats (HEX, RGB, CMYK, Pantone for print)
+        - Define primary color usage (dominant brand expression)
+        - Define secondary colors (accents, supporting elements)
+        - Check accessibility—many color combinations fail WCAG
+      avoid:
+        - Too many colors (3-5 is usually plenty)
+        - Colors that only work on screens (need print equivalents)
+        
+    - step: 4
+      action: "Establish typography system"
+      responsible: Designer / Brand Lead
+      duration: "1-2 hours"
+      deliverable: "Typography guidelines section"
+      templates:
+        - "Font family specifications"
+        - "Type scale (sizes and weights)"
+        - "Pairing rules (which fonts go where)"
+      best_practices:
+        - Limit to 2-3 fonts (heading, body, accent if needed)
+        - Include font licensing information
+        - Provide fallback fonts for web/email
+        - Define hierarchy (H1, H2, body, captions)
+      avoid:
+        - Fonts that require expensive licensing
+        - System fonts for brand materials (look generic)
+        - Too many weights and styles (creates visual chaos)
+        
+    - step: 5
+      action: "Create visual do's and don'ts"
+      responsible: Designer
+      duration: "2-3 hours"
+      deliverable: "Usage examples section"
+      templates:
+        - "Side-by-side comparison layouts"
+        - "Common mistake gallery"
+      best_practices:
+        - Show real examples of correct and incorrect usage
+        - Focus on the mistakes people actually make
+        - Explain why something is wrong, not just that it is
+        - Keep updating as new mistakes appear
+      avoid:
+        - Only abstract rules—show concrete examples
+        - Overwhelming with edge cases (cover the 80% use cases)
+        
+    - step: 6
+      action: "Create templates for common materials"
+      responsible: Designer
+      duration: "4-8 hours"
+      deliverable: "Template library"
+      templates:
+        - "Presentation template (Google Slides/PPT)"
+        - "Document template (Google Docs/Word)"
+        - "Social media templates (sized correctly per platform)"
+        - "Email signature template"
+      best_practices:
+        - Templates should be immediately usable, not just examples
+        - Include instructions within templates
+        - Host in shared location everyone can access
+        - Update templates when brand evolves
+      avoid:
+        - Templates that require design software to edit
+        - Locked templates that frustrate users (they'll work around them)
+        
+    - step: 7
+      action: "Distribute and train"
+      responsible: Marketing Lead
+      duration: "1-2 hours"
+      deliverable: "Team enabled on visual guidelines"
+      templates:
+        - "Brand guidelines walkthrough deck"
+        - "Self-service FAQ"
+      best_practices:
+        - Make guidelines findable (link from internal wiki, shared drive)
+        - Create a "quick start" version for common needs
+        - Establish who to ask when guidelines don't cover a situation
+        - Review with key stakeholders before announcing
+      avoid:
+        - Document dump without context
+        - Making guidelines hard to find or access
+
+  cadence:
+    frequency: "Review quarterly, refresh annually, major update at rebrands"
+    triggers:
+      - New product line or major feature requiring visual treatment
+      - Entering new market with different visual conventions
+      - Consistent brand inconsistencies appearing despite guidelines
+      - Designer turnover (ensure knowledge transfer)
+    ongoing:
+      - Review new materials for guideline compliance (spot checks)
+      - Collect requests for additions/clarifications
+      - Update templates when guidelines evolve
+      - Maintain asset library organization
+
+practitioner_scenarios:
+  - id: ps-001
+    name: "Building Visual Guidelines from Scratch for a Growing Startup"
+    practitioner: "Head of Marketing"
+    organization_context: |
+      25-person B2B SaaS startup that's raised Series A. Brand was created 
+      by founder with a freelance designer 2 years ago. No documented guidelines. 
+      Marketing team of 3 plus regular contractors creating content.
+    situation: |
+      Every new hire asks "what color blue do we use?" Every contractor delivers 
+      materials in different visual styles. CEO is frustrated that investor 
+      deck, website, and product look like they're from different companies. 
+      Team wastes hours debating visual decisions that should be obvious.
+    trigger: |
+      New marketing hire asked for brand guidelines on day one. Realization 
+      that nothing exists except logo files in a Dropbox folder with five 
+      different versions, some from 2018.
+    actions: |
+      Started with a "30-minute brand audit" by screenshotting every customer 
+      touchpoint from website to email signatures to product UI to social, 
+      finding 4 different blues, 3 different fonts, and 2 versions of logo 
+      in active use. Scheduled 1-hour session with CEO to make decisions and 
+      picked THE blue (from the logo), THE fonts (already in website CSS), 
+      and THE rules for logo usage, writing decisions down immediately. Created 
+      simple 8-page Google Slides deck covering logo (2 pages), colors (1 page), 
+      typography (1 page), do's and don'ts (2 pages), where to get assets 
+      (1 page), and who to ask questions (1 page). Built a shared folder with 
+      organized assets including logo/light-backgrounds/, logo/dark-backgrounds/, 
+      templates/, and fonts/, killing all other logo locations. Spent 4 hours 
+      making templates people actually need: pitch deck, one-pager, social 
+      graphics, and email signature—all editable in Google Slides/Docs, not 
+      Adobe files. Sent guidelines to team with 5-minute walkthrough video and 
+      set calendar reminder to review in 30 days.
+    outcome: |
+      Questions about colors and fonts dropped by 90% within a month. New 
+      contractors can self-serve without onboarding calls. Materials started 
+      looking consistent—CEO stopped complaining about the investor deck. 
+      Added photography guidelines after 30 days when that became the next 
+      common question. Total time investment: about 12 hours over 2 weeks.
+    lessons:
+      - Start with a minimal guidelines doc that covers the 80% case
+      - Kill multiple versions of assets—confusion comes from too many options
+      - Templates are more valuable than rules—make it easy to do right
+      - Guidelines are living documents—add to them as questions arise
+
+  - id: ps-002
+    name: "Migrating Visual Guidelines During a Brand Refresh"
+    practitioner: "Brand Manager"
+    organization_context: |
+      80-person B2B company doing a brand refresh as part of repositioning. 
+      Existing guidelines exist but are outdated. Need to transition entire 
+      organization to new visual identity without chaos.
+    situation: |
+      Company is refreshing brand identity with new agency. New logo, colors, 
+      and typography coming. Old brand is deeply embedded—thousands of assets, 
+      partner materials, product UI, documentation. Need to manage transition 
+      without creating Frankenstein brand during migration.
+    trigger: |
+      Board approved brand refresh budget. Agency delivered new identity system. 
+      Now need to roll it out across the organization while business continues 
+      operating.
+    actions: |
+      Created migration strategy before announcing anything by prioritizing 
+      touchpoints by visibility and ease of change—customer-facing high-visibility 
+      first, internal low-visibility last. Built comprehensive new guidelines 
+      BEFORE any migration, working with agency to document everything thoroughly. 
+      Created a "transition guidance" document alongside new guidelines covering 
+      what to do when old and new appear together, when old is acceptable during 
+      transition, and hard deadline after which old is forbidden. Executed phased 
+      rollout over 6 weeks: Week 1-2 for website and product, Week 3-4 for 
+      marketing materials and sales assets, Week 5-6 for internal and partner 
+      materials, Week 7+ for catching stragglers. Set up brand asset management 
+      system (Brandfolder) for single source of truth, removed old assets from 
+      all shared locations, and made old brand literally inaccessible. Created 
+      "brand police" checklist for launch and monitored all customer touchpoints 
+      daily for first month. Held weekly office hours during transition to 
+      answer questions and update guidelines with clarifications.
+    outcome: |
+      Completed migration in 8 weeks with minimal Frankenstein moments. 
+      Customer-facing materials were 95% consistent within first month. 
+      Partner materials took longer (expected). Internal documentation last 
+      priority, still finding old logos months later but no customer impact. 
+      New guidelines are 3x more comprehensive than old ones.
+    lessons:
+      - Migration plan is as important as the new guidelines themselves
+      - Remove access to old assets—people will use what's easiest to find
+      - Transition periods need explicit rules, not just "use new brand"
+      - Weekly office hours during transition save dozens of async questions
+
+  - id: ps-003
+    name: "Enforcing Visual Guidelines with External Partners and Agencies"
+    practitioner: "Marketing Director"
+    organization_context: |
+      50-person B2B company working with 5+ external agencies and partners 
+      who create co-branded materials. Good internal brand compliance but 
+      partners consistently misuse brand assets.
+    situation: |
+      Partners and agencies receive brand guidelines but materials come back 
+      off-brand. Wrong logos, wrong colors, weird typography. Marketing team 
+      spends hours fixing partner materials. Some partner materials go live 
+      without review and embarrass the brand.
+    trigger: |
+      Major partner launched co-branded campaign with wrong logo version and 
+      colors that weren't even in the palette. CEO saw it and demanded that 
+      this never happens again.
+    actions: |
+      Diagnosed the problem: partners had guidelines but didn't read them, 
+      used old assets found on Google, and there was no approval process 
+      before materials went live. Created a partner-specific "quick start" 
+      guide of 2 pages covering absolute essentials including common mistakes 
+      with big red X marks. Built a partner portal with correct assets only 
+      organized by use case ("need logo for light background?"), with downloads 
+      tracked. Established mandatory brand review for co-branded materials 
+      with no materials going live without marketing approval, built into 
+      partner agreements going forward. Created a brand review SLA with 48-hour 
+      turnaround for standard materials and 2-week advance notice for campaigns. 
+      Launched quarterly partner brand training webinar of 30 minutes covering 
+      common mistakes and taking questions, recorded for onboarding new partners. 
+      Added positive reinforcement by highlighting great partner brand usage 
+      and making compliant partners feel good about getting it right.
+    outcome: |
+      Brand violations from partners dropped by 80% in first quarter. Partner 
+      portal gets 200+ asset downloads per month—self-service working. Review 
+      process catches remaining issues before they go live. Some partners 
+      initially pushed back on review requirement but accepted once they saw 
+      how fast it was. No more CEO fire drills about partner brand misuse.
+    lessons:
+      - Partners need simpler guidelines than internal teams
+      - Make correct assets the path of least resistance
+      - Approval gates before public launch are non-negotiable
+      - Investing in partner success pays off—train them, don't just police them
+
+risks:
+  execution_risks:
+    - risk: "Guidelines too restrictive, creativity suffers"
+      likelihood: medium
+      impact: medium
+      mitigation: |
+        Balance consistency with flexibility. Define what MUST be consistent 
+        (logo, core colors) and what CAN vary (secondary colors, photography). 
+        Include section on "creative interpretation within guidelines." Review 
+        with creative team before finalizing—they'll spot overly restrictive rules.
+        
+    - risk: "Guidelines ignored because they're hard to find or use"
+      likelihood: high
+      impact: high
+      mitigation: |
+        Single, obvious location for guidelines. Link from everywhere relevant 
+        (onboarding docs, contractor briefs, agency kickoffs). Quick-start 
+        version for common needs. Templates that make compliance easier than 
+        non-compliance.
+        
+    - risk: "Assets scattered across multiple locations"
+      likelihood: high
+      impact: medium
+      mitigation: |
+        Single source of truth for all brand assets. Actively remove old 
+        versions from other locations. Regular audits of shared drives and 
+        cloud storage. Make the correct location the most convenient one.
+        
+    - risk: "Guidelines become outdated as brand evolves"
+      likelihood: medium
+      impact: medium
+      mitigation: |
+        Quarterly reviews of guideline usage and questions. Process for adding 
+        new guidance when new situations arise. Version numbering on guidelines. 
+        "Last updated" date visible on all documents.
+        
+  organizational_risks:
+    - risk: "No one owns guidelines maintenance"
+      impact: |
+        Guidelines decay as brand evolves. Different people make conflicting 
+        decisions. Eventually guidelines become irrelevant and ignored. 
+        Investment in creating them is wasted.
+      prevention: |
+        Assign clear ownership—one person is accountable for guidelines. 
+        Include guidelines maintenance in job description and goals. Regular 
+        review cadence on calendar, not ad hoc. Budget for updates and 
+        improvements.
+        
+    - risk: "Brand consistency valued over brand effectiveness"
+      impact: |
+        Every material looks the same but none are optimized for their 
+        purpose. Guidelines become excuse to reject creative ideas. Brand 
+        feels stale and corporate rather than distinctive.
+      prevention: |
+        Guidelines should enable, not just restrict. Include examples of 
+        creative applications within guidelines. Review guidelines for 
+        unnecessarily restrictive rules. Celebrate great creative work 
+        that follows guidelines, not just compliance.
+
+domain_context:
+  related_l2: "Brand Identity"
+  related_l1: "BRAND & POSITIONING"
+  synergies:
+    - "Verbal Guidelines (cd-035) - Visual and verbal identity should work together"
+    - "Logo and Branding Assets (cd-034) - Guidelines govern how assets are used"
+    - "Content Strategy (cd-029) - Visual consistency across all content"
+  dependencies:
+    - "Logo and branding assets must exist before guidelines can be documented"
+    - "Typography and color decisions must be made before documenting"
+
+references:
+  - title: "Building a Brand Guide That People Actually Use"
+    url: "https://www.figma.com/resource-library/brand-guidelines/"
+  - title: "Brand Guidelines That Don't Suck"
+    url: "https://www.column5.com/brand-guidelines/"

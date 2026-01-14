@@ -1,8 +1,8 @@
 {
-  "version": "1.13.0",
+  "version": "2.5.0",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Value Model Schema",
-  "description": "Defines the hierarchical structure of value delivered through four core tracks: Product (what we build), Strategy (how we compete/grow), OrgOps (how we operate internally), and Commercial (how we monetize/sell). Each track decomposes value into L1 layers, L2 components, and L3 sub-components with clear activation status, premium flags, and value propositions.",
+  "description": "Defines the hierarchical structure of value delivered through four core tracks: Product (what we build), Strategy (how we compete/grow), OrgOps (how we operate internally), and Commercial (how we monetize/sell). Each track decomposes value into L1 layers, L2 components, and L3 sub-components with clear activation status, premium flags, value propositions, and maturity tracking. Maturity is assessed at L3 (sub-component) level and emerges upward to L2, L1, and track level.",
   "$comment": "VALUE MODEL ARCHITECTURE: This schema models the complete value delivery hierarchy across the four fundamental tracks every organization must manage: (1) Product—the capabilities we build for customers (features, experiences, platforms), (2) Strategy—how we compete, position, and grow (GTM, partnerships, market expansion), (3) OrgOps—how we operate and scale internally (team structure, processes, tooling, culture), (4) Commercial—how we monetize and sell (pricing, packaging, sales motions, success programs). Each track follows a three-level decomposition: L1 Layers (major value themes, 5-10 per track), L2 Components (functional groupings, 3-8 per layer), L3 Sub-components (specific capabilities/features, granular units of work). This hierarchical structure enables: Portfolio planning (visualize full value landscape), Prioritization (understand dependencies and sequencing), Communication (align teams on what we're building and why), Roadmapping (plan releases by value layer), Investment tracking (resource allocation across tracks), Premium/tiering (identify paid vs free value). Design principles: (1) Mutual exclusivity (each capability belongs to exactly one track/layer/component), (2) Completeness (model captures all value delivered, not just product features), (3) Actionability (L3 sub-components are concrete, implementable units), (4) Stability (L1/L2 rarely change; L3 evolves frequently), (5) Customer-facing (describe value in customer terms, not internal jargon). Common usage patterns: Product portfolio management (track what's active vs planned), Feature gating (premium flags drive access control), Roadmap planning (sequence sub-components by layer/component), Competitive positioning (identify gaps in value model vs competitors), Sales enablement (link features to value props for pitches), Customer success (track which value customers have activated). Examples: Product track (L1: Core Platform, L2: Data Management, L3: CSV Import, Excel Sync, API Connectors), Strategy track (L1: Market Expansion, L2: Enterprise GTM, L3: Solution Selling Motion, Account-Based Marketing, Executive Engagement Program), OrgOps track (L1: Engineering Excellence, L2: Developer Experience, L3: Local Dev Environment, CI/CD Pipeline, Observability Stack), Commercial track (L1: Monetization, L2: Pricing & Packaging, L3: Usage-Based Pricing, Enterprise Plan, Self-Serve Tier). Best practices: (1) Start with customer value, not implementation, (2) Keep L1 stable (foundational themes rarely change), (3) Evolve L2 as strategy shifts (components emerge/consolidate), (4) Manage L3 actively (features ship, deprecate, get promoted), (5) Link L3 to roadmap (every sub-component maps to initiatives), (6) Use activation status (active/planned/deprecated lifecycle), (7) Mark premium explicitly (avoid confusion on what's paid), (8) Version models (track evolution over time), (9) Validate completeness (walk sales conversations, ensure all value claims are modeled), (10) Review quarterly (value models should reflect current state and near-term plans). Anti-patterns to avoid: Modeling implementation details instead of customer value, L1/L2 that are too granular (should be strategic themes, not features), Missing entire value categories (e.g., no OrgOps or Strategy track), Premium flags without corresponding packaging strategy, Sub-components that are too abstract (should be shippable units), Models that diverge from roadmap reality.",
   "type": "object",
   "properties": {
@@ -40,6 +40,65 @@
     "high_level_model": {
       "type": "object",
       "description": "Product-specific high-level model structure or metadata that doesn't fit the standard L1/L2/L3 hierarchy. Use this for: (1) Cross-track relationships or dependencies, (2) Alternative visualization data (e.g., customer journey mappings), (3) Custom metadata specific to this product's value modeling needs, (4) Rollup metrics or aggregated views, (5) External system references or links. This is a flexible extension point—contents are product-defined and not validated by schema. Common uses: Linking value model to roadmap items, storing competitive positioning data, tracking activation metrics by layer, defining feature flag mappings."
+    },
+    "track_maturity": {
+      "type": "object",
+      "description": "Track-level maturity assessment that emerges from L1/L2/L3 maturity. Tracks the journey from hypothetical value (we believe this creates value) to actual value (evidence proves it). This is the highest level of maturity aggregation within a single track.",
+      "$comment": "MATURITY MODEL: Value Model Maturity (VMM) tracks where each component is on its journey from hypothesis to scaled value delivery. Maturity is assessed at L3 (sub-component) level and EMERGES upward: L3 → L2 (80% rule) → L1 (80% rule) → Track. The 80% rule: if 80%+ of children are at stage X, parent is at stage X. Stages: (1) hypothetical - we believe this creates value, no evidence yet, (2) emerging - early evidence of value (pilot users, initial metrics), (3) proven - consistent evidence across multiple recipients, (4) scaled - value at scale, optimized and sustainable. Maturity is INDEPENDENT of TRL (Technology Readiness Level in roadmaps). TRL tracks innovation/learning maturity for specific KRs. VMM tracks overall value delivery maturity. They are parallel, complementary systems.",
+      "properties": {
+        "overall_stage": {
+          "type": "string",
+          "enum": ["hypothetical", "emerging", "proven", "scaled"],
+          "description": "Current overall maturity stage for this track. Calculated from L1 layer maturity using 80% rule (if 80%+ of L1 layers are at stage X, track is at stage X). Can be overridden manually with stage_override flag. Stages: hypothetical (belief-based, no evidence), emerging (early evidence), proven (consistent evidence), scaled (value at scale)."
+        },
+        "stage_override": {
+          "type": "boolean",
+          "default": false,
+          "description": "If true, overall_stage was set manually rather than calculated from L1 maturity. Use sparingly—typically only when calculation doesn't reflect reality due to special circumstances."
+        },
+        "value_domain": {
+          "type": "string",
+          "description": "The environment where this track's maturity is assessed. Describes the 'playing field' where value delivery is validated. Examples by track: Product='target market' or 'user base', Strategy='competitive landscape' or 'partner ecosystem', OrgOps='organizational context' or 'team culture', Commercial='customer base' or 'revenue environment'.",
+          "minLength": 5,
+          "maxLength": 100
+        },
+        "current_milestone": {
+          "type": "string",
+          "enum": ["none", "problem_approach_fit", "value_recipient_fit", "sustainable_domain_fit"],
+          "description": "Highest milestone achieved for this track. Milestones are key transitions: (1) problem_approach_fit - confirmed our approach addresses a real problem in this domain, (2) value_recipient_fit - recipients actually receive and value what we deliver, (3) sustainable_domain_fit - we can sustain value delivery in our operating domain. Generalized from Product-specific terms (PSF, PUF, PMF) to apply to all 4 tracks."
+        },
+        "next_milestone_criteria": {
+          "type": "array",
+          "description": "Evidence required to achieve the next milestone. Each criterion describes what must be true before advancing.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "description": {
+                "type": "string",
+                "description": "What evidence is required (e.g., '20+ users confirm problem exists', '80%+ weekly retention', 'Positive unit economics').",
+                "minLength": 10,
+                "maxLength": 300
+              },
+              "status": {
+                "type": "string",
+                "enum": ["not_met", "in_progress", "met"],
+                "description": "Current status of this criterion."
+              }
+            },
+            "required": ["description", "status"]
+          }
+        },
+        "l1_distribution": {
+          "type": "object",
+          "description": "Count of L1 layers in each maturity stage. Used for calculating overall_stage and visualizing maturity distribution.",
+          "properties": {
+            "hypothetical": { "type": "integer", "minimum": 0 },
+            "emerging": { "type": "integer", "minimum": 0 },
+            "proven": { "type": "integer", "minimum": 0 },
+            "scaled": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
     },
     "layers": {
       "type": "array",
@@ -89,6 +148,32 @@
               }
             }
           },
+          "maturity_summary": {
+            "type": "object",
+            "description": "L1 layer maturity summary that emerges from L2 component maturity. Calculated using 80% rule: if 80%+ of L2 components are at stage X, L1 is at stage X.",
+            "properties": {
+              "calculated_stage": {
+                "type": "string",
+                "enum": ["hypothetical", "emerging", "proven", "scaled"],
+                "description": "Calculated from L2 component maturity using 80% rule."
+              },
+              "stage_override": {
+                "type": "boolean",
+                "default": false,
+                "description": "If true, calculated_stage was set manually rather than calculated from L2 maturity."
+              },
+              "l2_distribution": {
+                "type": "object",
+                "description": "Count of L2 components in each maturity stage.",
+                "properties": {
+                  "hypothetical": { "type": "integer", "minimum": 0 },
+                  "emerging": { "type": "integer", "minimum": 0 },
+                  "proven": { "type": "integer", "minimum": 0 },
+                  "scaled": { "type": "integer", "minimum": 0 }
+                }
+              }
+            }
+          },
           "components": {
             "type": "array",
             "description": "L2 components: functional groupings of related sub-components within this layer. Components are mid-level organizing structure—they answer 'how is value in this layer delivered? what are the key functional areas?' Typically 3-8 components per layer. Components evolve more than layers but less than sub-components—they might be added as new capabilities emerge or removed as areas consolidate. Examples: 'Data Management' component within 'Core Platform' layer contains sub-components like CSV Import, Excel Sync, API Connectors.",
@@ -114,6 +199,33 @@
                   "description": "Explanation of this component's purpose, scope, and how it delivers value within the layer. Should answer: What does this component do? What sub-components does it contain? How does it fit into the broader layer? Examples: 'Data Management component enables users to import, export, sync, and transform data across systems. Includes CSV/Excel import, API connectors, real-time sync, and data validation capabilities.' Provides context for understanding sub-component grouping.",
                   "minLength": 30,
                   "maxLength": 800
+                },
+                "maturity_summary": {
+                  "type": "object",
+                  "description": "Maturity summary for this L2 component, calculated from L3 sub-component maturity assessments. Uses 80% rule: if 80%+ of sub-components are at stage X, component is at stage X. This enables bottom-up evidence aggregation - maturity emerges from actual value delivery at the most granular level.",
+                  "$comment": "L2 MATURITY EMERGENCE: Component maturity EMERGES from L3 sub-component maturity using the 80% rule. A component achieves a stage when 80%+ of its sub-components are at that stage. This prevents declaring 'proven' when only a few features are proven while most are still hypothetical. Override capability (stage_override) allows human judgment to supersede calculation when context warrants (e.g., one critical sub-component at 'proven' represents more than its numerical weight).",
+                  "properties": {
+                    "calculated_stage": {
+                      "type": "string",
+                      "enum": ["hypothetical", "emerging", "proven", "scaled"],
+                      "description": "Automatically calculated maturity stage based on 80% rule applied to L3 sub-component stages. hypothetical = value delivery not yet validated, emerging = early evidence of value, proven = consistent value delivery to target users, scaled = sustainable value at scale."
+                    },
+                    "stage_override": {
+                      "type": "boolean",
+                      "default": false,
+                      "description": "If true, calculated_stage represents a human override rather than calculated value. Use when business context warrants different assessment than pure calculation."
+                    },
+                    "l3_distribution": {
+                      "type": "object",
+                      "description": "Count of L3 sub-components at each maturity stage. Provides visibility into component maturity composition.",
+                      "properties": {
+                        "hypothetical": { "type": "integer", "minimum": 0, "description": "Number of sub-components at hypothetical stage" },
+                        "emerging": { "type": "integer", "minimum": 0, "description": "Number of sub-components at emerging stage" },
+                        "proven": { "type": "integer", "minimum": 0, "description": "Number of sub-components at proven stage" },
+                        "scaled": { "type": "integer", "minimum": 0, "description": "Number of sub-components at scaled stage" }
+                      }
+                    }
+                  }
                 },
                 "sub_components": {
                   "type": "array",
@@ -148,6 +260,67 @@
                         "description": "Unique Value Proposition: customer-facing benefit statement for this sub-component. Should answer: What problem does this solve? What outcome does it enable? Why should customers care? Format as a single sentence or short phrase focusing on customer impact (not technical details). Examples: 'Import thousands of records in seconds, no manual data entry required' (CSV Import), 'Secure enterprise access with your existing identity provider' (SSO), 'Get dedicated support and SLAs for mission-critical operations' (Enterprise Support), 'Ship faster with automated testing and deployment pipelines' (CI/CD). Good UVPs are: Customer-centric (focus on their benefit, not our technology), Specific (quantify when possible: '10x faster', '99.9% uptime'), Outcome-oriented (what they achieve, not what they do), Differentiating (why this matters vs alternatives). Use UVPs in: Sales pitches and demos, Marketing copy and landing pages, In-app onboarding and education, Feature comparison charts, Customer success communications.",
                         "minLength": 0,
                         "maxLength": 300
+                      },
+                      "maturity": {
+                        "type": "object",
+                        "description": "Maturity assessment for this L3 sub-component. This is where VALUE DELIVERY MATURITY is assessed at the most granular level. Each sub-component represents a discrete unit of value that progresses from hypothetical (unvalidated) through emerging (early evidence) to proven (consistent delivery) to scaled (sustainable at scale). Maturity emerges UPWARD from here to L2, L1, and track levels.",
+                        "$comment": "L3 MATURITY ASSESSMENT: This is the PRIMARY SOURCE of maturity data. Everything above (L2, L1, track) is calculated from L3 assessments. A sub-component's maturity represents: (1) hypothetical = we believe this delivers value but haven't validated, (2) emerging = early evidence suggests value delivery (some users benefiting), (3) proven = consistent value delivery to target recipients (Value-Recipient Fit achieved), (4) scaled = sustainable value at scale (Sustainable-Domain Fit achieved). Evidence array should contain specific, measurable proof points: usage metrics, customer quotes, retention data, NPS scores, business impact metrics. Milestone tracking links maturity to the standard progression: none → problem_approach_fit → value_recipient_fit → sustainable_domain_fit.",
+                        "properties": {
+                          "stage": {
+                            "type": "string",
+                            "enum": ["hypothetical", "emerging", "proven", "scaled"],
+                            "default": "hypothetical",
+                            "description": "Current maturity stage of this sub-component. hypothetical = value proposition defined but not yet validated with real users/data. emerging = early signals of value (initial adoption, positive feedback, early metrics trending positive). proven = consistent value delivery to target recipients, Value-Recipient Fit achieved (retention, satisfaction, measurable outcomes). scaled = sustainable value delivery at scale, Sustainable-Domain Fit achieved (unit economics work, scalable delivery, repeatable)."
+                          },
+                          "stage_override": {
+                            "type": "boolean",
+                            "default": false,
+                            "description": "If true, stage represents a human assessment override rather than purely evidence-based determination. Use when qualitative factors or strategic context warrant different classification."
+                          },
+                          "evidence": {
+                            "type": "array",
+                            "description": "Specific evidence supporting the current maturity stage. Include measurable proof points, customer signals, and business impact. Each evidence item should be concrete and verifiable.",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["usage_metric", "customer_feedback", "retention_data", "nps_score", "business_impact", "revenue_data", "qualitative_observation", "experiment_result"],
+                                  "description": "Category of evidence"
+                                },
+                                "description": {
+                                  "type": "string",
+                                  "description": "Specific evidence statement with data points. Examples: 'CSV Import used by 847 customers weekly, 99.2% success rate', 'NPS score 67 from enterprise customers', 'Feature cited in 12/15 won deals this quarter'",
+                                  "minLength": 10,
+                                  "maxLength": 500
+                                },
+                                "date": {
+                                  "type": "string",
+                                  "format": "date",
+                                  "description": "When this evidence was recorded (ISO 8601 date)"
+                                },
+                                "source": {
+                                  "type": "string",
+                                  "description": "Where this evidence comes from (e.g., 'Analytics dashboard', 'Customer interview', 'Sales CRM')",
+                                  "maxLength": 100
+                                }
+                              },
+                              "required": ["type", "description"]
+                            },
+                            "maxItems": 20
+                          },
+                          "milestone_achieved": {
+                            "type": "string",
+                            "enum": ["none", "problem_approach_fit", "value_recipient_fit", "sustainable_domain_fit"],
+                            "default": "none",
+                            "description": "Highest milestone achieved by this sub-component. none = no milestones yet (hypothetical stage). problem_approach_fit = validated that this approach solves a real problem (transition from hypothetical to emerging). value_recipient_fit = consistent value delivery to target recipients (proven stage). sustainable_domain_fit = sustainable value at scale in target domain (scaled stage)."
+                          },
+                          "milestone_notes": {
+                            "type": "string",
+                            "description": "Additional context about milestone progression. Document key validation moments, pivots, or learnings.",
+                            "maxLength": 500
+                          }
+                        }
                       }
                     },
                     "required": ["id", "name", "active"]

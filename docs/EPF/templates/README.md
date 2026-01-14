@@ -68,12 +68,16 @@ Strategic foundation templates:
 
 Execution-focused templates:
 
-| Directory | Contents | Purpose |
-|-----------|----------|---------|
-| `feature_definitions/` | Feature definition templates | Detailed feature specifications |
-| `mappings.yaml` | Mapping template | Map features to strategic context |
-| `value_models/` | Value model templates | Product/feature value articulation |
-| `workflows/` | Workflow templates | Process and workflow definitions |
+| Directory | Contents | Purpose | Status |
+|-----------|----------|---------|--------|
+| `feature_definitions/` | Redirect to `definitions/product/_template/` | Feature definition template | Moved |
+| `mappings.yaml` | Mapping template | Map features to strategic context | Template |
+| `value_models/` | Value model templates | Track value articulation | ⚠️ See note |
+| `workflows/` | Workflow templates | Process and workflow definitions | Template |
+
+**⚠️ Value Model Note:**
+- **Strategy, OrgOps, Commercial** value models are **canonical** (use directly or customize)
+- **Product** value model is a **placeholder** - each product defines unique value (customize entirely)
 
 ### AIM Phase Templates
 

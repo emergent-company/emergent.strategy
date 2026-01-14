@@ -1,0 +1,237 @@
+# OrgOps Process Definition: Mentoring Program
+# Schema: org_ops_definition_schema.json v1.0.0
+
+id: pd-018
+name: Mentoring Program
+slug: mentoring-program
+track: org_ops
+status: ready
+
+contributes_to:
+  - OrgOps.Career Progression.mentorship-programs
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Informal mentor matching"
+    includes:
+      - Volunteer mentors
+      - Simple pairing based on interest
+      - Unstructured relationship
+    effort: "2-3 hours setup"
+    
+  tier_2_intermediate:
+    description: "Structured mentoring program"
+    adds:
+      - Matching process
+      - Goal-setting framework
+      - Check-in cadence
+      - Program duration defined
+    effort: "1 day setup, 1-2 hours per month per pair"
+    
+  tier_3_advanced:
+    description: "Integrated development ecosystem"
+    adds:
+      - Multiple mentoring types (career, skill, peer)
+      - Mentor training
+      - Impact measurement
+      - Cross-company mentoring
+    effort: "Ongoing L&D function"
+
+definition:
+  purpose: |
+    People learn from people. Career development benefits from guidance 
+    from those who've been there. Mentoring accelerates growth, builds 
+    relationships across the organization, and improves retention.
+    
+  outcome: |
+    Mentees have access to experienced guidance. Mentors develop 
+    leadership skills. Relationships form across the organization. 
+    Career development is supported beyond manager relationships.
+    
+  owner: People Lead or L&D
+  
+  inputs:
+    - name: Mentor pool
+      description: Experienced employees willing to mentor
+      source: Volunteer signup, manager nomination
+    - name: Mentee needs
+      description: Who wants mentoring and what kind
+      source: Employee requests, development plans
+    - name: Matching criteria
+      description: How to pair mentors and mentees
+      source: Skills, goals, availability
+      
+  outputs:
+    - name: Mentor-mentee pairs
+      description: Matched relationships
+      consumer: Participants
+    - name: Mentoring guidelines
+      description: How the program works
+      consumer: All participants
+      
+  steps:
+    - step: 1
+      action: Recruit mentors
+      responsible: People Lead
+      duration: "1-2 hours"
+      deliverable: Mentor volunteer list
+      criteria:
+        - 2+ years at company or in field
+        - Strong performance record
+        - Interest in developing others
+      
+    - step: 2
+      action: Identify mentees
+      responsible: People Lead or self-nomination
+      duration: "1 hour"
+      deliverable: Mentee list with goals
+      
+    - step: 3
+      action: Match mentors and mentees
+      responsible: People Lead
+      duration: "1-2 hours"
+      deliverable: Paired list
+      matching_factors:
+        - Mentee goals
+        - Mentor experience
+        - Availability alignment
+        - Personality/style (if known)
+      
+    - step: 4
+      action: Communicate expectations
+      responsible: People Lead
+      duration: "30 minutes"
+      deliverable: Kickoff email/meeting
+      content:
+        - Program duration (typically 6 months)
+        - Meeting frequency (typically monthly)
+        - Suggested structure
+      
+    - step: 5
+      action: Initial mentor-mentee meeting
+      responsible: Matched pair
+      duration: "30-60 minutes"
+      deliverable: Goals set, cadence agreed
+      
+    - step: 6
+      action: Ongoing meetings
+      responsible: Matched pair
+      duration: "30-60 min monthly"
+      deliverable: Progress on goals
+      
+    - step: 7
+      action: Program wrap-up
+      responsible: People Lead
+      duration: "1 hour"
+      deliverable: Feedback collected, outcomes documented
+      
+  cadence:
+    frequency: continuous
+    trigger: Program cohort kickoffs (quarterly or semi-annual)
+    duration: "6-month program cycles"
+    
+  participants:
+    - role: People Lead
+      responsibility: Program design, matching, oversight
+      time_commitment: "4-8 hours per cohort"
+    - role: Mentors
+      responsibility: Guide and support mentee
+      time_commitment: "2-4 hours per month"
+    - role: Mentees
+      responsibility: Drive the relationship, act on guidance
+      time_commitment: "2-4 hours per month"
+
+  success_criteria:
+    - 80%+ of pairs complete the program
+    - Mentees report value from relationship
+    - Mentors report satisfaction with experience
+    - Visible career/skill development outcomes
+
+operational_context:
+  prerequisites:
+    - Enough experienced people to serve as mentors
+    - Mentee interest and commitment
+    - Management support for time investment
+    
+  common_blockers:
+    - "No time → Protect mentoring time, make expectations clear"
+    - "Pairs don't click → Allow re-matching"
+    - "No structure → Provide conversation guides"
+    
+  metrics:
+    - name: Program completion
+      description: Percentage of pairs completing program
+      target: ">80%"
+      tier: 1
+    - name: Mentee satisfaction
+      description: Would recommend mentoring
+      target: "4+/5"
+      tier: 2
+
+tools_ecosystem:
+  recommended:
+    - category: Mentoring Platforms
+      examples:
+        - Together
+        - Mentorcliq
+        - Chronus
+      purpose: Matching, tracking, resources
+    - category: Simple Tools (Tier 1)
+      examples:
+        - Spreadsheet for matching
+        - Calendar for meetings
+      purpose: Basic program management
+
+related_definitions:
+  - id: pd-012
+    relationship: enhances
+    description: "Mentoring supports career progression"
+  - id: pd-008
+    relationship: complements
+    description: "Mentoring is informal learning alongside training"
+
+adaptation:
+  customize:
+    - Matching process (self-select vs assigned)
+    - Duration (3/6/12 months)
+    - Focus (career, skill, peer)
+  preserve:
+    - Clear expectations
+    - Regular meeting cadence
+    - Voluntary participation
+  common_variations:
+    - "Peer mentoring: Same-level cross-functional pairs"
+    - "Reverse mentoring: Junior mentors senior on new tech/perspectives"
+    - "Executive sponsorship: Senior leaders sponsor high-potentials"
+
+# First Meeting Guide
+first_meeting_template:
+  objectives:
+    - Get to know each other
+    - Set goals for the mentoring relationship
+    - Agree on logistics
+    
+  discussion_questions:
+    for_mentee:
+      - "What do you want to get from this mentoring relationship?"
+      - "Where do you see yourself in 2-3 years?"
+      - "What's your biggest challenge right now?"
+    for_mentor:
+      - "What can I share about my experience?"
+      - "How can I best support you?"
+      - "What's my communication style?"
+      
+  logistics:
+    - Meeting frequency (monthly recommended)
+    - Duration (45-60 minutes recommended)
+    - Location (in-person, video, mix)
+    - Cancellation/reschedule norms
+    
+  goal_setting:
+    format: "2-3 specific goals for the program"
+    examples:
+      - "Build confidence in senior leadership meetings"
+      - "Develop strategy skills for next role"
+      - "Navigate transition to management"

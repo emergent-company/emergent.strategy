@@ -11,7 +11,7 @@
 #
 # Usage:
 #   ./scripts/validate-value-model-references.sh [features-dir] [value-models-dir]
-#   ./scripts/validate-value-model-references.sh features/ templates/FIRE/value_models/
+#   ./scripts/validate-value-model-references.sh definitions/product/ templates/FIRE/value_models/
 #
 # Exit codes:
 #   0 - All value model references valid

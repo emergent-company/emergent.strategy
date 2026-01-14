@@ -52,16 +52,16 @@ ajv validate -s schemas/feature_definition_schema.json -d path/to/feature.yaml
 
 ```bash
 # Feature quality checks (personas, scenarios, dependencies)
-./scripts/validate-feature-quality.sh features/path/to/feature.yaml
+./scripts/validate-feature-quality.sh definitions/product/path/to/feature.yaml
 
 # Cross-reference validation (dependencies exist)
-./scripts/validate-cross-references.sh features/
+./scripts/validate-cross-references.sh definitions/product/
 
 # Value model references (traceability)
-./scripts/validate-value-model-references.sh features/
+./scripts/validate-value-model-references.sh definitions/product/
 
 # Roadmap references (KR links)
-./scripts/validate-roadmap-references.sh features/
+./scripts/validate-roadmap-references.sh definitions/product/
 ```
 
 **See:** [`../scripts/README.md`](../scripts/README.md) for complete validation tool documentation
@@ -83,9 +83,9 @@ ajv validate -s schemas/feature_definition_schema.json -d path/to/feature.yaml
 
 ### FIRE Phase Schemas (Execution)
 
-| Schema | Template | Guide | Purpose |
+| Schema | Template/Definitions | Guide | Purpose |
 |--------|----------|-------|---------|
-| [`feature_definition_schema.json`](feature_definition_schema.json) | [`templates/FIRE/feature_definitions/*.yaml`](../templates/FIRE/feature_definitions/) | [`docs/guides/FEATURE_DEFINITION_IMPLEMENTATION_GUIDE.md`](../docs/guides/FEATURE_DEFINITION_IMPLEMENTATION_GUIDE.md) | Feature definitions with personas, scenarios, contexts |
+| [`feature_definition_schema.json`](feature_definition_schema.json) | [`definitions/product/_template/`](../definitions/product/_template/) | [`docs/guides/FEATURE_DEFINITION_IMPLEMENTATION_GUIDE.md`](../docs/guides/FEATURE_DEFINITION_IMPLEMENTATION_GUIDE.md) | Feature definitions with personas, scenarios, contexts |
 | [`value_model_schema.json`](value_model_schema.json) | [`templates/FIRE/value_model.yaml`](../templates/FIRE/value_model.yaml) | [`docs/guides/VALUE_MODEL_BUSINESS_LANGUAGE_GUIDE.md`](../docs/guides/VALUE_MODEL_BUSINESS_LANGUAGE_GUIDE.md) | Value models (product, strategy, org_ops, commercial) |
 | [`workflow_schema.json`](workflow_schema.json) | [`templates/FIRE/workflow.yaml`](../templates/FIRE/workflow.yaml) | - | Workflow definitions |
 | [`mappings_schema.json`](mappings_schema.json) | [`templates/FIRE/mappings.yaml`](../templates/FIRE/mappings.yaml) | - | Cross-track mappings (features ↔ value drivers) |
@@ -168,7 +168,7 @@ Located in `../scripts/`:
 
 3. **`validate-feature-quality.sh`** - Enhanced feature validation
    - Checks beyond schema: persona count, narrative lengths, scenario structure
-   - Usage: `./scripts/validate-feature-quality.sh features/file.yaml`
+   - Usage: `./scripts/validate-feature-quality.sh definitions/product/file.yaml`
 
 ### Cross-Reference Validators
 
@@ -185,7 +185,7 @@ Located in `../scripts/`:
 ### Adding New Schema Fields
 
 1. Update JSON Schema file (e.g., `feature_definition_schema.json`)
-2. Update corresponding template (e.g., `templates/FIRE/feature_definitions/template.yaml`)
+2. Update corresponding template (e.g., `definitions/product/_template/feature_definition_template.yaml`)
 3. Update guide if exists (e.g., `docs/guides/FEATURE_DEFINITION_IMPLEMENTATION_GUIDE.md`)
 4. Test validation with sample data
 5. Update VERSION and CHANGELOG in root directory
@@ -242,12 +242,12 @@ npm install -g ajv-cli
 ./scripts/validate-instance.sh _instances/product/
 
 # Validate feature quality (enhanced checks)
-./scripts/validate-feature-quality.sh features/01-technical/fd-001.yaml
+./scripts/validate-feature-quality.sh definitions/product/01-technical/fd-001.yaml
 
 # Check all cross-references
-./scripts/validate-cross-references.sh features/
-./scripts/validate-value-model-references.sh features/
-./scripts/validate-roadmap-references.sh features/
+./scripts/validate-cross-references.sh definitions/product/
+./scripts/validate-value-model-references.sh definitions/product/
+./scripts/validate-roadmap-references.sh definitions/product/
 ```
 
 ---

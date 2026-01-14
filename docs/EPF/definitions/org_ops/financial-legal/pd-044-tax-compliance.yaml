@@ -1,0 +1,253 @@
+# OrgOps Process Definition: Tax Compliance
+# Schema: org_ops_definition_schema.json v1.0.0
+
+id: pd-044
+name: Tax Compliance
+slug: tax-compliance
+track: org_ops
+status: ready
+
+contributes_to:
+  - OrgOps.Accounting.audit-preparation
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Meet filing obligations"
+    includes:
+      - Annual tax return
+      - Payroll tax compliance
+      - Sales tax (if applicable)
+    effort: "1-2 days quarterly"
+    
+  tier_2_intermediate:
+    description: "Proactive tax management"
+    adds:
+      - Tax calendar
+      - R&D tax credits
+      - State nexus management
+      - Estimated payments
+    effort: "Ongoing with CPA"
+    
+  tier_3_advanced:
+    description: "Tax strategy"
+    adds:
+      - Tax planning
+      - Transfer pricing
+      - International tax
+      - Audit defense
+    effort: "Dedicated tax function"
+
+definition:
+  purpose: |
+    Tax obligations are legal requirements with serious penalties for 
+    non-compliance. Startups face complex tax situations (payroll, 
+    sales tax, income tax, credits). A compliance process ensures 
+    obligations are met and opportunities captured.
+    
+  outcome: |
+    Tax returns filed on time. Payroll taxes paid correctly. Sales 
+    tax collected and remitted. Available credits claimed. No 
+    penalties or interest.
+    
+  owner: Finance Lead or CFO
+  
+  inputs:
+    - name: Financial records
+      description: Revenue, expenses, transactions
+      source: Accounting system
+    - name: Payroll data
+      description: Wages, withholding
+      source: Payroll provider
+    - name: Sales data
+      description: Taxable transactions
+      source: Billing/sales systems
+      
+  outputs:
+    - name: Tax returns
+      description: Filed federal, state, local returns
+      consumer: Tax authorities
+    - name: Tax payments
+      description: Timely remittances
+      consumer: Tax authorities
+    - name: Compliance records
+      description: Documentation for audit
+      consumer: Internal files
+      
+  steps:
+    - step: 1
+      action: Maintain tax calendar
+      responsible: Finance Lead
+      duration: "1 hour quarterly"
+      deliverable: Calendar current
+      
+    - step: 2
+      action: Track nexus and obligations
+      responsible: Finance Lead + CPA
+      duration: "Quarterly review"
+      deliverable: Nexus register
+      triggers:
+        - Employees in new states
+        - Sales in new jurisdictions
+        - Physical presence
+      
+    - step: 3
+      action: File payroll taxes
+      responsible: Payroll provider + Finance
+      duration: "Per pay period"
+      deliverable: Taxes remitted
+      
+    - step: 4
+      action: Collect and remit sales tax
+      responsible: Finance
+      duration: "Monthly/quarterly"
+      deliverable: Sales tax filed
+      
+    - step: 5
+      action: Prepare and file income tax
+      responsible: CPA + Finance Lead
+      duration: "Annually + extensions"
+      deliverable: Returns filed
+      
+    - step: 6
+      action: Claim available credits
+      responsible: CPA + Finance Lead
+      duration: "Annually"
+      deliverable: Credits captured
+      common:
+        - R&D tax credit
+        - State incentives
+      
+  cadence:
+    frequency: quarterly
+    trigger: Tax deadlines
+    duration: "1-2 days quarterly"
+    
+  participants:
+    - role: Finance Lead
+      responsibility: Oversee compliance
+      time_commitment: "4-8 hours quarterly"
+    - role: CPA/Tax Advisor
+      responsibility: Prepare returns
+      time_commitment: "Per engagement"
+
+  success_criteria:
+    - All returns filed on time
+    - No penalties or interest
+    - Credits claimed
+    - Nexus tracked
+
+operational_context:
+  prerequisites:
+    - Clean books
+    - CPA relationship
+    - Tax software/services
+    
+  common_blockers:
+    - "Books not closed → Monthly close process"
+    - "Complexity → Lean on CPA"
+    - "Multi-state → Nexus tracking + automation"
+    
+  metrics:
+    - name: On-time filing
+      description: Returns filed by deadline
+      target: "100%"
+      tier: 1
+    - name: Penalties
+      description: Tax penalties paid
+      target: "$0"
+      tier: 1
+
+tools_ecosystem:
+  recommended:
+    - category: Sales Tax
+      examples:
+        - Avalara
+        - TaxJar
+        - Stripe Tax
+      purpose: Sales tax automation
+    - category: Accounting
+      examples:
+        - QuickBooks
+        - Xero
+        - Pilot
+      purpose: Books for tax prep
+
+compliance:
+  federal:
+    - Form 1120/1120-S annual
+    - Estimated payments (if applicable)
+    - Payroll (941 quarterly)
+  state:
+    - State income tax
+    - Sales tax (varies)
+    - Franchise tax (some states)
+  international:
+    - FBAR (foreign accounts)
+    - FATCA
+    - Transfer pricing
+
+related_definitions:
+  - id: pd-027
+    relationship: requires
+    description: "Payroll tax part of payroll"
+  - id: pd-014
+    relationship: enables
+    description: "Tax part of compliance audits"
+  - id: pd-005
+    relationship: requires
+    description: "Budget includes tax provision"
+
+adaptation:
+  customize:
+    - State obligations
+    - Entity type
+    - Credit strategies
+  preserve:
+    - On-time filing
+    - Payroll compliance
+    - Nexus tracking
+  common_variations:
+    - "Single state: Simpler"
+    - "Multi-state: Nexus complexity"
+    - "International: Significant complexity"
+
+# Tax Calendar Template
+calendar_template:
+  quarterly:
+    - date: "15th of month following quarter"
+      what: "Form 941 (payroll)"
+    - date: "Varies by state"
+      what: "State payroll taxes"
+    - date: "Varies"
+      what: "Sales tax"
+      
+  annual:
+    - date: "March 15 (S-Corp) / April 15 (C-Corp)"
+      what: "Federal income tax (or extension)"
+    - date: "September 15 / October 15"
+      what: "Extended returns due"
+    - date: "January 31"
+      what: "W-2s, 1099s"
+    - date: "Varies by state"
+      what: "State income tax"
+
+# R&D Tax Credit Checklist
+rd_credit:
+  eligibility:
+    - "Developing new or improved products"
+    - "Technical uncertainty"
+    - "Experimentation process"
+    - "Technological in nature"
+    
+  documentation:
+    - "Track time on qualified activities"
+    - "Document projects and uncertainty"
+    - "Keep payroll records"
+    - "Track contractor costs"
+    
+  claim:
+    - "Form 6765 with income tax return"
+    - "Payroll offset for startups (up to $500K)"
+    - "Consider amended returns for prior years"

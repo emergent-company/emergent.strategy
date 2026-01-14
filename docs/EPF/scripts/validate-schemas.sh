@@ -1,6 +1,6 @@
 #!/bin/bash
 # EPF Schema Validation Script
-# Version: 1.13.1
+# Version: 2.4.4
 #
 # This script validates that EPF YAML artifacts conform to their JSON schemas.
 # It uses yq for YAML-to-JSON conversion and ajv-cli for schema validation.
@@ -19,7 +19,7 @@
 #   2 - Missing dependencies
 #
 # Changelog:
-#   v1.13.1 - Fixed phase-based structure support (READY/, FIRE/, AIM/ directories)
+#   v2.4.4 - Fixed phase-based structure support (READY/, FIRE/, AIM/ directories)
 #   v1.11.0 - Enhanced strategy_formula_schema.json with rich structured objects
 #   v1.10.1 - Added product portfolio schema validation
 #   v1.9.7 - Added feature definition schema validation
@@ -160,7 +160,7 @@ find_epf_root() {
 main() {
     echo ""
     echo "╔══════════════════════════════════════════════════════════════════╗"
-    echo "║         EPF Schema Validation Script v1.13.1                     ║"
+    echo "║         EPF Schema Validation Script v2.4.4                     ║"
     echo "╚══════════════════════════════════════════════════════════════════╝"
     echo ""
     

@@ -127,10 +127,10 @@ chmod +x scripts/validate-feature-quality.sh
 ```
 
 ### Required Files/Resources
-- [ ] Template: `templates/FIRE/feature_definitions/feature_definition_template.yaml`
+- [ ] Template: `definitions/product/_template/feature_definition_template.yaml`
 - [ ] Wizard: `wizards/feature_definition.wizard.md` (keep open for reference)
 - [ ] Schema: `schemas/feature_definition_schema.json` (for structure reference)
-- [ ] Examples: `features/` directory (21 validated examples for patterns)
+- [ ] Examples: `definitions/product/` directory (21 validated examples for patterns)
 - [ ] Validator: `scripts/validate-feature-quality.sh` (validation enforcement)
 
 ### Preparation Checklist
@@ -138,7 +138,7 @@ chmod +x scripts/validate-feature-quality.sh
 - [ ] Prepared biographical details for each persona (role, organization, metrics)
 - [ ] Identified 3-5 key scenarios showing feature usage
 - [ ] Listed dependencies on other features (if any)
-- [ ] Reviewed at least 2-3 example feature definitions from `/features/`
+- [ ] Reviewed at least 2-3 example feature definitions from `definitions/product/`
 
 ---
 
@@ -146,7 +146,7 @@ chmod +x scripts/validate-feature-quality.sh
 
 **The 7-Step Process:**
 
-1. **Copy template** → `templates/FIRE/feature_definitions/feature_definition_template.yaml`
+1. **Copy template** → `definitions/product/_template/feature_definition_template.yaml`
 2. **Rename file** → `fd-{number}-{slug}.yaml` (e.g., `fd-025-document-management.yaml`)
 3. **Fill metadata** → id, name, slug, status (5 minutes)
 4. **Write strategy** → problem_statement, market_context, value model (15 minutes)
@@ -178,7 +178,7 @@ We'll create a feature definition for **"Document Management & Version Control"*
 cd docs/EPF/_instances/{your-product}/FIRE/feature_definitions/
 
 # Copy template
-cp ../../../../templates/FIRE/feature_definitions/feature_definition_template.yaml fd-025-document-management.yaml
+cp ../../../../definitions/product/_template/feature_definition_template.yaml fd-025-document-management.yaml
 
 # Open in your editor
 code fd-025-document-management.yaml
@@ -1119,10 +1119,10 @@ description: |
 ## 10. Additional Resources
 
 **Core Documentation:**
-- **Template:** `templates/FIRE/feature_definitions/feature_definition_template.yaml`
+- **Template:** `definitions/product/_template/feature_definition_template.yaml`
 - **Schema:** `schemas/feature_definition_schema.json` (861 lines, authoritative source)
 - **Wizard:** `wizards/feature_definition.wizard.md` (step-by-step guidance)
-- **Examples:** `features/` directory (21 validated examples)
+- **Examples:** `definitions/product/` directory (21 validated examples)
 - **Validator:** `scripts/validate-feature-quality.sh` (quality enforcement)
 
 **Workflow:**
@@ -1163,6 +1163,6 @@ This guide has covered:
 
 **Questions or issues?** Refer to:
 - Schema: `schemas/feature_definition_schema.json` (structure reference)
-- Examples: `features/fd-007-organization-workspace-management.yaml` (quality patterns)
+- Examples: `definitions/product/02-business/fd-007-organization-workspace-management.yaml` (quality patterns)
 - Wizard: `wizards/feature_definition.wizard.md` (creation guidance)
 
