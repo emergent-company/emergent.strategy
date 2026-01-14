@@ -93,11 +93,56 @@ EPF uses Simon Sinek's WHY-HOW-WHAT framework. Each level contains overlapping W
 ## Adoption Level 0: Solo Founder (1-2 People)
 
 **Time investment:** 2-3 hours total
-**Output:** North Star + 1-2 feature definitions
+**Output:** North Star + 1-2 feature definitions + Living Reality Assessment baseline
+
+### Step 0: Establish Reality Baseline (10-15 minutes)
+
+**Before creating any artifacts, understand where the user is starting from.**
+
+**Agent:** "Before we dive in, let me understand your situation so I can tailor this for you. Quick context questions:"
+
+#### Lightweight Baseline Questions
+
+1. **Team context:**
+   - "How many people are working on this?" → adoption_level determination
+   - "What roles do you have?" (founder, developer, designer, etc.)
+   - "How long have you been working together?"
+
+2. **Product stage:**
+   - "Where is your product right now?" → stage: ideation | prototyping | mvp | growth | mature
+   - "Do you have users yet? How many?"
+
+3. **Existing artifacts:**
+   - "Do you have any existing documents - pitch deck, PRD, Notion pages, anything strategic?"
+   - If yes: "Can you share them? I can extract value from what you already have."
+   
+4. **What prompted this:**
+   - "What brought you to EPF today? What problem are you trying to solve?"
+   - This reveals their actual need vs perceived need
+
+5. **Available capacity:**
+   - "How much time can you realistically invest in this session?"
+   - "After today, how much ongoing time for strategic work?"
+
+**AI Action:** Capture answers mentally. If this is a returning user with existing instance:
+```bash
+# Check for existing baseline
+ls _instances/{product}/AIM/living_reality_assessment.yaml
+```
+
+If exists, **read it first** to understand their context before proceeding.
+
+If this is new, consider creating a lightweight `living_reality_assessment.yaml` at the end of this session to persist the baseline for future sessions. Use template: [`templates/AIM/living_reality_assessment.yaml`](../templates/AIM/living_reality_assessment.yaml)
+
+**Why this matters:** EPF adapts to reality. A solo founder with 2 hours is different from a 3-person team with a week. Understanding context prevents creating artifacts they won't use.
+
+**Protocol reference:** [`docs/protocols/reality_baseline_protocol.md`](../docs/protocols/reality_baseline_protocol.md)
+
+---
 
 ### Step 1: North Star Only (2 hours)
 
-**Agent:** "Welcome! I'm going to help you create your EPF foundation in 2-3 hours. We'll start with your North Star - the strategic anchor for all decisions. Let me ask you 5 core questions:"
+**Agent:** "Great, I understand your context. Now let's create your EPF foundation. We'll start with your North Star - the strategic anchor for all decisions. Let me ask you 5 core questions:"
 
 #### The 5 Core Questions (AI-driven interview, 30 minutes)
 
@@ -158,11 +203,42 @@ EPF uses Simon Sinek's WHY-HOW-WHAT framework. Each level contains overlapping W
 
 **Note:** This is NOT schema v2.0 compliant (missing 3 personas, missing 7 scenarios). That's OK for Level 0. You'll enrich it when you escalate to Level 1-2.
 
-### Step 3: Done! (Total: 2-3 hours)
+### Step 3: Persist Reality Baseline (Optional, 10 minutes)
+
+**Agent:** "Before we wrap up, let me save your context so future sessions can pick up where we left off."
+
+**AI Action:** Create lightweight `living_reality_assessment.yaml` with:
+- Adoption context (level, stage, team composition)
+- Track baselines (set Product to "defining", others to "not_started")
+- Existing assets (what we identified in Step 0)
+- Current focus (North Star + MVP features)
+
+```yaml
+# Example minimal baseline for Level 0
+metadata:
+  lifecycle_stage: bootstrap
+  
+adoption_context:
+  adoption_level: 0
+  adoption_level_label: "Solo Founder"
+  stage: ideation  # or mvp, depending on user
+  
+track_baselines:
+  product:
+    maturity: defining
+    key_artifacts: ["00_north_star.yaml"]
+```
+
+**Why persist:** Next conversation can read this and immediately understand context without re-asking baseline questions. Enables evolution tracking over time.
+
+---
+
+### Step 4: Done! (Total: 2-3 hours)
 
 **Agent:** "You now have:
 - ✅ North Star (`00_north_star.yaml`) - Your strategic anchor
 - ✅ 1-2 feature definitions - MVP scope
+- ✅ Living Reality Assessment - Context for future sessions
 
 **Time and cost comparison:**
 - **Traditional approach:** 2-4 weeks (40-80 hours) - workshops, consultant engagement, document creation
@@ -183,11 +259,28 @@ You're done with READY. Go build!"
 ## Adoption Level 1: Small Team (3-5 People)
 
 **Time investment:** 4-6 hours initial (1 session), then 4-6 hours per quarter
-**Output:** North Star + Evidence + Roadmap + Skeleton Value Model + 2-5 features
+**Output:** North Star + Evidence + Roadmap + Skeleton Value Model + 2-5 features + Living Reality Assessment
+
+### Step 0: Establish Reality Baseline (10-15 minutes)
+
+**Same as Level 0 - understand context before creating artifacts.**
+
+**Agent:** "Before we start, let me understand your situation..."
+
+[Follow Level 0 Step 0 process - the same baseline questions apply]
+
+**For Level 1, also ask:**
+- "Who handles which domains? (Product, Strategy, Ops, Commercial)" → Track ownership
+- "What existing processes or rituals do you have?" → Existing cadence
+- "Any external stakeholders - investors, advisors, customers?" → Constraints
+
+**AI Action:** Check for existing baseline, capture context for adaptation.
+
+---
 
 ### Step 1: North Star (Same as Level 0, 2 hours)
 
-**Agent:** "Let's start with your North Star using the 5 core questions..."
+**Agent:** "Great, I understand your context. Let's start with your North Star using the 5 core questions..."
 
 [Follow Level 0 Step 1 process]
 
@@ -385,7 +478,61 @@ layers:
 
 **Note:** These are schema-compliant but not v2.0 quality (missing 2 personas, missing 5-6 scenarios). That's OK for MVP. You'll enrich when you escalate to Level 2.
 
-### Step 6: Done! (Total: 4-6 hours)
+### Step 6: Persist Reality Baseline (10 minutes)
+
+**Agent:** "Before we wrap up, let me save your context for future sessions."
+
+**AI Action:** Create or update `living_reality_assessment.yaml` with:
+- Full adoption context (level 1, team composition, stage)
+- Track baselines (set based on what was created)
+- Existing assets and their location
+- Capability gaps identified during session
+- Current focus (primary track, attention allocation)
+
+```yaml
+# Example Level 1 baseline
+metadata:
+  lifecycle_stage: bootstrap
+  first_captured: "2025-01-XX"
+  
+adoption_context:
+  adoption_level: 1
+  adoption_level_label: "Small Team"
+  stage: mvp
+  team_composition:
+    total_members: 4
+    roles: ["founder", "developer", "developer", "designer"]
+  
+track_baselines:
+  product:
+    maturity: defining
+    owner: "Founder Name"
+    key_artifacts: ["00_north_star.yaml", "fd-001-*.yaml", "fd-002-*.yaml"]
+  strategy:
+    maturity: nascent
+    key_artifacts: ["01_insight_analyses.yaml"]
+  commercial:
+    maturity: not_started
+    
+current_focus:
+  primary_track: product
+  attention_allocation:
+    product: 70
+    strategy: 20
+    org_ops: 5
+    commercial: 5
+
+evolution_log:
+  - date: "2025-01-XX"
+    trigger: initial_capture
+    summary: "First EPF onboarding session. Established North Star, evidence, roadmap."
+```
+
+**Why persist:** Enables continuity across sessions and tracks evolution over time.
+
+---
+
+### Step 7: Done! (Total: 4-6 hours)
 
 **Agent:** "You now have your Lean EPF foundation:
 - ✅ North Star - Strategic anchor
@@ -393,6 +540,7 @@ layers:
 - ✅ MVP roadmap - Product-focused, other tracks minimal
 - ✅ Skeleton value model - Active components only, rest documented as 'future'
 - ✅ 2-5 feature definitions - MVP scope
+- ✅ Living Reality Assessment - Context for future sessions
 
 **Time and cost comparison (per quarter):**
 - **Traditional approach:** 2-4 weeks (80-160 hours) - consultants, workshops, full market analysis, detailed specs
@@ -407,7 +555,7 @@ layers:
 1. Start building MVP (reference roadmap OKRs)
 2. Test assumptions as you build (update `05_roadmap_recipe.yaml` with results)
 3. When team grows to 6+ or investors ask 'what's the strategy?' → Escalate to Level 2 (add full value models, enrich features)
-4. Review quarterly (4-6 hours): Update evidence, calibrate roadmap
+4. Review quarterly (4-6 hours): Update evidence, calibrate roadmap, update Living Reality Assessment
 
 You're done with READY. Go build your MVP!"
 
