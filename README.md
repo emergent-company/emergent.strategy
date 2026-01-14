@@ -1,27 +1,88 @@
-# Emergent Product Framework (EPF) Repository - v2.4.3
+# Emergent Product Framework (EPF) Repository - v2.6.3
 
 This repository contains the complete skeleton for managing product, strategy, org & ops, and commercial development using the Emergent Product Framework. It is designed to be an **executable operating system**, managed by a human-in-the-loop with the assistance of an AI Knowledge Agent.
 
 ---
 
-## What's New in v2.4.3
+## What's New in v2.6.3
 
-Add proactive EPF version checking for AI agents
+Fix false positives in content readiness checker with context-aware exclusion patterns
 
-New Features:
-- check-epf-version.sh: Standalone script to compare local EPF version with canonical remote
-- AI agent pre-flight checklist now includes mandatory version check (Question 2)
-- Exit codes: 0 (up-to-date), 1 (behind - triggers offer to sync), 2 (error)
+## What's New in v2.6.2
 
-Benefits:
-- AI agents can detect stale EPF frameworks before starting work
-- Prevents working with outdated schemas, templates, or scripts
-- Provides clear sync instructions when behind
-- Reduces risk of validation errors from schema mismatches
+Added Bidirectional Emergence section to White Paper - clarifies EPF's simultaneous top-down constraints and bottom-up learning model
 
-This addresses the gap where agents might work with outdated EPF without realizing it.
+## What's New in v2.6.1
 
-## What's New in v2.4.2
+Documentation updates for v2.6.0 canonical track definitions - White Paper and Database Object Model
+
+## What's New in v2.6.0
+
+Track definitions system, Commercial/OrgOps separation, canonical clarity
+
+## New Features
+- Added unified definitions/ directory with canonical track definitions (Strategy, OrgOps, Commercial)
+- Product track as examples-only (non-canonical) with _template/ subdirectory  
+- Track-specific schemas (strategy, org_ops, commercial definition schemas)
+- New validate-track-definitions.sh script
+- Enhanced health check with Commercial/OrgOps boundary validation
+
+## Fixes
+- Fixed Commercial vs OrgOps separation (acquisition vs maintenance)
+- Moved 5 definitions to correct tracks based on business logic
+- Consolidated feature template to definitions/product/_template/
+
+## Documentation
+- Added canonical vs non-canonical clarity throughout
+- Updated all documentation with new paths and distinctions
+
+## What's New in v2.5.0
+
+**MINOR Release**: Value Model Maturity (VMM) - Track where you are on the journey from hypothesis to scaled value delivery
+
+### New Feature: Value Model Maturity (VMM)
+
+VMM is a system for tracking maturity at the Value Model level, answering: **"How proven is the value we're claiming to deliver?"**
+
+**Key Capabilities:**
+- **4 Maturity Stages**: `hypothetical` → `emerging` → `proven` → `scaled`
+- **3 Universal Milestones**: Problem-Approach Fit → Value-Recipient Fit → Sustainable-Domain Fit
+- **Bottom-Up Evidence Model**: Maturity assessed at L3 sub-components, emerges upward using 80% rule
+- **All 4 Tracks**: Product, Strategy, OrgOps, Commercial each have independent maturity journeys
+- **Roadmap Integration**: KRs can target specific Value Model components for maturity advancement
+
+**What Changed:**
+- **`value_model_schema.json`**: Added `track_maturity`, `maturity_summary` (L1/L2), and `maturity` (L3) fields
+- **`roadmap_recipe_schema.json`**: Added `value_model_target` field to KRs
+- **`north_star_schema.json`**: Added `strategic_maturity_context` for portfolio-level visibility
+- **Value Model Templates**: All 4 templates now include `track_maturity` section
+- **New Guide**: [`docs/guides/VALUE_MODEL_MATURITY_GUIDE.md`](docs/guides/VALUE_MODEL_MATURITY_GUIDE.md)
+
+**Why VMM Matters:**
+- **Honest Assessment**: Separates hypothetical value claims from proven delivery
+- **Multi-Product Aware**: Each product line has independent maturity (not just org-level)
+- **Evidence-Based**: No hand-waving - maturity requires documented evidence
+- **Strategic Focus**: Identifies which tracks or components need investment
+
+**Quick Start:**
+```yaml
+# In your value model (L3 sub-component level)
+sub_components:
+  - id: csv-import
+    name: CSV Import
+    maturity:
+      stage: "proven"
+      evidence:
+        - type: "usage_metric"
+          description: "847 customers weekly, 99.2% success rate"
+      milestone_achieved: "value_recipient_fit"
+```
+
+See [VALUE_MODEL_MATURITY_GUIDE.md](docs/guides/VALUE_MODEL_MATURITY_GUIDE.md) for complete documentation.
+
+---
+
+## Previous Release: v2.5.0
 
 **PATCH Release**: Enhanced EPF sync safety and automation
 
@@ -443,7 +504,7 @@ This is a breaking change requiring instance migration. The enhanced personas fi
 
 ## What's New in v1.9.5
 
-* **Feature Definitions as Implementation Bridge:** The `/templates/FIRE/feature_definitions/` directory now has formal guidance for creating feature definition documents that bridge EPF strategy to spec-driven implementation tools.
+* **Feature Definitions as Implementation Bridge:** Feature definitions now have formal guidance for creating specifications that bridge EPF strategy to spec-driven implementation tools. Template at `/definitions/product/_template/` with 21 quality examples.
 * **N:M Value Model Mapping:** Feature definitions explicitly support many-to-many relationships with value model components - features often cross-cut multiple L2/L3 components.
 * **Tool-Agnostic Export Format:** Feature definitions are designed to be consumed by external spec-driven development tools (e.g., specification frameworks, AI coding agents) without EPF being coupled to any specific tool.
 * **Lean Documentation Principles:** New framework philosophy emphasizes that git handles versioning and history - EPF artifacts should not duplicate what can be inferred from repository state.
@@ -506,7 +567,7 @@ This is a breaking change requiring instance migration. The enhanced personas fi
 ## What's New in v1.9.0
 
 * **Formalized Workflow Architecture:** This version introduces a new `/templates/FIRE/workflows` directory to formalize the management of state machines and their configurations. This promotes a more robust, scalable, and configurable approach to building product features.
-* **Feature Definition Artifacts:** A new `/templates/FIRE/feature_definitions` directory has been added to store detailed, human-readable product feature definition documents.
+* **Feature Definition Artifacts:** Feature definitions now live in `/definitions/product/` with template at `_template/` and examples in category subdirectories.
 * **New `workflow_schema.json`:** A new schema is included to validate the structure of state machine definitions and their corresponding configuration files.
 * **Enhanced `value_model_schema.json`:** The value model schema has been updated to include an optional `premium: boolean` flag for L3 sub-components, allowing for clear distinction of premium features.
 

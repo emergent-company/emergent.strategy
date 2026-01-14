@@ -534,6 +534,102 @@
             }
           }
         },
+        "strategic_maturity_context": {
+          "type": "object",
+          "description": "High-level Value Model maturity summary that EMERGES from instance Value Models. This is NOT prescriptive (setting targets) - it's descriptive (reflecting current state). Reviewed during North Star updates (typically annually) to provide executive-level view of organizational maturity across all tracks.",
+          "$comment": "STRATEGIC MATURITY CONTEXT: This section captures where each product line/track is on its journey from hypothetical to scaled value delivery. Key principles: (1) Descriptive, not prescriptive - this reflects EMERGED maturity from Value Models, not targets, (2) Multi-product aware - each product line has independent maturity, (3) All 4 tracks - Product, Strategy, OrgOps, Commercial each have their own maturity journey, (4) Evidence-based - maturity is calculated from L3 sub-component evidence, emerging upward. Use for: Executive reporting ('where are we overall?'), Strategic planning ('which tracks need focus?'), Investor communications ('what's proven, what's hypothetical?'), Annual reviews ('how did maturity advance this year?'). Update frequency: During North Star reviews (annual/biannual) or after major milestone achievements.",
+          "properties": {
+            "portfolio_summary": {
+              "type": "array",
+              "description": "Maturity summary for each product line in the portfolio. Multi-product companies have one entry per product; single-product companies have one entry.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "product_line": {
+                    "type": "string",
+                    "description": "Name of the product line (e.g., 'Core Platform', 'Enterprise Suite', 'Mobile App')",
+                    "minLength": 3,
+                    "maxLength": 80
+                  },
+                  "overall_position": {
+                    "type": "string",
+                    "enum": ["discovery", "validation", "scalability", "growth"],
+                    "description": "High-level lifecycle position. discovery = exploring problem/solution, validation = proving value delivery, scalability = proving sustainable delivery, growth = scaling proven model. Maps to maturity stages: discovery~hypothetical, validation~emerging, scalability~proven, growth~scaled."
+                  },
+                  "track_maturity": {
+                    "type": "object",
+                    "description": "Emerged maturity for each track (calculated from Value Models using 80% rule)",
+                    "properties": {
+                      "product": {
+                        "type": "string",
+                        "enum": ["hypothetical", "emerging", "proven", "scaled"],
+                        "description": "Product track maturity (features, platform, UX)"
+                      },
+                      "strategy": {
+                        "type": "string",
+                        "enum": ["hypothetical", "emerging", "proven", "scaled"],
+                        "description": "Strategy track maturity (GTM, positioning, market)"
+                      },
+                      "org_ops": {
+                        "type": "string",
+                        "enum": ["hypothetical", "emerging", "proven", "scaled"],
+                        "description": "OrgOps track maturity (team, processes, culture)"
+                      },
+                      "commercial": {
+                        "type": "string",
+                        "enum": ["hypothetical", "emerging", "proven", "scaled"],
+                        "description": "Commercial track maturity (pricing, revenue, unit economics)"
+                      }
+                    }
+                  },
+                  "current_milestone": {
+                    "type": "string",
+                    "enum": ["none", "problem_approach_fit", "value_recipient_fit", "sustainable_domain_fit"],
+                    "description": "Highest milestone achieved across all tracks. none = pre-validation. problem_approach_fit = approach validated. value_recipient_fit = consistent value delivery to recipients. sustainable_domain_fit = sustainable value at scale."
+                  },
+                  "milestone_notes": {
+                    "type": "string",
+                    "description": "Key insights, pivots, or learnings from the maturity journey. What did we learn? What surprised us?",
+                    "maxLength": 500
+                  },
+                  "focus_recommendation": {
+                    "type": "string",
+                    "description": "Based on current maturity, which track or area should receive focus? This is advisory, not prescriptive.",
+                    "maxLength": 300
+                  }
+                },
+                "required": ["product_line", "overall_position"]
+              },
+              "minItems": 1,
+              "maxItems": 10
+            },
+            "maturity_themes": {
+              "type": "array",
+              "description": "Cross-product patterns observed in maturity data. Example: 'All products strong on Product track, weak on Commercial' or 'Strategy maturity lags Product by 1-2 stages across portfolio'.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "theme": {
+                    "type": "string",
+                    "description": "Description of the pattern observed",
+                    "maxLength": 300
+                  },
+                  "implication": {
+                    "type": "string",
+                    "description": "What this means for strategy or resource allocation",
+                    "maxLength": 300
+                  }
+                }
+              },
+              "maxItems": 5
+            },
+            "last_maturity_review": {
+              "type": "string",
+              "format": "date",
+              "description": "When this maturity context was last updated from Value Model data"
+            }
+          }
+        },
         "next_review_triggers": {
           "type": "object",
           "properties": {

@@ -1,0 +1,489 @@
+# OrgOps Process Definition: Offboarding Process
+# Schema: org_ops_definition_schema.json v1.1.0
+
+id: pd-016
+name: Offboarding Process
+slug: offboarding-process
+track: org_ops
+status: ready
+
+contributes_to:
+  - OrgOps.Offboarding.exit-interviews
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Essential exit checklist"
+    includes:
+      - System access revocation
+      - Equipment return
+      - Final paycheck processing
+      - Exit interview (optional)
+    effort: "1-2 hours per departure"
+    
+  tier_2_intermediate:
+    description: "Structured knowledge transfer"
+    adds:
+      - Documented knowledge handover
+      - Stakeholder communication plan
+      - 30-day transition timeline
+      - Alumni tracking
+    effort: "4-8 hours per departure"
+    
+  tier_3_advanced:
+    description: "Strategic workforce transition"
+    adds:
+      - Departure analytics
+      - Boomerang hire program
+      - Reference policy
+      - Impact mitigation planning
+    effort: "Full HR involvement"
+
+definition:
+  purpose: |
+    People leave for many reasons. Without proper offboarding, knowledge 
+    walks out the door, security risks remain (active accounts), and 
+    departures feel abrupt. Good offboarding protects the company and 
+    maintains relationships.
+    
+  outcome: |
+    All access is promptly revoked. Equipment is returned. Knowledge is 
+    transferred. Final pay and benefits are processed correctly. The 
+    departure is handled professionally.
+    
+  owner: People Lead or HR
+  
+  inputs:
+    - name: Departure notice
+      description: Resignation or termination decision
+      source: Employee or manager
+    - name: Employee records
+      description: Access, equipment, benefits info
+      source: HR systems, IT records
+    - name: Work in progress
+      description: What the person is currently responsible for
+      source: Manager, project records
+      
+  outputs:
+    - name: Completed offboarding checklist
+      description: Evidence all steps completed
+      consumer: HR files
+    - name: Knowledge transfer notes
+      description: What the next person needs to know
+      consumer: Manager, replacement
+    - name: Exit interview notes (optional)
+      description: Feedback about the organization
+      consumer: People Lead
+      
+  steps:
+    - step: 1
+      action: Receive and acknowledge departure
+      responsible: Manager + People Lead
+      duration: "30 minutes"
+      deliverable: Last day confirmed, communication plan agreed
+      
+    - step: 2
+      action: Revoke system access (on last day or immediately for terminations)
+      responsible: IT/Admin
+      duration: "30 minutes"
+      deliverable: All accounts disabled
+      systems:
+        - Email
+        - Slack/Teams
+        - Code repositories
+        - Cloud services
+        - Customer systems
+        - Physical access
+      
+    - step: 3
+      action: Collect company equipment
+      responsible: Manager or Admin
+      duration: "30 minutes"
+      deliverable: Equipment returned
+      equipment:
+        - Laptop
+        - Phone
+        - Keys/access cards
+        - Company cards
+      
+    - step: 4
+      action: Process final pay and benefits
+      responsible: Finance/HR
+      duration: "1 hour"
+      deliverable: Final paycheck scheduled
+      includes:
+        - Final salary
+        - Unused PTO payout (if applicable)
+        - COBRA information
+        - Equity paperwork
+      
+    - step: 5
+      action: Knowledge transfer/handover
+      responsible: Departing employee + Manager
+      duration: "2-4 hours"
+      deliverable: Handover documentation
+      
+    - step: 6
+      action: Conduct exit interview (optional but recommended)
+      responsible: People Lead
+      duration: "30 minutes"
+      deliverable: Exit interview notes
+      
+    - step: 7
+      action: Communicate departure to team/stakeholders
+      responsible: Manager
+      duration: "15 minutes"
+      deliverable: Announcement sent
+      
+  cadence:
+    frequency: as-needed
+    trigger: Resignation received or termination decision
+    duration: "1-2 weeks for voluntary, immediate for terminations"
+    
+  participants:
+    - role: People Lead
+      responsibility: Coordinate process, conduct exit interview
+      time_commitment: "1-2 hours"
+    - role: Manager
+      responsibility: Knowledge transfer, communication
+      time_commitment: "2-4 hours"
+    - role: IT/Admin
+      responsibility: Access revocation, equipment
+      time_commitment: "30-60 minutes"
+
+  success_criteria:
+    - All system access revoked within 24 hours of last day
+    - Equipment returned or accounted for
+    - Final pay processed on time
+    - No compliance or security issues post-departure
+
+operational_context:
+  prerequisites:
+    - Complete access inventory (pd-002)
+    - Clear termination authority
+    - Final pay procedures documented
+    
+  common_blockers:
+    - "Unknown access → Maintain access inventory, use SSO"
+    - "Missing equipment → Track in asset management"
+    - "Messy handover → Start transition earlier"
+    
+  metrics:
+    - name: Access revocation time
+      description: Hours from last day to all access removed
+      target: "<24 hours"
+      tier: 1
+    - name: Exit interview rate
+      description: Percentage of voluntary departures with exit interview
+      target: ">70%"
+      tier: 2
+
+tools_ecosystem:
+  recommended:
+    - category: HRIS
+      examples:
+        - Gusto
+        - Rippling
+        - BambooHR
+      purpose: Automate offboarding workflows
+    - category: SSO/Identity
+      examples:
+        - Okta
+        - Google Workspace
+      purpose: Centralized access revocation
+
+compliance:
+  data_protection:
+    - Retain personnel records per policy
+    - Remove personal data from systems
+  legal:
+    - Follow local requirements for final pay timing
+    - Provide required benefits continuation notices
+
+related_definitions:
+  - id: pd-002
+    relationship: requires
+    description: "System access records enable complete revocation"
+  - id: pd-001
+    relationship: mirrors
+    description: "Offboarding is inverse of onboarding"
+  - id: pd-013
+    relationship: enables
+    description: "Departures trigger succession execution"
+
+adaptation:
+  customize:
+    - Exit interview format
+    - Knowledge transfer depth
+    - Alumni program scope
+  preserve:
+    - Same-day access revocation
+    - Equipment collection
+    - Legal compliance
+  common_variations:
+    - "Voluntary: 2-week notice period with knowledge transfer"
+    - "Involuntary: Immediate access revocation, escorted departure"
+    - "Remote: Shipping label for equipment return"
+
+# ============================================================
+# PRACTITIONER SCENARIOS
+# ============================================================
+practitioner_scenarios:
+  - id: ps-016-001
+    name: "Senior Engineer Departure with Critical Knowledge"
+    practitioner: CTO at 45-person B2B SaaS
+    organization_context: |
+      Series A startup with 12 engineers. One of the original team members 
+      who designed core authentication system is leaving for a competitor. 
+      She's the only person who deeply understands the legacy auth code.
+    situation: |
+      Sarah gave standard 2-week notice. She's been professional but firm 
+      about her departure date. The auth system has been stable but undocumented. 
+      Two critical features shipping next quarter depend on auth modifications. 
+      Team is anxious about losing her knowledge.
+    trigger: |
+      Sarah submitted resignation on Monday. HR sent standard offboarding checklist.
+      CTO realizes the checklist doesn't address the massive knowledge gap about to walk out.
+    actions:
+      - "Day 1: Had honest conversation with Sarah about transition timeline—she agreed to extend to 3 weeks for proper handover"
+      - "Day 1-2: Identified the 5 most critical knowledge areas (auth flows, API integrations, deployment quirks, monitoring alerts, disaster recovery)"
+      - "Day 3-8: Scheduled intensive pair-programming sessions where Sarah walked through each system with her designated successor"
+      - "Day 5-10: Had Sarah create video walkthroughs of complex debugging scenarios she's handled"
+      - "Day 10-15: Sarah reviewed and approved documentation written by her successor to validate accuracy"
+      - "Day 14: Conducted warm handoffs with external vendors who only knew Sarah as the contact"
+      - "Day 15: Final day—exit interview, equipment return, all access revoked, but kept her on alumni Slack for 30-day questions"
+    outcome: |
+      Knowledge transfer was imperfect but sufficient. Successor had rough first month 
+      but could handle all critical issues. Documentation created during handoff became 
+      permanent team asset. One auth bug that would have taken weeks to debug was 
+      solved in 2 hours thanks to video walkthrough. Sarah appreciated the professional 
+      departure and became a reference source for recruiting.
+    lessons:
+      - "Standard 2-week notice is rarely enough for specialized knowledge holders—negotiate transition time"
+      - "Video walkthroughs capture context that written docs miss (why decisions were made, what failed before)"
+      - "Identify knowledge-critical employees BEFORE they resign and create succession documentation proactively"
+      - "Alumni relationship can continue to provide value if departure is handled well"
+
+  - id: ps-016-002
+    name: "Unexpected Termination with Security Concerns"
+    practitioner: VP of Operations at 80-person fintech
+    organization_context: |
+      Series B company handling sensitive financial data. An employee in the 
+      data engineering team was discovered accessing customer records outside 
+      their job requirements. Investigation confirmed policy violation. 
+      Termination decision made. Employee has admin access to production databases.
+    situation: |
+      Friday 4pm decision made to terminate Monday morning. Weekend to plan. 
+      Employee is technically sophisticated and unhappy about recent performance 
+      feedback. High risk of data exfiltration or sabotage if termination is 
+      handled poorly. Legal has cleared the termination for cause.
+    trigger: |
+      HR director called emergency meeting with IT, Legal, and employee's manager.
+      Standard offboarding checklist completely inadequate for this scenario.
+    actions:
+      - "Friday 6pm: IT disabled all production database write access, preserved read access to avoid alerting"
+      - "Friday 8pm: Created audit trail of all employee access for past 90 days for legal review"
+      - "Saturday: IT prepared complete access revocation script—all 47 systems—to execute instantly"
+      - "Sunday: Legal prepared separation agreement and coached manager on termination conversation"
+      - "Monday 9am: Manager and HR met with employee in conference room near exit"
+      - "Monday 9:05am: IT executed access revocation script the moment termination was communicated"
+      - "Monday 9:15am: Employee was walked to desk, personal items collected under observation"
+      - "Monday 9:30am: Employee exited building, badge deactivated, laptop collected"
+      - "Monday 10am: Team communication sent explaining transition (no details on termination reason)"
+    outcome: |
+      Clean termination with no security incidents. Audit trail showed no data 
+      exfiltration in final weeks. Employee signed separation agreement. 
+      Production systems unaffected. Team was unsettled for a week but respected 
+      the professional handling. Learned that instant access revocation capability 
+      is critical—now maintained for all employees.
+    lessons:
+      - "High-risk terminations require coordinated planning between IT, Legal, HR, and management"
+      - "Access revocation must be INSTANT when termination is communicated—have scripts ready"
+      - "Audit trails are essential—know exactly what employee accessed leading up to departure"
+      - "Team communication matters—acknowledge the departure, explain transition, don't create rumors"
+      - "Weekend planning time is valuable for complex terminations"
+
+  - id: ps-016-003
+    name: "Departing Manager with Team Transition"
+    practitioner: COO at 120-person e-commerce company
+    organization_context: |
+      Head of Customer Success managing 15 people is leaving after 4 years. 
+      Great performer, no drama, but her departure creates leadership vacuum. 
+      Two senior team members are potential successors but neither is clearly 
+      ready. Team morale is fragile after recent company pivot.
+    situation: |
+      Lisa gave 4 weeks notice—generous but still challenging. Her team handles 
+      $2M/month in customer renewals. Q4 renewal season starting in 6 weeks. 
+      No clear succession plan. Two internal candidates (Marcus and Priya) both 
+      want the role but have different strengths. External hiring would take 
+      3+ months.
+    trigger: |
+      Lisa's resignation triggered urgent succession planning that should have 
+      happened 2 years ago. Standard offboarding checklist doesn't address 
+      leadership transition or team psychology.
+    actions:
+      - "Week 1: COO had candid conversations with Marcus and Priya about interim plans, not promising permanent role yet"
+      - "Week 1: Lisa identified her key relationships—3 enterprise accounts, 2 key partners, executive sponsors"
+      - "Week 1-2: Lisa and COO co-led warm handoffs for all key relationships to appropriate team members"
+      - "Week 2: Announced interim structure—Marcus would lead renewals (his strength), Priya would lead expansion (her strength)"
+      - "Week 2-3: Lisa documented her operating rhythms, decision frameworks, and escalation patterns"
+      - "Week 3: Lisa led team meeting to introduce interim structure, answer questions, express confidence in team"
+      - "Week 3-4: Lisa shadowed by Marcus and Priya in all leadership meetings to transfer context"
+      - "Week 4: Exit interview focused on organizational feedback, team dynamics, succession recommendations"
+      - "Week 4: Final day—team farewell lunch, Lisa remained accessible via email for 60 days for questions"
+    outcome: |
+      Interim structure worked better than expected. Marcus and Priya's combined 
+      leadership covered Lisa's capabilities. Q4 renewals exceeded target by 8%. 
+      After 3 months, promoted Marcus to Head of CS with Priya as Senior Manager. 
+      Lisa's documented frameworks became team playbook. Learned that succession 
+      planning is ongoing work, not departure-triggered emergency.
+    lessons:
+      - "Manager departures require leadership transition plan, not just task handoff"
+      - "Interim structures can be creative—splitting the role initially is valid"
+      - "Document management frameworks and decision patterns, not just tasks"
+      - "Extended accessibility post-departure is valuable for leadership transitions"
+      - "Team morale requires transparent communication about uncertainty and plans"
+
+# ============================================================
+# RISKS
+# ============================================================
+risks:
+  execution_risks:
+    - risk: Access not fully revoked
+      likelihood: medium
+      impact: critical
+      mitigation: "Maintain complete access inventory (SSO + manual list), use automated revocation scripts, verify revocation with access audit 24 hours post-departure"
+    
+    - risk: Critical knowledge lost
+      likelihood: high
+      impact: high
+      mitigation: "Identify knowledge-critical employees proactively, require documentation as part of ongoing work, structure handoff time proportional to knowledge concentration"
+    
+    - risk: Equipment not returned
+      likelihood: medium
+      impact: medium
+      mitigation: "Track all equipment in asset management, include equipment return in final pay processing, have clear remote return procedures with prepaid shipping"
+    
+    - risk: Final pay processed incorrectly
+      likelihood: low
+      impact: high
+      mitigation: "Use HRIS with offboarding workflow automation, verify final calculations with finance, know jurisdiction-specific timing requirements"
+    
+    - risk: Legal compliance failure
+      likelihood: low
+      impact: critical
+      mitigation: "Document state/country-specific requirements, use legal review for involuntary terminations, have standard separation agreement template reviewed by counsel"
+    
+    - risk: Poor communication causing rumors
+      likelihood: medium
+      impact: medium
+      mitigation: "Prepare team communication in advance, be transparent about transition (not termination reasons), address questions promptly"
+
+  organizational_risks:
+    - risk: Departures cluster after visible exit
+      impact: "One departure signals others to consider options; can trigger wave of resignations especially if popular employee leaves"
+      prevention: "Exit interviews to identify systemic issues, quick follow-up 1:1s with team members, address any concerns raised, ensure remaining team feels valued"
+    
+    - risk: Customer relationships lost with employee
+      impact: "Key accounts may follow trusted contact to new company; relationships not transferred leave revenue at risk"
+      prevention: "Structured relationship handoffs well before last day, introduce successors to all key stakeholders, document relationship history and context"
+    
+    - risk: Institutional knowledge permanently lost
+      impact: "Historical context, tribal knowledge, and 'why we do it this way' explanations disappear; team repeats past mistakes"
+      prevention: "Ongoing documentation culture (not departure-triggered), video recordings of key processes, knowledge captured in systems not just heads"
+
+# ============================================================
+# DOMAIN CONTEXT
+# ============================================================
+domain_context:
+  industry_landscape: |
+    Offboarding has evolved from administrative compliance to strategic people 
+    operation. The "boomerang" trend (employees returning after external stints) 
+    has made departure experience as important as hiring experience. Companies 
+    like Microsoft, LinkedIn, and Bain have formal alumni programs recognizing 
+    that today's leaver may be tomorrow's customer, partner, or returning employee.
+    
+    Remote work has complicated equipment recovery and made access revocation 
+    more critical (no physical building access to rely on). SSO and identity 
+    management platforms (Okta, Azure AD) enable instant, comprehensive access 
+    revocation that was impossible with manual processes.
+    
+    Exit interview analytics have matured—companies now correlate departure 
+    reasons with engagement data to predict and prevent unwanted attrition. 
+    The shift from "processing departures" to "learning from departures" 
+    reflects talent scarcity and the high cost of replacement.
+
+  best_practices:
+    - practice: "Maintain real-time access inventory"
+      description: "Know exactly what each employee can access—updated continuously, not departure-triggered"
+      evidence: "Companies with SSO and identity management have 90%+ faster access revocation"
+    
+    - practice: "Proportional knowledge transfer"
+      description: "Scale handoff time to knowledge concentration—longer for specialists, key relationship holders, system owners"
+      evidence: "Standard 2-week notice is insufficient for specialized roles; 3-4 weeks or structured handover reduces knowledge loss"
+    
+    - practice: "Alumni programs"
+      description: "Maintain connections with departed employees through alumni networks, newsletters, events"
+      evidence: "McKinsey, Bain, and LinkedIn attribute significant referrals, boomerang hires, and business development to alumni programs"
+    
+    - practice: "Exit interview as data source"
+      description: "Aggregate and analyze exit interview data to identify systemic issues, not just individual departures"
+      evidence: "Companies analyzing exit data report 15-20% reduction in preventable attrition"
+
+  anti_patterns:
+    - anti_pattern: "Burning bridges"
+      description: "Treating departing employees as traitors, restricting information, making departure difficult"
+      consequence: "Negative Glassdoor reviews, lost referrals, damaged employer brand, boomerang hires blocked"
+    
+    - anti_pattern: "Checklist-only offboarding"
+      description: "Treating offboarding as purely administrative, missing knowledge transfer and relationship handoff"
+      consequence: "Critical information walks out the door, relationships lost, team scrambles to fill gaps"
+    
+    - anti_pattern: "Delayed access revocation"
+      description: "Not revoking access immediately upon departure, leaving 'just in case' access active"
+      consequence: "Security vulnerabilities, compliance violations, potential for data exfiltration (even accidental)"
+    
+    - anti_pattern: "Ignoring departure patterns"
+      description: "Treating each departure as isolated event, not analyzing trends or clusters"
+      consequence: "Systemic issues persist, preventable attrition continues, costly patterns not addressed"
+
+  benchmarks:
+    - metric: "Access revocation time"
+      top_quartile: "<4 hours from last day"
+      median: "24-48 hours"
+      laggard: ">1 week or incomplete"
+    
+    - metric: "Exit interview completion"
+      top_quartile: ">85% of voluntary departures"
+      median: "50-60%"
+      laggard: "<30% or no structured program"
+    
+    - metric: "Knowledge transfer documentation"
+      top_quartile: "100% for specialized roles with 2+ week structured handoff"
+      median: "Ad-hoc handoff, limited documentation"
+      laggard: "No structured handoff process"
+    
+    - metric: "Boomerang hire rate"
+      top_quartile: ">5% of annual hires are returning employees"
+      median: "1-3%"
+      laggard: "0% or no tracking"
+
+  maturity_indicators:
+    tier_1_signals:
+      - "Access revoked same day as departure"
+      - "Equipment returned or accounted for"
+      - "Final pay processed correctly and on time"
+      - "Basic exit interview offered"
+    
+    tier_2_signals:
+      - "Structured knowledge transfer for key roles"
+      - "Relationship handoffs for customer-facing employees"
+      - "Exit interview data aggregated and reviewed"
+      - "Alumni tracking maintained"
+    
+    tier_3_signals:
+      - "Departure analytics driving retention initiatives"
+      - "Active alumni program with regular engagement"
+      - "Proactive succession planning (not departure-triggered)"
+      - "Offboarding NPS tracked and optimized"

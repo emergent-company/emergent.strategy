@@ -1,0 +1,505 @@
+# Strategy Process Definition: Value Proposition Development
+# Schema: strategy_definition_schema.json v1.1.0
+# EPF Track: Strategy > Communications > Market Positioning
+
+id: sd-031
+name: Value Proposition Development
+slug: value-proposition
+track: strategy
+status: ready
+
+contributes_to:
+  - Strategy.Market Positioning.value-proposition
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Founder-articulated value proposition"
+    includes:
+      - Written value proposition (1-2 sentences)
+      - Consistent verbal pitch (30-60 seconds)
+      - Used in pitch deck and website
+    effort: "4-8 hours to develop, iterate with market feedback"
+    
+  tier_2_intermediate:
+    description: "Validated value proposition with segment variants"
+    adds:
+      - Customer-validated messaging
+      - Persona-specific variants
+      - Competitive differentiation articulated
+      - Internal messaging guide
+    effort: "2-4 weeks of validation, documented playbook"
+    
+  tier_3_advanced:
+    description: "Data-driven positioning system"
+    adds:
+      - A/B tested messaging
+      - Win/loss analysis informing positioning
+      - Real-time competitive monitoring
+      - Annual positioning refresh
+    effort: "Ongoing program with marketing ownership"
+
+definition:
+  purpose: |
+    Your value proposition is the answer to "Why should I care?" It's what makes 
+    someone lean in or tune out in the first 30 seconds. Most value propositions 
+    fail because they're too generic ("we help companies grow"), too feature-focused 
+    ("AI-powered platform"), or too company-centric ("we're the leader in...").
+    
+    A strong value proposition:
+    - Names the pain/desire (you understand me)
+    - Promises a specific outcome (I see the benefit)
+    - Differentiates (why you, not alternatives)
+    - Is believable (I can trust this claim)
+    
+    This is NOT a tagline (those are creative). It's a strategic positioning 
+    statement that informs all messaging. Every salesperson, every marketer, 
+    every employee should be able to deliver a consistent value proposition.
+    
+  outcome: |
+    A clear, differentiated value proposition that:
+    - Converts strangers to interested prospects
+    - Is consistent across all touchpoints
+    - Resonates with target customers (validated)
+    - Helps sales and marketing speak with one voice
+    
+  owner: CEO + Marketing Lead
+  
+  inputs:
+    - name: Customer understanding
+      description: What do customers really want? What problem are they solving?
+      source: Customer interviews, win/loss analysis, support tickets
+    - name: Competitive landscape
+      description: What do alternatives claim? Where are gaps?
+      source: Competitor analysis, customer comparisons
+    - name: Product capabilities
+      description: What can we actually deliver? What's unique?
+      source: Product team, customer success, case studies
+    - name: Company strengths
+      description: What makes us credible? Why should anyone believe us?
+      source: Team experience, traction, testimonials
+      
+  outputs:
+    - name: Core value proposition statement
+      description: 1-2 sentence primary positioning
+      consumer: Website, pitch deck, elevator pitch
+    - name: Messaging framework
+      description: Value prop + supporting proof points + persona variants
+      consumer: Marketing, sales, product marketing
+    - name: Competitive positioning
+      description: How we're different from specific alternatives
+      consumer: Sales battlecards, website comparison page
+      
+  steps:
+    - step: 1
+      action: Gather customer voice
+      responsible: Product Marketing / Founder
+      duration: "1-2 weeks"
+      deliverable: Voice-of-customer summary
+      methods:
+        - "Interview 5-10 customers: 'Why did you buy? What was the alternative?'"
+        - "Win/loss analysis: 'Why did we win/lose these deals?'"
+        - "Review testimonials: 'What words do happy customers use?'"
+        - "Support tickets: 'What problems are they really solving?'"
+      questions:
+        - "What were you doing before using us?"
+        - "What made you look for a solution?"
+        - "Why did you choose us over [alternative]?"
+        - "How would you describe us to a colleague?"
+      
+    - step: 2
+      action: Define target customer and pain
+      responsible: CEO + Product Marketing
+      duration: "2-4 hours"
+      deliverable: Target customer and pain statement
+      format: |
+        Target: [Specific role/company type]
+        Pain: [What they're struggling with]
+        Current solutions: [What they're doing now]
+        Why those fail: [Gap in current solutions]
+      example: |
+        Target: "Marketing managers at 50-200 person B2B SaaS companies"
+        Pain: "Can't prove marketing ROI to leadership"
+        Current solutions: "Spreadsheets, multiple dashboards, intuition"
+        Why fail: "Too manual, data silos, no single source of truth"
+      
+    - step: 3
+      action: Articulate promised outcome
+      responsible: CEO + Marketing
+      duration: "2-4 hours"
+      deliverable: Outcome statement
+      principles:
+        - "Outcome, not feature (what they GET, not what product DOES)"
+        - "Specific > generic ('reduce time by 50%' > 'save time')"
+        - "Believable (can you prove it?)"
+        - "Meaningful (do customers care?)"
+      format: |
+        "We help [target] achieve [outcome] by [how]"
+        
+        Outcome: "[Measurable or tangible benefit]"
+        Proof: "[How we know this is true]"
+      
+    - step: 4
+      action: Identify differentiation
+      responsible: Product Marketing
+      duration: "2-4 hours"
+      deliverable: Differentiation statement
+      questions:
+        - "Why us instead of [competitor A]?"
+        - "Why us instead of doing nothing?"
+        - "Why us instead of building it themselves?"
+        - "What can we claim that they can't?"
+      sources_of_differentiation:
+        - "Better outcomes (faster, cheaper, more effective)"
+        - "Better experience (easier, more delightful)"
+        - "Better fit (built for your specific use case)"
+        - "Better credibility (team, customers, track record)"
+      
+    - step: 5
+      action: Draft value proposition
+      responsible: CEO
+      duration: "2-4 hours"
+      deliverable: Draft value proposition statement
+      format_options:
+        - "[Outcome] for [target]. [How we're different]."
+        - "We help [target] [achieve outcome] without [pain of alternatives]."
+        - "[Target]'s struggle with [pain]. We [solution] so they can [outcome]."
+      test_questions:
+        - "Is this specific enough that competitors can't claim it?"
+        - "Does it promise an outcome I care about?"
+        - "Is it believable?"
+        - "Can I say it in 30 seconds?"
+      
+    - step: 6
+      action: Validate with customers and market
+      responsible: Product Marketing + Sales
+      duration: "2-4 weeks"
+      deliverable: Validated value proposition
+      methods:
+        - "Test on 10 prospects: 'Does this describe your problem?'"
+        - "A/B test in emails or ads"
+        - "Use in 20 sales calls, note reactions"
+        - "Survey existing customers: 'Is this why you use us?'"
+      iteration: |
+        - If prospects don't recognize the pain → pain statement needs work
+        - If outcome doesn't excite → not promising the right thing
+        - If differentiation challenged → find sharper angle
+      
+    - step: 7
+      action: Build messaging framework
+      responsible: Product Marketing
+      duration: "4-8 hours"
+      deliverable: Complete messaging framework
+      components:
+        - "Core value prop (one sentence)"
+        - "Elevator pitch (30-60 seconds)"
+        - "Supporting proof points (3-5 reasons to believe)"
+        - "Persona variants (how to adjust for different audiences)"
+        - "Competitive positioning (vs. key alternatives)"
+        - "Objection responses (common pushbacks)"
+        
+    - step: 8
+      action: Enable the organization
+      responsible: Marketing Lead
+      duration: "Ongoing"
+      deliverable: Consistent messaging in the wild
+      activities:
+        - "Train sales on messaging (role play)"
+        - "Update website, pitch deck, collateral"
+        - "Create messaging cheat sheet"
+        - "Review new content for consistency"
+
+  cadence:
+    frequency: Develop once, refresh annually or after major changes
+    trigger: Launch, new product, market shift, win rate issues
+    duration: "4-8 weeks initial development, annual refresh"
+    refresh_triggers:
+      - "Win rate drops significantly"
+      - "New competitor changes landscape"
+      - "Product capabilities change substantially"
+      - "Target customer shifts"
+    
+  participants:
+    - role: CEO
+      responsibility: Own positioning, final decision on value prop
+      time_commitment: "8-16 hours during development"
+    - role: Product Marketing
+      responsibility: Research, draft, validate, enable
+      time_commitment: "40-80 hours over 4-8 weeks"
+    - role: Sales
+      responsibility: Input on what resonates, test in field
+      time_commitment: "4-8 hours input"
+    - role: Customers
+      responsibility: Validate messaging, provide quotes
+      time_commitment: "30-60 min interviews"
+
+  success_criteria:
+    - Sales team can articulate value proposition consistently
+    - Website clearly communicates value proposition
+    - Prospects can explain what you do after 30 seconds
+    - Win/loss shows messaging is effective
+    - Differentiation is recognized by customers
+
+operational_context:
+  prerequisites:
+    - Customer access for research
+    - Understanding of competitive landscape
+    - Willingness to be specific (not generic)
+    
+  common_blockers:
+    - "Can't agree on target customer → Start with who buys most, expand later"
+    - "Value prop too generic → Push for specificity: what can only YOU claim?"
+    - "Feature-focused → Ask 'so what?' until you get to outcome"
+    - "Can't prove the claim → Start with softer claim, build evidence"
+    - "Sales says it doesn't work → Validate with customers, not just internal opinion"
+    
+  metrics:
+    - name: Message consistency
+      description: "% of sales calls that deliver value prop correctly"
+      target: ">90%"
+      tier: 1
+    - name: Prospect understanding
+      description: "% of prospects who can explain what you do after meeting"
+      target: ">80%"
+      tier: 2
+    - name: Competitive clarity
+      description: Win rate in deals where you're vs. specific competitor
+      target: "Improve after positioning work"
+      tier: 3
+
+tools_ecosystem:
+  recommended:
+    - category: Research
+      examples:
+        - Customer interviews (Zoom, in-person)
+        - Win/loss analysis (Gong, Chorus)
+        - Surveys (Typeform, SurveyMonkey)
+      purpose: Gather customer voice
+    - category: Documentation
+      examples:
+        - Notion
+        - Confluence
+        - Google Docs
+      purpose: Capture and share messaging framework
+    - category: Testing
+      examples:
+        - A/B testing (Optimizely, Google Optimize)
+        - Email testing (Mailchimp, HubSpot)
+        - Ad testing (Google Ads, LinkedIn)
+      purpose: Validate messaging with data
+    - category: Enablement
+      examples:
+        - Sales training (Loom, live sessions)
+        - Messaging cheat sheets
+        - Battlecards
+      purpose: Get team to use value prop consistently
+
+# Practitioner Scenarios - How This Plays Out in Real Organizations
+practitioner_scenarios:
+  - id: ps-001
+    name: "Founder can't explain what they do"
+    practitioner: "CEO / Founder"
+    organization_context: "10-person seed-stage startup, technical founder, product works but messaging is unclear"
+    situation: |
+      Raj (CEO, technical founder) has built a working product - an API for 
+      identity verification. When someone asks "what does your company do?" 
+      he gives a different answer every time. Sometimes it's technical ("We use 
+      biometric signals to verify identity"), sometimes it's market-focused 
+      ("We help companies comply with KYC regulations"), sometimes it's feature-
+      focused ("We have face matching, document verification, and liveness 
+      detection"). Investors and customers are confused.
+    trigger: "Investor feedback: 'I don't understand what you do after 30 minutes'"
+    actions: |
+      1. Raj accepts he has a messaging problem, not a product problem. Decides 
+         to block one week to fix it.
+      2. Interviews 5 customers: "Why did you buy us?" Patterns emerge:
+         - "We were getting fraud at sign-up"
+         - "Compliance required it"
+         - "Your API was easy to integrate"
+         Never: "We needed biometric signals."
+      3. Identifies the real customer pain: "Getting fraud at sign-up is costly 
+         and manual review doesn't scale." That's the pain - not "needing identity 
+         verification."
+      4. Articulates outcome: "Stop sign-up fraud automatically." That's what 
+         they actually GET.
+      5. Finds differentiation: competitors are slow (2-day manual review) or 
+         expensive ($5/verification). Raj's product is instant and $0.50. 
+         Differentiation: "Instant and affordable."
+      6. Drafts value proposition: "Stop sign-up fraud instantly, for $0.50 per 
+         verification. Our API integrates in 2 hours, not 2 weeks."
+      7. Tests with 5 new prospects: All 5 understood immediately. 3 said "that's 
+         exactly our problem." 1 said "we're looking for more than just sign-up" 
+         - okay, not target customer.
+      8. Creates 30-second pitch, 2-minute version, and supporting proof points.
+         Next investor meeting goes much better.
+    outcome: |
+      Meeting conversion rate doubled (25% to 50%). Investors understood immediately. 
+      Sales calls got shorter - less time explaining, more time closing. Key learning: 
+      customer words > founder words.
+    lessons:
+      - "If you can't explain it, it's a messaging problem, not a product problem"
+      - "Interview customers - they'll tell you what value prop should be"
+      - "Technical founders over-explain the 'how' instead of the 'what'"
+      - "Simple > clever: 'Stop fraud for $0.50' beats 'biometric identity API'"
+      - "Specificity helps: '$0.50' and '2 hours' are memorable"
+      - "Test with new prospects, not existing customers (they're already bought in)"
+
+  - id: ps-002
+    name: "Value proposition that doesn't differentiate"
+    practitioner: "VP of Marketing"
+    organization_context: "50-person Series B HR tech company, competing with 4-5 similar products, struggling to stand out"
+    situation: |
+      Sarah (VP Marketing) runs messaging for an HR tech company. Their value 
+      proposition is "Simplify HR for growing companies." Problem: so is every 
+      competitor's. In head-to-head deals, prospects can't articulate why they'd 
+      choose Sarah's company over alternatives. Sales is frustrated: "Marketing 
+      isn't giving us anything to work with."
+    trigger: "Win rate dropped 15% as competition intensified; sales blames messaging"
+    actions: |
+      1. Sarah runs win/loss analysis on last 20 deals:
+         - Wins: "Your onboarding module was better," "Customer support was great"
+         - Losses: "Couldn't tell the difference," "Other one was cheaper"
+         Insight: they're not losing on product, they're losing on positioning.
+      2. Competitive analysis: lists what each competitor claims
+         - All claim "simplify HR"
+         - All claim "grow with you"
+         - All claim "easy to use"
+         No differentiation in any messaging.
+      3. Digs deeper into wins: what ACTUALLY differentiated?
+         - Onboarding module is genuinely better - can onboard 50 employees in 
+           an hour vs. a day for competitors
+         - Customer support: real humans, 15-minute response, vs. chatbots
+      4. Creates new positioning around specific strength:
+         "Onboard employees in under an hour, not a full day. HR that moves as 
+         fast as you do."
+      5. Builds proof: case study showing 50 employees onboarded in 45 minutes. 
+         Customer quote: "We switched because your onboarding is 10x faster."
+      6. Tests in next 10 sales calls. Win rate: 7/10 vs. previous 4/10.
+         Prospects say: "Speed matters to us."
+      7. Cascades across marketing: website, pitch deck, ads all focus on 
+         "fast onboarding" angle. Support team trained to highlight 
+         "15-minute response."
+    outcome: |
+      Win rate improved from 40% to 65% in competitive deals. Positioning became 
+      ownable - competitors couldn't claim "onboard in an hour" because their 
+      products couldn't do it. Key learning: differentiation must be PROVABLE.
+    lessons:
+      - "Generic value props don't work in competitive markets"
+      - "Win/loss analysis reveals what actually differentiates"
+      - "Claims must be provable - can you show evidence?"
+      - "Specific > general: 'onboard in an hour' beats 'simplify HR'"
+      - "One strong differentiator > three weak ones"
+      - "Test in real sales calls - that's where truth emerges"
+
+  - id: ps-003
+    name: "Value proposition that works for sales, fails for marketing"
+    practitioner: "Product Marketing Manager"
+    organization_context: "30-person SaaS, sales team has great pitch, but marketing can't translate to website and ads"
+    situation: |
+      Dina (PMM) has a problem: sales has a great pitch that closes deals, but 
+      she can't translate it to marketing. When the CEO demos live, prospects 
+      light up. But the website conversion rate is terrible (0.5%), and ads 
+      underperform. The value proposition that works in conversation doesn't 
+      work in print.
+    trigger: "Website conversion 0.5% despite product-market fit in sales; marketing vs. sales disconnect"
+    actions: |
+      1. Dina shadows 5 sales calls to understand what actually resonates:
+         - Live demo of one feature: "Watch this" moment
+         - Story about how another customer solved exact problem
+         - CEO's passion and credibility
+         Problem: none of this translates to a website headline.
+      2. Identifies the gap: sales pitch is experiential and relational, 
+         website is declarative and impersonal.
+      3. Creates bridge: What's the ONE thing that makes prospects lean in during 
+         demo? Answer: "You can do in 5 minutes what took 2 hours before."
+      4. Rewrites website headline: Old: "The modern data platform for teams"
+         New: "Do in 5 minutes what takes 2 hours. See how."
+      5. Adds video of the "Watch this" demo moment - the 30 seconds that 
+         captures the value.
+      6. Adds customer story carousel - same stories sales tells, now on website.
+      7. Replaces generic credibility section with CEO's specific background: 
+         "Built by a former [role] who felt your pain."
+      8. A/B tests: New version converts at 1.8% vs. 0.5% - 3.6x improvement.
+    outcome: |
+      Website conversion tripled. Marketing and sales now aligned on same core 
+      message. Key insight: the value prop was RIGHT, but the FORMAT was wrong 
+      for different channels.
+    lessons:
+      - "What works in conversation might not work in text - format matters"
+      - "Shadow sales calls to find the 'lean in' moment"
+      - "Specific > abstract: '5 minutes vs. 2 hours' beats 'modern platform'"
+      - "Video can capture what text can't - the 'Watch this' moment"
+      - "Customer stories work in text if done right"
+      - "Test, don't assume - conversion data reveals truth"
+
+# Risks - What Can Go Wrong and How to Prevent/Handle
+risks:
+  execution_risks:
+    - risk: "Value proposition too generic"
+      likelihood: high
+      impact: high
+      mitigation: |
+        Push for specificity: can competitors claim the same thing? If yes, not 
+        differentiated. Use customer words, not marketing words. Include specific 
+        outcomes and numbers when possible.
+        
+    - risk: "Value proposition not validated"
+      likelihood: high
+      impact: medium
+      mitigation: |
+        Test with real prospects, not just internal opinion. A/B test where 
+        possible. Track win/loss for messaging effectiveness. Don't fall in 
+        love with words - fall in love with what works.
+        
+    - risk: "Different teams use different messaging"
+      likelihood: high
+      impact: medium
+      mitigation: |
+        Create messaging framework and distribute. Train sales explicitly.
+        Review new content for consistency. Have one owner for messaging.
+        Audit quarterly: are people actually using it?
+        
+    - risk: "Feature-focused instead of outcome-focused"
+      likelihood: high
+      impact: medium
+      mitigation: |
+        Ask "so what?" for every feature claim until you get to customer outcome.
+        "We have AI" → so what? → "It saves time" → so what? → "You get answers 
+        in 5 minutes not 2 hours" → THAT's the value prop.
+        
+  organizational_risks:
+    - risk: "Positioning doesn't match reality"
+      impact: |
+        Customers feel misled. Churn increases. Sales makes promises product 
+        can't keep. Internal frustration grows. Trust erodes.
+      prevention: |
+        Value proposition must be TRUE and PROVABLE. If you can't back it up, 
+        don't claim it. Involve product in messaging development. Customer 
+        success should validate claims before marketing uses them.
+        
+    - risk: "Positioning becomes outdated"
+      impact: |
+        Market moves, positioning doesn't. Competitors copy your angle.
+        New products/capabilities not reflected in messaging. Lost relevance.
+      prevention: |
+        Annual positioning review minimum. Refresh after major product launches.
+        Monitor competitive messaging. Track if value prop still resonates in 
+        sales calls. Don't let good messaging ossify.
+
+domain_context:
+  related_l2: "Market Positioning"
+  related_l1: "COMMUNICATIONS"
+  synergies:
+    - "sd-032 (Positioning Statement): Broader market positioning"
+    - "sd-010 (Purpose): Purpose informs value prop 'why'"
+    - "cd-022 (Sales Enablement): Sales needs value prop to sell"
+  artifacts_produced:
+    - "Value proposition statement"
+    - "Messaging framework"
+    - "Competitive positioning"
+    - "Persona variants"
+  prerequisites:
+    - "Customer understanding (interviews, research)"
+    - "Competitive landscape awareness"
+    - "Product capabilities clarity"

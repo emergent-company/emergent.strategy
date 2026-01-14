@@ -185,8 +185,8 @@ User had to remind me MULTIPLE TIMES that these belong in `.epf-work/` directory
 **Related Files/Conventions**:
 - `/Users/nikolai/Code/epf/schemas/feature_definition_schema.json` (authoritative source, v2.0.0)
 - `/Users/nikolai/Code/epf/scripts/validate-feature-quality.sh` (validation enforcement)
-- `/Users/nikolai/Code/epf/features/01-technical/fd-002-knowledge-graph-engine.yaml` (validated technical example)
-- `/Users/nikolai/Code/epf/features/02-business/fd-007-organization-workspace-management.yaml` (validated business example, after fixes)
+- `/Users/nikolai/Code/epf/definitions/product/01-technical/fd-002-knowledge-graph-engine.yaml` (validated technical example)
+- `/Users/nikolai/Code/epf/definitions/product/02-business/fd-007-organization-workspace-management.yaml` (validated business example, after fixes)
 - This applies to ANY schema-driven format in ANY repository
 
 ---
@@ -389,6 +389,83 @@ Making framework changes?
 
 ---
 
+### 2026-01-13 - Failed to Run classify-changes.sh Before Major Commit (Pre-commit Hook Not Installed)
+
+**Context**: After creating 131 canonical track definitions, updating value models, and enhancing health checks (193 files, 54,597 insertions), committed all changes without running `./scripts/classify-changes.sh` first. User had to remind me: "Seems you missed the pre commit hook for assessing epf version bump."
+
+**Mistake**: Made a massive framework commit (2.5.0 level work) without:
+1. Running `./scripts/classify-changes.sh` to assess version bump requirement
+2. Checking if the pre-commit hook was installed
+3. Following the version management protocol in `.ai-agent-instructions.md` STEP 0
+
+**Why It Was Wrong**:
+1. **Pre-commit hook script existed** - `scripts/pre-commit-version-check.sh` was designed for this
+2. **BUT hook wasn't installed** - `.git/hooks/pre-commit` didn't exist
+3. **No automated enforcement** - relied entirely on AI memory to run classifier
+4. **User had to catch the mistake** - AGAIN (see 2025-12-30 entry)
+5. **Same mistake pattern** - failing to treat version management as mandatory
+
+**Root Cause**:
+- Pre-commit hook script exists at `scripts/pre-commit-version-check.sh` 
+- But it was never installed to `.git/hooks/pre-commit`
+- Without installation, the hook provides zero protection
+- AI relied on memory ("I should run classifier") rather than automated enforcement
+- Didn't verify hook installation before major work session
+
+**Correct Approach - Verify Hook Installation Before Major Work**:
+
+1. **At session start**, verify hooks are installed:
+   ```bash
+   ls -la .git/hooks/pre-commit  # Should show installed hook
+   ```
+
+2. **If not installed**, install immediately:
+   ```bash
+   cp scripts/pre-commit-version-check.sh .git/hooks/pre-commit
+   chmod +x .git/hooks/pre-commit
+   ```
+
+3. **Before any commit**, the hook now automatically:
+   - Runs `classify-changes.sh --staged`
+   - Blocks commit if version bump is needed
+   - Validates version consistency across 4 files
+
+4. **Manual backup check** - even with hook, run before major changes:
+   ```bash
+   ./scripts/classify-changes.sh  # See what type of bump is needed
+   ```
+
+**What Was Fixed**:
+1. **Installed pre-commit hook**: `cp scripts/pre-commit-version-check.sh .git/hooks/pre-commit`
+2. **Updated classify-changes.sh**: Now recognizes `definitions/` directory
+3. **Added this lesson**: Future sessions will verify hook installation
+
+**Prevention Checklist** (use at START of any EPF session):
+- [ ] Is pre-commit hook installed? `ls .git/hooks/pre-commit`
+- [ ] If not, install it: `cp scripts/pre-commit-version-check.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit`
+- [ ] Does classify-changes.sh recognize all file types? (Test with `./scripts/classify-changes.sh`)
+- [ ] Before major commits, manually run `./scripts/classify-changes.sh` as backup
+
+**Time Cost**:
+- Wrong approach (massive commit → user notices → bump version → extra commit): ~15 minutes
+- Correct approach (hook blocks → bump version → commit with version): ~5 minutes
+- **Wasted time**: ~10 minutes, plus user frustration ("why didn't this work?")
+
+**Impact**:
+- User had to catch the same type of mistake again
+- Demonstrates that having tooling is not enough—tooling must be INSTALLED
+- Trust erosion: "The framework has checks, but the AI didn't use them"
+
+**Key Takeaway**: **TOOLING MUST BE INSTALLED TO WORK.** Having a pre-commit hook script in `scripts/` is meaningless if it's not installed in `.git/hooks/`. At the start of every EPF session, verify that enforcement hooks are active. Automation only prevents mistakes when it's actually running.
+
+**Related Files/Conventions**:
+- `scripts/pre-commit-version-check.sh` - The hook script (must be installed)
+- `.git/hooks/pre-commit` - Where the hook must be installed
+- `scripts/classify-changes.sh` - Change classifier (used by hook)
+- `scripts/install-version-hooks.sh` - Helper to install hooks
+
+---
+
 ## Instructions for Future Sessions
 
 When you encounter this file:
@@ -399,3 +476,15 @@ When you encounter this file:
 4. **Update existing lessons** if you discover additional context
 
 This is a living document. Every mistake is an opportunity to improve.
+
+**⚠️ SESSION START CHECKLIST (verify these first):**
+```bash
+# 1. Pre-commit hook installed?
+ls -la .git/hooks/pre-commit || echo "❌ HOOK NOT INSTALLED"
+
+# 2. If not installed:
+cp scripts/pre-commit-version-check.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+
+# 3. Verify classifier works:
+./scripts/classify-changes.sh --help
+```

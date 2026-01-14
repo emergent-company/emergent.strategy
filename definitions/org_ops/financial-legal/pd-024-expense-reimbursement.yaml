@@ -1,0 +1,278 @@
+# OrgOps Process Definition: Expense Reimbursement
+# Schema: org_ops_definition_schema.json v1.0.0
+
+id: pd-024
+name: Expense Reimbursement
+slug: expense-reimbursement
+track: org_ops
+status: ready
+
+contributes_to:
+  - OrgOps.Accounting.expense-tracking
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Simple reimbursement process"
+    includes:
+      - Clear expense policy
+      - Receipt submission process
+      - Monthly reimbursement
+    effort: "2-3 hours setup"
+    
+  tier_2_intermediate:
+    description: "Automated expense management"
+    adds:
+      - Expense management software
+      - Pre-approval workflow
+      - Real-time tracking
+      - Corporate cards
+    effort: "1 day setup, ongoing administration"
+    
+  tier_3_advanced:
+    description: "Integrated spend management"
+    adds:
+      - Budget controls
+      - Spend analytics
+      - Multi-currency support
+      - Audit automation
+    effort: "Full finance operations"
+
+definition:
+  purpose: |
+    Employees incur expenses on behalf of the company. Without a clear 
+    process, reimbursements are delayed, policies are unclear, and 
+    accounting is messy. A good expense process makes it easy to do the 
+    right thing.
+    
+  outcome: |
+    Employees understand what's reimbursable. Submission is easy. 
+    Reimbursements happen promptly. Finance has accurate expense records 
+    for accounting and tax purposes.
+    
+  owner: Finance Lead
+  
+  inputs:
+    - name: Expense policy
+      description: What's reimbursable and limits
+      source: Finance/leadership
+    - name: Receipts and documentation
+      description: Proof of expense
+      source: Employee
+    - name: Approval workflow
+      description: Who approves what
+      source: Org structure, policy
+      
+  outputs:
+    - name: Reimbursement payment
+      description: Money back to employee
+      consumer: Employee
+    - name: Expense records
+      description: Documented expenses for accounting
+      consumer: Finance, tax
+      
+  steps:
+    - step: 1
+      action: Document expense policy
+      responsible: Finance Lead
+      duration: "1-2 hours"
+      deliverable: Written policy
+      covers:
+        - Reimbursable categories
+        - Spending limits
+        - Required documentation
+        - Approval requirements
+      
+    - step: 2
+      action: Employee incurs expense
+      responsible: Employee
+      duration: "N/A"
+      deliverable: Receipt saved
+      tip: "Photo receipt immediately - don't lose it"
+      
+    - step: 3
+      action: Submit expense report
+      responsible: Employee
+      duration: "10-15 min"
+      deliverable: Expense submission
+      includes:
+        - Receipt image
+        - Description/purpose
+        - Category
+        - Amount
+      
+    - step: 4
+      action: Manager approval (if required)
+      responsible: Manager
+      duration: "5 minutes"
+      deliverable: Approved/rejected
+      applies_when: "Expense exceeds threshold or policy requires"
+      
+    - step: 5
+      action: Finance review
+      responsible: Finance/Admin
+      duration: "5-10 min per report"
+      deliverable: Verified and queued for payment
+      checks:
+        - Policy compliance
+        - Receipt attached
+        - Proper categorization
+      
+    - step: 6
+      action: Process reimbursement
+      responsible: Finance
+      duration: "Variable (batch processing)"
+      deliverable: Payment issued
+      methods:
+        - Payroll addition
+        - Direct transfer
+        - Check
+      
+  cadence:
+    frequency: bi-weekly
+    trigger: Expense report submission
+    duration: "Reimbursement within 2 pay cycles typical"
+    
+  participants:
+    - role: Employee
+      responsibility: Submit expenses promptly with documentation
+      time_commitment: "10-15 min per submission"
+    - role: Manager
+      responsibility: Approve expenses when required
+      time_commitment: "5 min per approval"
+    - role: Finance
+      responsibility: Review and process reimbursements
+      time_commitment: "1-2 hours per cycle"
+
+  success_criteria:
+    - Policy is clear and accessible
+    - Reimbursement within 2 pay cycles
+    - High compliance with documentation requirements
+    - Minimal rejected expenses
+
+operational_context:
+  prerequisites:
+    - Bank account for payments
+    - Expense policy documented
+    - Approval workflow defined
+    
+  common_blockers:
+    - "Lost receipts → Mobile capture immediately"
+    - "Unclear policy → Document and communicate clearly"
+    - "Slow reimbursement → Set SLA, use corporate cards"
+    
+  metrics:
+    - name: Reimbursement time
+      description: Days from submission to payment
+      target: "<14 days"
+      tier: 1
+    - name: Rejection rate
+      description: Expenses rejected for non-compliance
+      target: "<5%"
+      tier: 2
+
+tools_ecosystem:
+  recommended:
+    - category: Expense Management
+      examples:
+        - Expensify
+        - Ramp
+        - Brex
+        - Mercury
+      purpose: Submission, approval, integration with accounting
+    - category: Corporate Cards
+      examples:
+        - Ramp
+        - Brex
+        - Mercury
+      purpose: Reduce out-of-pocket, real-time tracking
+
+compliance:
+  tax:
+    - Receipts required for IRS/tax documentation
+    - Maintain records per retention policy
+    - Per diem vs actual expense tracking
+  audit:
+    - Approval trail documented
+    - Receipts attached to all expenses
+
+related_definitions:
+  - id: pd-005
+    relationship: enables
+    description: "Expenses tracked against budget"
+  - id: pd-014
+    relationship: enables
+    description: "Expense compliance part of audits"
+
+adaptation:
+  customize:
+    - Spending limits
+    - Approval thresholds
+    - Reimbursement frequency
+    - Reimbursable categories
+  preserve:
+    - Receipt requirements
+    - Clear policy
+    - Timely reimbursement
+  common_variations:
+    - "Startup: Simple policy, quick reimbursement"
+    - "Growing company: Corporate cards, approval workflows"
+    - "Enterprise: Full spend management with budgets"
+
+# Expense Policy Template
+policy_template:
+  reimbursable:
+    travel:
+      description: "Business travel expenses"
+      includes:
+        - Airfare (economy unless >6 hours)
+        - Hotels (reasonable rate)
+        - Ground transportation
+        - Meals (per diem or actual)
+      limits:
+        - "Hotels: Up to $200/night (higher in expensive cities)"
+        - "Meals: $75/day"
+      requires: "Pre-approval for travel over $500"
+      
+    meals_entertainment:
+      description: "Business meals and client entertainment"
+      includes:
+        - Team meals
+        - Client meals
+        - Team events
+      limits:
+        - "Reasonable and appropriate"
+        - "Document business purpose"
+        - "Client entertainment requires manager approval"
+        
+    software_subscriptions:
+      description: "Work-related tools and subscriptions"
+      includes:
+        - Productivity software
+        - Professional development
+      limits:
+        - "Up to $50/month without approval"
+        - ">$50/month requires manager approval"
+        
+    home_office:
+      description: "Remote work setup"
+      includes:
+        - Equipment
+        - Ergonomic furniture
+        - Internet (partial)
+      limits:
+        - "One-time setup stipend: $500"
+        - "Monthly internet: Up to $50"
+        
+  not_reimbursable:
+    - Personal expenses
+    - Commuting (regular home-to-office)
+    - Fines and penalties
+    - Political contributions
+    
+  process:
+    - "Submit within 30 days of expense"
+    - "Include receipt for all expenses over $25"
+    - "Describe business purpose"
+    - "Manager approval required for expenses over $200"

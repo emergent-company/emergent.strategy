@@ -595,16 +595,16 @@ cat VERSION
 ./scripts/validate-schemas.sh _instances/{product-name}
 
 # Validate feature quality
-./scripts/validate-feature-quality.sh features/path/to/feature.yaml
+./scripts/validate-feature-quality.sh definitions/product/path/to/feature.yaml
 
 # Validate cross-references (check that all feature dependencies exist)
-./scripts/validate-cross-references.sh features/
+./scripts/validate-cross-references.sh definitions/product/
 
 # Validate value model references (THE LINCHPIN - checks strategic alignment)
-./scripts/validate-value-model-references.sh features/
+./scripts/validate-value-model-references.sh definitions/product/
 
 # Validate roadmap references (checks assumption testing links)
-./scripts/validate-roadmap-references.sh features/
+./scripts/validate-roadmap-references.sh definitions/product/
 
 # Check roadmap balance before FIRE phase (NEW in v2.0.0) ✨
 # Use AI wizard: @wizards/balance_checker.agent_prompt.md

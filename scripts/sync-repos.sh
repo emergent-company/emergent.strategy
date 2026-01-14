@@ -520,6 +520,28 @@ pull_from_canonical() {
     
     log_step "Attempting git subtree pull..."
     
+    # Check for uncommitted changes (git subtree pull fails with "working tree has modifications")
+    if ! git diff-index --quiet HEAD -- 2>/dev/null; then
+        log_warn "Uncommitted changes detected in working tree"
+        log_info "Git subtree pull requires clean working tree - attempting to stage and commit first..."
+        
+        # Check if there are actually changes to commit
+        if git diff --quiet && git diff --cached --quiet; then
+            log_info "False alarm - working tree is actually clean ✓"
+        else
+            log_info "Attempting to auto-commit changes before subtree pull..."
+            
+            # Stage all EPF changes except instances
+            git add "$EPF_PREFIX"
+            
+            # Create auto-commit if there are staged changes
+            if ! git diff --cached --quiet; then
+                git commit -m "Auto-commit: Prepare for EPF framework sync" --no-verify
+                log_info "Auto-committed changes ✓"
+            fi
+        fi
+    fi
+    
     # Try git subtree first, but have fallback ready
     # Temporarily disable exit on error for this command
     set +e
@@ -530,6 +552,58 @@ pull_from_canonical() {
     
     if [[ $subtree_exit_code -eq 0 ]]; then
         log_info "Git subtree pull successful ✓"
+        
+        # Check for merge conflicts in .gitignore
+        if git status --porcelain | grep -q "^UU.*\.gitignore"; then
+            log_warn ".gitignore has merge conflict - auto-resolving..."
+            
+            if [[ -n "$product_name" ]]; then
+                # Resolve conflict by keeping product-specific version
+                cat > "$EPF_PREFIX/.gitignore" << EOF
+# EPF Framework .gitignore - $product_name Product Repo
+# This file tracks the $product_name product instance while ignoring other instances
+
+# Instance folders - only $product_name instance is tracked
+_instances/*
+!_instances/README.md
+!_instances/$product_name
+!_instances/$product_name/**
+
+# Working directory (temporary files, analysis, session notes)
+.epf-work/*
+!.epf-work/README.md
+
+# IDE and editor files
+.vscode/*
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.pyc
+__pycache__/
+node_modules/
+dist/
+build/
+
+# Temporary files
+*.tmp
+*.bak
+*.log
+EOF
+                git add "$EPF_PREFIX/.gitignore"
+                git commit -m "EPF: Resolve .gitignore merge conflict (keep $product_name instance tracking)" --no-verify
+                log_info "Auto-resolved .gitignore conflict ✓"
+            else
+                log_warn "Cannot auto-resolve - product name unknown. Manual resolution required."
+            fi
+        fi
     else
         log_warn "Git subtree pull failed (exit code: $subtree_exit_code) - falling back to manual sync..."
         log_info "This can happen when git subtree history is broken by manual commits"

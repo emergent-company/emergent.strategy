@@ -1,0 +1,254 @@
+# OrgOps Process Definition: Team Rituals Design
+# Schema: org_ops_definition_schema.json v1.0.0
+
+id: pd-020
+name: Team Rituals Design
+slug: team-rituals-design
+track: org_ops
+status: ready
+
+contributes_to:
+  - OrgOps.Collaboration Protocols.meeting-cadences
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Essential recurring meetings"
+    includes:
+      - Weekly team sync
+      - 1:1s between manager and reports
+      - Basic social connection
+    effort: "1-2 hours to establish"
+    
+  tier_2_intermediate:
+    description: "Intentional team rhythm"
+    adds:
+      - Documented meeting purposes
+      - Retrospectives
+      - Team celebrations
+      - Cross-functional rituals
+    effort: "Half day to design, ongoing refinement"
+    
+  tier_3_advanced:
+    description: "Culture-building ritual system"
+    adds:
+      - Company-wide ceremonies
+      - Milestone celebrations
+      - Ritual evolution process
+      - Remote/distributed considerations
+    effort: "Ongoing culture investment"
+
+definition:
+  purpose: |
+    Teams need rhythm and connection. Without intentional rituals, meetings 
+    become ad hoc, relationships stay shallow, and culture forms by accident. 
+    Rituals create predictability, build trust, and reinforce values.
+    
+  outcome: |
+    Team has regular touchpoints that serve clear purposes. Members know 
+    what to expect and when. There's space for work coordination, personal 
+    connection, and reflection. Culture is reinforced through repeated practices.
+    
+  owner: Team Manager or Team Lead
+  
+  inputs:
+    - name: Team needs
+      description: What the team needs to function well
+      source: Team feedback, manager observation
+    - name: Work patterns
+      description: How work flows and when coordination is needed
+      source: Project cadence, dependencies
+    - name: Team preferences
+      description: What the team enjoys and values
+      source: Team discussion
+      
+  outputs:
+    - name: Team ritual calendar
+      description: Recurring meetings and their purposes
+      consumer: Team members
+    - name: Ritual guides
+      description: How each ritual runs
+      consumer: Facilitators
+      
+  steps:
+    - step: 1
+      action: Audit current meetings
+      responsible: Team Manager
+      duration: "30 minutes"
+      deliverable: List of current recurring meetings
+      questions:
+        - What meetings do we have?
+        - What's the purpose of each?
+        - Are they achieving that purpose?
+      
+    - step: 2
+      action: Identify gaps and overlaps
+      responsible: Team Manager + Team
+      duration: "30 minutes"
+      deliverable: Gap analysis
+      common_gaps:
+        - No space for social connection
+        - No reflection/retrospective
+        - No celebration of wins
+      
+    - step: 3
+      action: Design ritual set
+      responsible: Team Manager + Team
+      duration: "30-60 minutes"
+      deliverable: Proposed ritual calendar
+      
+    - step: 4
+      action: Document each ritual
+      responsible: Team Manager
+      duration: "30 minutes"
+      deliverable: Ritual guide per ritual
+      includes:
+        - Purpose
+        - Frequency
+        - Duration
+        - Format/agenda
+        - Facilitator
+      
+    - step: 5
+      action: Implement and iterate
+      responsible: Team
+      duration: "Ongoing"
+      deliverable: Rituals running
+      note: "Review quarterly - what's working? What's not?"
+      
+  cadence:
+    frequency: quarterly
+    trigger: Team formation, quarterly review, team feedback
+    duration: "1-2 hours for design/redesign"
+    
+  participants:
+    - role: Team Manager
+      responsibility: Own ritual design, facilitate most rituals
+      time_commitment: "1-2 hours design, ongoing facilitation"
+    - role: Team Members
+      responsibility: Participate, provide feedback
+      time_commitment: "Ritual attendance + 30 min input"
+
+  success_criteria:
+    - Team has documented recurring rituals
+    - Rituals have clear purposes
+    - Team finds rituals valuable (not "just another meeting")
+    - Rituals reviewed and evolved at least quarterly
+
+operational_context:
+  prerequisites:
+    - Team is formed and working together
+    - Manager has time to design and facilitate
+    - Team openness to structured practices
+    
+  common_blockers:
+    - "Too many meetings → Consolidate, ensure each is necessary"
+    - "Rituals feel forced → Involve team in design"
+    - "Remote challenges → Be more intentional about connection rituals"
+    
+  metrics:
+    - name: Ritual participation
+      description: Attendance at team rituals
+      target: ">90%"
+      tier: 1
+    - name: Ritual value rating
+      description: Team finds rituals useful
+      target: "4+/5"
+      tier: 2
+
+tools_ecosystem:
+  recommended:
+    - category: Calendar
+      examples:
+        - Google Calendar
+        - Outlook
+      purpose: Schedule recurring rituals
+    - category: Facilitation
+      examples:
+        - Miro
+        - FigJam
+      purpose: Interactive ritual activities
+
+related_definitions:
+  - id: pd-003
+    relationship: requires
+    description: "Communication norms inform ritual design"
+  - id: pd-019
+    relationship: complements
+    description: "All-hands is company-wide ritual"
+
+adaptation:
+  customize:
+    - Which rituals for your team
+    - Frequency and duration
+    - Facilitation style
+  preserve:
+    - Regular cadence
+    - Clear purpose per ritual
+    - Space for both work and connection
+  common_variations:
+    - "Engineering team: Add demo days, tech talks"
+    - "Sales team: Add pipeline reviews, win celebrations"
+    - "Remote team: Add virtual coffee, async rituals"
+
+# Common Team Ritual Catalog
+ritual_catalog:
+  work_coordination:
+    - name: Weekly Team Sync
+      purpose: "Align on priorities, surface blockers"
+      frequency: Weekly
+      duration: 30-60 min
+      format: "Status updates, priorities for week, blockers"
+      
+    - name: Daily Standup
+      purpose: "Quick coordination, identify blockers"
+      frequency: Daily
+      duration: 15 min
+      format: "What I did, what I'll do, blockers"
+      note: "Optional - depends on team needs"
+      
+    - name: Sprint Planning
+      purpose: "Commit to work for upcoming sprint"
+      frequency: Every 2 weeks
+      duration: 1-2 hours
+      format: "Review backlog, estimate, commit"
+      
+  reflection:
+    - name: Retrospective
+      purpose: "Learn from recent work, improve processes"
+      frequency: Every 2-4 weeks
+      duration: 60-90 min
+      format: "What worked, what didn't, experiments"
+      
+    - name: Monthly Review
+      purpose: "Step back, assess progress, adjust"
+      frequency: Monthly
+      duration: 60 min
+      format: "Progress vs goals, learnings, adjustments"
+      
+  connection:
+    - name: Team Lunch/Coffee
+      purpose: "Build relationships, informal connection"
+      frequency: Weekly or bi-weekly
+      duration: 30-60 min
+      format: "Informal social time, no agenda"
+      
+    - name: Team Wins Celebration
+      purpose: "Recognize accomplishments"
+      frequency: Weekly (brief) or monthly (longer)
+      duration: 10-30 min
+      format: "Share and celebrate recent wins"
+      
+  development:
+    - name: 1:1 Meetings
+      purpose: "Individual support, coaching, feedback"
+      frequency: Weekly or bi-weekly
+      duration: 30-60 min
+      format: "Employee-driven agenda"
+      
+    - name: Demo Day
+      purpose: "Share work, cross-pollinate ideas"
+      frequency: Bi-weekly or monthly
+      duration: 30-60 min
+      format: "Short demos of recent work"

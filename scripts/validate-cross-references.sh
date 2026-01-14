@@ -10,7 +10,7 @@
 #
 # Usage:
 #   ./scripts/validate-cross-references.sh [features-dir]
-#   ./scripts/validate-cross-references.sh features/
+#   ./scripts/validate-cross-references.sh definitions/product/
 #
 # Exit codes:
 #   0 - All cross-references valid

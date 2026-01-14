@@ -1,0 +1,573 @@
+# OrgOps Process Definition: Recruiting Process
+# Schema: org_ops_definition_schema.json v1.1.0
+
+id: pd-031
+name: Recruiting Process
+slug: recruiting-process
+track: org_ops
+status: ready
+
+contributes_to:
+  - OrgOps.Recruitment.hiring-pipelines
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Consistent hiring process"
+    includes:
+      - Job description template
+      - Standard interview process
+      - Hiring decision framework
+    effort: "1-2 days per hire"
+    
+  tier_2_intermediate:
+    description: "Structured recruiting program"
+    adds:
+      - ATS for tracking
+      - Structured interviews
+      - Scorecards
+      - Pipeline management
+    effort: "2-4 days per hire, ongoing pipeline"
+    
+  tier_3_advanced:
+    description: "Strategic talent acquisition"
+    adds:
+      - Employer branding
+      - Sourcing function
+      - Recruiting analytics
+      - DEI integration
+    effort: "Dedicated recruiting function"
+
+definition:
+  purpose: |
+    Hiring is one of the highest-leverage activities. Poor hiring is costly 
+    and painful. A good recruiting process finds the right people, evaluates 
+    fairly, and moves quickly enough to compete for talent.
+    
+  outcome: |
+    Open roles are filled with qualified candidates. Hiring decisions are 
+    consistent and data-informed. Candidate experience is positive. 
+    Time-to-hire is reasonable.
+    
+  owner: Hiring Manager + People Lead
+  
+  inputs:
+    - name: Hiring need
+      description: Role to fill, approved headcount
+      source: Department head, budget
+    - name: Role requirements
+      description: What the job needs
+      source: Hiring manager
+    - name: Candidates
+      description: Applicants for the role
+      source: Job posts, referrals, sourcing
+      
+  outputs:
+    - name: Offer accepted
+      description: New hire committed
+      consumer: Onboarding process
+    - name: Candidate feedback
+      description: Notes for rejected candidates
+      consumer: Recruiters, future reference
+      
+  steps:
+    - step: 1
+      action: Define the role
+      responsible: Hiring manager
+      duration: "1-2 hours"
+      deliverable: Job description
+      includes:
+        - Job title
+        - Responsibilities
+        - Requirements (must-have vs nice-to-have)
+        - Compensation range
+        - Location/remote
+      
+    - step: 2
+      action: Source candidates
+      responsible: Hiring manager + team
+      duration: "Ongoing"
+      deliverable: Candidate pipeline
+      methods:
+        - Job posts (LinkedIn, Indeed, etc.)
+        - Employee referrals
+        - Direct outreach
+        - Agencies (if needed)
+      
+    - step: 3
+      action: Screen applications
+      responsible: Hiring manager or recruiter
+      duration: "10-15 min per candidate"
+      deliverable: Shortlist for interviews
+      criteria:
+        - Meets must-have requirements
+        - Relevant experience
+        - Initial interest/fit
+      
+    - step: 4
+      action: Initial interview
+      responsible: Hiring manager or recruiter
+      duration: "30-45 min"
+      deliverable: Candidates for deeper evaluation
+      purpose: Assess interest, basics, culture fit
+      
+    - step: 5
+      action: Skill assessment
+      responsible: Interview panel
+      duration: "1-2 hours"
+      deliverable: Skill evaluation
+      methods:
+        - Technical interviews
+        - Case studies
+        - Work samples
+        - Skills tests
+      
+    - step: 6
+      action: Team/culture interview
+      responsible: Team members
+      duration: "1-2 hours"
+      deliverable: Culture fit assessment
+      
+    - step: 7
+      action: Final interview/sell
+      responsible: CEO or department head
+      duration: "30-60 min"
+      deliverable: Final decision, candidate sold
+      
+    - step: 8
+      action: Reference checks
+      responsible: Hiring manager or recruiter
+      duration: "30 min per reference"
+      deliverable: Reference feedback
+      
+    - step: 9
+      action: Extend offer
+      responsible: Hiring manager + People Lead
+      duration: "1 hour"
+      deliverable: Offer extended
+      
+    - step: 10
+      action: Close and start onboarding
+      responsible: People Lead
+      duration: "30 min"
+      deliverable: Offer accepted, start date set
+      
+  cadence:
+    frequency: as-needed
+    trigger: Approved headcount, resignation
+    duration: "2-6 weeks typical"
+    
+  participants:
+    - role: Hiring manager
+      responsibility: Define role, lead process
+      time_commitment: "8-16 hours per hire"
+    - role: People Lead
+      responsibility: Support process, make offer
+      time_commitment: "4-8 hours per hire"
+    - role: Interview panel
+      responsibility: Assess candidates
+      time_commitment: "2-4 hours per hire"
+
+  success_criteria:
+    - Roles filled with qualified candidates
+    - Time-to-hire under 45 days
+    - Offer acceptance rate >80%
+    - 90-day retention >90%
+
+operational_context:
+  prerequisites:
+    - Approved headcount
+    - Compensation budget
+    - Interview capacity
+    
+  common_blockers:
+    - "No candidates → Expand sourcing, adjust requirements"
+    - "Too slow → Streamline process, prioritize"
+    - "Bad hires → Improve assessment, check references"
+    
+  metrics:
+    - name: Time-to-hire
+      description: Days from job posted to offer accepted
+      target: "<45 days"
+      tier: 1
+    - name: Quality of hire
+      description: 90-day performance of new hires
+      target: ">90% meeting expectations"
+      tier: 2
+
+tools_ecosystem:
+  recommended:
+    - category: ATS (Applicant Tracking)
+      examples:
+        - Greenhouse
+        - Lever
+        - Ashby
+        - Notion (simple)
+      purpose: Track candidates, coordinate interviews
+    - category: Job Posting
+      examples:
+        - LinkedIn
+        - Indeed
+        - AngelList
+        - Wellfound
+      purpose: Reach candidates
+
+# Practitioner Scenarios - How This Plays Out in Real Organizations
+practitioner_scenarios:
+  - id: ps-001
+    name: "First engineering hire at a 5-person startup"
+    practitioner: "CTO / Technical Co-founder"
+    organization_context: "5-person pre-seed startup, all founders, first external hire"
+    situation: |
+      David (CTO) needs to hire the first engineer outside the founding team. He's built 
+      the product himself and isn't sure how to evaluate others. The startup has $500K 
+      runway and can offer below-market cash but meaningful equity. Competition for 
+      engineers is brutal. David has never hired before and is nervous about making 
+      the wrong choice - a bad first hire could be fatal.
+    trigger: "Product-market fit signals mean it's time to scale beyond founders"
+    actions: |
+      1. David writes a job description but it's too generic. Gets feedback from advisor: 
+         "What's the actual first project this person will work on?" Rewrites with specific 
+         context: "Build our data pipeline - we're drowning in manual ETL."
+      2. Posts on LinkedIn and AngelList. Gets 40 applications in 2 weeks - way more than 
+         expected. Spends 3 hours reviewing but can't tell who's good from resume alone.
+      3. Adds a simple technical screening question to application: "Describe how you'd 
+         design a data pipeline for [specific use case]." New applications have 30% response 
+         rate on the question - those responses are much easier to evaluate.
+      4. Conducts 8 phone screens (30 min each), advances 4 to technical interview.
+      5. Does pair programming session (2 hours) instead of whiteboard: "Here's a real 
+         problem we're facing, let's work on it together." Much better signal than algorithms.
+      6. For final 2 candidates, has them meet the whole team over lunch. Both pass - but 
+         one clearly more excited about the mission.
+      7. Makes offer to preferred candidate. Rejected (counter-offered by Google). 
+         Calls second choice - equally strong, different strengths. Makes offer, accepted.
+      8. Retrospective: the screening question was key. Pair programming > whiteboard.
+    outcome: |
+      First hire worked out well - still at company 2 years later. David developed a 
+      repeatable process. Key learning: the screening question saved 10+ hours of 
+      interviewing people who couldn't pass. Mission sell matters for competing with big tech.
+    lessons:
+      - "Add a screening question to filter high-volume applications"
+      - "Pair programming on real problems reveals more than algorithm puzzles"
+      - "Mission and equity story must be strong to compete with big tech salaries"
+      - "Second choice can be great - don't oversell first choice in your mind"
+      - "Involve the whole team early - they have to work together"
+
+  - id: ps-002
+    name: "Speeding up a 3-month hiring process"
+    practitioner: "VP of Engineering"
+    organization_context: "60-person Series A, time-to-hire averaging 90 days, losing candidates to faster companies"
+    situation: |
+      Marina (VP Eng) keeps losing candidates after final rounds. Exit interviews reveal: 
+      "I got an offer from another company and couldn't wait." Average time from first 
+      interview to offer is 45 days. Marina knows the process has too many steps but 
+      stakeholders resist cutting any ("each stage catches different issues").
+    trigger: "Third candidate in a row accepts competing offer while waiting for ours"
+    actions: |
+      1. Marina maps the current process: 7 interview stages, 3 weeks of scheduling 
+         delays, 2-week decision meetings. Total: 45-60 days from first contact.
+      2. Analyzes which stages actually predict success: finds that "culture fit" 
+         interview has 95% pass rate - essentially a rubber stamp.
+      3. Proposes consolidation: reduce to 4 stages (phone screen, technical deep-dive, 
+         team meet, hiring manager final). Combines culture assessment into team meet.
+      4. Attacks scheduling delays: requires interviewers to block 2 hours/week for 
+         interviews. Centralizes scheduling through recruiting coordinator.
+      5. Shortens decision cycle: instead of weekly hiring meeting, moves to Slack-based 
+         async debrief with 24-hour decision SLA.
+      6. For senior roles only: adds "super day" format - all interviews in one day, 
+         decision by end of week.
+      7. Communicates timeline to candidates upfront: "Our process is 3 weeks from first 
+         interview to offer. Here's exactly what to expect."
+    outcome: |
+      Time-to-offer dropped from 45 days to 18 days. Offer acceptance rate went from 
+      55% to 78%. Lost only 1 candidate to timing in next quarter (vs 5 in previous). 
+      Interviewers initially resisted but appreciated the dedicated time blocks.
+    lessons:
+      - "Audit which stages actually predict success vs. are tradition"
+      - "Scheduling is often the biggest delay - centralize and protect time"
+      - "Async debriefs can replace slow committee meetings"
+      - "Communicate timeline to candidates - sets expectations, builds trust"
+      - "Super day format works for senior roles, reduces total elapsed time"
+
+  - id: ps-003
+    name: "Building DEI into the recruiting pipeline"
+    practitioner: "Head of Talent Acquisition"
+    organization_context: "120-person Series B, 85% engineering team is white/Asian male, leadership committed to improving diversity"
+    situation: |
+      Rachel (Head of TA) is asked to improve diversity in engineering hiring. The 
+      current pipeline is 80% referrals - and referrals look like the existing team. 
+      Interview panels are homogeneous. There's no explicit discrimination, but the 
+      system perpetuates the current makeup. Leadership wants change but also wants 
+      to "hire the best people."
+    trigger: "CEO commits publicly to DEI goals, asks Rachel to build the plan"
+    actions: |
+      1. Rachel audits the current funnel: 20% of applicants are from underrepresented 
+         groups, but only 10% of offers. Dropout happens at technical interview stage.
+      2. Partners with sourcing team to add diverse sourcing channels: HBCUs, /dev/color, 
+         Women Who Code, Lesbians Who Tech. Sets goal of 40% diverse top-of-funnel.
+      3. Analyzes technical interview: finds some questions have cultural bias 
+         (references to specific US sports, assumptions about CS degree path). Rewrites 
+         questions to focus on skills, not cultural knowledge.
+      4. Diversifies interview panels: requires at least one interviewer from 
+         underrepresented background on every panel. Trains panel on bias awareness.
+      5. Implements structured interviews with standard rubrics: all candidates get 
+         same questions, scored on same criteria. Reduces "culture fit" to specific 
+         behaviors, not "would I want to get beer with them."
+      6. Creates "Rooney Rule" variant: at least one diverse candidate must be 
+         interviewed before making final decision.
+      7. Tracks metrics weekly: % diverse at each stage, offer/accept rates by 
+         demographic. Reports to leadership monthly.
+    outcome: |
+      Over 18 months: diverse representation in engineering improved from 15% to 28%. 
+      Key drivers: diverse sourcing (can't hire who you don't reach), structured 
+      interviews (reduced bias in evaluation), and panel diversity. Quality of hire 
+      metrics unchanged - answered "but what about quality?" concern.
+    lessons:
+      - "Referrals perpetuate current makeup - must diversify sourcing channels"
+      - "Structured interviews reduce bias - same questions, same rubric"
+      - "Track funnel by stage to find where dropout happens"
+      - "Panel diversity matters - people assess differently when seen"
+      - "'Rooney Rule' ensures diverse candidates get to final round"
+      - "Quality metrics unchanged dispels 'lowering the bar' myth"
+
+# Risks - What Can Go Wrong and How to Prevent/Handle
+risks:
+  execution_risks:
+    - risk: "Hiring for skills, missing culture fit - new hire doesn't mesh with team"
+      likelihood: medium
+      impact: high
+      mitigation: |
+        Include team members in interview process. Assess collaboration and communication, 
+        not just technical skills. Reference checks should include questions about working 
+        style. Use trial projects or working sessions when possible.
+        
+    - risk: "Process too slow - losing candidates to faster competitors"
+      likelihood: high
+      impact: high
+      mitigation: |
+        Audit and streamline process (target <21 days to offer). Communicate timeline 
+        upfront. Move to async debriefs. Require interviewer calendar blocks. Use 
+        "super day" format for senior roles. Act with urgency.
+        
+    - risk: "Unconscious bias in evaluation - overlooking qualified candidates"
+      likelihood: high
+      impact: high
+      mitigation: |
+        Structured interviews with standard questions and rubrics. Diverse interview 
+        panels. Blind resume screening where possible. Train interviewers on bias. 
+        Track conversion rates by demographic to spot patterns.
+        
+    - risk: "Bad job description attracts wrong candidates"
+      likelihood: medium
+      impact: medium
+      mitigation: |
+        Be specific about actual work, not generic requirements. Include salary range 
+        (improves quality, shows transparency). Have someone outside role review for 
+        clarity. Test by asking: "Would I apply to this?"
+        
+    - risk: "Hiring manager goes dark - process stalls"
+      likelihood: medium
+      impact: high
+      mitigation: |
+        Set clear expectations on response times (24-48 hour SLAs). Recruiting owns 
+        process and escalates delays. If hiring manager can't commit time, question 
+        whether role is actually priority.
+        
+  organizational_risks:
+    - risk: "Bad hire costs 1.5-3x annual salary and damages team"
+      impact: |
+        The wrong hire costs salary, benefits, severance, management time, team 
+        morale, and opportunity cost. For senior roles or small teams, a bad hire 
+        can set the company back months. The cost of not hiring is often lower than 
+        the cost of hiring wrong.
+      prevention: |
+        Invest in rigorous assessment. Check references (actually call them). Use 
+        trial periods or contract-to-hire when appropriate. Train hiring managers. 
+        Track quality of hire and correlate with process used.
+        
+    - risk: "Homogeneous hiring creates legal and innovation risk"
+      impact: |
+        Discrimination lawsuits can result from biased hiring patterns (even 
+        unintentional). Homogeneous teams have blind spots and groupthink. 
+        Reputation suffers, limiting future talent access.
+      prevention: |
+        Diverse sourcing channels. Structured interviews. Track demographics at 
+        each funnel stage. Diverse interview panels. Regular DEI reviews of 
+        hiring outcomes. Consult legal on compliance.
+        
+    - risk: "Poor candidate experience damages employer brand"
+      impact: |
+        Candidates talk. Bad interviews, ghosting, slow responses become Glassdoor 
+        reviews and word-of-mouth. Strong candidates avoid companies with bad 
+        reputations. Referrals dry up.
+      prevention: |
+        Communicate timeline and next steps. Respond within 48 hours. Give 
+        feedback when possible. Treat every candidate as a potential customer or 
+        referrer. Survey candidates on experience.
+
+# Domain Context - Industry Best Practices and Benchmarks
+domain_context:
+  industry_landscape: |
+    Recruiting has transformed from "post and pray" to a multi-channel, data-driven 
+    function. The rise of LinkedIn, Glassdoor, and specialized job boards has made 
+    talent acquisition more competitive and transparent. Candidates have more 
+    information and options than ever.
+    
+    Key trends: (1) Employer branding matters - top talent researches companies before 
+    applying, (2) Speed is competitive advantage - faster companies win candidates, 
+    (3) DEI is expected - candidates and employees expect diverse, inclusive workplaces, 
+    (4) Remote opens global talent pools but increases competition, (5) Candidate 
+    experience is employer brand - every interaction is a marketing opportunity.
+    
+    For startups, the challenge is competing with big tech salaries while offering 
+    mission, equity, and growth opportunities. For growing companies, the challenge 
+    is scaling from founder-led hiring to a repeatable process without losing quality.
+
+  best_practices:
+    - "Structured interviews: same questions, same rubric, trained interviewers"
+    - "Speed to offer: top candidates have options - move fast or lose them"
+    - "Diverse sourcing: referrals alone perpetuate current team makeup"
+    - "Salary transparency: include range in job post (improves quality, saves time)"
+    - "Skills > credentials: assess what they can do, not where they went to school"
+    - "Reference checks matter: actually call references, ask specific questions"
+    - "Candidate experience: every interaction is an employer brand moment"
+    - "Data-driven decisions: track funnel, time-to-hire, quality-of-hire"
+    
+  anti_patterns:
+    - "Endless requirements lists: 'Must have 10 years of 5-year-old technology'"
+    - "Unstructured 'chat': different questions for each candidate = bias"
+    - "Ghost candidates: not responding to applications or after interviews"
+    - "Slow process: 6 interview rounds over 2 months loses candidates"
+    - "Clone hiring: 'culture fit' meaning 'like us' perpetuates homogeneity"
+    - "Reference theater: asking for references but never calling them"
+    - "Lowballing: below-market offers waste everyone's time"
+    
+  benchmarks:
+    - metric: "Time-to-hire (days from job post to offer accepted)"
+      poor: "> 60 days"
+      average: "40-60 days"
+      excellent: "< 30 days"
+      source: "LinkedIn, Greenhouse data"
+    - metric: "Offer acceptance rate"
+      poor: "< 60%"
+      average: "60-75%"
+      excellent: "> 80%"
+      source: "Industry benchmarks"
+    - metric: "Quality of hire (90-day performance rating)"
+      poor: "< 80% meeting expectations"
+      average: "80-90%"
+      excellent: "> 95%"
+      source: "Internal tracking"
+    - metric: "Cost per hire"
+      poor: "> 30% of first-year salary"
+      average: "15-25%"
+      excellent: "< 15%"
+      source: "SHRM benchmarks"
+    - metric: "Source of hire (referral %)"
+      poor: "> 80% (limiting diversity)"
+      average: "40-60%"
+      excellent: "30-50% with diverse non-referral sources"
+      source: "Recruiting analytics"
+      
+  maturity_indicators:
+    tier_1_signs:
+      - "First few hires outside founders"
+      - "No ATS - tracking in spreadsheets"
+      - "Founder conducts all interviews"
+      - "Ad-hoc process, varies by role"
+    tier_2_signs:
+      - "5+ hires per year"
+      - "Multiple hiring managers"
+      - "Need for consistent evaluation"
+      - "Time-to-hire becoming problematic"
+      - "Quality variance across hires"
+    tier_3_signs:
+      - "20+ hires per year"
+      - "Dedicated recruiting function needed"
+      - "Employer branding investment required"
+      - "DEI goals and tracking"
+      - "Analytics to optimize funnel"
+
+compliance:
+  legal:
+    - Equal opportunity in hiring
+    - No discriminatory questions
+    - Consistent evaluation criteria
+    - Background check consent
+  records:
+    - Retain applications per retention policy
+    - Document hiring decisions
+
+related_definitions:
+  - id: pd-001
+    relationship: enables
+    description: "New hires go to onboarding"
+  - id: pd-017
+    relationship: requires
+    description: "Role definition informs job description"
+
+adaptation:
+  customize:
+    - Interview stages
+    - Assessment methods
+    - Timeline
+    - Who's involved
+  preserve:
+    - Consistent evaluation
+    - Good candidate experience
+    - Legal compliance
+  common_variations:
+    - "Technical roles: Add coding assessment"
+    - "Senior roles: Add executive interview"
+    - "High volume: Add recruiter screening"
+
+# Job Description Template
+job_description_template:
+  title: "[Job Title]"
+  location: "[Location / Remote / Hybrid]"
+  
+  about_company: |
+    [2-3 sentences about what your company does and why it matters]
+    
+  about_role: |
+    [What this person will do and why it matters]
+    
+  responsibilities:
+    - "[Key responsibility 1]"
+    - "[Key responsibility 2]"
+    - "[Key responsibility 3]"
+    
+  requirements:
+    must_have:
+      - "[Requirement 1]"
+      - "[Requirement 2]"
+    nice_to_have:
+      - "[Nice to have 1]"
+      - "[Nice to have 2]"
+      
+  benefits:
+    - "[Benefit 1]"
+    - "[Benefit 2]"
+    
+  compensation: "$[range] + equity"
+  
+  how_to_apply: "[Instructions]"
+
+# Interview Scorecard Template
+scorecard_template:
+  candidate: "[Name]"
+  role: "[Role]"
+  interviewer: "[Name]"
+  date: "[Date]"
+  
+  criteria:
+    - skill: "[Skill/competency 1]"
+      rating: "[1-5]"
+      notes: "[Evidence]"
+    - skill: "[Skill/competency 2]"
+      rating: "[1-5]"
+      notes: "[Evidence]"
+      
+  overall_recommendation: "[Strong Yes / Yes / No / Strong No]"
+  summary: "[Key observations]"

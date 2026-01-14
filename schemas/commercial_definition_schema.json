@@ -1,0 +1,343 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "commercial_definition_schema.json",
+  "title": "EPF Commercial Definition Schema",
+  "version": "1.1.0",
+  "description": "Schema for Commercial track definitions. Extends track_definition_base_schema.json with commercial-specific fields (steps, cadence, revenue_impact, practitioner_scenarios, risks, domain_context). Commercial definitions are input for revenue teams to execute go-to-market and business development processes.",
+  "$comment": "Commercial definitions cover: Financing (fundraising, investor relations), Partnerships (BD, alliances), Brand & Positioning (marketing, PR), Sales & Marketing (demand gen, sales process). These are canonical templates usable by any organization. Version 1.1: Added practitioner_scenarios, risks, and domain_context fields for richer practitioner guidance.",
+  "allOf": [
+    {
+      "$ref": "track_definition_base_schema.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^cd-[0-9]{3}$",
+          "description": "Commercial definition ID. Format: cd-{number}"
+        },
+        "track": {
+          "const": "commercial"
+        },
+        "definition": {
+          "type": "object",
+          "properties": {
+            "steps": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["step", "action", "responsible"],
+                "properties": {
+                  "step": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Step number in sequence"
+                  },
+                  "action": {
+                    "type": "string",
+                    "description": "What to do in this step"
+                  },
+                  "responsible": {
+                    "type": "string",
+                    "description": "Role responsible for this step"
+                  },
+                  "duration": {
+                    "type": "string",
+                    "description": "Typical time for this step",
+                    "examples": ["2-4 hours", "1 day", "1 week"]
+                  },
+                  "deliverable": {
+                    "type": "string",
+                    "description": "What this step produces"
+                  },
+                  "templates": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Templates or tools useful for this step"
+                  },
+                  "best_practices": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Best practices for this step"
+                  }
+                },
+                "additionalProperties": true
+              },
+              "minItems": 1,
+              "maxItems": 12,
+              "description": "Sequential steps to execute this commercial process. Keep to 6-8 for Tier 1.",
+              "$comment": "Commercial steps often involve external stakeholders (prospects, partners, investors). Each step should have clear deliverables and may include templates and best practices for execution."
+            },
+            "cadence": {
+              "type": "object",
+              "description": "When and how often this commercial process runs",
+              "properties": {
+                "frequency": {
+                  "type": "string",
+                  "description": "How often this process executes",
+                  "examples": ["Per opportunity", "Weekly", "Monthly", "Quarterly", "Annually"]
+                },
+                "trigger": {
+                  "type": "string",
+                  "description": "What initiates this process",
+                  "examples": ["New lead", "Partnership inquiry", "Fundraising round", "Product launch"]
+                },
+                "duration": {
+                  "type": "string",
+                  "description": "Total time from start to completion",
+                  "examples": ["1-2 weeks", "2-4 weeks", "3-6 months"]
+                },
+                "ongoing": {
+                  "type": "array",
+                  "items": {"type": "string"},
+                  "description": "Ongoing activities after initial process completion"
+                }
+              }
+            },
+            "participants": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "role": {"type": "string"},
+                  "responsibility": {"type": "string"},
+                  "time_commitment": {"type": "string"}
+                }
+              },
+              "description": "All roles involved in this commercial process"
+            }
+          }
+        },
+        "operational_context": {
+          "type": "object",
+          "description": "Commercial-specific context for process execution",
+          "properties": {
+            "prerequisites": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "What must be in place before this process can run"
+            },
+            "common_blockers": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Typical obstacles and how to address them"
+            },
+            "metrics": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {"type": "string"},
+                  "description": {"type": "string"},
+                  "target": {"type": "string"},
+                  "tier": {
+                    "type": "integer",
+                    "enum": [1, 2, 3],
+                    "description": "Which maturity tier introduces this metric"
+                  }
+                }
+              },
+              "description": "Process metrics for tracking effectiveness"
+            }
+          }
+        },
+        "revenue_impact": {
+          "type": "object",
+          "description": "How this process impacts revenue and commercial outcomes",
+          "$comment": "Commercial definitions should connect to revenue outcomes. This section helps practitioners understand the business case and ROI for implementing this process.",
+          "properties": {
+            "direct_revenue": {
+              "type": "string",
+              "description": "Direct revenue impact of this process"
+            },
+            "indirect_revenue": {
+              "type": "string",
+              "description": "Indirect revenue impact (brand, relationships, etc.)"
+            },
+            "cost_to_implement": {
+              "type": "string",
+              "description": "Typical cost to implement this process"
+            },
+            "roi_timeline": {
+              "type": "string",
+              "description": "Expected timeline to see ROI",
+              "examples": ["Immediate", "1-3 months", "6-12 months"]
+            }
+          }
+        },
+        "tools_ecosystem": {
+          "type": "object",
+          "description": "Tool recommendations (suggestions, not mandates)",
+          "properties": {
+            "recommended": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "category": {"type": "string"},
+                  "examples": {
+                    "type": "array",
+                    "items": {"type": "string"}
+                  },
+                  "purpose": {"type": "string"}
+                }
+              }
+            },
+            "integrations": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Common integration points with other systems"
+            }
+          }
+        },
+        "practitioner_scenarios": {
+          "type": "array",
+          "description": "Concrete scenarios showing how this commercial process plays out in real organizations.",
+          "$comment": "Practitioner scenarios help revenue teams understand how the process works in practice. Each scenario shows a realistic situation, the practitioner's actions, and outcomes. Include scenarios across different org sizes and maturity levels.",
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "practitioner", "situation", "trigger", "actions", "outcome"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^ps-[0-9]+$",
+                "description": "Unique scenario ID. Format: ps-{number}",
+                "examples": ["ps-001", "ps-002"]
+              },
+              "name": {
+                "type": "string",
+                "minLength": 10,
+                "description": "Descriptive name summarizing the scenario",
+                "examples": ["First fundraise as technical founder", "Scaling content marketing"]
+              },
+              "practitioner": {
+                "type": "string",
+                "description": "Who is executing this process (role, not person name)",
+                "examples": ["CEO", "VP Sales", "Head of Marketing", "BD Lead", "Founder"]
+              },
+              "organization_context": {
+                "type": "string",
+                "description": "Brief description of org size, stage, and relevant context",
+                "examples": ["15-person seed-stage startup", "80-person Series B scale-up"]
+              },
+              "situation": {
+                "type": "string",
+                "minLength": 50,
+                "description": "The specific situation that makes this scenario realistic and educational."
+              },
+              "trigger": {
+                "type": "string",
+                "description": "What initiates this specific instance of the process"
+              },
+              "actions": {
+                "type": "string",
+                "minLength": 100,
+                "description": "Step-by-step narrative of what the practitioner does"
+              },
+              "outcome": {
+                "type": "string",
+                "minLength": 50,
+                "description": "What happens as a result"
+              },
+              "lessons": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Key takeaways for practitioners facing similar situations"
+              }
+            }
+          }
+        },
+        "risks": {
+          "type": "object",
+          "description": "What can go wrong and how to prevent/mitigate.",
+          "$comment": "Risks section addresses both execution risks (things that can go wrong during the process) and organizational risks (consequences of poorly executed commercial process).",
+          "properties": {
+            "execution_risks": {
+              "type": "array",
+              "description": "Things that can go wrong during process execution",
+              "items": {
+                "type": "object",
+                "required": ["risk", "likelihood", "impact", "mitigation"],
+                "properties": {
+                  "risk": {
+                    "type": "string",
+                    "description": "What could go wrong"
+                  },
+                  "likelihood": {
+                    "type": "string",
+                    "enum": ["low", "medium", "high"],
+                    "description": "How likely is this to occur"
+                  },
+                  "impact": {
+                    "type": "string",
+                    "enum": ["low", "medium", "high"],
+                    "description": "How serious if it occurs"
+                  },
+                  "mitigation": {
+                    "type": "string",
+                    "description": "How to prevent or handle this risk"
+                  }
+                }
+              }
+            },
+            "organizational_risks": {
+              "type": "array",
+              "description": "Business/organizational consequences of poorly executed commercial process",
+              "items": {
+                "type": "object",
+                "required": ["risk", "impact", "prevention"],
+                "properties": {
+                  "risk": {
+                    "type": "string",
+                    "description": "What organizational harm could result"
+                  },
+                  "impact": {
+                    "type": "string",
+                    "description": "How this affects the organization"
+                  },
+                  "prevention": {
+                    "type": "string",
+                    "description": "How proper process execution prevents this"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "domain_context": {
+          "type": "object",
+          "description": "Commercial domain context including related processes and synergies.",
+          "$comment": "Domain context helps practitioners understand how this definition fits within the broader commercial landscape and what it produces/requires.",
+          "properties": {
+            "related_l2": {
+              "type": "string",
+              "description": "The L2 category this definition belongs to",
+              "examples": ["Financing", "Partnerships", "Sales & Marketing", "Brand & Positioning"]
+            },
+            "related_l1": {
+              "type": "string",
+              "description": "The L1 pillar this definition belongs to",
+              "examples": ["FINANCING", "PARTNERSHIPS", "BRAND & POSITIONING", "SALES & MARKETING"]
+            },
+            "synergies": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "How this process connects to other commercial processes"
+            },
+            "artifacts_produced": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Concrete outputs this process produces"
+            },
+            "prerequisites": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "What must exist before running this process"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

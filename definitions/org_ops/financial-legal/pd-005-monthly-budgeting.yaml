@@ -1,0 +1,510 @@
+# OrgOps Process Definition: Monthly Budgeting
+# Schema: org_ops_definition_schema.json v1.1.0
+
+id: pd-005
+name: Monthly Budgeting
+slug: monthly-budgeting
+track: org_ops
+status: ready
+
+contributes_to:
+  - OrgOps.Budgeting.annual-budget-planning
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Simple expense tracking and cash flow awareness"
+    includes:
+      - Monthly expense tracking
+      - Basic categorization
+      - Cash runway awareness
+    effort: "2-4 hours/month"
+    
+  tier_2_intermediate:
+    description: "Budget-to-actual tracking with variance analysis"
+    adds:
+      - Annual budget with monthly breakdown
+      - Variance reporting
+      - Department budget ownership
+      - Quarterly reforecasting
+    effort: "1 day setup, 4-6 hours/month"
+    
+  tier_3_advanced:
+    description: "Full FP&A with scenario modeling"
+    adds:
+      - Rolling 13-week cash flow
+      - Scenario planning (base/best/worst)
+      - Unit economics tracking
+      - Board-ready financial package
+      - Automated accounting integration
+    effort: "2-4 weeks setup, ongoing FP&A function"
+
+definition:
+  purpose: |
+    Without regular budget review, organizations lose visibility into cash position, 
+    spend creeps up unexpectedly, and financial surprises threaten sustainability. 
+    Monthly budgeting creates rhythm and accountability for financial health.
+    
+  outcome: |
+    Clear understanding of previous month's spending vs plan. Issues identified early. 
+    Cash runway is known. Next month's expected expenses are planned.
+    
+  owner: CFO or Finance Lead (or CEO/Founder in early stage)
+  
+  inputs:
+    - name: Bank statements
+      description: All account transactions for the month
+      source: Banking platforms
+    - name: Credit card statements
+      description: All card transactions
+      source: Card providers
+    - name: Recurring expenses list
+      description: Subscriptions, salaries, rent
+      source: Previous month / contracts
+    - name: Invoices received
+      description: Bills pending or paid
+      source: Accounts payable
+      
+  outputs:
+    - name: Monthly expense report
+      description: Categorized spending summary
+      consumer: Leadership, department heads
+    - name: Budget variance report
+      description: Actual vs planned with explanations
+      consumer: Leadership
+    - name: Cash runway update
+      description: Months of runway remaining
+      consumer: CEO, Board
+    - name: Next month forecast
+      description: Expected expenses for coming month
+      consumer: Finance, Leadership
+      
+  steps:
+    - step: 1
+      action: Export/gather all transactions from banks and cards
+      responsible: Finance Lead
+      duration: "30 minutes"
+      tools:
+        - Banking platforms
+        - Accounting software (QBO, Xero)
+      deliverable: Complete transaction list
+      
+    - step: 2
+      action: Categorize expenses (payroll, tools, contractors, etc.)
+      responsible: Finance Lead
+      duration: "45 minutes"
+      deliverable: Categorized expenses
+      
+    - step: 3
+      action: Compare against budget/plan, identify variances
+      responsible: Finance Lead
+      duration: "30 minutes"
+      deliverable: Variance analysis
+      
+    - step: 4
+      action: Calculate current cash position and runway
+      responsible: Finance Lead
+      duration: "15 minutes"
+      deliverable: Cash position summary
+      
+    - step: 5
+      action: Forecast next month's expected expenses
+      responsible: Finance Lead
+      duration: "30 minutes"
+      deliverable: Next month forecast
+      
+    - step: 6
+      action: Review with CEO/leadership, discuss variances
+      responsible: Finance Lead + CEO
+      duration: "30 minutes"
+      deliverable: Aligned understanding, action items
+      
+  cadence:
+    frequency: monthly
+    trigger: Month close (within first 5 business days)
+    duration: "3-4 hours total"
+    
+  participants:
+    - role: Finance Lead
+      responsibility: Prepare reports, analyze variances
+      time_commitment: "3-4 hours"
+    - role: CEO
+      responsibility: Review, approve, decide on issues
+      time_commitment: "30 minutes"
+    - role: Department Heads (Tier 2+)
+      responsibility: Explain department variances
+      time_commitment: "15 minutes each"
+      
+  success_criteria:
+    - Monthly review completed within 5 business days of month end
+    - All significant variances (>10%) explained
+    - Cash runway known to within 1 month accuracy
+    - No expense surprises
+    - Leadership aligned on financial position
+
+operational_context:
+  prerequisites:
+    - Bank and card access for finance
+    - Chart of accounts / categorization scheme
+    - Annual budget or spending plan (Tier 2+)
+    
+  common_blockers:
+    - "Missing receipts/invoices → Set up receipt capture system"
+    - "Delayed bank reconciliation → Close books by day 3"
+    - "Unclear categorization → Define categories upfront"
+    
+  metrics:
+    - name: Days to close
+      description: Business days from month end to report ready
+      target: "< 5 days"
+      tier: 1
+    - name: Forecast accuracy
+      description: Actual vs forecasted spending
+      target: "Within 10%"
+      tier: 2
+    - name: Budget variance
+      description: Actual vs budget
+      target: "Within 5% for controllable expenses"
+      tier: 2
+
+compliance:
+  regulatory_requirements:
+    - "Tax documentation retention"
+    - "GAAP/IFRS for audited financials (if applicable)"
+    - "Board reporting requirements"
+  documentation_required:
+    - Bank statements
+    - Receipts for expenses
+    - Approval documentation for large purchases
+  audit_considerations: |
+    Auditors review: transaction documentation, proper categorization, 
+    segregation of duties, approval workflows.
+
+tools_ecosystem:
+  recommended:
+    - category: Accounting Software
+      examples:
+        - QuickBooks Online
+        - Xero
+        - Wave
+      purpose: Transaction tracking, categorization
+    - category: Banking
+      examples:
+        - Mercury
+        - Brex
+        - Chase
+      purpose: Transaction data, integrations
+    - category: Expense Management
+      examples:
+        - Expensify
+        - Ramp
+        - Brex
+      purpose: Receipt capture, approval workflows
+    - category: Spreadsheets (Tier 1)
+      examples:
+        - Google Sheets
+        - Excel
+      purpose: Budget tracking, variance analysis
+  integrations:
+    - Banking → Accounting software (auto-import)
+    - Expense cards → Accounting (auto-categorize)
+
+# Practitioner Scenarios - How This Plays Out in Real Organizations
+practitioner_scenarios:
+  - id: ps-001
+    name: "Founder realizes they're 2 months from running out of cash"
+    practitioner: "CEO / Founder"
+    organization_context: "8-person seed-stage startup, raised $1.5M, no finance person"
+    situation: |
+      Sarah (CEO) has been heads-down on product for 3 months. She checks the bank 
+      account and sees $180K - much less than expected. Heart racing, she tries to 
+      figure out where the money went. There are 8 salaries plus contractors plus AWS 
+      plus 47 different software subscriptions. She realizes she has no idea what 
+      they're actually spending each month.
+    trigger: "Bank balance shock: expected $300K, found $180K"
+    actions: |
+      1. Sarah spends a painful Saturday pulling all bank and card statements for 
+         the last 3 months. Exports to spreadsheet. Total chaos.
+      2. Creates rough categories: payroll, contractors, software, cloud, other. 
+         Tags each transaction. Discovers burn is $95K/month, not $75K as imagined.
+      3. Finds $4K/month in forgotten software subscriptions, $8K in one-time expenses 
+         that felt "necessary" at the time, and contractor scope creep.
+      4. Calculates runway: 1.9 months at current burn. Panic mode.
+      5. Immediately cancels 12 subscriptions ($1.8K/month saved). Ends contractor 
+         who was doing "nice to have" work ($5K/month). Negotiates AWS reserved 
+         instances ($2K/month saved).
+      6. Creates simple budget template: expected monthly expenses by category. 
+         Sets reminder to check every month on the 5th.
+      7. After 2 months of discipline, burn is $82K/month. Runway extended to 
+         2.5 months. Starts fundraise immediately but from stronger position.
+    outcome: |
+      Sarah avoided running out of cash but it was close. Key learning: tracking 
+      monthly would have surfaced the problem 3 months earlier with more options. 
+      Now reviews budget religiously every month - never wants that panic again.
+    lessons:
+      - "Check your burn rate monthly - surprises compound"
+      - "Subscription creep is real - audit regularly"
+      - "Know your runway number at all times"
+      - "Takes only 2-3 hours/month to avoid disaster"
+      - "Creating a budget forces visibility into actual spending"
+
+  - id: ps-002
+    name: "First formal budget process after Series A"
+    practitioner: "Head of Finance"
+    organization_context: "35-person Series A startup, just hired first finance person, growing fast"
+    situation: |
+      Tom just joined as Head of Finance. The company raised Series A 6 months ago 
+      and is spending aggressively on hiring and growth. There's no formal budget - 
+      hiring managers spend what they feel they need, and the CEO reviews major 
+      purchases but has no visibility into totals. The board is asking for forecasts.
+    trigger: "Board meeting in 6 weeks - need to present budget and forecast"
+    actions: |
+      1. Tom pulls 6 months of historical spending from QBO. Categorizes and 
+         analyzes patterns. Finds: 70% of spend is people, 15% is tools/cloud, 
+         15% is other. Monthly burn has grown from $200K to $320K.
+      2. Meets with each department head: "What are you planning to spend next 
+         quarter? What hires? What tools? What projects?" Builds bottoms-up budget.
+      3. Compares to Series A fundraise plan. They're 20% over-budget on marketing, 
+         on-track for engineering, under-budget on G&A (because no finance until now).
+      4. Creates budget template: annual budget by department, monthly breakdown. 
+         Each department head "owns" their number and explains variances.
+      5. Implements monthly budget review meeting: Tom presents actuals vs budget, 
+         department heads explain variances, CEO makes decisions on major items.
+      6. Sets up variance thresholds: <10% = OK, 10-20% = explain, >20% = escalate.
+      7. Presents to board: clear budget, runway scenarios, monthly review process. 
+         Board is impressed - better than most post-Series A companies.
+    outcome: |
+      Company now has financial visibility. Board gets monthly update. One department 
+      was significantly over-budget (sales tools) - caught and addressed. The monthly 
+      rhythm prevents surprises and creates accountability.
+    lessons:
+      - "First formal budget: start with historical data analysis"
+      - "Bottoms-up budgeting creates department ownership"
+      - "Monthly review meeting creates accountability"
+      - "Variance thresholds avoid nitpicking small items"
+      - "Board-ready financials demonstrate operational maturity"
+
+  - id: ps-003
+    name: "Cutting 30% of budget under runway pressure"
+    practitioner: "CFO"
+    organization_context: "60-person Series B company, market downturn, 12 months runway but investor pressure to extend"
+    situation: |
+      Lisa (CFO) gets direction from CEO and board: "Market has changed. Extend 
+      runway from 12 months to 24 months without raising. Find 30% of costs to cut." 
+      Current burn is $1.5M/month. Target: $1M/month. $500K/month needs to go - but 
+      where? Every line item has an owner who will fight for it.
+    trigger: "Board mandate: extend runway to 24 months without new capital"
+    actions: |
+      1. Lisa builds full budget by line item with owner names attached. Ranks by: 
+         (a) revenue impact if cut, (b) reversibility, (c) legal/contractual commitment.
+      2. Identifies "sacred" vs "negotiable" with CEO: certain roles are critical, 
+         but many subscriptions and contractors are negotiable.
+      3. Creates three scenarios: cut 20%, cut 30%, cut 40%. Each shows what gets cut 
+         and the impact on roadmap/revenue. 30% requires layoffs; 40% requires 
+         product cuts.
+      4. Presents to executive team: "Here are the options. 30% cut requires reducing 
+         headcount by 15 people. What functions can we consolidate or defer?"
+      5. Works with HR on layoff plan. Works with Legal on contractor terminations. 
+         Negotiates software contract reductions (many vendors offer discounts to 
+         retain customers).
+      6. Implements in phases: software cuts immediately, contractor ends over 2 weeks, 
+         layoffs announced in coordinated manner.
+      7. After cuts: burn is $1.05M/month. Runway extended to 21 months (close to 
+         target). Monthly budget reviews become more rigorous - every dollar justified.
+    outcome: |
+      Painful cuts but company survived and avoided desperation fundraise. Lisa 
+      learned: the budget process made cuts possible (couldn't cut what wasn't visible), 
+      and the scenarios gave leadership options rather than just "cut everything."
+    lessons:
+      - "You can't cut what you can't see - budget visibility enables action"
+      - "Scenario planning (20/30/40%) gives options, not ultimatums"
+      - "Rank by revenue impact and reversibility - some cuts hurt more"
+      - "Vendors often negotiate to retain customers - always ask"
+      - "Post-crisis, monthly reviews become existential discipline"
+
+# Risks - What Can Go Wrong and How to Prevent/Handle
+risks:
+  execution_risks:
+    - risk: "Budget review delays - month drags on without closure"
+      likelihood: medium
+      impact: medium
+      mitigation: |
+        Set firm deadline: budget review completed by 5th business day. Block time 
+        on calendar. Use template/automation to speed process. Don't let "one more 
+        thing" delay - imperfect data on time beats perfect data late.
+        
+    - risk: "Incomplete data - missing transactions or categories"
+      likelihood: medium
+      impact: medium
+      mitigation: |
+        Integrate banking and cards with accounting software. Reconcile before review. 
+        Flag "uncategorized" for attention. Regular audit of expense categories.
+        
+    - risk: "Department heads don't own their budgets"
+      likelihood: high
+      impact: medium
+      mitigation: |
+        Make budget ownership explicit. Include variance explanation in department 
+        reviews. Tie performance to budget management. Give authority with accountability.
+        
+    - risk: "Forecast accuracy is poor - surprises each month"
+      likelihood: high
+      impact: medium
+      mitigation: |
+        Track recurring vs one-time expenses separately. Build in contingency (5-10% 
+        buffer). Review large known expenses monthly. Improve forecast with each 
+        cycle (learn from variances).
+        
+    - risk: "Budget becomes bureaucratic obstacle to speed"
+      likelihood: medium
+      impact: medium
+      mitigation: |
+        Set appropriate thresholds (don't require approval for $50 expenses). 
+        Create pre-approved categories. Focus review time on significant variances, 
+        not every line item. Speed and control can coexist.
+        
+  organizational_risks:
+    - risk: "Running out of cash due to lack of visibility"
+      impact: |
+        Without monthly budget review, burn can creep up unnoticed. Subscription 
+        sprawl, scope creep on contractors, and "necessary" one-time expenses 
+        accumulate. Companies have died from this blindness.
+      prevention: |
+        Monthly review is non-negotiable. Know your runway at all times. Create 
+        alerts for significant unexpected expenses. Review large purchases weekly 
+        between monthly reviews if needed.
+        
+    - risk: "Budget becomes political tool rather than planning tool"
+      impact: |
+        When budgets are used punitively ("you're 5% over, you're in trouble") 
+        rather than informatively, people game the system. Sandbagging, hiding 
+        expenses, and politics undermine the purpose.
+      prevention: |
+        Frame budget as planning tool, not punishment. Focus on understanding 
+        variances, not blaming. Allow re-forecasting when conditions change. 
+        Create psychological safety for surfacing issues early.
+
+# Domain Context - Industry Best Practices and Benchmarks
+domain_context:
+  industry_landscape: |
+    Startup financial management has evolved with new tools (Mercury, Ramp, Brex) 
+    that make tracking easier than ever. Yet many startups still lack basic financial 
+    discipline - surprised by burn rate, unclear on runway, and reactive to cash crises.
+    
+    Post-2022 market correction raised the stakes: investors expect financial 
+    discipline and unit economics understanding. "We're growing fast" is no longer 
+    enough - you need to show efficient growth. Monthly budget review is table 
+    stakes for institutional capital.
+    
+    The best companies: (1) Know their burn to within 5% accuracy, (2) Know their 
+    runway number at all times, (3) Can explain variances quickly, (4) Have clear 
+    paths to profitability they can articulate, (5) Make budget review a habit, 
+    not a crisis response.
+
+  best_practices:
+    - "Close books by day 3 of month - budget review by day 5"
+    - "Know your runway number at all times (and share with board)"
+    - "Track recurring vs one-time expenses separately"
+    - "Audit subscriptions quarterly - kill what's unused"
+    - "Create department budget ownership - with authority and accountability"
+    - "Use variance thresholds to focus attention on what matters"
+    - "Build contingency into forecasts (5-10% buffer)"
+    - "Review with leadership monthly - even if 'nothing significant'"
+    
+  anti_patterns:
+    - "Only checking bank balance when worried"
+    - "Detailed budget that no one looks at"
+    - "Monthly review that happens quarterly"
+    - "Punishing variance instead of understanding it"
+    - "No distinction between committed and discretionary spend"
+    - "Sandbagging budgets to always look good"
+    - "Ignoring small expenses that add up"
+    
+  benchmarks:
+    - metric: "Days to close / budget review"
+      poor: "> 10 days"
+      average: "5-10 days"
+      excellent: "< 5 days"
+      source: "Finance operations"
+    - metric: "Budget variance (controllable expenses)"
+      poor: "> 20%"
+      average: "10-20%"
+      excellent: "< 10%"
+      source: "Monthly tracking"
+    - metric: "Runway knowledge"
+      poor: "Off by > 3 months"
+      average: "Within 1-2 months"
+      excellent: "Within 2 weeks"
+      source: "Founder awareness"
+    - metric: "Subscription audit frequency"
+      poor: "Never / annual"
+      average: "Semi-annual"
+      excellent: "Quarterly"
+      source: "Finance operations"
+      
+  maturity_indicators:
+    tier_1_signs:
+      - "Founder checking bank balance periodically but no formal process"
+      - "Expenses tracked somewhere but not regularly reviewed"
+      - "Burn rate roughly known but not precisely tracked"
+      - "Runway calculated occasionally, not continuously"
+    tier_2_signs:
+      - "Multiple departments with spending authority"
+      - "Board asks for financial reporting"
+      - "Variance from plan becoming frequent"
+      - "Need to forecast for hiring and planning"
+    tier_3_signs:
+      - "Complex financial structure (multiple entities, products)"
+      - "Detailed unit economics tracking required"
+      - "Scenario modeling for strategic decisions"
+      - "Investor-grade financial reporting expected"
+
+related_definitions:
+  - id: pd-010
+    relationship: enables
+    description: "Monthly actuals feed into quarterly forecasting"
+
+adaptation:
+  customize:
+    - Expense categories for your business
+    - Threshold for "significant" variance
+    - Review meeting frequency
+  preserve:
+    - Monthly cadence (at minimum)
+    - Cash runway tracking
+    - Variance explanation
+  common_variations:
+    - "Pre-revenue startup: Focus on burn rate and runway"
+    - "SaaS: Add MRR/ARR tracking alongside expenses"
+    - "Services: Track by project/client profitability"
+
+# Expense Categories Template
+expense_categories:
+  people:
+    - Salaries and wages
+    - Payroll taxes and benefits
+    - Contractors
+    - Recruiting
+    
+  tools_and_infrastructure:
+    - Software subscriptions
+    - Cloud hosting
+    - Office/workspace
+    - Equipment
+    
+  growth:
+    - Marketing
+    - Sales
+    - Events
+    
+  operations:
+    - Legal
+    - Accounting
+    - Insurance
+    - Banking fees
+    
+  other:
+    - Travel
+    - Team events
+    - Miscellaneous

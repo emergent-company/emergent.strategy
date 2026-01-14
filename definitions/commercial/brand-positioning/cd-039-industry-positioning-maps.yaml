@@ -1,0 +1,406 @@
+# Commercial Process Definition: Industry Positioning Maps
+# Schema: commercial_definition_schema.json v1.1.0
+
+id: cd-039
+name: Industry Positioning Maps
+slug: industry-positioning-maps
+track: commercial
+status: ready
+
+contributes_to:
+  - Commercial.Market Differentiation.industry-positioning-maps
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Simple positioning visualization"
+    includes:
+      - 2x2 positioning matrix on key dimensions
+      - Identification of where you and competitors sit
+      - Annual update
+    effort: "2-4 hours initial creation"
+    
+  tier_2_intermediate:
+    description: "Multi-dimensional positioning analysis"
+    adds:
+      - Multiple positioning maps for different dimensions
+      - Segment-specific positioning views
+      - Competitive movement tracking over time
+      - White space opportunity identification
+    effort: "1-2 weeks to develop"
+    
+  tier_3_advanced:
+    description: "Dynamic strategic positioning system"
+    adds:
+      - Quantitative positioning based on market research
+      - Real-time competitive positioning updates
+      - Integration with product and marketing strategy
+      - Scenario modeling for positioning moves
+    effort: "1-2 months full implementation"
+
+definition:
+  purpose: |
+    A picture is worth a thousand words—especially when explaining where you 
+    fit in a market. Positioning maps visualize competitive landscape, 
+    showing at a glance where different players sit and where opportunities 
+    exist.
+    
+    The classic 2x2 matrix plots competitors on two dimensions that matter 
+    to customers. But the power isn't in the chart—it's in choosing the 
+    right dimensions. The axes should reflect how customers actually evaluate 
+    options, not what you wish they cared about.
+    
+    Beyond competitive visualization, positioning maps reveal strategic 
+    opportunity. Where is no one playing? Where is everyone crowded? What 
+    positioning could differentiate you? Where is the market moving?
+    
+    For early-stage companies, a simple positioning map forces clarity. 
+    Where do you actually sit today? Where do you want to be? What would it 
+    take to move there? These questions drive strategic focus.
+    
+  outcome: |
+    Clear visualization of competitive landscape that anyone can understand. 
+    Strategic decisions informed by market position. Sales and marketing 
+    aligned on differentiation story. Identified opportunities for 
+    unique positioning.
+    
+  owner: Product Marketing / Strategy
+  
+  inputs:
+    - name: Competitive intelligence
+      description: Understanding of competitor positioning and capabilities
+      source: Competitive benchmarking, Market research
+    - name: Customer dimension preferences
+      description: What factors matter when customers evaluate options
+      source: Customer research, Win/loss analysis
+    - name: Market trend analysis
+      description: Where the market is heading
+      source: Trend analysis, Industry reports
+      
+  outputs:
+    - name: Positioning maps
+      description: Visual representations of competitive landscape
+      consumer: Leadership, Sales, Marketing
+    - name: White space analysis
+      description: Opportunities for differentiated positioning
+      consumer: Strategy, Product
+    - name: Strategic positioning recommendations
+      description: Where to position and how to get there
+      consumer: Leadership team
+
+  steps:
+    - step: 1
+      action: "Identify relevant positioning dimensions"
+      responsible: Product Marketing
+      duration: "2-4 hours"
+      deliverable: "Prioritized dimension list"
+      templates:
+        - "Dimension identification worksheet"
+        - "Customer decision criteria matrix"
+      best_practices:
+        - Use dimensions customers actually care about
+        - Validate with customer research, not internal opinion
+        - Consider both current and emerging evaluation criteria
+        - Look for dimensions where you can credibly differentiate
+      avoid:
+        - Choosing axes just because you win on them
+        - Using internal jargon customers don't use
+        
+    - step: 2
+      action: "Research competitor positions"
+      responsible: Product Marketing
+      duration: "4-8 hours"
+      deliverable: "Competitor positioning assessment"
+      templates:
+        - "Competitor positioning research template"
+        - "Position assessment scoring guide"
+      best_practices:
+        - Assess where competitors actually are, not their marketing claims
+        - Use customer perception data where available
+        - Consider objective metrics (pricing, features) and subjective (brand)
+        - Document evidence for positioning judgments
+      avoid:
+        - Positioning competitors where you want them to be
+        - Relying only on competitor marketing materials
+        
+    - step: 3
+      action: "Create positioning map(s)"
+      responsible: Product Marketing
+      duration: "2-4 hours"
+      deliverable: "Draft positioning maps"
+      templates:
+        - "2x2 positioning matrix template"
+        - "Multi-dimensional positioning framework"
+      best_practices:
+        - Start with most important dimensions first
+        - Create segment-specific maps if positioning differs
+        - Include current position AND where you want to be
+        - Make maps clean and easy to understand
+      avoid:
+        - Cramming too many competitors (focus on key players)
+        - Overly complex visualizations that confuse
+        
+    - step: 4
+      action: "Identify white space opportunities"
+      responsible: Product Marketing / Strategy
+      duration: "2-3 hours"
+      deliverable: "White space analysis"
+      templates:
+        - "Opportunity assessment framework"
+        - "White space evaluation matrix"
+      best_practices:
+        - Look for underserved areas with customer demand
+        - Assess feasibility of moving to white space
+        - Consider why white space exists (is it unoccupied for good reason?)
+        - Evaluate first-mover advantage potential
+      avoid:
+        - Assuming all white space is opportunity (some is empty for a reason)
+        - Ignoring what it would take to credibly occupy new position
+        
+    - step: 5
+      action: "Validate with stakeholders"
+      responsible: Product Marketing
+      duration: "2-4 hours"
+      deliverable: "Validated positioning maps"
+      templates:
+        - "Stakeholder review presentation"
+        - "Feedback collection template"
+      best_practices:
+        - Get input from sales (they know competitive reality)
+        - Check with product (do capabilities match positioning?)
+        - Validate with customer-facing teams
+        - Be open to repositioning based on feedback
+      avoid:
+        - Presenting as final without input
+        - Ignoring feedback that challenges preferred position
+        
+    - step: 6
+      action: "Develop strategic positioning recommendations"
+      responsible: Strategy / Product Marketing
+      duration: "2-4 hours"
+      deliverable: "Positioning strategy document"
+      templates:
+        - "Positioning strategy template"
+        - "Roadmap to target position"
+      best_practices:
+        - Define current position, target position, and path
+        - Identify what needs to change (product, messaging, perception)
+        - Set timeline for position movement
+        - Connect to product roadmap and marketing strategy
+      avoid:
+        - Target positions that aren't credibly achievable
+        - Positioning strategy disconnected from execution
+
+  cadence:
+    frequency: "Full refresh annually, check quarterly"
+    triggers:
+      - Competitive landscape changes
+      - Company strategy shifts
+      - Major product launch
+      - Market structure changes
+    ongoing:
+      - Track competitor movements
+      - Monitor customer evaluation criteria changes
+      - Update position as capabilities evolve
+
+practitioner_scenarios:
+  - id: ps-001
+    name: "Creating Positioning Clarity for Fundraising"
+    practitioner: "CEO / Head of Marketing"
+    organization_context: |
+      15-person Series A startup preparing to raise Series B. Investors 
+      asking "how do you differentiate?" Team has intuitive sense but no 
+      clear visualization or articulation.
+    situation: |
+      Lead investor in potential Series B asked for competitive positioning 
+      analysis. Current deck has slide showing "we're better" but no 
+      structured market view. Other portfolio companies have clear 
+      positioning maps that tell compelling stories.
+    trigger: |
+      Board member provided feedback: "You need a positioning map that 
+      shows where you sit and why that's a winning position."
+    actions: |
+      Started with customer research—interviewed 10 recent customers about 
+      how they evaluated options. Asked: "What were the key factors?" Two 
+      dimensions emerged clearly: deployment complexity and analytics depth. 
+      Customers repeatedly mentioned these as trade-offs. Plotted our top 
+      5 competitors based on customer feedback and our assessment. Discovered 
+      we sit in unique position: enterprise analytics depth with startup 
+      deployment simplicity. Competitors either simple but shallow, or deep 
+      but complex. Created clean 2x2 with labels: "Enterprise-Simple" (our 
+      position), "SMB-Simple" (low-end), "Enterprise-Complex" (legacy vendors), 
+      and white space in "SMB-Complex" (weird, no one wants this). Added 
+      arrow showing market movement toward our quadrant as companies scale. 
+      Created second map on price vs. breadth showing different view of 
+      same opportunity. Validated with sales team—they agreed it reflected 
+      deal conversations. Added to investor deck with narrative.
+    outcome: |
+      Investor reaction: "Now I understand your moat." Positioning map 
+      became centerpiece of competitive strategy discussion. Used same 
+      maps with sales team—improved ability to articulate differentiation. 
+      Closed Series B with positioning as key investment thesis point. Maps 
+      now used in sales decks, marketing, and internal strategy discussions.
+    lessons:
+      - Customer-derived dimensions are more credible than company opinion
+      - Simple 2x2 more powerful than complex charts
+      - Show market movement to position as tailwind
+      - Same core positioning can be visualized multiple ways
+
+  - id: ps-002
+    name: "Repositioning After Market Shift"
+    practitioner: "VP Marketing"
+    organization_context: |
+      70-person B2B company established in category for 5 years. Market 
+      has evolved—new entrants and changing customer expectations. Current 
+      positioning feels stale and doesn't differentiate like it used to.
+    situation: |
+      Win rates declining. Sales reports competitors positioning us as 
+      "legacy." New entrants claiming modern, cloud-native, etc. Customer 
+      research shows our brand associated with "reliable but old-school." 
+      Reality: we've modernized product significantly but perception lags.
+    trigger: |
+      Executive offsite to develop 3-year strategy. CEO wants to understand 
+      "where do we actually sit today, and where should we be?"
+    actions: |
+      Conducted positioning audit starting with customer perception research 
+      through interviews and surveys asking where customers place us vs. 
+      competitors on key dimensions. Found mismatch between perception and 
+      reality—seen as less modern than we actually are. Created "perception 
+      positioning map" showing where customers place everyone today. Created 
+      "reality positioning map" showing where capabilities actually sit—we're 
+      more modern than perceived. Identified repositioning opportunity: 
+      we have product reality, need perception shift. Developed positioning 
+      strategy with three tracks: product evidence (showcase modern 
+      capabilities), messaging refresh (modern language without abandoning 
+      reliability strength), and customer proof (new customer stories 
+      emphasizing modern use cases). Created target positioning map showing 
+      where we want to be in 18 months. Built roadmap connecting product, 
+      marketing, and sales to achieve position shift. Set up tracking to 
+      measure perception change over time.
+    outcome: |
+      18-month repositioning initiative launched. After 6 months, brand 
+      tracker showed perception shift beginning. Win rate stabilized, then 
+      improved. New positioning resonated with modern buyer while retaining 
+      reliability credibility. Sales team excited about new story. 
+      Competitors' "legacy" attack losing effectiveness.
+    lessons:
+      - Perception positioning can lag reality—that's a marketing opportunity
+      - Repositioning requires coordinated product, marketing, and sales
+      - Don't abandon strengths (reliability) while adding new position
+      - Measure perception change over time
+
+  - id: ps-003
+    name: "Finding White Space for Product Strategy"
+    practitioner: "Chief Product Officer"
+    organization_context: |
+      100-person company with mature product. Market getting crowded with 
+      similar offerings. Leadership asking: "Where should product go next?" 
+      Feeling of "everyone looks the same."
+    situation: |
+      Product roadmap filled with feature parity items. No clear 
+      differentiation strategy. Every competitor has similar capabilities. 
+      Pricing pressure increasing as product becomes commoditized.
+    trigger: |
+      Annual strategy session. CEO challenged product: "Don't show me more 
+      features. Show me where we can own a position no one else has."
+    actions: |
+      Started with positioning map audit—created maps on multiple dimensions 
+      from customer research. Traditional dimensions (price, features, 
+      ease-of-use) showed crowded space, everyone clustered. Looked for 
+      emerging dimensions—where is market going? Customer interviews revealed 
+      emerging need: vertical-specific solutions vs. horizontal platforms. 
+      Current landscape is all horizontal—generic solutions for everyone. 
+      Created new positioning map: horizontal-vertical on one axis, 
+      sophistication on other. All competitors clustered in "horizontal-
+      sophisticated" quadrant. White space identified: "vertical-sophisticated" 
+      with no one there. Analyzed feasibility: could we credibly serve 
+      verticals? Had strong customer base in two verticals (healthcare, 
+      fintech). Developed "vertical-first" product strategy: deep 
+      customization for two verticals while maintaining horizontal platform. 
+      Positioning shift from "platform for everyone" to "purpose-built for 
+      healthcare and fintech." Created roadmap with vertical-specific 
+      features, integrations, compliance, and workflows.
+    outcome: |
+      Repositioned as vertical leader for two industries. First vertical 
+      product released with industry-specific features. Win rate in 
+      target verticals increased 40%. Pricing premium justified by 
+      vertical focus. Competitors struggling to follow (they're built 
+      horizontal). Clear differentiation story: "We're THE solution for 
+      healthcare and fintech."
+    lessons:
+      - Look beyond traditional dimensions for emerging positioning opportunities
+      - White space in new dimensions often more valuable than crowded traditional dimensions
+      - Positioning decision drives product strategy
+      - Can't be everything—vertical focus requires horizontal trade-offs
+
+risks:
+  execution_risks:
+    - risk: "Positioning maps based on company opinion, not customer reality"
+      likelihood: high
+      impact: high
+      mitigation: |
+        Ground dimensions and positions in customer research. Validate 
+        with win/loss analysis. Test with customer-facing teams. 
+        Challenge internal biases.
+        
+    - risk: "Beautiful maps that don't influence strategy"
+      likelihood: medium
+      impact: medium
+      mitigation: |
+        Connect maps to strategic decisions. Use in planning and 
+        prioritization. Integrate into product and marketing processes. 
+        Reference in decision-making.
+        
+    - risk: "Static maps that become outdated"
+      likelihood: medium
+      impact: medium
+      mitigation: |
+        Regular refresh cadence. Update triggers for market changes. 
+        Track competitor movements. Reassess dimensions as market evolves.
+        
+    - risk: "Target position not achievable with current capabilities"
+      likelihood: medium
+      impact: high
+      mitigation: |
+        Honest assessment of capability gaps. Roadmap to close gaps. 
+        Don't claim positions product can't support. Align positioning 
+        with product strategy.
+        
+  organizational_risks:
+    - risk: "Wishful positioning disconnected from reality"
+      impact: |
+        Marketing claims positions product doesn't support. Sales 
+        credibility damaged. Customers disappointed. Brand perception 
+        negative.
+      prevention: |
+        Validate positioning with product reality. Get product sign-off 
+        on claims. Close gap before claiming position. Be honest about 
+        where you are today.
+        
+    - risk: "Positioning paralysis—can't commit to a position"
+      impact: |
+        Generic messaging that doesn't differentiate. Trying to be 
+        everything to everyone. No clear identity. Lost in competitive 
+        noise.
+      prevention: |
+        Force trade-off decisions. Accept that positioning means not 
+        being for everyone. Leadership commitment to a position. Measure 
+        differentiation, not just activity.
+
+domain_context:
+  related_l2: "Market Differentiation"
+  related_l1: "BRAND & POSITIONING"
+  synergies:
+    - "Comparative Benchmarking (cd-038) - Provides competitive input"
+    - "Differentiator Messaging (cd-037) - Positioning informs messaging"
+    - "SWOT Analysis (cd-036) - Strategic context for positioning"
+  dependencies:
+    - "Customer research for dimension validation"
+    - "Competitive intelligence for accurate competitor positioning"
+
+references:
+  - title: "Positioning Strategy Fundamentals"
+    url: "https://www.strategyzer.com/positioning"
+  - title: "Perceptual Mapping Guide"
+    url: "https://www.productmarketingalliance.com/positioning-maps/"

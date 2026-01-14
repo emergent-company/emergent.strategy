@@ -1,0 +1,575 @@
+# OrgOps Process Definition: Cost Structure Evaluation
+# Schema: org_ops_definition_schema.json v1.1.0
+#
+# Rationale for placement: Cost structure evaluation is financial tracking and 
+# analysis, which belongs in OrgOps (not Commercial). Commercial handles investor 
+# acquisition; OrgOps handles ongoing financial operations.
+
+id: pd-052
+name: Cost Structure Evaluation
+slug: cost-structure-evaluation
+track: org_ops
+status: ready
+
+contributes_to:
+  - OrgOps.Accounting.expense-tracking
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Basic expense tracking and categorization"
+    includes:
+      - Monthly expense review
+      - Simple cost categories (people, software, operations)
+      - Basic burn rate tracking
+      - Red flag identification for unusual spending
+    effort: "1 day setup, 2 hours/month maintenance"
+    
+  tier_2_intermediate:
+    description: "Structured cost analysis with benchmarking"
+    adds:
+      - Cost per function breakdown (R&D, S&M, G&A)
+      - Industry benchmarking ratios
+      - Variable vs. fixed cost modeling
+      - Scenario planning for different growth rates
+    effort: "1-2 weeks to establish, 4 hours/month ongoing"
+    
+  tier_3_advanced:
+    description: "Strategic cost optimization framework"
+    adds:
+      - Activity-based costing
+      - Unit economics by segment
+      - Zero-based budgeting practices
+      - Real-time cost monitoring and alerts
+    effort: "4-6 weeks full implementation"
+
+definition:
+  purpose: |
+    Cost structure evaluation answers a fundamental question: "Where does 
+    our money go, and is it going to the right places?" Understanding your 
+    cost structure isn't just about cutting expenses - it's about ensuring 
+    every dollar spent contributes to your strategic objectives.
+    
+    Startups often operate with an incomplete picture of their costs. They 
+    know headcount and rent, but miss the full picture of software tools, 
+    contractors, and hidden operational costs that accumulate. A proper 
+    cost structure evaluation reveals where money actually flows.
+    
+    More importantly, cost structure evaluation enables trade-off decisions. 
+    When runway is limited, you need to know which costs are essential for 
+    growth, which are investments in future capability, and which are 
+    simply inertia from past decisions.
+    
+    Warning signs that cost structure evaluation is needed:
+    - Burn rate surprises at month-end
+    - Unable to explain where money goes
+    - No visibility into cost-per-customer or cost-per-employee
+    - Costs growing faster than revenue
+    - Unclear which expenses are fixed vs. variable
+    
+  outcome: |
+    Clear visibility into where money goes, which costs are essential vs. 
+    discretionary, how the cost structure compares to industry benchmarks, 
+    and actionable insights for optimizing spend against strategic priorities.
+    
+  owner: CFO / Head of Finance / CEO
+  
+  inputs:
+    - name: Financial statements
+      description: "P&L, balance sheet, cash flow statement"
+      source: Accounting system
+      
+    - name: Expense data
+      description: "Detailed transaction-level spending"
+      source: Bank statements, credit cards, expense reports
+      
+    - name: Headcount and comp data
+      description: "Salaries, benefits, contractor costs"
+      source: HRIS, payroll system
+      
+    - name: Vendor contracts
+      description: "Commitments and terms for major vendors"
+      source: Contract management, accounts payable
+      
+  outputs:
+    - name: Cost breakdown analysis
+      description: "Categorized view of all costs"
+      consumer: Leadership, Board
+      
+    - name: Benchmark comparison
+      description: "How costs compare to industry standards"
+      consumer: CEO, Board
+      
+    - name: Optimization recommendations
+      description: "Specific actions to improve cost efficiency"
+      consumer: Leadership, Department heads
+
+  steps:
+    - step: 1
+      action: Gather and categorize all costs
+      responsible: Finance Lead
+      duration: "1-2 days"
+      deliverable: Complete cost inventory
+      cost_categories:
+        people:
+          description: "All costs related to employees and contractors"
+          includes:
+            - "Salaries and wages"
+            - "Benefits (health, 401k, etc.)"
+            - "Payroll taxes"
+            - "Contractors and freelancers"
+            - "Recruiting fees"
+            - "Training and development"
+          typical_percentage: "60-80% for most startups"
+        infrastructure:
+          description: "Technology and tools"
+          includes:
+            - "Cloud hosting (AWS, GCP, Azure)"
+            - "Software subscriptions"
+            - "Development tools"
+            - "Security and compliance tools"
+            - "Data and analytics tools"
+          typical_percentage: "5-15% for SaaS companies"
+        facilities:
+          description: "Physical space and operations"
+          includes:
+            - "Office rent"
+            - "Utilities"
+            - "Office supplies"
+            - "Equipment"
+            - "Insurance"
+          typical_percentage: "5-10% (less for remote-first)"
+        sales_and_marketing:
+          description: "Customer acquisition costs"
+          includes:
+            - "Advertising spend"
+            - "Events and conferences"
+            - "Sales tools"
+            - "Marketing software"
+            - "Content and design"
+          typical_percentage: "20-40% for growth stage"
+        general_and_admin:
+          description: "Corporate overhead"
+          includes:
+            - "Legal and accounting"
+            - "HR tools and services"
+            - "Finance tools"
+            - "Travel and entertainment"
+            - "Miscellaneous"
+          typical_percentage: "5-10%"
+      categorization_process:
+        step_1: "Export all expenses from accounting system"
+        step_2: "Map each expense line to category"
+        step_3: "Identify uncategorized or miscategorized items"
+        step_4: "Validate totals match financial statements"
+      best_practices:
+        - "Use consistent categories month over month"
+        - "Break out major vendors separately"
+        - "Flag one-time vs. recurring expenses"
+        - "Include accruals, not just cash payments"
+
+    - step: 2
+      action: Analyze cost structure ratios
+      responsible: Finance Lead
+      duration: "Half day"
+      deliverable: Cost ratio analysis
+      key_ratios:
+        burn_rate:
+          definition: "Monthly cash consumed"
+          calculation: "Total monthly expenses - revenue"
+          target: "Depends on stage; lower is better"
+        gross_burn:
+          definition: "Total monthly expenses before revenue"
+          calculation: "Sum of all operating expenses"
+          use: "Shows spending level regardless of revenue"
+        people_to_revenue:
+          definition: "People cost efficiency"
+          calculation: "Total people costs / Revenue"
+          target: "Decreases as company scales"
+        rd_as_percentage:
+          definition: "R&D investment level"
+          calculation: "R&D costs / Total operating expenses"
+          target: "25-40% for technology companies"
+        sm_as_percentage:
+          definition: "Sales & Marketing investment"
+          calculation: "S&M costs / Total operating expenses"
+          target: "30-50% for growth stage; drops at scale"
+        ga_as_percentage:
+          definition: "Administrative overhead"
+          calculation: "G&A costs / Total operating expenses"
+          target: "Under 15%; lower as you scale"
+      functional_breakdown:
+        method: "Assign all costs to R&D, S&M, G&A functions"
+        rd_includes: "Engineering, Product, Design, QA"
+        sm_includes: "Sales, Marketing, Customer Success (often)"
+        ga_includes: "Finance, HR, Legal, Facilities, Admin"
+      trend_analysis:
+        look_at: "3-6 months of history minimum"
+        identify: "Costs growing faster than revenue (concerning)"
+        note: "Seasonal patterns, one-time spikes"
+      best_practices:
+        - "Compare ratios month-over-month for trends"
+        - "Identify which costs are scaling with growth"
+        - "Flag ratios that are out of line with expectations"
+        - "Separate one-time costs from recurring"
+
+    - step: 3
+      action: Benchmark against industry standards
+      responsible: Finance Lead + CEO
+      duration: "4 hours"
+      deliverable: Benchmark comparison report
+      benchmark_sources:
+        public_data:
+          - "S-1 filings from public companies in your space"
+          - "Industry reports (KPMG, Deloitte, etc.)"
+          - "VC published benchmarks (OpenView, a16z, etc.)"
+        peer_data:
+          - "Portfolio company comparisons (if available from investors)"
+          - "Industry groups and communities"
+          - "Board member networks"
+      saas_benchmarks_by_stage:
+        seed:
+          rd_percentage: "50-70%"
+          sm_percentage: "20-30%"
+          ga_percentage: "10-15%"
+          cogs_percentage: "10-20%"
+        series_a:
+          rd_percentage: "35-50%"
+          sm_percentage: "35-45%"
+          ga_percentage: "10-15%"
+          cogs_percentage: "15-25%"
+        series_b_plus:
+          rd_percentage: "25-35%"
+          sm_percentage: "40-50%"
+          ga_percentage: "8-12%"
+          cogs_percentage: "20-30%"
+      benchmark_interpretation:
+        above_benchmark: "Either investing more or spending inefficiently"
+        at_benchmark: "In line with peers"
+        below_benchmark: "Either efficient or potentially under-investing"
+        key_question: "Is the spending level producing expected results?"
+      best_practices:
+        - "Use multiple benchmark sources for triangulation"
+        - "Adjust for company stage and business model"
+        - "Benchmarks are guides, not rules"
+        - "Focus on trend toward healthy ratios"
+
+    - step: 4
+      action: Identify fixed vs. variable costs
+      responsible: Finance Lead
+      duration: "Half day"
+      deliverable: Fixed/variable cost breakdown
+      cost_classifications:
+        fixed_costs:
+          definition: "Costs that don't change with revenue/activity"
+          examples:
+            - "Office rent"
+            - "Base salaries"
+            - "Annual software contracts"
+            - "Insurance"
+          implication: "Create operating leverage as you scale"
+        variable_costs:
+          definition: "Costs that scale with revenue/activity"
+          examples:
+            - "Cloud hosting (usage-based)"
+            - "Payment processing fees"
+            - "Sales commissions"
+            - "Customer support (if per-ticket)"
+          implication: "Maintain margins as you scale"
+        semi_variable:
+          definition: "Costs with fixed and variable components"
+          examples:
+            - "Headcount (fixed until need to hire)"
+            - "Software (base + usage fees)"
+            - "Facilities (base rent + utilities)"
+          implication: "Step functions at growth thresholds"
+      operating_leverage_analysis:
+        concept: "How much incremental revenue drops to profit"
+        high_leverage: "Mostly fixed costs; margin expands with scale"
+        low_leverage: "Mostly variable costs; margin stays constant"
+        startup_pattern: "High fixed costs early, operating leverage later"
+      scenario_modeling:
+        upside_scenario: "What happens to costs if revenue 2x?"
+        downside_scenario: "What costs can be cut if revenue drops 30%?"
+        breakeven_analysis: "At what revenue level do we cover fixed costs?"
+      best_practices:
+        - "Know which costs flex and which are committed"
+        - "Negotiate variable terms when possible (especially early)"
+        - "Understand cost behavior before scaling"
+        - "Plan for step-function increases in semi-variable costs"
+
+    - step: 5
+      action: Identify optimization opportunities
+      responsible: CEO + Finance Lead
+      duration: "4-8 hours"
+      deliverable: Optimization recommendations
+      optimization_categories:
+        quick_wins:
+          definition: "Easy to implement, immediate savings"
+          examples:
+            - "Cancel unused software subscriptions"
+            - "Consolidate overlapping tools"
+            - "Renegotiate annual contracts"
+            - "Review expense policy compliance"
+          timeline: "This month"
+        operational_improvements:
+          definition: "Process changes that reduce costs"
+          examples:
+            - "Automate manual processes"
+            - "Improve vendor management"
+            - "Optimize cloud usage"
+            - "Reduce meeting overhead"
+          timeline: "1-3 months"
+        strategic_restructuring:
+          definition: "Major changes to cost structure"
+          examples:
+            - "Reduce office footprint"
+            - "Restructure team composition"
+            - "Outsource non-core functions"
+            - "Change business model elements"
+          timeline: "3-6 months"
+      software_optimization:
+        audit_process:
+          - "List all software subscriptions"
+          - "Identify actual usage per tool"
+          - "Find overlapping functionality"
+          - "Negotiate or cancel underused tools"
+        common_findings:
+          - "Multiple tools doing same job"
+          - "Seats purchased but not used"
+          - "Annual contracts auto-renewed without review"
+      vendor_optimization:
+        negotiation_triggers:
+          - "Contract renewal"
+          - "Usage milestone"
+          - "Competitive alternative"
+          - "Multi-year commitment"
+        tactics:
+          - "Bundle for volume discount"
+          - "Pre-pay for lower rate"
+          - "Threaten to switch for better terms"
+          - "Time negotiations to vendor quarter-end"
+      best_practices:
+        - "Prioritize by impact and ease of implementation"
+        - "Don't cut costs that drive growth"
+        - "Communicate changes clearly to team"
+        - "Track savings and reinvest strategically"
+
+    - step: 6
+      action: Report and monitor
+      responsible: Finance Lead
+      duration: "2-4 hours/month"
+      deliverable: Monthly cost report and tracking
+      monthly_reporting:
+        format: "One-page cost summary for leadership"
+        contents:
+          - "Total spend vs. budget"
+          - "Key ratio trends"
+          - "Notable changes from prior month"
+          - "Optimization progress"
+          - "Flags and recommendations"
+      dashboard_elements:
+        burn_rate_trend: "12-month rolling burn"
+        cost_breakdown: "Pie chart of major categories"
+        ratio_trends: "R&D %, S&M %, G&A % over time"
+        variance: "Budget vs. actual by category"
+      board_reporting:
+        quarterly_deep_dive: "Full cost structure analysis"
+        focus_areas:
+          - "How costs compare to plan"
+          - "Benchmark comparisons"
+          - "Efficiency improvements"
+          - "Investment areas"
+      monitoring_triggers:
+        investigate_if:
+          - "Category exceeds budget by 15%+"
+          - "New vendors appear without approval"
+          - "Ratios move significantly from benchmarks"
+          - "Burn rate increases unexpectedly"
+      best_practices:
+        - "Review costs monthly, not just quarterly"
+        - "Celebrate efficiency wins"
+        - "Connect cost decisions to strategic goals"
+        - "Make cost data accessible to leaders"
+
+  cadence:
+    frequency: "Monthly review, Quarterly deep analysis"
+    trigger: "Month-end close, Budget planning, Runway concerns"
+    duration: "4 hours monthly, 1-2 days quarterly"
+    ongoing:
+      - Monthly cost review and variance analysis
+      - Quarterly benchmark comparison
+      - Annual zero-based review of all costs
+      - Continuous vendor and software optimization
+
+practitioner_scenarios:
+  - id: ps-001
+    name: "First-Time CEO Understanding Where Money Goes"
+    practitioner: "CEO / Founder"
+    organization_context: |
+      20-person seed-stage startup, 12 months post-raise. Burn rate seems 
+      high but CEO has no breakdown of where money goes. CFO just joined 
+      and wants to establish visibility.
+    situation: |
+      Board asked why burn is $350K/month when headcount is only 20. 
+      CEO knows rough numbers but can't explain in detail. Some expenses 
+      seem higher than expected but no systematic view.
+    trigger: |
+      Board meeting in 2 weeks. New CFO asked to do cost structure 
+      analysis before meeting.
+    actions: |
+      1. CFO exported all expenses from QuickBooks and credit cards. 
+         Matched to bank statements to ensure completeness.
+      2. Categorized every expense line: people (salaries, benefits, 
+         contractors), software, facilities, marketing, G&A.
+      3. Created breakdown: People 65% ($227K), Software 12% ($42K), 
+         Marketing 10% ($35K), Facilities 8% ($28K), G&A 5% ($18K).
+      4. Investigated software ($42K/month seemed high): Found 23 
+         different SaaS tools. 7 had less than 30% utilization. 3 were 
+         duplicative (2 project management tools, 2 design tools).
+      5. Calculated ratios: R&D 55%, S&M 28%, G&A 17%. G&A higher 
+         than benchmark (should be under 15%).
+      6. Identified quick wins: Cancel 4 underused tools ($5K/month), 
+         renegotiate AWS contract (15% discount available), reduce 
+         contractor spend by bringing function in-house.
+      7. Presented to board: Clear breakdown, benchmarks, and action 
+         plan to reduce burn by $30K/month (9% reduction).
+    outcome: |
+      Board appreciated transparency and clear plan. Implemented quick 
+      wins in 30 days. Burn reduced to $320K/month. Established monthly 
+      cost review rhythm. G&A dropped to 14% within 6 months.
+    lessons:
+      - You cannot optimize what you cannot see
+      - Software sprawl is real and expensive
+      - Benchmarks provide context for cost decisions
+      - Quick wins build credibility before harder changes
+
+  - id: ps-002
+    name: "CFO Cutting Costs to Extend Runway"
+    practitioner: "CFO"
+    organization_context: |
+      50-person Series A company. Fundraise delayed. Current runway is 
+      8 months; need 14 months to reach metrics for Series B. Must cut 
+      burn from $750K to $550K without destroying company.
+    situation: |
+      CEO and board agreed on target: reduce burn by 25% while 
+      preserving core product and sales capacity. CFO needs to find 
+      $200K/month in cuts without layoffs if possible.
+    trigger: |
+      Board decision: extend runway or risk running out before next 
+      round. CFO has 2 weeks to present cut plan.
+    actions: |
+      1. Created complete cost structure breakdown by category and by 
+         team. Every dollar accounted for.
+      2. Classified each cost: Essential (cannot cut), Important (cut 
+         carefully), Nice-to-have (can cut), Discretionary (cut first).
+      3. Started with discretionary: office snacks, travel, events, 
+         contractor projects on hold. Found $30K/month.
+      4. Moved to nice-to-have: reduced marketing spend (performance 
+         paused), consolidated software tools, froze hiring pipeline 
+         vendors. Found $45K/month.
+      5. Tackled important costs carefully: renegotiated office lease 
+         (partial sublease), moved to cheaper cloud tier with some 
+         performance trade-off, reduced contractor hours. Found $40K.
+      6. Addressed compensation: implemented voluntary reduced hours 
+         for interested employees, paused bonus accruals, reduced 
+         executive pay 20%. Found $50K/month.
+      7. Final structural changes: consolidated two teams, delayed 
+         planned hires. Found $35K without layoffs.
+      8. Total: $200K in cuts identified. Presented with clear impact 
+         analysis for each cut.
+    outcome: |
+      Board approved plan. Burn reduced to $560K (slightly better than 
+      target). Extended runway to 15 months. Morale impact managed 
+      through transparent communication. Raised Series B 12 months 
+      later with 3 months runway to spare.
+    lessons:
+      - Know your cost structure before you need to cut
+      - Classify costs by essential vs. discretionary ahead of crisis
+      - Compensation flexibility can avoid layoffs
+      - Transparent communication preserves morale
+
+  - id: ps-003
+    name: "COO Preparing Costs for IPO-Track Reporting"
+    practitioner: "COO"
+    organization_context: |
+      200-person Series C company. On track for IPO in 18-24 months. 
+      Current cost reporting is informal. Need to establish SOX-ready 
+      cost tracking and demonstrate efficient cost structure to 
+      public investors.
+    situation: |
+      CFO and COO meeting with investment bankers who flagged that 
+      cost structure analysis is rudimentary compared to IPO-track 
+      companies. Need to mature cost management practices.
+    trigger: |
+      IPO preparation kickoff. Bankers requested detailed cost 
+      breakdown by function with trends and benchmarks.
+    actions: |
+      1. Implemented new chart of accounts with granular cost centers 
+         aligned to public company reporting requirements.
+      2. Created functional cost breakdown: R&D 32%, S&M 45%, G&A 13%, 
+         COGS 10%. Mapped every employee and expense to function.
+      3. Built 8-quarter trend analysis showing ratio evolution. 
+         Demonstrated improving efficiency (G&A down from 18% to 13%).
+      4. Benchmarked against 10 comparable public companies. Created 
+         peer comparison showing where company was above/below median.
+      5. Identified areas needing improvement before IPO: S&M 
+         efficiency (S&M/revenue ratio higher than peers), G&A still 
+         slightly high.
+      6. Implemented activity-based costing for key processes: cost 
+         per customer acquisition, cost per support ticket, cost per 
+         engineering hour.
+      7. Created forward-looking model showing path to target ratios 
+         by IPO: S&M improving with scale, G&A flat while revenue grows.
+      8. Established monthly cost review with executive team and 
+         quarterly board deep-dive on cost efficiency.
+    outcome: |
+      Bankers impressed by cost structure visibility and trend. 
+      Used cost analysis in S-1 narrative about path to profitability. 
+      Investors appreciated operational discipline. Successful IPO 
+      with strong day-one performance.
+    lessons:
+      - IPO-track companies need institutional cost management
+      - Trend analysis is as important as current state
+      - Activity-based costing reveals operational efficiency
+      - Start early; building this takes time
+
+operational_context:
+  prerequisites:
+    - Access to financial statements and expense data
+    - Chart of accounts or expense categories
+    - Basic financial analysis skills
+    - Benchmark data (public or from investors)
+    
+  common_blockers:
+    - "Our data is messy - Start with what you have; clean as you go"
+    - "We dont have benchmarks - Use public S-1 filings and VC data"
+    - "Costs are all essential - Challenge every assumption; rarely true"
+    - "We dont have time - Cost problems only get worse with delay"
+    
+  integration_points:
+    - Accounting: Source of expense data
+    - HR: Headcount and compensation data
+    - IT: Software and infrastructure inventory
+    - Ops: Vendor contracts and facilities
+
+risks:
+  if_skipped: |
+    Burn surprises. Unable to explain where money goes. Miss 
+    optimization opportunities. Overspend on non-essential items. 
+    Board and investor confidence erodes.
+    
+  if_over_engineered: |
+    Analysis paralysis. Over-index on cost cutting at expense of growth. 
+    Create bureaucratic approval processes that slow execution. Track 
+    minutiae that does not matter.
+
+domain_context:
+  related_l2: "Financial Structuring"
+  related_l1: "FINANCING"
+  synergies:
+    - "Revenue Modeling (cd-014): Revenue determines affordable cost structure"
+    - "Capital Expenditure Planning (cd-015): Capex is subset of cost structure"
+    - "Quarterly Reporting (cd-017): Cost structure is key board metric"
+    - "Budget planning: Cost structure informs budget process"

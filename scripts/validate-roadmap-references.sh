@@ -11,7 +11,7 @@
 #
 # Usage:
 #   ./scripts/validate-roadmap-references.sh [features-dir] [roadmap-file]
-#   ./scripts/validate-roadmap-references.sh features/ templates/READY/05_roadmap_recipe.yaml
+#   ./scripts/validate-roadmap-references.sh definitions/product/ templates/READY/05_roadmap_recipe.yaml
 #
 # Exit codes:
 #   0 - All roadmap references valid
