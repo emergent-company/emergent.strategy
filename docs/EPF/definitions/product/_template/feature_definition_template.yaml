@@ -1,11 +1,11 @@
 # Feature Definition Template
-# EPF v2.0.0 - Schema-compliant YAML template
+# EPF v2.5.0 - Schema-compliant YAML template
 # 
 # INSTRUCTIONS:
 # 1. Copy this template to your instance: _instances/{product}/FIRE/feature_definitions/
 # 2. Rename to: fd-{number}-{slug}.yaml (e.g., fd-007-user-authentication.yaml)
 # 3. Fill in all placeholder fields (marked with {})
-# 4. Review examples in /features/ directory for quality patterns
+# 4. Review examples in definitions/product/ directory for quality patterns
 # 5. Validate: ./scripts/validate-feature-quality.sh {your-file}.yaml
 # 6. Fix any errors, re-validate until 0 errors
 # 7. Commit only after passing validation
@@ -14,7 +14,7 @@
 # - Creation wizard: wizards/feature_definition.wizard.md
 # - AI agent guidance: wizards/product_architect.agent_prompt.md
 # - Validation schema: schemas/feature_definition_schema.json
-# - Example features: features/ directory (21 validated examples)
+# - Example features: definitions/product/ directory (21 validated examples)
 
 # Basic Metadata
 id: fd-{number}  # Example: fd-007

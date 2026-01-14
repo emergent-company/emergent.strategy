@@ -3,20 +3,36 @@
 # The sections here form the basis of the living Commercial Requirement Document (CRD).
 
 track_name: "Commercial"
-version: "1.0.0"
+version: "1.1.0"
 status: "active"
 description: "Drives market positioning, revenue generation, and partnerships."
 packaged_default: true
 activation_notes: 'Flip `active: true` on L3 sub-components as you invest. Start narrow.'
+
+# VALUE MODEL MATURITY (VMM) - Track Level Summary
+# Tracks where this value model is on its journey from hypothesis to scaled value delivery.
+# Maturity EMERGES from L3 sub-component evidence, calculated upward using 80% rule.
+# Value domain for Commercial: customer base, revenue model, unit economics
+# See docs/guides/VALUE_MODEL_MATURITY_GUIDE.md for full documentation.
+track_maturity:
+  overall_stage: "hypothetical"  # hypothetical | emerging | proven | scaled
+  stage_override: false
+  value_domain: "Customer base"  # Example: revenue model, unit economics, market share
+  current_milestone: "none"      # none | problem_approach_fit | value_recipient_fit | sustainable_domain_fit
+  next_milestone_criteria:
+    - description: "Define criteria for reaching problem_approach_fit..."
+      status: "not_met"
+  l1_distribution:
+    hypothetical: 0
+    emerging: 0
+    proven: 0
+    scaled: 0
+
 layers:
   - id: commercial-l1-business-development-and-partnerships
     name: BUSINESS DEVELOPMENT AND PARTNERSHIPS
     active: false
     components:
-    - id: commercial-c-investor-relations
-      name: Investor Relations
-      active: false
-      subs: []
     - id: commercial-c-strategic-partnerships
       name: Strategic Partnerships
       active: false
@@ -50,46 +66,50 @@ layers:
       - id: commercial-s-revenue-sharing-agreements
         name: Revenue-sharing agreements
         active: false
-      - id: commercial-s-co-marketing-initiatives
-        name: Co-marketing initiatives
+      - id: commercial-s-resource-sharing-protocols
+        name: Resource-sharing protocols
         active: false
-      - id: commercial-s-technology-integrations
-        name: Technology integrations
+      - id: commercial-s-co-branding-opportunities
+        name: Co-branding opportunities
         active: false
-  - id: commercial-l1-brand-positioning
-    name: BRAND & POSITIONING
+
+  # NOTE: Commercial's FINANCING layer covers INVESTOR ACQUISITION only.
+  # Ongoing investor relations, governance, and financial tracking belong in OrgOps.
+  # See: OrgOps → COMPANY GOVERNANCE & COMPLIANCE → Board / Shareholders & Investors
+  
+  - id: commercial-l1-financing
+    name: FINANCING
     active: false
     components:
-    - id: commercial-c-brand-identity
-      name: Brand Identity
+    - id: commercial-c-fundraising
+      name: Fundraising
       active: false
       subs:
-      - id: commercial-s-logo-and-visual-guidelines
-        name: Logo and visual guidelines
+      - id: commercial-s-investor-pitch-decks
+        name: Investor pitch decks
         active: false
-      - id: commercial-s-brand-voice-and-tone
-        name: Brand voice and tone
+      - id: commercial-s-roadshows-and-outreach
+        name: Roadshows and outreach
         active: false
-      - id: commercial-s-brand-storytelling
-        name: Brand storytelling
+      - id: commercial-s-term-sheet-negotiations
+        name: Term sheet negotiations
         active: false
-    - id: commercial-c-market-differentiation
-      name: Market Differentiation
+      - id: commercial-s-softfunding
+        name: Softfunding
+        active: false
+    - id: commercial-c-financial-modeling
+      name: Financial Modeling (for Fundraising)
       active: false
       subs:
-      - id: commercial-s-differentiator-messaging
-        name: Differentiator messaging
+      - id: commercial-s-revenue-modeling
+        name: Revenue modeling
         active: false
-      - id: commercial-s-pricing-strategies
-        name: Pricing strategies
+        description: "Financial projections for investor presentations"
+      - id: commercial-s-capital-expenditure-planning
+        name: Capital expenditure planning
         active: false
-      - id: commercial-s-packaging-models
-        name: Packaging models
-        active: false
-    - id: commercial-c-competitive-positioning
-      name: Competitive Positioning
-      active: false
-      subs: []
+        description: "Capex plans for investor discussions"
+
   - id: commercial-l1-sales-and-marketing
     name: SALES AND MARKETING
     active: false
@@ -136,4 +156,60 @@ layers:
     - id: commercial-c-content-production-management
       name: Content Production & Management
       active: false
-      subs: []
+      subs:
+      - id: commercial-s-content-strategy
+        name: Content strategy
+        active: false
+      - id: commercial-s-content-creation-workflows
+        name: Content creation workflows
+        active: false
+      - id: commercial-s-content-distribution
+        name: Content distribution
+        active: false
+      - id: commercial-s-content-performance-tracking
+        name: Content performance tracking
+        active: false
+
+  - id: commercial-l1-brand-positioning
+    name: BRAND & POSITIONING
+    active: false
+    components:
+    - id: commercial-c-brand-identity
+      name: Brand Identity
+      active: false
+      subs:
+      - id: commercial-s-visual-guidelines
+        name: Visual guidelines
+        active: false
+      - id: commercial-s-logo-and-branding-assets
+        name: Logo and branding assets
+        active: false
+      - id: commercial-s-verbal-guidelines
+        name: Verbal guidelines (tone and voice)
+        active: false
+    - id: commercial-c-market-differentiation
+      name: Market Differentiation
+      active: false
+      subs:
+      - id: commercial-s-swot-analysis
+        name: SWOT analysis
+        active: false
+      - id: commercial-s-differentiator-messaging
+        name: Differentiator messaging
+        active: false
+      - id: commercial-s-comparative-benchmarking
+        name: Comparative benchmarking
+        active: false
+    - id: commercial-c-competitive-positioning
+      name: Competitive Positioning
+      active: false
+      subs:
+      - id: commercial-s-industry-positioning-maps
+        name: Industry positioning maps
+        active: false
+      - id: commercial-s-perception-tracking
+        name: Perception tracking
+        active: false
+      - id: commercial-s-pricing-strategies
+        name: Pricing strategies
+        active: false

@@ -35,7 +35,8 @@
 - Wizards → `wizards/` (step-by-step creation guides)
 
 ❌ **Examples and reference:**
-- Feature corpus → `features/` (validated examples)
+- Feature examples → `definitions/product/` (validated feature definition examples)
+- Other track definitions → `definitions/strategy/`, `definitions/org_ops/`, `definitions/commercial/` (canonical)
 - Instance examples → `_instances/` (product-specific content)
 
 ## Directory Contents

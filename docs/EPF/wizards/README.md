@@ -207,7 +207,7 @@ Week 3 of quarter:
 
 **Integrates with:**
 - Guide: `docs/guides/FEATURE_DEFINITION_IMPLEMENTATION_GUIDE.md`
-- Template: `templates/FIRE/feature_definitions/feature_definition_template.yaml`
+- Template: `definitions/product/_template/feature_definition_template.yaml`
 - Validator: `scripts/validate-feature-quality.sh`
 
 ---
@@ -255,14 +255,14 @@ Week 3 of quarter:
 1. **Read**: `docs/guides/FEATURE_DEFINITION_IMPLEMENTATION_GUIDE.md`
    - Understand personas, scenarios, contexts, dependencies
 
-2. **Copy**: `templates/FIRE/feature_definitions/feature_definition_template.yaml`
+2. **Copy**: `definitions/product/_template/feature_definition_template.yaml`
    - Get blank YAML structure
 
 3. **Use Wizard**: `wizards/feature_definition.wizard.md` OR `wizards/product_architect.agent_prompt.md`
    - AI guides through 7-step creation process
    - Ensures 4 personas, proper scenarios, rich dependencies
 
-4. **Validate**: `scripts/validate-feature-quality.sh features/path/to/feature.yaml`
+4. **Validate**: `scripts/validate-feature-quality.sh definitions/product/path/to/feature.yaml`
    - Check schema compliance
    - Verify persona count, narrative lengths, scenario structure
 ```
@@ -365,7 +365,7 @@ Validation Layer (Verify)
 - **Templates Directory**: [`../templates/`](../templates/) - Structured formats
 - **Scripts Directory**: [`../scripts/`](../scripts/) - Validation tools
 - **Schemas Directory**: [`../schemas/`](../schemas/) - JSON Schema definitions
-- **Features Directory**: [`../features/`](../features/) - Canonical feature examples
+- **Product Definitions**: [`../definitions/product/`](../definitions/product/) - Feature definition **examples** (not canonical templates)
 
 ---
 

@@ -1,0 +1,429 @@
+# Commercial Process Definition: Verbal Guidelines
+# Schema: commercial_definition_schema.json v1.1.0
+
+id: cd-035
+name: Verbal Guidelines
+slug: verbal-guidelines
+track: commercial
+status: ready
+
+contributes_to:
+  - Commercial.Brand Identity.verbal-guidelines
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Core voice and tone documented for consistency"
+    includes:
+      - Brand voice principles (3-5 adjectives with examples)
+      - Tone variations by context (support vs. marketing)
+      - Key messaging do's and don'ts
+      - Standard boilerplate copy (about us, tagline)
+    effort: "4-6 hours initial setup"
+    
+  tier_2_intermediate:
+    description: "Comprehensive verbal identity system"
+    adds:
+      - Terminology glossary (what to call things)
+      - Channel-specific guidelines (email, social, product)
+      - Copy templates for common needs
+      - Writing samples across all voice dimensions
+      - Grammar and style preferences
+    effort: "1-2 weeks to establish"
+    
+  tier_3_advanced:
+    description: "Integrated content governance"
+    adds:
+      - AI-powered tone checking tools
+      - Localization/translation guidelines
+      - Customer segment-specific voice variations
+      - Voice training program
+      - Regular voice audits and calibration
+    effort: "1-2 months full implementation"
+
+definition:
+  purpose: |
+    Your brand speaks in every email, social post, error message, and sales 
+    conversation. Without defined verbal guidelines, every writer invents 
+    their own voice. The result is a brand that sounds like different people 
+    depending on who touched it—because it is.
+    
+    Verbal guidelines create consistency in how your brand sounds. Not to 
+    make everything sound the same, but to make everything sound like the 
+    same company. A support email should sound different from a marketing 
+    campaign, but both should be recognizably "you."
+    
+    For early-stage companies, this starts with answering simple questions: 
+    Are we formal or casual? Do we use emoji? Do we say "we" or "our team"? 
+    What do we call our customers? These decisions, documented, prevent 
+    endless debates and inconsistent output.
+    
+    The cost of undefined verbal identity shows up in brand confusion 
+    (customers don't know what to expect from you), wasted time (writers 
+    guessing or debating), and off-brand content (especially from contractors 
+    and agencies who don't have context).
+    
+  outcome: |
+    All brand communications sound like the same company. Writers have clear 
+    guidance and spend less time debating style. Agencies and contractors 
+    produce on-voice content without extensive hand-holding. Brand develops 
+    a distinctive voice that customers recognize.
+    
+  owner: Brand Manager / Content Lead / Head of Marketing
+  
+  inputs:
+    - name: Brand positioning
+      description: What the brand stands for and how it wants to be perceived
+      source: Strategy documentation / Founder vision
+    - name: Customer feedback
+      description: How customers describe the brand, what resonates
+      source: Customer research, Reviews, Support conversations
+    - name: Existing content samples
+      description: Current writing that represents desired voice
+      source: Best-performing content, Founder communications
+      
+  outputs:
+    - name: Verbal guidelines document
+      description: Complete guide to brand voice and tone
+      consumer: Writers, Marketers, Product, Support, Agencies
+    - name: Terminology glossary
+      description: Approved terms and what to avoid
+      consumer: All content creators
+    - name: Copy templates
+      description: Starter templates for common content types
+      consumer: Content creators, New hires
+
+  steps:
+    - step: 1
+      action: "Audit current verbal expression"
+      responsible: Content Lead / Brand Manager
+      duration: "2-4 hours"
+      deliverable: "Voice audit findings"
+      templates:
+        - "Content sample collection"
+        - "Voice consistency scorecard"
+      best_practices:
+        - Gather samples from all channels (website, email, product, social)
+        - Note inconsistencies and patterns
+        - Identify what sounds "right" and what doesn't
+        - Include samples from different authors
+      avoid:
+        - Only auditing marketing content (product copy matters too)
+        - Judging before documenting—first observe, then evaluate
+        
+    - step: 2
+      action: "Define voice attributes"
+      responsible: Brand Manager / Leadership
+      duration: "2-3 hours workshop"
+      deliverable: "Voice attribute framework"
+      templates:
+        - "Voice dimension worksheet"
+        - "This vs. That comparison grid"
+      best_practices:
+        - Pick 3-5 attributes (too many becomes unusable)
+        - Define each with specific examples
+        - Include "we are X, but not Y" distinctions
+        - Test with actual content—can you apply these?
+      avoid:
+        - Generic attributes everyone claims (friendly, professional)
+        - Aspirational voice that doesn't match reality
+        
+    - step: 3
+      action: "Establish tone variations"
+      responsible: Content Lead
+      duration: "2-3 hours"
+      deliverable: "Tone spectrum documentation"
+      templates:
+        - "Tone matrix by context"
+        - "Before/after tone examples"
+      best_practices:
+        - Define how voice shifts in different contexts
+        - Support (empathetic) vs. marketing (energetic) vs. product (clear)
+        - Provide examples for each tone variation
+        - Explain the "why" behind tone shifts
+      avoid:
+        - So many variations that core voice is lost
+        - Tone shifts that feel like different brands
+        
+    - step: 4
+      action: "Create terminology and usage guide"
+      responsible: Content Lead
+      duration: "2-4 hours"
+      deliverable: "Terminology glossary"
+      templates:
+        - "Term dictionary template"
+        - "Naming convention guide"
+      best_practices:
+        - Document what you call things (customers, features, actions)
+        - Include terms to avoid (jargon, competitors' terms)
+        - Add capitalization and styling rules
+        - Update as new terms emerge
+      avoid:
+        - Terminology that customers don't understand
+        - Inconsistent naming across touchpoints
+        
+    - step: 5
+      action: "Document grammar and style preferences"
+      responsible: Content Lead
+      duration: "1-2 hours"
+      deliverable: "Style guide section"
+      templates:
+        - "Style decisions checklist"
+        - "Common questions FAQ"
+      best_practices:
+        - Choose a base style guide (AP, Chicago) and note exceptions
+        - Document common debates (Oxford comma, emoji, exclamation points)
+        - Keep it practical—focus on frequent issues
+        - Include examples, not just rules
+      avoid:
+        - Reinventing established conventions
+        - So many rules they become unmanageable
+        
+    - step: 6
+      action: "Compile and design guidelines document"
+      responsible: Brand Manager / Designer
+      duration: "4-8 hours"
+      deliverable: "Complete verbal guidelines"
+      templates:
+        - "Verbal guidelines template"
+        - "Quick reference card"
+      best_practices:
+        - Make it scannable—people reference, not read cover-to-cover
+        - Include many examples—show, don't just tell
+        - Create quick-reference version for daily use
+        - Design to match brand (practice what you preach)
+      avoid:
+        - Text-heavy documents without examples
+        - Guidelines that violate the guidelines
+        
+    - step: 7
+      action: "Train and distribute"
+      responsible: Content Lead
+      duration: "2-4 hours"
+      deliverable: "Team enabled on verbal guidelines"
+      templates:
+        - "Voice training workshop"
+        - "Self-assessment exercise"
+      best_practices:
+        - Walk through with key content creators
+        - Practice exercises applying guidelines
+        - Make guidelines easily accessible
+        - Establish review process for voice consistency
+      avoid:
+        - Document dump without context
+        - Assuming reading = understanding
+
+  cadence:
+    frequency: "Review quarterly, refresh annually"
+    triggers:
+      - Brand repositioning
+      - Major new channel launch
+      - Consistent voice inconsistencies appearing
+      - New product line requiring voice treatment
+    ongoing:
+      - Collect examples of good and bad voice execution
+      - Update terminology as product evolves
+      - Review new content types against guidelines
+      - Gather feedback from content creators
+
+practitioner_scenarios:
+  - id: ps-001
+    name: "Creating Voice Guidelines from Founder's Intuition"
+    practitioner: "Marketing Manager"
+    organization_context: |
+      20-person B2B startup where the founder has strong instincts about 
+      brand voice but nothing documented. Founder writes great content but 
+      can't explain why it works. Hiring content people who need direction.
+    situation: |
+      New content hire asks "how should this sound?" and founder responds 
+      "you know, like us." Content comes back and founder says "this doesn't 
+      sound right" but can't articulate why. Multiple revision cycles 
+      frustrate everyone. Founder spending hours rewriting content.
+    trigger: |
+      Third content hire asked for brand voice guidelines. Realization that 
+      the voice lives only in founder's head—not scalable and blocking 
+      content production.
+    actions: |
+      Scheduled 90-minute "voice extraction" session with founder by pulling 
+      founder's best content samples (emails customers loved, product 
+      descriptions, blog posts). Read samples aloud and asked "what makes 
+      this sound like us?" Captured recurring patterns: sentences are short 
+      and punchy, technical concepts explained simply, humor used sparingly 
+      but purposefully, we sound confident but not arrogant. Created simple 
+      framework with 4 voice attributes: clear (simple sentences, no jargon), 
+      confident (direct statements, avoid hedging), human (conversational, 
+      appropriate humor), and smart (respect reader intelligence). Wrote 
+      before/after examples for each attribute showing same concept with and 
+      without the attribute. Created 1-page quick reference with attributes, 
+      examples, and common mistakes. Tested guidelines by having new hire 
+      apply them to a piece, then founder reviewed. Iterated twice based on 
+      what was still being missed.
+    outcome: |
+      Content revision cycles dropped from 4-5 rounds to 1-2. New content 
+      hire producing on-voice content within 2 weeks. Founder spending 75% 
+      less time on content edits. Added tone variations section after first 
+      month when support emails needed different treatment than marketing. 
+      Guidelines fit on 3 pages—kept it simple intentionally.
+    lessons:
+      - Extract voice from best existing content, don't invent from scratch
+      - Founders often know voice intuitively but can't articulate—help them
+      - Before/after examples worth more than abstract descriptions
+      - Start with 3-4 attributes, add nuance after basics are established
+
+  - id: ps-002
+    name: "Maintaining Voice Consistency Across Distributed Teams"
+    practitioner: "Brand Director"
+    organization_context: |
+      120-person company with content created by marketing (4 people), product 
+      (8 PMs writing copy), support (15 agents), and sales (20 reps). Plus 
+      3 agencies. Each group has evolved their own writing style.
+    situation: |
+      Customer survey shows brand perception as "inconsistent" and "confusing." 
+      Analysis reveals wildly different voices: marketing is hip and casual, 
+      product is technical and formal, support is robotic, sales decks are 
+      aggressive. Same company sounds like 4 different companies.
+    trigger: |
+      New CMO did brand voice audit as part of onboarding. Presented findings 
+      to exec team with examples of inconsistency. CEO asked "can we sound 
+      like one company?"
+    actions: |
+      Assembled cross-functional voice working group with reps from each 
+      content-creating team. Analyzed samples from each group to find common 
+      ground by asking what does each do well that reflects our values. Built 
+      unified voice framework preserving what works from each: clarity from 
+      product, warmth from support, energy from marketing, directness from 
+      sales. Created department-specific guidelines layered on core voice by 
+      documenting how the core voice adapts for each context while staying 
+      recognizably unified. Developed voice calibration exercises as 15-minute 
+      workshops for each team to practice applying voice. Established "voice 
+      champions" in each department as go-to resources for voice questions. 
+      Created Slack channel for voice questions with quick responses. Built 
+      voice review into content workflows by adding voice checklist to content 
+      approval. Ran quarterly voice audits pulling samples from each team 
+      and scoring consistency.
+    outcome: |
+      Customer perception of brand consistency improved 40% in next survey. 
+      Cross-functional content reviews went from contentious to collaborative. 
+      Time to produce on-brand content reduced—fewer revisions needed. 
+      Agencies aligned within one month using new guidelines. Sales team 
+      took longest but got there with dedicated training sessions.
+    lessons:
+      - Unified voice doesn't mean identical—allow contextual adaptation
+      - Voice champions in each department scale training and adoption
+      - Regular audits catch drift before it becomes entrenched
+      - Quick-response Slack support better than perfect documentation
+
+  - id: ps-003
+    name: "Evolving Voice During Brand Repositioning"
+    practitioner: "Head of Brand"
+    organization_context: |
+      80-person B2B company repositioning from scrappy startup to enterprise-
+      ready platform. Existing voice is casual, playful, and irreverent—
+      resonated with SMB customers but feels wrong for enterprise buyers.
+    situation: |
+      Moving upmarket but voice sounds like it's still selling to startups. 
+      Enterprise prospects say the brand "doesn't seem serious enough." 
+      Sales team asked to adopt more formal tone but got pushback from 
+      marketing about losing brand personality. Internal debate about how 
+      much voice needs to change.
+    trigger: |
+      Lost enterprise deal where feedback included "didn't feel like an 
+      enterprise vendor—too informal." CEO asked for voice evolution plan 
+      that maintains personality while credible for enterprise.
+    actions: |
+      Researched how other brands evolved voice during upmarket moves by 
+      analyzing companies like Slack (startup to enterprise), Zoom, and 
+      Stripe to identify the changes they made. Defined "sophisticated 
+      casual" as the target positioning: still warm and human, but with more 
+      substance and less flippancy. Created voice evolution framework that 
+      keeps human and approachable, adds depth and expertise, removes forced 
+      humor and startup clichés, and adjusts formality by audience. Developed 
+      dual-track guidelines for SMB communications (keep current voice, 
+      slight maturity) and enterprise communications (elevated formality, 
+      substance focus). Created voice transition guide for all content 
+      creators showing what changes and what stays. Updated key touchpoints 
+      first: website, sales materials, product UI, then everything else. 
+      Monitored feedback from both SMB and enterprise customers to calibrate 
+      balance.
+    outcome: |
+      Enterprise win rate improved 25% in quarters following voice evolution. 
+      SMB customers didn't notice negative change—some commented brand felt 
+      "more polished." Sales team more confident in enterprise conversations. 
+      Successfully straddled both markets without alienating either. Voice 
+      continues to evolve as enterprise mix grows.
+    lessons:
+      - Voice evolution doesn't mean abandoning personality—refine, don't replace
+      - Dual-track approach works when serving different audiences
+      - Start with highest-impact touchpoints, cascade to everything else
+      - Monitor both audiences to ensure neither is alienated
+
+risks:
+  execution_risks:
+    - risk: "Guidelines too vague to be actionable"
+      likelihood: medium
+      impact: high
+      mitigation: |
+        Include many specific examples. Test guidelines by having someone 
+        who hasn't been involved apply them to real content. If they can't 
+        produce on-voice content, guidelines aren't clear enough.
+        
+    - risk: "Voice sounds different across channels"
+      likelihood: high
+      impact: medium
+      mitigation: |
+        Document channel-specific adaptations explicitly. Regular cross-
+        channel audits. Central review of major content launches. Slack 
+        channel for voice questions encourages consistency.
+        
+    - risk: "Contractors and agencies ignore guidelines"
+      likelihood: high
+      impact: medium
+      mitigation: |
+        Include voice guidelines in every agency/contractor brief. Review 
+        initial work carefully and provide feedback. Build voice review into 
+        approval workflow. Consider voice training for key partners.
+        
+    - risk: "Guidelines become outdated"
+      likelihood: medium
+      impact: medium
+      mitigation: |
+        Annual comprehensive review. Process for adding new guidance as 
+        questions arise. Version dating on guidelines. Ownership assigned 
+        for maintenance.
+        
+  organizational_risks:
+    - risk: "No one enforces voice consistency"
+      impact: |
+        Guidelines exist but aren't followed. Voice fragments over time. 
+        Investment in creating guidelines wasted. Brand loses distinctive voice.
+      prevention: |
+        Build voice review into content workflows. Assign voice champions. 
+        Include voice consistency in content performance reviews. Celebrate 
+        great examples of voice execution.
+        
+    - risk: "Voice valued over message effectiveness"
+      impact: |
+        Content sounds right but doesn't convert. Voice becomes more important 
+        than clarity. Writers optimize for style over substance.
+      prevention: |
+        Measure content performance, not just voice compliance. Allow voice 
+        flexibility when testing. Don't let voice become excuse for poor 
+        performing content. Clear hierarchy: clarity > voice > style.
+
+domain_context:
+  related_l2: "Brand Identity"
+  related_l1: "BRAND & POSITIONING"
+  synergies:
+    - "Visual Guidelines (cd-033) - Visual and verbal identity should align"
+    - "Content Strategy (cd-029) - Voice applied to content planning"
+    - "Customer Support Systems (cd-028) - Support voice especially important"
+  dependencies:
+    - "Brand positioning must be defined before voice can be established"
+    - "Target audience understanding informs appropriate voice"
+
+references:
+  - title: "Finding Your Brand Voice"
+    url: "https://www.nngroup.com/articles/brand-voice/"
+  - title: "Mailchimp Content Style Guide (Exemplar)"
+    url: "https://styleguide.mailchimp.com/"

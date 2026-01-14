@@ -70,8 +70,8 @@ scenarios:  # ← TOP LEVEL
 **BEFORE starting feature definition creation:**
 
 - [ ] **Read schema requirements**: [`schemas/feature_definition_schema.json`](../schemas/feature_definition_schema.json) (861 lines, v2.0.0)
-- [ ] **Copy template**: [`templates/FIRE/feature_definitions/feature_definition_template.yaml`](../templates/FIRE/feature_definitions/feature_definition_template.yaml)
-- [ ] **Review examples**: [`features/`](../features/) directory (21 validated examples demonstrating quality patterns)
+- [ ] **Copy template**: [`definitions/product/_template/feature_definition_template.yaml`](../definitions/product/_template/feature_definition_template.yaml)
+- [ ] **Review examples**: [`definitions/product/`](../definitions/product/) directory (21 validated examples demonstrating quality patterns)
 
 **WHILE creating your feature definition:**
 

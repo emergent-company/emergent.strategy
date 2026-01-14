@@ -230,7 +230,7 @@ Define features, value models, and workflows for product execution.
 **Purpose**: Define features with strategic context and implementation guidance.
 
 **Steps**:
-1. Copy template: `cp ../../templates/FIRE/feature_definitions/feature_definition.template.yaml FIRE/feature_definitions/fd-{number}.yaml`
+1. Copy template: `cp ../../definitions/product/_template/feature_definition_template.yaml FIRE/feature_definitions/fd-{number}-{slug}.yaml`
 2. Link to roadmap recipe and value models
 3. Define capabilities, scenarios, contexts
 4. Document success metrics

@@ -1,0 +1,223 @@
+# OrgOps Process Definition: Succession Planning
+# Schema: org_ops_definition_schema.json v1.0.0
+
+id: pd-013
+name: Succession Planning
+slug: succession-planning
+track: org_ops
+status: ready
+
+contributes_to:
+  - OrgOps.Workforce Planning.succession-planning
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Critical role backup identification"
+    includes:
+      - Identify 5-10 most critical roles
+      - Name 1-2 potential successors per role
+      - Document key knowledge and relationships
+    effort: "Half day annually"
+    
+  tier_2_intermediate:
+    description: "Structured succession with development"
+    adds:
+      - Readiness assessment for successors
+      - Development plans to close gaps
+      - Regular check-ins with potential successors
+      - Expansion to all leadership roles
+    effort: "1-2 days annually + ongoing development"
+    
+  tier_3_advanced:
+    description: "Dynamic talent pipeline"
+    adds:
+      - Multiple succession depth (n+1, n+2, n+3)
+      - External candidate mapping
+      - Board-level review
+      - Retention risk monitoring
+    effort: "Ongoing talent management function"
+
+definition:
+  purpose: |
+    Key people leave, get sick, or take opportunities elsewhere. Without 
+    succession planning, organizations scramble when critical roles become 
+    vacant. Business continuity requires knowing who can step up.
+    
+  outcome: |
+    Every critical role has identified successors. Successors are aware and 
+    being developed. If someone leaves unexpectedly, there's a plan. 
+    Leadership team feels confident about bench strength.
+    
+  owner: CEO or People Lead
+  
+  inputs:
+    - name: Critical roles list
+      description: Roles where vacancy would significantly impact business
+      source: Leadership team assessment
+    - name: Current talent
+      description: Who could potentially fill each role
+      source: Performance data, manager input, career aspirations
+    - name: External market view
+      description: Availability of external candidates if needed
+      source: Recruiting, network, market research
+      
+  outputs:
+    - name: Succession map
+      description: Visual showing critical roles and successors
+      consumer: CEO, board
+    - name: Development priorities
+      description: What successors need to be ready
+      consumer: People Lead, managers
+    - name: Risk assessment
+      description: Where bench is thin
+      consumer: Leadership team
+      
+  steps:
+    - step: 1
+      action: Identify critical roles (start with top 5-10)
+      responsible: CEO + Leadership Team
+      duration: "1 hour"
+      deliverable: Critical roles list
+      criteria: "Single point of failure, hard to replace, high business impact"
+      
+    - step: 2
+      action: Assess current incumbents
+      responsible: CEO
+      duration: "30 minutes"
+      deliverable: Retention risk and flight risk notes
+      
+    - step: 3
+      action: Identify potential successors (1-2 per role)
+      responsible: CEO + People Lead
+      duration: "1-2 hours"
+      deliverable: Successor candidates per role
+      
+    - step: 4
+      action: Assess successor readiness
+      responsible: People Lead + Managers
+      duration: "1-2 hours"
+      deliverable: Readiness rating (Ready Now / 1-2 Years / 3+ Years)
+      
+    - step: 5
+      action: Document development needs
+      responsible: People Lead
+      duration: "1 hour"
+      deliverable: Gap analysis per successor
+      
+    - step: 6
+      action: Communicate with high-potential successors
+      responsible: Managers
+      duration: "30 min per person"
+      deliverable: Development conversations completed
+      notes: "Don't promise promotion; discuss growth opportunities"
+      
+  cadence:
+    frequency: annually
+    trigger: Usually after performance review cycle
+    duration: "Half day for initial planning"
+    
+  participants:
+    - role: CEO
+      responsibility: Own process, identify critical roles
+      time_commitment: "2-4 hours"
+    - role: People Lead
+      responsibility: Facilitate process, track development
+      time_commitment: "4-8 hours"
+    - role: Leadership Team
+      responsibility: Input on their areas
+      time_commitment: "1-2 hours each"
+
+  success_criteria:
+    - All critical roles have at least one identified successor
+    - Successors have documented development plans
+    - Plan reviewed and updated at least annually
+    - No "scramble" hires when people leave
+
+operational_context:
+  prerequisites:
+    - Career progression framework (pd-012)
+    - Regular performance reviews (pd-006)
+    - Trust between HR/leadership
+    
+  common_blockers:
+    - "No obvious successors → Identify development candidates or external search"
+    - "Succession = threat → Frame as development opportunity"
+    - "Too small for this → Even 5-person startup needs backup for founder"
+    
+  metrics:
+    - name: Critical role coverage
+      description: Percentage of critical roles with successor
+      target: "100%"
+      tier: 1
+    - name: Readiness depth
+      description: Roles with 'Ready Now' successor
+      target: ">50%"
+      tier: 2
+
+tools_ecosystem:
+  recommended:
+    - category: Talent Management
+      examples:
+        - Lattice
+        - Workday
+        - SuccessFactors
+      purpose: Succession tracking, development plans
+    - category: Simple Tools (Tier 1)
+      examples:
+        - Spreadsheet
+        - Notion
+      purpose: Document critical roles and successors
+
+compliance:
+  confidentiality:
+    - Succession plans are confidential to HR/leadership
+    - Successor candidates may or may not be told (org decision)
+    - Board may have visibility to CEO succession
+  documentation:
+    - Retain for continuity planning
+    - Update after any leadership change
+
+related_definitions:
+  - id: pd-012
+    relationship: requires
+    description: "Career framework shows progression paths"
+  - id: pd-006
+    relationship: requires
+    description: "Performance reviews identify high performers"
+  - id: pd-015
+    relationship: enables
+    description: "Succession is part of business continuity"
+
+adaptation:
+  customize:
+    - Definition of "critical role"
+    - Readiness criteria
+    - How much to communicate to successors
+  preserve:
+    - Annual review cadence
+    - Development plans for successors
+    - Confidentiality of assessments
+  common_variations:
+    - "Small org: Focus on founder succession only"
+    - "Growing org: Expand to all director+ roles"
+    - "Board requirement: Include external benchmarking"
+
+# Critical Role Assessment Template
+role_assessment:
+  questions:
+    - "What happens if this person is suddenly unavailable?"
+    - "How long to hire externally for this role?"
+    - "What institutional knowledge would be lost?"
+    - "Who else could cover temporarily?"
+    
+  readiness_levels:
+    - level: "Ready Now"
+      description: "Could step in immediately if needed"
+    - level: "1-2 Years"
+      description: "Strong candidate with specific development needs"
+    - level: "3+ Years"
+      description: "High potential, requires significant development"
+    - level: "External Only"
+      description: "No internal candidates, would require external hire"

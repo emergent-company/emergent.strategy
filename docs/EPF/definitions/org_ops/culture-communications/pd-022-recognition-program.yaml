@@ -1,0 +1,250 @@
+# OrgOps Process Definition: Recognition Program
+# Schema: org_ops_definition_schema.json v1.0.0
+
+id: pd-022
+name: Recognition Program
+slug: recognition-program
+track: org_ops
+status: ready
+
+contributes_to:
+  - OrgOps.Values and Principles.leadership-alignment
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Informal recognition practices"
+    includes:
+      - Shout-outs in team meetings
+      - Slack appreciation channel
+      - Manager verbal recognition
+    effort: "1-2 hours to establish norms"
+    
+  tier_2_intermediate:
+    description: "Structured recognition program"
+    adds:
+      - Peer-to-peer recognition platform
+      - Values-aligned recognition categories
+      - Monthly/quarterly awards
+      - Small reward budget
+    effort: "Half day setup, ongoing administration"
+    
+  tier_3_advanced:
+    description: "Integrated recognition system"
+    adds:
+      - Points/rewards system
+      - Career milestone recognition
+      - Public recognition events
+      - Analytics and tracking
+    effort: "Dedicated program management"
+
+definition:
+  purpose: |
+    People want to feel appreciated for their contributions. Without 
+    recognition, good work goes unnoticed and motivation suffers. 
+    Recognition programs make appreciation visible, reinforce values, 
+    and build positive culture.
+    
+  outcome: |
+    Good work is noticed and appreciated. Recognition happens regularly 
+    across the organization. Values are reinforced through what gets 
+    recognized. Employees feel valued for their contributions.
+    
+  owner: People Lead or Culture Lead
+  
+  inputs:
+    - name: Values and behaviors to reinforce
+      description: What we want to see more of
+      source: Company values (pd-021)
+    - name: Recognition preferences
+      description: How people like to be recognized
+      source: Employee feedback
+    - name: Budget (if any)
+      description: Funds for rewards
+      source: Finance
+      
+  outputs:
+    - name: Recognition program guide
+      description: How recognition works
+      consumer: All employees
+    - name: Recognition history
+      description: Record of who was recognized for what
+      consumer: HR, managers
+      
+  steps:
+    - step: 1
+      action: Define recognition philosophy
+      responsible: People Lead + Leadership
+      duration: "30 minutes"
+      deliverable: Philosophy statement
+      questions:
+        - What behaviors do we want to reinforce?
+        - How formal vs informal?
+        - Peer-to-peer, manager-driven, or both?
+      
+    - step: 2
+      action: Choose recognition mechanisms
+      responsible: People Lead
+      duration: "30 minutes"
+      deliverable: Recognition channel/tool selection
+      options:
+        - Slack channel
+        - Recognition platform (Bonusly, Kudos)
+        - Team meeting shout-outs
+        - Monthly awards
+      
+    - step: 3
+      action: Establish recognition categories (optional)
+      responsible: People Lead
+      duration: "30 minutes"
+      deliverable: Category list
+      examples:
+        - Values-based categories
+        - "Above and beyond"
+        - "Customer hero"
+        - "Team player"
+      
+    - step: 4
+      action: Set up tools and communication
+      responsible: People Lead
+      duration: "1-2 hours"
+      deliverable: Tools configured, norms communicated
+      
+    - step: 5
+      action: Launch and model behavior
+      responsible: Leadership team
+      duration: "Ongoing"
+      deliverable: Regular recognition happening
+      tip: "Leaders should give first recognitions to model behavior"
+      
+    - step: 6
+      action: Review and iterate
+      responsible: People Lead
+      duration: "1 hour quarterly"
+      deliverable: Program adjustments
+      
+  cadence:
+    frequency: continuous
+    trigger: Ongoing practice, quarterly review
+    duration: "Setup: 2-4 hours | Ongoing: minimal"
+    
+  participants:
+    - role: People Lead
+      responsibility: Design and administer program
+      time_commitment: "2-4 hours setup, 1-2 hours/month"
+    - role: All employees
+      responsibility: Participate in giving recognition
+      time_commitment: "5-10 minutes/week"
+    - role: Leadership
+      responsibility: Model recognition behavior
+      time_commitment: "10-15 minutes/week"
+
+  success_criteria:
+    - Recognition happens regularly (not just from managers)
+    - Most employees receive recognition at least monthly
+    - Recognition aligns with values
+    - Employees feel appreciated
+
+operational_context:
+  prerequisites:
+    - Company values defined (pd-021)
+    - Communication channels established
+    - Leadership buy-in
+    
+  common_blockers:
+    - "People don't participate → Leaders model, prompt initially"
+    - "Same people always recognized → Encourage diverse recognition"
+    - "Feels forced → Keep it simple and authentic"
+    
+  metrics:
+    - name: Recognition frequency
+      description: Recognitions per employee per month
+      target: ">1"
+      tier: 1
+    - name: Recognition coverage
+      description: Percentage receiving recognition monthly
+      target: ">60%"
+      tier: 2
+
+tools_ecosystem:
+  recommended:
+    - category: Recognition Platforms
+      examples:
+        - Bonusly
+        - Kudos
+        - Motivosity
+      purpose: Peer-to-peer recognition with rewards
+    - category: Communication (Tier 1)
+      examples:
+        - Slack #appreciation channel
+        - Microsoft Teams
+      purpose: Simple shout-outs
+
+compliance:
+  fairness:
+    - Ensure recognition is distributed broadly
+    - Monitor for bias in who gets recognized
+  tax:
+    - Monetary rewards may have tax implications
+    - Consult with finance for reward programs
+
+related_definitions:
+  - id: pd-021
+    relationship: requires
+    description: "Recognition reinforces company values"
+  - id: pd-006
+    relationship: complements
+    description: "Recognition supplements performance reviews"
+
+adaptation:
+  customize:
+    - Formality level
+    - Reward budget
+    - Recognition categories
+    - Tools used
+  preserve:
+    - Peer-to-peer capability
+    - Values alignment
+    - Regular cadence
+  common_variations:
+    - "Budget-conscious: Verbal recognition only"
+    - "Remote team: Digital recognition platform"
+    - "Large team: Structured categories and awards"
+
+# Recognition Program Examples
+examples:
+  tier_1_simple:
+    channel: "#appreciation in Slack"
+    norms:
+      - Anyone can post anytime
+      - Tag the person and explain what they did
+      - React with emoji to amplify
+    cadence: "Ongoing, summarize in all-hands"
+    
+  tier_2_structured:
+    platform: "Bonusly or similar"
+    categories:
+      - "Living our values"
+      - "Going above and beyond"
+      - "Customer champion"
+      - "Team player"
+    budget: "$50-100/person/month to give"
+    cadence: "Ongoing + monthly summary + quarterly awards"
+    
+# Recognition Best Practices
+best_practices:
+  giving:
+    - Be specific about what they did
+    - Connect to impact or value
+    - Be timely (close to the event)
+    - Make it genuine (not obligatory)
+    
+  examples:
+    good: |
+      "Shout out to @Maya for her work on the customer presentation 
+      yesterday. She stayed late to help the sales team prepare, and 
+      the customer was impressed with the depth of the demo. This is 
+      exactly what 'customer obsession' looks like!"
+    weak: |
+      "Thanks Maya for your help."

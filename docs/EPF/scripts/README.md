@@ -17,6 +17,7 @@ This directory contains automation scripts for EPF framework management, validat
 6. **FIRE Phase Content** - Canonical templates validate, instance value models check
 7. **Instance Validation** - Instance metadata, folder structure, FIRE subfolders
 8. **Content Quality Assessment** - Analyzes READY phase artifacts for template patterns, placeholder content, strategic depth
+9. **Canonical Track Consistency** - Validates that documentation correctly distinguishes canonical (Strategy, OrgOps, Commercial) from non-canonical (Product) tracks
 
 **Usage:**
 ```bash
@@ -122,10 +123,10 @@ Validates feature definitions against quality standards beyond basic schema comp
 **Usage:**
 ```bash
 # Validate single file
-./scripts/validate-feature-quality.sh features/01-technical/fd-001-document-ingestion.yaml
+./scripts/validate-feature-quality.sh definitions/product/01-technical/fd-001-document-ingestion.yaml
 
 # Validate entire directory
-./scripts/validate-feature-quality.sh features/
+./scripts/validate-feature-quality.sh definitions/product/
 
 # Exit codes: 0 = pass, 1 = validation errors
 ```
@@ -142,17 +143,17 @@ Validates that all feature definition cross-references point to existing feature
 **Usage:**
 ```bash
 # Validate all features
-./scripts/validate-cross-references.sh features/
+./scripts/validate-cross-references.sh definitions/product/
 
 # Exit codes: 0 = all refs valid, 1 = missing references found
 ```
 
 **Output Example:**
 ```
-Checking: features/01-technical/fd-003-semantic-search-query-interface.yaml (ID: fd-003)
-✓   requires: fd-001 → features/01-technical/fd-tech-001-document-ingestion.yaml
-✓   requires: fd-002 → features/01-technical/fd-002-knowledge-graph-engine.yaml
-✓   enables: fd-004 → features/01-technical/fd-004-llm-processing-pipeline.yaml
+Checking: definitions/product/01-technical/fd-003-semantic-search-query-interface.yaml (ID: fd-003)
+✓   requires: fd-001 → definitions/product/01-technical/fd-tech-001-document-ingestion.yaml
+✓   requires: fd-002 → definitions/product/01-technical/fd-002-knowledge-graph-engine.yaml
+✓   enables: fd-004 → definitions/product/01-technical/fd-004-llm-processing-pipeline.yaml
 ```
 
 ### validate-value-model-references.sh
@@ -169,17 +170,17 @@ Validates that feature `contributes_to` paths exist in value models (THE LINCHPI
 **Usage:**
 ```bash
 # Validate all features against value models
-./scripts/validate-value-model-references.sh features/
+./scripts/validate-value-model-references.sh definitions/product/
 
 # Specify custom value models directory
-./scripts/validate-value-model-references.sh features/ templates/FIRE/value_models
+./scripts/validate-value-model-references.sh definitions/product/ templates/FIRE/value_models
 
 # Exit codes: 0 = all paths valid, 1 = invalid paths found
 ```
 
 **Output Example:**
 ```
-Checking: features/01-technical/fd-002-knowledge-graph-engine.yaml (ID: fd-002)
+Checking: definitions/product/01-technical/fd-002-knowledge-graph-engine.yaml (ID: fd-002)
 ✓ Product.Decide.Analysis → product.value_model.yaml (Decide / Analysis)
 ✓ Product.Operate.Knowledge → product.value_model.yaml (Operate / Knowledge)
 ```
@@ -199,17 +200,17 @@ Validates that feature `assumptions_tested` IDs exist in roadmap.
 **Usage:**
 ```bash
 # Validate all features against roadmap
-./scripts/validate-roadmap-references.sh features/
+./scripts/validate-roadmap-references.sh definitions/product/
 
 # Specify custom roadmap file
-./scripts/validate-roadmap-references.sh features/ templates/READY/05_roadmap_recipe.yaml
+./scripts/validate-roadmap-references.sh definitions/product/ templates/READY/05_roadmap_recipe.yaml
 
 # Exit codes: 0 = all refs valid, 1 = invalid refs found
 ```
 
 **Output Example:**
 ```
-Checking: features/01-technical/fd-002-knowledge-graph-engine.yaml (ID: fd-002)
+Checking: definitions/product/01-technical/fd-002-knowledge-graph-engine.yaml (ID: fd-002)
 ✓ asm-p-001 → product track (problem: Users struggle to find relevant information)
 ✓ asm-s-002 → strategy track (solution: Knowledge graph provides context)
 ```
@@ -764,20 +765,21 @@ Typical validation workflow for feature definitions:
 
 ```bash
 # 1. Create/edit feature definition
-vim features/02-business/fd-021-new-feature.yaml
+vim definitions/product/02-business/fd-021-new-feature.yaml
 
 # 2. Validate quality
-./scripts/validate-feature-quality.sh features/02-business/fd-021-new-feature.yaml
+./scripts/validate-feature-quality.sh definitions/product/02-business/fd-021-new-feature.yaml
 
 # 3. Validate cross-references (if dependencies added)
-./scripts/validate-cross-references.sh features/
+./scripts/validate-cross-references.sh definitions/product/
 
 # 4. Run full health check before committing
 ./scripts/epf-health-check.sh
 
 # 5. Commit if all validations pass
-git add features/02-business/fd-021-new-feature.yaml
+git add definitions/product/02-business/fd-021-new-feature.yaml
 git commit -m "EPF: Add fd-021 new feature definition"
+```
 ```
 
 ## Maintenance

@@ -1,0 +1,741 @@
+# Commercial Process Definition: Revenue Sharing Agreements
+# Schema: commercial_definition_schema.json v1.1.0
+
+id: cd-007
+name: Revenue Sharing Agreements
+slug: revenue-sharing-agreements
+track: commercial
+status: ready
+
+contributes_to:
+  - Commercial.Alliance Management.revenue-sharing-agreements
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Simple revenue share arrangements"
+    includes:
+      - Flat percentage arrangements
+      - Manual tracking and payment
+      - Basic agreement terms
+      - Founder-managed relationships
+    effort: "1-2 weeks to structure"
+    
+  tier_2_intermediate:
+    description: "Structured revenue share programs"
+    adds:
+      - Tiered or graduated structures
+      - Systematic tracking and reporting
+      - Clear attribution rules
+      - Automated payment processing
+    effort: "4-6 weeks to establish"
+    
+  tier_3_advanced:
+    description: "Sophisticated multi-partner programs"
+    adds:
+      - Complex attribution models
+      - Partner portal and self-service
+      - Revenue share optimization
+      - Performance-based adjustments
+    effort: "2-3 months to implement"
+
+definition:
+  purpose: |
+    Revenue sharing agreements define how money is divided between 
+    parties who collaborate to generate revenue. These arrangements 
+    align incentives and compensate partners for their contributions 
+    to customer acquisition, retention, or value delivery.
+    
+    Common revenue share scenarios:
+    
+    1. Referral programs: Partner introduces customers, receives 
+       percentage of revenue.
+    
+    2. Reseller/distribution: Partner sells your product, keeps 
+       margin or percentage.
+    
+    3. White-label/embedded: Partner embeds your product, shares 
+       end customer revenue.
+    
+    4. Marketplace/platform: You provide platform, partners sell, 
+       you take percentage.
+    
+    5. Co-sell: Joint sales effort, revenue split reflects contribution.
+    
+    Why getting revenue share right matters:
+    
+    1. Alignment creates effort. Partners work harder when economics 
+       are meaningful and fair.
+    
+    2. Wrong rates cause problems. Too low, partners do not engage. 
+       Too high, you cannot sustain.
+    
+    3. Complexity kills. Partners stop referring if tracking is 
+       confusing or payment is unreliable.
+    
+    4. Conflicts emerge. Disputes about attribution, payment, and 
+       fairness damage relationships.
+    
+  outcome: |
+    Revenue sharing structures that motivate partner engagement while 
+    maintaining unit economics. Clear attribution and tracking. 
+    Reliable payment processes. Sustainable partner economics.
+    
+  owner: VP BD or VP Partnerships (structure), Finance (economics/payment)
+  
+  inputs:
+    - name: Partnership type
+      description: "Nature of collaboration driving revenue"
+      source: BD, Partnership evaluation
+      
+    - name: Unit economics
+      description: "What can we afford to share"
+      source: Finance, Product
+      
+    - name: Market benchmarks
+      description: "What competitors and industry pay"
+      source: BD research, Partner feedback
+      
+    - name: Partner expectations
+      description: "What partners expect and need"
+      source: Partner discussions
+      
+  outputs:
+    - name: Revenue share structure
+      description: "Defined rates, terms, and mechanics"
+      consumer: Partners, Finance, Legal
+      
+    - name: Revenue share agreement
+      description: "Legal documentation of terms"
+      consumer: Partners, Legal
+      
+    - name: Tracking and reporting
+      description: "Attribution and payment data"
+      consumer: Partners, Finance
+
+  steps:
+    - step: 1
+      action: Define revenue share objectives
+      responsible: VP BD + Finance
+      duration: "2-4 hours"
+      deliverable: Revenue share strategy
+      strategic_objectives:
+        partner_acquisition:
+          goal: "Attract new partners to ecosystem"
+          implications:
+            - "Competitive rates matter"
+            - "Easy onboarding important"
+            - "Marketing of program"
+        partner_engagement:
+          goal: "Motivate partner effort"
+          implications:
+            - "Meaningful economics"
+            - "Clear line of sight"
+            - "Regular payment"
+        channel_expansion:
+          goal: "Reach new customers/markets"
+          implications:
+            - "Higher rates for new segments"
+            - "Consider exclusivity"
+            - "Investment in enablement"
+        customer_success:
+          goal: "Quality customers, retention"
+          implications:
+            - "Align on customer quality"
+            - "Consider retention-based share"
+            - "Ongoing vs. one-time"
+      economic_constraints:
+        ltv_based:
+          principle: "Share portion of customer LTV"
+          calculation: "LTV × acceptable share percentage"
+          typical_ranges:
+            - "Referral: 10-20% first year"
+            - "Reseller: 15-40% ongoing"
+            - "White-label: 20-50% ongoing"
+        cac_based:
+          principle: "Compare to alternative CAC"
+          calculation: "What would we pay to acquire?"
+          guidance: "Should be below direct acquisition cost"
+        margin_based:
+          principle: "Protect minimum margin"
+          calculation: "Revenue - COGS - share = acceptable margin?"
+          red_line: "Never share more than gross margin"
+      best_practices:
+        - "Start with unit economics, not benchmarks"
+        - "Model multi-year impact"
+        - "Consider partner acquisition cost"
+        - "Build in room for optimization"
+
+    - step: 2
+      action: Design revenue share structure
+      responsible: VP BD + Finance
+      duration: "4-8 hours"
+      deliverable: Revenue share model
+      structure_types:
+        flat_percentage:
+          description: "Same rate for all revenue"
+          when_appropriate:
+            - "Simple partner relationships"
+            - "Consistent deal sizes"
+            - "Easy to communicate and track"
+          example: "Partner receives 15% of customer revenue"
+          considerations:
+            - "Simple to administer"
+            - "May overpay for easy deals"
+            - "May underpay for hard deals"
+        tiered_percentage:
+          description: "Rate varies by volume or performance"
+          when_appropriate:
+            - "Want to reward high performers"
+            - "Encourage volume growth"
+            - "Different partner tiers"
+          example:
+            - "0-10 customers: 15%"
+            - "11-25 customers: 18%"
+            - "26+ customers: 20%"
+          considerations:
+            - "Motivates growth"
+            - "More complex to track"
+            - "May encourage gaming"
+        graduated_by_deal_size:
+          description: "Rate varies by deal value"
+          when_appropriate:
+            - "Wide range of deal sizes"
+            - "Different effort for different deals"
+            - "Want to encourage larger deals"
+          example:
+            - "Under $10K ACV: 20%"
+            - "$10K-50K ACV: 15%"
+            - "Over $50K ACV: 10%"
+          considerations:
+            - "Reflects effort/value ratio"
+            - "Complexity in tracking"
+            - "May discourage some deals"
+        performance_based:
+          description: "Rate adjusts based on outcomes"
+          when_appropriate:
+            - "Customer quality matters"
+            - "Retention is key"
+            - "Sophisticated partners"
+          example: "Base 10% + 5% if customer retained 12 months"
+          considerations:
+            - "Aligns on quality"
+            - "Delayed payment complexity"
+            - "Harder to project earnings"
+        hybrid:
+          description: "Upfront fee plus ongoing percentage"
+          when_appropriate:
+            - "Significant partner effort upfront"
+            - "Want ongoing alignment"
+            - "Long sales cycles"
+          example: "$2K upfront + 10% year 1 revenue"
+          considerations:
+            - "Rewards upfront work"
+            - "Maintains ongoing alignment"
+            - "More complex"
+      key_design_decisions:
+        basis:
+          options:
+            - "Gross revenue"
+            - "Net revenue (after discounts)"
+            - "Net of payment processing"
+            - "Specific products/services"
+          recommendation: "Be explicit about what is shared"
+        duration:
+          options:
+            - "One-time (first sale only)"
+            - "Year 1 only"
+            - "Ongoing (lifetime of customer)"
+            - "Limited period (first 2 years)"
+          recommendation: "Ongoing creates better alignment"
+        timing:
+          options:
+            - "When invoiced"
+            - "When collected"
+            - "Monthly on active customers"
+          recommendation: "When collected reduces risk"
+        exclusivity:
+          options:
+            - "Non-exclusive (multiple partners)"
+            - "Exclusive (one partner per customer)"
+            - "Exclusive territory or segment"
+          considerations: "Exclusivity justifies higher rates"
+      best_practices:
+        - "Simple structures get more engagement"
+        - "Align duration with customer lifecycle"
+        - "Build in rate review mechanism"
+        - "Document all terms clearly"
+
+    - step: 3
+      action: Model economics and scenarios
+      responsible: Finance + BD
+      duration: "4-6 hours"
+      deliverable: Revenue share financial model
+      modeling_elements:
+        unit_economics:
+          per_customer:
+            - "Average revenue per customer"
+            - "Cost to serve"
+            - "Gross margin"
+            - "Partner share amount"
+            - "Net margin after share"
+          example:
+            revenue: "$12,000 ACV"
+            cogs: "$2,400 (20%)"
+            gross_margin: "$9,600 (80%)"
+            partner_share: "$1,800 (15%)"
+            net_margin: "$7,800 (65%)"
+        program_economics:
+          annual_projection:
+            - "Expected partner-sourced customers"
+            - "Total partner share payout"
+            - "Net revenue after share"
+            - "Comparison to direct acquisition"
+          example:
+            customers: "50 partner-sourced"
+            total_share: "$90,000"
+            net_revenue: "$510,000"
+            vs_direct_cac: "$100,000 (CAC would be $2K each)"
+        scenario_analysis:
+          scenarios:
+            optimistic: "150% of target, higher partner mix"
+            base: "Target performance"
+            conservative: "50% of target"
+          sensitivity:
+            - "What if average deal size changes?"
+            - "What if partner mix increases?"
+            - "What if churn is different?"
+        partner_perspective:
+          partner_economics:
+            - "Expected earnings per year"
+            - "Effort required"
+            - "Comparison to alternatives"
+          viability_check: "Is this meaningful for partner?"
+      red_flags:
+        economics:
+          - "Share exceeds gross margin"
+          - "Net margin below sustainable threshold"
+          - "Partner economics too low to motivate"
+        scale:
+          - "Program unprofitable at scale"
+          - "Cannot afford success"
+      best_practices:
+        - "Model multiple scenarios"
+        - "Include partner perspective"
+        - "Build in sensitivity analysis"
+        - "Review quarterly against actuals"
+
+    - step: 4
+      action: Document agreement terms
+      responsible: Legal + BD
+      duration: "2-4 weeks"
+      deliverable: Revenue share agreement
+      agreement_elements:
+        parties_and_scope:
+          - "Who are the parties"
+          - "What is the scope of relationship"
+          - "Territory and exclusivity"
+        revenue_share_terms:
+          basis:
+            - "What revenue is included"
+            - "What is excluded"
+            - "Definition of customer/sale"
+          rates:
+            - "Percentage or amount"
+            - "Tiers or conditions"
+            - "Rate changes and reviews"
+          attribution:
+            - "How customers are attributed"
+            - "Duration of attribution"
+            - "Dispute resolution"
+          timing:
+            - "When share is earned"
+            - "When share is paid"
+            - "Payment mechanics"
+        tracking_and_reporting:
+          reporting:
+            - "What reports will be provided"
+            - "Frequency"
+            - "Access to data"
+          audit:
+            - "Right to audit"
+            - "Process and cost"
+        term_and_termination:
+          term:
+            - "Initial term"
+            - "Renewal"
+            - "Notice periods"
+          termination:
+            - "Termination rights"
+            - "Effect on earned share"
+            - "Effect on customer relationships"
+        other_terms:
+          - "Representations and warranties"
+          - "Confidentiality"
+          - "Non-compete / non-circumvent"
+          - "Dispute resolution"
+      common_negotiation_points:
+        rate:
+          partner_position: "Higher percentage"
+          negotiation: "Trade rate for volume commitment"
+        duration:
+          partner_position: "Lifetime of customer"
+          negotiation: "Ongoing with cap or taper"
+        attribution_window:
+          partner_position: "Long attribution (180 days)"
+          negotiation: "Reasonable window (90 days) with extensions"
+        exclusivity:
+          partner_position: "Exclusive territory"
+          negotiation: "Performance-based exclusivity"
+      best_practices:
+        - "Use plain language where possible"
+        - "Include examples in agreement"
+        - "Define edge cases"
+        - "Build in review mechanism"
+
+    - step: 5
+      action: Implement tracking and payment
+      responsible: Finance + Operations
+      duration: "2-4 weeks"
+      deliverable: Revenue share operations
+      tracking_requirements:
+        attribution:
+          methods:
+            - "Partner codes or links"
+            - "Partner registration of leads"
+            - "CRM association"
+            - "Self-identification by customer"
+          considerations:
+            - "Easy for partner and customer"
+            - "Auditable"
+            - "Dispute-resolution friendly"
+        customer_tracking:
+          required_data:
+            - "Customer ID"
+            - "Partner attribution"
+            - "Revenue amounts"
+            - "Dates and periods"
+            - "Adjustments and refunds"
+        reporting:
+          partner_reports:
+            - "Customers attributed"
+            - "Revenue generated"
+            - "Share earned"
+            - "Payment details"
+          internal_reports:
+            - "Total partner share by partner"
+            - "Partner program economics"
+            - "Trends and patterns"
+      payment_operations:
+        payment_process:
+          timing:
+            - "Monthly, quarterly, or other"
+            - "Days after period end"
+            - "Minimum thresholds"
+          mechanics:
+            - "Payment method (ACH, wire, PayPal)"
+            - "Currency"
+            - "Tax documentation (W-9, W-8)"
+          reconciliation:
+            - "Statement with payment"
+            - "Dispute window"
+        edge_cases:
+          refunds: "Clawback or deduct from future"
+          disputes: "Hold pending resolution"
+          termination: "Final payment process"
+      tools:
+        simple:
+          approach: "Spreadsheet tracking + manual payment"
+          suitable_for: "Few partners, low volume"
+          effort: "2-4 hours/month"
+        intermediate:
+          approach: "CRM integration + payment automation"
+          suitable_for: "Growing partner base"
+          tools: "HubSpot/Salesforce + Bill.com"
+        advanced:
+          approach: "Partner portal + automated payouts"
+          suitable_for: "Scaled program"
+          tools: "PartnerStack, Impact, Impartner"
+      best_practices:
+        - "Automate as much as possible"
+        - "Provide transparency to partners"
+        - "Pay on time, every time"
+        - "Make dispute resolution easy"
+
+    - step: 6
+      action: Manage and optimize program
+      responsible: VP BD + Finance
+      duration: "Ongoing"
+      deliverable: High-performing partner program
+      program_management:
+        partner_communication:
+          regular:
+            - "Monthly or quarterly statements"
+            - "Program updates"
+            - "Performance discussions"
+          ad_hoc:
+            - "Rate changes"
+            - "Program modifications"
+            - "Issue resolution"
+        performance_monitoring:
+          partner_performance:
+            - "Revenue generated"
+            - "Customer quality (retention, expansion)"
+            - "Growth trajectory"
+          program_performance:
+            - "Total partner revenue"
+            - "Cost of partner channel"
+            - "Comparison to direct"
+      optimization:
+        rate_optimization:
+          questions:
+            - "Are rates driving desired behavior?"
+            - "Are we overpaying for low-value partners?"
+            - "Are top partners adequately rewarded?"
+          levers:
+            - "Tier adjustments"
+            - "Performance bonuses"
+            - "Rate changes for new partners"
+        structure_optimization:
+          questions:
+            - "Is structure too complex?"
+            - "Are partners confused?"
+            - "Is tracking working?"
+          improvements:
+            - "Simplification"
+            - "Better tooling"
+            - "Clearer communication"
+        portfolio_optimization:
+          questions:
+            - "Which partners are performing?"
+            - "Where should we invest more?"
+            - "Which partners should exit?"
+          actions:
+            - "Invest in top performers"
+            - "Develop potential"
+            - "Exit poor performers"
+      reviews:
+        quarterly: "Performance review and adjustments"
+        annual: "Program strategy and rate review"
+        trigger_based: "Major partner or market changes"
+      best_practices:
+        - "Treat partners as customers"
+        - "Celebrate partner success"
+        - "Be transparent about program changes"
+        - "Learn from partner feedback"
+
+  cadence:
+    frequency: "As partnerships form, ongoing management"
+    trigger: "New partner, Program launch, Rate review"
+    duration: "2-6 weeks to structure, ongoing management"
+    ongoing:
+      - Monthly payment processing
+      - Quarterly performance reviews
+      - Annual program optimization
+      - Continuous partner engagement
+
+practitioner_scenarios:
+  - id: ps-001
+    name: "Founder Structuring First Referral Program"
+    practitioner: "CEO / Founder"
+    organization_context: |
+      Seed-stage SaaS, 20 customers. Several existing customers 
+      have offered to refer other companies. Founder wants to 
+      formalize referral program.
+    situation: |
+      Three customers have referred 5 new customers informally. 
+      Founder gave them free months as thanks. Want to scale this 
+      but unsure what to pay and how to track.
+    trigger: |
+      Largest customer asked about formal referral program after 
+      referring third customer. Other customers have asked too.
+    actions: |
+      1. Analyzed unit economics:
+         - Average ACV: $6,000
+         - Gross margin: 75% ($4,500)
+         - CAC for direct: $1,500
+         - LTV: $18,000 (3-year average)
+      2. Researched market rates: SaaS referral programs typically 
+         10-20% first year, some ongoing.
+      3. Designed simple program:
+         - 15% of first year revenue ($900 on average deal)
+         - Paid as service credit or cash (partner choice)
+         - 90-day attribution window
+         - No minimum commitment
+      4. Created simple one-page referral agreement. Lawyer reviewed.
+      5. Set up tracking in spreadsheet:
+         - Referrer name and email
+         - Referred customer
+         - Deal value
+         - Payment owed
+         - Payment status
+      6. Launched to 3 existing referrers. Offered retroactive 
+         credit for past referrals (goodwill).
+      7. Communicated program to all customers after 30-day pilot.
+      8. First quarter: 4 referrals, $3,600 in credits issued. 
+         Acquired customers at 60% of direct CAC.
+    outcome: |
+      Referral program launched successfully. Simple structure easy 
+      to explain and track. Service credits reduce cash outlay while 
+      partners happy. Channel growing 20% quarter over quarter.
+    lessons:
+      - Start simple and iterate
+      - Service credits can work for early stage
+      - Make it easy for referrers
+      - Track from day one
+
+  - id: ps-002
+    name: "VP BD Building Reseller Channel"
+    practitioner: "VP Business Development"
+    organization_context: |
+      Series B SaaS selling to mid-market. Direct sales working 
+      but want to expand through reseller/agency channel. Need to 
+      structure reseller economics.
+    situation: |
+      Approached by several agencies wanting to resell product to 
+      their clients. Need to define reseller pricing, margins, and 
+      program structure.
+    trigger: |
+      Three agencies in pipeline want to sign reseller agreements. 
+      Need to move fast or lose momentum, but structure needs to 
+      be sustainable.
+    actions: |
+      1. Analyzed reseller economics:
+         - Target ACV through reseller: $24,000 (larger than direct)
+         - Gross margin: 75%
+         - Reseller will handle sales + first-line support
+         - Estimated cost savings vs. direct: 20%
+      2. Researched market: Agency resellers typically get 25-40% 
+         margins, depending on role.
+      3. Designed tiered program:
+         - Standard reseller: 25% of net revenue
+         - Premier reseller (5+ customers/year): 30%
+         - Elite reseller (15+ customers/year): 35%
+      4. Defined reseller responsibilities:
+         - Lead generation and sales
+         - Contract negotiation
+         - First-line customer support
+         - Quarterly business reviews
+      5. Our responsibilities:
+         - Product and platform
+         - Tier 2 support
+         - Training and enablement
+         - Marketing materials
+      6. Built reseller agreement with legal:
+         - Clear revenue share terms
+         - Customer ownership (we own, they service)
+         - Non-exclusivity initially
+         - 30-day payment terms after collection
+      7. Implemented tracking in Salesforce:
+         - Partner-tagged opportunities
+         - Monthly revenue reporting
+         - Automated payment calculations
+      8. Onboarded first 3 resellers with enablement program.
+    outcome: |
+      Reseller program launched with 3 initial partners. First 
+      partner closed 2 customers in 60 days. Unit economics 
+      working. Scaling to 10 resellers over next year.
+    lessons:
+      - Tiered structure rewards performance
+      - Clear responsibilities prevent conflict
+      - Enablement drives partner success
+      - Start with few high-quality partners
+
+  - id: ps-003
+    name: "CFO Restructuring Underperforming Partner Program"
+    practitioner: "CFO"
+    organization_context: |
+      Series C company with established partner program. Program 
+      has grown but profitability questioned. CFO tasked with 
+      reviewing and restructuring.
+    situation: |
+      Partner program has 50 active partners generating 25% of 
+      revenue. However, analysis shows partner revenue less 
+      profitable than direct. Some partners barely active.
+    trigger: |
+      Board asked for partner program ROI analysis during budget 
+      review. Analysis revealed concerns about program economics.
+    actions: |
+      1. Conducted deep analysis of partner economics:
+         - Total partner revenue: $5M
+         - Partner share paid: $1.2M (24% effective rate)
+         - Partner customer retention: 75% (vs. 85% direct)
+         - Partner customer expansion: 5% (vs. 15% direct)
+      2. Segmented partners by performance:
+         - Top 10: 70% of partner revenue, 23% rate
+         - Middle 20: 25% of partner revenue, 25% rate
+         - Bottom 20: 5% of partner revenue, 24% rate
+      3. Identified issues:
+         - Flat rate does not reward top performers
+         - Bottom performers consuming support with little return
+         - No quality incentives in program
+      4. Designed restructured program:
+         - Base rate: 15% (down from 25%)
+         - Performance bonus: +5% if exceed $200K/year
+         - Quality bonus: +5% if customer retention over 80%
+         - Maximum: 25% (same as before for top performers)
+      5. Modeled impact:
+         - Top partners: Similar earnings (motivated to perform)
+         - Middle partners: Reduced unless they improve
+         - Bottom partners: Significantly reduced
+      6. Communicated changes to partner base:
+         - 90-day notice (per agreement)
+         - Individual calls with top 10 partners
+         - Email to remainder with FAQ
+      7. Expected outcomes:
+         - Bottom 20 partners: 10 will leave, 10 will try harder
+         - Middle partners: Some will step up
+         - Top partners: Engaged by quality incentive
+      8. Results after 6 months:
+         - Active partners: 40 (vs. 50)
+         - Partner revenue: $4.5M (10% decline)
+         - Partner share: $800K (33% decline)
+         - Net margin improvement: $300K annually
+    outcome: |
+      Partner program restructured with performance-based economics. 
+      Lost low performers but retained and motivated top partners. 
+      Improved program profitability by $300K annually while 
+      maintaining most revenue.
+    lessons:
+      - Measure partner program economics regularly
+      - Flat rates create mediocrity
+      - Performance incentives work
+      - Be willing to let poor partners leave
+
+operational_context:
+  prerequisites:
+    - Partnership relationships generating revenue
+    - Unit economics understanding
+    - Tracking capability
+    - Payment processing ability
+    
+  common_blockers:
+    - "Cannot track attribution - Implement basic tracking first"
+    - "Rate disagreement - Model economics for both sides"
+    - "Payment delays - Automate and systematize"
+    - "Disputes - Clear attribution rules upfront"
+    
+  integration_points:
+    - Sales: Customer acquisition tracking
+    - Finance: Payment processing, accounting
+    - Legal: Agreement documentation
+    - Product: Integration/partner attribution
+
+risks:
+  if_skipped: |
+    Partners not motivated. Informal arrangements create confusion. 
+    No data on partner channel economics. Disputes damage relationships.
+    
+  if_over_engineered: |
+    Complex structures confuse partners. Tracking overhead exceeds 
+    value. Analysis paralysis on rate setting. Partners go elsewhere.
+
+domain_context:
+  related_l2: "Alliance Management"
+  related_l1: "BUSINESS DEVELOPMENT AND PARTNERSHIPS"
+  synergies:
+    - "Partnership Metrics (cd-003): Track revenue share outcomes"
+    - "Joint Ventures (cd-006): JV revenue allocation"
+    - "Agreement Reviews (cd-005): Revenue share documentation"
+    - "Stakeholder Relationship (cd-004): Partner relationships"

@@ -1,0 +1,273 @@
+# OrgOps Process Definition: Internal Communications
+# Schema: org_ops_definition_schema.json v1.0.0
+
+id: pd-042
+name: Internal Communications
+slug: internal-communications
+track: org_ops
+status: ready
+
+contributes_to:
+  - OrgOps.Collaboration Protocols.project-communication-tools
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Consistent communication channels"
+    includes:
+      - Clear primary channels
+      - Regular company updates
+      - Accessible documentation
+    effort: "2-4 hours weekly"
+    
+  tier_2_intermediate:
+    description: "Structured internal comms"
+    adds:
+      - Communication calendar
+      - Channel guidelines
+      - Feedback mechanisms
+      - Knowledge base
+    effort: "Half day weekly"
+    
+  tier_3_advanced:
+    description: "Strategic internal comms"
+    adds:
+      - Internal comms strategy
+      - Employee experience focus
+      - Measurement and optimization
+      - Crisis communications
+    effort: "Dedicated comms function"
+
+definition:
+  purpose: |
+    Information silos hurt alignment and culture. Without intentional 
+    communication, people miss important information or are overwhelmed 
+    with noise. A good internal comms approach ensures the right 
+    information reaches the right people.
+    
+  outcome: |
+    Employees know what's happening. Information is findable. 
+    Communication channels are clear. Important messages cut through 
+    noise. People feel informed and connected.
+    
+  owner: CEO or People Lead
+  
+  inputs:
+    - name: Company news
+      description: Updates to share
+      source: Leadership, teams
+    - name: Employee questions
+      description: What people want to know
+      source: Employees
+    - name: Feedback
+      description: How comms are landing
+      source: Surveys, conversation
+      
+  outputs:
+    - name: Regular updates
+      description: Consistent information flow
+      consumer: All employees
+    - name: Channel guidelines
+      description: Where to find/post what
+      consumer: All employees
+    - name: Knowledge base
+      description: Searchable documentation
+      consumer: All employees
+      
+  steps:
+    - step: 1
+      action: Define communication channels
+      responsible: Leadership
+      duration: "1 hour"
+      deliverable: Channel map
+      common_channels:
+        - Slack (daily work)
+        - Email (formal, async)
+        - All-hands (company updates)
+        - Wiki/Notion (documentation)
+      
+    - step: 2
+      action: Establish regular cadence
+      responsible: CEO/People Lead
+      duration: "30 min"
+      deliverable: Communication calendar
+      typical:
+        - Weekly written update
+        - Monthly all-hands
+        - Quarterly strategy update
+      
+    - step: 3
+      action: Create channel guidelines
+      responsible: People Lead
+      duration: "1-2 hours"
+      deliverable: Guidelines published
+      covers:
+        - When to use which channel
+        - Response time expectations
+        - Notification norms
+      
+    - step: 4
+      action: Maintain knowledge base
+      responsible: All + owner
+      duration: "Ongoing"
+      deliverable: Updated documentation
+      
+    - step: 5
+      action: Gather feedback
+      responsible: People Lead
+      duration: "Quarterly"
+      deliverable: Communication improvements
+      
+  cadence:
+    frequency: weekly
+    trigger: Ongoing, regular rhythm
+    duration: "2-4 hours weekly for updates"
+    
+  participants:
+    - role: CEO/Leadership
+      responsibility: Key communications
+      time_commitment: "2-4 hours weekly"
+    - role: People Lead
+      responsibility: Comms infrastructure
+      time_commitment: "2-4 hours weekly"
+    - role: All employees
+      responsibility: Follow norms, contribute
+      time_commitment: "Daily"
+
+  success_criteria:
+    - Employees feel informed
+    - Important info is findable
+    - Channel usage is appropriate
+    - Information overload managed
+
+operational_context:
+  prerequisites:
+    - Communication tools
+    - Time commitment from leadership
+    - Documentation platform
+    
+  common_blockers:
+    - "Too much noise → Channel guidelines, curation"
+    - "Information lost → Searchable knowledge base"
+    - "Inconsistent → Regular cadence"
+    
+  metrics:
+    - name: Information access
+      description: Employees can find what they need
+      target: ">80% agree"
+      tier: 1
+    - name: Feeling informed
+      description: Employees feel in the loop
+      target: ">80% agree"
+      tier: 1
+
+tools_ecosystem:
+  recommended:
+    - category: Messaging
+      examples:
+        - Slack
+        - Microsoft Teams
+      purpose: Daily communication
+    - category: Documentation
+      examples:
+        - Notion
+        - Confluence
+        - Google Docs
+      purpose: Knowledge base
+
+related_definitions:
+  - id: pd-003
+    relationship: enables
+    description: "Team norms include communication"
+  - id: pd-019
+    relationship: requires
+    description: "All-hands is key comms channel"
+  - id: pd-028
+    relationship: requires
+    description: "Remote work needs strong comms"
+
+adaptation:
+  customize:
+    - Tools used
+    - Update frequency
+    - Channel structure
+  preserve:
+    - Regular cadence
+    - Clear channel purpose
+    - Accessible documentation
+  common_variations:
+    - "Small team: Minimal structure, all-in-one channel"
+    - "Growing team: More channels, more structure"
+    - "Remote: Async-heavy, over-communicate"
+
+# Channel Guidelines Template
+channel_template:
+  slack:
+    general:
+      purpose: "Company-wide announcements"
+      who_posts: "Leadership"
+      expectations: "Read regularly"
+    team_channels:
+      purpose: "Team-specific work"
+      expectations: "Check multiple times daily"
+    project_channels:
+      purpose: "Cross-team projects"
+      expectations: "As needed for project"
+    social:
+      purpose: "Non-work bonding"
+      expectations: "Optional, fun"
+      
+  email:
+    purpose: "Formal, external, async"
+    when_to_use:
+      - "External communication"
+      - "Formal announcements"
+      - "When record needed"
+      
+  meetings:
+    when_to_use:
+      - "Decisions requiring discussion"
+      - "Complex topics"
+      - "Relationship building"
+    when_not:
+      - "Status updates (use async)"
+      - "Simple questions"
+
+# Weekly Update Template
+weekly_update_template:
+  from: "CEO"
+  frequency: "Weekly (Monday or Friday)"
+  format: "Email or Slack"
+  
+  sections:
+    wins:
+      content: "1-3 highlights from the week"
+    priorities:
+      content: "What we're focused on"
+    updates:
+      content: "Important info (team, product, etc.)"
+    ask:
+      content: "What leadership needs from team"
+    upcoming:
+      content: "What's on the horizon"
+      
+  length: "3-5 minute read max"
+  
+# Communication Norms
+norms:
+  response_times:
+    urgent_slack: "1 hour during work"
+    normal_slack: "Same business day"
+    email: "24-48 hours"
+    
+  notification_etiquette:
+    - "Minimize @here/@channel"
+    - "Use threads"
+    - "DM for 1:1 matters"
+    - "Batch non-urgent"
+    
+  async_first:
+    - "Default to async when possible"
+    - "Record meetings for absent"
+    - "Document decisions"

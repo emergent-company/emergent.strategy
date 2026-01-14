@@ -826,6 +826,127 @@ check_content_quality() {
 }
 
 # =============================================================================
+# CANONICAL TRACK CONSISTENCY CHECK
+# =============================================================================
+check_canonical_track_consistency() {
+    log_section "Canonical Track Consistency"
+    
+    local EPF_ROOT="$1"
+    
+    # Check that documentation correctly distinguishes canonical vs non-canonical tracks
+    # Strategy, OrgOps, Commercial = CANONICAL
+    # Product = NON-CANONICAL (examples only)
+    
+    # Check definitions/README.md for correct language
+    local def_readme="$EPF_ROOT/definitions/README.md"
+    if [ -f "$def_readme" ]; then
+        # Check for incorrect "all 4 tracks canonical" language
+        if grep -qi "canonical.*all.*four\|canonical.*all.*4\|all.*tracks.*canonical" "$def_readme" 2>/dev/null; then
+            log_warning "definitions/README.md may incorrectly suggest all 4 tracks are canonical"
+        fi
+        
+        # Check for correct Product track disclaimer
+        if grep -qi "product.*examples\|product.*not.*canonical\|product.*non-canonical" "$def_readme" 2>/dev/null; then
+            log_pass "definitions/README.md correctly notes Product track is not canonical"
+        else
+            log_warning "definitions/README.md should clarify Product track contains examples only"
+        fi
+    fi
+    
+    # Check value model templates for Product placeholder note
+    local product_vm="$EPF_ROOT/templates/FIRE/value_models/product.value_model.yaml"
+    if [ -f "$product_vm" ]; then
+        if grep -qi "placeholder\|customize\|product-specific" "$product_vm" 2>/dev/null; then
+            log_pass "product.value_model.yaml indicates it's a placeholder/template"
+        else
+            log_warning "product.value_model.yaml should indicate it's a placeholder to customize"
+        fi
+    fi
+    
+    # Check that canonical tracks have definitions
+    local canonical_tracks=("strategy" "org_ops" "commercial")
+    for track in "${canonical_tracks[@]}"; do
+        local track_dir="$EPF_ROOT/definitions/$track"
+        if [ -d "$track_dir" ]; then
+            local def_count=$(find "$track_dir" -name "*.yaml" 2>/dev/null | wc -l | tr -d ' ')
+            if [ "$def_count" -gt 0 ]; then
+                log_pass "Canonical track '$track' has $def_count definition(s)"
+            else
+                log_warning "Canonical track '$track' exists but has no definitions"
+            fi
+        else
+            log_warning "Canonical track directory missing: definitions/$track"
+        fi
+    done
+    
+    # Check that Product track is clearly marked as examples
+    local product_dir="$EPF_ROOT/definitions/product"
+    if [ -d "$product_dir" ]; then
+        local product_readme="$product_dir/README.md"
+        if [ -f "$product_readme" ]; then
+            if grep -qi "examples\|not.*canonical\|unique features" "$product_readme" 2>/dev/null; then
+                log_pass "definitions/product/README.md correctly describes Product as examples"
+            else
+                log_warning "definitions/product/README.md should clarify these are examples, not canonical"
+            fi
+        fi
+        
+        # Check template exists in _template/
+        if [ -d "$product_dir/_template" ]; then
+            log_pass "Product track has _template/ directory for starting template"
+        else
+            log_warning "Product track missing _template/ directory"
+        fi
+    fi
+    
+    # Check Commercial vs OrgOps boundary
+    # Commercial = investor ACQUISITION (fundraising, pitch decks, term sheets, closing deals)
+    # OrgOps = investor RELATIONS (governance, reporting, ongoing communication after close)
+    # 
+    # This check validates that track: field matches the file location
+    
+    local commercial_dir="$EPF_ROOT/definitions/commercial"
+    if [ -d "$commercial_dir" ]; then
+        local misplaced=0
+        for f in $(find "$commercial_dir" -name "*.yaml" 2>/dev/null); do
+            if [ -f "$f" ]; then
+                local fname=$(basename "$f")
+                # Check if track field says something other than commercial
+                local track=$(grep -m1 "^track:" "$f" 2>/dev/null | awk '{print $2}' | tr -d '"')
+                if [ -n "$track" ] && [ "$track" != "commercial" ]; then
+                    log_warning "Commercial definition '$fname' has track: $track (expected: commercial)"
+                    ((misplaced++))
+                fi
+            fi
+        done
+        
+        if [ "$misplaced" -eq 0 ]; then
+            log_pass "Commercial definitions have correct track field"
+        fi
+    fi
+    
+    local orgops_dir="$EPF_ROOT/definitions/org_ops"
+    if [ -d "$orgops_dir" ]; then
+        local misplaced=0
+        for f in $(find "$orgops_dir" -name "*.yaml" 2>/dev/null); do
+            if [ -f "$f" ]; then
+                local fname=$(basename "$f")
+                # Check if track field says something other than org_ops
+                local track=$(grep -m1 "^track:" "$f" 2>/dev/null | awk '{print $2}' | tr -d '"')
+                if [ -n "$track" ] && [ "$track" != "org_ops" ]; then
+                    log_warning "OrgOps definition '$fname' has track: $track (expected: org_ops)"
+                    ((misplaced++))
+                fi
+            fi
+        done
+        
+        if [ "$misplaced" -eq 0 ]; then
+            log_pass "OrgOps definitions have correct track field"
+        fi
+    fi
+}
+
+# =============================================================================
 # MAIN
 # =============================================================================
 main() {
@@ -863,6 +984,7 @@ main() {
     check_fire_phase_content "$EPF_ROOT"
     check_instances "$EPF_ROOT"
     check_content_quality "$EPF_ROOT"
+    check_canonical_track_consistency "$EPF_ROOT"
     
     # ==========================================================================
     # Summary

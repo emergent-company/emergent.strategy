@@ -1,0 +1,502 @@
+# Commercial Process Definition: Investor Pitch Deck
+# Schema: commercial_definition_schema.json v1.1.0
+# EPF Track: Commercial > Financing > Fundraising
+
+id: cd-010
+name: Investor Pitch Deck
+slug: investor-pitch-decks
+track: commercial
+status: ready
+
+contributes_to:
+  - Commercial.Fundraising.investor-pitch-decks
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Founder-built deck for first conversations"
+    includes:
+      - 10-15 slide deck covering essentials
+      - Basic narrative (problem → solution → ask)
+      - Key metrics slide (even if early)
+      - Appendix with supporting detail
+    effort: "2-3 days to create, iterate based on feedback"
+    
+  tier_2_intermediate:
+    description: "Polished deck with version management"
+    adds:
+      - Multiple versions (teaser, full, diligence)
+      - Professional design (designer involvement)
+      - Data room with supporting materials
+      - Deck tracking (who viewed what)
+      - Consistent story across team
+    effort: "1-2 weeks, designer + founder collaboration"
+    
+  tier_3_advanced:
+    description: "Comprehensive fundraising materials system"
+    adds:
+      - Investment memo (long-form narrative)
+      - Stage-specific decks (seed, A, B templates)
+      - Investor persona-specific variants
+      - Automated data refresh for metrics
+      - Board-approved messaging
+    effort: "Ongoing, dedicated ops support"
+
+definition:
+  purpose: |
+    The pitch deck is your story in a box - a compressed narrative that convinces 
+    investors to give you money and, more importantly, to give you their time for 
+    a deeper conversation. Most decks fail not because the company is bad, but 
+    because the story is unclear, the proof points are missing, or the ask is vague.
+    
+    A good deck does three things:
+    1. Gets you the meeting (first impression, often cold email)
+    2. Guides the conversation (structure for your pitch)
+    3. Lives in the investor's memory (forwarded to partners, referenced later)
+    
+    Your deck competes with thousands of others. It needs to pass the "30-second test" 
+    (investor scanning quickly) AND the "30-minute test" (deep dive conversation).
+    
+  outcome: |
+    A pitch deck that consistently converts to meetings, enables compelling 
+    conversations, and is remembered when investment committee discusses you.
+    Investors understand the opportunity, believe the team, and see a path to 
+    their target returns.
+    
+  owner: CEO + Co-founders
+  
+  inputs:
+    - name: Company narrative
+      description: The story of why this company, why now, why you
+      source: North Star, founder origin story, market thesis
+    - name: Key metrics
+      description: Traction proof points (revenue, users, growth, engagement)
+      source: Analytics, financials, product data
+    - name: Market data
+      description: TAM/SAM/SOM, competitive landscape, timing thesis
+      source: Market research, industry reports, investor expectations
+    - name: Financial model
+      description: Projections, unit economics, use of funds
+      source: Finance, operating plan
+    - name: Team credentials
+      description: Why this team will win
+      source: LinkedIn, track record, relevant experience
+      
+  outputs:
+    - name: Main pitch deck
+      description: 12-15 slide deck for partner meetings
+      consumer: Investors (general partners)
+    - name: Teaser deck
+      description: 5-8 slide version for cold outreach
+      consumer: Initial investor contact
+    - name: Appendix
+      description: Deep-dive slides for specific questions
+      consumer: Due diligence, follow-up meetings
+    - name: Data room
+      description: Supporting documents for diligence
+      consumer: Term sheet discussions
+      
+  steps:
+    - step: 1
+      action: Nail the narrative structure
+      responsible: CEO
+      duration: "4-8 hours"
+      deliverable: Written narrative outline (not slides yet)
+      structure: |
+        Standard narrative arc (can customize, but start here):
+        1. Hook: The big idea in one sentence
+        2. Problem: What's broken, who feels it, why it matters
+        3. Solution: Your unique approach
+        4. Why Now: Why this moment (market, tech, behavioral shift)
+        5. Traction: Proof you're onto something
+        6. Market: Size of opportunity
+        7. Business Model: How you make money
+        8. Competition: How you're different/better
+        9. Team: Why you'll win
+        10. The Ask: What you need, what you'll do with it
+        11. Vision: The world if you succeed
+      
+    - step: 2
+      action: Gather proof points
+      responsible: CEO + Finance + Product
+      duration: "4-8 hours"
+      deliverable: Metrics summary, market data, team bios
+      metrics_to_include:
+        - "Revenue/MRR and growth rate"
+        - "User metrics (MAU, retention, engagement)"
+        - "Unit economics (CAC, LTV, payback)"
+        - "Market sizing (TAM/SAM/SOM with clear logic)"
+        - "Competitive differentiation evidence"
+      
+    - step: 3
+      action: Build slide-by-slide
+      responsible: CEO (content) + Designer (layout)
+      duration: "8-16 hours"
+      deliverable: First complete deck draft
+      slide_principles:
+        - "One idea per slide"
+        - "Headline should convey the insight"
+        - "Visual > bullet points where possible"
+        - "Source data claims"
+        - "Be specific, not generic"
+      
+    - step: 4
+      action: Optimize for the 30-second test
+      responsible: CEO
+      duration: "2-4 hours"
+      deliverable: Deck that communicates at a glance
+      test_questions:
+        - "If investor only reads headlines, do they get the story?"
+        - "Can they tell what you do in 10 seconds?"
+        - "Is the ask clear and memorable?"
+        - "Does the first slide make them want slide 2?"
+      
+    - step: 5
+      action: Practice and iterate
+      responsible: CEO + advisors
+      duration: "1-2 weeks"
+      deliverable: Battle-tested deck
+      approach:
+        - Present to friendly investors (warm intros)
+        - Present to advisors who've raised before
+        - Record yourself, watch for pacing
+        - Note questions asked - indicate confusion
+        - Update deck based on patterns
+      
+    - step: 6
+      action: Create variants
+      responsible: CEO + Ops
+      duration: "4-8 hours"
+      deliverable: Teaser deck, appendix, persona variants
+      variants:
+        - "Teaser (5-8 slides): Problem, solution, traction, ask"
+        - "Full (12-15 slides): Complete narrative"
+        - "Extended (20+ slides): Includes appendix"
+        - "Industry-specific: VC vs. strategics vs. family offices"
+        
+    - step: 7
+      action: Set up deck tracking
+      responsible: Operations / founder
+      duration: "1-2 hours"
+      deliverable: Tracked deck links
+      tools:
+        - DocSend (industry standard)
+        - Pitch (newer alternative)
+        - Google Slides (with link tracking add-on)
+      why_track:
+        - See who opened and how long
+        - Follow up intelligently
+        - Know which slides lose interest
+
+  cadence:
+    frequency: Per fundraise, with updates
+    trigger: Beginning of fundraise process (3-6 months before needed)
+    duration: "2-4 weeks initial creation, ongoing iteration"
+    maintenance: |
+      - Update metrics monthly during fundraise
+      - Refresh narrative after major milestones
+      - Create new version after each funding round
+    
+  participants:
+    - role: CEO
+      responsibility: Own narrative, present deck, iterate based on feedback
+      time_commitment: "20-40 hours creation, 100+ hours during fundraise"
+    - role: Co-founders
+      responsibility: Input on areas of expertise, present relevant sections
+      time_commitment: "4-8 hours input, variable during fundraise"
+    - role: Finance
+      responsibility: Financial model, metrics accuracy, projections
+      time_commitment: "8-16 hours"
+    - role: Designer
+      responsibility: Visual polish, consistency, clarity
+      time_commitment: "8-20 hours (can be outsourced)"
+    - role: Advisors
+      responsibility: Review, feedback, mock pitches
+      time_commitment: "2-4 hours each"
+
+  success_criteria:
+    - Meeting conversion rate >20% from cold outreach
+    - Partner meeting conversion rate >30% from first meeting
+    - Deck can be pitched in 10-15 minutes leaving time for Q&A
+    - Investors can articulate your value proposition after meeting
+    - Deck serves as useful reference document post-meeting
+
+operational_context:
+  prerequisites:
+    - Company metrics accessible and accurate
+    - Financial model exists
+    - Clarity on how much to raise and why
+    - Time blocked for iteration
+    
+  common_blockers:
+    - "No traction to show → Be honest about stage, show early signals, emphasize team/market"
+    - "Perfectionism paralysis → Good enough to get feedback > perfect in isolation"
+    - "Too much text → Cut ruthlessly, one idea per slide"
+    - "Metrics are embarrassing → Context > spin (show trajectory, explain why)"
+    - "No design skills → Outsource or use clean templates (Figma community)"
+    
+  metrics:
+    - name: Cold email to meeting conversion
+      description: "% of cold investor emails that become meetings"
+      target: ">15-20%"
+      tier: 1
+    - name: First meeting to partner meeting
+      description: "% of first meetings that advance"
+      target: ">30%"
+      tier: 1
+    - name: Deck engagement time
+      description: How long investors spend in deck (DocSend)
+      target: ">3 minutes average"
+      tier: 2
+
+tools_ecosystem:
+  recommended:
+    - category: Deck Creation
+      examples:
+        - Google Slides (simple, collaborative)
+        - Pitch (built for startups)
+        - Figma (design-forward)
+        - Keynote/PowerPoint (offline)
+      purpose: Build and iterate on deck
+    - category: Deck Tracking
+      examples:
+        - DocSend (industry standard)
+        - Pitch (built-in tracking)
+        - Notion (for shared content)
+      purpose: Track engagement, manage versions
+    - category: Design Resources
+      examples:
+        - Figma community templates
+        - SlideCamp
+        - 99designs (outsourced)
+      purpose: Achieve professional look
+    - category: Data Room
+      examples:
+        - DocSend data rooms
+        - Notion
+        - Google Drive (basic)
+      purpose: Organize due diligence materials
+
+# Practitioner Scenarios - How This Plays Out in Real Organizations
+practitioner_scenarios:
+  - id: ps-001
+    name: "First-time founder building seed deck"
+    practitioner: "CEO / First-time Founder"
+    organization_context: "2-person pre-seed startup, no pitch experience, building first deck for angel/seed fundraise"
+    situation: |
+      Priya (CEO) and Dev (CTO) have been building for 6 months with their own money. 
+      They have early users (500 beta) but no revenue yet. Priya has never raised 
+      money or built a pitch deck. She's seen examples online but they all look 
+      polished in ways she can't achieve. She's worried her deck will look 
+      "amateur" and she doesn't know what metrics matter at this stage.
+    trigger: "Runway running low (4 months left), need to start fundraising"
+    actions: |
+      1. Priya starts by writing (not designing) - 2 hours answering: "If I had 
+         5 minutes with an investor, what would I say?" This becomes the outline.
+      2. Finds 5 pitch decks from companies at similar stage (AngelList, deck 
+         databases). Studies structure, not design. Notes: they're simpler than 
+         expected.
+      3. Creates rough slides in Google Slides using a clean template. Focus on 
+         content, not beauty. 15 slides, one idea each.
+      4. For the "traction" slide (her biggest worry), frames honestly: "500 beta 
+         users, 40% weekly retention, 0 marketing spend." Context: these are 
+         organic signups from a waitlist.
+      5. Biggest struggle: market size. Spends 4 hours on TAM/SAM/SOM. Realizes 
+         she was overthinking - uses bottom-up approach (# of target customers 
+         × average spend).
+      6. Asks an advisor (experienced founder) to do mock pitch. Advisor's 
+         feedback: "Your problem slide is weak - I don't feel the pain." Priya 
+         adds customer quotes and a real example.
+      7. Presents to 3 angel investors (warm intros) as practice. Takes notes on 
+         questions. Common question: "How will you acquire customers?" Adds slide 
+         on go-to-market.
+      8. Finds a designer friend to spend 2 hours on polish. Not a redesign - just 
+         consistent fonts, aligned elements, cleaner visuals.
+    outcome: |
+      Raised $500K seed from 8 angels in 6 weeks. Meeting conversion was 35% from 
+      warm intros. Deck evolved significantly - version 12 is what worked. Key 
+      learning: the deck is never "done" - it's a living document that improves 
+      with every conversation.
+    lessons:
+      - "Start with writing, not slides - nail the narrative first"
+      - "At early stage, trajectory matters more than absolute numbers"
+      - "Mock pitches are invaluable - advisors see what you can't"
+      - "Simple template + clear content > fancy design with muddled story"
+      - "Track questions asked - they reveal deck gaps"
+      - "Expect 10+ versions before you're happy"
+
+  - id: ps-002
+    name: "Pivot narrative for Series A deck"
+    practitioner: "CEO / Second-time Founder"
+    organization_context: "15-person seed-stage company, pivoted 8 months ago, now raising Series A with new narrative"
+    situation: |
+      Marcus (CEO) raised a $2M seed 18 months ago for a consumer social app. It 
+      didn't work - acquired 100K users but couldn't monetize. 8 months ago, pivoted 
+      to B2B (same underlying tech, different use case). Now has $30K MRR growing 
+      25% m/m. Needs to raise $8M Series A. Challenge: how to tell the pivot story 
+      without looking like he failed.
+    trigger: "Ready for Series A, but deck needs to explain pivot compellingly"
+    actions: |
+      1. Marcus drafts two versions of the story:
+         - Version A: "We pivoted" (honest but potentially negative)
+         - Version B: "We discovered a bigger opportunity" (reframe)
+         Tests both with advisors. Feedback: Version B is better but needs specifics.
+      2. Structures the pivot narrative:
+         - "We started in consumer because we saw [insight]"
+         - "We built [technology] that worked"
+         - "We discovered enterprise had 10x the willingness to pay"
+         - "Same tech, bigger market, faster path to revenue"
+      3. The "traction" section becomes key: $30K MRR, 8-month-old business, 
+         25% m/m growth. Frames as "B2B traction since pivot" not "total company 
+         history."
+      4. Addresses the elephant: "What about the consumer business?" Answer: 
+         "We learned invaluable lessons about [specific thing] that we couldn't 
+         have learned any other way. And our tech is battle-tested at 100K user 
+         scale."
+      5. Creates detailed appendix on unit economics - knowing that pivot 
+         skepticism will drive extra diligence.
+      6. Practices "the pivot question" (he knows it's coming) until he can answer 
+         confidently: "The consumer market taught us X, but enterprise is where 
+         we build a billion-dollar business."
+      7. First 3 pitches: 2 investors explicitly asked about pivot risk. Marcus's 
+         prepared answer worked. Third meeting went to partner meeting.
+    outcome: |
+      Raised $10M Series A (more than planned). The pivot story, well-told, became 
+      a strength: "This team pivots based on data, not stubbornness." Key: Marcus 
+      led with confidence, not apology. 4 of 6 partner meetings mentioned liking 
+      the pivot story.
+    lessons:
+      - "Frame pivot as 'discovered bigger opportunity' not 'failed and changed'"
+      - "Prepare specifically for 'what about the old business' question"
+      - "New-business traction should be prominent - clean slate from pivot"
+      - "Past experience can be asset: 'battle-tested tech'"
+      - "Confidence in delivery matters - don't apologize for the journey"
+      - "Over-index on unit economics to counter pivot skepticism"
+
+  - id: ps-003
+    name: "International founder adapting deck for US investors"
+    practitioner: "CEO / Founder (Non-US based)"
+    organization_context: "25-person Series A startup based in Europe, raising from US investors for the first time"
+    situation: |
+      Anika (CEO) runs a fintech from Berlin. She's raised €5M from European 
+      investors and has €2M ARR. Now raising $15M Series B with US lead. Her 
+      European deck worked well locally, but early US conversations feel off. 
+      Investors ask questions she didn't expect: "What's your US plan?" "Why 
+      aren't you growing faster?" "How does European regulation affect us?"
+    trigger: "First 5 US investor meetings underperformed; need to adapt approach"
+    actions: |
+      1. Anika gets feedback from a US-based advisor: "Your deck is too modest. 
+         European decks undersell, US investors expect confidence." Example: her 
+         deck says "solid growth," US expectation is "explosive growth."
+      2. Adjusts language throughout:
+         - "Steady 15% m/m" → "Consistent 15% monthly growth, compounding to 5x annually"
+         - "Strong retention" → "93% net revenue retention, expanding within accounts"
+         - "Experienced team" → "Team has built €500M+ in value across 3 exits"
+      3. Adds explicit US slide: "Why US Now"
+         - "Europe is proof of concept, US is scale market"
+         - "Hiring US sales team Q3"
+         - "3 US enterprise pilots already in progress"
+      4. Changes market sizing: European investors cared about TAM. US investors 
+         want to see US-specific TAM. Adds US market size and entry strategy.
+      5. Addresses regulatory question head-on: creates slide on "Regulatory as 
+         Moat" - how European compliance experience becomes competitive advantage 
+         in US compliance requirements.
+      6. Adjusts the ask: €15M in Europe would be "large Series B." In US framing, 
+         positions as "efficient Series B to hit Series C metrics in 18 months."
+      7. Practices with 2 US-based founders who've raised there. Their feedback: 
+         "You're still too humble in person. Own the wins."
+    outcome: |
+      Raised $18M from US lead + European follow-on. The adaptation made significant 
+      difference - post-close, lead investor said "I almost passed after first 
+      meeting, but the second meeting felt like a different company." Key: same 
+      substance, different presentation.
+    lessons:
+      - "US investor expectations differ - confidence, ambition, scale"
+      - "Explicit US strategy is required - 'we'll figure it out' doesn't work"
+      - "Turn potential weakness (foreign) into strength (regulatory moat)"
+      - "Adjust language: modest → confident, steady → explosive"
+      - "Practice with locals - cultural nuances matter"
+      - "Same substance can feel like different company with right framing"
+
+# Risks - What Can Go Wrong and How to Prevent/Handle
+risks:
+  execution_risks:
+    - risk: "Deck is too long - loses investor attention"
+      likelihood: high
+      impact: medium
+      mitigation: |
+        Ruthlessly cut to 12-15 slides for main deck. If you can't say it in 
+        10-15 minutes, you don't know your story. Appendix exists for depth. 
+        Test: can you pitch it in an elevator ride?
+        
+    - risk: "Metrics don't support the story"
+      likelihood: medium
+      impact: high
+      mitigation: |
+        Context > spin. If metrics are early, frame stage honestly: "At our 
+        stage, we're focused on [leading indicators]." Show trajectory not 
+        just snapshots. Never lie - investors will find out.
+        
+    - risk: "Generic deck that doesn't stand out"
+      likelihood: high
+      impact: high
+      mitigation: |
+        Be specific, not generic. "Our AI is 40% more accurate" not "cutting-edge 
+        AI." Include specific examples, customer quotes, real numbers. Generic 
+        decks are forgotten immediately.
+        
+    - risk: "Beautiful design, unclear story"
+      likelihood: medium
+      impact: high
+      mitigation: |
+        Nail content before design. If you can't explain each slide verbally, 
+        it shouldn't exist. Design enhances clarity, doesn't replace it. 
+        Headlines should tell the story.
+        
+    - risk: "Different versions cause confusion"
+      likelihood: medium
+      impact: medium
+      mitigation: |
+        Clear version control: "V12-March-Full" naming convention. Track which 
+        investor received which version. Update all versions together for 
+        material changes.
+        
+  organizational_risks:
+    - risk: "Deck promises what company can't deliver"
+      impact: |
+        Investors feel misled during diligence. Trust is lost. Even if term 
+        sheet happens, relationship starts poorly. Reputation damage spreads 
+        in investor community.
+      prevention: |
+        Every claim should be supportable in diligence. "Projections" should be 
+        defensible with assumptions. Have team review for accuracy. Better to 
+        underpromise than be caught exaggerating.
+        
+    - risk: "Founder can't deliver the deck in person"
+      impact: |
+        Deck is beautiful, but pitch is weak. Investors invest in people, not 
+        slides. Disconnect between deck quality and founder presence raises 
+        red flags about operational ability.
+      prevention: |
+        Practice relentlessly. Present to advisors, team, mirror. Record and 
+        watch. CEO must own the story - not delegate to more polished speaker. 
+        Authenticity > polish.
+
+domain_context:
+  related_l2: "Fundraising"
+  related_l1: "FINANCING"
+  synergies:
+    - "cd-011 (Due-Diligence Preparation): Data room supports deck claims"
+    - "cd-012 (Financial Modeling): Model backs projections in deck"
+    - "cd-013 (Term Sheet Negotiation): Deck quality affects terms"
+    - "sd-010 (North Star): Purpose/vision feeds deck narrative"
+  artifacts_produced:
+    - "Main pitch deck (12-15 slides)"
+    - "Teaser deck (5-8 slides)"
+    - "Appendix slides"
+    - "Deck tracking dashboard"
+  prerequisites:
+    - "Clear company narrative (sd-010, sd-011)"
+    - "Metrics infrastructure to support claims"
+    - "Financial model (cd-012)"

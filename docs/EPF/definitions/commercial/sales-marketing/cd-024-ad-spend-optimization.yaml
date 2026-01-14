@@ -1,0 +1,775 @@
+# Commercial Process Definition: Ad Spend Optimization
+# Schema: commercial_definition_schema.json v1.1.0
+
+id: cd-024
+name: Ad Spend Optimization
+slug: ad-spend-optimization
+track: commercial
+status: ready
+
+contributes_to:
+  - Commercial.Marketing Operations.ad-spend-optimization
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Manual budget management with periodic review"
+    includes:
+      - Monthly budget allocation
+      - Basic platform metrics
+      - Manual bid adjustments
+      - Simple ROI tracking
+    effort: "Weekly reviews, manual optimization"
+    
+  tier_2_intermediate:
+    description: "Data-driven optimization with regular iteration"
+    adds:
+      - Weekly performance analysis
+      - A/B testing framework
+      - Cross-channel comparison
+      - Conversion tracking integration
+    effort: "2-4 hours per week optimization"
+    
+  tier_3_advanced:
+    description: "Algorithmic optimization with automation"
+    adds:
+      - Automated bid management
+      - Predictive budget allocation
+      - Multi-touch attribution
+      - Real-time optimization
+    effort: "Sophisticated martech + dedicated resource"
+
+definition:
+  purpose: |
+    Ad spend optimization ensures marketing budget generates 
+    maximum return. Every dollar should work as hard as 
+    possible. This process brings discipline to paid media 
+    investment decisions.
+    
+    Why optimization matters:
+    
+    1. Budget efficiency. Startups have limited marketing 
+       budgets. Waste is unacceptable.
+    
+    2. Scalability. You can only scale what you can measure 
+       and optimize. Efficient spend scales; inefficient 
+       spend just loses money faster.
+    
+    3. Learning. Optimization generates insights about what 
+       works - audiences, messages, channels.
+    
+    4. Competitive advantage. Better optimization means more 
+       output per dollar than competitors.
+    
+    5. Accountability. Leadership wants to know marketing 
+       spend is generating returns.
+    
+    Key optimization dimensions:
+    
+    1. Channel allocation: Where to invest across platforms
+    2. Campaign optimization: Performance within platforms
+    3. Audience optimization: Who to target
+    4. Creative optimization: What message works
+    5. Bidding optimization: How to bid efficiently
+    
+  outcome: |
+    Improved ROAS (Return on Ad Spend). Lower customer 
+    acquisition costs. Clear visibility into marketing 
+    efficiency. Confidence to scale spending on what works.
+    
+  owner: Marketing (demand gen, growth marketing)
+  
+  inputs:
+    - name: Campaign performance data
+      description: "Results from all paid channels"
+      source: Ad platforms, analytics
+      
+    - name: Conversion data
+      description: "What happens after click"
+      source: CRM, analytics
+      
+    - name: Budget constraints
+      description: "How much we can spend"
+      source: Finance, marketing leadership
+      
+    - name: Business objectives
+      description: "What we are optimizing for"
+      source: Marketing strategy
+      
+  outputs:
+    - name: Optimized allocation
+      description: "Where to invest budget"
+      consumer: Campaign managers
+      
+    - name: Performance insights
+      description: "What works and what does not"
+      consumer: Marketing team
+      
+    - name: Efficiency reports
+      description: "ROI and efficiency metrics"
+      consumer: Leadership
+
+  steps:
+    - step: 1
+      action: Establish measurement foundation
+      responsible: Marketing ops / Growth
+      duration: "1-2 weeks setup, ongoing maintenance"
+      deliverable: Tracking infrastructure
+      tracking_infrastructure:
+        conversion_tracking:
+          must_have:
+            - "Website conversion tracking"
+            - "Form submission tracking"
+            - "Demo/trial request tracking"
+          nice_to_have:
+            - "Revenue/pipeline attribution"
+            - "Offline conversion import"
+          implementation:
+            google_ads:
+              - "Google Ads conversion tracking"
+              - "Google Analytics integration"
+              - "Conversion value tracking"
+            linkedin:
+              - "LinkedIn Insight Tag"
+              - "Conversion tracking"
+              - "Lead gen form tracking"
+            facebook:
+              - "Facebook Pixel"
+              - "Conversions API"
+              - "Offline conversions"
+        utm_parameters:
+          standard_parameters:
+            source: "Platform (google, linkedin, facebook)"
+            medium: "Channel type (cpc, paid-social)"
+            campaign: "Campaign name"
+            term: "Keyword or targeting"
+            content: "Ad creative variant"
+          best_practices:
+            - "Consistent naming conventions"
+            - "Auto-tagging where available"
+            - "Document in shared tracker"
+        analytics_setup:
+          web_analytics:
+            - "Google Analytics 4"
+            - "Goal/conversion setup"
+            - "Event tracking"
+          crm_integration:
+            - "Lead source capture"
+            - "Campaign attribution"
+            - "Pipeline tracking"
+      data_quality:
+        common_issues:
+          - "Missing UTMs"
+          - "Broken conversion tracking"
+          - "Cross-device gaps"
+          - "Ad blocker impact"
+        validation:
+          - "Regular tracking audits"
+          - "Test conversions"
+          - "Compare platforms to analytics"
+      best_practices:
+        - "Set up tracking before spending"
+        - "Test all tracking monthly"
+        - "Document everything"
+        - "Accept some data loss is normal"
+
+    - step: 2
+      action: Define efficiency metrics
+      responsible: Marketing leadership + Growth
+      duration: "2-4 hours"
+      deliverable: KPI framework
+      core_metrics:
+        efficiency_metrics:
+          cpc:
+            name: "Cost Per Click"
+            formula: "Spend / Clicks"
+            use: "Channel and creative comparison"
+            benchmark: "Varies by platform and industry"
+          cpm:
+            name: "Cost Per Thousand Impressions"
+            formula: "Spend / Impressions * 1000"
+            use: "Awareness campaign efficiency"
+          cpl:
+            name: "Cost Per Lead"
+            formula: "Spend / Leads"
+            use: "Primary efficiency metric for lead gen"
+            benchmark: "B2B SaaS: $50-200 typical"
+          cpa:
+            name: "Cost Per Acquisition"
+            formula: "Spend / Customers"
+            use: "True customer acquisition cost"
+          cac:
+            name: "Customer Acquisition Cost"
+            formula: "Total marketing spend / New customers"
+            use: "Blended acquisition efficiency"
+        return_metrics:
+          roas:
+            name: "Return on Ad Spend"
+            formula: "Revenue / Ad Spend"
+            use: "Revenue efficiency"
+            benchmark: "2-4x minimum for profitability"
+          roi:
+            name: "Return on Investment"
+            formula: "(Revenue - Spend) / Spend"
+            use: "Net return"
+          ltv_cac:
+            name: "LTV to CAC Ratio"
+            formula: "Customer Lifetime Value / CAC"
+            use: "Acquisition quality"
+            benchmark: "3:1 minimum"
+        quality_metrics:
+          conversion_rate:
+            name: "Conversion Rate"
+            formula: "Conversions / Clicks"
+            use: "Traffic quality indicator"
+          lead_to_opp:
+            name: "Lead to Opportunity Rate"
+            formula: "Opportunities / Leads"
+            use: "Lead quality indicator"
+          cost_per_opp:
+            name: "Cost Per Opportunity"
+            formula: "Spend / Opportunities"
+            use: "Pipeline efficiency"
+      setting_targets:
+        approach:
+          - "Baseline current performance"
+          - "Benchmark against industry"
+          - "Set realistic improvement goals"
+          - "Tie to business objectives"
+        example:
+          current_cpl: "$150"
+          industry_benchmark: "$100"
+          target: "$120 (20% improvement)"
+      best_practices:
+        - "Focus on fewer, meaningful metrics"
+        - "Track leading and lagging indicators"
+        - "Connect to business outcomes"
+        - "Update benchmarks regularly"
+
+    - step: 3
+      action: Analyze channel performance
+      responsible: Growth / Demand gen
+      duration: "2-4 hours weekly"
+      deliverable: Performance analysis
+      channel_analysis:
+        data_collection:
+          sources:
+            - "Platform dashboards (Google, LinkedIn, etc.)"
+            - "Web analytics"
+            - "CRM reports"
+          frequency: "Weekly minimum"
+          consolidation: "Single view across channels"
+        analysis_framework:
+          by_channel:
+            metrics:
+              - "Spend"
+              - "Impressions"
+              - "Clicks"
+              - "Leads"
+              - "Cost per lead"
+              - "Conversion rate"
+            comparison: "Week over week, month over month"
+          by_campaign:
+            within_channel: "Compare campaign performance"
+            identify:
+              - "Best performers"
+              - "Worst performers"
+              - "Opportunities"
+          by_audience:
+            segments: "Different targeting approaches"
+            compare: "Efficiency across segments"
+          by_creative:
+            variants: "Different ad creatives"
+            learnings: "What messaging works"
+      performance_diagnosis:
+        high_cpl:
+          possible_causes:
+            - "Wrong audience targeting"
+            - "Poor creative resonance"
+            - "Low landing page conversion"
+            - "Competitive pressure"
+          investigation:
+            - "Check CTR (interest problem?)"
+            - "Check conversion rate (landing page?)"
+            - "Check audience (targeting?)"
+        low_volume:
+          possible_causes:
+            - "Budget constraints"
+            - "Narrow targeting"
+            - "Low impression share"
+          investigation:
+            - "Check impression share"
+            - "Expand targeting"
+            - "Increase budget"
+        poor_quality:
+          possible_causes:
+            - "Wrong audience"
+            - "Misleading creative"
+            - "Poor fit targeting"
+          investigation:
+            - "Review lead to opp rate"
+            - "Check audience alignment"
+            - "Analyze lost leads"
+      reporting:
+        weekly_report:
+          - "Spend vs. budget"
+          - "Lead volume vs. target"
+          - "CPL trend"
+          - "Channel comparison"
+          - "Actions taken"
+        tools:
+          simple: "Spreadsheet"
+          intermediate: "Looker Studio / Tableau"
+          advanced: "BI with marketing data warehouse"
+      best_practices:
+        - "Consistent analysis rhythm"
+        - "Look for patterns, not just numbers"
+        - "Connect to business outcomes"
+        - "Take action, not just report"
+
+    - step: 4
+      action: Optimize allocation and bidding
+      responsible: Growth / Demand gen
+      duration: "Ongoing"
+      deliverable: Optimized spend
+      budget_allocation:
+        allocation_approach:
+          performance_based:
+            principle: "Shift budget to what works"
+            process:
+              - "Identify best performing channels/campaigns"
+              - "Shift budget from underperformers"
+              - "Maintain testing allocation"
+          portfolio_approach:
+            principle: "Balance efficiency and growth"
+            buckets:
+              proven: "70% - Channels with proven ROI"
+              testing: "20% - Testing new approaches"
+              experimental: "10% - Big bets"
+        reallocation_triggers:
+          shift_budget_to:
+            - "CPL 20%+ better than average"
+            - "Higher quality (lead to opp rate)"
+            - "Scaling potential"
+          reduce_budget_from:
+            - "CPL 20%+ worse than average"
+            - "Low lead quality"
+            - "Declining performance"
+        reallocation_process:
+          frequency: "Weekly adjustments"
+          magnitude: "10-20% shifts typical"
+          documentation: "Track changes and results"
+      bid_optimization:
+        bid_strategies:
+          manual:
+            when: "Starting out, learning"
+            approach: "Set bids, monitor, adjust"
+          automated:
+            when: "Sufficient conversion data"
+            options:
+              target_cpa: "Optimize for cost per acquisition"
+              maximize_conversions: "Get most conversions for budget"
+              target_roas: "Optimize for return"
+        optimization_tactics:
+          by_audience:
+            - "Increase bids on best segments"
+            - "Decrease on underperformers"
+          by_time:
+            - "Adjust for day/time performance"
+            - "Dayparting"
+          by_device:
+            - "Mobile vs. desktop optimization"
+          by_placement:
+            - "Feed vs. sidebar"
+            - "Network optimization"
+      testing_framework:
+        what_to_test:
+          audiences:
+            - "Job title targeting"
+            - "Company targeting"
+            - "Lookalike audiences"
+            - "Retargeting segments"
+          creative:
+            - "Headlines"
+            - "Images/video"
+            - "Copy"
+            - "CTAs"
+          landing_pages:
+            - "Offer"
+            - "Form length"
+            - "Design"
+        testing_process:
+          - "Hypothesis"
+          - "Test design"
+          - "Sufficient sample size"
+          - "Clear winner criteria"
+          - "Implement learnings"
+      best_practices:
+        - "Optimize, don't just set and forget"
+        - "Test continuously"
+        - "Give changes time to work"
+        - "Document learnings"
+
+    - step: 5
+      action: Improve conversion paths
+      responsible: Growth + Web team
+      duration: "Ongoing"
+      deliverable: Higher converting funnels
+      landing_page_optimization:
+        key_elements:
+          headline: "Clear value proposition"
+          supporting_copy: "Benefits, not features"
+          social_proof: "Logos, testimonials"
+          form: "Right friction level"
+          cta: "Clear action"
+        optimization_tactics:
+          reduce_friction:
+            - "Shorter forms"
+            - "Progressive profiling"
+            - "Chat alternatives"
+          increase_trust:
+            - "More social proof"
+            - "Security indicators"
+            - "Clear privacy"
+          improve_clarity:
+            - "Better headline"
+            - "Simpler page"
+            - "Clearer CTA"
+        testing:
+          approach: "A/B test changes"
+          sample_size: "Statistically significant"
+          measurement: "Conversion rate impact"
+      funnel_optimization:
+        conversion_funnel:
+          stages:
+            - "Ad impression"
+            - "Click"
+            - "Landing page view"
+            - "Form start"
+            - "Form submit"
+            - "Lead qualified"
+          analysis: "Drop-off at each stage"
+        optimization_by_stage:
+          low_ctr:
+            cause: "Ad not compelling"
+            fix: "Better creative, targeting"
+          high_bounce:
+            cause: "Landing page mismatch"
+            fix: "Better page, message match"
+          low_form_completion:
+            cause: "Too much friction"
+            fix: "Shorter form, better offer"
+          low_quality:
+            cause: "Wrong audience"
+            fix: "Better targeting, qualification"
+      post_click_experience:
+        speed:
+          impact: "Every second costs conversions"
+          target: "Under 3 seconds load"
+        mobile:
+          importance: "Often majority of traffic"
+          requirements: "Mobile-optimized pages"
+        relevance:
+          principle: "Ad to page consistency"
+          approach: "Match headlines, offers"
+      best_practices:
+        - "Optimize the whole funnel"
+        - "Test one thing at a time"
+        - "Mobile-first"
+        - "Speed matters"
+
+    - step: 6
+      action: Report and iterate
+      responsible: Growth / Marketing leadership
+      duration: "Weekly + Monthly"
+      deliverable: Performance reports, improvement roadmap
+      reporting_cadence:
+        weekly:
+          audience: "Marketing team"
+          content:
+            - "Spend vs. budget"
+            - "Lead volume vs. target"
+            - "CPL by channel"
+            - "Notable changes"
+            - "Actions taken"
+          format: "Quick update, Slack or email"
+        monthly:
+          audience: "Marketing leadership"
+          content:
+            - "Full funnel performance"
+            - "Channel efficiency comparison"
+            - "Trend analysis"
+            - "Test results"
+            - "Recommendations"
+          format: "Report or presentation"
+        quarterly:
+          audience: "Leadership, Finance"
+          content:
+            - "ROI summary"
+            - "Channel mix analysis"
+            - "Strategic recommendations"
+            - "Budget request"
+          format: "Business review"
+      continuous_improvement:
+        learning_loop:
+          - "Analyze performance"
+          - "Identify opportunities"
+          - "Form hypotheses"
+          - "Test improvements"
+          - "Implement winners"
+          - "Repeat"
+        improvement_areas:
+          efficiency:
+            - "Lower CPL"
+            - "Better targeting"
+            - "Creative optimization"
+          quality:
+            - "Better lead quality"
+            - "Higher conversion rates"
+            - "Pipeline impact"
+          scale:
+            - "New channels"
+            - "Increased budget"
+            - "Expanded reach"
+      documentation:
+        playbooks:
+          - "Channel-specific playbooks"
+          - "What works by audience"
+          - "Creative best practices"
+        learnings_log:
+          - "Test results"
+          - "Optimization wins"
+          - "Things to avoid"
+      best_practices:
+        - "Report insights, not just data"
+        - "Connect to business impact"
+        - "Always have recommendations"
+        - "Build institutional knowledge"
+
+  cadence:
+    frequency: "Continuous with weekly reviews"
+    trigger: "Always running when ads are running"
+    duration: "Ongoing"
+    ongoing:
+      - Daily monitoring (automated alerts)
+      - Weekly optimization sessions
+      - Monthly performance reviews
+      - Quarterly strategic reviews
+
+practitioner_scenarios:
+  - id: ps-001
+    name: "Founder Managing First Paid Campaigns"
+    practitioner: "CEO / Founder"
+    organization_context: |
+      Pre-seed startup testing paid acquisition. Limited budget 
+      ($2-5K/month). Founder running campaigns directly. Need 
+      to prove channel viability before hiring.
+    situation: |
+      Running Google and LinkedIn ads to test channels. No 
+      dedicated marketing. Founder checking daily but not 
+      systematically optimizing. Spending but not sure if 
+      it's working efficiently.
+    trigger: |
+      Board asked about marketing efficiency. Burn rate 
+      concerns. Need to either prove ROI or cut spend. 
+      Must get disciplined about optimization.
+    actions: |
+      1. Set up proper tracking:
+         - Installed conversion tracking on both platforms
+         - Set up UTMs consistently
+         - Connected to CRM for lead tracking
+         - Built simple dashboard in Looker Studio
+      2. Defined success metrics:
+         - Target CPL: $150 (based on LTV)
+         - Minimum ROAS: 3x
+         - Lead quality: 20% to opportunity
+      3. Established baseline:
+         - Current Google CPL: $120 (good)
+         - Current LinkedIn CPL: $280 (high)
+         - Lead quality: 15% (below target)
+      4. Optimized allocation:
+         - Shifted 60% budget to Google (better efficiency)
+         - Reduced LinkedIn to 40% (testing)
+         - Focused LinkedIn on ABM approach
+      5. Improved campaigns:
+         - Tightened Google keywords (less waste)
+         - Better LinkedIn targeting (smaller, focused)
+         - Tested new ad creative (2x CTR)
+         - Improved landing pages (20% more conversions)
+      6. Results after 6 weeks:
+         - Blended CPL: $100 (from $160)
+         - Lead quality: 25% (from 15%)
+         - Clear ROI positive
+    outcome: |
+      Proved paid acquisition viability with improved 
+      efficiency. Cut CPL by 40%. Improved lead quality. 
+      Built case for increased investment and marketing hire.
+    lessons:
+      - Tracking is foundation
+      - Focus on efficiency before scale
+      - Quick iteration beats perfect planning
+      - Data drives decisions
+
+  - id: ps-002
+    name: "Marketing Manager Professionalizing Ad Operations"
+    practitioner: "Marketing Manager"
+    organization_context: |
+      Series A startup with $20K/month ad budget. One 
+      marketing generalist. Running ads on multiple platforms 
+      but no systematic optimization process.
+    situation: |
+      Managing campaigns across Google, LinkedIn, and Facebook. 
+      Spending consistently but CPL varies widely. No clear 
+      optimization process. Leadership asking for more 
+      accountability on spend.
+    trigger: |
+      VP Marketing asked for efficiency improvement plan. 
+      Target: 30% CPL reduction. Need to professionalize 
+      ad operations.
+    actions: |
+      1. Audited current state:
+         - Documented all active campaigns
+         - Identified tracking gaps
+         - Calculated baseline metrics by channel
+         - Found significant waste in broad targeting
+      2. Fixed infrastructure:
+         - Standardized UTM conventions
+         - Fixed conversion tracking gaps
+         - Built comprehensive dashboard
+         - Set up weekly reporting
+      3. Analyzed performance:
+         - Google Search: $80 CPL (best)
+         - Google Display: $200 CPL (worst)
+         - LinkedIn: $150 CPL (medium)
+         - Facebook: $100 CPL (good)
+         - Identified 30% spend on underperformers
+      4. Rebalanced budget:
+         - Cut Display budget 50%
+         - Increased Search budget 30%
+         - Focused LinkedIn on key personas
+         - Tested new Facebook audiences
+      5. Optimized campaigns:
+         - Negative keywords (Search)
+         - Audience exclusions (all channels)
+         - Creative refresh (all channels)
+         - Landing page tests (10% conversion lift)
+      6. Established process:
+         - Weekly performance reviews
+         - Monthly optimization sprints
+         - Quarterly strategic reviews
+         - Documentation and playbooks
+      7. Results over quarter:
+         - Blended CPL: $85 (from $120) - 29% reduction
+         - Lead volume maintained
+         - Lead quality improved 15%
+    outcome: |
+      Achieved target CPL reduction. Established professional 
+      ad operations. Clear reporting and accountability. 
+      Foundation for scaling spend.
+    lessons:
+      - Audit before optimizing
+      - Cut waste before adding spend
+      - Process enables consistency
+      - Document what works
+
+  - id: ps-003
+    name: "VP Marketing Scaling Efficient Acquisition"
+    practitioner: "VP Marketing"
+    organization_context: |
+      Series B startup with $100K/month paid media budget. 
+      Small growth team (2 people). Need to scale acquisition 
+      while maintaining efficiency. Board expects predictable 
+      CAC and growth.
+    situation: |
+      Current acquisition is efficient but small. Need to 3x 
+      spend while maintaining CAC. Pressure to prove scalable 
+      unit economics. Current channels may be tapped out.
+    trigger: |
+      Board approved $300K/month marketing budget. Must scale 
+      acquisition 3x while keeping CAC within 10% of current. 
+      Six months to prove scalable model.
+    actions: |
+      1. Assessed scalability:
+         - Current CAC: $400
+         - Target CAC: $440 (10% tolerance)
+         - Identified headroom in existing channels
+         - Identified new channels to test
+      2. Developed scale plan:
+         - Phase 1 (Month 1-2): Expand existing channels
+         - Phase 2 (Month 3-4): Add new channels
+         - Phase 3 (Month 5-6): Optimize and scale
+      3. Phase 1 execution:
+         - Increased budgets on proven campaigns
+         - Monitored CPL closely as scale increased
+         - Saw 15% CPL increase at 2x spend
+         - Optimized to stabilize at 10%
+      4. Phase 2 execution:
+         - Tested podcast sponsorships (new)
+         - Tested programmatic display (new)
+         - Tested influencer partnerships (new)
+         - Invested in content amplification
+      5. Optimization across portfolio:
+         - Shifted budget weekly based on performance
+         - Killed underperformers quickly
+         - Doubled down on winners
+         - Maintained testing allocation
+      6. Infrastructure investment:
+         - Hired additional growth marketer
+         - Implemented attribution platform
+         - Automated reporting
+         - Built optimization playbooks
+      7. Results at 6 months:
+         - Spend: $280K/month (2.8x)
+         - CAC: $430 (7.5% increase)
+         - Lead volume: 2.5x
+         - Pipeline: 2.7x
+    outcome: |
+      Demonstrated scalable unit economics. Grew acquisition 
+      significantly while maintaining efficiency. Built 
+      foundation for continued scale. Board confidence in 
+      marketing investment.
+    lessons:
+      - Scale gradually, monitor closely
+      - Some efficiency loss at scale is normal
+      - New channels take time
+      - Infrastructure enables scale
+
+operational_context:
+  prerequisites:
+    - Active paid media campaigns
+    - Conversion tracking in place
+    - Budget to work with
+    - Clear business objectives
+    
+  common_blockers:
+    - "No tracking - Fix before optimizing"
+    - "Too little data - Need volume for insights"
+    - "No clear goals - Define targets first"
+    - "Siloed teams - Align marketing and sales"
+    
+  integration_points:
+    - Campaigns: Multichannel coordination
+    - Analytics: Performance measurement
+    - Sales: Lead quality feedback
+    - Finance: Budget and ROI reporting
+
+risks:
+  if_skipped: |
+    Wasted marketing spend. Inability to scale efficiently. 
+    No understanding of what works. Leadership loses 
+    confidence in marketing.
+    
+  if_over_engineered: |
+    Analysis paralysis slows execution. Too many metrics 
+    obscure key insights. Perfect optimization vs. good 
+    enough and fast.
+
+domain_context:
+  related_l2: "Marketing Operations"
+  related_l1: "MARKETING AND BRAND"
+  synergies:
+    - "Campaign Analytics (cd-025): Deeper performance analysis"
+    - "Multichannel Campaigns (cd-023): Coordinated optimization"
+    - "Content Strategy (cd-029): Creative and content for ads"
+    - "Lead Generation: Conversion optimization"

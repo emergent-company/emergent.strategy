@@ -1,0 +1,554 @@
+# OrgOps Process Definition: Conflict Resolution Process
+# Schema: org_ops_definition_schema.json v1.1.0
+
+id: pd-023
+name: Conflict Resolution Process
+slug: conflict-resolution-process
+track: org_ops
+status: ready
+
+contributes_to:
+  - OrgOps.Collaboration Protocols.conflict-resolution
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Manager-mediated resolution"
+    includes:
+      - Clear escalation path
+      - Manager as first mediator
+      - Basic conflict conversation guidance
+    effort: "1-2 hours to document"
+    
+  tier_2_intermediate:
+    description: "Structured resolution framework"
+    adds:
+      - Trained mediators
+      - Resolution playbook
+      - Documentation requirements
+      - HR escalation process
+    effort: "Half day setup + training"
+    
+  tier_3_advanced:
+    description: "Proactive conflict management"
+    adds:
+      - Conflict prevention training
+      - External mediation resources
+      - Systemic conflict analysis
+      - Formal grievance procedure
+    effort: "Ongoing HR function"
+
+definition:
+  purpose: |
+    Conflict is inevitable when people work together. Unresolved conflict 
+    festers, harms relationships, and reduces productivity. A clear 
+    resolution process gives people tools to address issues constructively 
+    before they escalate.
+    
+  outcome: |
+    Conflicts are addressed early and constructively. There's a clear path 
+    for escalation when direct resolution fails. Relationships and 
+    productivity are preserved. Toxic patterns are interrupted.
+    
+  owner: People Lead or HR
+  
+  inputs:
+    - name: Conflict situation
+      description: What happened and who's involved
+      source: Parties to conflict, observers
+    - name: Company policies
+      description: Relevant conduct and behavior policies
+      source: Employee handbook
+    - name: Prior context
+      description: Relationship history, prior incidents
+      source: HR records, manager knowledge
+      
+  outputs:
+    - name: Resolution outcome
+      description: How the conflict was addressed
+      consumer: Parties, HR records
+    - name: Agreements
+      description: What parties commit to going forward
+      consumer: Parties, managers
+      
+  steps:
+    - step: 1
+      action: Attempt direct conversation
+      responsible: Parties to conflict
+      duration: "30-60 minutes"
+      deliverable: Resolution or escalation
+      guidance:
+        - Focus on behavior, not character
+        - Use "I" statements
+        - Listen to understand
+        - Seek mutual solutions
+      
+    - step: 2
+      action: Escalate to manager (if unresolved)
+      responsible: Either party
+      duration: "Variable"
+      deliverable: Manager involvement
+      
+    - step: 3
+      action: Manager-facilitated conversation
+      responsible: Manager
+      duration: "30-60 minutes"
+      deliverable: Mediated discussion
+      manager_role:
+        - Create safe space
+        - Ensure both sides heard
+        - Facilitate problem-solving
+        - NOT to take sides
+      
+    - step: 4
+      action: Escalate to HR/People Lead (if still unresolved)
+      responsible: Manager or either party
+      duration: "Variable"
+      deliverable: HR involvement
+      triggers:
+        - Manager facilitation unsuccessful
+        - Policy violation suspected
+        - Manager is party to conflict
+        - Serious allegations
+      
+    - step: 5
+      action: Formal investigation (if needed)
+      responsible: HR/People Lead
+      duration: "Days to weeks"
+      deliverable: Investigation findings
+      applies_when:
+        - Policy violation alleged
+        - Harassment/discrimination
+        - Serious misconduct
+      
+    - step: 6
+      action: Document and follow up
+      responsible: Manager or HR
+      duration: "30 minutes"
+      deliverable: Resolution documented, follow-up scheduled
+      
+  cadence:
+    frequency: as-needed
+    trigger: Conflict arises
+    duration: "Variable depending on severity"
+    
+  participants:
+    - role: Parties to conflict
+      responsibility: Engage in good faith resolution
+      time_commitment: "Variable"
+    - role: Manager
+      responsibility: Facilitate resolution, escalate if needed
+      time_commitment: "1-2 hours"
+    - role: HR/People Lead
+      responsibility: Handle escalations, investigations
+      time_commitment: "Variable"
+
+  success_criteria:
+    - Conflicts are addressed, not avoided
+    - Most conflicts resolved at direct/manager level
+    - Escalation path is clear
+    - No retaliation for raising concerns
+
+operational_context:
+  prerequisites:
+    - Clear reporting relationships
+    - Manager training on mediation basics
+    - Anti-retaliation policy
+    
+  common_blockers:
+    - "Fear of retaliation → Strong anti-retaliation policy"
+    - "Manager takes sides → Train on neutral facilitation"
+    - "Power imbalance → HR involvement for sensitive cases"
+    
+  metrics:
+    - name: Resolution rate
+      description: Conflicts resolved without formal escalation
+      target: ">80%"
+      tier: 2
+    - name: Recurrence rate
+      description: Same conflict recurring
+      target: "<10%"
+      tier: 2
+
+tools_ecosystem:
+  recommended:
+    - category: HR Case Management
+      examples:
+        - HiBob
+        - BambooHR
+      purpose: Document and track cases
+    - category: External Mediation
+      examples:
+        - Professional mediators
+        - EAP services
+      purpose: Complex or sensitive cases
+
+compliance:
+  documentation:
+    - Document formal escalations
+    - Retain investigation records per policy
+    - Confidentiality requirements
+  legal:
+    - Harassment/discrimination claims have legal implications
+    - Consult legal counsel when appropriate
+
+related_definitions:
+  - id: pd-004
+    relationship: requires
+    description: "Decision framework helps prevent some conflicts"
+  - id: pd-021
+    relationship: enables
+    description: "Values provide reference point for behavior"
+
+adaptation:
+  customize:
+    - Escalation levels
+    - Documentation requirements
+    - Investigation process
+  preserve:
+    - Direct conversation first
+    - Manager involvement before HR
+    - Anti-retaliation protection
+  common_variations:
+    - "Small team: Founder as final escalation"
+    - "Larger org: Formal HR investigation process"
+    - "Regulated industry: More documentation required"
+
+# Conflict Conversation Framework
+conversation_guide:
+  preparation:
+    - Choose private, neutral setting
+    - Prepare specific examples
+    - Identify desired outcome
+    - Calm down first (not when emotionally charged)
+    
+  opening:
+    - "I'd like to discuss something that's been on my mind"
+    - State your intention (to resolve, not attack)
+    
+  sharing_perspective:
+    - Describe behavior (specific, observable)
+    - Explain impact on you
+    - Use "I" statements
+    - "When [behavior], I feel [impact], because [reason]"
+    
+  listening:
+    - Ask for their perspective
+    - Listen to understand, not to respond
+    - Summarize what you heard
+    - Acknowledge their feelings
+    
+  problem_solving:
+    - "What could we do differently?"
+    - Propose solutions
+    - Find mutual ground
+    - Agree on next steps
+    
+  follow_up:
+    - Check in on progress
+    - Acknowledge improvements
+    - Address remaining issues
+
+# Manager Mediation Guide
+mediation_guide:
+  role: "Facilitator, not judge"
+  
+  setup:
+    - Meet privately with each party first
+    - Understand both perspectives
+    - Set ground rules for joint conversation
+    
+  ground_rules:
+    - No interrupting
+    - Focus on behavior, not character
+    - Assume good intent
+    - Work toward resolution
+    
+  facilitation:
+    - Have each party share (uninterrupted)
+    - Summarize and check understanding
+    - Identify common ground
+    - Guide toward solutions
+    
+  closure:
+    - Document agreements
+    - Schedule follow-up
+    - Maintain confidentiality
+    
+  when_to_escalate:
+    - Policy violation suspected
+    - Unable to remain neutral
+    - Parties can't reach resolution
+    - Allegations of harassment/discrimination
+
+# ============================================================
+# PRACTITIONER SCENARIOS
+# ============================================================
+practitioner_scenarios:
+  - id: ps-023-001
+    name: "Resolving Conflict Between Two Senior Leaders"
+    practitioner: CEO at 45-person company
+    organization_context: |
+      VP Engineering and VP Product have growing friction. Both are 
+      valuable, high performers. Their conflict is affecting the teams 
+      under them—engineers and product managers are starting to take 
+      sides. CEO has noticed tension in leadership meetings but hoped 
+      it would resolve itself. It hasn't.
+    situation: |
+      The conflict has become visible. In a leadership meeting, VP 
+      Engineering publicly criticized VP Product's roadmap priorities. 
+      VP Product escalated to CEO: "I can't work with them anymore." 
+      Other leaders are uncomfortable. CEO realizes they need to 
+      intervene before this damages the organization.
+    trigger: |
+      VP Product gives CEO an ultimatum: "Either you do something 
+      about this, or I'm looking for another job." CEO realizes this 
+      is now urgent—losing either leader would be costly.
+    actions:
+      - "Day 1: CEO met privately with VP Product—listened without defending VP Engineering"
+      - "Day 1: Asked: 'What would a good resolution look like for you?'"
+      - "Day 2: CEO met privately with VP Engineering—same approach, no judgment"
+      - "Day 2: Found common ground: both wanted same outcome (product success), disagreed on process"
+      - "Day 3: CEO proposed joint conversation with clear ground rules"
+      - "Day 3: Structured session: each person shares perspective (5 min, uninterrupted), CEO summarizes, identify shared goals"
+      - "Day 3: Joint conversation revealed core issue: lack of shared planning process, not personal animosity"
+      - "Day 3: Agreed on new working model: weekly sync, shared roadmap document, escalation path"
+      - "Week 2: CEO checked in with both—new process working, tension reduced"
+      - "Month 2: Quarterly 360 feedback showed improved collaboration scores"
+    outcome: |
+      Conflict resolved without losing either leader. The structured 
+      intervention revealed the conflict was about process, not 
+      personality. New working model addressed root cause. Team-level 
+      tension dissipated once leaders modeled collaboration. CEO learned 
+      to intervene earlier—waiting for "self-resolution" allowed 
+      escalation.
+    lessons:
+      - "Leader conflict can poison teams quickly—intervene early"
+      - "Individual conversations first—understand each perspective before joint session"
+      - "Most conflicts are about process or expectations, not personality"
+      - "Structured conversations with ground rules enable productive dialogue"
+      - "Follow-up is essential—agreements need reinforcement"
+
+  - id: ps-023-002
+    name: "Handling Interpersonal Conflict with Power Imbalance"
+    practitioner: HR Manager at 35-person company
+    organization_context: |
+      Senior engineer (5 years tenure, informal authority) and junior 
+      engineer (6 months) are in conflict. Junior engineer feels bullied—
+      senior engineer dismisses their ideas, makes sarcastic comments, 
+      excludes them from technical discussions. Senior engineer says 
+      junior "can't take feedback" and is "too sensitive."
+    situation: |
+      Junior engineer comes to HR in tears after a particularly harsh 
+      code review. They're considering quitting. Senior engineer is 
+      valued for technical skills but has had similar conflicts before. 
+      Engineering manager is aware but hasn't addressed it effectively—
+      they're intimidated by the senior engineer.
+    trigger: |
+      Junior engineer files formal complaint with HR: "I'm being 
+      bullied. I've tried to address it directly and with my manager, 
+      but nothing changes. I need help or I'm leaving."
+    actions:
+      - "Day 1: HR Manager met with junior engineer—documented specific incidents, asked what resolution they want"
+      - "Day 1: Junior engineer wanted behavior to change, not punishment"
+      - "Day 2: HR Manager met with engineering manager—understood why they hadn't addressed effectively"
+      - "Day 2: HR Manager met with senior engineer—shared observations without accusation"
+      - "Day 2: Senior engineer defensive at first, then acknowledged 'maybe I'm too direct'"
+      - "Day 3: HR Manager facilitated joint conversation with both engineers and engineering manager"
+      - "Day 3: Agreed on specific behavior changes: senior engineer will give feedback in private, use constructive language"
+      - "Day 3: Junior engineer will ask for clarification instead of assuming ill intent"
+      - "Week 2: HR Manager checked in with both—improved but still some friction"
+      - "Week 4: Follow-up showed sustained improvement, junior engineer feeling included"
+      - "Month 2: Senior engineer received feedback training as part of development plan"
+    outcome: |
+      Junior engineer stayed and thrived. Senior engineer moderated 
+      behavior—not transformed, but workably professional. Engineering 
+      manager learned to address conflicts earlier. Pattern established: 
+      HR is available for mediation, but first line is direct conversation 
+      and manager involvement.
+    lessons:
+      - "Power imbalance requires HR involvement—direct conversation may not be safe"
+      - "Understand what resolution looks like for the complainant—not everyone wants punishment"
+      - "Senior employees often don't realize their impact—feedback without accusation works"
+      - "Manager involvement is essential—they own the ongoing relationship"
+      - "Follow-up is critical—one conversation rarely changes behavior permanently"
+
+  - id: ps-023-003
+    name: "Cross-Functional Conflict That Becomes Systemic"
+    practitioner: COO at 70-person company
+    organization_context: |
+      Sales and Customer Success are in constant conflict. Sales makes 
+      promises to close deals; CS inherits problems. CS complains about 
+      sales; sales says CS doesn't understand revenue pressure. Individual 
+      conflicts between team members reflect organizational misalignment. 
+      Both VPs blame each other in leadership meetings.
+    situation: |
+      Third customer escalation this month where sales promises didn't 
+      match product capability. CS VP is furious, threatening to escalate 
+      every deal before close. Sales VP says CS is "blocking revenue." 
+      CEO asks COO to fix the dysfunction.
+    trigger: |
+      Enterprise customer threatens contract termination due to 
+      "misalignment between what we were sold and what we got." 
+      CEO says: "This is now a strategic problem, not an interpersonal 
+      one. We need a systemic fix."
+    actions:
+      - "Week 1: COO interviewed 8 people from both teams—documented patterns, not just incidents"
+      - "Week 1: Pattern emerged: incentives misaligned (sales paid on close, CS paid on retention)"
+      - "Week 1: No clear handoff process—sales 'throws deals over the wall'"
+      - "Week 2: COO presented analysis to both VPs together: 'This isn't about people, it's about systems'"
+      - "Week 2: Both VPs agreed on root causes once framed as systemic"
+      - "Week 3: Redesigned handoff process: CS involved in late-stage deals, sign-off required"
+      - "Week 3: Adjusted incentives: sales comp now includes 90-day retention component"
+      - "Week 3: Created shared Slack channel for deal questions (transparency, not handoff)"
+      - "Month 1: Implemented changes, weekly check-in between VPs and COO"
+      - "Month 3: Escalations dropped by 70%, customer retention improved"
+    outcome: |
+      Cross-functional conflict resolved by addressing root causes, 
+      not individuals. Sales and CS still have healthy tension (different 
+      perspectives) but productive collaboration. VPs model constructive 
+      disagreement. The individual conflicts that triggered the 
+      intervention mostly resolved once systems aligned incentives.
+    lessons:
+      - "Patterns of conflict often signal systemic issues, not just personality clashes"
+      - "Incentive misalignment causes predictable conflict—fix incentives, fix behavior"
+      - "Framing as 'systemic' removes personal blame and enables collaborative problem-solving"
+      - "Process changes (handoffs, transparency) reduce friction from unclear ownership"
+      - "Leader alignment (VP-to-VP) must precede team-level improvement"
+
+# ============================================================
+# RISKS
+# ============================================================
+risks:
+  execution_risks:
+    - risk: Conflict avoided instead of resolved
+      likelihood: high
+      impact: medium
+      mitigation: "Manager training on conflict facilitation, escalation path to HR, normalize conflict resolution"
+    
+    - risk: Mediator takes sides or is perceived as biased
+      likelihood: medium
+      impact: high
+      mitigation: "Structured process, equal airtime, focus on behavior not character, escalate if can't be neutral"
+    
+    - risk: Resolution doesn't stick
+      likelihood: medium
+      impact: medium
+      mitigation: "Document agreements, scheduled follow-up, manager accountability for ongoing relationship"
+    
+    - risk: Retaliation after complaint
+      likelihood: low
+      impact: high
+      mitigation: "Clear anti-retaliation policy, monitoring after resolution, confidential reporting channel"
+    
+    - risk: Escalation when de-escalation is possible
+      likelihood: medium
+      impact: low
+      mitigation: "Encourage direct conversation first, manager mediation before HR, proportional response"
+
+  organizational_risks:
+    - risk: Toxic individuals protected by value
+      impact: "Pattern of conflict tolerated because person is high performer, culture erodes"
+      prevention: "High performers held to same standards, 'brilliant jerks' addressed, values enforcement"
+    
+    - risk: Conflict avoidance culture
+      impact: "Issues fester, resentment builds, eventually explodes or people leave"
+      prevention: "Normalize healthy conflict, reward constructive disagreement, address avoidance patterns"
+    
+    - risk: Over-involvement of HR
+      impact: "Every disagreement becomes HR issue, managers don't own team dynamics"
+      prevention: "HR as escalation path, not first resort; manager training and accountability"
+
+# ============================================================
+# DOMAIN CONTEXT
+# ============================================================
+domain_context:
+  industry_landscape: |
+    Workplace conflict is inevitable and, managed well, can be constructive. 
+    Research shows teams that engage in healthy conflict outperform those 
+    that avoid it. The challenge is distinguishing productive disagreement 
+    from destructive friction.
+    
+    Modern approaches emphasize early intervention, structured dialogue, 
+    and systemic analysis. The trend is toward conflict competence—teaching 
+    everyone to handle disagreements—rather than relying on HR for 
+    mediation.
+    
+    Remote and hybrid work has complicated conflict dynamics. Misunderstandings 
+    are more common without nonverbal cues. Written communication can 
+    escalate quickly. Proactive relationship-building becomes more important.
+
+  best_practices:
+    - practice: "Address early"
+      description: "Intervene at first signs of conflict, not when it's visibly toxic"
+      evidence: "Early intervention resolves 80% of conflicts; late intervention resolves 30%"
+    
+    - practice: "Assume good intent"
+      description: "Start with assumption that both parties want positive outcome"
+      evidence: "Charitable interpretation reduces defensiveness and enables resolution"
+    
+    - practice: "Separate behavior from character"
+      description: "Address what someone did, not who they are"
+      evidence: "Behavior feedback is actionable; character feedback is attack"
+    
+    - practice: "Look for systemic causes"
+      description: "Patterns of conflict often indicate process or incentive misalignment"
+      evidence: "Systemic fixes have lasting impact; individual fixes recur"
+
+  anti_patterns:
+    - anti_pattern: "Hoping it resolves itself"
+      description: "Avoiding conflict intervention, assuming adults will work it out"
+      consequence: "Conflict escalates, affects more people, becomes harder to resolve"
+    
+    - anti_pattern: "Taking sides"
+      description: "Manager or HR aligns with one party"
+      consequence: "Other party feels unheard, trust in process destroyed"
+    
+    - anti_pattern: "Win/lose framing"
+      description: "Treating conflict resolution as determining who was right"
+      consequence: "Loser resentful, relationship permanently damaged"
+    
+    - anti_pattern: "Conflict as career killer"
+      description: "Being involved in conflict seen as mark against employee"
+      consequence: "Conflicts go unreported, fester underground"
+
+  benchmarks:
+    - metric: "Time to resolution"
+      top_quartile: "Days to weeks"
+      median: "Weeks to months"
+      laggard: "Months or unresolved"
+    
+    - metric: "Escalation rate"
+      top_quartile: "Most conflicts resolved at direct or manager level"
+      median: "Significant HR involvement"
+      laggard: "HR overwhelmed with conflict mediation"
+    
+    - metric: "Recurrence"
+      top_quartile: "Conflicts rarely recur after resolution"
+      median: "Some recurring conflicts"
+      laggard: "Same conflicts surface repeatedly"
+    
+    - metric: "Turnover from conflict"
+      top_quartile: "Rare departures due to interpersonal conflict"
+      median: "Occasional conflict-related departures"
+      laggard: "Conflict is common exit interview theme"
+
+  maturity_indicators:
+    tier_1_signals:
+      - "Clear escalation path documented"
+      - "Managers serve as first-line mediators"
+      - "HR available for escalation"
+      - "Basic resolution guidance exists"
+    
+    tier_2_signals:
+      - "Manager training on conflict facilitation"
+      - "Structured resolution process"
+      - "Systemic conflict analysis"
+      - "Regular follow-up on resolutions"
+    
+    tier_3_signals:
+      - "Conflict competence training for all employees"
+      - "Early warning indicators monitored"
+      - "External mediation resources for complex cases"
+      - "Conflict resolution skills valued in hiring and development"

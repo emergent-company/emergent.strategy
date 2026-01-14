@@ -1,0 +1,261 @@
+# OrgOps Process Definition: Insurance Management
+# Schema: org_ops_definition_schema.json v1.0.0
+
+id: pd-045
+name: Insurance Management
+slug: insurance-management
+track: org_ops
+status: ready
+
+contributes_to:
+  - OrgOps.Risk Management.risk-mitigation-frameworks
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Essential coverage"
+    includes:
+      - General liability
+      - D&O insurance
+      - Workers comp
+    effort: "1-2 days annually"
+    
+  tier_2_intermediate:
+    description: "Comprehensive coverage"
+    adds:
+      - E&O/professional liability
+      - Cyber insurance
+      - EPL insurance
+      - Coverage reviews
+    effort: "Half day quarterly"
+    
+  tier_3_advanced:
+    description: "Risk management program"
+    adds:
+      - Risk assessment
+      - Claims management
+      - Custom policies
+      - International coverage
+    effort: "Dedicated risk function"
+
+definition:
+  purpose: |
+    Insurance protects against catastrophic loss. Without proper coverage, 
+    a single lawsuit or incident can destroy a company. A good insurance 
+    program provides appropriate protection without over-spending.
+    
+  outcome: |
+    Key risks are insured. Coverage meets contractual requirements. 
+    Premiums are budgeted. Certificates are available when needed. 
+    Claims are handled properly.
+    
+  owner: Finance Lead or Operations
+  
+  inputs:
+    - name: Risk profile
+      description: What risks the business faces
+      source: Operations, legal
+    - name: Contractual requirements
+      description: What coverage is required
+      source: Customer contracts, leases
+    - name: Renewal quotes
+      description: Coverage options and pricing
+      source: Broker
+      
+  outputs:
+    - name: Active policies
+      description: Coverage in force
+      consumer: Company
+    - name: Certificates of insurance
+      description: Proof of coverage
+      consumer: Customers, landlords
+      
+  steps:
+    - step: 1
+      action: Assess coverage needs
+      responsible: Finance Lead + Broker
+      duration: "1-2 hours"
+      deliverable: Coverage requirements
+      consider:
+        - Business type
+        - Contractual requirements
+        - Risk tolerance
+        - Budget
+      
+    - step: 2
+      action: Obtain quotes
+      responsible: Broker
+      duration: "1-2 weeks"
+      deliverable: Coverage options
+      
+    - step: 3
+      action: Select and bind coverage
+      responsible: Finance Lead
+      duration: "1-2 hours"
+      deliverable: Policies bound
+      
+    - step: 4
+      action: Document and store policies
+      responsible: Finance Lead
+      duration: "30 min"
+      deliverable: Policies organized
+      
+    - step: 5
+      action: Set up renewal reminders
+      responsible: Finance Lead
+      duration: "15 min"
+      deliverable: Calendar reminders
+      timing: "60 days before expiration"
+      
+    - step: 6
+      action: Respond to certificate requests
+      responsible: Finance/Admin
+      duration: "15 min per request"
+      deliverable: COI issued
+      
+  cadence:
+    frequency: annually
+    trigger: Policy renewals
+    duration: "1-2 days for renewal"
+    
+  participants:
+    - role: Finance Lead
+      responsibility: Manage insurance program
+      time_commitment: "4-8 hours annually"
+    - role: Broker
+      responsibility: Quote, advise, process
+      time_commitment: "Per engagement"
+
+  success_criteria:
+    - Key risks covered
+    - No coverage gaps
+    - Certificates available on demand
+    - Claims handled properly
+
+operational_context:
+  prerequisites:
+    - Broker relationship
+    - Understanding of needs
+    - Budget allocation
+    
+  common_blockers:
+    - "Cost → Work with broker on priorities"
+    - "Complexity → Rely on broker expertise"
+    - "Claims → Document everything, notify early"
+    
+  metrics:
+    - name: Coverage completeness
+      description: Key risks covered
+      target: "100%"
+      tier: 1
+    - name: Claims resolved
+      description: Claims handled successfully
+      target: "100%"
+      tier: 2
+
+tools_ecosystem:
+  recommended:
+    - category: Brokers
+      examples:
+        - Embroker
+        - Vouch
+        - Local commercial broker
+      purpose: Quote and advise
+    - category: Management
+      examples:
+        - Spreadsheet
+        - Notion
+      purpose: Track policies
+
+related_definitions:
+  - id: pd-015
+    relationship: enables
+    description: "Insurance part of business continuity"
+  - id: pd-014
+    relationship: enables
+    description: "Insurance part of compliance"
+  - id: pd-038
+    relationship: requires
+    description: "D&O coverage for board"
+
+adaptation:
+  customize:
+    - Coverage amounts
+    - Policy types
+    - Broker relationship
+  preserve:
+    - Core coverage (GL, D&O, WC)
+    - Documentation
+    - Renewal process
+  common_variations:
+    - "Early startup: Minimal (GL, D&O)"
+    - "B2B SaaS: Add cyber, E&O"
+    - "Enterprise sales: Higher limits, more coverage"
+
+# Common Insurance Types
+coverage_types:
+  general_liability:
+    what: "Bodily injury, property damage, advertising injury"
+    typical_limit: "$1M per occurrence / $2M aggregate"
+    when_needed: "Always"
+    
+  directors_officers:
+    what: "Protects leaders for company decisions"
+    typical_limit: "$2-5M+"
+    when_needed: "Once you have board/investors"
+    
+  workers_compensation:
+    what: "Employee work injuries"
+    typical_limit: "Statutory"
+    when_needed: "When you have employees"
+    
+  professional_liability:
+    what: "Errors in professional services"
+    typical_limit: "$1-5M"
+    when_needed: "B2B services, consulting"
+    
+  cyber:
+    what: "Data breaches, cyber incidents"
+    typical_limit: "$1-5M"
+    when_needed: "Handling customer data"
+    
+  epl:
+    what: "Employment claims (discrimination, harassment)"
+    typical_limit: "$1-2M"
+    when_needed: "As team grows"
+
+# Insurance Checklist
+checklist:
+  at_founding:
+    - "General liability"
+    - "D&O (once raising)"
+    
+  with_employees:
+    - "Workers compensation"
+    - "Consider EPL"
+    
+  with_customers:
+    - "Review contractual requirements"
+    - "Professional liability if services"
+    - "Cyber if handling data"
+    
+  annually:
+    - "Review coverage vs needs"
+    - "Get renewal quotes early"
+    - "Update payroll estimates for WC"
+    
+# Certificate of Insurance (COI) Process
+coi_process:
+  when_needed:
+    - "Customer onboarding"
+    - "New lease"
+    - "Vendor requirement"
+    
+  how_to_get:
+    - "Request from broker (standard)"
+    - "Self-service portal (if available)"
+    
+  turnaround: "Usually 24-48 hours"
+  
+  tip: "Ask for additional insured status early if contract requires it"

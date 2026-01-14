@@ -1,0 +1,577 @@
+# Commercial Process Definition: Softfunding
+# Schema: commercial_definition_schema.json v1.1.0
+
+id: cd-013
+name: Softfunding
+slug: softfunding
+track: commercial
+status: ready
+
+contributes_to:
+  - Commercial.Financial Structuring.softfunding
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Opportunistic grant and soft money applications"
+    includes:
+      - Basic grant database awareness
+      - Ad-hoc application when discovered
+      - Founder-led applications
+      - Simple tracking of applications
+    effort: "2-4 hours per application"
+    
+  tier_2_intermediate:
+    description: "Systematic softfunding program"
+    adds:
+      - Grant calendar and pipeline tracking
+      - Standardized application templates
+      - Dedicated time allocation for applications
+      - Win/loss tracking and learning
+    effort: "10-20 hours/month ongoing"
+    
+  tier_3_advanced:
+    description: "Professional softfunding operation"
+    adds:
+      - Grant writer or consultant
+      - Multi-jurisdictional programs
+      - Strategic grant portfolio
+      - Compliance and reporting systems
+    effort: "Dedicated resource or outsourced"
+
+definition:
+  purpose: |
+    Softfunding refers to non-dilutive capital: grants, tax credits, 
+    subsidized loans, and other government or institutional funding 
+    that does not require giving up equity. For technology startups, 
+    particularly in R&D-intensive sectors, softfunding can provide 
+    meaningful runway extension without dilution.
+    
+    Common softfunding sources:
+    - R&D tax credits (US, UK, Canada, EU, Norway, etc.)
+    - Government grants (SBIR/STTR in US, Innovate UK, EU Horizon)
+    - Regional development grants
+    - Industry-specific programs (energy, healthcare, defense)
+    - Academic partnerships with funded research
+    - Accelerator grants (non-equity or minimal equity)
+    
+    Why softfunding matters:
+    - Non-dilutive: keeps founder and investor equity intact
+    - Validates: grant approvals signal external validation
+    - Extends runway: reduces amount of equity capital needed
+    - Access: opens doors to government and institutional networks
+    
+    Tradeoffs and realities:
+    - Time-intensive: applications take significant effort
+    - Uncertain: approval rates vary widely
+    - Compliance: grants come with reporting requirements
+    - Timing: funding cycles may not match company needs
+    - Strings: some grants restrict use of funds
+    
+  outcome: |
+    Non-dilutive capital that extends runway, reduces equity needs, 
+    and provides external validation. Clear understanding of applicable 
+    programs and realistic assessment of effort vs. return.
+    
+  owner: CEO or CFO (decision), dedicated resource or founder (execution)
+  
+  inputs:
+    - name: Company R&D activities
+      description: "Technical work that may qualify for grants/credits"
+      source: Engineering, Product
+      
+    - name: Grant program database
+      description: "Information on available programs"
+      source: Government sites, Grant databases, Consultants
+      
+    - name: Financial records
+      description: "Spending data for R&D tax credit calculations"
+      source: Finance
+      
+    - name: Technical documentation
+      description: "Project descriptions, technical uncertainty, innovation"
+      source: Engineering, Product
+      
+  outputs:
+    - name: Grant applications
+      description: "Completed applications for funding programs"
+      consumer: Government agencies, Grant bodies
+      
+    - name: R&D tax credit claims
+      description: "Documentation for tax credit claims"
+      consumer: Tax authorities, Accountants
+      
+    - name: Softfunding pipeline
+      description: "Tracking of applications, status, outcomes"
+      consumer: Finance, Leadership
+
+  steps:
+    - step: 1
+      action: Map applicable programs
+      responsible: CEO or CFO
+      duration: "4-8 hours initially"
+      deliverable: Softfunding opportunity map
+      program_categories:
+        rd_tax_credits:
+          description: "Refundable or non-refundable credits for R&D spending"
+          examples:
+            - "US R&D Tax Credit (Section 41)"
+            - "UK R&D Tax Relief"
+            - "Canada SR&ED"
+            - "Norway SkatteFUNN"
+            - "France CIR"
+          typical_value: "5-25% of qualifying R&D spend"
+          effort: "Medium - annual claim, documentation required"
+        government_grants:
+          description: "Direct grants for innovation projects"
+          examples:
+            - "US SBIR/STTR (DOD, NIH, NSF)"
+            - "Innovate UK Smart Grants"
+            - "EU Horizon Europe"
+            - "German EXIST"
+          typical_value: "$50K - $2M+ depending on program"
+          effort: "High - competitive applications"
+        regional_programs:
+          description: "Local/regional economic development"
+          examples:
+            - State and local grants
+            - Economic development incentives
+            - Job creation credits
+          typical_value: "Varies widely by region"
+          effort: "Medium - relationships matter"
+        industry_specific:
+          description: "Sector-focused funding"
+          examples:
+            - Clean energy grants
+            - Healthcare innovation programs
+            - Defense technology programs
+          typical_value: "Often substantial ($500K+)"
+          effort: "High - specialized requirements"
+      evaluation_criteria:
+        - "Eligibility: Do we qualify?"
+        - "Value: How much can we receive?"
+        - "Effort: How hard is the application?"
+        - "Probability: What are realistic chances?"
+        - "Timing: When is the funding available?"
+      best_practices:
+        - "Focus on programs designed for your stage"
+        - "Consider consultant for complex programs"
+        - "Do not overestimate probability of success"
+        - "Factor in compliance and reporting costs"
+
+    - step: 2
+      action: Prioritize and plan
+      responsible: CFO or CEO
+      duration: "2-4 hours"
+      deliverable: Softfunding plan and calendar
+      prioritization_framework:
+        high_priority:
+          criteria: "High value, high probability, manageable effort"
+          examples:
+            - "R&D tax credits (usually straightforward)"
+            - "Grants aligned with existing work"
+            - "Programs designed for your stage/sector"
+          action: "Pursue systematically"
+        medium_priority:
+          criteria: "Good value but competitive or high effort"
+          examples:
+            - "Major government grants (SBIR Phase I)"
+            - "Regional programs with relationship requirements"
+          action: "Pursue if capacity allows"
+        low_priority:
+          criteria: "Low probability, poor fit, excessive effort"
+          examples:
+            - "Programs for different stages"
+            - "Highly competitive with low win rates"
+            - "Programs with burdensome requirements"
+          action: "Skip or defer"
+      calendar_planning:
+        map_deadlines: "Many grants have fixed application windows"
+        plan_lead_time: "Major applications need 4-8 weeks"
+        align_with_work: "Match applications to actual R&D plans"
+        batch_applications: "Group similar applications for efficiency"
+      resource_allocation:
+        founder_led: "OK for initial applications, not sustainable"
+        dedicated_time: "Block regular time (e.g., 10 hours/month)"
+        specialist_help: "Consider consultant for complex programs"
+      best_practices:
+        - "R&D tax credits are usually highest ROI"
+        - "Start with programs designed for your stage"
+        - "Do not over-commit to applications"
+        - "Track time spent vs. value received"
+
+    - step: 3
+      action: Prepare R&D tax credit claims
+      responsible: Finance + Engineering
+      duration: "20-40 hours annually"
+      deliverable: R&D tax credit documentation and claim
+      qualifying_activities:
+        typical_criteria:
+          - "Technical uncertainty: Trying to solve problems with unknown solutions"
+          - "Systematic approach: Process of experimentation, not routine"
+          - "Technological improvement: Creating new or improved products/processes"
+        common_qualifiers:
+          - New product development
+          - Algorithm development and optimization
+          - Integration of complex systems
+          - Performance improvement engineering
+        does_not_qualify:
+          - Routine software development (features with known solutions)
+          - Market research or business development
+          - Quality control and testing (unless innovative)
+          - Training or documentation
+      documentation_requirements:
+        project_records:
+          - "Project descriptions with technical uncertainty"
+          - "Contemporaneous records (tickets, commits, docs)"
+          - "Personnel involved and time allocation"
+        financial_records:
+          - "Payroll for qualifying activities"
+          - "Contractor costs for R&D work"
+          - "Supplies and cloud costs (jurisdiction-dependent)"
+        calculation:
+          - "Identify qualifying spend by category"
+          - "Apply credit rate (varies by jurisdiction)"
+          - "Consider alternative simplified credit if applicable"
+      process_by_jurisdiction:
+        us_section_41:
+          process: "Claimed on annual tax return, Form 6765"
+          rate: "6-10% of qualifying spend (regular) or 14% (alternative simplified)"
+          startup_benefit: "Up to $500K/year against payroll taxes"
+          documentation: "Contemporaneous records recommended"
+        uk_rd_relief:
+          process: "Claimed on Corporation Tax return"
+          rate: "SME scheme: ~33% effective (including loss surrender)"
+          timing: "Claim within 2 years of accounting period end"
+          recent_changes: "Merged scheme in 2024 - verify current rules"
+        norway_skattefunn:
+          process: "Pre-approved project, annual claim"
+          rate: "19% of eligible costs (up to 25M NOK)"
+          approval: "Research Council project approval required"
+          documentation: "Project plan, time tracking, financial records"
+      best_practices:
+        - "Document throughout the year, not at tax time"
+        - "Consider specialist for first-time claims"
+        - "Be conservative - aggressive claims invite audit"
+        - "Keep contemporaneous records (tickets, commits, timesheets)"
+
+    - step: 4
+      action: Execute grant applications
+      responsible: Dedicated resource or CEO
+      duration: "20-80 hours per major application"
+      deliverable: Submitted grant applications
+      application_structure:
+        executive_summary:
+          content: "Company, innovation, impact in 1 page"
+          importance: "Reviewers often start and end here"
+          tips: "Clear problem, clear solution, clear impact"
+        technical_approach:
+          content: "What you will do, how, with what innovation"
+          importance: "Core of technical merit evaluation"
+          tips: "Be specific about innovation, not just execution"
+        team_and_capability:
+          content: "Who will do the work, why they are qualified"
+          importance: "Credibility and execution ability"
+          tips: "Emphasize relevant experience"
+        commercialization:
+          content: "How this leads to commercial success"
+          importance: "Especially for SBIR/commercial programs"
+          tips: "Be specific about market and path to revenue"
+        budget:
+          content: "How funds will be used"
+          importance: "Must be reasonable and justified"
+          tips: "Follow program guidelines exactly"
+      writing_tips:
+        match_criteria: "Write explicitly to evaluation criteria"
+        be_specific: "Concrete details beat vague claims"
+        show_innovation: "What is new vs. routine"
+        demonstrate_capability: "Prove you can execute"
+        follow_instructions: "Exact formatting, page limits, etc."
+      common_mistakes:
+        - "Too vague about innovation"
+        - "Ignoring evaluation criteria"
+        - "Poor formatting or exceeding limits"
+        - "Unrealistic scope or budget"
+        - "Waiting until deadline"
+      review_process:
+        internal_review: "Have technical and non-technical people review"
+        external_review: "If possible, get feedback from past winners"
+        iteration: "Budget time for multiple drafts"
+      best_practices:
+        - "Start applications early (4-8 weeks before deadline)"
+        - "Build application library of reusable content"
+        - "Get feedback from program officers if allowed"
+        - "Learn from rejections"
+
+    - step: 5
+      action: Manage compliance and reporting
+      responsible: Finance + Project Leads
+      duration: "Ongoing during grant period"
+      deliverable: Compliant grant execution
+      compliance_requirements:
+        financial_management:
+          - "Separate tracking of grant funds"
+          - "Eligible vs. ineligible expenses"
+          - "Proper documentation and receipts"
+          - "Timely spending (use it or lose it)"
+        reporting:
+          - "Progress reports (monthly/quarterly)"
+          - "Financial reports (often quarterly)"
+          - "Final reports (technical and financial)"
+        intellectual_property:
+          - "Understand IP ownership terms"
+          - "US government grants: March-in rights awareness"
+          - "EU grants: Open access requirements"
+        changes:
+          - "Budget modifications (usually allowed with approval)"
+          - "Timeline extensions (often possible)"
+          - "Scope changes (more difficult)"
+      reporting_best_practices:
+        track_continuously: "Do not wait until report due"
+        assign_ownership: "Clear responsibility for each grant"
+        template_reports: "Reusable structure for progress reports"
+        calendar_deadlines: "Miss deadline = risk of clawback"
+      audit_preparation:
+        common_audit_triggers:
+          - "Random selection"
+          - "Large grant amounts"
+          - "Previous issues"
+        documentation_to_maintain:
+          - "All application materials"
+          - "Award documents"
+          - "Expenditure records with receipts"
+          - "Progress reports and correspondence"
+          - "Time tracking if applicable"
+      best_practices:
+        - "Treat grant money as restricted funds"
+        - "Set up separate GL codes for grant expenses"
+        - "Keep immaculate records"
+        - "Communicate proactively with program officers"
+
+    - step: 6
+      action: Optimize and scale
+      responsible: CFO
+      duration: "Quarterly review"
+      deliverable: Improved softfunding program
+      performance_tracking:
+        key_metrics:
+          - "Total non-dilutive funding received"
+          - "Hours invested vs. funding received (ROI)"
+          - "Application win rate by program"
+          - "Pipeline value and probability"
+        analysis:
+          - "Which programs have best ROI?"
+          - "What application approaches work?"
+          - "Where should we invest more/less?"
+      scaling_considerations:
+        when_to_invest_more:
+          - "High win rates on current programs"
+          - "Significant R&D spend qualifying for credits"
+          - "Entering new markets with good programs"
+        when_to_invest_less:
+          - "Low win rates despite good applications"
+          - "Time better spent on core business"
+          - "Compliance burden outweighs benefit"
+        resource_options:
+          consultant: "Good for R&D credits, specialized grants"
+          part_time_hire: "When volume justifies"
+          full_time_role: "Rare for startups, common in larger orgs"
+      strategic_considerations:
+        grant_dependency:
+          - "Do not build business on grant assumptions"
+          - "Use grants to extend runway, not replace revenue"
+          - "Be prepared if grant funding stops"
+        investor_perception:
+          - "Sophisticated investors value non-dilutive funding"
+          - "Show ROI on time invested"
+          - "Do not let grants distract from core business"
+      best_practices:
+        - "Review program quarterly"
+        - "Calculate true ROI including time"
+        - "Share learnings across team"
+        - "Build relationships with program officers"
+
+  cadence:
+    frequency: "Ongoing with annual peaks"
+    trigger: "Grant deadlines, R&D tax credit filing, New program discovery"
+    duration: "Varies - 4-80 hours per application/claim"
+    ongoing:
+      - R&D tax credit claims (annual)
+      - Grant pipeline review (monthly/quarterly)
+      - New program research (quarterly)
+      - Reporting compliance (per grant requirements)
+
+practitioner_scenarios:
+  - id: ps-001
+    name: "First-Time Founder Discovering SkatteFUNN"
+    practitioner: "CEO / Founder"
+    organization_context: |
+      Norwegian startup, 5 people, pre-seed. Building AI product. 
+      Founder heard about SkatteFUNN from another founder. Has not 
+      claimed any R&D incentives before.
+    situation: |
+      Company has been spending on product development for 18 months. 
+      Runway is tight. Founder wants to understand if SkatteFUNN 
+      could help without taking too much time from product work.
+    trigger: |
+      Fellow founder mentioned receiving significant SkatteFUNN 
+      refund. CEO wants to investigate if it applies.
+    actions: |
+      1. Researched SkatteFUNN basics: 19% of eligible R&D costs 
+         (up to 25M NOK), requires Research Council approval, 
+         must apply before project starts (can cover past year work).
+      2. Assessed eligibility: company qualifies as SME, work 
+         involves technical uncertainty (AI model development, 
+         novel algorithms), project has defined scope.
+      3. Contacted accountant to confirm no conflicts and understand 
+         documentation requirements.
+      4. Drafted SkatteFUNN project application describing technical 
+         challenges, innovation approach, personnel, and budget.
+      5. Submitted application to Research Council portal before 
+         deadline (September for following year).
+      6. Set up simple time tracking for R&D personnel to capture 
+         hours on approved project.
+      7. Application approved. Began tracking eligible costs.
+      8. At year-end, submitted claim through tax return. Received 
+         refund of approximately 500K NOK.
+    outcome: |
+      First SkatteFUNN claim successful. 500K NOK refund extended 
+      runway by 3 months. Process took approximately 40 hours total 
+      (application, tracking, claim). Established annual process for 
+      ongoing claims.
+    lessons:
+      - Start SkatteFUNN early - application before work begins
+      - Time tracking is essential for documentation
+      - Accountant relationship helps with process
+      - ROI is excellent if you are doing qualifying R&D
+
+  - id: ps-002
+    name: "CEO Building US SBIR Strategy"
+    practitioner: "CEO"
+    organization_context: |
+      US healthcare technology company, 12 people, Series Seed. 
+      Product involves medical AI. Board suggested exploring SBIR 
+      given healthcare focus and R&D intensity.
+    situation: |
+      Company has $2M runway and will need to raise Series A in 
+      12-18 months. Board wants to understand if SBIR could provide 
+      non-dilutive funding to extend runway.
+    trigger: |
+      Board member with healthcare experience mentioned that similar 
+      companies had received significant SBIR funding from NIH.
+    actions: |
+      1. Researched SBIR program: Phase I ($275K, 6-9 months) and 
+         Phase II ($2M, 2 years). NIH has 24 institutes with 
+         different focuses. 10-20% win rate depending on institute.
+      2. Identified relevant NIH institutes: NIBIB (biomedical 
+         imaging and bioengineering), NCI (cancer), and NCATS 
+         (translational sciences).
+      3. Reviewed recent NIH SBIR awards in our domain to understand 
+         what gets funded and typical project scopes.
+      4. Contacted program officers at relevant institutes to discuss 
+         fit (encouraged for NIH SBIR).
+      5. Developed Phase I proposal focusing on AI validation study 
+         that aligned with company roadmap.
+      6. Hired SBIR consultant ($5K) to review proposal and improve 
+         Specific Aims and Research Strategy sections.
+      7. Submitted to NIH NIBIB. Waited 6 months for review.
+      8. Received score but not funded (score 38, needed <25). 
+         Reviewed feedback, identified weaknesses.
+      9. Revised and resubmitted for next cycle. Second submission 
+         funded with Phase I award.
+    outcome: |
+      Phase I award received on second attempt. $275K non-dilutive 
+      funding. Project validated AI approach and generated data for 
+      Series A. Total effort approximately 200 hours across two 
+      submissions.
+    lessons:
+      - SBIR takes time and persistence
+      - Talk to program officers before submitting
+      - First submission often does not fund but provides feedback
+      - Consultant can improve proposal significantly
+
+  - id: ps-003
+    name: "CFO Professionalizing Multi-Program Strategy"
+    practitioner: "CFO"
+    organization_context: |
+      Climate tech company, 50 people, Series B. Operations in US 
+      and UK. Significant R&D spend. Ad-hoc softfunding efforts have 
+      been successful but inefficient.
+    situation: |
+      Company has received various grants and tax credits over years, 
+      but approach has been opportunistic. CEO wants CFO to 
+      professionalize and scale softfunding to capture more value.
+    trigger: |
+      Financial planning revealed that R&D credits were under-claimed 
+      by estimated 40% due to poor documentation and missed programs.
+    actions: |
+      1. Audited current state: US R&D credit claimed at minimal 
+         level, UK R&D relief not claimed for 2 years, multiple 
+         grant opportunities missed.
+      2. Mapped all applicable programs across US and UK: federal 
+         and state R&D credits, SBIR (DOE focus for climate tech), 
+         Innovate UK Smart Grants, UK R&D relief.
+      3. Engaged specialized R&D credit firm for both US and UK. 
+         Fee: percentage of credits recovered. Firm identified 
+         additional $350K in missed credits from prior years.
+      4. Built internal process: Engineering manager responsible for 
+         project documentation, Finance tracks eligible spend, 
+         quarterly review of new opportunities.
+      5. Created grant calendar: DOE SBIR/STTR twice yearly, 
+         Innovate UK windows, state programs.
+      6. Hired part-time grants coordinator (0.5 FTE) to manage 
+         pipeline and prepare applications with engineering input.
+      7. Established compliance system: separate GL codes for grant 
+         expenses, reporting calendar, documentation standards.
+      8. First year results: $550K in R&D credits claimed (up from 
+         $180K), $400K in grants awarded, $350K in prior year 
+         credits recovered.
+    outcome: |
+      Softfunding program now generates $1M+ annually in non-dilutive 
+      funding. ROI on 0.5 FTE plus consultant fees exceeds 5x. 
+      Process runs systematically with clear ownership and metrics.
+    lessons:
+      - Prior year credits can often be recovered
+      - Specialists pay for themselves in complex programs
+      - Dedicated ownership drives consistent results
+      - Documentation is the key constraint
+
+operational_context:
+  prerequisites:
+    - R&D activities that may qualify for credits/grants
+    - Basic financial record-keeping
+    - Understanding of applicable jurisdictions
+    - Time or resources to pursue applications
+    
+  common_blockers:
+    - "Too busy to apply - Start with R&D credits, they are annual anyway"
+    - "Not sure if we qualify - Most tech companies qualify for something"
+    - "Applications seem too hard - Start with simpler programs"
+    - "Not worth the time - Track ROI, often very positive"
+    
+  integration_points:
+    - Revenue Modeling: Include softfunding in runway projections
+    - R&D Planning: Align grant applications with roadmap
+    - Finance: Track eligible expenses, process claims
+    - Legal: IP considerations for some grants
+
+risks:
+  if_skipped: |
+    Leave non-dilutive funding on the table. Raise more equity than 
+    needed. Miss validation opportunity. Competitors who use 
+    softfunding have longer runway.
+    
+  if_over_engineered: |
+    Spend too much time on low-probability grants. Distract from core 
+    business. Take on grants with burdensome compliance. Build 
+    dependency on uncertain funding.
+
+domain_context:
+  related_l2: "Financial Structuring"
+  related_l1: "FINANCING"
+  synergies:
+    - "Revenue Modeling (cd-014): Include softfunding in financial projections"
+    - "Quarterly Reporting (cd-017): Track softfunding pipeline and outcomes"
+    - "R&D Planning: Align grant applications with technical roadmap"
+    - "Investor Pitch (cd-010): Non-dilutive funding validates and extends runway"
