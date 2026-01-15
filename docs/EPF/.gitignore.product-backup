@@ -1,11 +1,11 @@
-# EPF Framework .gitignore - GMS Product Repo
-# This file tracks the GMS product instance while ignoring other instances
+# EPF Framework .gitignore - Emergent Product Repo
+# This file tracks the emergent product instance while ignoring other instances
 
-# Instance folders - only GMS instance is tracked
+# Instance folders - only emergent instance is tracked
 _instances/*
 !_instances/README.md
-!_instances/GMS
-!_instances/GMS/**
+!_instances/emergent
+!_instances/emergent/**
 
 # OS files
 .DS_Store
