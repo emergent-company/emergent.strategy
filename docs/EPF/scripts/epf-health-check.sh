@@ -812,12 +812,15 @@ check_content_quality() {
                 esac
                 
                 # Display score with color coding
+                # NOTE: Content quality is informational only (warning, not error)
+                # Instance content quality should not block framework syncs/bumps
                 if [ "$score" -ge 75 ]; then
                     log_pass "  $artifact_name: $score/100 (Grade: $grade)"
                 elif [ "$score" -ge 60 ]; then
                     log_warning "  $artifact_name: $score/100 (Grade: $grade)"
                 else
-                    log_error "  $artifact_name: $score/100 (Grade: $grade) - needs enrichment"
+                    # Use warning (not error) - content quality doesn't block framework ops
+                    log_warning "  $artifact_name: $score/100 (Grade: $grade) - needs enrichment"
                 fi
             fi
         done
