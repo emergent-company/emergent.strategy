@@ -1,8 +1,12 @@
-# Emergent Product Framework (EPF) Repository - v2.7.0
+# Emergent Product Framework (EPF) Repository - v2.7.1
 
 This repository contains the complete skeleton for managing product, strategy, org & ops, and commercial development using the Emergent Product Framework. It is designed to be an **executable operating system**, managed by a human-in-the-loop with the assistance of an AI Knowledge Agent.
 
 ---
+
+## What's New in v2.7.1
+
+Replace script version checks with artifact version alignment in health check
 
 ## What's New in v2.7.0
 
