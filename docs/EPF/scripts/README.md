@@ -9,7 +9,7 @@ This directory contains automation scripts for EPF framework management, validat
 **Comprehensive health check for EPF framework and instances.** This is the primary tool for validating EPF integrity - runs all validation checks in a single command.
 
 **What it checks:**
-1. **Version Consistency** - VERSION file matches README.md, MAINTENANCE.md, script headers
+1. **Version Consistency** - VERSION file matches README.md, MAINTENANCE.md, integration_specification.yaml
 2. **YAML Parsing** - All YAML files parse without syntax errors
 3. **JSON Schemas** - All schema files are valid JSON
 4. **Documentation Completeness** - Required docs exist (README, guides, etc.)
@@ -18,6 +18,12 @@ This directory contains automation scripts for EPF framework management, validat
 7. **Instance Validation** - Instance metadata, folder structure, FIRE subfolders
 8. **Content Quality Assessment** - Analyzes READY phase artifacts for template patterns, placeholder content, strategic depth
 9. **Canonical Track Consistency** - Validates that documentation correctly distinguishes canonical (Strategy, OrgOps, Commercial) from non-canonical (Product) tracks
+10. **Artifact Version Alignment (Tier 3)** - Checks instance artifacts are up-to-date with schema versions
+
+**Note on Script Versioning:**
+Scripts have **independent versioning** - script versions reflect when the script itself changes, not the framework version. This provides semantic accuracy. For example, a script at version 2.4.4 may work perfectly with EPF v2.7.0 if the script hasn't needed changes.
+
+Artifact version alignment (checking that YAML files in `_instances/` have versions matching their schemas) is handled by `check-version-alignment.sh` (Tier 3), which is integrated into this health check.
 
 **Usage:**
 ```bash

@@ -189,28 +189,12 @@ check_version_consistency() {
         log_error "MAINTENANCE.md not found"
     fi
     
-    # Check validate-schemas.sh
-    if [ -f "$validate_script" ]; then
-        local script_version=$(grep -o 'Version: [0-9]\+\.[0-9]\+\.[0-9]\+' "$validate_script" | head -1 | sed 's/Version: //')
-        log_verbose "validate-schemas.sh version: $script_version"
-        
-        if [ -n "$script_version" ] && [ "$script_version" != "$CANONICAL_VERSION" ]; then
-            log_warning "validate-schemas.sh version ($script_version) differs from VERSION ($CANONICAL_VERSION)"
-            if [ "$FIX_MODE" = true ]; then
-                sed -i '' "s/Version: $script_version/Version: $CANONICAL_VERSION/g" "$validate_script"
-                sed -i '' "s/v$script_version/v$CANONICAL_VERSION/g" "$validate_script"
-                log_info "  → Fixed validate-schemas.sh version"
-            fi
-        else
-            log_pass "validate-schemas.sh version matches"
-        fi
-    fi
-    
-    # Check this health check script version
-    local health_version=$(grep -o 'Version: [0-9]\+\.[0-9]\+\.[0-9]\+' "$EPF_ROOT/scripts/epf-health-check.sh" 2>/dev/null | head -1 | sed 's/Version: //')
-    if [ -n "$health_version" ] && [ "$health_version" != "$CANONICAL_VERSION" ]; then
-        log_warning "epf-health-check.sh version ($health_version) differs from VERSION ($CANONICAL_VERSION)"
-    fi
+    # NOTE: Scripts have independent versioning - they are NOT required to match VERSION file.
+    # Script versions should only be bumped when the script itself changes, not on every framework release.
+    # This provides semantic accuracy: script version reflects actual script changes.
+    # 
+    # Artifact version alignment (YAML files in _instances/) is checked separately via
+    # check_artifact_version_alignment() which calls check-version-alignment.sh (Tier 3).
     
     # Check integration_specification.yaml (CRITICAL - required for framework version consistency)
     if [ -f "$EPF_ROOT/integration_specification.yaml" ]; then
@@ -977,6 +961,96 @@ check_canonical_track_consistency() {
 }
 
 # =============================================================================
+# ARTIFACT VERSION ALIGNMENT (Tier 3)
+# =============================================================================
+# Checks that instance artifacts are up-to-date with their schema versions.
+# Uses check-version-alignment.sh for the actual comparison.
+# This replaces the old script version checks which were false positives
+# (scripts have independent versioning, artifacts need schema alignment).
+# =============================================================================
+check_artifact_version_alignment() {
+    log_section "Artifact Version Alignment (Tier 3)"
+    
+    local EPF_ROOT="$1"
+    local version_check_script="$EPF_ROOT/scripts/check-version-alignment.sh"
+    
+    if [ ! -f "$version_check_script" ]; then
+        log_warning "check-version-alignment.sh not found - skipping Tier 3 checks"
+        log_info "  This script compares artifact internal versions against schema versions"
+        return
+    fi
+    
+    # Check each instance for version alignment
+    local instances_dir="$EPF_ROOT/_instances"
+    if [ ! -d "$instances_dir" ]; then
+        log_info "No _instances directory found (canonical EPF repo - no instances expected)"
+        return
+    fi
+    
+    local total_stale=0
+    local total_outdated=0
+    local total_current=0
+    local instances_checked=0
+    
+    for instance_dir in "$instances_dir"/*/; do
+        [ -d "$instance_dir" ] || continue
+        
+        local instance_name=$(basename "$instance_dir")
+        [ "$instance_name" = "README.md" ] && continue
+        
+        log_info "Checking instance: $instance_name"
+        
+        # Run version alignment check
+        local output
+        output=$("$version_check_script" "$instance_dir" 2>/dev/null || true)
+        
+        if [ -n "$output" ]; then
+            # Count STALE and OUTDATED artifacts
+            local stale_count=$(echo "$output" | grep -c "STALE" || echo "0")
+            local outdated_count=$(echo "$output" | grep -c "OUTDATED" || echo "0")
+            local current_count=$(echo "$output" | grep -c "CURRENT" || echo "0")
+            
+            total_stale=$((total_stale + stale_count))
+            total_outdated=$((total_outdated + outdated_count))
+            total_current=$((total_current + current_count))
+            ((instances_checked++))
+            
+            if [ "$outdated_count" -gt 0 ]; then
+                log_warning "  $outdated_count artifact(s) OUTDATED (major version behind - breaking changes)"
+            fi
+            
+            if [ "$stale_count" -gt 0 ]; then
+                log_warning "  $stale_count artifact(s) STALE (3+ minor versions behind)"
+            fi
+            
+            if [ "$current_count" -gt 0 ] && [ "$outdated_count" -eq 0 ] && [ "$stale_count" -eq 0 ]; then
+                log_pass "  All $current_count artifact(s) are CURRENT"
+            fi
+        fi
+    done
+    
+    # Summary
+    if [ $instances_checked -gt 0 ]; then
+        echo ""
+        log_info "Artifact Version Alignment Summary:"
+        log_info "  Instances checked: $instances_checked"
+        log_info "  CURRENT artifacts: $total_current"
+        
+        if [ $total_stale -gt 0 ]; then
+            log_warning "  STALE artifacts: $total_stale (consider enrichment)"
+        fi
+        
+        if [ $total_outdated -gt 0 ]; then
+            log_warning "  OUTDATED artifacts: $total_outdated (migration recommended)"
+            log_info "  Run: ./scripts/check-version-alignment.sh _instances/<name> for details"
+            log_info "  Run: ./scripts/migrate-artifact.sh <artifact> to migrate"
+        fi
+    else
+        log_info "No instances to check for version alignment"
+    fi
+}
+
+# =============================================================================
 # MAIN
 # =============================================================================
 main() {
@@ -1015,6 +1089,7 @@ main() {
     check_instances "$EPF_ROOT"
     check_content_quality "$EPF_ROOT"
     check_canonical_track_consistency "$EPF_ROOT"
+    check_artifact_version_alignment "$EPF_ROOT"
     
     # ==========================================================================
     # Summary
