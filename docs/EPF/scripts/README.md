@@ -61,6 +61,63 @@ Instance average: 77/100 across 6 artifacts
 - `2` - Warnings only (consider fixing)
 - `3` - Missing dependencies or EPF root not found
 
+### verify-canonical-sync.sh ⭐ DEEP SYNC VERIFICATION
+
+**Deep verification that product repo EPF files match canonical exactly.** Use when health check passes but you need to verify actual file content matches canonical source.
+
+**Purpose:** Goes beyond VERSION comparison to compare actual file content against canonical EPF repository.
+
+**What it compares:**
+- `scripts/*.sh` - All shell scripts
+- `schemas/*.json` - All JSON schema files  
+- Core files - VERSION, README.md, MAINTENANCE.md, CANONICAL_PURITY_RULES.md, integration_specification.yaml
+- `wizards/*.md` - All wizard/agent prompt files
+- `templates/READY/*`, `templates/FIRE/*`, `templates/AIM/*` - All template files
+
+**When to use:**
+- Health check passes but behavior differs from canonical
+- Debugging "works in canonical, fails in product" issues
+- After manual edits to framework files (not using sync-repos.sh)
+- Before major releases requiring guaranteed sync
+- When you suspect sync-repos.sh didn't complete properly
+
+**Usage:**
+```bash
+# Quick check - just show summary
+./scripts/verify-canonical-sync.sh
+
+# Verbose - show each file comparison
+./scripts/verify-canonical-sync.sh --verbose
+
+# Auto-fix - sync if differences found
+./scripts/verify-canonical-sync.sh --fix
+```
+
+**Output example:**
+```
+EPF Canonical Sync Verification
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Comparing against: epf/main
+
+Checking scripts...
+✓ scripts/epf-health-check.sh
+✗ scripts/validate-schemas.sh (DIFFERS)
+
+Summary: 1 differences found in 45 files checked
+Run with --fix to sync from canonical
+```
+
+**Exit codes:**
+- `0` - All files match canonical ✅
+- `1` - Differences found (needs sync)
+- `2` - Error (missing remote, git issues)
+
+**Relationship to other tools:**
+- `check-epf-version.sh` - Quick VERSION string comparison (use at session start)
+- `verify-canonical-sync.sh` - Deep file content comparison (use when debugging)
+- `sync-repos.sh pull` - Actually performs the sync
+- `epf-health-check.sh` - Internal consistency only (doesn't compare to canonical)
+
 ### check-content-readiness.sh
 
 **Deep content quality analysis for individual artifacts.** Goes beyond schema validation to assess strategic depth, detect template patterns, and identify placeholder content.
