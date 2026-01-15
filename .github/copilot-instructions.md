@@ -32,7 +32,14 @@ This file is just a quick reference for common commands and repo locations. For:
 
 **Check EPF version:**
 ```bash
-./docs/EPF/scripts/check-epf-version.sh  # Check if EPF is up to date
+./docs/EPF/scripts/check-epf-version.sh  # Quick check if VERSION matches canonical
+```
+
+**Deep sync verification (when debugging or after manual edits):**
+```bash
+./docs/EPF/scripts/verify-canonical-sync.sh           # Compare all framework files against canonical
+./docs/EPF/scripts/verify-canonical-sync.sh --verbose # Show each file comparison
+./docs/EPF/scripts/verify-canonical-sync.sh --fix     # Auto-sync if differences found
 ```
 
 **Sync between repos:**
@@ -133,6 +140,17 @@ pwd  # Check your current working directory
   ```
   
 **Why this matters**: Working with outdated EPF may use deprecated schemas, miss bug fixes, or lack new features. Always sync to latest before major EPF work.
+
+**When to run deep verification:**
+Use `verify-canonical-sync.sh` when:
+- Health check passes but behavior differs from canonical
+- Debugging "works in canonical, fails in product" issues
+- After manual edits to framework files
+- Before major releases requiring guaranteed sync
+
+```bash
+./docs/EPF/scripts/verify-canonical-sync.sh  # Compare ALL framework files
+```
 
 ### Question 3: What is the user asking me to do?
 
