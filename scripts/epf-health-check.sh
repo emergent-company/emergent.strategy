@@ -1006,9 +1006,13 @@ check_artifact_version_alignment() {
         
         if [ -n "$output" ]; then
             # Count STALE and OUTDATED artifacts
-            local stale_count=$(echo "$output" | grep -c "STALE" || echo "0")
-            local outdated_count=$(echo "$output" | grep -c "OUTDATED" || echo "0")
-            local current_count=$(echo "$output" | grep -c "CURRENT" || echo "0")
+            # Note: grep -c exits with 1 when no matches, so we capture output first
+            local stale_count
+            local outdated_count
+            local current_count
+            stale_count=$(echo "$output" | grep -c "STALE") || stale_count=0
+            outdated_count=$(echo "$output" | grep -c "OUTDATED") || outdated_count=0
+            current_count=$(echo "$output" | grep -c "CURRENT") || current_count=0
             
             total_stale=$((total_stale + stale_count))
             total_outdated=$((total_outdated + outdated_count))
