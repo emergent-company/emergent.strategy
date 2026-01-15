@@ -1,8 +1,29 @@
-# Emergent Product Framework (EPF) Repository - v2.6.3
+# Emergent Product Framework (EPF) Repository - v2.7.0
 
 This repository contains the complete skeleton for managing product, strategy, org & ops, and commercial development using the Emergent Product Framework. It is designed to be an **executable operating system**, managed by a human-in-the-loop with the assistance of an AI Knowledge Agent.
 
 ---
+
+## What's New in v2.7.0
+
+Reality Baseline Protocol v1.14.0 - Living Reality Assessment
+
+**New artifacts:**
+- `living_reality_assessment.yaml` - persistent baseline (replaces snapshot CRA)
+- `track_health_signals.yaml` - ephemeral signals collected during AIM
+- `current_reality_assessment_schema.json` - schema for LRA
+- `track_health_assessment_schema.json` - schema for THA
+- `reality_baseline_protocol.md` - core principles document
+
+**Updated wizards with Reality Baseline integration:**
+- lean_start: Step 0 baseline collection, Step 3/6 persistence
+- pathfinder: STEP 0 baseline check, session completion updates
+- synthesizer: STEP 0 context loading, THA collection, LRA updates
+
+**Lifecycle model:** bootstrap → maturing → evolved  
+**Signal vocabulary:** velocity, quality, attention_backlog, capacity
+
+Fixes cold-start problem where first cycle had no prior AIM data.
 
 ## What's New in v2.6.3
 

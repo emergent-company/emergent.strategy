@@ -1,11 +1,11 @@
 # EPF Integration Specification
 # Machine-readable contract for spec-driven development tools
-# Version: 2.6.3 (EPF v2.5.0)
+# Version: 2.7.0 (EPF v2.7.0)
 
 specification:
   name: "EPF Tool Integration Specification"
-  version: "2.6.3"
-  epf_version: "2.5.0"
+  version: "2.7.0"
+  epf_version: "2.7.0"
   purpose: |
     This file defines the interface contract between the Emergent Product Framework (EPF)
     and any spec-driven software development tool (e.g., OpenSpec, SpecIt, AI coding agents).
