@@ -2,8 +2,8 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "feature_definition_schema.json",
   "title": "EPF Feature Definition Schema",
-  "version": "2.0.0",
-  "description": "Schema for validating feature definition files that bridge EPF strategy to implementation tools. Follows lean documentation principles - git handles versioning. Supports rich value narratives, design guidance, and architecture patterns. Version 2.0: Enhanced with prescriptive quality constraints (exactly 4 personas, 3-paragraph narratives, top-level scenarios, required context fields, rich dependencies).",
+  "version": "2.1.0",
+  "description": "Schema for validating feature definition files that bridge EPF strategy to implementation tools. Follows lean documentation principles - git handles versioning. Supports rich value narratives, design guidance, and architecture patterns. Version 2.1: Added feature_maturity for tracking capability-level delivery progress and overall feature maturity stage.",
   "$comment": "This schema validates YAML feature definition files located in _instances/{product}/features/READY/. Feature definitions are the bridge between strategic EPF artifacts (North Star, Strategy Formula, Value Model, Roadmap Recipe) and implementation tools (OpenSpec, Linear, Cursor, etc.). They capture WHAT users need (job-to-be-done), WHY it matters (value propositions), HOW it works (capabilities, scenarios), and WHERE it fits (strategic context, dependencies). Enhanced validation ensures high-quality, tool-consumable feature definitions.",
   "type": "object",
   "required": ["id", "name", "slug", "status", "strategic_context", "definition"],
@@ -36,6 +36,75 @@
       "description": "Current lifecycle status of the feature definition",
       "$comment": "Feature lifecycle status affects tool behavior. 'draft' = incomplete definition, tools should not process. 'ready' = validated definition, tools can create implementation backlogs (Linear issues, OpenSpec specs, test skeletons). 'in-progress' = implementation started, tools track progress and validate coverage. 'delivered' = implementation complete, tools verify coverage and finalize references. Status changes trigger lifecycle hooks (see integration_specification.yaml Section 12).",
       "examples": ["draft", "ready", "in-progress", "delivered"]
+    },
+    "feature_maturity": {
+      "type": "object",
+      "description": "Tracks the maturity progression of this feature based on capability delivery. Aligns with Value Model Maturity (VMM) stages but at feature-level granularity.",
+      "$comment": "Feature maturity provides feature-level visibility into delivery progress. Unlike 'status' which tracks definition lifecycle (draft→ready→delivered), feature_maturity tracks VALUE DELIVERY maturity (hypothetical→scaled). Maturity emerges from capability delivery: a feature is only as mature as its least-mature delivered capability. This enables: (1) Feature-level maturity dashboards, (2) Identification of partially-delivered features, (3) Correlation between KR execution and feature advancement. Maturity is DERIVED from KR delivery - as KRs complete, they advance capabilities, which advances feature maturity. The last_advanced_by_kr field creates backward traceability from feature to the KR that moved it forward.",
+      "properties": {
+        "overall_stage": {
+          "type": "string",
+          "enum": ["hypothetical", "emerging", "proven", "scaled"],
+          "description": "Current maturity stage of the feature. Aligns with VMM stages: hypothetical (not yet delivered), emerging (partially delivered), proven (core capabilities delivered), scaled (fully mature).",
+          "$comment": "overall_stage summarizes feature maturity: 'hypothetical' = feature defined but no capabilities delivered yet, 'emerging' = some capabilities delivered, value starting to flow, 'proven' = core capabilities delivered and validated with users, 'scaled' = all capabilities delivered and proven at scale. Stage should reflect the MINIMUM maturity across core capabilities - a feature with 4/5 capabilities at 'proven' but 1 at 'emerging' is overall 'emerging'. Tools can calculate this automatically from capability_maturity array.",
+          "examples": ["hypothetical", "emerging", "proven", "scaled"]
+        },
+        "capability_maturity": {
+          "type": "array",
+          "description": "Per-capability maturity status tracking. Each entry maps a capability ID to its delivery stage.",
+          "$comment": "capability_maturity provides granular visibility into which parts of the feature are delivered. Maps directly to capabilities defined in definition.capabilities. Enables: (1) Partial delivery tracking (cap-001 delivered, cap-002 in progress), (2) Priority identification (which capabilities need attention), (3) KR-to-capability traceability (which KR delivered which capability). Stage values match VMM: 'hypothetical' = not started, 'emerging' = in development, 'proven' = delivered and validated, 'scaled' = proven at scale. delivered_by_kr is optional - only set when a specific KR advanced this capability.",
+          "items": {
+            "type": "object",
+            "required": ["capability_id", "stage"],
+            "properties": {
+              "capability_id": {
+                "type": "string",
+                "pattern": "^cap-[0-9]+$",
+                "description": "Reference to capability ID from definition.capabilities array.",
+                "examples": ["cap-001", "cap-002", "cap-003"]
+              },
+              "stage": {
+                "type": "string",
+                "enum": ["hypothetical", "emerging", "proven", "scaled"],
+                "description": "Current maturity stage of this specific capability.",
+                "examples": ["hypothetical", "emerging", "proven", "scaled"]
+              },
+              "delivered_by_kr": {
+                "type": "string",
+                "pattern": "^kr-[psoc]-[0-9]+$",
+                "description": "Optional reference to the KR that delivered or advanced this capability. Format: kr-{track}-{number}.",
+                "$comment": "Creates backward traceability from capability to the roadmap KR that delivered it. Format matches roadmap KR IDs: kr-p-001 (product), kr-s-002 (strategy), kr-o-003 (org_ops), kr-c-004 (commercial). Only set when a capability's stage changes due to KR completion. Multiple KRs may advance the same capability over time - this field tracks the LATEST advancement.",
+                "examples": ["kr-p-001", "kr-p-003", "kr-s-002"]
+              },
+              "evidence": {
+                "type": "string",
+                "minLength": 10,
+                "maxLength": 500,
+                "description": "Optional brief description of evidence supporting this maturity stage (usage metrics, user feedback, etc.).",
+                "examples": [
+                  "Deployed to production, 150 daily active users, 94% task completion rate",
+                  "Beta testing with 12 pilot customers, positive feedback on core functionality",
+                  "Prototype validated in user research sessions, ready for development"
+                ]
+              }
+            }
+          }
+        },
+        "last_advanced_by_kr": {
+          "type": "string",
+          "pattern": "^kr-[psoc]-[0-9]+$",
+          "description": "Reference to the most recent KR that advanced this feature's maturity. Creates backward traceability from feature to roadmap execution.",
+          "$comment": "Tracks which KR most recently moved this feature forward. Enables: (1) Roadmap→Feature traceability (which KRs delivered which features), (2) Impact analysis (if KR is delayed, which features are affected), (3) Progress reporting (KR-001 delivered, advancing fd-002 from emerging to proven). Format matches roadmap KR IDs. Updated whenever a capability advances due to KR completion. Unlike capability_maturity[].delivered_by_kr which tracks per-capability, this tracks feature-level advancement.",
+          "examples": ["kr-p-001", "kr-p-003", "kr-s-002"]
+        },
+        "last_assessment_date": {
+          "type": "string",
+          "format": "date",
+          "description": "ISO 8601 date when maturity was last assessed. Helps identify stale assessments.",
+          "$comment": "Maturity assessments should be updated when: (1) A KR completes that affects this feature, (2) Significant user feedback is received, (3) Metrics indicate stage change. If last_assessment_date is >90 days old, assessment may be stale. Format: YYYY-MM-DD.",
+          "examples": ["2025-01-15", "2024-12-01", "2025-03-22"]
+        }
+      }
     },
     "strategic_context": {
       "type": "object",

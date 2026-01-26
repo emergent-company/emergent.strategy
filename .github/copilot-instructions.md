@@ -552,7 +552,22 @@ EPF provides a **3-tier validation system** for assessing instance artifact qual
 - To identify migration priorities
 
 ### Migration & Enrichment
+
+⚠️ **CRITICAL: Do NOT invent your own migration approach!**
+
+Before attempting ANY EPF migration:
+1. **Read [`MIGRATIONS.md`](../MIGRATIONS.md)** - Contains mandatory AI agent protocol
+2. **Read [`migrations/registry.yaml`](../migrations/registry.yaml)** - Machine-readable instructions
+3. **Generate plan FIRST**: `./scripts/generate-migration-plan.sh _instances/{product}`
+4. **Follow the plan's `ai_instructions`** - Do NOT improvise
+
+**Why this matters:** Migration has validation built into every step. Improvised migrations accumulate errors that are painful to fix. The documented approach catches problems immediately.
+
 ```bash
+# Generate migration plan (MANDATORY first step)
+./scripts/generate-migration-plan.sh _instances/my-product
+# Creates MIGRATION_PLAN.yaml with priorities and AI instructions
+
 # Interactive migration (wizard-guided)
 ./scripts/migrate-artifact.sh _instances/my-product/READY/05_roadmap_recipe.yaml
 
@@ -561,12 +576,18 @@ EPF provides a **3-tier validation system** for assessing instance artifact qual
 ./scripts/batch-migrate.sh _instances/my-product --priority high
 ```
 
+**Migration Infrastructure:**
+- `MIGRATIONS.md` - Strategy guide and AI agent instructions
+- `migrations/registry.yaml` - Machine-readable version history with changes
+- `migrations/guides/*.md` - Detailed migration guides per version transition
+
 **Workflow:**
 1. Run Tier 1 (compliance) - must pass
 2. Run Tier 2 (coverage) - identify gaps
 3. Run Tier 3 (alignment) - check currency
-4. Migrate/enrich artifacts with guidance
-5. Re-validate to confirm improvements
+4. Generate migration plan: `./scripts/generate-migration-plan.sh`
+5. Execute migrations following plan's `ai_instructions`
+6. Re-validate to confirm improvements
 
 **Complete documentation:** See [`scripts/README.md`](../scripts/README.md) - Enhanced Health Check System section
 
@@ -584,6 +605,7 @@ EPF provides a **3-tier validation system** for assessing instance artifact qual
 ./scripts/validate-instance.sh _instances/{product}          # Tier 1-3 dashboard
 ./scripts/analyze-field-coverage.sh _instances/{product}     # Tier 2 deep dive
 ./scripts/check-version-alignment.sh _instances/{product}    # Tier 3 deep dive
+./scripts/generate-migration-plan.sh _instances/{product}    # Create MIGRATION_PLAN.yaml
 ./scripts/migrate-artifact.sh path/to/artifact.yaml          # Interactive enrichment
 ./scripts/batch-migrate.sh _instances/{product} --dry-run    # Batch migration
 ```

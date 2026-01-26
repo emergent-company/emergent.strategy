@@ -66,10 +66,31 @@ Each example demonstrates:
 - ✅ Scenarios at top-level with rich context/trigger/action/outcome
 - ✅ Rich dependency objects with WHY explanations (30+ chars)
 - ✅ Comprehensive capabilities, contexts, scenarios coverage
+- ✅ **Optional** `feature_maturity` section for tracking capability-level maturity (EPF v2.8.0+)
+
+## Feature Maturity (Optional, EPF v2.8.0+)
+
+Feature definitions can include a `feature_maturity` section to track capability-level maturity using the same 4-stage vocabulary as Value Model Maturity (VMM):
+
+```yaml
+feature_maturity:
+  overall_stage: "emerging"  # hypothetical | emerging | proven | scaled
+  capability_maturity:
+    - capability_id: "cap-001"
+      stage: "emerging"
+      delivered_by_kr: "kr-p-001"
+      evidence: "Validated with 100 beta users"
+  last_advanced_by_kr: "kr-p-001"
+  last_assessment_date: "2025-01-18"
+```
+
+**See example:** [01-technical/fd-002-knowledge-graph-engine.yaml](01-technical/fd-002-knowledge-graph-engine.yaml) demonstrates feature_maturity usage.
+
+**Learn more:** [VALUE_MODEL_MATURITY_GUIDE.md](../../docs/guides/VALUE_MODEL_MATURITY_GUIDE.md) explains VMM and feature maturity relationship.
 
 ## Schema Validation
 
-All examples validate against `schemas/feature_definition_schema.json` (v2.0.0).
+All examples validate against `schemas/feature_definition_schema.json` (v2.1.0).
 
 **Validate an example:**
 ```bash
@@ -99,9 +120,9 @@ All examples validate against `schemas/feature_definition_schema.json` (v2.0.0).
 | Resource | Description |
 |----------|-------------|
 | [Template](_template/feature_definition_template.yaml) | Starting point for new features |
-| [Creation Wizard](../../wizards/feature_definition.wizard.md) | Human-readable 7-step guide |
+| [Creation Wizard](../../wizards/feature_definition.wizard.md) | Human-readable 8-step guide (including optional maturity) |
 | [AI Agent Guidance](../../wizards/product_architect.agent_prompt.md) | AI-specific creation guidance |
-| [Schema](../../schemas/feature_definition_schema.json) | JSON Schema (v2.0.0) |
+| [Schema](../../schemas/feature_definition_schema.json) | JSON Schema (v2.1.0) |
 
 ---
 
