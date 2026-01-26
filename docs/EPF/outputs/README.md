@@ -85,6 +85,11 @@ outputs/
 │   ├── schema.json                     # Input validation
 │   ├── wizard.instructions.md          # Generation logic
 │   └── validator.sh                    # Output validation
+├── development-brief/                  # Development Handover Brief generator
+│   ├── schema.json                     # Input validation
+│   ├── wizard.instructions.md          # Generation logic (interactive)
+│   ├── validator.sh                    # Output validation
+│   └── README.md                       # Quick reference
 ├── investor-memo/                      # Investor Materials generator
 │   ├── schema.json                     # Input validation
 │   ├── wizard.instructions.md          # Generation logic
@@ -228,10 +233,14 @@ Examples:
 | Output Type | Purpose | Wizard | Schema | Template |
 |------------|---------|--------|--------|----------|
 | **Context Sheet** | AI context for external tools | ✅ | ✅ | ⏳ |
+| **Development Brief** | Engineering handover from product | ✅ | ✅ | ❌ |
 | **Investor Memo Package** | Complete investor materials (5 docs) | ✅ | ✅ | ⏳ |
+| **SkatteFUNN Application** | Norwegian R&D tax deduction form | ✅ | ✅ | ✅ |
 | **Marketing Brief** | Product marketing summary | ⏳ | ⏳ | ⏳ |
 | **Sales Battlecard** | Competitive positioning | ⏳ | ⏳ | ⏳ |
 | **Product Guide** | Customer-facing documentation | ⏳ | ⏳ | ⏳ |
+
+Legend: ✅ Complete | 🔄 In Progress | ⏳ Planned | ❌ Not Needed
 
 Legend: ✅ Complete | 🔄 In Progress | ⏳ Planned
 

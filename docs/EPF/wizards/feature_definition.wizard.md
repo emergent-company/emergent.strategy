@@ -455,6 +455,78 @@ cd /path/to/EPF
 ./scripts/validate-feature-quality.sh /path/to/feature-definition.yaml
 ```
 
+### Step 8: Feature Maturity (Optional, 5-10 minutes)
+
+**NEW in EPF v2.8.0** - Track capability-level maturity within your feature.
+
+**When to add feature_maturity:**
+- Features in active development (tracking progress across cycles)
+- Features with capabilities at different maturity levels
+- Before scaling decisions (verify all capabilities are ready)
+
+**When to skip:**
+- New features (all capabilities start at "hypothetical" by default)
+- Features where all capabilities are clearly at same maturity level
+- Quick drafts that will be enriched later
+
+**Feature Maturity Template:**
+```yaml
+feature_maturity:
+  overall_stage: "hypothetical"  # hypothetical | emerging | proven | scaled
+  capability_maturity:
+    - capability_id: "cap-001"
+      stage: "hypothetical"
+      # delivered_by_kr: "kr-p-001"  # Add when KR advances this
+      evidence: "Design phase - awaiting implementation"
+    - capability_id: "cap-002"
+      stage: "hypothetical"
+      evidence: "Concept validated in user interviews"
+  # last_advanced_by_kr: "kr-p-001"  # Add when maturity changes
+  last_assessment_date: "2025-01-18"
+```
+
+**Stage Definitions (same as Value Model Maturity):**
+- **hypothetical**: Design/concept phase, no implementation evidence
+- **emerging**: Initial implementation, early validation signals
+- **proven**: Validated with real users, consistent evidence of value
+- **scaled**: Deployed at scale, operationalized for growth
+
+**The Minimum Rule:**
+Feature's `overall_stage` equals its **least mature capability**:
+- 4 capabilities "proven" + 1 capability "hypothetical" = feature is "hypothetical"
+- Ensures honest assessment of feature readiness
+
+**Good Feature Maturity Example:**
+```yaml
+feature_maturity:
+  overall_stage: "emerging"
+  capability_maturity:
+    - capability_id: "cap-001"
+      stage: "proven"
+      delivered_by_kr: "kr-p-003"
+      evidence: "Document upload validated with 847 customers, 99.2% success rate, 3 consecutive months"
+    - capability_id: "cap-002"
+      stage: "emerging"
+      delivered_by_kr: "kr-p-005"
+      evidence: "Compliance tagging released to beta, 78% report 'very helpful' in survey (n=45)"
+    - capability_id: "cap-003"
+      stage: "hypothetical"
+      evidence: "Dashboard design complete, awaiting Q2 implementation"
+  last_advanced_by_kr: "kr-p-005"
+  last_assessment_date: "2025-01-18"
+```
+
+**Feature Maturity Quality Checklist:**
+- [ ] `capability_id` matches IDs from your `definition.capabilities` section
+- [ ] `overall_stage` reflects minimum of all capability stages
+- [ ] Evidence is specific (metrics, dates, sources)
+- [ ] `delivered_by_kr` links to actual KR IDs from roadmap
+- [ ] `last_assessment_date` is recent and accurate
+
+**See also:**
+- [VALUE_MODEL_MATURITY_GUIDE.md](../docs/guides/VALUE_MODEL_MATURITY_GUIDE.md) - Full maturity model documentation
+- [fd-002-knowledge-graph-engine.yaml](../definitions/product/01-technical/fd-002-knowledge-graph-engine.yaml) - Example with feature_maturity
+
 ---
 
 ## Common Anti-Patterns to Avoid
