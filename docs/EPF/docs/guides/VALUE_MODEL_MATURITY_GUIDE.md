@@ -210,6 +210,94 @@ VMM and TRL (Technology Readiness Level) are **parallel and independent** system
 
 ---
 
+## VMM and Feature Maturity: The Capability View
+
+**EPF v2.8.0** introduced an optional `feature_maturity` section in Feature Definitions that brings VMM visibility to the feature level.
+
+### Why Feature Maturity?
+
+While VMM operates at the Value Model L3 sub-component level, practitioners working with Feature Definitions often want to know:
+- "Which capabilities within this feature are proven vs hypothetical?"
+- "What KR execution advanced this capability's maturity?"
+- "Is this feature ready for production scaling or still experimental?"
+
+Feature Maturity provides this visibility **without duplicating** VMM—it uses the same 4-stage vocabulary but applies it at capability granularity within features.
+
+### The Three Maturity Systems
+
+| System | Where It Lives | Granularity | Updated By |
+|--------|---------------|-------------|------------|
+| **TRL (1-9)** | Roadmap KRs | Per KR, per cycle | Cycle execution |
+| **VMM (4 stages)** | Value Model L3 | Sub-component level | Evidence accumulation |
+| **Feature Maturity** | Feature Definition | Per capability | KR completion |
+
+### How They Connect
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    ROADMAP (Cycle N)                            │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │ KR: "Validate graph query performance with 100 users"    │   │
+│  │ TRL: 4 → 6 (within cycle)                                │   │
+│  │ value_model_target: Product.Decide.Analysis              │   │
+│  └──────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+              │                             │
+              │ advances                    │ advances
+              ▼                             ▼
+┌─────────────────────────────┐  ┌─────────────────────────────┐
+│     FEATURE DEFINITION      │  │        VALUE MODEL          │
+│  ┌───────────────────────┐  │  │  ┌───────────────────────┐  │
+│  │ capability: cap-001   │  │  │  │ L3: Analysis          │  │
+│  │ stage: emerging       │  │  │  │ stage: emerging       │  │
+│  │ delivered_by_kr: kr-p │  │  │  │ evidence: [100 user   │  │
+│  └───────────────────────┘  │  │  │           validation] │  │
+│  feature_maturity:          │  │  └───────────────────────┘  │
+│  overall_stage: emerging    │  │                             │
+└─────────────────────────────┘  └─────────────────────────────┘
+```
+
+### Feature Maturity Structure
+
+```yaml
+feature_maturity:
+  overall_stage: "emerging"  # hypothetical | emerging | proven | scaled
+  capability_maturity:
+    - capability_id: "cap-001"
+      stage: "emerging"
+      delivered_by_kr: "kr-p-001"  # Which KR advanced this
+      evidence: "Validated with 100 beta users showing 40% time savings"
+    - capability_id: "cap-002"
+      stage: "hypothetical"
+      evidence: "Design complete, awaiting implementation"
+  last_advanced_by_kr: "kr-p-001"
+  last_assessment_date: "2025-01-18"
+```
+
+### The Minimum Rule
+
+A feature's `overall_stage` is determined by its **least mature capability**:
+- If one capability is "hypothetical" and four are "proven", the feature is "hypothetical"
+- This ensures honest assessment: a feature can't be "proven" until all capabilities have evidence
+
+### When to Update Feature Maturity
+
+1. **After KR completion**: When a KR advances a capability, update `delivered_by_kr` and `stage`
+2. **During calibration**: AIM phase reviews may reveal evidence gaps
+3. **Before scaling decisions**: Check all capabilities are at target maturity before major investment
+
+### Relationship to Value Model
+
+Feature Maturity **does not replace** VMM:
+- VMM remains the authoritative source for value delivery maturity
+- Feature Maturity provides a practitioner-friendly view at the feature level
+- Both use the same 4-stage vocabulary for consistency
+- Features `contributes_to` Value Model paths—Feature Maturity shows progress on those contributions
+
+**See:** [Feature Definition Implementation Guide](FEATURE_DEFINITION_IMPLEMENTATION_GUIDE.md) for detailed feature_maturity documentation.
+
+---
+
 ## Linking Roadmap KRs to Value Model Maturity
 
 In `roadmap_recipe.yaml`, KRs can specify which Value Model component they advance:

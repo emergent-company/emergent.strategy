@@ -1,8 +1,32 @@
-# Emergent Product Framework (EPF) Repository - v2.7.3
+# Emergent Product Framework (EPF) Repository - v2.11.0
 
 This repository contains the complete skeleton for managing product, strategy, org & ops, and commercial development using the Emergent Product Framework. It is designed to be an **executable operating system**, managed by a human-in-the-loop with the assistance of an AI Knowledge Agent.
 
 ---
+
+## What's New in v2.11.0
+
+Add development-brief output generator for development team handover
+
+## What's New in v2.9.2
+
+Add AGENTS.md - AI agent instructions with script lookup table to prevent raw command usage
+
+## What's New in v2.9.1
+
+Fix: Migration tooling now compares artifacts against schema versions, not framework version. This eliminates false positives where artifacts at v1.13.0 were incorrectly flagged as needing migration when their schema was also at v1.13.0.
+
+## What's New in v2.9.0
+
+Migration infrastructure with AI routing protocol
+
+## What's New in v2.8.0
+
+Feature Maturity Tracking - Added feature_maturity section to feature definitions enabling per-capability maturity tracking aligned with VMM stages (hypothetical→emerging→proven→scaled)
+
+## What's New in v2.7.4
+
+Make Living Reality Assessment a hard gate for AI agents
 
 ## What's New in v2.7.3
 

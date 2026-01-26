@@ -1,5 +1,5 @@
 # Feature Definition Template
-# EPF v2.5.0 - Schema-compliant YAML template
+# EPF v2.8.0 - Schema-compliant YAML template (feature_maturity added)
 # 
 # INSTRUCTIONS:
 # 1. Copy this template to your instance: _instances/{product}/FIRE/feature_definitions/
@@ -21,6 +21,20 @@ id: fd-{number}  # Example: fd-007
 name: "{Feature Name}"  # Example: "User Authentication & Authorization"
 slug: "{feature-slug}"  # Example: "user-authentication-authorization"
 status: draft  # Options: draft | ready | in-progress | delivered
+
+# Feature Maturity (Optional - tracks delivery progress)
+# Aligns with Value Model Maturity (VMM) stages: hypothetical → emerging → proven → scaled
+# Update as capabilities are delivered through KR execution
+feature_maturity:
+  overall_stage: "hypothetical"  # Options: hypothetical | emerging | proven | scaled
+  capability_maturity:
+    # One entry per capability defined below - copy/paste for each cap-XXX
+    - capability_id: "cap-001"
+      stage: "hypothetical"  # Update as KRs deliver this capability
+      # delivered_by_kr: "kr-p-001"  # Uncomment when a KR delivers this
+      # evidence: "Deployed to production, 150 DAU, 94% task completion"  # Add when proven
+  # last_advanced_by_kr: "kr-p-001"  # Uncomment when feature advances due to KR completion
+  last_assessment_date: "{YYYY-MM-DD}"  # Update when maturity is assessed
 
 # Strategic Context
 strategic_context:
