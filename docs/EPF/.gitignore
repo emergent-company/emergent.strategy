@@ -1,11 +1,12 @@
-# EPF Framework .gitignore - Emergent Product Repo
-# This file tracks the emergent product instance while ignoring other instances
+# EPF Framework .gitignore
+# This is the lawmatics product repo - the lawmatics instance IS tracked here
 
-# Instance folders - only emergent instance is tracked
+# Instance folders - only lawmatics instance is tracked
+# Other instances are ignored (if syncing from canonical repo)
 _instances/*
 !_instances/README.md
-!_instances/emergent
-!_instances/emergent/**
+!_instances/lawmatics
+!_instances/lawmatics/**
 
 # OS files
 .DS_Store

@@ -1,5 +1,5 @@
 #!/bin/bash
-# EPF Sync Script v2.2
+# EPF Sync Script v2.4
 # Ensures EPF framework is synchronized across canonical repo and product instances
 #
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -31,6 +31,25 @@
 # - Validates version consistency before syncing
 # - Uses safe clone-copy-push workflow
 # - Prevents canonical contamination with product-specific content
+# - Automatically restores product-specific .gitignore after pull operations
+# - SELF-UPDATES: Before pulling, checks if canonical has newer sync script
+#   and uses the newer version to perform the sync (prevents bootstrap problems)
+#
+# SELF-UPDATE MECHANISM (v2.4+):
+# Problem: Product repo may have old/broken sync script that can't properly sync
+# Solution: Before any pull operation:
+#   1. Fetch canonical sync script version
+#   2. If canonical is newer, download it
+#   3. Re-execute with the newer script
+#   4. This ensures sync logic improvements take effect immediately
+#
+# GITIGNORE HANDLING:
+# - Canonical repo uses .gitignore that ignores ALL instances
+# - Product repos need .gitignore that tracks THEIR specific instance
+# - During pull, canonical .gitignore overwrites product .gitignore
+# - This script automatically restores product-specific .gitignore
+# - Uses templates/product.gitignore.template to regenerate correct .gitignore
+# - Detection: looks for "CANONICAL REPOSITORY" comment in .gitignore header
 #
 # USAGE:
 #   ./docs/EPF/scripts/sync-repos.sh         # Interactive mode
@@ -42,6 +61,18 @@
 # CRITICAL: git subtree push CANNOT exclude directories, so we use a different approach:
 # - PULL: Uses git subtree (safe, canonical → product), auto-restores product .gitignore
 # - PUSH: Clones canonical, copies files, commits, pushes (excludes _instances/)
+#
+# Version 2.4 Changes:
+# - Added SELF-UPDATE MECHANISM: Before pulling, checks if canonical has newer sync script
+# - Downloads and uses newer sync script for the sync operation itself
+# - Prevents broken old sync scripts from causing infinite loops or sync failures
+# - Self-update only triggers for 'pull' operations (not push/check/validate)
+#
+# Version 2.3 Changes:
+# - Improved .gitignore detection with explicit "CANONICAL REPOSITORY" marker
+# - Added templates/product.gitignore.template for robust restoration
+# - Better fallback handling when subtree operations fail
+# - Clearer error messages and recovery instructions
 #
 # Version 2.2 Changes:
 # - Integrated with classify-changes.sh for version bump detection
@@ -133,6 +164,115 @@ trap cleanup EXIT
 
 # Change to repo root for consistent paths
 cd "$REPO_ROOT"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SELF-UPDATE MECHANISM
+# ═══════════════════════════════════════════════════════════════════════════════
+# Problem: When pulling updates, the OLD sync script (in product repo) is used.
+#          If the sync mechanism improved in canonical, we want to use the NEW one.
+# Solution: Before any sync operation, check if canonical has a newer sync script.
+#           If so, download it and re-execute with the same arguments.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+SYNC_SCRIPT_VERSION="2.4"  # Increment when making changes to sync logic
+SELF_UPDATE_MARKER="/tmp/.epf-sync-self-updated-$$"
+
+get_local_sync_version() {
+    # Extract version from this script's header comment
+    grep -E "^# EPF Sync Script v" "${BASH_SOURCE[0]}" 2>/dev/null | head -1 | sed 's/.*v\([0-9.]*\).*/\1/' || echo "0"
+}
+
+get_canonical_sync_version() {
+    # Fetch canonical sync script and extract version
+    git fetch "$CANONICAL_REMOTE" "$CANONICAL_BRANCH" --quiet 2>/dev/null || return 1
+    git show "$CANONICAL_REMOTE/$CANONICAL_BRANCH:scripts/sync-repos.sh" 2>/dev/null | \
+        grep -E "^# EPF Sync Script v" | head -1 | sed 's/.*v\([0-9.]*\).*/\1/' || echo "0"
+}
+
+version_gt() {
+    # Returns 0 (true) if $1 > $2 using version comparison
+    test "$(printf '%s\n' "$1" "$2" | sort -V | head -n 1)" != "$1"
+}
+
+self_update_if_needed() {
+    # Skip if we already self-updated in this execution
+    if [[ -f "$SELF_UPDATE_MARKER" ]]; then
+        return 0
+    fi
+    
+    # Only self-update for pull operations (where we're getting newer code)
+    if [[ "${1:-}" != "pull" ]]; then
+        return 0
+    fi
+    
+    echo -e "${BLUE}[BOOTSTRAP]${NC} Checking for sync script updates..."
+    
+    # Ensure remote is configured
+    if ! git remote get-url "$CANONICAL_REMOTE" &>/dev/null; then
+        git remote add "$CANONICAL_REMOTE" "$CANONICAL_URL" 2>/dev/null || true
+    fi
+    
+    local local_version=$(get_local_sync_version)
+    local canonical_version=$(get_canonical_sync_version)
+    
+    if [[ -z "$canonical_version" || "$canonical_version" == "0" ]]; then
+        echo -e "${YELLOW}[BOOTSTRAP]${NC} Could not determine canonical sync version, proceeding with local"
+        return 0
+    fi
+    
+    echo -e "${BLUE}[BOOTSTRAP]${NC} Local sync version: v$local_version"
+    echo -e "${BLUE}[BOOTSTRAP]${NC} Canonical sync version: v$canonical_version"
+    
+    if version_gt "$canonical_version" "$local_version"; then
+        echo ""
+        echo -e "${YELLOW}════════════════════════════════════════════════════════════════${NC}"
+        echo -e "${YELLOW}  NEWER SYNC SCRIPT AVAILABLE (v$local_version → v$canonical_version)${NC}"
+        echo -e "${YELLOW}  Downloading and using the newer version for this sync...${NC}"
+        echo -e "${YELLOW}════════════════════════════════════════════════════════════════${NC}"
+        echo ""
+        
+        # Download the newer sync script to a temp location
+        local new_script="/tmp/epf-sync-updated-$$.sh"
+        git show "$CANONICAL_REMOTE/$CANONICAL_BRANCH:scripts/sync-repos.sh" > "$new_script" 2>/dev/null
+        
+        if [[ ! -s "$new_script" ]]; then
+            echo -e "${YELLOW}[BOOTSTRAP]${NC} Could not download newer sync script, proceeding with local"
+            rm -f "$new_script"
+            return 0
+        fi
+        
+        chmod +x "$new_script"
+        
+        # Create marker to prevent infinite loop
+        touch "$SELF_UPDATE_MARKER"
+        
+        # Re-execute with the newer script
+        echo -e "${BLUE}[BOOTSTRAP]${NC} Re-executing with updated sync script..."
+        echo ""
+        
+        # Export variables the new script needs
+        export EPF_BOOTSTRAP_REPO_ROOT="$REPO_ROOT"
+        export EPF_BOOTSTRAP_EPF_PREFIX="$EPF_PREFIX"
+        
+        # Execute the new script with original arguments
+        exec "$new_script" "$@"
+        
+        # exec replaces this process, so we never reach here
+        # But just in case:
+        exit $?
+    else
+        echo -e "${GREEN}[BOOTSTRAP]${NC} Sync script is up to date ✓"
+    fi
+}
+
+# Clean up self-update marker on exit
+cleanup_self_update() {
+    rm -f "$SELF_UPDATE_MARKER"
+}
+trap cleanup_self_update EXIT
+
+# Run self-update check before anything else (only for pull operations)
+self_update_if_needed "$@"
 
 check_remote() {
     if ! git remote get-url "$CANONICAL_REMOTE" &>/dev/null; then
@@ -441,35 +581,65 @@ detect_product_name() {
     echo ""
 }
 
+is_canonical_gitignore() {
+    local gitignore_file="$1"
+    # Check for explicit canonical marker in .gitignore header
+    # This marker is set in the canonical repo's .gitignore
+    if grep -q "CANONICAL REPOSITORY" "$gitignore_file" 2>/dev/null; then
+        return 0  # true - is canonical
+    fi
+    return 1  # false - not canonical (is product-specific or unknown)
+}
+
 restore_product_gitignore() {
     local product_name="$1"
     local gitignore_file="$EPF_PREFIX/.gitignore"
+    local template_file="$EPF_PREFIX/templates/product.gitignore.template"
     local backup_file="$EPF_PREFIX/.gitignore.product-backup"
     
     if [[ -z "$product_name" ]]; then
         log_warn "Could not detect product name - .gitignore may need manual fix"
         log_info "Check: $gitignore_file should NOT ignore your instance folder"
+        log_info "Fix: Find your instance folder name and run:"
+        log_info "  sed 's/{{PRODUCT_NAME}}/YOUR_PRODUCT/g' $template_file > $gitignore_file"
         return 1
     fi
     
     # Check if current .gitignore is the canonical version (ignores all instances)
-    if grep -q "^# This is the CANONICAL EPF repo" "$gitignore_file" 2>/dev/null; then
+    if is_canonical_gitignore "$gitignore_file"; then
         log_warn ".gitignore was overwritten with canonical version - restoring product version..."
         
-        cat > "$gitignore_file" << EOF
-# EPF Framework .gitignore
-# This is the $product_name product repo - the $product_name instance IS tracked here
+        # Prefer using template if available
+        if [[ -f "$template_file" ]]; then
+            log_info "Using template: $template_file"
+            sed "s/{{PRODUCT_NAME}}/$product_name/g" "$template_file" > "$gitignore_file"
+        else
+            # Fallback to inline generation
+            log_warn "Template not found, generating inline..."
+            cat > "$gitignore_file" << EOF
+# ════════════════════════════════════════════════════════════════════════════════
+# EPF Framework .gitignore - $product_name Product Repo
+# ════════════════════════════════════════════════════════════════════════════════
+#
+# This is the $product_name product repository.
+# The $product_name instance is TRACKED here, other instances are ignored.
+#
+# ════════════════════════════════════════════════════════════════════════════════
 
 # Instance folders - only $product_name instance is tracked
-# Other instances are ignored (if syncing from canonical repo)
 _instances/*
 !_instances/README.md
 !_instances/$product_name
 !_instances/$product_name/**
 
+# Working directory
+.epf-work/*
+!.epf-work/README.md
+
 # OS files
 .DS_Store
 Thumbs.db
+Desktop.ini
 
 # Editor files
 *.swp
@@ -481,7 +651,19 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+*.bak
+*.backup
+*.product-backup
+*.log
+
+# Build artifacts
+node_modules/
+__pycache__/
+*.pyc
+dist/
+build/
 EOF
+        fi
         
         log_info "Restored product-specific .gitignore for '$product_name'"
         git add "$gitignore_file"
@@ -509,12 +691,17 @@ pull_from_canonical() {
     local product_name=$(detect_product_name)
     if [[ -n "$product_name" ]]; then
         log_info "Detected product instance: $product_name"
+    else
+        log_warn "No product instance detected - are you in the canonical EPF repo?"
+        log_info "If this is a product repo, create your instance folder first:"
+        log_info "  mkdir -p $EPF_PREFIX/_instances/YOUR_PRODUCT_NAME"
     fi
     
-    # Backup current .gitignore if it's product-specific
+    # Backup current .gitignore if it's product-specific (not canonical)
     local gitignore_file="$EPF_PREFIX/.gitignore"
     local backup_file="$EPF_PREFIX/.gitignore.product-backup"
-    if [[ -f "$gitignore_file" ]] && ! grep -q "^# This is the CANONICAL EPF repo" "$gitignore_file"; then
+    if [[ -f "$gitignore_file" ]] && ! is_canonical_gitignore "$gitignore_file"; then
+        log_info "Backing up product-specific .gitignore..."
         cp "$gitignore_file" "$backup_file"
     fi
     
@@ -558,50 +745,16 @@ pull_from_canonical() {
             log_warn ".gitignore has merge conflict - auto-resolving..."
             
             if [[ -n "$product_name" ]]; then
-                # Resolve conflict by keeping product-specific version
-                cat > "$EPF_PREFIX/.gitignore" << EOF
-# EPF Framework .gitignore - $product_name Product Repo
-# This file tracks the $product_name product instance while ignoring other instances
-
-# Instance folders - only $product_name instance is tracked
-_instances/*
-!_instances/README.md
-!_instances/$product_name
-!_instances/$product_name/**
-
-# Working directory (temporary files, analysis, session notes)
-.epf-work/*
-!.epf-work/README.md
-
-# IDE and editor files
-.vscode/*
-!.vscode/settings.json
-.idea/
-*.swp
-*.swo
-*~
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Build artifacts
-*.pyc
-__pycache__/
-node_modules/
-dist/
-build/
-
-# Temporary files
-*.tmp
-*.bak
-*.log
-EOF
-                git add "$EPF_PREFIX/.gitignore"
+                # Resolve conflict using template or inline generation
+                restore_product_gitignore "$product_name"
                 git commit -m "EPF: Resolve .gitignore merge conflict (keep $product_name instance tracking)" --no-verify
                 log_info "Auto-resolved .gitignore conflict ✓"
             else
                 log_warn "Cannot auto-resolve - product name unknown. Manual resolution required."
+                log_info "To fix manually:"
+                log_info "  1. Create your instance folder: mkdir -p $EPF_PREFIX/_instances/YOUR_PRODUCT"
+                log_info "  2. Generate .gitignore: sed 's/{{PRODUCT_NAME}}/YOUR_PRODUCT/g' $EPF_PREFIX/templates/product.gitignore.template > $EPF_PREFIX/.gitignore"
+                log_info "  3. Stage and commit: git add $EPF_PREFIX/.gitignore && git commit -m 'Fix .gitignore'"
             fi
         fi
     else
@@ -704,8 +857,8 @@ init_product_instance() {
         mkdir -p "$instances_dir/feature_definitions"
         
         # Copy template files from READY phase
-        if [[ -d "$EPF_PREFIX/phases/READY" ]]; then
-            for template in "$EPF_PREFIX/phases/READY"/*.yaml; do
+        if [[ -d "$EPF_PREFIX/templates/READY" ]]; then
+            for template in "$EPF_PREFIX/templates/READY"/*.yaml; do
                 if [[ -f "$template" ]]; then
                     local basename=$(basename "$template")
                     cp "$template" "$instances_dir/$basename"
@@ -737,19 +890,30 @@ EOF
         log_info "Created instance folder: $instances_dir"
     fi
     
-    # Create/update product-specific .gitignore
+    # Create/update product-specific .gitignore using template
     log_step "Setting up product-specific .gitignore..."
     
-    cat > "$gitignore_file" << EOF
-# EPF Framework .gitignore
-# This is the $product_name product repo - the $product_name instance IS tracked here
+    local template_file="$EPF_PREFIX/templates/product.gitignore.template"
+    if [[ -f "$template_file" ]]; then
+        sed "s/{{PRODUCT_NAME}}/$product_name/g" "$template_file" > "$gitignore_file"
+        log_info "Generated .gitignore from template"
+    else
+        # Fallback to inline generation
+        log_warn "Template not found at $template_file - using inline generation"
+        cat > "$gitignore_file" << EOF
+# ════════════════════════════════════════════════════════════════════════════════
+# EPF Framework .gitignore - $product_name Product Repo
+# ════════════════════════════════════════════════════════════════════════════════
 
 # Instance folders - only $product_name instance is tracked
-# Other instances are ignored (if syncing from canonical repo)
 _instances/*
 !_instances/README.md
 !_instances/$product_name
 !_instances/$product_name/**
+
+# Working directory
+.epf-work/*
+!.epf-work/README.md
 
 # OS files
 .DS_Store
@@ -765,7 +929,10 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+*.bak
+*.log
 EOF
+    fi
     
     log_info "Created product-specific .gitignore for '$product_name'"
     
@@ -799,7 +966,7 @@ case "${1:-check}" in
         init_product_instance "$2"
         ;;
     *)
-        echo "EPF Sync Script v2.2"
+        echo "EPF Sync Script v2.4"
         echo ""
         echo "Usage: $0 [command]"
         echo ""
@@ -810,6 +977,10 @@ case "${1:-check}" in
         echo "  push        Push framework to canonical repo (excludes _instances/)"
         echo "  pull        Pull framework from canonical repo (auto-restores .gitignore)"
         echo "  init <name> Initialize a new product instance"
+        echo ""
+        echo "🔄 SELF-UPDATE: When running 'pull', this script automatically checks"
+        echo "   if a newer sync script exists in canonical and uses it instead."
+        echo "   This prevents old/broken sync logic from causing problems."
         echo ""
         echo "⚠️  IMPORTANT: Before pushing framework changes:"
         echo "  1. Run: ./sync-repos.sh classify"

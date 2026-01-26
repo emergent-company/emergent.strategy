@@ -66,9 +66,9 @@ TEMPLATE_PATTERN_NAMES="example placeholder dates generic empty_examples templat
 
 # Artifact-specific critical content checks (using direct assignment)
 CRITICAL_CONTENT_insight_analyses="trends:technology,trends:market,market_definition:tam,competitive_landscape:direct_competitors,strengths,opportunities"
-CRITICAL_CONTENT_strategy_foundations="product_vision:vision_statement,value_proposition:headline,strategic_sequencing:phases"
-CRITICAL_CONTENT_roadmap_recipe="tracks:product:okrs,cycle_theme"
-CRITICAL_CONTENT_feature_definition="definition:job_to_be_done,definition:solution_approach,personas"
+CRITICAL_CONTENT_strategy_foundations="strategy_foundations:product_vision:vision_statement,strategy_foundations:value_proposition:headline,strategy_foundations:strategic_sequencing:phases"
+CRITICAL_CONTENT_roadmap_recipe="roadmap:tracks:product:okrs,roadmap:cycle_theme"
+CRITICAL_CONTENT_feature_definition="definition:job_to_be_done,definition:solution_approach,definition:personas"
 
 # Check dependencies
 check_dependencies() {
@@ -259,7 +259,7 @@ check_critical_fields() {
     value=$(yq eval ".${yq_path}" "$file" 2>/dev/null || echo "null")
     
     # Check if value is null, empty, or contains template markers
-    if [ "$value" = "null" ] || [ -z "$value" ] || echo "$value" | grep -Eq "TBD|TODO|Example:|Template"; then
+    if [ "$value" = "null" ] || [ -z "$value" ] || echo "$value" | grep -Eq "\[TBD\]|\{TBD\}|: TBD$|^TBD$|TODO:|PLACEHOLDER:|Example: "; then
       empty_critical=$((empty_critical + 1))
       missing_fields+=("$field_path")
     fi

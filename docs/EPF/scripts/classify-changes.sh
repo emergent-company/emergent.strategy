@@ -28,7 +28,9 @@ set -e
 #   📤 outputs/          - Output generators (context-sheet, investor-memo, etc.)
 #   🎯 features/         - Feature corpus (validated feature definitions) [DEPRECATED]
 #   📦 definitions/      - Track definitions (strategy, org_ops, commercial, product)
-#   📖 Root docs         - README.md, MAINTENANCE.md, CANONICAL_PURITY_RULES.md
+#   � migrations/       - Migration guides, registry, version-to-version docs
+#   📖 Root docs         - README.md, MAINTENANCE.md, CANONICAL_PURITY_RULES.md, MIGRATIONS.md
+#   🤖 AI instructions   - .ai-agent-*.md (first-contact, instructions)
 #   📋 Integration spec  - integration_specification.yaml
 #   🏷️  VERSION          - Framework version file
 #
@@ -104,6 +106,7 @@ SCRIPTS_CHANGED=0
 OUTPUTS_CHANGED=0
 FEATURES_CHANGED=0
 DEFINITIONS_CHANGED=0
+MIGRATIONS_CHANGED=0
 METADATA_CHANGED=0
 WORK_FILES_CHANGED=0
 GITHUB_FILES_CHANGED=0
@@ -119,7 +122,7 @@ while IFS= read -r file; do
         templates/*)
             TEMPLATES_CHANGED=$((TEMPLATES_CHANGED + 1))
             ;;
-        docs/*.md|docs/guides/*.md|docs/guides/technical/*.md|README.md|MAINTENANCE.md|CANONICAL_PURITY_RULES.md|.ai-agent-*.md)
+        docs/*.md|docs/guides/*.md|docs/guides/technical/*.md|docs/protocols/*.md|README.md|MAINTENANCE.md|CANONICAL_PURITY_RULES.md|MIGRATIONS.md|KNOWN_ISSUES.md|AGENTS.md|.ai-agent-*.md)
             DOCS_CHANGED=$((DOCS_CHANGED + 1))
             ;;
         wizards/*)
@@ -137,7 +140,10 @@ while IFS= read -r file; do
         definitions/*)
             DEFINITIONS_CHANGED=$((DEFINITIONS_CHANGED + 1))
             ;;
-        .epf-framework-content)
+        migrations/*)
+            MIGRATIONS_CHANGED=$((MIGRATIONS_CHANGED + 1))
+            ;;
+        .epf-framework-content|.gitignore)
             METADATA_CHANGED=$((METADATA_CHANGED + 1))
             ;;
         .epf-work/*)
@@ -166,6 +172,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 [ $OUTPUTS_CHANGED -gt 0 ] && echo "  📤 Output Generators: $OUTPUTS_CHANGED file(s) (outputs/)"
 [ $FEATURES_CHANGED -gt 0 ] && echo "  🎯 Feature Corpus:    $FEATURES_CHANGED file(s) (features/)"
 [ $DEFINITIONS_CHANGED -gt 0 ] && echo "  📦 Track Definitions: $DEFINITIONS_CHANGED file(s) (definitions/)"
+[ $MIGRATIONS_CHANGED -gt 0 ] && echo "  🔄 Migrations:        $MIGRATIONS_CHANGED file(s) (migrations/)"
 [ $METADATA_CHANGED -gt 0 ] && echo "  📋 Framework Metadata: $METADATA_CHANGED file(s) (.epf-framework-content)"
 [ $WORK_FILES_CHANGED -gt 0 ] && echo "  📝 Work files:        $WORK_FILES_CHANGED file(s) (.epf-work/)"
 [ $GITHUB_FILES_CHANGED -gt 0 ] && echo "  ⚙️  GitHub config:     $GITHUB_FILES_CHANGED file(s) (.github/)"
@@ -257,6 +264,16 @@ if [ $DEFINITIONS_CHANGED -gt 0 ]; then
         RECOMMENDED_TYPE="MINOR"
     fi
     REASONING+=("Track definitions modified ($DEFINITIONS_CHANGED file(s))")
+fi
+
+if [ $MIGRATIONS_CHANGED -gt 0 ]; then
+    NEEDS_VERSION_BUMP=true
+    # New migration guides/registry are MINOR (new feature)
+    # Updates to existing are PATCH
+    if [ -z "$RECOMMENDED_TYPE" ] || [ "$RECOMMENDED_TYPE" = "PATCH" ]; then
+        RECOMMENDED_TYPE="MINOR"
+    fi
+    REASONING+=("Migration infrastructure modified ($MIGRATIONS_CHANGED file(s))")
 fi
 
 if [ $METADATA_CHANGED -gt 0 ]; then

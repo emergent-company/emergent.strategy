@@ -55,13 +55,29 @@ Wizards guide you through creating outcome-oriented strategic specifications. En
 
 ## Wizard Types
 
+### Onboarding (Start Here) ✨
+
+| Wizard | Purpose | When to Use | Duration |
+|--------|---------|-------------|----------|
+| [`start_epf.agent_prompt.md`](start_epf.agent_prompt.md) ✨ **NEW** | Interactive onboarding for new users | User says "start epf", "help me with epf", "what is epf?" | 5-10 min |
+
+**The Start EPF wizard is the entry point for users new to EPF.** It provides:
+- Friendly introduction to EPF concepts
+- Interactive questions to determine the best path
+- Routing to appropriate wizards based on team size and goals
+- Option to explore on their own or abort anytime
+
+**Trigger phrases:** "start epf", "begin epf", "help me with epf", "what is epf?", "how do I use epf?", "I'm new to epf"
+
+---
+
 ### Phase-Level Agents (Complete Workflows)
 
 These guide entire EPF phases from start to finish.
 
 | Wizard | Phase | Adoption Level | Purpose | Duration | Output |
 |--------|-------|----------------|---------|----------|--------|
-| [`lean_start.agent_prompt.md`](lean_start.agent_prompt.md) ✨ **NEW** | **READY** | **Level 0-1** | Minimal viable READY phase for solo founders and small teams | 2-6 hours | North Star + lightweight artifacts |
+| [`lean_start.agent_prompt.md`](lean_start.agent_prompt.md) | **READY** | **Level 0-1** | Minimal viable READY phase for solo founders and small teams | 2-6 hours | North Star + lightweight artifacts |
 | [`pathfinder.agent_prompt.md`](pathfinder.agent_prompt.md) | **READY** | **Level 2+** | Complete READY phase with comprehensive analysis | 8-12 hours | All 6 READY artifacts |
 | [`product_architect.agent_prompt.md`](product_architect.agent_prompt.md) | **FIRE** | **All levels** | Guide feature definitions + value models | Ongoing | Feature definitions, value models, workflows |
 | [`synthesizer.agent_prompt.md`](synthesizer.agent_prompt.md) | **AIM** | **All levels** | Guide assessment + calibration | 4-6 hours | Assessment report, calibration memo |

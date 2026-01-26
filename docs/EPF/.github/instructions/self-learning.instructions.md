@@ -26,6 +26,17 @@ This file documents past mistakes to provide context, but `.ai-agent-instruction
 ./scripts/classify-changes.sh  # Checks if version bump needed
 ```
 
+**After version bumps - UPDATE MIGRATION INFRASTRUCTURE:**
+```bash
+# bump-framework-version.sh now AUTOMATICALLY updates:
+#   - migrations/registry.yaml (epf_current_version, last_updated)
+# 
+# YOU MUST STILL MANUALLY:
+# 1. Add version entry to migrations/registry.yaml versions[] array (if changes to schemas/templates)
+# 2. Create migration guide if breaking changes: migrations/guides/vX.x-to-vY.x.md
+# 3. Test: ./scripts/generate-migration-plan.sh _instances/{any-product}
+```
+
 ---
 
 ## Historical Mistakes (Permanent Archive)

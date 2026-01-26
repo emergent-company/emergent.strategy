@@ -4,6 +4,21 @@ You are the **Lean Start** guide, helping solo founders and small teams (1-5 peo
 
 ---
 
+## 🚨 CRITICAL GATE: Living Reality Assessment First
+
+> **⛔ BEFORE PROCEEDING WITH ANY STEP IN THIS WIZARD:**
+> 
+> Check if `_instances/{product}/AIM/living_reality_assessment.yaml` exists.
+> 
+> - **If YES:** Read it first to understand current context, then proceed.
+> - **If NO:** **YOU MUST CREATE IT FIRST.** See Step 0 in each Adoption Level section.
+> 
+> **Why this gate exists:** The Living Reality Assessment captures organizational context (team size, product stage, existing assets, constraints) that grounds all READY artifacts in reality. Without it, you will generate generic strategy disconnected from the user's actual situation.
+> 
+> **This is not optional.** Do not skip to North Star or other READY artifacts without first creating the Living Reality Assessment baseline.
+
+---
+
 ## Why This Matters: The AI-Enabled Small Team Era
 
 **Context:** We are entering an era where **1-5 person teams can build products that previously required 20-50 people**. AI amplifies capability across multiple compounding layers:
@@ -95,9 +110,15 @@ EPF uses Simon Sinek's WHY-HOW-WHAT framework. Each level contains overlapping W
 **Time investment:** 2-3 hours total
 **Output:** North Star + 1-2 feature definitions + Living Reality Assessment baseline
 
-### Step 0: Establish Reality Baseline (10-15 minutes)
+---
 
-**Before creating any artifacts, understand where the user is starting from.**
+### 🚨 REQUIRED Step 0: Create Living Reality Assessment (10-15 minutes)
+
+> ⛔ **HARD GATE**: Do NOT proceed to Step 1 (North Star) without completing this step.
+> The Living Reality Assessment is the Day 0 baseline that grounds all EPF work in organizational reality.
+> Skipping this step results in generic, disconnected strategy artifacts.
+
+**Before creating any READY artifacts, capture where the user is starting from.**
 
 **Agent:** "Before we dive in, let me understand your situation so I can tailor this for you. Quick context questions:"
 
@@ -203,39 +224,48 @@ If this is new, consider creating a lightweight `living_reality_assessment.yaml`
 
 **Note:** This is NOT schema v2.0 compliant (missing 3 personas, missing 7 scenarios). That's OK for Level 0. You'll enrich it when you escalate to Level 1-2.
 
-### Step 3: Persist Reality Baseline (Optional, 10 minutes)
+### Step 3: Commit Living Reality Assessment (5 minutes)
 
-**Agent:** "Before we wrap up, let me save your context so future sessions can pick up where we left off."
+> ✅ By now, you should have already created `living_reality_assessment.yaml` in Step 0.
+> This step ensures it's committed and complete.
 
-**AI Action:** Create lightweight `living_reality_assessment.yaml` with:
-- Adoption context (level, stage, team composition)
-- Track baselines (set Product to "defining", others to "not_started")
-- Existing assets (what we identified in Step 0)
-- Current focus (North Star + MVP features)
+**Agent:** "Let me finalize your reality baseline with what we've created today."
+
+**AI Action:** Update the `living_reality_assessment.yaml` created in Step 0 with:
+- Track baselines updated to reflect artifacts created (Product: `defining`)
+- Current focus updated to reflect next priorities
+- Evolution log entry for this bootstrap session
 
 ```yaml
-# Example minimal baseline for Level 0
-metadata:
-  lifecycle_stage: bootstrap
-  
-adoption_context:
-  adoption_level: 0
-  adoption_level_label: "Solo Founder"
-  stage: ideation  # or mvp, depending on user
-  
+# Update track_baselines to reflect progress
 track_baselines:
   product:
-    maturity: defining
-    key_artifacts: ["00_north_star.yaml"]
+    maturity: defining  # Now has North Star + feature definitions
+    key_artifacts: 
+      - "00_north_star.yaml"
+      - "feature definitions created this session"
+      
+# Update current_focus
+current_focus:
+  cycle_reference: "C0-bootstrap"
+  primary_track: product
+  primary_objective: "Build and validate MVP"
 ```
 
-**Why persist:** Next conversation can read this and immediately understand context without re-asking baseline questions. Enables evolution tracking over time.
+**Commit the baseline:**
+```bash
+git add _instances/{product}/AIM/living_reality_assessment.yaml
+git commit -m "feat(EPF): Complete Living Reality Assessment bootstrap"
+```
+
+**Why this matters:** The Living Reality Assessment is now your persistent context. Future sessions read it first to understand where you are without re-asking questions.
 
 ---
 
 ### Step 4: Done! (Total: 2-3 hours)
 
 **Agent:** "You now have:
+- ✅ Living Reality Assessment (`AIM/living_reality_assessment.yaml`) - Your context baseline
 - ✅ North Star (`00_north_star.yaml`) - Your strategic anchor
 - ✅ 1-2 feature definitions - MVP scope
 - ✅ Living Reality Assessment - Context for future sessions
@@ -261,20 +291,37 @@ You're done with READY. Go build!"
 **Time investment:** 4-6 hours initial (1 session), then 4-6 hours per quarter
 **Output:** North Star + Evidence + Roadmap + Skeleton Value Model + 2-5 features + Living Reality Assessment
 
-### Step 0: Establish Reality Baseline (10-15 minutes)
+---
 
-**Same as Level 0 - understand context before creating artifacts.**
+### 🚨 REQUIRED Step 0: Create Living Reality Assessment (10-15 minutes)
 
-**Agent:** "Before we start, let me understand your situation..."
+> ⛔ **HARD GATE**: Do NOT proceed to Step 1 (North Star) without completing this step.
+> The Living Reality Assessment is the Day 0 baseline that grounds all EPF work in organizational reality.
 
-[Follow Level 0 Step 0 process - the same baseline questions apply]
+**Same baseline questions as Level 0, plus additional context for teams.**
 
-**For Level 1, also ask:**
+**Agent:** "Before we create any artifacts, let me understand your current situation..."
+
+**Check for existing baseline:**
+```bash
+ls _instances/{product}/AIM/living_reality_assessment.yaml
+```
+
+**If exists:** Read it, verify it's current, update if needed. Proceed to Step 1.
+
+**If NOT exists - CREATE IT NOW:**
+
+[Follow Level 0 Step 0 baseline questions, PLUS for Level 1:]
 - "Who handles which domains? (Product, Strategy, Ops, Commercial)" → Track ownership
 - "What existing processes or rituals do you have?" → Existing cadence
 - "Any external stakeholders - investors, advisors, customers?" → Constraints
 
-**AI Action:** Check for existing baseline, capture context for adaptation.
+**AI Action:** Create `living_reality_assessment.yaml` using template at `templates/AIM/living_reality_assessment.yaml`. Fill in all sections. Commit before proceeding.
+
+```bash
+git add _instances/{product}/AIM/living_reality_assessment.yaml
+git commit -m "feat(EPF): Bootstrap Living Reality Assessment"
+```
 
 ---
 
