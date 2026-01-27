@@ -1,7 +1,7 @@
 id: "fd-012"
 name: "CLI for Local Workflow Testing"
 slug: "cli-local-workflow-testing"
-status: "planned"
+status: "draft"
 
 strategic_context:
   problem_statement: |
