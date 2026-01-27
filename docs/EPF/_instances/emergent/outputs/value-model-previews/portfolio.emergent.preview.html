@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emergent Product Portfolio - Value Model Overview</title>
+  <meta name="generator" content="EPF Value Model Preview Generator v1.0.0">
+  <meta name="generated-at" content="2026-01-27">
+  <style>
+    /* ========================================
+       EPF Portfolio Preview - Embedded Styles
+       Single-file, gist-friendly, no dependencies
+       ======================================== */
+    
+    :root {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f8fafc;
+      --bg-tertiary: #f1f5f9;
+      --text-primary: #1e293b;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+      --border-color: #e2e8f0;
+      --accent-primary: #8b5cf6;
+      --accent-secondary: #3b82f6;
+      
+      /* Track colors */
+      --track-product: #8b5cf6;
+      --track-strategy: #f59e0b;
+      --track-commercial: #22c55e;
+      --track-orgops: #3b82f6;
+      
+      /* Status colors */
+      --status-active: #22c55e;
+      --status-planned: #f59e0b;
+      --status-placeholder: #94a3b8;
+      
+      --spacing-xs: 0.25rem;
+      --spacing-sm: 0.5rem;
+      --spacing-md: 1rem;
+      --spacing-lg: 1.5rem;
+      --spacing-xl: 2rem;
+      --spacing-2xl: 3rem;
+      
+      --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+      
+      --radius-sm: 0.25rem;
+      --radius-md: 0.5rem;
+      --radius-lg: 0.75rem;
+    }
+    
+    [data-theme="dark"] {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-tertiary: #334155;
+      --text-primary: #f1f5f9;
+      --text-secondary: #cbd5e1;
+      --text-muted: #64748b;
+      --border-color: #334155;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    html {
+      font-size: 16px;
+      scroll-behavior: smooth;
+    }
+    
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: var(--spacing-lg);
+    }
+    
+    /* Hero Header */
+    .hero {
+      background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+      color: white;
+      padding: var(--spacing-2xl) var(--spacing-lg);
+      border-radius: var(--radius-lg);
+      margin-bottom: var(--spacing-xl);
+      text-align: center;
+    }
+    
+    .hero__logo {
+      font-size: 3rem;
+      margin-bottom: var(--spacing-sm);
+    }
+    
+    .hero__title {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: var(--spacing-sm);
+    }
+    
+    .hero__subtitle {
+      font-size: 1.25rem;
+      opacity: 0.9;
+      margin-bottom: var(--spacing-lg);
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    
+    .hero__meta {
+      display: flex;
+      justify-content: center;
+      gap: var(--spacing-lg);
+      flex-wrap: wrap;
+      font-size: 0.875rem;
+      opacity: 0.8;
+    }
+
+    /* Vision Section */
+    .vision-section {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-xl);
+      margin-bottom: var(--spacing-xl);
+      border: 1px solid var(--border-color);
+    }
+
+    .vision-section__label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--accent-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .vision-section__text {
+      font-size: 1.125rem;
+      color: var(--text-primary);
+      line-height: 1.7;
+    }
+
+    /* Architecture Diagram */
+    .architecture {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-xl);
+      margin-bottom: var(--spacing-xl);
+      border: 1px solid var(--border-color);
+    }
+
+    .architecture__title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: var(--spacing-lg);
+      text-align: center;
+    }
+
+    .architecture__diagram {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-md);
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .arch-layer {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: var(--spacing-md);
+      align-items: center;
+    }
+
+    .arch-layer__label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      text-align: right;
+    }
+
+    .arch-layer__content {
+      display: flex;
+      gap: var(--spacing-sm);
+      flex-wrap: wrap;
+    }
+
+    .arch-box {
+      padding: var(--spacing-sm) var(--spacing-md);
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      font-weight: 500;
+      text-align: center;
+      flex: 1;
+      min-width: 150px;
+    }
+
+    .arch-box--brain {
+      background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+      color: white;
+    }
+
+    .arch-box--nervous {
+      background: linear-gradient(135deg, #3b82f6 0%, #0ea5e9 100%);
+      color: white;
+    }
+
+    .arch-box--circulatory {
+      background: linear-gradient(135deg, #22c55e 0%, #10b981 100%);
+      color: white;
+    }
+
+    .arch-box__title {
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .arch-box__metaphor {
+      font-size: 0.75rem;
+      opacity: 0.9;
+    }
+
+    .arch-connector {
+      display: flex;
+      justify-content: center;
+      padding: var(--spacing-xs) 0;
+    }
+
+    .arch-connector::before {
+      content: '↓';
+      font-size: 1.5rem;
+      color: var(--text-muted);
+    }
+
+    /* Portfolio Grid */
+    .portfolio-section {
+      margin-bottom: var(--spacing-xl);
+    }
+
+    .portfolio-section__title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: var(--spacing-lg);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+
+    .portfolio-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: var(--spacing-lg);
+    }
+
+    /* Product Card */
+    .product-card {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .product-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    }
+
+    .product-card__header {
+      padding: var(--spacing-md) var(--spacing-lg);
+      color: white;
+    }
+
+    .product-card__header--core { background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); }
+    .product-card__header--runtime { background: linear-gradient(135deg, #3b82f6 0%, #0ea5e9 100%); }
+    .product-card__header--tools { background: linear-gradient(135deg, #22c55e 0%, #10b981 100%); }
+    .product-card__header--strategy { background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%); }
+    .product-card__header--commercial { background: linear-gradient(135deg, #22c55e 0%, #14b8a6 100%); }
+    .product-card__header--orgops { background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%); }
+
+    .product-card__track {
+      font-size: 0.675rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      opacity: 0.9;
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .product-card__name {
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    .product-card__metaphor {
+      font-size: 0.875rem;
+      opacity: 0.9;
+      margin-top: var(--spacing-xs);
+    }
+
+    .product-card__body {
+      padding: var(--spacing-lg);
+    }
+
+    .product-card__mission {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-bottom: var(--spacing-md);
+      line-height: 1.6;
+    }
+
+    .product-card__status {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-radius: var(--radius-sm);
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .status-badge--active {
+      background: color-mix(in srgb, var(--status-active) 15%, transparent);
+      color: var(--status-active);
+    }
+    
+    .status-badge--placeholder {
+      background: color-mix(in srgb, var(--status-placeholder) 15%, transparent);
+      color: var(--status-placeholder);
+    }
+
+    .status-badge--planning {
+      background: color-mix(in srgb, var(--status-planned) 15%, transparent);
+      color: var(--status-planned);
+    }
+
+    .product-card__values {
+      border-top: 1px solid var(--border-color);
+      padding-top: var(--spacing-md);
+    }
+
+    .product-card__values-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .value-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-xs);
+    }
+
+    .value-item {
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: flex-start;
+      gap: var(--spacing-sm);
+    }
+
+    .value-item::before {
+      content: '✨';
+      font-size: 0.75rem;
+    }
+
+    /* Track Section */
+    .track-section {
+      margin-bottom: var(--spacing-xl);
+    }
+
+    .track-section__title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: var(--spacing-md);
+      padding-bottom: var(--spacing-sm);
+      border-bottom: 2px solid var(--border-color);
+    }
+
+    .track-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: var(--spacing-md);
+    }
+
+    .track-card {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-md);
+      padding: var(--spacing-md);
+      border: 1px solid var(--border-color);
+      border-left: 4px solid var(--track-color);
+    }
+
+    .track-card--strategy { --track-color: var(--track-strategy); }
+    .track-card--commercial { --track-color: var(--track-commercial); }
+    .track-card--orgops { --track-color: var(--track-orgops); }
+
+    .track-card__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .track-card__name {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .track-card__description {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .track-card__layers {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .track-card__layers span {
+      display: inline-block;
+      background: var(--bg-tertiary);
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      margin-right: var(--spacing-xs);
+      margin-bottom: var(--spacing-xs);
+    }
+
+    /* Summary Stats */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-xl);
+    }
+
+    .stat-card {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-md);
+      padding: var(--spacing-lg);
+      text-align: center;
+      border: 1px solid var(--border-color);
+    }
+
+    .stat-card__value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent-primary);
+      font-family: var(--font-mono);
+    }
+
+    .stat-card__label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: var(--spacing-xs);
+    }
+
+    /* Roadmap Section */
+    .roadmap-section {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-xl);
+      margin-bottom: var(--spacing-xl);
+      border: 1px solid var(--border-color);
+    }
+
+    .roadmap-section__title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: var(--spacing-lg);
+    }
+
+    .roadmap-phases {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: var(--spacing-md);
+    }
+
+    .roadmap-phase {
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-md);
+      padding: var(--spacing-md);
+    }
+
+    .roadmap-phase__header {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .roadmap-phase__quarter {
+      font-weight: 700;
+      color: var(--accent-primary);
+    }
+
+    .roadmap-phase__year {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .roadmap-phase__items {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-xs);
+    }
+
+    .roadmap-item {
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+      padding-left: var(--spacing-sm);
+      border-left: 2px solid var(--border-color);
+    }
+
+    .roadmap-item--core { border-color: #8b5cf6; }
+    .roadmap-item--runtime { border-color: #3b82f6; }
+    .roadmap-item--tools { border-color: #22c55e; }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: var(--spacing-xl) var(--spacing-lg);
+      border-top: 1px solid var(--border-color);
+      margin-top: var(--spacing-xl);
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+    
+    .footer a {
+      color: var(--accent-primary);
+      text-decoration: none;
+    }
+    
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Print & Responsive */
+    @media print {
+      body { background: white; color: black; }
+      .product-card:hover { transform: none; box-shadow: none; }
+    }
+    
+    @media (max-width: 768px) {
+      .hero__title { font-size: 1.75rem; }
+      .arch-layer { grid-template-columns: 1fr; }
+      .arch-layer__label { text-align: left; }
+      .portfolio-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    
+    <!-- Hero Header -->
+    <header class="hero">
+      <div class="hero__logo">🌱</div>
+      <h1 class="hero__title">Emergent Product Portfolio</h1>
+      <p class="hero__subtitle">AI-powered tools, frameworks, and platforms for knowledge management, document intelligence, and emergent understanding</p>
+      <div class="hero__meta">
+        <span>by Eyedea</span>
+        <span>•</span>
+        <span>6 Value Models</span>
+        <span>•</span>
+        <span>3 Product Lines + 3 Tracks</span>
+        <span>•</span>
+        <span>January 2026</span>
+      </div>
+    </header>
+
+    <!-- Vision -->
+    <section class="vision-section">
+      <div class="vision-section__label">🎯 Our Purpose</div>
+      <p class="vision-section__text">We exist to help knowledge workers and organizations achieve <strong>emergent understanding</strong>—insights that arise from connections, not just searches. Like emergence in nature, where simple building blocks following clear rules create complexity far greater than the sum of its parts, we build the tools, frameworks, and platforms that transform information chaos into self-organizing intelligence.</p>
+    </section>
+
+    <!-- Summary Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-card__value">3</div>
+        <div class="stat-card__label">Product Lines</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__value">3</div>
+        <div class="stat-card__label">Business Tracks</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__value">6</div>
+        <div class="stat-card__label">Value Models</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__value">1</div>
+        <div class="stat-card__label">Active Product</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__value">2</div>
+        <div class="stat-card__label">In Planning</div>
+      </div>
+    </div>
+
+    <!-- Architecture Diagram -->
+    <section class="architecture">
+      <h2 class="architecture__title">🧬 Biological Architecture Metaphor</h2>
+      <div class="architecture__diagram">
+        <div class="arch-layer">
+          <div class="arch-layer__label">Intelligence</div>
+          <div class="arch-layer__content">
+            <div class="arch-box arch-box--brain">
+              <div class="arch-box__title">Emergent Core</div>
+              <div class="arch-box__metaphor">🧠 The Brain</div>
+            </div>
+          </div>
+        </div>
+        <div class="arch-connector"></div>
+        <div class="arch-layer">
+          <div class="arch-layer__label">Orchestration</div>
+          <div class="arch-layer__content">
+            <div class="arch-box arch-box--nervous">
+              <div class="arch-box__title">EPF-Runtime</div>
+              <div class="arch-box__metaphor">🔌 The Nervous System</div>
+            </div>
+          </div>
+        </div>
+        <div class="arch-connector"></div>
+        <div class="arch-layer">
+          <div class="arch-layer__label">Integration</div>
+          <div class="arch-layer__content">
+            <div class="arch-box arch-box--circulatory">
+              <div class="arch-box__title">Emergent Tools</div>
+              <div class="arch-box__metaphor">🩸 The Circulatory System</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Product Lines -->
+    <section class="portfolio-section">
+      <h2 class="portfolio-section__title">📦 Product Lines</h2>
+      <div class="portfolio-grid">
+        
+        <!-- Emergent Core -->
+        <article class="product-card">
+          <div class="product-card__header product-card__header--core">
+            <div class="product-card__track">Product Track</div>
+            <div class="product-card__name">Emergent Core</div>
+            <div class="product-card__metaphor">🧠 The Brain — Intelligence, memory, and reasoning</div>
+          </div>
+          <div class="product-card__body">
+            <p class="product-card__mission">Transform scattered organizational knowledge into a connected, searchable, AI-queryable intelligence layer that makes insights emerge from connections.</p>
+            <div class="product-card__status">
+              <span class="status-badge status-badge--active">Active</span>
+              <span style="font-size: 0.75rem; color: var(--text-muted);">v0.9.0 • Q1 2025 Focus</span>
+            </div>
+            <div class="product-card__values">
+              <div class="product-card__values-title">Key Values Delivered</div>
+              <div class="value-list">
+                <div class="value-item">AI chat grounded in organizational knowledge</div>
+                <div class="value-item">Auto-extracted entities and relationships</div>
+                <div class="value-item">Semantic search across all documents</div>
+                <div class="value-item">Knowledge graph visualization</div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <!-- EPF-Runtime -->
+        <article class="product-card">
+          <div class="product-card__header product-card__header--runtime">
+            <div class="product-card__track">Product Track</div>
+            <div class="product-card__name">EPF-Runtime</div>
+            <div class="product-card__metaphor">🔌 The Nervous System — Orchestration and coordination</div>
+          </div>
+          <div class="product-card__body">
+            <p class="product-card__mission">Enable AI agents, DevOps pipelines, and power users to execute EPF methodology cycles programmatically with durable workflows and schema validation.</p>
+            <div class="product-card__status">
+              <span class="status-badge status-badge--placeholder">Placeholder</span>
+              <span style="font-size: 0.75rem; color: var(--text-muted);">v0.2.0 • 8-week MVP planned</span>
+            </div>
+            <div class="product-card__values">
+              <div class="product-card__values-title">Key Values Delivered</div>
+              <div class="value-list">
+                <div class="value-item">Automation-ready EPF methodology</div>
+                <div class="value-item">Durable workflow execution (Temporal)</div>
+                <div class="value-item">Schema-validated artifacts</div>
+                <div class="value-item">Future "OS layer" for Emergent ecosystem</div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <!-- Emergent Tools -->
+        <article class="product-card">
+          <div class="product-card__header product-card__header--tools">
+            <div class="product-card__track">Product Track</div>
+            <div class="product-card__name">Emergent Tools</div>
+            <div class="product-card__metaphor">🩸 The Circulatory System — Connectors and interfaces</div>
+          </div>
+          <div class="product-card__body">
+            <p class="product-card__mission">Make Emergent knowledge and workflows accessible where teams already work, creating automatic connections between strategy, code, deployment, and feedback.</p>
+            <div class="product-card__status">
+              <span class="status-badge status-badge--planning">Planning</span>
+              <span style="font-size: 0.75rem; color: var(--text-muted);">v1.0.0 • Tier 1 tools first</span>
+            </div>
+            <div class="product-card__values">
+              <div class="product-card__values-title">Key Values Delivered</div>
+              <div class="value-list">
+                <div class="value-item">Git Bridge: Strategy→Code connection</div>
+                <div class="value-item">Deploy Tracker: Code→Production visibility</div>
+                <div class="value-item">Slack Bot: Knowledge in chat</div>
+                <div class="value-item">SDK: Developer extensibility</div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+    <!-- Business Tracks -->
+    <section class="track-section">
+      <h2 class="track-section__title">🎯 Business Value Tracks</h2>
+      <div class="track-grid">
+        
+        <div class="track-card track-card--strategy">
+          <div class="track-card__header">
+            <span class="track-card__name">Strategy Track</span>
+            <span class="status-badge status-badge--placeholder">Template</span>
+          </div>
+          <p class="track-card__description">Defines, communicates, and executes the company's overarching strategy. Forms the basis of the living Strategy Requirement Document (SRD).</p>
+          <div class="track-card__layers">
+            <span>Context</span>
+            <span>Strategic Roadmap</span>
+            <span>Partnership Strategy</span>
+            <span>Innovation Management</span>
+          </div>
+        </div>
+
+        <div class="track-card track-card--commercial">
+          <div class="track-card__header">
+            <span class="track-card__name">Commercial Track</span>
+            <span class="status-badge status-badge--placeholder">Template</span>
+          </div>
+          <p class="track-card__description">Drives market positioning, revenue generation, and partnerships. Forms the basis of the living Commercial Requirement Document (CRD).</p>
+          <div class="track-card__layers">
+            <span>Business Development</span>
+            <span>Financing</span>
+            <span>Sales & Revenue</span>
+            <span>Marketing</span>
+          </div>
+        </div>
+
+        <div class="track-card track-card--orgops">
+          <div class="track-card__header">
+            <span class="track-card__name">Org & Ops Track</span>
+            <span class="status-badge status-badge--placeholder">Template</span>
+          </div>
+          <p class="track-card__description">Builds and maintains the company's operational and cultural engine. Forms the basis of the living Org & Ops Requirement Document (ORD).</p>
+          <div class="track-card__layers">
+            <span>Talent Acquisition</span>
+            <span>Talent Management</span>
+            <span>Culture</span>
+            <span>Governance</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- High-Level Roadmap -->
+    <section class="roadmap-section">
+      <h2 class="roadmap-section__title">🗓️ 2025-2026 Product Roadmap</h2>
+      <div class="roadmap-phases">
+        
+        <div class="roadmap-phase">
+          <div class="roadmap-phase__header">
+            <span class="roadmap-phase__quarter">Q1</span>
+            <span class="roadmap-phase__year">2025</span>
+          </div>
+          <div class="roadmap-phase__items">
+            <div class="roadmap-item roadmap-item--core">Core: Chat Experience & Knowledge Graph</div>
+            <div class="roadmap-item roadmap-item--core">Core: Document Management Polish</div>
+            <div class="roadmap-item roadmap-item--runtime">Runtime: Foundation & Infrastructure</div>
+          </div>
+        </div>
+
+        <div class="roadmap-phase">
+          <div class="roadmap-phase__header">
+            <span class="roadmap-phase__quarter">Q2</span>
+            <span class="roadmap-phase__year">2025</span>
+          </div>
+          <div class="roadmap-phase__items">
+            <div class="roadmap-item roadmap-item--core">Core: Enterprise Features</div>
+            <div class="roadmap-item roadmap-item--runtime">Runtime: Temporal Workflows</div>
+            <div class="roadmap-item roadmap-item--tools">Tools: Git Bridge MVP</div>
+          </div>
+        </div>
+
+        <div class="roadmap-phase">
+          <div class="roadmap-phase__header">
+            <span class="roadmap-phase__quarter">Q3-Q4</span>
+            <span class="roadmap-phase__year">2025</span>
+          </div>
+          <div class="roadmap-phase__items">
+            <div class="roadmap-item roadmap-item--core">Core: Scale & Performance</div>
+            <div class="roadmap-item roadmap-item--runtime">Runtime: Multi-tenant Platform</div>
+            <div class="roadmap-item roadmap-item--tools">Tools: Slack Bot & Deploy Tracker</div>
+          </div>
+        </div>
+
+        <div class="roadmap-phase">
+          <div class="roadmap-phase__header">
+            <span class="roadmap-phase__quarter">2026+</span>
+            <span class="roadmap-phase__year">Vision</span>
+          </div>
+          <div class="roadmap-phase__items">
+            <div class="roadmap-item roadmap-item--runtime">Runtime as "OS Layer" for ecosystem</div>
+            <div class="roadmap-item roadmap-item--core">Core runs on Runtime platform</div>
+            <div class="roadmap-item roadmap-item--tools">Tools: Full integration catalog</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Vision 2028 -->
+    <section class="vision-section" style="border-left: 4px solid var(--accent-primary);">
+      <div class="vision-section__label">🔮 Vision 2028</div>
+      <p class="vision-section__text">By 2028, the Emergent ecosystem will power thousands of organizations with AI-native tools for knowledge management, product development, and strategic thinking. Our products—from the Core knowledge engine to specialized frameworks and tools—will form the invisible infrastructure that makes organizational intelligence truly emergent: <strong>insights that arise from connections, not just searches.</strong></p>
+    </section>
+    
+    <!-- Footer -->
+    <footer class="footer">
+      <p>Generated by <a href="https://github.com/eyedea-io/epf">EPF Value Model Preview Generator</a> • Emergent Product Portfolio Overview</p>
+      <p style="margin-top: var(--spacing-sm);">Source: 6 value models from <code>docs/EPF/_instances/emergent/FIRE/value_models/</code></p>
+    </footer>
+    
+  </div>
+</body>
+</html>
