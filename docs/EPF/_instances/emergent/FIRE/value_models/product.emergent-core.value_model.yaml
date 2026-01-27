@@ -9,12 +9,16 @@
 # This is a PRODUCT LINE VALUE MODEL (not workspace-level).
 # It shares the North Star with other Emergent product lines (Runtime, Tools).
 #
-product_line_id: "pl-emergent-core"
-product_line_name: "Emergent Core"
-formerly_known_as: "Spec Server"
+# Schema migration note: Added track_name for EPF 2.11.0 compliance.
+# Custom fields (product_line_id, etc.) retained in high_level_model.
+#
+track_name: "Product"
 version: "1.0.0"
 status: "active"
-last_updated: "2025-12-30"
+packaged_default: false
+activation_notes: |
+  Core is production-ready and actively used. This model reflects current
+  capabilities with planned enhancements marked as inactive. MVP complete.
 description: |
   Emergent Core is the knowledge engine that transforms organizational documents
   into a queryable knowledge graph. It ingests content from any source, extracts
@@ -25,6 +29,10 @@ description: |
   RLS, database) that other Emergent products build upon. It exposes knowledge
   via MCP (Model Context Protocol) for AI agent integration.
 high_level_model:
+  product_line_id: "pl-emergent-core"
+  product_line_name: "Emergent Core"
+  formerly_known_as: "Spec Server"
+  last_updated: "2025-12-30"
   product_mission: |
     Give organizations a unified, AI-accessible knowledge layer that connects
     strategy, documentation, and code—transforming scattered information into
@@ -71,17 +79,13 @@ high_level_model:
     - "Integrate with AI coding assistants via MCP protocol"
     - "Knowledge evolves as you add more content"
 
-activation_notes: |
-  Core is production-ready and actively used. This model reflects current
-  capabilities with planned enhancements marked as inactive. MVP complete.
-
 # Note: Detailed layer structure available in internal documentation.
 # This high-level model focuses on strategic value delivery and integration points.
 
 # ============================================================================
 # INTEGRATION POINTS WITH OTHER PRODUCT LINES
 # ============================================================================
-ecosystem_integration:
+  ecosystem_integration:
   epf_runtime:
     description: "Runtime uses Core for artifact storage and shares auth/multi-tenancy infrastructure"
     integration_points:
@@ -102,5 +106,36 @@ ecosystem_integration:
 # [ ] Technical details in context tags prefixed "Technical:"
 # [ ] Can non-technical investor understand main content? (5-question test)
 
-layers: []
+layers:
+  - id: core-knowledge-platform
+    name: Core Knowledge Platform
+    active: true
+    description: |
+      Foundational AI-powered knowledge infrastructure that transforms documents
+      into queryable knowledge graphs. Covers document ingestion, entity extraction,
+      semantic search, and AI chat with citations.
+    components:
+      - id: document-intelligence
+        name: Document Intelligence
+        active: true
+        subs:
+          - id: document-ingestion
+            name: Document Ingestion
+            active: true
+          - id: entity-extraction
+            name: Entity Extraction
+            active: true
+          - id: knowledge-graph
+            name: Knowledge Graph
+            active: true
+      - id: knowledge-access
+        name: Knowledge Access
+        active: true
+        subs:
+          - id: semantic-search
+            name: Semantic Search
+            active: true
+          - id: ai-chat
+            name: AI Chat
+            active: true
 
