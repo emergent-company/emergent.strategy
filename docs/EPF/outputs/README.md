@@ -94,10 +94,16 @@ outputs/
 │   ├── schema.json                     # Input validation
 │   ├── wizard.instructions.md          # Generation logic
 │   └── validator.sh                    # Output validation
-└── skattefunn-application/             # SkatteFUNN (Norwegian R&D Tax) generator
+├── skattefunn-application/             # SkatteFUNN (Norwegian R&D Tax) generator
+│   ├── schema.json                     # Input validation
+│   ├── wizard.instructions.md          # Generation logic
+│   ├── template.md                     # Output template
+│   ├── validator.sh                    # Output validation
+│   └── README.md                       # Quick reference
+└── value-model-preview/                # Value Model HTML Preview generator
     ├── schema.json                     # Input validation
     ├── wizard.instructions.md          # Generation logic
-    ├── template.md                     # Output template
+    ├── template.html                   # HTML template with embedded CSS
     ├── validator.sh                    # Output validation
     └── README.md                       # Quick reference
 ```
