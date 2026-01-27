@@ -1,561 +1,545 @@
-# EPF-Runtime Product Line Value Model
-# Defines the value delivered by EPF-Runtime headless workflow orchestration system
-#
-# WHY: Enable programmatic execution of EPF methodology cycles
-# HOW: Temporal-based workflow orchestration with EPF schema validation
-# WHAT: API/CLI for AI agents and DevOps pipelines to execute READY/FIRE/AIM workflows
-#
-# This is a PRODUCT LINE VALUE MODEL (not workspace-level).
-# It shares the North Star with other Emergent product lines.
-#
-product_line_id: "pl-epf-runtime"
-product_line_name: "EPF-Runtime"
-version: "0.2.0"
-status: "development"
-last_updated: "2025-12-30"
-description: |
-  EPF-Runtime is a headless workflow orchestration system that enables AI agents
-  and humans to execute EPF methodology cycles programmatically. It provides
-  durable workflow execution, schema validation, multi-tenancy, and deep
-  integration with Emergent Core knowledge graph.
-  
-  ARCHITECTURE: EPF-Runtime shares authentication, authorization, multi-tenancy,
-  and Row-Level Security (RLS) infrastructure with Emergent Core. It is designed
-  with a long-term vision to become the "OS layer" for Emergent ecosystem, where
-  Core and other applications run as native apps on the EPF-Runtime platform.
-
-# ============================================================================
-# ARCHITECTURAL DECISIONS (2025-12-30)
-# ============================================================================
+product_line_id: pl-epf-runtime
+product_line_name: EPF-Runtime
+version: 0.2.0
+status: placeholder
+last_updated: '2025-12-30'
+description: "EPF-Runtime is a headless workflow orchestration system enabling AI agents and\nhumans to\
+  \ execute EPF methodology cycles programmatically. Provides durable \nworkflow execution, schema validation,\
+  \ and deep integration with Emergent Core\nknowledge graph. Shares auth/RLS infrastructure with Core."
 architectural_decisions:
-  decision_date: "2025-12-30"
+  decision_date: '2025-12-30'
   decision_context: |
     These decisions define MVP scope and strategic direction for EPF-Runtime
     integration with Emergent Core shared infrastructure.
-  
   decisions:
-    - id: "arch-001"
-      title: "Artifact Visibility Scope"
-      decision: "Project-scoped only (no cross-project search)"
-      rationale: |
-        EPF artifacts (workflows, roadmaps, features) share the same project
-        isolation as Emergent Core documents. Users must explicitly switch
-        projects to access different product strategies. This maintains
-        consistency with existing multi-tenant patterns and simplifies RLS
-        implementation.
-      alternatives_considered:
-        - "Organization-wide search with project filtering (rejected: complexity)"
-        - "Public artifact library/marketplace (deferred to Phase 4)"
-      impact: "MVP Stage 2 (Artifact Storage) uses existing RLS patterns"
-    
-    - id: "arch-002"
-      title: "Notification System"
-      decision: "In-app notifications only for MVP"
-      rationale: |
-        Workflow status updates (completion, failures, validation errors) will
-        use Emergent Core's existing in-app notification system (kb.notifications
-        table + WebSocket). Email notifications deferred to post-MVP based on
-        user feedback.
-      alternatives_considered:
-        - "Email + in-app (rejected: MVP scope creep)"
-        - "Webhook-only (rejected: poor UX for human users)"
-      impact: "MVP Stage 3 (UI Integration) reuses notification infrastructure"
-    
-    - id: "arch-003"
-      title: "Cross-Tool Navigation Pattern"
-      decision: "Separate apps with switcher for MVP"
-      rationale: |
-        EPF-Runtime appears as separate top-level app in Emergent's app switcher
-        (like "Knowledge Base" vs "EPF Runtime"). This allows independent UI
-        evolution while maintaining shared infrastructure. Future: unified sidebar
-        integration when product matures.
-      alternatives_considered:
-        - "Integrated sidebar sections (rejected: too coupled for MVP)"
-        - "Completely separate deployment (rejected: violates native integration goal)"
-      impact: "MVP Stage 3 (UI Integration) adds switcher entry, separate routes"
-    
-    - id: "arch-004"
-      title: "Temporal Workflow Deployment"
-      decision: "Same Temporal cluster as other Emergent workloads"
-      rationale: |
-        Reuse existing Temporal infrastructure with separate task queue (epf-runtime)
-        for workflow isolation. Reduces operational overhead while maintaining
-        logical separation. Temporal namespace per project (epf-{projectId}) aligns
-        with multi-tenant isolation pattern.
-      alternatives_considered:
-        - "Dedicated Temporal cluster (rejected: operational overhead)"
-        - "Shared task queue (rejected: insufficient isolation)"
-      impact: "MVP Stage 4 (Temporal Workflows) reuses existing cluster, new task queue"
-    
-    - id: "arch-005"
-      title: "MVP Implementation Scope"
-      decision: "Full 4-stage implementation (Foundation + Storage + UI + Temporal)"
-      rationale: |
-        Commit to complete end-to-end functionality (8 weeks, 4x2-week stages).
-        Delivers fully functional workflow orchestration with UI by MVP completion.
-        Partial implementation would not validate core value proposition.
-      alternatives_considered:
-        - "Stage 1-2 only (rejected: insufficient validation)"
-        - "All stages + enterprise features (rejected: scope too large)"
-      impact: "8-week MVP timeline with clear stage boundaries"
-    
-    - id: "arch-006"
-      title: "Strategic Vision: Runtime as OS Layer"
-      decision: "Design for future where EPF-Runtime becomes platform OS"
-      rationale: |
-        Long-term vision (12-24 months): EPF-Runtime evolves into the "OS layer"
-        for Emergent ecosystem, where Emergent Core runs as an application on the
-        Runtime platform. This architecture enables:
-        - Centralized auth/authz across all Emergent apps
-        - Shared workflow orchestration for all product lines
-        - Event bus for app-to-app communication
-        - Platform APIs for third-party integrations
-        
-        Current approach: "Somewhat separate but native feel" - shared infrastructure
-        foundation while maintaining modularity for future architectural evolution.
-      alternatives_considered:
-        - "Runtime as permanent separate app (rejected: limits future options)"
-        - "Immediate deep integration (rejected: premature, blocks independent evolution)"
-      impact: "Design patterns support future inversion (Core → Runtime dependency)"
+  - id: arch-001
+    title: Artifact Visibility Scope
+    decision: Project-scoped only (no cross-project search)
+    rationale: |
+      EPF artifacts (workflows, roadmaps, features) share the same project
+      isolation as Emergent Core documents. Users must explicitly switch
+      projects to access different product strategies. This maintains
+      consistency with existing multi-tenant patterns and simplifies RLS
+      implementation.
+    alternatives_considered:
+    - 'Organization-wide search with project filtering (rejected: complexity)'
+    - Public artifact library/marketplace (deferred to Phase 4)
+    impact: MVP Stage 2 (Artifact Storage) uses existing RLS patterns
+  - id: arch-002
+    title: Notification System
+    decision: In-app notifications only for MVP
+    rationale: |
+      Workflow status updates (completion, failures, validation errors) will
+      use Emergent Core's existing in-app notification system (kb.notifications
+      table + WebSocket). Email notifications deferred to post-MVP based on
+      user feedback.
+    alternatives_considered:
+    - 'Email + in-app (rejected: MVP scope creep)'
+    - 'Webhook-only (rejected: poor UX for human users)'
+    impact: MVP Stage 3 (UI Integration) reuses notification infrastructure
+  - id: arch-003
+    title: Cross-Tool Navigation Pattern
+    decision: Separate apps with switcher for MVP
+    rationale: |
+      EPF-Runtime appears as separate top-level app in Emergent's app switcher
+      (like "Knowledge Base" vs "EPF Runtime"). This allows independent UI
+      evolution while maintaining shared infrastructure. Future: unified sidebar
+      integration when product matures.
+    alternatives_considered:
+    - 'Integrated sidebar sections (rejected: too coupled for MVP)'
+    - 'Completely separate deployment (rejected: violates native integration goal)'
+    impact: MVP Stage 3 (UI Integration) adds switcher entry, separate routes
+  - id: arch-004
+    title: Temporal Workflow Deployment
+    decision: Same Temporal cluster as other Emergent workloads
+    rationale: |
+      Reuse existing Temporal infrastructure with separate task queue (epf-runtime)
+      for workflow isolation. Reduces operational overhead while maintaining
+      logical separation. Temporal namespace per project (epf-{projectId}) aligns
+      with multi-tenant isolation pattern.
+    alternatives_considered:
+    - 'Dedicated Temporal cluster (rejected: operational overhead)'
+    - 'Shared task queue (rejected: insufficient isolation)'
+    impact: MVP Stage 4 (Temporal Workflows) reuses existing cluster, new task queue
+  - id: arch-005
+    title: MVP Implementation Scope
+    decision: Full 4-stage implementation (Foundation + Storage + UI + Temporal)
+    rationale: |
+      Commit to complete end-to-end functionality (8 weeks, 4x2-week stages).
+      Delivers fully functional workflow orchestration with UI by MVP completion.
+      Partial implementation would not validate core value proposition.
+    alternatives_considered:
+    - 'Stage 1-2 only (rejected: insufficient validation)'
+    - 'All stages + enterprise features (rejected: scope too large)'
+    impact: 8-week MVP timeline with clear stage boundaries
+  - id: arch-006
+    title: 'Strategic Vision: Runtime as OS Layer'
+    decision: Design for future where EPF-Runtime becomes platform OS
+    rationale: |
+      Long-term vision (12-24 months): EPF-Runtime evolves into the "OS layer"
+      for Emergent ecosystem, where Emergent Core runs as an application on the
+      Runtime platform. This architecture enables:
+      - Centralized auth/authz across all Emergent apps
+      - Shared workflow orchestration for all product lines
+      - Event bus for app-to-app communication
+      - Platform APIs for third-party integrations
 
-# WHY - Strategic Alignment (shared with emergent workspace)
+      Current approach: "Somewhat separate but native feel" - shared infrastructure
+      foundation while maintaining modularity for future architectural evolution.
+    alternatives_considered:
+    - 'Runtime as permanent separate app (rejected: limits future options)'
+    - 'Immediate deep integration (rejected: premature, blocks independent evolution)'
+    impact: Design patterns support future inversion (Core → Runtime dependency)
 alignment:
-  north_star_reference: "../../READY/00_north_star.yaml"
+  north_star_reference: ../../READY/00_north_star.yaml
   shared_strategy: true
   notes: |
     EPF-Runtime shares the Emergent workspace North Star: "Emergent understanding
     through properly connected, AI-enhanced information." Runtime enables this by
     making EPF methodology executable by machines, allowing AI agents to orchestrate
     product development cycles with structure and validation.
-
-# WHAT - Value Delivered by EPF-Runtime
 high_level_model:
   product_mission: |
     Enable AI agents, DevOps pipelines, and power users to execute EPF methodology
     cycles programmatically with durable workflows, schema validation, and
     knowledge graph integration.
-  
-  main_goal: "Automate EPF cycle execution while maintaining methodology rigor"
-  
+  main_goal: Automate EPF cycle execution while maintaining methodology rigor
   product_goals:
-    - "Execute READY/FIRE/AIM workflows as durable Temporal workflows"
-    - "Validate all artifacts against EPF JSON schemas automatically"
-    - "Store EPF artifacts in Emergent Core knowledge graph for semantic search"
-    - "Provide REST/GraphQL API for AI agent integration"
-    - "Support multi-tenant workspaces with isolation and access control"
-    - "Enable webhook-driven integrations with external tools (GitHub, Jira, Notion)"
-  
+  - Execute READY/FIRE/AIM workflows as durable Temporal workflows
+  - Validate all artifacts against EPF JSON schemas automatically
+  - Store EPF artifacts in Emergent Core knowledge graph for semantic search
+  - Provide REST/GraphQL API for AI agent integration
+  - Support multi-tenant workspaces with isolation and access control
+  - Enable webhook-driven integrations with external tools (GitHub, Jira, Notion)
   value_delivery_description:
-    - "AI agents can execute EPF cycles without human intervention"
-    - "DevOps pipelines can integrate EPF planning into CI/CD workflows"
-    - "Teams can search across product strategy documents semantically"
-    - "EPF artifacts are validated automatically against authoritative schemas"
-    - "Workflow state is durable and survives infrastructure failures"
-  
+  - AI agents can execute EPF cycles without human intervention
+  - DevOps pipelines can integrate EPF planning into CI/CD workflows
+  - Teams can search across product strategy documents semantically
+  - EPF artifacts are validated automatically against authoritative schemas
+  - Workflow state is durable and survives infrastructure failures
   needs_addressed:
-    - need: "Manual EPF cycle execution is time-consuming and error-prone"
-      current_pain: "Teams spend hours creating/updating YAML artifacts manually"
-      solution: "API-driven artifact creation with schema validation and AI assistance"
-    
-    - need: "AI agents cannot execute EPF methodology autonomously"
-      current_pain: "EPF requires human intervention for each phase transition"
-      solution: "Durable workflows that agents can initiate, monitor, and complete"
-    
-    - need: "EPF artifacts are scattered across repos and not semantically searchable"
-      current_pain: "Finding similar strategies or features requires manual search"
-      solution: "All artifacts stored in Emergent Core knowledge graph with vector embeddings"
-    
-    - need: "Schema validation happens late in development cycle"
-      current_pain: "Teams discover schema violations after committing artifacts"
-      solution: "Real-time validation during artifact creation via API"
-  
+  - need: Manual EPF cycle execution is time-consuming and error-prone
+    current_pain: Teams spend hours creating/updating YAML artifacts manually
+    solution: API-driven artifact creation with schema validation and AI assistance
+  - need: AI agents cannot execute EPF methodology autonomously
+    current_pain: EPF requires human intervention for each phase transition
+    solution: Durable workflows that agents can initiate, monitor, and complete
+  - need: EPF artifacts are scattered across repos and not semantically searchable
+    current_pain: Finding similar strategies or features requires manual search
+    solution: All artifacts stored in Emergent Core knowledge graph with vector embeddings
+  - need: Schema validation happens late in development cycle
+    current_pain: Teams discover schema violations after committing artifacts
+    solution: Real-time validation during artifact creation via API
   values_delivered:
-    - value: "Automation-Ready Methodology"
-      description: "EPF cycles become executable by machines, not just humans"
-      beneficiaries: ["AI Agents", "DevOps Engineers", "Platform Teams"]
-    
-    - value: "Durable Workflow Execution"
-      description: "Workflow state persists across infrastructure failures and restarts"
-      beneficiaries: ["DevOps Engineers", "SRE Teams", "Platform Reliability"]
-    
-    - value: "Schema-Validated Artifacts"
-      description: "All artifacts validated against EPF schemas before storage"
-      beneficiaries: ["Product Managers", "AI Agents", "Quality Assurance"]
-    
-    - value: "Semantic Product Intelligence"
-      description: "Product strategy documents become semantically searchable and AI-queryable"
-      beneficiaries: ["Product Managers", "Executives", "AI Agents"]
-    
-    - value: "Multi-Tenant Workspaces"
-      description: "Multiple teams/products can use Runtime with isolation and access control"
-      beneficiaries: ["Enterprise Customers", "SaaS Operators", "Platform Teams"]
-  
+  - value: Automation-Ready Methodology
+    description: EPF cycles become executable by machines, not just humans
+    beneficiaries:
+    - AI Agents
+    - DevOps Engineers
+    - Platform Teams
+  - value: Durable Workflow Execution
+    description: Workflow state persists across infrastructure failures and restarts
+    beneficiaries:
+    - DevOps Engineers
+    - SRE Teams
+    - Platform Reliability
+  - value: Schema-Validated Artifacts
+    description: All artifacts validated against EPF schemas before storage
+    beneficiaries:
+    - Product Managers
+    - AI Agents
+    - Quality Assurance
+  - value: Semantic Product Intelligence
+    description: Product strategy documents become semantically searchable and AI-queryable
+    beneficiaries:
+    - Product Managers
+    - Executives
+    - AI Agents
+  - value: Multi-Tenant Workspaces
+    description: Multiple teams/products can use Runtime with isolation and access control
+    beneficiaries:
+    - Enterprise Customers
+    - SaaS Operators
+    - Platform Teams
   solution_steps:
-    - step: "Define EPF cycle as Temporal workflow"
-      outcome: "Durable, resumable workflow execution for READY/FIRE/AIM phases"
-    
-    - step: "Expose REST/GraphQL API for workflow initiation"
-      outcome: "AI agents and DevOps pipelines can start EPF cycles programmatically"
-    
-    - step: "Validate artifacts against JSON schemas in real-time"
-      outcome: "Schema violations caught during creation, not after commit"
-    
-    - step: "Store validated artifacts in Emergent Core knowledge graph"
-      outcome: "Semantic search and AI chat over product strategy documents"
-    
-    - step: "Implement multi-tenancy with workspace isolation"
-      outcome: "Enterprise customers can manage multiple product lines securely"
-    
-    - step: "Provide CLI for local development and CI/CD integration"
-      outcome: "Developers can test workflows locally and integrate into pipelines"
-
+  - step: Define EPF cycle as Temporal workflow
+    outcome: Durable, resumable workflow execution for READY/FIRE/AIM phases
+  - step: Expose REST/GraphQL API for workflow initiation
+    outcome: AI agents and DevOps pipelines can start EPF cycles programmatically
+  - step: Validate artifacts against JSON schemas in real-time
+    outcome: Schema violations caught during creation, not after commit
+  - step: Store validated artifacts in Emergent Core knowledge graph
+    outcome: Semantic search and AI chat over product strategy documents
+  - step: Implement multi-tenancy with workspace isolation
+    outcome: Enterprise customers can manage multiple product lines securely
+  - step: Provide CLI for local development and CI/CD integration
+    outcome: Developers can test workflows locally and integrate into pipelines
 activation_notes: |
   EPF-Runtime is in early development. Initial focus is on core workflow
   orchestration (Layer 2) and API surface (Layer 1). Multi-tenancy and
   enterprise features (Layer 3) will be activated after core functionality
   is validated with early adopters.
-
-# HOW - Value Layers (focusing on capabilities, not technical implementation)
 layers:
-  # ============================================================================
-  # LAYER 1: User-Facing Interfaces
-  # ============================================================================
-  - layer_number: 1
-    layer_name: "User Interfaces"
-    layer_description: "API and CLI interfaces for interacting with EPF-Runtime"
-    solution_steps:
-      - step: "Expose RESTful and GraphQL APIs for workflow operations"
-        outcome: "AI agents and DevOps pipelines can initiate/monitor workflows programmatically"
-      - step: "Implement real-time validation endpoint for immediate feedback"
-        outcome: "Teams catch schema errors during artifact creation, not after commit"
-      - step: "Provide CLI for local workflow testing and CI/CD integration"
-        outcome: "Developers validate workflows locally before deploying to production"
-      - step: "Enable webhook subscriptions for workflow events"
-        outcome: "External tools receive real-time notifications of workflow progress"
-    components:
-      - component_name: "ProgrammaticAccess"
-        uvp: "EPF cycles are initiated and monitored via API so that AI agents can orchestrate product development autonomously, which helps us enable machine-driven planning."
-        context: "Technical: REST and GraphQL APIs with OpenAPI specification. Authentication via API keys or OAuth2. Real-time workflow status via webhooks or subscriptions."
-        active: true
-        sub_components:
-          - name: "WorkflowInitiation"
-            uvp: "READY/FIRE/AIM workflows are started programmatically so that DevOps pipelines can trigger EPF cycles on schedule, which helps us automate planning cadence."
-            context: "Technical: POST /workflows with phase type, workspace ID, and optional pre-filled data. Returns workflow ID for monitoring."
-            active: true
-          
-          - name: "ArtifactValidation"
-            uvp: "EPF artifacts are validated before storage so that teams catch schema errors immediately, which helps us maintain artifact quality."
-            context: "Technical: POST /validate/{artifact_type} with YAML/JSON payload. Returns validation errors with line numbers and suggested fixes."
-            active: true
-          
-          - name: "WorkflowMonitoring"
-            uvp: "Workflow progress is tracked in real-time so that teams know when phases complete, which helps us coordinate cross-functional activities."
-            context: "Technical: GET /workflows/{id} returns current state, completed steps, and pending actions. WebSocket or GraphQL subscription for live updates."
-            active: true
-      
-      - component_name: "CommandLineInterface"
-        uvp: "EPF workflows are testable locally so that developers can validate changes before CI/CD deployment, which helps us catch errors early."
-        context: "Technical: Node.js CLI with commands: epf-runtime init, epf-runtime start, epf-runtime validate, epf-runtime status. Uses local config or connects to remote Runtime instance."
-        active: true
-        sub_components:
-          - name: "LocalWorkflowTesting"
-            uvp: "Workflows are executed locally without cloud infrastructure so that developers can iterate quickly, which helps us reduce development cycle time."
-            context: "Technical: CLI runs Temporal workflows in-process using local SQLite state store. Validates artifacts against local schema copies."
-            active: false  # Future feature
-          
-          - name: "CIIntegration"
-            uvp: "EPF validation runs in CI pipelines so that schema violations block pull requests, which helps us enforce artifact quality gates."
-            context: "Technical: CLI exits with error code on validation failure. Supports GitHub Actions, GitLab CI, CircleCI via official actions/plugins."
-            active: true
-
-  # ============================================================================
-  # LAYER 2: Workflow Orchestration (Core)
-  # ============================================================================
-  - layer_number: 2
-    layer_name: "Workflow Engine"
-    layer_description: "Durable workflow orchestration for EPF cycles"
-    solution_steps:
-      - step: "Implement READY/FIRE/AIM phases as durable Temporal workflows"
-        outcome: "Workflow state persists across infrastructure failures and survives restarts"
-      - step: "Enforce sequential phase execution with validation gates"
-        outcome: "Teams cannot skip mandatory artifacts, ensuring methodology discipline"
-      - step: "Validate all artifacts against EPF JSON schemas in real-time"
-        outcome: "Invalid artifacts rejected before storage, maintaining data integrity"
-      - step: "Integrate automatic retry logic for transient failures"
-        outcome: "Network hiccups don't block workflows, improving reliability"
-    components:
-      - component_name: "DurableExecution"
-        uvp: "Workflow state persists across infrastructure failures so that long-running EPF cycles complete reliably, which helps us prevent lost planning work."
-        context: "Technical: Temporal workflow engine with PostgreSQL state backend. Workflows automatically resume after worker restarts or node failures."
-        active: true
-        sub_components:
-          - name: "PhaseOrchestration"
-            uvp: "READY/FIRE/AIM phases execute sequentially with validation gates so that teams cannot skip mandatory artifacts, which helps us enforce methodology discipline."
-            context: "Technical: Each phase is a Temporal activity. Workflow enforces: READY → FIRE → AIM ordering. Validation failure pauses workflow pending human review."
-            active: true
-          
-          - name: "ParallelFeatureExecution"
-            uvp: "Multiple features are developed concurrently within FIRE phase so that teams can parallelize work, which helps us accelerate time-to-market."
-            context: "Technical: FIRE phase spawns child workflows per feature. Parent workflow waits for all children before advancing to AIM."
-            active: false  # Future feature
-          
-          - name: "AutomaticRetries"
-            uvp: "Transient failures are retried automatically so that network hiccups don't block workflows, which helps us improve reliability."
-            context: "Technical: Temporal retry policies with exponential backoff for API calls (schema fetch, Core API, webhooks). Configurable max attempts and timeout."
-            active: true
-      
-      - component_name: "SchemaEnforcement"
-        uvp: "Artifacts are validated against EPF schemas during creation so that invalid data never enters knowledge graph, which helps us maintain data integrity."
-        context: "Technical: JSON Schema validation using Ajv library. Schemas fetched from canonical EPF repo or cached locally. Validation errors include JSONPath and human-readable messages."
-        active: true
-        sub_components:
-          - name: "RealtimeValidation"
-            uvp: "Validation errors are reported immediately during artifact creation so that users fix issues instantly, which helps us reduce frustration."
-            context: "Technical: API validates payloads synchronously before workflow step completes. Returns 400 Bad Request with detailed error array."
-            active: true
-          
-          - name: "CrossReferenceValidation"
-            uvp: "Feature dependencies and value model references are validated so that broken links are caught early, which helps us prevent inconsistent artifacts."
-            context: "Technical: Validation script checks that referenced IDs exist in knowledge graph. Runs after artifact creation, before workflow advances."
-            active: false  # Future feature (requires Core integration)
-
-  # ============================================================================
-  # LAYER 3: Integration & Multi-Tenancy
-  # ============================================================================
-  - layer_number: 3
-    layer_name: "Platform Services"
-    layer_description: "Multi-tenancy, access control, and external integrations"
-    solution_steps:
-      - step: "Implement workspace isolation with row-level security and Temporal namespaces"
-        outcome: "Multiple product lines operate independently without data leakage"
-      - step: "Enforce role-based access control at API and workflow levels"
-        outcome: "Sensitive strategies remain confidential, meeting enterprise security requirements"
-      - step: "Build webhook engine for external tool integration (GitHub, Jira, Notion)"
-        outcome: "EPF cycles trigger actions in existing tools, fitting into current workflows"
-      - step: "Automate workspace provisioning via API"
-        outcome: "Sales can onboard customers instantly without engineering intervention"
-    components:
-      - component_name: "WorkspaceIsolation"
-        uvp: "Multiple product lines operate independently so that teams don't interfere with each other, which helps us support enterprise customers."
-        context: "Technical: Multi-tenancy via workspace_id in all data models. Row-level security in PostgreSQL. Temporal namespace per workspace for complete isolation."
-        active: false  # Future feature
-        sub_components:
-          - name: "AccessControl"
-            uvp: "Team members have role-based permissions so that sensitive strategies remain confidential, which helps us meet enterprise security requirements."
-            context: "Technical: RBAC with roles: workspace-admin, product-manager, developer, viewer. Enforced at API layer and Temporal worker authorization."
-            active: false
-          
-          - name: "TenantProvisioning"
-            uvp: "New workspaces are created instantly so that sales can onboard customers without engineering, which helps us scale sales operations."
-            context: "Technical: POST /workspaces API creates Temporal namespace, database schema, and admin user. Automated via Terraform for self-hosted deployments."
-            active: false
-      
-      - component_name: "ExternalIntegrations"
-        uvp: "EPF cycles trigger actions in external tools so that workflows integrate with existing processes, which helps us fit into current team workflows."
-        context: "Technical: Webhook engine sends events to external URLs (GitHub, Jira, Notion, Slack). Event types: workflow-started, phase-completed, validation-failed, artifact-created."
-        active: false  # Future feature
-        sub_components:
-          - name: "GitHubIntegration"
-            uvp: "Validated artifacts are committed to Git automatically so that teams have version history, which helps us enable GitOps workflows."
-            context: "Technical: GitHub App integration commits artifacts to specified repo/branch after validation. Creates PR for review or direct commit based on config."
-            active: false
-          
-          - name: "JiraSync"
-            uvp: "FIRE features create corresponding Jira epics so that engineering work is tracked, which helps us bridge product and engineering."
-            context: "Technical: Jira REST API creates epic per feature with description from value model. Links to Runtime workflow for traceability."
-            active: false
-
-  # ============================================================================
-  # LAYER 4: Infrastructure & Operations
-  # ============================================================================
-  - layer_number: 4
-    layer_name: "Infrastructure"
-    layer_description: "Deployment, monitoring, and operational support"
-    solution_steps:
-      - step: "Implement blue-green deployment with Temporal graceful shutdown"
-        outcome: "Platform updates deploy without interrupting running workflows, maintaining SLA"
-      - step: "Deploy comprehensive monitoring with Prometheus, Grafana, and PagerDuty"
-        outcome: "System failures detected instantly before users are impacted"
-      - step: "Enable immutable audit logging via Temporal history and Elasticsearch"
-        outcome: "All workflow actions logged for compliance and forensic analysis"
-      - step: "Configure PostgreSQL continuous archiving and cross-region replication"
-        outcome: "Data survives catastrophic failures with point-in-time recovery capability"
-    components:
-      - component_name: "ReliableDeployment"
-        uvp: "Platform updates deploy without interrupting running workflows so that teams experience zero downtime, which helps us maintain SLA commitments."
-        context: "Technical: Blue-green deployment for API servers. Temporal workers support graceful shutdown (finish current activities before stopping). Database migrations run automatically via TypeORM."
-        active: false  # Future feature
-        sub_components:
-          - name: "HealthMonitoring"
-            uvp: "System health is monitored continuously so that failures are detected instantly, which helps us respond before users are impacted."
-            context: "Technical: Prometheus metrics for API latency, workflow throughput, queue depth, error rates. Grafana dashboards + PagerDuty alerts."
-            active: false
-          
-          - name: "AuditLogging"
-            uvp: "All workflow actions are logged immutably so that compliance teams can audit activity, which helps us meet enterprise security requirements."
-            context: "Technical: Temporal history provides immutable workflow audit trail. Additional logs streamed to Elasticsearch for search and retention compliance."
-            active: false
-      
-      - component_name: "DataManagement"
-        uvp: "Workflow state and artifacts are backed up regularly so that data survives catastrophic failures, which helps us protect customer data."
-        context: "Technical: PostgreSQL continuous archiving (WAL) to S3. Daily snapshots with 30-day retention. Point-in-time recovery capability."
-        active: false  # Future feature
-        sub_components:
-          - name: "DisasterRecovery"
-            uvp: "Runtime can be restored to different region so that regional outages don't cause extended downtime, which helps us achieve 99.9% availability."
-            context: "Technical: Cross-region replication for PostgreSQL. Temporal cluster multi-region federation. DNS failover via Route53 health checks."
-            active: false
-
-# ============================================================================
-# VALIDATION & QUALITY
-# ============================================================================
+- solution_steps:
+  - step: Expose RESTful and GraphQL APIs for workflow operations
+    outcome: AI agents and DevOps pipelines can initiate/monitor workflows programmatically
+  - step: Implement real-time validation endpoint for immediate feedback
+    outcome: Teams catch schema errors during artifact creation, not after commit
+  - step: Provide CLI for local workflow testing and CI/CD integration
+    outcome: Developers validate workflows locally before deploying to production
+  - step: Enable webhook subscriptions for workflow events
+    outcome: External tools receive real-time notifications of workflow progress
+  components:
+  - uvp: EPF cycles are initiated and monitored via API so that AI agents can orchestrate product development
+      autonomously, which helps us enable machine-driven planning.
+    context: 'Technical: REST and GraphQL APIs with OpenAPI specification. Authentication via API keys
+      or OAuth2. Real-time workflow status via webhooks or subscriptions.'
+    active: true
+    sub_components:
+    - name: WorkflowInitiation
+      uvp: READY/FIRE/AIM workflows are started programmatically so that DevOps pipelines can trigger
+        EPF cycles on schedule, which helps us automate planning cadence.
+      context: 'Technical: POST /workflows with phase type, workspace ID, and optional pre-filled data.
+        Returns workflow ID for monitoring.'
+      active: true
+      id: workflow-initiation
+    - name: ArtifactValidation
+      uvp: EPF artifacts are validated before storage so that teams catch schema errors immediately, which
+        helps us maintain artifact quality.
+      context: 'Technical: POST /validate/{artifact_type} with YAML/JSON payload. Returns validation errors
+        with line numbers and suggested fixes.'
+      active: true
+      id: artifact-validation
+    - name: WorkflowMonitoring
+      uvp: Workflow progress is tracked in real-time so that teams know when phases complete, which helps
+        us coordinate cross-functional activities.
+      context: 'Technical: GET /workflows/{id} returns current state, completed steps, and pending actions.
+        WebSocket or GraphQL subscription for live updates.'
+      active: true
+      id: workflow-monitoring
+    id: programmatic-access
+    name: ProgrammaticAccess
+  - uvp: EPF workflows are testable locally so that developers can validate changes before CI/CD deployment,
+      which helps us catch errors early.
+    context: 'Technical: Node.js CLI with commands: epf-runtime init, epf-runtime start, epf-runtime validate,
+      epf-runtime status. Uses local config or connects to remote Runtime instance.'
+    active: true
+    sub_components:
+    - name: LocalWorkflowTesting
+      uvp: Workflows are executed locally without cloud infrastructure so that developers can iterate
+        quickly, which helps us reduce development cycle time.
+      context: 'Technical: CLI runs Temporal workflows in-process using local SQLite state store. Validates
+        artifacts against local schema copies.'
+      active: false
+      id: local-workflow-testing
+    - name: CIIntegration
+      uvp: EPF validation runs in CI pipelines so that schema violations block pull requests, which helps
+        us enforce artifact quality gates.
+      context: 'Technical: CLI exits with error code on validation failure. Supports GitHub Actions, GitLab
+        CI, CircleCI via official actions/plugins.'
+      active: true
+      id: c-i-integration
+    id: command-line-interface
+    name: CommandLineInterface
+  id: layer-1-user-interfaces
+  name: User Interfaces
+  description: API and CLI interfaces for interacting with EPF-Runtime
+- solution_steps:
+  - step: Implement READY/FIRE/AIM phases as durable Temporal workflows
+    outcome: Workflow state persists across infrastructure failures and survives restarts
+  - step: Enforce sequential phase execution with validation gates
+    outcome: Teams cannot skip mandatory artifacts, ensuring methodology discipline
+  - step: Validate all artifacts against EPF JSON schemas in real-time
+    outcome: Invalid artifacts rejected before storage, maintaining data integrity
+  - step: Integrate automatic retry logic for transient failures
+    outcome: Network hiccups don't block workflows, improving reliability
+  components:
+  - uvp: Workflow state persists across infrastructure failures so that long-running EPF cycles complete
+      reliably, which helps us prevent lost planning work.
+    context: 'Technical: Temporal workflow engine with PostgreSQL state backend. Workflows automatically
+      resume after worker restarts or node failures.'
+    active: true
+    sub_components:
+    - name: PhaseOrchestration
+      uvp: READY/FIRE/AIM phases execute sequentially with validation gates so that teams cannot skip
+        mandatory artifacts, which helps us enforce methodology discipline.
+      context: 'Technical: Each phase is a Temporal activity. Workflow enforces: READY → FIRE → AIM ordering.
+        Validation failure pauses workflow pending human review.'
+      active: true
+      id: phase-orchestration
+    - name: ParallelFeatureExecution
+      uvp: Multiple features are developed concurrently within FIRE phase so that teams can parallelize
+        work, which helps us accelerate time-to-market.
+      context: 'Technical: FIRE phase spawns child workflows per feature. Parent workflow waits for all
+        children before advancing to AIM.'
+      active: false
+      id: parallel-feature-execution
+    - name: AutomaticRetries
+      uvp: Transient failures are retried automatically so that network hiccups don't block workflows,
+        which helps us improve reliability.
+      context: 'Technical: Temporal retry policies with exponential backoff for API calls (schema fetch,
+        Core API, webhooks). Configurable max attempts and timeout.'
+      active: true
+      id: automatic-retries
+    id: durable-execution
+    name: DurableExecution
+  - uvp: Artifacts are validated against EPF schemas during creation so that invalid data never enters
+      knowledge graph, which helps us maintain data integrity.
+    context: 'Technical: JSON Schema validation using Ajv library. Schemas fetched from canonical EPF
+      repo or cached locally. Validation errors include JSONPath and human-readable messages.'
+    active: true
+    sub_components:
+    - name: RealtimeValidation
+      uvp: Validation errors are reported immediately during artifact creation so that users fix issues
+        instantly, which helps us reduce frustration.
+      context: 'Technical: API validates payloads synchronously before workflow step completes. Returns
+        400 Bad Request with detailed error array.'
+      active: true
+      id: realtime-validation
+    - name: CrossReferenceValidation
+      uvp: Feature dependencies and value model references are validated so that broken links are caught
+        early, which helps us prevent inconsistent artifacts.
+      context: 'Technical: Validation script checks that referenced IDs exist in knowledge graph. Runs
+        after artifact creation, before workflow advances.'
+      active: false
+      id: cross-reference-validation
+    id: schema-enforcement
+    name: SchemaEnforcement
+  id: layer-2-workflow-engine
+  name: Workflow Engine
+  description: Durable workflow orchestration for EPF cycles Provides core runtime capabilities.
+- solution_steps:
+  - step: Implement workspace isolation with row-level security and Temporal namespaces
+    outcome: Multiple product lines operate independently without data leakage
+  - step: Enforce role-based access control at API and workflow levels
+    outcome: Sensitive strategies remain confidential, meeting enterprise security requirements
+  - step: Build webhook engine for external tool integration (GitHub, Jira, Notion)
+    outcome: EPF cycles trigger actions in existing tools, fitting into current workflows
+  - step: Automate workspace provisioning via API
+    outcome: Sales can onboard customers instantly without engineering intervention
+  components:
+  - uvp: Multiple product lines operate independently so that teams don't interfere with each other, which
+      helps us support enterprise customers.
+    context: 'Technical: Multi-tenancy via workspace_id in all data models. Row-level security in PostgreSQL.
+      Temporal namespace per workspace for complete isolation.'
+    active: false
+    sub_components:
+    - name: AccessControl
+      uvp: Team members have role-based permissions so that sensitive strategies remain confidential,
+        which helps us meet enterprise security requirements.
+      context: 'Technical: RBAC with roles: workspace-admin, product-manager, developer, viewer. Enforced
+        at API layer and Temporal worker authorization.'
+      active: false
+      id: access-control
+    - name: TenantProvisioning
+      uvp: New workspaces are created instantly so that sales can onboard customers without engineering,
+        which helps us scale sales operations.
+      context: 'Technical: POST /workspaces API creates Temporal namespace, database schema, and admin
+        user. Automated via Terraform for self-hosted deployments.'
+      active: false
+      id: tenant-provisioning
+    id: workspace-isolation
+    name: WorkspaceIsolation
+  - uvp: EPF cycles trigger actions in external tools so that workflows integrate with existing processes,
+      which helps us fit into current team workflows.
+    context: 'Technical: Webhook engine sends events to external URLs (GitHub, Jira, Notion, Slack). Event
+      types: workflow-started, phase-completed, validation-failed, artifact-created.'
+    active: false
+    sub_components:
+    - name: GitHubIntegration
+      uvp: Validated artifacts are committed to Git automatically so that teams have version history,
+        which helps us enable GitOps workflows.
+      context: 'Technical: GitHub App integration commits artifacts to specified repo/branch after validation.
+        Creates PR for review or direct commit based on config.'
+      active: false
+      id: git-hub-integration
+    - name: JiraSync
+      uvp: FIRE features create corresponding Jira epics so that engineering work is tracked, which helps
+        us bridge product and engineering.
+      context: 'Technical: Jira REST API creates epic per feature with description from value model. Links
+        to Runtime workflow for traceability.'
+      active: false
+      id: jira-sync
+    id: external-integrations
+    name: ExternalIntegrations
+  id: layer-3-platform-services
+  name: Platform Services
+  description: Multi-tenancy, access control, and external integrations
+- solution_steps:
+  - step: Implement blue-green deployment with Temporal graceful shutdown
+    outcome: Platform updates deploy without interrupting running workflows, maintaining SLA
+  - step: Deploy comprehensive monitoring with Prometheus, Grafana, and PagerDuty
+    outcome: System failures detected instantly before users are impacted
+  - step: Enable immutable audit logging via Temporal history and Elasticsearch
+    outcome: All workflow actions logged for compliance and forensic analysis
+  - step: Configure PostgreSQL continuous archiving and cross-region replication
+    outcome: Data survives catastrophic failures with point-in-time recovery capability
+  components:
+  - uvp: Platform updates deploy without interrupting running workflows so that teams experience zero
+      downtime, which helps us maintain SLA commitments.
+    context: 'Technical: Blue-green deployment for API servers. Temporal workers support graceful shutdown
+      (finish current activities before stopping). Database migrations run automatically via TypeORM.'
+    active: false
+    sub_components:
+    - name: HealthMonitoring
+      uvp: System health is monitored continuously so that failures are detected instantly, which helps
+        us respond before users are impacted.
+      context: 'Technical: Prometheus metrics for API latency, workflow throughput, queue depth, error
+        rates. Grafana dashboards + PagerDuty alerts.'
+      active: false
+      id: health-monitoring
+    - name: AuditLogging
+      uvp: All workflow actions are logged immutably so that compliance teams can audit activity, which
+        helps us meet enterprise security requirements.
+      context: 'Technical: Temporal history provides immutable workflow audit trail. Additional logs streamed
+        to Elasticsearch for search and retention compliance.'
+      active: false
+      id: audit-logging
+    id: reliable-deployment
+    name: ReliableDeployment
+  - uvp: Workflow state and artifacts are backed up regularly so that data survives catastrophic failures,
+      which helps us protect customer data.
+    context: 'Technical: PostgreSQL continuous archiving (WAL) to S3. Daily snapshots with 30-day retention.
+      Point-in-time recovery capability.'
+    active: false
+    sub_components:
+    - name: DisasterRecovery
+      uvp: Runtime can be restored to different region so that regional outages don't cause extended downtime,
+        which helps us achieve 99.9% availability.
+      context: 'Technical: Cross-region replication for PostgreSQL. Temporal cluster multi-region federation.
+        DNS failover via Route53 health checks.'
+      active: false
+      id: disaster-recovery
+    id: data-management
+    name: DataManagement
+  id: layer-4-infrastructure
+  name: Infrastructure
+  description: Deployment, monitoring, and operational support Provides core runtime capabilities.
 validation_checklist:
-  - criterion: "No protocols in component names/UVPs (REST, GraphQL, HTTP)"
-    status: "pass"
-  - criterion: "No DevOps patterns in component names/UVPs (Blue-Green, CI/CD)"
-    status: "pass"
-  - criterion: "No technical acronyms in component names/UVPs (API, DB, K8s)"
-    status: "pass"
-  - criterion: "All UVPs follow pattern: {Deliverable} so that {beneficiary} can {capability}, which helps us {progress}"
-    status: "pass"
-  - criterion: "Technical details confined to context tags with 'Technical:' prefix"
-    status: "pass"
-
-# ============================================================================
-# BENEFICIARIES
-# ============================================================================
+- criterion: No protocols in component names/UVPs (REST, GraphQL, HTTP)
+  status: pass
+- criterion: No DevOps patterns in component names/UVPs (Blue-Green, CI/CD)
+  status: pass
+- criterion: No technical acronyms in component names/UVPs (API, DB, K8s)
+  status: pass
+- criterion: 'All UVPs follow pattern: {Deliverable} so that {beneficiary} can {capability}, which helps
+    us {progress}'
+  status: pass
+- criterion: Technical details confined to context tags with 'Technical:' prefix
+  status: pass
 beneficiaries:
-  - name: "AI Agents"
-    primary_needs:
-      - "Programmatic EPF cycle execution without human intervention"
-      - "Durable workflows that survive infrastructure failures"
-      - "Schema validation to ensure artifact correctness"
-    value_received:
-      - "Can autonomously orchestrate product development cycles"
-      - "Don't need to handle workflow state management"
-      - "Get immediate feedback on artifact validity"
-  
-  - name: "DevOps Engineers"
-    primary_needs:
-      - "CI/CD integration for EPF validation"
-      - "CLI for local testing and debugging"
-      - "Reliable deployment without downtime"
-    value_received:
-      - "Can integrate EPF into existing pipelines"
-      - "Can test workflows locally before deployment"
-      - "Don't worry about workflow state during deployments"
-  
-  - name: "Power-User Product Managers"
-    primary_needs:
-      - "Faster artifact creation with validation"
-      - "Semantic search across product strategies"
-      - "Visibility into workflow progress"
-    value_received:
-      - "Catch schema errors during creation, not after commit"
-      - "Find similar strategies from past products"
-      - "Track EPF cycle progress in real-time"
-  
-  - name: "Enterprise Customers"
-    primary_needs:
-      - "Multi-tenant workspaces with isolation"
-      - "Role-based access control"
-      - "Audit logging for compliance"
-    value_received:
-      - "Can manage multiple product lines securely"
-      - "Control who can create/modify strategies"
-      - "Meet SOC2/ISO27001 requirements with audit trails"
-
-# ============================================================================
-# METRICS & SUCCESS
-# ============================================================================
+- name: AI Agents
+  primary_needs:
+  - Programmatic EPF cycle execution without human intervention
+  - Durable workflows that survive infrastructure failures
+  - Schema validation to ensure artifact correctness
+  value_received:
+  - Can autonomously orchestrate product development cycles
+  - Don't need to handle workflow state management
+  - Get immediate feedback on artifact validity
+- name: DevOps Engineers
+  primary_needs:
+  - CI/CD integration for EPF validation
+  - CLI for local testing and debugging
+  - Reliable deployment without downtime
+  value_received:
+  - Can integrate EPF into existing pipelines
+  - Can test workflows locally before deployment
+  - Don't worry about workflow state during deployments
+- name: Power-User Product Managers
+  primary_needs:
+  - Faster artifact creation with validation
+  - Semantic search across product strategies
+  - Visibility into workflow progress
+  value_received:
+  - Catch schema errors during creation, not after commit
+  - Find similar strategies from past products
+  - Track EPF cycle progress in real-time
+- name: Enterprise Customers
+  primary_needs:
+  - Multi-tenant workspaces with isolation
+  - Role-based access control
+  - Audit logging for compliance
+  value_received:
+  - Can manage multiple product lines securely
+  - Control who can create/modify strategies
+  - Meet SOC2/ISO27001 requirements with audit trails
 success_metrics:
-  - metric: "Workflow Completion Rate"
-    target: "99%"
-    description: "% of started workflows that complete successfully"
-  
-  - metric: "Validation Error Detection"
-    target: "100%"
-    description: "% of schema violations caught before storage"
-  
-  - metric: "API Response Time (p95)"
-    target: "<500ms"
-    description: "95th percentile API latency for workflow operations"
-  
-  - metric: "Workflow Resume Time"
-    target: "<30s"
-    description: "Time to resume workflows after infrastructure failure"
-  
-  - metric: "AI Agent Adoption"
-    target: "10 agents"
-    description: "Number of autonomous AI agents using Runtime"
-
-# ============================================================================
-# ROADMAP ALIGNMENT & MVP SCOPE
-# ============================================================================
+- metric: Workflow Completion Rate
+  target: 99%
+  description: '% of started workflows that complete successfully'
+- metric: Validation Error Detection
+  target: 100%
+  description: '% of schema violations caught before storage'
+- metric: API Response Time (p95)
+  target: <500ms
+  description: 95th percentile API latency for workflow operations
+- metric: Workflow Resume Time
+  target: <30s
+  description: Time to resume workflows after infrastructure failure
+- metric: AI Agent Adoption
+  target: 10 agents
+  description: Number of autonomous AI agents using Runtime
 mvp_scope:
-  decision_date: "2025-12-30"
+  decision_date: '2025-12-30'
   implementation_stages:
-    - stage: 1
-      name: "Foundation (Weeks 1-2)"
-      description: "Shared infrastructure integration (auth, RLS, basic API)"
-      components_activated:
-        - "WorkflowInitiation (L1)"
-        - "ArtifactValidation (L1)"
-        - "PhaseOrchestration (L2)"
-        - "SchemaEnforcement (L2)"
-      outcome: "EPF workflows can be created via API with RLS isolation"
-    
-    - stage: 2
-      name: "Artifact Storage (Weeks 3-4)"
-      description: "Store EPF artifacts in Emergent Core knowledge graph"
-      components_activated:
-        - "KnowledgeGraphIntegration (L3)"
-        - "SemanticSearchOverArtifacts (L3)"
-      outcome: "EPF artifacts stored as graph objects with vector embeddings"
-    
-    - stage: 3
-      name: "UI Integration (Weeks 5-6)"
-      description: "Admin UI for workflow management with app switcher"
-      components_activated:
-        - "WorkflowMonitoring (L1)"
-        - "CIIntegration (L1)"
-      outcome: "Users can manage workflows via web UI with in-app notifications"
-    
-    - stage: 4
-      name: "Temporal Workflows (Weeks 7-8)"
-      description: "READY/FIRE/AIM durable workflow execution"
-      components_activated:
-        - "DurableExecution (L2)"
-        - "AutomaticRetries (L2)"
-      outcome: "Full READY/FIRE/AIM cycles executable as durable workflows"
-  
+  - stage: 1
+    name: Foundation (Weeks 1-2)
+    description: Shared infrastructure integration (auth, RLS, basic API)
+    components_activated:
+    - WorkflowInitiation (L1)
+    - ArtifactValidation (L1)
+    - PhaseOrchestration (L2)
+    - SchemaEnforcement (L2)
+    outcome: EPF workflows can be created via API with RLS isolation
+  - stage: 2
+    name: Artifact Storage (Weeks 3-4)
+    description: Store EPF artifacts in Emergent Core knowledge graph
+    components_activated:
+    - KnowledgeGraphIntegration (L3)
+    - SemanticSearchOverArtifacts (L3)
+    outcome: EPF artifacts stored as graph objects with vector embeddings
+  - stage: 3
+    name: UI Integration (Weeks 5-6)
+    description: Admin UI for workflow management with app switcher
+    components_activated:
+    - WorkflowMonitoring (L1)
+    - CIIntegration (L1)
+    outcome: Users can manage workflows via web UI with in-app notifications
+  - stage: 4
+    name: Temporal Workflows (Weeks 7-8)
+    description: READY/FIRE/AIM durable workflow execution
+    components_activated:
+    - DurableExecution (L2)
+    - AutomaticRetries (L2)
+    outcome: Full READY/FIRE/AIM cycles executable as durable workflows
   deferred_to_post_mvp:
-    - "LocalWorkflowTesting (L1) - Local CLI execution without cloud"
-    - "ParallelFeatureExecution (L2) - Concurrent feature workflows"
-    - "CrossReferenceValidation (L2) - Validate artifact dependencies"
-    - "WorkspaceIsolation (L3) - Full multi-tenant workspace management"
-    - "ExternalIntegrations (L3) - GitHub/Jira webhooks"
-    - "All Layer 4 components - Infrastructure/Operations features"
-  
+  - LocalWorkflowTesting (L1) - Local CLI execution without cloud
+  - ParallelFeatureExecution (L2) - Concurrent feature workflows
+  - CrossReferenceValidation (L2) - Validate artifact dependencies
+  - WorkspaceIsolation (L3) - Full multi-tenant workspace management
+  - ExternalIntegrations (L3) - GitHub/Jira webhooks
+  - All Layer 4 components - Infrastructure/Operations features
   mvp_success_criteria:
-    - "AI agent can create workflow via API"
-    - "Workflow executes READY phase with validation"
-    - "Artifacts stored in knowledge graph with RLS"
-    - "User can monitor workflow progress in web UI"
-    - "Workflow survives infrastructure restart (Temporal durability)"
-
+  - AI agent can create workflow via API
+  - Workflow executes READY phase with validation
+  - Artifacts stored in knowledge graph with RLS
+  - User can monitor workflow progress in web UI
+  - Workflow survives infrastructure restart (Temporal durability)
 roadmap_notes: |
   EPF-Runtime development follows 4-stage MVP approach (8 weeks total, 2025 Q1).
   Initial focus is on shared infrastructure integration (Stage 1) and core workflow
   orchestration (Stage 2-4) to validate value proposition with pilot customers
   (AI agents, DevOps engineers).
-  
+
   Multi-tenancy (L3 WorkspaceIsolation) and enterprise features (L4) will be
   activated in post-MVP iterations after validating core functionality.
-  
+
   Strategic vision: EPF-Runtime designed to become "OS layer" for Emergent ecosystem,
   where Core and other apps run as native applications on the Runtime platform
   (12-24 month evolution path).
-  
+
   See ../../READY/05_roadmap_recipe.yaml for detailed quarterly OKRs and
   assumption testing plan.
+track_name: Product
+packaged_default: false

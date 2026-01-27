@@ -1,8 +1,7 @@
-# EPF Framework .gitignore
-# This is the emergent product repo - the emergent instance IS tracked here
+# EPF Framework .gitignore - Emergent Product Repo
+# This file tracks the emergent product instance while ignoring other instances
 
 # Instance folders - only emergent instance is tracked
-# Other instances are ignored (if syncing from canonical repo)
 _instances/*
 !_instances/README.md
 !_instances/emergent

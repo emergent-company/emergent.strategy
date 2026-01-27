@@ -208,6 +208,34 @@ These improvements prevent AI assistants from using manual git commands on EPF s
 - 📖 **Understanding concepts?** → [`docs/guides/README.md`](docs/guides/README.md) (find right guide)
 - 📐 **Schema questions?** → [`schemas/README.md`](schemas/README.md) (schema-template-guide pattern)
 
+### Schema Reference
+
+All JSON schemas in `schemas/` for artifact validation:
+
+| Schema | Purpose |
+|--------|---------|
+| `north_star_schema.json` | Organization-level purpose, vision, mission, values |
+| `insight_analyses_schema.json` | READY Phase trend, market, SWOT, problem analyses |
+| `insight_opportunity_schema.json` | Opportunity statement from INSIGHT synthesis |
+| `strategy_foundations_schema.json` | Vision, value prop, sequencing, info architecture |
+| `strategy_formula_schema.json` | Winning aspirations and strategic choices |
+| `roadmap_recipe_schema.json` | OKRs, assumptions, work packages by track |
+| `value_model_schema.json` | FIRE Phase value layers and components |
+| `feature_definition_schema.json` | Individual feature specifications |
+| `mappings_schema.json` | Traceability between features and value model |
+| `workflow_schema.json` | State machine and workflow definitions |
+| `assessment_report_schema.json` | AIM Phase cycle assessment |
+| `calibration_memo_schema.json` | AIM Phase learning calibration |
+| `current_reality_assessment_schema.json` | Living Reality Assessment (LRA) |
+| `track_health_assessment_schema.json` | Track Health Assessment (THA) signals |
+| `aim_trigger_config_schema.json` | AIM phase trigger configuration |
+| `product_portfolio_schema.json` | Multi-product portfolio structure |
+| `track_definition_base_schema.json` | Base schema for track definitions |
+| `strategy_definition_schema.json` | Strategy track component definitions |
+| `org_ops_definition_schema.json` | OrgOps track component definitions |
+| `commercial_definition_schema.json` | Commercial track component definitions |
+| `field-importance-taxonomy.json` | Field importance classification for health checks |
+
 **Maintaining EPF?**
 
 - 🔧 **Complete protocol** → [`MAINTENANCE.md`](MAINTENANCE.md) (STEP 0-5 consistency protocol)
