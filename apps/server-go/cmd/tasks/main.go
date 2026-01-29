@@ -232,7 +232,7 @@ func runE2ETests(args []string) {
 		fmt.Printf("Running E2E tests against: %s\n\n", *serverURL)
 	} else {
 		fmt.Println("Running E2E tests with in-process server")
-		fmt.Println("Note: Requires database access\n")
+		fmt.Println("Note: Requires database access")
 	}
 
 	runGoCommandWithEnv(cmdArgs, env)
@@ -271,11 +271,45 @@ func runUnitTests(args []string) {
 // ============================================================================
 
 func runBuild() {
-	fmt.Println("Building server-go...")
-	runGoCommand([]string{"build", "./..."})
+	fmt.Println("Building server-go (step-by-step)...")
+
+	packages := []struct {
+		name string
+		path string
+	}{
+		{"pkg", "./pkg/..."},
+		{"internal", "./internal/..."},
+		{"domain", "./domain/..."},
+		{"cmd/tasks", "./cmd/tasks"},
+		{"cmd/migrate", "./cmd/migrate"},
+		{"cmd/server", "./cmd/server"},
+		{"tests", "./tests/..."},
+	}
+
+	for _, pkg := range packages {
+		fmt.Printf("  Building %s... ", pkg.name)
+		cmd := exec.Command("go", "build", pkg.path)
+		cmd.Dir = getServerGoDir()
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			fmt.Println("FAIL")
+			fmt.Fprintf(os.Stderr, "%s\n", output)
+			os.Exit(1)
+		}
+		fmt.Println("OK")
+	}
+
+	fmt.Println("\nBuild successful!")
 }
 
 func runLint() {
+	// Check if golangci-lint is available
+	if _, err := exec.LookPath("golangci-lint"); err != nil {
+		fmt.Println("golangci-lint not found, falling back to go vet...")
+		runGoCommand([]string{"vet", "./..."})
+		return
+	}
+
 	fmt.Println("Running golangci-lint...")
 
 	cmd := exec.Command("golangci-lint", "run", "./...")
