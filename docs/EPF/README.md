@@ -1,16 +1,8 @@
-# Emergent Product Framework (EPF) Repository - v2.12.2
+# Emergent Product Framework (EPF) Repository - v2.12.0
 
 This repository contains the complete skeleton for managing product, strategy, org & ops, and commercial development using the Emergent Product Framework. It is designed to be an **executable operating system**, managed by a human-in-the-loop with the assistance of an AI Knowledge Agent.
 
 ---
-
-## What's New in v2.12.2
-
-Update repo references from epf to epf-canonical-definition
-
-## What's New in v2.12.1
-
-fix(.gitignore): Canonical repo now correctly ignores ALL instances - fixes sync conflicts
 
 ## What's New in v2.12.0
 

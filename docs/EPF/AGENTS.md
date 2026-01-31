@@ -40,7 +40,7 @@ cat scripts/README.md
 
 EPF can exist in two contexts:
 
-1. **Canonical repo** (`eyedea-io/epf-canonical-definition`) - The source of truth for the framework
+1. **Canonical repo** (`eyedea-io/epf`) - The source of truth for the framework
 2. **Product repo** (e.g., `lawmatics/docs/EPF/`) - Framework embedded via git subtree
 
 **How to detect:**

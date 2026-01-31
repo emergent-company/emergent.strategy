@@ -5,26 +5,31 @@
 # HOW: Build adapters that connect Core/Runtime to where teams already work
 # WHAT: Suite of tools that close feedback loops between strategy, code, deployment, and users
 
-product_line_id: "pl-emergent-tools"
-product_line_name: "Emergent Tools"
+# Schema migration note: Added track_name and layers for EPF 2.11.0 compliance.
+# Custom fields (categories, tier_1_roadmap, etc.) retained in high_level_model.
+
+track_name: "Product"
 version: "1.0.0"
-status: "planned"
-last_updated: "2025-12-30"
-description: |
-  Emergent Tools is the integration layer that connects Core (knowledge engine)
-  and Runtime (orchestration engine) to external systems and developer workflows.
+status: "active"
+packaged_default: false
+activation_notes: |
+  Tools product line currently in planning phase. Building on brainstorm from
+  Dec 2025 that identified 8 tool categories and 20+ specific integration points.
   
-  Tools close critical feedback loops:
-  - Strategy → Code (Git Bridge)
-  - Code → Production (Deploy Tracker)
-  - Users → Strategy (Feedback Aggregator)
-  - Team → Knowledge (Slack Bot)
-  - Developers → Platform (SDK, CLI)
+  MVP STRATEGY: Launch Tier 1 tools first (Git Bridge, Deploy Tracker, Slack Bot,
+  SDK) to validate integration patterns before expanding to full catalog.
+description: |
+  Emergent Tools is the integration layer connecting Core and Runtime to external
+  systems. Closes feedback loops: Strategy→Code (Git Bridge), Code→Production
+  (Deploy Tracker), Users→Strategy (Feedback Aggregator), Team→Knowledge (Slack).
   
   ARCHITECTURE: Tools are lightweight adapters that consume Core/Runtime APIs
   and expose functionality in third-party platforms (Slack, Git, CI/CD, etc.)
 
 high_level_model:
+  product_line_id: "pl-emergent-tools"
+  product_line_name: "Emergent Tools"
+  last_updated: "2025-12-30"
   product_mission: |
     Make Emergent knowledge and workflows accessible where teams already work,
     creating automatic connections between strategy, code, deployment, and user
@@ -67,17 +72,8 @@ high_level_model:
     - "Add Slack Bot to workspace channels"
     - "Use SDK/CLI for custom integrations and bulk operations"
 
-activation_notes: |
-  Tools product line currently in planning phase. Building on brainstorm from
-  Dec 2025 that identified 8 tool categories and 20+ specific integration points.
-  
-  MVP STRATEGY: Launch Tier 1 tools first (Git Bridge, Deploy Tracker, Slack Bot,
-  SDK) to validate integration patterns before expanding to full catalog.
-
-# ============================================================================
-# TOOL CATEGORIES (High-Level Architecture)
-# ============================================================================
-categories:
+  # Tool categories moved into high_level_model
+  categories:
   - category_id: "code-integration"
     category_name: "Code Integration Tools"
     description: "Connect strategy artifacts to source code and development workflows"
@@ -202,54 +198,88 @@ ecosystem_integration:
       - "Event-driven: External system events trigger Runtime workflows"
       - "Bidirectional sync: Git Bridge two-way link between strategy and code"
 
-# ============================================================================
-# SUCCESS METRICS (When Tools Are Active)
-# ============================================================================
-success_metrics:
-  adoption:
-    - "% of teams using at least one Tool"
-    - "Average tools per customer (cross-selling indicator)"
-    - "Time-to-first-value after Tool installation"
-  
-  integration_health:
-    - "API call success rate (uptime for external dependencies)"
-    - "Integration setup completion rate"
-    - "Error rate in webhook processing"
-  
-  feedback_loop_closure:
-    - "% of features with Git commits linked"
-    - "Average time: feature → code → deploy → feedback captured"
-    - "% of user feedback automatically categorized"
-  
-  developer_ecosystem:
-    - "Number of custom integrations built with SDK"
-    - "Community contributions (open source tools)"
-    - "Third-party tool marketplace (future)"
+  success_metrics:
+    adoption:
+      - "% of teams using at least one Tool"
+      - "Average tools per customer (cross-selling indicator)"
+      - "Time-to-first-value after Tool installation"
+    
+    integration_health:
+      - "API call success rate (uptime for external dependencies)"
+      - "Integration setup completion rate"
+      - "Error rate in webhook processing"
+    
+    feedback_loop_closure:
+      - "% of features with Git commits linked"
+      - "Average time: feature → code → deploy → feedback captured"
+      - "% of user feedback automatically categorized"
+    
+    developer_ecosystem:
+      - "Number of custom integrations built with SDK"
+      - "Community contributions (open source tools)"
+      - "Third-party tool marketplace (future)"
 
-roadmap_notes: |
-  Tools roadmap follows MVP → Ecosystem strategy:
-  
-  Phase 1 (Tier 1 MVP - Q1 2026):
-    - Git Bridge (strategy ↔ code connection)
-    - Deploy Tracker (production visibility)
-    - Slack Bot (team adoption)
-    - SDK (extensibility foundation)
-  
-  Phase 2 (Feedback Loops - Q2 2026):
-    - Feedback Aggregator (user feedback)
-    - CLI (developer productivity)
-    - Meeting Assistant (capture decisions)
-  
-  Phase 3 (Intelligence - Q3 2026):
-    - Workflow Automator (event-driven orchestration)
-    - Analytics Connector (BI integration)
-    - Insight Engine (proactive recommendations)
-  
-  Phase 4 (Enterprise - Q4 2026):
-    - SSO Connector (enterprise identity)
-    - Audit Logger (compliance)
-    - API Gateway (enterprise security)
-  
-  Success criteria: Each tool validates integration pattern before scaling.
-  Network effects emerge as tools interact (e.g., Git Bridge + Deploy Tracker
-  create complete feature lifecycle visibility).
+  roadmap_notes: |
+    Tools roadmap follows MVP → Ecosystem strategy:
+    
+    Phase 1 (Tier 1 MVP - Q1 2026):
+      - Git Bridge (strategy ↔ code connection)
+      - Deploy Tracker (production visibility)
+      - Slack Bot (team adoption)
+      - SDK (extensibility foundation)
+    
+    Phase 2 (Feedback Loops - Q2 2026):
+      - Feedback Aggregator (user feedback)
+      - CLI (developer productivity)
+      - Meeting Assistant (capture decisions)
+    
+    Phase 3 (Intelligence - Q3 2026):
+      - Workflow Automator (event-driven orchestration)
+      - Analytics Connector (BI integration)
+      - Insight Engine (proactive recommendations)
+    
+    Phase 4 (Enterprise - Q4 2026):
+      - SSO Connector (enterprise identity)
+      - Audit Logger (compliance)
+      - API Gateway (enterprise security)
+    
+    Success criteria: Each tool validates integration pattern before scaling.
+    Network effects emerge as tools interact (e.g., Git Bridge + Deploy Tracker
+    create complete feature lifecycle visibility).
+
+layers:
+  - id: integration-tools
+    name: Integration Tools
+    active: true
+    description: |
+      Suite of tools that connect Emergent knowledge platform to external systems
+      and developer workflows. Includes Git Bridge, Deploy Tracker, Slack Bot,
+      SDK, and CLI for closing feedback loops between strategy, code, and users.
+    components:
+      - id: code-integration
+        name: Code Integration
+        active: false
+        subs:
+          - id: git-bridge
+            name: Git Bridge
+            active: false
+          - id: sdk
+            name: Developer SDK
+            active: false
+      - id: deployment-observability
+        name: Deployment & Observability
+        active: false
+        subs:
+          - id: deploy-tracker
+            name: Deploy Tracker
+            active: false
+      - id: collaboration-tools
+        name: Collaboration Tools
+        active: false
+        subs:
+          - id: slack-bot
+            name: Slack Bot
+            active: false
+          - id: cli
+            name: Command Line Interface
+            active: false
