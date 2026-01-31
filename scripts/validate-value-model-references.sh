@@ -80,7 +80,7 @@ build_value_model_paths() {
         fi
         
         # Extract all L2.L3 paths from this value model
-        # Structure: layers[].components[].sub_components[]
+        # Structure: layers[].components[].subs[] (v2.7.4+) or layers[].components[].sub_components[] (legacy)
         local layer_count=$(yq eval '.layers | length' "$vm_file" 2>/dev/null || echo "0")
         
         for ((i=0; i<layer_count; i++)); do
@@ -94,11 +94,17 @@ build_value_model_paths() {
                     continue
                 fi
                 
-                local subcomp_count=$(yq eval ".layers[$i].components[$j].sub_components | length" "$vm_file" 2>/dev/null || echo "0")
+                # Try 'subs' (v2.7.4+) first, fall back to 'sub_components' (legacy)
+                local subcomp_count=$(yq eval ".layers[$i].components[$j].subs | length" "$vm_file" 2>/dev/null || echo "0")
+                local subs_key="subs"
+                if [[ "$subcomp_count" == "0" || "$subcomp_count" == "null" ]]; then
+                    subcomp_count=$(yq eval ".layers[$i].components[$j].sub_components | length" "$vm_file" 2>/dev/null || echo "0")
+                    subs_key="sub_components"
+                fi
                 
                 for ((k=0; k<subcomp_count; k++)); do
-                    local l3_id=$(yq eval ".layers[$i].components[$j].sub_components[$k].id" "$vm_file" 2>/dev/null || echo "")
-                    local l3_name=$(yq eval ".layers[$i].components[$j].sub_components[$k].name" "$vm_file" 2>/dev/null || echo "")
+                    local l3_id=$(yq eval ".layers[$i].components[$j].${subs_key}[$k].id" "$vm_file" 2>/dev/null || echo "")
+                    local l3_name=$(yq eval ".layers[$i].components[$j].${subs_key}[$k].name" "$vm_file" 2>/dev/null || echo "")
                     
                     if [[ -n "$l3_id" && "$l3_id" != "null" ]]; then
                         # Store path: Pillar:L2:L3:vm_file:L2Name:L3Name
@@ -108,10 +114,19 @@ build_value_model_paths() {
                 done
             done
         done
-    done < <(find "$vm_dir" -name "*.value_model.yaml" -o -name "*_value_model.yaml" -print0 2>/dev/null)
+    done < <(find "$vm_dir" \( -name "*.value_model.yaml" -o -name "*_value_model.yaml" \) -print0 2>/dev/null)
     
     log_info "Built value model path map: $count paths from $(grep -c $ "$temp_file" 2>/dev/null || echo 0) value model(s)"
     echo "$temp_file"
+}
+
+# Convert PascalCase to kebab-case (e.g., LegalStaff -> legal-staff, DocumentManager -> document-manager)
+# Handles acronyms like AI, SDK correctly (AIAssistant -> ai-assistant, not a-i-assistant)
+pascal_to_kebab() {
+    local input="$1"
+    # First, handle transitions from uppercase to lowercase (e.g., "AI" followed by "A" in "AIAssistant")
+    # Then insert hyphen before remaining uppercase letters, then lowercase everything
+    echo "$input" | sed -E 's/([A-Z]+)([A-Z][a-z])/\1-\2/g' | sed -E 's/([a-z])([A-Z])/\1-\2/g' | tr '[:upper:]' '[:lower:]'
 }
 
 # Check if a value model path exists
@@ -121,8 +136,12 @@ path_exists() {
     local l3="$3"
     local temp_file="$4"
     
-    # Try exact match: Pillar:L2:L3
-    grep -q "^$pillar:$l2:$l3:" "$temp_file" 2>/dev/null
+    # Convert PascalCase path components to kebab-case for matching value model IDs
+    local l2_kebab=$(pascal_to_kebab "$l2")
+    local l3_kebab=$(pascal_to_kebab "$l3")
+    
+    # Try match with kebab-case conversion: Pillar:l2-kebab:l3-kebab
+    grep -q "^$pillar:$l2_kebab:$l3_kebab:" "$temp_file" 2>/dev/null
 }
 
 # Get value model file and names for a path
@@ -132,7 +151,10 @@ get_path_info() {
     local l3="$3"
     local temp_file="$4"
     
-    grep "^$pillar:$l2:$l3:" "$temp_file" 2>/dev/null | head -1
+    # Convert PascalCase to kebab-case for lookup
+    local l2_kebab=$(pascal_to_kebab "$l2")
+    local l3_kebab=$(pascal_to_kebab "$l3")
+    grep "^$pillar:$l2_kebab:$l3_kebab:" "$temp_file" 2>/dev/null | head -1
 }
 
 # Validate value model references in a single feature

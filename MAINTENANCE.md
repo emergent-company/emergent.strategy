@@ -732,7 +732,7 @@ The EPF framework version is tracked in `README.md` and `MAINTENANCE.md`.
 | **MINOR (Y)** | New features, new artifact types, new optional fields, new wizards. Backward-compatible additions that enhance capability. | v1.9.0 → v1.10.0: Add new agent prompt |
 | **PATCH (Z)** | Bug fixes, documentation improvements, schema clarifications, typo fixes. No structural changes. | v1.9.3 → v1.9.4: Fix schema validation issue |
 
-**Current Framework Version:** v2.7.3
+**Current Framework Version:** v2.12.2
 
 **Version History Convention:**
 - Document version changes in `README.md` under "What's New in vX.Y.Z"
@@ -877,6 +877,11 @@ The health check validates:
    - Critical field completeness
    - Strategic depth and specificity
    - Readiness scores (0-100) with letter grades (A-F)
+9. **Value Model Structure**: Validates hierarchical balance (added v1.14.0):
+   - L1 layers: 3-10 per value model (warn if outside range)
+   - L2 components: 3-5 per L1 layer (warn if < 3 or > 8)
+   - L3 sub-components: 3-5 per L2 component (warn if < 3 or > 10)
+   - Prevents flat models (1 L2 per L1) or over-decomposed models (20+ L3s per L2)
 
 **Content Quality Dashboard:**
 
@@ -1567,7 +1572,7 @@ EPF is a general product development framework used across multiple product repo
 
 ### Repository Structure
 
-**EPF Framework Repo (`github.com/eyedea-io/epf`):**
+**EPF Framework Repo (`github.com/eyedea-io/epf-canonical-definition`):**
 ```
 epf/
   README.md
@@ -1636,7 +1641,7 @@ If the product repo doesn't have EPF as a subtree yet:
 cd /path/to/product-repo
 
 # Add EPF as a subtree (first time only)
-git subtree add --prefix=docs/EPF git@github.com:eyedea-io/epf.git main --squash
+git subtree add --prefix=docs/EPF git@github.com:eyedea-io/epf-canonical-definition.git main --squash
 
 # Commit message will be auto-generated
 ```
@@ -1653,7 +1658,7 @@ cd /path/to/product-repo
 git status
 
 # Pull latest EPF framework changes
-git subtree pull --prefix=docs/EPF git@github.com:eyedea-io/epf.git main --squash -m "EPF: Pull latest framework updates"
+git subtree pull --prefix=docs/EPF git@github.com:eyedea-io/epf-canonical-definition.git main --squash -m "EPF: Pull latest framework updates"
 ```
 
 **What this does:**
@@ -1674,7 +1679,7 @@ cd /path/to/product-repo
 git status
 
 # Push framework changes back to EPF repo
-git subtree push --prefix=docs/EPF git@github.com:eyedea-io/epf.git main
+git subtree push --prefix=docs/EPF git@github.com:eyedea-io/epf-canonical-definition.git main
 ```
 
 **What this does:**
@@ -1701,33 +1706,32 @@ The `_instances/` folder contains product-specific data and should **never** be 
 
 The EPF framework includes two different `.gitignore` patterns:
 
-1. **Canonical EPF repo (`.gitignore`):** Ignores ALL `_instances/*` (no instances should exist here)
+1. **Canonical EPF repo (`.gitignore`):** Contains "CANONICAL REPOSITORY" marker, ignores ALL `_instances/*`
 2. **Product repos:** Should track THEIR product's instance while ignoring others
 
 **Problem:** When you `git subtree pull` from canonical EPF, the canonical `.gitignore` can overwrite your product-specific one, causing your instance to become untracked.
 
-**Solution (Automatic):** The `sync-repos.sh` script (v2.1+) automatically detects when this happens and restores your product-specific `.gitignore`:
+**Detection:** The canonical `.gitignore` is identified by the comment "CANONICAL REPOSITORY" in the header.
+
+**Solution (Automatic):** The `sync-repos.sh` script (v2.3+) automatically detects when this happens and restores your product-specific `.gitignore`:
 ```bash
 ./docs/EPF/scripts/sync-repos.sh pull
-# Automatically restores product .gitignore if overwritten
+# Automatically:
+# 1. Detects product name from existing _instances/ folder
+# 2. Checks if .gitignore is the canonical version (has "CANONICAL REPOSITORY" marker)
+# 3. Restores product-specific .gitignore from template
+# 4. Stages the restored .gitignore for commit
 ```
 
-**Manual Fix:** If your `.gitignore` shows "This is the CANONICAL EPF repo", replace it with:
-```gitignore
-# EPF Framework .gitignore
-# This is the {product-name} product repo - the {product-name} instance IS tracked here
-
-_instances/*
-!_instances/README.md
-!_instances/{product-name}
-!_instances/{product-name}/**
-
-.DS_Store
-*.swp
-*.swo
+**Manual Fix:** If your `.gitignore` still shows "CANONICAL REPOSITORY", regenerate from template:
+```bash
+# Replace {product-name} with your actual product name
+sed 's/{{PRODUCT_NAME}}/{product-name}/g' docs/EPF/templates/product.gitignore.template > docs/EPF/.gitignore
+git add docs/EPF/.gitignore
+git commit -m "EPF: Restore product-specific .gitignore"
 ```
 
-**Template:** A template is provided at `.gitignore.product-template` for reference.
+**Template Location:** `templates/product.gitignore.template`
 
 **Initializing a New Product Instance:**
 
@@ -1735,7 +1739,7 @@ _instances/*
 ```bash
 ./docs/EPF/scripts/sync-repos.sh init {product-name}
 # Creates _instances/{product-name}/ folder structure
-# Creates product-specific .gitignore automatically
+# Generates product-specific .gitignore from template
 ```
 
 **Option 2: Complete Structure Setup (creates all EPF folders)**
@@ -1765,7 +1769,7 @@ To see if your product repo's EPF is behind or ahead of the main EPF repo:
 
 ```bash
 # Fetch latest from EPF repo (doesn't merge, just fetches)
-git fetch git@github.com:eyedea-io/epf.git main
+git fetch git@github.com:eyedea-io/epf-canonical-definition.git main
 
 # Compare (this is approximate - subtree doesn't have perfect tracking)
 git log --oneline docs/EPF | head -10
@@ -1780,11 +1784,11 @@ git log --oneline docs/EPF | head -10
 ```bash
 # Step 1: In twentyfirst, push framework changes to EPF repo
 cd /Users/nikolai/Code/twentyfirst
-git subtree push --prefix=docs/EPF git@github.com:eyedea-io/epf.git main
+git subtree push --prefix=docs/EPF git@github.com:eyedea-io/epf-canonical-definition.git main
 
 # Step 2: In other-product, pull the updates
 cd /Users/nikolai/Code/other-product
-git subtree pull --prefix=docs/EPF git@github.com:eyedea-io/epf.git main --squash -m "EPF: Pull latest framework updates"
+git subtree pull --prefix=docs/EPF git@github.com:eyedea-io/epf-canonical-definition.git main --squash -m "EPF: Pull latest framework updates"
 ```
 
 #### Scenario 2: "I want to start using EPF in a new product repo"
@@ -1794,7 +1798,7 @@ git subtree pull --prefix=docs/EPF git@github.com:eyedea-io/epf.git main --squas
 cd /path/to/new-product
 
 # Add EPF as subtree
-git subtree add --prefix=docs/EPF git@github.com:eyedea-io/epf.git main --squash
+git subtree add --prefix=docs/EPF git@github.com:eyedea-io/epf-canonical-definition.git main --squash
 
 # Initialize product-specific instance (creates folder, .gitignore, and templates)
 ./docs/EPF/scripts/sync-repos.sh init new-product
@@ -1819,7 +1823,7 @@ git commit -m "EPF: Resolve merge conflicts from framework update"
 
 ```bash
 # View recent EPF repo commits (run from anywhere)
-git log --oneline -20 git@github.com:eyedea-io/epf.git main
+git log --oneline -20 git@github.com:eyedea-io/epf-canonical-definition.git main
 
 # Or clone/fetch the EPF repo separately to browse
 ```
@@ -1832,7 +1836,7 @@ git log --oneline -20 git@github.com:eyedea-io/epf.git main
 |------|---------|
 | **Pull EPF updates** | `./docs/EPF/scripts/sync-repos.sh pull` (auto-restores .gitignore) |
 | **Push EPF changes** | `./docs/EPF/scripts/sync-repos.sh push` (excludes _instances/) |
-| **Initial setup** | `git subtree add --prefix=docs/EPF git@github.com:eyedea-io/epf.git main --squash` |
+| **Initial setup** | `git subtree add --prefix=docs/EPF git@github.com:eyedea-io/epf-canonical-definition.git main --squash` |
 | **Init new product** | `./docs/EPF/scripts/sync-repos.sh init {product-name}` |
 | **Create full structure** | `./docs/EPF/scripts/create-instance-structure.sh {product-name}` |
 | **Check sync status** | `./docs/EPF/scripts/sync-repos.sh check` |

@@ -8,7 +8,7 @@
 # USAGE:
 #   # Option 1: Run from inside the target repo
 #   cd /path/to/your-product-repo
-#   curl -sSL https://raw.githubusercontent.com/eyedea-io/epf/main/scripts/add-to-repo.sh | bash -s -- your-product-name
+#   curl -sSL https://raw.githubusercontent.com/eyedea-io/epf-canonical-definition/main/scripts/add-to-repo.sh | bash -s -- your-product-name
 #
 #   # Option 2: Run with repo path
 #   ./add-to-repo.sh your-product-name /path/to/your-product-repo
@@ -41,8 +41,8 @@ PRODUCT_NAME="${1:-}"
 TARGET_REPO="${2:-$(pwd)}"
 
 # EPF Repository
-EPF_REPO="git@github.com:eyedea-io/epf.git"
-EPF_REPO_HTTPS="https://github.com/eyedea-io/epf.git"
+EPF_REPO="git@github.com:eyedea-io/epf-canonical-definition.git"
+EPF_REPO_HTTPS="https://github.com/eyedea-io/epf-canonical-definition.git"
 
 echo -e "${BLUE}╔════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║          EPF Add to Repository Script                      ║${NC}"

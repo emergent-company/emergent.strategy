@@ -3567,5 +3567,5 @@ A: Week 1: Basic concepts (READY/FIRE/AIM). Week 2-4: Artifact creation. Month 2
 
 **End of White Paper**
 
-*EPF is open source. Contribute at github.com/eyedea-io/epf*
+*EPF is open source. Contribute at github.com/eyedea-io/epf-canonical-definition*
 

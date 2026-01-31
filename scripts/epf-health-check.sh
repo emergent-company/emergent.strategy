@@ -1055,12 +1055,97 @@ check_artifact_version_alignment() {
 }
 
 # =============================================================================
+# VALUE MODEL STRUCTURE VALIDATION
+# =============================================================================
+# Checks that value models follow EPF structural guidelines:
+# - L1 layers: 3-10 per value model
+# - L2 components: 3-5 per L1 layer  
+# - L3 sub-components: 3-5 per L2 component
+# This prevents models that are too flat (1 L2 per L1) or too deep (20 L3s per L2)
+# =============================================================================
+check_value_model_structure() {
+    log_section "Value Model Structure Validation"
+    
+    local EPF_ROOT="$1"
+    local structure_script="$EPF_ROOT/scripts/validate-value-model-structure.sh"
+    
+    if [ ! -f "$structure_script" ]; then
+        log_warning "validate-value-model-structure.sh not found - skipping structural validation"
+        return
+    fi
+    
+    if [ ! -x "$structure_script" ]; then
+        log_warning "validate-value-model-structure.sh is not executable - skipping"
+        return
+    fi
+    
+    # Check canonical templates
+    local template_dir="$EPF_ROOT/templates/FIRE/value_models"
+    if [ -d "$template_dir" ]; then
+        log_info "Checking canonical value model templates..."
+        local output
+        output=$("$structure_script" "$template_dir" 2>&1) || true
+        local exit_code=$?
+        
+        # Count warnings and errors from output
+        local struct_warnings=$(echo "$output" | grep -c "WARNING" 2>/dev/null) || struct_warnings=0
+        local struct_errors=$(echo "$output" | grep -c "ERROR" 2>/dev/null) || struct_errors=0
+        
+        if [ "$exit_code" -eq 0 ]; then
+            log_pass "Canonical templates: Structure is well-balanced"
+        elif [ "$exit_code" -eq 2 ]; then
+            log_warning "Canonical templates: $struct_warnings structural warning(s)"
+            WARNINGS=$((WARNINGS + struct_warnings))
+        else
+            log_error "Canonical templates: $struct_errors structural error(s)"
+            ERRORS=$((ERRORS + struct_errors))
+        fi
+    fi
+    
+    # Check instance value models
+    for instance_dir in "$EPF_ROOT"/_instances/*/; do
+        [ -d "$instance_dir" ] || continue
+        local instance_name=$(basename "$instance_dir")
+        
+        local vm_dir="$instance_dir/FIRE/value_models"
+        if [ -d "$vm_dir" ]; then
+            local vm_count=$(find "$vm_dir" \( -name "*.value_model.yaml" -o -name "*_value_model.yaml" \) 2>/dev/null | wc -l | tr -d ' ')
+            
+            if [ "$vm_count" -gt 0 ]; then
+                log_info "Checking $instance_name value models..."
+                local output
+                output=$("$structure_script" "$vm_dir" 2>&1) || true
+                local exit_code=$?
+                
+                local struct_warnings=$(echo "$output" | grep -c "WARNING" 2>/dev/null) || struct_warnings=0
+                local struct_errors=$(echo "$output" | grep -c "ERROR" 2>/dev/null) || struct_errors=0
+                
+                if [ "$exit_code" -eq 0 ]; then
+                    log_pass "  $instance_name: Structure is well-balanced"
+                elif [ "$exit_code" -eq 2 ]; then
+                    log_warning "  $instance_name: $struct_warnings structural warning(s)"
+                    # Show specific warnings in verbose mode
+                    if [ "$VERBOSE" = true ]; then
+                        echo "$output" | grep "WARNING" | head -5 | sed 's/^/    /'
+                    fi
+                    WARNINGS=$((WARNINGS + struct_warnings))
+                else
+                    log_error "  $instance_name: $struct_errors structural error(s)"
+                    echo "$output" | grep "ERROR" | head -5 | sed 's/^/    /'
+                    ERRORS=$((ERRORS + struct_errors))
+                fi
+            fi
+        fi
+    done
+}
+
+# =============================================================================
 # MAIN
 # =============================================================================
 main() {
     echo ""
     echo "╔══════════════════════════════════════════════════════════════════╗"
-    echo "║              EPF Health Check Script v1.13.1                     ║"
+    echo "║              EPF Health Check Script v1.14.0                     ║"
     echo "╚══════════════════════════════════════════════════════════════════╝"
     echo ""
     
@@ -1094,6 +1179,7 @@ main() {
     check_content_quality "$EPF_ROOT"
     check_canonical_track_consistency "$EPF_ROOT"
     check_artifact_version_alignment "$EPF_ROOT"
+    check_value_model_structure "$EPF_ROOT"
     
     # ==========================================================================
     # Summary

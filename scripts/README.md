@@ -486,6 +486,85 @@ Recommendations:
 
 ## Migration Tools
 
+### generate-migration-plan.sh ⭐ NEW
+
+Generates a comprehensive MIGRATION_PLAN.yaml for an instance, documenting all artifacts that need migration or enrichment.
+
+**Purpose:** Create actionable migration plan with AI-agent instructions  
+**Output:** `MIGRATION_PLAN.yaml` in the instance directory
+
+**Features:**
+- Analyzes all YAML artifacts in instance
+- **Compares artifact versions against SCHEMA versions** (not framework version!)
+- Categorizes by priority (high/medium/low)
+- Generates execution order
+- Includes AI agent instructions for automation
+- Links to relevant migration guides
+
+**Important Versioning Note:**
+EPF has independent schema versioning. Each schema (e.g., `roadmap_recipe_schema.json`) has its own version that only bumps when that schema changes. Artifacts are compared against their schema's version, NOT the EPF framework version.
+
+Example: EPF framework is v2.9.0, but `roadmap_recipe_schema.json` is v1.13.0. An artifact at v1.13.0 is CURRENT (matches schema), even though the framework is v2.9.0.
+
+**Usage:**
+```bash
+# Generate plan for instance (creates MIGRATION_PLAN.yaml)
+./scripts/generate-migration-plan.sh _instances/twentyfirst
+
+# Specify custom output location
+./scripts/generate-migration-plan.sh _instances/emergent --output /tmp/plan.yaml
+
+# Verbose mode (show each artifact analysis)
+./scripts/generate-migration-plan.sh _instances/lawmatics --verbose
+
+# Exit codes: 0 = success, 1 = error, 2 = usage error
+```
+
+**Output Structure:**
+```yaml
+meta:
+  instance: "twentyfirst"
+  instance_epf_version: "2.3.3"
+  epf_framework_version: "2.9.0"
+  versioning_note: "Artifacts compared against schema versions, not framework version"
+
+summary:
+  total_artifacts: 15
+  needs_migration: 2      # Major version behind schema
+  needs_enrichment: 5     # Minor versions behind schema
+  current: 8
+  overall_status: "MIGRATION_REQUIRED"
+
+execution_order:
+  high_priority:
+    - "FIRE/feature_definitions/fd-001.yaml"
+  medium_priority:
+    - "READY/05_roadmap_recipe.yaml"
+  low_priority:
+    - "READY/00_north_star.yaml"
+
+artifacts:
+  - file: "FIRE/feature_definitions/fd-001.yaml"
+    type: "feature_definition"
+    current_version: "1.9.6"
+    target_version: "2.8.0"
+    status: "major_behind"
+    action: "migrate"
+    priority: "high"
+    migration_guide: "migrations/guides/v1.x-to-v2.0.0.md"
+
+ai_instructions:
+  assess_phase: [...]
+  execute_phase: [...]
+  verify_phase: [...]
+```
+
+**Workflow:**
+1. Run `generate-migration-plan.sh` to create the plan
+2. Review the plan and priority order
+3. AI agent reads plan and executes migrations
+4. Validate with `validate-instance.sh`
+
 ### migrate-artifact.sh
 
 Interactive migration assistant for enriching individual artifacts.
@@ -772,12 +851,60 @@ Adds EPF framework to an **existing** product repository as git subtree.
 **Usage:**
 ```bash
 # From product repo root
-curl -sSL https://raw.githubusercontent.com/eyedea-io/epf/main/scripts/add-to-repo.sh | bash -s -- {product-name}
+curl -sSL https://raw.githubusercontent.com/eyedea-io/epf-canonical-definition/main/scripts/add-to-repo.sh | bash -s -- {product-name}
 
 # Or manually
-git remote add epf git@github.com:eyedea-io/epf.git
+git remote add epf git@github.com:eyedea-io/epf-canonical-definition.git
 git subtree add --prefix=docs/EPF epf main --squash
 ```
+
+### sync-repos.sh ⭐ v2.4 WITH SELF-UPDATE
+
+Synchronizes EPF framework between canonical repo and product instances.
+
+**Key Features:**
+- **SELF-UPDATE MECHANISM (v2.4+)**: Before pulling, checks if canonical has newer sync script and uses it instead. This prevents bootstrap problems where old/broken sync logic can't properly sync updates.
+- Excludes `_instances/` from push operations (prevents canonical contamination)
+- Auto-restores product-specific `.gitignore` after pull operations
+- Validates version consistency before pushing
+- Integrates with `classify-changes.sh` for version bump detection
+
+**Usage:**
+```bash
+# In product repository (docs/EPF/ exists)
+./docs/EPF/scripts/sync-repos.sh pull     # Pull updates from canonical
+./docs/EPF/scripts/sync-repos.sh push     # Push changes to canonical
+./docs/EPF/scripts/sync-repos.sh check    # Check sync status
+./docs/EPF/scripts/sync-repos.sh validate # Validate version consistency
+./docs/EPF/scripts/sync-repos.sh classify # Check if version bump needed
+```
+
+**Self-Update Flow (v2.4+):**
+```
+User runs: ./docs/EPF/scripts/sync-repos.sh pull
+
+1. [BOOTSTRAP] Fetch canonical sync script version
+2. [BOOTSTRAP] Compare: local v2.3 vs canonical v2.4
+3. [BOOTSTRAP] Download newer script to /tmp/
+4. [BOOTSTRAP] Re-execute with updated script
+5. [SYNC] Newer script performs the actual sync
+```
+
+**Why Self-Update Matters:**
+- Product repo may have old sync script with bugs
+- New sync fixes/improvements should apply immediately
+- Prevents infinite loops from broken sync logic
+- Ensures sync mechanism improvements take effect on first sync
+
+**Commands:**
+| Command | Purpose |
+|---------|---------|
+| `pull` | Pull framework from canonical (triggers self-update check) |
+| `push` | Push framework to canonical (excludes `_instances/`) |
+| `check` | Verify sync status without changes |
+| `validate` | Check version consistency |
+| `classify` | Run change classifier |
+| `init <name>` | Initialize new product instance |
 
 ### schema-migration.sh
 

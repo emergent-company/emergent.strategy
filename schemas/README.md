@@ -103,11 +103,46 @@ ajv validate -s schemas/feature_definition_schema.json -d path/to/feature.yaml
 
 ### Current Versions
 
-- **Feature Definition Schema**: v2.0.0 (breaking changes in EPF v2.0.0)
-  - **Breaking change**: Removed `value_propositions` field (duplicated personas content)
-  - **New requirements**: Exactly 4 personas, structured contexts, rich dependencies
+- **Feature Definition Schema**: v2.1.0 (feature_maturity added in EPF v2.8.0)
+  - **New in v2.1.0**: Optional `feature_maturity` section for capability-level maturity tracking
+  - **Breaking change (v2.0.0)**: Removed `value_propositions` field (duplicated personas content)
+  - **Requirements**: Exactly 4 personas, structured contexts, rich dependencies
 - **Strategy Formula Schema**: v1.11.0 (enhanced competitive analysis)
 - **All other schemas**: v1.0.0 (stable)
+
+### Feature Definition Schema v2.1.0 Changes
+
+**New `feature_maturity` section (optional):**
+```json
+"feature_maturity": {
+  "type": "object",
+  "description": "Optional capability-level maturity tracking",
+  "properties": {
+    "overall_stage": {
+      "type": "string",
+      "enum": ["hypothetical", "emerging", "proven", "scaled"]
+    },
+    "capability_maturity": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "capability_id": { "type": "string" },
+          "stage": { "enum": ["hypothetical", "emerging", "proven", "scaled"] },
+          "delivered_by_kr": { "type": "string" },
+          "evidence": { "type": "string" }
+        }
+      }
+    },
+    "last_advanced_by_kr": { "type": "string" },
+    "last_assessment_date": { "type": "string", "format": "date" }
+  }
+}
+```
+
+**Usage:** Track capability maturity using same 4 stages as Value Model Maturity (VMM).
+
+**See:** [VALUE_MODEL_MATURITY_GUIDE.md](../docs/guides/VALUE_MODEL_MATURITY_GUIDE.md) for detailed explanation.
 
 ### Breaking Changes
 
