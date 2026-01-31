@@ -732,7 +732,7 @@ The EPF framework version is tracked in `README.md` and `MAINTENANCE.md`.
 | **MINOR (Y)** | New features, new artifact types, new optional fields, new wizards. Backward-compatible additions that enhance capability. | v1.9.0 → v1.10.0: Add new agent prompt |
 | **PATCH (Z)** | Bug fixes, documentation improvements, schema clarifications, typo fixes. No structural changes. | v1.9.3 → v1.9.4: Fix schema validation issue |
 
-**Current Framework Version:** v2.12.2
+**Current Framework Version:** v2.12.0
 
 **Version History Convention:**
 - Document version changes in `README.md` under "What's New in vX.Y.Z"
@@ -1572,7 +1572,7 @@ EPF is a general product development framework used across multiple product repo
 
 ### Repository Structure
 
-**EPF Framework Repo (`github.com/eyedea-io/epf-canonical-definition`):**
+**EPF Framework Repo (`github.com/eyedea-io/epf`):**
 ```
 epf/
   README.md
@@ -1641,7 +1641,7 @@ If the product repo doesn't have EPF as a subtree yet:
 cd /path/to/product-repo
 
 # Add EPF as a subtree (first time only)
-git subtree add --prefix=docs/EPF git@github.com:eyedea-io/epf-canonical-definition.git main --squash
+git subtree add --prefix=docs/EPF git@github.com:eyedea-io/epf.git main --squash
 
 # Commit message will be auto-generated
 ```
@@ -1658,7 +1658,7 @@ cd /path/to/product-repo
 git status
 
 # Pull latest EPF framework changes
-git subtree pull --prefix=docs/EPF git@github.com:eyedea-io/epf-canonical-definition.git main --squash -m "EPF: Pull latest framework updates"
+git subtree pull --prefix=docs/EPF git@github.com:eyedea-io/epf.git main --squash -m "EPF: Pull latest framework updates"
 ```
 
 **What this does:**
@@ -1679,7 +1679,7 @@ cd /path/to/product-repo
 git status
 
 # Push framework changes back to EPF repo
-git subtree push --prefix=docs/EPF git@github.com:eyedea-io/epf-canonical-definition.git main
+git subtree push --prefix=docs/EPF git@github.com:eyedea-io/epf.git main
 ```
 
 **What this does:**
@@ -1769,7 +1769,7 @@ To see if your product repo's EPF is behind or ahead of the main EPF repo:
 
 ```bash
 # Fetch latest from EPF repo (doesn't merge, just fetches)
-git fetch git@github.com:eyedea-io/epf-canonical-definition.git main
+git fetch git@github.com:eyedea-io/epf.git main
 
 # Compare (this is approximate - subtree doesn't have perfect tracking)
 git log --oneline docs/EPF | head -10
@@ -1784,11 +1784,11 @@ git log --oneline docs/EPF | head -10
 ```bash
 # Step 1: In twentyfirst, push framework changes to EPF repo
 cd /Users/nikolai/Code/twentyfirst
-git subtree push --prefix=docs/EPF git@github.com:eyedea-io/epf-canonical-definition.git main
+git subtree push --prefix=docs/EPF git@github.com:eyedea-io/epf.git main
 
 # Step 2: In other-product, pull the updates
 cd /Users/nikolai/Code/other-product
-git subtree pull --prefix=docs/EPF git@github.com:eyedea-io/epf-canonical-definition.git main --squash -m "EPF: Pull latest framework updates"
+git subtree pull --prefix=docs/EPF git@github.com:eyedea-io/epf.git main --squash -m "EPF: Pull latest framework updates"
 ```
 
 #### Scenario 2: "I want to start using EPF in a new product repo"
@@ -1798,7 +1798,7 @@ git subtree pull --prefix=docs/EPF git@github.com:eyedea-io/epf-canonical-defini
 cd /path/to/new-product
 
 # Add EPF as subtree
-git subtree add --prefix=docs/EPF git@github.com:eyedea-io/epf-canonical-definition.git main --squash
+git subtree add --prefix=docs/EPF git@github.com:eyedea-io/epf.git main --squash
 
 # Initialize product-specific instance (creates folder, .gitignore, and templates)
 ./docs/EPF/scripts/sync-repos.sh init new-product
@@ -1823,7 +1823,7 @@ git commit -m "EPF: Resolve merge conflicts from framework update"
 
 ```bash
 # View recent EPF repo commits (run from anywhere)
-git log --oneline -20 git@github.com:eyedea-io/epf-canonical-definition.git main
+git log --oneline -20 git@github.com:eyedea-io/epf.git main
 
 # Or clone/fetch the EPF repo separately to browse
 ```
@@ -1836,7 +1836,7 @@ git log --oneline -20 git@github.com:eyedea-io/epf-canonical-definition.git main
 |------|---------|
 | **Pull EPF updates** | `./docs/EPF/scripts/sync-repos.sh pull` (auto-restores .gitignore) |
 | **Push EPF changes** | `./docs/EPF/scripts/sync-repos.sh push` (excludes _instances/) |
-| **Initial setup** | `git subtree add --prefix=docs/EPF git@github.com:eyedea-io/epf-canonical-definition.git main --squash` |
+| **Initial setup** | `git subtree add --prefix=docs/EPF git@github.com:eyedea-io/epf.git main --squash` |
 | **Init new product** | `./docs/EPF/scripts/sync-repos.sh init {product-name}` |
 | **Create full structure** | `./docs/EPF/scripts/create-instance-structure.sh {product-name}` |
 | **Check sync status** | `./docs/EPF/scripts/sync-repos.sh check` |

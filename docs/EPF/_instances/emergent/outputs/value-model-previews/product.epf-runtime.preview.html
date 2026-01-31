@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EPF-Runtime - Product Value Model</title>
+  <meta name="generator" content="EPF Value Model Preview Generator v1.0.0">
+  <meta name="generated-at" content="2026-01-27">
+  <style>
+    /* ========================================
+       EPF Value Model Preview - Embedded Styles
+       Single-file, gist-friendly, no dependencies
+       ======================================== */
+    
+    :root {
+      /* Light theme (default) */
+      --bg-primary: #ffffff;
+      --bg-secondary: #f8fafc;
+      --bg-tertiary: #f1f5f9;
+      --text-primary: #1e293b;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+      --border-color: #e2e8f0;
+      --accent-primary: #8b5cf6;
+      --accent-secondary: #3b82f6;
+      
+      /* Status colors */
+      --status-active: #22c55e;
+      --status-planned: #f59e0b;
+      --status-deprecated: #ef4444;
+      --status-placeholder: #94a3b8;
+      
+      /* Spacing */
+      --spacing-xs: 0.25rem;
+      --spacing-sm: 0.5rem;
+      --spacing-md: 1rem;
+      --spacing-lg: 1.5rem;
+      --spacing-xl: 2rem;
+      --spacing-2xl: 3rem;
+      
+      /* Typography */
+      --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+      
+      /* Border radius */
+      --radius-sm: 0.25rem;
+      --radius-md: 0.5rem;
+      --radius-lg: 0.75rem;
+    }
+    
+    /* Dark theme */
+    [data-theme="dark"] {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-tertiary: #334155;
+      --text-primary: #f1f5f9;
+      --text-secondary: #cbd5e1;
+      --text-muted: #64748b;
+      --border-color: #334155;
+    }
+
+    /* Reset & Base */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    html {
+      font-size: 16px;
+      scroll-behavior: smooth;
+    }
+    
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    
+    /* Container */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: var(--spacing-lg);
+    }
+    
+    /* Header */
+    .header {
+      text-align: center;
+      padding: var(--spacing-2xl) var(--spacing-lg);
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: var(--spacing-xl);
+    }
+    
+    .header__track-badge {
+      display: inline-block;
+      padding: var(--spacing-xs) var(--spacing-md);
+      background: var(--accent-primary);
+      color: white;
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: var(--spacing-md);
+    }
+    
+    .header__title {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: var(--spacing-sm);
+      color: var(--text-primary);
+    }
+    
+    .header__subtitle {
+      font-size: 1.125rem;
+      color: var(--text-secondary);
+      margin-bottom: var(--spacing-md);
+    }
+    
+    .header__meta {
+      display: flex;
+      justify-content: center;
+      gap: var(--spacing-lg);
+      flex-wrap: wrap;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+    
+    .header__meta-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+    }
+    
+    /* Status Badge */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-radius: var(--radius-sm);
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .status-badge--active {
+      background: color-mix(in srgb, var(--status-active) 15%, transparent);
+      color: var(--status-active);
+    }
+    
+    .status-badge--placeholder {
+      background: color-mix(in srgb, var(--status-placeholder) 15%, transparent);
+      color: var(--status-placeholder);
+    }
+    
+    .status-badge--planned {
+      background: color-mix(in srgb, var(--status-planned) 15%, transparent);
+      color: var(--status-planned);
+    }
+
+    /* Description Section */
+    .description {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-lg);
+      margin-bottom: var(--spacing-xl);
+      border: 1px solid var(--border-color);
+    }
+    
+    .description__title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: var(--spacing-sm);
+    }
+    
+    .description__content {
+      color: var(--text-secondary);
+      white-space: pre-wrap;
+    }
+    
+    /* Additional Data Sections */
+    .additional-section {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-lg);
+      margin-bottom: var(--spacing-xl);
+      border: 1px solid var(--border-color);
+      border-left: 4px solid var(--accent-primary);
+    }
+    
+    .additional-section__title {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: var(--spacing-md);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+
+    /* MVP Timeline */
+    .mvp-timeline {
+      display: grid;
+      gap: var(--spacing-md);
+    }
+
+    .mvp-stage {
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-md);
+      padding: var(--spacing-md);
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: var(--spacing-md);
+      align-items: start;
+    }
+
+    .mvp-stage__number {
+      width: 2.5rem;
+      height: 2.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--accent-primary);
+      color: white;
+      border-radius: var(--radius-md);
+      font-weight: 700;
+      font-size: 1rem;
+    }
+
+    .mvp-stage__content {
+      flex: 1;
+    }
+
+    .mvp-stage__header {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .mvp-stage__name {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .mvp-stage__weeks {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .mvp-stage__description {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .mvp-stage__components {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--spacing-xs);
+    }
+
+    .mvp-stage__component {
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      background: var(--bg-primary);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-color);
+    }
+
+    .mvp-stage__outcome {
+      font-size: 0.75rem;
+      color: var(--accent-primary);
+      margin-top: var(--spacing-sm);
+      font-style: italic;
+    }
+
+    /* Mission Statement */
+    .mission-section {
+      background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-xl);
+      margin-bottom: var(--spacing-xl);
+      border: 1px solid var(--border-color);
+      text-align: center;
+    }
+
+    .mission-section__label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--accent-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .mission-section__text {
+      font-size: 1.25rem;
+      color: var(--text-primary);
+      font-weight: 500;
+      line-height: 1.5;
+    }
+
+    /* Values Grid */
+    .values-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-xl);
+    }
+
+    .value-card {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-md);
+      padding: var(--spacing-md);
+      border: 1px solid var(--border-color);
+    }
+
+    .value-card__title {
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: var(--spacing-xs);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+
+    .value-card__title::before {
+      content: '✨';
+    }
+
+    .value-card__text {
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .value-card__beneficiaries {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--spacing-xs);
+    }
+
+    .value-card__beneficiary {
+      font-size: 0.675rem;
+      padding: 2px 6px;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+    }
+
+    /* Solution Steps */
+    .solution-steps {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-lg);
+      margin-bottom: var(--spacing-xl);
+      border: 1px solid var(--border-color);
+    }
+    
+    .solution-steps__title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: var(--spacing-md);
+    }
+    
+    .solution-step {
+      display: flex;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-sm) 0;
+      border-bottom: 1px dashed var(--border-color);
+    }
+    
+    .solution-step:last-child {
+      border-bottom: none;
+    }
+    
+    .solution-step__number {
+      width: 1.5rem;
+      height: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--accent-primary);
+      color: white;
+      border-radius: 50%;
+      font-size: 0.75rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    
+    .solution-step__content {
+      flex: 1;
+    }
+
+    .solution-step__text {
+      font-size: 0.875rem;
+      color: var(--text-primary);
+    }
+
+    .solution-step__outcome {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    
+    /* Layer Section */
+    .layer {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-lg);
+      margin-bottom: var(--spacing-lg);
+      border: 1px solid var(--border-color);
+      overflow: hidden;
+    }
+    
+    .layer__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--spacing-md) var(--spacing-lg);
+      background: var(--bg-tertiary);
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.2s;
+    }
+    
+    .layer__header:hover {
+      background: color-mix(in srgb, var(--bg-tertiary) 80%, var(--accent-primary));
+    }
+    
+    .layer__header-left {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+    }
+    
+    .layer__number {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 2rem;
+      height: 2rem;
+      background: var(--accent-primary);
+      color: white;
+      border-radius: var(--radius-md);
+      font-weight: 700;
+      font-size: 0.875rem;
+    }
+    
+    .layer__name {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    
+    .layer__toggle {
+      font-size: 1.5rem;
+      color: var(--text-muted);
+      transition: transform 0.3s;
+    }
+    
+    .layer--collapsed .layer__toggle {
+      transform: rotate(-90deg);
+    }
+    
+    .layer__content {
+      padding: var(--spacing-lg);
+      display: block;
+    }
+    
+    .layer--collapsed .layer__content {
+      display: none;
+    }
+    
+    .layer__description {
+      color: var(--text-secondary);
+      margin-bottom: var(--spacing-lg);
+      padding-bottom: var(--spacing-lg);
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    /* Component */
+    .component {
+      background: var(--bg-primary);
+      border-radius: var(--radius-md);
+      padding: var(--spacing-md);
+      margin-bottom: var(--spacing-md);
+      border: 1px solid var(--border-color);
+    }
+    
+    .component:last-child {
+      margin-bottom: 0;
+    }
+    
+    .component__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--spacing-sm);
+    }
+    
+    .component__name {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    
+    .component__badges {
+      display: flex;
+      gap: var(--spacing-xs);
+    }
+
+    .component__uvp {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-bottom: var(--spacing-md);
+      padding: var(--spacing-sm);
+      background: var(--bg-secondary);
+      border-radius: var(--radius-sm);
+      border-left: 3px solid var(--accent-secondary);
+    }
+    
+    /* Sub-component */
+    .sub-components {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: var(--spacing-sm);
+    }
+    
+    .sub-component {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-sm);
+      background: var(--bg-secondary);
+      border-radius: var(--radius-sm);
+      font-size: 0.875rem;
+    }
+    
+    .sub-component__indicator {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      margin-top: 0.5rem;
+      flex-shrink: 0;
+    }
+    
+    .sub-component--active .sub-component__indicator { background: var(--status-active); }
+    .sub-component--planned .sub-component__indicator { background: var(--status-planned); }
+    .sub-component--inactive .sub-component__indicator { background: var(--status-placeholder); }
+    
+    .sub-component__content {
+      flex: 1;
+    }
+    
+    .sub-component__name {
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .sub-component__uvp {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Needs Section */
+    .needs-grid {
+      display: grid;
+      gap: var(--spacing-md);
+    }
+
+    .need-card {
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-md);
+      padding: var(--spacing-md);
+    }
+
+    .need-card__need {
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .need-card__pain {
+      font-size: 0.875rem;
+      color: var(--status-planned);
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .need-card__pain::before {
+      content: '⚠️ ';
+    }
+
+    .need-card__solution {
+      font-size: 0.875rem;
+      color: var(--status-active);
+    }
+
+    .need-card__solution::before {
+      content: '✅ ';
+    }
+
+    /* Success Metrics */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: var(--spacing-md);
+    }
+
+    .metric-card {
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-md);
+      padding: var(--spacing-md);
+      text-align: center;
+    }
+
+    .metric-card__value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--accent-primary);
+      font-family: var(--font-mono);
+    }
+
+    .metric-card__name {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: var(--spacing-xs);
+    }
+
+    /* Vision Section */
+    .vision-section {
+      background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-xl);
+      margin-bottom: var(--spacing-xl);
+      color: white;
+    }
+
+    .vision-section__label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      opacity: 0.8;
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .vision-section__title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: var(--spacing-md);
+    }
+
+    .vision-section__text {
+      opacity: 0.9;
+      line-height: 1.7;
+    }
+    
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: var(--spacing-xl) var(--spacing-lg);
+      border-top: 1px solid var(--border-color);
+      margin-top: var(--spacing-xl);
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+    
+    .footer a {
+      color: var(--accent-primary);
+      text-decoration: none;
+    }
+    
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Print styles */
+    @media print {
+      body {
+        background: white;
+        color: black;
+      }
+      
+      .layer--collapsed .layer__content {
+        display: block;
+      }
+      
+      .layer__toggle {
+        display: none;
+      }
+
+      .vision-section {
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+      }
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      .header__title {
+        font-size: 1.75rem;
+      }
+      
+      .header__meta {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+      }
+      
+      .sub-components {
+        grid-template-columns: 1fr;
+      }
+
+      .mvp-stage {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    
+    <!-- Header -->
+    <header class="header">
+      <span class="header__track-badge">Product Track</span>
+      <h1 class="header__title">EPF-Runtime</h1>
+      <p class="header__subtitle">Headless Workflow Orchestration for EPF Methodology</p>
+      <div class="header__meta">
+        <span class="header__meta-item">
+          <span class="status-badge status-badge--placeholder">Placeholder</span>
+        </span>
+        <span class="header__meta-item">v0.2.0</span>
+        <span class="header__meta-item">Generated: January 27, 2026</span>
+      </div>
+    </header>
+    
+    <!-- Mission -->
+    <section class="mission-section">
+      <div class="mission-section__label">Product Mission</div>
+      <p class="mission-section__text">Enable AI agents, DevOps pipelines, and power users to execute EPF methodology cycles programmatically with durable workflows, schema validation, and knowledge graph integration.</p>
+    </section>
+
+    <!-- Description -->
+    <section class="description">
+      <h2 class="description__title">Overview</h2>
+      <div class="description__content">EPF-Runtime is a headless workflow orchestration system enabling AI agents and humans to execute EPF methodology cycles programmatically. Provides durable workflow execution, schema validation, and deep integration with Emergent Core knowledge graph. Shares auth/RLS infrastructure with Core.</div>
+    </section>
+
+    <!-- Strategic Vision -->
+    <section class="vision-section">
+      <div class="vision-section__label">🔮 Strategic Vision (12-24 Months)</div>
+      <h3 class="vision-section__title">Runtime as OS Layer</h3>
+      <p class="vision-section__text">EPF-Runtime is designed to evolve into the "OS layer" for the Emergent ecosystem, where Emergent Core runs as an application on the Runtime platform. This architecture will enable centralized auth/authz across all Emergent apps, shared workflow orchestration, an event bus for app-to-app communication, and platform APIs for third-party integrations.</p>
+    </section>
+
+    <!-- MVP Implementation Roadmap -->
+    <section class="additional-section">
+      <h2 class="additional-section__title">🗓️ MVP Implementation Roadmap (Q1 2025)</h2>
+      <div class="mvp-timeline">
+        
+        <div class="mvp-stage">
+          <div class="mvp-stage__number">1</div>
+          <div class="mvp-stage__content">
+            <div class="mvp-stage__header">
+              <span class="mvp-stage__name">Foundation</span>
+              <span class="mvp-stage__weeks">Weeks 1-2</span>
+            </div>
+            <div class="mvp-stage__description">Shared infrastructure integration (auth, RLS, basic API)</div>
+            <div class="mvp-stage__components">
+              <span class="mvp-stage__component">WorkflowInitiation (L1)</span>
+              <span class="mvp-stage__component">ArtifactValidation (L1)</span>
+              <span class="mvp-stage__component">PhaseOrchestration (L2)</span>
+              <span class="mvp-stage__component">SchemaEnforcement (L2)</span>
+            </div>
+            <div class="mvp-stage__outcome">→ EPF workflows can be created via API with RLS isolation</div>
+          </div>
+        </div>
+
+        <div class="mvp-stage">
+          <div class="mvp-stage__number">2</div>
+          <div class="mvp-stage__content">
+            <div class="mvp-stage__header">
+              <span class="mvp-stage__name">Artifact Storage</span>
+              <span class="mvp-stage__weeks">Weeks 3-4</span>
+            </div>
+            <div class="mvp-stage__description">Store EPF artifacts in Emergent Core knowledge graph</div>
+            <div class="mvp-stage__components">
+              <span class="mvp-stage__component">KnowledgeGraphIntegration (L3)</span>
+              <span class="mvp-stage__component">SemanticSearchOverArtifacts (L3)</span>
+            </div>
+            <div class="mvp-stage__outcome">→ EPF artifacts stored as graph objects with vector embeddings</div>
+          </div>
+        </div>
+
+        <div class="mvp-stage">
+          <div class="mvp-stage__number">3</div>
+          <div class="mvp-stage__content">
+            <div class="mvp-stage__header">
+              <span class="mvp-stage__name">UI Integration</span>
+              <span class="mvp-stage__weeks">Weeks 5-6</span>
+            </div>
+            <div class="mvp-stage__description">Admin UI for workflow management with app switcher</div>
+            <div class="mvp-stage__components">
+              <span class="mvp-stage__component">WorkflowMonitoring (L1)</span>
+              <span class="mvp-stage__component">CIIntegration (L1)</span>
+            </div>
+            <div class="mvp-stage__outcome">→ Users can manage workflows via web UI with in-app notifications</div>
+          </div>
+        </div>
+
+        <div class="mvp-stage">
+          <div class="mvp-stage__number">4</div>
+          <div class="mvp-stage__content">
+            <div class="mvp-stage__header">
+              <span class="mvp-stage__name">Temporal Workflows</span>
+              <span class="mvp-stage__weeks">Weeks 7-8</span>
+            </div>
+            <div class="mvp-stage__description">READY/FIRE/AIM durable workflow execution</div>
+            <div class="mvp-stage__components">
+              <span class="mvp-stage__component">DurableExecution (L2)</span>
+              <span class="mvp-stage__component">AutomaticRetries (L2)</span>
+            </div>
+            <div class="mvp-stage__outcome">→ Full READY/FIRE/AIM cycles executable as durable workflows</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Success Metrics -->
+    <section class="description">
+      <h2 class="description__title">Success Metrics</h2>
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-card__value">99%</div>
+          <div class="metric-card__name">Workflow Completion</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-card__value">100%</div>
+          <div class="metric-card__name">Validation Coverage</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-card__value">&lt;500ms</div>
+          <div class="metric-card__name">API Response (p95)</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-card__value">&lt;30s</div>
+          <div class="metric-card__name">Workflow Resume</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-card__value">10</div>
+          <div class="metric-card__name">AI Agent Adoption</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Values Delivered -->
+    <h2 class="description__title" style="margin-bottom: var(--spacing-md);">Values Delivered</h2>
+    <div class="values-grid">
+      <div class="value-card">
+        <div class="value-card__title">Automation-Ready Methodology</div>
+        <div class="value-card__text">EPF cycles become executable by machines, not just humans</div>
+        <div class="value-card__beneficiaries">
+          <span class="value-card__beneficiary">AI Agents</span>
+          <span class="value-card__beneficiary">DevOps Engineers</span>
+          <span class="value-card__beneficiary">Platform Teams</span>
+        </div>
+      </div>
+      <div class="value-card">
+        <div class="value-card__title">Durable Workflow Execution</div>
+        <div class="value-card__text">Workflow state persists across infrastructure failures and restarts</div>
+        <div class="value-card__beneficiaries">
+          <span class="value-card__beneficiary">DevOps Engineers</span>
+          <span class="value-card__beneficiary">SRE Teams</span>
+          <span class="value-card__beneficiary">Platform Reliability</span>
+        </div>
+      </div>
+      <div class="value-card">
+        <div class="value-card__title">Schema-Validated Artifacts</div>
+        <div class="value-card__text">All artifacts validated against EPF schemas before storage</div>
+        <div class="value-card__beneficiaries">
+          <span class="value-card__beneficiary">Product Managers</span>
+          <span class="value-card__beneficiary">AI Agents</span>
+          <span class="value-card__beneficiary">Quality Assurance</span>
+        </div>
+      </div>
+      <div class="value-card">
+        <div class="value-card__title">Semantic Product Intelligence</div>
+        <div class="value-card__text">Product strategy documents become semantically searchable and AI-queryable</div>
+        <div class="value-card__beneficiaries">
+          <span class="value-card__beneficiary">Product Managers</span>
+          <span class="value-card__beneficiary">Executives</span>
+          <span class="value-card__beneficiary">AI Agents</span>
+        </div>
+      </div>
+      <div class="value-card">
+        <div class="value-card__title">Multi-Tenant Workspaces</div>
+        <div class="value-card__text">Multiple teams/products can use Runtime with isolation and access control</div>
+        <div class="value-card__beneficiaries">
+          <span class="value-card__beneficiary">Enterprise Customers</span>
+          <span class="value-card__beneficiary">SaaS Operators</span>
+          <span class="value-card__beneficiary">Platform Teams</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Solution Steps -->
+    <section class="solution-steps">
+      <h3 class="solution-steps__title">How It Works</h3>
+      <div class="solution-step">
+        <span class="solution-step__number">1</span>
+        <div class="solution-step__content">
+          <span class="solution-step__text">Define EPF cycle as Temporal workflow</span>
+          <div class="solution-step__outcome">→ Durable, resumable workflow execution for READY/FIRE/AIM phases</div>
+        </div>
+      </div>
+      <div class="solution-step">
+        <span class="solution-step__number">2</span>
+        <div class="solution-step__content">
+          <span class="solution-step__text">Expose REST/GraphQL API for workflow initiation</span>
+          <div class="solution-step__outcome">→ AI agents and DevOps pipelines can start EPF cycles programmatically</div>
+        </div>
+      </div>
+      <div class="solution-step">
+        <span class="solution-step__number">3</span>
+        <div class="solution-step__content">
+          <span class="solution-step__text">Validate artifacts against JSON schemas in real-time</span>
+          <div class="solution-step__outcome">→ Schema violations caught during creation, not after commit</div>
+        </div>
+      </div>
+      <div class="solution-step">
+        <span class="solution-step__number">4</span>
+        <div class="solution-step__content">
+          <span class="solution-step__text">Store validated artifacts in Emergent Core knowledge graph</span>
+          <div class="solution-step__outcome">→ Semantic search and AI chat over product strategy documents</div>
+        </div>
+      </div>
+      <div class="solution-step">
+        <span class="solution-step__number">5</span>
+        <div class="solution-step__content">
+          <span class="solution-step__text">Implement multi-tenancy with workspace isolation</span>
+          <div class="solution-step__outcome">→ Enterprise customers can manage multiple product lines securely</div>
+        </div>
+      </div>
+      <div class="solution-step">
+        <span class="solution-step__number">6</span>
+        <div class="solution-step__content">
+          <span class="solution-step__text">Provide CLI for local development and CI/CD integration</span>
+          <div class="solution-step__outcome">→ Developers can test workflows locally and integrate into pipelines</div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Layers -->
+    <section class="layer" id="layer-1">
+      <div class="layer__header" onclick="this.parentElement.classList.toggle('layer--collapsed')">
+        <div class="layer__header-left">
+          <span class="layer__number">1</span>
+          <span class="layer__name">User Interfaces</span>
+        </div>
+        <span class="layer__toggle">▼</span>
+      </div>
+      <div class="layer__content">
+        <p class="layer__description">API and CLI interfaces for interacting with EPF-Runtime</p>
+        
+        <div class="component">
+          <div class="component__header">
+            <span class="component__name">Programmatic Access</span>
+            <div class="component__badges">
+              <span class="status-badge status-badge--active">Active</span>
+            </div>
+          </div>
+          <div class="component__uvp">EPF cycles are initiated and monitored via API so that AI agents can orchestrate product development autonomously, which helps us enable machine-driven planning.</div>
+          
+          <div class="sub-components">
+            <div class="sub-component sub-component--active">
+              <span class="sub-component__indicator"></span>
+              <div class="sub-component__content">
+                <span class="sub-component__name">Workflow Initiation</span>
+                <p class="sub-component__uvp">READY/FIRE/AIM workflows started programmatically for DevOps automation</p>
+              </div>
+            </div>
+            <div class="sub-component sub-component--active">
+              <span class="sub-component__indicator"></span>
+              <div class="sub-component__content">
+                <span class="sub-component__name">Artifact Validation</span>
+                <p class="sub-component__uvp">Schema errors caught immediately during creation</p>
+              </div>
+            </div>
+            <div class="sub-component sub-component--active">
+              <span class="sub-component__indicator"></span>
+              <div class="sub-component__content">
+                <span class="sub-component__name">Workflow Monitoring</span>
+                <p class="sub-component__uvp">Real-time progress tracking via WebSocket/GraphQL</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="component">
+          <div class="component__header">
+            <span class="component__name">Command Line Interface</span>
+            <div class="component__badges">
+              <span class="status-badge status-badge--active">Active</span>
+            </div>
+          </div>
+          <div class="component__uvp">EPF workflows are testable locally so that developers can validate changes before CI/CD deployment, which helps us catch errors early.</div>
+          
+          <div class="sub-components">
+            <div class="sub-component sub-component--inactive">
+              <span class="sub-component__indicator"></span>
+              <div class="sub-component__content">
+                <span class="sub-component__name">Local Workflow Testing</span>
+                <p class="sub-component__uvp">Execute locally without cloud infrastructure (planned)</p>
+              </div>
+            </div>
+            <div class="sub-component sub-component--active">
+              <span class="sub-component__indicator"></span>
+              <div class="sub-component__content">
+                <span class="sub-component__name">CI Integration</span>
+                <p class="sub-component__uvp">Schema violations block PRs via GitHub Actions</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="layer" id="layer-2">
+      <div class="layer__header" onclick="this.parentElement.classList.toggle('layer--collapsed')">
+        <div class="layer__header-left">
+          <span class="layer__number">2</span>
+          <span class="layer__name">Workflow Engine</span>
+        </div>
+        <span class="layer__toggle">▼</span>
+      </div>
+      <div class="layer__content">
+        <p class="layer__description">Durable workflow orchestration for EPF cycles. Provides core runtime capabilities.</p>
+        
+        <div class="component">
+          <div class="component__header">
+            <span class="component__name">Durable Execution</span>
+            <div class="component__badges">
+              <span class="status-badge status-badge--active">Active</span>
+            </div>
+          </div>
+          <div class="component__uvp">Workflow state persists across infrastructure failures so that long-running EPF cycles complete reliably, which helps us prevent lost planning work.</div>
+          
+          <div class="sub-components">
+            <div class="sub-component sub-component--active">
+              <span class="sub-component__indicator"></span>
+              <div class="sub-component__content">
+                <span class="sub-component__name">Phase Orchestration</span>
+                <p class="sub-component__uvp">Sequential READY → FIRE → AIM with validation gates</p>
+              </div>
+            </div>
+            <div class="sub-component sub-component--inactive">
+              <span class="sub-component__indicator"></span>
+              <div class="sub-component__content">
+                <span class="sub-component__name">Parallel Feature Execution</span>
+                <p class="sub-component__uvp">Concurrent feature development in FIRE phase (planned)</p>
+              </div>
+            </div>
+            <div class="sub-component sub-component--active">
+              <span class="sub-component__indicator"></span>
+              <div class="sub-component__content">
+                <span class="sub-component__name">Automatic Retries</span>
+                <p class="sub-component__uvp">Exponential backoff for transient failures</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="component">
+          <div class="component__header">
+            <span class="component__name">Schema Enforcement</span>
+            <div class="component__badges">
+              <span class="status-badge status-badge--active">Active</span>
+            </div>
+          </div>
+          <div class="component__uvp">Artifacts are validated against EPF schemas during creation so that invalid data never enters knowledge graph, which helps us maintain data integrity.</div>
+          
+          <div class="sub-components">
+            <div class="sub-component sub-component--active">
+              <span class="sub-component__indicator"></span>
+              <div class="sub-component__content">
+                <span class="sub-component__name">Realtime Validation</span>
+                <p class="sub-component__uvp">Immediate feedback with JSONPath error locations</p>
+              </div>
+            </div>
+            <div class="sub-component sub-component--inactive">
+              <span class="sub-component__indicator"></span>
+              <div class="sub-component__content">
+                <span class="sub-component__name">Cross-Reference Validation</span>
+                <p class="sub-component__uvp">Validate feature dependencies and links (planned)</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="layer layer--collapsed" id="layer-3">
+      <div class="layer__header" onclick="this.parentElement.classList.toggle('layer--collapsed')">
+        <div class="layer__header-left">
+          <span class="layer__number">3</span>
+          <span class="layer__name">Platform Services</span>
+        </div>
+        <span class="layer__toggle">▼</span>
+      </div>
+      <div class="layer__content">
+        <p class="layer__description">Multi-tenancy, access control, and external integrations</p>
+        
+        <div class="component">
+          <div class="component__header">
+            <span class="component__name">Workspace Isolation</span>
+            <div class="component__badges">
+              <span class="status-badge status-badge--planned">Planned</span>
+            </div>
+          </div>
+          <div class="component__uvp">Multiple product lines operate independently so that teams don't interfere with each other, which helps us support enterprise customers.</div>
+          
+          <div class="sub-components">
+            <div class="sub-component sub-component--inactive">
+              <span class="sub-component__indicator"></span>
+              <div class="sub-component__content">
+                <span class="sub-component__name">Access Control</span>
+                <p class="sub-component__uvp">RBAC with workspace-admin, PM, developer, viewer roles</p>
+              </div>
+            </div>
+            <div class="sub-component sub-component--inactive">
+              <span class="sub-component__indicator"></span>
+              <div class="sub-component__content">
+                <span class="sub-component__name">Tenant Provisioning</span>
+                <p class="sub-component__uvp">Instant workspace creation via API</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="component">
+          <div class="component__header">
+            <span class="component__name">External Integrations</span>
+            <div class="component__badges">
+              <span class="status-badge status-badge--planned">Planned</span>
+            </div>
+          </div>
+          <div class="component__uvp">EPF cycles trigger actions in external tools so that workflows integrate with existing processes, which helps us fit into current team workflows.</div>
+          
+          <div class="sub-components">
+            <div class="sub-component sub-component--inactive">
+              <span class="sub-component__indicator"></span>
+              <div class="sub-component__content">
+                <span class="sub-component__name">GitHub Integration</span>
+                <p class="sub-component__uvp">Auto-commit artifacts to Git for version history</p>
+              </div>
+            </div>
+            <div class="sub-component sub-component--inactive">
+              <span class="sub-component__indicator"></span>
+              <div class="sub-component__content">
+                <span class="sub-component__name">Jira Sync</span>
+                <p class="sub-component__uvp">Create Jira epics from FIRE features</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="layer layer--collapsed" id="layer-4">
+      <div class="layer__header" onclick="this.parentElement.classList.toggle('layer--collapsed')">
+        <div class="layer__header-left">
+          <span class="layer__number">4</span>
+          <span class="layer__name">Infrastructure</span>
+        </div>
+        <span class="layer__toggle">▼</span>
+      </div>
+      <div class="layer__content">
+        <p class="layer__description">Deployment, monitoring, and operational support. Provides core runtime capabilities.</p>
+        
+        <div class="component">
+          <div class="component__header">
+            <span class="component__name">Reliable Deployment</span>
+            <div class="component__badges">
+              <span class="status-badge status-badge--planned">Planned</span>
+            </div>
+          </div>
+          <div class="component__uvp">Platform updates deploy without interrupting running workflows so that teams experience zero downtime, which helps us maintain SLA commitments.</div>
+          
+          <div class="sub-components">
+            <div class="sub-component sub-component--inactive">
+              <span class="sub-component__indicator"></span>
+              <div class="sub-component__content">
+                <span class="sub-component__name">Health Monitoring</span>
+                <p class="sub-component__uvp">Prometheus + Grafana + PagerDuty alerting</p>
+              </div>
+            </div>
+            <div class="sub-component sub-component--inactive">
+              <span class="sub-component__indicator"></span>
+              <div class="sub-component__content">
+                <span class="sub-component__name">Audit Logging</span>
+                <p class="sub-component__uvp">Immutable workflow history for compliance</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="component">
+          <div class="component__header">
+            <span class="component__name">Data Management</span>
+            <div class="component__badges">
+              <span class="status-badge status-badge--planned">Planned</span>
+            </div>
+          </div>
+          <div class="component__uvp">Workflow state and artifacts are backed up regularly so that data survives catastrophic failures, which helps us protect customer data.</div>
+          
+          <div class="sub-components">
+            <div class="sub-component sub-component--inactive">
+              <span class="sub-component__indicator"></span>
+              <div class="sub-component__content">
+                <span class="sub-component__name">Disaster Recovery</span>
+                <p class="sub-component__uvp">Cross-region replication for 99.9% availability</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Footer -->
+    <footer class="footer">
+      <p>Generated by <a href="https://github.com/eyedea-io/emergent">EPF Value Model Preview Generator</a> • Source: product.epf-runtime.value_model.yaml</p>
+    </footer>
+    
+  </div>
+  
+  <script>
+    // Minimal JavaScript for interactivity
+    function setTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('epf-theme', theme);
+    }
+    
+    const savedTheme = localStorage.getItem('epf-theme');
+    if (savedTheme) {
+      setTheme(savedTheme);
+    }
+    
+    function collapseAll() {
+      document.querySelectorAll('.layer').forEach(l => l.classList.add('layer--collapsed'));
+    }
+    
+    function expandAll() {
+      document.querySelectorAll('.layer').forEach(l => l.classList.remove('layer--collapsed'));
+    }
+  </script>
+</body>
+</html>

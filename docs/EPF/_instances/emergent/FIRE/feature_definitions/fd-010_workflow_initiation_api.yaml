@@ -1,7 +1,7 @@
 id: "fd-010"
 name: "Workflow Initiation API"
 slug: "workflow-initiation-api"
-status: "planned"
+status: "draft"
 
 strategic_context:
   problem_statement: |
