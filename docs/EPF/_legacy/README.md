@@ -150,7 +150,7 @@ Legacy files serve three purposes:
 
 ### Support
 
-- **Questions**: Open issue in canonical EPF repository (github.com/eyedea-io/epf)
+- **Questions**: Open issue in canonical EPF repository (github.com/eyedea-io/epf-canonical-definition)
 - **Bugs**: Report via GitHub issues
 - **Contributions**: Follow guidelines in `MAINTENANCE.md`
 

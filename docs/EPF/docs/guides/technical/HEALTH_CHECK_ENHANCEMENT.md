@@ -127,7 +127,7 @@ fi
 **Canonical EPF:**
 - Commit: `38de701`
 - Message: "EPF: Enhanced health check to detect missing instance folders"
-- Pushed to: `https://github.com/eyedea-io/epf.git` (main branch)
+- Pushed to: `https://github.com/eyedea-io/epf-canonical-definition.git` (main branch)
 
 **Product Repositories:**
 - emergent: `379588f` → `https://github.com/eyedea-io/emergent.git` (master)

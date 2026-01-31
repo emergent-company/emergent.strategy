@@ -347,7 +347,7 @@ Add at top of description fields:
 ```json
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/eyedea-io/epf/schemas/feature_definition_schema.json",
+  "$id": "https://github.com/eyedea-io/epf-canonical-definition/schemas/feature_definition_schema.json",
   "title": "Feature Definition Schema",
   "description": "CRITICAL FOR AI AGENTS: Before generating a feature definition, you MUST:\n1. Read this entire schema (all required fields, types, constraints)\n2. Read a validated example: features/01-technical/fd-002-knowledge-graph-engine.yaml\n3. Read the wizard: wizards/product_architect.agent_prompt.md or lean_start.agent_prompt.md\n4. Generate using schema as template (NOT from memory)\n5. Validate: ./scripts/validate-feature-quality.sh\n\nSee .github/instructions/self-learning.instructions.md (2025-12-27 entry) for why this matters (25+ min wasted if you generate from memory).\n\n---\n\nDefines the structure for feature definitions in the EPF framework...",
   "version": "2.0.0",

@@ -1,23 +1,62 @@
-# EPF Framework .gitignore - Emergent Product Repo
-# This file tracks the emergent product instance while ignoring other instances
+# ════════════════════════════════════════════════════════════════════════════════
+# EPF Framework .gitignore - CANONICAL REPOSITORY
+# ════════════════════════════════════════════════════════════════════════════════
+#
+# This is the CANONICAL EPF repository (eyedea-io/epf).
+# NO instances are tracked here - all instances belong in product repositories.
+#
+# ⚠️  CANONICAL PURITY RULE:
+#   - _instances/ contains only README.md in canonical
+#   - All actual instance data lives in product repos (emergent, twentyfirst, etc.)
+#   - See CANONICAL_PURITY_RULES.md for complete guidance
+#
+# ════════════════════════════════════════════════════════════════════════════════
 
-# Instance folders - only emergent instance is tracked
+# ─────────────────────────────────────────────────────────────────────────────────
+# INSTANCES - ALL ignored in canonical (only README.md tracked)
+# ─────────────────────────────────────────────────────────────────────────────────
 _instances/*
 !_instances/README.md
-!_instances/emergent
-!_instances/emergent/**
 
-# OS files
+# ─────────────────────────────────────────────────────────────────────────────────
+# WORKING DIRECTORY - Temporary files, analysis, session notes
+# ─────────────────────────────────────────────────────────────────────────────────
+.epf-work/*
+!.epf-work/README.md
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# OS FILES
+# ─────────────────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+Desktop.ini
 
-# Editor files
+# ─────────────────────────────────────────────────────────────────────────────────
+# EDITOR & IDE FILES
+# ─────────────────────────────────────────────────────────────────────────────────
 *.swp
 *.swo
 *~
 .idea/
 .vscode/
+*.sublime-project
+*.sublime-workspace
 
-# Temporary files
+# ─────────────────────────────────────────────────────────────────────────────────
+# TEMPORARY & BACKUP FILES
+# ─────────────────────────────────────────────────────────────────────────────────
 *.tmp
 *.temp
+*.bak
+*.backup
+*.product-backup
+*.log
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# BUILD & RUNTIME ARTIFACTS
+# ─────────────────────────────────────────────────────────────────────────────────
+node_modules/
+__pycache__/
+*.pyc
+dist/
+build/

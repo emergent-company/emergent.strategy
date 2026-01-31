@@ -2,6 +2,20 @@ id: fd-002
 name: Knowledge Graph Engine
 slug: knowledge-graph-engine
 status: draft
+feature_maturity:
+  overall_stage: "hypothetical"
+  capability_maturity:
+    - capability_id: "cap-001"
+      stage: "hypothetical"
+    - capability_id: "cap-002"
+      stage: "hypothetical"
+    - capability_id: "cap-003"
+      stage: "hypothetical"
+    - capability_id: "cap-004"
+      stage: "hypothetical"
+    - capability_id: "cap-005"
+      stage: "hypothetical"
+  last_assessment_date: "2025-01-18"
 strategic_context:
   problem_statement: 'Organizations accumulate vast amounts of unstructured information across documents, emails, and conversations,
     but struggle to discover hidden relationships and patterns. Knowledge workers spend 40-60% of their time searching for
