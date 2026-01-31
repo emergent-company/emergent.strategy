@@ -4,7 +4,7 @@
 
 ### 🚫 Rule 1: NO Instance-Specific Data in Canonical EPF
 
-**The canonical EPF repository (`eyedea-io/epf`) must NEVER contain:**
+**The canonical EPF repository (eyedea-io/epf-canonical-definition) must NEVER contain:**
 
 - ❌ Product names (twentyfirst, huma-blueprint-ui, lawmatics, emergent, etc.)
 - ❌ Instance-specific validation reports or results

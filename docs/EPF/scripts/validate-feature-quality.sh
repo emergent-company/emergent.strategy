@@ -302,12 +302,40 @@ validate_file() {
     check_context_required_fields "$file" || file_passed=0
     check_dependency_richness "$file" || file_passed=0
     
+    # Check for optional feature_maturity (informational, not a validation gate)
+    check_feature_maturity_info "$file"
+    
     if [ $file_passed -eq 1 ]; then
         echo -e "\n${GREEN}✓ $filename passed all quality checks${NC}\n"
         ((passed_files++))
     else
         echo -e "\n${RED}✗ $filename has quality violations${NC}\n"
         ((failed_files++))
+    fi
+}
+
+# Check for feature_maturity section (informational, not validation)
+check_feature_maturity_info() {
+    local file="$1"
+    
+    local has_maturity=$(yq eval '.feature_maturity' "$file" 2>/dev/null)
+    
+    if [ "$has_maturity" != "null" ] && [ -n "$has_maturity" ]; then
+        local overall_stage=$(yq eval '.feature_maturity.overall_stage' "$file" 2>/dev/null || echo "unknown")
+        local cap_count=$(yq eval '.feature_maturity.capability_maturity | length' "$file" 2>/dev/null || echo "0")
+        local last_kr=$(yq eval '.feature_maturity.last_advanced_by_kr' "$file" 2>/dev/null || echo "null")
+        local last_date=$(yq eval '.feature_maturity.last_assessment_date' "$file" 2>/dev/null || echo "unknown")
+        
+        log_info "Feature Maturity (optional): Present"
+        log_info "   Overall stage: $overall_stage"
+        log_info "   Capabilities tracked: $cap_count"
+        if [ "$last_kr" != "null" ] && [ -n "$last_kr" ]; then
+            log_info "   Last advanced by KR: $last_kr"
+        fi
+        log_info "   Last assessment: $last_date"
+    else
+        log_info "Feature Maturity (optional): Not present"
+        log_info "   Consider adding feature_maturity for capability-level tracking (EPF v2.8.0+)"
     fi
 }
 

@@ -765,6 +765,97 @@ yq eval '.dependencies.requires[0].reason | length' fd-025-document-management.y
 
 ---
 
+### 5.9. Section 8: Feature Maturity (Optional)
+
+**NEW in EPF v2.8.0 (Schema v2.1.0)** - Track capability-level maturity within features.
+
+**What feature maturity is:** An optional section that tracks the maturity stage of each capability within a feature, using the same 4-stage vocabulary as Value Model Maturity (VMM).
+
+**Why it matters:**
+- See which capabilities are proven vs hypothetical at a glance
+- Track which KR execution advanced each capability
+- Make informed decisions about scaling vs continued validation
+- Provide practitioner-friendly visibility without duplicating VMM
+
+**Schema structure:**
+```yaml
+feature_maturity:
+  overall_stage: "hypothetical"  # hypothetical | emerging | proven | scaled
+  capability_maturity:
+    - capability_id: "{cap-id from capabilities section}"
+      stage: "hypothetical"  # Same 4 stages as VMM
+      delivered_by_kr: "{kr-id}"  # Optional: which KR advanced this
+      evidence: "{Description of evidence supporting this stage}"
+  last_advanced_by_kr: "{kr-id}"  # Most recent KR that changed maturity
+  last_assessment_date: "YYYY-MM-DD"  # When maturity was last assessed
+```
+
+**Stage definitions (same as VMM):**
+- **hypothetical**: Design/concept phase, no implementation evidence
+- **emerging**: Initial implementation, early validation signals
+- **proven**: Validated with real users, consistent evidence of value
+- **scaled**: Deployed at scale, operationalized for growth
+
+**Example (Document Management):**
+```yaml
+feature_maturity:
+  overall_stage: "emerging"
+  capability_maturity:
+    - capability_id: "cap-001"  # Automated Version Tracking
+      stage: "proven"
+      delivered_by_kr: "kr-p-003"
+      evidence: "Version tracking validated with 847 customers, 99.2% success rate for 3 consecutive months"
+    - capability_id: "cap-002"  # Visual Diff and Comparison
+      stage: "emerging"
+      delivered_by_kr: "kr-p-005"
+      evidence: "Diff view released to beta users, 78% report 'very helpful' in feedback survey"
+    - capability_id: "cap-003"  # Conflict Resolution and Merging
+      stage: "hypothetical"
+      evidence: "Design complete, awaiting implementation in Q2 sprint"
+  last_advanced_by_kr: "kr-p-005"
+  last_assessment_date: "2025-01-18"
+```
+
+**The minimum rule:** A feature's `overall_stage` equals its **least mature capability**:
+- In the example above: one capability is "hypothetical" → feature is "hypothetical"
+- This ensures honest assessment: features can't claim maturity their capabilities don't support
+
+**When to use feature_maturity:**
+- ✅ Features in active development (track progress across roadmap cycles)
+- ✅ Features being considered for scaling (verify all capabilities are ready)
+- ✅ Features with capabilities at different maturity levels (mixed portfolio)
+- ⚠️ Optional for new features (start with all "hypothetical")
+- ⚠️ Can be omitted for well-established features where all capabilities are clearly "scaled"
+
+**When to update:**
+1. **After KR completion**: KR advances a capability → update `delivered_by_kr` and `stage`
+2. **During calibration**: AIM phase reveals evidence → adjust stage claims
+3. **Before scaling decisions**: Verify all capabilities meet target maturity
+4. **Periodic assessment**: Update `last_assessment_date` during reviews
+
+**Relationship to Value Model Maturity:**
+- Feature Maturity **does not replace** VMM (VMM remains authoritative)
+- Features `contributes_to` Value Model paths via `strategic_context`
+- Feature Maturity shows progress on those contributions at capability level
+- Both use same 4-stage vocabulary for consistency
+
+**Writing tips:**
+- **Match capability_id to capabilities section**: Use exact IDs from `definition.capabilities`
+- **Be honest about stages**: "hypothetical" is a valid starting point
+- **Include specific evidence**: Not just "users like it" but "78% report 'very helpful'"
+- **Link to KRs**: Show how roadmap execution advances maturity
+
+**Validation note:** Feature maturity is **optional** and not validated by schema. However, if present:
+- `overall_stage` must be one of: hypothetical, emerging, proven, scaled
+- `capability_maturity` array should reference valid capability IDs from the feature
+- `last_assessment_date` should be ISO 8601 format (YYYY-MM-DD)
+
+**See also:**
+- [VALUE_MODEL_MATURITY_GUIDE.md](VALUE_MODEL_MATURITY_GUIDE.md) - Full VMM documentation and how feature maturity relates
+- [fd-002-knowledge-graph-engine.yaml](../../definitions/product/01-technical/fd-002-knowledge-graph-engine.yaml) - Example with feature_maturity populated
+
+---
+
 ## 6. Validation Workflow
 
 **After completing all sections, run validation:**

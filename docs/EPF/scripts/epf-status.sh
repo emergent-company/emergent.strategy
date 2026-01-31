@@ -23,7 +23,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-CANONICAL_EPF_REPO="git@github.com:eyedea-io/epf.git"
+CANONICAL_EPF_REPO="git@github.com:eyedea-io/epf-canonical-definition.git"
 KNOWN_REPOS=("twentyfirst" "huma-blueprint-ui" "lawmatics" "emergent")
 CODE_DIR="${EPF_CODE_DIR:-$HOME/code}"
 

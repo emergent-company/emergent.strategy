@@ -1,8 +1,44 @@
-# Emergent Product Framework (EPF) Repository - v2.7.3
+# Emergent Product Framework (EPF) Repository - v2.12.2
 
 This repository contains the complete skeleton for managing product, strategy, org & ops, and commercial development using the Emergent Product Framework. It is designed to be an **executable operating system**, managed by a human-in-the-loop with the assistance of an AI Knowledge Agent.
 
 ---
+
+## What's New in v2.12.2
+
+Update repo references from epf to epf-canonical-definition
+
+## What's New in v2.12.1
+
+fix(.gitignore): Canonical repo now correctly ignores ALL instances - fixes sync conflicts
+
+## What's New in v2.12.0
+
+Add value-model-preview output generator with gist publishing automation
+
+## What's New in v2.11.0
+
+Add development-brief output generator for development team handover
+
+## What's New in v2.9.2
+
+Add AGENTS.md - AI agent instructions with script lookup table to prevent raw command usage
+
+## What's New in v2.9.1
+
+Fix: Migration tooling now compares artifacts against schema versions, not framework version. This eliminates false positives where artifacts at v1.13.0 were incorrectly flagged as needing migration when their schema was also at v1.13.0.
+
+## What's New in v2.9.0
+
+Migration infrastructure with AI routing protocol
+
+## What's New in v2.8.0
+
+Feature Maturity Tracking - Added feature_maturity section to feature definitions enabling per-capability maturity tracking aligned with VMM stages (hypothetical→emerging→proven→scaled)
+
+## What's New in v2.7.4
+
+Make Living Reality Assessment a hard gate for AI agents
 
 ## What's New in v2.7.3
 
@@ -183,6 +219,34 @@ These improvements prevent AI assistants from using manual git commands on EPF s
 - ✅ **Validating work?** → [`scripts/README.md`](scripts/README.md) (find right validator)
 - 📖 **Understanding concepts?** → [`docs/guides/README.md`](docs/guides/README.md) (find right guide)
 - 📐 **Schema questions?** → [`schemas/README.md`](schemas/README.md) (schema-template-guide pattern)
+
+### Schema Reference
+
+All JSON schemas in `schemas/` for artifact validation:
+
+| Schema | Purpose |
+|--------|---------|
+| `north_star_schema.json` | Organization-level purpose, vision, mission, values |
+| `insight_analyses_schema.json` | READY Phase trend, market, SWOT, problem analyses |
+| `insight_opportunity_schema.json` | Opportunity statement from INSIGHT synthesis |
+| `strategy_foundations_schema.json` | Vision, value prop, sequencing, info architecture |
+| `strategy_formula_schema.json` | Winning aspirations and strategic choices |
+| `roadmap_recipe_schema.json` | OKRs, assumptions, work packages by track |
+| `value_model_schema.json` | FIRE Phase value layers and components |
+| `feature_definition_schema.json` | Individual feature specifications |
+| `mappings_schema.json` | Traceability between features and value model |
+| `workflow_schema.json` | State machine and workflow definitions |
+| `assessment_report_schema.json` | AIM Phase cycle assessment |
+| `calibration_memo_schema.json` | AIM Phase learning calibration |
+| `current_reality_assessment_schema.json` | Living Reality Assessment (LRA) |
+| `track_health_assessment_schema.json` | Track Health Assessment (THA) signals |
+| `aim_trigger_config_schema.json` | AIM phase trigger configuration |
+| `product_portfolio_schema.json` | Multi-product portfolio structure |
+| `track_definition_base_schema.json` | Base schema for track definitions |
+| `strategy_definition_schema.json` | Strategy track component definitions |
+| `org_ops_definition_schema.json` | OrgOps track component definitions |
+| `commercial_definition_schema.json` | Commercial track component definitions |
+| `field-importance-taxonomy.json` | Field importance classification for health checks |
 
 **Maintaining EPF?**
 

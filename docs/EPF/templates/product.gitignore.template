@@ -1,0 +1,67 @@
+# ════════════════════════════════════════════════════════════════════════════════
+# EPF Framework .gitignore - {{PRODUCT_NAME}} Product Repo
+# ════════════════════════════════════════════════════════════════════════════════
+#
+# This is the {{PRODUCT_NAME}} product repository.
+# The {{PRODUCT_NAME}} instance is TRACKED here, other instances are ignored.
+#
+# ⚠️  IMPORTANT FOR SYNC:
+#   - When running `sync-repos.sh pull`, this file may be overwritten by canonical
+#   - The sync script automatically restores this product-specific version
+#   - If sync fails to restore, manually regenerate from template:
+#       sed 's/{{PRODUCT_NAME}}/{{PRODUCT_NAME}}/g' templates/product.gitignore.template > .gitignore
+#
+# ════════════════════════════════════════════════════════════════════════════════
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# INSTANCES - Only {{PRODUCT_NAME}} instance is tracked
+# ─────────────────────────────────────────────────────────────────────────────────
+# In product repos, we track OUR instance but ignore any other instances that
+# might appear from sync operations or local testing.
+_instances/*
+!_instances/README.md
+!_instances/{{PRODUCT_NAME}}
+!_instances/{{PRODUCT_NAME}}/**
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# WORKING DIRECTORY - Temporary files, analysis, session notes
+# ─────────────────────────────────────────────────────────────────────────────────
+.epf-work/*
+!.epf-work/README.md
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# OS FILES
+# ─────────────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# EDITOR & IDE FILES
+# ─────────────────────────────────────────────────────────────────────────────────
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# TEMPORARY & BACKUP FILES
+# ─────────────────────────────────────────────────────────────────────────────────
+*.tmp
+*.temp
+*.bak
+*.backup
+*.product-backup
+*.log
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# BUILD & RUNTIME ARTIFACTS
+# ─────────────────────────────────────────────────────────────────────────────────
+node_modules/
+__pycache__/
+*.pyc
+dist/
+build/
