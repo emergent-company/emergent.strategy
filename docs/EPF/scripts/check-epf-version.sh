@@ -32,7 +32,7 @@ NC='\033[0m'
 # Configuration
 CANONICAL_REMOTE="epf"
 CANONICAL_BRANCH="main"
-CANONICAL_URL="git@github.com:eyedea-io/epf.git"
+CANONICAL_URL="git@github.com:eyedea-io/epf-canonical-definition.git"
 
 # Detect EPF root directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

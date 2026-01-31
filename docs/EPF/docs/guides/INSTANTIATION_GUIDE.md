@@ -46,7 +46,7 @@ Add canonical EPF as git subtree (see `MAINTENANCE.md` in canonical EPF):
 
 ```bash
 # From product repo root
-git remote add epf git@github.com:eyedea-io/epf.git
+git remote add epf git@github.com:eyedea-io/epf-canonical-definition.git
 git subtree add --prefix=docs/EPF epf main --squash
 ```
 
