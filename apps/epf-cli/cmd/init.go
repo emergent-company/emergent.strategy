@@ -42,6 +42,12 @@ Examples:
 }
 
 func runInit(cmd *cobra.Command, args []string) {
+	// Protect canonical EPF from accidental writes
+	if err := EnsureNotCanonical("initialize EPF"); err != nil {
+		fmt.Fprintln(os.Stderr, "Error:", err)
+		os.Exit(1)
+	}
+
 	productName := args[0]
 
 	// Validate product name

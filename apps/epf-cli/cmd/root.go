@@ -7,6 +7,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// DevMode indicates whether developer mode is enabled.
+// When true, write operations are allowed in the canonical EPF repository.
+var DevMode bool
+
 var rootCmd = &cobra.Command{
 	Use:   "epf-cli",
 	Short: "EPF Schema Validator and MCP Server",
@@ -30,4 +34,5 @@ func Execute() {
 
 func init() {
 	rootCmd.PersistentFlags().StringP("config", "c", "", "config file (default is .epf-cli.yaml)")
+	rootCmd.PersistentFlags().BoolVar(&DevMode, "dev", false, "enable developer mode (allows writes to canonical EPF)")
 }

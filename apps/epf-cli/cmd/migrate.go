@@ -80,6 +80,12 @@ func runMigrate(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
+	// Protect canonical EPF from accidental writes
+	if err := EnsurePathNotCanonical(targetPath, "migrate EPF files"); err != nil {
+		fmt.Fprintln(os.Stderr, "Error:", err)
+		os.Exit(1)
+	}
+
 	// Print instance name if auto-detected
 	if len(args) == 0 && epfContext != nil && epfContext.InstancePath != "" {
 		fmt.Printf("Using instance: %s\n\n", epfContext.CurrentInstance)

@@ -14,6 +14,70 @@ import (
 )
 
 // =============================================================================
+// Canonical EPF Protection
+// =============================================================================
+
+// isCanonicalEPF checks if the given directory is the canonical EPF repo.
+// Canonical EPF is identified by having these markers at root:
+// - CANONICAL_PURITY_RULES.md
+// - schemas/ directory
+// - templates/ directory
+// - wizards/ directory
+func isCanonicalEPF(dir string) bool {
+	if dir == "" {
+		return false
+	}
+
+	// Check for canonical markers
+	markers := []string{
+		"CANONICAL_PURITY_RULES.md",
+		"schemas",
+		"templates",
+		"wizards",
+	}
+
+	matchCount := 0
+	for _, marker := range markers {
+		path := filepath.Join(dir, marker)
+		if _, err := os.Stat(path); err == nil {
+			matchCount++
+		}
+	}
+
+	// If 3+ markers match, it's canonical EPF
+	return matchCount >= 3
+}
+
+// isCanonicalEPFPath checks if the given path is inside a canonical EPF repo
+// by walking up the directory tree looking for canonical markers.
+func isCanonicalEPFPath(path string) bool {
+	if path == "" {
+		return false
+	}
+
+	// Get absolute path
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+
+	// Walk up to find canonical markers
+	current := absPath
+	for {
+		if isCanonicalEPF(current) {
+			return true
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break // Reached root
+		}
+		current = parent
+	}
+
+	return false
+}
+
+// =============================================================================
 // Generator Tools
 // =============================================================================
 
@@ -595,6 +659,11 @@ func (s *Server) handleScaffoldGenerator(ctx context.Context, request mcp.CallTo
 	if outputDir == "" {
 		// Default to instance generators directory
 		outputDir = filepath.Join(instancePath, "generators")
+	}
+
+	// Protect canonical EPF from accidental writes
+	if isCanonicalEPFPath(outputDir) {
+		return mcp.NewToolResultError("Cannot scaffold generator in canonical EPF repository.\n\nThe target path appears to be inside the canonical EPF framework.\nUse instance_path pointing to a product repository instead."), nil
 	}
 
 	// Default author

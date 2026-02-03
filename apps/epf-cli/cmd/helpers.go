@@ -182,6 +182,136 @@ func PrintContext() {
 	}
 }
 
+// IsCanonicalEPF checks if the given directory (or cwd if empty) is the canonical EPF repo.
+// Canonical EPF is identified by having these markers:
+// - CANONICAL_PURITY_RULES.md at root
+// - schemas/ directory at root (not nested in docs/EPF/)
+// - templates/ directory at root
+// - wizards/ directory at root
+func IsCanonicalEPF(dir string) bool {
+	if dir == "" {
+		var err error
+		dir, err = os.Getwd()
+		if err != nil {
+			return false
+		}
+	}
+
+	// Check for canonical markers
+	markers := []string{
+		"CANONICAL_PURITY_RULES.md",
+		"schemas",
+		"templates",
+		"wizards",
+	}
+
+	matchCount := 0
+	for _, marker := range markers {
+		path := filepath.Join(dir, marker)
+		if _, err := os.Stat(path); err == nil {
+			matchCount++
+		}
+	}
+
+	// If 3+ markers match, it's canonical EPF
+	return matchCount >= 3
+}
+
+// IsCanonicalEPFPath checks if the given path is inside the canonical EPF repo
+func IsCanonicalEPFPath(path string) bool {
+	if path == "" {
+		return false
+	}
+
+	// Get absolute path
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+
+	// Check if the configured canonical_path is a prefix of this path
+	if cliConfig != nil && cliConfig.CanonicalPath != "" {
+		canonicalAbs, err := filepath.Abs(cliConfig.CanonicalPath)
+		if err == nil {
+			// Normalize paths
+			canonicalAbs = filepath.Clean(canonicalAbs)
+			absPath = filepath.Clean(absPath)
+
+			// Check if path is inside canonical
+			if strings.HasPrefix(absPath, canonicalAbs+string(filepath.Separator)) || absPath == canonicalAbs {
+				return true
+			}
+		}
+	}
+
+	// Walk up to find canonical markers
+	current := absPath
+	for {
+		if IsCanonicalEPF(current) {
+			return true
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break // Reached root
+		}
+		current = parent
+	}
+
+	return false
+}
+
+// EnsureNotCanonical returns an error if the current directory is canonical EPF.
+// This should be called before any write operations.
+// If DevMode is enabled, this check is bypassed with a warning printed to stderr.
+func EnsureNotCanonical(operation string) error {
+	if !IsCanonicalEPF("") {
+		return nil
+	}
+
+	if DevMode {
+		fmt.Fprintf(os.Stderr, "⚠️  Developer mode: allowing %s in canonical EPF\n", operation)
+		return nil
+	}
+
+	return fmt.Errorf("refusing to %s in canonical EPF repository\n\n"+
+		"The current directory appears to be the canonical EPF framework repository.\n"+
+		"Write operations are not allowed here to preserve framework integrity.\n\n"+
+		"If you want to work with EPF:\n"+
+		"  1. Create or navigate to a product repository\n"+
+		"  2. Run 'epf-cli init <product-name>' to set up EPF there\n\n"+
+		"If you are developing EPF itself, use --dev flag:\n"+
+		"  epf-cli --dev %s ...\n\n"+
+		"Canonical EPF location: %s", operation, operation, mustGetCwd())
+}
+
+// EnsurePathNotCanonical returns an error if the given path is inside canonical EPF.
+// If DevMode is enabled, this check is bypassed with a warning printed to stderr.
+func EnsurePathNotCanonical(path, operation string) error {
+	if !IsCanonicalEPFPath(path) {
+		return nil
+	}
+
+	if DevMode {
+		fmt.Fprintf(os.Stderr, "⚠️  Developer mode: allowing %s in canonical EPF path: %s\n", operation, path)
+		return nil
+	}
+
+	return fmt.Errorf("refusing to %s in canonical EPF repository\n\n"+
+		"The target path '%s' is inside the canonical EPF framework.\n"+
+		"Write operations are not allowed there to preserve framework integrity.\n\n"+
+		"Use a path in your product repository instead.\n\n"+
+		"If you are developing EPF itself, use --dev flag:\n"+
+		"  epf-cli --dev %s ...", operation, path, operation)
+}
+
+func mustGetCwd() string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "(unknown)"
+	}
+	return cwd
+}
+
 func init() {
 	// Initialize globals when package loads
 	InitGlobals()
