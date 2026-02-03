@@ -832,6 +832,12 @@ Examples:
 			author = "Custom"
 		}
 
+		// Protect canonical EPF from accidental writes
+		if err := EnsurePathNotCanonical(outputDir, "scaffold generator"); err != nil {
+			fmt.Fprintln(os.Stderr, "Error:", err)
+			os.Exit(1)
+		}
+
 		opts := generator.ScaffoldOptions{
 			Name:              name,
 			Description:       description,
