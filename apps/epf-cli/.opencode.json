@@ -1,0 +1,15 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "github-copilot/claude-3.7-sonnet",
+  "instructions": [
+    "AGENTS.md",
+    "../../docs/EPF/AGENTS.md",
+    "../../docs/EPF/scripts/README.md"
+  ],
+  "lsp": {
+    "go": {
+      "disabled": false,
+      "command": "gopls"
+    }
+  }
+}
