@@ -1,67 +1,25 @@
-# ════════════════════════════════════════════════════════════════════════════════
-# EPF Framework .gitignore - emergent Product Repo
-# ════════════════════════════════════════════════════════════════════════════════
+# EPF Instance .gitignore
 #
-# This is the emergent product repository.
-# The emergent instance is TRACKED here, other instances are ignored.
-#
-# ⚠️  IMPORTANT FOR SYNC:
-#   - When running `sync-repos.sh pull`, this file may be overwritten by canonical
-#   - The sync script automatically restores this product-specific version
-#   - If sync fails to restore, manually regenerate from template:
-#       sed 's/emergent/emergent/g' templates/product.gitignore.template > .gitignore
-#
-# ════════════════════════════════════════════════════════════════════════════════
+# This repo only contains instance-specific data.
+# Canonical EPF (schemas, templates, etc.) is loaded via epf-cli.
 
-# ─────────────────────────────────────────────────────────────────────────────────
-# INSTANCES - Only emergent instance is tracked
-# ─────────────────────────────────────────────────────────────────────────────────
-# In product repos, we track OUR instance but ignore any other instances that
-# might appear from sync operations or local testing.
+# Only track the emergent instance
 _instances/*
-!_instances/README.md
 !_instances/emergent
 !_instances/emergent/**
 
-# ─────────────────────────────────────────────────────────────────────────────────
-# WORKING DIRECTORY - Temporary files, analysis, session notes
-# ─────────────────────────────────────────────────────────────────────────────────
-.epf-work/*
-!.epf-work/README.md
-
-# ─────────────────────────────────────────────────────────────────────────────────
-# OS FILES
-# ─────────────────────────────────────────────────────────────────────────────────
+# OS files
 .DS_Store
 Thumbs.db
-Desktop.ini
 
-# ─────────────────────────────────────────────────────────────────────────────────
-# EDITOR & IDE FILES
-# ─────────────────────────────────────────────────────────────────────────────────
+# Editor files
 *.swp
 *.swo
 *~
 .idea/
 .vscode/
-*.sublime-project
-*.sublime-workspace
 
-# ─────────────────────────────────────────────────────────────────────────────────
-# TEMPORARY & BACKUP FILES
-# ─────────────────────────────────────────────────────────────────────────────────
+# Temporary files
 *.tmp
-*.temp
 *.bak
-*.backup
-*.product-backup
 *.log
-
-# ─────────────────────────────────────────────────────────────────────────────────
-# BUILD & RUNTIME ARTIFACTS
-# ─────────────────────────────────────────────────────────────────────────────────
-node_modules/
-__pycache__/
-*.pyc
-dist/
-build/
