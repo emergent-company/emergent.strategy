@@ -1,0 +1,14 @@
+# Compiled binary
+epf-cli
+epf-cli.exe
+
+# Test coverage
+coverage.out
+coverage.html
+
+# IDE
+.idea/
+.vscode/
+
+# OS files
+.DS_Store
