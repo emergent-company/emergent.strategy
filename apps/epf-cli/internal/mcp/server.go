@@ -542,6 +542,126 @@ func (s *Server) registerTools() {
 		),
 		s.handleValidateGeneratorOutput,
 	)
+
+	// ==========================================================================
+	// Relationship Maintenance Tools
+	// ==========================================================================
+
+	// Tool: epf_add_implementation_reference
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_add_implementation_reference",
+			mcp.WithDescription("Add or update an implementation reference (spec, issue, PR, code) to a feature definition. Use this after implementing a feature to link it to its implementation artifacts."),
+			mcp.WithString("feature_id",
+				mcp.Required(),
+				mcp.Description("Feature ID or slug (e.g., 'fd-012', 'epf-cli-local-development')"),
+			),
+			mcp.WithString("instance_path",
+				mcp.Required(),
+				mcp.Description("Path to the EPF instance directory"),
+			),
+			mcp.WithString("ref_type",
+				mcp.Required(),
+				mcp.Description("Reference type: 'spec', 'issue', 'pr', 'code', 'documentation', 'test'"),
+			),
+			mcp.WithString("title",
+				mcp.Required(),
+				mcp.Description("Human-readable title for the reference"),
+			),
+			mcp.WithString("url",
+				mcp.Required(),
+				mcp.Description("URL to the implementation artifact"),
+			),
+			mcp.WithString("status",
+				mcp.Description("Reference status: 'current', 'deprecated', 'superseded' (default: 'current')"),
+			),
+			mcp.WithString("description",
+				mcp.Description("Optional description of the reference"),
+			),
+		),
+		s.handleAddImplementationReference,
+	)
+
+	// Tool: epf_update_capability_maturity
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_update_capability_maturity",
+			mcp.WithDescription("Update the maturity level of a capability in a feature definition. Use this after completing a KR or milestone that advances a capability."),
+			mcp.WithString("feature_id",
+				mcp.Required(),
+				mcp.Description("Feature ID or slug (e.g., 'fd-012', 'epf-cli-local-development')"),
+			),
+			mcp.WithString("instance_path",
+				mcp.Required(),
+				mcp.Description("Path to the EPF instance directory"),
+			),
+			mcp.WithString("capability_id",
+				mcp.Required(),
+				mcp.Description("The capability ID within the feature (e.g., 'cap-schema-validation')"),
+			),
+			mcp.WithString("maturity",
+				mcp.Required(),
+				mcp.Description("Maturity level: 'hypothetical', 'emerging', 'proven', 'scaled'"),
+			),
+			mcp.WithString("evidence",
+				mcp.Required(),
+				mcp.Description("Evidence supporting the maturity claim (e.g., 'Validates 27/27 files in production instance')"),
+			),
+			mcp.WithString("delivered_by_kr",
+				mcp.Description("Optional KR ID that delivered this capability (e.g., 'kr-p-2025-q1-001')"),
+			),
+		),
+		s.handleUpdateCapabilityMaturity,
+	)
+
+	// Tool: epf_add_mapping_artifact
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_add_mapping_artifact",
+			mcp.WithDescription("Add a new artifact to mappings.yaml for a value model path. Use this after creating code, documentation, or tests that implement a value model component."),
+			mcp.WithString("instance_path",
+				mcp.Required(),
+				mcp.Description("Path to the EPF instance directory"),
+			),
+			mcp.WithString("sub_component_id",
+				mcp.Required(),
+				mcp.Description("Value model path (e.g., 'Product.Graph.EntityExtraction', 'Product.LocalTools.EPFCLIValidation')"),
+			),
+			mcp.WithString("artifact_type",
+				mcp.Required(),
+				mcp.Description("Artifact type: 'code', 'design', 'documentation', 'test'"),
+			),
+			mcp.WithString("url",
+				mcp.Required(),
+				mcp.Description("URL to the artifact (e.g., GitHub file/directory URL)"),
+			),
+			mcp.WithString("description",
+				mcp.Required(),
+				mcp.Description("Brief description of the artifact"),
+			),
+		),
+		s.handleAddMappingArtifact,
+	)
+
+	// Tool: epf_suggest_relationships
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_suggest_relationships",
+			mcp.WithDescription("Analyze an artifact and suggest relationships it should have. Use this to discover missing contributes_to paths, implementation references, or mappings."),
+			mcp.WithString("instance_path",
+				mcp.Required(),
+				mcp.Description("Path to the EPF instance directory"),
+			),
+			mcp.WithString("artifact_type",
+				mcp.Required(),
+				mcp.Description("Type of artifact to analyze: 'feature', 'code_file', 'pr'"),
+			),
+			mcp.WithString("artifact_path",
+				mcp.Required(),
+				mcp.Description("Path to the artifact (file path for feature/code_file, URL for pr)"),
+			),
+			mcp.WithString("include_code_analysis",
+				mcp.Description("Analyze imports/dependencies for code files (true/false, default: false)"),
+			),
+		),
+		s.handleSuggestRelationships,
+	)
 }
 
 // SchemaListItem represents a schema in the list response
@@ -2176,4 +2296,209 @@ func buildMigrationGuidance(response *MigrationGuideResponse) {
 
 	response.Guidance.Tips = append(response.Guidance.Tips,
 		"Use `epf-cli templates show <artifact_type>` to see the current template structure")
+}
+
+// =============================================================================
+// Relationship Maintenance Tools
+// =============================================================================
+
+// handleAddImplementationReference handles the epf_add_implementation_reference tool
+func (s *Server) handleAddImplementationReference(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	featureID, err := request.RequireString("feature_id")
+	if err != nil {
+		return mcp.NewToolResultError("feature_id parameter is required"), nil
+	}
+
+	instancePath, err := request.RequireString("instance_path")
+	if err != nil {
+		return mcp.NewToolResultError("instance_path parameter is required"), nil
+	}
+
+	refType, err := request.RequireString("ref_type")
+	if err != nil {
+		return mcp.NewToolResultError("ref_type parameter is required"), nil
+	}
+
+	title, err := request.RequireString("title")
+	if err != nil {
+		return mcp.NewToolResultError("title parameter is required"), nil
+	}
+
+	url, err := request.RequireString("url")
+	if err != nil {
+		return mcp.NewToolResultError("url parameter is required"), nil
+	}
+
+	// Optional parameters
+	status, _ := request.RequireString("status")
+	description, _ := request.RequireString("description")
+
+	// Validate ref_type
+	validRefTypes := map[string]bool{
+		"spec": true, "issue": true, "pr": true, "code": true, "documentation": true, "test": true,
+	}
+	if !validRefTypes[refType] {
+		return mcp.NewToolResultError("ref_type must be one of: spec, issue, pr, code, documentation, test"), nil
+	}
+
+	// Create writer and add reference
+	writer := relationships.NewWriter(instancePath)
+	result, err := writer.AddImplementationReference(featureID, refType, title, url, status, description)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to add implementation reference: %s", err.Error())), nil
+	}
+
+	jsonBytes, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize response: %s", err.Error())), nil
+	}
+
+	return mcp.NewToolResultText(string(jsonBytes)), nil
+}
+
+// handleUpdateCapabilityMaturity handles the epf_update_capability_maturity tool
+func (s *Server) handleUpdateCapabilityMaturity(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	featureID, err := request.RequireString("feature_id")
+	if err != nil {
+		return mcp.NewToolResultError("feature_id parameter is required"), nil
+	}
+
+	instancePath, err := request.RequireString("instance_path")
+	if err != nil {
+		return mcp.NewToolResultError("instance_path parameter is required"), nil
+	}
+
+	capabilityID, err := request.RequireString("capability_id")
+	if err != nil {
+		return mcp.NewToolResultError("capability_id parameter is required"), nil
+	}
+
+	maturity, err := request.RequireString("maturity")
+	if err != nil {
+		return mcp.NewToolResultError("maturity parameter is required"), nil
+	}
+
+	evidence, err := request.RequireString("evidence")
+	if err != nil {
+		return mcp.NewToolResultError("evidence parameter is required"), nil
+	}
+
+	// Optional parameter
+	deliveredByKR, _ := request.RequireString("delivered_by_kr")
+
+	// Validate maturity level
+	validMaturity := map[string]bool{
+		"hypothetical": true, "emerging": true, "proven": true, "scaled": true,
+	}
+	if !validMaturity[maturity] {
+		return mcp.NewToolResultError("maturity must be one of: hypothetical, emerging, proven, scaled"), nil
+	}
+
+	// Create writer and update maturity
+	writer := relationships.NewWriter(instancePath)
+	result, err := writer.UpdateCapabilityMaturity(featureID, capabilityID, maturity, evidence, deliveredByKR)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to update capability maturity: %s", err.Error())), nil
+	}
+
+	jsonBytes, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize response: %s", err.Error())), nil
+	}
+
+	return mcp.NewToolResultText(string(jsonBytes)), nil
+}
+
+// handleAddMappingArtifact handles the epf_add_mapping_artifact tool
+func (s *Server) handleAddMappingArtifact(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	instancePath, err := request.RequireString("instance_path")
+	if err != nil {
+		return mcp.NewToolResultError("instance_path parameter is required"), nil
+	}
+
+	subComponentID, err := request.RequireString("sub_component_id")
+	if err != nil {
+		return mcp.NewToolResultError("sub_component_id parameter is required"), nil
+	}
+
+	artifactType, err := request.RequireString("artifact_type")
+	if err != nil {
+		return mcp.NewToolResultError("artifact_type parameter is required"), nil
+	}
+
+	url, err := request.RequireString("url")
+	if err != nil {
+		return mcp.NewToolResultError("url parameter is required"), nil
+	}
+
+	description, err := request.RequireString("description")
+	if err != nil {
+		return mcp.NewToolResultError("description parameter is required"), nil
+	}
+
+	// Validate artifact_type
+	validArtifactTypes := map[string]bool{
+		"code": true, "design": true, "documentation": true, "test": true,
+	}
+	if !validArtifactTypes[artifactType] {
+		return mcp.NewToolResultError("artifact_type must be one of: code, design, documentation, test"), nil
+	}
+
+	// Create writer and add artifact
+	writer := relationships.NewWriter(instancePath)
+	result, err := writer.AddMappingArtifact(subComponentID, artifactType, url, description)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to add mapping artifact: %s", err.Error())), nil
+	}
+
+	jsonBytes, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize response: %s", err.Error())), nil
+	}
+
+	return mcp.NewToolResultText(string(jsonBytes)), nil
+}
+
+// handleSuggestRelationships handles the epf_suggest_relationships tool
+func (s *Server) handleSuggestRelationships(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	instancePath, err := request.RequireString("instance_path")
+	if err != nil {
+		return mcp.NewToolResultError("instance_path parameter is required"), nil
+	}
+
+	artifactType, err := request.RequireString("artifact_type")
+	if err != nil {
+		return mcp.NewToolResultError("artifact_type parameter is required"), nil
+	}
+
+	artifactPath, err := request.RequireString("artifact_path")
+	if err != nil {
+		return mcp.NewToolResultError("artifact_path parameter is required"), nil
+	}
+
+	// Optional parameter
+	includeCodeAnalysisStr, _ := request.RequireString("include_code_analysis")
+	includeCodeAnalysis := strings.ToLower(includeCodeAnalysisStr) == "true"
+
+	// Validate artifact_type
+	validArtifactTypes := map[string]bool{
+		"feature": true, "code_file": true, "pr": true,
+	}
+	if !validArtifactTypes[artifactType] {
+		return mcp.NewToolResultError("artifact_type must be one of: feature, code_file, pr"), nil
+	}
+
+	// Create writer and suggest relationships
+	writer := relationships.NewWriter(instancePath)
+	result, err := writer.SuggestRelationships(artifactType, artifactPath, includeCodeAnalysis)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to suggest relationships: %s", err.Error())), nil
+	}
+
+	jsonBytes, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize response: %s", err.Error())), nil
+	}
+
+	return mcp.NewToolResultText(string(jsonBytes)), nil
 }
