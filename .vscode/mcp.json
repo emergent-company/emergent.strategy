@@ -1,5 +1,9 @@
 {
   "servers": {
+    "epf": {
+      "command": "./apps/epf-cli/epf-cli",
+      "args": ["serve", "--schemas-dir", "./docs/EPF/schemas"]
+    },
     // "figma": {
     //   "type": "http",
     //   "url": "http://127.0.0.1:3845/mcp"
