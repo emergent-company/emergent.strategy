@@ -28,6 +28,7 @@ var healthCmd = &cobra.Command{
   - Schema validation for all artifacts
   - Feature quality (personas, narratives, scenarios)
   - Cross-reference validation (feature dependencies)
+  - Relationships validation (contributes_to paths, KR targets)
   - Content readiness (placeholder detection)
   - Field coverage analysis (TRL, persona narratives)
   - Version alignment (artifact vs schema versions)
@@ -110,6 +111,7 @@ type HealthResult struct {
 	SchemaValidation *SchemaValidationSummary       `json:"schema_validation,omitempty"`
 	FeatureQuality   *checks.FeatureQualitySummary  `json:"feature_quality,omitempty"`
 	CrossReferences  *checks.CrossReferenceResult   `json:"cross_references,omitempty"`
+	Relationships    *checks.RelationshipsResult    `json:"relationships,omitempty"`
 	ContentReadiness *checks.ContentReadinessResult `json:"content_readiness,omitempty"`
 	FieldCoverage    *checks.FieldCoverageResult    `json:"field_coverage,omitempty"`
 	VersionAlignment *checks.VersionAlignmentResult `json:"version_alignment,omitempty"`
@@ -235,7 +237,27 @@ func runHealthCheck(instancePath string, schemasPath string) *HealthResult {
 		}
 	}
 
-	// 5. Content Readiness Check
+	// 5. Relationships Check (contributes_to paths, KR targets, coverage)
+	if !healthJSON {
+		fmt.Println("▶ Checking relationships...")
+	}
+	relationshipsChecker := checks.NewRelationshipsChecker(instancePath)
+	relationshipsResult, err := relationshipsChecker.Check()
+	if err == nil && relationshipsResult != nil {
+		result.Relationships = relationshipsResult
+		if relationshipsResult.HasErrors() {
+			result.HasErrors = true
+		}
+		if relationshipsResult.HasWarnings() {
+			result.HasWarnings = true
+		}
+	}
+
+	if !healthJSON && relationshipsResult != nil {
+		printRelationshipsSummary(relationshipsResult)
+	}
+
+	// 6. Content Readiness Check
 	if !healthJSON {
 		fmt.Println("▶ Checking content readiness...")
 	}
@@ -252,7 +274,7 @@ func runHealthCheck(instancePath string, schemasPath string) *HealthResult {
 		printContentReadinessSummary(contentResult)
 	}
 
-	// 6. Field Coverage Analysis
+	// 7. Field Coverage Analysis
 	if schemasPath != "" {
 		if !healthJSON {
 			fmt.Println("▶ Checking field coverage...")
@@ -276,7 +298,7 @@ func runHealthCheck(instancePath string, schemasPath string) *HealthResult {
 		}
 	}
 
-	// 7. Version Alignment Check
+	// 8. Version Alignment Check
 	if schemasPath != "" {
 		if !healthJSON {
 			fmt.Println("▶ Checking version alignment...")
@@ -295,7 +317,7 @@ func runHealthCheck(instancePath string, schemasPath string) *HealthResult {
 		}
 	}
 
-	// 8. Migration Status Check
+	// 9. Migration Status Check
 	if schemasPath != "" {
 		if !healthJSON {
 			fmt.Println("▶ Checking migration status...")
@@ -407,6 +429,17 @@ func calculateTiers(result *HealthResult) *HealthTiers {
 				fmt.Sprintf("Broken reference: %s -> %s", link.SourceFeatureID, link.TargetID))
 		}
 	}
+	// Invalid relationship paths are schema-level (wrong contributes_to or value_model_target)
+	if result.Relationships != nil && result.Relationships.InvalidPaths > 0 {
+		schemaIssues += result.Relationships.InvalidPaths
+		for _, err := range result.Relationships.Errors {
+			msg := fmt.Sprintf("Invalid path %s: %s", err.InvalidPath, err.Message)
+			if len(msg) > 70 {
+				msg = msg[:70] + "..."
+			}
+			tiers.Schema.Details = append(tiers.Schema.Details, msg)
+		}
+	}
 
 	tiers.Schema.Issues = schemaIssues
 	if schemaIssues == 0 {
@@ -418,7 +451,7 @@ func calculateTiers(result *HealthResult) *HealthTiers {
 		tiers.Schema.Summary = fmt.Sprintf("%d schema validation issues", schemaIssues)
 	}
 
-	// QUALITY TIER: Feature quality, content readiness, field coverage
+	// QUALITY TIER: Feature quality, content readiness, field coverage, relationship coverage
 	qualityDeductions := 0
 	qualityIssueCount := 0
 
@@ -705,6 +738,49 @@ func printCrossReferenceSummary(result *checks.CrossReferenceResult) {
 	if len(result.BrokenLinks) > 0 {
 		for _, link := range result.BrokenLinks {
 			fmt.Printf("    • %s -> %s (missing)\n", link.SourceFeatureID, link.TargetID)
+		}
+	}
+}
+
+func printRelationshipsSummary(result *checks.RelationshipsResult) {
+	icon := "✅"
+	if result.HasErrors() {
+		icon = "❌"
+	} else if result.HasWarnings() {
+		icon = "⚠️"
+	}
+
+	fmt.Printf("  %s Relationships: %d/%d paths valid (Score: %d/100, Grade: %s)\n",
+		icon, result.ValidPaths, result.TotalPathsChecked, result.Score, result.Grade)
+
+	// Show coverage info
+	if result.TotalPathsChecked > 0 {
+		fmt.Printf("    • Coverage: %.0f%% of value model\n", result.CoveragePercent)
+	}
+
+	// Show issues
+	if result.InvalidPaths > 0 {
+		fmt.Printf("    • %d invalid contributes_to/target paths\n", result.InvalidPaths)
+	}
+	if result.OrphanFeatures > 0 {
+		fmt.Printf("    • %d orphan features (no contributes_to)\n", result.OrphanFeatures)
+	}
+	if result.StrategicGaps > 0 {
+		fmt.Printf("    • %d strategic gaps (KR targets without features)\n", result.StrategicGaps)
+	}
+
+	// Show detailed errors in verbose mode
+	if healthVerbose && len(result.Errors) > 0 {
+		fmt.Println("    Errors:")
+		for i, err := range result.Errors {
+			if i >= 5 {
+				fmt.Printf("      ... and %d more errors\n", len(result.Errors)-5)
+				break
+			}
+			fmt.Printf("      - %s.%s: %s\n", err.Source, err.Field, err.Message)
+			if err.DidYouMean != "" {
+				fmt.Printf("        Did you mean: %s?\n", err.DidYouMean)
+			}
 		}
 	}
 }

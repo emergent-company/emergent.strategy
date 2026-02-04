@@ -1,18 +1,17 @@
-id: "fd-002"
-name: "Document Ingestion Pipeline"
-slug: "document-ingestion-pipeline"
-status: "delivered"
+id: 'fd-002'
+name: 'Document Ingestion Pipeline'
+slug: 'document-ingestion-pipeline'
+status: 'delivered'
 
 strategic_context:
   contributes_to:
-    - "Product.Core.DocumentProcessing"
-    - "Product.Core.ContentExtraction"
-    - "Product.Core.AutomaticIndexing"
+    - 'Product.CoreKnowledgePlatform.DocumentIntelligence.DocumentIngestion'
+    - 'Product.CoreKnowledgePlatform.DocumentIntelligence.EntityExtraction'
   tracks:
-    - "product"
+    - 'product'
   assumptions_tested:
-    - "asm-p-003" # LLM-based extraction improves accuracy over rule-based approaches
-    - "asm-p-004" # Chunking at 1000 tokens provides good semantic coherence
+    - 'asm-p-003' # LLM-based extraction improves accuracy over rule-based approaches
+    - 'asm-p-004' # Chunking at 1000 tokens provides good semantic coherence
 
 definition:
   job_to_be_done: |
@@ -29,296 +28,402 @@ definition:
     - Automatic embedding generation and indexing
     - Background job queue with progress tracking
 
+  personas:
+    - id: 'content-administrator'
+      name: 'Sarah Chen'
+      role: 'Content Administrator'
+      description: 'Manages document uploads and maintains the organizational knowledge repository'
+      goals:
+        - 'Upload large batches of documents quickly without technical complexity'
+        - 'Track processing status to ensure all documents are successfully ingested'
+        - 'Organize content so team members can find what they need'
+      pain_points:
+        - 'Current manual processes require copying and pasting text from each document'
+        - 'No visibility into whether uploaded documents were processed correctly'
+        - "Can't handle multiple file formats without converting everything to PDF first"
+      usage_context: 'Daily document uploads from various departments, monitoring ingestion progress, and organizing content by project'
+      technical_proficiency: 'basic'
+      current_situation: |
+        Sarah spends hours each week manually processing documents for the knowledge base. She receives files in every format imaginable—PDFs from legal, Word docs from marketing, text exports from the CRM. Each document requires her to open it, copy the text, paste it into a form, and hope the formatting survives. She has no way to verify if documents were indexed correctly until someone complains they can't find something. Her inbox is full of requests asking "did my document get uploaded?" that she can't easily answer.
+      transformation_moment: |
+        Sarah discovers she can simply drag all her pending documents into the upload zone at once. She watches the progress indicators show each file moving through extraction, chunking, and indexing stages. When marketing asks about their campaign brief, she pulls up the job dashboard and shows them it completed successfully an hour ago. She realizes she just saved herself an entire afternoon of copy-paste work and can finally focus on content organization instead of data entry.
+      emotional_resolution: |
+        Sarah feels a profound sense of relief and professional growth. What used to be her most dreaded weekly task—the document upload marathon—now takes minutes instead of hours. She has confidence in the system because she can see exactly what happened to each document. Her colleagues now view her as someone who makes things happen efficiently rather than a bottleneck. She has time to improve how content is organized, making her a strategic contributor instead of a data entry clerk.
+      demographics:
+        age_range: '25-45'
+        experience_years: '2-8 years in administrative or content roles'
+        company_size: 'Mid-market to Enterprise (100-5,000 employees)'
+        industry: ['Professional Services', 'Healthcare', 'Legal', 'Education']
+        geography: 'Office-based or hybrid work environments'
+        education: "Bachelor's degree, often in communications, business, or library science"
+        reporting_structure: 'Reports to Department Manager or Knowledge Management Lead'
+      psychographics:
+        values: ['Organization', 'Reliability', 'Efficiency', 'Helpfulness']
+        motivations:
+          [
+            'Keep systems running smoothly',
+            'Help colleagues find information',
+            'Reduce chaos',
+          ]
+        fears:
+          [
+            'Falling behind on uploads',
+            'Being blamed for missing documents',
+            'System failures',
+          ]
+        decision_style: 'Process-oriented, prefers clear procedures and checklists'
+        information_sources:
+          ['Internal wikis', 'Email from colleagues', 'Department meetings']
+        communication_preferences: 'Clear status updates, visual progress indicators, confirmation receipts'
+
+    - id: 'data-engineer'
+      name: 'Marcus Rodriguez'
+      role: 'Data Engineer'
+      description: 'Configures and optimizes document processing pipelines for enterprise-scale ingestion'
+      goals:
+        - 'Configure chunking parameters to optimize retrieval quality for different document types'
+        - 'Monitor pipeline performance and identify bottlenecks in processing'
+        - 'Ensure extraction accuracy meets quality thresholds before content reaches production'
+      pain_points:
+        - 'Generic chunking settings produce poor results for technical documentation with code blocks'
+        - 'No programmatic access to tune extraction parameters without redeploying'
+        - 'Debugging failed extractions requires digging through unstructured logs'
+      usage_context: 'Pipeline configuration, performance optimization, extraction quality validation, and troubleshooting failed jobs'
+      technical_proficiency: 'advanced'
+      current_situation: |
+        Marcus maintains multiple document processing pipelines across the organization, each with different requirements. Legal needs precise citation preservation, engineering needs code blocks handled correctly, and research needs academic reference extraction. Currently, all documents go through the same generic pipeline, producing mediocre results everywhere. When extraction fails, he spends hours correlating timestamps across different logging systems. He has built custom scripts to work around limitations, but they break every time the underlying system updates. His team is losing confidence in automated extraction.
+      transformation_moment: |
+        Marcus configures document-type-specific chunking rules through the API—1500 tokens for technical docs with code fence preservation, 800 tokens for dense legal text with paragraph boundaries respected. He sets up a webhook that alerts him to extraction failures with full context: the document, the stage that failed, and the specific error. When engineering reports that code samples are being split mid-function, he adjusts the chunking config and reprocesses only the affected documents. The fix propagates to all future uploads automatically.
+      emotional_resolution: |
+        Marcus feels genuinely empowered as a data professional. The pipeline is no longer a black box he has to work around—it's a configurable system he can tune for each use case. His custom scripts are retired in favor of official APIs that won't break. When stakeholders ask about extraction quality, he can show them metrics and explain exactly how the system handles their document types. He has gone from firefighting extraction failures to proactively optimizing retrieval quality. His expertise is now visible and valued.
+      demographics:
+        age_range: '28-42'
+        experience_years: '5-12 years in data engineering or software development'
+        company_size: 'Mid-market to Enterprise (500-10,000 employees)'
+        industry:
+          ['Technology', 'Financial Services', 'Healthcare', 'E-commerce']
+        geography: 'Global, primarily tech hubs with remote work flexibility'
+        education: "Bachelor's or Master's in Computer Science, Data Science, or related field"
+        reporting_structure: 'Reports to Director of Data Engineering or VP of Engineering'
+      psychographics:
+        values:
+          [
+            'Technical excellence',
+            'System reliability',
+            'Automation',
+            'Clean architecture',
+          ]
+        motivations:
+          [
+            'Build robust systems',
+            'Eliminate manual toil',
+            'Solve complex technical challenges',
+            'Have measurable impact',
+          ]
+        fears:
+          [
+            'System outages',
+            'Technical debt accumulation',
+            'Being blocked by vendor limitations',
+            'Losing control of critical pipelines',
+          ]
+        decision_style: 'Data-driven and experimental, prefers proof-of-concept before full implementation'
+        information_sources:
+          [
+            'Technical documentation',
+            'Engineering blogs',
+            'Stack Overflow',
+            'Conference talks',
+            'GitHub repositories',
+          ]
+        communication_preferences: 'Slack for quick questions, detailed technical specs for complex decisions, code reviews for collaboration'
+
+    - id: 'compliance-officer'
+      name: 'Dr. Amara Okonkwo'
+      role: 'Compliance Officer'
+      description: 'Ensures document processing meets regulatory requirements with complete audit trails'
+      goals:
+        - 'Maintain complete audit trails showing exactly how each document was processed'
+        - 'Verify that sensitive documents are handled according to data governance policies'
+        - 'Generate compliance reports demonstrating proper document handling procedures'
+      pain_points:
+        - 'No way to prove which version of a document was indexed at a specific time'
+        - 'Cannot trace extracted entities back to their source documents for verification'
+        - 'Manual audit processes require reconstructing processing history from fragments'
+      usage_context: 'Audit trail verification, compliance reporting, data lineage investigation, and regulatory documentation'
+      technical_proficiency: 'intermediate'
+      current_situation: |
+        Amara is responsible for demonstrating that the organization handles documents according to regulatory requirements. During the last audit, she spent two weeks manually reconstructing the processing history of fifty documents. She had to interview team members, search email threads, and cross-reference file timestamps to prove when documents were ingested and what happened to them. Some questions simply couldn't be answered—the information was never recorded. The auditors noted this as a finding, and now leadership is asking for a remediation plan. She knows they need better systems, but "better logging" is hard to turn into a budget request.
+      transformation_moment: |
+        During a routine audit, the auditor asks about a specific contract document. Amara pulls up the document in the system and shows the complete processing timeline: upload timestamp, user who initiated it, extraction job ID, each processing stage with duration, the exact chunks created, and the entities extracted with confidence scores. She generates a lineage report showing how extracted entities are linked back to specific passages in the source document. The auditor completes that section of the review in twenty minutes instead of two days.
+      emotional_resolution: |
+        Amara feels a weight lifted from her shoulders. Compliance is no longer about hoping she can reconstruct what happened—the system maintains a complete, immutable audit trail automatically. She presents the new capabilities to the audit committee and receives genuine appreciation for addressing their previous findings. When colleagues ask about data governance, she can give them concrete answers instead of educated guesses. She has transformed from someone who documents problems after the fact to someone who prevents them through systematic controls.
+      demographics:
+        age_range: '35-55'
+        experience_years: '10-20 years in compliance, legal, or risk management'
+        company_size: 'Enterprise (1,000-50,000 employees)'
+        industry:
+          ['Financial Services', 'Healthcare', 'Pharmaceuticals', 'Government']
+        geography: 'Regulated markets with strong data protection laws'
+        education: 'Advanced degree (JD, PhD, or MBA) with compliance certifications (CIPP, CRISC)'
+        reporting_structure: 'Reports to Chief Compliance Officer, General Counsel, or Board Audit Committee'
+      psychographics:
+        values:
+          ['Integrity', 'Accountability', 'Transparency', 'Risk mitigation']
+        motivations:
+          [
+            'Protect the organization',
+            'Ensure regulatory compliance',
+            'Build defensible processes',
+            'Reduce audit findings',
+          ]
+        fears:
+          [
+            'Regulatory penalties',
+            'Audit failures',
+            'Reputational damage',
+            'Inability to demonstrate compliance',
+          ]
+        decision_style: 'Risk-averse, requires documented justification and audit trail for all decisions'
+        information_sources:
+          [
+            'Regulatory bulletins',
+            'Industry compliance forums',
+            'Legal counsel',
+            'Audit reports',
+            'Professional associations',
+          ]
+        communication_preferences: 'Formal written documentation, structured meetings with agendas, audit-ready reports'
+
+    - id: 'knowledge-manager'
+      name: 'James Thornton'
+      role: 'Knowledge Manager'
+      description: 'Curates ingested content to build coherent, navigable knowledge structures for the organization'
+      goals:
+        - 'Review and refine extracted entities to ensure knowledge graph accuracy'
+        - 'Connect related concepts across documents to build meaningful knowledge structures'
+        - 'Maintain consistent taxonomy and naming conventions across the knowledge base'
+      pain_points:
+        - 'Automated extraction creates duplicate entities with slightly different names'
+        - 'No preview of what will be extracted before committing to the knowledge graph'
+        - 'Fixing extraction errors requires technical skills beyond typical knowledge work'
+      usage_context: 'Entity review and curation, taxonomy management, knowledge graph refinement, and extraction quality improvement'
+      technical_proficiency: 'intermediate'
+      current_situation: |
+        James is responsible for the quality of the organizational knowledge graph, but he feels like he is constantly cleaning up after automated processes. The extraction system creates "Microsoft Corporation," "Microsoft Corp," and "MSFT" as three separate entities. He spends hours merging duplicates and correcting misclassified entities. When he asks to review extractions before they go live, the engineering team says it would require a custom development project. His carefully curated taxonomy is slowly being diluted by low-quality automated additions. He has started manually processing critical documents outside the system to maintain control, defeating the purpose of automation entirely.
+      transformation_moment: |
+        James uses the Discovery Wizard to process a batch of strategic planning documents. Before anything touches the knowledge graph, he sees a preview table showing each extracted entity with its type, confidence score, and source passage. He spots that "Q4 Initiative" and "Fourth Quarter Initiative" both appear and merges them with a click. He changes "Strategy" from a generic concept to his specific "Strategic Framework" taxonomy term. Low-confidence extractions are flagged for his review. He commits the curated entities, knowing exactly what will be added to the graph. The next batch automatically applies his merge rules.
+      emotional_resolution: |
+        James feels like a true knowledge architect instead of a data janitor. The system respects his expertise by giving him control at the right moment—after extraction, before commitment. His taxonomy decisions persist and improve future extractions automatically. When leadership asks about knowledge graph quality, he can show them the curation workflow and the improving accuracy metrics. He has gone from fighting the automation to collaborating with it. His vision of a coherent organizational knowledge structure is finally achievable because the tools support his work instead of undermining it.
+      demographics:
+        age_range: '32-50'
+        experience_years: '7-15 years in knowledge management, library science, or information architecture'
+        company_size: 'Mid-market to Enterprise (500-20,000 employees)'
+        industry:
+          [
+            'Consulting',
+            'Professional Services',
+            'Research',
+            'Technology',
+            'Pharmaceuticals',
+          ]
+        geography: 'Knowledge-intensive organizations, often with distributed teams'
+        education: "Master's in Library Science, Information Management, or related field"
+        reporting_structure: 'Reports to Chief Knowledge Officer, VP of Operations, or Head of Research'
+      psychographics:
+        values:
+          [
+            'Knowledge quality',
+            'Organizational learning',
+            'Semantic precision',
+            'Institutional memory',
+          ]
+        motivations:
+          [
+            'Build lasting knowledge assets',
+            'Enable organizational intelligence',
+            'Create order from chaos',
+            'Be recognized as a knowledge authority',
+          ]
+        fears:
+          [
+            'Knowledge degradation',
+            'Losing control to automation',
+            'Taxonomy pollution',
+            'Being seen as overhead rather than value-add',
+          ]
+        decision_style: 'Deliberate and quality-focused, prefers review cycles and validation before publishing'
+        information_sources:
+          [
+            'Knowledge management communities',
+            'Taxonomy standards bodies',
+            'Academic research',
+            'Vendor documentation',
+            'Internal usage analytics',
+          ]
+        communication_preferences: 'Structured documentation, visual taxonomy diagrams, collaborative editing sessions'
+
   capabilities:
-    - id: "cap-006"
-      name: "Multi-Format Document Upload"
-      description: "Accept PDF, DOCX, TXT, Markdown with automatic format detection"
-    
-    - id: "cap-007"
-      name: "Semantic Chunking"
-      description: "Split documents into semantically coherent chunks (~1000 tokens) while preserving context"
-    
-    - id: "cap-008"
-      name: "LLM Entity Extraction"
-      description: "Extract structured entities, relationships, and metadata using LLM prompts"
-    
-    - id: "cap-009"
-      name: "Automatic Embedding"
-      description: "Generate vector embeddings for chunks and extracted entities via Vertex AI"
-    
-    - id: "cap-010"
-      name: "Background Job Processing"
-      description: "Queue-based ingestion with status tracking and error handling"
-    
-    - id: "cap-011"
-      name: "Discovery Workflow"
-      description: "User-guided extraction targeting specific entity types and relationships"
+    - id: 'cap-006'
+      name: 'Multi-Format Document Upload'
+      description: 'Accept PDF, DOCX, TXT, Markdown with automatic format detection'
+
+    - id: 'cap-007'
+      name: 'Semantic Chunking'
+      description: 'Split documents into semantically coherent chunks (~1000 tokens) while preserving context'
+
+    - id: 'cap-008'
+      name: 'LLM Entity Extraction'
+      description: 'Extract structured entities, relationships, and metadata using LLM prompts'
+
+    - id: 'cap-009'
+      name: 'Automatic Embedding'
+      description: 'Generate vector embeddings for chunks and extracted entities via Vertex AI'
+
+    - id: 'cap-010'
+      name: 'Background Job Processing'
+      description: 'Queue-based ingestion with status tracking and error handling'
+
+    - id: 'cap-011'
+      name: 'Discovery Workflow'
+      description: 'User-guided extraction targeting specific entity types and relationships'
 
 implementation:
   design_guidance:
     principles:
-      - "Automatic where possible, guided where necessary (minimize manual configuration)"
-      - "Preserve original documents unchanged (immutable source of truth)"
-      - "Graceful degradation on extraction failures (never block pipeline completely)"
+      - 'Automatic where possible, guided where necessary (minimize manual configuration)'
+      - 'Preserve original documents unchanged (immutable source of truth)'
+      - 'Graceful degradation on extraction failures (never block pipeline completely)'
       - "Transparent progress visibility (users see what's happening at each stage)"
-    
+
     inspirations:
-      - name: "Notion Import Experience"
-        aspect: "Drag-and-drop simplicity with instant visual feedback"
-      
-      - name: "Roam Research Auto-linking"
-        aspect: "Automatic entity recognition and bidirectional linking"
-      
-      - name: "Dataiku Pipeline Monitoring"
-        aspect: "Clear visualization of multi-stage processing with progress tracking"
-      
-      - name: "GitHub Actions Workflow Logs"
-        aspect: "Expandable step-by-step logs showing exactly what happened"
-    
+      - 'Notion Import Experience - Drag-and-drop simplicity with instant visual feedback'
+      - 'Roam Research Auto-linking - Automatic entity recognition and bidirectional linking'
+      - 'Dataiku Pipeline Monitoring - Clear visualization of multi-stage processing with progress tracking'
+      - 'GitHub Actions Workflow Logs - Expandable step-by-step logs showing exactly what happened'
+
     interaction_patterns:
-      - pattern: "Optimistic Upload"
-        description: "Files appear in UI immediately; processing happens in background"
-      
-      - pattern: "Progressive Disclosure"
-        description: "Basic upload requires no configuration; power users access Discovery wizard"
-      
-      - pattern: "Status Polling"
-        description: "Frontend polls job status endpoints to update progress bars in real-time"
-      
-      - pattern: "Entity Preview & Confirm"
-        description: "Discovery workflow shows extracted entities before committing to graph"
+      - 'Optimistic Upload - Files appear in UI immediately; processing happens in background'
+      - 'Progressive Disclosure - Basic upload requires no configuration; power users access Discovery wizard'
+      - 'Status Polling - Frontend polls job status endpoints to update progress bars in real-time'
+      - 'Entity Preview & Confirm - Discovery workflow shows extracted entities before committing to graph'
 
   contexts:
-    - id: "ctx-003"
-      type: "api"
-      name: "Document Upload API"
-      description: "REST endpoints for uploading files and triggering background ingestion"
-      
+    - id: 'ctx-003'
+      type: 'api'
+      name: 'Document Upload API'
+      description: 'REST endpoints for uploading files and triggering background ingestion'
+
       key_interactions:
-        - "POST /api/documents/bulk → Upload multiple files (multipart/form-data)"
-        - "GET /api/extraction-jobs/{id}/status → Poll ingestion progress"
-        - "DELETE /api/extraction-jobs/{id} → Cancel running job"
-      
+        - 'POST /api/documents/bulk → Upload multiple files (multipart/form-data)'
+        - 'GET /api/extraction-jobs/{id}/status → Poll ingestion progress'
+        - 'DELETE /api/extraction-jobs/{id} → Cancel running job'
+
       data_displayed:
-        - "Job ID and status (queued|running|completed|failed)"
-        - "Progress metrics (processed_items/total_items)"
-        - "Current pipeline stage (extracting|chunking|embedding|indexing)"
-        - "Error messages with actionable guidance"
-    
-    - id: "ctx-004"
-      type: "ui"
-      name: "Document Upload Interface"
-      description: "Admin dashboard for drag-and-drop upload and job monitoring"
-      
+        - 'Job ID and status (queued|running|completed|failed)'
+        - 'Progress metrics (processed_items/total_items)'
+        - 'Current pipeline stage (extracting|chunking|embedding|indexing)'
+        - 'Error messages with actionable guidance'
+
+    - id: 'ctx-004'
+      type: 'ui'
+      name: 'Document Upload Interface'
+      description: 'Admin dashboard for drag-and-drop upload and job monitoring'
+
       key_interactions:
-        - "Drag files onto drop zone → Instant upload start with progress indicators"
+        - 'Drag files onto drop zone → Instant upload start with progress indicators'
         - "Click 'View Details' on job card → Expand to show per-document status"
         - "Click 'Cancel' button → Abort in-progress extraction job"
-      
-      data_displayed:
-        - "Grid of active and queued jobs with thumbnail previews"
-        - "Per-job progress bars showing chunking/extraction/embedding stages"
-        - "Estimated time remaining based on average throughput"
-        - "Success/failure badges on completed jobs"
-    
-    - id: "ctx-005"
-      type: "ui"
-      name: "Discovery Wizard"
-      description: "Guided workflow for targeted entity extraction with user review"
-      
-      key_interactions:
-        - "Select documents from library → Add to extraction batch"
-        - "Choose entity types from dropdown (People, Companies, Concepts, etc.)"
-        - "Provide KB purpose context → Guide LLM extraction focus"
-        - "Review extracted entities table → Edit/delete before committing"
-        - "Click 'Commit to Graph' → Create/link entities in knowledge graph"
-      
-      data_displayed:
-        - "Document selector with upload date and size metadata"
-        - "Entity type multi-select with custom type input"
-        - "KB purpose textarea (populated from project settings)"
-        - "Preview table: Entity Name | Type | Confidence | Source Chunk | Actions"
-        - "Commit button (disabled until entities reviewed)"
 
-scenarios:
-  - id: "scn-004"
-    name: "Bulk Document Upload"
-    actor: "Content Manager"
-    context: "ctx-003"
-    trigger: "User selects 10 research reports to upload via API"
-    
-    action: |
-      1. User sends POST /api/documents/bulk with multipart/form-data (10 PDF files)
-      2. API validates file types (all PDFs < 50MB each)
-      3. API creates 10 document records with status 'uploading'
-      4. API returns array of job IDs for tracking
-      5. Background workers begin extraction pipeline for each document
-    
-    outcome: |
-      - All 10 documents successfully queued for processing
-      - User receives job IDs to poll for progress
-      - Documents appear in UI with "Processing..." badges
-      - Background jobs complete within 10-15 minutes average
-    
-    acceptance_criteria:
-      - "API accepts up to 10 files per request (configurable limit)"
-      - "Each file validated for type (PDF, DOCX, TXT, MD) and size (< 50MB)"
-      - "Job IDs returned immediately (< 500ms response time)"
-      - "Error messages specify which files failed validation and why"
-  
-  - id: "scn-005"
-    name: "Ingestion Status Check"
-    actor: "Content Manager"
-    context: "ctx-003"
-    trigger: "User wants to track extraction progress for uploaded documents"
-    
-    action: |
-      1. User polls GET /api/extraction-jobs/123/status every 2 seconds
-      2. API returns current job status:
-         - status: "running"
-         - stage: "extracting"
-         - processed_items: 3
-         - total_items: 10
-         - successful_items: 3
-         - failed_items: 0
-      3. Frontend updates progress bar to 30% with "Extracting entities..." label
-    
-    outcome: |
-      - User sees real-time progress without refreshing page
-      - Progress bar shows accurate percentage (processed/total)
-      - Current stage label updates (uploading → extracting → chunking → embedding → complete)
-      - Errors surface immediately with actionable messages
-    
-    acceptance_criteria:
-      - "Status endpoint returns within 100ms (cached job state)"
-      - "Stage transitions visible (extracting → chunking → embedding → complete)"
-      - "Progress metrics accurate (processed_items updated after each document)"
-      - "Error messages include document filename and specific failure reason"
-  
-  - id: "scn-006"
-    name: "Upload Progress Dashboard"
-    actor: "Content Manager"
-    context: "ctx-004"
-    trigger: "User navigates to Documents admin page to monitor ongoing ingestion"
-    
-    action: |
-      1. User opens /admin/documents page
-      2. UI loads active extraction jobs from backend
-      3. Dashboard displays grid of job cards:
-         - Job ID, document count, start time
-         - Progress bar (30% - Extracting entities)
-         - "View Details" and "Cancel" buttons
-      4. Every 3 seconds, UI polls job status endpoints and updates progress bars
-      5. When job completes, card shows "Complete ✓" badge with summary stats
-    
-    outcome: |
-      - User sees all active/queued jobs at a glance
-      - Progress bars update in real-time without page refresh
-      - Completed jobs show success/failure summary
-      - User can cancel jobs that are taking too long or were uploaded in error
-    
-    acceptance_criteria:
-      - "Dashboard shows active and queued jobs (not completed/failed older than 24h)"
-      - "Progress bars accurate to nearest 5% (avoid jitter from frequent updates)"
-      - "Cancel button disables after clicked (prevent duplicate cancel requests)"
-      - "Job cards auto-remove from view 5 seconds after completion"
-  
-  - id: "scn-007"
-    name: "Targeted Entity Extraction via Discovery"
-    actor: "Researcher"
-    context: "ctx-005"
-    trigger: "User wants to extract specific entity types (e.g., 'Technologies', 'Methodologies') from research papers"
-    
-    action: |
-      1. User opens Discovery Wizard from Documents page
-      2. User selects 5 academic papers from document library
-      3. User specifies target entity types: "Technologies", "Methodologies", "Research Institutions"
-      4. User provides KB purpose: "Analyze emerging AI research trends and methodologies"
-      5. System triggers LLM extraction with focused prompts (not full auto-extraction)
-      6. After 2-3 minutes, preview table shows ~50 extracted entities:
-         - Entity: "Transformer Architecture" | Type: Technology | Confidence: 95% | Source: paper-1.pdf chunk 3
-         - Entity: "Few-Shot Learning" | Type: Methodology | Confidence: 88% | Source: paper-2.pdf chunk 7
-      7. User reviews table, edits 3 entity names, deletes 2 low-confidence duplicates
-      8. User clicks "Commit to Graph" → 48 entities created/linked in knowledge graph
-    
-    outcome: |
-      - User successfully extracts targeted entities without processing irrelevant content
-      - Preview allows quality control before polluting knowledge graph
-      - Entity types align with user's research focus (not generic extraction)
-      - Knowledge graph gains 48 new nodes with proper type classification
-    
-    acceptance_criteria:
-      - "Extraction focuses on user-specified entity types (not open-ended extraction)"
-      - "Preview table shows confidence scores (< 70% flagged for review)"
-      - "User can edit entity names and types in preview table"
-      - "Commit operation atomic (all-or-nothing to prevent partial graph corruption)"
-      - "Duplicate detection prevents creating redundant entities (fuzzy name matching)"
+      data_displayed:
+        - 'Grid of active and queued jobs with thumbnail previews'
+        - 'Per-job progress bars showing chunking/extraction/embedding stages'
+        - 'Estimated time remaining based on average throughput'
+        - 'Success/failure badges on completed jobs'
+
+    - id: 'ctx-005'
+      type: 'ui'
+      name: 'Discovery Wizard'
+      description: 'Guided workflow for targeted entity extraction with user review'
+
+      key_interactions:
+        - 'Select documents from library → Add to extraction batch'
+        - 'Choose entity types from dropdown (People, Companies, Concepts, etc.)'
+        - 'Provide KB purpose context → Guide LLM extraction focus'
+        - 'Review extracted entities table → Edit/delete before committing'
+        - "Click 'Commit to Graph' → Create/link entities in knowledge graph"
+
+      data_displayed:
+        - 'Document selector with upload date and size metadata'
+        - 'Entity type multi-select with custom type input'
+        - 'KB purpose textarea (populated from project settings)'
+        - 'Preview table: Entity Name | Type | Confidence | Source Chunk | Actions'
+        - 'Commit button (disabled until entities reviewed)'
+
+  scenarios:
+    - id: 'scn-004'
+      name: 'Bulk Document Upload'
+      actor: 'Content Manager'
+      context: 'User is on the Document Upload API ready to upload research reports in bulk'
+      trigger: 'User selects 10 research reports to upload via API'
+      action: 'Sends POST /api/documents/bulk with multipart/form-data (10 PDF files)'
+      outcome: 'All 10 documents successfully queued for processing with job IDs returned'
+      acceptance_criteria:
+        - 'API accepts up to 10 files per request (configurable limit)'
+        - 'Each file validated for type (PDF, DOCX, TXT, MD) and size (< 50MB)'
+        - 'Job IDs returned immediately (< 500ms response time)'
+        - 'Error messages specify which files failed validation and why'
+
+    - id: 'scn-005'
+      name: 'Ingestion Status Check'
+      actor: 'Content Manager'
+      context: 'User has uploaded documents and wants to track extraction progress'
+      trigger: 'User wants to track extraction progress for uploaded documents'
+      action: 'Polls GET /api/extraction-jobs/123/status every 2 seconds to monitor progress'
+      outcome: 'User sees real-time progress with current stage and processed/total counts'
+      acceptance_criteria:
+        - 'Status endpoint returns within 100ms (cached job state)'
+        - 'Stage transitions visible (extracting → chunking → embedding → complete)'
+        - 'Progress metrics accurate (processed_items updated after each document)'
+        - 'Error messages include document filename and specific failure reason'
+
+    - id: 'scn-006'
+      name: 'Upload Progress Dashboard'
+      actor: 'Content Manager'
+      context: 'User is on the Documents admin page monitoring ongoing ingestion'
+      trigger: 'User navigates to Documents admin page to monitor ongoing ingestion'
+      action: 'Opens /admin/documents page and views active extraction jobs with progress'
+      outcome: 'User sees all active/queued jobs with real-time progress updates'
+      acceptance_criteria:
+        - 'Dashboard shows active and queued jobs (not completed/failed older than 24h)'
+        - 'Progress bars accurate to nearest 5% (avoid jitter from frequent updates)'
+        - 'Cancel button disables after clicked (prevent duplicate cancel requests)'
+        - 'Job cards auto-remove from view 5 seconds after completion'
+
+    - id: 'scn-007'
+      name: 'Targeted Entity Extraction via Discovery'
+      actor: 'Researcher'
+      context: 'User is in the Discovery Wizard to extract specific entity types from research papers'
+      trigger: "User wants to extract specific entity types (e.g., 'Technologies', 'Methodologies') from research papers"
+      action: 'Selects documents, specifies entity types, provides KB purpose, reviews extracted entities, and commits to graph'
+      outcome: 'User successfully extracts and commits targeted entities to knowledge graph'
+      acceptance_criteria:
+        - 'Extraction focuses on user-specified entity types (not open-ended extraction)'
+        - 'Preview table shows confidence scores (< 70% flagged for review)'
+        - 'User can edit entity names and types in preview table'
+        - 'Commit operation atomic (all-or-nothing to prevent partial graph corruption)'
+        - 'Duplicate detection prevents creating redundant entities (fuzzy name matching)'
 
 dependencies:
   requires:
-    - id: "fd-001"
-      name: "Knowledge Graph Engine"
-      reason: "Extracted entities must be stored in graph with proper relationships"
-    
-    - id: "cap-001"
-      name: "Graph Object CRUD"
-      reason: "Pipeline creates graph objects for extracted entities"
-    
-    - id: "cap-003"
-      name: "Vector Search"
-      reason: "Chunk embeddings enable semantic search after ingestion"
-  
+    - id: 'fd-001'
+      name: 'Knowledge Graph Engine'
+      reason: 'Extracted entities must be stored in graph for semantic discovery and relationship navigation'
+
   enables:
-    - id: "fd-003"
-      name: "AI-Native Chat Interface"
-      reason: "Ingested documents provide searchable knowledge base for chat"
-    
-    - id: "fd-005"
-      name: "Template Packs System"
-      reason: "Template-driven extraction relies on ingestion pipeline infrastructure"
-
-      purpose: "LLM extraction (Gemini) and embeddings"
-      criticality: "critical"
-    
-    - service: "File storage (local or cloud)"
-      purpose: "Original document persistence"
-      criticality: "high"
-
-risks_and_mitigations:
-  - risk: "LLM extraction failures on complex documents"
-    likelihood: "medium"
-    impact: "medium"
-    mitigation: "Fallback to simpler extraction; manual review mode; store raw text for reprocessing"
-  
-  - risk: "Large document processing times exceed user patience"
-    likelihood: "high"
-    impact: "medium"
-    mitigation: "Clear progress indicators; email notifications; incremental results display"
-  
-  - risk: "Chunking splits important entities across boundaries"
-    likelihood: "medium"
-    impact: "low"
-    mitigation: "Overlap between chunks; entity linking across chunks; user can adjust chunk size"
-
-current_state:
-  implementation_status: "shipped"
-  version: "1.0"
-  deployed_environments:
-    - "production"
-    - "staging"
-  known_limitations:
-    - "No OCR for scanned PDFs"
-    - "Limited to English language extraction"
-    - "Extraction job retry logic basic (max 3 attempts)"
-    - "No support for structured data formats (CSV, Excel)"
-
-metadata:
-  created_at: "2025-12-16"
-  created_by: "Nikolai Fasting"
-  last_updated: "2025-12-16"
-  tags:
-    - "document-processing"
-    - "llm-extraction"
-    - "ingestion-pipeline"
-    - "chunking"
-    - "background-jobs"
+    - id: 'fd-003'
+      name: 'AI-Native Chat Interface'
+      reason: 'Ingested documents provide searchable knowledge base for RAG-powered chat responses'
+    - id: 'fd-005'
+      name: 'Template Packs System'
+      reason: 'Template-driven extraction relies on ingestion pipeline for document processing'

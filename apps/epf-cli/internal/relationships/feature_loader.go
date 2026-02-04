@@ -35,6 +35,13 @@ type Capability struct {
 	Description string `yaml:"description"`
 }
 
+// DependencyRef represents a reference to another feature in dependencies.
+type DependencyRef struct {
+	ID     string `yaml:"id"`
+	Name   string `yaml:"name"`
+	Reason string `yaml:"reason"`
+}
+
 // FeatureDefinition represents a feature definition that defines
 // solution specifications for a user problem.
 type FeatureDefinition struct {
@@ -49,8 +56,8 @@ type FeatureDefinition struct {
 		Capabilities     []Capability `yaml:"capabilities"`
 	} `yaml:"definition"`
 	Dependencies struct {
-		Requires []string `yaml:"requires"`
-		Enables  []string `yaml:"enables"`
+		Requires []DependencyRef `yaml:"requires"`
+		Enables  []DependencyRef `yaml:"enables"`
 	} `yaml:"dependencies"`
 
 	// FilePath is set by the loader to indicate where this was loaded from.
@@ -299,7 +306,7 @@ func NewFeatureIndex(set *FeatureSet) *FeatureIndex {
 
 		// Index by dependency (features this feature requires)
 		for _, dep := range feature.Dependencies.Requires {
-			idx.ByDependency[dep] = append(idx.ByDependency[dep], entry)
+			idx.ByDependency[dep.ID] = append(idx.ByDependency[dep.ID], entry)
 		}
 	}
 

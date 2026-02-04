@@ -110,15 +110,15 @@ func (a *Analyzer) GetStrategicContext(featureIDOrSlug string) (*StrategicContex
 	}
 
 	// Find dependent features (features this feature enables)
-	for _, enabledID := range feature.Dependencies.Enables {
-		if enabledFeature, ok := a.features.GetFeature(enabledID); ok {
+	for _, enabled := range feature.Dependencies.Enables {
+		if enabledFeature, ok := a.features.GetFeature(enabled.ID); ok {
 			result.EnablesFeatures = append(result.EnablesFeatures, enabledFeature)
 		}
 	}
 
 	// Find dependency features (features this feature requires)
-	for _, requiredID := range feature.Dependencies.Requires {
-		if requiredFeature, ok := a.features.GetFeature(requiredID); ok {
+	for _, required := range feature.Dependencies.Requires {
+		if requiredFeature, ok := a.features.GetFeature(required.ID); ok {
 			result.RequiresFeatures = append(result.RequiresFeatures, requiredFeature)
 		}
 	}

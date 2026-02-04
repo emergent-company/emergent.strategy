@@ -12,607 +12,243 @@
 #     - Emergent Core: The Brain - Intelligence, memory, and reasoning
 #     - EPF-Runtime: The Nervous System - Orchestration and coordination
 #     - Emergent Tools: The Circulatory System - Connectors, bridges, interfaces
-#   
+#
 #   NOTE: EPF Framework now maintained as separate repository (github.com/eyedea-io/epf)
 
 north_star:
-  organization: "Emergent (by Eyedea)"
-  last_reviewed: "2026-01-09"
-  next_review: "2026-06-01"
-  version: "1.3"
-  
+  organization: 'Emergent (by Eyedea)'
+  last_reviewed: '2026-01-09'
+  next_review: '2026-06-01'
+  version: '1.3'
+
   # ============================================================================
   # 1. PURPOSE - Why We Exist
   # ============================================================================
-  
+
   purpose:
     statement: |
-      We exist to help knowledge workers and organizations achieve emergent understanding—
-      insights that arise from connections, not just searches. Like emergence in nature,
-      where simple building blocks following clear rules create complexity far greater than
-      the sum of its parts, we build the tools, frameworks, and platforms that transform
-      information chaos into self-organizing intelligence.
-    
+      We help organizations achieve emergent understanding—insights from connections, not searches. We build tools that transform information chaos into self-organizing intelligence.
+
     problem_we_solve: |
-      Organizations drown in unstructured information scattered across documents, URLs,
-      and file systems. Critical knowledge is trapped in PDFs, meeting notes, and wikis—
-      invisible to search, impossible to connect, and lost when people leave. Teams spend
-      hours hunting for information that should be at their fingertips, making decisions
-      on incomplete context, and duplicating work because they can't find what already exists.
-      
-      Beyond just finding information, teams lack the tools and methodologies to synthesize
-      understanding across disparate sources—to see the emergent patterns that only appear
-      when knowledge is connected and contextualized.
-    
-    who_we_serve: "Knowledge workers, product teams, and organizations who need to find, understand, connect, and act on information"
-    
+      Organizations drown in unstructured information scattered across documents, URLs, and file systems. Critical knowledge is trapped in PDFs, meeting notes, and wikis—invisible to search, impossible to connect, lost when people leave. Teams spend hours hunting for information, making decisions on incomplete context. Beyond finding information, teams lack tools to synthesize understanding—to see emergent patterns when knowledge is connected.
+
+    who_we_serve: 'Knowledge workers, product teams, and organizations who need to find, understand, connect, and act on information'
+
     impact_we_seek: |
-      A world where organizational knowledge is alive—a self-organizing system
-      where simple building blocks (documents, entities, relationships) combine
-      through clear rules (extraction, connection, retrieval) to create understanding
-      greater than the sum of its parts. Where AI assistants truly understand your
-      domain because they reason over connected context. Where emergent insights
-      surface automatically, revealing patterns humans couldn't predict.
-  
+      A world where organizational knowledge is alive—a self-organizing system where documents, entities, and relationships combine to create understanding greater than the sum of parts. Where AI assistants truly understand your domain through connected context and emergent insights surface automatically.
+
   # ============================================================================
   # 2. VISION - Where We Imagine Being in the Future
   # ============================================================================
-  
+
   vision:
     vision_statement: |
-      By 2028, the Emergent ecosystem will power thousands of organizations with
-      AI-native tools for knowledge management, product development, and strategic
-      thinking. Our products—from the Core knowledge engine to specialized frameworks
-      and tools—will form the invisible infrastructure that makes organizational
-      intelligence truly emergent: insights that arise from connections, not just searches.
-    
-    timeframe: "3-5 years"
-    
+      By 2028, Emergent powers thousands of organizations with AI-native knowledge management. Our Core engine and frameworks form the infrastructure for truly emergent organizational intelligence.
+
+    timeframe: '2025-2030'
+
     success_looks_like:
       - "Emergent Core powers thousands of organizations' knowledge infrastructure"
-      - "AI assistants answer questions with citations grounded in organizational knowledge"
-      - "Knowledge graphs auto-emerge from unstructured content—building blocks form higher-level building blocks"
+      - 'AI assistants answer questions with citations grounded in organizational knowledge'
+      - 'Knowledge graphs auto-emerge from unstructured content—building blocks form higher-level building blocks'
       - "Teams discover connections and insights they couldn't have predicted—emergent intelligence"
       - "The Emergent ecosystem becomes the 'intelligence layer' for enterprise AI"
-      - "Organizations experience Design by Emergence: invent the rules, discover the consequences"
-    
+      - 'Organizations experience Design by Emergence: invent the rules, discover the consequences'
+
     not_the_vision:
-      - "We are NOT a general-purpose search engine competing with Google"
-      - "We are NOT a document storage or file management system"
-      - "We are NOT building AI that replaces knowledge workers, but amplifies them"
-      - "We are NOT focused on consumer/personal knowledge management (Notion, Obsidian)"
-      - "We are NOT building one monolithic product—we build a composable ecosystem"
-  
+      - 'We are NOT a general-purpose search engine competing with Google'
+      - 'We are NOT a document storage or file management system'
+      - 'We are NOT building AI that replaces knowledge workers, but amplifies them'
+      - 'We are NOT focused on consumer/personal knowledge management (Notion, Obsidian)'
+      - 'We are NOT building one monolithic product—we build a composable ecosystem'
+
   # ============================================================================
   # 3. MISSION - What We Do to Deliver Value
   # ============================================================================
-  
+
   mission:
     mission_statement: |
-      We build an ecosystem of AI-powered products, frameworks, and tools that help
-      organizations achieve emergent understanding. Our flagship product, Emergent Core,
-      ingests documents, extracts entities into knowledge graphs, and enables semantic
-      search and AI chat. Our frameworks codify best practices for product development.
-      Together, they give organizations a queryable, connected understanding of everything
-      they know—and the methodologies to act on that knowledge.
-    
+      We build AI-powered products and frameworks that help organizations achieve emergent understanding. Emergent Core ingests documents into knowledge graphs, enabling semantic search and AI chat grounded in sources.
+
     what_we_do:
-      products:
-        emergent_core:
-          metaphor: "The Brain"
-          description: "Knowledge engine—intelligence, memory, and reasoning"
-          formerly: "Spec Server"
-          capabilities:
-            - "Ingest documents from any source (URLs, file uploads, integrations)"
-            - "Build knowledge graphs automatically using LLM extraction"
-            - "Enable hybrid semantic + full-text search over organizational knowledge (Unified Search with 5 fusion strategies)"
-            - "Provide AI chat grounded in documents with source citations"
-            - "Expose knowledge via MCP for AI agent integration with token-based authentication"
-            - "Track user activity and recent items for contextual navigation"
-            - "Parse documents via Kreuzberg service for enhanced extraction"
-            - "Support API token management for programmatic access alongside OAuth2"
-        
-        epf_runtime:
-          metaphor: "The Nervous System"
-          description: "Orchestration engine for workflow execution and coordination"
-          formerly: null
-          capabilities:
-            - "Execute EPF phases (READY/FIRE/AIM) as durable Temporal workflows"
-            - "Store EPF artifacts in knowledge graph with semantic search"
-            - "Provide programmatic API for AI agent consumption"
-            - "Monitor workflow execution and handle manual interventions"
-            - "Native integration: shares auth, multi-tenancy, RLS with Core"
-        
-        emergent_tools:
-          metaphor: "The Circulatory System"
-          description: "Connectors, bridges, and interfaces that close feedback loops"
-          formerly: null
-          capabilities:
-            - "Connect strategy artifacts to Git commits and deployments (Git Bridge, Deploy Tracker)"
-            - "Aggregate user feedback into Core knowledge (Feedback Aggregator)"
-            - "Make knowledge accessible in Slack, CLI, and IDEs (Slack Bot, SDK)"
-            - "Trigger Runtime workflows from external events (Workflow Automator)"
-            - "Developer extensibility via TypeScript/Python SDK"
-    
+      - 'Build AI-powered knowledge graphs from unstructured documents and URLs'
+      - 'Enable hybrid semantic + full-text search over organizational knowledge'
+      - 'Provide AI chat grounded in documents with source citations'
+      - 'Expose knowledge via MCP for AI agent integration'
+      - 'Execute structured product development workflows via EPF phases'
+
     how_we_deliver:
       approach: |
-        We combine modern AI capabilities (LLM extraction, embeddings, RAG) with 
-        graph-based knowledge representation. Documents become nodes, entities 
-        become objects, and relationships connect them—creating a queryable 
-        knowledge graph that AI assistants can reason over. Our products are 
-        API-first and composable, enabling organizations to adopt what they need
-        and integrate with existing tools.
-      
+        We combine LLM extraction, embeddings, and RAG with graph-based knowledge representation. Documents become nodes connected by relationships, creating queryable knowledge graphs. Our products are API-first and composable.
+
       key_capabilities:
-        - "AI-powered document extraction and chunking with semantic understanding"
-        - "Vector embeddings + pgvector for semantic similarity search"
-        - "Typed knowledge graphs with Template Packs for domain modeling"
-        - "RAG-based chat with source grounding and citation"
-        - "Model Context Protocol (MCP) integration for AI agents"
-        - "Multi-tenant architecture with fine-grained authorization"
-        - "Structured frameworks for product development and execution"
-    
+        - 'AI-powered document extraction and chunking with semantic understanding'
+        - 'Vector embeddings + pgvector for semantic similarity search'
+        - 'Typed knowledge graphs with Template Packs for domain modeling'
+        - 'RAG-based chat with source grounding and citation'
+        - 'Model Context Protocol (MCP) integration for AI agents'
+        - 'Multi-tenant architecture with fine-grained authorization'
+        - 'Structured frameworks for product development and execution'
+
     who_we_serve_specifically: |
-      Initially: Software teams, consultancies, and professional services firms 
-      who need to manage project knowledge, technical documentation, and client 
-      information. These teams have high information density, rely on knowledge 
-      for delivery, and are comfortable with technical products.
-      
-      Later: Any knowledge-intensive organization—legal, healthcare, research, 
-      enterprise IT—where finding and connecting information is critical.
-    
+      Initially: Software teams, consultancies, and professional services firms who manage project knowledge and technical documentation. These teams have high information density and rely on knowledge for delivery. Later: Any knowledge-intensive organization—legal, healthcare, research—where finding and connecting information is critical.
+
     boundaries:
       we_dont_do:
-        - "Real-time collaboration/editing (not competing with Google Docs)"
-        - "Project management (not competing with Jira, Asana)"
-        - "General file storage/sync (not competing with Dropbox, Box)"
-        - "Consumer personal knowledge bases (not competing with Notion, Obsidian)"
-      
+        - 'Real-time collaboration/editing (not competing with Google Docs)'
+        - 'Project management (not competing with Jira, Asana)'
+        - 'General file storage/sync (not competing with Dropbox, Box)'
+        - 'Consumer personal knowledge bases (not competing with Notion, Obsidian)'
+
       why_not: |
         Focus enables excellence. These adjacent categories are well-served by 
         mature products. Our differentiation is the AI-powered knowledge layer 
         that sits underneath or alongside these tools, making their content 
         searchable and connected.
-  
+
   # ============================================================================
   # 4. VALUES - How We Behave and Conduct Ourselves
   # ============================================================================
-  
+
   values:
-    - value: "Source of Truth"
+    - value: 'Source of Truth'
       definition: |
         We believe in grounded AI—answers should be traceable to sources.
         Every response should link back to the documents that informed it.
         We build trust through transparency, not black-box magic.
-      
+
       behaviors_we_expect:
-        - "AI responses always cite sources when making claims"
-        - "Users can verify any generated content against originals"
-        - "We log and trace AI decisions for debugging and improvement"
-      
+        - 'AI responses always cite sources when making claims'
+        - 'Users can verify any generated content against originals'
+        - 'We log and trace AI decisions for debugging and improvement'
+
       behaviors_we_reject:
-        - "AI hallucinations presented as facts"
-        - "Answers without provenance or sources"
+        - 'AI hallucinations presented as facts'
+        - 'Answers without provenance or sources'
         - "Black-box processing where users can't understand why"
-      
+
       example_decision: |
         We require RAG chat to include source citations even when it makes 
         responses longer. Users need to trust and verify AI outputs.
-    
-    - value: "Incremental Value"
+
+    - value: 'Incremental Value'
       definition: |
         Every piece of work should deliver measurable value quickly.
         We ship early, learn fast, and iterate based on real usage.
         Waiting for perfect is the enemy of good enough to learn.
-      
+
       behaviors_we_expect:
-        - "Features ship incrementally with feedback loops"
-        - "MVPs that test core assumptions before full builds"
-        - "Telemetry and usage tracking to validate decisions"
-      
+        - 'Features ship incrementally with feedback loops'
+        - 'MVPs that test core assumptions before full builds'
+        - 'Telemetry and usage tracking to validate decisions'
+
       behaviors_we_reject:
-        - "Multi-month development cycles without user feedback"
-        - "Building features based on assumptions alone"
-        - "Perfectionism that delays learning"
-      
+        - 'Multi-month development cycles without user feedback'
+        - 'Building features based on assumptions alone'
+        - 'Perfectionism that delays learning'
+
       example_decision: |
         We shipped MCP integration as experimental before full documentation,
         learning from early adopters what actually mattered.
-    
-    - value: "Developer Experience"
+
+    - value: 'Developer Experience'
       definition: |
         We build tools we would want to use ourselves. APIs should be elegant,
         documentation should be complete, and errors should be helpful.
         A great DX reduces friction and enables rapid adoption.
-      
+
       behaviors_we_expect:
-        - "Comprehensive API documentation with examples"
-        - "Meaningful error messages that guide resolution"
-        - "OpenAPI specs generated and kept current"
-      
+        - 'Comprehensive API documentation with examples'
+        - 'Meaningful error messages that guide resolution'
+        - 'OpenAPI specs generated and kept current'
+
       behaviors_we_reject:
-        - "Undocumented or inconsistent APIs"
-        - "Errors that require source diving to understand"
-        - "Breaking changes without migration paths"
-      
+        - 'Undocumented or inconsistent APIs'
+        - 'Errors that require source diving to understand'
+        - 'Breaking changes without migration paths'
+
       example_decision: |
         We maintain generated OpenAPI specs and require scope documentation
         on every protected endpoint, even though it's extra work.
-  
+
   value_conflicts:
-    - tension: "Speed vs. Quality (shipping fast vs. comprehensive testing)"
+    - tension: 'Speed vs. Quality (shipping fast vs. comprehensive testing)'
       resolution_principle: |
         Ship fast for feature discovery, quality for infrastructure. 
         New features can be experimental; auth/security cannot.
-  
+
   # ============================================================================
   # 5. CORE BELIEFS - First Principles That Underpin Our Reasoning
   # ============================================================================
-  
+
   core_beliefs:
-    about_emergence:
-      - belief: "Intelligence emerges from connections, not just content—the whole is greater than the sum of its parts"
-        implication: "We focus on building connected systems (graphs, relationships) not just storing documents"
-        evidence: "Emergence in nature: simple rules + building blocks = complex organized behavior (ant colonies, brains, ecosystems)"
-      
-      - belief: "Simple building blocks + clear rules = exponential combinatorial power"
-        implication: "We design atomic primitives (chunks, objects, relationships) that combine through well-defined operations"
-        evidence: "DNA's 4 bases create all life; neurons create consciousness; our components should enable unlimited emergent patterns"
-      
-      - belief: "Design by Emergence: invent the rules, discover the consequences through iteration"
-        implication: "Strategy can't be shortcut—we must run experiments and learn. AIM phase validates FIRE phase hypotheses"
-        evidence: "Computational irreducibility: complex systems must be run to see outcomes; no algorithm can predict emergent behavior"
-      
-      - belief: "Self-organizing complexity is the sweet spot between chaos and rigidity"
-        implication: "We avoid both over-structured systems (too rigid to adapt) and under-structured systems (too chaotic to be useful)"
-        evidence: "Successful complex systems (cities, markets, ecosystems) are organized but not centrally planned"
-    
     about_our_market:
-      - belief: "LLMs are transforming knowledge work, but need grounding in organizational context to be truly useful"
-        implication: "RAG and knowledge graphs become essential infrastructure, not optional"
-        evidence: "Enterprise AI adoption struggles with hallucination and lack of context"
-      
+      - belief: 'LLMs are transforming knowledge work, but need grounding in organizational context to be truly useful'
+        implication: 'RAG and knowledge graphs become essential infrastructure, not optional'
+        evidence: 'Enterprise AI adoption struggles with hallucination and lack of context'
+
       - belief: "The value of organizational knowledge compounds when it's connected, not siloed"
-        implication: "Graph-based representation is superior to flat document stores"
-        evidence: "Knowledge graphs power Google Search, enterprise AI, and semantic web"
-    
+        implication: 'Graph-based representation is superior to flat document stores'
+        evidence: 'Knowledge graphs power Google Search, enterprise AI, and semantic web'
+
     about_our_users:
       - belief: "Knowledge workers don't want to manually tag, categorize, or structure information—they want AI to do it"
-        implication: "Automatic extraction and graph building is essential, not optional"
-        evidence: "Low adoption of manual tagging systems; high interest in AI automation"
-      
-      - belief: "Users will trust AI answers if they can verify them against sources"
-        implication: "Citation and source linking is a core feature, not an afterthought"
+        implication: 'Automatic extraction and graph building is essential, not optional'
+        evidence: 'Low adoption of manual tagging systems; high interest in AI automation'
+
+      - belief: 'Users will trust AI answers if they can verify them against sources'
+        implication: 'Citation and source linking is a core feature, not an afterthought'
         evidence: "Enterprise resistance to AI 'black boxes'; regulatory requirements"
-    
+
     about_our_approach:
-      - belief: "Embeddings + knowledge graphs + RAG is the winning stack for organizational knowledge AI"
-        implication: "We invest deeply in this stack rather than chasing every AI trend"
-        evidence: "This combination addresses retrieval, reasoning, and grounding"
-      
-      - belief: "API-first enables faster ecosystem growth than UI-first"
-        implication: "We prioritize API completeness; UI is one consumer among many"
-        evidence: "Successful platforms (Stripe, Twilio) grow through developer adoption"
-    
+      - belief: 'Embeddings + knowledge graphs + RAG is the winning stack for organizational knowledge AI'
+        implication: 'We invest deeply in this stack rather than chasing every AI trend'
+        evidence: 'This combination addresses retrieval, reasoning, and grounding'
+
+      - belief: 'API-first enables faster ecosystem growth than UI-first'
+        implication: 'We prioritize API completeness; UI is one consumer among many'
+        evidence: 'Successful platforms (Stripe, Twilio) grow through developer adoption'
+
     about_value_creation:
-      - belief: "The value is in the connected knowledge, not just the storage"
-        implication: "We monetize intelligence and insights, not just ingestion volume"
-        evidence: "Commodity storage is cheap; understanding is valuable"
-    
+      - belief: 'The value is in the connected knowledge, not just the storage'
+        implication: 'We monetize intelligence and insights, not just ingestion volume'
+        evidence: 'Commodity storage is cheap; understanding is valuable'
+
     about_competition:
       - belief: "Large platforms (Microsoft, Google) will own general enterprise search, but can't go deep in every domain"
-        implication: "We win by depth in specific use cases and developer control, not breadth"
-        evidence: "Vertical SaaS succeeds by doing one thing exceptionally well"
-    
+        implication: 'We win by depth in specific use cases and developer control, not breadth'
+        evidence: 'Vertical SaaS succeeds by doing one thing exceptionally well'
+
     belief_challenges:
-      - belief: "Automatic extraction quality is good enough for production use"
-        counter_evidence: "LLM extraction can be inconsistent; users may need to correct errors"
-        monitoring: "Track extraction accuracy rates; user correction frequency"
-      
-      - belief: "Developer-first will lead to enterprise adoption"
-        counter_evidence: "Some enterprises prefer turnkey solutions over APIs"
-        monitoring: "Enterprise pipeline feedback; win/loss analysis"
-  
+      - belief: 'Automatic extraction quality is good enough for production use'
+        counter_evidence: 'LLM extraction can be inconsistent; users may need to correct errors'
+        monitoring: 'Track extraction accuracy rates; user correction frequency'
+
+      - belief: 'Developer-first will lead to enterprise adoption'
+        counter_evidence: 'Some enterprises prefer turnkey solutions over APIs'
+        monitoring: 'Enterprise pipeline feedback; win/loss analysis'
+
   # ============================================================================
   # CONSISTENCY & ALIGNMENT
   # ============================================================================
-  
+
   alignment_checks:
     purpose_vision_alignment: |
       Our purpose (help knowledge workers extract understanding from chaos) directly
       leads to our vision (knowledge infrastructure powering thousands of organizations).
       Success means teams stop drowning in documents and start finding answers instantly.
-    
+
     mission_purpose_alignment: |
       Building AI-powered knowledge platforms (mission) directly addresses the problem
       of scattered, unconnected organizational knowledge (purpose). Every capability—
       ingestion, graph building, search, chat—serves finding and understanding.
-    
+
     values_mission_alignment: |
       "Source of Truth" ensures our AI is useful, not misleading. "Incremental Value"
       keeps us shipping features that matter. "Developer Experience" enables the
       API-first ecosystem growth our mission depends on.
-    
+
     beliefs_inform_strategy: |
       Our belief in embeddings+graphs+RAG drives our technical architecture. Our
       belief in automatic extraction shapes our product priorities. Our belief
       in API-first guides our go-to-market approach.
-  
-  # ============================================================================
-  # REVIEW & EVOLUTION
-  # ============================================================================
-  
-  evolution_history:
-    - date: "2025-12-11"
-      what_changed: "Added emergence philosophy based on 'Emergent Complexity' video insights"
-      why: "Refining core positioning around building blocks + rules = emergent behavior"
-      impact: |
-        - Added 'about_emergence' core beliefs section with 4 foundational beliefs
-        - Updated purpose statement with emergence framing
-        - Updated vision success indicators with emergence language
-        - Reframed product portfolio as 'layers of emergence'
-        - Aligned with updated landing page messaging
-    
-    - date: "2025-12-09"
-      what_changed: "Initial EPF v1.9.6 North Star creation"
-      why: "Formalizing strategic foundation for Emergent platform"
-      impact: "Provides foundation for all future cycles"
-  
-  next_review_triggers:
-    scheduled: "2026-06-01"
-    event_based:
-      - "Major enterprise customer acquisition"
-      - "Significant funding round"
-      - "Competitive threat from major platform"
-      - "Technology breakthrough (new AI capability)"
-      - "Strategic partnership opportunity"
-
-# ============================================================================
-# HOW THIS INFORMS EPF CYCLES
-# ============================================================================
-
-informs_ready_phase:
-  insight_analyses:
-    - "Market analysis should validate beliefs about LLM/RAG adoption trends"
-    - "Competitive analysis should track Microsoft Copilot, Google Vertex, and vertical players"
-    - "User analysis should validate knowledge worker pain points and willingness to adopt"
-  
-  opportunity:
-    - "Opportunities should advance toward production-ready knowledge infrastructure"
-    - "Opportunities should be scoped to test core beliefs about extraction and search quality"
-  
-  strategy_foundations:
-    - "Product vision should show path from MVP to enterprise-grade platform"
-    - "Value proposition should emphasize grounded AI and source transparency"
-  
-  strategy_formula:
-    - "Positioning should emphasize differentiation from generic search tools"
-    - "Business model should reflect API-first + value-based pricing"
-    - "Competitive moat should leverage extraction quality and knowledge graph depth"
-  
-  roadmap:
-    - "OKRs should target extraction quality, search relevance, and developer adoption"
-    - "KRs should be designed to test riskiest assumptions about automatic processing"
-    - "Core platform and integrations should progress with clear dependencies"
-
-# ============================================================================
-# USAGE NOTES
-# ============================================================================
-
-usage_guidance: |
-  1. REVIEW this document at the start of each major strategic planning cycle
-  2. REFERENCE it when making strategic trade-offs or decisions
-  3. UPDATE it only when fundamental organizational direction changes
-  4. VALIDATE that all READY phase artifacts align with this North Star
-  5. USE values and beliefs to resolve strategic tensions
-  6. COMMUNICATE this broadly - it should be known across the team
-
-# ============================================================================
-# PRODUCT PORTFOLIO
-# ============================================================================
-
-product_portfolio:
-  description: |
-    Emergent is a layered ecosystem where each product enables the next level of emergence.
-    Building blocks form higher-level building blocks: documents become knowledge (Core),
-    knowledge informs strategy (Frameworks), strategy enables execution (Tools).
-    
-    Like emergence in nature, the value of the ecosystem is exponentially greater than
-    the sum of its parts. Each product line serves a distinct purpose while sharing common
-    values, technology foundations, and the philosophy of Design by Emergence.
-
-  product_lines:
-    # -------------------------------------------------------------------------
-    # EMERGENT CORE (formerly "Spec Server")
-    # -------------------------------------------------------------------------
-    - id: "emergent-core"
-      name: "Emergent Core"
-      formerly: "Spec Server"
-      tagline: "The AI-powered knowledge engine"
-      status: "active-development"
-      description: |
-        The flagship product: a multi-tenant knowledge management platform that ingests
-        documents, builds knowledge graphs, and enables semantic search and AI chat.
-        This is the foundation upon which other Emergent products can build.
-      
-      capability_layers:
-        - id: "ingestion"
-          name: "Document Ingestion & Extraction"
-          description: |
-            Ingest documents from URLs, file uploads, and integrations.
-            Extract text, chunk semantically, embed with AI.
-          key_features:
-            - "Multi-source ingestion (URL, file upload, integrations)"
-            - "AI-powered text extraction from various formats"
-            - "Semantic chunking with configurable strategies"
-            - "Vector embeddings for semantic search"
-        
-        - id: "graph"
-          name: "Knowledge Graph Engine"
-          description: |
-            Build and manage typed knowledge graphs from extracted content.
-            Objects, relationships, and template packs for domain modeling.
-          key_features:
-            - "Typed objects with properties and versioning"
-            - "Directed relationships with metadata"
-            - "Template Packs for domain-specific schemas"
-            - "LLM-powered automatic entity extraction"
-        
-        - id: "search"
-          name: "Hybrid Search & Retrieval"
-          description: |
-            Semantic + full-text search with ranking and filtering.
-            Cursor-based pagination for large result sets.
-          key_features:
-            - "Vector similarity search (pgvector)"
-            - "Full-text search (PostgreSQL ts_vector)"
-            - "Hybrid fusion ranking"
-            - "Scoped search by project/organization"
-        
-        - id: "chat"
-          name: "AI Chat with RAG"
-          description: |
-            Conversational AI grounded in organizational knowledge.
-            Source citations and MCP integration for AI agents.
-          key_features:
-            - "Multi-turn conversations with history"
-            - "RAG context injection from search"
-            - "Source citations in responses"
-            - "MCP protocol for external AI integration"
-      
-      technology_stack:
-        - "NestJS (Node.js/TypeScript) API"
-        - "PostgreSQL with pgvector extension"
-        - "React/Vite admin interface"
-        - "Google Gemini for embeddings and LLM"
-        - "Zitadel for authentication"
-    
-    # -------------------------------------------------------------------------
-    # EMERGENT TOOLS
-    # -------------------------------------------------------------------------
-    - id: "emergent-tools"
-      name: "Emergent Tools"
-      tagline: "The Circulatory System—Connectors, bridges, and interfaces"
-      status: "planned"
-      description: |
-        Integration layer that connects Core (knowledge engine) and Runtime 
-        (orchestration engine) to external systems and developer workflows. Tools
-        close critical feedback loops between strategy, code, deployment, and users.
-      
-      metaphor: "The Circulatory System"
-      purpose: "Make Emergent accessible where teams already work without forcing tool consolidation"
-      
-      tier_1_tools:
-        - name: "Git Bridge"
-          purpose: "Automatically link strategy artifacts to code commits and PRs"
-          closes_loop: "Strategy → Code"
-        
-        - name: "Deploy Tracker"
-          purpose: "Track feature deployment status from roadmap to production"
-          closes_loop: "Code → Production"
-        
-        - name: "Slack Bot"
-          purpose: "Query Core knowledge directly in Slack channels (no context switching)"
-          closes_loop: "Team → Knowledge"
-        
-        - name: "SDK (TypeScript/Python)"
-          purpose: "Enable developers to extend Emergent with custom integrations"
-          closes_loop: "Developers → Platform"
-      
-      tool_categories:
-        - "Code Integration (Git Bridge, Code Annotator)"
-        - "Deployment & Observability (Deploy Tracker, Metrics Bridge)"
-        - "Customer Feedback (Feedback Aggregator, User Interview Processor)"
-        - "Collaboration (Slack Bot, Meeting Assistant)"
-        - "Developer Experience (CLI, SDK, Template Generator)"
-        - "Intelligence & Automation (Workflow Automator, Insight Engine)"
-        - "Governance & Compliance (Audit Logger, Access Control)"
-        - "Enterprise Integration (SSO Connector, API Gateway)"
-    
-    # -------------------------------------------------------------------------
-    # EPF-RUNTIME
-    # -------------------------------------------------------------------------
-    - id: "epf-runtime"
-      name: "EPF-Runtime"
-      tagline: "Headless orchestration for methodology execution"
-      status: "in-development"
-      description: |
-        A programmatic execution engine for EPF workflows, enabling AI agents to
-        autonomously execute structured product development cycles. Runtime shares
-        authentication, authorization, multi-tenancy, and RLS infrastructure with
-        Core for native integration. Designed to evolve into the OS layer for the
-        Emergent ecosystem where Core and other applications run as native apps.
-      
-      capability_layers:
-        - id: "workflow-engine"
-          name: "Workflow Orchestration"
-          description: |
-            Durable execution of EPF phases (READY/FIRE/AIM) via Temporal workflows.
-            State persistence, retry logic, and long-running process support.
-          key_features:
-            - "READY/FIRE/AIM phase workflow templates"
-            - "Durable execution with Temporal"
-            - "Workflow state persistence and resumption"
-            - "Event-driven phase transitions"
-        
-        - id: "api-layer"
-          name: "Programmatic Access"
-          description: |
-            RESTful API for creating, executing, and monitoring EPF workflows.
-            Designed for AI agent consumption with structured inputs/outputs.
-          key_features:
-            - "Workflow CRUD operations"
-            - "Execution triggering and monitoring"
-            - "Artifact submission endpoints"
-            - "Status polling and webhooks"
-        
-        - id: "artifact-storage"
-          name: "Knowledge Graph Integration"
-          description: |
-            Store EPF artifacts (North Star, Roadmap, Features) as typed graph
-            objects with semantic search and relationship tracking.
-          key_features:
-            - "Artifact versioning and history"
-            - "Semantic search across artifacts"
-            - "Cross-artifact dependency tracking"
-            - "Schema validation for artifact types"
-        
-        - id: "ui-integration"
-          name: "Web Interface"
-          description: |
-            Workflow monitoring, artifact viewing, and manual interventions
-            when AI agents need human guidance.
-          key_features:
-            - "Workflow execution dashboard"
-            - "Artifact editor with validation"
-            - "Notification center for events"
-            - "App switcher for Core ↔ Runtime navigation"
-      
-      technology_stack:
-        - "Shared: NestJS API, PostgreSQL with RLS, Zitadel auth"
-        - "Shared: React/Vite UI with same design system as Core"
-        - "New: Temporal workflow engine (durable execution)"
-        - "New: EPF artifact schemas and validation"
-      
-      strategic_vision: |
-        Long-term evolution path: Runtime becomes the platform layer ("OS") for
-        Emergent ecosystem. Core transitions from standalone app to first-class
-        application running on Runtime platform. Enables third-party apps to
-        leverage same infrastructure (auth, multi-tenancy, workflows, knowledge graphs).
-
-  cross_cutting_concerns:
-    shared_values:
-      - "Source of Truth: Grounded AI with citations"
-      - "Incremental Value: Ship early, learn fast"
-      - "Developer Experience: API-first, well-documented"
-    
-    shared_technology:
-      - "TypeScript as primary language"
-      - "PostgreSQL as primary data store"
-      - "LLM/embedding integration patterns"
-    
-    integration_patterns:
-      - "Frameworks can reference Core for AI-enhanced workflows"
-      - "Tools can operate standalone or with Core backend"
-      - "All products share authentication patterns (when applicable)"
-      - "MCP protocol for external AI integration"

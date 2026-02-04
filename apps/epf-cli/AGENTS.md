@@ -20,6 +20,170 @@
 1. Create an openspec proposal if the feature is significant (see `openspec/AGENTS.md`)
 2. Follow the three-stage workflow: Proposal → Implementation → Archive
 
+---
+
+## 🎯 FOUNDATIONAL: Feature Definition Granularity
+
+> **CRITICAL CONCEPT** - Read this before creating ANY Feature Definition.
+
+**FDs are NOT implementation checklists. They are strategic capability targets.**
+
+| Level  | Artifact               | Purpose                        | Stability          |
+| ------ | ---------------------- | ------------------------------ | ------------------ |
+| L1     | Value Model            | WHY (outcomes)                 | Years              |
+| **L2** | **Feature Definition** | **WHAT (capability category)** | **Quarters/Years** |
+| L3     | Key Results            | HOW (incremental delivery)     | Each cycle         |
+
+**The relationship:**
+
+- FD = Stable target describing a complete capability category
+- KRs = Stepping stones that incrementally deliver FD capabilities over multiple cycles
+- One FD is delivered by MANY KRs over time
+
+**Right-sizing an FD:**
+
+- 2-15 capabilities (not 1, not 20+)
+- User can describe it as "one thing they accomplish"
+- All capabilities serve the same job-to-be-done
+- Capabilities will mature on similar timelines
+
+**❌ Wrong:** Creating separate FDs for "Upload Button", "Progress Bar", "Error Display"
+**✅ Right:** One FD for "Document Management" with capabilities for upload, processing, search
+
+For detailed guidance: `canonical-epf/docs/guides/FEATURE_DEFINITION_GRANULARITY_GUIDE.md`
+
+---
+
+## 📋 PRE-FLIGHT CHECKLIST: Before Creating/Editing EPF Artifacts
+
+> **MANDATORY for AI agents writing EPF content (feature definitions, roadmaps, etc.)**
+>
+> This checklist prevents schema validation errors by checking constraints BEFORE writing.
+
+### When to Use This Checklist
+
+Use this checklist when you are about to:
+
+- Create a new feature definition (fd-\*.yaml)
+- Edit an existing EPF artifact
+- Add personas, capabilities, contexts, or scenarios to a feature
+- Modify roadmap key results or value model paths
+
+### Pre-Flight Steps
+
+**Step 1: Get the Schema for Your Artifact Type**
+
+```
+# Via MCP tool:
+epf_get_schema { "artifact_type": "feature_definition" }
+
+# Via CLI:
+epf-cli schemas show feature_definition
+```
+
+**Step 2: Check Field Constraints (Enums, Patterns, Limits)**
+
+Look for these constraint types in the schema:
+
+| Constraint            | Example                                   | What to Check                |
+| --------------------- | ----------------------------------------- | ---------------------------- |
+| `enum`                | `status`, `type`, `technical_proficiency` | Only listed values are valid |
+| `pattern`             | `^fd-[0-9]+$`, `^cap-[0-9]+$`             | Must match regex exactly     |
+| `minItems`/`maxItems` | `personas: maxItems: 4`                   | Array length limits          |
+| `minLength`           | `current_situation: minLength: 200`       | Minimum character counts     |
+
+**Step 3: Quick Reference - Common Enum Values**
+
+These are the most common enum constraints that cause validation errors:
+
+| Field                   | Valid Values                                                  | Found In                             |
+| ----------------------- | ------------------------------------------------------------- | ------------------------------------ |
+| `status`                | `draft`, `ready`, `in-progress`, `delivered`                  | feature_definition                   |
+| `context.type`          | `ui`, `email`, `notification`, `api`, `report`, `integration` | feature_definition.contexts          |
+| `technical_proficiency` | `basic`, `intermediate`, `advanced`, `expert`                 | feature_definition.personas          |
+| `tracks[]`              | `product`, `strategy`, `org_ops`, `commercial`                | feature_definition.strategic_context |
+| `overall_stage`         | `hypothetical`, `emerging`, `proven`, `scaled`                | feature_definition.feature_maturity  |
+
+**Step 4: Validate Before Committing**
+
+After writing, ALWAYS validate:
+
+```
+# Via MCP tool:
+epf_validate_file { "path": "path/to/your/artifact.yaml" }
+
+# Via CLI:
+epf-cli validate path/to/your/artifact.yaml
+```
+
+### Common Mistakes to Avoid
+
+| ❌ Mistake                        | ✅ Correct                                | Why                                     |
+| --------------------------------- | ----------------------------------------- | --------------------------------------- |
+| `status: 'development'`           | `status: 'in-progress'`                   | 'development' is not a valid enum value |
+| `type: 'tui'` or `type: 'web'`    | `type: 'ui'`                              | Use 'ui' for all visual interfaces      |
+| 5 personas                        | 4 personas max                            | Schema enforces exactly 4 personas      |
+| `contributes_to: ['Core.Search']` | `contributes_to: ['Product.Core.Search']` | Must include L1 prefix                  |
+| `id: 'feature-001'`               | `id: 'fd-001'`                            | Must match pattern `^fd-[0-9]+$`        |
+
+### Worked Example: Creating a Feature Definition
+
+```yaml
+# 1. Start with required fields from schema
+id: 'fd-014' # Pattern: ^fd-[0-9]+$
+name: 'My Feature'
+slug: 'my-feature' # Pattern: ^[a-z0-9]+(-[a-z0-9]+)*$
+status: 'draft' # Enum: draft|ready|in-progress|delivered
+
+strategic_context:
+  contributes_to:
+    - 'Product.Core.Search' # Pattern: ^(Product|Commercial|Strategy|OrgOps)\.[A-Za-z]+\.[A-Za-z]+
+  tracks:
+    - 'product' # Enum: product|strategy|org_ops|commercial
+
+definition:
+  job_to_be_done: | # minLength: 10
+    When I [situation], I want to [action], so I can [outcome].
+
+  solution_approach: | # minLength: 10
+    High-level approach description...
+
+  personas: # EXACTLY 4 required (minItems: 4, maxItems: 4)
+    - id: 'persona-1' # 11 fields required per persona
+      technical_proficiency: 'expert' # Enum: basic|intermediate|advanced|expert
+      current_situation: '...' # minLength: 200 chars
+      transformation_moment: '...' # minLength: 200 chars
+      emotional_resolution: '...' # minLength: 200 chars
+      # ... other required fields
+
+  capabilities: # minItems: 1
+    - id: 'cap-001' # Pattern: ^cap-[0-9]+$
+      name: 'Capability Name'
+      description: '...'
+
+implementation:
+  contexts:
+    - id: 'ctx-001' # Pattern: ^ctx-[0-9]+$
+      type: 'ui' # Enum: ui|email|notification|api|report|integration
+      name: 'Context Name'
+      description: '...' # minLength: 30
+      key_interactions: ['...'] # minItems: 1
+      data_displayed: ['...'] # minItems: 1
+```
+
+### MCP Tool Quick Reference for Pre-Flight
+
+| Task                  | MCP Tool                    | Example                                                       |
+| --------------------- | --------------------------- | ------------------------------------------------------------- |
+| Get schema            | `epf_get_schema`            | `{ "artifact_type": "feature_definition" }`                   |
+| Get template          | `epf_get_template`          | `{ "artifact_type": "feature_definition" }`                   |
+| Validate file         | `epf_validate_file`         | `{ "path": "FIRE/feature_definitions/fd-014.yaml" }`          |
+| Validate content      | `epf_validate_content`      | `{ "content": "...", "artifact_type": "feature_definition" }` |
+| Check feature quality | `epf_check_feature_quality` | `{ "instance_path": "docs/EPF/_instances/emergent" }`         |
+| Full health check     | `epf_health_check`          | `{ "instance_path": "docs/EPF/_instances/emergent" }`         |
+
+---
+
 ## ProductFactoryOS Context
 
 epf-cli is the **Kernel** of ProductFactoryOS (see MASTER_PLAN.md Section 3.1):

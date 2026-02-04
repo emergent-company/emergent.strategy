@@ -182,6 +182,9 @@ func NewLoader(instancePath string) *Loader {
 }
 
 // Load loads all value models from the instance's FIRE/value_models/ directory.
+// When multiple files share the same track_name (e.g., product.emergent-core.yaml
+// and product.epf-runtime.yaml both with track_name: "Product"), their layers
+// are merged into a single ValueModel for that track.
 func (l *Loader) Load() (*ValueModelSet, error) {
 	set := NewValueModelSet()
 	set.Instance = l.instancePath
@@ -218,9 +221,14 @@ func (l *Loader) Load() (*ValueModelSet, error) {
 			continue
 		}
 
-		// Index by track
+		// Index by track - merge layers if track already exists
 		if model.TrackName != "" {
-			set.Models[model.TrackName] = model
+			if existing, ok := set.Models[model.TrackName]; ok {
+				// Merge layers from this model into the existing one
+				existing.Layers = append(existing.Layers, model.Layers...)
+			} else {
+				set.Models[model.TrackName] = model
+			}
 		}
 		set.ByFile[filePath] = model
 	}

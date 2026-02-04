@@ -1,0 +1,608 @@
+id: 'fd-013'
+name: 'ProductFactoryOS Developer Console'
+slug: 'product-factory-os-developer-console'
+status: 'in-progress'
+
+strategic_context:
+  contributes_to:
+    - 'Product.Layer1LocalTools.PfosTui'
+    - 'Product.Layer4WebInterface.PfosWebDashboard'
+  tracks:
+    - 'product'
+  assumptions_tested:
+    - 'asm-p-020' # Developers prefer visual interfaces for EPF state over CLI-only
+    - 'asm-p-021' # Quality gates with AI review improve artifact quality
+    - 'asm-p-022' # Unified console reduces context-switching in EPF workflows
+
+definition:
+  job_to_be_done: |
+    When I'm building products using EPF methodology,
+    I want a unified developer console that visualizes state, orchestrates builds,
+    and manages quality gates,
+    so I can work efficiently without context-switching between tools and maintain
+    high-quality artifacts throughout the development cycle.
+
+  solution_approach: |
+    A developer console (ProductFactoryOS) that provides:
+    - Real-time visualization of EPF instance state across all phases (READY/FIRE/AIM)
+    - Build orchestration that compiles EPF artifacts into outputs (docs, tickets, campaigns)
+    - Quality Council integration with AI-powered review before commits
+    - Multi-channel delivery: TUI for terminal-native workflows, Web for broader access
+    - OpenCode/AI agent integration for "Agent Coding" workflows
+
+    The console treats business logic (Strategy, Ops, Commercial) like software:
+    versioned in Git, validated by linters (epf-cli), compiled into artifacts.
+
+  personas:
+    - id: 'solo-founder'
+      name: 'Solo Founder'
+      role: 'Technical Founder building product strategy and code'
+      description: >
+        A technical founder who wears multiple hats—writing strategy documents,
+        building features, and managing operations. Needs efficient tools that
+        don't slow down the build-measure-learn cycle.
+      goals:
+        - 'Maintain strategic clarity while moving fast on implementation'
+        - 'Ensure strategy artifacts stay in sync with what is actually being built'
+        - 'Get AI assistance for both strategic thinking and code generation'
+      pain_points:
+        - 'Strategy documents become stale because updating them is a separate workflow'
+        - 'Context-switching between strategy tools and code editors breaks flow'
+        - 'No visibility into whether current work aligns with stated strategy'
+      usage_context: >
+        Uses the developer console daily as the command center for their venture,
+        switching between strategy visualization, build orchestration, and AI-assisted
+        content generation without leaving the terminal.
+      technical_proficiency: 'expert'
+      current_situation: >
+        As a solo technical founder, I juggle strategy, product, and operations simultaneously. My strategy
+        lives in scattered documents—some in Notion, some in markdown files, some only in my head. When I
+        sit down to code, I often realize halfway through that what I am building has drifted from my stated
+        strategy, but going back to update strategy docs feels like busywork that slows me down. I use AI
+        assistants for coding, but they have no context about my product strategy, so I constantly re-explain
+        the same background. The cognitive load of keeping everything aligned is exhausting, and I sometimes
+        ship features that do not actually move the needle on my core metrics because I lost sight of the
+        bigger picture while deep in implementation details.
+      transformation_moment: >
+        The first time I launched ProductFactoryOS, I saw my entire venture state in one view—North Star,
+        current OKRs, feature backlog, and active builds. When I asked the AI to help me write a new feature
+        spec, it already knew my strategic context and suggested capabilities that aligned with my stated
+        goals. The build orchestrator compiled my EPF artifacts into Linear tickets with full traceability.
+        I realized I could finally work on strategy AND implementation in the same flow, with the console
+        keeping everything synchronized. The "everything is code" philosophy clicked—my strategy was now as
+        manageable as my codebase.
+      emotional_resolution: >
+        After adopting ProductFactoryOS as my daily command center, I feel strategically grounded even when
+        deep in implementation. The visualization keeps my North Star visible, so I never lose sight of why
+        I am building what I am building. AI assistance is actually useful now because it understands my
+        context. The Quality Council catches strategic drift before I commit, saving me from building the
+        wrong thing. I move faster because I am not constantly context-switching, and I sleep better knowing
+        my strategy and implementation are always in sync.
+      demographics:
+        age_range: '28-45'
+        experience_years: '5-15 years in software engineering, 1-5 years as founder'
+        company_size: 'Solo or early-stage startup (1-10 employees)'
+        industry:
+          ['SaaS', 'Developer Tools', 'AI/ML', 'B2B Software', 'Deep Tech']
+        geography: 'Global, concentrated in startup hubs (SF, NYC, London, Berlin, Singapore)'
+        education: "Bachelor's or Master's in Computer Science; often dropped out of PhD or left big tech"
+        reporting_structure: 'Reports to investors/board; wears all hats internally'
+      psychographics:
+        values: ['Speed', 'Strategic Clarity', 'Autonomy', 'Product-Market Fit']
+        motivations:
+          [
+            'Ship fast without losing strategic focus',
+            'Build something meaningful',
+            'Prove the vision',
+            'Minimize distractions from building',
+          ]
+        fears:
+          [
+            'Losing sight of strategy while deep in implementation',
+            'Building the wrong thing',
+            'Context-switching overhead killing momentum',
+            'Strategy docs becoming shelfware',
+          ]
+        decision_style: 'Fast and intuition-driven, but values tools that provide strategic grounding'
+        information_sources:
+          [
+            'Startup Twitter/X',
+            'YC resources',
+            'Indie Hacker forums',
+            'Technical blogs',
+            'Founder podcasts',
+          ]
+        communication_preferences: 'Terminal-first, keyboard shortcuts, async updates, minimal meetings'
+
+    - id: 'product-engineer'
+      name: 'Product Engineer'
+      role: 'Full-stack developer with product ownership responsibilities'
+      description: >
+        A developer who owns features end-to-end, from understanding strategic
+        context to shipping production code. Values tools that connect the "why"
+        to the "what" without ceremony.
+      goals:
+        - 'Understand strategic context for features without reading lengthy documents'
+        - 'Generate implementation specs that trace back to business objectives'
+        - 'Validate that shipped features actually address stated user needs'
+      pain_points:
+        - 'Product specs are often vague about the strategic rationale for features'
+        - 'No clear connection between code changes and business metrics'
+        - 'AI coding assistants lack product context, generating generic solutions'
+      usage_context: >
+        Uses the developer console to explore feature context before implementation,
+        generate specs with AI assistance, and verify strategic alignment during
+        code review.
+      technical_proficiency: 'advanced'
+      current_situation: >
+        As a product engineer, I am responsible for features from conception to deployment, but I often
+        start implementation without fully understanding the strategic context. Product specs tell me what
+        to build but rarely explain why this feature matters or how it connects to company goals. When I
+        use AI assistants for coding, they generate technically correct but strategically naive solutions
+        because they do not know our product direction. During code review, we debate implementation details
+        but never ask whether the feature actually advances our objectives. I ship features that work but
+        sometimes wonder if they were the right things to build in the first place.
+      transformation_moment: >
+        The first time I used ProductFactoryOS to explore a feature I was assigned, I saw its full strategic
+        lineage—which North Star metric it targeted, which assumption it tested, and which personas it served.
+        When I asked the AI to help design the implementation, it suggested an approach that specifically
+        addressed the stated user pain points rather than a generic solution. The Quality Council flagged
+        that my initial implementation missed a key acceptance criterion tied to the business objective. I
+        shipped a feature I was confident actually mattered, with full traceability from code to strategy.
+      emotional_resolution: >
+        After adopting ProductFactoryOS, I feel like a true product engineer rather than just a feature
+        factory. I understand why I am building each feature, and that context makes me a better designer
+        of solutions. AI assistance is dramatically more useful because it shares my product understanding.
+        Code reviews now include strategic validation, catching misalignment before it ships. I take pride
+        in features I know connect to real business outcomes, and I can articulate that value to stakeholders
+        confidently.
+      demographics:
+        age_range: '26-40'
+        experience_years: '4-12 years in software engineering, with increasing product ownership'
+        company_size: 'Startups to Mid-market (20-2,000 employees)'
+        industry:
+          ['SaaS', 'Technology', 'FinTech', 'E-commerce', 'Digital Products']
+        geography: 'Global, with high concentration in tech hubs'
+        education: "Bachelor's in Computer Science or related field; often has product sense from side projects or previous roles"
+        reporting_structure: 'Reports to Engineering Manager or Head of Product; often embedded in cross-functional squads'
+      psychographics:
+        values:
+          [
+            'User Impact',
+            'End-to-End Ownership',
+            'Strategic Context',
+            'Quality',
+          ]
+        motivations:
+          [
+            'Build features that matter',
+            'Understand the why behind requirements',
+            'Ship with confidence',
+            'Bridge product and engineering perspectives',
+          ]
+        fears:
+          [
+            'Building features without understanding strategic rationale',
+            'Code disconnected from business outcomes',
+            'AI suggestions that are technically correct but strategically wrong',
+            'Shipping features that do not move the needle',
+          ]
+        decision_style: 'Context-seeking and outcome-oriented, values tools that connect implementation to strategy'
+        information_sources:
+          [
+            'Product engineering blogs',
+            'Technical design docs',
+            'User research summaries',
+            'Feature specs',
+            'Roadmap discussions',
+          ]
+        communication_preferences: 'Context-rich feature specs, code comments with rationale, PR descriptions that explain the why'
+
+    - id: 'ai-agent-operator'
+      name: 'AI Agent Operator'
+      role: 'Developer configuring AI agents for autonomous EPF workflows'
+      description: >
+        A developer who sets up and monitors AI agents that autonomously execute
+        EPF workflows—generating strategy drafts, creating feature specs, and
+        managing quality gates with minimal human intervention.
+      goals:
+        - 'Configure AI agents that can autonomously draft EPF artifacts'
+        - 'Set up quality gates that catch errors before artifacts are committed'
+        - 'Monitor agent activity and intervene when human judgment is needed'
+      pain_points:
+        - 'AI agents without guardrails produce inconsistent or invalid artifacts'
+        - 'No visibility into what agents are doing until something breaks'
+        - 'Manual review of every AI-generated artifact does not scale'
+      usage_context: >
+        Uses the developer console to configure agent workflows, monitor their
+        execution in real-time, and manage the Quality Council that reviews
+        agent outputs before they are committed to the repository.
+      technical_proficiency: 'expert'
+      current_situation: >
+        As someone building AI-powered workflows, I want agents to handle routine EPF tasks—drafting
+        roadmap updates, generating feature definitions, writing process documentation. But current AI
+        tools produce outputs that vary wildly in quality and often violate our schemas or conventions.
+        I have no way to see what agents are doing until I review their commits, and by then bad artifacts
+        have already polluted the repository. Setting up guardrails is manual and fragile—I write custom
+        validation scripts that break when schemas change. The promise of autonomous AI assistance is
+        undermined by the overhead of babysitting agent outputs.
+      transformation_moment: >
+        The first time I configured a Quality Council in ProductFactoryOS, I watched an AI agent draft
+        a feature definition while specialized reviewers (Schema Validator, Strategy Checker, Style
+        Enforcer) critiqued it in real-time. The agent revised its output based on reviewer feedback,
+        and the final artifact passed all quality gates without my intervention. The console showed me
+        exactly what each agent was doing, with clear intervention points when human judgment was needed.
+        I realized I could finally trust AI agents with EPF workflows because the system enforced quality
+        structurally rather than relying on my manual review.
+      emotional_resolution: >
+        After adopting ProductFactoryOS for AI agent operations, I feel confident delegating routine
+        EPF tasks to autonomous workflows. The Quality Council catches issues I would have missed, and
+        the real-time visibility means I am never surprised by what agents have done. I can scale AI
+        assistance across our entire EPF instance without proportionally scaling my review burden. The
+        agents have become genuine collaborators rather than unpredictable tools I have to constantly
+        supervise, freeing me to focus on the creative and strategic work only humans can do.
+      demographics:
+        age_range: '28-45'
+        experience_years: '5-15 years in software engineering, 2+ years working with AI/ML systems'
+        company_size: 'Startups to Enterprise (50-10,000 employees)'
+        industry:
+          [
+            'AI/ML',
+            'Technology',
+            'Enterprise Software',
+            'Automation',
+            'Developer Tools',
+          ]
+        geography: 'Global, concentrated in AI/tech hubs (SF, Seattle, London, Tel Aviv)'
+        education: "Bachelor's or Master's in Computer Science, often with AI/ML specialization or certifications"
+        reporting_structure: 'Reports to Head of AI, VP of Engineering, or CTO'
+      psychographics:
+        values:
+          ['Automation', 'Reliability', 'Scalability', 'Human-AI Collaboration']
+        motivations:
+          [
+            'Build autonomous AI workflows',
+            'Establish quality guardrails',
+            'Scale AI assistance without proportional oversight',
+            'Pioneer AI-native development practices',
+          ]
+        fears:
+          [
+            'AI agents producing inconsistent quality',
+            'Lack of visibility into agent actions',
+            'Manual review becoming bottleneck',
+            'AI mistakes reaching production',
+          ]
+        decision_style: 'Systems-thinking and guardrail-focused, evaluates tools on observability, configurability, and quality enforcement'
+        information_sources:
+          [
+            'AI research papers',
+            'AI engineering blogs',
+            'Open source AI projects',
+            'MLOps communities',
+            'AI safety discussions',
+          ]
+        communication_preferences: 'Real-time dashboards, structured logs, configurable alerts, async handoffs for human review'
+
+    - id: 'operations-lead'
+      name: 'Operations Lead'
+      role: 'Operations manager ensuring process documentation stays current'
+      description: >
+        A non-developer who manages operational processes and needs to keep
+        SOPs, workflows, and team documentation aligned with how work actually
+        happens. Prefers visual interfaces over command-line tools.
+      goals:
+        - 'Keep operational documentation synchronized with actual practices'
+        - 'Generate process artifacts (SOPs, checklists) from EPF definitions'
+        - 'Review and approve changes to operational workflows before deployment'
+      pain_points:
+        - 'Process documentation lives in wikis that quickly become outdated'
+        - 'No connection between documented processes and tools that execute them'
+        - 'Cannot participate in EPF workflows without learning developer tools'
+      usage_context: >
+        Uses the web dashboard to visualize operational state, review AI-generated
+        process updates, and approve changes before they are published to external
+        tools like ClickUp or Notion.
+      technical_proficiency: 'basic'
+      current_situation: >
+        As an operations lead, I maintain our team's process documentation—SOPs, onboarding checklists,
+        workflow guides. But these documents live in Notion wikis that nobody updates after the initial
+        creation. When processes change, the documentation lags behind, and new team members learn
+        outdated practices. I know the engineering team uses EPF for product planning, but their terminal
+        tools are intimidating and I cannot participate in their workflows. I feel disconnected from the
+        strategic planning process even though operations is a critical track. My documentation work feels
+        like it exists in a parallel universe from actual product development.
+      transformation_moment: >
+        The first time I opened the ProductFactoryOS web dashboard, I saw the Org/Ops track visualized
+        alongside Product and Strategy—my work was part of the same system. When I clicked on a process
+        definition, I saw it in a readable format with clear connections to the tools it affected. The
+        AI suggested updates to our onboarding SOP based on recent changes to our tech stack, and I could
+        review and approve them through the web interface without touching a terminal. When I approved
+        the changes, they automatically synced to our ClickUp workspace. I finally felt like a first-class
+        participant in the EPF workflow.
+      emotional_resolution: >
+        After adopting the ProductFactoryOS web dashboard, I feel integrated into the strategic planning
+        process rather than maintaining separate documentation. My operational artifacts are versioned
+        in Git alongside product artifacts, with the same quality controls and traceability. AI assistance
+        helps me keep documentation current without manual transcription. The web interface means I can
+        participate fully without learning terminal tools, and my contributions are visible and valued.
+        Operations is no longer an afterthought—it is a braided track that evolves with the product.
+      demographics:
+        age_range: '30-50'
+        experience_years: '5-15 years in operations, project management, or business roles'
+        company_size: 'Mid-market to Enterprise (200-5,000 employees)'
+        industry:
+          [
+            'Professional Services',
+            'Technology',
+            'Healthcare',
+            'Financial Services',
+            'Manufacturing',
+          ]
+        geography: 'North America, Europe, with growing adoption globally'
+        education: "Bachelor's in Business, Operations Management, or related field; often has PMP or process improvement certifications"
+        reporting_structure: 'Reports to COO, VP of Operations, or Director of Process Excellence'
+      psychographics:
+        values:
+          [
+            'Process Quality',
+            'Documentation Accuracy',
+            'Team Enablement',
+            'Continuous Improvement',
+          ]
+        motivations:
+          [
+            'Keep documentation current and useful',
+            'Enable teams with clear processes',
+            'Participate in strategic planning',
+            'Prove operations value to leadership',
+          ]
+        fears:
+          [
+            'Documentation becoming outdated and useless',
+            'Being excluded from technical workflows',
+            'Process knowledge lost when people leave',
+            'Operations seen as separate from product development',
+          ]
+        decision_style: 'Process-oriented and accessibility-focused, evaluates tools on ease of use for non-developers and integration with existing workflows'
+        information_sources:
+          [
+            'Operations management blogs',
+            'Process improvement communities',
+            'Vendor webinars',
+            'Industry conferences',
+            'Internal wikis and Notion',
+          ]
+        communication_preferences: 'Web interfaces, visual workflows, readable diffs, approval-based change management'
+
+  capabilities:
+    - id: 'cap-060'
+      name: 'EPF State Visualization'
+      description: |
+        Real-time dashboard showing EPF instance health across all phases (READY/FIRE/AIM).
+        Displays North Star, active OKRs, feature status, and validation state. Surfaces
+        issues and drift before they become problems.
+
+    - id: 'cap-061'
+      name: 'Build Orchestration'
+      description: |
+        Compiles EPF artifacts into downstream outputs: Linear tickets from features,
+        ClickUp tasks from operations, HubSpot campaigns from commercial. Manages the
+        "source code to runtime" compilation pipeline for business logic.
+
+    - id: 'cap-062'
+      name: 'Quality Council'
+      description: |
+        Mixture-of-experts review system where specialized AI agents (Schema Validator,
+        Strategy Checker, Style Enforcer, Security Reviewer) critique artifacts before
+        commit. Configurable gates and approval workflows.
+
+    - id: 'cap-063'
+      name: 'AI Agent Integration'
+      description: |
+        OpenCode and other AI agents connect via MCP to query EPF context, generate
+        artifacts with schema awareness, and participate in Quality Council reviews.
+        Enables "Agent Coding" mode from Master Plan.
+
+    - id: 'cap-064'
+      name: 'Multi-Channel Delivery'
+      description: |
+        Same core functionality delivered through multiple interfaces: TUI (BubbleTea)
+        for terminal-native developers, Web (HTMX) for broader accessibility. Shared
+        backend, consistent experience.
+
+    - id: 'cap-065'
+      name: 'Git-Native Workflow'
+      description: |
+        All state stored in Git repository. Changes flow through standard Git workflows
+        (branches, commits, PRs). No external database required for local operation.
+        The repo IS the database.
+
+implementation:
+  design_guidance:
+    principles:
+      - 'Everything is Code: Strategy, Ops, Commercial treated like software'
+      - 'Git is God: No hidden state outside the repository'
+      - 'Agent as Writer, Tool as Linter: AI writes content, epf-cli validates'
+      - 'Progressive Disclosure: Simple by default, powerful when needed'
+      - 'Channel Agnostic: Core logic independent of TUI vs Web delivery'
+
+    inspirations:
+      - 'Lazygit (TUI Git client with visual state)'
+      - 'K9s (Kubernetes TUI with real-time state)'
+      - 'Linear (clean issue tracking with keyboard-first UX)'
+      - 'Vercel Dashboard (deployment pipeline visualization)'
+
+  codebase_reference:
+    primary_location: 'apps/product-factory-os/'
+    language: 'Go'
+    tui_framework: 'charmbracelet/bubbletea'
+    web_framework: 'HTMX + Templ'
+    related_components:
+      - path: 'apps/epf-cli/'
+        relationship: 'Uses epf-cli as validation kernel via CLI or MCP'
+
+  contexts:
+    - id: 'ctx-030'
+      type: 'ui' # TUI variant - terminal user interface
+      name: 'Dashboard View (TUI)'
+      description: 'Main TUI screen showing EPF instance state overview'
+      key_interactions:
+        - 'Launch: pfos tui'
+        - 'Navigate sections with arrow keys or vim bindings'
+        - 'Drill into details with Enter'
+        - 'Trigger actions with keyboard shortcuts'
+        - 'Exit with q or Ctrl+C'
+      data_displayed:
+        - 'EPF health status (from epf-cli health)'
+        - 'North Star and active OKRs'
+        - 'Feature pipeline (draft → development → delivered)'
+        - 'Recent validation errors or warnings'
+        - 'Quality Council queue'
+
+    - id: 'ctx-031'
+      type: 'ui' # TUI variant - terminal user interface
+      name: 'Build Orchestration (TUI)'
+      description: 'Trigger and monitor artifact compilation'
+      key_interactions:
+        - 'Select build target (Linear, ClickUp, HubSpot, Docs)'
+        - 'Preview changes before execution'
+        - 'Trigger build with confirmation'
+        - 'Monitor progress with real-time output'
+        - 'Review results and handle errors'
+      data_displayed:
+        - 'Available build targets and their status'
+        - 'Diff preview of changes to be pushed'
+        - 'Build progress and logs'
+        - 'Success/failure summary with links'
+
+    - id: 'ctx-032'
+      type: 'ui' # TUI variant - terminal user interface
+      name: 'Quality Council Review (TUI)'
+      description: 'Manage AI-powered review workflow'
+      key_interactions:
+        - 'View pending reviews in queue'
+        - 'See reviewer feedback per artifact'
+        - 'Approve, reject, or request revision'
+        - 'Configure reviewer agents and thresholds'
+        - 'Override gates when appropriate'
+      data_displayed:
+        - 'Pending artifacts awaiting review'
+        - 'Reviewer verdicts (pass/fail/warn per reviewer)'
+        - 'Detailed feedback and suggestions'
+        - 'Approval status and required gates'
+
+    - id: 'ctx-033'
+      type: 'ui' # Web variant - browser-based interface
+      name: 'Web Dashboard'
+      description: 'Browser-based interface for non-terminal users'
+      key_interactions:
+        - 'Navigate to localhost:3000 or hosted URL'
+        - 'Browse EPF state through visual hierarchy'
+        - 'Edit artifacts through forms (commits to Git)'
+        - 'Review and approve Quality Council items'
+        - 'Trigger builds and monitor status'
+      data_displayed:
+        - 'Same data as TUI in web-friendly layout'
+        - 'Rich text rendering of artifact content'
+        - 'Interactive forms for artifact editing'
+        - 'Visual diff for pending changes'
+
+  scenarios:
+    - id: 'scn-040'
+      name: 'Morning Strategy Check'
+      actor: 'Solo Founder'
+      context: 'Starting workday, wants to review venture state before diving into tasks'
+      trigger: 'Founder launches pfos tui from terminal'
+      action: 'Reviews dashboard showing North Star, OKR progress, and any validation issues'
+      outcome: 'Understands current state and priorities, identifies any drift or blockers'
+      acceptance_criteria:
+        - 'Dashboard loads in < 2 seconds'
+        - 'Health status reflects latest epf-cli health results'
+        - 'Critical issues highlighted visually'
+        - 'Can drill into any item for details'
+
+    - id: 'scn-041'
+      name: 'AI-Assisted Feature Spec'
+      actor: 'Product Engineer'
+      context: 'Needs to create feature definition for assigned work'
+      trigger: 'Engineer selects "New Feature" from console and describes intent'
+      action: 'AI generates feature definition draft with strategic context, Quality Council reviews'
+      outcome: 'Valid feature definition committed with full traceability'
+      acceptance_criteria:
+        - 'AI has access to EPF context via MCP'
+        - 'Generated artifact passes schema validation'
+        - 'Strategic alignment verified by Quality Council'
+        - 'Commit includes proper attribution'
+
+    - id: 'scn-042'
+      name: 'Build to Linear'
+      actor: 'Product Engineer'
+      context: 'Feature definitions ready, needs to create Linear tickets'
+      trigger: 'Engineer selects "Build → Linear" from orchestration menu'
+      action: 'Console compiles features into Linear ticket format, shows preview, executes on confirm'
+      outcome: 'Linear tickets created with EPF traceability links'
+      acceptance_criteria:
+        - 'Preview shows exactly what will be created'
+        - 'Tickets include links back to EPF artifacts'
+        - 'Build completes with success/failure report'
+        - 'Rollback possible if build fails partially'
+
+    - id: 'scn-043'
+      name: 'Quality Council Gate'
+      actor: 'AI Agent Operator'
+      context: 'AI agent has generated roadmap update, needs review before commit'
+      trigger: 'Agent submits artifact to Quality Council queue'
+      action: 'Specialized reviewers analyze artifact, provide feedback, vote on approval'
+      outcome: 'Artifact approved and committed, or returned with revision requests'
+      acceptance_criteria:
+        - 'All configured reviewers provide verdicts'
+        - 'Feedback is specific and actionable'
+        - 'Approval requires passing configured gates'
+        - 'Human can override in exceptional cases'
+
+    - id: 'scn-044'
+      name: 'Operations Lead Web Review'
+      actor: 'Operations Lead'
+      context: 'AI suggested SOP updates, needs non-technical review and approval'
+      trigger: 'Operations Lead opens web dashboard and navigates to pending reviews'
+      action: 'Reviews changes in readable format, approves or requests changes'
+      outcome: 'SOP updates committed and synced to operational tools'
+      acceptance_criteria:
+        - 'Web interface accessible without terminal knowledge'
+        - 'Changes displayed in human-readable diff'
+        - 'Approval triggers Git commit with attribution'
+        - 'Downstream sync to ClickUp/Notion happens automatically'
+
+boundaries:
+  non_goals:
+    - 'Not a replacement for epf-cli (console USES epf-cli as kernel)'
+    - 'Not a general-purpose project management tool (EPF-specific)'
+    - 'Not a code editor or IDE (integrates with existing editors via MCP)'
+    - 'Not a hosted SaaS initially (local-first, self-hosted)'
+
+  constraints:
+    - 'Requires Git repository with valid EPF instance'
+    - 'TUI requires terminal with 256-color support'
+    - 'Web edition requires Go runtime for server'
+    - 'Quality Council requires AI API access (OpenAI, Anthropic, etc.)'
+    - 'Output adapters require credentials for target services'
+
+  future_considerations:
+    - 'Hosted/cloud edition for teams without local infrastructure'
+    - 'Real-time collaboration features for distributed teams'
+    - 'Plugin architecture for custom reviewers and adapters'
+    - 'Mobile companion app for status monitoring'
+
+dependencies:
+  requires:
+    - id: 'fd-012'
+      name: 'EPF-CLI Local Development Toolkit'
+      reason: 'Validation kernel—console uses epf-cli for all schema validation and health checks'
+    - id: 'fd-011'
+      name: 'EPF Schema Validation Service'
+      reason: 'Canonical schemas that define valid EPF artifacts'
+  enables:
+    - id: 'fd-006'
+      name: 'Integration Framework'
+      reason: 'Output adapters use integration framework for external service connections'
