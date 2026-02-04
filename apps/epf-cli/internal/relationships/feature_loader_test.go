@@ -180,11 +180,11 @@ func TestFeatureIndexCreation(t *testing.T) {
 			AssumptionsTested: []string{"asm-p-001"},
 		},
 		Dependencies: struct {
-			Requires []string `yaml:"requires"`
-			Enables  []string `yaml:"enables"`
+			Requires []DependencyRef `yaml:"requires"`
+			Enables  []DependencyRef `yaml:"enables"`
 		}{
-			Requires: []string{"fd-007"},
-			Enables:  []string{"fd-003"},
+			Requires: []DependencyRef{{ID: "fd-007"}},
+			Enables:  []DependencyRef{{ID: "fd-003"}},
 		},
 	}
 	set.ByID["fd-001"] = feature
@@ -255,9 +255,13 @@ definition:
 
 dependencies:
   requires:
-    - "fd-007"
+    - id: "fd-007"
+      name: "Test Dependency"
+      reason: "Test reason"
   enables:
-    - "fd-003"
+    - id: "fd-003"
+      name: "Test Enabled"
+      reason: "Test reason"
 `
 	if err := os.WriteFile(filepath.Join(featureDir, "fd-001_test_feature.yaml"), []byte(testFeature), 0644); err != nil {
 		t.Fatalf("Failed to write test feature: %v", err)
