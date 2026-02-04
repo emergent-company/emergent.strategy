@@ -1,20 +1,17 @@
 product_line_id: pl-epf-runtime
 product_line_name: EPF-Runtime
-version: 0.3.0
+version: 0.9.0
 status: active
 last_updated: '2026-02-02'
 description: |
   EPF-Runtime is the operational layer that makes EPF (Emergent Product Framework) 
-  programmatically executable. It consists of two complementary deployment models:
-  
+  programmatically executable. It supports two deployment models:
+
   1. **Local-First (ProductFactoryOS)**: Developer tools (epf-cli, product-factory-os TUI)
-     that run on engineer workstations. Git is the database. Zero infrastructure required.
-  
+     that run on workstations with Git as the database.
+
   2. **Server-Side (Emergent Cloud)**: Hosted workflow orchestration with Temporal, 
-     PostgreSQL, and multi-tenant workspaces. Integrates with Emergent Core knowledge graph.
-  
-  Both models share the same EPF schemas and validation rules. Local-first tools can
-  operate standalone or sync with server-side for team collaboration.
+     PostgreSQL, and multi-tenant workspaces.
 
 architectural_decisions:
   decision_date: '2026-02-02'
@@ -22,75 +19,75 @@ architectural_decisions:
     These decisions define the dual deployment architecture for EPF-Runtime,
     clarifying how local-first and server-side approaches complement each other.
   decisions:
-  - id: arch-001
-    title: Dual Deployment Model
-    decision: Support both local-first (Git-native) and server-side (Temporal-based) execution
-    rationale: |
-      Different users have different needs:
-      - Solo developers/small teams: Local-first with Git as database
-      - Enterprises: Server-side with durable workflows and multi-tenancy
-      
-      Both models validate against the same EPF schemas. Local tools can work
-      offline then sync to server when needed. This "local-first with optional
-      cloud" pattern provides the best of both worlds.
-    alternatives_considered:
-    - 'Server-only (rejected: forces infrastructure for simple use cases)'
-    - 'Local-only (rejected: limits enterprise collaboration features)'
-    impact: Architecture supports independent and hybrid deployments
-  - id: arch-002
-    title: Schema Authority
-    decision: Canonical EPF schemas live in eyedea-io/epf-canonical-definition repository
-    rationale: |
-      Single source of truth for all EPF artifact schemas. Both local tools
-      (epf-cli) and server-side validators fetch from the same canonical source.
-      This ensures artifacts created locally are valid when pushed to server.
-    alternatives_considered:
-    - 'Schemas embedded in each tool (rejected: drift risk)'
-    - 'Schemas in Emergent monorepo only (rejected: limits external adoption)'
-    impact: All EPF tools validate against canonical schemas
-  - id: arch-003
-    title: Git as Primary Database (Local-First)
-    decision: Local-first tools use Git repository as the source of truth
-    rationale: |
-      For ProductFactoryOS, the Git repo IS the database:
-      - EPF artifacts stored as YAML files
-      - History via Git commits
-      - Collaboration via Git workflows (branches, PRs)
-      - No PostgreSQL, Temporal, or external services required
-      
-      This enables "zero infrastructure" development and aligns with the
-      "Everything is Code" philosophy.
-    alternatives_considered:
-    - 'SQLite local database (rejected: adds complexity, duplicates Git)'
-    - 'Cloud-only storage (rejected: requires connectivity)'
-    impact: Local tools work offline with full functionality
-  - id: arch-004
-    title: MCP for AI Integration
-    decision: AI assistants connect via Model Context Protocol (MCP)
-    rationale: |
-      MCP provides standard interface for AI tools (OpenCode, GitHub Copilot,
-      Claude Desktop) to query EPF schemas and validate artifacts. epf-cli
-      serves as MCP server, enabling schema-aware autocomplete and validation.
-    alternatives_considered:
-    - 'Custom API (rejected: requires AI-specific integrations)'
-    - 'LSP only (rejected: doesn''t support AI-specific prompts/tools)'
-    impact: Any MCP-compatible AI can work with EPF
-  - id: arch-005
-    title: Temporal for Durable Workflows (Server-Side)
-    decision: Server-side orchestration uses Temporal workflow engine
-    rationale: |
-      For enterprise deployments, Temporal provides:
-      - Durable workflow state surviving infrastructure failures
-      - Activity retry with exponential backoff
-      - Workflow versioning for safe deployments
-      - Multi-namespace isolation for multi-tenancy
-      
-      This complements the local-first model for teams needing workflow
-      durability and centralized orchestration.
-    alternatives_considered:
-    - 'Custom state machine (rejected: reinventing the wheel)'
-    - 'Serverless functions only (rejected: complex state management)'
-    impact: Enterprise deployments get production-grade reliability
+    - id: arch-001
+      title: Dual Deployment Model
+      decision: Support both local-first (Git-native) and server-side (Temporal-based) execution
+      rationale: |
+        Different users have different needs:
+        - Solo developers/small teams: Local-first with Git as database
+        - Enterprises: Server-side with durable workflows and multi-tenancy
+
+        Both models validate against the same EPF schemas. Local tools can work
+        offline then sync to server when needed. This "local-first with optional
+        cloud" pattern provides the best of both worlds.
+      alternatives_considered:
+        - 'Server-only (rejected: forces infrastructure for simple use cases)'
+        - 'Local-only (rejected: limits enterprise collaboration features)'
+      impact: Architecture supports independent and hybrid deployments
+    - id: arch-002
+      title: Schema Authority
+      decision: Canonical EPF schemas live in eyedea-io/epf-canonical-definition repository
+      rationale: |
+        Single source of truth for all EPF artifact schemas. Both local tools
+        (epf-cli) and server-side validators fetch from the same canonical source.
+        This ensures artifacts created locally are valid when pushed to server.
+      alternatives_considered:
+        - 'Schemas embedded in each tool (rejected: drift risk)'
+        - 'Schemas in Emergent monorepo only (rejected: limits external adoption)'
+      impact: All EPF tools validate against canonical schemas
+    - id: arch-003
+      title: Git as Primary Database (Local-First)
+      decision: Local-first tools use Git repository as the source of truth
+      rationale: |
+        For ProductFactoryOS, the Git repo IS the database:
+        - EPF artifacts stored as YAML files
+        - History via Git commits
+        - Collaboration via Git workflows (branches, PRs)
+        - No PostgreSQL, Temporal, or external services required
+
+        This enables "zero infrastructure" development and aligns with the
+        "Everything is Code" philosophy.
+      alternatives_considered:
+        - 'SQLite local database (rejected: adds complexity, duplicates Git)'
+        - 'Cloud-only storage (rejected: requires connectivity)'
+      impact: Local tools work offline with full functionality
+    - id: arch-004
+      title: MCP for AI Integration
+      decision: AI assistants connect via Model Context Protocol (MCP)
+      rationale: |
+        MCP provides standard interface for AI tools (OpenCode, GitHub Copilot,
+        Claude Desktop) to query EPF schemas and validate artifacts. epf-cli
+        serves as MCP server, enabling schema-aware autocomplete and validation.
+      alternatives_considered:
+        - 'Custom API (rejected: requires AI-specific integrations)'
+        - "LSP only (rejected: doesn't support AI-specific prompts/tools)"
+      impact: Any MCP-compatible AI can work with EPF
+    - id: arch-005
+      title: Temporal for Durable Workflows (Server-Side)
+      decision: Server-side orchestration uses Temporal workflow engine
+      rationale: |
+        For enterprise deployments, Temporal provides:
+        - Durable workflow state surviving infrastructure failures
+        - Activity retry with exponential backoff
+        - Workflow versioning for safe deployments
+        - Multi-namespace isolation for multi-tenancy
+
+        This complements the local-first model for teams needing workflow
+        durability and centralized orchestration.
+      alternatives_considered:
+        - 'Custom state machine (rejected: reinventing the wheel)'
+        - 'Serverless functions only (rejected: complex state management)'
+      impact: Enterprise deployments get production-grade reliability
 
 alignment:
   north_star_reference: ../../READY/00_north_star.yaml
@@ -100,7 +97,7 @@ alignment:
     properly connected, AI-enhanced information." By making EPF methodology
     executable by machines, we allow AI agents to orchestrate product development
     with structure and validation.
-    
+
     The local-first model (ProductFactoryOS) particularly embodies "Everything
     is Code" — treating business strategy the same as software: versioned in
     Git, validated by linters, compiled into artifacts.
@@ -111,502 +108,682 @@ high_level_model:
     supporting local development workflows and enterprise orchestration.
   main_goal: Enable programmatic EPF execution with validation and AI integration
   product_goals:
-  - Validate EPF artifacts against canonical schemas automatically
-  - Provide MCP server for AI assistant schema-aware editing
-  - Support local-first development with Git as database
-  - Enable durable workflow orchestration for enterprise teams
-  - Store artifacts in knowledge graph for semantic search (server-side)
-  - Support multi-tenant workspaces with isolation (server-side)
+    - Validate EPF artifacts against canonical schemas automatically
+    - Provide MCP server for AI assistant schema-aware editing
+    - Support local-first development with Git as database
+    - Enable durable workflow orchestration for enterprise teams
+    - Store artifacts in knowledge graph for semantic search (server-side)
+    - Support multi-tenant workspaces with isolation (server-side)
   value_delivery_description:
-  - AI agents can create valid EPF artifacts with schema assistance
-  - Developers can validate EPF locally without server infrastructure
-  - Teams can collaborate via Git workflows with validation gates
-  - Enterprises can run durable EPF workflows with reliability guarantees
-  - Product strategies become semantically searchable
+    - AI agents can create valid EPF artifacts with schema assistance
+    - Developers can validate EPF locally without server infrastructure
+    - Teams can collaborate via Git workflows with validation gates
+    - Enterprises can run durable EPF workflows with reliability guarantees
+    - Product strategies become semantically searchable
   needs_addressed:
-  - need: AI agents cannot create valid EPF artifacts without schema guidance
-    current_pain: AI writes YAML that fails validation, requiring manual fixes
-    solution: MCP server provides schemas and validation for AI-assisted creation
-  - need: Local EPF validation requires no infrastructure
-    current_pain: Must deploy server to validate EPF files
-    solution: epf-cli validates locally against cached schemas
-  - need: Enterprise teams need durable workflow orchestration
-    current_pain: Manual EPF cycle execution is unreliable and hard to track
-    solution: Temporal-based workflows with state persistence and monitoring
-  - need: EPF artifacts should be searchable and AI-queryable
-    current_pain: Strategy documents scattered, not semantically indexed
-    solution: Knowledge graph integration with vector embeddings
+    - need: AI agents cannot create valid EPF artifacts without schema guidance
+      current_pain: AI writes YAML that fails validation, requiring manual fixes
+      solution: MCP server provides schemas and validation for AI-assisted creation
+    - need: Local EPF validation requires no infrastructure
+      current_pain: Must deploy server to validate EPF files
+      solution: epf-cli validates locally against cached schemas
+    - need: Enterprise teams need durable workflow orchestration
+      current_pain: Manual EPF cycle execution is unreliable and hard to track
+      solution: Temporal-based workflows with state persistence and monitoring
+    - need: EPF artifacts should be searchable and AI-queryable
+      current_pain: Strategy documents scattered, not semantically indexed
+      solution: Knowledge graph integration with vector embeddings
   values_delivered:
-  - value: Schema-Validated Artifacts
-    description: All EPF artifacts validated against canonical schemas before use
-    beneficiaries:
-    - AI Agents
-    - Developers
-    - Product Managers
-  - value: Local-First Development
-    description: Full EPF tooling works offline with Git as database
-    beneficiaries:
-    - Solo Developers
-    - Small Teams
-    - Air-Gapped Environments
-  - value: AI-Assisted Creation
-    description: AI agents create valid EPF artifacts with schema awareness
-    beneficiaries:
-    - AI Agents
-    - Developers using Copilot/OpenCode
-  - value: Durable Workflow Execution
-    description: Enterprise workflows survive infrastructure failures
-    beneficiaries:
-    - Enterprise Teams
-    - DevOps Engineers
-    - Platform Teams
-  - value: Semantic Product Intelligence
-    description: Product strategy searchable and AI-queryable
-    beneficiaries:
-    - Product Managers
-    - Executives
-    - AI Agents
+    - value: Schema-Validated Artifacts
+      description: All EPF artifacts validated against canonical schemas before use
+      beneficiaries:
+        - AI Agents
+        - Developers
+        - Product Managers
+    - value: Local-First Development
+      description: Full EPF tooling works offline with Git as database
+      beneficiaries:
+        - Solo Developers
+        - Small Teams
+        - Air-Gapped Environments
+    - value: AI-Assisted Creation
+      description: AI agents create valid EPF artifacts with schema awareness
+      beneficiaries:
+        - AI Agents
+        - Developers using Copilot/OpenCode
+    - value: Durable Workflow Execution
+      description: Enterprise workflows survive infrastructure failures
+      beneficiaries:
+        - Enterprise Teams
+        - DevOps Engineers
+        - Platform Teams
+    - value: Semantic Product Intelligence
+      description: Product strategy searchable and AI-queryable
+      beneficiaries:
+        - Product Managers
+        - Executives
+        - AI Agents
   solution_steps:
-  - step: Build epf-cli validation engine with schema loading
-    outcome: Any EPF file can be validated locally without infrastructure
-  - step: Implement MCP server in epf-cli for AI integration
-    outcome: AI assistants create valid EPF artifacts with autocomplete
-  - step: Build product-factory-os TUI for developer console
-    outcome: Developers have rich interface for EPF orchestration
-  - step: Implement Temporal workflows for server-side orchestration
-    outcome: Durable, resumable workflows for enterprise teams
-  - step: Integrate with Emergent Core knowledge graph
-    outcome: Semantic search over product strategy documents
+    - step: Build epf-cli validation engine with schema loading
+      outcome: Any EPF file can be validated locally without infrastructure
+    - step: Implement MCP server in epf-cli for AI integration
+      outcome: AI assistants create valid EPF artifacts with autocomplete
+    - step: Build product-factory-os TUI for developer console
+      outcome: Developers have rich interface for EPF orchestration
+    - step: Implement Temporal workflows for server-side orchestration
+      outcome: Durable, resumable workflows for enterprise teams
+    - step: Integrate with Emergent Core knowledge graph
+      outcome: Semantic search over product strategy documents
 
 activation_notes: |
   EPF-Runtime development follows a phased approach:
-  
+
   Phase 2 (Current): Build epf-cli validation kernel
   Phase 3: Dogfood with PFOS product.yaml
   Phase 4: Build product-factory-os TUI
   Phase 5: Connect Emergent.Core intelligence
   Phase 6: Build output adapters (ClickUp, HubSpot)
   Phase 7: Web dashboard edition
-  
+
   Local-first tools (epf-cli, product-factory-os) are prioritized before
   server-side Temporal integration, enabling faster iteration and dogfooding.
 
 layers:
-- id: layer-1-local-tools
-  name: Local Development Tools
-  description: CLI and TUI tools for local EPF development (Git-native, no infrastructure)
-  solution_steps:
-  - step: Implement epf-cli validation engine with schema loading
-    outcome: EPF files validated against canonical schemas with line-number errors
-  - step: Build MCP server mode for AI assistant integration
-    outcome: AI agents query schemas and validate artifacts in real-time
-  - step: Create product-factory-os TUI with BubbleTea
-    outcome: Developers have rich console interface for EPF orchestration
-  - step: Implement Git-native artifact management
-    outcome: EPF artifacts stored as files, history via Git, no database required
-  components:
-  - id: epf-cli-validate
-    name: EPFCLIValidation
-    uvp: EPF artifacts are validated locally so that developers catch errors before commit, which helps
-      us maintain artifact quality without infrastructure.
-    context: 'Technical: Go CLI using santhosh-tekuri/jsonschema for validation. Supports YAML parsing
-      with line-number tracking. Multiple output formats (text, json, sarif).'
-    active: true
-    sub_components:
-    - id: schema-loader
-      name: SchemaLoader
-      uvp: Schemas are loaded from local and remote sources so that validation works offline and stays
-        current, which helps us balance reliability with freshness.
-      context: 'Technical: Priority order: local ./schemas/ → workspace docs/EPF/schemas/ → remote GitHub
-        with 24h cache. --offline flag for air-gapped.'
-      active: true
-    - id: batch-validation
-      name: BatchValidation
-      uvp: Entire directories are validated recursively so that CI/CD can gate on EPF validity, which
-        helps us enforce quality in pipelines.
-      context: 'Technical: Recursive file walking with glob patterns. Summary output with valid/invalid
-        counts. Non-zero exit on any failure.'
-      active: true
-    - id: watch-mode
-      name: WatchMode
-      uvp: Files are revalidated on save so that developers get immediate feedback, which helps us
-        accelerate the edit-validate cycle.
-      context: 'Technical: fsnotify-based file watching. Debounced validation. Clear terminal on revalidation.'
-      active: false
-  - id: epf-cli-mcp
-    name: EPFCLIMCPServer
-    uvp: AI assistants query EPF schemas via MCP so that they create valid artifacts with autocomplete,
-      which helps us enable AI-assisted EPF development.
-    context: 'Technical: MCP server over stdio transport. Exposes tools/validate, resources/schemas,
-      prompts/epf-artifact. Compatible with OpenCode, Claude Desktop, Cursor.'
-    active: true
-    sub_components:
-    - id: mcp-schema-resources
-      name: MCPSchemaResources
-      uvp: Schemas are exposed as MCP resources so that AI can discover available artifact types, which
-        helps us enable intelligent autocomplete.
-      context: 'Technical: resources/schemas returns list of EPF types with descriptions. resources/schemas/{type}
-        returns full JSON Schema.'
-      active: true
-    - id: mcp-validate-tool
-      name: MCPValidateTool
-      uvp: Artifacts are validated via MCP tool call so that AI gets immediate validation feedback, which
-        helps us prevent invalid artifact generation.
-      context: 'Technical: tools/validate accepts YAML string and returns validation result with errors.'
-      active: true
-  - id: pfos-tui
-    name: ProductFactoryOSTUI
-    uvp: Developers interact with EPF via rich terminal UI so that they can orchestrate cycles visually,
-      which helps us improve developer experience.
-    context: 'Technical: Go TUI using charmbracelet/bubbletea. Shows EPF state, triggers builds, manages
-      Quality Council review. Git-backed state.'
-    active: false
-    sub_components:
-    - id: tui-state-viewer
-      name: TUIStateViewer
-      uvp: EPF state is visualized in terminal so that developers understand current progress, which
-        helps us provide situational awareness.
-      context: 'Technical: Tree view of EPF tracks (Strategy, Product, Ops, Commercial). Status indicators
-        for each artifact. Drill-down navigation.'
-      active: false
-    - id: tui-build-orchestrator
-      name: TUIBuildOrchestrator
-      uvp: Build commands are triggered from TUI so that developers compile EPF artifacts consistently,
-        which helps us standardize the build process.
-      context: 'Technical: pfos build <track> command. Invokes deterministic compilers. Shows progress
-        and errors inline.'
-      active: false
+  - id: layer-1-local-tools
+    name: Local Development Tools
+    description: CLI and TUI tools for local EPF development (Git-native, no infrastructure)
+    solution_steps:
+      - step: Implement epf-cli validation engine with schema loading
+        outcome: EPF files validated against canonical schemas with line-number errors
+      - step: Build MCP server mode for AI assistant integration
+        outcome: AI agents query schemas and validate artifacts in real-time
+      - step: Create product-factory-os TUI with BubbleTea
+        outcome: Developers have rich console interface for EPF orchestration
+      - step: Implement Git-native artifact management
+        outcome: EPF artifacts stored as files, history via Git, no database required
+    components:
+      - id: epf-cli-validate
+        name: EPFCLIValidation
+        uvp:
+          EPF artifacts are validated locally so that developers catch errors before commit, which helps
+          us maintain artifact quality without infrastructure.
+        context:
+          'Technical: Go CLI using santhosh-tekuri/jsonschema for validation. Supports YAML parsing
+          with line-number tracking. Multiple output formats (text, json, sarif).'
+        active: true
+        sub_components:
+          - id: schema-loader
+            name: SchemaLoader
+            uvp:
+              Schemas are loaded from local and remote sources so that validation works offline and stays
+              current, which helps us balance reliability with freshness.
+            context:
+              'Technical: Priority order: local ./schemas/ → workspace docs/EPF/schemas/ → remote GitHub
+              with 24h cache. --offline flag for air-gapped.'
+            active: true
+          - id: batch-validation
+            name: BatchValidation
+            uvp:
+              Entire directories are validated recursively so that CI/CD can gate on EPF validity, which
+              helps us enforce quality in pipelines.
+            context:
+              'Technical: Recursive file walking with glob patterns. Summary output with valid/invalid
+              counts. Non-zero exit on any failure.'
+            active: true
+          - id: watch-mode
+            name: WatchMode
+            uvp:
+              Files are revalidated on save so that developers get immediate feedback, which helps us
+              accelerate the edit-validate cycle.
+            context: 'Technical: fsnotify-based file watching. Debounced validation. Clear terminal on revalidation.'
+            active: false
+      - id: epf-cli-mcp
+        name: EPFCLIMCPServer
+        uvp:
+          AI assistants query EPF schemas via MCP so that they create valid artifacts with autocomplete,
+          which helps us enable AI-assisted EPF development.
+        context:
+          'Technical: MCP server over stdio transport. Exposes tools/validate, resources/schemas,
+          prompts/epf-artifact. Compatible with OpenCode, Claude Desktop, Cursor.'
+        active: true
+        sub_components:
+          - id: mcp-schema-resources
+            name: MCPSchemaResources
+            uvp:
+              Schemas are exposed as MCP resources so that AI can discover available artifact types, which
+              helps us enable intelligent autocomplete.
+            context:
+              'Technical: resources/schemas returns list of EPF types with descriptions. resources/schemas/{type}
+              returns full JSON Schema.'
+            active: true
+          - id: mcp-validate-tool
+            name: MCPValidateTool
+            uvp:
+              Artifacts are validated via MCP tool call so that AI gets immediate validation feedback, which
+              helps us prevent invalid artifact generation.
+            context: 'Technical: tools/validate accepts YAML string and returns validation result with errors.'
+            active: true
+      - id: epf-cli-health
+        name: EPFCLIHealthEngine
+        uvp:
+          EPF instances are comprehensively validated so that teams catch structural and quality issues early,
+          which helps us maintain high-quality product documentation.
+        context:
+          'Technical: 8-check validation suite covering structure, schemas, quality, cross-references,
+          content readiness, field coverage, and version alignment. Summary scores and detailed findings.'
+        active: true
+        sub_components:
+          - id: health-structure-check
+            name: StructureCheck
+            uvp:
+              EPF directory structure is validated so that instances follow conventions, which helps us
+              ensure discoverability and tooling compatibility.
+            context: 'Technical: Validates READY/FIRE/AIM directories exist with required files.'
+            active: true
+          - id: health-quality-check
+            name: QualityCheck
+            uvp:
+              Feature quality is assessed so that artifacts meet completeness standards, which helps us
+              deliver well-documented features.
+            context: 'Technical: Checks personas, narratives, scenarios, and TRL levels in features.'
+            active: true
+          - id: health-content-readiness
+            name: ContentReadinessCheck
+            uvp:
+              Placeholder content is detected so that incomplete artifacts are identified, which helps us
+              track documentation progress.
+            context: 'Technical: Detects TODO, PLACEHOLDER, TBD markers and empty required fields.'
+            active: true
+      - id: epf-cli-report
+        name: EPFCLIReportGenerator
+        uvp:
+          Health reports are generated in multiple formats so that teams can share findings, which helps us
+          communicate EPF status to stakeholders.
+        context:
+          'Technical: Generates Markdown, HTML, and JSON reports with executive summary, detailed findings,
+          and recommendations. Suitable for CI artifacts and documentation.'
+        active: true
+      - id: epf-cli-coverage
+        name: EPFCLICoverageAnalyzer
+        uvp:
+          Feature coverage of value model is analyzed so that strategic gaps are identified, which helps us
+          ensure features align with product strategy.
+        context:
+          'Technical: Calculates coverage percentage by layer/track. Identifies uncovered components,
+          orphan features (no contributes_to), and KR-targeted paths without features.'
+        active: true
+      - id: epf-cli-context
+        name: EPFCLIContextExplorer
+        uvp:
+          Strategic context for features is displayed so that developers understand feature impact, which
+          helps us maintain strategic alignment during development.
+        context:
+          'Technical: Shows value model paths, related KRs, dependencies, and strategic narrative for any
+          feature ID or slug.'
+        active: true
+      - id: epf-cli-explain
+        name: EPFCLIPathExplainer
+        uvp:
+          Value model paths are explained so that teams understand component hierarchy, which helps us
+          navigate complex value models.
+        context:
+          'Technical: Resolves Track.Layer.Component paths to show hierarchy, contributing features,
+          targeting KRs, and maturity levels.'
+        active: true
+      - id: epf-cli-relationships
+        name: EPFCLIRelationshipValidator
+        uvp:
+          Relationship paths are validated so that cross-references remain valid, which helps us maintain
+          artifact integrity.
+        context:
+          'Technical: Validates contributes_to and value_model_target paths in features and KRs.
+          Suggests corrections with did-you-mean for invalid paths.'
+        active: true
+      - id: epf-cli-migrate
+        name: EPFCLIMigrationEngine
+        uvp:
+          EPF versions are migrated automatically so that teams stay current with schema changes, which
+          helps us evolve the framework without breaking existing artifacts.
+        context:
+          'Technical: Detects current version, provides migration guides, supports dry-run mode.
+          Updates meta.epf_version fields and adds version headers.'
+        active: true
+      - id: epf-cli-fix
+        name: EPFCLIAutoFixer
+        uvp:
+          Common issues are fixed automatically so that manual cleanup is minimized, which helps us
+          maintain consistent artifact formatting.
+        context:
+          'Technical: Fixes trailing whitespace, newlines, tabs-to-spaces, line endings (CRLF→LF),
+          and missing version fields. Supports dry-run mode.'
+        active: true
+      - id: epf-cli-wizards
+        name: EPFCLIWizardManager
+        uvp:
+          Wizards are discoverable and recommendable so that users find the right workflow, which helps us
+          guide users through complex EPF tasks.
+        context:
+          'Technical: Lists, shows, and recommends wizards by phase and type (agent_prompt, wizard,
+          ready_sub_wizard). Integrates with MCP for AI recommendations.'
+        active: true
+      - id: epf-cli-generators
+        name: EPFCLIGeneratorFramework
+        uvp:
+          Output generators are managed and validated so that documents are created consistently, which
+          helps us produce high-quality outputs from EPF data.
+        context:
+          'Technical: Manages generators for compliance docs, investor reports, context sheets.
+          Supports scaffold, validate, and prerequisite checking.'
+        active: true
+      - id: pfos-tui
+        name: ProductFactoryOSTUI
+        uvp:
+          Developers interact with EPF via rich terminal UI so that they can orchestrate cycles visually,
+          which helps us improve developer experience.
+        context:
+          'Technical: Go TUI using charmbracelet/bubbletea. Shows EPF state, triggers builds, manages
+          Quality Council review. Git-backed state.'
+        active: false
+        sub_components:
+          - id: tui-state-viewer
+            name: TUIStateViewer
+            uvp:
+              EPF state is visualized in terminal so that developers understand current progress, which
+              helps us provide situational awareness.
+            context:
+              'Technical: Tree view of EPF tracks (Strategy, Product, Ops, Commercial). Status indicators
+              for each artifact. Drill-down navigation.'
+            active: false
+          - id: tui-build-orchestrator
+            name: TUIBuildOrchestrator
+            uvp:
+              Build commands are triggered from TUI so that developers compile EPF artifacts consistently,
+              which helps us standardize the build process.
+            context:
+              'Technical: pfos build <track> command. Invokes deterministic compilers. Shows progress
+              and errors inline.'
+            active: false
 
-- id: layer-2-workflow-engine
-  name: Workflow Engine (Server-Side)
-  description: Durable workflow orchestration using Temporal for enterprise deployments
-  solution_steps:
-  - step: Implement READY/FIRE/AIM phases as durable Temporal workflows
-    outcome: Workflow state persists across infrastructure failures and survives restarts
-  - step: Enforce sequential phase execution with validation gates
-    outcome: Teams cannot skip mandatory artifacts, ensuring methodology discipline
-  - step: Validate all artifacts against EPF JSON schemas in real-time
-    outcome: Invalid artifacts rejected before storage, maintaining data integrity
-  - step: Integrate automatic retry logic for transient failures
-    outcome: Network hiccups don't block workflows, improving reliability
-  components:
-  - id: durable-execution
-    name: DurableExecution
-    uvp: Workflow state persists across infrastructure failures so that long-running EPF cycles complete
-      reliably, which helps us prevent lost planning work.
-    context: 'Technical: Temporal workflow engine with PostgreSQL state backend. Workflows automatically
-      resume after worker restarts or node failures.'
-    active: false
-    sub_components:
-    - id: phase-orchestration
-      name: PhaseOrchestration
-      uvp: READY/FIRE/AIM phases execute sequentially with validation gates so that teams cannot skip
-        mandatory artifacts, which helps us enforce methodology discipline.
-      context: 'Technical: Each phase is a Temporal activity. Workflow enforces: READY → FIRE → AIM ordering.
-        Validation failure pauses workflow pending human review.'
-      active: false
-    - id: parallel-feature-execution
-      name: ParallelFeatureExecution
-      uvp: Multiple features are developed concurrently within FIRE phase so that teams can parallelize
-        work, which helps us accelerate time-to-market.
-      context: 'Technical: FIRE phase spawns child workflows per feature. Parent workflow waits for all
-        children before advancing to AIM.'
-      active: false
-    - id: automatic-retries
-      name: AutomaticRetries
-      uvp: Transient failures are retried automatically so that network hiccups don't block workflows,
-        which helps us improve reliability.
-      context: 'Technical: Temporal retry policies with exponential backoff for API calls (schema fetch,
-        Core API, webhooks). Configurable max attempts and timeout.'
-      active: false
-  - id: schema-enforcement
-    name: SchemaEnforcement
-    uvp: Artifacts are validated against EPF schemas during creation so that invalid data never enters
-      knowledge graph, which helps us maintain data integrity.
-    context: 'Technical: JSON Schema validation using Ajv library. Schemas fetched from canonical EPF
-      repo or cached locally. Validation errors include JSONPath and human-readable messages.'
-    active: false
-    sub_components:
-    - id: realtime-validation
-      name: RealtimeValidation
-      uvp: Validation errors are reported immediately during artifact creation so that users fix issues
-        instantly, which helps us reduce frustration.
-      context: 'Technical: API validates payloads synchronously before workflow step completes. Returns
-        400 Bad Request with detailed error array.'
-      active: false
-    - id: cross-reference-validation
-      name: CrossReferenceValidation
-      uvp: Feature dependencies and value model references are validated so that broken links are caught
-        early, which helps us prevent inconsistent artifacts.
-      context: 'Technical: Validation script checks that referenced IDs exist in knowledge graph. Runs
-        after artifact creation, before workflow advances.'
-      active: false
+  - id: layer-2-workflow-engine
+    name: Workflow Engine (Server-Side)
+    description: Durable workflow orchestration using Temporal for enterprise deployments
+    solution_steps:
+      - step: Implement READY/FIRE/AIM phases as durable Temporal workflows
+        outcome: Workflow state persists across infrastructure failures and survives restarts
+      - step: Enforce sequential phase execution with validation gates
+        outcome: Teams cannot skip mandatory artifacts, ensuring methodology discipline
+      - step: Validate all artifacts against EPF JSON schemas in real-time
+        outcome: Invalid artifacts rejected before storage, maintaining data integrity
+      - step: Integrate automatic retry logic for transient failures
+        outcome: Network hiccups don't block workflows, improving reliability
+    components:
+      - id: durable-execution
+        name: DurableExecution
+        uvp:
+          Workflow state persists across infrastructure failures so that long-running EPF cycles complete
+          reliably, which helps us prevent lost planning work.
+        context:
+          'Technical: Temporal workflow engine with PostgreSQL state backend. Workflows automatically
+          resume after worker restarts or node failures.'
+        active: false
+        sub_components:
+          - id: phase-orchestration
+            name: PhaseOrchestration
+            uvp:
+              READY/FIRE/AIM phases execute sequentially with validation gates so that teams cannot skip
+              mandatory artifacts, which helps us enforce methodology discipline.
+            context:
+              'Technical: Each phase is a Temporal activity. Workflow enforces: READY → FIRE → AIM ordering.
+              Validation failure pauses workflow pending human review.'
+            active: false
+          - id: parallel-feature-execution
+            name: ParallelFeatureExecution
+            uvp:
+              Multiple features are developed concurrently within FIRE phase so that teams can parallelize
+              work, which helps us accelerate time-to-market.
+            context:
+              'Technical: FIRE phase spawns child workflows per feature. Parent workflow waits for all
+              children before advancing to AIM.'
+            active: false
+          - id: automatic-retries
+            name: AutomaticRetries
+            uvp:
+              Transient failures are retried automatically so that network hiccups don't block workflows,
+              which helps us improve reliability.
+            context:
+              'Technical: Temporal retry policies with exponential backoff for API calls (schema fetch,
+              Core API, webhooks). Configurable max attempts and timeout.'
+            active: false
+      - id: schema-enforcement
+        name: SchemaEnforcement
+        uvp:
+          Artifacts are validated against EPF schemas during creation so that invalid data never enters
+          knowledge graph, which helps us maintain data integrity.
+        context:
+          'Technical: JSON Schema validation using Ajv library. Schemas fetched from canonical EPF
+          repo or cached locally. Validation errors include JSONPath and human-readable messages.'
+        active: false
+        sub_components:
+          - id: realtime-validation
+            name: RealtimeValidation
+            uvp:
+              Validation errors are reported immediately during artifact creation so that users fix issues
+              instantly, which helps us reduce frustration.
+            context:
+              'Technical: API validates payloads synchronously before workflow step completes. Returns
+              400 Bad Request with detailed error array.'
+            active: false
+          - id: cross-reference-validation
+            name: CrossReferenceValidation
+            uvp:
+              Feature dependencies and value model references are validated so that broken links are caught
+              early, which helps us prevent inconsistent artifacts.
+            context:
+              'Technical: Validation script checks that referenced IDs exist in knowledge graph. Runs
+              after artifact creation, before workflow advances.'
+            active: false
 
-- id: layer-3-platform-services
-  name: Platform Services (Server-Side)
-  description: Multi-tenancy, access control, and external integrations for enterprise
-  solution_steps:
-  - step: Implement workspace isolation with row-level security and Temporal namespaces
-    outcome: Multiple product lines operate independently without data leakage
-  - step: Enforce role-based access control at API and workflow levels
-    outcome: Sensitive strategies remain confidential, meeting enterprise security requirements
-  - step: Build webhook engine for external tool integration (GitHub, Jira, Notion)
-    outcome: EPF cycles trigger actions in existing tools, fitting into current workflows
-  - step: Automate workspace provisioning via API
-    outcome: Sales can onboard customers instantly without engineering intervention
-  components:
-  - id: workspace-isolation
-    name: WorkspaceIsolation
-    uvp: Multiple product lines operate independently so that teams don't interfere with each other,
-      which helps us support enterprise customers.
-    context: 'Technical: Multi-tenancy via workspace_id in all data models. Row-level security in PostgreSQL.
-      Temporal namespace per workspace for complete isolation.'
-    active: false
-    sub_components:
-    - id: access-control
-      name: AccessControl
-      uvp: Team members have role-based permissions so that sensitive strategies remain confidential,
-        which helps us meet enterprise security requirements.
-      context: 'Technical: RBAC with roles: workspace-admin, product-manager, developer, viewer. Enforced
-        at API layer and Temporal worker authorization.'
-      active: false
-    - id: tenant-provisioning
-      name: TenantProvisioning
-      uvp: New workspaces are created instantly so that sales can onboard customers without engineering,
-        which helps us scale sales operations.
-      context: 'Technical: POST /workspaces API creates Temporal namespace, database schema, and admin
-        user. Automated via Terraform for self-hosted deployments.'
-      active: false
-  - id: external-integrations
-    name: ExternalIntegrations
-    uvp: EPF cycles trigger actions in external tools so that workflows integrate with existing processes,
-      which helps us fit into current team workflows.
-    context: 'Technical: Webhook engine sends events to external URLs (GitHub, Jira, Notion, Slack).
-      Event types: workflow-started, phase-completed, validation-failed, artifact-created.'
-    active: false
-    sub_components:
-    - id: github-integration
-      name: GitHubIntegration
-      uvp: Validated artifacts are committed to Git automatically so that teams have version history,
-        which helps us enable GitOps workflows.
-      context: 'Technical: GitHub App integration commits artifacts to specified repo/branch after validation.
-        Creates PR for review or direct commit based on config.'
-      active: false
-    - id: jira-sync
-      name: JiraSync
-      uvp: FIRE features create corresponding Jira epics so that engineering work is tracked, which
-        helps us bridge product and engineering.
-      context: 'Technical: Jira REST API creates epic per feature with description from value model.
-        Links to Runtime workflow for traceability.'
-      active: false
-    - id: clickup-adapter
-      name: ClickUpAdapter
-      uvp: EPF ops artifacts sync to ClickUp tasks so that process definitions become executable work,
-        which helps us operationalize workflows.
-      context: 'Technical: MCP server adapter translates EPF ops/*.yaml to ClickUp API calls. Creates
-        tasks, lists, and automations.'
-      active: false
-    - id: hubspot-adapter
-      name: HubSpotAdapter
-      uvp: EPF commercial artifacts sync to HubSpot campaigns so that growth strategies become executable,
-        which helps us operationalize marketing.
-      context: 'Technical: MCP server adapter translates EPF growth/*.yaml to HubSpot API calls. Creates
-        campaigns, sequences, and forms.'
-      active: false
+  - id: layer-3-platform-services
+    name: Platform Services (Server-Side)
+    description: Multi-tenancy, access control, and external integrations for enterprise
+    solution_steps:
+      - step: Implement workspace isolation with row-level security and Temporal namespaces
+        outcome: Multiple product lines operate independently without data leakage
+      - step: Enforce role-based access control at API and workflow levels
+        outcome: Sensitive strategies remain confidential, meeting enterprise security requirements
+      - step: Build webhook engine for external tool integration (GitHub, Jira, Notion)
+        outcome: EPF cycles trigger actions in existing tools, fitting into current workflows
+      - step: Automate workspace provisioning via API
+        outcome: Sales can onboard customers instantly without engineering intervention
+    components:
+      - id: workspace-isolation
+        name: WorkspaceIsolation
+        uvp:
+          Multiple product lines operate independently so that teams don't interfere with each other,
+          which helps us support enterprise customers.
+        context:
+          'Technical: Multi-tenancy via workspace_id in all data models. Row-level security in PostgreSQL.
+          Temporal namespace per workspace for complete isolation.'
+        active: false
+        sub_components:
+          - id: access-control
+            name: AccessControl
+            uvp:
+              Team members have role-based permissions so that sensitive strategies remain confidential,
+              which helps us meet enterprise security requirements.
+            context:
+              'Technical: RBAC with roles: workspace-admin, product-manager, developer, viewer. Enforced
+              at API layer and Temporal worker authorization.'
+            active: false
+          - id: tenant-provisioning
+            name: TenantProvisioning
+            uvp:
+              New workspaces are created instantly so that sales can onboard customers without engineering,
+              which helps us scale sales operations.
+            context:
+              'Technical: POST /workspaces API creates Temporal namespace, database schema, and admin
+              user. Automated via Terraform for self-hosted deployments.'
+            active: false
+      - id: external-integrations
+        name: ExternalIntegrations
+        uvp:
+          EPF cycles trigger actions in external tools so that workflows integrate with existing processes,
+          which helps us fit into current team workflows.
+        context:
+          'Technical: Webhook engine sends events to external URLs (GitHub, Jira, Notion, Slack).
+          Event types: workflow-started, phase-completed, validation-failed, artifact-created.'
+        active: false
+        sub_components:
+          - id: github-integration
+            name: GitHubIntegration
+            uvp:
+              Validated artifacts are committed to Git automatically so that teams have version history,
+              which helps us enable GitOps workflows.
+            context:
+              'Technical: GitHub App integration commits artifacts to specified repo/branch after validation.
+              Creates PR for review or direct commit based on config.'
+            active: false
+          - id: jira-sync
+            name: JiraSync
+            uvp:
+              FIRE features create corresponding Jira epics so that engineering work is tracked, which
+              helps us bridge product and engineering.
+            context:
+              'Technical: Jira REST API creates epic per feature with description from value model.
+              Links to Runtime workflow for traceability.'
+            active: false
+          - id: clickup-adapter
+            name: ClickUpAdapter
+            uvp:
+              EPF ops artifacts sync to ClickUp tasks so that process definitions become executable work,
+              which helps us operationalize workflows.
+            context:
+              'Technical: MCP server adapter translates EPF ops/*.yaml to ClickUp API calls. Creates
+              tasks, lists, and automations.'
+            active: false
+          - id: hubspot-adapter
+            name: HubSpotAdapter
+            uvp:
+              EPF commercial artifacts sync to HubSpot campaigns so that growth strategies become executable,
+              which helps us operationalize marketing.
+            context:
+              'Technical: MCP server adapter translates EPF growth/*.yaml to HubSpot API calls. Creates
+              campaigns, sequences, and forms.'
+            active: false
 
-- id: layer-4-web-interface
-  name: Web Interface
-  description: Web dashboard for stakeholder visibility and collaborative editing
-  solution_steps:
-  - step: Build Git-backed web dashboard with HTMX and Templ
-    outcome: Stakeholders view EPF state via web browser without CLI knowledge
-  - step: Implement form-based artifact editing with validation
-    outcome: Non-technical users can edit EPF artifacts with guided forms
-  - step: Add real-time collaboration indicators
-    outcome: Team members see who is editing which artifacts
-  components:
-  - id: pfos-web-dashboard
-    name: ProductFactoryOSWebDashboard
-    uvp: Stakeholders view EPF state via web browser so that non-technical users stay informed, which
-      helps us improve organizational alignment.
-    context: 'Technical: Go server with HTMX + Templ. Reads EPF state from Git. No JavaScript framework.
-      SSR with partial page updates.'
-    active: false
-    sub_components:
-    - id: web-state-viewer
-      name: WebStateViewer
-      uvp: EPF tracks are visualized in browser so that executives see strategy status, which helps
-        us enable leadership visibility.
-      context: 'Technical: Dashboard showing Strategy, Product, Ops, Commercial tracks. Card-based layout
-        with status indicators. Responsive design.'
-      active: false
-    - id: web-artifact-editor
-      name: WebArtifactEditor
-      uvp: Artifacts are edited via web forms so that non-technical users can contribute, which helps
-        us democratize EPF editing.
-      context: 'Technical: Form-based editor generates valid YAML. Real-time validation via HTMX. Commits
-        to Git on save.'
-      active: false
+  - id: layer-4-web-interface
+    name: Web Interface
+    description: Web dashboard for stakeholder visibility and collaborative editing
+    solution_steps:
+      - step: Build Git-backed web dashboard with HTMX and Templ
+        outcome: Stakeholders view EPF state via web browser without CLI knowledge
+      - step: Implement form-based artifact editing with validation
+        outcome: Non-technical users can edit EPF artifacts with guided forms
+      - step: Add real-time collaboration indicators
+        outcome: Team members see who is editing which artifacts
+    components:
+      - id: pfos-web-dashboard
+        name: ProductFactoryOSWebDashboard
+        uvp:
+          Stakeholders view EPF state via web browser so that non-technical users stay informed, which
+          helps us improve organizational alignment.
+        context:
+          'Technical: Go server with HTMX + Templ. Reads EPF state from Git. No JavaScript framework.
+          SSR with partial page updates.'
+        active: false
+        sub_components:
+          - id: web-state-viewer
+            name: WebStateViewer
+            uvp:
+              EPF tracks are visualized in browser so that executives see strategy status, which helps
+              us enable leadership visibility.
+            context:
+              'Technical: Dashboard showing Strategy, Product, Ops, Commercial tracks. Card-based layout
+              with status indicators. Responsive design.'
+            active: false
+          - id: web-artifact-editor
+            name: WebArtifactEditor
+            uvp:
+              Artifacts are edited via web forms so that non-technical users can contribute, which helps
+              us democratize EPF editing.
+            context:
+              'Technical: Form-based editor generates valid YAML. Real-time validation via HTMX. Commits
+              to Git on save.'
+            active: false
 
 beneficiaries:
-- name: AI Agents
-  primary_needs:
-  - Schema awareness for valid artifact creation
-  - MCP interface for tool integration
-  - Validation feedback during generation
-  value_received:
-  - Create valid EPF artifacts with autocomplete
-  - Query schemas via standard MCP protocol
-  - Get immediate validation errors to self-correct
-- name: Developers
-  primary_needs:
-  - Local validation without infrastructure
-  - CLI for CI/CD integration
-  - Fast feedback during editing
-  value_received:
-  - Validate EPF offline with epf-cli
-  - Integrate validation into Git hooks and pipelines
-  - Watch mode for instant feedback on save
-- name: Product Managers
-  primary_needs:
-  - Faster artifact creation with guidance
-  - Semantic search across strategies
-  - Visibility into workflow progress
-  value_received:
-  - AI-assisted artifact creation with validation
-  - Find similar strategies from past products
-  - Track EPF cycle progress in dashboards
-- name: Enterprise Teams
-  primary_needs:
-  - Durable workflow orchestration
-  - Multi-tenant workspaces with isolation
-  - Integration with existing tools
-  value_received:
-  - Workflows survive infrastructure failures
-  - Manage multiple product lines securely
-  - Sync EPF to ClickUp, Jira, HubSpot
-- name: Solo Developers / Small Teams
-  primary_needs:
-  - Zero infrastructure requirements
-  - Git-native workflows
-  - Offline capability
-  value_received:
-  - Full EPF tooling with just Git
-  - Work offline then sync when ready
-  - No server setup or maintenance
+  - name: AI Agents
+    primary_needs:
+      - Schema awareness for valid artifact creation
+      - MCP interface for tool integration
+      - Validation feedback during generation
+    value_received:
+      - Create valid EPF artifacts with autocomplete
+      - Query schemas via standard MCP protocol
+      - Get immediate validation errors to self-correct
+  - name: Developers
+    primary_needs:
+      - Local validation without infrastructure
+      - CLI for CI/CD integration
+      - Fast feedback during editing
+    value_received:
+      - Validate EPF offline with epf-cli
+      - Integrate validation into Git hooks and pipelines
+      - Watch mode for instant feedback on save
+  - name: Product Managers
+    primary_needs:
+      - Faster artifact creation with guidance
+      - Semantic search across strategies
+      - Visibility into workflow progress
+    value_received:
+      - AI-assisted artifact creation with validation
+      - Find similar strategies from past products
+      - Track EPF cycle progress in dashboards
+  - name: Enterprise Teams
+    primary_needs:
+      - Durable workflow orchestration
+      - Multi-tenant workspaces with isolation
+      - Integration with existing tools
+    value_received:
+      - Workflows survive infrastructure failures
+      - Manage multiple product lines securely
+      - Sync EPF to ClickUp, Jira, HubSpot
+  - name: Solo Developers / Small Teams
+    primary_needs:
+      - Zero infrastructure requirements
+      - Git-native workflows
+      - Offline capability
+    value_received:
+      - Full EPF tooling with just Git
+      - Work offline then sync when ready
+      - No server setup or maintenance
 
 success_metrics:
-- metric: Local Validation Adoption
-  target: 100 developers
-  description: Developers using epf-cli for local validation
-- metric: AI Agent Integration
-  target: 5 AI tools
-  description: AI assistants connected via MCP (OpenCode, Copilot, Claude, etc.)
-- metric: Schema Validation Coverage
-  target: 100%
-  description: All EPF artifact types have JSON schema validation
-- metric: Validation Error Detection
-  target: 100%
-  description: Schema violations caught before storage/commit
-- metric: MCP Response Time (p95)
-  target: <100ms
-  description: 95th percentile response time for MCP tool calls
-- metric: Workflow Completion Rate (Server-Side)
-  target: 99%
-  description: Started workflows that complete successfully
+  - metric: Local Validation Adoption
+    target: 100 developers
+    description: Developers using epf-cli for local validation
+  - metric: AI Agent Integration
+    target: 5 AI tools
+    description: AI assistants connected via MCP (OpenCode, Copilot, Claude, etc.)
+  - metric: Schema Validation Coverage
+    target: 100%
+    description: All EPF artifact types have JSON schema validation
+  - metric: Validation Error Detection
+    target: 100%
+    description: Schema violations caught before storage/commit
+  - metric: MCP Response Time (p95)
+    target: <100ms
+    description: 95th percentile response time for MCP tool calls
+  - metric: Workflow Completion Rate (Server-Side)
+    target: 99%
+    description: Started workflows that complete successfully
 
 mvp_scope:
   decision_date: '2026-02-02'
   implementation_phases:
-  - phase: 2
-    name: Build the Kernel (epf-cli)
-    status: current
-    description: Schema validation engine and MCP server
-    components_activated:
-    - EPFCLIValidation (L1)
-    - EPFCLIMCPServer (L1)
-    - SchemaLoader (L1)
-    - BatchValidation (L1)
-    - MCPSchemaResources (L1)
-    - MCPValidateTool (L1)
-    outcome: epf-cli validates EPF files and serves as MCP server for AI integration
-  - phase: 3
-    name: Dogfooding
-    status: planned
-    description: Use OpenCode to write PFOS product.yaml
-    components_activated: []
-    outcome: EPF tooling validated by building itself
-  - phase: 4
-    name: Build the OS (product-factory-os TUI)
-    status: planned
-    description: Developer console TUI
-    components_activated:
-    - ProductFactoryOSTUI (L1)
-    - TUIStateViewer (L1)
-    - TUIBuildOrchestrator (L1)
-    outcome: Rich terminal UI for EPF orchestration
-  - phase: 4.5
-    name: Quality Gate
-    status: planned
-    description: Mixture of Experts review loop
-    components_activated: []
-    outcome: AI-generated artifacts reviewed by specialized agents before commit
-  - phase: 5
-    name: Connect Intelligence
-    status: planned
-    description: Integrate Emergent.Core via MCP
-    components_activated: []
-    outcome: AI queries historical knowledge for context-aware generation
-  - phase: 6
-    name: Connect Runtimes
-    status: planned
-    description: Build output adapters (ClickUp, HubSpot)
-    components_activated:
-    - ClickUpAdapter (L3)
-    - HubSpotAdapter (L3)
-    outcome: EPF artifacts sync to external tools
-  - phase: 7
-    name: Web Edition
-    status: planned
-    description: Online dashboard
-    components_activated:
-    - ProductFactoryOSWebDashboard (L4)
-    - WebStateViewer (L4)
-    - WebArtifactEditor (L4)
-    outcome: Stakeholders view and edit EPF via web browser
+    - phase: 2
+      name: Build the Kernel (epf-cli)
+      status: current
+      description: Schema validation engine and MCP server
+      components_activated:
+        - EPFCLIValidation (L1)
+        - EPFCLIMCPServer (L1)
+        - SchemaLoader (L1)
+        - BatchValidation (L1)
+        - MCPSchemaResources (L1)
+        - MCPValidateTool (L1)
+        - EPFCLIHealthEngine (L1)
+        - EPFCLIReportGenerator (L1)
+        - EPFCLICoverageAnalyzer (L1)
+        - EPFCLIContextExplorer (L1)
+        - EPFCLIPathExplainer (L1)
+        - EPFCLIRelationshipValidator (L1)
+        - EPFCLIMigrationEngine (L1)
+        - EPFCLIAutoFixer (L1)
+        - EPFCLIWizardManager (L1)
+        - EPFCLIGeneratorFramework (L1)
+      outcome: epf-cli provides comprehensive validation, health checks, coverage analysis, and MCP server for AI integration
+    - phase: 3
+      name: Dogfooding
+      status: planned
+      description: Use OpenCode to write PFOS product.yaml
+      components_activated: []
+      outcome: EPF tooling validated by building itself
+    - phase: 4
+      name: Build the OS (product-factory-os TUI)
+      status: planned
+      description: Developer console TUI
+      components_activated:
+        - ProductFactoryOSTUI (L1)
+        - TUIStateViewer (L1)
+        - TUIBuildOrchestrator (L1)
+      outcome: Rich terminal UI for EPF orchestration
+    - phase: 4.5
+      name: Quality Gate
+      status: planned
+      description: Mixture of Experts review loop
+      components_activated: []
+      outcome: AI-generated artifacts reviewed by specialized agents before commit
+    - phase: 5
+      name: Connect Intelligence
+      status: planned
+      description: Integrate Emergent.Core via MCP
+      components_activated: []
+      outcome: AI queries historical knowledge for context-aware generation
+    - phase: 6
+      name: Connect Runtimes
+      status: planned
+      description: Build output adapters (ClickUp, HubSpot)
+      components_activated:
+        - ClickUpAdapter (L3)
+        - HubSpotAdapter (L3)
+      outcome: EPF artifacts sync to external tools
+    - phase: 7
+      name: Web Edition
+      status: planned
+      description: Online dashboard
+      components_activated:
+        - ProductFactoryOSWebDashboard (L4)
+        - WebStateViewer (L4)
+        - WebArtifactEditor (L4)
+      outcome: Stakeholders view and edit EPF via web browser
   deferred_to_post_mvp:
-  - WatchMode (L1) - File watching for continuous validation
-  - All Layer 2 components - Server-side Temporal workflows
-  - WorkspaceIsolation (L3) - Multi-tenant management
-  - GitHubIntegration (L3) - Auto-commit validated artifacts
-  - JiraSync (L3) - Create Jira epics from features
+    - WatchMode (L1) - File watching for continuous validation
+    - All Layer 2 components - Server-side Temporal workflows
+    - All Layer 3 components - Multi-tenancy and external integrations
+    - All Layer 4 components - Web dashboard
   mvp_success_criteria:
-  - epf-cli validate <path> validates EPF files against canonical schemas
-  - epf-cli serve provides MCP server for AI assistants
-  - Validation errors include file path, line number, and description
-  - AI agent (OpenCode) can query schemas via MCP and create valid artifacts
-  - CLI works offline with cached schemas
+    - epf-cli validate <path> validates EPF files against canonical schemas
+    - epf-cli serve provides MCP server with 30+ tools for AI assistants
+    - epf-cli health runs comprehensive 8-check validation suite
+    - epf-cli report generates Markdown/HTML/JSON health reports
+    - epf-cli coverage analyzes feature-to-value-model coverage
+    - epf-cli context/explain provide strategic insight into features and paths
+    - epf-cli relationships validate validates cross-references
+    - Validation errors include file path, line number, and description
+    - AI agent (OpenCode) can query schemas via MCP and create valid artifacts
+    - CLI works offline with cached schemas
 
 roadmap_notes: |
   EPF-Runtime follows a "local-first, then cloud" approach:
-  
+
   **Current (Phase 2):** Build epf-cli as the validation kernel. This establishes
   the foundation that all other tools depend on - schema loading, validation,
   and MCP server for AI integration.
-  
+
   **Near-term (Phases 3-4):** Dogfood the tooling, then build product-factory-os
   TUI for developer experience. All local-first, Git-native.
-  
+
   **Medium-term (Phases 5-6):** Connect to Emergent.Core for intelligence and
   build adapters for ClickUp/HubSpot integration. Still primarily local.
-  
+
   **Long-term (Phase 7+):** Web dashboard for stakeholder visibility. Server-side
   Temporal workflows for enterprise durability.
-  
+
   The key insight: by building local-first tools first, we can iterate quickly
   and validate the approach before investing in server infrastructure. The
   "Git as database" pattern means no PostgreSQL or Temporal needed initially.
-  
+
   See /docs/product-factory-os/MASTER_PLAN.md for detailed roadmap.
 
 track_name: Product

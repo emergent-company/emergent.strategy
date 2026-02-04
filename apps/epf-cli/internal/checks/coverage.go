@@ -258,13 +258,15 @@ func (c *FieldCoverageChecker) extractRoadmapKeyResultFields(content map[string]
 		return presentFields
 	}
 
-	tracks, ok := roadmap["tracks"].([]interface{})
+	// tracks is a map with keys like "product", "strategy", "org_ops", "commercial"
+	tracks, ok := roadmap["tracks"].(map[string]interface{})
 	if !ok {
 		return presentFields
 	}
 
-	for _, t := range tracks {
-		track, ok := t.(map[string]interface{})
+	// Iterate over each track (product, strategy, org_ops, commercial)
+	for _, trackValue := range tracks {
+		track, ok := trackValue.(map[string]interface{})
 		if !ok {
 			continue
 		}
