@@ -1,18 +1,17 @@
-id: "fd-001"
-name: "Knowledge Graph Engine"
-slug: "knowledge-graph-engine"
-status: "delivered"
+id: 'fd-001'
+name: 'Knowledge Graph Engine'
+slug: 'knowledge-graph-engine'
+status: 'delivered'
 
 strategic_context:
   contributes_to:
-    - "Product.Discovery.KnowledgeExploration"
-    - "Product.Search.SemanticFindability"
-    - "Product.Intelligence.ContextualUnderstanding"
+    - 'Product.CoreKnowledgePlatform.DocumentIntelligence.KnowledgeGraph'
+    - 'Product.CoreKnowledgePlatform.KnowledgeAccess.SemanticSearch'
   tracks:
-    - "product"
+    - 'product'
   assumptions_tested:
-    - "asm-p-001" # Users discover more value through relationship exploration than keyword search alone
-    - "asm-p-002" # Semantic similarity helps users find information even with different terminology
+    - 'asm-p-001' # Users discover more value through relationship exploration than keyword search alone
+    - 'asm-p-002' # Semantic similarity helps users find information even with different terminology
 
 definition:
   job_to_be_done: >
@@ -27,33 +26,378 @@ definition:
     to each other. Think of it like a map of your organization's knowledge where you can zoom in on details or zoom 
     out to see patterns, and the system suggests relevant connections you might not have thought to look for.
 
+  personas:
+    - id: 'research-analyst'
+      name: 'Research Analyst'
+      role: 'Business Intelligence Analyst'
+      description: >
+        Analyst who explores organizational knowledge to find insights, patterns,
+        and connections that inform strategic decisions. Needs to navigate complex
+        information landscapes quickly and discover non-obvious relationships.
+      goals:
+        - 'Discover connections between disparate pieces of information'
+        - 'Find relevant content even when using different terminology'
+        - 'Build comprehensive understanding of complex topics quickly'
+        - 'Navigate from one piece of knowledge to related context efficiently'
+      pain_points:
+        - 'Keyword search misses relevant content that uses different terms'
+        - 'Information is siloed across systems with no visible connections'
+        - 'Building comprehensive views requires manual aggregation from many sources'
+        - 'Discovery relies on knowing exactly what to search for'
+      usage_context: >
+        Searches the knowledge graph daily to prepare research reports and
+        brief leadership. Explores relationship paths to understand context.
+        Uses semantic search to find conceptually related content.
+      technical_proficiency: 'intermediate'
+      current_situation: >
+        As a research analyst preparing strategic briefs for leadership, I spend hours searching
+        across multiple systems for relevant information. Keyword search in our document
+        repository misses content that uses different terminology - searching "renewable energy"
+        misses documents about "solar projects" and "green initiatives" even though they are
+        highly relevant. I manually connect dots between disparate pieces of information,
+        often missing important relationships because I did not know to look for them. Building
+        a comprehensive view of a topic requires accessing 5+ systems and mentally synthesizing
+        information that should be connected. My research is slower and less complete than it
+        should be because our knowledge is fragmented.
+      transformation_moment: >
+        The first time I searched the knowledge graph for "renewable energy investments," it
+        returned not just exact matches but also related content about "solar projects,"
+        "carbon credits," and "green financing" - connections I would have missed entirely.
+        Clicking on a project showed its relationships: which stakeholders are involved, what
+        contracts govern it, which risks affect it. I followed relationship paths to build a
+        comprehensive picture in 20 minutes that previously took 2-3 hours of manual searching.
+        The graph showed me a critical supplier relationship I did not know existed.
+      emotional_resolution: >
+        Research that used to take hours now takes minutes. I discover insights I never would
+        have found through keyword search alone. My briefings are more comprehensive because
+        the knowledge graph surfaces connections I would have missed. Leadership trusts my
+        research more because it is grounded in systematic discovery rather than what I
+        happened to think to search for. I feel like I have a map of our organization's
+        knowledge rather than searching in the dark. My work is more valuable because I can
+        find non-obvious patterns and relationships that inform better decisions.
+      demographics:
+        age_range: '28-45'
+        experience_years: '3-10 years in analytics or research roles'
+        company_size: 'Mid-market to Enterprise (200-10,000 employees)'
+        industry:
+          ['Consulting', 'Financial Services', 'Healthcare', 'Technology']
+        geography: 'Global, primarily knowledge-intensive economies'
+        education: "Bachelor's or Master's in business, analytics, or related field"
+        reporting_structure: 'Reports to VP of Strategy or Chief of Staff'
+      psychographics:
+        values:
+          [
+            'Accuracy',
+            'Thoroughness',
+            'Intellectual curiosity',
+            'Strategic impact',
+          ]
+        motivations:
+          [
+            'Inform better decisions',
+            'Discover hidden patterns',
+            'Be the go-to knowledge source',
+          ]
+        fears:
+          [
+            'Missing critical information',
+            'Providing outdated insights',
+            'Being seen as slow or incomplete',
+          ]
+        decision_style: 'Evidence-based, prefers comprehensive data before making recommendations'
+        information_sources:
+          [
+            'Industry reports',
+            'Internal databases',
+            'Expert interviews',
+            'Academic research',
+          ]
+        communication_preferences: 'Written reports with executive summaries, visual dashboards for presentations'
+
+    - id: 'knowledge-curator'
+      name: 'Knowledge Curator'
+      role: 'Knowledge Management Lead'
+      description: >
+        Responsible for organizing and structuring organizational knowledge.
+        Defines entity types, relationships, and taxonomies that enable
+        effective discovery and navigation.
+      goals:
+        - 'Model knowledge in ways that reflect how the organization thinks'
+        - 'Create navigable structures that surface relevant connections'
+        - 'Maintain consistency in how information is categorized and linked'
+        - 'Enable non-experts to find relevant information without training'
+      pain_points:
+        - 'Rigid database schemas cannot represent real-world complexity'
+        - 'Taxonomy changes require extensive rework across systems'
+        - 'No way to capture nuanced relationships between entities'
+        - 'Users struggle to find information without understanding the structure'
+      usage_context: >
+        Designs knowledge models that define entity types and relationships.
+        Reviews and improves how information is connected. Monitors discovery
+        patterns to identify modeling gaps.
+      technical_proficiency: 'advanced'
+      current_situation: >
+        As the knowledge management lead, I struggle to represent our organization's knowledge
+        in our current systems. Rigid database schemas force me to flatten complex relationships
+        into simple categories. When business concepts evolve, updating our taxonomy requires
+        months of IT work and user retraining. I know there are valuable connections between
+        our projects, people, and documents, but I cannot express them in our current systems.
+        Users give up on search because the structure does not match how they think about
+        information. I spend more time fighting system limitations than designing effective
+        knowledge structures.
+      transformation_moment: >
+        Using the flexible knowledge modeling capability, I defined custom entity types that
+        match our business reality: Projects with multiple stakeholder relationships, Risks
+        that cross-cut multiple contracts, Regulations that apply conditionally. Creating a
+        new entity type took minutes, not months of IT coordination. When our strategic
+        priorities shifted, I added new relationship types without restructuring existing
+        data. Users can now navigate knowledge through paths that reflect how they actually
+        think: "show me all projects affected by this regulation" is a single relationship
+        traversal, not a complex query.
+      emotional_resolution: >
+        I finally have a knowledge platform that can represent our actual business complexity.
+        When concepts evolve, I evolve the model without IT projects. Users find information
+        through intuitive navigation because the structure reflects their mental models. My
+        role shifted from fighting system constraints to designing genuinely useful knowledge
+        structures. The organization sees knowledge management as an enabler rather than a
+        bureaucratic obstacle. I am proud of a knowledge architecture that serves users
+        rather than forcing them to adapt to system limitations.
+      demographics:
+        age_range: '35-55'
+        experience_years: '8-20 years in knowledge management or information architecture'
+        company_size: 'Mid-market to Enterprise (500-50,000 employees)'
+        industry:
+          ['Professional Services', 'Energy', 'Manufacturing', 'Government']
+        geography: 'Primarily large organizations with complex information needs'
+        education: "Master's in Library Science, Information Management, or related field"
+        reporting_structure: 'Reports to CIO, CDO, or VP of Information Management'
+      psychographics:
+        values:
+          [
+            'Organizational coherence',
+            'User empowerment',
+            'Information accessibility',
+            'Long-term thinking',
+          ]
+        motivations:
+          [
+            'Design systems that scale',
+            'Enable self-service discovery',
+            'Reduce information silos',
+          ]
+        fears:
+          [
+            'Knowledge fragmentation',
+            'System rigidity blocking evolution',
+            'Being seen as overhead rather than strategic',
+          ]
+        decision_style: 'Architectural thinking, balances immediate needs with future flexibility'
+        information_sources:
+          [
+            'KM conferences',
+            'Ontology communities',
+            'Vendor evaluations',
+            'User feedback',
+          ]
+        communication_preferences: 'Visual diagrams and models, collaborative workshops, written standards documentation'
+
+    - id: 'domain-expert'
+      name: 'Domain Expert'
+      role: 'Senior Domain Specialist'
+      description: >
+        Subject matter expert who needs to find specialized knowledge quickly
+        and contribute expertise by enhancing entity relationships and metadata.
+      goals:
+        - 'Find domain-specific knowledge without remembering exact terminology'
+        - 'Understand how their expertise connects to broader organizational context'
+        - 'Contribute knowledge by identifying relationships others might miss'
+        - 'Stay current with new information relevant to their domain'
+      pain_points:
+        - 'Generic search does not understand domain-specific meaning'
+        - 'Expertise is isolated from related organizational knowledge'
+        - 'No way to contribute relationship knowledge without technical skills'
+        - 'Relevant new information gets lost in noise'
+      usage_context: >
+        Searches for domain-specific content using specialized terminology.
+        Explores connections between their expertise area and other domains.
+        Enhances knowledge graph by suggesting relationships.
+      technical_proficiency: 'intermediate'
+      current_situation: >
+        As a domain expert in regulatory compliance, my specialized knowledge lives in my
+        head and scattered documents. When I search for compliance-related content, generic
+        systems do not understand that "GDPR data subject rights" and "privacy request
+        handling" are related concepts. My expertise is siloed - I know how regulations
+        connect to each other, but this knowledge is not captured anywhere the organization
+        can leverage. When I find relevant connections, I have no way to contribute them
+        without involving IT. New regulations get added to document repositories, but I do
+        not discover them until someone happens to ask me about them.
+      transformation_moment: >
+        Searching for "data protection requirements" in the knowledge graph returned
+        semantically related content including GDPR, CCPA, and internal privacy policies -
+        understanding that these are conceptually connected even though they use different
+        terms. I explored relationships and discovered our privacy policies were not linked
+        to the contracts they govern. Using the relationship editor, I connected them myself
+        in minutes. The system now shows me newly ingested content relevant to my domain
+        through similarity matching, so I learn about new regulations before being asked.
+      emotional_resolution: >
+        My domain expertise is now captured in and enhanced by the knowledge graph. When I
+        search, the system understands my domain language and shows relevant connections.
+        I contribute knowledge by adding relationships that others benefit from. New team
+        members can explore my domain through the graph instead of consuming hours of my
+        time. The organization values my expertise more because it is discoverable and
+        connected. I am a knowledge contributor, not just a knowledge holder, and my
+        expertise scales beyond what I can personally communicate.
+      demographics:
+        age_range: '35-60'
+        experience_years: '10-25 years in specialized domain'
+        company_size: 'Any size organization with specialized knowledge needs'
+        industry:
+          ['Legal', 'Healthcare', 'Finance', 'Engineering', 'Regulatory']
+        geography: 'Global, especially regulated industries'
+        education: 'Advanced degree or certifications in specialized domain'
+        reporting_structure: 'May report to department head or serve as internal consultant'
+      psychographics:
+        values:
+          [
+            'Expertise recognition',
+            'Knowledge sharing',
+            'Professional excellence',
+            'Continuous learning',
+          ]
+        motivations:
+          [
+            'Be the authoritative source',
+            'Help others navigate complexity',
+            'Stay current in their field',
+          ]
+        fears:
+          [
+            'Knowledge becoming obsolete',
+            'Being bypassed by generalists',
+            'Expertise trapped in their head',
+          ]
+        decision_style: 'Expert judgment with preference for nuanced, context-aware approaches'
+        information_sources:
+          [
+            'Professional journals',
+            'Industry associations',
+            'Peer networks',
+            'Regulatory updates',
+          ]
+        communication_preferences: 'Precise terminology, detailed explanations, prefers depth over breadth'
+
+    - id: 'executive-leader'
+      name: 'Executive Leader'
+      role: 'VP of Strategy'
+      description: >
+        Senior leader who needs high-level understanding of organizational
+        knowledge to make strategic decisions. Values pattern recognition
+        and big-picture views over detailed analysis.
+      goals:
+        - 'Understand how strategic initiatives connect across the organization'
+        - 'Identify patterns and gaps in organizational knowledge'
+        - 'Get quick answers to strategic questions without technical expertise'
+        - 'See the big picture while being able to drill into details when needed'
+      pain_points:
+        - 'Strategic insights buried in operational detail across many systems'
+        - 'No way to visualize how initiatives and risks connect at high level'
+        - 'Dependent on analysts to synthesize information from multiple sources'
+        - 'Patterns in organizational knowledge are invisible'
+      usage_context: >
+        Reviews knowledge graph visualizations before strategic meetings.
+        Asks natural language questions to explore connections. Drills into
+        details when specific understanding is needed.
+      technical_proficiency: 'basic'
+      current_situation: >
+        As VP of Strategy, I need to understand how our initiatives, risks, and opportunities
+        connect - but this information is scattered across dozens of systems and reports.
+        Before major decisions, I rely on analysts to manually synthesize information, which
+        takes days and may miss important connections. I cannot ask simple strategic questions
+        like "what initiatives are affected by this regulatory change?" without generating a
+        research project. The patterns in our organizational knowledge are invisible to me
+        because there is no unified view. I make decisions with incomplete information because
+        comprehensive synthesis is too slow and expensive.
+      transformation_moment: >
+        During board preparation, I opened the knowledge graph and asked "show initiatives
+        related to AI adoption." The visualization immediately showed 12 connected initiatives,
+        their shared dependencies, overlapping risks, and resource conflicts I did not know
+        existed. I zoomed out to see the pattern - three initiatives competing for the same
+        talent pool - and drilled into details to understand the specifics. What would have
+        been a week-long research project was a 30-minute exploration. I walked into the
+        board meeting with a comprehensive, connected view of our AI strategy landscape.
+      emotional_resolution: >
+        Strategic understanding that used to require days of analyst synthesis is now
+        available in minutes. I can ask questions and explore answers directly, making
+        better decisions with better information. The knowledge graph reveals patterns I
+        never knew existed - connections and gaps that change strategic priorities. My
+        leadership is more informed because I have genuine visibility into organizational
+        knowledge. I trust my strategic decisions more because they are grounded in
+        comprehensive understanding rather than partial views and assumptions.
+      demographics:
+        age_range: '45-60'
+        experience_years: '15-30 years, including 5+ in executive roles'
+        company_size: 'Mid-market to Enterprise (500+ employees)'
+        industry: ['Any industry with strategic complexity']
+        geography: 'Global, often managing distributed teams'
+        education: 'MBA or equivalent executive education'
+        reporting_structure: 'Reports to CEO or Board, manages multiple functions'
+      psychographics:
+        values:
+          [
+            'Strategic clarity',
+            'Informed decision-making',
+            'Organizational alignment',
+            'Competitive advantage',
+          ]
+        motivations:
+          [
+            'See the big picture',
+            'Make confident decisions',
+            'Drive organizational success',
+          ]
+        fears:
+          [
+            'Blind spots in strategy',
+            'Being surprised by preventable issues',
+            'Decisions based on incomplete information',
+          ]
+        decision_style: 'High-level pattern recognition, delegates details but needs synthesis'
+        information_sources:
+          [
+            'Executive briefings',
+            'Dashboards',
+            'Direct reports',
+            'Board materials',
+          ]
+        communication_preferences: 'Visual summaries, brief verbal updates, ability to drill down when needed'
+
   capabilities:
-    - id: "cap-001"
-      name: "Semantic Discovery"
+    - id: 'cap-001'
+      name: 'Semantic Discovery'
       description: >
         Find information by meaning, not just keywords. Search for "renewable energy investments" and discover 
         related content about "solar projects" and "green financing" even when different words are used.
-    
-    - id: "cap-002"
-      name: "Relationship Navigation"
+
+    - id: 'cap-002'
+      name: 'Relationship Navigation'
       description: >
         Explore how different entities connect. See that a project depends on a supplier, which relates to 
         a contract, which references specific regulations. Follow these connections to build understanding.
-    
-    - id: "cap-003"
-      name: "Flexible Knowledge Modeling"
+
+    - id: 'cap-003'
+      name: 'Flexible Knowledge Modeling'
       description: >
         Model your domain in ways that match how your team thinks. Define custom entity types (projects, risks, 
         stakeholders) and relationships that reflect your business reality, not rigid database constraints.
-    
-    - id: "cap-004"
-      name: "Unified Search Experience"
+
+    - id: 'cap-004'
+      name: 'Unified Search Experience'
       description: >
         Search across all your knowledge in one place. Results combine document matches, related entities, 
         and suggested connections. Find what you're looking for and discover what you didn't know to look for.
-    
-    - id: "cap-005"
-      name: "Contextual Intelligence"
+
+    - id: 'cap-005'
+      name: 'Contextual Intelligence'
       description: >
         The system understands context. When viewing a project, see related risks, stakeholders, documents, 
         and dependencies automatically. The graph builds context so you don't have to.
@@ -61,167 +405,166 @@ definition:
 implementation:
   design_guidance:
     principles:
-      - "Understanding over Keywords: Search understands meaning, not just text matching"
-      - "Exploration over Consumption: Enable discovery of unknown unknowns through relationships"
-      - "Progressive Disclosure: Start with overview, drill into detail as needed"
-      - "Context Awareness: Show relevant connections automatically based on what user is viewing"
-    
+      - 'Understanding over Keywords: Search understands meaning, not just text matching'
+      - 'Exploration over Consumption: Enable discovery of unknown unknowns through relationships'
+      - 'Progressive Disclosure: Start with overview, drill into detail as needed'
+      - 'Context Awareness: Show relevant connections automatically based on what user is viewing'
+
     inspirations:
-      - "Roam Research for bidirectional linking and graph thinking"
-      - "Neo4j Bloom for intuitive graph exploration"
-      - "Notion for flexible entity modeling without rigid schemas"
-      - "Google Knowledge Graph for entity disambiguation and relationship understanding"
-    
+      - 'Roam Research for bidirectional linking and graph thinking'
+      - 'Neo4j Bloom for intuitive graph exploration'
+      - 'Notion for flexible entity modeling without rigid schemas'
+      - 'Google Knowledge Graph for entity disambiguation and relationship understanding'
+
     interaction_patterns:
-      - "Type-ahead search with semantic suggestions showing related concepts"
-      - "Graph visualization with zoom in/out for different levels of detail"
-      - "Related entities sidebar showing contextual connections"
-      - "Relationship path highlighting when exploring connections"
-      - "Filter by entity type, relationship type, or property values"
+      - 'Type-ahead search with semantic suggestions showing related concepts'
+      - 'Graph visualization with zoom in/out for different levels of detail'
+      - 'Related entities sidebar showing contextual connections'
+      - 'Relationship path highlighting when exploring connections'
+      - 'Filter by entity type, relationship type, or property values'
 
   contexts:
-    - id: "ctx-001"
-      type: "ui"
-      name: "Knowledge Explorer Dashboard"
+    - id: 'ctx-001'
+      type: 'ui'
+      name: 'Knowledge Explorer Dashboard'
       description: >
         Primary interface for searching and exploring the knowledge graph. Shows search bar, 
         graph visualization, and related entities panel.
-      key_elements:
-        - "Semantic search bar with autocomplete"
-        - "Graph visualization canvas (zoomable, pannable)"
-        - "Entity detail panel showing properties and relationships"
-        - "Related entities sidebar with similarity scores"
-        - "Breadcrumb navigation for relationship paths"
-      user_actions:
-        - "Search by text to find entities"
-        - "Click entity to see details and relationships"
-        - "Expand related entities to explore connections"
-        - "Filter by entity type or relationship type"
-        - "Save frequent searches or graph views"
+      key_interactions:
+        - 'Type search query in semantic search bar'
+        - 'Click entity node to see details and relationships'
+        - 'Expand related entities to explore connections'
+        - 'Filter by entity type or relationship type'
+        - 'Save frequent searches or graph views'
       data_displayed:
-        - "Entity name, type, key properties"
-        - "Relationships with other entities"
-        - "Semantic similarity scores"
-        - "Property values with metadata"
-        - "Relationship paths between entities"
-    
-    - id: "ctx-002"
-      type: "api"
-      name: "Graph Query API"
+        - 'Entity name, type, key properties'
+        - 'Relationships with other entities'
+        - 'Semantic similarity scores'
+        - 'Property values with metadata'
+        - 'Relationship paths between entities'
+
+    - id: 'ctx-002'
+      type: 'api'
+      name: 'Graph Query API'
       description: >
         RESTful and GraphQL endpoints for querying entities, relationships, and performing semantic search
-      key_elements:
-        - "POST /api/graph/search - Semantic search endpoint"
-        - "GET /api/graph/objects/:id - Entity details"
-        - "GET /api/graph/objects/:id/related - Relationship navigation"
-        - "POST /api/graph/objects - Create entity"
-        - "GraphQL endpoint for complex queries"
-      user_actions:
-        - "Query by semantic similarity"
-        - "Traverse relationships up to N hops"
-        - "Filter results by type and properties"
-        - "Create and link new entities"
+      key_interactions:
+        - 'POST /api/graph/search - Semantic search endpoint'
+        - 'GET /api/graph/objects/:id - Entity details'
+        - 'GET /api/graph/objects/:id/related - Relationship navigation'
+        - 'POST /api/graph/objects - Create entity'
       data_displayed:
-        - "Entity objects with all properties"
-        - "Relationship objects with metadata"
-        - "Search results with relevance scores"
-        - "Type definitions from schema registry"
-    
-    - id: "ctx-003"
-      type: "ui"
-      name: "Entity Type Manager"
+        - 'Entity objects with all properties'
+        - 'Relationship objects with metadata'
+        - 'Search results with relevance scores'
+        - 'Type definitions from schema registry'
+
+    - id: 'ctx-003'
+      type: 'ui'
+      name: 'Entity Type Manager'
       description: >
         Admin interface for defining and evolving entity types and relationship schemas
-      key_elements:
-        - "Type definition editor (name, properties, validation rules)"
-        - "Relationship schema builder"
-        - "Property type picker (text, number, date, reference, etc.)"
-        - "Validation rule configuration"
-        - "Usage statistics per type"
-      user_actions:
-        - "Define new entity type"
-        - "Add properties to existing type"
-        - "Define relationship schemas"
-        - "Set validation rules"
-        - "View type usage across graph"
+      key_interactions:
+        - 'Define new entity type'
+        - 'Add properties to existing type'
+        - 'Define relationship schemas'
+        - 'Set validation rules'
+        - 'View type usage across graph'
       data_displayed:
-        - "All defined entity types"
-        - "Properties for each type with types and constraints"
-        - "Relationship schemas between types"
-        - "Entity count per type"
+        - 'All defined entity types'
+        - 'Properties for each type with types and constraints'
+        - 'Relationship schemas between types'
+        - 'Entity count per type'
 
   scenarios:
-    - id: "scn-001"
-      actor: "Knowledge worker"
+    - id: 'scn-001'
+      name: 'Knowledge worker explores semantic search results'
+      actor: 'Knowledge worker'
+      context: 'User is on the Knowledge Explorer Dashboard needing to research renewable energy investments'
+      trigger: 'User types search query in the semantic search bar and presses Enter'
       action: "Searches for 'renewable energy investments' and explores results"
-      outcome: "Discovers related projects, stakeholders, and documents through semantic similarity and relationship navigation"
+      outcome: 'Discovers related projects, stakeholders, and documents through semantic similarity and relationship navigation'
       acceptance_criteria:
-        - "Search returns semantically similar entities even with different keywords"
-        - "Results show relationship paths to clicked entity"
-        - "Can filter results by entity type"
-        - "Related entities update when selection changes"
-    
-    - id: "scn-002"
-      actor: "Data architect"
+        - 'Search returns semantically similar entities even with different keywords'
+        - 'Results show relationship paths to clicked entity'
+        - 'Can filter results by entity type'
+        - 'Related entities update when selection changes'
+
+    - id: 'scn-002'
+      name: 'Data architect creates custom entity type'
+      actor: 'Data architect'
+      context: 'Admin is in the Entity Type Manager configuring the knowledge model for a new project domain'
+      trigger: 'User clicks New Entity Type button to create a risk tracking type'
       action: "Defines new entity type 'Project Risk' with custom properties and relationships to 'Project' and 'Mitigation'"
-      outcome: "New type is immediately available for entity creation without database migration"
+      outcome: 'New type is immediately available for entity creation without database migration'
       acceptance_criteria:
-        - "Type definition saved to registry"
-        - "Properties include validation rules"
-        - "New entities of this type can be created immediately"
-        - "Relationship schemas enforce type constraints"
-    
-    - id: "scn-003"
-      actor: "Product manager"
-      action: "Views a feature entity and explores its relationships to customer requests, technical decisions, and team members"
-      outcome: "Builds comprehensive context through multi-hop relationship traversal"
+        - 'Type definition saved to registry'
+        - 'Properties include validation rules'
+        - 'New entities of this type can be created immediately'
+        - 'Relationship schemas enforce type constraints'
+
+    - id: 'scn-003'
+      name: 'Product manager explores feature relationships'
+      actor: 'Product manager'
+      context: 'PM is viewing a feature entity in the explorer to understand its context before a prioritization meeting'
+      trigger: 'User clicks on a feature entity to view its details panel'
+      action: 'Views a feature entity and explores its relationships to customer requests, technical decisions, and team members'
+      outcome: 'Builds comprehensive context through multi-hop relationship traversal'
       acceptance_criteria:
-        - "Entity view shows all direct relationships"
-        - "Can expand related entities to see their relationships"
-        - "Relationship paths show connection chains"
-        - "Can navigate back through breadcrumb trail"
-    
-    - id: "scn-004"
-      actor: "Integration system"
+        - 'Entity view shows all direct relationships'
+        - 'Can expand related entities to see their relationships'
+        - 'Relationship paths show connection chains'
+        - 'Can navigate back through breadcrumb trail'
+
+    - id: 'scn-004'
+      name: 'Integration system queries similar projects'
+      actor: 'Integration system'
+      context: 'External system needs to find projects similar to a given project for automated recommendation'
+      trigger: 'System sends API request with project ID and region filter'
       action: "Queries API for 'projects similar to project-X in EU region' and receives ranked results"
-      outcome: "Gets structured entity data with similarity scores and relationship context"
+      outcome: 'Gets structured entity data with similarity scores and relationship context'
       acceptance_criteria:
-        - "API returns entities ranked by similarity"
-        - "Results include similarity scores"
-        - "Can filter by property values (region)"
-        - "Response includes relationship metadata"
-        - "Query completes in < 200ms for 10K entity corpus"
+        - 'API returns entities ranked by similarity'
+        - 'Results include similarity scores'
+        - 'Can filter by property values (region)'
+        - 'Response includes relationship metadata'
+        - 'Query completes in < 200ms for 10K entity corpus'
 
   external_integrations:
-    - name: "Google Vertex AI"
-      purpose: "Generate 768-dimension text embeddings for semantic search"
-      direction: "outbound"
-    
-    - name: "Document Processing Pipeline"
-      purpose: "Receive extracted entities from document analysis"
-      direction: "inbound"
-    
-    - name: "Chat Interface"
-      purpose: "Provide graph context for AI chat responses"
-      direction: "bidirectional"
+    - name: 'Google Vertex AI'
+      purpose: 'Generate 768-dimension text embeddings for semantic search'
+      direction: 'outbound'
+
+    - name: 'Document Processing Pipeline'
+      purpose: 'Receive extracted entities from document analysis'
+      direction: 'inbound'
+
+    - name: 'Chat Interface'
+      purpose: 'Provide graph context for AI chat responses'
+      direction: 'bidirectional'
 
 boundaries:
   non_goals:
-    - "Not a document storage system (stores entities extracted from documents)"
-    - "Not a visualization-first tool (API-first with UI for human interaction)"
-    - "Not a replacement for OLAP analytics (optimized for exploration, not aggregation)"
-    - "Not a full-text search engine (semantic and graph-focused)"
-  
+    - 'Not a document storage system (stores entities extracted from documents)'
+    - 'Not a visualization-first tool (API-first with UI for human interaction)'
+    - 'Not a replacement for OLAP analytics (optimized for exploration, not aggregation)'
+    - 'Not a full-text search engine (semantic and graph-focused)'
+
   constraints:
-    - "Single PostgreSQL instance (no distributed graph at launch)"
-    - "Max 100K entities before considering sharding"
-    - "Requires Google Cloud for Vertex AI embeddings"
-    - "Graph visualization limited to 100 nodes in UI for performance"
+    - 'Single PostgreSQL instance (no distributed graph at launch)'
+    - 'Max 100K entities before considering sharding'
+    - 'Requires Google Cloud for Vertex AI embeddings'
+    - 'Graph visualization limited to 100 nodes in UI for performance'
 
 dependencies:
   requires:
-    - "fd-007" # Authentication and multi-tenancy for access control
+    - id: 'fd-007'
+      name: 'Authentication and Multi-tenancy'
+      reason: 'Graph data requires tenant isolation and user authentication for access control'
   enables:
-    - "fd-003" # AI Chat uses graph for contextual responses
-    - "fd-002" # Document ingestion extracts entities into graph
-
+    - id: 'fd-003'
+      name: 'AI Native Chat'
+      reason: 'AI Chat uses graph for contextual responses and entity lookup'
+    - id: 'fd-002'
+      name: 'Document Ingestion Pipeline'
+      reason: 'Document ingestion extracts entities into the knowledge graph'

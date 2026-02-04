@@ -571,10 +571,21 @@ var PlaceholderPatterns = []*regexp.Regexp{
 // ExclusionPatterns are patterns that should not be flagged as placeholders
 var ExclusionPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)for example`),
-	regexp.MustCompile(`(?i)example.*:`),          // "example usage:"
-	regexp.MustCompile(`(?i)TODO comment`),        // Documentation about TODOs
-	regexp.MustCompile(`(?i)#.*TODO`),             // Comments mentioning TODO
-	regexp.MustCompile(`(?i)placeholder_[a-z]+:`), // "placeholder_text:" as a YAML field name
+	regexp.MustCompile(`(?i)example.*:`),               // "example usage:"
+	regexp.MustCompile(`(?i)TODO comment`),             // Documentation about TODOs
+	regexp.MustCompile(`(?i)#.*TODO`),                  // Comments mentioning TODO
+	regexp.MustCompile(`(?i)placeholder_[a-z]+:`),      // "placeholder_text:" as a YAML field name
+	regexp.MustCompile(`(?i)0 TBD`),                    // "0 TBD markers" - metrics about TBD
+	regexp.MustCompile(`(?i)TBD markers`),              // Discussing TBD as a concept
+	regexp.MustCompile(`(?i)TODO, PLACEHOLDER`),        // Listing terms as documentation
+	regexp.MustCompile(`(?i)Detects.*TBD`),             // Feature descriptions about detection
+	regexp.MustCompile(`(?i)Detects.*TODO`),            // Feature descriptions about detection
+	regexp.MustCompile(`(?i)Detects.*PLACEHOLDER`),     // Feature descriptions about detection
+	regexp.MustCompile(`(?i)replacing placeholder`),    // Changelog entries
+	regexp.MustCompile(`(?i)placeholder template`),     // Changelog entries
+	regexp.MustCompile(`(?i)placeholder content`),      // Feature descriptions
+	regexp.MustCompile(`(?i)with placeholder content`), // Baselines describing current state
+	regexp.MustCompile(`(?i)\[TODO\] markers`),         // Documentation about markers
 }
 
 // NewContentReadinessChecker creates a new content readiness checker

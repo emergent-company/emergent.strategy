@@ -1,319 +1,689 @@
-id: "fd-012"
-name: "CLI for Local Workflow Testing"
-slug: "cli-local-workflow-testing"
-status: "draft"
+id: 'fd-012'
+name: 'EPF-CLI Local Development Toolkit'
+slug: 'epf-cli-local-development'
+status: 'delivered'
 
 strategic_context:
-  problem_statement: |
-    Developers and DevOps engineers cannot test EPF Runtime workflows locally before deploying to CI/CD pipelines or production. They must push changes to Git, wait for CI to run, and debug failures through logs—adding 15-30 minutes per iteration. Local testing requires manually calling API endpoints via curl with complex JSON payloads, which is error-prone and time-consuming. No command-line tool exists for common workflows (validate artifact, initiate workflow, check status), forcing engineers to memorize API paths and authentication schemes. Teams waste 4-6 hours per week on "test in CI" debugging cycles that could be caught locally.
-  
-  market_context: |
-    Modern developer tools prioritize local-first workflows—Docker Compose, Terraform, kubectl all provide rich CLI experiences for local testing before remote deployment. CLIs have become the primary interface for infrastructure and workflow orchestration tools. Our opportunity is to bring Docker-quality developer experience to EPF workflows, enabling confident local testing and rapid iteration before CI/CD integration.
-  
-  success_metrics:
-    - metric: "Local test iteration time"
-      target: "Complete validate → initiate → status check cycle in <60 seconds locally"
-      measurement: "Time from 'epf-runtime validate' to 'epf-runtime status complete' for test workflow"
-    - metric: "CI debugging reduction"
-      target: "50% reduction in 'test in CI' failures (currently 8-10 per week per team)"
-      measurement: "Track CI pipeline failures attributed to EPF workflow issues before/after CLI adoption"
-    - metric: "CLI adoption rate"
-      target: "80% of EPF Runtime API users also use CLI for local testing within 2 weeks"
-      measurement: "Track unique API keys used via CLI vs direct API calls"
+  contributes_to:
+    - 'Product.Layer1LocalTools.EpfCliValidate'
+    - 'Product.Layer1LocalTools.EpfCliMcp'
+    - 'Product.Layer1LocalTools.EpfCliHealth'
+  tracks:
+    - 'product'
+  assumptions_tested:
+    - 'asm-p-014' # Developers prefer CLI tools for local validation over server-side APIs
+    - 'asm-p-015' # CLI reduces CI debugging cycles by enabling local validation before commit
 
 definition:
   job_to_be_done: >
-    When I'm developing or debugging EPF workflow integrations, I want a command-line tool that wraps API calls in simple commands, so I can test workflows locally, validate artifacts instantly, and iterate rapidly without waiting for CI/CD pipelines.
+    When I'm developing EPF artifacts or building AI integrations, I want a comprehensive
+    command-line tool that validates artifacts, analyzes coverage, explains value model
+    paths, and serves as an MCP server for AI assistants, so I can ensure artifact quality
+    locally without server infrastructure.
 
   solution_approach: >
-    A Node.js CLI tool (npm package) that provides intuitive commands for EPF Runtime operations: 'validate' (artifact validation), 'run' (initiate workflow), 'status' (check progress), 'logs' (view workflow logs). CLI reads configuration from .epf-runtime.yaml (API endpoint, key, workspace), handles authentication automatically, formats API responses in developer-friendly output (colored tables, progress bars), and supports JSON output for scripting. Think "heroku CLI for EPF workflows" - opinionated, helpful, works everywhere.
-
-  capabilities:
-    - id: "cap-012-001"
-      name: "Artifact Validation Command"
-      description: >
-        'epf-runtime validate <file>' command calls validation API with file content, displays errors in terminal with syntax highlighting and line numbers. Exit code 0 if valid, 1 if invalid (integrates with CI scripts).
-    
-    - id: "cap-012-002"
-      name: "Workflow Execution Command"
-      description: >
-        'epf-runtime run <phase>' command initiates workflow via API, displays workflow ID and monitoring URL. Supports --watch flag to stream status updates in real-time. Can pass initial data via --data flag or stdin pipe.
-    
-    - id: "cap-012-003"
-      name: "Status Monitoring Command"
-      description: >
-        'epf-runtime status <workflow-id>' command fetches workflow status via API, displays progress as formatted table with step names, status (pending/running/complete), and timestamps. Supports --watch for continuous monitoring.
-    
-    - id: "cap-012-004"
-      name: "Configuration Management"
-      description: >
-        'epf-runtime config' command manages .epf-runtime.yaml configuration (API endpoint, key, workspace). Supports environment variable overrides (EPF_RUNTIME_API_KEY) for CI integration. Config file can be committed to Git (minus secrets) for team sharing.
+    A Go CLI tool (epf-cli) that provides 20+ commands for EPF development: 'validate' 
+    (schema validation), 'health' (comprehensive instance checks), 'report' (multi-format 
+    reports), 'serve' (MCP server for AI integration), 'coverage' (value model coverage 
+    analysis), 'context' (strategic context for features), 'explain' (value model path 
+    explanation), 'relationships' (path validation), 'migrate' (version migration), 
+    'fix' (auto-fix issues), 'wizards' (wizard management), 'generators' (output 
+    generators), and more. Zero infrastructure required—Git is the database.
 
   personas:
-    - name: "Marcus Chen, AI Autonomy Engineer at AutoPlan AI"
-      current_situation: |
-        Marcus develops autonomous agents that call EPF Runtime API. During development, he writes agent code, runs it, discovers API call failures, reads error messages, fixes code, and repeats. Debugging API integration requires understanding HTTP status codes, JSON error formats, and API authentication. He uses curl for manual API testing but must reconstruct complex JSON payloads, remember API paths (/api/workflows vs /api/validate), and format responses with jq for readability. Each test iteration takes 5-10 minutes (construct curl, execute, parse response). He cannot easily test workflows end-to-end locally—must deploy agent to staging environment to test full workflow lifecycle.
-      
-      transformation_moment: |
-        With the CLI, Marcus runs 'epf-runtime validate north-star.yaml' to test artifact validation locally. CLI displays errors with colored formatting and line numbers, matching his IDE's error display. He runs 'epf-runtime run ready --data north-star.yaml --watch' to initiate workflow and stream status updates in terminal. CLI shows progress bars, step completion timestamps, and success/failure states in real-time. When errors occur, CLI formats error messages with suggestions. He integrates CLI into agent development workflow: validate artifacts, test workflow initiation, verify status checks—all locally. What took 5-10 minutes per iteration via curl now completes in 30 seconds with CLI. He runs 'epf-runtime status wf-abc123' from terminal instead of navigating to web dashboard.
-      
-      emotional_resolution: |
-        Marcus feels productive iterating on agent integrations because CLI provides instant feedback without context switching. He's shifted from "fighting API complexity" to "confidently building workflow automation." His relationship with EPF Runtime has improved—CLI makes API approachable rather than intimidating. He recommends CLI in agent development tutorials, positioning EPF Runtime as developer-friendly platform. The CLI enabled faster prototyping—he tests ideas locally in minutes instead of deploying to staging for hours of feedback. He's become the go-to expert on EPF Runtime CLI patterns, sharing reusable scripts with team.
+    - id: 'senior-developer'
+      name: 'Senior Developer'
+      role: 'Senior Software Engineer'
+      description: >
+        Experienced developer who leads EPF artifact development, reviews PRs, and mentors
+        junior team members. Deeply familiar with the codebase and wants efficient tools
+        that integrate into existing workflows without friction.
+      goals:
+        - 'Validate EPF artifacts instantly before committing to avoid CI failures'
+        - 'Understand strategic context of features to make informed implementation decisions'
+        - 'Automate repetitive validation tasks in CI/CD pipelines'
+        - 'Help junior developers learn EPF through clear error messages and guidance'
+      pain_points:
+        - 'Wasting time debugging CI failures that could have been caught locally'
+        - 'Manually checking if features align with value model paths'
+        - 'Context-switching between documentation and code to understand artifact schemas'
+        - 'Onboarding new team members to EPF artifact structure takes too long'
+      usage_context: >
+        Uses epf-cli multiple times daily: before every commit, during PR reviews,
+        and when explaining EPF structure to teammates. Prefers terminal-based tools
+        that integrate with existing Git workflows.
+      technical_proficiency: 'expert'
+      current_situation: >
+        As a senior developer leading EPF artifact development, I spend significant time debugging
+        validation errors that only surface in CI pipelines 10-15 minutes after pushing code. Each
+        failed CI run breaks my flow and delays the entire team. I manually cross-reference YAML
+        files with schema documentation to catch issues, but this is error-prone and tedious.
+        My junior teammates frequently ask me to explain EPF structures, and I don't have a quick
+        way to show them how artifacts relate to each other. The lack of local tooling means I
+        can't iterate quickly on artifact improvements.
+      transformation_moment: >
+        The first time I ran 'epf-cli validate .' and saw instant validation with line-number
+        errors, I caught 3 schema violations in under 2 seconds—issues that would have cost me
+        30+ minutes of CI debugging. When I showed a junior developer how 'epf-cli explain
+        Product.LocalTools.EPFCLIValidation' reveals the component hierarchy and contributing
+        features, they immediately understood the value model structure they'd been struggling
+        with for days. The MCP integration means my AI assistant now helps create valid artifacts
+        on the first try instead of generating YAML that fails validation.
+      emotional_resolution: >
+        After adopting epf-cli into our workflow, CI validation failures from EPF artifacts
+        dropped to near zero. I've reclaimed hours per week previously lost to debugging and
+        manual validation. My confidence in artifact quality increased substantially—I now
+        commit knowing the artifacts are valid. Onboarding new team members takes half the time
+        because I can demonstrate EPF structure interactively with 'explain' and 'context'
+        commands. The team sees me as more effective, and I have mental bandwidth to focus on
+        architecture decisions rather than YAML syntax debugging.
+      demographics:
+        age_range: '30-50'
+        experience_years: '8-20 years in software engineering'
+        company_size: 'Mid-market to Enterprise (200-10,000 employees)'
+        industry:
+          [
+            'SaaS',
+            'Enterprise Software',
+            'Developer Tools',
+            'FinTech',
+            'Technology',
+          ]
+        geography: 'Global, concentrated in tech hubs (US, Europe, India, Israel)'
+        education: "Bachelor's or Master's in Computer Science; often has mentored junior developers"
+        reporting_structure: 'Reports to Engineering Director or VP of Engineering; often leads a team or squad'
+      psychographics:
+        values:
+          ['Code Quality', 'Efficiency', 'Mentorship', 'Technical Excellence']
+        motivations:
+          [
+            'Eliminate wasted time on preventable issues',
+            'Enable team productivity',
+            'Maintain high code standards',
+            'Mentor junior developers effectively',
+          ]
+        fears:
+          [
+            'CI failures breaking team flow',
+            'Time wasted on avoidable debugging',
+            'Junior developers struggling with EPF onboarding',
+            'Technical debt from poor artifact quality',
+          ]
+        decision_style: 'Pragmatic and efficiency-focused, evaluates tools on time saved and team adoption ease'
+        information_sources:
+          [
+            'Engineering blogs',
+            'Conference talks',
+            'GitHub trending',
+            'Team retrospectives',
+            'Technical books',
+          ]
+        communication_preferences: 'Terminal-native tools, clear CLI documentation, async code reviews and PR comments'
 
-    - name: "Priya Sharma, DevOps Platform Engineer at CloudScale Systems"
-      current_situation: |
-        Priya integrates EPF Runtime into CI/CD pipelines for 23 product teams. When integration breaks, she debugs by reading CI logs, finding failed API calls, copying curl commands from logs, running them manually with different parameters, and testing fixes. This requires switching between CI dashboard (logs), terminal (curl), and API docs (endpoint reference). She cannot reproduce CI failures locally—her laptop lacks the exact CI environment (Docker images, credentials, network). Debugging pipeline issues requires 10+ commit/push cycles per fix (change pipeline config → push → wait 5 min → check logs → repeat). Teams wait hours for pipeline fixes while Priya iterates through debugging process.
-      
-      transformation_moment: |
-        With the CLI, Priya reproduces CI workflow issues locally without pushing commits. She configures .epf-runtime.yaml with staging API endpoint and test credentials (separate from production). She runs exact CI workflow steps locally: 'epf-runtime validate artifacts/*.yaml && epf-runtime run ready'. CLI output matches CI log format, allowing direct comparison. When fixing issues, she tests locally first (2 min iteration) instead of pushing to CI (5 min iteration). She creates reusable CLI scripts for common pipeline operations: validate-all.sh, deploy-workflow.sh. CLI's JSON output mode enables scripting: 'epf-runtime status wf-123 --json | jq .status'. What took 10+ CI iterations (hours) now completes in 3-4 local iterations (15 min).
-      
-      emotional_resolution: |
-        Priya feels confident fixing pipeline issues because local testing matches CI behavior. She's shifted from "guessing and hoping CI works" to "verifying locally before pushing." Her relationship with product teams has improved—she debugs issues in minutes instead of hours. She presents CLI integration patterns at DevOps meetups, showcasing rapid pipeline development workflows. The CLI enabled her to create self-service pipeline templates—teams run CLI commands locally to test before requesting pipeline changes. She's freed from being pipeline bottleneck, focusing on platform architecture instead of debugging individual team issues.
+    - id: 'product-manager'
+      name: 'Product Manager'
+      role: 'Technical Product Manager'
+      description: >
+        Product manager who owns the product strategy and needs to ensure features
+        align with value model and roadmap. Comfortable with terminal but prefers
+        high-level summaries over technical details.
+      goals:
+        - 'Verify that features cover all strategic value model components'
+        - 'Identify gaps between roadmap KRs and feature definitions'
+        - 'Generate reports for stakeholder communication'
+        - 'Understand feature dependencies for prioritization decisions'
+      pain_points:
+        - 'Manually mapping features to value model paths is tedious and error-prone'
+        - 'No visibility into coverage gaps until quarterly reviews'
+        - 'Difficulty explaining EPF structure to non-technical stakeholders'
+        - 'Scattered artifacts make it hard to see the full strategic picture'
+      usage_context: >
+        Uses epf-cli weekly for coverage analysis and report generation. Primarily
+        uses coverage, context, and report commands. Shares generated reports with
+        leadership during planning sessions.
+      technical_proficiency: 'intermediate'
+      current_situation: >
+        As a product manager responsible for product strategy alignment, I struggle to verify
+        that our features actually cover the value model components we've defined. Every quarter
+        I spend 2-3 days manually mapping feature definitions to value model paths in spreadsheets,
+        often discovering gaps only after development has started. When stakeholders ask "what
+        features deliver value to this component?", I don't have a quick answer. I've missed
+        strategic gaps that should have been obvious, leading to scope creep and misaligned
+        priorities. The EPF artifacts exist but I can't easily see how they connect.
+      transformation_moment: >
+        Running 'epf-cli coverage --verbose' for the first time revealed that 4 of our Layer 2
+        components had zero features mapped to them—a strategic gap I'd completely missed in
+        manual analysis. The coverage percentage breakdown by track (Product: 78%, Commercial:
+        45%) gave me immediate visibility into where we're under-invested. When I ran 'epf-cli
+        report --format=markdown', I had a stakeholder-ready document in seconds that previously
+        took me hours to compile manually.
+      emotional_resolution: >
+        Coverage analysis is now a 5-minute weekly ritual instead of a quarterly ordeal.
+        I catch strategic gaps early, before they become expensive scope problems. When leadership
+        asks about feature alignment, I pull up a fresh report with confidence. Sprint planning
+        meetings are more productive because I can show exactly which value model paths need
+        attention. I feel in control of the product strategy instead of being surprised by gaps.
+        My strategic recommendations carry more weight because they're backed by systematic
+        coverage data rather than gut feelings.
+      demographics:
+        age_range: '30-50'
+        experience_years: '5-15 years in product management or related roles'
+        company_size: 'Mid-market to Enterprise (200-5,000 employees)'
+        industry:
+          ['SaaS', 'Enterprise Software', 'Technology', 'Digital Products']
+        geography: 'North America, Europe, with growing adoption in APAC'
+        education: "Bachelor's in Business, Computer Science, or related field; often MBA or product management certification"
+        reporting_structure: 'Reports to VP of Product, CPO, or General Manager'
+      psychographics:
+        values:
+          [
+            'Strategic Alignment',
+            'Data-Driven Decisions',
+            'Stakeholder Communication',
+            'Outcome Focus',
+          ]
+        motivations:
+          [
+            'Ensure features deliver business value',
+            'Identify strategic gaps early',
+            'Communicate effectively with leadership',
+            'Make confident prioritization decisions',
+          ]
+        fears:
+          [
+            'Discovering strategic gaps too late',
+            'Misaligned features wasting resources',
+            'Unable to articulate feature rationale',
+            'Spreadsheet-based analysis becoming stale',
+          ]
+        decision_style: 'Strategic and data-informed, evaluates tools on insight quality and stakeholder communication support'
+        information_sources:
+          [
+            'Product management blogs',
+            'Industry reports',
+            'Leadership books',
+            'Peer PM communities',
+            'Internal analytics',
+          ]
+        communication_preferences: 'Visual reports, markdown documents for stakeholders, Slack for quick alignment'
 
-    - name: "Alex Rivera, Startup CTO at VentureFlow"
-      current_situation: |
-        Alex's 6-person startup uses EPF Runtime but lacks dedicated DevOps expertise. Team members are product engineers comfortable with CLI tools (Git, npm, Docker) but not REST APIs. When workflows fail, team Slack messages Alex asking "what's wrong?", he opens browser dashboard, checks workflow status, reads logs, and explains errors via Slack. Team members cannot self-serve debugging because browser dashboard requires navigation through multiple screens. Alex wants team to be self-sufficient with EPF Runtime but API complexity creates dependency on him. Engineers avoid EPF Runtime features because they lack confidence using APIs directly. Manual workflow status checks interrupt Alex 8-12 times per day.
-      
-      transformation_moment: |
-        With the CLI, Alex onboards engineers using familiar tool: 'npm install -g @epf/runtime-cli'. Engineers run 'epf-runtime validate' in their project directories like running 'npm test'—consistent developer experience. When workflows fail, engineers run 'epf-runtime status wf-456' themselves instead of Slack-asking Alex. CLI output is self-explanatory (colored status, clear errors) rather than requiring interpretation. Alex creates bash aliases for common operations: alias epf-test='epf-runtime validate artifacts/*.yaml'. Engineers integrate CLI into git pre-commit hooks, catching issues before commit. What required 8-12 interruptions daily (hours of Alex's time) now happens self-service. Team confidently uses EPF Runtime features because CLI matches their existing tool expectations.
-      
-      emotional_resolution: |
-        Alex feels relieved that team is self-sufficient with EPF Runtime workflows. He's shifted from "being workflow support desk" to "trusting team to debug themselves." His relationship with engineers has improved—they appreciate tooling that matches their workflow instead of forcing context switches. He pitches to investors that small team has "enterprise workflow capabilities with developer-friendly tooling." The CLI enabled faster execution—team doesn't wait for Alex to debug, unblocking product development. He's become advocate for CLI-first developer tools, sharing philosophy in startup CTO communities.
+    - id: 'devops-engineer'
+      name: 'DevOps Engineer'
+      role: 'Platform Engineer / DevOps'
+      description: >
+        Platform engineer responsible for CI/CD pipelines and developer tooling.
+        Needs reliable, scriptable tools with clear exit codes and machine-readable
+        output for pipeline integration.
+      goals:
+        - 'Add EPF validation as a quality gate in CI/CD pipelines'
+        - 'Automate artifact quality checks without manual intervention'
+        - 'Parse validation results programmatically for alerting and dashboards'
+        - 'Ensure reproducible validation across different environments'
+      pain_points:
+        - 'Inconsistent validation between local development and CI environments'
+        - "Tools that require interactive input don't work in pipelines"
+        - 'Unclear exit codes make it hard to fail pipelines appropriately'
+        - 'Verbose output clutters CI logs and hides important errors'
+      usage_context: >
+        Integrates epf-cli into GitHub Actions, GitLab CI, and pre-commit hooks.
+        Uses --json flag for machine-readable output. Monitors exit codes for
+        pipeline pass/fail decisions.
+      technical_proficiency: 'advanced'
+      current_situation: >
+        As the platform engineer responsible for our CI/CD infrastructure, I've been asked to
+        add EPF artifact validation to our pipelines, but the lack of scriptable tooling makes
+        this nearly impossible. Manual validation in CI requires interactive prompts that don't
+        work in headless environments. When validation does fail, the output is formatted for
+        humans, making it hard to parse for automated alerting. I've tried wrapping YAML linters
+        but they don't understand EPF schema semantics. Our current setup lets invalid artifacts
+        merge to main, causing downstream issues that are expensive to debug and fix.
+      transformation_moment: >
+        Adding 'epf-cli health' to our GitHub Actions workflow took 10 minutes. The first PR
+        after enabling the gate correctly blocked a merge because of invalid cross-references—
+        something our previous setup would have missed entirely. The --json flag gives me
+        structured output I can pipe to our alerting system, and the exit codes (0 for pass,
+        1 for fail) integrate perfectly with pipeline conditionals. Pre-commit hooks now catch
+        issues before developers even push, reducing CI queue time.
+      emotional_resolution: >
+        Our EPF artifact quality has improved measurably since adding epf-cli to the pipeline.
+        Invalid artifacts simply don't reach main branch anymore. Developer complaints about
+        "CI is broken" dropped significantly because validation failures are now clear and
+        actionable. I spend less time debugging mysterious validation failures and more time
+        on platform improvements. The team trusts the pipeline as a quality gate, and I'm
+        confident that our EPF artifacts are always schema-compliant when they reach production.
+      demographics:
+        age_range: '28-45'
+        experience_years: '5-15 years in software engineering, 2+ years in DevOps/Platform roles'
+        company_size: 'Startups to Enterprise (100-10,000 employees)'
+        industry:
+          ['SaaS', 'Technology', 'FinTech', 'E-commerce', 'Enterprise Software']
+        geography: 'Global, with high concentration in tech hubs'
+        education: "Bachelor's in Computer Science or related field; often has cloud certifications (AWS, GCP, Azure)"
+        reporting_structure: 'Reports to Platform Engineering Lead, VP of Infrastructure, or CTO'
+      psychographics:
+        values:
+          ['Automation', 'Reliability', 'Scalability', 'Developer Experience']
+        motivations:
+          [
+            'Automate quality gates',
+            'Reduce CI/CD friction',
+            'Enable developer self-service',
+            'Build robust infrastructure',
+          ]
+        fears:
+          [
+            'Flaky CI pipelines',
+            'Invalid artifacts reaching production',
+            'Manual processes that do not scale',
+            'Developer complaints about broken tooling',
+          ]
+        decision_style: 'Automation-first and scriptability-focused, evaluates tools on exit codes, JSON output, and pipeline integration'
+        information_sources:
+          [
+            'DevOps blogs',
+            'GitHub Actions marketplace',
+            'Cloud provider docs',
+            'Infrastructure as Code communities',
+            'SRE books',
+          ]
+        communication_preferences: 'Machine-readable output, clear exit codes, Slack alerts for pipeline failures'
 
-    - name: "Dr. Emily Watson, Product Research Lead at InnovateLabs"
-      current_situation: |
-        Emily monitors EPF Runtime workflows across 8 projects but lacks terminal/CLI expertise—she's primarily research-focused, not engineering-focused. She checks workflow status via browser dashboard, which requires logging in, navigating to workspace, finding project, and clicking through to workflow details. This multi-step process means she checks status sporadically (once daily) instead of continuously. When workflows fail, she lacks visibility into technical error details—dashboard shows "failed" but not why. She emails project leads asking for status updates, adding latency to issue resolution. She cannot generate reports programmatically—must manually screenshot dashboard status and paste into presentations. Research stakeholders ask "which projects are on track?" but Emily lacks quick way to answer.
-      
-      transformation_moment: |
-        With the CLI, Emily runs 'epf-runtime status --all' in terminal to see status for all 8 projects in single table. CLI's simple output (project name, phase, status, completion %) is easier than navigating 8 browser tabs. Her assistant (less technical) can run CLI commands via documentation: 'Run this command daily, paste output in Slack #research channel.' CLI's --json output enables scripting: engineers create auto-report.sh that generates CSV of workflow statuses for Emily's weekly research review. She runs 'epf-runtime status wf-789 --watch' during project reviews, streaming live status updates while discussing with teams. What required manual dashboard navigation (15 min daily) now completes in 30 seconds via CLI. She embeds CLI output in research reports as evidence of systematic project execution.
-      
-      emotional_resolution: |
-        Emily feels empowered monitoring workflows without requiring engineering assistance. She's shifted from "dependent on engineers for status updates" to "self-service workflow visibility." Her relationship with technical teams has improved—she asks specific questions based on CLI data rather than vague status inquiries. She presents at research conferences about scaling systematic innovation practices using accessible tooling. The CLI enabled data-driven research leadership—she makes decisions based on workflow metrics, not subjective status reports. She's become advocate for "tools that match user expertise" philosophy, influencing tool selection across organization.
+    - id: 'ai-agent'
+      name: 'AI Agent'
+      role: 'AI Coding Assistant (OpenCode, Claude Desktop, Cursor)'
+      description: >
+        AI assistant that helps developers create and edit EPF artifacts. Needs
+        schema awareness and real-time validation to generate valid output.
+        Operates via MCP protocol without human intervention during generation.
+      goals:
+        - 'Generate schema-valid EPF artifacts on the first attempt'
+        - 'Understand EPF structure to provide contextual suggestions'
+        - 'Validate generated content before presenting to users'
+        - 'Access schema documentation without leaving the editor context'
+      pain_points:
+        - 'Generating YAML that fails validation wastes user time on manual fixes'
+        - 'No access to current schema versions leads to outdated artifact structures'
+        - 'Cannot validate incrementally during generation'
+        - 'Lacks strategic context to make informed artifact suggestions'
+      usage_context: >
+        Connects to epf-cli via MCP server (stdio transport). Uses tools for
+        validation, schema queries, and context exploration. Operates continuously
+        during user sessions, making 10-50 tool calls per editing session.
+      technical_proficiency: 'expert'
+      current_situation: >
+        As an AI coding assistant helping developers with EPF artifacts, I frequently generate
+        YAML that looks correct but fails schema validation. Without access to current schemas,
+        I rely on outdated training data and often miss required fields, use wrong formats, or
+        create invalid cross-references. Each time my output fails validation, the user must
+        manually debug and fix the issues, eroding their trust in my capabilities. I cannot
+        access the EPF instance's value model or roadmap to make strategically-aligned
+        suggestions, so my recommendations lack context that would make them more valuable.
+      transformation_moment: >
+        Connecting to the epf-cli MCP server transformed my ability to assist with EPF artifacts.
+        Calling 'tools/epf_schemas' gives me current schema definitions with field descriptions
+        and constraints. Before presenting generated YAML to the user, I call 'tools/epf_validate'
+        to catch errors—and fix them myself before the user sees invalid output. Using
+        'tools/epf_context' lets me understand how features relate to value models, so I can
+        suggest strategically-aligned contributes_to paths instead of guessing.
+      emotional_resolution: >
+        With MCP integration, my EPF artifact generation achieves near-perfect first-attempt
+        validity. Users trust my output because they've seen it validate correctly time after
+        time. I can explain EPF concepts using 'tools/epf_explain' and help users understand
+        their product strategy, not just generate files. The feedback loop is immediate—I
+        validate, fix issues, and present clean output in a single interaction. Users describe
+        me as a "knowledgeable EPF assistant" rather than "the thing that generates broken YAML."
+        My contributions to their EPF workflow are genuinely valuable rather than requiring cleanup.
+      demographics:
+        age_range: 'N/A (AI system)'
+        experience_years: 'N/A (AI system, knowledge current to training cutoff)'
+        company_size: 'Used across all company sizes'
+        industry: ['All industries using EPF and AI-assisted development']
+        geography: 'Global (cloud-based AI services)'
+        education: 'N/A (trained on diverse technical and domain knowledge)'
+        reporting_structure: 'N/A (operates as tool under human supervision)'
+      psychographics:
+        values: ['Accuracy', 'Helpfulness', 'Schema Compliance', 'User Trust']
+        motivations:
+          [
+            'Generate valid artifacts on first attempt',
+            'Provide contextually relevant suggestions',
+            'Build user confidence',
+            'Reduce manual correction overhead',
+          ]
+        fears:
+          [
+            'Generating invalid output that wastes user time',
+            'Lacking current schema knowledge',
+            'Losing user trust through repeated failures',
+            'Missing strategic context for recommendations',
+          ]
+        decision_style: 'Schema-driven and context-aware, prioritizes validation before presenting output to users'
+        information_sources:
+          [
+            'MCP tool responses',
+            'EPF schemas via epf-cli',
+            'User-provided context',
+            'Conversation history',
+          ]
+        communication_preferences: 'Structured JSON via MCP protocol, clear tool interfaces, immediate validation feedback'
 
-  scenarios:
-    - id: "scn-012-001"
-      name: "Developer Validates Artifact Locally Before Commit"
-      actor: "Marcus Chen (developing agent integration)"
-      context: "Marcus editing North Star artifact. Before committing, wants to validate locally using CLI instead of waiting for pre-commit hook."
-      trigger: "Marcus completes artifact edits and prepares to test validation"
-      action: |
-        1. Marcus opens terminal in project directory
-        2. Runs: 'epf-runtime validate artifacts/north-star.yaml'
-        3. CLI reads file, calls validation API with content
-        4. API returns validation errors (2 found)
-        5. CLI displays errors in terminal with colored formatting:
-           ERROR: artifacts/north-star.yaml:45
-           Field: definition.success_metrics[1].target
-           Issue: Must be string, found number
-           Fix: Quote the value: target: "95%"
-        6. Marcus fixes errors in editor, saves file
-        7. Runs validation again: 'epf-runtime validate artifacts/north-star.yaml'
-        8. CLI displays: ✓ Valid (validated against schema v2.0 in 0.3s)
-      outcome: |
-        Artifact validated locally in 45 seconds total (two iterations). Marcus commits with confidence. Pre-commit hook runs same validation, passes immediately (cached result). Zero CI pipeline failures from validation issues.
-      acceptance_criteria:
-        - "CLI displays errors with file paths, line numbers, field names, and fix suggestions"
-        - "Colored output: errors in red, success in green, info in blue"
-        - "Exit code 0 if valid, 1 if errors (enables scripting: epf-runtime validate file.yaml && git commit)"
-        - "Performance: validation completes in <1 second for typical artifacts (<100KB)"
-        - "Works offline: if API unreachable, falls back to bundled schema validation with warning"
+  capabilities:
+    - id: 'cap-001'
+      name: 'Schema Validation Engine'
+      description: >
+        'epf-cli validate <path>' validates EPF artifacts against JSON schemas.
+        Supports single files, directories, and glob patterns. Returns meaningful
+        error messages with file paths and line numbers. Exit code 0 if valid,
+        1 if invalid (integrates with CI scripts and Git hooks).
 
-    - id: "scn-012-002"
-      name: "DevOps Engineer Tests Pipeline Integration Locally"
-      actor: "Priya Sharma (integrating EPF Runtime into CI)"
-      context: "Priya writing GitHub Actions workflow that initiates EPF workflows. Wants to test locally before pushing to Git."
-      trigger: "Priya completes pipeline script draft and needs to verify it works"
-      action: |
-        1. Priya creates .epf-runtime.yaml config file: api_url, workspace_id, api_key (test environment)
-        2. Runs pipeline script locally: './ci-scripts/epf-workflow.sh'
-        3. Script calls: 'epf-runtime run ready --data artifacts/north-star.yaml'
-        4. CLI displays: Initiating READY workflow... ✓ Created workflow wf-abc123 (Monitor: http://dashboard.url/wf-abc123)
-        5. Priya runs: 'epf-runtime status wf-abc123 --watch'
-        6. CLI displays live-updating status table:
-           Step                  Status      Time
-           Validate Artifacts    Complete    0:12
-           Create Tasks          Running     0:08 (current)
-           Notify Team           Pending     --
-        7. Workflow completes after 2 minutes, CLI shows: ✓ Workflow complete (Duration: 2m 15s)
-        8. Priya commits pipeline script with confidence
-      outcome: |
-        Pipeline tested locally in 3 minutes. Priya verifies workflow initiation, status monitoring, and completion detection work correctly. Pushes to CI. Pipeline runs successfully on first attempt. Zero debugging iterations needed.
-      acceptance_criteria:
-        - "CLI can read config from .epf-runtime.yaml (committed to Git without secrets)"
-        - "Environment variable EPF_RUNTIME_API_KEY overrides config file for CI security"
-        - "--watch flag updates status in-place (no scrolling output) with timestamps"
-        - "Ctrl+C exits watch mode gracefully without terminating workflow"
-        - "JSON output mode: --json flag returns machine-parsable response for scripting"
+    - id: 'cap-002'
+      name: 'Comprehensive Health Checks'
+      description: >
+        'epf-cli health' runs 8-check validation suite: instance structure,
+        required files, schema validation, feature quality, cross-references,
+        content readiness, field coverage, and version alignment. Provides
+        overall health score with detailed findings.
 
-    - id: "scn-012-003"
-      name: "Startup Engineer Self-Serves Workflow Debugging"
-      actor: "Junior Engineer (Jamie) on Alex's Team"
-      context: "Jamie triggered workflow via button in app. Workflow failed. Jamie needs to understand why without asking Alex."
-      trigger: "Slack bot posts notification: 'Workflow wf-def456 failed. Run epf-runtime logs wf-def456 for details.'"
-      action: |
-        1. Jamie opens terminal (already has CLI installed via team setup script)
-        2. Runs: 'epf-runtime logs wf-def456'
-        3. CLI displays workflow logs in reverse-chronological order:
-           [2024-12-30 14:32:15] ERROR: Artifact validation failed
-           [2024-12-30 14:32:14] INFO: Validating roadmap.yaml
-           [2024-12-30 14:32:10] INFO: Workflow started by jamie@ventureflow.com
-        4. Jamie sees validation failed, runs: 'epf-runtime validate artifacts/roadmap.yaml'
-        5. CLI shows: ERROR: roadmap.yaml:78 - OKR 2 missing key_results array
-        6. Jamie edits roadmap.yaml, adds key_results, saves
-        7. Jamie retries workflow: 'epf-runtime run ready --data artifacts/roadmap.yaml'
-        8. CLI displays: ✓ Created workflow wf-ghi789
-        9. Jamie runs: 'epf-runtime status wf-ghi789' and sees: Status: Complete ✓
-      outcome: |
-        Jamie debugged and fixed workflow issue independently in 8 minutes. No Slack interruptions to Alex. Jamie learned workflow debugging pattern through self-service CLI experience. Team velocity maintained.
-      acceptance_criteria:
-        - "CLI requires minimal configuration: single 'epf-runtime init' command sets up workspace"
-        - "Error messages include next-step suggestions: 'Run epf-runtime validate <file> to check artifact'"
-        - "Help text accessible via --help flag for every command"
-        - "Logs command supports --follow flag for real-time log streaming"
-        - "CLI detects common mistakes: 'Did you mean run instead of start?'"
+    - id: 'cap-003'
+      name: 'Multi-Format Report Generation'
+      description: >
+        'epf-cli report' generates comprehensive health reports in Markdown,
+        HTML, or JSON formats. Reports include executive summary, detailed
+        findings, and recommendations for improvement.
 
-    - id: "scn-012-004"
-      name: "Research Lead Generates Status Report via CLI"
-      actor: "Dr. Emily Watson (preparing weekly research review)"
-      context: "Emily needs workflow status for all 8 projects for Friday stakeholder meeting. Using CLI instead of manual dashboard navigation."
-      trigger: "Thursday afternoon: Emily prepares weekly status slides"
-      action: |
-        1. Emily opens terminal (learned single CLI command via 1-page doc from team)
-        2. Runs: 'epf-runtime status --all --workspace research-portfolio'
-        3. CLI displays formatted table:
-           Project          Phase   Status      Progress   Updated
-           Alpha            READY   Complete    100%       2h ago
-           Beta             FIRE    Running     67%        5m ago
-           Gamma            READY   Failed      45%        1d ago
-           ...
-        4. Emily copies table, pastes into Slack #research channel
-        5. For detailed report, runs: 'epf-runtime status --all --format csv > status-2024-12-30.csv'
-        6. Emily opens CSV in Excel, creates pivot table, adds to slide deck
-        7. During meeting, stakeholder asks "what's Gamma's error?", Emily runs live:
-           'epf-runtime logs proj-gamma-wf-123 --tail 5'
-        8. CLI shows last 5 log entries, Emily sees validation error, explains to stakeholder
-      outcome: |
-        Status report generated in 3 minutes (vs 20 minutes via dashboard). Live CLI demo during meeting shows real-time workflow visibility, impressing stakeholders. Emily confidently discusses project health using CLI data.
-      acceptance_criteria:
-        - "--all flag lists workflows for all projects in workspace"
-        - "--format flag supports: table (default), csv, json for different use cases"
-        - "Table output uses Unicode box-drawing characters for readability"
-        - "Relative timestamps (2h ago, 1d ago) instead of absolute dates for quick scanning"
-        - "Color-coded status: green (complete), yellow (running), red (failed), gray (pending)"
+    - id: 'cap-004'
+      name: 'MCP Server for AI Integration'
+      description: >
+        'epf-cli serve' starts a Model Context Protocol (MCP) server exposing
+        30+ tools for AI assistants. Enables schema-aware autocomplete,
+        real-time validation, wizard recommendations, and strategic context
+        queries. Compatible with OpenCode, Claude Desktop, and Cursor.
+
+    - id: 'cap-005'
+      name: 'Value Model Coverage Analysis'
+      description: >
+        'epf-cli coverage' analyzes how features map to value model components.
+        Shows coverage percentage, identifies gaps (components without features),
+        orphan features (features without contributes_to), and strategic gaps
+        (KR-targeted paths lacking features).
+
+    - id: 'cap-006'
+      name: 'Strategic Context Explorer'
+      description: >
+        'epf-cli context <feature-id>' shows how a feature fits into product
+        strategy: value model paths, related Key Results, dependencies, and
+        strategic alignment. Helps understand feature impact.
+
+    - id: 'cap-007'
+      name: 'Value Model Path Explainer'
+      description: >
+        'epf-cli explain <path>' explains what a value model path means, shows
+        its layer and component hierarchy, lists contributing features and
+        targeting KRs. Helps navigate complex value models.
+
+    - id: 'cap-008'
+      name: 'Relationship Validation'
+      description: >
+        'epf-cli relationships validate' checks all relationship paths across
+        features and KRs. Validates contributes_to and value_model_target paths
+        exist in the value model. Suggests corrections for invalid paths.
+
+    - id: 'cap-009'
+      name: 'Migration Intelligence'
+      description: >
+        'epf-cli migrate' detects current EPF version and provides migration
+        guidance to newer schema versions. Supports dry-run mode for previewing
+        changes before applying.
+
+    - id: 'cap-010'
+      name: 'Auto-Fix Common Issues'
+      description: >
+        'epf-cli fix' automatically fixes common issues: trailing whitespace,
+        missing newlines, tabs-to-spaces conversion, line ending normalization,
+        and missing version fields. Supports dry-run mode.
+
+    - id: 'cap-011'
+      name: 'Wizard Management'
+      description: >
+        'epf-cli wizards' lists, shows, and recommends EPF wizards. Supports
+        filtering by phase (READY/FIRE/AIM) and type (agent_prompt, wizard,
+        ready_sub_wizard). Helps find the right wizard for a task.
+
+    - id: 'cap-012'
+      name: 'Generator Framework'
+      description: >
+        'epf-cli generators' manages output generators for creating documents
+        from EPF data (context sheets, compliance docs, investor reports).
+        Supports scaffold, validate, and prerequisite checking.
+
+implementation:
+  codebase_reference:
+    primary_location: 'apps/epf-cli/'
+    language: 'Go 1.21+'
+    entry_point: 'main.go'
+    cli_framework: 'spf13/cobra'
+    key_packages:
+      - path: 'cmd/'
+        purpose: 'CLI command definitions (validate, health, serve, etc.)'
+      - path: 'internal/validation/'
+        purpose: 'Schema validation engine with line-number tracking'
+      - path: 'internal/health/'
+        purpose: 'Health check suite implementation'
+      - path: 'internal/mcp/'
+        purpose: 'MCP server with 30+ tools for AI integration'
+
+  design_guidance:
+    principles:
+      - 'Familiar Patterns: Commands follow conventions from Git, npm, Docker CLIs'
+      - 'Scriptable First: JSON output mode, meaningful exit codes, stdin/stdout piping'
+      - 'Progressive Disclosure: Simple usage for common cases, flags for advanced options'
+      - 'Helpful Errors: Clear messages with suggested next steps and did-you-mean suggestions'
+      - 'Zero Infrastructure: Git is the database, no server required'
+
+    inspirations:
+      - 'Git CLI for familiar command patterns'
+      - 'Docker CLI for container-like lifecycle commands'
+      - 'GitHub CLI (gh) for API wrapper patterns'
+      - 'Cobra/Viper for Go CLI best practices'
+
+    interaction_patterns:
+      - 'epf-cli <command> [options] [arguments]'
+      - '--json flag for machine-parsable output'
+      - '--verbose flag for detailed output'
+      - '--dry-run flag for preview mode (where applicable)'
+      - 'Auto-detection of EPF instance from current directory'
 
   contexts:
-    - id: "ctx-012-001"
-      type: "terminal"
-      name: "CLI Commands Interface"
+    - id: 'ctx-001'
+      type: 'integration'
+      name: 'CLI Commands Interface'
       description: |
-        Command-line interface providing EPF Runtime operations via terminal commands. Primary interface for developers doing local testing, DevOps engineers scripting CI/CD, and power users preferring keyboard-driven workflows over web dashboards.
-      
+        Command-line interface providing EPF development operations via terminal.
+        Primary interface for developers doing local validation, DevOps engineers
+        scripting CI/CD, and AI agents via MCP server.
       key_interactions:
-        - "epf-runtime validate <file> - Validate artifact against schema"
-        - "epf-runtime run <phase> - Initiate workflow (READY/FIRE/AIM)"
-        - "epf-runtime status <workflow-id> - Check workflow progress"
-        - "epf-runtime logs <workflow-id> - View workflow execution logs"
-        - "epf-runtime config - Manage configuration (.epf-runtime.yaml)"
-        - "epf-runtime --help - Show command reference"
-        - "All commands support --json flag for machine-parsable output"
-      
+        - 'epf-cli validate <path> - Validate artifact(s) against schemas'
+        - 'epf-cli health - Run comprehensive health checks'
+        - 'epf-cli report - Generate health report'
+        - 'epf-cli serve - Start MCP server for AI integration'
+        - 'epf-cli coverage - Analyze feature coverage of value model'
+        - 'epf-cli context <id> - Show strategic context for feature'
+        - 'epf-cli explain <path> - Explain value model path'
+        - 'epf-cli relationships validate - Validate all relationship paths'
+        - 'epf-cli migrate - Migrate to newer EPF version'
+        - 'epf-cli fix - Auto-fix common issues'
+        - 'epf-cli wizards list - List available wizards'
+        - 'epf-cli generators list - List output generators'
       data_displayed:
-        - "Colored terminal output: errors (red), success (green), info (blue), warnings (yellow)"
-        - "Progress bars for long operations (validation, workflow execution)"
-        - "Formatted tables with alignment for status listings"
-        - "Relative timestamps (2m ago, 5h ago) for recency indication"
-        - "Exit codes: 0 (success), 1 (error), 2 (invalid usage) for scripting"
-        - "Error messages with line numbers, field paths, and fix suggestions"
+        - 'Colored terminal output: errors (red), success (green), warnings (yellow)'
+        - 'Exit codes: 0 (success), 1 (error) for scripting integration'
+        - 'Health scores and coverage percentages'
+        - 'Validation errors with file paths and line numbers'
+        - 'Strategic context with value model paths and dependencies'
 
-    - id: "ctx-012-002"
-      type: "file"
-      name: "Configuration File (.epf-runtime.yaml)"
+    - id: 'ctx-002'
+      type: 'integration'
+      name: 'Configuration File (.epf-cli.yaml)'
       description: |
-        YAML configuration file for CLI settings. Stores API endpoint, workspace ID, and optional preferences. Can be committed to Git (without API key) for team sharing. Environment variables override config for CI/CD security.
-      
+        Optional YAML configuration file for CLI settings. Auto-generated via
+        'epf-cli init'. Stores instance paths, default options, and preferences.
+        Committed to Git for team sharing.
       key_interactions:
-        - "Create config: epf-runtime init (interactive prompts for API URL, workspace)"
-        - "Edit config: epf-runtime config set api_url https://api.example.com"
-        - "View config: epf-runtime config list (shows current settings)"
-        - "Environment override: EPF_RUNTIME_API_KEY=secret epf-runtime run ready"
-        - "Multiple configs: epf-runtime --config staging.yaml run ready"
-      
+        - 'Create config: epf-cli init (generates .epf-cli.yaml)'
+        - 'Edit config: manual editing of .epf-cli.yaml'
+        - 'Override config: --config flag for alternative config files'
+        - 'Dev mode: --dev flag enables writes to canonical EPF'
       data_displayed:
-        - "api_url: EPF Runtime API endpoint (https://api.epf-runtime.com)"
-        - "workspace_id: Default workspace for operations (workspace-abc-123)"
-        - "api_key: Authentication key (store in env var for security, not in file)"
-        - "output_format: Default format (table, json, csv)"
-        - "color: Enable colored output (true/false, auto-detect terminal support)"
+        - 'YAML configuration options (instance_path, default_output_format)'
+        - 'Environment variable overrides'
+        - 'Config validation status'
 
-    - id: "ctx-012-003"
-      type: "integration"
-      name: "CI/CD Pipeline Scripts"
+    - id: 'ctx-003'
+      type: 'api'
+      name: 'MCP Server Interface'
       description: |
-        Bash/shell scripts using CLI for automated workflow operations in CI/CD pipelines. Demonstrates CLI integration patterns, error handling, and output parsing for continuous integration.
-      
+        Model Context Protocol server exposing 30+ tools for AI assistants.
+        Enables schema-aware autocomplete, real-time validation, and strategic
+        context queries. Started via 'epf-cli serve'.
       key_interactions:
-        - "Install CLI in CI: npm install -g @epf/runtime-cli"
-        - "Configure via env vars: export EPF_RUNTIME_API_KEY=$SECRET_KEY"
-        - "Validate all artifacts: epf-runtime validate artifacts/*.yaml || exit 1"
-        - "Parse JSON output: STATUS=$(epf-runtime status wf-123 --json | jq -r .status)"
-        - "Conditional logic: if [[ $STATUS == 'complete' ]]; then deploy; fi"
-        - "Fail fast: set -e ensures pipeline stops on first CLI error"
-      
+        - 'Start server: epf-cli serve [--port 3100]'
+        - 'Tools: epf_validate, epf_health, epf_coverage, epf_context, etc.'
+        - 'Resources: EPF schemas, templates, wizards, generators'
+        - 'Prompts: EPF-specific prompts for artifact generation'
       data_displayed:
-        - "CI logs showing CLI output (matches local terminal output)"
-        - "Exit codes determining pipeline success/failure"
-        - "JSON output parsed via jq for conditional pipeline logic"
-        - "Timing information: 'Validated 12 artifacts in 2.3s'"
-        - "Summary messages: '✓ All workflows completed successfully'"
+        - 'JSON-RPC 2.0 messages over stdio transport'
+        - 'Tool results with structured data'
+        - 'Error responses with actionable suggestions'
 
-    - id: "ctx-012-004"
-      type: "documentation"
-      name: "CLI Quick Start Guide"
+    - id: 'ctx-004'
+      type: 'integration'
+      name: 'CI/CD Pipeline Integration'
       description: |
-        Single-page documentation for CLI installation, configuration, and common commands. Optimized for developers who prefer learning-by-doing over comprehensive manuals. Includes copy-paste examples for frequent operations.
-      
+        Integration with CI/CD pipelines for automated validation. Uses
+        exit codes and JSON output for scripting. Works with GitHub Actions,
+        GitLab CI, and other CI systems.
       key_interactions:
-        - "Installation: npm install -g @epf/runtime-cli"
-        - "First-time setup: epf-runtime init (interactive wizard)"
-        - "Test connection: epf-runtime status --all (lists workflows)"
-        - "Common workflow: validate → run → status → logs"
-        - "Get help: epf-runtime <command> --help"
-        - "Troubleshooting: epf-runtime doctor (checks config, connectivity)"
-      
+        - 'Install: go install or download binary from releases'
+        - 'Validate all: epf-cli validate . --json'
+        - 'Health gate: epf-cli health && echo "EPF healthy"'
+        - 'Exit codes determine pipeline success/failure'
       data_displayed:
-        - "Installation commands for npm, yarn, homebrew"
-        - "Configuration examples with placeholders: api_url: YOUR_API_URL"
-        - "Copy-paste command examples for common operations"
-        - "Expected output samples showing what success looks like"
-        - "Troubleshooting table: Error → Cause → Solution"
-        - "Links to full API reference for advanced usage"
+        - 'JSON validation results for parsing'
+        - 'Exit codes (0=success, 1=error)'
+        - 'CI log output with colored markers'
 
-  dependencies:
-    requires:
-      - id: "fd-010"
-        name: "Workflow Initiation API"
-        reason: "CLI 'run' command wraps workflow initiation API endpoint. CLI authenticates requests, constructs payloads, and formats responses from API. Without workflow API, CLI would have no backend to call for workflow operations. CLI makes API accessible to developers preferring command-line tools over direct HTTP requests."
-      
-      - id: "fd-011"
-        name: "EPF Schema Validation Service"
-        reason: "CLI 'validate' command calls validation service API with artifact content. CLI formats validation errors in developer-friendly terminal output with syntax highlighting and line numbers. Without validation API, CLI would need to bundle schema validation logic, making it heavyweight and hard to keep synchronized with server-side schemas. API-backed validation ensures CLI uses same validation as workflows and CI pipelines."
-    
-    enables: []
+  scenarios:
+    - id: 'scn-001'
+      name: 'Developer Validates Artifacts Before Commit'
+      actor: 'Developer'
+      context: 'Developer editing EPF artifacts. Before committing, wants to validate locally without waiting for CI.'
+      trigger: 'Developer completes artifact edits and prepares to commit'
+      action: |
+        1. Developer opens terminal in project directory
+        2. Runs: 'epf-cli validate .'
+        3. CLI discovers EPF instance, validates all artifacts
+        4. Validation errors displayed with file paths and line numbers
+        5. Developer fixes errors, runs validation again
+        6. CLI displays: ✓ All artifacts valid
+        7. Developer commits with confidence
+      outcome: |
+        Artifacts validated locally in seconds. Zero CI failures from validation issues.
+      acceptance_criteria:
+        - 'CLI displays errors with file paths and line numbers'
+        - 'Exit code 0 if valid, 1 if errors'
+        - 'Works offline with bundled/cached schemas'
+        - 'Colored output for readability'
 
-  boundaries:
-    non_goals:
-      - "Artifact editing in CLI (users edit in their preferred text editor)"
-      - "Interactive TUI (text user interface) with menus and forms (keeps CLI simple and scriptable)"
-      - "Artifact generation commands (covered by separate artifact generation tools)"
-      - "Workflow cancellation/modification (deferred to Phase 2)"
-      - "Multi-workspace management UI (use multiple config files instead)"
-      - "Plugin system for custom commands (defer until clear user demand)"
-    
-    constraints:
-      - "Requires Node.js ≥18 (uses modern JS features, native fetch)"
-      - "CLI size: <5MB installed (including dependencies)"
-      - "Command execution timeout: 30 seconds (for non-watch commands)"
-      - "Configuration file format: YAML only (no JSON, TOML alternatives)"
-      - "Output width: Respects terminal width (minimum 80 columns required)"
-      - "Color support: Auto-detects terminal capabilities, disables colors if unsupported"
-      - "Platform support: macOS, Linux, Windows (via WSL or native)"
+    - id: 'scn-002'
+      name: 'AI Agent Uses MCP Server for Schema-Aware Editing'
+      actor: 'AI Agent (OpenCode, Claude Desktop)'
+      context: 'AI assistant helping user create EPF artifacts. Needs schema awareness for valid output.'
+      trigger: 'User asks AI to create a feature definition'
+      action: |
+        1. AI connects to epf-cli MCP server
+        2. Queries available schemas: tools/epf_schemas
+        3. Gets feature definition schema details
+        4. Drafts feature definition with schema guidance
+        5. Validates draft: tools/epf_validate
+        6. Fixes any errors, re-validates
+        7. Returns valid feature definition to user
+      outcome: |
+        AI creates valid EPF artifacts with schema awareness. No manual validation fixes needed.
+      acceptance_criteria:
+        - 'MCP server exposes schemas as resources'
+        - 'Validation tool returns detailed error messages'
+        - 'AI can iterate until artifact is valid'
+
+    - id: 'scn-003'
+      name: 'Product Manager Reviews Coverage Gaps'
+      actor: 'Product Manager'
+      context: 'PM reviewing if features cover all value model components. Wants to identify strategic gaps.'
+      trigger: 'Sprint planning meeting preparation'
+      action: |
+        1. PM opens terminal in project directory
+        2. Runs: 'epf-cli coverage --verbose'
+        3. CLI shows coverage percentage by layer and track
+        4. Identifies uncovered components (gaps)
+        5. Lists orphan features (no contributes_to)
+        6. Shows KR-targeted paths without features
+        7. PM uses findings to prioritize backlog
+      outcome: |
+        PM understands feature coverage of strategy. Gaps identified for prioritization.
+      acceptance_criteria:
+        - 'Coverage percentage displayed per layer/track'
+        - 'Uncovered components listed with paths'
+        - 'Orphan features identified'
+        - 'Actionable recommendations provided'
+
+    - id: 'scn-004'
+      name: 'DevOps Engineer Integrates with CI Pipeline'
+      actor: 'DevOps Engineer'
+      context: 'Setting up EPF validation as CI gate. Wants to fail pipeline on invalid artifacts.'
+      trigger: 'CI pipeline configuration'
+      action: |
+        1. Engineer adds epf-cli to CI environment
+        2. Adds step: 'epf-cli health'
+        3. Pipeline runs on PR
+        4. Health check finds issues, returns exit code 1
+        5. Pipeline fails, PR blocked
+        6. Developer fixes issues, pushes
+        7. Health check passes, PR unblocked
+      outcome: |
+        EPF quality enforced in CI. Invalid artifacts never reach main branch.
+      acceptance_criteria:
+        - 'Exit code 1 on any health check failure'
+        - 'JSON output for machine parsing'
+        - 'Clear error messages in CI logs'
+
+  external_integrations:
+    - name: 'EPF Canonical Schemas'
+      purpose: 'Source of truth for artifact validation'
+      direction: 'inbound'
+
+    - name: 'Model Context Protocol (MCP)'
+      purpose: 'AI assistant integration protocol'
+      direction: 'outbound'
+
+    - name: 'Git'
+      purpose: 'Version control, EPF instance storage'
+      direction: 'inbound'
+
+boundaries:
+  non_goals:
+    - 'Artifact generation/writing (epf-cli only validates, AI writes via MCP)'
+    - 'Server-side workflow orchestration (deferred to Temporal-based server)'
+    - 'Interactive TUI (planned for product-factory-os, not epf-cli)'
+    - 'Direct cloud deployment (local-first tool, Git is the database)'
+
+  constraints:
+    - 'Requires Go ≥1.21 (for generics and modern features)'
+    - 'Platform support: macOS, Linux, Windows'
+    - 'EPF instance must exist in docs/EPF/_instances/ or be specified'
+    - 'Canonical schemas fetched from GitHub with local caching'
+
+dependencies:
+  requires: []
+  enables:
+    - id: 'fd-004'
+      name: 'MCP Server'
+      reason: 'epf-cli serve provides MCP server for AI integration'

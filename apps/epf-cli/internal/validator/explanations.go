@@ -217,8 +217,9 @@ func suggestForMultipleUnknownFields(fields []string) string {
 func explainPattern(pattern string) string {
 	// Common EPF patterns
 	patterns := map[string]string{
-		// contributes_to pattern
-		`^(Product|Commercial|Strategy|OrgOps)\.[A-Za-z]+\.[A-Za-z]+`: "Format: '{Pillar}.{L2}.{L3}' where Pillar is Product/Commercial/Strategy/OrgOps. Example: 'Product.Operate.Monitoring'",
+		// contributes_to patterns (old and new)
+		`^(Product|Commercial|Strategy|OrgOps)\.[A-Za-z]+\.[A-Za-z]+`: "Format: '{Track}.{Layer}.{Component}' where Track is Product/Commercial/Strategy/OrgOps. Example: 'Product.Layer1LocalTools.EpfCliValidate'",
+		`^(Product|Commercial|Strategy|OrgOps)(\.[A-Za-z0-9]+){2,3}$`: "Format: '{Track}.{Layer}.{Component}[.{SubComponent}]' (3-4 segments). Example: 'Product.Layer3PlatformServices.WorkspaceIsolation.AccessControl'",
 
 		// Feature ID pattern
 		`^fd-\d{3}$`: "Format: 'fd-XXX' where XXX is a 3-digit number. Example: 'fd-001'",

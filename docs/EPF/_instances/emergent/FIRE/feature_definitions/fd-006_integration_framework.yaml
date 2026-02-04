@@ -1,248 +1,524 @@
-id: "fd-006"
-name: "Integration Framework"
-slug: "integration-framework"
-status: "delivered"
+id: 'fd-006'
+name: 'Integration Framework'
+slug: 'integration-framework'
+status: 'delivered'
 
 strategic_context:
   contributes_to:
-    - "Product.Core.Integrations"
-    - "Product.Core.DataSynchronization"
-    - "Product.Innovation.ThirdPartyConnectors"
+    - 'Product.IntegrationTools.CodeIntegration'
+    - 'Product.Layer3PlatformServices.ExternalIntegrations'
   tracks:
-    - "product"
+    - 'product'
   assumptions_tested:
-    - "asm-p-011" # Third-party integrations reduce manual data entry
-    - "asm-p-012" # ClickUp integration provides PM workflow value
+    - 'asm-p-011' # Third-party integrations reduce manual data entry
+    - 'asm-p-012' # ClickUp integration provides PM workflow value
+    - 'asm-p-023' # Output adapters reduce manual artifact distribution
+    - 'asm-p-024' # Bidirectional sync keeps internal and external systems aligned
 
 definition:
   job_to_be_done: |
-    When I'm managing work in external tools like ClickUp,
-    I want to automatically sync relevant data to my knowledge base,
-    so I don't have to manually duplicate information across systems.
+    When I'm managing work across internal systems and external tools,
+    I want bidirectional synchronization that both pulls data into my knowledge base
+    AND pushes compiled artifacts to external runtimes,
+    so I maintain a single source of truth while distributing work to the right tools.
 
   solution_approach: |
-    An integration framework that:
-    - Provides connector architecture for third-party services
+    A bidirectional integration framework that:
+
+    **Inbound (External → Emergent):**
+    - Pulls data from third-party services into knowledge graph
     - Implements OAuth flows and API key management
-    - Syncs data bidirectionally with conflict resolution
+    - Handles webhook-based real-time updates
     - Maps external entities to knowledge graph objects
-    - Supports webhook-based real-time updates
+
+    **Outbound (Emergent → External):**
+    - Publishes compiled EPF artifacts to external runtimes
+    - Supports multiple output targets: ClickUp (tasks), Linear (issues),
+      HubSpot (campaigns), Notion (docs), Slack (notifications)
+    - Translates internal artifact formats to service-specific schemas
+    - Tracks sync state to enable incremental updates
+
+    **Bidirectional:**
+    - Conflict resolution for entities that exist in both systems
+    - Change detection to avoid redundant syncs
+    - Audit trail of all synchronization operations
+
+  personas:
+    - id: 'integration-developer'
+      name: 'Integration Developer'
+      role: 'Backend Developer specializing in bidirectional integrations'
+      description: >
+        A backend developer responsible for building and maintaining both inbound
+        integrations (pulling data from external services) and outbound adapters
+        (publishing EPF artifacts to external runtimes like Linear, ClickUp, HubSpot).
+      goals:
+        - 'Build reliable connectors that handle API rate limits and failures gracefully'
+        - 'Implement secure OAuth flows that protect user credentials'
+        - 'Create output adapters that translate EPF artifacts to external formats'
+        - 'Support dry-run/preview modes so users can verify before publishing'
+      pain_points:
+        - 'Each third-party API has different authentication patterns and data models'
+        - 'Debugging sync failures across multiple services is time-consuming'
+        - 'Mapping EPF schema fields to service-specific fields requires domain knowledge'
+        - 'Handling partial failures mid-sync is complex and error-prone'
+      usage_context: >
+        Uses the integration framework daily to build both inbound connectors
+        (External → Emergent) and outbound adapters (Emergent → External), handling
+        the full bidirectional sync lifecycle.
+      technical_proficiency: 'expert'
+      current_situation: >
+        As a backend developer building integrations, I handle both directions—pulling data from external services AND
+        publishing EPF artifacts to external runtimes. Every API has different authentication patterns—some use OAuth 2.0,
+        others API keys—and each has unique rate limiting rules. For outbound adapters, I face the challenge of translating
+        rich EPF artifacts into constrained external formats. Linear has different fields than ClickUp, and there is no
+        standard pattern for preview/dry-run modes. When partial failures occur mid-publish, I need manual cleanup. The
+        lack of standardized patterns means each connector is essentially built from scratch.
+      transformation_moment: >
+        The first time I used the Integration Framework to build both an inbound connector AND an outbound adapter, I was
+        amazed at how the standardized architecture handled OAuth complexity, rate limiting, and retry logic for both
+        directions. For the Linear output adapter, I focused entirely on mapping EPF fields to Linear fields while the
+        framework handled authentication and error recovery. The built-in dry-run mode let me show users exactly what would
+        be created before committing. When a partial failure occurred during testing, the transaction-like behavior rolled
+        back cleanly. I shipped production-ready bidirectional sync in days instead of weeks.
+      emotional_resolution: >
+        After adopting the Integration Framework for bidirectional integrations, I feel confident adding new connectors
+        and adapters because the infrastructure handles the hard parts—token refresh, rate limiting, retry logic, and
+        rollback on partial failures. My code reviews are faster because all integrations follow the same patterns.
+        Users trust the publish workflow because they can preview changes, and operations trusts it because partial
+        failures are handled gracefully. The reduced cognitive load lets me focus on the interesting translation logic
+        rather than infrastructure plumbing, and I actually enjoy building integrations now.
+      demographics:
+        age_range: '26-40'
+        experience_years: '4-12 years in backend development or integration engineering'
+        company_size: 'Mid-market to Enterprise (200-10,000 employees)'
+        industry: ['Technology', 'SaaS', 'E-commerce', 'Financial Services']
+        geography: 'Global, with strong presence in tech hubs'
+        education: "Bachelor's in Computer Science or related field"
+        reporting_structure: 'Reports to Engineering Manager, Platform Lead, or Director of Engineering'
+      psychographics:
+        values:
+          [
+            'Code quality',
+            'System reliability',
+            'Developer experience',
+            'Reusable patterns',
+          ]
+        motivations:
+          [
+            'Build robust integrations',
+            'Reduce boilerplate',
+            'Ship faster without compromising quality',
+            'Create infrastructure others can build on',
+          ]
+        fears:
+          [
+            'Flaky integrations',
+            'Midnight pages',
+            'API breaking changes',
+            'Building the same thing repeatedly',
+          ]
+        decision_style: 'Pattern-oriented, evaluates frameworks based on reliability, extensibility, and community support'
+        information_sources:
+          [
+            'API documentation',
+            'GitHub issues',
+            'Engineering blogs',
+            'Stack Overflow',
+            'Vendor changelogs',
+          ]
+        communication_preferences: 'Technical specs, code reviews, async discussion in PRs, architecture decision records'
+
+    - id: 'api-consumer'
+      name: 'API Consumer'
+      role: 'Technical Product Manager using integrated data'
+      description: >
+        A product manager who relies on synchronized data from external tools
+        to make informed decisions and track project progress without switching
+        between multiple applications.
+      goals:
+        - 'Access all project data in one centralized knowledge base'
+        - 'Ensure data freshness with minimal manual refresh requirements'
+        - 'Trust that synchronized data accurately reflects source systems'
+      pain_points:
+        - 'Constantly switching between ClickUp, docs, and other tools is exhausting'
+        - 'Data discrepancies between systems lead to miscommunication'
+        - 'Manual data entry duplication wastes valuable time'
+      usage_context: >
+        Connects their ClickUp workspace once and relies on automatic syncing
+        to keep their knowledge base current with task updates and project changes.
+      technical_proficiency: 'intermediate'
+      current_situation: >
+        As a technical product manager, I juggle information across multiple tools every day—ClickUp for tasks, Google
+        Docs for specs, Slack for discussions, and our knowledge base for documentation. When stakeholders ask about
+        project status, I have to manually cross-reference these systems to piece together an accurate picture. I've
+        lost count of how many times data discrepancies between tools caused confusion in meetings. The mental overhead
+        of remembering which system has the most current information is exhausting, and I often find myself copying and
+        pasting updates between tools just to keep everyone aligned.
+      transformation_moment: >
+        The first time I connected ClickUp to the Integration Framework, I watched in real-time as months of task data
+        flowed into our knowledge base. Within minutes, I could query project status, deadlines, and assignments
+        directly from our AI chat interface without opening ClickUp at all. When a teammate updated a task in ClickUp,
+        the webhook triggered and the change appeared in our system almost instantly. I realized I would never again
+        have to manually sync project data or worry about which system had the truth.
+      emotional_resolution: >
+        After adopting the Integration Framework, I feel liberated from the tool-switching chaos that dominated my
+        workdays. I now have a single source of truth where all my project data lives together, automatically updated
+        and always current. Stakeholder questions that used to take 15 minutes of tab-switching now get answered in
+        seconds. The trust I have in our synchronized data has transformed my confidence in decision-making, and I
+        finally have the mental bandwidth to focus on strategy instead of data wrangling.
+      demographics:
+        age_range: '28-45'
+        experience_years: '5-15 years in product management or technical program management'
+        company_size: 'Mid-market to Enterprise (200-5,000 employees)'
+        industry:
+          ['Technology', 'SaaS', 'Professional Services', 'Digital Media']
+        geography: 'Urban tech centers with distributed teams'
+        education: "Bachelor's or MBA in Business, Engineering, or Computer Science"
+        reporting_structure: 'Reports to VP of Product, Director of Engineering, or General Manager'
+      psychographics:
+        values:
+          [
+            'Data accuracy',
+            'Operational efficiency',
+            'Informed decisions',
+            'Team alignment',
+          ]
+        motivations:
+          [
+            'Single source of truth',
+            'Reduce context switching',
+            'Make faster decisions',
+            'Impress stakeholders with data clarity',
+          ]
+        fears:
+          [
+            'Data discrepancies',
+            'Making decisions on stale info',
+            'Wasting time on manual sync',
+            'Looking unprepared in meetings',
+          ]
+        decision_style: 'Data-driven, values real-time information over periodic reports'
+        information_sources:
+          [
+            'Project management tools',
+            'Dashboards',
+            'Slack updates',
+            'Stakeholder meetings',
+            'Product analytics',
+          ]
+        communication_preferences: 'Visual dashboards, automated status updates, quick Slack syncs'
+
+    - id: 'partner-developer'
+      name: 'Partner Developer'
+      role: 'External developer building custom integrations'
+      description: >
+        A developer from a partner organization who needs to integrate their
+        service with the platform, requiring clear documentation and a
+        well-designed webhook system.
+      goals:
+        - 'Understand the webhook event schema and authentication requirements'
+        - 'Build reliable integrations that handle all edge cases correctly'
+        - 'Get integrations approved and listed in the partner ecosystem'
+      pain_points:
+        - 'Unclear documentation slows down integration development'
+        - 'Testing webhooks without a staging environment is difficult'
+        - 'Understanding the entity mapping model requires tribal knowledge'
+      usage_context: >
+        Uses the webhook handling and entity mapping APIs to build a custom
+        integration between their service and the platform.
+      technical_proficiency: 'advanced'
+      current_situation: >
+        As a partner developer trying to integrate my company's service with the platform, I struggle with incomplete
+        documentation and unclear webhook schemas. I spend hours reverse-engineering the expected payload formats by
+        inspecting network traffic and reading source code. Testing integrations is a nightmare because I have to
+        manually trigger events in production-like scenarios, and there is no sandbox environment where I can safely
+        experiment. When something goes wrong, I have no visibility into whether my webhook was received, processed, or
+        rejected, leaving me to guess at the root cause.
+      transformation_moment: >
+        The first time I worked with the Integration Framework's partner APIs, I was impressed by the comprehensive
+        webhook documentation with example payloads for every event type. The testing sandbox let me simulate events
+        and see exactly how the platform would process my requests. When I sent my first real webhook, the detailed
+        response included a trace ID I could use to debug any issues. The entity mapping guide showed me exactly how
+        external objects would appear in the knowledge graph, eliminating all the guesswork from my integration work.
+      emotional_resolution: >
+        After building my integration with the Integration Framework, I feel proud of the robust, production-ready
+        connector I delivered to my team. The clear documentation and helpful error messages meant I could move fast
+        with confidence, knowing exactly what the platform expected. My integration passed certification on the first
+        try, and the structured approach means I can maintain and extend it easily. The partnership feels collaborative
+        rather than adversarial, and I genuinely enjoy working with the platform now.
+      demographics:
+        age_range: '25-40'
+        experience_years: '3-10 years in software development'
+        company_size: 'Startups to Mid-market partners (50-2,000 employees)'
+        industry:
+          ['Technology', 'SaaS', 'Developer Tools', 'Integration Platforms']
+        geography: 'Global, often working remotely with partner ecosystem'
+        education: "Bachelor's in Computer Science or self-taught developer"
+        reporting_structure: 'Reports to Engineering Lead, CTO, or Partner Integration Manager'
+      psychographics:
+        values:
+          [
+            'Developer experience',
+            'Clear documentation',
+            'Fast iteration',
+            'Partnership success',
+          ]
+        motivations:
+          [
+            'Ship working integrations quickly',
+            'Build reputation in partner ecosystem',
+            'Create value for mutual customers',
+            'Learn new platforms',
+          ]
+        fears:
+          [
+            'Unclear APIs',
+            'Breaking changes',
+            'Support delays',
+            'Integration certification failures',
+          ]
+        decision_style: 'Documentation-first, evaluates platforms based on developer experience and support quality'
+        information_sources:
+          [
+            'API documentation',
+            'Developer forums',
+            'Partner Slack channels',
+            'Code samples',
+            'Support tickets',
+          ]
+        communication_preferences: 'Self-service docs, example code, responsive support channels, sandbox environments'
+
+    - id: 'systems-architect'
+      name: 'Systems Architect'
+      role: 'Enterprise Architect responsible for data architecture'
+      description: >
+        A senior architect who designs the overall data flow between enterprise
+        systems, ensuring integrations meet security, compliance, and scalability
+        requirements.
+      goals:
+        - 'Design integration patterns that scale with organizational growth'
+        - 'Ensure data flows meet security and compliance requirements'
+        - 'Minimize data duplication and maintain authoritative sources'
+      pain_points:
+        - 'Point-to-point integrations create maintenance nightmares'
+        - 'Lack of standardized patterns leads to inconsistent data quality'
+        - 'Security reviews for each new integration consume too much time'
+      usage_context: >
+        Reviews integration architecture decisions and ensures the framework
+        meets enterprise requirements for security, reliability, and scalability.
+      technical_proficiency: 'expert'
+      current_situation: >
+        As an enterprise architect, I oversee dozens of integrations across our organization, and the current state is
+        chaotic. Each team builds integrations differently—some use polling, others webhooks, and authentication
+        patterns vary wildly. When security incidents occur, tracing data flows across these disparate integrations is
+        nearly impossible. Every new integration request triggers a lengthy security review because there are no
+        pre-approved patterns to follow. The lack of centralized observability means I learn about integration failures
+        from angry stakeholders rather than monitoring dashboards, and technical debt accumulates faster than we can
+        address it.
+      transformation_moment: >
+        The first time I evaluated the Integration Framework architecture, I saw a standardized approach that addressed
+        every concern on my checklist. OAuth tokens encrypted at rest, idempotent sync operations, exponential backoff
+        for failures, and comprehensive audit logging for compliance. The connector architecture meant new integrations
+        followed pre-approved security patterns, eliminating lengthy reviews. The centralized observability dashboard
+        showed me the health of every integration in one view, with alerts for anomalies before they became incidents.
+      emotional_resolution: >
+        After adopting the Integration Framework as our enterprise standard, I feel confident approving new integrations
+        because I know they inherit battle-tested security and reliability patterns. Compliance audits that used to take
+        weeks now complete in days because all data flows are documented and observable. My architecture reviews focus
+        on business logic rather than re-litigating infrastructure decisions, and I can actually plan strategically
+        instead of constantly firefighting integration issues. The framework has transformed integrations from our
+        biggest liability into a competitive advantage.
+      demographics:
+        age_range: '35-55'
+        experience_years: '12-25 years in software architecture or enterprise engineering'
+        company_size: 'Enterprise (1,000-50,000 employees)'
+        industry:
+          ['Financial Services', 'Healthcare', 'Technology', 'Manufacturing']
+        geography: 'Enterprise headquarters with global integration responsibilities'
+        education: "Bachelor's or Master's in Computer Science, often with architecture certifications (TOGAF, AWS Solutions Architect)"
+        reporting_structure: 'Reports to CTO, VP of Engineering, or Chief Architect'
+      psychographics:
+        values:
+          ['System reliability', 'Security', 'Scalability', 'Standardization']
+        motivations:
+          [
+            'Reduce integration chaos',
+            'Enable secure data flows',
+            'Build reusable patterns',
+            'Strategic technology leadership',
+          ]
+        fears:
+          [
+            'Security breaches',
+            'Integration failures',
+            'Technical debt accumulation',
+            'Compliance audit failures',
+          ]
+        decision_style: 'Risk-aware and standards-driven, evaluates solutions against enterprise architecture principles'
+        information_sources:
+          [
+            'Enterprise architecture frameworks',
+            'Vendor roadmaps',
+            'Security advisories',
+            'Industry analysts (Gartner, Forrester)',
+            'Peer architects',
+          ]
+        communication_preferences: 'Architecture decision records, technical standards documents, governance reviews, executive briefings'
 
   capabilities:
-    - id: "cap-027"
-      name: "ClickUp Integration"
-      description: "Sync tasks, lists, and spaces from ClickUp"
-    
-    - id: "cap-028"
-      name: "OAuth Authentication"
-      description: "Secure OAuth flows for third-party services"
-    
-    - id: "cap-029"
-      name: "Data Synchronization"
-      description: "Bidirectional sync with conflict resolution"
-    
-    - id: "cap-030"
-      name: "Entity Mapping"
-      description: "Map external entities to graph objects"
-    
-    - id: "cap-031"
-      name: "Webhook Handling"
-      description: "Real-time updates via service webhooks"
+    # Inbound Capabilities (External → Emergent)
+    - id: 'cap-027'
+      name: 'Inbound Data Sync'
+      description: |
+        Pull data from external services into knowledge graph. Supports ClickUp,
+        GitHub, Slack, and other sources. Maps external entities to graph objects
+        with relationship preservation.
+
+    - id: 'cap-028'
+      name: 'OAuth Authentication'
+      description: 'Secure OAuth flows for third-party services with token refresh and revocation'
+
+    - id: 'cap-029'
+      name: 'Webhook Handling'
+      description: 'Real-time updates via service webhooks with signature verification and replay protection'
+
+    - id: 'cap-030'
+      name: 'Entity Mapping'
+      description: 'Bidirectional mapping between external entities and graph objects with conflict resolution'
+
+    # Outbound Capabilities (Emergent → External)
+    - id: 'cap-031'
+      name: 'Output Adapters'
+      description: |
+        Publish compiled EPF artifacts to external runtimes. Adapter architecture
+        supports Linear, ClickUp, HubSpot, Notion, Slack, and custom targets.
+        Each adapter translates EPF schemas to service-specific formats.
+
+    - id: 'cap-032'
+      name: 'Publish Preview'
+      description: |
+        Dry-run mode shows exactly what will be created/updated before execution.
+        Enables user verification and approval workflow before publishing.
+
+    - id: 'cap-033'
+      name: 'Incremental Sync'
+      description: |
+        Track sync state to enable efficient incremental updates. Only publish
+        changes since last sync, avoiding duplicate creation and reducing API calls.
+
+    - id: 'cap-034'
+      name: 'Sync Audit Trail'
+      description: |
+        Complete audit log of all synchronization operations—inbound and outbound.
+        Enables debugging, compliance reporting, and rollback planning.
 
 implementation:
   design_guidance:
     principles:
-      - "Security first (OAuth tokens encrypted at rest)"
-      - "Idempotency (safe to rerun syncs)"
-      - "Fault tolerance (retry with exponential backoff)"
-      - "Observability (log all sync operations)"
-    
+      - 'Security first (OAuth tokens encrypted at rest)'
+      - 'Idempotency (safe to rerun syncs)'
+      - 'Fault tolerance (retry with exponential backoff)'
+      - 'Observability (log all sync operations)'
+
     inspirations:
-      - "Zapier connector architecture"
-      - "Airbyte data integration patterns"
-      - "Mulesoft API gateway design"
+      - 'Zapier connector architecture'
+      - 'Airbyte data integration patterns'
+      - 'Mulesoft API gateway design'
 
   contexts:
-    - id: "ctx-013"
-      type: "ui"
-      name: "Connect ClickUp Integration"
-      description: "User authorizes ClickUp and selects sync scope"
-      scenarios:
-        - id: "scn-016"
-          name: "Initial ClickUp Connection"
-          description: "User connects ClickUp workspace for first time"
-          user_flow:
-            - "Navigate to Settings → Integrations"
-            - "Click 'Connect' on ClickUp card"
-            - "Redirect to ClickUp OAuth consent screen"
-            - "User authorizes access to workspace"
-            - "Return to app; select spaces to sync"
-            - "Click 'Start Sync' button"
-            - "System syncs selected spaces; creates graph objects"
-          success_criteria:
-            - "OAuth flow completes without errors"
-            - "User can select specific spaces"
-            - "Initial sync completes in < 30 seconds for typical workspace"
-    
-    - id: "ctx-014"
-      type: "api"
-      name: "Webhook Event Processing"
-      description: "ClickUp sends webhook when task updated"
-      scenarios:
-        - id: "scn-017"
-          name: "Task Updated Webhook"
-          description: "ClickUp notifies of task change; system syncs delta"
-          example_request: |
-            POST /webhooks/clickup
-            X-Signature: sha256=abc123...
-            {
-              "event": "taskUpdated",
-              "task_id": "86fz9p2t3",
-              "webhook_id": "webhook_123"
-            }
-          success_criteria:
-            - "Signature verified"
-            - "Task delta fetched from ClickUp API"
-            - "Graph object updated with new data"
-            - "Webhook acknowledged in < 1 second"
+    - id: 'ctx-013'
+      type: 'ui'
+      name: 'Connect ClickUp Integration'
+      description: 'User authorizes ClickUp and selects sync scope'
+      key_interactions:
+        - 'Navigate to Settings → Integrations'
+        - "Click 'Connect' on ClickUp card"
+        - 'Complete OAuth consent flow'
+        - 'Select spaces to sync'
+        - "Click 'Start Sync' button"
+      data_displayed:
+        - 'Available integrations list'
+        - 'Connection status per integration'
+        - 'ClickUp workspaces and spaces'
+        - 'Sync progress indicators'
+        - 'Last sync timestamp'
 
-technical_specifications:
-  supported_integrations:
-    - name: "ClickUp"
-      status: "production"
-      auth_method: "OAuth 2.0"
-      sync_direction: "unidirectional (ClickUp → KB)"
-      entities: ["spaces", "lists", "tasks", "comments"]
-      refresh_interval: "webhook + hourly full sync"
-  
-  oauth_configuration:
-    provider: "ClickUp OAuth"
-    scopes: ["read:tasks", "read:lists", "read:spaces"]
-    token_storage: "kb.integrations.settings_encrypted (bytea)"
-    encryption_algorithm: "AES-256-CBC"
-  
-  entity_mapping:
-    clickup_task_to_graph:
-      type_name: "Task"
-      property_mapping:
-        - "name → name"
-        - "description → description"
-        - "status.status → status"
-        - "url → source_url"
-      metadata:
-        - "external_id → task_id"
-        - "external_source → 'clickup'"
-        - "last_synced_at → timestamp"
-  
-  database:
-    tables:
-      - name: "kb.integrations"
-        columns:
-          - "id (uuid primary key)"
-          - "name (text: 'clickup', 'github', etc.)"
-          - "org_id (text)"
-          - "project_id (uuid)"
-          - "settings_encrypted (bytea)"
-          - "enabled (boolean)"
-          - "created_at (timestamp)"
-      
-      - name: "kb.integration_sync_logs"
-        columns:
-          - "id (uuid primary key)"
-          - "integration_id (uuid reference)"
-          - "started_at (timestamp)"
-          - "completed_at (timestamp)"
-          - "status (text: 'success', 'failed')"
-          - "entities_synced (integer)"
-          - "error_message (text nullable)"
-  
-  modules:
-    - name: "IntegrationsModule"
-      path: "apps/server/src/modules/integrations"
-      purpose: "Core integration framework, OAuth flows"
-    
-    - name: "ClickUpModule"
-      path: "apps/server/src/modules/clickup"
-      purpose: "ClickUp-specific connector and sync logic"
+    - id: 'ctx-014'
+      type: 'api'
+      name: 'Webhook Event Processing'
+      description: 'ClickUp sends webhook when task updated'
+      key_interactions:
+        - 'POST /webhooks/clickup - Receive webhook events'
+        - 'Verify X-Signature header'
+        - 'Fetch task delta from ClickUp API'
+        - 'Update graph object with changes'
+      data_displayed:
+        - 'Webhook event payload'
+        - 'Task entity data from ClickUp'
+        - 'Mapped graph object properties'
+        - 'Sync log entries'
 
-validation_criteria:
-  performance:
-    - metric: "Initial sync time"
-      target: "< 30 seconds for 500 tasks"
-      measurement: "Time from 'Start Sync' to completion"
-    
-    - metric: "Webhook processing time"
-      target: "< 1 second from receipt to acknowledgment"
-      measurement: "Webhook endpoint response time"
-    
-    - metric: "Incremental sync time"
-      target: "< 5 seconds for delta updates"
-      measurement: "Time to process webhook and update graph"
-  
-  quality:
-    - metric: "Sync reliability"
-      target: "> 99% successful syncs"
-      measurement: "Success rate in integration_sync_logs"
-    
-    - metric: "Data accuracy"
-      target: "> 95% fields mapped correctly"
-      measurement: "Manual audit of synced entities"
+  scenarios:
+    - id: 'scn-016'
+      name: 'Initial ClickUp Connection'
+      actor: 'Knowledge worker'
+      context: 'User is in Settings → Integrations and wants to connect their ClickUp workspace'
+      trigger: "User clicks 'Connect' on ClickUp card"
+      action: 'Completes OAuth flow, selects spaces, and starts initial sync'
+      outcome: 'ClickUp spaces are synced and tasks appear as graph objects'
+      acceptance_criteria:
+        - 'OAuth flow completes without errors'
+        - 'User can select specific spaces'
+        - 'Initial sync completes in < 30 seconds for typical workspace'
+
+    - id: 'scn-017'
+      name: 'Task Updated Webhook'
+      actor: 'Integration system'
+      context: 'ClickUp task is updated and webhook is sent to the application'
+      trigger: 'ClickUp sends POST /webhooks/clickup with taskUpdated event'
+      action: 'System verifies signature, fetches task delta, updates graph object'
+      outcome: 'Graph object reflects latest task state from ClickUp'
+      acceptance_criteria:
+        - 'Signature verified'
+        - 'Task delta fetched from ClickUp API'
+        - 'Graph object updated with new data'
+        - 'Webhook acknowledged in < 1 second'
+
+    - id: 'scn-018'
+      name: 'Publish Features to Linear'
+      actor: 'Product Engineer'
+      context: 'Feature definitions are ready and need to be published as Linear issues'
+      trigger: 'User triggers "Build → Linear" from ProductFactoryOS console'
+      action: 'Output adapter translates features to Linear format, shows preview, publishes on confirm'
+      outcome: 'Linear issues created with EPF traceability links and proper labels'
+      acceptance_criteria:
+        - 'Preview shows all issues to be created with field mapping'
+        - 'User can confirm or cancel before any API calls'
+        - 'Issues created with links back to source EPF artifacts'
+        - 'Partial failure triggers clean rollback'
+
+    - id: 'scn-019'
+      name: 'Incremental Roadmap Sync to ClickUp'
+      actor: 'Operations Lead'
+      context: 'Roadmap updated in EPF, needs to reflect in ClickUp tasks'
+      trigger: 'User triggers sync after roadmap changes'
+      action: 'Adapter detects changes since last sync, updates only modified items'
+      outcome: 'ClickUp tasks updated incrementally without duplicates'
+      acceptance_criteria:
+        - 'Only changed items are synced (not full republish)'
+        - 'Existing tasks updated rather than recreated'
+        - 'New items created with proper parent relationships'
+        - 'Sync state updated for next incremental sync'
 
 dependencies:
-  internal:
-    - "GraphModule (entity creation)"
-    - "AuthModule (OAuth token management)"
-    - "EncryptionService (credential storage)"
-  
-  external:
-    - service: "ClickUp API"
-      purpose: "Task and workspace data"
-      criticality: "high"
-    
-    - service: "ClickUp Webhooks"
-      purpose: "Real-time update notifications"
-      criticality: "medium"
-
-risks_and_mitigations:
-  - risk: "OAuth token expiration breaks sync"
-    likelihood: "high"
-    impact: "high"
-    mitigation: "Automatic refresh flow; user notification; graceful degradation"
-  
-  - risk: "Rate limits cause sync failures"
-    likelihood: "medium"
-    impact: "medium"
-    mitigation: "Exponential backoff; batch requests; respect rate limit headers"
-  
-  - risk: "Webhook signature spoofing"
-    likelihood: "low"
-    impact: "high"
-    mitigation: "Strict signature verification; IP allowlisting; logging"
-  
-  - risk: "Large workspace sync timeouts"
-    likelihood: "medium"
-    impact: "medium"
-    mitigation: "Paginated sync; background job queue; progress indicators"
-
-current_state:
-  implementation_status: "shipped"
-  version: "1.0"
-  deployed_environments:
-    - "production"
-    - "staging"
-  known_limitations:
-    - "ClickUp only (no other integrations yet)"
-    - "Unidirectional sync (no KB → ClickUp writes)"
-    - "No conflict resolution UI (last-write-wins)"
-    - "Hourly full sync (no incremental-only mode)"
-
-metadata:
-  created_at: "2025-12-16"
-  created_by: "Nikolai Fasting"
-  last_updated: "2025-12-16"
-  tags:
-    - "integrations"
-    - "clickup"
-    - "oauth"
-    - "sync"
-    - "webhooks"
+  requires:
+    - id: 'fd-001'
+      name: 'Knowledge Graph Engine'
+      reason: 'Entity creation and mapping of external data to graph objects'
+    - id: 'fd-007'
+      name: 'Authentication and Multi-tenancy'
+      reason: 'OAuth token management and tenant-scoped integration settings'
+  enables:
+    - id: 'fd-013'
+      name: 'ProductFactoryOS Developer Console'
+      reason: 'Console uses output adapters for build orchestration publishing'

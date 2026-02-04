@@ -1,18 +1,16 @@
-id: "fd-009"
-name: "Admin Tools & Configuration"
-slug: "admin-tools-configuration"
-status: "delivered"
+id: 'fd-009'
+name: 'Admin Tools & Configuration'
+slug: 'admin-tools-configuration'
+status: 'delivered'
 
 strategic_context:
   contributes_to:
-    - "Product.Core.SystemManagement"
-    - "Product.Core.UserManagement"
-    - "Product.Core.Configuration"
+    - 'Product.Layer3PlatformServices.WorkspaceIsolation.AccessControl'
   tracks:
-    - "product"
+    - 'product'
   assumptions_tested:
-    - "asm-p-018" # Admin UI reduces manual database operations
-    - "asm-p-019" # Configuration UI improves system customization
+    - 'asm-p-018' # Admin UI reduces manual database operations
+    - 'asm-p-019' # Configuration UI improves system customization
 
 definition:
   job_to_be_done: |
@@ -28,267 +26,462 @@ definition:
     - Monitors system health and usage metrics
     - Manages API keys and credentials
 
+  personas:
+    - id: 'system-administrator'
+      name: 'System Administrator'
+      role: 'Platform Admin managing organizations and settings'
+      description: >
+        A platform administrator responsible for provisioning organizations,
+        managing system-wide configuration, and ensuring the platform operates
+        reliably for all tenants.
+      goals:
+        - 'Provision new organizations and users quickly without database access'
+        - 'Configure system settings through a safe, validated interface'
+        - 'Monitor platform health and respond to issues proactively'
+      pain_points:
+        - 'Manual database operations are error-prone and require technical knowledge'
+        - 'Configuration changes without validation can break production systems'
+        - 'Lack of audit trails makes troubleshooting difficult'
+      usage_context: >
+        Uses the admin dashboard daily to onboard new organizations, manage
+        user access, and configure platform-wide settings.
+      technical_proficiency: 'advanced'
+      current_situation: >
+        As a system administrator, I manage a multi-tenant platform where provisioning new organizations requires
+        direct database access and running SQL scripts. Each new client onboarding involves a checklist of manual steps
+        that I have memorized, and mistakes can lead to data corruption or security issues. Configuration changes
+        require editing environment variables and restarting services, with no validation until something breaks in
+        production. When users report issues, I spend hours correlating logs across multiple services because there is
+        no centralized view of administrative actions. The lack of proper tooling makes even routine operations feel
+        risky.
+      transformation_moment: >
+        The first time I used the Admin Tools dashboard, I provisioned a complete new organization in under five
+        minutes—no database access, no scripts, no deployment. The form validated my inputs and prevented common errors
+        before they could cause problems. When I changed the LLM configuration, the system validated that the model was
+        accessible before applying the change. The audit log showed a complete history of every administrative action,
+        with timestamps and user attribution. I could finally trust that routine operations would not accidentally
+        break production.
+      emotional_resolution: >
+        After adopting the Admin Tools, I feel confident performing administrative operations because the interface
+        guides me toward success. The validation and confirmation dialogs catch mistakes before they cause problems,
+        and the audit log means I can always understand what changed and when. Onboarding new clients has become a
+        pleasant, routine task rather than a stressful operation requiring deep focus. I can delegate some
+        administrative tasks to team members because the interface makes it safe for non-experts to perform routine
+        operations, freeing me to focus on more strategic work.
+      demographics:
+        age_range: '28-50'
+        experience_years: '5-15 years in IT operations or system administration'
+        company_size: 'Mid-market to Enterprise (500-10,000 employees)'
+        industry: ['Technology', 'SaaS', 'Financial Services', 'Healthcare']
+        geography: 'Enterprise IT environments with multi-tenant platforms'
+        education: "Bachelor's in IT, Computer Science, or related field; often with certifications"
+        reporting_structure: 'Reports to IT Director, VP of Infrastructure, or CTO'
+      psychographics:
+        values:
+          [
+            'System reliability',
+            'Operational safety',
+            'Efficiency',
+            'Auditability',
+          ]
+        motivations:
+          [
+            'Perform operations safely',
+            'Reduce manual errors',
+            'Maintain system health',
+            'Enable self-service for routine tasks',
+          ]
+        fears:
+          [
+            'Breaking production systems',
+            'Data corruption',
+            'Security incidents from misconfigurations',
+            'Audit trail gaps',
+          ]
+        decision_style: 'Risk-aware, prefers validated interfaces over direct database access'
+        information_sources:
+          [
+            'Admin dashboards',
+            'Runbooks',
+            'Audit logs',
+            'Monitoring systems',
+            'Vendor documentation',
+          ]
+        communication_preferences: 'Clear UI workflows, confirmation dialogs, detailed audit trails'
+
+    - id: 'support-engineer'
+      name: 'Support Engineer'
+      role: 'Customer Support specialist troubleshooting user issues'
+      description: >
+        A support engineer who helps users resolve issues, often needing to
+        investigate account status, reset configurations, and understand
+        system state without making destructive changes.
+      goals:
+        - 'Quickly investigate user issues without deep platform knowledge'
+        - 'Reset user configurations safely when troubleshooting problems'
+        - 'Understand system state and recent changes affecting user experience'
+      pain_points:
+        - 'Investigating user issues requires asking developers for database access'
+        - 'Making configuration changes to troubleshoot risks breaking things worse'
+        - 'Cannot see recent administrative changes that might explain user issues'
+      usage_context: >
+        Uses admin tools to investigate user-reported issues, check account
+        status, and make safe configuration adjustments during support sessions.
+      technical_proficiency: 'intermediate'
+      current_situation: >
+        As a support engineer, I receive tickets from users who experience issues with the platform, but I lack the
+        tools to investigate effectively. When a user reports a problem, I have to escalate to developers to check
+        database state, which delays resolution by hours or days. If I need to reset a user's configuration, I create a
+        ticket and wait, while the user's frustration grows. I cannot see recent system changes that might explain a
+        sudden increase in similar issues. The support experience feels disempowering—I want to help users but lack the
+        visibility and safe tools to do so efficiently.
+      transformation_moment: >
+        The first time I used the Admin Tools during a support session, I resolved a user issue in real-time while they
+        were on the call. I could see their account status, recent activity, and current configuration without asking
+        anyone for help. When the issue turned out to be a misconfiguration, I reset their settings through the
+        interface with proper confirmation dialogs that prevented accidental damage. The user was impressed by the fast
+        resolution, and I felt proud that I could actually help instead of just creating escalation tickets.
+      emotional_resolution: >
+        After adopting the Admin Tools, I feel empowered to actually solve user problems instead of being a ticket
+        router. The read-only views give me the visibility I need to diagnose issues, and the safe configuration
+        options let me resolve common problems without escalation. My ticket resolution times have improved
+        dramatically, and user satisfaction scores have increased. I enjoy support work now because I can make a real
+        difference in each interaction. The platform trusts me with appropriate tools, and I have become a more
+        effective advocate for our users.
+      demographics:
+        age_range: '24-40'
+        experience_years: '2-10 years in customer support or technical support'
+        company_size: 'Growth-stage to Enterprise (100-5,000 employees)'
+        industry: ['SaaS', 'Technology', 'Professional Services']
+        geography: 'Support centers or remote support teams'
+        education: "Bachelor's degree or equivalent experience in technical support"
+        reporting_structure: 'Reports to Support Manager, Head of Customer Success, or VP of Support'
+      psychographics:
+        values:
+          [
+            'Customer advocacy',
+            'Problem-solving',
+            'Empowerment',
+            'Fast resolution',
+          ]
+        motivations:
+          [
+            'Resolve issues in real-time',
+            'Reduce escalations',
+            'Improve customer satisfaction',
+            'Demonstrate technical competence',
+          ]
+        fears:
+          [
+            'Unable to help customers',
+            'Making problems worse',
+            'Escalation delays',
+            'Looking incompetent to users',
+          ]
+        decision_style: 'Solution-focused, prefers tools that enable safe troubleshooting without escalation'
+        information_sources:
+          [
+            'Admin interfaces',
+            'Knowledge bases',
+            'Escalation channels',
+            'User-reported symptoms',
+            'Audit logs',
+          ]
+        communication_preferences: 'Real-time chat with users, internal escalation channels, clear documentation'
+
+    - id: 'operations-manager'
+      name: 'Operations Manager'
+      role: 'Business Operations Manager overseeing platform usage'
+      description: >
+        A business operations manager who needs visibility into platform
+        usage, organization health, and system metrics to make informed
+        decisions about resource allocation and growth planning.
+      goals:
+        - 'Understand platform usage patterns across all organizations'
+        - 'Identify organizations that need attention or support outreach'
+        - 'Generate reports for leadership on platform health and growth'
+      pain_points:
+        - 'Usage data is scattered across multiple systems with no unified view'
+        - 'Cannot identify at-risk organizations before they churn'
+        - 'Creating leadership reports requires manual data compilation'
+      usage_context: >
+        Reviews platform dashboards weekly to understand usage trends, identify
+        growth opportunities, and prepare reports for leadership meetings.
+      technical_proficiency: 'basic'
+      current_situation: >
+        As an operations manager, I need to understand how organizations are using our platform to make informed
+        business decisions. Currently, I have to ask engineers to run database queries for usage data, and the results
+        come in raw formats that require manual analysis. I cannot identify which organizations are thriving versus
+        struggling until they contact us with complaints or churn. Leadership asks for platform health reports, and I
+        spend days compiling data from multiple sources into presentations. The lack of operational visibility makes it
+        impossible to proactively support customers or plan resource allocation effectively.
+      transformation_moment: >
+        The first time I opened the Admin Tools monitoring dashboard, I saw a clear overview of platform health with
+        usage metrics across all organizations. The system highlighted organizations with declining activity, giving me
+        early warning signals for potential churn. Usage trends were visualized in charts I could include directly in
+        leadership reports. I identified three organizations that needed proactive outreach based on usage patterns—
+        something that would have been invisible to me before. The dashboard transformed my understanding of platform
+        health from a quarterly mystery into a daily visibility.
+      emotional_resolution: >
+        After adopting the Admin Tools monitoring capabilities, I feel connected to the pulse of our platform. The
+        visibility into usage patterns enables proactive customer success outreach before problems escalate. Leadership
+        reports that used to take days now take minutes because the data is already organized and visualized. I can
+        make confident recommendations about resource allocation because I understand where the platform is growing and
+        where it needs attention. The operational insights have made me a more strategic contributor to the business.
+      demographics:
+        age_range: '32-55'
+        experience_years: '8-20 years in operations, business analytics, or general management'
+        company_size: 'Mid-market to Enterprise (500-10,000 employees)'
+        industry:
+          ['SaaS', 'Technology', 'Professional Services', 'Platform companies']
+        geography: 'Corporate operations with platform oversight responsibilities'
+        education: "Bachelor's or MBA in Business, Operations, or related field"
+        reporting_structure: 'Reports to VP of Operations, COO, or General Manager'
+      psychographics:
+        values:
+          [
+            'Operational visibility',
+            'Proactive management',
+            'Data-driven decisions',
+            'Customer success',
+          ]
+        motivations:
+          [
+            'Understand platform health',
+            'Prevent churn proactively',
+            'Create compelling leadership reports',
+            'Optimize resource allocation',
+          ]
+        fears:
+          [
+            'Missing early warning signs',
+            'Surprising leadership with bad news',
+            'Manual data compilation',
+            'Blind spots in platform health',
+          ]
+        decision_style: 'Data-informed and proactive, values leading indicators over lagging metrics'
+        information_sources:
+          [
+            'Dashboards',
+            'Usage analytics',
+            'Customer feedback',
+            'Leadership requirements',
+            'Industry benchmarks',
+          ]
+        communication_preferences: 'Visual dashboards, automated reports, executive summaries'
+
+    - id: 'developer-operator'
+      name: 'Developer Operator'
+      role: 'Full-Stack Developer with operational responsibilities'
+      description: >
+        A developer who handles both feature development and operational
+        tasks, needing efficient tools that do not require context-switching
+        between code and manual database operations.
+      goals:
+        - 'Perform operational tasks efficiently without leaving development flow'
+        - 'Generate and manage API keys for testing and integration'
+        - 'Debug issues by correlating application logs with admin actions'
+      pain_points:
+        - 'Switching between code editor and database client disrupts focus'
+        - 'Creating test data and API keys requires manual SQL scripts'
+        - 'Debugging production issues requires correlating multiple log sources'
+      usage_context: >
+        Uses admin tools to manage test environments, generate API keys for
+        development, and investigate production issues.
+      technical_proficiency: 'expert'
+      current_situation: >
+        As a developer with operational responsibilities, I constantly context-switch between writing code and
+        performing administrative tasks. When I need to test a feature against production-like data, I write SQL
+        scripts to set up test organizations and users. Creating API keys for integration testing requires navigating
+        database tables and understanding the key hashing mechanism. When production issues occur, I piece together
+        information from application logs, database queries, and infrastructure metrics. The manual operational work
+        fragments my focus and slows down both development and incident response.
+      transformation_moment: >
+        The first time I used the Admin Tools for development workflow, I created a test organization with users and
+        API keys in under two minutes—no SQL, no scripts, no context switch. The API key generation showed me the
+        plaintext key once and handled all the hashing automatically. When debugging a production issue, the audit log
+        correlated administrative changes with the timeline of user-reported problems, instantly revealing that a
+        configuration change had caused the regression. The tools fit naturally into my workflow instead of
+        interrupting it.
+      emotional_resolution: >
+        After adopting the Admin Tools, I feel like operational work no longer competes with development focus. The
+        efficient interface lets me complete administrative tasks quickly and return to coding without losing my
+        mental context. The API key management has streamlined my integration testing workflow, and the audit log has
+        become an essential debugging tool. I spend more time writing features and less time wrestling with
+        operational overhead. The tools have made me more effective at both development and operations, rather than
+        forcing me to choose between them.
+      demographics:
+        age_range: '25-45'
+        experience_years: '3-15 years in software development with operational exposure'
+        company_size: 'Startups to Mid-market (50-2,000 employees)'
+        industry:
+          ['Technology', 'SaaS', 'Developer Tools', 'Platform companies']
+        geography: 'Tech companies with DevOps culture'
+        education: "Bachelor's in Computer Science or self-taught developer"
+        reporting_structure: 'Reports to Engineering Manager, Tech Lead, or CTO'
+      psychographics:
+        values:
+          [
+            'Developer productivity',
+            'Operational efficiency',
+            'Flow state',
+            'Automation',
+          ]
+        motivations:
+          [
+            'Minimize context switching',
+            'Automate operational tasks',
+            'Debug issues quickly',
+            'Ship features faster',
+          ]
+        fears:
+          [
+            'Operational overhead killing productivity',
+            'Manual database operations',
+            'Context-switching costs',
+            'Debugging without visibility',
+          ]
+        decision_style: 'Efficiency-focused, values tools that fit into existing developer workflow'
+        information_sources:
+          [
+            'Code editors',
+            'Admin interfaces',
+            'Logs',
+            'CI/CD pipelines',
+            'API documentation',
+          ]
+        communication_preferences: 'Quick admin UIs, CLI tools, API-driven workflows, async communication'
+
   capabilities:
-    - id: "cap-043"
-      name: "Organization Management"
-      description: "Create, update, delete organizations"
-    
-    - id: "cap-044"
-      name: "Project Configuration"
-      description: "Manage projects, set KB purpose, generate API keys"
-    
-    - id: "cap-045"
-      name: "User Administration"
-      description: "Invite users, assign roles, revoke access"
-    
-    - id: "cap-046"
-      name: "Settings Management"
-      description: "Configure LLM providers, embedding models, system limits"
-    
-    - id: "cap-047"
-      name: "System Monitoring"
-      description: "View logs, track usage, monitor health"
+    - id: 'cap-043'
+      name: 'Organization Management'
+      description: 'Create, update, delete organizations'
+
+    - id: 'cap-044'
+      name: 'Project Configuration'
+      description: 'Manage projects, set KB purpose, generate API keys'
+
+    - id: 'cap-045'
+      name: 'User Administration'
+      description: 'Invite users, assign roles, revoke access'
+
+    - id: 'cap-046'
+      name: 'Settings Management'
+      description: 'Configure LLM providers, embedding models, system limits'
+
+    - id: 'cap-047'
+      name: 'System Monitoring'
+      description: 'View logs, track usage, monitor health'
 
 implementation:
   design_guidance:
     principles:
-      - "Self-service first (reduce support burden)"
-      - "Audit everything (compliance and debugging)"
-      - "Fail safe (confirm destructive actions)"
-      - "Progressive disclosure (hide advanced settings)"
-    
+      - 'Self-service first (reduce support burden)'
+      - 'Audit everything (compliance and debugging)'
+      - 'Fail safe (confirm destructive actions)'
+      - 'Progressive disclosure (hide advanced settings)'
+
     inspirations:
-      - "Stripe Dashboard (clean admin UI)"
-      - "Firebase Console (project settings)"
-      - "Auth0 Management Dashboard (user admin)"
+      - 'Stripe Dashboard (clean admin UI)'
+      - 'Firebase Console (project settings)'
+      - 'Auth0 Management Dashboard (user admin)'
 
   contexts:
-    - id: "ctx-021"
-      type: "ui"
-      name: "Create Organization"
-      description: "Admin creates new organization for client"
-      scenarios:
-        - id: "scn-024"
-          name: "New Organization Setup"
-          description: "Admin provisions new org; sets defaults; invites owner"
-          user_flow:
-            - "Navigate to Settings → Organizations"
-            - "Click 'New Organization' button"
-            - "Enter org name ('Acme Corp') and slug ('acme-corp')"
-            - "Set default project settings (LLM model, embedding model)"
-            - "Click 'Create Organization'"
-            - "System creates org in database"
-            - "Admin prompted to invite org owner"
-            - "Owner invited via email"
-          success_criteria:
-            - "Organization created with unique slug"
-            - "Audit log entry recorded"
-            - "Owner invite email sent"
-            - "Admin can access new org immediately"
-    
-    - id: "ctx-022"
-      type: "ui"
-      name: "Generate Project API Key"
-      description: "User generates API key for programmatic access"
-      scenarios:
-        - id: "scn-025"
-          name: "API Key Creation"
-          description: "User creates key for CI/CD integration"
-          user_flow:
-            - "Navigate to Project Settings → API Keys"
-            - "Click 'Generate New Key'"
-            - "Enter key name ('CI/CD Pipeline')"
-            - "Select permissions (Read-only / Read-Write)"
-            - "Click 'Generate'"
-            - "System creates key_hash in database"
-            - "Plaintext key shown ONCE (proj_abc123...)"
-            - "User copies key (cannot view again)"
-            - "Key appears in list as '****123'"
-          success_criteria:
-            - "Key generated with cryptographically secure random"
-            - "Plaintext shown exactly once"
-            - "Key hash stored in database"
-            - "Key listed with name and creation date"
-    
-    - id: "ctx-023"
-      type: "ui"
-      name: "Configure LLM Settings"
-      description: "Admin changes Vertex AI model or parameters"
-      scenarios:
-        - id: "scn-026"
-          name: "Update LLM Configuration"
-          description: "Admin switches from Gemini 1.5 to future model"
-          user_flow:
-            - "Navigate to Settings → AI Configuration"
-            - "See current model (gemini-1.5-pro)"
-            - "Click 'Edit Configuration'"
-            - "Select new model from dropdown"
-            - "Adjust temperature, max_tokens sliders"
-            - "Click 'Save Changes'"
-            - "System validates credentials work with new model"
-            - "Settings saved; effective immediately"
-          success_criteria:
-            - "Settings persisted to database"
-            - "Validation confirms model accessible"
-            - "No server restart required"
-            - "Audit log entry created"
+    - id: 'ctx-021'
+      type: 'ui'
+      name: 'Create Organization'
+      description: 'Admin creates new organization for client'
+      key_interactions:
+        - 'Navigate to Settings → Organizations'
+        - "Click 'New Organization' button"
+        - 'Enter org name and slug'
+        - 'Set default project settings'
+        - "Click 'Create Organization'"
+        - 'Invite org owner via email'
+      data_displayed:
+        - 'Organization name and slug'
+        - 'Default project settings (LLM model, embedding model)'
+        - 'Organization owner details'
+        - 'Audit log entries'
 
-technical_specifications:
-  settings_storage:
-    table: "core.settings"
-    columns:
-      - "id (uuid primary key)"
-      - "project_id (uuid reference, nullable for global)"
-      - "key (text: 'llm.model', 'embedding.provider', etc.)"
-      - "value (jsonb)"
-      - "updated_at (timestamp)"
-      - "updated_by (uuid reference users)"
-    
-    setting_keys:
-      - "llm.provider (text: 'vertex-ai')"
-      - "llm.model (text: 'gemini-1.5-pro')"
-      - "llm.temperature (number: 0.7)"
-      - "llm.max_tokens (number: 2048)"
-      - "embedding.provider (text: 'vertex-ai')"
-      - "embedding.model (text: 'text-embedding-004')"
-      - "extraction.enabled (boolean: true)"
-      - "search.top_k (number: 10)"
-  
-  audit_logging:
-    table: "core.audit_logs"
-    columns:
-      - "id (uuid primary key)"
-      - "user_id (uuid reference)"
-      - "org_id (text reference)"
-      - "action (text: 'create_org', 'invite_user', 'update_settings', etc.)"
-      - "resource_type (text: 'organization', 'project', 'user', 'settings')"
-      - "resource_id (text)"
-      - "before_state (jsonb nullable)"
-      - "after_state (jsonb nullable)"
-      - "ip_address (inet)"
-      - "user_agent (text)"
-      - "created_at (timestamp)"
-    
-    actions_tracked:
-      - "Organization: create, update, delete"
-      - "Project: create, update, delete, generate_api_key"
-      - "User: invite, remove, change_role"
-      - "Settings: update"
-      - "Integration: connect, disconnect, sync"
-  
-  role_permissions:
-    admin:
-      - "Create/delete organizations"
-      - "Invite/remove users"
-      - "Change user roles"
-      - "Update all settings"
-      - "Generate API keys"
-      - "View audit logs"
-    
-    member:
-      - "View projects (read-only)"
-      - "Use chat interface"
-      - "Run searches"
-      - "View own profile"
-  
-  database:
-    tables:
-      - name: "core.settings"
-        purpose: "System-wide and project-level configuration"
-        rls: "Admin-only write; org members read"
-      
-      - name: "core.audit_logs"
-        purpose: "Track all administrative actions"
-        rls: "Admin-only read"
-  
-  modules:
-    - name: "OrgsModule"
-      path: "apps/server/src/modules/orgs"
-      purpose: "Organization CRUD, membership management"
-    
-    - name: "ProjectsModule"
-      path: "apps/server/src/modules/projects"
-      purpose: "Project CRUD, API key generation, settings"
-    
-    - name: "SettingsModule"
-      path: "apps/server/src/modules/settings"
-      purpose: "Settings CRUD, validation, defaults"
+    - id: 'ctx-022'
+      type: 'ui'
+      name: 'Generate Project API Key'
+      description: 'User generates API key for programmatic access'
+      key_interactions:
+        - 'Navigate to Project Settings → API Keys'
+        - "Click 'Generate New Key'"
+        - 'Enter key name and select permissions'
+        - "Click 'Generate'"
+        - 'Copy plaintext key (shown once)'
+      data_displayed:
+        - 'List of existing API keys (masked)'
+        - 'Key name and creation date'
+        - 'Key permissions (Read-only / Read-Write)'
+        - 'Plaintext key (shown once on generation)'
 
-validation_criteria:
-  usability:
-    - metric: "Admin task completion time"
-      target: "< 2 minutes for common operations"
-      measurement: "Time from nav to completion (invite user, generate key)"
-    
-    - metric: "Error rate on admin actions"
-      target: "< 1% operations fail"
-      measurement: "Failed actions / total actions"
-  
-  auditability:
-    - metric: "Audit log coverage"
-      target: "100% of write operations logged"
-      measurement: "Audit all endpoints; verify log entries"
-    
-    - metric: "Log retention period"
-      target: "> 1 year of history"
-      measurement: "Oldest audit log entry date"
-  
-  security:
-    - metric: "Unauthorized access attempts"
-      target: "0 successful bypasses of role checks"
-      measurement: "Penetration testing; log analysis"
+    - id: 'ctx-023'
+      type: 'ui'
+      name: 'Configure LLM Settings'
+      description: 'Admin changes Vertex AI model or parameters'
+      key_interactions:
+        - 'Navigate to Settings → AI Configuration'
+        - "Click 'Edit Configuration'"
+        - 'Select new model from dropdown'
+        - 'Adjust temperature, max_tokens sliders'
+        - "Click 'Save Changes'"
+      data_displayed:
+        - 'Current model (e.g., gemini-1.5-pro)'
+        - 'Temperature and max_tokens values'
+        - 'Validation status for model credentials'
+        - 'Last updated timestamp'
+
+  scenarios:
+    - id: 'scn-024'
+      name: 'Admin provisions new organization'
+      actor: 'Admin'
+      context: 'Admin is on the Organizations page needing to onboard a new client'
+      trigger: "Admin clicks 'New Organization' button"
+      action: 'Creates new org with name and slug, sets defaults, invites owner'
+      outcome: 'Organization created with unique slug, audit log entry recorded, owner invite email sent'
+      acceptance_criteria:
+        - 'Organization created with unique slug'
+        - 'Audit log entry recorded'
+        - 'Owner invite email sent'
+        - 'Admin can access new org immediately'
+
+    - id: 'scn-025'
+      name: 'User generates API key for CI/CD'
+      actor: 'User'
+      context: 'User is on the API Keys page needing programmatic access for CI/CD integration'
+      trigger: "User clicks 'Generate New Key'"
+      action: 'Creates key with name and permissions, copies plaintext key'
+      outcome: 'Key generated with cryptographically secure random, plaintext shown once, key hash stored'
+      acceptance_criteria:
+        - 'Key generated with cryptographically secure random'
+        - 'Plaintext shown exactly once'
+        - 'Key hash stored in database'
+        - 'Key listed with name and creation date'
+
+    - id: 'scn-026'
+      name: 'Admin updates LLM configuration'
+      actor: 'Admin'
+      context: 'Admin is on AI Configuration page needing to switch models'
+      trigger: "Admin clicks 'Edit Configuration'"
+      action: 'Selects new model, adjusts parameters, saves changes'
+      outcome: 'Settings persisted, validation confirms model accessible, no server restart required'
+      acceptance_criteria:
+        - 'Settings persisted to database'
+        - 'Validation confirms model accessible'
+        - 'No server restart required'
+        - 'Audit log entry created'
 
 dependencies:
-  internal:
-    - "AuthModule (role validation)"
-    - "DatabaseService (RLS enforcement)"
-  
+  requires:
+    - id: 'fd-007'
+      name: 'Authentication and Multi-tenancy'
+      reason: 'Role validation and RLS enforcement for admin operations'
   external:
-    - service: "Email Service (Mailgun)"
-      purpose: "Send invite emails"
-      criticality: "high"
-
-risks_and_mitigations:
-  - risk: "Admin accidentally deletes organization"
-    likelihood: "medium"
-    impact: "critical"
-    mitigation: "Confirmation modal; soft delete; 30-day recovery period; audit log"
-  
-  - risk: "API key leaked publicly"
-    likelihood: "medium"
-    impact: "high"
-    mitigation: "Key rotation; revocation endpoint; rate limiting; usage monitoring"
-  
-  - risk: "Settings change breaks system"
-    likelihood: "low"
-    impact: "high"
-    mitigation: "Validation before save; rollback option; settings versioning; audit trail"
-  
-  - risk: "Role escalation exploit"
-    likelihood: "low"
-    impact: "critical"
-    mitigation: "Backend guards on all admin endpoints; audit all role changes; penetration testing"
-
-current_state:
-  implementation_status: "shipped"
-  version: "1.0"
-  deployed_environments:
-    - "production"
-    - "staging"
-  known_limitations:
-    - "No bulk operations (e.g., bulk user invite)"
-    - "Settings UI exposes all keys (no grouping/tabs)"
-    - "Audit logs not searchable from UI (database query required)"
-    - "No role customization (only 'admin' and 'member')"
-    - "API key revocation requires manual database update"
-
-metadata:
-  created_at: "2025-12-16"
-  created_by: "Nikolai Fasting"
-  last_updated: "2025-12-16"
-  tags:
-    - "admin"
-    - "configuration"
-    - "settings"
-    - "audit-logs"
-    - "user-management"
+    - service: 'Email Service (Mailgun)'
+      purpose: 'Send invite emails'
+      criticality: 'high'
