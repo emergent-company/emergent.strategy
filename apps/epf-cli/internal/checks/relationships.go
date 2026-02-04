@@ -2,6 +2,8 @@
 package checks
 
 import (
+	"fmt"
+
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/relationships"
 )
 
@@ -40,9 +42,30 @@ type RelationshipsResult struct {
 	// Detailed errors (limited to top 10 for display)
 	Errors []RelationshipError `json:"errors,omitempty"`
 
+	// Actionable suggestions to improve relationships
+	Suggestions []RelationshipSuggestion `json:"suggestions,omitempty"`
+
 	// Score 0-100
 	Score int    `json:"score"`
 	Grade string `json:"grade"`
+}
+
+// RelationshipSuggestion represents an actionable suggestion to improve relationships.
+type RelationshipSuggestion struct {
+	// Priority: "high", "medium", "low"
+	Priority string `json:"priority"`
+	// Category: "missing_link", "low_coverage", "orphan_feature", "strategic_gap"
+	Category string `json:"category"`
+	// The artifact that needs updating (e.g., "fd-012")
+	Source string `json:"source,omitempty"`
+	// Human-readable suggestion
+	Message string `json:"message"`
+	// Specific action to take
+	Action string `json:"action"`
+	// MCP tool to use (if applicable)
+	MCPTool string `json:"mcp_tool,omitempty"`
+	// Example parameters for the MCP tool
+	MCPParams map[string]string `json:"mcp_params,omitempty"`
 }
 
 // RelationshipError represents a single relationship validation error.
@@ -58,8 +81,9 @@ type RelationshipError struct {
 // Check runs the relationships check.
 func (c *RelationshipsChecker) Check() (*RelationshipsResult, error) {
 	result := &RelationshipsResult{
-		Valid:  true,
-		Errors: make([]RelationshipError, 0),
+		Valid:       true,
+		Errors:      make([]RelationshipError, 0),
+		Suggestions: make([]RelationshipSuggestion, 0),
 	}
 
 	// Create analyzer and load data
@@ -111,6 +135,9 @@ func (c *RelationshipsChecker) Check() (*RelationshipsResult, error) {
 		result.OrphanFeatures = len(coverageAnalysis.OrphanFeatures)
 		result.UncoveredL2s = len(coverageAnalysis.UncoveredL2Components)
 		result.StrategicGaps = len(coverageAnalysis.KRTargetsWithoutFeatures)
+
+		// Generate actionable suggestions
+		result.Suggestions = c.generateSuggestions(validationResult, coverageAnalysis, analyzer)
 	}
 
 	// Calculate score
@@ -118,6 +145,114 @@ func (c *RelationshipsChecker) Check() (*RelationshipsResult, error) {
 	result.Grade = c.calculateGrade(result.Score)
 
 	return result, nil
+}
+
+// generateSuggestions creates actionable suggestions based on validation and coverage results.
+func (c *RelationshipsChecker) generateSuggestions(
+	validationResult *relationships.ValidationResult,
+	coverageAnalysis *relationships.CoverageAnalysis,
+	analyzer *relationships.Analyzer,
+) []RelationshipSuggestion {
+	suggestions := make([]RelationshipSuggestion, 0)
+
+	// 1. High priority: Fix invalid paths with "did you mean" suggestions
+	for _, err := range validationResult.Errors {
+		if err.DidYouMean != "" {
+			suggestions = append(suggestions, RelationshipSuggestion{
+				Priority: "high",
+				Category: "invalid_path",
+				Source:   err.Source,
+				Message:  fmt.Sprintf("%s has invalid path '%s' - did you mean '%s'?", err.Source, err.InvalidPath, err.DidYouMean),
+				Action:   fmt.Sprintf("Update %s in %s from '%s' to '%s'", err.Field, err.Source, err.InvalidPath, err.DidYouMean),
+			})
+		}
+	}
+
+	// 2. High priority: Strategic gaps (KR targets without features)
+	for _, gap := range coverageAnalysis.KRTargetsWithoutFeatures {
+		suggestions = append(suggestions, RelationshipSuggestion{
+			Priority: "high",
+			Category: "strategic_gap",
+			Message:  fmt.Sprintf("KR targets '%s' but no features contribute to it", gap),
+			Action:   "Create a feature definition with contributes_to including this path, or add this path to an existing feature's contributes_to",
+			MCPTool:  "epf_suggest_relationships",
+			MCPParams: map[string]string{
+				"artifact_type": "feature",
+				"artifact_path": "FIRE/feature_definitions/",
+			},
+		})
+		// Limit strategic gap suggestions
+		if len(suggestions) >= 3 {
+			break
+		}
+	}
+
+	// 3. Medium priority: Orphan features (no contributes_to)
+	for _, feature := range coverageAnalysis.OrphanFeatures {
+		suggestions = append(suggestions, RelationshipSuggestion{
+			Priority: "medium",
+			Category: "orphan_feature",
+			Source:   feature.ID,
+			Message:  fmt.Sprintf("Feature %s (%s) has no contributes_to paths", feature.ID, feature.Name),
+			Action:   "Add contributes_to paths to link this feature to the value model",
+			MCPTool:  "epf_suggest_relationships",
+			MCPParams: map[string]string{
+				"artifact_type": "feature",
+				"artifact_path": fmt.Sprintf("FIRE/feature_definitions/%s.yaml", feature.ID),
+			},
+		})
+		// Limit orphan suggestions
+		if len(suggestions) >= 5 {
+			break
+		}
+	}
+
+	// 4. Low priority: Low coverage advice
+	if coverageAnalysis.CoveragePercent < 20 && len(coverageAnalysis.UncoveredL2Components) > 0 {
+		// Find the Product track uncovered components (most likely relevant)
+		var productUncovered []string
+		for _, path := range coverageAnalysis.UncoveredL2Components {
+			if len(path) > 8 && path[:8] == "Product." {
+				productUncovered = append(productUncovered, path)
+			}
+		}
+
+		if len(productUncovered) > 0 {
+			// Show up to 3 uncovered Product paths
+			showPaths := productUncovered
+			if len(showPaths) > 3 {
+				showPaths = showPaths[:3]
+			}
+			pathList := ""
+			for _, p := range showPaths {
+				pathList += "\n      - " + p
+			}
+
+			suggestions = append(suggestions, RelationshipSuggestion{
+				Priority: "low",
+				Category: "low_coverage",
+				Message:  fmt.Sprintf("Only %.0f%% of value model is covered by features. Key uncovered Product paths:%s", coverageAnalysis.CoveragePercent, pathList),
+				Action:   "Review existing features and add contributes_to paths, or create new features for uncovered components",
+			})
+		}
+	}
+
+	// 5. Suggest running suggest_relationships for analysis
+	if len(suggestions) > 0 && coverageAnalysis.CoveragePercent < 50 {
+		suggestions = append(suggestions, RelationshipSuggestion{
+			Priority: "low",
+			Category: "analysis",
+			Message:  "Run relationship analysis on your features to discover missing links",
+			Action:   "Use epf_suggest_relationships tool to analyze each feature",
+			MCPTool:  "epf_suggest_relationships",
+			MCPParams: map[string]string{
+				"artifact_type":         "feature",
+				"include_code_analysis": "true",
+			},
+		})
+	}
+
+	return suggestions
 }
 
 // calculateScore computes a 0-100 score for relationship health.
