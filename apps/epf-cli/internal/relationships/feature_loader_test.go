@@ -46,6 +46,11 @@ func TestToPascalCaseFromAny(t *testing.T) {
 		{"Knowledge Exploration", "KnowledgeExploration"},
 		{"KNOWLEDGE", "Knowledge"},
 		{"", ""},
+		// Digits followed by capitals - the bug fix
+		{"Layer1LocalTools", "Layer1LocalTools"},    // digit before capital - now splits properly
+		{"EpfCli2Validate", "EpfCli2Validate"},      // another digit case
+		{"layer-1-local-tools", "Layer1LocalTools"}, // kebab with digit
+		{"Api2Client", "Api2Client"},                // digit in middle
 	}
 
 	for _, tt := range tests {
