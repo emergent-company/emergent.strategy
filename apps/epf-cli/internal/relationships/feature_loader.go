@@ -372,11 +372,13 @@ func toPascalCaseFromAny(s string) string {
 	s = strings.ReplaceAll(s, "_", " ")
 
 	// Split camelCase by inserting spaces before capitals
+	// Also handle digits followed by capitals (e.g., "Layer1LocalTools" -> "Layer1 Local Tools")
 	var result strings.Builder
 	for i, r := range s {
 		if i > 0 && r >= 'A' && r <= 'Z' {
 			prev := rune(s[i-1])
-			if prev >= 'a' && prev <= 'z' {
+			// Insert space if previous char is lowercase letter OR a digit
+			if (prev >= 'a' && prev <= 'z') || (prev >= '0' && prev <= '9') {
 				result.WriteRune(' ')
 			}
 		}
