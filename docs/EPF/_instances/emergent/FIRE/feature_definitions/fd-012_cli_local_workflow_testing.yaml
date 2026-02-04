@@ -5,9 +5,24 @@ status: 'delivered'
 
 strategic_context:
   contributes_to:
+    # Core validation and health
     - 'Product.Layer1LocalTools.EpfCliValidate'
-    - 'Product.Layer1LocalTools.EpfCliMcp'
     - 'Product.Layer1LocalTools.EpfCliHealth'
+    # Reporting and coverage
+    - 'Product.Layer1LocalTools.EpfCliReport'
+    - 'Product.Layer1LocalTools.EpfCliCoverage'
+    # Strategic context and exploration
+    - 'Product.Layer1LocalTools.EpfCliContext'
+    - 'Product.Layer1LocalTools.EpfCliExplain'
+    - 'Product.Layer1LocalTools.EpfCliRelationships'
+    # Migration and fixes
+    - 'Product.Layer1LocalTools.EpfCliMigrate'
+    - 'Product.Layer1LocalTools.EpfCliFix'
+    # Wizards and generators
+    - 'Product.Layer1LocalTools.EpfCliWizards'
+    - 'Product.Layer1LocalTools.EpfCliGenerators'
+    # AI integration
+    - 'Product.Layer1LocalTools.EpfCliMcp'
   tracks:
     - 'product'
   assumptions_tested:
