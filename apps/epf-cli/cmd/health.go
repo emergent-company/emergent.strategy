@@ -783,6 +783,45 @@ func printRelationshipsSummary(result *checks.RelationshipsResult) {
 			}
 		}
 	}
+
+	// Show actionable suggestions (always shown if present, limited to top 5)
+	if len(result.Suggestions) > 0 {
+		fmt.Println("    💡 Suggested improvements:")
+		shown := 0
+		for _, suggestion := range result.Suggestions {
+			if shown >= 5 {
+				remaining := len(result.Suggestions) - shown
+				if remaining > 0 {
+					fmt.Printf("      ... and %d more suggestions (use --json for full list)\n", remaining)
+				}
+				break
+			}
+
+			// Priority indicator
+			priorityIcon := "→"
+			if suggestion.Priority == "high" {
+				priorityIcon = "🔴"
+			} else if suggestion.Priority == "medium" {
+				priorityIcon = "🟡"
+			} else {
+				priorityIcon = "🟢"
+			}
+
+			fmt.Printf("      %s %s\n", priorityIcon, suggestion.Message)
+
+			// Show action in verbose mode
+			if healthVerbose && suggestion.Action != "" {
+				fmt.Printf("        Action: %s\n", suggestion.Action)
+			}
+
+			// Show MCP tool hint in verbose mode
+			if healthVerbose && suggestion.MCPTool != "" {
+				fmt.Printf("        Tool: %s\n", suggestion.MCPTool)
+			}
+
+			shown++
+		}
+	}
 }
 
 func printContentReadinessSummary(result *checks.ContentReadinessResult) {
