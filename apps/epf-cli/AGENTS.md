@@ -212,7 +212,7 @@ epf-cli is a Go CLI that provides schema validation, health checking, and MCP to
 - **Fixes** common issues (trailing whitespace, missing versions, tabs)
 - **Migrates** artifacts to newer schema versions
 - **Detects** artifact types from filename patterns
-- **Serves** MCP tools for AI agents (23 tools available)
+- **Serves** MCP tools for AI agents (27 tools available)
 - **Discovers** EPF wizards and agent instructions for guided workflows
 - **Manages** EPF output generators for creating documents from EPF data
 
@@ -400,9 +400,9 @@ The `health` command runs these checks:
    - Compares artifact versions vs schema versions
    - Detects stale/outdated artifacts
 
-## MCP Tools (v0.9.0)
+## MCP Tools (v0.10.0)
 
-The server exposes these tools (23 tools total):
+The server exposes these tools (27 tools total):
 
 ### Schema & Validation Tools
 
@@ -450,6 +450,45 @@ These tools analyze strategic relationships between EPF artifacts:
 - **`epf_get_strategic_context`**: Get full strategic context for a feature - resolved contributes_to paths, related KRs, dependencies
 - **`epf_analyze_coverage`**: Find strategic blind spots - which value model components lack feature investment
 - **`epf_validate_relationships`**: Validate all contributes_to and KR target paths - includes "did you mean" suggestions
+
+### Relationship Maintenance Tools (v0.10.0)
+
+These tools enable AI agents to maintain EPF relationships, not just query them:
+
+| Tool                               | Parameters                                                                                 | Description                         |
+| ---------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------- |
+| `epf_add_implementation_reference` | `feature_id`, `instance_path`, `ref_type`, `title`, `url`, `status`?, `description`?       | Link features to PRs, specs, code   |
+| `epf_update_capability_maturity`   | `feature_id`, `instance_path`, `capability_id`, `maturity`, `evidence`, `delivered_by_kr`? | Track capability delivery progress  |
+| `epf_add_mapping_artifact`         | `instance_path`, `sub_component_id`, `artifact_type`, `url`, `description`                 | Add code artifacts to mappings.yaml |
+| `epf_suggest_relationships`        | `instance_path`, `artifact_type`, `artifact_path`, `include_code_analysis`?                | AI-assisted relationship discovery  |
+
+**Use cases:**
+
+- **`epf_add_implementation_reference`**: After merging a PR, link it to the feature it implements. Ref types: `spec`, `issue`, `pr`, `code`, `documentation`, `test`
+- **`epf_update_capability_maturity`**: When a capability moves from hypothetical → emerging → proven → scaled, record evidence
+- **`epf_add_mapping_artifact`**: Register code files/modules that implement value model components in mappings.yaml
+- **`epf_suggest_relationships`**: Analyze code files or PRs to suggest which features/capabilities they relate to
+
+**Typical workflow:**
+
+```
+1. Developer merges PR #123 implementing knowledge graph extraction
+2. AI agent calls epf_suggest_relationships to analyze the PR
+3. Tool suggests: "This PR likely relates to fd-012 Knowledge Exploration Engine, cap-003"
+4. AI agent calls epf_add_implementation_reference to link PR to feature
+5. AI agent calls epf_update_capability_maturity if capability maturity changed
+6. AI agent calls epf_add_mapping_artifact to register new code paths
+```
+
+**Parameter details:**
+
+| Parameter                 | Values                                                 |
+| ------------------------- | ------------------------------------------------------ |
+| `ref_type`                | `spec`, `issue`, `pr`, `code`, `documentation`, `test` |
+| `status`                  | `current` (default), `deprecated`, `superseded`        |
+| `maturity`                | `hypothetical`, `emerging`, `proven`, `scaled`         |
+| `artifact_type` (mapping) | `code`, `design`, `documentation`, `test`              |
+| `artifact_type` (suggest) | `feature`, `code_file`, `pr`                           |
 
 ### Wizard & Agent Instructions Tools (v0.8.0)
 

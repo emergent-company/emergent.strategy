@@ -538,6 +538,61 @@ Use this checklist after completing work:
 - [ ] Update `mappings.yaml` if paths changed
 ```
 
+### Relationship Maintenance MCP Tools (v0.10.0)
+
+These MCP tools enable AI agents to maintain relationships programmatically:
+
+| Tool                               | Purpose                            | Example Use                            |
+| ---------------------------------- | ---------------------------------- | -------------------------------------- |
+| `epf_add_implementation_reference` | Link FD to spec/PR/code            | After merging PR #123, link to fd-012  |
+| `epf_update_capability_maturity`   | Update capability stage            | Advance cap-003 from emerging → proven |
+| `epf_add_mapping_artifact`         | Add to mappings.yaml               | Register new code module path          |
+| `epf_suggest_relationships`        | AI-assisted relationship discovery | Analyze a PR to find related features  |
+
+**Typical workflow after implementing code:**
+
+```
+1. Merge PR implementing feature capability
+2. Call epf_suggest_relationships to analyze what was changed
+3. Call epf_add_implementation_reference to link PR to feature
+4. Call epf_update_capability_maturity if maturity changed
+5. Call epf_add_mapping_artifact for new code paths
+```
+
+**Example MCP calls:**
+
+```json
+// Link PR to feature
+epf_add_implementation_reference {
+  "feature_id": "fd-012",
+  "instance_path": "docs/EPF/_instances/emergent",
+  "ref_type": "pr",
+  "title": "Add entity extraction pipeline",
+  "url": "https://github.com/org/repo/pull/123"
+}
+
+// Update capability maturity
+epf_update_capability_maturity {
+  "feature_id": "fd-012",
+  "instance_path": "docs/EPF/_instances/emergent",
+  "capability_id": "cap-003",
+  "maturity": "proven",
+  "evidence": "Deployed to production, 150 DAU, <200ms response time",
+  "delivered_by_kr": "kr-p-005"
+}
+
+// Add code mapping
+epf_add_mapping_artifact {
+  "instance_path": "docs/EPF/_instances/emergent",
+  "sub_component_id": "Product.Core.EntityExtraction",
+  "artifact_type": "code",
+  "url": "https://github.com/org/repo/tree/main/apps/server/src/modules/extraction",
+  "description": "Entity extraction NestJS module"
+}
+```
+
+---
+
 ### Detecting Relationship Drift
 
 Run these checks periodically:
