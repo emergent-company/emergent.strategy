@@ -1,0 +1,132 @@
+# EPF-CLI Makefile
+#
+# This Makefile provides commands for building and testing epf-cli.
+# The key feature is the embedded EPF framework artifacts which make
+# the CLI self-contained and usable without external dependencies.
+
+# Variables
+BINARY_NAME=epf-cli
+VERSION?=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+GIT_COMMIT?=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_DATE?=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+CANONICAL_EPF?=$(shell realpath ../../../canonical-epf 2>/dev/null || echo "")
+
+# Build flags
+LDFLAGS=-ldflags "-X github.com/eyedea-io/emergent/apps/epf-cli/cmd.Version=$(VERSION) \
+                  -X github.com/eyedea-io/emergent/apps/epf-cli/cmd.GitCommit=$(GIT_COMMIT) \
+                  -X github.com/eyedea-io/emergent/apps/epf-cli/cmd.BuildDate=$(BUILD_DATE)"
+
+.PHONY: all build clean test sync-embedded help
+
+# Default target
+all: build
+
+# Sync embedded artifacts from canonical EPF, then build
+build: sync-embedded
+	@echo "Building $(BINARY_NAME) $(VERSION)..."
+	go build $(LDFLAGS) -o $(BINARY_NAME) .
+	@echo "✓ Built $(BINARY_NAME)"
+	@./$(BINARY_NAME) version
+
+# Build without syncing embedded (use existing)
+build-quick:
+	@echo "Building $(BINARY_NAME) $(VERSION) (quick, no sync)..."
+	go build $(LDFLAGS) -o $(BINARY_NAME) .
+	@echo "✓ Built $(BINARY_NAME)"
+
+# Sync embedded artifacts from canonical EPF
+sync-embedded:
+	@echo "Syncing embedded artifacts..."
+	@if [ -z "$(CANONICAL_EPF)" ]; then \
+		echo "Error: CANONICAL_EPF not set and canonical-epf not found at expected location"; \
+		echo "Set CANONICAL_EPF=/path/to/canonical-epf or clone it to ../../../canonical-epf"; \
+		exit 1; \
+	fi
+	@./scripts/sync-embedded.sh "$(CANONICAL_EPF)"
+
+# Clean build artifacts
+clean:
+	@echo "Cleaning..."
+	rm -f $(BINARY_NAME)
+	rm -rf internal/embedded/schemas
+	rm -rf internal/embedded/templates
+	rm -rf internal/embedded/wizards
+	rm -rf internal/embedded/outputs
+	rm -f internal/embedded/VERSION
+	rm -f internal/embedded/MANIFEST.txt
+	@echo "✓ Cleaned"
+
+# Run tests
+test:
+	@echo "Running tests..."
+	go test -v ./...
+
+# Run tests with coverage
+test-coverage:
+	@echo "Running tests with coverage..."
+	go test -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
+	@echo "✓ Coverage report: coverage.html"
+
+# Install to GOPATH/bin
+install: build
+	@echo "Installing $(BINARY_NAME)..."
+	go install $(LDFLAGS) .
+	@echo "✓ Installed to $(shell go env GOPATH)/bin/$(BINARY_NAME)"
+
+# Development: build and copy to /usr/local/bin (requires sudo)
+install-local: build
+	@echo "Installing $(BINARY_NAME) to /usr/local/bin..."
+	sudo cp $(BINARY_NAME) /usr/local/bin/
+	@echo "✓ Installed to /usr/local/bin/$(BINARY_NAME)"
+
+# Show version info
+version:
+	@./$(BINARY_NAME) version 2>/dev/null || echo "Run 'make build' first"
+
+# Check embedded artifacts status
+check-embedded:
+	@echo "Embedded artifacts status:"
+	@if [ -d "internal/embedded/schemas" ]; then \
+		echo "  schemas:    $(shell ls internal/embedded/schemas/*.json 2>/dev/null | wc -l | tr -d ' ') files"; \
+	else \
+		echo "  schemas:    NOT SYNCED"; \
+	fi
+	@if [ -d "internal/embedded/wizards" ]; then \
+		echo "  wizards:    $(shell ls internal/embedded/wizards/*.md 2>/dev/null | wc -l | tr -d ' ') files"; \
+	else \
+		echo "  wizards:    NOT SYNCED"; \
+	fi
+	@if [ -d "internal/embedded/outputs" ]; then \
+		echo "  generators: $(shell ls -d internal/embedded/outputs/*/ 2>/dev/null | wc -l | tr -d ' ') directories"; \
+	else \
+		echo "  generators: NOT SYNCED"; \
+	fi
+	@if [ -f "internal/embedded/VERSION" ]; then \
+		echo "  version:    $(shell cat internal/embedded/VERSION)"; \
+	else \
+		echo "  version:    NOT SET"; \
+	fi
+
+# Help
+help:
+	@echo "EPF-CLI Makefile"
+	@echo ""
+	@echo "Usage: make [target]"
+	@echo ""
+	@echo "Targets:"
+	@echo "  build          - Sync embedded artifacts and build the binary (default)"
+	@echo "  build-quick    - Build without syncing embedded artifacts"
+	@echo "  sync-embedded  - Copy canonical EPF artifacts to internal/embedded/"
+	@echo "  clean          - Remove build artifacts and embedded files"
+	@echo "  test           - Run tests"
+	@echo "  test-coverage  - Run tests with coverage report"
+	@echo "  install        - Install to GOPATH/bin"
+	@echo "  install-local  - Install to /usr/local/bin (requires sudo)"
+	@echo "  version        - Show version info"
+	@echo "  check-embedded - Show status of embedded artifacts"
+	@echo "  help           - Show this help"
+	@echo ""
+	@echo "Environment variables:"
+	@echo "  CANONICAL_EPF  - Path to canonical-epf repo (default: ../../../canonical-epf)"
+	@echo "  VERSION        - Version string (default: git describe)"

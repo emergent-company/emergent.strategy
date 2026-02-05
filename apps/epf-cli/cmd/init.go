@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/config"
+	"github.com/eyedea-io/emergent/apps/epf-cli/internal/embedded"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/template"
 	"github.com/spf13/cobra"
 )
@@ -67,32 +68,47 @@ func runInit(cmd *cobra.Command, args []string) {
 	// Load or prompt for configuration
 	cfg, err := config.Load()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
-		os.Exit(1)
+		// Config error is not fatal if we have embedded artifacts
+		cfg = &config.Config{}
 	}
 
-	if !cfg.IsConfigured() {
-		fmt.Println("epf-cli is not configured. Let's set it up first.")
-		fmt.Println()
-		reader := bufio.NewReader(os.Stdin)
-		cfg, err = config.PromptForConfig(reader)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+	// Determine template source: canonical_path or embedded
+	var canonicalPath string
+	var useEmbedded bool
+
+	if cfg.CanonicalPath != "" {
+		if _, err := os.Stat(cfg.CanonicalPath); err == nil {
+			canonicalPath = cfg.CanonicalPath
 		}
-		fmt.Println()
 	}
 
-	// Verify canonical path exists
-	canonicalPath := cfg.CanonicalPath
 	if canonicalPath == "" {
-		fmt.Fprintln(os.Stderr, "Error: canonical_path not set in config")
-		fmt.Fprintln(os.Stderr, "Run 'epf-cli config set canonical_path /path/to/canonical-epf'")
-		os.Exit(1)
-	}
-	if _, err := os.Stat(canonicalPath); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "Error: canonical_path '%s' does not exist\n", canonicalPath)
-		os.Exit(1)
+		// Fall back to embedded artifacts
+		if embedded.HasEmbeddedArtifacts() {
+			useEmbedded = true
+			fmt.Println("Note: Using embedded EPF templates (no canonical_path configured)")
+			fmt.Println()
+		} else {
+			// No canonical_path and no embedded - prompt for config
+			if !cfg.IsConfigured() {
+				fmt.Println("epf-cli is not configured. Let's set it up first.")
+				fmt.Println()
+				reader := bufio.NewReader(os.Stdin)
+				cfg, err = config.PromptForConfig(reader)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+					os.Exit(1)
+				}
+				fmt.Println()
+				canonicalPath = cfg.CanonicalPath
+			}
+
+			if canonicalPath == "" {
+				fmt.Fprintln(os.Stderr, "Error: canonical_path not set and no embedded templates available")
+				fmt.Fprintln(os.Stderr, "Run 'epf-cli config set canonical_path /path/to/canonical-epf'")
+				os.Exit(1)
+			}
+		}
 	}
 
 	fmt.Printf("Initializing EPF for '%s'\n", productName)
@@ -144,7 +160,7 @@ func runInit(cmd *cobra.Command, args []string) {
 	// Step 2: Create instance structure
 	fmt.Println("Step 2: Creating instance structure...")
 
-	if err := createInstanceStructure(instanceDir, productName, canonicalPath); err != nil {
+	if err := createInstanceStructure(instanceDir, productName, canonicalPath, useEmbedded); err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating instance: %v\n", err)
 		os.Exit(1)
 	}
@@ -164,8 +180,12 @@ func runInit(cmd *cobra.Command, args []string) {
 	fmt.Println("  ├── README.md      (quick reference)")
 	fmt.Println("  └── .gitignore     (tracks your instance)")
 	fmt.Println()
-	fmt.Println("Canonical EPF loaded from:")
-	fmt.Printf("  %s\n\n", canonicalPath)
+	if useEmbedded {
+		fmt.Printf("Templates loaded from embedded EPF v%s\n\n", embedded.GetVersion())
+	} else {
+		fmt.Println("Canonical EPF loaded from:")
+		fmt.Printf("  %s\n\n", canonicalPath)
+	}
 	fmt.Println("Next steps:")
 	fmt.Printf("  1. Edit %s/_meta.yaml with your product details\n", instanceDir)
 	fmt.Printf("  2. Edit %s/READY/00_north_star.yaml with your vision\n", instanceDir)
@@ -328,7 +348,7 @@ Thumbs.db
 	return os.WriteFile(filepath.Join(epfDir, ".gitignore"), []byte(content), 0644)
 }
 
-func createInstanceStructure(instanceDir, productName, canonicalPath string) error {
+func createInstanceStructure(instanceDir, productName, canonicalPath string, useEmbedded bool) error {
 	// Create phase directories
 	phases := []string{"READY", "FIRE", "AIM"}
 	for _, phase := range phases {
@@ -352,12 +372,21 @@ func createInstanceStructure(instanceDir, productName, canonicalPath string) err
 	os.MkdirAll(filepath.Join(instanceDir, "outputs"), 0755)
 	os.WriteFile(filepath.Join(instanceDir, "outputs", ".gitkeep"), []byte{}, 0644)
 
-	// Try to load and copy templates from canonical EPF
-	templateLoader := template.NewLoader(canonicalPath)
-	if err := templateLoader.Load(); err == nil {
-		copyTemplatesFromLoader(templateLoader, instanceDir)
+	// Load templates and copy to instance
+	if useEmbedded {
+		// Use embedded templates
+		copyTemplatesFromEmbedded(instanceDir)
+	} else if canonicalPath != "" {
+		// Try to load from filesystem
+		templateLoader := template.NewLoader(canonicalPath)
+		if err := templateLoader.Load(); err == nil {
+			copyTemplatesFromLoader(templateLoader, instanceDir)
+		} else {
+			// Fallback to minimal templates
+			createDefaultTemplates(instanceDir, productName)
+		}
 	} else {
-		// Fallback to embedded minimal templates
+		// Fallback to minimal templates
 		createDefaultTemplates(instanceDir, productName)
 	}
 
@@ -389,6 +418,46 @@ func copyTemplatesFromLoader(loader *template.Loader, instanceDir string) {
 			dst := filepath.Join(instanceDir, "AIM", filename)
 			os.WriteFile(dst, []byte(t.Content), 0644)
 		}
+	}
+}
+
+// copyTemplatesFromEmbedded copies templates from embedded files to the instance
+func copyTemplatesFromEmbedded(instanceDir string) {
+	// Template paths in embedded fs (relative to templates/)
+	readyTemplates := []string{
+		"READY/00_north_star.yaml",
+		"READY/01_insight_analyses.yaml",
+		"READY/02_strategy_foundations.yaml",
+		"READY/03_insight_opportunity.yaml",
+		"READY/04_strategy_formula.yaml",
+		"READY/05_roadmap_recipe.yaml",
+	}
+
+	aimTemplates := []string{
+		"AIM/assessment_report.yaml",
+		"AIM/calibration_memo.yaml",
+	}
+
+	// Copy READY templates
+	for _, tmplPath := range readyTemplates {
+		content, err := embedded.GetTemplate(tmplPath)
+		if err != nil {
+			continue // Skip if not found
+		}
+		filename := filepath.Base(tmplPath)
+		dst := filepath.Join(instanceDir, "READY", filename)
+		os.WriteFile(dst, content, 0644)
+	}
+
+	// Copy AIM templates
+	for _, tmplPath := range aimTemplates {
+		content, err := embedded.GetTemplate(tmplPath)
+		if err != nil {
+			continue // Skip if not found
+		}
+		filename := filepath.Base(tmplPath)
+		dst := filepath.Join(instanceDir, "AIM", filename)
+		os.WriteFile(dst, content, 0644)
 	}
 }
 

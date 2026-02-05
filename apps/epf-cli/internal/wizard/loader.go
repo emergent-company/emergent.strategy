@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/eyedea-io/emergent/apps/epf-cli/internal/embedded"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/schema"
 )
 
@@ -17,6 +18,8 @@ type Loader struct {
 	wizards      map[string]*WizardInfo
 	instructions map[string]*AgentInstructionsInfo
 	parser       *Parser
+	useEmbedded  bool
+	source       string
 }
 
 // NewLoader creates a new wizard loader
@@ -29,19 +32,113 @@ func NewLoader(epfRoot string) *Loader {
 	}
 }
 
-// Load loads all wizards and agent instructions from the EPF directory
+// NewEmbeddedLoader creates a loader that only uses embedded wizards
+func NewEmbeddedLoader() *Loader {
+	return &Loader{
+		epfRoot:      "",
+		wizards:      make(map[string]*WizardInfo),
+		instructions: make(map[string]*AgentInstructionsInfo),
+		parser:       NewParser(),
+		useEmbedded:  true,
+		source:       "embedded v" + embedded.GetVersion(),
+	}
+}
+
+// Load loads all wizards and agent instructions from the EPF directory.
+// Falls back to embedded wizards if filesystem is not available.
 func (l *Loader) Load() error {
-	// Load wizards
-	wizardsDir := filepath.Join(l.epfRoot, "wizards")
-	if err := l.loadWizards(wizardsDir); err != nil {
-		// Wizards directory is optional
-		if !os.IsNotExist(err) {
-			return fmt.Errorf("failed to load wizards: %w", err)
+	// If explicitly configured for embedded, use embedded
+	if l.useEmbedded {
+		return l.loadFromEmbedded()
+	}
+
+	// Try filesystem first
+	if l.epfRoot != "" {
+		wizardsDir := filepath.Join(l.epfRoot, "wizards")
+		if _, err := os.Stat(wizardsDir); err == nil {
+			if err := l.loadWizards(wizardsDir); err == nil && len(l.wizards) > 0 {
+				l.source = l.epfRoot
+				l.loadAgentInstructions()
+				return nil
+			}
 		}
 	}
 
-	// Load agent instructions from known locations
-	l.loadAgentInstructions()
+	// Fall back to embedded wizards
+	if embedded.HasEmbeddedArtifacts() {
+		return l.loadFromEmbedded()
+	}
+
+	return fmt.Errorf("wizards directory not found: %s (and no embedded wizards available)", l.epfRoot)
+}
+
+// loadFromEmbedded loads wizards from embedded files
+func (l *Loader) loadFromEmbedded() error {
+	l.useEmbedded = true
+	l.source = "embedded v" + embedded.GetVersion()
+
+	wizardNames, err := embedded.ListWizards()
+	if err != nil {
+		return fmt.Errorf("failed to list embedded wizards: %w", err)
+	}
+
+	readySubWizardPattern := regexp.MustCompile(ReadySubWizardPattern)
+
+	for _, name := range wizardNames {
+		// Skip non-wizard files
+		if !strings.HasSuffix(name, AgentPromptSuffix) && !strings.HasSuffix(name, WizardSuffix) {
+			continue
+		}
+
+		// Skip README and template files
+		if strings.ToLower(name) == "readme.md" || strings.Contains(name, "template") {
+			continue
+		}
+
+		content, err := embedded.GetWizard(name)
+		if err != nil {
+			continue // Skip files we can't read
+		}
+
+		// Determine wizard type
+		var wizardType WizardType
+		if readySubWizardPattern.MatchString(name) {
+			wizardType = WizardTypeReadySubWizard
+		} else if strings.HasSuffix(name, WizardSuffix) {
+			wizardType = WizardTypeWizard
+		} else {
+			wizardType = WizardTypeAgentPrompt
+		}
+
+		// Extract wizard name from filename
+		wizardName := name
+		wizardName = strings.TrimSuffix(wizardName, AgentPromptSuffix)
+		wizardName = strings.TrimSuffix(wizardName, WizardSuffix)
+
+		// Parse metadata from content
+		contentStr := string(content)
+
+		wizard := &WizardInfo{
+			Name:             wizardName,
+			Type:             wizardType,
+			Phase:            l.getPhaseForWizard(wizardName),
+			Purpose:          l.parser.ParsePurpose(contentStr),
+			TriggerPhrases:   l.parser.ParseTriggerPhrases(contentStr),
+			Duration:         l.parser.ParseDuration(contentStr),
+			Outputs:          l.parser.ParseOutputs(contentStr),
+			RelatedWizards:   l.filterSelf(l.parser.ParseRelatedWizards(contentStr), wizardName),
+			RelatedTemplates: l.parser.ParseRelatedTemplates(contentStr),
+			RelatedSchemas:   l.parser.ParseRelatedSchemas(contentStr),
+			FilePath:         filepath.Join("wizards", name),
+			Content:          contentStr,
+		}
+
+		l.wizards[wizardName] = wizard
+	}
+
+	if len(l.wizards) == 0 {
+		return fmt.Errorf("no embedded wizards found")
+	}
 
 	return nil
 }
@@ -300,4 +397,14 @@ func (l *Loader) GetWizardNames() []string {
 	}
 	sort.Strings(names)
 	return names
+}
+
+// Source returns where wizards were loaded from (filesystem path or "embedded vX.X.X")
+func (l *Loader) Source() string {
+	return l.source
+}
+
+// IsEmbedded returns true if wizards were loaded from embedded files
+func (l *Loader) IsEmbedded() bool {
+	return l.useEmbedded
 }

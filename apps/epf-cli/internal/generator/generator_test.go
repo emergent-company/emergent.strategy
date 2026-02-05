@@ -346,14 +346,22 @@ func TestLoaderWithEmptyDirs(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
+	// Create an outputs directory to prevent embedded fallback
+	outputsDir := filepath.Join(tmpDir, "outputs")
+	if err := os.MkdirAll(outputsDir, 0755); err != nil {
+		t.Fatalf("failed to create outputs dir: %v", err)
+	}
+
 	loader := NewLoader(tmpDir)
 	err = loader.Load()
 	if err != nil {
 		t.Fatalf("Load() failed on empty dir: %v", err)
 	}
 
+	// With empty outputs directory (no valid generators inside), should have 0 generators
+	// Note: This test creates an outputs/ dir so embedded fallback is not triggered
 	if loader.HasGenerators() {
-		t.Error("HasGenerators() should return false for empty dir")
+		t.Error("HasGenerators() should return false for empty outputs dir")
 	}
 	if loader.GeneratorCount() != 0 {
 		t.Errorf("GeneratorCount() = %d, want 0", loader.GeneratorCount())

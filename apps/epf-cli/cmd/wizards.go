@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/eyedea-io/emergent/apps/epf-cli/internal/embedded"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/schema"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/wizard"
 	"github.com/spf13/cobra"
@@ -45,21 +46,34 @@ var listWizardsCmd = &cobra.Command{
 Wizards are organized by phase (READY, FIRE, AIM) and type
 (agent_prompt, wizard, ready_sub_wizard).`,
 	Run: func(cmd *cobra.Command, args []string) {
+		var loader *wizard.Loader
+		var sourceLabel string
+
 		epfRoot, err := GetEPFRoot()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			// Fall back to embedded wizards
+			if embedded.HasEmbeddedArtifacts() {
+				loader = wizard.NewEmbeddedLoader()
+			} else {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
+			}
+		} else {
+			loader = wizard.NewLoader(epfRoot)
 		}
 
-		loader := wizard.NewLoader(epfRoot)
 		if err := loader.Load(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error loading wizards: %v\n", err)
 			os.Exit(1)
 		}
 
+		sourceLabel = loader.Source()
+
 		if !loader.HasWizards() {
 			fmt.Println("No wizards found.")
-			fmt.Printf("Expected location: %s/wizards/\n", epfRoot)
+			if epfRoot != "" {
+				fmt.Printf("Expected location: %s/wizards/\n", epfRoot)
+			}
 			return
 		}
 
@@ -103,7 +117,7 @@ Wizards are organized by phase (READY, FIRE, AIM) and type
 			return
 		}
 
-		fmt.Printf("EPF Wizards (loaded from %s/wizards/)\n\n", epfRoot)
+		fmt.Printf("EPF Wizards (loaded from %s)\n\n", sourceLabel)
 
 		if phaseFilter != "" {
 			fmt.Printf("Filtered by phase: %s\n", strings.ToUpper(phaseFilter))
@@ -195,13 +209,21 @@ Examples:
   epf-cli wizards show feature_definition`,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		var loader *wizard.Loader
+
 		epfRoot, err := GetEPFRoot()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			// Fall back to embedded wizards
+			if embedded.HasEmbeddedArtifacts() {
+				loader = wizard.NewEmbeddedLoader()
+			} else {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
+			}
+		} else {
+			loader = wizard.NewLoader(epfRoot)
 		}
 
-		loader := wizard.NewLoader(epfRoot)
 		if err := loader.Load(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error loading wizards: %v\n", err)
 			os.Exit(1)
@@ -302,13 +324,21 @@ Examples:
   epf-cli wizards recommend "assess our last cycle"`,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		var loader *wizard.Loader
+
 		epfRoot, err := GetEPFRoot()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			// Fall back to embedded wizards
+			if embedded.HasEmbeddedArtifacts() {
+				loader = wizard.NewEmbeddedLoader()
+			} else {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
+			}
+		} else {
+			loader = wizard.NewLoader(epfRoot)
 		}
 
-		loader := wizard.NewLoader(epfRoot)
 		if err := loader.Load(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error loading wizards: %v\n", err)
 			os.Exit(1)
@@ -427,13 +457,21 @@ These files provide AI agents with guidance for working with EPF.
 They include comprehensive instructions, quick references, and
 maintenance protocols.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		var loader *wizard.Loader
+
 		epfRoot, err := GetEPFRoot()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			// Fall back to embedded wizards (note: instructions require filesystem)
+			if embedded.HasEmbeddedArtifacts() {
+				loader = wizard.NewEmbeddedLoader()
+			} else {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
+			}
+		} else {
+			loader = wizard.NewLoader(epfRoot)
 		}
 
-		loader := wizard.NewLoader(epfRoot)
 		if err := loader.Load(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error loading wizards: %v\n", err)
 			os.Exit(1)

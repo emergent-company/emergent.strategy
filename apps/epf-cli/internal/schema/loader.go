@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/eyedea-io/emergent/apps/epf-cli/internal/embedded"
 )
 
 // ArtifactType represents the type of EPF artifact
@@ -66,8 +68,10 @@ type SchemaInfo struct {
 
 // Loader loads and manages EPF JSON schemas
 type Loader struct {
-	schemasDir string
-	schemas    map[ArtifactType]*SchemaInfo
+	schemasDir     string
+	schemas        map[ArtifactType]*SchemaInfo
+	useEmbedded    bool // true if loaded from embedded files
+	embeddedSource string
 }
 
 // artifactMapping maps filename patterns to artifact types
@@ -141,6 +145,16 @@ func NewLoader(schemasDir string) *Loader {
 	}
 }
 
+// NewEmbeddedLoader creates a loader that only uses embedded schemas
+func NewEmbeddedLoader() *Loader {
+	return &Loader{
+		schemasDir:     "",
+		schemas:        make(map[ArtifactType]*SchemaInfo),
+		useEmbedded:    true,
+		embeddedSource: "embedded v" + embedded.GetVersion(),
+	}
+}
+
 // FindEPFRoot attempts to find the EPF framework root directory
 // by searching for the schemas directory in common locations
 func FindEPFRoot(startDir string) (string, error) {
@@ -171,13 +185,33 @@ func FindEPFRoot(startDir string) (string, error) {
 	return "", fmt.Errorf("could not find EPF root directory (looked for schemas/ directory)")
 }
 
-// Load loads all schemas from the schemas directory
+// Load loads all schemas from the schemas directory.
+// If the schemas directory is not found, falls back to embedded schemas.
 func (l *Loader) Load() error {
-	// Check if schemas directory exists
-	if _, err := os.Stat(l.schemasDir); os.IsNotExist(err) {
-		return fmt.Errorf("schemas directory not found: %s", l.schemasDir)
+	// If explicitly configured for embedded, use embedded
+	if l.useEmbedded {
+		return l.loadFromEmbedded()
 	}
 
+	// Try filesystem first
+	if l.schemasDir != "" {
+		if _, err := os.Stat(l.schemasDir); err == nil {
+			if err := l.loadFromFilesystem(); err == nil && len(l.schemas) > 0 {
+				return nil
+			}
+		}
+	}
+
+	// Fall back to embedded schemas
+	if embedded.HasEmbeddedArtifacts() {
+		return l.loadFromEmbedded()
+	}
+
+	return fmt.Errorf("schemas directory not found: %s (and no embedded schemas available)", l.schemasDir)
+}
+
+// loadFromFilesystem loads schemas from the filesystem
+func (l *Loader) loadFromFilesystem() error {
 	// Load each schema file
 	for artifactType, schemaFile := range schemaFileMapping {
 		schemaPath := filepath.Join(l.schemasDir, schemaFile)
@@ -220,6 +254,65 @@ func (l *Loader) Load() error {
 	}
 
 	return nil
+}
+
+// loadFromEmbedded loads schemas from embedded files
+func (l *Loader) loadFromEmbedded() error {
+	l.useEmbedded = true
+	l.embeddedSource = "embedded v" + embedded.GetVersion()
+
+	// Load each schema file from embedded
+	for artifactType, schemaFile := range schemaFileMapping {
+		data, err := embedded.GetSchema(schemaFile)
+		if err != nil {
+			// Schema file doesn't exist in embedded - skip it
+			continue
+		}
+
+		// Validate it's valid JSON
+		var schema json.RawMessage
+		if err := json.Unmarshal(data, &schema); err != nil {
+			return fmt.Errorf("invalid JSON in embedded schema %s: %w", schemaFile, err)
+		}
+
+		// Find phase and description from mapping
+		var phase Phase
+		var description string
+		for _, m := range artifactMapping {
+			if m.ArtifactType == artifactType {
+				phase = m.Phase
+				description = m.Description
+				break
+			}
+		}
+
+		l.schemas[artifactType] = &SchemaInfo{
+			ArtifactType: artifactType,
+			SchemaFile:   schemaFile,
+			Phase:        phase,
+			Description:  description,
+			Schema:       schema,
+		}
+	}
+
+	if len(l.schemas) == 0 {
+		return fmt.Errorf("no embedded schemas found")
+	}
+
+	return nil
+}
+
+// Source returns a description of where schemas were loaded from
+func (l *Loader) Source() string {
+	if l.useEmbedded {
+		return l.embeddedSource
+	}
+	return l.schemasDir
+}
+
+// IsEmbedded returns true if schemas were loaded from embedded files
+func (l *Loader) IsEmbedded() bool {
+	return l.useEmbedded
 }
 
 // GetSchema returns the schema for an artifact type
