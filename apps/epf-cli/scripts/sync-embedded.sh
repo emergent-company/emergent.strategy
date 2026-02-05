@@ -86,6 +86,15 @@ for generator_dir in "$CANONICAL_EPF/outputs/"*/; do
 done
 echo "  Copied $GENERATOR_COUNT generators"
 
+# Copy AGENTS.md from epf-cli source (not canonical EPF)
+echo "Copying AGENTS.md from epf-cli source..."
+if [ -f "$EPF_CLI_DIR/AGENTS.md" ]; then
+    cp "$EPF_CLI_DIR/AGENTS.md" "$EMBEDDED_DIR/AGENTS.md"
+    echo "  ✓ Copied AGENTS.md ($(wc -l < "$EMBEDDED_DIR/AGENTS.md" | tr -d ' ') lines)"
+else
+    echo "  Warning: AGENTS.md not found in epf-cli directory"
+fi
+
 # Copy VERSION file
 if [ -f "$CANONICAL_EPF/VERSION" ]; then
     cp "$CANONICAL_EPF/VERSION" "$EMBEDDED_DIR/VERSION"
@@ -127,3 +136,4 @@ echo "  Schemas:    $SCHEMA_COUNT files"
 echo "  Templates:  $(find "$EMBEDDED_DIR/templates" -type f 2>/dev/null | wc -l | tr -d ' ') files"
 echo "  Wizards:    $WIZARD_COUNT files"
 echo "  Generators: $(ls -1d "$EMBEDDED_DIR/outputs/"*/ 2>/dev/null | wc -l | tr -d ' ') directories"
+echo "  AGENTS.md:  $(if [ -f "$EMBEDDED_DIR/AGENTS.md" ]; then echo "✓ ($(wc -l < "$EMBEDDED_DIR/AGENTS.md" | tr -d ' ') lines)"; else echo "✗"; fi)"
