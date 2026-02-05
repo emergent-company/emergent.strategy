@@ -50,6 +50,13 @@ var Version string
 //go:embed MANIFEST.txt
 var Manifest string
 
+// AgentsMD contains the comprehensive AGENTS.md file for epf-cli.
+// This file provides AI agents with complete instructions for using epf-cli
+// in product repositories. It is distributed by `epf-cli init` to each instance.
+//
+//go:embed AGENTS.md
+var AgentsMD string
+
 // GetSchema returns the contents of an embedded schema file.
 // The filename should be just the schema name (e.g., "feature_definition_schema.json").
 func GetSchema(filename string) ([]byte, error) {
@@ -211,4 +218,10 @@ func GetGeneratorContent(name string) (*GeneratorContent, error) {
 	}
 
 	return content, nil
+}
+
+// GetAgentsMD returns the embedded AGENTS.md content.
+// This file contains comprehensive AI agent instructions for using epf-cli.
+func GetAgentsMD() ([]byte, error) {
+	return []byte(AgentsMD), nil
 }

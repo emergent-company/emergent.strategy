@@ -214,6 +214,13 @@ func isGitRepo(dir string) bool {
 }
 
 func createAgentsMD(epfDir string) error {
+	// Use embedded comprehensive AGENTS.md (always available in binary)
+	agentsMDContent, err := embedded.GetAgentsMD()
+	if err == nil && len(agentsMDContent) > 0 {
+		return os.WriteFile(filepath.Join(epfDir, "AGENTS.md"), agentsMDContent, 0644)
+	}
+
+	// Fallback: Create simplified version if embedded not available
 	content := `# AGENTS.md - AI Agent Instructions for EPF
 
 > **This file is for AI coding assistants (GitHub Copilot, Claude, Cursor, etc.)**
@@ -234,7 +241,7 @@ This repository uses **epf-cli** for all EPF operations. The canonical EPF frame
 | Get a wizard | ` + "`epf-cli wizards get <name>`" + ` |
 | List schemas | ` + "`epf-cli schemas list`" + ` |
 
-### MCP Tools (30 available)
+### MCP Tools (27+ available)
 
 When epf-cli runs as an MCP server, you have access to tools for:
 - Schema validation (epf_validate_file, epf_validate_content)
@@ -242,6 +249,7 @@ When epf-cli runs as an MCP server, you have access to tools for:
 - Wizards (epf_get_wizard, epf_get_wizard_for_task)
 - Health checks (epf_health_check, epf_check_instance)
 - Relationships (epf_explain_value_path, epf_get_strategic_context)
+- Generators (epf_list_generators, epf_get_generator)
 
 Run ` + "`epf-cli serve`" + ` to start the MCP server.
 
@@ -265,7 +273,133 @@ docs/EPF/_instances/{product}/
 └── outputs/                  # Generated documents
 ` + "```" + `
 
+## Pre-Flight Checklist: Before Creating/Editing EPF Artifacts
+
+> **MANDATORY for AI agents writing EPF content (feature definitions, roadmaps, etc.)**
+
+### When to Use This Checklist
+
+Use this checklist when you are about to:
+- Create a new feature definition (fd-*.yaml)
+- Edit an existing EPF artifact
+- Add personas, capabilities, contexts, or scenarios to a feature
+- Modify roadmap key results or value model paths
+
+### Pre-Flight Steps
+
+**Step 1: Get the Schema**
+
+` + "```bash" + `
+# Via CLI:
+epf-cli schemas show feature_definition
+
+# Via MCP:
+epf_get_schema { "artifact_type": "feature_definition" }
+` + "```" + `
+
+**Step 2: Check Field Constraints**
+
+Look for these constraint types:
+- ` + "`enum`" + ` - Only listed values valid (e.g., status: draft|ready|in-progress|delivered)
+- ` + "`pattern`" + ` - Must match regex (e.g., id: ^fd-[0-9]+$)
+- ` + "`minItems/maxItems`" + ` - Array length limits (e.g., personas: exactly 4)
+- ` + "`minLength`" + ` - Minimum character counts (e.g., current_situation: 200+ chars)
+
+**Step 3: Validate Before Committing**
+
+` + "```bash" + `
+# Validate file
+epf-cli validate path/to/artifact.yaml
+
+# AI-friendly output
+epf-cli validate path/to/artifact.yaml --ai-friendly
+
+# Fix plan for many errors
+epf-cli validate path/to/artifact.yaml --fix-plan
+` + "```" + `
+
+## Validation Strategy
+
+For files with validation errors:
+
+**1-10 errors:** Use ` + "`--ai-friendly`" + ` for direct fixing
+**11-50 errors:** Use ` + "`--fix-plan`" + ` for chunked processing  
+**50+ errors:** Use ` + "`--fix-plan`" + ` + fix section by section
+
+**Common Error Types:**
+
+| Priority | Error Type | Fix Strategy |
+|----------|------------|--------------|
+| 🔴 Critical | ` + "`type_mismatch`" + ` | Convert to correct type (string→array, etc.) |
+| 🟠 High | ` + "`invalid_enum`" + ` | Use one of the allowed values |
+| 🟠 High | ` + "`missing_required`" + ` | Add the required field |
+| 🟡 Medium | ` + "`constraint_violation`" + ` | Expand text to meet minLength |
+| 🟡 Medium | ` + "`pattern_mismatch`" + ` | Fix format (e.g., fd-001 not feature-1) |
+
+## Health Check
+
+The ` + "`epf-cli health`" + ` command validates:
+
+1. **Instance Structure** - READY/FIRE/AIM directories, required files
+2. **Schema Validation** - All YAML against JSON schemas
+3. **Feature Quality** - Personas, narratives, scenarios
+4. **Cross-References** - Feature dependencies
+5. **Relationships** - contributes_to paths, KR targets
+6. **Content Readiness** - Placeholder detection
+7. **Field Coverage** - TRL fields, persona narratives
+8. **Version Alignment** - Artifact vs schema versions
+9. **AIM Phase** - Living Reality Assessment
+10. **Structure Location** - docs/epf/ vs root level
+
+## Common Commands
+
+` + "```bash" + `
+# Validation
+epf-cli validate file.yaml
+epf-cli validate file.yaml --ai-friendly
+epf-cli validate file.yaml --fix-plan
+
+# Health checks
+epf-cli health
+epf-cli health --verbose
+epf-cli health --json
+
+# Structure migration
+epf-cli migrate-structure --dry-run
+epf-cli migrate-structure
+
+# AIM phase
+epf-cli aim bootstrap
+epf-cli aim status
+epf-cli aim assess
+
+# Relationships
+epf-cli explain Product.Discovery.KnowledgeExploration
+epf-cli context FD-001
+epf-cli coverage
+epf-cli relationships validate
+
+# Templates & Wizards
+epf-cli wizards list
+epf-cli wizards show feature_definition
+epf-cli generators list
+` + "```" + `
+
+## EPF Structure Conventions
+
+**Recommended:**  
+` + "`docs/epf/_instances/{product}/`" + `
+
+**Benefits:**
+- Separates documentation from code
+- Easy to exclude from CI/CD
+- Follows standard conventions
+- Better tool support
+
+If EPF is at root level, run ` + "`epf-cli migrate-structure`" + ` to move it.
+
 ---
+*For comprehensive documentation, see the epf-cli AGENTS.md in the canonical EPF repository*
 *EPF-CLI powered workflow | See ` + "`epf-cli --help`" + ` for all commands*
 `
 	return os.WriteFile(filepath.Join(epfDir, "AGENTS.md"), []byte(content), 0644)

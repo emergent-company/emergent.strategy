@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +10,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/eyedea-io/emergent/apps/epf-cli/internal/schema"
+	"github.com/eyedea-io/emergent/apps/epf-cli/internal/template"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -44,6 +47,35 @@ func init() {
 	rootCmd.AddCommand(diffCmd)
 	diffCmd.Flags().StringVarP(&diffFormat, "format", "f", "text", "Output format: text, markdown, json")
 	diffCmd.Flags().BoolVarP(&diffVerbose, "verbose", "v", false, "Show detailed differences")
+
+	// Add template subcommand
+	diffCmd.AddCommand(diffTemplateCmd)
+	diffTemplateCmd.Flags().StringVarP(&diffFormat, "format", "f", "text", "Output format: text, markdown, json")
+	diffTemplateCmd.Flags().BoolVarP(&diffVerbose, "verbose", "v", false, "Show detailed differences")
+}
+
+// diffTemplateCmd compares a file against its canonical template
+var diffTemplateCmd = &cobra.Command{
+	Use:   "template <file>",
+	Short: "Compare a file against its canonical template",
+	Long: `Compare an EPF artifact file against its canonical template.
+
+This command shows structural differences between your file and the template,
+highlighting type mismatches, missing required fields, and structural issues
+that may cause validation errors.
+
+Optimized for AI agents fixing validation errors - shows:
+  - Type mismatches (e.g., string where array expected)
+  - Missing required fields from the template
+  - Extra fields not in template
+  - Structural differences in nested objects/arrays
+
+Examples:
+  epf-cli diff template 01_insight_analyses.yaml
+  epf-cli diff template fd-001.yaml --verbose
+  epf-cli diff template 03_insight_opportunity.yaml --format json`,
+	Args: cobra.ExactArgs(1),
+	Run:  runDiffTemplate,
 }
 
 // DiffResult represents the differences between two sources
@@ -528,4 +560,526 @@ func compareFilesLines(path1, path2 string) ([]string, []string, error) {
 	}
 
 	return lines1, lines2, nil
+}
+
+// TemplateDiffResult represents differences between a file and its template
+type TemplateDiffResult struct {
+	File         string              `json:"file"`
+	ArtifactType string              `json:"artifact_type"`
+	Template     string              `json:"template"`
+	Issues       []TemplateDiffIssue `json:"issues"`
+	Summary      TemplateDiffSummary `json:"summary"`
+}
+
+// TemplateDiffIssue represents a single structural issue
+type TemplateDiffIssue struct {
+	Path         string `json:"path"`
+	IssueType    string `json:"issue_type"` // type_mismatch, missing_field, extra_field, structure_mismatch
+	Priority     string `json:"priority"`   // critical, high, medium, low
+	Message      string `json:"message"`
+	ExpectedType string `json:"expected_type,omitempty"`
+	ActualType   string `json:"actual_type,omitempty"`
+	TemplateHint string `json:"template_hint,omitempty"` // Example from template
+	FixHint      string `json:"fix_hint,omitempty"`
+}
+
+// TemplateDiffSummary summarizes the template comparison
+type TemplateDiffSummary struct {
+	TotalIssues      int      `json:"total_issues"`
+	CriticalCount    int      `json:"critical_count"`
+	HighCount        int      `json:"high_count"`
+	MediumCount      int      `json:"medium_count"`
+	LowCount         int      `json:"low_count"`
+	TypeMismatches   int      `json:"type_mismatches"`
+	MissingFields    int      `json:"missing_fields"`
+	ExtraFields      int      `json:"extra_fields"`
+	AffectedSections []string `json:"affected_sections"`
+}
+
+func runDiffTemplate(cmd *cobra.Command, args []string) {
+	filePath := args[0]
+
+	// Check file exists
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "Error: file not found: %s\n", filePath)
+		os.Exit(1)
+	}
+
+	// Get schemas directory for loader
+	schemasDir, err := GetSchemasDir()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Create loader and detect artifact type
+	loader := schema.NewLoader(schemasDir)
+	if err := loader.Load(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading schemas: %v\n", err)
+		os.Exit(1)
+	}
+
+	artifactType, err := loader.DetectArtifactType(filePath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: cannot detect artifact type for %s\n", filePath)
+		os.Exit(1)
+	}
+
+	// Load template
+	epfRoot, err := GetEPFRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	tmplLoader := template.NewLoader(epfRoot)
+	if err := tmplLoader.Load(); err != nil {
+		// Try embedded
+		tmplLoader = template.NewEmbeddedLoader()
+		if err := tmplLoader.Load(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading templates: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	tmpl, err := tmplLoader.GetTemplate(artifactType)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: no template available for %s\n", artifactType)
+		os.Exit(1)
+	}
+
+	// Parse both files
+	fileData, err := readYAMLFile(filePath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading file: %v\n", err)
+		os.Exit(1)
+	}
+
+	var templateData map[string]interface{}
+	if err := yaml.Unmarshal([]byte(tmpl.Content), &templateData); err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing template: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Compare structure
+	result := compareWithTemplate(filePath, string(artifactType), templateData, fileData)
+
+	// Output result
+	switch strings.ToLower(diffFormat) {
+	case "json":
+		printTemplateDiffJSON(result)
+	case "markdown", "md":
+		printTemplateDiffMarkdown(result)
+	default:
+		printTemplateDiffText(result)
+	}
+
+	// Exit with code 1 if there are issues
+	if len(result.Issues) > 0 {
+		os.Exit(1)
+	}
+}
+
+func compareWithTemplate(filePath, artifactType string, templateData, fileData map[string]interface{}) *TemplateDiffResult {
+	result := &TemplateDiffResult{
+		File:         filePath,
+		ArtifactType: artifactType,
+		Template:     fmt.Sprintf("%s template", artifactType),
+		Issues:       make([]TemplateDiffIssue, 0),
+	}
+
+	// Recursively compare structures
+	issues := compareStructure(templateData, fileData, "")
+	result.Issues = issues
+
+	// Build summary
+	sectionSet := make(map[string]bool)
+	for _, issue := range issues {
+		switch issue.Priority {
+		case "critical":
+			result.Summary.CriticalCount++
+		case "high":
+			result.Summary.HighCount++
+		case "medium":
+			result.Summary.MediumCount++
+		case "low":
+			result.Summary.LowCount++
+		}
+
+		switch issue.IssueType {
+		case "type_mismatch":
+			result.Summary.TypeMismatches++
+		case "missing_field":
+			result.Summary.MissingFields++
+		case "extra_field":
+			result.Summary.ExtraFields++
+		}
+
+		// Extract top-level section
+		parts := strings.Split(issue.Path, ".")
+		if len(parts) > 0 {
+			// Handle array notation
+			section := parts[0]
+			if idx := strings.Index(section, "["); idx > 0 {
+				section = section[:idx]
+			}
+			sectionSet[section] = true
+		}
+	}
+
+	result.Summary.TotalIssues = len(issues)
+	for section := range sectionSet {
+		result.Summary.AffectedSections = append(result.Summary.AffectedSections, section)
+	}
+	sort.Strings(result.Summary.AffectedSections)
+
+	return result
+}
+
+func compareStructure(template, file map[string]interface{}, prefix string) []TemplateDiffIssue {
+	issues := make([]TemplateDiffIssue, 0)
+
+	// Skip meta fields
+	skipFields := map[string]bool{
+		"meta": true,
+	}
+
+	// Check for fields in template that are missing or have wrong types in file
+	for key, tmplVal := range template {
+		if skipFields[key] {
+			continue
+		}
+
+		path := key
+		if prefix != "" {
+			path = prefix + "." + key
+		}
+
+		fileVal, exists := file[key]
+
+		if !exists {
+			// Missing field
+			issues = append(issues, TemplateDiffIssue{
+				Path:         path,
+				IssueType:    "missing_field",
+				Priority:     getMissingFieldPriority(key),
+				Message:      fmt.Sprintf("Field '%s' exists in template but not in file", key),
+				ExpectedType: getValueType(tmplVal),
+				TemplateHint: formatTemplateHint(tmplVal),
+				FixHint:      fmt.Sprintf("Add '%s' field with %s value", key, getValueType(tmplVal)),
+			})
+			continue
+		}
+
+		// Check type compatibility
+		tmplType := getValueType(tmplVal)
+		fileType := getValueType(fileVal)
+
+		if tmplType != fileType {
+			issues = append(issues, TemplateDiffIssue{
+				Path:         path,
+				IssueType:    "type_mismatch",
+				Priority:     "critical",
+				Message:      fmt.Sprintf("Type mismatch: template has %s, file has %s", tmplType, fileType),
+				ExpectedType: tmplType,
+				ActualType:   fileType,
+				TemplateHint: formatTemplateHint(tmplVal),
+				FixHint:      getTypeMismatchHint(tmplType, fileType),
+			})
+			continue
+		}
+
+		// Recursively compare nested structures
+		switch tv := tmplVal.(type) {
+		case map[string]interface{}:
+			if fv, ok := fileVal.(map[string]interface{}); ok {
+				subIssues := compareStructure(tv, fv, path)
+				issues = append(issues, subIssues...)
+			}
+		case []interface{}:
+			if fv, ok := fileVal.([]interface{}); ok {
+				// Compare array item structures if both have items
+				if len(tv) > 0 && len(fv) > 0 {
+					// Check if template item is an object
+					if tmplItem, ok := tv[0].(map[string]interface{}); ok {
+						// Check each file array item against template structure
+						for i, fileItem := range fv {
+							if fi, ok := fileItem.(map[string]interface{}); ok {
+								itemPath := fmt.Sprintf("%s[%d]", path, i)
+								subIssues := compareStructure(tmplItem, fi, itemPath)
+								issues = append(issues, subIssues...)
+							} else {
+								// File item is not an object but template expects object
+								issues = append(issues, TemplateDiffIssue{
+									Path:         fmt.Sprintf("%s[%d]", path, i),
+									IssueType:    "type_mismatch",
+									Priority:     "critical",
+									Message:      fmt.Sprintf("Array item should be object, got %s", getValueType(fileItem)),
+									ExpectedType: "object",
+									ActualType:   getValueType(fileItem),
+									TemplateHint: formatTemplateHint(tmplItem),
+									FixHint:      "Convert array item to object with proper fields",
+								})
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Check for extra fields in file that aren't in template (low priority)
+	if diffVerbose {
+		for key := range file {
+			if skipFields[key] {
+				continue
+			}
+			if _, exists := template[key]; !exists {
+				path := key
+				if prefix != "" {
+					path = prefix + "." + key
+				}
+				issues = append(issues, TemplateDiffIssue{
+					Path:      path,
+					IssueType: "extra_field",
+					Priority:  "low",
+					Message:   fmt.Sprintf("Field '%s' exists in file but not in template", key),
+					FixHint:   "This field may be valid if defined in schema, or may need to be removed",
+				})
+			}
+		}
+	}
+
+	return issues
+}
+
+func getValueType(val interface{}) string {
+	switch v := val.(type) {
+	case map[string]interface{}:
+		return "object"
+	case []interface{}:
+		if len(v) > 0 {
+			itemType := getValueType(v[0])
+			return fmt.Sprintf("array<%s>", itemType)
+		}
+		return "array"
+	case string:
+		return "string"
+	case int, int64, float64:
+		return "number"
+	case bool:
+		return "boolean"
+	case nil:
+		return "null"
+	default:
+		return fmt.Sprintf("%T", val)
+	}
+}
+
+func getMissingFieldPriority(key string) string {
+	// High priority for common required fields
+	highPriorityFields := map[string]bool{
+		"name": true, "id": true, "description": true,
+		"status": true, "type": true, "definition": true,
+	}
+	if highPriorityFields[key] {
+		return "high"
+	}
+	return "medium"
+}
+
+func formatTemplateHint(val interface{}) string {
+	switch v := val.(type) {
+	case map[string]interface{}:
+		keys := make([]string, 0, len(v))
+		for k := range v {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		if len(keys) > 5 {
+			return fmt.Sprintf("{%s, ...} (%d keys)", strings.Join(keys[:5], ", "), len(keys))
+		}
+		return fmt.Sprintf("{%s}", strings.Join(keys, ", "))
+	case []interface{}:
+		if len(v) == 0 {
+			return "[]"
+		}
+		itemHint := formatTemplateHint(v[0])
+		return fmt.Sprintf("[%s, ...] (%d items)", itemHint, len(v))
+	case string:
+		if len(v) > 60 {
+			return fmt.Sprintf("%q...", v[:60])
+		}
+		return fmt.Sprintf("%q", v)
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
+func getTypeMismatchHint(expected, actual string) string {
+	switch {
+	case expected == "array<object>" && actual == "string":
+		return "Convert string to array of objects using YAML list syntax (- item)"
+	case strings.HasPrefix(expected, "array") && actual == "string":
+		return "Convert string to array using YAML list syntax (- item)"
+	case expected == "object" && actual == "string":
+		return "Convert string to object with proper nested fields"
+	case expected == "string" && strings.HasPrefix(actual, "array"):
+		return "Extract single value from array or join array items into string"
+	case expected == "string" && actual == "object":
+		return "Extract relevant string value from object"
+	default:
+		return fmt.Sprintf("Convert %s to %s", actual, expected)
+	}
+}
+
+func printTemplateDiffText(result *TemplateDiffResult) {
+	fmt.Printf("Template Diff: %s\n", result.File)
+	fmt.Printf("Artifact Type: %s\n", result.ArtifactType)
+	fmt.Println(strings.Repeat("-", 60))
+
+	if len(result.Issues) == 0 {
+		fmt.Println("\n✓ File structure matches template")
+		return
+	}
+
+	// Group by priority
+	critical := filterIssues(result.Issues, "critical")
+	high := filterIssues(result.Issues, "high")
+	medium := filterIssues(result.Issues, "medium")
+	low := filterIssues(result.Issues, "low")
+
+	if len(critical) > 0 {
+		fmt.Printf("\n🔴 CRITICAL (%d):\n", len(critical))
+		for _, issue := range critical {
+			printIssueText(issue)
+		}
+	}
+
+	if len(high) > 0 {
+		fmt.Printf("\n🟠 HIGH (%d):\n", len(high))
+		for _, issue := range high {
+			printIssueText(issue)
+		}
+	}
+
+	if len(medium) > 0 {
+		fmt.Printf("\n🟡 MEDIUM (%d):\n", len(medium))
+		for _, issue := range medium {
+			printIssueText(issue)
+		}
+	}
+
+	if len(low) > 0 && diffVerbose {
+		fmt.Printf("\n🔵 LOW (%d):\n", len(low))
+		for _, issue := range low {
+			printIssueText(issue)
+		}
+	}
+
+	fmt.Println()
+	fmt.Println(strings.Repeat("-", 60))
+	fmt.Printf("Summary: %d issues (%d critical, %d high, %d medium, %d low)\n",
+		result.Summary.TotalIssues,
+		result.Summary.CriticalCount,
+		result.Summary.HighCount,
+		result.Summary.MediumCount,
+		result.Summary.LowCount)
+	fmt.Printf("Affected sections: %s\n", strings.Join(result.Summary.AffectedSections, ", "))
+}
+
+func filterIssues(issues []TemplateDiffIssue, priority string) []TemplateDiffIssue {
+	filtered := make([]TemplateDiffIssue, 0)
+	for _, issue := range issues {
+		if issue.Priority == priority {
+			filtered = append(filtered, issue)
+		}
+	}
+	return filtered
+}
+
+func printIssueText(issue TemplateDiffIssue) {
+	fmt.Printf("  • %s\n", issue.Path)
+	fmt.Printf("    %s\n", issue.Message)
+	if issue.TemplateHint != "" {
+		fmt.Printf("    Template: %s\n", issue.TemplateHint)
+	}
+	if issue.FixHint != "" {
+		fmt.Printf("    Fix: %s\n", issue.FixHint)
+	}
+}
+
+func printTemplateDiffMarkdown(result *TemplateDiffResult) {
+	fmt.Printf("# Template Diff Report\n\n")
+	fmt.Printf("**File:** `%s`\n", result.File)
+	fmt.Printf("**Artifact Type:** %s\n\n", result.ArtifactType)
+
+	if len(result.Issues) == 0 {
+		fmt.Println("✓ File structure matches template")
+		fmt.Println()
+		return
+	}
+
+	fmt.Printf("## Summary\n\n")
+	fmt.Printf("- **Total Issues:** %d\n", result.Summary.TotalIssues)
+	fmt.Printf("- **Type Mismatches:** %d\n", result.Summary.TypeMismatches)
+	fmt.Printf("- **Missing Fields:** %d\n", result.Summary.MissingFields)
+	fmt.Printf("- **Extra Fields:** %d\n", result.Summary.ExtraFields)
+	fmt.Printf("- **Affected Sections:** %s\n\n", strings.Join(result.Summary.AffectedSections, ", "))
+
+	// Group by issue type for clearer output
+	typeMismatches := filterIssuesByType(result.Issues, "type_mismatch")
+	missingFields := filterIssuesByType(result.Issues, "missing_field")
+	extraFields := filterIssuesByType(result.Issues, "extra_field")
+
+	if len(typeMismatches) > 0 {
+		fmt.Printf("## Type Mismatches (%d) 🔴\n\n", len(typeMismatches))
+		for _, issue := range typeMismatches {
+			fmt.Printf("### `%s`\n", issue.Path)
+			fmt.Printf("- **Expected:** %s\n", issue.ExpectedType)
+			fmt.Printf("- **Actual:** %s\n", issue.ActualType)
+			if issue.TemplateHint != "" {
+				fmt.Printf("- **Template:** %s\n", issue.TemplateHint)
+			}
+			fmt.Printf("- **Fix:** %s\n\n", issue.FixHint)
+		}
+	}
+
+	if len(missingFields) > 0 {
+		fmt.Printf("## Missing Fields (%d) 🟠\n\n", len(missingFields))
+		for _, issue := range missingFields {
+			fmt.Printf("- `%s` (%s)\n", issue.Path, issue.ExpectedType)
+			if issue.TemplateHint != "" {
+				fmt.Printf("  - Template: %s\n", issue.TemplateHint)
+			}
+		}
+		fmt.Println()
+	}
+
+	if len(extraFields) > 0 && diffVerbose {
+		fmt.Printf("## Extra Fields (%d) 🔵\n\n", len(extraFields))
+		for _, issue := range extraFields {
+			fmt.Printf("- `%s`\n", issue.Path)
+		}
+		fmt.Println()
+	}
+}
+
+func filterIssuesByType(issues []TemplateDiffIssue, issueType string) []TemplateDiffIssue {
+	filtered := make([]TemplateDiffIssue, 0)
+	for _, issue := range issues {
+		if issue.IssueType == issueType {
+			filtered = append(filtered, issue)
+		}
+	}
+	return filtered
+}
+
+func printTemplateDiffJSON(result *TemplateDiffResult) {
+	output, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error formatting JSON: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println(string(output))
 }
