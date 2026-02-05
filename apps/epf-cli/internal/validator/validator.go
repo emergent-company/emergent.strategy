@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/eyedea-io/emergent/apps/epf-cli/internal/embedded"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/schema"
 	"github.com/santhosh-tekuri/jsonschema/v5"
 	"gopkg.in/yaml.v3"
@@ -54,17 +55,12 @@ type Validator struct {
 	compiled   map[schema.ArtifactType]*jsonschema.Schema
 }
 
-// NewValidator creates a new validator with schemas loaded from the given directory
+// NewValidator creates a new validator with schemas loaded from the given directory.
+// If schemasDir is empty or not found, falls back to embedded schemas.
 func NewValidator(schemasDir string) (*Validator, error) {
 	loader := schema.NewLoader(schemasDir)
 	if err := loader.Load(); err != nil {
 		return nil, fmt.Errorf("failed to load schemas: %w", err)
-	}
-
-	// Get absolute path for schema references
-	absDir, err := filepath.Abs(schemasDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
 	compiler := jsonschema.NewCompiler()
@@ -72,37 +68,61 @@ func NewValidator(schemasDir string) (*Validator, error) {
 
 	v := &Validator{
 		loader:     loader,
-		schemasDir: absDir,
+		schemasDir: schemasDir,
 		compiler:   compiler,
 		compiled:   make(map[schema.ArtifactType]*jsonschema.Schema),
 	}
 
-	// First pass: Add ALL schema files as resources so $ref can resolve them
-	// This needs to include all .json files in the schemas directory, not just mapped ones
-	entries, err := os.ReadDir(schemasDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read schemas directory: %w", err)
-	}
-
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
-			continue
-		}
-
-		schemaPath := filepath.Join(schemasDir, entry.Name())
-		data, err := os.ReadFile(schemaPath)
+	// Add schema resources based on source (filesystem or embedded)
+	if loader.IsEmbedded() {
+		// Load from embedded files
+		schemaNames, err := embedded.ListSchemas()
 		if err != nil {
-			continue // Skip unreadable files
+			return nil, fmt.Errorf("failed to list embedded schemas: %w", err)
 		}
 
-		// Use the filename as the schema ID (this matches how $ref works)
-		schemaID := entry.Name()
-		if err := compiler.AddResource(schemaID, strings.NewReader(string(data))); err != nil {
-			return nil, fmt.Errorf("failed to add schema resource %s: %w", entry.Name(), err)
+		for _, name := range schemaNames {
+			data, err := embedded.GetSchema(name)
+			if err != nil {
+				continue // Skip unreadable schemas
+			}
+			if err := compiler.AddResource(name, strings.NewReader(string(data))); err != nil {
+				return nil, fmt.Errorf("failed to add embedded schema resource %s: %w", name, err)
+			}
+		}
+	} else {
+		// Load from filesystem
+		absDir, err := filepath.Abs(schemasDir)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get absolute path: %w", err)
+		}
+		v.schemasDir = absDir
+
+		entries, err := os.ReadDir(schemasDir)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read schemas directory: %w", err)
+		}
+
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+				continue
+			}
+
+			schemaPath := filepath.Join(schemasDir, entry.Name())
+			data, err := os.ReadFile(schemaPath)
+			if err != nil {
+				continue // Skip unreadable files
+			}
+
+			// Use the filename as the schema ID (this matches how $ref works)
+			schemaID := entry.Name()
+			if err := compiler.AddResource(schemaID, strings.NewReader(string(data))); err != nil {
+				return nil, fmt.Errorf("failed to add schema resource %s: %w", entry.Name(), err)
+			}
 		}
 	}
 
-	// Second pass: Compile schemas for artifact types we care about
+	// Compile schemas for artifact types we care about
 	for _, schemaInfo := range loader.ListSchemas() {
 		compiled, err := compiler.Compile(schemaInfo.SchemaFile)
 		if err != nil {
@@ -115,7 +135,7 @@ func NewValidator(schemasDir string) (*Validator, error) {
 	}
 
 	if len(v.compiled) == 0 {
-		return nil, fmt.Errorf("no schemas could be compiled from %s", schemasDir)
+		return nil, fmt.Errorf("no schemas could be compiled from %s", loader.Source())
 	}
 
 	return v, nil

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/eyedea-io/emergent/apps/epf-cli/internal/embedded"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/schema"
 )
 
@@ -153,20 +154,50 @@ var valueModelTemplates = map[string]struct {
 
 // Loader loads and manages EPF templates
 type Loader struct {
-	epfRoot   string
-	templates map[schema.ArtifactType]*TemplateInfo
+	epfRoot    string
+	templates  map[schema.ArtifactType]*TemplateInfo
+	isEmbedded bool
 }
 
 // NewLoader creates a new template loader
 func NewLoader(epfRoot string) *Loader {
 	return &Loader{
-		epfRoot:   epfRoot,
-		templates: make(map[schema.ArtifactType]*TemplateInfo),
+		epfRoot:    epfRoot,
+		templates:  make(map[schema.ArtifactType]*TemplateInfo),
+		isEmbedded: false,
 	}
 }
 
-// Load loads all templates from the EPF directory
+// NewEmbeddedLoader creates a template loader that uses embedded templates
+func NewEmbeddedLoader() *Loader {
+	return &Loader{
+		epfRoot:    "",
+		templates:  make(map[schema.ArtifactType]*TemplateInfo),
+		isEmbedded: true,
+	}
+}
+
+// IsEmbedded returns true if using embedded templates
+func (l *Loader) IsEmbedded() bool {
+	return l.isEmbedded
+}
+
+// Source returns the source of the templates (filesystem path or "embedded")
+func (l *Loader) Source() string {
+	if l.isEmbedded {
+		return "embedded"
+	}
+	return l.epfRoot
+}
+
+// Load loads all templates from the EPF directory or embedded assets
 func (l *Loader) Load() error {
+	// If we're an embedded loader, load directly from embedded
+	if l.isEmbedded {
+		return l.loadFromEmbedded()
+	}
+
+	// Try filesystem first
 	for artifactType, mapping := range templateMapping {
 		templatePath := filepath.Join(l.epfRoot, mapping.Path)
 
@@ -190,7 +221,45 @@ func (l *Loader) Load() error {
 	}
 
 	if len(l.templates) == 0 {
+		// Fall back to embedded templates
+		if embedded.HasEmbeddedArtifacts() {
+			l.isEmbedded = true
+			return l.loadFromEmbedded()
+		}
 		return fmt.Errorf("no templates loaded from %s", l.epfRoot)
+	}
+
+	return nil
+}
+
+// loadFromEmbedded loads templates from embedded assets
+func (l *Loader) loadFromEmbedded() error {
+	for artifactType, mapping := range templateMapping {
+		// Embedded paths are relative to templates/ directory
+		// e.g., "templates/READY/00_north_star.yaml" -> "READY/00_north_star.yaml"
+		embeddedPath := strings.TrimPrefix(mapping.Path, "templates/")
+
+		// Read from embedded
+		content, err := embedded.GetTemplate(embeddedPath)
+		if err != nil {
+			// Template doesn't exist in embedded - skip
+			continue
+		}
+
+		l.templates[artifactType] = &TemplateInfo{
+			ArtifactType: artifactType,
+			Phase:        mapping.Phase,
+			Name:         mapping.Name,
+			Description:  mapping.Description,
+			FilePath:     mapping.Path,
+			Content:      string(content),
+			SchemaFile:   schema.SchemaFilename(artifactType),
+			UsageHint:    mapping.UsageHint,
+		}
+	}
+
+	if len(l.templates) == 0 {
+		return fmt.Errorf("no templates loaded from embedded assets")
 	}
 
 	return nil

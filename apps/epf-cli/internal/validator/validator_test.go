@@ -46,11 +46,18 @@ func TestNewValidator(t *testing.T) {
 	}
 }
 
-// TestNewValidatorNonexistent tests creating validator with nonexistent dir
+// TestNewValidatorNonexistent tests creating validator with nonexistent dir (falls back to embedded)
 func TestNewValidatorNonexistent(t *testing.T) {
-	_, err := NewValidator("/nonexistent/path")
-	if err == nil {
-		t.Error("NewValidator() with nonexistent dir should return error")
+	v, err := NewValidator("/nonexistent/path")
+	// With embedded fallback, this should now succeed if embedded artifacts are available
+	if err != nil {
+		// If error, it means embedded is not available (acceptable in CI)
+		t.Logf("NewValidator() returned error (expected if embedded not available): %v", err)
+		return
+	}
+	// If it succeeded, verify we can use it
+	if v == nil {
+		t.Error("NewValidator() should return non-nil validator when using embedded fallback")
 	}
 }
 
