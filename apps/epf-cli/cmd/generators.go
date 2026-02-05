@@ -907,6 +907,268 @@ Examples:
 	},
 }
 
+var copyGeneratorCmd = &cobra.Command{
+	Use:   "copy <name> <destination>",
+	Short: "Copy a generator to another location",
+	Long: `Copy a generator to another EPF instance or to your global generators.
+
+This allows you to share generators between product repos or make a generator
+available globally across all your projects.
+
+Destinations:
+  global              Copy to ~/.epf-cli/generators/ (available everywhere)
+  instance            Copy to current instance's generators/ directory
+  <path>              Copy to a specific directory path
+
+Examples:
+  # Copy to global (available in all projects)
+  epf-cli generators copy my-generator global
+
+  # Copy to another instance
+  epf-cli generators copy my-generator instance --to-instance /path/to/other/instance
+
+  # Copy with a new name
+  epf-cli generators copy context-sheet global --as my-context-sheet
+
+  # Copy to a specific path
+  epf-cli generators copy my-generator /path/to/destination`,
+	Args: cobra.ExactArgs(2),
+	Run: func(cmd *cobra.Command, args []string) {
+		name := args[0]
+		dest := args[1]
+
+		var loader *generator.Loader
+
+		epfRoot, err := GetEPFRoot()
+		if err != nil {
+			if embedded.HasEmbeddedArtifacts() {
+				loader = generator.NewEmbeddedLoader()
+			} else {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
+			}
+		} else {
+			loader = generator.NewLoader(epfRoot)
+		}
+
+		// Set instance root if available
+		if epfContext != nil && epfContext.InstancePath != "" {
+			loader.SetInstanceRoot(epfContext.InstancePath)
+		}
+
+		if err := loader.Load(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading generators: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Get flags
+		newName, _ := cmd.Flags().GetString("as")
+		toInstance, _ := cmd.Flags().GetString("to-instance")
+		force, _ := cmd.Flags().GetBool("force")
+
+		// Determine destination type
+		opts := generator.CopyOptions{
+			Name:    name,
+			NewName: newName,
+			Force:   force,
+		}
+
+		switch strings.ToLower(dest) {
+		case "global":
+			opts.Destination = generator.DestGlobal
+		case "instance":
+			opts.Destination = generator.DestInstance
+			if toInstance != "" {
+				opts.InstancePath = toInstance
+			} else if epfContext != nil && epfContext.InstancePath != "" {
+				opts.InstancePath = epfContext.InstancePath
+			} else {
+				fmt.Fprintln(os.Stderr, "Error: No instance detected. Use --to-instance to specify target instance.")
+				os.Exit(1)
+			}
+		default:
+			// Treat as path
+			opts.Destination = generator.DestPath
+			opts.DestinationPath = dest
+		}
+
+		result, err := loader.Copy(opts)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Printf("Copied generator '%s' to %s\n", name, result.DestinationPath)
+		fmt.Printf("Files copied: %d\n", len(result.FilesCopied))
+		if result.NewName != name {
+			fmt.Printf("Renamed to: %s\n", result.NewName)
+		}
+	},
+}
+
+var exportGeneratorCmd = &cobra.Command{
+	Use:   "export <name>",
+	Short: "Export a generator as a shareable archive",
+	Long: `Export a generator as a .tar.gz archive for sharing.
+
+This creates a portable archive that can be shared with team members,
+uploaded to a repository, or installed in other environments.
+
+Examples:
+  # Export to current directory
+  epf-cli generators export my-generator
+
+  # Export to specific file
+  epf-cli generators export my-generator -o /path/to/my-generator.tar.gz
+
+  # Include README in export
+  epf-cli generators export my-generator --include-readme`,
+	Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		name := args[0]
+
+		var loader *generator.Loader
+
+		epfRoot, err := GetEPFRoot()
+		if err != nil {
+			if embedded.HasEmbeddedArtifacts() {
+				loader = generator.NewEmbeddedLoader()
+			} else {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
+			}
+		} else {
+			loader = generator.NewLoader(epfRoot)
+		}
+
+		// Set instance root if available
+		if epfContext != nil && epfContext.InstancePath != "" {
+			loader.SetInstanceRoot(epfContext.InstancePath)
+		}
+
+		if err := loader.Load(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading generators: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Get flags
+		outputPath, _ := cmd.Flags().GetString("output")
+		includeReadme, _ := cmd.Flags().GetBool("include-readme")
+
+		opts := generator.ExportOptions{
+			Name:          name,
+			OutputPath:    outputPath,
+			IncludeReadme: includeReadme,
+		}
+
+		result, err := loader.Export(opts)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Printf("Exported generator '%s'\n", name)
+		fmt.Printf("Archive: %s\n", result.ArchivePath)
+		fmt.Printf("Files: %d\n", len(result.FilesExported))
+		fmt.Printf("Size: %d bytes\n", result.SizeBytes)
+		fmt.Println("\nTo install this generator elsewhere:")
+		fmt.Printf("  epf-cli generators install %s\n", result.ArchivePath)
+	},
+}
+
+var installGeneratorCmd = &cobra.Command{
+	Use:   "install <source>",
+	Short: "Install a generator from an archive, URL, or directory",
+	Long: `Install a generator from various sources.
+
+Sources can be:
+  - Local .tar.gz archive (exported with 'generators export')
+  - URL to a .tar.gz archive
+  - Local directory containing a generator
+
+By default, generators are installed to your global generators directory
+(~/.epf-cli/generators/), making them available across all projects.
+
+Examples:
+  # Install from local archive
+  epf-cli generators install my-generator.tar.gz
+
+  # Install from URL
+  epf-cli generators install https://example.com/generators/my-generator.tar.gz
+
+  # Install from directory
+  epf-cli generators install /path/to/generator-dir
+
+  # Install to current instance instead of global
+  epf-cli generators install my-generator.tar.gz --to instance
+
+  # Install with a different name
+  epf-cli generators install my-generator.tar.gz --as custom-name
+
+  # Install to specific path
+  epf-cli generators install my-generator.tar.gz --to /path/to/dest`,
+	Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		source := args[0]
+
+		// Get flags
+		newName, _ := cmd.Flags().GetString("as")
+		destStr, _ := cmd.Flags().GetString("to")
+		force, _ := cmd.Flags().GetBool("force")
+
+		// Determine source type
+		opts := generator.InstallOptions{
+			SourcePath: source,
+			NewName:    newName,
+			Force:      force,
+		}
+
+		// Determine source type
+		if strings.HasPrefix(source, "http://") || strings.HasPrefix(source, "https://") {
+			opts.Source = generator.SourceURL
+		} else if info, err := os.Stat(source); err == nil && info.IsDir() {
+			opts.Source = generator.SourceDirectory
+		} else {
+			opts.Source = generator.SourceFile
+		}
+
+		// Determine destination
+		switch strings.ToLower(destStr) {
+		case "", "global":
+			opts.Destination = generator.DestGlobal
+		case "instance":
+			opts.Destination = generator.DestInstance
+			if epfContext != nil && epfContext.InstancePath != "" {
+				opts.InstancePath = epfContext.InstancePath
+			} else {
+				fmt.Fprintln(os.Stderr, "Error: No instance detected. Cannot install to instance.")
+				os.Exit(1)
+			}
+		default:
+			// Treat as path
+			opts.Destination = generator.DestPath
+			opts.DestinationPath = destStr
+		}
+
+		result, err := generator.Install(opts)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Printf("Installed generator '%s'\n", result.GeneratorName)
+		fmt.Printf("Location: %s\n", result.DestinationPath)
+		fmt.Printf("Files: %d\n", len(result.FilesInstalled))
+
+		// Show where it will be available
+		if opts.Destination == generator.DestGlobal {
+			fmt.Println("\nThis generator is now available globally in all EPF projects.")
+		} else if opts.Destination == generator.DestInstance {
+			fmt.Println("\nThis generator is now available in the current instance.")
+		}
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(generatorsCmd)
 	generatorsCmd.AddCommand(listGeneratorsCmd)
@@ -914,6 +1176,9 @@ func init() {
 	generatorsCmd.AddCommand(checkGeneratorCmd)
 	generatorsCmd.AddCommand(validateGeneratorCmd)
 	generatorsCmd.AddCommand(scaffoldGeneratorCmd)
+	generatorsCmd.AddCommand(copyGeneratorCmd)
+	generatorsCmd.AddCommand(exportGeneratorCmd)
+	generatorsCmd.AddCommand(installGeneratorCmd)
 
 	// List flags
 	listGeneratorsCmd.Flags().String("category", "", "filter by category (compliance, marketing, investor, internal, development, custom)")
@@ -941,4 +1206,18 @@ func init() {
 	scaffoldGeneratorCmd.Flags().StringSlice("requires", []string{}, "required EPF artifacts (e.g., --requires north_star,strategy_formula)")
 	scaffoldGeneratorCmd.Flags().StringSlice("optional", []string{}, "optional EPF artifacts")
 	scaffoldGeneratorCmd.Flags().StringSlice("region", []string{}, "geographic regions (e.g., --region NO,GB)")
+
+	// Copy flags
+	copyGeneratorCmd.Flags().String("as", "", "new name for the copied generator")
+	copyGeneratorCmd.Flags().String("to-instance", "", "target instance path (when destination is 'instance')")
+	copyGeneratorCmd.Flags().BoolP("force", "f", false, "overwrite existing generator")
+
+	// Export flags
+	exportGeneratorCmd.Flags().StringP("output", "o", "", "output file path (defaults to <name>.tar.gz)")
+	exportGeneratorCmd.Flags().Bool("include-readme", false, "include README.md in export")
+
+	// Install flags
+	installGeneratorCmd.Flags().String("as", "", "install with a different name")
+	installGeneratorCmd.Flags().String("to", "global", "destination: global, instance, or path")
+	installGeneratorCmd.Flags().BoolP("force", "f", false, "overwrite existing generator")
 }
