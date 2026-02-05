@@ -22,14 +22,10 @@ Examples:
   epf-cli schemas --phase READY             # List only READY phase schemas
   epf-cli schemas --json                    # Output as JSON`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Get schemas directory
-		schemasPath, err := GetSchemasDir()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
-		}
+		// Get schemas directory (may be empty if using embedded)
+		schemasPath, _ := GetSchemasDir()
 
-		// Create validator (which loads schemas)
+		// Create validator (which loads schemas, with embedded fallback)
 		val, err := validator.NewValidator(schemasPath)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error loading schemas: %v\n", err)
@@ -65,8 +61,8 @@ Examples:
 			schemas = filtered
 		}
 
-		// Print schemas
-		fmt.Printf("EPF Schemas (loaded from %s)\n\n", schemasPath)
+		// Print schemas with source info
+		fmt.Printf("EPF Schemas (loaded from %s)\n\n", loader.Source())
 
 		currentPhase := ""
 		for _, s := range schemas {

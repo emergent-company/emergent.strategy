@@ -34,7 +34,8 @@ func InitGlobals() error {
 	return nil
 }
 
-// GetSchemasDir returns the path to the schemas directory
+// GetSchemasDir returns the path to the schemas directory.
+// Returns empty string if no filesystem schemas are found (embedded fallback may be used).
 func GetSchemasDir() (string, error) {
 	// Priority 1: --schemas-dir flag (if we add it)
 	// For now, skip this
@@ -75,7 +76,8 @@ func GetSchemasDir() (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("could not find schemas directory. Set canonical_path in ~/.epf-cli.yaml or use --schemas-dir")
+	// Return empty string - the schema loader will fall back to embedded
+	return "", nil
 }
 
 // GetInstancePath returns the path to the current EPF instance

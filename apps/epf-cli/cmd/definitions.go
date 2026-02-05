@@ -225,6 +225,6 @@ func init() {
 	definitionsCmd.AddCommand(showDefinitionCmd)
 
 	listDefinitionsCmd.Flags().StringP("track", "t", "", "filter by track (product, strategy, org_ops, commercial)")
-	listDefinitionsCmd.Flags().StringP("category", "c", "", "filter by category")
+	listDefinitionsCmd.Flags().String("category", "", "filter by category")
 	showDefinitionCmd.Flags().Bool("content-only", false, "show only the definition content without metadata")
 }

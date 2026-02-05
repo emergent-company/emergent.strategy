@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/eyedea-io/emergent/apps/epf-cli/internal/embedded"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/generator"
 	"github.com/spf13/cobra"
 )
@@ -54,13 +55,21 @@ var listGeneratorsCmd = &cobra.Command{
 
 Generators are organized by category and source location.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		var loader *generator.Loader
+		var sourceLabel string
+
 		epfRoot, err := GetEPFRoot()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			// Fall back to embedded generators
+			if embedded.HasEmbeddedArtifacts() {
+				loader = generator.NewEmbeddedLoader()
+			} else {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
+			}
+		} else {
+			loader = generator.NewLoader(epfRoot)
 		}
-
-		loader := generator.NewLoader(epfRoot)
 
 		// Set instance root if available
 		if epfContext != nil && epfContext.InstancePath != "" {
@@ -72,9 +81,16 @@ Generators are organized by category and source location.`,
 			os.Exit(1)
 		}
 
+		sourceLabel = loader.Source()
+		if sourceLabel == "" && epfRoot != "" {
+			sourceLabel = epfRoot
+		}
+
 		if !loader.HasGenerators() {
 			fmt.Println("No generators found.")
-			fmt.Printf("Expected location: %s/outputs/\n", epfRoot)
+			if epfRoot != "" {
+				fmt.Printf("Expected location: %s/outputs/\n", epfRoot)
+			}
 			return
 		}
 
@@ -118,7 +134,7 @@ Generators are organized by category and source location.`,
 			return
 		}
 
-		fmt.Printf("EPF Output Generators (loaded from %s/outputs/)\n\n", epfRoot)
+		fmt.Printf("EPF Output Generators (loaded from %s)\n\n", sourceLabel)
 
 		if categoryFilter != "" {
 			fmt.Printf("Filtered by category: %s\n", categoryFilter)
@@ -277,13 +293,20 @@ Examples:
   epf-cli generators show development-brief --wizard`,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		var loader *generator.Loader
+
 		epfRoot, err := GetEPFRoot()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			// Fall back to embedded generators
+			if embedded.HasEmbeddedArtifacts() {
+				loader = generator.NewEmbeddedLoader()
+			} else {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
+			}
+		} else {
+			loader = generator.NewLoader(epfRoot)
 		}
-
-		loader := generator.NewLoader(epfRoot)
 
 		// Set instance root if available
 		if epfContext != nil && epfContext.InstancePath != "" {
@@ -475,13 +498,20 @@ Examples:
   epf-cli generators check skattefunn-application`,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		var loader *generator.Loader
+
 		epfRoot, err := GetEPFRoot()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			// Fall back to embedded generators
+			if embedded.HasEmbeddedArtifacts() {
+				loader = generator.NewEmbeddedLoader()
+			} else {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
+			}
+		} else {
+			loader = generator.NewLoader(epfRoot)
 		}
-
-		loader := generator.NewLoader(epfRoot)
 
 		// Set instance root if available
 		if epfContext != nil && epfContext.InstancePath != "" {
@@ -629,13 +659,20 @@ Examples:
 		generatorName := args[0]
 		filePath := args[1]
 
+		var loader *generator.Loader
+
 		epfRoot, err := GetEPFRoot()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			// Fall back to embedded generators
+			if embedded.HasEmbeddedArtifacts() {
+				loader = generator.NewEmbeddedLoader()
+			} else {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
+			}
+		} else {
+			loader = generator.NewLoader(epfRoot)
 		}
-
-		loader := generator.NewLoader(epfRoot)
 
 		// Set instance root if available
 		if epfContext != nil && epfContext.InstancePath != "" {
