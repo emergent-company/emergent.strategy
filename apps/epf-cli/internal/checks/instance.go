@@ -158,6 +158,12 @@ func (c *InstanceChecker) Check() *CheckSummary {
 	// Check for framework separation (shouldn't have schemas/, wizards/ etc.)
 	c.checkFrameworkSeparation(summary)
 
+	// Check AIM phase files (LRA)
+	c.checkAIMFiles(summary)
+
+	// Check structure location (docs/epf/ vs root)
+	c.checkStructureLocation(summary)
+
 	return summary
 }
 
@@ -538,6 +544,78 @@ func (c *InstanceChecker) checkFrameworkSeparation(summary *CheckSummary) {
 			Severity: SeverityInfo,
 			Message:  "Instance properly separated from framework",
 			Path:     c.instancePath,
+		})
+	}
+}
+
+func (c *InstanceChecker) checkAIMFiles(summary *CheckSummary) {
+	// Check if AIM directory exists
+	aimPath := c.getAIMPath()
+	if _, err := os.Stat(aimPath); os.IsNotExist(err) {
+		// AIM directory doesn't exist - this is already handled in checkPhaseDirectories
+		return
+	}
+
+	// Check for Living Reality Assessment (LRA)
+	lraPath := filepath.Join(aimPath, "living_reality_assessment.yaml")
+	if _, err := os.Stat(lraPath); os.IsNotExist(err) {
+		summary.Add(&CheckResult{
+			Check:    "aim_lra",
+			Passed:   false,
+			Severity: SeverityWarning,
+			Message:  "Living Reality Assessment not found. Run 'epf-cli aim bootstrap' to create baseline.",
+			Path:     lraPath,
+		})
+	} else {
+		summary.Add(&CheckResult{
+			Check:    "aim_lra",
+			Passed:   true,
+			Severity: SeverityInfo,
+			Message:  "Living Reality Assessment exists",
+			Path:     lraPath,
+		})
+	}
+}
+
+func (c *InstanceChecker) checkStructureLocation(summary *CheckSummary) {
+	// Check if instance is in recommended docs/epf/ structure
+	absPath, err := filepath.Abs(c.instancePath)
+	if err != nil {
+		return // Can't determine location
+	}
+
+	// Check if path contains docs/epf/ or docs/EPF/
+	pathLower := strings.ToLower(absPath)
+	if strings.Contains(pathLower, "/docs/epf/_instances/") {
+		summary.Add(&CheckResult{
+			Check:    "structure_location",
+			Passed:   true,
+			Severity: SeverityInfo,
+			Message:  "EPF instance in recommended location (docs/epf/)",
+			Path:     absPath,
+		})
+	} else if strings.Contains(absPath, "/_instances/") {
+		// Found at root level
+		summary.Add(&CheckResult{
+			Check:    "structure_location",
+			Passed:   false,
+			Severity: SeverityWarning,
+			Message:  "EPF instance at root level. Run 'epf-cli migrate-structure' to move to docs/epf/",
+			Path:     absPath,
+			Details: []string{
+				"Recommended: docs/epf/_instances/{product}/",
+				"Current: _instances/{product}/ (root level)",
+				"Benefits: Separation from code, easier CI/CD exclusion, follows conventions",
+			},
+		})
+	} else {
+		// Non-standard location
+		summary.Add(&CheckResult{
+			Check:    "structure_location",
+			Passed:   true,
+			Severity: SeverityInfo,
+			Message:  "EPF instance in custom location",
+			Path:     absPath,
 		})
 	}
 }

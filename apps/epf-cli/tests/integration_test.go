@@ -183,14 +183,14 @@ func TestCLI_Validate_SingleFile(t *testing.T) {
 		t.Skip("north_star.yaml not found")
 	}
 
-	cmd := exec.Command(cli, "validate", northStarPath)
+	cmd := exec.Command(cli, "validate", "-v", northStarPath)
 	output, err := cmd.CombinedOutput()
 
 	outputStr := string(output)
 
-	// Should mention the file
+	// With verbose flag, should mention the file
 	if !strings.Contains(outputStr, "north_star") {
-		t.Errorf("Expected output to mention north_star, got: %s", outputStr)
+		t.Errorf("Expected output to mention north_star (with -v flag), got: %s", outputStr)
 	}
 
 	t.Logf("Validate output:\n%s", outputStr)
@@ -905,6 +905,314 @@ func TestCLI_Coverage_JSON(t *testing.T) {
 	}
 
 	t.Logf("Coverage JSON output:\n%s", outputStr)
+}
+
+// =============================================================================
+// AI-Friendly Validation Integration Tests (v0.11.0)
+// =============================================================================
+
+func TestCLI_Validate_AIFriendly(t *testing.T) {
+	cli := buildCLI(t)
+	instancePath := findTestInstance()
+	if instancePath == "" {
+		t.Skip("Test instance not found - skipping AI-friendly validation tests")
+	}
+
+	// Validate a file with --ai-friendly flag
+	northStarPath := filepath.Join(instancePath, "READY", "00_north_star.yaml")
+	if _, err := os.Stat(northStarPath); os.IsNotExist(err) {
+		t.Skip("north_star.yaml not found")
+	}
+
+	cmd := exec.Command(cli, "validate", "--ai-friendly", northStarPath)
+	output, err := cmd.CombinedOutput()
+
+	outputStr := string(output)
+
+	// Should produce YAML output - could be single file result or summary
+	// For valid files it shows summary, for invalid files it shows details
+	if !strings.Contains(outputStr, "file:") && !strings.Contains(outputStr, "total_files:") {
+		t.Errorf("Expected 'file:' or 'total_files:' field in AI-friendly output, got: %s", outputStr)
+	}
+
+	// Should have some form of artifact type or results indication
+	if !strings.Contains(outputStr, "artifact_type:") && !strings.Contains(outputStr, "results:") {
+		t.Errorf("Expected 'artifact_type:' or 'results:' field in AI-friendly output, got: %s", outputStr)
+	}
+
+	// Should have validity indication
+	if !strings.Contains(outputStr, "valid:") && !strings.Contains(outputStr, "files_with_errors:") {
+		t.Errorf("Expected 'valid:' or 'files_with_errors:' field in AI-friendly output, got: %s", outputStr)
+	}
+
+	t.Logf("AI-friendly output:\n%s", outputStr[:min(len(outputStr), 1500)])
+	_ = err // Validation might find issues
+}
+
+func TestCLI_Validate_AIFriendly_JSON(t *testing.T) {
+	cli := buildCLI(t)
+	instancePath := findTestInstance()
+	if instancePath == "" {
+		t.Skip("Test instance not found - skipping AI-friendly validation tests")
+	}
+
+	northStarPath := filepath.Join(instancePath, "READY", "00_north_star.yaml")
+	if _, err := os.Stat(northStarPath); os.IsNotExist(err) {
+		t.Skip("north_star.yaml not found")
+	}
+
+	cmd := exec.Command(cli, "validate", "--ai-friendly", "--json", northStarPath)
+	output, err := cmd.CombinedOutput()
+
+	outputStr := string(output)
+
+	// Should be valid JSON
+	if !strings.HasPrefix(strings.TrimSpace(outputStr), "{") && !strings.HasPrefix(strings.TrimSpace(outputStr), "[") {
+		t.Errorf("Expected JSON output, got: %s", outputStr)
+	}
+
+	// Should contain expected JSON fields - either for single file or summary
+	if !strings.Contains(outputStr, "\"file\"") && !strings.Contains(outputStr, "\"total_files\"") {
+		t.Errorf("Expected 'file' or 'total_files' field in JSON output, got: %s", outputStr)
+	}
+
+	t.Logf("AI-friendly JSON output:\n%s", outputStr[:min(len(outputStr), 1500)])
+	_ = err
+}
+
+func TestCLI_Validate_FixPlan(t *testing.T) {
+	cli := buildCLI(t)
+	instancePath := findTestInstance()
+	if instancePath == "" {
+		t.Skip("Test instance not found - skipping fix plan tests")
+	}
+
+	// Use insight_analyses which typically has more complex structure
+	insightPath := filepath.Join(instancePath, "READY", "01_insight_analyses.yaml")
+	if _, err := os.Stat(insightPath); os.IsNotExist(err) {
+		// Fall back to north_star
+		insightPath = filepath.Join(instancePath, "READY", "00_north_star.yaml")
+		if _, err := os.Stat(insightPath); os.IsNotExist(err) {
+			t.Skip("No READY files found for fix plan test")
+		}
+	}
+
+	cmd := exec.Command(cli, "validate", "--fix-plan", insightPath)
+	output, err := cmd.CombinedOutput()
+
+	outputStr := string(output)
+
+	// Should produce fix plan output with expected fields - single file or summary
+	if !strings.Contains(outputStr, "file:") && !strings.Contains(outputStr, "total_files:") {
+		t.Errorf("Expected 'file:' or 'total_files:' field in fix plan output, got: %s", outputStr)
+	}
+
+	// Should have some form of error count
+	if !strings.Contains(outputStr, "total_errors:") {
+		t.Errorf("Expected 'total_errors:' in fix plan output, got: %s", outputStr)
+	}
+
+	// Should have chunk count
+	if !strings.Contains(outputStr, "total_chunks:") {
+		t.Errorf("Expected 'total_chunks:' in fix plan output, got: %s", outputStr)
+	}
+
+	t.Logf("Fix plan output:\n%s", outputStr[:min(len(outputStr), 2000)])
+	_ = err
+}
+
+func TestCLI_Validate_FixPlan_JSON(t *testing.T) {
+	cli := buildCLI(t)
+	instancePath := findTestInstance()
+	if instancePath == "" {
+		t.Skip("Test instance not found - skipping fix plan tests")
+	}
+
+	insightPath := filepath.Join(instancePath, "READY", "01_insight_analyses.yaml")
+	if _, err := os.Stat(insightPath); os.IsNotExist(err) {
+		insightPath = filepath.Join(instancePath, "READY", "00_north_star.yaml")
+		if _, err := os.Stat(insightPath); os.IsNotExist(err) {
+			t.Skip("No READY files found for fix plan test")
+		}
+	}
+
+	cmd := exec.Command(cli, "validate", "--fix-plan", "--json", insightPath)
+	output, err := cmd.CombinedOutput()
+
+	outputStr := string(output)
+
+	// Should be valid JSON
+	if !strings.HasPrefix(strings.TrimSpace(outputStr), "{") {
+		t.Errorf("Expected JSON output, got: %s", outputStr)
+	}
+
+	// Should contain expected JSON fields
+	if !strings.Contains(outputStr, "\"total_errors\"") {
+		t.Errorf("Expected 'total_errors' field in JSON output, got: %s", outputStr)
+	}
+
+	if !strings.Contains(outputStr, "\"total_chunks\"") {
+		t.Errorf("Expected 'total_chunks' field in JSON output, got: %s", outputStr)
+	}
+
+	t.Logf("Fix plan JSON output:\n%s", outputStr[:min(len(outputStr), 2000)])
+	_ = err
+}
+
+func TestCLI_Validate_FixPlan_WithExamples(t *testing.T) {
+	cli := buildCLI(t)
+	instancePath := findTestInstance()
+	if instancePath == "" {
+		t.Skip("Test instance not found - skipping fix plan example tests")
+	}
+
+	insightPath := filepath.Join(instancePath, "READY", "01_insight_analyses.yaml")
+	if _, err := os.Stat(insightPath); os.IsNotExist(err) {
+		t.Skip("insight_analyses.yaml not found for example test")
+	}
+
+	cmd := exec.Command(cli, "validate", "--fix-plan", "--json", insightPath)
+	output, err := cmd.CombinedOutput()
+
+	outputStr := string(output)
+
+	// If there are errors and chunks, check for examples
+	if strings.Contains(outputStr, "\"chunks\"") && strings.Contains(outputStr, "\"error_count\"") {
+		// At least some chunks should have examples (if templates are available)
+		if strings.Contains(outputStr, "\"example\"") {
+			t.Logf("Fix plan includes template examples (good!)")
+		} else {
+			t.Logf("Note: Fix plan has no examples (templates may not be available)")
+		}
+	}
+
+	t.Logf("Fix plan with examples output:\n%s", outputStr[:min(len(outputStr), 2500)])
+	_ = err
+}
+
+func TestCLI_Validate_Section(t *testing.T) {
+	cli := buildCLI(t)
+	instancePath := findTestInstance()
+	if instancePath == "" {
+		t.Skip("Test instance not found - skipping section validation tests")
+	}
+
+	northStarPath := filepath.Join(instancePath, "READY", "00_north_star.yaml")
+	if _, err := os.Stat(northStarPath); os.IsNotExist(err) {
+		t.Skip("north_star.yaml not found")
+	}
+
+	// Validate just the 'meta' section (which should exist in most EPF files)
+	cmd := exec.Command(cli, "validate", "--section", "meta", "--ai-friendly", northStarPath)
+	output, err := cmd.CombinedOutput()
+
+	outputStr := string(output)
+
+	// Should produce AI-friendly output for just the section
+	if !strings.Contains(outputStr, "file:") {
+		t.Errorf("Expected 'file:' field in section validation output, got: %s", outputStr)
+	}
+
+	// Section field should be present
+	if !strings.Contains(outputStr, "section:") {
+		t.Errorf("Expected 'section:' field in output, got: %s", outputStr)
+	}
+
+	t.Logf("Section validation output:\n%s", outputStr[:min(len(outputStr), 1500)])
+	_ = err
+}
+
+func TestCLI_Validate_Sections(t *testing.T) {
+	cli := buildCLI(t)
+	instancePath := findTestInstance()
+	if instancePath == "" {
+		t.Skip("Test instance not found - skipping multi-section validation tests")
+	}
+
+	northStarPath := filepath.Join(instancePath, "READY", "00_north_star.yaml")
+	if _, err := os.Stat(northStarPath); os.IsNotExist(err) {
+		t.Skip("north_star.yaml not found")
+	}
+
+	// Validate multiple sections using common EPF fields
+	cmd := exec.Command(cli, "validate", "--sections", "meta,north_star", northStarPath)
+	output, err := cmd.CombinedOutput()
+
+	outputStr := string(output)
+
+	// Should produce output with file indication or summary
+	if !strings.Contains(outputStr, "File:") && !strings.Contains(outputStr, "file:") {
+		t.Errorf("Expected file path in validation output, got: %s", outputStr)
+	}
+
+	// Should mention section or summary
+	if !strings.Contains(outputStr, "Section") && !strings.Contains(outputStr, "section") && !strings.Contains(outputStr, "Summary") {
+		t.Errorf("Expected section-related output, got: %s", outputStr)
+	}
+
+	t.Logf("Multi-section validation output:\n%s", outputStr[:min(len(outputStr), 1500)])
+	_ = err
+}
+
+func TestCLI_DiffTemplate(t *testing.T) {
+	cli := buildCLI(t)
+	instancePath := findTestInstance()
+	if instancePath == "" {
+		t.Skip("Test instance not found - skipping diff template tests")
+	}
+
+	northStarPath := filepath.Join(instancePath, "READY", "00_north_star.yaml")
+	if _, err := os.Stat(northStarPath); os.IsNotExist(err) {
+		t.Skip("north_star.yaml not found")
+	}
+
+	cmd := exec.Command(cli, "diff", "template", northStarPath)
+	output, err := cmd.CombinedOutput()
+
+	outputStr := string(output)
+
+	// Should show template diff output
+	if !strings.Contains(outputStr, "Template Diff") && !strings.Contains(outputStr, "Artifact Type") {
+		t.Errorf("Expected template diff output, got: %s", outputStr)
+	}
+
+	t.Logf("Diff template output:\n%s", outputStr[:min(len(outputStr), 2000)])
+	_ = err // Diff might find issues, that's expected
+}
+
+func TestCLI_DiffTemplate_JSON(t *testing.T) {
+	cli := buildCLI(t)
+	instancePath := findTestInstance()
+	if instancePath == "" {
+		t.Skip("Test instance not found - skipping diff template tests")
+	}
+
+	northStarPath := filepath.Join(instancePath, "READY", "00_north_star.yaml")
+	if _, err := os.Stat(northStarPath); os.IsNotExist(err) {
+		t.Skip("north_star.yaml not found")
+	}
+
+	cmd := exec.Command(cli, "diff", "template", "--format", "json", northStarPath)
+	output, err := cmd.CombinedOutput()
+
+	outputStr := string(output)
+
+	// Should be valid JSON
+	if !strings.HasPrefix(strings.TrimSpace(outputStr), "{") {
+		t.Errorf("Expected JSON output, got: %s", outputStr)
+	}
+
+	// Should contain expected fields
+	if !strings.Contains(outputStr, "\"file\"") {
+		t.Errorf("Expected 'file' field in JSON output, got: %s", outputStr)
+	}
+
+	if !strings.Contains(outputStr, "\"artifact_type\"") {
+		t.Errorf("Expected 'artifact_type' field in JSON output, got: %s", outputStr)
+	}
+
+	t.Logf("Diff template JSON output:\n%s", outputStr[:min(len(outputStr), 2000)])
+	_ = err
 }
 
 // Helper function for min (Go 1.21+)

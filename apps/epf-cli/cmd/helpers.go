@@ -117,15 +117,37 @@ func GetInstancePath(arg interface{}) (string, error) {
 		}
 		// Try relative path
 		cwd, _ := os.Getwd()
+		var foundAtRoot bool
+		var rootInstancePath string
+
 		for _, base := range []string{
 			filepath.Join(cwd, "docs", "EPF", "_instances"),
+			filepath.Join(cwd, "docs", "epf", "_instances"),
 			filepath.Join(cwd, "_instances"),
 		} {
 			instancePath := filepath.Join(base, instanceName)
 			if _, err := os.Stat(instancePath); err == nil {
+				// Check if this is root-level
+				if base == filepath.Join(cwd, "_instances") {
+					foundAtRoot = true
+					rootInstancePath = instancePath
+					continue // Keep looking for docs/epf/ version
+				}
+
 				return instancePath, nil
 			}
 		}
+
+		// If only found at root, return it with a warning
+		if foundAtRoot && rootInstancePath != "" {
+			fmt.Fprintf(os.Stderr, "\n⚠️  Warning: EPF found at root level\n\n")
+			fmt.Fprintf(os.Stderr, "EPF artifacts should be under docs/epf/ for better organization.\n")
+			fmt.Fprintf(os.Stderr, "This keeps documentation separate from code and makes it easier to\n")
+			fmt.Fprintf(os.Stderr, "exclude from CI/CD processes.\n\n")
+			fmt.Fprintf(os.Stderr, "Run: epf-cli migrate-structure\n\n")
+			return rootInstancePath, nil
+		}
+
 		return "", fmt.Errorf("instance '%s' not found", instanceName)
 	}
 
@@ -136,8 +158,12 @@ func GetInstancePath(arg interface{}) (string, error) {
 
 	// Try to find instances directory
 	cwd, _ := os.Getwd()
+	var foundAtRoot bool
+	var rootInstancePath string
+
 	for _, instancesDir := range []string{
 		filepath.Join(cwd, "docs", "EPF", "_instances"),
+		filepath.Join(cwd, "docs", "epf", "_instances"),
 		filepath.Join(cwd, "_instances"),
 	} {
 		if entries, err := os.ReadDir(instancesDir); err == nil {
@@ -148,11 +174,30 @@ func GetInstancePath(arg interface{}) (string, error) {
 				}
 			}
 			if len(instances) == 1 {
-				return filepath.Join(instancesDir, instances[0]), nil
+				instancePath := filepath.Join(instancesDir, instances[0])
+
+				// Check if this is root-level
+				if strings.HasSuffix(instancesDir, filepath.Join(cwd, "_instances")) {
+					foundAtRoot = true
+					rootInstancePath = instancePath
+					continue // Keep looking for docs/epf/ version
+				}
+
+				return instancePath, nil
 			} else if len(instances) > 1 {
 				return "", fmt.Errorf("multiple instances found: %v. Use --instance to specify which one", instances)
 			}
 		}
+	}
+
+	// If only found at root, return it with a warning
+	if foundAtRoot && rootInstancePath != "" {
+		fmt.Fprintf(os.Stderr, "\n⚠️  Warning: EPF found at root level\n\n")
+		fmt.Fprintf(os.Stderr, "EPF artifacts should be under docs/epf/ for better organization.\n")
+		fmt.Fprintf(os.Stderr, "This keeps documentation separate from code and makes it easier to\n")
+		fmt.Fprintf(os.Stderr, "exclude from CI/CD processes.\n\n")
+		fmt.Fprintf(os.Stderr, "Run: epf-cli migrate-structure\n\n")
+		return rootInstancePath, nil
 	}
 
 	return "", fmt.Errorf("could not find EPF instance. Use --instance to specify")

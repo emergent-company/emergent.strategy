@@ -116,6 +116,20 @@ type HealthResult struct {
 	FieldCoverage    *checks.FieldCoverageResult    `json:"field_coverage,omitempty"`
 	VersionAlignment *checks.VersionAlignmentResult `json:"version_alignment,omitempty"`
 	MigrationStatus  *migration.MigrationStatus     `json:"migration_status,omitempty"`
+
+	// Workflow guidance for AI agents
+	WorkflowGuidance *HealthWorkflowGuidance `json:"workflow_guidance,omitempty"`
+}
+
+// HealthWorkflowGuidance provides planning recommendations based on health check results
+type HealthWorkflowGuidance struct {
+	PlanningRecommended bool     `json:"planning_recommended"`
+	Complexity          string   `json:"complexity"` // trivial, moderate, substantial, major
+	TotalIssueCount     int      `json:"total_issue_count"`
+	AffectedFiles       int      `json:"affected_files"`
+	Reason              string   `json:"reason"`
+	BeforeStarting      string   `json:"before_starting"`
+	RecommendedCommands []string `json:"recommended_commands"`
 }
 
 // HealthTiers provides a three-tier view of instance health
@@ -351,6 +365,9 @@ func runHealthCheck(instancePath string, schemasPath string) *HealthResult {
 
 	// Calculate three-tier scores
 	result.Tiers = calculateTiers(result)
+
+	// Generate workflow guidance for AI agents
+	result.WorkflowGuidance = generateHealthWorkflowGuidance(result)
 
 	return result
 }
@@ -626,6 +643,25 @@ func printHealthResult(result *HealthResult) {
 			}
 		}
 
+		fmt.Println()
+	}
+
+	// Print workflow guidance for AI agents if there's substantial work
+	if result.WorkflowGuidance != nil && result.WorkflowGuidance.PlanningRecommended {
+		printWorkflowGuidance(result.WorkflowGuidance)
+	}
+}
+
+// printWorkflowGuidance prints the AI workflow planning guidance
+func printWorkflowGuidance(guidance *HealthWorkflowGuidance) {
+	fmt.Println(guidance.BeforeStarting)
+	fmt.Println()
+
+	if len(guidance.RecommendedCommands) > 0 {
+		fmt.Println("  Recommended next commands:")
+		for _, cmd := range guidance.RecommendedCommands {
+			fmt.Printf("    $ %s\n", cmd)
+		}
 		fmt.Println()
 	}
 }
@@ -969,6 +1005,119 @@ func printMigrationStatusSummary(status *migration.MigrationStatus) {
 			shown++
 		}
 	}
+}
+
+// generateHealthWorkflowGuidance creates planning recommendations based on health check results
+func generateHealthWorkflowGuidance(result *HealthResult) *HealthWorkflowGuidance {
+	// Count total issues and affected files
+	totalIssues := 0
+	affectedFiles := 0
+
+	if result.SchemaValidation != nil {
+		affectedFiles = result.SchemaValidation.InvalidFiles
+		// Count individual validation errors
+		for _, r := range result.SchemaValidation.Results {
+			if !r.Valid {
+				totalIssues += len(r.Errors)
+			}
+		}
+	}
+
+	if result.ContentReadiness != nil {
+		totalIssues += len(result.ContentReadiness.Placeholders)
+	}
+
+	if result.FieldCoverage != nil {
+		totalIssues += len(result.FieldCoverage.CriticalGaps)
+		totalIssues += len(result.FieldCoverage.HighGaps)
+	}
+
+	// Determine complexity
+	var complexity string
+	var planningRecommended bool
+	var reason string
+	var beforeStarting string
+
+	switch {
+	case totalIssues <= 3:
+		complexity = "trivial"
+		planningRecommended = false
+		reason = "Small number of issues - straightforward to fix directly."
+		beforeStarting = ""
+
+	case totalIssues <= 15:
+		complexity = "moderate"
+		planningRecommended = false
+		reason = fmt.Sprintf("%d issues across %d file(s) - consider tracking progress.", totalIssues, affectedFiles)
+		beforeStarting = "Consider creating a simple checklist to track your fixes."
+
+	case totalIssues <= 40:
+		complexity = "substantial"
+		planningRecommended = true
+		reason = fmt.Sprintf("%d issues across %d file(s) - planning recommended.", totalIssues, affectedFiles)
+		beforeStarting = generateHealthPlanningCheckpoint(totalIssues, affectedFiles, false)
+
+	default:
+		complexity = "major"
+		planningRecommended = true
+		reason = fmt.Sprintf("%d issues across %d file(s) - substantial work ahead.", totalIssues, affectedFiles)
+		beforeStarting = generateHealthPlanningCheckpoint(totalIssues, affectedFiles, true)
+	}
+
+	// Build recommended commands
+	var commands []string
+	if result.SchemaValidation != nil && result.SchemaValidation.InvalidFiles > 0 {
+		for _, r := range result.SchemaValidation.Results {
+			if !r.Valid {
+				commands = append(commands, fmt.Sprintf("epf-cli validate '%s' --fix-plan", r.FilePath))
+				if len(commands) >= 3 {
+					break
+				}
+			}
+		}
+	}
+
+	return &HealthWorkflowGuidance{
+		PlanningRecommended: planningRecommended,
+		Complexity:          complexity,
+		TotalIssueCount:     totalIssues,
+		AffectedFiles:       affectedFiles,
+		Reason:              reason,
+		BeforeStarting:      beforeStarting,
+		RecommendedCommands: commands,
+	}
+}
+
+// generateHealthPlanningCheckpoint creates the planning guidance text for health check
+func generateHealthPlanningCheckpoint(totalIssues, affectedFiles int, isMajor bool) string {
+	urgencyMarker := "PLANNING CHECKPOINT"
+	if isMajor {
+		urgencyMarker = "MAJOR WORK DETECTED - PLANNING STRONGLY RECOMMENDED"
+	}
+
+	return fmt.Sprintf(`┌─────────────────────────────────────────────────────────────────┐
+│ %s
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│ Before making changes, answer these questions:                  │
+│                                                                 │
+│ 1. WHAT PLANNING TOOLS DO I HAVE ACCESS TO?                     │
+│    Look at your available tools/capabilities. Most AI agents    │
+│    have task lists, todo tools, or can create planning files.   │
+│    Check if this repo has conventions (openspec/, .plan/, etc.) │
+│                                                                 │
+│ 2. SHOULD I CREATE A PLAN FOR THIS WORK?                        │
+│    Consider: %d issues across %d file(s).                       │
+│    A plan helps track state and gives the user visibility       │
+│    into progress.                                               │
+│                                                                 │
+│ 3. DOES THE USER EXPECT TO SEE MY APPROACH FIRST?               │
+│    For substantial work, users often appreciate seeing the      │
+│    plan before execution starts.                                │
+│                                                                 │
+│ This checkpoint is a suggestion, not a requirement.             │
+│ Use your judgment about what's appropriate for this context.    │
+└─────────────────────────────────────────────────────────────────┘`, urgencyMarker, totalIssues, affectedFiles)
 }
 
 func init() {

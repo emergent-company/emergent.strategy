@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/checks"
+	"github.com/eyedea-io/emergent/apps/epf-cli/internal/fixplan"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/generator"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/migration"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/relationships"
@@ -20,6 +21,7 @@ import (
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/wizard"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -128,10 +130,14 @@ func (s *Server) registerTools() {
 	// Tool: epf_validate_file
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_validate_file",
-			mcp.WithDescription("Validate a local EPF YAML file against its schema. Automatically detects the artifact type from the filename/path pattern."),
+			mcp.WithDescription("Validate a local EPF YAML file against its schema. Automatically detects the artifact type from the filename/path pattern. "+
+				"Use ai_friendly=true for structured output optimized for AI agents with error classification, priorities, and fix hints."),
 			mcp.WithString("path",
 				mcp.Required(),
 				mcp.Description("The path to the YAML file to validate"),
+			),
+			mcp.WithString("ai_friendly",
+				mcp.Description("Return AI-friendly structured output with error classification and fix hints (true/false, default: false)"),
 			),
 		),
 		s.handleValidateFile,
@@ -151,6 +157,62 @@ func (s *Server) registerTools() {
 			),
 		),
 		s.handleValidateContent,
+	)
+
+	// ==========================================================================
+	// AI Agent Validation Tools (v0.11.0)
+	// ==========================================================================
+
+	// Tool: epf_validate_with_plan
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_validate_with_plan",
+			mcp.WithDescription("Validate a file and return a chunked fix plan for AI agents. "+
+				"The fix plan groups errors into manageable chunks with priorities and fix strategies. "+
+				"IMPORTANT: For substantial work (16+ errors), the response includes workflow_guidance with planning recommendations. "+
+				"Before processing chunks, check what planning tools you have available (todo lists, task trackers, "+
+				"openspec/, .plan/, etc.) and consider creating a plan to track progress across chunks."),
+			mcp.WithString("path",
+				mcp.Required(),
+				mcp.Description("The path to the YAML file to validate"),
+			),
+		),
+		s.handleValidateWithPlan,
+	)
+
+	// Tool: epf_validate_section
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_validate_section",
+			mcp.WithDescription("Validate a specific section of a YAML file. "+
+				"Use this for incremental validation when fixing a file section by section. "+
+				"Returns AI-friendly output with errors scoped to the specified section."),
+			mcp.WithString("path",
+				mcp.Required(),
+				mcp.Description("The path to the YAML file to validate"),
+			),
+			mcp.WithString("section",
+				mcp.Required(),
+				mcp.Description("The section path to validate (e.g., 'target_users', 'key_insights', 'competitive_landscape.direct_competitors')"),
+			),
+		),
+		s.handleValidateSection,
+	)
+
+	// Tool: epf_get_section_example
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_get_section_example",
+			mcp.WithDescription("Get a template example for a specific section of an artifact type. "+
+				"Returns the corresponding section from the canonical template, showing the expected structure and example values. "+
+				"Useful when fixing validation errors to see what the section should look like."),
+			mcp.WithString("artifact_type",
+				mcp.Required(),
+				mcp.Description("The artifact type (e.g., 'insight_analyses', 'feature_definition')"),
+			),
+			mcp.WithString("section",
+				mcp.Required(),
+				mcp.Description("The section path to extract (e.g., 'target_users', 'key_insights')"),
+			),
+		),
+		s.handleGetSectionExample,
 	)
 
 	// Tool: epf_detect_artifact_type
@@ -180,7 +242,11 @@ func (s *Server) registerTools() {
 	// Tool: epf_health_check
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_health_check",
-			mcp.WithDescription("Run a comprehensive health check on an EPF instance. This includes structure validation, schema validation, content readiness, and more."),
+			mcp.WithDescription("Run a comprehensive health check on an EPF instance. "+
+				"RECOMMENDED FIRST STEP: Always run health check before starting work to assess scope. "+
+				"Returns structure validation, schema validation, content readiness, and workflow guidance. "+
+				"If significant issues are found, the response includes planning recommendations - "+
+				"check your available planning tools (todo lists, task trackers, openspec/, etc.) before diving into fixes."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory (contains READY/, FIRE/, AIM/ directories)"),
@@ -769,6 +835,25 @@ func (s *Server) handleValidateFile(ctx context.Context, request mcp.CallToolReq
 		return mcp.NewToolResultError("path parameter is required"), nil
 	}
 
+	// Check for ai_friendly parameter
+	aiFriendlyStr, _ := request.RequireString("ai_friendly")
+	aiFriendly := strings.ToLower(aiFriendlyStr) == "true"
+
+	if aiFriendly {
+		// Use the new AI-friendly validation method
+		aiResult, err := s.validator.ValidateFileAIFriendly(path)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Validation failed: %s", err.Error())), nil
+		}
+
+		jsonBytes, err := json.MarshalIndent(aiResult, "", "  ")
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize result: %s", err.Error())), nil
+		}
+		return mcp.NewToolResultText(string(jsonBytes)), nil
+	}
+
+	// Default: basic validation result
 	result, err := s.validator.ValidateFile(path)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Validation failed: %s", err.Error())), nil
@@ -2501,4 +2586,173 @@ func (s *Server) handleSuggestRelationships(ctx context.Context, request mcp.Cal
 	}
 
 	return mcp.NewToolResultText(string(jsonBytes)), nil
+}
+
+// ==========================================================================
+// AI Agent Validation Handlers (v0.11.0)
+// ==========================================================================
+
+// handleValidateWithPlan handles the epf_validate_with_plan tool
+func (s *Server) handleValidateWithPlan(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	path, err := request.RequireString("path")
+	if err != nil {
+		return mcp.NewToolResultError("path parameter is required"), nil
+	}
+
+	// Get AI-friendly validation result
+	aiResult, err := s.validator.ValidateFileAIFriendly(path)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Validation failed: %s", err.Error())), nil
+	}
+
+	// If valid, return a simple success response
+	if aiResult.Valid {
+		response := map[string]interface{}{
+			"file":          path,
+			"artifact_type": aiResult.ArtifactType,
+			"valid":         true,
+			"total_errors":  0,
+			"total_chunks":  0,
+			"message":       "File is valid, no fixes needed",
+		}
+		jsonBytes, _ := json.MarshalIndent(response, "", "  ")
+		return mcp.NewToolResultText(string(jsonBytes)), nil
+	}
+
+	// Generate fix plan from validation errors
+	gen := fixplan.NewGenerator(fixplan.GeneratorOptions{
+		MaxErrorsPerChunk: 10,
+		MaxCharsPerChunk:  6000,
+		IncludeExamples:   true,
+	})
+
+	// Load template for this artifact type if available
+	if s.templateLoader != nil && aiResult.ArtifactType != "" {
+		artifactType, typeErr := schema.ArtifactTypeFromString(aiResult.ArtifactType)
+		if typeErr == nil {
+			if tmpl, tmplErr := s.templateLoader.GetTemplate(artifactType); tmplErr == nil {
+				gen.SetTemplate(aiResult.ArtifactType, tmpl.Content)
+			}
+		}
+	}
+
+	plan := gen.Generate(aiResult)
+
+	jsonBytes, err := json.MarshalIndent(plan, "", "  ")
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize fix plan: %s", err.Error())), nil
+	}
+
+	return mcp.NewToolResultText(string(jsonBytes)), nil
+}
+
+// handleValidateSection handles the epf_validate_section tool
+func (s *Server) handleValidateSection(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	path, err := request.RequireString("path")
+	if err != nil {
+		return mcp.NewToolResultError("path parameter is required"), nil
+	}
+
+	section, err := request.RequireString("section")
+	if err != nil {
+		return mcp.NewToolResultError("section parameter is required"), nil
+	}
+
+	// Use the new section-based AI-friendly validation
+	aiResult, err := s.validator.ValidateSectionAIFriendly(path, section)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Validation failed: %s", err.Error())), nil
+	}
+
+	jsonBytes, err := json.MarshalIndent(aiResult, "", "  ")
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize result: %s", err.Error())), nil
+	}
+
+	return mcp.NewToolResultText(string(jsonBytes)), nil
+}
+
+// handleGetSectionExample handles the epf_get_section_example tool
+func (s *Server) handleGetSectionExample(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	artifactTypeStr, err := request.RequireString("artifact_type")
+	if err != nil {
+		return mcp.NewToolResultError("artifact_type parameter is required"), nil
+	}
+
+	section, err := request.RequireString("section")
+	if err != nil {
+		return mcp.NewToolResultError("section parameter is required"), nil
+	}
+
+	// Get the template for this artifact type
+	artifactType, err := schema.ArtifactTypeFromString(artifactTypeStr)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid artifact type: %s", err.Error())), nil
+	}
+
+	templateInfo, err := s.templateLoader.GetTemplate(artifactType)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("No template available for artifact type '%s': %s", artifactTypeStr, err.Error())), nil
+	}
+
+	// Parse the template YAML
+	var templateData map[string]interface{}
+	if err := yaml.Unmarshal([]byte(templateInfo.Content), &templateData); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to parse template: %s", err.Error())), nil
+	}
+
+	// Extract the requested section
+	sectionData, err := extractSectionFromTemplate(templateData, section)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Section '%s' not found in template: %s", section, err.Error())), nil
+	}
+
+	// Convert section back to YAML for display
+	sectionYAML, err := yaml.Marshal(map[string]interface{}{section: sectionData})
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize section: %s", err.Error())), nil
+	}
+
+	// Build response
+	response := map[string]interface{}{
+		"artifact_type": artifactTypeStr,
+		"section":       section,
+		"example":       string(sectionYAML),
+		"note":          "This is the canonical template example. Use this as a reference for the expected structure and format.",
+	}
+
+	jsonBytes, err := json.MarshalIndent(response, "", "  ")
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize response: %s", err.Error())), nil
+	}
+
+	return mcp.NewToolResultText(string(jsonBytes)), nil
+}
+
+// extractSectionFromTemplate extracts a nested section from template data using dot notation
+func extractSectionFromTemplate(data map[string]interface{}, path string) (interface{}, error) {
+	parts := strings.Split(path, ".")
+	var current interface{} = data
+
+	for _, part := range parts {
+		switch v := current.(type) {
+		case map[string]interface{}:
+			next, ok := v[part]
+			if !ok {
+				return nil, fmt.Errorf("path segment '%s' not found", part)
+			}
+			current = next
+		case map[interface{}]interface{}:
+			// Handle YAML maps with interface{} keys
+			next, ok := v[part]
+			if !ok {
+				return nil, fmt.Errorf("path segment '%s' not found", part)
+			}
+			current = next
+		default:
+			return nil, fmt.Errorf("cannot navigate into type %T at path segment '%s'", current, part)
+		}
+	}
+
+	return current, nil
 }
