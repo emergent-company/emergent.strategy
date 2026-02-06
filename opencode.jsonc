@@ -92,6 +92,14 @@
         "LOG_LEVEL": "info"
       },
       "timeout": 60000
+    },
+    "brave-search": {
+      "type": "local",
+      "command": ["npx", "-y", "@modelcontextprotocol/server-brave-search"],
+      "environment": {
+        "BRAVE_API_KEY": "BSANp3ueWKE2J7V2B0b1a9OwkwGDPYJ"
+      },
+      "timeout": 60000
     }
     // ,
     // "nx-mcp": {

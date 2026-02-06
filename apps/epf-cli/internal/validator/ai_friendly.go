@@ -76,8 +76,39 @@ type AIFriendlyResult struct {
 	ErrorCount      int              `yaml:"error_count" json:"error_count"`
 	ErrorsBySection []*SectionErrors `yaml:"errors_by_section,omitempty" json:"errors_by_section,omitempty"`
 
+	// Product context for validation guidance
+	ProductContext *ProductContextInfo `yaml:"product_context,omitempty" json:"product_context,omitempty"`
+
+	// Template and semantic warnings
+	TemplateWarnings []*TemplateWarning `yaml:"template_warnings,omitempty" json:"template_warnings,omitempty"`
+	SemanticWarnings []*SemanticWarning `yaml:"semantic_warnings,omitempty" json:"semantic_warnings,omitempty"`
+
 	// Summary statistics for planning
 	Summary ErrorSummary `yaml:"summary" json:"summary"`
+}
+
+// ProductContextInfo provides product context for AI agents
+type ProductContextInfo struct {
+	ProductName string   `yaml:"product_name" json:"product_name"`
+	Description string   `yaml:"description" json:"description"`
+	Domain      string   `yaml:"domain,omitempty" json:"domain,omitempty"`
+	Keywords    []string `yaml:"keywords" json:"keywords"`
+	Source      string   `yaml:"source" json:"source"` // Where context was loaded from
+}
+
+// TemplateWarning indicates placeholder or template content
+type TemplateWarning struct {
+	Path        string `yaml:"path" json:"path"`
+	Placeholder string `yaml:"placeholder" json:"placeholder"`
+	Context     string `yaml:"context" json:"context"`
+}
+
+// SemanticWarning indicates content that may not match product context
+type SemanticWarning struct {
+	Path       string `yaml:"path" json:"path"`
+	Issue      string `yaml:"issue" json:"issue"`
+	Confidence string `yaml:"confidence" json:"confidence"` // high, medium, low
+	Suggestion string `yaml:"suggestion" json:"suggestion"`
 }
 
 // ErrorSummary provides statistics for fix planning
@@ -506,4 +537,153 @@ func suggestFixOrder(sections []*SectionErrors) []string {
 	}
 
 	return order
+}
+
+// CreateAIFriendlyResultWithContext creates an AI-friendly result with product context and semantic warnings
+// This is the preferred function for validation with context awareness
+func CreateAIFriendlyResultWithContext(filePath, artifactType string, errors []*EnhancedValidationError, ctx interface{}, templateWarnings, semanticWarnings interface{}) *AIFriendlyResult {
+	sections := GroupErrorsBySection(errors)
+
+	result := &AIFriendlyResult{
+		File:            filePath,
+		ArtifactType:    artifactType,
+		Valid:           len(errors) == 0,
+		ErrorCount:      len(errors),
+		ErrorsBySection: sections,
+		Summary:         createSummary(errors, sections),
+	}
+
+	// Add product context if available
+	if ctx != nil {
+		result.ProductContext = convertToProductContextInfo(ctx)
+	}
+
+	// Add template warnings if available
+	if templateWarnings != nil {
+		result.TemplateWarnings = convertToTemplateWarnings(templateWarnings)
+	}
+
+	// Add semantic warnings if available
+	if semanticWarnings != nil {
+		result.SemanticWarnings = convertToSemanticWarnings(semanticWarnings)
+	}
+
+	return result
+}
+
+// Helper functions to convert context types (these accept interface{} to avoid import cycles)
+
+func convertToProductContextInfo(ctx interface{}) *ProductContextInfo {
+	// Use type assertion to extract context fields
+	// Expected type from context package: *context.InstanceContext
+	if ctxMap, ok := ctx.(map[string]interface{}); ok {
+		info := &ProductContextInfo{}
+		if name, ok := ctxMap["product_name"].(string); ok {
+			info.ProductName = name
+		}
+		if desc, ok := ctxMap["description"].(string); ok {
+			info.Description = desc
+		}
+		if domain, ok := ctxMap["domain"].(string); ok {
+			info.Domain = domain
+		}
+		if keywords, ok := ctxMap["keywords"].([]string); ok {
+			info.Keywords = keywords
+		}
+		if source, ok := ctxMap["source"].(string); ok {
+			info.Source = source
+		}
+		return info
+	}
+	return nil
+}
+
+func convertToTemplateWarnings(warnings interface{}) []*TemplateWarning {
+	// Handle []map[string]interface{} (from validate.go)
+	if warningsList, ok := warnings.([]map[string]interface{}); ok {
+		result := make([]*TemplateWarning, 0, len(warningsList))
+		for _, wMap := range warningsList {
+			warning := &TemplateWarning{}
+			if path, ok := wMap["path"].(string); ok {
+				warning.Path = path
+			}
+			if placeholder, ok := wMap["placeholder"].(string); ok {
+				warning.Placeholder = placeholder
+			}
+			if context, ok := wMap["context"].(string); ok {
+				warning.Context = context
+			}
+			result = append(result, warning)
+		}
+		return result
+	}
+	// Handle []interface{} (generic case)
+	if warningsList, ok := warnings.([]interface{}); ok {
+		result := make([]*TemplateWarning, 0, len(warningsList))
+		for _, w := range warningsList {
+			if wMap, ok := w.(map[string]interface{}); ok {
+				warning := &TemplateWarning{}
+				if path, ok := wMap["path"].(string); ok {
+					warning.Path = path
+				}
+				if placeholder, ok := wMap["placeholder"].(string); ok {
+					warning.Placeholder = placeholder
+				}
+				if context, ok := wMap["context"].(string); ok {
+					warning.Context = context
+				}
+				result = append(result, warning)
+			}
+		}
+		return result
+	}
+	return nil
+}
+
+func convertToSemanticWarnings(warnings interface{}) []*SemanticWarning {
+	// Handle []map[string]interface{} (from validate.go)
+	if warningsList, ok := warnings.([]map[string]interface{}); ok {
+		result := make([]*SemanticWarning, 0, len(warningsList))
+		for _, wMap := range warningsList {
+			warning := &SemanticWarning{}
+			if path, ok := wMap["path"].(string); ok {
+				warning.Path = path
+			}
+			if issue, ok := wMap["issue"].(string); ok {
+				warning.Issue = issue
+			}
+			if confidence, ok := wMap["confidence"].(string); ok {
+				warning.Confidence = confidence
+			}
+			if suggestion, ok := wMap["suggestion"].(string); ok {
+				warning.Suggestion = suggestion
+			}
+			result = append(result, warning)
+		}
+		return result
+	}
+	// Handle []interface{} (generic case)
+	if warningsList, ok := warnings.([]interface{}); ok {
+		result := make([]*SemanticWarning, 0, len(warningsList))
+		for _, w := range warningsList {
+			if wMap, ok := w.(map[string]interface{}); ok {
+				warning := &SemanticWarning{}
+				if path, ok := wMap["path"].(string); ok {
+					warning.Path = path
+				}
+				if issue, ok := wMap["issue"].(string); ok {
+					warning.Issue = issue
+				}
+				if confidence, ok := wMap["confidence"].(string); ok {
+					warning.Confidence = confidence
+				}
+				if suggestion, ok := wMap["suggestion"].(string); ok {
+					warning.Suggestion = suggestion
+				}
+				result = append(result, warning)
+			}
+		}
+		return result
+	}
+	return nil
 }

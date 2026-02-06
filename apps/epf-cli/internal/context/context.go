@@ -19,13 +19,16 @@ type InstanceContext struct {
 }
 
 // MetaYAML represents the structure of _meta.yaml
+// Note: _meta.yaml has a flat structure with fields at root level
 type MetaYAML struct {
-	Instance struct {
-		ProductName string `yaml:"product_name"`
-		Description string `yaml:"description"`
-		Domain      string `yaml:"domain"`
-	} `yaml:"instance"`
-	// We only care about instance fields for context
+	ProductID   string `yaml:"product_id"`
+	ProductName string `yaml:"product_name"`
+	Description string `yaml:"description"`
+	Domain      string `yaml:"domain"`
+	Market      string `yaml:"market"`
+	TargetUsers string `yaml:"target_users"`
+	EPFVersion  string `yaml:"epf_version"`
+	Status      string `yaml:"status"`
 }
 
 // LoadInstanceContext attempts to load product context from various sources
@@ -74,10 +77,10 @@ func tryLoadMetaYAML(instancePath string, ctx *InstanceContext) bool {
 	}
 
 	// Check if we got useful product info
-	if meta.Instance.ProductName != "" {
-		ctx.ProductName = meta.Instance.ProductName
-		ctx.Description = meta.Instance.Description
-		ctx.Domain = meta.Instance.Domain
+	if meta.ProductName != "" {
+		ctx.ProductName = meta.ProductName
+		ctx.Description = meta.Description
+		ctx.Domain = meta.Domain
 		ctx.SourceFiles = append(ctx.SourceFiles, metaPath)
 		ctx.Found = true
 		return true
