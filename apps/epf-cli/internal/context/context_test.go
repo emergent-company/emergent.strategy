@@ -15,11 +15,13 @@ func TestLoadInstanceContext_FromMetaYAML(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Create _meta.yaml with product info
-	metaContent := `instance:
-  product_name: Test Product
-  description: A test product for validation
-  domain: testing
+	// Create _meta.yaml with product info (flat structure)
+	metaContent := `product_id: "test-product"
+product_name: "Test Product"
+description: "A test product for validation"
+domain: "testing"
+epf_version: "1.11.0"
+status: "active"
 `
 	metaPath := filepath.Join(instanceDir, "_meta.yaml")
 	if err := os.WriteFile(metaPath, []byte(metaContent), 0644); err != nil {
@@ -227,10 +229,12 @@ func TestLoadInstanceContext_MetaPrecedence(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Create _meta.yaml
-	metaContent := `instance:
-  product_name: Meta Product
-  description: From meta file
+	// Create _meta.yaml (flat structure)
+	metaContent := `product_id: "precedence-test"
+product_name: "Meta Product"
+description: "From meta file"
+domain: "testing"
+epf_version: "1.11.0"
 `
 	if err := os.WriteFile(filepath.Join(instanceDir, "_meta.yaml"), []byte(metaContent), 0644); err != nil {
 		t.Fatal(err)

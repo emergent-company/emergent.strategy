@@ -7,9 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/eyedea-io/emergent/apps/epf-cli/internal/context"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/fixplan"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/schema"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/template"
+	"github.com/eyedea-io/emergent/apps/epf-cli/internal/validation"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/validator"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -93,6 +95,18 @@ Examples:
 			os.Exit(1)
 		}
 
+		// Load instance context for product-aware validation
+		// Try to find EPF instance root from the path
+		instancePath := findEPFInstanceRoot(path)
+		var ctx *context.InstanceContext
+		if instancePath != "" {
+			ctx = context.LoadInstanceContext(instancePath)
+			// Display product context header (unless JSON output requested)
+			if ctx.Found && !validateJSON {
+				displayProductContext(ctx)
+			}
+		}
+
 		// Check if path is a file or directory
 		info, err := os.Stat(path)
 		if err != nil {
@@ -125,10 +139,10 @@ Examples:
 
 		if info.IsDir() {
 			// Validate all YAML files in directory
-			results, aiResults = validateDirectory(val, path)
+			results, aiResults = validateDirectory(val, path, ctx)
 		} else {
 			// Validate single file
-			result, aiResult := validateSingleFile(val, path, schemaOverride)
+			result, aiResult := validateSingleFile(val, path, schemaOverride, ctx)
 			if result != nil {
 				results = append(results, result)
 			}
@@ -153,7 +167,7 @@ Examples:
 	},
 }
 
-func validateSingleFile(val *validator.Validator, path string, schemaOverride string) (*validator.ValidationResult, *validator.AIFriendlyResult) {
+func validateSingleFile(val *validator.Validator, path string, schemaOverride string, ctx *context.InstanceContext) (*validator.ValidationResult, *validator.AIFriendlyResult) {
 	// Basic validation
 	result, err := val.ValidateFile(path)
 	if err != nil {
@@ -163,17 +177,25 @@ func validateSingleFile(val *validator.Validator, path string, schemaOverride st
 		return nil, nil
 	}
 
+	// Run product-aware validation checks if context available
+	if ctx != nil && ctx.Found {
+		if !validateAIFriendly && !validateFixPlan && !validateJSON {
+			// Human-readable output: print warnings
+			runProductAwareChecks(path, ctx)
+		}
+	}
+
 	// If AI-friendly or fix-plan output is requested, also get enhanced errors
 	var aiResult *validator.AIFriendlyResult
 	if (validateAIFriendly || validateFixPlan) && !result.Valid {
 		// Create enhanced AI-friendly result with schema introspection
-		aiResult = createAIResultFromBasic(val, path, result)
+		aiResult = createAIResultFromBasicWithContext(val, path, result, ctx)
 	}
 
 	return result, aiResult
 }
 
-func validateDirectory(val *validator.Validator, dirPath string) ([]*validator.ValidationResult, []*validator.AIFriendlyResult) {
+func validateDirectory(val *validator.Validator, dirPath string, ctx *context.InstanceContext) ([]*validator.ValidationResult, []*validator.AIFriendlyResult) {
 	var results []*validator.ValidationResult
 	var aiResults []*validator.AIFriendlyResult
 
@@ -193,7 +215,7 @@ func validateDirectory(val *validator.Validator, dirPath string) ([]*validator.V
 			return nil
 		}
 
-		result, aiResult := validateSingleFile(val, path, "")
+		result, aiResult := validateSingleFile(val, path, "", ctx)
 		if result != nil {
 			results = append(results, result)
 		}
@@ -494,6 +516,74 @@ func createAIResultFromBasic(val *validator.Validator, filePath string, result *
 	return validator.CreateAIFriendlyResult(filePath, result.ArtifactType, enhancedErrors)
 }
 
+// createAIResultFromBasicWithContext creates an AI-friendly result with product context
+func createAIResultFromBasicWithContext(val *validator.Validator, filePath string, result *validator.ValidationResult, ctx *context.InstanceContext) *validator.AIFriendlyResult {
+	var enhancedErrors []*validator.EnhancedValidationError
+
+	// Get schema introspector for extracting expected structures
+	introspector := val.GetSchemaIntrospector()
+	schemaFile := val.GetSchemaFileForArtifact(result.ArtifactType)
+
+	for _, err := range result.Errors {
+		// Extract the JSON pointer from the error path
+		jsonPointer := ""
+		if idx := strings.Index(err.Path, "#"); idx != -1 {
+			jsonPointer = err.Path[idx+1:]
+		}
+
+		enhanced := &validator.EnhancedValidationError{
+			Path:        extractPathFromError(err),
+			JSONPointer: jsonPointer,
+			Message:     err.Message,
+		}
+
+		// Classify the error
+		classifyBasicError(enhanced, err.Message)
+		enhanced.Priority = validator.PriorityMedium // Default, will be overridden
+		if enhanced.ErrorType == validator.ErrorTypeMismatch || enhanced.ErrorType == validator.ErrorMissingRequired {
+			enhanced.Priority = validator.PriorityCritical
+		} else if enhanced.ErrorType == validator.ErrorInvalidEnum {
+			enhanced.Priority = validator.PriorityHigh
+		}
+
+		// For type mismatches where we expect an object, extract expected structure
+		if enhanced.ErrorType == validator.ErrorTypeMismatch && enhanced.Details.ExpectedType == "object" {
+			if schemaFile != "" && jsonPointer != "" {
+				expectedStructure := introspector.ExtractExpectedStructure(schemaFile, jsonPointer)
+				if expectedStructure != nil && len(expectedStructure) > 0 {
+					enhanced.Details.ExpectedStructure = expectedStructure
+				}
+			}
+		}
+
+		// Generate fix hint
+		enhanced.FixHint = generateBasicFixHint(enhanced)
+
+		enhancedErrors = append(enhancedErrors, enhanced)
+	}
+
+	// Collect product context and warnings
+	var productContext map[string]interface{}
+	var templateWarnings []map[string]interface{}
+	var semanticWarnings []map[string]interface{}
+
+	if ctx != nil && ctx.Found {
+		// Convert context to map for AI-friendly output
+		productContext = map[string]interface{}{
+			"product_name": ctx.ProductName,
+			"description":  ctx.Description,
+			"domain":       ctx.Domain,
+			"keywords":     ctx.GetKeywords(),
+			"source":       strings.Join(ctx.SourceFiles, ", "),
+		}
+
+		// Collect warnings
+		templateWarnings, semanticWarnings = collectProductAwareWarnings(filePath, ctx)
+	}
+
+	return validator.CreateAIFriendlyResultWithContext(filePath, result.ArtifactType, enhancedErrors, productContext, templateWarnings, semanticWarnings)
+}
+
 func extractPathFromError(err validator.ValidationError) string {
 	// Try to extract path from the error path field (format: "file#/json/pointer")
 	path := err.Path
@@ -762,6 +852,282 @@ func outputHumanReadable(results []*validator.ValidationResult) bool {
 	}
 
 	return hasErrors
+}
+
+// findEPFInstanceRoot searches upward from the given path to find the EPF instance root
+// Returns empty string if not found
+func findEPFInstanceRoot(startPath string) string {
+	// Convert to absolute path
+	absPath, err := filepath.Abs(startPath)
+	if err != nil {
+		return ""
+	}
+
+	// If it's a file, start from its directory
+	info, err := os.Stat(absPath)
+	if err != nil {
+		return ""
+	}
+	if !info.IsDir() {
+		absPath = filepath.Dir(absPath)
+	}
+
+	// Walk up the directory tree
+	currentPath := absPath
+	for {
+		// Check for _meta.yaml in this directory
+		metaPath := filepath.Join(currentPath, "_meta.yaml")
+		if _, err := os.Stat(metaPath); err == nil {
+			return currentPath
+		}
+
+		// Check for README.md (fallback)
+		readmePath := filepath.Join(currentPath, "README.md")
+		if _, err := os.Stat(readmePath); err == nil {
+			// Additional check: look for READY/FIRE/AIM directories
+			readyPath := filepath.Join(currentPath, "READY")
+			firePath := filepath.Join(currentPath, "FIRE")
+			aimPath := filepath.Join(currentPath, "AIM")
+
+			hasREADY, _ := os.Stat(readyPath)
+			hasFIRE, _ := os.Stat(firePath)
+			hasAIM, _ := os.Stat(aimPath)
+
+			if hasREADY != nil || hasFIRE != nil || hasAIM != nil {
+				return currentPath
+			}
+		}
+
+		// Move up one directory
+		parent := filepath.Dir(currentPath)
+		if parent == currentPath {
+			// Reached root
+			break
+		}
+		currentPath = parent
+	}
+
+	return ""
+}
+
+// displayProductContext prints a product context header to stderr
+func displayProductContext(ctx *context.InstanceContext) {
+	if !ctx.Found {
+		return
+	}
+
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	fmt.Fprintln(os.Stderr, "  Product Context")
+	fmt.Fprintln(os.Stderr, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+	if ctx.ProductName != "" {
+		fmt.Fprintf(os.Stderr, "  Product: %s\n", ctx.ProductName)
+	}
+
+	if ctx.Description != "" {
+		// Wrap description at 70 chars
+		wrapped := wrapProductDescription(ctx.Description, 70)
+		for i, line := range wrapped {
+			if i == 0 {
+				fmt.Fprintf(os.Stderr, "  Description: %s\n", line)
+			} else {
+				fmt.Fprintf(os.Stderr, "               %s\n", line)
+			}
+		}
+	}
+
+	keywords := ctx.GetKeywords()
+	if len(keywords) > 0 {
+		// Show first 10 keywords
+		displayKeywords := keywords
+		if len(keywords) > 10 {
+			displayKeywords = keywords[:10]
+		}
+		fmt.Fprintf(os.Stderr, "  Keywords: %s\n", strings.Join(displayKeywords, ", "))
+	}
+
+	fmt.Fprintln(os.Stderr, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	fmt.Fprintln(os.Stderr, "")
+}
+
+// wrapProductDescription wraps text at the specified width
+func wrapProductDescription(text string, width int) []string {
+	words := strings.Fields(text)
+	if len(words) == 0 {
+		return []string{text}
+	}
+
+	var lines []string
+	currentLine := ""
+
+	for _, word := range words {
+		if currentLine == "" {
+			currentLine = word
+		} else if len(currentLine)+1+len(word) <= width {
+			currentLine += " " + word
+		} else {
+			lines = append(lines, currentLine)
+			currentLine = word
+		}
+	}
+
+	if currentLine != "" {
+		lines = append(lines, currentLine)
+	}
+
+	return lines
+}
+
+// runProductAwareChecks runs template detection and semantic alignment checks
+// collectProductAwareWarnings collects template and semantic warnings without printing
+// Returns (templateWarnings, semanticWarnings)
+func collectProductAwareWarnings(path string, ctx *context.InstanceContext) ([]map[string]interface{}, []map[string]interface{}) {
+	// Read file content
+	fileContent, err := os.ReadFile(path)
+	if err != nil {
+		return nil, nil
+	}
+
+	// Parse YAML
+	var doc map[string]interface{}
+	if err := yaml.Unmarshal(fileContent, &doc); err != nil {
+		return nil, nil
+	}
+
+	var templateWarningStrs []string
+	var semanticWarningObjs []*validation.AlignmentWarning
+
+	// Recursively check for template placeholders
+	checkYAMLForTemplates(doc, "", &templateWarningStrs)
+
+	// Recursively check for semantic alignment issues
+	checkYAMLForAlignment(ctx, doc, "", &semanticWarningObjs)
+
+	// Convert to map format for AI-friendly output
+	templateWarnings := make([]map[string]interface{}, 0, len(templateWarningStrs))
+	for _, w := range templateWarningStrs {
+		// Parse the warning string to extract path and placeholder
+		// Format: "path contains template content: placeholder"
+		parts := strings.SplitN(w, " contains template content: ", 2)
+		warning := map[string]interface{}{
+			"path":    parts[0],
+			"context": w,
+		}
+		if len(parts) == 2 {
+			warning["placeholder"] = parts[1]
+		} else {
+			warning["placeholder"] = ""
+		}
+		templateWarnings = append(templateWarnings, warning)
+	}
+
+	semanticWarnings := make([]map[string]interface{}, 0, len(semanticWarningObjs))
+	for _, w := range semanticWarningObjs {
+		semanticWarnings = append(semanticWarnings, map[string]interface{}{
+			"path":       w.Field,
+			"issue":      w.Issue,
+			"confidence": w.Confidence,
+			"suggestion": w.Suggestion,
+		})
+	}
+
+	return templateWarnings, semanticWarnings
+}
+
+func runProductAwareChecks(path string, ctx *context.InstanceContext) {
+	// Read file content
+	fileContent, err := os.ReadFile(path)
+	if err != nil {
+		return // Silently skip if can't read
+	}
+
+	// Parse YAML
+	var doc map[string]interface{}
+	if err := yaml.Unmarshal(fileContent, &doc); err != nil {
+		return // Silently skip if can't parse
+	}
+
+	var templateWarnings []string
+	var semanticWarnings []*validation.AlignmentWarning
+
+	// Recursively check for template placeholders
+	checkYAMLForTemplates(doc, "", &templateWarnings)
+
+	// Recursively check for semantic alignment issues
+	checkYAMLForAlignment(ctx, doc, "", &semanticWarnings)
+
+	// Display warnings if any found
+	if len(templateWarnings) > 0 {
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "⚠️  Template Content Warnings:")
+		for _, warning := range templateWarnings {
+			fmt.Fprintf(os.Stderr, "  • %s\n", warning)
+		}
+	}
+
+	if len(semanticWarnings) > 0 {
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "⚠️  Content Alignment Warnings:")
+		for _, warning := range semanticWarnings {
+			fmt.Fprintf(os.Stderr, "  • %s: %s\n", warning.Field, warning.Issue)
+			fmt.Fprintf(os.Stderr, "    Confidence: %s\n", warning.Confidence)
+			if warning.Suggestion != "" {
+				fmt.Fprintf(os.Stderr, "    Suggestion: %s\n", warning.Suggestion)
+			}
+		}
+	}
+}
+
+// checkYAMLForTemplates recursively checks YAML for template placeholders
+func checkYAMLForTemplates(data interface{}, path string, warnings *[]string) {
+	switch v := data.(type) {
+	case map[string]interface{}:
+		for key, value := range v {
+			newPath := key
+			if path != "" {
+				newPath = path + "." + key
+			}
+			checkYAMLForTemplates(value, newPath, warnings)
+		}
+	case []interface{}:
+		for i, item := range v {
+			newPath := fmt.Sprintf("%s[%d]", path, i)
+			checkYAMLForTemplates(item, newPath, warnings)
+		}
+	case string:
+		// Check if this string looks like a template placeholder
+		isTemplate, placeholder := validation.DetectTemplatePlaceholder("", v)
+		if isTemplate {
+			*warnings = append(*warnings, fmt.Sprintf("%s contains template content: %s", path, placeholder))
+		}
+	}
+}
+
+// checkYAMLForAlignment recursively checks YAML for semantic alignment issues
+func checkYAMLForAlignment(ctx *context.InstanceContext, data interface{}, path string, warnings *[]*validation.AlignmentWarning) {
+	switch v := data.(type) {
+	case map[string]interface{}:
+		for key, value := range v {
+			newPath := key
+			if path != "" {
+				newPath = path + "." + key
+			}
+			checkYAMLForAlignment(ctx, value, newPath, warnings)
+		}
+	case []interface{}:
+		for i, item := range v {
+			newPath := fmt.Sprintf("%s[%d]", path, i)
+			checkYAMLForAlignment(ctx, item, newPath, warnings)
+		}
+	case string:
+		// Only check substantial strings (>50 chars) for alignment
+		if len(v) > 50 {
+			if warning := validation.CheckContentAlignment(ctx, path, v); warning != nil {
+				*warnings = append(*warnings, warning)
+			}
+		}
+	}
 }
 
 func init() {
