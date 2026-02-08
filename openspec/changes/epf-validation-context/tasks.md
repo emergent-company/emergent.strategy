@@ -1,132 +1,141 @@
 # Implementation Tasks
 
-## Phase 1: Critical Fixes (Immediate)
+## Phase 1: Critical Fixes
 
-### 1.1 Product Context Infrastructure ✅ COMPLETE
+### 1.1 Product Context Infrastructure
 
 - [x] Create `internal/context/` package
-- [x] Implement `InstanceContext` struct
+- [x] Implement `InstanceContext` struct with ProductName, Description, Domain, SourceFiles
 - [x] Implement `LoadInstanceContext()` function
   - [x] Read `_meta.yaml` (product name, description)
   - [x] Fallback to `README.md` parsing
   - [x] Fallback to directory name inference
-- [x] Add unit tests for context loading (10 tests, all passing)
+- [x] Implement `GetKeywords()` for domain keyword extraction
+- [x] Add unit tests (10 tests, all passing)
 
-### 1.2 Template Detection ✅ COMPLETE
+### 1.2 Template Detection
 
-- [x] Move placeholder patterns to shared location
-  - [x] Extract `PlaceholderPatterns` from `internal/checks/instance.go`
-  - [x] Extract `ExclusionPatterns` from `internal/checks/instance.go`
-  - [x] Create `internal/validation/patterns.go`
-- [x] Implement template detection functions
-  - [x] `IsTemplateContent(value) bool`
-  - [x] `DetectTemplatePlaceholder(field, value) (bool, string)`
-  - [x] Use existing patterns from ContentReadinessChecker
-- [x] Add template keyword patterns (17 patterns + 11 exclusions)
-  - [x] "Example:", "Your Organization", "TBD"
-  - [x] "Who they are", "What they do"
-  - [x] "YYYY-MM-DD", "[FIELD]", "[INSERT]"
-- [x] Add unit tests for template detection (4 test suites, all passing)
+- [x] Move placeholder patterns to shared `internal/validation/patterns.go`
+  - [x] Extract `PlaceholderPatterns` (16 patterns)
+  - [x] Extract `ExclusionPatterns` (11 patterns)
+- [x] Implement `IsTemplateContent(value) bool`
+- [x] Implement `DetectTemplatePlaceholder(field, value) (bool, matchedText)`
+  - [x] Return actual matched text instead of regex pattern
+- [x] Add unit tests (4 test suites, all passing)
 
-### 1.3 Basic Semantic Sanity Checks ✅ COMPLETE
+### 1.3 Semantic Sanity Checks
 
 - [x] Create `internal/validation/sanity.go`
-- [x] Implement product/content alignment checks
-  - [x] Extract keywords from product name/description
-  - [x] Extract keywords from field content
-  - [x] Flag mismatches (e.g., "veilag" + "planning frameworks")
-  - [x] Distinguish strong vs weak domain indicators
-  - [x] Confidence levels (high/medium/low)
 - [x] Implement `CheckContentAlignment()` function
-- [x] Add unit tests for sanity checks (10 test cases, all passing)
+  - [x] Extract keywords from product context
+  - [x] Extract keywords from field content
+  - [x] Detect domain mismatches (strong vs weak indicators)
+  - [x] Return `AlignmentWarning` with confidence levels
+- [x] Add unit tests (10 test cases, all passing)
 
-**Summary of Phase 1 Implementation:**
+### 1.4 Enhanced Validation Output
 
-- ✅ Task 1.1: Product Context Infrastructure (context loading, 10 tests)
-- ✅ Task 1.2: Template Detection (shared patterns, 4 test suites)
-- ✅ Task 1.3: Semantic Sanity Checks (alignment detection, 10 tests)
+**Goal:** Integrate the built infrastructure into the validation command output.
 
-**Next Steps:** Integrate into validation command (Task 1.4)
+- [x] Update `cmd/validate.go`
+  - [x] Load instance context at validation start
+  - [x] Display product context header before validation results
+  - [x] Create AI-friendly result even when validation passes (for warnings)
+- [x] Add template warnings to output
+  - [x] Call `DetectTemplatePlaceholder()` on string field values
+  - [x] Add `template_warnings` section to `--ai-friendly` output
+  - [x] Template warnings work even without product context
+- [x] Add semantic alignment warnings to output
+  - [x] Call `CheckContentAlignment()` on strategic fields
+  - [x] Add `semantic_warnings` section to `--ai-friendly` output (when context available)
+- [x] Update `--ai-friendly` YAML/JSON format
+  - [x] Add `product_context:` section (product_name, description, keywords, source)
+  - [x] Add `template_warnings:` array (path, placeholder, context)
+  - [x] Add `semantic_warnings:` array (path, issue, confidence, suggestion)
+- [x] All existing tests pass
 
-### 1.4 Enhanced Validation Output 🔄 NEXT
+### 1.5 Per-Field Examples (Enhancement - Future)
 
-- [ ] Update `cmd/validate.go`
-  - [ ] Load instance context before validation
-  - [ ] Display product context header
-  - [ ] Add template detection warnings to output
-  - [ ] Add sanity check warnings to output
-- [ ] Update `internal/validator/validator.go`
-  - [ ] Pass context to validation functions
-  - [ ] Enhance error messages with product context
-  - [ ] Add fix hints based on product domain
-- [ ] Update `--ai-friendly` output format
-  - [ ] Include product context in YAML output
-  - [ ] Add `template_warnings` section
-  - [ ] Add `sanity_warnings` section
+**Goal:** Show field-specific examples based on product domain.
 
-### 1.5 Integration with Health Check
+- [x] Create `internal/validation/examples.go`
+  - [x] Implement ExampleExtractor using embedded templates
+  - [x] Implement GetFieldExample(artifactType, fieldPath) to extract examples at YAML paths
+  - [x] Implement GetSectionExample() for complete section YAML
+  - [x] Implement GetExamplesForErrors() for batch extraction
+  - [x] Add field description lookup for common fields (severity, impact, status, etc.)
+- [x] Add examples to validation errors
+  - [x] Add Example field to EnhancedValidationError in validator/ai_friendly.go
+  - [x] Add FieldExample struct with Value, Type, Description
+  - [x] Integrate example extraction into createAIResultFromBasic()
+  - [x] Integrate example extraction into createAIResultFromBasicWithContext()
+- [x] Add `--explain <field>` command option
+  - [x] Show field purpose, constraints, and examples
+  - [x] Include product context and template examples
+  - [x] Support JSON output with `--json` flag
+
+### 1.6 Integration with Health Check (Future)
 
 - [ ] Update `cmd/health.go`
-  - [ ] Link content readiness to validation command
-  - [ ] Suggest `validate --ai-friendly` for details
-- [ ] Coordinate with ContentReadinessChecker
-  - [ ] Share pattern lists
-  - [ ] Use same InstanceContext loading
+  - [ ] Suggest `validate --ai-friendly` when content issues found
+  - [ ] Share context loading with validation
+- [ ] Coordinate ContentReadinessChecker with validation context
+  - [ ] Use same pattern lists
+  - [ ] Share InstanceContext loading
 
-### 1.6 Testing
+### 1.7 Testing (Future)
 
-- [ ] Unit tests for context loading
-- [ ] Unit tests for template detection
-- [ ] Unit tests for sanity checks
-- [ ] Integration test with Veilag artifacts
-  - [ ] Should catch mission/product mismatch
+- [ ] Integration test with Veilag-like misaligned content
+  - [ ] Should catch mission/product domain mismatch
   - [ ] Should detect template placeholders
   - [ ] Should show product context
 - [ ] Integration test with emergent artifacts
   - [ ] Should pass without false positives
+- [ ] Update existing validation tests
 
-### 1.7 Documentation
+### 1.8 Documentation (Future)
 
-- [ ] Update `apps/epf-cli/README.md`
-  - [ ] Document new validation features
-  - [ ] Add examples of enhanced output
-- [ ] Update `apps/epf-cli/AGENTS.md`
-  - [ ] Document validation workflow with product context
-  - [ ] Add troubleshooting for template warnings
-  - [ ] Add guidance on sanity check warnings
-- [ ] Update bug report with implementation notes
+- [x] Update `apps/epf-cli/README.md`
+  - [x] Document new validation features
+  - [x] Add examples of enhanced output
+- [x] Update `apps/epf-cli/AGENTS.md`
+  - [x] Document validation workflow with product context
+  - [x] Add troubleshooting for template/sanity warnings
 
 ## Success Criteria
 
-### Phase 1 Complete When:
+- [x] `epf-cli validate` shows product context header
+- [x] Template placeholders trigger warnings with `--ai-friendly`
+- [x] Obvious content mismatches are flagged with confidence
+- [x] Per-field examples appear in error output
+- [x] `--explain <field>` command option shows field purpose, constraints, and template examples
+- [x] All tests pass
+- [x] Documentation updated
+- [x] Tested on real EPF instances (emergent)
 
-- [ ] `epf-cli validate` shows product context header
-- [ ] Template placeholders trigger warnings
-- [ ] Obvious content mismatches are flagged
-- [ ] All tests pass
-- [ ] Documentation updated
-- [ ] Tested on real EPF instances (Veilag, emergent)
+## Implementation Notes
 
-### Validation Test Cases:
+**Built Infrastructure:**
 
-1. **Veilag with wrong content**: Should flag "planning frameworks" as mismatch with "road associations"
-2. **File with templates**: Should warn about "Example:", "TBD", "YYYY-MM-DD"
-3. **Valid content**: Should not trigger false positive warnings
-4. **Missing \_meta.yaml**: Should gracefully fallback to README or directory name
+- `internal/context/context.go` - Product context loading (270 lines)
+- `internal/validation/sanity.go` - Alignment checking (233 lines)
+- `internal/validation/patterns.go` - Template detection (84 lines)
+- `internal/validation/examples.go` - Per-field example extraction from templates (294 lines)
 
-## Implementation Order
+**Key Integration Points (Completed):**
 
-1. **Context loading** (1.1) - Foundation for everything else
-2. **Template detection** (1.2) - Reuses existing patterns
-3. **Sanity checks** (1.3) - New validation layer
-4. **Enhanced output** (1.4) - Ties everything together
-5. **Integration** (1.5) - Coordinates with existing systems
-6. **Testing** (1.6) - Validates implementation
-7. **Documentation** (1.7) - Makes it usable
+1. `validateSingleFile()` in `cmd/validate.go` - context loading, warning collection
+2. `createAIResultFromBasicWithContext()` - creates AI-friendly result with context and examples
+3. `createAIResultFromBasic()` - creates AI-friendly result with examples
+4. `addFieldExamplesToErrors()` - populates Example field on each error using ExampleExtractor
+5. `collectTemplateWarnings()` - template detection (works without context)
+6. `collectSemanticWarnings()` - semantic alignment (requires context)
+7. `CreateAIFriendlyResultWithContext()` in `validator/ai_friendly.go`
+8. `runExplainField()` in `cmd/validate.go` - `--explain` flag handler
+9. `GetTopLevelSection()` in `validator/ai_friendly.go` - exported for section name extraction
 
-## Notes
+**Test Files:**
 
-- **Reuse existing patterns**: ContentReadinessChecker already has 16 placeholder patterns - don't duplicate
-- **Graceful degradation**: If context loading fails, validation should still work (just without product context)
-- **Performance**: Context loading should be fast (<100ms) - cache if needed
-- **False positives**: Start conservative - better to miss some issues than annoy users with wrong warnings
+- `internal/context/context_test.go` - 10 tests
+- `internal/validation/sanity_test.go` - 10 tests
+- `internal/validation/patterns_test.go` - 4 test suites
