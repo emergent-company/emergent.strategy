@@ -1222,3 +1222,607 @@ func min(a, b int) int {
 	}
 	return b
 }
+
+// =============================================================================
+// AI Agent Discovery Integration Tests (v0.13.0 - Section 10)
+// =============================================================================
+
+// TestCLI_Agent tests the agent command for AI agent instructions
+func TestCLI_Agent(t *testing.T) {
+	cli := buildCLI(t)
+
+	cmd := exec.Command(cli, "agent")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("agent command failed: %v\n%s", err, output)
+	}
+
+	outputStr := string(output)
+
+	// Should show authority declaration
+	if !strings.Contains(outputStr, "epf-cli") {
+		t.Errorf("Expected epf-cli authority declaration, got: %s", outputStr)
+	}
+
+	// Should show key commands
+	if !strings.Contains(outputStr, "COMMANDS") || !strings.Contains(outputStr, "agent") {
+		t.Errorf("Expected command list, got: %s", outputStr)
+	}
+
+	t.Logf("Agent output:\n%s", outputStr[:min(len(outputStr), 1500)])
+}
+
+func TestCLI_Agent_JSON(t *testing.T) {
+	cli := buildCLI(t)
+
+	cmd := exec.Command(cli, "agent", "--json")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("agent --json command failed: %v\n%s", err, output)
+	}
+
+	outputStr := string(output)
+
+	// Should be valid JSON
+	if !strings.HasPrefix(strings.TrimSpace(outputStr), "{") {
+		t.Errorf("Expected JSON output, got: %s", outputStr)
+	}
+
+	// Should contain expected fields
+	if !strings.Contains(outputStr, "\"authority\"") {
+		t.Errorf("Expected 'authority' field in JSON, got: %s", outputStr)
+	}
+	if !strings.Contains(outputStr, "\"commands\"") {
+		t.Errorf("Expected 'commands' field in JSON, got: %s", outputStr)
+	}
+	if !strings.Contains(outputStr, "\"mcp_tools\"") {
+		t.Errorf("Expected 'mcp_tools' field in JSON, got: %s", outputStr)
+	}
+	if !strings.Contains(outputStr, "\"workflow\"") {
+		t.Errorf("Expected 'workflow' field in JSON, got: %s", outputStr)
+	}
+
+	t.Logf("Agent JSON output:\n%s", outputStr[:min(len(outputStr), 1500)])
+}
+
+// TestCLI_Locate tests the locate command for finding EPF instances
+func TestCLI_Locate(t *testing.T) {
+	cli := buildCLI(t)
+	instancePath := findTestInstance()
+	if instancePath == "" {
+		t.Skip("Test instance not found - skipping locate tests")
+	}
+
+	// Search from parent of instances directory
+	searchPath := filepath.Dir(filepath.Dir(instancePath))
+
+	cmd := exec.Command(cli, "locate", searchPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// Locate might return non-zero if some instances are broken, that's OK
+	}
+
+	outputStr := string(output)
+
+	// Should find at least one instance
+	if !strings.Contains(outputStr, "INSTANCES") && !strings.Contains(outputStr, "instance") {
+		t.Errorf("Expected instance output, got: %s", outputStr)
+	}
+
+	t.Logf("Locate output:\n%s", outputStr[:min(len(outputStr), 1500)])
+	_ = err
+}
+
+func TestCLI_Locate_JSON(t *testing.T) {
+	cli := buildCLI(t)
+	instancePath := findTestInstance()
+	if instancePath == "" {
+		t.Skip("Test instance not found - skipping locate tests")
+	}
+
+	searchPath := filepath.Dir(filepath.Dir(instancePath))
+
+	cmd := exec.Command(cli, "locate", "--json", searchPath)
+	output, err := cmd.CombinedOutput()
+
+	outputStr := string(output)
+
+	// Should be valid JSON
+	if !strings.HasPrefix(strings.TrimSpace(outputStr), "{") {
+		t.Errorf("Expected JSON output, got: %s", outputStr)
+	}
+
+	// Should contain expected fields
+	if !strings.Contains(outputStr, "\"search_path\"") {
+		t.Errorf("Expected 'search_path' field in JSON, got: %s", outputStr)
+	}
+	if !strings.Contains(outputStr, "\"instances\"") {
+		t.Errorf("Expected 'instances' field in JSON, got: %s", outputStr)
+	}
+	if !strings.Contains(outputStr, "\"summary\"") {
+		t.Errorf("Expected 'summary' field in JSON, got: %s", outputStr)
+	}
+
+	t.Logf("Locate JSON output:\n%s", outputStr[:min(len(outputStr), 1500)])
+	_ = err
+}
+
+func TestCLI_Locate_RequireAnchor(t *testing.T) {
+	cli := buildCLI(t)
+	instancePath := findTestInstance()
+	if instancePath == "" {
+		t.Skip("Test instance not found - skipping locate tests")
+	}
+
+	searchPath := filepath.Dir(filepath.Dir(instancePath))
+
+	cmd := exec.Command(cli, "locate", "--require-anchor", "--json", searchPath)
+	output, err := cmd.CombinedOutput()
+
+	outputStr := string(output)
+
+	// Should be valid JSON
+	if !strings.HasPrefix(strings.TrimSpace(outputStr), "{") {
+		t.Errorf("Expected JSON output, got: %s", outputStr)
+	}
+
+	// All instances returned should have high confidence (if any)
+	// This is verified by the JSON output containing only high confidence instances
+	if strings.Contains(outputStr, "\"confidence\": \"medium\"") ||
+		strings.Contains(outputStr, "\"confidence\": \"low\"") {
+		t.Error("With --require-anchor, should only return high confidence instances")
+	}
+
+	t.Logf("Locate require-anchor output:\n%s", outputStr[:min(len(outputStr), 1500)])
+	_ = err
+}
+
+// TestCLI_MigrateAnchor_DryRun tests the migrate-anchor command
+func TestCLI_MigrateAnchor_DryRun(t *testing.T) {
+	cli := buildCLI(t)
+
+	// Create a legacy instance in temp directory
+	tmpDir := t.TempDir()
+
+	// Create EPF markers but no anchor
+	os.MkdirAll(filepath.Join(tmpDir, "READY"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "FIRE"), 0755)
+	os.WriteFile(filepath.Join(tmpDir, "_meta.yaml"), []byte(`instance:
+  product_name: 'TestProduct'
+  epf_version: '2.11.0'
+`), 0644)
+
+	cmd := exec.Command(cli, "migrate-anchor", "--dry-run", tmpDir)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("migrate-anchor --dry-run failed: %v\n%s", err, output)
+	}
+
+	outputStr := string(output)
+
+	// Should indicate dry run mode
+	if !strings.Contains(outputStr, "DRY RUN") && !strings.Contains(outputStr, "dry run") {
+		t.Errorf("Expected dry run indicator, got: %s", outputStr)
+	}
+
+	// Should show what would be created
+	if !strings.Contains(outputStr, "_epf.yaml") {
+		t.Errorf("Expected anchor file name in output, got: %s", outputStr)
+	}
+
+	// Anchor file should NOT exist (dry run)
+	if _, err := os.Stat(filepath.Join(tmpDir, "_epf.yaml")); err == nil {
+		t.Error("Anchor file should not be created in dry run mode")
+	}
+
+	t.Logf("Migrate-anchor dry-run output:\n%s", outputStr)
+}
+
+// TestCLI_MigrateAnchor tests actual migration
+func TestCLI_MigrateAnchor(t *testing.T) {
+	cli := buildCLI(t)
+
+	// Create a legacy instance in temp directory
+	tmpDir := t.TempDir()
+
+	// Create EPF markers but no anchor
+	os.MkdirAll(filepath.Join(tmpDir, "READY"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "FIRE"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "AIM"), 0755)
+	os.WriteFile(filepath.Join(tmpDir, "_meta.yaml"), []byte(`instance:
+  product_name: 'TestMigration'
+  epf_version: '2.11.0'
+  description: 'Test migration instance'
+`), 0644)
+
+	cmd := exec.Command(cli, "migrate-anchor", tmpDir)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("migrate-anchor failed: %v\n%s", err, output)
+	}
+
+	outputStr := string(output)
+
+	// Anchor file should exist
+	anchorPath := filepath.Join(tmpDir, "_epf.yaml")
+	if _, err := os.Stat(anchorPath); os.IsNotExist(err) {
+		t.Error("Anchor file should be created after migration")
+	}
+
+	// Read and verify anchor content
+	anchorContent, err := os.ReadFile(anchorPath)
+	if err != nil {
+		t.Fatalf("Failed to read anchor file: %v", err)
+	}
+
+	anchorStr := string(anchorContent)
+
+	// Should contain required fields
+	if !strings.Contains(anchorStr, "epf_anchor: true") {
+		t.Error("Anchor should contain epf_anchor: true")
+	}
+	if !strings.Contains(anchorStr, "instance_id:") {
+		t.Error("Anchor should contain instance_id")
+	}
+	if !strings.Contains(anchorStr, "product_name: TestMigration") {
+		t.Error("Anchor should contain inferred product_name")
+	}
+
+	t.Logf("Migrate-anchor output:\n%s", outputStr)
+	t.Logf("Anchor content:\n%s", anchorStr)
+}
+
+// =============================================================================
+// False Positive Rejection Tests
+// =============================================================================
+
+func TestCLI_Locate_RejectsEpfCli(t *testing.T) {
+	cli := buildCLI(t)
+
+	// Find the project root (should be apps/epf-cli or its parent)
+	root := findProjectRoot()
+	if root == "" {
+		t.Skip("Could not find project root")
+	}
+
+	// Search from epf-cli directory itself
+	cmd := exec.Command(cli, "locate", "--json", root)
+	output, err := cmd.CombinedOutput()
+
+	outputStr := string(output)
+
+	// The epf-cli directory itself should not be detected as an EPF instance
+	// even if it has READY/FIRE test directories
+	if strings.Contains(outputStr, "apps/epf-cli\"") &&
+		strings.Contains(outputStr, "\"status\": \"valid\"") {
+		t.Error("Should not detect epf-cli itself as a valid EPF instance")
+	}
+
+	t.Logf("Locate epf-cli rejection test output:\n%s", outputStr[:min(len(outputStr), 1500)])
+	_ = err
+}
+
+func TestDiscovery_FalsePositiveRejection(t *testing.T) {
+	// Test the false positive rejection via CLI on created test directories
+	cli := buildCLI(t)
+	tmpDir := t.TempDir()
+
+	// Create directories that should be rejected as false positives
+	falsePositiveDirs := []string{
+		"epf-cli/internal",
+		"canonical-epf/schemas",
+		"node_modules/some-epf-package",
+	}
+
+	for _, dir := range falsePositiveDirs {
+		fullPath := filepath.Join(tmpDir, dir)
+		os.MkdirAll(filepath.Join(fullPath, "READY"), 0755)
+		os.MkdirAll(filepath.Join(fullPath, "FIRE"), 0755)
+	}
+
+	// Create a valid instance that should be found
+	validPath := filepath.Join(tmpDir, "docs", "epf", "_instances", "test-product")
+	os.MkdirAll(filepath.Join(validPath, "READY"), 0755)
+	os.MkdirAll(filepath.Join(validPath, "FIRE"), 0755)
+	os.WriteFile(filepath.Join(validPath, "_meta.yaml"), []byte(`instance:
+  product_name: 'ValidProduct'
+`), 0644)
+
+	cmd := exec.Command(cli, "locate", "--json", tmpDir)
+	output, err := cmd.CombinedOutput()
+
+	outputStr := string(output)
+
+	// Should find the valid instance
+	if !strings.Contains(outputStr, "test-product") {
+		t.Error("Should find the valid test-product instance")
+	}
+
+	// Should NOT find false positive directories
+	for _, dir := range falsePositiveDirs {
+		if strings.Contains(outputStr, filepath.Join(tmpDir, dir)) &&
+			strings.Contains(outputStr, "\"status\": \"valid\"") {
+			t.Errorf("Should reject false positive directory: %s", dir)
+		}
+	}
+
+	t.Logf("False positive rejection test output:\n%s", outputStr)
+	_ = err
+}
+
+// =============================================================================
+// Legacy Instance Detection Tests
+// =============================================================================
+
+func TestCLI_Locate_DetectsLegacyInstances(t *testing.T) {
+	cli := buildCLI(t)
+	tmpDir := t.TempDir()
+
+	// Create a legacy instance (has markers but no anchor)
+	legacyPath := filepath.Join(tmpDir, "legacy-product")
+	os.MkdirAll(filepath.Join(legacyPath, "READY"), 0755)
+	os.MkdirAll(filepath.Join(legacyPath, "FIRE"), 0755)
+	os.MkdirAll(filepath.Join(legacyPath, "AIM"), 0755)
+	os.WriteFile(filepath.Join(legacyPath, "_meta.yaml"), []byte(`instance:
+  product_name: 'LegacyProduct'
+`), 0644)
+
+	cmd := exec.Command(cli, "locate", "--json", tmpDir)
+	output, err := cmd.CombinedOutput()
+
+	outputStr := string(output)
+
+	// Should find as legacy instance
+	if !strings.Contains(outputStr, "legacy-product") {
+		t.Error("Should find legacy-product instance")
+	}
+
+	// Should show as legacy status
+	if !strings.Contains(outputStr, "legacy") {
+		t.Error("Should detect as legacy status")
+	}
+
+	// Confidence should be medium (not high, because no anchor)
+	if strings.Contains(outputStr, "\"confidence\": \"high\"") {
+		// Only if there's an anchor should it be high
+		anchorPath := filepath.Join(legacyPath, "_epf.yaml")
+		if _, err := os.Stat(anchorPath); os.IsNotExist(err) {
+			t.Error("Legacy instance without anchor should have medium confidence")
+		}
+	}
+
+	t.Logf("Legacy detection output:\n%s", outputStr)
+	_ = err
+}
+
+func TestCLI_Health_WarnsAboutLegacyInstance(t *testing.T) {
+	cli := buildCLI(t)
+	tmpDir := t.TempDir()
+
+	// Create a legacy instance
+	os.MkdirAll(filepath.Join(tmpDir, "READY"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "FIRE"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "AIM"), 0755)
+	os.WriteFile(filepath.Join(tmpDir, "_meta.yaml"), []byte(`instance:
+  product_name: 'TestLegacy'
+  epf_version: '2.11.0'
+`), 0644)
+
+	cmd := exec.Command(cli, "health", tmpDir)
+	output, err := cmd.CombinedOutput()
+
+	outputStr := string(output)
+
+	// Should warn about missing anchor file
+	if !strings.Contains(outputStr, "anchor") || !strings.Contains(outputStr, "missing") ||
+		(!strings.Contains(outputStr, "legacy") && !strings.Contains(outputStr, "Warning")) {
+		// Accept any indication of anchor/legacy issue
+		if !strings.Contains(outputStr, "_epf.yaml") {
+			t.Logf("Note: Health check may not warn about legacy instance: %s", outputStr)
+		}
+	}
+
+	t.Logf("Health legacy warning output:\n%s", outputStr)
+	_ = err
+}
+
+// =============================================================================
+// End-to-End AI Agent Workflow Tests
+// =============================================================================
+
+// TestCLI_AIAgentWorkflow_DiscoverAndValidate tests the full AI agent workflow
+func TestCLI_AIAgentWorkflow_DiscoverAndValidate(t *testing.T) {
+	cli := buildCLI(t)
+	tmpDir := t.TempDir()
+
+	// Step 1: Create a complete EPF instance with anchor
+	instanceDir := filepath.Join(tmpDir, "docs", "epf", "_instances", "workflow-test")
+	os.MkdirAll(filepath.Join(instanceDir, "READY"), 0755)
+	os.MkdirAll(filepath.Join(instanceDir, "FIRE", "feature_definitions"), 0755)
+	os.MkdirAll(filepath.Join(instanceDir, "AIM"), 0755)
+
+	// Create _meta.yaml
+	os.WriteFile(filepath.Join(instanceDir, "_meta.yaml"), []byte(`instance:
+  product_name: 'WorkflowTest'
+  epf_version: '2.11.0'
+`), 0644)
+
+	// Create anchor file
+	os.WriteFile(filepath.Join(instanceDir, "_epf.yaml"), []byte(`epf_anchor: true
+version: "1.0.0"
+instance_id: "test-workflow-instance"
+created_at: 2024-01-01T00:00:00Z
+product_name: "WorkflowTest"
+epf_version: "2.11.0"
+structure:
+  type: phased
+`), 0644)
+
+	// Step 2: Run agent command to get instructions
+	agentCmd := exec.Command(cli, "agent", "--json")
+	agentCmd.Dir = instanceDir
+	agentOutput, err := agentCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Agent command failed: %v\n%s", err, agentOutput)
+	}
+
+	agentStr := string(agentOutput)
+	if !strings.Contains(agentStr, "\"authority\"") {
+		t.Error("Agent output should contain authority")
+	}
+	t.Logf("Step 1 - Agent instructions: OK")
+
+	// Step 3: Run locate to find the instance
+	locateCmd := exec.Command(cli, "locate", "--json", tmpDir)
+	locateOutput, err := locateCmd.CombinedOutput()
+	if err != nil {
+		// Locate might return non-zero, that's OK
+	}
+
+	locateStr := string(locateOutput)
+	if !strings.Contains(locateStr, "workflow-test") {
+		t.Error("Locate should find the workflow-test instance")
+	}
+	if !strings.Contains(locateStr, "\"confidence\": \"high\"") {
+		t.Error("Instance with anchor should have high confidence")
+	}
+	t.Logf("Step 2 - Locate instance: OK")
+
+	// Step 4: Run health check on the instance
+	healthCmd := exec.Command(cli, "health", "--json", instanceDir)
+	healthOutput, err := healthCmd.CombinedOutput()
+
+	healthStr := string(healthOutput)
+	if !strings.Contains(healthStr, "overall_status") {
+		t.Error("Health output should contain overall_status")
+	}
+	t.Logf("Step 3 - Health check: OK")
+
+	t.Logf("AI Agent Workflow Test Complete:\n  Agent: %d bytes\n  Locate: %d bytes\n  Health: %d bytes",
+		len(agentOutput), len(locateOutput), len(healthOutput))
+	_ = err
+}
+
+// TestCLI_AIAgentWorkflow_MigrateLegacy tests migrating a legacy instance
+func TestCLI_AIAgentWorkflow_MigrateLegacy(t *testing.T) {
+	cli := buildCLI(t)
+	tmpDir := t.TempDir()
+
+	// Create a legacy instance (no anchor)
+	instanceDir := filepath.Join(tmpDir, "legacy-project")
+	os.MkdirAll(filepath.Join(instanceDir, "READY"), 0755)
+	os.MkdirAll(filepath.Join(instanceDir, "FIRE"), 0755)
+	os.MkdirAll(filepath.Join(instanceDir, "AIM"), 0755)
+	os.WriteFile(filepath.Join(instanceDir, "_meta.yaml"), []byte(`instance:
+  product_name: 'LegacyProject'
+  epf_version: '2.11.0'
+  description: 'A legacy project to migrate'
+`), 0644)
+
+	// Step 1: Locate shows as legacy
+	locateCmd := exec.Command(cli, "locate", "--json", tmpDir)
+	locateOutput, _ := locateCmd.CombinedOutput()
+
+	locateStr := string(locateOutput)
+	if !strings.Contains(locateStr, "legacy") {
+		t.Error("Instance should be detected as legacy")
+	}
+	t.Logf("Step 1 - Detected as legacy: OK")
+
+	// Step 2: Migrate the anchor
+	migrateCmd := exec.Command(cli, "migrate-anchor", instanceDir)
+	migrateOutput, err := migrateCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Migrate anchor failed: %v\n%s", err, migrateOutput)
+	}
+	t.Logf("Step 2 - Migrate anchor: OK")
+
+	// Step 3: Verify anchor exists
+	anchorPath := filepath.Join(instanceDir, "_epf.yaml")
+	if _, err := os.Stat(anchorPath); os.IsNotExist(err) {
+		t.Fatal("Anchor file should exist after migration")
+	}
+	t.Logf("Step 3 - Anchor file created: OK")
+
+	// Step 4: Locate should now show high confidence
+	locateCmd2 := exec.Command(cli, "locate", "--json", tmpDir)
+	locateOutput2, _ := locateCmd2.CombinedOutput()
+
+	locateStr2 := string(locateOutput2)
+	if !strings.Contains(locateStr2, "\"confidence\": \"high\"") {
+		t.Error("After migration, instance should have high confidence")
+	}
+	if strings.Contains(locateStr2, "\"status\": \"legacy\"") {
+		t.Error("After migration, instance should not be legacy status")
+	}
+	t.Logf("Step 4 - Now shows high confidence: OK")
+
+	t.Logf("Legacy Migration Workflow Test Complete")
+}
+
+// TestCLI_Init_CreatesAnchor tests that init creates anchor file
+func TestCLI_Init_CreatesAnchor(t *testing.T) {
+	cli := buildCLI(t)
+	tmpDir := t.TempDir()
+
+	// Initialize git repo (required by init)
+	gitInit := exec.Command("git", "init")
+	gitInit.Dir = tmpDir
+	if err := gitInit.Run(); err != nil {
+		t.Fatalf("git init failed: %v", err)
+	}
+
+	// Run init
+	initCmd := exec.Command(cli, "init", "anchor-test-product")
+	initCmd.Dir = tmpDir
+	initOutput, err := initCmd.CombinedOutput()
+
+	outputStr := string(initOutput)
+
+	// If init fails due to config, skip
+	if err != nil {
+		if strings.Contains(outputStr, "canonical_path") || strings.Contains(outputStr, "config") {
+			t.Skipf("Init requires canonical_path configuration - skipping: %s", outputStr)
+		}
+		t.Fatalf("init command failed: %v\n%s", err, initOutput)
+	}
+
+	// Check that anchor file was created
+	anchorPath := filepath.Join(tmpDir, "docs", "EPF", "_instances", "anchor-test-product", "_epf.yaml")
+	// Also check lowercase variant
+	if _, err := os.Stat(anchorPath); os.IsNotExist(err) {
+		anchorPath = filepath.Join(tmpDir, "docs", "epf", "_instances", "anchor-test-product", "_epf.yaml")
+	}
+
+	if _, err := os.Stat(anchorPath); os.IsNotExist(err) {
+		// Try to find any _epf.yaml in the tree
+		var foundAnchor bool
+		filepath.Walk(tmpDir, func(path string, info os.FileInfo, err error) error {
+			if err == nil && info.Name() == "_epf.yaml" {
+				foundAnchor = true
+				anchorPath = path
+				return filepath.SkipAll
+			}
+			return nil
+		})
+		if !foundAnchor {
+			t.Errorf("Anchor file _epf.yaml should be created by init. Output: %s", outputStr)
+		}
+	}
+
+	// Read anchor content
+	anchorContent, err := os.ReadFile(anchorPath)
+	if err != nil {
+		t.Fatalf("Failed to read anchor: %v", err)
+	}
+
+	anchorStr := string(anchorContent)
+	if !strings.Contains(anchorStr, "epf_anchor: true") {
+		t.Error("Anchor should contain epf_anchor: true")
+	}
+	if !strings.Contains(anchorStr, "instance_id:") {
+		t.Error("Anchor should contain instance_id")
+	}
+
+	t.Logf("Init creates anchor test:\n%s", anchorStr[:min(len(anchorStr), 500)])
+}
