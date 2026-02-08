@@ -25,6 +25,7 @@ var (
 	validateSection     string
 	validateSections    string
 	validateContinueErr bool
+	validateExplain     string
 )
 
 var validateCmd = &cobra.Command{
@@ -75,6 +76,7 @@ Examples:
   epf-cli validate file.yaml --section target_users     # Validate only target_users section
   epf-cli validate file.yaml --section key_insights --ai-friendly  # AI output for one section
   epf-cli validate file.yaml --sections "target_users,key_insights" --continue-on-error  # Multiple sections
+  epf-cli validate file.yaml --explain "target_users[0].problems[0].severity"  # Explain a field
   epf-cli validate --schema custom.json file.yaml       # Use specific schema`,
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -112,6 +114,16 @@ Examples:
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: Cannot access %s: %v\n", path, err)
 			os.Exit(1)
+		}
+
+		// Explain field mode - requires a single file
+		if validateExplain != "" {
+			if info.IsDir() {
+				fmt.Fprintf(os.Stderr, "Error: --explain flag requires a single file, not a directory\n")
+				os.Exit(1)
+			}
+			runExplainField(val, path, validateExplain)
+			return
 		}
 
 		// Section validation requires a single file
@@ -185,10 +197,15 @@ func validateSingleFile(val *validator.Validator, path string, schemaOverride st
 		}
 	}
 
-	// If AI-friendly or fix-plan output is requested, also get enhanced errors
+	// If AI-friendly or fix-plan output is requested, create enhanced result
 	var aiResult *validator.AIFriendlyResult
-	if (validateAIFriendly || validateFixPlan) && !result.Valid {
+	if validateAIFriendly || validateFixPlan {
 		// Create enhanced AI-friendly result with schema introspection
+		// Always create it when AI-friendly output is requested so that:
+		// 1. Schema validation errors are included (if any)
+		// 2. Product context is included (if available)
+		// 3. Template warnings are included (if any)
+		// 4. Semantic alignment warnings are included (if any)
 		aiResult = createAIResultFromBasicWithContext(val, path, result, ctx)
 	}
 
@@ -513,6 +530,9 @@ func createAIResultFromBasic(val *validator.Validator, filePath string, result *
 		enhancedErrors = append(enhancedErrors, enhanced)
 	}
 
+	// Add per-field examples from templates
+	addFieldExamplesToErrors(enhancedErrors, result.ArtifactType)
+
 	return validator.CreateAIFriendlyResult(filePath, result.ArtifactType, enhancedErrors)
 }
 
@@ -562,10 +582,16 @@ func createAIResultFromBasicWithContext(val *validator.Validator, filePath strin
 		enhancedErrors = append(enhancedErrors, enhanced)
 	}
 
+	// Add per-field examples from templates
+	addFieldExamplesToErrors(enhancedErrors, result.ArtifactType)
+
 	// Collect product context and warnings
 	var productContext map[string]interface{}
 	var templateWarnings []map[string]interface{}
 	var semanticWarnings []map[string]interface{}
+
+	// Always collect template warnings (they don't require product context)
+	templateWarnings = collectTemplateWarnings(filePath)
 
 	if ctx != nil && ctx.Found {
 		// Convert context to map for AI-friendly output
@@ -577,8 +603,8 @@ func createAIResultFromBasicWithContext(val *validator.Validator, filePath strin
 			"source":       strings.Join(ctx.SourceFiles, ", "),
 		}
 
-		// Collect warnings
-		templateWarnings, semanticWarnings = collectProductAwareWarnings(filePath, ctx)
+		// Collect semantic alignment warnings (require product context)
+		semanticWarnings = collectSemanticWarnings(filePath, ctx)
 	}
 
 	return validator.CreateAIFriendlyResultWithContext(filePath, result.ArtifactType, enhancedErrors, productContext, templateWarnings, semanticWarnings)
@@ -700,6 +726,365 @@ func generateBasicFixHint(enhanced *validator.EnhancedValidationError) string {
 	default:
 		return "Check schema requirements for this field"
 	}
+}
+
+// addFieldExamplesToErrors populates the Example field on each error using template examples
+func addFieldExamplesToErrors(errors []*validator.EnhancedValidationError, artifactTypeStr string) {
+	if len(errors) == 0 {
+		return
+	}
+
+	// Parse artifact type
+	artifactType, err := schema.ArtifactTypeFromString(artifactTypeStr)
+	if err != nil {
+		return // Can't get examples without knowing artifact type
+	}
+
+	// Create example extractor (uses embedded templates)
+	extractor, err := validation.NewExampleExtractor()
+	if err != nil {
+		return // Silently skip if templates unavailable
+	}
+
+	// Populate examples for each error
+	for _, enhanced := range errors {
+		example := extractor.GetFieldExample(artifactType, enhanced.Path)
+		if example.Value != "" {
+			enhanced.Example = &validator.FieldExample{
+				Value:       example.Value,
+				Type:        example.Type,
+				Description: example.Description,
+			}
+		}
+	}
+}
+
+// FieldExplanation holds comprehensive information about a field
+type FieldExplanation struct {
+	Field         string           `yaml:"field" json:"field"`
+	ArtifactType  string           `yaml:"artifact_type" json:"artifact_type"`
+	SchemaInfo    *SchemaFieldInfo `yaml:"schema_info,omitempty" json:"schema_info,omitempty"`
+	Example       *TemplateExample `yaml:"example,omitempty" json:"example,omitempty"`
+	Description   string           `yaml:"description,omitempty" json:"description,omitempty"`
+	RelatedFields []string         `yaml:"related_fields,omitempty" json:"related_fields,omitempty"`
+}
+
+// SchemaFieldInfo holds schema-derived information about a field
+type SchemaFieldInfo struct {
+	Type          string   `yaml:"type" json:"type"`
+	Required      bool     `yaml:"required" json:"required"`
+	Constraints   []string `yaml:"constraints,omitempty" json:"constraints,omitempty"`
+	AllowedValues []string `yaml:"allowed_values,omitempty" json:"allowed_values,omitempty"`
+	ChildFields   []string `yaml:"child_fields,omitempty" json:"child_fields,omitempty"`
+}
+
+// TemplateExample holds template-derived example information
+type TemplateExample struct {
+	Value       string `yaml:"value" json:"value"`
+	Type        string `yaml:"type" json:"type"`
+	FullSection string `yaml:"full_section,omitempty" json:"full_section,omitempty"`
+}
+
+// runExplainField explains a specific field path for a file
+func runExplainField(val *validator.Validator, filePath string, fieldPath string) {
+	// Detect artifact type from filename using validator's loader
+	loader := val.GetLoader()
+	artifactType, err := loader.DetectArtifactType(filePath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: Could not detect artifact type for file: %s\n", filePath)
+		os.Exit(1)
+	}
+
+	artifactTypeStr := string(artifactType)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: Unknown artifact type: %s\n", artifactTypeStr)
+		os.Exit(1)
+	}
+
+	explanation := &FieldExplanation{
+		Field:        fieldPath,
+		ArtifactType: artifactTypeStr,
+	}
+
+	// Get schema information
+	schemaFile := val.GetSchemaFileForArtifact(artifactTypeStr)
+	if schemaFile != "" {
+		introspector := val.GetSchemaIntrospector()
+		jsonPointer := humanPathToJSONPointer(fieldPath)
+
+		// Try to get the structure at this path
+		structure := introspector.ExtractExpectedStructure(schemaFile, jsonPointer)
+		if structure != nil {
+			explanation.SchemaInfo = &SchemaFieldInfo{
+				Type: "object",
+			}
+			// Extract child fields
+			for name, typeDesc := range structure {
+				explanation.SchemaInfo.ChildFields = append(explanation.SchemaInfo.ChildFields, name+": "+typeDesc)
+			}
+		} else {
+			// Try to get info about this specific field by looking at parent
+			parentPath, fieldName := splitLastPathComponent(jsonPointer)
+			if fieldName != "" {
+				parentStructure := introspector.ExtractExpectedStructure(schemaFile, parentPath)
+				if parentStructure != nil {
+					if typeDesc, ok := parentStructure[fieldName]; ok {
+						explanation.SchemaInfo = parseSchemaTypeDescription(typeDesc)
+					}
+				}
+			}
+		}
+	}
+
+	// Get template example
+	extractor, err := validation.NewExampleExtractor()
+	if err == nil {
+		example := extractor.GetFieldExample(artifactType, fieldPath)
+		if example.Value != "" {
+			explanation.Example = &TemplateExample{
+				Value: example.Value,
+				Type:  example.Type,
+			}
+			explanation.Description = example.Description
+		}
+
+		// Get the section name for section example
+		sectionName := validator.GetTopLevelSection(fieldPath)
+		if sectionName != "" && sectionName != "(root)" {
+			sectionExample := extractor.GetSectionExample(artifactType, sectionName)
+			if sectionExample != "" && len(sectionExample) < 2000 {
+				explanation.Example.FullSection = sectionExample
+			}
+		}
+	}
+
+	// Add description from our knowledge base if not already set
+	if explanation.Description == "" {
+		explanation.Description = getFieldDescriptionFromKnowledge(fieldPath)
+	}
+
+	// Output
+	if validateJSON {
+		data, _ := json.MarshalIndent(explanation, "", "  ")
+		fmt.Println(string(data))
+	} else {
+		printFieldExplanation(explanation)
+	}
+}
+
+// humanPathToJSONPointer converts a human-readable path to JSON pointer
+// e.g., "target_users[0].problems[0].severity" -> "/target_users/0/problems/0/severity"
+func humanPathToJSONPointer(path string) string {
+	if path == "" || path == "(root)" {
+		return "/"
+	}
+
+	var result strings.Builder
+	result.WriteString("/")
+
+	inBracket := false
+	for i := 0; i < len(path); i++ {
+		ch := path[i]
+		switch {
+		case ch == '[':
+			inBracket = true
+			result.WriteString("/")
+		case ch == ']':
+			inBracket = false
+		case ch == '.':
+			if !inBracket {
+				result.WriteString("/")
+			}
+		default:
+			result.WriteByte(ch)
+		}
+	}
+
+	return result.String()
+}
+
+// splitLastPathComponent splits a JSON pointer into parent path and last field name
+func splitLastPathComponent(pointer string) (string, string) {
+	if pointer == "" || pointer == "/" {
+		return "", ""
+	}
+
+	pointer = strings.TrimPrefix(pointer, "/")
+	lastSlash := strings.LastIndex(pointer, "/")
+	if lastSlash == -1 {
+		return "/", pointer
+	}
+
+	return "/" + pointer[:lastSlash], pointer[lastSlash+1:]
+}
+
+// parseSchemaTypeDescription parses a type description string from the introspector
+func parseSchemaTypeDescription(typeDesc string) *SchemaFieldInfo {
+	info := &SchemaFieldInfo{}
+
+	// Check for required
+	if strings.Contains(typeDesc, "(required)") {
+		info.Required = true
+		typeDesc = strings.Replace(typeDesc, " (required)", "", 1)
+	}
+
+	// Check for enum
+	if strings.HasPrefix(typeDesc, "enum: ") {
+		info.Type = "enum"
+		values := strings.TrimPrefix(typeDesc, "enum: ")
+		info.AllowedValues = strings.Split(values, "|")
+		return info
+	}
+
+	// Check for array
+	if strings.HasPrefix(typeDesc, "array of ") {
+		info.Type = "array"
+		rest := strings.TrimPrefix(typeDesc, "array of ")
+		// Extract constraints
+		if idx := strings.Index(rest, " min:"); idx != -1 {
+			info.Constraints = append(info.Constraints, "minItems: "+extractNumber(rest[idx+5:]))
+		}
+		if idx := strings.Index(rest, " max:"); idx != -1 {
+			info.Constraints = append(info.Constraints, "maxItems: "+extractNumber(rest[idx+5:]))
+		}
+		return info
+	}
+
+	// Check for string with constraints
+	if strings.HasPrefix(typeDesc, "string") {
+		info.Type = "string"
+		if idx := strings.Index(typeDesc, " min:"); idx != -1 {
+			info.Constraints = append(info.Constraints, "minLength: "+extractNumber(typeDesc[idx+5:]))
+		}
+		if idx := strings.Index(typeDesc, " max:"); idx != -1 {
+			info.Constraints = append(info.Constraints, "maxLength: "+extractNumber(typeDesc[idx+5:]))
+		}
+		return info
+	}
+
+	// Default
+	info.Type = typeDesc
+	return info
+}
+
+// extractNumber extracts the first number from a string
+func extractNumber(s string) string {
+	var result strings.Builder
+	for _, ch := range s {
+		if ch >= '0' && ch <= '9' {
+			result.WriteRune(ch)
+		} else if result.Len() > 0 {
+			break
+		}
+	}
+	return result.String()
+}
+
+// getFieldDescriptionFromKnowledge returns a description for common fields
+func getFieldDescriptionFromKnowledge(fieldPath string) string {
+	// Extract the last part of the path for common field descriptions
+	lastDot := strings.LastIndex(fieldPath, ".")
+	field := fieldPath
+	if lastDot >= 0 {
+		field = fieldPath[lastDot+1:]
+	}
+
+	// Remove array index if present
+	if idx := strings.Index(field, "["); idx >= 0 {
+		field = field[:idx]
+	}
+
+	descriptions := map[string]string{
+		"severity":              "Indicates the priority or urgency level. Valid values: critical, high, medium, low",
+		"impact":                "Describes the effect or consequence level. Valid values: critical, high, medium, low",
+		"timeframe":             "Specifies when something applies or is expected. Values: immediate, near_term, medium_term, long_term",
+		"workarounds":           "An array of current workarounds or alternatives the user employs to address the problem",
+		"goals":                 "What the user or system is trying to achieve - typically an array of goal statements",
+		"current_situation":     "A detailed description of the persona's current state and context (minimum 200 characters recommended)",
+		"transformation_moment": "The pivotal moment when the user realizes value from the product (minimum 200 characters recommended)",
+		"emotional_resolution":  "How the user feels after achieving a successful outcome (minimum 200 characters recommended)",
+		"technical_proficiency": "The user's technical skill level. Valid values: basic, intermediate, advanced, expert",
+		"status":                "The current state of an item. Valid values: draft, ready, in-progress, delivered",
+		"type":                  "The context or interface type. Valid values: ui, email, notification, api, report, integration",
+		"id":                    "A unique identifier following a specific pattern (e.g., fd-001 for feature definitions, cap-001 for capabilities)",
+		"contributes_to":        "Value model paths that this item contributes to, linking features to strategic goals",
+		"tracks":                "Strategic tracks for categorization. Valid values: product, strategy, org_ops, commercial",
+		"problems":              "An array of problems or pain points experienced by the user or in the market",
+		"persona":               "The name or identifier of the user persona being described",
+		"description":           "A textual description providing context and details about the item",
+		"name":                  "A human-readable name or title for the item",
+		"evidence":              "Supporting data, facts, or observations that validate a claim or insight",
+		"hypothesis":            "A proposed explanation or assumption to be tested or validated",
+		"key_insights":          "Important discoveries or learnings derived from analysis",
+		"target_users":          "The primary users or customers the product is designed for",
+		"competitive_landscape": "Analysis of competitors and market positioning",
+		"market_definition":     "Definition of the target market including TAM, SAM, and SOM",
+	}
+
+	if desc, ok := descriptions[field]; ok {
+		return desc
+	}
+	return ""
+}
+
+// printFieldExplanation outputs a human-readable field explanation
+func printFieldExplanation(exp *FieldExplanation) {
+	fmt.Println()
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	fmt.Printf("  Field Explanation: %s\n", exp.Field)
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	fmt.Println()
+
+	fmt.Printf("Artifact Type: %s\n", exp.ArtifactType)
+	fmt.Println()
+
+	if exp.Description != "" {
+		fmt.Println("Description:")
+		fmt.Printf("  %s\n", exp.Description)
+		fmt.Println()
+	}
+
+	if exp.SchemaInfo != nil {
+		fmt.Println("Schema Information:")
+		fmt.Printf("  Type: %s\n", exp.SchemaInfo.Type)
+		if exp.SchemaInfo.Required {
+			fmt.Println("  Required: yes")
+		}
+		if len(exp.SchemaInfo.AllowedValues) > 0 {
+			fmt.Printf("  Allowed Values: %s\n", strings.Join(exp.SchemaInfo.AllowedValues, ", "))
+		}
+		if len(exp.SchemaInfo.Constraints) > 0 {
+			fmt.Println("  Constraints:")
+			for _, c := range exp.SchemaInfo.Constraints {
+				fmt.Printf("    - %s\n", c)
+			}
+		}
+		if len(exp.SchemaInfo.ChildFields) > 0 {
+			fmt.Println("  Child Fields:")
+			for _, f := range exp.SchemaInfo.ChildFields {
+				fmt.Printf("    - %s\n", f)
+			}
+		}
+		fmt.Println()
+	}
+
+	if exp.Example != nil {
+		fmt.Println("Template Example:")
+		fmt.Printf("  Value: %s\n", exp.Example.Value)
+		fmt.Printf("  Type: %s\n", exp.Example.Type)
+		if exp.Example.FullSection != "" {
+			fmt.Println()
+			fmt.Println("  Full Section Example:")
+			// Indent each line
+			lines := strings.Split(exp.Example.FullSection, "\n")
+			for _, line := range lines {
+				fmt.Printf("    %s\n", line)
+			}
+		}
+		fmt.Println()
+	}
+
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 }
 
 func outputAIFriendly(results []*validator.AIFriendlyResult) bool {
@@ -1035,6 +1420,74 @@ func collectProductAwareWarnings(path string, ctx *context.InstanceContext) ([]m
 	return templateWarnings, semanticWarnings
 }
 
+// collectTemplateWarnings collects template placeholder warnings without requiring product context
+func collectTemplateWarnings(path string) []map[string]interface{} {
+	// Read file content
+	fileContent, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+
+	// Parse YAML
+	var doc map[string]interface{}
+	if err := yaml.Unmarshal(fileContent, &doc); err != nil {
+		return nil
+	}
+
+	var templateWarningStrs []string
+	checkYAMLForTemplates(doc, "", &templateWarningStrs)
+
+	// Convert to map format for AI-friendly output
+	templateWarnings := make([]map[string]interface{}, 0, len(templateWarningStrs))
+	for _, w := range templateWarningStrs {
+		// Parse the warning string to extract path and placeholder
+		// Format: "path contains template content: placeholder"
+		parts := strings.SplitN(w, " contains template content: ", 2)
+		warning := map[string]interface{}{
+			"path":    parts[0],
+			"context": w,
+		}
+		if len(parts) == 2 {
+			warning["placeholder"] = parts[1]
+		} else {
+			warning["placeholder"] = ""
+		}
+		templateWarnings = append(templateWarnings, warning)
+	}
+
+	return templateWarnings
+}
+
+// collectSemanticWarnings collects semantic alignment warnings (requires product context)
+func collectSemanticWarnings(path string, ctx *context.InstanceContext) []map[string]interface{} {
+	// Read file content
+	fileContent, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+
+	// Parse YAML
+	var doc map[string]interface{}
+	if err := yaml.Unmarshal(fileContent, &doc); err != nil {
+		return nil
+	}
+
+	var semanticWarningObjs []*validation.AlignmentWarning
+	checkYAMLForAlignment(ctx, doc, "", &semanticWarningObjs)
+
+	semanticWarnings := make([]map[string]interface{}, 0, len(semanticWarningObjs))
+	for _, w := range semanticWarningObjs {
+		semanticWarnings = append(semanticWarnings, map[string]interface{}{
+			"path":       w.Field,
+			"issue":      w.Issue,
+			"confidence": w.Confidence,
+			"suggestion": w.Suggestion,
+		})
+	}
+
+	return semanticWarnings
+}
+
 func runProductAwareChecks(path string, ctx *context.InstanceContext) {
 	// Read file content
 	fileContent, err := os.ReadFile(path)
@@ -1140,4 +1593,5 @@ func init() {
 	validateCmd.Flags().StringVar(&validateSection, "section", "", "validate only a specific section (e.g., 'target_users', 'competitive_landscape.direct_competitors')")
 	validateCmd.Flags().StringVar(&validateSections, "sections", "", "validate multiple sections (comma-separated, e.g., 'target_users,key_insights')")
 	validateCmd.Flags().BoolVar(&validateContinueErr, "continue-on-error", false, "continue validating remaining sections even if errors found (use with --sections)")
+	validateCmd.Flags().StringVar(&validateExplain, "explain", "", "explain a field path (e.g., 'target_users[0].problems[0].severity') - shows type, constraints, and example")
 }
