@@ -218,9 +218,9 @@ func TestGetTopLevelSection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
-			result := getTopLevelSection(tt.path)
+			result := GetTopLevelSection(tt.path)
 			if result != tt.expected {
-				t.Errorf("getTopLevelSection(%q) = %q, want %q", tt.path, result, tt.expected)
+				t.Errorf("GetTopLevelSection(%q) = %q, want %q", tt.path, result, tt.expected)
 			}
 		})
 	}

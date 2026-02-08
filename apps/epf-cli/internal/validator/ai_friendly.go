@@ -43,7 +43,15 @@ type EnhancedValidationError struct {
 	Message        string        `yaml:"message" json:"message"`                                     // Human-readable message
 	Details        ErrorDetails  `yaml:"details,omitempty" json:"details,omitempty"`                 // Detailed info
 	FixHint        string        `yaml:"fix_hint" json:"fix_hint"`                                   // Actionable suggestion
+	Example        *FieldExample `yaml:"example,omitempty" json:"example,omitempty"`                 // Example from template
 	SchemaLocation string        `yaml:"schema_location,omitempty" json:"schema_location,omitempty"` // Which schema rule failed
+}
+
+// FieldExample represents an example value extracted from a template
+type FieldExample struct {
+	Value       string `yaml:"value" json:"value"`
+	Type        string `yaml:"type" json:"type"`                                   // string, array, object, number, boolean
+	Description string `yaml:"description,omitempty" json:"description,omitempty"` // Context about this field
 }
 
 // ErrorDetails contains type-specific error information
@@ -413,7 +421,7 @@ func GroupErrorsBySection(errors []*EnhancedValidationError) []*SectionErrors {
 	sectionMap := make(map[string][]*EnhancedValidationError)
 
 	for _, err := range errors {
-		section := getTopLevelSection(err.Path)
+		section := GetTopLevelSection(err.Path)
 		sectionMap[section] = append(sectionMap[section], err)
 	}
 
@@ -438,8 +446,8 @@ func GroupErrorsBySection(errors []*EnhancedValidationError) []*SectionErrors {
 	return sections
 }
 
-// getTopLevelSection extracts the top-level field name from a path
-func getTopLevelSection(path string) string {
+// GetTopLevelSection extracts the top-level field name from a path
+func GetTopLevelSection(path string) string {
 	if path == "(root)" || path == "" {
 		return "(root)"
 	}
