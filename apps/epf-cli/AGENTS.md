@@ -425,32 +425,255 @@ From `apps/epf-cli/`:
 └── AGENTS.md              # EPF framework AI instructions
 ```
 
-## CLI Commands (v0.10.0)
+## CLI Commands (v0.13.0)
 
-| Command                    | Description                                      |
-| -------------------------- | ------------------------------------------------ |
-| `health`                   | Run comprehensive health check (7 checks)        |
-| `validate`                 | Schema validation only                           |
-| `schemas`                  | List available schemas                           |
-| `fix`                      | Auto-fix common issues (with granular flags)     |
-| `migrate`                  | Migrate artifacts to newer schema versions       |
-| `migrate-structure`        | Migrate EPF from root to docs/epf/ structure     |
-| `report`                   | Generate health reports (md/html/json)           |
-| `diff`                     | Compare EPF artifacts or instances               |
-| `serve`                    | Start MCP server (23 tools)                      |
-| `init`                     | Initialize new EPF instance                      |
-| `explain`                  | Explain a value model path                       |
-| `context` (alias: `ctx`)   | Get strategic context for a feature              |
-| `coverage`                 | Analyze feature coverage of value model          |
-| `relationships validate`   | Validate all relationship paths                  |
-| `aim assess`               | Pre-populate assessment_report.yaml from roadmap |
-| `aim validate-assumptions` | Check assumption validation status               |
-| `aim okr-progress`         | Calculate OKR/KR achievement rates               |
-| `generators list`          | List available output generators                 |
-| `generators show`          | Show generator details and wizard                |
-| `generators check`         | Check generator prerequisites                    |
-| `generators scaffold`      | Create new generator from template               |
-| `version`                  | Show version                                     |
+| Command                    | Description                                          |
+| -------------------------- | ---------------------------------------------------- |
+| `agent`                    | Display AI agent instructions and guidance           |
+| `locate`                   | Find EPF instances in directory tree                 |
+| `health`                   | Run comprehensive health check (8 checks)            |
+| `validate`                 | Schema validation only                               |
+| `schemas`                  | List available schemas                               |
+| `fix`                      | Auto-fix common issues (with granular flags)         |
+| `migrate`                  | Migrate artifacts to newer schema versions           |
+| `migrate-anchor`           | Add anchor file to legacy EPF instance               |
+| `migrate-structure`        | Migrate EPF from root to docs/epf/ structure         |
+| `report`                   | Generate health reports (md/html/json)               |
+| `diff`                     | Compare EPF artifacts or instances                   |
+| `serve`                    | Start MCP server (29 tools)                          |
+| `init`                     | Initialize new EPF instance (now creates \_epf.yaml) |
+| `explain`                  | Explain a value model path                           |
+| `context` (alias: `ctx`)   | Get strategic context for a feature                  |
+| `coverage`                 | Analyze feature coverage of value model              |
+| `relationships validate`   | Validate all relationship paths                      |
+| `aim assess`               | Pre-populate assessment_report.yaml from roadmap     |
+| `aim validate-assumptions` | Check assumption validation status                   |
+| `aim okr-progress`         | Calculate OKR/KR achievement rates                   |
+| `generators list`          | List available output generators                     |
+| `generators show`          | Show generator details and wizard                    |
+| `generators check`         | Check generator prerequisites                        |
+| `generators scaffold`      | Create new generator from template                   |
+| `version`                  | Show version                                         |
+
+### Agent Command (v0.13.0)
+
+Display comprehensive AI agent instructions. **AI agents should run this command first** when entering an EPF context.
+
+```bash
+# Get AI agent instructions (human-readable)
+epf-cli agent
+
+# Get AI agent instructions as JSON for programmatic use
+epf-cli agent --json
+```
+
+**Output includes:**
+
+| Section          | Description                                          |
+| ---------------- | ---------------------------------------------------- |
+| Authority        | Declares epf-cli as normative EPF authority          |
+| Discovery Status | Shows if EPF instance was found in current directory |
+| Key Commands     | Essential commands with when to use them             |
+| MCP Tools        | Key MCP tools for programmatic operations            |
+| Workflow         | Recommended first steps and best practices           |
+
+**When to use:**
+
+- First thing when entering an EPF context
+- When unsure which command or MCP tool to use
+- When onboarding a new AI agent session
+
+### Locate Command (v0.13.0)
+
+Find EPF instances in the directory tree with confidence scoring.
+
+```bash
+# Search current directory
+epf-cli locate
+
+# Search specific path
+epf-cli locate /path/to/search
+
+# Only show instances with anchor files
+epf-cli locate --require-anchor
+
+# Search deeper (default: 5 levels)
+epf-cli locate --max-depth 10
+
+# Verbose output with issues and suggestions
+epf-cli locate -v
+
+# JSON output
+epf-cli locate --json
+```
+
+**Confidence levels:**
+
+| Level    | Meaning                                              |
+| -------- | ---------------------------------------------------- |
+| `high`   | Has valid anchor file (`_epf.yaml`) - definitely EPF |
+| `medium` | Has EPF markers (READY/FIRE/AIM) but no anchor       |
+| `low`    | Has partial EPF structure - may be incomplete        |
+
+**Status types:**
+
+| Status      | Meaning                     |
+| ----------- | --------------------------- |
+| `valid`     | Ready for use               |
+| `legacy`    | Works but needs anchor file |
+| `broken`    | Has issues that need fixing |
+| `not-found` | No EPF instance found       |
+
+**Output groups instances by status:**
+
+```
+VALID INSTANCES (1)
+------------------------------------------------------------
+  ✓  docs/EPF/_instances/emergent
+       Product: Emergent
+       Confidence: high
+
+LEGACY INSTANCES (2) - need anchor file
+------------------------------------------------------------
+  ⚠  old-project/epf
+       Confidence: medium
+       Markers: READY, FIRE, _meta.yaml
+
+SUMMARY
+------------------------------------------------------------
+  Total:   3
+  Valid:   1
+  Legacy:  2
+  Broken:  0
+```
+
+### Migrate Anchor Command (v0.13.0)
+
+Add an anchor file (`_epf.yaml`) to a legacy EPF instance.
+
+```bash
+# Migrate current directory
+epf-cli migrate-anchor
+
+# Migrate specific instance
+epf-cli migrate-anchor docs/EPF/_instances/my-product
+
+# Preview what would be created (dry run)
+epf-cli migrate-anchor --dry-run
+
+# Overwrite existing anchor file
+epf-cli migrate-anchor --force
+
+# JSON output
+epf-cli migrate-anchor --json
+```
+
+**What it does:**
+
+1. Detects if path is a valid legacy EPF instance
+2. Infers metadata from existing files (`_meta.yaml`, directory structure)
+3. Creates `_epf.yaml` anchor file with appropriate metadata
+4. Validates the newly created anchor
+5. Confirms instance is now discoverable
+
+**Inference logic:**
+
+| Source          | Inferred Fields                              |
+| --------------- | -------------------------------------------- |
+| `_meta.yaml`    | `product_name`, `epf_version`, `description` |
+| Directory scan  | `structure.type` (phased vs flat)            |
+| UUID generation | `instance_id`                                |
+| Current time    | `created_at`                                 |
+
+**Post-migration steps:**
+
+1. Review the anchor file and update any inferred values
+2. Run `epf-cli health` to validate the instance
+3. Commit the anchor file to version control
+
+### Anchor File Format (`_epf.yaml`)
+
+The anchor file is the **authoritative marker** that identifies a directory as a valid EPF instance.
+
+```yaml
+# EPF Anchor File
+# Do not modify instance_id or created_at after initialization.
+
+epf_anchor: true # Required: must be true
+version: '1.0.0' # Required: anchor schema version
+instance_id: '550e8400-e29b-41d4-a716-446655440000' # Required: unique ID
+created_at: 2024-01-15T10:30:00Z # Required: initialization time
+
+# Optional but recommended
+epf_version: '2.0.0' # EPF framework version
+product_name: 'My Product' # Product name
+description: 'Product description' # Brief description
+
+structure:
+  type: 'phased' # Structure type: phased or flat
+  location: 'docs/epf/_instances/my-product' # Path from repo root
+```
+
+**Required fields:**
+
+| Field         | Type      | Description                                |
+| ------------- | --------- | ------------------------------------------ |
+| `epf_anchor`  | boolean   | Must be `true` to identify as valid anchor |
+| `version`     | string    | Anchor schema version (currently "1.0.0")  |
+| `instance_id` | string    | UUID, generated once, never changes        |
+| `created_at`  | timestamp | When instance was initialized              |
+
+**Optional fields:**
+
+| Field          | Type   | Description                                    |
+| -------------- | ------ | ---------------------------------------------- |
+| `epf_version`  | string | EPF framework version (for migration tracking) |
+| `product_name` | string | Product name for identification                |
+| `description`  | string | Brief instance description                     |
+| `structure`    | object | Directory structure information                |
+
+**Benefits of anchor files:**
+
+- **Robust discovery**: No false positives from random "READY" directories
+- **Instance identification**: Unique IDs enable tracking across migrations
+- **Version tracking**: Know which EPF version instance uses
+- **Migration support**: Legacy instances can be upgraded
+
+### Legacy Instance Migration Path
+
+For EPF instances created before the anchor file was introduced:
+
+1. **Identify legacy instances:**
+
+   ```bash
+   epf-cli locate
+   # Look for instances with "medium" confidence and "legacy" status
+   ```
+
+2. **Preview migration:**
+
+   ```bash
+   epf-cli migrate-anchor /path/to/legacy --dry-run
+   ```
+
+3. **Perform migration:**
+
+   ```bash
+   epf-cli migrate-anchor /path/to/legacy
+   ```
+
+4. **Verify migration:**
+
+   ```bash
+   epf-cli health /path/to/legacy
+   epf-cli locate  # Should now show "high" confidence
+   ```
+
+5. **Commit changes:**
+   ```bash
+   git add /path/to/legacy/_epf.yaml
+   git commit -m "Add EPF anchor file to legacy instance"
+   ```
 
 ### Fix Command Flags (v0.6.0)
 
@@ -990,9 +1213,9 @@ The `health` command runs these checks:
    - Compares artifact versions vs schema versions
    - Detects stale/outdated artifacts
 
-## MCP Tools (v0.10.0)
+## MCP Tools (v0.13.0)
 
-The server exposes these tools (27 tools total):
+The server exposes these tools (29 tools total):
 
 ### Schema & Validation Tools
 
@@ -1130,6 +1353,37 @@ These tools enable AI agents to discover, use, and create EPF output generators:
 2. Match keywords (feature, roadmap, assess, etc.) to known wizard mappings
 3. Phase hints in task description boost relevant wizard confidence
 4. Returns alternatives when multiple wizards could apply
+
+### AI Agent Discovery Tools (v0.13.0)
+
+These tools help AI agents discover EPF instances and get guidance:
+
+| Tool                     | Parameters                                  | Description                                |
+| ------------------------ | ------------------------------------------- | ------------------------------------------ |
+| `epf_agent_instructions` | `path` (optional)                           | Get comprehensive AI agent instructions    |
+| `epf_locate_instance`    | `path`, `max_depth`, `require_anchor` (opt) | Find EPF instances with confidence scoring |
+
+**Use cases:**
+
+- **`epf_agent_instructions`**: AI agents should call this first when entering an EPF context. Returns authority declaration, discovery status, key commands, MCP tools, and workflow guidance.
+- **`epf_locate_instance`**: Find EPF instances in a directory tree with confidence scoring. Returns instances grouped by status (valid, legacy, broken) with suggestions for fixing issues.
+
+**Confidence levels for instance discovery:**
+
+| Level    | Meaning                                              |
+| -------- | ---------------------------------------------------- |
+| `high`   | Has valid anchor file (`_epf.yaml`) - definitely EPF |
+| `medium` | Has EPF markers (READY/FIRE/AIM) but no anchor       |
+| `low`    | Has partial EPF structure - may be incomplete        |
+
+**Typical AI agent workflow:**
+
+```
+1. Call epf_agent_instructions to understand available tools and detect local instance
+2. If no instance found, call epf_locate_instance to search deeper
+3. Call epf_health_check on discovered instance
+4. Proceed with task using appropriate MCP tools
+```
 
 ## Artifact Type Detection
 

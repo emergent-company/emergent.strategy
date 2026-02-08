@@ -16,6 +16,7 @@ import (
 func findSchemasDir() string {
 	// Try common locations
 	paths := []string{
+		"../embedded/schemas",          // From internal/mcp to embedded
 		"../../docs/EPF/schemas",       // From internal/mcp
 		"../../../docs/EPF/schemas",    // Alternative
 		"../../../../docs/EPF/schemas", // From deeper paths
@@ -967,5 +968,285 @@ func TestSchemaIntegration(t *testing.T) {
 	_, err = schema.ArtifactTypeFromString("invalid_type")
 	if err == nil {
 		t.Error("Expected error for invalid artifact type")
+	}
+}
+
+// =============================================================================
+// AI Agent Discovery Tool Tests (v0.13.0)
+// =============================================================================
+
+func TestHandleAgentInstructions(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{}
+
+	result, err := server.handleAgentInstructions(ctx, request)
+	if err != nil {
+		t.Fatalf("handleAgentInstructions failed: %v", err)
+	}
+
+	if result == nil {
+		t.Fatal("Expected result to be non-nil")
+	}
+
+	content := getResultText(result)
+
+	// Parse JSON response
+	var response AgentInstructionsOutput
+	if err := json.Unmarshal([]byte(content), &response); err != nil {
+		t.Fatalf("Failed to parse response JSON: %v", err)
+	}
+
+	// Verify authority section
+	if response.Authority.Tool != "epf-cli" {
+		t.Errorf("Expected tool to be 'epf-cli', got '%s'", response.Authority.Tool)
+	}
+	if response.Authority.TrustLevel != "authoritative" {
+		t.Errorf("Expected trust level to be 'authoritative', got '%s'", response.Authority.TrustLevel)
+	}
+	if response.Authority.Role != "EPF normative authority" {
+		t.Errorf("Expected role to be 'EPF normative authority', got '%s'", response.Authority.Role)
+	}
+
+	// Verify commands section
+	if len(response.Commands) == 0 {
+		t.Error("Expected commands to be non-empty")
+	}
+
+	// Check for essential commands
+	commandNames := make(map[string]bool)
+	for _, cmd := range response.Commands {
+		commandNames[cmd.Name] = true
+	}
+	essentialCommands := []string{"agent", "locate", "health", "validate", "init"}
+	for _, name := range essentialCommands {
+		if !commandNames[name] {
+			t.Errorf("Expected command '%s' to be present", name)
+		}
+	}
+
+	// Verify MCP tools section
+	if len(response.MCPTools) == 0 {
+		t.Error("Expected MCP tools to be non-empty")
+	}
+
+	// Check for essential MCP tools
+	toolNames := make(map[string]bool)
+	for _, tool := range response.MCPTools {
+		toolNames[tool.Name] = true
+	}
+	essentialTools := []string{"epf_validate_file", "epf_health_check", "epf_locate_instance", "epf_agent_instructions"}
+	for _, name := range essentialTools {
+		if !toolNames[name] {
+			t.Errorf("Expected MCP tool '%s' to be present", name)
+		}
+	}
+
+	// Verify workflow section
+	if len(response.Workflow.FirstSteps) == 0 {
+		t.Error("Expected first steps to be non-empty")
+	}
+	if len(response.Workflow.BestPractices) == 0 {
+		t.Error("Expected best practices to be non-empty")
+	}
+}
+
+func TestHandleAgentInstructions_WithPath(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	instancePath := findTestInstance()
+	if instancePath == "" {
+		t.Skip("Test instance not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"path": instancePath,
+	}
+
+	result, err := server.handleAgentInstructions(ctx, request)
+	if err != nil {
+		t.Fatalf("handleAgentInstructions failed: %v", err)
+	}
+
+	content := getResultText(result)
+
+	// Parse JSON response
+	var response AgentInstructionsOutput
+	if err := json.Unmarshal([]byte(content), &response); err != nil {
+		t.Fatalf("Failed to parse response JSON: %v", err)
+	}
+
+	// Verify discovery found the instance
+	if !response.Discovery.InstanceFound {
+		t.Error("Expected instance to be found")
+	}
+	if response.Discovery.InstancePath == "" {
+		t.Error("Expected instance path to be set")
+	}
+}
+
+func TestHandleLocateInstance(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	// Find the EPF instances directory
+	instancePath := findTestInstance()
+	if instancePath == "" {
+		t.Skip("Test instance not found")
+	}
+
+	// Get parent directory to search from
+	searchPath := filepath.Dir(filepath.Dir(instancePath)) // Go up to _instances parent
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"path":      searchPath,
+		"max_depth": "3",
+	}
+
+	result, err := server.handleLocateInstance(ctx, request)
+	if err != nil {
+		t.Fatalf("handleLocateInstance failed: %v", err)
+	}
+
+	if result == nil {
+		t.Fatal("Expected result to be non-nil")
+	}
+
+	content := getResultText(result)
+
+	// Parse JSON response
+	var response LocateInstanceOutput
+	if err := json.Unmarshal([]byte(content), &response); err != nil {
+		t.Fatalf("Failed to parse response JSON: %v", err)
+	}
+
+	// Verify search path is set
+	if response.SearchPath == "" {
+		t.Error("Expected search path to be set")
+	}
+
+	// Should find at least one instance
+	if len(response.Instances) == 0 {
+		t.Error("Expected at least one instance to be found")
+	}
+
+	// Verify summary is calculated
+	if response.Summary.Total != len(response.Instances) {
+		t.Errorf("Summary total (%d) doesn't match instances count (%d)",
+			response.Summary.Total, len(response.Instances))
+	}
+}
+
+func TestHandleLocateInstance_RequireAnchor(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	instancePath := findTestInstance()
+	if instancePath == "" {
+		t.Skip("Test instance not found")
+	}
+
+	searchPath := filepath.Dir(filepath.Dir(instancePath))
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"path":           searchPath,
+		"require_anchor": "true",
+	}
+
+	result, err := server.handleLocateInstance(ctx, request)
+	if err != nil {
+		t.Fatalf("handleLocateInstance failed: %v", err)
+	}
+
+	content := getResultText(result)
+
+	var response LocateInstanceOutput
+	if err := json.Unmarshal([]byte(content), &response); err != nil {
+		t.Fatalf("Failed to parse response JSON: %v", err)
+	}
+
+	// With require_anchor=true, we should either find instances with anchors
+	// or find none. All found instances should have high confidence.
+	for _, inst := range response.Instances {
+		if inst.Confidence != "high" {
+			t.Errorf("Expected high confidence for anchored instance, got %s", inst.Confidence)
+		}
+	}
+}
+
+func TestHandleLocateInstance_EmptyPath(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		// Empty path - should default to current directory
+	}
+
+	result, err := server.handleLocateInstance(ctx, request)
+	if err != nil {
+		t.Fatalf("handleLocateInstance failed: %v", err)
+	}
+
+	// Should not error, just return results (possibly empty)
+	if result.IsError {
+		t.Error("Expected no error for empty path")
+	}
+
+	content := getResultText(result)
+	var response LocateInstanceOutput
+	if err := json.Unmarshal([]byte(content), &response); err != nil {
+		t.Fatalf("Failed to parse response JSON: %v", err)
+	}
+
+	// Search path should be set to absolute current directory
+	if response.SearchPath == "" {
+		t.Error("Expected search path to be set")
 	}
 }

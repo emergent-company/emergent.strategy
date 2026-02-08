@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/eyedea-io/emergent/apps/epf-cli/internal/anchor"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/config"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/embedded"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/template"
@@ -173,12 +174,14 @@ func runInit(cmd *cobra.Command, args []string) {
 	fmt.Println("Structure created:")
 	fmt.Println("  docs/EPF/")
 	fmt.Println("  ├── _instances/" + productName + "/")
-	fmt.Println("  │   ├── READY/     (strategic artifacts)")
-	fmt.Println("  │   ├── FIRE/      (execution artifacts)")
-	fmt.Println("  │   └── AIM/       (assessment artifacts)")
-	fmt.Println("  ├── AGENTS.md      (AI agent instructions)")
-	fmt.Println("  ├── README.md      (quick reference)")
-	fmt.Println("  └── .gitignore     (tracks your instance)")
+	fmt.Println("  │   ├── _epf.yaml    (anchor file - EPF instance marker)")
+	fmt.Println("  │   ├── READY/       (strategic artifacts)")
+	fmt.Println("  │   ├── FIRE/        (execution artifacts)")
+	fmt.Println("  │   ├── AIM/         (assessment artifacts)")
+	fmt.Println("  │   └── _meta.yaml   (instance metadata)")
+	fmt.Println("  ├── AGENTS.md        (AI agent instructions)")
+	fmt.Println("  ├── README.md        (quick reference)")
+	fmt.Println("  └── .gitignore       (tracks your instance)")
 	fmt.Println()
 	if useEmbedded {
 		fmt.Printf("Templates loaded from embedded EPF v%s\n\n", embedded.GetVersion())
@@ -193,6 +196,10 @@ func runInit(cmd *cobra.Command, args []string) {
 	fmt.Println()
 	fmt.Println("For AI assistance, configure your MCP client:")
 	fmt.Println("  epf-cli serve")
+	fmt.Println()
+
+	// Post-init AI guidance
+	printPostInitGuidance(instanceDir, productName)
 }
 
 func isValidProductName(name string) bool {
@@ -524,6 +531,18 @@ func createInstanceStructure(instanceDir, productName, canonicalPath string, use
 		createDefaultTemplates(instanceDir, productName)
 	}
 
+	// Create anchor file (_epf.yaml) - the authoritative EPF instance marker
+	epfVersion := "2.12.0" // Default EPF version
+	anchorFile := anchor.NewWithOptions(productName, "", epfVersion)
+	// Set structure info to indicate the instance location
+	anchorFile.Structure = &anchor.StructureInfo{
+		Type:     "phased",
+		Location: instanceDir,
+	}
+	if err := anchorFile.Save(instanceDir); err != nil {
+		return fmt.Errorf("failed to create anchor file: %w", err)
+	}
+
 	// Create _meta.yaml
 	createMetaFile(instanceDir, productName)
 
@@ -696,6 +715,36 @@ epf-cli report --format html -o report.html
 `, productName, productName)
 
 	os.WriteFile(filepath.Join(instanceDir, "README.md"), []byte(content), 0644)
+}
+
+// printPostInitGuidance outputs AI agent guidance after successful initialization
+func printPostInitGuidance(instanceDir, productName string) {
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	fmt.Println("                    AI AGENT QUICK START")
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	fmt.Println()
+	fmt.Println("epf-cli is the NORMATIVE AUTHORITY for all EPF operations.")
+	fmt.Println("AI agents should use these tools instead of guessing structure.")
+	fmt.Println()
+	fmt.Println("KEY COMMANDS:")
+	fmt.Println("  epf-cli agent              Get full AI agent instructions")
+	fmt.Println("  epf-cli health             Validate instance health")
+	fmt.Println("  epf-cli validate <file>    Check YAML against schema")
+	fmt.Println("  epf-cli schemas list       Browse available schemas")
+	fmt.Println("  epf-cli wizards list       Find guided workflows")
+	fmt.Println()
+	fmt.Println("MCP TOOLS (via 'epf-cli serve'):")
+	fmt.Println("  epf_validate_file          Validate artifacts programmatically")
+	fmt.Println("  epf_health_check           Run comprehensive health checks")
+	fmt.Println("  epf_get_template           Get starting templates for artifacts")
+	fmt.Println("  epf_get_wizard_for_task    Find best wizard for a task")
+	fmt.Println()
+	fmt.Println("FIRST STEPS:")
+	fmt.Printf("  1. Read %s/AGENTS.md for detailed instructions\n", filepath.Dir(instanceDir))
+	fmt.Println("  2. Run 'epf-cli agent' for comprehensive guidance")
+	fmt.Println("  3. Run 'epf-cli health' to verify your setup")
+	fmt.Println()
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 }
 
 func init() {

@@ -5,12 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
 
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/checks"
+	"github.com/eyedea-io/emergent/apps/epf-cli/internal/discovery"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/fixplan"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/generator"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/migration"
@@ -727,6 +729,42 @@ func (s *Server) registerTools() {
 			),
 		),
 		s.handleSuggestRelationships,
+	)
+
+	// ==========================================================================
+	// AI Agent Discovery Tools (v0.13.0)
+	// ==========================================================================
+
+	// Tool: epf_agent_instructions
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_agent_instructions",
+			mcp.WithDescription("Get comprehensive AI agent instructions for working with EPF. "+
+				"Returns epf-cli authority declaration, discovery status, key commands, MCP tools, "+
+				"and workflow guidance. AI agents should call this first when entering an EPF context."),
+			mcp.WithString("path",
+				mcp.Description("Optional path to check for EPF instance (defaults to current directory)"),
+			),
+		),
+		s.handleAgentInstructions,
+	)
+
+	// Tool: epf_locate_instance
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_locate_instance",
+			mcp.WithDescription("Find EPF instances in a directory tree with confidence scoring. "+
+				"Returns instances grouped by status (valid, legacy, broken) with suggestions for fixing issues. "+
+				"Use require_anchor=true to only return instances with anchor files (_epf.yaml)."),
+			mcp.WithString("path",
+				mcp.Description("Starting path to search (defaults to current directory)"),
+			),
+			mcp.WithString("max_depth",
+				mcp.Description("Maximum directory depth to search (default: 5)"),
+			),
+			mcp.WithString("require_anchor",
+				mcp.Description("Only return instances with anchor files (true/false, default: false)"),
+			),
+		),
+		s.handleLocateInstance,
 	)
 }
 
@@ -2755,4 +2793,300 @@ func extractSectionFromTemplate(data map[string]interface{}, path string) (inter
 	}
 
 	return current, nil
+}
+
+// ==========================================================================
+// AI Agent Discovery Tool Handlers (v0.13.0)
+// ==========================================================================
+
+// AgentInstructionsOutput represents the structured output for AI agents
+type AgentInstructionsOutput struct {
+	Authority struct {
+		Tool        string `json:"tool"`
+		Version     string `json:"version"`
+		Role        string `json:"role"`
+		TrustLevel  string `json:"trust_level"`
+		Description string `json:"description"`
+	} `json:"authority"`
+
+	Discovery struct {
+		InstanceFound bool                 `json:"instance_found"`
+		InstancePath  string               `json:"instance_path,omitempty"`
+		Confidence    discovery.Confidence `json:"confidence,omitempty"`
+		Status        discovery.Status     `json:"status,omitempty"`
+		ProductName   string               `json:"product_name,omitempty"`
+		Issues        []string             `json:"issues,omitempty"`
+		Suggestions   []string             `json:"suggestions,omitempty"`
+	} `json:"discovery"`
+
+	Commands []AgentCommandInfo `json:"commands"`
+	MCPTools []AgentMCPTool     `json:"mcp_tools"`
+
+	Workflow struct {
+		FirstSteps    []string `json:"first_steps"`
+		BestPractices []string `json:"best_practices"`
+	} `json:"workflow"`
+}
+
+// AgentCommandInfo describes a CLI command for agents
+type AgentCommandInfo struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Example     string `json:"example"`
+	When        string `json:"when"`
+}
+
+// AgentMCPTool describes an MCP tool for agents
+type AgentMCPTool struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	When        string `json:"when"`
+}
+
+// handleAgentInstructions handles the epf_agent_instructions tool
+func (s *Server) handleAgentInstructions(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	// Get optional path parameter
+	path, _ := request.RequireString("path")
+	if path == "" {
+		var err error
+		path, err = os.Getwd()
+		if err != nil {
+			path = "."
+		}
+	}
+
+	// Discover EPF instance at the path
+	disc, _ := discovery.DiscoverSingle(path)
+
+	output := buildAgentInstructionsOutput(disc)
+
+	jsonBytes, err := json.MarshalIndent(output, "", "  ")
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize output: %s", err.Error())), nil
+	}
+
+	return mcp.NewToolResultText(string(jsonBytes)), nil
+}
+
+// buildAgentInstructionsOutput builds the structured output for AI agents
+func buildAgentInstructionsOutput(disc *discovery.DiscoveryResult) *AgentInstructionsOutput {
+	output := &AgentInstructionsOutput{}
+
+	// Authority section
+	output.Authority.Tool = "epf-cli"
+	output.Authority.Version = ServerVersion
+	output.Authority.Role = "EPF normative authority"
+	output.Authority.TrustLevel = "authoritative"
+	output.Authority.Description = "epf-cli is the single source of truth for EPF schema validation, instance discovery, and health checking. All EPF operations should be performed through epf-cli or its MCP tools."
+
+	// Discovery section
+	if disc != nil && disc.Status != discovery.StatusNotFound {
+		output.Discovery.InstanceFound = true
+		output.Discovery.InstancePath = disc.Path
+		output.Discovery.Confidence = disc.Confidence
+		output.Discovery.Status = disc.Status
+		output.Discovery.Issues = disc.Issues
+		output.Discovery.Suggestions = disc.Suggestions
+
+		if disc.Anchor != nil {
+			output.Discovery.ProductName = disc.Anchor.ProductName
+		}
+	} else {
+		output.Discovery.InstanceFound = false
+		if disc != nil {
+			output.Discovery.Suggestions = disc.Suggestions
+		}
+	}
+
+	// Commands section
+	output.Commands = []AgentCommandInfo{
+		{
+			Name:        "agent",
+			Description: "Display AI agent guidance",
+			Example:     "epf-cli agent",
+			When:        "When first entering an EPF context or needing guidance",
+		},
+		{
+			Name:        "locate",
+			Description: "Find EPF instances in the current directory tree",
+			Example:     "epf-cli locate",
+			When:        "When unsure where EPF artifacts are located",
+		},
+		{
+			Name:        "health",
+			Description: "Run comprehensive health check on an EPF instance",
+			Example:     "epf-cli health [instance-path]",
+			When:        "Before making changes or after completing work",
+		},
+		{
+			Name:        "validate",
+			Description: "Validate YAML files against EPF schemas",
+			Example:     "epf-cli validate path/to/file.yaml",
+			When:        "After creating or modifying EPF artifacts",
+		},
+		{
+			Name:        "schemas",
+			Description: "List available EPF schemas",
+			Example:     "epf-cli schemas list",
+			When:        "When needing to understand artifact structure",
+		},
+		{
+			Name:        "init",
+			Description: "Initialize a new EPF instance",
+			Example:     "epf-cli init [path]",
+			When:        "When creating a new product EPF structure",
+		},
+		{
+			Name:        "migrate-anchor",
+			Description: "Add anchor file to legacy EPF instance",
+			Example:     "epf-cli migrate-anchor [instance-path]",
+			When:        "When working with legacy instances lacking _epf.yaml",
+		},
+	}
+
+	// MCP Tools section
+	output.MCPTools = []AgentMCPTool{
+		{
+			Name:        "epf_validate_file",
+			Description: "Validate a single EPF artifact file",
+			When:        "After editing EPF YAML files",
+		},
+		{
+			Name:        "epf_health_check",
+			Description: "Run comprehensive instance health check",
+			When:        "Before/after making changes to verify state",
+		},
+		{
+			Name:        "epf_get_schema",
+			Description: "Get JSON schema for an artifact type",
+			When:        "When creating new artifacts or debugging validation",
+		},
+		{
+			Name:        "epf_get_template",
+			Description: "Get starting template for an artifact type",
+			When:        "When creating new EPF artifacts",
+		},
+		{
+			Name:        "epf_list_wizards",
+			Description: "List available EPF wizards",
+			When:        "When looking for guided workflows",
+		},
+		{
+			Name:        "epf_get_wizard_for_task",
+			Description: "Get recommended wizard for a task",
+			When:        "When unsure which wizard to use",
+		},
+		{
+			Name:        "epf_locate_instance",
+			Description: "Find EPF instances programmatically",
+			When:        "When building automation or discovery",
+		},
+		{
+			Name:        "epf_agent_instructions",
+			Description: "Get this guidance programmatically",
+			When:        "When initializing EPF agent context",
+		},
+	}
+
+	// Workflow guidance
+	output.Workflow.FirstSteps = []string{
+		"1. Call epf_agent_instructions to understand available tools",
+		"2. Call epf_locate_instance to find EPF instances",
+		"3. Call epf_health_check on the instance to assess current state",
+		"4. Use appropriate MCP tools (epf_*) for specific operations",
+	}
+
+	output.Workflow.BestPractices = []string{
+		"Always validate files after editing: epf_validate_file",
+		"Run health check before and after major changes",
+		"Use wizards for guided artifact creation",
+		"Never guess artifact structure - use schemas and templates",
+		"Prefer MCP tools over direct file manipulation when available",
+	}
+
+	return output
+}
+
+// LocateInstanceOutput represents the output for epf_locate_instance
+type LocateInstanceOutput struct {
+	SearchPath string                       `json:"search_path"`
+	Instances  []*discovery.DiscoveryResult `json:"instances"`
+	Summary    struct {
+		Total  int `json:"total"`
+		Valid  int `json:"valid"`
+		Legacy int `json:"legacy"`
+		Broken int `json:"broken"`
+	} `json:"summary"`
+}
+
+// handleLocateInstance handles the epf_locate_instance tool
+func (s *Server) handleLocateInstance(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	// Get optional path parameter
+	path, _ := request.RequireString("path")
+	if path == "" {
+		var err error
+		path, err = os.Getwd()
+		if err != nil {
+			path = "."
+		}
+	}
+
+	// Get optional max_depth parameter
+	maxDepth := 5
+	if maxDepthStr, _ := request.RequireString("max_depth"); maxDepthStr != "" {
+		if parsed, err := fmt.Sscanf(maxDepthStr, "%d", &maxDepth); err != nil || parsed != 1 {
+			maxDepth = 5
+		}
+	}
+
+	// Get optional require_anchor parameter
+	requireAnchor := false
+	if requireAnchorStr, _ := request.RequireString("require_anchor"); requireAnchorStr != "" {
+		requireAnchor = strings.ToLower(requireAnchorStr) == "true"
+	}
+
+	// Build discovery options
+	opts := &discovery.DiscoveryOptions{
+		MaxDepth:      maxDepth,
+		IncludeLegacy: !requireAnchor,
+		RequireAnchor: requireAnchor,
+	}
+
+	// Get absolute path
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid path: %s", err.Error())), nil
+	}
+
+	// Run discovery
+	results, err := discovery.Discover(absPath, opts)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Discovery failed: %s", err.Error())), nil
+	}
+
+	// Build output
+	output := &LocateInstanceOutput{
+		SearchPath: absPath,
+		Instances:  results,
+	}
+
+	// Calculate summary
+	for _, r := range results {
+		output.Summary.Total++
+		switch r.Status {
+		case discovery.StatusValid:
+			output.Summary.Valid++
+		case discovery.StatusLegacy:
+			output.Summary.Legacy++
+		case discovery.StatusBroken:
+			output.Summary.Broken++
+		}
+	}
+
+	jsonBytes, err := json.MarshalIndent(output, "", "  ")
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize output: %s", err.Error())), nil
+	}
+
+	return mcp.NewToolResultText(string(jsonBytes)), nil
 }

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/eyedea-io/emergent/apps/epf-cli/internal/anchor"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/checks"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/migration"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/validator"
@@ -23,6 +24,7 @@ var healthCmd = &cobra.Command{
 	Short: "Run comprehensive health check on an EPF instance",
 	Long: `Run comprehensive health checks on an EPF instance, including:
 
+  - Anchor file validation (_epf.yaml presence and validity)
   - Instance structure (READY/FIRE/AIM directories)
   - Required files in each phase
   - Schema validation for all artifacts
@@ -32,6 +34,10 @@ var healthCmd = &cobra.Command{
   - Content readiness (placeholder detection)
   - Field coverage analysis (TRL, persona narratives)
   - Version alignment (artifact vs schema versions)
+
+The anchor file (_epf.yaml) is the authoritative marker that identifies a valid
+EPF instance. Legacy instances without an anchor file will show a warning with
+migration suggestions.
 
 This is the master validation command equivalent to epf-health-check.sh.
 
@@ -106,6 +112,9 @@ type HealthResult struct {
 	// Three-tier scoring system
 	Tiers *HealthTiers `json:"tiers"`
 
+	// Anchor file status (new)
+	AnchorStatus *AnchorCheckResult `json:"anchor_status,omitempty"`
+
 	// Individual check results
 	InstanceCheck    *checks.CheckSummary           `json:"instance_check,omitempty"`
 	SchemaValidation *SchemaValidationSummary       `json:"schema_validation,omitempty"`
@@ -119,6 +128,19 @@ type HealthResult struct {
 
 	// Workflow guidance for AI agents
 	WorkflowGuidance *HealthWorkflowGuidance `json:"workflow_guidance,omitempty"`
+}
+
+// AnchorCheckResult represents the result of checking the anchor file
+type AnchorCheckResult struct {
+	HasAnchor   bool                     `json:"has_anchor"`
+	IsLegacy    bool                     `json:"is_legacy"`
+	AnchorFile  string                   `json:"anchor_file,omitempty"`
+	Validation  *anchor.ValidationResult `json:"validation,omitempty"`
+	ProductName string                   `json:"product_name,omitempty"`
+	EPFVersion  string                   `json:"epf_version,omitempty"`
+	InstanceID  string                   `json:"instance_id,omitempty"`
+	Warnings    []string                 `json:"warnings,omitempty"`
+	Suggestions []string                 `json:"suggestions,omitempty"`
 }
 
 // HealthWorkflowGuidance provides planning recommendations based on health check results
@@ -173,6 +195,23 @@ func runHealthCheck(instancePath string, schemasPath string) *HealthResult {
 		fmt.Printf("║  Instance: %-48s ║\n", truncateString(instancePath, 48))
 		fmt.Println("╚════════════════════════════════════════════════════════════╝")
 		fmt.Println()
+	}
+
+	// 0. Anchor File Check (new - before instance structure)
+	if !healthJSON {
+		fmt.Println("▶ Checking anchor file...")
+	}
+	result.AnchorStatus = checkAnchorFile(instancePath)
+
+	if result.AnchorStatus.IsLegacy {
+		result.HasWarnings = true
+	}
+	if result.AnchorStatus.HasAnchor && result.AnchorStatus.Validation != nil && !result.AnchorStatus.Validation.Valid {
+		result.HasErrors = true
+	}
+
+	if !healthJSON {
+		printAnchorCheckSummary(result.AnchorStatus)
 	}
 
 	// 1. Instance Structure Check
@@ -1118,6 +1157,105 @@ func generateHealthPlanningCheckpoint(totalIssues, affectedFiles int, isMajor bo
 │ This checkpoint is a suggestion, not a requirement.             │
 │ Use your judgment about what's appropriate for this context.    │
 └─────────────────────────────────────────────────────────────────┘`, urgencyMarker, totalIssues, affectedFiles)
+}
+
+// checkAnchorFile checks the presence and validity of the EPF anchor file
+func checkAnchorFile(instancePath string) *AnchorCheckResult {
+	result := &AnchorCheckResult{
+		AnchorFile: filepath.Join(instancePath, anchor.AnchorFileName),
+	}
+
+	// Check if anchor file exists
+	if anchor.Exists(instancePath) {
+		result.HasAnchor = true
+
+		// Load and validate the anchor
+		a, err := anchor.Load(instancePath)
+		if err != nil {
+			result.Warnings = append(result.Warnings, fmt.Sprintf("Failed to load anchor file: %v", err))
+			return result
+		}
+
+		// Extract metadata
+		result.ProductName = a.ProductName
+		result.EPFVersion = a.EPFVersion
+		result.InstanceID = a.InstanceID
+
+		// Validate the anchor
+		result.Validation = anchor.Validate(a)
+
+		if len(result.Validation.Warnings) > 0 {
+			result.Warnings = append(result.Warnings, result.Validation.Warnings...)
+		}
+
+	} else {
+		// No anchor - check if it's a legacy instance
+		if anchor.IsLegacyInstance(instancePath) {
+			result.IsLegacy = true
+			result.Warnings = append(result.Warnings,
+				"Instance is missing anchor file (_epf.yaml)")
+			result.Suggestions = append(result.Suggestions,
+				"Run 'epf-cli migrate-anchor' to add the anchor file",
+				"The anchor file enables reliable instance discovery")
+
+			// Try to infer some metadata from legacy
+			if inferred, err := anchor.InferFromLegacy(instancePath); err == nil {
+				result.ProductName = inferred.ProductName
+				result.EPFVersion = inferred.EPFVersion
+			}
+		} else {
+			result.Warnings = append(result.Warnings,
+				"No anchor file and directory doesn't appear to be an EPF instance")
+		}
+	}
+
+	return result
+}
+
+// printAnchorCheckSummary prints the anchor check result in human-readable format
+func printAnchorCheckSummary(status *AnchorCheckResult) {
+	if status.HasAnchor {
+		if status.Validation != nil && status.Validation.Valid {
+			fmt.Println("  ✓ Anchor file: valid")
+			if status.ProductName != "" {
+				fmt.Printf("    Product: %s\n", status.ProductName)
+			}
+			if status.InstanceID != "" {
+				fmt.Printf("    Instance ID: %s\n", truncateString(status.InstanceID, 36))
+			}
+		} else {
+			fmt.Println("  ⚠️ Anchor file: has issues")
+			if status.Validation != nil {
+				for _, err := range status.Validation.Errors {
+					fmt.Printf("    ✗ %s\n", err)
+				}
+			}
+		}
+	} else if status.IsLegacy {
+		fmt.Println("  ⚠️ Anchor file: MISSING (legacy instance)")
+		if status.ProductName != "" {
+			fmt.Printf("    Inferred product: %s\n", status.ProductName)
+		}
+	} else {
+		fmt.Println("  ✗ Anchor file: not found")
+	}
+
+	// Print warnings
+	for _, w := range status.Warnings {
+		if !status.HasAnchor { // Already printed above for anchor issues
+			fmt.Printf("    ⚠️ %s\n", w)
+		}
+	}
+
+	// Print suggestions
+	if len(status.Suggestions) > 0 {
+		fmt.Println("    Suggestions:")
+		for _, s := range status.Suggestions {
+			fmt.Printf("      • %s\n", s)
+		}
+	}
+
+	fmt.Println()
 }
 
 func init() {

@@ -990,9 +990,9 @@ The `health` command runs these checks:
    - Compares artifact versions vs schema versions
    - Detects stale/outdated artifacts
 
-## MCP Tools (v0.10.0)
+## MCP Tools (v0.13.0)
 
-The server exposes these tools (27 tools total):
+The server exposes these tools (29 tools total):
 
 ### Schema & Validation Tools
 
@@ -1130,6 +1130,37 @@ These tools enable AI agents to discover, use, and create EPF output generators:
 2. Match keywords (feature, roadmap, assess, etc.) to known wizard mappings
 3. Phase hints in task description boost relevant wizard confidence
 4. Returns alternatives when multiple wizards could apply
+
+### AI Agent Discovery Tools (v0.13.0)
+
+These tools help AI agents discover EPF instances and get guidance:
+
+| Tool                     | Parameters                                  | Description                                |
+| ------------------------ | ------------------------------------------- | ------------------------------------------ |
+| `epf_agent_instructions` | `path` (optional)                           | Get comprehensive AI agent instructions    |
+| `epf_locate_instance`    | `path`, `max_depth`, `require_anchor` (opt) | Find EPF instances with confidence scoring |
+
+**Use cases:**
+
+- **`epf_agent_instructions`**: AI agents should call this first when entering an EPF context. Returns authority declaration, discovery status, key commands, MCP tools, and workflow guidance.
+- **`epf_locate_instance`**: Find EPF instances in a directory tree with confidence scoring. Returns instances grouped by status (valid, legacy, broken) with suggestions for fixing issues.
+
+**Confidence levels for instance discovery:**
+
+| Level    | Meaning                                              |
+| -------- | ---------------------------------------------------- |
+| `high`   | Has valid anchor file (`_epf.yaml`) - definitely EPF |
+| `medium` | Has EPF markers (READY/FIRE/AIM) but no anchor       |
+| `low`    | Has partial EPF structure - may be incomplete        |
+
+**Typical AI agent workflow:**
+
+```
+1. Call epf_agent_instructions to understand available tools and detect local instance
+2. If no instance found, call epf_locate_instance to search deeper
+3. Call epf_health_check on discovered instance
+4. Proceed with task using appropriate MCP tools
+```
 
 ## Artifact Type Detection
 
