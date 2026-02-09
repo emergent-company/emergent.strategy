@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/eyedea-io/emergent/apps/epf-cli/internal/anchor"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/checks"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/discovery"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/fixplan"
@@ -1284,6 +1285,50 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 	instancePath, err := request.RequireString("instance_path")
 	if err != nil {
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
+	}
+
+	// VALIDATION: Ensure the path is a valid EPF instance
+	// Check if anchor file exists or if it's a legacy instance with READY/FIRE/AIM
+	hasAnchor := anchor.Exists(instancePath)
+	isLegacy := anchor.IsLegacyInstance(instancePath)
+
+	if !hasAnchor && !isLegacy {
+		// Check if instancePath is actually a directory
+		info, statErr := os.Stat(instancePath)
+		if statErr != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Path does not exist: %s", instancePath)), nil
+		}
+
+		// Path exists but is not a valid EPF instance
+		errorMsg := fmt.Sprintf(
+			"Invalid EPF instance: %s\n\n"+
+				"The provided path is not a valid EPF instance. It must either:\n"+
+				"  1. Contain an anchor file (_epf.yaml), OR\n"+
+				"  2. Have a legacy EPF structure (READY/, FIRE/, AIM/ directories)\n\n"+
+				"Found: %s\n\n"+
+				"If you're looking for an EPF instance, use epf_locate_instance to find valid instances in this repository.",
+			instancePath,
+			func() string {
+				if info.IsDir() {
+					return "directory exists but lacks EPF structure"
+				}
+				return "not a directory"
+			}(),
+		)
+		return mcp.NewToolResultError(errorMsg), nil
+	}
+
+	// If it has an anchor, validate it
+	if hasAnchor {
+		anchorValidation := anchor.ValidateFile(instancePath)
+		if !anchorValidation.Valid {
+			errorMsg := fmt.Sprintf(
+				"Invalid anchor file at %s:\n%s\n\nRun epf-cli migrate-anchor to fix the anchor file.",
+				instancePath,
+				strings.Join(anchorValidation.Errors, "\n"),
+			)
+			return mcp.NewToolResultError(errorMsg), nil
+		}
 	}
 
 	result := &HealthCheckSummary{
