@@ -870,6 +870,69 @@ epf-cli validate <path> [flags]
 | Section grouping     | Errors grouped by top-level field for chunked fixing                                                             |
 | Fix hints            | Actionable suggestions for each error type                                                                       |
 | Suggested fix order  | Sections ordered by error severity                                                                               |
+| Product context      | Product name, description, and keywords extracted from instance metadata (v0.14.0)                               |
+| Template warnings    | Detects TBD, TODO, [INSERT...] placeholders even when validation passes (v0.14.0)                                |
+| Semantic warnings    | Flags content that may not align with the product domain (v0.14.0)                                               |
+
+#### Product Context in AI-Friendly Output (v0.14.0)
+
+The `--ai-friendly` output now includes **product context** to help AI agents understand what they're validating. This prevents the catastrophic mistake of filling EPF artifacts with generic content that doesn't match the actual product.
+
+**Context sources (in priority order):**
+
+| Source         | Fields Extracted                             |
+| -------------- | -------------------------------------------- |
+| `_meta.yaml`   | `product_name`, `description`, `epf_version` |
+| `README.md`    | Product name (from title), description       |
+| Directory name | Product name (fallback)                      |
+
+**Why this matters:**
+
+- **AI agents can verify** their edits match the product domain
+- **Template content** is clearly flagged (TBD, TODO, [INSERT...])
+- **Semantic mismatches** are detected (e.g., road company with mission about "planning frameworks")
+
+#### Template Warnings (v0.14.0)
+
+Template warnings appear in `--ai-friendly` output when placeholder content is detected, **even if schema validation passes**:
+
+```yaml
+template_warnings:
+  - path: north_star.purpose.statement
+    placeholder: 'TBD'
+    context: 'north_star.purpose.statement contains template content: TBD'
+  - path: north_star.mission.what_we_do[0]
+    placeholder: '[INSERT YOUR CORE ACTIVITY]'
+    context: 'north_star.mission.what_we_do[0] contains template content: [INSERT YOUR CORE ACTIVITY]'
+```
+
+**Detected patterns include:**
+
+- `TBD`, `TODO`, `FIXME`, `XXX`
+- `[INSERT...]`, `[YOUR...]`, `[FILL...]`
+- `Example:`, `e.g.,`
+- `Your Organization`, `Product Name Here`
+- Date placeholders: `YYYY-MM-DD`, `20XX`
+
+#### Semantic Alignment Warnings (v0.14.0)
+
+When product context is available, the validator checks if strategic content (mission, purpose, values) aligns with the product domain:
+
+```yaml
+semantic_warnings:
+  - path: north_star.mission.mission_statement
+    issue: 'Very low keyword overlap with product description'
+    confidence: 'medium'
+    suggestion: "Check if this content is relevant to 'Emergent - AI-powered knowledge management'. Consider revising to better reflect the product's purpose."
+```
+
+**Confidence levels:**
+
+| Level    | Meaning                                                |
+| -------- | ------------------------------------------------------ |
+| `high`   | Strong mismatch detected (e.g., wrong domain keywords) |
+| `medium` | Possible mismatch (low keyword overlap)                |
+| `low`    | Minor concern                                          |
 
 **Example AI-Friendly Output:**
 
@@ -878,6 +941,20 @@ file: /path/to/file.yaml
 artifact_type: insight_analyses
 valid: false
 error_count: 64
+product_context:
+    product_name: "Veilag"
+    description: "Norwegian private road cost allocation platform"
+    keywords: ["veilag", "road", "cost", "allocation", "norwegian", "private"]
+    source: "_meta.yaml"
+template_warnings:
+    - path: target_users[0].description
+      placeholder: "TBD"
+      context: "target_users[0].description contains template content: TBD"
+semantic_warnings:
+    - path: key_insights[0]
+      issue: "Very low keyword overlap with product description"
+      confidence: "medium"
+      suggestion: "Check if this content is relevant to 'Veilag'. Consider revising to better reflect road cost allocation."
 errors_by_section:
     - section: target_users
       error_count: 20
@@ -911,10 +988,15 @@ summary:
 **Recommended AI Agent Workflow:**
 
 1. Run `epf-cli validate <file> --ai-friendly` to get structured errors
-2. Process errors section by section (start with `suggested_fix_order[0]`)
-3. Focus on `critical` and `high` priority errors first
-4. Use `fix_hint` for guidance on each error
-5. Re-validate after each section fix to verify progress
+2. **Check `product_context`** - understand what product you're working on
+3. **Review `template_warnings`** - replace any TBD/TODO placeholders with real content
+4. **Review `semantic_warnings`** - ensure content aligns with the product domain
+5. Process errors section by section (start with `suggested_fix_order[0]`)
+6. Focus on `critical` and `high` priority errors first
+7. Use `fix_hint` for guidance on each error
+8. Re-validate after each section fix to verify progress
+
+> **CRITICAL**: Always verify your edits match the `product_context`. If you're editing Veilag artifacts, content should be about road cost allocation, not generic "planning frameworks".
 
 ### Validate Command - Fix Plan Output (v0.11.0)
 
