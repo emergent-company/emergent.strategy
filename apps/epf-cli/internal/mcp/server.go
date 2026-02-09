@@ -991,6 +991,11 @@ func (s *Server) registerTools() {
 		),
 		s.handleDiffTemplate,
 	)
+
+	// ==========================================================================
+	// Strategy Server Tools (Product Strategy for AI Agents)
+	// ==========================================================================
+	s.registerStrategyTools()
 }
 
 // SchemaListItem represents a schema in the list response
