@@ -71,9 +71,10 @@ Or with custom schemas directory:
 				}
 			}
 
+			// If no filesystem schemas found, that's okay - validator will use embedded schemas
+			// Just log that we're using embedded mode
 			if schemasDir == "" {
-				fmt.Fprintln(os.Stderr, "Error: Could not find schemas directory. Please specify --schemas-dir")
-				os.Exit(1)
+				fmt.Fprintln(os.Stderr, "Note: Using embedded schemas (no filesystem schemas found)")
 			}
 		}
 
