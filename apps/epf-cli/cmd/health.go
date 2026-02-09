@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/anchor"
@@ -883,9 +884,65 @@ func printRelationshipsSummary(result *checks.RelationshipsResult) {
 	fmt.Printf("  %s Relationships: %d/%d paths valid (Score: %d/100, Grade: %s)\n",
 		icon, result.ValidPaths, result.TotalPathsChecked, result.Score, result.Grade)
 
-	// Show coverage info
+	// Show coverage info with explanation
 	if result.TotalPathsChecked > 0 {
-		fmt.Printf("    • Coverage: %.0f%% of value model\n", result.CoveragePercent)
+		if result.TotalL2Components > 0 {
+			fmt.Printf("    • Coverage: %.0f%% of value model (%d/%d unique L2 components covered)\n",
+				result.CoveragePercent, result.CoveredL2Components, result.TotalL2Components)
+		} else {
+			fmt.Printf("    • Coverage: %.0f%% of value model\n", result.CoveragePercent)
+		}
+
+		// Show track breakdown if available
+		if len(result.CoverageByTrack) > 0 {
+			// Sort tracks by name for consistent output
+			tracks := make([]string, 0, len(result.CoverageByTrack))
+			for trackName := range result.CoverageByTrack {
+				tracks = append(tracks, trackName)
+			}
+			sort.Strings(tracks)
+
+			// Build track summary line
+			var trackSummaries []string
+			for _, trackName := range tracks {
+				track := result.CoverageByTrack[trackName]
+				trackSummaries = append(trackSummaries,
+					fmt.Sprintf("%s %.0f%% (%d/%d)", trackName, track.CoveragePercent, track.CoveredL2, track.TotalL2))
+			}
+			fmt.Printf("    • By track: %s\n", strings.Join(trackSummaries, " | "))
+
+			// In verbose mode, show more details
+			if healthVerbose {
+				fmt.Println("    • Coverage details:")
+				fmt.Println("      - Measuring: Unique L2 components (Track.Layer.Component)")
+				fmt.Println("      - Note: Multiple L3 paths within same L2 component count as 1")
+
+				// Show uncovered components for tracks with some coverage
+				for _, trackName := range tracks {
+					track := result.CoverageByTrack[trackName]
+					if track.CoveragePercent > 0 && track.CoveragePercent < 100 && len(track.UncoveredL2Paths) > 0 {
+						fmt.Printf("      - %s uncovered L2s (%d):\n", trackName, len(track.UncoveredL2Paths))
+						// Show first 3 uncovered paths
+						shown := 0
+						for _, path := range track.UncoveredL2Paths {
+							if shown >= 3 {
+								remaining := len(track.UncoveredL2Paths) - shown
+								fmt.Printf("        ... and %d more\n", remaining)
+								break
+							}
+							fmt.Printf("        • %s\n", path)
+							shown++
+						}
+					}
+				}
+
+				// Show suggestion for increasing coverage
+				if result.CoveragePercent < 100 {
+					fmt.Println("      💡 To increase coverage:")
+					fmt.Println("         Add features contributing to uncovered L2 components above")
+				}
+			}
+		}
 	}
 
 	// Show issues

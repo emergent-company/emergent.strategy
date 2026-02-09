@@ -21,6 +21,15 @@ func NewRelationshipsChecker(instancePath string) *RelationshipsChecker {
 	return &RelationshipsChecker{instancePath: instancePath}
 }
 
+// TrackCoverage contains coverage statistics for a single value model track.
+type TrackCoverage struct {
+	TrackName        string   `json:"track_name"`
+	TotalL2          int      `json:"total_l2"`
+	CoveredL2        int      `json:"covered_l2"`
+	CoveragePercent  float64  `json:"coverage_percent"`
+	UncoveredL2Paths []string `json:"uncovered_l2_paths,omitempty"`
+}
+
 // RelationshipsResult contains the results of relationship validation.
 type RelationshipsResult struct {
 	// Overall validation status
@@ -34,10 +43,15 @@ type RelationshipsResult struct {
 	InvalidPaths         int `json:"invalid_paths"`
 
 	// Coverage metrics
-	CoveragePercent float64 `json:"coverage_percent"`
-	OrphanFeatures  int     `json:"orphan_features"` // Features with no contributes_to
-	UncoveredL2s    int     `json:"uncovered_l2s"`   // L2 components with no features
-	StrategicGaps   int     `json:"strategic_gaps"`  // KR targets without feature coverage
+	CoveragePercent     float64 `json:"coverage_percent"`
+	TotalL2Components   int     `json:"total_l2_components"`   // Total L2 components across all tracks
+	CoveredL2Components int     `json:"covered_l2_components"` // Covered L2 components
+	OrphanFeatures      int     `json:"orphan_features"`       // Features with no contributes_to
+	UncoveredL2s        int     `json:"uncovered_l2s"`         // L2 components with no features
+	StrategicGaps       int     `json:"strategic_gaps"`        // KR targets without feature coverage
+
+	// Per-track coverage breakdown
+	CoverageByTrack map[string]*TrackCoverage `json:"coverage_by_track,omitempty"`
 
 	// Detailed errors (limited to top 10 for display)
 	Errors []RelationshipError `json:"errors,omitempty"`
@@ -132,9 +146,24 @@ func (c *RelationshipsChecker) Check() (*RelationshipsResult, error) {
 	coverageAnalysis := analyzer.AnalyzeCoverage("all")
 	if coverageAnalysis != nil {
 		result.CoveragePercent = coverageAnalysis.CoveragePercent
+		result.TotalL2Components = coverageAnalysis.TotalL2Components
+		result.CoveredL2Components = coverageAnalysis.CoveredL2Components
 		result.OrphanFeatures = len(coverageAnalysis.OrphanFeatures)
 		result.UncoveredL2s = len(coverageAnalysis.UncoveredL2Components)
 		result.StrategicGaps = len(coverageAnalysis.KRTargetsWithoutFeatures)
+
+		// Get detailed per-track coverage
+		trackDetails := analyzer.GetDetailedCoverageByTrack()
+		result.CoverageByTrack = make(map[string]*TrackCoverage)
+		for trackName, detail := range trackDetails {
+			result.CoverageByTrack[trackName] = &TrackCoverage{
+				TrackName:        detail.TrackName,
+				TotalL2:          detail.TotalL2,
+				CoveredL2:        detail.CoveredL2,
+				CoveragePercent:  detail.CoveragePercent,
+				UncoveredL2Paths: detail.UncoveredL2Paths,
+			}
+		}
 
 		// Generate actionable suggestions
 		result.Suggestions = c.generateSuggestions(validationResult, coverageAnalysis, analyzer)

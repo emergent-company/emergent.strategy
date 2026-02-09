@@ -481,3 +481,30 @@ func (a *CoverageAnalyzer) GetCoverageByTrack() map[string]float64 {
 
 	return coverage
 }
+
+// TrackCoverageDetail contains detailed coverage information for a track.
+type TrackCoverageDetail struct {
+	TrackName        string
+	TotalL2          int
+	CoveredL2        int
+	CoveragePercent  float64
+	UncoveredL2Paths []string
+}
+
+// GetDetailedCoverageByTrack returns detailed coverage statistics for each track.
+func (a *CoverageAnalyzer) GetDetailedCoverageByTrack() map[string]*TrackCoverageDetail {
+	details := make(map[string]*TrackCoverageDetail)
+
+	for track := range a.valueModels.Models {
+		analysis := a.AnalyzeTrack(string(track))
+		details[string(track)] = &TrackCoverageDetail{
+			TrackName:        string(track),
+			TotalL2:          analysis.TotalL2Components,
+			CoveredL2:        analysis.CoveredL2Components,
+			CoveragePercent:  analysis.CoveragePercent,
+			UncoveredL2Paths: analysis.UncoveredL2Components,
+		}
+	}
+
+	return details
+}
