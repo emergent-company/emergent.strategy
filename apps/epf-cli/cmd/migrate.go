@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/eyedea-io/emergent/apps/epf-cli/internal/migration"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -41,7 +42,7 @@ Examples:
 
 func init() {
 	rootCmd.AddCommand(migrateCmd)
-	migrateCmd.Flags().StringVar(&migrateTargetVersion, "target", "1.9.6", "Target EPF version to migrate to")
+	migrateCmd.Flags().StringVar(&migrateTargetVersion, "target", "", "Target EPF version to migrate to (defaults to current schema version)")
 	migrateCmd.Flags().BoolVar(&migrateDryRun, "dry-run", false, "Show what would be changed without making changes")
 	migrateCmd.Flags().BoolVarP(&migrateVerbose, "verbose", "v", false, "Show detailed migration information")
 }
@@ -89,6 +90,23 @@ func runMigrate(cmd *cobra.Command, args []string) {
 	// Print instance name if auto-detected
 	if len(args) == 0 && epfContext != nil && epfContext.InstancePath != "" {
 		fmt.Printf("Using instance: %s\n\n", epfContext.CurrentInstance)
+	}
+
+	// Dynamically determine target version from schemas if not specified
+	if migrateTargetVersion == "" {
+		schemasPath, err := GetSchemasDir()
+		if err == nil {
+			detector, err := migration.NewDetector(schemasPath)
+			if err == nil {
+				if version, err := detector.GetCurrentSchemaVersion(); err == nil {
+					migrateTargetVersion = version
+				}
+			}
+		}
+		// Fallback if detection fails
+		if migrateTargetVersion == "" {
+			migrateTargetVersion = "2.1.0"
+		}
 	}
 
 	// Check if path exists
