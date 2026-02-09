@@ -331,8 +331,8 @@ func generateMarkdownReport(data *ReportData) (string, error) {
 
 	// Overall Summary
 	sb.WriteString("## Summary\n\n")
-	sb.WriteString(fmt.Sprintf("| Metric | Value |\n"))
-	sb.WriteString(fmt.Sprintf("| ------ | ----- |\n"))
+	sb.WriteString("| Metric | Value |\n")
+	sb.WriteString("| ------ | ----- |\n")
 	sb.WriteString(fmt.Sprintf("| **Overall Score** | %d/100 |\n", data.OverallScore))
 	sb.WriteString(fmt.Sprintf("| **Status** | %s |\n", data.OverallStatus))
 	sb.WriteString("\n")
