@@ -452,7 +452,7 @@ func createAIResultFromSectionValidation(val *validator.Validator, filePath, sec
 		if enhanced.ErrorType == validator.ErrorTypeMismatch && enhanced.Details.ExpectedType == "object" {
 			if schemaFile != "" && jsonPointer != "" {
 				expectedStructure := introspector.ExtractExpectedStructure(schemaFile, jsonPointer)
-				if expectedStructure != nil && len(expectedStructure) > 0 {
+				if len(expectedStructure) > 0 {
 					enhanced.Details.ExpectedStructure = expectedStructure
 				}
 			}
@@ -518,7 +518,7 @@ func createAIResultFromBasic(val *validator.Validator, filePath string, result *
 		if enhanced.ErrorType == validator.ErrorTypeMismatch && enhanced.Details.ExpectedType == "object" {
 			if schemaFile != "" && jsonPointer != "" {
 				expectedStructure := introspector.ExtractExpectedStructure(schemaFile, jsonPointer)
-				if expectedStructure != nil && len(expectedStructure) > 0 {
+				if len(expectedStructure) > 0 {
 					enhanced.Details.ExpectedStructure = expectedStructure
 				}
 			}
@@ -570,7 +570,7 @@ func createAIResultFromBasicWithContext(val *validator.Validator, filePath strin
 		if enhanced.ErrorType == validator.ErrorTypeMismatch && enhanced.Details.ExpectedType == "object" {
 			if schemaFile != "" && jsonPointer != "" {
 				expectedStructure := introspector.ExtractExpectedStructure(schemaFile, jsonPointer)
-				if expectedStructure != nil && len(expectedStructure) > 0 {
+				if len(expectedStructure) > 0 {
 					enhanced.Details.ExpectedStructure = expectedStructure
 				}
 			}
@@ -796,10 +796,6 @@ func runExplainField(val *validator.Validator, filePath string, fieldPath string
 	}
 
 	artifactTypeStr := string(artifactType)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: Unknown artifact type: %s\n", artifactTypeStr)
-		os.Exit(1)
-	}
 
 	explanation := &FieldExplanation{
 		Field:        fieldPath,
