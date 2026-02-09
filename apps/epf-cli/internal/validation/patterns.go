@@ -63,7 +63,7 @@ func IsTemplateContent(value string) bool {
 }
 
 // DetectTemplatePlaceholder checks if a field value contains template content
-// and returns the matched pattern if found
+// and returns the matched text if found
 func DetectTemplatePlaceholder(fieldPath string, value string) (bool, string) {
 	// Check exclusions first
 	for _, pattern := range ExclusionPatterns {
@@ -72,10 +72,10 @@ func DetectTemplatePlaceholder(fieldPath string, value string) (bool, string) {
 		}
 	}
 
-	// Check placeholder patterns
+	// Check placeholder patterns - return the actual matched text
 	for _, pattern := range PlaceholderPatterns {
-		if pattern.MatchString(value) {
-			return true, pattern.String()
+		if match := pattern.FindString(value); match != "" {
+			return true, match
 		}
 	}
 

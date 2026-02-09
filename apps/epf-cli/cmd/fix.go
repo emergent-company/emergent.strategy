@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/eyedea-io/emergent/apps/epf-cli/internal/checks"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -407,4 +408,284 @@ func printFixSummary(summary *FixSummary) {
 			fmt.Printf("  %s: %v\n", result.File, result.Error)
 		}
 	}
+}
+
+// fixStructureCmd represents the fix structure command
+var fixStructureCmd = &cobra.Command{
+	Use:   "structure [epf-path]",
+	Short: "Remove canonical EPF content from product repositories",
+	Long: `Remove canonical EPF content that should NOT be in product repositories.
+
+This command detects and removes:
+  - schemas/       (JSON schemas - loaded by epf-cli at runtime)
+  - templates/     (artifact templates - loaded by epf-cli)
+  - wizards/       (AI wizard instructions - embedded in epf-cli)
+  - scripts/       (validation scripts - replaced by epf-cli)
+  - outputs/       (generator definitions - embedded in epf-cli)
+  - definitions/   (track definitions - embedded in epf-cli)
+  - migrations/    (schema migrations - handled by epf-cli)
+  - phases/        (phase definitions - embedded in epf-cli)
+  - features/      (feature templates - embedded in epf-cli)
+  - CANONICAL_PURITY_RULES.md  (framework documentation)
+  - integration_specification.yaml
+  - VERSION, MAINTENANCE.md, KNOWN_ISSUES.md, MIGRATIONS.md
+
+Product repositories should ONLY contain:
+  - _instances/{product}/  - Your EPF instance data (READY/FIRE/AIM)
+  - AGENTS.md             - AI agent instructions (optional)
+  - README.md             - Human documentation (optional)
+
+Use --dry-run to preview what would be removed.
+
+Examples:
+  epf-cli fix structure                    # Fix current directory
+  epf-cli fix structure docs/EPF --dry-run # Preview fixes
+  epf-cli fix structure --verbose          # Show detailed output`,
+	Args: cobra.MaximumNArgs(1),
+	Run:  runFixStructure,
+}
+
+var (
+	fixStructureDryRun  bool
+	fixStructureVerbose bool
+	fixStructureForce   bool
+)
+
+func init() {
+	// Add structure subcommand to fix
+	fixCmd.AddCommand(fixStructureCmd)
+
+	fixStructureCmd.Flags().BoolVar(&fixStructureDryRun, "dry-run", false, "Preview changes without removing files")
+	fixStructureCmd.Flags().BoolVarP(&fixStructureVerbose, "verbose", "v", false, "Show detailed output")
+	fixStructureCmd.Flags().BoolVarP(&fixStructureForce, "force", "f", false, "Remove without confirmation")
+}
+
+// StructureFixResult represents the result of fixing repository structure
+type StructureFixResult struct {
+	EPFRoot          string   `json:"epf_root"`
+	WasProductRepo   bool     `json:"was_product_repo"`
+	DirsRemoved      []string `json:"dirs_removed,omitempty"`
+	FilesRemoved     []string `json:"files_removed,omitempty"`
+	TotalFilesInDirs int      `json:"total_files_in_dirs"`
+	DryRun           bool     `json:"dry_run"`
+	Error            error    `json:"error,omitempty"`
+}
+
+func runFixStructure(cmd *cobra.Command, args []string) {
+	// Determine EPF path
+	var epfPath string
+	if len(args) > 0 {
+		var err error
+		epfPath, err = filepath.Abs(args[0])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+	} else {
+		// Try to find EPF root from context
+		ctx := GetContext()
+		if ctx != nil && ctx.EPFRoot != "" {
+			epfPath = ctx.EPFRoot
+		} else {
+			// Use current directory
+			var err error
+			epfPath, err = os.Getwd()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
+			}
+		}
+	}
+
+	// Check if it's canonical EPF (block unless --dev is set)
+	if err := EnsurePathNotCanonical(epfPath, "fix structure"); err != nil {
+		fmt.Fprintln(os.Stderr, "Error:", err)
+		os.Exit(1)
+	}
+
+	// Run structure check first
+	checker := checks.NewStructureChecker(epfPath)
+	checkResult := checker.Check()
+
+	// Only proceed if this is a product repo with issues
+	if checkResult.RepoType != checks.RepoTypeProduct {
+		if checkResult.RepoType == checks.RepoTypeCanonical {
+			fmt.Println("This appears to be the canonical EPF repository.")
+			fmt.Println("The 'fix structure' command is for product repositories that")
+			fmt.Println("accidentally contain canonical EPF content.")
+			os.Exit(0)
+		} else {
+			fmt.Println("Could not determine repository type.")
+			fmt.Println("Run 'epf-cli health' for more information.")
+			os.Exit(1)
+		}
+	}
+
+	if checkResult.Valid {
+		fmt.Println("✅ Repository structure is already clean!")
+		fmt.Println()
+		fmt.Println("No canonical EPF content found in this product repository.")
+		os.Exit(0)
+	}
+
+	// Get canonical content issues
+	issues := checkResult.GetCanonicalContentIssues()
+	if len(issues) == 0 {
+		fmt.Println("✅ No canonical content to remove.")
+		os.Exit(0)
+	}
+
+	// Prepare result
+	result := &StructureFixResult{
+		EPFRoot:        epfPath,
+		WasProductRepo: true,
+		DryRun:         fixStructureDryRun,
+	}
+
+	// Collect items to remove
+	var dirsToRemove []string
+	var filesToRemove []string
+
+	for _, dir := range checks.CanonicalDirectories {
+		path := filepath.Join(epfPath, dir)
+		if info, err := os.Stat(path); err == nil && info.IsDir() {
+			dirsToRemove = append(dirsToRemove, dir)
+			// Count files in directory
+			count := countFilesRecursively(path)
+			result.TotalFilesInDirs += count
+		}
+	}
+
+	for _, file := range checks.CanonicalFiles {
+		path := filepath.Join(epfPath, file)
+		if _, err := os.Stat(path); err == nil {
+			filesToRemove = append(filesToRemove, file)
+		}
+	}
+
+	// Show what will be removed
+	fmt.Println("╔════════════════════════════════════════════════════════════╗")
+	fmt.Println("║           EPF STRUCTURE FIX                                 ║")
+	fmt.Println("╚════════════════════════════════════════════════════════════╝")
+	fmt.Println()
+
+	if fixStructureDryRun {
+		fmt.Println("DRY RUN - No changes will be made")
+		fmt.Println()
+	}
+
+	fmt.Printf("EPF Root: %s\n", epfPath)
+	fmt.Println()
+
+	if len(dirsToRemove) > 0 {
+		fmt.Println("📁 Directories to remove:")
+		for _, dir := range dirsToRemove {
+			path := filepath.Join(epfPath, dir)
+			count := countFilesRecursively(path)
+			fmt.Printf("   • %s/ (%d files)\n", dir, count)
+		}
+		fmt.Println()
+	}
+
+	if len(filesToRemove) > 0 {
+		fmt.Println("📄 Files to remove:")
+		for _, file := range filesToRemove {
+			fmt.Printf("   • %s\n", file)
+		}
+		fmt.Println()
+	}
+
+	// Show what will be preserved
+	fmt.Println("✅ Will preserve:")
+	fmt.Println("   • _instances/ (your EPF data)")
+	fmt.Println("   • AGENTS.md (if present)")
+	fmt.Println("   • README.md (if present)")
+	fmt.Println("   • .gitignore (if present)")
+	fmt.Println()
+
+	// Confirm unless force or dry-run
+	if !fixStructureDryRun && !fixStructureForce {
+		fmt.Printf("This will remove %d directories (%d files) and %d files.\n",
+			len(dirsToRemove), result.TotalFilesInDirs, len(filesToRemove))
+		fmt.Println()
+		fmt.Print("Continue? [y/N]: ")
+
+		var response string
+		fmt.Scanln(&response)
+		response = strings.ToLower(strings.TrimSpace(response))
+		if response != "y" && response != "yes" {
+			fmt.Println("Aborted.")
+			os.Exit(0)
+		}
+		fmt.Println()
+	}
+
+	// Perform removal
+	if !fixStructureDryRun {
+		// Remove directories
+		for _, dir := range dirsToRemove {
+			path := filepath.Join(epfPath, dir)
+			if fixStructureVerbose {
+				fmt.Printf("Removing directory: %s\n", path)
+			}
+			if err := os.RemoveAll(path); err != nil {
+				fmt.Fprintf(os.Stderr, "Error removing %s: %v\n", path, err)
+				result.Error = err
+			} else {
+				result.DirsRemoved = append(result.DirsRemoved, dir)
+			}
+		}
+
+		// Remove files
+		for _, file := range filesToRemove {
+			path := filepath.Join(epfPath, file)
+			if fixStructureVerbose {
+				fmt.Printf("Removing file: %s\n", path)
+			}
+			if err := os.Remove(path); err != nil {
+				fmt.Fprintf(os.Stderr, "Error removing %s: %v\n", path, err)
+				result.Error = err
+			} else {
+				result.FilesRemoved = append(result.FilesRemoved, file)
+			}
+		}
+	} else {
+		result.DirsRemoved = dirsToRemove
+		result.FilesRemoved = filesToRemove
+	}
+
+	// Print summary
+	fmt.Println("════════════════════════════════════════════════════════════")
+	if fixStructureDryRun {
+		fmt.Printf("Would remove: %d directories, %d files\n",
+			len(result.DirsRemoved), len(result.FilesRemoved))
+	} else {
+		fmt.Printf("✅ Removed: %d directories, %d files\n",
+			len(result.DirsRemoved), len(result.FilesRemoved))
+	}
+	fmt.Println()
+
+	if !fixStructureDryRun {
+		fmt.Println("Next steps:")
+		fmt.Println("  1. Run 'epf-cli health' to verify the structure")
+		fmt.Println("  2. Commit the changes: git add -A && git commit -m \"Remove canonical EPF content\"")
+		fmt.Println()
+		fmt.Println("The canonical EPF framework (schemas, templates, wizards) is now")
+		fmt.Println("loaded automatically by epf-cli at runtime - you don't need local copies.")
+	}
+}
+
+// countFilesRecursively counts all files in a directory recursively
+func countFilesRecursively(path string) int {
+	count := 0
+	filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if !info.IsDir() {
+			count++
+		}
+		return nil
+	})
+	return count
 }

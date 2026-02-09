@@ -74,9 +74,15 @@ epf-cli validate .
 # Validate a specific file
 epf-cli validate epf/strategy/north_star.yaml
 
-# AI-friendly validation output
+# AI-friendly validation output (includes product context, template warnings, semantic warnings)
 epf-cli validate file.yaml --ai-friendly
 ```
+
+**New in v0.14.0:** The `--ai-friendly` output now includes:
+
+- **Product context** - Product name, description, and keywords from instance metadata
+- **Template warnings** - Detects TBD, TODO, [INSERT...] placeholders
+- **Semantic warnings** - Flags content that may not align with the product domain
 
 ### Migrate Legacy Instances
 

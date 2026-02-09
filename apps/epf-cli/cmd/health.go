@@ -112,7 +112,10 @@ type HealthResult struct {
 	// Three-tier scoring system
 	Tiers *HealthTiers `json:"tiers"`
 
-	// Anchor file status (new)
+	// Repository structure check (canonical vs product repo validation)
+	StructureCheck *checks.StructureResult `json:"structure_check,omitempty"`
+
+	// Anchor file status
 	AnchorStatus *AnchorCheckResult `json:"anchor_status,omitempty"`
 
 	// Individual check results
@@ -197,7 +200,44 @@ func runHealthCheck(instancePath string, schemasPath string) *HealthResult {
 		fmt.Println()
 	}
 
-	// 0. Anchor File Check (new - before instance structure)
+	// 0. Repository Structure Check (FIRST - blocking if critical)
+	// This detects if a product repo incorrectly contains canonical EPF content
+	if !healthJSON {
+		fmt.Println("▶ Checking repository structure...")
+	}
+
+	// Determine the EPF root for structure checking
+	// If instancePath looks like _instances/product, go up to find EPF root
+	epfRoot := instancePath
+	if strings.Contains(instancePath, "_instances") {
+		// Find the parent directory containing _instances
+		parts := strings.Split(instancePath, string(filepath.Separator))
+		for i, part := range parts {
+			if part == "_instances" && i > 0 {
+				epfRoot = filepath.Join(parts[:i]...)
+				if !filepath.IsAbs(epfRoot) && filepath.IsAbs(instancePath) {
+					epfRoot = string(filepath.Separator) + epfRoot
+				}
+				break
+			}
+		}
+	}
+
+	structureChecker := checks.NewStructureChecker(epfRoot)
+	result.StructureCheck = structureChecker.Check()
+
+	if result.StructureCheck.HasCriticalStructureIssues() {
+		result.HasCritical = true
+	}
+
+	if !healthJSON {
+		printStructureCheckSummary(result.StructureCheck)
+	}
+
+	// If structure has critical issues, warn but continue with other checks
+	// The user needs to see all issues to understand the full picture
+
+	// 1. Anchor File Check
 	if !healthJSON {
 		fmt.Println("▶ Checking anchor file...")
 	}
@@ -419,8 +459,23 @@ func calculateTiers(result *HealthResult) *HealthTiers {
 		Quality:  TierScore{MaxScore: 100, Details: []string{}},
 	}
 
-	// CRITICAL TIER: Instance structure, broken YAML, missing required content
+	// CRITICAL TIER: Repository structure, instance structure, broken YAML, missing required content
 	criticalIssues := 0
+
+	// Structure check issues are critical (canonical content in product repo, etc.)
+	if result.StructureCheck != nil && result.StructureCheck.HasCriticalStructureIssues() {
+		criticalIssues += len(result.StructureCheck.Issues)
+		for _, issue := range result.StructureCheck.Issues {
+			detail := issue.Description
+			if len(issue.Items) > 0 && len(issue.Items) <= 3 {
+				detail = fmt.Sprintf("%s: %s", issue.Description, strings.Join(issue.Items, ", "))
+			} else if len(issue.Items) > 3 {
+				detail = fmt.Sprintf("%s: %s, ... (+%d more)", issue.Description, strings.Join(issue.Items[:3], ", "), len(issue.Items)-3)
+			}
+			tiers.Critical.Details = append(tiers.Critical.Details, detail)
+		}
+	}
+
 	if result.InstanceCheck != nil {
 		criticalIssues += result.InstanceCheck.Critical
 		// Add critical issues to details
@@ -1210,6 +1265,101 @@ func checkAnchorFile(instancePath string) *AnchorCheckResult {
 	}
 
 	return result
+}
+
+// printStructureCheckSummary prints the repository structure check result
+func printStructureCheckSummary(result *checks.StructureResult) {
+	if result == nil {
+		return
+	}
+
+	var icon string
+	switch result.Severity {
+	case checks.SeverityCritical:
+		icon = "🚨"
+	case checks.SeverityError:
+		icon = "❌"
+	case checks.SeverityWarning:
+		icon = "⚠️"
+	default:
+		icon = "✅"
+	}
+
+	// Print repository type and status
+	repoTypeStr := string(result.RepoType)
+	if result.RepoType == checks.RepoTypeProduct {
+		repoTypeStr = "product repository"
+	} else if result.RepoType == checks.RepoTypeCanonical {
+		repoTypeStr = "canonical EPF"
+	}
+
+	fmt.Printf("  %s Repository Structure: %s\n", icon, repoTypeStr)
+
+	if result.Valid {
+		fmt.Printf("    ✓ %s\n", result.Message)
+	} else {
+		fmt.Printf("    ✗ %s\n", result.Message)
+
+		// Print issues
+		for _, issue := range result.Issues {
+			switch issue.Type {
+			case "canonical_content_in_product":
+				fmt.Printf("\n    🚨 CRITICAL: Found canonical EPF content in product repository:\n")
+				for _, item := range issue.Items {
+					fmt.Printf("       • %s\n", item)
+				}
+				fmt.Println()
+				fmt.Println("    This blocks accurate validation. The EPF framework")
+				fmt.Println("    (schemas, templates, wizards) should NOT be in product repos.")
+				fmt.Println()
+
+			case "canonical_files_in_product":
+				fmt.Printf("\n    🚨 Found canonical framework files:\n")
+				for _, item := range issue.Items {
+					fmt.Printf("       • %s\n", item)
+				}
+
+			case "instance_in_canonical":
+				fmt.Printf("\n    🚨 CRITICAL: Found product instances in canonical EPF:\n")
+				for _, item := range issue.Items {
+					fmt.Printf("       • %s\n", item)
+				}
+				fmt.Println()
+				fmt.Println("    Product instances should be in their own repositories.")
+
+			case "missing_canonical_dirs":
+				fmt.Printf("\n    Missing required directories:\n")
+				for _, item := range issue.Items {
+					fmt.Printf("       • %s\n", item)
+				}
+
+			case "missing_instances":
+				fmt.Printf("    • %s\n", issue.Description)
+			}
+		}
+
+		// Print recommendations (only first 3 in non-verbose mode)
+		if len(result.Recommendations) > 0 {
+			fmt.Println()
+			fmt.Println("    💡 To fix:")
+			maxRecs := 3
+			if healthVerbose {
+				maxRecs = len(result.Recommendations)
+			}
+			for i, rec := range result.Recommendations {
+				if i >= maxRecs {
+					fmt.Printf("       ... and %d more recommendations (use --verbose)\n", len(result.Recommendations)-maxRecs)
+					break
+				}
+				if rec == "" {
+					continue // skip empty lines in non-verbose
+				}
+				fmt.Printf("       %s\n", rec)
+			}
+		}
+	}
+
+	fmt.Println()
 }
 
 // printAnchorCheckSummary prints the anchor check result in human-readable format
