@@ -16,7 +16,11 @@ LDFLAGS=-ldflags "-X github.com/eyedea-io/emergent/apps/epf-cli/cmd.Version=$(VE
                   -X github.com/eyedea-io/emergent/apps/epf-cli/cmd.GitCommit=$(GIT_COMMIT) \
                   -X github.com/eyedea-io/emergent/apps/epf-cli/cmd.BuildDate=$(BUILD_DATE)"
 
-.PHONY: all build clean test sync-embedded help
+# Cross-compilation targets
+PLATFORMS=darwin/amd64 darwin/arm64 linux/amd64 linux/arm64 windows/amd64
+DIST_DIR=dist
+
+.PHONY: all build clean test sync-embedded help build-all release clean-dist
 
 # Default target
 all: build
@@ -117,8 +121,11 @@ help:
 	@echo "Targets:"
 	@echo "  build          - Sync embedded artifacts and build the binary (default)"
 	@echo "  build-quick    - Build without syncing embedded artifacts"
+	@echo "  build-all      - Build for all platforms (darwin, linux, windows)"
+	@echo "  release        - Create dist/ with versioned release binaries"
 	@echo "  sync-embedded  - Copy canonical EPF artifacts to internal/embedded/"
 	@echo "  clean          - Remove build artifacts and embedded files"
+	@echo "  clean-dist     - Remove dist/ directory only"
 	@echo "  test           - Run tests"
 	@echo "  test-coverage  - Run tests with coverage report"
 	@echo "  install        - Install to GOPATH/bin"
@@ -130,3 +137,32 @@ help:
 	@echo "Environment variables:"
 	@echo "  CANONICAL_EPF  - Path to canonical-epf repo (default: ../../../canonical-epf)"
 	@echo "  VERSION        - Version string (default: git describe)"
+
+# Build for all platforms
+build-all: sync-embedded
+	@echo "Building $(BINARY_NAME) $(VERSION) for all platforms..."
+	@mkdir -p $(DIST_DIR)
+	@for platform in $(PLATFORMS); do \
+		GOOS=$$(echo $$platform | cut -d'/' -f1); \
+		GOARCH=$$(echo $$platform | cut -d'/' -f2); \
+		output="$(DIST_DIR)/$(BINARY_NAME)-$$GOOS-$$GOARCH"; \
+		if [ "$$GOOS" = "windows" ]; then output="$$output.exe"; fi; \
+		echo "  Building $$GOOS/$$GOARCH..."; \
+		GOOS=$$GOOS GOARCH=$$GOARCH go build $(LDFLAGS) -o $$output . || exit 1; \
+	done
+	@echo "✓ Built binaries in $(DIST_DIR)/"
+	@ls -la $(DIST_DIR)/
+
+# Create release with checksums
+release: build-all
+	@echo "Creating release $(VERSION)..."
+	@cd $(DIST_DIR) && sha256sum * > checksums.txt 2>/dev/null || shasum -a 256 * > checksums.txt
+	@echo "✓ Release $(VERSION) created in $(DIST_DIR)/"
+	@echo ""
+	@cat $(DIST_DIR)/checksums.txt
+
+# Clean dist directory
+clean-dist:
+	@echo "Cleaning dist/..."
+	@rm -rf $(DIST_DIR)
+	@echo "✓ Cleaned dist/"
