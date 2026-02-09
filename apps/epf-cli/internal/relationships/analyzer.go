@@ -258,6 +258,11 @@ func (a *Analyzer) AnalyzeCoverage(track string) *CoverageAnalysis {
 	return a.coverage.AnalyzeTrack(track)
 }
 
+// GetDetailedCoverageByTrack returns detailed coverage statistics for each track.
+func (a *Analyzer) GetDetailedCoverageByTrack() map[string]*TrackCoverageDetail {
+	return a.coverage.GetDetailedCoverageByTrack()
+}
+
 // FindCoverageGaps returns detailed information about coverage gaps.
 func (a *Analyzer) FindCoverageGaps() []CoverageGap {
 	return a.coverage.FindGaps()
