@@ -1295,9 +1295,9 @@ The `health` command runs these checks:
    - Compares artifact versions vs schema versions
    - Detects stale/outdated artifacts
 
-## MCP Tools (v0.13.0)
+## MCP Tools (v0.14.0)
 
-The server exposes these tools (29 tools total):
+The server exposes these tools (49 tools total):
 
 ### Schema & Validation Tools
 
@@ -1466,6 +1466,85 @@ These tools help AI agents discover EPF instances and get guidance:
 3. Call epf_health_check on discovered instance
 4. Proceed with task using appropriate MCP tools
 ```
+
+### Instance Management Tools (v0.14.0)
+
+These tools enable AI agents to initialize and fix EPF instances:
+
+| Tool                | Parameters                                              | Description                              |
+| ------------------- | ------------------------------------------------------- | ---------------------------------------- |
+| `epf_init_instance` | `path`, `product_name`, `epf_version`, `structure_type` | Initialize a new EPF instance            |
+| `epf_fix_file`      | `path`, `fix_types`, `dry_run`                          | Auto-fix common issues in EPF YAML files |
+
+**Use cases:**
+
+- **`epf_init_instance`**: Create a new EPF instance with proper structure (READY/FIRE/AIM directories, anchor file, templates)
+- **`epf_fix_file`**: Fix common issues like trailing whitespace, CRLF line endings, tabs, missing trailing newlines, and missing meta.epf_version
+
+**Fix types:**
+
+| Fix Type       | Description                               |
+| -------------- | ----------------------------------------- |
+| `whitespace`   | Remove trailing whitespace from lines     |
+| `line_endings` | Convert CRLF to LF                        |
+| `tabs`         | Convert tabs to spaces                    |
+| `newlines`     | Ensure single trailing newline            |
+| `versions`     | Add missing meta.epf_version              |
+| `all`          | Apply all fixes (default when none given) |
+
+### AIM Phase Tools (v0.14.0)
+
+These tools support the Assessment & Calibration phase:
+
+| Tool                           | Parameters                                         | Description                                            |
+| ------------------------------ | -------------------------------------------------- | ------------------------------------------------------ |
+| `epf_aim_bootstrap`            | `instance_path`, `organization_type`, `team_size`+ | Create Living Reality Assessment non-interactively     |
+| `epf_aim_status`               | `instance_path`                                    | Get comprehensive LRA status summary                   |
+| `epf_aim_assess`               | `instance_path`, `roadmap_id`                      | Generate assessment report template from roadmap       |
+| `epf_aim_validate_assumptions` | `instance_path`, `verbose`                         | Check assumption validation status from assessments    |
+| `epf_aim_okr_progress`         | `instance_path`, `track`, `cycle`, `all_cycles`    | Calculate OKR and KR achievement rates from assessment |
+
+**Use cases:**
+
+- **`epf_aim_bootstrap`**: Create a Living Reality Assessment (LRA) for a new instance. Pass organizational context (org type, team size, funding stage, product stage, bottleneck, AI capability level)
+- **`epf_aim_status`**: Get a summary of the current LRA including lifecycle stage, adoption level, track maturity, and warnings
+- **`epf_aim_assess`**: Pre-populate an assessment_report.yaml template with OKRs and KRs from the roadmap
+- **`epf_aim_validate_assumptions`**: Cross-reference assumptions from roadmap with evidence from assessments
+- **`epf_aim_okr_progress`**: Calculate achievement rates (exceeded+met/total) by track and cycle
+
+**AIM bootstrap parameters:**
+
+| Parameter             | Values                                                          |
+| --------------------- | --------------------------------------------------------------- |
+| `organization_type`   | `solo_founder`, `cofounding_team`, `early_team`, `growth_team`  |
+| `funding_stage`       | `bootstrapped`, `pre_seed`, `seed`, `series_a`, `series_b_plus` |
+| `product_stage`       | `idea`, `prototype`, `mvp`, `growth`, `mature`                  |
+| `primary_bottleneck`  | `execution`, `clarity`, `validation`, `funding`                 |
+| `ai_capability_level` | `none`, `basic`, `intermediate`, `advanced`                     |
+
+### Report & Diff Tools (v0.14.0)
+
+These tools generate reports and compare EPF artifacts:
+
+| Tool                  | Parameters                           | Description                                 |
+| --------------------- | ------------------------------------ | ------------------------------------------- |
+| `epf_generate_report` | `instance_path`, `format`, `verbose` | Generate comprehensive health report        |
+| `epf_diff_artifacts`  | `path1`, `path2`, `verbose`          | Compare two EPF artifacts or directories    |
+| `epf_diff_template`   | `file_path`, `verbose`               | Compare file against its canonical template |
+
+**Use cases:**
+
+- **`epf_generate_report`**: Run all health checks and compile results into markdown, HTML, or JSON format. Does not write to file.
+- **`epf_diff_artifacts`**: Compare two files or directories to see structural differences (added, removed, modified fields)
+- **`epf_diff_template`**: Auto-detect artifact type and compare against canonical template. Returns fix hints and priorities for each issue.
+
+**Report formats:**
+
+| Format     | Description                                   |
+| ---------- | --------------------------------------------- |
+| `markdown` | Human-readable markdown with tables (default) |
+| `html`     | Self-contained HTML report                    |
+| `json`     | Structured JSON for programmatic processing   |
 
 ## Artifact Type Detection
 
