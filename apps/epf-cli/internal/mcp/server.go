@@ -766,6 +766,231 @@ func (s *Server) registerTools() {
 		),
 		s.handleLocateInstance,
 	)
+
+	// ==========================================================================
+	// Instance Management Tools (v0.14.0)
+	// ==========================================================================
+
+	// Tool: epf_init_instance
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_init_instance",
+			mcp.WithDescription("Initialize a new EPF instance with the recommended directory structure. "+
+				"Creates READY/FIRE/AIM directories, anchor file (_epf.yaml), and optional template files. "+
+				"Use dry_run=true to preview what would be created without making changes."),
+			mcp.WithString("path",
+				mcp.Required(),
+				mcp.Description("Path where the EPF instance should be created"),
+			),
+			mcp.WithString("product_name",
+				mcp.Required(),
+				mcp.Description("Name of the product (used in _epf.yaml and _meta.yaml)"),
+			),
+			mcp.WithString("epf_version",
+				mcp.Description("EPF framework version (default: 2.0.0)"),
+			),
+			mcp.WithString("structure_type",
+				mcp.Description("Directory structure type: 'phased' (READY/FIRE/AIM) or 'flat' (default: phased)"),
+			),
+			mcp.WithString("dry_run",
+				mcp.Description("Preview changes without creating files (true/false, default: false)"),
+			),
+			mcp.WithString("force",
+				mcp.Description("Overwrite existing files if present (true/false, default: false)"),
+			),
+		),
+		s.handleInitInstance,
+	)
+
+	// Tool: epf_fix_file
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_fix_file",
+			mcp.WithDescription("Auto-fix common issues in EPF YAML files. "+
+				"Can fix whitespace, line endings, tabs, trailing newlines, and add missing meta.epf_version. "+
+				"Use dry_run=true to preview changes without modifying files."),
+			mcp.WithString("path",
+				mcp.Required(),
+				mcp.Description("Path to the YAML file or directory to fix"),
+			),
+			mcp.WithString("fix_types",
+				mcp.Description("Comma-separated list of fix types to apply: whitespace, line_endings, tabs, newlines, versions, all (default: all)"),
+			),
+			mcp.WithString("dry_run",
+				mcp.Description("Preview changes without modifying files (true/false, default: false)"),
+			),
+		),
+		s.handleFixFile,
+	)
+
+	// ==========================================================================
+	// AIM Tools (v0.14.0)
+	// ==========================================================================
+
+	// Tool: epf_aim_bootstrap
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_aim_bootstrap",
+			mcp.WithDescription("Create a Living Reality Assessment (LRA) non-interactively. "+
+				"The LRA is the foundational baseline that captures organizational context, track maturity, and current focus. "+
+				"All AIM tools require an LRA to exist. Use force=true to overwrite an existing LRA."),
+			mcp.WithString("instance_path",
+				mcp.Description("Path to EPF instance (default: current directory)"),
+			),
+			mcp.WithString("organization_type",
+				mcp.Description("Organization type: solo_founder, cofounding_team, early_team, growth_team"),
+			),
+			mcp.WithString("funding_stage",
+				mcp.Description("Funding stage: bootstrapped, pre_seed, seed, series_a, series_b_plus"),
+			),
+			mcp.WithString("team_size",
+				mcp.Description("Number of team members (integer as string)"),
+			),
+			mcp.WithString("product_stage",
+				mcp.Description("Product stage: idea, prototype, mvp, growth, mature"),
+			),
+			mcp.WithString("primary_bottleneck",
+				mcp.Description("Primary bottleneck: execution, clarity, validation, funding"),
+			),
+			mcp.WithString("ai_capability_level",
+				mcp.Description("AI capability level: none, basic, intermediate, advanced"),
+			),
+			mcp.WithString("runway_months",
+				mcp.Description("Runway in months (integer as string, optional)"),
+			),
+			mcp.WithString("primary_objective",
+				mcp.Description("Primary objective for current focus (free text)"),
+			),
+			mcp.WithString("force",
+				mcp.Description("Overwrite existing LRA (true/false, default: false)"),
+			),
+		),
+		s.handleAimBootstrap,
+	)
+
+	// Tool: epf_aim_status
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_aim_status",
+			mcp.WithDescription("Get comprehensive status of the Living Reality Assessment (LRA). "+
+				"Shows lifecycle stage, adoption level, organizational context, track maturity baselines, current focus, and warnings."),
+			mcp.WithString("instance_path",
+				mcp.Description("Path to EPF instance (default: current directory)"),
+			),
+		),
+		s.handleAimStatus,
+	)
+
+	// Tool: epf_aim_assess
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_aim_assess",
+			mcp.WithDescription("Generate an assessment report template from roadmap data. "+
+				"Pre-populates OKRs, Key Results, and assumptions from the roadmap for evaluation. "+
+				"Returns YAML template with TODO placeholders to fill in."),
+			mcp.WithString("instance_path",
+				mcp.Description("Path to EPF instance (default: current directory)"),
+			),
+			mcp.WithString("roadmap_id",
+				mcp.Description("Roadmap ID to assess (optional, uses ID from roadmap file if not provided)"),
+			),
+		),
+		s.handleAimAssess,
+	)
+
+	// Tool: epf_aim_validate_assumptions
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_aim_validate_assumptions",
+			mcp.WithDescription("Check assumption validation status from assessment reports. "+
+				"Cross-references assumptions from roadmap with evidence from assessment reports. "+
+				"Returns counts of validated, invalidated, inconclusive, and pending assumptions."),
+			mcp.WithString("instance_path",
+				mcp.Description("Path to EPF instance (default: current directory)"),
+			),
+			mcp.WithString("verbose",
+				mcp.Description("Include evidence details (true/false, default: false)"),
+			),
+		),
+		s.handleAimValidateAssumptions,
+	)
+
+	// Tool: epf_aim_okr_progress
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_aim_okr_progress",
+			mcp.WithDescription("Calculate OKR and Key Result achievement rates from assessments. "+
+				"Analyzes assessment reports to compute achievement rates (exceeded+met/total). "+
+				"Can filter by track and cycle, and show trends across all cycles."),
+			mcp.WithString("instance_path",
+				mcp.Description("Path to EPF instance (default: current directory)"),
+			),
+			mcp.WithString("track",
+				mcp.Description("Filter by track: product, strategy, org_ops, commercial"),
+			),
+			mcp.WithString("cycle",
+				mcp.Description("Filter by cycle number (integer as string)"),
+			),
+			mcp.WithString("all_cycles",
+				mcp.Description("Show progress for all cycles (true/false, default: false)"),
+			),
+		),
+		s.handleAimOKRProgress,
+	)
+
+	// ==========================================================================
+	// Report & Diff Tools (v0.14.0)
+	// ==========================================================================
+
+	// Tool: epf_generate_report
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_generate_report",
+			mcp.WithDescription("Generate comprehensive health report for an EPF instance. "+
+				"Runs all health checks and compiles results into markdown, HTML, or JSON format. "+
+				"Returns report content (does not write to file)."),
+			mcp.WithString("instance_path",
+				mcp.Description("Path to EPF instance (default: current directory)"),
+			),
+			mcp.WithString("format",
+				mcp.Description("Output format: markdown (default), html, json"),
+			),
+			mcp.WithString("verbose",
+				mcp.Description("Include detailed information (true/false, default: false)"),
+			),
+		),
+		s.handleGenerateReport,
+	)
+
+	// Tool: epf_diff_artifacts
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_diff_artifacts",
+			mcp.WithDescription("Compare two EPF artifacts or instance directories. "+
+				"Shows structural differences including added, removed, and modified fields. "+
+				"Supports file-to-file and directory-to-directory comparison."),
+			mcp.WithString("path1",
+				mcp.Required(),
+				mcp.Description("Path to source file or directory"),
+			),
+			mcp.WithString("path2",
+				mcp.Required(),
+				mcp.Description("Path to target file or directory"),
+			),
+			mcp.WithString("verbose",
+				mcp.Description("Show old/new values for changes (true/false, default: false)"),
+			),
+		),
+		s.handleDiffArtifacts,
+	)
+
+	// Tool: epf_diff_template
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_diff_template",
+			mcp.WithDescription("Compare a file against its canonical template. "+
+				"Auto-detects artifact type and shows structural differences with fix hints and priorities. "+
+				"Useful for understanding why validation fails."),
+			mcp.WithString("file_path",
+				mcp.Required(),
+				mcp.Description("Path to the EPF artifact file to compare"),
+			),
+			mcp.WithString("verbose",
+				mcp.Description("Include extra fields not in template (true/false, default: false)"),
+			),
+		),
+		s.handleDiffTemplate,
+	)
 }
 
 // SchemaListItem represents a schema in the list response
