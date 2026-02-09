@@ -54,30 +54,55 @@ func NewServer(schemasDir string) (*Server, error) {
 		return nil, fmt.Errorf("failed to create validator: %w", err)
 	}
 
-	// EPF root is the parent of schemas directory (schemas/ is under EPF root)
-	epfRoot := filepath.Dir(schemasDir)
+	// Determine if we're using embedded mode (no filesystem schemasDir)
+	useEmbedded := schemasDir == "" || val.GetLoader().IsEmbedded()
 
-	// Create template loader
-	templateLoader := template.NewLoader(epfRoot)
+	// EPF root is the parent of schemas directory (schemas/ is under EPF root)
+	// When using embedded mode, this will be empty but loaders handle that
+	var epfRoot string
+	if !useEmbedded {
+		epfRoot = filepath.Dir(schemasDir)
+	}
+
+	// Create template loader - use embedded if no filesystem
+	var templateLoader *template.Loader
+	if useEmbedded {
+		templateLoader = template.NewEmbeddedLoader()
+	} else {
+		templateLoader = template.NewLoader(epfRoot)
+	}
 	if err := templateLoader.Load(); err != nil {
 		// Templates are optional - log but don't fail
 		// Some deployments may not have templates
 	}
 
-	// Create definition loader
-	definitionLoader := template.NewDefinitionLoader(epfRoot)
-	if err := definitionLoader.Load(); err != nil {
-		// Definitions are optional - log but don't fail
+	// Create definition loader - definitions are filesystem only, skip in embedded mode
+	var definitionLoader *template.DefinitionLoader
+	if !useEmbedded {
+		definitionLoader = template.NewDefinitionLoader(epfRoot)
+		if err := definitionLoader.Load(); err != nil {
+			// Definitions are optional - log but don't fail
+		}
 	}
 
-	// Create wizard loader
-	wizardLoader := wizard.NewLoader(epfRoot)
+	// Create wizard loader - use embedded if no filesystem
+	var wizardLoader *wizard.Loader
+	if useEmbedded {
+		wizardLoader = wizard.NewEmbeddedLoader()
+	} else {
+		wizardLoader = wizard.NewLoader(epfRoot)
+	}
 	if err := wizardLoader.Load(); err != nil {
 		// Wizards are optional - log but don't fail
 	}
 
-	// Create generator loader
-	generatorLoader := generator.NewLoader(epfRoot)
+	// Create generator loader - use embedded if no filesystem
+	var generatorLoader *generator.Loader
+	if useEmbedded {
+		generatorLoader = generator.NewEmbeddedLoader()
+	} else {
+		generatorLoader = generator.NewLoader(epfRoot)
+	}
 	if err := generatorLoader.Load(); err != nil {
 		// Generators are optional - log but don't fail
 	}
