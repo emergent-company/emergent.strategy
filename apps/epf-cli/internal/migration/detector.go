@@ -37,14 +37,15 @@ func NewDetector(schemasDir string) (*Detector, error) {
 
 // DetectMigrationStatus analyzes an instance directory and returns migration status
 func (d *Detector) DetectMigrationStatus(instancePath string) (*MigrationStatus, error) {
-	// Get the current EPF schema version (use feature_definition as reference)
-	targetVersion, err := d.GetCurrentSchemaVersion()
+	// Get the default EPF schema version (use feature_definition as reference)
+	// This is used for the summary display
+	defaultTargetVersion, err := d.GetCurrentSchemaVersion()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current schema version: %w", err)
 	}
 
 	status := &MigrationStatus{
-		TargetVersion: targetVersion,
+		TargetVersion: defaultTargetVersion,
 		Files:         make([]FileMigrationStatus, 0),
 	}
 
@@ -73,8 +74,15 @@ func (d *Detector) DetectMigrationStatus(instancePath string) (*MigrationStatus,
 			return nil
 		}
 
-		// Analyze this file
-		fileStatus := d.analyzeFile(path, artifactType, targetVersion)
+		// Get the correct schema version for THIS specific artifact type
+		artifactSchemaVersion, err := d.GetSchemaVersion(artifactType)
+		if err != nil {
+			// Fall back to default if we can't get artifact-specific version
+			artifactSchemaVersion = defaultTargetVersion
+		}
+
+		// Analyze this file with its artifact-specific schema version
+		fileStatus := d.analyzeFile(path, artifactType, artifactSchemaVersion)
 		status.Files = append(status.Files, fileStatus)
 		status.TotalFiles++
 
@@ -190,32 +198,49 @@ func (d *Detector) analyzeFile(path string, artifactType schema.ArtifactType, ta
 
 // Version extraction patterns
 var (
-	headerVersionPattern = regexp.MustCompile(`^#\s*EPF\s+v?(\d+\.\d+\.\d+)`)
-	metaVersionPattern   = regexp.MustCompile(`epf_version:\s*["']?(\d+\.\d+\.\d+)["']?`)
+	headerVersionPattern       = regexp.MustCompile(`^#\s*EPF\s+v?(\d+\.\d+\.\d+)`)
+	metaVersionPattern         = regexp.MustCompile(`epf_version:\s*["']?(\d+\.\d+\.\d+)["']?`)
+	metaTemplateVersionPattern = regexp.MustCompile(`template_version:\s*["']?(\d+\.\d+\.\d+)["']?`)
 )
 
-// extractVersionFromContent extracts the EPF version from file content
+// extractVersionFromContent extracts the schema version from file content
+// IMPORTANT: For migration purposes, we want the template_version (schema version),
+// NOT the epf_version (framework version). These are independent version tracks.
 func extractVersionFromContent(content string) string {
-	// Try header version first
-	matches := headerVersionPattern.FindStringSubmatch(content)
-	if len(matches) > 1 {
-		return matches[1]
-	}
-
-	// Try meta.epf_version
-	matches = metaVersionPattern.FindStringSubmatch(content)
-	if len(matches) > 1 {
-		return matches[1]
-	}
-
-	// Try parsing YAML and looking for meta.epf_version
+	// Try parsing YAML first (most reliable method)
 	var data map[string]interface{}
 	if err := yaml.Unmarshal([]byte(content), &data); err == nil {
 		if meta, ok := data["meta"].(map[string]interface{}); ok {
-			if version, ok := meta["epf_version"].(string); ok {
+			// Priority 1: template_version (this is the schema version)
+			if version, ok := meta["template_version"].(string); ok && version != "" {
+				return version
+			}
+			// Priority 2: epf_version (for older files without template_version)
+			// NOTE: This is a fallback for legacy files. New files should use template_version.
+			if version, ok := meta["epf_version"].(string); ok && version != "" {
 				return version
 			}
 		}
+	}
+
+	// Fallback: Try regex patterns (less reliable but handles edge cases)
+
+	// Try template_version first
+	matches := metaTemplateVersionPattern.FindStringSubmatch(content)
+	if len(matches) > 1 {
+		return matches[1]
+	}
+
+	// Try header version
+	matches = headerVersionPattern.FindStringSubmatch(content)
+	if len(matches) > 1 {
+		return matches[1]
+	}
+
+	// Try meta.epf_version as last resort
+	matches = metaVersionPattern.FindStringSubmatch(content)
+	if len(matches) > 1 {
+		return matches[1]
 	}
 
 	return ""
