@@ -11,6 +11,7 @@ epf-cli is the **normative authority** for EPF operations. It:
 - **Guides** AI agents with structured instructions
 - **Serves** MCP tools for programmatic operations
 - **Migrates** legacy instances to modern structure
+- **Exposes** product strategy to AI agents via Strategy Server
 
 **Important:** epf-cli does NOT write content. It validates, discovers, and guides. AI agents write content, epf-cli validates it.
 
@@ -35,6 +36,9 @@ epf-cli health [instance-path]
 
 # 4. Validate files after editing
 epf-cli validate path/to/file.yaml
+
+# 5. Access product strategy (NEW in v0.16.0)
+epf-cli strategy status ./epf
 ```
 
 ## Usage
@@ -107,12 +111,56 @@ epf-cli health --verbose
 ### Start MCP Server
 
 ```bash
-# Start MCP server (29 tools available)
+# Start MCP server (49 tools available)
 epf-cli serve
 
 # Custom port
 epf-cli serve --port 3200
 ```
+
+### Product Strategy Server (v0.16.0)
+
+The Strategy Server provides read-only access to EPF product strategy for AI agents. It exposes vision, personas, competitive positioning, and roadmap data through MCP tools.
+
+```bash
+# Check strategy store status
+epf-cli strategy status ./epf
+
+# JSON output for programmatic use
+epf-cli strategy status ./epf --json
+
+# Export strategy as markdown document
+epf-cli strategy export ./epf
+
+# Export to file
+epf-cli strategy export ./epf --output strategy.md
+
+# Start MCP server with strategy tools pre-loaded
+epf-cli strategy serve ./epf
+
+# With file watching for auto-reload
+epf-cli strategy serve ./epf --watch
+```
+
+**Strategy MCP Tools:**
+
+| Tool                               | Description                                    |
+| ---------------------------------- | ---------------------------------------------- |
+| `epf_get_product_vision`           | Get vision, mission, and north star            |
+| `epf_get_personas`                 | List all personas with summaries               |
+| `epf_get_persona_details`          | Get full persona details including pain points |
+| `epf_get_value_propositions`       | Get value propositions, optionally by persona  |
+| `epf_get_competitive_position`     | Get competitive analysis and positioning       |
+| `epf_get_roadmap_summary`          | Get OKRs and key results, optionally by track  |
+| `epf_search_strategy`              | Full-text search across all strategy artifacts |
+| `epf_get_feature_strategy_context` | Get strategic context for a specific feature   |
+
+**Use cases:**
+
+- **Context-aware development**: Understand product vision before implementing features
+- **User research**: Access persona details and pain points when designing UX
+- **Competitive awareness**: Review positioning before feature design
+- **Strategic alignment**: Verify work aligns with current OKRs
 
 ## Architecture
 
@@ -124,6 +172,7 @@ epf-cli/
 │   ├── locate.go       # EPF instance discovery
 │   ├── health.go       # Comprehensive health check
 │   ├── validate.go     # Schema validation
+│   ├── strategy.go     # Strategy server commands
 │   ├── migrate_anchor.go # Legacy migration
 │   ├── serve.go        # MCP server
 │   └── ...
@@ -131,7 +180,8 @@ epf-cli/
 │   ├── anchor/         # Anchor file management
 │   ├── discovery/      # EPF instance discovery
 │   ├── schema/         # Schema loading
-│   ├── mcp/            # MCP server (29 tools)
+│   ├── strategy/       # Strategy store (model, parser, search, watcher)
+│   ├── mcp/            # MCP server (49 tools)
 │   └── validator/      # YAML validation logic
 ├── main.go
 └── go.mod

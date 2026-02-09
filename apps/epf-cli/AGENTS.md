@@ -1546,6 +1546,65 @@ These tools generate reports and compare EPF artifacts:
 | `html`     | Self-contained HTML report                    |
 | `json`     | Structured JSON for programmatic processing   |
 
+### Strategy Query Tools (v0.16.0)
+
+These tools provide read-only access to EPF product strategy for AI agents. They enable context-aware development by exposing vision, personas, competitive positioning, and roadmap data.
+
+| Tool                               | Parameters                                   | Description                                    |
+| ---------------------------------- | -------------------------------------------- | ---------------------------------------------- |
+| `epf_get_product_vision`           | `instance_path`                              | Get vision, mission, and north star            |
+| `epf_get_personas`                 | `instance_path`                              | List all personas with summaries               |
+| `epf_get_persona_details`          | `instance_path`, `persona_id`                | Get full persona details including pain points |
+| `epf_get_value_propositions`       | `instance_path`, `persona_id` (optional)     | Get value propositions, optionally by persona  |
+| `epf_get_competitive_position`     | `instance_path`                              | Get competitive analysis and positioning       |
+| `epf_get_roadmap_summary`          | `instance_path`, `track` (optional)          | Get OKRs and key results, optionally by track  |
+| `epf_search_strategy`              | `instance_path`, `query`, `limit` (optional) | Full-text search across all strategy artifacts |
+| `epf_get_feature_strategy_context` | `instance_path`, `feature_id`                | Get strategic context for a specific feature   |
+
+**Use cases:**
+
+- **`epf_get_product_vision`**: Understand the product's purpose before writing code. Returns vision statement, mission, and north star metrics.
+- **`epf_get_personas`**: Get an overview of target users. Returns list with id, name, role, and key characteristics.
+- **`epf_get_persona_details`**: Deep dive into a specific persona's needs, pain points, and goals. Use the `persona_id` from `epf_get_personas`.
+- **`epf_get_value_propositions`**: Understand what value the product delivers. Filter by persona to see targeted propositions.
+- **`epf_get_competitive_position`**: Review competitive landscape, differentiators, and market positioning before feature design.
+- **`epf_get_roadmap_summary`**: See current OKRs and key results. Filter by track (e.g., "Product", "Strategy") for focused view.
+- **`epf_search_strategy`**: Find strategy content by keyword. Returns ranked results with snippets showing match context.
+- **`epf_get_feature_strategy_context`**: Get complete strategic context for a feature including related personas, value props, and OKRs.
+
+**Example workflows:**
+
+```bash
+# Before implementing a feature, understand the strategic context
+epf_get_feature_strategy_context instance_path="./epf" feature_id="FD-001"
+
+# When writing user-facing copy, understand the target persona
+epf_get_persona_details instance_path="./epf" persona_id="alex-startup-founder"
+
+# When designing competitive features, review positioning
+epf_get_competitive_position instance_path="./epf"
+
+# Search for strategy content related to a topic
+epf_search_strategy instance_path="./epf" query="AI integration" limit=5
+```
+
+**Response formats:**
+
+All strategy tools return JSON with consistent structure:
+
+```json
+{
+  "success": true,
+  "data": {
+    /* tool-specific data */
+  },
+  "metadata": {
+    "instance_path": "./epf",
+    "loaded_at": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
 ## Artifact Type Detection
 
 Filename patterns → artifact types (defined in `internal/schema/loader.go`):
@@ -1728,6 +1787,95 @@ epf-cli wizards instructions --json
 # - .github/copilot-instructions.md (quick reference)
 # - .ai-agent-instructions.md (maintenance protocol)
 ```
+
+### Strategy Commands (v0.16.0)
+
+Commands for accessing EPF product strategy. These commands provide read-only access to strategy artifacts for AI agents and human users.
+
+#### `epf-cli strategy serve <instance-path>`
+
+Start the MCP server with strategy query tools enabled.
+
+```bash
+# Start MCP server with strategy tools
+epf-cli strategy serve ./epf
+
+# With file watching for auto-reload (when files change)
+epf-cli strategy serve ./epf --watch
+
+# Output (to stderr, stdout is MCP JSON-RPC):
+# Strategy store loaded: 13 features, 8 OKRs, 25 key results
+# MCP server ready on stdio
+```
+
+This command starts the full MCP server (same as `epf serve`) with the strategy store pre-loaded from the specified instance path. All strategy query tools (`epf_get_product_vision`, `epf_search_strategy`, etc.) become available.
+
+#### `epf-cli strategy status <instance-path>`
+
+Show the current state of the strategy store.
+
+```bash
+# Basic status
+epf-cli strategy status ./epf
+
+# Output:
+# Strategy Store Status
+# =====================
+# Status: healthy
+# Instance: ./epf
+# Load time: 22ms
+#
+# Artifacts:
+#   Features: 13
+#   OKRs: 8
+#   Key Results: 25
+#   Personas: 3
+#   Value Propositions: 4
+#   Competitors: 2
+
+# Verbose output with details
+epf-cli strategy status ./epf --verbose
+
+# JSON output for programmatic use
+epf-cli strategy status ./epf --json
+```
+
+Use this to verify the strategy store loaded correctly and see artifact counts.
+
+#### `epf-cli strategy export <instance-path>`
+
+Generate a comprehensive markdown document of the product strategy.
+
+```bash
+# Export to stdout
+epf-cli strategy export ./epf
+
+# Export to file
+epf-cli strategy export ./epf --output strategy.md
+
+# JSON output
+epf-cli strategy export ./epf --json
+
+# Output includes:
+# - Product Vision & Mission
+# - North Star Metrics
+# - Target Personas with Pain Points
+# - Value Propositions
+# - Competitive Positioning
+# - Current Roadmap (OKRs by Track)
+# - Feature Summary
+```
+
+This is useful for sharing strategy context with stakeholders or archiving strategy snapshots.
+
+**Flags:**
+
+| Flag        | Description                            |
+| ----------- | -------------------------------------- |
+| `--watch`   | Enable file watching for auto-reload   |
+| `--verbose` | Show detailed information              |
+| `--json`    | Output in JSON format                  |
+| `--output`  | Write output to file instead of stdout |
 
 ### AIM Commands (v0.11.0)
 
