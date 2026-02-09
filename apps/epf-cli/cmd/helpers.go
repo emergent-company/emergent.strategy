@@ -244,7 +244,29 @@ func IsCanonicalEPF(dir string) bool {
 		}
 	}
 
-	// Check for canonical markers
+	// PRIORITY 1: Check for product indicators FIRST
+	// If _instances has actual product subdirectories (not just README), it's a product repo
+	instancesPath := filepath.Join(dir, "_instances")
+	if info, err := os.Stat(instancesPath); err == nil && info.IsDir() {
+		entries, err := os.ReadDir(instancesPath)
+		if err == nil {
+			for _, e := range entries {
+				// Skip README.md and hidden files
+				if strings.HasPrefix(e.Name(), ".") ||
+					strings.EqualFold(e.Name(), "README.md") ||
+					strings.EqualFold(e.Name(), "README") {
+					continue
+				}
+				if e.IsDir() {
+					// Found a real product instance - not canonical EPF
+					return false
+				}
+			}
+		}
+	}
+
+	// PRIORITY 2: Check for canonical markers
+	// Only if we confirmed there are NO product instances
 	markers := []string{
 		"CANONICAL_PURITY_RULES.md",
 		"schemas",
@@ -260,7 +282,7 @@ func IsCanonicalEPF(dir string) bool {
 		}
 	}
 
-	// If 3+ markers match, it's canonical EPF
+	// If 3+ markers match AND no product instances, it's canonical EPF
 	return matchCount >= 3
 }
 

@@ -107,7 +107,41 @@ func (c *StructureChecker) Check() *StructureResult {
 
 // detectRepoType determines if this is canonical EPF or a product repo
 func (c *StructureChecker) detectRepoType() RepositoryType {
-	// Check for canonical markers at EPF root
+	// PRIORITY 1: Check for product repo indicators FIRST
+	// If we find actual product instances, it's a product repo (even if canonical content exists)
+	instancesPath := filepath.Join(c.epfRoot, "_instances")
+	if info, err := os.Stat(instancesPath); err == nil && info.IsDir() {
+		// Has _instances directory - check if it has actual instance content
+		entries, err := os.ReadDir(instancesPath)
+		if err == nil {
+			for _, e := range entries {
+				// Skip README.md and hidden files
+				if strings.HasPrefix(e.Name(), ".") ||
+					strings.EqualFold(e.Name(), "README.md") ||
+					strings.EqualFold(e.Name(), "README") {
+					continue
+				}
+				if e.IsDir() {
+					// Found a real product instance subdirectory - this is a product repo
+					return RepoTypeProduct
+				}
+			}
+		}
+	}
+
+	// PRIORITY 2: Check if we're inside an instance path (e.g., health check on instance directly)
+	// Look for READY/FIRE/AIM structure which indicates we're in an instance
+	readyPath := filepath.Join(c.epfRoot, "READY")
+	firePath := filepath.Join(c.epfRoot, "FIRE")
+	if _, err := os.Stat(readyPath); err == nil {
+		return RepoTypeProduct
+	}
+	if _, err := os.Stat(firePath); err == nil {
+		return RepoTypeProduct
+	}
+
+	// PRIORITY 3: Check for canonical markers
+	// Only check this AFTER confirming there are no product instances
 	markers := []string{
 		"CANONICAL_PURITY_RULES.md",
 		"schemas",
@@ -123,35 +157,9 @@ func (c *StructureChecker) detectRepoType() RepositoryType {
 		}
 	}
 
-	// If 3+ markers match, it's canonical EPF
+	// If 3+ markers match and NO product instances found, it's canonical EPF
 	if matchCount >= 3 {
 		return RepoTypeCanonical
-	}
-
-	// Check for product repo indicators
-	instancesPath := filepath.Join(c.epfRoot, "_instances")
-	if info, err := os.Stat(instancesPath); err == nil && info.IsDir() {
-		// Has _instances directory - check if it has actual instance content
-		entries, err := os.ReadDir(instancesPath)
-		if err == nil {
-			for _, e := range entries {
-				if e.IsDir() && !strings.HasPrefix(e.Name(), ".") {
-					// Found a subdirectory in _instances - likely a product repo
-					return RepoTypeProduct
-				}
-			}
-		}
-	}
-
-	// Check if we're inside an instance path (e.g., health check on instance directly)
-	// Look for READY/FIRE/AIM structure which indicates we're in an instance
-	readyPath := filepath.Join(c.epfRoot, "READY")
-	firePath := filepath.Join(c.epfRoot, "FIRE")
-	if _, err := os.Stat(readyPath); err == nil {
-		return RepoTypeProduct
-	}
-	if _, err := os.Stat(firePath); err == nil {
-		return RepoTypeProduct
 	}
 
 	return RepoTypeUnknown
