@@ -1052,6 +1052,32 @@ func TestHandleAgentInstructions(t *testing.T) {
 		}
 	}
 
+	// Verify track architecture section
+	if response.TrackArchitecture.Description == "" {
+		t.Error("Expected track architecture description to be non-empty")
+	}
+	if len(response.TrackArchitecture.Tracks) != 4 {
+		t.Errorf("Expected 4 tracks in TrackArchitecture, got %d", len(response.TrackArchitecture.Tracks))
+	}
+	trackNames := make(map[string]bool)
+	for _, track := range response.TrackArchitecture.Tracks {
+		trackNames[track.Name] = true
+		if track.Description == "" {
+			t.Errorf("Track %q has empty description", track.Name)
+		}
+		if track.ValueModel == "" {
+			t.Errorf("Track %q has empty value_model_file", track.Name)
+		}
+	}
+	for _, name := range []string{"Product", "Strategy", "OrgOps", "Commercial"} {
+		if !trackNames[name] {
+			t.Errorf("Expected track %q in TrackArchitecture", name)
+		}
+	}
+	if len(response.TrackArchitecture.KeyRules) == 0 {
+		t.Error("Expected key rules to be non-empty")
+	}
+
 	// Verify workflow section
 	if len(response.Workflow.FirstSteps) == 0 {
 		t.Error("Expected first steps to be non-empty")

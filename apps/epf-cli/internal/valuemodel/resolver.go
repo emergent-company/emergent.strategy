@@ -74,7 +74,7 @@ func (r *Resolver) Resolve(path string) (*PathResolution, error) {
 	// Get the track's value model
 	model, ok := r.models.GetTrack(track)
 	if !ok {
-		return nil, r.trackNotFoundError(path, parts[0])
+		return nil, r.trackNotLoadedError(path, track)
 	}
 	resolution.TrackModel = model
 
@@ -231,6 +231,39 @@ func (r *Resolver) trackNotFoundError(path, trackInput string) *PathError {
 		AvailablePaths: available,
 		DidYouMean:     didYouMean,
 		Hint:           "Valid tracks are: Product, Strategy, OrgOps, Commercial",
+	}
+}
+
+// trackNotLoadedError is returned when a track name is valid but no value model
+// file has been loaded for it. This is the most common cause of cross-track
+// reference errors — the instance is missing the value model YAML for this track.
+func (r *Resolver) trackNotLoadedError(path string, track Track) *PathError {
+	// List which tracks ARE loaded
+	var loadedTracks []string
+	for _, t := range ValidTracks {
+		if _, ok := r.models.GetTrack(t); ok {
+			loadedTracks = append(loadedTracks, string(t))
+		}
+	}
+
+	trackLower := strings.ToLower(string(track))
+	expectedFile := trackLower + ".value_model.yaml"
+	if track == TrackOrgOps {
+		expectedFile = "org_ops.value_model.yaml"
+	}
+
+	return &PathError{
+		Path: path,
+		Message: fmt.Sprintf(
+			"no value model loaded for track %q — the track name is valid but no value model file exists in FIRE/value_models/",
+			track),
+		AvailablePaths: loadedTracks,
+		Hint: fmt.Sprintf(
+			"Add %s to FIRE/value_models/. "+
+				"EPF uses 4 braided tracks (Product, Strategy, OrgOps, Commercial). "+
+				"Canonical templates ship with all sub-components set to active: false. "+
+				"Currently loaded tracks: %s",
+			expectedFile, strings.Join(loadedTracks, ", ")),
 	}
 }
 

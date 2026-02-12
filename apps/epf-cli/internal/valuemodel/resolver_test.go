@@ -1,6 +1,7 @@
 package valuemodel
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -257,6 +258,69 @@ func TestResolver_Resolve_Errors(t *testing.T) {
 				t.Error("expected PathError.Message to be set")
 			}
 		})
+	}
+}
+
+func TestResolver_Resolve_TrackNotLoaded(t *testing.T) {
+	// Create a set with only Product — OrgOps and Commercial are valid but not loaded
+	set := NewValueModelSet()
+	set.Models[TrackProduct] = &ValueModel{
+		TrackName: TrackProduct,
+		Layers: []Layer{
+			{
+				ID:   "core-platform",
+				Name: "Core Platform",
+				Components: []Component{
+					{ID: "data-management", Name: "Data Management"},
+				},
+			},
+		},
+	}
+	resolver := NewResolver(set)
+
+	// OrgOps is a valid track name but has no loaded model
+	_, err := resolver.Resolve("OrgOps.DevelopmentProcess.CiCd")
+	if err == nil {
+		t.Fatal("expected error for valid-but-unloaded track")
+	}
+
+	pathErr, ok := err.(*PathError)
+	if !ok {
+		t.Fatalf("expected *PathError, got %T", err)
+	}
+
+	// Error message should mention "no value model loaded"
+	if !strings.Contains(pathErr.Message, "no value model loaded") {
+		t.Errorf("expected 'no value model loaded' in message, got: %s", pathErr.Message)
+	}
+
+	// Hint should suggest the expected filename
+	if !strings.Contains(pathErr.Hint, "org_ops.value_model.yaml") {
+		t.Errorf("expected hint to suggest 'org_ops.value_model.yaml', got: %s", pathErr.Hint)
+	}
+
+	// Hint should mention currently loaded tracks
+	if !strings.Contains(pathErr.Hint, "Product") {
+		t.Errorf("expected hint to list loaded tracks, got: %s", pathErr.Hint)
+	}
+
+	// Commercial should also give a not-loaded error, not a not-found error
+	_, err = resolver.Resolve("Commercial.RevenueGeneration.ProposalGeneration")
+	if err == nil {
+		t.Fatal("expected error for Commercial track")
+	}
+
+	pathErr, ok = err.(*PathError)
+	if !ok {
+		t.Fatalf("expected *PathError, got %T", err)
+	}
+
+	if !strings.Contains(pathErr.Message, "no value model loaded") {
+		t.Errorf("Commercial should get 'no value model loaded', got: %s", pathErr.Message)
+	}
+
+	if !strings.Contains(pathErr.Hint, "commercial.value_model.yaml") {
+		t.Errorf("expected hint to suggest 'commercial.value_model.yaml', got: %s", pathErr.Hint)
 	}
 }
 

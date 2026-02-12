@@ -130,7 +130,10 @@ func (s *Server) handleInitInstance(ctx context.Context, request mcp.CallToolReq
 			filepath.Join(instanceDir, "READY", "04_strategy_formula.yaml"),
 			filepath.Join(instanceDir, "READY", "05_roadmap_recipe.yaml"),
 			filepath.Join(instanceDir, "FIRE", "feature_definitions", ".gitkeep"),
-			filepath.Join(instanceDir, "FIRE", "value_models", ".gitkeep"),
+			filepath.Join(instanceDir, "FIRE", "value_models", "product.value_model.yaml"),
+			filepath.Join(instanceDir, "FIRE", "value_models", "strategy.value_model.yaml"),
+			filepath.Join(instanceDir, "FIRE", "value_models", "org_ops.value_model.yaml"),
+			filepath.Join(instanceDir, "FIRE", "value_models", "commercial.value_model.yaml"),
 			filepath.Join(instanceDir, "FIRE", "workflows", ".gitkeep"),
 			filepath.Join(instanceDir, "AIM", "assessment_report.yaml"),
 			filepath.Join(instanceDir, "AIM", "calibration_memo.yaml"),
@@ -415,6 +418,15 @@ func (s *Server) copyTemplatesFromEmbedded(instanceDir string) []string {
 		"READY/05_roadmap_recipe.yaml",
 	}
 
+	// FIRE value model templates — all 4 tracks deployed with active: false by default.
+	// Organizations activate sub-components as they invest in each track.
+	fireTemplates := []string{
+		"FIRE/value_models/product.value_model.yaml",
+		"FIRE/value_models/strategy.value_model.yaml",
+		"FIRE/value_models/org_ops.value_model.yaml",
+		"FIRE/value_models/commercial.value_model.yaml",
+	}
+
 	aimTemplates := []string{
 		"AIM/assessment_report.yaml",
 		"AIM/calibration_memo.yaml",
@@ -428,6 +440,19 @@ func (s *Server) copyTemplatesFromEmbedded(instanceDir string) []string {
 		}
 		filename := filepath.Base(tmplPath)
 		dst := filepath.Join(instanceDir, "READY", filename)
+		if err := os.WriteFile(dst, content, 0644); err == nil {
+			createdFiles = append(createdFiles, dst)
+		}
+	}
+
+	// Copy FIRE value model templates
+	for _, tmplPath := range fireTemplates {
+		content, err := embedded.GetTemplate(tmplPath)
+		if err != nil {
+			continue
+		}
+		filename := filepath.Base(tmplPath)
+		dst := filepath.Join(instanceDir, "FIRE", "value_models", filename)
 		if err := os.WriteFile(dst, content, 0644); err == nil {
 			createdFiles = append(createdFiles, dst)
 		}

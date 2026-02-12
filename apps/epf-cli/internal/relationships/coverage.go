@@ -36,6 +36,9 @@ type CoverageAnalysis struct {
 
 	// Value model paths targeted by KRs but not yet covered by features
 	KRTargetsWithoutFeatures []string
+
+	// Tracks that are valid in EPF but have no loaded value model
+	MissingTracks []string
 }
 
 // LayerCoverage contains coverage analysis for a single L1 layer.
@@ -83,6 +86,13 @@ func (a *CoverageAnalyzer) AnalyzeAll() *CoverageAnalysis {
 	analysis := &CoverageAnalysis{
 		Track:   "all",
 		ByLayer: make(map[string]*LayerCoverage),
+	}
+
+	// Check for missing tracks — EPF requires 4 tracks
+	for _, track := range valuemodel.ValidTracks {
+		if _, ok := a.valueModels.GetTrack(track); !ok {
+			analysis.MissingTracks = append(analysis.MissingTracks, string(track))
+		}
 	}
 
 	// Get all L2 component paths from value model
@@ -471,10 +481,15 @@ func (a *CoverageAnalyzer) FindGaps() []CoverageGap {
 }
 
 // GetCoverageByTrack returns coverage statistics for each track.
+// Missing tracks (no value model loaded) are reported with -1 coverage.
 func (a *CoverageAnalyzer) GetCoverageByTrack() map[string]float64 {
 	coverage := make(map[string]float64)
 
-	for track := range a.valueModels.Models {
+	for _, track := range valuemodel.ValidTracks {
+		if _, ok := a.valueModels.GetTrack(track); !ok {
+			coverage[string(track)] = -1 // Sentinel: track not loaded
+			continue
+		}
 		analysis := a.AnalyzeTrack(string(track))
 		coverage[string(track)] = analysis.CoveragePercent
 	}
@@ -492,13 +507,22 @@ type TrackCoverageDetail struct {
 }
 
 // GetDetailedCoverageByTrack returns detailed coverage statistics for each track.
+// Missing tracks are included with 0 totals and -1 coverage percent.
 func (a *CoverageAnalyzer) GetDetailedCoverageByTrack() map[string]*TrackCoverageDetail {
 	details := make(map[string]*TrackCoverageDetail)
 
-	for track := range a.valueModels.Models {
-		analysis := a.AnalyzeTrack(string(track))
-		details[string(track)] = &TrackCoverageDetail{
-			TrackName:        string(track),
+	for _, track := range valuemodel.ValidTracks {
+		trackName := string(track)
+		if _, ok := a.valueModels.GetTrack(track); !ok {
+			details[trackName] = &TrackCoverageDetail{
+				TrackName:       trackName,
+				CoveragePercent: -1, // Sentinel: track not loaded
+			}
+			continue
+		}
+		analysis := a.AnalyzeTrack(trackName)
+		details[trackName] = &TrackCoverageDetail{
+			TrackName:        trackName,
 			TotalL2:          analysis.TotalL2Components,
 			CoveredL2:        analysis.CoveredL2Components,
 			CoveragePercent:  analysis.CoveragePercent,

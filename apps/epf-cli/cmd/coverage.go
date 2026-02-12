@@ -52,6 +52,7 @@ type CoverageResult struct {
 	TotalL2Components        int                    `json:"total_l2_components"`
 	CoveredL2Components      int                    `json:"covered_l2_components"`
 	UncoveredL2Components    []string               `json:"uncovered_l2_components,omitempty"`
+	MissingTracks            []string               `json:"missing_tracks,omitempty"`
 	ByLayer                  []*CoverageLayerResult `json:"by_layer,omitempty"`
 	OrphanFeatures           []string               `json:"orphan_features,omitempty"`
 	MostContributed          []*CoveragePathResult  `json:"most_contributed,omitempty"`
@@ -133,6 +134,9 @@ func buildCoverageResult(analysis *relationships.CoverageAnalysis) *CoverageResu
 		Guidance:            &CoverageGuidance{},
 	}
 
+	// Pass through missing tracks
+	result.MissingTracks = analysis.MissingTracks
+
 	// Include uncovered components (limit in non-verbose)
 	if coverageVerbose {
 		result.UncoveredL2Components = analysis.UncoveredL2Components
@@ -194,6 +198,13 @@ func buildCoverageGuidance(result *CoverageResult, analysis *relationships.Cover
 	guidance := &CoverageGuidance{}
 
 	// Warnings
+	if len(result.MissingTracks) > 0 {
+		guidance.Warnings = append(guidance.Warnings,
+			fmt.Sprintf("%d of 4 EPF tracks have no value model — deploy templates with 'epf-cli init' or add them manually", len(result.MissingTracks)))
+		guidance.NextSteps = append(guidance.NextSteps,
+			fmt.Sprintf("Add missing value models for: %s", strings.Join(result.MissingTracks, ", ")))
+	}
+
 	if len(result.KRTargetsWithoutFeatures) > 0 {
 		guidance.Warnings = append(guidance.Warnings,
 			fmt.Sprintf("%d KR-targeted paths have no feature coverage - these are strategic gaps", len(result.KRTargetsWithoutFeatures)))
@@ -245,6 +256,16 @@ func printCoverageResult(result *CoverageResult) {
 	fmt.Printf("║  Value Model Coverage: %-36s║\n", trackStr)
 	fmt.Println("╚════════════════════════════════════════════════════════════╝")
 	fmt.Println()
+
+	// Missing tracks warning (before any coverage stats)
+	if len(result.MissingTracks) > 0 {
+		fmt.Println("🚨 Missing Value Model Tracks:")
+		fmt.Println("   EPF requires 4 tracks (Product, Strategy, OrgOps, Commercial).")
+		fmt.Printf("   Missing: %s\n", strings.Join(result.MissingTracks, ", "))
+		fmt.Println("   Coverage below only reflects loaded tracks — actual gaps are larger.")
+		fmt.Println("   Run 'epf-cli init' to deploy missing value model templates.")
+		fmt.Println()
+	}
 
 	// Overall stats
 	coverageIcon := coverageRatingIcon(result.CoveragePercent)
