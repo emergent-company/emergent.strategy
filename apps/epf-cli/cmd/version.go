@@ -4,22 +4,17 @@ import (
 	"fmt"
 
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/embedded"
+	"github.com/eyedea-io/emergent/apps/epf-cli/internal/version"
 	"github.com/spf13/cobra"
-)
-
-var (
-	Version   = "0.1.0"
-	GitCommit = "dev"
-	BuildDate = "unknown"
 )
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print version information",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("epf-cli %s\n", Version)
-		fmt.Printf("  commit: %s\n", GitCommit)
-		fmt.Printf("  built:  %s\n", BuildDate)
+		fmt.Printf("epf-cli %s\n", version.Version)
+		fmt.Printf("  commit: %s\n", version.GitCommit)
+		fmt.Printf("  built:  %s\n", version.BuildDate)
 
 		// Show embedded artifacts info
 		if embedded.HasEmbeddedArtifacts() {
