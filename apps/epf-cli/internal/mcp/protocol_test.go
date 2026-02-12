@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eyedea-io/emergent/apps/epf-cli/internal/version"
 	"github.com/mark3labs/mcp-go/server"
 )
 
@@ -270,8 +271,8 @@ func TestProtocol_Initialize(t *testing.T) {
 	if result.ServerInfo.Name != ServerName {
 		t.Errorf("Expected server name %s, got %s", ServerName, result.ServerInfo.Name)
 	}
-	if result.ServerInfo.Version != ServerVersion {
-		t.Errorf("Expected server version %s, got %s", ServerVersion, result.ServerInfo.Version)
+	if result.ServerInfo.Version != version.Version {
+		t.Errorf("Expected server version %s, got %s", version.Version, result.ServerInfo.Version)
 	}
 }
 

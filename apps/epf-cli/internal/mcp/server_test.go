@@ -575,9 +575,6 @@ func TestServerConstants(t *testing.T) {
 	if ServerName != "epf-cli" {
 		t.Errorf("Expected ServerName='epf-cli', got %s", ServerName)
 	}
-	if ServerVersion != "0.9.0" {
-		t.Errorf("Expected ServerVersion='0.9.0', got %s", ServerVersion)
-	}
 }
 
 // Helper to get text content from result

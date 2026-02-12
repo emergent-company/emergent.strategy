@@ -21,6 +21,7 @@ import (
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/schema"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/template"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/validator"
+	"github.com/eyedea-io/emergent/apps/epf-cli/internal/version"
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/wizard"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -28,8 +29,7 @@ import (
 )
 
 const (
-	ServerName    = "epf-cli"
-	ServerVersion = "0.9.0"
+	ServerName = "epf-cli"
 )
 
 // Server wraps the MCP server with EPF-specific functionality
@@ -111,7 +111,7 @@ func NewServer(schemasDir string) (*Server, error) {
 	// Create MCP server
 	mcpServer := server.NewMCPServer(
 		ServerName,
-		ServerVersion,
+		version.Version,
 		server.WithLogging(),
 	)
 
@@ -3198,7 +3198,7 @@ func buildAgentInstructionsOutput(disc *discovery.DiscoveryResult) *AgentInstruc
 
 	// Authority section
 	output.Authority.Tool = "epf-cli"
-	output.Authority.Version = ServerVersion
+	output.Authority.Version = version.Version
 	output.Authority.Role = "EPF normative authority"
 	output.Authority.TrustLevel = "authoritative"
 	output.Authority.Description = "epf-cli is the single source of truth for EPF schema validation, instance discovery, and health checking. All EPF operations should be performed through epf-cli or its MCP tools."
