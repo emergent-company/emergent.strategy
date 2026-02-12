@@ -12,7 +12,7 @@ package embedded
 import (
 	"embed"
 	"io/fs"
-	"path/filepath"
+	"path"
 	"strings"
 )
 
@@ -60,7 +60,7 @@ var AgentsMD string
 // GetSchema returns the contents of an embedded schema file.
 // The filename should be just the schema name (e.g., "feature_definition_schema.json").
 func GetSchema(filename string) ([]byte, error) {
-	return Schemas.ReadFile(filepath.Join("schemas", filename))
+	return Schemas.ReadFile(path.Join("schemas", filename))
 }
 
 // GetSchemaFS returns an fs.FS rooted at the schemas directory.
@@ -85,9 +85,9 @@ func ListSchemas() ([]string, error) {
 }
 
 // GetTemplate returns the contents of an embedded template file.
-// The path should be relative to the templates directory (e.g., "READY/00_north_star.yaml").
-func GetTemplate(path string) ([]byte, error) {
-	return Templates.ReadFile(filepath.Join("templates", path))
+// The templatePath should be relative to the templates directory (e.g., "READY/00_north_star.yaml").
+func GetTemplate(templatePath string) ([]byte, error) {
+	return Templates.ReadFile(path.Join("templates", templatePath))
 }
 
 // GetTemplateFS returns an fs.FS rooted at the templates directory.
@@ -98,7 +98,7 @@ func GetTemplateFS() (fs.FS, error) {
 // GetWizard returns the contents of an embedded wizard file.
 // The filename should be just the wizard name (e.g., "feature_definition.wizard.md").
 func GetWizard(filename string) ([]byte, error) {
-	return Wizards.ReadFile(filepath.Join("wizards", filename))
+	return Wizards.ReadFile(path.Join("wizards", filename))
 }
 
 // GetWizardFS returns an fs.FS rooted at the wizards directory.
@@ -125,7 +125,7 @@ func ListWizards() ([]string, error) {
 // GetGenerator returns an fs.FS for a specific embedded generator.
 // The name should be the generator directory name (e.g., "context-sheet").
 func GetGenerator(name string) (fs.FS, error) {
-	return fs.Sub(Generators, filepath.Join("outputs", name))
+	return fs.Sub(Generators, path.Join("outputs", name))
 }
 
 // GetGeneratorFS returns an fs.FS rooted at the outputs directory.
