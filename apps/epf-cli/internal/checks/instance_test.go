@@ -346,3 +346,130 @@ func TestRequiredFiles(t *testing.T) {
 		t.Error("RequiredFIREDirs should not be empty")
 	}
 }
+
+// TestTrackCompleteness_AllTracks tests that all 4 tracks produce a passing check
+func TestTrackCompleteness_AllTracks(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create phased structure with value_models
+	os.MkdirAll(filepath.Join(tmpDir, "READY"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "FIRE", "feature_definitions"), 0755)
+	vmDir := filepath.Join(tmpDir, "FIRE", "value_models")
+	os.MkdirAll(vmDir, 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "AIM"), 0755)
+
+	// Create required READY files
+	for _, file := range RequiredREADYFiles {
+		os.WriteFile(filepath.Join(tmpDir, "READY", file), []byte("test: true"), 0644)
+	}
+
+	// Create all 4 value model files
+	tracks := map[string]string{
+		"product.value_model.yaml":    "track_name: Product\nlayers: []",
+		"strategy.value_model.yaml":   "track_name: Strategy\nlayers: []",
+		"org_ops.value_model.yaml":    "track_name: OrgOps\nlayers: []",
+		"commercial.value_model.yaml": "track_name: Commercial\nlayers: []",
+	}
+	for filename, content := range tracks {
+		os.WriteFile(filepath.Join(vmDir, filename), []byte(content), 0644)
+	}
+
+	checker := NewInstanceChecker(tmpDir)
+	summary := checker.Check()
+
+	// Find the track completeness result
+	var found bool
+	for _, r := range summary.Results {
+		if r.Check == "value_models_track_completeness" {
+			found = true
+			if !r.Passed {
+				t.Errorf("value_models_track_completeness should pass with all 4 tracks, message: %s", r.Message)
+			}
+			break
+		}
+	}
+
+	if !found {
+		t.Error("value_models_track_completeness check not found in results")
+	}
+}
+
+// TestTrackCompleteness_MissingTracks tests that missing tracks produce a warning
+func TestTrackCompleteness_MissingTracks(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	os.MkdirAll(filepath.Join(tmpDir, "READY"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "FIRE", "feature_definitions"), 0755)
+	vmDir := filepath.Join(tmpDir, "FIRE", "value_models")
+	os.MkdirAll(vmDir, 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "AIM"), 0755)
+
+	for _, file := range RequiredREADYFiles {
+		os.WriteFile(filepath.Join(tmpDir, "READY", file), []byte("test: true"), 0644)
+	}
+
+	// Only create Product value model — 3 tracks missing
+	os.WriteFile(filepath.Join(vmDir, "product.value_model.yaml"),
+		[]byte("track_name: Product\nlayers: []"), 0644)
+
+	checker := NewInstanceChecker(tmpDir)
+	summary := checker.Check()
+
+	var found bool
+	for _, r := range summary.Results {
+		if r.Check == "value_models_track_completeness" {
+			found = true
+			if r.Passed {
+				t.Error("value_models_track_completeness should fail with only 1 of 4 tracks")
+			}
+			if r.Severity != SeverityWarning {
+				t.Errorf("expected SeverityWarning, got %s", r.Severity)
+			}
+			// Details should list the 3 missing tracks
+			if len(r.Details) != 3 {
+				t.Errorf("expected 3 missing tracks in Details, got %d: %v", len(r.Details), r.Details)
+			}
+			break
+		}
+	}
+
+	if !found {
+		t.Error("value_models_track_completeness check not found in results")
+	}
+}
+
+// TestTrackCompleteness_NoValueModels tests with zero value model files
+func TestTrackCompleteness_NoValueModels(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	os.MkdirAll(filepath.Join(tmpDir, "READY"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "FIRE", "feature_definitions"), 0755)
+	vmDir := filepath.Join(tmpDir, "FIRE", "value_models")
+	os.MkdirAll(vmDir, 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "AIM"), 0755)
+
+	for _, file := range RequiredREADYFiles {
+		os.WriteFile(filepath.Join(tmpDir, "READY", file), []byte("test: true"), 0644)
+	}
+
+	checker := NewInstanceChecker(tmpDir)
+	summary := checker.Check()
+
+	var found bool
+	for _, r := range summary.Results {
+		if r.Check == "value_models_track_completeness" {
+			found = true
+			if r.Passed {
+				t.Error("value_models_track_completeness should fail with 0 tracks")
+			}
+			if len(r.Details) != 4 {
+				t.Errorf("expected 4 missing tracks in Details, got %d: %v", len(r.Details), r.Details)
+			}
+			break
+		}
+	}
+
+	if !found {
+		t.Error("value_models_track_completeness check not found in results")
+	}
+}

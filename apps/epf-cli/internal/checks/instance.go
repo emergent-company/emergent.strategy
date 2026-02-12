@@ -448,6 +448,59 @@ func (c *InstanceChecker) checkValueModelsDir(summary *CheckSummary, vmPath stri
 			Details:  yamlFiles,
 		})
 	}
+
+	// Check track completeness — EPF requires 4 tracks: Product, Strategy, OrgOps, Commercial
+	validTracks := []string{"Product", "Strategy", "OrgOps", "Commercial"}
+	loadedTracks := make(map[string]string) // track_name -> filename
+
+	for _, filename := range yamlFiles {
+		filePath := filepath.Join(vmPath, filename)
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			continue
+		}
+
+		// Lightweight parse — only extract track_name
+		var vm struct {
+			TrackName string `yaml:"track_name"`
+		}
+		if err := yaml.Unmarshal(data, &vm); err != nil {
+			continue
+		}
+		if vm.TrackName != "" {
+			loadedTracks[vm.TrackName] = filename
+		}
+	}
+
+	var missingTracks []string
+	for _, track := range validTracks {
+		if _, found := loadedTracks[track]; !found {
+			missingTracks = append(missingTracks, track)
+		}
+	}
+
+	if len(missingTracks) > 0 {
+		summary.Add(&CheckResult{
+			Check:    "value_models_track_completeness",
+			Passed:   false,
+			Severity: SeverityWarning,
+			Message: fmt.Sprintf(
+				"Missing value models for %d of 4 tracks: %s. "+
+					"EPF uses 4 braided tracks. Add value model files for missing tracks "+
+					"(canonical templates ship with all sub-components set to active: false).",
+				len(missingTracks), strings.Join(missingTracks, ", ")),
+			Path:    vmPath,
+			Details: missingTracks,
+		})
+	} else {
+		summary.Add(&CheckResult{
+			Check:    "value_models_track_completeness",
+			Passed:   true,
+			Severity: SeverityInfo,
+			Message:  fmt.Sprintf("All 4 tracks present: %s", strings.Join(validTracks, ", ")),
+			Path:     vmPath,
+		})
+	}
 }
 
 func (c *InstanceChecker) checkMetaFile(summary *CheckSummary) {

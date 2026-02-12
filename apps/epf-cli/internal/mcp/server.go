@@ -2238,6 +2238,7 @@ type CoverageResponse struct {
 	CoveredCount             int                          `json:"covered_count"`
 	CoveragePercent          float64                      `json:"coverage_percent"`
 	UncoveredPaths           []string                     `json:"uncovered_paths,omitempty"`
+	MissingTracks            []string                     `json:"missing_tracks,omitempty"`
 	ByLayer                  map[string]CoverageLayerInfo `json:"by_layer,omitempty"`
 	OrphanFeatures           []CoverageOrphanFeature      `json:"orphan_features,omitempty"`
 	MostContributed          []CoverageMostContributed    `json:"most_contributed,omitempty"`
@@ -2331,7 +2332,17 @@ func (s *Server) handleAnalyzeCoverage(ctx context.Context, request mcp.CallTool
 	// Map KR targets without features
 	response.KRTargetsWithoutFeatures = analysis.KRTargetsWithoutFeatures
 
+	// Map missing tracks
+	response.MissingTracks = analysis.MissingTracks
+
 	// Build guidance
+	if len(response.MissingTracks) > 0 {
+		response.Guidance.Warnings = append(response.Guidance.Warnings,
+			fmt.Sprintf("Missing value models for %d of 4 tracks: %s. Coverage analysis is incomplete without all tracks loaded.",
+				len(response.MissingTracks), strings.Join(response.MissingTracks, ", ")))
+		response.Guidance.NextSteps = append(response.Guidance.NextSteps,
+			"Add value model files for missing tracks to FIRE/value_models/ (canonical templates ship with active: false)")
+	}
 	if response.CoveragePercent < 50 {
 		response.Guidance.Warnings = append(response.Guidance.Warnings, fmt.Sprintf("Low coverage (%.0f%%) - many value model components lack feature investment", response.CoveragePercent))
 	}
@@ -3122,10 +3133,23 @@ type AgentInstructionsOutput struct {
 	Commands []AgentCommandInfo `json:"commands"`
 	MCPTools []AgentMCPTool     `json:"mcp_tools"`
 
+	TrackArchitecture struct {
+		Description string           `json:"description"`
+		Tracks      []AgentTrackInfo `json:"tracks"`
+		KeyRules    []string         `json:"key_rules"`
+	} `json:"track_architecture"`
+
 	Workflow struct {
 		FirstSteps    []string `json:"first_steps"`
 		BestPractices []string `json:"best_practices"`
 	} `json:"workflow"`
+}
+
+// AgentTrackInfo describes one of the 4 EPF tracks
+type AgentTrackInfo struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	ValueModel  string `json:"value_model_file"`
 }
 
 // AgentCommandInfo describes a CLI command for agents
@@ -3286,6 +3310,40 @@ func buildAgentInstructionsOutput(disc *discovery.DiscoveryResult) *AgentInstruc
 			Description: "Get this guidance programmatically",
 			When:        "When initializing EPF agent context",
 		},
+	}
+
+	// Track Architecture section
+	output.TrackArchitecture.Description = "EPF uses 4 braided tracks that together form a complete product operating system. Every EPF instance should have value models for all 4 tracks in FIRE/value_models/."
+	output.TrackArchitecture.Tracks = []AgentTrackInfo{
+		{
+			Name:        "Product",
+			Description: "Core product capabilities, user experiences, and technical infrastructure. Built from scratch per product — unique to each instance.",
+			ValueModel:  "product.value_model.yaml",
+		},
+		{
+			Name:        "Strategy",
+			Description: "Market positioning, competitive intelligence, growth strategy, and value creation. Ships as a canonical template — activate relevant sub-components.",
+			ValueModel:  "strategy.value_model.yaml",
+		},
+		{
+			Name:        "OrgOps",
+			Description: "Development processes, team operations, strategy execution, and organizational capabilities. Ships as a canonical template — activate relevant sub-components.",
+			ValueModel:  "org_ops.value_model.yaml",
+		},
+		{
+			Name:        "Commercial",
+			Description: "Revenue generation, client relationships, proposal generation, and commercial operations. Ships as a canonical template — activate relevant sub-components.",
+			ValueModel:  "commercial.value_model.yaml",
+		},
+	}
+	output.TrackArchitecture.KeyRules = []string{
+		"All 4 tracks must have value model files in FIRE/value_models/",
+		"Product track is built from scratch — unique to each product",
+		"Strategy, OrgOps, and Commercial ship as canonical templates with sub-components set to active: false",
+		"Activate sub-components by setting active: true as the organization invests in those areas",
+		"Feature contributes_to paths, roadmap KR targets, and coverage analysis all reference value model paths",
+		"Missing tracks cause dangling references and incomplete coverage analysis",
+		"Run 'epf health' to check track completeness — it warns about missing tracks",
 	}
 
 	// Workflow guidance

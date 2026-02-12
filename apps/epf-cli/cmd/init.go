@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/anchor"
@@ -177,6 +178,8 @@ func runInit(cmd *cobra.Command, args []string) {
 	fmt.Println("  │   ├── _epf.yaml    (anchor file - EPF instance marker)")
 	fmt.Println("  │   ├── READY/       (strategic artifacts)")
 	fmt.Println("  │   ├── FIRE/        (execution artifacts)")
+	fmt.Println("  │   │   ├── value_models/  (4 tracks: Product, Strategy, OrgOps, Commercial)")
+	fmt.Println("  │   │   └── feature_definitions/")
 	fmt.Println("  │   ├── AIM/         (assessment artifacts)")
 	fmt.Println("  │   └── _meta.yaml   (instance metadata)")
 	fmt.Println("  ├── AGENTS.md        (AI agent instructions)")
@@ -567,6 +570,12 @@ func copyTemplatesFromLoader(loader *template.Loader, instanceDir string) {
 		case "READY":
 			dst := filepath.Join(instanceDir, "READY", filename)
 			os.WriteFile(dst, []byte(t.Content), 0644)
+		case "FIRE":
+			// Value model templates go into FIRE/value_models/
+			if strings.Contains(t.FilePath, "value_model") {
+				dst := filepath.Join(instanceDir, "FIRE", "value_models", filename)
+				os.WriteFile(dst, []byte(t.Content), 0644)
+			}
 		case "AIM":
 			dst := filepath.Join(instanceDir, "AIM", filename)
 			os.WriteFile(dst, []byte(t.Content), 0644)
@@ -586,6 +595,15 @@ func copyTemplatesFromEmbedded(instanceDir string) {
 		"READY/05_roadmap_recipe.yaml",
 	}
 
+	// FIRE value model templates — all 4 tracks deployed with active: false by default.
+	// Organizations activate sub-components as they invest in each track.
+	fireTemplates := []string{
+		"FIRE/value_models/product.value_model.yaml",
+		"FIRE/value_models/strategy.value_model.yaml",
+		"FIRE/value_models/org_ops.value_model.yaml",
+		"FIRE/value_models/commercial.value_model.yaml",
+	}
+
 	aimTemplates := []string{
 		"AIM/assessment_report.yaml",
 		"AIM/calibration_memo.yaml",
@@ -599,6 +617,17 @@ func copyTemplatesFromEmbedded(instanceDir string) {
 		}
 		filename := filepath.Base(tmplPath)
 		dst := filepath.Join(instanceDir, "READY", filename)
+		os.WriteFile(dst, content, 0644)
+	}
+
+	// Copy FIRE value model templates
+	for _, tmplPath := range fireTemplates {
+		content, err := embedded.GetTemplate(tmplPath)
+		if err != nil {
+			continue // Skip if not found
+		}
+		filename := filepath.Base(tmplPath)
+		dst := filepath.Join(instanceDir, "FIRE", "value_models", filename)
 		os.WriteFile(dst, content, 0644)
 	}
 
