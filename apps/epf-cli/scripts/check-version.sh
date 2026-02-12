@@ -61,12 +61,13 @@ CHANGES=$(git -C "$CLI_DIR" log --oneline "$VERSION_COMMIT"..HEAD -- \
     '*.go' 'go.mod' 'go.sum' 'Makefile' 'scripts/' \
     2>/dev/null | grep -v "^$" || true)
 
-CHANGE_COUNT=$(echo "$CHANGES" | grep -c '.' 2>/dev/null || echo "0")
-
-if [[ "$CHANGE_COUNT" -eq 0 ]]; then
+if [[ -z "$CHANGES" ]]; then
     echo "Version $CURRENT_VERSION is current (last bump: $VERSION_SHORT on $VERSION_DATE)"
     exit 0
 fi
+
+# CHANGES is non-empty; count lines
+CHANGE_COUNT=$(echo "$CHANGES" | wc -l | tr -d ' ')
 
 # ── Conventional commit parser ────────────────────────────────────────────
 #
