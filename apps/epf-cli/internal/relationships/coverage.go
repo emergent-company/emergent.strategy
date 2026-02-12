@@ -220,15 +220,25 @@ func (a *CoverageAnalyzer) getL2PathsForTrack(track valuemodel.Track) []string {
 }
 
 // buildCoverageMap builds a map of value model paths to features that contribute to them.
+// It uses the resolver to normalize feature paths (e.g., "Strategy.Context.UserInsight")
+// to canonical ID-based paths (e.g., "Strategy.StrategyL1Context.StrategyCUserInsight")
+// so they match the paths produced by getAllL2Paths from value model IDs.
 func (a *CoverageAnalyzer) buildCoverageMap() map[string][]*FeatureDefinition {
 	coverageMap := make(map[string][]*FeatureDefinition)
 
 	for _, feature := range a.features.ByID {
 		for _, path := range feature.StrategicContext.ContributesTo {
-			normalizedPath := NormalizeValueModelPath(path)
+			// Use the resolver to get the canonical path, which matches
+			// the ID-based paths from getAllL2Paths/getL2PathsForTrack.
+			var l2Path string
+			if resolution, err := a.resolver.Resolve(path); err == nil {
+				l2Path = a.extractL2Path(resolution.CanonicalPath)
+			} else {
+				// Fallback: if resolver fails (e.g., missing track), use simple normalization
+				normalizedPath := NormalizeValueModelPath(path)
+				l2Path = a.extractL2Path(normalizedPath)
+			}
 
-			// Extract L2 path (first 3 segments: Track.Layer.Component)
-			l2Path := a.extractL2Path(normalizedPath)
 			if l2Path != "" {
 				coverageMap[l2Path] = append(coverageMap[l2Path], feature)
 			}

@@ -451,6 +451,125 @@ func TestPathContribution(t *testing.T) {
 	}
 }
 
+func TestCoverageAnalyzerCrossTrackShorthandPaths(t *testing.T) {
+	// This test verifies the fix for the coverage path normalization issue.
+	// Value model IDs use prefixed kebab-case (e.g., "strategy-l1-context", "strategy-c-user-insight")
+	// which become PascalCase paths like "Strategy.StrategyL1Context.StrategyCUserInsight".
+	// Feature definitions use shorthand name-based paths like "Strategy.Context.UserInsight".
+	// The coverage analyzer must resolve shorthand paths through the resolver to match.
+
+	set := valuemodel.NewValueModelSet()
+
+	// Product track with simple IDs (no prefix mismatch)
+	set.Models[valuemodel.TrackProduct] = &valuemodel.ValueModel{
+		TrackName: valuemodel.TrackProduct,
+		Layers: []valuemodel.Layer{
+			{
+				ID:   "discovery",
+				Name: "Discovery",
+				Components: []valuemodel.Component{
+					{ID: "knowledge-exploration", Name: "Knowledge Exploration"},
+				},
+			},
+		},
+	}
+
+	// Strategy track with prefixed IDs — the canonical template pattern
+	// ID "strategy-l1-context" produces PascalCase "StrategyL1Context"
+	// but features reference it as "Context" (from the Name field)
+	set.Models[valuemodel.TrackStrategy] = &valuemodel.ValueModel{
+		TrackName: valuemodel.TrackStrategy,
+		Layers: []valuemodel.Layer{
+			{
+				ID:   "strategy-l1-context",
+				Name: "CONTEXT",
+				Components: []valuemodel.Component{
+					{
+						ID:   "strategy-c-user-insight",
+						Name: "User Insight",
+						SubComponents: []valuemodel.SubComponent{
+							{ID: "strategy-s-user-research", Name: "User Research", Active: true},
+						},
+					},
+					{
+						ID:   "strategy-c-market-analysis",
+						Name: "Market Analysis",
+					},
+				},
+			},
+		},
+	}
+
+	features := NewFeatureSet()
+
+	// Feature uses shorthand name-based path (how features are written in practice)
+	features.ByID["fd-007"] = &FeatureDefinition{
+		ID: "fd-007",
+		StrategicContext: StrategicContext{
+			ContributesTo: []string{
+				"Strategy.Context.UserInsight",           // Shorthand — should resolve to Strategy.StrategyL1Context.StrategyCUserInsight
+				"Product.Discovery.KnowledgeExploration", // Direct match — no resolution issue
+			},
+		},
+	}
+
+	// Build index
+	for _, f := range features.ByID {
+		for _, path := range f.StrategicContext.ContributesTo {
+			normalizedPath := NormalizeValueModelPath(path)
+			features.ByValueModelPath[normalizedPath] = append(features.ByValueModelPath[normalizedPath], f)
+		}
+	}
+
+	analyzer := NewCoverageAnalyzer(set, features, nil)
+
+	// Test AnalyzeAll — Strategy should show coverage
+	analysis := analyzer.AnalyzeAll()
+
+	// Total L2: Product has 1 (KnowledgeExploration), Strategy has 2 (UserInsight, MarketAnalysis) = 3
+	if analysis.TotalL2Components != 3 {
+		t.Errorf("TotalL2Components = %d, want 3", analysis.TotalL2Components)
+	}
+
+	// Covered: KnowledgeExploration + UserInsight = 2
+	if analysis.CoveredL2Components != 2 {
+		t.Errorf("CoveredL2Components = %d, want 2 (KnowledgeExploration + UserInsight)", analysis.CoveredL2Components)
+	}
+
+	// Only MarketAnalysis should be uncovered
+	if len(analysis.UncoveredL2Components) != 1 {
+		t.Errorf("UncoveredL2Components count = %d, want 1, got %v", len(analysis.UncoveredL2Components), analysis.UncoveredL2Components)
+	}
+
+	// Test AnalyzeTrack for Strategy specifically
+	strategyAnalysis := analyzer.AnalyzeTrack("Strategy")
+
+	if strategyAnalysis.TotalL2Components != 2 {
+		t.Errorf("Strategy TotalL2Components = %d, want 2", strategyAnalysis.TotalL2Components)
+	}
+
+	// UserInsight should be covered via shorthand path resolution
+	if strategyAnalysis.CoveredL2Components != 1 {
+		t.Errorf("Strategy CoveredL2Components = %d, want 1 (UserInsight via shorthand path)", strategyAnalysis.CoveredL2Components)
+	}
+
+	// Coverage should be 50% (1 of 2)
+	if strategyAnalysis.CoveragePercent != 50.0 {
+		t.Errorf("Strategy CoveragePercent = %.1f, want 50.0", strategyAnalysis.CoveragePercent)
+	}
+
+	// Test GetCoverageByTrack
+	coverageByTrack := analyzer.GetCoverageByTrack()
+
+	if coverageByTrack["Strategy"] != 50.0 {
+		t.Errorf("Strategy coverage by track = %.1f, want 50.0", coverageByTrack["Strategy"])
+	}
+
+	if coverageByTrack["Product"] != 100.0 {
+		t.Errorf("Product coverage by track = %.1f, want 100.0", coverageByTrack["Product"])
+	}
+}
+
 func TestCoverageAnalyzerMissingTracks(t *testing.T) {
 	// createTestValueModelSet only loads Product and Strategy
 	// So OrgOps and Commercial should be reported as missing
