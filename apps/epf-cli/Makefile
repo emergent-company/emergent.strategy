@@ -21,7 +21,7 @@ LDFLAGS=-ldflags "-X $(VERSION_PKG).Version=$(VERSION) \
 PLATFORMS=darwin/amd64 darwin/arm64 linux/amd64 linux/arm64 windows/amd64
 DIST_DIR=dist
 
-.PHONY: all build clean test sync-embedded help build-all release clean-dist dist-local
+.PHONY: all build clean test sync-embedded help build-all release clean-dist dist-local check-version
 
 # Default target
 all: build
@@ -97,6 +97,10 @@ install-local: build
 version:
 	@./$(BINARY_NAME) version 2>/dev/null || echo "Run 'make build' first"
 
+# Check if version needs bumping
+check-version:
+	@./scripts/check-version.sh
+
 # Check embedded artifacts status
 check-embedded:
 	@echo "Embedded artifacts status:"
@@ -141,6 +145,7 @@ help:
 	@echo "  install        - Install to GOPATH/bin"
 	@echo "  install-local  - Install to /usr/local/bin (requires sudo)"
 	@echo "  version        - Show version info"
+	@echo "  check-version  - Check if VERSION needs bumping (warns of unbumped changes)"
 	@echo "  check-embedded - Show status of embedded artifacts"
 	@echo "  help           - Show this help"
 	@echo ""
@@ -150,6 +155,7 @@ help:
 
 # Build for all platforms
 build-all: sync-embedded
+	@./scripts/check-version.sh
 	@echo "Building $(BINARY_NAME) $(VERSION) for all platforms..."
 	@mkdir -p $(DIST_DIR)
 	@for platform in $(PLATFORMS); do \
@@ -164,7 +170,9 @@ build-all: sync-embedded
 	@ls -la $(DIST_DIR)/
 
 # Create release with checksums
-release: build-all
+release: clean-dist
+	@./scripts/check-version.sh --strict
+	@$(MAKE) build-all
 	@echo "Creating release $(VERSION)..."
 	@cd $(DIST_DIR) && sha256sum * > checksums.txt 2>/dev/null || shasum -a 256 * > checksums.txt
 	@echo "Release $(VERSION) created in $(DIST_DIR)/"
