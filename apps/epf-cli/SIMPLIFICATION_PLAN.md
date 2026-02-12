@@ -14,7 +14,7 @@ The epf-cli binary embeds:
 
    - READY: north_star, insight_analyses, insight_opportunity, strategy_foundations, strategy_formula, roadmap_recipe, product_portfolio
    - FIRE: value_model, feature_definition, mappings, workflow
-   - AIM: assessment_report, calibration_memo, current_reality_assessment, track_health_assessment, aim_trigger_config
+   - AIM: assessment_report, calibration_memo, living_reality_assessment, track_health_assessment, aim_trigger_config
    - Definitions: track_definition_base, strategy_definition, org_ops_definition, commercial_definition
 
 2. **Templates** (`docs/EPF/templates/`)
