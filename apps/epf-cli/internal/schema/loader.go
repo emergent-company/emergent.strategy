@@ -42,10 +42,10 @@ const (
 	ArtifactCommercialDefinition ArtifactType = "commercial_definition"
 
 	// Other
-	ArtifactTrackDefinitionBase      ArtifactType = "track_definition_base"
-	ArtifactTrackHealthAssessment    ArtifactType = "track_health_assessment"
-	ArtifactCurrentRealityAssessment ArtifactType = "current_reality_assessment"
-	ArtifactAimTriggerConfig         ArtifactType = "aim_trigger_config"
+	ArtifactTrackDefinitionBase     ArtifactType = "track_definition_base"
+	ArtifactTrackHealthAssessment   ArtifactType = "track_health_assessment"
+	ArtifactLivingRealityAssessment ArtifactType = "living_reality_assessment"
+	ArtifactAimTriggerConfig        ArtifactType = "aim_trigger_config"
 )
 
 // Phase represents an EPF phase
@@ -109,32 +109,32 @@ var artifactMapping = []struct {
 
 	// Health assessments
 	{regexp.MustCompile(`(?i)track[_-]health[_-]assessment\.ya?ml$`), ArtifactTrackHealthAssessment, "", "Track Health Assessment"},
-	{regexp.MustCompile(`(?i)current[_-]reality[_-]assessment\.ya?ml$`), ArtifactCurrentRealityAssessment, "", "Current Reality Assessment"},
+	{regexp.MustCompile(`(?i)living[_-]reality[_-]assessment\.ya?ml$`), ArtifactLivingRealityAssessment, "", "Living Reality Assessment - Persistent baseline"},
 	{regexp.MustCompile(`(?i)aim[_-]trigger[_-]config\.ya?ml$`), ArtifactAimTriggerConfig, "", "AIM Trigger Configuration"},
 }
 
 // schemaFileMapping maps artifact types to schema filenames
 var schemaFileMapping = map[ArtifactType]string{
-	ArtifactNorthStar:                "north_star_schema.json",
-	ArtifactInsightAnalyses:          "insight_analyses_schema.json",
-	ArtifactStrategyFoundations:      "strategy_foundations_schema.json",
-	ArtifactInsightOpportunity:       "insight_opportunity_schema.json",
-	ArtifactStrategyFormula:          "strategy_formula_schema.json",
-	ArtifactRoadmapRecipe:            "roadmap_recipe_schema.json",
-	ArtifactProductPortfolio:         "product_portfolio_schema.json",
-	ArtifactFeatureDefinition:        "feature_definition_schema.json",
-	ArtifactValueModel:               "value_model_schema.json",
-	ArtifactWorkflow:                 "workflow_schema.json",
-	ArtifactMappings:                 "mappings_schema.json",
-	ArtifactAssessmentReport:         "assessment_report_schema.json",
-	ArtifactCalibrationMemo:          "calibration_memo_schema.json",
-	ArtifactStrategyDefinition:       "strategy_definition_schema.json",
-	ArtifactOrgOpsDefinition:         "org_ops_definition_schema.json",
-	ArtifactCommercialDefinition:     "commercial_definition_schema.json",
-	ArtifactTrackDefinitionBase:      "track_definition_base_schema.json",
-	ArtifactTrackHealthAssessment:    "track_health_assessment_schema.json",
-	ArtifactCurrentRealityAssessment: "current_reality_assessment_schema.json",
-	ArtifactAimTriggerConfig:         "aim_trigger_config_schema.json",
+	ArtifactNorthStar:               "north_star_schema.json",
+	ArtifactInsightAnalyses:         "insight_analyses_schema.json",
+	ArtifactStrategyFoundations:     "strategy_foundations_schema.json",
+	ArtifactInsightOpportunity:      "insight_opportunity_schema.json",
+	ArtifactStrategyFormula:         "strategy_formula_schema.json",
+	ArtifactRoadmapRecipe:           "roadmap_recipe_schema.json",
+	ArtifactProductPortfolio:        "product_portfolio_schema.json",
+	ArtifactFeatureDefinition:       "feature_definition_schema.json",
+	ArtifactValueModel:              "value_model_schema.json",
+	ArtifactWorkflow:                "workflow_schema.json",
+	ArtifactMappings:                "mappings_schema.json",
+	ArtifactAssessmentReport:        "assessment_report_schema.json",
+	ArtifactCalibrationMemo:         "calibration_memo_schema.json",
+	ArtifactStrategyDefinition:      "strategy_definition_schema.json",
+	ArtifactOrgOpsDefinition:        "org_ops_definition_schema.json",
+	ArtifactCommercialDefinition:    "commercial_definition_schema.json",
+	ArtifactTrackDefinitionBase:     "track_definition_base_schema.json",
+	ArtifactTrackHealthAssessment:   "track_health_assessment_schema.json",
+	ArtifactLivingRealityAssessment: "living_reality_assessment_schema.json",
+	ArtifactAimTriggerConfig:        "aim_trigger_config_schema.json",
 }
 
 // NewLoader creates a new schema loader
