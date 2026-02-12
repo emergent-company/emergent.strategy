@@ -1,9 +1,11 @@
 package relationships
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/roadmap"
+	"github.com/eyedea-io/emergent/apps/epf-cli/internal/valuemodel"
 )
 
 func TestCoverageAnalyzerAnalyzeAll(t *testing.T) {
@@ -446,5 +448,103 @@ func TestPathContribution(t *testing.T) {
 
 	if len(contribution.FeatureIDs) != 3 {
 		t.Errorf("FeatureIDs length = %d, want 3", len(contribution.FeatureIDs))
+	}
+}
+
+func TestCoverageAnalyzerMissingTracks(t *testing.T) {
+	// createTestValueModelSet only loads Product and Strategy
+	// So OrgOps and Commercial should be reported as missing
+	valueModels := createTestValueModelSet()
+	features := NewFeatureSet()
+
+	analyzer := NewCoverageAnalyzer(valueModels, features, nil)
+	analysis := analyzer.AnalyzeAll()
+
+	if len(analysis.MissingTracks) != 2 {
+		t.Errorf("MissingTracks count = %d, want 2 (OrgOps, Commercial)", len(analysis.MissingTracks))
+	}
+
+	sort.Strings(analysis.MissingTracks)
+	expected := []string{"Commercial", "OrgOps"}
+	sort.Strings(expected)
+
+	for i, track := range expected {
+		if i >= len(analysis.MissingTracks) {
+			break
+		}
+		if analysis.MissingTracks[i] != track {
+			t.Errorf("MissingTracks[%d] = %q, want %q", i, analysis.MissingTracks[i], track)
+		}
+	}
+}
+
+func TestCoverageAnalyzerNoMissingTracks(t *testing.T) {
+	// Create a set with all 4 tracks
+	set := valuemodel.NewValueModelSet()
+	set.Models[valuemodel.TrackProduct] = &valuemodel.ValueModel{
+		TrackName: valuemodel.TrackProduct,
+		Layers: []valuemodel.Layer{{
+			ID: "core", Name: "Core",
+			Components: []valuemodel.Component{{ID: "comp1", Name: "Comp1"}},
+		}},
+	}
+	set.Models[valuemodel.TrackStrategy] = &valuemodel.ValueModel{
+		TrackName: valuemodel.TrackStrategy,
+		Layers: []valuemodel.Layer{{
+			ID: "growth", Name: "Growth",
+			Components: []valuemodel.Component{{ID: "comp1", Name: "Comp1"}},
+		}},
+	}
+	set.Models[valuemodel.TrackOrgOps] = &valuemodel.ValueModel{
+		TrackName: valuemodel.TrackOrgOps,
+		Layers: []valuemodel.Layer{{
+			ID: "process", Name: "Process",
+			Components: []valuemodel.Component{{ID: "comp1", Name: "Comp1"}},
+		}},
+	}
+	set.Models[valuemodel.TrackCommercial] = &valuemodel.ValueModel{
+		TrackName: valuemodel.TrackCommercial,
+		Layers: []valuemodel.Layer{{
+			ID: "revenue", Name: "Revenue",
+			Components: []valuemodel.Component{{ID: "comp1", Name: "Comp1"}},
+		}},
+	}
+
+	features := NewFeatureSet()
+	analyzer := NewCoverageAnalyzer(set, features, nil)
+	analysis := analyzer.AnalyzeAll()
+
+	if len(analysis.MissingTracks) != 0 {
+		t.Errorf("MissingTracks should be empty when all 4 tracks loaded, got %v", analysis.MissingTracks)
+	}
+}
+
+func TestCoverageAnalyzerGetCoverageByTrackMissing(t *testing.T) {
+	// Only Product loaded — OrgOps, Commercial should get -1 sentinel
+	valueModels := createTestValueModelSet()
+	features := NewFeatureSet()
+
+	analyzer := NewCoverageAnalyzer(valueModels, features, nil)
+	coverageByTrack := analyzer.GetCoverageByTrack()
+
+	// OrgOps is not in createTestValueModelSet(), should be -1
+	if coverage, ok := coverageByTrack["OrgOps"]; !ok {
+		t.Error("OrgOps should be in coverageByTrack")
+	} else if coverage != -1 {
+		t.Errorf("OrgOps coverage = %.1f, want -1 (not loaded)", coverage)
+	}
+
+	// Commercial is not in createTestValueModelSet(), should be -1
+	if coverage, ok := coverageByTrack["Commercial"]; !ok {
+		t.Error("Commercial should be in coverageByTrack")
+	} else if coverage != -1 {
+		t.Errorf("Commercial coverage = %.1f, want -1 (not loaded)", coverage)
+	}
+
+	// Product IS loaded, should have real coverage
+	if coverage, ok := coverageByTrack["Product"]; !ok {
+		t.Error("Product should be in coverageByTrack")
+	} else if coverage == -1 {
+		t.Error("Product coverage should not be -1 (it IS loaded)")
 	}
 }
