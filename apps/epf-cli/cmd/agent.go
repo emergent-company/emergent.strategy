@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/discovery"
+	"github.com/eyedea-io/emergent/apps/epf-cli/internal/version"
 	"github.com/spf13/cobra"
 )
 
@@ -101,7 +102,7 @@ func buildAgentOutput(disc *discovery.DiscoveryResult) *AgentOutput {
 
 	// Authority section
 	output.Authority.Tool = "epf-cli"
-	output.Authority.Version = Version
+	output.Authority.Version = version.Version
 	output.Authority.Role = "EPF normative authority"
 	output.Authority.TrustLevel = "authoritative"
 	output.Authority.Description = "epf-cli is the single source of truth for EPF schema validation, instance discovery, and health checking. All EPF operations should be performed through epf-cli or its MCP tools."

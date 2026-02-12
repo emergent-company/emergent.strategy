@@ -6,21 +6,22 @@
 
 # Variables
 BINARY_NAME=epf-cli
-VERSION?=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+VERSION?=$(shell cat VERSION 2>/dev/null || echo "dev")
 GIT_COMMIT?=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_DATE?=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 CANONICAL_EPF?=$(shell realpath ../../../canonical-epf 2>/dev/null || echo "")
 
-# Build flags
-LDFLAGS=-ldflags "-X github.com/eyedea-io/emergent/apps/epf-cli/cmd.Version=$(VERSION) \
-                  -X github.com/eyedea-io/emergent/apps/epf-cli/cmd.GitCommit=$(GIT_COMMIT) \
-                  -X github.com/eyedea-io/emergent/apps/epf-cli/cmd.BuildDate=$(BUILD_DATE)"
+# Build flags — inject into internal/version package (single source of truth)
+VERSION_PKG=github.com/eyedea-io/emergent/apps/epf-cli/internal/version
+LDFLAGS=-ldflags "-X $(VERSION_PKG).Version=$(VERSION) \
+                  -X $(VERSION_PKG).GitCommit=$(GIT_COMMIT) \
+                  -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
 
 # Cross-compilation targets
 PLATFORMS=darwin/amd64 darwin/arm64 linux/amd64 linux/arm64 windows/amd64
 DIST_DIR=dist
 
-.PHONY: all build clean test sync-embedded help build-all release clean-dist
+.PHONY: all build clean test sync-embedded help build-all release clean-dist dist-local
 
 # Default target
 all: build
@@ -29,14 +30,22 @@ all: build
 build: sync-embedded
 	@echo "Building $(BINARY_NAME) $(VERSION)..."
 	go build $(LDFLAGS) -o $(BINARY_NAME) .
-	@echo "✓ Built $(BINARY_NAME)"
+	@echo "Built $(BINARY_NAME)"
 	@./$(BINARY_NAME) version
 
 # Build without syncing embedded (use existing)
 build-quick:
 	@echo "Building $(BINARY_NAME) $(VERSION) (quick, no sync)..."
 	go build $(LDFLAGS) -o $(BINARY_NAME) .
-	@echo "✓ Built $(BINARY_NAME)"
+	@echo "Built $(BINARY_NAME)"
+
+# Build darwin/arm64 into dist/ for local distribution
+dist-local:
+	@echo "Building $(BINARY_NAME) $(VERSION) for local distribution (darwin/arm64)..."
+	@mkdir -p $(DIST_DIR)
+	GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o $(DIST_DIR)/$(BINARY_NAME)-darwin-arm64 .
+	@echo "Built $(DIST_DIR)/$(BINARY_NAME)-darwin-arm64"
+	@$(DIST_DIR)/$(BINARY_NAME)-darwin-arm64 version
 
 # Sync embedded artifacts from canonical EPF
 sync-embedded:
@@ -58,7 +67,7 @@ clean:
 	rm -rf internal/embedded/outputs
 	rm -f internal/embedded/VERSION
 	rm -f internal/embedded/MANIFEST.txt
-	@echo "✓ Cleaned"
+	@echo "Cleaned"
 
 # Run tests
 test:
@@ -70,19 +79,19 @@ test-coverage:
 	@echo "Running tests with coverage..."
 	go test -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
-	@echo "✓ Coverage report: coverage.html"
+	@echo "Coverage report: coverage.html"
 
 # Install to GOPATH/bin
 install: build
 	@echo "Installing $(BINARY_NAME)..."
 	go install $(LDFLAGS) .
-	@echo "✓ Installed to $(shell go env GOPATH)/bin/$(BINARY_NAME)"
+	@echo "Installed to $(shell go env GOPATH)/bin/$(BINARY_NAME)"
 
 # Development: build and copy to /usr/local/bin (requires sudo)
 install-local: build
 	@echo "Installing $(BINARY_NAME) to /usr/local/bin..."
 	sudo cp $(BINARY_NAME) /usr/local/bin/
-	@echo "✓ Installed to /usr/local/bin/$(BINARY_NAME)"
+	@echo "Installed to /usr/local/bin/$(BINARY_NAME)"
 
 # Show version info
 version:
@@ -121,6 +130,7 @@ help:
 	@echo "Targets:"
 	@echo "  build          - Sync embedded artifacts and build the binary (default)"
 	@echo "  build-quick    - Build without syncing embedded artifacts"
+	@echo "  dist-local     - Build darwin/arm64 into dist/ for local distribution"
 	@echo "  build-all      - Build for all platforms (darwin, linux, windows)"
 	@echo "  release        - Create dist/ with versioned release binaries"
 	@echo "  sync-embedded  - Copy canonical EPF artifacts to internal/embedded/"
@@ -136,7 +146,7 @@ help:
 	@echo ""
 	@echo "Environment variables:"
 	@echo "  CANONICAL_EPF  - Path to canonical-epf repo (default: ../../../canonical-epf)"
-	@echo "  VERSION        - Version string (default: git describe)"
+	@echo "  VERSION        - Version string (default: read from VERSION file)"
 
 # Build for all platforms
 build-all: sync-embedded
@@ -150,14 +160,14 @@ build-all: sync-embedded
 		echo "  Building $$GOOS/$$GOARCH..."; \
 		GOOS=$$GOOS GOARCH=$$GOARCH go build $(LDFLAGS) -o $$output . || exit 1; \
 	done
-	@echo "✓ Built binaries in $(DIST_DIR)/"
+	@echo "Built binaries in $(DIST_DIR)/"
 	@ls -la $(DIST_DIR)/
 
 # Create release with checksums
 release: build-all
 	@echo "Creating release $(VERSION)..."
 	@cd $(DIST_DIR) && sha256sum * > checksums.txt 2>/dev/null || shasum -a 256 * > checksums.txt
-	@echo "✓ Release $(VERSION) created in $(DIST_DIR)/"
+	@echo "Release $(VERSION) created in $(DIST_DIR)/"
 	@echo ""
 	@cat $(DIST_DIR)/checksums.txt
 
@@ -165,4 +175,4 @@ release: build-all
 clean-dist:
 	@echo "Cleaning dist/..."
 	@rm -rf $(DIST_DIR)
-	@echo "✓ Cleaned dist/"
+	@echo "Cleaned dist/"
