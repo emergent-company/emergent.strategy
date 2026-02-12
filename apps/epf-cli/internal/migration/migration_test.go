@@ -58,9 +58,19 @@ func TestExtractVersionFromContent(t *testing.T) {
 			expected: "1.8.0",
 		},
 		{
-			name:     "prefers header version over meta",
+			name:     "prefers YAML meta.epf_version over header comment",
 			content:  "# EPF v1.9.6\nmeta:\n  epf_version: \"1.8.0\"",
-			expected: "1.9.6",
+			expected: "1.8.0", // YAML-parsed field is more reliable than header comment
+		},
+		{
+			name:     "prefers template_version over epf_version",
+			content:  "meta:\n  template_version: \"2.1.0\"\n  epf_version: \"1.13.0\"",
+			expected: "2.1.0", // template_version is the schema version, takes priority
+		},
+		{
+			name:     "falls back to header when no YAML meta version",
+			content:  "# EPF v1.9.6\nid: test\nname: Test Feature",
+			expected: "1.9.6", // no meta block, so header regex kicks in
 		},
 		{
 			name:     "handles no version",

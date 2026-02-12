@@ -184,13 +184,15 @@ func (d *Detector) analyzeFile(path string, artifactType schema.ArtifactType, ta
 
 	// Check version mismatch even if validation passes
 	// (file might be valid but at an older version)
+	// Use semver-aware comparison: only flag as needing migration if it's an upgrade
 	if status.CurrentVersion != "" && status.CurrentVersion != "unknown" {
-		if status.CurrentVersion != targetVersion {
+		if IsUpgrade(status.CurrentVersion, targetVersion) {
 			status.NeedsMigration = true
 			if status.Reason == "" {
 				status.Reason = fmt.Sprintf("version mismatch: %s -> %s", status.CurrentVersion, targetVersion)
 			}
 		}
+		// If current version is newer than target (would be a downgrade), don't flag it
 	}
 
 	return status

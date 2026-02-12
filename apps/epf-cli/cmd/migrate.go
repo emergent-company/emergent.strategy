@@ -9,40 +9,44 @@ import (
 	"strings"
 
 	"github.com/eyedea-io/emergent/apps/epf-cli/internal/migration"
+	"github.com/eyedea-io/emergent/apps/epf-cli/internal/schema"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
 
 var (
-	migrateTargetVersion string
-	migrateDryRun        bool
-	migrateVerbose       bool
+	migrateDryRun  bool
+	migrateVerbose bool
 )
 
 // migrateCmd represents the migrate command
 var migrateCmd = &cobra.Command{
 	Use:   "migrate [instance-path]",
-	Short: "Migrate EPF artifacts to a newer version",
-	Long: `Migrate EPF artifacts to a newer schema version.
+	Short: "Migrate EPF artifacts to their current schema versions",
+	Long: `Migrate EPF artifacts to their current schema versions.
 
-This command helps upgrade EPF instances to newer schema versions by:
-  - Updating meta.epf_version fields
+Each artifact type has its own schema version. This command upgrades each file
+to match the schema version for its artifact type. It will never downgrade a file.
+
+Files that cannot be mapped to an artifact type (e.g., _meta.yaml, _epf.yaml)
+are skipped since they track the EPF framework version, not schema versions.
+
+This command helps upgrade EPF instances by:
+  - Updating meta.epf_version fields to match per-artifact schema versions
   - Adding EPF version headers to files
   - Identifying fields that need manual attention
   - Generating a migration report
 
 Examples:
-  epf-cli migrate .                           # Migrate to latest version
-  epf-cli migrate . --target 2.0.0            # Migrate to specific version
-  epf-cli migrate ./READY --dry-run           # Preview migration
-  epf-cli migrate . --verbose                 # Show detailed changes`,
+  epf-cli migrate .                    # Migrate to current schema versions
+  epf-cli migrate ./READY --dry-run    # Preview migration
+  epf-cli migrate . --verbose          # Show detailed changes`,
 	Args: cobra.MaximumNArgs(1),
 	Run:  runMigrate,
 }
 
 func init() {
 	rootCmd.AddCommand(migrateCmd)
-	migrateCmd.Flags().StringVar(&migrateTargetVersion, "target", "", "Target EPF version to migrate to (defaults to current schema version)")
 	migrateCmd.Flags().BoolVar(&migrateDryRun, "dry-run", false, "Show what would be changed without making changes")
 	migrateCmd.Flags().BoolVarP(&migrateVerbose, "verbose", "v", false, "Show detailed migration information")
 }
@@ -50,9 +54,12 @@ func init() {
 // MigrationResult represents the result of migrating a file
 type MigrationResult struct {
 	File            string
+	ArtifactType    string // detected artifact type (empty if skipped)
 	PreviousVersion string
 	NewVersion      string
 	Migrated        bool
+	Skipped         bool   // true if file was skipped (no schema mapping)
+	SkipReason      string // reason for skipping
 	Changes         []string
 	ManualActions   []string
 	Error           error
@@ -63,8 +70,8 @@ type MigrationSummary struct {
 	TotalFiles    int
 	MigratedFiles int
 	UpToDateFiles int
+	SkippedFiles  int
 	FailedFiles   int
-	TargetVersion string
 	Results       []*MigrationResult
 	DryRun        bool
 	ManualActions []string
@@ -73,6 +80,26 @@ type MigrationSummary struct {
 // Version extraction regex
 var versionRegex = regexp.MustCompile(`^#\s*EPF\s+v?(\d+\.\d+\.\d+)`)
 var metaVersionRegex = regexp.MustCompile(`epf_version:\s*["']?(\d+\.\d+\.\d+)["']?`)
+
+// schemaVersionResolver resolves the target schema version for a given artifact type.
+// This is an interface so we can mock it in tests.
+type schemaVersionResolver interface {
+	DetectArtifactType(path string) (schema.ArtifactType, error)
+	GetSchemaVersion(artifactType schema.ArtifactType) (string, error)
+}
+
+// detectorResolver wraps a migration.Detector to implement schemaVersionResolver.
+type detectorResolver struct {
+	detector *migration.Detector
+}
+
+func (r *detectorResolver) DetectArtifactType(path string) (schema.ArtifactType, error) {
+	return r.detector.GetArtifactType(path)
+}
+
+func (r *detectorResolver) GetSchemaVersion(artifactType schema.ArtifactType) (string, error) {
+	return r.detector.GetSchemaVersion(artifactType)
+}
 
 func runMigrate(cmd *cobra.Command, args []string) {
 	targetPath, err := GetInstancePath(args)
@@ -92,22 +119,15 @@ func runMigrate(cmd *cobra.Command, args []string) {
 		fmt.Printf("Using instance: %s\n\n", epfContext.CurrentInstance)
 	}
 
-	// Dynamically determine target version from schemas if not specified
-	if migrateTargetVersion == "" {
-		schemasPath, err := GetSchemasDir()
-		if err == nil {
-			detector, err := migration.NewDetector(schemasPath)
-			if err == nil {
-				if version, err := detector.GetCurrentSchemaVersion(); err == nil {
-					migrateTargetVersion = version
-				}
-			}
-		}
-		// Fallback if detection fails
-		if migrateTargetVersion == "" {
-			migrateTargetVersion = "2.1.0"
-		}
+	// Create a migration detector for artifact type detection and schema version lookup.
+	// GetSchemasDir may return empty string — that's OK, the detector falls back to embedded schemas.
+	schemasPath, _ := GetSchemasDir()
+	detector, err := migration.NewDetector(schemasPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: could not initialize schema loader: %v\n", err)
+		os.Exit(1)
 	}
+	var resolver schemaVersionResolver = &detectorResolver{detector: detector}
 
 	// Check if path exists
 	info, err := os.Stat(targetPath)
@@ -117,7 +137,6 @@ func runMigrate(cmd *cobra.Command, args []string) {
 	}
 
 	summary := &MigrationSummary{
-		TargetVersion: migrateTargetVersion,
 		DryRun:        migrateDryRun,
 		ManualActions: make([]string, 0),
 	}
@@ -138,11 +157,13 @@ func runMigrate(cmd *cobra.Command, args []string) {
 				return nil
 			}
 
-			result := migrateFile(path, migrateTargetVersion, migrateDryRun)
+			result := migrateFileWithResolver(path, resolver, migrateDryRun)
 			summary.TotalFiles++
 			summary.Results = append(summary.Results, result)
 
-			if result.Error != nil {
+			if result.Skipped {
+				summary.SkippedFiles++
+			} else if result.Error != nil {
 				summary.FailedFiles++
 			} else if result.Migrated {
 				summary.MigratedFiles++
@@ -162,11 +183,13 @@ func runMigrate(cmd *cobra.Command, args []string) {
 		}
 	} else {
 		// Single file
-		result := migrateFile(targetPath, migrateTargetVersion, migrateDryRun)
+		result := migrateFileWithResolver(targetPath, resolver, migrateDryRun)
 		summary.TotalFiles++
 		summary.Results = append(summary.Results, result)
 
-		if result.Error != nil {
+		if result.Skipped {
+			summary.SkippedFiles++
+		} else if result.Error != nil {
 			summary.FailedFiles++
 		} else if result.Migrated {
 			summary.MigratedFiles++
@@ -181,12 +204,48 @@ func runMigrate(cmd *cobra.Command, args []string) {
 	printMigrationSummary(summary)
 }
 
-func migrateFile(path string, targetVersion string, dryRun bool) *MigrationResult {
+// migrateFileWithResolver resolves the artifact type and schema version for a file,
+// then migrates it if appropriate.
+func migrateFileWithResolver(path string, resolver schemaVersionResolver, dryRun bool) *MigrationResult {
 	result := &MigrationResult{
 		File:          path,
-		NewVersion:    targetVersion,
 		Changes:       make([]string, 0),
 		ManualActions: make([]string, 0),
+	}
+
+	// Step 1: Detect artifact type
+	artifactType, err := resolver.DetectArtifactType(path)
+	if err != nil {
+		// Cannot map to a schema — skip this file
+		result.Skipped = true
+		result.SkipReason = fmt.Sprintf("not a schema-backed artifact (%s)", filepath.Base(path))
+		return result
+	}
+	result.ArtifactType = string(artifactType)
+
+	// Step 2: Get the correct schema version for this artifact type
+	targetVersion, err := resolver.GetSchemaVersion(artifactType)
+	if err != nil || targetVersion == "" || targetVersion == "unknown" {
+		result.Skipped = true
+		result.SkipReason = fmt.Sprintf("could not determine schema version for %s", artifactType)
+		return result
+	}
+	result.NewVersion = targetVersion
+
+	// Step 3: Delegate to the core migration logic
+	return migrateFile(path, targetVersion, dryRun, result)
+}
+
+// migrateFile performs the actual version migration on a file.
+// It takes a pre-populated result with ArtifactType and NewVersion already set.
+func migrateFile(path string, targetVersion string, dryRun bool, result *MigrationResult) *MigrationResult {
+	if result == nil {
+		result = &MigrationResult{
+			File:          path,
+			NewVersion:    targetVersion,
+			Changes:       make([]string, 0),
+			ManualActions: make([]string, 0),
+		}
 	}
 
 	// Read file
@@ -202,9 +261,24 @@ func migrateFile(path string, targetVersion string, dryRun bool) *MigrationResul
 	// Extract current version
 	result.PreviousVersion = extractVersion(original)
 
-	// Check if already at target version
+	// Check if already at target version (exact match)
 	if result.PreviousVersion == targetVersion {
 		return result // Already up to date
+	}
+
+	// Semver-aware comparison: never downgrade
+	if result.PreviousVersion != "" && result.PreviousVersion != "unknown" {
+		if migration.IsDowngrade(result.PreviousVersion, targetVersion) {
+			// File is at a NEWER version than the schema — do not downgrade
+			result.Skipped = true
+			result.SkipReason = fmt.Sprintf("file version %s is newer than schema version %s (not downgrading)", result.PreviousVersion, targetVersion)
+			return result
+		}
+
+		if !migration.IsUpgrade(result.PreviousVersion, targetVersion) {
+			// Versions are equal (already handled above) or unparseable — skip
+			return result
+		}
 	}
 
 	// Update EPF version header if present
@@ -324,8 +398,8 @@ func checkForManualActions(path string, content string, targetVersion string, re
 }
 
 func printMigrationSummary(summary *MigrationSummary) {
-	fmt.Printf("EPF Migration to v%s\n", summary.TargetVersion)
-	fmt.Println(strings.Repeat("=", 40))
+	fmt.Println("EPF Migration — Per-Artifact Schema Versioning")
+	fmt.Println(strings.Repeat("=", 48))
 
 	if summary.DryRun {
 		fmt.Println("DRY RUN - No changes were made")
@@ -334,6 +408,10 @@ func printMigrationSummary(summary *MigrationSummary) {
 
 	fmt.Printf("Files scanned:   %d\n", summary.TotalFiles)
 	fmt.Printf("Already current: %d\n", summary.UpToDateFiles)
+
+	if summary.SkippedFiles > 0 {
+		fmt.Printf("Skipped:         %d\n", summary.SkippedFiles)
+	}
 
 	if summary.MigratedFiles > 0 {
 		action := "Migrated"
@@ -349,9 +427,30 @@ func printMigrationSummary(summary *MigrationSummary) {
 
 	fmt.Println()
 
-	// Show migrated files
+	// Show per-file details
 	if migrateVerbose || summary.DryRun {
+		// Show skipped files in verbose mode
+		if migrateVerbose {
+			hasSkipped := false
+			for _, result := range summary.Results {
+				if result.Skipped {
+					if !hasSkipped {
+						fmt.Println("Skipped files:")
+						hasSkipped = true
+					}
+					fmt.Printf("  ⊘ %s: %s\n", filepath.Base(result.File), result.SkipReason)
+				}
+			}
+			if hasSkipped {
+				fmt.Println()
+			}
+		}
+
+		// Show migrated/failed files
 		for _, result := range summary.Results {
+			if result.Skipped {
+				continue
+			}
 			if !result.Migrated && result.Error == nil {
 				continue
 			}
@@ -370,7 +469,11 @@ func printMigrationSummary(summary *MigrationSummary) {
 				if prevVersion == "" || prevVersion == "unknown" {
 					prevVersion = "(none)"
 				}
-				fmt.Printf("%s %s: %s -> %s\n", status, result.File, prevVersion, result.NewVersion)
+				artifactInfo := ""
+				if result.ArtifactType != "" {
+					artifactInfo = fmt.Sprintf(" [%s]", result.ArtifactType)
+				}
+				fmt.Printf("%s %s%s: %s -> %s\n", status, result.File, artifactInfo, prevVersion, result.NewVersion)
 				for _, change := range result.Changes {
 					fmt.Printf("    %s\n", change)
 				}
