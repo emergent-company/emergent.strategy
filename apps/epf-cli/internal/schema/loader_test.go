@@ -90,7 +90,7 @@ func TestDetectArtifactType(t *testing.T) {
 		// Other artifacts
 		{"track_health_assessment.yaml", ArtifactTrackHealthAssessment, false},
 		{"track-health-assessment.yaml", ArtifactTrackHealthAssessment, false},
-		{"current_reality_assessment.yaml", ArtifactCurrentRealityAssessment, false},
+		{"living_reality_assessment.yaml", ArtifactLivingRealityAssessment, false},
 		{"aim_trigger_config.yaml", ArtifactAimTriggerConfig, false},
 
 		// Unknown files
