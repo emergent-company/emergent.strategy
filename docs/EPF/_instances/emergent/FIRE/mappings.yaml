@@ -24,25 +24,25 @@ product:
   - sub_component_id: 'Product.Ingest.DocumentParsing'
     artifacts:
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/document-parsing'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/document-parsing'
         description: 'Document parsing module - PDF, DOCX, HTML extraction'
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/ingestion'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/ingestion'
         description: 'Ingestion pipeline - document processing queue'
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/chunks'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/chunks'
         description: 'Chunking service - text segmentation for embeddings'
 
   - sub_component_id: 'Product.Ingest.ExternalSources'
     artifacts:
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/external-sources'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/external-sources'
         description: 'External source connectors - URL, file uploads'
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/data-sources'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/data-sources'
         description: 'Data source management - connection configs'
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/integrations'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/integrations'
         description: 'Third-party integrations - ClickUp, Google Drive'
 
   # ------------------------------------------------------------------------
@@ -51,28 +51,28 @@ product:
   - sub_component_id: 'Product.Graph.EntityExtraction'
     artifacts:
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/extraction-jobs'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/extraction-jobs'
         description: 'Entity extraction jobs - AI-powered NER pipeline'
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/object-refinement'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/object-refinement'
         description: 'Object refinement - entity deduplication and linking'
 
   - sub_component_id: 'Product.Graph.KnowledgeStorage'
     artifacts:
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/graph'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/graph'
         description: 'Knowledge graph module - entity/relationship storage'
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/type-registry'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/type-registry'
         description: 'Type registry - entity type definitions'
 
   - sub_component_id: 'Product.Discovery.KnowledgeExploration'
     artifacts:
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/admin/src/routes/explore'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/admin/src/routes/explore'
         description: 'Knowledge exploration UI - entity browser'
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/graph-search'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/graph-search'
         description: 'Graph search API - entity/relationship queries'
 
   # ------------------------------------------------------------------------
@@ -81,13 +81,13 @@ product:
   - sub_component_id: 'Product.Search.SemanticSearch'
     artifacts:
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/search'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/search'
         description: 'Search module - hybrid semantic + full-text search'
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/unified-search'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/unified-search'
         description: 'Unified search - cross-entity search aggregation'
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/embeddings'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/embeddings'
         description: 'Embeddings service - vector generation for RAG'
 
   # ------------------------------------------------------------------------
@@ -96,16 +96,16 @@ product:
   - sub_component_id: 'Product.AI.Chat'
     artifacts:
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/chat'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/chat'
         description: 'Chat backend - conversation management, RAG integration'
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/chat-sdk'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/chat-sdk'
         description: 'Chat SDK - client library for chat integration'
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/admin/src/chat-ui'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/admin/src/chat-ui'
         description: 'Chat UI components - conversation interface'
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/llm'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/llm'
         description: 'LLM service - model abstraction layer'
 
   # ------------------------------------------------------------------------
@@ -114,10 +114,10 @@ product:
   - sub_component_id: 'Product.AI.MCPServer'
     artifacts:
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/mcp'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/mcp'
         description: 'MCP server module - Model Context Protocol implementation'
       - type: 'documentation'
-        url: 'https://github.com/eyedea-io/emergent/blob/main/docs/MCP_INTEGRATION.md'
+        url: 'https://github.com/emergent-company/emergent.strategy/blob/main/docs/MCP_INTEGRATION.md'
         description: 'MCP integration guide for AI assistants'
 
   # ------------------------------------------------------------------------
@@ -126,7 +126,7 @@ product:
   - sub_component_id: 'Product.Configuration.TemplatePacks'
     artifacts:
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/template-packs'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/template-packs'
         description: 'Template packs module - schema and type configurations'
 
   # ------------------------------------------------------------------------
@@ -135,10 +135,10 @@ product:
   - sub_component_id: 'Product.Integration.Adapters'
     artifacts:
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/clickup'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/clickup'
         description: 'ClickUp integration - task sync adapter'
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/integrations'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/integrations'
         description: 'Integration framework - adapter registry and base classes'
 
   # ------------------------------------------------------------------------
@@ -147,22 +147,22 @@ product:
   - sub_component_id: 'Product.Platform.Authentication'
     artifacts:
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/auth'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/auth'
         description: 'Authentication module - Zitadel integration, JWT handling'
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/admin/src/auth'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/admin/src/auth'
         description: 'Auth UI - login, registration, session management'
 
   - sub_component_id: 'Product.Platform.Multitenancy'
     artifacts:
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/orgs'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/orgs'
         description: 'Organizations module - workspace management'
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/projects'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/projects'
         description: 'Projects module - project scoping within orgs'
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/users'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/users'
         description: 'Users module - user management within tenants'
 
   # ------------------------------------------------------------------------
@@ -171,13 +171,13 @@ product:
   - sub_component_id: 'Product.Admin.Configuration'
     artifacts:
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/superadmin'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/superadmin'
         description: 'Superadmin module - system-wide configuration'
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/settings'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/settings'
         description: 'Settings module - tenant configuration'
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/admin/src/pages'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/admin/src/pages'
         description: 'Admin UI pages - dashboard, settings, management'
 
   # ------------------------------------------------------------------------
@@ -186,10 +186,10 @@ product:
   - sub_component_id: 'Product.Workflow.Initiation'
     artifacts:
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/tasks'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/tasks'
         description: 'Tasks module - workflow task management'
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/discovery-jobs'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/discovery-jobs'
         description: 'Discovery jobs - background processing orchestration'
 
   # ------------------------------------------------------------------------
@@ -198,10 +198,10 @@ product:
   - sub_component_id: 'Product.EPF.SchemaValidation'
     artifacts:
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/epf-cli'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/epf-cli'
         description: 'EPF CLI - schema validation, health checks, MCP server'
       - type: 'documentation'
-        url: 'https://github.com/eyedea-io/emergent/blob/main/apps/epf-cli/README.md'
+        url: 'https://github.com/emergent-company/emergent.strategy/blob/main/apps/epf-cli/README.md'
         description: 'EPF CLI documentation - commands and usage'
 
   # ------------------------------------------------------------------------
@@ -210,10 +210,10 @@ product:
   - sub_component_id: 'Product.EPF.LocalWorkflow'
     artifacts:
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/epf-cli/cmd'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/epf-cli/cmd'
         description: 'EPF CLI commands - validate, health, coverage, context'
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/epf-cli/internal'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/epf-cli/internal'
         description: 'EPF CLI internals - validation engine, MCP server'
 
   # ------------------------------------------------------------------------
@@ -263,46 +263,46 @@ org_ops:
   - sub_component_id: 'OrgOps.Development.CIIntegration'
     artifacts:
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/.github/workflows'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/.github/workflows'
         description: 'GitHub Actions workflows - CI/CD pipelines'
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/docker'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/docker'
         description: 'Docker configurations - development and deployment'
 
   - sub_component_id: 'OrgOps.Development.LocalEnvironment'
     artifacts:
       - type: 'documentation'
-        url: 'https://github.com/eyedea-io/emergent/blob/main/SETUP.md'
+        url: 'https://github.com/emergent-company/emergent.strategy/blob/main/SETUP.md'
         description: 'Development setup guide - local environment configuration'
       - type: 'documentation'
-        url: 'https://github.com/eyedea-io/emergent/blob/main/QUICK_START_DEV.md'
+        url: 'https://github.com/emergent-company/emergent.strategy/blob/main/QUICK_START_DEV.md'
         description: 'Quick start guide - getting started with development'
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/blob/main/docker-compose.dev.yml'
+        url: 'https://github.com/emergent-company/emergent.strategy/blob/main/docker-compose.dev.yml'
         description: 'Docker Compose dev config - local services'
 
   - sub_component_id: 'OrgOps.Development.AIAssistance'
     artifacts:
       - type: 'documentation'
-        url: 'https://github.com/eyedea-io/emergent/blob/main/AGENTS.md'
+        url: 'https://github.com/emergent-company/emergent.strategy/blob/main/AGENTS.md'
         description: 'AI agents guidance - repo-level instructions'
       - type: 'documentation'
-        url: 'https://github.com/eyedea-io/emergent/blob/main/apps/epf-cli/AGENTS.md'
+        url: 'https://github.com/emergent-company/emergent.strategy/blob/main/apps/epf-cli/AGENTS.md'
         description: 'EPF CLI AI guidance - EPF-specific instructions'
       - type: 'documentation'
-        url: 'https://github.com/eyedea-io/emergent/blob/main/docs/EPF/_instances/emergent/AGENTS.md'
+        url: 'https://github.com/emergent-company/emergent.strategy/blob/main/docs/EPF/_instances/emergent/AGENTS.md'
         description: 'EPF instance AI guidance - relationship maintenance'
 
   - sub_component_id: 'OrgOps.Knowledge.ProductDocumentation'
     artifacts:
       - type: 'documentation'
-        url: 'https://github.com/eyedea-io/emergent/blob/main/README.md'
+        url: 'https://github.com/emergent-company/emergent.strategy/blob/main/README.md'
         description: 'Repository README - project overview'
       - type: 'documentation'
-        url: 'https://github.com/eyedea-io/emergent/blob/main/RUNBOOK.md'
+        url: 'https://github.com/emergent-company/emergent.strategy/blob/main/RUNBOOK.md'
         description: 'Operations runbook - deployment and maintenance'
       - type: 'documentation'
-        url: 'https://github.com/eyedea-io/emergent/blob/main/CONTRIBUTING.md'
+        url: 'https://github.com/emergent-company/emergent.strategy/blob/main/CONTRIBUTING.md'
         description: 'Contributing guide - development workflow'
 
 # ============================================================================
@@ -313,5 +313,5 @@ commercial:
   - sub_component_id: 'Commercial.Content.Documentation'
     artifacts:
       - type: 'documentation'
-        url: 'https://github.com/eyedea-io/emergent/blob/main/openapi.yaml'
+        url: 'https://github.com/emergent-company/emergent.strategy/blob/main/openapi.yaml'
         description: 'OpenAPI specification - public API documentation'
