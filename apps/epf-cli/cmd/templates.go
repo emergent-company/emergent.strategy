@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/schema"
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/template"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/schema"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/template"
 	"github.com/spf13/cobra"
 )
 

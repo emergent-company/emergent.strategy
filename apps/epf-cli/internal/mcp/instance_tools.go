@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/anchor"
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/embedded"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/anchor"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/embedded"
 	"github.com/mark3labs/mcp-go/mcp"
 	"gopkg.in/yaml.v3"
 )

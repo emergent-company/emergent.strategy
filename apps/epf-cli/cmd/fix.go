@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/checks"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/checks"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )

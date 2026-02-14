@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/lra"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/lra"
 	"github.com/spf13/cobra"
 )
 

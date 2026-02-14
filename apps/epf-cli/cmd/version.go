@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/embedded"
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/version"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/embedded"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/version"
 	"github.com/spf13/cobra"
 )
 

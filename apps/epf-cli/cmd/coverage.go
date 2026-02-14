@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/relationships"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/relationships"
 	"github.com/spf13/cobra"
 )
 
