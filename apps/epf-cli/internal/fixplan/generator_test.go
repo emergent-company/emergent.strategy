@@ -3,7 +3,7 @@ package fixplan
 import (
 	"testing"
 
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/validator"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/validator"
 )
 
 func TestNewGenerator(t *testing.T) {

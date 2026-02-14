@@ -8,10 +8,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/anchor"
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/checks"
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/migration"
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/validator"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/anchor"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/checks"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/migration"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/validator"
 	"github.com/spf13/cobra"
 )
 

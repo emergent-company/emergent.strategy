@@ -1,4 +1,4 @@
-module github.com/emergent-company/product-factory-os/apps/epf-cli
+module github.com/emergent-company/emergent-strategy/apps/epf-cli
 
 go 1.23.0
 

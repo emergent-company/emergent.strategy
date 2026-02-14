@@ -5,7 +5,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/template"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/template"
 	"github.com/spf13/cobra"
 )
 

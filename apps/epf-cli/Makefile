@@ -12,7 +12,7 @@ BUILD_DATE?=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 CANONICAL_EPF?=$(shell realpath ../../../canonical-epf 2>/dev/null || echo "")
 
 # Build flags — inject into internal/version package (single source of truth)
-VERSION_PKG=github.com/emergent-company/product-factory-os/apps/epf-cli/internal/version
+VERSION_PKG=github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/version
 LDFLAGS=-ldflags "-X $(VERSION_PKG).Version=$(VERSION) \
                   -X $(VERSION_PKG).GitCommit=$(GIT_COMMIT) \
                   -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"

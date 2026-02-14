@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/schema"
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/wizard"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/schema"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/wizard"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 

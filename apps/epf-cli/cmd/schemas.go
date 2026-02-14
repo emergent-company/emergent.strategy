@@ -7,9 +7,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/schema"
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/template"
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/validator"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/schema"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/template"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/validator"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )

@@ -3,7 +3,7 @@ package validation
 import (
 	"strings"
 
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/context"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/context"
 )
 
 // AlignmentWarning represents a potential content/product mismatch

@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/anchor"
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/config"
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/embedded"
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/template"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/anchor"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/config"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/embedded"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/template"
 	"github.com/spf13/cobra"
 )
 

@@ -3,7 +3,7 @@ package validation
 import (
 	"testing"
 
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/context"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/context"
 )
 
 func TestCheckContentAlignment_VeilagMismatch(t *testing.T) {
