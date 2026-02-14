@@ -1,9 +1,0 @@
-/* == File Pond == */
-.filepond--root {
-    @apply !mb-0 !font-sans max-sm:!text-sm;
-
-    .filepond--drop-label,
-    .filepond--panel-root {
-        @apply rounded-box bg-base-200 text-base-content;
-    }
-}

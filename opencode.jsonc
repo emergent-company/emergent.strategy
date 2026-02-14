@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "github-copilot/claude-opus-4.5",
+  "model": "github-copilot/claude-opus-4.6",
   "theme": "tokyonight",
   "mcp": {
     // --- General-purpose servers (always available) ---
@@ -42,58 +42,7 @@
       "timeout": 120000,
     },
 
-    // --- EPF CLI (core to this repo) ---
-    "epf-cli": {
-      "type": "local",
-      "command": ["./apps/epf-cli/epf-cli", "serve"],
-      "timeout": 60000,
-    },
 
-    // --- Emergent web app servers (require app infrastructure) ---
-    // Uncomment these when running the full Emergent app stack
-    // "postgres": {
-    //   "type": "local",
-    //   "command": ["./scripts/mcp-postgres-wrapper.sh"],
-    //   "timeout": 60000,
-    // },
-    // "langfuse": {
-    //   "type": "local",
-    //   "command": ["./scripts/mcp-langfuse-wrapper.sh"],
-    //   "timeout": 60000,
-    // },
-    // "logs": {
-    //   "type": "local",
-    //   "command": ["npx", "tsx", "tools/logs-mcp/src/index.ts"],
-    //   "timeout": 60000,
-    // },
-    // "workspace": {
-    //   "type": "local",
-    //   "command": ["npx", "tsx", "tools/workspace-mcp/src/index.ts"],
-    //   "timeout": 60000,
-    // },
-    // "api-client": {
-    //   "type": "local",
-    //   "command": ["npx", "tsx", "tools/api-client-mcp/src/index.ts"],
-    //   "timeout": 60000,
-    // },
-    // "signoz": {
-    //   "type": "local",
-    //   "command": ["./tools/bin/signoz-mcp-server"],
-    //   "environment": {
-    //     "SIGNOZ_URL": "http://localhost:3301",
-    //     "SIGNOZ_API_KEY": "ek35B2Ka34ADSeOMLI+xV/1eZbXi7waouH3LfgafOkM=",
-    //     "LOG_LEVEL": "info",
-    //   },
-    //   "timeout": 60000,
-    // },
-    // "emergent": {
-    //   "type": "remote",
-    //   "url": "http://localhost:3002/api/mcp/sse/b86633f6-40bd-4fec-a834-767c7f7bee95",
-    //   "headers": {
-    //     "X-API-Key": "7a925f49780eb3197814c02f5ea2d45655c597159570e8e183a180bd57ce739e",
-    //   },
-    //   "timeout": 60000,
-    // },
   },
   "instructions": [".opencode/instructions.md"],
   "tools": {
