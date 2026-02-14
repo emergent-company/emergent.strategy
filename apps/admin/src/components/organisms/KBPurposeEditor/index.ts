@@ -1,1 +1,0 @@
-export { KBPurposeEditor } from './KBPurposeEditor';

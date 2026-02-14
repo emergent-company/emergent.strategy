@@ -1,1 +1,0 @@
-export { DocumentMetadataModal } from './DocumentMetadataModal';

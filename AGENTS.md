@@ -22,68 +22,57 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 # AI Agent Instructions
 
-## ⚠️ STOP — Check Existing Patterns First
+## Repository Overview
 
-**Before creating ANY new code, you MUST check if similar functionality already exists.**
+This repository (`emergent-strategy`) is focused on **strategy tooling**:
 
-| Creating...     | First read...                        | Contains...                                           |
-| --------------- | ------------------------------------ | ----------------------------------------------------- |
-| React component | `apps/admin/src/components/AGENT.md` | 50+ components, atomic design, DaisyUI patterns       |
-| React hook      | `apps/admin/src/hooks/AGENT.md`      | 33+ hooks including `useApi` (REQUIRED for API calls) |
-| API endpoint    | `apps/server/src/modules/AGENT.md`   | NestJS patterns, Guards, DTOs, RLS                    |
-| Database entity | `apps/server/src/entities/AGENT.md`  | TypeORM patterns, schemas (kb/core), relations        |
-| Backend tests   | `apps/server/tests/AGENT.md`         | Test patterns, FakeGraphDb, E2E context, auth helpers |
+- **`apps/epf-cli/`** - Go-based EPF (Emergent Product Framework) CLI tool
+- **`docs/EPF/`** - EPF framework documentation and instances
+- **`openspec/`** - Spec-driven development infrastructure
 
-**Common mistakes to avoid:**
-
-- ❌ Creating a new data fetching hook → Use `useApi` from hooks/AGENT.md
-- ❌ Creating a new Button component → Use existing from components/AGENT.md
-- ❌ Raw `fetch()` calls → Use `useApi` hook with proper error handling
-- ❌ New modal component → Use existing `Modal` atom
+The admin/server apps have been migrated to `emergent-company/emergent`.
 
 ## Quick Reference
 
-### Build, Lint, Test
+### EPF CLI
 
 ```bash
-npm run build                    # Build all
-nx run admin:lint               # Lint frontend
-nx run admin:test               # Frontend unit tests
-nx run server:test              # Backend unit tests
-nx run server:test-e2e          # API e2e tests
+# Build
+cd apps/epf-cli && go build
+
+# Run tests
+cd apps/epf-cli && go test ./...
+
+# Run CLI
+./apps/epf-cli/epf-cli --help
 ```
 
 ### Code Style
 
-- **Prettier**: `singleQuote: true` — Run `npx prettier --write .`
-- **TypeScript**: Strict types, no `any`
-- **Naming**: `camelCase` variables/functions, `PascalCase` classes/interfaces
+- **Go**: Follow standard Go conventions (`gofmt`, `go vet`)
+- **YAML/Markdown**: Consistent formatting in EPF artifacts
 
-### Nx Monorepo
+## Key Directories
 
-- Always use `nx run <project>:<task>` for builds, tests, linting
-- Use `nx_workspace` tool to understand project structure
-- Use `nx_project_details` for specific project dependencies
+| Directory       | Purpose                                   |
+| --------------- | ----------------------------------------- |
+| `apps/epf-cli/` | EPF CLI tool (Go)                         |
+| `docs/EPF/`     | EPF framework docs and product instances  |
+| `openspec/`     | Spec-driven development specs and changes |
 
-### ⚠️ Hot Reload — DO NOT RESTART AFTER CODE CHANGES
+## EPF CLI MCP Server
 
-**Both server and admin have hot reload.** Changes are picked up automatically in 1-2 seconds.
+The EPF CLI includes an MCP server for AI agent integration. Configure in `opencode.jsonc`:
 
-- ✅ **Just save the file** — hot reload handles TypeScript, React, DTOs, services, etc.
-- ❌ **Only restart if** server is down (check with `pnpm run workspace:status`)
-- ❌ **Restart required for:** new modules in `app.module.ts`, env var changes, after `npm install`
-
-## Environment URLs
-
-Local and Dev refer to the **same environment** accessible via two methods. Prefer domain URLs for consistency with production patterns.
-
-| Access Method      | Admin URL                               | Server URL                            |
-| ------------------ | --------------------------------------- | ------------------------------------- |
-| Domain (preferred) | `https://admin.dev.emergent-company.ai` | `https://api.dev.emergent-company.ai` |
-| Localhost          | `http://localhost:5176`                 | `http://localhost:3002`               |
+```jsonc
+"epf-cli": {
+  "type": "local",
+  "command": ["./apps/epf-cli/epf-cli", "serve"],
+  "timeout": 60000,
+}
+```
 
 ## Detailed Documentation
 
-- **Workspace operations**: `.opencode/instructions.md` (logging, process management, MCP tools)
-- **Testing guide**: `docs/testing/AI_AGENT_GUIDE.md`
-- **Database schema**: `docs/database/schema-context.md`
+- **EPF Framework**: `docs/EPF/`
+- **OpenSpec**: `openspec/AGENTS.md`

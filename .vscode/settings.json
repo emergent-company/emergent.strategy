@@ -1,6 +1,0 @@
-{
-    "djlint.showInstallError": false,
-    "[sql]": {
-        "editor.formatOnSave": false
-    }
-}
