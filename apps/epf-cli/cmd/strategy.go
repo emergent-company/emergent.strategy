@@ -9,7 +9,7 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/strategy"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/strategy"
 	"github.com/spf13/cobra"
 )
 

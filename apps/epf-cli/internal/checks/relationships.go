@@ -4,7 +4,7 @@ package checks
 import (
 	"fmt"
 
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/relationships"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/relationships"
 )
 
 // RelationshipsChecker validates EPF artifact relationships.

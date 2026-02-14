@@ -80,7 +80,7 @@ func (c *Config) SaveToPath(path string) error {
 	}
 
 	// Add a header comment
-	content := "# epf-cli configuration\n# See: https://github.com/emergent-company/product-factory-os/tree/main/apps/epf-cli\n\n" + string(data)
+	content := "# epf-cli configuration\n# See: https://github.com/emergent-company/emergent-strategy/tree/main/apps/epf-cli\n\n" + string(data)
 
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)

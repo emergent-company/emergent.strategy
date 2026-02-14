@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/roadmap"
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/valuemodel"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/roadmap"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/valuemodel"
 )
 
 // Analyzer provides cross-artifact relationship analysis.

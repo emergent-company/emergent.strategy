@@ -4,8 +4,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/roadmap"
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/valuemodel"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/roadmap"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/valuemodel"
 )
 
 // CoverageAnalysis contains the results of analyzing feature coverage.

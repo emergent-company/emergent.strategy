@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/checks"
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/schema"
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/template"
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/validator"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/checks"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/schema"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/template"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/validator"
 	"github.com/mark3labs/mcp-go/mcp"
 	"gopkg.in/yaml.v3"
 )
