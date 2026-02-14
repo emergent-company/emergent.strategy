@@ -3,7 +3,7 @@ package integration
 import (
 	"testing"
 
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/valuemodel"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/valuemodel"
 )
 
 func TestValueModelIntegration_RealInstance(t *testing.T) {

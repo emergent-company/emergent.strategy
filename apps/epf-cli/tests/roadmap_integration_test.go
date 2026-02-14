@@ -3,7 +3,7 @@ package integration
 import (
 	"testing"
 
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/roadmap"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/roadmap"
 )
 
 func TestRoadmapIntegration_RealInstance(t *testing.T) {

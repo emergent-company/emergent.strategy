@@ -3,8 +3,8 @@ package relationships
 import (
 	"testing"
 
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/roadmap"
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/valuemodel"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/roadmap"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/valuemodel"
 )
 
 // Helper to create a minimal value model set for testing

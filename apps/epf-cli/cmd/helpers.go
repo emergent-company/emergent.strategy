@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/config"
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/epfcontext"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/config"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/epfcontext"
 )
 
 // Global variables for config and context

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/anchor"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/anchor"
 )
 
 func TestIsValidProductName(t *testing.T) {
