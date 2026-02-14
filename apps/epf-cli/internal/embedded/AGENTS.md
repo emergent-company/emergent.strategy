@@ -10,14 +10,14 @@
 
 **Always check these files first:**
 
-1. **Master Plan**: `docs/product-factory-os/MASTER_PLAN.md` - Principles, architecture, current phase
+1. **Master Plan**: `docs/emergent-strategy/MASTER_PLAN.md` - Principles, architecture, current phase
 2. **Task List**: `openspec/changes/implement-epf-cli/tasks.md` - Current implementation status
 3. **Design Doc**: `openspec/changes/implement-epf-cli/design.md` - Technical decisions
 
 **After completing work:**
 
 1. Update `openspec/changes/implement-epf-cli/tasks.md` - Mark completed items with `[x]`
-2. Update `docs/product-factory-os/MASTER_PLAN.md` - Add to Progress Log if significant
+2. Update `docs/emergent-strategy/MASTER_PLAN.md` - Add to Progress Log if significant
 
 **For new features:**
 
@@ -188,9 +188,9 @@ implementation:
 
 ---
 
-## ProductFactoryOS Context
+## Emergent Strategy Context
 
-epf-cli is the **Kernel** of ProductFactoryOS (see MASTER_PLAN.md Section 3.1):
+epf-cli is the **Kernel** of Emergent Strategy (formerly ProductFactoryOS) (see MASTER_PLAN.md Section 3.1):
 
 - **Role:** The "Language Server" & "Reference Library"
 - **Nature:** A standalone Golang CLI
@@ -1257,7 +1257,6 @@ For AI agents using MCP tools:
 The `health` command runs these checks:
 
 1. **Instance Structure** (`checks/instance.go`)
-
    - READY/FIRE/AIM directory presence
    - Required files in each phase
    - \_meta.yaml validation
@@ -1266,26 +1265,21 @@ The `health` command runs these checks:
    - Framework separation (no schemas/, wizards/ in instance)
 
 2. **Schema Validation** (`validator/validator.go`)
-
    - Validates all YAML against JSON schemas
    - Auto-detects artifact types
 
 3. **Feature Quality** (`checks/features.go`)
-
    - 4 personas required per feature
    - 200+ char narratives
    - Scenario completeness
 
 4. **Cross-References** (`checks/crossrefs.go`)
-
    - Feature dependencies point to valid IDs
 
 5. **Content Readiness** (`checks/instance.go`)
-
    - Detects TBD, TODO, placeholders
 
 6. **Field Coverage** (`checks/coverage.go`)
-
    - TRL fields in roadmap key results (critical)
    - Hypothesis testing fields (high)
    - Persona narrative fields (critical)
