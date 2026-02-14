@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/context"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/context"
 	"gopkg.in/yaml.v3"
 )
 

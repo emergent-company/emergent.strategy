@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/lra"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/lra"
 	"github.com/spf13/cobra"
 )
 

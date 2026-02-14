@@ -8,8 +8,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/migration"
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/schema"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/migration"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/schema"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )

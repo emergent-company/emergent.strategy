@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/embedded"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/embedded"
 )
 
 // ArtifactType represents the type of EPF artifact
