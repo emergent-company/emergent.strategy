@@ -8,18 +8,18 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "pfos",
-	Short: "ProductFactoryOS - Local-First Venture Compiler",
-	Long: `ProductFactoryOS (PFOS) is a "Local-First Venture Compiler."
+	Use:   "emergent-strategy",
+	Short: "Emergent Strategy (formerly ProductFactoryOS) - Local-First Venture Compiler",
+	Long: `Emergent Strategy (formerly ProductFactoryOS) is a "Local-First Venture Compiler."
 
 It treats Business Logic (Strategy, Ops, Commercial) exactly like
 Software Logic. Both are defined in source code (.yaml), versioned
 in Git, and "compiled" into executable outputs.
 
 Modes:
-  pfos tui     - Interactive TUI (Developer Console)
-  pfos server  - Web Dashboard (Stakeholder View)
-  pfos build   - Compile EPF artifacts to outputs
+  emergent-strategy tui     - Interactive TUI (Developer Console)
+  emergent-strategy server  - Web Dashboard (Stakeholder View)
+  emergent-strategy build   - Compile EPF artifacts to outputs
 
 The Core Philosophy:
   1. Everything is Code: Strategy is YAML. Process is Markdown.
