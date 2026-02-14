@@ -1,4 +1,4 @@
-module github.com/eyedea-io/emergent/apps/product-factory-os
+module github.com/emergent-company/emergent-strategy/apps/emergent-strategy
 
 go 1.22
 

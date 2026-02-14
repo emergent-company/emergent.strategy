@@ -11,7 +11,7 @@ import (
 var tuiCmd = &cobra.Command{
 	Use:   "tui",
 	Short: "Launch the interactive TUI (Developer Console)",
-	Long: `Launch the ProductFactoryOS Terminal User Interface.
+	Long: `Launch the Emergent Strategy Terminal User Interface.
 
 The TUI provides:
   - Real-time visualization of EPF state
@@ -72,7 +72,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	s := "\n  ProductFactoryOS\n\n"
+	s := "\n  Emergent Strategy\n\n"
 
 	for i, item := range m.items {
 		cursor := "  "

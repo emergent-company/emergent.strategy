@@ -217,13 +217,13 @@ product:
         description: 'EPF CLI internals - validation engine, MCP server'
 
   # ------------------------------------------------------------------------
-  # ProductFactoryOS Developer Console (fd-013)
+  # Emergent Strategy Developer Console (fd-013)
   # ------------------------------------------------------------------------
   - sub_component_id: 'Product.EPF.DeveloperConsole'
     artifacts:
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/product-factory-os'
-        description: 'ProductFactoryOS TUI - developer console for EPF (in development)'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/emergent-strategy'
+        description: 'Emergent Strategy TUI - developer console for EPF (in development)'
 
   # ------------------------------------------------------------------------
   # Observability & Monitoring
@@ -231,13 +231,13 @@ product:
   - sub_component_id: 'Product.Platform.Observability'
     artifacts:
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/monitoring'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/monitoring'
         description: 'Monitoring module - metrics, traces, alerts'
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/langfuse'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/langfuse'
         description: 'Langfuse integration - LLM observability'
       - type: 'code'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/apps/server/src/client-logs'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/apps/server/src/client-logs'
         description: 'Client logs - frontend error tracking'
 
 # ============================================================================
@@ -249,11 +249,11 @@ strategy:
   - sub_component_id: 'Strategy.Planning.ProductRoadmap'
     artifacts:
       - type: 'documentation'
-        url: 'https://github.com/eyedea-io/emergent/tree/main/docs/EPF/_instances/emergent'
+        url: 'https://github.com/emergent-company/emergent.strategy/tree/main/docs/EPF/_instances/emergent'
         description: 'EPF instance - product strategy and roadmap artifacts'
       - type: 'documentation'
-        url: 'https://github.com/eyedea-io/emergent/blob/main/docs/product-factory-os/MASTER_PLAN.md'
-        description: 'ProductFactoryOS master plan - phased roadmap'
+        url: 'https://github.com/emergent-company/emergent.strategy/blob/main/docs/emergent-strategy/MASTER_PLAN.md'
+        description: 'Emergent Strategy master plan - phased roadmap'
 
 # ============================================================================
 # ORG_OPS TRACK - Internal operations and team enablement
