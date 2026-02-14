@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/anchor"
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/discovery"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/anchor"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/discovery"
 	"github.com/spf13/cobra"
 )
 

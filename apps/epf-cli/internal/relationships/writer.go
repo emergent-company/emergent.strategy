@@ -775,7 +775,7 @@ func (w *Writer) suggestForFeature(featurePath string) ([]RelationshipSuggestion
 	// Suggest implementation references based on feature slug/name
 	suggestions = append(suggestions, RelationshipSuggestion{
 		Type:       "implementation_reference",
-		Target:     fmt.Sprintf("https://github.com/eyedea-io/emergent/tree/main/apps/%s", feature.Slug),
+		Target:     fmt.Sprintf("https://github.com/emergent-company/product-factory-os/tree/main/apps/%s", feature.Slug),
 		Confidence: 0.4,
 		Reasoning:  "Suggested code location based on feature slug",
 		Action:     fmt.Sprintf("epf_add_implementation_reference feature_id=%s ref_type=code url=...", feature.ID),

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/schema"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/schema"
 )
 
 // GuideGenerator generates migration guides for EPF instances

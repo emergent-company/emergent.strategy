@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/strategy"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/strategy"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 

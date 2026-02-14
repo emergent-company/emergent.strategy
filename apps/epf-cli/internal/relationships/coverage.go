@@ -4,8 +4,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/roadmap"
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/valuemodel"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/roadmap"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/valuemodel"
 )
 
 // CoverageAnalysis contains the results of analyzing feature coverage.

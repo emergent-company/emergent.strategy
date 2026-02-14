@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/version"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/version"
 	"github.com/mark3labs/mcp-go/server"
 )
 

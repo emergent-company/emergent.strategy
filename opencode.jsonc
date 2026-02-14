@@ -3,40 +3,33 @@
   "model": "github-copilot/claude-opus-4.5",
   "theme": "tokyonight",
   "mcp": {
-    // "figma": {
-    //   "type": "remote",
-    //   "url": "http://127.0.0.1:3845/mcp"
-    // },
-    // "playwright": {
-    //   "type": "local",
-    //   "command": [
-    //     "npx",
-    //     "@playwright/mcp@latest",
-    //     "--timeout-action=10000"
-    //   ]
-    // },
-    "postgres": {
-      "type": "local",
-      "command": ["./scripts/mcp-postgres-wrapper.sh"],
-      "timeout": 60000
-    },
+    // --- General-purpose servers (always available) ---
     "context7": {
       "type": "remote",
       "url": "https://mcp.context7.com/mcp",
       "headers": {
-        "CONTEXT7_API_KEY": "ctx7sk-77ad3f0a-32a5-4b23-8b82-1431d078b1c6"
+        "CONTEXT7_API_KEY": "ctx7sk-77ad3f0a-32a5-4b23-8b82-1431d078b1c6",
       },
-      "timeout": 60000
+      "timeout": 60000,
     },
     "gh_grep": {
       "type": "remote",
       "url": "https://mcp.grep.app/sse",
-      "timeout": 60000
+      "timeout": 60000,
     },
-    //    "react-daisyui Docs": {
-    //      "type": "remote",
-    //      "url": "https://gitmcp.io/daisyui/react-daisyui"
-    //   },
+    "langfuse-docs": {
+      "type": "remote",
+      "url": "https://langfuse.com/api/mcp",
+      "timeout": 50000,
+    },
+    "brave-search": {
+      "type": "local",
+      "command": ["npx", "-y", "@modelcontextprotocol/server-brave-search"],
+      "environment": {
+        "BRAVE_API_KEY": "BSANp3ueWKE2J7V2B0b1a9OwkwGDPYJ",
+      },
+      "timeout": 60000,
+    },
     "chrome-devtools": {
       "type": "local",
       "command": [
@@ -44,72 +37,67 @@
         "-y",
         "chrome-devtools-mcp@latest",
         "--browserUrl",
-        "http://127.0.0.1:9222"
+        "http://127.0.0.1:9222",
       ],
-      "timeout": 120000
+      "timeout": 120000,
     },
-    // daisyui-blueprint - disabled due to startup issues
-    // "daisyui-blueprint": {
+
+    // --- EPF CLI (core to this repo) ---
+    "epf-cli": {
+      "type": "local",
+      "command": ["./apps/epf-cli/epf-cli", "serve"],
+      "timeout": 60000,
+    },
+
+    // --- Emergent web app servers (require app infrastructure) ---
+    // Uncomment these when running the full Emergent app stack
+    // "postgres": {
     //   "type": "local",
-    //   "command": ["npx", "-y", "daisyui-blueprint@latest"],
-    //   "environment": {
-    //     "LICENSE": "19B37-Q9DO7-1YBUL-SUX2D-VHYR4",
-    //     "EMAIL": "maciej@kucharz.net"
-    //   },
-    //   "timeout": 120000
+    //   "command": ["./scripts/mcp-postgres-wrapper.sh"],
+    //   "timeout": 60000,
     // },
-    "langfuse-docs": {
-      "type": "remote",
-      "url": "https://langfuse.com/api/mcp",
-      "timeout": 50000
-    },
-    "langfuse": {
-      "type": "local",
-      "command": ["./scripts/mcp-langfuse-wrapper.sh"],
-      "timeout": 60000
-    },
-    "logs": {
-      "type": "local",
-      "command": ["npx", "tsx", "tools/logs-mcp/src/index.ts"],
-      "timeout": 60000
-    },
-    "workspace": {
-      "type": "local",
-      "command": ["npx", "tsx", "tools/workspace-mcp/src/index.ts"],
-      "timeout": 60000
-    },
-    "api-client": {
-      "type": "local",
-      "command": ["npx", "tsx", "tools/api-client-mcp/src/index.ts"],
-      "timeout": 60000
-    },
-    "signoz": {
-      "type": "local",
-      "command": ["./tools/bin/signoz-mcp-server"],
-      "environment": {
-        "SIGNOZ_URL": "http://localhost:3301",
-        "SIGNOZ_API_KEY": "ek35B2Ka34ADSeOMLI+xV/1eZbXi7waouH3LfgafOkM=",
-        "LOG_LEVEL": "info"
-      },
-      "timeout": 60000
-    },
-    "brave-search": {
-      "type": "local",
-      "command": ["npx", "-y", "@modelcontextprotocol/server-brave-search"],
-      "environment": {
-        "BRAVE_API_KEY": "BSANp3ueWKE2J7V2B0b1a9OwkwGDPYJ"
-      },
-      "timeout": 60000
-    }
-    // ,
-    // "nx-mcp": {
-    //   "command": "npx",
-    //   "args": ["nx-mcp@latest"]
-    // }
+    // "langfuse": {
+    //   "type": "local",
+    //   "command": ["./scripts/mcp-langfuse-wrapper.sh"],
+    //   "timeout": 60000,
+    // },
+    // "logs": {
+    //   "type": "local",
+    //   "command": ["npx", "tsx", "tools/logs-mcp/src/index.ts"],
+    //   "timeout": 60000,
+    // },
+    // "workspace": {
+    //   "type": "local",
+    //   "command": ["npx", "tsx", "tools/workspace-mcp/src/index.ts"],
+    //   "timeout": 60000,
+    // },
+    // "api-client": {
+    //   "type": "local",
+    //   "command": ["npx", "tsx", "tools/api-client-mcp/src/index.ts"],
+    //   "timeout": 60000,
+    // },
+    // "signoz": {
+    //   "type": "local",
+    //   "command": ["./tools/bin/signoz-mcp-server"],
+    //   "environment": {
+    //     "SIGNOZ_URL": "http://localhost:3301",
+    //     "SIGNOZ_API_KEY": "ek35B2Ka34ADSeOMLI+xV/1eZbXi7waouH3LfgafOkM=",
+    //     "LOG_LEVEL": "info",
+    //   },
+    //   "timeout": 60000,
+    // },
+    // "emergent": {
+    //   "type": "remote",
+    //   "url": "http://localhost:3002/api/mcp/sse/b86633f6-40bd-4fec-a834-767c7f7bee95",
+    //   "headers": {
+    //     "X-API-Key": "7a925f49780eb3197814c02f5ea2d45655c597159570e8e183a180bd57ce739e",
+    //   },
+    //   "timeout": 60000,
+    // },
   },
   "instructions": [".opencode/instructions.md"],
   "tools": {
     "todowrite": true,
-    "webfetch": true
-  }
+    "webfetch": true,
+  },
 }

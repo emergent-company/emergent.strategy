@@ -4,7 +4,7 @@ package checks
 import (
 	"fmt"
 
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/relationships"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/relationships"
 )
 
 // RelationshipsChecker validates EPF artifact relationships.

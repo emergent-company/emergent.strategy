@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/embedded"
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/schema"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/embedded"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/schema"
 )
 
 // TemplateInfo contains metadata about a loaded template

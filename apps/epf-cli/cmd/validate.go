@@ -7,12 +7,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/context"
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/fixplan"
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/schema"
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/template"
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/validation"
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/validator"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/context"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/fixplan"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/schema"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/template"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/validation"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/validator"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )

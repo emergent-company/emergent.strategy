@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/eyedea-io/emergent/apps/epf-cli/internal/relationships"
+	"github.com/emergent-company/product-factory-os/apps/epf-cli/internal/relationships"
 )
 
 func TestRelationshipsAnalyzerWithEmergent(t *testing.T) {
