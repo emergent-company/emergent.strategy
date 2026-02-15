@@ -34,10 +34,10 @@
 
 ## 3. Update Notifications (Phase 3)
 
-- [ ] 3.1 Add `internal/update/checker.go` — query GitHub Releases API for latest version
-- [ ] 3.2 Add version comparison logic (semver) with 24-hour check throttle (cached in `~/.epf-cli/`)
-- [ ] 3.3 Hook into root command `PersistentPreRun` — print update notice if newer version available
-- [ ] 3.4 Add `EPF_CLI_NO_UPDATE_CHECK` env var and `update_check: false` config option
-- [ ] 3.5 Add `epf-cli update` command — downloads and replaces binary (with backup)
-- [ ] 3.6 Detect Homebrew installs and suggest `brew upgrade` instead of self-update
+- [x] 3.1 Add `internal/update/checker.go` — query GitHub Releases API for latest version
+- [x] 3.2 Add version comparison logic (semver) with 24-hour check throttle (cached in `~/.epf-cli/`)
+- [x] 3.3 Hook into root command `PersistentPreRun` — print update notice if newer version available
+- [x] 3.4 Add `EPF_CLI_NO_UPDATE_CHECK` env var and `update_check: false` config option
+- [x] 3.5 Add `epf-cli update` command — downloads and replaces binary (with backup)
+- [x] 3.6 Detect Homebrew installs and suggest `brew upgrade` instead of self-update
 - [ ] 3.7 Test: verify update check works, respects throttle, and self-update replaces binary
