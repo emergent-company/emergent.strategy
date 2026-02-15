@@ -823,6 +823,9 @@ func (s *Server) registerTools() {
 			mcp.WithString("force",
 				mcp.Description("Overwrite existing files if present (true/false, default: false)"),
 			),
+			mcp.WithString("mode",
+				mcp.Description("Instance mode: 'integrated' (default, creates docs/EPF/ wrapper) or 'standalone' (instance at path directly)"),
+			),
 		),
 		s.handleInitInstance,
 	)

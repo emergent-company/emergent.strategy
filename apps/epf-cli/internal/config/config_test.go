@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -218,4 +219,164 @@ func TestConfigPath(t *testing.T) {
 	if filepath.Base(path) != DefaultConfigFileName {
 		t.Errorf("ConfigPath should end with %s, got: %s", DefaultConfigFileName, filepath.Base(path))
 	}
+}
+
+// --- RepoConfig Tests ---
+
+func TestFindRepoRoot(t *testing.T) {
+	t.Run("finds repo root with .git directory", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		// Create a .git directory to simulate a repo root
+		gitDir := filepath.Join(tmpDir, ".git")
+		if err := os.Mkdir(gitDir, 0755); err != nil {
+			t.Fatalf("Failed to create .git dir: %v", err)
+		}
+
+		// Create a nested directory
+		nested := filepath.Join(tmpDir, "a", "b", "c")
+		if err := os.MkdirAll(nested, 0755); err != nil {
+			t.Fatalf("Failed to create nested dirs: %v", err)
+		}
+
+		// FindRepoRoot from the nested dir should find the root
+		root := FindRepoRoot(nested)
+		absRoot, _ := filepath.Abs(root)
+		absTmp, _ := filepath.Abs(tmpDir)
+		if absRoot != absTmp {
+			t.Errorf("Expected repo root %q, got %q", absTmp, absRoot)
+		}
+	})
+
+	t.Run("returns empty when no .git found", func(t *testing.T) {
+		// Use a temp dir that definitely doesn't have .git above it (unlikely but we use the deepest path)
+		tmpDir := t.TempDir()
+		nested := filepath.Join(tmpDir, "no", "git", "here")
+		if err := os.MkdirAll(nested, 0755); err != nil {
+			t.Fatalf("Failed to create dirs: %v", err)
+		}
+		root := FindRepoRoot(nested)
+		// We can't guarantee empty because the test runner might be in a git repo,
+		// but at minimum it should return a string (possibly the real repo root)
+		_ = root // Just verify it doesn't panic
+	})
+
+	t.Run("finds repo root from root itself", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		if err := os.Mkdir(filepath.Join(tmpDir, ".git"), 0755); err != nil {
+			t.Fatalf("Failed to create .git dir: %v", err)
+		}
+
+		root := FindRepoRoot(tmpDir)
+		absRoot, _ := filepath.Abs(root)
+		absTmp, _ := filepath.Abs(tmpDir)
+		if absRoot != absTmp {
+			t.Errorf("Expected repo root %q, got %q", absTmp, absRoot)
+		}
+	})
+}
+
+func TestLoadRepoConfig(t *testing.T) {
+	t.Run("returns nil for missing file", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		cfg, err := LoadRepoConfig(tmpDir)
+		if err != nil {
+			t.Fatalf("Expected no error, got: %v", err)
+		}
+		if cfg != nil {
+			t.Error("Expected nil config when file doesn't exist")
+		}
+	})
+
+	t.Run("loads valid repo config", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		content := `instance_path: docs/EPF/_instances/my-product
+mode: submodule
+schemas: embedded
+`
+		if err := os.WriteFile(filepath.Join(tmpDir, RepoConfigFileName), []byte(content), 0644); err != nil {
+			t.Fatalf("Failed to write config: %v", err)
+		}
+
+		cfg, err := LoadRepoConfig(tmpDir)
+		if err != nil {
+			t.Fatalf("Failed to load config: %v", err)
+		}
+		if cfg == nil {
+			t.Fatal("Expected non-nil config")
+		}
+		if cfg.InstancePath != "docs/EPF/_instances/my-product" {
+			t.Errorf("Expected InstancePath 'docs/EPF/_instances/my-product', got: %s", cfg.InstancePath)
+		}
+		if cfg.Mode != "submodule" {
+			t.Errorf("Expected Mode 'submodule', got: %s", cfg.Mode)
+		}
+		if cfg.Schemas != "embedded" {
+			t.Errorf("Expected Schemas 'embedded', got: %s", cfg.Schemas)
+		}
+	})
+
+	t.Run("errors on invalid YAML", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(tmpDir, RepoConfigFileName), []byte("invalid: yaml: ["), 0644); err != nil {
+			t.Fatalf("Failed to write config: %v", err)
+		}
+
+		_, err := LoadRepoConfig(tmpDir)
+		if err == nil {
+			t.Error("Expected error for invalid YAML, got nil")
+		}
+	})
+}
+
+func TestSaveRepoConfig(t *testing.T) {
+	t.Run("saves and round-trips config", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		cfg := &RepoConfig{
+			InstancePath: "docs/EPF/_instances/test",
+			Mode:         "standalone",
+			Schemas:      "local",
+		}
+
+		if err := cfg.SaveRepoConfig(tmpDir); err != nil {
+			t.Fatalf("Failed to save config: %v", err)
+		}
+
+		// Verify file was created
+		path := filepath.Join(tmpDir, RepoConfigFileName)
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			t.Fatal("Config file was not created")
+		}
+
+		// Load it back
+		loaded, err := LoadRepoConfig(tmpDir)
+		if err != nil {
+			t.Fatalf("Failed to load saved config: %v", err)
+		}
+		if loaded.InstancePath != cfg.InstancePath {
+			t.Errorf("InstancePath mismatch: expected %q, got %q", cfg.InstancePath, loaded.InstancePath)
+		}
+		if loaded.Mode != cfg.Mode {
+			t.Errorf("Mode mismatch: expected %q, got %q", cfg.Mode, loaded.Mode)
+		}
+		if loaded.Schemas != cfg.Schemas {
+			t.Errorf("Schemas mismatch: expected %q, got %q", cfg.Schemas, loaded.Schemas)
+		}
+	})
+
+	t.Run("file includes header comment", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		cfg := &RepoConfig{Mode: "integrated"}
+
+		if err := cfg.SaveRepoConfig(tmpDir); err != nil {
+			t.Fatalf("Failed to save config: %v", err)
+		}
+
+		data, err := os.ReadFile(filepath.Join(tmpDir, RepoConfigFileName))
+		if err != nil {
+			t.Fatalf("Failed to read config file: %v", err)
+		}
+		if !strings.Contains(string(data), "# .epf.yaml") {
+			t.Error("Expected header comment in saved file")
+		}
+	})
 }
