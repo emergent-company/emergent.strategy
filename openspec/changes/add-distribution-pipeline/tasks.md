@@ -11,16 +11,16 @@
 - [ ] 0.9 Update openspec archived specs/proposals that reference eyedea-io repos (deferred — cosmetic only)
 - [x] 0.10 Update local remote: `git remote set-url origin` in canonical-epf working copy
 - [x] 0.11 Verify: `make build` still works with updated paths
-- [ ] 0.12 Commit all reference updates, push to main
+- [x] 0.12 Commit all reference updates, push to main
 
 ## 1. CI/CD Pipeline (Phase 1)
 
-- [ ] 1.1 Create `.github/workflows/ci.yaml` — run `go test ./...` and `go build` on push/PR
-- [ ] 1.2 Add embedded artifact sync step to CI (cache `canonical-epf` or use pre-synced artifacts)
-- [ ] 1.3 Create `.goreleaser.yaml` in `apps/epf-cli/` with cross-platform build config
-- [ ] 1.4 Create `.github/workflows/release.yaml` — triggered on `v*` tags, runs GoReleaser
-- [ ] 1.5 Configure GoReleaser to run `sync-embedded` as a build hook before compilation
-- [ ] 1.6 Test: tag `v0.11.1`, verify GitHub Release created with binaries for all 5 platform/arch combos
+- [x] 1.1 Create `.github/workflows/ci.yaml` — run `go test ./...` and `go build` on push/PR
+- [x] 1.2 Add embedded artifact sync step to CI (checkout `epf-canonical` + run sync-embedded.sh)
+- [x] 1.3 Create `.goreleaser.yaml` in `apps/epf-cli/` with cross-platform build config
+- [x] 1.4 Create `.github/workflows/release.yaml` — triggered on `epf-cli/v*` tags, runs GoReleaser
+- [x] 1.5 Configure GoReleaser to run `sync-embedded` as a before hook (uses CANONICAL_EPF_PATH env)
+- [ ] 1.6 Test: tag `epf-cli/v0.12.1`, verify GitHub Release created with binaries for all 5 platform/arch combos
 - [ ] 1.7 Update Makefile `release` target to document GoReleaser workflow (or remove in favor of CI)
 
 ## 2. Homebrew Distribution (Phase 2)
