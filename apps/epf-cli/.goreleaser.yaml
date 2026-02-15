@@ -1,0 +1,57 @@
+version: 2
+
+project_name: epf-cli
+
+monorepo:
+  tag_prefix: epf-cli/
+  dir: apps/epf-cli
+
+before:
+  hooks:
+    - ./scripts/sync-embedded.sh
+
+builds:
+  - id: epf-cli
+    binary: epf-cli
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w
+      - -X github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/version.Version={{ .Version }}
+      - -X github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/version.GitCommit={{ .ShortCommit }}
+      - -X github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/version.BuildDate={{ .Date }}
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - id: default
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore\\(deps\\):"
+
+release:
+  name_template: "EPF CLI v{{ .Version }}"
