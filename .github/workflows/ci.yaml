@@ -1,0 +1,52 @@
+name: EPF CLI CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/epf-cli/**"
+      - ".github/workflows/ci.yaml"
+  pull_request:
+    paths:
+      - "apps/epf-cli/**"
+      - ".github/workflows/ci.yaml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Checkout epf-canonical
+        uses: actions/checkout@v4
+        with:
+          repository: emergent-company/epf-canonical
+          path: canonical-epf
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/epf-cli/go.mod
+          cache-dependency-path: apps/epf-cli/go.sum
+
+      - name: Sync embedded artifacts
+        run: ./scripts/sync-embedded.sh "${{ github.workspace }}/canonical-epf"
+        working-directory: apps/epf-cli
+
+      - name: Run tests
+        run: go test ./...
+        working-directory: apps/epf-cli
+
+      - name: Build
+        run: go build -o epf-cli .
+        working-directory: apps/epf-cli
+
+      - name: Verify binary
+        run: ./epf-cli version
+        working-directory: apps/epf-cli
