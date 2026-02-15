@@ -62,8 +62,8 @@ Available keys:
   default_instance  - Default instance name to use
 
 Examples:
-  epf-cli config set canonical_repo git@github.com:eyedea-io/epf-canonical-definition.git
-  epf-cli config set canonical_path /Users/me/code/epf-canonical-definition
+  epf-cli config set canonical_repo git@github.com:emergent-company/epf-canonical.git
+  epf-cli config set canonical_path /Users/me/code/epf-canonical
   epf-cli config set default_instance emergent`,
 	Args: cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {

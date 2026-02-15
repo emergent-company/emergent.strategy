@@ -21,7 +21,7 @@ const (
 	RepoConfigFileName = ".epf.yaml"
 
 	// DefaultCanonicalRepo is the default canonical EPF repository
-	DefaultCanonicalRepo = "git@github.com:eyedea-io/epf-canonical-definition.git"
+	DefaultCanonicalRepo = "git@github.com:emergent-company/epf-canonical.git"
 )
 
 // Config represents the epf-cli configuration
