@@ -1,23 +1,23 @@
 ## Phase 1: Create `emergent-epf` repo
 
-- [ ] 1.1 Create `emergent-company/emergent-epf` repo on GitHub (private)
-- [ ] 1.2 Copy instance files from `emergent-strategy/docs/EPF/_instances/emergent/` to repo root
-- [ ] 1.3 Write `README.md` — purpose, submodule usage instructions, common git commands
-- [ ] 1.4 Write `AGENTS.md` — AI agent instructions for consuming strategy context
-- [ ] 1.5 Verify instance structure: `_epf.yaml`, `READY/`, `FIRE/`, `AIM/` at repo root
-- [ ] 1.6 Push to main and confirm repo is accessible
+- [x] 1.1 Create `emergent-company/emergent-epf` repo on GitHub (private)
+- [x] 1.2 Copy instance files from `emergent-strategy/docs/EPF/_instances/emergent/` to repo root
+- [x] 1.3 Write `README.md` — purpose, submodule usage instructions, common git commands
+- [x] 1.4 Write `AGENTS.md` — AI agent instructions for consuming strategy context
+- [x] 1.5 Verify instance structure: `_epf.yaml`, `READY/`, `FIRE/`, `AIM/` at repo root
+- [x] 1.6 Push to main and confirm repo is accessible
 
 ## Phase 2: Update `emergent-strategy` (this repo)
 
-- [ ] 2.1 Remove `docs/EPF/_instances/emergent/` directory from git
-- [ ] 2.2 Add submodule: `git submodule add https://github.com/emergent-company/emergent-epf.git docs/EPF/_instances/emergent`
-- [ ] 2.3 Verify submodule mounts correctly and EPF instance files appear
-- [ ] 2.4 Update `AGENTS.md` — document the submodule and `git submodule update --init`
-- [ ] 2.5 Update `.opencode/instructions.md` — note submodule dependency
-- [ ] 2.6 Update `docs/EPF/README.md` — reflect new structure
-- [ ] 2.7 Update `docs/EPF/AGENTS.md` — reflect new structure
-- [ ] 2.8 Verify EPF CLI MCP tools work with the submodule path
-- [ ] 2.9 Commit and push
+- [x] 2.1 Remove `docs/EPF/_instances/emergent/` directory from git
+- [x] 2.2 Add submodule: `git submodule add https://github.com/emergent-company/emergent-epf.git docs/EPF/_instances/emergent`
+- [x] 2.3 Verify submodule mounts correctly and EPF instance files appear
+- [x] 2.4 Update `AGENTS.md` — document the submodule and `git submodule update --init`
+- [x] 2.5 Update `.opencode/instructions.md` — note submodule dependency
+- [x] 2.6 Update `docs/EPF/README.md` — reflect new structure
+- [x] 2.7 Update `docs/EPF/AGENTS.md` — reflect new structure
+- [x] 2.8 Verify EPF CLI MCP tools work with the submodule path
+- [x] 2.9 Commit and push
 
 ## Phase 3: Update `emergent-company/emergent`
 
