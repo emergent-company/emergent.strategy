@@ -21,17 +21,18 @@
 
 ## Phase 3: Update `emergent-company/emergent`
 
-- [ ] 3.1 Remove ~401 framework residue files from `docs/EPF/` (schemas, definitions, templates, wizards)
-- [ ] 3.2 Remove stale instance copy from `docs/EPF/_instances/emergent/`
-- [ ] 3.3 Create `docs/EPF/` directory structure if needed for the submodule mount
-- [ ] 3.4 Add submodule: `git submodule add https://github.com/emergent-company/emergent-epf.git docs/EPF/_instances/emergent`
-- [ ] 3.5 Update `AGENTS.md` — document submodule, remove references to framework files
-- [ ] 3.6 Update AI agent configuration (`.opencode/instructions.md` or equivalent)
-- [ ] 3.7 Verify AI agent workflows see the strategy instance
-- [ ] 3.8 Commit and push
+- [x] 3.1 Remove entire `docs/EPF/` directory (406 files: 343 framework + 62 stale instance + 1 README)
+- [x] 3.2 Add submodule: `git submodule add https://github.com/emergent-company/emergent-epf.git docs/EPF/_instances/emergent`
+- [x] 3.3 Update `AGENTS.md` — added EPF Strategy Context section with submodule instructions
+- [x] 3.4 Update `.opencode/instructions.md` — added EPF Strategy Context section
+- [x] 3.5 Verify AI agent workflows see the strategy instance (EPF CLI health check passes 13/15)
+- [x] 3.6 Commit `69b890f` on main
+- [ ] 3.7 Push to remote (blocked: `nikf2001` lacks SSH push access to `emergent-company/emergent`)
+
+Note: MCP server configuration for epf-cli in `emergent` repo deferred — binary is not in PATH and has no portable distribution mechanism yet.
 
 ## Phase 4: Documentation and onboarding pattern
 
-- [ ] 4.1 Document the standard submodule pattern in `emergent-epf/README.md` for new repos
-- [ ] 4.2 Add a section to org-level docs explaining how to add strategy context to a new repo
-- [ ] 4.3 Consider adding lightweight CI check for submodule initialization
+- [x] 4.1 Document the standard submodule pattern in `emergent-epf/README.md` for new repos — added "Onboarding a New Repo" checklist
+- [x] 4.2 Add a section to org-level docs explaining how to add strategy context to a new repo — covered in same README section + consumer repo table
+- [x] 4.3 Add lightweight CI check pattern for submodule initialization — documented GitHub Actions and shell script examples in README
