@@ -19,12 +19,8 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.EPF_CANONICAL_TOKEN }}
 
-      - name: Checkout epf-canonical
-        uses: actions/checkout@v4
-        with:
-          repository: emergent-company/epf-canonical
-          path: ${{ runner.temp }}/canonical-epf
-          token: ${{ secrets.EPF_CANONICAL_TOKEN }}
+      - name: Clone epf-canonical
+        run: git clone --depth 1 https://x-access-token:${{ secrets.EPF_CANONICAL_TOKEN }}@github.com/emergent-company/epf-canonical.git "$RUNNER_TEMP/canonical-epf"
 
       - name: Set up Go
         uses: actions/setup-go@v5
