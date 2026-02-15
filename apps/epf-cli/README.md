@@ -17,6 +17,25 @@ epf-cli is the **normative authority** for EPF operations. It:
 
 ## Installation
 
+### Homebrew (macOS / Linux)
+
+```bash
+brew tap emergent-company/tap
+brew install epf-cli
+```
+
+To upgrade to the latest version:
+
+```bash
+brew upgrade epf-cli
+```
+
+### Download Binary
+
+Pre-built binaries for macOS (arm64/amd64), Linux (arm64/amd64), and Windows (amd64) are available on the [GitHub Releases](https://github.com/emergent-company/emergent.strategy/releases) page.
+
+### Build from Source
+
 ```bash
 cd apps/epf-cli
 go build -o epf-cli .
