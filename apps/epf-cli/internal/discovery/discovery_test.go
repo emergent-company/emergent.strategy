@@ -3,6 +3,7 @@ package discovery
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/anchor"
@@ -284,5 +285,130 @@ func TestConfidenceRank(t *testing.T) {
 
 	if confidenceRank(ConfidenceLow) <= confidenceRank(ConfidenceNone) {
 		t.Error("Low should rank higher than none")
+	}
+}
+
+func TestNormalizePath(t *testing.T) {
+	// sameFile should return false for non-existent paths
+	result := sameFile("/nonexistent/path/a", "/nonexistent/path/b")
+	if result {
+		t.Error("sameFile should return false for non-existent paths")
+	}
+
+	// sameFile should return true for the same directory
+	tmpDir, err := os.MkdirTemp("", "epf-samefile-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	if !sameFile(tmpDir, tmpDir) {
+		t.Error("sameFile should return true for identical paths")
+	}
+
+	// sameFile should return false for different directories
+	tmpDir2, err := os.MkdirTemp("", "epf-samefile-test2")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir2)
+
+	if sameFile(tmpDir, tmpDir2) {
+		t.Error("sameFile should return false for different directories")
+	}
+}
+
+func TestContainsPath_NormalizedComparison(t *testing.T) {
+	// Create a temp directory to get a real path that EvalSymlinks can resolve
+	tmpDir, err := os.MkdirTemp("", "epf-contains-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a subdirectory
+	subDir := filepath.Join(tmpDir, "testdir")
+	os.MkdirAll(subDir, 0755)
+
+	results := []*DiscoveryResult{
+		{Path: subDir},
+	}
+
+	// Same path should be found
+	if !containsPath(results, subDir) {
+		t.Error("containsPath should find exact same path")
+	}
+
+	// Non-existent different path should not be found
+	if containsPath(results, filepath.Join(tmpDir, "otherdir")) {
+		t.Error("containsPath should not find different path")
+	}
+}
+
+func TestGetStandardPaths_DeduplicatesCaseVariants(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "epf-stdpaths-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create docs/EPF (only one variant on disk)
+	docsEPF := filepath.Join(tmpDir, "docs", "EPF")
+	os.MkdirAll(docsEPF, 0755)
+
+	paths := getStandardPaths(tmpDir)
+
+	// Count how many paths contain "docs" + "epf" (case-insensitive)
+	docsEpfCount := 0
+	for _, p := range paths {
+		rel, err := filepath.Rel(tmpDir, p)
+		if err != nil {
+			continue
+		}
+		lower := strings.ToLower(rel)
+		// Match "docs/epf" but not "docs/epf/_instances/..."
+		if lower == filepath.Join("docs", "epf") {
+			docsEpfCount++
+		}
+	}
+
+	if docsEpfCount > 1 {
+		t.Errorf("getStandardPaths should deduplicate case variants of docs/epf, got %d entries", docsEpfCount)
+		for _, p := range paths {
+			t.Logf("  path: %s", p)
+		}
+	}
+}
+
+func TestDiscover_NoDuplicateInstancesOnCaseInsensitiveFS(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "epf-dedup-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create an instance at docs/EPF/_instances/product (use uppercase EPF)
+	instanceDir := filepath.Join(tmpDir, "docs", "EPF", "_instances", "testproduct")
+	os.MkdirAll(instanceDir, 0755)
+	os.MkdirAll(filepath.Join(instanceDir, "READY"), 0755)
+	os.MkdirAll(filepath.Join(instanceDir, "FIRE"), 0755)
+
+	a := anchor.NewWithOptions("TestProduct", "Test Description", "2.11.0")
+	if err := a.Save(instanceDir); err != nil {
+		t.Fatalf("Failed to save anchor: %v", err)
+	}
+
+	results, err := Discover(tmpDir, nil)
+	if err != nil {
+		t.Fatalf("Discover failed: %v", err)
+	}
+
+	// Count instances that refer to the same filesystem directory
+	for i := 0; i < len(results); i++ {
+		for j := i + 1; j < len(results); j++ {
+			if sameFile(results[i].Path, results[j].Path) {
+				t.Errorf("Duplicate instances found:\n  [%d] %s\n  [%d] %s", i, results[i].Path, j, results[j].Path)
+			}
+		}
 	}
 }

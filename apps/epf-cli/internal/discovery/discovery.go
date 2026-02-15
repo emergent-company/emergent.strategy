@@ -111,7 +111,7 @@ func Discover(startDir string, opts *DiscoveryOptions) ([]*DiscoveryResult, erro
 	standardPaths := getStandardPaths(absDir)
 	for _, path := range standardPaths {
 		if result := checkPath(path); result != nil {
-			if shouldInclude(result, opts) {
+			if shouldInclude(result, opts) && !containsPath(results, result.Path) {
 				results = append(results, result)
 			}
 		}
@@ -257,9 +257,11 @@ func checkPath(path string) *DiscoveryResult {
 	return result
 }
 
-// getStandardPaths returns standard locations to check for EPF instances
+// getStandardPaths returns standard locations to check for EPF instances.
+// Deduplicates paths that resolve to the same directory on case-insensitive
+// filesystems (e.g., docs/epf and docs/EPF on macOS).
 func getStandardPaths(startDir string) []string {
-	paths := []string{
+	candidates := []string{
 		startDir,
 		filepath.Join(startDir, "docs", "epf"),
 		filepath.Join(startDir, "docs", "EPF"),
@@ -279,8 +281,23 @@ func getStandardPaths(startDir string) []string {
 		}
 		for _, entry := range entries {
 			if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
-				paths = append(paths, filepath.Join(instanceDir, entry.Name()))
+				candidates = append(candidates, filepath.Join(instanceDir, entry.Name()))
 			}
+		}
+	}
+
+	// Deduplicate using sameFile to handle case-insensitive filesystems
+	var paths []string
+	for _, candidate := range candidates {
+		isDuplicate := false
+		for _, existing := range paths {
+			if sameFile(candidate, existing) {
+				isDuplicate = true
+				break
+			}
+		}
+		if !isDuplicate {
+			paths = append(paths, candidate)
 		}
 	}
 
@@ -344,10 +361,29 @@ func shouldInclude(result *DiscoveryResult, opts *DiscoveryOptions) bool {
 	return true
 }
 
-// containsPath checks if results already contain a path
+// sameFile checks if two paths refer to the same file/directory by comparing
+// their underlying filesystem identity (inode on Unix, file ID on Windows).
+// This correctly handles case-insensitive filesystems where "docs/epf" and
+// "docs/EPF" may refer to the same directory.
+// Returns false if either path doesn't exist or can't be stat'd.
+func sameFile(path1, path2 string) bool {
+	info1, err := os.Stat(path1)
+	if err != nil {
+		return false
+	}
+	info2, err := os.Stat(path2)
+	if err != nil {
+		return false
+	}
+	return os.SameFile(info1, info2)
+}
+
+// containsPath checks if results already contain a path.
+// Uses os.SameFile to handle case-insensitive filesystems where
+// "docs/epf" and "docs/EPF" may refer to the same directory.
 func containsPath(results []*DiscoveryResult, path string) bool {
 	for _, r := range results {
-		if r.Path == path {
+		if r.Path == path || sameFile(r.Path, path) {
 			return true
 		}
 	}
