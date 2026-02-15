@@ -239,3 +239,167 @@ func TestCreateMetaFile(t *testing.T) {
 		t.Error("_meta.yaml is empty")
 	}
 }
+
+// Task 5.5: Test standalone mode — createInstanceStructure at "." level
+func TestCreateInstanceStructure_StandaloneMode(t *testing.T) {
+	// In standalone mode, instanceDir is "." — READY/FIRE/AIM at the root
+	tmpDir := t.TempDir()
+
+	productName := "standalone-product"
+
+	// Call createInstanceStructure with the tmpDir as the instance root
+	// (simulating instanceDir = "." resolved to an absolute path)
+	err := createInstanceStructure(tmpDir, productName, "", true)
+	if err != nil {
+		t.Fatalf("createInstanceStructure failed for standalone mode: %v", err)
+	}
+
+	// Verify READY/FIRE/AIM exist directly under tmpDir (not under docs/EPF/)
+	t.Run("phase directories at root level", func(t *testing.T) {
+		for _, phase := range []string{"READY", "FIRE", "AIM"} {
+			phasePath := filepath.Join(tmpDir, phase)
+			if _, err := os.Stat(phasePath); os.IsNotExist(err) {
+				t.Errorf("Phase directory %s not found at root level", phase)
+			}
+		}
+	})
+
+	// Verify NO docs/EPF wrapper exists
+	t.Run("no docs wrapper in standalone", func(t *testing.T) {
+		docsPath := filepath.Join(tmpDir, "docs")
+		if _, err := os.Stat(docsPath); err == nil {
+			t.Error("docs/ directory should NOT exist in standalone mode")
+		}
+	})
+
+	// Verify anchor file exists at root
+	t.Run("anchor file at root", func(t *testing.T) {
+		anchorPath := filepath.Join(tmpDir, "_epf.yaml")
+		if _, err := os.Stat(anchorPath); os.IsNotExist(err) {
+			t.Error("Anchor file _epf.yaml not found at root")
+		}
+	})
+
+	// Verify anchor file has correct product name
+	t.Run("anchor has correct product name", func(t *testing.T) {
+		a, err := anchor.Load(tmpDir)
+		if err != nil {
+			t.Fatalf("Failed to load anchor: %v", err)
+		}
+		if a.ProductName != productName {
+			t.Errorf("ProductName = %q, want %q", a.ProductName, productName)
+		}
+	})
+
+	// Verify FIRE subdirectories exist at root level
+	t.Run("FIRE subdirs at root level", func(t *testing.T) {
+		for _, dir := range []string{"feature_definitions", "value_models", "workflows"} {
+			dirPath := filepath.Join(tmpDir, "FIRE", dir)
+			if _, err := os.Stat(dirPath); os.IsNotExist(err) {
+				t.Errorf("FIRE subdirectory %s not found", dir)
+			}
+		}
+	})
+
+	// Verify _meta.yaml at root level
+	t.Run("_meta.yaml at root", func(t *testing.T) {
+		metaPath := filepath.Join(tmpDir, "_meta.yaml")
+		if _, err := os.Stat(metaPath); os.IsNotExist(err) {
+			t.Error("_meta.yaml not found at root")
+		}
+	})
+}
+
+// Task 5.6: Test integrated mode — createInstanceStructure under a subdirectory
+func TestCreateInstanceStructure_IntegratedMode(t *testing.T) {
+	// In integrated mode, instanceDir is a subdirectory like docs/EPF/_instances/product
+	tmpDir := t.TempDir()
+
+	productName := "integrated-product"
+	instanceDir := filepath.Join(tmpDir, "docs", "EPF", "_instances", productName)
+
+	err := createInstanceStructure(instanceDir, productName, "", true)
+	if err != nil {
+		t.Fatalf("createInstanceStructure failed for integrated mode: %v", err)
+	}
+
+	// Verify wrapper directory structure exists
+	t.Run("wrapper directories exist", func(t *testing.T) {
+		// docs/EPF/_instances/integrated-product/ should exist
+		if _, err := os.Stat(instanceDir); os.IsNotExist(err) {
+			t.Error("Instance directory not created")
+		}
+		// Intermediate dirs should exist
+		instancesDir := filepath.Join(tmpDir, "docs", "EPF", "_instances")
+		if _, err := os.Stat(instancesDir); os.IsNotExist(err) {
+			t.Error("_instances directory not created")
+		}
+	})
+
+	// Verify READY/FIRE/AIM under the instance subdirectory
+	t.Run("phase directories under instance dir", func(t *testing.T) {
+		for _, phase := range []string{"READY", "FIRE", "AIM"} {
+			phasePath := filepath.Join(instanceDir, phase)
+			if _, err := os.Stat(phasePath); os.IsNotExist(err) {
+				t.Errorf("Phase directory %s not found under instance dir", phase)
+			}
+		}
+	})
+
+	// Verify READY/FIRE/AIM do NOT exist at root (only under instance)
+	t.Run("no phase dirs at root", func(t *testing.T) {
+		for _, phase := range []string{"READY", "FIRE", "AIM"} {
+			rootPhasePath := filepath.Join(tmpDir, phase)
+			if _, err := os.Stat(rootPhasePath); err == nil {
+				t.Errorf("Phase directory %s should NOT exist at root in integrated mode", phase)
+			}
+		}
+	})
+
+	// Verify anchor file under instance directory
+	t.Run("anchor under instance dir", func(t *testing.T) {
+		anchorPath := filepath.Join(instanceDir, "_epf.yaml")
+		if _, err := os.Stat(anchorPath); os.IsNotExist(err) {
+			t.Error("Anchor file _epf.yaml not found under instance dir")
+		}
+	})
+
+	// Verify anchor file content
+	t.Run("anchor valid for integrated mode", func(t *testing.T) {
+		a, err := anchor.Load(instanceDir)
+		if err != nil {
+			t.Fatalf("Failed to load anchor: %v", err)
+		}
+		if a.ProductName != productName {
+			t.Errorf("ProductName = %q, want %q", a.ProductName, productName)
+		}
+		if a.Structure == nil {
+			t.Error("Structure should not be nil")
+		} else if a.Structure.Type != "phased" {
+			t.Errorf("Structure.Type = %q, want %q", a.Structure.Type, "phased")
+		}
+	})
+
+	// Verify FIRE subdirectories under instance
+	t.Run("FIRE subdirs under instance", func(t *testing.T) {
+		for _, dir := range []string{"feature_definitions", "value_models", "workflows"} {
+			dirPath := filepath.Join(instanceDir, "FIRE", dir)
+			if _, err := os.Stat(dirPath); os.IsNotExist(err) {
+				t.Errorf("FIRE subdirectory %s not found under instance dir", dir)
+			}
+			// .gitkeep should also exist
+			gitkeepPath := filepath.Join(dirPath, ".gitkeep")
+			if _, err := os.Stat(gitkeepPath); os.IsNotExist(err) {
+				t.Errorf(".gitkeep not found in %s", dir)
+			}
+		}
+	})
+
+	// Verify outputs directory under instance
+	t.Run("outputs under instance", func(t *testing.T) {
+		outputsPath := filepath.Join(instanceDir, "outputs")
+		if _, err := os.Stat(outputsPath); os.IsNotExist(err) {
+			t.Error("outputs directory not found under instance dir")
+		}
+	})
+}
