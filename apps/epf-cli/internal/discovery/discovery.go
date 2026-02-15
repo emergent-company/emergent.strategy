@@ -286,9 +286,14 @@ func getStandardPaths(startDir string) []string {
 		}
 	}
 
-	// Deduplicate using sameFile to handle case-insensitive filesystems
+	// Deduplicate using sameFile to handle case-insensitive filesystems.
+	// Also skip candidates that don't exist on disk (e.g. docs/epf when only
+	// docs/EPF exists on a case-sensitive filesystem like Linux).
 	var paths []string
 	for _, candidate := range candidates {
+		if _, err := os.Stat(candidate); err != nil {
+			continue // path doesn't exist
+		}
 		isDuplicate := false
 		for _, existing := range paths {
 			if sameFile(candidate, existing) {
