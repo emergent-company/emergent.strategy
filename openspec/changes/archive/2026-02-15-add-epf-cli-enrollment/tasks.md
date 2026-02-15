@@ -32,9 +32,9 @@
 
 - [x] 5.1 Unit tests for `RepoConfig` (config_test.go) — FindRepoRoot, LoadRepoConfig, SaveRepoConfig
 - [x] 5.2 Unit tests for `deriveInstanceName` (enroll_test.go) — 11 table-driven cases
-- [ ] 5.3 Test: `epf enroll` on already-enrolled repo is idempotent
-- [ ] 5.4 Test: config precedence — CLI flag > per-repo > global > auto-detect
-- [ ] 5.5 Test: `epf init --mode standalone` creates correct structure
-- [ ] 5.6 Test: `epf init --mode integrated` behaves identically to current behavior
-- [ ] 5.7 Test: `epf health` shows enrollment status and config source
+- [x] 5.3 Test: `epf enroll` on already-enrolled repo is idempotent
+- [x] 5.4 Test: config precedence — CLI flag > per-repo > global > auto-detect
+- [x] 5.5 Test: `epf init --mode standalone` creates correct structure
+- [x] 5.6 Test: `epf init --mode integrated` behaves identically to current behavior
+- [x] 5.7 Test: `epf health` shows enrollment status and config source
 - [x] 5.8 Run full test suite `go test ./...` and verify no regressions
