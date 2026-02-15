@@ -36,4 +36,5 @@ jobs:
           args: release --clean -f apps/epf-cli/.goreleaser.yaml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAP_GITHUB_TOKEN: ${{ secrets.EPF_CANONICAL_TOKEN }}
           CANONICAL_EPF_PATH: ${{ runner.temp }}/canonical-epf
