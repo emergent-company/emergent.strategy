@@ -10,6 +10,7 @@ import (
 
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/anchor"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/checks"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/config"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/discovery"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/migration"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/validator"
@@ -123,6 +124,9 @@ type HealthResult struct {
 	// Submodule status
 	SubmoduleStatus *SubmoduleCheckResult `json:"submodule_status,omitempty"`
 
+	// Enrollment status (per-repo .epf.yaml configuration)
+	EnrollmentStatus *EnrollmentCheckResult `json:"enrollment_status,omitempty"`
+
 	// Individual check results
 	InstanceCheck    *checks.CheckSummary           `json:"instance_check,omitempty"`
 	SchemaValidation *SchemaValidationSummary       `json:"schema_validation,omitempty"`
@@ -156,6 +160,16 @@ type SubmoduleCheckResult struct {
 	IsSubmodule       bool   `json:"is_submodule"`
 	IsUninitialized   bool   `json:"is_uninitialized"`
 	UninitializedHint string `json:"uninitialized_hint,omitempty"`
+}
+
+// EnrollmentCheckResult represents the result of checking per-repo enrollment configuration
+type EnrollmentCheckResult struct {
+	Enrolled       bool     `json:"enrolled"`
+	InstanceSource string   `json:"instance_source"` // "submodule", "local", "not_found"
+	ConfigSource   string   `json:"config_source"`   // ".epf.yaml", "auto-detected", "none"
+	Mode           string   `json:"mode,omitempty"`
+	ConfigPath     string   `json:"config_path,omitempty"`
+	Warnings       []string `json:"warnings,omitempty"`
 }
 
 // HealthWorkflowGuidance provides planning recommendations based on health check results
@@ -273,6 +287,15 @@ func runHealthCheck(instancePath string, schemasPath string) *HealthResult {
 	}
 	if !healthJSON {
 		printSubmoduleStatus(result.SubmoduleStatus)
+	}
+
+	// 1b. Enrollment Status Check (per-repo .epf.yaml configuration)
+	result.EnrollmentStatus = checkEnrollmentStatus(instancePath)
+	if len(result.EnrollmentStatus.Warnings) > 0 {
+		result.HasWarnings = true
+	}
+	if !healthJSON {
+		printEnrollmentStatus(result.EnrollmentStatus)
 	}
 
 	// 1. Instance Structure Check
@@ -1527,6 +1550,116 @@ func printSubmoduleStatus(status *SubmoduleCheckResult) {
 		fmt.Println()
 	}
 	// Don't print anything when not a submodule — keep output clean
+}
+
+// checkEnrollmentStatus checks the per-repo .epf.yaml enrollment configuration
+// and cross-checks it against the filesystem state.
+func checkEnrollmentStatus(instancePath string) *EnrollmentCheckResult {
+	result := &EnrollmentCheckResult{}
+
+	// Get per-repo config
+	repoCfg, repoRootPath := GetRepoConfig()
+
+	// Determine config source
+	if repoCfg != nil {
+		result.Enrolled = true
+		result.ConfigSource = ".epf.yaml"
+		result.ConfigPath = filepath.Join(repoRootPath, config.RepoConfigFileName)
+		result.Mode = repoCfg.Mode
+
+		// Cross-check: does the configured instance path actually exist?
+		if repoCfg.InstancePath != "" {
+			configuredPath := filepath.Join(repoRootPath, repoCfg.InstancePath)
+			absConfiguredPath, _ := filepath.Abs(configuredPath)
+			absInstancePath, _ := filepath.Abs(instancePath)
+
+			if _, err := os.Stat(configuredPath); os.IsNotExist(err) {
+				result.Warnings = append(result.Warnings,
+					fmt.Sprintf("configured instance_path %q does not exist on disk", repoCfg.InstancePath))
+			} else if absConfiguredPath != absInstancePath {
+				result.Warnings = append(result.Warnings,
+					fmt.Sprintf("running health on %q but .epf.yaml points to %q",
+						instancePath, repoCfg.InstancePath))
+			}
+		}
+
+		// Cross-check: mode vs filesystem reality
+		if repoCfg.Mode == "submodule" {
+			// Check if it's actually a submodule
+			isSubmodule := false
+			current := instancePath
+			for {
+				if discovery.IsSubmodule(current) {
+					isSubmodule = true
+					break
+				}
+				parent := filepath.Dir(current)
+				if parent == current {
+					break
+				}
+				current = parent
+			}
+			if !isSubmodule {
+				result.Warnings = append(result.Warnings,
+					"mode is \"submodule\" but instance is not inside a git submodule")
+			}
+		}
+
+		if repoCfg.Mode == "standalone" {
+			// In standalone mode, instance path should be "." or repo root
+			absInstancePath, _ := filepath.Abs(instancePath)
+			absRepoRoot, _ := filepath.Abs(repoRootPath)
+			if absInstancePath != absRepoRoot {
+				result.Warnings = append(result.Warnings,
+					fmt.Sprintf("mode is \"standalone\" but instance is not at repo root (%s)", repoRootPath))
+			}
+		}
+	} else {
+		result.ConfigSource = "none"
+	}
+
+	// Determine instance source (submodule vs local)
+	isSubmodule := false
+	current := instancePath
+	for {
+		if discovery.IsSubmodule(current) {
+			isSubmodule = true
+			break
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+		current = parent
+	}
+
+	if isSubmodule {
+		result.InstanceSource = "submodule"
+	} else if _, err := os.Stat(instancePath); err == nil {
+		result.InstanceSource = "local"
+	} else {
+		result.InstanceSource = "not_found"
+	}
+
+	return result
+}
+
+// printEnrollmentStatus prints the enrollment check result
+func printEnrollmentStatus(status *EnrollmentCheckResult) {
+	if status.Enrolled {
+		modeStr := ""
+		if status.Mode != "" {
+			modeStr = fmt.Sprintf(", mode: %s", status.Mode)
+		}
+		fmt.Printf("  ℹ️  Enrollment: configured (source: %s%s)\n", status.InstanceSource, modeStr)
+		if len(status.Warnings) > 0 {
+			for _, w := range status.Warnings {
+				fmt.Printf("  ⚠️  %s\n", w)
+			}
+		}
+		fmt.Println()
+	}
+	// Don't print anything when not enrolled — keep output clean
 }
 
 func init() {

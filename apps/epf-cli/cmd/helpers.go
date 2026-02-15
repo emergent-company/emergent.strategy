@@ -15,6 +15,8 @@ import (
 var (
 	cliConfig  *config.Config
 	epfContext *epfcontext.Context
+	repoConfig *config.RepoConfig
+	repoRoot   string
 )
 
 // InitGlobals initializes the global config and context
@@ -25,6 +27,9 @@ func InitGlobals() error {
 		// Non-fatal - config may not exist yet
 		cliConfig = &config.Config{}
 	}
+
+	// Load per-repo .epf.yaml if present
+	repoConfig, repoRoot, _ = config.LoadRepoConfigFromCwd()
 
 	// Try to detect context from current directory
 	cwd, err := os.Getwd()
@@ -49,7 +54,22 @@ func GetSchemasDir() (string, error) {
 		}
 	}
 
-	// Priority 3: detected EPF context
+	// Priority 3: per-repo .epf.yaml schemas=local — look for schemas relative to instance
+	if repoConfig != nil && repoConfig.Schemas == "local" && repoConfig.InstancePath != "" && repoRoot != "" {
+		instanceAbs := filepath.Join(repoRoot, repoConfig.InstancePath)
+		// Walk up from instance path looking for a sibling schemas/ dir
+		for _, candidate := range []string{
+			filepath.Join(filepath.Dir(instanceAbs), "..", "schemas"),         // e.g. docs/EPF/schemas
+			filepath.Join(filepath.Dir(filepath.Dir(instanceAbs)), "schemas"), // e.g. docs/EPF/schemas (from _instances/x)
+		} {
+			if _, err := os.Stat(candidate); err == nil {
+				absCandidate, _ := filepath.Abs(candidate)
+				return absCandidate, nil
+			}
+		}
+	}
+
+	// Priority 4: detected EPF context
 	if epfContext != nil && epfContext.EPFRoot != "" {
 		schemasPath := filepath.Join(epfContext.EPFRoot, "schemas")
 		if _, err := os.Stat(schemasPath); err == nil {
@@ -57,7 +77,7 @@ func GetSchemasDir() (string, error) {
 		}
 	}
 
-	// Priority 4: look relative to current directory
+	// Priority 5: look relative to current directory
 	cwd, err := os.Getwd()
 	if err == nil {
 		// Try docs/EPF/schemas
@@ -153,6 +173,16 @@ func GetInstancePath(arg interface{}) (string, error) {
 	}
 
 	// No instance name - try to auto-detect
+
+	// Priority 1: per-repo .epf.yaml instance_path
+	if repoConfig != nil && repoConfig.InstancePath != "" && repoRoot != "" {
+		instanceAbs := filepath.Join(repoRoot, repoConfig.InstancePath)
+		if _, err := os.Stat(instanceAbs); err == nil {
+			return instanceAbs, nil
+		}
+	}
+
+	// Priority 2: epfContext auto-detection
 	if epfContext != nil && epfContext.InstancePath != "" {
 		return epfContext.InstancePath, nil
 	}
@@ -173,6 +203,11 @@ func GetInstancePath(arg interface{}) (string, error) {
 // GetContext returns the detected EPF context
 func GetContext() *epfcontext.Context {
 	return epfContext
+}
+
+// GetRepoConfig returns the per-repo EPF configuration and repo root path
+func GetRepoConfig() (*config.RepoConfig, string) {
+	return repoConfig, repoRoot
 }
 
 // PrintContext prints the detected EPF context

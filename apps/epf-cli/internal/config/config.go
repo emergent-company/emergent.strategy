@@ -17,6 +17,9 @@ const (
 	// DefaultConfigFileName is the default configuration file name
 	DefaultConfigFileName = ".epf-cli.yaml"
 
+	// RepoConfigFileName is the per-repo configuration file name
+	RepoConfigFileName = ".epf.yaml"
+
 	// DefaultCanonicalRepo is the default canonical EPF repository
 	DefaultCanonicalRepo = "git@github.com:eyedea-io/epf-canonical-definition.git"
 )
@@ -187,4 +190,94 @@ func EnsureConfigured(reader *bufio.Reader) (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+// RepoConfig represents the per-repo EPF configuration stored in .epf.yaml at repo root
+type RepoConfig struct {
+	// InstancePath is the relative path from repo root to the EPF instance directory
+	InstancePath string `yaml:"instance_path,omitempty"`
+
+	// Mode describes how the instance is managed: integrated, submodule, or standalone
+	Mode string `yaml:"mode,omitempty"`
+
+	// Schemas describes where schemas are loaded from: embedded or local
+	Schemas string `yaml:"schemas,omitempty"`
+}
+
+// FindRepoRoot walks up from startDir to find the nearest directory containing .git,
+// then checks for .epf.yaml adjacent to it. Returns the repo root path, or empty string if not found.
+func FindRepoRoot(startDir string) string {
+	dir, err := filepath.Abs(startDir)
+	if err != nil {
+		return ""
+	}
+
+	for {
+		gitPath := filepath.Join(dir, ".git")
+		if _, err := os.Stat(gitPath); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break // Reached filesystem root
+		}
+		dir = parent
+	}
+	return ""
+}
+
+// LoadRepoConfig loads the per-repo .epf.yaml configuration from the given directory.
+// Returns nil (not an error) if the file does not exist.
+func LoadRepoConfig(dir string) (*RepoConfig, error) {
+	path := filepath.Join(dir, RepoConfigFileName)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to read repo config: %w", err)
+	}
+
+	cfg := &RepoConfig{}
+	if err := yaml.Unmarshal(data, cfg); err != nil {
+		return nil, fmt.Errorf("failed to parse repo config %s: %w", path, err)
+	}
+	return cfg, nil
+}
+
+// LoadRepoConfigFromCwd finds the repo root from the current working directory
+// and loads the per-repo config if it exists. Returns (config, repoRoot, error).
+// Config may be nil if no .epf.yaml exists.
+func LoadRepoConfigFromCwd() (*RepoConfig, string, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	repoRoot := FindRepoRoot(cwd)
+	if repoRoot == "" {
+		return nil, "", nil
+	}
+
+	cfg, err := LoadRepoConfig(repoRoot)
+	if err != nil {
+		return nil, repoRoot, err
+	}
+	return cfg, repoRoot, nil
+}
+
+// SaveRepoConfig writes the per-repo .epf.yaml configuration to the given directory.
+func (rc *RepoConfig) SaveRepoConfig(dir string) error {
+	data, err := yaml.Marshal(rc)
+	if err != nil {
+		return fmt.Errorf("failed to serialize repo config: %w", err)
+	}
+
+	content := "# .epf.yaml — per-repo EPF configuration\n# Created by: epf enroll\n# See: https://github.com/emergent-company/emergent-strategy/tree/main/apps/epf-cli\n\n" + string(data)
+
+	path := filepath.Join(dir, RepoConfigFileName)
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		return fmt.Errorf("failed to write repo config: %w", err)
+	}
+	return nil
 }

@@ -18,6 +18,7 @@ import (
 
 var (
 	initForce bool
+	initMode  string // "integrated" (default) or "standalone"
 )
 
 var initCmd = &cobra.Command{
@@ -25,10 +26,15 @@ var initCmd = &cobra.Command{
 	Short: "Initialize EPF for a product repository",
 	Long: `Initialize EPF (Emergent Product Framework) for a product repository.
 
-This command sets up a SIMPLIFIED EPF structure in your product repo:
-  1. Creates docs/EPF/ with minimal files (AGENTS.md, README.md, .gitignore)
-  2. Creates an instance for your product in docs/EPF/_instances/{product}/
-  3. Sets up the READY/FIRE/AIM directory structure with starter templates
+Modes:
+  --mode integrated (default):
+    Creates docs/EPF/ with minimal files (AGENTS.md, README.md, .gitignore)
+    and an instance in docs/EPF/_instances/{product}/ with READY/FIRE/AIM.
+
+  --mode standalone:
+    Creates READY/FIRE/AIM directly in the current directory. No docs/EPF/ wrapper.
+    For repos that ARE the EPF instance (e.g., a dedicated strategy repo).
+    Also creates .epf.yaml at the repo root with mode: standalone.
 
 The canonical EPF (schemas, templates, wizards, generators) is NOT copied.
 Instead, epf-cli loads these from the configured canonical_path at runtime.
@@ -38,8 +44,9 @@ Prerequisites:
   - epf-cli configured with canonical_path (run 'epf-cli config init' first)
 
 Examples:
-  epf-cli init my-product           # Initialize EPF for 'my-product'
-  epf-cli init acme --force         # Overwrite existing instance`,
+  epf-cli init my-product                    # Integrated mode (default)
+  epf-cli init acme --force                  # Overwrite existing instance
+  epf-cli init my-strategy --mode standalone # Standalone instance at current dir`,
 	Args: cobra.ExactArgs(1),
 	Run:  runInit,
 }
@@ -57,6 +64,12 @@ func runInit(cmd *cobra.Command, args []string) {
 	if !isValidProductName(productName) {
 		fmt.Fprintf(os.Stderr, "Error: Invalid product name '%s'\n", productName)
 		fmt.Fprintln(os.Stderr, "Product name must be lowercase alphanumeric with hyphens (e.g., 'my-product')")
+		os.Exit(1)
+	}
+
+	// Validate mode
+	if initMode != "integrated" && initMode != "standalone" {
+		fmt.Fprintf(os.Stderr, "Error: Invalid mode '%s'. Must be 'integrated' or 'standalone'\n", initMode)
 		os.Exit(1)
 	}
 
@@ -113,11 +126,85 @@ func runInit(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	fmt.Printf("Initializing EPF for '%s'\n", productName)
+	fmt.Printf("Initializing EPF for '%s' (mode: %s)\n", productName, initMode)
 	fmt.Println("========================================")
 	fmt.Println()
 
-	// Step 1: Create simplified EPF directory structure
+	if initMode == "standalone" {
+		// Standalone mode: create instance directly in current directory
+		// No docs/EPF/ wrapper — this repo IS the instance
+		instanceDir := "."
+
+		// Check if READY/ already exists (proxy for "already initialized")
+		if _, err := os.Stat(filepath.Join(instanceDir, "READY")); err == nil {
+			if !initForce {
+				fmt.Fprintln(os.Stderr, "Error: Standalone instance already exists (READY/ directory found)")
+				fmt.Fprintln(os.Stderr, "Use --force to overwrite")
+				os.Exit(1)
+			}
+			fmt.Println("Removing existing instance structure...")
+			for _, dir := range []string{"READY", "FIRE", "AIM"} {
+				os.RemoveAll(filepath.Join(instanceDir, dir))
+			}
+		}
+
+		fmt.Println("Creating standalone EPF instance...")
+
+		if err := createInstanceStructure(instanceDir, productName, canonicalPath, useEmbedded); err != nil {
+			fmt.Fprintf(os.Stderr, "Error creating instance: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Create .epf.yaml at repo root
+		cwd, _ := os.Getwd()
+		repoRoot := config.FindRepoRoot(cwd)
+		if repoRoot == "" {
+			repoRoot = "."
+		}
+		rc := &config.RepoConfig{
+			InstancePath: ".",
+			Mode:         "standalone",
+			Schemas:      "embedded",
+		}
+		if err := rc.SaveRepoConfig(repoRoot); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: Could not create .epf.yaml: %v\n", err)
+		}
+
+		fmt.Println()
+		fmt.Println("========================================")
+		fmt.Println("✓ EPF initialized successfully! (standalone mode)")
+		fmt.Println()
+		fmt.Println("Structure created:")
+		fmt.Println("  ./")
+		fmt.Println("  ├── _epf.yaml    (anchor file - EPF instance marker)")
+		fmt.Println("  ├── READY/       (strategic artifacts)")
+		fmt.Println("  ├── FIRE/        (execution artifacts)")
+		fmt.Println("  │   ├── value_models/  (4 tracks: Product, Strategy, OrgOps, Commercial)")
+		fmt.Println("  │   └── feature_definitions/")
+		fmt.Println("  ├── AIM/         (assessment artifacts)")
+		fmt.Println("  ├── _meta.yaml   (instance metadata)")
+		fmt.Println("  └── .epf.yaml    (per-repo config: mode=standalone)")
+		fmt.Println()
+		if useEmbedded {
+			fmt.Printf("Templates loaded from embedded EPF v%s\n\n", embedded.GetVersion())
+		} else {
+			fmt.Println("Canonical EPF loaded from:")
+			fmt.Printf("  %s\n\n", canonicalPath)
+		}
+		fmt.Println("Next steps:")
+		fmt.Println("  1. Edit _meta.yaml with your product details")
+		fmt.Println("  2. Edit READY/00_north_star.yaml with your vision")
+		fmt.Println("  3. Run 'epf-cli health' to validate your setup")
+		fmt.Println()
+		fmt.Println("For AI assistance, configure your MCP client:")
+		fmt.Println("  epf-cli serve")
+		fmt.Println()
+
+		printPostInitGuidance(instanceDir, productName)
+		return
+	}
+
+	// Integrated mode (default): create docs/EPF/ wrapper + instance
 	epfDir := filepath.Join("docs", "EPF")
 	instanceDir := filepath.Join(epfDir, "_instances", productName)
 
@@ -779,4 +866,5 @@ func printPostInitGuidance(instanceDir, productName string) {
 func init() {
 	rootCmd.AddCommand(initCmd)
 	initCmd.Flags().BoolVarP(&initForce, "force", "f", false, "overwrite existing instance")
+	initCmd.Flags().StringVar(&initMode, "mode", "integrated", "initialization mode: integrated (default) or standalone")
 }
