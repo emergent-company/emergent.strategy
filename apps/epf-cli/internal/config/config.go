@@ -34,6 +34,10 @@ type Config struct {
 
 	// DefaultInstance is the default instance name to use when not specified
 	DefaultInstance string `yaml:"default_instance,omitempty"`
+
+	// UpdateCheck controls automatic update checking on startup.
+	// Set to false to disable. Default is true (enabled).
+	UpdateCheck *bool `yaml:"update_check,omitempty"`
 }
 
 // ConfigPath returns the path to the configuration file
@@ -116,6 +120,24 @@ func (c *Config) GetCanonicalSource() (string, bool, error) {
 // IsConfigured returns true if the config has been set up
 func (c *Config) IsConfigured() bool {
 	return c.CanonicalRepo != "" || c.CanonicalPath != ""
+}
+
+// IsUpdateCheckEnabled returns true if automatic update checking is enabled.
+// Checks the EPF_CLI_NO_UPDATE_CHECK env var first, then the config file.
+// Defaults to true (enabled) if neither is set.
+func (c *Config) IsUpdateCheckEnabled() bool {
+	// Environment variable takes precedence
+	if os.Getenv("EPF_CLI_NO_UPDATE_CHECK") == "1" || os.Getenv("EPF_CLI_NO_UPDATE_CHECK") == "true" {
+		return false
+	}
+
+	// Config file setting
+	if c.UpdateCheck != nil {
+		return *c.UpdateCheck
+	}
+
+	// Default: enabled
+	return true
 }
 
 // PromptForConfig interactively prompts the user for configuration
