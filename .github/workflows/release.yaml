@@ -17,6 +17,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.EPF_CANONICAL_TOKEN }}
 
       - name: Checkout epf-canonical
         uses: actions/checkout@v4

@@ -22,6 +22,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.EPF_CANONICAL_TOKEN }}
+          submodules: true
 
       - name: Checkout epf-canonical
         uses: actions/checkout@v4
