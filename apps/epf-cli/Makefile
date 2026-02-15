@@ -1,8 +1,17 @@
 # EPF-CLI Makefile
 #
-# This Makefile provides commands for building and testing epf-cli.
+# This Makefile provides commands for building and testing epf-cli locally.
 # The key feature is the embedded EPF framework artifacts which make
 # the CLI self-contained and usable without external dependencies.
+#
+# PRODUCTION RELEASES are handled by GoReleaser CI:
+#   1. Bump VERSION file and commit
+#   2. Tag: git tag v$(cat VERSION) && git push --tags
+#   3. GitHub Actions (.github/workflows/release.yaml) runs GoReleaser
+#   4. Binaries published to GitHub Releases + Homebrew formula pushed
+#
+# The `build-all` and `release` targets below are for LOCAL development
+# and testing only. They are NOT used for production releases.
 
 # Variables
 BINARY_NAME=epf-cli
@@ -131,12 +140,15 @@ help:
 	@echo ""
 	@echo "Usage: make [target]"
 	@echo ""
-	@echo "Targets:"
+	@echo "Production releases:"
+	@echo "  Production builds use GoReleaser CI (not this Makefile)."
+	@echo "  To release: bump VERSION, commit, then: git tag v\$$(cat VERSION) && git push --tags"
+	@echo "  See .github/workflows/release.yaml for details."
+	@echo ""
+	@echo "Local development targets:"
 	@echo "  build          - Sync embedded artifacts and build the binary (default)"
 	@echo "  build-quick    - Build without syncing embedded artifacts"
 	@echo "  dist-local     - Build darwin/arm64 into dist/ for local distribution"
-	@echo "  build-all      - Build for all platforms (darwin, linux, windows)"
-	@echo "  release        - Create dist/ with versioned release binaries"
 	@echo "  sync-embedded  - Copy canonical EPF artifacts to internal/embedded/"
 	@echo "  clean          - Remove build artifacts and embedded files"
 	@echo "  clean-dist     - Remove dist/ directory only"
@@ -149,11 +161,15 @@ help:
 	@echo "  check-embedded - Show status of embedded artifacts"
 	@echo "  help           - Show this help"
 	@echo ""
+	@echo "Local-only (dev/testing, NOT for production releases):"
+	@echo "  build-all      - Cross-compile for all platforms locally"
+	@echo "  release        - Create local dist/ with versioned binaries + checksums"
+	@echo ""
 	@echo "Environment variables:"
 	@echo "  CANONICAL_EPF  - Path to canonical-epf repo (default: ../../../canonical-epf)"
 	@echo "  VERSION        - Version string (default: read from VERSION file)"
 
-# Build for all platforms
+# Build for all platforms (LOCAL DEV ONLY — production releases use GoReleaser CI)
 build-all: sync-embedded
 	@./scripts/check-version.sh
 	@echo "Building $(BINARY_NAME) $(VERSION) for all platforms..."
@@ -169,7 +185,7 @@ build-all: sync-embedded
 	@echo "Built binaries in $(DIST_DIR)/"
 	@ls -la $(DIST_DIR)/
 
-# Create release with checksums
+# Create release with checksums (LOCAL DEV ONLY — production releases use GoReleaser CI)
 release: clean-dist
 	@./scripts/check-version.sh --strict
 	@$(MAKE) build-all

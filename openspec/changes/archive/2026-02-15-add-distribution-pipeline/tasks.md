@@ -8,7 +8,7 @@
 - [x] 0.6 Update `cmd/config.go` and `cmd/init.go` — update example URLs in help text
 - [x] 0.7 ~~Update `AGENTS.md`~~ — audited: both copies reference `canonical-epf/` as directory name (correct)
 - [x] 0.8 ~~Update docs references~~ — audited: `docs/EPF/AGENTS.md` and `README.md` use config path, not repo URL
-- [ ] 0.9 Update openspec archived specs/proposals that reference eyedea-io repos (deferred — cosmetic only)
+- [x] 0.9 ~~Update openspec archived specs/proposals that reference eyedea-io repos~~ — no eyedea-io references found in repo (`rg` search returned zero results)
 - [x] 0.10 Update local remote: `git remote set-url origin` in canonical-epf working copy
 - [x] 0.11 Verify: `make build` still works with updated paths
 - [x] 0.12 Commit all reference updates, push to main
@@ -21,7 +21,7 @@
 - [x] 1.4 Create `.github/workflows/release.yaml` — triggered on `v*` tags, runs GoReleaser
 - [x] 1.5 Configure GoReleaser to run `sync-embedded` as a before hook (uses CANONICAL_EPF_PATH env)
 - [x] 1.6 Test: tag `v0.12.4`, verify GitHub Release created with binaries for all 5 platform/arch combos
-- [ ] 1.7 Update Makefile `release` target to document GoReleaser workflow (or remove in favor of CI)
+- [x] 1.7 Update Makefile to document GoReleaser CI workflow and mark `release`/`build-all` as local dev only
 
 ## 2. Homebrew Distribution (Phase 2)
 
