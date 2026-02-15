@@ -10,6 +10,7 @@ import (
 
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/anchor"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/checks"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/discovery"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/migration"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/validator"
 	"github.com/spf13/cobra"
@@ -119,6 +120,9 @@ type HealthResult struct {
 	// Anchor file status
 	AnchorStatus *AnchorCheckResult `json:"anchor_status,omitempty"`
 
+	// Submodule status
+	SubmoduleStatus *SubmoduleCheckResult `json:"submodule_status,omitempty"`
+
 	// Individual check results
 	InstanceCheck    *checks.CheckSummary           `json:"instance_check,omitempty"`
 	SchemaValidation *SchemaValidationSummary       `json:"schema_validation,omitempty"`
@@ -145,6 +149,13 @@ type AnchorCheckResult struct {
 	InstanceID  string                   `json:"instance_id,omitempty"`
 	Warnings    []string                 `json:"warnings,omitempty"`
 	Suggestions []string                 `json:"suggestions,omitempty"`
+}
+
+// SubmoduleCheckResult represents the result of checking submodule status
+type SubmoduleCheckResult struct {
+	IsSubmodule       bool   `json:"is_submodule"`
+	IsUninitialized   bool   `json:"is_uninitialized"`
+	UninitializedHint string `json:"uninitialized_hint,omitempty"`
 }
 
 // HealthWorkflowGuidance provides planning recommendations based on health check results
@@ -253,6 +264,15 @@ func runHealthCheck(instancePath string, schemasPath string) *HealthResult {
 
 	if !healthJSON {
 		printAnchorCheckSummary(result.AnchorStatus)
+	}
+
+	// 1a. Submodule Status Check
+	result.SubmoduleStatus = checkSubmoduleStatus(instancePath)
+	if result.SubmoduleStatus.IsUninitialized {
+		result.HasWarnings = true
+	}
+	if !healthJSON {
+		printSubmoduleStatus(result.SubmoduleStatus)
 	}
 
 	// 1. Instance Structure Check
@@ -1463,6 +1483,50 @@ func printAnchorCheckSummary(status *AnchorCheckResult) {
 	}
 
 	fmt.Println()
+}
+
+// checkSubmoduleStatus checks if the instance path is inside a git submodule
+func checkSubmoduleStatus(instancePath string) *SubmoduleCheckResult {
+	result := &SubmoduleCheckResult{}
+
+	// Walk up from instance path to find the repo root containing .git
+	// Check the instance path itself and parent directories
+	current := instancePath
+	for {
+		if discovery.IsSubmodule(current) {
+			result.IsSubmodule = true
+			return result
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+		current = parent
+	}
+
+	// Check if the instance path looks like an uninitialized submodule
+	uninit, hint := discovery.IsUninitializedSubmodule(instancePath)
+	if uninit {
+		result.IsUninitialized = true
+		result.UninitializedHint = hint
+	}
+
+	return result
+}
+
+// printSubmoduleStatus prints the submodule check result
+func printSubmoduleStatus(status *SubmoduleCheckResult) {
+	if status.IsSubmodule {
+		fmt.Println("  ℹ️  Submodule: yes (EPF instance is inside a git submodule)")
+		fmt.Println()
+	} else if status.IsUninitialized {
+		fmt.Println("  ⚠️ Submodule: uninitialized")
+		if status.UninitializedHint != "" {
+			fmt.Printf("    %s\n", status.UninitializedHint)
+		}
+		fmt.Println()
+	}
+	// Don't print anything when not a submodule — keep output clean
 }
 
 func init() {

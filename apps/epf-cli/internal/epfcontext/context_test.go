@@ -426,3 +426,111 @@ func TestDiscoverInstances(t *testing.T) {
 		t.Errorf("Expected 'valid-instance', got: %s", instances[0])
 	}
 }
+
+// Task 4.1: Test Detect() finds instance in integrated repo WITH schemas/ (backward compat)
+func TestDetect_IntegratedRepoWithSchemas(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create integrated repo structure: docs/EPF/schemas/ + docs/EPF/_instances/product/READY/
+	schemasDir := filepath.Join(tmpDir, "docs", "EPF", "schemas")
+	instanceDir := filepath.Join(tmpDir, "docs", "EPF", "_instances", "my-product", "READY")
+
+	if err := os.MkdirAll(schemasDir, 0755); err != nil {
+		t.Fatalf("Failed to create schemas dir: %v", err)
+	}
+	if err := os.MkdirAll(instanceDir, 0755); err != nil {
+		t.Fatalf("Failed to create instance dir: %v", err)
+	}
+
+	ctx, err := Detect(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to detect context: %v", err)
+	}
+
+	if ctx.Type != ContextProductRepo {
+		t.Errorf("Expected ContextProductRepo, got: %s", ctx.Type)
+	}
+
+	if len(ctx.Instances) != 1 {
+		t.Errorf("Expected 1 instance, got: %d", len(ctx.Instances))
+	}
+
+	if ctx.CurrentInstance != "my-product" {
+		t.Errorf("Expected CurrentInstance 'my-product', got: %s", ctx.CurrentInstance)
+	}
+
+	// SchemasDir should be set since schemas/ exists
+	if ctx.SchemasDir == "" {
+		t.Error("Expected SchemasDir to be set when schemas/ exists")
+	}
+}
+
+// Task 4.2: Test Detect() finds instance in consumer repo WITHOUT schemas/
+func TestDetect_ConsumerRepoWithoutSchemas(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create consumer repo structure: docs/EPF/_instances/product/READY/ but NO schemas/
+	instanceDir := filepath.Join(tmpDir, "docs", "EPF", "_instances", "my-product", "READY")
+
+	if err := os.MkdirAll(instanceDir, 0755); err != nil {
+		t.Fatalf("Failed to create instance dir: %v", err)
+	}
+
+	ctx, err := Detect(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to detect context: %v", err)
+	}
+
+	if ctx.Type != ContextProductRepo {
+		t.Errorf("Expected ContextProductRepo, got: %s", ctx.Type)
+	}
+
+	if len(ctx.Instances) != 1 {
+		t.Errorf("Expected 1 instance, got: %d", len(ctx.Instances))
+	}
+
+	if ctx.CurrentInstance != "my-product" {
+		t.Errorf("Expected CurrentInstance 'my-product', got: %s", ctx.CurrentInstance)
+	}
+
+	// SchemasDir should be EMPTY since schemas/ does not exist
+	if ctx.SchemasDir != "" {
+		t.Errorf("Expected SchemasDir to be empty when schemas/ absent, got: %s", ctx.SchemasDir)
+	}
+
+	// EPFRoot should still be set to the docs/EPF directory
+	if ctx.EPFRoot == "" {
+		t.Error("Expected EPFRoot to be set")
+	}
+}
+
+// Test isEPFRoot helper
+func TestIsEPFRoot(t *testing.T) {
+	// With _instances/ only (consumer repo scenario)
+	tmpDir := t.TempDir()
+	os.MkdirAll(filepath.Join(tmpDir, "_instances"), 0755)
+	if !isEPFRoot(tmpDir) {
+		t.Error("Expected isEPFRoot() = true for directory with _instances/")
+	}
+
+	// With schemas/ only (canonical EPF scenario)
+	tmpDir2 := t.TempDir()
+	os.MkdirAll(filepath.Join(tmpDir2, "schemas"), 0755)
+	if !isEPFRoot(tmpDir2) {
+		t.Error("Expected isEPFRoot() = true for directory with schemas/")
+	}
+
+	// With neither
+	tmpDir3 := t.TempDir()
+	if isEPFRoot(tmpDir3) {
+		t.Error("Expected isEPFRoot() = false for empty directory")
+	}
+
+	// With both (integrated repo)
+	tmpDir4 := t.TempDir()
+	os.MkdirAll(filepath.Join(tmpDir4, "_instances"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir4, "schemas"), 0755)
+	if !isEPFRoot(tmpDir4) {
+		t.Error("Expected isEPFRoot() = true for directory with both _instances/ and schemas/")
+	}
+}

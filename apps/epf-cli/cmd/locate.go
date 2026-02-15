@@ -230,6 +230,14 @@ func printInstance(r *discovery.DiscoveryResult, searchPath string, verbose bool
 	// Print confidence
 	fmt.Printf("       Confidence: %s\n", r.Confidence)
 
+	// Print submodule indicator
+	if discovery.IsSubmodule(r.Path) {
+		fmt.Printf("       Submodule: yes\n")
+	} else if uninit, hint := discovery.IsUninitializedSubmodule(r.Path); uninit {
+		fmt.Printf("       Submodule: uninitialized\n")
+		fmt.Printf("       Hint: %s\n", hint)
+	}
+
 	// Print markers
 	if len(r.Markers) > 0 {
 		fmt.Printf("       Markers: %s\n", strings.Join(r.Markers, ", "))
