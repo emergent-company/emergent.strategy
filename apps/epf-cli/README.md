@@ -41,6 +41,37 @@ cd apps/epf-cli
 go build -o epf-cli .
 ```
 
+### Update Notifications
+
+epf-cli automatically checks for new versions once every 24 hours. When a new version is available, a notice is printed to stderr:
+
+```
+  A new version of epf-cli is available: 0.12.6 → 0.13.0
+  Update with: brew upgrade epf-cli
+  Release: https://github.com/emergent-company/emergent.strategy/releases/tag/v0.13.0
+  Disable: EPF_CLI_NO_UPDATE_CHECK=1 or set update_check: false in ~/.epf-cli/config.yaml
+```
+
+To disable update checks:
+
+```bash
+# Environment variable
+export EPF_CLI_NO_UPDATE_CHECK=1
+
+# Or in config file (~/.epf-cli/config.yaml)
+update_check: false
+```
+
+### Self-Update (Standalone Installs)
+
+If you installed via direct binary download (not Homebrew):
+
+```bash
+epf-cli update
+```
+
+This downloads the latest release, verifies the SHA256 checksum, and replaces the current binary. Homebrew users should use `brew upgrade epf-cli` instead.
+
 ## Quick Start for AI Agents
 
 ```bash
