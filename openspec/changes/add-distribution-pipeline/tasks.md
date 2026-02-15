@@ -29,7 +29,7 @@
 - [x] 2.2 Add Homebrew tap config to `.goreleaser.yaml` (formula generation + push to tap repo)
 - [x] 2.3 Configure GitHub token for GoReleaser to push formula (reuse EPF_CANONICAL_TOKEN as TAP_GITHUB_TOKEN env var)
 - [x] 2.4 Test: `brew tap emergent-company/tap && brew install epf-cli` — verified v0.12.6 installs correctly
-- [ ] 2.5 Test: tag new version, verify `brew upgrade epf-cli` picks it up
+- [x] 2.5 Test: tag new version, verify `brew upgrade epf-cli` picks it up — verified with v0.13.0
 - [x] 2.6 Document install instructions in README
 
 ## 3. Update Notifications (Phase 3)
@@ -40,4 +40,4 @@
 - [x] 3.4 Add `EPF_CLI_NO_UPDATE_CHECK` env var and `update_check: false` config option
 - [x] 3.5 Add `epf-cli update` command — downloads and replaces binary (with backup)
 - [x] 3.6 Detect Homebrew installs and suggest `brew upgrade` instead of self-update
-- [ ] 3.7 Test: verify update check works, respects throttle, and self-update replaces binary
+- [x] 3.7 Test: verify update check works, respects throttle, and self-update replaces binary — verified: silent when current, Homebrew detection works, `epf-cli update` correctly defers to brew
