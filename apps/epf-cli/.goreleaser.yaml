@@ -54,7 +54,7 @@ brews:
   - name: epf-cli
     repository:
       owner: emergent-company
-      name: homebrew-emergent
+      name: homebrew-tap
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     directory: Formula
     homepage: "https://github.com/emergent-company/emergent.strategy"
