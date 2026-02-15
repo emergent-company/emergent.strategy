@@ -3,7 +3,7 @@ name: EPF CLI Release
 on:
   push:
     tags:
-      - "epf-cli/v*"
+      - "v*"
 
 permissions:
   contents: write

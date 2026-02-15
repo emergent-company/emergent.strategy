@@ -2,16 +2,13 @@ version: 2
 
 project_name: epf-cli
 
-monorepo:
-  tag_prefix: epf-cli/
-  dir: apps/epf-cli
-
 before:
   hooks:
-    - ./scripts/sync-embedded.sh
+    - apps/epf-cli/scripts/sync-embedded.sh
 
 builds:
   - id: epf-cli
+    dir: apps/epf-cli
     binary: epf-cli
     env:
       - CGO_ENABLED=0
