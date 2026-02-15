@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/config"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/discovery"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/epfcontext"
 )
 
@@ -156,48 +157,14 @@ func GetInstancePath(arg interface{}) (string, error) {
 		return epfContext.InstancePath, nil
 	}
 
-	// Try to find instances directory
+	// Delegate to discovery.DiscoverSingle() for robust auto-detection
 	cwd, _ := os.Getwd()
-	var foundAtRoot bool
-	var rootInstancePath string
-
-	for _, instancesDir := range []string{
-		filepath.Join(cwd, "docs", "EPF", "_instances"),
-		filepath.Join(cwd, "docs", "epf", "_instances"),
-		filepath.Join(cwd, "_instances"),
-	} {
-		if entries, err := os.ReadDir(instancesDir); err == nil {
-			var instances []string
-			for _, e := range entries {
-				if e.IsDir() && !strings.HasPrefix(e.Name(), ".") && e.Name() != "README.md" {
-					instances = append(instances, e.Name())
-				}
-			}
-			if len(instances) == 1 {
-				instancePath := filepath.Join(instancesDir, instances[0])
-
-				// Check if this is root-level
-				if strings.HasSuffix(instancesDir, filepath.Join(cwd, "_instances")) {
-					foundAtRoot = true
-					rootInstancePath = instancePath
-					continue // Keep looking for docs/epf/ version
-				}
-
-				return instancePath, nil
-			} else if len(instances) > 1 {
-				return "", fmt.Errorf("multiple instances found: %v. Use --instance to specify which one", instances)
-			}
-		}
+	result, err := discovery.DiscoverSingle(cwd)
+	if err != nil {
+		return "", fmt.Errorf("could not find EPF instance: %w", err)
 	}
-
-	// If only found at root, return it with a warning
-	if foundAtRoot && rootInstancePath != "" {
-		fmt.Fprintf(os.Stderr, "\n⚠️  Warning: EPF found at root level\n\n")
-		fmt.Fprintf(os.Stderr, "EPF artifacts should be under docs/epf/ for better organization.\n")
-		fmt.Fprintf(os.Stderr, "This keeps documentation separate from code and makes it easier to\n")
-		fmt.Fprintf(os.Stderr, "exclude from CI/CD processes.\n\n")
-		fmt.Fprintf(os.Stderr, "Run: epf-cli migrate-structure\n\n")
-		return rootInstancePath, nil
+	if result.Confidence != discovery.ConfidenceNone && result.Status != discovery.StatusNotFound {
+		return result.Path, nil
 	}
 
 	return "", fmt.Errorf("could not find EPF instance. Use --instance to specify")

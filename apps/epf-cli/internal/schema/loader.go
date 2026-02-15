@@ -156,7 +156,11 @@ func NewEmbeddedLoader() *Loader {
 }
 
 // FindEPFRoot attempts to find the EPF framework root directory
-// by searching for the schemas directory in common locations
+// by searching for the schemas directory in common locations.
+//
+// DEAD CODE: This function has zero callers as of v0.16.0.
+// Discovery is handled by epfcontext.findEPFRoot() and discovery.Discover().
+// Kept for potential future use or removal in a separate cleanup.
 func FindEPFRoot(startDir string) (string, error) {
 	searchPaths := []string{
 		filepath.Join(startDir, "docs", "EPF"),
