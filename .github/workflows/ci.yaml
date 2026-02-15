@@ -10,6 +10,7 @@ on:
     paths:
       - "apps/epf-cli/**"
       - ".github/workflows/ci.yaml"
+  workflow_dispatch:
 
 permissions:
   contents: read
