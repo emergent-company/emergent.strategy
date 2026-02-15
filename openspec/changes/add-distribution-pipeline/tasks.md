@@ -18,17 +18,17 @@
 - [x] 1.1 Create `.github/workflows/ci.yaml` — run `go test ./...` and `go build` on push/PR
 - [x] 1.2 Add embedded artifact sync step to CI (checkout `epf-canonical` + run sync-embedded.sh)
 - [x] 1.3 Create `.goreleaser.yaml` in `apps/epf-cli/` with cross-platform build config
-- [x] 1.4 Create `.github/workflows/release.yaml` — triggered on `epf-cli/v*` tags, runs GoReleaser
+- [x] 1.4 Create `.github/workflows/release.yaml` — triggered on `v*` tags, runs GoReleaser
 - [x] 1.5 Configure GoReleaser to run `sync-embedded` as a before hook (uses CANONICAL_EPF_PATH env)
-- [ ] 1.6 Test: tag `epf-cli/v0.12.1`, verify GitHub Release created with binaries for all 5 platform/arch combos
+- [x] 1.6 Test: tag `v0.12.4`, verify GitHub Release created with binaries for all 5 platform/arch combos
 - [ ] 1.7 Update Makefile `release` target to document GoReleaser workflow (or remove in favor of CI)
 
 ## 2. Homebrew Distribution (Phase 2)
 
-- [ ] 2.1 Create `emergent-company/homebrew-tap` repository with README
-- [ ] 2.2 Add Homebrew tap config to `.goreleaser.yaml` (formula generation + push to tap repo)
-- [ ] 2.3 Configure GitHub token for GoReleaser to push formula (repo secret)
-- [ ] 2.4 Test: `brew tap emergent-company/tap && brew install epf-cli`
+- [x] 2.1 ~~Create `emergent-company/homebrew-tap`~~ — reusing existing `emergent-company/homebrew-emergent` (public)
+- [x] 2.2 Add Homebrew tap config to `.goreleaser.yaml` (formula generation + push to tap repo)
+- [x] 2.3 Configure GitHub token for GoReleaser to push formula (reuse EPF_CANONICAL_TOKEN as TAP_GITHUB_TOKEN env var)
+- [ ] 2.4 Test: `brew tap emergent-company/emergent && brew install epf-cli`
 - [ ] 2.5 Test: tag new version, verify `brew upgrade epf-cli` picks it up
 - [ ] 2.6 Document install instructions in README
 
