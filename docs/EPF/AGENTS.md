@@ -74,7 +74,14 @@ Or via MCP: `epf_list_schemas()`
 
 ## Instance Structure
 
-This repo contains only instance-specific data:
+The EPF instance at `_instances/emergent/` is a **git submodule** pointing to
+`emergent-company/emergent-epf`. If the directory is empty after cloning, run:
+
+```bash
+git submodule update --init
+```
+
+Structure:
 
 ```
 docs/EPF/

@@ -60,6 +60,21 @@ cd apps/epf-cli && go test ./...
 | `docs/EPF/`     | EPF framework docs and product instances  |
 | `openspec/`     | Spec-driven development specs and changes |
 
+## EPF Strategy Context
+
+The company-wide EPF strategy instance is at `docs/EPF/_instances/emergent/`.
+This is a **git submodule** pointing to `emergent-company/emergent-epf`.
+
+```bash
+# If the directory is empty after cloning, initialize the submodule:
+git submodule update --init
+
+# To update to the latest strategy:
+git submodule update --remote docs/EPF/_instances/emergent
+```
+
+Use EPF CLI MCP tools with `instance_path: "docs/EPF/_instances/emergent"` for strategic context lookups, value model analysis, and feature-strategy alignment.
+
 ## EPF CLI MCP Server
 
 The EPF CLI includes an MCP server for AI agent integration. Configure in `opencode.jsonc`:
