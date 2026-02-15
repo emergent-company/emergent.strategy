@@ -50,5 +50,21 @@ changelog:
       - "^ci:"
       - "^chore\\(deps\\):"
 
+brews:
+  - name: epf-cli
+    repository:
+      owner: emergent-company
+      name: homebrew-emergent
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/emergent-company/emergent.strategy"
+    description: "CLI tool for the Emergent Product Framework (EPF) — validation, health checks, and MCP tooling for AI-assisted strategy"
+    license: "Apache-2.0"
+    install: |
+      bin.install "epf-cli"
+    test: |
+      system bin/"epf-cli", "version"
+    commit_msg_template: "chore: update epf-cli formula to {{ .Tag }}"
+
 release:
   name_template: "EPF CLI v{{ .Version }}"
