@@ -1,3 +1,18 @@
+## 0. Canonical EPF Repo Migration (Phase 0)
+
+- [ ] 0.1 Create `emergent-company/epf-canonical` private repo on GitHub
+- [ ] 0.2 Push full history from local `canonical-epf` to new repo
+- [ ] 0.3 Update `internal/config/config.go` — change `DefaultCanonicalRepo` URL
+- [ ] 0.4 Update `scripts/sync-embedded.sh` — update default path comments
+- [ ] 0.5 Update `Makefile` — update CANONICAL_EPF default path and help text
+- [ ] 0.6 Update `cmd/config.go` and `cmd/init.go` — update example URLs in help text
+- [ ] 0.7 Update `AGENTS.md` (both `apps/epf-cli/AGENTS.md` and `internal/embedded/AGENTS.md`)
+- [ ] 0.8 Update docs references (`docs/EPF/AGENTS.md`, `docs/EPF/README.md`)
+- [ ] 0.9 Update openspec archived specs/proposals that reference eyedea-io repos
+- [ ] 0.10 Update local remote: `git remote set-url origin` in canonical-epf working copy
+- [ ] 0.11 Verify: `make build` still works with updated paths
+- [ ] 0.12 Commit all reference updates, push to main
+
 ## 1. CI/CD Pipeline (Phase 1)
 
 - [ ] 1.1 Create `.github/workflows/ci.yaml` — run `go test ./...` and `go build` on push/PR
