@@ -300,13 +300,37 @@ func getProductNameFromMeta(cwd string) (string, error) {
 
 func getProductNameFromGit(cwd string) (string, error) {
 	// Try to read .git/config to find remote
-	gitDir := filepath.Join(cwd, ".git")
-	if _, err := os.Stat(gitDir); err != nil {
+	gitPath := filepath.Join(cwd, ".git")
+	info, err := os.Lstat(gitPath)
+	if err != nil {
 		return "", fmt.Errorf("not a git repository")
 	}
 
-	// Read .git/config to find remote
-	configPath := filepath.Join(gitDir, "config")
+	// Determine the path to git config.
+	// In a normal repo, .git is a directory containing config.
+	// In a submodule, .git is a file pointing to the real git dir.
+	var configPath string
+	if info.IsDir() {
+		configPath = filepath.Join(gitPath, "config")
+	} else {
+		// .git is a file (submodule) — parse it to find the real gitdir
+		// Format: "gitdir: <path>"
+		data, err := os.ReadFile(gitPath)
+		if err != nil {
+			return "", fmt.Errorf("could not read .git file: %w", err)
+		}
+		content := strings.TrimSpace(string(data))
+		if !strings.HasPrefix(content, "gitdir:") {
+			return "", fmt.Errorf("unexpected .git file format")
+		}
+		realGitDir := strings.TrimSpace(strings.TrimPrefix(content, "gitdir:"))
+		if !filepath.IsAbs(realGitDir) {
+			realGitDir = filepath.Join(cwd, realGitDir)
+		}
+		configPath = filepath.Join(realGitDir, "config")
+	}
+
+	// Read git config to find remote
 	configData, err := os.ReadFile(configPath)
 	if err != nil {
 		return "", err

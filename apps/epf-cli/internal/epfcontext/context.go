@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/discovery"
 	"gopkg.in/yaml.v3"
 )
 
@@ -95,7 +96,11 @@ func Detect(startDir string) (*Context, error) {
 			epfRoot, _ = findEPFRootFromInstance(absDir)
 			if epfRoot != "" {
 				ctx.EPFRoot = epfRoot
-				ctx.SchemasDir = filepath.Join(epfRoot, "schemas")
+				// Only set SchemasDir if schemas/ actually exists on disk
+				schemasDir := filepath.Join(epfRoot, "schemas")
+				if _, errS := os.Stat(schemasDir); errS == nil {
+					ctx.SchemasDir = schemasDir
+				}
 				ctx.InstancesDir = filepath.Join(epfRoot, "_instances")
 			}
 			return ctx, nil
@@ -104,7 +109,11 @@ func Detect(startDir string) (*Context, error) {
 	}
 
 	ctx.EPFRoot = epfRoot
-	ctx.SchemasDir = filepath.Join(epfRoot, "schemas")
+	// Only set SchemasDir if schemas/ actually exists on disk
+	schemasDir := filepath.Join(epfRoot, "schemas")
+	if _, err := os.Stat(schemasDir); err == nil {
+		ctx.SchemasDir = schemasDir
+	}
 	ctx.InstancesDir = filepath.Join(epfRoot, "_instances")
 
 	// Find repo root (go up until we find .git)
@@ -236,38 +245,41 @@ func (c *Context) String() string {
 	}
 }
 
-// findEPFRoot searches for the EPF root directory
+// findEPFRoot searches for the EPF root directory.
+// An EPF root is a directory that contains _instances/ OR schemas/.
+// The schemas/ requirement has been removed to support consumer repos
+// where EPF is used as a submodule (no local schemas/ directory).
 func findEPFRoot(startDir string) (string, error) {
 	// Check common locations relative to startDir
 	searchPaths := []string{
 		startDir,
 		filepath.Join(startDir, "docs", "EPF"),
+		filepath.Join(startDir, "docs", "epf"),
 		filepath.Join(startDir, "..", "docs", "EPF"),
+		filepath.Join(startDir, "..", "docs", "epf"),
 		filepath.Join(startDir, "..", "..", "docs", "EPF"),
 		filepath.Join(startDir, "..", "..", "..", "docs", "EPF"),
 	}
 
 	for _, path := range searchPaths {
-		schemasPath := filepath.Join(path, "schemas")
-		if _, err := os.Stat(schemasPath); err == nil {
+		if isEPFRoot(path) {
 			return filepath.Abs(path)
 		}
 	}
 
-	// Also walk up looking for docs/EPF
+	// Walk up looking for docs/EPF or docs/epf
 	current := startDir
 	for i := 0; i < 10; i++ { // Limit depth
-		candidate := filepath.Join(current, "docs", "EPF", "schemas")
-		if _, err := os.Stat(candidate); err == nil {
-			return filepath.Abs(filepath.Join(current, "docs", "EPF"))
+		for _, epfDir := range []string{"docs/EPF", "docs/epf"} {
+			candidate := filepath.Join(current, epfDir)
+			if isEPFRoot(candidate) {
+				return filepath.Abs(candidate)
+			}
 		}
 
-		// Check if current is EPF root
-		if _, err := os.Stat(filepath.Join(current, "schemas")); err == nil {
-			// Verify it's EPF by checking for _instances dir
-			if _, err := os.Stat(filepath.Join(current, "_instances")); err == nil {
-				return filepath.Abs(current)
-			}
+		// Check if current directory is itself an EPF root
+		if isEPFRoot(current) {
+			return filepath.Abs(current)
 		}
 
 		parent := filepath.Dir(current)
@@ -280,12 +292,29 @@ func findEPFRoot(startDir string) (string, error) {
 	return "", fmt.Errorf("could not find EPF root directory")
 }
 
-// findEPFRootFromInstance finds EPF root when starting from an instance directory
+// isEPFRoot checks if a directory qualifies as an EPF root.
+// A directory is an EPF root if it contains _instances/ OR schemas/.
+func isEPFRoot(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil || !info.IsDir() {
+		return false
+	}
+	// Has _instances/ directory
+	if _, err := os.Stat(filepath.Join(path, "_instances")); err == nil {
+		return true
+	}
+	// Has schemas/ directory (integrated repo with framework)
+	if _, err := os.Stat(filepath.Join(path, "schemas")); err == nil {
+		return true
+	}
+	return false
+}
+
+// findEPFRootFromInstance finds EPF root when starting from an instance directory.
+// Instance is typically at docs/EPF/_instances/{name}, so EPF root is ../../
 func findEPFRootFromInstance(instanceDir string) (string, error) {
-	// Instance is at docs/EPF/_instances/{name}
-	// So EPF root is ../../
 	epfRoot := filepath.Join(instanceDir, "..", "..")
-	if _, err := os.Stat(filepath.Join(epfRoot, "schemas")); err == nil {
+	if isEPFRoot(epfRoot) {
 		return filepath.Abs(epfRoot)
 	}
 	return "", fmt.Errorf("could not find EPF root from instance")
@@ -308,30 +337,34 @@ func findRepoRoot(startDir string) string {
 	return ""
 }
 
-// discoverInstances finds all instance directories
+// discoverInstances finds all instance directories using the shared discovery system.
+// It delegates to discovery.Discover() for robust instance detection with anchor file
+// and phase marker support, then extracts instance names from the results.
 func discoverInstances(instancesDir string) ([]string, error) {
-	entries, err := os.ReadDir(instancesDir)
+	info, err := os.Stat(instancesDir)
+	if err != nil || !info.IsDir() {
+		return nil, fmt.Errorf("instances directory not found: %s", instancesDir)
+	}
+
+	opts := discovery.DefaultOptions()
+	opts.MaxDepth = 1 // Only look at direct children of _instances/
+
+	results, err := discovery.Discover(instancesDir, opts)
 	if err != nil {
 		return nil, err
 	}
 
 	var instances []string
-	for _, entry := range entries {
-		if !entry.IsDir() {
+	for _, result := range results {
+		if result.Confidence == discovery.ConfidenceNone {
 			continue
 		}
-
-		name := entry.Name()
+		name := filepath.Base(result.Path)
 		// Skip hidden directories and special files
 		if strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") {
 			continue
 		}
-
-		// Verify it's a valid instance (has READY, FIRE, or AIM directory)
-		instancePath := filepath.Join(instancesDir, name)
-		if isInstanceDir(instancePath) {
-			instances = append(instances, name)
-		}
+		instances = append(instances, name)
 	}
 
 	return instances, nil
@@ -339,6 +372,11 @@ func discoverInstances(instancesDir string) ([]string, error) {
 
 // isInstanceDir checks if a directory is a valid EPF instance
 func isInstanceDir(dir string) bool {
+	// Check for anchor file (_epf.yaml)
+	if _, err := os.Stat(filepath.Join(dir, "_epf.yaml")); err == nil {
+		return true
+	}
+
 	// Check for at least one phase directory
 	phases := []string{"READY", "FIRE", "AIM"}
 	for _, phase := range phases {
