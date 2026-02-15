@@ -107,8 +107,30 @@ func (c *StructureChecker) Check() *StructureResult {
 
 // detectRepoType determines if this is canonical EPF or a product repo
 func (c *StructureChecker) detectRepoType() RepositoryType {
-	// PRIORITY 1: Check for product repo indicators FIRST
-	// If we find actual product instances, it's a product repo (even if canonical content exists)
+	// PRIORITY 1: Check canonical markers FIRST
+	// Canonical repos may contain _instances/ (which checkCanonicalStructure flags as issues),
+	// so we must check canonical markers before checking for product instances.
+	markers := []string{
+		"CANONICAL_PURITY_RULES.md",
+		"schemas",
+		"templates",
+		"wizards",
+	}
+
+	canonicalMatchCount := 0
+	for _, marker := range markers {
+		path := filepath.Join(c.epfRoot, marker)
+		if _, err := os.Stat(path); err == nil {
+			canonicalMatchCount++
+		}
+	}
+
+	if canonicalMatchCount >= 3 {
+		return RepoTypeCanonical
+	}
+
+	// PRIORITY 2: Check for product repo indicators
+	// If we find actual product instances, it's a product repo
 	instancesPath := filepath.Join(c.epfRoot, "_instances")
 	if info, err := os.Stat(instancesPath); err == nil && info.IsDir() {
 		// Has _instances directory - check if it has actual instance content
@@ -129,7 +151,7 @@ func (c *StructureChecker) detectRepoType() RepositoryType {
 		}
 	}
 
-	// PRIORITY 2: Check if we're inside an instance path (e.g., health check on instance directly)
+	// PRIORITY 3: Check if we're inside an instance path (e.g., health check on instance directly)
 	// Look for READY/FIRE/AIM structure which indicates we're in an instance
 	readyPath := filepath.Join(c.epfRoot, "READY")
 	firePath := filepath.Join(c.epfRoot, "FIRE")
@@ -138,28 +160,6 @@ func (c *StructureChecker) detectRepoType() RepositoryType {
 	}
 	if _, err := os.Stat(firePath); err == nil {
 		return RepoTypeProduct
-	}
-
-	// PRIORITY 3: Check for canonical markers
-	// Only check this AFTER confirming there are no product instances
-	markers := []string{
-		"CANONICAL_PURITY_RULES.md",
-		"schemas",
-		"templates",
-		"wizards",
-	}
-
-	matchCount := 0
-	for _, marker := range markers {
-		path := filepath.Join(c.epfRoot, marker)
-		if _, err := os.Stat(path); err == nil {
-			matchCount++
-		}
-	}
-
-	// If 3+ markers match and NO product instances found, it's canonical EPF
-	if matchCount >= 3 {
-		return RepoTypeCanonical
 	}
 
 	return RepoTypeUnknown

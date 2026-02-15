@@ -300,7 +300,7 @@ func TestCLI_Migrate_DryRun(t *testing.T) {
 		t.Skip("Test instance not found - skipping migrate tests")
 	}
 
-	cmd := exec.Command(cli, "migrate", "--dry-run", "--target", "1.9.6", instancePath)
+	cmd := exec.Command(cli, "migrate", "--dry-run", instancePath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// Migrate might return error, that's OK for dry run
@@ -313,9 +313,9 @@ func TestCLI_Migrate_DryRun(t *testing.T) {
 		t.Errorf("Expected DRY RUN indicator, got: %s", outputStr)
 	}
 
-	// Should show migration target
-	if !strings.Contains(outputStr, "1.9.6") {
-		t.Errorf("Expected target version in output, got: %s", outputStr)
+	// Should show per-artifact schema versioning header
+	if !strings.Contains(outputStr, "Per-Artifact Schema Versioning") {
+		t.Errorf("Expected migration header, got: %s", outputStr)
 	}
 
 	// Should scan files
