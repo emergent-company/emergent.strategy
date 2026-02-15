@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/anchor"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/config"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/embedded"
 	"github.com/mark3labs/mcp-go/mcp"
 	"gopkg.in/yaml.v3"
@@ -29,6 +30,7 @@ type InitInstanceResult struct {
 	InstancePath string   `json:"instance_path"`
 	ProductName  string   `json:"product_name"`
 	EPFVersion   string   `json:"epf_version"`
+	Mode         string   `json:"mode"`
 	FilesCreated []string `json:"files_created"`
 	AnchorFile   string   `json:"anchor_file"`
 	DryRun       bool     `json:"dry_run"`
@@ -58,6 +60,17 @@ func (s *Server) handleInitInstance(ctx context.Context, request mcp.CallToolReq
 	structureType, _ := request.RequireString("structure_type")
 	if structureType == "" {
 		structureType = "phased" // Default structure
+	}
+
+	mode, _ := request.RequireString("mode")
+	if mode == "" {
+		mode = "integrated" // Default mode
+	}
+	if mode != "integrated" && mode != "standalone" {
+		return mcp.NewToolResultError(fmt.Sprintf(
+			"Invalid mode '%s'. Must be 'integrated' (default, creates docs/EPF/ wrapper) or 'standalone' (instance at path directly)",
+			mode,
+		)), nil
 	}
 
 	dryRunStr, _ := request.RequireString("dry_run")
@@ -91,9 +104,17 @@ func (s *Server) handleInitInstance(ctx context.Context, request mcp.CallToolReq
 	// Check if it's a git repo (warn but don't block)
 	isGit := isGitRepo(absPath)
 
-	// Build instance path
-	epfDir := filepath.Join(absPath, "docs", "EPF")
-	instanceDir := filepath.Join(epfDir, "_instances", productName)
+	// Determine instance directory based on mode
+	var instanceDir string
+	var epfDir string
+	if mode == "standalone" {
+		// Standalone: instance is created directly at the given path
+		instanceDir = absPath
+	} else {
+		// Integrated: instance is nested under docs/EPF/_instances/<name>/
+		epfDir = filepath.Join(absPath, "docs", "EPF")
+		instanceDir = filepath.Join(epfDir, "_instances", productName)
+	}
 
 	// Check if instance already exists
 	if _, err := os.Stat(instanceDir); err == nil {
@@ -110,10 +131,114 @@ func (s *Server) handleInitInstance(ctx context.Context, request mcp.CallToolReq
 		InstancePath: instanceDir,
 		ProductName:  productName,
 		EPFVersion:   epfVersion,
+		Mode:         mode,
 		DryRun:       dryRun,
 		FilesCreated: []string{},
 	}
 
+	if mode == "standalone" {
+		return s.handleInitStandalone(absPath, instanceDir, productName, epfVersion, structureType, force, dryRun, isGit, result)
+	}
+
+	return s.handleInitIntegrated(absPath, epfDir, instanceDir, productName, epfVersion, structureType, force, dryRun, isGit, result)
+}
+
+// handleInitStandalone creates an EPF instance directly at the given path (no docs/EPF/ wrapper).
+// This is for repositories that ARE the EPF instance (e.g., dedicated strategy repos).
+func (s *Server) handleInitStandalone(absPath, instanceDir, productName, epfVersion, structureType string, force, dryRun, isGit bool, result *InitInstanceResult) (*mcp.CallToolResult, error) {
+	if dryRun {
+		result.FilesCreated = []string{
+			filepath.Join(instanceDir, "_epf.yaml"),
+			filepath.Join(instanceDir, "_meta.yaml"),
+			filepath.Join(instanceDir, "README.md"),
+			filepath.Join(instanceDir, "READY", "00_north_star.yaml"),
+			filepath.Join(instanceDir, "READY", "01_insight_analyses.yaml"),
+			filepath.Join(instanceDir, "READY", "02_strategy_foundations.yaml"),
+			filepath.Join(instanceDir, "READY", "03_insight_opportunity.yaml"),
+			filepath.Join(instanceDir, "READY", "04_strategy_formula.yaml"),
+			filepath.Join(instanceDir, "READY", "05_roadmap_recipe.yaml"),
+			filepath.Join(instanceDir, "FIRE", "feature_definitions", ".gitkeep"),
+			filepath.Join(instanceDir, "FIRE", "value_models", "product.value_model.yaml"),
+			filepath.Join(instanceDir, "FIRE", "value_models", "strategy.value_model.yaml"),
+			filepath.Join(instanceDir, "FIRE", "value_models", "org_ops.value_model.yaml"),
+			filepath.Join(instanceDir, "FIRE", "value_models", "commercial.value_model.yaml"),
+			filepath.Join(instanceDir, "FIRE", "workflows", ".gitkeep"),
+			filepath.Join(instanceDir, "AIM", "assessment_report.yaml"),
+			filepath.Join(instanceDir, "AIM", "calibration_memo.yaml"),
+			filepath.Join(instanceDir, "outputs", ".gitkeep"),
+		}
+		// .epf.yaml is created at repo root, which for standalone is the same as instanceDir
+		repoRoot := config.FindRepoRoot(absPath)
+		if repoRoot != "" {
+			result.FilesCreated = append(result.FilesCreated, filepath.Join(repoRoot, config.RepoConfigFileName))
+		} else {
+			result.FilesCreated = append(result.FilesCreated, filepath.Join(instanceDir, config.RepoConfigFileName))
+		}
+		result.AnchorFile = filepath.Join(instanceDir, "_epf.yaml")
+		result.NextSteps = []string{
+			"Run with dry_run=false to create the instance",
+			fmt.Sprintf("Edit %s/_meta.yaml with your product details", instanceDir),
+			fmt.Sprintf("Edit %s/READY/00_north_star.yaml with your vision", instanceDir),
+			"Run epf_health_check to validate your setup",
+		}
+		return returnInitResult(result)
+	}
+
+	// Actually create the instance
+	if force {
+		// In standalone mode, only remove phase directories, not the whole directory
+		for _, dir := range []string{"READY", "FIRE", "AIM", "outputs"} {
+			os.RemoveAll(filepath.Join(instanceDir, dir))
+		}
+		// Also remove anchor and meta files that will be recreated
+		os.Remove(filepath.Join(instanceDir, "_epf.yaml"))
+		os.Remove(filepath.Join(instanceDir, "_meta.yaml"))
+	}
+
+	// Create instance structure directly at path (no wrapper)
+	createdFiles, err := s.createInstanceStructure(instanceDir, productName, epfVersion, structureType)
+	if err != nil {
+		result.Success = false
+		result.Error = fmt.Sprintf("Failed to create instance structure: %s", err.Error())
+		return returnInitResult(result)
+	}
+	result.FilesCreated = append(result.FilesCreated, createdFiles...)
+	result.AnchorFile = filepath.Join(instanceDir, "_epf.yaml")
+
+	// Create .epf.yaml repo config with mode: standalone
+	repoRoot := config.FindRepoRoot(absPath)
+	if repoRoot == "" {
+		repoRoot = absPath // fallback to the path itself
+	}
+	repoConfig := &config.RepoConfig{
+		InstancePath: ".",
+		Mode:         "standalone",
+	}
+	if err := repoConfig.SaveRepoConfig(repoRoot); err != nil {
+		// Non-fatal: instance is created, just warn in next steps
+		result.NextSteps = append(result.NextSteps,
+			fmt.Sprintf("Warning: could not create .epf.yaml: %s. Create it manually.", err.Error()),
+		)
+	} else {
+		result.FilesCreated = append(result.FilesCreated, filepath.Join(repoRoot, config.RepoConfigFileName))
+	}
+
+	result.NextSteps = []string{
+		fmt.Sprintf("Edit %s/_meta.yaml with your product details", instanceDir),
+		fmt.Sprintf("Edit %s/READY/00_north_star.yaml with your vision", instanceDir),
+		"Run epf_health_check to validate your setup",
+	}
+
+	if !isGit {
+		result.NextSteps = append([]string{"Initialize git repository: git init"}, result.NextSteps...)
+	}
+
+	return returnInitResult(result)
+}
+
+// handleInitIntegrated creates an EPF instance with the docs/EPF/ wrapper structure.
+// This is the default mode for product repositories.
+func (s *Server) handleInitIntegrated(absPath, epfDir, instanceDir, productName, epfVersion, structureType string, force, dryRun, isGit bool, result *InitInstanceResult) (*mcp.CallToolResult, error) {
 	if dryRun {
 		// Simulate what would be created
 		result.FilesCreated = []string{
@@ -146,56 +271,57 @@ func (s *Server) handleInitInstance(ctx context.Context, request mcp.CallToolReq
 			fmt.Sprintf("Edit %s/READY/00_north_star.yaml with your vision", instanceDir),
 			"Run epf_health_check to validate your setup",
 		}
-	} else {
-		// Actually create the instance
-		if force {
-			os.RemoveAll(instanceDir)
-		}
+		return returnInitResult(result)
+	}
 
-		// Create EPF directory
-		if err := os.MkdirAll(epfDir, 0755); err != nil {
-			result.Success = false
-			result.Error = fmt.Sprintf("Failed to create EPF directory: %s", err.Error())
-			return returnInitResult(result)
-		}
+	// Actually create the instance
+	if force {
+		os.RemoveAll(instanceDir)
+	}
 
-		// Create AGENTS.md
-		agentsMD, err := s.createAgentsMD(epfDir)
-		if err == nil {
-			result.FilesCreated = append(result.FilesCreated, agentsMD)
-		}
+	// Create EPF directory
+	if err := os.MkdirAll(epfDir, 0755); err != nil {
+		result.Success = false
+		result.Error = fmt.Sprintf("Failed to create EPF directory: %s", err.Error())
+		return returnInitResult(result)
+	}
 
-		// Create README.md
-		readmeMD, err := s.createReadmeMD(epfDir, productName)
-		if err == nil {
-			result.FilesCreated = append(result.FilesCreated, readmeMD)
-		}
+	// Create AGENTS.md
+	agentsMD, err := s.createAgentsMD(epfDir)
+	if err == nil {
+		result.FilesCreated = append(result.FilesCreated, agentsMD)
+	}
 
-		// Create .gitignore
-		gitignore, err := s.createGitignore(epfDir, productName)
-		if err == nil {
-			result.FilesCreated = append(result.FilesCreated, gitignore)
-		}
+	// Create README.md
+	readmeMD, err := s.createReadmeMD(epfDir, productName)
+	if err == nil {
+		result.FilesCreated = append(result.FilesCreated, readmeMD)
+	}
 
-		// Create instance structure
-		createdFiles, err := s.createInstanceStructure(instanceDir, productName, epfVersion, structureType)
-		if err != nil {
-			result.Success = false
-			result.Error = fmt.Sprintf("Failed to create instance structure: %s", err.Error())
-			return returnInitResult(result)
-		}
-		result.FilesCreated = append(result.FilesCreated, createdFiles...)
-		result.AnchorFile = filepath.Join(instanceDir, "_epf.yaml")
+	// Create .gitignore
+	gitignore, err := s.createGitignore(epfDir, productName)
+	if err == nil {
+		result.FilesCreated = append(result.FilesCreated, gitignore)
+	}
 
-		result.NextSteps = []string{
-			fmt.Sprintf("Edit %s/_meta.yaml with your product details", instanceDir),
-			fmt.Sprintf("Edit %s/READY/00_north_star.yaml with your vision", instanceDir),
-			"Run epf_health_check to validate your setup",
-		}
+	// Create instance structure
+	createdFiles, err := s.createInstanceStructure(instanceDir, productName, epfVersion, structureType)
+	if err != nil {
+		result.Success = false
+		result.Error = fmt.Sprintf("Failed to create instance structure: %s", err.Error())
+		return returnInitResult(result)
+	}
+	result.FilesCreated = append(result.FilesCreated, createdFiles...)
+	result.AnchorFile = filepath.Join(instanceDir, "_epf.yaml")
 
-		if !isGit {
-			result.NextSteps = append([]string{"Initialize git repository: git init"}, result.NextSteps...)
-		}
+	result.NextSteps = []string{
+		fmt.Sprintf("Edit %s/_meta.yaml with your product details", instanceDir),
+		fmt.Sprintf("Edit %s/READY/00_north_star.yaml with your vision", instanceDir),
+		"Run epf_health_check to validate your setup",
+	}
+
+	if !isGit {
+		result.NextSteps = append([]string{"Initialize git repository: git init"}, result.NextSteps...)
 	}
 
 	return returnInitResult(result)

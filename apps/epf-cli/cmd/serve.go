@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/mcp"
 	"github.com/spf13/cobra"
@@ -48,34 +47,15 @@ Or with custom schemas directory:
 
 		// Auto-detect schemas directory if not specified
 		if schemasDir == "" {
-			// Try common locations relative to the binary or working directory
-			candidates := []string{
-				"docs/EPF/schemas",
-				"../../docs/EPF/schemas",
-				"../docs/EPF/schemas",
+			detected, err := GetSchemasDir()
+			if err == nil && detected != "" {
+				schemasDir = detected
 			}
+		}
 
-			// Also check relative to executable
-			if exe, err := os.Executable(); err == nil {
-				exeDir := filepath.Dir(exe)
-				candidates = append(candidates,
-					filepath.Join(exeDir, "docs/EPF/schemas"),
-					filepath.Join(exeDir, "../../docs/EPF/schemas"),
-				)
-			}
-
-			for _, candidate := range candidates {
-				if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-					schemasDir = candidate
-					break
-				}
-			}
-
-			// If no filesystem schemas found, that's okay - validator will use embedded schemas
-			// Just log that we're using embedded mode
-			if schemasDir == "" {
-				fmt.Fprintln(os.Stderr, "Note: Using embedded schemas (no filesystem schemas found)")
-			}
+		// If no filesystem schemas found, that's okay - validator will use embedded schemas
+		if schemasDir == "" {
+			fmt.Fprintln(os.Stderr, "Note: Using embedded schemas (no filesystem schemas found)")
 		}
 
 		// Create and start the MCP server
