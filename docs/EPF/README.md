@@ -6,7 +6,7 @@ This directory contains the **instance-specific EPF data** for the Emergent prod
 
 ```
 docs/EPF/
-├── _instances/emergent/     # All EPF artifacts for this product
+├── _instances/emergent/     # Git submodule → emergent-company/emergent-epf
 │   ├── READY/               # Strategic foundation
 │   ├── FIRE/                # Execution artifacts
 │   ├── AIM/                 # Assessments
@@ -14,6 +14,9 @@ docs/EPF/
 ├── AGENTS.md                # AI agent instructions
 └── README.md                # This file
 ```
+
+> **Note:** `_instances/emergent/` is a git submodule. If the directory is empty,
+> run `git submodule update --init` from the repo root.
 
 ## Working with EPF
 

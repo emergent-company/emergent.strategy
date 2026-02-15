@@ -1,0 +1,3 @@
+[submodule "docs/EPF/_instances/emergent"]
+	path = docs/EPF/_instances/emergent
+	url = https://github.com/emergent-company/emergent-epf.git
