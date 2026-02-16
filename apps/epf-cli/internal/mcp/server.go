@@ -21,6 +21,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/schema"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/template"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/validator"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/valuemodel"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/version"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/wizard"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -1275,12 +1276,13 @@ func (s *Server) GetMCPServer() *server.MCPServer {
 
 // HealthCheckSummary represents the overall health check result for MCP
 type HealthCheckSummary struct {
-	InstancePath     string                         `json:"instance_path"`
-	OverallStatus    string                         `json:"overall_status"` // HEALTHY, WARNINGS, ERRORS
-	InstanceCheck    *checks.CheckSummary           `json:"instance_check,omitempty"`
-	ContentReadiness *checks.ContentReadinessResult `json:"content_readiness,omitempty"`
-	FeatureQuality   *checks.FeatureQualitySummary  `json:"feature_quality,omitempty"`
-	Summary          string                         `json:"summary"`
+	InstancePath      string                         `json:"instance_path"`
+	OverallStatus     string                         `json:"overall_status"` // HEALTHY, WARNINGS, ERRORS
+	InstanceCheck     *checks.CheckSummary           `json:"instance_check,omitempty"`
+	ContentReadiness  *checks.ContentReadinessResult `json:"content_readiness,omitempty"`
+	FeatureQuality    *checks.FeatureQualitySummary  `json:"feature_quality,omitempty"`
+	ValueModelQuality *valuemodel.QualityReport      `json:"value_model_quality,omitempty"`
+	Summary           string                         `json:"summary"`
 }
 
 // handleHealthCheck handles the epf_health_check tool
@@ -1354,6 +1356,36 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 	featureResult, _ := featureChecker.Check()
 	result.FeatureQuality = featureResult
 
+	// Run value model quality check
+	vmPath := filepath.Join(instancePath, "FIRE", "value_models")
+	if _, vmStatErr := os.Stat(vmPath); vmStatErr == nil {
+		vmLoader := valuemodel.NewLoader(instancePath)
+		vmModels, vmErr := vmLoader.Load()
+		if vmErr == nil && vmModels != nil && len(vmModels.ByFile) > 0 {
+			portfolioNames, _ := valuemodel.LoadPortfolioNames(instancePath)
+
+			// Build feature contributions
+			var contributions *valuemodel.FeatureContributions
+			featureLoader := relationships.NewFeatureLoader(instancePath)
+			featureSet, featureLoadErr := featureLoader.Load()
+			if featureLoadErr == nil && featureSet != nil && len(featureSet.ByValueModelPath) > 0 {
+				contributions = &valuemodel.FeatureContributions{
+					ComponentToFeatureCount: make(map[string]int),
+					FeatureToComponentCount: make(map[string]int),
+				}
+				for path, features := range featureSet.ByValueModelPath {
+					contributions.ComponentToFeatureCount[path] = len(features)
+				}
+				for _, fd := range featureSet.ByID {
+					contributions.FeatureToComponentCount[fd.ID] = len(fd.StrategicContext.ContributesTo)
+				}
+			}
+
+			vmReport := valuemodel.AssessQuality(vmModels, portfolioNames, contributions)
+			result.ValueModelQuality = vmReport
+		}
+	}
+
 	// Determine overall status
 	if instanceResult.HasCritical() || instanceResult.HasErrors() {
 		result.OverallStatus = "ERRORS"
@@ -1366,6 +1398,12 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 	}
 
 	if featureResult != nil && featureResult.AverageScore < 50 {
+		if result.OverallStatus != "ERRORS" {
+			result.OverallStatus = "WARNINGS"
+		}
+	}
+
+	if result.ValueModelQuality != nil && result.ValueModelQuality.ScoreLevel == "alert" {
 		if result.OverallStatus != "ERRORS" {
 			result.OverallStatus = "WARNINGS"
 		}
@@ -1398,6 +1436,29 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 		sb.WriteString(fmt.Sprintf("- Features analyzed: %d\n", featureResult.TotalFeatures))
 		sb.WriteString(fmt.Sprintf("- Average score: %.0f/100\n", featureResult.AverageScore))
 		sb.WriteString(fmt.Sprintf("- Passing: %d\n", featureResult.PassedCount))
+		sb.WriteString("\n")
+	}
+
+	// Value model quality
+	if result.ValueModelQuality != nil {
+		sb.WriteString("## Value Model Quality\n")
+		sb.WriteString(fmt.Sprintf("- Models analyzed: %d\n", result.ValueModelQuality.ModelsAnalyzed))
+		sb.WriteString(fmt.Sprintf("- Quality score: %d/100 (%s)\n", result.ValueModelQuality.OverallScore, result.ValueModelQuality.ScoreLevel))
+		warningCount := 0
+		for _, w := range result.ValueModelQuality.Warnings {
+			if w.Level == valuemodel.WarningLevelWarning {
+				warningCount++
+			}
+		}
+		sb.WriteString(fmt.Sprintf("- Warnings: %d\n", warningCount))
+		if warningCount > 0 {
+			for _, w := range result.ValueModelQuality.Warnings {
+				if w.Level == valuemodel.WarningLevelWarning {
+					sb.WriteString(fmt.Sprintf("  - %s\n", w.Message))
+				}
+			}
+			sb.WriteString("\n> Consider running the `value_model_review` wizard for guided remediation.\n> Use: `epf_get_wizard { \"name\": \"value_model_review\" }`\n")
+		}
 		sb.WriteString("\n")
 	}
 

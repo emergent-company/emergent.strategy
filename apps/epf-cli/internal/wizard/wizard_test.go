@@ -369,6 +369,7 @@ func TestKeywordMappings(t *testing.T) {
 		"context_sheet_generator": true,
 		"feature_enrichment":      true,
 		"roadmap_enrichment":      true,
+		"value_model_review":      true,
 	}
 
 	for keyword, wizards := range KeywordMappings {

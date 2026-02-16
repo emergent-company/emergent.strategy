@@ -34,6 +34,12 @@ var Templates embed.FS
 //go:embed wizards/*.md
 var Wizards embed.FS
 
+// Guides contains reference documentation for AI agents.
+// These are embedded in the binary and always available via MCP tools.
+//
+//go:embed guides/*.md
+var Guides embed.FS
+
 // Generators contains the default output generator definitions.
 // Each subdirectory is a generator with schema.json, wizard.instructions.md, etc.
 //
@@ -224,4 +230,31 @@ func GetGeneratorContent(name string) (*GeneratorContent, error) {
 // This file contains comprehensive AI agent instructions for using epf-cli.
 func GetAgentsMD() ([]byte, error) {
 	return []byte(AgentsMD), nil
+}
+
+// GetGuide returns the contents of an embedded guide file.
+// The filename should be just the guide name (e.g., "VALUE_MODEL_STRUCTURAL_ANTI_PATTERNS.md").
+func GetGuide(filename string) ([]byte, error) {
+	return Guides.ReadFile(path.Join("guides", filename))
+}
+
+// GetGuideFS returns an fs.FS rooted at the guides directory.
+func GetGuideFS() (fs.FS, error) {
+	return fs.Sub(Guides, "guides")
+}
+
+// ListGuides returns the names of all embedded guide files.
+func ListGuides() ([]string, error) {
+	entries, err := Guides.ReadDir("guides")
+	if err != nil {
+		return nil, err
+	}
+
+	var names []string
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".md") {
+			names = append(names, entry.Name())
+		}
+	}
+	return names, nil
 }

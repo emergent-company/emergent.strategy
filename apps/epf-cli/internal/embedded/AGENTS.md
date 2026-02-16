@@ -58,6 +58,28 @@ For detailed guidance: `canonical-epf/docs/guides/FEATURE_DEFINITION_GRANULARITY
 
 ---
 
+## Value Model Quality Rules
+
+> **CRITICAL** - Read this before creating or modifying ANY Value Model.
+
+**Value models describe categories of value delivery, not product catalogs.**
+
+| Rule | Description |
+| ---- | ----------- |
+| **Never name L1 layers after products or brands** | Layers like "Io Core Battery" or "Spiralis Heat Exchange" are product names, not value delivery categories. Use "Energy Transformation" or "Heat Exchange & Circulation" instead. |
+| **L2 components are functional classes, not products** | Components should be named after what they do (e.g., "thermal-charging", "fuel-synthesis"), not which product they represent. |
+| **Products belong at L3** | Products are implementations that deliver value through L2 functional classes. They appear as sub-components, not as organizing principles. |
+| **Cross-check against product_portfolio.yaml** | After creating a value model, compare L1/L2 names against product/brand names in the portfolio. Zero matches expected. |
+| **Multiple products should contribute to each L2** | If each L2 maps to exactly one product, you likely have a product catalog, not a value model. |
+
+**When splitting value model files (Product track):**
+- Separate files: only for truly independent value delivery chains (hardware vs software)
+- Do NOT split by product line or brand
+
+See `guides/VALUE_MODEL_STRUCTURAL_ANTI_PATTERNS.md` (embedded in epf-cli) for detailed anti-patterns, litmus tests, and restructuring guidance.
+
+---
+
 ## 📋 PRE-FLIGHT CHECKLIST: Before Creating/Editing EPF Artifacts
 
 > **MANDATORY for AI agents writing EPF content (feature definitions, roadmaps, etc.)**

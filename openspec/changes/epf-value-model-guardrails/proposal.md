@@ -4,6 +4,24 @@
 > **Problem discovered in:** `huma-strategy` (Huma Group EPF instance)
 > **Severity:** High — undermines core EPF value proposition
 
+## Why
+
+An AI agent created 5 value models for Huma Group that were structurally valid but semantically wrong — organized as product catalogs instead of value-generation models. Every validation check passed. EPF has zero semantic guardrails against this, the most fundamental structural error a value model can have.
+
+## What Changes
+- Add structural anti-patterns guide documenting the product-catalog anti-pattern with before/after examples
+- Update product architect wizard with explicit guardrails against naming layers after products
+- Update AGENTS.md with value model quality rules visible to AI agents on every session
+- Update product value model template comments to warn against product-catalog structure
+- Add heuristic validation in epf-cli: product-name collision detection, 1:1 mapping detection, layer name analysis, multi-file overlap detection
+- Add value model quality scoring (0-100) integrated into health check and MCP tool output
+- Design (not implement) LLM-assisted value model review wizard
+
+## Impact
+- Affected specs: `epf-cli-mcp` (MODIFIED health report, ADDED value model quality validation)
+- Affected code: `apps/epf-cli/internal/valuemodel/quality.go` (new), `apps/epf-cli/internal/checks/valuemodel_quality.go` (new), embedded docs/wizards/templates
+- No breaking changes — all new checks are advisory (WARNING/INFO level)
+
 ## Problem Statement
 
 An AI agent (Claude) created 5 hardware value models for Huma's thermal energy platform that were **structurally valid but semantically wrong**. Every file passed schema validation, health checks, relationship validation, and content readiness — yet the value models were organized as **product catalogs** instead of **value-generation-stage models**.

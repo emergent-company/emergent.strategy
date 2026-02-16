@@ -13,7 +13,9 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/config"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/discovery"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/migration"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/relationships"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/validator"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/valuemodel"
 	"github.com/spf13/cobra"
 )
 
@@ -137,6 +139,9 @@ type HealthResult struct {
 	FieldCoverage    *checks.FieldCoverageResult    `json:"field_coverage,omitempty"`
 	VersionAlignment *checks.VersionAlignmentResult `json:"version_alignment,omitempty"`
 	MigrationStatus  *migration.MigrationStatus     `json:"migration_status,omitempty"`
+
+	// Value model quality assessment
+	ValueModelQuality *valuemodel.QualityReport `json:"value_model_quality,omitempty"`
 
 	// Workflow guidance for AI agents
 	WorkflowGuidance *HealthWorkflowGuidance `json:"workflow_guidance,omitempty"`
@@ -475,6 +480,52 @@ func runHealthCheck(instancePath string, schemasPath string) *HealthResult {
 		}
 	}
 
+	// 10. Value Model Quality Check
+	vmPath := filepath.Join(instancePath, "FIRE", "value_models")
+	if _, err := os.Stat(vmPath); err == nil {
+		if !healthJSON {
+			fmt.Println("▶ Checking value model quality...")
+		}
+
+		vmLoader := valuemodel.NewLoader(instancePath)
+		vmModels, vmErr := vmLoader.Load()
+		if vmErr == nil && vmModels != nil && len(vmModels.ByFile) > 0 {
+			portfolioNames, _ := valuemodel.LoadPortfolioNames(instancePath)
+
+			// Build feature contributions from feature loader
+			var contributions *valuemodel.FeatureContributions
+			featureLoader := relationships.NewFeatureLoader(instancePath)
+			featureSet, featureErr := featureLoader.Load()
+			if featureErr == nil && featureSet != nil && len(featureSet.ByValueModelPath) > 0 {
+				contributions = &valuemodel.FeatureContributions{
+					ComponentToFeatureCount: make(map[string]int),
+					FeatureToComponentCount: make(map[string]int),
+				}
+				for path, features := range featureSet.ByValueModelPath {
+					contributions.ComponentToFeatureCount[path] = len(features)
+				}
+				for _, fd := range featureSet.ByID {
+					contributions.FeatureToComponentCount[fd.ID] = len(fd.StrategicContext.ContributesTo)
+				}
+			}
+
+			report := valuemodel.AssessQuality(vmModels, portfolioNames, contributions)
+			result.ValueModelQuality = report
+
+			// Value model quality issues are warnings, never errors
+			for _, w := range report.Warnings {
+				if w.Level == valuemodel.WarningLevelWarning {
+					result.HasWarnings = true
+					break
+				}
+			}
+		}
+
+		if !healthJSON && result.ValueModelQuality != nil {
+			printValueModelQualitySummary(result.ValueModelQuality)
+		}
+	}
+
 	// Determine overall status
 	if result.HasCritical {
 		result.OverallStatus = "critical"
@@ -650,6 +701,19 @@ func calculateTiers(result *HealthResult) *HealthTiers {
 			if result.FieldCoverage.HasCriticalGaps() {
 				tiers.Quality.Details = append(tiers.Quality.Details,
 					fmt.Sprintf("%d files missing critical TRL fields", len(result.FieldCoverage.CriticalGaps)))
+			}
+		}
+	}
+
+	if result.ValueModelQuality != nil {
+		if result.ValueModelQuality.OverallScore < 100 {
+			qualityDeductions += (100 - result.ValueModelQuality.OverallScore) / 3 // Weight at ~33%
+		}
+		for _, w := range result.ValueModelQuality.Warnings {
+			if w.Level == valuemodel.WarningLevelWarning {
+				qualityIssueCount++
+				tiers.Quality.Details = append(tiers.Quality.Details,
+					truncateString(w.Message, 70))
 			}
 		}
 	}
@@ -1197,6 +1261,55 @@ func printMigrationStatusSummary(status *migration.MigrationStatus) {
 			}
 			fmt.Printf("      - %s: %s\n", filepath.Base(f.Path), reason)
 			shown++
+		}
+	}
+}
+
+func printValueModelQualitySummary(report *valuemodel.QualityReport) {
+	icon := "✅"
+	if report.ScoreLevel == "warning" {
+		icon = "⚠️"
+	}
+	if report.ScoreLevel == "alert" {
+		icon = "❌"
+	}
+
+	fmt.Printf("  %s Value Model Quality: Score %d/100 (%s)\n",
+		icon, report.OverallScore, report.ScoreLevel)
+	fmt.Printf("    • Models analyzed: %d\n", report.ModelsAnalyzed)
+
+	warningCount := 0
+	for _, w := range report.Warnings {
+		if w.Level == valuemodel.WarningLevelWarning {
+			warningCount++
+		}
+	}
+	if warningCount > 0 {
+		fmt.Printf("    • %d quality warnings\n", warningCount)
+	}
+
+	if report.ScoreLevel == "warning" || report.ScoreLevel == "alert" {
+		fmt.Printf("    → Consider running the value_model_review wizard for guided remediation\n")
+	}
+
+	if healthVerbose {
+		for _, check := range report.Checks {
+			status := "✓"
+			if check.Skipped {
+				status = "○"
+			} else if check.Score < 60 {
+				status = "✗"
+			} else if check.Score < 80 {
+				status = "~"
+			}
+			if check.Skipped {
+				fmt.Printf("      %s %s: skipped (%s)\n", status, check.Check, check.Reason)
+			} else {
+				fmt.Printf("      %s %s: %d/100\n", status, check.Check, check.Score)
+			}
+		}
+		for _, w := range report.Warnings {
+			fmt.Printf("      └─ [%s] %s\n", w.Level, truncateString(w.Message, 70))
 		}
 	}
 }
