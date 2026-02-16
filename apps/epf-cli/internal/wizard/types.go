@@ -172,6 +172,7 @@ var PhaseForWizard = map[string]schema.Phase{
 	"product_architect":  schema.PhaseFIRE,
 	"feature_definition": schema.PhaseFIRE,
 	"feature_enrichment": schema.PhaseFIRE,
+	"value_model_review": schema.PhaseFIRE,
 
 	// AIM phase
 	"synthesizer":            schema.PhaseAIM,
@@ -225,17 +226,22 @@ var KeywordMappings = map[string][]string{
 	"assess":        {"synthesizer"},
 	"assessment":    {"synthesizer"},
 	"retrospective": {"synthesizer"},
-	"review":        {"synthesizer"},
+	"review":        {"synthesizer", "value_model_review"},
 	"aim phase":     {"synthesizer"},
 	"aim":           {"aim_trigger_assessment", "synthesizer"},
 	"trigger":       {"aim_trigger_assessment"},
 	"recalibrate":   {"aim_trigger_assessment"},
 
 	// FIRE phase
-	"fire phase":  {"product_architect"},
-	"fire":        {"product_architect"},
-	"value model": {"product_architect"},
-	"workflow":    {"product_architect"},
+	"fire phase":          {"product_architect"},
+	"fire":                {"product_architect"},
+	"value model":         {"product_architect", "value_model_review"},
+	"workflow":            {"product_architect"},
+	"review value model":  {"value_model_review"},
+	"value model review":  {"value_model_review"},
+	"value model quality": {"value_model_review"},
+	"anti-pattern":        {"value_model_review"},
+	"product catalog":     {"value_model_review"},
 
 	// Utility
 	"context sheet": {"context_sheet_generator"},
