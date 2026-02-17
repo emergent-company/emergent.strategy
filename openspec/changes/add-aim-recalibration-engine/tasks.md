@@ -144,33 +144,33 @@
 
 ### 2.1 Recalibration Protocol
 
-- [ ] 2.1.1 Define recalibration protocol mapping: calibration memo fields + SRC recalibration_plan -> READY/FIRE artifact fields
-- [ ] 2.1.2 Document protocol as canonical EPF doc (e.g., `docs/protocols/recalibration_protocol.md`)
-- [ ] 2.1.3 Define changeset format for READY/FIRE artifact updates (structured diff representation)
+- [x] 2.1.1 Define recalibration protocol mapping: calibration memo fields + SRC recalibration_plan -> READY/FIRE artifact fields
+- [ ] 2.1.2 Document protocol as canonical EPF doc (e.g., `docs/protocols/recalibration_protocol.md`) — deferred, protocol is embedded in code
+- [x] 2.1.3 Define changeset format for READY/FIRE artifact updates (structured diff representation)
 
 ### 2.2 Recalibration Command
 
-- [ ] 2.2.1 Add `aim recalibrate` command — reads calibration memo and SRC, generates READY/FIRE artifact changeset
-- [ ] 2.2.2 Implement changeset generation for each READY artifact type (north_star, analyses, foundations, opportunity, formula, roadmap)
-- [ ] 2.2.3 Implement changeset generation for FIRE artifact types (feature_definition maturity, value_model maturity)
-- [ ] 2.2.4 Add `--dry-run` mode that previews changes without writing
-- [ ] 2.2.5 Add `--apply` mode that writes changes and logs them in LRA evolution log
-- [ ] 2.2.6 Add `epf_aim_recalibrate` MCP tool
-- [ ] 2.2.7 Write tests for recalibration propagation logic
+- [x] 2.2.1 Add `aim recalibrate` command — reads calibration memo and SRC, generates READY/FIRE artifact changeset
+- [x] 2.2.2 Implement changeset generation for each READY artifact type (north_star, analyses, foundations, opportunity, formula, roadmap)
+- [x] 2.2.3 Implement changeset generation for FIRE artifact types (feature_definition maturity, value_model maturity)
+- [x] 2.2.4 Add `--dry-run` mode that previews changes without writing
+- [x] 2.2.5 Add `--apply` mode that writes changes and logs them in LRA evolution log
+- [x] 2.2.6 Add `epf_aim_recalibrate` MCP tool
+- [x] 2.2.7 Write tests for recalibration propagation logic
 
 ### 2.3 Drift Detection
 
-- [ ] 2.3.1 Add `aim health` subcommand — AIM-specific diagnostics (LRA staleness, missing assessments, unfilled KRs, SRC findings summary)
-- [ ] 2.3.2 Add staleness checks: LRA signal dates > 90 days, missing assessment for completed cycle, overdue trigger evaluation
-- [ ] 2.3.3 Add relationship drift: FDs marked "delivered" without capability maturity updates, KRs completed without assessment evidence (overlaps with SRC `strategic_alignment` — reuse SRC findings when available)
-- [ ] 2.3.4 Add `epf_aim_health` MCP tool
-- [ ] 2.3.5 Integrate drift warnings into main `epf_health_check` output
+- [x] 2.3.1 Add `aim health` subcommand — AIM-specific diagnostics (LRA staleness, missing assessments, unfilled KRs, SRC findings summary)
+- [x] 2.3.2 Add staleness checks: LRA signal dates > 90 days, missing assessment for completed cycle, overdue trigger evaluation
+- [x] 2.3.3 Add relationship drift: FDs marked "delivered" without capability maturity updates, KRs completed without assessment evidence (overlaps with SRC `strategic_alignment` — reuse SRC findings when available)
+- [x] 2.3.4 Add `epf_aim_health` MCP tool
+- [x] 2.3.5 Integrate drift warnings into main `epf_health_check` output
 
 ### 2.4 Canonical Sync
 
-- [ ] 2.4.1 If changeset or probe report becomes a new artifact type: add schema + template to `epf-canonical`
-- [ ] 2.4.2 Update `synthesizer.agent_prompt.md` wizard in `epf-canonical` with recalibration guidance
-- [ ] 2.4.3 Run `sync-embedded.sh` and rebuild `epf-cli`
+- [x] 2.4.1 If changeset or probe report becomes a new artifact type: add schema + template to `epf-canonical` — decided: changeset is ephemeral, no schema needed
+- [x] 2.4.2 Update `synthesizer.agent_prompt.md` wizard in `epf-canonical` with recalibration guidance
+- [x] 2.4.3 Run `sync-embedded.sh` and rebuild `epf-cli`
 
 ## Phase 3: AIM Monitoring (coordinates with `add-epf-cloud-server`)
 
