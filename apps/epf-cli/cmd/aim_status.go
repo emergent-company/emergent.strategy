@@ -40,12 +40,7 @@ func runAimStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	// Load LRA
-	lraPath := lra.GetLRAPath(instancePath)
-	if !lra.LRAExists(instancePath) {
-		return fmt.Errorf("Living Reality Assessment not found at: %s\n\nRun 'epf-cli aim bootstrap' to create your baseline.", lraPath)
-	}
-
-	assessment, err := lra.LoadLRA(instancePath)
+	assessment, err := lra.LoadOrError(instancePath)
 	if err != nil {
 		return fmt.Errorf("failed to load LRA: %w", err)
 	}
