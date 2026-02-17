@@ -8,9 +8,9 @@ Today, these updates are done manually with CLI validation (`epf-cli validate`).
 
 The system is designed as **two layers** to support future framework expansion:
 
-1. **Engine layer** (framework-agnostic): OpenCode orchestration, session management, ACP protocol, billing/metering, compute isolation. This layer knows nothing about EPF — it manages AI agent sessions that write structured files.
+1. **Engine layer** (framework-agnostic): OpenCode orchestration, session management, A2A protocol (formerly ACP — see migration note below), billing/metering, compute isolation. This layer knows nothing about EPF — it manages AI agent sessions that write structured files.
 
-2. **Framework layer** (pluggable): EPF-specific context and validation. The EPF Cloud Strategy Server provides strategic context via MCP tools (personas, features, value model, roadmap). The `epf-canonical` package provides JSON Schemas for artifact validation. Future frameworks plug in at this layer by providing their own MCP context server and schema package.
+2. **Framework layer** (pluggable): EPF-specific context and validation. The EPF Cloud Strategy Server provides strategic context via MCP tools (personas, features, value model, roadmap). The `epf-canonical` package provides JSON Schemas for artifact validation. The `emergent` knowledge graph provides persistent storage, semantic search, and graph traversal for strategy artifacts via its REST API or MCP server. Future frameworks plug in at this layer by providing their own MCP context server and schema package.
 
 ### Stakeholders
 
@@ -25,7 +25,7 @@ The system is designed as **two layers** to support future framework expansion:
 - Validate that headless OpenCode can reason over and write EPF YAML artifacts using MCP-provided strategic context
 - Define the two-layer architecture: framework-agnostic engine + pluggable framework layer
 - Spec the EPF framework integration (MCP strategy server for context, `epf-canonical` for validation)
-- Define the ACP abstraction for client-agent communication
+- Define the A2A abstraction for client-agent communication (A2A Protocol, formerly ACP — merged under Linux Foundation Aug 2025)
 - Spec the subscription + overage billing model
 - Define per-session compute isolation
 
@@ -60,15 +60,26 @@ Key capabilities confirmed from research:
 
 **Open question**: OpenCode headless mode readiness for production use needs validation during the PoC. The API surface is extensive but production reliability (error handling, session lifecycle, resource cleanup) is unproven for programmatic orchestration at scale.
 
-### ACP (Agent Client Protocol) for client communication
+### A2A (Agent2Agent Protocol) for client and inter-agent communication
 
-**Decision**: Use ACP as the protocol between frontends and the engine.
+**Decision**: Use A2A as the protocol between frontends and the engine, and between agents in the ecosystem.
 
-**Why**: ACP provides a standard interface for agent interactions, decoupling frontends from the specific agent engine. This allows:
+**Why**: A2A (originally Google's Agent2Agent, now Linux Foundation; IBM's ACP merged into A2A in Aug 2025) provides a standard interface for agent interactions, decoupling frontends from the specific agent engine. Key A2A capabilities:
+- **Agent Cards** for discovery — agents publish JSON metadata describing their identity, skills, endpoint, and auth requirements. Other agents and clients find them without hardcoded configuration.
+- **Task lifecycle** — stateful units of work with unique IDs, status tracking, streaming, and push notifications for long-running operations.
+- **Multi-turn interactions** — conversational coordination between agents for complex strategy operations.
+- **Transport** — HTTP-based, supports both synchronous and async (SSE streaming, push notifications).
+
+This enables:
 - Web dashboard to submit artifact writing tasks
 - CLI to trigger operations
 - Webhooks to initiate automated workflows
 - Engine swaps without frontend changes
+- **Agent-to-agent coordination** — the AI strategy agent can discover and delegate to other agents (e.g., emergent's knowledge graph agents) via A2A, not just consume MCP tools
+
+**SDK**: Official Go SDK at `github.com/a2aproject/a2a-go`. ADK-Go (already in `emergent`) has native A2A support for both exposing and consuming A2A agents.
+
+**ACP migration note**: Earlier versions of this spec referenced ACP (Agent Communication Protocol). ACP merged with A2A under the Linux Foundation in August 2025. All ACP capabilities (RESTful agent communication, async tasks, streaming) are subsumed by A2A. Migration from ACP to A2A is documented at the BeeAI project.
 
 ### EPF Cloud Strategy Server as the framework context provider
 
@@ -114,7 +125,7 @@ Firecracker adds complexity (not natively supported on GCP) without clear benefi
 - **Schema evolution** -> `epf-canonical` schemas evolve. Agent must handle schema version changes. Mitigation: always validate against current schemas; schema version is in artifact metadata.
 - **Cost model uncertainty** -> Per-session Cloud Run job costs depend on task duration and model token usage. Mitigation: implement session timeouts and token quotas; subscription base covers fixed costs.
 - **Framework abstraction overhead** -> Designing the engine layer as framework-agnostic adds initial complexity. Mitigation: keep the abstraction thin — the engine only needs to manage sessions and billing; all domain logic lives in the framework layer (MCP server + schemas).
-- **ACP specification stability** -> ACP is still evolving. Mitigation: implement a thin abstraction layer that can adapt to ACP spec changes without rewriting the engine.
+- **ACP specification stability** -> ACP has merged into A2A under the Linux Foundation (Aug 2025). A2A v1 spec is released with official Go SDK (`a2a-go`). ADK-Go provides native A2A support. Risk is now lower than when ACP was standalone. Mitigation: use the official SDK; the A2A spec is backed by Google, IBM, AWS, Microsoft, and others.
 
 ## Migration Plan
 
@@ -131,7 +142,7 @@ Firecracker adds complexity (not natively supported on GCP) without clear benefi
 ### Phase 2: Headless API ("The Engine")
 
 1. Run OpenCode in headless mode (`opencode serve`)
-2. Create thin ACP-compatible wrapper
+2. Create thin A2A-compatible wrapper (Agent Card, task lifecycle, streaming)
 3. Implement session lifecycle (create, prompt, stream, abort)
 4. Dynamically attach EPF strategy server as MCP per session
 5. Expose task submission, progress streaming, and result retrieval
@@ -182,7 +193,17 @@ Phase 1 (local PoC) stays in this change as a hard gate. Not split into a separa
 
 ## Architectural Context: Relationship to Other Changes
 
-This change sits at the top of a dependency chain with two other active changes:
+This change sits at the top of a dependency chain with two other active changes, and integrates with the `emergent` knowledge graph platform as a tool.
+
+### Protocol stack (from `add-aim-recalibration-engine` Decision #11)
+
+```
+MCP  (Agent-to-Tool)   — EPF CLI tools, emergent MCP tools
+A2A  (Agent-to-Agent)  — coordination between EPF agent, emergent agents
+ADK  (Agent framework) — already in emergent (ADK-Go), native A2A support
+```
+
+The AI strategy agent uses **MCP** to access tools (EPF strategy server, AIM write-back commands, `epf-cli validate`) and **A2A** to coordinate with other agents in the ecosystem (e.g., emergent's extraction agents, future monitoring agents).
 
 ### Dependency: `add-epf-cloud-server`
 
@@ -190,6 +211,7 @@ The cloud server provides the MCP-over-HTTP endpoint that the AI agent connects 
 - Remote agent sessions connecting to strategy context
 - GitHub-sourced EPF instances (no local clones needed)
 - Cloud Run hosting for the MCP server
+- Future: A2A Agent Card for discovery by this agent
 
 ### Upstream: `add-aim-recalibration-engine`
 
@@ -207,6 +229,27 @@ The AIM recalibration engine (Phases 1-2 shipped as v0.18.1) provides the MCP wr
 
 These tools are already built and available in the CLI. The agent doesn't need to implement any AIM logic — it orchestrates existing tools.
 
+### Tool: `emergent` knowledge graph platform
+
+The `emergent` platform (separately developed in `emergent-company/emergent`) provides the knowledge graph capabilities the agent can use for persistent strategy storage and rich analysis:
+
+| Capability | How the agent uses it | Access via |
+|---|---|---|
+| **Schemaless entity storage** | Store EPF artifacts as typed graph objects with JSONB properties | REST API `/api/graph/objects` or MCP |
+| **Graph relationships** | Model Feature→Persona, Feature→NorthStar, KR→ValueModel links | REST API `/api/graph/relationships` |
+| **Vector similarity search** | Find strategically related artifacts ("what's similar to this feature?") | REST API `/api/graph/objects/vector-search` |
+| **Hybrid search** | FTS + vector fusion for semantic strategy queries | REST API `/api/graph/search` |
+| **Graph traversal** | Walk alignment chains (Feature → Persona → NorthStar) to check consistency | REST API `/api/graph/traverse` |
+| **Branching** | "What-if" strategy scenarios without modifying production graph | REST API `/api/graph/branches` |
+| **Template Packs** | Define EPF object type schemas for the knowledge graph | REST API `/api/template-packs` |
+| **LLM extraction** | Extract EPF concepts from unstructured documents using template pack schemas | REST API extraction pipeline |
+
+The agent accesses `emergent` via its REST API, Go SDK (`apps/server-go/pkg/sdk/`), or MCP server (`/api/mcp`). `emergent` is a **tool, not a dependency** — the agent works without it (using local YAML), but gains persistence, semantic search, and graph analysis when connected.
+
 ### Architectural constraint from `add-aim-recalibration-engine` Decision #9
 
 The EPF CLI is a stateless analysis engine. This agent does not write directly to YAML files — it uses AIM MCP tools for write operations and `epf-cli validate` for validation. The CLI's Go packages can be imported as a library if the agent needs direct access, but the primary interface is MCP.
+
+### Architectural constraint from `add-aim-recalibration-engine` Decision #11
+
+Cross-system coordination uses open protocols (MCP, A2A, REST API) — not shared databases or mandatory Go package imports. The deployment topology for all components is deferred to the last responsible moment. The `emergent` platform is actively co-developed and can be extended with new capabilities as needed by this agent, but the integration remains protocol-based to preserve independent development and deployment.

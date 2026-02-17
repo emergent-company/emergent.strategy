@@ -33,5 +33,6 @@ This is a foundational change in a three-part dependency chain:
 
 This v1 is **stateless and read-only**. Two downstream extensions are anticipated:
 
-1. **AIM stateful layer** (`add-aim-recalibration-engine` Phase 3S) — adds persistent metric storage, monitoring state, webhook receivers, and AIM health dashboard API. May extend this server or run as a companion service.
-2. **AI Strategy context** (`add-emergent-ai-strategy`) — dynamically attaches this server as an MCP context provider to headless OpenCode sessions. No changes to this server needed — it's consumed as-is.
+1. **AIM stateful layer** (`add-aim-recalibration-engine` Phase 3S) — adds persistent storage (via `emergent` knowledge graph API or dedicated database — deferred decision), monitoring state, webhook receivers, and AIM health dashboard API. Integration via MCP tools and REST API, not shared code (per Decision #11).
+2. **AI Strategy context** (`add-emergent-ai-strategy`) — dynamically attaches this server as an MCP context provider to headless OpenCode sessions. The AI agent also coordinates with `emergent`'s services via A2A protocol for knowledge graph operations. No changes to this server needed for v1.
+3. **A2A Agent Card** (future) — this server can expose an A2A Agent Card for discovery by other agents in the ecosystem, enabling protocol-based coordination without hardcoded endpoint configuration.
