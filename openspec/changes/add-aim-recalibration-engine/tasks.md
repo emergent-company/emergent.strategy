@@ -2,41 +2,46 @@
 
 ### 1.1 Fix Emergent Instance LRA
 
-- [ ] 1.1.1 Rename `AIM/_living_reality_assessment.yaml` to `AIM/living_reality_assessment.yaml` (match expected pattern)
-- [ ] 1.1.2 Update LRA metadata: set `update_count`, refresh `last_updated_cycle`, add evolution trigger
-- [ ] 1.1.3 Update track baselines: refresh signal dates to reflect current reality (product accelerating, Memory shipped, EPF CLI at v0.13)
-- [ ] 1.1.4 Update existing_assets: add Diane, EPF CLI, EPF Cloud Server (planned)
-- [ ] 1.1.5 Update capability_gaps: Strategy Foundations was enriched (resolve the Grade D gap), add new gaps
-- [ ] 1.1.6 Update current_focus: reflect current cycle priorities (AIM assessment, cloud server, AI strategy)
-- [ ] 1.1.7 Append evolution_log entry for this update
-- [ ] 1.1.8 Validate updated LRA with `epf_validate_file`
+- [x] 1.1.1 Rename `AIM/_living_reality_assessment.yaml` to `AIM/living_reality_assessment.yaml` (match expected pattern)
+- [x] 1.1.2 Update LRA metadata: set `update_count`, refresh `last_updated_cycle`, add evolution trigger
+- [x] 1.1.3 Update track baselines: refresh signal dates to reflect current reality (product accelerating, Memory shipped, EPF CLI at v0.13)
+- [x] 1.1.4 Update existing_assets: add Diane, EPF CLI, EPF Cloud Server (planned)
+- [x] 1.1.5 Update capability_gaps: Strategy Foundations was enriched (resolve the Grade D gap), add new gaps
+- [x] 1.1.6 Update current_focus: reflect current cycle priorities (AIM assessment, cloud server, AI strategy)
+- [x] 1.1.7 Append evolution_log entry for this update
+- [x] 1.1.8 Validate updated LRA with `epf_validate_file`
 
 ### 1.2 Instantiate AIM Artifacts
 
-- [ ] 1.2.1 Create `AIM/aim_trigger_config.yaml` from template, configured for emergent (adoption level 2, small team costs)
-- [ ] 1.2.2 Run `aim assess` to generate assessment report template for current roadmap cycle
-- [ ] 1.2.3 Validate all new AIM artifacts
+- [x] 1.2.1 Create `AIM/aim_trigger_config.yaml` from template, configured for emergent (adoption level 2, small team costs)
+- [x] 1.2.2 Run `aim assess` to generate assessment report template for current roadmap cycle
+- [x] 1.2.3 Validate all new AIM artifacts
 
 ### 1.3 CLI Write-Back Commands
 
-- [ ] 1.3.1 Create `internal/aim/` package with AIM artifact read/write helpers
-- [ ] 1.3.2 Add `aim update-lra` command — accepts field updates (track baselines, focus, gaps) and appends evolution log
-- [ ] 1.3.3 Add `aim write-assessment` command — writes/updates assessment report from structured input
-- [ ] 1.3.4 Add `aim write-calibration` command — writes calibration memo with decision, learnings, next-cycle inputs
-- [ ] 1.3.5 Add `aim init-cycle` command — bootstraps new cycle by archiving previous and creating fresh templates
-- [ ] 1.3.6 Add `aim archive-cycle` command — saves current cycle artifacts to `cycles/cycle-N/` directory
-- [ ] 1.3.7 Write unit tests for all new commands
-- [ ] 1.3.8 Verify existing AIM commands still work unchanged
+- [x] 1.3.1 Create `internal/aim/` package with AIM artifact read/write helpers
+- [x] 1.3.2 Add `aim update-lra` command — accepts field updates (track baselines, focus, gaps) and appends evolution log
+- [x] 1.3.3 Add `aim write-assessment` command — writes/updates assessment report from structured input
+- [x] 1.3.4 Add `aim write-calibration` command — writes calibration memo with decision, learnings, next-cycle inputs
+- [x] 1.3.5 Add `aim init-cycle` command — bootstraps new cycle by archiving previous and creating fresh templates
+- [x] 1.3.6 Add `aim archive-cycle` command — saves current cycle artifacts to `cycles/cycle-N/` directory
+- [x] 1.3.7 Write unit tests for all new commands
+- [x] 1.3.8 Verify existing AIM commands still work unchanged
 
 ### 1.4 MCP Write-Back Tools
 
-- [ ] 1.4.1 Add `epf_aim_update_lra` MCP tool — mirrors CLI `aim update-lra`
-- [ ] 1.4.2 Add `epf_aim_write_assessment` MCP tool — write assessment report data
-- [ ] 1.4.3 Add `epf_aim_write_calibration` MCP tool — write calibration memo
-- [ ] 1.4.4 Add `epf_aim_init_cycle` MCP tool — bootstrap new cycle
-- [ ] 1.4.5 Add `epf_aim_archive_cycle` MCP tool — archive completed cycle
-- [ ] 1.4.6 Register all new tools in MCP server
-- [ ] 1.4.7 Write integration tests for MCP tools
+- [x] 1.4.1 Add `epf_aim_update_lra` MCP tool — mirrors CLI `aim update-lra`
+- [x] 1.4.2 Add `epf_aim_write_assessment` MCP tool — write assessment report data
+- [x] 1.4.3 Add `epf_aim_write_calibration` MCP tool — write calibration memo
+- [x] 1.4.4 Add `epf_aim_init_cycle` MCP tool — bootstrap new cycle
+- [x] 1.4.5 Add `epf_aim_archive_cycle` MCP tool — archive completed cycle
+- [x] 1.4.6 Register all new tools in MCP server
+- [x] 1.4.7 Write integration tests for MCP tools
+
+### 1.5 Canonical Sync (cross-cutting)
+
+- [x] 1.5.1 Audit Phase 1 for schema gaps: verify existing AIM schemas fully support write-back fields (e.g., cycle archival metadata, evolution log entries)
+- [x] 1.5.2 Fix 6 schema mismatches in Go types: AssumptionCheck.ID (was AssumptionID), CrossFunctionalInsights as flat []string (was struct), CalibrationMemo rewritten to match schema (structured learnings, start/stop/continue focus, structured next_ready_inputs, added next_steps)
 
 ## Phase 2: Recalibration Propagation
 
@@ -62,6 +67,12 @@
 - [ ] 2.3.3 Add relationship drift: FDs marked "delivered" without capability maturity updates, KRs completed without assessment evidence
 - [ ] 2.3.4 Add `epf_aim_health` MCP tool
 - [ ] 2.3.5 Integrate drift warnings into main `epf_health_check` output
+
+### 2.4 Canonical Sync
+
+- [ ] 2.4.1 If changeset or probe report becomes a new artifact type: add schema + template to `epf-canonical`
+- [ ] 2.4.2 Update `synthesizer.agent_prompt.md` wizard in `epf-canonical` with recalibration guidance
+- [ ] 2.4.3 Run `sync-embedded.sh` and rebuild `epf-cli`
 
 ## Phase 3: AIM Monitoring (coordinates with `add-epf-cloud-server`)
 
@@ -95,6 +106,14 @@
 - [ ] 3.4.3 If cloud server available: add server-side monitoring endpoint with webhook delivery
 - [ ] 3.4.4 Add monitoring configuration to trigger config (cadence, notification channels)
 
+### 3.5 Canonical Sync
+
+- [ ] 3.5.1 Add metric schema to `epf-canonical` (new artifact type: `aim_metric`)
+- [ ] 3.5.2 Add metric template to `epf-canonical/templates/AIM/`
+- [ ] 3.5.3 If probe report is canonical: add probe report schema + template to `epf-canonical`
+- [ ] 3.5.4 Update `aim_trigger_config` schema in `epf-canonical` if monitoring config fields are added
+- [ ] 3.5.5 Run `sync-embedded.sh` and rebuild `epf-cli`
+
 ## Phase 4: Autonomous Recalibration (depends on `add-emergent-ai-strategy`)
 
 ### 4.1 AI Synthesizer Integration
@@ -117,3 +136,9 @@
 - [ ] 4.3.2 Scheduled cycle-end assessment: auto-trigger at end of cycle cadence
 - [ ] 4.3.3 Evolution log automation: all AI-driven changes logged with agent attribution
 - [ ] 4.3.4 End-to-end test: FIRE change -> metric collection -> trigger -> assessment -> calibration -> READY update PR
+
+### 4.4 Canonical Sync
+
+- [ ] 4.4.1 Add AIM-specific agent instruction set to `epf-canonical/wizards/`
+- [ ] 4.4.2 Update `synthesizer.agent_prompt.md` with autonomous recalibration workflow
+- [ ] 4.4.3 Run `sync-embedded.sh` and rebuild `epf-cli`

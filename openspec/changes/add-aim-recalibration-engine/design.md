@@ -67,6 +67,44 @@ The EPF AIM phase currently has read-only tooling and no closed-loop feedback. T
 
 **Rationale:** A daemon adds operational complexity (process management, crash recovery, resource usage). Periodic evaluation is sufficient for weekly cadence. The MCP server already has a long-running process that can host scheduled checks if needed. Cloud Run's scheduled invocations provide the server-side equivalent.
 
+### 6. Canonical EPF repo must be kept in sync
+
+**Decision:** Any changes to AIM schemas, templates, or wizards must be made in `emergent-company/epf-canonical` (locally at `/Users/nikolaifasting/code/canonical-epf`) first, then synced into `epf-cli` via `sync-embedded.sh`.
+
+**Architecture:**
+
+```
+epf-canonical (source of truth)
+  schemas/*.json, templates/AIM/*.yaml, wizards/*.md
+       |
+       | sync-embedded.sh (copies at build time)
+       v
+epf-cli/internal/embedded/
+  schemas/, templates/, wizards/
+       |
+       | Go //go:embed
+       v
+Compiled epf-cli binary (3-tier fallback at runtime)
+```
+
+**What this means per phase:**
+
+| Phase | Canonical changes likely needed |
+|-------|-------------------------------|
+| 1 | None expected (writing to existing artifact types), but schema gaps discovered during implementation go upstream |
+| 2 | Possible: probe report schema, changeset format, wizard updates to `synthesizer.agent_prompt.md` |
+| 3 | Yes: metric schema (new artifact type), trigger config schema extensions, probe report schema |
+| 4 | Yes: new AI agent instruction sets for AIM operations |
+
+**Workflow for each phase:**
+
+1. Make schema/template/wizard changes in `canonical-epf` first
+2. Run `sync-embedded.sh` to copy into `epf-cli/internal/embedded/`
+3. Build and test `epf-cli` against updated embedded content
+4. Commit to both repos (canonical first, then emergent-strategy)
+
+**Alternative considered:** Making changes in `internal/embedded/` directly and back-porting to canonical later. Rejected because it creates divergence risk and the sync is one-directional (canonical → embedded).
+
 ## Risks / Trade-offs
 
 | Risk | Mitigation |
@@ -75,6 +113,7 @@ The EPF AIM phase currently has read-only tooling and no closed-loop feedback. T
 | Recalibration changeset format may not cover all READY artifact variations | Start with the most common patterns (track focus changes, assumption updates, OKR adjustments); extend as needed |
 | Metric YAML files could proliferate in git | Add retention policy to trigger config (keep N weeks of metrics, prune older ones) |
 | Write-back commands change AIM artifacts, risking data loss | All writes append to evolution log; `aim archive-cycle` creates snapshots before modifications |
+| Canonical EPF repo (`epf-canonical`) and `epf-cli` embedded content drift apart | Enforce workflow: canonical first, sync, then build. CI clones canonical at build time. Never edit `internal/embedded/` directly |
 
 ## Open Questions
 
