@@ -48,8 +48,8 @@
 
 ## 6. Commit and Push
 
-- [ ] 6.1 Stage all changes in the `emergent-epf` submodule
-- [ ] 6.2 Commit with descriptive message to `emergent-epf` repo
-- [ ] 6.3 Push to `emergent-company/emergent-epf` main branch
-- [ ] 6.4 Update submodule reference in `emergent-strategy` repo
-- [ ] 6.5 Commit submodule pointer update in `emergent-strategy`
+- [x] 6.1 Stage all changes in the `emergent-epf` submodule
+- [x] 6.2 Commit with descriptive message to `emergent-epf` repo
+- [x] 6.3 Push to `emergent-company/emergent-epf` main branch
+- [x] 6.4 Update submodule reference in `emergent-strategy` repo
+- [x] 6.5 Commit submodule pointer update in `emergent-strategy`
