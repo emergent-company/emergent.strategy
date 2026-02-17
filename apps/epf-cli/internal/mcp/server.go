@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/aim"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/anchor"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/checks"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/discovery"
@@ -1112,6 +1113,43 @@ func (s *Server) registerTools() {
 		s.handleAimWriteSRC,
 	)
 
+	// Tool: epf_aim_recalibrate
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_aim_recalibrate",
+			mcp.WithDescription("Generate a recalibration changeset from calibration memo and/or SRC. "+
+				"Maps calibration decisions and SRC findings to specific READY/FIRE artifact changes. "+
+				"Use apply=true to write LRA updates and log the recalibration event. "+
+				"Without apply, returns a dry-run report showing what needs to change."),
+			mcp.WithString("instance_path",
+				mcp.Description("Path to EPF instance (default: current directory)"),
+				mcp.Required(),
+			),
+			mcp.WithString("apply",
+				mcp.Description("Apply auto-applicable changes (LRA updates) and log event (true/false, default: false)"),
+			),
+			mcp.WithString("no_src",
+				mcp.Description("Only use calibration memo, skip SRC (true/false, default: false)"),
+			),
+		),
+		s.handleAimRecalibrate,
+	)
+
+	// Tool: epf_aim_health
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_aim_health",
+			mcp.WithDescription("Run AIM-specific health diagnostics on an EPF instance. "+
+				"Checks for LRA staleness, missing assessments, overdue triggers, "+
+				"delivery drift (features delivered without maturity updates), "+
+				"evidence gaps (KRs without assessment outcomes), and surfaces SRC findings. "+
+				"Complementary to epf_health_check — focuses specifically on AIM phase."),
+			mcp.WithString("instance_path",
+				mcp.Description("Path to EPF instance (default: current directory)"),
+				mcp.Required(),
+			),
+		),
+		s.handleAimHealth,
+	)
+
 	// ==========================================================================
 	// Report & Diff Tools (v0.14.0)
 	// ==========================================================================
@@ -1433,6 +1471,7 @@ type HealthCheckSummary struct {
 	ContentReadiness  *checks.ContentReadinessResult `json:"content_readiness,omitempty"`
 	FeatureQuality    *checks.FeatureQualitySummary  `json:"feature_quality,omitempty"`
 	ValueModelQuality *valuemodel.QualityReport      `json:"value_model_quality,omitempty"`
+	AIMHealth         *aim.HealthReport              `json:"aim_health,omitempty"`
 	Summary           string                         `json:"summary"`
 }
 
@@ -1537,6 +1576,12 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 		}
 	}
 
+	// Run AIM health diagnostics
+	aimReport, aimErr := aim.RunHealthDiagnostics(instancePath)
+	if aimErr == nil {
+		result.AIMHealth = aimReport
+	}
+
 	// Determine overall status
 	if instanceResult.HasCritical() || instanceResult.HasErrors() {
 		result.OverallStatus = "ERRORS"
@@ -1555,6 +1600,13 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 	}
 
 	if result.ValueModelQuality != nil && result.ValueModelQuality.ScoreLevel == "alert" {
+		if result.OverallStatus != "ERRORS" {
+			result.OverallStatus = "WARNINGS"
+		}
+	}
+
+	// AIM health diagnostics can raise warnings
+	if aimReport != nil && (aimReport.OverallStatus == "critical" || aimReport.OverallStatus == "at_risk") {
 		if result.OverallStatus != "ERRORS" {
 			result.OverallStatus = "WARNINGS"
 		}
@@ -1609,6 +1661,20 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 				}
 			}
 			sb.WriteString("\n> Consider running the `value_model_review` wizard for guided remediation.\n> Use: `epf_get_wizard { \"name\": \"value_model_review\" }`\n")
+		}
+		sb.WriteString("\n")
+	}
+
+	// AIM health
+	if aimReport != nil && aimReport.Summary.Total > 0 {
+		sb.WriteString("## AIM Health\n")
+		sb.WriteString(fmt.Sprintf("- Status: %s\n", aimReport.OverallStatus))
+		sb.WriteString(fmt.Sprintf("- Diagnostics: %d (Critical: %d, Warning: %d, Info: %d)\n",
+			aimReport.Summary.Total, aimReport.Summary.Critical, aimReport.Summary.Warning, aimReport.Summary.Info))
+		for _, d := range aimReport.Diagnostics {
+			if d.Severity == "critical" || d.Severity == "warning" {
+				sb.WriteString(fmt.Sprintf("  - [%s] %s\n", d.Severity, d.Title))
+			}
 		}
 		sb.WriteString("\n")
 	}

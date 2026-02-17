@@ -41,6 +41,8 @@ Available subcommands:
   write-calibration    Write calibration memo from structured YAML
   generate-src         Generate Strategic Reality Check with mechanical checks
   write-src            Write/update Strategic Reality Check from YAML
+  recalibrate          Generate changeset mapping calibration decisions to artifact changes
+  health               Run AIM-specific health diagnostics (staleness, drift, gaps)
   init-cycle           Bootstrap a new cycle (archive previous, reset AIM)
   archive-cycle        Archive current cycle's AIM artifacts
 
@@ -55,7 +57,10 @@ Examples:
   epf-cli aim write-assessment --file assessment_draft.yaml
   epf-cli aim write-calibration --file calibration.yaml
   epf-cli aim init-cycle --cycle 2 --archive
-  epf-cli aim archive-cycle --cycle 1`,
+  epf-cli aim archive-cycle --cycle 1
+  epf-cli aim recalibrate
+  epf-cli aim recalibrate --apply
+  epf-cli aim health`,
 }
 
 // =============================================================================
