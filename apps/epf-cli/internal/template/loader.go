@@ -127,6 +127,13 @@ var templateMapping = map[schema.ArtifactType]struct {
 		Description: "Configuration for AIM phase triggers and thresholds",
 		UsageHint:   "Define when AIM phase assessments should be triggered.",
 	},
+	schema.ArtifactStrategicRealityCheck: {
+		Path:        "templates/AIM/strategic_reality_check.yaml",
+		Phase:       schema.PhaseAIM,
+		Name:        "Strategic Reality Check",
+		Description: "Cross-artifact health evaluation organized by detection type",
+		UsageHint:   "Run aim generate-src first for mechanical checks, then fill in subjective assessments.",
+	},
 }
 
 // Additional value model templates

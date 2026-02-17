@@ -22,6 +22,12 @@ func WriteCalibrationMemo(instancePath string, memo *CalibrationMemo) (string, e
 	return writeYAML(path, memo)
 }
 
+// WriteStrategicRealityCheck writes an SRC to the AIM directory.
+func WriteStrategicRealityCheck(instancePath string, src *StrategicRealityCheck) (string, error) {
+	path := filepath.Join(instancePath, "AIM", "strategic_reality_check.yaml")
+	return writeYAML(path, src)
+}
+
 // UpdateLRA applies field-level updates to the LRA and appends an evolution log entry.
 // This implements the "structured input, not freeform YAML" design decision.
 type LRAUpdate struct {
@@ -143,6 +149,7 @@ func ArchiveCycle(instancePath string, cycleNumber int) (string, error) {
 	artifacts := []string{
 		"assessment_report.yaml",
 		"calibration_memo.yaml",
+		"strategic_reality_check.yaml",
 		"living_reality_assessment.yaml", // LRA snapshot at cycle end
 	}
 
@@ -189,7 +196,7 @@ func InitCycle(instancePath string, newCycleNumber int, archivePrevious bool, up
 
 	// Remove old assessment and calibration (they belong to the previous cycle)
 	aimDir := filepath.Join(instancePath, "AIM")
-	for _, f := range []string{"assessment_report.yaml", "calibration_memo.yaml"} {
+	for _, f := range []string{"assessment_report.yaml", "calibration_memo.yaml", "strategic_reality_check.yaml"} {
 		path := filepath.Join(aimDir, f)
 		if _, err := os.Stat(path); err == nil {
 			os.Remove(path) // best-effort
