@@ -24,12 +24,12 @@ The EPF CLI today is a standalone binary that reads YAML files from the local fi
 - Authenticate via GitHub App for private repo access
 - Preserve all existing local CLI behavior unchanged
 
-### Non-Goals
+### Non-Goals (v1)
 
 - Multi-tenant isolation (single-org deployment for now)
-- Persistent storage / database (artifacts live in GitHub)
-- Custom UI / dashboard (MCP protocol only)
-- Real-time collaboration (read-only strategy queries)
+- Persistent storage / database (v1 is stateless — artifacts live in GitHub. Persistent storage for AIM metrics and monitoring state is a future concern; see `add-aim-recalibration-engine` Phase 3S)
+- Custom UI / dashboard (v1 is MCP protocol only. AIM health dashboards are a future concern)
+- Write-back operations (v1 is read-only strategy queries. AIM write-back tools run locally via CLI; server-side write support is a future extension)
 - WebSocket transport (SSE only for cloud mode)
 
 ## Decisions
@@ -147,3 +147,29 @@ Cache entries expire based on TTL (default 5 minutes). No GitHub webhook endpoin
 ### Cloud Run default monitoring
 
 Use Cloud Run's built-in metrics (request latency, error rates, instance count, memory/CPU). No custom metrics at launch. Add structured logging and custom metrics (cache hit rate, GitHub API calls) later if operational visibility gaps emerge.
+
+## Architectural Evolution: Relationship to Other Changes
+
+This change builds the **read-only cloud transport layer** for the EPF MCP server. Two downstream changes depend on it and will extend its scope:
+
+```
+add-epf-cloud-server (this change)
+  │ v1: Stateless read-only MCP over HTTP/SSE
+  │     Source: GitHub API → CachedSource → existing MCP handlers
+  │     Deployment: Cloud Run (scale-to-zero)
+  │
+  ├──► add-aim-recalibration-engine Phase 3S (server-deferred)
+  │     Extends with: persistent metric storage, monitoring state,
+  │     webhook receivers for external systems (ClickUp, GitHub CI),
+  │     AIM health dashboard API
+  │     Decision: CLI Go packages imported as library for validation
+  │
+  └──► add-emergent-ai-strategy (depends on this)
+        Uses as: MCP context server for AI agent sessions
+        Dynamically attached to OpenCode sessions via POST /mcp
+        Agent queries existing strategy before writing artifacts
+```
+
+**Key architectural constraint from `add-aim-recalibration-engine` Decision #9:** The EPF CLI remains a stateless analysis engine. Stateful concerns (metric time-series, monitoring state, dashboards) belong in a server component. This change builds the foundation for that server. The stateful extensions are scoped in Phase 3S of the AIM change and will either extend this server or be implemented as a companion service in the `emergent` repo — that decision is deferred until this v1 is operational.
+
+**What this means for this change:** Build it as designed (stateless, read-only, GitHub-sourced). The architecture accommodates future write-side and stateful extensions without rework — the `Source` interface, HTTP/SSE transport, and Cloud Run deployment are all reusable infrastructure.
