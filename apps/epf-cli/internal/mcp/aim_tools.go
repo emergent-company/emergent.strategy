@@ -139,15 +139,30 @@ func generateLRAFromParams(params BootstrapParams) *lra.LivingRealityAssessment 
 		adoptionLevel = 3
 	}
 
-	// Set defaults
-	orgType := params.OrganizationType
-	if orgType == "" {
-		orgType = "solo_founder"
-	}
-	fundingStage := params.FundingStage
-	if fundingStage == "" {
-		fundingStage = "bootstrapped"
-	}
+	// Map organization_type: accept both old simplified values and schema values
+	orgType := mapEnumValue(params.OrganizationType, map[string]string{
+		"early_team":  "bootstrapped_startup",
+		"growth_team": "funded_startup",
+	}, "solo_founder")
+
+	// Map funding_stage
+	fundingStage := mapEnumValue(params.FundingStage, map[string]string{}, "bootstrapped")
+
+	// Map ai_capability_level: accept both old simplified values and schema values
+	aiLevel := mapEnumValue(params.AICapabilityLevel, map[string]string{
+		"none":         "manual_only",
+		"basic":        "ai_assisted",
+		"intermediate": "ai_first",
+		"advanced":     "agentic",
+	}, "")
+
+	// Map primary_bottleneck: accept both old simplified values and schema values
+	bottleneck := mapEnumValue(params.PrimaryBottleneck, map[string]string{
+		"execution":  "execution_capacity",
+		"clarity":    "strategic_clarity",
+		"validation": "market_validation",
+	}, "")
+
 	teamSize := params.TeamSize
 	if teamSize == 0 {
 		teamSize = 1
@@ -173,8 +188,8 @@ func generateLRAFromParams(params BootstrapParams) *lra.LivingRealityAssessment 
 			OrganizationType:  orgType,
 			FundingStage:      fundingStage,
 			TeamSize:          teamSize,
-			AICapabilityLevel: params.AICapabilityLevel,
-			PrimaryBottleneck: params.PrimaryBottleneck,
+			AICapabilityLevel: aiLevel,
+			PrimaryBottleneck: bottleneck,
 		},
 		TrackBaselines: map[string]lra.TrackBaseline{
 			"product": {
@@ -227,6 +242,21 @@ func generateLRAFromParams(params BootstrapParams) *lra.LivingRealityAssessment 
 	}
 
 	return newLRA
+}
+
+// mapEnumValue maps a value through an alias table, with a default fallback.
+// If the value is already a valid schema value, it passes through unchanged.
+// If the value matches an alias, the mapped schema value is returned.
+// If the value is empty and defaultVal is non-empty, the default is returned.
+// Otherwise the original value passes through (schema validation will catch invalid values).
+func mapEnumValue(value string, aliases map[string]string, defaultVal string) string {
+	if value == "" {
+		return defaultVal
+	}
+	if mapped, ok := aliases[value]; ok {
+		return mapped
+	}
+	return value
 }
 
 // =============================================================================

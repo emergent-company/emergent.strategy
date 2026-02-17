@@ -18,11 +18,42 @@ This change builds the AIM recalibration engine in four phases, progressing from
 - Fix emergent instance: rename LRA file, update stale content, instantiate trigger config
 - Add `aim init-cycle` command to bootstrap a new cycle's AIM artifacts from template
 
-### Phase 2: Recalibration Propagation (builds on Phase 1)
+### Phase 1B: AIM Canonical Alignment (prerequisite for Phase 2)
 
-- Define recalibration protocol: maps calibration memo decisions to specific READY artifact fields
-- Add `aim recalibrate` command that reads calibration memo and generates a diff/changeset for READY artifacts
-- Add relationship drift detection: automated checks for stale LRA signals, overdue assessments, unfilled KR outcomes
+Phase 1 built the write-back plumbing (CLI commands, MCP tools, shared types). A post-implementation audit revealed that the **canonical AIM definitions** — schemas, templates, and wizards in `epf-canonical` — are internally inconsistent: templates produce YAML that fails their own schemas, schemas use different enum values than the bootstrap tools, and wizards don't reference the new write-back tools. Phase 2 (READY propagation) depends on AIM artifacts being valid, so these gaps must be closed first.
+
+- Fix AIM schemas in canonical-epf: add `cycle_transition` trigger, fix assumption ID pattern (`asmp-` → `asm-`), add optional `meta` to assessment/calibration schemas
+- Fix AIM templates: rewrite assessment report template from track-nested to flat arrays (matching schema), fix LRA template `adoption_context` fields (wrong field names, invalid enum values), remove non-schema fields from calibration memo template `next_ready_inputs`
+- Fix AIM bootstrap tool enum misalignment: `organization_type`, `ai_capability_level`, `primary_bottleneck` values don't match LRA schema
+- Update Synthesizer wizard with write-back tool references
+- Sync canonical → embedded, rebuild, validate emergent instance
+
+### Phase 1C: Strategic Reality Check Artifact (builds on Phase 1B)
+
+A deep audit of all 14 EPF schemas revealed that AIM currently only evaluates the Roadmap Recipe — the Assessment Report tracks OKR outcomes and assumption validations, but neither it nor the Calibration Memo has structured data to evaluate whether the other 6 READY artifacts or any FIRE artifacts are still valid. Phase 1C closes this gap by introducing a new AIM artifact type: the **Strategic Reality Check (SRC)**.
+
+The SRC is organized by **detection type** (not by artifact), covering five categories:
+
+1. **Belief validity** — challenges North Star beliefs, Strategy Formula risks, Roadmap assumptions against current evidence
+2. **Market currency** — evaluates freshness of Insight Analyses, competitive landscape, and opportunity confidence
+3. **Strategic alignment** — checks cross-reference integrity (value model paths, KR links, feature dependencies) and maturity vocabulary consistency
+4. **Execution reality** — assesses feature maturity progression, implementation staleness, and Product Portfolio status accuracy
+5. **Recalibration plan** — the primary output: prioritized list of READY/FIRE artifacts needing update, with specific sections and effort estimates
+
+Each finding links to a specific artifact file and field path, making the SRC actionable input for the Calibration Memo and (in Phase 2) the `aim recalibrate` command.
+
+- Create SRC schema, template, and wizard in canonical-epf
+- Add `aim generate-src` CLI command — auto-populates mechanical checks (freshness, cross-references, maturity mismatches), leaves subjective sections (belief validity, confidence drift) as TODOs for AI/human input
+- Add `aim write-src` CLI command — writes/updates SRC from structured input (for AI agent to fill in subjective assessments)
+- Add corresponding MCP tools (`epf_aim_generate_src`, `epf_aim_write_src`)
+- Register SRC in epf-cli artifact discovery (schema registry, template registry)
+- Sync canonical → embedded, rebuild, validate
+
+### Phase 2: Recalibration Propagation (builds on Phase 1B + 1C)
+
+- Define recalibration protocol: maps calibration memo decisions **and SRC recalibration_plan** to specific READY/FIRE artifact fields
+- Add `aim recalibrate` command that reads calibration memo (and optionally SRC) and generates a diff/changeset for READY artifacts
+- Add relationship drift detection: automated checks for stale LRA signals, overdue assessments, unfilled KR outcomes (overlaps with SRC `strategic_alignment` section — SRC generates the findings, `aim health` surfaces them as diagnostics)
 - Add `aim health` subcommand for AIM-specific diagnostics (separate from instance health check)
 
 ### Phase 3: AIM Monitoring (coordinates with `add-epf-cloud-server`)
@@ -45,6 +76,6 @@ This change builds the AIM recalibration engine in four phases, progressing from
 
 - Affected specs: `epf-cli-mcp` (new AIM write-back tools), `epf-strategy-instance` (new AIM artifact requirements)
 - Affected code: `apps/epf-cli/cmd/aim*.go`, `apps/epf-cli/internal/mcp/aim_tools.go`, new `internal/aim/` package
-- Affected instance: `docs/EPF/_instances/emergent/AIM/` (LRA fix, new artifacts)
-- Affected canonical repo: `emergent-company/epf-canonical` — Phases 2-4 will require schema, template, and wizard updates pushed upstream and synced into `epf-cli` via `sync-embedded.sh`
+- Affected instance: `docs/EPF/_instances/emergent/AIM/` (LRA fix, new artifacts, SRC artifact)
+- Affected canonical repo: `emergent-company/epf-canonical` — Phase 1B fixes schema/template/wizard inconsistencies; Phase 1C adds SRC schema/template/wizard (new artifact type); Phases 2-4 will require further schema, template, and wizard updates pushed upstream and synced into `epf-cli` via `sync-embedded.sh`
 - Coordination: Phase 3 aligns with `add-epf-cloud-server` cloud deployment; Phase 4 depends on `add-emergent-ai-strategy` AI agent
