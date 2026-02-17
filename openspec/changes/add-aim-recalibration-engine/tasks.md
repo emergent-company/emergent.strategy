@@ -92,53 +92,53 @@
 
 ### 1C.1 SRC Schema (in canonical-epf)
 
-- [ ] 1C.1.1 Create `strategic_reality_check_schema.json` with 5 top-level sections: `belief_validity`, `market_currency`, `strategic_alignment`, `execution_reality`, `recalibration_plan`
-- [ ] 1C.1.2 Define `belief_validity` schema: array of findings with `source_artifact`, `field_path`, `original_belief`, `current_evidence`, `signal` (enum: strengthening/holding/weakening/invalidated), `confidence_delta`
-- [ ] 1C.1.3 Define `market_currency` schema: array of findings with `source_artifact`, `field_path`, `staleness_level` (enum: low/medium/high/critical), `days_since_review`, `market_changes_detected`, `recommended_action`
-- [ ] 1C.1.4 Define `strategic_alignment` schema: array of findings covering cross-reference integrity checks (`check_type` enum: value_model_path/kr_link/feature_dependency/maturity_vocabulary), `status` (enum: valid/broken/stale), `details`
-- [ ] 1C.1.5 Define `execution_reality` schema: array of findings with `source_artifact`, `field_path`, `expected_state`, `actual_state`, `gap_description`, `severity` (enum: info/warning/critical)
-- [ ] 1C.1.6 Define `recalibration_plan` schema: array of prioritized actions with `target_artifact`, `target_section`, `action` (enum: review/update/rewrite/archive), `priority` (enum: critical/high/medium/low), `effort_estimate`, `rationale`, `linked_findings` (refs back to findings in other sections)
-- [ ] 1C.1.7 Add standard `meta` object (epf_version, last_updated, cycle_id) and `summary` (overall_health enum: healthy/attention_needed/at_risk/critical, finding_counts by section)
-- [ ] 1C.1.8 Validate schema passes JSON Schema Draft-07 meta-validation
+- [x] 1C.1.1 Create `strategic_reality_check_schema.json` with 5 top-level sections: `belief_validity`, `market_currency`, `strategic_alignment`, `execution_reality`, `recalibration_plan`
+- [x] 1C.1.2 Define `belief_validity` schema: array of findings with `source_artifact`, `field_path`, `original_belief`, `current_evidence`, `signal` (enum: strengthening/holding/weakening/invalidated), `confidence_delta`
+- [x] 1C.1.3 Define `market_currency` schema: array of findings with `source_artifact`, `field_path`, `staleness_level` (enum: low/medium/high/critical), `days_since_review`, `market_changes_detected`, `recommended_action`
+- [x] 1C.1.4 Define `strategic_alignment` schema: array of findings covering cross-reference integrity checks (`check_type` enum: value_model_path/kr_link/feature_dependency/maturity_vocabulary), `status` (enum: valid/broken/stale), `details`
+- [x] 1C.1.5 Define `execution_reality` schema: array of findings with `source_artifact`, `field_path`, `expected_state`, `actual_state`, `gap_description`, `severity` (enum: info/warning/critical)
+- [x] 1C.1.6 Define `recalibration_plan` schema: array of prioritized actions with `target_artifact`, `target_section`, `action` (enum: review/update/rewrite/archive), `priority` (enum: critical/high/medium/low), `effort_estimate`, `rationale`, `linked_findings` (refs back to findings in other sections)
+- [x] 1C.1.7 Add standard `meta` object (epf_version, last_updated, cycle_id) and `summary` (overall_health enum: healthy/attention_needed/at_risk/critical, finding_counts by section)
+- [x] 1C.1.8 Validate schema passes JSON Schema Draft-07 meta-validation
 
 ### 1C.2 SRC Template (in canonical-epf)
 
-- [ ] 1C.2.1 Create `templates/AIM/strategic_reality_check.yaml` with all 5 sections populated with placeholder findings
-- [ ] 1C.2.2 Ensure template passes schema validation (except placeholder content)
-- [ ] 1C.2.3 Add inline YAML comments explaining each section's purpose and when to use each signal/severity value
+- [x] 1C.2.1 Create `templates/AIM/strategic_reality_check.yaml` with all 5 sections populated with placeholder findings
+- [x] 1C.2.2 Ensure template passes schema validation (except placeholder content)
+- [x] 1C.2.3 Add inline YAML comments explaining each section's purpose and when to use each signal/severity value
 
 ### 1C.3 SRC Wizard (in canonical-epf)
 
-- [ ] 1C.3.1 Create `wizards/strategic_reality_check.agent_prompt.md` — agent instructions for conducting an SRC
-- [ ] 1C.3.2 Wizard should reference which READY/FIRE artifacts to evaluate per section, and which EPF CLI/MCP tools to use
-- [ ] 1C.3.3 Wizard should reference `epf_aim_generate_src` for mechanical pre-population and `epf_aim_write_src` for writing results
-- [ ] 1C.3.4 Update Synthesizer wizard (`synthesizer.agent_prompt.md`) to reference SRC as input to calibration decisions
+- [x] 1C.3.1 Create `wizards/strategic_reality_check.agent_prompt.md` — agent instructions for conducting an SRC
+- [x] 1C.3.2 Wizard should reference which READY/FIRE artifacts to evaluate per section, and which EPF CLI/MCP tools to use
+- [x] 1C.3.3 Wizard should reference `epf_aim_generate_src` for mechanical pre-population and `epf_aim_write_src` for writing results
+- [x] 1C.3.4 Update Synthesizer wizard (`synthesizer.agent_prompt.md`) to reference SRC as input to calibration decisions
 
 ### 1C.4 SRC CLI Commands
 
-- [ ] 1C.4.1 Add `aim generate-src` command — auto-populates mechanical checks: freshness (review dates vs today), cross-reference integrity (value model paths, KR links), maturity mismatches (LRA vs value model vocabulary)
-- [ ] 1C.4.2 `aim generate-src` leaves subjective sections as TODOs: belief validity (needs evidence evaluation), market currency competitive changes (needs market research), confidence drift (needs human/AI judgment)
-- [ ] 1C.4.3 Add `aim write-src` command — writes/updates SRC from structured input (field-level, like other write-back commands)
-- [ ] 1C.4.4 Register SRC artifact type in schema registry and template registry within epf-cli
-- [ ] 1C.4.5 Write unit tests for `aim generate-src` (mechanical checks produce expected findings for test fixtures)
-- [ ] 1C.4.6 Write unit tests for `aim write-src`
+- [x] 1C.4.1 Add `aim generate-src` command — auto-populates mechanical checks: freshness (review dates vs today), cross-reference integrity (value model paths, KR links), maturity mismatches (LRA vs value model vocabulary)
+- [x] 1C.4.2 `aim generate-src` leaves subjective sections as TODOs: belief validity (needs evidence evaluation), market currency competitive changes (needs market research), confidence drift (needs human/AI judgment)
+- [x] 1C.4.3 Add `aim write-src` command — writes/updates SRC from structured input (field-level, like other write-back commands)
+- [x] 1C.4.4 Register SRC artifact type in schema registry and template registry within epf-cli
+- [x] 1C.4.5 Write unit tests for `aim generate-src` (mechanical checks produce expected findings for test fixtures)
+- [x] 1C.4.6 Write unit tests for `aim write-src`
 
 ### 1C.5 SRC MCP Tools
 
-- [ ] 1C.5.1 Add `epf_aim_generate_src` MCP tool — mirrors CLI `aim generate-src`
-- [ ] 1C.5.2 Add `epf_aim_write_src` MCP tool — mirrors CLI `aim write-src`
-- [ ] 1C.5.3 Register both tools in MCP server
-- [ ] 1C.5.4 Write integration tests for MCP tools
+- [x] 1C.5.1 Add `epf_aim_generate_src` MCP tool — mirrors CLI `aim generate-src`
+- [x] 1C.5.2 Add `epf_aim_write_src` MCP tool — mirrors CLI `aim write-src`
+- [x] 1C.5.3 Register both tools in MCP server
+- [x] 1C.5.4 Write integration tests for MCP tools
 
 ### 1C.6 Sync, Build, and Validate
 
-- [ ] 1C.6.1 Commit and push all canonical-epf changes (schema, template, wizard)
-- [ ] 1C.6.2 Run `sync-embedded.sh` to update `epf-cli/internal/embedded/`
-- [ ] 1C.6.3 Rebuild epf-cli
-- [ ] 1C.6.4 Generate SRC for emergent instance: `aim generate-src` produces valid artifact with mechanical findings
-- [ ] 1C.6.5 Validate emergent SRC with `epf_validate_file` — zero errors
-- [ ] 1C.6.6 Run `go test ./...` — all tests pass
-- [ ] 1C.6.7 Tag release (v0.17.0 or appropriate version)
+- [x] 1C.6.1 Commit and push all canonical-epf changes (schema, template, wizard)
+- [x] 1C.6.2 Run `sync-embedded.sh` to update `epf-cli/internal/embedded/`
+- [x] 1C.6.3 Rebuild epf-cli
+- [x] 1C.6.4 Generate SRC for emergent instance: `aim generate-src` produces valid artifact with mechanical findings
+- [x] 1C.6.5 Validate emergent SRC with `epf_validate_file` — zero errors
+- [x] 1C.6.6 Run `go test ./...` — all tests pass
+- [x] 1C.6.7 Tag release (v0.17.0 or appropriate version)
 
 ## Phase 2: Recalibration Propagation
 
