@@ -39,6 +39,8 @@ Available subcommands:
   update-lra           Apply field-level updates to the LRA
   write-assessment     Write assessment report from structured YAML
   write-calibration    Write calibration memo from structured YAML
+  generate-src         Generate Strategic Reality Check with mechanical checks
+  write-src            Write/update Strategic Reality Check from YAML
   init-cycle           Bootstrap a new cycle (archive previous, reset AIM)
   archive-cycle        Archive current cycle's AIM artifacts
 

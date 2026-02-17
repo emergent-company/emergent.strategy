@@ -1076,6 +1076,42 @@ func (s *Server) registerTools() {
 		s.handleAimArchiveCycle,
 	)
 
+	// Tool: epf_aim_generate_src
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_aim_generate_src",
+			mcp.WithDescription("Generate a Strategic Reality Check (SRC) by running automated mechanical checks "+
+				"against the EPF instance. Auto-populates market currency (freshness), strategic alignment "+
+				"(cross-references), and execution reality (maturity mismatches). Leaves belief validity "+
+				"as TODO placeholders for AI/human input. Writes result to AIM/strategic_reality_check.yaml."),
+			mcp.WithString("instance_path",
+				mcp.Description("Path to EPF instance (default: current directory)"),
+				mcp.Required(),
+			),
+			mcp.WithString("cycle",
+				mcp.Description("Cycle number for this SRC (positive integer as string, default: '1')"),
+			),
+		),
+		s.handleAimGenerateSRC,
+	)
+
+	// Tool: epf_aim_write_src
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_aim_write_src",
+			mcp.WithDescription("Write or update a Strategic Reality Check from YAML content. "+
+				"Use this after running epf_aim_generate_src and filling in subjective sections "+
+				"(belief validity evidence, market changes). Writes to AIM/strategic_reality_check.yaml."),
+			mcp.WithString("instance_path",
+				mcp.Description("Path to EPF instance (default: current directory)"),
+				mcp.Required(),
+			),
+			mcp.WithString("content",
+				mcp.Description("SRC YAML content to write"),
+				mcp.Required(),
+			),
+		),
+		s.handleAimWriteSRC,
+	)
+
 	// ==========================================================================
 	// Report & Diff Tools (v0.14.0)
 	// ==========================================================================

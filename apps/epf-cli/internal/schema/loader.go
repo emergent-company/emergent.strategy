@@ -33,8 +33,9 @@ const (
 	ArtifactMappings          ArtifactType = "mappings"
 
 	// AIM Phase artifacts
-	ArtifactAssessmentReport ArtifactType = "assessment_report"
-	ArtifactCalibrationMemo  ArtifactType = "calibration_memo"
+	ArtifactAssessmentReport      ArtifactType = "assessment_report"
+	ArtifactCalibrationMemo       ArtifactType = "calibration_memo"
+	ArtifactStrategicRealityCheck ArtifactType = "strategic_reality_check"
 
 	// Track definitions
 	ArtifactStrategyDefinition   ArtifactType = "strategy_definition"
@@ -101,6 +102,7 @@ var artifactMapping = []struct {
 	// AIM Phase
 	{regexp.MustCompile(`(?i)assessment_report\.ya?ml$`), ArtifactAssessmentReport, PhaseAIM, "Assessment Report - Phase assessment"},
 	{regexp.MustCompile(`(?i)calibration_memo\.ya?ml$`), ArtifactCalibrationMemo, PhaseAIM, "Calibration Memo - Strategic calibration"},
+	{regexp.MustCompile(`(?i)strategic_reality_check\.ya?ml$`), ArtifactStrategicRealityCheck, PhaseAIM, "Strategic Reality Check - Cross-artifact health evaluation"},
 
 	// Track definitions (in definitions/ directory)
 	{regexp.MustCompile(`(?i)strategy[_-]definition\.ya?ml$`), ArtifactStrategyDefinition, "", "Strategy Track Definition"},
@@ -128,6 +130,7 @@ var schemaFileMapping = map[ArtifactType]string{
 	ArtifactMappings:                "mappings_schema.json",
 	ArtifactAssessmentReport:        "assessment_report_schema.json",
 	ArtifactCalibrationMemo:         "calibration_memo_schema.json",
+	ArtifactStrategicRealityCheck:   "strategic_reality_check_schema.json",
 	ArtifactStrategyDefinition:      "strategy_definition_schema.json",
 	ArtifactOrgOpsDefinition:        "org_ops_definition_schema.json",
 	ArtifactCommercialDefinition:    "commercial_definition_schema.json",
