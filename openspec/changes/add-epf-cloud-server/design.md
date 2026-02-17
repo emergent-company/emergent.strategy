@@ -157,19 +157,29 @@ add-epf-cloud-server (this change)
   │ v1: Stateless read-only MCP over HTTP/SSE
   │     Source: GitHub API → CachedSource → existing MCP handlers
   │     Deployment: Cloud Run (scale-to-zero)
+  │     Protocols: MCP (tool access), optionally A2A (agent discovery)
   │
   ├──► add-aim-recalibration-engine Phase 3S (server-deferred)
-  │     Extends with: persistent metric storage, monitoring state,
-  │     webhook receivers for external systems (ClickUp, GitHub CI),
-  │     AIM health dashboard API
-  │     Decision: CLI Go packages imported as library for validation
+  │     Extends with: persistent storage (via emergent knowledge graph API
+  │     or local database — deferred decision), monitoring state,
+  │     webhook receivers, AIM health dashboard API
+  │     Integration: accesses EPF analysis via MCP tools or Go library import
   │
   └──► add-emergent-ai-strategy (depends on this)
         Uses as: MCP context server for AI agent sessions
         Dynamically attached to OpenCode sessions via POST /mcp
         Agent queries existing strategy before writing artifacts
+        Agent coordinates with emergent services via A2A protocol
 ```
 
-**Key architectural constraint from `add-aim-recalibration-engine` Decision #9:** The EPF CLI remains a stateless analysis engine. Stateful concerns (metric time-series, monitoring state, dashboards) belong in a server component. This change builds the foundation for that server. The stateful extensions are scoped in Phase 3S of the AIM change and will either extend this server or be implemented as a companion service in the `emergent` repo — that decision is deferred until this v1 is operational.
+**Key architectural constraints from `add-aim-recalibration-engine`:**
 
-**What this means for this change:** Build it as designed (stateless, read-only, GitHub-sourced). The architecture accommodates future write-side and stateful extensions without rework — the `Source` interface, HTTP/SSE transport, and Cloud Run deployment are all reusable infrastructure.
+- **Decision #9 (CLI/server boundary):** The EPF CLI remains a stateless analysis engine. Stateful concerns belong in a server component. This change builds the foundation for that server.
+
+- **Decision #11 (agent-native integration):** Cross-system coordination uses open protocols — MCP for tools, A2A for agent-to-agent communication, REST API/SDK for `emergent` knowledge graph access. No shared databases or mandatory Go package imports. The `emergent` platform provides schemaless entity storage, graph relationships, vector search, and graph traversal as a tool — not a dependency. The deployment topology (standalone Cloud Run, module within `emergent`'s server-go, or sidecar) is deferred to the last responsible moment.
+
+**A2A Agent Card (future consideration):** When agent-to-agent coordination becomes relevant (Phase 4 / AI Strategy Agent), this server can expose an A2A Agent Card describing its skills (strategy queries, validation, health checks). This enables discovery by other agents in the ecosystem without hardcoded endpoint configuration. The A2A Go SDK (`github.com/a2aproject/a2a-go`) and ADK-Go (already in the `emergent` codebase) provide native A2A support.
+
+**`emergent` as persistence layer (Phase 3S option):** Instead of building a dedicated PostgreSQL database for AIM metrics and monitoring state, the server can use `emergent`'s knowledge graph API to store metrics as graph objects, model metric-to-KR relationships as graph edges, and leverage vector search for semantic queries over strategy data. This avoids infrastructure duplication while keeping the EPF server independently deployable. If performance or query complexity warrants it, a dedicated database can be added later — the protocol-based integration makes this a reversible decision.
+
+**What this means for this change:** Build it as designed (stateless, read-only, GitHub-sourced). The architecture accommodates future write-side and stateful extensions without rework — the `Source` interface, HTTP/SSE transport, and Cloud Run deployment are all reusable infrastructure. The agent-native integration model (Decision #11) ensures all future extensions compose via protocols rather than tight coupling.

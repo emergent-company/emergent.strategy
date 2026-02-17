@@ -14,7 +14,7 @@
 
 - [ ] 2.1 Set up `apps/emergent-ai-strategy/` project structure
 - [ ] 2.2 Run OpenCode in headless mode (`opencode serve`) with programmatic session management
-- [ ] 2.3 Create ACP abstraction layer (`apps/emergent-ai-strategy/acp/`)
+- [ ] 2.3 Create A2A abstraction layer (`apps/emergent-ai-strategy/a2a/`)
 - [ ] 2.4 Implement dynamic MCP server attachment — plug EPF strategy server into agent sessions
 - [ ] 2.5 Implement task submission endpoint (submit artifact writing request with context)
 - [ ] 2.6 Implement progress streaming (SSE stream of agent steps)
@@ -36,6 +36,6 @@
 ## 4. Documentation
 
 - [ ] 4.1 Architecture documentation for Emergent AI Strategy (two-layer design)
-- [ ] 4.2 API documentation for ACP endpoints
+- [ ] 4.2 API documentation for A2A endpoints
 - [ ] 4.3 EPF agent instruction patterns guide
 - [ ] 4.4 Framework integration guide (how to plug a new framework into the engine layer)

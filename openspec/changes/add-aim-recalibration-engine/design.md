@@ -166,8 +166,8 @@ At the current scale (solo founder, quarterly cycles, ~17 KRs), the file-based w
 
 **What this means for Phase 3:**
 - **3.1 (trigger evaluation) and 3.3 (probe reports)** remain CLI-native — they're stateless analysis that reads trigger config + current data and produces a report. No persistence needed.
-- **3.2 (data collection/ingestion) and 3.4 (continuous monitoring)** are redesigned as server features. The CLI provides a lightweight `aim collect` command for local/script-based collection, but production metric ingestion, storage, and webhook receivers live in the `emergent` backend.
-- The bridge is simple: the server imports EPF CLI Go packages as a library for validation and analysis, and manages its own persistence layer.
+- **3.2 (data collection/ingestion) and 3.4 (continuous monitoring)** are redesigned as server features. The CLI provides a lightweight `aim collect` command for local/script-based collection, but production metric ingestion, storage, and webhook receivers live in a server component.
+- The bridge uses open protocols: the server accesses EPF analysis capabilities via MCP tools (or imports Go packages as a library). For persistent storage, the server can use `emergent`'s knowledge graph API (schemaless entities, vector search, graph traversal) rather than building its own database layer — see Decision #11. The deployment topology (standalone, emergent module, or sidecar) is deferred.
 
 **Alternative considered:** Building SQLite storage into the CLI for metrics. Rejected because it breaks the "everything is YAML in git" principle, adds a binary file to the repo, and duplicates infrastructure the server already needs.
 
@@ -217,6 +217,70 @@ epf-cli orchestration (`aim collect`):
 
 **Alternative considered:** Building HTTP clients for popular tools (ClickUp, Linear, GitHub) directly into the CLI. Rejected because it creates vendor coupling, requires ongoing API maintenance, and the server is a better home for persistent integrations.
 
+### 11. Agent-native integration: MCP for tools, A2A for agents, emergent as knowledge graph
+
+**Decision:** Cross-system integration uses open agent protocols — not shared databases, shared Go packages, or monolithic backends. The protocol stack is:
+
+- **MCP** (Model Context Protocol) for agent-to-tool communication. Already in use: EPF CLI exposes 50+ MCP tools. This continues unchanged.
+- **A2A** (Agent2Agent Protocol) for agent-to-agent coordination. Replaces the earlier "ACP" references in `add-emergent-ai-strategy`. A2A (Google, now Linux Foundation, v1 spec) provides agent discovery via Agent Cards, task delegation, streaming, and push notifications. The official Go SDK (`github.com/a2aproject/a2a-go`) is available. Google ADK-Go — already used in `emergent` — has native A2A support.
+- **`emergent` platform as a knowledge graph tool** accessed via its REST API, Go SDK, or MCP server — not via shared database tables or Go package imports. `emergent` provides schemaless entity storage (JSONB properties per type), graph relationships (directed, versioned, weighted, with auto-inverse), 768-dim vector embeddings (text-embedding-004 via Vertex AI), hybrid search (FTS + vector with z-score fusion), graph traversal (BFS with multi-phase edges, predicates, temporal filtering), and git-like branching for what-if analysis. These are accessed through `emergent`'s existing API surface (`/api/graph/*`, `/api/search/*`, `/api/type-registry/*`, `/api/template-packs/*`) or its MCP server (`/api/mcp`).
+
+**Integration model:**
+
+```
+EPF CLI (local YAML = source of truth)
+  │
+  ├─ MCP ──► AI agents use EPF tools (existing)
+  │
+  ├─ A2A ──► EPF services coordinate with emergent services
+  │          (agent discovery, task delegation, streaming)
+  │
+  └─ API/MCP ──► emergent knowledge graph (derived view)
+                 - Sync EPF artifacts as graph objects
+                 - Query via hybrid search + traversal
+                 - Branch-based strategy scenarios
+                 - Vector similarity across artifacts
+```
+
+**What `emergent` provides as a tool (not a dependency):**
+
+| EPF AIM need | emergent capability | Access via |
+|---|---|---|
+| Persist strategy artifacts as graph | Graph objects with typed JSONB properties | REST API or SDK |
+| Model artifact relationships | Graph relationships (versioned, weighted, auto-inverse) | REST API or SDK |
+| Semantic search across strategy | Hybrid search (FTS + vector, configurable fusion) | REST API or MCP |
+| Alignment chain analysis | Graph traverse/expand (multi-hop, predicates, temporal) | REST API |
+| Strategy scenario modeling | Branch + merge (conflict detection, dry-run) | REST API |
+| Define EPF artifact schemas | Template Packs (JSON Schema per type, relationship constraints) | REST API or MCP |
+| AI-powered entity extraction | Extraction pipeline with template pack schemas | REST API |
+
+**Key principle: `emergent` is a tool, not a dependency.** EPF CLI works fully offline with local YAML. The `emergent` knowledge graph is a derived view you can sync into for richer analysis. If `emergent` is unavailable, all EPF CLI functionality continues. Tighter integration (real-time sync, server-side recalibration using emergent's scheduler, graph-based trigger evaluation) remains possible later — the protocol interfaces are the same.
+
+**Standalone vs. enhanced mode:** Every capability in the system works without `emergent` or a database. `emergent` makes things better, not possible. The AI agent can fill the gap for several "server" concerns — it *is* the dashboard, the search engine, and the trend analyzer when operating on local files.
+
+| Capability | Standalone (YAML + AI agent) | Enhanced (with `emergent`) |
+|---|---|---|
+| **Strategy persistence** | YAML files in git (source of truth always) | + Graph objects with typed properties and embeddings |
+| **Semantic search** | `epf_search_strategy` MCP tool (text matching) | + Hybrid FTS + vector search with z-score fusion |
+| **Alignment analysis** | `epf_validate_relationships` (path validation) | + Multi-hop graph traversal with predicates |
+| **Scenario modeling** | Git branches | + Graph branching with conflict detection and dry-run merge |
+| **Metric storage** | YAML files in `AIM/metrics/` | + Graph objects with temporal queries |
+| **Trend analysis** | AI agent parses + compares YAML files | + Time-series queries, aggregation |
+| **Monitoring** | `aim check-triggers` via cron/CI | + Server-side loop with push notifications |
+| **Dashboard** | AI agent generates probe report Markdown | + Web dashboard with graph analytics |
+| **Agent memory** | Agent context window + local files | + Persistent graph with vector embeddings |
+| **Cross-system coordination** | MCP tools (already working) | + A2A agent discovery and task delegation |
+
+**Last responsible moment for deployment topology:** Whether the EPF cloud server runs standalone (Cloud Run), as a module within `emergent`'s server-go, or as a sidecar is a deployment decision — deferred until Phase 3S is ready to implement. The integration protocols (MCP, A2A, REST API) work identically regardless of deployment topology.
+
+**Rationale:** The ecosystem is multiple independently-developed Go services (`emergent-strategy`/epf-cli, `emergent`/server-go, future tools). Coupling them at the database or package level creates a monolith. Coupling them at the protocol level preserves independent development, testing, and deployment while enabling rich coordination. Both `emergent` and `emergent-strategy` are AI-agentic systems — A2A is the natural coordination protocol for agent-to-agent work, just as MCP is for agent-to-tool work.
+
+**ACP → A2A migration note:** The `add-emergent-ai-strategy` design originally referenced ACP (Agent Communication Protocol). In August 2025, IBM's ACP merged with Google's A2A protocol under the Linux Foundation. All references in these specs now use A2A. The A2A spec subsumes ACP's capabilities (RESTful agent discovery, async task management, streaming) and adds the Agent Card discovery mechanism.
+
+**Alternative considered:** Deep integration — EPF cloud server as a domain module within `emergent`'s server-go, sharing PostgreSQL, Bun ORM, Zitadel auth, and domain patterns. Rejected for now because it creates a deployment coupling (can't ship EPF changes without deploying the full emergent stack) and blocks independent development velocity. Can be revisited if performance or operational concerns warrant it — the protocol-based approach is designed to be replaceable with tighter integration at any point.
+
+**Alternative considered:** No `emergent` integration at all — keep everything as local YAML files forever. Rejected because graph traversal, vector similarity search, and temporal queries over strategy artifacts provide genuine value that flat YAML files cannot offer, and `emergent` already provides these capabilities.
+
 ## Risks / Trade-offs
 
 | Risk | Mitigation |
@@ -230,6 +294,8 @@ epf-cli orchestration (`aim collect`):
 | CLI/server boundary creates two places to maintain metric validation logic | CLI Go packages are importable as a library by the server — single validation codebase, two execution contexts |
 | Script-based collectors add user-managed complexity (writing/maintaining collector scripts) | Ship with one built-in collector (`git_velocity`) as a reference implementation. Document the script contract clearly. Keep the output schema simple. |
 | Server component (`emergent` backend) may not be ready when Phase 3 CLI work is done | Phase 3 CLI tasks (triggers, probe reports, `aim collect`) are fully standalone. Server-side tasks are explicitly deferred — the CLI works without a server. |
+| A2A protocol is still maturing (v1 spec released 2025, Go SDK early) | A2A is backed by Google + Linux Foundation with active development. The integration is additive — MCP tools work independently. A2A adds agent-to-agent coordination but isn't required for any Phase 1-3 work. |
+| `emergent` knowledge graph sync adds a new integration surface | Sync is one-directional (EPF YAML → emergent graph) and additive. EPF CLI works without emergent. Start with manual `epf sync` command; automate only when the value is proven. |
 
 ## Open Questions
 
@@ -241,3 +307,6 @@ epf-cli orchestration (`aim collect`):
 - Where does `aim_data_sources.yaml` live — in `AIM/` alongside other AIM artifacts, or in a top-level config directory? Leaning toward `AIM/` for consistency.
 - Should the server component define its own metric storage schema, or reuse the CLI's YAML metric schema as the canonical format with a database adapter layer?
 - When the server is available, should `aim collect` support a `--push` flag to send collected metrics to the server API instead of writing local YAML?
+- Should an EPF Template Pack be created in `emergent` to define graph object types for EPF artifacts (NorthStar, Persona, Feature, etc.)? This would enable schema-validated entity storage and LLM extraction of EPF concepts from documents.
+- What is the right granularity for `emergent` graph sync — sync entire EPF instances as a graph, or sync individual artifacts on demand?
+- Should the EPF cloud server expose an A2A Agent Card for discovery by other agents in the ecosystem? If so, what skills should it advertise?

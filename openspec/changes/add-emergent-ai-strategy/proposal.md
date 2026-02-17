@@ -11,7 +11,7 @@ This builds on top of the EPF Cloud Strategy Server (see `add-epf-cloud-server` 
 ## What Changes
 
 - Add AI strategy engine at `apps/emergent-ai-strategy/` — headless OpenCode orchestration for EPF artifact operations
-- Add framework-agnostic engine layer (session management, OpenCode orchestration, ACP protocol) with pluggable framework layer (EPF strategy server provides context + validation, `epf-canonical` provides schemas)
+- Add framework-agnostic engine layer (session management, OpenCode orchestration, A2A protocol — formerly ACP, merged under Linux Foundation) with pluggable framework layer (EPF strategy server provides context + validation, `epf-canonical` provides schemas, `emergent` knowledge graph provides persistence + semantic search + graph analysis)
 - Add EPF artifact workflows: writing new artifacts, updating artifacts when strategy changes, validating cross-artifact consistency, resolving relationship integrity
 - Add subscription + overage billing model
 - **Dependency**: Requires `add-epf-cloud-server` to be implemented first (provides the MCP server for strategic context)
@@ -57,3 +57,7 @@ The AIM MCP tools are already built (shipped in v0.18.1). This change provides t
 1. **EPF Cloud Strategy Server running** (from `add-epf-cloud-server`) — provides strategic context via MCP
 2. **AIM MCP tools available** (from `add-aim-recalibration-engine`, already shipped) — provides write-back capabilities
 3. **`epf-canonical` schemas** (already exists) — for validating generated artifacts
+
+### What the AI agent gains from `emergent` (optional, additive)
+
+4. **`emergent` knowledge graph** (from `emergent-company/emergent`) — persistent strategy storage, vector similarity search, graph traversal for alignment analysis, branch-based scenario modeling. Accessed via REST API, Go SDK, or MCP — not a hard dependency. Integration per `add-aim-recalibration-engine` Decision #11 (agent-native protocols, `emergent` as tool not dependency).
