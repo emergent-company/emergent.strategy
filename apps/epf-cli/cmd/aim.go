@@ -36,6 +36,11 @@ Available subcommands:
   assess               Pre-populate assessment_report.yaml from roadmap data
   validate-assumptions Check assumption validation status
   okr-progress         Calculate OKR/KR completion rates
+  update-lra           Apply field-level updates to the LRA
+  write-assessment     Write assessment report from structured YAML
+  write-calibration    Write calibration memo from structured YAML
+  init-cycle           Bootstrap a new cycle (archive previous, reset AIM)
+  archive-cycle        Archive current cycle's AIM artifacts
 
 Examples:
   epf-cli aim bootstrap
@@ -43,7 +48,12 @@ Examples:
   epf-cli aim migrate-baseline
   epf-cli aim assess roadmap-mvp-launch-q1
   epf-cli aim validate-assumptions
-  epf-cli aim okr-progress --track product`,
+  epf-cli aim okr-progress --track product
+  epf-cli aim update-lra --primary-objective "Ship MVP" --trigger aim_signals --summary "Focus shift"
+  epf-cli aim write-assessment --file assessment_draft.yaml
+  epf-cli aim write-calibration --file calibration.yaml
+  epf-cli aim init-cycle --cycle 2 --archive
+  epf-cli aim archive-cycle --cycle 1`,
 }
 
 // =============================================================================

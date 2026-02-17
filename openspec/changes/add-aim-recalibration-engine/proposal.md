@@ -46,4 +46,5 @@ This change builds the AIM recalibration engine in four phases, progressing from
 - Affected specs: `epf-cli-mcp` (new AIM write-back tools), `epf-strategy-instance` (new AIM artifact requirements)
 - Affected code: `apps/epf-cli/cmd/aim*.go`, `apps/epf-cli/internal/mcp/aim_tools.go`, new `internal/aim/` package
 - Affected instance: `docs/EPF/_instances/emergent/AIM/` (LRA fix, new artifacts)
+- Affected canonical repo: `emergent-company/epf-canonical` — Phases 2-4 will require schema, template, and wizard updates pushed upstream and synced into `epf-cli` via `sync-embedded.sh`
 - Coordination: Phase 3 aligns with `add-epf-cloud-server` cloud deployment; Phase 4 depends on `add-emergent-ai-strategy` AI agent
