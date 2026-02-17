@@ -123,6 +123,22 @@ func GetTrackFromID(id string) string {
 	}
 }
 
+// LoadStrategicRealityCheck loads an SRC from the AIM directory.
+func LoadStrategicRealityCheck(instancePath string) (*StrategicRealityCheck, error) {
+	path := filepath.Join(instancePath, "AIM", "strategic_reality_check.yaml")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read strategic reality check: %w", err)
+	}
+
+	var src StrategicRealityCheck
+	if err := yaml.Unmarshal(data, &src); err != nil {
+		return nil, fmt.Errorf("failed to parse strategic reality check: %w", err)
+	}
+
+	return &src, nil
+}
+
 // Percentage calculates (part/total)*100, returning 0 if total is 0.
 func Percentage(part, total int) int {
 	if total == 0 {
