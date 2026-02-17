@@ -215,24 +215,27 @@
 - [ ] 3.4.7 Run `go test ./...` — all tests pass
 - [ ] 3.4.8 Tag release
 
-## Phase 3S: AIM Monitoring — Server-Deferred (moves to `emergent` backend)
+## Phase 3S: AIM Monitoring — Server-Deferred (standalone fallbacks available)
 
 > These tasks are out of scope for this change proposal. They are recorded here for
-> traceability and should be migrated to a separate change proposal in the `emergent`
-> repo when that server component is ready.
+> traceability and should be migrated to a separate change proposal when the server
+> component is ready. Each task has a **standalone fallback** that works without a
+> server or database — the fallback is functional at current scale (solo founder,
+> quarterly cycles, ~17 KRs) but less polished. Enhanced mode uses `emergent`
+> knowledge graph API or a dedicated database.
 
-- [ ] 3S.1 Persistent metric storage with time-series database (replaces YAML file accumulation)
-- [ ] 3S.2 REST API for metric ingestion (webhook receivers for ClickUp, GitHub, CI/CD)
-- [ ] 3S.3 Continuous monitoring loop with configurable cadence and alert delivery (email, Slack, webhook)
-- [ ] 3S.4 Dashboard/API for AIM health visualization
-- [ ] 3S.5 Import EPF CLI Go packages as library for validation and analysis within server
-- [ ] 3S.6 `aim collect --push` flag to send collected metrics to server API instead of writing local YAML
+- [ ] 3S.1 Persistent metric storage with time-series queries (replaces YAML file accumulation). **Standalone fallback:** YAML files in `AIM/metrics/` (already designed in Phase 3.2). Agent parses and compares files for trends. **Enhanced:** `emergent` graph objects with temporal queries, or dedicated time-series database.
+- [ ] 3S.2 REST API for metric ingestion (webhook receivers for ClickUp, GitHub, CI/CD). **Standalone fallback:** `aim collect` via cron/CI schedule with script-based collectors (Phase 3.2). No real-time, but weekly cadence doesn't need it. **Enhanced:** Server webhook endpoints for real-time ingestion.
+- [ ] 3S.3 Continuous monitoring loop with configurable cadence and alert delivery (email, Slack, webhook). **Standalone fallback:** `aim check-triggers` (Phase 3.1) invoked via cron/CI. AI agent checks and reports. **Enhanced:** Server-side monitoring loop with push notifications.
+- [ ] 3S.4 Dashboard/API for AIM health visualization. **Standalone fallback:** AI agent generates probe reports as Markdown on demand via `aim probe` (Phase 3.3). Agent *is* the dashboard. **Enhanced:** Server-hosted web dashboard using `emergent`'s graph analytics.
+- [ ] 3S.5 Server-side EPF analysis capabilities. **Standalone fallback:** All analysis runs locally via CLI and MCP tools. **Enhanced:** Server imports EPF CLI Go packages as library, or calls EPF MCP tools via MCP protocol.
+- [ ] 3S.6 `aim collect --push` flag to send collected metrics to server API instead of writing local YAML. **Standalone fallback:** Write local YAML (the default). `aim collect` already works without a server. **Enhanced:** Push to `emergent` graph API or server REST API for centralized storage.
 
 ## Phase 4: Autonomous Recalibration (depends on `add-emergent-ai-strategy`)
 
 ### 4.1 AI Synthesizer Integration
 
-- [ ] 4.1.1 Define ACP task types for AIM operations (assess, calibrate, recalibrate)
+- [ ] 4.1.1 Define A2A task types for AIM operations (assess, calibrate, recalibrate)
 - [ ] 4.1.2 Create AIM-specific agent instruction set based on Synthesizer wizard
 - [ ] 4.1.3 Wire AI Strategy Agent to use AIM MCP tools for artifact operations
 - [ ] 4.1.4 Implement autonomous track health signal collection via agent

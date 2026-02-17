@@ -67,12 +67,12 @@ Phase 3 is split between CLI-native work and server-side features, reflecting th
 - Add `aim probe` command — generates probe report from collected metrics + trigger evaluation
 - Add metric and probe report schemas to canonical-epf
 
-**Server-deferred (moves to `emergent` backend):**
-- Persistent metric storage with time-series queries (replaces YAML file accumulation)
+**Server-deferred (integration via protocols, not shared code — see Design Decision #11):**
+- Persistent metric storage via `emergent` knowledge graph API (graph objects for metrics, relationships for KR mappings) or dedicated database — decision deferred
 - Continuous monitoring with webhook delivery for trigger alerts
 - Dashboard/API for AIM health visualization
 - Webhook receivers for external system integration (ClickUp, GitHub, CI/CD)
-- The server imports EPF CLI Go packages as a library for validation and analysis
+- Cross-agent coordination via A2A protocol (agent discovery, task delegation between EPF and emergent agents)
 
 ### Phase 4: Autonomous Recalibration (depends on `add-emergent-ai-strategy`)
 
@@ -120,5 +120,5 @@ add-aim-recalibration-engine (this change)
 
 ### Coordination points
 
-- **Phase 3S ↔ cloud server:** When `add-epf-cloud-server` is built, Phase 3S tasks move there. The server imports CLI Go packages (`internal/aim/`, `internal/schema/`) as a library for validation.
-- **Phase 4 ↔ AI strategy:** Phase 4 provides AIM-specific agent instruction sets and trigger-to-agent invocation. The AI strategy change provides the headless agent engine.
+- **Phase 3S ↔ cloud server:** When `add-epf-cloud-server` is built, Phase 3S tasks move there. Integration is via MCP tools and REST API (per Decision #11), not shared Go packages. For persistent storage, the server can use `emergent`'s knowledge graph API or a dedicated database — decision deferred.
+- **Phase 4 ↔ AI strategy:** Phase 4 provides AIM-specific agent instruction sets and trigger-to-agent invocation. The AI strategy change provides the headless agent engine. Agent coordination uses A2A protocol; tool access uses MCP.
