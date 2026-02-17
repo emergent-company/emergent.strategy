@@ -22,3 +22,38 @@ This builds on top of the EPF Cloud Strategy Server (see `add-epf-cloud-server` 
 - New infrastructure: Vertex AI model access, per-session compute isolation, billing/metering
 - New code: `apps/emergent-ai-strategy/`
 - The EPF Cloud Strategy Server becomes the strategic context backend for the AI agent
+
+## Relationship to Other Changes
+
+This is the top of a three-part dependency chain:
+
+```
+add-aim-recalibration-engine (Phases 1-3 CLI)
+  │ Delivers: AIM MCP tools (assess, calibrate, recalibrate, SRC, health, triggers)
+  │ Status: Phases 1-2 shipped (v0.18.1), Phase 3 CLI next
+  │
+  └──► add-epf-cloud-server
+        │ Delivers: MCP-over-HTTP, GitHub source, Cloud Run hosting
+        │ Status: Not started
+        │
+        └──► add-emergent-ai-strategy (this change)
+              Uses: Cloud server as MCP context provider
+              Uses: AIM MCP tools for autonomous recalibration (Phase 4)
+```
+
+### AIM Integration (Phase 4 of `add-aim-recalibration-engine`)
+
+The AI Strategy Agent is the **Synthesizer persona** for autonomous AIM operations. When this agent is operational, `add-aim-recalibration-engine` Phase 4 wires it up to:
+
+- Collect track health signals and fill assessment reports using AIM MCP tools (`epf_aim_write_assessment`)
+- Draft calibration memos with persevere/pivot/pull-the-plug recommendations (`epf_aim_write_calibration`)
+- Generate and apply READY artifact changesets via `epf_aim_recalibrate`
+- Monitor triggers and auto-invoke assessment when ROI thresholds are exceeded (`epf_aim_check_triggers`)
+
+The AIM MCP tools are already built (shipped in v0.18.1). This change provides the autonomous agent that calls them. Phase 4 of the AIM change provides the glue: agent instruction sets, trigger-to-agent invocation, and human approval gates.
+
+### What the AI agent needs from this repo at minimum
+
+1. **EPF Cloud Strategy Server running** (from `add-epf-cloud-server`) — provides strategic context via MCP
+2. **AIM MCP tools available** (from `add-aim-recalibration-engine`, already shipped) — provides write-back capabilities
+3. **`epf-canonical` schemas** (already exists) — for validating generated artifacts

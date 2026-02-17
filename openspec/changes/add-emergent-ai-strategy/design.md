@@ -179,3 +179,34 @@ Phase 1 (local PoC) stays in this change as a hard gate. Not split into a separa
 - Is OpenCode's headless mode reliable enough for production programmatic orchestration? (Validated during Phase 1 PoC)
 - What are the right agent instruction patterns for EPF artifact writing? (Discovered during Phase 1)
 - How should the agent handle conflicting strategic context (e.g., artifact references a deprecated persona)? (Design during Phase 2)
+
+## Architectural Context: Relationship to Other Changes
+
+This change sits at the top of a dependency chain with two other active changes:
+
+### Dependency: `add-epf-cloud-server`
+
+The cloud server provides the MCP-over-HTTP endpoint that the AI agent connects to for strategic context. Without it, the agent can only run locally with `epf-cli serve` over stdio. The cloud server enables:
+- Remote agent sessions connecting to strategy context
+- GitHub-sourced EPF instances (no local clones needed)
+- Cloud Run hosting for the MCP server
+
+### Upstream: `add-aim-recalibration-engine`
+
+The AIM recalibration engine (Phases 1-2 shipped as v0.18.1) provides the MCP write-back tools that the agent uses for autonomous strategy operations:
+
+| AIM MCP Tool | Agent uses it for |
+|---|---|
+| `epf_aim_write_assessment` | Fill assessment report from collected data |
+| `epf_aim_write_calibration` | Draft calibration memo with recommendation |
+| `epf_aim_recalibrate` | Generate and apply READY artifact changesets |
+| `epf_aim_generate_src` | Run Strategic Reality Check before calibration |
+| `epf_aim_check_triggers` | Evaluate whether an AIM session is needed |
+| `epf_aim_health` | Quick health diagnostic before full assessment |
+| `epf_aim_collect` | Collect metrics from external systems (Phase 3 CLI) |
+
+These tools are already built and available in the CLI. The agent doesn't need to implement any AIM logic — it orchestrates existing tools.
+
+### Architectural constraint from `add-aim-recalibration-engine` Decision #9
+
+The EPF CLI is a stateless analysis engine. This agent does not write directly to YAML files — it uses AIM MCP tools for write operations and `epf-cli validate` for validation. The CLI's Go packages can be imported as a library if the agent needs direct access, but the primary interface is MCP.
