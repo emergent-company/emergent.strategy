@@ -56,13 +56,23 @@ Each finding links to a specific artifact file and field path, making the SRC ac
 - Add relationship drift detection: automated checks for stale LRA signals, overdue assessments, unfilled KR outcomes (overlaps with SRC `strategic_alignment` section — SRC generates the findings, `aim health` surfaces them as diagnostics)
 - Add `aim health` subcommand for AIM-specific diagnostics (separate from instance health check)
 
-### Phase 3: AIM Monitoring (coordinates with `add-epf-cloud-server`)
+### Phase 3: AIM Monitoring (CLI-native + server-deferred)
 
-- Add `aim monitor` scheduled check that evaluates trigger config thresholds
-- Add data ingestion: git commit velocity, external metric hooks
-- Generate probe reports (weekly health snapshots matching the `aim_trigger_assessment` wizard spec)
-- Surface proactive recalibration suggestions via MCP notifications
-- If cloud server available: run monitoring server-side with webhook delivery
+Phase 3 is split between CLI-native work and server-side features, reflecting the architectural boundary established in Design Decision #9. The CLI remains a stateless analysis engine; stateful concerns (persistent metric storage, continuous monitoring, webhook receivers) are deferred to the `emergent` backend server.
+
+**CLI-native (this change):**
+- Add trigger evaluation engine: `aim check-triggers` evaluates `aim_trigger_config.yaml` thresholds against current data (ROI waste signals, assumption invalidation, calendar triggers)
+- Add script-based data collection: `aim collect` orchestrates user-provided collector scripts that call external systems and output metric YAML (Design Decision #10). One built-in collector: `git_velocity` (commits/week, files changed — runs locally)
+- Add `aim_data_sources.yaml` config artifact with `data_sources`, `kr_mappings` (derive KR status from raw metrics), and `trigger_feeds` sections
+- Add `aim probe` command — generates probe report from collected metrics + trigger evaluation
+- Add metric and probe report schemas to canonical-epf
+
+**Server-deferred (moves to `emergent` backend):**
+- Persistent metric storage with time-series queries (replaces YAML file accumulation)
+- Continuous monitoring with webhook delivery for trigger alerts
+- Dashboard/API for AIM health visualization
+- Webhook receivers for external system integration (ClickUp, GitHub, CI/CD)
+- The server imports EPF CLI Go packages as a library for validation and analysis
 
 ### Phase 4: Autonomous Recalibration (depends on `add-emergent-ai-strategy`)
 
@@ -78,4 +88,37 @@ Each finding links to a specific artifact file and field path, making the SRC ac
 - Affected code: `apps/epf-cli/cmd/aim*.go`, `apps/epf-cli/internal/mcp/aim_tools.go`, new `internal/aim/` package
 - Affected instance: `docs/EPF/_instances/emergent/AIM/` (LRA fix, new artifacts, SRC artifact)
 - Affected canonical repo: `emergent-company/epf-canonical` — Phase 1B fixes schema/template/wizard inconsistencies; Phase 1C adds SRC schema/template/wizard (new artifact type); Phases 2-4 will require further schema, template, and wizard updates pushed upstream and synced into `epf-cli` via `sync-embedded.sh`
-- Coordination: Phase 3 aligns with `add-epf-cloud-server` cloud deployment; Phase 4 depends on `add-emergent-ai-strategy` AI agent
+
+## Relationship to Other Changes
+
+This is the foundation of a three-part dependency chain:
+
+```
+add-aim-recalibration-engine (this change)
+  │
+  ├── Phases 1-2 ✅ shipped (v0.18.1) — standalone, no dependencies
+  │   Delivers: AIM MCP tools, write-back commands, SRC, recalibration, health
+  │
+  ├── Phase 3 CLI ⬜ next — standalone, no dependencies
+  │   Delivers: trigger evaluation, script-based data collection, probe reports
+  │
+  ├── Phase 3S (server-deferred) ──► needs: add-epf-cloud-server
+  │   Delivers: persistent metric storage, continuous monitoring, dashboard API
+  │   Deferred to server component (per Decision #9: CLI stays stateless)
+  │
+  └── Phase 4 ──► needs: add-emergent-ai-strategy ──► needs: add-epf-cloud-server
+      Delivers: autonomous recalibration via AI Strategy Agent
+      Uses: AIM MCP tools (already shipped) as the agent's write-back interface
+```
+
+### What this change provides to downstream changes
+
+| Downstream change | What it gets from here |
+|---|---|
+| `add-epf-cloud-server` | All 49+ MCP tools to expose over HTTP/SSE (AIM tools are a significant addition) |
+| `add-emergent-ai-strategy` | AIM MCP tools for autonomous strategy operations (assess, calibrate, recalibrate, SRC, health, triggers) |
+
+### Coordination points
+
+- **Phase 3S ↔ cloud server:** When `add-epf-cloud-server` is built, Phase 3S tasks move there. The server imports CLI Go packages (`internal/aim/`, `internal/schema/`) as a library for validation.
+- **Phase 4 ↔ AI strategy:** Phase 4 provides AIM-specific agent instruction sets and trigger-to-agent invocation. The AI strategy change provides the headless agent engine.

@@ -21,3 +21,17 @@ The EPF CLI currently runs only on local machines, requiring users to build from
 - Affected code: `apps/epf-cli/` (new packages: `internal/source/`, `internal/transport/`, `internal/auth/`, `internal/cache/`)
 - New infrastructure: Dockerfile, GCP Terraform/config, GitHub App configuration
 - Existing local CLI behavior is preserved — cloud mode is additive
+
+## Relationship to Other Changes
+
+This is a foundational change in a three-part dependency chain:
+
+| Change | Depends on | What it uses from this change |
+|---|---|---|
+| `add-aim-recalibration-engine` Phase 3S | This change (cloud infrastructure) | Cloud Run deployment, HTTP transport, future persistent storage layer |
+| `add-emergent-ai-strategy` | This change (MCP-over-HTTP) | Agent sessions connect to this server as MCP context provider |
+
+This v1 is **stateless and read-only**. Two downstream extensions are anticipated:
+
+1. **AIM stateful layer** (`add-aim-recalibration-engine` Phase 3S) — adds persistent metric storage, monitoring state, webhook receivers, and AIM health dashboard API. May extend this server or run as a companion service.
+2. **AI Strategy context** (`add-emergent-ai-strategy`) — dynamically attaches this server as an MCP context provider to headless OpenCode sessions. No changes to this server needed — it's consumed as-is.

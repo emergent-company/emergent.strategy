@@ -20,10 +20,11 @@ The EPF AIM phase currently has read-only tooling and no closed-loop feedback. T
 
 ### Non-Goals
 
-- Building a full data warehouse or analytics platform (metrics are lightweight YAML files)
-- Real-time monitoring (weekly cadence is sufficient for Phase 3)
-- Multi-tenant monitoring (single instance per server, multi-instance is a cloud server concern)
-- UI/dashboard for AIM data (CLI and MCP are the interfaces)
+- Building a full data warehouse or analytics platform within the CLI (metrics storage and querying belong in the server)
+- Real-time monitoring in the CLI (the CLI handles periodic/on-demand evaluation; continuous monitoring lives in the server)
+- Multi-tenant monitoring (single instance per CLI invocation; multi-instance is a server concern)
+- UI/dashboard for AIM data within the CLI (CLI and MCP are the local interfaces; dashboards belong in the server's web UI)
+- Implementing HTTP clients for external systems (ClickUp, Linear, GitHub) in the CLI (use script-based collectors instead; production integrations live in the server)
 
 ## Decisions
 
@@ -147,20 +148,96 @@ The fix principle:
 
 **Alternative considered:** Expanding the Assessment Report and Calibration Memo schemas to include cross-artifact evaluation sections. Rejected because it conflates two different concerns (cycle execution evaluation vs. foundation validity) and would require all existing assessment/calibration tooling to handle the expanded scope.
 
+### 9. CLI/server architectural boundary for stateful AIM operations
+
+**Decision:** EPF CLI remains a stateless analysis engine operating on local YAML files. Stateful concerns — time-series metrics storage, continuous monitoring, dashboards, webhook receivers, multi-user access — belong in a server component (the `emergent` backend). The CLI may serve as a library (Go packages imported directly) or be invoked by the server, but it does not itself become a server with persistence.
+
+**Rationale:** Phases 1–2 (validation, SRC, recalibration, health checks) are genuinely well-suited to file-based operation: they're stateless read-compute-output on YAML files in a git repo, with quarterly cadence. Phase 3 introduces concerns that strain the database-less model:
+
+| Concern | File-based workaround | Server gives you |
+|---|---|---|
+| Metrics over time | Accumulating YAML files in `AIM/metrics/` | Time-series queries, aggregation |
+| Monitoring state | Hidden state file (last run, alert history) | Proper state management |
+| Trend analysis | Load + parse N files to compare | Single query |
+| Dashboard serving | Read files on every request | Indexed, fast reads |
+| External system webhooks | Poll-based scripts | Real-time webhook receivers |
+
+At the current scale (solo founder, quarterly cycles, ~17 KRs), the file-based workaround is ugly but functional. But designing Phase 3 around YAML file accumulation creates technical debt that the server would immediately replace. Better to split now.
+
+**What this means for Phase 3:**
+- **3.1 (trigger evaluation) and 3.3 (probe reports)** remain CLI-native — they're stateless analysis that reads trigger config + current data and produces a report. No persistence needed.
+- **3.2 (data collection/ingestion) and 3.4 (continuous monitoring)** are redesigned as server features. The CLI provides a lightweight `aim collect` command for local/script-based collection, but production metric ingestion, storage, and webhook receivers live in the `emergent` backend.
+- The bridge is simple: the server imports EPF CLI Go packages as a library for validation and analysis, and manages its own persistence layer.
+
+**Alternative considered:** Building SQLite storage into the CLI for metrics. Rejected because it breaks the "everything is YAML in git" principle, adds a binary file to the repo, and duplicates infrastructure the server already needs.
+
+**Alternative considered:** Keeping everything file-based and accepting the limitations. Rejected because Phase 3.4 (monitoring endpoint) already implicitly requires a server, making the file-based approach a temporary bridge that would be thrown away.
+
+### 10. Script-based collector model for data ingestion (Phase 3.2)
+
+**Decision:** For the CLI-side of data collection, use a script-based plugin model. EPF CLI does not implement HTTP clients for external systems (no vendor coupling). Users provide collector scripts (Python, bash, etc.) that call external APIs and output metric YAML to stdout. The CLI orchestrates collection, validates output against the metric schema, and writes to `AIM/metrics/`.
+
+**Architecture:**
+
+```
+aim_data_sources.yaml (config)
+├── data_sources:
+│   ├── git_velocity (built-in, runs locally)
+│   ├── clickup_tasks (user script: scripts/collect_clickup.py)
+│   └── github_prs (user script: scripts/collect_github.sh)
+├── kr_mappings:
+│   ├── kr-p-2025-q1-001 → metric: test_count, operator: >=, target: 50
+│   └── kr-p-2025-q1-003 → metric: feature_count, operator: >=, target: 3
+└── trigger_feeds:
+    └── roi_waste_signal → metric: sprint_completion_rate, threshold: < 0.5
+
+Collector scripts:
+  - Called by `aim collect`
+  - Auth via env var references (never stored in config)
+  - Output: structured YAML to stdout (validated against metric schema)
+  - Exit code 0 = success, non-zero = skip with warning
+
+epf-cli orchestration (`aim collect`):
+  1. Read aim_data_sources.yaml
+  2. For each source: run script, capture stdout, validate against metric schema
+  3. Write validated metrics to AIM/metrics/YYYY-MM-DD_<source>.yaml
+  4. Derive KR statuses from kr_mappings (compare actuals to targets)
+  5. Feed trigger_feeds into trigger evaluation engine (Phase 3.1)
+```
+
+**One built-in collector:** `git_velocity` — runs locally via `git log`, produces commits/week, files changed, active contributors. No external dependencies.
+
+**KR mapping layer:** The key insight is that raw metrics (e.g., "47 tests passing") don't become useful until mapped to KR targets (e.g., "KR says 50, we have 47, status: partially_met"). The `kr_mappings` section bridges this with simple comparison operators (`>=`, `<=`, `==`, `contains`).
+
+**Credentials:** Stored as env var references only (e.g., `auth_env: CLICKUP_API_TOKEN`). The config file is safe to commit; secrets stay in the environment.
+
+**Rationale:** This approach keeps the CLI vendor-agnostic while enabling integration with any external system. Users write thin adapter scripts (typically 20-50 lines) for their specific tool stack. The CLI's job is orchestration, validation, and KR derivation — not API client maintenance.
+
+**Scope note:** This design covers the CLI-side collector for local/CI usage. For production continuous collection (webhook receivers, real-time ingestion), the server component in `emergent` handles persistence and exposes API endpoints. The CLI's `aim collect` and the server's ingestion API both produce the same metric schema, ensuring compatibility.
+
+**Alternative considered:** Building HTTP clients for popular tools (ClickUp, Linear, GitHub) directly into the CLI. Rejected because it creates vendor coupling, requires ongoing API maintenance, and the server is a better home for persistent integrations.
+
 ## Risks / Trade-offs
 
 | Risk | Mitigation |
-|------|-----------|
+|------|-----------:|
 | Phase 4 depends on AI Strategy Agent which doesn't exist yet | Phases 1-3 are fully standalone; Phase 4 tasks define clear integration points |
 | Recalibration changeset format may not cover all READY artifact variations | Start with the most common patterns (track focus changes, assumption updates, OKR adjustments); extend as needed |
-| Metric YAML files could proliferate in git | Add retention policy to trigger config (keep N weeks of metrics, prune older ones) |
+| Metric YAML files could proliferate in git | Add retention policy to trigger config (keep N weeks of metrics, prune older ones). For production use, server handles storage with proper retention. |
 | Write-back commands change AIM artifacts, risking data loss | All writes append to evolution log; `aim archive-cycle` creates snapshots before modifications |
 | SRC mechanical checks may produce false positives (e.g., flagging valid cross-references as broken due to path format variations) | Start with strict matching, add normalization rules as edge cases appear. False positives are preferable to false negatives for foundation validity |
 | Canonical EPF repo (`epf-canonical`) and `epf-cli` embedded content drift apart | Enforce workflow: canonical first, sync, then build. CI clones canonical at build time. Never edit `internal/embedded/` directly |
+| CLI/server boundary creates two places to maintain metric validation logic | CLI Go packages are importable as a library by the server — single validation codebase, two execution contexts |
+| Script-based collectors add user-managed complexity (writing/maintaining collector scripts) | Ship with one built-in collector (`git_velocity`) as a reference implementation. Document the script contract clearly. Keep the output schema simple. |
+| Server component (`emergent` backend) may not be ready when Phase 3 CLI work is done | Phase 3 CLI tasks (triggers, probe reports, `aim collect`) are fully standalone. Server-side tasks are explicitly deferred — the CLI works without a server. |
 
 ## Open Questions
 
-- Should probe reports be a new canonical artifact type with their own schema, or are they ephemeral output (like the track health signals)?
-- What is the minimum set of READY artifacts that `aim recalibrate` should support in Phase 2? (Start with roadmap_recipe + strategy_formula, or all 7 including the ones SRC evaluates?)
-- Should the monitoring goroutine in the MCP server be opt-in via a config flag, or always-on when the server has a trigger config?
-- Should `aim generate-src` run all 5 detection categories by default, or accept a `--categories` flag to run a subset? (Full runs may be slow for large instances)
+- ~~Should probe reports be a new canonical artifact type with their own schema, or are they ephemeral output (like the track health signals)?~~ **Decided:** Probe reports will be a canonical artifact type — they're the weekly health snapshot that feeds trend analysis. Schema goes in Phase 3.
+- ~~What is the minimum set of READY artifacts that `aim recalibrate` should support in Phase 2?~~ **Decided (Phase 2, shipped):** All READY artifacts the calibration memo and SRC reference. Changeset covers north_star, strategy_formula, roadmap_recipe, and all FIRE feature definitions.
+- Should the monitoring goroutine in the MCP server be opt-in via a config flag, or always-on when the server has a trigger config? **Updated:** Now moot for the CLI — continuous monitoring lives in the server component. The CLI's `aim check-triggers` is always on-demand.
+- ~~Should `aim generate-src` run all 5 detection categories by default, or accept a `--categories` flag to run a subset?~~ **Decided (Phase 1C, shipped):** Runs all categories by default. No subset flag needed — the full run is fast enough (~200ms on the emergent instance with 56 findings).
+- How much of the assessment report can be auto-populated from external systems vs. requiring human input? **Updated:** Analysis shows ~60% of KR actuals can be automated with collector scripts (test counts, artifact counts, uptime). OKR narrative assessments and assumption evidence interpretation require AI synthesis (Phase 4) or human input (~15 min irreducible). Full manual effort is ~90 min/quarter.
+- Where does `aim_data_sources.yaml` live — in `AIM/` alongside other AIM artifacts, or in a top-level config directory? Leaning toward `AIM/` for consistency.
+- Should the server component define its own metric storage schema, or reuse the CLI's YAML metric schema as the canonical format with a database adapter layer?
+- When the server is available, should `aim collect` support a `--push` flag to send collected metrics to the server API instead of writing local YAML?

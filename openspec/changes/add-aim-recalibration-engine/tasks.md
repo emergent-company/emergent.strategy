@@ -172,7 +172,7 @@
 - [x] 2.4.2 Update `synthesizer.agent_prompt.md` wizard in `epf-canonical` with recalibration guidance
 - [x] 2.4.3 Run `sync-embedded.sh` and rebuild `epf-cli`
 
-## Phase 3: AIM Monitoring (coordinates with `add-epf-cloud-server`)
+## Phase 3: AIM Monitoring — CLI-Native
 
 ### 3.1 Trigger Evaluation Engine
 
@@ -182,35 +182,51 @@
 - [ ] 3.1.4 Implement calendar trigger evaluation (days until scheduled AIM)
 - [ ] 3.1.5 Add `aim check-triggers` command — one-shot trigger evaluation
 - [ ] 3.1.6 Add `epf_aim_check_triggers` MCP tool
+- [ ] 3.1.7 Write unit tests for trigger evaluation logic
 
-### 3.2 Data Ingestion
+### 3.2 Data Collection (script-based collector model)
 
-- [ ] 3.2.1 Add git commit velocity metric collector (commits/week, files changed, languages)
-- [ ] 3.2.2 Add configurable external metric hooks (webhook endpoint or file-based input)
-- [ ] 3.2.3 Add metric storage in `AIM/metrics/` as timestamped YAML files
-- [ ] 3.2.4 Define metric schema for structured ingestion
+- [ ] 3.2.1 Define `aim_data_sources.yaml` config schema with `data_sources`, `kr_mappings`, and `trigger_feeds` sections
+- [ ] 3.2.2 Create `internal/aim/collect.go` — orchestrator that reads config, runs collector scripts, validates output
+- [ ] 3.2.3 Implement built-in `git_velocity` collector (commits/week, files changed, active contributors via `git log`)
+- [ ] 3.2.4 Implement script runner: invoke user scripts, capture stdout YAML, validate against metric schema
+- [ ] 3.2.5 Implement KR mapping derivation: compare collected metrics to KR targets, derive statuses (met/partially_met/not_met)
+- [ ] 3.2.6 Implement trigger feed: pipe collected metrics into trigger evaluation signals
+- [ ] 3.2.7 Add metric storage in `AIM/metrics/` as timestamped YAML files
+- [ ] 3.2.8 Add `aim collect` command — runs all configured collectors, writes metrics, derives KR statuses
+- [ ] 3.2.9 Add `epf_aim_collect` MCP tool
+- [ ] 3.2.10 Write unit tests for collector orchestration and KR mapping logic
 
 ### 3.3 Probe Reports
 
-- [ ] 3.3.1 Add `aim probe` command — generates weekly probe report from collected metrics + trigger evaluation
+- [ ] 3.3.1 Add `aim probe` command — generates probe report from collected metrics + trigger evaluation
 - [ ] 3.3.2 Define probe report artifact type and schema
 - [ ] 3.3.3 Add `epf_aim_probe` MCP tool
 - [ ] 3.3.4 Add probe report to health check summary
 
-### 3.4 Monitoring Integration
+### 3.4 Canonical Sync
 
-- [ ] 3.4.1 Add `aim monitor` command — scheduled evaluation (can run via cron or as background goroutine in MCP server)
-- [ ] 3.4.2 Add MCP notification capability for trigger alerts
-- [ ] 3.4.3 If cloud server available: add server-side monitoring endpoint with webhook delivery
-- [ ] 3.4.4 Add monitoring configuration to trigger config (cadence, notification channels)
+- [ ] 3.4.1 Add metric schema to `epf-canonical` (new artifact type: `aim_metric`)
+- [ ] 3.4.2 Add metric template to `epf-canonical/templates/AIM/`
+- [ ] 3.4.3 Add `aim_data_sources` schema to `epf-canonical` (config artifact type)
+- [ ] 3.4.4 Add probe report schema + template to `epf-canonical`
+- [ ] 3.4.5 Update `aim_trigger_config` schema in `epf-canonical` if trigger feed fields are added
+- [ ] 3.4.6 Run `sync-embedded.sh` and rebuild `epf-cli`
+- [ ] 3.4.7 Run `go test ./...` — all tests pass
+- [ ] 3.4.8 Tag release
 
-### 3.5 Canonical Sync
+## Phase 3S: AIM Monitoring — Server-Deferred (moves to `emergent` backend)
 
-- [ ] 3.5.1 Add metric schema to `epf-canonical` (new artifact type: `aim_metric`)
-- [ ] 3.5.2 Add metric template to `epf-canonical/templates/AIM/`
-- [ ] 3.5.3 If probe report is canonical: add probe report schema + template to `epf-canonical`
-- [ ] 3.5.4 Update `aim_trigger_config` schema in `epf-canonical` if monitoring config fields are added
-- [ ] 3.5.5 Run `sync-embedded.sh` and rebuild `epf-cli`
+> These tasks are out of scope for this change proposal. They are recorded here for
+> traceability and should be migrated to a separate change proposal in the `emergent`
+> repo when that server component is ready.
+
+- [ ] 3S.1 Persistent metric storage with time-series database (replaces YAML file accumulation)
+- [ ] 3S.2 REST API for metric ingestion (webhook receivers for ClickUp, GitHub, CI/CD)
+- [ ] 3S.3 Continuous monitoring loop with configurable cadence and alert delivery (email, Slack, webhook)
+- [ ] 3S.4 Dashboard/API for AIM health visualization
+- [ ] 3S.5 Import EPF CLI Go packages as library for validation and analysis within server
+- [ ] 3S.6 `aim collect --push` flag to send collected metrics to server API instead of writing local YAML
 
 ## Phase 4: Autonomous Recalibration (depends on `add-emergent-ai-strategy`)
 
