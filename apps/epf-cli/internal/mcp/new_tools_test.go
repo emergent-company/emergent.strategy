@@ -311,8 +311,8 @@ func TestHandleAimAssess(t *testing.T) {
 	// Success depends on whether roadmap exists in test instance
 	success, _ := response["success"].(bool)
 	if success {
-		if _, hasTemplate := response["template"]; !hasTemplate {
-			t.Error("Expected template content when successful")
+		if _, hasContent := response["content"]; !hasContent {
+			t.Error("Expected content field when successful")
 		}
 	}
 }

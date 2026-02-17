@@ -962,6 +962,121 @@ func (s *Server) registerTools() {
 	)
 
 	// ==========================================================================
+	// AIM Write-Back Tools (Phase 1)
+	// ==========================================================================
+
+	// Tool: epf_aim_update_lra
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_aim_update_lra",
+			mcp.WithDescription("Apply field-level updates to the Living Reality Assessment and append an evolution log entry. "+
+				"Uses structured input rather than freeform YAML editing. Both 'trigger' and 'summary' must be provided together for evolution logging."),
+			mcp.WithString("instance_path",
+				mcp.Description("Path to EPF instance (default: current directory)"),
+			),
+			mcp.WithString("primary_track",
+				mcp.Description("Primary focus track: product, strategy, org_ops, commercial"),
+			),
+			mcp.WithString("secondary_track",
+				mcp.Description("Secondary focus track: product, strategy, org_ops, commercial, none"),
+			),
+			mcp.WithString("primary_objective",
+				mcp.Description("Current primary objective text"),
+			),
+			mcp.WithString("cycle_reference",
+				mcp.Description("Cycle reference (e.g., C1, C2)"),
+			),
+			mcp.WithString("lifecycle_stage",
+				mcp.Description("Lifecycle stage: bootstrap, maturing, evolved"),
+			),
+			mcp.WithString("trigger",
+				mcp.Description("Evolution log trigger (e.g., aim_signals, external_change, cycle_transition). Required with 'summary'."),
+			),
+			mcp.WithString("summary",
+				mcp.Description("Evolution log summary (max 200 chars). Required with 'trigger'."),
+			),
+			mcp.WithString("updated_by",
+				mcp.Description("Attribution for the update (default: mcp-agent)"),
+			),
+		),
+		s.handleAimUpdateLRA,
+	)
+
+	// Tool: epf_aim_write_assessment
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_aim_write_assessment",
+			mcp.WithDescription("Write an assessment report to the AIM directory from YAML content. "+
+				"The assessment report captures OKR progress, key result outcomes, and assumption validation evidence for a cycle."),
+			mcp.WithString("instance_path",
+				mcp.Description("Path to EPF instance (default: current directory)"),
+				mcp.Required(),
+			),
+			mcp.WithString("content",
+				mcp.Description("Assessment report YAML content to write"),
+				mcp.Required(),
+			),
+		),
+		s.handleAimWriteAssessment,
+	)
+
+	// Tool: epf_aim_write_calibration
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_aim_write_calibration",
+			mcp.WithDescription("Write a calibration memo to the AIM directory from YAML content. "+
+				"The calibration memo captures the persevere/pivot/pull-the-plug decision, learnings, and next-cycle inputs."),
+			mcp.WithString("instance_path",
+				mcp.Description("Path to EPF instance (default: current directory)"),
+				mcp.Required(),
+			),
+			mcp.WithString("content",
+				mcp.Description("Calibration memo YAML content to write"),
+				mcp.Required(),
+			),
+		),
+		s.handleAimWriteCalibration,
+	)
+
+	// Tool: epf_aim_init_cycle
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_aim_init_cycle",
+			mcp.WithDescription("Initialize a new cycle by optionally archiving the previous cycle, "+
+				"removing old assessment/calibration artifacts, and updating the LRA cycle reference."),
+			mcp.WithString("instance_path",
+				mcp.Description("Path to EPF instance (default: current directory)"),
+				mcp.Required(),
+			),
+			mcp.WithString("cycle_number",
+				mcp.Description("New cycle number (positive integer as string, required)"),
+				mcp.Required(),
+			),
+			mcp.WithString("archive_previous",
+				mcp.Description("Archive the previous cycle before starting (true/false, default: false)"),
+			),
+			mcp.WithString("updated_by",
+				mcp.Description("Attribution for the update (default: mcp-agent)"),
+			),
+		),
+		s.handleAimInitCycle,
+	)
+
+	// Tool: epf_aim_archive_cycle
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_aim_archive_cycle",
+			mcp.WithDescription("Archive current cycle's AIM artifacts to AIM/cycles/cycle-N/ directory. "+
+				"Copies assessment_report.yaml, calibration_memo.yaml, and living_reality_assessment.yaml (if they exist) as snapshots. "+
+				"Original files are NOT removed."),
+			mcp.WithString("instance_path",
+				mcp.Description("Path to EPF instance (default: current directory)"),
+				mcp.Required(),
+			),
+			mcp.WithString("cycle_number",
+				mcp.Description("Cycle number to archive (positive integer as string, required)"),
+				mcp.Required(),
+			),
+		),
+		s.handleAimArchiveCycle,
+	)
+
+	// ==========================================================================
 	// Report & Diff Tools (v0.14.0)
 	// ==========================================================================
 
