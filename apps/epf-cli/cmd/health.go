@@ -903,8 +903,11 @@ func calculateTiers(result *HealthResult) *HealthTiers {
 		if result.ContentReadiness.Score < 100 {
 			qualityDeductions += (100 - result.ContentReadiness.Score) / 2 // Weight at 50%
 			if len(result.ContentReadiness.Placeholders) > 0 {
-				tiers.Quality.Details = append(tiers.Quality.Details,
-					fmt.Sprintf("%d placeholder patterns detected", len(result.ContentReadiness.Placeholders)))
+				detail := fmt.Sprintf("%d placeholder patterns detected (product artifacts)", len(result.ContentReadiness.Placeholders))
+				if result.ContentReadiness.CanonicalFiles > 0 {
+					detail += fmt.Sprintf("; %d canonical artifacts excluded", result.ContentReadiness.CanonicalFiles)
+				}
+				tiers.Quality.Details = append(tiers.Quality.Details, detail)
 			}
 		}
 	}
@@ -1274,7 +1277,7 @@ func printRelationshipsSummary(result *checks.RelationshipsResult) {
 		fmt.Printf("    • %d orphan features (no contributes_to)\n", result.OrphanFeatures)
 	}
 	if result.StrategicGaps > 0 {
-		fmt.Printf("    • %d strategic gaps (KR targets without features)\n", result.StrategicGaps)
+		fmt.Printf("    • %d strategic gaps (product track KR targets without features)\n", result.StrategicGaps)
 	}
 
 	// Show detailed errors in verbose mode
@@ -1345,7 +1348,7 @@ func printContentReadinessSummary(result *checks.ContentReadinessResult) {
 		icon, result.Score, result.Grade)
 
 	if len(result.Placeholders) > 0 {
-		fmt.Printf("    • %d placeholder patterns found\n", len(result.Placeholders))
+		fmt.Printf("    • %d placeholder patterns found (product artifacts)\n", len(result.Placeholders))
 		if healthVerbose {
 			shown := 0
 			for _, p := range result.Placeholders {
@@ -1356,6 +1359,16 @@ func printContentReadinessSummary(result *checks.ContentReadinessResult) {
 				fmt.Printf("      - %s:%d: %s\n", filepath.Base(p.File), p.Line, truncateString(p.Content, 50))
 				shown++
 			}
+		}
+	}
+
+	// Surface canonical artifact info for transparency
+	if result.CanonicalFiles > 0 {
+		if len(result.CanonicalPlaceholders) > 0 {
+			fmt.Printf("    • %d canonical artifacts excluded from scoring (%d placeholders in canonical files)\n",
+				result.CanonicalFiles, len(result.CanonicalPlaceholders))
+		} else {
+			fmt.Printf("    • %d canonical artifacts excluded from scoring\n", result.CanonicalFiles)
 		}
 	}
 }

@@ -86,6 +86,31 @@ for generator_dir in "$CANONICAL_EPF/outputs/"*/; do
 done
 echo "  Copied $GENERATOR_COUNT generators"
 
+# Copy canonical definitions (sd-*, pd-*, cd-* only — product fd-* are examples, not canonical)
+echo "Copying canonical definitions..."
+DEFINITION_COUNT=0
+DEFINITION_DIR="$EMBEDDED_DIR/templates/READY/definitions"
+rm -rf "$DEFINITION_DIR"
+for track_dir in strategy org_ops commercial; do
+    if [ -d "$CANONICAL_EPF/definitions/$track_dir" ]; then
+        # Copy all subdirectories (categories) within each canonical track
+        for category_dir in "$CANONICAL_EPF/definitions/$track_dir/"*/; do
+            if [ -d "$category_dir" ]; then
+                category_name=$(basename "$category_dir")
+                target_dir="$DEFINITION_DIR/$track_dir/$category_name"
+                mkdir -p "$target_dir"
+                for def_file in "$category_dir"*.yaml "$category_dir"*.yml; do
+                    if [ -f "$def_file" ]; then
+                        cp "$def_file" "$target_dir/"
+                        DEFINITION_COUNT=$((DEFINITION_COUNT + 1))
+                    fi
+                done
+            fi
+        done
+    fi
+done
+echo "  Copied $DEFINITION_COUNT canonical definition files"
+
 # Copy AGENTS.md from epf-cli source (not canonical EPF)
 echo "Copying AGENTS.md from epf-cli source..."
 if [ -f "$EPF_CLI_DIR/AGENTS.md" ]; then
@@ -126,6 +151,9 @@ $(ls -1 "$EMBEDDED_DIR/wizards/"*.md 2>/dev/null | xargs -I {} basename {} | sor
 
 ## Generators
 $(ls -1d "$EMBEDDED_DIR/outputs/"*/ 2>/dev/null | xargs -I {} basename {} | sort)
+
+## Canonical Definitions
+$(find "$EMBEDDED_DIR/templates/READY/definitions" -type f \( -name "*.yaml" -o -name "*.yml" \) 2>/dev/null | sed "s|$EMBEDDED_DIR/templates/READY/definitions/||" | sort)
 EOF
 
 echo ""
@@ -136,4 +164,5 @@ echo "  Schemas:    $SCHEMA_COUNT files"
 echo "  Templates:  $(find "$EMBEDDED_DIR/templates" -type f 2>/dev/null | wc -l | tr -d ' ') files"
 echo "  Wizards:    $WIZARD_COUNT files"
 echo "  Generators: $(ls -1d "$EMBEDDED_DIR/outputs/"*/ 2>/dev/null | wc -l | tr -d ' ') directories"
+echo "  Definitions:$DEFINITION_COUNT files"
 echo "  AGENTS.md:  $(if [ -f "$EMBEDDED_DIR/AGENTS.md" ]; then echo "✓ ($(wc -l < "$EMBEDDED_DIR/AGENTS.md" | tr -d ' ') lines)"; else echo "✗"; fi)"

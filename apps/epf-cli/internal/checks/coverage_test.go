@@ -292,6 +292,182 @@ func TestCoverageGapStructure(t *testing.T) {
 	}
 }
 
+// TestExtractRoadmapKeyResultFieldsProductOnly tests that only product track KR fields are extracted
+func TestExtractRoadmapKeyResultFieldsProductOnly(t *testing.T) {
+	checker := NewFieldCoverageChecker("/instance", "/taxonomy")
+
+	// Roadmap with product and canonical tracks
+	content := map[string]interface{}{
+		"roadmap": map[string]interface{}{
+			"tracks": map[string]interface{}{
+				"product": map[string]interface{}{
+					"okrs": []interface{}{
+						map[string]interface{}{
+							"key_results": []interface{}{
+								map[string]interface{}{
+									"id":                   "kr-p-001",
+									"trl_start":            1,
+									"trl_target":           3,
+									"technical_hypothesis": "hypothesis",
+									"success_criteria":     "criteria",
+								},
+							},
+						},
+					},
+				},
+				"strategy": map[string]interface{}{
+					"okrs": []interface{}{
+						map[string]interface{}{
+							"key_results": []interface{}{
+								map[string]interface{}{
+									"id":             "kr-s-001",
+									"strategy_field": "value",
+								},
+							},
+						},
+					},
+				},
+				"org_ops": map[string]interface{}{
+					"okrs": []interface{}{
+						map[string]interface{}{
+							"key_results": []interface{}{
+								map[string]interface{}{
+									"id":        "kr-o-001",
+									"ops_field": "value",
+								},
+							},
+						},
+					},
+				},
+				"commercial": map[string]interface{}{
+					"okrs": []interface{}{
+						map[string]interface{}{
+							"key_results": []interface{}{
+								map[string]interface{}{
+									"id":               "kr-c-001",
+									"commercial_field": "value",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	fields := checker.extractRoadmapKeyResultFields(content)
+
+	// Product track fields should be present
+	productFields := []string{"id", "trl_start", "trl_target", "technical_hypothesis", "success_criteria"}
+	for _, f := range productFields {
+		if !fields[f] {
+			t.Errorf("Expected product field %q to be present", f)
+		}
+	}
+
+	// Canonical track fields should NOT be present
+	canonicalOnlyFields := []string{"strategy_field", "ops_field", "commercial_field"}
+	for _, f := range canonicalOnlyFields {
+		if fields[f] {
+			t.Errorf("Canonical-only field %q should NOT be present in extracted fields", f)
+		}
+	}
+}
+
+// TestExtractRoadmapKeyResultFieldsNoCanonicalInflation verifies that having
+// canonical tracks with all fields doesn't inflate the product coverage score.
+func TestExtractRoadmapKeyResultFieldsNoCanonicalInflation(t *testing.T) {
+	checker := NewFieldCoverageChecker("/instance", "/taxonomy")
+
+	// Product track is missing critical fields
+	contentWithCanonical := map[string]interface{}{
+		"roadmap": map[string]interface{}{
+			"tracks": map[string]interface{}{
+				"product": map[string]interface{}{
+					"okrs": []interface{}{
+						map[string]interface{}{
+							"key_results": []interface{}{
+								map[string]interface{}{
+									"id":   "kr-p-001",
+									"name": "Some KR",
+									// Missing trl_start, trl_target, etc.
+								},
+							},
+						},
+					},
+				},
+				"strategy": map[string]interface{}{
+					"okrs": []interface{}{
+						map[string]interface{}{
+							"key_results": []interface{}{
+								map[string]interface{}{
+									"id":                   "kr-s-001",
+									"trl_start":            1,
+									"trl_target":           5,
+									"technical_hypothesis": "hyp",
+									"success_criteria":     "crit",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Product-only result (no canonical track inflation)
+	fieldsWithCanonical := checker.extractRoadmapKeyResultFields(contentWithCanonical)
+
+	// Product track is missing TRL fields — those from strategy should NOT leak in
+	if fieldsWithCanonical["trl_start"] {
+		t.Error("trl_start should not be present — it only exists in canonical strategy track")
+	}
+	if fieldsWithCanonical["technical_hypothesis"] {
+		t.Error("technical_hypothesis should not be present — it only exists in canonical strategy track")
+	}
+
+	// Only product track fields should be present
+	if !fieldsWithCanonical["id"] {
+		t.Error("id should be present from product track")
+	}
+	if !fieldsWithCanonical["name"] {
+		t.Error("name should be present from product track")
+	}
+}
+
+// TestExtractRoadmapKeyResultFieldsProductOnlyTrack tests with product-only roadmap
+func TestExtractRoadmapKeyResultFieldsProductOnlyTrack(t *testing.T) {
+	checker := NewFieldCoverageChecker("/instance", "/taxonomy")
+
+	content := map[string]interface{}{
+		"roadmap": map[string]interface{}{
+			"tracks": map[string]interface{}{
+				"product": map[string]interface{}{
+					"okrs": []interface{}{
+						map[string]interface{}{
+							"key_results": []interface{}{
+								map[string]interface{}{
+									"id":        "kr-001",
+									"name":      "Test",
+									"trl_start": 1,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	fields := checker.extractRoadmapKeyResultFields(content)
+	if len(fields) != 3 {
+		t.Errorf("Expected 3 fields, got %d", len(fields))
+	}
+	if !fields["trl_start"] {
+		t.Error("Expected trl_start to be present")
+	}
+}
+
 // TestArtifactCoverageStructure tests the ArtifactCoverage structure
 func TestArtifactCoverageStructure(t *testing.T) {
 	coverage := &ArtifactCoverage{

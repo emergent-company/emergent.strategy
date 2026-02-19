@@ -226,6 +226,89 @@ func GetGeneratorContent(name string) (*GeneratorContent, error) {
 	return content, nil
 }
 
+// GetCanonicalDefinition returns the content of an embedded canonical definition.
+// The id should be the definition file basename (e.g., "sd-001-trends-and-opportunities.yaml").
+// It searches through all track/category subdirectories under templates/READY/definitions/.
+func GetCanonicalDefinition(id string) ([]byte, error) {
+	defFS, err := fs.Sub(Templates, "templates/READY/definitions")
+	if err != nil {
+		return nil, err
+	}
+
+	// Walk through track/category directories to find the definition
+	var found []byte
+	fs.WalkDir(defFS, ".", func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		if d.Name() == id || d.Name() == id+".yaml" || d.Name() == id+".yml" {
+			data, readErr := fs.ReadFile(defFS, p)
+			if readErr == nil {
+				found = data
+				return fs.SkipAll // stop walking
+			}
+		}
+		return nil
+	})
+
+	if found != nil {
+		return found, nil
+	}
+	return nil, &fs.PathError{Op: "open", Path: id, Err: fs.ErrNotExist}
+}
+
+// CanonicalDefinitionInfo holds metadata about an embedded canonical definition.
+type CanonicalDefinitionInfo struct {
+	ID       string // filename without extension (e.g., "sd-001-trends-and-opportunities")
+	Filename string // full filename (e.g., "sd-001-trends-and-opportunities.yaml")
+	Track    string // track directory (e.g., "strategy", "org_ops", "commercial")
+	Category string // category directory (e.g., "context", "communications")
+	Path     string // relative path within definitions dir (e.g., "strategy/context/sd-001-trends-and-opportunities.yaml")
+}
+
+// ListCanonicalDefinitions returns metadata for all embedded canonical definitions.
+func ListCanonicalDefinitions() ([]CanonicalDefinitionInfo, error) {
+	defFS, err := fs.Sub(Templates, "templates/READY/definitions")
+	if err != nil {
+		return nil, err
+	}
+
+	var defs []CanonicalDefinitionInfo
+	fs.WalkDir(defFS, ".", func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		name := d.Name()
+		if !strings.HasSuffix(name, ".yaml") && !strings.HasSuffix(name, ".yml") {
+			return nil
+		}
+
+		// Extract track and category from path (e.g., "strategy/context/sd-001.yaml")
+		parts := strings.Split(p, "/")
+		var track, category string
+		if len(parts) >= 3 {
+			track = parts[0]
+			category = parts[1]
+		} else if len(parts) >= 2 {
+			track = parts[0]
+		}
+
+		ext := path.Ext(name)
+		id := strings.TrimSuffix(name, ext)
+
+		defs = append(defs, CanonicalDefinitionInfo{
+			ID:       id,
+			Filename: name,
+			Track:    track,
+			Category: category,
+			Path:     p,
+		})
+		return nil
+	})
+
+	return defs, nil
+}
+
 // GetAgentsMD returns the embedded AGENTS.md content.
 // This file contains comprehensive AI agent instructions for using epf-cli.
 func GetAgentsMD() ([]byte, error) {

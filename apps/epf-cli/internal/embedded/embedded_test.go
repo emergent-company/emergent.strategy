@@ -243,6 +243,106 @@ func TestGetGeneratorContent(t *testing.T) {
 	}
 }
 
+func TestListCanonicalDefinitions(t *testing.T) {
+	defs, err := ListCanonicalDefinitions()
+	if err != nil {
+		t.Fatalf("ListCanonicalDefinitions failed: %v", err)
+	}
+	if len(defs) == 0 {
+		t.Fatal("ListCanonicalDefinitions returned no definitions")
+	}
+
+	// Should have definitions from all 3 canonical tracks
+	tracks := make(map[string]int)
+	for _, d := range defs {
+		tracks[d.Track]++
+		// Validate fields are populated
+		if d.ID == "" {
+			t.Errorf("definition with empty ID at path %s", d.Path)
+		}
+		if d.Filename == "" {
+			t.Errorf("definition with empty Filename at path %s", d.Path)
+		}
+		if d.Track == "" {
+			t.Errorf("definition %s has empty Track", d.ID)
+		}
+	}
+
+	for _, track := range []string{"strategy", "org_ops", "commercial"} {
+		if tracks[track] == 0 {
+			t.Errorf("no definitions found for canonical track %q", track)
+		}
+	}
+	// Product definitions (fd-*) should NOT be included
+	if tracks["product"] > 0 {
+		t.Errorf("found %d product definitions — only canonical tracks should be embedded", tracks["product"])
+	}
+
+	t.Logf("Found %d canonical definitions across tracks: %v", len(defs), tracks)
+}
+
+func TestGetCanonicalDefinition(t *testing.T) {
+	defs, err := ListCanonicalDefinitions()
+	if err != nil || len(defs) == 0 {
+		t.Fatal("ListCanonicalDefinitions failed or returned empty")
+	}
+
+	// Load the first definition by filename
+	data, err := GetCanonicalDefinition(defs[0].Filename)
+	if err != nil {
+		t.Fatalf("GetCanonicalDefinition(%q) failed: %v", defs[0].Filename, err)
+	}
+	if len(data) == 0 {
+		t.Fatalf("GetCanonicalDefinition(%q) returned empty data", defs[0].Filename)
+	}
+	// Should be valid YAML
+	if !strings.Contains(string(data), "id:") && !strings.Contains(string(data), "name:") {
+		t.Errorf("definition content doesn't look like YAML definition")
+	}
+}
+
+func TestGetCanonicalDefinitionNotFound(t *testing.T) {
+	_, err := GetCanonicalDefinition("nonexistent-definition.yaml")
+	if err == nil {
+		t.Fatal("expected error for nonexistent definition")
+	}
+}
+
+func TestGetAllCanonicalDefinitionsLoadable(t *testing.T) {
+	defs, err := ListCanonicalDefinitions()
+	if err != nil {
+		t.Fatalf("ListCanonicalDefinitions failed: %v", err)
+	}
+
+	for _, d := range defs {
+		data, err := GetCanonicalDefinition(d.Filename)
+		if err != nil {
+			t.Errorf("GetCanonicalDefinition(%q) failed: %v", d.Filename, err)
+			continue
+		}
+		if len(data) == 0 {
+			t.Errorf("GetCanonicalDefinition(%q) returned empty data", d.Filename)
+		}
+	}
+}
+
+func TestCanonicalDefinitionPrefixes(t *testing.T) {
+	defs, err := ListCanonicalDefinitions()
+	if err != nil {
+		t.Fatalf("ListCanonicalDefinitions failed: %v", err)
+	}
+
+	// Verify that all definitions have canonical prefixes (sd-, pd-, cd-)
+	for _, d := range defs {
+		hasCanonicalPrefix := strings.HasPrefix(d.ID, "sd-") ||
+			strings.HasPrefix(d.ID, "pd-") ||
+			strings.HasPrefix(d.ID, "cd-")
+		if !hasCanonicalPrefix {
+			t.Errorf("definition %q doesn't have canonical prefix (sd-/pd-/cd-)", d.ID)
+		}
+	}
+}
+
 func TestGetAgentsMD(t *testing.T) {
 	data, err := GetAgentsMD()
 	if err != nil {

@@ -167,6 +167,16 @@ func (s *Server) handleInitStandalone(absPath, instanceDir, productName, epfVers
 			filepath.Join(instanceDir, "AIM", "calibration_memo.yaml"),
 			filepath.Join(instanceDir, "outputs", ".gitkeep"),
 		}
+		// Add canonical definitions to dry_run listing
+		if defs, err := embedded.ListCanonicalDefinitions(); err == nil {
+			for _, def := range defs {
+				dstDir := filepath.Join(instanceDir, "READY", "definitions", def.Track)
+				if def.Category != "" {
+					dstDir = filepath.Join(dstDir, def.Category)
+				}
+				result.FilesCreated = append(result.FilesCreated, filepath.Join(dstDir, def.Filename))
+			}
+		}
 		// .epf.yaml is created at repo root, which for standalone is the same as instanceDir
 		repoRoot := config.FindRepoRoot(absPath)
 		if repoRoot != "" {
@@ -263,6 +273,16 @@ func (s *Server) handleInitIntegrated(absPath, epfDir, instanceDir, productName,
 			filepath.Join(instanceDir, "AIM", "assessment_report.yaml"),
 			filepath.Join(instanceDir, "AIM", "calibration_memo.yaml"),
 			filepath.Join(instanceDir, "outputs", ".gitkeep"),
+		}
+		// Add canonical definitions to dry_run listing
+		if defs, err := embedded.ListCanonicalDefinitions(); err == nil {
+			for _, def := range defs {
+				dstDir := filepath.Join(instanceDir, "READY", "definitions", def.Track)
+				if def.Category != "" {
+					dstDir = filepath.Join(dstDir, def.Category)
+				}
+				result.FilesCreated = append(result.FilesCreated, filepath.Join(dstDir, def.Filename))
+			}
 		}
 		result.AnchorFile = filepath.Join(instanceDir, "_epf.yaml")
 		result.NextSteps = []string{
@@ -505,6 +525,10 @@ func (s *Server) createInstanceStructure(instanceDir, productName, epfVersion, s
 	templateFiles := s.copyTemplatesFromEmbedded(instanceDir)
 	createdFiles = append(createdFiles, templateFiles...)
 
+	// Copy canonical definitions (strategy, org_ops, commercial tracks)
+	defFiles := s.copyCanonicalDefinitionsFromEmbedded(instanceDir)
+	createdFiles = append(createdFiles, defFiles...)
+
 	// Create anchor file (_epf.yaml)
 	anchorFile := anchor.NewWithOptions(productName, "", epfVersion)
 	anchorFile.Structure = &anchor.StructureInfo{
@@ -592,6 +616,46 @@ func (s *Server) copyTemplatesFromEmbedded(instanceDir string) []string {
 		}
 		filename := filepath.Base(tmplPath)
 		dst := filepath.Join(instanceDir, "AIM", filename)
+		if err := os.WriteFile(dst, content, 0644); err == nil {
+			createdFiles = append(createdFiles, dst)
+		}
+	}
+
+	return createdFiles
+}
+
+// copyCanonicalDefinitionsFromEmbedded copies canonical track definitions (strategy, org_ops, commercial)
+// from the embedded binary into the instance's READY/definitions/ directory.
+func (s *Server) copyCanonicalDefinitionsFromEmbedded(instanceDir string) []string {
+	var createdFiles []string
+
+	defs, err := embedded.ListCanonicalDefinitions()
+	if err != nil || len(defs) == 0 {
+		return createdFiles
+	}
+
+	defsDir := filepath.Join(instanceDir, "READY", "definitions")
+
+	for _, def := range defs {
+		// Build destination path: READY/definitions/{track}/{category}/{file}
+		dstDir := filepath.Join(defsDir, def.Track)
+		if def.Category != "" {
+			dstDir = filepath.Join(dstDir, def.Category)
+		}
+		if err := os.MkdirAll(dstDir, 0755); err != nil {
+			continue
+		}
+
+		dst := filepath.Join(dstDir, def.Filename)
+		// Skip if already exists (instance-level takes priority)
+		if _, err := os.Stat(dst); err == nil {
+			continue
+		}
+
+		content, err := embedded.GetCanonicalDefinition(def.Filename)
+		if err != nil {
+			continue
+		}
 		if err := os.WriteFile(dst, content, 0644); err == nil {
 			createdFiles = append(createdFiles, dst)
 		}

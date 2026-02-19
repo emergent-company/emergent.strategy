@@ -624,6 +624,121 @@ func TestCheckMetadataConsistency_SkipsUnderscoreFiles(t *testing.T) {
 	}
 }
 
+// =============================================================================
+// Canonical Artifact Content Readiness Tests
+// =============================================================================
+
+// TestContentReadinessCanonicalExclusion verifies canonical artifacts don't affect scoring
+func TestContentReadinessCanonicalExclusion(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a canonical definition file (sd-* prefix = strategy = canonical)
+	defDir := filepath.Join(tmpDir, "READY", "definitions", "strategy")
+	os.MkdirAll(defDir, 0755)
+	canonicalContent := `id: sd-001
+name: Strategic Planning
+description: TBD
+active: false
+status: TODO
+`
+	os.WriteFile(filepath.Join(defDir, "sd-001.yaml"), []byte(canonicalContent), 0644)
+
+	// Create a product feature file (fd-* prefix = product = not canonical)
+	fdDir := filepath.Join(tmpDir, "FIRE", "feature_definitions")
+	os.MkdirAll(fdDir, 0755)
+	productContent := `id: fd-001
+name: My Feature
+description: This is a real feature
+`
+	os.WriteFile(filepath.Join(fdDir, "fd-001.yaml"), []byte(productContent), 0644)
+
+	checker := NewContentReadinessChecker(tmpDir)
+	result, err := checker.Check()
+	if err != nil {
+		t.Fatalf("Check() error: %v", err)
+	}
+
+	// The canonical file has TBD and TODO, but they should NOT be in Placeholders
+	if len(result.Placeholders) > 0 {
+		t.Errorf("Expected 0 product placeholders, got %d: %v", len(result.Placeholders), result.Placeholders)
+	}
+
+	// They SHOULD be in CanonicalPlaceholders
+	if len(result.CanonicalPlaceholders) < 2 {
+		t.Errorf("Expected at least 2 canonical placeholders (TBD, TODO), got %d", len(result.CanonicalPlaceholders))
+	}
+
+	// Score should be 100 since canonical placeholders are excluded
+	if result.Score != 100 {
+		t.Errorf("Score = %d, want 100 (canonical placeholders should be excluded)", result.Score)
+	}
+
+	// CanonicalFiles should be 1
+	if result.CanonicalFiles != 1 {
+		t.Errorf("CanonicalFiles = %d, want 1", result.CanonicalFiles)
+	}
+}
+
+// TestContentReadinessCanonicalAndProductMixed tests mixed canonical + product placeholders
+func TestContentReadinessCanonicalAndProductMixed(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create canonical file with placeholders
+	defDir := filepath.Join(tmpDir, "READY", "definitions", "commercial")
+	os.MkdirAll(defDir, 0755)
+	os.WriteFile(filepath.Join(defDir, "cd-001.yaml"), []byte("name: TBD\nstatus: TODO\n"), 0644)
+
+	// Create product file WITH placeholders
+	os.WriteFile(filepath.Join(tmpDir, "product.yaml"), []byte("name: TBD\nstatus: TODO\n"), 0644)
+
+	checker := NewContentReadinessChecker(tmpDir)
+	result, err := checker.Check()
+	if err != nil {
+		t.Fatalf("Check() error: %v", err)
+	}
+
+	// Product file should have 2 placeholders in Placeholders
+	if len(result.Placeholders) != 2 {
+		t.Errorf("Expected 2 product placeholders, got %d", len(result.Placeholders))
+	}
+
+	// Canonical file should have 2 placeholders in CanonicalPlaceholders
+	if len(result.CanonicalPlaceholders) != 2 {
+		t.Errorf("Expected 2 canonical placeholders, got %d", len(result.CanonicalPlaceholders))
+	}
+
+	// Score should only reflect the 2 product placeholders (100 - 2*5 = 90)
+	if result.Score != 90 {
+		t.Errorf("Score = %d, want 90 (only product placeholders should count)", result.Score)
+	}
+}
+
+// TestContentReadinessOrgOpsCanonical tests org_ops definition detection
+func TestContentReadinessOrgOpsCanonical(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create org_ops canonical definition (pd-* prefix)
+	defDir := filepath.Join(tmpDir, "READY", "definitions", "org_ops")
+	os.MkdirAll(defDir, 0755)
+	os.WriteFile(filepath.Join(defDir, "pd-010.yaml"), []byte("name: TBD\ndescription: TODO\n"), 0644)
+
+	checker := NewContentReadinessChecker(tmpDir)
+	result, err := checker.Check()
+	if err != nil {
+		t.Fatalf("Check() error: %v", err)
+	}
+
+	if result.CanonicalFiles != 1 {
+		t.Errorf("CanonicalFiles = %d, want 1 for pd-* file", result.CanonicalFiles)
+	}
+	if len(result.Placeholders) != 0 {
+		t.Errorf("Product placeholders = %d, want 0 (pd-* should be canonical)", len(result.Placeholders))
+	}
+	if result.Score != 100 {
+		t.Errorf("Score = %d, want 100", result.Score)
+	}
+}
+
 func TestExtractMetadataDate_Formats(t *testing.T) {
 	tests := []struct {
 		name  string

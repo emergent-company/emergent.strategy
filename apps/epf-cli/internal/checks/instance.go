@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/template"
 	"gopkg.in/yaml.v3"
 )
 
@@ -754,13 +755,18 @@ type ContentReadinessResult struct {
 	Score        int                `json:"score"` // 0-100
 	Grade        string             `json:"grade"` // A, B, C, D, F
 	Placeholders []PlaceholderMatch `json:"placeholders"`
+
+	// Canonical artifact tracking — canonical files are excluded from scoring
+	CanonicalFiles        int                `json:"canonical_files"`
+	CanonicalPlaceholders []PlaceholderMatch `json:"canonical_placeholders,omitempty"`
 }
 
 // Check runs the content readiness check
 func (c *ContentReadinessChecker) Check() (*ContentReadinessResult, error) {
 	result := &ContentReadinessResult{
-		Path:         c.path,
-		Placeholders: make([]PlaceholderMatch, 0),
+		Path:                  c.path,
+		Placeholders:          make([]PlaceholderMatch, 0),
+		CanonicalPlaceholders: make([]PlaceholderMatch, 0),
 	}
 
 	// Walk all YAML files
@@ -784,6 +790,12 @@ func (c *ContentReadinessChecker) Check() (*ContentReadinessResult, error) {
 		}
 
 		result.TotalFiles++
+
+		// Detect if this is a canonical artifact
+		isCanonical := template.IsCanonicalArtifact(path)
+		if isCanonical {
+			result.CanonicalFiles++
+		}
 
 		// Read file and check for placeholders
 		data, err := os.ReadFile(path)
@@ -810,12 +822,18 @@ func (c *ContentReadinessChecker) Check() (*ContentReadinessResult, error) {
 			// Check for placeholders
 			for _, pattern := range PlaceholderPatterns {
 				if pattern.MatchString(line) {
-					result.Placeholders = append(result.Placeholders, PlaceholderMatch{
+					match := PlaceholderMatch{
 						File:    path,
 						Line:    lineNum + 1,
 						Content: strings.TrimSpace(line),
 						Pattern: pattern.String(),
-					})
+					}
+					if isCanonical {
+						// Track canonical placeholders separately — don't affect score
+						result.CanonicalPlaceholders = append(result.CanonicalPlaceholders, match)
+					} else {
+						result.Placeholders = append(result.Placeholders, match)
+					}
 					break // Only report one pattern per line
 				}
 			}
@@ -828,9 +846,9 @@ func (c *ContentReadinessChecker) Check() (*ContentReadinessResult, error) {
 		return nil, err
 	}
 
-	// Calculate score
+	// Calculate score — only based on product (non-canonical) placeholders
 	if result.FilesChecked > 0 {
-		// Base score of 100, minus points for each placeholder
+		// Base score of 100, minus points for each product placeholder
 		placeholderPenalty := len(result.Placeholders) * 5
 		result.Score = 100 - placeholderPenalty
 		if result.Score < 0 {

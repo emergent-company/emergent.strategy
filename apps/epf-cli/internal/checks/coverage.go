@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/template"
 	"gopkg.in/yaml.v3"
 )
 
@@ -264,8 +265,16 @@ func (c *FieldCoverageChecker) extractRoadmapKeyResultFields(content map[string]
 		return presentFields
 	}
 
-	// Iterate over each track (product, strategy, org_ops, commercial)
-	for _, trackValue := range tracks {
+	// Only extract fields from product (user-authored) tracks.
+	// Canonical tracks (strategy, org_ops, commercial) are framework-provided
+	// and may not have TRL/hypothesis fields — including them would inflate
+	// or deflate coverage scores unfairly.
+	for trackName, trackValue := range tracks {
+		// Skip canonical tracks — only score product track KR field coverage
+		if template.IsCanonicalTrackString(trackName) {
+			continue
+		}
+
 		track, ok := trackValue.(map[string]interface{})
 		if !ok {
 			continue
