@@ -80,6 +80,23 @@ type PortfolioNames struct {
 	AllNames      []string // union of all above, lowercased for matching
 }
 
+// AddName adds an additional name to the portfolio names for collision checking.
+// This is used to include the product name from _epf.yaml or _meta.yaml, and
+// the company/organization name. Names shorter than 3 chars are skipped.
+func (p *PortfolioNames) AddName(name string) {
+	if len(name) <= 2 {
+		return
+	}
+	lower := strings.ToLower(name)
+	// Check for duplicates
+	for _, existing := range p.AllNames {
+		if existing == lower {
+			return
+		}
+	}
+	p.AllNames = append(p.AllNames, lower)
+}
+
 // portfolioYAML is a minimal struct for extracting names from product_portfolio.yaml.
 type portfolioYAML struct {
 	Portfolio struct {
@@ -102,13 +119,23 @@ type portfolioYAML struct {
 // LoadPortfolioNames extracts product, brand, and offering names from product_portfolio.yaml.
 // Returns nil (not error) if the file doesn't exist — the check degrades gracefully.
 func LoadPortfolioNames(instancePath string) (*PortfolioNames, error) {
-	filePath := filepath.Join(instancePath, "READY", "product_portfolio.yaml")
+	// Try instance root first (canonical location), then fall back to READY/
+	filePath := filepath.Join(instancePath, "product_portfolio.yaml")
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil // graceful degradation
+			// Fall back to READY/ for backwards compatibility
+			filePath = filepath.Join(instancePath, "READY", "product_portfolio.yaml")
+			data, err = os.ReadFile(filePath)
+			if err != nil {
+				if os.IsNotExist(err) {
+					return nil, nil // graceful degradation
+				}
+				return nil, fmt.Errorf("failed to read product_portfolio.yaml: %w", err)
+			}
+		} else {
+			return nil, fmt.Errorf("failed to read product_portfolio.yaml: %w", err)
 		}
-		return nil, fmt.Errorf("failed to read product_portfolio.yaml: %w", err)
 	}
 
 	var raw portfolioYAML
@@ -160,7 +187,16 @@ func LoadPortfolioNames(instancePath string) (*PortfolioNames, error) {
 // product/brand names from the portfolio. This is the strongest signal of a
 // product-catalog anti-pattern.
 //
-// Thresholds from spec: >30% of L1 names or >40% of L2 names matching → WARNING
+// This check approximates litmus test #1 ("Product Removal Test") from the
+// value_model_review wizard: if removing a product from the portfolio would
+// leave a hole in the value model, the VM is likely organized as a product
+// catalog rather than by value-delivery categories.
+//
+// Scoring: -10 per unique name collision (L1 or L2). Each collision is a
+// direct indicator that a layer/component is named after a product rather
+// than a value-delivery stage.
+//
+// Thresholds for warning messages: >30% of L1 names or >40% of L2 names → WARNING
 func CheckProductNameCollisions(models *ValueModelSet, names *PortfolioNames) CheckResult {
 	result := CheckResult{Check: CheckIDProductNameCollision, Score: 100}
 
@@ -197,11 +233,11 @@ func CheckProductNameCollisions(models *ValueModelSet, names *PortfolioNames) Ch
 		l2Ratio = float64(len(l2Matches)) / float64(len(l2Names))
 	}
 
-	// Score: start at 100, deduct based on collision ratio
-	if l1Ratio > 0 || l2Ratio > 0 {
-		// Weight L1 collisions more heavily (layers are the top organizing principle)
-		deduction := int((l1Ratio*60 + l2Ratio*40))
-		result.Score = max(0, 100-deduction)
+	// Score: -10 per unique collision (L1 or L2), minimum 0.
+	// Each collision is direct evidence of the product-catalog anti-pattern.
+	totalCollisions := len(l1Matches) + len(l2Matches)
+	if totalCollisions > 0 {
+		result.Score = max(0, 100-totalCollisions*10)
 	}
 
 	// Emit warnings based on thresholds

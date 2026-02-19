@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -45,6 +47,14 @@ func RunHealthDiagnostics(instancePath string) (*HealthReport, error) {
 	// Check 6: Surface SRC findings summary if available
 	srcDiags := surfaceSRCFindings(instancePath)
 	diagnostics = append(diagnostics, srcDiags...)
+
+	// Check 7: LRA factual consistency — cross-check quantitative claims
+	consistencyDiags := checkLRAConsistency(instancePath)
+	diagnostics = append(diagnostics, consistencyDiags...)
+
+	// Check 8: Assessment report naming ambiguity
+	namingDiags := checkAssessmentNaming(instancePath)
+	diagnostics = append(diagnostics, namingDiags...)
 
 	report.Diagnostics = diagnostics
 	report.Summary = calculateHealthSummary(diagnostics)
@@ -164,9 +174,9 @@ func checkMissingAssessment(instancePath string) []HealthDiagnostic {
 	// Check if calibration memo exists
 	calibPath := filepath.Join(instancePath, "AIM", "calibration_memo.yaml")
 	if _, err := os.Stat(calibPath); err == nil {
-		// Calibration exists — check if assessment also exists
-		assessPath := filepath.Join(instancePath, "AIM", "assessment_report.yaml")
-		if _, err := os.Stat(assessPath); os.IsNotExist(err) {
+		// Calibration exists — check if any assessment report exists (canonical or cycle-tagged)
+		assessFiles, _ := filepath.Glob(filepath.Join(instancePath, "AIM", "*assessment_report*.yaml"))
+		if len(assessFiles) == 0 {
 			diags = append(diags, HealthDiagnostic{
 				ID:          "aim-missing-assessment",
 				Category:    "missing_assessment",
@@ -194,6 +204,64 @@ func checkMissingAssessment(instancePath string) []HealthDiagnostic {
 				Suggestion:  "Run: epf-cli aim bootstrap to initialize AIM",
 			})
 		}
+	}
+
+	return diags
+}
+
+// checkAssessmentNaming detects naming ambiguity in assessment report files.
+// The canonical name is assessment_report.yaml, but cycle-tagged variants
+// (e.g., assessment_report_c1.yaml) are also supported by loaders.
+func checkAssessmentNaming(instancePath string) []HealthDiagnostic {
+	var diags []HealthDiagnostic
+
+	aimDir := filepath.Join(instancePath, "AIM")
+	if _, err := os.Stat(aimDir); os.IsNotExist(err) {
+		return diags
+	}
+
+	// Find all assessment report files
+	allFiles, _ := filepath.Glob(filepath.Join(aimDir, "*assessment_report*.yaml"))
+	if len(allFiles) == 0 {
+		return diags
+	}
+
+	canonicalPath := filepath.Join(aimDir, "assessment_report.yaml")
+	_, hasCanonical := os.Stat(canonicalPath)
+
+	// Separate canonical from cycle-tagged
+	var cycleTagged []string
+	for _, f := range allFiles {
+		base := filepath.Base(f)
+		if base != "assessment_report.yaml" {
+			cycleTagged = append(cycleTagged, base)
+		}
+	}
+
+	// Case 1: Both canonical and cycle-tagged exist — ambiguity
+	if hasCanonical == nil && len(cycleTagged) > 0 {
+		diags = append(diags, HealthDiagnostic{
+			ID:          "aim-assessment-naming-ambiguity",
+			Category:    "naming_convention",
+			Severity:    "warning",
+			Title:       "Assessment report naming ambiguity",
+			Description: fmt.Sprintf("Both assessment_report.yaml and cycle-tagged variants exist (%s). This creates ambiguity about which file is current.", strings.Join(cycleTagged, ", ")),
+			Artifact:    "AIM/",
+			Suggestion:  "Use assessment_report.yaml as the canonical name. Archive cycle-tagged files to AIM/cycles/ or remove them.",
+		})
+	}
+
+	// Case 2: Only cycle-tagged exists — inform this is an accepted variant
+	if hasCanonical != nil && len(cycleTagged) > 0 {
+		diags = append(diags, HealthDiagnostic{
+			ID:          "aim-assessment-cycle-tagged",
+			Category:    "naming_convention",
+			Severity:    "info",
+			Title:       "Assessment report uses cycle-tagged naming",
+			Description: fmt.Sprintf("Found %s instead of canonical assessment_report.yaml. Cycle-tagged names are accepted but may not be recognized by all tools (schema detection, archiving).", strings.Join(cycleTagged, ", ")),
+			Artifact:    "AIM/" + cycleTagged[0],
+			Suggestion:  "Consider renaming to assessment_report.yaml for full tool compatibility, or keep as-is if cycle tagging is intentional.",
+		})
 	}
 
 	return diags
@@ -503,4 +571,189 @@ func severityIcon(s string) string {
 	default:
 		return "[?]"
 	}
+}
+
+// =============================================================================
+// LRA FACTUAL CONSISTENCY CHECK
+// =============================================================================
+
+// lraClaim represents a quantitative claim found in the LRA text.
+type lraClaim struct {
+	claimed  int
+	atLeast  bool   // true when "N+" syntax used
+	artifact string // human label, e.g. "value models"
+	source   string // YAML key path where claim was found
+	text     string // original matched text
+}
+
+// lraClaimPattern maps a regex pattern to the artifact type it counts.
+type lraClaimPattern struct {
+	re       *regexp.Regexp
+	artifact string
+	countFn  func(instancePath string) int // returns actual count
+}
+
+// checkLRAConsistency cross-checks quantitative claims in the LRA against actual
+// instance state. For example, if the LRA says "8 value models" but the instance
+// only has 4 VM files, this produces a warning diagnostic.
+func checkLRAConsistency(instancePath string) []HealthDiagnostic {
+	var diags []HealthDiagnostic
+
+	lraPath := filepath.Join(instancePath, "AIM", "living_reality_assessment.yaml")
+	data, err := os.ReadFile(lraPath)
+	if err != nil {
+		return diags // No LRA → nothing to check (staleness check already covers this)
+	}
+
+	var lra map[string]interface{}
+	if err := yaml.Unmarshal(data, &lra); err != nil {
+		return diags
+	}
+
+	// Define patterns for extractable quantitative claims.
+	// Each pattern captures a number, an optional "+", and the artifact type.
+	patterns := []lraClaimPattern{
+		{
+			re:       regexp.MustCompile(`(\d+)\+?\s+value\s+models?`),
+			artifact: "value models",
+			countFn:  countValueModels,
+		},
+		{
+			re:       regexp.MustCompile(`(\d+)\+?\s+(?:feature\s+definitions?|FDs?|features\b)`),
+			artifact: "feature definitions",
+			countFn:  countFeatureDefinitions,
+		},
+		{
+			re:       regexp.MustCompile(`(?i)(?:created|added|built|wrote|new)\s+(\d+)\s+(?:new\s+)?value\s+models?`),
+			artifact: "value models",
+			countFn:  countValueModels,
+		},
+		{
+			re:       regexp.MustCompile(`(?i)(?:created|added|built|wrote|new)\s+(\d+)\s+(?:new\s+)?(?:feature\s+definitions?|FDs?|features\b)`),
+			artifact: "feature definitions",
+			countFn:  countFeatureDefinitions,
+		},
+	}
+
+	// Walk all string values in the LRA and look for quantitative claims.
+	var claims []lraClaim
+	walkYAMLStrings(lra, "", func(path, value string) {
+		for _, p := range patterns {
+			matches := p.re.FindAllStringSubmatch(value, -1)
+			for _, m := range matches {
+				n, err := strconv.Atoi(m[1])
+				if err != nil || n == 0 {
+					continue
+				}
+				atLeast := strings.Contains(m[0], "+")
+				claims = append(claims, lraClaim{
+					claimed:  n,
+					atLeast:  atLeast,
+					artifact: p.artifact,
+					source:   path,
+					text:     m[0],
+				})
+			}
+		}
+	})
+
+	if len(claims) == 0 {
+		return diags
+	}
+
+	// Compute actual counts once per artifact type.
+	actualCounts := make(map[string]int)
+	for _, p := range patterns {
+		if _, ok := actualCounts[p.artifact]; !ok {
+			actualCounts[p.artifact] = p.countFn(instancePath)
+		}
+	}
+
+	// Compare claims against actuals.
+	for _, c := range claims {
+		actual, ok := actualCounts[c.artifact]
+		if !ok {
+			continue
+		}
+
+		mismatch := false
+		if c.atLeast {
+			// "13+" means actual should be >= 13
+			mismatch = actual < c.claimed
+		} else {
+			// Exact claim: flag if off by more than a tolerance of 0
+			mismatch = actual != c.claimed
+		}
+
+		if mismatch {
+			var desc string
+			if c.atLeast {
+				desc = fmt.Sprintf("LRA claims \"%s\" (at %s) but instance has %d %s.",
+					c.text, c.source, actual, c.artifact)
+			} else {
+				desc = fmt.Sprintf("LRA claims \"%s\" (at %s) but instance has %d %s.",
+					c.text, c.source, actual, c.artifact)
+			}
+
+			diags = append(diags, HealthDiagnostic{
+				ID:          fmt.Sprintf("aim-lra-claim-%s", strings.ReplaceAll(c.artifact, " ", "-")),
+				Category:    "lra_consistency",
+				Severity:    "warning",
+				Title:       fmt.Sprintf("LRA factual claim mismatch: %s", c.artifact),
+				Description: desc,
+				Artifact:    "AIM/living_reality_assessment.yaml",
+				FieldPath:   c.source,
+				Suggestion:  fmt.Sprintf("Update LRA text to reflect actual count (%d %s) or add/remove files to match", actual, c.artifact),
+			})
+		}
+	}
+
+	return diags
+}
+
+// walkYAMLStrings recursively walks a YAML structure and calls fn for each string value,
+// passing the dotted key path and the string value.
+func walkYAMLStrings(node interface{}, path string, fn func(path, value string)) {
+	switch v := node.(type) {
+	case map[string]interface{}:
+		for key, child := range v {
+			childPath := key
+			if path != "" {
+				childPath = path + "." + key
+			}
+			walkYAMLStrings(child, childPath, fn)
+		}
+	case []interface{}:
+		for i, child := range v {
+			childPath := fmt.Sprintf("%s[%d]", path, i)
+			walkYAMLStrings(child, childPath, fn)
+		}
+	case string:
+		fn(path, v)
+	}
+}
+
+// countValueModels counts .yaml files in FIRE/value_models/.
+func countValueModels(instancePath string) int {
+	return countYAMLFiles(filepath.Join(instancePath, "FIRE", "value_models"))
+}
+
+// countFeatureDefinitions counts .yaml files in FIRE/feature_definitions/.
+func countFeatureDefinitions(instancePath string) int {
+	return countYAMLFiles(filepath.Join(instancePath, "FIRE", "feature_definitions"))
+}
+
+// countYAMLFiles counts .yaml files in a directory (non-recursive).
+func countYAMLFiles(dir string) int {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return 0
+	}
+	count := 0
+	for _, e := range entries {
+		if !e.IsDir() && (strings.HasSuffix(e.Name(), ".yaml") || strings.HasSuffix(e.Name(), ".yml")) {
+			count++
+		}
+	}
+	return count
 }

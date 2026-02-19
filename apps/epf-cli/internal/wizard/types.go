@@ -169,14 +169,17 @@ var PhaseForWizard = map[string]schema.Phase{
 	"roadmap_enrichment":   schema.PhaseREADY,
 
 	// FIRE phase
-	"product_architect":  schema.PhaseFIRE,
-	"feature_definition": schema.PhaseFIRE,
-	"feature_enrichment": schema.PhaseFIRE,
-	"value_model_review": schema.PhaseFIRE,
+	"product_architect":          schema.PhaseFIRE,
+	"feature_definition":         schema.PhaseFIRE,
+	"feature_enrichment":         schema.PhaseFIRE,
+	"value_model_review":         schema.PhaseFIRE,
+	"feature_quality_review":     schema.PhaseFIRE,
+	"strategic_coherence_review": schema.PhaseREADY,
 
 	// AIM phase
-	"synthesizer":            schema.PhaseAIM,
-	"aim_trigger_assessment": schema.PhaseAIM,
+	"synthesizer":             schema.PhaseAIM,
+	"aim_trigger_assessment":  schema.PhaseAIM,
+	"strategic_reality_check": schema.PhaseAIM,
 
 	// Utility (no specific phase)
 	"context_sheet_generator": "",
@@ -223,14 +226,21 @@ var KeywordMappings = map[string][]string{
 	"balance":   {"balance_checker"},
 
 	// AIM phase
-	"assess":        {"synthesizer"},
-	"assessment":    {"synthesizer"},
-	"retrospective": {"synthesizer"},
-	"review":        {"synthesizer", "value_model_review"},
-	"aim phase":     {"synthesizer"},
-	"aim":           {"aim_trigger_assessment", "synthesizer"},
-	"trigger":       {"aim_trigger_assessment"},
-	"recalibrate":   {"aim_trigger_assessment"},
+	"assess":              {"synthesizer"},
+	"assessment":          {"synthesizer"},
+	"retrospective":       {"synthesizer"},
+	"review":              {"synthesizer", "value_model_review"},
+	"aim phase":           {"synthesizer"},
+	"aim":                 {"aim_trigger_assessment", "synthesizer"},
+	"aim health":          {"aim_trigger_assessment"},
+	"trigger":             {"aim_trigger_assessment"},
+	"recalibrate":         {"aim_trigger_assessment"},
+	"reality check":       {"strategic_reality_check"},
+	"strategic reality":   {"strategic_reality_check"},
+	"src":                 {"strategic_reality_check"},
+	"artifact freshness":  {"strategic_reality_check"},
+	"strategy validation": {"strategic_reality_check"},
+	"cross-reference":     {"strategic_reality_check"},
 
 	// FIRE phase
 	"fire phase":          {"product_architect"},
@@ -243,8 +253,39 @@ var KeywordMappings = map[string][]string{
 	"anti-pattern":        {"value_model_review"},
 	"product catalog":     {"value_model_review"},
 
+	// Feature quality review
+	"feature quality":        {"feature_quality_review"},
+	"feature quality review": {"feature_quality_review"},
+	"review features":        {"feature_quality_review"},
+	"feature review":         {"feature_quality_review"},
+	"persona quality":        {"feature_quality_review"},
+	"jtbd quality":           {"feature_quality_review"},
+	"scenario completeness":  {"feature_quality_review"},
+
+	// Strategic coherence review
+	"strategic coherence":     {"strategic_coherence_review"},
+	"coherence review":        {"strategic_coherence_review"},
+	"strategy alignment":      {"strategic_coherence_review"},
+	"strategic alignment":     {"strategic_coherence_review"},
+	"broken cross-references": {"strategic_coherence_review"},
+	"orphaned features":       {"strategic_coherence_review"},
+	"strategy chain":          {"strategic_coherence_review"},
+
 	// Utility
 	"context sheet": {"context_sheet_generator"},
 	"persona":       {"context_sheet_generator"},
 	"enrich":        {"feature_enrichment", "roadmap_enrichment"},
+
+	// Evaluation / quality review (cross-cutting)
+	"evaluate":             {"strategic_coherence_review", "feature_quality_review", "value_model_review"},
+	"evaluate quality":     {"strategic_coherence_review", "feature_quality_review", "value_model_review"},
+	"evaluate strategy":    {"strategic_coherence_review"},
+	"evaluate features":    {"feature_quality_review"},
+	"evaluate value model": {"value_model_review"},
+	"assess quality":       {"strategic_coherence_review", "feature_quality_review"},
+	"check quality":        {"feature_quality_review", "value_model_review"},
+	"review quality":       {"strategic_coherence_review", "feature_quality_review", "value_model_review"},
+	"quality review":       {"strategic_coherence_review", "feature_quality_review", "value_model_review"},
+	"semantic review":      {"strategic_coherence_review", "feature_quality_review", "value_model_review"},
+	"review instance":      {"strategic_coherence_review", "feature_quality_review", "value_model_review"},
 }

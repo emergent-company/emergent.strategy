@@ -143,8 +143,14 @@ type HealthResult struct {
 	// Value model quality assessment
 	ValueModelQuality *valuemodel.QualityReport `json:"value_model_quality,omitempty"`
 
+	// Metadata consistency (stale dates, wrong instance names)
+	MetadataConsistency *checks.MetadataConsistencyResult `json:"metadata_consistency,omitempty"`
+
 	// Workflow guidance for AI agents
 	WorkflowGuidance *HealthWorkflowGuidance `json:"workflow_guidance,omitempty"`
+
+	// Semantic review recommendations (populated from trigger mapping)
+	SemanticReviewRecommendations []SemanticReviewRecommendation `json:"semantic_review_recommendations"`
 }
 
 // AnchorCheckResult represents the result of checking the anchor file
@@ -186,6 +192,138 @@ type HealthWorkflowGuidance struct {
 	Reason              string   `json:"reason"`
 	BeforeStarting      string   `json:"before_starting"`
 	RecommendedCommands []string `json:"recommended_commands"`
+}
+
+// SemanticReviewRecommendation represents a recommended semantic quality review wizard
+type SemanticReviewRecommendation struct {
+	Wizard       string `json:"wizard"`
+	Reason       string `json:"reason"`
+	Severity     string `json:"severity"`      // "info", "warning", "critical"
+	TriggerCheck string `json:"trigger_check"` // Which check category triggered this
+}
+
+// SemanticReviewTrigger maps a health check category to a companion wizard
+type SemanticReviewTrigger struct {
+	CheckCategory     string
+	TriggerCondition  func(*HealthResult) bool
+	RecommendedWizard string
+	Severity          string
+	ReasonFunc        func(*HealthResult) string
+}
+
+// semanticTriggers is the declarative mapping table from health check categories to companion wizards.
+// Each entry defines a trigger condition and the wizard to recommend when that condition is met.
+var semanticTriggers = []SemanticReviewTrigger{
+	{
+		CheckCategory:     "FeatureQuality",
+		RecommendedWizard: "feature_quality_review",
+		Severity:          "warning",
+		TriggerCondition: func(r *HealthResult) bool {
+			return r.FeatureQuality != nil &&
+				(r.FeatureQuality.AverageScore < 80 || r.FeatureQuality.FailedCount > 0)
+		},
+		ReasonFunc: func(r *HealthResult) string {
+			if r.FeatureQuality.FailedCount > 0 {
+				return fmt.Sprintf("Feature quality: %d feature(s) failed quality checks (average score %.0f%%)",
+					r.FeatureQuality.FailedCount, r.FeatureQuality.AverageScore)
+			}
+			return fmt.Sprintf("Feature quality score %.0f%% is below the 80%% threshold",
+				r.FeatureQuality.AverageScore)
+		},
+	},
+	{
+		CheckCategory:     "Coverage",
+		RecommendedWizard: "feature_quality_review",
+		Severity:          "info",
+		TriggerCondition: func(r *HealthResult) bool {
+			return r.Relationships != nil && r.Relationships.UncoveredL2s > 0
+		},
+		ReasonFunc: func(r *HealthResult) string {
+			return fmt.Sprintf("%d L2 value model component(s) have no features contributing to them",
+				r.Relationships.UncoveredL2s)
+		},
+	},
+	{
+		CheckCategory:     "ValueModelQuality",
+		RecommendedWizard: "value_model_review",
+		Severity:          "warning",
+		TriggerCondition: func(r *HealthResult) bool {
+			return r.ValueModelQuality != nil && r.ValueModelQuality.OverallScore < 80
+		},
+		ReasonFunc: func(r *HealthResult) string {
+			return fmt.Sprintf("Value model quality score %d is below the 80 threshold",
+				r.ValueModelQuality.OverallScore)
+		},
+	},
+	{
+		CheckCategory:     "CrossRefs",
+		RecommendedWizard: "strategic_coherence_review",
+		Severity:          "warning",
+		TriggerCondition: func(r *HealthResult) bool {
+			hasBrokenLinks := r.CrossReferences != nil && len(r.CrossReferences.BrokenLinks) > 0
+			hasInvalidPaths := r.Relationships != nil && r.Relationships.InvalidPaths > 0
+			return hasBrokenLinks || hasInvalidPaths
+		},
+		ReasonFunc: func(r *HealthResult) string {
+			issues := []string{}
+			if r.CrossReferences != nil && len(r.CrossReferences.BrokenLinks) > 0 {
+				issues = append(issues, fmt.Sprintf("%d broken cross-reference(s)", len(r.CrossReferences.BrokenLinks)))
+			}
+			if r.Relationships != nil && r.Relationships.InvalidPaths > 0 {
+				issues = append(issues, fmt.Sprintf("%d invalid relationship path(s)", r.Relationships.InvalidPaths))
+			}
+			return "Strategic coherence issues: " + strings.Join(issues, ", ")
+		},
+	},
+	{
+		CheckCategory:     "AIMStaleness",
+		RecommendedWizard: "strategic_reality_check",
+		Severity:          "info",
+		TriggerCondition: func(r *HealthResult) bool {
+			// Check if AIM directory exists but has no LRA
+			// The instancePath is stored in the result
+			aimDir := filepath.Join(r.InstancePath, "AIM")
+			if _, err := os.Stat(aimDir); os.IsNotExist(err) {
+				return false // No AIM directory at all - not applicable
+			}
+			lraPath := filepath.Join(aimDir, "living_reality_assessment.yaml")
+			if _, err := os.Stat(lraPath); os.IsNotExist(err) {
+				return true // AIM exists but no LRA
+			}
+			return false
+		},
+		ReasonFunc: func(r *HealthResult) string {
+			return "AIM directory exists but Living Reality Assessment is missing"
+		},
+	},
+	{
+		CheckCategory:     "RoadmapCoverage",
+		RecommendedWizard: "balance_checker",
+		Severity:          "info",
+		TriggerCondition: func(r *HealthResult) bool {
+			if r.Relationships == nil || r.Relationships.CoverageByTrack == nil {
+				return false
+			}
+			// Count tracks that have any features
+			tracksWithCoverage := 0
+			for _, tc := range r.Relationships.CoverageByTrack {
+				if tc != nil && tc.CoveredL2 > 0 {
+					tracksWithCoverage++
+				}
+			}
+			return tracksWithCoverage > 0 && tracksWithCoverage < 2
+		},
+		ReasonFunc: func(r *HealthResult) string {
+			tracksWithCoverage := 0
+			for _, tc := range r.Relationships.CoverageByTrack {
+				if tc != nil && tc.CoveredL2 > 0 {
+					tracksWithCoverage++
+				}
+			}
+			return fmt.Sprintf("Only %d track(s) have feature coverage; consider balancing across tracks",
+				tracksWithCoverage)
+		},
+	},
 }
 
 // HealthTiers provides a three-tier view of instance health
@@ -492,6 +630,14 @@ func runHealthCheck(instancePath string, schemasPath string) *HealthResult {
 		if vmErr == nil && vmModels != nil && len(vmModels.ByFile) > 0 {
 			portfolioNames, _ := valuemodel.LoadPortfolioNames(instancePath)
 
+			// Enrich portfolio names with product name from anchor file
+			if result.AnchorStatus.ProductName != "" {
+				if portfolioNames == nil {
+					portfolioNames = &valuemodel.PortfolioNames{}
+				}
+				portfolioNames.AddName(result.AnchorStatus.ProductName)
+			}
+
 			// Build feature contributions from feature loader
 			var contributions *valuemodel.FeatureContributions
 			featureLoader := relationships.NewFeatureLoader(instancePath)
@@ -524,6 +670,74 @@ func runHealthCheck(instancePath string, schemasPath string) *HealthResult {
 		if !healthJSON && result.ValueModelQuality != nil {
 			printValueModelQualitySummary(result.ValueModelQuality)
 		}
+	}
+
+	// 11. Metadata Consistency Check
+	{
+		productName := ""
+		if result.AnchorStatus != nil && result.AnchorStatus.ProductName != "" {
+			productName = result.AnchorStatus.ProductName
+		}
+		if productName != "" {
+			if !healthJSON {
+				fmt.Println("▶ Checking metadata consistency...")
+			}
+			mcResult := checks.CheckMetadataConsistency(instancePath, productName, 6)
+			result.MetadataConsistency = mcResult
+
+			if mcResult.InstanceMismatches > 0 {
+				result.HasWarnings = true
+			}
+			if mcResult.StaleDates > 0 {
+				result.HasWarnings = true
+			}
+
+			if !healthJSON {
+				printMetadataConsistencySummary(mcResult)
+			}
+		}
+	}
+
+	// Evaluate semantic review triggers
+	conditionalRecs := evaluateSemanticTriggers(result)
+
+	// Always-present baseline: ensure all 3 review wizards are visible
+	baselineWizards := []SemanticReviewRecommendation{
+		{
+			Wizard:       "strategic_coherence_review",
+			Reason:       "Available for evaluating strategic alignment across all EPF artifacts",
+			Severity:     "info",
+			TriggerCheck: "always_available",
+		},
+		{
+			Wizard:       "feature_quality_review",
+			Reason:       "Available for evaluating feature definition quality (personas, scenarios, narratives)",
+			Severity:     "info",
+			TriggerCheck: "always_available",
+		},
+		{
+			Wizard:       "value_model_review",
+			Reason:       "Available for evaluating value model structure and anti-patterns",
+			Severity:     "info",
+			TriggerCheck: "always_available",
+		},
+	}
+
+	// Merge: conditional triggers first (higher priority), then baseline for any not already covered
+	seen := make(map[string]bool)
+	for _, rec := range conditionalRecs {
+		seen[rec.Wizard] = true
+	}
+	merged := conditionalRecs
+	for _, base := range baselineWizards {
+		if !seen[base.Wizard] {
+			merged = append(merged, base)
+		}
+	}
+	result.SemanticReviewRecommendations = merged
+
+	if !healthJSON && len(result.SemanticReviewRecommendations) > 0 {
+		printSemanticReviewRecommendations(result.SemanticReviewRecommendations)
 	}
 
 	// Determine overall status
@@ -1427,6 +1641,54 @@ func generateHealthPlanningCheckpoint(totalIssues, affectedFiles int, isMajor bo
 └─────────────────────────────────────────────────────────────────┘`, urgencyMarker, totalIssues, affectedFiles)
 }
 
+// evaluateSemanticTriggers evaluates all semantic review triggers against health check results
+// and returns recommendations for companion wizards.
+func evaluateSemanticTriggers(result *HealthResult) []SemanticReviewRecommendation {
+	var recommendations []SemanticReviewRecommendation
+
+	// Track which wizards we've already recommended to avoid duplicates
+	seen := make(map[string]bool)
+
+	for _, trigger := range semanticTriggers {
+		if trigger.TriggerCondition(result) {
+			if seen[trigger.RecommendedWizard] {
+				continue // Skip duplicate wizard recommendations
+			}
+			seen[trigger.RecommendedWizard] = true
+
+			recommendations = append(recommendations, SemanticReviewRecommendation{
+				Wizard:       trigger.RecommendedWizard,
+				Reason:       trigger.ReasonFunc(result),
+				Severity:     trigger.Severity,
+				TriggerCheck: trigger.CheckCategory,
+			})
+		}
+	}
+
+	return recommendations
+}
+
+// printSemanticReviewRecommendations prints semantic review recommendations in human-readable format
+func printSemanticReviewRecommendations(recommendations []SemanticReviewRecommendation) {
+	fmt.Println()
+	fmt.Println("▶ Recommended Semantic Reviews")
+	fmt.Println("  ─────────────────────────────")
+	for _, rec := range recommendations {
+		var icon string
+		switch rec.Severity {
+		case "critical":
+			icon = "🔴"
+		case "warning":
+			icon = "🟡"
+		default:
+			icon = "🔵"
+		}
+		fmt.Printf("  %s %s\n", icon, rec.Reason)
+		fmt.Printf("     Run: epf_get_wizard { \"name\": \"%s\" }\n", rec.Wizard)
+	}
+	fmt.Println()
+}
+
 // checkAnchorFile checks the presence and validity of the EPF anchor file
 func checkAnchorFile(instancePath string) *AnchorCheckResult {
 	result := &AnchorCheckResult{
@@ -1773,6 +2035,34 @@ func printEnrollmentStatus(status *EnrollmentCheckResult) {
 		fmt.Println()
 	}
 	// Don't print anything when not enrolled — keep output clean
+}
+
+func printMetadataConsistencySummary(result *checks.MetadataConsistencyResult) {
+	if result == nil || (result.InstanceMismatches == 0 && result.StaleDates == 0) {
+		fmt.Printf("  ✅ Metadata Consistency: %d files checked, no issues\n\n", result.FilesChecked)
+		return
+	}
+
+	totalIssues := result.InstanceMismatches + result.StaleDates
+	fmt.Printf("  ⚠️  Metadata Consistency: %d issue(s) in %d files\n", totalIssues, result.FilesChecked)
+
+	if result.InstanceMismatches > 0 {
+		fmt.Printf("    Instance name mismatches: %d\n", result.InstanceMismatches)
+	}
+	if result.StaleDates > 0 {
+		fmt.Printf("    Stale dates (>6 months): %d\n", result.StaleDates)
+	}
+
+	if healthVerbose {
+		for _, issue := range result.Issues {
+			icon := "⚠️"
+			if issue.IssueType == "wrong_instance" {
+				icon = "❌"
+			}
+			fmt.Printf("    %s %s: %s (%s)\n", icon, issue.File, issue.Message, issue.FieldPath)
+		}
+	}
+	fmt.Println()
 }
 
 func init() {

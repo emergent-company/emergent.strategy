@@ -6,6 +6,53 @@
 > and automatically distributed to product repositories when running `epf-cli init`.
 > This ensures AI agents in product repos have complete epf-cli documentation.
 
+## Quick Protocol (Mandatory)
+
+**Every AI agent session MUST follow these three protocols:**
+
+### 1. Wizard-First Workflow
+
+Before creating or modifying any EPF artifact, you MUST:
+
+1. Call `epf_get_wizard_for_task` with the task description
+2. Retrieve the recommended wizard with `epf_get_wizard`
+3. Follow the wizard's instructions to produce the artifact
+4. Validate the result with `epf_validate_file`
+
+**Never write EPF content without first consulting the appropriate wizard.**
+
+### 2. Strategy-Context Workflow
+
+Before feature work, roadmap changes, or competitive decisions, you MUST query strategy context:
+
+| Task | Tool |
+|------|------|
+| Understand product direction | `epf_get_product_vision` |
+| Know who you're building for | `epf_get_personas` / `epf_get_persona_details` |
+| Check competitive landscape | `epf_get_competitive_position` |
+| See current priorities | `epf_get_roadmap_summary` |
+| Search strategy content | `epf_search_strategy` |
+| Get feature strategic context | `epf_get_feature_strategy_context` |
+
+### 3. Validation-Always Workflow
+
+After ANY change to an EPF YAML file, you MUST validate:
+
+```
+epf_validate_file({ path: "<modified_file>" })
+```
+
+### Task Decision Tree
+
+| You need to... | Do this |
+|---|---|
+| Create/edit an EPF artifact | Wizard → Template → Write → Validate |
+| Understand strategy context | Use strategy query tools above |
+| Check instance health | `epf_health_check` → follow semantic review recommendations |
+| Find the right wizard | `epf_get_wizard_for_task` |
+
+---
+
 ## 🚨 CRITICAL: Before Starting Any Work
 
 **Always check these files first:**

@@ -78,6 +78,8 @@ func TestDetectArtifactType(t *testing.T) {
 
 		// AIM phase files
 		{"AIM/assessment_report.yaml", ArtifactAssessmentReport, false},
+		{"AIM/assessment_report_c1.yaml", ArtifactAssessmentReport, false},
+		{"AIM/assessment_report_c2.yaml", ArtifactAssessmentReport, false},
 		{"AIM/calibration_memo.yaml", ArtifactCalibrationMemo, false},
 
 		// Track definitions

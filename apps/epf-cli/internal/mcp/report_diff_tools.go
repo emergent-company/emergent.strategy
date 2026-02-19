@@ -25,23 +25,32 @@ import (
 
 // ReportResult represents a health report
 type ReportResult struct {
-	Success          bool                           `json:"success"`
-	Format           string                         `json:"format"`
-	Title            string                         `json:"title"`
-	InstancePath     string                         `json:"instance_path"`
-	GeneratedAt      string                         `json:"generated_at"`
-	OverallStatus    string                         `json:"overall_status"`
-	OverallScore     int                            `json:"overall_score"`
-	InstanceCheck    *checks.CheckSummary           `json:"instance_check,omitempty"`
-	SchemaValidation *SchemaValidationSummaryReport `json:"schema_validation,omitempty"`
-	FeatureQuality   *checks.FeatureQualitySummary  `json:"feature_quality,omitempty"`
-	CrossReferences  *checks.CrossReferenceResult   `json:"cross_references,omitempty"`
-	ContentReadiness *checks.ContentReadinessResult `json:"content_readiness,omitempty"`
-	FieldCoverage    *checks.FieldCoverageResult    `json:"field_coverage,omitempty"`
-	VersionAlignment *checks.VersionAlignmentResult `json:"version_alignment,omitempty"`
-	Recommendations  []string                       `json:"recommendations"`
-	Content          string                         `json:"content,omitempty"`
-	Error            string                         `json:"error,omitempty"`
+	Success                       bool                                 `json:"success"`
+	Format                        string                               `json:"format"`
+	Title                         string                               `json:"title"`
+	InstancePath                  string                               `json:"instance_path"`
+	GeneratedAt                   string                               `json:"generated_at"`
+	OverallStatus                 string                               `json:"overall_status"`
+	OverallScore                  int                                  `json:"overall_score"`
+	InstanceCheck                 *checks.CheckSummary                 `json:"instance_check,omitempty"`
+	SchemaValidation              *SchemaValidationSummaryReport       `json:"schema_validation,omitempty"`
+	FeatureQuality                *checks.FeatureQualitySummary        `json:"feature_quality,omitempty"`
+	CrossReferences               *checks.CrossReferenceResult         `json:"cross_references,omitempty"`
+	ContentReadiness              *checks.ContentReadinessResult       `json:"content_readiness,omitempty"`
+	FieldCoverage                 *checks.FieldCoverageResult          `json:"field_coverage,omitempty"`
+	VersionAlignment              *checks.VersionAlignmentResult       `json:"version_alignment,omitempty"`
+	Recommendations               []string                             `json:"recommendations"`
+	SemanticReviewRecommendations []ReportSemanticReviewRecommendation `json:"semantic_review_recommendations,omitempty"`
+	Content                       string                               `json:"content,omitempty"`
+	Error                         string                               `json:"error,omitempty"`
+}
+
+// ReportSemanticReviewRecommendation represents a recommended semantic quality review wizard in report output
+type ReportSemanticReviewRecommendation struct {
+	Wizard       string `json:"wizard"`
+	Reason       string `json:"reason"`
+	Severity     string `json:"severity"`      // "info", "warning", "critical"
+	TriggerCheck string `json:"trigger_check"` // Which check category triggered this
 }
 
 // SchemaValidationSummaryReport is a summary for schema validation in report
@@ -54,7 +63,7 @@ type SchemaValidationSummaryReport struct {
 }
 
 func (s *Server) handleGenerateReport(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	instancePath, _ := request.RequireString("instance_path")
+	instancePath := s.resolveInstancePath(request)
 	if instancePath == "" {
 		instancePath = "."
 	}
@@ -257,6 +266,9 @@ func collectReportDataForMCP(instancePath, schemasDir string, verbose bool) *Rep
 	// Generate recommendations
 	generateReportRecommendations(data)
 
+	// Evaluate semantic review triggers
+	data.SemanticReviewRecommendations = evaluateReportSemanticTriggers(data)
+
 	return data
 }
 
@@ -284,6 +296,48 @@ func generateReportRecommendations(data *ReportResult) {
 	if data.VersionAlignment != nil && data.VersionAlignment.HasOutdatedArtifacts() {
 		data.Recommendations = append(data.Recommendations, "Run 'epf_fix_file' with versions fix type to update artifacts to the latest schema version")
 	}
+}
+
+// evaluateReportSemanticTriggers evaluates semantic review triggers based on report data.
+// The report has access to FeatureQuality and CrossReferences, so only those triggers fire.
+func evaluateReportSemanticTriggers(data *ReportResult) []ReportSemanticReviewRecommendation {
+	var recs []ReportSemanticReviewRecommendation
+	seen := make(map[string]bool)
+
+	// FeatureQuality → feature_quality_review
+	if data.FeatureQuality != nil &&
+		(data.FeatureQuality.AverageScore < 80 || data.FeatureQuality.FailedCount > 0) {
+		reason := ""
+		if data.FeatureQuality.FailedCount > 0 {
+			reason = fmt.Sprintf("Feature quality: %d feature(s) failed quality checks (average score %.0f%%)",
+				data.FeatureQuality.FailedCount, data.FeatureQuality.AverageScore)
+		} else {
+			reason = fmt.Sprintf("Feature quality score %.0f%% is below the 80%% threshold",
+				data.FeatureQuality.AverageScore)
+		}
+		recs = append(recs, ReportSemanticReviewRecommendation{
+			Wizard:       "feature_quality_review",
+			Reason:       reason,
+			Severity:     "warning",
+			TriggerCheck: "FeatureQuality",
+		})
+		seen["feature_quality_review"] = true
+	}
+
+	// CrossReferences → strategic_coherence_review
+	if data.CrossReferences != nil && len(data.CrossReferences.BrokenLinks) > 0 {
+		if !seen["strategic_coherence_review"] {
+			recs = append(recs, ReportSemanticReviewRecommendation{
+				Wizard:       "strategic_coherence_review",
+				Reason:       fmt.Sprintf("Strategic coherence issues: %d broken cross-reference(s)", len(data.CrossReferences.BrokenLinks)),
+				Severity:     "warning",
+				TriggerCheck: "CrossRefs",
+			})
+			seen["strategic_coherence_review"] = true
+		}
+	}
+
+	return recs
 }
 
 func generateMarkdownReportContent(data *ReportResult, verbose bool) string {
@@ -342,6 +396,26 @@ func generateMarkdownReportContent(data *ReportResult, verbose bool) string {
 		sb.WriteString("## Recommendations\n\n")
 		for i, rec := range data.Recommendations {
 			sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, rec))
+		}
+		sb.WriteString("\n")
+	}
+
+	// Semantic Review Recommendations
+	if len(data.SemanticReviewRecommendations) > 0 {
+		sb.WriteString("## Recommended Semantic Reviews\n\n")
+		sb.WriteString("The following semantic quality reviews are recommended based on the health check results:\n\n")
+		for _, rec := range data.SemanticReviewRecommendations {
+			var icon string
+			switch rec.Severity {
+			case "critical":
+				icon = "CRITICAL"
+			case "warning":
+				icon = "WARNING"
+			default:
+				icon = "INFO"
+			}
+			sb.WriteString(fmt.Sprintf("- **[%s]** %s\n", icon, rec.Reason))
+			sb.WriteString(fmt.Sprintf("  - Run: `epf_get_wizard { \"name\": \"%s\" }`\n", rec.Wizard))
 		}
 		sb.WriteString("\n")
 	}

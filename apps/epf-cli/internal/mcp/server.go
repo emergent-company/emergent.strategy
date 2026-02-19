@@ -36,14 +36,15 @@ const (
 
 // Server wraps the MCP server with EPF-specific functionality
 type Server struct {
-	mcpServer        *server.MCPServer
-	validator        *validator.Validator
-	schemasDir       string
-	epfRoot          string
-	templateLoader   *template.Loader
-	definitionLoader *template.DefinitionLoader
-	wizardLoader     *wizard.Loader
-	generatorLoader  *generator.Loader
+	mcpServer           *server.MCPServer
+	validator           *validator.Validator
+	schemasDir          string
+	epfRoot             string
+	defaultInstancePath string
+	templateLoader      *template.Loader
+	definitionLoader    *template.DefinitionLoader
+	wizardLoader        *wizard.Loader
+	generatorLoader     *generator.Loader
 
 	// Relationship analyzer cache (by instance path)
 	analyzerMu sync.RWMutex
@@ -118,21 +119,33 @@ func NewServer(schemasDir string) (*Server, error) {
 	)
 
 	s := &Server{
-		mcpServer:        mcpServer,
-		validator:        val,
-		schemasDir:       schemasDir,
-		epfRoot:          epfRoot,
-		templateLoader:   templateLoader,
-		definitionLoader: definitionLoader,
-		wizardLoader:     wizardLoader,
-		generatorLoader:  generatorLoader,
-		analyzers:        make(map[string]*relationships.Analyzer),
+		mcpServer:           mcpServer,
+		validator:           val,
+		schemasDir:          schemasDir,
+		epfRoot:             epfRoot,
+		defaultInstancePath: os.Getenv("EPF_STRATEGY_INSTANCE"),
+		templateLoader:      templateLoader,
+		definitionLoader:    definitionLoader,
+		wizardLoader:        wizardLoader,
+		generatorLoader:     generatorLoader,
+		analyzers:           make(map[string]*relationships.Analyzer),
 	}
 
 	// Register tools
 	s.registerTools()
 
 	return s, nil
+}
+
+// resolveInstancePath returns the explicit instance_path param if provided,
+// otherwise falls back to the server's defaultInstancePath (from EPF_STRATEGY_INSTANCE env var).
+// Returns empty string if neither is available.
+func (s *Server) resolveInstancePath(request mcp.CallToolRequest) string {
+	instancePath, _ := request.RequireString("instance_path")
+	if instancePath != "" {
+		return instancePath
+	}
+	return s.defaultInstancePath
 }
 
 // registerTools registers all EPF MCP tools
@@ -471,7 +484,9 @@ func (s *Server) registerTools() {
 	// Tool: epf_list_wizards
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_list_wizards",
-			mcp.WithDescription("List available EPF wizards and agent prompts. Wizards guide users through EPF workflows like creating features, planning roadmaps, and running assessments."),
+			mcp.WithDescription("List available EPF wizards and agent prompts. "+
+				"Wizards guide users through EPF workflows like creating features, planning roadmaps, and running assessments. "+
+				"MUST be used to discover available guided workflows before creating artifacts."),
 			mcp.WithString("phase",
 				mcp.Description("Optional: Filter by phase (READY, FIRE, AIM)"),
 			),
@@ -485,7 +500,11 @@ func (s *Server) registerTools() {
 	// Tool: epf_get_wizard
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_wizard",
-			mcp.WithDescription("Get the full content and metadata for an EPF wizard. Use this to retrieve wizard instructions for guiding users through EPF workflows."),
+			mcp.WithDescription("Get the full content and metadata for an EPF wizard. "+
+				"Use this to retrieve wizard instructions for guiding users through EPF workflows. "+
+				"MUST be called after epf_get_wizard_for_task identifies the right wizard. "+
+				"The wizard content provides the authoritative step-by-step workflow for creating, modifying, or evaluating EPF artifacts. "+
+				"Review wizards (strategic_coherence_review, feature_quality_review, value_model_review) provide semantic quality evaluation workflows."),
 			mcp.WithString("name",
 				mcp.Required(),
 				mcp.Description("The wizard name (e.g., 'start_epf', 'pathfinder', 'feature_definition')"),
@@ -497,13 +516,61 @@ func (s *Server) registerTools() {
 	// Tool: epf_get_wizard_for_task
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_wizard_for_task",
-			mcp.WithDescription("Recommend the best wizard for a user's task. Analyzes the task description and suggests the most appropriate wizard with alternatives."),
+			mcp.WithDescription("Recommend the best wizard for a user's task. "+
+				"This is the MANDATORY first step before creating, modifying, or evaluating any EPF artifact or instance. "+
+				"You MUST call this tool before writing feature definitions, roadmaps, assessments, or any other EPF content. "+
+				"Also use this to find review wizards for quality evaluation tasks. "+
+				"Analyzes the task description and suggests the most appropriate wizard with alternatives."),
 			mcp.WithString("task",
 				mcp.Required(),
 				mcp.Description("Description of what the user wants to do (e.g., 'create a feature definition', 'analyze market trends')"),
 			),
 		),
 		s.handleGetWizardForTask,
+	)
+
+	// Tool: epf_recommend_reviews
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_recommend_reviews",
+			mcp.WithDescription("Returns applicable semantic review wizards for evaluating an EPF instance's strategic quality. "+
+				"Use this to discover review wizards for quality evaluation tasks. "+
+				"Returns all 3 review wizards (strategic_coherence_review, feature_quality_review, value_model_review) "+
+				"with their purpose, type, and invocation syntax. Optionally includes instance-specific context."),
+			mcp.WithString("instance_path",
+				mcp.Description("Path to the EPF instance directory (optional, uses default)"),
+			),
+		),
+		s.handleRecommendReviews,
+	)
+
+	// Tool: epf_review_strategic_coherence (wrapper for strategic_coherence_review wizard)
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_review_strategic_coherence",
+			mcp.WithDescription("Retrieve the strategic coherence review wizard for evaluating strategic alignment across all EPF artifacts. "+
+				"This is an evaluation/review tool — it checks vision-to-execution chain, cross-references, and strategic coherence. "+
+				"Equivalent to: epf_get_wizard { \"name\": \"strategic_coherence_review\" }"),
+		),
+		s.handleReviewStrategicCoherence,
+	)
+
+	// Tool: epf_review_feature_quality (wrapper for feature_quality_review wizard)
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_review_feature_quality",
+			mcp.WithDescription("Retrieve the feature quality review wizard for evaluating feature definition quality. "+
+				"This is an evaluation/review tool — it checks personas, scenarios, narratives, JTBD completeness, and capability structure. "+
+				"Equivalent to: epf_get_wizard { \"name\": \"feature_quality_review\" }"),
+		),
+		s.handleReviewFeatureQuality,
+	)
+
+	// Tool: epf_review_value_model (wrapper for value_model_review wizard)
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_review_value_model",
+			mcp.WithDescription("Retrieve the value model review wizard for evaluating value model structure. "+
+				"This is an evaluation/review tool — it checks layer consistency, naming conventions, maturity tracking, and anti-patterns. "+
+				"Equivalent to: epf_get_wizard { \"name\": \"value_model_review\" }"),
+		),
+		s.handleReviewValueModel,
 	)
 
 	// Tool: epf_list_agent_instructions
@@ -1465,20 +1532,31 @@ func (s *Server) GetMCPServer() *server.MCPServer {
 
 // HealthCheckSummary represents the overall health check result for MCP
 type HealthCheckSummary struct {
-	InstancePath      string                         `json:"instance_path"`
-	OverallStatus     string                         `json:"overall_status"` // HEALTHY, WARNINGS, ERRORS
-	InstanceCheck     *checks.CheckSummary           `json:"instance_check,omitempty"`
-	ContentReadiness  *checks.ContentReadinessResult `json:"content_readiness,omitempty"`
-	FeatureQuality    *checks.FeatureQualitySummary  `json:"feature_quality,omitempty"`
-	ValueModelQuality *valuemodel.QualityReport      `json:"value_model_quality,omitempty"`
-	AIMHealth         *aim.HealthReport              `json:"aim_health,omitempty"`
-	Summary           string                         `json:"summary"`
+	InstancePath                  string                            `json:"instance_path"`
+	OverallStatus                 string                            `json:"overall_status"` // HEALTHY, WARNINGS, ERRORS
+	InstanceCheck                 *checks.CheckSummary              `json:"instance_check,omitempty"`
+	ContentReadiness              *checks.ContentReadinessResult    `json:"content_readiness,omitempty"`
+	FeatureQuality                *checks.FeatureQualitySummary     `json:"feature_quality,omitempty"`
+	ValueModelQuality             *valuemodel.QualityReport         `json:"value_model_quality,omitempty"`
+	AIMHealth                     *aim.HealthReport                 `json:"aim_health,omitempty"`
+	Relationships                 *checks.RelationshipsResult       `json:"relationships,omitempty"`
+	MetadataConsistency           *checks.MetadataConsistencyResult `json:"metadata_consistency,omitempty"`
+	SemanticReviewRecommendations []MCPSemanticReviewRecommendation `json:"semantic_review_recommendations"`
+	Summary                       string                            `json:"summary"`
+}
+
+// MCPSemanticReviewRecommendation represents a recommended semantic quality review wizard
+type MCPSemanticReviewRecommendation struct {
+	Wizard       string `json:"wizard"`
+	Reason       string `json:"reason"`
+	Severity     string `json:"severity"`      // "info", "warning", "critical"
+	TriggerCheck string `json:"trigger_check"` // Which check category triggered this
 }
 
 // handleHealthCheck handles the epf_health_check tool
 func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	instancePath, err := request.RequireString("instance_path")
-	if err != nil {
+	instancePath := s.resolveInstancePath(request)
+	if instancePath == "" {
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
 
@@ -1554,6 +1632,16 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 		if vmErr == nil && vmModels != nil && len(vmModels.ByFile) > 0 {
 			portfolioNames, _ := valuemodel.LoadPortfolioNames(instancePath)
 
+			// Enrich portfolio names with product name from anchor file
+			if anchor.Exists(instancePath) {
+				if a, loadErr := anchor.Load(instancePath); loadErr == nil && a.ProductName != "" {
+					if portfolioNames == nil {
+						portfolioNames = &valuemodel.PortfolioNames{}
+					}
+					portfolioNames.AddName(a.ProductName)
+				}
+			}
+
 			// Build feature contributions
 			var contributions *valuemodel.FeatureContributions
 			featureLoader := relationships.NewFeatureLoader(instancePath)
@@ -1580,6 +1668,29 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 	aimReport, aimErr := aim.RunHealthDiagnostics(instancePath)
 	if aimErr == nil {
 		result.AIMHealth = aimReport
+	}
+
+	// Run metadata consistency check
+	{
+		productName := ""
+		if hasAnchor {
+			if a, loadErr := anchor.Load(instancePath); loadErr == nil && a.ProductName != "" {
+				productName = a.ProductName
+			}
+		}
+		if productName != "" {
+			mcResult := checks.CheckMetadataConsistency(instancePath, productName, 6)
+			result.MetadataConsistency = mcResult
+		}
+	}
+
+	// Run relationships/coverage check
+	{
+		relChecker := checks.NewRelationshipsChecker(instancePath)
+		relResult, relErr := relChecker.Check()
+		if relErr == nil && relResult != nil {
+			result.Relationships = relResult
+		}
 	}
 
 	// Determine overall status
@@ -1679,7 +1790,98 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 		sb.WriteString("\n")
 	}
 
+	// Relationships / coverage
+	if result.Relationships != nil {
+		sb.WriteString("## Relationships\n")
+		sb.WriteString(fmt.Sprintf("- Paths: %d/%d valid (Score: %d/100, Grade: %s)\n",
+			result.Relationships.ValidPaths, result.Relationships.TotalPathsChecked,
+			result.Relationships.Score, result.Relationships.Grade))
+		sb.WriteString(fmt.Sprintf("- Coverage: %.0f%% of value model (%d/%d L2 components)\n",
+			result.Relationships.CoveragePercent,
+			result.Relationships.CoveredL2Components,
+			result.Relationships.TotalL2Components))
+		if len(result.Relationships.CoverageByTrack) > 0 {
+			trackSummaries := make([]string, 0, len(result.Relationships.CoverageByTrack))
+			for trackName, tc := range result.Relationships.CoverageByTrack {
+				trackSummaries = append(trackSummaries, fmt.Sprintf("%s %.0f%% (%d/%d)",
+					trackName, tc.CoveragePercent, tc.CoveredL2, tc.TotalL2))
+			}
+			sb.WriteString(fmt.Sprintf("- By track: %s\n", strings.Join(trackSummaries, " | ")))
+		}
+		if result.Relationships.InvalidPaths > 0 {
+			sb.WriteString(fmt.Sprintf("- ⚠️ %d invalid contributes_to/target paths\n", result.Relationships.InvalidPaths))
+		}
+		sb.WriteString("\n")
+	}
+
+	// Metadata consistency
+	if result.MetadataConsistency != nil && (result.MetadataConsistency.InstanceMismatches > 0 || result.MetadataConsistency.StaleDates > 0) {
+		sb.WriteString("## Metadata Consistency\n")
+		sb.WriteString(fmt.Sprintf("- Files checked: %d\n", result.MetadataConsistency.FilesChecked))
+		if result.MetadataConsistency.InstanceMismatches > 0 {
+			sb.WriteString(fmt.Sprintf("- Instance name mismatches: %d\n", result.MetadataConsistency.InstanceMismatches))
+		}
+		if result.MetadataConsistency.StaleDates > 0 {
+			sb.WriteString(fmt.Sprintf("- Stale dates (>6 months): %d\n", result.MetadataConsistency.StaleDates))
+		}
+		for _, issue := range result.MetadataConsistency.Issues {
+			sb.WriteString(fmt.Sprintf("  - %s: %s\n", issue.File, issue.Message))
+		}
+		sb.WriteString("\n")
+	}
+
 	result.Summary = sb.String()
+
+	// Evaluate semantic review triggers based on available data
+	conditionalRecs := evaluateMCPSemanticTriggers(result)
+
+	// Always-present baseline: ensure all 3 review wizards are visible to agents
+	baselineWizards := []MCPSemanticReviewRecommendation{
+		{
+			Wizard:       "strategic_coherence_review",
+			Reason:       "Available for evaluating strategic alignment across all EPF artifacts",
+			Severity:     "info",
+			TriggerCheck: "always_available",
+		},
+		{
+			Wizard:       "feature_quality_review",
+			Reason:       "Available for evaluating feature definition quality (personas, scenarios, narratives)",
+			Severity:     "info",
+			TriggerCheck: "always_available",
+		},
+		{
+			Wizard:       "value_model_review",
+			Reason:       "Available for evaluating value model structure and anti-patterns",
+			Severity:     "info",
+			TriggerCheck: "always_available",
+		},
+	}
+
+	// Merge: conditional triggers first (higher priority), then baseline for any not already covered
+	seen := make(map[string]bool)
+	for _, rec := range conditionalRecs {
+		seen[rec.Wizard] = true
+	}
+	merged := conditionalRecs
+	for _, base := range baselineWizards {
+		if !seen[base.Wizard] {
+			merged = append(merged, base)
+		}
+	}
+	result.SemanticReviewRecommendations = merged
+
+	// Add semantic review recommendations to summary if any
+	if len(result.SemanticReviewRecommendations) > 0 {
+		sb.Reset()
+		sb.WriteString(result.Summary)
+		sb.WriteString("## Recommended Semantic Reviews\n")
+		for _, rec := range result.SemanticReviewRecommendations {
+			sb.WriteString(fmt.Sprintf("- **%s** [%s]: %s\n", rec.Wizard, rec.Severity, rec.Reason))
+			sb.WriteString(fmt.Sprintf("  Run: `epf_get_wizard { \"name\": \"%s\" }`\n", rec.Wizard))
+		}
+		sb.WriteString("\n")
+		result.Summary = sb.String()
+	}
 
 	jsonResult, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
@@ -1689,10 +1891,90 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 	return mcp.NewToolResultText(string(jsonResult)), nil
 }
 
+// evaluateMCPSemanticTriggers evaluates semantic review triggers based on the MCP health check data.
+// This is a lightweight version of the CLI's evaluateSemanticTriggers, operating on the subset of
+// data available in the MCP health handler (feature quality, value model quality, AIM health).
+func evaluateMCPSemanticTriggers(result *HealthCheckSummary) []MCPSemanticReviewRecommendation {
+	var recs []MCPSemanticReviewRecommendation
+
+	// FeatureQuality → feature_quality_review
+	if result.FeatureQuality != nil &&
+		(result.FeatureQuality.AverageScore < 80 || result.FeatureQuality.FailedCount > 0) {
+		reason := fmt.Sprintf("Feature quality score %.0f%% is below the 80%% threshold",
+			result.FeatureQuality.AverageScore)
+		if result.FeatureQuality.FailedCount > 0 {
+			reason = fmt.Sprintf("Feature quality: %d feature(s) failed quality checks (average score %.0f%%)",
+				result.FeatureQuality.FailedCount, result.FeatureQuality.AverageScore)
+		}
+		recs = append(recs, MCPSemanticReviewRecommendation{
+			Wizard:       "feature_quality_review",
+			Reason:       reason,
+			Severity:     "warning",
+			TriggerCheck: "FeatureQuality",
+		})
+	}
+
+	// ValueModelQuality → value_model_review
+	if result.ValueModelQuality != nil && result.ValueModelQuality.OverallScore < 80 {
+		recs = append(recs, MCPSemanticReviewRecommendation{
+			Wizard:       "value_model_review",
+			Reason:       fmt.Sprintf("Value model quality score %d is below the 80 threshold", result.ValueModelQuality.OverallScore),
+			Severity:     "warning",
+			TriggerCheck: "ValueModelQuality",
+		})
+	}
+
+	// AIM staleness → strategic_reality_check
+	if result.AIMHealth != nil {
+		for _, d := range result.AIMHealth.Diagnostics {
+			if d.Severity == "critical" && (d.Category == "lra_staleness" || d.Category == "missing_assessment") {
+				recs = append(recs, MCPSemanticReviewRecommendation{
+					Wizard:       "strategic_reality_check",
+					Reason:       fmt.Sprintf("AIM diagnostic: %s", d.Title),
+					Severity:     "info",
+					TriggerCheck: "AIMStaleness",
+				})
+				break // Only recommend once
+			}
+		}
+	}
+
+	// Relationships → strategic_coherence_review
+	if result.Relationships != nil && result.Relationships.InvalidPaths > 0 {
+		recs = append(recs, MCPSemanticReviewRecommendation{
+			Wizard:       "strategic_coherence_review",
+			Reason:       fmt.Sprintf("Strategic coherence issues: %d invalid relationship path(s)", result.Relationships.InvalidPaths),
+			Severity:     "warning",
+			TriggerCheck: "Relationships",
+		})
+	}
+
+	// Low coverage → balance_checker
+	if result.Relationships != nil {
+		// Count tracks with feature coverage
+		tracksWithCoverage := 0
+		for _, tc := range result.Relationships.CoverageByTrack {
+			if tc.CoveredL2 > 0 {
+				tracksWithCoverage++
+			}
+		}
+		if tracksWithCoverage > 0 && tracksWithCoverage < len(result.Relationships.CoverageByTrack) {
+			recs = append(recs, MCPSemanticReviewRecommendation{
+				Wizard:       "balance_checker",
+				Reason:       fmt.Sprintf("Only %d track(s) have feature coverage; consider balancing across tracks", tracksWithCoverage),
+				Severity:     "info",
+				TriggerCheck: "TrackBalance",
+			})
+		}
+	}
+
+	return recs
+}
+
 // handleCheckInstance handles the epf_check_instance tool
 func (s *Server) handleCheckInstance(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	instancePath, err := request.RequireString("instance_path")
-	if err != nil {
+	instancePath := s.resolveInstancePath(request)
+	if instancePath == "" {
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
 
@@ -1791,8 +2073,8 @@ func (s *Server) handleCheckContentReadiness(ctx context.Context, request mcp.Ca
 
 // handleCheckFeatureQuality handles the epf_check_feature_quality tool
 func (s *Server) handleCheckFeatureQuality(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	instancePath, err := request.RequireString("instance_path")
-	if err != nil {
+	instancePath := s.resolveInstancePath(request)
+	if instancePath == "" {
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
 
@@ -2012,7 +2294,9 @@ func (s *Server) handleListDefinitions(ctx context.Context, request mcp.CallTool
 	categoryFilter, _ := request.RequireString("category")
 
 	if s.definitionLoader == nil || s.definitionLoader.DefinitionCount() == 0 {
-		return mcp.NewToolResultError("Definitions not loaded. Ensure EPF definitions directory exists."), nil
+		return mcp.NewToolResultError("Definitions not available. " +
+			"Track definitions (product, strategy, org_ops, commercial) have not yet been authored in the canonical EPF framework. " +
+			"If running with a local EPF framework directory, ensure it contains a definitions/ directory with track subdirectories."), nil
 	}
 
 	// Parse track filter if provided
@@ -2031,7 +2315,6 @@ func (s *Server) handleListDefinitions(ctx context.Context, request mcp.CallTool
 		categoryPtr = &categoryFilter
 	}
 
-	// Get definitions
 	definitions := s.definitionLoader.ListDefinitions(trackPtr, categoryPtr)
 
 	// Build response
@@ -2116,7 +2399,9 @@ func (s *Server) handleGetDefinition(ctx context.Context, request mcp.CallToolRe
 	}
 
 	if s.definitionLoader == nil || s.definitionLoader.DefinitionCount() == 0 {
-		return mcp.NewToolResultError("Definitions not loaded. Ensure EPF definitions directory exists."), nil
+		return mcp.NewToolResultError("Definitions not available. " +
+			"Track definitions have not yet been authored in the canonical EPF framework. " +
+			"If running with a local EPF framework directory, ensure it contains a definitions/ directory."), nil
 	}
 
 	def, err := s.definitionLoader.GetDefinition(id)
@@ -2248,8 +2533,8 @@ func (s *Server) handleExplainValuePath(ctx context.Context, request mcp.CallToo
 		return mcp.NewToolResultError("path parameter is required"), nil
 	}
 
-	instancePath, err := request.RequireString("instance_path")
-	if err != nil {
+	instancePath := s.resolveInstancePath(request)
+	if instancePath == "" {
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
 
@@ -2394,8 +2679,8 @@ func (s *Server) handleGetStrategicContext(ctx context.Context, request mcp.Call
 		return mcp.NewToolResultError("feature_id parameter is required"), nil
 	}
 
-	instancePath, err := request.RequireString("instance_path")
-	if err != nil {
+	instancePath := s.resolveInstancePath(request)
+	if instancePath == "" {
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
 
@@ -2553,8 +2838,8 @@ type CoverageMostContributed struct {
 
 // handleAnalyzeCoverage handles the epf_analyze_coverage tool
 func (s *Server) handleAnalyzeCoverage(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	instancePath, err := request.RequireString("instance_path")
-	if err != nil {
+	instancePath := s.resolveInstancePath(request)
+	if instancePath == "" {
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
 
@@ -2686,8 +2971,8 @@ type ValidateRelationshipsError struct {
 
 // handleValidateRelationships handles the epf_validate_relationships tool
 func (s *Server) handleValidateRelationships(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	instancePath, err := request.RequireString("instance_path")
-	if err != nil {
+	instancePath := s.resolveInstancePath(request)
+	if instancePath == "" {
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
 
@@ -2784,8 +3069,8 @@ type MigrationStatusResponse struct {
 
 // handleCheckMigrationStatus handles the epf_check_migration_status tool
 func (s *Server) handleCheckMigrationStatus(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	instancePath, err := request.RequireString("instance_path")
-	if err != nil {
+	instancePath := s.resolveInstancePath(request)
+	if instancePath == "" {
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
 
@@ -2869,8 +3154,8 @@ type MigrationChangeItem struct {
 
 // handleGetMigrationGuide handles the epf_get_migration_guide tool
 func (s *Server) handleGetMigrationGuide(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	instancePath, err := request.RequireString("instance_path")
-	if err != nil {
+	instancePath := s.resolveInstancePath(request)
+	if instancePath == "" {
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
 
@@ -3024,8 +3309,8 @@ func (s *Server) handleAddImplementationReference(ctx context.Context, request m
 		return mcp.NewToolResultError("feature_id parameter is required"), nil
 	}
 
-	instancePath, err := request.RequireString("instance_path")
-	if err != nil {
+	instancePath := s.resolveInstancePath(request)
+	if instancePath == "" {
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
 
@@ -3078,8 +3363,8 @@ func (s *Server) handleUpdateCapabilityMaturity(ctx context.Context, request mcp
 		return mcp.NewToolResultError("feature_id parameter is required"), nil
 	}
 
-	instancePath, err := request.RequireString("instance_path")
-	if err != nil {
+	instancePath := s.resolveInstancePath(request)
+	if instancePath == "" {
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
 
@@ -3126,8 +3411,8 @@ func (s *Server) handleUpdateCapabilityMaturity(ctx context.Context, request mcp
 
 // handleAddMappingArtifact handles the epf_add_mapping_artifact tool
 func (s *Server) handleAddMappingArtifact(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	instancePath, err := request.RequireString("instance_path")
-	if err != nil {
+	instancePath := s.resolveInstancePath(request)
+	if instancePath == "" {
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
 
@@ -3176,8 +3461,8 @@ func (s *Server) handleAddMappingArtifact(ctx context.Context, request mcp.CallT
 
 // handleSuggestRelationships handles the epf_suggest_relationships tool
 func (s *Server) handleSuggestRelationships(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	instancePath, err := request.RequireString("instance_path")
-	if err != nil {
+	instancePath := s.resolveInstancePath(request)
+	if instancePath == "" {
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
 
@@ -3411,6 +3696,9 @@ type AgentInstructionsOutput struct {
 		Suggestions   []string             `json:"suggestions,omitempty"`
 	} `json:"discovery"`
 
+	MandatoryProtocols   []AgentMandatoryProtocol `json:"mandatory_protocols"`
+	WorkflowDecisionTree []AgentWorkflowDecision  `json:"workflow_decision_tree"`
+
 	Commands []AgentCommandInfo `json:"commands"`
 	MCPTools []AgentMCPTool     `json:"mcp_tools"`
 
@@ -3420,10 +3708,33 @@ type AgentInstructionsOutput struct {
 		KeyRules    []string         `json:"key_rules"`
 	} `json:"track_architecture"`
 
+	StrategyContext *AgentStrategyContext `json:"strategy_context,omitempty"`
+
 	Workflow struct {
 		FirstSteps    []string `json:"first_steps"`
 		BestPractices []string `json:"best_practices"`
 	} `json:"workflow"`
+}
+
+// AgentMandatoryProtocol defines a workflow agents MUST follow
+type AgentMandatoryProtocol struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Steps       []string `json:"steps"`
+}
+
+// AgentWorkflowDecision maps a task type to the tool sequence
+type AgentWorkflowDecision struct {
+	TaskType string   `json:"task_type"`
+	Tools    []string `json:"tools"`
+	Note     string   `json:"note"`
+}
+
+// AgentStrategyContext provides product strategy metadata when a default instance is configured
+type AgentStrategyContext struct {
+	ProductName  string `json:"product_name"`
+	InstancePath string `json:"instance_path"`
+	Description  string `json:"description,omitempty"`
 }
 
 // AgentTrackInfo describes one of the 4 EPF tracks
@@ -3463,7 +3774,7 @@ func (s *Server) handleAgentInstructions(ctx context.Context, request mcp.CallTo
 	// Discover EPF instance at the path
 	disc, _ := discovery.DiscoverSingle(path)
 
-	output := buildAgentInstructionsOutput(disc)
+	output := buildAgentInstructionsOutput(disc, s.defaultInstancePath)
 
 	jsonBytes, err := json.MarshalIndent(output, "", "  ")
 	if err != nil {
@@ -3474,7 +3785,7 @@ func (s *Server) handleAgentInstructions(ctx context.Context, request mcp.CallTo
 }
 
 // buildAgentInstructionsOutput builds the structured output for AI agents
-func buildAgentInstructionsOutput(disc *discovery.DiscoveryResult) *AgentInstructionsOutput {
+func buildAgentInstructionsOutput(disc *discovery.DiscoveryResult, defaultInstancePath string) *AgentInstructionsOutput {
 	output := &AgentInstructionsOutput{}
 
 	// Authority section
@@ -3549,47 +3860,150 @@ func buildAgentInstructionsOutput(disc *discovery.DiscoveryResult) *AgentInstruc
 		},
 	}
 
-	// MCP Tools section
+	// Mandatory Protocols
+	output.MandatoryProtocols = []AgentMandatoryProtocol{
+		{
+			Name:        "wizard_first",
+			Description: "You MUST use a wizard before creating, substantially modifying, or evaluating any EPF artifact or instance.",
+			Steps: []string{
+				"1. Call epf_get_wizard_for_task with a description of what you need to do",
+				"2. Call epf_get_wizard to retrieve the recommended wizard content",
+				"3. Follow the wizard instructions to create/modify/evaluate the artifact",
+				"4. Call epf_validate_file to verify the result",
+			},
+		},
+		{
+			Name:        "strategy_context",
+			Description: "You MUST query strategy context before feature work, roadmap changes, or competitive decisions.",
+			Steps: []string{
+				"1. Call epf_get_product_vision to understand the product's purpose",
+				"2. Call epf_get_personas to understand target users",
+				"3. Call epf_get_roadmap_summary to see current OKRs",
+				"4. Use this context to inform your work",
+			},
+		},
+		{
+			Name:        "validation_always",
+			Description: "You MUST validate every artifact after creation or modification.",
+			Steps: []string{
+				"1. After writing any EPF YAML file, call epf_validate_file",
+				"2. If errors are found, fix them and re-validate",
+				"3. For large files, use epf_validate_with_plan for chunked fixing",
+			},
+		},
+	}
+
+	// Workflow Decision Tree
+	output.WorkflowDecisionTree = []AgentWorkflowDecision{
+		{
+			TaskType: "create_artifact",
+			Tools:    []string{"epf_get_wizard_for_task", "epf_get_wizard", "epf_get_template", "[write artifact]", "epf_validate_file"},
+			Note:     "Always start with wizard recommendation, then follow wizard instructions",
+		},
+		{
+			TaskType: "query_strategy",
+			Tools:    []string{"epf_get_product_vision", "epf_get_personas", "epf_get_roadmap_summary", "epf_search_strategy"},
+			Note:     "Use these to understand strategic context before any feature or roadmap work",
+		},
+		{
+			TaskType: "assess_health",
+			Tools:    []string{"epf_health_check", "epf_check_feature_quality", "epf_validate_relationships"},
+			Note:     "Run health check first to assess scope, then drill into specific checks",
+		},
+		{
+			TaskType: "fix_validation_errors",
+			Tools:    []string{"epf_validate_with_plan", "epf_validate_section", "epf_get_section_example", "epf_validate_file"},
+			Note:     "Use fix plan for chunked processing, validate section-by-section",
+		},
+		{
+			TaskType: "evaluate_quality",
+			Tools:    []string{"epf_health_check", "epf_recommend_reviews", "epf_get_wizard (for each recommended review)", "Execute review wizard instructions against instance data"},
+			Note:     "Run health check for structural baseline, then use review wizards for semantic quality evaluation",
+		},
+	}
+
+	// MCP Tools section (expanded with strategy tools)
 	output.MCPTools = []AgentMCPTool{
 		{
+			Name:        "epf_get_wizard_for_task",
+			Description: "MUST be called before creating, modifying, or evaluating any EPF artifact or instance",
+			When:        "MANDATORY first step before any artifact creation, modification, or quality evaluation",
+		},
+		{
+			Name:        "epf_get_wizard",
+			Description: "Retrieve full wizard instructions. Follow these to create artifacts or execute quality reviews.",
+			When:        "After getting a wizard recommendation (for creation, modification, or evaluation)",
+		},
+		{
 			Name:        "epf_validate_file",
-			Description: "Validate a single EPF artifact file",
-			When:        "After editing EPF YAML files",
+			Description: "Validate an EPF artifact file",
+			When:        "MANDATORY after every artifact creation or modification",
 		},
 		{
 			Name:        "epf_health_check",
 			Description: "Run comprehensive instance health check",
-			When:        "Before/after making changes to verify state",
+			When:        "Before starting work and after completing major changes",
+		},
+		{
+			Name:        "epf_get_product_vision",
+			Description: "Get product vision, mission, and north star",
+			When:        "Before feature work, roadmap changes, or user-facing content",
+		},
+		{
+			Name:        "epf_get_personas",
+			Description: "Get all target personas with summaries",
+			When:        "Before designing features or writing user-facing content",
+		},
+		{
+			Name:        "epf_get_roadmap_summary",
+			Description: "Get current OKRs and key results",
+			When:        "Before planning work or prioritizing features",
+		},
+		{
+			Name:        "epf_search_strategy",
+			Description: "Full-text search across all strategy artifacts",
+			When:        "When looking for specific strategy content by keyword",
 		},
 		{
 			Name:        "epf_get_schema",
 			Description: "Get JSON schema for an artifact type",
-			When:        "When creating new artifacts or debugging validation",
+			When:        "When needing to understand field constraints",
 		},
 		{
 			Name:        "epf_get_template",
 			Description: "Get starting template for an artifact type",
-			When:        "When creating new EPF artifacts",
-		},
-		{
-			Name:        "epf_list_wizards",
-			Description: "List available EPF wizards",
-			When:        "When looking for guided workflows",
-		},
-		{
-			Name:        "epf_get_wizard_for_task",
-			Description: "Get recommended wizard for a task",
-			When:        "When unsure which wizard to use",
-		},
-		{
-			Name:        "epf_locate_instance",
-			Description: "Find EPF instances programmatically",
-			When:        "When building automation or discovery",
+			When:        "When creating new EPF artifacts (after consulting wizard)",
 		},
 		{
 			Name:        "epf_agent_instructions",
 			Description: "Get this guidance programmatically",
 			When:        "When initializing EPF agent context",
+		},
+		{
+			Name:        "epf_locate_instance",
+			Description: "Find EPF instances with confidence scoring",
+			When:        "When building automation or searching for instances",
+		},
+		// Review/evaluation tools
+		{
+			Name:        "epf_recommend_reviews",
+			Description: "Get applicable semantic review wizards for an instance",
+			When:        "When evaluating instance quality or after health check shows structural health is good",
+		},
+		{
+			Name:        "epf_review_strategic_coherence",
+			Description: "Get strategic coherence review wizard",
+			When:        "When evaluating vision-to-execution strategic alignment",
+		},
+		{
+			Name:        "epf_review_feature_quality",
+			Description: "Get feature quality review wizard",
+			When:        "When evaluating feature definition quality (JTBD, personas, scenarios)",
+		},
+		{
+			Name:        "epf_review_value_model",
+			Description: "Get value model review wizard",
+			When:        "When evaluating value model structure for anti-patterns",
 		},
 	}
 
@@ -3627,19 +4041,39 @@ func buildAgentInstructionsOutput(disc *discovery.DiscoveryResult) *AgentInstruc
 		"Run 'epf health' to check track completeness — it warns about missing tracks",
 	}
 
-	// Workflow guidance
+	// Strategy context (when default instance is configured)
+	if defaultInstancePath != "" {
+		output.StrategyContext = &AgentStrategyContext{
+			InstancePath: defaultInstancePath,
+		}
+		// Try to read product name from anchor
+		anchorPath := filepath.Join(defaultInstancePath, "_epf.yaml")
+		if data, err := os.ReadFile(anchorPath); err == nil {
+			var anchorData struct {
+				ProductName string `yaml:"product_name"`
+				Description string `yaml:"description"`
+			}
+			if err := yaml.Unmarshal(data, &anchorData); err == nil {
+				output.StrategyContext.ProductName = anchorData.ProductName
+				output.StrategyContext.Description = anchorData.Description
+			}
+		}
+	}
+
+	// Workflow guidance (wizard-first, mandatory language)
 	output.Workflow.FirstSteps = []string{
-		"1. Call epf_agent_instructions to understand available tools",
-		"2. Call epf_locate_instance to find EPF instances",
-		"3. Call epf_health_check on the instance to assess current state",
-		"4. Use appropriate MCP tools (epf_*) for specific operations",
+		"1. Run epf_health_check to assess current instance state",
+		"2. Call epf_get_wizard_for_task before creating ANY artifact",
+		"3. Query strategy context (epf_get_product_vision, epf_get_personas) before feature work",
+		"4. Follow wizard instructions, then validate with epf_validate_file",
 	}
 
 	output.Workflow.BestPractices = []string{
-		"Always validate files after editing: epf_validate_file",
+		"You MUST call epf_get_wizard_for_task before creating any EPF artifact",
+		"You MUST validate every file after editing with epf_validate_file",
+		"You MUST query strategy context before feature work or roadmap changes",
 		"Run health check before and after major changes",
-		"Use wizards for guided artifact creation",
-		"Never guess artifact structure - use schemas and templates",
+		"Never guess artifact structure — use schemas, templates, and wizards",
 		"Prefer MCP tools over direct file manipulation when available",
 	}
 

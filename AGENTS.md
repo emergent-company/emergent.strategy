@@ -87,6 +87,19 @@ The EPF CLI includes an MCP server for AI agent integration. Configure in `openc
 }
 ```
 
+### Wizard-First Protocol (Mandatory)
+
+When working with EPF artifacts, you MUST follow the wizard-first workflow:
+
+1. `epf_get_wizard_for_task` -- find the right wizard for your task (creation, modification, or evaluation)
+2. `epf_get_wizard` -- retrieve and follow the wizard instructions
+3. Write the artifact or execute the review following wizard guidance
+4. `epf_validate_file` -- validate the result
+
+### Strategy Context Tools
+
+Before feature work, roadmap changes, or competitive decisions, query strategy context using: `epf_get_product_vision`, `epf_get_personas`, `epf_get_competitive_position`, `epf_get_roadmap_summary`, `epf_search_strategy`.
+
 ## Detailed Documentation
 
 - **EPF Framework**: `docs/EPF/`

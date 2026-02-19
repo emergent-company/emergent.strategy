@@ -67,7 +67,7 @@ func GenerateAssessmentReport(roadmap *RoadmapData, roadmapID string) *Assessmen
 				Status: "TODO: Set status (validated/invalidated/inconclusive/pending)",
 				Evidence: fmt.Sprintf(
 					"TODO: Provide evidence for assumption: %s\n\nValidation approach: %s",
-					assumption.Statement, assumption.Validation),
+					assumption.Description, assumption.Evidence),
 			}
 			assessment.Assumptions = append(assessment.Assumptions, check)
 		}
@@ -94,10 +94,10 @@ func ValidateAssumptions(roadmap *RoadmapData, assessments []AssessmentReport) (
 		for _, assumption := range track.Assumptions {
 			detail := AssumptionValidationDetail{
 				ID:         assumption.ID,
-				Statement:  assumption.Statement,
+				Statement:  assumption.Description,
 				Track:      trackName,
-				Risk:       assumption.Risk,
-				Validation: assumption.Validation,
+				Risk:       assumption.Criticality,
+				Validation: assumption.Evidence,
 			}
 
 			if evidence, found := evidenceMap[assumption.ID]; found {

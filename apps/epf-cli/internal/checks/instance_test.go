@@ -442,15 +442,14 @@ func TestTrackCompleteness_MissingTracks(t *testing.T) {
 func TestTrackCompleteness_NoValueModels(t *testing.T) {
 	tmpDir := t.TempDir()
 
+	// Create phased structure (need READY for detection)
 	os.MkdirAll(filepath.Join(tmpDir, "READY"), 0755)
-	os.MkdirAll(filepath.Join(tmpDir, "FIRE", "feature_definitions"), 0755)
+
+	// Create FIRE/value_models with YAML files that have NO track_name
 	vmDir := filepath.Join(tmpDir, "FIRE", "value_models")
 	os.MkdirAll(vmDir, 0755)
-	os.MkdirAll(filepath.Join(tmpDir, "AIM"), 0755)
 
-	for _, file := range RequiredREADYFiles {
-		os.WriteFile(filepath.Join(tmpDir, "READY", file), []byte("test: true"), 0644)
-	}
+	os.WriteFile(filepath.Join(vmDir, "vm-1.yaml"), []byte("layers: []\n"), 0644)
 
 	checker := NewInstanceChecker(tmpDir)
 	summary := checker.Check()
@@ -471,5 +470,182 @@ func TestTrackCompleteness_NoValueModels(t *testing.T) {
 
 	if !found {
 		t.Error("value_models_track_completeness check not found in results")
+	}
+}
+
+// =============================================================================
+// Metadata Consistency Tests
+// =============================================================================
+
+func TestCheckMetadataConsistency_WrongInstance(t *testing.T) {
+	dir := t.TempDir()
+	readyDir := filepath.Join(dir, "READY")
+	os.MkdirAll(readyDir, 0755)
+
+	content := `meta:
+  instance: "WrongProduct"
+  last_updated: "2026-01-01"
+purpose:
+  statement: "Test"
+`
+	os.WriteFile(filepath.Join(readyDir, "00_north_star.yaml"), []byte(content), 0644)
+
+	result := CheckMetadataConsistency(dir, "CorrectProduct", 6)
+
+	if result.FilesChecked != 1 {
+		t.Errorf("expected 1 file checked, got %d", result.FilesChecked)
+	}
+	if result.InstanceMismatches != 1 {
+		t.Errorf("expected 1 instance mismatch, got %d", result.InstanceMismatches)
+	}
+	if len(result.Issues) != 1 {
+		t.Fatalf("expected 1 issue, got %d", len(result.Issues))
+	}
+	if result.Issues[0].IssueType != "wrong_instance" {
+		t.Errorf("expected issue type 'wrong_instance', got '%s'", result.Issues[0].IssueType)
+	}
+}
+
+func TestCheckMetadataConsistency_MatchingInstance(t *testing.T) {
+	dir := t.TempDir()
+	readyDir := filepath.Join(dir, "READY")
+	os.MkdirAll(readyDir, 0755)
+
+	content := `meta:
+  instance: "MyProduct"
+  last_updated: "2026-01-01"
+`
+	os.WriteFile(filepath.Join(readyDir, "00_north_star.yaml"), []byte(content), 0644)
+
+	result := CheckMetadataConsistency(dir, "MyProduct", 6)
+
+	if result.InstanceMismatches != 0 {
+		t.Errorf("expected 0 mismatches for matching instance, got %d", result.InstanceMismatches)
+	}
+}
+
+func TestCheckMetadataConsistency_StaleDate(t *testing.T) {
+	dir := t.TempDir()
+	readyDir := filepath.Join(dir, "READY")
+	os.MkdirAll(readyDir, 0755)
+
+	content := `meta:
+  instance: "MyProduct"
+  last_updated: "2020-01-01"
+`
+	os.WriteFile(filepath.Join(readyDir, "00_north_star.yaml"), []byte(content), 0644)
+
+	result := CheckMetadataConsistency(dir, "MyProduct", 6)
+
+	if result.StaleDates != 1 {
+		t.Errorf("expected 1 stale date, got %d", result.StaleDates)
+	}
+	if len(result.Issues) != 1 {
+		t.Fatalf("expected 1 issue, got %d", len(result.Issues))
+	}
+	if result.Issues[0].IssueType != "stale_date" {
+		t.Errorf("expected issue type 'stale_date', got '%s'", result.Issues[0].IssueType)
+	}
+}
+
+func TestCheckMetadataConsistency_FreshDate(t *testing.T) {
+	dir := t.TempDir()
+	readyDir := filepath.Join(dir, "READY")
+	os.MkdirAll(readyDir, 0755)
+
+	content := `meta:
+  instance: "MyProduct"
+  last_updated: "2026-02-15"
+`
+	os.WriteFile(filepath.Join(readyDir, "00_north_star.yaml"), []byte(content), 0644)
+
+	result := CheckMetadataConsistency(dir, "MyProduct", 6)
+
+	if result.StaleDates != 0 {
+		t.Errorf("expected 0 stale dates for fresh date, got %d", result.StaleDates)
+	}
+}
+
+func TestCheckMetadataConsistency_MetadataKey(t *testing.T) {
+	dir := t.TempDir()
+	fireDir := filepath.Join(dir, "FIRE", "feature_definitions")
+	os.MkdirAll(fireDir, 0755)
+
+	content := `metadata:
+  instance: "WrongName"
+  last_updated: "2020-03-01"
+`
+	os.WriteFile(filepath.Join(fireDir, "fd-001.yaml"), []byte(content), 0644)
+
+	result := CheckMetadataConsistency(dir, "RightName", 6)
+
+	if result.InstanceMismatches != 1 {
+		t.Errorf("expected 1 instance mismatch with 'metadata' key, got %d", result.InstanceMismatches)
+	}
+	if result.StaleDates != 1 {
+		t.Errorf("expected 1 stale date with 'metadata' key, got %d", result.StaleDates)
+	}
+}
+
+func TestCheckMetadataConsistency_NoMetaBlock(t *testing.T) {
+	dir := t.TempDir()
+	readyDir := filepath.Join(dir, "READY")
+	os.MkdirAll(readyDir, 0755)
+
+	content := `purpose:
+  statement: "Test"
+`
+	os.WriteFile(filepath.Join(readyDir, "00_north_star.yaml"), []byte(content), 0644)
+
+	result := CheckMetadataConsistency(dir, "MyProduct", 6)
+
+	if result.FilesChecked != 1 {
+		t.Errorf("expected 1 file checked, got %d", result.FilesChecked)
+	}
+	if len(result.Issues) != 0 {
+		t.Errorf("expected 0 issues for file with no meta block, got %d", len(result.Issues))
+	}
+}
+
+func TestCheckMetadataConsistency_SkipsUnderscoreFiles(t *testing.T) {
+	dir := t.TempDir()
+	readyDir := filepath.Join(dir, "READY")
+	os.MkdirAll(readyDir, 0755)
+
+	content := `meta:
+  instance: "WrongProduct"
+`
+	os.WriteFile(filepath.Join(readyDir, "_meta.yaml"), []byte(content), 0644)
+
+	result := CheckMetadataConsistency(dir, "CorrectProduct", 6)
+
+	if result.FilesChecked != 0 {
+		t.Errorf("expected 0 files checked (underscore files skipped), got %d", result.FilesChecked)
+	}
+}
+
+func TestExtractMetadataDate_Formats(t *testing.T) {
+	tests := []struct {
+		name  string
+		input interface{}
+		empty bool
+	}{
+		{"ISO date", "2024-06-15", false},
+		{"RFC3339", "2024-06-15T10:30:00Z", false},
+		{"invalid string", "not-a-date", true},
+		{"nil", nil, true},
+		{"integer", 12345, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractMetadataDate(tt.input)
+			if tt.empty && !result.IsZero() {
+				t.Errorf("expected zero time for input %v, got %v", tt.input, result)
+			}
+			if !tt.empty && result.IsZero() {
+				t.Errorf("expected non-zero time for input %v", tt.input)
+			}
+		})
 	}
 }

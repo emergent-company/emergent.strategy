@@ -354,22 +354,25 @@ func TestPhaseForWizard(t *testing.T) {
 // TestKeywordMappings tests that keyword mappings return valid wizard names
 func TestKeywordMappings(t *testing.T) {
 	expectedWizards := map[string]bool{
-		"start_epf":               true,
-		"lean_start":              true,
-		"pathfinder":              true,
-		"feature_definition":      true,
-		"product_architect":       true,
-		"synthesizer":             true,
-		"balance_checker":         true,
-		"01_trend_scout":          true,
-		"02_market_mapper":        true,
-		"03_internal_mirror":      true,
-		"04_problem_detective":    true,
-		"aim_trigger_assessment":  true,
-		"context_sheet_generator": true,
-		"feature_enrichment":      true,
-		"roadmap_enrichment":      true,
-		"value_model_review":      true,
+		"start_epf":                  true,
+		"lean_start":                 true,
+		"pathfinder":                 true,
+		"feature_definition":         true,
+		"product_architect":          true,
+		"synthesizer":                true,
+		"balance_checker":            true,
+		"01_trend_scout":             true,
+		"02_market_mapper":           true,
+		"03_internal_mirror":         true,
+		"04_problem_detective":       true,
+		"aim_trigger_assessment":     true,
+		"context_sheet_generator":    true,
+		"feature_enrichment":         true,
+		"roadmap_enrichment":         true,
+		"value_model_review":         true,
+		"strategic_reality_check":    true,
+		"feature_quality_review":     true,
+		"strategic_coherence_review": true,
 	}
 
 	for keyword, wizards := range KeywordMappings {
@@ -382,6 +385,232 @@ func TestKeywordMappings(t *testing.T) {
 				if !expectedWizards[wizard] {
 					t.Errorf("KeywordMappings[%q] contains unknown wizard %q", keyword, wizard)
 				}
+			}
+		})
+	}
+}
+
+// =============================================================================
+// Task 6.3: Test strategic_reality_check wizard discoverability
+// Task 9.4: Test new wizards are registered in PhaseForWizard and discoverable
+// =============================================================================
+
+// TestPhaseForWizard_NewWizards verifies the new wizards are registered in PhaseForWizard
+func TestPhaseForWizard_NewWizards(t *testing.T) {
+	tests := []struct {
+		wizardName    string
+		expectedPhase schema.Phase
+	}{
+		{"strategic_reality_check", schema.PhaseAIM},
+		{"feature_quality_review", schema.PhaseFIRE},
+		{"strategic_coherence_review", schema.PhaseREADY},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.wizardName, func(t *testing.T) {
+			phase, ok := PhaseForWizard[tt.wizardName]
+			if !ok {
+				t.Errorf("PhaseForWizard missing entry for %q", tt.wizardName)
+				return
+			}
+			if phase != tt.expectedPhase {
+				t.Errorf("PhaseForWizard[%q] = %q, want %q", tt.wizardName, phase, tt.expectedPhase)
+			}
+		})
+	}
+}
+
+// TestKeywordMappings_StrategicRealityCheck verifies keyword mappings for strategic_reality_check
+func TestKeywordMappings_StrategicRealityCheck(t *testing.T) {
+	keywords := []string{
+		"reality check",
+		"strategic reality",
+		"src",
+		"artifact freshness",
+		"strategy validation",
+		"cross-reference",
+	}
+
+	for _, keyword := range keywords {
+		t.Run(keyword, func(t *testing.T) {
+			wizards, ok := KeywordMappings[keyword]
+			if !ok {
+				t.Errorf("KeywordMappings missing keyword %q", keyword)
+				return
+			}
+			found := false
+			for _, w := range wizards {
+				if w == "strategic_reality_check" {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("KeywordMappings[%q] = %v, expected to contain \"strategic_reality_check\"", keyword, wizards)
+			}
+		})
+	}
+}
+
+// TestKeywordMappings_FeatureQualityReview verifies keyword mappings for feature_quality_review
+func TestKeywordMappings_FeatureQualityReview(t *testing.T) {
+	keywords := []string{
+		"feature quality",
+		"feature quality review",
+		"review features",
+		"feature review",
+		"persona quality",
+		"jtbd quality",
+		"scenario completeness",
+	}
+
+	for _, keyword := range keywords {
+		t.Run(keyword, func(t *testing.T) {
+			wizards, ok := KeywordMappings[keyword]
+			if !ok {
+				t.Errorf("KeywordMappings missing keyword %q", keyword)
+				return
+			}
+			found := false
+			for _, w := range wizards {
+				if w == "feature_quality_review" {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("KeywordMappings[%q] = %v, expected to contain \"feature_quality_review\"", keyword, wizards)
+			}
+		})
+	}
+}
+
+// TestKeywordMappings_StrategicCoherenceReview verifies keyword mappings for strategic_coherence_review
+func TestKeywordMappings_StrategicCoherenceReview(t *testing.T) {
+	keywords := []string{
+		"strategic coherence",
+		"coherence review",
+		"strategy alignment",
+		"strategic alignment",
+		"broken cross-references",
+		"orphaned features",
+		"strategy chain",
+	}
+
+	for _, keyword := range keywords {
+		t.Run(keyword, func(t *testing.T) {
+			wizards, ok := KeywordMappings[keyword]
+			if !ok {
+				t.Errorf("KeywordMappings missing keyword %q", keyword)
+				return
+			}
+			found := false
+			for _, w := range wizards {
+				if w == "strategic_coherence_review" {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("KeywordMappings[%q] = %v, expected to contain \"strategic_coherence_review\"", keyword, wizards)
+			}
+		})
+	}
+}
+
+// TestKeywordMappings_AllNewWizardsIncluded verifies the expectedWizards set used by
+// TestKeywordMappings includes the new wizards
+func TestKeywordMappings_AllNewWizardsIncluded(t *testing.T) {
+	// Collect all wizard names referenced in KeywordMappings
+	allWizards := make(map[string]bool)
+	for _, wizards := range KeywordMappings {
+		for _, w := range wizards {
+			allWizards[w] = true
+		}
+	}
+
+	newWizards := []string{
+		"strategic_reality_check",
+		"feature_quality_review",
+		"strategic_coherence_review",
+	}
+
+	for _, w := range newWizards {
+		if !allWizards[w] {
+			t.Errorf("Wizard %q is not referenced by any keyword in KeywordMappings", w)
+		}
+	}
+}
+
+// TestRecommenderWithNewWizards tests that the recommender returns new wizards
+// for appropriate task descriptions using real embedded wizards
+func TestRecommenderWithNewWizards(t *testing.T) {
+	// Create temp directory with test wizards including the new ones
+	tempDir, err := os.MkdirTemp("", "epf-wizard-newwiz-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	wizardsDir := filepath.Join(tempDir, "wizards")
+	if err := os.MkdirAll(wizardsDir, 0755); err != nil {
+		t.Fatalf("Failed to create wizards dir: %v", err)
+	}
+
+	testWizards := map[string]string{
+		"strategic_reality_check.agent_prompt.md": `# Strategic Reality Check
+**Trigger phrases:**
+- "reality check"
+- "strategic reality"
+- "SRC"`,
+		"feature_quality_review.agent_prompt.md": `# Feature Quality Review
+**Trigger phrases:**
+- "feature quality"
+- "review features"`,
+		"strategic_coherence_review.agent_prompt.md": `# Strategic Coherence Review
+**Trigger phrases:**
+- "strategic coherence"
+- "coherence review"`,
+	}
+
+	for filename, content := range testWizards {
+		if err := os.WriteFile(filepath.Join(wizardsDir, filename), []byte(content), 0644); err != nil {
+			t.Fatalf("Failed to write %s: %v", filename, err)
+		}
+	}
+
+	loader := NewLoader(tempDir)
+	if err := loader.Load(); err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	recommender := NewRecommender(loader)
+
+	tests := []struct {
+		task           string
+		expectedWizard string
+	}{
+		{"reality check", "strategic_reality_check"},
+		{"SRC", "strategic_reality_check"},
+		{"feature quality", "feature_quality_review"},
+		{"review features", "feature_quality_review"},
+		{"strategic coherence", "strategic_coherence_review"},
+		{"coherence review", "strategic_coherence_review"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.task, func(t *testing.T) {
+			rec, err := recommender.RecommendForTask(tt.task)
+			if err != nil {
+				t.Errorf("RecommendForTask(%q) error = %v", tt.task, err)
+				return
+			}
+			if rec == nil || rec.Wizard == nil {
+				t.Errorf("RecommendForTask(%q) returned nil recommendation", tt.task)
+				return
+			}
+			if rec.Wizard.Name != tt.expectedWizard {
+				t.Errorf("RecommendForTask(%q).Wizard.Name = %q, want %q", tt.task, rec.Wizard.Name, tt.expectedWizard)
 			}
 		})
 	}
@@ -421,5 +650,119 @@ func TestGetWizardNotFound(t *testing.T) {
 	_, err := loader.GetWizard("nonexistent")
 	if err == nil {
 		t.Error("GetWizard(nonexistent) should return error")
+	}
+}
+
+// TestKeywordMappings_EvaluationKeywords tests that evaluation-focused keywords
+// route to the correct review wizards
+func TestKeywordMappings_EvaluationKeywords(t *testing.T) {
+	tests := []struct {
+		keyword         string
+		expectedWizards []string
+	}{
+		{"evaluate", []string{"strategic_coherence_review", "feature_quality_review", "value_model_review"}},
+		{"evaluate quality", []string{"strategic_coherence_review", "feature_quality_review", "value_model_review"}},
+		{"evaluate strategy", []string{"strategic_coherence_review"}},
+		{"evaluate features", []string{"feature_quality_review"}},
+		{"evaluate value model", []string{"value_model_review"}},
+		{"assess quality", []string{"strategic_coherence_review", "feature_quality_review"}},
+		{"check quality", []string{"feature_quality_review", "value_model_review"}},
+		{"review quality", []string{"strategic_coherence_review", "feature_quality_review", "value_model_review"}},
+		{"quality review", []string{"strategic_coherence_review", "feature_quality_review", "value_model_review"}},
+		{"semantic review", []string{"strategic_coherence_review", "feature_quality_review", "value_model_review"}},
+		{"review instance", []string{"strategic_coherence_review", "feature_quality_review", "value_model_review"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.keyword, func(t *testing.T) {
+			wizards, ok := KeywordMappings[tt.keyword]
+			if !ok {
+				t.Errorf("KeywordMappings[%q] not found", tt.keyword)
+				return
+			}
+			if len(wizards) != len(tt.expectedWizards) {
+				t.Errorf("KeywordMappings[%q] has %d wizards, want %d: got %v",
+					tt.keyword, len(wizards), len(tt.expectedWizards), wizards)
+				return
+			}
+			for i, expected := range tt.expectedWizards {
+				if wizards[i] != expected {
+					t.Errorf("KeywordMappings[%q][%d] = %q, want %q",
+						tt.keyword, i, wizards[i], expected)
+				}
+			}
+		})
+	}
+}
+
+// TestRecommenderEvaluationRouting tests that the recommender correctly routes
+// evaluation tasks to review wizards
+func TestRecommenderEvaluationRouting(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "epf-wizard-eval-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	wizardsDir := filepath.Join(tempDir, "wizards")
+	if err := os.MkdirAll(wizardsDir, 0755); err != nil {
+		t.Fatalf("Failed to create wizards dir: %v", err)
+	}
+
+	testWizards := map[string]string{
+		"strategic_coherence_review.agent_prompt.md": `# Strategic Coherence Review
+**Trigger phrases:**
+- "evaluate strategy"
+- "strategic coherence"`,
+		"feature_quality_review.agent_prompt.md": `# Feature Quality Review
+**Trigger phrases:**
+- "evaluate features"
+- "feature quality"
+- "review feature definitions"`,
+		"value_model_review.agent_prompt.md": `# Value Model Review
+**Trigger phrases:**
+- "evaluate value model"
+- "value model quality"`,
+	}
+
+	for filename, content := range testWizards {
+		if err := os.WriteFile(filepath.Join(wizardsDir, filename), []byte(content), 0644); err != nil {
+			t.Fatalf("Failed to write %s: %v", filename, err)
+		}
+	}
+
+	loader := NewLoader(tempDir)
+	if err := loader.Load(); err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	recommender := NewRecommender(loader)
+
+	tests := []struct {
+		task           string
+		expectedWizard string
+	}{
+		{"evaluate our strategy quality", "strategic_coherence_review"},
+		{"review feature definitions", "feature_quality_review"},
+		{"evaluate value model", "value_model_review"},
+		{"evaluate features", "feature_quality_review"},
+		{"feature quality", "feature_quality_review"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.task, func(t *testing.T) {
+			rec, err := recommender.RecommendForTask(tt.task)
+			if err != nil {
+				t.Errorf("RecommendForTask(%q) error = %v", tt.task, err)
+				return
+			}
+			if rec == nil || rec.Wizard == nil {
+				t.Errorf("RecommendForTask(%q) returned nil recommendation", tt.task)
+				return
+			}
+			if rec.Wizard.Name != tt.expectedWizard {
+				t.Errorf("RecommendForTask(%q).Wizard.Name = %q, want %q", tt.task, rec.Wizard.Name, tt.expectedWizard)
+			}
+		})
 	}
 }

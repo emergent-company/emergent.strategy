@@ -2,10 +2,13 @@ package relationships
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/roadmap"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/valuemodel"
+	"gopkg.in/yaml.v3"
 )
 
 // Analyzer provides cross-artifact relationship analysis.
@@ -17,6 +20,7 @@ type Analyzer struct {
 	featureIndex *FeatureIndex
 	roadmapData  *roadmap.Roadmap
 	krIndex      *roadmap.KRIndex
+	mappings     []MappingEntry
 	validator    *Validator
 	coverage     *CoverageAnalyzer
 }
@@ -62,6 +66,9 @@ func (a *Analyzer) Load() error {
 	// Initialize validator and coverage analyzer
 	a.validator = NewValidator(valueModels)
 	a.coverage = NewCoverageAnalyzer(valueModels, features, a.krIndex)
+
+	// Load mappings (optional - FIRE/mappings.yaml may not exist)
+	a.mappings = a.loadMappings()
 
 	return nil
 }
@@ -247,7 +254,7 @@ type SubComponentInfo struct {
 
 // ValidateAll validates all relationships and returns the result.
 func (a *Analyzer) ValidateAll() *ValidationResult {
-	return a.validator.ValidateAll(a.features, a.roadmapData)
+	return a.validator.ValidateAll(a.features, a.roadmapData, a.mappings)
 }
 
 // AnalyzeCoverage returns coverage analysis for all tracks or a specific track.
@@ -291,6 +298,34 @@ func (a *Analyzer) GetRoadmap() *roadmap.Roadmap {
 // GetKRIndex returns the KR index.
 func (a *Analyzer) GetKRIndex() *roadmap.KRIndex {
 	return a.krIndex
+}
+
+// GetMappings returns the loaded mappings.
+func (a *Analyzer) GetMappings() []MappingEntry {
+	return a.mappings
+}
+
+// loadMappings loads mapping entries from FIRE/mappings.yaml.
+// Returns nil if the file doesn't exist or can't be parsed.
+func (a *Analyzer) loadMappings() []MappingEntry {
+	mappingsPath := filepath.Join(a.instancePath, "FIRE", "mappings.yaml")
+	data, err := os.ReadFile(mappingsPath)
+	if err != nil {
+		return nil
+	}
+
+	// mappings.yaml has top-level keys for each track (product, strategy, org_ops, commercial)
+	// Each track contains an array of MappingEntry objects.
+	var raw map[string][]MappingEntry
+	if err := yaml.Unmarshal(data, &raw); err != nil {
+		return nil
+	}
+
+	var entries []MappingEntry
+	for _, trackEntries := range raw {
+		entries = append(entries, trackEntries...)
+	}
+	return entries
 }
 
 // Summary returns a high-level summary of the EPF instance relationships.
