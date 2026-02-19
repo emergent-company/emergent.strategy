@@ -3,8 +3,10 @@ package checks
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/relationships"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/template"
 )
 
 // RelationshipsChecker validates EPF artifact relationships.
@@ -150,7 +152,18 @@ func (c *RelationshipsChecker) Check() (*RelationshipsResult, error) {
 		result.CoveredL2Components = coverageAnalysis.CoveredL2Components
 		result.OrphanFeatures = len(coverageAnalysis.OrphanFeatures)
 		result.UncoveredL2s = len(coverageAnalysis.UncoveredL2Components)
-		result.StrategicGaps = len(coverageAnalysis.KRTargetsWithoutFeatures)
+
+		// Filter strategic gaps to product track only.
+		// Canonical tracks (strategy, org_ops, commercial) don't have user-authored
+		// feature definitions (fd-* files), so KR targets in those tracks without
+		// feature coverage should not penalize the score.
+		productGaps := 0
+		for _, gap := range coverageAnalysis.KRTargetsWithoutFeatures {
+			if strings.HasPrefix(gap, "Product.") || template.IsProductTrackString(strings.SplitN(gap, ".", 2)[0]) {
+				productGaps++
+			}
+		}
+		result.StrategicGaps = productGaps
 
 		// Get detailed per-track coverage
 		trackDetails := analyzer.GetDetailedCoverageByTrack()
@@ -198,7 +211,12 @@ func (c *RelationshipsChecker) generateSuggestions(
 	}
 
 	// 2. High priority: Strategic gaps (KR targets without features)
+	// Only show gaps for product track paths — canonical tracks don't have
+	// user-authored feature definitions
 	for _, gap := range coverageAnalysis.KRTargetsWithoutFeatures {
+		if !strings.HasPrefix(gap, "Product.") {
+			continue // Skip canonical track gaps
+		}
 		suggestions = append(suggestions, RelationshipSuggestion{
 			Priority: "high",
 			Category: "strategic_gap",
@@ -241,7 +259,7 @@ func (c *RelationshipsChecker) generateSuggestions(
 		// Find the Product track uncovered components (most likely relevant)
 		var productUncovered []string
 		for _, path := range coverageAnalysis.UncoveredL2Components {
-			if len(path) > 8 && path[:8] == "Product." {
+			if template.IsProductTrackString(strings.SplitN(path, ".", 2)[0]) {
 				productUncovered = append(productUncovered, path)
 			}
 		}
@@ -285,6 +303,8 @@ func (c *RelationshipsChecker) generateSuggestions(
 }
 
 // calculateScore computes a 0-100 score for relationship health.
+// Uses product-track-only metrics for coverage bonus and strategic gaps
+// to avoid canonical tracks (strategy, org_ops, commercial) inflating/deflating scores.
 func (c *RelationshipsChecker) calculateScore(result *RelationshipsResult) int {
 	if result.TotalPathsChecked == 0 {
 		return 100 // No paths to check = no errors
@@ -300,6 +320,7 @@ func (c *RelationshipsChecker) calculateScore(result *RelationshipsResult) int {
 	score -= invalidPenalty
 
 	// Deduct for orphan features (warning) - 5 points each, max 20
+	// OrphanFeatures are already product-track only (fd-* files)
 	orphanPenalty := result.OrphanFeatures * 5
 	if orphanPenalty > 20 {
 		orphanPenalty = 20
@@ -307,6 +328,7 @@ func (c *RelationshipsChecker) calculateScore(result *RelationshipsResult) int {
 	score -= orphanPenalty
 
 	// Deduct for strategic gaps (warning) - 3 points each, max 15
+	// StrategicGaps is already filtered to product track only
 	gapPenalty := result.StrategicGaps * 3
 	if gapPenalty > 15 {
 		gapPenalty = 15
@@ -314,9 +336,15 @@ func (c *RelationshipsChecker) calculateScore(result *RelationshipsResult) int {
 	score -= gapPenalty
 
 	// Bonus for high coverage (up to 10 points back)
-	if result.CoveragePercent >= 80 {
+	// Use product-track-only coverage if available, as canonical tracks
+	// don't have feature definitions and would dilute the overall percentage
+	coveragePct := result.CoveragePercent
+	if productTrack, ok := result.CoverageByTrack["Product"]; ok && productTrack.CoveragePercent >= 0 {
+		coveragePct = productTrack.CoveragePercent
+	}
+	if coveragePct >= 80 {
 		score += 10
-	} else if result.CoveragePercent >= 60 {
+	} else if coveragePct >= 60 {
 		score += 5
 	}
 

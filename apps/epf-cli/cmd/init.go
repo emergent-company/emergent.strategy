@@ -621,6 +621,11 @@ func createInstanceStructure(instanceDir, productName, canonicalPath string, use
 		createDefaultTemplates(instanceDir, productName)
 	}
 
+	// Copy canonical definitions (sd-*, pd-*, cd-*) — these are framework-provided
+	// definitions for strategy, org_ops, and commercial tracks.
+	// Loading priority: instance > canonical_path > embedded
+	copyCanonicalDefinitions(instanceDir, canonicalPath, useEmbedded)
+
 	// Create anchor file (_epf.yaml) - the authoritative EPF instance marker
 	epfVersion := "2.12.0" // Default EPF version
 	anchorFile := anchor.NewWithOptions(productName, "", epfVersion)
@@ -728,6 +733,101 @@ func copyTemplatesFromEmbedded(instanceDir string) {
 		dst := filepath.Join(instanceDir, "AIM", filename)
 		os.WriteFile(dst, content, 0644)
 	}
+}
+
+// copyCanonicalDefinitions copies canonical track definitions (strategy, org_ops, commercial)
+// into the instance's READY/definitions/ directory structure.
+//
+// Loading priority:
+//  1. Instance-level files (already present) — skip
+//  2. canonical_path filesystem (if set)
+//  3. Embedded fallback
+func copyCanonicalDefinitions(instanceDir, canonicalPath string, useEmbedded bool) {
+	defsDir := filepath.Join(instanceDir, "READY", "definitions")
+
+	if !useEmbedded && canonicalPath != "" {
+		// Try filesystem: look for definitions/ under canonical path
+		fsDefs := filepath.Join(canonicalPath, "definitions")
+		if info, err := os.Stat(fsDefs); err == nil && info.IsDir() {
+			copyCanonicalDefinitionsFromFS(fsDefs, defsDir)
+			return
+		}
+	}
+
+	// Fallback to embedded definitions
+	copyCanonicalDefinitionsFromEmbedded(defsDir)
+}
+
+// copyCanonicalDefinitionsFromEmbedded copies definitions from the embedded binary.
+func copyCanonicalDefinitionsFromEmbedded(defsDir string) {
+	defs, err := embedded.ListCanonicalDefinitions()
+	if err != nil || len(defs) == 0 {
+		return
+	}
+
+	for _, def := range defs {
+		// Build destination path: READY/definitions/{track}/{category}/{file}
+		dstDir := filepath.Join(defsDir, def.Track)
+		if def.Category != "" {
+			dstDir = filepath.Join(dstDir, def.Category)
+		}
+		if err := os.MkdirAll(dstDir, 0755); err != nil {
+			continue
+		}
+
+		dst := filepath.Join(dstDir, def.Filename)
+		// Skip if already exists (instance-level takes priority)
+		if _, err := os.Stat(dst); err == nil {
+			continue
+		}
+
+		content, err := embedded.GetCanonicalDefinition(def.Filename)
+		if err != nil {
+			continue
+		}
+		os.WriteFile(dst, content, 0644)
+	}
+}
+
+// copyCanonicalDefinitionsFromFS copies definitions from a filesystem path
+// (e.g., canonical_path config). Only copies sd-*, pd-*, cd-* files (canonical tracks).
+func copyCanonicalDefinitionsFromFS(srcDefsDir, dstDefsDir string) {
+	filepath.Walk(srcDefsDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+		name := info.Name()
+		// Only copy canonical track definitions (not product fd-*)
+		if !strings.HasPrefix(name, "sd-") && !strings.HasPrefix(name, "pd-") && !strings.HasPrefix(name, "cd-") {
+			return nil
+		}
+		if !strings.HasSuffix(name, ".yaml") && !strings.HasSuffix(name, ".yml") {
+			return nil
+		}
+
+		// Compute relative path from srcDefsDir
+		rel, err := filepath.Rel(srcDefsDir, path)
+		if err != nil {
+			return nil
+		}
+
+		dstPath := filepath.Join(dstDefsDir, rel)
+		// Skip if already exists
+		if _, err := os.Stat(dstPath); err == nil {
+			return nil
+		}
+
+		if err := os.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
+			return nil
+		}
+
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		os.WriteFile(dstPath, content, 0644)
+		return nil
+	})
 }
 
 func createDefaultTemplates(instanceDir, productName string) {

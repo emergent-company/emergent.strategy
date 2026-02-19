@@ -305,7 +305,7 @@ func generateRecommendations(data *ReportData) {
 
 	// Content readiness recommendations
 	if data.ContentReadiness != nil && data.ContentReadiness.Score < 70 {
-		data.Recommendations = append(data.Recommendations, fmt.Sprintf("Replace %d placeholder patterns (TBD, TODO, etc.) with actual content", len(data.ContentReadiness.Placeholders)))
+		data.Recommendations = append(data.Recommendations, fmt.Sprintf("Replace %d placeholder patterns (TBD, TODO, etc.) in product artifacts with actual content", len(data.ContentReadiness.Placeholders)))
 	}
 
 	// Version alignment recommendations
@@ -417,7 +417,7 @@ func generateMarkdownReport(data *ReportData) (string, error) {
 
 	if data.ContentReadiness != nil && len(data.ContentReadiness.Placeholders) > 0 {
 		sb.WriteString("## Placeholder Content\n\n")
-		sb.WriteString(fmt.Sprintf("Found %d placeholder patterns:\n\n", len(data.ContentReadiness.Placeholders)))
+		sb.WriteString(fmt.Sprintf("Found %d placeholder patterns in product artifacts:\n\n", len(data.ContentReadiness.Placeholders)))
 
 		shown := 0
 		for _, p := range data.ContentReadiness.Placeholders {
@@ -428,6 +428,15 @@ func generateMarkdownReport(data *ReportData) (string, error) {
 			sb.WriteString(fmt.Sprintf("- `%s:%d` - %s\n", filepath.Base(p.File), p.Line, p.Content))
 			shown++
 		}
+
+		if data.ContentReadiness.CanonicalFiles > 0 {
+			sb.WriteString(fmt.Sprintf("\n> **Note:** %d canonical artifacts were excluded from scoring", data.ContentReadiness.CanonicalFiles))
+			if len(data.ContentReadiness.CanonicalPlaceholders) > 0 {
+				sb.WriteString(fmt.Sprintf(" (%d placeholders in canonical files are expected and do not affect the score)", len(data.ContentReadiness.CanonicalPlaceholders)))
+			}
+			sb.WriteString(".\n")
+		}
+
 		sb.WriteString("\n")
 	}
 
