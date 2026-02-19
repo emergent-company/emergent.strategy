@@ -919,6 +919,27 @@ func (s *Server) registerTools() {
 		s.handleFixFile,
 	)
 
+	// Tool: epf_sync_canonical
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_sync_canonical",
+			mcp.WithDescription("Sync missing canonical artifacts (definitions and value models) to an existing EPF instance. "+
+				"Adds canonical track definitions (strategy, org_ops, commercial) and canonical value models. "+
+				"Product artifacts are NOT synced (they are user-authored). "+
+				"By default, existing files are skipped. Use force=true to overwrite. Use dry_run=true to preview."),
+			mcp.WithString("instance_path",
+				mcp.Required(),
+				mcp.Description("Path to the EPF instance directory"),
+			),
+			mcp.WithString("force",
+				mcp.Description("Overwrite existing files (true/false, default: false)"),
+			),
+			mcp.WithString("dry_run",
+				mcp.Description("Preview changes without writing files (true/false, default: false)"),
+			),
+		),
+		s.handleSyncCanonical,
+	)
+
 	// ==========================================================================
 	// AIM Tools (v0.14.0)
 	// ==========================================================================
