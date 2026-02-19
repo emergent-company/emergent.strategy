@@ -1740,7 +1740,7 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 	if contentResult != nil {
 		sb.WriteString("## Content Readiness\n")
 		sb.WriteString(fmt.Sprintf("- Score: %d/100 (Grade: %s)\n", contentResult.Score, contentResult.Grade))
-		sb.WriteString(fmt.Sprintf("- Placeholders found: %d\n", len(contentResult.Placeholders)))
+		sb.WriteString(fmt.Sprintf("- Product placeholders found: %d\n", len(contentResult.Placeholders)))
 		sb.WriteString("\n")
 	}
 

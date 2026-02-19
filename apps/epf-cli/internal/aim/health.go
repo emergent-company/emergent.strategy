@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/template"
 	"gopkg.in/yaml.v3"
 )
 
@@ -387,13 +388,21 @@ func checkEvidenceGaps(instancePath string) []HealthDiagnostic {
 
 	// Check all KRs from roadmap
 	for trackName, track := range GetAllTracks(roadmap) {
+		// Use lower severity for canonical tracks (strategy, org_ops, commercial).
+		// Canonical track evidence gaps are informational, not actionable warnings,
+		// since the user may not have customized these tracks yet.
+		severity := "info"
+		if template.IsCanonicalTrackString(trackName) {
+			severity = "info" // Canonical tracks stay at info (no upgrade to warning)
+		}
+
 		for _, okr := range track.OKRs {
 			for _, kr := range okr.KeyResults {
 				if !evidencedKRs[kr.ID] {
 					diags = append(diags, HealthDiagnostic{
 						ID:          fmt.Sprintf("aim-evidence-gap-%s", kr.ID),
 						Category:    "evidence_gap",
-						Severity:    "info",
+						Severity:    severity,
 						Title:       fmt.Sprintf("KR %s lacks assessment evidence", kr.ID),
 						Description: fmt.Sprintf("Key result '%s' (%s track) has no evidence in the assessment report.", kr.Description, trackName),
 						Artifact:    "AIM/assessment_report.yaml",

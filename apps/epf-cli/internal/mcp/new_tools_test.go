@@ -95,6 +95,170 @@ func TestHandleInitInstance_MissingPath(t *testing.T) {
 	}
 }
 
+func TestHandleInitInstance_CreatesCanonicalDefinitions(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	// Create temp directory
+	tmpDir, err := os.MkdirTemp("", "epf-init-canonical-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Run init in standalone mode (not dry_run) to actually create files
+	// Use a subdirectory so it doesn't conflict with the existing tmpDir
+	instancePath := filepath.Join(tmpDir, "my-instance")
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"path":         instancePath,
+		"product_name": "test-canonical",
+		"mode":         "standalone",
+	}
+
+	result, err := server.handleInitInstance(ctx, request)
+	if err != nil {
+		t.Fatalf("handleInitInstance failed: %v", err)
+	}
+
+	content := getResultText(result)
+	if result.IsError {
+		t.Fatalf("Init returned error: %s", content)
+	}
+	var response InitInstanceResult
+	if err := json.Unmarshal([]byte(content), &response); err != nil {
+		t.Fatalf("Failed to parse response JSON (content=%q): %v", content[:min(len(content), 200)], err)
+	}
+
+	if !response.Success {
+		t.Fatalf("Expected success=true, got false: %s", response.Error)
+	}
+
+	// Check that definitions directory was created
+	defsDir := filepath.Join(instancePath, "READY", "definitions")
+	if _, err := os.Stat(defsDir); os.IsNotExist(err) {
+		t.Fatal("READY/definitions/ directory was not created")
+	}
+
+	// Check that all 3 canonical track directories exist
+	for _, track := range []string{"strategy", "org_ops", "commercial"} {
+		trackDir := filepath.Join(defsDir, track)
+		if _, err := os.Stat(trackDir); os.IsNotExist(err) {
+			t.Errorf("definitions/%s/ directory was not created", track)
+		}
+	}
+
+	// Count definition files — should have at least some
+	defCount := 0
+	filepath.Walk(defsDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+		if strings.HasSuffix(info.Name(), ".yaml") {
+			defCount++
+		}
+		return nil
+	})
+
+	if defCount == 0 {
+		t.Error("No canonical definition files were created")
+	}
+	if defCount < 100 {
+		t.Errorf("Expected at least 100 canonical definitions, got %d", defCount)
+	}
+	t.Logf("Created %d canonical definition files across strategy/org_ops/commercial", defCount)
+
+	// Verify no product definitions (fd-*) were created
+	filepath.Walk(defsDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+		if strings.HasPrefix(info.Name(), "fd-") {
+			t.Errorf("Product definition %s should not be in canonical definitions", info.Name())
+		}
+		return nil
+	})
+
+	// Verify canonical definitions appear in FilesCreated list
+	defFilesInResult := 0
+	for _, f := range response.FilesCreated {
+		if strings.Contains(f, "definitions") && strings.HasSuffix(f, ".yaml") {
+			defFilesInResult++
+		}
+	}
+	if defFilesInResult == 0 {
+		t.Error("Canonical definition files not listed in FilesCreated")
+	}
+}
+
+func TestHandleInitInstance_DryRun_IncludesCanonicalDefinitions(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	tmpDir, err := os.MkdirTemp("", "epf-init-dryrun-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"path":         tmpDir,
+		"product_name": "test-dryrun",
+		"mode":         "standalone",
+		"dry_run":      "true",
+	}
+
+	result, err := server.handleInitInstance(ctx, request)
+	if err != nil {
+		t.Fatalf("handleInitInstance failed: %v", err)
+	}
+
+	content := getResultText(result)
+	var response InitInstanceResult
+	if err := json.Unmarshal([]byte(content), &response); err != nil {
+		t.Fatalf("Failed to parse response JSON: %v", err)
+	}
+
+	if !response.Success || !response.DryRun {
+		t.Fatalf("Expected success=true dry_run=true, got success=%v dry_run=%v", response.Success, response.DryRun)
+	}
+
+	// dry_run should include canonical definition paths
+	defFilesInDryRun := 0
+	for _, f := range response.FilesCreated {
+		if strings.Contains(f, "definitions") && strings.HasSuffix(f, ".yaml") {
+			defFilesInDryRun++
+		}
+	}
+	if defFilesInDryRun < 100 {
+		t.Errorf("Expected at least 100 canonical definitions in dry_run listing, got %d", defFilesInDryRun)
+	}
+	t.Logf("Dry run lists %d canonical definition files", defFilesInDryRun)
+
+	// Verify no files were actually created on disk
+	defsDir := filepath.Join(tmpDir, "READY", "definitions")
+	if _, err := os.Stat(defsDir); !os.IsNotExist(err) {
+		t.Error("dry_run should not create any files on disk")
+	}
+}
+
 func TestHandleFixFile(t *testing.T) {
 	schemasDir := findSchemasDir()
 	if schemasDir == "" {

@@ -290,7 +290,7 @@ func generateReportRecommendations(data *ReportResult) {
 	}
 
 	if data.ContentReadiness != nil && data.ContentReadiness.Score < 70 {
-		data.Recommendations = append(data.Recommendations, fmt.Sprintf("Replace %d placeholder patterns (TBD, TODO, etc.) with actual content", len(data.ContentReadiness.Placeholders)))
+		data.Recommendations = append(data.Recommendations, fmt.Sprintf("Replace %d placeholder patterns (TBD, TODO, etc.) in product artifacts with actual content", len(data.ContentReadiness.Placeholders)))
 	}
 
 	if data.VersionAlignment != nil && data.VersionAlignment.HasOutdatedArtifacts() {
