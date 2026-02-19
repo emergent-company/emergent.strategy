@@ -1098,3 +1098,107 @@ func tryAddMetaVersion(content string) (string, bool) {
 
 	return content, false
 }
+
+// =============================================================================
+// Sync Canonical Artifacts Tool
+// =============================================================================
+
+// SyncCanonicalResult represents the result of syncing canonical artifacts
+type SyncCanonicalResult struct {
+	Success  bool     `json:"success"`
+	Instance string   `json:"instance_path"`
+	DryRun   bool     `json:"dry_run"`
+	Force    bool     `json:"force"`
+	Added    []string `json:"added"`
+	Skipped  []string `json:"skipped"`
+	Updated  []string `json:"updated"`
+	Errors   []string `json:"errors,omitempty"`
+	Summary  struct {
+		AddedCount   int `json:"added"`
+		SkippedCount int `json:"skipped"`
+		UpdatedCount int `json:"updated"`
+		ErrorCount   int `json:"errors"`
+	} `json:"summary"`
+}
+
+// handleSyncCanonical handles the epf_sync_canonical tool
+func (s *Server) handleSyncCanonical(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	// Get parameters
+	instancePath, err := request.RequireString("instance_path")
+	if err != nil {
+		return mcp.NewToolResultError("instance_path parameter is required"), nil
+	}
+
+	// Optional parameters
+	forceStr, _ := request.RequireString("force")
+	force := strings.ToLower(forceStr) == "true"
+
+	dryRunStr, _ := request.RequireString("dry_run")
+	dryRun := strings.ToLower(dryRunStr) == "true"
+
+	// Resolve path
+	absPath, err := filepath.Abs(instancePath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid path: %s", err.Error())), nil
+	}
+
+	// Check if path is in canonical EPF (block writes)
+	if isCanonicalEPFPath(absPath) {
+		return mcp.NewToolResultError(
+			"Cannot sync canonical artifacts in canonical EPF repository. " +
+				"This tool is for syncing canonical artifacts TO product instances, not modifying the framework itself.",
+		), nil
+	}
+
+	// Run sync
+	opts := embedded.SyncOptions{
+		Force:  force,
+		DryRun: dryRun,
+	}
+
+	syncResult, err := embedded.SyncCanonical(absPath, opts)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Sync failed: %s", err.Error())), nil
+	}
+
+	// Relativize paths for cleaner output
+	relAdded := relativizePathsMCP(syncResult.Added, absPath)
+	relSkipped := relativizePathsMCP(syncResult.Skipped, absPath)
+	relUpdated := relativizePathsMCP(syncResult.Updated, absPath)
+
+	result := &SyncCanonicalResult{
+		Success:  len(syncResult.Errors) == 0,
+		Instance: absPath,
+		DryRun:   dryRun,
+		Force:    force,
+		Added:    relAdded,
+		Skipped:  relSkipped,
+		Updated:  relUpdated,
+		Errors:   syncResult.Errors,
+	}
+	result.Summary.AddedCount = len(syncResult.Added)
+	result.Summary.SkippedCount = len(syncResult.Skipped)
+	result.Summary.UpdatedCount = len(syncResult.Updated)
+	result.Summary.ErrorCount = len(syncResult.Errors)
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize result: %s", err.Error())), nil
+	}
+
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+// relativizePathsMCP converts absolute paths to paths relative to the base directory
+func relativizePathsMCP(paths []string, base string) []string {
+	rel := make([]string, len(paths))
+	for i, p := range paths {
+		r, err := filepath.Rel(base, p)
+		if err != nil {
+			rel[i] = p
+		} else {
+			rel[i] = r
+		}
+	}
+	return rel
+}
