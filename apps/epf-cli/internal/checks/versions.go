@@ -7,9 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/migration"
 	"gopkg.in/yaml.v3"
 )
 
@@ -292,38 +292,31 @@ func (c *VersionAlignmentChecker) calculateVersionStatus(artifactVersion, schema
 		return VersionCurrent
 	}
 
-	// Parse versions
-	aMajor, aMinor, _ := parseVersion(artifactVersion)
-	sMajor, sMinor, _ := parseVersion(schemaVersion)
-
-	// Major version difference
-	if sMajor > aMajor {
-		return VersionOutdated
+	cmp, err := migration.CompareVersions(artifactVersion, schemaVersion)
+	if err != nil {
+		return VersionUnknown
 	}
 
-	// Minor version difference
-	minorDiff := sMinor - aMinor
-	if minorDiff >= 3 {
-		return VersionStale
-	} else if minorDiff > 0 {
+	switch {
+	case cmp == 0:
+		return VersionCurrent
+	case cmp > 0:
+		// Artifact is ahead of schema — treat as current (artifact was updated, schema hasn't caught up)
+		return VersionCurrent
+	default:
+		// Artifact is behind schema — determine severity
+		av, _ := migration.ParseVersion(artifactVersion)
+		sv, _ := migration.ParseVersion(schemaVersion)
+
+		if sv.Major > av.Major {
+			return VersionOutdated
+		}
+		minorDiff := sv.Minor - av.Minor
+		if minorDiff >= 3 {
+			return VersionStale
+		}
 		return VersionBehind
 	}
-
-	return VersionCurrent
-}
-
-func parseVersion(version string) (major, minor, patch int) {
-	parts := strings.Split(version, ".")
-	if len(parts) >= 1 {
-		major, _ = strconv.Atoi(parts[0])
-	}
-	if len(parts) >= 2 {
-		minor, _ = strconv.Atoi(parts[1])
-	}
-	if len(parts) >= 3 {
-		patch, _ = strconv.Atoi(parts[2])
-	}
-	return
 }
 
 func (c *VersionAlignmentChecker) generateRecommendations(result *VersionAlignmentResult) {

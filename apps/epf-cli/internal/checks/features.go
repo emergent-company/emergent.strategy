@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -62,8 +63,8 @@ var RecommendedScenarioFieldNames = []string{
 	"name",
 	"context",
 	"trigger",
-	"steps",
-	"expected_outcome",
+	"action",
+	"outcome",
 }
 
 // Check runs feature quality validation on a directory or file
@@ -195,6 +196,12 @@ func (c *FeatureQualityChecker) checkFeatureFile(path string) *FeatureQualityRes
 	// Check context fields
 	c.checkContext(feature, result)
 
+	// Check contributes_to cardinality
+	c.checkContributesToCardinality(feature, result)
+
+	// Check persona narrative quality (returns count for -2/issue scoring)
+	narrativeHintCount := c.checkNarrativeQuality(feature, result)
+
 	// Calculate final score and passed status
 	criticalCount := 0
 	errorCount := 0
@@ -211,8 +218,27 @@ func (c *FeatureQualityChecker) checkFeatureFile(path string) *FeatureQualityRes
 		}
 	}
 
-	// Score calculation: -20 for critical, -10 for error, -5 for warning
-	result.Score = 100 - (criticalCount * 20) - (errorCount * 10) - (warningCount * 5)
+	// Score calculation: -20 for critical, -10 for error, -5 for warning, -2 for narrative hint (capped at -10)
+	narrativePenalty := narrativeHintCount * 2
+	if narrativePenalty > 10 {
+		narrativePenalty = 10 // Cap narrative quality penalty to avoid overwhelming score impact
+	}
+	result.Score = 100 - (criticalCount * 20) - (errorCount * 10) - (warningCount * 5) - narrativePenalty
+
+	// Apply structural completeness caps
+	// Features missing scenarios should not score above 80 (per feedback)
+	// Features missing contexts should lose ~10 points total (warning -5 + additional -5)
+	for _, issue := range result.Issues {
+		if issue.Field == "scenarios" && strings.Contains(issue.Message, "No scenarios") {
+			if result.Score > 80 {
+				result.Score = 80
+			}
+		}
+		if issue.Field == "contexts" && strings.Contains(issue.Message, "No contexts") {
+			result.Score -= 5 // Additional -5 on top of warning's -5 = -10 total
+		}
+	}
+
 	if result.Score < 0 {
 		result.Score = 0
 	}
@@ -326,8 +352,14 @@ func (c *FeatureQualityChecker) checkScenarios(feature map[string]interface{}, r
 	scenarios, ok := feature["scenarios"].([]interface{})
 	if !ok {
 		// Check if scenarios is in definition block
-		if def, ok := feature["definition"].(map[string]interface{}); ok {
+		if def, defOk := feature["definition"].(map[string]interface{}); defOk {
 			scenarios, ok = def["scenarios"].([]interface{})
+		}
+	}
+	if !ok {
+		// Check if scenarios is in implementation block (EPF v2 schema)
+		if impl, implOk := feature["implementation"].(map[string]interface{}); implOk {
+			scenarios, ok = impl["scenarios"].([]interface{})
 		}
 	}
 
@@ -402,31 +434,196 @@ func (c *FeatureQualityChecker) checkDependencies(feature map[string]interface{}
 }
 
 func (c *FeatureQualityChecker) checkContext(feature map[string]interface{}, result *FeatureQualityResult) {
-	definition, ok := feature["definition"].(map[string]interface{})
-	if !ok {
-		return
+	// Check for contexts in multiple locations (EPF v2 uses implementation.contexts)
+	var contexts []interface{}
+	found := false
+
+	// 1. Check definition.context (legacy single-context format)
+	if definition, ok := feature["definition"].(map[string]interface{}); ok {
+		if ctx, ok := definition["context"].(map[string]interface{}); ok {
+			contexts = []interface{}{ctx}
+			found = true
+		}
 	}
 
-	context, ok := definition["context"].(map[string]interface{})
-	if !ok {
+	// 2. Check implementation.contexts (EPF v2 array format)
+	if !found {
+		if impl, ok := feature["implementation"].(map[string]interface{}); ok {
+			if ctxs, ok := impl["contexts"].([]interface{}); ok && len(ctxs) > 0 {
+				contexts = ctxs
+				found = true
+			}
+		}
+	}
+
+	// 3. Check top-level contexts (fallback)
+	if !found {
+		if ctxs, ok := feature["contexts"].([]interface{}); ok && len(ctxs) > 0 {
+			contexts = ctxs
+			found = true
+		}
+	}
+
+	if !found {
 		result.Issues = append(result.Issues, QualityIssue{
-			Field:    "definition.context",
+			Field:    "contexts",
 			Severity: SeverityWarning,
-			Message:  "Missing 'context' block in definition",
+			Message:  "No contexts defined (recommended: define in implementation.contexts)",
 		})
 		return
 	}
 
-	// Check required context fields
+	// Check each context has recommended fields
 	requiredContextFields := []string{"key_interactions", "data_displayed"}
-	for _, field := range requiredContextFields {
-		if _, ok := context[field]; !ok {
-			result.Issues = append(result.Issues, QualityIssue{
-				Field:    fmt.Sprintf("definition.context.%s", field),
-				Severity: SeverityWarning,
-				Message:  fmt.Sprintf("Missing '%s' in context", field),
-			})
+	for i, c := range contexts {
+		ctx, ok := c.(map[string]interface{})
+		if !ok {
+			continue
 		}
+		for _, field := range requiredContextFields {
+			if _, ok := ctx[field]; !ok {
+				result.Issues = append(result.Issues, QualityIssue{
+					Field:    fmt.Sprintf("contexts[%d].%s", i, field),
+					Severity: SeverityWarning,
+					Message:  fmt.Sprintf("Missing '%s' in context", field),
+				})
+			}
+		}
+	}
+}
+
+// Regex for detecting concrete metrics in narratives (percentages, time savings, etc.)
+var metricsPattern = regexp.MustCompile(`\d+\s*(%|percent|hours?|minutes?|days?|weeks?|x faster|x more|times)|\$\d|€\d|£\d|reduction|increase|improve`)
+
+// checkNarrativeQuality validates persona narrative depth and quality.
+// Returns the number of narrative quality hints emitted (used for -2/issue scoring).
+// Checks: paragraph count (3+), char count per paragraph (200+), metrics presence,
+// bullet-point (lazy list) detection.
+func (c *FeatureQualityChecker) checkNarrativeQuality(feature map[string]interface{}, result *FeatureQualityResult) int {
+	definition, ok := feature["definition"].(map[string]interface{})
+	if !ok {
+		return 0
+	}
+	personas, ok := definition["personas"].([]interface{})
+	if !ok {
+		return 0
+	}
+
+	hintCount := 0
+	narrativeFields := []string{"current_situation", "transformation_moment", "emotional_resolution"}
+
+	for i, p := range personas {
+		persona, ok := p.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		for _, field := range narrativeFields {
+			text, ok := persona[field].(string)
+			if !ok || len(text) == 0 {
+				continue
+			}
+
+			fieldPath := fmt.Sprintf("definition.personas[%d].%s", i, field)
+
+			// Split into paragraphs (double newline or significant breaks)
+			paragraphs := splitParagraphs(text)
+			if len(paragraphs) < 3 {
+				result.Issues = append(result.Issues, QualityIssue{
+					Field:    fieldPath,
+					Severity: SeverityInfo,
+					Message:  fmt.Sprintf("Narrative has %d paragraph(s); 3+ recommended for depth", len(paragraphs)),
+					Expected: ">= 3 paragraphs",
+					Actual:   fmt.Sprintf("%d paragraphs", len(paragraphs)),
+				})
+				hintCount++
+			}
+
+			// Check short paragraphs
+			for j, para := range paragraphs {
+				if len(para) < 200 {
+					result.Issues = append(result.Issues, QualityIssue{
+						Field:    fmt.Sprintf("%s.paragraph[%d]", fieldPath, j),
+						Severity: SeverityInfo,
+						Message:  fmt.Sprintf("Paragraph is %d chars; 200+ recommended", len(para)),
+					})
+					hintCount++
+					break // Only flag once per field to avoid noise
+				}
+			}
+
+			// Detect bullet-point lists (lazy narratives)
+			bulletLines := 0
+			for _, line := range strings.Split(text, "\n") {
+				trimmed := strings.TrimSpace(line)
+				if strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") || strings.HasPrefix(trimmed, "• ") {
+					bulletLines++
+				}
+			}
+			totalLines := len(strings.Split(text, "\n"))
+			if totalLines > 0 && float64(bulletLines)/float64(totalLines) > 0.5 {
+				result.Issues = append(result.Issues, QualityIssue{
+					Field:    fieldPath,
+					Severity: SeverityInfo,
+					Message:  "Narrative is mostly bullet points; prose paragraphs are preferred for persona narratives",
+				})
+				hintCount++
+			}
+
+			// Check for concrete metrics
+			if !metricsPattern.MatchString(text) {
+				result.Issues = append(result.Issues, QualityIssue{
+					Field:    fieldPath,
+					Severity: SeverityInfo,
+					Message:  "Narrative lacks concrete metrics (e.g., percentages, time savings, dollar amounts)",
+				})
+				hintCount++
+			}
+		}
+	}
+
+	return hintCount
+}
+
+// splitParagraphs splits text into paragraphs by double newlines or significant whitespace.
+func splitParagraphs(text string) []string {
+	// Normalize line endings
+	text = strings.ReplaceAll(text, "\r\n", "\n")
+	// Split on double newlines
+	raw := strings.Split(text, "\n\n")
+	var result []string
+	for _, p := range raw {
+		trimmed := strings.TrimSpace(p)
+		if len(trimmed) > 0 {
+			result = append(result, trimmed)
+		}
+	}
+	if len(result) == 0 && len(strings.TrimSpace(text)) > 0 {
+		result = append(result, strings.TrimSpace(text))
+	}
+	return result
+}
+
+// checkContributesToCardinality adds an INFO nudge when a feature only contributes
+// to a single value model path. Features with broader strategic impact typically
+// contribute to 2+ paths. This is informational only — no score penalty.
+func (c *FeatureQualityChecker) checkContributesToCardinality(feature map[string]interface{}, result *FeatureQualityResult) {
+	sc, ok := feature["strategic_context"].(map[string]interface{})
+	if !ok {
+		return
+	}
+	ct, ok := sc["contributes_to"].([]interface{})
+	if !ok || len(ct) == 0 {
+		return // Missing contributes_to is caught by schema validation, not here
+	}
+	if len(ct) == 1 {
+		result.Issues = append(result.Issues, QualityIssue{
+			Field:    "strategic_context.contributes_to",
+			Severity: SeverityInfo,
+			Message:  "Feature contributes to only 1 value model path; consider whether it impacts additional components",
+			Expected: ">= 2 paths for broader strategic alignment",
+			Actual:   fmt.Sprintf("%d path", len(ct)),
+		})
 	}
 }
 

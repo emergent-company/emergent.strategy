@@ -3,32 +3,69 @@
 > **This file is for AI coding assistants (GitHub Copilot, Claude, Cursor, etc.)**
 > Read this FIRST before performing any EPF operations.
 
+## Mandatory Protocols
+
+**Every EPF interaction MUST follow these protocols:**
+
+### 1. Wizard-First (MANDATORY)
+
+Before creating, modifying, or evaluating any EPF artifact or instance:
+
+1. `epf_get_wizard_for_task` -- find the right wizard for your task
+2. `epf_get_wizard` -- retrieve wizard instructions
+3. Follow the wizard to produce the artifact
+4. `epf_validate_file` -- validate the result
+
+### 2. Strategy-Context (MANDATORY for feature/roadmap work)
+
+Before feature work, roadmap changes, or competitive decisions:
+
+| Need | Tool |
+|------|------|
+| Product direction | `epf_get_product_vision` |
+| Target users | `epf_get_personas` / `epf_get_persona_details` |
+| Competitive landscape | `epf_get_competitive_position` |
+| Current priorities | `epf_get_roadmap_summary` |
+| Search strategy | `epf_search_strategy` |
+| Feature context | `epf_get_feature_strategy_context` |
+
+### 3. Validate-Always (MANDATORY)
+
+After ANY change to an EPF YAML file: `epf_validate_file({ path: "<file>" })`
+
 ## Quick Start
 
 This repository uses **epf-cli** for all EPF operations. The canonical EPF framework (schemas, templates, wizards, generators, definitions) is loaded from a central location, not stored in this repo.
 
-### Configuration
+### MCP Server Configuration
 
-The epf-cli is configured via `~/.epf-cli.yaml`:
+The epf-cli exposes **65+ MCP tools** across two server modes:
 
-```yaml
-canonical_path: /path/to/canonical-epf
-```
+| Mode | Command | Purpose |
+|------|---------|---------|
+| `epf serve` | Generic EPF tools | Validation, wizards, generators, health |
+| `strategy serve <path>` | Strategy-aware EPF tools | All of the above + `instance_path` defaults to the given path |
+
+When using `strategy serve`, all tools that accept `instance_path` will default to the configured instance, so you don't need to pass it explicitly.
 
 ### MCP Tools Available
 
-When using epf-cli as an MCP server, you have access to 30 tools:
-
-| Category          | Tools                                                                                                       |
-| ----------------- | ----------------------------------------------------------------------------------------------------------- |
-| **Schemas**       | `epf_list_schemas`, `epf_get_schema`, `epf_validate_file`, `epf_validate_content`                           |
-| **Templates**     | `epf_get_template`, `epf_list_artifacts`, `epf_get_phase_artifacts`                                         |
-| **Definitions**   | `epf_list_definitions`, `epf_get_definition`                                                                |
-| **Wizards**       | `epf_list_wizards`, `epf_get_wizard`, `epf_get_wizard_for_task`                                             |
-| **Generators**    | `epf_list_generators`, `epf_get_generator`, `epf_check_generator_prereqs`, `epf_validate_generator_output`  |
-| **Health**        | `epf_health_check`, `epf_check_instance`, `epf_check_content_readiness`, `epf_check_feature_quality`        |
-| **Relationships** | `epf_validate_relationships`, `epf_explain_value_path`, `epf_get_strategic_context`, `epf_analyze_coverage` |
-| **Migration**     | `epf_check_migration_status`, `epf_get_migration_guide`                                                     |
+| Category | Tools |
+|----------|-------|
+| **Schemas** | `epf_list_schemas`, `epf_get_schema`, `epf_validate_file`, `epf_validate_content`, `epf_detect_artifact_type`, `epf_get_phase_artifacts` |
+| **Templates** | `epf_get_template`, `epf_list_artifacts` |
+| **Definitions** | `epf_list_definitions`, `epf_get_definition` |
+| **Wizards** | `epf_list_wizards`, `epf_get_wizard`, `epf_get_wizard_for_task`, `epf_list_agent_instructions`, `epf_get_agent_instructions` |
+| **Generators** | `epf_list_generators`, `epf_get_generator`, `epf_check_generator_prereqs`, `epf_validate_generator_output`, `epf_scaffold_generator` |
+| **Health** | `epf_health_check`, `epf_check_instance`, `epf_check_content_readiness`, `epf_check_feature_quality` |
+| **Relationships** | `epf_validate_relationships`, `epf_explain_value_path`, `epf_get_strategic_context`, `epf_analyze_coverage`, `epf_suggest_relationships` |
+| **Maintenance** | `epf_add_implementation_reference`, `epf_update_capability_maturity`, `epf_add_mapping_artifact` |
+| **Strategy** | `epf_get_product_vision`, `epf_get_personas`, `epf_get_persona_details`, `epf_get_value_propositions`, `epf_get_competitive_position`, `epf_get_roadmap_summary`, `epf_search_strategy`, `epf_get_feature_strategy_context` |
+| **AIM** | `epf_aim_bootstrap`, `epf_aim_status`, `epf_aim_assess`, `epf_aim_validate_assumptions`, `epf_aim_okr_progress`, `epf_aim_health`, `epf_aim_init_cycle`, `epf_aim_archive_cycle`, `epf_aim_update_lra`, `epf_aim_generate_src`, `epf_aim_recalibrate`, `epf_aim_write_assessment`, `epf_aim_write_calibration`, `epf_aim_write_src` |
+| **Reports** | `epf_generate_report`, `epf_diff_artifacts`, `epf_diff_template` |
+| **Discovery** | `epf_agent_instructions`, `epf_locate_instance` |
+| **Instance** | `epf_init_instance`, `epf_fix_file`, `epf_check_migration_status`, `epf_get_migration_guide` |
+| **Validation** | `epf_validate_section`, `epf_validate_with_plan`, `epf_validate_relationships`, `epf_check_feature_quality`, `epf_get_section_example` |
 
 ## Common Operations
 
@@ -59,7 +96,7 @@ Or via MCP: `epf_get_template({ artifact_type: "feature_definition" })`
 ### Get a Wizard
 
 ```bash
-epf-cli wizards get feature_definition
+epf-cli wizards show feature_definition
 ```
 
 Or via MCP: `epf_get_wizard({ name: "feature_definition" })`
@@ -106,11 +143,11 @@ docs/EPF/
 
 ## Working with EPF Artifacts
 
-### Creating New Artifacts
+### Creating New Artifacts (Wizard-First)
 
-1. Get the template: `epf_get_template({ artifact_type: "feature_definition" })`
-2. Get the wizard for guidance: `epf_get_wizard({ name: "feature_definition" })`
-3. Create the file with the template structure
+1. Find the wizard: `epf_get_wizard_for_task({ task: "create a feature definition" })`
+2. Get the wizard: `epf_get_wizard({ name: "feature_definition" })`
+3. Follow wizard instructions to produce the artifact
 4. Validate: `epf_validate_file({ path: "<new_file_path>" })`
 
 ### Updating Existing Artifacts
@@ -153,10 +190,12 @@ If artifacts need schema updates:
 
 ## Best Practices
 
-1. **Always validate** after making changes
-2. **Use wizards** for guidance on complex artifacts
-3. **Check relationships** when modifying value model references
-4. **Run health checks** periodically to catch issues early
+1. **Always use wizards** before creating any EPF artifact (MANDATORY)
+2. **Always validate** after making changes (MANDATORY)
+3. **Query strategy context** before feature or roadmap work
+4. **Check relationships** when modifying value model references
+5. **Run health checks** periodically -- follow semantic review recommendations
+6. **Follow semantic triggers** -- when health check recommends a review wizard, run it
 
 ---
 

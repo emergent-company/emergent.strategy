@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -163,6 +164,60 @@ func (s *Server) handleGetWizard(ctx context.Context, request mcp.CallToolReques
 	return mcp.NewToolResultText(string(jsonBytes)), nil
 }
 
+// handleReviewStrategicCoherence is a wrapper that returns the strategic_coherence_review wizard
+func (s *Server) handleReviewStrategicCoherence(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return s.getReviewWizard("strategic_coherence_review")
+}
+
+// handleReviewFeatureQuality is a wrapper that returns the feature_quality_review wizard
+func (s *Server) handleReviewFeatureQuality(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return s.getReviewWizard("feature_quality_review")
+}
+
+// handleReviewValueModel is a wrapper that returns the value_model_review wizard
+func (s *Server) handleReviewValueModel(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return s.getReviewWizard("value_model_review")
+}
+
+// getReviewWizard retrieves a review wizard by name, shared by all review wrapper handlers
+func (s *Server) getReviewWizard(name string) (*mcp.CallToolResult, error) {
+	if s.wizardLoader == nil || !s.wizardLoader.HasWizards() {
+		return mcp.NewToolResultError("Wizards not loaded. Ensure EPF wizards directory exists."), nil
+	}
+
+	w, err := s.wizardLoader.GetWizard(name)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Review wizard not found: %s. Ensure canonical EPF wizards are synced.", name)), nil
+	}
+
+	response := WizardResponse{
+		Name:             w.Name,
+		Type:             string(w.Type),
+		Phase:            string(w.Phase),
+		Purpose:          w.Purpose,
+		Content:          w.Content,
+		Triggers:         w.TriggerPhrases,
+		Duration:         w.Duration,
+		Outputs:          w.Outputs,
+		RelatedWizards:   w.RelatedWizards,
+		RelatedTemplates: w.RelatedTemplates,
+		RelatedSchemas:   w.RelatedSchemas,
+	}
+
+	jsonBytes, err := json.MarshalIndent(response, "", "  ")
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize response: %s", err.Error())), nil
+	}
+
+	return mcp.NewToolResultText(string(jsonBytes)), nil
+}
+
+// WizardAlternativeItem represents an alternative wizard in recommendations
+type WizardAlternativeItem struct {
+	Name   string `json:"name"`
+	Reason string `json:"reason"`
+}
+
 // WizardRecommendationResponse represents the response for epf_get_wizard_for_task
 type WizardRecommendationResponse struct {
 	Task              string                  `json:"task"`
@@ -173,12 +228,6 @@ type WizardRecommendationResponse struct {
 	WizardPhase       string                  `json:"wizard_phase,omitempty"`
 	Alternatives      []WizardAlternativeItem `json:"alternatives,omitempty"`
 	Guidance          Guidance                `json:"guidance"`
-}
-
-// WizardAlternativeItem represents an alternative wizard in recommendations
-type WizardAlternativeItem struct {
-	Name   string `json:"name"`
-	Reason string `json:"reason"`
 }
 
 // handleGetWizardForTask handles the epf_get_wizard_for_task tool
@@ -332,6 +381,96 @@ func (s *Server) handleGetAgentInstructions(ctx context.Context, request mcp.Cal
 	}
 
 	jsonBytes, err := json.MarshalIndent(response, "", "  ")
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize response: %s", err.Error())), nil
+	}
+
+	return mcp.NewToolResultText(string(jsonBytes)), nil
+}
+
+// ReviewWizardInfo describes a review wizard for the epf_recommend_reviews tool
+type ReviewWizardInfo struct {
+	Name       string `json:"name"`
+	Purpose    string `json:"purpose"`
+	Type       string `json:"type"`
+	Invocation string `json:"invocation"`
+}
+
+// ReviewRecommendationsResponse is the response from epf_recommend_reviews
+type ReviewRecommendationsResponse struct {
+	ReviewWizards   []ReviewWizardInfo `json:"review_wizards"`
+	InstanceContext string             `json:"instance_context,omitempty"`
+	Usage           string             `json:"usage"`
+}
+
+// handleRecommendReviews handles the epf_recommend_reviews tool
+func (s *Server) handleRecommendReviews(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	// Define the three review wizards
+	reviewWizards := []ReviewWizardInfo{
+		{
+			Name:       "strategic_coherence_review",
+			Purpose:    "Evaluates strategic alignment across all EPF artifacts — checks vision-to-execution chain, cross-references, and strategic coherence",
+			Type:       "agent_prompt",
+			Invocation: `epf_get_wizard { "name": "strategic_coherence_review" }`,
+		},
+		{
+			Name:       "feature_quality_review",
+			Purpose:    "Evaluates feature definition quality — personas, scenarios, narratives, JTBD completeness, and capability structure",
+			Type:       "agent_prompt",
+			Invocation: `epf_get_wizard { "name": "feature_quality_review" }`,
+		},
+		{
+			Name:       "value_model_review",
+			Purpose:    "Evaluates value model structure and anti-patterns — layer consistency, naming conventions, maturity tracking",
+			Type:       "agent_prompt",
+			Invocation: `epf_get_wizard { "name": "value_model_review" }`,
+		},
+	}
+
+	// Build optional instance context
+	instanceContext := ""
+	instancePath := s.resolveInstancePath(request)
+	if instancePath != "" {
+		// Count value model files
+		vmFiles := 0
+		fdFiles := 0
+		vmDir := instancePath + "/FIRE/value_models"
+		fdDir := instancePath + "/FIRE/feature_definitions"
+
+		if entries, err := os.ReadDir(vmDir); err == nil {
+			for _, e := range entries {
+				if !e.IsDir() && strings.HasSuffix(e.Name(), ".yaml") {
+					vmFiles++
+				}
+			}
+		}
+		if entries, err := os.ReadDir(fdDir); err == nil {
+			for _, e := range entries {
+				if !e.IsDir() && strings.HasSuffix(e.Name(), ".yaml") {
+					fdFiles++
+				}
+			}
+		}
+
+		parts := []string{}
+		if vmFiles > 0 {
+			parts = append(parts, fmt.Sprintf("%d value model file(s)", vmFiles))
+		}
+		if fdFiles > 0 {
+			parts = append(parts, fmt.Sprintf("%d feature definition(s)", fdFiles))
+		}
+		if len(parts) > 0 {
+			instanceContext = fmt.Sprintf("Instance at %s has %s", instancePath, strings.Join(parts, " and "))
+		}
+	}
+
+	resp := ReviewRecommendationsResponse{
+		ReviewWizards:   reviewWizards,
+		InstanceContext: instanceContext,
+		Usage:           "Call epf_get_wizard with the wizard name to retrieve the full review instructions, then execute the review against your EPF instance.",
+	}
+
+	jsonBytes, err := json.MarshalIndent(resp, "", "  ")
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize response: %s", err.Error())), nil
 	}

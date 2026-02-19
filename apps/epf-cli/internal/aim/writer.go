@@ -145,7 +145,7 @@ func ArchiveCycle(instancePath string, cycleNumber int) (string, error) {
 		return "", fmt.Errorf("failed to create archive directory: %w", err)
 	}
 
-	// Files to archive
+	// Files to archive (exact names)
 	artifacts := []string{
 		"assessment_report.yaml",
 		"calibration_memo.yaml",
@@ -168,6 +168,21 @@ func ArchiveCycle(instancePath string, cycleNumber int) (string, error) {
 		dst := filepath.Join(archiveDir, artifact)
 		if err := os.WriteFile(dst, data, 0644); err != nil {
 			return "", fmt.Errorf("failed to archive %s: %w", artifact, err)
+		}
+		archived++
+	}
+
+	// Also archive cycle-tagged assessment reports (e.g., assessment_report_c1.yaml)
+	cycleTagged, _ := filepath.Glob(filepath.Join(aimDir, "assessment_report_*.yaml"))
+	for _, src := range cycleTagged {
+		base := filepath.Base(src)
+		data, err := os.ReadFile(src)
+		if err != nil {
+			continue
+		}
+		dst := filepath.Join(archiveDir, base)
+		if err := os.WriteFile(dst, data, 0644); err != nil {
+			return "", fmt.Errorf("failed to archive %s: %w", base, err)
 		}
 		archived++
 	}
@@ -201,6 +216,11 @@ func InitCycle(instancePath string, newCycleNumber int, archivePrevious bool, up
 		if _, err := os.Stat(path); err == nil {
 			os.Remove(path) // best-effort
 		}
+	}
+	// Also remove cycle-tagged assessment reports (e.g., assessment_report_c1.yaml)
+	cycleTagged, _ := filepath.Glob(filepath.Join(aimDir, "assessment_report_*.yaml"))
+	for _, f := range cycleTagged {
+		os.Remove(f) // best-effort
 	}
 
 	// Update LRA

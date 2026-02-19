@@ -68,6 +68,7 @@ type ValidationResult struct {
 type ValidationStats struct {
 	TotalFeaturesChecked int
 	TotalKRsChecked      int
+	TotalMappingsChecked int
 	TotalPathsChecked    int
 	ValidPaths           int
 	InvalidPaths         int
@@ -132,8 +133,8 @@ func NewValidator(valueModels *valuemodel.ValueModelSet) *Validator {
 	}
 }
 
-// ValidateAll validates all features and KRs against the value model.
-func (v *Validator) ValidateAll(features *FeatureSet, roadmapData *roadmap.Roadmap) *ValidationResult {
+// ValidateAll validates all features, KRs, and mappings against the value model.
+func (v *Validator) ValidateAll(features *FeatureSet, roadmapData *roadmap.Roadmap, mappings []MappingEntry) *ValidationResult {
 	result := &ValidationResult{
 		Valid: true,
 	}
@@ -144,6 +145,11 @@ func (v *Validator) ValidateAll(features *FeatureSet, roadmapData *roadmap.Roadm
 	// Validate KRs
 	if roadmapData != nil {
 		v.validateKRs(roadmapData, result)
+	}
+
+	// Validate mappings
+	if len(mappings) > 0 {
+		v.validateMappings(mappings, result)
 	}
 
 	return result
@@ -345,6 +351,27 @@ func kebabToPascal(s string) string {
 	return strings.Join(parts, "")
 }
 
+// validateMappings validates all sub_component_id paths in mappings data.
+func (v *Validator) validateMappings(mappings []MappingEntry, result *ValidationResult) {
+	for _, entry := range mappings {
+		result.Stats.TotalMappingsChecked++
+
+		if entry.SubComponentID == "" {
+			continue
+		}
+
+		result.Stats.TotalPathsChecked++
+
+		err := v.validatePath(entry.SubComponentID)
+		if err != nil {
+			pathErr := v.toValidationError(err, entry.SubComponentID, "mapping", "sub_component_id", entry.SubComponentID)
+			result.AddError(pathErr)
+		} else {
+			result.Stats.ValidPaths++
+		}
+	}
+}
+
 // Summary returns a human-readable summary of validation results.
 func (r *ValidationResult) Summary() string {
 	var sb strings.Builder
@@ -352,6 +379,7 @@ func (r *ValidationResult) Summary() string {
 	sb.WriteString("Validation Summary:\n")
 	sb.WriteString(fmt.Sprintf("  Features checked: %d\n", r.Stats.TotalFeaturesChecked))
 	sb.WriteString(fmt.Sprintf("  KRs checked: %d\n", r.Stats.TotalKRsChecked))
+	sb.WriteString(fmt.Sprintf("  Mappings checked: %d\n", r.Stats.TotalMappingsChecked))
 	sb.WriteString(fmt.Sprintf("  Paths checked: %d\n", r.Stats.TotalPathsChecked))
 	sb.WriteString(fmt.Sprintf("  Valid: %d\n", r.Stats.ValidPaths))
 	sb.WriteString(fmt.Sprintf("  Invalid: %d\n", r.Stats.InvalidPaths))

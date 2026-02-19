@@ -104,12 +104,13 @@ func (s *Server) handleAimHealth(ctx context.Context, request mcp.CallToolReques
 	}
 
 	result := map[string]interface{}{
-		"success":        true,
-		"instance_path":  instancePath,
-		"overall_status": report.OverallStatus,
-		"summary":        report.Summary,
-		"diagnostics":    report.Diagnostics,
-		"report":         aim.FormatHealthReport(report),
+		"success":             true,
+		"instance_path":       instancePath,
+		"overall_status":      report.OverallStatus,
+		"summary":             report.Summary,
+		"diagnostics":         report.Diagnostics,
+		"report":              aim.FormatHealthReport(report),
+		"review_wizards_hint": "For deeper semantic quality evaluation, use epf_recommend_reviews or epf_get_wizard with: strategic_coherence_review, feature_quality_review, value_model_review",
 	}
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil

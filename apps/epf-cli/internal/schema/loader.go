@@ -100,7 +100,7 @@ var artifactMapping = []struct {
 	{regexp.MustCompile(`(?i)mappings\.ya?ml$`), ArtifactMappings, PhaseFIRE, "Mappings - Cross-reference mappings"},
 
 	// AIM Phase
-	{regexp.MustCompile(`(?i)assessment_report\.ya?ml$`), ArtifactAssessmentReport, PhaseAIM, "Assessment Report - Phase assessment"},
+	{regexp.MustCompile(`(?i)assessment_report(_[a-zA-Z0-9]+)?\.ya?ml$`), ArtifactAssessmentReport, PhaseAIM, "Assessment Report - Phase assessment"},
 	{regexp.MustCompile(`(?i)calibration_memo\.ya?ml$`), ArtifactCalibrationMemo, PhaseAIM, "Calibration Memo - Strategic calibration"},
 	{regexp.MustCompile(`(?i)strategic_reality_check\.ya?ml$`), ArtifactStrategicRealityCheck, PhaseAIM, "Strategic Reality Check - Cross-artifact health evaluation"},
 

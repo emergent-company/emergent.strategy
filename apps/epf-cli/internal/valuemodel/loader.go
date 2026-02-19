@@ -222,12 +222,20 @@ func (l *Loader) Load() (*ValueModelSet, error) {
 		}
 
 		// Index by track - merge layers if track already exists
+		// Store a separate copy in ByFile to avoid pointer aliasing
 		if model.TrackName != "" {
 			if existing, ok := set.Models[model.TrackName]; ok {
-				// Merge layers from this model into the existing one
+				// Merge layers from this model into the existing merged model
 				existing.Layers = append(existing.Layers, model.Layers...)
 			} else {
-				set.Models[model.TrackName] = model
+				// Create a merged model that is separate from the ByFile entry
+				merged := &ValueModel{
+					TrackName: model.TrackName,
+					FilePath:  model.FilePath,
+					Layers:    make([]Layer, len(model.Layers)),
+				}
+				copy(merged.Layers, model.Layers)
+				set.Models[model.TrackName] = merged
 			}
 		}
 		set.ByFile[filePath] = model

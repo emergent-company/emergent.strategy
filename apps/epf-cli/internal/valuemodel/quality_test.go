@@ -106,6 +106,33 @@ func TestLoadPortfolioNames_ValidFile(t *testing.T) {
 	}
 }
 
+func TestLoadPortfolioNames_InstanceRoot(t *testing.T) {
+	dir := t.TempDir()
+
+	content := `portfolio:
+  product_lines:
+    - name: "Test Product"
+  brands:
+    - name: "TestBrand"
+  offerings:
+    - name: "TestOffer"
+`
+	if err := os.WriteFile(filepath.Join(dir, "product_portfolio.yaml"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	names, err := LoadPortfolioNames(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if names == nil {
+		t.Fatal("expected names, got nil")
+	}
+	if len(names.ProductNames) != 1 || names.ProductNames[0] != "Test Product" {
+		t.Errorf("expected 1 product name 'Test Product', got %v", names.ProductNames)
+	}
+}
+
 func TestLoadPortfolioNames_InvalidYAML(t *testing.T) {
 	dir := t.TempDir()
 	readyDir := filepath.Join(dir, "READY")
@@ -119,6 +146,49 @@ func TestLoadPortfolioNames_InvalidYAML(t *testing.T) {
 	_, err := LoadPortfolioNames(dir)
 	if err == nil {
 		t.Fatal("expected error for invalid YAML")
+	}
+}
+
+// --- AddName ---
+
+func TestAddName_AddsToAllNames(t *testing.T) {
+	p := &PortfolioNames{
+		AllNames: []string{"existing"},
+	}
+	p.AddName("Emergent")
+	if len(p.AllNames) != 2 {
+		t.Fatalf("expected 2 names, got %d: %v", len(p.AllNames), p.AllNames)
+	}
+	if p.AllNames[1] != "emergent" {
+		t.Errorf("expected 'emergent', got %q", p.AllNames[1])
+	}
+}
+
+func TestAddName_SkipsShortNames(t *testing.T) {
+	p := &PortfolioNames{}
+	p.AddName("AB")
+	p.AddName("")
+	if len(p.AllNames) != 0 {
+		t.Errorf("expected 0 names for short inputs, got %d: %v", len(p.AllNames), p.AllNames)
+	}
+}
+
+func TestAddName_SkipsDuplicates(t *testing.T) {
+	p := &PortfolioNames{
+		AllNames: []string{"emergent"},
+	}
+	p.AddName("Emergent") // same lowercased
+	p.AddName("emergent") // exact duplicate
+	if len(p.AllNames) != 1 {
+		t.Errorf("expected 1 name (no duplicates), got %d: %v", len(p.AllNames), p.AllNames)
+	}
+}
+
+func TestAddName_WorksOnNilSlice(t *testing.T) {
+	p := &PortfolioNames{}
+	p.AddName("Huma")
+	if len(p.AllNames) != 1 || p.AllNames[0] != "huma" {
+		t.Errorf("expected ['huma'], got %v", p.AllNames)
 	}
 }
 
