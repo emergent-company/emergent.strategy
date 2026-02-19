@@ -6,7 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/checks"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/config"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/valuemodel"
 )
 
 // Task 4.6: Test checkSubmoduleStatus
@@ -407,5 +409,349 @@ func TestCheckEnrollmentStatus_InstanceNotFound(t *testing.T) {
 	}
 	if result.InstanceSource != "not_found" {
 		t.Errorf("InstanceSource = %q, want %q", result.InstanceSource, "not_found")
+	}
+}
+
+// =============================================================================
+// Section 9: Semantic Quality Testing
+// =============================================================================
+
+// Task 9.1: Test semantic trigger mapping evaluates correctly for each check category
+
+func TestEvaluateSemanticTriggers_FeatureQualityLowScore(t *testing.T) {
+	result := &HealthResult{
+		InstancePath: t.TempDir(),
+		FeatureQuality: &checks.FeatureQualitySummary{
+			TotalFeatures: 5,
+			PassedCount:   3,
+			FailedCount:   0,
+			AverageScore:  70, // below 80 threshold
+		},
+	}
+
+	recs := evaluateSemanticTriggers(result)
+
+	found := false
+	for _, rec := range recs {
+		if rec.Wizard == "feature_quality_review" && rec.TriggerCheck == "FeatureQuality" {
+			found = true
+			if rec.Severity != "warning" {
+				t.Errorf("FeatureQuality trigger severity = %q, want %q", rec.Severity, "warning")
+			}
+			if rec.Reason == "" {
+				t.Error("FeatureQuality trigger has empty reason")
+			}
+		}
+	}
+	if !found {
+		t.Error("Expected feature_quality_review recommendation for low feature quality score")
+	}
+}
+
+func TestEvaluateSemanticTriggers_FeatureQualityFailed(t *testing.T) {
+	result := &HealthResult{
+		InstancePath: t.TempDir(),
+		FeatureQuality: &checks.FeatureQualitySummary{
+			TotalFeatures: 5,
+			PassedCount:   3,
+			FailedCount:   2,
+			AverageScore:  85, // above threshold but has failures
+		},
+	}
+
+	recs := evaluateSemanticTriggers(result)
+
+	found := false
+	for _, rec := range recs {
+		if rec.Wizard == "feature_quality_review" && rec.TriggerCheck == "FeatureQuality" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("Expected feature_quality_review recommendation when features have failed")
+	}
+}
+
+func TestEvaluateSemanticTriggers_UncoveredL2s(t *testing.T) {
+	result := &HealthResult{
+		InstancePath: t.TempDir(),
+		Relationships: &checks.RelationshipsResult{
+			UncoveredL2s: 3,
+		},
+	}
+
+	recs := evaluateSemanticTriggers(result)
+
+	found := false
+	for _, rec := range recs {
+		if rec.Wizard == "feature_quality_review" && rec.TriggerCheck == "Coverage" {
+			found = true
+			if rec.Severity != "info" {
+				t.Errorf("Coverage trigger severity = %q, want %q", rec.Severity, "info")
+			}
+		}
+	}
+	if !found {
+		t.Error("Expected feature_quality_review recommendation for uncovered L2 components")
+	}
+}
+
+func TestEvaluateSemanticTriggers_ValueModelQuality(t *testing.T) {
+	result := &HealthResult{
+		InstancePath: t.TempDir(),
+		ValueModelQuality: &valuemodel.QualityReport{
+			OverallScore: 60, // below 80 threshold
+		},
+	}
+
+	recs := evaluateSemanticTriggers(result)
+
+	found := false
+	for _, rec := range recs {
+		if rec.Wizard == "value_model_review" && rec.TriggerCheck == "ValueModelQuality" {
+			found = true
+			if rec.Severity != "warning" {
+				t.Errorf("ValueModelQuality trigger severity = %q, want %q", rec.Severity, "warning")
+			}
+		}
+	}
+	if !found {
+		t.Error("Expected value_model_review recommendation for low value model quality score")
+	}
+}
+
+func TestEvaluateSemanticTriggers_CrossRefs(t *testing.T) {
+	result := &HealthResult{
+		InstancePath: t.TempDir(),
+		CrossReferences: &checks.CrossReferenceResult{
+			BrokenLinks: []checks.BrokenLink{
+				{SourceFile: "test.yaml", TargetID: "fd-999"},
+			},
+		},
+	}
+
+	recs := evaluateSemanticTriggers(result)
+
+	found := false
+	for _, rec := range recs {
+		if rec.Wizard == "strategic_coherence_review" && rec.TriggerCheck == "CrossRefs" {
+			found = true
+			if rec.Severity != "warning" {
+				t.Errorf("CrossRefs trigger severity = %q, want %q", rec.Severity, "warning")
+			}
+		}
+	}
+	if !found {
+		t.Error("Expected strategic_coherence_review recommendation for broken cross-references")
+	}
+}
+
+func TestEvaluateSemanticTriggers_InvalidRelationshipPaths(t *testing.T) {
+	result := &HealthResult{
+		InstancePath: t.TempDir(),
+		Relationships: &checks.RelationshipsResult{
+			InvalidPaths: 2,
+		},
+	}
+
+	recs := evaluateSemanticTriggers(result)
+
+	found := false
+	for _, rec := range recs {
+		if rec.Wizard == "strategic_coherence_review" && rec.TriggerCheck == "CrossRefs" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("Expected strategic_coherence_review recommendation for invalid relationship paths")
+	}
+}
+
+func TestEvaluateSemanticTriggers_AIMStaleness(t *testing.T) {
+	// Create a temp directory with an AIM dir but no LRA
+	tmpDir := t.TempDir()
+	aimDir := filepath.Join(tmpDir, "AIM")
+	if err := os.MkdirAll(aimDir, 0755); err != nil {
+		t.Fatalf("Failed to create AIM dir: %v", err)
+	}
+
+	result := &HealthResult{
+		InstancePath: tmpDir,
+	}
+
+	recs := evaluateSemanticTriggers(result)
+
+	found := false
+	for _, rec := range recs {
+		if rec.Wizard == "strategic_reality_check" && rec.TriggerCheck == "AIMStaleness" {
+			found = true
+			if rec.Severity != "info" {
+				t.Errorf("AIMStaleness trigger severity = %q, want %q", rec.Severity, "info")
+			}
+		}
+	}
+	if !found {
+		t.Error("Expected strategic_reality_check recommendation when AIM exists but no LRA")
+	}
+}
+
+func TestEvaluateSemanticTriggers_RoadmapCoverage_SingleTrack(t *testing.T) {
+	result := &HealthResult{
+		InstancePath: t.TempDir(),
+		Relationships: &checks.RelationshipsResult{
+			CoverageByTrack: map[string]*checks.TrackCoverage{
+				"Product": {
+					TrackName:       "Product",
+					TotalL2:         5,
+					CoveredL2:       3,
+					CoveragePercent: 60,
+				},
+				"Strategy": {
+					TrackName:       "Strategy",
+					TotalL2:         4,
+					CoveredL2:       0, // No coverage
+					CoveragePercent: 0,
+				},
+			},
+		},
+	}
+
+	recs := evaluateSemanticTriggers(result)
+
+	found := false
+	for _, rec := range recs {
+		if rec.Wizard == "balance_checker" && rec.TriggerCheck == "RoadmapCoverage" {
+			found = true
+			if rec.Severity != "info" {
+				t.Errorf("RoadmapCoverage trigger severity = %q, want %q", rec.Severity, "info")
+			}
+		}
+	}
+	if !found {
+		t.Error("Expected balance_checker recommendation when only 1 track has coverage")
+	}
+}
+
+// Task 9.2: Test health check output includes semantic_review_recommendations when triggers fire
+
+func TestEvaluateSemanticTriggers_MultipleTriggersPopulateRecommendations(t *testing.T) {
+	tmpDir := t.TempDir()
+	aimDir := filepath.Join(tmpDir, "AIM")
+	if err := os.MkdirAll(aimDir, 0755); err != nil {
+		t.Fatalf("Failed to create AIM dir: %v", err)
+	}
+
+	result := &HealthResult{
+		InstancePath: tmpDir,
+		FeatureQuality: &checks.FeatureQualitySummary{
+			TotalFeatures: 3,
+			PassedCount:   1,
+			FailedCount:   2,
+			AverageScore:  50,
+		},
+		ValueModelQuality: &valuemodel.QualityReport{
+			OverallScore: 40,
+		},
+	}
+
+	recs := evaluateSemanticTriggers(result)
+
+	if len(recs) < 2 {
+		t.Errorf("Expected at least 2 recommendations, got %d", len(recs))
+	}
+
+	// Check that each recommendation has required fields
+	for i, rec := range recs {
+		if rec.Wizard == "" {
+			t.Errorf("Recommendation[%d] has empty Wizard", i)
+		}
+		if rec.Reason == "" {
+			t.Errorf("Recommendation[%d] has empty Reason", i)
+		}
+		if rec.Severity == "" {
+			t.Errorf("Recommendation[%d] has empty Severity", i)
+		}
+		if rec.TriggerCheck == "" {
+			t.Errorf("Recommendation[%d] has empty TriggerCheck", i)
+		}
+	}
+}
+
+// Task 9.3: Test health check output has empty semantic_review_recommendations when all checks pass
+
+func TestEvaluateSemanticTriggers_NoTriggersWhenClean(t *testing.T) {
+	result := &HealthResult{
+		InstancePath: t.TempDir(), // No AIM dir, so AIM staleness won't trigger
+		FeatureQuality: &checks.FeatureQualitySummary{
+			TotalFeatures: 5,
+			PassedCount:   5,
+			FailedCount:   0,
+			AverageScore:  95, // above 80 threshold
+		},
+		ValueModelQuality: &valuemodel.QualityReport{
+			OverallScore: 90, // above 80 threshold
+		},
+		CrossReferences: &checks.CrossReferenceResult{
+			BrokenLinks: []checks.BrokenLink{}, // no broken links
+		},
+		Relationships: &checks.RelationshipsResult{
+			UncoveredL2s: 0,
+			InvalidPaths: 0,
+			CoverageByTrack: map[string]*checks.TrackCoverage{
+				"Product":  {CoveredL2: 3},
+				"Strategy": {CoveredL2: 2},
+			},
+		},
+	}
+
+	recs := evaluateSemanticTriggers(result)
+
+	if len(recs) != 0 {
+		t.Errorf("Expected 0 recommendations when all checks pass, got %d:", len(recs))
+		for _, rec := range recs {
+			t.Logf("  - wizard=%s trigger=%s reason=%s", rec.Wizard, rec.TriggerCheck, rec.Reason)
+		}
+	}
+}
+
+func TestEvaluateSemanticTriggers_NilChecksNoTriggersNoPanic(t *testing.T) {
+	result := &HealthResult{
+		InstancePath: t.TempDir(), // No AIM dir
+		// All check results are nil - should not panic and produce no recommendations
+	}
+
+	recs := evaluateSemanticTriggers(result)
+
+	if len(recs) != 0 {
+		t.Errorf("Expected 0 recommendations for nil checks, got %d", len(recs))
+	}
+}
+
+func TestEvaluateSemanticTriggers_NoDuplicateWizards(t *testing.T) {
+	// FeatureQuality AND Coverage both recommend feature_quality_review
+	// Should only get one recommendation for that wizard
+	result := &HealthResult{
+		InstancePath: t.TempDir(),
+		FeatureQuality: &checks.FeatureQualitySummary{
+			TotalFeatures: 3,
+			FailedCount:   1,
+			AverageScore:  70,
+		},
+		Relationships: &checks.RelationshipsResult{
+			UncoveredL2s: 5,
+		},
+	}
+
+	recs := evaluateSemanticTriggers(result)
+
+	wizardCounts := make(map[string]int)
+	for _, rec := range recs {
+		wizardCounts[rec.Wizard]++
+	}
+
+	for wizard, count := range wizardCounts {
+		if count > 1 {
+			t.Errorf("Wizard %q appears %d times in recommendations, expected at most 1", wizard, count)
+		}
 	}
 }

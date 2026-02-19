@@ -51,7 +51,8 @@ func (s *Server) registerStrategyTools() {
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_product_vision",
 			mcp.WithDescription("Get the product's vision, mission, purpose, and values from the North Star artifact. "+
-				"This is the enduring strategic context that rarely changes."),
+				"This is the enduring strategic context that rarely changes. "+
+				"SHOULD be called before any feature work, roadmap changes, or content creation to ensure strategic alignment."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -64,7 +65,8 @@ func (s *Server) registerStrategyTools() {
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_personas",
 			mcp.WithDescription("Get all personas (target users) from the EPF instance. "+
-				"Returns a summary of each persona with ID, name, role, and description."),
+				"Returns a summary of each persona with ID, name, role, and description. "+
+				"SHOULD be called before writing user-facing features or personas to ensure alignment with defined target users."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -77,7 +79,8 @@ func (s *Server) registerStrategyTools() {
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_persona_details",
 			mcp.WithDescription("Get full details for a specific persona including goals, pain points, "+
-				"usage context, and technical proficiency."),
+				"usage context, and technical proficiency. "+
+				"Use when writing persona narratives, feature scenarios, or user-facing copy that must reflect real user needs."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -94,7 +97,8 @@ func (s *Server) registerStrategyTools() {
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_value_propositions",
 			mcp.WithDescription("Get value propositions from the strategy formula. "+
-				"Optionally filter by persona ID to get propositions relevant to a specific persona."),
+				"Optionally filter by persona ID to get propositions relevant to a specific persona. "+
+				"Use before feature design to understand what value the product delivers and to whom."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -110,7 +114,8 @@ func (s *Server) registerStrategyTools() {
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_competitive_position",
 			mcp.WithDescription("Get competitive analysis and positioning from the strategy formula. "+
-				"Includes competitive moat, advantages, differentiation, and competitor comparisons."),
+				"Includes competitive moat, advantages, differentiation, and competitor comparisons. "+
+				"SHOULD be consulted before competitive feature decisions or positioning changes."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -123,7 +128,8 @@ func (s *Server) registerStrategyTools() {
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_roadmap_summary",
 			mcp.WithDescription("Get roadmap summary with OKRs and key results. "+
-				"Optionally filter by track name or cycle number."),
+				"Optionally filter by track name or cycle number. "+
+				"SHOULD be queried before roadmap changes or when planning new features to understand current objectives."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -142,7 +148,8 @@ func (s *Server) registerStrategyTools() {
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_search_strategy",
 			mcp.WithDescription("Search across all strategy content including vision, personas, features, OKRs, and insights. "+
-				"Returns relevance-scored results with snippets."),
+				"Returns relevance-scored results with snippets. "+
+				"Use for broad strategic queries when you need to find relevant context across all strategy artifacts."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -165,7 +172,8 @@ func (s *Server) registerStrategyTools() {
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_feature_strategy_context",
 			mcp.WithDescription("Get synthesized strategic context for a topic. "+
-				"Traverses relationships to gather vision, personas, features, OKRs, and competitive context."),
+				"Traverses relationships to gather vision, personas, features, OKRs, and competitive context. "+
+				"Use before implementing a feature or making strategic decisions to get full context in one call."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -181,8 +189,8 @@ func (s *Server) registerStrategyTools() {
 
 // handleGetProductVision handles the epf_get_product_vision tool
 func (s *Server) handleGetProductVision(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	instancePath, err := request.RequireString("instance_path")
-	if err != nil {
+	instancePath := s.resolveInstancePath(request)
+	if instancePath == "" {
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
 
@@ -235,8 +243,8 @@ func formatValues(values []strategy.Value) []map[string]interface{} {
 
 // handleGetPersonas handles the epf_get_personas tool
 func (s *Server) handleGetPersonas(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	instancePath, err := request.RequireString("instance_path")
-	if err != nil {
+	instancePath := s.resolveInstancePath(request)
+	if instancePath == "" {
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
 
@@ -261,8 +269,8 @@ func (s *Server) handleGetPersonas(ctx context.Context, request mcp.CallToolRequ
 
 // handleGetPersonaDetails handles the epf_get_persona_details tool
 func (s *Server) handleGetPersonaDetails(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	instancePath, err := request.RequireString("instance_path")
-	if err != nil {
+	instancePath := s.resolveInstancePath(request)
+	if instancePath == "" {
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
 
@@ -309,8 +317,8 @@ func formatPainPoints(painPoints []strategy.PainPoint) []map[string]interface{} 
 
 // handleGetValuePropositions handles the epf_get_value_propositions tool
 func (s *Server) handleGetValuePropositions(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	instancePath, err := request.RequireString("instance_path")
-	if err != nil {
+	instancePath := s.resolveInstancePath(request)
+	if instancePath == "" {
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
 
@@ -337,8 +345,8 @@ func (s *Server) handleGetValuePropositions(ctx context.Context, request mcp.Cal
 
 // handleGetCompetitivePosition handles the epf_get_competitive_position tool
 func (s *Server) handleGetCompetitivePosition(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	instancePath, err := request.RequireString("instance_path")
-	if err != nil {
+	instancePath := s.resolveInstancePath(request)
+	if instancePath == "" {
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
 
@@ -399,8 +407,8 @@ func formatCompetitors(competitors []strategy.CompetitorComparison) []map[string
 
 // handleGetRoadmapSummary handles the epf_get_roadmap_summary tool
 func (s *Server) handleGetRoadmapSummary(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	instancePath, err := request.RequireString("instance_path")
-	if err != nil {
+	instancePath := s.resolveInstancePath(request)
+	if instancePath == "" {
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
 
@@ -471,8 +479,8 @@ func formatKeyResults(krs []strategy.KeyResult) []map[string]interface{} {
 
 // handleSearchStrategy handles the epf_search_strategy tool
 func (s *Server) handleSearchStrategy(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	instancePath, err := request.RequireString("instance_path")
-	if err != nil {
+	instancePath := s.resolveInstancePath(request)
+	if instancePath == "" {
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
 
@@ -537,8 +545,8 @@ func formatSearchResults(results []strategy.SearchResult) []map[string]interface
 
 // handleGetFeatureStrategyContext handles the epf_get_feature_strategy_context tool
 func (s *Server) handleGetFeatureStrategyContext(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	instancePath, err := request.RequireString("instance_path")
-	if err != nil {
+	instancePath := s.resolveInstancePath(request)
+	if instancePath == "" {
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
 

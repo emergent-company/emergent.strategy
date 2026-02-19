@@ -274,6 +274,7 @@ type StatusResult struct {
 	TrackBaselines  map[string]TrackStatus  `json:"track_baselines,omitempty"`
 	CurrentFocus    *FocusSummary           `json:"current_focus,omitempty"`
 	Warnings        []string                `json:"warnings,omitempty"`
+	NextSteps       []string                `json:"next_steps,omitempty"`
 	Error           string                  `json:"error,omitempty"`
 }
 
@@ -369,6 +370,12 @@ func (s *Server) handleAimStatus(ctx context.Context, request mcp.CallToolReques
 		if baseline.Maturity == "absent" && baseline.Status != "not_applicable" {
 			result.Warnings = append(result.Warnings, fmt.Sprintf("Track '%s' has absent maturity but is not marked as not_applicable", track))
 		}
+	}
+
+	// Add next steps hint for review wizards
+	result.NextSteps = []string{
+		"For semantic quality evaluation, use epf_recommend_reviews or epf_get_wizard_for_task with an evaluation query",
+		"Available review wizards: strategic_coherence_review, feature_quality_review, value_model_review",
 	}
 
 	jsonData, _ := json.MarshalIndent(result, "", "  ")

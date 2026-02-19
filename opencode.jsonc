@@ -41,8 +41,17 @@
       ],
       "timeout": 120000,
     },
-
-
+    "epf-strategy": {
+      "type": "local",
+      "command": [
+        "epf-cli",
+        "strategy",
+        "serve",
+        "--watch",
+        "docs/EPF/_instances/emergent",
+      ],
+      "timeout": 60000,
+    },
   },
   "instructions": [".opencode/instructions.md"],
   "tools": {

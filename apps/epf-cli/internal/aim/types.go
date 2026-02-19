@@ -45,11 +45,18 @@ type KRData struct {
 }
 
 // AssumptionData represents a riskiest assumption from the roadmap.
+// Field names match the canonical roadmap_recipe schema:
+//   - description (the assumption text)
+//   - criticality (replaces "risk")
+//   - evidence_required (replaces "validation_approach")
 type AssumptionData struct {
-	ID         string `yaml:"id"`
-	Statement  string `yaml:"statement"`
-	Risk       string `yaml:"risk,omitempty"`
-	Validation string `yaml:"validation_approach,omitempty"`
+	ID          string   `yaml:"id"`
+	Description string   `yaml:"description"`
+	Type        string   `yaml:"type,omitempty"`
+	Criticality string   `yaml:"criticality,omitempty"`
+	Confidence  string   `yaml:"confidence,omitempty"`
+	Evidence    string   `yaml:"evidence_required,omitempty"`
+	LinkedToKR  []string `yaml:"linked_to_kr,omitempty"`
 }
 
 // =============================================================================

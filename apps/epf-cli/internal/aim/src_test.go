@@ -147,16 +147,17 @@ func TestCheckStrategicAlignment_BrokenContributesToPath(t *testing.T) {
 	os.MkdirAll(filepath.Join(dir, "FIRE", "feature_definitions"), 0755)
 	os.MkdirAll(filepath.Join(dir, "FIRE", "value_models"), 0755)
 
-	// Write a value model with known paths
+	// Write a value model with known paths (using proper track_name structure)
 	vm := map[string]interface{}{
+		"track_name": "Product",
 		"layers": []interface{}{
 			map[string]interface{}{
-				"name": "Product",
+				"name": "Core",
 				"components": []interface{}{
 					map[string]interface{}{
-						"name": "Core",
+						"name": "Search",
 						"sub_components": []interface{}{
-							map[string]interface{}{"name": "Search"},
+							map[string]interface{}{"name": "Indexing"},
 						},
 					},
 				},
@@ -684,14 +685,15 @@ func TestGenerateSRC_WithFixtures(t *testing.T) {
 	nsData, _ := yaml.Marshal(ns)
 	os.WriteFile(filepath.Join(dir, "READY", "00_north_star.yaml"), nsData, 0644)
 
-	// Write value model
+	// Write value model (with proper track_name structure)
 	vm := map[string]interface{}{
+		"track_name": "Product",
 		"layers": []interface{}{
 			map[string]interface{}{
-				"name": "Product",
+				"name": "Core",
 				"components": []interface{}{
 					map[string]interface{}{
-						"name": "Core",
+						"name": "Search",
 					},
 				},
 			},

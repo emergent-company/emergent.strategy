@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/valuemodel"
 	"gopkg.in/yaml.v3"
 )
 
@@ -193,8 +194,12 @@ func checkStrategicAlignment(instancePath string) []AlignmentFinding {
 	var findings []AlignmentFinding
 	counter := 0
 
-	// Load value model paths for validation
-	valueModelPaths := loadValueModelPaths(instancePath)
+	// Load value model paths for validation using the canonical loader
+	var valueModelPaths []string
+	loader := valuemodel.NewLoader(instancePath)
+	if vmSet, err := loader.Load(); err == nil {
+		valueModelPaths = vmSet.GetAllPaths()
+	}
 
 	// Load feature IDs for dependency validation
 	featureIDs := loadFeatureIDs(instancePath)
@@ -606,78 +611,6 @@ func classifyStaleness(daysSinceReview, cadenceDays int) string {
 		return "high"
 	default:
 		return "critical"
-	}
-}
-
-func loadValueModelPaths(instancePath string) []string {
-	var paths []string
-	vmDir := filepath.Join(instancePath, "FIRE", "value_models")
-	entries, err := os.ReadDir(vmDir)
-	if err != nil {
-		return paths
-	}
-
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yaml") || strings.HasPrefix(entry.Name(), "_") {
-			continue
-		}
-		data, err := os.ReadFile(filepath.Join(vmDir, entry.Name()))
-		if err != nil {
-			continue
-		}
-		var vm map[string]interface{}
-		if err := yaml.Unmarshal(data, &vm); err != nil {
-			continue
-		}
-		// Extract L1.L2.L3 paths from value model structure
-		extractPaths(&paths, vm, "")
-	}
-	return paths
-}
-
-func extractPaths(paths *[]string, data map[string]interface{}, prefix string) {
-	// Handle value_model.layers[].components[] structure
-	if layers, ok := data["layers"].([]interface{}); ok {
-		for _, layer := range layers {
-			lm, ok := layer.(map[string]interface{})
-			if !ok {
-				continue
-			}
-			l1Name, _ := lm["name"].(string)
-			if l1Name == "" {
-				continue
-			}
-
-			if comps, ok := lm["components"].([]interface{}); ok {
-				for _, comp := range comps {
-					cm, ok := comp.(map[string]interface{})
-					if !ok {
-						continue
-					}
-					l2Name, _ := cm["name"].(string)
-					if l2Name == "" {
-						continue
-					}
-
-					path := prefix + l1Name + "." + l2Name
-					*paths = append(*paths, path)
-
-					// Check for sub-components (L3)
-					if subs, ok := cm["sub_components"].([]interface{}); ok {
-						for _, sub := range subs {
-							sm, ok := sub.(map[string]interface{})
-							if !ok {
-								continue
-							}
-							l3Name, _ := sm["name"].(string)
-							if l3Name != "" {
-								*paths = append(*paths, path+"."+l3Name)
-							}
-						}
-					}
-				}
-			}
-		}
 	}
 }
 

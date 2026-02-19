@@ -422,7 +422,7 @@ func TestValidatorValidateAll(t *testing.T) {
 		},
 	}
 
-	result := validator.ValidateAll(features, roadmapData)
+	result := validator.ValidateAll(features, roadmapData, nil)
 
 	if !result.Valid {
 		t.Error("ValidateAll should return Valid=true for valid data")
@@ -452,4 +452,153 @@ func containsSubstring(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+func TestValidatorValidateMappings(t *testing.T) {
+	valueModels := createTestValueModelSet()
+	validator := NewValidator(valueModels)
+
+	mappings := []MappingEntry{
+		{SubComponentID: "Product.Discovery.KnowledgeExploration"}, // valid
+		{SubComponentID: "Product.Search.SemanticFindability"},     // valid
+		{SubComponentID: "Product.Discovery.NonExistent"},          // invalid
+		{SubComponentID: "NonExistent.Layer.Component"},            // invalid
+		{SubComponentID: ""}, // empty, skipped
+	}
+
+	result := &ValidationResult{Valid: true}
+	validator.validateMappings(mappings, result)
+
+	if result.Stats.TotalMappingsChecked != 5 {
+		t.Errorf("TotalMappingsChecked = %d, want 5", result.Stats.TotalMappingsChecked)
+	}
+
+	// 4 non-empty paths checked, 2 valid + 2 invalid
+	if result.Stats.TotalPathsChecked != 4 {
+		t.Errorf("TotalPathsChecked = %d, want 4", result.Stats.TotalPathsChecked)
+	}
+
+	if result.Stats.ValidPaths != 2 {
+		t.Errorf("ValidPaths = %d, want 2", result.Stats.ValidPaths)
+	}
+
+	if result.Stats.InvalidPaths != 2 {
+		t.Errorf("InvalidPaths = %d, want 2", result.Stats.InvalidPaths)
+	}
+
+	if result.Valid {
+		t.Error("Result should be invalid when phantom paths exist")
+	}
+
+	// Check error details
+	for _, e := range result.Errors {
+		if e.SourceType != "mapping" {
+			t.Errorf("Error sourceType = %q, want 'mapping'", e.SourceType)
+		}
+		if e.Field != "sub_component_id" {
+			t.Errorf("Error field = %q, want 'sub_component_id'", e.Field)
+		}
+	}
+}
+
+func TestValidatorValidateMappings_AllValid(t *testing.T) {
+	valueModels := createTestValueModelSet()
+	validator := NewValidator(valueModels)
+
+	mappings := []MappingEntry{
+		{SubComponentID: "Product.Discovery.KnowledgeExploration"},
+		{SubComponentID: "Product.Core.DataManagement"},
+		{SubComponentID: "Strategy.Market.Positioning"},
+	}
+
+	result := &ValidationResult{Valid: true}
+	validator.validateMappings(mappings, result)
+
+	if !result.Valid {
+		t.Error("Result should be valid when all paths exist")
+		for _, e := range result.Errors {
+			t.Logf("  Error: %v", e)
+		}
+	}
+
+	if result.Stats.TotalMappingsChecked != 3 {
+		t.Errorf("TotalMappingsChecked = %d, want 3", result.Stats.TotalMappingsChecked)
+	}
+
+	if result.Stats.ValidPaths != 3 {
+		t.Errorf("ValidPaths = %d, want 3", result.Stats.ValidPaths)
+	}
+}
+
+func TestValidatorValidateMappings_Empty(t *testing.T) {
+	valueModels := createTestValueModelSet()
+	validator := NewValidator(valueModels)
+
+	result := &ValidationResult{Valid: true}
+	validator.validateMappings(nil, result)
+
+	if !result.Valid {
+		t.Error("Result should be valid for nil mappings")
+	}
+
+	if result.Stats.TotalMappingsChecked != 0 {
+		t.Errorf("TotalMappingsChecked = %d, want 0", result.Stats.TotalMappingsChecked)
+	}
+}
+
+func TestValidateAllWithMappings(t *testing.T) {
+	valueModels := createTestValueModelSet()
+	validator := NewValidator(valueModels)
+
+	features := NewFeatureSet()
+	features.ByID["fd-001"] = &FeatureDefinition{
+		ID: "fd-001",
+		StrategicContext: StrategicContext{
+			ContributesTo: []string{
+				"Product.Discovery.KnowledgeExploration",
+			},
+		},
+	}
+
+	mappings := []MappingEntry{
+		{SubComponentID: "Product.Core.DataManagement"},   // valid
+		{SubComponentID: "Product.Discovery.NonExistent"}, // invalid
+	}
+
+	result := validator.ValidateAll(features, nil, mappings)
+
+	if result.Valid {
+		t.Error("ValidateAll should be invalid with phantom mapping path")
+	}
+
+	if result.Stats.TotalFeaturesChecked != 1 {
+		t.Errorf("TotalFeaturesChecked = %d, want 1", result.Stats.TotalFeaturesChecked)
+	}
+
+	if result.Stats.TotalMappingsChecked != 2 {
+		t.Errorf("TotalMappingsChecked = %d, want 2", result.Stats.TotalMappingsChecked)
+	}
+
+	// 1 feature path + 2 mapping paths = 3 total paths
+	if result.Stats.TotalPathsChecked != 3 {
+		t.Errorf("TotalPathsChecked = %d, want 3", result.Stats.TotalPathsChecked)
+	}
+}
+
+func TestValidationResultSummaryIncludesMappings(t *testing.T) {
+	result := &ValidationResult{
+		Valid: true,
+		Stats: ValidationStats{
+			TotalFeaturesChecked: 2,
+			TotalKRsChecked:      3,
+			TotalMappingsChecked: 5,
+			TotalPathsChecked:    10,
+			ValidPaths:           10,
+		},
+	}
+
+	summary := result.Summary()
+	if !containsSubstring(summary, "Mappings checked: 5") {
+		t.Errorf("Summary missing 'Mappings checked: 5', got:\n%s", summary)
+	}
 }

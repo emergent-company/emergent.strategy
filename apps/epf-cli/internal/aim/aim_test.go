@@ -121,7 +121,7 @@ func testRoadmap() *RoadmapData {
 						},
 					},
 					Assumptions: []AssumptionData{
-						{ID: "a-p-001", Statement: "Users want AI features", Risk: "high", Validation: "User interviews"},
+						{ID: "a-p-001", Description: "Users want AI features", Criticality: "high", Evidence: "User interviews"},
 					},
 				},
 				Strategy: TrackData{

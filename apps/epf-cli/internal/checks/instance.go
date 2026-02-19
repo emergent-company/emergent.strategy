@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -305,12 +306,18 @@ func (c *InstanceChecker) checkREADYFiles(summary *CheckSummary) {
 		})
 	}
 
-	// Check optional files
+	// Check optional files (some may be at instance root or READY/)
 	var presentOptional []string
 	for _, file := range OptionalREADYFiles {
 		filePath := filepath.Join(readyPath, file)
 		if _, err := os.Stat(filePath); err == nil {
 			presentOptional = append(presentOptional, file)
+		} else if file == "product_portfolio.yaml" {
+			// product_portfolio.yaml can also live at instance root
+			rootPath := filepath.Join(c.instancePath, file)
+			if _, err := os.Stat(rootPath); err == nil {
+				presentOptional = append(presentOptional, file+" (instance root)")
+			}
 		}
 	}
 
@@ -541,8 +548,15 @@ func (c *InstanceChecker) checkMetaFile(summary *CheckSummary) {
 		return
 	}
 
-	// Check for epf_version field
-	if _, ok := meta["epf_version"]; !ok {
+	// Check for epf_version field (can be at top level or under instance.epf_version)
+	epfVersion, epfVersionFound := meta["epf_version"]
+	if !epfVersionFound {
+		// Check nested under instance key (common in newer EPF instances)
+		if instance, ok := meta["instance"].(map[string]interface{}); ok {
+			epfVersion, epfVersionFound = instance["epf_version"]
+		}
+	}
+	if !epfVersionFound {
 		summary.Add(&CheckResult{
 			Check:    "meta_epf_version",
 			Passed:   false,
@@ -555,7 +569,7 @@ func (c *InstanceChecker) checkMetaFile(summary *CheckSummary) {
 			Check:    "meta_epf_version",
 			Passed:   true,
 			Severity: SeverityInfo,
-			Message:  fmt.Sprintf("EPF version: %v", meta["epf_version"]),
+			Message:  fmt.Sprintf("EPF version: %v", epfVersion),
 			Path:     metaPath,
 		})
 	}
@@ -839,4 +853,177 @@ func (c *ContentReadinessChecker) Check() (*ContentReadinessResult, error) {
 	}
 
 	return result, nil
+}
+
+// =============================================================================
+// STALE METADATA DETECTION
+// =============================================================================
+
+// MetadataIssue represents a metadata inconsistency in an EPF artifact.
+type MetadataIssue struct {
+	File      string `json:"file"`
+	FieldPath string `json:"field_path"`
+	IssueType string `json:"issue_type"` // "wrong_instance" or "stale_date"
+	Message   string `json:"message"`
+}
+
+// MetadataConsistencyResult contains the result of metadata consistency check.
+type MetadataConsistencyResult struct {
+	ProductName        string          `json:"product_name"`
+	FilesChecked       int             `json:"files_checked"`
+	InstanceMismatches int             `json:"instance_mismatches"`
+	StaleDates         int             `json:"stale_dates"`
+	Issues             []MetadataIssue `json:"issues"`
+}
+
+// CheckMetadataConsistency scans READY/ and FIRE/ YAML files for metadata
+// inconsistencies:
+//   - meta.instance / metadata.instance not matching _epf.yaml product name
+//   - meta.last_updated / metadata.last_updated older than staleThresholdMonths
+func CheckMetadataConsistency(instancePath, productName string, staleThresholdMonths int) *MetadataConsistencyResult {
+	result := &MetadataConsistencyResult{
+		ProductName: productName,
+		Issues:      make([]MetadataIssue, 0),
+	}
+
+	if productName == "" && staleThresholdMonths <= 0 {
+		return result
+	}
+
+	now := time.Now()
+	staleThreshold := now.AddDate(0, -staleThresholdMonths, 0)
+
+	// Scan READY/ and FIRE/ directories (but not AIM/ — AIM has its own staleness checks)
+	for _, phase := range []string{"READY", "FIRE"} {
+		phaseDir := filepath.Join(instancePath, phase)
+		filepath.Walk(phaseDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil || info.IsDir() {
+				return nil
+			}
+			ext := strings.ToLower(filepath.Ext(path))
+			if ext != ".yaml" && ext != ".yml" {
+				return nil
+			}
+			// Skip _ prefixed files (metadata files)
+			if strings.HasPrefix(filepath.Base(path), "_") {
+				return nil
+			}
+
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return nil
+			}
+
+			var doc map[string]interface{}
+			if err := yaml.Unmarshal(data, &doc); err != nil {
+				return nil
+			}
+
+			result.FilesChecked++
+			relPath := relativePath(instancePath, path)
+
+			// Check meta.instance or metadata.instance
+			checkMetadataInstance(doc, productName, relPath, result)
+
+			// Check meta.last_updated or metadata.last_updated
+			if staleThresholdMonths > 0 {
+				checkMetadataDate(doc, staleThreshold, staleThresholdMonths, relPath, result)
+			}
+
+			return nil
+		})
+	}
+
+	return result
+}
+
+// checkMetadataInstance checks if the instance name in metadata matches the product name.
+func checkMetadataInstance(doc map[string]interface{}, productName, relPath string, result *MetadataConsistencyResult) {
+	if productName == "" {
+		return
+	}
+
+	// Try both "meta" and "metadata" top-level keys
+	for _, metaKey := range []string{"meta", "metadata"} {
+		meta, ok := doc[metaKey].(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		instanceVal, ok := meta["instance"]
+		if !ok {
+			continue
+		}
+
+		instanceStr, ok := instanceVal.(string)
+		if !ok {
+			continue
+		}
+
+		// Case-insensitive comparison
+		if !strings.EqualFold(instanceStr, productName) {
+			result.InstanceMismatches++
+			result.Issues = append(result.Issues, MetadataIssue{
+				File:      relPath,
+				FieldPath: metaKey + ".instance",
+				IssueType: "wrong_instance",
+				Message:   fmt.Sprintf("metadata instance is '%s' but product name is '%s'", instanceStr, productName),
+			})
+		}
+		return // Found instance field, no need to check other meta keys
+	}
+}
+
+// checkMetadataDate checks if the last_updated date is older than the threshold.
+func checkMetadataDate(doc map[string]interface{}, threshold time.Time, months int, relPath string, result *MetadataConsistencyResult) {
+	for _, metaKey := range []string{"meta", "metadata"} {
+		meta, ok := doc[metaKey].(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		lastUpdated := extractMetadataDate(meta["last_updated"])
+		if lastUpdated.IsZero() {
+			continue
+		}
+
+		if lastUpdated.Before(threshold) {
+			daysSince := int(time.Since(lastUpdated).Hours() / 24)
+			result.StaleDates++
+			result.Issues = append(result.Issues, MetadataIssue{
+				File:      relPath,
+				FieldPath: metaKey + ".last_updated",
+				IssueType: "stale_date",
+				Message:   fmt.Sprintf("last updated %d days ago (threshold: %d months)", daysSince, months),
+			})
+		}
+		return // Found date field, no need to check other meta keys
+	}
+}
+
+// extractMetadataDate parses a date from YAML (may be string or time.Time).
+func extractMetadataDate(val interface{}) time.Time {
+	switch v := val.(type) {
+	case string:
+		// Try ISO date first
+		if t, err := time.Parse("2006-01-02", v); err == nil {
+			return t
+		}
+		// Try RFC3339
+		if t, err := time.Parse(time.RFC3339, v); err == nil {
+			return t
+		}
+	case time.Time:
+		return v
+	}
+	return time.Time{}
+}
+
+// relativePath returns a path relative to the instance root.
+func relativePath(instancePath, fullPath string) string {
+	rel, err := filepath.Rel(instancePath, fullPath)
+	if err != nil {
+		return fullPath
+	}
+	return rel
 }

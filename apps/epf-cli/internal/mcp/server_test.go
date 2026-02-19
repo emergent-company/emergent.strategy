@@ -1273,3 +1273,128 @@ func TestHandleLocateInstance_EmptyPath(t *testing.T) {
 		t.Error("Expected search path to be set")
 	}
 }
+
+// =============================================================================
+// Task 6.2: resolveInstancePath tests
+// =============================================================================
+
+func TestResolveInstancePath_ExplicitParam(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	// Set a default instance path on the server
+	server.defaultInstancePath = "/default/instance/path"
+
+	// Create a request with an explicit instance_path
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"instance_path": "/explicit/instance/path",
+	}
+
+	result := server.resolveInstancePath(request)
+	if result != "/explicit/instance/path" {
+		t.Errorf("resolveInstancePath with explicit param = %q, want %q", result, "/explicit/instance/path")
+	}
+}
+
+func TestResolveInstancePath_FallsBackToDefault(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	// Set a default instance path on the server
+	server.defaultInstancePath = "/default/instance/path"
+
+	// Create a request without instance_path
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{}
+
+	result := server.resolveInstancePath(request)
+	if result != "/default/instance/path" {
+		t.Errorf("resolveInstancePath without param = %q, want %q", result, "/default/instance/path")
+	}
+}
+
+func TestResolveInstancePath_EmptyParamFallsBackToDefault(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	// Set a default instance path on the server
+	server.defaultInstancePath = "/default/instance/path"
+
+	// Create a request with an empty instance_path
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"instance_path": "",
+	}
+
+	result := server.resolveInstancePath(request)
+	if result != "/default/instance/path" {
+		t.Errorf("resolveInstancePath with empty param = %q, want %q", result, "/default/instance/path")
+	}
+}
+
+func TestResolveInstancePath_NoDefaultNoParam(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	// No default set
+	server.defaultInstancePath = ""
+
+	// No instance_path in request
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{}
+
+	result := server.resolveInstancePath(request)
+	if result != "" {
+		t.Errorf("resolveInstancePath with no default and no param = %q, want empty string", result)
+	}
+}
+
+func TestNewServer_DefaultInstancePathFromEnv(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	// Save and set env var
+	oldVal := os.Getenv("EPF_STRATEGY_INSTANCE")
+	os.Setenv("EPF_STRATEGY_INSTANCE", "/env/test/instance")
+	defer os.Setenv("EPF_STRATEGY_INSTANCE", oldVal)
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	if server.defaultInstancePath != "/env/test/instance" {
+		t.Errorf("defaultInstancePath = %q, want %q", server.defaultInstancePath, "/env/test/instance")
+	}
+}

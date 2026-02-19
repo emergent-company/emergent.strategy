@@ -33,6 +33,12 @@ type AgentOutput struct {
 		Suggestions   []string             `json:"suggestions,omitempty"`
 	} `json:"discovery"`
 
+	// MandatoryProtocols defines workflows agents MUST follow
+	MandatoryProtocols []MandatoryProtocol `json:"mandatory_protocols"`
+
+	// WorkflowDecisionTree maps task types to tool sequences
+	WorkflowDecisionTree []WorkflowDecision `json:"workflow_decision_tree"`
+
 	// Commands section
 	Commands []AgentCommand `json:"commands"`
 
@@ -44,6 +50,30 @@ type AgentOutput struct {
 		FirstSteps    []string `json:"first_steps"`
 		BestPractices []string `json:"best_practices"`
 	} `json:"workflow"`
+
+	// StrategyContext provides product strategy info when available
+	StrategyContext *StrategyContextInfo `json:"strategy_context,omitempty"`
+}
+
+// MandatoryProtocol defines a workflow agents MUST follow
+type MandatoryProtocol struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Steps       []string `json:"steps"`
+}
+
+// WorkflowDecision maps a task type to the tool sequence
+type WorkflowDecision struct {
+	TaskType string   `json:"task_type"`
+	Tools    []string `json:"tools"`
+	Note     string   `json:"note"`
+}
+
+// StrategyContextInfo provides product strategy metadata
+type StrategyContextInfo struct {
+	ProductName  string `json:"product_name"`
+	InstancePath string `json:"instance_path"`
+	Description  string `json:"description,omitempty"`
 }
 
 // AgentCommand describes a CLI command for agents
@@ -126,6 +156,73 @@ func buildAgentOutput(disc *discovery.DiscoveryResult) *AgentOutput {
 		}
 	}
 
+	// Mandatory Protocols section (1.1)
+	output.MandatoryProtocols = []MandatoryProtocol{
+		{
+			Name:        "wizard_first",
+			Description: "You MUST use a wizard before creating, substantially modifying, or evaluating any EPF artifact or instance.",
+			Steps: []string{
+				"1. Call epf_get_wizard_for_task with a description of what you need to do",
+				"2. Call epf_get_wizard to retrieve the recommended wizard content",
+				"3. Follow the wizard instructions to create/modify/evaluate the artifact",
+				"4. Call epf_validate_file to verify the result",
+			},
+		},
+		{
+			Name:        "strategy_context",
+			Description: "You MUST query strategy context before feature work, roadmap changes, or competitive decisions.",
+			Steps: []string{
+				"1. Call epf_get_product_vision to understand the product's purpose",
+				"2. Call epf_get_personas to understand target users",
+				"3. Call epf_get_roadmap_summary to see current OKRs",
+				"4. Use this context to inform your work",
+			},
+		},
+		{
+			Name:        "validation_always",
+			Description: "You MUST validate every artifact after creation or modification.",
+			Steps: []string{
+				"1. After writing any EPF YAML file, call epf_validate_file",
+				"2. If errors are found, fix them and re-validate",
+				"3. For large files, use epf_validate_with_plan for chunked fixing",
+			},
+		},
+	}
+
+	// Workflow Decision Tree (1.2)
+	output.WorkflowDecisionTree = []WorkflowDecision{
+		{
+			TaskType: "create_artifact",
+			Tools:    []string{"epf_get_wizard_for_task", "epf_get_wizard", "epf_get_template", "[write artifact]", "epf_validate_file"},
+			Note:     "Always start with wizard recommendation, then follow wizard instructions",
+		},
+		{
+			TaskType: "query_strategy",
+			Tools:    []string{"epf_get_product_vision", "epf_get_personas", "epf_get_roadmap_summary", "epf_search_strategy"},
+			Note:     "Use these to understand strategic context before any feature or roadmap work",
+		},
+		{
+			TaskType: "assess_health",
+			Tools:    []string{"epf_health_check", "epf_check_feature_quality", "epf_validate_relationships"},
+			Note:     "Run health check first to assess scope, then drill into specific checks",
+		},
+		{
+			TaskType: "fix_validation_errors",
+			Tools:    []string{"epf_validate_with_plan", "epf_validate_section", "epf_get_section_example", "epf_validate_file"},
+			Note:     "Use fix plan for chunked processing, validate section-by-section",
+		},
+		{
+			TaskType: "aim_assessment",
+			Tools:    []string{"epf_get_wizard_for_task", "epf_aim_assess", "epf_aim_validate_assumptions", "epf_aim_okr_progress"},
+			Note:     "Start with wizard for guided assessment workflow",
+		},
+		{
+			TaskType: "evaluate_quality",
+			Tools:    []string{"epf_health_check", "epf_list_wizards(type=agent_prompt)", "epf_get_wizard", "[execute review against instance]"},
+			Note:     "Run health check first, then retrieve and execute review wizards for semantic quality evaluation",
+		},
+	}
+
 	// Commands section
 	output.Commands = []AgentCommand{
 		{
@@ -172,63 +269,120 @@ func buildAgentOutput(disc *discovery.DiscoveryResult) *AgentOutput {
 		},
 	}
 
-	// MCP Tools section
+	// MCP Tools section (1.3 — expanded with strategy tools)
 	output.MCPTools = []MCPTool{
+		// Wizard tools (MUST-use)
+		{
+			Name:        "epf_get_wizard_for_task",
+			Description: "MUST be called before creating, modifying, or evaluating any EPF artifact or instance. Recommends the best wizard for the task.",
+			When:        "MANDATORY first step before any artifact creation, modification, or quality evaluation",
+		},
+		{
+			Name:        "epf_get_wizard",
+			Description: "Retrieve full wizard instructions. Follow these to create artifacts or execute quality reviews.",
+			When:        "After getting a wizard recommendation from epf_get_wizard_for_task (for creation, modification, or evaluation)",
+		},
+		{
+			Name:        "epf_list_wizards",
+			Description: "List all available EPF wizards by phase and type",
+			When:        "When exploring available guided workflows",
+		},
+		// Validation tools
 		{
 			Name:        "epf_validate_file",
-			Description: "Validate a single EPF artifact file",
-			When:        "After editing EPF YAML files",
+			Description: "Validate an EPF artifact file against its schema",
+			When:        "MANDATORY after every artifact creation or modification",
 		},
 		{
 			Name:        "epf_health_check",
 			Description: "Run comprehensive instance health check",
-			When:        "Before/after making changes to verify state",
+			When:        "Before starting work and after completing major changes",
+		},
+		// Strategy query tools
+		{
+			Name:        "epf_get_product_vision",
+			Description: "Get the product's vision, mission, and north star from the strategy instance",
+			When:        "Before feature work, roadmap changes, or writing user-facing content",
 		},
 		{
+			Name:        "epf_get_personas",
+			Description: "Get all target personas with summaries",
+			When:        "Before designing features or writing user-facing content",
+		},
+		{
+			Name:        "epf_get_roadmap_summary",
+			Description: "Get current OKRs and key results, optionally by track",
+			When:        "Before planning work or prioritizing features",
+		},
+		{
+			Name:        "epf_search_strategy",
+			Description: "Full-text search across all strategy artifacts",
+			When:        "When looking for specific strategy content by keyword",
+		},
+		{
+			Name:        "epf_get_competitive_position",
+			Description: "Get competitive analysis and market positioning",
+			When:        "Before competitive feature design or positioning decisions",
+		},
+		// Template and schema tools
+		{
 			Name:        "epf_get_schema",
-			Description: "Get JSON schema for an artifact type",
-			When:        "When creating new artifacts or debugging validation",
+			Description: "Get JSON Schema for an artifact type",
+			When:        "When needing to understand field constraints before writing",
 		},
 		{
 			Name:        "epf_get_template",
 			Description: "Get starting template for an artifact type",
-			When:        "When creating new EPF artifacts",
+			When:        "When creating new EPF artifacts (after consulting wizard)",
 		},
+		// Agent discovery
 		{
-			Name:        "epf_list_wizards",
-			Description: "List available EPF wizards",
-			When:        "When looking for guided workflows",
-		},
-		{
-			Name:        "epf_get_wizard_for_task",
-			Description: "Get recommended wizard for a task",
-			When:        "When unsure which wizard to use",
+			Name:        "epf_agent_instructions",
+			Description: "Get this guidance programmatically via MCP",
+			When:        "When initializing EPF agent context",
 		},
 		{
 			Name:        "epf_locate_instance",
-			Description: "Find EPF instances programmatically",
-			When:        "When building automation or discovery",
+			Description: "Find EPF instances programmatically with confidence scoring",
+			When:        "When building automation or searching for instances",
+		},
+		// Review/evaluation tools
+		{
+			Name:        "epf_recommend_reviews",
+			Description: "Get applicable semantic review wizards for an instance",
+			When:        "When evaluating instance quality or after health check shows structural health is good",
 		},
 		{
-			Name:        "epf_agent_instructions",
-			Description: "Get this guidance programmatically",
-			When:        "When initializing EPF agent context",
+			Name:        "epf_review_strategic_coherence",
+			Description: "Get strategic coherence review wizard",
+			When:        "When evaluating vision-to-execution strategic alignment",
+		},
+		{
+			Name:        "epf_review_feature_quality",
+			Description: "Get feature quality review wizard",
+			When:        "When evaluating feature definition quality (JTBD, personas, scenarios)",
+		},
+		{
+			Name:        "epf_review_value_model",
+			Description: "Get value model review wizard",
+			When:        "When evaluating value model structure for anti-patterns",
 		},
 	}
 
-	// Workflow guidance
+	// Workflow guidance (1.4 — wizard-first as step 2, 1.5 — mandatory language)
 	output.Workflow.FirstSteps = []string{
-		"1. Run 'epf-cli agent' to understand available tools",
-		"2. Run 'epf-cli locate' to find EPF instances",
-		"3. Run 'epf-cli health <instance>' to assess current state",
-		"4. Use MCP tools (epf_*) for programmatic operations",
+		"1. Run epf_health_check to assess current instance state",
+		"2. Call epf_get_wizard_for_task before creating ANY artifact",
+		"3. Query strategy context (epf_get_product_vision, epf_get_personas) before feature work",
+		"4. Follow wizard instructions, then validate with epf_validate_file",
 	}
 
 	output.Workflow.BestPractices = []string{
-		"Always validate files after editing: epf_validate_file",
+		"You MUST call epf_get_wizard_for_task before creating, modifying, or evaluating any EPF artifact or instance",
+		"You MUST validate every file after editing with epf_validate_file",
+		"You MUST query strategy context before feature work or roadmap changes",
 		"Run health check before and after major changes",
-		"Use wizards for guided artifact creation",
-		"Never guess artifact structure - use schemas and templates",
+		"Never guess artifact structure — use schemas, templates, and wizards",
 		"Prefer MCP tools over direct file manipulation when available",
 	}
 
@@ -284,6 +438,37 @@ func outputHuman(output *AgentOutput, disc *discovery.DiscoveryResult) error {
 	}
 	fmt.Println()
 
+	// Mandatory Protocols (prominently displayed)
+	fmt.Println("MANDATORY PROTOCOLS")
+	fmt.Println(strings.Repeat("-", 70))
+	for _, proto := range output.MandatoryProtocols {
+		fmt.Printf("  [%s] %s\n", strings.ToUpper(proto.Name), proto.Description)
+		for _, step := range proto.Steps {
+			fmt.Printf("    %s\n", step)
+		}
+		fmt.Println()
+	}
+
+	// Workflow Decision Tree
+	fmt.Println("WORKFLOW DECISION TREE")
+	fmt.Println(strings.Repeat("-", 70))
+	for _, decision := range output.WorkflowDecisionTree {
+		fmt.Printf("  %-22s -> %s\n", decision.TaskType, strings.Join(decision.Tools, " -> "))
+	}
+	fmt.Println()
+
+	// Strategy context (if available)
+	if output.StrategyContext != nil {
+		fmt.Println("STRATEGY CONTEXT")
+		fmt.Println(strings.Repeat("-", 70))
+		fmt.Printf("  Product:     %s\n", output.StrategyContext.ProductName)
+		fmt.Printf("  Instance:    %s\n", output.StrategyContext.InstancePath)
+		if output.StrategyContext.Description != "" {
+			fmt.Printf("  Description: %s\n", output.StrategyContext.Description)
+		}
+		fmt.Println()
+	}
+
 	// Commands
 	fmt.Println("KEY COMMANDS")
 	fmt.Println(strings.Repeat("-", 70))
@@ -292,13 +477,12 @@ func outputHuman(output *AgentOutput, disc *discovery.DiscoveryResult) error {
 	}
 	fmt.Println()
 
-	// MCP Tools
+	// MCP Tools — show all categorized
 	fmt.Println("MCP TOOLS (for programmatic use)")
 	fmt.Println(strings.Repeat("-", 70))
-	for _, tool := range output.MCPTools[:5] { // Show top 5
-		fmt.Printf("  %-25s  %s\n", tool.Name, tool.Description)
+	for _, tool := range output.MCPTools {
+		fmt.Printf("  %-30s  %s\n", tool.Name, tool.When)
 	}
-	fmt.Println("  ... and more. Run 'epf-cli serve' to start MCP server.")
 	fmt.Println()
 
 	// First steps
@@ -313,7 +497,7 @@ func outputHuman(output *AgentOutput, disc *discovery.DiscoveryResult) error {
 	fmt.Println("BEST PRACTICES")
 	fmt.Println(strings.Repeat("-", 70))
 	for _, practice := range output.Workflow.BestPractices {
-		fmt.Printf("  • %s\n", practice)
+		fmt.Printf("  * %s\n", practice)
 	}
 	fmt.Println()
 
