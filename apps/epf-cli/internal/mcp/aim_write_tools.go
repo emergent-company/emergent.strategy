@@ -84,6 +84,7 @@ func (s *Server) handleAimUpdateLRA(ctx context.Context, request mcp.CallToolReq
 		result["evolution_log_appended"] = true
 		result["trigger"] = trigger
 	}
+	s.invalidateInstanceCaches(instancePath)
 	data, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(data)), nil
 }
@@ -123,6 +124,7 @@ func (s *Server) handleAimWriteAssessment(ctx context.Context, request mcp.CallT
 		return mcp.NewToolResultText(string(data)), nil
 	}
 
+	s.invalidateInstanceCaches(instancePath)
 	result := map[string]interface{}{
 		"success":       true,
 		"instance_path": instancePath,
@@ -170,6 +172,7 @@ func (s *Server) handleAimWriteCalibration(ctx context.Context, request mcp.Call
 		return mcp.NewToolResultText(string(data)), nil
 	}
 
+	s.invalidateInstanceCaches(instancePath)
 	result := map[string]interface{}{
 		"success":       true,
 		"instance_path": instancePath,
@@ -220,6 +223,7 @@ func (s *Server) handleAimInitCycle(ctx context.Context, request mcp.CallToolReq
 		return mcp.NewToolResultText(string(data)), nil
 	}
 
+	s.invalidateInstanceCaches(instancePath)
 	result := map[string]interface{}{
 		"success":           true,
 		"instance_path":     instancePath,
@@ -263,6 +267,7 @@ func (s *Server) handleAimArchiveCycle(ctx context.Context, request mcp.CallTool
 		return mcp.NewToolResultText(string(data)), nil
 	}
 
+	s.invalidateInstanceCaches(instancePath)
 	result := map[string]interface{}{
 		"success":       true,
 		"instance_path": instancePath,

@@ -122,6 +122,9 @@ func (s *Server) handleAimBootstrap(ctx context.Context, request mcp.CallToolReq
 		},
 	}
 
+	// Invalidate caches after writing LRA
+	s.invalidateInstanceCaches(instancePath)
+
 	jsonData, _ := json.MarshalIndent(result, "", "  ")
 	return mcp.NewToolResultText(string(jsonData)), nil
 }
