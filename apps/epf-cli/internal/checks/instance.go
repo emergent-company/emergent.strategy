@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/embedded"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/template"
 	"gopkg.in/yaml.v3"
 )
@@ -159,6 +160,9 @@ func (c *InstanceChecker) Check() *CheckSummary {
 
 	// Check for framework separation (shouldn't have schemas/, wizards/ etc.)
 	c.checkFrameworkSeparation(summary)
+
+	// Check canonical definitions and value models are synced
+	c.checkCanonicalCompleteness(summary)
 
 	// Check AIM phase files (LRA)
 	c.checkAIMFiles(summary)
@@ -611,6 +615,77 @@ func (c *InstanceChecker) checkFrameworkSeparation(summary *CheckSummary) {
 			Passed:   true,
 			Severity: SeverityInfo,
 			Message:  "Instance properly separated from framework",
+			Path:     c.instancePath,
+		})
+	}
+}
+
+func (c *InstanceChecker) checkCanonicalCompleteness(summary *CheckSummary) {
+	// Only check phased instances with a READY directory
+	readyDefDir := filepath.Join(c.instancePath, "READY", "definitions")
+	if !c.isPhased {
+		return
+	}
+
+	// Get the expected canonical definitions from embedded manifest
+	expectedDefs, err := embedded.ListCanonicalDefinitions()
+	if err != nil {
+		return // Can't enumerate — skip silently
+	}
+
+	expectedVMs := embedded.ListCanonicalValueModels()
+
+	// Count missing definitions
+	var missingDefs []string
+	missingByTrack := make(map[string]int)
+	for _, def := range expectedDefs {
+		diskPath := filepath.Join(readyDefDir, def.Path)
+		if _, err := os.Stat(diskPath); os.IsNotExist(err) {
+			missingDefs = append(missingDefs, def.Path)
+			missingByTrack[def.Track]++
+		}
+	}
+
+	// Count missing value models
+	vmDir := filepath.Join(c.instancePath, "FIRE", "value_models")
+	var missingVMs []string
+	for _, vm := range expectedVMs {
+		diskPath := filepath.Join(vmDir, vm.Filename)
+		if _, err := os.Stat(diskPath); os.IsNotExist(err) {
+			missingVMs = append(missingVMs, vm.Filename)
+		}
+	}
+
+	totalMissing := len(missingDefs) + len(missingVMs)
+	if totalMissing > 0 {
+		// Build a detail message showing breakdown by track
+		var parts []string
+		for track, count := range missingByTrack {
+			parts = append(parts, fmt.Sprintf("%s: %d", track, count))
+		}
+		if len(missingVMs) > 0 {
+			parts = append(parts, fmt.Sprintf("value_models: %d", len(missingVMs)))
+		}
+
+		msg := fmt.Sprintf(
+			"%d canonical artifacts missing (%d definitions, %d value models). Breakdown: %s",
+			totalMissing, len(missingDefs), len(missingVMs), strings.Join(parts, ", "),
+		)
+
+		summary.Add(&CheckResult{
+			Check:    "canonical_completeness",
+			Passed:   false,
+			Severity: SeverityWarning,
+			Message:  msg,
+			Path:     c.instancePath,
+			Details:  []string{fmt.Sprintf("Run 'epf-cli sync-canonical %s' to add missing canonical artifacts.", c.instancePath)},
+		})
+	} else {
+		summary.Add(&CheckResult{
+			Check:    "canonical_completeness",
+			Passed:   true,
+			Severity: SeverityInfo,
+			Message:  fmt.Sprintf("All %d canonical artifacts present (%d definitions, %d value models)", len(expectedDefs)+len(expectedVMs), len(expectedDefs), len(expectedVMs)),
 			Path:     c.instancePath,
 		})
 	}
