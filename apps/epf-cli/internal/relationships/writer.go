@@ -68,7 +68,7 @@ func (w *Writer) AddImplementationReference(
 	description string,
 ) (*AddImplementationReferenceResult, error) {
 	// Find the feature file
-	featurePath, err := w.findFeatureFile(featureIDOrSlug)
+	featurePath, err := w.FindFeatureFile(featureIDOrSlug)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find feature: %w", err)
 	}
@@ -161,7 +161,7 @@ func (w *Writer) UpdateCapabilityMaturity(
 	deliveredByKR string,
 ) (*UpdateCapabilityMaturityResult, error) {
 	// Find the feature file
-	featurePath, err := w.findFeatureFile(featureIDOrSlug)
+	featurePath, err := w.FindFeatureFile(featureIDOrSlug)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find feature: %w", err)
 	}
@@ -380,7 +380,8 @@ func (w *Writer) SuggestRelationships(
 
 // Helper methods
 
-func (w *Writer) findFeatureFile(featureIDOrSlug string) (string, error) {
+// FindFeatureFile locates a feature definition file by ID or slug.
+func (w *Writer) FindFeatureFile(featureIDOrSlug string) (string, error) {
 	featureDefsDir := filepath.Join(w.instancePath, "FIRE", "feature_definitions")
 
 	entries, err := os.ReadDir(featureDefsDir)

@@ -816,10 +816,62 @@ func NewContentReadinessChecker(path string) *ContentReadinessChecker {
 
 // PlaceholderMatch represents a found placeholder
 type PlaceholderMatch struct {
-	File    string `json:"file"`
-	Line    int    `json:"line"`
-	Content string `json:"content"`
-	Pattern string `json:"pattern"`
+	File      string `json:"file"`
+	Line      int    `json:"line"`
+	Content   string `json:"content"`
+	Pattern   string `json:"pattern"`
+	FieldPath string `json:"field_path,omitempty"`
+}
+
+// yamlPathTracker tracks the current YAML key path by following indentation levels.
+type yamlPathTracker struct {
+	// stack holds (indent, key) pairs
+	stack []yamlPathEntry
+}
+
+type yamlPathEntry struct {
+	indent int
+	key    string
+}
+
+// yamlKeyRegexp matches a YAML key at the start of a line (after optional list marker).
+var yamlKeyRegexp = regexp.MustCompile(`^(\s*)(-\s+)?([a-zA-Z_][a-zA-Z0-9_]*)\s*:`)
+
+// update processes a line and updates the path stack.
+func (t *yamlPathTracker) update(line string) {
+	m := yamlKeyRegexp.FindStringSubmatch(line)
+	if m == nil {
+		return // continuation line, comment, or list value — keep current path
+	}
+	leadingSpaces := len(m[1])
+	hasDash := m[2] != ""
+	key := m[3]
+
+	// For list items (- key:), the effective indent for the key is
+	// the leading spaces plus the "- " prefix length, so that subsequent
+	// keys at the same list item depth are treated as siblings.
+	indent := leadingSpaces
+	if hasDash {
+		indent = leadingSpaces + len(m[2])
+	}
+
+	// Pop entries at same or deeper indentation
+	for len(t.stack) > 0 && t.stack[len(t.stack)-1].indent >= indent {
+		t.stack = t.stack[:len(t.stack)-1]
+	}
+	t.stack = append(t.stack, yamlPathEntry{indent: indent, key: key})
+}
+
+// path returns the current dotted field path (e.g., "north_star.purpose.statement").
+func (t *yamlPathTracker) path() string {
+	if len(t.stack) == 0 {
+		return ""
+	}
+	parts := make([]string, len(t.stack))
+	for i, e := range t.stack {
+		parts[i] = e.key
+	}
+	return strings.Join(parts, ".")
 }
 
 // ContentReadinessResult contains the result of content readiness check
@@ -881,7 +933,13 @@ func (c *ContentReadinessChecker) Check() (*ContentReadinessResult, error) {
 		result.FilesChecked++
 		lines := strings.Split(string(data), "\n")
 
+		// Track YAML field path context
+		tracker := &yamlPathTracker{}
+
 		for lineNum, line := range lines {
+			// Update field path tracker for every line (before exclusion check)
+			tracker.update(line)
+
 			// Check exclusions first
 			excluded := false
 			for _, exc := range ExclusionPatterns {
@@ -898,10 +956,11 @@ func (c *ContentReadinessChecker) Check() (*ContentReadinessResult, error) {
 			for _, pattern := range PlaceholderPatterns {
 				if pattern.MatchString(line) {
 					match := PlaceholderMatch{
-						File:    path,
-						Line:    lineNum + 1,
-						Content: strings.TrimSpace(line),
-						Pattern: pattern.String(),
+						File:      path,
+						Line:      lineNum + 1,
+						Content:   strings.TrimSpace(line),
+						Pattern:   pattern.String(),
+						FieldPath: tracker.path(),
 					}
 					if isCanonical {
 						// Track canonical placeholders separately — don't affect score

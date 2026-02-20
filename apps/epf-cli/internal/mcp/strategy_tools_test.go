@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/strategy"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
@@ -20,7 +19,7 @@ import (
 func clearStrategyStoreCache() {
 	strategyStoreMu.Lock()
 	defer strategyStoreMu.Unlock()
-	strategyStoreCache = make(map[string]strategy.StrategyStore)
+	strategyStoreCache = make(map[string]*strategyStoreCacheEntry)
 }
 
 func TestHandleGetProductVision_ValidInstance(t *testing.T) {

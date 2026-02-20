@@ -57,6 +57,8 @@ type PathContribution struct {
 	FeatureCount  int
 	FeatureIDs    []string
 	HasKRTargeted bool
+	KRIDs         []string
+	HasMapping    bool
 }
 
 // CoverageAnalyzer analyzes feature coverage of the value model.
@@ -65,6 +67,7 @@ type CoverageAnalyzer struct {
 	resolver    *valuemodel.Resolver
 	features    *FeatureSet
 	krIndex     *roadmap.KRIndex
+	mappings    []MappingEntry
 }
 
 // NewCoverageAnalyzer creates a new coverage analyzer.
@@ -79,6 +82,11 @@ func NewCoverageAnalyzer(
 		features:    features,
 		krIndex:     krIndex,
 	}
+}
+
+// SetMappings sets the mapping entries for multi-signal analysis.
+func (a *CoverageAnalyzer) SetMappings(mappings []MappingEntry) {
+	a.mappings = mappings
 }
 
 // AnalyzeAll analyzes coverage across all tracks.
@@ -347,6 +355,9 @@ func (a *CoverageAnalyzer) findOrphanFeatures() []*FeatureDefinition {
 func (a *CoverageAnalyzer) findMostContributed(coverageMap map[string][]*FeatureDefinition) []PathContribution {
 	var contributions []PathContribution
 
+	// Build mapping coverage set for quick lookup
+	mappingPaths := a.buildMappingPaths()
+
 	for path, features := range coverageMap {
 		if len(features) == 0 {
 			continue
@@ -361,10 +372,17 @@ func (a *CoverageAnalyzer) findMostContributed(coverageMap map[string][]*Feature
 			contribution.FeatureIDs = append(contribution.FeatureIDs, f.ID)
 		}
 
-		// Check if any KR targets this path
+		// Check if any KR targets this path and collect their IDs
 		if a.krIndex != nil {
-			contribution.HasKRTargeted = len(a.krIndex.GetKRsTargetingPath(path)) > 0
+			krs := a.krIndex.GetKRsTargetingPath(path)
+			contribution.HasKRTargeted = len(krs) > 0
+			for _, kr := range krs {
+				contribution.KRIDs = append(contribution.KRIDs, kr.KR.ID)
+			}
 		}
+
+		// Check if any mapping entry covers this path
+		contribution.HasMapping = mappingPaths[path]
 
 		contributions = append(contributions, contribution)
 	}
@@ -380,6 +398,19 @@ func (a *CoverageAnalyzer) findMostContributed(coverageMap map[string][]*Feature
 	}
 
 	return contributions
+}
+
+// buildMappingPaths builds a set of L2 paths that have mapping entries.
+func (a *CoverageAnalyzer) buildMappingPaths() map[string]bool {
+	result := make(map[string]bool)
+	for _, entry := range a.mappings {
+		// MappingEntry has SubComponentID which is a value model path like "Product.Graph.EntityExtraction"
+		l2Path := a.extractL2Path(entry.SubComponentID)
+		if l2Path != "" {
+			result[l2Path] = true
+		}
+	}
+	return result
 }
 
 // findKRTargetsWithoutFeatures finds KR-targeted paths without feature coverage.

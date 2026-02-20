@@ -442,6 +442,9 @@ func (s *Server) registerTools() {
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
 			),
+			mcp.WithString("file",
+				mcp.Description("Optional: Validate relationships in a single file only (feature definition or roadmap YAML path)"),
+			),
 		),
 		s.handleValidateRelationships,
 	)
@@ -771,6 +774,9 @@ func (s *Server) registerTools() {
 			mcp.WithString("delivered_by_kr",
 				mcp.Description("Optional KR ID that delivered this capability (e.g., 'kr-p-2025-q1-001')"),
 			),
+			mcp.WithString("dry_run",
+				mcp.Description("Preview changes without writing (true/false, default: false)"),
+			),
 		),
 		s.handleUpdateCapabilityMaturity,
 	)
@@ -938,6 +944,20 @@ func (s *Server) registerTools() {
 			),
 		),
 		s.handleSyncCanonical,
+	)
+
+	// Tool: epf_reload_instance
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_reload_instance",
+			mcp.WithDescription("Force reload the cached strategy data for an EPF instance. "+
+				"Use this when you know files have changed outside of epf-cli tools (e.g., manual edits, git operations). "+
+				"The cache auto-detects changes via file modification times, but this tool provides an explicit reload."),
+			mcp.WithString("instance_path",
+				mcp.Required(),
+				mcp.Description("Path to the EPF instance directory"),
+			),
+		),
+		s.handleReloadInstance,
 	)
 
 	// ==========================================================================
@@ -1297,6 +1317,167 @@ func (s *Server) registerTools() {
 			),
 		),
 		s.handleDiffTemplate,
+	)
+
+	// ==========================================================================
+	// P1 High-Impact Tools
+	// ==========================================================================
+
+	// Tool: epf_list_features
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_list_features",
+			mcp.WithDescription("List all feature definitions with strategic context and quality scores. "+
+				"Returns feature ID, name, status, contributes_to paths, capability count, and optional quality score. "+
+				"Use this to get a quick overview of all features in the instance."),
+			mcp.WithString("instance_path",
+				mcp.Required(),
+				mcp.Description("Path to the EPF instance directory"),
+			),
+			mcp.WithString("include_quality",
+				mcp.Description("Include quality scores from feature quality checker (true/false, default: true)"),
+			),
+		),
+		s.handleListFeatures,
+	)
+
+	// Tool: epf_batch_validate
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_batch_validate",
+			mcp.WithDescription("Validate all YAML files in an EPF instance at once. "+
+				"Returns per-file pass/fail with error counts and an overall summary. "+
+				"Optionally filter by artifact type."),
+			mcp.WithString("instance_path",
+				mcp.Required(),
+				mcp.Description("Path to the EPF instance directory"),
+			),
+			mcp.WithString("artifact_type",
+				mcp.Description("Optional: Filter to a specific artifact type (e.g., 'feature_definition', 'value_model')"),
+			),
+		),
+		s.handleBatchValidate,
+	)
+
+	// Tool: epf_rename_value_path
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_rename_value_path",
+			mcp.WithDescription("Rename a value model path across all features and roadmap KRs. "+
+				"Updates contributes_to in feature definitions and value_model_target.component_path in KRs. "+
+				"Use dry_run=true to preview changes before applying."),
+			mcp.WithString("instance_path",
+				mcp.Required(),
+				mcp.Description("Path to the EPF instance directory"),
+			),
+			mcp.WithString("old_path",
+				mcp.Required(),
+				mcp.Description("The current value model path to rename (e.g., 'Product.Core.Search')"),
+			),
+			mcp.WithString("new_path",
+				mcp.Required(),
+				mcp.Description("The new value model path (e.g., 'Product.Discovery.Search')"),
+			),
+			mcp.WithString("dry_run",
+				mcp.Description("Preview changes without modifying files (true/false, default: false)"),
+			),
+		),
+		s.handleRenameValuePath,
+	)
+
+	// Tool: epf_update_kr
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_update_kr",
+			mcp.WithDescription("Update fields on a Key Result in the roadmap. "+
+				"Supports updating status, actual value, evidence, and value_model_target.component_path. "+
+				"Pass fields as a JSON object with the fields to update. Use dry_run=true to preview."),
+			mcp.WithString("instance_path",
+				mcp.Required(),
+				mcp.Description("Path to the EPF instance directory"),
+			),
+			mcp.WithString("kr_id",
+				mcp.Required(),
+				mcp.Description("The Key Result ID to update (e.g., 'kr-p-2025-q1-001')"),
+			),
+			mcp.WithString("dry_run",
+				mcp.Description("Preview changes without modifying files (true/false, default: false)"),
+			),
+		),
+		s.handleUpdateKR,
+	)
+
+	// Tool: epf_add_value_model_component
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_add_value_model_component",
+			mcp.WithDescription("Add a new L2 component to a value model layer. "+
+				"Creates the component under the specified L1 layer with name, and optional active status. "+
+				"Use dry_run=true to preview changes."),
+			mcp.WithString("instance_path",
+				mcp.Required(),
+				mcp.Description("Path to the EPF instance directory"),
+			),
+			mcp.WithString("track",
+				mcp.Required(),
+				mcp.Description("Track name (e.g., 'Product', 'Strategy', 'OrgOps', 'Commercial')"),
+			),
+			mcp.WithString("l1_id",
+				mcp.Required(),
+				mcp.Description("L1 layer ID to add the component to (e.g., 'Core', 'Discovery')"),
+			),
+			mcp.WithString("component_id",
+				mcp.Required(),
+				mcp.Description("ID for the new L2 component (e.g., 'Search', 'Analytics')"),
+			),
+			mcp.WithString("name",
+				mcp.Required(),
+				mcp.Description("Human-readable name for the component"),
+			),
+			mcp.WithString("dry_run",
+				mcp.Description("Preview changes without modifying files (true/false, default: false)"),
+			),
+			mcp.WithString("active",
+				mcp.Description("Whether the component is active (true/false, default: true)"),
+			),
+		),
+		s.handleAddValueModelComponent,
+	)
+
+	// Tool: epf_add_value_model_sub
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_add_value_model_sub",
+			mcp.WithDescription("Add a new L3 sub-component to a value model component. "+
+				"Creates the sub-component under the specified L2 component. "+
+				"Automatically uses 'sub_components' for Product track and 'subs' for other tracks. "+
+				"Use dry_run=true to preview changes."),
+			mcp.WithString("instance_path",
+				mcp.Required(),
+				mcp.Description("Path to the EPF instance directory"),
+			),
+			mcp.WithString("track",
+				mcp.Required(),
+				mcp.Description("Track name (e.g., 'Product', 'Strategy', 'OrgOps', 'Commercial')"),
+			),
+			mcp.WithString("l1_id",
+				mcp.Required(),
+				mcp.Description("L1 layer ID (e.g., 'Core', 'Discovery')"),
+			),
+			mcp.WithString("l2_id",
+				mcp.Required(),
+				mcp.Description("L2 component ID to add the sub-component to (e.g., 'Search')"),
+			),
+			mcp.WithString("sub_id",
+				mcp.Required(),
+				mcp.Description("ID for the new L3 sub-component (e.g., 'FullText', 'Semantic')"),
+			),
+			mcp.WithString("name",
+				mcp.Required(),
+				mcp.Description("Human-readable name for the sub-component"),
+			),
+			mcp.WithString("dry_run",
+				mcp.Description("Preview changes without modifying files (true/false, default: false)"),
+			),
+			mcp.WithString("active",
+				mcp.Description("Whether the sub-component is active (true/false, default: true)"),
+			),
+		),
+		s.handleAddValueModelSub,
 	)
 
 	// ==========================================================================
@@ -2081,7 +2262,11 @@ func (s *Server) handleCheckContentReadiness(ctx context.Context, request mcp.Ca
 		for file, matches := range byFile {
 			sb.WriteString(fmt.Sprintf("### %s\n", file))
 			for _, m := range matches {
-				sb.WriteString(fmt.Sprintf("- Line %d: `%s`\n", m.Line, m.Content))
+				if m.FieldPath != "" {
+					sb.WriteString(fmt.Sprintf("- Line %d (`%s`): `%s`\n", m.Line, m.FieldPath, m.Content))
+				} else {
+					sb.WriteString(fmt.Sprintf("- Line %d: `%s`\n", m.Line, m.Content))
+				}
 			}
 			sb.WriteString("\n")
 		}
@@ -2128,7 +2313,11 @@ func (s *Server) handleCheckFeatureQuality(ctx context.Context, request mcp.Call
 			if len(f.Issues) > 0 {
 				sb.WriteString("- Issues:\n")
 				for _, issue := range f.Issues {
-					sb.WriteString(fmt.Sprintf("  - [%s] %s: %s\n", issue.Severity, issue.Field, issue.Message))
+					sb.WriteString(fmt.Sprintf("  - [%s] %s: %s (%+d pts)", issue.Severity, issue.Field, issue.Message, issue.ScoreImpact))
+					if issue.ImprovementAction != "" {
+						sb.WriteString(fmt.Sprintf(" → %s", issue.ImprovementAction))
+					}
+					sb.WriteString("\n")
 				}
 			}
 			sb.WriteString("\n")
@@ -2855,6 +3044,8 @@ type CoverageMostContributed struct {
 	FeatureCount  int      `json:"feature_count"`
 	FeatureIDs    []string `json:"feature_ids"`
 	HasKRTargeted bool     `json:"has_kr_targeted"`
+	KRIDs         []string `json:"kr_ids,omitempty"`
+	HasMapping    bool     `json:"has_mapping"`
 }
 
 // handleAnalyzeCoverage handles the epf_analyze_coverage tool
@@ -2913,6 +3104,8 @@ func (s *Server) handleAnalyzeCoverage(ctx context.Context, request mcp.CallTool
 			FeatureCount:  mc.FeatureCount,
 			FeatureIDs:    mc.FeatureIDs,
 			HasKRTargeted: mc.HasKRTargeted,
+			KRIDs:         mc.KRIDs,
+			HasMapping:    mc.HasMapping,
 		})
 	}
 
@@ -3003,8 +3196,15 @@ func (s *Server) handleValidateRelationships(ctx context.Context, request mcp.Ca
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to load instance: %s", err.Error())), nil
 	}
 
-	// Validate all relationships
-	result := analyzer.ValidateAll()
+	// Check for optional file parameter for scoped validation
+	filePath, _ := request.RequireString("file")
+
+	var result *relationships.ValidationResult
+	if filePath != "" {
+		result = analyzer.ValidateFile(filePath)
+	} else {
+		result = analyzer.ValidateAll()
+	}
 
 	// Build response
 	response := &ValidateRelationshipsResponse{
@@ -3369,6 +3569,9 @@ func (s *Server) handleAddImplementationReference(ctx context.Context, request m
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to add implementation reference: %s", err.Error())), nil
 	}
 
+	// Invalidate caches after adding implementation reference
+	s.invalidateInstanceCaches(instancePath)
+
 	jsonBytes, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize response: %s", err.Error())), nil
@@ -3407,6 +3610,10 @@ func (s *Server) handleUpdateCapabilityMaturity(ctx context.Context, request mcp
 	// Optional parameter
 	deliveredByKR, _ := request.RequireString("delivered_by_kr")
 
+	// Dry run parameter
+	dryRunStr, _ := request.RequireString("dry_run")
+	dryRun := dryRunStr == "true"
+
 	// Validate maturity level
 	validMaturity := map[string]bool{
 		"hypothetical": true, "emerging": true, "proven": true, "scaled": true,
@@ -3415,12 +3622,37 @@ func (s *Server) handleUpdateCapabilityMaturity(ctx context.Context, request mcp
 		return mcp.NewToolResultError("maturity must be one of: hypothetical, emerging, proven, scaled"), nil
 	}
 
+	if dryRun {
+		// Validate the feature and capability exist without writing
+		writer := relationships.NewWriter(instancePath)
+		featurePath, err := writer.FindFeatureFile(featureID)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Feature not found: %s", err.Error())), nil
+		}
+		result := map[string]interface{}{
+			"success":         true,
+			"dry_run":         true,
+			"feature_id":      featureID,
+			"feature_file":    featurePath,
+			"capability_id":   capabilityID,
+			"new_maturity":    maturity,
+			"evidence":        evidence,
+			"delivered_by_kr": deliveredByKR,
+			"message":         "Would update capability maturity with the specified values",
+		}
+		jsonBytes, _ := json.MarshalIndent(result, "", "  ")
+		return mcp.NewToolResultText(string(jsonBytes)), nil
+	}
+
 	// Create writer and update maturity
 	writer := relationships.NewWriter(instancePath)
 	result, err := writer.UpdateCapabilityMaturity(featureID, capabilityID, maturity, evidence, deliveredByKR)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to update capability maturity: %s", err.Error())), nil
 	}
+
+	// Invalidate caches after updating capability maturity
+	s.invalidateInstanceCaches(instancePath)
 
 	jsonBytes, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
@@ -3471,6 +3703,9 @@ func (s *Server) handleAddMappingArtifact(ctx context.Context, request mcp.CallT
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to add mapping artifact: %s", err.Error())), nil
 	}
+
+	// Invalidate caches after adding mapping artifact
+	s.invalidateInstanceCaches(instancePath)
 
 	jsonBytes, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {

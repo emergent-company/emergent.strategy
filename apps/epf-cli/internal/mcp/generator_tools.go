@@ -717,6 +717,9 @@ func (s *Server) handleScaffoldGenerator(ctx context.Context, request mcp.CallTo
 		},
 	}
 
+	// Invalidate caches after scaffolding generator
+	s.invalidateInstanceCaches(instancePath)
+
 	jsonBytes, err := json.MarshalIndent(response, "", "  ")
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize response: %s", err.Error())), nil
