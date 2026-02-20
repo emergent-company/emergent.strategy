@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/embedded"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/template"
 	"gopkg.in/yaml.v3"
 )
@@ -56,6 +57,10 @@ func RunHealthDiagnostics(instancePath string) (*HealthReport, error) {
 	// Check 8: Assessment report naming ambiguity
 	namingDiags := checkAssessmentNaming(instancePath)
 	diagnostics = append(diagnostics, namingDiags...)
+
+	// Check 9: Canonical definitions/value models completeness
+	canonicalDiags := checkCanonicalCompleteness(instancePath)
+	diagnostics = append(diagnostics, canonicalDiags...)
 
 	report.Diagnostics = diagnostics
 	report.Summary = calculateHealthSummary(diagnostics)
@@ -765,4 +770,71 @@ func countYAMLFiles(dir string) int {
 		}
 	}
 	return count
+}
+
+// checkCanonicalCompleteness checks if canonical definitions and value models are synced.
+func checkCanonicalCompleteness(instancePath string) []HealthDiagnostic {
+	var diags []HealthDiagnostic
+
+	// Only check instances that have a READY directory
+	readyDir := filepath.Join(instancePath, "READY")
+	if _, err := os.Stat(readyDir); os.IsNotExist(err) {
+		return diags
+	}
+
+	expectedDefs, err := embedded.ListCanonicalDefinitions()
+	if err != nil {
+		return diags
+	}
+
+	expectedVMs := embedded.ListCanonicalValueModels()
+
+	// Count missing definitions
+	defDir := filepath.Join(instancePath, "READY", "definitions")
+	missingDefCount := 0
+	missingByTrack := make(map[string]int)
+	for _, def := range expectedDefs {
+		diskPath := filepath.Join(defDir, def.Path)
+		if _, err := os.Stat(diskPath); os.IsNotExist(err) {
+			missingDefCount++
+			missingByTrack[def.Track]++
+		}
+	}
+
+	// Count missing value models
+	vmDir := filepath.Join(instancePath, "FIRE", "value_models")
+	missingVMCount := 0
+	for _, vm := range expectedVMs {
+		diskPath := filepath.Join(vmDir, vm.Filename)
+		if _, err := os.Stat(diskPath); os.IsNotExist(err) {
+			missingVMCount++
+		}
+	}
+
+	totalMissing := missingDefCount + missingVMCount
+	if totalMissing > 0 {
+		var parts []string
+		for track, count := range missingByTrack {
+			parts = append(parts, fmt.Sprintf("%s: %d", track, count))
+		}
+		if missingVMCount > 0 {
+			parts = append(parts, fmt.Sprintf("value_models: %d", missingVMCount))
+		}
+
+		diags = append(diags, HealthDiagnostic{
+			ID:       "aim-canonical-incomplete",
+			Category: "canonical_completeness",
+			Severity: "warning",
+			Title:    fmt.Sprintf("%d canonical artifacts missing", totalMissing),
+			Description: fmt.Sprintf(
+				"%d canonical definitions and %d value models are missing. Breakdown: %s. "+
+					"Canonical artifacts provide the strategy, org_ops, and commercial track foundations.",
+				missingDefCount, missingVMCount, strings.Join(parts, ", "),
+			),
+			Artifact:   "READY/definitions/",
+			Suggestion: "Run: epf-cli sync-canonical <instance-path>",
+		})
+	}
+
+	return diags
 }
