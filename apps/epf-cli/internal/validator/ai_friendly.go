@@ -142,6 +142,35 @@ var (
 	patternMismatchPattern = regexp.MustCompile(`does not match pattern '([^']+)'`)
 )
 
+// knownPatternExplanations maps regex patterns used in EPF schemas to human-readable descriptions
+var knownPatternExplanations = map[string]string{
+	`^fd-[0-9]+$`:               "Feature ID: fd- followed by digits (e.g., fd-001)",
+	`^cap-[0-9]+$`:              "Capability ID: cap- followed by digits (e.g., cap-001)",
+	`^ctx-[0-9]+$`:              "Context ID: ctx- followed by digits (e.g., ctx-001)",
+	`^scn-[0-9]+$`:              "Scenario ID: scn- followed by digits (e.g., scn-001)",
+	`^ps-[0-9]+$`:               "Persona ID: ps- followed by digits (e.g., ps-001)",
+	`^[a-z]+(-[a-z]+)*$`:        "Lowercase slug: words separated by hyphens (e.g., my-feature)",
+	`^[a-z][a-z0-9-]*[a-z0-9]$`: "Lowercase slug: starts with letter, alphanumeric with hyphens (e.g., my-feature-1)",
+	`^(Product|Commercial|Strategy|OrgOps)(\.[A-Za-z0-9]+){2,3}$`: "Value model path: Track.L2.L3 (e.g., Product.Core.Search)",
+	`^(Product)\.[A-Za-z]+\.[A-Za-z]+$`:                           "Product value model path: Product.L2.L3 (e.g., Product.Core.Search)",
+	`^(Strategy)\.[A-Za-z]+\.[A-Za-z]+$`:                          "Strategy value model path: Strategy.L2.L3 (e.g., Strategy.Growth.MarketExpansion)",
+	`^(OrgOps)\.[A-Za-z]+\.[A-Za-z]+$`:                            "OrgOps value model path: OrgOps.L2.L3 (e.g., OrgOps.Processes.Hiring)",
+	`^(Commercial)\.[A-Za-z]+\.[A-Za-z]+$`:                        "Commercial value model path: Commercial.L2.L3 (e.g., Commercial.Revenue.Pricing)",
+	`^kr-[psoc]-\d{3}$`:                                           "Key Result ID: kr-{track}-NNN (e.g., kr-p-001 for product, kr-s-002 for strategy)",
+	`^kr-[psoc]-[0-9]+$`:                                          "Key Result ID: kr-{track}-N (e.g., kr-p-001 for product)",
+	`^kr-[a-z0-9-]+$`:                                             "Key Result ID: kr- followed by alphanumeric slug (e.g., kr-p-001)",
+	`^okr-[psoc]-\d{3}$`:                                          "OKR ID: okr-{track}-NNN (e.g., okr-p-001 for product)",
+	`^asm-[psoc]-\d{3}$`:                                          "Assumption ID: asm-{track}-NNN (e.g., asm-p-001)",
+	`^comp-[psoc]-\d{3}$`:                                         "Component ID: comp-{track}-NNN (e.g., comp-p-001)",
+	`^(fd|sd|pd|cd)-[0-9]{3}$`:                                    "Definition ID: {track}-NNN (e.g., fd-001, sd-002, pd-003, cd-004)",
+	`^src-[a-z0-9-]+$`:                                            "SRC finding ID: src- followed by slug (e.g., src-stale-north-star)",
+	`^TRL [1-9] → TRL [1-9]$`:                                     "TRL progression: 'TRL N → TRL M' (e.g., TRL 3 → TRL 5)",
+	`^(\d{4})(-\d{4})?$`:                                          "Year or year range: YYYY or YYYY-YYYY (e.g., 2024 or 2024-2025)",
+	`^(bootstrap|C[0-9]+)$`:                                       "Cycle reference: 'bootstrap' or C followed by number (e.g., C1, C2)",
+	`^(product|strategy|org_ops|commercial):kr-[psoc]-\d{3}$`:     "Qualified KR reference: track:kr-{t}-NNN (e.g., product:kr-p-001)",
+	`^[a-z][a-z0-9-]*[a-z0-9](\.[a-z][a-z0-9-]*[a-z0-9]){1,2}$`:   "Dotted path: segment.segment or segment.segment.segment (e.g., product.core.search)",
+}
+
 // ExtractEnhancedErrors converts jsonschema errors to enhanced format
 func ExtractEnhancedErrors(err error) []*EnhancedValidationError {
 	var errors []*EnhancedValidationError
@@ -364,7 +393,26 @@ func generateFixHint(enhanced *EnhancedValidationError) string {
 		return generateTypeFixHint(enhanced.Details.ExpectedType, enhanced.Details.ActualType)
 	case ErrorMissingRequired:
 		if len(enhanced.Details.MissingFields) == 1 {
-			return "Add the required field '" + enhanced.Details.MissingFields[0] + "'"
+			field := enhanced.Details.MissingFields[0]
+			hint := "Add the required field '" + field + "'"
+			if enhanced.Details.ExpectedStructure != nil {
+				if desc, ok := enhanced.Details.ExpectedStructure[field]; ok {
+					hint += " (" + desc + ")"
+				}
+			}
+			return hint
+		}
+		// Multiple missing fields — include type hints if available
+		if enhanced.Details.ExpectedStructure != nil && len(enhanced.Details.ExpectedStructure) > 0 {
+			parts := make([]string, 0, len(enhanced.Details.MissingFields))
+			for _, field := range enhanced.Details.MissingFields {
+				if desc, ok := enhanced.Details.ExpectedStructure[field]; ok {
+					parts = append(parts, field+" ("+desc+")")
+				} else {
+					parts = append(parts, field)
+				}
+			}
+			return "Add all missing required fields: " + strings.Join(parts, ", ")
 		}
 		return "Add all missing required fields: " + strings.Join(enhanced.Details.MissingFields, ", ")
 	case ErrorInvalidEnum:
@@ -374,7 +422,11 @@ func generateFixHint(enhanced *EnhancedValidationError) string {
 	case ErrorUnknownField:
 		return "Remove unknown field(s) or check spelling. Use 'epf-cli schemas show <type>' to see valid fields"
 	case ErrorPatternMismatch:
-		return "Format must match pattern: " + enhanced.Details.ConstraintValue.(string)
+		pattern := enhanced.Details.ConstraintValue.(string)
+		if explanation, ok := knownPatternExplanations[pattern]; ok {
+			return explanation
+		}
+		return "Format must match pattern: " + pattern
 	default:
 		return "Check the schema for expected format"
 	}

@@ -344,6 +344,44 @@ func TestGenerateFixHint(t *testing.T) {
 			},
 			contains: "Remove unknown field",
 		},
+		{
+			name: "pattern mismatch with known explanation",
+			enhanced: &EnhancedValidationError{
+				ErrorType: ErrorPatternMismatch,
+				Details:   ErrorDetails{Constraint: "pattern", ConstraintValue: `^fd-[0-9]+$`},
+			},
+			contains: "Feature ID: fd- followed by digits",
+		},
+		{
+			name: "pattern mismatch with unknown pattern",
+			enhanced: &EnhancedValidationError{
+				ErrorType: ErrorPatternMismatch,
+				Details:   ErrorDetails{Constraint: "pattern", ConstraintValue: `^custom-[0-9]+$`},
+			},
+			contains: "Format must match pattern",
+		},
+		{
+			name: "missing required single with expected structure",
+			enhanced: &EnhancedValidationError{
+				ErrorType: ErrorMissingRequired,
+				Details: ErrorDetails{
+					MissingFields:     []string{"name"},
+					ExpectedStructure: map[string]string{"name": "string"},
+				},
+			},
+			contains: "(string)",
+		},
+		{
+			name: "missing required multiple with expected structure",
+			enhanced: &EnhancedValidationError{
+				ErrorType: ErrorMissingRequired,
+				Details: ErrorDetails{
+					MissingFields:     []string{"name", "description"},
+					ExpectedStructure: map[string]string{"name": "string", "description": "string, minLength: 200"},
+				},
+			},
+			contains: "description (string, minLength: 200)",
+		},
 	}
 
 	for _, tt := range tests {
@@ -392,4 +430,31 @@ func containsSubstring(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+// TestKnownPatternExplanations tests that the pattern map has valid entries
+func TestKnownPatternExplanations(t *testing.T) {
+	if len(knownPatternExplanations) == 0 {
+		t.Error("knownPatternExplanations should not be empty")
+	}
+
+	// Verify known EPF patterns have explanations
+	mustHave := []string{
+		`^fd-[0-9]+$`,
+		`^cap-[0-9]+$`,
+		`^ctx-[0-9]+$`,
+		`^scn-[0-9]+$`,
+	}
+	for _, pattern := range mustHave {
+		if _, ok := knownPatternExplanations[pattern]; !ok {
+			t.Errorf("knownPatternExplanations missing pattern %q", pattern)
+		}
+	}
+
+	// Verify no empty explanations
+	for pattern, explanation := range knownPatternExplanations {
+		if explanation == "" {
+			t.Errorf("knownPatternExplanations[%q] has empty explanation", pattern)
+		}
+	}
 }

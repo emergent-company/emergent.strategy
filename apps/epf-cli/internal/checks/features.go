@@ -32,11 +32,13 @@ type FeatureQualityResult struct {
 
 // QualityIssue represents a quality issue
 type QualityIssue struct {
-	Field    string   `json:"field"`
-	Severity Severity `json:"severity"`
-	Message  string   `json:"message"`
-	Expected string   `json:"expected,omitempty"`
-	Actual   string   `json:"actual,omitempty"`
+	Field             string   `json:"field"`
+	Severity          Severity `json:"severity"`
+	Message           string   `json:"message"`
+	Expected          string   `json:"expected,omitempty"`
+	Actual            string   `json:"actual,omitempty"`
+	ScoreImpact       int      `json:"score_impact"`
+	ImprovementAction string   `json:"improvement_action,omitempty"`
 }
 
 // FeatureQualitySummary summarizes all feature quality checks
@@ -202,20 +204,26 @@ func (c *FeatureQualityChecker) checkFeatureFile(path string) *FeatureQualityRes
 	// Check persona narrative quality (returns count for -2/issue scoring)
 	narrativeHintCount := c.checkNarrativeQuality(feature, result)
 
-	// Calculate final score and passed status
+	// Annotate each issue with score impact and improvement action, then count by severity
 	criticalCount := 0
 	errorCount := 0
 	warningCount := 0
 
-	for _, issue := range result.Issues {
+	for i := range result.Issues {
+		issue := &result.Issues[i]
 		switch issue.Severity {
 		case SeverityCritical:
 			criticalCount++
+			issue.ScoreImpact = -20
 		case SeverityError:
 			errorCount++
+			issue.ScoreImpact = -10
 		case SeverityWarning:
 			warningCount++
+			issue.ScoreImpact = -5
 		}
+		// Add improvement action based on field and message
+		issue.ImprovementAction = improvementActionFor(issue.Field, issue.Severity, issue.Message)
 	}
 
 	// Score calculation: -20 for critical, -10 for error, -5 for warning, -2 for narrative hint (capped at -10)
@@ -650,4 +658,59 @@ func getNestedString(m map[string]interface{}, path string) string {
 	}
 
 	return ""
+}
+
+// improvementActionFor returns a human-readable improvement action for a quality issue.
+func improvementActionFor(field string, severity Severity, message string) string {
+	switch {
+	// Persona issues
+	case field == "definition" && strings.Contains(message, "Missing 'definition' block"):
+		return "Add a 'definition' block with personas, capabilities, and job_to_be_done"
+	case field == "definition.personas" && strings.Contains(message, "Missing"):
+		return "Add a 'personas' array under definition with at least 1 persona (4 recommended)"
+	case strings.HasPrefix(field, "definition.personas") && strings.Contains(message, "persona count"):
+		return fmt.Sprintf("Add more personas to reach the recommended count of %d", RecommendedPersonaCount)
+	case strings.HasPrefix(field, "definition.personas") && strings.Contains(message, "Missing required field"):
+		return "Fill in the missing persona field with 100+ character narrative"
+
+	// Scenario issues
+	case field == "scenarios" && strings.Contains(message, "No scenarios"):
+		return "Add at least 1 scenario under implementation.scenarios (score capped at 80 without scenarios)"
+	case strings.HasPrefix(field, "scenarios"):
+		return "Complete the scenario with all required fields (trigger, flow, outcome)"
+
+	// Context issues
+	case field == "contexts" && strings.Contains(message, "No contexts"):
+		return "Add at least 1 context under implementation.contexts (-10 points without contexts)"
+	case strings.HasPrefix(field, "contexts"):
+		return "Add the missing context field (key_interactions, data_displayed)"
+
+	// Dependencies
+	case strings.HasPrefix(field, "dependencies"):
+		return "Verify dependency references point to valid feature IDs"
+
+	// Contributes-to
+	case field == "strategic_context.contributes_to":
+		return "Add at least one contributes_to path linking this feature to the value model"
+
+	// Narrative quality
+	case strings.Contains(field, "narrative") || strings.Contains(message, "narrative"):
+		return "Expand narrative text to 100+ characters with specific, concrete details"
+
+	// Capability issues
+	case strings.HasPrefix(field, "definition.capabilities"):
+		return "Ensure each capability has id (cap-NNN pattern), name, and description"
+
+	default:
+		switch severity {
+		case SeverityCritical:
+			return "Fix this critical issue to unblock the feature score"
+		case SeverityError:
+			return "Resolve this error to improve the feature score by +10 points"
+		case SeverityWarning:
+			return "Address this warning to improve the feature score by +5 points"
+		default:
+			return ""
+		}
+	}
 }

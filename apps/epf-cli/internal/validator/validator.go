@@ -292,6 +292,24 @@ func (v *Validator) convertToAIFriendly(filePath string, result *ValidationResul
 			}
 		}
 
+		// For missing required fields, extract type info for each missing field
+		if enhanced.ErrorType == ErrorMissingRequired {
+			if schemaFile != "" && jsonPointer != "" {
+				allFields := introspector.ExtractExpectedStructure(schemaFile, jsonPointer)
+				if allFields != nil {
+					missingStructure := make(map[string]string)
+					for _, field := range enhanced.Details.MissingFields {
+						if desc, ok := allFields[field]; ok {
+							missingStructure[field] = desc
+						}
+					}
+					if len(missingStructure) > 0 {
+						enhanced.Details.ExpectedStructure = missingStructure
+					}
+				}
+			}
+		}
+
 		// Generate fix hint
 		enhanced.FixHint = generateFixHint(enhanced)
 

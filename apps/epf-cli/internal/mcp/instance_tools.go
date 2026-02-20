@@ -243,6 +243,9 @@ func (s *Server) handleInitStandalone(absPath, instanceDir, productName, epfVers
 		result.NextSteps = append([]string{"Initialize git repository: git init"}, result.NextSteps...)
 	}
 
+	// Invalidate caches after creating instance
+	s.invalidateInstanceCaches(instanceDir)
+
 	return returnInitResult(result)
 }
 
@@ -343,6 +346,9 @@ func (s *Server) handleInitIntegrated(absPath, epfDir, instanceDir, productName,
 	if !isGit {
 		result.NextSteps = append([]string{"Initialize git repository: git init"}, result.NextSteps...)
 	}
+
+	// Invalidate caches after creating instance
+	s.invalidateInstanceCaches(instanceDir)
 
 	return returnInitResult(result)
 }
@@ -1180,6 +1186,11 @@ func (s *Server) handleSyncCanonical(ctx context.Context, request mcp.CallToolRe
 	result.Summary.SkippedCount = len(syncResult.Skipped)
 	result.Summary.UpdatedCount = len(syncResult.Updated)
 	result.Summary.ErrorCount = len(syncResult.Errors)
+
+	// Invalidate caches after syncing canonical artifacts (skip on dry run)
+	if !dryRun {
+		s.invalidateInstanceCaches(absPath)
+	}
 
 	data, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {

@@ -70,6 +70,9 @@ func (a *Analyzer) Load() error {
 	// Load mappings (optional - FIRE/mappings.yaml may not exist)
 	a.mappings = a.loadMappings()
 
+	// Pass mappings to coverage analyzer for multi-signal analysis
+	a.coverage.SetMappings(a.mappings)
+
 	return nil
 }
 
@@ -255,6 +258,43 @@ type SubComponentInfo struct {
 // ValidateAll validates all relationships and returns the result.
 func (a *Analyzer) ValidateAll() *ValidationResult {
 	return a.validator.ValidateAll(a.features, a.roadmapData, a.mappings)
+}
+
+// ValidateFile validates relationships only for a specific file.
+// If the file is a feature definition, only that feature's contributes_to paths are checked.
+// If the file is the roadmap, only KR value_model_target paths are checked.
+func (a *Analyzer) ValidateFile(filePath string) *ValidationResult {
+	result := &ValidationResult{
+		Valid: true,
+	}
+
+	// Try to match the file to a loaded feature
+	for _, feature := range a.features.ByID {
+		if feature.FilePath == filePath || filepath.Base(feature.FilePath) == filepath.Base(filePath) {
+			errors := a.validator.ValidateFeature(feature)
+			result.Stats.TotalFeaturesChecked = 1
+			for _, e := range errors {
+				result.Stats.TotalPathsChecked++
+				result.AddError(e)
+			}
+			// Count valid paths
+			result.Stats.ValidPaths = len(feature.StrategicContext.ContributesTo) - result.Stats.InvalidPaths
+			result.Stats.TotalPathsChecked = len(feature.StrategicContext.ContributesTo)
+			return result
+		}
+	}
+
+	// If no feature matched, check if it's a roadmap file — validate all KRs
+	baseName := filepath.Base(filePath)
+	if strings.Contains(baseName, "roadmap") {
+		if a.roadmapData != nil {
+			krResult := a.validator.ValidateKRs(a.roadmapData)
+			return krResult
+		}
+	}
+
+	// Fallback: file doesn't match any known artifact, return empty valid result
+	return result
 }
 
 // AnalyzeCoverage returns coverage analysis for all tracks or a specific track.

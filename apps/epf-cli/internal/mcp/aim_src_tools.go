@@ -52,6 +52,9 @@ func (s *Server) handleAimGenerateSRC(ctx context.Context, request mcp.CallToolR
 		return mcp.NewToolResultText(string(data)), nil
 	}
 
+	// Invalidate caches after writing SRC
+	s.invalidateInstanceCaches(instancePath)
+
 	result := map[string]interface{}{
 		"success":             true,
 		"instance_path":       instancePath,
@@ -101,6 +104,9 @@ func (s *Server) handleAimWriteSRC(ctx context.Context, request mcp.CallToolRequ
 		data, _ := json.Marshal(result)
 		return mcp.NewToolResultText(string(data)), nil
 	}
+
+	// Invalidate caches after writing SRC
+	s.invalidateInstanceCaches(instancePath)
 
 	result := map[string]interface{}{
 		"success":       true,

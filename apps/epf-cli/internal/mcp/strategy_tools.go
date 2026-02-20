@@ -5,45 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"sync"
 
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/strategy"
 	"github.com/mark3labs/mcp-go/mcp"
 )
-
-// strategyStoreCache holds cached strategy stores by instance path.
-var (
-	strategyStoreMu    sync.RWMutex
-	strategyStoreCache = make(map[string]strategy.StrategyStore)
-)
-
-// getOrCreateStrategyStore returns a cached or new strategy store for the given instance path.
-func getOrCreateStrategyStore(instancePath string) (strategy.StrategyStore, error) {
-	strategyStoreMu.RLock()
-	store, ok := strategyStoreCache[instancePath]
-	strategyStoreMu.RUnlock()
-
-	if ok {
-		return store, nil
-	}
-
-	// Create and load new store
-	strategyStoreMu.Lock()
-	defer strategyStoreMu.Unlock()
-
-	// Double-check after acquiring write lock
-	if store, ok := strategyStoreCache[instancePath]; ok {
-		return store, nil
-	}
-
-	store = strategy.NewFileSystemSource(instancePath)
-	if err := store.Load(context.Background()); err != nil {
-		return nil, fmt.Errorf("loading strategy store: %w", err)
-	}
-
-	strategyStoreCache[instancePath] = store
-	return store, nil
-}
 
 // registerStrategyTools registers all strategy-related MCP tools.
 func (s *Server) registerStrategyTools() {

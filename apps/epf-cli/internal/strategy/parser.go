@@ -13,11 +13,141 @@ import (
 // Parser handles parsing of EPF YAML artifacts into the strategy model.
 type Parser struct {
 	instancePath string
+	// discovered maps artifact types to file paths found during READY/ scan
+	discovered map[string]string
 }
 
 // NewParser creates a new parser for the given EPF instance path.
 func NewParser(instancePath string) *Parser {
 	return &Parser{instancePath: instancePath}
+}
+
+// readyArtifactType identifies READY phase artifact types for content-based detection.
+type readyArtifactType struct {
+	name string
+	// topLevelKeys are the YAML top-level keys that identify this artifact type.
+	// The first match wins.
+	topLevelKeys []string
+	// filePatterns are filename substrings that identify this artifact type (fallback).
+	filePatterns []string
+}
+
+// readyArtifactTypes defines how to identify READY phase artifacts by content or filename.
+var readyArtifactTypes = []readyArtifactType{
+	{
+		name:         "north_star",
+		topLevelKeys: []string{"north_star"},
+		filePatterns: []string{"north_star", "north-star"},
+	},
+	{
+		name:         "insight_analyses",
+		topLevelKeys: []string{"target_users", "trends"},
+		filePatterns: []string{"insight_analys", "insight-analys"},
+	},
+	{
+		name:         "strategy_formula",
+		topLevelKeys: []string{"strategy"},
+		filePatterns: []string{"strategy_formula", "strategy-formula"},
+	},
+	{
+		name:         "roadmap_recipe",
+		topLevelKeys: []string{"roadmap"},
+		filePatterns: []string{"roadmap_recipe", "roadmap-recipe", "roadmap"},
+	},
+}
+
+// discoverReadyArtifacts scans READY/ for YAML files and classifies them by content.
+// It checks top-level YAML keys first (content-based), then falls back to filename patterns.
+// Results are cached in the parser for use by individual Parse methods.
+func (p *Parser) discoverReadyArtifacts() map[string]string {
+	if p.discovered != nil {
+		return p.discovered
+	}
+
+	p.discovered = make(map[string]string)
+
+	readyDir := filepath.Join(p.instancePath, "READY")
+	entries, err := os.ReadDir(readyDir)
+	if err != nil {
+		return p.discovered
+	}
+
+	// Phase 1: Content-based detection using top-level YAML keys
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yaml") {
+			continue
+		}
+
+		filePath := filepath.Join(readyDir, entry.Name())
+		topKeys := scanTopLevelKeys(filePath)
+		if len(topKeys) == 0 {
+			continue
+		}
+
+		for _, at := range readyArtifactTypes {
+			if _, found := p.discovered[at.name]; found {
+				continue // already discovered this type
+			}
+			for _, key := range at.topLevelKeys {
+				if topKeys[key] {
+					p.discovered[at.name] = filePath
+					break
+				}
+			}
+		}
+	}
+
+	// Phase 2: Filename-based fallback for any types not yet discovered
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yaml") {
+			continue
+		}
+
+		nameLower := strings.ToLower(entry.Name())
+		for _, at := range readyArtifactTypes {
+			if _, found := p.discovered[at.name]; found {
+				continue
+			}
+			for _, pattern := range at.filePatterns {
+				if strings.Contains(nameLower, pattern) {
+					p.discovered[at.name] = filepath.Join(readyDir, entry.Name())
+					break
+				}
+			}
+		}
+	}
+
+	return p.discovered
+}
+
+// scanTopLevelKeys reads a YAML file and returns the set of top-level keys.
+// This is lightweight — it only decodes the top level, not the full document.
+func scanTopLevelKeys(path string) map[string]bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+
+	var raw map[string]interface{}
+	if err := yaml.Unmarshal(data, &raw); err != nil {
+		return nil
+	}
+
+	keys := make(map[string]bool, len(raw))
+	for k := range raw {
+		keys[k] = true
+	}
+	return keys
+}
+
+// resolveReadyPath returns the discovered path for a READY artifact type,
+// falling back to the traditional hardcoded path if not discovered.
+func (p *Parser) resolveReadyPath(artifactType, hardcodedFilename string) string {
+	discovered := p.discoverReadyArtifacts()
+	if path, ok := discovered[artifactType]; ok {
+		return path
+	}
+	return filepath.Join(p.instancePath, "READY", hardcodedFilename)
 }
 
 // ParseAll parses all EPF artifacts and returns a populated StrategyModel.
@@ -108,9 +238,9 @@ func (p *Parser) parseProductName() (string, error) {
 	return "", fmt.Errorf("product name not found")
 }
 
-// ParseNorthStar parses the 00_north_star.yaml artifact.
+// ParseNorthStar parses the north star artifact, discovered by content or filename.
 func (p *Parser) ParseNorthStar() (*NorthStar, error) {
-	path := filepath.Join(p.instancePath, "READY", "00_north_star.yaml")
+	path := p.resolveReadyPath("north_star", "00_north_star.yaml")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading north_star: %w", err)
@@ -212,9 +342,9 @@ func (p *Parser) ParseNorthStar() (*NorthStar, error) {
 	return ns, nil
 }
 
-// ParseInsightAnalyses parses the 01_insight_analyses.yaml artifact.
+// ParseInsightAnalyses parses the insight analyses artifact, discovered by content or filename.
 func (p *Parser) ParseInsightAnalyses() (*InsightAnalyses, error) {
-	path := filepath.Join(p.instancePath, "READY", "01_insight_analyses.yaml")
+	path := p.resolveReadyPath("insight_analyses", "01_insight_analyses.yaml")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading insight_analyses: %w", err)
@@ -383,9 +513,9 @@ func convertTargetUser(raw rawTargetUser) TargetUser {
 	return tu
 }
 
-// ParseStrategyFormula parses the 04_strategy_formula.yaml artifact.
+// ParseStrategyFormula parses the strategy formula artifact, discovered by content or filename.
 func (p *Parser) ParseStrategyFormula() (*StrategyFormula, error) {
-	path := filepath.Join(p.instancePath, "READY", "04_strategy_formula.yaml")
+	path := p.resolveReadyPath("strategy_formula", "04_strategy_formula.yaml")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading strategy_formula: %w", err)
@@ -470,9 +600,9 @@ func (p *Parser) ParseStrategyFormula() (*StrategyFormula, error) {
 	return sf, nil
 }
 
-// ParseRoadmap parses the 05_roadmap_recipe.yaml artifact.
+// ParseRoadmap parses the roadmap recipe artifact, discovered by content or filename.
 func (p *Parser) ParseRoadmap() (*Roadmap, error) {
-	path := filepath.Join(p.instancePath, "READY", "05_roadmap_recipe.yaml")
+	path := p.resolveReadyPath("roadmap_recipe", "05_roadmap_recipe.yaml")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading roadmap_recipe: %w", err)
@@ -600,6 +730,8 @@ func convertTrack(name string, raw rawTrack) *Track {
 }
 
 // ParseFeatures parses all feature definition files from FIRE/feature_definitions/.
+// Uses content-based detection: any YAML file with 'id', 'strategic_context', and 'definition'
+// top-level keys is treated as a feature definition. Falls back to fd-*.yaml filename pattern.
 func (p *Parser) ParseFeatures() ([]*Feature, error) {
 	fdDir := filepath.Join(p.instancePath, "FIRE", "feature_definitions")
 	entries, err := os.ReadDir(fdDir)
@@ -608,8 +740,31 @@ func (p *Parser) ParseFeatures() ([]*Feature, error) {
 	}
 
 	var features []*Feature
+	loaded := make(map[string]bool) // track loaded files to avoid duplicates
+
+	// Phase 1: Content-based detection — load any YAML with feature definition keys
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yaml") {
+			continue
+		}
+
+		path := filepath.Join(fdDir, entry.Name())
+		if isFeatureDefinitionContent(path) {
+			feature, err := p.parseFeatureFile(path)
+			if err != nil {
+				continue
+			}
+			features = append(features, feature)
+			loaded[entry.Name()] = true
+		}
+	}
+
+	// Phase 2: Filename fallback — load fd-*.yaml files not already loaded
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yaml") {
+			continue
+		}
+		if loaded[entry.Name()] {
 			continue
 		}
 		if !strings.HasPrefix(entry.Name(), "fd-") {
@@ -619,13 +774,22 @@ func (p *Parser) ParseFeatures() ([]*Feature, error) {
 		path := filepath.Join(fdDir, entry.Name())
 		feature, err := p.parseFeatureFile(path)
 		if err != nil {
-			// Log but continue parsing other features
 			continue
 		}
 		features = append(features, feature)
 	}
 
 	return features, nil
+}
+
+// isFeatureDefinitionContent checks if a YAML file has feature definition top-level keys.
+func isFeatureDefinitionContent(path string) bool {
+	keys := scanTopLevelKeys(path)
+	if keys == nil {
+		return false
+	}
+	// A feature definition has id, strategic_context, and definition at the top level
+	return keys["id"] && keys["strategic_context"] && keys["definition"]
 }
 
 func (p *Parser) parseFeatureFile(path string) (*Feature, error) {
@@ -757,6 +921,8 @@ func convertFeaturePersona(raw rawFeaturePersona) FeaturePersona {
 }
 
 // ParseValueModels parses all value model files from FIRE/value_models/.
+// Uses content-based detection: any YAML file with a 'value_model' top-level key
+// is treated as a value model. Falls back to *value_model* filename pattern.
 func (p *Parser) ParseValueModels() (map[string]*ValueModel, error) {
 	vmDir := filepath.Join(p.instancePath, "FIRE", "value_models")
 	entries, err := os.ReadDir(vmDir)
@@ -766,8 +932,33 @@ func (p *Parser) ParseValueModels() (map[string]*ValueModel, error) {
 	}
 
 	valueModels := make(map[string]*ValueModel)
+	loaded := make(map[string]bool) // track loaded files to avoid duplicates
+
+	// Phase 1: Content-based detection — load any YAML with 'track_name' + 'layers' keys
+	// (value model files use flat top-level structure: track_name, version, status, layers)
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yaml") {
+			continue
+		}
+
+		path := filepath.Join(vmDir, entry.Name())
+		keys := scanTopLevelKeys(path)
+		if keys != nil && keys["track_name"] && keys["layers"] {
+			vm, trackName, err := p.parseValueModelFile(path)
+			if err != nil {
+				continue
+			}
+			valueModels[trackName] = vm
+			loaded[entry.Name()] = true
+		}
+	}
+
+	// Phase 2: Filename fallback — load *value_model* files not already loaded
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yaml") {
+			continue
+		}
+		if loaded[entry.Name()] {
 			continue
 		}
 		if !strings.Contains(entry.Name(), "value_model") {
@@ -791,28 +982,31 @@ func (p *Parser) parseValueModelFile(path string) (*ValueModel, string, error) {
 		return nil, "", fmt.Errorf("reading value model file: %w", err)
 	}
 
+	// Value model YAML files use flat top-level structure (no wrapper key):
+	//   track_name: "Product"
+	//   version: "1.1.0"
+	//   layers:
+	//     - id: ...
 	var raw struct {
-		ValueModel struct {
-			Track       string `yaml:"track"`
+		TrackName   string `yaml:"track_name"`
+		Description string `yaml:"description"`
+		Layers      []struct {
+			ID          string `yaml:"id"`
+			Name        string `yaml:"name"`
 			Description string `yaml:"description"`
-			Layers      []struct {
-				ID          string `yaml:"id"`
-				Name        string `yaml:"name"`
-				Description string `yaml:"description"`
-				Components  []struct {
-					ID            string `yaml:"id"`
-					Name          string `yaml:"name"`
-					Description   string `yaml:"description"`
-					Maturity      string `yaml:"maturity"`
-					SubComponents []struct {
-						ID          string `yaml:"id"`
-						Name        string `yaml:"name"`
-						Description string `yaml:"description"`
-						Maturity    string `yaml:"maturity"`
-					} `yaml:"sub_components"`
-				} `yaml:"components"`
-			} `yaml:"layers"`
-		} `yaml:"value_model"`
+			Components  []struct {
+				ID            string `yaml:"id"`
+				Name          string `yaml:"name"`
+				Description   string `yaml:"description"`
+				Maturity      string `yaml:"maturity"`
+				SubComponents []struct {
+					ID          string `yaml:"id"`
+					Name        string `yaml:"name"`
+					Description string `yaml:"description"`
+					Maturity    string `yaml:"maturity"`
+				} `yaml:"sub_components"`
+			} `yaml:"components"`
+		} `yaml:"layers"`
 	}
 
 	if err := yaml.Unmarshal(data, &raw); err != nil {
@@ -820,11 +1014,11 @@ func (p *Parser) parseValueModelFile(path string) (*ValueModel, string, error) {
 	}
 
 	vm := &ValueModel{
-		Track:       raw.ValueModel.Track,
-		Description: raw.ValueModel.Description,
+		Track:       raw.TrackName,
+		Description: raw.Description,
 	}
 
-	for _, layer := range raw.ValueModel.Layers {
+	for _, layer := range raw.Layers {
 		vl := ValueLayer{
 			ID:          layer.ID,
 			Name:        layer.Name,

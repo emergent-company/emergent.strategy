@@ -70,6 +70,8 @@ func (s *Server) handleAimRecalibrate(ctx context.Context, request mcp.CallToolR
 			data, _ := json.Marshal(result)
 			return mcp.NewToolResultText(string(data)), nil
 		}
+		// Invalidate caches after applying recalibration
+		s.invalidateInstanceCaches(instancePath)
 	}
 
 	result := map[string]interface{}{
