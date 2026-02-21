@@ -116,17 +116,17 @@ func (l *DefinitionLoader) Load() error {
 	return nil
 }
 
-// LoadFromInstancePath loads definitions from an instance's READY/definitions/ directory.
+// LoadFromInstancePath loads definitions from an instance's FIRE/definitions/ directory.
 // This supplements definitions loaded from the framework root. Instance definitions
 // take precedence over framework definitions with the same ID.
 func (l *DefinitionLoader) LoadFromInstancePath(instancePath string) error {
-	defsDir := filepath.Join(instancePath, "READY", "definitions")
+	defsDir := filepath.Join(instancePath, "FIRE", "definitions")
 	if _, err := os.Stat(defsDir); os.IsNotExist(err) {
 		return nil // No instance definitions — not an error
 	}
-	// Use instancePath/READY as relBase so filepath.Rel produces
+	// Use instancePath/FIRE as relBase so filepath.Rel produces
 	// "definitions/{track}/{category}/{file}.yaml" — matching extractCategory expectations
-	relBase := filepath.Join(instancePath, "READY")
+	relBase := filepath.Join(instancePath, "FIRE")
 	for track, dir := range trackDirs {
 		// trackDirs values are like "definitions/strategy"; we only need the track sub-dir
 		trackSubDir := filepath.Base(dir)

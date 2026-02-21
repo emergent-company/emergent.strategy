@@ -11,8 +11,8 @@ import (
 func TestCrossRefExcludesCanonicalDefinitions(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create FIRE/feature_definitions with one product feature
-	fdDir := filepath.Join(tmpDir, "FIRE", "feature_definitions")
+	// Create FIRE/definitions/product with one product feature
+	fdDir := filepath.Join(tmpDir, "FIRE", "definitions", "product")
 	os.MkdirAll(fdDir, 0755)
 	os.WriteFile(filepath.Join(fdDir, "fd-001.yaml"), []byte(`id: "fd-001"
 name: "Product Feature"
@@ -22,7 +22,7 @@ dependencies:
 
 	// Create READY/definitions with canonical definitions that have "dependencies"
 	// These should NOT be checked
-	defDir := filepath.Join(tmpDir, "READY", "definitions", "strategy")
+	defDir := filepath.Join(tmpDir, "FIRE", "definitions", "strategy")
 	os.MkdirAll(defDir, 0755)
 	os.WriteFile(filepath.Join(defDir, "sd-001.yaml"), []byte(`id: "sd-001"
 name: "Strategy Def"
@@ -56,13 +56,13 @@ func TestCrossRefFromInstanceRoot(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create a canonical definition in READY
-	defDir := filepath.Join(tmpDir, "READY", "definitions", "org_ops")
+	defDir := filepath.Join(tmpDir, "FIRE", "definitions", "org_ops")
 	os.MkdirAll(defDir, 0755)
 	os.WriteFile(filepath.Join(defDir, "pd-001.yaml"), []byte(`id: "pd-001"
 name: "OrgOps Def"
 `), 0644)
 
-	// No feature_definitions dir
+	// No definitions/product dir
 	checker := NewCrossReferenceChecker(tmpDir)
 	result, err := checker.Check()
 	if err != nil {
@@ -76,12 +76,12 @@ name: "OrgOps Def"
 }
 
 // TestVersionCheckerSkipsCanonicalDefinitions verifies that the version
-// checker does not scan READY/definitions/ for canonical artifacts.
+// checker does not scan FIRE/definitions/ for canonical artifacts.
 func TestVersionCheckerSkipsCanonicalDefinitions(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create READY/ with a canonical definition (should be skipped)
-	defDir := filepath.Join(tmpDir, "READY", "definitions", "strategy")
+	defDir := filepath.Join(tmpDir, "FIRE", "definitions", "strategy")
 	os.MkdirAll(defDir, 0755)
 	os.WriteFile(filepath.Join(defDir, "sd-001.yaml"), []byte(`meta:
   epf_version: "1.0.0"
@@ -90,6 +90,7 @@ name: "Strategy Def"
 `), 0644)
 
 	// Create a real READY artifact (should be detected)
+	os.MkdirAll(filepath.Join(tmpDir, "READY"), 0755)
 	os.WriteFile(filepath.Join(tmpDir, "READY", "00_north_star.yaml"), []byte(`meta:
   epf_version: "2.0.0"
 vision: "Test"

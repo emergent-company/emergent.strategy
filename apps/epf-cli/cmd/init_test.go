@@ -105,7 +105,7 @@ func TestCreateInstanceStructure(t *testing.T) {
 
 	// Verify FIRE subdirectories were created
 	t.Run("FIRE subdirectories exist", func(t *testing.T) {
-		fireDirs := []string{"feature_definitions", "value_models", "workflows"}
+		fireDirs := []string{"definitions/product", "definitions/strategy", "definitions/org_ops", "definitions/commercial", "value_models", "workflows"}
 		for _, dir := range fireDirs {
 			dirPath := filepath.Join(instanceDir, "FIRE", dir)
 			if _, err := os.Stat(dirPath); os.IsNotExist(err) {
@@ -293,7 +293,7 @@ func TestCreateInstanceStructure_StandaloneMode(t *testing.T) {
 
 	// Verify FIRE subdirectories exist at root level
 	t.Run("FIRE subdirs at root level", func(t *testing.T) {
-		for _, dir := range []string{"feature_definitions", "value_models", "workflows"} {
+		for _, dir := range []string{"definitions/product", "definitions/strategy", "definitions/org_ops", "definitions/commercial", "value_models", "workflows"} {
 			dirPath := filepath.Join(tmpDir, "FIRE", dir)
 			if _, err := os.Stat(dirPath); os.IsNotExist(err) {
 				t.Errorf("FIRE subdirectory %s not found", dir)
@@ -382,7 +382,7 @@ func TestCreateInstanceStructure_IntegratedMode(t *testing.T) {
 
 	// Verify FIRE subdirectories under instance
 	t.Run("FIRE subdirs under instance", func(t *testing.T) {
-		for _, dir := range []string{"feature_definitions", "value_models", "workflows"} {
+		for _, dir := range []string{"definitions/product", "definitions/strategy", "definitions/org_ops", "definitions/commercial", "value_models", "workflows"} {
 			dirPath := filepath.Join(instanceDir, "FIRE", dir)
 			if _, err := os.Stat(dirPath); os.IsNotExist(err) {
 				t.Errorf("FIRE subdirectory %s not found under instance dir", dir)

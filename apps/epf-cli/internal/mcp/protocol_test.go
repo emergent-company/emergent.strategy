@@ -522,7 +522,7 @@ func TestProtocol_DetectArtifactType(t *testing.T) {
 	}{
 		{"READY/00_north_star.yaml", "north_star"},
 		{"READY/05_roadmap_recipe.yaml", "roadmap_recipe"},
-		{"FIRE/feature_definitions/fd-001_test.yaml", "feature_definition"},
+		{"FIRE/definitions/product/fd-001_test.yaml", "feature_definition"},
 		{"FIRE/value_models/vm-product.yaml", "value_model"},
 	}
 

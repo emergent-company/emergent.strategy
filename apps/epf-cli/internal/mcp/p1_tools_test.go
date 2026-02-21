@@ -23,7 +23,7 @@ func setupP1Instance(t *testing.T) string {
 
 	readyDir := filepath.Join(tmpDir, "READY")
 	fireDir := filepath.Join(tmpDir, "FIRE")
-	fdDir := filepath.Join(fireDir, "feature_definitions")
+	fdDir := filepath.Join(fireDir, "definitions", "product")
 	vmDir := filepath.Join(fireDir, "value_models")
 	aimDir := filepath.Join(tmpDir, "AIM")
 
@@ -454,7 +454,7 @@ func TestHandleRenameValuePath_ActualRename(t *testing.T) {
 	}
 
 	// Verify the feature file was actually updated
-	fdPath := filepath.Join(instancePath, "FIRE", "feature_definitions", "fd-001.yaml")
+	fdPath := filepath.Join(instancePath, "FIRE", "definitions", "product", "fd-001.yaml")
 	fdData, err := os.ReadFile(fdPath)
 	if err != nil {
 		t.Fatalf("Failed to read fd-001.yaml: %v", err)
@@ -964,7 +964,7 @@ func TestHandleUpdateCapabilityMaturity_DryRun(t *testing.T) {
 	clearStrategyStoreCache()
 
 	// Read the original feature file to compare later
-	fdPath := filepath.Join(instancePath, "FIRE", "feature_definitions", "fd-001.yaml")
+	fdPath := filepath.Join(instancePath, "FIRE", "definitions", "product", "fd-001.yaml")
 	originalData, err := os.ReadFile(fdPath)
 	if err != nil {
 		t.Fatalf("Failed to read original feature file: %v", err)

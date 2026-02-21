@@ -1,87 +1,37 @@
-# Emergent Strategy
+# test-product EPF Instance
 
-Strategy tooling for the Emergent Product Framework (EPF).
+This is the EPF (Emergent Product Framework) instance for test-product.
 
-## Overview
+## Directory Structure
 
-This repository contains:
+- **READY/** - Strategic foundation phase
+  - 00_north_star.yaml - Vision, mission, values
+  - 01_insight_analyses.yaml - Market research
+  - 02_strategy_foundations.yaml - Core strategy elements
+  - 03_insight_opportunity.yaml - Opportunity analysis
+  - 04_strategy_formula.yaml - Strategic approach
+  - 05_roadmap_recipe.yaml - Execution roadmap
 
-- **`apps/epf-cli/`** - Go-based EPF CLI tool for validating, generating, and managing EPF artifacts
-- **`docs/EPF/`** - EPF framework documentation and product instances
-- **`openspec/`** - Spec-driven development infrastructure
+- **FIRE/** - Execution phase
+  - definitions/ - Feature & track definitions
+  - value_models/ - Value creation models
+  - workflows/ - Process workflows
 
-## Getting Started
+- **AIM/** - Assessment phase
+  - living_reality_assessment.yaml - Persistent baseline
+  - assessment_reports/ - Cycle assessments
 
-### EPF CLI
+- **outputs/** - Generated documents
 
-```bash
-# Build the CLI
-cd apps/epf-cli && go build
-
-# Run tests
-cd apps/epf-cli && go test ./...
-
-# Run the CLI
-./apps/epf-cli/epf-cli --help
-
-# Run as MCP server (for AI agent integration)
-./apps/epf-cli/epf-cli serve
-```
-
-### EPF Framework
-
-The Emergent Product Framework (EPF) provides structured artifacts for product strategy:
-
-```
-docs/EPF/_instances/<product>/
-├── READY/          # Foundation: north_star, personas, strategy_formula
-├── FIRE/           # Execution: features, roadmaps, value_model
-└── AIM/            # Assessment: reports, metrics, assessments
-```
-
-See `docs/EPF/` for complete framework documentation.
-
-## MCP Server Integration
-
-The EPF CLI can run as an MCP server for AI agent integration:
-
-```jsonc
-// opencode.jsonc
-"epf-cli": {
-  "type": "local",
-  "command": ["./apps/epf-cli/epf-cli", "serve"],
-  "timeout": 60000
-}
-```
-
-This provides tools for:
-
-- Validating EPF YAML files against schemas
-- Health checking EPF instances
-- Generating outputs from EPF data
-- Managing EPF artifacts
-
-## Development
-
-### Code Style
-
-- **Go**: Follow standard Go conventions (`gofmt`, `go vet`)
-- **YAML/Markdown**: Consistent formatting in EPF artifacts
-
-### Spec-Driven Development
-
-Use OpenSpec for planning changes:
+## Validation
 
 ```bash
-# List active changes
-openspec list
+# Validate this instance
+epf-cli health
 
-# Validate a change
-openspec validate <change-id>
+# Validate specific file
+epf-cli validate READY/00_north_star.yaml
+
+# Generate health report
+epf-cli report --format html -o report.html
 ```
-
-See `openspec/AGENTS.md` for detailed workflow instructions.
-
-## Related Repositories
-
-- **[emergent-company/emergent](https://github.com/emergent-company/emergent)** - Web application (admin/server)

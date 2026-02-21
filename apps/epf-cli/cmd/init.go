@@ -180,7 +180,7 @@ func runInit(cmd *cobra.Command, args []string) {
 		fmt.Println("  ├── READY/       (strategic artifacts)")
 		fmt.Println("  ├── FIRE/        (execution artifacts)")
 		fmt.Println("  │   ├── value_models/  (4 tracks: Product, Strategy, OrgOps, Commercial)")
-		fmt.Println("  │   └── feature_definitions/")
+		fmt.Println("  │   └── definitions/     (feature & track definitions)")
 		fmt.Println("  ├── AIM/         (assessment artifacts)")
 		fmt.Println("  ├── _meta.yaml   (instance metadata)")
 		fmt.Println("  └── .epf.yaml    (per-repo config: mode=standalone)")
@@ -266,7 +266,7 @@ func runInit(cmd *cobra.Command, args []string) {
 	fmt.Println("  │   ├── READY/       (strategic artifacts)")
 	fmt.Println("  │   ├── FIRE/        (execution artifacts)")
 	fmt.Println("  │   │   ├── value_models/  (4 tracks: Product, Strategy, OrgOps, Commercial)")
-	fmt.Println("  │   │   └── feature_definitions/")
+	fmt.Println("  │   │   └── definitions/     (feature & track definitions)")
 	fmt.Println("  │   ├── AIM/         (assessment artifacts)")
 	fmt.Println("  │   └── _meta.yaml   (instance metadata)")
 	fmt.Println("  ├── AGENTS.md        (AI agent instructions)")
@@ -363,7 +363,12 @@ docs/EPF/_instances/{product}/
 │   └── 05_roadmap_recipe.yaml
 ├── FIRE/                     # Execution
 │   ├── value_models/
-│   ├── feature_definitions/
+│   ├── feature_definitions/   # → Now at definitions/product/
+│   ├── definitions/           # All track definitions
+│   │   ├── product/           # Feature definitions (fd-*.yaml)
+│   │   ├── strategy/          # Strategy track definitions
+│   │   ├── org_ops/           # OrgOps track definitions
+│   │   └── commercial/        # Commercial track definitions
 │   └── mappings.yaml
 ├── AIM/                      # Assessment
 │   └── living_reality_assessment.yaml
@@ -589,7 +594,7 @@ func createInstanceStructure(instanceDir, productName, canonicalPath string, use
 	}
 
 	// Create FIRE subdirectories
-	fireDirs := []string{"feature_definitions", "value_models", "workflows"}
+	fireDirs := []string{"definitions/product", "definitions/strategy", "definitions/org_ops", "definitions/commercial", "value_models", "workflows"}
 	for _, dir := range fireDirs {
 		path := filepath.Join(instanceDir, "FIRE", dir)
 		if err := os.MkdirAll(path, 0755); err != nil {
@@ -736,14 +741,14 @@ func copyTemplatesFromEmbedded(instanceDir string) {
 }
 
 // copyCanonicalDefinitions copies canonical track definitions (strategy, org_ops, commercial)
-// into the instance's READY/definitions/ directory structure.
+// into the instance's FIRE/definitions/ directory structure.
 //
 // Loading priority:
 //  1. Instance-level files (already present) — skip
 //  2. canonical_path filesystem (if set)
 //  3. Embedded fallback
 func copyCanonicalDefinitions(instanceDir, canonicalPath string, useEmbedded bool) {
-	defsDir := filepath.Join(instanceDir, "READY", "definitions")
+	defsDir := filepath.Join(instanceDir, "FIRE", "definitions")
 
 	if !useEmbedded && canonicalPath != "" {
 		// Try filesystem: look for definitions/ under canonical path
@@ -766,7 +771,7 @@ func copyCanonicalDefinitionsFromEmbedded(defsDir string) {
 	}
 
 	for _, def := range defs {
-		// Build destination path: READY/definitions/{track}/{category}/{file}
+		// Build destination path: FIRE/definitions/{track}/{category}/{file}
 		dstDir := filepath.Join(defsDir, def.Track)
 		if def.Category != "" {
 			dstDir = filepath.Join(dstDir, def.Category)
@@ -906,7 +911,7 @@ This is the EPF (Emergent Product Framework) instance for %s.
   - 05_roadmap_recipe.yaml - Execution roadmap
 
 - **FIRE/** - Execution phase
-  - feature_definitions/ - Feature specifications
+  - definitions/ - Feature & track definitions
   - value_models/ - Value creation models
   - workflows/ - Process workflows
 

@@ -77,7 +77,7 @@ func (c *VersionAlignmentChecker) Check() (*VersionAlignmentResult, error) {
 	}
 
 	// Analyze FIRE phase - feature definitions
-	fireFdPath := filepath.Join(c.instancePath, "FIRE", "feature_definitions")
+	fireFdPath := filepath.Join(c.instancePath, "FIRE", "definitions", "product")
 	if _, err := os.Stat(fireFdPath); err == nil {
 		c.analyzeDirectory(fireFdPath, result)
 	}
@@ -190,7 +190,7 @@ func (c *VersionAlignmentChecker) detectArtifactType(path string) string {
 		return "strategy_formula"
 	case strings.Contains(base, "roadmap_recipe"):
 		return "roadmap_recipe"
-	case strings.HasPrefix(base, "fd-") || strings.Contains(normalizedPath, "feature_definitions"):
+	case strings.HasPrefix(base, "fd-") || strings.Contains(normalizedPath, "definitions/product"):
 		return "feature_definition"
 	case strings.Contains(base, ".value_model.") || strings.Contains(normalizedPath, "value_models"):
 		return "value_model"

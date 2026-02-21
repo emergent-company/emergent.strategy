@@ -143,9 +143,9 @@ func TestHandleInitInstance_CreatesCanonicalDefinitions(t *testing.T) {
 	}
 
 	// Check that definitions directory was created
-	defsDir := filepath.Join(instancePath, "READY", "definitions")
+	defsDir := filepath.Join(instancePath, "FIRE", "definitions")
 	if _, err := os.Stat(defsDir); os.IsNotExist(err) {
-		t.Fatal("READY/definitions/ directory was not created")
+		t.Fatal("FIRE/definitions/ directory was not created")
 	}
 
 	// Check that all 3 canonical track directories exist
@@ -253,7 +253,7 @@ func TestHandleInitInstance_DryRun_IncludesCanonicalDefinitions(t *testing.T) {
 	t.Logf("Dry run lists %d canonical definition files", defFilesInDryRun)
 
 	// Verify no files were actually created on disk
-	defsDir := filepath.Join(tmpDir, "READY", "definitions")
+	defsDir := filepath.Join(tmpDir, "FIRE", "definitions")
 	if _, err := os.Stat(defsDir); !os.IsNotExist(err) {
 		t.Error("dry_run should not create any files on disk")
 	}

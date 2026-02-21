@@ -191,7 +191,7 @@ func TestHandleDetectArtifactType(t *testing.T) {
 	}{
 		{"READY/00_north_star.yaml", "north_star"},
 		{"READY/05_roadmap_recipe.yaml", "roadmap_recipe"},
-		{"FIRE/feature_definitions/fd-test.yaml", "feature_definition"},
+		{"FIRE/definitions/product/fd-test.yaml", "feature_definition"},
 		{"FIRE/value_models/vm-test.yaml", "value_model"},
 	}
 
@@ -497,7 +497,7 @@ func TestHandleHealthCheck(t *testing.T) {
 	// Create a minimal EPF instance
 	tmpDir := t.TempDir()
 	os.MkdirAll(filepath.Join(tmpDir, "READY"), 0755)
-	os.MkdirAll(filepath.Join(tmpDir, "FIRE", "feature_definitions"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "FIRE", "definitions", "product"), 0755)
 	os.MkdirAll(filepath.Join(tmpDir, "AIM"), 0755)
 
 	ctx := context.Background()

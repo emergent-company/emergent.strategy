@@ -92,7 +92,7 @@ var artifactMapping = []struct {
 	{regexp.MustCompile(`(?i)product_portfolio\.ya?ml$`), ArtifactProductPortfolio, PhaseREADY, "Product Portfolio - Product offerings"},
 
 	// FIRE Phase
-	{regexp.MustCompile(`(?i)feature_definitions?/[^_][^/]*\.ya?ml$`), ArtifactFeatureDefinition, PhaseFIRE, "Feature Definition - Feature specification"},
+	{regexp.MustCompile(`(?i)definitions/product/[^_][^/]*\.ya?ml$`), ArtifactFeatureDefinition, PhaseFIRE, "Feature Definition - Feature specification"},
 	{regexp.MustCompile(`(?i)fd-[^/]*\.ya?ml$`), ArtifactFeatureDefinition, PhaseFIRE, "Feature Definition - Feature specification"},
 	{regexp.MustCompile(`(?i)value_models?/[^/]*\.ya?ml$`), ArtifactValueModel, PhaseFIRE, "Value Model - Value creation model"},
 	{regexp.MustCompile(`(?i)_value_model\.ya?ml$`), ArtifactValueModel, PhaseFIRE, "Value Model - Value creation model"},
@@ -104,10 +104,10 @@ var artifactMapping = []struct {
 	{regexp.MustCompile(`(?i)calibration_memo\.ya?ml$`), ArtifactCalibrationMemo, PhaseAIM, "Calibration Memo - Strategic calibration"},
 	{regexp.MustCompile(`(?i)strategic_reality_check\.ya?ml$`), ArtifactStrategicRealityCheck, PhaseAIM, "Strategic Reality Check - Cross-artifact health evaluation"},
 
-	// Track definitions (in definitions/ directory)
-	{regexp.MustCompile(`(?i)strategy[_-]definition\.ya?ml$`), ArtifactStrategyDefinition, "", "Strategy Track Definition"},
-	{regexp.MustCompile(`(?i)org[_-]?ops[_-]definition\.ya?ml$`), ArtifactOrgOpsDefinition, "", "OrgOps Track Definition"},
-	{regexp.MustCompile(`(?i)commercial[_-]definition\.ya?ml$`), ArtifactCommercialDefinition, "", "Commercial Track Definition"},
+	// Track definitions (all in FIRE/definitions/{track}/)
+	{regexp.MustCompile(`(?i)definitions/strategy/[^/]*\.ya?ml$`), ArtifactStrategyDefinition, PhaseFIRE, "Strategy Track Definition"},
+	{regexp.MustCompile(`(?i)definitions/org_ops/[^/]*\.ya?ml$`), ArtifactOrgOpsDefinition, PhaseFIRE, "OrgOps Track Definition"},
+	{regexp.MustCompile(`(?i)definitions/commercial/[^/]*\.ya?ml$`), ArtifactCommercialDefinition, PhaseFIRE, "Commercial Track Definition"},
 
 	// Health assessments
 	{regexp.MustCompile(`(?i)track[_-]health[_-]assessment\.ya?ml$`), ArtifactTrackHealthAssessment, "", "Track Health Assessment"},

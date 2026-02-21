@@ -518,7 +518,7 @@ func (fs *FileSystemSource) Search(query string, limit int) ([]SearchResult, err
 				Content: matchContent,
 				Snippet: extractSnippet(matchContent, queryLower),
 				Score:   matchScore,
-				Source:  fmt.Sprintf("FIRE/feature_definitions/%s.yaml", f.Slug),
+				Source:  fmt.Sprintf("FIRE/definitions/product/%s.yaml", f.Slug),
 				Context: map[string]string{
 					"status": f.Status,
 				},

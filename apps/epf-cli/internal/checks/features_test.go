@@ -7,13 +7,13 @@ import (
 )
 
 // TestFeatureQualityExcludesCanonicalDefinitions verifies that the feature
-// quality checker only checks fd-* files and files in feature_definitions/,
+// quality checker only checks fd-* files and files in definitions/product/,
 // not canonical definitions (sd-*, pd-*, cd-*) in definitions/.
 func TestFeatureQualityExcludesCanonicalDefinitions(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create FIRE/feature_definitions with a product feature
-	fdDir := filepath.Join(tmpDir, "FIRE", "feature_definitions")
+	// Create FIRE/definitions/product with a product feature
+	fdDir := filepath.Join(tmpDir, "FIRE", "definitions", "product")
 	os.MkdirAll(fdDir, 0755)
 	productFD := `id: "fd-001"
 name: "Product Feature"
@@ -30,7 +30,7 @@ definition:
 	os.WriteFile(filepath.Join(fdDir, "fd-001.yaml"), []byte(productFD), 0644)
 
 	// Create READY/definitions with canonical definitions
-	defDir := filepath.Join(tmpDir, "READY", "definitions", "strategy")
+	defDir := filepath.Join(tmpDir, "FIRE", "definitions", "strategy")
 	os.MkdirAll(defDir, 0755)
 	canonicalDef := `id: "sd-001"
 name: "Strategy Definition"
@@ -41,7 +41,7 @@ definition:
 `
 	os.WriteFile(filepath.Join(defDir, "sd-001.yaml"), []byte(canonicalDef), 0644)
 
-	defDir2 := filepath.Join(tmpDir, "READY", "definitions", "org_ops")
+	defDir2 := filepath.Join(tmpDir, "FIRE", "definitions", "org_ops")
 	os.MkdirAll(defDir2, 0755)
 	os.WriteFile(filepath.Join(defDir2, "pd-001.yaml"), []byte(`id: "pd-001"
 name: "OrgOps Definition"
@@ -69,7 +69,7 @@ active: false
 }
 
 // TestFeatureQualityExcludesCanonicalPrefixes verifies sd-*, pd-*, cd-* files
-// outside of feature_definitions/ are not checked.
+// outside of definitions/product/ are not checked.
 func TestFeatureQualityExcludesCanonicalPrefixes(t *testing.T) {
 	tmpDir := t.TempDir()
 

@@ -3,6 +3,7 @@ package checks
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -110,7 +111,7 @@ func TestInstanceChecker(t *testing.T) {
 	// Create a phased structure
 	phasedDir := filepath.Join(tmpDir, "phased")
 	os.MkdirAll(filepath.Join(phasedDir, "READY"), 0755)
-	os.MkdirAll(filepath.Join(phasedDir, "FIRE", "feature_definitions"), 0755)
+	os.MkdirAll(filepath.Join(phasedDir, "FIRE", "definitions", "product"), 0755)
 	os.MkdirAll(filepath.Join(phasedDir, "FIRE", "value_models"), 0755)
 	os.MkdirAll(filepath.Join(phasedDir, "AIM"), 0755)
 
@@ -353,7 +354,7 @@ func TestTrackCompleteness_AllTracks(t *testing.T) {
 
 	// Create phased structure with value_models
 	os.MkdirAll(filepath.Join(tmpDir, "READY"), 0755)
-	os.MkdirAll(filepath.Join(tmpDir, "FIRE", "feature_definitions"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "FIRE", "definitions", "product"), 0755)
 	vmDir := filepath.Join(tmpDir, "FIRE", "value_models")
 	os.MkdirAll(vmDir, 0755)
 	os.MkdirAll(filepath.Join(tmpDir, "AIM"), 0755)
@@ -399,7 +400,7 @@ func TestTrackCompleteness_MissingTracks(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	os.MkdirAll(filepath.Join(tmpDir, "READY"), 0755)
-	os.MkdirAll(filepath.Join(tmpDir, "FIRE", "feature_definitions"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "FIRE", "definitions", "product"), 0755)
 	vmDir := filepath.Join(tmpDir, "FIRE", "value_models")
 	os.MkdirAll(vmDir, 0755)
 	os.MkdirAll(filepath.Join(tmpDir, "AIM"), 0755)
@@ -568,7 +569,7 @@ func TestCheckMetadataConsistency_FreshDate(t *testing.T) {
 
 func TestCheckMetadataConsistency_MetadataKey(t *testing.T) {
 	dir := t.TempDir()
-	fireDir := filepath.Join(dir, "FIRE", "feature_definitions")
+	fireDir := filepath.Join(dir, "FIRE", "definitions", "product")
 	os.MkdirAll(fireDir, 0755)
 
 	content := `metadata:
@@ -644,7 +645,7 @@ status: TODO
 	os.WriteFile(filepath.Join(defDir, "sd-001.yaml"), []byte(canonicalContent), 0644)
 
 	// Create a product feature file (fd-* prefix = product = not canonical)
-	fdDir := filepath.Join(tmpDir, "FIRE", "feature_definitions")
+	fdDir := filepath.Join(tmpDir, "FIRE", "definitions", "product")
 	os.MkdirAll(fdDir, 0755)
 	productContent := `id: fd-001
 name: My Feature
@@ -736,6 +737,133 @@ func TestContentReadinessOrgOpsCanonical(t *testing.T) {
 	}
 	if result.Score != 100 {
 		t.Errorf("Score = %d, want 100", result.Score)
+	}
+}
+
+// TestOldStructureDetection_FeatureDefinitions verifies CRITICAL error when old FIRE/feature_definitions/ exists
+func TestOldStructureDetection_FeatureDefinitions(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create anchor file so instance is recognized
+	anchorContent := `epf_anchor: true
+version: "1.0.0"
+instance_id: "test-old-structure"
+created_at: 2024-01-01T00:00:00Z
+product_name: "Test"
+`
+	os.WriteFile(filepath.Join(tmpDir, "_epf.yaml"), []byte(anchorContent), 0644)
+
+	// Create new structure (required)
+	os.MkdirAll(filepath.Join(tmpDir, "READY"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "FIRE", "definitions"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "FIRE", "value_models"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "AIM"), 0755)
+
+	// Create OLD feature_definitions directory (should trigger CRITICAL)
+	oldFD := filepath.Join(tmpDir, "FIRE", "feature_definitions")
+	os.MkdirAll(oldFD, 0755)
+	os.WriteFile(filepath.Join(oldFD, "fd-001.yaml"), []byte("id: fd-001\n"), 0644)
+
+	checker := NewInstanceChecker(tmpDir)
+	summary := checker.Check()
+
+	// Find the critical check result for old structure
+	foundCritical := false
+	for _, r := range summary.Results {
+		if r.Check == "old_structure_feature_definitions" {
+			foundCritical = true
+			if r.Passed {
+				t.Error("old_structure_feature_definitions check should NOT pass")
+			}
+			if r.Severity != SeverityCritical {
+				t.Errorf("expected severity=critical, got %s", r.Severity)
+			}
+			if !strings.Contains(r.Message, "migrate") {
+				t.Errorf("message should mention migration: %s", r.Message)
+			}
+			break
+		}
+	}
+	if !foundCritical {
+		t.Error("expected old_structure_feature_definitions check result, but it was not found")
+	}
+}
+
+// TestOldStructureDetection_ReadyDefinitions verifies CRITICAL error when old READY/definitions/ exists
+func TestOldStructureDetection_ReadyDefinitions(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create anchor file
+	anchorContent := `epf_anchor: true
+version: "1.0.0"
+instance_id: "test-old-structure-ready"
+created_at: 2024-01-01T00:00:00Z
+product_name: "Test"
+`
+	os.WriteFile(filepath.Join(tmpDir, "_epf.yaml"), []byte(anchorContent), 0644)
+
+	// Create new structure
+	os.MkdirAll(filepath.Join(tmpDir, "READY"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "FIRE", "definitions"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "FIRE", "value_models"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "AIM"), 0755)
+
+	// Create OLD READY/definitions directory (should trigger CRITICAL)
+	oldDefs := filepath.Join(tmpDir, "READY", "definitions", "strategy")
+	os.MkdirAll(oldDefs, 0755)
+	os.WriteFile(filepath.Join(oldDefs, "sd-001.yaml"), []byte("id: sd-001\n"), 0644)
+
+	checker := NewInstanceChecker(tmpDir)
+	summary := checker.Check()
+
+	foundCritical := false
+	for _, r := range summary.Results {
+		if r.Check == "old_structure_ready_definitions" {
+			foundCritical = true
+			if r.Passed {
+				t.Error("old_structure_ready_definitions check should NOT pass")
+			}
+			if r.Severity != SeverityCritical {
+				t.Errorf("expected severity=critical, got %s", r.Severity)
+			}
+			if !strings.Contains(r.Message, "FIRE/definitions") {
+				t.Errorf("message should mention new FIRE/definitions path: %s", r.Message)
+			}
+			break
+		}
+	}
+	if !foundCritical {
+		t.Error("expected old_structure_ready_definitions check result, but it was not found")
+	}
+}
+
+// TestNoOldStructure_NoCriticalErrors verifies no CRITICAL errors when using new structure only
+func TestNoOldStructure_NoCriticalErrors(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	anchorContent := `epf_anchor: true
+version: "1.0.0"
+instance_id: "test-new-structure"
+created_at: 2024-01-01T00:00:00Z
+product_name: "Test"
+`
+	os.WriteFile(filepath.Join(tmpDir, "_epf.yaml"), []byte(anchorContent), 0644)
+
+	// Create ONLY new structure
+	os.MkdirAll(filepath.Join(tmpDir, "READY"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "FIRE", "definitions", "product"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "FIRE", "value_models"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "AIM"), 0755)
+
+	os.WriteFile(filepath.Join(tmpDir, "FIRE", "definitions", "product", "fd-001.yaml"), []byte("id: fd-001\n"), 0644)
+
+	checker := NewInstanceChecker(tmpDir)
+	summary := checker.Check()
+
+	for _, r := range summary.Results {
+		if strings.HasPrefix(r.Check, "old_structure_") {
+			t.Errorf("should not have old_structure check results with new structure, found: %s", r.Check)
+		}
 	}
 }
 
