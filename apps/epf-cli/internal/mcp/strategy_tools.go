@@ -304,6 +304,14 @@ func (s *Server) handleGetValuePropositions(ctx context.Context, request mcp.Cal
 		"value_propositions": props,
 	}
 
+	if len(props) == 0 {
+		response["searched"] = map[string]interface{}{
+			"file":   "READY/04_strategy_formula.yaml",
+			"fields": []string{"positioning.unique_value_prop", "positioning.statement"},
+		}
+		response["note"] = "No value propositions found. Ensure positioning.unique_value_prop and/or positioning.statement are populated in the strategy formula."
+	}
+
 	jsonBytes, _ := json.MarshalIndent(response, "", "  ")
 	return mcp.NewToolResultText(string(jsonBytes)), nil
 }
@@ -322,7 +330,20 @@ func (s *Server) handleGetCompetitivePosition(ctx context.Context, request mcp.C
 
 	moat, positioning, err := store.GetCompetitivePosition()
 	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to get competitive position: %s", err.Error())), nil
+		// Provide a more specific error when strategy formula exists but competitive section is absent
+		return mcp.NewToolResultError(fmt.Sprintf(
+			"Failed to get competitive position: %s. "+
+				"This data comes from the competitive_moat and positioning sections in READY/04_strategy_formula.yaml.",
+			err.Error())), nil
+	}
+
+	// Detect empty sections and warn
+	var missingSections []string
+	if moat.Differentiation == "" && len(moat.Advantages) == 0 && len(moat.VsCompetitors) == 0 {
+		missingSections = append(missingSections, "competitive_moat")
+	}
+	if positioning.UniqueValueProp == "" && positioning.Statement == "" && positioning.TargetCustomer == "" {
+		missingSections = append(missingSections, "positioning")
 	}
 
 	response := map[string]interface{}{
@@ -338,6 +359,14 @@ func (s *Server) handleGetCompetitivePosition(ctx context.Context, request mcp.C
 			"advantages":      formatAdvantages(moat.Advantages),
 			"vs_competitors":  formatCompetitors(moat.VsCompetitors),
 		},
+	}
+
+	if len(missingSections) > 0 {
+		response["warnings"] = map[string]interface{}{
+			"empty_sections": missingSections,
+			"file":           "READY/04_strategy_formula.yaml",
+			"note":           fmt.Sprintf("The following sections are empty: %s. Populate them in the strategy formula.", strings.Join(missingSections, ", ")),
+		}
 	}
 
 	jsonBytes, _ := json.MarshalIndent(response, "", "  ")

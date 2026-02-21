@@ -463,7 +463,7 @@ func (s *Server) handleAimAssess(ctx context.Context, request mcp.CallToolReques
 			"Gather quantitative metrics from analytics",
 			"Collect qualitative insights",
 			"Assess KR status (exceeded/met/partially_met/missed)",
-			"Save to AIM/assessment_report.yaml",
+			"Save to AIM/assessment_report.yaml (or AIM/assessment_report_c{N}.yaml for cycle-tagged naming)",
 		},
 	}
 
@@ -602,6 +602,8 @@ func (s *Server) handleAimValidateAssumptions(ctx context.Context, request mcp.C
 // OKRProgressResult represents OKR achievement rates
 type OKRProgressResult struct {
 	Success  bool                           `json:"success"`
+	Source   string                         `json:"source,omitempty"` // "assessment" or "roadmap"
+	Note     string                         `json:"note,omitempty"`
 	Overall  ProgressSummaryData            `json:"overall"`
 	ByTrack  map[string]ProgressSummaryData `json:"by_track,omitempty"`
 	Cycles   []CycleProgressData            `json:"cycles,omitempty"`
@@ -615,6 +617,7 @@ type ProgressSummaryData struct {
 	Met             int     `json:"met"`
 	PartiallyMet    int     `json:"partially_met"`
 	Missed          int     `json:"missed"`
+	Pending         int     `json:"pending,omitempty"`
 	AchievementRate float64 `json:"achievement_rate"`
 }
 
@@ -655,10 +658,52 @@ func (s *Server) handleAimOKRProgress(ctx context.Context, request mcp.CallToolR
 	assessments := loadAssessmentFiles(aimDir)
 
 	if len(assessments) == 0 {
-		result := OKRProgressResult{
-			Success: false,
-			Error:   "No assessment reports found. Run epf_aim_assess first and fill in KR statuses.",
+		// Fallback: load KRs from roadmap and show all as pending
+		roadmapPath := filepath.Join(instancePath, "READY", "05_roadmap_recipe.yaml")
+		roadmap, err := loadRoadmapData(roadmapPath)
+		if err != nil {
+			result := OKRProgressResult{
+				Success: false,
+				Error:   "No assessment reports found and no roadmap available. Run epf_aim_assess first and fill in KR statuses.",
+			}
+			jsonData, _ := json.MarshalIndent(result, "", "  ")
+			return mcp.NewToolResultText(string(jsonData)), nil
 		}
+
+		result := OKRProgressResult{
+			Success:  true,
+			Source:   "roadmap",
+			Note:     "No assessment reports found. Showing KRs from roadmap — all marked as pending. Run epf_aim_assess to create an assessment report.",
+			Overall:  ProgressSummaryData{},
+			ByTrack:  make(map[string]ProgressSummaryData),
+			Insights: []string{"All KRs are pending — no assessment data yet"},
+		}
+
+		tracks := map[string]TrackDataForAIM{
+			"product":    roadmap.Roadmap.Tracks.Product,
+			"strategy":   roadmap.Roadmap.Tracks.Strategy,
+			"org_ops":    roadmap.Roadmap.Tracks.OrgOps,
+			"commercial": roadmap.Roadmap.Tracks.Commercial,
+		}
+
+		for track, trackData := range tracks {
+			if trackFilter != "" && track != trackFilter {
+				continue
+			}
+			for _, okr := range trackData.OKRs {
+				krCount := len(okr.KeyResults)
+				if krCount == 0 {
+					continue
+				}
+				result.Overall.TotalKRs += krCount
+				result.Overall.Pending += krCount
+				trackSummary := result.ByTrack[track]
+				trackSummary.TotalKRs += krCount
+				trackSummary.Pending += krCount
+				result.ByTrack[track] = trackSummary
+			}
+		}
+
 		jsonData, _ := json.MarshalIndent(result, "", "  ")
 		return mcp.NewToolResultText(string(jsonData)), nil
 	}
@@ -666,6 +711,7 @@ func (s *Server) handleAimOKRProgress(ctx context.Context, request mcp.CallToolR
 	// Calculate progress
 	result := OKRProgressResult{
 		Success:  true,
+		Source:   "assessment",
 		Overall:  ProgressSummaryData{},
 		ByTrack:  make(map[string]ProgressSummaryData),
 		Cycles:   []CycleProgressData{},
@@ -807,9 +853,9 @@ type KRDataForAIM struct {
 
 type AssumptionDataForAIM struct {
 	ID         string `yaml:"id"`
-	Statement  string `yaml:"statement"`
-	Risk       string `yaml:"risk,omitempty"`
-	Validation string `yaml:"validation_approach,omitempty"`
+	Statement  string `yaml:"description"`
+	Risk       string `yaml:"criticality,omitempty"`
+	Validation string `yaml:"evidence_required,omitempty"`
 }
 
 // AssessmentReportData represents loaded assessment report

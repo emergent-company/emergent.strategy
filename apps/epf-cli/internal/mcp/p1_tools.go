@@ -270,6 +270,30 @@ type BatchValidateFileResult struct {
 	Passed     bool   `json:"passed"`
 }
 
+// artifactTypeDirMap maps artifact types to their standard subdirectories within
+// an EPF instance. Types not listed here are matched by auto-detection during a
+// full-instance scan.
+var artifactTypeDirMap = map[string][]string{
+	"feature_definition":        {"FIRE/feature_definitions"},
+	"value_model":               {"FIRE/value_models"},
+	"workflow":                  {"FIRE/workflows"},
+	"mappings":                  {"FIRE"},
+	"north_star":                {"READY"},
+	"insight_analyses":          {"READY"},
+	"strategy_foundations":      {"READY"},
+	"insight_opportunity":       {"READY"},
+	"strategy_formula":          {"READY"},
+	"roadmap_recipe":            {"READY"},
+	"product_portfolio":         {"READY"},
+	"assessment_report":         {"AIM"},
+	"calibration_memo":          {"AIM"},
+	"strategic_reality_check":   {"AIM"},
+	"living_reality_assessment": {"AIM"},
+	"strategy_definition":       {"READY/definitions/strategy"},
+	"org_ops_definition":        {"READY/definitions/org_ops"},
+	"commercial_definition":     {"READY/definitions/commercial"},
+}
+
 func (s *Server) handleBatchValidate(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	instancePath, err := request.RequireString("instance_path")
 	if err != nil || instancePath == "" {
@@ -278,46 +302,71 @@ func (s *Server) handleBatchValidate(ctx context.Context, request mcp.CallToolRe
 
 	artifactType, _ := request.RequireString("artifact_type")
 	if artifactType == "" {
-		artifactType = "feature_definition"
+		artifactType = "all"
 	}
 
-	// Determine directory to scan
-	var searchDir string
-	switch artifactType {
-	case "feature_definition":
-		searchDir = filepath.Join(instancePath, "FIRE", "feature_definitions")
-	default:
-		// For other types, scan READY/ and FIRE/
-		searchDir = instancePath
-	}
-
-	if _, statErr := os.Stat(searchDir); statErr != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Directory not found: %s", searchDir)), nil
-	}
-
-	// Collect YAML files
-	var yamlFiles []string
-	err = filepath.Walk(searchDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
+	// Determine directories to scan
+	var searchDirs []string
+	if artifactType == "all" {
+		searchDirs = []string{instancePath}
+	} else if dirs, ok := artifactTypeDirMap[artifactType]; ok {
+		for _, d := range dirs {
+			searchDirs = append(searchDirs, filepath.Join(instancePath, d))
 		}
-		if strings.HasSuffix(path, ".yaml") || strings.HasSuffix(path, ".yml") {
-			if !strings.HasPrefix(filepath.Base(path), "_") {
+	} else {
+		// Unknown type — scan everything but filter by detected type
+		searchDirs = []string{instancePath}
+	}
+
+	// Verify at least one search directory exists
+	var validDirs []string
+	for _, dir := range searchDirs {
+		if _, statErr := os.Stat(dir); statErr == nil {
+			validDirs = append(validDirs, dir)
+		}
+	}
+	if len(validDirs) == 0 {
+		return mcp.NewToolResultError(fmt.Sprintf("No matching directories found for artifact_type=%q in %s", artifactType, instancePath)), nil
+	}
+
+	// Collect YAML files from all search directories
+	seen := map[string]bool{}
+	var yamlFiles []string
+	for _, dir := range validDirs {
+		_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+			if err != nil || info.IsDir() {
+				return nil
+			}
+			if (strings.HasSuffix(path, ".yaml") || strings.HasSuffix(path, ".yml")) &&
+				!strings.HasPrefix(filepath.Base(path), "_") &&
+				!seen[path] {
+				seen[path] = true
 				yamlFiles = append(yamlFiles, path)
 			}
-		}
-		return nil
-	})
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Error scanning directory: %v", err)), nil
+			return nil
+		})
 	}
+
+	// When a specific (non-"all") type is requested, filter files by detected type
+	filterByType := artifactType != "all"
+	loader := s.validator.GetLoader()
 
 	// Validate each file
 	var results []BatchValidateFileResult
 	totalErrors := 0
 	passedCount := 0
+	skippedCount := 0
 
 	for _, path := range yamlFiles {
+		// Type filtering: skip files whose detected type doesn't match
+		if filterByType {
+			detected, detectErr := loader.DetectArtifactType(path)
+			if detectErr != nil || string(detected) != artifactType {
+				skippedCount++
+				continue
+			}
+		}
+
 		vr, valErr := s.validator.ValidateFile(path)
 		if valErr != nil {
 			results = append(results, BatchValidateFileResult{
@@ -357,6 +406,9 @@ func (s *Server) handleBatchValidate(ctx context.Context, request mcp.CallToolRe
 		"total_errors":   totalErrors,
 		"overall_passed": overallPassed,
 		"files":          results,
+	}
+	if skippedCount > 0 {
+		response["skipped_files"] = skippedCount
 	}
 
 	data, _ := json.MarshalIndent(response, "", "  ")
@@ -434,6 +486,7 @@ func (s *Server) handleRenameValuePath(ctx context.Context, request mcp.CallTool
 			"success":     false,
 			"error":       fmt.Sprintf("new_path '%s' does not exist in any value model", newPath),
 			"suggestions": suggestions,
+			"guidance":    "To rename to a new path: (1) first update the value model YAML to add the new component path, (2) then run rename_value_path to update all references. The new_path must exist in the value model before references can point to it.",
 		}
 		data, _ := json.MarshalIndent(errResult, "", "  ")
 		return mcp.NewToolResultText(string(data)), nil

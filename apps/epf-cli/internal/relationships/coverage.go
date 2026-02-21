@@ -56,6 +56,7 @@ type PathContribution struct {
 	Path          string
 	FeatureCount  int
 	FeatureIDs    []string
+	FeatureNames  []string
 	HasKRTargeted bool
 	KRIDs         []string
 	HasMapping    bool
@@ -370,6 +371,7 @@ func (a *CoverageAnalyzer) findMostContributed(coverageMap map[string][]*Feature
 
 		for _, f := range features {
 			contribution.FeatureIDs = append(contribution.FeatureIDs, f.ID)
+			contribution.FeatureNames = append(contribution.FeatureNames, f.Name)
 		}
 
 		// Check if any KR targets this path and collect their IDs

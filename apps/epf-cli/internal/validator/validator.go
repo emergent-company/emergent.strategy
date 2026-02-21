@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/embedded"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/schema"
@@ -398,6 +399,11 @@ func convertYAMLToJSON(data interface{}) interface{} {
 			arr[i] = convertYAMLToJSON(val)
 		}
 		return arr
+	case time.Time:
+		// go-yaml parses unquoted dates/datetimes as time.Time.
+		// Convert to RFC3339 string so the JSON Schema validator sees
+		// a "string" with format "date-time", not a Go struct.
+		return v.Format(time.RFC3339)
 	default:
 		return v
 	}
