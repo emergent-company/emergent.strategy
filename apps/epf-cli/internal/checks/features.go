@@ -47,6 +47,7 @@ type FeatureQualitySummary struct {
 	PassedCount   int                     `json:"passed_count"`
 	FailedCount   int                     `json:"failed_count"`
 	AverageScore  float64                 `json:"average_score"`
+	InfoCounts    map[string]int          `json:"info_counts,omitempty"` // Aggregated INFO issue counts by category
 	Results       []*FeatureQualityResult `json:"results"`
 }
 
@@ -139,6 +140,21 @@ func (c *FeatureQualityChecker) Check() (*FeatureQualitySummary, error) {
 			totalScore += r.Score
 		}
 		summary.AverageScore = float64(totalScore) / float64(summary.TotalFeatures)
+	}
+
+	// Aggregate INFO-severity issues into counts by category
+	infoCounts := make(map[string]int)
+	for _, r := range summary.Results {
+		for _, issue := range r.Issues {
+			if issue.Severity != SeverityInfo {
+				continue
+			}
+			cat := categorizeInfoIssue(issue.Message)
+			infoCounts[cat]++
+		}
+	}
+	if len(infoCounts) > 0 {
+		summary.InfoCounts = infoCounts
 	}
 
 	return summary, nil
@@ -591,6 +607,24 @@ func (c *FeatureQualityChecker) checkNarrativeQuality(feature map[string]interfa
 	}
 
 	return hintCount
+}
+
+// categorizeInfoIssue maps an INFO issue message to a short category key.
+func categorizeInfoIssue(msg string) string {
+	switch {
+	case strings.Contains(msg, "paragraph(s); 3+ recommended"):
+		return "low_paragraph_count"
+	case strings.Contains(msg, "chars; 200+ recommended"):
+		return "short_paragraphs"
+	case strings.Contains(msg, "mostly bullet points"):
+		return "bullet_narratives"
+	case strings.Contains(msg, "lacks concrete metrics"):
+		return "missing_metrics"
+	case strings.Contains(msg, "contributes to only 1 value model path"):
+		return "single_contributes_to"
+	default:
+		return "other"
+	}
 }
 
 // splitParagraphs splits text into paragraphs by double newlines or significant whitespace.
