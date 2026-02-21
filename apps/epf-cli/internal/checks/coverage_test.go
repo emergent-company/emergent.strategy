@@ -26,7 +26,7 @@ func TestFieldCoverageWithoutTaxonomy(t *testing.T) {
 
 	// Create minimal instance
 	os.MkdirAll(filepath.Join(tmpDir, "READY"), 0755)
-	os.MkdirAll(filepath.Join(tmpDir, "FIRE", "feature_definitions"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "FIRE", "definitions", "product"), 0755)
 
 	checker := NewFieldCoverageChecker(tmpDir, filepath.Join(tmpDir, "nonexistent.json"))
 	result, err := checker.Check()

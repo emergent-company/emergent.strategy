@@ -342,7 +342,7 @@ func checkForManualActions(path string, content string, targetVersion string, re
 	baseName := filepath.Base(path)
 
 	// Check for feature definitions
-	if strings.HasPrefix(baseName, "fd-") || strings.Contains(path, "feature_definitions") {
+	if strings.HasPrefix(baseName, "fd-") || strings.Contains(path, "definitions/product") {
 		// Check for old persona format (string instead of object)
 		if personas, ok := data["personas"].([]interface{}); ok {
 			for i, p := range personas {

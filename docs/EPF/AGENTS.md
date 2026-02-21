@@ -131,8 +131,12 @@ docs/EPF/
 │   │   ├── 04_strategy_formula.yaml
 │   │   └── 05_roadmap_recipe.yaml
 │   ├── FIRE/                     # Execution artifacts
+│   │   ├── definitions/          # All track definitions
+│   │   │   ├── product/          # Feature definitions (fd-*.yaml)
+│   │   │   ├── strategy/         # Strategy definitions
+│   │   │   ├── org_ops/          # OrgOps definitions
+│   │   │   └── commercial/       # Commercial definitions
 │   │   ├── value_models/
-│   │   ├── feature_definitions/
 │   │   └── mappings.yaml
 │   ├── AIM/                      # Assessment artifacts
 │   │   └── living_reality_assessment.yaml

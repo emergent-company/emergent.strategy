@@ -315,7 +315,7 @@ func checkOverdueTriggers(instancePath string, now time.Time) []HealthDiagnostic
 func checkDeliveryDrift(instancePath string) []HealthDiagnostic {
 	var diags []HealthDiagnostic
 
-	fdDir := filepath.Join(instancePath, "FIRE", "feature_definitions")
+	fdDir := filepath.Join(instancePath, "FIRE", "definitions", "product")
 	entries, err := os.ReadDir(fdDir)
 	if err != nil {
 		return diags
@@ -352,7 +352,7 @@ func checkDeliveryDrift(instancePath string) []HealthDiagnostic {
 					Severity:    "warning",
 					Title:       fmt.Sprintf("Feature %s delivered but maturity is '%s'", extractFDID(entry.Name()), stage),
 					Description: fmt.Sprintf("Feature status is 'delivered' but feature_maturity.overall_stage is still '%s'. Update maturity to reflect actual state.", stage),
-					Artifact:    filepath.Join("FIRE/feature_definitions", entry.Name()),
+					Artifact:    filepath.Join("FIRE/definitions/product", entry.Name()),
 					FieldPath:   "feature_maturity.overall_stage",
 					Suggestion:  "Update feature maturity using: epf_update_capability_maturity",
 				})
@@ -752,9 +752,9 @@ func countValueModels(instancePath string) int {
 	return countYAMLFiles(filepath.Join(instancePath, "FIRE", "value_models"))
 }
 
-// countFeatureDefinitions counts .yaml files in FIRE/feature_definitions/.
+// countFeatureDefinitions counts .yaml files in FIRE/definitions/product/.
 func countFeatureDefinitions(instancePath string) int {
-	return countYAMLFiles(filepath.Join(instancePath, "FIRE", "feature_definitions"))
+	return countYAMLFiles(filepath.Join(instancePath, "FIRE", "definitions", "product"))
 }
 
 // countYAMLFiles counts .yaml files in a directory (non-recursive).
@@ -831,7 +831,7 @@ func checkCanonicalCompleteness(instancePath string) []HealthDiagnostic {
 					"Canonical artifacts provide the strategy, org_ops, and commercial track foundations.",
 				missingDefCount, missingVMCount, strings.Join(parts, ", "),
 			),
-			Artifact:   "READY/definitions/",
+			Artifact:   "FIRE/definitions/",
 			Suggestion: "Run: epf-cli sync-canonical <instance-path>",
 		})
 	}

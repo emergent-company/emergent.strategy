@@ -111,7 +111,7 @@ var OptionalREADYFiles = []string{
 
 // RequiredFIREDirs are required directories in FIRE phase
 var RequiredFIREDirs = []string{
-	"feature_definitions",
+	"definitions/product",
 	"value_models",
 }
 
@@ -374,10 +374,36 @@ func (c *InstanceChecker) checkFIREDirectories(summary *CheckSummary) {
 		})
 	}
 
-	// Check for feature definitions
-	fdPath := filepath.Join(firePath, "feature_definitions")
+	// Check for feature definitions (new path)
+	fdPath := filepath.Join(firePath, "definitions", "product")
 	if _, err := os.Stat(fdPath); err == nil {
 		c.checkFeatureDefinitionsDir(summary, fdPath)
+	}
+
+	// CRITICAL: detect old structure (clean break — no fallback)
+	oldFdPath := filepath.Join(firePath, "feature_definitions")
+	if _, err := os.Stat(oldFdPath); err == nil {
+		summary.Add(&CheckResult{
+			Check:    "old_structure_feature_definitions",
+			Passed:   false,
+			Severity: SeverityCritical,
+			Message:  "Old FIRE/feature_definitions/ directory detected. Migrate to FIRE/definitions/product/ using 'epf-cli migrate-definitions'.",
+			Path:     oldFdPath,
+			Details:  []string{"Run: epf-cli migrate-definitions <instance-path>"},
+		})
+	}
+
+	// CRITICAL: detect old READY/definitions/ structure
+	oldReadyDefsPath := filepath.Join(c.instancePath, "READY", "definitions")
+	if _, err := os.Stat(oldReadyDefsPath); err == nil {
+		summary.Add(&CheckResult{
+			Check:    "old_structure_ready_definitions",
+			Passed:   false,
+			Severity: SeverityCritical,
+			Message:  "Old READY/definitions/ directory detected. All track definitions now live in FIRE/definitions/{track}/. Migrate using 'epf-cli migrate-definitions'.",
+			Path:     oldReadyDefsPath,
+			Details:  []string{"Run: epf-cli migrate-definitions <instance-path>"},
+		})
 	}
 
 	// Check for value models
@@ -623,11 +649,11 @@ func (c *InstanceChecker) checkFrameworkSeparation(summary *CheckSummary) {
 }
 
 func (c *InstanceChecker) checkCanonicalCompleteness(summary *CheckSummary) {
-	// Only check phased instances with a READY directory
-	readyDefDir := filepath.Join(c.instancePath, "READY", "definitions")
+	// Only check phased instances with a FIRE directory
 	if !c.isPhased {
 		return
 	}
+	fireDefDir := filepath.Join(c.instancePath, "FIRE", "definitions")
 
 	// Get the expected canonical definitions from embedded manifest
 	expectedDefs, err := embedded.ListCanonicalDefinitions()
@@ -641,7 +667,7 @@ func (c *InstanceChecker) checkCanonicalCompleteness(summary *CheckSummary) {
 	var missingDefs []string
 	missingByTrack := make(map[string]int)
 	for _, def := range expectedDefs {
-		diskPath := filepath.Join(readyDefDir, def.Path)
+		diskPath := filepath.Join(fireDefDir, def.Path)
 		if _, err := os.Stat(diskPath); os.IsNotExist(err) {
 			missingDefs = append(missingDefs, def.Path)
 			missingByTrack[def.Track]++

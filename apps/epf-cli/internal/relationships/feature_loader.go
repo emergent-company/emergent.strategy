@@ -104,13 +104,13 @@ func NewFeatureLoader(instancePath string) *FeatureLoader {
 	}
 }
 
-// Load loads all feature definitions from the instance's FIRE/feature_definitions/ directory.
+// Load loads all feature definitions from the instance's FIRE/definitions/product/ directory.
 func (l *FeatureLoader) Load() (*FeatureSet, error) {
 	set := NewFeatureSet()
 	set.Instance = l.instancePath
 
-	// Feature definitions are in FIRE/feature_definitions/
-	featureDefsDir := filepath.Join(l.instancePath, "FIRE", "feature_definitions")
+	// Feature definitions are in FIRE/definitions/product/
+	featureDefsDir := filepath.Join(l.instancePath, "FIRE", "definitions", "product")
 
 	// Check if directory exists
 	if _, err := os.Stat(featureDefsDir); os.IsNotExist(err) {
@@ -120,7 +120,7 @@ func (l *FeatureLoader) Load() (*FeatureSet, error) {
 	// Find all YAML files
 	entries, err := os.ReadDir(featureDefsDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read feature_definitions directory: %w", err)
+		return nil, fmt.Errorf("failed to read definitions/product directory: %w", err)
 	}
 
 	for _, entry := range entries {

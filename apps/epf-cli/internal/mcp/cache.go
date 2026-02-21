@@ -129,7 +129,7 @@ func (s *Server) invalidateInstanceCaches(instancePath string) {
 }
 
 // getInstanceFileMtimes collects current modification times for key EPF instance files.
-// It checks READY/ YAML files, FIRE/feature_definitions/, FIRE/value_models/,
+// It checks READY/ YAML files, FIRE/definitions/product/, FIRE/value_models/,
 // and anchor/meta files. This is lightweight (OS stat calls only, no file reads).
 func getInstanceFileMtimes(instancePath string) map[string]time.Time {
 	mtimes := make(map[string]time.Time)
@@ -155,8 +155,8 @@ func getInstanceFileMtimes(instancePath string) map[string]time.Time {
 		}
 	}
 
-	// Check FIRE/feature_definitions/ YAML files
-	fdDir := filepath.Join(instancePath, "FIRE", "feature_definitions")
+	// Check FIRE/definitions/product/ YAML files
+	fdDir := filepath.Join(instancePath, "FIRE", "definitions", "product")
 	if entries, err := os.ReadDir(fdDir); err == nil {
 		for _, e := range entries {
 			if !e.IsDir() && strings.HasSuffix(e.Name(), ".yaml") {

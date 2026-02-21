@@ -127,7 +127,7 @@ func (c *FieldCoverageChecker) Check() (*FieldCoverageResult, error) {
 	}
 
 	// Analyze feature definitions (FIRE phase)
-	firePath := filepath.Join(c.instancePath, "FIRE", "feature_definitions")
+	firePath := filepath.Join(c.instancePath, "FIRE", "definitions", "product")
 	if _, err := os.Stat(firePath); err == nil {
 		c.analyzeFeatureDefinitions(firePath, result)
 	}

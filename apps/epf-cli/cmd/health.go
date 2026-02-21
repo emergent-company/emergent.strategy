@@ -479,7 +479,7 @@ func runHealthCheck(instancePath string, schemasPath string) *HealthResult {
 	}
 
 	// 3. Feature Quality Check
-	firePath := filepath.Join(instancePath, "FIRE", "feature_definitions")
+	firePath := filepath.Join(instancePath, "FIRE", "definitions", "product")
 	if _, err := os.Stat(firePath); err == nil {
 		if !healthJSON {
 			fmt.Println("▶ Checking feature quality...")

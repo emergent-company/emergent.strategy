@@ -60,7 +60,7 @@ func (s *Server) handleListFeatures(ctx context.Context, request mcp.CallToolReq
 	// Optionally run quality checker
 	var qualityResults map[string]int // featureID -> score
 	if includeQuality {
-		fdDir := filepath.Join(instancePath, "FIRE", "feature_definitions")
+		fdDir := filepath.Join(instancePath, "FIRE", "definitions", "product")
 		if _, statErr := os.Stat(fdDir); statErr == nil {
 			checker := checks.NewFeatureQualityChecker(fdDir)
 			summary, qErr := checker.Check()
@@ -227,7 +227,7 @@ func checkMissingSections(instancePath, featureID, slug string) []string {
 
 // findFeatureFilePath locates a feature definition file by ID or slug.
 func findFeatureFilePath(instancePath, featureID, slug string) string {
-	fdDir := filepath.Join(instancePath, "FIRE", "feature_definitions")
+	fdDir := filepath.Join(instancePath, "FIRE", "definitions", "product")
 	entries, err := os.ReadDir(fdDir)
 	if err != nil {
 		return ""
@@ -274,7 +274,7 @@ type BatchValidateFileResult struct {
 // an EPF instance. Types not listed here are matched by auto-detection during a
 // full-instance scan.
 var artifactTypeDirMap = map[string][]string{
-	"feature_definition":        {"FIRE/feature_definitions"},
+	"feature_definition":        {"FIRE/definitions/product"},
 	"value_model":               {"FIRE/value_models"},
 	"workflow":                  {"FIRE/workflows"},
 	"mappings":                  {"FIRE"},
@@ -289,9 +289,9 @@ var artifactTypeDirMap = map[string][]string{
 	"calibration_memo":          {"AIM"},
 	"strategic_reality_check":   {"AIM"},
 	"living_reality_assessment": {"AIM"},
-	"strategy_definition":       {"READY/definitions/strategy"},
-	"org_ops_definition":        {"READY/definitions/org_ops"},
-	"commercial_definition":     {"READY/definitions/commercial"},
+	"strategy_definition":       {"FIRE/definitions/strategy"},
+	"org_ops_definition":        {"FIRE/definitions/org_ops"},
+	"commercial_definition":     {"FIRE/definitions/commercial"},
 }
 
 func (s *Server) handleBatchValidate(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -496,7 +496,7 @@ func (s *Server) handleRenameValuePath(ctx context.Context, request mcp.CallTool
 	var changes []RenamePathChange
 
 	// 1. Update feature contributes_to arrays
-	fdDir := filepath.Join(instancePath, "FIRE", "feature_definitions")
+	fdDir := filepath.Join(instancePath, "FIRE", "definitions", "product")
 	if entries, readErr := os.ReadDir(fdDir); readErr == nil {
 		for _, e := range entries {
 			if e.IsDir() || (!strings.HasSuffix(e.Name(), ".yaml") && !strings.HasSuffix(e.Name(), ".yml")) {

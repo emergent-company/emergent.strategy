@@ -68,8 +68,8 @@ func TestDetectArtifactType(t *testing.T) {
 		{"product_portfolio.yaml", ArtifactProductPortfolio, false},
 
 		// FIRE phase files
-		{"FIRE/feature_definitions/fd-001_something.yaml", ArtifactFeatureDefinition, false},
-		{"FIRE/feature_definition/my_feature.yaml", ArtifactFeatureDefinition, false},
+		{"FIRE/definitions/product/fd-001_something.yaml", ArtifactFeatureDefinition, false},
+		{"FIRE/definitions/product/my_feature.yaml", ArtifactFeatureDefinition, false},
 		{"fd-123_feature.yaml", ArtifactFeatureDefinition, false},
 		{"FIRE/value_models/some_model.yaml", ArtifactValueModel, false},
 		{"something_value_model.yaml", ArtifactValueModel, false},
@@ -83,11 +83,11 @@ func TestDetectArtifactType(t *testing.T) {
 		{"AIM/calibration_memo.yaml", ArtifactCalibrationMemo, false},
 
 		// Track definitions
-		{"definitions/strategy_definition.yaml", ArtifactStrategyDefinition, false},
-		{"definitions/strategy-definition.yaml", ArtifactStrategyDefinition, false},
-		{"definitions/org_ops_definition.yaml", ArtifactOrgOpsDefinition, false},
-		{"definitions/orgops_definition.yaml", ArtifactOrgOpsDefinition, false},
-		{"definitions/commercial_definition.yaml", ArtifactCommercialDefinition, false},
+		{"FIRE/definitions/strategy/sd-001.yaml", ArtifactStrategyDefinition, false},
+		{"FIRE/definitions/strategy/strategy-definition.yaml", ArtifactStrategyDefinition, false},
+		{"FIRE/definitions/org_ops/pd-001.yaml", ArtifactOrgOpsDefinition, false},
+		{"FIRE/definitions/org_ops/orgops_definition.yaml", ArtifactOrgOpsDefinition, false},
+		{"FIRE/definitions/commercial/cd-001.yaml", ArtifactCommercialDefinition, false},
 
 		// Other artifacts
 		{"track_health_assessment.yaml", ArtifactTrackHealthAssessment, false},

@@ -198,7 +198,7 @@ func collectReportData(instancePath string, schemasPath string) *ReportData {
 	}
 
 	// 3. Feature Quality Check
-	firePath := filepath.Join(instancePath, "FIRE", "feature_definitions")
+	firePath := filepath.Join(instancePath, "FIRE", "definitions", "product")
 	if _, err := os.Stat(firePath); err == nil {
 		featureChecker := checks.NewFeatureQualityChecker(firePath)
 		featureResult, err := featureChecker.Check()

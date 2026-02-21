@@ -228,9 +228,9 @@ func GetGeneratorContent(name string) (*GeneratorContent, error) {
 
 // GetCanonicalDefinition returns the content of an embedded canonical definition.
 // The id should be the definition file basename (e.g., "sd-001-trends-and-opportunities.yaml").
-// It searches through all track/category subdirectories under templates/READY/definitions/.
+// It searches through all track/category subdirectories under templates/FIRE/definitions/.
 func GetCanonicalDefinition(id string) ([]byte, error) {
-	defFS, err := fs.Sub(Templates, "templates/READY/definitions")
+	defFS, err := fs.Sub(Templates, "templates/FIRE/definitions")
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +268,7 @@ type CanonicalDefinitionInfo struct {
 
 // ListCanonicalDefinitions returns metadata for all embedded canonical definitions.
 func ListCanonicalDefinitions() ([]CanonicalDefinitionInfo, error) {
-	defFS, err := fs.Sub(Templates, "templates/READY/definitions")
+	defFS, err := fs.Sub(Templates, "templates/FIRE/definitions")
 	if err != nil {
 		return nil, err
 	}
@@ -291,6 +291,11 @@ func ListCanonicalDefinitions() ([]CanonicalDefinitionInfo, error) {
 			category = parts[1]
 		} else if len(parts) >= 2 {
 			track = parts[0]
+		}
+
+		// Skip product track — product definitions are examples, not canonical
+		if track == "product" {
+			return nil
 		}
 
 		ext := path.Ext(name)

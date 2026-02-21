@@ -18,7 +18,7 @@ func TestCacheInvalidation_FileEditReturnsUpdatedData(t *testing.T) {
 	// Create a minimal EPF instance in temp dir
 	tmpDir := t.TempDir()
 	readyDir := filepath.Join(tmpDir, "READY")
-	fireDir := filepath.Join(tmpDir, "FIRE", "feature_definitions")
+	fireDir := filepath.Join(tmpDir, "FIRE", "definitions", "product")
 	vmDir := filepath.Join(tmpDir, "FIRE", "value_models")
 	if err := os.MkdirAll(readyDir, 0o755); err != nil {
 		t.Fatal(err)
@@ -138,7 +138,7 @@ product_name: "Cache Test"
 func TestCacheInvalidation_ExplicitInvalidation(t *testing.T) {
 	tmpDir := t.TempDir()
 	readyDir := filepath.Join(tmpDir, "READY")
-	fireDir := filepath.Join(tmpDir, "FIRE", "feature_definitions")
+	fireDir := filepath.Join(tmpDir, "FIRE", "definitions", "product")
 	vmDir := filepath.Join(tmpDir, "FIRE", "value_models")
 	if err := os.MkdirAll(readyDir, 0o755); err != nil {
 		t.Fatal(err)
@@ -221,7 +221,7 @@ product_name: "Explicit Test"
 func TestCacheInvalidation_NewFileDetected(t *testing.T) {
 	tmpDir := t.TempDir()
 	readyDir := filepath.Join(tmpDir, "READY")
-	fireDir := filepath.Join(tmpDir, "FIRE", "feature_definitions")
+	fireDir := filepath.Join(tmpDir, "FIRE", "definitions", "product")
 	vmDir := filepath.Join(tmpDir, "FIRE", "value_models")
 	if err := os.MkdirAll(readyDir, 0o755); err != nil {
 		t.Fatal(err)

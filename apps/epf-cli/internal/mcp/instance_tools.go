@@ -16,6 +16,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/anchor"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/config"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/embedded"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/migration"
 	"github.com/mark3labs/mcp-go/mcp"
 	"gopkg.in/yaml.v3"
 )
@@ -157,7 +158,7 @@ func (s *Server) handleInitStandalone(absPath, instanceDir, productName, epfVers
 			filepath.Join(instanceDir, "READY", "03_insight_opportunity.yaml"),
 			filepath.Join(instanceDir, "READY", "04_strategy_formula.yaml"),
 			filepath.Join(instanceDir, "READY", "05_roadmap_recipe.yaml"),
-			filepath.Join(instanceDir, "FIRE", "feature_definitions", ".gitkeep"),
+			filepath.Join(instanceDir, "FIRE", "definitions", "product", ".gitkeep"),
 			filepath.Join(instanceDir, "FIRE", "value_models", "product.value_model.yaml"),
 			filepath.Join(instanceDir, "FIRE", "value_models", "strategy.value_model.yaml"),
 			filepath.Join(instanceDir, "FIRE", "value_models", "org_ops.value_model.yaml"),
@@ -267,7 +268,7 @@ func (s *Server) handleInitIntegrated(absPath, epfDir, instanceDir, productName,
 			filepath.Join(instanceDir, "READY", "03_insight_opportunity.yaml"),
 			filepath.Join(instanceDir, "READY", "04_strategy_formula.yaml"),
 			filepath.Join(instanceDir, "READY", "05_roadmap_recipe.yaml"),
-			filepath.Join(instanceDir, "FIRE", "feature_definitions", ".gitkeep"),
+			filepath.Join(instanceDir, "FIRE", "definitions", "product", ".gitkeep"),
 			filepath.Join(instanceDir, "FIRE", "value_models", "product.value_model.yaml"),
 			filepath.Join(instanceDir, "FIRE", "value_models", "strategy.value_model.yaml"),
 			filepath.Join(instanceDir, "FIRE", "value_models", "org_ops.value_model.yaml"),
@@ -509,7 +510,7 @@ func (s *Server) createInstanceStructure(instanceDir, productName, epfVersion, s
 	}
 
 	// Create FIRE subdirectories
-	fireDirs := []string{"feature_definitions", "value_models", "workflows"}
+	fireDirs := []string{"definitions/product", "definitions/strategy", "definitions/org_ops", "definitions/commercial", "value_models", "workflows"}
 	for _, dir := range fireDirs {
 		path := filepath.Join(instanceDir, "FIRE", dir)
 		if err := os.MkdirAll(path, 0755); err != nil {
@@ -631,7 +632,7 @@ func (s *Server) copyTemplatesFromEmbedded(instanceDir string) []string {
 }
 
 // copyCanonicalDefinitionsFromEmbedded copies canonical track definitions (strategy, org_ops, commercial)
-// from the embedded binary into the instance's READY/definitions/ directory.
+// from the embedded binary into the instance's FIRE/definitions/ directory.
 func (s *Server) copyCanonicalDefinitionsFromEmbedded(instanceDir string) []string {
 	var createdFiles []string
 
@@ -640,10 +641,10 @@ func (s *Server) copyCanonicalDefinitionsFromEmbedded(instanceDir string) []stri
 		return createdFiles
 	}
 
-	defsDir := filepath.Join(instanceDir, "READY", "definitions")
+	defsDir := filepath.Join(instanceDir, "FIRE", "definitions")
 
 	for _, def := range defs {
-		// Build destination path: READY/definitions/{track}/{category}/{file}
+		// Build destination path: FIRE/definitions/{track}/{category}/{file}
 		dstDir := filepath.Join(defsDir, def.Track)
 		if def.Category != "" {
 			dstDir = filepath.Join(dstDir, def.Category)
@@ -1193,6 +1194,58 @@ func (s *Server) handleSyncCanonical(ctx context.Context, request mcp.CallToolRe
 	}
 
 	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize result: %s", err.Error())), nil
+	}
+
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+// handleMigrateDefinitions handles the epf_migrate_definitions tool
+func (s *Server) handleMigrateDefinitions(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	instancePath, err := request.RequireString("instance_path")
+	if err != nil {
+		return mcp.NewToolResultError("instance_path parameter is required"), nil
+	}
+
+	dryRunStr, _ := request.RequireString("dry_run")
+	dryRun := strings.ToLower(dryRunStr) == "true"
+
+	absPath, err := filepath.Abs(instancePath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid path: %s", err.Error())), nil
+	}
+
+	// Block writes in canonical EPF
+	if !dryRun && isCanonicalEPFPath(absPath) {
+		return mcp.NewToolResultError(
+			"Cannot migrate definitions in canonical EPF repository. " +
+				"Use --dev flag or run in a product instance.",
+		), nil
+	}
+
+	result, migErr := migration.MigrateDefinitions(absPath, dryRun)
+	if migErr != nil && result == nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Migration failed: %s", migErr.Error())), nil
+	}
+
+	// Build response
+	response := struct {
+		*migration.DefinitionMigrationResult
+		Error string `json:"error,omitempty"`
+	}{
+		DefinitionMigrationResult: result,
+	}
+	if migErr != nil {
+		response.Error = migErr.Error()
+	}
+
+	// Invalidate caches after migration
+	if !dryRun && migErr == nil && result.NeedsMigrate {
+		s.invalidateInstanceCaches(absPath)
+	}
+
+	data, err := json.MarshalIndent(response, "", "  ")
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize result: %s", err.Error())), nil
 	}

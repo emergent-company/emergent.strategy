@@ -374,7 +374,7 @@ func (s *Server) registerTools() {
 				mcp.Description("Optional: Filter by category within a track"),
 			),
 			mcp.WithString("instance_path",
-				mcp.Description("Path to the EPF instance directory. If provided, also searches READY/definitions/ for synced canonical definitions."),
+				mcp.Description("Path to the EPF instance directory. If provided, also searches FIRE/definitions/ for synced canonical definitions."),
 			),
 		),
 		s.handleListDefinitions,
@@ -953,6 +953,24 @@ func (s *Server) registerTools() {
 			),
 		),
 		s.handleSyncCanonical,
+	)
+
+	// Tool: epf_migrate_definitions
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_migrate_definitions",
+			mcp.WithDescription("Migrate definitions from legacy locations to unified FIRE/definitions/ structure. "+
+				"Moves FIRE/feature_definitions/ to FIRE/definitions/product/, and READY/definitions/{track}/ to FIRE/definitions/{track}/. "+
+				"If the instance is a git submodule, migration is refused (must be done in the source repo). "+
+				"Use dry_run=true to preview changes."),
+			mcp.WithString("instance_path",
+				mcp.Required(),
+				mcp.Description("Path to the EPF instance directory"),
+			),
+			mcp.WithString("dry_run",
+				mcp.Description("Preview changes without modifying files (true/false, default: false)"),
+			),
+		),
+		s.handleMigrateDefinitions,
 	)
 
 	// Tool: epf_reload_instance
@@ -2586,7 +2604,7 @@ func (s *Server) handleListDefinitions(ctx context.Context, request mcp.CallTool
 		if len(searchedPaths) > 0 {
 			msg += fmt.Sprintf("Searched: %s. ", strings.Join(searchedPaths, ", "))
 		}
-		msg += "Provide instance_path to search READY/definitions/, or use epf_sync_canonical to sync canonical definitions to the instance."
+		msg += "Provide instance_path to search FIRE/definitions/, or use epf_sync_canonical to sync canonical definitions to the instance."
 		return mcp.NewToolResultError(msg), nil
 	}
 

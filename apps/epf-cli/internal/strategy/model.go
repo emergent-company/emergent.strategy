@@ -7,7 +7,7 @@ import "time"
 // StrategyModel represents the complete in-memory model of an EPF instance's strategy.
 // It aggregates data from READY phase artifacts (north_star, insight_analyses,
 // strategy_foundations, strategy_formula, roadmap_recipe) and FIRE phase artifacts
-// (feature_definitions, value_models).
+// (definitions/product, value_models).
 type StrategyModel struct {
 	// InstancePath is the root path of the EPF instance
 	InstancePath string

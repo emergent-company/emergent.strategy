@@ -95,10 +95,10 @@ func TestIsCanonicalArtifact(t *testing.T) {
 		expected bool
 	}{
 		// Definition file prefixes
-		{"strategy definition file", "READY/definitions/strategy/sd-001.yaml", true},
-		{"org_ops definition file", "READY/definitions/org_ops/pd-005.yaml", true},
-		{"commercial definition file", "READY/definitions/commercial/cd-001.yaml", true},
-		{"product definition file", "READY/definitions/product/fd-001.yaml", false},
+		{"strategy definition file", "FIRE/definitions/strategy/sd-001.yaml", true},
+		{"org_ops definition file", "FIRE/definitions/org_ops/pd-005.yaml", true},
+		{"commercial definition file", "FIRE/definitions/commercial/cd-001.yaml", true},
+		{"product definition file", "FIRE/definitions/product/fd-001.yaml", false},
 
 		// Bare filenames
 		{"bare strategy definition", "sd-001.yaml", true},
@@ -117,8 +117,8 @@ func TestIsCanonicalArtifact(t *testing.T) {
 		{"file in product definitions dir", "definitions/product/some-file.yaml", false},
 
 		// Nested paths
-		{"nested strategy definition", "docs/EPF/_instances/emergent/READY/definitions/strategy/sd-001.yaml", true},
-		{"nested product definition", "docs/EPF/_instances/emergent/READY/definitions/product/fd-001.yaml", false},
+		{"nested strategy definition", "docs/EPF/_instances/emergent/FIRE/definitions/strategy/sd-001.yaml", true},
+		{"nested product definition", "docs/EPF/_instances/emergent/FIRE/definitions/product/fd-001.yaml", false},
 
 		// Non-definition files
 		{"north star", "READY/00_north_star.yaml", false},

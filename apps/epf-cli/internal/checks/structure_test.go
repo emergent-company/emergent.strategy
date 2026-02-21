@@ -150,7 +150,7 @@ func TestCleanProductRepo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	firePath := filepath.Join(tmpDir, "_instances", "my-product", "FIRE", "feature_definitions")
+	firePath := filepath.Join(tmpDir, "_instances", "my-product", "FIRE", "definitions", "product")
 	if err := os.MkdirAll(firePath, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -181,7 +181,7 @@ func TestDirectInstancePath(t *testing.T) {
 
 	// Create instance structure directly
 	readyPath := filepath.Join(tmpDir, "READY")
-	firePath := filepath.Join(tmpDir, "FIRE", "feature_definitions")
+	firePath := filepath.Join(tmpDir, "FIRE", "definitions", "product")
 	if err := os.MkdirAll(readyPath, 0755); err != nil {
 		t.Fatal(err)
 	}

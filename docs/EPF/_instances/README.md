@@ -25,7 +25,10 @@ mkdir -p your-product-name
 
 # Create complete phase-based structure
 mkdir -p your-product-name/READY
-mkdir -p your-product-name/FIRE/feature_definitions
+mkdir -p your-product-name/FIRE/definitions/product
+mkdir -p your-product-name/FIRE/definitions/strategy
+mkdir -p your-product-name/FIRE/definitions/org_ops
+mkdir -p your-product-name/FIRE/definitions/commercial
 mkdir -p your-product-name/FIRE/value_models
 mkdir -p your-product-name/FIRE/workflows
 mkdir -p your-product-name/AIM
@@ -67,7 +70,11 @@ _instances/{product-name}/
 │   └── 05_roadmap_recipe.yaml
 │
 ├── FIRE/                       # Execution & Delivery Phase
-│   ├── feature_definitions/    # Feature definition docs (fd-XXX_slug.yaml)
+│   ├── definitions/            # All track definitions
+│   │   ├── product/            # Feature definitions (fd-XXX_slug.yaml)
+│   │   ├── strategy/           # Strategy definitions
+│   │   ├── org_ops/            # OrgOps definitions
+│   │   └── commercial/         # Commercial definitions
 │   ├── value_models/           # Value model artifacts
 │   ├── workflows/              # Workflow definitions
 │   └── mappings.yaml           # Cross-artifact mappings
@@ -127,7 +134,7 @@ The `ad-hoc-artifacts/` folder is an **optional** directory for storing generate
 ### What does NOT belong in `ad-hoc-artifacts/`
 
 ❌ Core EPF YAML files (these belong in instance root)  
-❌ Feature definitions (use `feature_definitions/`)  
+❌ Feature definitions (use `FIRE/definitions/product/`)  
 ❌ Code or implementation artifacts  
 ❌ Meeting notes or general project docs  
 

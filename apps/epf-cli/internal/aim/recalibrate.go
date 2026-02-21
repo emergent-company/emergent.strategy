@@ -191,7 +191,7 @@ func extractMemoChanges(memo *CalibrationMemo, counter *int) []RecalibrationChan
 		*counter++
 		changes = append(changes, RecalibrationChange{
 			ID:             fmt.Sprintf("rc-%03d", *counter),
-			TargetArtifact: "FIRE/feature_definitions/",
+			TargetArtifact: "FIRE/definitions/product/",
 			TargetSection:  "feature_maturity.overall_stage",
 			Operation:      "review",
 			Priority:       "medium",
@@ -209,7 +209,7 @@ func extractMemoChanges(memo *CalibrationMemo, counter *int) []RecalibrationChan
 		*counter++
 		changes = append(changes, RecalibrationChange{
 			ID:             fmt.Sprintf("rc-%03d", *counter),
-			TargetArtifact: "FIRE/feature_definitions/",
+			TargetArtifact: "FIRE/definitions/product/",
 			TargetSection:  "",
 			Operation:      "review",
 			Priority:       "medium",

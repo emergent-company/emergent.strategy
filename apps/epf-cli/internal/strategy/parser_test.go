@@ -276,7 +276,7 @@ func TestParseNorthStar_NumberedPrefix(t *testing.T) {
 // the fd- prefix are discovered via content detection.
 func TestParseFeatures_ContentBasedDiscovery(t *testing.T) {
 	tmpDir := t.TempDir()
-	fdDir := filepath.Join(tmpDir, "FIRE", "feature_definitions")
+	fdDir := filepath.Join(tmpDir, "FIRE", "definitions", "product")
 	if err := os.MkdirAll(fdDir, 0o755); err != nil {
 		t.Fatal(err)
 	}

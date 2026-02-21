@@ -23,7 +23,7 @@ EPF instance. This is useful for instances created before the canonical artifact
 awareness feature was added.
 
 Canonical artifacts include:
-  - Track definitions (strategy, org_ops, commercial) in READY/definitions/
+  - Track definitions (strategy, org_ops, commercial) in FIRE/definitions/
   - Track value models (strategy, org_ops, commercial) in FIRE/value_models/
 
 Product artifacts are NOT synced (product value models are user-authored).

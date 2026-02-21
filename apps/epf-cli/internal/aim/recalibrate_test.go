@@ -279,12 +279,12 @@ func TestGenerateChangeset_StopAndStartBuilding(t *testing.T) {
 	// Result: stop(1) + start(1 merged) = 2
 	featureChanges := 0
 	for _, c := range cs.Changes {
-		if strings.Contains(c.TargetArtifact, "feature_definitions") {
+		if strings.Contains(c.TargetArtifact, "definitions/product") {
 			featureChanges++
 		}
 	}
 	if featureChanges != 2 {
-		t.Errorf("Expected 2 feature_definitions changes (deduped), got %d", featureChanges)
+		t.Errorf("Expected 2 definitions/product changes (deduped), got %d", featureChanges)
 	}
 }
 
@@ -477,7 +477,7 @@ func TestHealthDiagnostics_EmptyInstance(t *testing.T) {
 	dir := t.TempDir()
 	os.MkdirAll(filepath.Join(dir, "AIM"), 0755)
 	os.MkdirAll(filepath.Join(dir, "READY"), 0755)
-	os.MkdirAll(filepath.Join(dir, "FIRE", "feature_definitions"), 0755)
+	os.MkdirAll(filepath.Join(dir, "FIRE", "definitions", "product"), 0755)
 
 	report, err := RunHealthDiagnostics(dir)
 	if err != nil {
@@ -503,7 +503,7 @@ func TestHealthDiagnostics_StaleLRA(t *testing.T) {
 	dir := t.TempDir()
 	os.MkdirAll(filepath.Join(dir, "AIM"), 0755)
 	os.MkdirAll(filepath.Join(dir, "READY"), 0755)
-	os.MkdirAll(filepath.Join(dir, "FIRE", "feature_definitions"), 0755)
+	os.MkdirAll(filepath.Join(dir, "FIRE", "definitions", "product"), 0755)
 
 	// Create LRA with old last_updated
 	oldDate := time.Now().AddDate(0, -4, 0).Format("2006-01-02") // 4 months ago
@@ -538,7 +538,7 @@ func TestHealthDiagnostics_MissingAssessment(t *testing.T) {
 	dir := t.TempDir()
 	os.MkdirAll(filepath.Join(dir, "AIM"), 0755)
 	os.MkdirAll(filepath.Join(dir, "READY"), 0755)
-	os.MkdirAll(filepath.Join(dir, "FIRE", "feature_definitions"), 0755)
+	os.MkdirAll(filepath.Join(dir, "FIRE", "definitions", "product"), 0755)
 
 	// Create valid LRA
 	lra := `metadata:
@@ -575,7 +575,7 @@ func TestHealthDiagnostics_DeliveryDrift(t *testing.T) {
 	dir := t.TempDir()
 	os.MkdirAll(filepath.Join(dir, "AIM"), 0755)
 	os.MkdirAll(filepath.Join(dir, "READY"), 0755)
-	os.MkdirAll(filepath.Join(dir, "FIRE", "feature_definitions"), 0755)
+	os.MkdirAll(filepath.Join(dir, "FIRE", "definitions", "product"), 0755)
 
 	// Create valid LRA
 	lra := `metadata:
@@ -592,7 +592,7 @@ status: delivered
 feature_maturity:
   overall_stage: hypothetical
 `
-	os.WriteFile(filepath.Join(dir, "FIRE", "feature_definitions", "fd-001_test.yaml"), []byte(fd), 0644)
+	os.WriteFile(filepath.Join(dir, "FIRE", "definitions", "product", "fd-001_test.yaml"), []byte(fd), 0644)
 
 	report, err := RunHealthDiagnostics(dir)
 	if err != nil {
@@ -722,16 +722,16 @@ func TestCheckLRAConsistency_ExactMismatch(t *testing.T) {
 	dir := t.TempDir()
 	os.MkdirAll(filepath.Join(dir, "AIM"), 0755)
 	os.MkdirAll(filepath.Join(dir, "FIRE", "value_models"), 0755)
-	os.MkdirAll(filepath.Join(dir, "FIRE", "feature_definitions"), 0755)
+	os.MkdirAll(filepath.Join(dir, "FIRE", "definitions", "product"), 0755)
 
 	// Create 2 value models
 	os.WriteFile(filepath.Join(dir, "FIRE", "value_models", "vm_product.yaml"), []byte("layers: []"), 0644)
 	os.WriteFile(filepath.Join(dir, "FIRE", "value_models", "vm_strategy.yaml"), []byte("layers: []"), 0644)
 
 	// Create 3 feature definitions
-	os.WriteFile(filepath.Join(dir, "FIRE", "feature_definitions", "fd-001_test.yaml"), []byte("id: fd-001"), 0644)
-	os.WriteFile(filepath.Join(dir, "FIRE", "feature_definitions", "fd-002_test.yaml"), []byte("id: fd-002"), 0644)
-	os.WriteFile(filepath.Join(dir, "FIRE", "feature_definitions", "fd-003_test.yaml"), []byte("id: fd-003"), 0644)
+	os.WriteFile(filepath.Join(dir, "FIRE", "definitions", "product", "fd-001_test.yaml"), []byte("id: fd-001"), 0644)
+	os.WriteFile(filepath.Join(dir, "FIRE", "definitions", "product", "fd-002_test.yaml"), []byte("id: fd-002"), 0644)
+	os.WriteFile(filepath.Join(dir, "FIRE", "definitions", "product", "fd-003_test.yaml"), []byte("id: fd-003"), 0644)
 
 	// LRA claims 8 value models and 10 feature definitions — both wrong
 	lra := `metadata:
@@ -770,12 +770,12 @@ track_baselines:
 func TestCheckLRAConsistency_AtLeastCorrect(t *testing.T) {
 	dir := t.TempDir()
 	os.MkdirAll(filepath.Join(dir, "AIM"), 0755)
-	os.MkdirAll(filepath.Join(dir, "FIRE", "feature_definitions"), 0755)
+	os.MkdirAll(filepath.Join(dir, "FIRE", "definitions", "product"), 0755)
 
 	// Create 5 feature definitions
 	for i := 1; i <= 5; i++ {
 		os.WriteFile(
-			filepath.Join(dir, "FIRE", "feature_definitions", fmt.Sprintf("fd-%03d_test.yaml", i)),
+			filepath.Join(dir, "FIRE", "definitions", "product", fmt.Sprintf("fd-%03d_test.yaml", i)),
 			[]byte(fmt.Sprintf("id: fd-%03d", i)), 0644,
 		)
 	}

@@ -443,7 +443,7 @@ func TestActualInstance_Structure(t *testing.T) {
 
 	// Check FIRE phase structure
 	fireDirs := []string{
-		"feature_definitions",
+		"definitions/product",
 		"value_models",
 	}
 
@@ -1638,7 +1638,7 @@ func TestCLI_AIAgentWorkflow_DiscoverAndValidate(t *testing.T) {
 	// Step 1: Create a complete EPF instance with anchor
 	instanceDir := filepath.Join(tmpDir, "docs", "epf", "_instances", "workflow-test")
 	os.MkdirAll(filepath.Join(instanceDir, "READY"), 0755)
-	os.MkdirAll(filepath.Join(instanceDir, "FIRE", "feature_definitions"), 0755)
+	os.MkdirAll(filepath.Join(instanceDir, "FIRE", "definitions", "product"), 0755)
 	os.MkdirAll(filepath.Join(instanceDir, "AIM"), 0755)
 
 	// Create _meta.yaml

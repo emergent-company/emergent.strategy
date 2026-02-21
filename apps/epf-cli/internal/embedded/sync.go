@@ -61,7 +61,7 @@ func syncDefinitions(instanceDir string, opts SyncOptions, result *SyncResult) e
 		return nil // No embedded definitions available
 	}
 
-	defsDir := filepath.Join(instanceDir, "READY", "definitions")
+	defsDir := filepath.Join(instanceDir, "FIRE", "definitions")
 
 	for _, def := range defs {
 		dstDir := filepath.Join(defsDir, def.Track)

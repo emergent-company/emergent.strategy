@@ -19,7 +19,7 @@ func TestGenerateSRC_MinimalInstance(t *testing.T) {
 	dir := t.TempDir()
 	os.MkdirAll(filepath.Join(dir, "AIM"), 0755)
 	os.MkdirAll(filepath.Join(dir, "READY"), 0755)
-	os.MkdirAll(filepath.Join(dir, "FIRE", "feature_definitions"), 0755)
+	os.MkdirAll(filepath.Join(dir, "FIRE", "definitions", "product"), 0755)
 	os.MkdirAll(filepath.Join(dir, "FIRE", "value_models"), 0755)
 
 	src, err := GenerateSRC(dir, 1)
@@ -50,7 +50,7 @@ func TestGenerateSRC_MinimalInstance(t *testing.T) {
 func TestCheckMarketCurrency_StaleDateDetected(t *testing.T) {
 	dir := t.TempDir()
 	os.MkdirAll(filepath.Join(dir, "READY"), 0755)
-	os.MkdirAll(filepath.Join(dir, "FIRE", "feature_definitions"), 0755)
+	os.MkdirAll(filepath.Join(dir, "FIRE", "definitions", "product"), 0755)
 
 	// Write north star with stale last_reviewed (600 days ago, >1.5x cadence = critical)
 	staleDate := time.Now().AddDate(0, 0, -600).Format("2006-01-02")
@@ -81,7 +81,7 @@ func TestCheckMarketCurrency_StaleDateDetected(t *testing.T) {
 func TestCheckMarketCurrency_FutureDateClampedToZero(t *testing.T) {
 	dir := t.TempDir()
 	os.MkdirAll(filepath.Join(dir, "READY"), 0755)
-	os.MkdirAll(filepath.Join(dir, "FIRE", "feature_definitions"), 0755)
+	os.MkdirAll(filepath.Join(dir, "FIRE", "definitions", "product"), 0755)
 
 	// Write insight analyses with future next_review_date
 	futureDate := time.Now().AddDate(0, 0, 30).Format("2006-01-02")
@@ -114,7 +114,7 @@ func TestCheckMarketCurrency_FutureDateClampedToZero(t *testing.T) {
 func TestCheckMarketCurrency_MissingReviewDateIsFinding(t *testing.T) {
 	dir := t.TempDir()
 	os.MkdirAll(filepath.Join(dir, "READY"), 0755)
-	os.MkdirAll(filepath.Join(dir, "FIRE", "feature_definitions"), 0755)
+	os.MkdirAll(filepath.Join(dir, "FIRE", "definitions", "product"), 0755)
 
 	// Write north star without last_reviewed field
 	ns := map[string]interface{}{
@@ -144,7 +144,7 @@ func TestCheckMarketCurrency_MissingReviewDateIsFinding(t *testing.T) {
 
 func TestCheckStrategicAlignment_BrokenContributesToPath(t *testing.T) {
 	dir := t.TempDir()
-	os.MkdirAll(filepath.Join(dir, "FIRE", "feature_definitions"), 0755)
+	os.MkdirAll(filepath.Join(dir, "FIRE", "definitions", "product"), 0755)
 	os.MkdirAll(filepath.Join(dir, "FIRE", "value_models"), 0755)
 
 	// Write a value model with known paths (using proper track_name structure)
@@ -180,7 +180,7 @@ func TestCheckStrategicAlignment_BrokenContributesToPath(t *testing.T) {
 		},
 	}
 	fdData, _ := yaml.Marshal(fd)
-	os.WriteFile(filepath.Join(dir, "FIRE", "feature_definitions", "fd-001-test.yaml"), fdData, 0644)
+	os.WriteFile(filepath.Join(dir, "FIRE", "definitions", "product", "fd-001-test.yaml"), fdData, 0644)
 
 	findings := checkStrategicAlignment(dir)
 
@@ -200,7 +200,7 @@ func TestCheckStrategicAlignment_BrokenContributesToPath(t *testing.T) {
 
 func TestCheckStrategicAlignment_BrokenFeatureDependency(t *testing.T) {
 	dir := t.TempDir()
-	os.MkdirAll(filepath.Join(dir, "FIRE", "feature_definitions"), 0755)
+	os.MkdirAll(filepath.Join(dir, "FIRE", "definitions", "product"), 0755)
 	os.MkdirAll(filepath.Join(dir, "FIRE", "value_models"), 0755)
 
 	// Write two features, one with a broken dependency
@@ -219,8 +219,8 @@ func TestCheckStrategicAlignment_BrokenFeatureDependency(t *testing.T) {
 
 	fd1Data, _ := yaml.Marshal(fd1)
 	fd2Data, _ := yaml.Marshal(fd2)
-	os.WriteFile(filepath.Join(dir, "FIRE", "feature_definitions", "fd-001.yaml"), fd1Data, 0644)
-	os.WriteFile(filepath.Join(dir, "FIRE", "feature_definitions", "fd-002.yaml"), fd2Data, 0644)
+	os.WriteFile(filepath.Join(dir, "FIRE", "definitions", "product", "fd-001.yaml"), fd1Data, 0644)
+	os.WriteFile(filepath.Join(dir, "FIRE", "definitions", "product", "fd-002.yaml"), fd2Data, 0644)
 
 	findings := checkStrategicAlignment(dir)
 
@@ -237,7 +237,7 @@ func TestCheckStrategicAlignment_BrokenFeatureDependency(t *testing.T) {
 
 func TestCheckExecutionReality_DeliveredButHypothetical(t *testing.T) {
 	dir := t.TempDir()
-	os.MkdirAll(filepath.Join(dir, "FIRE", "feature_definitions"), 0755)
+	os.MkdirAll(filepath.Join(dir, "FIRE", "definitions", "product"), 0755)
 
 	fd := map[string]interface{}{
 		"id":     "fd-001",
@@ -247,7 +247,7 @@ func TestCheckExecutionReality_DeliveredButHypothetical(t *testing.T) {
 		},
 	}
 	data, _ := yaml.Marshal(fd)
-	os.WriteFile(filepath.Join(dir, "FIRE", "feature_definitions", "fd-001.yaml"), data, 0644)
+	os.WriteFile(filepath.Join(dir, "FIRE", "definitions", "product", "fd-001.yaml"), data, 0644)
 
 	findings := checkExecutionReality(dir)
 
@@ -270,7 +270,7 @@ func TestCheckExecutionReality_DeliveredButHypothetical(t *testing.T) {
 
 func TestCheckExecutionReality_InProgressNoImplRefs(t *testing.T) {
 	dir := t.TempDir()
-	os.MkdirAll(filepath.Join(dir, "FIRE", "feature_definitions"), 0755)
+	os.MkdirAll(filepath.Join(dir, "FIRE", "definitions", "product"), 0755)
 
 	fd := map[string]interface{}{
 		"id":     "fd-001",
@@ -278,7 +278,7 @@ func TestCheckExecutionReality_InProgressNoImplRefs(t *testing.T) {
 		// no implementation_references
 	}
 	data, _ := yaml.Marshal(fd)
-	os.WriteFile(filepath.Join(dir, "FIRE", "feature_definitions", "fd-001.yaml"), data, 0644)
+	os.WriteFile(filepath.Join(dir, "FIRE", "definitions", "product", "fd-001.yaml"), data, 0644)
 
 	findings := checkExecutionReality(dir)
 
@@ -298,7 +298,7 @@ func TestCheckExecutionReality_InProgressNoImplRefs(t *testing.T) {
 
 func TestCheckExecutionReality_DeliveredNoImplRefsIsWarning(t *testing.T) {
 	dir := t.TempDir()
-	os.MkdirAll(filepath.Join(dir, "FIRE", "feature_definitions"), 0755)
+	os.MkdirAll(filepath.Join(dir, "FIRE", "definitions", "product"), 0755)
 
 	fd := map[string]interface{}{
 		"id":     "fd-001",
@@ -308,7 +308,7 @@ func TestCheckExecutionReality_DeliveredNoImplRefsIsWarning(t *testing.T) {
 		},
 	}
 	data, _ := yaml.Marshal(fd)
-	os.WriteFile(filepath.Join(dir, "FIRE", "feature_definitions", "fd-001.yaml"), data, 0644)
+	os.WriteFile(filepath.Join(dir, "FIRE", "definitions", "product", "fd-001.yaml"), data, 0644)
 
 	findings := checkExecutionReality(dir)
 
@@ -406,8 +406,8 @@ func TestBuildRecalibrationPlan_CriticalMarketCurrency(t *testing.T) {
 
 func TestBuildRecalibrationPlan_BrokenAlignment(t *testing.T) {
 	sa := []AlignmentFinding{
-		{ID: "src-sa-001", CheckType: "value_model_path", SourceArtifact: "FIRE/feature_definitions/fd-001.yaml", Status: "broken"},
-		{ID: "src-sa-002", CheckType: "value_model_path", SourceArtifact: "FIRE/feature_definitions/fd-002.yaml", Status: "valid"},
+		{ID: "src-sa-001", CheckType: "value_model_path", SourceArtifact: "FIRE/definitions/product/fd-001.yaml", Status: "broken"},
+		{ID: "src-sa-002", CheckType: "value_model_path", SourceArtifact: "FIRE/definitions/product/fd-002.yaml", Status: "valid"},
 	}
 
 	plan := buildRecalibrationPlan(nil, sa, nil)
@@ -669,7 +669,7 @@ func TestGenerateSRC_WithFixtures(t *testing.T) {
 	dir := t.TempDir()
 	os.MkdirAll(filepath.Join(dir, "AIM"), 0755)
 	os.MkdirAll(filepath.Join(dir, "READY"), 0755)
-	os.MkdirAll(filepath.Join(dir, "FIRE", "feature_definitions"), 0755)
+	os.MkdirAll(filepath.Join(dir, "FIRE", "definitions", "product"), 0755)
 	os.MkdirAll(filepath.Join(dir, "FIRE", "value_models"), 0755)
 
 	// Write stale north star (200 days ago)
@@ -717,7 +717,7 @@ func TestGenerateSRC_WithFixtures(t *testing.T) {
 		},
 	}
 	fdData, _ := yaml.Marshal(fd)
-	os.WriteFile(filepath.Join(dir, "FIRE", "feature_definitions", "fd-001.yaml"), fdData, 0644)
+	os.WriteFile(filepath.Join(dir, "FIRE", "definitions", "product", "fd-001.yaml"), fdData, 0644)
 
 	src, err := GenerateSRC(dir, 1)
 	if err != nil {
