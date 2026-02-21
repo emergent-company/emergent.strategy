@@ -321,7 +321,7 @@ func TestHandleAimHealth_HealthyInstance(t *testing.T) {
 	ctx := context.Background()
 
 	// Create FIRE directories
-	os.MkdirAll(filepath.Join(dir, "FIRE", "feature_definitions"), 0755)
+	os.MkdirAll(filepath.Join(dir, "FIRE", "definitions", "product"), 0755)
 
 	request := mcp.CallToolRequest{}
 	request.Params.Arguments = map[string]interface{}{
@@ -348,7 +348,7 @@ func TestHandleAimHealth_WithSRCFindings(t *testing.T) {
 	dir, server := createMCPTestInstance(t)
 	ctx := context.Background()
 
-	os.MkdirAll(filepath.Join(dir, "FIRE", "feature_definitions"), 0755)
+	os.MkdirAll(filepath.Join(dir, "FIRE", "definitions", "product"), 0755)
 
 	// Write an SRC with critical health
 	srcContent := `cycle: 1

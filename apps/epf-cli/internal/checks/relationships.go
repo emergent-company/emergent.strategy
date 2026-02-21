@@ -225,7 +225,7 @@ func (c *RelationshipsChecker) generateSuggestions(
 			MCPTool:  "epf_suggest_relationships",
 			MCPParams: map[string]string{
 				"artifact_type": "feature",
-				"artifact_path": "FIRE/feature_definitions/",
+				"artifact_path": "FIRE/definitions/product/",
 			},
 		})
 		// Limit strategic gap suggestions
@@ -245,7 +245,7 @@ func (c *RelationshipsChecker) generateSuggestions(
 			MCPTool:  "epf_suggest_relationships",
 			MCPParams: map[string]string{
 				"artifact_type": "feature",
-				"artifact_path": fmt.Sprintf("FIRE/feature_definitions/%s.yaml", feature.ID),
+				"artifact_path": fmt.Sprintf("FIRE/definitions/product/%s.yaml", feature.ID),
 			},
 		})
 		// Limit orphan suggestions

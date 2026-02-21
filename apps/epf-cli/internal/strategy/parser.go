@@ -729,14 +729,14 @@ func convertTrack(name string, raw rawTrack) *Track {
 	return track
 }
 
-// ParseFeatures parses all feature definition files from FIRE/feature_definitions/.
+// ParseFeatures parses all feature definition files from FIRE/definitions/product/.
 // Uses content-based detection: any YAML file with 'id', 'strategic_context', and 'definition'
 // top-level keys is treated as a feature definition. Falls back to fd-*.yaml filename pattern.
 func (p *Parser) ParseFeatures() ([]*Feature, error) {
-	fdDir := filepath.Join(p.instancePath, "FIRE", "feature_definitions")
+	fdDir := filepath.Join(p.instancePath, "FIRE", "definitions", "product")
 	entries, err := os.ReadDir(fdDir)
 	if err != nil {
-		return nil, fmt.Errorf("reading feature_definitions directory: %w", err)
+		return nil, fmt.Errorf("reading definitions/product directory: %w", err)
 	}
 
 	var features []*Feature

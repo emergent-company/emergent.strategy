@@ -229,8 +229,8 @@ func TestFeatureLoaderWithTestData(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Create feature_definitions directory
-	featureDir := filepath.Join(tmpDir, "FIRE", "feature_definitions")
+	// Create definitions/product directory
+	featureDir := filepath.Join(tmpDir, "FIRE", "definitions", "product")
 	if err := os.MkdirAll(featureDir, 0755); err != nil {
 		t.Fatalf("Failed to create feature dir: %v", err)
 	}
@@ -325,7 +325,7 @@ func TestFeatureLoaderEmptyDirectory(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Don't create feature_definitions directory
+	// Don't create definitions/product directory
 
 	loader := NewFeatureLoader(tmpDir)
 	features, err := loader.Load()

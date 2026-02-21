@@ -435,7 +435,7 @@ func (s *Server) handleRecommendReviews(ctx context.Context, request mcp.CallToo
 		vmFiles := 0
 		fdFiles := 0
 		vmDir := instancePath + "/FIRE/value_models"
-		fdDir := instancePath + "/FIRE/feature_definitions"
+		fdDir := instancePath + "/FIRE/definitions/product"
 
 		if entries, err := os.ReadDir(vmDir); err == nil {
 			for _, e := range entries {

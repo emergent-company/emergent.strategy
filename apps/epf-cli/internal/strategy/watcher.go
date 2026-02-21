@@ -115,8 +115,8 @@ func (w *Watcher) getWatchDirs() []string {
 		dirs = append(dirs, filepath.Join(w.instancePath, phase))
 	}
 
-	// Add feature_definitions subdirectory
-	dirs = append(dirs, filepath.Join(w.instancePath, "FIRE", "feature_definitions"))
+	// Add definitions/product subdirectory
+	dirs = append(dirs, filepath.Join(w.instancePath, "FIRE", "definitions", "product"))
 
 	return dirs
 }

@@ -103,8 +103,8 @@ func (c *FeatureQualityChecker) Check() (*FeatureQualitySummary, error) {
 				return nil
 			}
 
-			// Check if it's a feature definition (fd-*.yaml or in feature_definitions/)
-			if strings.HasPrefix(base, "fd-") || strings.Contains(path, "feature_definitions") {
+			// Check if it's a feature definition (fd-*.yaml or in definitions/product/)
+			if strings.HasPrefix(base, "fd-") || strings.Contains(path, "definitions/product") {
 				result := c.checkFeatureFile(path)
 				summary.Results = append(summary.Results, result)
 				summary.TotalFeatures++

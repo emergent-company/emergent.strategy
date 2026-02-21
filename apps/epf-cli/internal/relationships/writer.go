@@ -382,11 +382,11 @@ func (w *Writer) SuggestRelationships(
 
 // FindFeatureFile locates a feature definition file by ID or slug.
 func (w *Writer) FindFeatureFile(featureIDOrSlug string) (string, error) {
-	featureDefsDir := filepath.Join(w.instancePath, "FIRE", "feature_definitions")
+	featureDefsDir := filepath.Join(w.instancePath, "FIRE", "definitions", "product")
 
 	entries, err := os.ReadDir(featureDefsDir)
 	if err != nil {
-		return "", fmt.Errorf("failed to read feature_definitions directory: %w", err)
+		return "", fmt.Errorf("failed to read definitions/product directory: %w", err)
 	}
 
 	for _, entry := range entries {

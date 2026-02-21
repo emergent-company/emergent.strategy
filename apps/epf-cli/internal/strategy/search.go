@@ -423,7 +423,7 @@ func (s *Searcher) searchFeatures(queryTokens []string) []SearchResult {
 				Content: f.Definition.JobToBeDone,
 				Snippet: extractSearchSnippet(f.Definition.JobToBeDone, queryTokens),
 				Score:   score * 0.95,
-				Source:  "FIRE/feature_definitions/" + f.Slug + ".yaml",
+				Source:  "FIRE/definitions/product/" + f.Slug + ".yaml",
 				Context: map[string]string{
 					"status":         f.Status,
 					"contributes_to": strings.Join(f.StrategicContext.ContributesTo, ", "),
@@ -442,7 +442,7 @@ func (s *Searcher) searchFeatures(queryTokens []string) []SearchResult {
 					Content: cap.Description,
 					Snippet: extractSearchSnippet(cap.Description, queryTokens),
 					Score:   score * 0.8,
-					Source:  "FIRE/feature_definitions/" + f.Slug + ".yaml",
+					Source:  "FIRE/definitions/product/" + f.Slug + ".yaml",
 					Context: map[string]string{
 						"feature_id":   f.ID,
 						"feature_name": f.Name,

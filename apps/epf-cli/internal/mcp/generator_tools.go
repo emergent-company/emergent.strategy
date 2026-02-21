@@ -533,7 +533,7 @@ func checkGeneratorPrerequisites(gen *generator.GeneratorInfo, instancePath stri
 		"strategy_formula":    {"04_strategy_formula.yaml"},
 		"roadmap_recipe":      {"05_roadmap_recipe.yaml"},
 		"value_models":        {"FIRE/value_models/*.yaml", "value_models/*.yaml"},
-		"feature_definitions": {"FIRE/feature_definitions/*.yaml", "feature_definitions/*.yaml"},
+		"feature_definitions": {"FIRE/definitions/product/*.yaml", "definitions/product/*.yaml"},
 	}
 
 	for _, required := range gen.RequiredArtifacts {

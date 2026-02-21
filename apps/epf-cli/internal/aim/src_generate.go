@@ -131,7 +131,7 @@ func checkMarketCurrency(instancePath string, now time.Time) []MarketCurrencyFin
 	}
 
 	// Check feature definition assessment dates
-	fdDir := filepath.Join(instancePath, "FIRE", "feature_definitions")
+	fdDir := filepath.Join(instancePath, "FIRE", "definitions", "product")
 	if entries, err := os.ReadDir(fdDir); err == nil {
 		for _, entry := range entries {
 			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yaml") {
@@ -173,7 +173,7 @@ func checkMarketCurrency(instancePath string, now time.Time) []MarketCurrencyFin
 			staleness := classifyStaleness(days, 90)
 			counter++
 
-			relPath := filepath.Join("FIRE", "feature_definitions", entry.Name())
+			relPath := filepath.Join("FIRE", "definitions", "product", entry.Name())
 			findings = append(findings, MarketCurrencyFinding{
 				ID:                fmt.Sprintf("src-mc-%03d", counter),
 				SourceArtifact:    relPath,
@@ -205,7 +205,7 @@ func checkStrategicAlignment(instancePath string) []AlignmentFinding {
 	featureIDs := loadFeatureIDs(instancePath)
 
 	// Check feature contributes_to paths
-	fdDir := filepath.Join(instancePath, "FIRE", "feature_definitions")
+	fdDir := filepath.Join(instancePath, "FIRE", "definitions", "product")
 	if entries, err := os.ReadDir(fdDir); err == nil {
 		for _, entry := range entries {
 			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yaml") || strings.HasPrefix(entry.Name(), "_") {
@@ -223,7 +223,7 @@ func checkStrategicAlignment(instancePath string) []AlignmentFinding {
 				continue
 			}
 
-			relPath := filepath.Join("FIRE", "feature_definitions", entry.Name())
+			relPath := filepath.Join("FIRE", "definitions", "product", entry.Name())
 
 			// Check contributes_to paths
 			if sc, ok := fd["strategic_context"].(map[string]interface{}); ok {
@@ -296,7 +296,7 @@ func checkExecutionReality(instancePath string) []ExecutionRealityFinding {
 	counter := 0
 
 	// Check feature definitions for status/maturity mismatches
-	fdDir := filepath.Join(instancePath, "FIRE", "feature_definitions")
+	fdDir := filepath.Join(instancePath, "FIRE", "definitions", "product")
 	if entries, err := os.ReadDir(fdDir); err == nil {
 		for _, entry := range entries {
 			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yaml") || strings.HasPrefix(entry.Name(), "_") {
@@ -314,7 +314,7 @@ func checkExecutionReality(instancePath string) []ExecutionRealityFinding {
 				continue
 			}
 
-			relPath := filepath.Join("FIRE", "feature_definitions", entry.Name())
+			relPath := filepath.Join("FIRE", "definitions", "product", entry.Name())
 			status, _ := fd["status"].(string)
 
 			// Check: status "delivered" but maturity "hypothetical"
@@ -616,7 +616,7 @@ func classifyStaleness(daysSinceReview, cadenceDays int) string {
 
 func loadFeatureIDs(instancePath string) []string {
 	var ids []string
-	fdDir := filepath.Join(instancePath, "FIRE", "feature_definitions")
+	fdDir := filepath.Join(instancePath, "FIRE", "definitions", "product")
 	entries, err := os.ReadDir(fdDir)
 	if err != nil {
 		return ids

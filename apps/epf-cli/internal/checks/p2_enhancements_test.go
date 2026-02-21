@@ -120,7 +120,7 @@ func TestContentReadinessFieldPath(t *testing.T) {
 // TestFeatureQualityScoreImpact verifies that quality issues include score_impact annotations.
 func TestFeatureQualityScoreImpact(t *testing.T) {
 	tmpDir := t.TempDir()
-	fdDir := filepath.Join(tmpDir, "FIRE", "feature_definitions")
+	fdDir := filepath.Join(tmpDir, "FIRE", "definitions", "product")
 	os.MkdirAll(fdDir, 0755)
 
 	// Create a minimal feature missing personas — should trigger critical issue

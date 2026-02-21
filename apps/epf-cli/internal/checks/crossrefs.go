@@ -71,7 +71,7 @@ func (c *CrossReferenceChecker) Check() (*CrossReferenceResult, error) {
 		}
 
 		// Check if it's a feature definition
-		if !strings.HasPrefix(base, "fd-") && !strings.Contains(path, "feature_definitions") {
+		if !strings.HasPrefix(base, "fd-") && !strings.Contains(path, "definitions/product") {
 			return nil
 		}
 
@@ -119,7 +119,7 @@ func (c *CrossReferenceChecker) Check() (*CrossReferenceResult, error) {
 			return nil
 		}
 
-		if !strings.HasPrefix(base, "fd-") && !strings.Contains(path, "feature_definitions") {
+		if !strings.HasPrefix(base, "fd-") && !strings.Contains(path, "definitions/product") {
 			return nil
 		}
 

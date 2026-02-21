@@ -855,7 +855,7 @@ north_star:
 	os.WriteFile(filepath.Join(readyDir, "00_north_star.yaml"), []byte(northStarContent), 0644)
 
 	// Create FIRE directory (empty is fine)
-	fireDir := filepath.Join(tmpDir, "FIRE", "feature_definitions")
+	fireDir := filepath.Join(tmpDir, "FIRE", "definitions", "product")
 	os.MkdirAll(fireDir, 0755)
 
 	// Clear cache and test
