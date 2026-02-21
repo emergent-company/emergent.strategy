@@ -89,7 +89,7 @@ echo "  Copied $GENERATOR_COUNT generators"
 # Copy canonical definitions (sd-*, pd-*, cd-* only — product fd-* are examples, not canonical)
 echo "Copying canonical definitions..."
 DEFINITION_COUNT=0
-DEFINITION_DIR="$EMBEDDED_DIR/templates/READY/definitions"
+DEFINITION_DIR="$EMBEDDED_DIR/templates/FIRE/definitions"
 rm -rf "$DEFINITION_DIR"
 for track_dir in strategy org_ops commercial; do
     if [ -d "$CANONICAL_EPF/definitions/$track_dir" ]; then
@@ -153,7 +153,7 @@ $(ls -1 "$EMBEDDED_DIR/wizards/"*.md 2>/dev/null | xargs -I {} basename {} | sor
 $(ls -1d "$EMBEDDED_DIR/outputs/"*/ 2>/dev/null | xargs -I {} basename {} | sort)
 
 ## Canonical Definitions
-$(find "$EMBEDDED_DIR/templates/READY/definitions" -type f \( -name "*.yaml" -o -name "*.yml" \) 2>/dev/null | sed "s|$EMBEDDED_DIR/templates/READY/definitions/||" | sort)
+$(find "$EMBEDDED_DIR/templates/FIRE/definitions" -type f \( -name "*.yaml" -o -name "*.yml" \) 2>/dev/null | sed "s|$EMBEDDED_DIR/templates/FIRE/definitions/||" | sort)
 EOF
 
 echo ""

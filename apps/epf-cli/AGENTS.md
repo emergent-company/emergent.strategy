@@ -228,7 +228,7 @@ implementation:
 | --------------------- | --------------------------- | ------------------------------------------------------------- |
 | Get schema            | `epf_get_schema`            | `{ "artifact_type": "feature_definition" }`                   |
 | Get template          | `epf_get_template`          | `{ "artifact_type": "feature_definition" }`                   |
-| Validate file         | `epf_validate_file`         | `{ "path": "FIRE/feature_definitions/fd-014.yaml" }`          |
+| Validate file         | `epf_validate_file`         | `{ "path": "FIRE/definitions/product/fd-014.yaml" }`          |
 | Validate content      | `epf_validate_content`      | `{ "content": "...", "artifact_type": "feature_definition" }` |
 | Check feature quality | `epf_check_feature_quality` | `{ "instance_path": "docs/EPF/_instances/emergent" }`         |
 | Full health check     | `epf_health_check`          | `{ "instance_path": "docs/EPF/_instances/emergent" }`         |
@@ -1660,7 +1660,7 @@ Filename patterns → artifact types (defined in `internal/schema/loader.go`):
 "05_roadmap_recipe.yaml"       → roadmap_recipe
 
 // FIRE Phase
-"feature_definitions/*.yaml"   → feature_definition
+"definitions/product/*.yaml"   → feature_definition
 "fd-*.yaml"                    → feature_definition
 "value_models/*.yaml"          → value_model
 "workflows/*.yaml"             → workflow
