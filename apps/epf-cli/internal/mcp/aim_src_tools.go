@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/aim"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -31,6 +32,9 @@ func (s *Server) handleAimGenerateSRC(ctx context.Context, request mcp.CallToolR
 		return mcp.NewToolResultText(`{"success": false, "error": "Cycle number must be >= 1"}`), nil
 	}
 
+	dryRunStr, _ := request.RequireString("dry_run")
+	dryRun := strings.ToLower(dryRunStr) == "true"
+
 	src, err := aim.GenerateSRC(instancePath, cycle)
 	if err != nil {
 		result := map[string]interface{}{
@@ -38,6 +42,33 @@ func (s *Server) handleAimGenerateSRC(ctx context.Context, request mcp.CallToolR
 			"error":   err.Error(),
 		}
 		data, _ := json.Marshal(result)
+		return mcp.NewToolResultText(string(data)), nil
+	}
+
+	if dryRun {
+		// Return the YAML content without writing to disk
+		yamlData, err := yaml.Marshal(src)
+		if err != nil {
+			result := map[string]interface{}{
+				"success": false,
+				"error":   fmt.Sprintf("Failed to serialize SRC to YAML: %v", err),
+			}
+			data, _ := json.Marshal(result)
+			return mcp.NewToolResultText(string(data)), nil
+		}
+
+		result := map[string]interface{}{
+			"success":             true,
+			"dry_run":             true,
+			"instance_path":       instancePath,
+			"cycle":               src.Cycle,
+			"overall_health":      src.Summary.OverallHealth,
+			"finding_counts":      src.Summary.FindingCounts,
+			"content":             string(yamlData),
+			"subjective_sections": "TODO — fill in belief validity evidence and market changes before writing",
+			"message":             "Strategic Reality Check generated (dry run — not written to disk). Use epf_aim_write_src to save.",
+		}
+		data, _ := json.MarshalIndent(result, "", "  ")
 		return mcp.NewToolResultText(string(data)), nil
 	}
 

@@ -107,7 +107,7 @@ func NewDefinitionLoader(epfRoot string) *DefinitionLoader {
 func (l *DefinitionLoader) Load() error {
 	for track, dir := range trackDirs {
 		trackPath := filepath.Join(l.epfRoot, dir)
-		if err := l.loadTrackDefinitions(track, trackPath); err != nil {
+		if err := l.loadTrackDefinitions(track, trackPath, l.epfRoot); err != nil {
 			// Track directory might not exist - that's okay
 			continue
 		}
@@ -116,8 +116,31 @@ func (l *DefinitionLoader) Load() error {
 	return nil
 }
 
-// loadTrackDefinitions loads definitions for a specific track
-func (l *DefinitionLoader) loadTrackDefinitions(track Track, trackPath string) error {
+// LoadFromInstancePath loads definitions from an instance's READY/definitions/ directory.
+// This supplements definitions loaded from the framework root. Instance definitions
+// take precedence over framework definitions with the same ID.
+func (l *DefinitionLoader) LoadFromInstancePath(instancePath string) error {
+	defsDir := filepath.Join(instancePath, "READY", "definitions")
+	if _, err := os.Stat(defsDir); os.IsNotExist(err) {
+		return nil // No instance definitions — not an error
+	}
+	// Use instancePath/READY as relBase so filepath.Rel produces
+	// "definitions/{track}/{category}/{file}.yaml" — matching extractCategory expectations
+	relBase := filepath.Join(instancePath, "READY")
+	for track, dir := range trackDirs {
+		// trackDirs values are like "definitions/strategy"; we only need the track sub-dir
+		trackSubDir := filepath.Base(dir)
+		trackPath := filepath.Join(defsDir, trackSubDir)
+		if err := l.loadTrackDefinitions(track, trackPath, relBase); err != nil {
+			continue
+		}
+	}
+	return nil
+}
+
+// loadTrackDefinitions loads definitions for a specific track.
+// relBase is the base directory for computing relative paths (used for category extraction).
+func (l *DefinitionLoader) loadTrackDefinitions(track Track, trackPath string, relBase string) error {
 	return filepath.Walk(trackPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil // Skip errors
@@ -150,7 +173,7 @@ func (l *DefinitionLoader) loadTrackDefinitions(track Track, trackPath string) e
 		}
 
 		// Load the definition
-		def, err := l.loadDefinition(track, path)
+		def, err := l.loadDefinition(track, path, relBase)
 		if err != nil {
 			// Skip files that can't be loaded
 			return nil
@@ -161,8 +184,9 @@ func (l *DefinitionLoader) loadTrackDefinitions(track Track, trackPath string) e
 	})
 }
 
-// loadDefinition loads a single definition file
-func (l *DefinitionLoader) loadDefinition(track Track, path string) (*DefinitionInfo, error) {
+// loadDefinition loads a single definition file.
+// relBase is the directory used for computing the relative path (for category extraction).
+func (l *DefinitionLoader) loadDefinition(track Track, path string, relBase string) (*DefinitionInfo, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("could not read definition file: %w", err)
@@ -180,7 +204,7 @@ func (l *DefinitionLoader) loadDefinition(track Track, path string) (*Definition
 	}
 
 	// Determine category from directory structure
-	relPath, _ := filepath.Rel(l.epfRoot, path)
+	relPath, _ := filepath.Rel(relBase, path)
 	category := extractCategory(relPath)
 
 	// Determine definition type

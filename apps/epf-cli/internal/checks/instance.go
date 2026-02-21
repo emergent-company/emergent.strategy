@@ -308,6 +308,7 @@ func (c *InstanceChecker) checkREADYFiles(summary *CheckSummary) {
 			Severity: SeverityInfo,
 			Message:  fmt.Sprintf("All %d required READY files present", len(RequiredREADYFiles)),
 			Path:     readyPath,
+			Details:  RequiredREADYFiles,
 		})
 	}
 
@@ -369,6 +370,7 @@ func (c *InstanceChecker) checkFIREDirectories(summary *CheckSummary) {
 			Severity: SeverityInfo,
 			Message:  fmt.Sprintf("All %d required FIRE directories present", len(RequiredFIREDirs)),
 			Path:     firePath,
+			Details:  RequiredFIREDirs,
 		})
 	}
 
@@ -674,8 +676,8 @@ func (c *InstanceChecker) checkCanonicalCompleteness(summary *CheckSummary) {
 
 		summary.Add(&CheckResult{
 			Check:    "canonical_completeness",
-			Passed:   false,
-			Severity: SeverityWarning,
+			Passed:   true,
+			Severity: SeverityInfo,
 			Message:  msg,
 			Path:     c.instancePath,
 			Details:  []string{fmt.Sprintf("Run 'epf-cli sync-canonical %s' to add missing canonical artifacts.", c.instancePath)},

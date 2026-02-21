@@ -87,6 +87,9 @@ func NewServer(schemasDir string) (*Server, error) {
 		if err := definitionLoader.Load(); err != nil {
 			// Definitions are optional - log but don't fail
 		}
+	} else {
+		// In embedded mode, create an empty loader that can still load from instance paths
+		definitionLoader = template.NewDefinitionLoader("")
 	}
 
 	// Create wizard loader - use embedded if no filesystem
@@ -294,6 +297,9 @@ func (s *Server) registerTools() {
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory (contains READY/, FIRE/, AIM/ directories)"),
 			),
+			mcp.WithString("detail_level",
+				mcp.Description("Level of detail in output: 'summary' (counts only), 'warnings_only' (skip info-level items), 'full' (everything). Defaults to 'warnings_only' for instances with >20 files, 'full' otherwise."),
+			),
 		),
 		s.handleHealthCheck,
 	)
@@ -366,6 +372,9 @@ func (s *Server) registerTools() {
 			),
 			mcp.WithString("category",
 				mcp.Description("Optional: Filter by category within a track"),
+			),
+			mcp.WithString("instance_path",
+				mcp.Description("Path to the EPF instance directory. If provided, also searches READY/definitions/ for synced canonical definitions."),
 			),
 		),
 		s.handleListDefinitions,
@@ -1199,6 +1208,9 @@ func (s *Server) registerTools() {
 			mcp.WithString("cycle",
 				mcp.Description("Cycle number for this SRC (positive integer as string, default: '1')"),
 			),
+			mcp.WithString("dry_run",
+				mcp.Description("Preview SRC without writing to disk (true/false, default: false). Returns the YAML content instead of writing it."),
+			),
 		),
 		s.handleAimGenerateSRC,
 	)
@@ -1345,13 +1357,15 @@ func (s *Server) registerTools() {
 		mcp.NewTool("epf_batch_validate",
 			mcp.WithDescription("Validate all YAML files in an EPF instance at once. "+
 				"Returns per-file pass/fail with error counts and an overall summary. "+
-				"Optionally filter by artifact type."),
+				"Filter by artifact type or use 'all' (default) to validate everything."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
 			),
 			mcp.WithString("artifact_type",
-				mcp.Description("Optional: Filter to a specific artifact type (e.g., 'feature_definition', 'value_model')"),
+				mcp.Description("Filter to a specific artifact type: 'all' (default), 'feature_definition', 'value_model', "+
+					"'north_star', 'roadmap_recipe', 'strategy_formula', 'assessment_report', etc. "+
+					"Files not matching the requested type are skipped."),
 			),
 		),
 		s.handleBatchValidate,
@@ -1736,6 +1750,7 @@ func (s *Server) GetMCPServer() *server.MCPServer {
 type HealthCheckSummary struct {
 	InstancePath                  string                            `json:"instance_path"`
 	OverallStatus                 string                            `json:"overall_status"` // HEALTHY, WARNINGS, ERRORS
+	DetailLevel                   string                            `json:"detail_level"`   // summary, warnings_only, full
 	InstanceCheck                 *checks.CheckSummary              `json:"instance_check,omitempty"`
 	ContentReadiness              *checks.ContentReadinessResult    `json:"content_readiness,omitempty"`
 	FeatureQuality                *checks.FeatureQualitySummary     `json:"feature_quality,omitempty"`
@@ -1761,6 +1776,11 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 	if instancePath == "" {
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
+
+	// Parse detail_level parameter
+	detailLevel, _ := request.RequireString("detail_level")
+	// Valid values: "summary", "warnings_only", "full"
+	// Default is determined later based on instance file count
 
 	// VALIDATION: Ensure the path is a valid EPF instance
 	// Check if anchor file exists or if it's a legacy instance with READY/FIRE/AIM
@@ -1925,10 +1945,39 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 		}
 	}
 
+	// Determine default detail_level based on file count
+	if detailLevel == "" {
+		yamlCount := 0
+		_ = filepath.Walk(instancePath, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return nil
+			}
+			if !info.IsDir() && (strings.HasSuffix(path, ".yaml") || strings.HasSuffix(path, ".yml")) {
+				yamlCount++
+			}
+			return nil
+		})
+		if yamlCount > 20 {
+			detailLevel = "warnings_only"
+		} else {
+			detailLevel = "full"
+		}
+	}
+
+	// Detail level controls what goes into the summary markdown:
+	// - "summary": Only counts per section, no individual items
+	// - "warnings_only": Counts + individual items at WARNING or higher severity
+	// - "full": Everything including INFO-severity items
+	showIndividualItems := detailLevel != "summary"
+	showInfoItems := detailLevel == "full"
+
+	// Record the resolved detail level in the response
+	result.DetailLevel = detailLevel
+
 	// Build summary
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("# EPF Health Check: %s\n\n", instancePath))
-	sb.WriteString(fmt.Sprintf("**Overall Status:** %s\n\n", result.OverallStatus))
+	sb.WriteString(fmt.Sprintf("**Overall Status:** %s | **Detail Level:** %s\n\n", result.OverallStatus, detailLevel))
 
 	// Instance structure
 	sb.WriteString("## Instance Structure\n")
@@ -1952,6 +2001,12 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 		sb.WriteString(fmt.Sprintf("- Features analyzed: %d\n", featureResult.TotalFeatures))
 		sb.WriteString(fmt.Sprintf("- Average score: %.0f/100\n", featureResult.AverageScore))
 		sb.WriteString(fmt.Sprintf("- Passing: %d\n", featureResult.PassedCount))
+		if len(featureResult.InfoCounts) > 0 {
+			sb.WriteString("- Improvement hints (INFO):\n")
+			for cat, count := range featureResult.InfoCounts {
+				sb.WriteString(fmt.Sprintf("  - %s: %d\n", cat, count))
+			}
+		}
 		sb.WriteString("\n")
 	}
 
@@ -1967,7 +2022,7 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 			}
 		}
 		sb.WriteString(fmt.Sprintf("- Warnings: %d\n", warningCount))
-		if warningCount > 0 {
+		if warningCount > 0 && showIndividualItems {
 			for _, w := range result.ValueModelQuality.Warnings {
 				if w.Level == valuemodel.WarningLevelWarning {
 					sb.WriteString(fmt.Sprintf("  - %s\n", w.Message))
@@ -1984,9 +2039,11 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 		sb.WriteString(fmt.Sprintf("- Status: %s\n", aimReport.OverallStatus))
 		sb.WriteString(fmt.Sprintf("- Diagnostics: %d (Critical: %d, Warning: %d, Info: %d)\n",
 			aimReport.Summary.Total, aimReport.Summary.Critical, aimReport.Summary.Warning, aimReport.Summary.Info))
-		for _, d := range aimReport.Diagnostics {
-			if d.Severity == "critical" || d.Severity == "warning" {
-				sb.WriteString(fmt.Sprintf("  - [%s] %s\n", d.Severity, d.Title))
+		if showIndividualItems {
+			for _, d := range aimReport.Diagnostics {
+				if d.Severity == "critical" || d.Severity == "warning" {
+					sb.WriteString(fmt.Sprintf("  - [%s] %s\n", d.Severity, d.Title))
+				}
 			}
 		}
 		sb.WriteString("\n")
@@ -2026,8 +2083,10 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 		if result.MetadataConsistency.StaleDates > 0 {
 			sb.WriteString(fmt.Sprintf("- Stale dates (>6 months): %d\n", result.MetadataConsistency.StaleDates))
 		}
-		for _, issue := range result.MetadataConsistency.Issues {
-			sb.WriteString(fmt.Sprintf("  - %s: %s\n", issue.File, issue.Message))
+		if showIndividualItems {
+			for _, issue := range result.MetadataConsistency.Issues {
+				sb.WriteString(fmt.Sprintf("  - %s: %s\n", issue.File, issue.Message))
+			}
 		}
 		sb.WriteString("\n")
 	}
@@ -2078,6 +2137,10 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 		sb.WriteString(result.Summary)
 		sb.WriteString("## Recommended Semantic Reviews\n")
 		for _, rec := range result.SemanticReviewRecommendations {
+			// In warnings_only mode, skip info-severity reviews
+			if rec.Severity == "info" && !showInfoItems {
+				continue
+			}
 			sb.WriteString(fmt.Sprintf("- **%s** [%s]: %s\n", rec.Wizard, rec.Severity, rec.Reason))
 			sb.WriteString(fmt.Sprintf("  Run: `epf_get_wizard { \"name\": \"%s\" }`\n", rec.Wizard))
 		}
@@ -2502,11 +2565,29 @@ type DefinitionListItem struct {
 func (s *Server) handleListDefinitions(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	trackFilter, _ := request.RequireString("track")
 	categoryFilter, _ := request.RequireString("category")
+	instancePath, _ := request.RequireString("instance_path")
+
+	// If an instance_path was provided, try loading definitions from it
+	if instancePath != "" {
+		if err := s.definitionLoader.LoadFromInstancePath(instancePath); err != nil {
+			// Non-fatal: log but continue
+		}
+	}
 
 	if s.definitionLoader == nil || s.definitionLoader.DefinitionCount() == 0 {
-		return mcp.NewToolResultError("Definitions not available. " +
-			"Track definitions (product, strategy, org_ops, commercial) have not yet been authored in the canonical EPF framework. " +
-			"If running with a local EPF framework directory, ensure it contains a definitions/ directory with track subdirectories."), nil
+		searchedPaths := []string{}
+		if s.epfRoot != "" {
+			searchedPaths = append(searchedPaths, filepath.Join(s.epfRoot, "definitions"))
+		}
+		if instancePath != "" {
+			searchedPaths = append(searchedPaths, filepath.Join(instancePath, "READY", "definitions"))
+		}
+		msg := "Definitions not available. "
+		if len(searchedPaths) > 0 {
+			msg += fmt.Sprintf("Searched: %s. ", strings.Join(searchedPaths, ", "))
+		}
+		msg += "Provide instance_path to search READY/definitions/, or use epf_sync_canonical to sync canonical definitions to the instance."
+		return mcp.NewToolResultError(msg), nil
 	}
 
 	// Parse track filter if provided
@@ -3278,14 +3359,16 @@ func (s *Server) handleValidateRelationships(ctx context.Context, request mcp.Ca
 
 // MigrationStatusResponse is the response for epf_check_migration_status
 type MigrationStatusResponse struct {
-	NeedsMigration  bool     `json:"needs_migration"`
-	CurrentVersion  string   `json:"current_version,omitempty"`
-	TargetVersion   string   `json:"target_version"`
-	Summary         string   `json:"summary"`
-	TotalFiles      int      `json:"total_files"`
-	FilesNeedingFix int      `json:"files_needing_fix"`
-	UpToDateFiles   int      `json:"up_to_date_files"`
-	Guidance        Guidance `json:"guidance"`
+	NeedsMigration      bool     `json:"needs_migration"`
+	CurrentVersion      string   `json:"current_version,omitempty"`
+	CurrentVersionLabel string   `json:"current_version_label"`
+	TargetVersion       string   `json:"target_version"`
+	TargetVersionLabel  string   `json:"target_version_label"`
+	Summary             string   `json:"summary"`
+	TotalFiles          int      `json:"total_files"`
+	FilesNeedingFix     int      `json:"files_needing_fix"`
+	UpToDateFiles       int      `json:"up_to_date_files"`
+	Guidance            Guidance `json:"guidance"`
 }
 
 // handleCheckMigrationStatus handles the epf_check_migration_status tool
@@ -3306,14 +3389,16 @@ func (s *Server) handleCheckMigrationStatus(ctx context.Context, request mcp.Cal
 	}
 
 	response := &MigrationStatusResponse{
-		NeedsMigration:  status.NeedsMigration,
-		CurrentVersion:  status.CurrentVersion,
-		TargetVersion:   status.TargetVersion,
-		Summary:         status.Summary,
-		TotalFiles:      status.TotalFiles,
-		FilesNeedingFix: status.FilesNeedingFix,
-		UpToDateFiles:   status.UpToDateFiles,
-		Guidance:        Guidance{},
+		NeedsMigration:      status.NeedsMigration,
+		CurrentVersion:      status.CurrentVersion,
+		CurrentVersionLabel: "Oldest version found in artifact meta.epf_version fields",
+		TargetVersion:       status.TargetVersion,
+		TargetVersionLabel:  "Latest version from loaded JSON schemas",
+		Summary:             status.Summary,
+		TotalFiles:          status.TotalFiles,
+		FilesNeedingFix:     status.FilesNeedingFix,
+		UpToDateFiles:       status.UpToDateFiles,
+		Guidance:            Guidance{},
 	}
 
 	// Build guidance

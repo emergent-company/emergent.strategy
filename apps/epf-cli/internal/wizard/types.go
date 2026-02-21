@@ -229,7 +229,7 @@ var KeywordMappings = map[string][]string{
 	"assess":              {"synthesizer"},
 	"assessment":          {"synthesizer"},
 	"retrospective":       {"synthesizer"},
-	"review":              {"synthesizer", "value_model_review"},
+	"review":              {"feature_quality_review", "strategic_coherence_review", "value_model_review", "synthesizer"},
 	"aim phase":           {"synthesizer"},
 	"aim":                 {"aim_trigger_assessment", "synthesizer"},
 	"aim health":          {"aim_trigger_assessment"},
@@ -263,13 +263,15 @@ var KeywordMappings = map[string][]string{
 	"scenario completeness":  {"feature_quality_review"},
 
 	// Strategic coherence review
-	"strategic coherence":     {"strategic_coherence_review"},
-	"coherence review":        {"strategic_coherence_review"},
-	"strategy alignment":      {"strategic_coherence_review"},
-	"strategic alignment":     {"strategic_coherence_review"},
-	"broken cross-references": {"strategic_coherence_review"},
-	"orphaned features":       {"strategic_coherence_review"},
-	"strategy chain":          {"strategic_coherence_review"},
+	"strategic coherence":        {"strategic_coherence_review"},
+	"coherence review":           {"strategic_coherence_review"},
+	"review strategic coherence": {"strategic_coherence_review"},
+	"review strategy":            {"strategic_coherence_review"},
+	"strategy alignment":         {"strategic_coherence_review"},
+	"strategic alignment":        {"strategic_coherence_review"},
+	"broken cross-references":    {"strategic_coherence_review"},
+	"orphaned features":          {"strategic_coherence_review"},
+	"strategy chain":             {"strategic_coherence_review"},
 
 	// Utility
 	"context sheet": {"context_sheet_generator"},

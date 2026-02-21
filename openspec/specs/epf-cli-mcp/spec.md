@@ -175,11 +175,15 @@ The tool SHALL:
 The report SHALL include the following sections when applicable:
 - Structure validation (existing)
 - Schema validation (existing)
-- Content readiness (existing, now canonical-aware)
-- Feature quality (existing, now canonical-aware)
+- Content readiness (existing, now canonical-aware) — with structured placeholder details: file, line, field, placeholder text
+- Feature quality (existing, now canonical-aware) — with per-issue score-impact annotations
 - Relationship integrity (existing, now canonical-aware)
 - **Value model quality** (existing — scores, warnings, and check results from semantic analysis)
 - **Canonical artifact status** (new — summary of embedded canonical artifacts and their integrity)
+
+The content readiness sub-check SHALL return structured details for each placeholder found: `{file, line, field, placeholder_text}`, not just a count and grade.
+
+The feature quality sub-check SHALL include score-impact annotations: each quality issue SHALL indicate how many points it costs and which actions would improve the score.
 
 #### Scenario: Generate markdown health report
 
@@ -188,6 +192,18 @@ The report SHALL include the following sections when applicable:
 - **AND** includes all check results and recommendations
 - **AND** includes value model quality section when value models exist
 - **AND** labels canonical vs product track sections when both are present
+
+#### Scenario: Content readiness shows placeholder locations
+
+- **WHEN** AI agent calls `epf_generate_report` and the instance has placeholder content
+- **THEN** the content readiness section lists each placeholder with file path, line number, field name, and placeholder text
+- **AND** agents can fix placeholders without running separate grep operations
+
+#### Scenario: Feature quality shows score impact
+
+- **WHEN** AI agent calls `epf_generate_report` and the instance has feature quality issues
+- **THEN** the feature quality section shows each issue with its estimated score impact
+- **AND** agents can prioritize fixes by highest point improvement
 
 #### Scenario: Generate report with value model quality warnings
 
@@ -367,4 +383,436 @@ The `scripts/sync-embedded.sh` script SHALL sync canonical definitions from the 
 - **WHEN** AI agent calls `epf_init_instance` and the EPF config specifies a `canonical_path`
 - **THEN** canonical definitions are loaded from that path instead of the embedded fallback
 - **AND** this follows the same 3-tier priority used for value model templates
+
+### Requirement: Instance Data Cache with Automatic Invalidation
+
+The MCP server SHALL maintain an in-memory cache of parsed instance data (YAML files, value models, feature definitions, roadmaps, mappings) keyed by file path and filesystem mtime.
+
+The cache SHALL:
+
+- Re-read a file from disk when its mtime has changed since the cached version
+- Automatically invalidate all cached data for an instance after any write MCP tool completes (`epf_update_capability_maturity`, `epf_fix_file`, `epf_aim_bootstrap`, `epf_aim_write_assessment`, `epf_aim_write_calibration`, `epf_aim_write_src`, `epf_update_kr`, `epf_add_value_model_component`, `epf_add_value_model_sub`, `epf_rename_value_path`)
+- Never serve data from a file whose mtime is older than the file's current mtime on disk
+
+The `epf_reload_instance` MCP tool SHALL force-clear all cached data for a given instance path, accepting parameter `instance_path` (required). This provides a manual escape hatch for agents when files are modified by external processes.
+
+#### Scenario: File edited on disk, subsequent query returns fresh data
+
+- **WHEN** an agent modifies `mappings.yaml` on disk via the Edit tool
+- **AND** then calls `epf_validate_relationships`
+- **THEN** the tool reads the current file from disk (not a stale cache)
+- **AND** returns validation results based on the current file content
+
+#### Scenario: Write tool auto-invalidates cache
+
+- **WHEN** an agent calls `epf_update_capability_maturity` which modifies a feature file
+- **AND** then calls `epf_check_feature_quality`
+- **THEN** the quality check reflects the updated capability maturity
+
+#### Scenario: Manual cache reload
+
+- **WHEN** an agent calls `epf_reload_instance` with `instance_path`
+- **THEN** all cached data for that instance is cleared
+- **AND** the next tool call for that instance reads fresh data from disk
+
+---
+
+### Requirement: Content-Based Artifact Discovery
+
+All MCP tools that locate specific artifact files within an EPF instance SHALL use content-based discovery (reading the `meta.artifact_type` YAML field or inferring artifact type from YAML structure) rather than relying solely on filename conventions.
+
+This SHALL apply to at minimum: `epf_get_value_propositions`, `epf_get_competitive_position`, `epf_get_product_vision`, `epf_get_personas`, `epf_get_roadmap_summary`, and `epf_search_strategy`.
+
+The discovery logic SHALL:
+
+- Scan all `.yaml` files in the READY/ and FIRE/ directories
+- Read the `meta.artifact_type` field to identify artifact type
+- Fall back to filename pattern matching only when `meta.artifact_type` is absent
+- Support numbered-prefix naming conventions (e.g., `04_strategy_formula.yaml`, `01_north_star.yaml`)
+
+#### Scenario: Strategy formula with numbered prefix
+
+- **WHEN** an instance has a strategy formula file named `04_strategy_formula.yaml`
+- **AND** the file contains `meta.artifact_type: strategy_formula`
+- **AND** an agent calls `epf_get_value_propositions`
+- **THEN** the tool discovers and reads the strategy formula file
+- **AND** returns the value propositions from it
+
+#### Scenario: Fallback to filename matching
+
+- **WHEN** an instance has a file named `strategy_formula.yaml` without a `meta.artifact_type` field
+- **AND** an agent calls `epf_get_competitive_position`
+- **THEN** the tool falls back to filename pattern matching
+- **AND** successfully discovers the file
+
+---
+
+### Requirement: Feature Listing Tool
+
+AI agents SHALL be able to get a summary overview of all features in an instance via the `epf_list_features` MCP tool.
+
+The tool SHALL accept parameters: `instance_path` (required), `include_quality` (optional, default true).
+
+The tool SHALL return for each feature definition:
+
+- Feature ID and slug
+- Feature name and status
+- Persona count
+- Scenario count
+- `contributes_to` paths
+- Missing optional sections (scenarios, implementation.contexts, problem_statement, success_metrics baselines)
+- Quality score (when `include_quality=true`)
+
+#### Scenario: List all features with quality scores
+
+- **WHEN** an agent calls `epf_list_features` with `instance_path`
+- **THEN** the tool returns a summary table of all feature definitions
+- **AND** each entry includes the feature ID, name, persona count, scenario count, and quality score
+- **AND** missing optional sections are listed per feature
+
+#### Scenario: List features without quality scores
+
+- **WHEN** an agent calls `epf_list_features` with `include_quality=false`
+- **THEN** the tool returns the summary without computing quality scores
+- **AND** the response is faster since quality analysis is skipped
+
+---
+
+### Requirement: Cross-File Value Path Rename
+
+AI agents SHALL be able to rename value model paths across all referencing artifacts via the `epf_rename_value_path` MCP tool.
+
+The tool SHALL accept parameters: `instance_path` (required), `old_path` (required), `new_path` (required), `dry_run` (optional, default false).
+
+The tool SHALL update references in:
+
+- Feature definition `contributes_to` arrays
+- `mappings.yaml` `sub_component_id` fields
+- Roadmap KR `value_model_target.component_path` fields
+
+The tool SHALL validate that `new_path` exists in the instance's value models before applying changes.
+
+In `dry_run` mode, the tool SHALL return a list of all files and fields that would be updated without modifying any files.
+
+#### Scenario: Rename value path across files
+
+- **WHEN** an agent calls `epf_rename_value_path` with `old_path="Product.Explore.ValueProposition"` and `new_path="Product.ExploreAndOnboard.ExploreOrganizations"`
+- **THEN** the tool updates all feature `contributes_to` references, mapping entries, and KR targets that reference the old path
+- **AND** returns a report of all files and fields that were updated
+
+#### Scenario: Dry run rename
+
+- **WHEN** an agent calls `epf_rename_value_path` with `dry_run=true`
+- **THEN** the tool returns all files and fields that would be updated
+- **AND** no files are modified on disk
+
+#### Scenario: Invalid new path
+
+- **WHEN** an agent calls `epf_rename_value_path` with a `new_path` that doesn't exist in any value model
+- **THEN** the tool returns an error indicating the path is invalid
+- **AND** suggests similar valid paths using fuzzy matching
+
+---
+
+### Requirement: Structured KR Updates
+
+AI agents SHALL be able to update Key Result fields via the `epf_update_kr` MCP tool.
+
+The tool SHALL accept parameters: `instance_path` (required), `kr_id` (required), `fields` (required — object with updatable KR fields), `dry_run` (optional).
+
+Updatable fields SHALL include: `value_model_target` (with `track`, `component_path`, `target_maturity`, `maturity_rationale`), `experiment_design`, `status`, `actual`.
+
+When `value_model_target.component_path` is provided, the tool SHALL validate that the path exists in the instance's value models for the specified track.
+
+#### Scenario: Add value model target to a KR
+
+- **WHEN** an agent calls `epf_update_kr` with `kr_id="kr-p-2025-q1-003"` and `fields.value_model_target.component_path="Product.Manage.ManageMeetings"`
+- **THEN** the tool validates the path exists in the product value model
+- **AND** updates the KR with the `value_model_target` block
+- **AND** returns the updated KR content
+
+#### Scenario: Invalid component path
+
+- **WHEN** an agent calls `epf_update_kr` with a `component_path` that doesn't exist in the value model
+- **THEN** the tool returns an error with the invalid path
+- **AND** suggests similar valid paths
+
+---
+
+### Requirement: Value Model Component Management
+
+AI agents SHALL be able to add components to value models via the `epf_add_value_model_component` and `epf_add_value_model_sub` MCP tools.
+
+`epf_add_value_model_component` SHALL accept: `instance_path` (required), `track` (required), `l1_id` (required), `component_id` (required), `name` (required), `active` (optional, default true).
+
+`epf_add_value_model_sub` SHALL accept: `instance_path` (required), `track` (required), `l1_id` (required), `l2_id` (required), `sub_id` (required), `name` (required), `active` (optional, default true).
+
+Both tools SHALL auto-apply the correct field structure based on track:
+
+- Product track: `sub_components` array with `id`, `name`, `maturity`, `active`
+- Non-product tracks (strategy, org_ops, commercial): `subs` array with `id`, `name`, `active`, `uvp`
+
+Both tools SHALL support `dry_run` mode.
+
+#### Scenario: Add L2 component to product value model
+
+- **WHEN** an agent calls `epf_add_value_model_component` with `track="product"`, `l1_id="Manage"`, `component_id="ManageMeetings"`, `name="Manage Meetings"`
+- **THEN** the tool adds the component under the Manage L1 layer using product track field structure (`sub_components`)
+- **AND** returns the updated value model section
+
+#### Scenario: Add L3 sub to strategy value model
+
+- **WHEN** an agent calls `epf_add_value_model_sub` with `track="strategy"`, `l1_id="Growth"`, `l2_id="MarketExpansion"`, `sub_id="geo-expansion"`, `name="Geographic Expansion"`
+- **THEN** the tool adds the sub-component using strategy track field structure (`subs` with `id/name/active/uvp`)
+
+---
+
+### Requirement: Batch Feature Validation
+
+AI agents SHALL be able to validate all feature definitions in an instance via the `epf_batch_validate` MCP tool.
+
+The tool SHALL accept parameters: `instance_path` (required), `artifact_type` (optional, default "feature_definition").
+
+The tool SHALL return a summary table with:
+
+- Total files validated
+- Per-file: filename, error count by severity, pass/fail status
+- Overall pass/fail status
+- Aggregate error count
+
+#### Scenario: Validate all features in one call
+
+- **WHEN** an agent calls `epf_batch_validate` with `instance_path`
+- **THEN** the tool validates all feature definition files in FIRE/features/
+- **AND** returns a summary table showing each file's validation result
+- **AND** includes the aggregate error count and overall pass/fail
+
+---
+
+### Requirement: Wizard-First Protocol in Agent Instructions
+
+The `epf_agent_instructions` MCP tool SHALL return a `mandatory_protocols` section that prescribes deterministic workflows agents MUST follow. The wizard-first protocol SHALL state that agents MUST call `epf_get_wizard_for_task` before creating or substantively modifying any EPF artifact, and MUST follow the returned wizard's guidance if one exists.
+
+The tool SHALL also return a `workflow_decision_tree` section that maps common tasks to specific tool sequences:
+
+| Task | Mandatory Sequence |
+|------|-------------------|
+| Create artifact | `epf_get_wizard_for_task` -> `epf_get_template` -> write content -> `epf_validate_file` |
+| Modify artifact | `epf_get_wizard_for_task` -> read current -> modify -> `epf_validate_file` |
+| Query strategy | `epf_get_product_vision` / `epf_get_personas` / `epf_search_strategy` |
+| Assess health | `epf_health_check` -> fix issues -> re-check |
+| Run AIM cycle | `epf_get_wizard_for_task("assessment")` -> follow synthesizer wizard |
+
+#### Scenario: Agent receives wizard-first protocol
+
+- **WHEN** AI agent calls `epf_agent_instructions`
+- **THEN** the response includes a `mandatory_protocols` section
+- **AND** the first protocol states: "Before creating or substantively editing any EPF artifact, you MUST call epf_get_wizard_for_task with a description of your task"
+- **AND** the response includes a `workflow_decision_tree` mapping tasks to tool sequences
+
+#### Scenario: Agent instructions include strategy tools
+
+- **WHEN** AI agent calls `epf_agent_instructions`
+- **THEN** the `mcp_tools` section includes strategy query tools (`epf_get_product_vision`, `epf_get_personas`, `epf_get_roadmap_summary`, `epf_search_strategy`)
+- **AND** each strategy tool has a directive "when" description (e.g., "MUST be called before feature work to understand strategic context")
+
+---
+
+### Requirement: Strategy Instance Path Default
+
+When the MCP server is started with a pre-configured instance path (via `EPF_STRATEGY_INSTANCE` environment variable or `strategy serve` command), all MCP tools that accept an `instance_path` parameter SHALL use the pre-configured path as default when the parameter is not explicitly provided.
+
+Explicit `instance_path` parameters SHALL always take precedence over the default.
+
+When a default instance path is active, the `epf_agent_instructions` tool SHALL include a `strategy_context` section with the instance path and product name, informing the agent that strategy query tools are available without explicit instance path parameters.
+
+#### Scenario: Tools use default instance path
+
+- **WHEN** the MCP server is started with `EPF_STRATEGY_INSTANCE=/path/to/instance`
+- **AND** an AI agent calls `epf_health_check` without providing `instance_path`
+- **THEN** the tool uses `/path/to/instance` as the instance path
+- **AND** returns the health check result for that instance
+
+#### Scenario: Explicit instance path overrides default
+
+- **WHEN** the MCP server has a default instance path configured
+- **AND** an AI agent calls `epf_health_check` with `instance_path="/other/instance"`
+- **THEN** the tool uses `/other/instance`, not the default
+- **AND** returns the health check result for the explicit instance
+
+#### Scenario: Agent instructions show strategy context
+
+- **WHEN** the MCP server has a default instance path configured
+- **AND** an AI agent calls `epf_agent_instructions`
+- **THEN** the response includes a `strategy_context` section
+- **AND** the section contains the product name and instance path
+- **AND** the section states that strategy tools can be called without explicit `instance_path`
+
+---
+
+### Requirement: Complete Wizard Phase and Keyword Mappings
+
+All embedded wizards SHALL be registered in the `PhaseForWizard` mapping with their correct EPF phase. All wizards SHALL have at least one entry in `KeywordMappings` that enables task-based discovery via `epf_get_wizard_for_task`.
+
+#### Scenario: Strategic reality check wizard is discoverable
+
+- **WHEN** AI agent calls `epf_get_wizard_for_task` with task "run a strategic reality check"
+- **THEN** the tool recommends `strategic_reality_check` wizard
+- **AND** the wizard is assigned to the AIM phase
+
+#### Scenario: All wizards have phase assignments
+
+- **WHEN** AI agent calls `epf_list_wizards`
+- **THEN** every wizard is listed under its correct phase (READY, FIRE, AIM, or Onboarding)
+- **AND** no wizard appears under an incorrect or missing phase
+
+---
+
+### Requirement: Directive MCP Tool Descriptions
+
+MCP tool descriptions for wizard and strategy tools SHALL use directive language that guides agent behavior. Tool descriptions SHALL explicitly state when the tool MUST be called (not merely when it "can" be called).
+
+The `epf_get_wizard_for_task` tool description SHALL state: "MUST be called before creating or modifying any EPF artifact. Returns the recommended wizard with instructions to follow."
+
+Strategy query tool descriptions SHALL state when they MUST be used (e.g., `epf_get_product_vision`: "Call before any feature design or strategic decision to ground work in product vision.").
+
+#### Scenario: Wizard tool description is directive
+
+- **WHEN** AI agent discovers the `epf_get_wizard_for_task` tool via MCP tool listing
+- **THEN** the tool description contains the word "MUST" and explicitly states it should be called before artifact creation
+
+#### Scenario: Strategy tool description is directive
+
+- **WHEN** AI agent discovers the `epf_get_product_vision` tool via MCP tool listing
+- **THEN** the tool description explicitly states when to call it (before feature design, before strategic decisions)
+
+---
+
+### Requirement: Tiered Agent Instructions with Quick Protocol
+
+The embedded AGENTS.md file distributed to product repositories SHALL include a "Quick Protocol" section within the first 200 lines. This section SHALL contain:
+
+1. The wizard-first mandatory protocol
+2. The task-to-workflow decision tree
+3. Strategy tool awareness (when to query strategy context)
+4. The validation mandate (always validate after writes)
+
+The full detailed reference SHALL follow below the Quick Protocol section.
+
+#### Scenario: Quick Protocol is within context window
+
+- **WHEN** an AI agent reads the AGENTS.md file
+- **AND** the agent's context window only processes the first 200 lines
+- **THEN** the agent has received the wizard-first protocol, task decision tree, strategy tool guidance, and validation mandate
+
+#### Scenario: Quick Protocol matches agent instructions output
+
+- **WHEN** an AI agent reads the Quick Protocol section of AGENTS.md
+- **AND** the agent also calls `epf_agent_instructions`
+- **THEN** the mandatory protocols and workflow decision trees are consistent between both sources
+
+---
+
+### Requirement: Semantic Review Recommendations in Health Check Output
+
+The `epf_health_check` and `epf_generate_report` tools SHALL include a `semantic_review_recommendations` section in their output. This section SHALL contain a list of recommended semantic quality review wizards based on the health check results.
+
+Each recommendation SHALL include:
+- The wizard name to invoke
+- The reason for the recommendation (which check triggered it and why)
+- A severity level (info, warning, critical)
+- The triggering check category
+
+The recommendations SHALL be generated from a declarative trigger mapping that maps health check categories and trigger conditions to companion wizards. The mapping SHALL include at minimum:
+
+| Check Category | Trigger Condition | Recommended Wizard |
+|---|---|---|
+| FeatureQuality | Score < 80% or persona count issues | `feature_quality_review` |
+| Coverage | Any L2 value model component uncovered | `feature_quality_review` |
+| ValueModelQuality | Quality score < 80 | `value_model_review` |
+| CrossRefs/Relationships | Any cross-reference validation failures | `strategic_coherence_review` |
+| AIM staleness | LRA > 90 days stale or missing assessment | `strategic_reality_check` |
+| Roadmap coverage | Fewer than 2 tracks with OKRs | `balance_checker` |
+
+When all checks pass cleanly, the `semantic_review_recommendations` section SHALL be an empty list.
+
+#### Scenario: Health check recommends feature quality review
+
+- **WHEN** AI agent calls `epf_health_check` on an instance
+- **AND** the FeatureQuality check reports a score below 80%
+- **THEN** the `semantic_review_recommendations` section includes a recommendation for the `feature_quality_review` wizard
+- **AND** the recommendation includes the reason (e.g., "Feature quality score 65% is below the 80% threshold")
+- **AND** the recommendation includes severity "warning"
+
+#### Scenario: Health check recommends strategic coherence review
+
+- **WHEN** AI agent calls `epf_health_check` on an instance
+- **AND** the cross-reference or relationship validation reports errors
+- **THEN** the `semantic_review_recommendations` section includes a recommendation for the `strategic_coherence_review` wizard
+- **AND** the recommendation includes the specific cross-reference failures that triggered it
+
+#### Scenario: Clean health check has no semantic recommendations
+
+- **WHEN** AI agent calls `epf_health_check` on an instance
+- **AND** all checks pass with scores above thresholds
+- **THEN** the `semantic_review_recommendations` section is an empty list
+
+#### Scenario: Health report includes semantic recommendations
+
+- **WHEN** AI agent calls `epf_generate_report` on an instance with quality issues
+- **THEN** the generated report includes a "Recommended Semantic Reviews" section
+- **AND** each recommendation includes the wizard name and instructions for how to invoke it
+
+---
+
+### Requirement: Feature Quality Review Wizard
+
+The system SHALL include a `feature_quality_review` agent prompt wizard that performs semantic quality evaluation of feature definitions. The wizard SHALL:
+
+1. Consume `epf_health_check` output and individual feature definition files
+2. Evaluate JTBD (Jobs To Be Done) format compliance in feature narratives
+3. Evaluate persona-feature alignment quality (whether the right personas are assigned to each feature)
+4. Evaluate scenario completeness and edge case coverage
+5. Produce structured findings with per-feature quality scores
+
+The wizard SHALL be registered in `PhaseForWizard` under the READY phase and SHALL be discoverable via `epf_get_wizard_for_task` for queries about feature quality, feature review, and JTBD compliance.
+
+#### Scenario: Feature quality review wizard is discoverable
+
+- **WHEN** AI agent calls `epf_get_wizard_for_task` with task "review feature quality"
+- **THEN** the tool recommends the `feature_quality_review` wizard
+- **AND** the wizard is assigned to the READY phase
+
+#### Scenario: Feature quality review wizard produces structured output
+
+- **WHEN** AI agent follows the `feature_quality_review` wizard
+- **THEN** the wizard guides the agent to evaluate each feature definition
+- **AND** produce findings including: JTBD compliance score, persona alignment score, scenario completeness score, and specific improvement recommendations per feature
+
+---
+
+### Requirement: Strategic Coherence Review Wizard
+
+The system SHALL include a `strategic_coherence_review` agent prompt wizard that evaluates cross-artifact strategic alignment. The wizard SHALL:
+
+1. Consume north star, strategy formula, roadmap, and value model artifacts
+2. Evaluate whether vision → mission → strategy → OKRs tell a coherent story
+3. Check that roadmap KRs align with strategy formula priorities
+4. Check that feature `contributes_to` paths connect to strategic objectives
+5. Produce structured findings with a coherence score
+
+The wizard SHALL be registered in `PhaseForWizard` under the READY phase and SHALL be discoverable via `epf_get_wizard_for_task` for queries about strategic alignment, coherence review, and strategy consistency.
+
+#### Scenario: Strategic coherence review wizard is discoverable
+
+- **WHEN** AI agent calls `epf_get_wizard_for_task` with task "check strategic alignment"
+- **THEN** the tool recommends the `strategic_coherence_review` wizard
+- **AND** the wizard is assigned to the READY phase
+
+#### Scenario: Strategic coherence review evaluates story coherence
+
+- **WHEN** AI agent follows the `strategic_coherence_review` wizard
+- **THEN** the wizard guides the agent to trace the strategic narrative from vision through OKRs
+- **AND** identify gaps where roadmap priorities don't connect to strategy formula objectives
+- **AND** produce a coherence score with specific misalignment findings
 

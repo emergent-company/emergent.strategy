@@ -84,7 +84,7 @@ var templateMapping = map[schema.ArtifactType]struct {
 
 	// FIRE Phase templates
 	schema.ArtifactFeatureDefinition: {
-		Path:        "definitions/product/_template/feature_definition_template.yaml",
+		Path:        "templates/FIRE/feature_definitions/feature_definition_template.yaml",
 		Phase:       schema.PhaseFIRE,
 		Name:        "Feature Definition",
 		Description: "Feature specification - personas, scenarios, capabilities, dependencies",
