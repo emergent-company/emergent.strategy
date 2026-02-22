@@ -1,7 +1,10 @@
-"""Model provider abstraction for Anthropic, OpenAI, and Google.
+"""Model provider abstraction for Anthropic, OpenAI, Google, and Vertex AI.
 
 Each provider implements the same interface: send a conversation with tool
 definitions and get back the model's response including any tool calls.
+
+Vertex AI providers inherit from their direct-API counterparts and only
+override _get_client() to use ADC-authenticated Vertex clients.
 """
 
 from __future__ import annotations
@@ -13,6 +16,11 @@ from typing import Any
 
 from .tools import ToolDef, get_all_tool_defs
 from .types import Provider, ToolCall, Turn
+
+# Default Vertex AI settings (can be overridden via environment variables)
+VERTEX_PROJECT = os.environ.get("VERTEX_PROJECT", "gen-lang-client-0349067682")
+VERTEX_CLAUDE_REGION = os.environ.get("VERTEX_CLAUDE_REGION", "us-east5")
+VERTEX_GEMINI_REGION = os.environ.get("VERTEX_GEMINI_REGION", "us-central1")
 
 
 class ModelProvider(ABC):
@@ -345,6 +353,62 @@ class GoogleProvider(ModelProvider):
 
 
 # ---------------------------------------------------------------------------
+# Vertex AI — Claude (Anthropic partner model via Vertex)
+# ---------------------------------------------------------------------------
+
+
+class VertexAnthropicProvider(AnthropicProvider):
+    """Claude on Vertex AI. Inherits all message formatting from AnthropicProvider.
+
+    Uses google-cloud ADC authentication instead of ANTHROPIC_API_KEY.
+    Model names use @version format (e.g. claude-sonnet-4@20250514).
+    """
+
+    provider = Provider.VERTEX_CLAUDE
+
+    def __init__(self, model: str = "claude-sonnet-4@20250514"):
+        self.model = model
+        self._client: Any = None
+
+    def _get_client(self) -> Any:
+        if self._client is None:
+            from anthropic import AnthropicVertex
+            self._client = AnthropicVertex(
+                region=VERTEX_CLAUDE_REGION,
+                project_id=VERTEX_PROJECT,
+            )
+        return self._client
+
+
+# ---------------------------------------------------------------------------
+# Vertex AI — Gemini (native Google model via Vertex)
+# ---------------------------------------------------------------------------
+
+
+class VertexGoogleProvider(GoogleProvider):
+    """Gemini on Vertex AI. Inherits all message formatting from GoogleProvider.
+
+    Uses google-cloud ADC authentication instead of GOOGLE_API_KEY.
+    """
+
+    provider = Provider.VERTEX_GEMINI
+
+    def __init__(self, model: str = "gemini-2.5-pro"):
+        self.model = model
+        self._client: Any = None
+
+    def _get_client(self) -> Any:
+        if self._client is None:
+            from google import genai
+            self._client = genai.Client(
+                vertexai=True,
+                project=VERTEX_PROJECT,
+                location=VERTEX_GEMINI_REGION,
+            )
+        return self._client
+
+
+# ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
 
@@ -352,20 +416,28 @@ PROVIDER_MAP: dict[str, type[ModelProvider]] = {
     "anthropic": AnthropicProvider,
     "openai": OpenAIProvider,
     "google": GoogleProvider,
+    "vertex-claude": VertexAnthropicProvider,
+    "vertex-gemini": VertexGoogleProvider,
 }
 
 DEFAULT_MODELS: dict[str, str] = {
     "anthropic": "claude-sonnet-4-20250514",
     "openai": "gpt-4o",
     "google": "gemini-2.5-pro",
+    "vertex-claude": "claude-sonnet-4@20250514",
+    "vertex-gemini": "gemini-2.5-pro",
 }
+
+# Providers that use Vertex AI ADC auth (no API key needed)
+VERTEX_PROVIDERS = {"vertex-claude", "vertex-gemini"}
 
 
 def create_provider(provider_name: str, model: str | None = None) -> ModelProvider:
     """Create a model provider by name.
 
     Args:
-        provider_name: One of 'anthropic', 'openai', 'google'.
+        provider_name: One of 'anthropic', 'openai', 'google',
+            'vertex-claude', 'vertex-gemini'.
         model: Optional model override. Uses sensible default if not provided.
     """
     cls = PROVIDER_MAP.get(provider_name)

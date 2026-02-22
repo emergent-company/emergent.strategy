@@ -13,6 +13,8 @@ class Provider(str, Enum):
     ANTHROPIC = "anthropic"
     OPENAI = "openai"
     GOOGLE = "google"
+    VERTEX_CLAUDE = "vertex-claude"
+    VERTEX_GEMINI = "vertex-gemini"
 
 
 class ComplianceBehavior(str, Enum):
