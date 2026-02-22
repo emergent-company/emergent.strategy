@@ -315,6 +315,14 @@ _DEFAULT_FIXTURES: dict[str, Any] = {
             },
         ],
         "summary": "Instance has warnings: value model quality below threshold, feature quality below threshold, 3 invalid relationship paths, 1 file with schema errors.",
+        "action_required": "Run epf_get_wizard_for_task to fix value model quality issues (score 68/100), then review feature quality (score 72%). Also run epf_validate_relationships to fix 3 invalid paths, and epf_validate_with_plan to fix schema errors in fd-014.yaml.",
+        "workflow_status": "incomplete",
+        "remaining_steps": [
+            "Call epf_get_wizard_for_task with task 'fix value model quality issues'",
+            "Call epf_get_wizard_for_task with task 'review feature quality'",
+            "Call epf_validate_relationships to fix 3 invalid paths",
+            "Call epf_validate_with_plan for fd-014.yaml",
+        ],
     },
 
     "epf_health_check__healthy": {
@@ -328,6 +336,9 @@ _DEFAULT_FIXTURES: dict[str, Any] = {
         "relationships": {"total_paths": 45, "valid_paths": 45, "invalid_paths": 0},
         "required_next_tool_calls": [],
         "summary": "Instance is healthy. All checks passed.",
+        "action_required": "",
+        "workflow_status": "complete",
+        "remaining_steps": [],
     },
 
     "epf_get_wizard_for_task": {
@@ -341,6 +352,18 @@ _DEFAULT_FIXTURES: dict[str, Any] = {
         "alternatives": [
             {"name": "product_architect", "type": "agent_prompt", "confidence": "medium"},
         ],
+        "wizard_content_preview": (
+            "# Feature Definition Wizard\n\n"
+            "## Step 1: Job-to-be-Done\nDefine the JTBD using the format: "
+            "'When I [situation], I want to [action], so I can [outcome].'\n\n"
+            "## Step 2: Personas (exactly 4)\nEach persona requires 11 fields including "
+            "current_situation (200+ chars), transformation_moment (200+ chars), "
+            "emotional_resolution (200+ chars).\n\n"
+            "## Step 3: Capabilities\nDefine 2-15 capabilities with id pattern cap-NNN.\n\n"
+            "## Step 4: Contexts\nDefine implementation contexts with type from: "
+            "ui, email, notification, api, report, integration.\n\n"
+            "## Step 5: Validate\nRun epf_validate_file to check the result."
+        ),
     },
 
     "epf_get_wizard_for_task__value_model": {
@@ -352,6 +375,16 @@ _DEFAULT_FIXTURES: dict[str, Any] = {
             "reason": "Task requires value model structural review",
         },
         "alternatives": [],
+        "wizard_content_preview": (
+            "# Value Model Review Wizard\n\n"
+            "## Step 1: Layer Structure\nVerify L1 layers match track conventions. "
+            "Product track uses: Core, Discovery, Engagement, Platform.\n\n"
+            "## Step 2: Component Coverage\nEach L2 component should have at least one "
+            "L3 sub-component. Check for orphan components.\n\n"
+            "## Step 3: Maturity Tracking\nReview maturity levels across components. "
+            "Flag any mismatches between feature delivery and component maturity.\n\n"
+            "## Step 4: Validate\nRun epf_validate_file to check the result."
+        ),
     },
 
     "epf_validate_file": {
@@ -360,6 +393,9 @@ _DEFAULT_FIXTURES: dict[str, Any] = {
         "valid": True,
         "error_count": 0,
         "structural_issue": False,
+        "action_required": "",
+        "workflow_status": "complete",
+        "remaining_steps": [],
     },
 
     "epf_validate_file__structural_errors": {
@@ -416,6 +452,13 @@ _DEFAULT_FIXTURES: dict[str, Any] = {
             "low_count": 2,
             "suggested_fix_order": ["definition", "implementation"],
         },
+        "action_required": "Structural issues detected (12 critical errors, 8 type mismatches in 25 total errors). Call epf_get_wizard_for_task with task 'fix feature_definition structure' to understand the correct structure before making changes.",
+        "workflow_status": "incomplete",
+        "remaining_steps": [
+            "Call epf_get_wizard_for_task with task 'fix feature_definition structure'",
+            "Follow the wizard instructions to fix structural issues",
+            "Call epf_validate_file to re-validate after fixes",
+        ],
     },
 
     "epf_validate_file__surface_errors": {
@@ -454,6 +497,12 @@ _DEFAULT_FIXTURES: dict[str, Any] = {
             },
         ],
         "summary": {"critical_count": 0, "high_count": 1, "medium_count": 2, "low_count": 0},
+        "action_required": "3 non-structural errors found. Fix the invalid enum value, expand the short narrative, and correct the contributes_to path format. Then call epf_validate_file to re-validate.",
+        "workflow_status": "incomplete",
+        "remaining_steps": [
+            "Fix the 3 errors in the file directly",
+            "Call epf_validate_file to re-validate after fixes",
+        ],
     },
 
     # --- Tier 2 ---

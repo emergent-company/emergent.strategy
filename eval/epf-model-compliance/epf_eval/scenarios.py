@@ -132,6 +132,25 @@ def _score_health_check_compliance(conv: Conversation) -> list[BehaviorScore]:
         weight=1.0,
     ))
 
+    # Behavior: FOLLOWS_ACTION_REQUIRED
+    # The health check fixture includes action_required with imperative natural-language
+    # instructions. This tests whether the model acts on that text (same outcome as
+    # FOLLOWS_REQUIRED_TOOL_CALLS but measures the natural language channel separately).
+    # The action_required text directs the model to call epf_get_wizard_for_task,
+    # epf_validate_relationships, and epf_validate_with_plan.
+    action_tools = {"epf_get_wizard_for_task", "epf_validate_relationships", "epf_validate_with_plan"}
+    called_action_tools = action_tools.intersection(set(seq))
+
+    scores.append(BehaviorScore(
+        behavior=ComplianceBehavior.FOLLOWS_ACTION_REQUIRED,
+        passed=len(called_action_tools) >= 2,
+        evidence=(
+            f"action_required directs model to call 3 tools. "
+            f"Called {len(called_action_tools)}/3: {called_action_tools}."
+        ),
+        weight=2.0,
+    ))
+
     return scores
 
 
@@ -149,6 +168,7 @@ SCENARIO_HEALTH_CHECK = Scenario(
     behaviors=[
         ComplianceBehavior.FOLLOWS_REQUIRED_TOOL_CALLS,
         ComplianceBehavior.TIERED_DISCOVERY,
+        ComplianceBehavior.FOLLOWS_ACTION_REQUIRED,
     ],
     score_fn=_score_health_check_compliance,
 )
@@ -306,6 +326,19 @@ def _score_structural_error_handling(conv: Conversation) -> list[BehaviorScore]:
         weight=1.5,
     ))
 
+    # Behavior: FOLLOWS_ACTION_REQUIRED
+    # The validation response includes action_required text directing the model to call
+    # epf_get_wizard_for_task. This tests the natural language directive channel.
+    scores.append(BehaviorScore(
+        behavior=ComplianceBehavior.FOLLOWS_ACTION_REQUIRED,
+        passed=called_wizard_for_task,
+        evidence=(
+            f"action_required directs model to call epf_get_wizard_for_task. "
+            f"Model called it: {called_wizard_for_task}."
+        ),
+        weight=1.5,
+    ))
+
     return scores
 
 
@@ -323,6 +356,7 @@ SCENARIO_STRUCTURAL_ERRORS = Scenario(
     behaviors=[
         ComplianceBehavior.STRUCTURAL_ERROR_CLASSIFICATION,
         ComplianceBehavior.FOLLOWS_REQUIRED_TOOL_CALLS,
+        ComplianceBehavior.FOLLOWS_ACTION_REQUIRED,
     ],
     fixture_resolver=_fixture_structural_errors,
     score_fn=_score_structural_error_handling,
