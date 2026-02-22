@@ -76,8 +76,8 @@ def run_agent_loop(
         # Track token usage
         if turn.raw and "usage" in turn.raw:
             usage = turn.raw["usage"]
-            conversation.total_input_tokens += usage.get("input_tokens", 0) or usage.get("prompt_tokens", 0)
-            conversation.total_output_tokens += usage.get("output_tokens", 0) or usage.get("completion_tokens", 0)
+            conversation.total_input_tokens += (usage.get("input_tokens") or usage.get("prompt_tokens")) or 0
+            conversation.total_output_tokens += (usage.get("output_tokens") or usage.get("completion_tokens")) or 0
 
         conversation.turns.append(turn)
 

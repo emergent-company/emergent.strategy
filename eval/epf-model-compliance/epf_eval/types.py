@@ -14,7 +14,10 @@ class Provider(str, Enum):
     OPENAI = "openai"
     GOOGLE = "google"
     VERTEX_CLAUDE = "vertex-claude"
+    VERTEX_CLAUDE_SONNET = "vertex-claude-sonnet"
     VERTEX_GEMINI = "vertex-gemini"
+    VERTEX_GEMINI_3_PRO = "vertex-gemini-3-pro"
+    VERTEX_GEMINI_31_PRO = "vertex-gemini-3.1-pro"
 
 
 class ComplianceBehavior(str, Enum):

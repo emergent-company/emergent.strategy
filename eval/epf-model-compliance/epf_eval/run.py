@@ -112,8 +112,11 @@ def run_cmd(
     """Run eval scenarios against model providers."""
     # Resolve provider list
     if vertex and not provider:
-        # --vertex with no explicit providers: use both vertex providers
-        providers = ["vertex-claude", "vertex-gemini"]
+        # --vertex with no explicit providers: use all vertex providers
+        providers = [
+            "vertex-claude", "vertex-claude-sonnet",
+            "vertex-gemini", "vertex-gemini-3-pro", "vertex-gemini-3.1-pro",
+        ]
     elif vertex and provider:
         # --vertex with explicit providers: prefix non-vertex ones with vertex-
         providers = []
