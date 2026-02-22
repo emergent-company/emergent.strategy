@@ -1616,6 +1616,16 @@ func (s *Server) handleGetSchema(ctx context.Context, request mcp.CallToolReques
 	return mcp.NewToolResultText(schemaJSON), nil
 }
 
+// AIFriendlyValidationResponse wraps the validator's AIFriendlyResult with
+// structural error classification. The embedded struct's fields appear at the
+// top level in JSON, so this is fully backward compatible — only new fields
+// (structural_issue, recommended_tool) are added.
+type AIFriendlyValidationResponse struct {
+	*validator.AIFriendlyResult
+	StructuralIssue bool                `json:"structural_issue"`
+	RecommendedTool *ToolCallSuggestion `json:"recommended_tool,omitempty"`
+}
+
 // handleValidateFile handles the epf_validate_file tool
 func (s *Server) handleValidateFile(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	path, err := request.RequireString("path")
@@ -1634,7 +1644,15 @@ func (s *Server) handleValidateFile(ctx context.Context, request mcp.CallToolReq
 			return mcp.NewToolResultError(fmt.Sprintf("Validation failed: %s", err.Error())), nil
 		}
 
-		jsonBytes, err := json.MarshalIndent(aiResult, "", "  ")
+		// Wrap with structural error classification
+		isStructural, suggestion := classifyStructuralErrors(aiResult)
+		response := AIFriendlyValidationResponse{
+			AIFriendlyResult: aiResult,
+			StructuralIssue:  isStructural,
+			RecommendedTool:  suggestion,
+		}
+
+		jsonBytes, err := json.MarshalIndent(response, "", "  ")
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize result: %s", err.Error())), nil
 		}
@@ -1777,6 +1795,7 @@ type HealthCheckSummary struct {
 	Relationships                 *checks.RelationshipsResult       `json:"relationships,omitempty"`
 	MetadataConsistency           *checks.MetadataConsistencyResult `json:"metadata_consistency,omitempty"`
 	SemanticReviewRecommendations []MCPSemanticReviewRecommendation `json:"semantic_review_recommendations"`
+	RequiredNextToolCalls         []ToolCallSuggestion              `json:"required_next_tool_calls,omitempty"`
 	Summary                       string                            `json:"summary"`
 }
 
@@ -2165,6 +2184,9 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 		sb.WriteString("\n")
 		result.Summary = sb.String()
 	}
+
+	// Generate required_next_tool_calls from health check results
+	result.RequiredNextToolCalls = generateHealthCheckSuggestions(result)
 
 	jsonResult, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
@@ -3912,7 +3934,19 @@ func (s *Server) handleValidateWithPlan(ctx context.Context, request mcp.CallToo
 
 	plan := gen.Generate(aiResult)
 
-	jsonBytes, err := json.MarshalIndent(plan, "", "  ")
+	// Wrap fix plan with structural error classification
+	isStructural, suggestion := classifyStructuralErrors(aiResult)
+	response := struct {
+		*fixplan.FixPlan
+		StructuralIssue bool                `json:"structural_issue"`
+		RecommendedTool *ToolCallSuggestion `json:"recommended_tool,omitempty"`
+	}{
+		FixPlan:         plan,
+		StructuralIssue: isStructural,
+		RecommendedTool: suggestion,
+	}
+
+	jsonBytes, err := json.MarshalIndent(response, "", "  ")
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize fix plan: %s", err.Error())), nil
 	}
@@ -4069,6 +4103,9 @@ type AgentInstructionsOutput struct {
 
 	StrategyContext *AgentStrategyContext `json:"strategy_context,omitempty"`
 
+	ToolTiers             []ToolTierInfo `json:"tool_tiers"`
+	ToolDiscoveryGuidance string         `json:"tool_discovery_guidance"`
+
 	Workflow struct {
 		FirstSteps    []string `json:"first_steps"`
 		BestPractices []string `json:"best_practices"`
@@ -4116,6 +4153,7 @@ type AgentMCPTool struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	When        string `json:"when"`
+	Tier        string `json:"tier"` // Essential, Guided, or Specialized
 }
 
 // handleAgentInstructions handles the epf_agent_instructions tool
@@ -4287,82 +4325,98 @@ func buildAgentInstructionsOutput(disc *discovery.DiscoveryResult, defaultInstan
 			Name:        "epf_get_wizard_for_task",
 			Description: "MUST be called before creating, modifying, or evaluating any EPF artifact or instance",
 			When:        "MANDATORY first step before any artifact creation, modification, or quality evaluation",
+			Tier:        "Essential",
 		},
 		{
 			Name:        "epf_get_wizard",
 			Description: "Retrieve full wizard instructions. Follow these to create artifacts or execute quality reviews.",
 			When:        "After getting a wizard recommendation (for creation, modification, or evaluation)",
+			Tier:        "Guided",
 		},
 		{
 			Name:        "epf_validate_file",
 			Description: "Validate an EPF artifact file",
 			When:        "MANDATORY after every artifact creation or modification",
+			Tier:        "Essential",
 		},
 		{
 			Name:        "epf_health_check",
-			Description: "Run comprehensive instance health check",
+			Description: "Run comprehensive instance health check. Response includes required_next_tool_calls with pre-filled tool suggestions.",
 			When:        "Before starting work and after completing major changes",
+			Tier:        "Essential",
 		},
 		{
 			Name:        "epf_get_product_vision",
 			Description: "Get product vision, mission, and north star",
 			When:        "Before feature work, roadmap changes, or user-facing content",
+			Tier:        "Guided",
 		},
 		{
 			Name:        "epf_get_personas",
 			Description: "Get all target personas with summaries",
 			When:        "Before designing features or writing user-facing content",
+			Tier:        "Guided",
 		},
 		{
 			Name:        "epf_get_roadmap_summary",
 			Description: "Get current OKRs and key results",
 			When:        "Before planning work or prioritizing features",
+			Tier:        "Guided",
 		},
 		{
 			Name:        "epf_search_strategy",
 			Description: "Full-text search across all strategy artifacts",
 			When:        "When looking for specific strategy content by keyword",
+			Tier:        "Guided",
 		},
 		{
 			Name:        "epf_get_schema",
 			Description: "Get JSON schema for an artifact type",
 			When:        "When needing to understand field constraints",
+			Tier:        "Guided",
 		},
 		{
 			Name:        "epf_get_template",
 			Description: "Get starting template for an artifact type",
 			When:        "When creating new EPF artifacts (after consulting wizard)",
+			Tier:        "Guided",
 		},
 		{
 			Name:        "epf_agent_instructions",
 			Description: "Get this guidance programmatically",
 			When:        "When initializing EPF agent context",
+			Tier:        "Specialized",
 		},
 		{
 			Name:        "epf_locate_instance",
 			Description: "Find EPF instances with confidence scoring",
 			When:        "When building automation or searching for instances",
+			Tier:        "Specialized",
 		},
 		// Review/evaluation tools
 		{
 			Name:        "epf_recommend_reviews",
 			Description: "Get applicable semantic review wizards for an instance",
 			When:        "When evaluating instance quality or after health check shows structural health is good",
+			Tier:        "Guided",
 		},
 		{
 			Name:        "epf_review_strategic_coherence",
 			Description: "Get strategic coherence review wizard",
 			When:        "When evaluating vision-to-execution strategic alignment",
+			Tier:        "Guided",
 		},
 		{
 			Name:        "epf_review_feature_quality",
 			Description: "Get feature quality review wizard",
 			When:        "When evaluating feature definition quality (JTBD, personas, scenarios)",
+			Tier:        "Guided",
 		},
 		{
 			Name:        "epf_review_value_model",
 			Description: "Get value model review wizard",
 			When:        "When evaluating value model structure for anti-patterns",
+			Tier:        "Guided",
 		},
 	}
 
@@ -4418,6 +4472,14 @@ func buildAgentInstructionsOutput(disc *discovery.DiscoveryResult, defaultInstan
 			}
 		}
 	}
+
+	// Tool Tiers and Discovery Guidance
+	output.ToolTiers = getToolTiers()
+	output.ToolDiscoveryGuidance = "Start with Tier 1 (Essential) tools only. " +
+		"epf_health_check, epf_get_wizard_for_task, and epf_validate_file are your entry points. " +
+		"Their responses include required_next_tool_calls that tell you exactly which Tier 2/3 tools to use next. " +
+		"Do NOT scan tool descriptions to decide what to call — follow the structured suggestions in tool responses. " +
+		"Do NOT fall back on pre-training knowledge about EPF structure — always consult wizards first."
 
 	// Workflow guidance (wizard-first, mandatory language)
 	output.Workflow.FirstSteps = []string{
