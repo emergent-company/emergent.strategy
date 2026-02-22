@@ -29,7 +29,7 @@ from pathlib import Path
 
 import click
 
-from .providers import DEFAULT_MODELS, PROVIDER_MAP, create_provider
+from .providers import DEFAULT_MODELS, PROVIDER_MAP, VERTEX_PROVIDERS, create_provider
 from .scenarios import ALL_SCENARIOS, SYSTEM_PROMPT, get_scenario, list_scenarios
 from .scoring import format_result_json, format_result_table, run_scenario
 from .tracing import is_configured as langfuse_configured, trace_eval_run
@@ -99,6 +99,7 @@ def list_cmd() -> None:
     help="Write results to file.",
 )
 @click.option("--no-trace", is_flag=True, help="Disable Langfuse tracing.")
+@click.option("--vertex", is_flag=True, help="Use Vertex AI providers (vertex-claude + vertex-gemini). Uses ADC auth.")
 def run_cmd(
     provider: tuple[str, ...],
     scenario: tuple[str, ...],
@@ -106,9 +107,30 @@ def run_cmd(
     json_output: bool,
     output: str | None,
     no_trace: bool,
+    vertex: bool,
 ) -> None:
     """Run eval scenarios against model providers."""
-    providers = list(provider) if provider else list(PROVIDER_MAP.keys())
+    # Resolve provider list
+    if vertex and not provider:
+        # --vertex with no explicit providers: use both vertex providers
+        providers = ["vertex-claude", "vertex-gemini"]
+    elif vertex and provider:
+        # --vertex with explicit providers: prefix non-vertex ones with vertex-
+        providers = []
+        for p in provider:
+            if p in VERTEX_PROVIDERS:
+                providers.append(p)
+            elif p == "anthropic":
+                providers.append("vertex-claude")
+            elif p == "google":
+                providers.append("vertex-gemini")
+            else:
+                providers.append(p)  # keep openai etc. as-is
+    elif provider:
+        providers = list(provider)
+    else:
+        # Default: only direct-API providers (require API keys)
+        providers = ["anthropic", "openai", "google"]
     scenario_ids = list(scenario) if scenario else [s.id for s in ALL_SCENARIOS]
 
     # Validate scenarios
@@ -119,7 +141,7 @@ def run_cmd(
             click.echo(f"Error: {e}", err=True)
             sys.exit(1)
 
-    # Check API keys
+    # Check API keys (Vertex providers use ADC, not API keys)
     missing_keys = []
     key_map = {
         "anthropic": "ANTHROPIC_API_KEY",
@@ -127,8 +149,10 @@ def run_cmd(
         "google": "GOOGLE_API_KEY",
     }
     for p in providers:
+        if p in VERTEX_PROVIDERS:
+            continue  # Vertex uses ADC auth, no API key needed
         key = key_map.get(p, "")
-        if not os.environ.get(key):
+        if key and not os.environ.get(key):
             missing_keys.append(f"{p} ({key})")
 
     if missing_keys:
@@ -266,11 +290,19 @@ def dry_run_cmd() -> None:
     click.echo()
 
     # 5. Check provider availability
-    click.echo("Provider API keys:")
+    click.echo("Provider API keys (direct API):")
     for name, key_name in [("anthropic", "ANTHROPIC_API_KEY"), ("openai", "OPENAI_API_KEY"), ("google", "GOOGLE_API_KEY")]:
         has_key = bool(os.environ.get(key_name))
         icon = "✓" if has_key else "✗"
         click.echo(f"  {icon} {name:<12} {'configured' if has_key else 'not set'}")
+
+    click.echo("\nVertex AI providers (ADC auth):")
+    for name in ["vertex-claude", "vertex-gemini"]:
+        click.echo(f"  - {name:<16} uses gcloud ADC (no API key needed)")
+
+    from .providers import VERTEX_PROJECT, VERTEX_CLAUDE_REGION, VERTEX_GEMINI_REGION
+    click.echo(f"  Project:  {VERTEX_PROJECT}")
+    click.echo(f"  Regions:  Claude={VERTEX_CLAUDE_REGION}, Gemini={VERTEX_GEMINI_REGION}")
 
     click.echo(f"\n  Langfuse: {'configured' if langfuse_configured() else 'not configured'}")
     click.echo()
