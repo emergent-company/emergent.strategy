@@ -1929,3 +1929,101 @@ func TestHandleGetWizardForTask_ExcludeWizardContent(t *testing.T) {
 		}
 	}
 }
+
+// =============================================================================
+// Integration Test: Health Check Tool Suggestions with Real Instance
+// =============================================================================
+
+func TestHealthCheckIntegration_ToolSuggestions(t *testing.T) {
+	schemasDir := findSchemasDir()
+	instancePath := findTestInstance()
+	if schemasDir == "" || instancePath == "" {
+		t.Skip("Schemas directory or test instance not found — skipping integration test")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"instance_path": instancePath,
+	}
+
+	result, err := server.handleHealthCheck(ctx, request)
+	if err != nil {
+		t.Fatalf("handleHealthCheck failed: %v", err)
+	}
+
+	content := getResultText(result)
+	if content == "" {
+		t.Fatal("Health check returned empty content")
+	}
+
+	var healthResult HealthCheckSummary
+	if err := json.Unmarshal([]byte(content), &healthResult); err != nil {
+		t.Fatalf("Failed to parse health check response: %v", err)
+	}
+
+	// Basic fields must be present
+	if healthResult.InstancePath == "" {
+		t.Error("Expected non-empty instance_path")
+	}
+	if healthResult.OverallStatus == "" {
+		t.Error("Expected non-empty overall_status")
+	}
+
+	// workflow_status must be "complete" or "incomplete"
+	if healthResult.WorkflowStatus != "complete" && healthResult.WorkflowStatus != "incomplete" {
+		t.Errorf("Expected workflow_status 'complete' or 'incomplete', got %q", healthResult.WorkflowStatus)
+	}
+
+	// Consistency: if suggestions exist, workflow must be incomplete with populated fields
+	if len(healthResult.RequiredNextToolCalls) > 0 {
+		if healthResult.WorkflowStatus != "incomplete" {
+			t.Errorf("Expected workflow_status='incomplete' when %d suggestions exist, got %q",
+				len(healthResult.RequiredNextToolCalls), healthResult.WorkflowStatus)
+		}
+		if healthResult.ActionRequired == "" {
+			t.Error("Expected action_required to be populated when required_next_tool_calls is non-empty")
+		}
+		if len(healthResult.RemainingSteps) == 0 {
+			t.Error("Expected remaining_steps to be populated when workflow_status is 'incomplete'")
+		}
+
+		// Each suggestion must have valid fields
+		for i, suggestion := range healthResult.RequiredNextToolCalls {
+			if suggestion.Tool == "" {
+				t.Errorf("Suggestion[%d]: expected non-empty Tool", i)
+			}
+			if suggestion.Reason == "" {
+				t.Errorf("Suggestion[%d]: expected non-empty Reason", i)
+			}
+			if suggestion.Priority == "" {
+				t.Errorf("Suggestion[%d]: expected non-empty Priority", i)
+			}
+			validPriorities := map[string]bool{"urgent": true, "recommended": true, "optional": true}
+			if !validPriorities[suggestion.Priority] {
+				t.Errorf("Suggestion[%d]: unexpected Priority %q (want urgent/recommended/optional)", i, suggestion.Priority)
+			}
+		}
+
+		t.Logf("Integration test: %d tool suggestions generated for real instance", len(healthResult.RequiredNextToolCalls))
+		for i, s := range healthResult.RequiredNextToolCalls {
+			t.Logf("  [%d] %s (priority=%s): %s", i, s.Tool, s.Priority, s.Reason)
+		}
+	}
+
+	// Consistency: if no suggestions, workflow should be complete
+	if len(healthResult.RequiredNextToolCalls) == 0 {
+		if healthResult.WorkflowStatus != "complete" {
+			t.Errorf("Expected workflow_status='complete' when no suggestions exist, got %q", healthResult.WorkflowStatus)
+		}
+		if healthResult.ActionRequired != "" {
+			t.Errorf("Expected empty action_required when no suggestions, got %q", healthResult.ActionRequired)
+		}
+		t.Log("Integration test: instance is fully healthy — 0 suggestions (workflow complete)")
+	}
+}

@@ -18,7 +18,7 @@
   - Missing LRA → `epf_aim_bootstrap`
 - [x] 2.3 Integrate mapping into `handleHealthCheck` in `server.go` to populate `required_next_tool_calls` in response JSON
 - [x] 2.4 Write unit tests for each mapping
-- [ ] 2.5 Write integration test with a real instance that triggers multiple suggestions (deferred — unit tests cover all mapping logic)
+- [x] 2.5 Write integration test with a real instance that triggers multiple suggestions
 
 ## 3. Validation: Structural Error Detection and Wizard Redirect
 
