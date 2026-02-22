@@ -3,6 +3,7 @@ package mcp
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -49,6 +50,10 @@ type Server struct {
 	// Relationship analyzer cache (by instance path)
 	analyzerMu sync.RWMutex
 	analyzers  map[string]*relationships.Analyzer
+
+	// Anti-loop detection: per-session call counter keyed by toolName+hash(params)
+	toolCallMu     sync.Mutex
+	toolCallCounts map[string]int
 }
 
 // NewServer creates a new EPF MCP server
@@ -132,6 +137,7 @@ func NewServer(schemasDir string) (*Server, error) {
 		wizardLoader:        wizardLoader,
 		generatorLoader:     generatorLoader,
 		analyzers:           make(map[string]*relationships.Analyzer),
+		toolCallCounts:      make(map[string]int),
 	}
 
 	// Register tools
@@ -149,6 +155,47 @@ func (s *Server) resolveInstancePath(request mcp.CallToolRequest) string {
 		return instancePath
 	}
 	return s.defaultInstancePath
+}
+
+// checkToolCallLoop increments the per-session counter for a tool+params key
+// and returns a CallCountWarningInfo if the threshold is exceeded.
+// The counter key is toolName + SHA-256(sorted params) to detect identical calls.
+func (s *Server) checkToolCallLoop(toolName string, params map[string]string) *CallCountWarningInfo {
+	// Build a stable key from tool name and sorted params
+	key := toolName
+	if len(params) > 0 {
+		sortedKeys := make([]string, 0, len(params))
+		for k := range params {
+			sortedKeys = append(sortedKeys, k)
+		}
+		sort.Strings(sortedKeys)
+		h := sha256.New()
+		for _, k := range sortedKeys {
+			h.Write([]byte(k))
+			h.Write([]byte("="))
+			h.Write([]byte(params[k]))
+			h.Write([]byte(";"))
+		}
+		key += ":" + fmt.Sprintf("%x", h.Sum(nil))[:16]
+	}
+
+	s.toolCallMu.Lock()
+	s.toolCallCounts[key]++
+	count := s.toolCallCounts[key]
+	s.toolCallMu.Unlock()
+
+	if count > loopThreshold {
+		return buildCallCountWarning(toolName, count, suggestNextToolForLoop(toolName))
+	}
+	return nil
+}
+
+// ResetToolCallCounts resets the per-session call counters.
+// Called when the MCP connection resets (new session).
+func (s *Server) ResetToolCallCounts() {
+	s.toolCallMu.Lock()
+	s.toolCallCounts = make(map[string]int)
+	s.toolCallMu.Unlock()
 }
 
 // registerTools registers all EPF MCP tools
@@ -177,7 +224,9 @@ func (s *Server) registerTools() {
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_validate_file",
 			mcp.WithDescription("Validate a local EPF YAML file against its schema. Automatically detects the artifact type from the filename/path pattern. "+
-				"Use ai_friendly=true for structured output optimized for AI agents with error classification, priorities, and fix hints."),
+				"Use ai_friendly=true for structured output optimized for AI agents with error classification, priorities, and fix hints. "+
+				"POST-CONDITION: If structural_issue is true, you MUST call the recommended_tool before attempting fixes. "+
+				"After writing or modifying any EPF YAML file, you MUST call this tool to validate your changes."),
 			mcp.WithString("path",
 				mcp.Required(),
 				mcp.Description("The path to the YAML file to validate"),
@@ -292,7 +341,9 @@ func (s *Server) registerTools() {
 				"RECOMMENDED FIRST STEP: Always run health check before starting work to assess scope. "+
 				"Returns structure validation, schema validation, content readiness, and workflow guidance. "+
 				"If significant issues are found, the response includes planning recommendations - "+
-				"check your available planning tools (todo lists, task trackers, openspec/, etc.) before diving into fixes."),
+				"check your available planning tools (todo lists, task trackers, openspec/, etc.) before diving into fixes. "+
+				"POST-CONDITION: After receiving results, you MUST read and follow the action_required field and "+
+				"required_next_tool_calls before proceeding to any other work. Do NOT ignore these directives."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory (contains READY/, FIRE/, AIM/ directories)"),
@@ -354,7 +405,8 @@ func (s *Server) registerTools() {
 	// Tool: epf_get_template
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_template",
-			mcp.WithDescription("Get the starting template YAML for an EPF artifact type. Templates provide the structure to fill in when creating new artifacts."),
+			mcp.WithDescription("Get the starting template YAML for an EPF artifact type. Templates provide the structure to fill in when creating new artifacts. "+
+				"POST-CONDITION: After filling in the template per wizard guidance, you MUST validate with epf_validate_file before considering the artifact complete."),
 			mcp.WithString("artifact_type",
 				mcp.Required(),
 				mcp.Description("The artifact type to get the template for (e.g., 'north_star', 'feature_definition', 'value_model')"),
@@ -516,7 +568,8 @@ func (s *Server) registerTools() {
 				"Use this to retrieve wizard instructions for guiding users through EPF workflows. "+
 				"MUST be called after epf_get_wizard_for_task identifies the right wizard. "+
 				"The wizard content provides the authoritative step-by-step workflow for creating, modifying, or evaluating EPF artifacts. "+
-				"Review wizards (strategic_coherence_review, feature_quality_review, value_model_review) provide semantic quality evaluation workflows."),
+				"Review wizards (strategic_coherence_review, feature_quality_review, value_model_review) provide semantic quality evaluation workflows. "+
+				"POST-CONDITION: After following wizard guidance to create or modify an artifact, you MUST validate with epf_validate_file."),
 			mcp.WithString("name",
 				mcp.Required(),
 				mcp.Description("The wizard name (e.g., 'start_epf', 'pathfinder', 'feature_definition')"),
@@ -532,10 +585,15 @@ func (s *Server) registerTools() {
 				"This is the MANDATORY first step before creating, modifying, or evaluating any EPF artifact or instance. "+
 				"You MUST call this tool before writing feature definitions, roadmaps, assessments, or any other EPF content. "+
 				"Also use this to find review wizards for quality evaluation tasks. "+
-				"Analyzes the task description and suggests the most appropriate wizard with alternatives."),
+				"Analyzes the task description and suggests the most appropriate wizard with alternatives. "+
+				"POST-CONDITION: If wizard_content_preview is included, use it directly. "+
+				"Otherwise, call epf_get_wizard with the recommended wizard name to get the full content."),
 			mcp.WithString("task",
 				mcp.Required(),
 				mcp.Description("Description of what the user wants to do (e.g., 'create a feature definition', 'analyze market trends')"),
+			),
+			mcp.WithString("include_wizard_content",
+				mcp.Description("When 'true' (default) and confidence is high, includes the full wizard content in wizard_content_preview so you can skip calling epf_get_wizard separately. Set to 'false' to omit."),
 			),
 		),
 		s.handleGetWizardForTask,
@@ -1622,8 +1680,12 @@ func (s *Server) handleGetSchema(ctx context.Context, request mcp.CallToolReques
 // (structural_issue, recommended_tool) are added.
 type AIFriendlyValidationResponse struct {
 	*validator.AIFriendlyResult
-	StructuralIssue bool                `json:"structural_issue"`
-	RecommendedTool *ToolCallSuggestion `json:"recommended_tool,omitempty"`
+	StructuralIssue  bool                  `json:"structural_issue"`
+	RecommendedTool  *ToolCallSuggestion   `json:"recommended_tool,omitempty"`
+	ActionRequired   string                `json:"action_required,omitempty"`
+	WorkflowStatus   string                `json:"workflow_status"`
+	RemainingSteps   []string              `json:"remaining_steps,omitempty"`
+	CallCountWarning *CallCountWarningInfo `json:"call_count_warning,omitempty"`
 }
 
 // handleValidateFile handles the epf_validate_file tool
@@ -1651,6 +1713,36 @@ func (s *Server) handleValidateFile(ctx context.Context, request mcp.CallToolReq
 			StructuralIssue:  isStructural,
 			RecommendedTool:  suggestion,
 		}
+
+		// Populate action_required (natural language directive)
+		response.ActionRequired = BuildActionDirectiveForValidation(
+			isStructural, suggestion, aiResult.ErrorCount, path,
+		)
+
+		// Populate workflow_status and remaining_steps
+		if aiResult.Valid && aiResult.ErrorCount == 0 {
+			response.WorkflowStatus = "complete"
+		} else {
+			response.WorkflowStatus = "incomplete"
+			if isStructural && suggestion != nil {
+				response.RemainingSteps = []string{
+					fmt.Sprintf("Call %s with task='%s'", suggestion.Tool, suggestion.Params["task"]),
+					"Follow wizard guidance to fix structural issues",
+					"Call epf_validate_file again to verify fixes",
+				}
+			} else {
+				response.RemainingSteps = []string{
+					"Fix the reported errors using the fix_hint guidance",
+					"Call epf_validate_file again to verify fixes",
+				}
+			}
+		}
+
+		// Anti-loop detection
+		response.CallCountWarning = s.checkToolCallLoop("epf_validate_file", map[string]string{
+			"path":        path,
+			"ai_friendly": "true",
+		})
 
 		jsonBytes, err := json.MarshalIndent(response, "", "  ")
 		if err != nil {
@@ -1796,6 +1888,10 @@ type HealthCheckSummary struct {
 	MetadataConsistency           *checks.MetadataConsistencyResult `json:"metadata_consistency,omitempty"`
 	SemanticReviewRecommendations []MCPSemanticReviewRecommendation `json:"semantic_review_recommendations"`
 	RequiredNextToolCalls         []ToolCallSuggestion              `json:"required_next_tool_calls,omitempty"`
+	ActionRequired                string                            `json:"action_required,omitempty"`
+	WorkflowStatus                string                            `json:"workflow_status"`
+	RemainingSteps                []string                          `json:"remaining_steps,omitempty"`
+	CallCountWarning              *CallCountWarningInfo             `json:"call_count_warning,omitempty"`
 	Summary                       string                            `json:"summary"`
 }
 
@@ -2187,6 +2283,23 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 
 	// Generate required_next_tool_calls from health check results
 	result.RequiredNextToolCalls = generateHealthCheckSuggestions(result)
+
+	// Populate action_required (natural language directive for Gemini-class models)
+	result.ActionRequired = BuildActionDirective(result.RequiredNextToolCalls)
+
+	// Populate workflow_status and remaining_steps
+	if len(result.RequiredNextToolCalls) == 0 {
+		result.WorkflowStatus = "complete"
+	} else {
+		result.WorkflowStatus = "incomplete"
+		result.RemainingSteps = BuildRemainingSteps(result.RequiredNextToolCalls)
+	}
+
+	// Anti-loop detection: check if this exact call has been made too many times
+	result.CallCountWarning = s.checkToolCallLoop("epf_health_check", map[string]string{
+		"instance_path": instancePath,
+		"detail_level":  detailLevel,
+	})
 
 	jsonResult, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
@@ -4106,6 +4219,8 @@ type AgentInstructionsOutput struct {
 	ToolTiers             []ToolTierInfo `json:"tool_tiers"`
 	ToolDiscoveryGuidance string         `json:"tool_discovery_guidance"`
 
+	ResponseProcessingProtocol *AgentResponseProcessingProtocol `json:"response_processing_protocol,omitempty"`
+
 	Workflow struct {
 		FirstSteps    []string `json:"first_steps"`
 		BestPractices []string `json:"best_practices"`
@@ -4131,6 +4246,22 @@ type AgentStrategyContext struct {
 	ProductName  string `json:"product_name"`
 	InstancePath string `json:"instance_path"`
 	Description  string `json:"description,omitempty"`
+}
+
+// AgentResponseProcessingProtocol defines the mandatory order in which agents
+// must process fields in every EPF tool response. This protocol ensures all
+// model families (including Gemini) act on guidance fields rather than ignoring them.
+type AgentResponseProcessingProtocol struct {
+	Description string                        `json:"description"`
+	Steps       []AgentResponseProcessingStep `json:"steps"`
+}
+
+// AgentResponseProcessingStep is one step in the response processing protocol.
+type AgentResponseProcessingStep struct {
+	Order       int    `json:"order"`
+	Field       string `json:"field"`
+	Action      string `json:"action"`
+	StopIfFound bool   `json:"stop_if_found,omitempty"`
 }
 
 // AgentTrackInfo describes one of the 4 EPF tracks
@@ -4496,6 +4627,34 @@ func buildAgentInstructionsOutput(disc *discovery.DiscoveryResult, defaultInstan
 		"Run health check before and after major changes",
 		"Never guess artifact structure — use schemas, templates, and wizards",
 		"Prefer MCP tools over direct file manipulation when available",
+	}
+
+	// Response Processing Protocol — mandatory field processing order for all models
+	output.ResponseProcessingProtocol = &AgentResponseProcessingProtocol{
+		Description: "After calling ANY EPF tool, you MUST process the response fields in this exact order before taking any other action. This ensures you act on guidance from the tool rather than ignoring it.",
+		Steps: []AgentResponseProcessingStep{
+			{
+				Order:       1,
+				Field:       "call_count_warning",
+				Action:      "If present, STOP calling this tool. Read the suggested_next field and call that tool instead.",
+				StopIfFound: true,
+			},
+			{
+				Order:  2,
+				Field:  "action_required",
+				Action: "Read and follow the instructions in this field. It contains imperative directives for what you must do next.",
+			},
+			{
+				Order:  3,
+				Field:  "workflow_status",
+				Action: "If 'incomplete', check remaining_steps for what to do next. Do NOT report results to the user until workflow_status is 'complete'.",
+			},
+			{
+				Order:  4,
+				Field:  "required_next_tool_calls",
+				Action: "Call each listed tool in order with the specified parameters. These are pre-filled tool calls ready to execute.",
+			},
+		},
 	}
 
 	return output

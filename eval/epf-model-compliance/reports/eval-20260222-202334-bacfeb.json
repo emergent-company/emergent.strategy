@@ -1,0 +1,1326 @@
+{
+  "run_id": "eval-20260222-202334-bacfeb",
+  "timestamp": "2026-02-22T20:23:34.534833+00:00",
+  "meta": {
+    "git_sha": "9199c646",
+    "providers": [
+      "vertex-claude",
+      "vertex-claude-sonnet",
+      "vertex-gemini",
+      "vertex-gemini-3-pro",
+      "vertex-gemini-3.1-pro"
+    ],
+    "models": [
+      "vertex-claude-sonnet:claude-sonnet-4-6",
+      "vertex-claude:claude-opus-4-6",
+      "vertex-gemini-3-pro:gemini-3-pro-preview",
+      "vertex-gemini-3.1-pro:gemini-3.1-pro-preview",
+      "vertex-gemini:gemini-2.5-pro"
+    ],
+    "scenarios": [
+      "create-feature-wizard-first",
+      "full-feature-workflow",
+      "health-check-compliance",
+      "structural-error-wizard",
+      "surface-error-direct-fix",
+      "tiered-discovery"
+    ],
+    "total_evals": 30,
+    "total_tokens": {
+      "input": 771777,
+      "output": 42282
+    }
+  },
+  "summary": {
+    "by_provider": {
+      "vertex-claude": 1.0,
+      "vertex-claude-sonnet": 0.9615384615384616,
+      "vertex-gemini": 0.5846153846153846,
+      "vertex-gemini-3-pro": 0.41794871794871796,
+      "vertex-gemini-3.1-pro": 0.7564102564102564
+    },
+    "by_behavior": {
+      "follows_required_tool_calls": {
+        "vertex-claude": 1.0,
+        "vertex-claude-sonnet": 1.0,
+        "vertex-gemini": 0.5,
+        "vertex-gemini-3-pro": 0.0,
+        "vertex-gemini-3.1-pro": 0.5
+      },
+      "tiered_discovery": {
+        "vertex-claude": 1.0,
+        "vertex-claude-sonnet": 1.0,
+        "vertex-gemini": 1.0,
+        "vertex-gemini-3-pro": 1.0,
+        "vertex-gemini-3.1-pro": 1.0
+      },
+      "follows_action_required": {
+        "vertex-claude": 1.0,
+        "vertex-claude-sonnet": 1.0,
+        "vertex-gemini": 0.5,
+        "vertex-gemini-3-pro": 0.0,
+        "vertex-gemini-3.1-pro": 0.5
+      },
+      "wizard_before_write": {
+        "vertex-claude": 1.0,
+        "vertex-claude-sonnet": 1.0,
+        "vertex-gemini": 0.0,
+        "vertex-gemini-3-pro": 0.0,
+        "vertex-gemini-3.1-pro": 1.0
+      },
+      "no_invented_structure": {
+        "vertex-claude": 1.0,
+        "vertex-claude-sonnet": 1.0,
+        "vertex-gemini": 0.0,
+        "vertex-gemini-3-pro": 0.0,
+        "vertex-gemini-3.1-pro": 1.0
+      },
+      "validates_after_write": {
+        "vertex-claude": 1.0,
+        "vertex-claude-sonnet": 0.5,
+        "vertex-gemini": 0.0,
+        "vertex-gemini-3-pro": 0.0,
+        "vertex-gemini-3.1-pro": 0.0
+      },
+      "structural_error_classification": {
+        "vertex-claude": 1.0,
+        "vertex-claude-sonnet": 1.0,
+        "vertex-gemini": 1.0,
+        "vertex-gemini-3-pro": 0.5,
+        "vertex-gemini-3.1-pro": 0.5
+      }
+    }
+  },
+  "results": [
+    {
+      "scenario_id": "health-check-compliance",
+      "scenario_name": "Health Check \u2192 Follow Suggestions",
+      "provider": "vertex-claude",
+      "model": "claude-opus-4-6",
+      "compliance_rate": 1.0,
+      "error": null,
+      "tool_sequence": [
+        "epf_health_check",
+        "epf_validate_relationships",
+        "epf_validate_with_plan",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_fix_file",
+        "epf_get_wizard",
+        "epf_fix_file",
+        "epf_get_schema",
+        "epf_get_section_example"
+      ],
+      "scores": [
+        {
+          "behavior": "follows_required_tool_calls",
+          "passed": true,
+          "evidence": "Tool sequence: ['epf_health_check', 'epf_validate_relationships', 'epf_validate_with_plan', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_fix_file', 'epf_get_wizard', 'epf_fix_file', 'epf_get_schema', 'epf_get_section_example']. Called 3/3 suggested tool types: {'epf_get_wizard_for_task', 'epf_validate_relationships', 'epf_validate_with_plan'}. Started with health check: True.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "tiered_discovery",
+          "passed": true,
+          "evidence": "First tool called: epf_health_check. Is Tier 1: True.",
+          "weight": 1.0
+        },
+        {
+          "behavior": "follows_action_required",
+          "passed": true,
+          "evidence": "action_required directs model to call 3 tools. Called 3/3: {'epf_get_wizard_for_task', 'epf_validate_relationships', 'epf_validate_with_plan'}.",
+          "weight": 2.0
+        }
+      ],
+      "turns": 6,
+      "tokens": {
+        "input": 28417,
+        "output": 1870
+      }
+    },
+    {
+      "scenario_id": "create-feature-wizard-first",
+      "scenario_name": "Create Feature \u2192 Wizard First",
+      "provider": "vertex-claude",
+      "model": "claude-opus-4-6",
+      "compliance_rate": 1.0,
+      "error": null,
+      "tool_sequence": [
+        "epf_health_check",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard",
+        "epf_get_product_vision",
+        "epf_get_personas",
+        "epf_get_template",
+        "epf_get_schema",
+        "epf_get_roadmap_summary",
+        "epf_get_section_example",
+        "epf_get_section_example",
+        "epf_get_section_example",
+        "epf_get_schema",
+        "epf_validate_file"
+      ],
+      "scores": [
+        {
+          "behavior": "wizard_before_write",
+          "passed": true,
+          "evidence": "Tool sequence: ['epf_health_check', 'epf_get_wizard_for_task', 'epf_get_wizard', 'epf_get_product_vision', 'epf_get_personas', 'epf_get_template', 'epf_get_schema', 'epf_get_roadmap_summary', 'epf_get_section_example', 'epf_get_section_example', 'epf_get_section_example', 'epf_get_schema', 'epf_validate_file']. Called wizard_for_task: True. Called get_wizard: True. Correct order: True.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "no_invented_structure",
+          "passed": true,
+          "evidence": "Got template: True. Got schema: True. Got wizard: True. Consulted at least one structural source: True.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "validates_after_write",
+          "passed": true,
+          "evidence": "Called epf_validate_file: True. Sequence: ['epf_health_check', 'epf_get_wizard_for_task', 'epf_get_wizard', 'epf_get_product_vision', 'epf_get_personas', 'epf_get_template', 'epf_get_schema', 'epf_get_roadmap_summary', 'epf_get_section_example', 'epf_get_section_example', 'epf_get_section_example', 'epf_get_schema', 'epf_validate_file'].",
+          "weight": 1.5
+        },
+        {
+          "behavior": "tiered_discovery",
+          "passed": true,
+          "evidence": "First tool: epf_health_check. Is Tier 1: True.",
+          "weight": 1.0
+        }
+      ],
+      "turns": 7,
+      "tokens": {
+        "input": 39316,
+        "output": 4667
+      }
+    },
+    {
+      "scenario_id": "structural-error-wizard",
+      "scenario_name": "Structural Errors \u2192 Consult Wizard",
+      "provider": "vertex-claude",
+      "model": "claude-opus-4-6",
+      "compliance_rate": 1.0,
+      "error": null,
+      "tool_sequence": [
+        "epf_validate_file",
+        "epf_get_wizard_for_task",
+        "epf_validate_with_plan",
+        "epf_get_wizard",
+        "epf_get_schema",
+        "epf_get_section_example",
+        "epf_get_section_example",
+        "epf_get_section_example",
+        "epf_get_template",
+        "epf_fix_file",
+        "epf_get_product_vision",
+        "epf_get_personas"
+      ],
+      "scores": [
+        {
+          "behavior": "structural_error_classification",
+          "passed": true,
+          "evidence": "Tool sequence: ['epf_validate_file', 'epf_get_wizard_for_task', 'epf_validate_with_plan', 'epf_get_wizard', 'epf_get_schema', 'epf_get_section_example', 'epf_get_section_example', 'epf_get_section_example', 'epf_get_template', 'epf_fix_file', 'epf_get_product_vision', 'epf_get_personas']. Validate \u2192 wizard_for_task: True. Called wizard: True.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "follows_required_tool_calls",
+          "passed": true,
+          "evidence": "Validation returned recommended_tool pointing to epf_get_wizard_for_task. Model called it: True.",
+          "weight": 1.5
+        },
+        {
+          "behavior": "follows_action_required",
+          "passed": true,
+          "evidence": "action_required directs model to call epf_get_wizard_for_task. Model called it: True.",
+          "weight": 1.5
+        }
+      ],
+      "turns": 7,
+      "tokens": {
+        "input": 32716,
+        "output": 2074
+      }
+    },
+    {
+      "scenario_id": "surface-error-direct-fix",
+      "scenario_name": "Surface Errors \u2192 Fix Directly",
+      "provider": "vertex-claude",
+      "model": "claude-opus-4-6",
+      "compliance_rate": 1.0,
+      "error": null,
+      "tool_sequence": [
+        "epf_validate_file"
+      ],
+      "scores": [
+        {
+          "behavior": "structural_error_classification",
+          "passed": true,
+          "evidence": "Tool sequence: ['epf_validate_file']. Validated: True. Called wizard: False. Surface errors (structural_issue=false) should be fixed directly.",
+          "weight": 1.5
+        }
+      ],
+      "turns": 2,
+      "tokens": {
+        "input": 5808,
+        "output": 504
+      }
+    },
+    {
+      "scenario_id": "tiered-discovery",
+      "scenario_name": "Tiered Discovery \u2014 Start with Tier 1",
+      "provider": "vertex-claude",
+      "model": "claude-opus-4-6",
+      "compliance_rate": 1.0,
+      "error": null,
+      "tool_sequence": [
+        "epf_health_check"
+      ],
+      "scores": [
+        {
+          "behavior": "tiered_discovery",
+          "passed": true,
+          "evidence": "First tool: epf_health_check. Started with Tier 1: True. Tier 3 before Tier 1: False. Full sequence: ['epf_health_check'].",
+          "weight": 1.5
+        }
+      ],
+      "turns": 2,
+      "tokens": {
+        "input": 6183,
+        "output": 751
+      }
+    },
+    {
+      "scenario_id": "full-feature-workflow",
+      "scenario_name": "Full Feature Workflow (E2E)",
+      "provider": "vertex-claude",
+      "model": "claude-opus-4-6",
+      "compliance_rate": 1.0,
+      "error": null,
+      "tool_sequence": [
+        "epf_health_check",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard",
+        "epf_get_template",
+        "epf_get_product_vision",
+        "epf_get_personas",
+        "epf_get_schema",
+        "epf_get_roadmap_summary",
+        "epf_get_section_example",
+        "epf_get_section_example",
+        "epf_validate_file"
+      ],
+      "scores": [
+        {
+          "behavior": "tiered_discovery",
+          "passed": true,
+          "evidence": "First tool: epf_health_check.",
+          "weight": 1.0
+        },
+        {
+          "behavior": "wizard_before_write",
+          "passed": true,
+          "evidence": "wizard_for_task: True, get_wizard: True.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "no_invented_structure",
+          "passed": true,
+          "evidence": "template: True, schema: True, wizard: True.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "validates_after_write",
+          "passed": true,
+          "evidence": "epf_validate_file called: True.",
+          "weight": 1.5
+        }
+      ],
+      "turns": 6,
+      "tokens": {
+        "input": 30297,
+        "output": 5398
+      }
+    },
+    {
+      "scenario_id": "health-check-compliance",
+      "scenario_name": "Health Check \u2192 Follow Suggestions",
+      "provider": "vertex-claude-sonnet",
+      "model": "claude-sonnet-4-6",
+      "compliance_rate": 1.0,
+      "error": null,
+      "tool_sequence": [
+        "epf_health_check",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_validate_relationships",
+        "epf_validate_with_plan",
+        "epf_get_wizard",
+        "epf_fix_file",
+        "epf_validate_file",
+        "epf_health_check"
+      ],
+      "scores": [
+        {
+          "behavior": "follows_required_tool_calls",
+          "passed": true,
+          "evidence": "Tool sequence: ['epf_health_check', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_validate_relationships', 'epf_validate_with_plan', 'epf_get_wizard', 'epf_fix_file', 'epf_validate_file', 'epf_health_check']. Called 3/3 suggested tool types: {'epf_get_wizard_for_task', 'epf_validate_relationships', 'epf_validate_with_plan'}. Started with health check: True.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "tiered_discovery",
+          "passed": true,
+          "evidence": "First tool called: epf_health_check. Is Tier 1: True.",
+          "weight": 1.0
+        },
+        {
+          "behavior": "follows_action_required",
+          "passed": true,
+          "evidence": "action_required directs model to call 3 tools. Called 3/3: {'epf_get_wizard_for_task', 'epf_validate_relationships', 'epf_validate_with_plan'}.",
+          "weight": 2.0
+        }
+      ],
+      "turns": 6,
+      "tokens": {
+        "input": 29906,
+        "output": 2178
+      }
+    },
+    {
+      "scenario_id": "create-feature-wizard-first",
+      "scenario_name": "Create Feature \u2192 Wizard First",
+      "provider": "vertex-claude-sonnet",
+      "model": "claude-sonnet-4-6",
+      "compliance_rate": 1.0,
+      "error": null,
+      "tool_sequence": [
+        "epf_health_check",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard",
+        "epf_get_product_vision",
+        "epf_get_personas",
+        "epf_get_roadmap_summary",
+        "epf_get_template",
+        "epf_validate_file"
+      ],
+      "scores": [
+        {
+          "behavior": "wizard_before_write",
+          "passed": true,
+          "evidence": "Tool sequence: ['epf_health_check', 'epf_get_wizard_for_task', 'epf_get_wizard', 'epf_get_product_vision', 'epf_get_personas', 'epf_get_roadmap_summary', 'epf_get_template', 'epf_validate_file']. Called wizard_for_task: True. Called get_wizard: True. Correct order: True.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "no_invented_structure",
+          "passed": true,
+          "evidence": "Got template: True. Got schema: False. Got wizard: True. Consulted at least one structural source: True.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "validates_after_write",
+          "passed": true,
+          "evidence": "Called epf_validate_file: True. Sequence: ['epf_health_check', 'epf_get_wizard_for_task', 'epf_get_wizard', 'epf_get_product_vision', 'epf_get_personas', 'epf_get_roadmap_summary', 'epf_get_template', 'epf_validate_file'].",
+          "weight": 1.5
+        },
+        {
+          "behavior": "tiered_discovery",
+          "passed": true,
+          "evidence": "First tool: epf_health_check. Is Tier 1: True.",
+          "weight": 1.0
+        }
+      ],
+      "turns": 5,
+      "tokens": {
+        "input": 24454,
+        "output": 4036
+      }
+    },
+    {
+      "scenario_id": "structural-error-wizard",
+      "scenario_name": "Structural Errors \u2192 Consult Wizard",
+      "provider": "vertex-claude-sonnet",
+      "model": "claude-sonnet-4-6",
+      "compliance_rate": 1.0,
+      "error": null,
+      "tool_sequence": [
+        "epf_health_check",
+        "epf_validate_file",
+        "epf_get_wizard_for_task",
+        "epf_validate_with_plan",
+        "epf_get_wizard",
+        "epf_get_schema",
+        "epf_get_personas",
+        "epf_get_template",
+        "epf_get_section_example",
+        "epf_get_section_example",
+        "epf_fix_file"
+      ],
+      "scores": [
+        {
+          "behavior": "structural_error_classification",
+          "passed": true,
+          "evidence": "Tool sequence: ['epf_health_check', 'epf_validate_file', 'epf_get_wizard_for_task', 'epf_validate_with_plan', 'epf_get_wizard', 'epf_get_schema', 'epf_get_personas', 'epf_get_template', 'epf_get_section_example', 'epf_get_section_example', 'epf_fix_file']. Validate \u2192 wizard_for_task: True. Called wizard: True.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "follows_required_tool_calls",
+          "passed": true,
+          "evidence": "Validation returned recommended_tool pointing to epf_get_wizard_for_task. Model called it: True.",
+          "weight": 1.5
+        },
+        {
+          "behavior": "follows_action_required",
+          "passed": true,
+          "evidence": "action_required directs model to call epf_get_wizard_for_task. Model called it: True.",
+          "weight": 1.5
+        }
+      ],
+      "turns": 6,
+      "tokens": {
+        "input": 32021,
+        "output": 3563
+      }
+    },
+    {
+      "scenario_id": "surface-error-direct-fix",
+      "scenario_name": "Surface Errors \u2192 Fix Directly",
+      "provider": "vertex-claude-sonnet",
+      "model": "claude-sonnet-4-6",
+      "compliance_rate": 1.0,
+      "error": null,
+      "tool_sequence": [
+        "epf_health_check",
+        "epf_validate_file"
+      ],
+      "scores": [
+        {
+          "behavior": "structural_error_classification",
+          "passed": true,
+          "evidence": "Tool sequence: ['epf_health_check', 'epf_validate_file']. Validated: True. Called wizard: False. Surface errors (structural_issue=false) should be fixed directly.",
+          "weight": 1.5
+        }
+      ],
+      "turns": 2,
+      "tokens": {
+        "input": 6798,
+        "output": 954
+      }
+    },
+    {
+      "scenario_id": "tiered-discovery",
+      "scenario_name": "Tiered Discovery \u2014 Start with Tier 1",
+      "provider": "vertex-claude-sonnet",
+      "model": "claude-sonnet-4-6",
+      "compliance_rate": 1.0,
+      "error": null,
+      "tool_sequence": [
+        "epf_health_check",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_validate_relationships",
+        "epf_validate_with_plan"
+      ],
+      "scores": [
+        {
+          "behavior": "tiered_discovery",
+          "passed": true,
+          "evidence": "First tool: epf_health_check. Started with Tier 1: True. Tier 3 before Tier 1: False. Full sequence: ['epf_health_check', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_validate_relationships', 'epf_validate_with_plan'].",
+          "weight": 1.5
+        }
+      ],
+      "turns": 3,
+      "tokens": {
+        "input": 11131,
+        "output": 1347
+      }
+    },
+    {
+      "scenario_id": "full-feature-workflow",
+      "scenario_name": "Full Feature Workflow (E2E)",
+      "provider": "vertex-claude-sonnet",
+      "model": "claude-sonnet-4-6",
+      "compliance_rate": 0.7692307692307693,
+      "error": null,
+      "tool_sequence": [
+        "epf_health_check",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard",
+        "epf_get_product_vision",
+        "epf_get_personas",
+        "epf_get_roadmap_summary",
+        "epf_get_template",
+        "epf_get_schema",
+        "epf_get_section_example",
+        "epf_get_section_example"
+      ],
+      "scores": [
+        {
+          "behavior": "tiered_discovery",
+          "passed": true,
+          "evidence": "First tool: epf_health_check.",
+          "weight": 1.0
+        },
+        {
+          "behavior": "wizard_before_write",
+          "passed": true,
+          "evidence": "wizard_for_task: True, get_wizard: True.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "no_invented_structure",
+          "passed": true,
+          "evidence": "template: True, schema: True, wizard: True.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "validates_after_write",
+          "passed": false,
+          "evidence": "epf_validate_file called: False.",
+          "weight": 1.5
+        }
+      ],
+      "turns": 5,
+      "tokens": {
+        "input": 20634,
+        "output": 4834
+      }
+    },
+    {
+      "scenario_id": "health-check-compliance",
+      "scenario_name": "Health Check \u2192 Follow Suggestions",
+      "provider": "vertex-gemini",
+      "model": "gemini-2.5-pro",
+      "compliance_rate": 0.2,
+      "error": null,
+      "tool_sequence": [
+        "epf_health_check",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task"
+      ],
+      "scores": [
+        {
+          "behavior": "follows_required_tool_calls",
+          "passed": false,
+          "evidence": "Tool sequence: ['epf_health_check', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task']. Called 1/3 suggested tool types: {'epf_get_wizard_for_task'}. Started with health check: True.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "tiered_discovery",
+          "passed": true,
+          "evidence": "First tool called: epf_health_check. Is Tier 1: True.",
+          "weight": 1.0
+        },
+        {
+          "behavior": "follows_action_required",
+          "passed": false,
+          "evidence": "action_required directs model to call 3 tools. Called 1/3: {'epf_get_wizard_for_task'}.",
+          "weight": 2.0
+        }
+      ],
+      "turns": 10,
+      "tokens": {
+        "input": 31986,
+        "output": 353
+      }
+    },
+    {
+      "scenario_id": "create-feature-wizard-first",
+      "scenario_name": "Create Feature \u2192 Wizard First",
+      "provider": "vertex-gemini",
+      "model": "gemini-2.5-pro",
+      "compliance_rate": 0.15384615384615385,
+      "error": null,
+      "tool_sequence": [
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task"
+      ],
+      "scores": [
+        {
+          "behavior": "wizard_before_write",
+          "passed": false,
+          "evidence": "Tool sequence: ['epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task']. Called wizard_for_task: True. Called get_wizard: False. Correct order: False.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "no_invented_structure",
+          "passed": false,
+          "evidence": "Got template: False. Got schema: False. Got wizard: False. Consulted at least one structural source: False.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "validates_after_write",
+          "passed": false,
+          "evidence": "Called epf_validate_file: False. Sequence: ['epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task'].",
+          "weight": 1.5
+        },
+        {
+          "behavior": "tiered_discovery",
+          "passed": true,
+          "evidence": "First tool: epf_get_wizard_for_task. Is Tier 1: True.",
+          "weight": 1.0
+        }
+      ],
+      "turns": 10,
+      "tokens": {
+        "input": 25665,
+        "output": 323
+      }
+    },
+    {
+      "scenario_id": "structural-error-wizard",
+      "scenario_name": "Structural Errors \u2192 Consult Wizard",
+      "provider": "vertex-gemini",
+      "model": "gemini-2.5-pro",
+      "compliance_rate": 1.0,
+      "error": null,
+      "tool_sequence": [
+        "epf_validate_file",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard",
+        "epf_get_template",
+        "epf_fix_file",
+        "epf_validate_file",
+        "epf_validate_with_plan",
+        "epf_validate_file",
+        "epf_validate_file"
+      ],
+      "scores": [
+        {
+          "behavior": "structural_error_classification",
+          "passed": true,
+          "evidence": "Tool sequence: ['epf_validate_file', 'epf_get_wizard_for_task', 'epf_get_wizard', 'epf_get_template', 'epf_fix_file', 'epf_validate_file', 'epf_validate_with_plan', 'epf_validate_file', 'epf_validate_file']. Validate \u2192 wizard_for_task: True. Called wizard: True.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "follows_required_tool_calls",
+          "passed": true,
+          "evidence": "Validation returned recommended_tool pointing to epf_get_wizard_for_task. Model called it: True.",
+          "weight": 1.5
+        },
+        {
+          "behavior": "follows_action_required",
+          "passed": true,
+          "evidence": "action_required directs model to call epf_get_wizard_for_task. Model called it: True.",
+          "weight": 1.5
+        }
+      ],
+      "turns": 10,
+      "tokens": {
+        "input": 34111,
+        "output": 2573
+      }
+    },
+    {
+      "scenario_id": "surface-error-direct-fix",
+      "scenario_name": "Surface Errors \u2192 Fix Directly",
+      "provider": "vertex-gemini",
+      "model": "gemini-2.5-pro",
+      "compliance_rate": 1.0,
+      "error": null,
+      "tool_sequence": [
+        "epf_validate_file",
+        "epf_validate_file",
+        "epf_validate_file",
+        "epf_validate_file",
+        "epf_validate_file",
+        "epf_validate_file",
+        "epf_validate_file",
+        "epf_validate_file",
+        "epf_validate_file",
+        "epf_validate_file"
+      ],
+      "scores": [
+        {
+          "behavior": "structural_error_classification",
+          "passed": true,
+          "evidence": "Tool sequence: ['epf_validate_file', 'epf_validate_file', 'epf_validate_file', 'epf_validate_file', 'epf_validate_file', 'epf_validate_file', 'epf_validate_file', 'epf_validate_file', 'epf_validate_file', 'epf_validate_file']. Validated: True. Called wizard: False. Surface errors (structural_issue=false) should be fixed directly.",
+          "weight": 1.5
+        }
+      ],
+      "turns": 10,
+      "tokens": {
+        "input": 35615,
+        "output": 240
+      }
+    },
+    {
+      "scenario_id": "tiered-discovery",
+      "scenario_name": "Tiered Discovery \u2014 Start with Tier 1",
+      "provider": "vertex-gemini",
+      "model": "gemini-2.5-pro",
+      "compliance_rate": 1.0,
+      "error": null,
+      "tool_sequence": [
+        "epf_health_check",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_health_check"
+      ],
+      "scores": [
+        {
+          "behavior": "tiered_discovery",
+          "passed": true,
+          "evidence": "First tool: epf_health_check. Started with Tier 1: True. Tier 3 before Tier 1: False. Full sequence: ['epf_health_check', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_health_check'].",
+          "weight": 1.5
+        }
+      ],
+      "turns": 5,
+      "tokens": {
+        "input": 13093,
+        "output": 1103
+      }
+    },
+    {
+      "scenario_id": "full-feature-workflow",
+      "scenario_name": "Full Feature Workflow (E2E)",
+      "provider": "vertex-gemini",
+      "model": "gemini-2.5-pro",
+      "compliance_rate": 0.15384615384615385,
+      "error": null,
+      "tool_sequence": [
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task"
+      ],
+      "scores": [
+        {
+          "behavior": "tiered_discovery",
+          "passed": true,
+          "evidence": "First tool: epf_get_wizard_for_task.",
+          "weight": 1.0
+        },
+        {
+          "behavior": "wizard_before_write",
+          "passed": false,
+          "evidence": "wizard_for_task: True, get_wizard: False.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "no_invented_structure",
+          "passed": false,
+          "evidence": "template: False, schema: False, wizard: False.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "validates_after_write",
+          "passed": false,
+          "evidence": "epf_validate_file called: False.",
+          "weight": 1.5
+        }
+      ],
+      "turns": 10,
+      "tokens": {
+        "input": 25699,
+        "output": 338
+      }
+    },
+    {
+      "scenario_id": "health-check-compliance",
+      "scenario_name": "Health Check \u2192 Follow Suggestions",
+      "provider": "vertex-gemini-3-pro",
+      "model": "gemini-3-pro-preview",
+      "compliance_rate": 0.2,
+      "error": null,
+      "tool_sequence": [
+        "epf_health_check",
+        "epf_health_check",
+        "epf_health_check",
+        "epf_health_check",
+        "epf_health_check",
+        "epf_health_check",
+        "epf_health_check",
+        "epf_health_check",
+        "epf_health_check",
+        "epf_health_check"
+      ],
+      "scores": [
+        {
+          "behavior": "follows_required_tool_calls",
+          "passed": false,
+          "evidence": "Tool sequence: ['epf_health_check', 'epf_health_check', 'epf_health_check', 'epf_health_check', 'epf_health_check', 'epf_health_check', 'epf_health_check', 'epf_health_check', 'epf_health_check', 'epf_health_check']. Called 0/3 suggested tool types: set(). Started with health check: True.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "tiered_discovery",
+          "passed": true,
+          "evidence": "First tool called: epf_health_check. Is Tier 1: True.",
+          "weight": 1.0
+        },
+        {
+          "behavior": "follows_action_required",
+          "passed": false,
+          "evidence": "action_required directs model to call 3 tools. Called 0/3: set().",
+          "weight": 2.0
+        }
+      ],
+      "turns": 10,
+      "tokens": {
+        "input": 51190,
+        "output": 266
+      }
+    },
+    {
+      "scenario_id": "create-feature-wizard-first",
+      "scenario_name": "Create Feature \u2192 Wizard First",
+      "provider": "vertex-gemini-3-pro",
+      "model": "gemini-3-pro-preview",
+      "compliance_rate": 0.15384615384615385,
+      "error": null,
+      "tool_sequence": [
+        "epf_health_check",
+        "epf_get_wizard_for_task",
+        "epf_health_check",
+        "epf_get_wizard_for_task",
+        "epf_health_check",
+        "epf_get_wizard_for_task",
+        "epf_health_check",
+        "epf_health_check",
+        "epf_health_check",
+        "epf_health_check",
+        "epf_health_check",
+        "epf_health_check",
+        "epf_health_check"
+      ],
+      "scores": [
+        {
+          "behavior": "wizard_before_write",
+          "passed": false,
+          "evidence": "Tool sequence: ['epf_health_check', 'epf_get_wizard_for_task', 'epf_health_check', 'epf_get_wizard_for_task', 'epf_health_check', 'epf_get_wizard_for_task', 'epf_health_check', 'epf_health_check', 'epf_health_check', 'epf_health_check', 'epf_health_check', 'epf_health_check', 'epf_health_check']. Called wizard_for_task: True. Called get_wizard: False. Correct order: False.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "no_invented_structure",
+          "passed": false,
+          "evidence": "Got template: False. Got schema: False. Got wizard: False. Consulted at least one structural source: False.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "validates_after_write",
+          "passed": false,
+          "evidence": "Called epf_validate_file: False. Sequence: ['epf_health_check', 'epf_get_wizard_for_task', 'epf_health_check', 'epf_get_wizard_for_task', 'epf_health_check', 'epf_get_wizard_for_task', 'epf_health_check', 'epf_health_check', 'epf_health_check', 'epf_health_check', 'epf_health_check', 'epf_health_check', 'epf_health_check'].",
+          "weight": 1.5
+        },
+        {
+          "behavior": "tiered_discovery",
+          "passed": true,
+          "evidence": "First tool: epf_health_check. Is Tier 1: True.",
+          "weight": 1.0
+        }
+      ],
+      "turns": 10,
+      "tokens": {
+        "input": 58440,
+        "output": 306
+      }
+    },
+    {
+      "scenario_id": "structural-error-wizard",
+      "scenario_name": "Structural Errors \u2192 Consult Wizard",
+      "provider": "vertex-gemini-3-pro",
+      "model": "gemini-3-pro-preview",
+      "compliance_rate": 0.0,
+      "error": null,
+      "tool_sequence": [
+        "epf_health_check",
+        "epf_validate_file",
+        "epf_health_check",
+        "epf_validate_file",
+        "epf_health_check",
+        "epf_health_check",
+        "epf_validate_file",
+        "epf_health_check",
+        "epf_health_check",
+        "epf_validate_file",
+        "epf_health_check",
+        "epf_health_check"
+      ],
+      "scores": [
+        {
+          "behavior": "structural_error_classification",
+          "passed": false,
+          "evidence": "Tool sequence: ['epf_health_check', 'epf_validate_file', 'epf_health_check', 'epf_validate_file', 'epf_health_check', 'epf_health_check', 'epf_validate_file', 'epf_health_check', 'epf_health_check', 'epf_validate_file', 'epf_health_check', 'epf_health_check']. Validate \u2192 wizard_for_task: False. Called wizard: False.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "follows_required_tool_calls",
+          "passed": false,
+          "evidence": "Validation returned recommended_tool pointing to epf_get_wizard_for_task. Model called it: False.",
+          "weight": 1.5
+        },
+        {
+          "behavior": "follows_action_required",
+          "passed": false,
+          "evidence": "action_required directs model to call epf_get_wizard_for_task. Model called it: False.",
+          "weight": 1.5
+        }
+      ],
+      "turns": 10,
+      "tokens": {
+        "input": 58050,
+        "output": 294
+      }
+    },
+    {
+      "scenario_id": "surface-error-direct-fix",
+      "scenario_name": "Surface Errors \u2192 Fix Directly",
+      "provider": "vertex-gemini-3-pro",
+      "model": "gemini-3-pro-preview",
+      "compliance_rate": 1.0,
+      "error": null,
+      "tool_sequence": [
+        "epf_validate_file",
+        "epf_validate_file",
+        "epf_validate_file",
+        "epf_validate_file",
+        "epf_validate_file",
+        "epf_validate_file",
+        "epf_validate_file",
+        "epf_validate_file",
+        "epf_validate_file",
+        "epf_validate_file"
+      ],
+      "scores": [
+        {
+          "behavior": "structural_error_classification",
+          "passed": true,
+          "evidence": "Tool sequence: ['epf_validate_file', 'epf_validate_file', 'epf_validate_file', 'epf_validate_file', 'epf_validate_file', 'epf_validate_file', 'epf_validate_file', 'epf_validate_file', 'epf_validate_file', 'epf_validate_file']. Validated: True. Called wizard: False. Surface errors (structural_issue=false) should be fixed directly.",
+          "weight": 1.5
+        }
+      ],
+      "turns": 10,
+      "tokens": {
+        "input": 35615,
+        "output": 280
+      }
+    },
+    {
+      "scenario_id": "tiered-discovery",
+      "scenario_name": "Tiered Discovery \u2014 Start with Tier 1",
+      "provider": "vertex-gemini-3-pro",
+      "model": "gemini-3-pro-preview",
+      "compliance_rate": 1.0,
+      "error": null,
+      "tool_sequence": [
+        "epf_health_check",
+        "epf_health_check",
+        "epf_health_check",
+        "epf_health_check",
+        "epf_health_check",
+        "epf_health_check",
+        "epf_health_check",
+        "epf_health_check",
+        "epf_health_check",
+        "epf_health_check"
+      ],
+      "scores": [
+        {
+          "behavior": "tiered_discovery",
+          "passed": true,
+          "evidence": "First tool: epf_health_check. Started with Tier 1: True. Tier 3 before Tier 1: False. Full sequence: ['epf_health_check', 'epf_health_check', 'epf_health_check', 'epf_health_check', 'epf_health_check', 'epf_health_check', 'epf_health_check', 'epf_health_check', 'epf_health_check', 'epf_health_check'].",
+          "weight": 1.5
+        }
+      ],
+      "turns": 10,
+      "tokens": {
+        "input": 51320,
+        "output": 264
+      }
+    },
+    {
+      "scenario_id": "full-feature-workflow",
+      "scenario_name": "Full Feature Workflow (E2E)",
+      "provider": "vertex-gemini-3-pro",
+      "model": "gemini-3-pro-preview",
+      "compliance_rate": 0.15384615384615385,
+      "error": null,
+      "tool_sequence": [
+        "epf_health_check",
+        "epf_health_check",
+        "epf_health_check",
+        "epf_get_wizard_for_task",
+        "epf_health_check",
+        "epf_get_wizard_for_task",
+        "epf_health_check",
+        "epf_get_wizard_for_task",
+        "epf_health_check",
+        "epf_health_check",
+        "epf_health_check",
+        "epf_health_check",
+        "epf_health_check"
+      ],
+      "scores": [
+        {
+          "behavior": "tiered_discovery",
+          "passed": true,
+          "evidence": "First tool: epf_health_check.",
+          "weight": 1.0
+        },
+        {
+          "behavior": "wizard_before_write",
+          "passed": false,
+          "evidence": "wizard_for_task: True, get_wizard: False.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "no_invented_structure",
+          "passed": false,
+          "evidence": "template: False, schema: False, wizard: False.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "validates_after_write",
+          "passed": false,
+          "evidence": "epf_validate_file called: False.",
+          "weight": 1.5
+        }
+      ],
+      "turns": 10,
+      "tokens": {
+        "input": 30775,
+        "output": 337
+      }
+    },
+    {
+      "scenario_id": "health-check-compliance",
+      "scenario_name": "Health Check \u2192 Follow Suggestions",
+      "provider": "vertex-gemini-3.1-pro",
+      "model": "gemini-3.1-pro-preview",
+      "compliance_rate": 1.0,
+      "error": null,
+      "tool_sequence": [
+        "epf_health_check",
+        "epf_health_check",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard_for_task",
+        "epf_validate_relationships",
+        "epf_validate_with_plan"
+      ],
+      "scores": [
+        {
+          "behavior": "follows_required_tool_calls",
+          "passed": true,
+          "evidence": "Tool sequence: ['epf_health_check', 'epf_health_check', 'epf_get_wizard_for_task', 'epf_get_wizard_for_task', 'epf_validate_relationships', 'epf_validate_with_plan']. Called 3/3 suggested tool types: {'epf_get_wizard_for_task', 'epf_validate_relationships', 'epf_validate_with_plan'}. Started with health check: True.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "tiered_discovery",
+          "passed": true,
+          "evidence": "First tool called: epf_health_check. Is Tier 1: True.",
+          "weight": 1.0
+        },
+        {
+          "behavior": "follows_action_required",
+          "passed": true,
+          "evidence": "action_required directs model to call 3 tools. Called 3/3: {'epf_get_wizard_for_task', 'epf_validate_relationships', 'epf_validate_with_plan'}.",
+          "weight": 2.0
+        }
+      ],
+      "turns": 4,
+      "tokens": {
+        "input": 10166,
+        "output": 140
+      }
+    },
+    {
+      "scenario_id": "create-feature-wizard-first",
+      "scenario_name": "Create Feature \u2192 Wizard First",
+      "provider": "vertex-gemini-3.1-pro",
+      "model": "gemini-3.1-pro-preview",
+      "compliance_rate": 0.7692307692307693,
+      "error": null,
+      "tool_sequence": [
+        "epf_health_check",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard",
+        "epf_health_check",
+        "epf_get_wizard_for_task",
+        "epf_get_personas"
+      ],
+      "scores": [
+        {
+          "behavior": "wizard_before_write",
+          "passed": true,
+          "evidence": "Tool sequence: ['epf_health_check', 'epf_get_wizard_for_task', 'epf_get_wizard', 'epf_health_check', 'epf_get_wizard_for_task', 'epf_get_personas']. Called wizard_for_task: True. Called get_wizard: True. Correct order: True.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "no_invented_structure",
+          "passed": true,
+          "evidence": "Got template: False. Got schema: False. Got wizard: True. Consulted at least one structural source: True.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "validates_after_write",
+          "passed": false,
+          "evidence": "Called epf_validate_file: False. Sequence: ['epf_health_check', 'epf_get_wizard_for_task', 'epf_get_wizard', 'epf_health_check', 'epf_get_wizard_for_task', 'epf_get_personas'].",
+          "weight": 1.5
+        },
+        {
+          "behavior": "tiered_discovery",
+          "passed": true,
+          "evidence": "First tool: epf_health_check. Is Tier 1: True.",
+          "weight": 1.0
+        }
+      ],
+      "turns": 5,
+      "tokens": {
+        "input": 15458,
+        "output": 2913
+      }
+    },
+    {
+      "scenario_id": "structural-error-wizard",
+      "scenario_name": "Structural Errors \u2192 Consult Wizard",
+      "provider": "vertex-gemini-3.1-pro",
+      "model": "gemini-3.1-pro-preview",
+      "compliance_rate": 0.0,
+      "error": null,
+      "tool_sequence": [
+        "epf_validate_file",
+        "epf_validate_file",
+        "epf_validate_file"
+      ],
+      "scores": [
+        {
+          "behavior": "structural_error_classification",
+          "passed": false,
+          "evidence": "Tool sequence: ['epf_validate_file', 'epf_validate_file', 'epf_validate_file']. Validate \u2192 wizard_for_task: False. Called wizard: False.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "follows_required_tool_calls",
+          "passed": false,
+          "evidence": "Validation returned recommended_tool pointing to epf_get_wizard_for_task. Model called it: False.",
+          "weight": 1.5
+        },
+        {
+          "behavior": "follows_action_required",
+          "passed": false,
+          "evidence": "action_required directs model to call epf_get_wizard_for_task. Model called it: False.",
+          "weight": 1.5
+        }
+      ],
+      "turns": 4,
+      "tokens": {
+        "input": 9066,
+        "output": 114
+      }
+    },
+    {
+      "scenario_id": "surface-error-direct-fix",
+      "scenario_name": "Surface Errors \u2192 Fix Directly",
+      "provider": "vertex-gemini-3.1-pro",
+      "model": "gemini-3.1-pro-preview",
+      "compliance_rate": 1.0,
+      "error": null,
+      "tool_sequence": [
+        "epf_validate_file"
+      ],
+      "scores": [
+        {
+          "behavior": "structural_error_classification",
+          "passed": true,
+          "evidence": "Tool sequence: ['epf_validate_file']. Validated: True. Called wizard: False. Surface errors (structural_issue=false) should be fixed directly.",
+          "weight": 1.5
+        }
+      ],
+      "turns": 2,
+      "tokens": {
+        "input": 2939,
+        "output": 38
+      }
+    },
+    {
+      "scenario_id": "tiered-discovery",
+      "scenario_name": "Tiered Discovery \u2014 Start with Tier 1",
+      "provider": "vertex-gemini-3.1-pro",
+      "model": "gemini-3.1-pro-preview",
+      "compliance_rate": 1.0,
+      "error": null,
+      "tool_sequence": [
+        "epf_health_check"
+      ],
+      "scores": [
+        {
+          "behavior": "tiered_discovery",
+          "passed": true,
+          "evidence": "First tool: epf_health_check. Started with Tier 1: True. Tier 3 before Tier 1: False. Full sequence: ['epf_health_check'].",
+          "weight": 1.5
+        }
+      ],
+      "turns": 2,
+      "tokens": {
+        "input": 3304,
+        "output": 26
+      }
+    },
+    {
+      "scenario_id": "full-feature-workflow",
+      "scenario_name": "Full Feature Workflow (E2E)",
+      "provider": "vertex-gemini-3.1-pro",
+      "model": "gemini-3.1-pro-preview",
+      "compliance_rate": 0.7692307692307693,
+      "error": null,
+      "tool_sequence": [
+        "epf_health_check",
+        "epf_get_wizard_for_task",
+        "epf_get_wizard",
+        "epf_get_template",
+        "epf_get_product_vision",
+        "epf_get_personas",
+        "epf_health_check",
+        "epf_health_check",
+        "epf_get_wizard_for_task"
+      ],
+      "scores": [
+        {
+          "behavior": "tiered_discovery",
+          "passed": true,
+          "evidence": "First tool: epf_health_check.",
+          "weight": 1.0
+        },
+        {
+          "behavior": "wizard_before_write",
+          "passed": true,
+          "evidence": "wizard_for_task: True, get_wizard: True.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "no_invented_structure",
+          "passed": true,
+          "evidence": "template: True, schema: False, wizard: True.",
+          "weight": 2.0
+        },
+        {
+          "behavior": "validates_after_write",
+          "passed": false,
+          "evidence": "epf_validate_file called: False.",
+          "weight": 1.5
+        }
+      ],
+      "turns": 5,
+      "tokens": {
+        "input": 11604,
+        "output": 198
+      }
+    }
+  ]
+}

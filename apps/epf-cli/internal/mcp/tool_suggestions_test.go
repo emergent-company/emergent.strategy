@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/checks"
@@ -396,4 +397,352 @@ func makeErrors(count int, errType validator.ErrorType, priority validator.Error
 		}
 	}
 	return errors
+}
+
+// =============================================================================
+// Section 1: BuildActionDirective tests (task 1.6)
+// =============================================================================
+
+func TestBuildActionDirective_Empty(t *testing.T) {
+	result := BuildActionDirective(nil)
+	if result != "" {
+		t.Errorf("Expected empty string for nil suggestions, got %q", result)
+	}
+
+	result = BuildActionDirective([]ToolCallSuggestion{})
+	if result != "" {
+		t.Errorf("Expected empty string for empty suggestions, got %q", result)
+	}
+}
+
+func TestBuildActionDirective_SingleSuggestion(t *testing.T) {
+	suggestions := []ToolCallSuggestion{
+		{
+			Tool:     "epf_get_wizard_for_task",
+			Params:   map[string]string{"task": "fix value model quality issues"},
+			Reason:   "Value model quality score 50/100 is below the 80 threshold",
+			Priority: "urgent",
+		},
+	}
+
+	result := BuildActionDirective(suggestions)
+
+	if result == "" {
+		t.Fatal("Expected non-empty directive")
+	}
+	if !strings.Contains(result, "IMPORTANT") {
+		t.Error("Expected directive to contain 'IMPORTANT'")
+	}
+	if !strings.Contains(result, "URGENT:") {
+		t.Error("Expected directive to contain 'URGENT:' for urgent priority")
+	}
+	if !strings.Contains(result, "epf_get_wizard_for_task") {
+		t.Error("Expected directive to contain tool name")
+	}
+	if !strings.Contains(result, "task='fix value model quality issues'") {
+		t.Error("Expected directive to contain params")
+	}
+	if !strings.Contains(result, "Do NOT skip") {
+		t.Error("Expected directive to contain anti-skip warning")
+	}
+}
+
+func TestBuildActionDirective_MultipleSuggestions(t *testing.T) {
+	suggestions := []ToolCallSuggestion{
+		{
+			Tool:     "epf_get_wizard_for_task",
+			Params:   map[string]string{"task": "fix value model"},
+			Reason:   "Low quality score",
+			Priority: "urgent",
+		},
+		{
+			Tool:     "epf_validate_relationships",
+			Params:   map[string]string{"instance_path": "/test"},
+			Reason:   "3 invalid paths",
+			Priority: "recommended",
+		},
+	}
+
+	result := BuildActionDirective(suggestions)
+
+	if !strings.Contains(result, "1. URGENT:") {
+		t.Error("Expected numbered urgent item")
+	}
+	if !strings.Contains(result, "2. RECOMMENDED:") {
+		t.Error("Expected numbered recommended item")
+	}
+	if !strings.Contains(result, "epf_get_wizard_for_task") {
+		t.Error("Expected first tool name")
+	}
+	if !strings.Contains(result, "epf_validate_relationships") {
+		t.Error("Expected second tool name")
+	}
+}
+
+func TestBuildActionDirective_OptionalPriority(t *testing.T) {
+	suggestions := []ToolCallSuggestion{
+		{
+			Tool:     "epf_aim_assess",
+			Params:   map[string]string{"instance_path": "/test"},
+			Reason:   "AIM diagnostic",
+			Priority: "optional",
+		},
+	}
+
+	result := BuildActionDirective(suggestions)
+
+	// Optional priority should not have URGENT: or RECOMMENDED: prefix
+	if strings.Contains(result, "URGENT:") || strings.Contains(result, "RECOMMENDED:") {
+		t.Error("Expected no URGENT/RECOMMENDED prefix for optional priority")
+	}
+	if !strings.Contains(result, "Call epf_aim_assess") {
+		t.Error("Expected tool call instruction")
+	}
+}
+
+func TestBuildActionDirective_NoParams(t *testing.T) {
+	suggestions := []ToolCallSuggestion{
+		{
+			Tool:     "epf_health_check",
+			Priority: "recommended",
+		},
+	}
+
+	result := BuildActionDirective(suggestions)
+
+	if !strings.Contains(result, "Call epf_health_check") {
+		t.Error("Expected tool call instruction")
+	}
+	// Should NOT contain "with" since there are no params
+	if strings.Contains(result, " with ") {
+		t.Error("Expected no 'with' clause when params are empty")
+	}
+}
+
+// =============================================================================
+// Section 1: BuildActionDirectiveForValidation tests (task 1.7)
+// =============================================================================
+
+func TestBuildActionDirectiveForValidation_NoErrors(t *testing.T) {
+	result := BuildActionDirectiveForValidation(false, nil, 0, "/test/file.yaml")
+	if result != "" {
+		t.Errorf("Expected empty string for zero errors and non-structural, got %q", result)
+	}
+}
+
+func TestBuildActionDirectiveForValidation_Structural(t *testing.T) {
+	suggestion := &ToolCallSuggestion{
+		Tool:   "epf_get_wizard_for_task",
+		Params: map[string]string{"task": "fix north_star structure"},
+	}
+
+	result := BuildActionDirectiveForValidation(true, suggestion, 25, "/test/north_star.yaml")
+
+	if !strings.Contains(result, "IMPORTANT") {
+		t.Error("Expected 'IMPORTANT' for structural issues")
+	}
+	if !strings.Contains(result, "Structural issues") {
+		t.Error("Expected 'Structural issues' mention")
+	}
+	if !strings.Contains(result, "25 errors") {
+		t.Error("Expected error count in message")
+	}
+	if !strings.Contains(result, "epf_get_wizard_for_task") {
+		t.Error("Expected wizard tool suggestion")
+	}
+	if !strings.Contains(result, "Do NOT brute-force") {
+		t.Error("Expected anti-brute-force warning")
+	}
+}
+
+func TestBuildActionDirectiveForValidation_NonStructuralErrors(t *testing.T) {
+	result := BuildActionDirectiveForValidation(false, nil, 5, "/test/fd-001.yaml")
+
+	if !strings.Contains(result, "5 error(s)") {
+		t.Error("Expected error count")
+	}
+	if !strings.Contains(result, "fix_hint") {
+		t.Error("Expected fix_hint guidance mention")
+	}
+	if !strings.Contains(result, "epf_validate_file") {
+		t.Error("Expected re-validate instruction")
+	}
+}
+
+func TestBuildActionDirectiveForValidation_StructuralButNilSuggestion(t *testing.T) {
+	// Edge case: structural=true but suggestion is nil — should fall through to error count path
+	result := BuildActionDirectiveForValidation(true, nil, 10, "/test/file.yaml")
+
+	// Should still produce output because errorCount > 0
+	if result == "" {
+		t.Error("Expected non-empty string for errors even without suggestion")
+	}
+	if !strings.Contains(result, "10 error(s)") {
+		t.Error("Expected error count in fallback message")
+	}
+}
+
+// =============================================================================
+// Section 2: BuildRemainingSteps tests (task 2.5)
+// =============================================================================
+
+func TestBuildRemainingSteps_Empty(t *testing.T) {
+	result := BuildRemainingSteps(nil)
+	if result != nil {
+		t.Errorf("Expected nil for nil suggestions, got %v", result)
+	}
+
+	result = BuildRemainingSteps([]ToolCallSuggestion{})
+	if result != nil {
+		t.Errorf("Expected nil for empty suggestions, got %v", result)
+	}
+}
+
+func TestBuildRemainingSteps_MultipleSuggestions(t *testing.T) {
+	suggestions := []ToolCallSuggestion{
+		{
+			Tool:   "epf_get_wizard_for_task",
+			Params: map[string]string{"task": "fix value model"},
+		},
+		{
+			Tool:   "epf_validate_relationships",
+			Params: map[string]string{"instance_path": "/test"},
+		},
+	}
+
+	result := BuildRemainingSteps(suggestions)
+
+	// Should have suggestion count + 2 trailing steps
+	expectedLen := len(suggestions) + 2
+	if len(result) != expectedLen {
+		t.Errorf("Expected %d steps, got %d", expectedLen, len(result))
+	}
+
+	// First steps should be the tool calls
+	if !strings.Contains(result[0], "epf_get_wizard_for_task") {
+		t.Errorf("Expected first step to contain wizard tool, got %q", result[0])
+	}
+	if !strings.Contains(result[1], "epf_validate_relationships") {
+		t.Errorf("Expected second step to contain relationship tool, got %q", result[1])
+	}
+
+	// Should end with guidance and health check
+	if !strings.Contains(result[len(result)-2], "Follow the tool guidance") {
+		t.Errorf("Expected penultimate step to contain guidance, got %q", result[len(result)-2])
+	}
+	if !strings.Contains(result[len(result)-1], "epf_health_check") {
+		t.Errorf("Expected last step to mention health check, got %q", result[len(result)-1])
+	}
+}
+
+func TestBuildRemainingSteps_SingleSuggestionWithParams(t *testing.T) {
+	suggestions := []ToolCallSuggestion{
+		{
+			Tool:   "epf_validate_with_plan",
+			Params: map[string]string{"path": "/test/file.yaml"},
+		},
+	}
+
+	result := BuildRemainingSteps(suggestions)
+
+	if len(result) != 3 { // 1 tool + 2 trailing
+		t.Errorf("Expected 3 steps, got %d", len(result))
+	}
+
+	if !strings.Contains(result[0], "path='/test/file.yaml'") {
+		t.Errorf("Expected params in step, got %q", result[0])
+	}
+}
+
+func TestBuildRemainingSteps_NoParams(t *testing.T) {
+	suggestions := []ToolCallSuggestion{
+		{
+			Tool: "epf_health_check",
+		},
+	}
+
+	result := BuildRemainingSteps(suggestions)
+
+	if len(result) != 3 {
+		t.Errorf("Expected 3 steps, got %d", len(result))
+	}
+	// Should NOT contain "with" since there are no params
+	if strings.Contains(result[0], " with ") {
+		t.Error("Expected no 'with' clause when params are empty")
+	}
+}
+
+// =============================================================================
+// Section 5: Anti-loop detection helper tests (task 5.6)
+// =============================================================================
+
+func TestBuildCallCountWarning(t *testing.T) {
+	warning := buildCallCountWarning("epf_health_check", 5, "epf_get_wizard_for_task")
+
+	if warning == nil {
+		t.Fatal("Expected non-nil warning")
+	}
+	if warning.ToolName != "epf_health_check" {
+		t.Errorf("Expected ToolName='epf_health_check', got %q", warning.ToolName)
+	}
+	if warning.CallCount != 5 {
+		t.Errorf("Expected CallCount=5, got %d", warning.CallCount)
+	}
+	if warning.SuggestedNext != "epf_get_wizard_for_task" {
+		t.Errorf("Expected SuggestedNext='epf_get_wizard_for_task', got %q", warning.SuggestedNext)
+	}
+	if !strings.Contains(warning.Message, "WARNING") {
+		t.Error("Expected message to contain 'WARNING'")
+	}
+	if !strings.Contains(warning.Message, "5 times") {
+		t.Error("Expected message to contain call count")
+	}
+	if !strings.Contains(warning.Message, "epf_get_wizard_for_task") {
+		t.Error("Expected message to contain suggested next tool")
+	}
+}
+
+func TestBuildCallCountWarning_NoSuggestedNext(t *testing.T) {
+	warning := buildCallCountWarning("epf_some_tool", 3, "")
+
+	if warning == nil {
+		t.Fatal("Expected non-nil warning")
+	}
+	if warning.SuggestedNext != "" {
+		t.Errorf("Expected empty SuggestedNext, got %q", warning.SuggestedNext)
+	}
+	// Message should end with period but NOT contain "call" for suggested next
+	if strings.Contains(warning.Message, ": call ") {
+		t.Error("Expected no suggested next tool in message when empty")
+	}
+}
+
+func TestSuggestNextToolForLoop(t *testing.T) {
+	tests := []struct {
+		toolName string
+		expected string
+	}{
+		{"epf_health_check", "epf_get_wizard_for_task"},
+		{"epf_validate_file", "epf_get_wizard_for_task"},
+		{"epf_get_wizard_for_task", "epf_get_wizard"},
+		{"epf_get_wizard", "epf_get_template"},
+		{"epf_get_template", "epf_validate_file"},
+		{"unknown_tool", ""},
+		{"", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.toolName, func(t *testing.T) {
+			result := suggestNextToolForLoop(tt.toolName)
+			if result != tt.expected {
+				t.Errorf("suggestNextToolForLoop(%q) = %q, want %q", tt.toolName, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestLoopThreshold(t *testing.T) {
+	if loopThreshold != 2 {
+		t.Errorf("Expected loopThreshold=2, got %d", loopThreshold)
+	}
 }
