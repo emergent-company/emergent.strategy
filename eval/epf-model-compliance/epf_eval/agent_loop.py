@@ -18,7 +18,7 @@ from .tools import ToolDef, get_all_tool_defs, get_fixture
 from .types import Conversation, ToolCall, Turn
 
 # Providers that use Anthropic's message format (tool_use blocks, combined tool results)
-ANTHROPIC_FORMAT_PROVIDERS = {"anthropic", "vertex-claude"}
+ANTHROPIC_FORMAT_PROVIDERS = {"anthropic", "vertex-claude", "vertex-claude-sonnet"}
 
 logger = logging.getLogger(__name__)
 
