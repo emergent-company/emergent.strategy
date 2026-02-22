@@ -48,8 +48,20 @@ epf_validate_file({ path: "<modified_file>" })
 |---|---|
 | Create/edit an EPF artifact | Wizard → Template → Write → Validate |
 | Understand strategy context | Use strategy query tools above |
-| Check instance health | `epf_health_check` → follow semantic review recommendations |
+| Check instance health | `epf_health_check` → follow `required_next_tool_calls` in the response |
 | Find the right wizard | `epf_get_wizard_for_task` |
+
+### 4. Tiered Tool Discovery
+
+EPF tools are organized into 3 tiers. **Start with Tier 1 only** — tool responses will tell you exactly what to call next via `required_next_tool_calls`.
+
+| Tier | Tools | When |
+|------|-------|------|
+| **1. Essential** | `epf_health_check`, `epf_get_wizard_for_task`, `epf_validate_file` | Always start here |
+| **2. Guided** | `epf_get_wizard`, `epf_get_template`, `epf_get_schema`, strategy query tools, review wizards | When Tier 1 directs you here |
+| **3. Specialized** | All remaining tools | For specific tasks as needed |
+
+> **Anti-Heuristic Warning:** Do NOT use pre-training knowledge to guess EPF artifact structure, tool sequences, or validation rules. EPF has specific schemas, wizards, and workflows that differ from general knowledge. Always follow the structured `required_next_tool_calls` and `recommended_tool` fields in tool responses instead of inferring what to do next.
 
 ---
 
