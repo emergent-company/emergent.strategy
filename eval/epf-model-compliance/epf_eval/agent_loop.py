@@ -13,9 +13,12 @@ import json
 import logging
 from typing import Any, Callable
 
-from .providers import ModelProvider
+from .providers import ModelProvider, VERTEX_PROVIDERS
 from .tools import ToolDef, get_all_tool_defs, get_fixture
 from .types import Conversation, ToolCall, Turn
+
+# Providers that use Anthropic's message format (tool_use blocks, combined tool results)
+ANTHROPIC_FORMAT_PROVIDERS = {"anthropic", "vertex-claude"}
 
 logger = logging.getLogger(__name__)
 
@@ -103,8 +106,8 @@ def run_agent_loop(
             )
 
         # Add tool results to messages
-        # For Anthropic, all tool results go in one user message
-        if provider.provider.value == "anthropic":
+        # For Anthropic-format providers, all tool results go in one user message
+        if provider.provider.value in ANTHROPIC_FORMAT_PROVIDERS:
             combined_content = []
             for tr in tool_results:
                 combined_content.extend(tr["content"])
@@ -123,8 +126,8 @@ def _default_fixture_resolver(tool_name: str, args: dict[str, Any]) -> str:
 
 def _get_tool_call_id(turn: Turn, index: int, provider: ModelProvider) -> str:
     """Extract or generate a tool call ID for a given tool call."""
-    if provider.provider.value == "anthropic":
-        # Anthropic: tool_use blocks have IDs in the raw response
+    if provider.provider.value in ANTHROPIC_FORMAT_PROVIDERS:
+        # Anthropic-format providers: tool_use blocks have IDs in the raw response
         return f"toolu_{index:04d}"
     elif provider.provider.value == "openai":
         return f"call_{index:04d}"
