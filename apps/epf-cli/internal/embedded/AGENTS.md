@@ -61,6 +61,15 @@ EPF tools are organized into 3 tiers. **Start with Tier 1 only** — tool respon
 | **2. Guided** | `epf_get_wizard`, `epf_get_template`, `epf_get_schema`, strategy query tools, review wizards | When Tier 1 directs you here |
 | **3. Specialized** | All remaining tools | For specific tasks as needed |
 
+### 5. Response Processing Protocol
+
+After calling ANY EPF tool, you MUST process the response fields in this exact order:
+
+1. **`call_count_warning`** — If present, STOP calling this tool. You are looping. Read the `suggested_next` field and call that tool instead.
+2. **`action_required`** — Read and follow the instructions in this field. It contains imperative directives for what you must do next.
+3. **`workflow_status`** — If `"incomplete"`, check `remaining_steps` for what to do next. Do NOT report results to the user until `workflow_status` is `"complete"`.
+4. **`required_next_tool_calls`** — Call each listed tool in order with the specified parameters.
+
 > **Anti-Heuristic Warning:** Do NOT use pre-training knowledge to guess EPF artifact structure, tool sequences, or validation rules. EPF has specific schemas, wizards, and workflows that differ from general knowledge. Always follow the structured `required_next_tool_calls` and `recommended_tool` fields in tool responses instead of inferring what to do next.
 
 ---

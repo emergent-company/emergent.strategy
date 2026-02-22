@@ -41,6 +41,9 @@ class ComplianceBehavior(str, Enum):
     # Does the model correctly interpret structural vs surface errors?
     STRUCTURAL_ERROR_CLASSIFICATION = "structural_error_classification"
 
+    # Does the model act on the natural-language action_required directive?
+    FOLLOWS_ACTION_REQUIRED = "follows_action_required"
+
 
 @dataclass
 class ToolCall:

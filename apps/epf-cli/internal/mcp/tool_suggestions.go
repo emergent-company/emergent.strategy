@@ -122,6 +122,105 @@ func generateHealthCheckSuggestions(result *HealthCheckSummary) []ToolCallSugges
 	return suggestions
 }
 
+// BuildActionDirective converts a slice of ToolCallSuggestions into imperative
+// natural-language text that tells the agent exactly what to do next.
+// This targets models (like Gemini) that follow natural language directives
+// reliably but ignore structured JSON metadata fields.
+func BuildActionDirective(suggestions []ToolCallSuggestion) string {
+	if len(suggestions) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString("IMPORTANT — You MUST complete the following actions before doing anything else:\n\n")
+
+	for i, s := range suggestions {
+		sb.WriteString(fmt.Sprintf("%d. ", i+1))
+
+		// Build imperative sentence from tool + params + reason
+		switch s.Priority {
+		case "urgent":
+			sb.WriteString("URGENT: ")
+		case "recommended":
+			sb.WriteString("RECOMMENDED: ")
+		}
+
+		sb.WriteString(fmt.Sprintf("Call %s", s.Tool))
+		if len(s.Params) > 0 {
+			parts := make([]string, 0, len(s.Params))
+			for k, v := range s.Params {
+				parts = append(parts, fmt.Sprintf("%s='%s'", k, v))
+			}
+			sb.WriteString(fmt.Sprintf(" with %s", strings.Join(parts, ", ")))
+		}
+		sb.WriteString(". ")
+		if s.Reason != "" {
+			sb.WriteString(fmt.Sprintf("Reason: %s", s.Reason))
+		}
+		sb.WriteString("\n")
+	}
+
+	sb.WriteString("\nDo NOT skip these steps or attempt to fix issues without the recommended tool guidance.")
+	return sb.String()
+}
+
+// BuildActionDirectiveForValidation generates an action_required directive
+// for validation responses based on structural issues and error state.
+func BuildActionDirectiveForValidation(isStructural bool, suggestion *ToolCallSuggestion, errorCount int, filePath string) string {
+	if !isStructural && errorCount == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+
+	if isStructural && suggestion != nil {
+		sb.WriteString(fmt.Sprintf(
+			"IMPORTANT: Structural issues detected in %s (%d errors). "+
+				"You MUST call %s with %s before attempting any fixes. "+
+				"Do NOT brute-force these errors — consult the wizard first to understand the correct structure.",
+			filePath, errorCount, suggestion.Tool,
+			func() string {
+				parts := make([]string, 0, len(suggestion.Params))
+				for k, v := range suggestion.Params {
+					parts = append(parts, fmt.Sprintf("%s='%s'", k, v))
+				}
+				return strings.Join(parts, ", ")
+			}(),
+		))
+	} else if errorCount > 0 {
+		sb.WriteString(fmt.Sprintf(
+			"Validation found %d error(s) in %s. Fix the errors following the fix_hint guidance, "+
+				"then call epf_validate_file again to verify your changes.",
+			errorCount, filePath,
+		))
+	}
+
+	return sb.String()
+}
+
+// BuildRemainingSteps converts tool call suggestions into human-readable remaining steps.
+func BuildRemainingSteps(suggestions []ToolCallSuggestion) []string {
+	if len(suggestions) == 0 {
+		return nil
+	}
+
+	steps := make([]string, 0, len(suggestions)+1)
+	for _, s := range suggestions {
+		step := fmt.Sprintf("Call %s", s.Tool)
+		if len(s.Params) > 0 {
+			parts := make([]string, 0, len(s.Params))
+			for k, v := range s.Params {
+				parts = append(parts, fmt.Sprintf("%s='%s'", k, v))
+			}
+			step += fmt.Sprintf(" with %s", strings.Join(parts, ", "))
+		}
+		steps = append(steps, step)
+	}
+	steps = append(steps, "Follow the tool guidance to resolve issues")
+	steps = append(steps, "Run epf_health_check again to verify improvements")
+	return steps
+}
+
 // classifyStructuralErrors determines whether validation errors are structural
 // (requiring wizard consultation) or surface-level (fixable directly).
 //
@@ -246,6 +345,57 @@ func getToolTiers() []ToolTierInfo {
 				"epf_aim_recalibrate",
 			},
 		},
+	}
+}
+
+// CallCountWarningInfo is included in tool responses when the same tool+params
+// combination has been called more than the loop threshold (>2) in a session.
+// This targets Gemini models that loop on identical calls 10+ times.
+type CallCountWarningInfo struct {
+	Message       string `json:"message"`
+	CallCount     int    `json:"call_count"`
+	ToolName      string `json:"tool_name"`
+	SuggestedNext string `json:"suggested_next,omitempty"`
+}
+
+// loopThreshold is the number of identical calls before a warning is emitted.
+const loopThreshold = 2
+
+// buildCallCountWarning creates a CallCountWarningInfo for a looping tool call.
+func buildCallCountWarning(toolName string, count int, suggestedNext string) *CallCountWarningInfo {
+	msg := fmt.Sprintf(
+		"WARNING: You have called %s with the same parameters %d times. "+
+			"The result has not changed. Stop calling this tool and proceed to the next step",
+		toolName, count,
+	)
+	if suggestedNext != "" {
+		msg += fmt.Sprintf(": call %s", suggestedNext)
+	}
+	msg += "."
+	return &CallCountWarningInfo{
+		Message:       msg,
+		CallCount:     count,
+		ToolName:      toolName,
+		SuggestedNext: suggestedNext,
+	}
+}
+
+// suggestNextToolForLoop returns the recommended next tool when a loop is
+// detected for a given tool name. This uses static knowledge of the EPF workflow.
+func suggestNextToolForLoop(toolName string) string {
+	switch toolName {
+	case "epf_health_check":
+		return "epf_get_wizard_for_task"
+	case "epf_validate_file":
+		return "epf_get_wizard_for_task"
+	case "epf_get_wizard_for_task":
+		return "epf_get_wizard"
+	case "epf_get_wizard":
+		return "epf_get_template"
+	case "epf_get_template":
+		return "epf_validate_file"
+	default:
+		return ""
 	}
 }
 

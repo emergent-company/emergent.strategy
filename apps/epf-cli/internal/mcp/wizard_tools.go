@@ -220,14 +220,15 @@ type WizardAlternativeItem struct {
 
 // WizardRecommendationResponse represents the response for epf_get_wizard_for_task
 type WizardRecommendationResponse struct {
-	Task              string                  `json:"task"`
-	RecommendedWizard string                  `json:"recommended_wizard"`
-	Confidence        string                  `json:"confidence"`
-	Reason            string                  `json:"reason"`
-	WizardPurpose     string                  `json:"wizard_purpose,omitempty"`
-	WizardPhase       string                  `json:"wizard_phase,omitempty"`
-	Alternatives      []WizardAlternativeItem `json:"alternatives,omitempty"`
-	Guidance          Guidance                `json:"guidance"`
+	Task                 string                  `json:"task"`
+	RecommendedWizard    string                  `json:"recommended_wizard"`
+	Confidence           string                  `json:"confidence"`
+	Reason               string                  `json:"reason"`
+	WizardPurpose        string                  `json:"wizard_purpose,omitempty"`
+	WizardPhase          string                  `json:"wizard_phase,omitempty"`
+	WizardContentPreview string                  `json:"wizard_content_preview,omitempty"`
+	Alternatives         []WizardAlternativeItem `json:"alternatives,omitempty"`
+	Guidance             Guidance                `json:"guidance"`
 }
 
 // handleGetWizardForTask handles the epf_get_wizard_for_task tool
@@ -240,6 +241,10 @@ func (s *Server) handleGetWizardForTask(ctx context.Context, request mcp.CallToo
 	if err != nil {
 		return mcp.NewToolResultError("task parameter is required"), nil
 	}
+
+	// Check include_wizard_content parameter (default: true)
+	includeContentStr, _ := request.RequireString("include_wizard_content")
+	includeContent := strings.ToLower(includeContentStr) != "false"
 
 	recommender := wizard.NewRecommender(s.wizardLoader)
 	recommendation, err := recommender.RecommendForTask(task)
@@ -273,9 +278,23 @@ func (s *Server) handleGetWizardForTask(ctx context.Context, request mcp.CallToo
 		})
 	}
 
+	// When confidence is high and content is requested, include wizard content inline
+	// This eliminates the need for a separate epf_get_wizard call
+	if includeContent && recommendation.Confidence == "high" {
+		w, wizErr := s.wizardLoader.GetWizard(recommendation.Wizard.Name)
+		if wizErr == nil && w.Content != "" {
+			response.WizardContentPreview = w.Content
+		}
+	}
+
 	// Build guidance
 	if recommendation.Confidence == "high" {
-		response.Guidance.Tips = append(response.Guidance.Tips, "High confidence match - this wizard directly addresses your task")
+		if response.WizardContentPreview != "" {
+			response.Guidance.Tips = append(response.Guidance.Tips,
+				"High confidence match — wizard content is included in wizard_content_preview. You can use it directly without calling epf_get_wizard.")
+		} else {
+			response.Guidance.Tips = append(response.Guidance.Tips, "High confidence match - this wizard directly addresses your task")
+		}
 	} else if recommendation.Confidence == "medium" {
 		response.Guidance.Tips = append(response.Guidance.Tips, "Medium confidence match - consider checking alternatives")
 	} else {
@@ -283,8 +302,10 @@ func (s *Server) handleGetWizardForTask(ctx context.Context, request mcp.CallToo
 		response.Guidance.NextSteps = append(response.Guidance.NextSteps, "Use epf_list_wizards to see all available wizards")
 	}
 
-	response.Guidance.NextSteps = append(response.Guidance.NextSteps,
-		fmt.Sprintf("Use epf_get_wizard('%s') to get the full wizard content", recommendation.Wizard.Name))
+	if response.WizardContentPreview == "" {
+		response.Guidance.NextSteps = append(response.Guidance.NextSteps,
+			fmt.Sprintf("Use epf_get_wizard('%s') to get the full wizard content", recommendation.Wizard.Name))
+	}
 
 	jsonBytes, err := json.MarshalIndent(response, "", "  ")
 	if err != nil {
