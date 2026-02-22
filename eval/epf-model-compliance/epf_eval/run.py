@@ -100,6 +100,7 @@ def list_cmd() -> None:
 )
 @click.option("--no-trace", is_flag=True, help="Disable Langfuse tracing.")
 @click.option("--vertex", is_flag=True, help="Use Vertex AI providers (vertex-claude + vertex-gemini). Uses ADC auth.")
+@click.option("--no-save", is_flag=True, help="Don't auto-save JSON report to reports/ directory.")
 def run_cmd(
     provider: tuple[str, ...],
     scenario: tuple[str, ...],
@@ -108,6 +109,7 @@ def run_cmd(
     output: str | None,
     no_trace: bool,
     vertex: bool,
+    no_save: bool,
 ) -> None:
     """Run eval scenarios against model providers."""
     # Resolve provider list
@@ -207,6 +209,70 @@ def run_cmd(
     if output:
         Path(output).write_text(report)
         click.echo(f"Results written to {output}")
+
+    # Auto-save JSON report to reports/ directory
+    if not no_save:
+        reports_dir = Path(__file__).parent.parent / "reports"
+        reports_dir.mkdir(exist_ok=True)
+        report_json = format_result_json(run)
+        report_file = reports_dir / f"{run_id}.json"
+        report_file.write_text(report_json)
+        click.echo(f"Report saved to {report_file.relative_to(Path(__file__).parent.parent)}")
+
+
+@cli.command("compare")
+@click.argument("baseline", type=click.Path(exists=True))
+@click.argument("current", type=click.Path(exists=True))
+def compare_cmd(baseline: str, current: str) -> None:
+    """Compare two eval report JSON files.
+
+    Shows per-provider and per-behavior compliance deltas,
+    plus individual scenario improvements and regressions.
+
+    \b
+    Usage:
+        epf-eval compare reports/eval-20260220-*.json reports/eval-20260222-*.json
+    """
+    from .scoring import compare_reports
+
+    report = compare_reports(baseline, current)
+    click.echo(report)
+
+
+@cli.command("reports")
+@click.option("--last", "-n", default=10, help="Number of recent reports to show.")
+def reports_cmd(last: int) -> None:
+    """List saved eval reports."""
+    reports_dir = Path(__file__).parent.parent / "reports"
+    if not reports_dir.exists():
+        click.echo("No reports directory found.")
+        return
+
+    files = sorted(reports_dir.glob("eval-*.json"), reverse=True)
+    if not files:
+        click.echo("No reports found in reports/")
+        return
+
+    click.echo(f"\n{'Report':<50} {'Providers':>10} {'Evals':>7} {'Date':>12}")
+    click.echo("-" * 82)
+    for f in files[:last]:
+        try:
+            data = json.loads(f.read_text())
+            meta = data.get("meta", {})
+            n_providers = len(meta.get("providers", []))
+            n_evals = meta.get("total_evals", "?")
+            ts = data.get("timestamp", "")[:10]
+            sha = meta.get("git_sha", "")
+            sha_str = f" ({sha})" if sha else ""
+            click.echo(f"  {f.name:<48} {n_providers:>10} {n_evals:>7} {ts:>12}{sha_str}")
+        except Exception:
+            click.echo(f"  {f.name:<48} {'(parse error)':>30}")
+
+    click.echo(f"\n{len(files)} report(s) total. Showing last {min(last, len(files))}.\n")
+
+    if len(files) >= 2:
+        click.echo(f"Compare latest two:")
+        click.echo(f"  epf-eval compare {files[1].name} {files[0].name}\n")
 
 
 @cli.command("dry-run")
