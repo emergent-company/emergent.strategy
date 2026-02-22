@@ -132,12 +132,21 @@ The tool SHALL:
 - Cross-reference assumptions from roadmap with evidence from assessments
 - Categorize assumptions as: validated, invalidated, inconclusive, pending
 - Return summary counts and optional detailed evidence
+- Extract and return the full assumption statement text from the roadmap (SHALL NOT return empty `statement: ""` fields)
+
+The tool SHALL parse assumption statements from all roadmap YAML structures, including nested assumption objects with `id`, `statement`, and `validation_approach` fields, as well as flat string lists.
 
 #### Scenario: Check assumption validation
 
 - **WHEN** AI agent calls `epf_aim_validate_assumptions` with `instance_path`
 - **THEN** the tool returns categorized assumptions with counts
 - **AND** verbose mode includes detailed evidence for each assumption
+
+#### Scenario: Assumption statements are populated
+
+- **WHEN** AI agent calls `epf_aim_validate_assumptions` on an instance with assumptions in the roadmap
+- **THEN** every returned assumption includes its full `statement` text from the roadmap
+- **AND** no assumption has an empty `statement` field
 
 ---
 
@@ -151,12 +160,20 @@ The tool SHALL:
 - Calculate KR achievement rates by status (exceeded/met/partially_met/missed)
 - Support filtering by cycle and track
 - Return achievement rates with strategic insights
+- When no assessment reports exist, fall back to showing KR definitions and status from the roadmap itself with a note that no assessment data is available
 
 #### Scenario: Calculate overall OKR progress
 
 - **WHEN** AI agent calls `epf_aim_okr_progress` with `instance_path`
 - **THEN** the tool returns overall achievement rate
 - **AND** includes breakdown by status and track
+
+#### Scenario: No assessment reports available
+
+- **WHEN** AI agent calls `epf_aim_okr_progress` on an instance with no assessment reports
+- **THEN** the tool returns KR definitions and targets from the roadmap
+- **AND** includes a note explaining that no assessment data exists yet
+- **AND** does not return an empty or error response
 
 ---
 
@@ -166,24 +183,30 @@ AI agents SHALL be able to generate comprehensive health reports via the `epf_ge
 
 The tool SHALL:
 
-- Accept parameters: `instance_path` (required), `format` (optional: markdown/html/json), `verbose` (optional)
+- Accept parameters: `instance_path` (required), `format` (optional: markdown/html/json), `verbose` (optional), `detail_level` (optional: summary/warnings_only/full)
 - Run all health checks and compile results
 - Return report content in requested format (not write to file)
 - Include value model semantic quality scores when Product track value models exist
 - Distinguish canonical track results from product track results in the report output
+- Default to `warnings_only` detail level for instances with more than 20 files to prevent output truncation
+
+The `detail_level` parameter SHALL control output verbosity:
+- `summary`: Only overall scores and pass/fail per section (suitable for quick checks)
+- `warnings_only`: Scores plus WARNING and ERROR level issues (default for large instances)
+- `full`: All issues including INFO level (current behavior, default for small instances)
+
+The `epf_health_check` tool SHALL also accept the `detail_level` parameter with the same behavior.
 
 The report SHALL include the following sections when applicable:
 - Structure validation (existing)
 - Schema validation (existing)
-- Content readiness (existing, now canonical-aware) — with structured placeholder details: file, line, field, placeholder text
-- Feature quality (existing, now canonical-aware) — with per-issue score-impact annotations
+- Content readiness (existing, now canonical-aware)
+- Feature quality (existing, now canonical-aware, aggregated info messages)
 - Relationship integrity (existing, now canonical-aware)
 - **Value model quality** (existing — scores, warnings, and check results from semantic analysis)
 - **Canonical artifact status** (new — summary of embedded canonical artifacts and their integrity)
 
-The content readiness sub-check SHALL return structured details for each placeholder found: `{file, line, field, placeholder_text}`, not just a count and grade.
-
-The feature quality sub-check SHALL include score-impact annotations: each quality issue SHALL indicate how many points it costs and which actions would improve the score.
+Feature quality checks SHALL aggregate repeated identical info-level messages into counts. For example, instead of listing "Feature fd-001 has single-paragraph persona narrative" 17 times, the output SHALL show "17 features have single-paragraph persona narratives" once.
 
 #### Scenario: Generate markdown health report
 
@@ -192,18 +215,6 @@ The feature quality sub-check SHALL include score-impact annotations: each quali
 - **AND** includes all check results and recommendations
 - **AND** includes value model quality section when value models exist
 - **AND** labels canonical vs product track sections when both are present
-
-#### Scenario: Content readiness shows placeholder locations
-
-- **WHEN** AI agent calls `epf_generate_report` and the instance has placeholder content
-- **THEN** the content readiness section lists each placeholder with file path, line number, field name, and placeholder text
-- **AND** agents can fix placeholders without running separate grep operations
-
-#### Scenario: Feature quality shows score impact
-
-- **WHEN** AI agent calls `epf_generate_report` and the instance has feature quality issues
-- **THEN** the feature quality section shows each issue with its estimated score impact
-- **AND** agents can prioritize fixes by highest point improvement
 
 #### Scenario: Generate report with value model quality warnings
 
@@ -218,6 +229,21 @@ The feature quality sub-check SHALL include score-impact annotations: each quali
 - **THEN** the report includes a "Canonical Artifact Status" section
 - **AND** the section lists which canonical definitions and value models are present
 - **AND** canonical track scores are reported separately from product track scores
+
+#### Scenario: Large instance with default detail level
+
+- **WHEN** AI agent calls `epf_health_check` on an instance with more than 20 files and no explicit `detail_level`
+- **THEN** the tool defaults to `warnings_only` detail level
+- **AND** repeated info-level feature quality messages are aggregated into counts
+- **AND** the response does not exceed reasonable output limits
+
+#### Scenario: Full detail requested
+
+- **WHEN** AI agent calls `epf_health_check` with `detail_level="full"`
+- **THEN** the tool returns all issues including INFO level
+- **AND** each individual issue is listed separately (no aggregation)
+
+---
 
 ### Requirement: Artifact Comparison via MCP
 
@@ -248,12 +274,28 @@ The tool SHALL:
 - Auto-detect artifact type from file path
 - Compare against canonical template for that type
 - Return structural differences with fix hints and priorities
+- Support `feature_definition` as an artifact type (SHALL NOT return "No template available" for feature definitions)
+
+The `epf_get_section_example` tool SHALL also support `feature_definition` as an artifact type.
 
 #### Scenario: Compare file against template
 
 - **WHEN** AI agent calls `epf_diff_template` with a feature definition file
 - **THEN** the tool identifies missing fields, type mismatches, and extra fields
 - **AND** provides fix hints with priority levels (critical/high/medium/low)
+
+#### Scenario: Feature definition template available
+
+- **WHEN** AI agent calls `epf_diff_template` with a `feature_definition` file path
+- **THEN** the tool returns a valid template comparison
+- **AND** does not return "No template available"
+
+#### Scenario: Section example for feature definition
+
+- **WHEN** AI agent calls `epf_get_section_example` with `artifact_type="feature_definition"` and a section path
+- **THEN** the tool returns the expected section structure from the feature definition template
+
+---
 
 ### Requirement: Value Model Semantic Quality Validation via MCP
 
@@ -328,6 +370,12 @@ Coverage analysis SHALL NOT penalize overall scores for canonical tracks having 
 
 AIM health diagnostics (LRA staleness, evidence gaps) SHALL apply appropriate thresholds for canonical tracks that may not have the same level of assessment activity as the product track.
 
+Missing canonical definition warnings SHALL be reported at INFO severity (not WARNING) unless the instance has explicitly opted into canonical definition tracking. A count of 131 missing definitions SHALL NOT dominate the health check output.
+
+Instance structure checks (`epf_check_instance`) SHALL list the actual matched filenames for each required file category, not just the count. Example: `"All 5 required READY files present: north_star.yaml, personas.yaml, strategy_formula.yaml, value_model.yaml, roadmap.yaml"`.
+
+Coverage analysis (`epf_analyze_coverage`) SHALL include feature names alongside feature IDs in `most_contributed` and similar output fields.
+
 All canonical-awareness logic SHALL be centralized in a reusable helper (not scattered across individual check files) to ensure consistency and ease of maintenance.
 
 #### Scenario: Health check on instance with canonical and product artifacts
@@ -355,7 +403,24 @@ All canonical-awareness logic SHALL be centralized in a reusable helper (not sca
 - **THEN** the health check behaves identically to current behavior
 - **AND** no canonical-awareness logic changes the results
 
----
+#### Scenario: Missing canonical definitions at INFO severity
+
+- **WHEN** AI agent calls `epf_health_check` on an instance where 131 canonical definitions are missing
+- **THEN** the gap is reported at INFO severity, not WARNING
+- **AND** the output shows a single summary line (e.g., "131 canonical definitions not synced (info)")
+- **AND** the issue does not dominate the health check output or affect the health score
+
+#### Scenario: Instance structure shows matched filenames
+
+- **WHEN** AI agent calls `epf_check_instance`
+- **THEN** the output lists the actual matched filenames for each required file category
+- **AND** the message format is: "All N required READY files present: file1.yaml, file2.yaml, ..."
+
+#### Scenario: Coverage analysis shows feature names
+
+- **WHEN** AI agent calls `epf_analyze_coverage`
+- **THEN** the `most_contributed` output includes feature names alongside feature IDs
+- **AND** the format is: "fd-001 (Knowledge Exploration)" rather than just "fd-001"
 
 ### Requirement: Canonical Definition Embedding and Init
 
@@ -815,4 +880,308 @@ The wizard SHALL be registered in `PhaseForWizard` under the READY phase and SHA
 - **THEN** the wizard guides the agent to trace the strategic narrative from vision through OKRs
 - **AND** identify gaps where roadmap priorities don't connect to strategy formula objectives
 - **AND** produce a coherence score with specific misalignment findings
+
+### Requirement: Natural Language Action Directives in Diagnostic Responses
+
+Diagnostic MCP tools that populate `required_next_tool_calls` SHALL also include an `action_required` string field containing the same guidance as imperative natural-language text.
+
+The `action_required` field SHALL:
+
+- Be present whenever `required_next_tool_calls` is non-empty
+- Contain explicit tool names, parameter values, and reasons in plain English
+- Use imperative language ("You MUST call...", "Do NOT attempt...")
+- Reference specific values from the diagnostic context (scores, file paths, error counts)
+
+The `action_required` text SHALL be generated from the same mapping function as `required_next_tool_calls` to ensure consistency.
+
+When `required_next_tool_calls` is empty, the `action_required` field SHALL be omitted or set to null.
+
+#### Scenario: Health check with issues includes action directive
+
+- **WHEN** AI agent calls `epf_health_check` and issues are found
+- **THEN** the response includes both `required_next_tool_calls` (structured JSON) and `action_required` (natural language text)
+- **AND** the `action_required` text references the same tools and parameters as `required_next_tool_calls`
+
+#### Scenario: Validation with structural errors includes action directive
+
+- **WHEN** AI agent calls `epf_validate_file` with `ai_friendly=true` and structural issues are detected
+- **THEN** the response includes `action_required` text directing the agent to call the wizard
+- **AND** the text includes the specific file path and error counts
+
+#### Scenario: Clean health check has no action directive
+
+- **WHEN** AI agent calls `epf_health_check` and all checks pass
+- **THEN** the response does not include an `action_required` field
+- **AND** `required_next_tool_calls` is an empty array
+
+---
+
+### Requirement: Workflow Completion Signals in Diagnostic Responses
+
+Diagnostic MCP tools SHALL include `workflow_status` and `remaining_steps` fields to signal whether the agent's current workflow is complete.
+
+The `workflow_status` field SHALL be one of:
+
+- `"complete"` — No further action needed; the agent may proceed to other work
+- `"incomplete"` — The agent MUST perform additional steps before the workflow is done
+
+The `remaining_steps` field SHALL be an array of strings, each describing one step the agent must take. Steps SHALL be ordered by priority. The field SHALL be an empty array when `workflow_status` is `"complete"`.
+
+The following tools SHALL include workflow completion signals:
+
+| Tool | Complete When | Incomplete When |
+|------|---------------|-----------------|
+| `epf_health_check` | `required_next_tool_calls` is empty | Any issues found |
+| `epf_validate_file` | `valid` is true and no structural issues | Errors exist or structural issues found |
+
+#### Scenario: Incomplete workflow with remaining steps
+
+- **WHEN** AI agent calls `epf_health_check` and issues are found
+- **THEN** the response includes `workflow_status: "incomplete"`
+- **AND** `remaining_steps` lists each required action as a human-readable string
+- **AND** the steps are ordered by priority (urgent first)
+
+#### Scenario: Complete workflow
+
+- **WHEN** AI agent calls `epf_health_check` and all checks pass
+- **THEN** the response includes `workflow_status: "complete"`
+- **AND** `remaining_steps` is an empty array
+
+#### Scenario: Validation incomplete with errors
+
+- **WHEN** AI agent calls `epf_validate_file` and errors are found
+- **THEN** the response includes `workflow_status: "incomplete"`
+- **AND** `remaining_steps` includes "Fix the errors listed above" and "Re-validate with epf_validate_file"
+
+---
+
+### Requirement: Combined Wizard Lookup with Content Preview
+
+The `epf_get_wizard_for_task` tool SHALL optionally include wizard content inline when the recommended wizard has high confidence.
+
+The tool SHALL accept an optional `include_wizard_content` parameter (string, default: `"true"`).
+
+When `include_wizard_content` is not `"false"` AND the recommended wizard's confidence is `"high"`, the response SHALL include a `wizard_content_preview` string field containing the full wizard content.
+
+When the confidence is not `"high"` or `include_wizard_content` is `"false"`, the `wizard_content_preview` field SHALL be omitted.
+
+#### Scenario: High-confidence match includes wizard content
+
+- **WHEN** AI agent calls `epf_get_wizard_for_task` with a task that matches a wizard with high confidence
+- **THEN** the response includes `wizard_content_preview` with the full wizard content
+- **AND** the agent can follow the wizard instructions without a separate `epf_get_wizard` call
+
+#### Scenario: Low-confidence match excludes wizard content
+
+- **WHEN** AI agent calls `epf_get_wizard_for_task` with an ambiguous task
+- **AND** the recommended wizard has medium or low confidence
+- **THEN** the response does not include `wizard_content_preview`
+- **AND** the agent must call `epf_get_wizard` explicitly to get the wizard content
+
+#### Scenario: Opt-out of wizard content
+
+- **WHEN** AI agent calls `epf_get_wizard_for_task` with `include_wizard_content="false"`
+- **THEN** the response does not include `wizard_content_preview` regardless of confidence level
+
+---
+
+### Requirement: Post-Condition Directives in Tool Descriptions
+
+MCP tool descriptions for diagnostic and guided-workflow tools SHALL include a `POST-CONDITION:` section that explicitly states what the agent MUST do after receiving the tool's response.
+
+The following tools SHALL have post-condition directives:
+
+| Tool | Post-Condition |
+|------|---------------|
+| `epf_health_check` | "Follow the action_required field and required_next_tool_calls before proceeding to other work." |
+| `epf_validate_file` | "If structural_issue is true, call the recommended_tool. After writing any EPF file, always re-validate." |
+| `epf_get_wizard_for_task` | "Call epf_get_wizard with the recommended wizard name, or use wizard_content_preview if included." |
+| `epf_get_wizard` | "After following wizard guidance to produce content, validate with epf_validate_file." |
+| `epf_get_template` | "Fill template per wizard guidance, then validate with epf_validate_file." |
+
+Post-condition text SHALL be appended to the existing tool description, separated by a space.
+
+#### Scenario: Health check tool description includes post-condition
+
+- **WHEN** AI agent discovers the `epf_health_check` tool via MCP tool listing
+- **THEN** the tool description ends with "POST-CONDITION: Follow the action_required field and required_next_tool_calls before proceeding to other work."
+
+#### Scenario: Validate tool description includes post-condition
+
+- **WHEN** AI agent discovers the `epf_validate_file` tool via MCP tool listing
+- **THEN** the tool description includes "POST-CONDITION:" text about following recommended_tool for structural issues
+
+---
+
+### Requirement: Anti-Loop Detection in MCP Server
+
+The MCP server SHALL track per-session tool call frequency and inject warnings when the same tool is called repeatedly with identical parameters.
+
+The server SHALL maintain a counter keyed by tool name and a hash of the call parameters. The counter SHALL increment on each tool call.
+
+When a tool+params combination is called more than 2 times in the same session, the response SHALL include a `call_count_warning` object with:
+
+- `message` (string): A natural-language warning telling the agent to stop repeating the call
+- `call_count` (integer): How many times this exact call has been made
+- `suggested_next_tool` (string): The tool the agent should call instead, based on the current tool's context
+
+When the call count is 2 or fewer, the `call_count_warning` field SHALL be omitted.
+
+The counter SHALL reset when the MCP connection is reset or a new session begins. No persistent storage SHALL be required.
+
+#### Scenario: First two calls are clean
+
+- **WHEN** AI agent calls `epf_health_check` with the same instance_path twice
+- **THEN** neither response includes a `call_count_warning` field
+
+#### Scenario: Third call triggers warning
+
+- **WHEN** AI agent calls `epf_health_check` with the same instance_path a third time
+- **THEN** the response includes `call_count_warning` with the call count and a suggestion to proceed to the next workflow step
+- **AND** the `message` explicitly tells the agent "The result has not changed. Stop calling this tool."
+
+#### Scenario: Different params reset counter
+
+- **WHEN** AI agent calls `epf_health_check` with `instance_path="path-A"` twice
+- **AND** then calls `epf_health_check` with `instance_path="path-B"`
+- **THEN** the third call does not trigger a warning because the params differ
+
+---
+
+### Requirement: Response Processing Protocol in Agent Instructions
+
+The `epf_agent_instructions` MCP tool SHALL include a `response_processing_protocol` section in its response JSON.
+
+The protocol SHALL instruct agents to check the following fields after every diagnostic tool call, in order:
+
+1. `call_count_warning` — If present, stop repeating the current tool and follow the suggested next tool
+2. `action_required` — If present, follow the natural-language directive before doing anything else
+3. `workflow_status` — If "incomplete", complete all items in `remaining_steps` before reporting to the user
+4. `required_next_tool_calls` — If present, call the suggested tools in priority order
+
+The embedded AGENTS.md Quick Protocol section SHALL include this response processing protocol within the first 200 lines.
+
+#### Scenario: Agent instructions include response processing protocol
+
+- **WHEN** AI agent calls `epf_agent_instructions`
+- **THEN** the response includes a `response_processing_protocol` section
+- **AND** the section lists the 4 fields to check in priority order
+- **AND** each field has a description of what action to take
+
+#### Scenario: AGENTS.md includes response processing
+
+- **WHEN** an AI agent reads the AGENTS.md file
+- **AND** the agent's context window only processes the first 200 lines
+- **THEN** the agent has received the response processing protocol alongside the wizard-first protocol and tiered discovery guidance
+
+### Requirement: MCP Tool Error Message Standards
+
+All MCP tools SHALL provide actionable error messages that explain what was searched, where it was searched, and what the caller can do to resolve the issue. Generic error messages such as "not found" or empty results without context are prohibited.
+
+The system SHALL follow these error reporting standards:
+
+1. **File-exists-but-section-missing**: When a tool finds the expected file but cannot locate a required section within it, the error message SHALL name the file found and the specific section/key that was expected but missing. Example: `"Strategy formula found at READY/strategy_formula.yaml but section 'competitive_landscape' is missing. Available top-level sections: vision, value_propositions, strategic_positioning."`
+2. **Empty results with explanation**: When a tool returns zero results, the response SHALL include which files were searched and what fields/keys were checked. Example: `"Searched strategy_formula.yaml for 'value_propositions' key. File found but key is empty. Expected a list of value proposition objects."`
+3. **Path resolution failures**: When a tool cannot find definitions, templates, or other resources, the error SHALL list the directories searched in priority order. Example: `"Searched for definitions in: (1) READY/definitions/ (0 files), (2) framework canonical path (not configured). Use epf_sync_canonical to populate instance definitions."`
+
+#### Scenario: Strategy formula section missing
+
+- **WHEN** AI agent calls `epf_get_competitive_position` and the strategy formula file exists but lacks a competitive section
+- **THEN** the response names the file path found and the specific section expected
+- **AND** lists the available sections in the file as alternatives
+
+#### Scenario: Empty value propositions
+
+- **WHEN** AI agent calls `epf_get_value_propositions` and the result is empty
+- **THEN** the response explains which files were searched and which keys were checked
+- **AND** suggests corrective action if the file structure is unexpected
+
+#### Scenario: Definitions not found
+
+- **WHEN** AI agent calls `epf_list_definitions` and no definitions are found
+- **THEN** the response lists the directories searched in priority order
+- **AND** suggests using `epf_sync_canonical` if the instance directory is empty
+
+---
+
+### Requirement: LRA Schema Validation Correctness
+
+The `epf_validate_file` tool SHALL correctly validate `living_reality_assessment.yaml` files without crashing or producing internal type errors.
+
+The JSON Schema generator SHALL NOT leak Go-internal types (such as `time.Time`) into generated schemas. All date/time fields SHALL be represented as `type: string` with `format: date-time` (ISO 8601) in the JSON Schema.
+
+#### Scenario: Validate LRA file
+
+- **WHEN** AI agent calls `epf_validate_file` on a `living_reality_assessment.yaml` file
+- **THEN** the tool returns validation results (pass or structured errors)
+- **AND** does not crash with `jsonschema: invalid jsonType: time.Time`
+
+---
+
+### Requirement: Semantic Version Comparison in Migration
+
+The `epf_check_migration_status` tool SHALL use proper semantic versioning comparison (major.minor.patch) when determining migration direction and necessity.
+
+String-based comparison (where "2.12.0" < "2.1.0" alphabetically) is prohibited. The tool SHALL parse version components as integers for comparison.
+
+The tool SHALL clearly label version fields: `oldest_file_version` (lowest version found across instance files), `newest_file_version` (highest version found), and `target_schema_version` (the version the CLI would migrate to).
+
+#### Scenario: Version comparison with multi-digit minor
+
+- **WHEN** AI agent calls `epf_check_migration_status` on an instance with files at version `2.12.0`
+- **AND** the target schema version is `2.13.0`
+- **THEN** the tool correctly reports that migration is needed (upward)
+- **AND** does not report a downgrade from `2.12.0` to `2.1.0`
+
+#### Scenario: Version field clarity
+
+- **WHEN** AI agent calls `epf_check_migration_status`
+- **THEN** the response uses labels `oldest_file_version`, `newest_file_version`, and `target_schema_version`
+- **AND** each label clearly indicates what it represents
+
+---
+
+### Requirement: Rename Value Path Without Pre-existing Destination
+
+The `epf_rename_value_path` tool SHALL allow renaming to a value model path that does not yet exist in the value model file.
+
+When the destination path does not exist in any value model file, the tool SHALL either:
+- Automatically create the destination component in the appropriate value model file, OR
+- Return a clear guidance message explaining the two-step workflow: first add the component via `epf_add_value_model_component`/`epf_add_value_model_sub`, then run the rename
+
+The tool SHALL NOT reject the rename solely because the destination path is absent from the value model.
+
+#### Scenario: Rename to non-existent path
+
+- **WHEN** AI agent calls `epf_rename_value_path` with a destination path not in any value model file
+- **THEN** the tool either creates the destination component and performs the rename, or returns actionable guidance for the two-step workflow
+- **AND** does not return a generic "path not found" error
+
+---
+
+### Requirement: Cycle-Tagged Assessment Report Naming
+
+AIM health diagnostics SHALL recognize cycle-tagged assessment report filenames (e.g., `assessment_report_c1.yaml`, `assessment_report_c2.yaml`) as valid assessment reports alongside the canonical `assessment_report.yaml` naming.
+
+The system SHALL NOT flag cycle-tagged reports as non-canonical or missing when they follow the `assessment_report_c{N}.yaml` pattern.
+
+#### Scenario: Cycle-tagged assessment recognized
+
+- **WHEN** AI agent calls `epf_aim_health` on an instance with `assessment_report_c1.yaml`
+- **THEN** the health check recognizes it as a valid assessment report
+- **AND** does not warn about missing assessment reports
+
+---
+
+### Requirement: SRC Generation Dry Run
+
+The `epf_aim_generate_src` tool SHALL support a `dry_run` parameter that returns the generated Strategic Reality Check YAML content without writing it to disk.
+
+This is consistent with other write-adjacent tools (`epf_aim_bootstrap`, `epf_init_instance`, `epf_fix_file`, `epf_rename_value_path`, etc.) that all support dry run.
+
+#### Scenario: Dry run SRC generation
+
+- **WHEN** AI agent calls `epf_aim_generate_src` with `dry_run=true`
+- **THEN** the tool returns the SRC YAML content
+- **AND** does not write `AIM/strategic_reality_check.yaml` to disk
 
