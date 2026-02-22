@@ -18,7 +18,7 @@ from .tools import ToolDef, get_all_tool_defs
 from .types import Provider, ToolCall, Turn
 
 # Default Vertex AI settings (can be overridden via environment variables)
-VERTEX_PROJECT = os.environ.get("VERTEX_PROJECT", "gen-lang-client-0349067682")
+VERTEX_PROJECT = os.environ.get("VERTEX_PROJECT", "legalplant-dev")
 VERTEX_CLAUDE_REGION = os.environ.get("VERTEX_CLAUDE_REGION", "us-east5")
 VERTEX_GEMINI_REGION = os.environ.get("VERTEX_GEMINI_REGION", "us-central1")
 
@@ -283,7 +283,7 @@ class GoogleProvider(ModelProvider):
                 ),
             ))
 
-        google_tools = [types.Tool(function_declarations=func_decls)]
+        google_tools = [types.Tool(function_declarations=func_decls)] if func_decls else None
 
         # Build contents from messages
         contents = []
@@ -306,7 +306,7 @@ class GoogleProvider(ModelProvider):
 
         config = types.GenerateContentConfig(
             system_instruction=system_prompt,
-            tools=google_tools,
+            tools=google_tools if google_tools else None,
             temperature=0,
         )
 
@@ -334,8 +334,8 @@ class GoogleProvider(ModelProvider):
             tool_calls=tool_calls,
             raw={
                 "usage": {
-                    "prompt_tokens": getattr(response.usage_metadata, "prompt_token_count", 0) if response.usage_metadata else 0,
-                    "completion_tokens": getattr(response.usage_metadata, "candidates_token_count", 0) if response.usage_metadata else 0,
+                    "prompt_tokens": (getattr(response.usage_metadata, "prompt_token_count", 0) or 0) if response.usage_metadata else 0,
+                    "completion_tokens": (getattr(response.usage_metadata, "candidates_token_count", 0) or 0) if response.usage_metadata else 0,
                 },
             },
         )
@@ -361,12 +361,12 @@ class VertexAnthropicProvider(AnthropicProvider):
     """Claude on Vertex AI. Inherits all message formatting from AnthropicProvider.
 
     Uses google-cloud ADC authentication instead of ANTHROPIC_API_KEY.
-    Model names use @version format (e.g. claude-sonnet-4@20250514).
+    Default model: Claude Opus 4.6 (most capable).
     """
 
     provider = Provider.VERTEX_CLAUDE
 
-    def __init__(self, model: str = "claude-sonnet-4@20250514"):
+    def __init__(self, model: str = "claude-opus-4-6"):
         self.model = model
         self._client: Any = None
 
@@ -380,6 +380,16 @@ class VertexAnthropicProvider(AnthropicProvider):
         return self._client
 
 
+class VertexAnthropicSonnetProvider(VertexAnthropicProvider):
+    """Claude Sonnet 4.6 on Vertex AI."""
+
+    provider = Provider.VERTEX_CLAUDE_SONNET
+
+    def __init__(self, model: str = "claude-sonnet-4-6"):
+        self.model = model
+        self._client: Any = None
+
+
 # ---------------------------------------------------------------------------
 # Vertex AI — Gemini (native Google model via Vertex)
 # ---------------------------------------------------------------------------
@@ -389,6 +399,7 @@ class VertexGoogleProvider(GoogleProvider):
     """Gemini on Vertex AI. Inherits all message formatting from GoogleProvider.
 
     Uses google-cloud ADC authentication instead of GOOGLE_API_KEY.
+    Default model: Gemini 2.5 Pro on regional endpoint.
     """
 
     provider = Provider.VERTEX_GEMINI
@@ -408,6 +419,29 @@ class VertexGoogleProvider(GoogleProvider):
         return self._client
 
 
+class VertexGoogleGlobalProvider(GoogleProvider):
+    """Gemini 3+ models on Vertex AI via the global endpoint.
+
+    Newer Gemini models (3 Pro, 3.1 Pro) are only available on the
+    global region, not regional endpoints like us-central1.
+    """
+
+    def __init__(self, model: str = "gemini-3-pro-preview", provider_enum: Provider = Provider.VERTEX_GEMINI_3_PRO):
+        self.model = model
+        self.provider = provider_enum
+        self._client: Any = None
+
+    def _get_client(self) -> Any:
+        if self._client is None:
+            from google import genai
+            self._client = genai.Client(
+                vertexai=True,
+                project=VERTEX_PROJECT,
+                location="global",
+            )
+        return self._client
+
+
 # ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
@@ -417,30 +451,51 @@ PROVIDER_MAP: dict[str, type[ModelProvider]] = {
     "openai": OpenAIProvider,
     "google": GoogleProvider,
     "vertex-claude": VertexAnthropicProvider,
+    "vertex-claude-sonnet": VertexAnthropicSonnetProvider,
     "vertex-gemini": VertexGoogleProvider,
+    "vertex-gemini-3-pro": VertexGoogleGlobalProvider,
+    "vertex-gemini-3.1-pro": VertexGoogleGlobalProvider,
 }
 
 DEFAULT_MODELS: dict[str, str] = {
     "anthropic": "claude-sonnet-4-20250514",
     "openai": "gpt-4o",
     "google": "gemini-2.5-pro",
-    "vertex-claude": "claude-sonnet-4@20250514",
+    "vertex-claude": "claude-opus-4-6",
+    "vertex-claude-sonnet": "claude-sonnet-4-6",
     "vertex-gemini": "gemini-2.5-pro",
+    "vertex-gemini-3-pro": "gemini-3-pro-preview",
+    "vertex-gemini-3.1-pro": "gemini-3.1-pro-preview",
+}
+
+# Provider enum overrides for providers that share a class
+_PROVIDER_ENUM_OVERRIDES: dict[str, Provider] = {
+    "vertex-gemini-3-pro": Provider.VERTEX_GEMINI_3_PRO,
+    "vertex-gemini-3.1-pro": Provider.VERTEX_GEMINI_31_PRO,
 }
 
 # Providers that use Vertex AI ADC auth (no API key needed)
-VERTEX_PROVIDERS = {"vertex-claude", "vertex-gemini"}
+VERTEX_PROVIDERS = {
+    "vertex-claude", "vertex-claude-sonnet",
+    "vertex-gemini", "vertex-gemini-3-pro", "vertex-gemini-3.1-pro",
+}
 
 
 def create_provider(provider_name: str, model: str | None = None) -> ModelProvider:
     """Create a model provider by name.
 
     Args:
-        provider_name: One of 'anthropic', 'openai', 'google',
-            'vertex-claude', 'vertex-gemini'.
+        provider_name: One of the keys in PROVIDER_MAP.
         model: Optional model override. Uses sensible default if not provided.
     """
     cls = PROVIDER_MAP.get(provider_name)
     if cls is None:
         raise ValueError(f"Unknown provider: {provider_name}. Available: {list(PROVIDER_MAP)}")
-    return cls(model=model or DEFAULT_MODELS[provider_name])
+
+    resolved_model = model or DEFAULT_MODELS[provider_name]
+
+    # VertexGoogleGlobalProvider needs a provider_enum kwarg
+    if provider_name in _PROVIDER_ENUM_OVERRIDES:
+        return cls(model=resolved_model, provider_enum=_PROVIDER_ENUM_OVERRIDES[provider_name])
+
+    return cls(model=resolved_model)
