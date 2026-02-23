@@ -114,7 +114,9 @@ TIER_1_TOOLS = [
             "Run a comprehensive health check on an EPF instance. "
             "RECOMMENDED FIRST STEP: Always run health check before starting work to assess scope. "
             "Returns structure validation, schema validation, content readiness, and workflow guidance. "
-            "The response includes required_next_tool_calls that you MUST follow."
+            "The response includes required_next_tool_calls that you MUST follow. "
+            "POST-CONDITION: After receiving results, you MUST read and follow the action_required field "
+            "and required_next_tool_calls before proceeding to any other work."
         ),
         parameters=[
             ToolParam("instance_path", "string", "Path to the EPF instance directory", required=True),
@@ -137,7 +139,10 @@ TIER_1_TOOLS = [
         description=(
             "Validate a local EPF YAML file against its schema. "
             "Automatically detects the artifact type from the filename/path pattern. "
-            "Use ai_friendly=true for structured output with error classification and required_next_tool_calls."
+            "Use ai_friendly=true for structured output with error classification and required_next_tool_calls. "
+            "POST-CONDITION: If structural_issue is true in the response, you MUST call the recommended_tool "
+            "before attempting fixes. After writing or modifying any EPF YAML file, you MUST call this tool "
+            "to validate your changes."
         ),
         parameters=[
             ToolParam("path", "string", "The path to the YAML file to validate", required=True),
@@ -151,7 +156,9 @@ TIER_2_TOOLS = [
         name="epf_get_wizard",
         description=(
             "Get the full content and metadata for an EPF wizard. "
-            "MUST be called after epf_get_wizard_for_task identifies the right wizard."
+            "MUST be called after epf_get_wizard_for_task identifies the right wizard. "
+            "POST-CONDITION: After following wizard guidance to create or modify an artifact, "
+            "you MUST validate with epf_validate_file."
         ),
         parameters=[
             ToolParam("name", "string", "The wizard name", required=True),
@@ -159,7 +166,11 @@ TIER_2_TOOLS = [
     ),
     ToolDef(
         name="epf_get_template",
-        description="Get the starting template YAML for an EPF artifact type.",
+        description=(
+            "Get the starting template YAML for an EPF artifact type. "
+            "POST-CONDITION: After filling in the template per wizard guidance, "
+            "you MUST validate with epf_validate_file before considering the artifact complete."
+        ),
         parameters=[
             ToolParam("artifact_type", "string", "The artifact type (e.g., 'feature_definition')", required=True),
         ],
@@ -682,25 +693,96 @@ _DEFAULT_FIXTURES: dict[str, Any] = {
 # Scenario-specific fixture overrides
 _SCENARIO_FIXTURES: dict[str, dict[str, Any]] = {}
 
+# ---------------------------------------------------------------------------
+# Text preambles — prepended BEFORE the JSON in tool responses.
+# These match what the real Go server's BuildValidationPreamble() and
+# BuildWizardResponsePreamble() functions produce. Models (like Gemini)
+# that read response text but ignore JSON metadata fields will see these
+# imperative directives and follow them.
+# ---------------------------------------------------------------------------
+
+_PREAMBLES: dict[str, str] = {
+    # Health check with issues: imperative text matching BuildActionDirective()
+    "epf_health_check": (
+        "IMPORTANT — You MUST complete the following actions before doing anything else:\n\n"
+        "1. URGENT: Call epf_get_wizard_for_task with task='fix value model quality issues'. "
+        "Reason: Value model quality score 68/100 is below the 80 threshold — consult the value model wizard before making changes\n"
+        "2. URGENT: Call epf_get_wizard_for_task with task='review feature quality'. "
+        "Reason: Feature quality average score 72% is below the 80% threshold\n"
+        "3. RECOMMENDED: Call epf_validate_relationships with instance_path='docs/EPF/_instances/emergent'. "
+        "Reason: 3 invalid contributes_to or KR target path(s) — run relationship validation for details and 'did you mean' suggestions\n"
+        "4. RECOMMENDED: Call epf_validate_with_plan with path='FIRE/definitions/product/fd-014.yaml'. "
+        "Reason: Schema validation failed: 12 errors\n\n"
+        "Do NOT call epf_health_check again — the results above are current and will not change.\n"
+        "Do NOT skip these steps or attempt to fix issues without the recommended tool guidance.\n\n"
+    ),
+    # Health check healthy: no issues, move on
+    "epf_health_check__healthy": (
+        "Health check complete — instance is healthy. "
+        "Do not call epf_health_check again. Proceed with your task.\n\n"
+    ),
+    # Structural validation errors: redirect to wizard
+    "epf_validate_file__structural_errors": (
+        "STOP. Structural errors detected — do NOT try to fix these directly.\n"
+        "You MUST call epf_get_wizard_for_task with task='fix feature_definition structure' "
+        "to understand the correct structure before making changes.\n"
+        "Do NOT call epf_validate_file again until you have consulted the wizard.\n"
+    ),
+    # Wizard response: remind to validate after
+    "epf_get_wizard": (
+        "IMPORTANT: After following this wizard to create or modify an artifact, "
+        "you MUST call epf_validate_file to validate your changes before considering the work complete.\n"
+    ),
+    # Template response: remind to validate after
+    "epf_get_template": (
+        "IMPORTANT: After filling in this template following wizard guidance, "
+        "you MUST call epf_validate_file to validate the result.\n"
+    ),
+    # Wizard-for-task with inline content: remind to validate
+    "epf_get_wizard_for_task": (
+        "IMPORTANT: Wizard content is included below. Your next steps are:\n"
+        "1. Follow the wizard instructions to write the artifact YAML.\n"
+        "2. Call epf_validate_file to validate the resulting artifact.\n"
+        "Do NOT call epf_health_check or epf_get_wizard_for_task again — you already have what you need.\n"
+    ),
+}
+
 
 def get_fixture(tool_name: str, variant: str | None = None) -> str:
     """Get the fixture JSON response for a tool call.
+
+    The response matches the real MCP server format: for certain tools,
+    a natural-language text preamble is prepended before the JSON payload.
+    This mirrors BuildValidationPreamble() and BuildWizardResponsePreamble()
+    in the Go server.
 
     Args:
         tool_name: The MCP tool name (e.g., "epf_health_check")
         variant: Optional variant suffix (e.g., "healthy", "structural_errors")
 
     Returns:
-        JSON string matching the real MCP server response shape.
+        String matching the real MCP server response (preamble + JSON).
     """
     key = f"{tool_name}__{variant}" if variant else tool_name
+
+    # Look up the fixture data
     if key in _SCENARIO_FIXTURES:
-        return json.dumps(_SCENARIO_FIXTURES[key], indent=2)
-    if key in _DEFAULT_FIXTURES:
-        return json.dumps(_DEFAULT_FIXTURES[key], indent=2)
-    if tool_name in _DEFAULT_FIXTURES:
-        return json.dumps(_DEFAULT_FIXTURES[tool_name], indent=2)
-    return json.dumps({"error": f"Unknown tool: {tool_name}", "message": "Tool not found in eval fixtures"})
+        fixture_data = _SCENARIO_FIXTURES[key]
+    elif key in _DEFAULT_FIXTURES:
+        fixture_data = _DEFAULT_FIXTURES[key]
+    elif tool_name in _DEFAULT_FIXTURES:
+        fixture_data = _DEFAULT_FIXTURES[tool_name]
+        key = tool_name  # normalize for preamble lookup
+    else:
+        return json.dumps({"error": f"Unknown tool: {tool_name}", "message": "Tool not found in eval fixtures"})
+
+    json_str = json.dumps(fixture_data, indent=2)
+
+    # Prepend text preamble if one exists for this tool/variant
+    preamble = _PREAMBLES.get(key, "")
+    if preamble:
+        return preamble + json_str
+    return json_str
 
 
 def register_scenario_fixture(tool_name: str, variant: str, fixture: dict[str, Any]) -> None:

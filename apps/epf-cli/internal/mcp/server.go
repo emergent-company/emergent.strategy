@@ -1748,7 +1748,11 @@ func (s *Server) handleValidateFile(ctx context.Context, request mcp.CallToolReq
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize result: %s", err.Error())), nil
 		}
-		return mcp.NewToolResultText(string(jsonBytes)), nil
+
+		// Prepend text preamble for structural errors or loop detection
+		// This targets models that read response text but ignore JSON metadata fields
+		preamble := BuildValidationPreamble(isStructural, suggestion, response.CallCountWarning)
+		return mcp.NewToolResultText(preamble + string(jsonBytes)), nil
 	}
 
 	// Default: basic validation result
@@ -2306,7 +2310,26 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize result: %s", err.Error())), nil
 	}
 
-	return mcp.NewToolResultText(string(jsonResult)), nil
+	// Prepend natural-language preamble before JSON for models that read
+	// response text but ignore structured JSON metadata fields.
+	// Priority: loop warning > action directive > healthy confirmation > plain JSON.
+	var responseText string
+	if result.CallCountWarning != nil {
+		responseText = result.CallCountWarning.Message + "\n\n" + string(jsonResult)
+	} else if result.ActionRequired != "" {
+		responseText = result.ActionRequired + "\n\n" + string(jsonResult)
+	} else if result.WorkflowStatus == "complete" {
+		// Healthy instance: tell the model to proceed with its task.
+		// Without this, models (especially Gemini) re-call health_check
+		// because they get no explicit signal that the check is done.
+		responseText = "Health check complete — instance is healthy. " +
+			"Do not call epf_health_check again. Proceed with your task.\n\n" +
+			string(jsonResult)
+	} else {
+		responseText = string(jsonResult)
+	}
+
+	return mcp.NewToolResultText(responseText), nil
 }
 
 // evaluateMCPSemanticTriggers evaluates semantic review triggers based on the MCP health check data.
@@ -2691,7 +2714,9 @@ func (s *Server) handleGetTemplate(ctx context.Context, request mcp.CallToolRequ
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize response: %s", err.Error())), nil
 	}
 
-	return mcp.NewToolResultText(string(jsonBytes)), nil
+	// Prepend text preamble reminding agent to validate after filling in template
+	preamble := BuildWizardResponsePreamble("epf_get_template", "")
+	return mcp.NewToolResultText(preamble + string(jsonBytes)), nil
 }
 
 // DefinitionListResponse represents the response for epf_list_definitions

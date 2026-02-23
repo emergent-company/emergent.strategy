@@ -161,7 +161,9 @@ func (s *Server) handleGetWizard(ctx context.Context, request mcp.CallToolReques
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize response: %s", err.Error())), nil
 	}
 
-	return mcp.NewToolResultText(string(jsonBytes)), nil
+	// Prepend text preamble reminding agent to validate after following wizard
+	preamble := BuildWizardResponsePreamble("epf_get_wizard", "")
+	return mcp.NewToolResultText(preamble + string(jsonBytes)), nil
 }
 
 // handleReviewStrategicCoherence is a wrapper that returns the strategic_coherence_review wizard
@@ -312,7 +314,9 @@ func (s *Server) handleGetWizardForTask(ctx context.Context, request mcp.CallToo
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize response: %s", err.Error())), nil
 	}
 
-	return mcp.NewToolResultText(string(jsonBytes)), nil
+	// Prepend text preamble when wizard content is included inline
+	preamble := BuildWizardResponsePreamble("epf_get_wizard_for_task", response.WizardContentPreview)
+	return mcp.NewToolResultText(preamble + string(jsonBytes)), nil
 }
 
 // =============================================================================

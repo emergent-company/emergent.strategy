@@ -160,6 +160,7 @@ func BuildActionDirective(suggestions []ToolCallSuggestion) string {
 		sb.WriteString("\n")
 	}
 
+	sb.WriteString("\nDo NOT call epf_health_check again — the results above are current and will not change.")
 	sb.WriteString("\nDo NOT skip these steps or attempt to fix issues without the recommended tool guidance.")
 	return sb.String()
 }
@@ -394,6 +395,70 @@ func suggestNextToolForLoop(toolName string) string {
 		return "epf_get_template"
 	case "epf_get_template":
 		return "epf_validate_file"
+	default:
+		return ""
+	}
+}
+
+// BuildValidationPreamble generates a natural-language text preamble for
+// epf_validate_file responses. The preamble is placed BEFORE the JSON payload
+// so models (like Gemini) that read response text but ignore JSON metadata
+// fields will still see the directive.
+//
+// Returns empty string if no preamble is needed (valid file, no loop).
+func BuildValidationPreamble(isStructural bool, suggestion *ToolCallSuggestion, loopWarning *CallCountWarningInfo) string {
+	// Loop detection takes priority — if model is looping, break the loop first
+	if loopWarning != nil {
+		var sb strings.Builder
+		sb.WriteString(fmt.Sprintf(
+			"STOP. You have called this tool %d times with the same parameters. The result will NOT change.\n",
+			loopWarning.CallCount,
+		))
+		if loopWarning.SuggestedNext != "" {
+			sb.WriteString(fmt.Sprintf(
+				"You MUST call %s instead. Do NOT call epf_validate_file again.\n",
+				loopWarning.SuggestedNext,
+			))
+		} else {
+			sb.WriteString("Stop calling this tool and proceed to the next step in your workflow.\n")
+		}
+		return sb.String()
+	}
+
+	// Structural issue — redirect to wizard
+	if isStructural && suggestion != nil {
+		taskParam := suggestion.Params["task"]
+		return fmt.Sprintf(
+			"STOP. Structural errors detected — do NOT try to fix these directly.\n"+
+				"You MUST call %s with task='%s' to understand the correct structure before making changes.\n"+
+				"Do NOT call epf_validate_file again until you have consulted the wizard.\n",
+			suggestion.Tool, taskParam,
+		)
+	}
+
+	return ""
+}
+
+// BuildWizardResponsePreamble generates a text preamble for wizard-related
+// tool responses (epf_get_wizard, epf_get_wizard_for_task, epf_get_template).
+// This reminds models to validate after following the wizard.
+func BuildWizardResponsePreamble(toolName string, extraContext string) string {
+	switch toolName {
+	case "epf_get_wizard":
+		return "IMPORTANT: After following this wizard to create or modify an artifact, " +
+			"you MUST call epf_validate_file to validate your changes before considering the work complete.\n"
+	case "epf_get_wizard_for_task":
+		if extraContext != "" {
+			// wizard_content_preview was included — skip the get_wizard step
+			return "IMPORTANT: Wizard content is included below. Your next steps are:\n" +
+				"1. Follow the wizard instructions to write the artifact YAML.\n" +
+				"2. Call epf_validate_file to validate the resulting artifact.\n" +
+				"Do NOT call epf_health_check or epf_get_wizard_for_task again — you already have what you need.\n"
+		}
+		return "" // No preamble needed when model still needs to call get_wizard
+	case "epf_get_template":
+		return "IMPORTANT: After filling in this template following wizard guidance, " +
+			"you MUST call epf_validate_file to validate the result.\n"
 	default:
 		return ""
 	}
