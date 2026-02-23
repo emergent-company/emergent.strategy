@@ -23,6 +23,21 @@ from .agent_loop import (
     tool_was_called,
 )
 from .tools import ToolDef, get_all_tool_defs, get_fixture
+
+
+def _received_wizard_content_preview(conv: Conversation) -> bool:
+    """Check if any epf_get_wizard_for_task response included wizard_content_preview.
+
+    When wizard_content_preview is populated, the model already has the wizard
+    content inline and does NOT need to call epf_get_wizard separately.
+    """
+    for turn in conv.turns:
+        for tc in turn.tool_calls:
+            if tc.tool_name == "epf_get_wizard_for_task" and tc.result:
+                result_str = tc.result if isinstance(tc.result, str) else str(tc.result)
+                if "wizard_content_preview" in result_str:
+                    return True
+    return False
 from .types import BehaviorScore, ComplianceBehavior, Conversation
 
 
@@ -52,11 +67,15 @@ You have access to EPF MCP tools for validation, health checking, and guided wor
 ## Mandatory Protocols
 
 ### 1. Wizard-First Workflow
-Before creating or modifying any EPF artifact, you MUST:
+Before creating or modifying any EPF artifact, you MUST follow ALL four steps:
 1. Call `epf_get_wizard_for_task` with the task description
 2. Retrieve the recommended wizard with `epf_get_wizard`
 3. Follow the wizard's instructions to produce the artifact
-4. Validate the result with `epf_validate_file`
+4. Call `epf_validate_file` to validate the result
+
+Step 4 is mandatory. Writing YAML without calling `epf_validate_file` afterwards means \
+the workflow is incomplete. You must always call `epf_validate_file` as your final tool \
+call when creating or modifying an artifact.
 
 **Never write EPF content without first consulting the appropriate wizard.**
 
@@ -184,14 +203,16 @@ def _score_wizard_before_write(conv: Conversation) -> list[BehaviorScore]:
     seq = extract_tool_call_sequence(conv)
 
     # Behavior: WIZARD_BEFORE_WRITE
-    # Model must call epf_get_wizard_for_task → epf_get_wizard before producing YAML
+    # Model must call epf_get_wizard_for_task → epf_get_wizard before producing YAML.
+    # Exception: if wizard_content_preview was included in the wizard_for_task response,
+    # calling get_wizard is unnecessary — the model already has the wizard content inline.
     called_wizard_for_task = tool_was_called(conv, "epf_get_wizard_for_task")
     called_wizard = tool_was_called(conv, "epf_get_wizard")
+    got_preview = _received_wizard_content_preview(conv)
 
-    wizard_sequence_correct = (
-        called_wizard_for_task
-        and called_wizard
-        and tool_called_before(conv, "epf_get_wizard_for_task", "epf_get_wizard")
+    wizard_sequence_correct = called_wizard_for_task and (
+        (called_wizard and tool_called_before(conv, "epf_get_wizard_for_task", "epf_get_wizard"))
+        or got_preview
     )
 
     scores.append(BehaviorScore(
@@ -201,6 +222,7 @@ def _score_wizard_before_write(conv: Conversation) -> list[BehaviorScore]:
             f"Tool sequence: {seq}. "
             f"Called wizard_for_task: {called_wizard_for_task}. "
             f"Called get_wizard: {called_wizard}. "
+            f"Got wizard_content_preview: {got_preview}. "
             f"Correct order: {wizard_sequence_correct}."
         ),
         weight=2.0,
@@ -208,17 +230,17 @@ def _score_wizard_before_write(conv: Conversation) -> list[BehaviorScore]:
 
     # Behavior: NO_INVENTED_STRUCTURE
     # Check if model called epf_get_template or epf_get_schema (getting structure from tools)
-    # vs just writing YAML from memory
+    # vs just writing YAML from memory. wizard_content_preview also counts as structural guidance.
     got_template = tool_was_called(conv, "epf_get_template")
     got_schema = tool_was_called(conv, "epf_get_schema")
-    consulted_structure = got_template or got_schema or called_wizard
+    consulted_structure = got_template or got_schema or called_wizard or got_preview
 
     scores.append(BehaviorScore(
         behavior=ComplianceBehavior.NO_INVENTED_STRUCTURE,
         passed=consulted_structure,
         evidence=(
             f"Got template: {got_template}. Got schema: {got_schema}. "
-            f"Got wizard: {called_wizard}. "
+            f"Got wizard: {called_wizard}. Got preview: {got_preview}. "
             f"Consulted at least one structural source: {consulted_structure}."
         ),
         weight=2.0,
@@ -250,6 +272,17 @@ def _score_wizard_before_write(conv: Conversation) -> list[BehaviorScore]:
     return scores
 
 
+def _fixture_create_feature(tool_name: str, args: dict[str, Any]) -> str:
+    """Fixture resolver for create-feature scenario.
+
+    Uses healthy health check so the WARNINGS preamble doesn't compete
+    with the wizard_for_task preamble and confuse the model.
+    """
+    if tool_name == "epf_health_check":
+        return get_fixture("epf_health_check", "healthy")
+    return get_fixture(tool_name)
+
+
 SCENARIO_CREATE_FEATURE = Scenario(
     id="create-feature-wizard-first",
     name="Create Feature → Wizard First",
@@ -268,6 +301,7 @@ SCENARIO_CREATE_FEATURE = Scenario(
         ComplianceBehavior.VALIDATES_AFTER_WRITE,
         ComplianceBehavior.TIERED_DISCOVERY,
     ],
+    fixture_resolver=_fixture_create_feature,
     score_fn=_score_wizard_before_write,
 )
 
@@ -518,14 +552,19 @@ def _score_full_workflow(conv: Conversation) -> list[BehaviorScore]:
     ))
 
     # WIZARD_BEFORE_WRITE: wizard consulted before producing artifact
+    # Exception: wizard_content_preview in wizard_for_task response counts as having the wizard.
     called_wizard_for_task = tool_was_called(conv, "epf_get_wizard_for_task")
     called_wizard = tool_was_called(conv, "epf_get_wizard")
-    wizard_ok = called_wizard_for_task and called_wizard
+    got_preview = _received_wizard_content_preview(conv)
+    wizard_ok = called_wizard_for_task and (called_wizard or got_preview)
 
     scores.append(BehaviorScore(
         behavior=ComplianceBehavior.WIZARD_BEFORE_WRITE,
         passed=wizard_ok,
-        evidence=f"wizard_for_task: {called_wizard_for_task}, get_wizard: {called_wizard}.",
+        evidence=(
+            f"wizard_for_task: {called_wizard_for_task}, get_wizard: {called_wizard}, "
+            f"wizard_content_preview: {got_preview}."
+        ),
         weight=2.0,
     ))
 
@@ -534,8 +573,11 @@ def _score_full_workflow(conv: Conversation) -> list[BehaviorScore]:
     got_schema = tool_was_called(conv, "epf_get_schema")
     scores.append(BehaviorScore(
         behavior=ComplianceBehavior.NO_INVENTED_STRUCTURE,
-        passed=got_template or got_schema or called_wizard,
-        evidence=f"template: {got_template}, schema: {got_schema}, wizard: {called_wizard}.",
+        passed=got_template or got_schema or called_wizard or got_preview,
+        evidence=(
+            f"template: {got_template}, schema: {got_schema}, "
+            f"wizard: {called_wizard}, preview: {got_preview}."
+        ),
         weight=2.0,
     ))
 
