@@ -513,9 +513,9 @@ func TestHandleHealthCheck(t *testing.T) {
 
 	content := getResultText(result)
 
-	// Parse JSON result
+	// Parse JSON result (strip any text preamble before the JSON)
 	var healthResult HealthCheckSummary
-	if err := json.Unmarshal([]byte(content), &healthResult); err != nil {
+	if err := json.Unmarshal([]byte(extractJSON(content)), &healthResult); err != nil {
 		t.Fatalf("Failed to parse health check result: %v", err)
 	}
 
@@ -589,6 +589,18 @@ func getResultText(result *mcp.CallToolResult) string {
 		}
 	}
 	return ""
+}
+
+// extractJSON strips any text preamble before the JSON object in a response.
+// Some handlers prepend natural-language directives before the JSON payload
+// (e.g. "IMPORTANT: ..."). This helper finds the first '{' and returns
+// everything from there onward so tests can json.Unmarshal cleanly.
+func extractJSON(content string) string {
+	idx := strings.Index(content, "{")
+	if idx < 0 {
+		return content
+	}
+	return content[idx:]
 }
 
 // =============================================================================
@@ -1681,10 +1693,11 @@ func TestHealthCheckResponse_ContainsNewFields(t *testing.T) {
 	}
 
 	content := getResultText(result)
+	jsonContent := extractJSON(content)
 
 	// Parse and verify the new fields exist in the JSON
 	var raw map[string]interface{}
-	if err := json.Unmarshal([]byte(content), &raw); err != nil {
+	if err := json.Unmarshal([]byte(jsonContent), &raw); err != nil {
 		t.Fatalf("Failed to parse health check JSON: %v", err)
 	}
 
@@ -1695,7 +1708,7 @@ func TestHealthCheckResponse_ContainsNewFields(t *testing.T) {
 
 	// Parse into typed struct for deeper validation
 	var healthResult HealthCheckSummary
-	if err := json.Unmarshal([]byte(content), &healthResult); err != nil {
+	if err := json.Unmarshal([]byte(jsonContent), &healthResult); err != nil {
 		t.Fatalf("Failed to parse health check result: %v", err)
 	}
 
@@ -1839,8 +1852,11 @@ func TestHandleGetWizardForTask_WizardContentPreview(t *testing.T) {
 
 	content := getResultText(result)
 
+	// Response may have a text preamble before the JSON — strip it
+	jsonContent := extractJSON(content)
+
 	var response WizardRecommendationResponse
-	if err := json.Unmarshal([]byte(content), &response); err != nil {
+	if err := json.Unmarshal([]byte(jsonContent), &response); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
 
@@ -1854,6 +1870,12 @@ func TestHandleGetWizardForTask_WizardContentPreview(t *testing.T) {
 		if response.WizardContentPreview == "" {
 			t.Error("Expected wizard_content_preview to be populated for high-confidence match")
 		}
+
+		// Response should have a preamble mentioning validation
+		if !strings.Contains(content, "epf_validate_file") {
+			t.Error("Expected text preamble mentioning epf_validate_file when wizard_content_preview is populated")
+		}
+
 		// Guidance should mention inline content
 		foundInlineTip := false
 		for _, tip := range response.Guidance.Tips {
@@ -1963,7 +1985,7 @@ func TestHealthCheckIntegration_ToolSuggestions(t *testing.T) {
 	}
 
 	var healthResult HealthCheckSummary
-	if err := json.Unmarshal([]byte(content), &healthResult); err != nil {
+	if err := json.Unmarshal([]byte(extractJSON(content)), &healthResult); err != nil {
 		t.Fatalf("Failed to parse health check response: %v", err)
 	}
 
