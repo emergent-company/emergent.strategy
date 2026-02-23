@@ -72,3 +72,9 @@ apps/server-nest/migrations/_archive_*/
 
 # Duplicate detection reports
 /reports/jscpd/
+
+# EPF eval reports (generated per run, not committed)
+eval/epf-model-compliance/reports/
+
+# EPF CLI venv
+eval/epf-model-compliance/.venv/
