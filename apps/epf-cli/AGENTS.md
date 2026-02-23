@@ -61,6 +61,26 @@ EPF tools are organized into 3 tiers. **Start with Tier 1 only** — tool respon
 | **2. Guided** | `epf_get_wizard`, `epf_get_template`, `epf_get_schema`, strategy query tools, review wizards | When Tier 1 directs you here |
 | **3. Specialized** | All remaining tools | For specific tasks as needed |
 
+### 5. Response Processing Protocol
+
+After calling ANY EPF tool, you MUST process the response in this exact order:
+
+**Step A: Read text preambles first.** Tool responses often include natural-language text *before* the JSON payload. These preambles contain imperative directives (e.g., "You MUST validate next", "Do NOT call this tool again"). Read and follow them before parsing the JSON.
+
+**Step B: Process JSON fields in order:**
+
+1. **`call_count_warning`** — If present, STOP calling this tool. You are looping. Read the `suggested_next` field and call that tool instead.
+2. **`action_required`** — Read and follow the instructions in this field. It contains imperative directives for what you must do next.
+3. **`workflow_status`** — If `"incomplete"`, check `remaining_steps` for what to do next. Do NOT report results to the user until `workflow_status` is `"complete"`.
+4. **`required_next_tool_calls`** — Call each listed tool in order with the specified parameters.
+
+**Critical compliance rules:**
+
+- **Negative instructions are binding.** When a tool response says "Do NOT call X again — the results above are current", you MUST comply. Do not re-call the tool to "double-check" or "refresh".
+- **Health check directives come first.** After `epf_health_check` returns issues, follow `required_next_tool_calls` before doing anything else. Do NOT re-call `epf_health_check` — the results will not change.
+- **Structural errors require wizard consultation.** When `epf_validate_file` returns `structural_issue: true`, you MUST call the `recommended_tool` (usually a wizard) before attempting manual fixes. Do not guess at the correct structure.
+- **Validation after write is mandatory.** After creating or modifying any EPF YAML file, you MUST call `epf_validate_file`. This is not optional — skipping validation is a protocol violation.
+
 > **Anti-Heuristic Warning:** Do NOT use pre-training knowledge to guess EPF artifact structure, tool sequences, or validation rules. EPF has specific schemas, wizards, and workflows that differ from general knowledge. Always follow the structured `required_next_tool_calls` and `recommended_tool` fields in tool responses instead of inferring what to do next.
 
 ---
