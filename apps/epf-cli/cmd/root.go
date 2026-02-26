@@ -54,7 +54,7 @@ func checkForUpdates(cmd *cobra.Command) {
 
 	// Skip for commands that should not print extra output
 	name := cmd.Name()
-	if name == "serve" || name == "completion" || name == "__complete" {
+	if name == "serve" || name == "lsp" || name == "completion" || name == "__complete" {
 		return
 	}
 

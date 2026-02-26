@@ -243,6 +243,18 @@ func (v *Validator) ValidateFileAIFriendly(filePath string) (*AIFriendlyResult, 
 	return v.convertToAIFriendly(filePath, result), nil
 }
 
+// ValidateContentAIFriendly validates YAML content against a specific artifact type
+// and returns AI-friendly structured output with error classification, priorities, and fix hints.
+// This is used by the LSP server for in-memory validation of open documents.
+func (v *Validator) ValidateContentAIFriendly(content []byte, artifactType schema.ArtifactType) (*AIFriendlyResult, error) {
+	result, err := v.ValidateContent(content, artifactType)
+	if err != nil {
+		return nil, err
+	}
+
+	return v.convertToAIFriendly("", result), nil
+}
+
 // ValidateSectionAIFriendly validates a specific section of a YAML file and returns
 // AI-friendly structured output.
 func (v *Validator) ValidateSectionAIFriendly(filePath string, sectionPath string) (*AIFriendlyResult, error) {
