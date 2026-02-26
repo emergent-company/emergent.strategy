@@ -445,6 +445,7 @@ apps/epf-cli/
 │   ├── report.go           # Generate health reports (md/html/json)
 │   ├── diff.go             # Compare EPF artifacts/instances
 │   ├── serve.go            # Start MCP server
+│   ├── lsp.go              # Start LSP server
 │   ├── init.go             # Initialize EPF instance
 │   ├── aim.go              # AIM phase commands (assess/validate-assumptions/okr-progress)
 │   ├── generators.go       # Generator commands (list/show/check/scaffold)
@@ -461,6 +462,17 @@ apps/epf-cli/
 │   │   ├── wizard_tools.go # Wizard MCP tool handlers
 │   │   ├── generator_tools.go # Generator MCP tool handlers
 │   │   └── server_test.go  # MCP tool unit tests
+│   ├── lsp/                # LSP server for real-time editor integration
+│   │   ├── server.go       # LSP server struct and lifecycle
+│   │   ├── handlers.go     # Lifecycle handlers (init, open, change, save, close)
+│   │   ├── diagnostics.go  # Validation → LSP diagnostic mapping
+│   │   ├── completion.go   # Schema-aware completions (keys, enums, paths)
+│   │   ├── hover.go        # Hover info (descriptions, constraints, paths)
+│   │   ├── actions.go      # Code actions (enum fix, missing field insertion)
+│   │   ├── definition.go   # Go-to-definition (value model, feature deps)
+│   │   ├── workspace.go    # Workspace intelligence (instance detection, cross-file)
+│   │   ├── document.go     # In-memory document store
+│   │   └── yaml_position.go # YAML cursor ↔ schema path resolution
 │   ├── wizard/             # Wizard discovery and recommendation
 │   │   ├── types.go        # WizardType, WizardInfo, Recommendation
 │   │   ├── parser.go       # Markdown metadata extraction
@@ -520,6 +532,7 @@ From `apps/epf-cli/`:
 | `report`                   | Generate health reports (md/html/json)               |
 | `diff`                     | Compare EPF artifacts or instances                   |
 | `serve`                    | Start MCP server (29 tools)                          |
+| `lsp`                      | Start LSP server for real-time YAML validation       |
 | `init`                     | Initialize new EPF instance (now creates \_epf.yaml) |
 | `explain`                  | Explain a value model path                           |
 | `context` (alias: `ctx`)   | Get strategic context for a feature                  |
@@ -2219,6 +2232,195 @@ epf-cli aim okr-progress --json
 - **60-79%**: Moderate - some refinement needed
 - **40-59%**: Below target - review strategy and capacity
 - **<40%**: Low achievement - consider pivot or scope reduction
+
+## LSP Server
+
+The LSP (Language Server Protocol) server provides real-time validation, completions, hover documentation, code actions, and go-to-definition for EPF YAML files directly in your editor. It makes EPF's "Strategy-as-Code" framework feel like a real programming language.
+
+### Starting the LSP Server
+
+```bash
+# Default: communicate over stdio (for editor integration)
+epf-cli lsp
+
+# TCP mode for debugging
+epf-cli lsp --tcp :7998
+
+# Custom schemas directory (auto-detected if not specified)
+epf-cli lsp --schemas-dir /path/to/schemas
+```
+
+**Flags:**
+
+| Flag             | Description                                    |
+| ---------------- | ---------------------------------------------- |
+| `--tcp`          | Listen on TCP address instead of stdio         |
+| `--schemas-dir`  | Path to EPF schemas directory (auto-detected)  |
+
+### Features
+
+| Feature             | Description                                                       |
+| ------------------- | ----------------------------------------------------------------- |
+| **Diagnostics**     | Real-time errors, warnings, and hints as you edit EPF YAML files  |
+| **Completions**     | Schema-aware key, enum value, and `contributes_to` path completions |
+| **Hover**           | Field descriptions, constraints, enum values, path explanations   |
+| **Code Actions**    | Quick-fix for enum errors, insert missing required fields         |
+| **Go-to-Definition**| Jump to value model files from `contributes_to` paths, jump to feature files from dependency IDs |
+| **Workspace**       | Auto-detects EPF instance, cross-file relationship validation, content readiness warnings |
+
+### Diagnostics
+
+The LSP publishes diagnostics from two sources:
+
+1. **Schema validation** — validates the current file against its JSON schema (type mismatches, missing required fields, invalid enums, constraint violations)
+2. **Workspace intelligence** — cross-file relationship validation and content readiness (TBD/TODO placeholder detection)
+
+Diagnostics update in real-time as you type (300ms debounce on changes, immediate on save).
+
+**Severity mapping:**
+
+| Validation Priority | LSP Severity | Error Types                              |
+| ------------------- | ------------ | ---------------------------------------- |
+| `critical`          | Error        | `type_mismatch`                          |
+| `high`              | Error        | `invalid_enum`, `missing_required`       |
+| `medium`            | Warning      | `constraint_violation`, `pattern_mismatch` |
+| `low`               | Information  | `unknown_field`                          |
+| content readiness   | Hint         | TBD/TODO/placeholder content             |
+
+### Completions
+
+Trigger completions with `Ctrl+Space` or by typing. The LSP provides:
+
+- **Key completions** — suggests valid YAML keys from the schema at the current indentation level, filtering out keys that already exist
+- **Enum value completions** — after `:` on an enum-typed field, suggests valid enum values (e.g., `status:` → `draft`, `ready`, `in-progress`, `delivered`)
+- **`contributes_to` path completions** — when editing `contributes_to` arrays, suggests valid value model paths like `Product.Discovery.KnowledgeExploration`
+- **Pattern hints** — for pattern-constrained fields (e.g., `id:` field), shows the expected format
+
+### Hover
+
+Hover over any field or value to see:
+
+- **Field descriptions** from the JSON schema
+- **Constraints** — minLength, maxItems, enum values, regex patterns
+- **Value model path explanations** — hover over a `contributes_to` path to see the track, layer, component description, maturity level, and contributing features
+
+### Code Actions
+
+When diagnostics are present, the LSP offers quick-fix code actions:
+
+- **Enum fix** — when an invalid enum value is used, offers to replace with each valid value
+- **Missing required fields** — when required fields are missing, offers to insert them with placeholder values
+
+### Go-to-Definition
+
+`Ctrl+Click` or `F12` on:
+
+- **`contributes_to` paths** — jumps to the value model file and line where the referenced component is defined
+- **Feature dependency IDs** — in `dependencies.requires[].id` or `dependencies.enables[].id`, jumps to the referenced feature definition file
+
+### Editor Configuration
+
+The LSP communicates over stdio by default. Configure your editor to launch `epf-cli lsp` as a language server for YAML files.
+
+#### VS Code
+
+Add to `.vscode/settings.json` (requires a generic LSP client extension like [vscode-lsp-client](https://marketplace.visualstudio.com/items?itemName=AhmedMoustafa.generic-lsp-client)):
+
+```json
+{
+  "lsp": {
+    "epf": {
+      "command": "epf-cli",
+      "args": ["lsp"],
+      "filetypes": ["yaml"]
+    }
+  }
+}
+```
+
+#### Cursor
+
+Add to Cursor settings (Settings > Extensions > LSP or via JSON settings):
+
+```json
+{
+  "lsp": {
+    "epf": {
+      "command": "epf-cli",
+      "args": ["lsp"],
+      "filetypes": ["yaml"]
+    }
+  }
+}
+```
+
+#### Neovim
+
+Using `vim.lsp.start()` (Neovim 0.8+):
+
+```lua
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "yaml",
+  callback = function()
+    vim.lsp.start({
+      name = "epf-lsp",
+      cmd = { "epf-cli", "lsp" },
+      root_dir = vim.fs.dirname(vim.fs.find({ "_epf.yaml", "READY", "FIRE", "AIM" }, { upward = true })[1]),
+      filetypes = { "yaml" },
+    })
+  end,
+})
+```
+
+Or using [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig) custom server:
+
+```lua
+local lspconfig = require("lspconfig")
+local configs = require("lspconfig.configs")
+
+configs.epf = {
+  default_config = {
+    cmd = { "epf-cli", "lsp" },
+    filetypes = { "yaml" },
+    root_dir = lspconfig.util.root_pattern("_epf.yaml", "READY", "FIRE", "AIM"),
+  },
+}
+
+lspconfig.epf.setup({})
+```
+
+#### Debugging with TCP Mode
+
+For debugging the LSP server, use TCP mode to connect with any LSP client:
+
+```bash
+# Start LSP on TCP port
+epf-cli lsp --tcp :7998
+```
+
+Then configure your editor to connect to `localhost:7998` instead of launching a process.
+
+### How It Works
+
+The LSP server reuses the same validation engine as `epf-cli validate`:
+
+```
+Editor → stdio → LSP Server (internal/lsp/)
+                      ↓
+              Document Store (in-memory)
+                      ↓
+              Schema Loader (internal/schema/)
+                      ↓
+              Validator (internal/validator/)
+                      ↓
+              AI-Friendly Results → LSP Diagnostics
+                      ↓
+              Value Model Loader → Completions / Hover / Definition
+                      ↓
+              Relationship Analyzer → Workspace Diagnostics
+```
+
+The server auto-detects the EPF instance root from open files, loads value models and relationship data, and provides cross-file intelligence without any configuration.
 
 ## Development Commands
 

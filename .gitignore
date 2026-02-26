@@ -78,3 +78,7 @@ eval/epf-model-compliance/reports/
 
 # EPF CLI venv
 eval/epf-model-compliance/.venv/
+
+# OpenCode state files
+tui.json
+*.tui-migration.bak
