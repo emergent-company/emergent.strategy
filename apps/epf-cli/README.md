@@ -1,6 +1,6 @@
 # epf-cli
 
-**The EPF Kernel** - Schema Validator, MCP Server, and AI Agent Guide for ProductFactoryOS.
+**The EPF Kernel** - Schema Validator, MCP Server, LSP Server, and AI Agent Guide for ProductFactoryOS.
 
 ## Role
 
@@ -10,6 +10,7 @@ epf-cli is the **normative authority** for EPF operations. It:
 - **Discovers** EPF instances with confidence scoring
 - **Guides** AI agents with structured instructions
 - **Serves** MCP tools for programmatic operations
+- **Provides** real-time editor integration via LSP server
 - **Migrates** legacy instances to modern structure
 - **Exposes** product strategy to AI agents via Strategy Server
 
@@ -89,6 +90,9 @@ epf-cli validate path/to/file.yaml
 
 # 5. Access product strategy (NEW in v0.16.0)
 epf-cli strategy status ./epf
+
+# 6. Start LSP server for real-time editor integration
+epf-cli lsp
 ```
 
 ## Usage
@@ -168,6 +172,22 @@ epf-cli serve
 epf-cli serve --port 3200
 ```
 
+### LSP Server
+
+Start the Language Server Protocol server for real-time EPF YAML validation, completions, hover docs, code actions, and go-to-definition in your editor.
+
+```bash
+# Start LSP server (stdio, for editor integration)
+epf-cli lsp
+
+# TCP mode for debugging
+epf-cli lsp --tcp :7998
+```
+
+**Features:** Real-time diagnostics, schema-aware completions, hover documentation with constraints, quick-fix code actions, go-to-definition for value model paths and feature dependencies, workspace-wide relationship validation, content readiness warnings.
+
+See [AGENTS.md](./AGENTS.md) for editor configuration guides (VS Code, Cursor, Neovim).
+
 ### Product Strategy Server (v0.16.0)
 
 The Strategy Server provides read-only access to EPF product strategy for AI agents. It exposes vision, personas, competitive positioning, and roadmap data through MCP tools.
@@ -225,12 +245,14 @@ epf-cli/
 │   ├── strategy.go     # Strategy server commands
 │   ├── migrate_anchor.go # Legacy migration
 │   ├── serve.go        # MCP server
+│   ├── lsp.go          # LSP server
 │   └── ...
 ├── internal/
 │   ├── anchor/         # Anchor file management
 │   ├── discovery/      # EPF instance discovery
 │   ├── schema/         # Schema loading
 │   ├── strategy/       # Strategy store (model, parser, search, watcher)
+│   ├── lsp/            # LSP server (diagnostics, completions, hover, code actions)
 │   ├── mcp/            # MCP server (49 tools)
 │   └── validator/      # YAML validation logic
 ├── main.go
