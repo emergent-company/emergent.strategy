@@ -2682,3 +2682,56 @@ epf-cli generators check pitch-deck --instance emergent
 | `skattefunn-application` | compliance  | Norwegian R&D tax credit applications   |
 | `development-brief`      | development | Engineering implementation briefs       |
 | `value-model-preview`    | internal    | Shareable HTML value model previews     |
+
+## OpenCode Plugin (opencode-epf)
+
+The `opencode-epf` package is an OpenCode plugin that complements the MCP server and LSP server. Together they form the EPF integration stack:
+
+| Layer | Role | How |
+|-------|------|-----|
+| **CLI** (`epf-cli`) | Storage and logic | Go binary, all validation/analysis |
+| **MCP Server** (`epf-cli serve`) | Agent consultant | AI agents query strategy, validate files on-demand |
+| **LSP Server** (`epf-cli lsp`) | Agent tutor | Real-time diagnostics, completions, hover in editors |
+| **OpenCode Plugin** (`opencode-epf`) | Agent dashboard/guardrails | Proactive hooks + inline status tools |
+
+### What the Plugin Adds
+
+**Guardrails** (automatic, event-driven):
+
+- **Commit guard** — blocks `git commit` if EPF instance has critical errors (bypass with `--no-verify`)
+- **Session idle health check** — shows EPF health toast on first idle event per session
+- **File edit validation** — validates EPF YAML files on save
+- **Diagnostic aggregation** — summarizes when 5+ files have EPF LSP diagnostics
+
+**Dashboard tools** (on-demand, LLM-invokable):
+
+- `epf_dashboard` — instance health overview (tiers, schema validation, content readiness)
+- `epf_coverage` — value model coverage analysis (L2 components by track, gaps)
+- `epf_roadmap_status` — OKR achievement rates, assumption validation, cycle trends
+
+### How It Works
+
+The plugin is purely a presentation/integration layer. It shells out to `epf-cli` for all logic — zero code duplication with the Go codebase:
+
+```
+OpenCode Plugin (TypeScript)
+    |-- event hooks --> epf-cli health / validate
+    |-- custom tools --> epf-cli health / coverage / aim okr-progress
+    v
+epf-cli (Go binary on PATH)
+    v
+EPF Instance (YAML files)
+```
+
+### Installation
+
+The plugin lives at `packages/opencode-epf/` in this repository. To use it:
+
+1. Create `.opencode/plugins/opencode-epf.ts` with:
+   ```ts
+   export { EPFPlugin } from "../../packages/opencode-epf/src/index";
+   ```
+2. Ensure `@opencode-ai/plugin` is installed in `.opencode/`
+3. Ensure `epf-cli` is on PATH
+
+See `packages/opencode-epf/README.md` for full documentation.
