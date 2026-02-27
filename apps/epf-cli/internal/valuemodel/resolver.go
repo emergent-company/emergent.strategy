@@ -92,7 +92,7 @@ func (r *Resolver) Resolve(path string) (*PathResolution, error) {
 		return nil, r.layerNotFoundError(path, track, parts[1], model)
 	}
 	resolution.Layer = layer
-	canonicalParts = append(canonicalParts, normalizePathSegment(layer.ID, layer.Name))
+	canonicalParts = append(canonicalParts, normalizePathSegment(layer.PathSegment, layer.ID, layer.Name))
 
 	if len(parts) == 2 {
 		resolution.CanonicalPath = strings.Join(canonicalParts, ".")
@@ -105,7 +105,7 @@ func (r *Resolver) Resolve(path string) (*PathResolution, error) {
 		return nil, r.componentNotFoundError(path, track, layer, parts[2])
 	}
 	resolution.Component = component
-	canonicalParts = append(canonicalParts, normalizePathSegment(component.ID, component.Name))
+	canonicalParts = append(canonicalParts, normalizePathSegment(component.PathSegment, component.ID, component.Name))
 
 	if len(parts) == 3 {
 		resolution.CanonicalPath = strings.Join(canonicalParts, ".")
@@ -118,19 +118,29 @@ func (r *Resolver) Resolve(path string) (*PathResolution, error) {
 		return nil, r.subComponentNotFoundError(path, track, layer, component, parts[3])
 	}
 	resolution.SubComponent = subComponent
-	canonicalParts = append(canonicalParts, normalizePathSegment(subComponent.ID, subComponent.Name))
+	canonicalParts = append(canonicalParts, normalizePathSegment(subComponent.PathSegment, subComponent.ID, subComponent.Name))
 	resolution.CanonicalPath = strings.Join(canonicalParts, ".")
 
 	return resolution, nil
 }
 
-// findLayer finds a layer by ID or name (case-insensitive).
+// findLayer finds a layer by ID, name, or path_segment (case-insensitive).
 func (r *Resolver) findLayer(model *ValueModel, search string) (*Layer, error) {
 	searchLower := strings.ToLower(search)
 	searchNormalized := normalizeForComparison(search)
 
 	for i := range model.Layers {
 		layer := &model.Layers[i]
+
+		// Try exact path_segment match (preferred — deterministic)
+		if layer.PathSegment != "" && layer.PathSegment == search {
+			return layer, nil
+		}
+
+		// Try case-insensitive path_segment match
+		if layer.PathSegment != "" && strings.ToLower(layer.PathSegment) == searchLower {
+			return layer, nil
+		}
 
 		// Try exact ID match
 		if strings.ToLower(layer.ID) == searchLower {
@@ -151,13 +161,23 @@ func (r *Resolver) findLayer(model *ValueModel, search string) (*Layer, error) {
 	return nil, fmt.Errorf("layer not found: %s", search)
 }
 
-// findComponent finds a component by ID or name (case-insensitive).
+// findComponent finds a component by ID, name, or path_segment (case-insensitive).
 func (r *Resolver) findComponent(layer *Layer, search string) (*Component, error) {
 	searchLower := strings.ToLower(search)
 	searchNormalized := normalizeForComparison(search)
 
 	for i := range layer.Components {
 		comp := &layer.Components[i]
+
+		// Try exact path_segment match (preferred — deterministic)
+		if comp.PathSegment != "" && comp.PathSegment == search {
+			return comp, nil
+		}
+
+		// Try case-insensitive path_segment match
+		if comp.PathSegment != "" && strings.ToLower(comp.PathSegment) == searchLower {
+			return comp, nil
+		}
 
 		// Try exact ID match
 		if strings.ToLower(comp.ID) == searchLower {
@@ -178,12 +198,22 @@ func (r *Resolver) findComponent(layer *Layer, search string) (*Component, error
 	return nil, fmt.Errorf("component not found: %s", search)
 }
 
-// findSubComponent finds a sub-component by ID or name (case-insensitive).
+// findSubComponent finds a sub-component by ID, name, or path_segment (case-insensitive).
 func (r *Resolver) findSubComponent(component *Component, search string) (*SubComponent, error) {
 	searchLower := strings.ToLower(search)
 	searchNormalized := normalizeForComparison(search)
 
 	for i, sub := range component.GetSubComponents() {
+		// Try exact path_segment match (preferred — deterministic)
+		if sub.PathSegment != "" && sub.PathSegment == search {
+			return &component.GetSubComponents()[i], nil
+		}
+
+		// Try case-insensitive path_segment match
+		if sub.PathSegment != "" && strings.ToLower(sub.PathSegment) == searchLower {
+			return &component.GetSubComponents()[i], nil
+		}
+
 		// Try exact ID match
 		if strings.ToLower(sub.ID) == searchLower {
 			return &component.GetSubComponents()[i], nil
@@ -205,12 +235,13 @@ func (r *Resolver) findSubComponent(component *Component, search string) (*SubCo
 
 // normalizeForComparison normalizes a string for comparison by:
 // - Converting to lowercase
-// - Removing hyphens, underscores, and spaces
+// - Removing hyphens, underscores, spaces, and ampersands
 func normalizeForComparison(s string) string {
 	s = strings.ToLower(s)
 	s = strings.ReplaceAll(s, "-", "")
 	s = strings.ReplaceAll(s, "_", "")
 	s = strings.ReplaceAll(s, " ", "")
+	s = strings.ReplaceAll(s, "&", "")
 	return s
 }
 
@@ -270,7 +301,7 @@ func (r *Resolver) trackNotLoadedError(path string, track Track) *PathError {
 func (r *Resolver) layerNotFoundError(path string, track Track, layerInput string, model *ValueModel) *PathError {
 	available := make([]string, 0, len(model.Layers))
 	for _, layer := range model.Layers {
-		available = append(available, fmt.Sprintf("%s.%s", track, normalizePathSegment(layer.ID, layer.Name)))
+		available = append(available, fmt.Sprintf("%s.%s", track, normalizePathSegment(layer.PathSegment, layer.ID, layer.Name)))
 	}
 
 	didYouMean := findClosestMatch(layerInput, extractLastSegments(available))
@@ -285,10 +316,10 @@ func (r *Resolver) layerNotFoundError(path string, track Track, layerInput strin
 }
 
 func (r *Resolver) componentNotFoundError(path string, track Track, layer *Layer, componentInput string) *PathError {
-	layerPath := normalizePathSegment(layer.ID, layer.Name)
+	layerPath := normalizePathSegment(layer.PathSegment, layer.ID, layer.Name)
 	available := make([]string, 0, len(layer.Components))
 	for _, comp := range layer.Components {
-		available = append(available, fmt.Sprintf("%s.%s.%s", track, layerPath, normalizePathSegment(comp.ID, comp.Name)))
+		available = append(available, fmt.Sprintf("%s.%s.%s", track, layerPath, normalizePathSegment(comp.PathSegment, comp.ID, comp.Name)))
 	}
 
 	didYouMean := findClosestMatch(componentInput, extractLastSegments(available))
@@ -303,13 +334,13 @@ func (r *Resolver) componentNotFoundError(path string, track Track, layer *Layer
 }
 
 func (r *Resolver) subComponentNotFoundError(path string, track Track, layer *Layer, component *Component, subInput string) *PathError {
-	layerPath := normalizePathSegment(layer.ID, layer.Name)
-	compPath := normalizePathSegment(component.ID, component.Name)
+	layerPath := normalizePathSegment(layer.PathSegment, layer.ID, layer.Name)
+	compPath := normalizePathSegment(component.PathSegment, component.ID, component.Name)
 
 	subs := component.GetSubComponents()
 	available := make([]string, 0, len(subs))
 	for _, sub := range subs {
-		available = append(available, fmt.Sprintf("%s.%s.%s.%s", track, layerPath, compPath, normalizePathSegment(sub.ID, sub.Name)))
+		available = append(available, fmt.Sprintf("%s.%s.%s.%s", track, layerPath, compPath, normalizePathSegment(sub.PathSegment, sub.ID, sub.Name)))
 	}
 
 	didYouMean := findClosestMatch(subInput, extractLastSegments(available))
@@ -394,15 +425,15 @@ func (r *Resolver) GetPathsForTrack(track Track) []string {
 	trackName := string(track)
 
 	for _, layer := range model.Layers {
-		layerPath := fmt.Sprintf("%s.%s", trackName, normalizePathSegment(layer.ID, layer.Name))
+		layerPath := fmt.Sprintf("%s.%s", trackName, normalizePathSegment(layer.PathSegment, layer.ID, layer.Name))
 		paths = append(paths, layerPath)
 
 		for _, comp := range layer.Components {
-			compPath := fmt.Sprintf("%s.%s", layerPath, normalizePathSegment(comp.ID, comp.Name))
+			compPath := fmt.Sprintf("%s.%s", layerPath, normalizePathSegment(comp.PathSegment, comp.ID, comp.Name))
 			paths = append(paths, compPath)
 
 			for _, sub := range comp.GetSubComponents() {
-				subPath := fmt.Sprintf("%s.%s", compPath, normalizePathSegment(sub.ID, sub.Name))
+				subPath := fmt.Sprintf("%s.%s", compPath, normalizePathSegment(sub.PathSegment, sub.ID, sub.Name))
 				paths = append(paths, subPath)
 			}
 		}
