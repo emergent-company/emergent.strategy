@@ -196,12 +196,12 @@ func (a *CoverageAnalyzer) getAllL2Paths() []string {
 
 	for track, model := range a.valueModels.Models {
 		for _, layer := range model.Layers {
-			layerPath := normalizePathSegment(layer.ID, layer.Name)
+			layerPath := normalizePathSegment(layer.PathSegment, layer.ID, layer.Name)
 			for _, comp := range layer.Components {
 				if !comp.Active {
 					continue
 				}
-				compPath := normalizePathSegment(comp.ID, comp.Name)
+				compPath := normalizePathSegment(comp.PathSegment, comp.ID, comp.Name)
 				fullPath := string(track) + "." + layerPath + "." + compPath
 				paths = append(paths, fullPath)
 			}
@@ -220,12 +220,12 @@ func (a *CoverageAnalyzer) getL2PathsForTrack(track valuemodel.Track) []string {
 
 	var paths []string
 	for _, layer := range model.Layers {
-		layerPath := normalizePathSegment(layer.ID, layer.Name)
+		layerPath := normalizePathSegment(layer.PathSegment, layer.ID, layer.Name)
 		for _, comp := range layer.Components {
 			if !comp.Active {
 				continue
 			}
-			compPath := normalizePathSegment(comp.ID, comp.Name)
+			compPath := normalizePathSegment(comp.PathSegment, comp.ID, comp.Name)
 			fullPath := string(track) + "." + layerPath + "." + compPath
 			paths = append(paths, fullPath)
 		}
@@ -278,7 +278,7 @@ func (a *CoverageAnalyzer) analyzeByLayer(analysis *CoverageAnalysis) {
 
 	for track, model := range a.valueModels.Models {
 		for _, layer := range model.Layers {
-			layerPath := normalizePathSegment(layer.ID, layer.Name)
+			layerPath := normalizePathSegment(layer.PathSegment, layer.ID, layer.Name)
 			fullLayerPath := string(track) + "." + layerPath
 
 			layerCoverage := &LayerCoverage{
@@ -290,7 +290,7 @@ func (a *CoverageAnalyzer) analyzeByLayer(analysis *CoverageAnalysis) {
 				if !comp.Active {
 					continue
 				}
-				compPath := normalizePathSegment(comp.ID, comp.Name)
+				compPath := normalizePathSegment(comp.PathSegment, comp.ID, comp.Name)
 				fullPath := fullLayerPath + "." + compPath
 				layerCoverage.TotalComponents++
 
@@ -320,7 +320,7 @@ func (a *CoverageAnalyzer) analyzeByLayerForTrack(analysis *CoverageAnalysis, tr
 	coverageMap := a.buildCoverageMap()
 
 	for _, layer := range model.Layers {
-		layerPath := normalizePathSegment(layer.ID, layer.Name)
+		layerPath := normalizePathSegment(layer.PathSegment, layer.ID, layer.Name)
 		fullLayerPath := string(track) + "." + layerPath
 
 		layerCoverage := &LayerCoverage{
@@ -332,7 +332,7 @@ func (a *CoverageAnalyzer) analyzeByLayerForTrack(analysis *CoverageAnalysis, tr
 			if !comp.Active {
 				continue
 			}
-			compPath := normalizePathSegment(comp.ID, comp.Name)
+			compPath := normalizePathSegment(comp.PathSegment, comp.ID, comp.Name)
 			fullPath := fullLayerPath + "." + compPath
 			layerCoverage.TotalComponents++
 
@@ -449,7 +449,12 @@ func (a *CoverageAnalyzer) findKRTargetsWithoutFeatures(coverageMap map[string][
 }
 
 // normalizePathSegment converts an ID or name to PascalCase.
-func normalizePathSegment(id, name string) string {
+// Prefers explicit path_segment if available (already PascalCase),
+// then falls back to converting ID from kebab-case, then name from spaces.
+func normalizePathSegment(pathSegment, id, name string) string {
+	if pathSegment != "" {
+		return pathSegment
+	}
 	if id != "" {
 		return toPascalCaseFromKebab(id)
 	}

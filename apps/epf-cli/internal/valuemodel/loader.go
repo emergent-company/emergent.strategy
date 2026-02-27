@@ -67,12 +67,13 @@ type Maturity struct {
 
 // SubComponent represents an L3 sub-component (granular unit of value).
 type SubComponent struct {
-	ID       string   `yaml:"id"`
-	Name     string   `yaml:"name"`
-	Active   bool     `yaml:"active"`
-	Premium  bool     `yaml:"premium,omitempty"`
-	UVP      string   `yaml:"uvp,omitempty"`
-	Maturity Maturity `yaml:"maturity,omitempty"`
+	ID          string   `yaml:"id"`
+	PathSegment string   `yaml:"path_segment,omitempty"`
+	Name        string   `yaml:"name"`
+	Active      bool     `yaml:"active"`
+	Premium     bool     `yaml:"premium,omitempty"`
+	UVP         string   `yaml:"uvp,omitempty"`
+	Maturity    Maturity `yaml:"maturity,omitempty"`
 }
 
 // MaturityDistribution counts components at each maturity stage.
@@ -94,6 +95,7 @@ type MaturitySummary struct {
 // Component represents an L2 component (functional grouping).
 type Component struct {
 	ID              string          `yaml:"id"`
+	PathSegment     string          `yaml:"path_segment,omitempty"`
 	Name            string          `yaml:"name"`
 	Description     string          `yaml:"description,omitempty"`
 	Active          bool            `yaml:"active,omitempty"`
@@ -120,6 +122,7 @@ type SolutionStep struct {
 // Layer represents an L1 layer (major thematic grouping).
 type Layer struct {
 	ID              string          `yaml:"id"`
+	PathSegment     string          `yaml:"path_segment,omitempty"`
 	Name            string          `yaml:"name"`
 	Description     string          `yaml:"description,omitempty"`
 	Active          bool            `yaml:"active,omitempty"`
@@ -300,24 +303,27 @@ func (s *ValueModelSet) GetAllPaths() []string {
 	for track, model := range s.Models {
 		for _, layer := range model.Layers {
 			// Add layer path
-			layerPath := fmt.Sprintf("%s.%s", track, normalizePathSegment(layer.ID, layer.Name))
+			layerSegment := normalizePathSegment(layer.PathSegment, layer.ID, layer.Name)
+			layerPath := fmt.Sprintf("%s.%s", track, layerSegment)
 			paths = append(paths, layerPath)
 
 			for _, component := range layer.Components {
 				// Add component path
+				componentSegment := normalizePathSegment(component.PathSegment, component.ID, component.Name)
 				componentPath := fmt.Sprintf("%s.%s.%s",
 					track,
-					normalizePathSegment(layer.ID, layer.Name),
-					normalizePathSegment(component.ID, component.Name))
+					layerSegment,
+					componentSegment)
 				paths = append(paths, componentPath)
 
 				// Add sub-component paths
 				for _, sub := range component.GetSubComponents() {
+					subSegment := normalizePathSegment(sub.PathSegment, sub.ID, sub.Name)
 					subPath := fmt.Sprintf("%s.%s.%s.%s",
 						track,
-						normalizePathSegment(layer.ID, layer.Name),
-						normalizePathSegment(component.ID, component.Name),
-						normalizePathSegment(sub.ID, sub.Name))
+						layerSegment,
+						componentSegment,
+						subSegment)
 					paths = append(paths, subPath)
 				}
 			}
@@ -328,8 +334,13 @@ func (s *ValueModelSet) GetAllPaths() []string {
 }
 
 // normalizePathSegment converts an ID or name to a path-friendly format.
-// Prefers ID if available, otherwise converts name to PascalCase.
-func normalizePathSegment(id, name string) string {
+// Prefers explicit path_segment if available (already PascalCase),
+// then falls back to converting ID from kebab-case, then name from spaces.
+func normalizePathSegment(pathSegment, id, name string) string {
+	if pathSegment != "" {
+		// Explicit path_segment is already in the desired PascalCase format
+		return pathSegment
+	}
 	if id != "" {
 		// Convert kebab-case to PascalCase for path consistency
 		return kebabToPascal(id)
