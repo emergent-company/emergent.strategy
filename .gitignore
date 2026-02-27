@@ -79,6 +79,10 @@ eval/epf-model-compliance/reports/
 # EPF CLI venv
 eval/epf-model-compliance/.venv/
 
+# EPF CLI test artifacts
+apps/epf-cli/epf-cli-test
+apps/epf-cli/internal/mcp/AIM/
+
 # OpenCode state files
 tui.json
 *.tui-migration.bak
