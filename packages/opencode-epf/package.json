@@ -1,0 +1,55 @@
+{
+  "name": "opencode-epf",
+  "version": "0.1.0",
+  "description": "OpenCode plugin for EPF (Emergent Product Framework) — proactive guardrails and on-demand dashboards",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target bun --splitting --format esm --external @opencode-ai/plugin && tsc --emitDeclarationOnly --outDir dist",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "prepublishOnly": "bun run build"
+  },
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "epf",
+    "strategy",
+    "product-framework"
+  ],
+  "license": "MIT",
+  "author": "Emergent Company",
+  "homepage": "https://github.com/emergent-company/emergent.strategy/tree/main/packages/opencode-epf#readme",
+  "bugs": {
+    "url": "https://github.com/emergent-company/emergent.strategy/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/emergent-company/emergent.strategy",
+    "directory": "packages/opencode-epf"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "peerDependencies": {
+    "@opencode-ai/plugin": ">=1.2.0"
+  },
+  "devDependencies": {
+    "@opencode-ai/plugin": "^1.2.15",
+    "bun-types": "latest",
+    "typescript": "^5.0.0"
+  }
+}
