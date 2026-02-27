@@ -277,5 +277,6 @@ See [AGENTS.md](./AGENTS.md) for comprehensive documentation.
 ## Related
 
 - **product-factory-os**: The TUI that orchestrates epf-cli
+- **opencode-epf**: OpenCode plugin providing proactive guardrails and dashboard tools (`packages/opencode-epf/`)
 - **EPF Canonical**: Schema definitions at `docs/EPF/`
 - **AGENTS.md**: Full AI agent instructions (embedded in binary)

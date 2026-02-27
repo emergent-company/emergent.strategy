@@ -198,6 +198,9 @@ func (a *CoverageAnalyzer) getAllL2Paths() []string {
 		for _, layer := range model.Layers {
 			layerPath := normalizePathSegment(layer.ID, layer.Name)
 			for _, comp := range layer.Components {
+				if !comp.Active {
+					continue
+				}
 				compPath := normalizePathSegment(comp.ID, comp.Name)
 				fullPath := string(track) + "." + layerPath + "." + compPath
 				paths = append(paths, fullPath)
@@ -219,6 +222,9 @@ func (a *CoverageAnalyzer) getL2PathsForTrack(track valuemodel.Track) []string {
 	for _, layer := range model.Layers {
 		layerPath := normalizePathSegment(layer.ID, layer.Name)
 		for _, comp := range layer.Components {
+			if !comp.Active {
+				continue
+			}
 			compPath := normalizePathSegment(comp.ID, comp.Name)
 			fullPath := string(track) + "." + layerPath + "." + compPath
 			paths = append(paths, fullPath)
@@ -281,6 +287,9 @@ func (a *CoverageAnalyzer) analyzeByLayer(analysis *CoverageAnalysis) {
 			}
 
 			for _, comp := range layer.Components {
+				if !comp.Active {
+					continue
+				}
 				compPath := normalizePathSegment(comp.ID, comp.Name)
 				fullPath := fullLayerPath + "." + compPath
 				layerCoverage.TotalComponents++
@@ -320,6 +329,9 @@ func (a *CoverageAnalyzer) analyzeByLayerForTrack(analysis *CoverageAnalysis, tr
 		}
 
 		for _, comp := range layer.Components {
+			if !comp.Active {
+				continue
+			}
 			compPath := normalizePathSegment(comp.ID, comp.Name)
 			fullPath := fullLayerPath + "." + compPath
 			layerCoverage.TotalComponents++

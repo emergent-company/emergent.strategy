@@ -19,16 +19,18 @@ func createTestValueModelSet() *valuemodel.ValueModelSet {
 				Name: "Discovery",
 				Components: []valuemodel.Component{
 					{
-						ID:   "knowledge-exploration",
-						Name: "Knowledge Exploration",
+						ID:     "knowledge-exploration",
+						Name:   "Knowledge Exploration",
+						Active: true,
 						SubComponents: []valuemodel.SubComponent{
 							{ID: "semantic-search", Name: "Semantic Search", Active: true},
 							{ID: "graph-navigation", Name: "Graph Navigation", Active: true},
 						},
 					},
 					{
-						ID:   "content-discovery",
-						Name: "Content Discovery",
+						ID:     "content-discovery",
+						Name:   "Content Discovery",
+						Active: true,
 					},
 				},
 			},
@@ -37,8 +39,9 @@ func createTestValueModelSet() *valuemodel.ValueModelSet {
 				Name: "Search",
 				Components: []valuemodel.Component{
 					{
-						ID:   "semantic-findability",
-						Name: "Semantic Findability",
+						ID:     "semantic-findability",
+						Name:   "Semantic Findability",
+						Active: true,
 					},
 				},
 			},
@@ -47,12 +50,14 @@ func createTestValueModelSet() *valuemodel.ValueModelSet {
 				Name: "Core Platform",
 				Components: []valuemodel.Component{
 					{
-						ID:   "data-management",
-						Name: "Data Management",
+						ID:     "data-management",
+						Name:   "Data Management",
+						Active: true,
 					},
 					{
-						ID:   "rag-retrieval",
-						Name: "RAG Retrieval",
+						ID:     "rag-retrieval",
+						Name:   "RAG Retrieval",
+						Active: true,
 					},
 				},
 			},
@@ -67,8 +72,9 @@ func createTestValueModelSet() *valuemodel.ValueModelSet {
 				Name: "Market",
 				Components: []valuemodel.Component{
 					{
-						ID:   "positioning",
-						Name: "Positioning",
+						ID:     "positioning",
+						Name:   "Positioning",
+						Active: true,
 					},
 				},
 			},

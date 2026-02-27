@@ -468,7 +468,7 @@ func TestCoverageAnalyzerCrossTrackShorthandPaths(t *testing.T) {
 				ID:   "discovery",
 				Name: "Discovery",
 				Components: []valuemodel.Component{
-					{ID: "knowledge-exploration", Name: "Knowledge Exploration"},
+					{ID: "knowledge-exploration", Name: "Knowledge Exploration", Active: true},
 				},
 			},
 		},
@@ -485,15 +485,17 @@ func TestCoverageAnalyzerCrossTrackShorthandPaths(t *testing.T) {
 				Name: "CONTEXT",
 				Components: []valuemodel.Component{
 					{
-						ID:   "strategy-c-user-insight",
-						Name: "User Insight",
+						ID:     "strategy-c-user-insight",
+						Name:   "User Insight",
+						Active: true,
 						SubComponents: []valuemodel.SubComponent{
 							{ID: "strategy-s-user-research", Name: "User Research", Active: true},
 						},
 					},
 					{
-						ID:   "strategy-c-market-analysis",
-						Name: "Market Analysis",
+						ID:     "strategy-c-market-analysis",
+						Name:   "Market Analysis",
+						Active: true,
 					},
 				},
 			},
@@ -604,28 +606,28 @@ func TestCoverageAnalyzerNoMissingTracks(t *testing.T) {
 		TrackName: valuemodel.TrackProduct,
 		Layers: []valuemodel.Layer{{
 			ID: "core", Name: "Core",
-			Components: []valuemodel.Component{{ID: "comp1", Name: "Comp1"}},
+			Components: []valuemodel.Component{{ID: "comp1", Name: "Comp1", Active: true}},
 		}},
 	}
 	set.Models[valuemodel.TrackStrategy] = &valuemodel.ValueModel{
 		TrackName: valuemodel.TrackStrategy,
 		Layers: []valuemodel.Layer{{
 			ID: "growth", Name: "Growth",
-			Components: []valuemodel.Component{{ID: "comp1", Name: "Comp1"}},
+			Components: []valuemodel.Component{{ID: "comp1", Name: "Comp1", Active: true}},
 		}},
 	}
 	set.Models[valuemodel.TrackOrgOps] = &valuemodel.ValueModel{
 		TrackName: valuemodel.TrackOrgOps,
 		Layers: []valuemodel.Layer{{
 			ID: "process", Name: "Process",
-			Components: []valuemodel.Component{{ID: "comp1", Name: "Comp1"}},
+			Components: []valuemodel.Component{{ID: "comp1", Name: "Comp1", Active: true}},
 		}},
 	}
 	set.Models[valuemodel.TrackCommercial] = &valuemodel.ValueModel{
 		TrackName: valuemodel.TrackCommercial,
 		Layers: []valuemodel.Layer{{
 			ID: "revenue", Name: "Revenue",
-			Components: []valuemodel.Component{{ID: "comp1", Name: "Comp1"}},
+			Components: []valuemodel.Component{{ID: "comp1", Name: "Comp1", Active: true}},
 		}},
 	}
 
@@ -665,5 +667,130 @@ func TestCoverageAnalyzerGetCoverageByTrackMissing(t *testing.T) {
 		t.Error("Product should be in coverageByTrack")
 	} else if coverage == -1 {
 		t.Error("Product coverage should not be -1 (it IS loaded)")
+	}
+}
+
+func TestCoverageAnalyzerExcludesInactiveComponents(t *testing.T) {
+	// Create a value model with a mix of active and inactive components
+	set := valuemodel.NewValueModelSet()
+	set.Models[valuemodel.TrackProduct] = &valuemodel.ValueModel{
+		TrackName: valuemodel.TrackProduct,
+		Layers: []valuemodel.Layer{{
+			ID: "discovery", Name: "Discovery",
+			Components: []valuemodel.Component{
+				{ID: "knowledge-exploration", Name: "KnowledgeExploration", Active: true},
+				{ID: "content-discovery", Name: "ContentDiscovery", Active: true},
+				{ID: "future-feature", Name: "FutureFeature", Active: false},
+			},
+		}},
+	}
+
+	// Feature covers one active component
+	features := NewFeatureSet()
+	features.ByID["fd-001"] = &FeatureDefinition{
+		ID: "fd-001",
+		StrategicContext: StrategicContext{
+			ContributesTo: []string{"Product.Discovery.KnowledgeExploration"},
+		},
+	}
+
+	analyzer := NewCoverageAnalyzer(set, features, nil)
+	analysis := analyzer.AnalyzeAll()
+
+	// Should only count 2 active components, not 3
+	if analysis.TotalL2Components != 2 {
+		t.Errorf("TotalL2Components = %d, want 2 (inactive excluded)", analysis.TotalL2Components)
+	}
+
+	// 1 of 2 active covered
+	if analysis.CoveredL2Components != 1 {
+		t.Errorf("CoveredL2Components = %d, want 1", analysis.CoveredL2Components)
+	}
+
+	// Coverage should be 50%, not 33%
+	if analysis.CoveragePercent != 50.0 {
+		t.Errorf("CoveragePercent = %.1f, want 50.0 (not 33.3)", analysis.CoveragePercent)
+	}
+
+	// Uncovered should only list the active uncovered component
+	if len(analysis.UncoveredL2Components) != 1 {
+		t.Errorf("UncoveredL2Components count = %d, want 1", len(analysis.UncoveredL2Components))
+	}
+	if len(analysis.UncoveredL2Components) > 0 && analysis.UncoveredL2Components[0] != "Product.Discovery.ContentDiscovery" {
+		t.Errorf("UncoveredL2Components[0] = %q, want Product.Discovery.ContentDiscovery", analysis.UncoveredL2Components[0])
+	}
+}
+
+func TestCoverageAnalyzerAllInactiveComponentsZeroTotal(t *testing.T) {
+	// Create a value model where ALL components are inactive
+	set := valuemodel.NewValueModelSet()
+	set.Models[valuemodel.TrackProduct] = &valuemodel.ValueModel{
+		TrackName: valuemodel.TrackProduct,
+		Layers: []valuemodel.Layer{{
+			ID: "core", Name: "Core",
+			Components: []valuemodel.Component{
+				{ID: "comp1", Name: "Comp1", Active: false},
+				{ID: "comp2", Name: "Comp2", Active: false},
+			},
+		}},
+	}
+
+	features := NewFeatureSet()
+	analyzer := NewCoverageAnalyzer(set, features, nil)
+	analysis := analyzer.AnalyzeAll()
+
+	if analysis.TotalL2Components != 0 {
+		t.Errorf("TotalL2Components = %d, want 0 (all inactive)", analysis.TotalL2Components)
+	}
+
+	if analysis.CoveragePercent != 0 {
+		t.Errorf("CoveragePercent = %.1f, want 0 (no active components)", analysis.CoveragePercent)
+	}
+
+	if len(analysis.UncoveredL2Components) != 0 {
+		t.Errorf("UncoveredL2Components count = %d, want 0 (all inactive)", len(analysis.UncoveredL2Components))
+	}
+}
+
+func TestCoverageAnalyzerByLayerExcludesInactive(t *testing.T) {
+	// Verify that layer-level coverage also excludes inactive components
+	set := valuemodel.NewValueModelSet()
+	set.Models[valuemodel.TrackProduct] = &valuemodel.ValueModel{
+		TrackName: valuemodel.TrackProduct,
+		Layers: []valuemodel.Layer{{
+			ID: "discovery", Name: "Discovery",
+			Components: []valuemodel.Component{
+				{ID: "active-comp", Name: "ActiveComp", Active: true},
+				{ID: "inactive-comp", Name: "InactiveComp", Active: false},
+			},
+		}},
+	}
+
+	features := NewFeatureSet()
+	features.ByID["fd-001"] = &FeatureDefinition{
+		ID: "fd-001",
+		StrategicContext: StrategicContext{
+			ContributesTo: []string{"Product.Discovery.ActiveComp"},
+		},
+	}
+
+	analyzer := NewCoverageAnalyzer(set, features, nil)
+	analysis := analyzer.AnalyzeAll()
+
+	layerCov, ok := analysis.ByLayer["Product.Discovery"]
+	if !ok {
+		t.Fatal("Expected Product.Discovery in ByLayer")
+	}
+
+	if layerCov.TotalComponents != 1 {
+		t.Errorf("Layer TotalComponents = %d, want 1 (inactive excluded)", layerCov.TotalComponents)
+	}
+
+	if layerCov.CoveredCount != 1 {
+		t.Errorf("Layer CoveredCount = %d, want 1", layerCov.CoveredCount)
+	}
+
+	if layerCov.CoveragePercent != 100.0 {
+		t.Errorf("Layer CoveragePercent = %.1f, want 100.0", layerCov.CoveragePercent)
 	}
 }
