@@ -4,7 +4,20 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/source"
 )
+
+// newTestParser creates a Parser backed by a FileSystemSource for the given directory.
+// It fails the test if the source cannot be created.
+func newTestParser(t *testing.T, dir string) *Parser {
+	t.Helper()
+	src, err := source.NewFileSystemSource(dir)
+	if err != nil {
+		t.Fatalf("NewFileSystemSource(%s): %v", dir, err)
+	}
+	return NewParser(src)
+}
 
 // =============================================================================
 // Content-Based Artifact Discovery Tests (Task 1.8)
@@ -49,7 +62,7 @@ trends:
 		}
 	}
 
-	parser := NewParser(tmpDir)
+	parser := newTestParser(t, tmpDir)
 	discovered := parser.discoverReadyArtifacts()
 
 	// Verify all four artifact types were discovered
@@ -91,7 +104,7 @@ func TestDiscoverReadyArtifacts_ContentOverridesFilename(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	parser := NewParser(tmpDir)
+	parser := newTestParser(t, tmpDir)
 	discovered := parser.discoverReadyArtifacts()
 
 	path, ok := discovered["north_star"]
@@ -123,7 +136,7 @@ content:
 		t.Fatal(err)
 	}
 
-	parser := NewParser(tmpDir)
+	parser := newTestParser(t, tmpDir)
 	discovered := parser.discoverReadyArtifacts()
 
 	path, ok := discovered["north_star"]
@@ -143,7 +156,7 @@ func TestDiscoverReadyArtifacts_EmptyDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	parser := NewParser(tmpDir)
+	parser := newTestParser(t, tmpDir)
 	discovered := parser.discoverReadyArtifacts()
 
 	if len(discovered) != 0 {
@@ -155,7 +168,7 @@ func TestDiscoverReadyArtifacts_EmptyDirectory(t *testing.T) {
 func TestDiscoverReadyArtifacts_NoREADYDir(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	parser := NewParser(tmpDir)
+	parser := newTestParser(t, tmpDir)
 	discovered := parser.discoverReadyArtifacts()
 
 	if len(discovered) != 0 {
@@ -180,7 +193,7 @@ func TestResolveReadyPath_DiscoveredPath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	parser := NewParser(tmpDir)
+	parser := newTestParser(t, tmpDir)
 	path := parser.resolveReadyPath("north_star", "00_north_star.yaml")
 
 	if filepath.Base(path) != "99_ns.yaml" {
@@ -197,10 +210,10 @@ func TestResolveReadyPath_FallbackToHardcoded(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	parser := NewParser(tmpDir)
+	parser := newTestParser(t, tmpDir)
 	path := parser.resolveReadyPath("north_star", "00_north_star.yaml")
 
-	expected := filepath.Join(tmpDir, "READY", "00_north_star.yaml")
+	expected := "READY/00_north_star.yaml"
 	if path != expected {
 		t.Errorf("Expected fallback path %s, got %s", expected, path)
 	}
@@ -258,7 +271,7 @@ func TestParseNorthStar_NumberedPrefix(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	parser := NewParser(tmpDir)
+	parser := newTestParser(t, tmpDir)
 	ns, err := parser.ParseNorthStar()
 	if err != nil {
 		t.Fatalf("ParseNorthStar() error: %v", err)
@@ -308,7 +321,7 @@ feature_maturity:
 		t.Fatal(err)
 	}
 
-	parser := NewParser(tmpDir)
+	parser := newTestParser(t, tmpDir)
 	features, err := parser.ParseFeatures()
 	if err != nil {
 		t.Fatalf("ParseFeatures() error: %v", err)
@@ -356,7 +369,7 @@ layers:
 		t.Fatal(err)
 	}
 
-	parser := NewParser(tmpDir)
+	parser := newTestParser(t, tmpDir)
 	vms, err := parser.ParseValueModels()
 	if err != nil {
 		t.Fatalf("ParseValueModels() error: %v", err)
@@ -421,13 +434,16 @@ definition:
 		},
 	}
 
+	parser := newTestParser(t, tmpDir)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			path := filepath.Join(tmpDir, tt.name+".yaml")
 			if err := os.WriteFile(path, []byte(tt.content), 0o644); err != nil {
 				t.Fatal(err)
 			}
-			result := isFeatureDefinitionContent(path)
+			// Use relative path since parser reads via source rooted at tmpDir
+			relPath := tt.name + ".yaml"
+			result := parser.isFeatureDefinitionContent(relPath)
 			if result != tt.expected {
 				t.Errorf("isFeatureDefinitionContent() = %v, want %v", result, tt.expected)
 			}
@@ -450,7 +466,7 @@ func TestDiscoverReadyArtifacts_CachesResults(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	parser := NewParser(tmpDir)
+	parser := newTestParser(t, tmpDir)
 
 	// First call populates cache
 	d1 := parser.discoverReadyArtifacts()

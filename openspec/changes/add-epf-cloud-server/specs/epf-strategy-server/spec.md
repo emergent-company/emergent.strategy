@@ -53,7 +53,7 @@ The system SHALL provide CLI commands for strategy server management supporting 
 The commands SHALL:
 
 - `epf strategy serve` — Start the strategy server as a long-running MCP server
-- `epf strategy serve --http --port 8080` — Start with HTTP/SSE transport for remote clients
+- `epf strategy serve --http --port 8080` — Start with HTTPS remote transport for remote clients (Streamable HTTP primary, SSE fallback)
 - `epf strategy status` — Show what's loaded in the strategy store (artifact counts, last reload)
 - `epf strategy export` — Export combined strategy document in markdown format
 
@@ -64,10 +64,10 @@ The commands SHALL:
 - **AND** loads the EPF instance from the configured path
 - **AND** begins serving MCP requests via stdio
 
-#### Scenario: Start strategy server in HTTP/SSE mode
+#### Scenario: Start strategy server in HTTPS remote mode
 
 - **WHEN** user runs `epf strategy serve --http --port 8080`
-- **THEN** the strategy server starts with HTTP/SSE transport
+- **THEN** the strategy server starts with HTTPS remote transport (Streamable HTTP primary, SSE fallback)
 - **AND** listens on the specified port for MCP client connections
 - **AND** serves the `/health` endpoint returning server status
 
@@ -95,28 +95,37 @@ The commands SHALL:
 
 ## ADDED Requirements
 
-### Requirement: HTTP/SSE Transport for Remote MCP Clients
+### Requirement: HTTPS Remote Transport for MCP Clients
 
-The system SHALL support an HTTP/SSE transport layer for serving MCP requests to remote clients, in addition to the existing stdio transport.
+The system SHALL support an HTTPS remote transport layer for serving MCP requests to remote clients, in addition to the existing stdio transport. The primary transport SHALL be Streamable HTTP per the MCP specification (version 2025-03-26). The system SHALL also support SSE as a fallback for legacy MCP clients that do not yet support Streamable HTTP.
 
 The transport SHALL:
 
 - Listen on a configurable port (default 8080)
-- Implement the MCP SSE protocol specification
+- Implement Streamable HTTP as the primary MCP remote transport
+- Implement SSE as a fallback transport for legacy client compatibility
 - Support CORS with configurable allowed origins
 - Provide a `/health` endpoint for load balancer health checks
 
-#### Scenario: Remote MCP client connects via SSE
+#### Scenario: Remote MCP client connects via Streamable HTTP
 
-- **WHEN** a remote MCP client connects to the HTTP/SSE endpoint
-- **THEN** the server establishes an SSE connection
+- **WHEN** a remote MCP client connects to the HTTPS endpoint using Streamable HTTP
+- **THEN** the server handles the request via standard HTTP request-response
 - **AND** the client can send MCP requests and receive responses over the connection
+- **AND** the server MAY use SSE within responses for streaming when appropriate
+
+#### Scenario: Legacy MCP client connects via SSE
+
+- **WHEN** a remote MCP client connects to the SSE endpoint
+- **AND** the client does not support Streamable HTTP
+- **THEN** the server establishes an SSE connection for backward compatibility
+- **AND** the client can send MCP requests and receive responses over the SSE connection
 
 #### Scenario: CORS allows configured origins
 
 - **WHEN** a web-based MCP client sends a preflight request from an allowed origin
 - **THEN** the server responds with appropriate CORS headers
-- **AND** the client can establish the SSE connection
+- **AND** the client can establish a connection via either transport
 
 #### Scenario: Health check returns server status
 

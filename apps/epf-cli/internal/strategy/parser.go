@@ -3,23 +3,25 @@ package strategy
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
+	"path"
 	"strings"
 
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/source"
 	"gopkg.in/yaml.v3"
 )
 
 // Parser handles parsing of EPF YAML artifacts into the strategy model.
 type Parser struct {
-	instancePath string
+	src source.Source
 	// discovered maps artifact types to file paths found during READY/ scan
 	discovered map[string]string
 }
 
-// NewParser creates a new parser for the given EPF instance path.
-func NewParser(instancePath string) *Parser {
-	return &Parser{instancePath: instancePath}
+// NewParser creates a new parser backed by the given Source.
+// All file reads use src, so the parser works with local filesystems,
+// GitHub repositories, or any other Source implementation.
+func NewParser(src source.Source) *Parser {
+	return &Parser{src: src}
 }
 
 // readyArtifactType identifies READY phase artifact types for content-based detection.
@@ -66,8 +68,7 @@ func (p *Parser) discoverReadyArtifacts() map[string]string {
 
 	p.discovered = make(map[string]string)
 
-	readyDir := filepath.Join(p.instancePath, "READY")
-	entries, err := os.ReadDir(readyDir)
+	entries, err := p.src.ReadDir("READY")
 	if err != nil {
 		return p.discovered
 	}
@@ -78,8 +79,8 @@ func (p *Parser) discoverReadyArtifacts() map[string]string {
 			continue
 		}
 
-		filePath := filepath.Join(readyDir, entry.Name())
-		topKeys := scanTopLevelKeys(filePath)
+		filePath := path.Join("READY", entry.Name())
+		topKeys := p.scanTopLevelKeys(filePath)
 		if len(topKeys) == 0 {
 			continue
 		}
@@ -110,7 +111,7 @@ func (p *Parser) discoverReadyArtifacts() map[string]string {
 			}
 			for _, pattern := range at.filePatterns {
 				if strings.Contains(nameLower, pattern) {
-					p.discovered[at.name] = filepath.Join(readyDir, entry.Name())
+					p.discovered[at.name] = path.Join("READY", entry.Name())
 					break
 				}
 			}
@@ -122,8 +123,8 @@ func (p *Parser) discoverReadyArtifacts() map[string]string {
 
 // scanTopLevelKeys reads a YAML file and returns the set of top-level keys.
 // This is lightweight — it only decodes the top level, not the full document.
-func scanTopLevelKeys(path string) map[string]bool {
-	data, err := os.ReadFile(path)
+func (p *Parser) scanTopLevelKeys(filePath string) map[string]bool {
+	data, err := p.src.ReadFile(filePath)
 	if err != nil {
 		return nil
 	}
@@ -144,16 +145,16 @@ func scanTopLevelKeys(path string) map[string]bool {
 // falling back to the traditional hardcoded path if not discovered.
 func (p *Parser) resolveReadyPath(artifactType, hardcodedFilename string) string {
 	discovered := p.discoverReadyArtifacts()
-	if path, ok := discovered[artifactType]; ok {
-		return path
+	if dp, ok := discovered[artifactType]; ok {
+		return dp
 	}
-	return filepath.Join(p.instancePath, "READY", hardcodedFilename)
+	return path.Join("READY", hardcodedFilename)
 }
 
 // ParseAll parses all EPF artifacts and returns a populated StrategyModel.
 func (p *Parser) ParseAll() (*StrategyModel, error) {
 	model := &StrategyModel{
-		InstancePath:          p.instancePath,
+		InstancePath:          p.src.Root(),
 		Features:              make(map[string]*Feature),
 		ValueModels:           make(map[string]*ValueModel),
 		PersonaToPainPoints:   make(map[string][]PainPoint),
@@ -208,8 +209,7 @@ func (p *Parser) ParseAll() (*StrategyModel, error) {
 // parseProductName extracts the product name from anchor or meta file.
 func (p *Parser) parseProductName() (string, error) {
 	// Try _epf.yaml first
-	epfPath := filepath.Join(p.instancePath, "_epf.yaml")
-	if data, err := os.ReadFile(epfPath); err == nil {
+	if data, err := p.src.ReadFile("_epf.yaml"); err == nil {
 		var anchor struct {
 			ProductName string `yaml:"product_name"`
 		}
@@ -219,8 +219,7 @@ func (p *Parser) parseProductName() (string, error) {
 	}
 
 	// Try _meta.yaml
-	metaPath := filepath.Join(p.instancePath, "_meta.yaml")
-	if data, err := os.ReadFile(metaPath); err == nil {
+	if data, err := p.src.ReadFile("_meta.yaml"); err == nil {
 		var meta struct {
 			ProductName string `yaml:"product_name"`
 			Name        string `yaml:"name"`
@@ -241,7 +240,7 @@ func (p *Parser) parseProductName() (string, error) {
 // ParseNorthStar parses the north star artifact, discovered by content or filename.
 func (p *Parser) ParseNorthStar() (*NorthStar, error) {
 	path := p.resolveReadyPath("north_star", "00_north_star.yaml")
-	data, err := os.ReadFile(path)
+	data, err := p.src.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading north_star: %w", err)
 	}
@@ -345,7 +344,7 @@ func (p *Parser) ParseNorthStar() (*NorthStar, error) {
 // ParseInsightAnalyses parses the insight analyses artifact, discovered by content or filename.
 func (p *Parser) ParseInsightAnalyses() (*InsightAnalyses, error) {
 	path := p.resolveReadyPath("insight_analyses", "01_insight_analyses.yaml")
-	data, err := os.ReadFile(path)
+	data, err := p.src.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading insight_analyses: %w", err)
 	}
@@ -516,7 +515,7 @@ func convertTargetUser(raw rawTargetUser) TargetUser {
 // ParseStrategyFormula parses the strategy formula artifact, discovered by content or filename.
 func (p *Parser) ParseStrategyFormula() (*StrategyFormula, error) {
 	path := p.resolveReadyPath("strategy_formula", "04_strategy_formula.yaml")
-	data, err := os.ReadFile(path)
+	data, err := p.src.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading strategy_formula: %w", err)
 	}
@@ -603,7 +602,7 @@ func (p *Parser) ParseStrategyFormula() (*StrategyFormula, error) {
 // ParseRoadmap parses the roadmap recipe artifact, discovered by content or filename.
 func (p *Parser) ParseRoadmap() (*Roadmap, error) {
 	path := p.resolveReadyPath("roadmap_recipe", "05_roadmap_recipe.yaml")
-	data, err := os.ReadFile(path)
+	data, err := p.src.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading roadmap_recipe: %w", err)
 	}
@@ -733,8 +732,8 @@ func convertTrack(name string, raw rawTrack) *Track {
 // Uses content-based detection: any YAML file with 'id', 'strategic_context', and 'definition'
 // top-level keys is treated as a feature definition. Falls back to fd-*.yaml filename pattern.
 func (p *Parser) ParseFeatures() ([]*Feature, error) {
-	fdDir := filepath.Join(p.instancePath, "FIRE", "definitions", "product")
-	entries, err := os.ReadDir(fdDir)
+	fdDir := path.Join("FIRE", "definitions", "product")
+	entries, err := p.src.ReadDir(fdDir)
 	if err != nil {
 		return nil, fmt.Errorf("reading definitions/product directory: %w", err)
 	}
@@ -748,9 +747,9 @@ func (p *Parser) ParseFeatures() ([]*Feature, error) {
 			continue
 		}
 
-		path := filepath.Join(fdDir, entry.Name())
-		if isFeatureDefinitionContent(path) {
-			feature, err := p.parseFeatureFile(path)
+		filePath := path.Join(fdDir, entry.Name())
+		if p.isFeatureDefinitionContent(filePath) {
+			feature, err := p.parseFeatureFile(filePath)
 			if err != nil {
 				continue
 			}
@@ -771,8 +770,8 @@ func (p *Parser) ParseFeatures() ([]*Feature, error) {
 			continue
 		}
 
-		path := filepath.Join(fdDir, entry.Name())
-		feature, err := p.parseFeatureFile(path)
+		filePath := path.Join(fdDir, entry.Name())
+		feature, err := p.parseFeatureFile(filePath)
 		if err != nil {
 			continue
 		}
@@ -783,8 +782,8 @@ func (p *Parser) ParseFeatures() ([]*Feature, error) {
 }
 
 // isFeatureDefinitionContent checks if a YAML file has feature definition top-level keys.
-func isFeatureDefinitionContent(path string) bool {
-	keys := scanTopLevelKeys(path)
+func (p *Parser) isFeatureDefinitionContent(filePath string) bool {
+	keys := p.scanTopLevelKeys(filePath)
 	if keys == nil {
 		return false
 	}
@@ -792,8 +791,8 @@ func isFeatureDefinitionContent(path string) bool {
 	return keys["id"] && keys["strategic_context"] && keys["definition"]
 }
 
-func (p *Parser) parseFeatureFile(path string) (*Feature, error) {
-	data, err := os.ReadFile(path)
+func (p *Parser) parseFeatureFile(filePath string) (*Feature, error) {
+	data, err := p.src.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("reading feature file: %w", err)
 	}
@@ -924,8 +923,8 @@ func convertFeaturePersona(raw rawFeaturePersona) FeaturePersona {
 // Uses content-based detection: any YAML file with a 'value_model' top-level key
 // is treated as a value model. Falls back to *value_model* filename pattern.
 func (p *Parser) ParseValueModels() (map[string]*ValueModel, error) {
-	vmDir := filepath.Join(p.instancePath, "FIRE", "value_models")
-	entries, err := os.ReadDir(vmDir)
+	vmDir := path.Join("FIRE", "value_models")
+	entries, err := p.src.ReadDir(vmDir)
 	if err != nil {
 		// Value models directory is optional
 		return make(map[string]*ValueModel), nil
@@ -941,10 +940,10 @@ func (p *Parser) ParseValueModels() (map[string]*ValueModel, error) {
 			continue
 		}
 
-		path := filepath.Join(vmDir, entry.Name())
-		keys := scanTopLevelKeys(path)
+		filePath := path.Join(vmDir, entry.Name())
+		keys := p.scanTopLevelKeys(filePath)
 		if keys != nil && keys["track_name"] && keys["layers"] {
-			vm, trackName, err := p.parseValueModelFile(path)
+			vm, trackName, err := p.parseValueModelFile(filePath)
 			if err != nil {
 				continue
 			}
@@ -965,8 +964,8 @@ func (p *Parser) ParseValueModels() (map[string]*ValueModel, error) {
 			continue
 		}
 
-		path := filepath.Join(vmDir, entry.Name())
-		vm, trackName, err := p.parseValueModelFile(path)
+		filePath := path.Join(vmDir, entry.Name())
+		vm, trackName, err := p.parseValueModelFile(filePath)
 		if err != nil {
 			continue
 		}
@@ -976,8 +975,8 @@ func (p *Parser) ParseValueModels() (map[string]*ValueModel, error) {
 	return valueModels, nil
 }
 
-func (p *Parser) parseValueModelFile(path string) (*ValueModel, string, error) {
-	data, err := os.ReadFile(path)
+func (p *Parser) parseValueModelFile(filePath string) (*ValueModel, string, error) {
+	data, err := p.src.ReadFile(filePath)
 	if err != nil {
 		return nil, "", fmt.Errorf("reading value model file: %w", err)
 	}
