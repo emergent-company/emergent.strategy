@@ -6,6 +6,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/source"
 )
 
 // FileSystemSource implements StrategyStore using the local filesystem.
@@ -41,7 +43,12 @@ func (fs *FileSystemSource) Load(ctx context.Context) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	parser := NewParser(fs.instancePath)
+	src, err := source.NewFileSystemSource(fs.instancePath)
+	if err != nil {
+		return fmt.Errorf("creating source for %s: %w", fs.instancePath, err)
+	}
+
+	parser := NewParser(src)
 	model, err := parser.ParseAll()
 	if err != nil {
 		return fmt.Errorf("parsing EPF instance: %w", err)
@@ -68,7 +75,12 @@ func (fs *FileSystemSource) Reload(ctx context.Context) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	parser := NewParser(fs.instancePath)
+	src, err := source.NewFileSystemSource(fs.instancePath)
+	if err != nil {
+		return fmt.Errorf("creating source for %s: %w", fs.instancePath, err)
+	}
+
+	parser := NewParser(src)
 	model, err := parser.ParseAll()
 	if err != nil {
 		return fmt.Errorf("parsing EPF instance: %w", err)

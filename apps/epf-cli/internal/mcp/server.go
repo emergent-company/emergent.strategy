@@ -1919,6 +1919,12 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 	// Valid values: "summary", "warnings_only", "full"
 	// Default is determined later based on instance file count
 
+	// CLOUD MODE: If this is a registered store (e.g., github://owner/repo),
+	// skip filesystem validation and build health response from strategy store data.
+	if IsRegisteredStore(instancePath) {
+		return s.handleHealthCheckCloud(ctx, instancePath, detailLevel)
+	}
+
 	// VALIDATION: Ensure the path is a valid EPF instance
 	// Check if anchor file exists or if it's a legacy instance with READY/FIRE/AIM
 	hasAnchor := anchor.Exists(instancePath)
@@ -2332,7 +2338,126 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 	return mcp.NewToolResultText(responseText), nil
 }
 
-// evaluateMCPSemanticTriggers evaluates semantic review triggers based on the MCP health check data.
+// handleHealthCheckCloud handles epf_health_check for registered (non-filesystem) stores.
+// Instead of running filesystem-based checks (os.Stat, anchor validation, directory walking),
+// it queries the strategy store for health information and builds a summary from in-memory data.
+func (s *Server) handleHealthCheckCloud(_ context.Context, instancePath, detailLevel string) (*mcp.CallToolResult, error) {
+	store, err := getOrCreateStrategyStore(instancePath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to access strategy store for %s: %s", instancePath, err.Error())), nil
+	}
+
+	model := store.GetModel()
+	if model == nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Strategy store loaded but model is nil for %s", instancePath)), nil
+	}
+
+	// Default detail level for cloud mode
+	if detailLevel == "" {
+		detailLevel = "full"
+	}
+
+	result := &HealthCheckSummary{
+		InstancePath:  instancePath,
+		OverallStatus: "HEALTHY",
+		DetailLevel:   detailLevel,
+	}
+
+	// Build artifact summary from strategy model
+	featureCount := len(model.Features)
+	valueModelCount := len(model.ValueModels)
+	okrCount := 0
+	krCount := 0
+	if model.Roadmap != nil {
+		for _, track := range model.Roadmap.Tracks {
+			okrCount += len(track.OKRs)
+			for _, okr := range track.OKRs {
+				krCount += len(okr.KeyResults)
+			}
+		}
+	}
+
+	hasNorthStar := model.NorthStar != nil
+	hasStrategyFormula := model.StrategyFormula != nil
+	hasRoadmap := model.Roadmap != nil
+
+	// Build summary markdown
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("# EPF Health Check: %s\n\n", instancePath))
+	sb.WriteString(fmt.Sprintf("**Overall Status:** %s | **Mode:** cloud | **Detail Level:** %s\n\n", result.OverallStatus, detailLevel))
+
+	sb.WriteString("## Strategy Store\n")
+	sb.WriteString(fmt.Sprintf("- Source: remote (registered store)\n"))
+	sb.WriteString(fmt.Sprintf("- Product: %s\n", model.ProductName))
+	sb.WriteString(fmt.Sprintf("- Last loaded: %s\n\n", model.LastLoaded.Format("2006-01-02 15:04:05")))
+
+	sb.WriteString("## Artifact Summary\n")
+	sb.WriteString(fmt.Sprintf("- Features: %d\n", featureCount))
+	sb.WriteString(fmt.Sprintf("- Value Models: %d\n", valueModelCount))
+	sb.WriteString(fmt.Sprintf("- OKRs: %d\n", okrCount))
+	sb.WriteString(fmt.Sprintf("- Key Results: %d\n", krCount))
+	sb.WriteString(fmt.Sprintf("- North Star: %v\n", hasNorthStar))
+	sb.WriteString(fmt.Sprintf("- Strategy Formula: %v\n", hasStrategyFormula))
+	sb.WriteString(fmt.Sprintf("- Roadmap: %v\n\n", hasRoadmap))
+
+	// Check for potential issues
+	warnings := []string{}
+	if featureCount == 0 {
+		warnings = append(warnings, "No feature definitions loaded")
+	}
+	if !hasNorthStar {
+		warnings = append(warnings, "North Star artifact is missing")
+	}
+	if !hasRoadmap {
+		warnings = append(warnings, "Roadmap artifact is missing")
+	}
+	if valueModelCount == 0 {
+		warnings = append(warnings, "No value models loaded")
+	}
+
+	if len(warnings) > 0 {
+		result.OverallStatus = "WARNINGS"
+		sb.WriteString("## Warnings\n")
+		for _, w := range warnings {
+			sb.WriteString(fmt.Sprintf("- ⚠️ %s\n", w))
+		}
+		sb.WriteString("\n")
+	}
+
+	sb.WriteString("## Cloud Mode Limitations\n")
+	sb.WriteString("- Schema validation: not available (requires filesystem access)\n")
+	sb.WriteString("- Content readiness: not available (requires file scanning)\n")
+	sb.WriteString("- AIM health: not available (requires filesystem access)\n")
+	sb.WriteString("- Use strategy query tools (epf_get_product_vision, epf_list_features, etc.) for detailed inspection.\n\n")
+
+	result.Summary = sb.String()
+
+	// No required next tool calls for cloud mode — strategy tools are all available
+	result.WorkflowStatus = "complete"
+
+	// Anti-loop detection
+	result.CallCountWarning = s.checkToolCallLoop("epf_health_check", map[string]string{
+		"instance_path": instancePath,
+		"detail_level":  detailLevel,
+	})
+
+	jsonResult, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize result: %s", err.Error())), nil
+	}
+
+	var responseText string
+	if result.CallCountWarning != nil {
+		responseText = result.CallCountWarning.Message + "\n\n" + string(jsonResult)
+	} else {
+		responseText = "Health check complete (cloud mode) — strategy store is loaded. " +
+			"Do not call epf_health_check again. Proceed with your task.\n\n" +
+			string(jsonResult)
+	}
+
+	return mcp.NewToolResultText(responseText), nil
+}
+
 // This is a lightweight version of the CLI's evaluateSemanticTriggers, operating on the subset of
 // data available in the MCP health handler (feature quality, value model quality, AIM health).
 func evaluateMCPSemanticTriggers(result *HealthCheckSummary) []MCPSemanticReviewRecommendation {

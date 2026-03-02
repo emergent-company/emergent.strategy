@@ -79,6 +79,11 @@ eval/epf-model-compliance/reports/
 # EPF CLI venv
 eval/epf-model-compliance/.venv/
 
+# EPF CLI secrets (runtime .env with real credentials)
+apps/epf-cli/.env
+apps/epf-cli/private-key.pem
+*.private-key.pem
+
 # EPF CLI test artifacts
 apps/epf-cli/epf-cli-test
 apps/epf-cli/internal/mcp/AIM/

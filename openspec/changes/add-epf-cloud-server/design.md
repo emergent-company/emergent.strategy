@@ -3,9 +3,11 @@
 The EPF CLI today is a standalone binary that reads YAML files from the local filesystem. The MCP server mode (`epf-cli serve`) communicates via stdio. To serve remote AI agents and enable team-wide access, we need:
 
 1. A way to load EPF artifacts from GitHub repositories (not just local disk)
-2. An HTTP/SSE transport layer for remote MCP clients
+2. An HTTPS remote transport layer for MCP clients (Streamable HTTP primary, SSE fallback for legacy clients)
 3. Cloud hosting on GCP Cloud Run (scales to zero, serverless)
 4. Centralized auth via GitHub App (no individual PATs)
+
+Stage 1 is framed as "cloud mode for the CLI" — a self-hosted server that someone deploys for their own team. The primary UX is a one-command deploy with clear documentation. Stage 2 (future) evolves this into a multi-tenant SaaS platform with GitHub OAuth login, dynamic workspace discovery, web UI, and subscription billing.
 
 ### Stakeholders
 
@@ -17,20 +19,21 @@ The EPF CLI today is a standalone binary that reads YAML files from the local fi
 
 ### Goals
 
-- Serve the existing 50+ MCP tools over HTTP/SSE to remote clients
+- Serve the existing 50+ MCP tools over HTTPS to remote clients (Streamable HTTP primary, SSE fallback)
 - Load EPF artifacts from GitHub repos at runtime (hotloading)
 - Cache artifacts in-memory with configurable TTL
 - Run on GCP Cloud Run with scale-to-zero economics
 - Authenticate via GitHub App for private repo access
 - Preserve all existing local CLI behavior unchanged
+- Provide a self-hosting experience that is easy to deploy and well-documented
 
 ### Non-Goals (v1)
 
-- Multi-tenant isolation (single-org deployment for now)
+- Multi-tenant isolation (single-org deployment for now; Stage 2 will add multi-tenant workspace discovery)
 - Persistent storage / database (v1 is stateless — artifacts live in GitHub. Persistent storage for AIM metrics and monitoring state is a future concern; see `add-aim-recalibration-engine` Phase 3S)
-- Custom UI / dashboard (v1 is MCP protocol only. AIM health dashboards are a future concern)
+- Custom UI / dashboard (v1 is MCP protocol only. Web UI and AIM health dashboards are Stage 2 concerns)
 - Write-back operations (v1 is read-only strategy queries. AIM write-back tools run locally via CLI; server-side write support is a future extension)
-- WebSocket transport (SSE only for cloud mode)
+- WebSocket transport (Streamable HTTP and SSE cover all current MCP client needs)
 
 ## Decisions
 
@@ -59,15 +62,25 @@ The EPF CLI today is a standalone binary that reads YAML files from the local fi
 - Deploy keys — per-repo, can't span multiple repos
 - PAT stored in Secret Manager — security risk, rotation burden
 
-### SSE transport for cloud mode (no WebSocket)
+### Streamable HTTP transport with SSE fallback (no WebSocket)
 
-**Decision**: Use HTTP/SSE (Server-Sent Events) as the only remote transport.
+**Decision**: Use Streamable HTTP as the primary remote transport, with SSE fallback for legacy MCP clients that do not yet support Streamable HTTP.
 
-**Why**: MCP protocol specifies SSE as the standard transport for remote servers. SSE is:
-- Natively supported by Cloud Run (no sticky sessions needed)
-- Simpler than WebSocket (HTTP/1.1 compatible, no upgrade dance)
-- Sufficient for request-response MCP patterns
+**Why**: The MCP specification (version 2025-03-26) officially deprecated the HTTP+SSE transport in favor of Streamable HTTP. Major MCP clients (Claude Desktop, Claude Code, ChatGPT, Cursor) now support Streamable HTTP and/or SSE for remote servers. Streamable HTTP is:
+- The current MCP standard transport for remote servers
+- Natively supported by Cloud Run (stateless HTTP requests, no sticky sessions)
+- Simpler than SSE for request-response patterns (single HTTP round-trip)
+- Capable of optional streaming via SSE within responses when needed
 - Supported by all major MCP clients
+
+SSE is retained as a fallback because:
+- Some MCP clients may not yet support Streamable HTTP
+- The incremental cost of supporting both is low (shared handler logic)
+- It provides a graceful migration path for existing integrations
+
+**Alternatives considered**:
+- SSE-only — was the original plan, but SSE is now deprecated in the MCP spec
+- WebSocket — unnecessary complexity, not specified by MCP, requires sticky sessions on Cloud Run
 
 ### GCP Cloud Run (not GKE, not App Engine)
 
@@ -109,12 +122,13 @@ The EPF CLI today is a standalone binary that reads YAML files from the local fi
 4. Wire up existing MCP handlers to use `Source` interface
 5. All existing tests pass — local behavior unchanged
 
-### Phase 2: HTTP/SSE transport
+### Phase 2: HTTPS remote transport
 
 1. Add `--http` flag to `serve` command
-2. Implement SSE transport alongside existing stdio
-3. Add CORS configuration for web-based MCP clients
-4. Health check endpoint at `/health`
+2. Implement Streamable HTTP transport as primary remote transport
+3. Implement SSE transport as fallback for legacy MCP clients
+4. Add CORS configuration for web-based MCP clients
+5. Health check endpoint at `/health`
 
 ### Phase 3: GitHub App authentication
 
@@ -132,13 +146,17 @@ The EPF CLI today is a standalone binary that reads YAML files from the local fi
 
 ## Resolved Questions
 
-### One EPF instance per deployment
+### One EPF instance per deployment (Stage 1)
 
 Each Cloud Run service loads a single EPF instance from one GitHub repository. To serve a different instance, deploy another Cloud Run service. This keeps routing simple and avoids multiplying cache/API usage. The `instance_path` parameter in MCP tools maps to the single loaded instance.
 
-### Cloud Run IAM for client authentication
+Stage 2 will evolve to dynamic multi-instance discovery, where a single deployment can serve multiple workspaces based on the authenticated user's GitHub org installations. The `Source` interface and caching layer are designed to accommodate this without architectural rework.
 
-No auth code in the server. Cloud Run is deployed with `--no-allow-unauthenticated`, so only callers with the `roles/run.invoker` IAM role can reach it. AI agents and service accounts attach Google identity tokens. Team members can access via Identity-Aware Proxy (IAP) with Google sign-in. If MCP client compatibility becomes a friction point, an API key fallback can be added later.
+### Client authentication: Cloud Run IAM (Stage 1), bearer tokens (Stage 2)
+
+Stage 1 (self-hosted): No auth code in the server. Cloud Run is deployed with `--no-allow-unauthenticated`, so only callers with the `roles/run.invoker` IAM role can reach it. AI agents and service accounts attach Google identity tokens. Team members can access via Identity-Aware Proxy (IAP) with Google sign-in. This keeps the server simple — auth is the platform's concern.
+
+Stage 2 (multi-tenant SaaS): The server will add bearer token authentication (GitHub OAuth-based) so that users can log in with their GitHub identity and access workspaces scoped to their GitHub org installations. This aligns with fd-016 cap-002 (GitHub Identity) and cap-003 (bearer token auth in the remote transport layer). The server auth code is deferred to Stage 2 — it is not needed for the self-hosted deployment model.
 
 ### TTL-only cache invalidation (no webhook)
 
@@ -154,7 +172,7 @@ This change builds the **read-only cloud transport layer** for the EPF MCP serve
 
 ```
 add-epf-cloud-server (this change)
-  │ v1: Stateless read-only MCP over HTTP/SSE
+  │ v1: Stateless read-only MCP over HTTPS (Streamable HTTP + SSE fallback)
   │     Source: GitHub API → CachedSource → existing MCP handlers
   │     Deployment: Cloud Run (scale-to-zero)
   │     Protocols: MCP (tool access), optionally A2A (agent discovery)
@@ -182,4 +200,4 @@ add-epf-cloud-server (this change)
 
 **`emergent` as persistence layer (Phase 3S option):** Instead of building a dedicated PostgreSQL database for AIM metrics and monitoring state, the server can use `emergent`'s knowledge graph API to store metrics as graph objects, model metric-to-KR relationships as graph edges, and leverage vector search for semantic queries over strategy data. This avoids infrastructure duplication while keeping the EPF server independently deployable. If performance or query complexity warrants it, a dedicated database can be added later — the protocol-based integration makes this a reversible decision.
 
-**What this means for this change:** Build it as designed (stateless, read-only, GitHub-sourced). The architecture accommodates future write-side and stateful extensions without rework — the `Source` interface, HTTP/SSE transport, and Cloud Run deployment are all reusable infrastructure. The agent-native integration model (Decision #11) ensures all future extensions compose via protocols rather than tight coupling.
+**What this means for this change:** Build it as designed (stateless, read-only, GitHub-sourced). The architecture accommodates future write-side and stateful extensions without rework — the `Source` interface, HTTPS transport, and Cloud Run deployment are all reusable infrastructure. The agent-native integration model (Decision #11) ensures all future extensions compose via protocols rather than tight coupling.

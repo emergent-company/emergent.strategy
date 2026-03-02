@@ -1,0 +1,176 @@
+name: EPF Cloud Server Deploy
+
+# Deploys the EPF strategy server to GCP Cloud Run.
+#
+# Triggers:
+#   - Push to main that touches apps/epf-cli/** or this workflow
+#   - Manual dispatch (workflow_dispatch)
+#
+# Prerequisites (one-time setup via scripts/setup-gcp.sh):
+#   - GCP Artifact Registry repository
+#   - GCP Secret Manager secrets
+#   - Workload Identity Federation for GitHub Actions
+#   - Cloud Run service (created on first deploy)
+#
+# Required GitHub secrets:
+#   GCP_PROJECT_ID      - GCP project ID
+#   GCP_REGION          - GCP region (e.g. europe-north1)
+#   GCP_WIF_PROVIDER    - Workload Identity Federation provider resource name
+#   GCP_SERVICE_ACCOUNT - Service account email for deployment
+#   EPF_CANONICAL_TOKEN - GitHub PAT for cloning epf-canonical (private repo)
+#
+# Required GitHub variables:
+#   EPF_GITHUB_OWNER         - GitHub org/user owning the EPF repo
+#   EPF_GITHUB_REPO          - GitHub repo name containing EPF instance
+#   EPF_GITHUB_BASE_PATH     - (optional) Path within repo to EPF instance
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/epf-cli/**"
+      - ".github/workflows/deploy.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # Required for Workload Identity Federation
+
+concurrency:
+  group: deploy-epf-server
+  cancel-in-progress: false # Don't cancel in-flight deploys
+
+env:
+  SERVICE_NAME: epf-server
+  REGISTRY_REPO: epf
+  IMAGE_NAME: epf-server
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.EPF_CANONICAL_TOKEN }}
+          submodules: true
+
+      - name: Clone epf-canonical
+        run: git clone --depth 1 https://x-access-token:${{ secrets.EPF_CANONICAL_TOKEN }}@github.com/emergent-company/epf-canonical.git "$RUNNER_TEMP/canonical-epf"
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/epf-cli/go.mod
+          cache-dependency-path: apps/epf-cli/go.sum
+
+      - name: Sync embedded artifacts
+        run: ./scripts/sync-embedded.sh "$RUNNER_TEMP/canonical-epf"
+        working-directory: apps/epf-cli
+
+      - name: Run tests
+        run: go test ./...
+        working-directory: apps/epf-cli
+
+  deploy:
+    name: Build & Deploy
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Set image tag
+        id: meta
+        run: |
+          VERSION=$(cat apps/epf-cli/VERSION)
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          IMAGE="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${REGISTRY_REPO}/${IMAGE_NAME}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "tag=${IMAGE}:${VERSION}-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "latest=${IMAGE}:latest" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push container image
+        run: |
+          docker build \
+            --secret id=gh_token,env=GITHUB_TOKEN \
+            --build-arg VERSION=${{ steps.meta.outputs.version }} \
+            --build-arg GIT_COMMIT=${{ steps.meta.outputs.short_sha }} \
+            --build-arg BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+            -t ${{ steps.meta.outputs.tag }} \
+            -t ${{ steps.meta.outputs.latest }} \
+            -f apps/epf-cli/Dockerfile \
+            apps/epf-cli
+        env:
+          GITHUB_TOKEN: ${{ secrets.EPF_CANONICAL_TOKEN }}
+          DOCKER_BUILDKIT: "1"
+
+      - name: Push container image
+        run: |
+          docker push ${{ steps.meta.outputs.tag }}
+          docker push ${{ steps.meta.outputs.latest }}
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image=${{ steps.meta.outputs.tag }} \
+            --region=${{ secrets.GCP_REGION }} \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+            --platform=managed \
+            --no-allow-unauthenticated \
+            --port=8080 \
+            --min-instances=0 \
+            --max-instances=3 \
+            --memory=256Mi \
+            --cpu=1 \
+            --timeout=300 \
+            --set-env-vars="EPF_GITHUB_OWNER=${{ vars.EPF_GITHUB_OWNER }},EPF_GITHUB_REPO=${{ vars.EPF_GITHUB_REPO }},EPF_GITHUB_BASE_PATH=${{ vars.EPF_GITHUB_BASE_PATH || '' }}" \
+            --set-secrets="EPF_GITHUB_APP_ID=epf-github-app-id:latest,EPF_GITHUB_APP_INSTALLATION_ID=epf-github-app-installation-id:latest,EPF_GITHUB_APP_PRIVATE_KEY=epf-github-app-private-key:latest" \
+            --startup-cpu-boost \
+            --execution-environment=gen2
+
+      - name: Verify deployment health
+        run: |
+          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ secrets.GCP_REGION }} \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+            --format='value(status.url)')
+          echo "Service URL: ${SERVICE_URL}"
+
+          # Get an identity token to authenticate the health check request
+          TOKEN=$(gcloud auth print-identity-token \
+            --audiences="${SERVICE_URL}" \
+            --impersonate-service-account="${{ secrets.GCP_SERVICE_ACCOUNT }}" 2>/dev/null || true)
+
+          if [ -n "$TOKEN" ]; then
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "Authorization: Bearer ${TOKEN}" \
+              "${SERVICE_URL}/health" \
+              --max-time 10)
+            echo "Health check status: ${HTTP_STATUS}"
+            if [ "$HTTP_STATUS" != "200" ]; then
+              echo "::warning::Health check returned ${HTTP_STATUS} (expected 200)"
+            fi
+          else
+            echo "::notice::Skipping health check (could not obtain identity token)"
+          fi
+
+          echo ""
+          echo "Deployment complete!"
+          echo "  Image: ${{ steps.meta.outputs.tag }}"
+          echo "  URL:   ${SERVICE_URL}"

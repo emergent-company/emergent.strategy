@@ -10,9 +10,10 @@ The EPF CLI currently runs only on local machines, requiring users to build from
 - Add `RepositoryProvider` interface to abstract filesystem vs GitHub API data sources
 - Add GitHub App authentication for cross-repository access without individual PATs
 - Add in-memory caching with Singleflight for efficient GitHub API usage
-- Add HTTP/SSE transport for remote MCP clients (alongside existing stdio)
+- Add HTTPS remote transport for MCP clients (Streamable HTTP primary, SSE fallback for legacy clients), alongside existing stdio
 - Add Docker containerization targeting GCP Cloud Run
 - Add GCP infrastructure: Artifact Registry, Cloud Run, Secret Manager
+- Stage 1 is a self-hosted "cloud mode for the CLI" — easy one-command deployment with clear documentation
 - Add CI/CD for container image builds and deployments
 
 ## Impact
@@ -28,8 +29,8 @@ This is a foundational change in a three-part dependency chain:
 
 | Change | Depends on | What it uses from this change |
 |---|---|---|
-| `add-aim-recalibration-engine` Phase 3S | This change (cloud infrastructure) | Cloud Run deployment, HTTP transport, future persistent storage layer |
-| `add-emergent-ai-strategy` | This change (MCP-over-HTTP) | Agent sessions connect to this server as MCP context provider |
+| `add-aim-recalibration-engine` Phase 3S | This change (cloud infrastructure) | Cloud Run deployment, HTTPS transport, future persistent storage layer |
+| `add-emergent-ai-strategy` | This change (MCP-over-HTTPS) | Agent sessions connect to this server as MCP context provider |
 
 This v1 is **stateless and read-only**. Two downstream extensions are anticipated:
 

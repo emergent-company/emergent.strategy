@@ -77,13 +77,45 @@ func (s *Server) handleGenerateReport(ctx context.Context, request mcp.CallToolR
 	verboseStr, _ := request.RequireString("verbose")
 	verbose := strings.ToLower(verboseStr) == "true"
 
-	// Validate instance exists
-	if _, err := os.Stat(instancePath); os.IsNotExist(err) {
-		result := ReportResult{
-			Success: false,
-			Error:   fmt.Sprintf("Instance path not found: %s", instancePath),
+	// Validate instance exists — skip for registered stores (cloud mode)
+	if !IsRegisteredStore(instancePath) {
+		if _, err := os.Stat(instancePath); os.IsNotExist(err) {
+			result := ReportResult{
+				Success: false,
+				Error:   fmt.Sprintf("Instance path not found: %s", instancePath),
+			}
+			jsonData, _ := json.MarshalIndent(result, "", "  ")
+			return mcp.NewToolResultText(string(jsonData)), nil
 		}
-		jsonData, _ := json.MarshalIndent(result, "", "  ")
+	} else {
+		// Cloud mode: generate a lightweight report from strategy store
+		store, storeErr := getOrCreateStrategyStore(instancePath)
+		if storeErr != nil {
+			result := ReportResult{
+				Success: false,
+				Error:   fmt.Sprintf("Failed to access strategy store: %s", storeErr.Error()),
+			}
+			jsonData, _ := json.MarshalIndent(result, "", "  ")
+			return mcp.NewToolResultText(string(jsonData)), nil
+		}
+		model := store.GetModel()
+		data := &ReportResult{
+			Success:         true,
+			Format:          format,
+			Title:           "EPF Health Report (Cloud Mode)",
+			InstancePath:    instancePath,
+			GeneratedAt:     time.Now().Format("2006-01-02 15:04:05"),
+			OverallStatus:   "HEALTHY",
+			Recommendations: []string{"Use strategy query tools for detailed inspection in cloud mode"},
+		}
+		if model != nil {
+			data.OverallScore = 100
+			if model.NorthStar == nil || len(model.Features) == 0 || model.Roadmap == nil {
+				data.OverallStatus = "WARNINGS"
+				data.OverallScore = 70
+			}
+		}
+		jsonData, _ := json.MarshalIndent(data, "", "  ")
 		return mcp.NewToolResultText(string(jsonData)), nil
 	}
 
