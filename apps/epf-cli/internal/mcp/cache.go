@@ -24,13 +24,53 @@ type strategyStoreCacheEntry struct {
 var (
 	strategyStoreMu    sync.RWMutex
 	strategyStoreCache = make(map[string]*strategyStoreCacheEntry)
+
+	// registeredStores holds externally-created strategy stores (e.g., GitHub-backed).
+	// These bypass mtime-based staleness detection since they manage their own caching
+	// (e.g., via source.CachedSource TTL). Keys are synthetic paths like
+	// "github://owner/repo/path" or real filesystem paths.
+	registeredStores = make(map[string]strategy.StrategyStore)
 )
 
+// IsRegisteredStore checks if a path corresponds to a pre-registered strategy store
+// (e.g., a GitHub-backed store loaded from a github:// URI). This is used by tools
+// that need to distinguish between filesystem and remote instances to skip filesystem
+// validation (os.Stat, anchor file checks) for remote sources.
+func IsRegisteredStore(key string) bool {
+	strategyStoreMu.RLock()
+	defer strategyStoreMu.RUnlock()
+	_, ok := registeredStores[key]
+	return ok
+}
+
+// RegisterStrategyStore adds a pre-configured strategy store to the cache.
+// This is used for non-filesystem sources (e.g., GitHubSource) where the store
+// is created and loaded externally (in cmd/serve.go) with its own caching.
+// The registered store bypasses mtime-based staleness detection.
+//
+// The key should be a unique identifier for the source — either a real filesystem
+// path or a synthetic URI like "github://owner/repo/path".
+func RegisterStrategyStore(key string, store strategy.StrategyStore) {
+	strategyStoreMu.Lock()
+	defer strategyStoreMu.Unlock()
+
+	registeredStores[key] = store
+}
+
 // getOrCreateStrategyStore returns a cached or new strategy store for the given instance path.
-// On each call, it checks whether any tracked files have been modified since the last load.
-// If files changed (external edits or missed invalidation), it automatically reloads.
+// It first checks for pre-registered stores (e.g., GitHub-backed), then falls back to
+// the mtime-based filesystem cache.
+// On each call for filesystem stores, it checks whether any tracked files have been
+// modified since the last load. If files changed, it automatically reloads.
 func getOrCreateStrategyStore(instancePath string) (strategy.StrategyStore, error) {
 	strategyStoreMu.RLock()
+
+	// Check registered stores first (GitHub-backed, etc.) — these manage their own caching.
+	if store, ok := registeredStores[instancePath]; ok {
+		strategyStoreMu.RUnlock()
+		return store, nil
+	}
+
 	entry, ok := strategyStoreCache[instancePath]
 	strategyStoreMu.RUnlock()
 
@@ -89,9 +129,16 @@ func getOrCreateStrategyStore(instancePath string) (strategy.StrategyStore, erro
 }
 
 // getStrategyStoreAge returns how long ago the store was loaded, or 0 if not cached.
+// For registered stores (GitHub-backed), returns 1 second as a sentinel indicating
+// the store is loaded but age is managed externally.
 func getStrategyStoreAge(instancePath string) time.Duration {
 	strategyStoreMu.RLock()
 	defer strategyStoreMu.RUnlock()
+
+	// Registered stores are always "loaded" but don't track age internally.
+	if _, ok := registeredStores[instancePath]; ok {
+		return 1 * time.Second
+	}
 
 	entry, ok := strategyStoreCache[instancePath]
 	if !ok {
@@ -102,10 +149,16 @@ func getStrategyStoreAge(instancePath string) time.Duration {
 
 // invalidateStrategyStore removes the cached strategy store for the given instance path,
 // forcing a reload on next access. Call this after any write operation that modifies
-// EPF instance files.
+// EPF instance files. For registered stores, this closes and removes the store.
 func invalidateStrategyStore(instancePath string) {
 	strategyStoreMu.Lock()
 	defer strategyStoreMu.Unlock()
+
+	// Check registered stores
+	if store, ok := registeredStores[instancePath]; ok {
+		store.Close()
+		delete(registeredStores, instancePath)
+	}
 
 	if entry, ok := strategyStoreCache[instancePath]; ok {
 		entry.store.Close()

@@ -232,6 +232,219 @@ epf-cli strategy serve ./epf --watch
 - **Competitive awareness**: Review positioning before feature design
 - **Strategic alignment**: Verify work aligns with current OKRs
 
+## Cloud Server (Self-Hosting)
+
+The EPF Cloud Server lets you deploy epf-cli as a remote MCP server so your team can access EPF strategy tools without any local installation. It reads EPF data directly from a GitHub repository via a GitHub App, serves MCP tools over HTTP, and runs anywhere containers run.
+
+**Key properties:**
+
+- **No local setup for clients** — team members just add the server URL to their AI tool
+- **GitHub as source of truth** — reads EPF artifacts from your repo via GitHub Contents API
+- **Auto-rotating auth** — GitHub App installation tokens refresh automatically
+- **Two transports** — Streamable HTTP (MCP spec 2025-03-26) + SSE fallback for legacy clients
+- **Minimal footprint** — ~10MB distroless container, scales to zero on Cloud Run
+
+### Quick Start (GCP Cloud Run)
+
+The fastest path from zero to a running EPF cloud server:
+
+```bash
+# 1. Create a GitHub App (see "GitHub App Setup" below)
+
+# 2. Run one-time GCP infrastructure setup
+cd apps/epf-cli
+./scripts/setup-gcp.sh --project YOUR_GCP_PROJECT_ID
+
+# 3. Add secrets to GCP Secret Manager (script prints the exact commands)
+
+# 4. Configure GitHub repository secrets and variables (script prints what to set)
+
+# 5. Push to main — the deploy workflow builds, pushes, and deploys automatically
+git push origin main
+```
+
+The deploy workflow (`.github/workflows/deploy.yaml`) handles everything: runs tests, builds the Docker image with embedded schemas, pushes to Artifact Registry, and deploys to Cloud Run.
+
+After the first deploy, subsequent pushes to `apps/epf-cli/**` on `main` auto-deploy.
+
+### Running Locally with Docker
+
+```bash
+# Build the image (requires a GitHub PAT with repo access to epf-canonical)
+cd apps/epf-cli
+docker build --secret id=gh_token,env=GITHUB_TOKEN \
+  --build-arg VERSION=$(cat VERSION) \
+  --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) \
+  -t epf-server .
+
+# Run with GitHub App credentials
+docker run -p 8080:8080 \
+  -e EPF_GITHUB_APP_ID=123456 \
+  -e EPF_GITHUB_APP_INSTALLATION_ID=78901234 \
+  -e EPF_GITHUB_APP_PRIVATE_KEY="$(cat your-app.private-key.pem)" \
+  -e EPF_GITHUB_OWNER=your-org \
+  -e EPF_GITHUB_REPO=your-epf-repo \
+  epf-server
+
+# Check health
+curl http://localhost:8080/health
+```
+
+### Running with Docker Compose
+
+The simplest way to run the cloud server locally or on a VM:
+
+```bash
+cd apps/epf-cli
+
+# 1. Copy the example env file and fill in your values
+cp .env.example .env
+# Edit .env with your GitHub App credentials and repo details
+
+# 2. Build and start (requires GITHUB_TOKEN for building)
+GITHUB_TOKEN=ghp_your_token docker compose up --build
+
+# 3. Check health
+curl http://localhost:8080/health
+```
+
+The `docker-compose.yaml` builds the image locally from the Dockerfile and loads configuration from your `.env` file. See `.env.example` for all available options with descriptions.
+
+To run in the background: `docker compose up --build -d`
+To stop: `docker compose down`
+
+### GitHub App Setup
+
+The cloud server authenticates to GitHub using a GitHub App (not a PAT), which provides fine-grained permissions and auto-rotating tokens.
+
+1. **Create the GitHub App:**
+   - Go to your org settings → Developer settings → GitHub Apps → New GitHub App
+   - Name: e.g. `EPF Strategy Server`
+   - Homepage URL: your org URL
+   - Uncheck "Webhook → Active" (not needed)
+   - Permissions → Repository permissions:
+     - **Contents**: Read-only (required — reads EPF YAML files)
+   - Where can this app be installed: "Only on this account"
+   - Click "Create GitHub App"
+
+2. **Generate a private key:**
+   - On the app page, scroll to "Private keys" → "Generate a private key"
+   - Save the `.pem` file securely
+
+3. **Install the app on your repo:**
+   - On the app page, click "Install App" in the sidebar
+   - Choose your organization
+   - Select "Only select repositories" → pick your EPF repo
+   - Click "Install"
+
+4. **Collect credentials:**
+   - **App ID**: shown on the app settings page (a number like `123456`)
+   - **Installation ID**: from the URL after installing — go to your org settings → Installed GitHub Apps → click "Configure" on your app → the number in the URL (`/installations/78901234`)
+   - **Private key**: the `.pem` file you downloaded
+
+### Environment Variables
+
+See `.env.example` for an annotated template with all options.
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `EPF_GITHUB_APP_ID` | Yes (cloud mode) | GitHub App ID (numeric) |
+| `EPF_GITHUB_APP_PRIVATE_KEY` | Yes (cloud mode) | Path to PEM file, or inline PEM content (if value starts with `-----BEGIN`) |
+| `EPF_GITHUB_APP_INSTALLATION_ID` | Yes (cloud mode) | GitHub App installation ID (numeric) |
+| `EPF_GITHUB_OWNER` | Yes (cloud mode) | GitHub org or user that owns the EPF repo |
+| `EPF_GITHUB_REPO` | Yes (cloud mode) | Repository name containing EPF instance |
+| `EPF_GITHUB_REF` | No | Branch, tag, or SHA to read from (default: repo default branch) |
+| `EPF_GITHUB_BASE_PATH` | No | Path within repo to EPF instance (e.g. `docs/EPF/_instances/my-product`) |
+| `EPF_INSTANCE_NAME` | No | Human-readable name shown in `/health` response |
+| `EPF_STRATEGY_INSTANCE` | No | Local filesystem path (overridden by GitHub source when configured) |
+| `PORT` | No | HTTP port (default: `8080`, Cloud Run sets this automatically) |
+
+When none of the `EPF_GITHUB_APP_*` variables are set, the server runs in filesystem mode (same as `epf-cli serve`). If some but not all are set, the server exits with an error.
+
+### HTTP Endpoints
+
+| Endpoint | Method | Description |
+| --- | --- | --- |
+| `/mcp` | POST | Streamable HTTP transport (primary, MCP spec 2025-03-26) |
+| `/sse` | GET | SSE transport (legacy fallback, requires `--sse` flag) |
+| `/message` | POST | SSE message endpoint (legacy fallback, requires `--sse` flag) |
+| `/health` | GET | Health check — returns JSON with status, uptime, version, instance info |
+
+### Connecting MCP Clients
+
+Once your cloud server is running, configure your AI tool to connect:
+
+**Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "epf-cloud": {
+      "url": "https://your-cloud-run-url.run.app/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_IDENTITY_TOKEN"
+      }
+    }
+  }
+}
+```
+
+**VS Code / Cursor** (`.vscode/mcp.json`):
+
+```json
+{
+  "servers": {
+    "epf-cloud": {
+      "type": "http",
+      "url": "https://your-cloud-run-url.run.app/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_IDENTITY_TOKEN"
+      }
+    }
+  }
+}
+```
+
+**OpenCode** (`opencode.jsonc`):
+
+```jsonc
+{
+  "mcp": {
+    "epf-cloud": {
+      "type": "remote",
+      "url": "https://your-cloud-run-url.run.app/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_IDENTITY_TOKEN"
+      }
+    }
+  }
+}
+```
+
+> **Note on authentication:** When deployed to Cloud Run with `--no-allow-unauthenticated`,
+> clients must include a GCP identity token. Generate one with:
+> ```bash
+> gcloud auth print-identity-token --audiences="https://your-cloud-run-url.run.app"
+> ```
+> For programmatic access, grant the caller `roles/run.invoker` on the Cloud Run service.
+
+### Cloud Run Configuration
+
+The deploy workflow configures Cloud Run with these settings:
+
+| Setting | Value | Rationale |
+| --- | --- | --- |
+| Min instances | 0 | Scale to zero when idle (cost savings) |
+| Max instances | 3 | Sufficient for team use |
+| Memory | 256Mi | EPF data is small; parsing is fast |
+| CPU | 1 | Single core handles many concurrent MCP sessions |
+| Timeout | 300s | Long enough for complex strategy queries |
+| Auth | IAM (`--no-allow-unauthenticated`) | Cloud Run handles client auth (Stage 1) |
+| Execution | gen2 | Better cold start performance |
+| Startup CPU boost | Enabled | Fast cold starts |
+
+To customize, edit the `gcloud run deploy` command in `.github/workflows/deploy.yaml`.
+
 ## Architecture
 
 ```

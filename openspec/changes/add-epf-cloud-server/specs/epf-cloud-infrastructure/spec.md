@@ -8,7 +8,7 @@ The container SHALL:
 
 - Use a multi-stage build (Go build stage + minimal runtime stage)
 - Embed all EPF canonical artifacts (schemas, templates, wizards, generators) at build time
-- Expose a configurable port for HTTP/SSE connections
+- Expose a configurable port for HTTPS connections (Streamable HTTP and SSE)
 - Accept all configuration via environment variables
 
 #### Scenario: Build container image
