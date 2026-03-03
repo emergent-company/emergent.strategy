@@ -15,6 +15,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+// isAuthExpiredError checks if an error indicates an expired/invalid token.
+func isAuthExpiredError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "authentication expired")
+}
+
 // --- Messages ---
 
 // workspacesMsg is sent when workspace discovery completes.
@@ -27,13 +32,14 @@ type workspacesMsg struct {
 
 // WorkspacesScreen holds the state for the workspaces screen.
 type WorkspacesScreen struct {
-	serverURL  string
-	token      string
-	styles     Styles
-	loading    bool
-	workspaces []WorkspaceInfo
-	cursor     int
-	err        error
+	serverURL   string
+	token       string
+	styles      Styles
+	loading     bool
+	workspaces  []WorkspaceInfo
+	cursor      int
+	err         error
+	authExpired bool
 }
 
 // NewWorkspacesScreen creates a new workspaces screen.
@@ -63,6 +69,7 @@ func (s WorkspacesScreen) Update(msg tea.Msg) (WorkspacesScreen, tea.Cmd) {
 		s.loading = false
 		s.workspaces = msg.workspaces
 		s.err = msg.err
+		s.authExpired = msg.err != nil && isAuthExpiredError(msg.err)
 
 	case tea.KeyPressMsg:
 		switch msg.String() {
@@ -92,7 +99,8 @@ func (s WorkspacesScreen) View() string {
 	b.WriteString("\n\n")
 
 	if s.loading {
-		b.WriteString("  Discovering workspaces...")
+		b.WriteString("  Discovering workspaces...\n")
+		b.WriteString(s.styles.Dim.Render("  Scanning your GitHub repos for EPF instances (this may take a minute)"))
 		return b.String()
 	}
 
@@ -180,6 +188,11 @@ func (s WorkspacesScreen) SelectedWorkspace() *WorkspaceInfo {
 	}
 	ws := s.workspaces[s.cursor]
 	return &ws
+}
+
+// IsAuthExpired returns true if the workspace fetch failed due to an expired token.
+func (s WorkspacesScreen) IsAuthExpired() bool {
+	return s.authExpired
 }
 
 // AutoSelected returns the workspace if exactly one exists (auto-select).
