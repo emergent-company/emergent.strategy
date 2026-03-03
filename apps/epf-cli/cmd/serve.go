@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/strategy"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/transport"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/version"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/workspace"
 	"github.com/spf13/cobra"
 )
 
@@ -23,6 +25,7 @@ const (
 	EnvGitHubRepo     = "EPF_GITHUB_REPO"
 	EnvGitHubRef      = "EPF_GITHUB_REF"       // optional: branch/tag/SHA (default: repo default)
 	EnvGitHubBasePath = "EPF_GITHUB_BASE_PATH" // optional: path within repo
+	EnvServerURL      = "EPF_SERVER_URL"       // optional: external base URL for OAuth metadata
 )
 
 var serveCmd = &cobra.Command{
@@ -118,7 +121,11 @@ func serveHTTP(mcpSrv *mcp.Server, port int, enableSSE bool, corsOrigins string)
 	instanceName := os.Getenv("EPF_INSTANCE_NAME")
 	instancePath := os.Getenv("EPF_STRATEGY_INSTANCE")
 
-	// Set up GitHub-backed strategy store if configured.
+	// Detect server mode from environment.
+	mode := auth.DetectMode()
+	fmt.Fprintf(os.Stderr, "Server mode: %s\n", mode)
+
+	// Set up GitHub-backed strategy store if configured (single-tenant mode).
 	ghKey, err := setupGitHubStore()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error configuring GitHub source: %v\n", err)
@@ -129,17 +136,69 @@ func serveHTTP(mcpSrv *mcp.Server, port int, enableSSE bool, corsOrigins string)
 		instancePath = ghKey
 	}
 
-	httpServer := transport.NewHTTPServer(mcpSrv.GetMCPServer(), transport.HTTPServerConfig{
+	// Set up auth handler for multi-tenant mode.
+	var authHandler *auth.AuthHandler
+	var authMiddleware *auth.AuthMiddleware
+	var workspacesHandler http.Handler
+	var mcpOAuthHandler *auth.MCPOAuthHandler
+
+	// Resolve external server URL for OAuth metadata and WWW-Authenticate.
+	serverURL := os.Getenv(EnvServerURL)
+	if serverURL == "" && port != 0 {
+		serverURL = fmt.Sprintf("http://localhost:%d", port)
+	}
+
+	if mode == auth.ModeMultiTenant {
+		var sessionMgr *auth.SessionManager
+		authHandler, sessionMgr, err = setupMultiTenantAuth()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error configuring multi-tenant auth: %v\n", err)
+			os.Exit(1)
+		}
+		authMiddleware = auth.NewAuthMiddleware(sessionMgr, mode, serverURL)
+
+		// Configure MCP OAuth authorization server.
+		oauthCfg, _ := auth.OAuthConfigFromEnv()
+		if oauthCfg != nil {
+			mcpOAuthHandler = auth.NewMCPOAuthHandler(oauthCfg, sessionMgr, serverURL)
+		}
+
+		// Configure multi-tenant access control on the MCP server.
+		// This enables dynamic instance routing and per-request repo access verification.
+		accessChecker := auth.NewAccessChecker()
+		mcpSrv.SetMultiTenantAuth(accessChecker, sessionMgr, mode)
+
+		// Configure workspace discovery.
+		discoverer := workspace.NewDiscoverer()
+		mcpSrv.SetDiscoverer(discoverer)
+		workspacesHandler = workspace.Handler(discoverer, sessionMgr)
+	}
+
+	cfg := transport.HTTPServerConfig{
 		Port:           port,
 		AllowedOrigins: origins,
 		EnableSSE:      enableSSE,
 		HealthInfo: transport.HealthInfo{
 			ServerName:   mcp.ServerName,
 			Version:      version.Version,
+			Mode:         mode.String(),
 			InstanceName: instanceName,
 			InstancePath: instancePath,
 		},
-	})
+	}
+	if authHandler != nil {
+		cfg.AuthHandler = authHandler
+	}
+	if authMiddleware != nil {
+		cfg.AuthMiddleware = authMiddleware.Wrap
+	}
+	if workspacesHandler != nil {
+		cfg.WorkspacesHandler = workspacesHandler
+	}
+	if mcpOAuthHandler != nil {
+		cfg.MCPOAuthHandler = mcpOAuthHandler
+	}
+	httpServer := transport.NewHTTPServer(mcpSrv.GetMCPServer(), cfg)
 
 	// Graceful shutdown on SIGINT/SIGTERM
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -159,6 +218,19 @@ func serveHTTP(mcpSrv *mcp.Server, port int, enableSSE bool, corsOrigins string)
 	fmt.Fprintf(os.Stderr, "  Streamable HTTP: http://localhost:%d/mcp\n", port)
 	if enableSSE {
 		fmt.Fprintf(os.Stderr, "  SSE (legacy):    http://localhost:%d/sse\n", port)
+	}
+	if authHandler != nil {
+		fmt.Fprintf(os.Stderr, "  Auth login:      http://localhost:%d/auth/github/login\n", port)
+		fmt.Fprintf(os.Stderr, "  Auth callback:   http://localhost:%d/auth/github/callback\n", port)
+		fmt.Fprintf(os.Stderr, "  Token exchange:  http://localhost:%d/auth/token\n", port)
+	}
+	if workspacesHandler != nil {
+		fmt.Fprintf(os.Stderr, "  Workspaces:      http://localhost:%d/workspaces\n", port)
+	}
+	if mcpOAuthHandler != nil {
+		fmt.Fprintf(os.Stderr, "  MCP OAuth:       http://localhost:%d/.well-known/oauth-protected-resource\n", port)
+		fmt.Fprintf(os.Stderr, "  MCP Token:       http://localhost:%d/token\n", port)
+		fmt.Fprintf(os.Stderr, "  MCP Register:    http://localhost:%d/register\n", port)
 	}
 	fmt.Fprintf(os.Stderr, "  Health:          http://localhost:%d/health\n", port)
 
@@ -239,6 +311,37 @@ func setupGitHubStore() (string, error) {
 	fmt.Fprintln(os.Stderr)
 
 	return key, nil
+}
+
+// setupMultiTenantAuth configures OAuth and session management for multi-tenant mode.
+//
+// Reads OAuth credentials and session secret from environment variables.
+// Returns an AuthHandler, the SessionManager (needed for bearer middleware),
+// or an error if configuration is invalid (e.g., missing session secret).
+func setupMultiTenantAuth() (*auth.AuthHandler, *auth.SessionManager, error) {
+	oauthCfg, err := auth.OAuthConfigFromEnv()
+	if err != nil {
+		return nil, nil, fmt.Errorf("OAuth config: %w", err)
+	}
+	if oauthCfg == nil {
+		return nil, nil, fmt.Errorf("OAuth config required in multi-tenant mode (set %s and %s)", auth.EnvOAuthClientID, auth.EnvOAuthClientSecret)
+	}
+
+	sessionCfg, err := auth.SessionConfigFromEnv()
+	if err != nil {
+		return nil, nil, fmt.Errorf("session config: %w", err)
+	}
+	if sessionCfg == nil {
+		return nil, nil, fmt.Errorf("session secret required in multi-tenant mode (set %s to a 64+ hex char string)", auth.EnvSessionSecret)
+	}
+
+	sessionMgr := auth.NewSessionManager(*sessionCfg)
+	handler := auth.NewAuthHandler(oauthCfg, sessionMgr)
+
+	fmt.Fprintf(os.Stderr, "Multi-tenant auth: OAuth client_id=%s, session TTL=%s, max sessions=%d\n",
+		oauthCfg.ClientID, sessionCfg.TTL, sessionCfg.MaxSessions)
+
+	return handler, sessionMgr, nil
 }
 
 func init() {

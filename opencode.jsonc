@@ -1,6 +1,30 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "model": "github-copilot/claude-opus-4.6",
+  "provider": {
+    "google-vertex-anthropic": {
+      "options": {
+        "project": "legalplant-dev",
+        "location": "global",
+      },
+      "models": {
+        "claude-opus-4-6": {
+          "name": "Claude Opus 4.6 (Vertex AI)",
+          "limit": {
+            "context": 190000,
+            "output": 32000,
+          },
+        },
+        "claude-sonnet-4-6": {
+          "name": "Claude Sonnet 4.6 (Vertex AI)",
+          "limit": {
+            "context": 200000,
+            "output": 64000,
+          },
+        },
+      },
+    },
+  },
   "mcp": {
     // --- General-purpose servers (always available) ---
     "context7": {

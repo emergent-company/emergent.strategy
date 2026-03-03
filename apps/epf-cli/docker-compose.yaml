@@ -1,13 +1,22 @@
 # EPF Cloud Server — Docker Compose
 #
-# Quick start:
-#   1. Copy .env.example to .env and fill in your values
-#   2. Place your GitHub App .pem key alongside this file (or update the volume path)
+# Quick start (single-tenant — one repo, no user auth):
+#   1. Copy .env.example to .env, fill in GitHub App + repo values
+#   2. Place your GitHub App .pem key alongside this file
+#   3. export GITHUB_TOKEN=<your-pat-with-epf-canonical-access>
+#   4. Run: docker compose up --build
+#
+# Quick start (multi-tenant — GitHub OAuth, workspace discovery):
+#   1. Copy .env.example to .env, fill in OAuth values
+#   2. Set EPF_OAUTH_CLIENT_ID, EPF_OAUTH_CLIENT_SECRET, EPF_SESSION_SECRET
 #   3. export GITHUB_TOKEN=<your-pat-with-epf-canonical-access>
 #   4. Run: docker compose up --build
 #
 # Health check:
 #   curl http://localhost:8080/health
+#
+# Workspace discovery (multi-tenant):
+#   curl -H "Authorization: Bearer <jwt>" http://localhost:8080/workspaces
 
 services:
   epf-server:
@@ -24,12 +33,12 @@ services:
     env_file:
       - .env
     volumes:
-      # Mount the GitHub App private key into the container.
-      # Update the source path if your .pem file is elsewhere.
+      # Mount the GitHub App private key into the container (single-tenant mode).
+      # In multi-tenant mode without a GitHub App, this volume can be removed.
       - ./private-key.pem:/secrets/private-key.pem:ro
     environment:
       - PORT=8080
-      # Override the key path to point at the mounted file.
+      # Override the key path to point at the mounted file (single-tenant mode).
       - EPF_GITHUB_APP_PRIVATE_KEY=/secrets/private-key.pem
     restart: unless-stopped
 

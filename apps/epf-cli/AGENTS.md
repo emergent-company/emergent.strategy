@@ -1963,6 +1963,53 @@ This is useful for sharing strategy context with stakeholders or archiving strat
 | `--json`    | Output in JSON format                  |
 | `--output`  | Write output to file instead of stdout |
 
+### Multi-Tenant Cloud Server Mode
+
+The EPF cloud server supports three operating modes, automatically detected from environment variables:
+
+| Mode | Trigger | Description |
+|------|---------|-------------|
+| **Local** | No cloud env vars | Filesystem access, stdio transport |
+| **Single-tenant** | `EPF_GITHUB_OWNER` + `EPF_GITHUB_REPO` (no OAuth) | One repo per container, GitHub App auth |
+| **Multi-tenant** | `EPF_OAUTH_CLIENT_ID` set | GitHub OAuth, workspace discovery, dynamic repo routing |
+
+**Multi-tenant endpoints:**
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/auth/github/login` | GET | No | Redirects to GitHub OAuth consent page |
+| `/auth/github/callback` | GET | No | Exchanges code for session JWT |
+| `/workspaces` | GET | Bearer JWT | Lists user's accessible EPF workspaces |
+| `/mcp` | POST | Bearer JWT | MCP tool calls (all 50+ tools) |
+| `/health` | GET | No | Server health check |
+
+**Multi-tenant MCP tools:**
+
+| Tool | Description |
+|------|-------------|
+| `epf_list_workspaces` | Lists EPF workspaces accessible to the authenticated user |
+
+In multi-tenant mode, `instance_path` parameters on all MCP tools accept `owner/repo` format (e.g., `"emergent-company/emergent-epf"`) to dynamically route requests to the user's authorized GitHub repositories.
+
+**Environment variables (multi-tenant):**
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `EPF_OAUTH_CLIENT_ID` | Yes | GitHub OAuth App client ID |
+| `EPF_OAUTH_CLIENT_SECRET` | Yes | GitHub OAuth App client secret |
+| `EPF_SESSION_SECRET` | Yes | 64+ hex char session signing secret |
+| `EPF_SESSION_TTL` | No | Session lifetime (default: `24h`) |
+
+**GitHub OAuth App setup:**
+
+1. Go to [GitHub Developer Settings > OAuth Apps](https://github.com/settings/developers)
+2. Click "New OAuth App"
+3. Set **Authorization callback URL** to `https://your-server/auth/github/callback`
+4. After creation, copy the **Client ID** and generate a **Client Secret**
+5. Set `EPF_OAUTH_CLIENT_ID` and `EPF_OAUTH_CLIENT_SECRET` in your `.env`
+6. Generate a session secret: `openssl rand -hex 32`
+7. Set `EPF_SESSION_SECRET` to the generated value
+
 ### AIM Commands (v0.11.0)
 
 Tools for the AIM (Assessment & Calibration) phase of EPF. These commands help you learn from execution and calibrate strategy based on evidence.

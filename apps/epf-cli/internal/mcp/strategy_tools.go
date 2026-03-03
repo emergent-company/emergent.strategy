@@ -159,7 +159,7 @@ func (s *Server) handleGetProductVision(ctx context.Context, request mcp.CallToo
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
 
-	store, err := getOrCreateStrategyStore(instancePath)
+	store, err := s.resolveAndLoadStore(ctx, instancePath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to load strategy store: %s", err.Error())), nil
 	}
@@ -213,7 +213,7 @@ func (s *Server) handleGetPersonas(ctx context.Context, request mcp.CallToolRequ
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
 
-	store, err := getOrCreateStrategyStore(instancePath)
+	store, err := s.resolveAndLoadStore(ctx, instancePath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to load strategy store: %s", err.Error())), nil
 	}
@@ -244,7 +244,7 @@ func (s *Server) handleGetPersonaDetails(ctx context.Context, request mcp.CallTo
 		return mcp.NewToolResultError("persona_id parameter is required"), nil
 	}
 
-	store, err := getOrCreateStrategyStore(instancePath)
+	store, err := s.resolveAndLoadStore(ctx, instancePath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to load strategy store: %s", err.Error())), nil
 	}
@@ -289,7 +289,7 @@ func (s *Server) handleGetValuePropositions(ctx context.Context, request mcp.Cal
 
 	personaID, _ := request.RequireString("persona_id")
 
-	store, err := getOrCreateStrategyStore(instancePath)
+	store, err := s.resolveAndLoadStore(ctx, instancePath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to load strategy store: %s", err.Error())), nil
 	}
@@ -323,7 +323,7 @@ func (s *Server) handleGetCompetitivePosition(ctx context.Context, request mcp.C
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
 
-	store, err := getOrCreateStrategyStore(instancePath)
+	store, err := s.resolveAndLoadStore(ctx, instancePath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to load strategy store: %s", err.Error())), nil
 	}
@@ -414,7 +414,7 @@ func (s *Server) handleGetRoadmapSummary(ctx context.Context, request mcp.CallTo
 		fmt.Sscanf(cycleStr, "%d", &cycle)
 	}
 
-	store, err := getOrCreateStrategyStore(instancePath)
+	store, err := s.resolveAndLoadStore(ctx, instancePath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to load strategy store: %s", err.Error())), nil
 	}
@@ -498,7 +498,7 @@ func (s *Server) handleSearchStrategy(ctx context.Context, request mcp.CallToolR
 		}
 	}
 
-	store, err := getOrCreateStrategyStore(instancePath)
+	store, err := s.resolveAndLoadStore(ctx, instancePath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to load strategy store: %s", err.Error())), nil
 	}
@@ -549,7 +549,7 @@ func (s *Server) handleGetFeatureStrategyContext(ctx context.Context, request mc
 		return mcp.NewToolResultError("topic parameter is required"), nil
 	}
 
-	store, err := getOrCreateStrategyStore(instancePath)
+	store, err := s.resolveAndLoadStore(ctx, instancePath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to load strategy store: %s", err.Error())), nil
 	}
