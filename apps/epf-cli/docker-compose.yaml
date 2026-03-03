@@ -32,14 +32,8 @@ services:
       - "${PORT:-8080}:8080"
     env_file:
       - .env
-    volumes:
-      # Mount the GitHub App private key into the container (single-tenant mode).
-      # In multi-tenant mode without a GitHub App, this volume can be removed.
-      - ./private-key.pem:/secrets/private-key.pem:ro
     environment:
       - PORT=8080
-      # Override the key path to point at the mounted file (single-tenant mode).
-      - EPF_GITHUB_APP_PRIVATE_KEY=/secrets/private-key.pem
     restart: unless-stopped
 
 secrets:

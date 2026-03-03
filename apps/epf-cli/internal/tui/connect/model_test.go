@@ -686,5 +686,79 @@ func TestAuthScreen_EmptyInputError(t *testing.T) {
 	}
 }
 
+func TestModel_ExpiredTokenFallsBackToAuth(t *testing.T) {
+	// Server that rejects all tokens on /workspaces with 401.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/health":
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status": "ok",
+				"uptime": "1s",
+				"server": map[string]string{
+					"server_name": "epf-test",
+					"version":     "0.1.0",
+					"mode":        "multi-tenant",
+				},
+			})
+		case "/workspaces":
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid token"})
+		}
+	}))
+	defer srv.Close()
+
+	// Set up token store with a stale token.
+	store := tempTokenStore(t)
+	_ = store.Set(srv.URL, &auth.TokenStoreEntry{
+		Token:    "stale-jwt-token",
+		Username: "testuser",
+		UserID:   123,
+	})
+
+	m := New(Config{
+		ServerURL:        srv.URL,
+		TokenStore:       store,
+		ExistingToken:    "stale-jwt-token",
+		ExistingUsername: "testuser",
+		ExistingUserID:   123,
+	})
+
+	// Step 1: Init → connect screen fetches health.
+	cmd := m.Init()
+	msg := cmd()
+	model, _ := m.Update(msg)
+	m = model.(Model)
+
+	// After health check, since we have a token, it should transition to workspaces.
+	if m.screen != ScreenWorkspaces {
+		t.Fatalf("expected ScreenWorkspaces after health with token, got %d", m.screen)
+	}
+
+	// Step 2: Workspaces screen init → fetch workspaces (which returns 401).
+	cmd = m.workspaces.Init()
+	msg = cmd()
+	model, _ = m.Update(msg)
+	m = model.(Model)
+
+	// Should fall back to auth screen after 401.
+	if m.screen != ScreenAuth {
+		t.Fatalf("expected ScreenAuth after expired token, got %d", m.screen)
+	}
+
+	// Token should be cleared.
+	if m.token != "" {
+		t.Fatalf("expected empty token after auth fallback, got %q", m.token)
+	}
+
+	// Stored token should be deleted.
+	entry, err := store.Get(srv.URL)
+	if err != nil {
+		t.Fatalf("store.Get error: %v", err)
+	}
+	if entry != nil {
+		t.Fatal("expected stored token to be deleted after auth fallback")
+	}
+}
+
 // Ensure unused import is not flagged
 var _ = os.DevNull
