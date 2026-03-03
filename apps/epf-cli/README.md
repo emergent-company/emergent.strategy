@@ -234,155 +234,154 @@ epf-cli strategy serve ./epf --watch
 
 ## Cloud Server (Self-Hosting)
 
-The EPF Cloud Server lets you deploy epf-cli as a remote MCP server so your team can access EPF strategy tools without any local installation. It reads EPF data directly from a GitHub repository via a GitHub App, serves MCP tools over HTTP, and runs anywhere containers run.
+The EPF Cloud Server lets you deploy epf-cli as a remote MCP server so your team can access EPF strategy tools from any AI tool. It reads EPF data from GitHub repositories and serves 80+ MCP tools over HTTP.
 
 **Key properties:**
 
-- **No local setup for clients** — team members just add the server URL to their AI tool
-- **GitHub as source of truth** — reads EPF artifacts from your repo via GitHub Contents API
-- **Auto-rotating auth** — GitHub App installation tokens refresh automatically
-- **Two transports** — Streamable HTTP (MCP spec 2025-03-26) + SSE fallback for legacy clients
+- **Multi-tenant** — users authenticate with GitHub, discover their EPF workspaces, and route MCP calls to any authorized repo
+- **MCP OAuth 2.1** — Claude, OpenCode, and Cursor connect natively via OAuth auto-discovery
+- **Interactive CLI** — `epf-cli connect` provides a TUI for authentication and workspace selection
+- **GitHub as source of truth** — reads EPF artifacts via GitHub Contents API
 - **Minimal footprint** — ~10MB distroless container, scales to zero on Cloud Run
 
-### Quick Start (GCP Cloud Run)
+### Server Modes
 
-The fastest path from zero to a running EPF cloud server:
+The server auto-detects its mode from environment variables:
+
+| Mode | Trigger | Use Case |
+| --- | --- | --- |
+| **Multi-tenant** | `EPF_OAUTH_CLIENT_ID` set | Teams: users auth with GitHub, discover workspaces |
+| **Single-tenant** | `EPF_GITHUB_OWNER` + `EPF_GITHUB_REPO` (no OAuth) | One container per repo, no user auth |
+| **Local** | Neither set | Filesystem access, stdio transport (`epf-cli serve`) |
+
+### Quick Start (Multi-Tenant with Docker)
+
+The recommended setup for teams:
 
 ```bash
-# 1. Create a GitHub App (see "GitHub App Setup" below)
-
-# 2. Run one-time GCP infrastructure setup
 cd apps/epf-cli
-./scripts/setup-gcp.sh --project YOUR_GCP_PROJECT_ID
 
-# 3. Add secrets to GCP Secret Manager (script prints the exact commands)
+# 1. Create a GitHub OAuth App (see "GitHub OAuth App Setup" below)
 
-# 4. Configure GitHub repository secrets and variables (script prints what to set)
+# 2. Configure environment
+cp .env.example .env
+# Edit .env:
+#   EPF_OAUTH_CLIENT_ID=<your-oauth-app-client-id>
+#   EPF_OAUTH_CLIENT_SECRET=<your-oauth-app-client-secret>
+#   EPF_SESSION_SECRET=$(openssl rand -hex 32)
+#   EPF_SERVER_URL=http://localhost:8080
 
-# 5. Push to main — the deploy workflow builds, pushes, and deploys automatically
-git push origin main
+# 3. Build and start
+export GITHUB_TOKEN=<github-pat-with-repo-scope>
+docker compose up --build -d
+
+# 4. Verify
+curl http://localhost:8080/health
 ```
 
-The deploy workflow (`.github/workflows/deploy.yaml`) handles everything: runs tests, builds the Docker image with embedded schemas, pushes to Artifact Registry, and deploys to Cloud Run.
-
-After the first deploy, subsequent pushes to `apps/epf-cli/**` on `main` auto-deploy.
-
-### Running Locally with Docker
+Then connect from the CLI:
 
 ```bash
-# Build the image (requires a GitHub PAT with repo access to epf-canonical)
+epf-cli connect http://localhost:8080
+```
+
+### Using a Pre-Built Docker Image
+
+Pre-built images are published to GitHub Container Registry on every release:
+
+```bash
+# Pull the latest release
+docker pull ghcr.io/emergent-company/epf-server:latest
+
+# Or pin to a specific version
+docker pull ghcr.io/emergent-company/epf-server:0.25.0
+
+# Run in multi-tenant mode
+docker run -p 8080:8080 \
+  -e EPF_OAUTH_CLIENT_ID=<client-id> \
+  -e EPF_OAUTH_CLIENT_SECRET=<client-secret> \
+  -e EPF_SESSION_SECRET=$(openssl rand -hex 32) \
+  -e EPF_SERVER_URL=http://localhost:8080 \
+  ghcr.io/emergent-company/epf-server:latest
+```
+
+### Building from Source
+
+If you prefer to build the image yourself:
+
+```bash
 cd apps/epf-cli
+
+# Build (requires GITHUB_TOKEN with repo scope for embedded artifacts)
+export GITHUB_TOKEN=<your-pat>
 docker build --secret id=gh_token,env=GITHUB_TOKEN \
   --build-arg VERSION=$(cat VERSION) \
   --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) \
   -t epf-server .
 
-# Run with GitHub App credentials
-docker run -p 8080:8080 \
-  -e EPF_GITHUB_APP_ID=123456 \
-  -e EPF_GITHUB_APP_INSTALLATION_ID=78901234 \
-  -e EPF_GITHUB_APP_PRIVATE_KEY="$(cat your-app.private-key.pem)" \
-  -e EPF_GITHUB_OWNER=your-org \
-  -e EPF_GITHUB_REPO=your-epf-repo \
-  epf-server
-
-# Check health
-curl http://localhost:8080/health
+# Run
+docker run -p 8080:8080 --env-file .env epf-server
 ```
 
-### Running with Docker Compose
+### GitHub OAuth App Setup
 
-The simplest way to run the cloud server locally or on a VM:
+Multi-tenant mode requires a GitHub OAuth App for user authentication.
+
+1. **Create the OAuth App:**
+   - Go to [GitHub Developer Settings > OAuth Apps](https://github.com/settings/developers) → New OAuth App
+   - **Application name**: e.g. `EPF Strategy Server`
+   - **Homepage URL**: your server URL (e.g. `http://localhost:8080`)
+   - **Authorization callback URL**: your server URL (e.g. `http://localhost:8080`)
+   - Check **Enable Device Flow** (required for CLI login)
+   - Click "Register application"
+
+2. **Collect credentials:**
+   - **Client ID**: shown on the app page (starts with `Ov23li...`)
+   - **Client Secret**: click "Generate a new client secret" and copy it immediately
+
+3. **Configure the server:**
+   ```bash
+   EPF_OAUTH_CLIENT_ID=<client-id>
+   EPF_OAUTH_CLIENT_SECRET=<client-secret>
+   EPF_SESSION_SECRET=$(openssl rand -hex 32)
+   ```
+
+### Connecting from the CLI
+
+The interactive Connect TUI handles authentication and workspace selection:
 
 ```bash
-cd apps/epf-cli
+# Interactive connection (Device Flow auth + workspace selection)
+epf-cli connect http://your-server:8080
 
-# 1. Copy the example env file and fill in your values
-cp .env.example .env
-# Edit .env with your GitHub App credentials and repo details
-
-# 2. Build and start (requires GITHUB_TOKEN for building)
-GITHUB_TOKEN=ghp_your_token docker compose up --build
-
-# 3. Check health
-curl http://localhost:8080/health
+# Headless login (for CI/scripting)
+epf-cli login --server http://your-server:8080
 ```
 
-The `docker-compose.yaml` builds the image locally from the Dockerfile and loads configuration from your `.env` file. See `.env.example` for all available options with descriptions.
+The Connect TUI:
+1. Checks server health
+2. Authenticates via GitHub Device Flow (or paste a token)
+3. Discovers your EPF workspaces
+4. Generates an MCP config snippet for your AI tool
 
-To run in the background: `docker compose up --build -d`
-To stop: `docker compose down`
+Credentials are stored locally in `~/.config/epf-cli/auth.json`. On subsequent runs, authentication is skipped if a valid token exists.
 
-### GitHub App Setup
+### Connecting AI Tools
 
-The cloud server authenticates to GitHub using a GitHub App (not a PAT), which provides fine-grained permissions and auto-rotating tokens.
+**Claude** connects via MCP OAuth auto-discovery (no manual config needed):
+- Go to Settings → Connectors → Add URL → enter your server URL
+- Claude handles the OAuth flow automatically
 
-1. **Create the GitHub App:**
-   - Go to your org settings → Developer settings → GitHub Apps → New GitHub App
-   - Name: e.g. `EPF Strategy Server`
-   - Homepage URL: your org URL
-   - Uncheck "Webhook → Active" (not needed)
-   - Permissions → Repository permissions:
-     - **Contents**: Read-only (required — reads EPF YAML files)
-   - Where can this app be installed: "Only on this account"
-   - Click "Create GitHub App"
+**OpenCode** (`opencode.jsonc`) — use the config snippet from `epf-cli connect`:
 
-2. **Generate a private key:**
-   - On the app page, scroll to "Private keys" → "Generate a private key"
-   - Save the `.pem` file securely
-
-3. **Install the app on your repo:**
-   - On the app page, click "Install App" in the sidebar
-   - Choose your organization
-   - Select "Only select repositories" → pick your EPF repo
-   - Click "Install"
-
-4. **Collect credentials:**
-   - **App ID**: shown on the app settings page (a number like `123456`)
-   - **Installation ID**: from the URL after installing — go to your org settings → Installed GitHub Apps → click "Configure" on your app → the number in the URL (`/installations/78901234`)
-   - **Private key**: the `.pem` file you downloaded
-
-### Environment Variables
-
-See `.env.example` for an annotated template with all options.
-
-| Variable | Required | Description |
-| --- | --- | --- |
-| `EPF_GITHUB_APP_ID` | Yes (cloud mode) | GitHub App ID (numeric) |
-| `EPF_GITHUB_APP_PRIVATE_KEY` | Yes (cloud mode) | Path to PEM file, or inline PEM content (if value starts with `-----BEGIN`) |
-| `EPF_GITHUB_APP_INSTALLATION_ID` | Yes (cloud mode) | GitHub App installation ID (numeric) |
-| `EPF_GITHUB_OWNER` | Yes (cloud mode) | GitHub org or user that owns the EPF repo |
-| `EPF_GITHUB_REPO` | Yes (cloud mode) | Repository name containing EPF instance |
-| `EPF_GITHUB_REF` | No | Branch, tag, or SHA to read from (default: repo default branch) |
-| `EPF_GITHUB_BASE_PATH` | No | Path within repo to EPF instance (e.g. `docs/EPF/_instances/my-product`) |
-| `EPF_INSTANCE_NAME` | No | Human-readable name shown in `/health` response |
-| `EPF_STRATEGY_INSTANCE` | No | Local filesystem path (overridden by GitHub source when configured) |
-| `PORT` | No | HTTP port (default: `8080`, Cloud Run sets this automatically) |
-
-When none of the `EPF_GITHUB_APP_*` variables are set, the server runs in filesystem mode (same as `epf-cli serve`). If some but not all are set, the server exits with an error.
-
-### HTTP Endpoints
-
-| Endpoint | Method | Description |
-| --- | --- | --- |
-| `/mcp` | POST | Streamable HTTP transport (primary, MCP spec 2025-03-26) |
-| `/sse` | GET | SSE transport (legacy fallback, requires `--sse` flag) |
-| `/message` | POST | SSE message endpoint (legacy fallback, requires `--sse` flag) |
-| `/health` | GET | Health check — returns JSON with status, uptime, version, instance info |
-
-### Connecting MCP Clients
-
-Once your cloud server is running, configure your AI tool to connect:
-
-**Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
-
-```json
+```jsonc
 {
-  "mcpServers": {
-    "epf-cloud": {
-      "url": "https://your-cloud-run-url.run.app/mcp",
+  "mcp": {
+    "epf-remote": {
+      "type": "remote",
+      "url": "http://your-server:8080/mcp",
       "headers": {
-        "Authorization": "Bearer YOUR_IDENTITY_TOKEN"
+        "Authorization": "Bearer <jwt-from-connect>"
       }
     }
   }
@@ -394,56 +393,101 @@ Once your cloud server is running, configure your AI tool to connect:
 ```json
 {
   "servers": {
-    "epf-cloud": {
+    "epf-remote": {
       "type": "http",
-      "url": "https://your-cloud-run-url.run.app/mcp",
+      "url": "http://your-server:8080/mcp",
       "headers": {
-        "Authorization": "Bearer YOUR_IDENTITY_TOKEN"
+        "Authorization": "Bearer <jwt-from-connect>"
       }
     }
   }
 }
 ```
 
-**OpenCode** (`opencode.jsonc`):
+### Environment Variables
 
-```jsonc
-{
-  "mcp": {
-    "epf-cloud": {
-      "type": "remote",
-      "url": "https://your-cloud-run-url.run.app/mcp",
-      "headers": {
-        "Authorization": "Bearer YOUR_IDENTITY_TOKEN"
-      }
-    }
-  }
-}
+See `.env.example` for an annotated template with all options.
+
+**Multi-tenant mode:**
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `EPF_OAUTH_CLIENT_ID` | Yes | GitHub OAuth App client ID |
+| `EPF_OAUTH_CLIENT_SECRET` | Yes | GitHub OAuth App client secret |
+| `EPF_SESSION_SECRET` | Yes | 64+ hex char session signing secret (`openssl rand -hex 32`) |
+| `EPF_SERVER_URL` | Recommended | External server URL for OAuth redirects (default: `http://localhost:PORT`) |
+| `EPF_SESSION_TTL` | No | Session lifetime as Go duration (default: `24h`) |
+| `PORT` | No | HTTP port (default: `8080`) |
+
+**Single-tenant mode:**
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `EPF_GITHUB_APP_ID` | Yes | GitHub App ID (numeric) |
+| `EPF_GITHUB_APP_PRIVATE_KEY` | Yes | Path to PEM file, or inline PEM content |
+| `EPF_GITHUB_APP_INSTALLATION_ID` | Yes | GitHub App installation ID (numeric) |
+| `EPF_GITHUB_OWNER` | Yes | GitHub org or user that owns the EPF repo |
+| `EPF_GITHUB_REPO` | Yes | Repository name containing EPF instance |
+| `EPF_GITHUB_REF` | No | Branch, tag, or SHA (default: repo default branch) |
+| `EPF_GITHUB_BASE_PATH` | No | Path within repo to EPF instance |
+| `PORT` | No | HTTP port (default: `8080`) |
+
+### HTTP Endpoints
+
+**All modes:**
+
+| Endpoint | Method | Auth | Description |
+| --- | --- | --- | --- |
+| `/mcp` | POST | Bearer JWT | MCP Streamable HTTP transport (80+ tools) |
+| `/health` | GET | None | Health check (status, uptime, mode, version) |
+
+**Multi-tenant mode (additional):**
+
+| Endpoint | Method | Auth | Description |
+| --- | --- | --- | --- |
+| `/auth/github/login` | GET | None | Redirects to GitHub OAuth consent |
+| `/auth/github/callback` | GET | None | OAuth callback, returns session JWT |
+| `/auth/token` | POST | None | Exchange GitHub token for session JWT |
+| `/workspaces` | GET | Bearer JWT | List user's EPF workspaces |
+| `/.well-known/oauth-protected-resource` | GET | None | MCP OAuth resource metadata (RFC 9728) |
+| `/.well-known/oauth-authorization-server` | GET | None | MCP OAuth server metadata (RFC 8414) |
+| `/register` | POST | None | MCP dynamic client registration (RFC 7591) |
+| `/authorize` | GET | None | MCP OAuth authorization endpoint |
+| `/token` | POST | None | MCP OAuth token endpoint |
+
+**Legacy (opt-in with `--sse` flag):**
+
+| Endpoint | Method | Description |
+| --- | --- | --- |
+| `/sse` | GET | SSE transport for legacy MCP clients |
+| `/message` | POST | SSE message endpoint |
+
+### Deploying to GCP Cloud Run
+
+For production deployment with auto-deploy:
+
+```bash
+# 1. Run one-time GCP infrastructure setup
+cd apps/epf-cli
+./scripts/setup-gcp.sh --project YOUR_GCP_PROJECT_ID
+
+# 2. Add secrets to GCP Secret Manager (script prints the exact commands)
+
+# 3. Configure GitHub repository secrets and variables (script prints what to set)
+
+# 4. Push to main — the deploy workflow builds, pushes, and deploys automatically
+git push origin main
 ```
 
-> **Note on authentication:** When deployed to Cloud Run with `--no-allow-unauthenticated`,
-> clients must include a GCP identity token. Generate one with:
-> ```bash
-> gcloud auth print-identity-token --audiences="https://your-cloud-run-url.run.app"
-> ```
-> For programmatic access, grant the caller `roles/run.invoker` on the Cloud Run service.
-
-### Cloud Run Configuration
-
-The deploy workflow configures Cloud Run with these settings:
+The deploy workflow (`.github/workflows/deploy.yaml`) handles everything: runs tests, builds the Docker image with embedded schemas, pushes to Artifact Registry, and deploys to Cloud Run.
 
 | Setting | Value | Rationale |
 | --- | --- | --- |
-| Min instances | 0 | Scale to zero when idle (cost savings) |
+| Min instances | 0 | Scale to zero when idle |
 | Max instances | 3 | Sufficient for team use |
-| Memory | 256Mi | EPF data is small; parsing is fast |
-| CPU | 1 | Single core handles many concurrent MCP sessions |
-| Timeout | 300s | Long enough for complex strategy queries |
-| Auth | IAM (`--no-allow-unauthenticated`) | Cloud Run handles client auth (Stage 1) |
-| Execution | gen2 | Better cold start performance |
-| Startup CPU boost | Enabled | Fast cold starts |
-
-To customize, edit the `gcloud run deploy` command in `.github/workflows/deploy.yaml`.
+| Memory | 256Mi | EPF data is small |
+| CPU | 1 | Handles many concurrent MCP sessions |
+| Timeout | 300s | Long enough for workspace discovery |
 
 ## Architecture
 
