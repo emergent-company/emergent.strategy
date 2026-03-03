@@ -152,6 +152,20 @@ func (m Model) updateWorkspaces(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	m.workspaces, cmd = m.workspaces.Update(msg)
 
+	// If token is expired/invalid, clear it and fall back to auth screen.
+	if m.workspaces.IsAuthExpired() {
+		m.token = ""
+		m.username = ""
+		m.userID = 0
+		// Clear the stored token so it's not reused.
+		store := m.config.TokenStore
+		if store == nil {
+			store = auth.NewTokenStore()
+		}
+		_ = store.Delete(m.config.ServerURL)
+		return m.transitionToAuth()
+	}
+
 	// Auto-select if only one workspace.
 	if ws := m.workspaces.AutoSelected(); ws != nil {
 		return m.transitionToSelected(*ws)

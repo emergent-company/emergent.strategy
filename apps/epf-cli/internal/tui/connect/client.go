@@ -14,7 +14,7 @@ import (
 )
 
 // httpClient is the shared HTTP client for server requests.
-var httpClient = &http.Client{Timeout: 30 * time.Second}
+var httpClient = &http.Client{Timeout: 120 * time.Second}
 
 // CheckHealth calls GET /health and returns server info.
 func CheckHealth(ctx context.Context, serverURL string) (*ServerInfo, error) {
