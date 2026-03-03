@@ -16,6 +16,12 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
+// RouteRegistrar can register HTTP routes on a mux.
+// Used to decouple the transport layer from auth handler implementation.
+type RouteRegistrar interface {
+	RegisterRoutes(mux *http.ServeMux)
+}
+
 // HTTPServerConfig configures the HTTP transport server.
 type HTTPServerConfig struct {
 	// Port to listen on (default 8080).
@@ -31,12 +37,36 @@ type HTTPServerConfig struct {
 
 	// HealthInfo provides static information for the /health endpoint.
 	HealthInfo HealthInfo
+
+	// AuthHandler registers auth-related routes (e.g., /auth/github/login,
+	// /auth/github/callback). Nil means no auth routes are registered.
+	AuthHandler RouteRegistrar
+
+	// AuthMiddleware wraps MCP transport handlers with bearer token
+	// authentication. Nil means no auth middleware is applied.
+	// Only /mcp, /sse, /message, and /workspaces are wrapped — /health
+	// and /auth/* routes are never wrapped.
+	AuthMiddleware func(http.Handler) http.Handler
+
+	// WorkspacesHandler handles GET /workspaces requests. When set, the
+	// endpoint is registered behind auth middleware. This returns the
+	// list of EPF workspaces accessible to the authenticated user.
+	// Nil means the /workspaces endpoint is not registered.
+	WorkspacesHandler http.Handler
+
+	// MCPOAuthHandler registers MCP OAuth 2.1 authorization server routes
+	// (/.well-known/oauth-protected-resource, /.well-known/oauth-authorization-server,
+	// /register, /authorize, /authorize/callback, /token).
+	// These routes are NOT behind auth middleware — they ARE the auth flow.
+	// Nil means MCP OAuth is not enabled (non-multi-tenant modes).
+	MCPOAuthHandler RouteRegistrar
 }
 
 // HealthInfo contains static information surfaced by the /health endpoint.
 type HealthInfo struct {
 	ServerName   string `json:"server_name"`
 	Version      string `json:"version"`
+	Mode         string `json:"mode,omitempty"`
 	InstanceName string `json:"instance_name,omitempty"`
 	InstancePath string `json:"instance_path,omitempty"`
 }
@@ -80,9 +110,25 @@ func (s *HTTPServer) Start() error {
 	// Health endpoint (not behind CORS — load balancers need unrestricted access)
 	mux.HandleFunc("GET /health", s.handleHealth)
 
+	// Auth routes (if configured).
+	if s.config.AuthHandler != nil {
+		s.config.AuthHandler.RegisterRoutes(mux)
+	}
+
+	// MCP OAuth authorization server routes (if configured).
+	// These are public endpoints — NOT behind auth middleware.
+	if s.config.MCPOAuthHandler != nil {
+		s.config.MCPOAuthHandler.RegisterRoutes(mux)
+	}
+
+	// Workspaces endpoint (behind auth — requires user context).
+	if s.config.WorkspacesHandler != nil {
+		mux.Handle("GET /workspaces", s.corsMiddleware(s.wrapAuth(s.config.WorkspacesHandler)))
+	}
+
 	// Streamable HTTP transport at /mcp (primary)
 	streamable := server.NewStreamableHTTPServer(s.mcpServer)
-	mux.Handle("/mcp", s.corsMiddleware(streamable))
+	mux.Handle("/mcp", s.corsMiddleware(s.wrapAuth(streamable)))
 
 	// SSE transport at /sse and /message (legacy fallback)
 	if s.config.EnableSSE {
@@ -90,8 +136,8 @@ func (s *HTTPServer) Start() error {
 			server.WithSSEEndpoint("/sse"),
 			server.WithMessageEndpoint("/message"),
 		)
-		mux.Handle("/sse", s.corsMiddleware(sseServer.SSEHandler()))
-		mux.Handle("/message", s.corsMiddleware(sseServer.MessageHandler()))
+		mux.Handle("/sse", s.corsMiddleware(s.wrapAuth(sseServer.SSEHandler())))
+		mux.Handle("/message", s.corsMiddleware(s.wrapAuth(sseServer.MessageHandler())))
 	}
 
 	addr := fmt.Sprintf(":%d", s.config.Port)
@@ -135,6 +181,15 @@ func (s *HTTPServer) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(resp)
+}
+
+// wrapAuth applies the configured auth middleware to a handler.
+// Returns the handler unchanged when no auth middleware is configured.
+func (s *HTTPServer) wrapAuth(next http.Handler) http.Handler {
+	if s.config.AuthMiddleware != nil {
+		return s.config.AuthMiddleware(next)
+	}
+	return next
 }
 
 // corsMiddleware wraps an http.Handler with CORS headers based on config.

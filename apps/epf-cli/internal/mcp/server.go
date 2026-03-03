@@ -14,6 +14,7 @@ import (
 
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/aim"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/anchor"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/auth"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/checks"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/discovery"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/fixplan"
@@ -26,6 +27,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/valuemodel"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/version"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/wizard"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/workspace"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"gopkg.in/yaml.v3"
@@ -54,6 +56,14 @@ type Server struct {
 	// Anti-loop detection: per-session call counter keyed by toolName+hash(params)
 	toolCallMu     sync.Mutex
 	toolCallCounts map[string]int
+
+	// Multi-tenant auth (nil in local/single-tenant mode).
+	accessChecker  *auth.AccessChecker
+	sessionManager *auth.SessionManager
+	serverMode     auth.ServerMode
+
+	// Workspace discovery (nil in local/single-tenant mode).
+	discoverer *workspace.Discoverer
 }
 
 // NewServer creates a new EPF MCP server
@@ -1571,6 +1581,22 @@ func (s *Server) registerTools() {
 	)
 
 	// ==========================================================================
+	// Workspace Discovery Tools (Multi-Tenant Cloud Server)
+	// ==========================================================================
+
+	// Tool: epf_list_workspaces
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_list_workspaces",
+			mcp.WithDescription("List EPF workspaces accessible to the authenticated user. "+
+				"Scans the user's GitHub repositories for EPF instances (identified by _epf.yaml anchor files) "+
+				"and returns a list of workspaces with their instance_path values for use with other EPF tools. "+
+				"Results are cached per-user with a 10-minute TTL. "+
+				"Only available in multi-tenant mode — returns an error in local/single-tenant mode."),
+		),
+		s.handleListWorkspaces,
+	)
+
+	// ==========================================================================
 	// Strategy Server Tools (Product Strategy for AI Agents)
 	// ==========================================================================
 	s.registerStrategyTools()
@@ -2341,8 +2367,8 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 // handleHealthCheckCloud handles epf_health_check for registered (non-filesystem) stores.
 // Instead of running filesystem-based checks (os.Stat, anchor validation, directory walking),
 // it queries the strategy store for health information and builds a summary from in-memory data.
-func (s *Server) handleHealthCheckCloud(_ context.Context, instancePath, detailLevel string) (*mcp.CallToolResult, error) {
-	store, err := getOrCreateStrategyStore(instancePath)
+func (s *Server) handleHealthCheckCloud(ctx context.Context, instancePath, detailLevel string) (*mcp.CallToolResult, error) {
+	store, err := s.resolveAndLoadStore(ctx, instancePath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to access strategy store for %s: %s", instancePath, err.Error())), nil
 	}

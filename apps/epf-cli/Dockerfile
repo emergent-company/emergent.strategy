@@ -8,13 +8,20 @@
 #     --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) \
 #     -t epf-server .
 #
-# Run:
+# Run (single-tenant — one repo, no user auth):
 #   docker run -p 8080:8080 \
 #     -e EPF_GITHUB_APP_ID=... \
 #     -e EPF_GITHUB_APP_INSTALLATION_ID=... \
 #     -e EPF_GITHUB_APP_PRIVATE_KEY="$(cat key.pem)" \
 #     -e EPF_GITHUB_OWNER=... \
 #     -e EPF_GITHUB_REPO=... \
+#     epf-server
+#
+# Run (multi-tenant — GitHub OAuth, workspace discovery, multi-repo):
+#   docker run -p 8080:8080 \
+#     -e EPF_OAUTH_CLIENT_ID=... \
+#     -e EPF_OAUTH_CLIENT_SECRET=... \
+#     -e EPF_SESSION_SECRET=$(openssl rand -hex 32) \
 #     epf-server
 
 # ---------------------------------------------------------------------------

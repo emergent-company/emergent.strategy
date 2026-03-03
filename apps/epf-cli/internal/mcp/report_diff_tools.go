@@ -89,7 +89,7 @@ func (s *Server) handleGenerateReport(ctx context.Context, request mcp.CallToolR
 		}
 	} else {
 		// Cloud mode: generate a lightweight report from strategy store
-		store, storeErr := getOrCreateStrategyStore(instancePath)
+		store, storeErr := s.resolveAndLoadStore(ctx, instancePath)
 		if storeErr != nil {
 			result := ReportResult{
 				Success: false,

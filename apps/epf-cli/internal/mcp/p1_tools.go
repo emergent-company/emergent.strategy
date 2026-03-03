@@ -47,7 +47,7 @@ func (s *Server) handleListFeatures(ctx context.Context, request mcp.CallToolReq
 	includeQuality := includeQualityStr != "false" // default true
 
 	// Load strategy store for feature data
-	store, err := getOrCreateStrategyStore(instancePath)
+	store, err := s.resolveAndLoadStore(ctx, instancePath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to load strategy data: %v", err)), nil
 	}
@@ -447,7 +447,7 @@ func (s *Server) handleRenameValuePath(ctx context.Context, request mcp.CallTool
 	dryRun := dryRunStr == "true"
 
 	// Validate new_path exists in value models
-	store, storeErr := getOrCreateStrategyStore(instancePath)
+	store, storeErr := s.resolveAndLoadStore(ctx, instancePath)
 	if storeErr != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to load strategy data: %v", storeErr)), nil
 	}
@@ -839,7 +839,7 @@ func (s *Server) handleUpdateKR(ctx context.Context, request mcp.CallToolRequest
 	// If value_model_target.component_path is provided, validate it
 	if vmt, ok := fieldsMap["value_model_target"].(map[string]interface{}); ok {
 		if cp, ok := vmt["component_path"].(string); ok && cp != "" {
-			store, storeErr := getOrCreateStrategyStore(instancePath)
+			store, storeErr := s.resolveAndLoadStore(ctx, instancePath)
 			if storeErr != nil {
 				return mcp.NewToolResultError(fmt.Sprintf("Failed to load strategy data: %v", storeErr)), nil
 			}
