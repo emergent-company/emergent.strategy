@@ -593,6 +593,255 @@ func TestConfigFromEnv_BadKeyFile(t *testing.T) {
 	}
 }
 
+// --- InstallationTokenManager tests ---
+
+func TestNewInstallationTokenManager_Defaults(t *testing.T) {
+	key := testKey(t)
+	m, err := NewInstallationTokenManager(MultiTenantAppConfig{
+		AppID:      42,
+		PrivateKey: key,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if m.baseURL != "https://api.github.com" {
+		t.Errorf("BaseURL = %q, want default", m.baseURL)
+	}
+	if m.refreshMargin != 5*time.Minute {
+		t.Errorf("RefreshMargin = %v, want 5m", m.refreshMargin)
+	}
+}
+
+func TestNewInstallationTokenManager_MissingAppID(t *testing.T) {
+	key := testKey(t)
+	_, err := NewInstallationTokenManager(MultiTenantAppConfig{
+		PrivateKey: key,
+	})
+	if err == nil {
+		t.Fatal("expected error for missing AppID")
+	}
+}
+
+func TestNewInstallationTokenManager_MissingKey(t *testing.T) {
+	_, err := NewInstallationTokenManager(MultiTenantAppConfig{
+		AppID: 42,
+	})
+	if err == nil {
+		t.Fatal("expected error for missing PrivateKey")
+	}
+}
+
+func TestInstallationTokenManager_FetchesAndCaches(t *testing.T) {
+	key := testKey(t)
+	callCount := 0
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		w.WriteHeader(http.StatusCreated)
+		resp := map[string]interface{}{
+			"token":      fmt.Sprintf("ghs_install_token_%d", callCount),
+			"expires_at": time.Now().Add(1 * time.Hour).Format(time.RFC3339),
+		}
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	m, err := NewInstallationTokenManager(MultiTenantAppConfig{
+		AppID:      42,
+		PrivateKey: key,
+		BaseURL:    server.URL,
+		HTTPClient: server.Client(),
+	})
+	if err != nil {
+		t.Fatalf("NewInstallationTokenManager: %v", err)
+	}
+
+	// First call for installation 100 should fetch.
+	tok, err := m.Token(100)
+	if err != nil {
+		t.Fatalf("Token(100) = error %v", err)
+	}
+	if tok != "ghs_install_token_1" {
+		t.Errorf("Token(100) = %q, want ghs_install_token_1", tok)
+	}
+
+	// Second call for same installation should return cached.
+	tok2, err := m.Token(100)
+	if err != nil {
+		t.Fatalf("Token(100) second call = error %v", err)
+	}
+	if tok2 != tok {
+		t.Errorf("expected cached token %q, got %q", tok, tok2)
+	}
+	if callCount != 1 {
+		t.Errorf("expected 1 API call, got %d", callCount)
+	}
+}
+
+func TestInstallationTokenManager_MultipleInstallations(t *testing.T) {
+	key := testKey(t)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Extract installation ID from path to return unique tokens.
+		path := r.URL.Path
+		w.WriteHeader(http.StatusCreated)
+		resp := map[string]interface{}{
+			"token":      fmt.Sprintf("ghs_for_%s", path),
+			"expires_at": time.Now().Add(1 * time.Hour).Format(time.RFC3339),
+		}
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	m, err := NewInstallationTokenManager(MultiTenantAppConfig{
+		AppID:      42,
+		PrivateKey: key,
+		BaseURL:    server.URL,
+		HTTPClient: server.Client(),
+	})
+	if err != nil {
+		t.Fatalf("NewInstallationTokenManager: %v", err)
+	}
+
+	// Fetch tokens for two different installations.
+	tok100, err := m.Token(100)
+	if err != nil {
+		t.Fatalf("Token(100): %v", err)
+	}
+	tok200, err := m.Token(200)
+	if err != nil {
+		t.Fatalf("Token(200): %v", err)
+	}
+
+	// They should be different tokens.
+	if tok100 == tok200 {
+		t.Error("expected different tokens for different installations")
+	}
+}
+
+func TestInstallationTokenManager_AutoRefresh(t *testing.T) {
+	key := testKey(t)
+	callCount := 0
+	now := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		w.WriteHeader(http.StatusCreated)
+		resp := map[string]interface{}{
+			"token":      fmt.Sprintf("ghs_refreshed_%d", callCount),
+			"expires_at": now.Add(1 * time.Hour).Format(time.RFC3339),
+		}
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	m, err := NewInstallationTokenManager(MultiTenantAppConfig{
+		AppID:         42,
+		PrivateKey:    key,
+		BaseURL:       server.URL,
+		HTTPClient:    server.Client(),
+		RefreshMargin: 5 * time.Minute,
+	})
+	if err != nil {
+		t.Fatalf("NewInstallationTokenManager: %v", err)
+	}
+	m.nowFunc = func() time.Time { return now }
+
+	// First fetch.
+	tok1, err := m.Token(100)
+	if err != nil {
+		t.Fatalf("Token(100): %v", err)
+	}
+	if callCount != 1 {
+		t.Errorf("expected 1 API call, got %d", callCount)
+	}
+
+	// Advance time to within refresh margin of expiry.
+	now = now.Add(56 * time.Minute) // 4 minutes before expiry
+
+	tok2, err := m.Token(100)
+	if err != nil {
+		t.Fatalf("Token(100) after advance: %v", err)
+	}
+	if tok2 == tok1 {
+		t.Error("expected new token after time advance into refresh margin")
+	}
+	if callCount != 2 {
+		t.Errorf("expected 2 API calls, got %d", callCount)
+	}
+}
+
+func TestInstallationTokenManager_TokenFunc(t *testing.T) {
+	key := testKey(t)
+
+	server := mockGitHubAPI(t, true, "ghs_func_token", time.Now().Add(1*time.Hour))
+	defer server.Close()
+
+	m, err := NewInstallationTokenManager(MultiTenantAppConfig{
+		AppID:      42,
+		PrivateKey: key,
+		BaseURL:    server.URL,
+		HTTPClient: server.Client(),
+	})
+	if err != nil {
+		t.Fatalf("NewInstallationTokenManager: %v", err)
+	}
+
+	fn := m.TokenFunc(100)
+	tok, err := fn()
+	if err != nil {
+		t.Fatalf("TokenFunc(100)(): %v", err)
+	}
+	if tok != "ghs_func_token" {
+		t.Errorf("TokenFunc(100)() = %q, want ghs_func_token", tok)
+	}
+}
+
+func TestMultiTenantConfigFromEnv_NoneSet(t *testing.T) {
+	os.Unsetenv(EnvGitHubAppID)
+	os.Unsetenv(EnvGitHubPrivateKey)
+
+	cfg, err := MultiTenantConfigFromEnv()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg != nil {
+		t.Error("expected nil config when no env vars set")
+	}
+}
+
+func TestMultiTenantConfigFromEnv_MissingKey(t *testing.T) {
+	t.Setenv(EnvGitHubAppID, "42")
+	os.Unsetenv(EnvGitHubPrivateKey)
+
+	_, err := MultiTenantConfigFromEnv()
+	if err == nil {
+		t.Fatal("expected error when App ID set but key missing")
+	}
+}
+
+func TestMultiTenantConfigFromEnv_ValidInlinePEM(t *testing.T) {
+	key := testKey(t)
+	pemData := string(encodePKCS1PEM(key))
+
+	t.Setenv(EnvGitHubAppID, "42")
+	t.Setenv(EnvGitHubPrivateKey, pemData)
+
+	cfg, err := MultiTenantConfigFromEnv()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg == nil {
+		t.Fatal("expected non-nil config")
+	}
+	if cfg.AppID != 42 {
+		t.Errorf("AppID = %d, want 42", cfg.AppID)
+	}
+	if cfg.PrivateKey == nil {
+		t.Error("expected non-nil PrivateKey")
+	}
+}
+
 // --- base64URLEncode test ---
 
 func TestBase64URLEncode(t *testing.T) {

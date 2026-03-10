@@ -263,6 +263,118 @@ func signJWT(key *rsa.PrivateKey, appID int64, now time.Time) (string, error) {
 	return signingInput + "." + base64URLEncode(signature), nil
 }
 
+// InstallationTokenManager manages GitHub App installation tokens for
+// multiple installations. Unlike TokenProvider (which manages a single
+// installation for single-tenant mode), this type supports multi-tenant
+// mode where the App is installed across many orgs and user accounts.
+//
+// Tokens are cached by installation ID and shared across all user sessions.
+// This is correct because installation tokens represent the App's access
+// to repos under a given installation, not a specific user's access.
+type InstallationTokenManager struct {
+	appID         int64
+	privateKey    *rsa.PrivateKey
+	baseURL       string
+	httpClient    *http.Client
+	refreshMargin time.Duration
+
+	mu     sync.Mutex
+	tokens map[int64]*installationToken // installationID -> cached token
+
+	// nowFunc is used for testing time-dependent behavior.
+	nowFunc func() time.Time
+}
+
+// MultiTenantAppConfig holds the configuration for a GitHub App in
+// multi-tenant mode. Unlike GitHubAppConfig, it does not require a
+// specific InstallationID — installations are discovered per-user.
+type MultiTenantAppConfig struct {
+	// AppID is the GitHub App's numeric ID.
+	AppID int64
+
+	// PrivateKey is the RSA private key for signing App JWTs.
+	PrivateKey *rsa.PrivateKey
+
+	// BaseURL is the GitHub API base URL. Defaults to "https://api.github.com".
+	BaseURL string
+
+	// HTTPClient is an optional HTTP client. Defaults to http.DefaultClient.
+	HTTPClient *http.Client
+
+	// RefreshMargin is how early to refresh before token expiry.
+	// Defaults to 5 minutes.
+	RefreshMargin time.Duration
+}
+
+// NewInstallationTokenManager creates a manager for multi-installation
+// token caching and rotation.
+func NewInstallationTokenManager(cfg MultiTenantAppConfig) (*InstallationTokenManager, error) {
+	if cfg.AppID == 0 {
+		return nil, fmt.Errorf("auth: AppID is required")
+	}
+	if cfg.PrivateKey == nil {
+		return nil, fmt.Errorf("auth: PrivateKey is required")
+	}
+	if cfg.BaseURL == "" {
+		cfg.BaseURL = "https://api.github.com"
+	}
+	if cfg.HTTPClient == nil {
+		cfg.HTTPClient = &http.Client{Timeout: 30 * time.Second}
+	}
+	if cfg.RefreshMargin == 0 {
+		cfg.RefreshMargin = 5 * time.Minute
+	}
+
+	return &InstallationTokenManager{
+		appID:         cfg.AppID,
+		privateKey:    cfg.PrivateKey,
+		baseURL:       cfg.BaseURL,
+		httpClient:    cfg.HTTPClient,
+		refreshMargin: cfg.RefreshMargin,
+		tokens:        make(map[int64]*installationToken),
+		nowFunc:       time.Now,
+	}, nil
+}
+
+// Token returns a valid installation access token for the given
+// installation ID. If the cached token is missing or about to expire,
+// a new one is obtained from GitHub.
+//
+// This method is safe for concurrent use.
+func (m *InstallationTokenManager) Token(installationID int64) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if tok, ok := m.tokens[installationID]; ok {
+		if m.nowFunc().Before(tok.ExpiresAt.Add(-m.refreshMargin)) {
+			return tok.Token, nil
+		}
+	}
+
+	// Token is missing or about to expire — refresh.
+	now := m.nowFunc()
+	jwt, err := signJWT(m.privateKey, m.appID, now)
+	if err != nil {
+		return "", fmt.Errorf("auth: sign JWT for installation %d: %w", installationID, err)
+	}
+
+	tok, err := exchangeToken(m.httpClient, m.baseURL, installationID, jwt)
+	if err != nil {
+		return "", fmt.Errorf("auth: exchange token for installation %d: %w", installationID, err)
+	}
+
+	m.tokens[installationID] = tok
+	return tok.Token, nil
+}
+
+// TokenFunc returns a function that provides a token for a specific
+// installation ID. Suitable for passing to source.NewGitHubSource.
+func (m *InstallationTokenManager) TokenFunc(installationID int64) func() (string, error) {
+	return func() (string, error) {
+		return m.Token(installationID)
+	}
+}
+
 // base64URLEncode encodes data using base64url encoding without padding
 // (RFC 4648 Section 5).
 func base64URLEncode(data []byte) string {
@@ -338,5 +450,52 @@ func ConfigFromEnv() (*GitHubAppConfig, error) {
 		AppID:          appID,
 		InstallationID: installID,
 		PrivateKey:     key,
+	}, nil
+}
+
+// MultiTenantConfigFromEnv reads GitHub App configuration for multi-tenant
+// mode from environment variables.
+//
+// Required variables:
+//   - EPF_GITHUB_APP_ID: numeric App ID
+//   - EPF_GITHUB_APP_PRIVATE_KEY: path to PEM file, or inline PEM data
+//
+// Note: EPF_GITHUB_APP_INSTALLATION_ID is NOT required for multi-tenant
+// mode (installations are discovered per-user via GET /user/installations).
+//
+// Returns (nil, nil) if EPF_GITHUB_APP_ID is not set — this means GitHub
+// App multi-tenant auth is not configured.
+func MultiTenantConfigFromEnv() (*MultiTenantAppConfig, error) {
+	appIDStr := os.Getenv(EnvGitHubAppID)
+	keyRef := os.Getenv(EnvGitHubPrivateKey)
+
+	// If App ID is not set, multi-tenant GitHub App is not configured.
+	if appIDStr == "" {
+		return nil, nil
+	}
+
+	// App ID is set but key is missing.
+	if keyRef == "" {
+		return nil, fmt.Errorf("auth: %s is set but %s is missing — both are required for GitHub App multi-tenant mode", EnvGitHubAppID, EnvGitHubPrivateKey)
+	}
+
+	appID, err := strconv.ParseInt(appIDStr, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("auth: %s must be a number: %w", EnvGitHubAppID, err)
+	}
+
+	var key *rsa.PrivateKey
+	if strings.HasPrefix(keyRef, "-----BEGIN") {
+		key, err = ParsePrivateKey([]byte(keyRef))
+	} else {
+		key, err = ParsePrivateKeyFile(keyRef)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("auth: load private key from %s: %w", EnvGitHubPrivateKey, err)
+	}
+
+	return &MultiTenantAppConfig{
+		AppID:      appID,
+		PrivateKey: key,
 	}, nil
 }
