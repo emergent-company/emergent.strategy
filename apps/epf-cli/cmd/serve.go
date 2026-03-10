@@ -30,16 +30,21 @@ const (
 
 var serveCmd = &cobra.Command{
 	Use:   "serve",
-	Short: "Start the MCP server for EPF tools",
-	Long: `Start the Model Context Protocol (MCP) server.
+	Short: "Start the MCP server with all EPF tools",
+	Long: `Start the Model Context Protocol (MCP) server with all EPF tools.
 
-By default the server communicates over stdio (stdin/stdout). Use --http to
-start an HTTPS-capable HTTP server instead, exposing MCP tools via Streamable
-HTTP (primary) and optional SSE fallback for legacy clients.
+Exposes the full EPF toolset (80 tools) including validation, health checks,
+wizards, generators, AIM phase tools, value model management, and strategy
+query tools. Use --instance to pre-load a strategy instance for the 8
+read-only strategy query tools.
+
+For a lightweight server with only the 16 read-only strategy tools (for consumers
+of strategy, not authors), use "epf-cli strategy serve" instead.
 
 STDIO MODE (default):
 
   epf-cli serve
+  epf-cli serve --instance docs/EPF/_instances/emergent --watch
 
   Communicates over stdin/stdout using the MCP protocol. Use this for local
   AI agent integrations (VS Code, Cursor, Claude Desktop, etc.).
@@ -59,8 +64,11 @@ HTTP MODE:
 
 EXAMPLES:
 
-  # Local AI agent (stdio)
+  # Local AI agent with all tools (stdio)
   epf-cli serve
+
+  # With strategy instance pre-loaded
+  epf-cli serve --instance docs/EPF/_instances/emergent --watch
 
   # Cloud server on port 8080 (default)
   epf-cli serve --http
@@ -76,6 +84,25 @@ EXAMPLES:
 		port, _ := cmd.Flags().GetInt("port")
 		enableSSE, _ := cmd.Flags().GetBool("sse")
 		corsOrigins, _ := cmd.Flags().GetString("cors-origins")
+		instancePath, _ := cmd.Flags().GetString("instance")
+		watch, _ := cmd.Flags().GetBool("watch")
+
+		// --instance flag sets the default instance path for strategy tools.
+		// Also accept positional argument for backward compatibility with
+		// callers that used to go through "strategy serve <path>".
+		if instancePath == "" && len(args) > 0 {
+			instancePath = args[0]
+		}
+		if instancePath != "" {
+			os.Setenv("EPF_STRATEGY_INSTANCE", instancePath)
+			fmt.Fprintf(os.Stderr, "Strategy instance: %s\n", instancePath)
+		}
+		if watch {
+			os.Setenv("EPF_STRATEGY_WATCH", "true")
+			if instancePath != "" {
+				fmt.Fprintln(os.Stderr, "File watching enabled")
+			}
+		}
 
 		// Auto-detect schemas directory if not specified
 		if schemasDir == "" {
@@ -407,4 +434,6 @@ func init() {
 	serveCmd.Flags().Int("port", 8080, "HTTP port to listen on (requires --http)")
 	serveCmd.Flags().Bool("sse", false, "enable legacy SSE transport at /sse (requires --http)")
 	serveCmd.Flags().String("cors-origins", "", "comma-separated allowed CORS origins (requires --http)")
+	serveCmd.Flags().String("instance", "", "path to EPF instance (pre-loads strategy for strategy query tools)")
+	serveCmd.Flags().Bool("watch", false, "enable file watching for automatic reload on instance changes")
 }
