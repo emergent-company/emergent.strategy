@@ -27,14 +27,6 @@
   },
   "mcp": {
     // --- General-purpose servers (always available) ---
-    "context7": {
-      "type": "remote",
-      "url": "https://mcp.context7.com/mcp",
-      "headers": {
-        "CONTEXT7_API_KEY": "REDACTED_CONTEXT7_KEY",
-      },
-      "timeout": 60000,
-    },
     "gh_grep": {
       "type": "remote",
       "url": "https://mcp.grep.app/sse",
@@ -49,7 +41,7 @@
       "type": "local",
       "command": ["npx", "-y", "@modelcontextprotocol/server-brave-search"],
       "environment": {
-        "BRAVE_API_KEY": "REDACTED_BRAVE_KEY",
+        "BRAVE_API_KEY": "${BRAVE_API_KEY}",
       },
       "timeout": 60000,
     },
