@@ -21,9 +21,10 @@ dist/
 .copilot/
 
 # OpenCode session database (contains full conversation history)
-.opencode/opencode.db
-.opencode/opencode.db-shm
-.opencode/opencode.db-wal
+**/.opencode/opencode.db
+**/.opencode/opencode.db-shm
+**/.opencode/opencode.db-wal
+**/.opencode/init
 
 # OpenCode tools that reference old monorepo / read .env at runtime
 .opencode/tool/
