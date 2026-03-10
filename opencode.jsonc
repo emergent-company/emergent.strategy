@@ -26,36 +26,6 @@
     },
   },
   "mcp": {
-    // --- General-purpose servers (always available) ---
-    "gh_grep": {
-      "type": "remote",
-      "url": "https://mcp.grep.app/sse",
-      "timeout": 60000,
-    },
-    "langfuse-docs": {
-      "type": "remote",
-      "url": "https://langfuse.com/api/mcp",
-      "timeout": 50000,
-    },
-    "brave-search": {
-      "type": "local",
-      "command": ["npx", "-y", "@modelcontextprotocol/server-brave-search"],
-      "environment": {
-        "BRAVE_API_KEY": "${BRAVE_API_KEY}",
-      },
-      "timeout": 60000,
-    },
-    "chrome-devtools": {
-      "type": "local",
-      "command": [
-        "npx",
-        "-y",
-        "chrome-devtools-mcp@latest",
-        "--browserUrl",
-        "http://127.0.0.1:9222",
-      ],
-      "timeout": 120000,
-    },
     "epf-strategy": {
       "type": "local",
       "command": [
@@ -66,6 +36,12 @@
         "--watch",
       ],
       "timeout": 60000,
+    },
+  },
+  "lsp": {
+    "epf": {
+      "command": ["epf-cli", "lsp"],
+      "extensions": [".yaml", ".yml"],
     },
   },
   "instructions": [".opencode/instructions.md"],
