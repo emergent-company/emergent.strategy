@@ -21,7 +21,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -93,6 +97,35 @@ func SessionConfigFromEnv() (*SessionConfig, error) {
 	return cfg, nil
 }
 
+// RefreshConfig holds the OAuth credentials needed to refresh user access tokens.
+// Only used for GitHub App sessions with expiring ghu_ tokens.
+type RefreshConfig struct {
+	// ClientID is the GitHub App's client ID (not the OAuth App's).
+	ClientID string
+
+	// ClientSecret is the GitHub App's client secret.
+	ClientSecret string
+
+	// BaseURL is the GitHub base URL. Defaults to "https://github.com".
+	BaseURL string
+
+	// HTTPClient is an optional HTTP client. Defaults to a 30s timeout client.
+	HTTPClient *http.Client
+}
+
+// setDefaults fills in defaults for RefreshConfig.
+func (rc *RefreshConfig) setDefaults() {
+	if rc.BaseURL == "" {
+		rc.BaseURL = "https://github.com"
+	}
+	if rc.HTTPClient == nil {
+		rc.HTTPClient = &http.Client{Timeout: 30 * time.Second}
+	}
+}
+
+// RefreshMargin is how early to refresh before token expiry.
+const RefreshMargin = 5 * time.Minute
+
 // SessionManager manages user sessions with JWT issuance, validation,
 // and an in-memory LRU session store for OAuth tokens.
 //
@@ -105,6 +138,10 @@ type SessionManager struct {
 	mu       sync.Mutex
 	sessions map[string]*sessionEntry // sessionID -> entry
 	order    []string                 // LRU order: most recent at end
+
+	// refreshCfg holds OAuth credentials for refreshing GitHub App user tokens.
+	// Nil means token refresh is not available (legacy OAuth / PAT only).
+	refreshCfg *RefreshConfig
 
 	// nowFunc is used for testing time-dependent behavior.
 	nowFunc func() time.Time
@@ -269,19 +306,74 @@ func (sm *SessionManager) GetAccessToken(sessionID string) (string, bool) {
 	return sm.GetUserToken(sessionID)
 }
 
+// SetRefreshConfig configures token refresh for GitHub App sessions.
+// Call this after creating the SessionManager when GitHub App auth is available.
+func (sm *SessionManager) SetRefreshConfig(cfg *RefreshConfig) {
+	cfg.setDefaults()
+	sm.refreshCfg = cfg
+}
+
 // GetUserToken returns the stored user access token for a session.
 // For GitHub App sessions this is the ghu_ token; for OAuth sessions
 // this is the OAuth access token; for PAT sessions this is the PAT.
+//
+// For GitHub App sessions with token expiry enabled, this method
+// automatically refreshes the token if it's within RefreshMargin of expiry.
 // Returns ("", false) if the session doesn't exist.
 func (sm *SessionManager) GetUserToken(sessionID string) (string, bool) {
 	sm.mu.Lock()
-	defer sm.mu.Unlock()
-
 	entry, exists := sm.sessions[sessionID]
 	if !exists {
+		sm.mu.Unlock()
 		return "", false
 	}
-	return entry.AccessToken, true
+
+	// Check if token needs refresh (only for GitHub App sessions with expiry).
+	needsRefresh := entry.AuthMethod == AuthMethodGitHubApp &&
+		!entry.TokenExpiry.IsZero() &&
+		entry.RefreshToken != "" &&
+		sm.nowFunc().Add(RefreshMargin).After(entry.TokenExpiry)
+
+	if !needsRefresh {
+		token := entry.AccessToken
+		sm.mu.Unlock()
+		return token, true
+	}
+
+	// Capture values needed for refresh, then release the lock.
+	refreshToken := entry.RefreshToken
+	sm.mu.Unlock()
+
+	// Attempt refresh outside the lock (network I/O).
+	if sm.refreshCfg == nil {
+		// No refresh config — return current token even if expiring.
+		sm.mu.Lock()
+		token := entry.AccessToken
+		sm.mu.Unlock()
+		return token, true
+	}
+
+	newToken, newRefresh, newExpiry, err := sm.refreshUserToken(refreshToken)
+	if err != nil {
+		// Refresh failed — return the current token (may still work if not fully expired).
+		sm.mu.Lock()
+		token := entry.AccessToken
+		sm.mu.Unlock()
+		return token, true
+	}
+
+	// Update the session with the new token and refresh token (rotation).
+	sm.mu.Lock()
+	// Re-check that the session still exists (could have been evicted during refresh).
+	entry, exists = sm.sessions[sessionID]
+	if exists {
+		entry.AccessToken = newToken
+		entry.RefreshToken = newRefresh
+		entry.TokenExpiry = newExpiry
+	}
+	sm.mu.Unlock()
+
+	return newToken, exists
 }
 
 // IsPATSession returns true if the session was created via a Personal
@@ -308,6 +400,95 @@ func (sm *SessionManager) GetAuthMethod(sessionID string) (string, bool) {
 		return "", false
 	}
 	return entry.AuthMethod, true
+}
+
+// refreshUserToken exchanges a refresh token for a new access token.
+//
+// GitHub App user access tokens (ghu_) expire after 8 hours. The refresh
+// token (ghr_) is used to obtain a new access token and a new refresh token
+// (rotation). The refresh token itself has a 6-month validity period.
+//
+// POST https://github.com/login/oauth/access_token
+//
+//	grant_type=refresh_token
+//	client_id=<app_client_id>
+//	client_secret=<app_client_secret>
+//	refresh_token=<ghr_token>
+//
+// Returns: (newAccessToken, newRefreshToken, newExpiry, error)
+func (sm *SessionManager) refreshUserToken(refreshToken string) (string, string, time.Time, error) {
+	if sm.refreshCfg == nil {
+		return "", "", time.Time{}, fmt.Errorf("auth: token refresh not configured")
+	}
+
+	data := url.Values{
+		"grant_type":    {"refresh_token"},
+		"client_id":     {sm.refreshCfg.ClientID},
+		"client_secret": {sm.refreshCfg.ClientSecret},
+		"refresh_token": {refreshToken},
+	}
+
+	tokenURL := sm.refreshCfg.BaseURL + "/login/oauth/access_token"
+	req, err := http.NewRequest(http.MethodPost, tokenURL, strings.NewReader(data.Encode()))
+	if err != nil {
+		return "", "", time.Time{}, fmt.Errorf("auth: create refresh request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := sm.refreshCfg.HTTPClient.Do(req)
+	if err != nil {
+		return "", "", time.Time{}, fmt.Errorf("auth: refresh request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", "", time.Time{}, fmt.Errorf("auth: read refresh response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", "", time.Time{}, fmt.Errorf("auth: refresh returned %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Parse the response. GitHub returns the same shape as a token exchange,
+	// but with additional refresh_token and refresh_token_expires_in fields.
+	var tokenResp struct {
+		AccessToken           string `json:"access_token"`
+		RefreshToken          string `json:"refresh_token"`
+		ExpiresIn             int    `json:"expires_in"`
+		RefreshTokenExpiresIn int    `json:"refresh_token_expires_in"`
+		TokenType             string `json:"token_type"`
+		Scope                 string `json:"scope"`
+		Error                 string `json:"error"`
+		ErrorDescription      string `json:"error_description"`
+	}
+	if err := json.Unmarshal(body, &tokenResp); err != nil {
+		return "", "", time.Time{}, fmt.Errorf("auth: parse refresh response: %w", err)
+	}
+
+	if tokenResp.Error != "" {
+		return "", "", time.Time{}, fmt.Errorf("auth: refresh failed: %s — %s", tokenResp.Error, tokenResp.ErrorDescription)
+	}
+
+	if tokenResp.AccessToken == "" {
+		return "", "", time.Time{}, fmt.Errorf("auth: empty access token in refresh response")
+	}
+
+	// Calculate new expiry. GitHub returns expires_in in seconds (typically 28800 = 8 hours).
+	var newExpiry time.Time
+	if tokenResp.ExpiresIn > 0 {
+		newExpiry = sm.nowFunc().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+	}
+
+	// GitHub rotates the refresh token on each use.
+	newRefresh := tokenResp.RefreshToken
+	if newRefresh == "" {
+		// Should not happen with rotation enabled, but fall back to old token.
+		newRefresh = refreshToken
+	}
+
+	return tokenResp.AccessToken, newRefresh, newExpiry, nil
 }
 
 // RevokeSession removes a session from the store.

@@ -158,20 +158,76 @@ func serveHTTP(mcpSrv *mcp.Server, port int, enableSSE bool, corsOrigins string)
 		authMiddleware = auth.NewAuthMiddleware(sessionMgr, mode, serverURL)
 
 		// Configure MCP OAuth authorization server.
+		// Prefer GitHub App OAuth if configured, fall back to legacy OAuth App.
 		oauthCfg, _ := auth.OAuthConfigFromEnv()
 		if oauthCfg != nil {
 			mcpOAuthHandler = auth.NewMCPOAuthHandler(oauthCfg, sessionMgr, serverURL)
 		}
 
 		// Configure multi-tenant access control on the MCP server.
-		// This enables dynamic instance routing and per-request repo access verification.
 		accessChecker := auth.NewAccessChecker()
 		mcpSrv.SetMultiTenantAuth(accessChecker, sessionMgr, mode)
+
+		// Configure GitHub App components if available (installation token manager,
+		// token resolver, refresh config).
+		mtCfg, mtErr := auth.MultiTenantConfigFromEnv()
+		if mtErr != nil {
+			fmt.Fprintf(os.Stderr, "Warning: GitHub App config error: %v\n", mtErr)
+		}
+		var installMgr *auth.InstallationTokenManager
+		if mtCfg != nil {
+			var imErr error
+			installMgr, imErr = auth.NewInstallationTokenManager(*mtCfg)
+			if imErr != nil {
+				fmt.Fprintf(os.Stderr, "Error creating installation token manager: %v\n", imErr)
+				os.Exit(1)
+			}
+
+			// Create token resolver for per-repo installation token resolution.
+			tokenResolver := auth.NewTokenResolver(auth.TokenResolverConfig{
+				SessionManager: sessionMgr,
+				Installations:  installMgr,
+				AppID:          mtCfg.AppID,
+			})
+			mcpSrv.SetTokenResolver(tokenResolver)
+
+			// Configure token refresh for GitHub App user access tokens.
+			appClientID := os.Getenv(auth.EnvGitHubAppClientID)
+			appClientSecret := os.Getenv(auth.EnvGitHubAppClientSecret)
+			if appClientID != "" && appClientSecret != "" {
+				sessionMgr.SetRefreshConfig(&auth.RefreshConfig{
+					ClientID:     appClientID,
+					ClientSecret: appClientSecret,
+				})
+				fmt.Fprintf(os.Stderr, "GitHub App: token refresh enabled (client_id=%s)\n", appClientID)
+			}
+
+			// Configure workspace discovery with installation-based discovery.
+			mcpSrv.SetInstallationTokenFunc(func(installationID int64) (string, error) {
+				return installMgr.Token(installationID)
+			})
+			mcpSrv.SetGitHubAppID(mtCfg.AppID)
+
+			fmt.Fprintf(os.Stderr, "GitHub App: multi-tenant auth enabled (app_id=%d)\n", mtCfg.AppID)
+		}
 
 		// Configure workspace discovery.
 		discoverer := workspace.NewDiscoverer()
 		mcpSrv.SetDiscoverer(discoverer)
-		workspacesHandler = workspace.Handler(discoverer, sessionMgr)
+
+		// Use auth-aware workspace handler when GitHub App is configured.
+		if installMgr != nil {
+			workspacesHandler = workspace.HandlerWithConfig(workspace.HandlerConfig{
+				Discoverer:     discoverer,
+				SessionManager: sessionMgr,
+				InstallationTokenFunc: func(installationID int64) (string, error) {
+					return installMgr.Token(installationID)
+				},
+				AppID: mtCfg.AppID,
+			})
+		} else {
+			workspacesHandler = workspace.Handler(discoverer, sessionMgr)
+		}
 	}
 
 	cfg := transport.HTTPServerConfig{

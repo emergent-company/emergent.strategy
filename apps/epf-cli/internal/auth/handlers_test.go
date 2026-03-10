@@ -790,6 +790,190 @@ func TestRegisterRoutes_IncludesTokenExchange(t *testing.T) {
 	}
 }
 
+// --- GitHub App auth method detection tests ---
+
+func TestHandleCallback_GitHubAppToken(t *testing.T) {
+	// Mock GitHub that returns a ghu_ token with refresh token (GitHub App behavior).
+	mockGH := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/login/oauth/access_token":
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"access_token":             "ghu_app_token_abc",
+				"token_type":               "bearer",
+				"scope":                    "",
+				"refresh_token":            "ghr_refresh_abc",
+				"expires_in":               28800,
+				"refresh_token_expires_in": 15897600,
+			})
+		case r.URL.Path == "/user":
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(GitHubUser{ID: 99, Login: "appuser"})
+		}
+	}))
+	defer mockGH.Close()
+
+	sm := newTestSessionManager(t)
+	oauthCfg := &OAuthConfig{
+		ClientID:     "test-app-client-id",
+		ClientSecret: "test-secret",
+		BaseURL:      mockGH.URL,
+		APIBaseURL:   mockGH.URL,
+		HTTPClient:   mockGH.Client(),
+	}
+	oauthCfg.setDefaults()
+
+	handler := NewAuthHandler(oauthCfg, sm)
+
+	// Inject a valid state token.
+	handler.mu.Lock()
+	handler.states["test-state"] = time.Now().Add(10 * time.Minute)
+	handler.mu.Unlock()
+
+	req := httptest.NewRequest(http.MethodGet, "/auth/github/callback?code=test-code&state=test-state", nil)
+	rec := httptest.NewRecorder()
+	handler.HandleCallback(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp CallbackResponse
+	json.NewDecoder(rec.Body).Decode(&resp)
+
+	// Validate the session was created with GitHub App auth method.
+	su, err := sm.ValidateToken(resp.Token)
+	if err != nil {
+		t.Fatalf("ValidateToken: %v", err)
+	}
+
+	authMethod, ok := sm.GetAuthMethod(su.SessionID)
+	if !ok {
+		t.Fatal("expected GetAuthMethod to return true")
+	}
+	if authMethod != AuthMethodGitHubApp {
+		t.Errorf("auth method = %q, want %q", authMethod, AuthMethodGitHubApp)
+	}
+}
+
+func TestHandleTokenExchange_DetectsPAT(t *testing.T) {
+	// Mock GitHub user endpoint.
+	mockGH := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(GitHubUser{ID: 77, Login: "patuser"})
+	}))
+	defer mockGH.Close()
+
+	sm := newTestSessionManager(t)
+	oauthCfg := &OAuthConfig{
+		ClientID:     "test",
+		ClientSecret: "test",
+		BaseURL:      mockGH.URL,
+		APIBaseURL:   mockGH.URL,
+		HTTPClient:   mockGH.Client(),
+	}
+	oauthCfg.setDefaults()
+
+	handler := NewAuthHandler(oauthCfg, sm)
+
+	body := `{"github_token": "ghp_personalAccessToken123"}`
+	req := httptest.NewRequest(http.MethodPost, "/auth/token", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	handler.HandleTokenExchange(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp TokenExchangeResponse
+	json.NewDecoder(rec.Body).Decode(&resp)
+
+	su, _ := sm.ValidateToken(resp.Token)
+	authMethod, _ := sm.GetAuthMethod(su.SessionID)
+	if authMethod != AuthMethodPAT {
+		t.Errorf("auth method = %q, want %q", authMethod, AuthMethodPAT)
+	}
+}
+
+func TestHandleTokenExchange_DetectsGitHubAppToken(t *testing.T) {
+	mockGH := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(GitHubUser{ID: 88, Login: "ghuuser"})
+	}))
+	defer mockGH.Close()
+
+	sm := newTestSessionManager(t)
+	oauthCfg := &OAuthConfig{
+		ClientID:     "test",
+		ClientSecret: "test",
+		BaseURL:      mockGH.URL,
+		APIBaseURL:   mockGH.URL,
+		HTTPClient:   mockGH.Client(),
+	}
+	oauthCfg.setDefaults()
+
+	handler := NewAuthHandler(oauthCfg, sm)
+
+	body := `{"github_token": "ghu_userAccessToken456"}`
+	req := httptest.NewRequest(http.MethodPost, "/auth/token", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	handler.HandleTokenExchange(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+
+	var resp TokenExchangeResponse
+	json.NewDecoder(rec.Body).Decode(&resp)
+
+	su, _ := sm.ValidateToken(resp.Token)
+	authMethod, _ := sm.GetAuthMethod(su.SessionID)
+	if authMethod != AuthMethodGitHubApp {
+		t.Errorf("auth method = %q, want %q", authMethod, AuthMethodGitHubApp)
+	}
+}
+
+func TestHandleTokenExchange_DetectsOAuthToken(t *testing.T) {
+	mockGH := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(GitHubUser{ID: 55, Login: "oauthuser"})
+	}))
+	defer mockGH.Close()
+
+	sm := newTestSessionManager(t)
+	oauthCfg := &OAuthConfig{
+		ClientID:     "test",
+		ClientSecret: "test",
+		BaseURL:      mockGH.URL,
+		APIBaseURL:   mockGH.URL,
+		HTTPClient:   mockGH.Client(),
+	}
+	oauthCfg.setDefaults()
+
+	handler := NewAuthHandler(oauthCfg, sm)
+
+	body := `{"github_token": "gho_oauthToken789"}`
+	req := httptest.NewRequest(http.MethodPost, "/auth/token", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	handler.HandleTokenExchange(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+
+	var resp TokenExchangeResponse
+	json.NewDecoder(rec.Body).Decode(&resp)
+
+	su, _ := sm.ValidateToken(resp.Token)
+	authMethod, _ := sm.GetAuthMethod(su.SessionID)
+	if authMethod != AuthMethodOAuth {
+		t.Errorf("auth method = %q, want %q", authMethod, AuthMethodOAuth)
+	}
+}
+
 // --- helper ---
 
 // extractQueryParam extracts a query parameter from a URL string.

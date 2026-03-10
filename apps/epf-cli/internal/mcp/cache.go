@@ -304,6 +304,13 @@ func (s *Server) SetMultiTenantAuth(ac *auth.AccessChecker, sm *auth.SessionMana
 	s.serverMode = mode
 }
 
+// SetTokenResolver configures the GitHub App token resolver for installation-scoped
+// repo access. When set, the server uses installation tokens instead of the user's
+// OAuth token for GitHub API access to repos where the App is installed.
+func (s *Server) SetTokenResolver(tr *auth.TokenResolver) {
+	s.tokenResolver = tr
+}
+
 // resolveAndLoadStore resolves an instance_path to a strategy store, with access control
 // for remote (owner/repo) paths in multi-tenant mode.
 //
@@ -372,9 +379,17 @@ func (s *Server) resolveAndLoadStore(ctx context.Context, instancePath string) (
 }
 
 // verifyRepoAccess checks that the authenticated user has read access to the given repo.
+//
+// For GitHub App sessions with a TokenResolver configured, access is verified by
+// checking whether an App installation covers the repo. This is more precise than
+// the OAuth token check because it reflects the App's actual installation scope.
+//
+// For legacy OAuth and PAT sessions, falls back to GET /repos/{owner}/{repo} with
+// the user's token.
+//
 // Returns an error if:
 //   - No user is found in the context (not authenticated)
-//   - No OAuth token is found for the session (session evicted)
+//   - No token is found for the session (session evicted)
 //   - User doesn't have access to the repo
 func (s *Server) verifyRepoAccess(ctx context.Context, owner, repo string) error {
 	user := auth.UserFromContext(ctx)
@@ -386,18 +401,41 @@ func (s *Server) verifyRepoAccess(ctx context.Context, owner, repo string) error
 		return fmt.Errorf("multi-tenant auth not configured")
 	}
 
-	// Get the user's OAuth token from the session store.
-	oauthToken, ok := s.sessionManager.GetAccessToken(user.SessionID)
+	// For GitHub App sessions, try installation-based token resolution first.
+	// If the resolver can produce a token for this repo, the user has access
+	// (they can see the installation, and the installation covers the repo).
+	if s.tokenResolver != nil {
+		authMethod, _ := s.sessionManager.GetAuthMethod(user.SessionID)
+		if authMethod == auth.AuthMethodGitHubApp {
+			_, err := s.tokenResolver.ResolveRepoToken(user.SessionID, owner, repo)
+			if err == nil {
+				return nil // Installation token resolved — access confirmed.
+			}
+			// If resolution fails, it could mean:
+			// 1. The App is not installed on this repo's org
+			// 2. The installation doesn't cover this repo
+			// Fall through to the OAuth-based check as a fallback.
+		}
+	}
+
+	// Get the user's token from the session store.
+	userToken, ok := s.sessionManager.GetUserToken(user.SessionID)
 	if !ok {
 		return fmt.Errorf("session expired or evicted; re-authenticate at /auth/github/login")
 	}
 
 	// Check access via GitHub API (cached per-user per-repo).
-	allowed, err := s.accessChecker.CanAccess(user.UserID, owner, repo, oauthToken)
+	allowed, err := s.accessChecker.CanAccess(user.UserID, owner, repo, userToken)
 	if err != nil {
 		return fmt.Errorf("access check for %s/%s: %w", owner, repo, err)
 	}
 	if !allowed {
+		// Provide a helpful error if GitHub App is configured but not installed.
+		if s.tokenResolver != nil {
+			return fmt.Errorf("access denied: user %q does not have access to %s/%s. "+
+				"If using GitHub App auth, ensure the EPF GitHub App is installed on the %s organization",
+				user.Username, owner, repo, owner)
+		}
 		return &auth.RepoAccessDeniedError{Owner: owner, Repo: repo, Username: user.Username}
 	}
 
@@ -418,8 +456,9 @@ func (s *Server) createAndRegisterRemoteStore(ctx context.Context, owner, repo, 
 	}
 
 	// Determine the token function for GitHub API access.
-	// In multi-tenant mode, use the requesting user's OAuth token.
-	tokenFn := s.buildTokenFunc(ctx)
+	// For GitHub App sessions, this resolves installation tokens per-repo.
+	// For legacy OAuth/PAT, this returns the user's token directly.
+	tokenFn := s.buildTokenFuncForRepo(ctx, owner, repo)
 
 	// Build the GitHubSource with optional subpath.
 	var opts []source.GitHubOption
@@ -448,8 +487,14 @@ func (s *Server) createAndRegisterRemoteStore(ctx context.Context, owner, repo, 
 }
 
 // buildTokenFunc creates a TokenFunc for GitHub API access based on the current
-// authentication context. In multi-tenant mode, returns the authenticated user's
-// OAuth token. Falls back to no auth if context has no user.
+// authentication context.
+//
+// For GitHub App sessions with a TokenResolver, this returns a function that
+// resolves installation tokens per-repo. The returned function needs owner/repo
+// context, which is available from the GitHubSource that calls it.
+//
+// For legacy OAuth and PAT sessions, returns the user's token directly.
+// Falls back to no auth if context has no user.
 func (s *Server) buildTokenFunc(ctx context.Context) source.TokenFunc {
 	user := auth.UserFromContext(ctx)
 	if user == nil || s.sessionManager == nil {
@@ -457,11 +502,50 @@ func (s *Server) buildTokenFunc(ctx context.Context) source.TokenFunc {
 	}
 
 	// Capture the session ID for the token function closure.
-	// The token function is called on each GitHub API request, ensuring
-	// it always returns the current token (handles token refresh if we add it later).
 	sessionID := user.SessionID
 	return func() (string, error) {
-		token, ok := s.sessionManager.GetAccessToken(sessionID)
+		token, ok := s.sessionManager.GetUserToken(sessionID)
+		if !ok {
+			return "", fmt.Errorf("session expired; re-authenticate")
+		}
+		return token, nil
+	}
+}
+
+// buildTokenFuncForRepo creates a TokenFunc that uses the TokenResolver when available,
+// falling back to the user's direct token. This is used when creating GitHubSource
+// instances for specific repos in multi-tenant mode.
+func (s *Server) buildTokenFuncForRepo(ctx context.Context, owner, repo string) source.TokenFunc {
+	user := auth.UserFromContext(ctx)
+	if user == nil || s.sessionManager == nil {
+		return nil
+	}
+
+	sessionID := user.SessionID
+
+	// If we have a token resolver and the user authenticated via GitHub App,
+	// try to use installation tokens for better scoping.
+	if s.tokenResolver != nil {
+		authMethod, _ := s.sessionManager.GetAuthMethod(sessionID)
+		if authMethod == auth.AuthMethodGitHubApp {
+			return func() (string, error) {
+				token, err := s.tokenResolver.ResolveRepoToken(sessionID, owner, repo)
+				if err == nil {
+					return token, nil
+				}
+				// Fallback to user token if resolution fails.
+				userToken, ok := s.sessionManager.GetUserToken(sessionID)
+				if !ok {
+					return "", fmt.Errorf("session expired; re-authenticate")
+				}
+				return userToken, nil
+			}
+		}
+	}
+
+	// Legacy OAuth / PAT — use user's token directly.
+	return func() (string, error) {
+		token, ok := s.sessionManager.GetUserToken(sessionID)
 		if !ok {
 			return "", fmt.Errorf("session expired; re-authenticate")
 		}

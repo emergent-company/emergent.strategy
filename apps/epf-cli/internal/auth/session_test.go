@@ -2,7 +2,12 @@ package auth
 
 import (
 	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -504,5 +509,333 @@ func TestNewSessionManager_Defaults(t *testing.T) {
 	}
 	if sm.maxSessions != DefaultMaxSessions {
 		t.Errorf("MaxSessions = %d, want %d", sm.maxSessions, DefaultMaxSessions)
+	}
+}
+
+// --- Token refresh tests (Section 5) ---
+
+// mockRefreshServer creates a test server that simulates GitHub's token refresh endpoint.
+func mockRefreshServer(t *testing.T, handler http.HandlerFunc) (*httptest.Server, *RefreshConfig) {
+	t.Helper()
+	server := httptest.NewServer(handler)
+	cfg := &RefreshConfig{
+		ClientID:     "test-client-id",
+		ClientSecret: "test-client-secret",
+		BaseURL:      server.URL,
+		HTTPClient:   server.Client(),
+	}
+	return server, cfg
+}
+
+func TestGetUserToken_AutoRefresh_Success(t *testing.T) {
+	var refreshCount atomic.Int32
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		refreshCount.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"access_token":  fmt.Sprintf("ghu_refreshed_%d", refreshCount.Load()),
+			"refresh_token": fmt.Sprintf("ghr_new_%d", refreshCount.Load()),
+			"expires_in":    28800, // 8 hours
+			"token_type":    "bearer",
+			"scope":         "",
+		})
+	}
+
+	server, refreshCfg := mockRefreshServer(t, handler)
+	defer server.Close()
+
+	sm := testSessionManager(t)
+	sm.SetRefreshConfig(refreshCfg)
+
+	now := time.Now()
+	sm.nowFunc = func() time.Time { return now }
+
+	// Create a GitHub App session with token expiring in 3 minutes (within RefreshMargin).
+	user := &GitHubUser{ID: 42, Login: "octocat"}
+	jwt, err := sm.CreateSessionWithOptions(user, "ghu_original", SessionOptions{
+		AuthMethod:   AuthMethodGitHubApp,
+		RefreshToken: "ghr_original",
+		TokenExpiry:  now.Add(3 * time.Minute), // Expires in 3 min, within the 5-min margin
+	})
+	if err != nil {
+		t.Fatalf("CreateSessionWithOptions() error = %v", err)
+	}
+
+	su, err := sm.ValidateToken(jwt)
+	if err != nil {
+		t.Fatalf("ValidateToken() error = %v", err)
+	}
+
+	// GetUserToken should trigger auto-refresh since token expires within margin.
+	token, ok := sm.GetUserToken(su.SessionID)
+	if !ok {
+		t.Fatal("expected GetUserToken to return true")
+	}
+	if token != "ghu_refreshed_1" {
+		t.Errorf("token = %q, want ghu_refreshed_1", token)
+	}
+	if refreshCount.Load() != 1 {
+		t.Errorf("refresh count = %d, want 1", refreshCount.Load())
+	}
+}
+
+func TestGetUserToken_NoRefreshNeeded(t *testing.T) {
+	var refreshCount atomic.Int32
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		refreshCount.Add(1)
+		t.Fatal("refresh should not be called")
+	}
+
+	server, refreshCfg := mockRefreshServer(t, handler)
+	defer server.Close()
+
+	sm := testSessionManager(t)
+	sm.SetRefreshConfig(refreshCfg)
+
+	now := time.Now()
+	sm.nowFunc = func() time.Time { return now }
+
+	// Token expires in 30 minutes — well outside the 5-minute refresh margin.
+	user := &GitHubUser{ID: 42, Login: "octocat"}
+	jwt, err := sm.CreateSessionWithOptions(user, "ghu_valid", SessionOptions{
+		AuthMethod:   AuthMethodGitHubApp,
+		RefreshToken: "ghr_valid",
+		TokenExpiry:  now.Add(30 * time.Minute),
+	})
+	if err != nil {
+		t.Fatalf("CreateSessionWithOptions() error = %v", err)
+	}
+
+	su, _ := sm.ValidateToken(jwt)
+	token, ok := sm.GetUserToken(su.SessionID)
+	if !ok {
+		t.Fatal("expected GetUserToken to return true")
+	}
+	if token != "ghu_valid" {
+		t.Errorf("token = %q, want ghu_valid (no refresh)", token)
+	}
+	if refreshCount.Load() != 0 {
+		t.Errorf("refresh count = %d, want 0", refreshCount.Load())
+	}
+}
+
+func TestGetUserToken_SkipsRefreshForOAuth(t *testing.T) {
+	sm := testSessionManager(t)
+	// No RefreshConfig set — legacy OAuth mode.
+
+	now := time.Now()
+	sm.nowFunc = func() time.Time { return now }
+
+	// Create an OAuth session (no refresh token, no expiry).
+	user := &GitHubUser{ID: 42, Login: "octocat"}
+	jwt, err := sm.CreateSession(user, "gho_oauth_token")
+	if err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+
+	su, _ := sm.ValidateToken(jwt)
+	token, ok := sm.GetUserToken(su.SessionID)
+	if !ok {
+		t.Fatal("expected GetUserToken to return true")
+	}
+	if token != "gho_oauth_token" {
+		t.Errorf("token = %q, want gho_oauth_token", token)
+	}
+}
+
+func TestGetUserToken_SkipsRefreshForPAT(t *testing.T) {
+	sm := testSessionManager(t)
+
+	now := time.Now()
+	sm.nowFunc = func() time.Time { return now }
+
+	user := &GitHubUser{ID: 42, Login: "octocat"}
+	jwt, err := sm.CreateSessionWithOptions(user, "ghp_pat_token", SessionOptions{
+		AuthMethod: AuthMethodPAT,
+	})
+	if err != nil {
+		t.Fatalf("CreateSessionWithOptions() error = %v", err)
+	}
+
+	su, _ := sm.ValidateToken(jwt)
+	token, ok := sm.GetUserToken(su.SessionID)
+	if !ok {
+		t.Fatal("expected GetUserToken to return true")
+	}
+	if token != "ghp_pat_token" {
+		t.Errorf("token = %q, want ghp_pat_token", token)
+	}
+}
+
+func TestGetUserToken_RefreshFailure_ReturnsCurrent(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		// Simulate expired refresh token.
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"error":             "bad_refresh_token",
+			"error_description": "The refresh token has expired",
+		})
+	}
+
+	server, refreshCfg := mockRefreshServer(t, handler)
+	defer server.Close()
+
+	sm := testSessionManager(t)
+	sm.SetRefreshConfig(refreshCfg)
+
+	now := time.Now()
+	sm.nowFunc = func() time.Time { return now }
+
+	user := &GitHubUser{ID: 42, Login: "octocat"}
+	jwt, err := sm.CreateSessionWithOptions(user, "ghu_expiring", SessionOptions{
+		AuthMethod:   AuthMethodGitHubApp,
+		RefreshToken: "ghr_expired",
+		TokenExpiry:  now.Add(2 * time.Minute), // Needs refresh
+	})
+	if err != nil {
+		t.Fatalf("CreateSessionWithOptions() error = %v", err)
+	}
+
+	su, _ := sm.ValidateToken(jwt)
+
+	// Should return the current (expiring) token since refresh failed.
+	token, ok := sm.GetUserToken(su.SessionID)
+	if !ok {
+		t.Fatal("expected GetUserToken to return true even on refresh failure")
+	}
+	if token != "ghu_expiring" {
+		t.Errorf("token = %q, want ghu_expiring (fallback on refresh failure)", token)
+	}
+}
+
+func TestGetUserToken_RefreshRotatesToken(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"access_token":  "ghu_new_access",
+			"refresh_token": "ghr_new_refresh",
+			"expires_in":    28800,
+			"token_type":    "bearer",
+		})
+	}
+
+	server, refreshCfg := mockRefreshServer(t, handler)
+	defer server.Close()
+
+	sm := testSessionManager(t)
+	sm.SetRefreshConfig(refreshCfg)
+
+	now := time.Now()
+	sm.nowFunc = func() time.Time { return now }
+
+	user := &GitHubUser{ID: 42, Login: "octocat"}
+	jwt, err := sm.CreateSessionWithOptions(user, "ghu_old", SessionOptions{
+		AuthMethod:   AuthMethodGitHubApp,
+		RefreshToken: "ghr_old",
+		TokenExpiry:  now.Add(1 * time.Minute), // Needs refresh
+	})
+	if err != nil {
+		t.Fatalf("CreateSessionWithOptions() error = %v", err)
+	}
+
+	su, _ := sm.ValidateToken(jwt)
+
+	// First call refreshes.
+	token, ok := sm.GetUserToken(su.SessionID)
+	if !ok {
+		t.Fatal("expected true")
+	}
+	if token != "ghu_new_access" {
+		t.Errorf("token = %q, want ghu_new_access", token)
+	}
+
+	// Verify the session was updated with new refresh token.
+	sm.mu.Lock()
+	entry := sm.sessions[su.SessionID]
+	if entry.RefreshToken != "ghr_new_refresh" {
+		t.Errorf("RefreshToken = %q, want ghr_new_refresh", entry.RefreshToken)
+	}
+	if entry.TokenExpiry.Before(now.Add(7 * time.Hour)) {
+		t.Errorf("TokenExpiry = %v, expected ~8 hours from now", entry.TokenExpiry)
+	}
+	sm.mu.Unlock()
+}
+
+func TestRefreshUserToken_DirectCall(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		// Verify the request body.
+		if err := r.ParseForm(); err != nil {
+			t.Errorf("parse form: %v", err)
+		}
+		if r.FormValue("grant_type") != "refresh_token" {
+			t.Errorf("grant_type = %q, want refresh_token", r.FormValue("grant_type"))
+		}
+		if r.FormValue("client_id") != "test-client-id" {
+			t.Errorf("client_id = %q, want test-client-id", r.FormValue("client_id"))
+		}
+		if r.FormValue("refresh_token") != "ghr_test" {
+			t.Errorf("refresh_token = %q, want ghr_test", r.FormValue("refresh_token"))
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"access_token":             "ghu_refreshed",
+			"refresh_token":            "ghr_rotated",
+			"expires_in":               28800,
+			"refresh_token_expires_in": 15897600,
+			"token_type":               "bearer",
+			"scope":                    "",
+		})
+	}
+
+	server, refreshCfg := mockRefreshServer(t, handler)
+	defer server.Close()
+
+	sm := testSessionManager(t)
+	sm.SetRefreshConfig(refreshCfg)
+
+	newAccess, newRefresh, newExpiry, err := sm.refreshUserToken("ghr_test")
+	if err != nil {
+		t.Fatalf("refreshUserToken() error = %v", err)
+	}
+	if newAccess != "ghu_refreshed" {
+		t.Errorf("access_token = %q, want ghu_refreshed", newAccess)
+	}
+	if newRefresh != "ghr_rotated" {
+		t.Errorf("refresh_token = %q, want ghr_rotated", newRefresh)
+	}
+	if newExpiry.IsZero() {
+		t.Error("expected non-zero expiry")
+	}
+}
+
+func TestGetUserToken_NoRefreshConfig_ReturnsCurrentToken(t *testing.T) {
+	sm := testSessionManager(t)
+	// Deliberately NOT setting RefreshConfig.
+
+	now := time.Now()
+	sm.nowFunc = func() time.Time { return now }
+
+	user := &GitHubUser{ID: 42, Login: "octocat"}
+	jwt, err := sm.CreateSessionWithOptions(user, "ghu_token", SessionOptions{
+		AuthMethod:   AuthMethodGitHubApp,
+		RefreshToken: "ghr_token",
+		TokenExpiry:  now.Add(2 * time.Minute), // Needs refresh but no config
+	})
+	if err != nil {
+		t.Fatalf("CreateSessionWithOptions() error = %v", err)
+	}
+
+	su, _ := sm.ValidateToken(jwt)
+
+	// Should return current token since refresh is not configured.
+	token, ok := sm.GetUserToken(su.SessionID)
+	if !ok {
+		t.Fatal("expected true")
+	}
+	if token != "ghu_token" {
+		t.Errorf("token = %q, want ghu_token", token)
 	}
 }
