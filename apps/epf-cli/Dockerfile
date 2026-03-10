@@ -23,6 +23,12 @@
 #     -e EPF_OAUTH_CLIENT_SECRET=... \
 #     -e EPF_SESSION_SECRET=$(openssl rand -hex 32) \
 #     epf-server
+#
+# Run (strategy-only — 16 read-only tools, no auth):
+#   docker run -p 8080:8080 \
+#     -e EPF_SERVER_MODE=strategy \
+#     -e EPF_STRATEGY_INSTANCE=/path/to/instance \
+#     epf-server
 
 # ---------------------------------------------------------------------------
 # Stage 1: Build

@@ -26,6 +26,7 @@ const (
 	EnvGitHubRef      = "EPF_GITHUB_REF"       // optional: branch/tag/SHA (default: repo default)
 	EnvGitHubBasePath = "EPF_GITHUB_BASE_PATH" // optional: path within repo
 	EnvServerURL      = "EPF_SERVER_URL"       // optional: external base URL for OAuth metadata
+	EnvServerMode     = "EPF_SERVER_MODE"      // optional: "strategy" for 16-tool read-only mode (default: full 80-tool mode)
 )
 
 var serveCmd = &cobra.Command{
@@ -39,7 +40,8 @@ query tools. Use --instance to pre-load a strategy instance for the 8
 read-only strategy query tools.
 
 For a lightweight server with only the 16 read-only strategy tools (for consumers
-of strategy, not authors), use "epf-cli strategy serve" instead.
+of strategy, not authors), use "epf-cli strategy serve" instead, or set
+EPF_SERVER_MODE=strategy to run in strategy-only mode over HTTP.
 
 STDIO MODE (default):
 
@@ -104,24 +106,41 @@ EXAMPLES:
 			}
 		}
 
-		// Auto-detect schemas directory if not specified
-		if schemasDir == "" {
-			detected, err := GetSchemasDir()
-			if err == nil && detected != "" {
-				schemasDir = detected
+		// Check if strategy-only mode is requested via env var.
+		// EPF_SERVER_MODE=strategy creates a lightweight 16-tool read-only server.
+		serverMode := os.Getenv(EnvServerMode)
+		strategyOnly := strings.EqualFold(serverMode, "strategy")
+
+		var server *mcp.Server
+		if strategyOnly {
+			var err error
+			server, err = mcp.NewStrategyOnlyServer(instancePath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error creating strategy server: %v\n", err)
+				os.Exit(1)
 			}
-		}
+			fmt.Fprintln(os.Stderr, "Server mode: strategy-only (16 read-only tools)")
+		} else {
+			// Auto-detect schemas directory if not specified
+			if schemasDir == "" {
+				detected, err := GetSchemasDir()
+				if err == nil && detected != "" {
+					schemasDir = detected
+				}
+			}
 
-		// If no filesystem schemas found, that's okay - validator will use embedded schemas
-		if schemasDir == "" {
-			fmt.Fprintln(os.Stderr, "Note: Using embedded schemas (no filesystem schemas found)")
-		}
+			// If no filesystem schemas found, that's okay - validator will use embedded schemas
+			if schemasDir == "" {
+				fmt.Fprintln(os.Stderr, "Note: Using embedded schemas (no filesystem schemas found)")
+			}
 
-		// Create the MCP server
-		server, err := mcp.NewServer(schemasDir)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error creating MCP server: %v\n", err)
-			os.Exit(1)
+			// Create the full MCP server (80 tools)
+			var err error
+			server, err = mcp.NewServer(schemasDir)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error creating MCP server: %v\n", err)
+				os.Exit(1)
+			}
 		}
 
 		if useHTTP {
