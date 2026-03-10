@@ -2,30 +2,84 @@ node_modules/
 dist/
 .next/
 
-# Ignore build outputs in all packages (explicit paths to avoid accidental root-level patterns issues)
-apps/server-nest/dist/
-apps/server-nest/dist-openapi/
+# ============================================================
+# AI tool local state and settings
+# ============================================================
+# These directories contain API keys, session data, or local
+# preferences that must never be committed to a public repo.
 
-# Generic patterns (keep after explicit so intent is clear)
-**/dist-openapi/
+# Gemini CLI (may contain API keys in settings.json)
+.gemini/
+
+# Cursor IDE
+.cursor/
+
+# Claude Code
+.claude/
+
+# Copilot
+.copilot/
+
+# OpenCode session database (contains full conversation history)
+.opencode/opencode.db
+.opencode/opencode.db-shm
+.opencode/opencode.db-wal
+
+# OpenCode tools that reference old monorepo / read .env at runtime
+.opencode/tool/
+
+# General database files that may appear from tools
+*.sqlite
+*.sqlite3
+
+# ============================================================
+# Environment and secrets
+# ============================================================
 
 # Environment files with secrets (never commit)
+.env
 .env.local
 **/.env.local
 .env.infisical
-
-# Environment files for specific deployments (never commit)
 .env.staging
 .env.production
 
-# Note: .env files WITH SAFE DEFAULTS are committed
-# All secrets should be in .env.local files only
+# Note: .env.example files WITH SAFE DEFAULTS are committed.
+# All secrets should be in .env / .env.local files only.
 
-.DS_Store
-
-# Secrets directory (service account JSON keys)
+# Secrets directory
 secrets/
 !secrets/README.md
+
+# Private keys
+*.pem
+*.private-key.pem
+apps/epf-cli/private-key.pem
+
+# ============================================================
+# OS / IDE / build
+# ============================================================
+
+.DS_Store
+.idea/
+.nx/
+.vite/
+**/.vite/
+*.log
+*.tsbuildinfo
+
+# ============================================================
+# Build outputs
+# ============================================================
+
+# Ignore build outputs in all packages
+apps/server-nest/dist/
+apps/server-nest/dist-openapi/
+**/dist-openapi/
+
+# ============================================================
+# Test artifacts
+# ============================================================
 
 # Database backups and schema dumps
 backups/
@@ -46,25 +100,16 @@ lcov.info
 # Vitest / Jest snapshots (optional keep if needed)
 *.snap
 
-# Misc build caches
-.nx/
-.vite/
-**/.vite/
+# ============================================================
+# Project-specific
+# ============================================================
 
-# OS / IDE extras
-.idea/
-*.log
-*.tsbuildinfo
-
-# Server runtime logs (Nest error log output)
+# Server runtime logs
 apps/server-nest/logs/
 
 # Development PID files
 .dev-pids/
 apps/pids/
-
-# Misc
-*.log
 
 storybook-static
 logs
@@ -81,8 +126,6 @@ eval/epf-model-compliance/.venv/
 
 # EPF CLI secrets (runtime .env with real credentials)
 apps/epf-cli/.env
-apps/epf-cli/private-key.pem
-*.private-key.pem
 
 # EPF CLI test artifacts
 apps/epf-cli/epf-cli-test

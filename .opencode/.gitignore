@@ -1,0 +1,10 @@
+# OpenCode local state (never commit)
+opencode.db
+opencode.db-shm
+opencode.db-wal
+node_modules
+package.json
+bun.lock
+
+# Tools that read .env or launch browsers (not project config)
+tool/
