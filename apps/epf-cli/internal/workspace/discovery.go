@@ -4,10 +4,23 @@
 // (identified by _epf.yaml anchor files) and returns a list of workspaces
 // the user can connect to. Results are cached per-user with a configurable TTL.
 //
+// For GitHub App sessions, discovery uses GET /user/installations to list
+// installations, then GET /installation/repositories for each installation
+// to find repos (using installation tokens). This avoids requiring broad
+// repo scope — the App's manifest permissions (contents:read) are sufficient.
+//
+// For PAT/OAuth sessions, discovery falls back to GET /user/repos.
+//
 // Usage:
 //
 //	discoverer := workspace.NewDiscoverer()
 //	workspaces, err := discoverer.Discover(userID, oauthToken)
+//	// or with GitHub App:
+//	workspaces, err := discoverer.DiscoverWithOptions(userID, userToken, DiscoverOptions{
+//	    AuthMethod: "github_app",
+//	    TokenManager: installationTokenMgr,
+//	    AppID: 12345,
+//	})
 package workspace
 
 import (
@@ -44,6 +57,11 @@ type Workspace struct {
 
 	// DefaultBranch is the repo's default branch.
 	DefaultBranch string `json:"default_branch,omitempty"`
+
+	// InstallationID is the GitHub App installation ID that grants access
+	// to this repo. Zero means the workspace was discovered via OAuth/PAT
+	// (GET /user/repos) rather than via a GitHub App installation.
+	InstallationID int64 `json:"installation_id,omitempty"`
 }
 
 // Discoverer scans GitHub repos for EPF instances.
@@ -121,9 +139,51 @@ func NewDiscoverer(opts ...DiscovererOption) *Discoverer {
 	return d
 }
 
+// InstallationTokenFunc is a function that returns an installation access
+// token for listing repos under a given installation. This is provided
+// by auth.InstallationTokenManager.Token.
+type InstallationTokenFunc func(installationID int64) (string, error)
+
+// DiscoverOptions configures how workspace discovery works.
+// Used with DiscoverWithOptions to enable GitHub App installation-based
+// discovery instead of the default GET /user/repos approach.
+type DiscoverOptions struct {
+	// AuthMethod is the session's auth method ("github_app", "oauth", "pat").
+	// When set to "github_app", discovery uses GET /user/installations
+	// instead of GET /user/repos. Default: uses GET /user/repos.
+	AuthMethod string
+
+	// InstallationTokenFunc returns an installation access token for
+	// a given installation ID. Required when AuthMethod is "github_app".
+	// Typically provided by InstallationTokenManager.Token.
+	InstallationTokenFunc InstallationTokenFunc
+
+	// AppID is the GitHub App ID. Used to filter installations to only
+	// those belonging to our App. Required when AuthMethod is "github_app".
+	AppID int64
+}
+
 // Discover returns EPF workspaces accessible to the user.
 // Results are cached per-user with the configured TTL.
+//
+// This is the legacy method that uses GET /user/repos for discovery.
+// For GitHub App sessions, use DiscoverWithOptions instead.
 func (d *Discoverer) Discover(userID int64, oauthToken string) ([]Workspace, error) {
+	return d.DiscoverWithOptions(userID, oauthToken, DiscoverOptions{})
+}
+
+// DiscoverWithOptions returns EPF workspaces accessible to the user,
+// with auth-method-aware discovery.
+//
+// For GitHub App sessions (AuthMethod="github_app"):
+//   - Lists the user's App installations via GET /user/installations
+//   - For each installation, lists repos via GET /installation/repositories
+//   - Each workspace includes the InstallationID for later token resolution
+//
+// For PAT/OAuth sessions (default):
+//   - Uses GET /user/repos to list accessible repos
+//   - Checks each for _epf.yaml anchor files
+func (d *Discoverer) DiscoverWithOptions(userID int64, userToken string, opts DiscoverOptions) ([]Workspace, error) {
 	// Check cache.
 	d.mu.RLock()
 	entry, ok := d.cache[userID]
@@ -134,7 +194,14 @@ func (d *Discoverer) Discover(userID int64, oauthToken string) ([]Workspace, err
 	}
 
 	// Cache miss or expired — discover from GitHub.
-	workspaces, err := d.discoverFromGitHub(oauthToken)
+	var workspaces []Workspace
+	var err error
+
+	if opts.AuthMethod == "github_app" && opts.InstallationTokenFunc != nil {
+		workspaces, err = d.discoverFromInstallations(userToken, opts)
+	} else {
+		workspaces, err = d.discoverFromGitHub(userToken)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -178,6 +245,159 @@ func (d *Discoverer) discoverFromGitHub(oauthToken string) ([]Workspace, error) 
 	}
 
 	return workspaces, nil
+}
+
+// discoverFromInstallations lists user's App installations and their repos.
+//
+// Flow:
+//  1. GET /user/installations (user token) — list installations of our App
+//  2. For each installation, GET /installation/repositories (installation token)
+//     — list repos the App can access under that installation
+//  3. For each repo, check for _epf.yaml anchor files (using installation token)
+//
+// This approach avoids requiring broad repo scope. The App's manifest
+// permissions (contents:read, metadata:read) are sufficient.
+func (d *Discoverer) discoverFromInstallations(userToken string, opts DiscoverOptions) ([]Workspace, error) {
+	// List installations of our App that the user can see.
+	installations, err := d.listUserInstallations(userToken, opts.AppID)
+	if err != nil {
+		return nil, fmt.Errorf("workspace: list installations: %w", err)
+	}
+
+	if len(installations) == 0 {
+		// No installations — fall back to GET /user/repos for broader discovery.
+		// This handles the case where the user authenticated via GitHub App OAuth
+		// but hasn't installed the App on any repos yet.
+		return d.discoverFromGitHub(userToken)
+	}
+
+	var allWorkspaces []Workspace
+
+	for _, inst := range installations {
+		// Get an installation token to list repos under this installation.
+		installToken, err := opts.InstallationTokenFunc(inst.ID)
+		if err != nil {
+			// Skip this installation if we can't get a token (e.g., revoked).
+			continue
+		}
+
+		repos, err := d.listInstallationRepos(installToken)
+		if err != nil {
+			// Skip this installation on error.
+			continue
+		}
+
+		for _, repo := range repos {
+			instances := d.findEPFInstances(repo, installToken)
+			// Tag each workspace with the installation ID.
+			for i := range instances {
+				instances[i].InstallationID = inst.ID
+			}
+			allWorkspaces = append(allWorkspaces, instances...)
+		}
+	}
+
+	return allWorkspaces, nil
+}
+
+// ghInstallation represents a GitHub App installation from GET /user/installations.
+type ghInstallation struct {
+	ID      int64 `json:"id"`
+	AppID   int64 `json:"app_id"`
+	Account struct {
+		Login string `json:"login"`
+		Type  string `json:"type"` // "Organization" or "User"
+	} `json:"account"`
+	TargetType string `json:"target_type"` // "Organization" or "User"
+}
+
+// listUserInstallations calls GET /user/installations to list the user's
+// accessible App installations, filtered to our App ID.
+//
+// This endpoint works with GitHub App user access tokens (ghu_) without
+// any special scopes — org membership is implicit in the response.
+func (d *Discoverer) listUserInstallations(userToken string, appID int64) ([]ghInstallation, error) {
+	var allInstallations []ghInstallation
+	page := 1
+	perPage := 100
+
+	for {
+		url := fmt.Sprintf("https://api.github.com/user/installations?per_page=%d&page=%d", perPage, page)
+
+		body, status, err := d.doRequest(url, userToken)
+		if err != nil {
+			return nil, err
+		}
+		if status != http.StatusOK {
+			return nil, fmt.Errorf("GET /user/installations returned %d: %s", status, truncate(string(body), 200))
+		}
+
+		// The response wraps installations in {"total_count": N, "installations": [...]}.
+		var resp struct {
+			TotalCount    int              `json:"total_count"`
+			Installations []ghInstallation `json:"installations"`
+		}
+		if err := json.Unmarshal(body, &resp); err != nil {
+			return nil, fmt.Errorf("parse installations: %w", err)
+		}
+
+		// Filter to only installations of our App.
+		for _, inst := range resp.Installations {
+			if appID == 0 || inst.AppID == appID {
+				allInstallations = append(allInstallations, inst)
+			}
+		}
+
+		if len(resp.Installations) < perPage {
+			break // Last page.
+		}
+		page++
+	}
+
+	return allInstallations, nil
+}
+
+// listInstallationRepos calls GET /installation/repositories using an
+// installation access token to list repos accessible under that installation.
+func (d *Discoverer) listInstallationRepos(installToken string) ([]ghRepoListEntry, error) {
+	var allRepos []ghRepoListEntry
+	page := 1
+	perPage := 100
+
+	for len(allRepos) < d.maxRepos {
+		url := fmt.Sprintf("https://api.github.com/installation/repositories?per_page=%d&page=%d", perPage, page)
+
+		body, status, err := d.doRequest(url, installToken)
+		if err != nil {
+			return nil, err
+		}
+		if status != http.StatusOK {
+			return nil, fmt.Errorf("GET /installation/repositories returned %d: %s", status, truncate(string(body), 200))
+		}
+
+		// The response wraps repos in {"total_count": N, "repositories": [...]}.
+		var resp struct {
+			TotalCount   int               `json:"total_count"`
+			Repositories []ghRepoListEntry `json:"repositories"`
+		}
+		if err := json.Unmarshal(body, &resp); err != nil {
+			return nil, fmt.Errorf("parse installation repos: %w", err)
+		}
+
+		allRepos = append(allRepos, resp.Repositories...)
+
+		if len(resp.Repositories) < perPage {
+			break // Last page.
+		}
+		page++
+	}
+
+	// Cap at maxRepos.
+	if len(allRepos) > d.maxRepos {
+		allRepos = allRepos[:d.maxRepos]
+	}
+
+	return allRepos, nil
 }
 
 // ghRepoListEntry is a minimal GitHub repo from the list repos API.

@@ -25,11 +25,27 @@ func (s *Server) GetDiscoverer() *workspace.Discoverer {
 	return s.discoverer
 }
 
+// SetInstallationTokenFunc configures GitHub App installation token
+// resolution for workspace discovery. Call this when running in
+// multi-tenant mode with a GitHub App.
+func (s *Server) SetInstallationTokenFunc(fn workspace.InstallationTokenFunc) {
+	s.installationTokenFunc = fn
+}
+
+// SetGitHubAppID sets the GitHub App ID for filtering installations.
+func (s *Server) SetGitHubAppID(appID int64) {
+	s.githubAppID = appID
+}
+
 // handleListWorkspaces handles the epf_list_workspaces tool.
 //
 // In multi-tenant mode, it extracts the authenticated user from the request
 // context, retrieves their OAuth token, and discovers EPF workspaces from
 // their accessible GitHub repos.
+//
+// For GitHub App sessions, discovery uses GET /user/installations to find
+// repos via the App's installation, avoiding the need for broad repo scope.
+// For PAT/OAuth sessions, discovery uses GET /user/repos.
 //
 // In local/single-tenant mode, it returns an error explaining the tool
 // is only available in multi-tenant mode.
@@ -60,14 +76,23 @@ func (s *Server) handleListWorkspaces(ctx context.Context, request mcpgo.CallToo
 		return mcpgo.NewToolResultError("authentication required: no user in context"), nil
 	}
 
-	// Get the user's OAuth token.
-	token, ok := s.sessionManager.GetAccessToken(user.SessionID)
+	// Get the user's token.
+	token, ok := s.sessionManager.GetUserToken(user.SessionID)
 	if !ok || token == "" {
 		return mcpgo.NewToolResultError("session expired or invalid — re-authenticate via /auth/github/login"), nil
 	}
 
+	// Build discovery options based on the session's auth method.
+	opts := workspace.DiscoverOptions{}
+	method, _ := s.sessionManager.GetAuthMethod(user.SessionID)
+	if method == auth.AuthMethodGitHubApp && s.installationTokenFunc != nil {
+		opts.AuthMethod = method
+		opts.InstallationTokenFunc = s.installationTokenFunc
+		opts.AppID = s.githubAppID
+	}
+
 	// Discover workspaces.
-	workspaces, err := s.discoverer.Discover(user.UserID, token)
+	workspaces, err := s.discoverer.DiscoverWithOptions(user.UserID, token, opts)
 	if err != nil {
 		return mcpgo.NewToolResultError(fmt.Sprintf("workspace discovery failed: %v", err)), nil
 	}

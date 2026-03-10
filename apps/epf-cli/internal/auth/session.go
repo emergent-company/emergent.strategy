@@ -110,13 +110,23 @@ type SessionManager struct {
 	nowFunc func() time.Time
 }
 
+// Authentication method constants for sessionEntry.AuthMethod.
+const (
+	AuthMethodOAuth     = "oauth"      // Legacy OAuth App flow
+	AuthMethodGitHubApp = "github_app" // GitHub App user access token
+	AuthMethodPAT       = "pat"        // Personal Access Token via POST /auth/token
+)
+
 // sessionEntry stores server-side session data.
 type sessionEntry struct {
-	UserID      int64
-	Username    string
-	AccessToken string // GitHub OAuth access token (server-side only)
-	CreatedAt   time.Time
-	LastUsed    time.Time
+	UserID       int64
+	Username     string
+	AccessToken  string    // GitHub access token (OAuth, GitHub App ghu_, or PAT)
+	RefreshToken string    // GitHub App refresh token (ghr_), empty for OAuth/PAT
+	TokenExpiry  time.Time // When AccessToken expires (zero for non-expiring tokens)
+	AuthMethod   string    // One of AuthMethodOAuth, AuthMethodGitHubApp, AuthMethodPAT
+	CreatedAt    time.Time
+	LastUsed     time.Time
 }
 
 // SessionUser represents the authenticated user extracted from a JWT.
@@ -143,14 +153,42 @@ func NewSessionManager(cfg SessionConfig) *SessionManager {
 	}
 }
 
-// CreateSession stores an OAuth token and returns a signed JWT for the client.
+// SessionOptions holds optional parameters for session creation.
+type SessionOptions struct {
+	// AuthMethod identifies how the user authenticated.
+	// Defaults to AuthMethodOAuth if empty.
+	AuthMethod string
+
+	// RefreshToken is the GitHub App refresh token (ghr_).
+	// Only set for AuthMethodGitHubApp sessions.
+	RefreshToken string
+
+	// TokenExpiry is when the access token expires.
+	// Zero value means the token does not expire (OAuth/PAT).
+	TokenExpiry time.Time
+}
+
+// CreateSession stores an access token and returns a signed JWT for the client.
+// Uses AuthMethodOAuth as the default auth method.
 //
 // The JWT contains: session_id, user_id, username, issued_at, expires_at.
-// The OAuth access token is stored server-side only.
+// The access token is stored server-side only.
 func (sm *SessionManager) CreateSession(user *GitHubUser, accessToken string) (string, error) {
+	return sm.CreateSessionWithOptions(user, accessToken, SessionOptions{
+		AuthMethod: AuthMethodOAuth,
+	})
+}
+
+// CreateSessionWithOptions stores an access token with extended options
+// and returns a signed JWT for the client.
+func (sm *SessionManager) CreateSessionWithOptions(user *GitHubUser, accessToken string, opts SessionOptions) (string, error) {
 	sessionID, err := generateSessionID()
 	if err != nil {
 		return "", fmt.Errorf("auth: generate session ID: %w", err)
+	}
+
+	if opts.AuthMethod == "" {
+		opts.AuthMethod = AuthMethodOAuth
 	}
 
 	now := sm.nowFunc()
@@ -158,11 +196,14 @@ func (sm *SessionManager) CreateSession(user *GitHubUser, accessToken string) (s
 	// Store the session server-side.
 	sm.mu.Lock()
 	sm.sessions[sessionID] = &sessionEntry{
-		UserID:      user.ID,
-		Username:    user.Login,
-		AccessToken: accessToken,
-		CreatedAt:   now,
-		LastUsed:    now,
+		UserID:       user.ID,
+		Username:     user.Login,
+		AccessToken:  accessToken,
+		RefreshToken: opts.RefreshToken,
+		TokenExpiry:  opts.TokenExpiry,
+		AuthMethod:   opts.AuthMethod,
+		CreatedAt:    now,
+		LastUsed:     now,
 	}
 	sm.touchLRU(sessionID)
 	sm.evictIfNeeded()
@@ -219,9 +260,20 @@ func (sm *SessionManager) ValidateToken(token string) (*SessionUser, error) {
 	}, nil
 }
 
-// GetAccessToken returns the stored OAuth access token for a session.
+// GetAccessToken returns the stored access token for a session.
 // Returns ("", false) if the session doesn't exist.
+//
+// Deprecated: Use GetUserToken for clarity. This method is kept for
+// backward compatibility during the OAuth-to-GitHub-App transition.
 func (sm *SessionManager) GetAccessToken(sessionID string) (string, bool) {
+	return sm.GetUserToken(sessionID)
+}
+
+// GetUserToken returns the stored user access token for a session.
+// For GitHub App sessions this is the ghu_ token; for OAuth sessions
+// this is the OAuth access token; for PAT sessions this is the PAT.
+// Returns ("", false) if the session doesn't exist.
+func (sm *SessionManager) GetUserToken(sessionID string) (string, bool) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
@@ -230,6 +282,32 @@ func (sm *SessionManager) GetAccessToken(sessionID string) (string, bool) {
 		return "", false
 	}
 	return entry.AccessToken, true
+}
+
+// IsPATSession returns true if the session was created via a Personal
+// Access Token (POST /auth/token with a PAT).
+func (sm *SessionManager) IsPATSession(sessionID string) bool {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	entry, exists := sm.sessions[sessionID]
+	if !exists {
+		return false
+	}
+	return entry.AuthMethod == AuthMethodPAT
+}
+
+// GetAuthMethod returns the authentication method for a session.
+// Returns ("", false) if the session doesn't exist.
+func (sm *SessionManager) GetAuthMethod(sessionID string) (string, bool) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	entry, exists := sm.sessions[sessionID]
+	if !exists {
+		return "", false
+	}
+	return entry.AuthMethod, true
 }
 
 // RevokeSession removes a session from the store.

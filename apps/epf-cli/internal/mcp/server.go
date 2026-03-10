@@ -63,7 +63,9 @@ type Server struct {
 	serverMode     auth.ServerMode
 
 	// Workspace discovery (nil in local/single-tenant mode).
-	discoverer *workspace.Discoverer
+	discoverer            *workspace.Discoverer
+	installationTokenFunc workspace.InstallationTokenFunc // nil when GitHub App is not configured
+	githubAppID           int64                           // GitHub App ID for filtering installations
 }
 
 // NewServer creates a new EPF MCP server

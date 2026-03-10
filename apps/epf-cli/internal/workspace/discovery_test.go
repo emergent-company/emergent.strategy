@@ -644,3 +644,542 @@ func TestDiscover_MaxReposLimit(t *testing.T) {
 		t.Errorf("expected 0 workspaces, got %d", len(workspaces))
 	}
 }
+
+// --- Installation-based discovery tests ---
+
+// mockInstallationServer extends the mock to handle installation endpoints.
+type mockInstallationServer struct {
+	server *httptest.Server
+
+	// installations returned from GET /user/installations.
+	installations []ghInstallation
+
+	// installationRepos maps installationID -> repos for that installation.
+	installationRepos map[int64][]ghRepoListEntry
+
+	// anchorFiles maps "owner/repo/path" to _epf.yaml content (base64-encoded).
+	anchorFiles map[string]string
+
+	// dirListings maps "owner/repo/path" to directory entries.
+	dirListings map[string][]dirEntry
+
+	// repos for fallback GET /user/repos (PAT/OAuth path).
+	userRepos []ghRepoListEntry
+
+	requestCount atomic.Int64
+}
+
+func newMockInstallationServer(
+	installations []ghInstallation,
+	installationRepos map[int64][]ghRepoListEntry,
+	anchors map[string]string,
+	dirs map[string][]dirEntry,
+	userRepos []ghRepoListEntry,
+) *mockInstallationServer {
+	m := &mockInstallationServer{
+		installations:     installations,
+		installationRepos: installationRepos,
+		anchorFiles:       anchors,
+		dirListings:       dirs,
+		userRepos:         userRepos,
+	}
+	m.server = httptest.NewServer(http.HandlerFunc(m.handler))
+	return m
+}
+
+func (m *mockInstallationServer) handler(w http.ResponseWriter, r *http.Request) {
+	m.requestCount.Add(1)
+
+	if r.Header.Get("Authorization") == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	path := r.URL.Path
+
+	// GET /user/installations
+	if path == "/user/installations" {
+		resp := struct {
+			TotalCount    int              `json:"total_count"`
+			Installations []ghInstallation `json:"installations"`
+		}{
+			TotalCount:    len(m.installations),
+			Installations: m.installations,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+
+	// GET /installation/repositories
+	if path == "/installation/repositories" {
+		// Determine installation from the token.
+		// In tests we encode the installationID in the token as "install-token-{id}".
+		token := r.Header.Get("Authorization")
+		token = strings.TrimPrefix(token, "Bearer ")
+
+		var repos []ghRepoListEntry
+		for id, r := range m.installationRepos {
+			installToken := fmt.Sprintf("install-token-%d", id)
+			if token == installToken {
+				repos = r
+				break
+			}
+		}
+
+		resp := struct {
+			TotalCount   int               `json:"total_count"`
+			Repositories []ghRepoListEntry `json:"repositories"`
+		}{
+			TotalCount:   len(repos),
+			Repositories: repos,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+
+	// GET /user/repos (fallback for PAT/OAuth)
+	if path == "/user/repos" {
+		repos := m.userRepos
+		if repos == nil {
+			repos = []ghRepoListEntry{}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(repos)
+		return
+	}
+
+	// GET /repos/{owner}/{repo}/contents/{path}
+	if strings.HasPrefix(path, "/repos/") {
+		parts := strings.SplitN(path[len("/repos/"):], "/contents/", 2)
+		if len(parts) != 2 {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		repoPath := parts[0]
+		filePath := parts[1]
+		key := repoPath + "/" + filePath
+
+		if content, ok := m.anchorFiles[key]; ok {
+			resp := map[string]string{
+				"content":  content,
+				"encoding": "base64",
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+
+		if entries, ok := m.dirListings[key]; ok {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(entries)
+			return
+		}
+
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusNotFound)
+}
+
+func (m *mockInstallationServer) close()      { m.server.Close() }
+func (m *mockInstallationServer) url() string { return m.server.URL }
+
+// mockInstallationTokenFunc returns a predictable installation token for testing.
+func mockInstallationTokenFunc(installationID int64) (string, error) {
+	return fmt.Sprintf("install-token-%d", installationID), nil
+}
+
+func TestDiscoverWithOptions_GitHubApp_SingleInstallation(t *testing.T) {
+	installations := []ghInstallation{
+		{
+			ID:    1001,
+			AppID: 99,
+			Account: struct {
+				Login string `json:"login"`
+				Type  string `json:"type"`
+			}{Login: "org-a", Type: "Organization"},
+			TargetType: "Organization",
+		},
+	}
+
+	installRepos := map[int64][]ghRepoListEntry{
+		1001: {
+			{
+				FullName:      "org-a/epf-product",
+				Name:          "epf-product",
+				Private:       true,
+				DefaultBranch: "main",
+				Owner: struct {
+					Login string `json:"login"`
+				}{Login: "org-a"},
+			},
+		},
+	}
+
+	anchors := map[string]string{
+		"org-a/epf-product/_epf.yaml": encodeAnchorYAML("My Product", "An EPF product"),
+	}
+
+	mock := newMockInstallationServer(installations, installRepos, anchors, nil, nil)
+	defer mock.close()
+
+	d := newTestDiscoverer(mock.url())
+	opts := DiscoverOptions{
+		AuthMethod:            "github_app",
+		InstallationTokenFunc: mockInstallationTokenFunc,
+		AppID:                 99,
+	}
+
+	workspaces, err := d.DiscoverWithOptions(1, "user-token", opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(workspaces) != 1 {
+		t.Fatalf("expected 1 workspace, got %d", len(workspaces))
+	}
+
+	ws := workspaces[0]
+	if ws.Owner != "org-a" {
+		t.Errorf("expected owner 'org-a', got %q", ws.Owner)
+	}
+	if ws.Repo != "epf-product" {
+		t.Errorf("expected repo 'epf-product', got %q", ws.Repo)
+	}
+	if ws.InstallationID != 1001 {
+		t.Errorf("expected installation_id 1001, got %d", ws.InstallationID)
+	}
+	if ws.ProductName != "My Product" {
+		t.Errorf("expected product_name 'My Product', got %q", ws.ProductName)
+	}
+}
+
+func TestDiscoverWithOptions_GitHubApp_MultiOrg(t *testing.T) {
+	installations := []ghInstallation{
+		{
+			ID:    2001,
+			AppID: 99,
+			Account: struct {
+				Login string `json:"login"`
+				Type  string `json:"type"`
+			}{Login: "org-a", Type: "Organization"},
+		},
+		{
+			ID:    2002,
+			AppID: 99,
+			Account: struct {
+				Login string `json:"login"`
+				Type  string `json:"type"`
+			}{Login: "org-b", Type: "Organization"},
+		},
+	}
+
+	installRepos := map[int64][]ghRepoListEntry{
+		2001: {
+			{
+				FullName: "org-a/product-1",
+				Name:     "product-1",
+				Owner: struct {
+					Login string `json:"login"`
+				}{Login: "org-a"},
+			},
+		},
+		2002: {
+			{
+				FullName: "org-b/product-2",
+				Name:     "product-2",
+				Private:  true,
+				Owner: struct {
+					Login string `json:"login"`
+				}{Login: "org-b"},
+			},
+		},
+	}
+
+	anchors := map[string]string{
+		"org-a/product-1/_epf.yaml": encodeAnchorYAML("Product 1", ""),
+		"org-b/product-2/_epf.yaml": encodeAnchorYAML("Product 2", ""),
+	}
+
+	mock := newMockInstallationServer(installations, installRepos, anchors, nil, nil)
+	defer mock.close()
+
+	d := newTestDiscoverer(mock.url())
+	opts := DiscoverOptions{
+		AuthMethod:            "github_app",
+		InstallationTokenFunc: mockInstallationTokenFunc,
+		AppID:                 99,
+	}
+
+	workspaces, err := d.DiscoverWithOptions(1, "user-token", opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(workspaces) != 2 {
+		t.Fatalf("expected 2 workspaces (from 2 orgs), got %d", len(workspaces))
+	}
+
+	// Verify installation IDs are correctly assigned.
+	idMap := make(map[string]int64)
+	for _, ws := range workspaces {
+		idMap[ws.Owner+"/"+ws.Repo] = ws.InstallationID
+	}
+	if idMap["org-a/product-1"] != 2001 {
+		t.Errorf("expected org-a/product-1 -> installation 2001, got %d", idMap["org-a/product-1"])
+	}
+	if idMap["org-b/product-2"] != 2002 {
+		t.Errorf("expected org-b/product-2 -> installation 2002, got %d", idMap["org-b/product-2"])
+	}
+}
+
+func TestDiscoverWithOptions_GitHubApp_NoInstallations_FallsBackToUserRepos(t *testing.T) {
+	// No installations — should fall back to GET /user/repos.
+	userRepos := []ghRepoListEntry{
+		{
+			FullName: "user/my-repo",
+			Name:     "my-repo",
+			Owner: struct {
+				Login string `json:"login"`
+			}{Login: "user"},
+		},
+	}
+
+	anchors := map[string]string{
+		"user/my-repo/_epf.yaml": encodeAnchorYAML("Fallback Product", ""),
+	}
+
+	mock := newMockInstallationServer(nil, nil, anchors, nil, userRepos)
+	defer mock.close()
+
+	d := newTestDiscoverer(mock.url())
+	opts := DiscoverOptions{
+		AuthMethod:            "github_app",
+		InstallationTokenFunc: mockInstallationTokenFunc,
+		AppID:                 99,
+	}
+
+	workspaces, err := d.DiscoverWithOptions(1, "user-token", opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(workspaces) != 1 {
+		t.Fatalf("expected 1 workspace (from fallback), got %d", len(workspaces))
+	}
+
+	ws := workspaces[0]
+	if ws.ProductName != "Fallback Product" {
+		t.Errorf("expected product_name 'Fallback Product', got %q", ws.ProductName)
+	}
+	// No installation ID — discovered via OAuth fallback.
+	if ws.InstallationID != 0 {
+		t.Errorf("expected installation_id 0 for OAuth fallback, got %d", ws.InstallationID)
+	}
+}
+
+func TestDiscoverWithOptions_PAT_UsesUserRepos(t *testing.T) {
+	// PAT sessions should always use GET /user/repos, not installations.
+	userRepos := []ghRepoListEntry{
+		{
+			FullName: "me/my-epf",
+			Name:     "my-epf",
+			Owner: struct {
+				Login string `json:"login"`
+			}{Login: "me"},
+		},
+	}
+	anchors := map[string]string{
+		"me/my-epf/_epf.yaml": encodeAnchorYAML("PAT Product", ""),
+	}
+
+	// Even if installations exist, PAT sessions should not use them.
+	installations := []ghInstallation{
+		{ID: 9999, AppID: 99},
+	}
+
+	mock := newMockInstallationServer(installations, nil, anchors, nil, userRepos)
+	defer mock.close()
+
+	d := newTestDiscoverer(mock.url())
+	// No auth method = defaults to OAuth/PAT path.
+	opts := DiscoverOptions{}
+
+	workspaces, err := d.DiscoverWithOptions(1, "pat-token", opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(workspaces) != 1 {
+		t.Fatalf("expected 1 workspace, got %d", len(workspaces))
+	}
+
+	if workspaces[0].InstallationID != 0 {
+		t.Errorf("expected installation_id 0 for PAT session, got %d", workspaces[0].InstallationID)
+	}
+}
+
+func TestDiscoverWithOptions_GitHubApp_FiltersAppID(t *testing.T) {
+	// Only installations matching our App ID should be used.
+	installations := []ghInstallation{
+		{
+			ID:    3001,
+			AppID: 99, // Our app.
+			Account: struct {
+				Login string `json:"login"`
+				Type  string `json:"type"`
+			}{Login: "org-ours", Type: "Organization"},
+		},
+		{
+			ID:    3002,
+			AppID: 42, // Different app.
+			Account: struct {
+				Login string `json:"login"`
+				Type  string `json:"type"`
+			}{Login: "org-other", Type: "Organization"},
+		},
+	}
+
+	installRepos := map[int64][]ghRepoListEntry{
+		3001: {
+			{
+				FullName: "org-ours/product",
+				Name:     "product",
+				Owner: struct {
+					Login string `json:"login"`
+				}{Login: "org-ours"},
+			},
+		},
+		3002: {
+			{
+				FullName: "org-other/product",
+				Name:     "product",
+				Owner: struct {
+					Login string `json:"login"`
+				}{Login: "org-other"},
+			},
+		},
+	}
+
+	anchors := map[string]string{
+		"org-ours/product/_epf.yaml":  encodeAnchorYAML("Our Product", ""),
+		"org-other/product/_epf.yaml": encodeAnchorYAML("Other Product", ""),
+	}
+
+	mock := newMockInstallationServer(installations, installRepos, anchors, nil, nil)
+	defer mock.close()
+
+	d := newTestDiscoverer(mock.url())
+	opts := DiscoverOptions{
+		AuthMethod:            "github_app",
+		InstallationTokenFunc: mockInstallationTokenFunc,
+		AppID:                 99, // Only our app.
+	}
+
+	workspaces, err := d.DiscoverWithOptions(1, "user-token", opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Only the installation with AppID=99 should be used.
+	if len(workspaces) != 1 {
+		t.Fatalf("expected 1 workspace (only our app), got %d", len(workspaces))
+	}
+	if workspaces[0].Owner != "org-ours" {
+		t.Errorf("expected owner 'org-ours', got %q", workspaces[0].Owner)
+	}
+}
+
+func TestDiscoverWithOptions_GitHubApp_EmptyInstallationRepos(t *testing.T) {
+	installations := []ghInstallation{
+		{
+			ID:    4001,
+			AppID: 99,
+			Account: struct {
+				Login string `json:"login"`
+				Type  string `json:"type"`
+			}{Login: "empty-org", Type: "Organization"},
+		},
+	}
+
+	// Installation exists but has no repos.
+	installRepos := map[int64][]ghRepoListEntry{
+		4001: {},
+	}
+
+	mock := newMockInstallationServer(installations, installRepos, nil, nil, nil)
+	defer mock.close()
+
+	d := newTestDiscoverer(mock.url())
+	opts := DiscoverOptions{
+		AuthMethod:            "github_app",
+		InstallationTokenFunc: mockInstallationTokenFunc,
+		AppID:                 99,
+	}
+
+	workspaces, err := d.DiscoverWithOptions(1, "user-token", opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(workspaces) != 0 {
+		t.Errorf("expected 0 workspaces from empty installation, got %d", len(workspaces))
+	}
+}
+
+func TestDiscoverWithOptions_CacheSharedBetweenMethods(t *testing.T) {
+	// Verify that cache works for DiscoverWithOptions too.
+	installations := []ghInstallation{
+		{ID: 5001, AppID: 99, Account: struct {
+			Login string `json:"login"`
+			Type  string `json:"type"`
+		}{Login: "org", Type: "Organization"}},
+	}
+	installRepos := map[int64][]ghRepoListEntry{
+		5001: {
+			{
+				FullName: "org/cached",
+				Name:     "cached",
+				Owner: struct {
+					Login string `json:"login"`
+				}{Login: "org"},
+			},
+		},
+	}
+	anchors := map[string]string{
+		"org/cached/_epf.yaml": encodeAnchorYAML("Cached", ""),
+	}
+
+	mock := newMockInstallationServer(installations, installRepos, anchors, nil, nil)
+	defer mock.close()
+
+	d := newTestDiscoverer(mock.url())
+	opts := DiscoverOptions{
+		AuthMethod:            "github_app",
+		InstallationTokenFunc: mockInstallationTokenFunc,
+		AppID:                 99,
+	}
+
+	// First call.
+	ws1, err := d.DiscoverWithOptions(1, "user-token", opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	firstCount := mock.requestCount.Load()
+
+	// Second call — should use cache.
+	ws2, err := d.DiscoverWithOptions(1, "user-token", opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if mock.requestCount.Load() != firstCount {
+		t.Error("expected no additional API requests on cache hit")
+	}
+	if len(ws1) != len(ws2) {
+		t.Errorf("expected same results, got %d and %d", len(ws1), len(ws2))
+	}
+}
