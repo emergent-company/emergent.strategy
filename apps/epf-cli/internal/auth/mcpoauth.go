@@ -86,6 +86,10 @@ type ProtectedResourceMetadata struct {
 // This is the entry point for MCP OAuth discovery. The MCP client fetches
 // this after receiving a 401 from /mcp to learn which authorization server
 // to use.
+//
+// Note: When using GitHub App auth, actual permissions come from the App manifest
+// (contents:read, metadata:read), not OAuth scopes. The scopes_supported field
+// reflects the EPF server's own scope model, not GitHub's.
 func (h *MCPOAuthHandler) HandleProtectedResourceMetadata(w http.ResponseWriter, r *http.Request) {
 	resp := ProtectedResourceMetadata{
 		Resource:               h.serverURL,
@@ -349,8 +353,18 @@ func (h *MCPOAuthHandler) HandleAuthorizeCallback(w http.ResponseWriter, r *http
 		return
 	}
 
+	// Determine auth method and create session with appropriate options.
+	opts := SessionOptions{AuthMethod: AuthMethodOAuth}
+	if strings.HasPrefix(tokenResp.AccessToken, "ghu_") {
+		opts.AuthMethod = AuthMethodGitHubApp
+		opts.RefreshToken = tokenResp.RefreshToken
+		if tokenResp.ExpiresIn > 0 {
+			opts.TokenExpiry = time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+		}
+	}
+
 	// Create a server session (stores the GitHub token server-side).
-	jwt, err := h.session.CreateSession(user, tokenResp.AccessToken)
+	jwt, err := h.session.CreateSessionWithOptions(user, tokenResp.AccessToken, opts)
 	if err != nil {
 		log.Printf("mcpoauth: create session: %v", err)
 		writeJSONError(w, http.StatusInternalServerError, "failed to create session")

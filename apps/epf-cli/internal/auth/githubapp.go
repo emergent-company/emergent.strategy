@@ -386,6 +386,14 @@ const (
 	EnvGitHubAppID          = "EPF_GITHUB_APP_ID"
 	EnvGitHubPrivateKey     = "EPF_GITHUB_APP_PRIVATE_KEY"
 	EnvGitHubInstallationID = "EPF_GITHUB_APP_INSTALLATION_ID"
+
+	// EnvGitHubAppClientID and EnvGitHubAppClientSecret are the OAuth credentials
+	// for the GitHub App's user authorization flow. These are used to exchange
+	// authorization codes for user access tokens (ghu_) and to refresh tokens (ghr_).
+	// They are DIFFERENT from EPF_OAUTH_CLIENT_ID/SECRET (which are for the legacy
+	// OAuth App). Both can be set simultaneously during the transition period.
+	EnvGitHubAppClientID     = "EPF_GITHUB_APP_CLIENT_ID"
+	EnvGitHubAppClientSecret = "EPF_GITHUB_APP_CLIENT_SECRET"
 )
 
 // ConfigFromEnv reads GitHub App configuration from environment variables.

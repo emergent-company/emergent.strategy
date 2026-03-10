@@ -60,6 +60,7 @@ type Server struct {
 	// Multi-tenant auth (nil in local/single-tenant mode).
 	accessChecker  *auth.AccessChecker
 	sessionManager *auth.SessionManager
+	tokenResolver  *auth.TokenResolver // GitHub App installation token resolution (nil for legacy OAuth)
 	serverMode     auth.ServerMode
 
 	// Workspace discovery (nil in local/single-tenant mode).

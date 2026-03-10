@@ -138,8 +138,20 @@ func (h *AuthHandler) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Determine auth method and create session with appropriate options.
+	opts := SessionOptions{AuthMethod: AuthMethodOAuth}
+
+	// GitHub App user access tokens have ghu_ prefix and may include refresh tokens.
+	if strings.HasPrefix(tokenResp.AccessToken, "ghu_") {
+		opts.AuthMethod = AuthMethodGitHubApp
+		opts.RefreshToken = tokenResp.RefreshToken
+		if tokenResp.ExpiresIn > 0 {
+			opts.TokenExpiry = time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+		}
+	}
+
 	// Create a session and get a signed JWT.
-	jwt, err := h.session.CreateSession(user, tokenResp.AccessToken)
+	jwt, err := h.session.CreateSessionWithOptions(user, tokenResp.AccessToken, opts)
 	if err != nil {
 		log.Printf("auth: create session: %v", err)
 		writeJSONError(w, http.StatusInternalServerError, "failed to create session")
@@ -254,8 +266,17 @@ func (h *AuthHandler) HandleTokenExchange(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Create a session (identical to the OAuth callback flow).
-	jwt, err := h.session.CreateSession(user, req.GitHubToken)
+	// Determine auth method: PATs start with ghp_ or github_pat_, ghu_ are GitHub App tokens.
+	authMethod := AuthMethodPAT
+	if strings.HasPrefix(req.GitHubToken, "ghu_") {
+		authMethod = AuthMethodGitHubApp
+	} else if strings.HasPrefix(req.GitHubToken, "gho_") {
+		authMethod = AuthMethodOAuth
+	}
+
+	jwt, err := h.session.CreateSessionWithOptions(user, req.GitHubToken, SessionOptions{
+		AuthMethod: authMethod,
+	})
 	if err != nil {
 		log.Printf("auth: token exchange: create session: %v", err)
 		writeJSONError(w, http.StatusInternalServerError, "failed to create session")

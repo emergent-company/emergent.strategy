@@ -119,10 +119,18 @@ func (c *OAuthConfig) AuthorizeURL(state string) string {
 }
 
 // OAuthTokenResponse is the response from GitHub's token exchange endpoint.
+//
+// For GitHub App user access tokens (ghu_), the Scope field is always empty
+// because permissions come from the App manifest, not OAuth scopes.
+// The RefreshToken and ExpiresIn fields are populated when the GitHub App
+// has "Expire user authorization tokens" enabled.
 type OAuthTokenResponse struct {
-	AccessToken string `json:"access_token"`
-	TokenType   string `json:"token_type"`
-	Scope       string `json:"scope"`
+	AccessToken           string `json:"access_token"`
+	TokenType             string `json:"token_type"`
+	Scope                 string `json:"scope"`
+	RefreshToken          string `json:"refresh_token,omitempty"`
+	ExpiresIn             int    `json:"expires_in,omitempty"`
+	RefreshTokenExpiresIn int    `json:"refresh_token_expires_in,omitempty"`
 }
 
 // ExchangeCode exchanges an authorization code for an access token.
