@@ -9,6 +9,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/mcp"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/strategy"
 	"github.com/spf13/cobra"
 )
@@ -35,22 +36,34 @@ Examples:
 
 var strategyServeCmd = &cobra.Command{
 	Use:   "serve <instance-path>",
-	Short: "Start the strategy server",
-	Long: `Start the MCP server with strategy tools enabled.
+	Short: "Start a lightweight strategy-only MCP server (16 read-only tools)",
+	Long: `Start a lightweight MCP server with 16 read-only strategy tools.
 
-The server exposes EPF product strategy via MCP tools:
-  - epf_get_product_vision: Get vision, mission, purpose, values
-  - epf_get_personas: List all personas
-  - epf_get_persona_details: Get full persona details
-  - epf_get_value_propositions: Get value propositions
-  - epf_get_competitive_position: Get competitive analysis
-  - epf_get_roadmap_summary: Get roadmap with OKRs
-  - epf_search_strategy: Search across all strategy content
-  - epf_get_feature_strategy_context: Get synthesized strategic context
+This is designed for consumers of strategy data (e.g., product repos that need
+strategic context) who don't need the full EPF authoring toolset (80 tools).
 
-Flags:
-  --watch       Enable file watching for automatic reload on changes
-  --instance    Path to EPF instance (can also be positional argument)`,
+Strategy query tools (8):
+  - epf_get_product_vision      Vision, mission, purpose, values
+  - epf_get_personas            List all personas
+  - epf_get_persona_details     Full persona details
+  - epf_get_value_propositions  Value propositions (optionally by persona)
+  - epf_get_competitive_position  Competitive analysis and positioning
+  - epf_get_roadmap_summary     Roadmap with OKRs and key results
+  - epf_search_strategy         Search across all strategy content
+  - epf_get_feature_strategy_context  Synthesized strategic context for a topic
+
+Strategy context tools (8):
+  - epf_list_features           Overview of all features with status
+  - epf_get_strategic_context   Feature's value model contributions and KRs
+  - epf_explain_value_path      Explain what a value model path means
+  - epf_analyze_coverage        Feature coverage gaps in value model
+  - epf_list_definitions        Browse track definitions
+  - epf_get_definition          Read a specific track definition
+  - epf_aim_status              Organizational context and LRA status
+  - epf_aim_okr_progress        OKR achievement rates from assessments
+
+For the full EPF toolset (validation, health checks, wizards, generators, AIM,
+value model management, AND strategy tools), use "epf-cli serve --instance <path>".`,
 	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		instancePath, _ := cmd.Flags().GetString("instance")
@@ -70,21 +83,29 @@ Flags:
 			os.Exit(1)
 		}
 
-		// Set environment variable for the MCP server to pick up
+		// Set environment variable for strategy store resolution
 		os.Setenv("EPF_STRATEGY_INSTANCE", instancePath)
 		if watch {
 			os.Setenv("EPF_STRATEGY_WATCH", "true")
 		}
 
-		fmt.Fprintf(os.Stderr, "Strategy server configured for: %s\n", instancePath)
+		// Create lightweight strategy-only server (8 tools, no validation/wizards/generators)
+		server, err := mcp.NewStrategyOnlyServer(instancePath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error creating strategy server: %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Fprintf(os.Stderr, "Strategy-only server: %s (16 tools)\n", instancePath)
 		if watch {
 			fmt.Fprintln(os.Stderr, "File watching enabled")
 		}
-		fmt.Fprintln(os.Stderr, "Starting MCP server with strategy tools...")
-		fmt.Fprintln(os.Stderr, "")
 
-		// Delegate to the main serve command
-		serveCmd.Run(cmd, args)
+		// Serve over stdio
+		if err := server.ServeStdio(); err != nil {
+			fmt.Fprintf(os.Stderr, "MCP server error: %v\n", err)
+			os.Exit(1)
+		}
 	},
 }
 

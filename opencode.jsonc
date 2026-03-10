@@ -60,10 +60,10 @@
       "type": "local",
       "command": [
         "epf-cli",
-        "strategy",
         "serve",
-        "--watch",
+        "--instance",
         "docs/EPF/_instances/emergent",
+        "--watch",
       ],
       "timeout": 60000,
     },
