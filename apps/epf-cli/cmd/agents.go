@@ -575,12 +575,88 @@ Use the following EPF tools:
 	},
 }
 
+var importAgentCmd = &cobra.Command{
+	Use:   "import <source>",
+	Short: "Import an agent from an external format",
+	Long: `Import an agent definition from an external format into the EPF instance.
+
+Supported formats:
+  - raw: Plain text or markdown file (auto-detected)
+  - crewai: CrewAI agent YAML (role, goal, backstory)
+  - openai: OpenAI Assistants JSON (instructions, tools)
+
+The import creates an agent directory with agent.yaml manifest and prompt.md.
+Fields that need review are marked with TODO comments.
+
+Examples:
+  epf-cli agents import my-prompt.md
+  epf-cli agents import agent.yaml --format crewai
+  epf-cli agents import assistant.json --format openai
+  epf-cli agents import my-prompt.md --force`,
+	Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		sourcePath := args[0]
+		formatStr, _ := cmd.Flags().GetString("format")
+		force, _ := cmd.Flags().GetBool("force")
+		jsonOutput, _ := cmd.Flags().GetBool("json")
+
+		format, err := agent.ImportFormatFromString(formatStr)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Determine instance path
+		instancePath := ""
+		if epfContext != nil && epfContext.InstancePath != "" {
+			instancePath = epfContext.InstancePath
+		} else {
+			fmt.Fprintln(os.Stderr, "Error: no EPF instance found. Run from within an EPF instance or use --instance flag.")
+			os.Exit(1)
+		}
+
+		// Protect canonical EPF
+		if err := EnsurePathNotCanonical(instancePath, "import agent"); err != nil {
+			fmt.Fprintln(os.Stderr, "Error:", err)
+			os.Exit(1)
+		}
+
+		result, err := agent.ImportAgent(sourcePath, instancePath, format, force)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error importing agent: %v\n", err)
+			os.Exit(1)
+		}
+
+		if jsonOutput {
+			data, _ := json.MarshalIndent(result, "", "  ")
+			fmt.Println(string(data))
+			return
+		}
+
+		fmt.Printf("Imported agent '%s' (format: %s)\n", result.AgentName, result.Format)
+		fmt.Printf("  Manifest: %s\n", result.ManifestPath)
+		fmt.Printf("  Prompt:   %s\n", result.PromptPath)
+
+		if len(result.TodoFields) > 0 {
+			fmt.Println("\nFields to review:")
+			for _, field := range result.TodoFields {
+				fmt.Printf("  - %s\n", field)
+			}
+		}
+
+		fmt.Printf("\nNext steps:\n")
+		fmt.Printf("  1. Review and update %s\n", result.ManifestPath)
+		fmt.Printf("  2. Test with: epf-cli agents show %s\n", result.AgentName)
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(agentsCmd)
 	agentsCmd.AddCommand(listAgentsCmd)
 	agentsCmd.AddCommand(showAgentCmd)
 	agentsCmd.AddCommand(recommendAgentCmd)
 	agentsCmd.AddCommand(scaffoldAgentCmd)
+	agentsCmd.AddCommand(importAgentCmd)
 
 	// List flags
 	listAgentsCmd.Flags().StringP("phase", "p", "", "filter by phase (READY, FIRE, AIM, Onboarding)")
@@ -599,4 +675,9 @@ func init() {
 	scaffoldAgentCmd.Flags().String("display-name", "", "human-readable display name")
 	scaffoldAgentCmd.Flags().StringP("description", "d", "", "agent description")
 	scaffoldAgentCmd.Flags().StringP("output", "o", "", "output directory (defaults to instance agents/)")
+
+	// Import flags
+	importAgentCmd.Flags().StringP("format", "f", "auto", "source format (auto, raw, crewai, openai)")
+	importAgentCmd.Flags().Bool("force", false, "overwrite existing agent")
+	importAgentCmd.Flags().Bool("json", false, "output as JSON")
 }

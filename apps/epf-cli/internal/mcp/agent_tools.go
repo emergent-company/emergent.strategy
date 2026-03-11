@@ -688,3 +688,59 @@ func (s *Server) handleListAgentSkills(ctx context.Context, request mcp.CallTool
 
 	return mcp.NewToolResultText(string(jsonBytes)), nil
 }
+
+// =============================================================================
+// Agent Import Tool
+// =============================================================================
+
+// handleImportAgent handles the epf_import_agent tool.
+func (s *Server) handleImportAgent(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	source, err := request.RequireString("source")
+	if err != nil {
+		return mcp.NewToolResultError("Missing required parameter 'source'"), nil
+	}
+
+	instancePath := s.resolveInstancePath(request)
+
+	formatStr, _ := request.RequireString("format")
+	forceStr, _ := request.RequireString("force")
+	force := forceStr == "true"
+
+	format, err := agent.ImportFormatFromString(formatStr)
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Resolve source path
+	if !filepath.IsAbs(source) {
+		source = filepath.Join(instancePath, source)
+	}
+
+	result, err := agent.ImportAgent(source, instancePath, format, force)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Import failed: %s", err.Error())), nil
+	}
+
+	// Build response
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Successfully imported agent '%s' from %s format.\n\n", result.AgentName, result.Format))
+	sb.WriteString("**Files created:**\n")
+	sb.WriteString(fmt.Sprintf("- Manifest: `%s`\n", result.ManifestPath))
+	sb.WriteString(fmt.Sprintf("- Prompt: `%s`\n", result.PromptPath))
+
+	if len(result.TodoFields) > 0 {
+		sb.WriteString("\n**Fields to review (marked with TODO):**\n")
+		for _, field := range result.TodoFields {
+			sb.WriteString(fmt.Sprintf("- %s\n", field))
+		}
+	}
+
+	sb.WriteString("\n**Next steps:**\n")
+	sb.WriteString(fmt.Sprintf("1. Review the generated manifest: `%s`\n", result.ManifestPath))
+	sb.WriteString(fmt.Sprintf("2. Verify with: `epf_get_agent { \"name\": \"%s\" }`\n", result.AgentName))
+
+	jsonBytes, _ := json.MarshalIndent(result, "", "  ")
+	sb.WriteString(fmt.Sprintf("\n```json\n%s\n```\n", string(jsonBytes)))
+
+	return mcp.NewToolResultText(sb.String()), nil
+}

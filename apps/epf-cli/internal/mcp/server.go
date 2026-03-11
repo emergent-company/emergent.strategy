@@ -866,6 +866,29 @@ func (s *Server) registerTools() {
 		s.handleScaffoldAgent,
 	)
 
+	// Tool: epf_import_agent
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_import_agent",
+			mcp.WithDescription("Import an agent definition from an external format (raw text, CrewAI YAML, OpenAI JSON) "+
+				"into the EPF instance. Auto-detects format, creates agent.yaml manifest and prompt.md, and marks fields needing review."),
+			mcp.WithString("source",
+				mcp.Required(),
+				mcp.Description("Path to the source file to import"),
+			),
+			mcp.WithString("instance_path",
+				mcp.Required(),
+				mcp.Description("Path to the EPF instance directory"),
+			),
+			mcp.WithString("format",
+				mcp.Description("Source format: auto (default), raw, crewai, openai"),
+			),
+			mcp.WithString("force",
+				mcp.Description("Overwrite existing agent (true/false, default: false)"),
+			),
+		),
+		s.handleImportAgent,
+	)
+
 	// Tool: epf_list_agent_skills
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_list_agent_skills",
@@ -964,6 +987,29 @@ func (s *Server) registerTools() {
 			),
 		),
 		s.handleScaffoldSkill,
+	)
+
+	// Tool: epf_import_skill
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_import_skill",
+			mcp.WithDescription("Import a skill definition from an external format (raw text, CrewAI task YAML) "+
+				"into the EPF instance. Auto-detects format, creates skill.yaml manifest and prompt.md, and marks fields needing review."),
+			mcp.WithString("source",
+				mcp.Required(),
+				mcp.Description("Path to the source file to import"),
+			),
+			mcp.WithString("instance_path",
+				mcp.Required(),
+				mcp.Description("Path to the EPF instance directory"),
+			),
+			mcp.WithString("format",
+				mcp.Description("Source format: auto (default), raw, crewai"),
+			),
+			mcp.WithString("force",
+				mcp.Description("Overwrite existing skill (true/false, default: false)"),
+			),
+		),
+		s.handleImportSkill,
 	)
 
 	// Tool: epf_check_skill_prereqs

@@ -992,6 +992,79 @@ Examples:
 	},
 }
 
+var importSkillCmd = &cobra.Command{
+	Use:   "import <source>",
+	Short: "Import a skill from an external format",
+	Long: `Import a skill definition from an external format into the EPF instance.
+
+Supported formats:
+  - raw: Plain text or markdown file (auto-detected)
+  - crewai: CrewAI task YAML (description, expected_output)
+
+The import creates a skill directory with skill.yaml manifest and prompt.md.
+Fields that need review are marked with TODO comments.
+
+Examples:
+  epf-cli skills import my-workflow.md
+  epf-cli skills import task.yaml --format crewai
+  epf-cli skills import my-workflow.md --force`,
+	Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		sourcePath := args[0]
+		formatStr, _ := cmd.Flags().GetString("format")
+		force, _ := cmd.Flags().GetBool("force")
+		jsonOutput, _ := cmd.Flags().GetBool("json")
+
+		format, err := skill.ImportFormatFromString(formatStr)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Determine instance path
+		instancePath := ""
+		if epfContext != nil && epfContext.InstancePath != "" {
+			instancePath = epfContext.InstancePath
+		} else {
+			fmt.Fprintln(os.Stderr, "Error: no EPF instance found. Run from within an EPF instance or use --instance flag.")
+			os.Exit(1)
+		}
+
+		// Protect canonical EPF
+		if err := EnsurePathNotCanonical(instancePath, "import skill"); err != nil {
+			fmt.Fprintln(os.Stderr, "Error:", err)
+			os.Exit(1)
+		}
+
+		result, err := skill.ImportSkill(sourcePath, instancePath, format, force)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error importing skill: %v\n", err)
+			os.Exit(1)
+		}
+
+		if jsonOutput {
+			data, _ := json.MarshalIndent(result, "", "  ")
+			fmt.Println(string(data))
+			return
+		}
+
+		fmt.Printf("Imported skill '%s' (format: %s)\n", result.SkillName, result.Format)
+		fmt.Printf("  Manifest: %s\n", result.ManifestPath)
+		fmt.Printf("  Prompt:   %s\n", result.PromptPath)
+
+		if len(result.TodoFields) > 0 {
+			fmt.Println("\nFields to review:")
+			for _, field := range result.TodoFields {
+				fmt.Printf("  - %s\n", field)
+			}
+		}
+
+		fmt.Printf("\nNext steps:\n")
+		fmt.Printf("  1. Review and update %s\n", result.ManifestPath)
+		fmt.Printf("  2. Test with: epf-cli skills show %s\n", result.SkillName)
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(skillsCmd)
 	skillsCmd.AddCommand(listSkillsCmd)
@@ -1002,6 +1075,7 @@ func init() {
 	skillsCmd.AddCommand(copySkillCmd)
 	skillsCmd.AddCommand(exportSkillCmd)
 	skillsCmd.AddCommand(installSkillCmd)
+	skillsCmd.AddCommand(importSkillCmd)
 
 	// List flags
 	listSkillsCmd.Flags().StringP("type", "t", "", "filter by type (creation, generation, review, enrichment, analysis)")
@@ -1045,4 +1119,9 @@ func init() {
 	installSkillCmd.Flags().String("as", "", "install with a different name")
 	installSkillCmd.Flags().String("to", "global", "destination: global, instance, or path")
 	installSkillCmd.Flags().BoolP("force", "f", false, "overwrite existing skill")
+
+	// Import flags
+	importSkillCmd.Flags().StringP("format", "f", "auto", "source format (auto, raw, crewai)")
+	importSkillCmd.Flags().Bool("force", false, "overwrite existing skill")
+	importSkillCmd.Flags().Bool("json", false, "output as JSON")
 }
