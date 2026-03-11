@@ -54,3 +54,30 @@ This refactoring proposes to unify both into a two-concept architecture: **Agent
   - `packages/opencode-epf/src/cli.ts` — New CLI command wrappers for agents/skills
 - Affected external: `canonical-epf` repository directory structure
 - Migration required for: All existing wizard and generator files in canonical-epf
+
+## Rollout Phases
+
+### Phase 1 (this proposal) — Infrastructure
+
+Builds the new agent/skill loaders, MCP tools, CLI commands, plugin integration, and standalone mode alongside the existing system. Reads old formats (`wizards/`, `outputs/`, `.agent_prompt.md`, `.wizard.md`, `generator.yaml`) natively. No changes to canonical-epf or the embedded pipeline.
+
+**Status:** Complete (57/61 tasks). Section 5 (Embedded Content) deferred to Phase 2.
+
+**Merge:** `refactor/agents-and-skills` → `main` in emergent-strategy. Release new epf-cli.
+
+### Phase 2 (separate future proposal) — Canonical Content Migration
+
+Migrates canonical-epf from old directory structure to new `agents/` + `skills/` directories. Updates the embedded pipeline (`sync-embedded.sh`, `go:embed`, `MANIFEST.txt`). Creates structured `agent.yaml` and `skill.yaml` manifests for all canonical content.
+
+**Precondition:** Phase 1 merged and released.
+
+**Branch strategy:**
+
+| Repo | Branch | Purpose |
+|------|--------|---------|
+| emergent-strategy | `main` (post Phase 1) | New infrastructure, reading old formats |
+| emergent-strategy | `phase2/canonical-migration` | Section 5 tasks + submodule update |
+| emergent-epf | `main` | Old structure — kept for older epf-cli releases |
+| emergent-epf | `refactor/agents-and-skills` | New `agents/` + `skills/` directories |
+
+**Safety:** canonical-epf `main` stays in old format until everything is validated. Older epf-cli binaries that lack agent/skill loaders continue to work against the old structure.

@@ -23,7 +23,14 @@ Emergent Strategy is a strategy tooling repository focused on the Emergent Produ
 - **Artifacts:** YAML files organized in phased structure (READY/FIRE/AIM)
 - **Schemas:** JSON Schema for artifact validation
 - **Templates:** Canonical templates for creating new artifacts
-- **Generators:** Output generators for producing documents from EPF data (investor memos, compliance docs, context sheets, etc.)
+- **Generators/Skills:** Output generators for producing documents from EPF data (investor memos, compliance docs, context sheets, etc.). Generators are now aliased as "skills" in the agents/skills architecture.
+
+### OpenCode Plugin (opencode-epf)
+
+- **Language:** TypeScript (Bun runtime)
+- **Package:** `packages/opencode-epf/`
+- **Purpose:** Orchestration layer for OpenCode — agent persona injection, auto-validation, tool scoping, commit guards, health dashboard
+- **Hooks:** `shell.env`, `tool.execute.before`, `tool.execute.after`, `experimental.chat.system.transform`, `tool.definition`
 
 ### Development Tools
 
@@ -111,9 +118,16 @@ Key concepts:
 The CLI provides:
 - **Validation:** Schema validation, relationship validation, content readiness checks
 - **Health checks:** Comprehensive instance health with workflow guidance
-- **Generators:** Output document generation from EPF data
-- **Wizards:** Guided workflows for creating EPF artifacts
-- **MCP Server:** AI agent integration for editors like Cursor and OpenCode
+- **Agents:** AI personas that orchestrate EPF workflows (replacing wizards)
+- **Skills:** Bundled capabilities with prompts, validation, and tools (replacing wizards + generators)
+- **Generators:** Output document generation from EPF data (permanent, aliased to skills)
+- **MCP Server:** AI agent integration via three-layer architecture (CLI → MCP → Plugin)
+
+### Three-Layer Architecture
+
+1. **CLI binary** (`epf-cli`) — Core logic: validation, loading, scaffolding (Go)
+2. **MCP Server** (`epf-cli serve`) — Universal interface: agents, skills, tools, resources, prompts
+3. **Orchestration Plugin** (`opencode-epf`) — Platform-specific: persona injection, auto-validation, tool scoping (TypeScript)
 
 ## Important Constraints
 

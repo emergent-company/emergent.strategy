@@ -610,3 +610,81 @@ describe("formatRoadmapDashboard", () => {
     expect(md).not.toContain("Exceeded:");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Section 7: New tests for agent/skill integration
+// ---------------------------------------------------------------------------
+
+describe("formatHealthToast — agent recommendation", () => {
+  it("suggests agent when errors are found", () => {
+    const health: HealthResult = {
+      overall_status: "error",
+      has_critical: false,
+      has_errors: true,
+      has_warnings: true,
+      tiers: {
+        schema: { score: 3, max: 5, issues: 2, summary: "2 schema errors" },
+      },
+      schema_validation: {
+        total_files: 10,
+        valid_files: 8,
+        invalid_files: 2,
+        skipped_files: 0,
+      },
+    };
+    const message = formatHealthToast(health);
+    expect(message).toContain("epf_get_agent_for_task");
+  });
+
+  it("suggests agent when critical errors found", () => {
+    const health: HealthResult = {
+      overall_status: "critical",
+      has_critical: true,
+      has_errors: true,
+      tiers: {
+        critical: { score: 0, max: 3, issues: 1, summary: "Missing anchor" },
+      },
+    };
+    const message = formatHealthToast(health);
+    expect(message).toContain("epf_get_agent_for_task");
+  });
+
+  it("does NOT suggest agent when healthy", () => {
+    const health: HealthResult = {
+      overall_status: "healthy",
+      has_critical: false,
+      has_errors: false,
+      has_warnings: false,
+      tiers: {
+        critical: { score: 3, max: 3, issues: 0, summary: "All clear" },
+      },
+      schema_validation: {
+        total_files: 10,
+        valid_files: 10,
+        invalid_files: 0,
+        skipped_files: 0,
+      },
+    };
+    const message = formatHealthToast(health);
+    expect(message).not.toContain("epf_get_agent_for_task");
+  });
+});
+
+describe("formatHealthDashboard — plugin version", () => {
+  it("shows orchestration status when plugin version is provided", () => {
+    const health: HealthResult = {
+      overall_status: "healthy",
+    };
+    const md = formatHealthDashboard(health, "/path/to/instance", "0.1.0");
+    expect(md).toContain("opencode-epf@0.1.0");
+    expect(md).toContain("Orchestration");
+  });
+
+  it("does NOT show orchestration when no plugin version", () => {
+    const health: HealthResult = {
+      overall_status: "healthy",
+    };
+    const md = formatHealthDashboard(health, "/path/to/instance");
+    expect(md).not.toContain("Orchestration");
+  });
+});

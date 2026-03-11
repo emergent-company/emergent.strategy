@@ -36,13 +36,13 @@ func TestGenerateHealthCheckSuggestions_ValueModelQuality(t *testing.T) {
 
 	found := false
 	for _, s := range suggestions {
-		if s.Tool == "epf_get_wizard_for_task" && s.Priority == "urgent" {
+		if s.Tool == "epf_get_agent_for_task" && s.Priority == "urgent" {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Error("Expected urgent wizard suggestion for low value model quality")
+		t.Error("Expected urgent agent suggestion for low value model quality")
 	}
 }
 
@@ -230,8 +230,8 @@ func TestClassifyStructuralErrors_TopLevelTypeMismatch(t *testing.T) {
 	if suggestion == nil {
 		t.Fatal("Expected suggestion for structural errors")
 	}
-	if suggestion.Tool != "epf_get_wizard_for_task" {
-		t.Errorf("Expected wizard tool suggestion, got %s", suggestion.Tool)
+	if suggestion.Tool != "epf_get_agent_for_task" {
+		t.Errorf("Expected agent tool suggestion, got %s", suggestion.Tool)
 	}
 	if suggestion.Priority != "urgent" {
 		t.Errorf("Expected urgent priority, got %s", suggestion.Priority)
@@ -301,21 +301,22 @@ func TestGetToolTiers(t *testing.T) {
 		t.Fatalf("Expected 3 tiers, got %d", len(tiers))
 	}
 
-	// Tier 1: Essential — exactly 3 tools
+	// Tier 1: Essential — exactly 4 tools (wizard + agent entry points)
 	if tiers[0].Tier != 1 {
 		t.Errorf("Expected tier 1, got %d", tiers[0].Tier)
 	}
 	if tiers[0].Label != "Essential" {
 		t.Errorf("Expected label 'Essential', got %s", tiers[0].Label)
 	}
-	if len(tiers[0].Tools) != 3 {
-		t.Errorf("Expected 3 essential tools, got %d", len(tiers[0].Tools))
+	if len(tiers[0].Tools) != 4 {
+		t.Errorf("Expected 4 essential tools, got %d", len(tiers[0].Tools))
 	}
 
 	// Verify essential tools are the right ones
 	essentialSet := map[string]bool{
 		"epf_health_check":        false,
 		"epf_get_wizard_for_task": false,
+		"epf_get_agent_for_task":  false,
 		"epf_validate_file":       false,
 	}
 	for _, tool := range tiers[0].Tools {
@@ -351,15 +352,29 @@ func TestToolTierForName(t *testing.T) {
 		name     string
 		expected string
 	}{
+		// Essential (Tier 1)
 		{"epf_health_check", "Essential"},
 		{"epf_get_wizard_for_task", "Essential"},
+		{"epf_get_agent_for_task", "Essential"},
 		{"epf_validate_file", "Essential"},
+		// Guided (Tier 2)
 		{"epf_get_wizard", "Guided"},
+		{"epf_get_agent", "Guided"},
+		{"epf_get_skill", "Guided"},
+		{"epf_list_agent_skills", "Guided"},
 		{"epf_get_template", "Guided"},
 		{"epf_get_product_vision", "Guided"},
+		// Specialized (Tier 3)
 		{"epf_list_schemas", "Specialized"},
 		{"epf_fix_file", "Specialized"},
-		{"unknown_tool", "specialized"}, // default
+		{"epf_list_agents", "Specialized"},
+		{"epf_list_skills", "Specialized"},
+		{"epf_scaffold_agent", "Specialized"},
+		{"epf_scaffold_skill", "Specialized"},
+		{"epf_check_skill_prereqs", "Specialized"},
+		{"epf_validate_skill_output", "Specialized"},
+		// Unknown → default
+		{"unknown_tool", "specialized"},
 	}
 
 	for _, tt := range tests {
@@ -722,11 +737,21 @@ func TestSuggestNextToolForLoop(t *testing.T) {
 		toolName string
 		expected string
 	}{
+		// Wizard workflow loop breakers
 		{"epf_health_check", "epf_get_wizard_for_task"},
 		{"epf_validate_file", "epf_get_wizard_for_task"},
 		{"epf_get_wizard_for_task", "epf_get_wizard"},
 		{"epf_get_wizard", "epf_get_template"},
 		{"epf_get_template", "epf_validate_file"},
+		// Agent/skill workflow loop breakers
+		{"epf_get_agent_for_task", "epf_get_agent"},
+		{"epf_get_agent", "epf_get_skill"},
+		{"epf_get_skill", "epf_validate_skill_output"},
+		{"epf_list_agents", "epf_get_agent"},
+		{"epf_list_skills", "epf_get_skill"},
+		{"epf_validate_skill_output", "epf_validate_file"},
+		{"epf_list_agent_skills", "epf_get_skill"},
+		// Unknown
 		{"unknown_tool", ""},
 		{"", ""},
 	}

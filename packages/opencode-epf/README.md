@@ -79,6 +79,64 @@ src/
 └── tools.ts        # Custom tool definitions (epf_dashboard, epf_coverage, epf_roadmap_status)
 ```
 
+## Agent Activation Protocol
+
+The plugin implements the EPF agent activation protocol (Design Decision 12), enabling AI agents to adopt specialized personas with tool scoping.
+
+### Activation Sequence
+
+```
+1. DETECT  — LLM identifies need for specialized agent (or user requests it)
+2. MATCH   — LLM calls epf_get_agent_for_task(task) via MCP to find best agent
+3. ACTIVATE — LLM calls epf_activate_agent(name) (plugin custom tool)
+4. INJECT  — Plugin injects agent prompt into system prompt (experimental.chat.system.transform)
+5. SCOPE   — Plugin modifies tool descriptions (tool.definition) to mark preferred/avoided tools
+6. EXECUTE — Agent operates with injected persona and scoped tools
+7. VALIDATE — Plugin auto-validates EPF artifacts on write (tool.execute.after)
+8. DEACTIVATE — LLM calls epf_deactivate_agent when done
+```
+
+### Agent Tools
+
+| Tool | Description |
+|------|-------------|
+| `epf_activate_agent` | Activate an agent persona. Injects its prompt into the system prompt and applies tool scoping. |
+| `epf_deactivate_agent` | Remove the active agent persona and restore default tool scoping. |
+| `epf_active_agent` | Show the currently active agent, preferred tools, and avoided tools. |
+
+### How It Works
+
+When an agent is activated:
+
+1. **System prompt injection** — The agent's full prompt (from `epf_get_agent`) is injected via `experimental.chat.system.transform`. The LLM adopts the agent's persona, instructions, and workflow.
+
+2. **Tool scoping** — The `tool.definition` hook prepends `[PREFERRED]` or `[AVOID]` to tool descriptions based on the agent's required skills' scope declarations. This guides the LLM toward the right tools without hard-blocking anything.
+
+3. **Auto-validation** — The `tool.execute.after` hook detects when EPF YAML files are written and automatically validates them, making the "validate after every write" protocol mechanical rather than instruction-dependent.
+
+### Plugin Detection
+
+The plugin sets `EPF_PLUGIN_ACTIVE=opencode-epf@{version}` via the `shell.env` hook. The MCP server reads this to detect plugin presence and adapt its responses:
+
+- **With plugin**: Agent prompts omit self-enforcement protocols (the plugin handles validation, commit guards, etc.)
+- **Without plugin**: Agent prompts include standalone mode protocols that the AI must self-enforce
+
+### Building Platform Plugins for Other Hosts
+
+The agent activation protocol is designed to be portable. To build an EPF plugin for another AI host (Cursor, Claude Desktop, etc.):
+
+1. **Core MCP tools** provide everything: `epf_get_agent_for_task`, `epf_get_agent`, `epf_get_skill`, `epf_validate_skill_output`
+2. **Set `EPF_PLUGIN_ACTIVE`** so the MCP server adapts its responses
+3. **Inject agent prompts** using your host's system prompt mechanism
+4. **Scope tools** using your host's tool modification mechanism (if available)
+5. **Auto-validate** by intercepting file write operations
+
+| Step | OpenCode | Cursor | Claude Desktop |
+|------|----------|--------|----------------|
+| Prompt injection | `experimental.chat.system.transform` | Extension API | MCP `get_prompt()` native |
+| Tool scoping | `tool.definition` | N/A | N/A |
+| Auto-validation | `tool.execute.after` | Post-save handler | N/A (manual) |
+
 ## Guardrail Details
 
 ### Commit Guard

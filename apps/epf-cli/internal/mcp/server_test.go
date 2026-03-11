@@ -1953,6 +1953,1082 @@ func TestHandleGetWizardForTask_ExcludeWizardContent(t *testing.T) {
 }
 
 // =============================================================================
+// Agent & Skill MCP Tools (Task 3.8)
+// =============================================================================
+
+func TestHandleListAgents(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	if server.agentLoader == nil || !server.agentLoader.HasAgents() {
+		t.Skip("Agent loader not available")
+	}
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{}
+
+	result, err := server.handleListAgents(ctx, request)
+	if err != nil {
+		t.Fatalf("handleListAgents failed: %v", err)
+	}
+
+	if result.IsError {
+		t.Fatalf("handleListAgents returned error: %s", getResultText(result))
+	}
+
+	content := getResultText(result)
+
+	// Should contain the markdown header
+	if !strings.Contains(content, "# EPF Agents") {
+		t.Error("Expected result to contain '# EPF Agents' header")
+	}
+
+	// Should contain at least some agent names (from embedded wizards)
+	if !strings.Contains(content, "Total:") {
+		t.Error("Expected result to contain agent count summary")
+	}
+}
+
+func TestHandleListAgents_NoAgents(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	// Force agent loader to nil to simulate no agents
+	server.agentLoader = nil
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{}
+
+	result, err := server.handleListAgents(ctx, request)
+	if err != nil {
+		t.Fatalf("handleListAgents failed: %v", err)
+	}
+
+	if !result.IsError {
+		t.Error("Expected error when agent loader is nil")
+	}
+}
+
+func TestHandleListAgents_PhaseFilter(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	if server.agentLoader == nil || !server.agentLoader.HasAgents() {
+		t.Skip("Agent loader not available")
+	}
+
+	ctx := context.Background()
+
+	// Filter by READY phase
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"phase": "READY",
+	}
+
+	result, err := server.handleListAgents(ctx, request)
+	if err != nil {
+		t.Fatalf("handleListAgents with phase filter failed: %v", err)
+	}
+
+	if result.IsError {
+		t.Fatalf("handleListAgents with READY filter returned error: %s", getResultText(result))
+	}
+
+	content := getResultText(result)
+	if !strings.Contains(content, "READY") {
+		t.Error("Expected result to mention READY phase filter")
+	}
+}
+
+func TestHandleListAgents_InvalidPhase(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	if server.agentLoader == nil || !server.agentLoader.HasAgents() {
+		t.Skip("Agent loader not available")
+	}
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"phase": "INVALID_PHASE",
+	}
+
+	result, err := server.handleListAgents(ctx, request)
+	if err != nil {
+		t.Fatalf("handleListAgents failed: %v", err)
+	}
+
+	if !result.IsError {
+		t.Error("Expected error for invalid phase filter")
+	}
+}
+
+func TestHandleGetAgent(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	if server.agentLoader == nil || !server.agentLoader.HasAgents() {
+		t.Skip("Agent loader not available")
+	}
+
+	// Get first available agent
+	agents := server.agentLoader.ListAgents(nil, nil)
+	if len(agents) == 0 {
+		t.Skip("No agents available")
+	}
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"name": agents[0].Name,
+	}
+
+	result, err := server.handleGetAgent(ctx, request)
+	if err != nil {
+		t.Fatalf("handleGetAgent failed: %v", err)
+	}
+
+	if result.IsError {
+		t.Fatalf("handleGetAgent returned error: %s", getResultText(result))
+	}
+
+	content := getResultText(result)
+
+	// Should contain the agent's name
+	if !strings.Contains(content, agents[0].Name) {
+		t.Errorf("Expected result to contain agent name %q", agents[0].Name)
+	}
+}
+
+func TestHandleGetAgent_NotFound(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	if server.agentLoader == nil || !server.agentLoader.HasAgents() {
+		t.Skip("Agent loader not available")
+	}
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"name": "nonexistent-agent-that-does-not-exist",
+	}
+
+	result, err := server.handleGetAgent(ctx, request)
+	if err != nil {
+		t.Fatalf("handleGetAgent failed: %v", err)
+	}
+
+	if !result.IsError {
+		t.Error("Expected error for non-existent agent")
+	}
+}
+
+func TestHandleGetAgent_MissingName(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	if server.agentLoader == nil || !server.agentLoader.HasAgents() {
+		t.Skip("Agent loader not available")
+	}
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{}
+
+	result, err := server.handleGetAgent(ctx, request)
+	if err != nil {
+		t.Fatalf("handleGetAgent failed: %v", err)
+	}
+
+	if !result.IsError {
+		t.Error("Expected error for missing name parameter")
+	}
+}
+
+func TestHandleGetAgentForTask(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	if server.agentLoader == nil || !server.agentLoader.HasAgents() {
+		t.Skip("Agent loader not available")
+	}
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"task": "help me get started with EPF",
+	}
+
+	result, err := server.handleGetAgentForTask(ctx, request)
+	if err != nil {
+		t.Fatalf("handleGetAgentForTask failed: %v", err)
+	}
+
+	if result.IsError {
+		t.Fatalf("handleGetAgentForTask returned error: %s", getResultText(result))
+	}
+
+	content := getResultText(result)
+	jsonContent := extractJSON(content)
+
+	// Parse response
+	var response map[string]interface{}
+	if err := json.Unmarshal([]byte(jsonContent), &response); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	// Should have a recommended agent
+	if response["recommended_agent"] == nil || response["recommended_agent"] == "" {
+		t.Error("Expected recommended_agent in response")
+	}
+
+	// Should have confidence
+	if response["confidence"] == nil || response["confidence"] == "" {
+		t.Error("Expected confidence in response")
+	}
+}
+
+func TestHandleGetAgentForTask_MissingTask(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	if server.agentLoader == nil || !server.agentLoader.HasAgents() {
+		t.Skip("Agent loader not available")
+	}
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{}
+
+	result, err := server.handleGetAgentForTask(ctx, request)
+	if err != nil {
+		t.Fatalf("handleGetAgentForTask failed: %v", err)
+	}
+
+	if !result.IsError {
+		t.Error("Expected error for missing task parameter")
+	}
+}
+
+func TestHandleListAgentSkills(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	if server.agentLoader == nil || !server.agentLoader.HasAgents() {
+		t.Skip("Agent loader not available")
+	}
+
+	// Get first agent with skills
+	agents := server.agentLoader.ListAgents(nil, nil)
+	if len(agents) == 0 {
+		t.Skip("No agents available")
+	}
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"name": agents[0].Name,
+	}
+
+	result, err := server.handleListAgentSkills(ctx, request)
+	if err != nil {
+		t.Fatalf("handleListAgentSkills failed: %v", err)
+	}
+
+	// Result should not be nil (can be error or success depending on agent)
+	if result == nil {
+		t.Fatal("Expected non-nil result")
+	}
+}
+
+func TestHandleListSkills(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	if server.skillLoader == nil || !server.skillLoader.HasSkills() {
+		t.Skip("Skill loader not available")
+	}
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{}
+
+	result, err := server.handleListSkills(ctx, request)
+	if err != nil {
+		t.Fatalf("handleListSkills failed: %v", err)
+	}
+
+	if result.IsError {
+		t.Fatalf("handleListSkills returned error: %s", getResultText(result))
+	}
+
+	content := getResultText(result)
+
+	// Should contain the markdown header
+	if !strings.Contains(content, "# EPF Skills") {
+		t.Error("Expected result to contain '# EPF Skills' header")
+	}
+
+	// Should contain at least some skill entries (from embedded generators/wizards)
+	if !strings.Contains(content, "Total:") {
+		t.Error("Expected result to contain skill count summary")
+	}
+}
+
+func TestHandleListSkills_NoSkills(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	// Force skill loader to nil
+	server.skillLoader = nil
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{}
+
+	result, err := server.handleListSkills(ctx, request)
+	if err != nil {
+		t.Fatalf("handleListSkills failed: %v", err)
+	}
+
+	if !result.IsError {
+		t.Error("Expected error when skill loader is nil")
+	}
+}
+
+func TestHandleListSkills_TypeFilter(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	if server.skillLoader == nil || !server.skillLoader.HasSkills() {
+		t.Skip("Skill loader not available")
+	}
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"type": "generation",
+	}
+
+	result, err := server.handleListSkills(ctx, request)
+	if err != nil {
+		t.Fatalf("handleListSkills with type filter failed: %v", err)
+	}
+
+	if result.IsError {
+		t.Fatalf("handleListSkills with type=generation returned error: %s", getResultText(result))
+	}
+}
+
+func TestHandleListSkills_InvalidType(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	if server.skillLoader == nil || !server.skillLoader.HasSkills() {
+		t.Skip("Skill loader not available")
+	}
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"type": "INVALID_TYPE",
+	}
+
+	result, err := server.handleListSkills(ctx, request)
+	if err != nil {
+		t.Fatalf("handleListSkills failed: %v", err)
+	}
+
+	if !result.IsError {
+		t.Error("Expected error for invalid type filter")
+	}
+}
+
+func TestHandleGetSkill(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	if server.skillLoader == nil || !server.skillLoader.HasSkills() {
+		t.Skip("Skill loader not available")
+	}
+
+	// Get first available skill
+	skills := server.skillLoader.ListSkills(nil, nil, nil)
+	if len(skills) == 0 {
+		t.Skip("No skills available")
+	}
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"name": skills[0].Name,
+	}
+
+	result, err := server.handleGetSkill(ctx, request)
+	if err != nil {
+		t.Fatalf("handleGetSkill failed: %v", err)
+	}
+
+	if result.IsError {
+		t.Fatalf("handleGetSkill returned error: %s", getResultText(result))
+	}
+
+	content := getResultText(result)
+
+	// Should contain the skill's name
+	if !strings.Contains(content, skills[0].Name) {
+		t.Errorf("Expected result to contain skill name %q", skills[0].Name)
+	}
+}
+
+func TestHandleGetSkill_NotFound(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	if server.skillLoader == nil || !server.skillLoader.HasSkills() {
+		t.Skip("Skill loader not available")
+	}
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"name": "nonexistent-skill-that-does-not-exist",
+	}
+
+	result, err := server.handleGetSkill(ctx, request)
+	if err != nil {
+		t.Fatalf("handleGetSkill failed: %v", err)
+	}
+
+	if !result.IsError {
+		t.Error("Expected error for non-existent skill")
+	}
+}
+
+func TestHandleGetSkill_MissingName(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	if server.skillLoader == nil || !server.skillLoader.HasSkills() {
+		t.Skip("Skill loader not available")
+	}
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{}
+
+	result, err := server.handleGetSkill(ctx, request)
+	if err != nil {
+		t.Fatalf("handleGetSkill failed: %v", err)
+	}
+
+	if !result.IsError {
+		t.Error("Expected error for missing name parameter")
+	}
+}
+
+func TestHandleScaffoldSkill(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	// Create a temp instance for scaffolding
+	tmpDir := t.TempDir()
+	os.MkdirAll(filepath.Join(tmpDir, "READY"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "FIRE"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir, "AIM"), 0755)
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"name":          "test-scaffold-skill",
+		"instance_path": tmpDir,
+	}
+
+	result, err := server.handleScaffoldSkill(ctx, request)
+	if err != nil {
+		t.Fatalf("handleScaffoldSkill failed: %v", err)
+	}
+
+	if result.IsError {
+		t.Fatalf("handleScaffoldSkill returned error: %s", getResultText(result))
+	}
+
+	content := getResultText(result)
+
+	// Should mention the scaffolded skill
+	if !strings.Contains(content, "test-scaffold-skill") {
+		t.Error("Expected result to contain skill name")
+	}
+
+	// Verify files were created — check for generator.yaml (legacy names for generation skills)
+	// or skill.yaml (new names for other types)
+	skillDir := filepath.Join(tmpDir, "generators", "test-scaffold-skill")
+	altSkillDir := filepath.Join(tmpDir, "skills", "test-scaffold-skill")
+	_, err1 := os.Stat(skillDir)
+	_, err2 := os.Stat(altSkillDir)
+	if err1 != nil && err2 != nil {
+		t.Errorf("Expected skill directory to be created at %s or %s", skillDir, altSkillDir)
+	}
+}
+
+func TestHandleScaffoldSkill_MissingName(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"instance_path": t.TempDir(),
+	}
+
+	result, err := server.handleScaffoldSkill(ctx, request)
+	if err != nil {
+		t.Fatalf("handleScaffoldSkill failed: %v", err)
+	}
+
+	if !result.IsError {
+		t.Error("Expected error for missing name parameter")
+	}
+}
+
+func TestHandleCheckSkillPrereqs(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	if server.skillLoader == nil || !server.skillLoader.HasSkills() {
+		t.Skip("Skill loader not available")
+	}
+
+	// Get first available skill
+	skills := server.skillLoader.ListSkills(nil, nil, nil)
+	if len(skills) == 0 {
+		t.Skip("No skills available")
+	}
+
+	// Use a temp dir as instance path (likely missing artifacts)
+	tmpDir := t.TempDir()
+	os.MkdirAll(filepath.Join(tmpDir, "READY"), 0755)
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"name":          skills[0].Name,
+		"instance_path": tmpDir,
+	}
+
+	result, err := server.handleCheckSkillPrereqs(ctx, request)
+	if err != nil {
+		t.Fatalf("handleCheckSkillPrereqs failed: %v", err)
+	}
+
+	// Should not fail fatally — either reports prereqs met or missing
+	if result == nil {
+		t.Fatal("Expected non-nil result")
+	}
+}
+
+func TestHandleCheckSkillPrereqs_MissingParams(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	ctx := context.Background()
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{}
+
+	result, err := server.handleCheckSkillPrereqs(ctx, request)
+	if err != nil {
+		t.Fatalf("handleCheckSkillPrereqs failed: %v", err)
+	}
+
+	if !result.IsError {
+		t.Error("Expected error for missing parameters")
+	}
+}
+
+// =============================================================================
+// Agent & Skill Loader Integration in NewServer
+// =============================================================================
+
+func TestNewServer_AgentAndSkillLoadersInitialized(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	// Agent loader should be initialized
+	if server.agentLoader == nil {
+		t.Error("Expected agentLoader to be initialized in NewServer")
+	}
+
+	// Skill loader should be initialized
+	if server.skillLoader == nil {
+		t.Error("Expected skillLoader to be initialized in NewServer")
+	}
+
+	// Both should have loaded content (from embedded)
+	if server.agentLoader != nil && !server.agentLoader.HasAgents() {
+		t.Log("Warning: agentLoader initialized but has no agents (may be expected in some environments)")
+	}
+	if server.skillLoader != nil && !server.skillLoader.HasSkills() {
+		t.Log("Warning: skillLoader initialized but has no skills (may be expected in some environments)")
+	}
+}
+
+// =============================================================================
+// MCP Primitives: Resources and Prompts (Task 3.8)
+// =============================================================================
+
+func TestPrimitives_SkillResourceRegistration(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	if server.skillLoader == nil || !server.skillLoader.HasSkills() {
+		t.Skip("Skill loader not available")
+	}
+
+	// Verify the resource template handler works by reading a skill
+	skills := server.skillLoader.ListSkills(nil, nil, nil)
+	if len(skills) == 0 {
+		t.Skip("No skills available for resource test")
+	}
+
+	// Test reading a skill via the resource handler
+	ctx := context.Background()
+	readReq := mcp.ReadResourceRequest{}
+	readReq.Params.URI = skillResourceURIPrefix + skills[0].Name
+
+	contents, err := server.handleReadSkillResource(ctx, readReq)
+	if err != nil {
+		t.Fatalf("handleReadSkillResource failed: %v", err)
+	}
+
+	if len(contents) == 0 {
+		t.Fatal("Expected non-empty resource contents")
+	}
+
+	// Verify the content is a TextResourceContents
+	textContent, ok := contents[0].(mcp.TextResourceContents)
+	if !ok {
+		t.Fatal("Expected TextResourceContents")
+	}
+
+	if textContent.URI != skillResourceURIPrefix+skills[0].Name {
+		t.Errorf("Expected URI %q, got %q", skillResourceURIPrefix+skills[0].Name, textContent.URI)
+	}
+
+	if textContent.MIMEType != "text/markdown" {
+		t.Errorf("Expected MIME type 'text/markdown', got %q", textContent.MIMEType)
+	}
+
+	if textContent.Text == "" {
+		t.Error("Expected non-empty skill resource text")
+	}
+}
+
+func TestPrimitives_SkillResourceInvalidURI(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	ctx := context.Background()
+
+	// Test with empty name
+	readReq := mcp.ReadResourceRequest{}
+	readReq.Params.URI = skillResourceURIPrefix
+
+	_, err = server.handleReadSkillResource(ctx, readReq)
+	if err == nil {
+		t.Error("Expected error for empty skill name in URI")
+	}
+
+	// Test with completely wrong URI
+	readReq2 := mcp.ReadResourceRequest{}
+	readReq2.Params.URI = "wrong://prefix/something"
+
+	_, err = server.handleReadSkillResource(ctx, readReq2)
+	if err == nil {
+		t.Error("Expected error for invalid URI prefix")
+	}
+}
+
+func TestPrimitives_SkillResourceNotFound(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	if server.skillLoader == nil || !server.skillLoader.HasSkills() {
+		t.Skip("Skill loader not available")
+	}
+
+	ctx := context.Background()
+	readReq := mcp.ReadResourceRequest{}
+	readReq.Params.URI = skillResourceURIPrefix + "nonexistent-skill-xyz"
+
+	_, err = server.handleReadSkillResource(ctx, readReq)
+	if err == nil {
+		t.Error("Expected error for non-existent skill")
+	}
+}
+
+func TestPrimitives_AgentPromptRegistration(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	if server.agentLoader == nil || !server.agentLoader.HasAgents() {
+		t.Skip("Agent loader not available")
+	}
+
+	// Get first available agent
+	agents := server.agentLoader.ListAgents(nil, nil)
+	if len(agents) == 0 {
+		t.Skip("No agents available for prompt test")
+	}
+
+	// Test the prompt handler
+	ctx := context.Background()
+	promptReq := mcp.GetPromptRequest{}
+	promptReq.Params.Name = agents[0].Name
+	promptReq.Params.Arguments = map[string]string{}
+
+	result, err := server.handleGetAgentPrompt(ctx, promptReq)
+	if err != nil {
+		t.Fatalf("handleGetAgentPrompt failed: %v", err)
+	}
+
+	if result == nil {
+		t.Fatal("Expected non-nil prompt result")
+	}
+
+	// Should have a description
+	if result.Description == "" {
+		t.Error("Expected non-empty prompt description")
+	}
+
+	// Should have at least one message
+	if len(result.Messages) == 0 {
+		t.Fatal("Expected at least one message in prompt result")
+	}
+
+	// First message should be a user role message
+	if result.Messages[0].Role != mcp.RoleUser {
+		t.Errorf("Expected first message role to be 'user', got %q", result.Messages[0].Role)
+	}
+}
+
+func TestPrimitives_AgentPromptWithInstancePath(t *testing.T) {
+	schemasDir := findSchemasDir()
+	instancePath := findTestInstance()
+	if schemasDir == "" || instancePath == "" {
+		t.Skip("Schemas directory or test instance not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	if server.agentLoader == nil || !server.agentLoader.HasAgents() {
+		t.Skip("Agent loader not available")
+	}
+
+	agents := server.agentLoader.ListAgents(nil, nil)
+	if len(agents) == 0 {
+		t.Skip("No agents available")
+	}
+
+	ctx := context.Background()
+	promptReq := mcp.GetPromptRequest{}
+	promptReq.Params.Name = agents[0].Name
+	promptReq.Params.Arguments = map[string]string{
+		"instance_path": instancePath,
+	}
+
+	result, err := server.handleGetAgentPrompt(ctx, promptReq)
+	if err != nil {
+		t.Fatalf("handleGetAgentPrompt with instance_path failed: %v", err)
+	}
+
+	if result == nil {
+		t.Fatal("Expected non-nil prompt result")
+	}
+
+	// With a valid instance path, the prompt should contain instance context
+	if len(result.Messages) > 0 {
+		content, ok := result.Messages[0].Content.(mcp.TextContent)
+		if ok && !strings.Contains(content.Text, "Instance Path") {
+			t.Error("Expected prompt to contain instance context when instance_path is provided")
+		}
+	}
+}
+
+func TestPrimitives_AgentPromptNotFound(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	if server.agentLoader == nil || !server.agentLoader.HasAgents() {
+		t.Skip("Agent loader not available")
+	}
+
+	ctx := context.Background()
+	promptReq := mcp.GetPromptRequest{}
+	promptReq.Params.Name = "nonexistent-agent-xyz"
+	promptReq.Params.Arguments = map[string]string{}
+
+	_, err = server.handleGetAgentPrompt(ctx, promptReq)
+	if err == nil {
+		t.Error("Expected error for non-existent agent prompt")
+	}
+}
+
+func TestPrimitives_RefreshPrimitives(t *testing.T) {
+	schemasDir := findSchemasDir()
+	if schemasDir == "" {
+		t.Skip("Schemas directory not found")
+	}
+
+	server, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	// refreshPrimitives should not panic even if loaders are nil
+	server.agentLoader = nil
+	server.skillLoader = nil
+	server.refreshPrimitives() // Should not panic
+
+	// Re-create with loaders
+	server2, err := NewServer(schemasDir)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	// refreshPrimitives with loaded content should not panic
+	server2.refreshPrimitives()
+}
+
+func TestBuildInstanceContext_ValidInstance(t *testing.T) {
+	instancePath := findTestInstance()
+	if instancePath == "" {
+		t.Skip("Test instance not found")
+	}
+
+	result := buildInstanceContext(instancePath)
+
+	// Should contain instance path at minimum
+	if !strings.Contains(result, "Instance Path") {
+		t.Error("Expected instance context to contain 'Instance Path'")
+	}
+
+	if !strings.Contains(result, instancePath) {
+		t.Errorf("Expected instance context to contain the instance path %q", instancePath)
+	}
+}
+
+func TestBuildInstanceContext_NoAnchor(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	result := buildInstanceContext(tmpDir)
+
+	// Should still return something (instance path at minimum)
+	if result == "" {
+		t.Error("Expected non-empty context even without anchor file")
+	}
+
+	if !strings.Contains(result, tmpDir) {
+		t.Error("Expected context to contain the temp directory path")
+	}
+}
+
+// =============================================================================
 // Integration Test: Health Check Tool Suggestions with Real Instance
 // =============================================================================
 

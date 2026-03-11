@@ -87,18 +87,41 @@ The EPF CLI includes an MCP server for AI agent integration. Configure in `openc
 }
 ```
 
-### Wizard-First Protocol (Mandatory)
+### Three-Layer Architecture
 
-When working with EPF artifacts, you MUST follow the wizard-first workflow:
+EPF uses a three-layer architecture for AI integration:
 
-1. `epf_get_wizard_for_task` -- find the right wizard for your task (creation, modification, or evaluation)
-2. `epf_get_wizard` -- retrieve and follow the wizard instructions
-3. Write the artifact or execute the review following wizard guidance
-4. `epf_validate_file` -- validate the result
+1. **CLI binary** (`epf-cli`) — Core logic: validation, loading, scaffolding
+2. **MCP Server** (`epf-cli serve`) — Universal interface: agents, skills, tools, resources, prompts
+3. **Orchestration Plugin** (`opencode-epf`) — Platform-specific: persona injection, auto-validation, tool scoping
+
+The MCP server works well standalone. The plugin enhances the experience with automatic guardrails.
+
+### Agent-First Protocol (Mandatory)
+
+When working with EPF artifacts, you MUST follow the agent-first workflow:
+
+1. `epf_get_agent_for_task` — find the right agent for your task
+2. `epf_get_agent` — retrieve the agent's instructions and required skills
+3. `epf_get_skill` — retrieve each skill needed for execution
+4. Write the artifact following agent/skill guidance
+5. `epf_validate_file` — validate the result
+
+Legacy tools (`epf_get_wizard_for_task`, `epf_get_wizard`) remain available as aliases.
 
 ### Strategy Context Tools
 
 Before feature work, roadmap changes, or competitive decisions, query strategy context using: `epf_get_product_vision`, `epf_get_personas`, `epf_get_competitive_position`, `epf_get_roadmap_summary`, `epf_search_strategy`.
+
+## Key Packages
+
+| Package | Purpose |
+|---------|---------|
+| `packages/opencode-epf/` | OpenCode orchestration plugin (TypeScript) |
+| `apps/epf-cli/internal/agent/` | Agent loader, recommender, types |
+| `apps/epf-cli/internal/skill/` | Skill loader, scaffold, validator, sharing |
+| `apps/epf-cli/internal/wizard/` | Legacy wizard loader (still functional) |
+| `apps/epf-cli/internal/generator/` | Legacy generator loader (permanent) |
 
 ## Detailed Documentation
 

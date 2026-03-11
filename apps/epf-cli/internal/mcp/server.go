@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/agent"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/aim"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/anchor"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/auth"
@@ -22,6 +23,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/migration"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/relationships"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/schema"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/skill"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/template"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/validator"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/valuemodel"
@@ -48,6 +50,11 @@ type Server struct {
 	definitionLoader    *template.DefinitionLoader
 	wizardLoader        *wizard.Loader
 	generatorLoader     *generator.Loader
+	agentLoader         *agent.Loader
+	skillLoader         *skill.Loader
+
+	// Plugin detection (standalone vs plugin-assisted mode)
+	pluginInfo *PluginInfo
 
 	// Relationship analyzer cache (by instance path)
 	analyzerMu sync.RWMutex
@@ -166,12 +173,37 @@ func NewServer(schemasDir string) (*Server, error) {
 		// Generators are optional - log but don't fail
 	}
 
+	// Create agent loader - use embedded if no filesystem
+	var agentLoader *agent.Loader
+	if useEmbedded {
+		agentLoader = agent.NewEmbeddedLoader()
+	} else {
+		agentLoader = agent.NewLoader(epfRoot)
+	}
+	if err := agentLoader.Load(); err != nil {
+		// Agents are optional - log but don't fail
+	}
+
+	// Create skill loader - use embedded if no filesystem
+	var skillLoader *skill.Loader
+	if useEmbedded {
+		skillLoader = skill.NewEmbeddedLoader()
+	} else {
+		skillLoader = skill.NewLoader(epfRoot)
+	}
+	if err := skillLoader.Load(); err != nil {
+		// Skills are optional - log but don't fail
+	}
+
 	// Create MCP server
 	mcpServer := server.NewMCPServer(
 		ServerName,
 		version.Version,
 		server.WithLogging(),
 	)
+
+	// Detect orchestration plugin status (standalone vs plugin-assisted mode)
+	pluginInfo := DetectPlugin("")
 
 	s := &Server{
 		mcpServer:           mcpServer,
@@ -183,12 +215,18 @@ func NewServer(schemasDir string) (*Server, error) {
 		definitionLoader:    definitionLoader,
 		wizardLoader:        wizardLoader,
 		generatorLoader:     generatorLoader,
+		agentLoader:         agentLoader,
+		skillLoader:         skillLoader,
+		pluginInfo:          pluginInfo,
 		analyzers:           make(map[string]*relationships.Analyzer),
 		toolCallCounts:      make(map[string]int),
 	}
 
 	// Register tools
 	s.registerTools()
+
+	// Register MCP primitives (Resources and Prompts)
+	s.registerPrimitives()
 
 	return s, nil
 }
@@ -750,6 +788,220 @@ func (s *Server) registerTools() {
 			),
 		),
 		s.handleValidateGeneratorOutput,
+	)
+
+	// ==========================================================================
+	// Agent Tools (agents/skills refactoring)
+	// ==========================================================================
+
+	// Tool: epf_list_agents
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_list_agents",
+			mcp.WithDescription("List available EPF agents. Agents are named AI personas with structured metadata "+
+				"(identity, personality, skills, routing rules) that orchestrate EPF workflows. "+
+				"Use this to discover available agents for guided EPF work."),
+			mcp.WithString("phase",
+				mcp.Description("Optional: Filter by phase (READY, FIRE, AIM, Onboarding)"),
+			),
+			mcp.WithString("type",
+				mcp.Description("Optional: Filter by type (guide, strategist, specialist, architect, reviewer)"),
+			),
+		),
+		s.handleListAgents,
+	)
+
+	// Tool: epf_get_agent
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_get_agent",
+			mcp.WithDescription("Get full details of an EPF agent including manifest, prompt content, and activation metadata. "+
+				"The response includes the system prompt, required tools, and aggregated skill scope declarations for orchestration plugins."),
+			mcp.WithString("name",
+				mcp.Required(),
+				mcp.Description("The agent name (e.g., 'pathfinder', 'product_architect', 'onboarding-guide')"),
+			),
+		),
+		s.handleGetAgent,
+	)
+
+	// Tool: epf_get_agent_for_task
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_get_agent_for_task",
+			mcp.WithDescription("Recommend the best agent for a user's task. Analyzes the task description and suggests "+
+				"the most appropriate agent with alternatives. When confidence is high and content is requested, "+
+				"includes the agent's system prompt inline."),
+			mcp.WithString("task",
+				mcp.Required(),
+				mcp.Description("Description of what the user wants to do (e.g., 'create a feature definition', 'plan our roadmap')"),
+			),
+			mcp.WithString("include_content",
+				mcp.Description("When 'true' (default) and confidence is high, includes the agent content inline. Set to 'false' to omit."),
+			),
+		),
+		s.handleGetAgentForTask,
+	)
+
+	// Tool: epf_scaffold_agent
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_scaffold_agent",
+			mcp.WithDescription("Create a new EPF agent definition with manifest and prompt files. "+
+				"Creates an agent directory with agent.yaml and prompt.md in the instance's agents/ directory."),
+			mcp.WithString("instance_path",
+				mcp.Required(),
+				mcp.Description("Path to the EPF instance directory"),
+			),
+			mcp.WithString("name",
+				mcp.Required(),
+				mcp.Description("Agent name (lowercase with hyphens, e.g., 'domain-expert', 'qa-reviewer')"),
+			),
+			mcp.WithString("type",
+				mcp.Description("Agent type: guide, strategist, specialist, architect, reviewer (default: specialist)"),
+			),
+			mcp.WithString("display_name",
+				mcp.Description("Human-readable display name for the agent"),
+			),
+			mcp.WithString("description",
+				mcp.Description("Description of what the agent does"),
+			),
+		),
+		s.handleScaffoldAgent,
+	)
+
+	// Tool: epf_list_agent_skills
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_list_agent_skills",
+			mcp.WithDescription("List the skills associated with a specific agent, based on the agent's manifest declaration. "+
+				"Returns required and optional skills with their availability status."),
+			mcp.WithString("agent",
+				mcp.Required(),
+				mcp.Description("Agent name to list skills for"),
+			),
+		),
+		s.handleListAgentSkills,
+	)
+
+	// ==========================================================================
+	// Skill Tools (agents/skills refactoring)
+	// ==========================================================================
+
+	// Tool: epf_list_skills
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_list_skills",
+			mcp.WithDescription("List available EPF skills. Skills are bundled capabilities with prompts, prerequisites, "+
+				"and validation that unify the previous wizard and generator concepts. "+
+				"Filter by type (creation, generation, review, enrichment, analysis), category, or source."),
+			mcp.WithString("type",
+				mcp.Description("Optional: Filter by type (creation, generation, review, enrichment, analysis)"),
+			),
+			mcp.WithString("category",
+				mcp.Description("Optional: Filter by category (compliance, marketing, investor, internal, development, custom)"),
+			),
+			mcp.WithString("source",
+				mcp.Description("Optional: Filter by source (instance, framework, global)"),
+			),
+		),
+		s.handleListSkills,
+	)
+
+	// Tool: epf_get_skill
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_get_skill",
+			mcp.WithDescription("Get full details of an EPF skill including manifest, prompt content, and optionally the validation schema. "+
+				"Skills replace the previous wizard and generator concepts with a unified format."),
+			mcp.WithString("name",
+				mcp.Required(),
+				mcp.Description("The skill name (e.g., 'context-sheet', 'feature-definition-creation')"),
+			),
+			mcp.WithString("include_prompt",
+				mcp.Description("Include prompt content in response (default: true)"),
+			),
+			mcp.WithString("include_schema",
+				mcp.Description("Include output schema in response (default: false)"),
+			),
+		),
+		s.handleGetSkill,
+	)
+
+	// Tool: epf_scaffold_skill
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_scaffold_skill",
+			mcp.WithDescription("Create a new EPF skill with all required files. Supports all skill types "+
+				"(creation, generation, review, enrichment, analysis). Generation-type skills are created with "+
+				"legacy file names (generator.yaml, wizard.instructions.md) for backward compatibility."),
+			mcp.WithString("instance_path",
+				mcp.Required(),
+				mcp.Description("Path to the EPF instance directory"),
+			),
+			mcp.WithString("name",
+				mcp.Required(),
+				mcp.Description("Skill name (lowercase with hyphens, e.g., 'pitch-deck-generation', 'custom-review')"),
+			),
+			mcp.WithString("type",
+				mcp.Description("Skill type: creation, generation, review, enrichment, analysis (default: generation for backward compat)"),
+			),
+			mcp.WithString("description",
+				mcp.Description("Description of what the skill does"),
+			),
+			mcp.WithString("category",
+				mcp.Description("Category: compliance, marketing, investor, internal, development, custom (default: custom)"),
+			),
+			mcp.WithString("author",
+				mcp.Description("Skill author (default: Custom)"),
+			),
+			mcp.WithString("output_dir",
+				mcp.Description("Directory to create the skill in (default: {instance_path}/skills/ or generators/ for generation type)"),
+			),
+			mcp.WithString("output_format",
+				mcp.Description("Output format: markdown, json, yaml, html, text (default: markdown)"),
+			),
+			mcp.WithString("required_artifacts",
+				mcp.Description("Comma-separated EPF artifacts required"),
+			),
+			mcp.WithString("optional_artifacts",
+				mcp.Description("Comma-separated optional EPF artifacts"),
+			),
+			mcp.WithString("regions",
+				mcp.Description("Comma-separated region codes for compliance skills"),
+			),
+		),
+		s.handleScaffoldSkill,
+	)
+
+	// Tool: epf_check_skill_prereqs
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_check_skill_prereqs",
+			mcp.WithDescription("Check if an EPF instance has the required artifacts to use a skill."),
+			mcp.WithString("name",
+				mcp.Required(),
+				mcp.Description("The skill name to check prerequisites for"),
+			),
+			mcp.WithString("instance_path",
+				mcp.Required(),
+				mcp.Description("Path to the EPF instance directory"),
+			),
+		),
+		s.handleCheckSkillPrereqs,
+	)
+
+	// Tool: epf_validate_skill_output
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_validate_skill_output",
+			mcp.WithDescription("Validate skill output against its schema and optional bash validator. "+
+				"Use this to check if generated content conforms to the expected format."),
+			mcp.WithString("skill",
+				mcp.Required(),
+				mcp.Description("Skill name"),
+			),
+			mcp.WithString("content",
+				mcp.Description("Content to validate (provide either content or file_path)"),
+			),
+			mcp.WithString("file_path",
+				mcp.Description("Path to file containing content to validate"),
+			),
+			mcp.WithString("run_bash_validator",
+				mcp.Description("Run the skill's bash validator if available (true/false, default: false)"),
+			),
+		),
+		s.handleValidateSkillOutput,
 	)
 
 	// ==========================================================================
@@ -4311,6 +4563,7 @@ type AgentInstructionsOutput struct {
 		KeyRules    []string         `json:"key_rules"`
 	} `json:"track_architecture"`
 
+	Orchestration   *PluginInfo           `json:"orchestration,omitempty"`
 	StrategyContext *AgentStrategyContext `json:"strategy_context,omitempty"`
 
 	ToolTiers             []ToolTierInfo `json:"tool_tiers"`
@@ -4399,7 +4652,7 @@ func (s *Server) handleAgentInstructions(ctx context.Context, request mcp.CallTo
 	// Discover EPF instance at the path
 	disc, _ := discovery.DiscoverSingle(path)
 
-	output := buildAgentInstructionsOutput(disc, s.defaultInstancePath)
+	output := buildAgentInstructionsOutput(disc, s.defaultInstancePath, s.pluginInfo)
 
 	jsonBytes, err := json.MarshalIndent(output, "", "  ")
 	if err != nil {
@@ -4410,7 +4663,7 @@ func (s *Server) handleAgentInstructions(ctx context.Context, request mcp.CallTo
 }
 
 // buildAgentInstructionsOutput builds the structured output for AI agents
-func buildAgentInstructionsOutput(disc *discovery.DiscoveryResult, defaultInstancePath string) *AgentInstructionsOutput {
+func buildAgentInstructionsOutput(disc *discovery.DiscoveryResult, defaultInstancePath string, pluginInfo *PluginInfo) *AgentInstructionsOutput {
 	output := &AgentInstructionsOutput{}
 
 	// Authority section
@@ -4699,6 +4952,11 @@ func buildAgentInstructionsOutput(disc *discovery.DiscoveryResult, defaultInstan
 				output.StrategyContext.Description = anchorData.Description
 			}
 		}
+	}
+
+	// Orchestration section (plugin detection and standalone mode advisory)
+	if pluginInfo != nil {
+		output.Orchestration = pluginInfo
 	}
 
 	// Tool Tiers and Discovery Guidance
