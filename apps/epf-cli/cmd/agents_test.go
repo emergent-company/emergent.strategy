@@ -50,8 +50,8 @@ func TestPrintAgentJSON(t *testing.T) {
 		Content:        "# Test prompt content",
 	}
 
-	// Should not panic
-	printAgentJSON(a)
+	// Should not panic (nil skill loader is fine — just skips scope aggregation)
+	printAgentJSON(a, nil)
 }
 
 func TestPrintAgentRecommendationJSON(t *testing.T) {

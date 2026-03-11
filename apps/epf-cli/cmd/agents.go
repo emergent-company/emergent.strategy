@@ -10,6 +10,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/agent"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/embedded"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/schema"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/skill"
 	"github.com/spf13/cobra"
 )
 
@@ -252,7 +253,9 @@ Examples:
 		jsonOutput, _ := cmd.Flags().GetBool("json")
 
 		if jsonOutput {
-			printAgentJSON(a)
+			// Load skills for activation metadata
+			skillLoader, _ := createSkillLoader()
+			printAgentJSON(a, skillLoader)
 			return
 		}
 
@@ -289,7 +292,21 @@ Examples:
 	},
 }
 
-func printAgentJSON(a *agent.AgentInfo) {
+// agentActivation matches the MCP AgentActivation struct for CLI JSON output.
+type agentActivation struct {
+	SystemPrompt  string            `json:"system_prompt"`
+	RequiredTools []string          `json:"required_tools,omitempty"`
+	SkillScopes   []skillScopeEntry `json:"skill_scopes,omitempty"`
+}
+
+// skillScopeEntry matches the MCP SkillScopeEntry struct.
+type skillScopeEntry struct {
+	Skill          string   `json:"skill"`
+	PreferredTools []string `json:"preferred_tools,omitempty"`
+	AvoidTools     []string `json:"avoid_tools,omitempty"`
+}
+
+func printAgentJSON(a *agent.AgentInfo, skillLoader *skill.Loader) {
 	response := struct {
 		Name           string                `json:"name"`
 		Type           string                `json:"type"`
@@ -303,6 +320,7 @@ func printAgentJSON(a *agent.AgentInfo) {
 		OptionalSkills []string              `json:"optional_skills,omitempty"`
 		LegacyFormat   bool                  `json:"legacy_format,omitempty"`
 		Content        string                `json:"content"`
+		Activation     *agentActivation      `json:"activation,omitempty"`
 	}{
 		Name:           a.Name,
 		Type:           string(a.Type),
@@ -317,6 +335,32 @@ func printAgentJSON(a *agent.AgentInfo) {
 		LegacyFormat:   a.LegacyFormat,
 		Content:        a.Content,
 	}
+
+	// Build activation metadata (mirrors MCP handleGetAgent logic)
+	if a.Content != "" {
+		activation := &agentActivation{
+			SystemPrompt:  a.Content,
+			RequiredTools: a.RequiredTools,
+		}
+
+		// Aggregate skill scopes from required skills
+		if skillLoader != nil && skillLoader.HasSkills() {
+			for _, skillName := range a.RequiredSkills {
+				sk, skErr := skillLoader.GetSkill(skillName)
+				if skErr == nil && sk.Scope != nil {
+					entry := skillScopeEntry{
+						Skill:          skillName,
+						PreferredTools: sk.Scope.PreferredTools,
+						AvoidTools:     sk.Scope.AvoidTools,
+					}
+					activation.SkillScopes = append(activation.SkillScopes, entry)
+				}
+			}
+		}
+
+		response.Activation = activation
+	}
+
 	jsonBytes, _ := json.MarshalIndent(response, "", "  ")
 	fmt.Println(string(jsonBytes))
 }
