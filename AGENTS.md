@@ -107,7 +107,7 @@ When working with EPF artifacts, you MUST follow the agent-first workflow:
 4. Write the artifact following agent/skill guidance
 5. `epf_validate_file` — validate the result
 
-Legacy tools (`epf_get_wizard_for_task`, `epf_get_wizard`) remain available as aliases.
+Legacy tools (`epf_get_wizard_for_task`, `epf_get_wizard`, `epf_list_generators`, `epf_get_generator`) coexist as independent tools backed by separate loaders. They load the same embedded content but return different response shapes. Prefer the agent/skill tools (`epf_get_agent_for_task`, `epf_get_agent`, `epf_list_skills`, `epf_get_skill`) for new workflows — they provide structured metadata (capability class, tool scoping, activation data) that the legacy tools do not.
 
 ### Strategy Context Tools
 

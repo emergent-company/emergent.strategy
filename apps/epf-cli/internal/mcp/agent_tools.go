@@ -19,6 +19,11 @@ import (
 // =============================================================================
 
 // AgentListItem represents an agent in the epf_list_agents response.
+// NOTE: This struct is defined for JSON serialization consistency but the
+// handleListAgents handler currently returns markdown text for human readability.
+// Detail handlers (handleGetAgent, handleGetAgentForTask) return JSON.
+// This is intentional: list tools are optimized for LLM consumption as text,
+// while detail tools return structured JSON for programmatic use.
 type AgentListItem struct {
 	Name           string                `json:"name"`
 	Type           string                `json:"type"`
@@ -145,24 +150,26 @@ func agentTypeIcon(t agent.AgentType) string {
 
 // AgentResponse represents the response for epf_get_agent.
 type AgentResponse struct {
-	Name           string                `json:"name"`
-	Type           string                `json:"type"`
-	Phase          string                `json:"phase,omitempty"`
-	Version        string                `json:"version,omitempty"`
-	DisplayName    string                `json:"display_name"`
-	Description    string                `json:"description"`
-	Source         string                `json:"source"`
-	Capability     *agent.CapabilitySpec `json:"capability,omitempty"`
-	TriggerPhrases []string              `json:"trigger_phrases,omitempty"`
-	Keywords       []string              `json:"keywords,omitempty"`
-	RequiredSkills []string              `json:"required_skills,omitempty"`
-	OptionalSkills []string              `json:"optional_skills,omitempty"`
-	RequiredTools  []string              `json:"required_tools,omitempty"`
-	RelatedAgents  []string              `json:"related_agents,omitempty"`
-	LegacyFormat   bool                  `json:"legacy_format,omitempty"`
-	Content        string                `json:"content,omitempty"`
-	Activation     *AgentActivation      `json:"activation,omitempty"`
-	Guidance       Guidance              `json:"guidance"`
+	Name           string                        `json:"name"`
+	Type           string                        `json:"type"`
+	Phase          string                        `json:"phase,omitempty"`
+	Version        string                        `json:"version,omitempty"`
+	DisplayName    string                        `json:"display_name"`
+	Description    string                        `json:"description"`
+	Source         string                        `json:"source"`
+	Capability     *agent.CapabilitySpec         `json:"capability,omitempty"`
+	TriggerPhrases []string                      `json:"trigger_phrases,omitempty"`
+	Keywords       []string                      `json:"keywords,omitempty"`
+	RequiredSkills []string                      `json:"required_skills,omitempty"`
+	OptionalSkills []string                      `json:"optional_skills,omitempty"`
+	RequiredTools  []string                      `json:"required_tools,omitempty"`
+	RelatedAgents  []string                      `json:"related_agents,omitempty"`
+	Prerequisites  *agent.AgentPrerequisitesSpec `json:"prerequisites,omitempty"`
+	Personality    []string                      `json:"personality,omitempty"`
+	LegacyFormat   bool                          `json:"legacy_format,omitempty"`
+	Content        string                        `json:"content,omitempty"`
+	Activation     *AgentActivation              `json:"activation,omitempty"`
+	Guidance       Guidance                      `json:"guidance"`
 }
 
 // AgentActivation contains metadata for orchestration plugins to activate an agent.
@@ -212,6 +219,8 @@ func (s *Server) handleGetAgent(ctx context.Context, request mcp.CallToolRequest
 		OptionalSkills: a.OptionalSkills,
 		RequiredTools:  a.RequiredTools,
 		RelatedAgents:  a.RelatedAgents,
+		Prerequisites:  a.Prerequisites,
+		Personality:    a.Personality,
 		LegacyFormat:   a.LegacyFormat,
 		Content:        a.Content,
 		Guidance:       Guidance{},
@@ -224,9 +233,20 @@ func (s *Server) handleGetAgent(ctx context.Context, request mcp.CallToolRequest
 			RequiredTools: a.RequiredTools,
 		}
 
-		// Aggregate skill scopes from required skills
+		// Aggregate skill scopes from required and optional skills
 		if s.skillLoader != nil && s.skillLoader.HasSkills() {
 			for _, skillName := range a.RequiredSkills {
+				sk, skErr := s.skillLoader.GetSkill(skillName)
+				if skErr == nil && sk.Scope != nil {
+					entry := SkillScopeEntry{
+						Skill:          skillName,
+						PreferredTools: sk.Scope.PreferredTools,
+						AvoidTools:     sk.Scope.AvoidTools,
+					}
+					activation.SkillScopes = append(activation.SkillScopes, entry)
+				}
+			}
+			for _, skillName := range a.OptionalSkills {
 				sk, skErr := s.skillLoader.GetSkill(skillName)
 				if skErr == nil && sk.Scope != nil {
 					entry := SkillScopeEntry{
@@ -245,10 +265,17 @@ func (s *Server) handleGetAgent(ctx context.Context, request mcp.CallToolRequest
 	// In standalone mode, append self-enforcement protocols to agent prompts.
 	// Per design Decision 14: "Every agent prompt must be self-contained."
 	if s.pluginInfo != nil && s.pluginInfo.StandaloneMode && a.Content != "" {
-		// Collect preferred/avoid tools from agent's required skills
+		// Collect preferred/avoid tools from agent's required and optional skills
 		var preferredTools, avoidTools []string
 		if s.skillLoader != nil && s.skillLoader.HasSkills() {
 			for _, skillName := range a.RequiredSkills {
+				sk, skErr := s.skillLoader.GetSkill(skillName)
+				if skErr == nil && sk.Scope != nil {
+					preferredTools = append(preferredTools, sk.Scope.PreferredTools...)
+					avoidTools = append(avoidTools, sk.Scope.AvoidTools...)
+				}
+			}
+			for _, skillName := range a.OptionalSkills {
 				sk, skErr := s.skillLoader.GetSkill(skillName)
 				if skErr == nil && sk.Scope != nil {
 					preferredTools = append(preferredTools, sk.Scope.PreferredTools...)
@@ -332,11 +359,17 @@ func (s *Server) handleGetAgentForTask(ctx context.Context, request mcp.CallTool
 	}
 
 	if recommendation == nil || recommendation.Agent == nil {
-		return mcp.NewToolResultText(`{
-  "task": "` + task + `",
-  "recommended_agent": null,
-  "message": "No matching agent found. Try being more specific or use epf_list_agents to see available options."
-}`), nil
+		nullResponse := struct {
+			Task             string  `json:"task"`
+			RecommendedAgent *string `json:"recommended_agent"`
+			Message          string  `json:"message"`
+		}{
+			Task:             task,
+			RecommendedAgent: nil,
+			Message:          "No matching agent found. Try being more specific or use epf_list_agents to see available options.",
+		}
+		jsonBytes, _ := json.MarshalIndent(nullResponse, "", "  ")
+		return mcp.NewToolResultText(string(jsonBytes)), nil
 	}
 
 	response := AgentRecommendationResponse{

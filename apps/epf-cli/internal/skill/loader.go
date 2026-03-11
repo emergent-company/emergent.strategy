@@ -431,6 +431,22 @@ func (l *Loader) populateFromManifest(info *SkillInfo, m *SkillManifest) {
 
 	info.Capability = m.Capability
 	info.Scope = m.Scope
+
+	// Honor explicit file locations from manifest (overrides auto-detection)
+	if m.Files != nil {
+		if m.Files.Prompt != "" {
+			info.PromptFile = m.Files.Prompt
+		}
+		if m.Files.Schema != "" {
+			info.SchemaFile = m.Files.Schema
+		}
+		if m.Files.Validator != "" {
+			info.ValidatorFile = m.Files.Validator
+		}
+		if m.Files.Template != "" {
+			info.TemplateFile = m.Files.Template
+		}
+	}
 }
 
 // detectFiles checks which standard files exist in the skill directory.
@@ -776,24 +792,40 @@ func (l *Loader) ListSkills(skillType *SkillType, category *Category, source *Sk
 	return result
 }
 
+// normalizeName converts underscores to hyphens for consistent lookup.
+func normalizeName(name string) string {
+	return strings.ReplaceAll(name, "_", "-")
+}
+
 // GetSkill returns a skill by name.
+// Supports exact match, hyphen/underscore normalization, case-insensitive, and partial matching.
 func (l *Loader) GetSkill(name string) (*SkillInfo, error) {
+	// Exact match
 	if skill, ok := l.skills[name]; ok {
 		return skill, nil
 	}
 
-	// Case-insensitive match
-	nameLower := strings.ToLower(name)
-	for key, skill := range l.skills {
-		if strings.ToLower(key) == nameLower {
+	// Normalized match (underscores → hyphens)
+	normalized := normalizeName(name)
+	if normalized != name {
+		if skill, ok := l.skills[normalized]; ok {
 			return skill, nil
 		}
 	}
 
-	// Partial match
-	for key, skill := range l.skills {
-		if strings.Contains(strings.ToLower(key), nameLower) {
-			return skill, nil
+	// Case-insensitive match (with normalization) — sorted for determinism
+	normalizedLower := strings.ToLower(normalized)
+	for _, key := range l.GetSkillNames() {
+		if strings.ToLower(normalizeName(key)) == normalizedLower {
+			return l.skills[key], nil
+		}
+	}
+
+	// Partial match (with normalization) — sorted for determinism
+	sortedKeys := l.GetSkillNames() // already sorted
+	for _, key := range sortedKeys {
+		if strings.Contains(strings.ToLower(normalizeName(key)), normalizedLower) {
+			return l.skills[key], nil
 		}
 	}
 

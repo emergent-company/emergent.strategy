@@ -1522,6 +1522,32 @@ These tools enable AI agents to discover, use, and create EPF output generators:
 3. Phase hints in task description boost relevant wizard confidence
 4. Returns alternatives when multiple wizards could apply
 
+### Agent & Skill Tools (v0.17.0)
+
+Agents and skills are the modern replacement for wizards and generators. They provide structured metadata (capability class, tool scoping, activation data) that legacy tools do not.
+
+| Tool                      | Parameters                        | Description                                  |
+| ------------------------- | --------------------------------- | -------------------------------------------- |
+| `epf_list_agents`         | `phase`, `type` (optional)        | List available agents with metadata          |
+| `epf_get_agent`           | `name`                            | Get agent details, prompt, and activation    |
+| `epf_get_agent_for_task`  | `task`, `include_content` (opt)   | Recommend agent based on task description    |
+| `epf_list_agent_skills`   | `agent`                           | List skills for a specific agent             |
+| `epf_scaffold_agent`      | `name`, `instance_path`, etc.     | Create new agent from template               |
+| `epf_import_agent`        | `source`, `format` (optional)     | Import agent from external format            |
+| `epf_list_skills`         | `type`, `category`, `source`      | List available skills with metadata          |
+| `epf_get_skill`           | `name`, `include_prompt` (opt)    | Get skill details and prompt content         |
+| `epf_scaffold_skill`      | `name`, `instance_path`, etc.     | Create new skill from template               |
+| `epf_check_skill_prereqs` | `name`, `instance_path`           | Check if instance has required artifacts     |
+| `epf_validate_skill_output` | `skill`, `content`/`file_path`  | Validate generated output against schema     |
+| `epf_import_skill`        | `source`, `format` (optional)     | Import skill from external format            |
+
+**Relationship to wizard/generator tools:**
+
+Wizard tools (`epf_list_wizards`, `epf_get_wizard`, `epf_get_wizard_for_task`) and generator tools (`epf_list_generators`, `epf_get_generator`, `epf_check_generator_prereqs`, `epf_scaffold_generator`) are **independent, permanent tools** backed by separate loaders. They are NOT aliases for agent/skill tools — they coexist and load the same embedded content but return different response shapes.
+
+- **Prefer agent/skill tools** for new workflows — they provide structured metadata (capability class, tool scoping, activation data) that wizard/generator tools do not.
+- **Wizard/generator tools remain permanent** — no deprecation. Existing integrations continue to work.
+
 ### AI Agent Discovery Tools (v0.13.0)
 
 These tools help AI agents discover EPF instances and get guidance:

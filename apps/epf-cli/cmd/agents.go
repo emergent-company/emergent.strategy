@@ -311,13 +311,17 @@ func printAgentJSON(a *agent.AgentInfo, skillLoader *skill.Loader) {
 		Name           string                `json:"name"`
 		Type           string                `json:"type"`
 		Phase          string                `json:"phase,omitempty"`
+		Version        string                `json:"version,omitempty"`
 		DisplayName    string                `json:"display_name,omitempty"`
 		Description    string                `json:"description,omitempty"`
 		Source         string                `json:"source"`
 		Capability     *agent.CapabilitySpec `json:"capability,omitempty"`
-		Triggers       []string              `json:"triggers,omitempty"`
+		TriggerPhrases []string              `json:"trigger_phrases,omitempty"`
+		Keywords       []string              `json:"keywords,omitempty"`
 		RequiredSkills []string              `json:"required_skills,omitempty"`
 		OptionalSkills []string              `json:"optional_skills,omitempty"`
+		RequiredTools  []string              `json:"required_tools,omitempty"`
+		RelatedAgents  []string              `json:"related_agents,omitempty"`
 		LegacyFormat   bool                  `json:"legacy_format,omitempty"`
 		Content        string                `json:"content"`
 		Activation     *agentActivation      `json:"activation,omitempty"`
@@ -325,13 +329,17 @@ func printAgentJSON(a *agent.AgentInfo, skillLoader *skill.Loader) {
 		Name:           a.Name,
 		Type:           string(a.Type),
 		Phase:          string(a.Phase),
+		Version:        a.Version,
 		DisplayName:    a.DisplayName,
 		Description:    a.Description,
 		Source:         string(a.Source),
 		Capability:     a.Capability,
-		Triggers:       a.TriggerPhrases,
+		TriggerPhrases: a.TriggerPhrases,
+		Keywords:       a.Keywords,
 		RequiredSkills: a.RequiredSkills,
 		OptionalSkills: a.OptionalSkills,
+		RequiredTools:  a.RequiredTools,
+		RelatedAgents:  a.RelatedAgents,
 		LegacyFormat:   a.LegacyFormat,
 		Content:        a.Content,
 	}
@@ -343,9 +351,20 @@ func printAgentJSON(a *agent.AgentInfo, skillLoader *skill.Loader) {
 			RequiredTools: a.RequiredTools,
 		}
 
-		// Aggregate skill scopes from required skills
+		// Aggregate skill scopes from required and optional skills
 		if skillLoader != nil && skillLoader.HasSkills() {
 			for _, skillName := range a.RequiredSkills {
+				sk, skErr := skillLoader.GetSkill(skillName)
+				if skErr == nil && sk.Scope != nil {
+					entry := skillScopeEntry{
+						Skill:          skillName,
+						PreferredTools: sk.Scope.PreferredTools,
+						AvoidTools:     sk.Scope.AvoidTools,
+					}
+					activation.SkillScopes = append(activation.SkillScopes, entry)
+				}
+			}
+			for _, skillName := range a.OptionalSkills {
 				sk, skErr := skillLoader.GetSkill(skillName)
 				if skErr == nil && sk.Scope != nil {
 					entry := skillScopeEntry{
@@ -403,7 +422,16 @@ Examples:
 
 		if recommendation == nil || recommendation.Agent == nil {
 			if jsonOutput {
-				fmt.Println(`{"task": "` + task + `", "recommended_agent": null, "message": "No matching agent found"}`)
+				nullResp := struct {
+					Task             string  `json:"task"`
+					RecommendedAgent *string `json:"recommended_agent"`
+					Message          string  `json:"message"`
+				}{
+					Task:    task,
+					Message: "No matching agent found",
+				}
+				data, _ := json.MarshalIndent(nullResp, "", "  ")
+				fmt.Println(string(data))
 			} else {
 				fmt.Println("No matching agent found for your task.")
 				fmt.Println("\nTry:")

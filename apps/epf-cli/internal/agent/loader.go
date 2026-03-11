@@ -333,6 +333,7 @@ func (l *Loader) loadManifestAgentFromEmbeddedFS(dirName string) (*AgentInfo, er
 		Version:     manifest.Version,
 		DisplayName: manifest.Identity.DisplayName,
 		Description: manifest.Identity.Description,
+		Personality: manifest.Identity.Personality,
 		Capability:  manifest.Capability,
 		HasManifest: true,
 		HasPrompt:   hasPrompt,
@@ -357,6 +358,9 @@ func (l *Loader) loadManifestAgentFromEmbeddedFS(dirName string) (*AgentInfo, er
 
 	// Related agents
 	info.RelatedAgents = manifest.RelatedAgents
+
+	// Prerequisites
+	info.Prerequisites = manifest.Prerequisites
 
 	return info, nil
 }
@@ -411,6 +415,7 @@ func (l *Loader) loadManifestAgent(dir, dirName string, source AgentSource) (*Ag
 		Version:     manifest.Version,
 		DisplayName: manifest.Identity.DisplayName,
 		Description: manifest.Identity.Description,
+		Personality: manifest.Identity.Personality,
 		Capability:  manifest.Capability,
 		HasManifest: true,
 		HasPrompt:   hasPrompt,
@@ -435,6 +440,9 @@ func (l *Loader) loadManifestAgent(dir, dirName string, source AgentSource) (*Ag
 
 	// Related agents
 	info.RelatedAgents = manifest.RelatedAgents
+
+	// Prerequisites
+	info.Prerequisites = manifest.Prerequisites
 
 	return info, nil
 }
@@ -612,25 +620,40 @@ func (l *Loader) ListAgents(phase *schema.Phase, agentType *AgentType) []*AgentI
 	return result
 }
 
+// normalizeName converts underscores to hyphens for consistent lookup.
+func normalizeName(name string) string {
+	return strings.ReplaceAll(name, "_", "-")
+}
+
 // GetAgent returns an agent by name.
+// Supports exact match, hyphen/underscore normalization, case-insensitive, and partial matching.
 func (l *Loader) GetAgent(name string) (*AgentInfo, error) {
 	// Exact match
 	if agent, ok := l.agents[name]; ok {
 		return agent, nil
 	}
 
-	// Case-insensitive match
-	nameLower := strings.ToLower(name)
-	for key, agent := range l.agents {
-		if strings.ToLower(key) == nameLower {
+	// Normalized match (underscores → hyphens)
+	normalized := normalizeName(name)
+	if normalized != name {
+		if agent, ok := l.agents[normalized]; ok {
 			return agent, nil
 		}
 	}
 
-	// Partial match
-	for key, agent := range l.agents {
-		if strings.Contains(strings.ToLower(key), nameLower) {
-			return agent, nil
+	// Case-insensitive match (with normalization) — sorted for determinism
+	normalizedLower := strings.ToLower(normalized)
+	for _, key := range l.GetAgentNames() {
+		if strings.ToLower(normalizeName(key)) == normalizedLower {
+			return l.agents[key], nil
+		}
+	}
+
+	// Partial match (with normalization) — sorted for determinism
+	sortedKeys := l.GetAgentNames() // already sorted
+	for _, key := range sortedKeys {
+		if strings.Contains(strings.ToLower(normalizeName(key)), normalizedLower) {
+			return l.agents[key], nil
 		}
 	}
 

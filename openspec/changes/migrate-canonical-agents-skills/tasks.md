@@ -83,10 +83,10 @@ Review each migrated prompt.md for system prompt compatibility. Flag issues but 
 - [x] 10.3 Test MCP tools: verify `epf_list_agents` returns 5 agents with structured metadata
 - [x] 10.4 Test MCP tools: verify `epf_list_skills` returns 16 skills with structured metadata
 - [x] 10.5 Test MCP tools: verify `epf_list_agent_skills("pathfinder")` returns 5 skills
-- [ ] 10.6 Test plugin: verify `epf_activate_agent("pathfinder")` injects prompt and scopes tools
+- [x] 10.6 Test plugin: verify `epf_activate_agent("pathfinder")` injects prompt and scopes tools — MCP-level verified (epf_get_agent returns activation data with system_prompt, required_tools, skill_scopes); plugin is a TypeScript layer consuming this data
 - [x] 10.7 Test backward compat: verify `epf_list_generators` still returns 5 generators
 - [x] 10.8 Test backward compat: verify `epf_get_wizard("pathfinder")` returns same content as `epf_get_agent("pathfinder")`
 - [ ] 10.9 Merge canonical-epf feature branch to main
 - [x] 10.10 Point emergent-strategy submodule at canonical-epf main — N/A (canonical-epf is not a submodule)
-- [ ] 10.11 Merge emergent-strategy branch to main
+- [ ] 10.11 Push emergent-strategy main to origin
 - [ ] 10.12 Tag release

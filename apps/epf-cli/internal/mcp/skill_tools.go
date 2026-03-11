@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -18,6 +19,11 @@ import (
 // =============================================================================
 
 // SkillListItem represents a skill in the epf_list_skills response.
+// NOTE: This struct is defined for JSON serialization consistency but the
+// handleListSkills handler currently returns markdown text for human readability.
+// Detail handlers (handleGetSkill) return JSON. This is intentional: list tools
+// are optimized for LLM consumption as text, while detail tools return
+// structured JSON for programmatic use.
 type SkillListItem struct {
 	Name              string                `json:"name"`
 	Type              string                `json:"type"`
@@ -560,13 +566,21 @@ func checkSkillPrerequisites(sk *skill.SkillInfo, instancePath string) *skill.Pr
 		Ready: true,
 	}
 
-	// Map artifact types to file patterns (same as generator prereqs)
+	// Map artifact types to file patterns.
+	// Check both READY/ prefixed (standard phased structure) and root-level (flat structure).
 	artifactPatterns := map[string][]string{
-		"north_star":          {"00_north_star.yaml"},
-		"strategy_formula":    {"04_strategy_formula.yaml"},
-		"roadmap_recipe":      {"05_roadmap_recipe.yaml"},
-		"value_models":        {"FIRE/value_models/*.yaml", "value_models/*.yaml"},
-		"feature_definitions": {"FIRE/definitions/product/*.yaml", "definitions/product/*.yaml"},
+		"north_star":                {"READY/00_north_star.yaml", "00_north_star.yaml"},
+		"insight_analyses":          {"READY/01_insight_analyses.yaml", "01_insight_analyses.yaml"},
+		"strategy_foundations":      {"READY/02_strategy_foundations.yaml", "02_strategy_foundations.yaml"},
+		"insight_opportunity":       {"READY/03_insight_opportunity.yaml", "03_insight_opportunity.yaml"},
+		"strategy_formula":          {"READY/04_strategy_formula.yaml", "04_strategy_formula.yaml"},
+		"roadmap_recipe":            {"READY/05_roadmap_recipe.yaml", "05_roadmap_recipe.yaml"},
+		"personas":                  {"READY/00_north_star.yaml", "00_north_star.yaml"}, // Personas live in north_star
+		"value_models":              {"FIRE/value_models/*.yaml", "value_models/*.yaml"},
+		"value_model":               {"FIRE/value_models/*.yaml", "value_models/*.yaml"},
+		"feature_definitions":       {"FIRE/definitions/product/*.yaml", "FIRE/feature_definitions/*.yaml", "definitions/product/*.yaml"},
+		"feature_definition":        {"FIRE/definitions/product/*.yaml", "FIRE/feature_definitions/*.yaml", "definitions/product/*.yaml"},
+		"living_reality_assessment": {"AIM/living_reality_assessment.yaml", "living_reality_assessment.yaml"},
 	}
 
 	for _, required := range sk.RequiredArtifacts {
@@ -591,12 +605,62 @@ func checkSkillPrerequisites(sk *skill.SkillInfo, instancePath string) *skill.Pr
 		}
 	}
 
+	// Check for incomplete artifacts (exist but have placeholder content)
+	for _, required := range sk.RequiredArtifacts {
+		patterns, ok := artifactPatterns[required]
+		if !ok {
+			continue
+		}
+
+		for _, pattern := range patterns {
+			fullPattern := fmt.Sprintf("%s/%s", instancePath, pattern)
+			matches, err := filepath.Glob(fullPattern)
+			if err != nil || len(matches) == 0 {
+				continue
+			}
+
+			// Check if file has placeholder content (TBD, TODO)
+			for _, match := range matches {
+				data, readErr := os.ReadFile(match)
+				if readErr != nil {
+					continue
+				}
+				content := string(data)
+				if strings.Contains(content, "TBD") || strings.Contains(content, "TODO") || strings.Contains(content, "[INSERT") {
+					result.IncompleteArtifacts = append(result.IncompleteArtifacts,
+						fmt.Sprintf("%s (contains placeholder content)", required))
+					break
+				}
+			}
+			break
+		}
+	}
+
+	// Check for missing required tools
+	for _, tool := range sk.RequiredTools {
+		// Tools are MCP-provided; we can't check availability at prereq time,
+		// but we surface them so the caller knows what's needed
+		result.MissingTools = append(result.MissingTools, tool)
+	}
+	// If all tools are just informational (not actually missing), clear the field
+	// In practice, we can't verify tool availability here, so we mark them as
+	// "required but unverifiable" in suggestions instead
+	if len(sk.RequiredTools) > 0 {
+		result.MissingTools = nil // Don't mark as missing; add as suggestion
+		result.Suggestions = append(result.Suggestions,
+			fmt.Sprintf("This skill requires %d MCP tool(s): %s", len(sk.RequiredTools), strings.Join(sk.RequiredTools, ", ")))
+	}
+
 	// Add suggestions
 	if len(result.MissingArtifacts) > 0 {
 		result.Suggestions = append(result.Suggestions,
 			"Run appropriate EPF wizards or skills to create missing artifacts")
 		result.Suggestions = append(result.Suggestions,
 			"Use epf_get_agent_for_task to find the right agent for each artifact")
+	}
+	if len(result.IncompleteArtifacts) > 0 {
+		result.Suggestions = append(result.Suggestions,
+			"Some artifacts contain placeholder content (TBD/TODO) that should be filled in")
 	}
 
 	return result

@@ -208,8 +208,9 @@ type AgentInfo struct {
 	Version string       `json:"version,omitempty"`
 
 	// Display
-	DisplayName string `json:"display_name"`
-	Description string `json:"description"`
+	DisplayName string   `json:"display_name"`
+	Description string   `json:"description"`
+	Personality []string `json:"personality,omitempty"`
 
 	// Capability hints
 	Capability *CapabilitySpec `json:"capability,omitempty"`
@@ -223,6 +224,9 @@ type AgentInfo struct {
 	OptionalSkills []string `json:"optional_skills,omitempty"`
 	RequiredTools  []string `json:"required_tools,omitempty"`
 	RelatedAgents  []string `json:"related_agents,omitempty"`
+
+	// Prerequisites
+	Prerequisites *AgentPrerequisitesSpec `json:"prerequisites,omitempty"`
 
 	// Files
 	HasManifest bool `json:"has_manifest"` // true if agent.yaml exists (vs legacy format)
