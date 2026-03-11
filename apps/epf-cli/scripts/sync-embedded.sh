@@ -39,13 +39,15 @@ echo "Target: $EMBEDDED_DIR"
 echo ""
 
 # Clean existing embedded artifacts (but not the Go source files)
-rm -rf "$EMBEDDED_DIR/schemas" "$EMBEDDED_DIR/templates" "$EMBEDDED_DIR/wizards" "$EMBEDDED_DIR/outputs"
+rm -rf "$EMBEDDED_DIR/schemas" "$EMBEDDED_DIR/templates" "$EMBEDDED_DIR/wizards" "$EMBEDDED_DIR/outputs" "$EMBEDDED_DIR/agents" "$EMBEDDED_DIR/skills"
 
 # Create directories
 mkdir -p "$EMBEDDED_DIR/schemas"
 mkdir -p "$EMBEDDED_DIR/templates"
 mkdir -p "$EMBEDDED_DIR/wizards"
 mkdir -p "$EMBEDDED_DIR/outputs"
+mkdir -p "$EMBEDDED_DIR/agents"
+mkdir -p "$EMBEDDED_DIR/skills"
 
 # Copy schemas (required for validation)
 echo "Copying schemas..."
@@ -85,6 +87,42 @@ for generator_dir in "$CANONICAL_EPF/outputs/"*/; do
     fi
 done
 echo "  Copied $GENERATOR_COUNT generators"
+
+# Copy agents (new format — agents/{name}/agent.yaml + prompt.md)
+echo "Copying agents..."
+AGENT_COUNT=0
+if [ -d "$CANONICAL_EPF/agents" ]; then
+    for agent_dir in "$CANONICAL_EPF/agents/"*/; do
+        if [ -d "$agent_dir" ]; then
+            agent_name=$(basename "$agent_dir")
+            if [ -f "$agent_dir/agent.yaml" ]; then
+                mkdir -p "$EMBEDDED_DIR/agents/$agent_name"
+                cp -r "$agent_dir"* "$EMBEDDED_DIR/agents/$agent_name/"
+                echo "  Copied agent: $agent_name"
+                AGENT_COUNT=$((AGENT_COUNT + 1))
+            fi
+        fi
+    done
+fi
+echo "  Copied $AGENT_COUNT agents"
+
+# Copy skills (new format — skills/{name}/skill.yaml + prompt.md or wizard.instructions.md)
+echo "Copying skills..."
+SKILL_COUNT=0
+if [ -d "$CANONICAL_EPF/skills" ]; then
+    for skill_dir in "$CANONICAL_EPF/skills/"*/; do
+        if [ -d "$skill_dir" ]; then
+            skill_name=$(basename "$skill_dir")
+            if [ -f "$skill_dir/skill.yaml" ]; then
+                mkdir -p "$EMBEDDED_DIR/skills/$skill_name"
+                cp -r "$skill_dir"* "$EMBEDDED_DIR/skills/$skill_name/"
+                echo "  Copied skill: $skill_name"
+                SKILL_COUNT=$((SKILL_COUNT + 1))
+            fi
+        fi
+    done
+fi
+echo "  Copied $SKILL_COUNT skills"
 
 # Copy canonical definitions (sd-*, pd-*, cd-* only — product fd-* are examples, not canonical)
 echo "Copying canonical definitions..."
@@ -152,6 +190,12 @@ $(ls -1 "$EMBEDDED_DIR/wizards/"*.md 2>/dev/null | xargs -I {} basename {} | sor
 ## Generators
 $(ls -1d "$EMBEDDED_DIR/outputs/"*/ 2>/dev/null | xargs -I {} basename {} | sort)
 
+## Agents
+$(ls -1d "$EMBEDDED_DIR/agents/"*/ 2>/dev/null | xargs -I {} basename {} | sort)
+
+## Skills
+$(ls -1d "$EMBEDDED_DIR/skills/"*/ 2>/dev/null | xargs -I {} basename {} | sort)
+
 ## Canonical Definitions
 $(find "$EMBEDDED_DIR/templates/FIRE/definitions" -type f \( -name "*.yaml" -o -name "*.yml" \) 2>/dev/null | sed "s|$EMBEDDED_DIR/templates/FIRE/definitions/||" | sort)
 EOF
@@ -160,9 +204,11 @@ echo ""
 echo "Sync complete!"
 echo ""
 echo "Summary:"
-echo "  Schemas:    $SCHEMA_COUNT files"
-echo "  Templates:  $(find "$EMBEDDED_DIR/templates" -type f 2>/dev/null | wc -l | tr -d ' ') files"
-echo "  Wizards:    $WIZARD_COUNT files"
-echo "  Generators: $(ls -1d "$EMBEDDED_DIR/outputs/"*/ 2>/dev/null | wc -l | tr -d ' ') directories"
-echo "  Definitions:$DEFINITION_COUNT files"
-echo "  AGENTS.md:  $(if [ -f "$EMBEDDED_DIR/AGENTS.md" ]; then echo "✓ ($(wc -l < "$EMBEDDED_DIR/AGENTS.md" | tr -d ' ') lines)"; else echo "✗"; fi)"
+echo "  Schemas:     $SCHEMA_COUNT files"
+echo "  Templates:   $(find "$EMBEDDED_DIR/templates" -type f 2>/dev/null | wc -l | tr -d ' ') files"
+echo "  Wizards:     $WIZARD_COUNT files (legacy)"
+echo "  Generators:  $(ls -1d "$EMBEDDED_DIR/outputs/"*/ 2>/dev/null | wc -l | tr -d ' ') directories (legacy)"
+echo "  Agents:      $AGENT_COUNT directories (new)"
+echo "  Skills:      $SKILL_COUNT directories (new)"
+echo "  Definitions: $DEFINITION_COUNT files"
+echo "  AGENTS.md:   $(if [ -f "$EMBEDDED_DIR/AGENTS.md" ]; then echo "✓ ($(wc -l < "$EMBEDDED_DIR/AGENTS.md" | tr -d ' ') lines)"; else echo "✗"; fi)"

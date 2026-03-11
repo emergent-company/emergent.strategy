@@ -1,0 +1,40 @@
+name: value-model-preview
+version: "1.0.0"
+type: generation
+description: "Generates shareable HTML previews of EPF value models for stakeholder review, with interactive visualization and maturity indicators."
+category: internal
+author: "EPF Framework"
+
+capability:
+  class: fast-exec
+  context_budget: medium
+
+requires:
+  artifacts:
+    - value_model
+  optional:
+    - north_star
+    - feature_definition
+  tools:
+    - epf_explain_value_path
+    - epf_analyze_coverage
+
+output:
+  format: html
+  schema: schema.json
+  validator: validator.sh
+
+files:
+  prompt: wizard.instructions.md
+  schema: schema.json
+  validator: validator.sh
+  template: template.html
+
+scope:
+  preferred_tools:
+    - epf_explain_value_path
+    - epf_analyze_coverage
+    - epf_validate_relationships
+  avoid_tools:
+    - epf_init_instance
+    - epf_scaffold_generator

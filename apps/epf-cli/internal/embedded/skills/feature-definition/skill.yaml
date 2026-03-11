@@ -1,0 +1,40 @@
+name: feature-definition
+version: "1.0.0"
+type: creation
+phase: FIRE
+description: "Step-by-step guidance for creating EPF-compliant feature definitions with personas, capabilities, scenarios, and value model mappings."
+
+capability:
+  class: balanced
+  context_budget: medium
+
+requires:
+  artifacts:
+    - north_star
+    - personas
+  optional:
+    - strategy_formula
+    - value_model
+  tools:
+    - epf_get_template
+    - epf_get_personas
+    - epf_get_schema
+    - epf_validate_file
+
+output:
+  format: yaml
+  artifact_type: feature_definition
+
+scope:
+  preferred_tools:
+    - epf_get_template
+    - epf_get_personas
+    - epf_get_persona_details
+    - epf_get_schema
+    - epf_validate_file
+    - epf_explain_value_path
+    - epf_validate_relationships
+  avoid_tools:
+    - epf_scaffold_generator
+    - epf_init_instance
+    - epf_aim_assess

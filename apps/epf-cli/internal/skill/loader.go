@@ -3,6 +3,7 @@ package skill
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -201,12 +202,12 @@ func (l *Loader) loadLegacyWizards(dir string, source SkillSource) {
 	}
 }
 
-// loadFromEmbedded loads skills from embedded generators and wizard files.
+// loadFromEmbedded loads skills from embedded generators, wizard files, and new-format skill bundles.
 func (l *Loader) loadFromEmbedded() error {
 	l.useEmbedded = true
 	l.source = "embedded v" + embedded.GetVersion()
 
-	// Load embedded generators
+	// Load embedded generators (legacy, lower priority)
 	genNames, err := embedded.ListGenerators()
 	if err == nil {
 		for _, name := range genNames {
@@ -220,7 +221,7 @@ func (l *Loader) loadFromEmbedded() error {
 		}
 	}
 
-	// Load embedded .wizard.md files as skills
+	// Load embedded .wizard.md files as skills (legacy, lower priority)
 	wizardNames, err := embedded.ListWizards()
 	if err == nil {
 		wizardSuffix := ".wizard.md"
@@ -245,11 +246,97 @@ func (l *Loader) loadFromEmbedded() error {
 		}
 	}
 
+	// Load new-format skills from embedded skills/ directory (highest priority)
+	skillNames, err := embedded.ListSkills()
+	if err == nil {
+		for _, name := range skillNames {
+			info, err := l.loadManifestSkillFromEmbeddedFS(name)
+			if err != nil {
+				continue
+			}
+			// Overwrite any legacy skill with same name
+			l.skills[info.Name] = info
+		}
+	}
+
 	if len(l.skills) == 0 {
 		return fmt.Errorf("no embedded skills found")
 	}
 
 	return nil
+}
+
+// loadManifestSkillFromEmbeddedFS loads a skill from the embedded skills/ directory.
+func (l *Loader) loadManifestSkillFromEmbeddedFS(dirName string) (*SkillInfo, error) {
+	skillFS, err := embedded.GetSkill(dirName)
+	if err != nil {
+		return nil, fmt.Errorf("getting embedded skill %s: %w", dirName, err)
+	}
+
+	data, err := fs.ReadFile(skillFS, DefaultManifestFile)
+	if err != nil {
+		return nil, fmt.Errorf("reading embedded skill manifest %s: %w", dirName, err)
+	}
+
+	var manifest SkillManifest
+	if err := yaml.Unmarshal(data, &manifest); err != nil {
+		return nil, fmt.Errorf("parsing embedded skill manifest %s: %w", dirName, err)
+	}
+
+	info := &SkillInfo{
+		Name:        dirName,
+		Source:      SourceFramework,
+		Path:        filepath.Join("skills", dirName),
+		HasManifest: true,
+	}
+
+	l.populateFromManifest(info, &manifest)
+
+	// Use directory name as name if manifest didn't set one
+	if info.Name == "" {
+		info.Name = dirName
+	}
+
+	// Detect available files from embedded FS
+	l.detectFilesFromEmbeddedFS(info, skillFS)
+
+	return info, nil
+}
+
+// detectFilesFromEmbeddedFS checks which standard files exist in an embedded skill FS.
+func (l *Loader) detectFilesFromEmbeddedFS(info *SkillInfo, skillFS fs.FS) {
+	// Prompt: prompt.md or wizard.instructions.md
+	for _, promptFile := range []string{DefaultPromptFile, LegacyPromptFile} {
+		if _, err := fs.ReadFile(skillFS, promptFile); err == nil {
+			info.HasPrompt = true
+			info.PromptFile = promptFile
+			if promptFile == LegacyPromptFile {
+				info.LegacyPromptName = LegacyPromptFile
+			}
+			break
+		}
+	}
+
+	// Schema
+	if _, err := fs.ReadFile(skillFS, DefaultSchemaFile); err == nil {
+		info.HasSchema = true
+		info.SchemaFile = DefaultSchemaFile
+	}
+
+	// Validator
+	if _, err := fs.ReadFile(skillFS, DefaultValidatorFile); err == nil {
+		info.HasValidator = true
+		info.ValidatorFile = DefaultValidatorFile
+	}
+
+	// Template: template.md, template.yaml, or template.html
+	for _, tmpl := range []string{"template.md", "template.yaml", "template.html"} {
+		if _, err := fs.ReadFile(skillFS, tmpl); err == nil {
+			info.HasTemplate = true
+			info.TemplateFile = tmpl
+			break
+		}
+	}
 }
 
 // inferSkillInfo creates SkillInfo from a skill directory by reading the
@@ -442,6 +529,20 @@ func (l *Loader) LoadPrompt(info *SkillInfo) error {
 
 	// Embedded framework skills
 	if l.useEmbedded && info.Source == SourceFramework {
+		// Try new-format embedded skill first (skills/{name}/prompt.md or wizard.instructions.md)
+		if info.HasManifest && !info.LegacyFormat {
+			skillFS, err := embedded.GetSkill(info.Name)
+			if err == nil {
+				// Try prompt.md, then wizard.instructions.md
+				for _, promptFile := range []string{DefaultPromptFile, LegacyPromptFile} {
+					if data, readErr := fs.ReadFile(skillFS, promptFile); readErr == nil {
+						info.SetPrompt(string(data))
+						return nil
+					}
+				}
+			}
+		}
+
 		// Try embedded generator wizard
 		genContent, err := embedded.GetGeneratorContent(info.Name)
 		if err == nil && genContent.Wizard != "" {
@@ -509,16 +610,28 @@ func (l *Loader) GetSkillContent(name string) (*SkillContent, error) {
 		SkillInfo: info,
 	}
 
-	// If using embedded and this is a framework skill from a generator
-	if l.useEmbedded && info.Source == SourceFramework && info.Type == SkillTypeGeneration {
-		embeddedContent, err := embedded.GetGeneratorContent(name)
-		if err == nil {
-			content.ManifestContent = embeddedContent.Manifest
-			content.SchemaContent = embeddedContent.Schema
-			content.PromptContent = embeddedContent.Wizard
-			content.TemplateContent = embeddedContent.Template
-			content.ReadmeContent = embeddedContent.Readme
-			return content, nil
+	// If using embedded and this is a framework skill
+	if l.useEmbedded && info.Source == SourceFramework {
+		// Try new-format embedded skill first
+		if info.HasManifest && !info.LegacyFormat {
+			skillFS, err := embedded.GetSkill(name)
+			if err == nil {
+				l.loadContentFromEmbeddedFS(content, skillFS)
+				return content, nil
+			}
+		}
+
+		// Fall back to legacy generator content
+		if info.Type == SkillTypeGeneration {
+			embeddedContent, err := embedded.GetGeneratorContent(name)
+			if err == nil {
+				content.ManifestContent = embeddedContent.Manifest
+				content.SchemaContent = embeddedContent.Schema
+				content.PromptContent = embeddedContent.Wizard
+				content.TemplateContent = embeddedContent.Template
+				content.ReadmeContent = embeddedContent.Readme
+				return content, nil
+			}
 		}
 		// Fall through to filesystem loading
 	}
@@ -580,6 +693,49 @@ func (l *Loader) GetSkillContent(name string) (*SkillContent, error) {
 	}
 
 	return content, nil
+}
+
+// loadContentFromEmbeddedFS reads all skill bundle files from an embedded fs.FS.
+func (l *Loader) loadContentFromEmbeddedFS(content *SkillContent, skillFS fs.FS) {
+	info := content.SkillInfo
+
+	// Manifest (skill.yaml)
+	if data, err := fs.ReadFile(skillFS, DefaultManifestFile); err == nil {
+		content.ManifestContent = string(data)
+	}
+
+	// Prompt (prompt.md or wizard.instructions.md)
+	if info.HasPrompt && info.PromptFile != "" {
+		if data, err := fs.ReadFile(skillFS, info.PromptFile); err == nil {
+			content.PromptContent = string(data)
+		}
+	}
+
+	// Schema
+	if info.HasSchema {
+		if data, err := fs.ReadFile(skillFS, DefaultSchemaFile); err == nil {
+			content.SchemaContent = string(data)
+		}
+	}
+
+	// Validator
+	if info.HasValidator {
+		if data, err := fs.ReadFile(skillFS, DefaultValidatorFile); err == nil {
+			content.ValidatorContent = string(data)
+		}
+	}
+
+	// Template
+	if info.HasTemplate && info.TemplateFile != "" {
+		if data, err := fs.ReadFile(skillFS, info.TemplateFile); err == nil {
+			content.TemplateContent = string(data)
+		}
+	}
+
+	// README
+	if data, err := fs.ReadFile(skillFS, DefaultReadmeFile); err == nil {
+		content.ReadmeContent = string(data)
+	}
 }
 
 // ListSkills returns all loaded skills, optionally filtered by type, category,

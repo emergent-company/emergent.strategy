@@ -3,6 +3,7 @@ package agent
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -199,34 +200,46 @@ func (l *Loader) loadLegacyDirectory(dir string, source AgentSource) error {
 	return nil
 }
 
-// loadFromEmbedded loads agents from embedded wizard files.
+// loadFromEmbedded loads agents from embedded agent manifests and legacy wizard files.
 func (l *Loader) loadFromEmbedded() error {
 	l.useEmbedded = true
 	l.source = "embedded v" + embedded.GetVersion()
 
+	// First, load legacy wizard files (lower priority — will be overwritten by new format)
 	wizardNames, err := embedded.ListWizards()
-	if err != nil {
-		return fmt.Errorf("failed to list embedded wizards: %w", err)
+	if err == nil {
+		for _, name := range wizardNames {
+			if !isLegacyWizardFile(name) {
+				continue
+			}
+
+			// Skip README and template files
+			if strings.ToLower(name) == "readme.md" || strings.Contains(name, "template") {
+				continue
+			}
+
+			content, err := embedded.GetWizard(name)
+			if err != nil {
+				continue
+			}
+
+			info := l.parseLegacyWizard(name, string(content), SourceFramework)
+			if info != nil {
+				info.Path = filepath.Join("wizards", name)
+				l.agents[info.Name] = info
+			}
+		}
 	}
 
-	for _, name := range wizardNames {
-		if !isLegacyWizardFile(name) {
-			continue
-		}
-
-		// Skip README and template files
-		if strings.ToLower(name) == "readme.md" || strings.Contains(name, "template") {
-			continue
-		}
-
-		content, err := embedded.GetWizard(name)
-		if err != nil {
-			continue
-		}
-
-		info := l.parseLegacyWizard(name, string(content), SourceFramework)
-		if info != nil {
-			info.Path = filepath.Join("wizards", name)
+	// Then, load new-format agents from embedded agents/ directory (higher priority)
+	agentNames, err := embedded.ListAgents()
+	if err == nil {
+		for _, name := range agentNames {
+			info, err := l.loadManifestAgentFromEmbeddedFS(name)
+			if err != nil {
+				continue
+			}
+			// Overwrite any legacy agent with same name
 			l.agents[info.Name] = info
 		}
 	}
@@ -236,6 +249,79 @@ func (l *Loader) loadFromEmbedded() error {
 	}
 
 	return nil
+}
+
+// loadManifestAgentFromEmbeddedFS loads an agent from the embedded agents/ directory.
+func (l *Loader) loadManifestAgentFromEmbeddedFS(dirName string) (*AgentInfo, error) {
+	agentFS, err := embedded.GetAgent(dirName)
+	if err != nil {
+		return nil, fmt.Errorf("getting embedded agent %s: %w", dirName, err)
+	}
+
+	data, err := fs.ReadFile(agentFS, ManifestFile)
+	if err != nil {
+		return nil, fmt.Errorf("reading embedded agent manifest %s: %w", dirName, err)
+	}
+
+	var manifest AgentManifest
+	if err := yaml.Unmarshal(data, &manifest); err != nil {
+		return nil, fmt.Errorf("parsing embedded agent manifest %s: %w", dirName, err)
+	}
+
+	agentName := manifest.Name
+	if agentName == "" {
+		agentName = dirName
+	}
+
+	// Resolve phase
+	phase := schema.Phase(manifest.Phase)
+	if phase == "" {
+		if p, ok := PhaseForAgent[agentName]; ok {
+			phase = p
+		}
+	}
+
+	// Check for prompt file in embedded FS
+	hasPrompt := false
+	if _, err := fs.ReadFile(agentFS, PromptFile); err == nil {
+		hasPrompt = true
+	}
+
+	info := &AgentInfo{
+		Name:        agentName,
+		Source:      SourceFramework,
+		Path:        filepath.Join("agents", dirName),
+		Type:        manifest.Type,
+		Phase:       phase,
+		Version:     manifest.Version,
+		DisplayName: manifest.Identity.DisplayName,
+		Description: manifest.Identity.Description,
+		Capability:  manifest.Capability,
+		HasManifest: true,
+		HasPrompt:   hasPrompt,
+	}
+
+	// Routing
+	if manifest.Routing != nil {
+		info.TriggerPhrases = manifest.Routing.TriggerPhrases
+		info.Keywords = manifest.Routing.Keywords
+	}
+
+	// Skills
+	if manifest.Skills != nil {
+		info.RequiredSkills = manifest.Skills.Required
+		info.OptionalSkills = manifest.Skills.Optional
+	}
+
+	// Tools
+	if manifest.Tools != nil {
+		info.RequiredTools = manifest.Tools.Required
+	}
+
+	// Related agents
+	info.RelatedAgents = manifest.RelatedAgents
+
+	return info, nil
 }
 
 // loadManifestAgent loads an agent from a directory containing agent.yaml.
@@ -399,7 +485,18 @@ func (l *Loader) LoadContent(info *AgentInfo) error {
 	}
 
 	if l.useEmbedded && info.Source == SourceFramework {
-		// Load from embedded
+		// Try new-format embedded agent first (agents/{name}/prompt.md)
+		if info.HasManifest {
+			agentFS, err := embedded.GetAgent(info.Name)
+			if err == nil {
+				if data, readErr := fs.ReadFile(agentFS, PromptFile); readErr == nil {
+					info.SetContent(string(data))
+					return nil
+				}
+			}
+		}
+
+		// Fall back to legacy embedded wizard
 		fileName := info.Name + LegacyAgentPromptSuffix
 		content, err := embedded.GetWizard(fileName)
 		if err != nil {

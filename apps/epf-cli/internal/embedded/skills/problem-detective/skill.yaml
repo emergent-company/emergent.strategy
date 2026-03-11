@@ -1,0 +1,31 @@
+name: problem-detective
+version: "1.0.0"
+type: analysis
+phase: READY
+description: "Uncovers and validates real user problems using Jobs-to-be-Done framework, focusing on problem severity, frequency, and current workarounds."
+
+capability:
+  class: balanced
+  context_budget: medium
+
+requires:
+  artifacts: []
+  optional:
+    - insight_analyses
+  tools:
+    - epf_get_template
+
+output:
+  format: yaml
+  artifact_type: insight_analyses
+
+scope:
+  preferred_tools:
+    - epf_get_template
+    - epf_get_schema
+    - epf_validate_file
+    - epf_get_personas
+  avoid_tools:
+    - epf_scaffold_generator
+    - epf_init_instance
+    - epf_aim_assess

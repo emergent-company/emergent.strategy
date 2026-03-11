@@ -1,0 +1,42 @@
+name: development-brief
+version: "1.0.0"
+type: generation
+description: "Creates engineering implementation briefs from EPF feature definitions and strategy context, designed for handoff from product to engineering teams."
+category: development
+author: "EPF Framework"
+
+capability:
+  class: balanced
+  context_budget: medium
+
+requires:
+  artifacts:
+    - feature_definition
+  optional:
+    - north_star
+    - value_model
+    - roadmap_recipe
+    - personas
+  tools:
+    - epf_get_strategic_context
+    - epf_list_features
+
+output:
+  format: markdown
+  schema: schema.json
+  validator: validator.sh
+
+files:
+  prompt: wizard.instructions.md
+  schema: schema.json
+  validator: validator.sh
+
+scope:
+  preferred_tools:
+    - epf_get_strategic_context
+    - epf_list_features
+    - epf_get_persona_details
+    - epf_explain_value_path
+  avoid_tools:
+    - epf_init_instance
+    - epf_scaffold_generator

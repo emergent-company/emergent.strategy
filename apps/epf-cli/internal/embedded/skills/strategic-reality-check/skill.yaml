@@ -1,0 +1,34 @@
+name: strategic-reality-check
+version: "1.0.0"
+type: analysis
+phase: AIM
+description: "Systematic evaluation of all EPF READY and FIRE artifacts against current reality, checking belief validity, market currency, strategic alignment, and execution state."
+
+capability:
+  class: high-reasoning
+  context_budget: large
+
+requires:
+  artifacts:
+    - north_star
+    - strategy_formula
+    - value_model
+  optional:
+    - roadmap_recipe
+    - feature_definition
+    - living_reality_assessment
+  tools:
+    - epf_aim_generate_src
+    - epf_validate_relationships
+
+scope:
+  preferred_tools:
+    - epf_aim_generate_src
+    - epf_aim_write_src
+    - epf_validate_relationships
+    - epf_get_product_vision
+    - epf_get_competitive_position
+    - epf_search_strategy
+  avoid_tools:
+    - epf_scaffold_generator
+    - epf_init_instance

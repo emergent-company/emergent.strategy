@@ -46,6 +46,18 @@ var Guides embed.FS
 //go:embed outputs/**/*
 var Generators embed.FS
 
+// Agents contains the canonical agent definitions (new format).
+// Each subdirectory is an agent with agent.yaml and prompt.md.
+//
+//go:embed agents/**/*
+var Agents embed.FS
+
+// Skills contains the canonical skill definitions (new format).
+// Each subdirectory is a skill with skill.yaml and prompt.md (or wizard.instructions.md).
+//
+//go:embed skills/**/*
+var Skills embed.FS
+
 // Version contains the EPF framework version that was embedded at build time.
 //
 //go:embed VERSION
@@ -142,6 +154,60 @@ func GetGeneratorFS() (fs.FS, error) {
 // ListGenerators returns the names of all embedded generators.
 func ListGenerators() ([]string, error) {
 	entries, err := Generators.ReadDir("outputs")
+	if err != nil {
+		return nil, err
+	}
+
+	var names []string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			names = append(names, entry.Name())
+		}
+	}
+	return names, nil
+}
+
+// GetAgentFS returns an fs.FS rooted at the agents directory.
+func GetAgentFS() (fs.FS, error) {
+	return fs.Sub(Agents, "agents")
+}
+
+// GetAgent returns an fs.FS for a specific embedded agent.
+// The name should be the agent directory name (e.g., "pathfinder").
+func GetAgent(name string) (fs.FS, error) {
+	return fs.Sub(Agents, path.Join("agents", name))
+}
+
+// ListAgents returns the names of all embedded agents.
+func ListAgents() ([]string, error) {
+	entries, err := Agents.ReadDir("agents")
+	if err != nil {
+		return nil, err
+	}
+
+	var names []string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			names = append(names, entry.Name())
+		}
+	}
+	return names, nil
+}
+
+// GetSkillFS returns an fs.FS rooted at the skills directory.
+func GetSkillFS() (fs.FS, error) {
+	return fs.Sub(Skills, "skills")
+}
+
+// GetSkill returns an fs.FS for a specific embedded skill.
+// The name should be the skill directory name (e.g., "feature-definition").
+func GetSkill(name string) (fs.FS, error) {
+	return fs.Sub(Skills, path.Join("skills", name))
+}
+
+// ListSkills returns the names of all embedded skills.
+func ListSkills() ([]string, error) {
+	entries, err := Skills.ReadDir("skills")
 	if err != nil {
 		return nil, err
 	}

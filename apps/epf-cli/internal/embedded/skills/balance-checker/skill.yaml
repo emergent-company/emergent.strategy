@@ -1,0 +1,30 @@
+name: balance-checker
+version: "1.0.0"
+type: review
+phase: READY
+description: "Evaluates roadmap viability across all 4 tracks (Product, Strategy, OrgOps, Commercial), checking resource balance, conflicts, and strategic alignment."
+
+capability:
+  class: balanced
+  context_budget: large
+
+requires:
+  artifacts:
+    - roadmap_recipe
+  optional:
+    - north_star
+    - strategy_formula
+    - value_model
+  tools:
+    - epf_get_roadmap_summary
+    - epf_validate_file
+
+scope:
+  preferred_tools:
+    - epf_get_roadmap_summary
+    - epf_get_product_vision
+    - epf_analyze_coverage
+    - epf_validate_relationships
+  avoid_tools:
+    - epf_scaffold_generator
+    - epf_init_instance

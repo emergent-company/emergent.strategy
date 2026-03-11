@@ -1,0 +1,460 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SkatteFUNN Application Generator Schema",
+  "description": "Input parameters and EPF requirements for Norwegian R&D Tax Deduction application generation (aligned with official SkatteFUNN online form)",
+  "version": "2.0.0",
+  "type": "object",
+  "required": [
+    "organization",
+    "contact",
+    "project_info",
+    "timeline",
+    "work_packages",
+    "epf_sources"
+  ],
+  "properties": {
+    "organization": {
+      "type": "object",
+      "required": ["name", "org_number", "manager_name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Official company name (automatically retrieved from Brønnøysund Register)",
+          "example": "Eyedea AS"
+        },
+        "org_number": {
+          "type": "string",
+          "pattern": "^[0-9]{9}$",
+          "description": "Norwegian organization number (9 digits)",
+          "example": "926006985"
+        },
+        "manager_name": {
+          "type": "string",
+          "description": "The person responsible for running the project in accordance with contract documents",
+          "example": "Nikolai Fasting"
+        }
+      }
+    },
+    "contact": {
+      "type": "object",
+      "required": ["project_leader", "org_representative", "creator"],
+      "properties": {
+        "creator": {
+          "type": "object",
+          "required": ["name", "email", "phone"],
+          "description": "Creator of Application - person filling out the form",
+          "properties": {
+            "name": {"type": "string"},
+            "email": {"type": "string", "format": "email"},
+            "phone": {"type": "string", "pattern": "^\\+47[0-9 ]{8,15}$"}
+          }
+        },
+        "project_leader": {
+          "type": "object",
+          "required": ["name", "email", "phone"],
+          "description": "Project Leader - person managing the R&D project",
+          "properties": {
+            "name": {"type": "string"},
+            "email": {"type": "string", "format": "email"},
+            "phone": {"type": "string", "pattern": "^\\+47[0-9 ]{8,15}$"}
+          }
+        },
+        "org_representative": {
+          "type": "object",
+          "required": ["name", "email", "phone"],
+          "description": "Organisation Representative - legal signatory for the company",
+          "properties": {
+            "name": {"type": "string"},
+            "email": {"type": "string", "format": "email"},
+            "phone": {"type": "string", "pattern": "^\\+47[0-9 ]{8,15}$"}
+          }
+        }
+      }
+    },
+    "project_info": {
+      "type": "object",
+      "required": [
+        "title_english",
+        "title_norwegian",
+        "short_name",
+        "scientific_discipline",
+        "area_of_use",
+        "company_activities",
+        "project_background",
+        "primary_objective",
+        "market_differentiation",
+        "rd_content",
+        "project_summary"
+      ],
+      "properties": {
+        "title_english": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Project title in English (max 100 characters)"
+        },
+        "title_norwegian": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Project title in Norwegian (max 100 characters)"
+        },
+        "short_name": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Short name for the project (max 60 characters)"
+        },
+        "scientific_discipline": {
+          "type": "object",
+          "required": ["subject_area", "subject_group", "subject_discipline"],
+          "properties": {
+            "subject_area": {"type": "string", "example": "Natural Sciences"},
+            "subject_group": {"type": "string", "example": "Computer and Information Sciences"},
+            "subject_discipline": {"type": "string", "example": "Software Engineering and AI Systems"}
+          }
+        },
+        "area_of_use": {
+          "type": "string",
+          "description": "Industry where results will be used",
+          "example": "Software development and AI services"
+        },
+        "continuation": {
+          "type": "boolean",
+          "default": false,
+          "description": "Is this a continuation of a previously approved SkatteFUNN project?"
+        },
+        "other_applicants": {
+          "type": "boolean",
+          "default": false,
+          "description": "Are other companies applying for this same project?"
+        },
+        "company_activities": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Describe products, markets, and company stage (max 2000 characters)"
+        },
+        "project_background": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Describe why the project is important for the company (max 2000 characters)"
+        },
+        "primary_objective": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Concrete and verifiable goals and new/improved goods or services (max 1000 characters)"
+        },
+        "market_differentiation": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "How the solution differs from existing products or competitor offerings (max 2000 characters)"
+        },
+        "rd_content": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "R&D challenge with no known solution, why R&D is required, systematic method (max 2000 characters)"
+        },
+        "project_summary": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Short presentation of background, objective, challenges, and approach - published publicly if approved (max 1000 characters)"
+        }
+      }
+    },
+    "timeline": {
+      "type": "object",
+      "required": ["start_date", "end_date", "duration_months", "application_date"],
+      "properties": {
+        "start_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Project start date (YYYY-MM-DD)"
+        },
+        "end_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Project end date (YYYY-MM-DD), max 48 months from start"
+        },
+        "duration_months": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 48,
+          "description": "Total project duration in months (1-48)"
+        },
+        "application_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Date of application submission"
+        }
+      }
+    },
+    "work_packages": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "description": "Work packages (min 1, max 8)",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "start_month",
+          "end_month",
+          "rd_category",
+          "rd_challenges",
+          "method_approach",
+          "activities",
+          "budget"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Name of work package (max 100 characters)"
+          },
+          "start_month": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Start month within project period (1 = first month)"
+          },
+          "end_month": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "End month within project period"
+          },
+          "rd_category": {
+            "type": "string",
+            "enum": ["Experimental Development", "Industrial Research"],
+            "description": "R&D category for this work package"
+          },
+          "rd_challenges": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "Challenges with no known solution today (max 500 characters)"
+          },
+          "method_approach": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "Systematic process to solve the challenge (max 1000 characters)"
+          },
+          "activities": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 8,
+            "description": "Activities within this work package (2-8 per WP)",
+            "items": {
+              "type": "object",
+              "required": ["title", "description"],
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "maxLength": 100,
+                  "description": "Activity title (max 100 characters)"
+                },
+                "description": {
+                  "type": "string",
+                  "maxLength": 500,
+                  "description": "Activity description (max 500 characters)"
+                }
+              }
+            }
+          },
+          "budget": {
+            "type": "object",
+            "required": ["yearly_costs"],
+            "properties": {
+              "yearly_costs": {
+                "type": "array",
+                "description": "Budget per year with cost codes",
+                "items": {
+                  "type": "object",
+                  "required": ["year", "cost_code", "amount_nok"],
+                  "properties": {
+                    "year": {"type": "integer", "minimum": 2020, "maximum": 2035},
+                    "cost_code": {
+                      "type": "string",
+                      "enum": ["Personnel", "Equipment", "Other Operating Costs", "Overhead"],
+                      "description": "SkatteFUNN cost category"
+                    },
+                    "amount_nok": {"type": "integer", "minimum": 0}
+                  }
+                }
+              },
+              "cost_specification": {
+                "type": "string",
+                "maxLength": 500,
+                "description": "Elaborate or explain costs if necessary (max 500 characters)"
+              }
+            }
+          }
+        }
+      }
+    },
+    "epf_sources": {
+      "type": "object",
+      "required": ["instance_path"],
+      "properties": {
+        "instance_path": {
+          "type": "string",
+          "description": "Path to EPF instance directory (e.g., docs/EPF/_instances/emergent)"
+        },
+        "required_files": {
+          "type": "object",
+          "properties": {
+            "north_star": {"type": "string", "default": "READY/00_north_star.yaml"},
+            "strategy_formula": {"type": "string", "default": "READY/04_strategy_formula.yaml"},
+            "roadmap_recipe": {"type": "string", "default": "READY/05_roadmap_recipe.yaml"},
+            "value_models_dir": {"type": "string", "default": "FIRE/value_models"}
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "epf_requirements": {
+      "description": "Required EPF data fields for generation",
+      "type": "object",
+      "properties": {
+        "north_star_fields": {
+          "type": "array",
+          "items": {"type": "string"},
+          "default": [
+            "vision.tagline",
+            "mission.what_we_do",
+            "context.problem_space",
+            "vision.long_term_goal"
+          ]
+        },
+        "strategy_formula_fields": {
+          "type": "array",
+          "items": {"type": "string"},
+          "default": [
+            "technology.innovation_areas",
+            "core_competencies",
+            "differentiation.technical"
+          ]
+        },
+        "roadmap_recipe_fields": {
+          "type": "array",
+          "items": {"type": "string"},
+          "default": [
+            "phases",
+            "phases[].name",
+            "phases[].duration_months",
+            "phases[].milestones",
+            "tracks.research_and_development",
+            "tracks.research_and_development.okrs",
+            "tracks.research_and_development.okrs[].key_results",
+            "tracks.research_and_development.okrs[].key_results[].id",
+            "tracks.research_and_development.okrs[].key_results[].description",
+            "tracks.research_and_development.okrs[].key_results[].technical_hypothesis",
+            "tracks.research_and_development.okrs[].key_results[].experiment_design",
+            "tracks.research_and_development.okrs[].key_results[].success_criteria",
+            "tracks.research_and_development.okrs[].key_results[].uncertainty_addressed",
+            "tracks.research_and_development.okrs[].key_results[].trl_start",
+            "tracks.research_and_development.okrs[].key_results[].trl_target",
+            "tracks.research_and_development.okrs[].key_results[].trl_progression",
+            "tracks.research_and_development.okrs[].key_results[].estimated_duration",
+            "tracks.research_and_development.okrs[].key_results[].estimated_budget",
+            "tracks.research_and_development.okrs[].key_results[].budget_breakdown",
+            "tracks.research_and_development.okrs[].key_results[].measurement_method",
+            "tracks.research_and_development.okrs[].key_results[].deliverables"
+          ],
+          "description": "Fields extracted from roadmap_recipe.yaml - includes R&D track with TRL-specific KR fields for SkatteFUNN eligibility (TRL 2-7)"
+        },
+        "value_model_fields": {
+          "type": "array",
+          "items": {"type": "string"},
+          "default": [
+            "problem.description",
+            "solution.technical_approach",
+            "solution.innovation_points"
+          ]
+        }
+      }
+    },
+    "trl_validation_rules": {
+      "description": "Validation rules for Technology Readiness Level (TRL) fields in Key Results. Note: EPF supports full TRL scale (1-9), but SkatteFUNN funding only covers TRL 2-7 (R&D phase). The generator will filter/validate based on funding requirements.",
+      "type": "object",
+      "properties": {
+        "trl_full_range": {
+          "description": "Full TRL scale supported by EPF (1-9): TRL 1 (basic research), TRL 2-3 (concept/POC), TRL 4-6 (validation/demonstration), TRL 7 (operational prototype), TRL 8-9 (production/proven). All EPF roadmaps should use this full scale.",
+          "type": "object",
+          "properties": {
+            "min": {"type": "integer", "const": 1},
+            "max": {"type": "integer", "const": 9}
+          }
+        },
+        "skattefunn_eligible_range": {
+          "description": "SkatteFUNN eligibility: TRL 2-7 only (technology concept → system prototype). TRL 1 (basic research) and TRL 8-9 (production) are NOT eligible for SkatteFUNN funding. Generator will validate that ≥80% of budget is for TRL 2-7 KRs.",
+          "type": "object",
+          "properties": {
+            "min": {"type": "integer", "const": 2},
+            "max": {"type": "integer", "const": 7}
+          }
+        },
+        "trl_start_rules": {
+          "description": "Starting TRL level for the KR work (full range 1-9 in EPF, filtered 2-7 for SkatteFUNN)",
+          "type": "object",
+          "properties": {
+            "type": {"const": "integer"},
+            "minimum": {"const": 1},
+            "maximum": {"const": 9},
+            "required": {"const": true},
+            "validation": {
+              "type": "string",
+              "default": "trl_start must be between 1-9 (full TRL scale). SkatteFUNN generator will filter to 2-7 for funding eligibility."
+            }
+          }
+        },
+        "trl_target_rules": {
+          "description": "Target TRL level after completing the KR (full range 1-9 in EPF, filtered 2-7 for SkatteFUNN)",
+          "type": "object",
+          "properties": {
+            "type": {"const": "integer"},
+            "minimum": {"const": 1},
+            "maximum": {"const": 9},
+            "required": {"const": true},
+            "validation": {
+              "type": "string",
+              "default": "trl_target must be between 1-9 and >= trl_start. SkatteFUNN generator will filter to 2-7 for funding eligibility."
+            }
+          }
+        },
+        "trl_progression_rules": {
+          "description": "Human-readable TRL progression (e.g., 'TRL 3 → TRL 5')",
+          "type": "object",
+          "properties": {
+            "type": {"const": "string"},
+            "pattern": {"const": "^TRL [1-9] → TRL [1-9]$"},
+            "required": {"const": true},
+            "validation": {
+              "type": "string",
+              "default": "trl_progression must match 'TRL X → TRL Y' where X <= Y and both in range 1-9"
+            },
+            "consistency_check": {
+              "type": "string",
+              "default": "trl_progression must be consistent with trl_start and trl_target values"
+            }
+          }
+        },
+        "trl_semantics": {
+          "description": "Semantic meaning of each TRL level (full scale 1-9)",
+          "type": "object",
+          "properties": {
+            "TRL_1": {"const": "Basic principles observed and reported"},
+            "TRL_2": {"const": "Technology concept formulated"},
+            "TRL_3": {"const": "Experimental proof of concept"},
+            "TRL_4": {"const": "Technology validated in lab"},
+            "TRL_5": {"const": "Technology validated in relevant environment"},
+            "TRL_6": {"const": "Technology demonstrated in relevant environment"},
+            "TRL_7": {"const": "System prototype demonstration in operational environment"},
+            "TRL_8": {"const": "System complete and qualified"},
+            "TRL_9": {"const": "Actual system proven in operational environment"}
+          }
+        },
+        "trl_work_interpretation": {
+          "description": "What it means to work at a specific TRL level",
+          "type": "string",
+          "default": "Work to reach a KR happens AT the starting TRL level(s) and ACHIEVES transition to the target TRL level. For example, 'TRL 3 → TRL 5' means work is conducted at TRL 3-4 to demonstrate readiness for TRL 5."
+        }
+      }
+    }
+  }
+}

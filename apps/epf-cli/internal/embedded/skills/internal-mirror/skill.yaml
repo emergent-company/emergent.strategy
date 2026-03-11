@@ -1,0 +1,30 @@
+name: internal-mirror
+version: "1.0.0"
+type: analysis
+phase: READY
+description: "Conducts rapid internal SWOT assessment with strategic focus, honest self-evaluation, and actionable weakness identification."
+
+capability:
+  class: balanced
+  context_budget: medium
+
+requires:
+  artifacts: []
+  optional:
+    - insight_analyses
+  tools:
+    - epf_get_template
+
+output:
+  format: yaml
+  artifact_type: insight_analyses
+
+scope:
+  preferred_tools:
+    - epf_get_template
+    - epf_get_schema
+    - epf_validate_file
+  avoid_tools:
+    - epf_scaffold_generator
+    - epf_init_instance
+    - epf_aim_assess

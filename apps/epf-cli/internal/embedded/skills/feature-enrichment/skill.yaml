@@ -1,0 +1,34 @@
+name: feature-enrichment
+version: "1.0.0"
+type: enrichment
+phase: FIRE
+description: "Upgrades existing feature definitions from v1.x to v2.0 persona structure, converting contexts to richer persona archetypes with transformation journeys."
+
+capability:
+  class: balanced
+  context_budget: medium
+
+requires:
+  artifacts:
+    - feature_definition
+  optional:
+    - personas
+    - north_star
+  tools:
+    - epf_get_schema
+    - epf_validate_file
+
+output:
+  format: yaml
+  artifact_type: feature_definition
+
+scope:
+  preferred_tools:
+    - epf_get_schema
+    - epf_get_template
+    - epf_validate_file
+    - epf_list_features
+    - epf_check_feature_quality
+  avoid_tools:
+    - epf_scaffold_generator
+    - epf_init_instance

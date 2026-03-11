@@ -1,0 +1,29 @@
+name: aim-trigger-assessment
+version: "1.0.0"
+type: analysis
+phase: AIM
+description: "Helps decide whether to run AIM immediately based on ROI analysis, or wait for the scheduled quarterly review. Treats AIM as an investment decision."
+
+capability:
+  class: balanced
+  context_budget: medium
+
+requires:
+  artifacts:
+    - roadmap_recipe
+    - living_reality_assessment
+  optional:
+    - assessment_report
+  tools:
+    - epf_aim_status
+    - epf_aim_okr_progress
+
+scope:
+  preferred_tools:
+    - epf_aim_status
+    - epf_aim_okr_progress
+    - epf_aim_validate_assumptions
+    - epf_get_roadmap_summary
+  avoid_tools:
+    - epf_scaffold_generator
+    - epf_init_instance
