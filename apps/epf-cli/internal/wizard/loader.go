@@ -317,6 +317,17 @@ func (l *Loader) GetWizard(name string) (*WizardInfo, error) {
 		return wizard, nil
 	}
 
+	// Try normalized match (hyphens ↔ underscores)
+	// New-format names use hyphens (feature-definition), legacy uses underscores (feature_definition)
+	normalized := strings.ReplaceAll(name, "-", "_")
+	if wizard, ok := l.wizards[normalized]; ok {
+		return wizard, nil
+	}
+	normalized = strings.ReplaceAll(name, "_", "-")
+	if wizard, ok := l.wizards[normalized]; ok {
+		return wizard, nil
+	}
+
 	// Try case-insensitive match
 	nameLower := strings.ToLower(name)
 	for key, wizard := range l.wizards {
