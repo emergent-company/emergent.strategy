@@ -241,6 +241,43 @@ func (l *Loader) loadFromEmbedded() error {
 			}
 			// Overwrite any legacy agent with same name
 			l.agents[info.Name] = info
+
+			// Also remove the underscore variant so we don't get duplicates
+			// (legacy: "start_epf", new: "start-epf")
+			underscoreName := strings.ReplaceAll(info.Name, "-", "_")
+			if underscoreName != info.Name {
+				delete(l.agents, underscoreName)
+			}
+		}
+	}
+
+	// Remove legacy agents that are now new-format skills (not agents).
+	// Legacy .agent_prompt.md files were used for both agents and skills,
+	// but new format separates them. If something exists as a skill but NOT
+	// as an agent in the new format, remove the legacy agent entry.
+	newAgentSet := make(map[string]bool)
+	if agentNames != nil {
+		for _, name := range agentNames {
+			newAgentSet[name] = true
+			// Also register underscore variant
+			newAgentSet[strings.ReplaceAll(name, "-", "_")] = true
+		}
+	}
+	skillNames, _ := embedded.ListSkills()
+	for _, skillName := range skillNames {
+		// If this skill has no corresponding new-format agent, remove legacy agent entries
+		if !newAgentSet[skillName] {
+			delete(l.agents, skillName)
+			// Also try underscore variant
+			underscoreName := strings.ReplaceAll(skillName, "-", "_")
+			delete(l.agents, underscoreName)
+			// Also try numbered prefix variants (e.g., "trend-scout" -> "01_trend_scout")
+			for agentName := range l.agents {
+				stripped := regexp.MustCompile(`^\d+_`).ReplaceAllString(agentName, "")
+				if stripped == underscoreName || stripped == skillName {
+					delete(l.agents, agentName)
+				}
+			}
 		}
 	}
 

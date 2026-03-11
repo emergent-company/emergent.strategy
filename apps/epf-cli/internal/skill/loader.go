@@ -256,6 +256,13 @@ func (l *Loader) loadFromEmbedded() error {
 			}
 			// Overwrite any legacy skill with same name
 			l.skills[info.Name] = info
+
+			// Also remove the underscore variant so we don't get duplicates
+			// (legacy: "feature_definition", new: "feature-definition")
+			underscoreName := strings.ReplaceAll(info.Name, "-", "_")
+			if underscoreName != info.Name {
+				delete(l.skills, underscoreName)
+			}
 		}
 	}
 
