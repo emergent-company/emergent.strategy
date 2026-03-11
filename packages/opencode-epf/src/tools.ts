@@ -21,12 +21,25 @@ import {
   formatRoadmapDashboard,
 } from "./formatters";
 
+/** Agent activation callbacks from the plugin */
+interface AgentCallbacks {
+  activateAgent: (name: string) => Promise<string>;
+  deactivateAgent: () => string;
+  getActiveAgent: () => string;
+}
+
 /**
  * Create all custom tool definitions.
  *
  * @param instancePath - Pre-detected instance path (may be null if no instance found at startup)
+ * @param pluginVersion - Plugin version string for dashboard display
+ * @param agentCallbacks - Callbacks for agent activation/deactivation
  */
-export function createTools(instancePath: string | null) {
+export function createTools(
+  instancePath: string | null,
+  pluginVersion?: string,
+  agentCallbacks?: AgentCallbacks
+) {
   return {
     epf_dashboard: tool({
       description:
@@ -45,7 +58,7 @@ export function createTools(instancePath: string | null) {
           return `Failed to run health check: ${result.error ?? "unknown error"}`;
         }
 
-        return formatHealthDashboard(result.data, instPath);
+        return formatHealthDashboard(result.data, instPath, pluginVersion);
       },
     }),
 
@@ -115,6 +128,51 @@ export function createTools(instancePath: string | null) {
         }
 
         return formatRoadmapDashboard(okrResult.data, assumptionResult.data);
+      },
+    }),
+
+    // --- Agent Activation Tools ---
+    // These tools allow the AI to activate/deactivate agent personas.
+    // When an agent is activated, its prompt is injected into the system prompt
+    // and tool descriptions are modified to reflect the agent's skill scopes.
+
+    epf_activate_agent: tool({
+      description:
+        "Activate an EPF agent persona. Injects the agent's prompt into the system prompt and applies tool scoping from the agent's required skills. The agent remains active until deactivated.",
+      args: {
+        name: tool.schema
+          .string()
+          .describe("Agent name to activate (e.g., 'pathfinder', 'product_architect')"),
+      },
+      async execute(args) {
+        if (!agentCallbacks) {
+          return "Agent activation not available.";
+        }
+        return agentCallbacks.activateAgent(args.name);
+      },
+    }),
+
+    epf_deactivate_agent: tool({
+      description:
+        "Deactivate the current EPF agent persona. Removes the agent's prompt from the system prompt and restores default tool scoping.",
+      args: {},
+      async execute() {
+        if (!agentCallbacks) {
+          return "Agent activation not available.";
+        }
+        return agentCallbacks.deactivateAgent();
+      },
+    }),
+
+    epf_active_agent: tool({
+      description:
+        "Show the currently active EPF agent, if any. Shows agent name, preferred tools, and avoided tools.",
+      args: {},
+      async execute() {
+        if (!agentCallbacks) {
+          return "Agent activation not available.";
+        }
+        return agentCallbacks.getActiveAgent();
       },
     }),
   };

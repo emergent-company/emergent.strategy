@@ -10,8 +10,9 @@ import type { HealthResult, CoverageResult, OKRProgressResult, AssumptionResult 
 /**
  * Format a health result into a concise toast message.
  *
- * Kept short for toast display (aim for <60 chars).
+ * Kept short for toast display (aim for <80 chars).
  * Prioritizes the most important signal: critical > schema > quality > files valid.
+ * When issues are found, suggests using an agent for guided resolution.
  */
 export function formatHealthToast(health: HealthResult): string {
   const parts: string[] = [];
@@ -41,21 +42,32 @@ export function formatHealthToast(health: HealthResult): string {
     );
   }
 
+  // If issues found, suggest agent-guided resolution
+  if (health.has_errors || health.has_critical) {
+    parts.push("Try: epf_get_agent_for_task");
+  }
+
   return parts.join(" | ") || "EPF instance status unknown";
 }
 
 /**
  * Format a full health result as a markdown dashboard.
+ *
+ * @param pluginVersion - Plugin version string (shown in orchestration status)
  */
 export function formatHealthDashboard(
   health: HealthResult,
-  instancePath: string
+  instancePath: string,
+  pluginVersion?: string
 ): string {
   const lines: string[] = [];
   lines.push("## EPF Instance Health");
   lines.push("");
   lines.push(`**Instance:** \`${instancePath}\``);
   lines.push(`**Overall Status:** ${health.overall_status ?? "unknown"}`);
+  if (pluginVersion) {
+    lines.push(`**Orchestration:** opencode-epf@${pluginVersion} (active guardrails: commit guard, auto-validation, idle health check)`);
+  }
   lines.push("");
 
   // Tiers summary table

@@ -17,7 +17,14 @@
  */
 
 import type { Plugin } from "@opencode-ai/plugin";
-import { findCLI, detectInstance, runHealthCheck, validateFile } from "./cli";
+import {
+  findCLI,
+  detectInstance,
+  runHealthCheck,
+  validateFile,
+  getAgent,
+  type AgentInfo,
+} from "./cli";
 import {
   isGitCommit,
   isEPFFile,
@@ -27,6 +34,17 @@ import {
 } from "./guardrails";
 import { formatHealthToast } from "./formatters";
 import { createTools } from "./tools";
+
+/** Plugin version — used in EPF_PLUGIN_ACTIVE env var */
+const PLUGIN_VERSION = "0.1.0";
+
+/** Active agent state — tracks the currently activated agent persona */
+interface ActiveAgentState {
+  name: string;
+  systemPrompt: string;
+  preferredTools: string[];
+  avoidTools: string[];
+}
 
 export const EPFPlugin: Plugin = async ({ client, directory, worktree }) => {
   // --- Initialization ---
@@ -62,7 +80,17 @@ export const EPFPlugin: Plugin = async ({ client, directory, worktree }) => {
   // Track per-file diagnostic counts for aggregation
   const diagnosticCounts = new Map<string, number>();
 
+  // Active agent state (set via epf_activate_agent tool, cleared via epf_deactivate_agent)
+  let activeAgent: ActiveAgentState | null = null;
+
   return {
+    // --- Shell Environment ---
+    // Set EPF_PLUGIN_ACTIVE so the MCP server can detect plugin presence.
+    // This is read by DetectPlugin() in internal/mcp/plugin.go.
+    "shell.env": async (_input, output) => {
+      output.env.EPF_PLUGIN_ACTIVE = `opencode-epf@${PLUGIN_VERSION}`;
+    },
+
     // --- Event Handler (session.idle, file.edited, lsp.client.diagnostics) ---
     event: async ({ event }) => {
       // Session Idle Health Check
@@ -161,7 +189,116 @@ export const EPFPlugin: Plugin = async ({ client, directory, worktree }) => {
       }
     },
 
+    // --- Post-Write Validation (Decision 13: skill output validation) ---
+    // Automatically validate EPF files after write operations.
+    // This makes validation genuinely automatic rather than instruction-dependent.
+    "tool.execute.after": async (input, _output) => {
+      if (!instancePath) return;
+
+      // Detect write/edit operations to EPF artifact files
+      const filePath =
+        input.tool === "write" || input.tool === "edit"
+          ? input.args?.filePath
+          : null;
+
+      if (typeof filePath !== "string" || !isEPFFile(filePath)) return;
+
+      // Auto-validate the written file
+      const result = await validateFile(filePath);
+      if (!result.ok && result.error) {
+        await client.tui.showToast({
+          body: {
+            title: "EPF Auto-Validation",
+            message: `Validation issues in ${filePath.split("/").pop()}: ${result.error.slice(0, 150)}`,
+            variant: "warning",
+            duration: 5000,
+          },
+        });
+      }
+    },
+
+    // --- Agent Persona Injection (Decision 12: agent activation protocol) ---
+    // When an agent is active, inject its prompt into the system prompt.
+    // This makes the AI genuinely adopt the agent's persona rather than
+    // reading it as a text response.
+    "experimental.chat.system.transform": async (_input, output) => {
+      if (activeAgent) {
+        output.system.push(activeAgent.systemPrompt);
+      }
+    },
+
+    // --- Tool Scoping (Decision 12: step 5 — SCOPE) ---
+    // When a skill is active, modify tool descriptions to highlight preferred
+    // tools and de-emphasize avoided tools.
+    "tool.definition": async (input, output) => {
+      if (!activeAgent) return;
+
+      const toolName = input.toolID;
+
+      if (activeAgent.preferredTools.includes(toolName)) {
+        output.description = `[PREFERRED] ${output.description}`;
+      } else if (activeAgent.avoidTools.includes(toolName)) {
+        output.description = `[AVOID — not needed for current agent] ${output.description}`;
+      }
+    },
+
     // --- Custom Tools ---
-    tool: createTools(instancePath),
+    tool: createTools(instancePath, PLUGIN_VERSION, {
+      activateAgent: async (name: string): Promise<string> => {
+        const result = await getAgent(name);
+        if (!result.ok || !result.data) {
+          return `Failed to load agent '${name}': ${result.error ?? "unknown error"}`;
+        }
+
+        const agent = result.data;
+        const prompt = agent.activation?.system_prompt ?? agent.content ?? "";
+        if (!prompt) {
+          return `Agent '${name}' has no prompt content. Cannot activate.`;
+        }
+
+        // Aggregate tool scopes from skill_scopes
+        const preferred: string[] = [];
+        const avoid: string[] = [];
+        if (agent.activation?.skill_scopes) {
+          for (const scope of agent.activation.skill_scopes) {
+            if (scope.preferred_tools) preferred.push(...scope.preferred_tools);
+            if (scope.avoid_tools) avoid.push(...scope.avoid_tools);
+          }
+        }
+
+        activeAgent = {
+          name: agent.name,
+          systemPrompt: prompt,
+          preferredTools: [...new Set(preferred)],
+          avoidTools: [...new Set(avoid)],
+        };
+
+        const parts = [`Activated agent: ${agent.display_name ?? agent.name}`];
+        if (preferred.length > 0) {
+          parts.push(`Preferred tools: ${preferred.join(", ")}`);
+        }
+        if (avoid.length > 0) {
+          parts.push(`Avoided tools: ${avoid.join(", ")}`);
+        }
+        parts.push("The agent's persona is now active in the system prompt.");
+        return parts.join("\n");
+      },
+
+      deactivateAgent: (): string => {
+        if (!activeAgent) {
+          return "No agent is currently active.";
+        }
+        const name = activeAgent.name;
+        activeAgent = null;
+        return `Deactivated agent: ${name}. System prompt restored to default.`;
+      },
+
+      getActiveAgent: (): string => {
+        if (!activeAgent) {
+          return "No agent is currently active. Use epf_activate_agent to activate one.";
+        }
+        return `Active agent: ${activeAgent.name}\nPreferred tools: ${activeAgent.preferredTools.join(", ") || "none"}\nAvoided tools: ${activeAgent.avoidTools.join(", ") || "none"}`;
+      },
+    }),
   };
 };

@@ -921,3 +921,254 @@ When the plugin IS detected, this suffix is omitted — the plugin enforces thes
 5. **Skill composition:** Should skills be able to declare dependencies on other skills? (e.g., "roadmap-planning" skill depends on "strategy-formulation" skill being completed first.)
 
 6. **Session initialization protocol:** Should `epf_agent_instructions` evolve into a `get_project_context()` tool that returns not just instructions but also the recommended agent, primary skills, and project mode? The external research proposes a "search-first" session initialization where the CLI tells the host what mode to activate.
+
+## Migration Guide for canonical-epf Maintainers
+
+This section documents the Phase 2 migration from the old directory structure (`wizards/`, `outputs/`) to the new structure (`agents/`, `skills/`). Phase 1 (this proposal) builds the new loaders alongside the old ones — no canonical-epf changes are needed yet.
+
+### When to Migrate
+
+Migrate when:
+- All Phase 1 code is merged and released
+- The new agent/skill MCP tools are stable
+- You're ready to take advantage of new features (capability classes, tool scoping, MCP Resources/Prompts)
+
+There is **no urgency** to migrate. The old formats (`generator.yaml`, `.wizard.md`, `.agent_prompt.md`) are permanently supported.
+
+### Directory Structure Changes
+
+```
+# Before (current canonical-epf)
+wizards/
+├── start_epf.agent_prompt.md
+├── pathfinder.agent_prompt.md
+├── pathfinder.wizard.md
+├── feature_definition.wizard.md
+├── ...
+outputs/
+├── context-sheet/
+│   ├── generator.yaml
+│   ├── wizard.instructions.md
+│   ├── schema.json
+│   └── validator.sh
+├── investor-memo/
+│   └── ...
+
+# After (new canonical-epf)
+agents/
+├── start-epf/
+│   ├── agent.yaml         # Structured manifest (new)
+│   └── prompt.md           # Agent persona prompt (was .agent_prompt.md)
+├── pathfinder/
+│   ├── agent.yaml
+│   └── prompt.md
+├── ...
+skills/
+├── feature-definition/
+│   ├── skill.yaml          # Structured manifest (new)
+│   └── prompt.md           # Skill instructions (was .wizard.md)
+├── context-sheet/
+│   ├── skill.yaml          # Was generator.yaml (alias still works)
+│   ├── prompt.md           # Was wizard.instructions.md (alias still works)
+│   ├── schema.json
+│   └── validator.sh
+├── ...
+```
+
+### Migration Steps
+
+1. **Create `agents/` directory** — For each `.agent_prompt.md` file, create a directory with `agent.yaml` + `prompt.md`
+2. **Create `skills/` directory** — For each `.wizard.md` file, create a directory with `skill.yaml` + `prompt.md`. For each `outputs/*/` directory, move to `skills/*/` (the old file names still work)
+3. **Write `agent.yaml` manifests** — Add structured metadata (type, capability, required_skills, trigger_phrases, keywords)
+4. **Write `skill.yaml` manifests** — Add structured metadata (type, capability, scope, required_artifacts)
+5. **Update `sync-embedded.sh`** — Add syncing from `agents/` and `skills/` directories
+6. **Keep old directories temporarily** — The loaders scan both old and new locations. Remove old directories only after verifying everything works.
+
+### Key Rules
+
+- `generator.yaml` is a **permanent alias** for `skill.yaml` — generators in `generators/` directories will always work
+- `wizard.instructions.md` is a **permanent alias** for `prompt.md` — old prompt file names will always work
+- `{instance}/generators/` is **permanently scanned** alongside `{instance}/skills/`
+- The `epf_scaffold_generator` MCP tool always creates files with OLD names (backward compat)
+- Agent/skill loaders read BOTH old and new formats — no breaking change
+
+## Phase 2 Rollout Plan
+
+Phase 2 migrates canonical-epf content and updates the embedded pipeline. It is a **separate proposal** to be created after Phase 1 is merged and released.
+
+### Preconditions
+
+1. Phase 1 (`refactor/agents-and-skills`) merged to `main` in emergent-strategy
+2. New epf-cli released with agent/skill infrastructure
+3. Validated that the new MCP tools work correctly with the old canonical-epf format
+
+### Branch Strategy
+
+```
+emergent-strategy (this repo)
+├── main                          ← Phase 1 merged here
+└── phase2/canonical-migration    ← Section 5 tasks + submodule pointer
+
+emergent-epf (canonical-epf, git submodule)
+├── main                          ← Old structure (wizards/, outputs/)
+└── refactor/agents-and-skills    ← New structure (agents/, skills/)
+```
+
+**Why separate branches in canonical-epf:**
+- Older epf-cli binaries (pre-Phase 1) only read `wizards/` and `outputs/`. If canonical-epf `main` switches to `agents/` + `skills/`, those older binaries break.
+- A feature branch in canonical-epf lets us test the new structure without affecting anyone using the old CLI.
+- Once the new epf-cli is the only supported version, merge the canonical-epf branch.
+
+### Execution Sequence
+
+1. **Create canonical-epf feature branch**
+   ```bash
+   cd docs/EPF/_instances/emergent
+   git checkout -b refactor/agents-and-skills
+   ```
+
+2. **Restructure content** — For each wizard/generator, create the new directory structure:
+   - `start_epf.agent_prompt.md` → `agents/start-epf/prompt.md` + `agents/start-epf/agent.yaml`
+   - `pathfinder.agent_prompt.md` + `pathfinder.wizard.md` → `agents/pathfinder/prompt.md` + `agents/pathfinder/agent.yaml` + `skills/pathfinder-analysis/prompt.md` + `skills/pathfinder-analysis/skill.yaml`
+   - `outputs/context-sheet/` → `skills/context-sheet/` (keep `generator.yaml` + `wizard.instructions.md` as-is, they're permanent aliases)
+
+3. **Write structured manifests** — Create `agent.yaml` for each agent and `skill.yaml` for each skill. These add capability classes, tool scoping, trigger phrases, and other metadata that was previously regex-parsed from markdown.
+
+4. **Update embedded pipeline** (Section 5 tasks in emergent-strategy):
+   - `internal/embedded/embedded.go` — Add `agents` embed.FS
+   - `scripts/sync-embedded.sh` — Sync from `agents/` and `skills/` with fallback to `wizards/` and `outputs/`
+   - `MANIFEST.txt` — Include new directory structure
+
+5. **Point submodule at feature branch for testing**
+   ```bash
+   cd docs/EPF/_instances/emergent
+   git checkout refactor/agents-and-skills
+   cd ../../../..
+   # Test: go build && go test ./...
+   ```
+
+6. **Validate end-to-end**
+   - `epf-cli agents list` shows agents from new directories
+   - `epf-cli skills list` shows skills from new directories
+   - MCP tools return structured metadata from `agent.yaml`/`skill.yaml`
+   - Embedded content loads correctly
+   - Old format files in `wizards/`/`outputs/` still work if present
+
+7. **Merge both branches**
+   - Merge canonical-epf `refactor/agents-and-skills` → `main`
+   - Point emergent-strategy submodule at canonical-epf `main`
+   - Merge emergent-strategy `phase2/canonical-migration` → `main`
+   - Release new epf-cli
+
+### What Phase 2 Unlocks
+
+Features that only work with structured `agent.yaml`/`skill.yaml` manifests:
+
+| Feature | Old Format | New Format |
+|---------|-----------|------------|
+| Capability classes | Not available | `capability.class: high-reasoning` for model tier routing |
+| Tool scoping metadata | Not available | `scope.preferred_tools` / `scope.avoid_tools` in structured YAML |
+| Trigger phrases | Regex-parsed from markdown | Structured list in `agent.yaml` |
+| Keyword matching | Regex-parsed from markdown | Structured list in `agent.yaml` |
+| Required skills | Not available | `required_skills` list in `agent.yaml` |
+| Skill prerequisites | Only for generators | `requires.artifacts` in `skill.yaml` for all skill types |
+| Skill output validation | Only for generators | `output.schema` / `output.validator` for all skill types |
+
+Until Phase 2, all of these features work in a degraded mode: the loaders extract what they can from the old markdown format, and structured manifests from user-created agents/skills work fully.
+
+## Platform Plugin Development Guide
+
+This section describes how to build an EPF orchestration plugin for any AI host (Cursor, Claude Desktop, VS Code extensions, etc.). The activation protocol is standardized; only the platform-specific mechanisms differ.
+
+### What the MCP Server Provides (All Platforms)
+
+Your plugin does NOT need to reimplement any EPF logic. The MCP server provides everything:
+
+| MCP Tool | Purpose |
+|----------|---------|
+| `epf_get_agent_for_task(task)` | Find the best agent for a task |
+| `epf_get_agent(name)` | Get agent manifest + prompt + skill scopes |
+| `epf_get_skill(name)` | Get skill prompt + validation schema |
+| `epf_validate_skill_output(name, content)` | Validate output against skill schema |
+| `epf_validate_file(path)` | Validate any EPF YAML file |
+| `epf_health_check(instance_path)` | Run comprehensive health check |
+| `epf_agent_instructions()` | Get full agent instructions with plugin detection status |
+
+MCP Prompts (`get_prompt("pathfinder")`) and Resources (`read_resource("strategy://skills/context-sheet")`) provide native MCP-level access for hosts that support them.
+
+### Activation Protocol (7 Steps)
+
+Every platform plugin follows this sequence:
+
+```
+1. DETECT   — Detect task context (user message, file edit, idle, explicit command)
+2. MATCH    — Call epf_get_agent_for_task(task) to find best agent
+3. LOAD     — Call epf_get_agent(name) to get manifest + prompt
+4. INJECT   — Inject agent prompt into system prompt (platform-specific)
+5. SCOPE    — Apply tool scoping from agent's skill_scopes (platform-specific)
+6. EXECUTE  — Agent operates with injected persona and scoped tools
+7. VALIDATE — Validate outputs using epf_validate_file or epf_validate_skill_output
+```
+
+### Platform-Specific Mechanisms
+
+| Step | OpenCode | Cursor (future) | Claude Desktop (future) |
+|------|----------|-----------------|-------------------------|
+| **INJECT** | `experimental.chat.system.transform` | Extension API `workspace.onDidChangeConfiguration` | MCP `get_prompt()` native support |
+| **SCOPE** | `tool.definition` hook modifies descriptions | N/A (no tool scoping API) | N/A |
+| **VALIDATE** | `tool.execute.after` hook on write ops | Post-save extension handler | N/A (manual) |
+| **ENV** | `shell.env` sets `EPF_PLUGIN_ACTIVE` | Extension sets env var | N/A |
+
+### Minimum Viable Plugin
+
+A minimal plugin needs only two things:
+
+1. **Set `EPF_PLUGIN_ACTIVE=your-plugin@version`** — So the MCP server knows a plugin is present and adapts responses (omits standalone protocols from agent prompts)
+2. **Auto-validate on file write** — Intercept write operations to EPF YAML files and call `epf_validate_file`
+
+Everything else (agent activation, tool scoping, health dashboard) is additive and enhances the experience.
+
+### Testing Your Plugin
+
+1. Check `epf_agent_instructions` response — the `orchestration` section should show `plugin_detected: true`
+2. Call `epf_get_agent("pathfinder")` — the response should NOT contain standalone enforcement protocols
+3. Write an EPF YAML file — your validation hook should fire
+4. Run `epf_dashboard` — should show your plugin version in the orchestration status line
+
+## Standalone vs Plugin-Assisted Experience
+
+This table documents the differences between running with just the MCP server (standalone) vs with the opencode-epf plugin.
+
+### Capability Comparison
+
+| Capability | Standalone (MCP only) | With Plugin |
+|---|---|---|
+| **Agent persona** | AI reads prompt as text, must self-apply | System prompt injection — AI genuinely adopts persona |
+| **Validation** | AI must remember to call `epf_validate_file` | Automatic on every file write |
+| **Commit guard** | Agent prompt says "validate before commit" | Plugin intercepts `git commit` and blocks if errors |
+| **Health check** | AI must call `epf_health_check` explicitly | Toast on session idle |
+| **Tool scoping** | Text-based hints in skill response (PREFERRED/AVOID) | `tool.definition` modifies tool descriptions at runtime |
+| **Plugin advisory** | `orchestration` section suggests installation | N/A (already installed) |
+| **Diagnostic aggregation** | Not available | LSP diagnostic tracking with threshold toasts |
+
+### How Standalone Mode Compensates
+
+The MCP server compensates for the missing plugin through:
+
+1. **POST-CONDITION directives** — Tool descriptions include "After calling this tool, you MUST call X" instructions
+2. **Standalone prompt suffix** — `epf_get_agent` appends validation, pre-commit, and tool scope protocols to agent prompts
+3. **Tool suggestions** — `tool_suggestions.go` guides agents to "call X next" after each tool call
+4. **Text-based tool scope** — `epf_get_skill` appends "PREFERRED TOOLS" and "AVOID TOOLS" sections
+5. **MCP Prompts** — For hosts that support MCP Prompts natively (Claude Desktop), `get_prompt("pathfinder")` delivers the persona as a system prompt without any plugin
+
+### Quality Delta
+
+| Metric | Standalone | With Plugin |
+|--------|-----------|-------------|
+| Validation consistency | ~85% (AI sometimes forgets) | ~100% (mechanical) |
+| Persona adherence | Variable (depends on model) | High (system prompt injection) |
+| Pre-commit safety | Low (instruction-dependent) | High (fail-safe) |
+| Tool focus | Moderate (text hints) | High (description modification) |
+| User awareness | Low (must read orchestration section) | High (proactive toasts) |
+
+The standalone experience is **good enough** for productive work. The plugin makes it **reliable and consistent**.

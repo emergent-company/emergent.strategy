@@ -544,6 +544,45 @@ export async function runAssumptionValidation(
   }
 }
 
+/** Agent info from `epf-cli agents show <name> --json` */
+export interface AgentInfo {
+  name: string;
+  type: string;
+  display_name: string;
+  description: string;
+  content?: string;
+  required_skills?: string[];
+  activation?: {
+    system_prompt: string;
+    required_tools?: string[];
+    skill_scopes?: Array<{
+      skill: string;
+      preferred_tools?: string[];
+      avoid_tools?: string[];
+    }>;
+  };
+}
+
+/**
+ * Get agent details by name.
+ * Uses: epf-cli agents show <name> --json
+ */
+export async function getAgent(
+  name: string
+): Promise<CLIJsonResult<AgentInfo>> {
+  return execCLIJson<AgentInfo>(["agents", "show", name, "--json"]);
+}
+
+/**
+ * Recommend an agent for a task.
+ * Uses: epf-cli agents recommend <task> --json
+ */
+export async function recommendAgent(
+  task: string
+): Promise<CLIJsonResult<{ recommended_agent: string; confidence: string; reason: string }>> {
+  return execCLIJson(["agents", "recommend", task, "--json"]);
+}
+
 /**
  * Validate a single EPF file.
  * Uses: epf-cli validate <file_path> --ai-friendly
