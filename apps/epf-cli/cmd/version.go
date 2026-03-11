@@ -24,11 +24,17 @@ var versionCmd = &cobra.Command{
 			schemas, _ := embedded.ListSchemas()
 			fmt.Printf("  schemas: %d\n", len(schemas))
 
+			agents, _ := embedded.ListAgents()
+			fmt.Printf("  agents:  %d\n", len(agents))
+
+			skills, _ := embedded.ListSkills()
+			fmt.Printf("  skills:  %d\n", len(skills))
+
 			wizards, _ := embedded.ListWizards()
-			fmt.Printf("  wizards: %d\n", len(wizards))
+			fmt.Printf("  wizards: %d (legacy)\n", len(wizards))
 
 			generators, _ := embedded.ListGenerators()
-			fmt.Printf("  generators: %d\n", len(generators))
+			fmt.Printf("  generators: %d (legacy)\n", len(generators))
 		} else {
 			fmt.Printf("\nNo embedded EPF artifacts (external framework required)\n")
 		}
