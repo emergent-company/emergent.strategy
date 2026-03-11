@@ -38,16 +38,23 @@ cd apps/epf-cli && go test ./...
 
 ## EPF CLI MCP Server
 
-The EPF CLI includes an MCP server for AI agent integration. It provides tools for:
+The EPF CLI includes an MCP server for AI agent integration. It provides:
 
-- Validating EPF YAML files
-- Managing EPF instances
-- Generating outputs from EPF data
-- Health checking EPF instances
+- **Agents** — AI personas that orchestrate EPF workflows (replacing wizards)
+- **Skills** — Bundled capabilities with prompts, validation, and tools (replacing wizards + generators)
+- **Validation** — Schema validation, relationship checks, content readiness
+- **Strategy queries** — Vision, personas, roadmap, competitive context
+- **Instance management** — Health checks, scaffolding, migration
+
+### Three-Layer Architecture
+
+1. **CLI** (`epf-cli`) — Core logic (Go)
+2. **MCP Server** (`epf-cli serve`) — Universal agent interface
+3. **Plugin** (`opencode-epf`) — Platform-specific orchestration (TypeScript)
 
 ## Custom MCP Tools
 
-- **epf-cli** - EPF framework tools (validation, generation, instance management)
+- **epf-cli** - EPF framework tools (agents, skills, validation, generation, instance management)
 - **context7** - Library documentation lookup
 - **brave-search** - Web search
 - **chrome-devtools** - Browser debugging

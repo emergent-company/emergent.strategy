@@ -39,30 +39,30 @@ func generateHealthCheckSuggestions(result *HealthCheckSummary) []ToolCallSugges
 	var suggestions []ToolCallSuggestion
 	instancePath := result.InstancePath
 
-	// Value Model Quality < 80 → wizard for value model structure
+	// Value Model Quality < 80 → agent/wizard for value model structure
 	if result.ValueModelQuality != nil && result.ValueModelQuality.OverallScore < 80 {
 		suggestions = append(suggestions, ToolCallSuggestion{
-			Tool:     "epf_get_wizard_for_task",
+			Tool:     "epf_get_agent_for_task",
 			Params:   map[string]string{"task": "fix value model quality issues"},
-			Reason:   fmt.Sprintf("Value model quality score %d/100 is below the 80 threshold — consult the value model wizard before making changes", result.ValueModelQuality.OverallScore),
+			Reason:   fmt.Sprintf("Value model quality score %d/100 is below the 80 threshold — consult an agent or wizard before making changes", result.ValueModelQuality.OverallScore),
 			Priority: "urgent",
 		})
 	}
 
-	// Feature Quality < 80% → wizard for feature quality
+	// Feature Quality < 80% → agent/wizard for feature quality
 	if result.FeatureQuality != nil && result.FeatureQuality.AverageScore < 80 {
 		suggestions = append(suggestions, ToolCallSuggestion{
-			Tool:     "epf_get_wizard_for_task",
+			Tool:     "epf_get_agent_for_task",
 			Params:   map[string]string{"task": "review feature quality"},
 			Reason:   fmt.Sprintf("Feature quality average score %.0f%% is below the 80%% threshold", result.FeatureQuality.AverageScore),
 			Priority: "urgent",
 		})
 	}
 
-	// Content readiness issues → wizard for completing artifacts
+	// Content readiness issues → agent/wizard for completing artifacts
 	if result.ContentReadiness != nil && result.ContentReadiness.Score < 80 {
 		suggestions = append(suggestions, ToolCallSuggestion{
-			Tool:     "epf_get_wizard_for_task",
+			Tool:     "epf_get_agent_for_task",
 			Params:   map[string]string{"task": "complete EPF artifacts"},
 			Reason:   fmt.Sprintf("Content readiness score %d/100 — placeholder content (TBD/TODO) remains in artifacts", result.ContentReadiness.Score),
 			Priority: "recommended",
@@ -275,11 +275,11 @@ func classifyStructuralErrors(aiResult *validator.AIFriendlyResult) (isStructura
 			artifactType = "EPF artifact"
 		}
 		suggestion = &ToolCallSuggestion{
-			Tool:   "epf_get_wizard_for_task",
+			Tool:   "epf_get_agent_for_task",
 			Params: map[string]string{"task": fmt.Sprintf("fix %s structure", artifactType)},
 			Reason: fmt.Sprintf(
 				"Structural issues detected (%d critical errors, %d type mismatches in %d total errors). "+
-					"Do NOT brute-force these fixes — consult the wizard first to understand the correct structure.",
+					"Do NOT brute-force these fixes — consult an agent or wizard first to understand the correct structure.",
 				criticalCount, typeMismatches, aiResult.ErrorCount),
 			Priority: "urgent",
 		}
@@ -294,18 +294,24 @@ func getToolTiers() []ToolTierInfo {
 		{
 			Tier:  1,
 			Label: "Essential",
-			Description: "Entry points — always start here. These 3 tools are the only ones you need to begin any EPF workflow. " +
+			Description: "Entry points — always start here. These tools are the only ones you need to begin any EPF workflow. " +
 				"Their responses will guide you to the right Tier 2 or Tier 3 tools via required_next_tool_calls.",
-			Tools: []string{"epf_health_check", "epf_get_wizard_for_task", "epf_validate_file"},
+			Tools: []string{
+				"epf_health_check",
+				"epf_get_wizard_for_task", "epf_get_agent_for_task",
+				"epf_validate_file",
+			},
 		},
 		{
 			Tier:  2,
 			Label: "Guided",
 			Description: "Use after Tier 1 directs you here, or when querying strategy context. " +
-				"These tools provide templates, schemas, wizard content, and strategic information.",
+				"These tools provide templates, schemas, wizard/agent/skill content, and strategic information.",
 			Tools: []string{
-				"epf_get_wizard", "epf_get_template", "epf_get_schema",
+				"epf_get_wizard", "epf_get_agent", "epf_get_skill",
+				"epf_get_template", "epf_get_schema",
 				"epf_validate_with_plan", "epf_validate_section", "epf_get_section_example",
+				"epf_list_agent_skills",
 				"epf_get_product_vision", "epf_get_personas", "epf_get_persona_details",
 				"epf_get_roadmap_summary", "epf_search_strategy",
 				"epf_get_competitive_position", "epf_get_value_propositions",
@@ -325,7 +331,7 @@ func getToolTiers() []ToolTierInfo {
 				"epf_check_instance", "epf_check_content_readiness", "epf_check_feature_quality",
 				"epf_batch_validate", "epf_check_migration_status", "epf_get_migration_guide",
 				"epf_list_definitions", "epf_get_definition",
-				"epf_list_features", "epf_check_generator_prereqs",
+				"epf_list_features", "epf_check_generator_prereqs", "epf_check_skill_prereqs",
 				"epf_explain_value_path", "epf_get_strategic_context", "epf_analyze_coverage",
 				"epf_validate_relationships", "epf_suggest_relationships",
 				"epf_add_implementation_reference", "epf_update_capability_maturity",
@@ -335,6 +341,9 @@ func getToolTiers() []ToolTierInfo {
 				"epf_generate_report", "epf_fix_file",
 				"epf_init_instance", "epf_sync_canonical", "epf_migrate_definitions",
 				"epf_list_generators", "epf_get_generator", "epf_scaffold_generator",
+				"epf_list_agents", "epf_list_skills",
+				"epf_scaffold_agent", "epf_scaffold_skill",
+				"epf_validate_skill_output",
 				"epf_list_wizards",
 				"epf_list_agent_instructions", "epf_get_agent_instructions",
 				"epf_agent_instructions", "epf_locate_instance", "epf_reload_instance",
@@ -395,6 +404,21 @@ func suggestNextToolForLoop(toolName string) string {
 		return "epf_get_template"
 	case "epf_get_template":
 		return "epf_validate_file"
+	// Agent/skill workflow loop breakers
+	case "epf_get_agent_for_task":
+		return "epf_get_agent"
+	case "epf_get_agent":
+		return "epf_get_skill"
+	case "epf_get_skill":
+		return "epf_validate_skill_output"
+	case "epf_list_agents":
+		return "epf_get_agent"
+	case "epf_list_skills":
+		return "epf_get_skill"
+	case "epf_validate_skill_output":
+		return "epf_validate_file"
+	case "epf_list_agent_skills":
+		return "epf_get_skill"
 	default:
 		return ""
 	}
@@ -440,8 +464,8 @@ func BuildValidationPreamble(isStructural bool, suggestion *ToolCallSuggestion, 
 }
 
 // BuildWizardResponsePreamble generates a text preamble for wizard-related
-// tool responses (epf_get_wizard, epf_get_wizard_for_task, epf_get_template).
-// This reminds models to validate after following the wizard.
+// and agent/skill tool responses. This reminds models to validate after
+// following the wizard or agent instructions.
 func BuildWizardResponsePreamble(toolName string, extraContext string) string {
 	switch toolName {
 	case "epf_get_wizard":
@@ -456,6 +480,21 @@ func BuildWizardResponsePreamble(toolName string, extraContext string) string {
 				"Do NOT call epf_health_check or epf_get_wizard_for_task again — you already have what you need.\n"
 		}
 		return "" // No preamble needed when model still needs to call get_wizard
+	case "epf_get_agent_for_task":
+		if extraContext != "" {
+			return "IMPORTANT: Agent details are included below. Your next steps are:\n" +
+				"1. Follow the agent's instructions and use its required skills.\n" +
+				"2. Call epf_get_skill for each skill you need to execute.\n" +
+				"3. Call epf_validate_file to validate any resulting artifacts.\n" +
+				"Do NOT call epf_health_check or epf_get_agent_for_task again — you already have what you need.\n"
+		}
+		return "" // No preamble needed when model still needs to call get_agent
+	case "epf_get_agent":
+		return "IMPORTANT: After following this agent's instructions, " +
+			"you MUST call epf_validate_file to validate any artifacts you create or modify.\n"
+	case "epf_get_skill":
+		return "IMPORTANT: After executing this skill and producing output, " +
+			"call epf_validate_skill_output or epf_validate_file to validate the result.\n"
 	case "epf_get_template":
 		return "IMPORTANT: After filling in this template following wizard guidance, " +
 			"you MUST call epf_validate_file to validate the result.\n"
