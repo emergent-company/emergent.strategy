@@ -188,23 +188,29 @@ func getAgentTypeIcon(t agent.AgentType) string {
 
 func printAgentsJSON(agents []*agent.AgentInfo) {
 	type agentItem struct {
-		Name        string `json:"name"`
-		Type        string `json:"type"`
-		Phase       string `json:"phase,omitempty"`
-		DisplayName string `json:"display_name,omitempty"`
-		Description string `json:"description,omitempty"`
-		Source      string `json:"source"`
+		Name           string                `json:"name"`
+		Type           string                `json:"type"`
+		Phase          string                `json:"phase,omitempty"`
+		DisplayName    string                `json:"display_name,omitempty"`
+		Description    string                `json:"description,omitempty"`
+		Source         string                `json:"source"`
+		Capability     *agent.CapabilitySpec `json:"capability,omitempty"`
+		RequiredSkills int                   `json:"required_skills"`
+		OptionalSkills int                   `json:"optional_skills"`
 	}
 
 	items := make([]agentItem, 0, len(agents))
 	for _, a := range agents {
 		items = append(items, agentItem{
-			Name:        a.Name,
-			Type:        string(a.Type),
-			Phase:       string(a.Phase),
-			DisplayName: a.DisplayName,
-			Description: a.Description,
-			Source:      string(a.Source),
+			Name:           a.Name,
+			Type:           string(a.Type),
+			Phase:          string(a.Phase),
+			DisplayName:    a.DisplayName,
+			Description:    a.Description,
+			Source:         string(a.Source),
+			Capability:     a.Capability,
+			RequiredSkills: len(a.RequiredSkills),
+			OptionalSkills: len(a.OptionalSkills),
 		})
 	}
 
@@ -285,25 +291,31 @@ Examples:
 
 func printAgentJSON(a *agent.AgentInfo) {
 	response := struct {
-		Name         string   `json:"name"`
-		Type         string   `json:"type"`
-		Phase        string   `json:"phase,omitempty"`
-		DisplayName  string   `json:"display_name,omitempty"`
-		Description  string   `json:"description,omitempty"`
-		Source       string   `json:"source"`
-		Triggers     []string `json:"triggers,omitempty"`
-		LegacyFormat bool     `json:"legacy_format,omitempty"`
-		Content      string   `json:"content"`
+		Name           string                `json:"name"`
+		Type           string                `json:"type"`
+		Phase          string                `json:"phase,omitempty"`
+		DisplayName    string                `json:"display_name,omitempty"`
+		Description    string                `json:"description,omitempty"`
+		Source         string                `json:"source"`
+		Capability     *agent.CapabilitySpec `json:"capability,omitempty"`
+		Triggers       []string              `json:"triggers,omitempty"`
+		RequiredSkills []string              `json:"required_skills,omitempty"`
+		OptionalSkills []string              `json:"optional_skills,omitempty"`
+		LegacyFormat   bool                  `json:"legacy_format,omitempty"`
+		Content        string                `json:"content"`
 	}{
-		Name:         a.Name,
-		Type:         string(a.Type),
-		Phase:        string(a.Phase),
-		DisplayName:  a.DisplayName,
-		Description:  a.Description,
-		Source:       string(a.Source),
-		Triggers:     a.TriggerPhrases,
-		LegacyFormat: a.LegacyFormat,
-		Content:      a.Content,
+		Name:           a.Name,
+		Type:           string(a.Type),
+		Phase:          string(a.Phase),
+		DisplayName:    a.DisplayName,
+		Description:    a.Description,
+		Source:         string(a.Source),
+		Capability:     a.Capability,
+		Triggers:       a.TriggerPhrases,
+		RequiredSkills: a.RequiredSkills,
+		OptionalSkills: a.OptionalSkills,
+		LegacyFormat:   a.LegacyFormat,
+		Content:        a.Content,
 	}
 	jsonBytes, _ := json.MarshalIndent(response, "", "  ")
 	fmt.Println(string(jsonBytes))

@@ -2301,7 +2301,7 @@ func TestHandleListAgentSkills(t *testing.T) {
 	ctx := context.Background()
 	request := mcp.CallToolRequest{}
 	request.Params.Arguments = map[string]interface{}{
-		"name": agents[0].Name,
+		"agent": agents[0].Name,
 	}
 
 	result, err := server.handleListAgentSkills(ctx, request)
