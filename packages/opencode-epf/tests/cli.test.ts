@@ -95,10 +95,9 @@ describe("execCLIJson", () => {
       return;
     }
 
-    // Use locate which supports --json
+    // Use locate which supports --json (positional path arg, not --path flag)
     const result = await execCLIJson([
       "locate",
-      "--path",
       "/tmp",
       "--require-anchor",
       "--json",

@@ -25,14 +25,26 @@ export interface CLIJsonResult<T = unknown> {
 export interface EPFInstance {
   path: string;
   status: string;
-  confidence: number;
+  confidence: string;
+  anchor?: {
+    product_name?: string;
+    epf_version?: string;
+  };
+  markers?: string[];
+  issues?: string[];
+  suggestions?: string[];
 }
 
-/** Locate result from `epf-cli locate --json` */
+/** Locate result from `epf-cli locate --json` (current CLI format) */
 export interface LocateResult {
-  valid?: EPFInstance[];
-  legacy?: EPFInstance[];
-  broken?: EPFInstance[];
+  search_path: string;
+  instances: EPFInstance[];
+  summary: {
+    total: number;
+    valid: number;
+    legacy: number;
+    broken: number;
+  };
 }
 
 /** Health tier from epf-cli health --json */
@@ -346,7 +358,6 @@ export async function detectInstance(
 
   const result = await execCLI([
     "locate",
-    "--path",
     directory,
     "--require-anchor",
     "--json",
@@ -359,10 +370,20 @@ export async function detectInstance(
 
   try {
     const data = JSON.parse(result.stdout.trim()) as LocateResult;
-    const valid = data.valid;
-    if (valid && valid.length > 0) {
-      // Pick the highest-confidence instance
-      valid.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
+    // Filter to valid instances only
+    const valid = data.instances?.filter((i) => i.status === "valid") ?? [];
+    if (valid.length > 0) {
+      // Pick the highest-confidence instance (high > medium > low)
+      const confidenceOrder: Record<string, number> = {
+        high: 3,
+        medium: 2,
+        low: 1,
+      };
+      valid.sort(
+        (a, b) =>
+          (confidenceOrder[b.confidence] ?? 0) -
+          (confidenceOrder[a.confidence] ?? 0)
+      );
       cachedInstancePath = valid[0].path;
       return cachedInstancePath;
     }
