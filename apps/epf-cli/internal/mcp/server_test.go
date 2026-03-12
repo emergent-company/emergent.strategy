@@ -1474,10 +1474,14 @@ func TestToolDescriptionsContainPostCondition(t *testing.T) {
 }
 
 // =============================================================================
-// Section 5: Anti-loop detection server integration (task 5.6)
+// Section 5: Anti-loop detection and audit log (migrated to audit_test.go)
 // =============================================================================
 
-func TestCheckToolCallLoop_BelowThreshold(t *testing.T) {
+// Tests for checkToolCallLoop, ResetToolCallCounts, and audit log functionality
+// have been moved to audit_test.go which tests the AuditLog type directly.
+// The Server delegates to AuditLog for all call tracking.
+
+func TestServerHasAuditLog(t *testing.T) {
 	schemasDir := findSchemasDir()
 	if schemasDir == "" {
 		t.Skip("Schemas directory not found")
@@ -1488,176 +1492,12 @@ func TestCheckToolCallLoop_BelowThreshold(t *testing.T) {
 		t.Fatalf("NewServer failed: %v", err)
 	}
 
-	params := map[string]string{"instance_path": "/test/path"}
-
-	// First call — should return nil (count=1, threshold=2)
-	warning := server.checkToolCallLoop("epf_health_check", params)
-	if warning != nil {
-		t.Error("Expected nil warning on first call")
+	if server.auditLog == nil {
+		t.Fatal("Expected auditLog to be initialized")
 	}
 
-	// Second call — should return nil (count=2, threshold=2)
-	warning = server.checkToolCallLoop("epf_health_check", params)
-	if warning != nil {
-		t.Error("Expected nil warning on second call")
-	}
-}
-
-func TestCheckToolCallLoop_ExceedsThreshold(t *testing.T) {
-	schemasDir := findSchemasDir()
-	if schemasDir == "" {
-		t.Skip("Schemas directory not found")
-	}
-
-	server, err := NewServer(schemasDir)
-	if err != nil {
-		t.Fatalf("NewServer failed: %v", err)
-	}
-
-	params := map[string]string{"instance_path": "/test/path"}
-
-	// First two calls — no warning
-	server.checkToolCallLoop("epf_health_check", params)
-	server.checkToolCallLoop("epf_health_check", params)
-
-	// Third call — should trigger warning (count=3 > threshold=2)
-	warning := server.checkToolCallLoop("epf_health_check", params)
-	if warning == nil {
-		t.Fatal("Expected warning on third call")
-	}
-	if warning.CallCount != 3 {
-		t.Errorf("Expected CallCount=3, got %d", warning.CallCount)
-	}
-	if warning.ToolName != "epf_health_check" {
-		t.Errorf("Expected ToolName='epf_health_check', got %q", warning.ToolName)
-	}
-	if warning.SuggestedNext != "epf_get_wizard_for_task" {
-		t.Errorf("Expected SuggestedNext='epf_get_wizard_for_task', got %q", warning.SuggestedNext)
-	}
-}
-
-func TestCheckToolCallLoop_DifferentParamsDontCount(t *testing.T) {
-	schemasDir := findSchemasDir()
-	if schemasDir == "" {
-		t.Skip("Schemas directory not found")
-	}
-
-	server, err := NewServer(schemasDir)
-	if err != nil {
-		t.Fatalf("NewServer failed: %v", err)
-	}
-
-	// Call with different params each time — should never trigger
-	for i := 0; i < 10; i++ {
-		params := map[string]string{"instance_path": filepath.Join("/test", string(rune('a'+i)))}
-		warning := server.checkToolCallLoop("epf_health_check", params)
-		if warning != nil {
-			t.Errorf("Expected nil warning for unique params on call %d", i+1)
-		}
-	}
-}
-
-func TestCheckToolCallLoop_DifferentToolsSameParamsDontCount(t *testing.T) {
-	schemasDir := findSchemasDir()
-	if schemasDir == "" {
-		t.Skip("Schemas directory not found")
-	}
-
-	server, err := NewServer(schemasDir)
-	if err != nil {
-		t.Fatalf("NewServer failed: %v", err)
-	}
-
-	params := map[string]string{"instance_path": "/test/path"}
-
-	// Call different tools with same params — should not trigger
-	tools := []string{"epf_health_check", "epf_validate_file", "epf_get_wizard_for_task"}
-	for _, tool := range tools {
-		for i := 0; i < 2; i++ {
-			warning := server.checkToolCallLoop(tool, params)
-			if warning != nil {
-				t.Errorf("Expected nil warning for tool %q call %d", tool, i+1)
-			}
-		}
-	}
-}
-
-func TestResetToolCallCounts(t *testing.T) {
-	schemasDir := findSchemasDir()
-	if schemasDir == "" {
-		t.Skip("Schemas directory not found")
-	}
-
-	server, err := NewServer(schemasDir)
-	if err != nil {
-		t.Fatalf("NewServer failed: %v", err)
-	}
-
-	params := map[string]string{"instance_path": "/test/path"}
-
-	// Build up to threshold
-	server.checkToolCallLoop("epf_health_check", params)
-	server.checkToolCallLoop("epf_health_check", params)
-
-	// Third call would trigger — but reset first
+	// ResetToolCallCounts should still work (backward compat)
 	server.ResetToolCallCounts()
-
-	// Now the third call should NOT trigger (counter was reset)
-	warning := server.checkToolCallLoop("epf_health_check", params)
-	if warning != nil {
-		t.Error("Expected nil warning after ResetToolCallCounts")
-	}
-}
-
-func TestCheckToolCallLoop_NoParams(t *testing.T) {
-	schemasDir := findSchemasDir()
-	if schemasDir == "" {
-		t.Skip("Schemas directory not found")
-	}
-
-	server, err := NewServer(schemasDir)
-	if err != nil {
-		t.Fatalf("NewServer failed: %v", err)
-	}
-
-	// Call with nil/empty params
-	server.checkToolCallLoop("epf_list_schemas", nil)
-	server.checkToolCallLoop("epf_list_schemas", nil)
-	warning := server.checkToolCallLoop("epf_list_schemas", nil)
-	if warning == nil {
-		t.Fatal("Expected warning on third call with nil params")
-	}
-	if warning.CallCount != 3 {
-		t.Errorf("Expected CallCount=3, got %d", warning.CallCount)
-	}
-}
-
-func TestCheckToolCallLoop_FourthCallIncrements(t *testing.T) {
-	schemasDir := findSchemasDir()
-	if schemasDir == "" {
-		t.Skip("Schemas directory not found")
-	}
-
-	server, err := NewServer(schemasDir)
-	if err != nil {
-		t.Fatalf("NewServer failed: %v", err)
-	}
-
-	params := map[string]string{"path": "/test"}
-
-	// Build up past threshold
-	server.checkToolCallLoop("epf_validate_file", params)
-	server.checkToolCallLoop("epf_validate_file", params)
-	server.checkToolCallLoop("epf_validate_file", params)
-
-	// Fourth call
-	warning := server.checkToolCallLoop("epf_validate_file", params)
-	if warning == nil {
-		t.Fatal("Expected warning on fourth call")
-	}
-	if warning.CallCount != 4 {
-		t.Errorf("Expected CallCount=4, got %d", warning.CallCount)
-	}
 }
 
 // =============================================================================

@@ -3,7 +3,6 @@ package mcp
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -60,9 +59,8 @@ type Server struct {
 	analyzerMu sync.RWMutex
 	analyzers  map[string]*relationships.Analyzer
 
-	// Anti-loop detection: per-session call counter keyed by toolName+hash(params)
-	toolCallMu     sync.Mutex
-	toolCallCounts map[string]int
+	// Session audit log: records all tool calls, provides loop detection and workflow verification.
+	auditLog *AuditLog
 
 	// Multi-tenant auth (nil in local/single-tenant mode).
 	accessChecker  *auth.AccessChecker
@@ -85,10 +83,12 @@ type Server struct {
 //   - 8 strategy context tools (features list, value model paths, coverage,
 //     definitions, OKR progress, organizational status)
 func NewStrategyOnlyServer(defaultInstancePath string) (*Server, error) {
+	auditLog := NewAuditLog()
 	mcpServer := server.NewMCPServer(
 		ServerName+"-strategy",
 		version.Version,
 		server.WithLogging(),
+		server.WithToolHandlerMiddleware(AuditMiddleware(auditLog)),
 	)
 
 	// Create definition loader (embedded) — needed for epf_list_definitions / epf_get_definition
@@ -100,12 +100,13 @@ func NewStrategyOnlyServer(defaultInstancePath string) (*Server, error) {
 		defaultInstancePath: defaultInstancePath,
 		definitionLoader:    definitionLoader,
 		analyzers:           make(map[string]*relationships.Analyzer),
-		toolCallCounts:      make(map[string]int),
+		auditLog:            auditLog,
 	}
 
 	// Register the strategy query tools (8) + strategy context tools (8)
 	s.registerStrategyTools()
 	s.registerStrategyContextTools()
+	s.registerAuditTools()
 
 	return s, nil
 }
@@ -195,11 +196,13 @@ func NewServer(schemasDir string) (*Server, error) {
 		// Skills are optional - log but don't fail
 	}
 
-	// Create MCP server
+	// Create audit log and MCP server with audit middleware
+	auditLog := NewAuditLog()
 	mcpServer := server.NewMCPServer(
 		ServerName,
 		version.Version,
 		server.WithLogging(),
+		server.WithToolHandlerMiddleware(AuditMiddleware(auditLog)),
 	)
 
 	// Detect orchestration plugin status (standalone vs plugin-assisted mode)
@@ -219,7 +222,7 @@ func NewServer(schemasDir string) (*Server, error) {
 		skillLoader:         skillLoader,
 		pluginInfo:          pluginInfo,
 		analyzers:           make(map[string]*relationships.Analyzer),
-		toolCallCounts:      make(map[string]int),
+		auditLog:            auditLog,
 	}
 
 	// Register tools
@@ -242,45 +245,16 @@ func (s *Server) resolveInstancePath(request mcp.CallToolRequest) string {
 	return s.defaultInstancePath
 }
 
-// checkToolCallLoop increments the per-session counter for a tool+params key
-// and returns a CallCountWarningInfo if the threshold is exceeded.
-// The counter key is toolName + SHA-256(sorted params) to detect identical calls.
-func (s *Server) checkToolCallLoop(toolName string, params map[string]string) *CallCountWarningInfo {
-	// Build a stable key from tool name and sorted params
-	key := toolName
-	if len(params) > 0 {
-		sortedKeys := make([]string, 0, len(params))
-		for k := range params {
-			sortedKeys = append(sortedKeys, k)
-		}
-		sort.Strings(sortedKeys)
-		h := sha256.New()
-		for _, k := range sortedKeys {
-			h.Write([]byte(k))
-			h.Write([]byte("="))
-			h.Write([]byte(params[k]))
-			h.Write([]byte(";"))
-		}
-		key += ":" + fmt.Sprintf("%x", h.Sum(nil))[:16]
-	}
-
-	s.toolCallMu.Lock()
-	s.toolCallCounts[key]++
-	count := s.toolCallCounts[key]
-	s.toolCallMu.Unlock()
-
-	if count > loopThreshold {
-		return buildCallCountWarning(toolName, count, suggestNextToolForLoop(toolName))
-	}
-	return nil
+// ResetAuditLog resets the session audit log, call counters, and call ID counter.
+// Called when the MCP connection resets (new session).
+func (s *Server) ResetAuditLog() {
+	s.auditLog.Reset()
 }
 
-// ResetToolCallCounts resets the per-session call counters.
-// Called when the MCP connection resets (new session).
+// ResetToolCallCounts is a backward-compatible alias for ResetAuditLog.
+// Deprecated: Use ResetAuditLog instead.
 func (s *Server) ResetToolCallCounts() {
-	s.toolCallMu.Lock()
-	s.toolCallCounts = make(map[string]int)
-	s.toolCallMu.Unlock()
+	s.ResetAuditLog()
 }
 
 // registerTools registers all EPF MCP tools
@@ -1819,6 +1793,11 @@ func (s *Server) registerTools() {
 	// Strategy Server Tools (Product Strategy for AI Agents)
 	// ==========================================================================
 	s.registerStrategyTools()
+
+	// ==========================================================================
+	// Session Audit Tools (tool call tracking and workflow verification)
+	// ==========================================================================
+	s.registerAuditTools()
 }
 
 // SchemaListItem represents a schema in the list response
@@ -1983,11 +1962,8 @@ func (s *Server) handleValidateFile(ctx context.Context, request mcp.CallToolReq
 			}
 		}
 
-		// Anti-loop detection
-		response.CallCountWarning = s.checkToolCallLoop("epf_validate_file", map[string]string{
-			"path":        path,
-			"ai_friendly": "true",
-		})
+		// Anti-loop detection (read from audit middleware context)
+		response.CallCountWarning = LoopWarningFromContext(ctx)
 
 		jsonBytes, err := json.MarshalIndent(response, "", "  ")
 		if err != nil {
@@ -2550,11 +2526,8 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 		result.RemainingSteps = BuildRemainingSteps(result.RequiredNextToolCalls)
 	}
 
-	// Anti-loop detection: check if this exact call has been made too many times
-	result.CallCountWarning = s.checkToolCallLoop("epf_health_check", map[string]string{
-		"instance_path": instancePath,
-		"detail_level":  detailLevel,
-	})
+	// Anti-loop detection (read from audit middleware context)
+	result.CallCountWarning = LoopWarningFromContext(ctx)
 
 	jsonResult, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
@@ -2680,11 +2653,8 @@ func (s *Server) handleHealthCheckCloud(ctx context.Context, instancePath, detai
 	// No required next tool calls for cloud mode — strategy tools are all available
 	result.WorkflowStatus = "complete"
 
-	// Anti-loop detection
-	result.CallCountWarning = s.checkToolCallLoop("epf_health_check", map[string]string{
-		"instance_path": instancePath,
-		"detail_level":  detailLevel,
-	})
+	// Anti-loop detection (read from audit middleware context)
+	result.CallCountWarning = LoopWarningFromContext(ctx)
 
 	jsonResult, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {

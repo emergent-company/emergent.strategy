@@ -1,6 +1,6 @@
 {
   "name": "opencode-epf",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "OpenCode plugin for EPF (Emergent Product Framework) — proactive guardrails and on-demand dashboards",
   "type": "module",
   "main": "dist/index.js",

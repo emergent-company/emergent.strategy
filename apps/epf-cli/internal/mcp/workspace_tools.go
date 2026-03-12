@@ -50,8 +50,8 @@ func (s *Server) SetGitHubAppID(appID int64) {
 // In local/single-tenant mode, it returns an error explaining the tool
 // is only available in multi-tenant mode.
 func (s *Server) handleListWorkspaces(ctx context.Context, request mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-	// Anti-loop check.
-	if warning := s.checkToolCallLoop("epf_list_workspaces", nil); warning != nil {
+	// Anti-loop check (read from audit middleware context).
+	if warning := LoopWarningFromContext(ctx); warning != nil {
 		data, _ := json.Marshal(warning)
 		return mcpgo.NewToolResultText(string(data)), nil
 	}

@@ -24,7 +24,7 @@ import {
 /** Agent activation callbacks from the plugin */
 interface AgentCallbacks {
   activateAgent: (name: string) => Promise<string>;
-  deactivateAgent: () => string;
+  deactivateAgent: () => Promise<string>;
   getActiveAgent: () => string;
 }
 

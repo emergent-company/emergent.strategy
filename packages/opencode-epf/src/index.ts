@@ -36,7 +36,7 @@ import { formatHealthToast } from "./formatters";
 import { createTools } from "./tools";
 
 /** Plugin version — keep in sync with package.json "version" field */
-const PLUGIN_VERSION = "0.2.3";
+const PLUGIN_VERSION = "0.3.0";
 
 /** Active agent state — tracks the currently activated agent persona */
 interface ActiveAgentState {
@@ -44,6 +44,49 @@ interface ActiveAgentState {
   systemPrompt: string;
   preferredTools: string[];
   avoidTools: string[];
+  requiredTools: string[];
+}
+
+/** Tool call ledger entry */
+interface ToolCallEntry {
+  toolName: string;
+  timestamp: string;
+  success: boolean;
+}
+
+/** Maximum ledger entries before FIFO eviction */
+const MAX_LEDGER_ENTRIES = 500;
+
+/** Tool call ledger — tracks EPF tool calls for workflow verification */
+class ToolCallLedger {
+  private entries: ToolCallEntry[] = [];
+
+  /** Record a tool call. Only records EPF tools (epf_* prefix). */
+  record(toolName: string, success: boolean): void {
+    if (!toolName.startsWith("epf_")) return;
+
+    this.entries.push({
+      toolName,
+      timestamp: new Date().toISOString(),
+      success,
+    });
+
+    // FIFO eviction
+    if (this.entries.length > MAX_LEDGER_ENTRIES) {
+      this.entries.shift();
+    }
+  }
+
+  /** Check which of the expected tools were called. */
+  getMissing(expectedTools: string[]): string[] {
+    const calledSet = new Set(this.entries.map((e) => e.toolName));
+    return expectedTools.filter((t) => !calledSet.has(t));
+  }
+
+  /** Clear the ledger. */
+  clear(): void {
+    this.entries = [];
+  }
 }
 
 export const EPFPlugin: Plugin = async ({ client, directory, worktree }) => {
@@ -82,6 +125,9 @@ export const EPFPlugin: Plugin = async ({ client, directory, worktree }) => {
 
   // Active agent state (set via epf_activate_agent tool, cleared via epf_deactivate_agent)
   let activeAgent: ActiveAgentState | null = null;
+
+  // Tool call ledger for workflow verification
+  const toolCallLedger = new ToolCallLedger();
 
   return {
     // --- Shell Environment ---
@@ -189,10 +235,15 @@ export const EPFPlugin: Plugin = async ({ client, directory, worktree }) => {
       }
     },
 
-    // --- Post-Write Validation (Decision 13: skill output validation) ---
-    // Automatically validate EPF files after write operations.
-    // This makes validation genuinely automatic rather than instruction-dependent.
+    // --- Post-Write Validation & Workflow Tracking ---
+    // Records EPF tool calls in the ledger for workflow verification,
+    // and automatically validates EPF files after write operations.
     "tool.execute.after": async (input, _output) => {
+      // Record EPF tool calls in the ledger (all tools with epf_ prefix)
+      // The output doesn't expose success/failure directly, so we record
+      // all completed calls as successful (failures throw before this hook).
+      toolCallLedger.record(input.tool, true);
+
       if (!instancePath) return;
 
       // Detect write/edit operations to EPF artifact files
@@ -271,8 +322,10 @@ export const EPFPlugin: Plugin = async ({ client, directory, worktree }) => {
           systemPrompt: prompt,
           preferredTools: [...new Set(preferred)],
           avoidTools: [...new Set(avoid)],
+          requiredTools: agent.activation?.required_tools ?? [],
         };
 
+        const requiredTools = agent.activation?.required_tools ?? [];
         const parts = [`Activated agent: ${agent.display_name ?? agent.name}`];
         if (preferred.length > 0) {
           parts.push(`Preferred tools: ${preferred.join(", ")}`);
@@ -280,15 +333,34 @@ export const EPFPlugin: Plugin = async ({ client, directory, worktree }) => {
         if (avoid.length > 0) {
           parts.push(`Avoided tools: ${avoid.join(", ")}`);
         }
+        if (requiredTools.length > 0) {
+          parts.push(`Required tools (completion gate): ${requiredTools.join(", ")}`);
+        }
         parts.push("The agent's persona is now active in the system prompt.");
         return parts.join("\n");
       },
 
-      deactivateAgent: (): string => {
+      deactivateAgent: async (): Promise<string> => {
         if (!activeAgent) {
           return "No agent is currently active.";
         }
         const name = activeAgent.name;
+
+        // Agent completion gate: check if required tools were called
+        if (activeAgent.requiredTools.length > 0) {
+          const missing = toolCallLedger.getMissing(activeAgent.requiredTools);
+          if (missing.length > 0) {
+            await client.tui.showToast({
+              body: {
+                title: "Agent Workflow Incomplete",
+                message: `Agent '${name}' deactivated without calling: ${missing.join(", ")}`,
+                variant: "warning",
+                duration: 6000,
+              },
+            });
+          }
+        }
+
         activeAgent = null;
         return `Deactivated agent: ${name}. System prompt restored to default.`;
       },
@@ -297,7 +369,21 @@ export const EPFPlugin: Plugin = async ({ client, directory, worktree }) => {
         if (!activeAgent) {
           return "No agent is currently active. Use epf_activate_agent to activate one.";
         }
-        return `Active agent: ${activeAgent.name}\nPreferred tools: ${activeAgent.preferredTools.join(", ") || "none"}\nAvoided tools: ${activeAgent.avoidTools.join(", ") || "none"}`;
+        const parts = [
+          `Active agent: ${activeAgent.name}`,
+          `Preferred tools: ${activeAgent.preferredTools.join(", ") || "none"}`,
+          `Avoided tools: ${activeAgent.avoidTools.join(", ") || "none"}`,
+        ];
+        if (activeAgent.requiredTools.length > 0) {
+          const missing = toolCallLedger.getMissing(activeAgent.requiredTools);
+          parts.push(`Required tools: ${activeAgent.requiredTools.join(", ")}`);
+          if (missing.length > 0) {
+            parts.push(`Missing (not yet called): ${missing.join(", ")}`);
+          } else {
+            parts.push("All required tools have been called.");
+          }
+        }
+        return parts.join("\n");
       },
     }),
   };
