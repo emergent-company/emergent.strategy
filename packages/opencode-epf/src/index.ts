@@ -35,8 +35,8 @@ import {
 import { formatHealthToast } from "./formatters";
 import { createTools } from "./tools";
 
-/** Plugin version — used in EPF_PLUGIN_ACTIVE env var */
-const PLUGIN_VERSION = "0.1.0";
+/** Plugin version — keep in sync with package.json "version" field */
+const PLUGIN_VERSION = "0.2.3";
 
 /** Active agent state — tracks the currently activated agent persona */
 interface ActiveAgentState {

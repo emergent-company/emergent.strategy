@@ -675,8 +675,8 @@ describe("formatHealthDashboard — plugin version", () => {
     const health: HealthResult = {
       overall_status: "healthy",
     };
-    const md = formatHealthDashboard(health, "/path/to/instance", "0.1.0");
-    expect(md).toContain("opencode-epf@0.1.0");
+    const md = formatHealthDashboard(health, "/path/to/instance", "0.2.3");
+    expect(md).toContain("opencode-epf@0.2.3");
     expect(md).toContain("Orchestration");
   });
 

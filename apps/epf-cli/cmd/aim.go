@@ -520,10 +520,10 @@ func runAimValidateAssumptions(cmd *cobra.Command, args []string) {
 	if err != nil {
 		if aimJSON {
 			outputAimJSON(&AssumptionValidationResult{Error: fmt.Sprintf("Failed to load assessments: %v", err)})
-		} else {
-			fmt.Fprintf(os.Stderr, "Warning: No assessment reports found in AIM directory: %v\n", err)
-			fmt.Println("Showing assumptions from roadmap (not yet validated)...")
+			return
 		}
+		fmt.Fprintf(os.Stderr, "Warning: No assessment reports found in AIM directory: %v\n", err)
+		fmt.Println("Showing assumptions from roadmap (not yet validated)...")
 		assessments = []AssessmentReport{} // Empty list, continue with roadmap data
 	}
 
