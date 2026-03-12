@@ -369,7 +369,13 @@ type CallCountWarningInfo struct {
 }
 
 // loopThreshold is the number of identical calls before a warning is emitted.
+// Warning fires on the 3rd identical call (count > 2).
 const loopThreshold = 2
+
+// circuitBreakerThreshold is the number of identical calls before the tool is blocked.
+// Block fires on the 5th identical call (count > 4). The handler is NOT executed.
+// This prevents infinite loops where models ignore call_count_warning.
+const circuitBreakerThreshold = 4
 
 // buildCallCountWarning creates a CallCountWarningInfo for a looping tool call.
 func buildCallCountWarning(toolName string, count int, suggestedNext string) *CallCountWarningInfo {

@@ -109,6 +109,24 @@ func (a *AuditLog) CheckLoop(toolName string, params map[string]any) *CallCountW
 	return nil
 }
 
+// CheckCircuitBreaker returns true if the tool+params combo has exceeded the
+// circuit breaker threshold. When this returns true, the middleware should NOT
+// execute the handler and should return an error response instead.
+// Must be called after Record.
+func (a *AuditLog) CheckCircuitBreaker(toolName string, params map[string]any) (bool, int) {
+	paramsHash := hashParams(params)
+	loopKey := toolName
+	if paramsHash != "" {
+		loopKey += ":" + paramsHash
+	}
+
+	a.mu.Lock()
+	count := a.callCounts[loopKey]
+	a.mu.Unlock()
+
+	return count > circuitBreakerThreshold, count
+}
+
 // Summary returns a compact summary of the audit log (for default epf_session_audit response).
 type AuditSummary struct {
 	TotalCalls   int      `json:"total_calls"`
@@ -402,7 +420,30 @@ func AuditMiddleware(audit *AuditLog) server.ToolHandlerMiddleware {
 			// Record in audit log (also updates loop detection)
 			callID := audit.Record(toolName, params)
 
-			// Check for loop
+			// Circuit breaker: block execution after too many identical calls.
+			// This prevents infinite loops where models ignore call_count_warning.
+			if blocked, count := audit.CheckCircuitBreaker(toolName, params); blocked {
+				suggested := suggestNextToolForLoop(toolName)
+				msg := fmt.Sprintf(
+					"BLOCKED: You have called %s with identical parameters %d times. "+
+						"This is a loop. The tool will not execute. "+
+						"Proceed to the next step in your workflow",
+					toolName, count,
+				)
+				if suggested != "" {
+					msg += fmt.Sprintf(": call %s", suggested)
+				}
+				msg += "."
+
+				result := &mcp.CallToolResult{
+					Content: []mcp.Content{mcp.NewTextContent(msg)},
+					IsError: true,
+				}
+				injectCallID(result, callID)
+				return result, nil
+			}
+
+			// Check for loop warning (softer than circuit breaker)
 			loopWarning := audit.CheckLoop(toolName, params)
 
 			// Store call_id and loop warning in context so handlers can access them

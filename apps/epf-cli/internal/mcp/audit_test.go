@@ -341,6 +341,75 @@ func TestAuditLog_SessionReset_ClearsAll(t *testing.T) {
 	}
 }
 
+func TestAuditLog_CheckCircuitBreaker_BelowThreshold(t *testing.T) {
+	audit := NewAuditLog()
+	params := map[string]any{"path": "/test"}
+
+	// Calls 1-4 should NOT trigger circuit breaker (threshold is 4)
+	for i := 0; i < 4; i++ {
+		audit.Record("epf_health_check", params)
+		blocked, _ := audit.CheckCircuitBreaker("epf_health_check", params)
+		if blocked {
+			t.Errorf("Should not be blocked at call %d", i+1)
+		}
+	}
+}
+
+func TestAuditLog_CheckCircuitBreaker_ExceedsThreshold(t *testing.T) {
+	audit := NewAuditLog()
+	params := map[string]any{"path": "/test"}
+
+	// Make 5 identical calls
+	for i := 0; i < 5; i++ {
+		audit.Record("epf_health_check", params)
+	}
+
+	blocked, count := audit.CheckCircuitBreaker("epf_health_check", params)
+	if !blocked {
+		t.Error("Should be blocked after 5 identical calls")
+	}
+	if count != 5 {
+		t.Errorf("Expected count 5, got %d", count)
+	}
+}
+
+func TestAuditLog_CheckCircuitBreaker_DifferentParams(t *testing.T) {
+	audit := NewAuditLog()
+
+	// Make 5 calls with different params — no circuit breaker
+	for i := 0; i < 5; i++ {
+		audit.Record("epf_health_check", map[string]any{"path": itoa(i)})
+	}
+
+	blocked, _ := audit.CheckCircuitBreaker("epf_health_check", map[string]any{"path": "0"})
+	if blocked {
+		t.Error("Should not be blocked when params differ each time")
+	}
+}
+
+func TestAuditLog_CheckCircuitBreaker_ResetClears(t *testing.T) {
+	audit := NewAuditLog()
+	params := map[string]any{"path": "/test"}
+
+	// Make 5 identical calls to trigger circuit breaker
+	for i := 0; i < 5; i++ {
+		audit.Record("epf_health_check", params)
+	}
+
+	blocked, _ := audit.CheckCircuitBreaker("epf_health_check", params)
+	if !blocked {
+		t.Error("Should be blocked before reset")
+	}
+
+	// Reset should clear circuit breaker
+	audit.Reset()
+
+	blocked, _ = audit.CheckCircuitBreaker("epf_health_check", params)
+	if blocked {
+		t.Error("Should not be blocked after reset")
+	}
+}
+
 // itoa is a simple int to string converter for test helpers.
 func itoa(n int) string {
 	if n == 0 {
