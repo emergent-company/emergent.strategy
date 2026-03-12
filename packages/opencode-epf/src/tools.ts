@@ -54,7 +54,7 @@ export function createTools(
         }
 
         const result = await runHealthCheck(instPath);
-        if (!result.ok || !result.data) {
+        if (!result.data) {
           return `Failed to run health check: ${result.error ?? "unknown error"}`;
         }
 
@@ -82,7 +82,7 @@ export function createTools(
         }
 
         const result = await runCoverage(instPath, args.track);
-        if (!result.ok || !result.data) {
+        if (!result.data) {
           return `Failed to run coverage analysis: ${result.error ?? "unknown error"}`;
         }
 
@@ -119,11 +119,11 @@ export function createTools(
           runAssumptionValidation(instPath),
         ]);
 
-        if (!okrResult.ok || !okrResult.data) {
+        if (!okrResult.data) {
           return `Failed to load OKR progress: ${okrResult.error ?? "unknown error"}`;
         }
 
-        if (!assumptionResult.ok || !assumptionResult.data) {
+        if (!assumptionResult.data) {
           return `Failed to load assumption validation: ${assumptionResult.error ?? "unknown error"}`;
         }
 
