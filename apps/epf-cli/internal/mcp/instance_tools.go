@@ -17,6 +17,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/config"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/embedded"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/migration"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/pathutil"
 	"github.com/mark3labs/mcp-go/mcp"
 	"gopkg.in/yaml.v3"
 )
@@ -46,6 +47,7 @@ func (s *Server) handleInitInstance(ctx context.Context, request mcp.CallToolReq
 	if err != nil {
 		return mcp.NewToolResultError("path parameter is required"), nil
 	}
+	path = pathutil.ExpandTilde(path)
 
 	productName, err := request.RequireString("product_name")
 	if err != nil {
@@ -762,6 +764,7 @@ func (s *Server) handleFixFile(ctx context.Context, request mcp.CallToolRequest)
 	if err != nil {
 		return mcp.NewToolResultError("path parameter is required"), nil
 	}
+	path = pathutil.ExpandTilde(path)
 
 	// Optional parameters
 	dryRunStr, _ := request.RequireString("dry_run")

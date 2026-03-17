@@ -20,6 +20,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/fixplan"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/generator"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/migration"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/pathutil"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/relationships"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/schema"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/skill"
@@ -240,7 +241,7 @@ func NewServer(schemasDir string) (*Server, error) {
 func (s *Server) resolveInstancePath(request mcp.CallToolRequest) string {
 	instancePath, _ := request.RequireString("instance_path")
 	if instancePath != "" {
-		return instancePath
+		return pathutil.ExpandTilde(instancePath)
 	}
 	return s.defaultInstancePath
 }
@@ -1918,6 +1919,7 @@ func (s *Server) handleValidateFile(ctx context.Context, request mcp.CallToolReq
 	if err != nil {
 		return mcp.NewToolResultError("path parameter is required"), nil
 	}
+	path = pathutil.ExpandTilde(path)
 
 	// Check for ai_friendly parameter
 	aiFriendlyStr, _ := request.RequireString("ai_friendly")
@@ -2026,6 +2028,7 @@ func (s *Server) handleDetectArtifactType(ctx context.Context, request mcp.CallT
 	if err != nil {
 		return mcp.NewToolResultError("path parameter is required"), nil
 	}
+	path = pathutil.ExpandTilde(path)
 
 	artifactType, err := s.validator.GetLoader().DetectArtifactType(path)
 	if err != nil {
@@ -2815,6 +2818,7 @@ func (s *Server) handleCheckContentReadiness(ctx context.Context, request mcp.Ca
 	if err != nil {
 		return mcp.NewToolResultError("path parameter is required"), nil
 	}
+	path = pathutil.ExpandTilde(path)
 
 	checker := checks.NewContentReadinessChecker(path)
 	result, err := checker.Check()
@@ -3984,6 +3988,7 @@ func (s *Server) handleGetMigrationGuide(ctx context.Context, request mcp.CallTo
 	}
 
 	filePath, _ := request.RequireString("file_path")
+	filePath = pathutil.ExpandTilde(filePath)
 
 	// Get templates directory
 	templatesDir := filepath.Join(s.epfRoot, "templates")
@@ -4372,6 +4377,7 @@ func (s *Server) handleValidateWithPlan(ctx context.Context, request mcp.CallToo
 	if err != nil {
 		return mcp.NewToolResultError("path parameter is required"), nil
 	}
+	path = pathutil.ExpandTilde(path)
 
 	// Get AI-friendly validation result
 	aiResult, err := s.validator.ValidateFileAIFriendly(path)
@@ -4438,6 +4444,7 @@ func (s *Server) handleValidateSection(ctx context.Context, request mcp.CallTool
 	if err != nil {
 		return mcp.NewToolResultError("path parameter is required"), nil
 	}
+	path = pathutil.ExpandTilde(path)
 
 	section, err := request.RequireString("section")
 	if err != nil {
@@ -4657,6 +4664,7 @@ type AgentMCPTool struct {
 func (s *Server) handleAgentInstructions(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	// Get optional path parameter
 	path, _ := request.RequireString("path")
+	path = pathutil.ExpandTilde(path)
 	if path == "" {
 		var err error
 		path, err = os.Getwd()
@@ -5047,6 +5055,7 @@ type LocateInstanceOutput struct {
 func (s *Server) handleLocateInstance(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	// Get optional path parameter
 	path, _ := request.RequireString("path")
+	path = pathutil.ExpandTilde(path)
 	if path == "" {
 		var err error
 		path, err = os.Getwd()

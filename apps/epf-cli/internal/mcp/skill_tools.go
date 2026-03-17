@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/agent"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/pathutil"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/skill"
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -368,6 +369,7 @@ func (s *Server) handleScaffoldSkill(ctx context.Context, request mcp.CallToolRe
 	categoryStr, _ := request.RequireString("category")
 	author, _ := request.RequireString("author")
 	outputDir, _ := request.RequireString("output_dir")
+	outputDir = pathutil.ExpandTilde(outputDir)
 	formatStr, _ := request.RequireString("output_format")
 	requiredStr, _ := request.RequireString("required_artifacts")
 	optionalStr, _ := request.RequireString("optional_artifacts")
@@ -703,6 +705,7 @@ func (s *Server) handleValidateSkillOutput(ctx context.Context, request mcp.Call
 	// Get content or file path
 	content, _ := request.RequireString("content")
 	filePath, _ := request.RequireString("file_path")
+	filePath = pathutil.ExpandTilde(filePath)
 
 	if content == "" && filePath == "" {
 		return mcp.NewToolResultError("Either 'content' or 'file_path' parameter is required"), nil

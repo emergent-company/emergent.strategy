@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/checks"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/pathutil"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/schema"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/template"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/validator"
@@ -512,6 +513,7 @@ func (s *Server) handleDiffArtifacts(ctx context.Context, request mcp.CallToolRe
 		jsonData, _ := json.MarshalIndent(result, "", "  ")
 		return mcp.NewToolResultText(string(jsonData)), nil
 	}
+	path1 = pathutil.ExpandTilde(path1)
 
 	path2, err := request.RequireString("path2")
 	if err != nil || path2 == "" {
@@ -522,6 +524,7 @@ func (s *Server) handleDiffArtifacts(ctx context.Context, request mcp.CallToolRe
 		jsonData, _ := json.MarshalIndent(result, "", "  ")
 		return mcp.NewToolResultText(string(jsonData)), nil
 	}
+	path2 = pathutil.ExpandTilde(path2)
 
 	verboseStr, _ := request.RequireString("verbose")
 	verbose := strings.ToLower(verboseStr) == "true"
@@ -870,6 +873,7 @@ type TemplateDiffSummaryMCP struct {
 
 func (s *Server) handleDiffTemplate(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	filePath, err := request.RequireString("file_path")
+	filePath = pathutil.ExpandTilde(filePath)
 	if err != nil || filePath == "" {
 		result := DiffTemplateResult{
 			Success: false,

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/pathutil"
 	"gopkg.in/yaml.v3"
 )
 
@@ -173,11 +174,7 @@ func PromptForConfig(reader *bufio.Reader) (*Config, error) {
 		pathInput = strings.TrimSpace(pathInput)
 
 		if pathInput != "" {
-			// Expand ~ to home directory
-			if strings.HasPrefix(pathInput, "~") {
-				home, _ := os.UserHomeDir()
-				pathInput = filepath.Join(home, pathInput[1:])
-			}
+			pathInput = pathutil.ExpandTilde(pathInput)
 			cfg.CanonicalPath = pathInput
 		}
 	}
