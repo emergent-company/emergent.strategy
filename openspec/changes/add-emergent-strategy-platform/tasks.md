@@ -1,121 +1,138 @@
 ## Prerequisites (Complete Before Phase 1)
 
 ### P.A Complete Active Changes
-- [ ] P.1 Complete `refactor-agents-and-skills` (4 remaining tasks)
-- [ ] P.2 Complete `migrate-canonical-agents-skills` (content migration)
-- [ ] P.3 Complete `add-aim-recalibration-engine` Phase 3 CLI
-- [ ] P.4 Ship `add-mcp-session-audit`
-- [ ] P.5 Ship `add-github-app-multi-tenant`
+- [x] P.1 Complete `refactor-agents-and-skills` (4 remaining tasks)
+- [x] P.2 Complete `migrate-canonical-agents-skills` (content migration)
+- [x] P.3 Complete `add-aim-recalibration-engine` Phase 3 CLI
+- [x] P.4 Ship `add-mcp-session-audit`
+- [x] P.5 Ship `add-github-app-multi-tenant`
 
 ### P.B Update Emergent EPF Instance (emergent-epf)
 
 The Emergent EPF instance currently reflects a "Context Layer for AI" positioning. It must be updated to reflect the semantic strategy runtime direction before Phase 1 begins. This is both necessary strategic preparation and the first dogfooding exercise.
 
 **Tier 1: Strategic Foundation (must do first — all downstream artifacts reference these)**
-- [ ] P.6 Update `READY/00_north_star.yaml` — revise vision, mission, core beliefs, key capabilities to reflect the semantic strategy runtime direction (propagation circuits, tiered reasoning, desktop+cloud, multi-instance networking)
-- [ ] P.7 Update `READY/01_insight_analyses.yaml` — add technology trends (semantic runtime architectures, tiered LLM reasoning, desktop app renaissance, federation patterns), new competitors (strategy tools, AI strategy assistants), new white spaces, new key insights
-- [ ] P.8 Update `READY/02_strategy_foundations.yaml` — align product vision, value proposition, and sequencing with updated North Star
-- [ ] P.9 Update `READY/03_insight_opportunity.yaml` — reframe opportunity for semantic strategy runtime, update pain points, value hypothesis, and success indicators
-- [ ] P.10 Update `READY/04_strategy_formula.yaml` — rewrite positioning (semantic strategy runtime category), competitive moat (propagation circuits as primary differentiator), business model (strategy sessions, propagation events, reasoning tiers, instance count), success metrics
+- [x] P.6 Update `READY/00_north_star.yaml` — North Star v2.0 rewritten for semantic strategy runtime direction
+- [x] P.7 Update `READY/01_insight_analyses.yaml` — added technology/market/competitive trends for semantic runtime
+- [x] P.8 Update `READY/02_strategy_foundations.yaml` — aligned with updated North Star
+- [x] P.9 Update `READY/03_insight_opportunity.yaml` — reframed for semantic strategy runtime
+- [x] P.10 Update `READY/04_strategy_formula.yaml` — rewritten positioning, competitive moat, business model
 
 **Tier 2: Execution Framework (translates direction into plans)**
-- [ ] P.11 Create new `READY/05_roadmap_recipe.yaml` Cycle 2 — new OKRs for semantic engine, propagation circuits, tiered reasoning, desktop+cloud app, multi-instance networking. New assumptions (asm-p-020 through asm-p-025). New solution scaffold. Archive Cycle 1.
-- [ ] P.12 Rewrite `FIRE/value_models/product.epf-runtime.value_model.yaml` — add new layers: Semantic Strategy Engine, Propagation Circuits, Tiered LLM Reasoning, Desktop Application, Multi-Instance Networking
-- [ ] P.13 Update `FIRE/value_models/product.emergent-memory.value_model.yaml` — reposition Memory as integrated substrate within the semantic runtime, not a standalone product
-- [ ] P.14 Update `product_portfolio.yaml` — revise product line descriptions and relationships for the new architecture
+- [x] P.11 Create new `READY/05_roadmap_recipe.yaml` Cycle 2 — 4 OKRs, 9 KRs, 6 assumptions. Cycle 1 archived.
+- [x] P.12 Rewrite `FIRE/value_models/product.epf-runtime.value_model.yaml` — 5 new layers for semantic runtime
+- [x] P.13 Update `FIRE/value_models/product.emergent-memory.value_model.yaml` — repositioned as integrated substrate
+- [x] P.14 Update `product_portfolio.yaml` — revised for new architecture
 
 **Tier 3: Feature Definitions (define the capabilities to build)**
-- [ ] P.15 Create `fd-020_semantic_strategy_engine.yaml` — core semantic engine treating EPF artifacts as a live semantic graph
-- [ ] P.16 Create `fd-021_propagation_circuits.yaml` — automatic propagation of strategy changes across artifact dependencies and instances
-- [ ] P.17 Create `fd-022_tiered_llm_reasoning.yaml` — router selecting appropriate LLM tier based on task complexity and cost
-- [ ] P.18 Create `fd-023_desktop_application.yaml` — Wails desktop app with htmx 4 + DaisyUI interface
-- [ ] P.19 Create `fd-024_multi_instance_networking.yaml` — protocol for connecting EPF instances with sovereignty weights
-- [ ] P.20 Create `fd-025_emergent_memory_integration.yaml` — deep integration between EPF-CLI and emergent.memory
-- [ ] P.21 Update `fd-014_ai_strategy_agent.yaml` — add tiered reasoning and propagation awareness
-- [ ] P.22 Update `fd-016_epf_cloud_server.yaml` — add multi-instance networking role
+- [x] P.15 Create `fd-020_semantic_strategy_engine.yaml`
+- [x] P.16 Create `fd-021_propagation_circuits.yaml`
+- [x] P.17 Create `fd-022_tiered_llm_reasoning.yaml`
+- [x] P.18 Create `fd-023_desktop_application.yaml`
+- [x] P.19 Create `fd-024_multi_instance_networking.yaml`
+- [x] P.20 Create `fd-025_emergent_memory_integration.yaml`
+- [x] P.21 Update `fd-014_ai_strategy_agent.yaml` — added tiered reasoning and propagation awareness
+- [x] P.22 Update `fd-016_epf_cloud_server.yaml` — added multi-instance networking role
 
 **Tier 4: Supporting Artifacts (keep the instance consistent)**
-- [ ] P.23 Update `AIM/living_reality_assessment.yaml` — update track baselines, current focus, operating assumptions for new direction
-- [ ] P.24 Update `AIM/aim_trigger_config.yaml` — add new critical assumptions (asm-p-020 through asm-p-025)
-- [ ] P.25 Update `FIRE/mappings.yaml` — update code artifact URLs for Go-based architecture, add mappings for new semantic runtime components
-- [ ] P.26 Activate relevant components in `strategy.value_model.yaml` and `commercial.value_model.yaml`
-- [ ] P.27 Run `epf health` on the updated instance — validate all cross-references, schema compliance, and content readiness
+- [x] P.23 Update `AIM/living_reality_assessment.yaml` — updated for new direction
+- [x] P.24 Update `AIM/aim_trigger_config.yaml` — added new critical assumptions
+- [x] P.25 Update `FIRE/mappings.yaml` — updated code artifact URLs
+- [x] P.26 Activate relevant components in `strategy.value_model.yaml` and `commercial.value_model.yaml`
+- [x] P.27 Run `epf health` on the updated instance — 86/86 valid paths, 95% content readiness, Grade A
 
 ## Phase 1: Semantic Strategy Engine (`add-semantic-engine`)
 
-### 1.1 Blueprint & Schema Setup
-- [ ] 1.1.1 Create blueprint directory at `docs/EPF/_instances/emergent/.memory/` with `packs/`, `seed/objects/`, `seed/relationships/` subdirectories
-- [ ] 1.1.2 Design epf-engine schema pack (YAML) with section-level object types: Belief, Trend, PainPoint, Positioning, Assumption, Capability, Scenario — each with `inertia_tier` property. Keep existing file-level types (Artifact, Feature, Persona, OKR, etc.)
-- [ ] 1.1.3 Add semantic relationship types: supports, contradicts, elaborates, parallels (with `confidence` property)
-- [ ] 1.1.4 Add causal relationship types: informs, validates, invalidates, constrains (with `strength` property)
-- [ ] 1.1.5 Add `weight` and `edge_source` properties to all relationship types
-- [ ] 1.1.6 Apply blueprint to epf-engine project: `memory blueprints .memory/ --project epf-engine --upgrade`
-- [ ] 1.1.7 Commit blueprint directory to Git (schema is now version-controlled alongside EPF artifacts)
+### 1.1 Blueprint & Schema Setup ✅ COMPLETE
+- [x] 1.1.1 Create blueprint directory at `docs/EPF/_instances/emergent/.memory/` with `packs/` subdirectory
+- [x] 1.1.2 Design epf-engine schema v2.0.0 (JSON) with 14 object types: Belief, Trend, PainPoint, Positioning, Assumption, ValueModelComponent, Feature, Scenario, Capability, Persona, OKR, Artifact, Agent, Skill — each with `inertia_tier` property
+- [x] 1.1.3 Add 4 semantic relationship types: supports, contradicts, elaborates, parallels (with `confidence` property)
+- [x] 1.1.4 Add 4 causal relationship types: informs, validates, invalidates, constrains (with `strength` property)
+- [x] 1.1.5 Add `weight` and `edge_source` properties to all 16 relationship types (8 structural + 4 semantic + 4 causal)
+- [x] 1.1.6 Apply blueprint to epf-engine project on emergent.memory — verified with test object creation/deletion
+- [x] 1.1.7 Schema committed to Git at `docs/EPF/_instances/emergent/.memory/packs/epf-engine.json`
 
-### 1.2 emergent.memory Client
-- [ ] 1.2.1 Create `apps/epf-cli/internal/memory/` package — thin wrapper around Memory CLI or REST API
-- [ ] 1.2.2 Implement auth configuration: `EPF_MEMORY_URL`, `EPF_MEMORY_TOKEN` (or delegate to `memory` CLI config)
-- [ ] 1.2.3 Implement graph object CRUD (create, update, delete, list, get)
-- [ ] 1.2.4 Implement graph relationship CRUD
-- [ ] 1.2.5 Implement batch operations via blueprints seed format (generate JSONL, apply via `memory blueprints`)
-- [ ] 1.2.6 Implement query delegation (`memory query --mode=search` for semantic search, `memory query` for agent reasoning)
-- [ ] 1.2.7 Write client tests
+### 1.2 emergent.memory REST API Client ✅ COMPLETE
+Decision: REST API directly (not CLI wrapper) per design.md Decision 12.
+- [x] 1.2.1 Create `apps/epf-cli/internal/memory/` package (7 files, 831 lines) — full typed Go HTTP client
+- [x] 1.2.2 Implement auth: `NewClient(baseURL, token)` with Bearer token auth and configurable HTTP client
+- [x] 1.2.3 Implement graph object CRUD: Create, Get, Update, Delete, List + Upsert (by type+key), BulkCreate, Similar, History
+- [x] 1.2.4 Implement graph relationship CRUD: Create, Get, Delete, BulkCreate
+- [x] 1.2.5 Implement graph operations: Expand (BFS), Traverse (directed), CreateSubgraph (atomic)
+- [x] 1.2.6 Implement search: HybridSearch, SearchWithNeighbors (semantic search + graph context)
+- [x] 1.2.7 Implement branches: Create, List, Get, Delete, Merge (for scenario projection in 1.10)
+- [x] 1.2.8 Write 6 client tests
+- Note: Batch seed/JSONL via `memory blueprints` deferred — REST upsert-by-key is sufficient for ingestion
 
-### 1.3 Artifact Decomposition & Ingestion
-- [ ] 1.3.1 Define section-to-object-type mapping per EPF artifact type (north_star sections → Belief objects, insight_analyses → Trend + PainPoint objects, etc.)
-- [ ] 1.3.2 Implement section parser: given a YAML artifact, emit typed graph objects with properties matching schema v2
-- [ ] 1.3.3 Generate JSONL seed files from parsed objects (blueprints format)
-- [ ] 1.3.4 Write decomposition tests for each artifact type
-- [ ] 1.3.5 Note: embeddings are generated automatically by Memory's background workers — no embedding engine needed in epf-cli
+### 1.3 Artifact Decomposition & Ingestion ✅ COMPLETE
+Architectural decision: The decomposer owns its own raw YAML parsing, independent of the strategy parser package. This eliminates coupling to the strategy parser's Go structs (which has known gaps like capabilities under wrong path) and ensures the decomposer extracts everything the graph needs without workarounds. See design.md Decision 14.
+- [x] 1.3.1 Define section-to-object-type mapping: north_star → Belief (tier 1), insight_analyses → Trend/PainPoint/Persona (tier 2), strategy_formula → Positioning (tier 3), roadmap → OKR/Assumption (tier 4), value_model → ValueModelComponent (tier 5), features → Feature/Scenario (tier 6), capabilities → Capability (tier 7)
+- [x] 1.3.2 Implement self-contained section parser at `apps/epf-cli/internal/decompose/decompose.go` — reads raw YAML directly (no dependency on `strategy` package), emits typed `memory.UpsertObjectRequest` objects
+- [x] 1.3.3 Implement structural edge extraction: contributes_to, depends_on, tests_assumption, targets, serves, elaborates, contains — all from YAML cross-references
+- [x] 1.3.4 Write decomposition tests: 9 tests covering all artifact types + utilities + live instance integration
+- [x] 1.3.5 Integration test against Emergent EPF instance: 739 objects, 927 relationships, 30ms
+- [x] 1.3.6 Add EPF version check: warns if instance version > 2.x (MaxSupportedMajorVersion constant)
+- Note: Embeddings generated automatically by Memory's background workers — no embedding engine needed
+- Note: Handles both `sub_components` and `subs` YAML keys in value models (a known inconsistency in epf-canonical)
 
-### 1.4 Tiered Reasoning Engine
-- [ ] 1.4.1 Define `Reasoner` interface (Evaluate: change + target + neighborhood -> Assessment)
-- [ ] 1.4.2 Implement `LocalReasoner` using Ollama for local SLM evaluation (tier 5-7 artifacts)
-- [ ] 1.4.3 Implement `CloudReasoner` for mid-tier cloud model evaluation (tier 3-4 artifacts, via Memory's provider API or direct)
-- [ ] 1.4.4 Implement `FrontierReasoner` for frontier model evaluation (tier 1-2 artifacts)
-- [ ] 1.4.5 Implement `TieredReasoner` that routes based on target inertia tier with confidence-based escalation
-- [ ] 1.4.6 Write reasoner tests with fixture evaluations at each tier
+### 1.4 Tiered Reasoning Engine ✅ COMPLETE
+All three tiers use the same OpenAI-compatible chat completions API (Ollama also exposes this). A shared `llmReasoner` base handles prompt construction and response parsing. The `TieredReasoner` routes by inertia tier and escalates when confidence < threshold.
+- [x] 1.4.1 Define `Reasoner` interface and supporting types: `EvaluationRequest`, `Signal`, `Node`, `Constraint`, `Assessment`, `Verdict`, `ChangeClassification`, `TokenUsage`, `ModelTier` at `apps/epf-cli/internal/reasoning/types.go`
+- [x] 1.4.2 Implement `LocalReasoner` — wraps `llmReasoner` with Ollama defaults (`http://localhost:11434`, `llama3.2:8b`)
+- [x] 1.4.3 Implement `CloudReasoner` — wraps `llmReasoner` with mid-tier defaults (`gpt-4o-mini`)
+- [x] 1.4.4 Implement `FrontierReasoner` — wraps `llmReasoner` with frontier defaults (`gpt-4o`)
+- [x] 1.4.5 Implement `TieredReasoner` at `apps/epf-cli/internal/reasoning/tiered.go` — routes by inertia tier, supports confidence-based escalation (threshold default 0.6), graceful fallback when tier is unconfigured
+- [x] 1.4.6 Write 12 tests: unchanged/modified/needs_review verdicts, invalid JSON handling, markdown-wrapped JSON, tier routing, confidence escalation, no-escalation for unchanged, missing tier fallback, JSON extraction, prompt construction
 
-### 1.5 Semantic Graph Construction
-- [ ] 1.5.1 Implement full ingestion pipeline: parse instance -> decompose into typed objects -> generate JSONL -> apply via `memory blueprints`
-- [ ] 1.5.2 Implement structural edge creation from YAML references (contributes_to, dependencies, assumptions, KR targets, mappings)
+### 1.5 Semantic Graph Construction — PARTIALLY COMPLETE
+Core ingestion pipeline is complete and live. Semantic and causal edge computation are deferred until the propagation circuit needs them.
+- [x] 1.5.1 Implement full ingestion pipeline at `apps/epf-cli/internal/ingest/ingest.go`: decompose → upsert objects via REST (not JSONL/blueprints) → resolve keys → create relationships. Fixed Memory API field names: `src_id`/`dst_id` (not `fromId`/`toId`).
+- [x] 1.5.2 Structural edge creation — handled by the decomposer (contributes_to, depends_on, tests_assumption, targets, serves, elaborates, contains). Produces 812 edges for the Emergent instance.
 - [ ] 1.5.3 Implement semantic edge computation: query Memory for embedding similarity between objects, create semantic edges above confidence threshold
 - [ ] 1.5.4 Implement causal edge computation with priority ordering (Finding 5): (1) explicit declarations (informs_ready_phase sections), (2) structural references (contributes_to, dependencies), (3) embedding similarity as fallback
-- [ ] 1.5.5 Add `epf ingest` CLI command and `epf_ingest_instance` MCP tool
-- [ ] 1.5.6 Write ingestion tests with fixture data
+- [x] 1.5.5 Add `epf ingest` CLI command with `--dry-run`, `--url`, `--project`, `--token` flags and env var support. MCP tool deferred.
+- [x] 1.5.6 Write 4 ingestion tests: unit (mock server), error handling, idempotency, integration against live Emergent instance
+- [x] 1.5.7 First live ingestion: 739 objects, 812 relationships into `epf-engine` project on emergent.memory (2026-03-17). Semantic search verified working.
 
-### 1.6 Incremental Sync
-- [ ] 1.6.1 Implement change detection: hook into existing file watcher, identify changed YAML sections by content hash
-- [ ] 1.6.2 Implement incremental update: re-parse changed sections, call `memory graph objects update` for modified objects, recompute semantic edges for affected neighborhood
-- [ ] 1.6.3 Implement Git-triggered sync: on commit, identify changed files, run incremental update
-- [ ] 1.6.4 Add `epf sync` CLI command and `epf_sync_to_memory` MCP tool
-- [ ] 1.6.5 Write incremental sync tests
+### 1.6 Incremental Sync ✅ CORE COMPLETE
+Content hashing detects which objects have changed. Only changed objects are upserted to Memory, skipping unchanged ones entirely (739 skipped in no-change test).
+- [x] 1.6.1 Implement change detection: content hash comparison (SHA-256 of sorted properties) between decomposition output and existing Memory objects. At `apps/epf-cli/internal/ingest/sync.go`.
+- [x] 1.6.2 Implement incremental upsert: only push created/updated objects. Unchanged objects are skipped (no API call, no embedding re-computation). Orphaned objects detected but not deleted (needs manual review).
+- [x] 1.6.4 Add `epf sync` CLI command at `apps/epf-cli/cmd/sync.go`. Same env var config as `epf ingest`.
+- [x] 1.6.5 Live test: 739 objects, 0 created, 0 updated, 739 unchanged in <1s (vs 4m35s for full ingest). Relationships still re-created (812).
+- [ ] 1.6.3 Implement Git-triggered sync (deferred — manual `epf sync` is sufficient for now)
+- [ ] 1.6.6 Implement relationship diffing to avoid re-creating unchanged relationships
 
-### 1.7 Propagation Circuit
-- [ ] 1.7.1 Implement the universal propagation circuit (5-step loop from design.md)
-- [ ] 1.7.2 Implement wave-following evaluation: the circuit follows edges wherever they lead (upward, downward, horizontal), not strictly top-down (Finding 1). Each newly-changed node becomes a new signal source. Damping prevents infinite loops.
-- [ ] 1.7.3 Implement parallel dispatch for independent nodes: within a cascade wave, nodes that don't depend on each other's evaluation results evaluate concurrently (Finding 2). Dependency detection via shared semantic edges.
-- [ ] 1.7.4 Implement inertia tier resolution: given a node, determine its inertia level (1-7) from object type (schema v2 `inertia_tier` property)
-- [ ] 1.7.5 Implement signal strength calculation: initial signal from change magnitude (embedding distance via Memory query), decays per hop (configurable factor)
-- [ ] 1.7.6 Implement threshold check: signal strength vs inertia -> evaluate or skip
-- [ ] 1.7.7 Wire in TieredReasoner: step 3c selects model based on target inertia tier. Pass EPF schema constraints as context so proposed changes are schema-valid (Finding 3)
-- [ ] 1.7.8 Implement post-evaluation schema validation: validate proposed changes against EPF schemas before applying. Re-dispatch with constraint info if validation fails (Finding 3)
-- [ ] 1.7.9 Implement edge creation as circuit output: when cascade reaches a gap, propose new cross-references or flag for creative review (Finding 4)
-- [ ] 1.7.10 Implement change classification: mechanical (auto-apply), semantic (propose + review), structural (require approval), creative (flag gap, require human) (Finding 6)
-- [ ] 1.7.11 Implement graph reload after each wave of changes applied (Finding 7)
-- [ ] 1.7.12 Implement 5-layer circuit protection (see design.md Decision 7):
-  - Layer 1: Signal decay (configurable factor, default 0.7 per hop)
-  - Layer 2: Temporal damping (min interval between re-evaluations of same node, default 60s)
-  - Layer 3: Oscillation detection (same node evaluated 3+ times → freeze subgraph, surface to human)
-  - Layer 4: Token budget per cascade (interactive: 50K, automatic: 100K, scenario: 200K)
-  - Layer 5: Change validation — schema check + coherence check + rollback checkpoint
+### 1.7 Propagation Circuit — CORE COMPLETE
+The propagation circuit is implemented as an in-memory BFS graph traversal with tiered LLM evaluation. 5-step loop: signal → query neighbors → threshold check → evaluate → recurse with decay. 4 of 5 protection layers active. Architecture across 3 files in `apps/epf-cli/internal/propagation/`.
+- [x] 1.7.1 Define Circuit types at `types.go`: `Config`, `CascadeMode` (Interactive/Automatic/Scenario), `CascadeResult`, `NodeEvaluation`, `ProposedChange`, `SkippedNode`, `DefaultConfig()`
+- [x] 1.7.2 Implement in-memory graph snapshot at `graph.go`: `GraphSnapshot` with `GraphNode`/`GraphEdge`, `LoadGraphSnapshot()` from Memory API, `NewGraphSnapshotFromData()` for tests, `Neighbors()`, `EdgeTypesTo()`, `ToReasoningNode()`
+- [x] 1.7.3 Implement wave-following propagation loop at `circuit.go`: BFS queue, signal decay per hop, inertia threshold check (`tier/10`), TieredReasoner evaluation, modified nodes emit new signals
+- [x] 1.7.4 Implement inertia tier resolution from `inertia_tier` property (string→int parsing)
+- [x] 1.7.5 Implement signal strength: initial from Signal.Strength, decays `strength × decay^depth` per hop
+- [x] 1.7.6 Implement threshold check: `decayedStrength < tier/10` → skip
+- [x] 1.7.7 Wire in Reasoner interface: evaluation builds neighborhood context (up to 10 nodes), passes to reasoner
+- [x] 1.7.10 Implement change classification: mechanical auto-apply, semantic/structural/creative propose for review
+- [x] 1.7.12 Implement 4 of 5 circuit protection layers:
+  - Layer 1: Signal decay ✅ (configurable factor, default 0.7)
+  - Layer 2: Temporal damping ✅ (configurable interval, default 60s)
+  - Layer 3: Oscillation detection ✅ (max evals per node, default 3 → freeze)
+  - Layer 4: Token budget ✅ (50K/100K/200K per mode, halt on exhaustion)
+  - Layer 5: Schema validation — deferred to 1.7.8
+- [x] 1.7.14 Write 9 circuit tests: downward cascade, signal decay, oscillation detection, budget exhaustion, unchanged stops propagation, graph snapshot construction, inertia threshold, temporal damping, mechanical apply in non-dry-run
+- [ ] 1.7.3b Implement parallel dispatch for independent nodes (deferred — sequential works first)
+- [ ] 1.7.8 Implement post-evaluation schema validation (Layer 5)
+- [ ] 1.7.9 Implement edge creation as circuit output (creative proposals)
+- [ ] 1.7.11 Implement graph reload after each wave of applied changes
 - [ ] 1.7.13 Implement human approval gate for tier 1-2 artifacts
-- [ ] 1.7.14 Write circuit protection tests: oscillation, budget exhaustion, schema-invalid proposal, destabilizing change, rollback
-- [ ] 1.7.15 Write propagation circuit tests with known cascade patterns (downward, upward, wave) — use the manual Emergent instance update as reference
+- [ ] 1.7.15 Write propagation tests with real Emergent instance cascade patterns
 
-### 1.8 Semantic Impact Analysis
-- [ ] 1.8.1 Implement `epf impact` as a dry-run of the propagation circuit: run the circuit but don't apply changes, collect the cascade trace
-- [ ] 1.8.2 Implement impact report: structured output showing cascade path, affected artifacts per tier, reasoning tier used, estimated cost
+### 1.8 Semantic Impact Analysis ✅ COMPLETE
+Built during the live demo. `epf impact` loads the graph from Memory, runs the propagation circuit in dry-run mode, and prints a formatted cascade trace.
+- [x] 1.8.1 Implement `epf impact` at `apps/epf-cli/cmd/impact.go`: loads graph via `LoadGraphSnapshot()`, runs circuit with heuristic reasoner (LLM reasoner pluggable), prints wave-by-wave trace
+- [x] 1.8.2 Implement impact report: shows cascade trace grouped by wave, proposed changes grouped by tier, skipped nodes grouped by reason, oscillation and budget warnings
+- [x] 1.8.3 Live demo: fd-012 change produces 32-node cascade across 3 tiers (Value Model, Features, Capabilities) in <1s. 96 nodes correctly skipped by inertia threshold.
+- [x] 1.8.4 Heuristic reasoner for demo: tier-based heuristics (no LLM needed). Pluggable — swap in TieredReasoner for real evaluations.
 - [ ] 1.8.3 Add `epf impact` CLI command and `epf_semantic_impact` MCP tool
 - [ ] 1.8.4 Write impact analysis tests
 

@@ -50,13 +50,14 @@ func (c *Client) DeleteObject(ctx context.Context, id string) error {
 }
 
 // ListObjects lists graph objects with optional filters.
-func (c *Client) ListObjects(ctx context.Context, opts ListOptions) ([]Object, error) {
+// Returns items and a next cursor for pagination.
+func (c *Client) ListObjects(ctx context.Context, opts ListOptions) ([]Object, string, error) {
 	params := url.Values{}
 	if opts.Limit > 0 {
 		params.Set("limit", strconv.Itoa(opts.Limit))
 	}
-	if opts.Offset > 0 {
-		params.Set("offset", strconv.Itoa(opts.Offset))
+	if opts.Cursor != "" {
+		params.Set("cursor", opts.Cursor)
 	}
 	if opts.Type != "" {
 		params.Set("type", opts.Type)
@@ -65,11 +66,12 @@ func (c *Client) ListObjects(ctx context.Context, opts ListOptions) ([]Object, e
 		params.Set("status", opts.Status)
 	}
 
-	var objects []Object
-	if err := c.doWithQuery(ctx, "/api/graph/objects/search", params, &objects); err != nil {
-		return nil, err
+	// The API returns {"items": [...], "next_cursor": "...", "total": N}
+	var page ListPage[Object]
+	if err := c.doWithQuery(ctx, "/api/graph/objects/search", params, &page); err != nil {
+		return nil, "", err
 	}
-	return objects, nil
+	return page.Items, page.NextCursor, nil
 }
 
 // BulkCreateObjects creates multiple objects in a single API call.

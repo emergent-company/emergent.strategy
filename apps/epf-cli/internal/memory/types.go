@@ -20,8 +20,8 @@ type Object struct {
 type Relationship struct {
 	ID         string         `json:"id"`
 	Type       string         `json:"type"`
-	FromID     string         `json:"fromId"`
-	ToID       string         `json:"toId"`
+	FromID     string         `json:"src_id"`
+	ToID       string         `json:"dst_id"`
 	Properties map[string]any `json:"properties,omitempty"`
 	Version    int            `json:"version,omitempty"`
 	CreatedAt  time.Time      `json:"createdAt,omitempty"`
@@ -107,8 +107,8 @@ type UpdateObjectRequest struct {
 // CreateRelationshipRequest is the request body for creating a relationship.
 type CreateRelationshipRequest struct {
 	Type       string         `json:"type"`
-	FromID     string         `json:"fromId"`
-	ToID       string         `json:"toId"`
+	FromID     string         `json:"src_id"`
+	ToID       string         `json:"dst_id"`
 	Properties map[string]any `json:"properties,omitempty"`
 }
 
@@ -151,9 +151,17 @@ type SearchRequest struct {
 // ListOptions holds common query parameters for list endpoints.
 type ListOptions struct {
 	Limit  int
-	Offset int
+	Offset int    // deprecated — use Cursor for pagination
+	Cursor string // cursor from previous page's NextCursor
 	Type   string // filter by object/relationship type
 	Status string // filter by status
+}
+
+// ListPage wraps a page of list results with pagination cursor.
+type ListPage[T any] struct {
+	Items      []T    `json:"items"`
+	NextCursor string `json:"next_cursor"`
+	Total      int    `json:"total"`
 }
 
 // SimilarOptions holds query parameters for the find-similar endpoint.

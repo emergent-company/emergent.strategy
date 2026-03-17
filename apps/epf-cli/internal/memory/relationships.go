@@ -30,23 +30,25 @@ func (c *Client) DeleteRelationship(ctx context.Context, id string) error {
 }
 
 // ListRelationships lists relationships with optional filters.
-func (c *Client) ListRelationships(ctx context.Context, opts ListOptions) ([]Relationship, error) {
+// Returns items and a next cursor for pagination.
+func (c *Client) ListRelationships(ctx context.Context, opts ListOptions) ([]Relationship, string, error) {
 	params := url.Values{}
 	if opts.Limit > 0 {
 		params.Set("limit", strconv.Itoa(opts.Limit))
 	}
-	if opts.Offset > 0 {
-		params.Set("offset", strconv.Itoa(opts.Offset))
+	if opts.Cursor != "" {
+		params.Set("cursor", opts.Cursor)
 	}
 	if opts.Type != "" {
 		params.Set("type", opts.Type)
 	}
 
-	var rels []Relationship
-	if err := c.doWithQuery(ctx, "/api/graph/relationships/search", params, &rels); err != nil {
-		return nil, err
+	// The API returns {"items": [...], "next_cursor": "...", "total": N}
+	var page ListPage[Relationship]
+	if err := c.doWithQuery(ctx, "/api/graph/relationships/search", params, &page); err != nil {
+		return nil, "", err
 	}
-	return rels, nil
+	return page.Items, page.NextCursor, nil
 }
 
 // BulkCreateRelationships creates multiple relationships in a single API call.

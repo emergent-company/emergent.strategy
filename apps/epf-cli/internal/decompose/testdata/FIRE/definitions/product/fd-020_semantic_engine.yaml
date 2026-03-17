@@ -1,0 +1,24 @@
+id: "fd-020"
+name: "Semantic Strategy Engine"
+definition:
+  capabilities:
+    - id: "cap-001"
+      name: "Artifact Decomposition"
+      description: "Parse YAML into graph objects"
+      maturity: "emerging"
+    - id: "cap-002"
+      name: "Semantic Edge Detection"
+      description: "Find semantic relationships via embeddings"
+      maturity: "hypothetical"
+dependencies:
+  requires:
+    - id: "fd-025"
+      name: "Memory Integration"
+      reason: "Semantic engine needs the graph database connection"
+  enables:
+    - id: "fd-021"
+      name: "Propagation Circuits"
+      reason: "Propagation needs the semantic graph to traverse"
+    - id: "fd-022"
+      name: "Tiered LLM Reasoning"
+      reason: "Reasoning needs semantic context from the graph"

@@ -1,0 +1,33 @@
+roadmap:
+  id: "roadmap-002"
+  cycle: 2
+  tracks:
+    product:
+      track_objective: "Build semantic engine"
+      riskiest_assumptions:
+        - id: "asm-p-020"
+          description: "Embedding-based similarity can reliably detect semantic contradictions"
+          type: "feasibility"
+          criticality: "critical"
+          confidence: "medium"
+          evidence_required: "Test on 3+ live instances"
+          linked_to_kr:
+            - "kr-p-018"
+            - "kr-p-019"
+        - id: "asm-p-021"
+          description: "Strategic managers will trust AI-proposed strategy changes"
+          type: "desirability"
+          criticality: "high"
+          confidence: "low"
+          evidence_required: "User testing with real strategy updates"
+          linked_to_kr:
+            - "kr-p-020"
+    strategy:
+      track_objective: "Validate product-market fit"
+      riskiest_assumptions:
+        - id: "asm-s-006"
+          description: "Semantic strategy runtime is a viable product category"
+          type: "viability"
+          criticality: "critical"
+          confidence: "medium"
+          evidence_required: "Customer interviews and willingness to pay"
