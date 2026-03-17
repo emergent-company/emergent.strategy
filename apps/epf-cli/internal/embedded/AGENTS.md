@@ -8,7 +8,7 @@
 
 ## Quick Protocol (Mandatory)
 
-**Every AI agent session MUST follow these three protocols:**
+**Every AI agent session MUST follow these four protocols:**
 
 ### 1. Wizard-First Workflow
 
@@ -41,6 +41,17 @@ After ANY change to an EPF YAML file, you MUST validate:
 ```
 epf_validate_file({ path: "<modified_file>" })
 ```
+
+### 4. File Safety Protocol
+
+When editing EPF YAML files, you MUST preserve existing content:
+
+- **NEVER delete and recreate** an EPF YAML file. Always edit in place. EPF files contain curated strategic content (personas, insights, roadmaps) that is expensive to recreate and easy to lose.
+- **NEVER truncate or overwrite** an entire file when you only need to modify specific sections. Work section by section.
+- **Ensure git safety** before large edits — confirm changes are committed so you can recover with `git checkout` if something goes wrong.
+- **Intentional deletion is OK** when the user explicitly requests removing a file (e.g., deleting a deprecated feature definition).
+
+> **Why this matters:** AI agents sometimes decide to delete a 200+ line YAML file and rewrite it from scratch instead of editing in place. This destroys curated strategic content that took hours to create. The delete-and-rewrite pattern is the #1 cause of data loss in EPF instances.
 
 ### Task Decision Tree
 

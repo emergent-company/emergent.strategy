@@ -4793,6 +4793,17 @@ func buildAgentInstructionsOutput(disc *discovery.DiscoveryResult, defaultInstan
 				"3. For large files, use epf_validate_with_plan for chunked fixing",
 			},
 		},
+		{
+			Name:        "file_safety",
+			Description: "You MUST NOT use delete-and-rewrite when editing EPF YAML files. Always edit in place. EPF files contain curated strategic content that is expensive to recreate.",
+			Steps: []string{
+				"1. NEVER delete an EPF YAML file and recreate it from scratch — always edit the existing file in place",
+				"2. Before making large edits, ensure changes are committed to git so you can recover with git checkout",
+				"3. Preserve ALL existing content — only add, modify, or replace specific fields, never truncate the file",
+				"4. If you need to restructure a file substantially, work section by section rather than rewriting the whole file",
+				"5. Intentional file deletion (e.g., removing a deprecated feature) is acceptable when the user explicitly requests it",
+			},
+		},
 	}
 
 	// Workflow Decision Tree
@@ -5003,6 +5014,7 @@ func buildAgentInstructionsOutput(disc *discovery.DiscoveryResult, defaultInstan
 		"You MUST call epf_get_wizard_for_task before creating any EPF artifact",
 		"You MUST validate every file after editing with epf_validate_file",
 		"You MUST query strategy context before feature work or roadmap changes",
+		"NEVER delete and recreate EPF YAML files — always edit in place to preserve curated strategic content",
 		"Run health check before and after major changes",
 		"Never guess artifact structure — use schemas, templates, and wizards",
 		"Prefer MCP tools over direct file manipulation when available",
