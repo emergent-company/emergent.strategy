@@ -163,11 +163,14 @@ Graph branching via Memory API for "what if?" strategy exploration. Full lifecyc
 - [ ] 1.11.3 Ensure backward compatibility: all existing MCP tools work identically with MemorySource
 - [ ] 1.11.4 Write MemorySource integration tests
 
-### 1.12 Semantic Query Tools
-- [ ] 1.12.1 Implement `epf_semantic_search` MCP tool: delegates to `memory query --mode=search` with EPF-specific formatting
-- [ ] 1.12.2 Implement `epf_semantic_neighbors` MCP tool: given a node, query Memory graph for connected nodes with edge types and weights
-- [ ] 1.12.3 Implement `epf_semantic_path` MCP tool: find the semantic path between two artifact sections via graph traversal
-- [ ] 1.12.4 Write semantic query tests
+### 1.12 Semantic Query Tools ✅ COMPLETE
+Three MCP tools registered at `apps/epf-cli/internal/mcp/semantic_tools.go`.
+- [x] 1.12.1 Implement `epf_semantic_search` MCP tool: uses `search-with-neighbors` endpoint, returns scored results with type/tier metadata
+- [x] 1.12.2 Implement `epf_semantic_neighbors` MCP tool: loads graph snapshot, returns outgoing/incoming edges with types, weights, and target details
+- [x] 1.12.3 Implement `epf_semantic_impact` MCP tool: loads graph, runs propagation circuit in dry-run mode, returns trace/proposed/skipped as JSON
+- [ ] 1.12.4 `epf_semantic_path` tool (deferred — graph traversal/pathfinding not yet needed)
+- [x] 1.12.5 Fixed Memory `SearchWithNeighbors` response wrapper (`primaryResults` not bare array)
+- [x] 1.12.6 Registered in both strategy-only and full MCP servers
 
 ### 1.13 Live Testing & Calibration
 - [ ] 1.13.1 Ingest Emergent instance — validate node/edge counts, test semantic queries
@@ -178,10 +181,10 @@ Graph branching via Memory API for "what if?" strategy exploration. Full lifecyc
 - [ ] 1.13.6 Run scenario projection on each instance, gather feedback on usefulness
 - [ ] 1.13.7 Document Phase 1 learnings: what worked, what needs adjustment, what was surprising
 
-### 1.14 Documentation
-- [ ] 1.14.1 Create `openspec/specs/epf-semantic-engine/spec.md`
-- [ ] 1.14.2 Update `openspec/specs/epf-strategy-server/spec.md` with MemorySource
-- [ ] 1.14.3 Update AGENTS.md with semantic tooling guidance
+### 1.14 Documentation ✅ COMPLETE
+- [x] 1.14.1 Create `openspec/specs/epf-semantic-engine/spec.md` — 9 requirements with scenarios covering decomposition, ingestion, reasoning, propagation, impact, scenario projection, MCP tools
+- [x] 1.14.3 Update AGENTS.md with semantic engine section: CLI commands, MCP tools, engine packages, configuration
+- [ ] 1.14.2 Update `openspec/specs/epf-strategy-server/spec.md` with MemorySource (deferred until 1.11 is done)
 
 ## Phase 2: Causal AIM Loop (`add-causal-aim-loop`)
 

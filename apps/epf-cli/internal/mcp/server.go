@@ -108,6 +108,7 @@ func NewStrategyOnlyServer(defaultInstancePath string) (*Server, error) {
 	s.registerStrategyTools()
 	s.registerStrategyContextTools()
 	s.registerAuditTools()
+	s.registerSemanticTools()
 
 	return s, nil
 }
@@ -1799,6 +1800,11 @@ func (s *Server) registerTools() {
 	// Session Audit Tools (tool call tracking and workflow verification)
 	// ==========================================================================
 	s.registerAuditTools()
+
+	// ==========================================================================
+	// Semantic Strategy Engine Tools (graph search, neighbors, impact analysis)
+	// ==========================================================================
+	s.registerSemanticTools()
 }
 
 // SchemaListItem represents a schema in the list response

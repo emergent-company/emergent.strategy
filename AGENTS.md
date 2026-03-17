@@ -113,6 +113,44 @@ Legacy tools (`epf_get_wizard_for_task`, `epf_get_wizard`, `epf_list_generators`
 
 Before feature work, roadmap changes, or competitive decisions, query strategy context using: `epf_get_product_vision`, `epf_get_personas`, `epf_get_competitive_position`, `epf_get_roadmap_summary`, `epf_search_strategy`.
 
+## Semantic Strategy Engine
+
+The EPF CLI includes a semantic strategy engine that treats EPF artifacts as a live semantic graph in emergent.memory. Configure with environment variables:
+
+```bash
+export EPF_MEMORY_URL="https://memory.emergent-company.ai"
+export EPF_MEMORY_PROJECT="<project-id>"
+export EPF_MEMORY_TOKEN="<project-token>"
+```
+
+### CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `epf ingest [path]` | Full ingestion to Memory (with `--dry-run`) |
+| `epf sync [path]` | Incremental sync (only changed objects) |
+| `epf impact <desc> --node <key>` | Dry-run impact analysis |
+| `epf scenario create/modify/evaluate/discard` | What-if exploration via graph branching |
+
+### MCP Tools (Semantic)
+
+| Tool | Description |
+|------|-------------|
+| `epf_semantic_search` | Search the strategy graph by meaning |
+| `epf_semantic_neighbors` | Get connected nodes with edge types |
+| `epf_semantic_impact` | Run propagation circuit (dry-run cascade) |
+
+### Engine Packages
+
+| Package | Purpose |
+|---------|---------|
+| `apps/epf-cli/internal/decompose/` | YAML → graph objects (self-contained, no strategy parser dependency) |
+| `apps/epf-cli/internal/memory/` | emergent.memory REST API client |
+| `apps/epf-cli/internal/ingest/` | Ingestion pipeline + incremental sync |
+| `apps/epf-cli/internal/reasoning/` | Tiered LLM reasoning (Local/Cloud/Frontier) |
+| `apps/epf-cli/internal/propagation/` | Propagation circuit with 4-layer protection |
+| `apps/epf-cli/internal/scenario/` | What-if exploration via graph branching |
+
 ## Key Packages
 
 | Package | Purpose |
@@ -126,4 +164,5 @@ Before feature work, roadmap changes, or competitive decisions, query strategy c
 ## Detailed Documentation
 
 - **EPF Framework**: `docs/EPF/`
+- **Semantic Engine Spec**: `openspec/specs/epf-semantic-engine/spec.md`
 - **OpenSpec**: `openspec/AGENTS.md`

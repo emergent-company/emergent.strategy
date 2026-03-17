@@ -16,9 +16,12 @@ func (c *Client) Search(ctx context.Context, req SearchRequest) ([]SearchResult,
 // SearchWithNeighbors performs hybrid search and includes graph neighbors
 // of each result for context.
 func (c *Client) SearchWithNeighbors(ctx context.Context, req SearchRequest) ([]SearchResult, error) {
-	var results []SearchResult
-	if err := c.do(ctx, "POST", "/api/graph/search-with-neighbors", req, &results); err != nil {
+	// The API returns {"primaryResults": [...]}
+	var wrapper struct {
+		PrimaryResults []SearchResult `json:"primaryResults"`
+	}
+	if err := c.do(ctx, "POST", "/api/graph/search-with-neighbors", req, &wrapper); err != nil {
 		return nil, err
 	}
-	return results, nil
+	return wrapper.PrimaryResults, nil
 }
