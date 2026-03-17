@@ -1,0 +1,168 @@
+{
+  "name": "epf-engine",
+  "version": "1.0.0",
+  "description": "Knowledge graph schema for the EPF (Emergent Product Framework) strategy engine — tracks artifacts, value models, features, personas, OKRs, agents, and skills.",
+  "author": "emergent-company",
+  "objectTypes": [
+    {
+      "name": "Artifact",
+      "label": "Artifact",
+      "description": "An EPF YAML artifact such as a north star, strategy formula, insight analysis, or roadmap recipe. Lives in the READY/FIRE/AIM phased structure.",
+      "extraction_guidelines": "Extract when a document references a specific EPF file or artifact type (north_star, strategy_formula, insight_analyses, roadmap_recipe, value_model, etc.). Capture the artifact type, phase, and purpose.",
+      "properties": {
+        "name": { "type": "string", "description": "Artifact name or filename (e.g. 00_north_star.yaml)" },
+        "description": { "type": "string", "description": "What this artifact defines or contains" },
+        "artifact_type": { "type": "string", "description": "EPF artifact type: north_star, strategy_formula, insight_analyses, roadmap_recipe, feature_definition, value_model, assessment_report, etc." },
+        "phase": { "type": "string", "description": "EPF phase: READY, FIRE, or AIM" },
+        "file_path": { "type": "string", "description": "Relative path within the EPF instance" }
+      }
+    },
+    {
+      "name": "ValueModelComponent",
+      "label": "Value Model Component",
+      "description": "A component in the EPF value model hierarchy. Value models have 3 levels: L1 (track/layer), L2 (component), L3 (sub-component). Paths follow the format Track.L1.L2 or Track.L1.L2.L3.",
+      "extraction_guidelines": "Extract when a document references value model paths like Product.Core.GraphEngine or Strategy.Growth.MarketExpansion. Capture the full dotted path, the level, and the track.",
+      "properties": {
+        "name": { "type": "string", "description": "Component name (e.g. GraphEngine, KnowledgeExploration)" },
+        "description": { "type": "string", "description": "What value this component delivers" },
+        "value_path": { "type": "string", "description": "Full dotted path (e.g. Product.Core.GraphEngine)" },
+        "track": { "type": "string", "description": "Track: Product, Strategy, OrgOps, or Commercial" },
+        "level": { "type": "string", "description": "Hierarchy level: L1, L2, or L3" },
+        "maturity": { "type": "string", "description": "Maturity level: hypothetical, emerging, proven, or scaled" }
+      }
+    },
+    {
+      "name": "Persona",
+      "label": "Persona",
+      "description": "A target user persona defined in the EPF strategy. Personas represent the people the product is built for, with goals, pain points, and usage context.",
+      "extraction_guidelines": "Extract when a document describes a target user, their role, goals, pain points, or usage patterns. Look for persona IDs (e.g. persona-001) or named user archetypes.",
+      "properties": {
+        "name": { "type": "string", "description": "Persona name or archetype (e.g. Solo Developer, Product Manager)" },
+        "description": { "type": "string", "description": "Who this persona is and what they care about" },
+        "persona_id": { "type": "string", "description": "EPF persona identifier (e.g. persona-001)" },
+        "role": { "type": "string", "description": "Professional role or title" },
+        "goals": { "type": "string", "description": "Primary goals and motivations" },
+        "pain_points": { "type": "string", "description": "Key frustrations or challenges" }
+      }
+    },
+    {
+      "name": "Feature",
+      "label": "Feature",
+      "description": "A product feature defined as an EPF feature definition. Features have capabilities, maturity levels, and contribute to value model components.",
+      "extraction_guidelines": "Extract when a document references a feature definition (fd-xxx), a named product capability, or describes functionality being built. Capture the feature ID, status, and what value model paths it contributes to.",
+      "properties": {
+        "name": { "type": "string", "description": "Feature name (e.g. Knowledge Exploration, CLI Local Development)" },
+        "description": { "type": "string", "description": "What this feature does and why it matters" },
+        "feature_id": { "type": "string", "description": "EPF feature ID (e.g. fd-001, fd-012)" },
+        "status": { "type": "string", "description": "Feature status: draft, active, delivered, deprecated" },
+        "contributes_to": { "type": "string", "description": "Comma-separated value model paths this feature contributes to" }
+      }
+    },
+    {
+      "name": "OKR",
+      "label": "OKR",
+      "description": "An Objective and Key Result from the EPF roadmap. OKRs define measurable goals organized by track and cycle.",
+      "extraction_guidelines": "Extract when a document references objectives, key results, OKR IDs (e.g. kr-p-2025-q1-001), targets, or measurable outcomes tied to the roadmap.",
+      "properties": {
+        "name": { "type": "string", "description": "Objective or Key Result title" },
+        "description": { "type": "string", "description": "What this OKR aims to achieve" },
+        "okr_id": { "type": "string", "description": "Key Result ID (e.g. kr-p-2025-q1-001)" },
+        "track": { "type": "string", "description": "Track: product, strategy, org_ops, or commercial" },
+        "cycle": { "type": "string", "description": "Cycle reference (e.g. C1, 2025-Q1)" },
+        "status": { "type": "string", "description": "Status: not_started, in_progress, met, exceeded, missed" },
+        "target_value": { "type": "string", "description": "Target metric or outcome" }
+      }
+    },
+    {
+      "name": "Agent",
+      "label": "Agent",
+      "description": "An AI agent persona that orchestrates EPF workflows. Agents have identity, personality, required skills, and routing rules.",
+      "extraction_guidelines": "Extract when a document describes an AI agent, its role, personality, required skills, or the tasks it handles. Look for agent names like pathfinder, product_architect, onboarding-guide.",
+      "properties": {
+        "name": { "type": "string", "description": "Agent name (e.g. pathfinder, product_architect)" },
+        "description": { "type": "string", "description": "What this agent does and when to use it" },
+        "agent_type": { "type": "string", "description": "Agent type: guide, strategist, specialist, architect, reviewer" },
+        "phase": { "type": "string", "description": "EPF phase this agent operates in: READY, FIRE, AIM, Onboarding" }
+      }
+    },
+    {
+      "name": "Skill",
+      "label": "Skill",
+      "description": "A bundled capability with prompts, prerequisites, and validation. Skills unify the previous wizard and generator concepts. Types include creation, generation, review, enrichment, and analysis.",
+      "extraction_guidelines": "Extract when a document references a skill, wizard, or generator by name. Look for skill types (creation, generation, review) and their required artifacts or prerequisites.",
+      "properties": {
+        "name": { "type": "string", "description": "Skill name (e.g. context-sheet, feature-definition-creation)" },
+        "description": { "type": "string", "description": "What this skill produces or evaluates" },
+        "skill_type": { "type": "string", "description": "Skill type: creation, generation, review, enrichment, analysis" },
+        "category": { "type": "string", "description": "Category: compliance, marketing, investor, internal, development, custom" }
+      }
+    }
+  ],
+  "relationshipTypes": [
+    {
+      "name": "contributes_to",
+      "label": "Contributes To",
+      "description": "A feature contributes value to a value model component",
+      "fromTypes": ["Feature"],
+      "toTypes": ["ValueModelComponent"]
+    },
+    {
+      "name": "targets",
+      "label": "Targets",
+      "description": "An OKR targets advancement of a value model component",
+      "fromTypes": ["OKR"],
+      "toTypes": ["ValueModelComponent"]
+    },
+    {
+      "name": "serves",
+      "label": "Serves",
+      "description": "A feature is designed to serve a specific persona",
+      "fromTypes": ["Feature"],
+      "toTypes": ["Persona"]
+    },
+    {
+      "name": "uses_skill",
+      "label": "Uses Skill",
+      "description": "An agent requires or optionally uses a skill",
+      "fromTypes": ["Agent"],
+      "toTypes": ["Skill"]
+    },
+    {
+      "name": "depends_on",
+      "label": "Depends On",
+      "description": "A feature depends on another feature",
+      "fromTypes": ["Feature"],
+      "toTypes": ["Feature"]
+    },
+    {
+      "name": "references",
+      "label": "References",
+      "description": "An artifact references or defines a feature, persona, or OKR",
+      "fromTypes": ["Artifact"],
+      "toTypes": ["Feature", "Persona", "OKR", "ValueModelComponent"]
+    },
+    {
+      "name": "belongs_to_phase",
+      "label": "Belongs To Phase",
+      "description": "An artifact or entity belongs to an EPF phase (READY, FIRE, or AIM)",
+      "fromTypes": ["Artifact", "Feature", "Agent", "Skill"],
+      "toTypes": ["Artifact"]
+    },
+    {
+      "name": "delivers",
+      "label": "Delivers",
+      "description": "An OKR delivers or advances a feature",
+      "fromTypes": ["OKR"],
+      "toTypes": ["Feature"]
+    }
+  ],
+  "ui_configs": {
+    "Artifact": { "icon": "FileText", "color": "#6366F1", "category": "Framework" },
+    "ValueModelComponent": { "icon": "Layers", "color": "#10B981", "category": "Strategy" },
+    "Persona": { "icon": "User", "color": "#F59E0B", "category": "Strategy" },
+    "Feature": { "icon": "Box", "color": "#3B82F6", "category": "Execution" },
+    "OKR": { "icon": "Target", "color": "#EF4444", "category": "Execution" },
+    "Agent": { "icon": "Zap", "color": "#8B5CF6", "category": "AI" },
+    "Skill": { "icon": "Shield", "color": "#EC4899", "category": "AI" }
+  }
+}
