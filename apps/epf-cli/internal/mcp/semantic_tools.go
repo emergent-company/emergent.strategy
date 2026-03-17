@@ -19,6 +19,13 @@ import (
 // These tools require Memory API access (EPF_MEMORY_URL, EPF_MEMORY_PROJECT, EPF_MEMORY_TOKEN).
 func (s *Server) registerSemanticTools() {
 	s.mcpServer.AddTool(
+		mcp.NewTool("epf_contradictions",
+			mcp.WithDescription("Detect structural contradictions in the strategy graph. Finds orphaned references, status conflicts, broken dependencies, maturity gaps, and disconnected nodes. Requires Memory API configuration."),
+		),
+		s.handleContradictions,
+	)
+
+	s.mcpServer.AddTool(
 		mcp.NewTool("epf_semantic_search",
 			mcp.WithDescription("Search the strategy graph semantically. Finds strategy nodes by meaning, not just text matching. Returns scored results from the emergent.memory graph. Requires Memory API configuration (EPF_MEMORY_URL, EPF_MEMORY_PROJECT, EPF_MEMORY_TOKEN)."),
 			mcp.WithString("query", mcp.Required(), mcp.Description("Search query")),
@@ -300,6 +307,48 @@ func (s *Server) handleSemanticImpact(ctx context.Context, request mcp.CallToolR
 		"frozen_nodes":     result.FrozenNodes,
 		"trace":            trace,
 		"proposed":         proposed,
+	}
+
+	jsonBytes, _ := json.MarshalIndent(response, "", "  ")
+	return mcp.NewToolResultText(string(jsonBytes)), nil
+}
+
+// handleContradictions detects structural contradictions in the graph.
+func (s *Server) handleContradictions(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	client, err := s.getMemoryClient()
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	graph, err := propagation.LoadGraphSnapshot(ctx, client)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to load graph: %v", err)), nil
+	}
+
+	contradictions := propagation.DetectContradictions(graph)
+
+	// Group by severity
+	bySeverity := map[string]int{}
+	for _, c := range contradictions {
+		bySeverity[c.Severity]++
+	}
+
+	var items []map[string]any
+	for _, c := range contradictions {
+		items = append(items, map[string]any{
+			"type":        string(c.Type),
+			"severity":    c.Severity,
+			"description": c.Description,
+			"node_a":      c.NodeAKey,
+			"node_b":      c.NodeBKey,
+		})
+	}
+
+	response := map[string]any{
+		"total":          len(contradictions),
+		"by_severity":    bySeverity,
+		"contradictions": items,
+		"graph_nodes":    len(graph.Nodes),
 	}
 
 	jsonBytes, _ := json.MarshalIndent(response, "", "  ")

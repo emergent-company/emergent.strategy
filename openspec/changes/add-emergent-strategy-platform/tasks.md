@@ -136,12 +136,14 @@ Built during the live demo. `epf impact` loads the graph from Memory, runs the p
 - [ ] 1.8.3 Add `epf impact` CLI command and `epf_semantic_impact` MCP tool
 - [ ] 1.8.4 Write impact analysis tests
 
-### 1.9 Contradiction Detection
-- [ ] 1.9.1 Implement pairwise contradiction check: nodes with high semantic similarity but opposing polarity
-- [ ] 1.9.2 Implement cross-track tension detection: contradictory claims across tracks
-- [ ] 1.9.3 Implement continuous background check: after each sync, scan affected neighborhood
-- [ ] 1.9.4 Add `epf_contradictions` MCP tool
-- [ ] 1.9.5 Write contradiction detection tests
+### 1.9 Contradiction Detection — STRUCTURAL COMPLETE
+Structural contradictions detected from graph topology. Semantic contradiction detection (pairwise embedding comparison) deferred until Memory similarity API is fixed (#97).
+- [x] 1.9.1 Implement structural contradiction detection at `apps/epf-cli/internal/propagation/contradictions.go`: orphaned references, status conflicts, broken dependencies, maturity gaps, disconnected nodes
+- [x] 1.9.4 Add `epf_contradictions` MCP tool at `semantic_tools.go`
+- [x] 1.9.5 Write 6 contradiction detection tests: orphaned ref, status conflict, broken dep, disconnected (negative + positive), clean graph
+- [ ] 1.9.2 Semantic contradiction: pairwise embedding comparison for opposing polarity (blocked by Memory #97)
+- [ ] 1.9.3 Cross-track tension detection (needs semantic edges)
+- [ ] 1.9.6 Continuous background check after sync
 
 ### 1.10 Scenario Projection ✅ CORE COMPLETE
 Graph branching via Memory API for "what if?" strategy exploration. Full lifecycle: create → modify → evaluate → diff → commit/discard.
