@@ -143,14 +143,19 @@ Built during the live demo. `epf impact` loads the graph from Memory, runs the p
 - [ ] 1.9.4 Add `epf_contradictions` MCP tool
 - [ ] 1.9.5 Write contradiction detection tests
 
-### 1.10 Scenario Projection
-- [ ] 1.10.1 Implement scenario creation: create a branch in emergent.memory graph with metadata (hypothesis, description)
-- [ ] 1.10.2 Implement scenario modification: apply proposed changes to the branched graph
-- [ ] 1.10.3 Implement scenario evaluation: run propagation circuit and contradiction detection on the branched graph
-- [ ] 1.10.4 Implement semantic diff: compare branched graph to main graph showing cascade implications
-- [ ] 1.10.5 Implement scenario commit: merge branched graph to main, generate YAML changes for Git commit
-- [ ] 1.10.6 Add MCP tools: `epf_scenario_create`, `epf_scenario_modify`, `epf_scenario_evaluate`, `epf_scenario_commit`
-- [ ] 1.10.7 Write scenario projection tests
+### 1.10 Scenario Projection ✅ CORE COMPLETE
+Graph branching via Memory API for "what if?" strategy exploration. Full lifecycle: create → modify → evaluate → diff → commit/discard.
+- [x] 1.10.1 Implement scenario creation at `apps/epf-cli/internal/scenario/scenario.go`: creates graph branch via `memory.CreateBranch()`, returns Scenario with branch ID
+- [x] 1.10.2 Implement scenario modification: applies changes to nodes on branch via `memory.WithBranch(id).UpdateObject()`
+- [x] 1.10.3 Implement scenario evaluation: loads branched graph via `LoadGraphSnapshot()`, runs propagation circuit in scenario mode (200K token budget)
+- [x] 1.10.4 Implement diff: shows direct modifications vs cascade modifications from propagation
+- [x] 1.10.5 Implement commit (`MergeBranch`) and discard (`DeleteBranch`)
+- [x] 1.10.6 Add CLI commands: `epf scenario create/modify/evaluate/discard` at `apps/epf-cli/cmd/scenario.go`
+- [x] 1.10.7 Write 5 scenario tests: create/discard, modify/evaluate, diff, locking (no modify after evaluate), WithBranch client
+- [x] 1.10.8 Memory client: `WithBranch(id)` returns branch-scoped client with `X-Branch-ID` header
+- [x] 1.10.9 Live demo: scenario created, evaluated (739 nodes loaded from branch), and discarded on epf-engine
+- [ ] 1.10.10 MCP tools (deferred): `epf_scenario_create`, `epf_scenario_modify`, `epf_scenario_evaluate`, `epf_scenario_commit`
+- [ ] 1.10.11 YAML generation from committed scenario (deferred — requires mapping graph changes back to YAML files)
 
 ### 1.11 MemorySource for StrategyStore
 - [ ] 1.11.1 Implement `strategy.Source` interface as `MemorySource` (read from emergent.memory graph)
