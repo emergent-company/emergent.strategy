@@ -25,7 +25,25 @@ type Client struct {
 	baseURL    string
 	projectID  string
 	token      string
+	branchID   string // optional — scopes operations to a graph branch
 	httpClient *http.Client
+}
+
+// WithBranch returns a new client scoped to the given branch.
+// All object/relationship operations will target this branch.
+func (c *Client) WithBranch(branchID string) *Client {
+	return &Client{
+		baseURL:    c.baseURL,
+		projectID:  c.projectID,
+		token:      c.token,
+		branchID:   branchID,
+		httpClient: c.httpClient,
+	}
+}
+
+// BranchID returns the current branch ID, if any.
+func (c *Client) BranchID() string {
+	return c.branchID
 }
 
 // Config holds the configuration for creating a Memory client.
@@ -88,6 +106,9 @@ func (c *Client) do(ctx context.Context, method, path string, body any, result a
 
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("X-Project-ID", c.projectID)
+	if c.branchID != "" {
+		req.Header.Set("X-Branch-ID", c.branchID)
+	}
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
