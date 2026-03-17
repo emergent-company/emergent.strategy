@@ -159,11 +159,13 @@ Graph branching via Memory API for "what if?" strategy exploration. Full lifecyc
 - [ ] 1.10.10 MCP tools (deferred): `epf_scenario_create`, `epf_scenario_modify`, `epf_scenario_evaluate`, `epf_scenario_commit`
 - [ ] 1.10.11 YAML generation from committed scenario (deferred — requires mapping graph changes back to YAML files)
 
-### 1.11 MemorySource for StrategyStore
-- [ ] 1.11.1 Implement `strategy.Source` interface as `MemorySource` (read from emergent.memory graph)
-- [ ] 1.11.2 Wire into strategy store: auto-detect `EPF_MEMORY_URL`, `--source memory` flag
-- [ ] 1.11.3 Ensure backward compatibility: all existing MCP tools work identically with MemorySource
-- [ ] 1.11.4 Write MemorySource integration tests
+### 1.11 MemorySource for StrategyStore ✅ CORE COMPLETE
+Implements `StrategyStore` interface backed by the Memory graph. All 12 interface methods implemented.
+- [x] 1.11.1 Implement `MemorySource` at `apps/epf-cli/internal/strategy/memory_source.go` — converts graph objects back to typed Go structs: NorthStar from Beliefs, Personas from Persona objects, Positioning from Positioning objects, Roadmap from OKR objects, Features from Feature+Capability objects, ValueModels from ValueModelComponent hierarchy
+- [x] 1.11.2 Semantic search via `SearchWithNeighbors` endpoint for the `Search()` method
+- [ ] 1.11.3 Wire into MCP server: auto-detect `EPF_MEMORY_URL` and use MemorySource when available
+- [ ] 1.11.4 Write MemorySource integration tests against live Memory graph
+- [ ] 1.11.5 Ensure backward compatibility with all 49 existing MCP tools
 
 ### 1.12 Semantic Query Tools ✅ COMPLETE
 Three MCP tools registered at `apps/epf-cli/internal/mcp/semantic_tools.go`.
