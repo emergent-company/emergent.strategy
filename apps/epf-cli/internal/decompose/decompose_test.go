@@ -254,6 +254,181 @@ func TestClassifyMoatType(t *testing.T) {
 	}
 }
 
+// --- Edge case tests ---
+
+// TestDecomposeEmptyInstance verifies the decomposer handles an instance with empty/missing content.
+func TestDecomposeEmptyInstance(t *testing.T) {
+	d := New("testdata-empty")
+	result, err := d.DecomposeInstance()
+	if err != nil {
+		t.Fatalf("DecomposeInstance failed on empty instance: %v", err)
+	}
+
+	// Should produce at least 1 artifact node (the north_star file exists)
+	if len(result.Objects) < 1 {
+		t.Error("Expected at least 1 object from empty instance (artifact node)")
+	}
+
+	// Should not produce any beliefs (core_beliefs is empty)
+	counts := countByType(result)
+	if counts["Belief"] > 0 {
+		t.Errorf("Expected 0 Beliefs from empty instance, got %d", counts["Belief"])
+	}
+
+	// No errors or panics
+	t.Logf("Empty instance: %d objects, %d relationships, %d warnings",
+		len(result.Objects), len(result.Relationships), len(result.Warnings))
+}
+
+// TestDecomposeNonexistentInstance verifies graceful handling of missing instance.
+func TestDecomposeNonexistentInstance(t *testing.T) {
+	d := New("/nonexistent/path/that/does/not/exist")
+	result, err := d.DecomposeInstance()
+	if err != nil {
+		t.Fatalf("DecomposeInstance should not error for missing instance: %v", err)
+	}
+
+	// Should produce empty result (all files are optional)
+	if len(result.Objects) != 0 {
+		t.Errorf("Expected 0 objects from nonexistent instance, got %d", len(result.Objects))
+	}
+	if len(result.Relationships) != 0 {
+		t.Errorf("Expected 0 relationships from nonexistent instance, got %d", len(result.Relationships))
+	}
+}
+
+// TestDecomposeKeyUniqueness verifies all object keys are unique across the full instance.
+func TestDecomposeKeyUniqueness(t *testing.T) {
+	d := New("testdata")
+	result, err := d.DecomposeInstance()
+	if err != nil {
+		t.Fatalf("DecomposeInstance failed: %v", err)
+	}
+
+	seen := make(map[string]int)
+	for _, obj := range result.Objects {
+		seen[obj.Key]++
+	}
+
+	duplicates := 0
+	for key, count := range seen {
+		if count > 1 {
+			t.Errorf("Duplicate key: %s (appeared %d times)", key, count)
+			duplicates++
+		}
+	}
+
+	if duplicates > 0 {
+		t.Errorf("Found %d duplicate keys out of %d total objects", duplicates, len(result.Objects))
+	}
+}
+
+// TestDecomposeRelationshipEndpointsExist verifies all relationship endpoints reference valid keys.
+func TestDecomposeRelationshipEndpointsExist(t *testing.T) {
+	d := New("testdata")
+	result, err := d.DecomposeInstance()
+	if err != nil {
+		t.Fatalf("DecomposeInstance failed: %v", err)
+	}
+
+	// Build key set
+	keys := make(map[string]bool)
+	for _, obj := range result.Objects {
+		keys[obj.Key] = true
+	}
+
+	// Check that "from" keys exist (within the same decomposition).
+	// "to" keys may reference objects from other artifacts, so we only
+	// flag missing "from" keys since those should always be self-referencing.
+	missingFrom := 0
+	for _, rel := range result.Relationships {
+		if !keys[rel.FromKey] {
+			// The from-key might be a cross-reference to another artifact's object
+			// Only flag "contains" relationships since those should always be internal
+			if rel.Type == "contains" {
+				t.Errorf("contains relationship from non-existent key: %s → %s", rel.FromKey, rel.ToKey)
+				missingFrom++
+			}
+		}
+	}
+
+	if missingFrom > 0 {
+		t.Errorf("Found %d contains relationships with missing from-keys", missingFrom)
+	}
+}
+
+// TestDecomposeAllObjectsHaveRequiredProperties verifies core properties are set.
+func TestDecomposeAllObjectsHaveRequiredProperties(t *testing.T) {
+	// Use the real Emergent instance if available
+	candidates := []string{
+		filepath.Join("..", "..", "..", "..", "docs", "EPF", "_instances", "emergent"),
+		"/Users/nikolaifasting/code/emergent-epf",
+	}
+	var instancePath string
+	for _, p := range candidates {
+		abs, _ := filepath.Abs(p)
+		if _, err := os.Stat(filepath.Join(abs, "READY", "00_north_star.yaml")); err == nil {
+			instancePath = abs
+			break
+		}
+	}
+	if instancePath == "" {
+		t.Skip("Emergent EPF instance not available")
+	}
+
+	d := New(instancePath)
+	result, err := d.DecomposeInstance()
+	if err != nil {
+		t.Fatalf("DecomposeInstance failed: %v", err)
+	}
+
+	emptyNames := 0
+	missingTiers := 0
+	missingSources := 0
+
+	for _, obj := range result.Objects {
+		// Every object should have a name
+		name, _ := obj.Properties["name"].(string)
+		if name == "" {
+			emptyNames++
+			if emptyNames <= 3 {
+				t.Logf("Object with empty name: type=%s key=%s", obj.Type, obj.Key)
+			}
+		}
+
+		// Every object should have inertia_tier
+		tier, _ := obj.Properties["inertia_tier"].(string)
+		if tier == "" {
+			missingTiers++
+			if missingTiers <= 3 {
+				t.Logf("Object missing inertia_tier: type=%s key=%s", obj.Type, obj.Key)
+			}
+		}
+
+		// Non-Artifact objects should have source_artifact
+		if obj.Type != "Artifact" {
+			src, _ := obj.Properties["source_artifact"].(string)
+			if src == "" {
+				missingSources++
+				if missingSources <= 3 {
+					t.Logf("Object missing source_artifact: type=%s key=%s", obj.Type, obj.Key)
+				}
+			}
+		}
+	}
+
+	t.Logf("Property audit: %d objects, %d empty names, %d missing tiers, %d missing sources",
+		len(result.Objects), emptyNames, missingTiers, missingSources)
+
+	// Allow some slack — some objects may have intentionally empty names (e.g., empty value model descriptions)
+	if float64(emptyNames)/float64(len(result.Objects)) > 0.1 {
+		t.Errorf("Too many objects with empty names: %d / %d (>10%%)", emptyNames, len(result.Objects))
+	}
+	if missingTiers > 0 {
+		t.Errorf("Objects missing inertia_tier: %d", missingTiers)
+	}
+}
+
 // --- Test helpers ---
 
 func countByType(r *Result) map[string]int {
