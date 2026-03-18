@@ -77,13 +77,26 @@ func (ing *Ingester) ComputeSemanticEdges(ctx context.Context, config SemanticEd
 
 	log.Printf("[semantic-edges] Loaded %d objects, %d existing edges", len(allObjects), len(existingEdges))
 
-	// For each source node, search for similar objects
+	// For each source node, find semantically similar objects.
+	//
+	// UPGRADE PATH: When Memory's /objects/{id}/similar API is fixed (issue #97),
+	// replace the search-with-neighbors workaround below with:
+	//
+	//   results, err := ing.client.FindSimilar(ctx, obj.ID, memory.SimilarOptions{
+	//       Limit: config.SearchLimit,
+	//   })
+	//
+	// This uses the object's actual embedding vector for direct vector-to-vector
+	// comparison — more accurate than re-embedding a text query, no truncation
+	// issues, and the buildQueryText function can be deleted entirely.
 	for _, obj := range allObjects {
 		if !sourceTypes[obj.Type] {
 			continue
 		}
 
-		// Build query text from the object's meaningful properties
+		// WORKAROUND: Use search-with-neighbors with a text query constructed
+		// from the object's properties. This re-embeds the query text on each call
+		// instead of using the object's existing embedding. Remove when #97 is fixed.
 		queryText := buildQueryText(obj)
 		if queryText == "" {
 			continue
@@ -91,7 +104,6 @@ func (ing *Ingester) ComputeSemanticEdges(ctx context.Context, config SemanticEd
 
 		stats.NodesSearched++
 
-		// Search for similar objects
 		results, err := ing.client.SearchWithNeighbors(ctx, memory.SearchRequest{
 			Query: queryText,
 			Limit: config.SearchLimit,
@@ -206,6 +218,10 @@ func (ing *Ingester) loadObjectsAndEdges(ctx context.Context) ([]memory.Object, 
 // buildQueryText extracts meaningful text from an object for similarity search.
 // Uses a short, concept-focused query to get broader semantic matches rather than
 // exact matches of the source text.
+//
+// DELETE THIS FUNCTION when Memory's /objects/{id}/similar API is fixed (#97).
+// The similarity API uses the object's actual embedding vector directly —
+// no text query construction needed.
 func buildQueryText(obj memory.Object) string {
 	// Use just the name for the query — it captures the concept without
 	// being so specific that only the source object matches.
