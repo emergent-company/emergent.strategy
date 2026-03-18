@@ -15,9 +15,7 @@ func (s *Server) registerStrategyTools() {
 	// Tool: epf_get_product_vision
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_product_vision",
-			mcp.WithDescription("Get the product's vision, mission, purpose, and values from the North Star artifact. "+
-				"This is the enduring strategic context that rarely changes. "+
-				"SHOULD be called before any feature work, roadmap changes, or content creation to ensure strategic alignment."),
+			mcp.WithDescription("[Query] USE WHEN you need the product vision, mission, purpose, and values. Returns the North Star artifact — the enduring strategic context that rarely changes."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -29,9 +27,7 @@ func (s *Server) registerStrategyTools() {
 	// Tool: epf_get_personas
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_personas",
-			mcp.WithDescription("Get all personas (target users) from the EPF instance. "+
-				"Returns a summary of each persona with ID, name, role, and description. "+
-				"SHOULD be called before writing user-facing features or personas to ensure alignment with defined target users."),
+			mcp.WithDescription("[Query] USE WHEN you need to know who the product is built for. Returns all target personas with ID, name, role, and description."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -43,9 +39,7 @@ func (s *Server) registerStrategyTools() {
 	// Tool: epf_get_persona_details
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_persona_details",
-			mcp.WithDescription("Get full details for a specific persona including goals, pain points, "+
-				"usage context, and technical proficiency. "+
-				"Use when writing persona narratives, feature scenarios, or user-facing copy that must reflect real user needs."),
+			mcp.WithDescription("[Query] USE WHEN you need deep detail on a specific persona including goals, pain points, and usage context. Pass a persona_id from epf_get_personas."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -78,9 +72,7 @@ func (s *Server) registerStrategyTools() {
 	// Tool: epf_get_competitive_position
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_competitive_position",
-			mcp.WithDescription("Get competitive analysis and positioning from the strategy formula. "+
-				"Includes competitive moat, advantages, differentiation, and competitor comparisons. "+
-				"SHOULD be consulted before competitive feature decisions or positioning changes."),
+			mcp.WithDescription("[Query] USE WHEN you need competitive analysis before making feature or positioning decisions. Returns competitive moat, advantages, and competitor comparisons."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -92,9 +84,7 @@ func (s *Server) registerStrategyTools() {
 	// Tool: epf_get_roadmap_summary
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_roadmap_summary",
-			mcp.WithDescription("Get roadmap summary with OKRs and key results. "+
-				"Optionally filter by track name or cycle number. "+
-				"SHOULD be queried before roadmap changes or when planning new features to understand current objectives."),
+			mcp.WithDescription("[Query] USE WHEN you need current OKRs and key results. Optionally filter by track (product/strategy/org_ops/commercial) or cycle number."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -112,9 +102,7 @@ func (s *Server) registerStrategyTools() {
 	// Tool: epf_search_strategy
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_search_strategy",
-			mcp.WithDescription("Search across all strategy content including vision, personas, features, OKRs, and insights. "+
-				"Returns relevance-scored results with snippets. "+
-				"Use for broad strategic queries when you need to find relevant context across all strategy artifacts."),
+			mcp.WithDescription("[Query] USE WHEN you need to find strategy content by keyword across all artifacts. Returns relevance-scored results with snippets."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -136,9 +124,7 @@ func (s *Server) registerStrategyTools() {
 	// Tool: epf_get_feature_strategy_context
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_feature_strategy_context",
-			mcp.WithDescription("Get synthesized strategic context for a topic. "+
-				"Traverses relationships to gather vision, personas, features, OKRs, and competitive context. "+
-				"Use before implementing a feature or making strategic decisions to get full context in one call."),
+			mcp.WithDescription("[Query] USE WHEN you need the full strategic context for a specific topic. Traverses relationships to gather vision, personas, features, OKRs, and competitive context."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -583,9 +569,7 @@ func (s *Server) registerStrategyContextTools() {
 	// Tool: epf_list_features
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_list_features",
-			mcp.WithDescription("List all feature definitions with strategic context and quality scores. "+
-				"Returns feature ID, name, status, contributes_to paths, capability count, and optional quality score. "+
-				"Use this to get a quick overview of all features in the instance."),
+			mcp.WithDescription("[Query] USE WHEN you need an overview of all feature definitions with their status, strategic alignment, and quality scores."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),

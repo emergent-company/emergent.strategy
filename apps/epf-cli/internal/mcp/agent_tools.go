@@ -329,6 +329,13 @@ type AgentRecommendationResponse struct {
 	ContentPreview   string                 `json:"content_preview,omitempty"`
 	Alternatives     []AgentAlternativeItem `json:"alternatives,omitempty"`
 	Guidance         Guidance               `json:"guidance"`
+
+	// DirectTool is set when the task can be handled by calling an MCP tool
+	// directly without activating an agent. When set, the LLM should call
+	// this tool instead of proceeding with agent activation.
+	DirectTool       string            `json:"direct_tool,omitempty"`
+	DirectToolParams map[string]string `json:"direct_tool_params,omitempty"`
+	DirectToolReason string            `json:"direct_tool_reason,omitempty"`
 }
 
 // AgentAlternativeItem represents an alternative agent in recommendations.
@@ -351,6 +358,12 @@ func (s *Server) handleGetAgentForTask(ctx context.Context, request mcp.CallTool
 	// Check include_content parameter (default: true)
 	includeContentStr, _ := request.RequireString("include_content")
 	includeContent := strings.ToLower(includeContentStr) != "false"
+
+	// Check for direct tool matches first — many tasks don't need agent activation
+	if directMatch := matchDirectTool(task); directMatch != nil {
+		jsonBytes, _ := json.MarshalIndent(directMatch, "", "  ")
+		return mcp.NewToolResultText(string(jsonBytes)), nil
+	}
 
 	recommender := agent.NewRecommender(s.agentLoader)
 	recommendation, err := recommender.RecommendForTask(task)
@@ -425,6 +438,122 @@ func (s *Server) handleGetAgentForTask(ctx context.Context, request mcp.CallTool
 	}
 
 	return mcp.NewToolResultText(string(jsonBytes)), nil
+}
+
+// =============================================================================
+// Direct Tool Routing
+// =============================================================================
+
+// directToolRoute maps task patterns to direct tool recommendations.
+type directToolRoute struct {
+	patterns []string          // lowercase substrings to match
+	tool     string            // MCP tool name
+	params   map[string]string // suggested parameters
+	reason   string            // why this tool, not an agent
+}
+
+// directToolRoutes defines task→tool mappings for common operations
+// that don't need agent activation.
+var directToolRoutes = []directToolRoute{
+	{
+		patterns: []string{"validate", "check yaml", "check file", "verify file"},
+		tool:     "epf_validate_file",
+		params:   map[string]string{"ai_friendly": "true"},
+		reason:   "Validation is a direct tool call — no agent activation needed.",
+	},
+	{
+		patterns: []string{"health", "health check", "check instance", "diagnose", "what's wrong"},
+		tool:     "epf_health_check",
+		reason:   "Health checks are a direct tool call. Follow required_next_tool_calls in the response.",
+	},
+	{
+		patterns: []string{"find instance", "locate instance", "where is epf", "find epf"},
+		tool:     "epf_locate_instance",
+		reason:   "Instance discovery is a direct tool call.",
+	},
+	{
+		patterns: []string{"search strategy", "find in strategy", "search for"},
+		tool:     "epf_search_strategy",
+		reason:   "Strategy search is a direct tool call.",
+	},
+	{
+		patterns: []string{"what is the vision", "product vision", "north star", "mission"},
+		tool:     "epf_get_product_vision",
+		reason:   "Vision/mission queries are direct tool calls.",
+	},
+	{
+		patterns: []string{"who are the personas", "target users", "who is it for", "list personas"},
+		tool:     "epf_get_personas",
+		reason:   "Persona queries are direct tool calls.",
+	},
+	{
+		patterns: []string{"competitive", "competitors", "positioning", "market position"},
+		tool:     "epf_get_competitive_position",
+		reason:   "Competitive analysis is a direct tool call.",
+	},
+	{
+		patterns: []string{"roadmap", "okr", "key results", "objectives"},
+		tool:     "epf_get_roadmap_summary",
+		reason:   "Roadmap queries are direct tool calls.",
+	},
+	{
+		patterns: []string{"list features", "show features", "what features", "feature list"},
+		tool:     "epf_list_features",
+		reason:   "Feature listing is a direct tool call.",
+	},
+	{
+		patterns: []string{"impact analysis", "what would happen", "cascade", "propagation"},
+		tool:     "epf_semantic_impact",
+		reason:   "Impact analysis is a direct tool call. Requires Memory API configuration.",
+	},
+	{
+		patterns: []string{"contradiction", "inconsistenc", "conflict"},
+		tool:     "epf_contradictions",
+		reason:   "Contradiction detection is a direct tool call. Requires Memory API configuration.",
+	},
+	{
+		patterns: []string{"fix file", "auto-fix", "fix whitespace", "fix formatting"},
+		tool:     "epf_fix_file",
+		reason:   "File fixing is a direct tool call.",
+	},
+	{
+		patterns: []string{"value model path", "explain path", "what does this path mean"},
+		tool:     "epf_explain_value_path",
+		reason:   "Value path explanation is a direct tool call.",
+	},
+	{
+		patterns: []string{"coverage", "gap analysis", "blind spots", "uncovered"},
+		tool:     "epf_analyze_coverage",
+		reason:   "Coverage analysis is a direct tool call.",
+	},
+}
+
+// matchDirectTool checks if a task can be handled by a direct tool call
+// without agent activation. Returns nil if no direct match found.
+func matchDirectTool(task string) *AgentRecommendationResponse {
+	taskLower := strings.ToLower(task)
+
+	for _, route := range directToolRoutes {
+		for _, pattern := range route.patterns {
+			if strings.Contains(taskLower, pattern) {
+				return &AgentRecommendationResponse{
+					Task:             task,
+					DirectTool:       route.tool,
+					DirectToolParams: route.params,
+					DirectToolReason: route.reason,
+					Confidence:       "high",
+					Reason:           route.reason,
+					Guidance: Guidance{
+						Tips: []string{
+							fmt.Sprintf("Call %s directly — no agent activation needed.", route.tool),
+						},
+					},
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // =============================================================================

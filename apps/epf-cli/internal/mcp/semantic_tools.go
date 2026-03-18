@@ -20,14 +20,14 @@ import (
 func (s *Server) registerSemanticTools() {
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_contradictions",
-			mcp.WithDescription("Detect structural contradictions in the strategy graph. Finds orphaned references, status conflicts, broken dependencies, maturity gaps, and disconnected nodes. Requires Memory API configuration."),
+			mcp.WithDescription("[Semantic] USE WHEN you want to find inconsistencies in the strategy graph. Detects orphaned references, status conflicts, broken dependencies, and maturity gaps. Requires Memory API config."),
 		),
 		s.handleContradictions,
 	)
 
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_semantic_search",
-			mcp.WithDescription("Search the strategy graph semantically. Finds strategy nodes by meaning, not just text matching. Returns scored results from the emergent.memory graph. Requires Memory API configuration (EPF_MEMORY_URL, EPF_MEMORY_PROJECT, EPF_MEMORY_TOKEN)."),
+			mcp.WithDescription("[Semantic] USE WHEN you want to search the strategy graph by meaning, not just text. Finds semantically related strategy nodes via emergent.memory embeddings. Requires Memory API config."),
 			mcp.WithString("query", mcp.Required(), mcp.Description("Search query")),
 			mcp.WithString("limit", mcp.Description("Maximum results (default: 10)")),
 			mcp.WithString("type", mcp.Description("Filter by object type (e.g., Belief, Feature, OKR)")),
@@ -37,7 +37,7 @@ func (s *Server) registerSemanticTools() {
 
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_semantic_neighbors",
-			mcp.WithDescription("Get the semantic neighborhood of a strategy node. Returns all connected nodes with edge types and weights. Shows how a node relates to the rest of the strategy graph. Requires Memory API configuration."),
+			mcp.WithDescription("[Semantic] USE WHEN you need to see how a strategy node connects to others in the graph. Returns all incoming and outgoing edges with types and weights. Requires Memory API config."),
 			mcp.WithString("node_key", mcp.Required(), mcp.Description("Node key (e.g., Belief:north_star:purpose, Feature:feature:fd-012)")),
 		),
 		s.handleSemanticNeighbors,
@@ -45,7 +45,7 @@ func (s *Server) registerSemanticTools() {
 
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_semantic_impact",
-			mcp.WithDescription("Analyze the semantic impact of a strategy change. Runs the propagation circuit in dry-run mode to show which nodes would be affected. Requires Memory API configuration."),
+			mcp.WithDescription("[Semantic] USE WHEN you want to analyze what would be affected if a strategy node changed. Runs the propagation circuit in dry-run mode showing the cascade trace. Requires Memory API config."),
 			mcp.WithString("node_key", mcp.Required(), mcp.Description("Source node key where the change originates")),
 			mcp.WithString("description", mcp.Required(), mcp.Description("Description of the change")),
 			mcp.WithString("signal_strength", mcp.Description("Initial signal strength 0.0-1.0 (default: 1.0)")),

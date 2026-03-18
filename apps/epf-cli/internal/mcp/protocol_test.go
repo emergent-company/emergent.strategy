@@ -307,12 +307,8 @@ func TestProtocol_ToolsList(t *testing.T) {
 		"epf_get_schema",
 		"epf_validate_file",
 		"epf_validate_content",
-		"epf_detect_artifact_type",
 		"epf_get_phase_artifacts",
 		"epf_health_check",
-		"epf_check_instance",
-		"epf_check_content_readiness",
-		"epf_check_feature_quality",
 		"epf_list_artifacts",
 		"epf_get_template",
 		"epf_list_definitions",
@@ -321,7 +317,6 @@ func TestProtocol_ToolsList(t *testing.T) {
 		"epf_get_strategic_context",
 		"epf_analyze_coverage",
 		"epf_validate_relationships",
-		"epf_check_migration_status",
 		"epf_get_migration_guide",
 	}
 
@@ -510,53 +505,8 @@ func TestProtocol_InvalidMethod(t *testing.T) {
 	}
 }
 
-func TestProtocol_DetectArtifactType(t *testing.T) {
-	pts := newProtocolTestServer(t)
-	defer pts.close()
-
-	pts.initialize(t)
-
-	tests := []struct {
-		path         string
-		expectedType string
-	}{
-		{"READY/00_north_star.yaml", "north_star"},
-		{"READY/05_roadmap_recipe.yaml", "roadmap_recipe"},
-		{"FIRE/definitions/product/fd-001_test.yaml", "feature_definition"},
-		{"FIRE/value_models/vm-product.yaml", "value_model"},
-	}
-
-	for i, tt := range tests {
-		req := JSONRPCRequest{
-			JSONRPC: "2.0",
-			ID:      10 + i,
-			Method:  "tools/call",
-			Params: CallToolParams{
-				Name: "epf_detect_artifact_type",
-				Arguments: map[string]interface{}{
-					"path": tt.path,
-				},
-			},
-		}
-
-		resp := pts.sendRequest(t, req)
-
-		if resp.Error != nil {
-			t.Errorf("epf_detect_artifact_type(%s) failed: %v", tt.path, resp.Error.Message)
-			continue
-		}
-
-		var result CallToolResult
-		if err := json.Unmarshal(resp.Result, &result); err != nil {
-			t.Errorf("Failed to parse result for %s: %v", tt.path, err)
-			continue
-		}
-
-		if !containsString(result.Content[0].Text, tt.expectedType) {
-			t.Errorf("Expected %s for path %s, got: %s", tt.expectedType, tt.path, result.Content[0].Text)
-		}
-	}
-}
+// TestProtocol_DetectArtifactType removed — tool moved to internal-only
+// (artifact type detection is built into epf_validate_file)
 
 func TestProtocol_GetPhaseArtifacts(t *testing.T) {
 	pts := newProtocolTestServer(t)
@@ -665,37 +615,7 @@ func TestProtocol_MigrationTools(t *testing.T) {
 		t.Skip("Test instance not found")
 	}
 
-	// Test epf_check_migration_status
-	t.Run("CheckMigrationStatus", func(t *testing.T) {
-		req := JSONRPCRequest{
-			JSONRPC: "2.0",
-			ID:      40,
-			Method:  "tools/call",
-			Params: CallToolParams{
-				Name: "epf_check_migration_status",
-				Arguments: map[string]interface{}{
-					"instance_path": instancePath,
-				},
-			},
-		}
-
-		resp := pts.sendRequest(t, req)
-
-		if resp.Error != nil {
-			t.Fatalf("epf_check_migration_status failed: %v", resp.Error.Message)
-		}
-
-		var result CallToolResult
-		if err := json.Unmarshal(resp.Result, &result); err != nil {
-			t.Fatalf("Failed to parse result: %v", err)
-		}
-
-		// Should return migration status info
-		text := result.Content[0].Text
-		if !containsString(text, "needs_migration") && !containsString(text, "NeedsMigration") {
-			t.Error("Expected migration status information in result")
-		}
-	})
+	// epf_check_migration_status removed (subset of epf_get_migration_guide)
 
 	// Test epf_get_migration_guide
 	t.Run("GetMigrationGuide", func(t *testing.T) {
