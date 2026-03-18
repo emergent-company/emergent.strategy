@@ -309,8 +309,7 @@ else
         --project "$PROJECT"
 fi
 
-for role in roles/run.admin roles/artifactregistry.writer; do
-    run gcloud projects add-iam-policy-binding "$PROJECT" \
+for role in roles/run.admin roles/artifactregistry.writer roles/secretmanager.secretAccessor; do    run gcloud projects add-iam-policy-binding "$PROJECT" \
         --member="serviceAccount:${DEPLOY_SA_EMAIL}" \
         --role="$role" \
         --condition=None \

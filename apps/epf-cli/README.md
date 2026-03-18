@@ -506,7 +506,7 @@ The release workflow is the primary production path. `.github/workflows/deploy.y
 | CORS | `*` | Public browser clients can connect |
 | Min instances | 0 | Scale to zero when idle |
 | Max instances | 10 | Burst capacity for public traffic |
-| Memory | 256Mi | Small distroless runtime |
+| Memory | 512Mi | Small distroless runtime |
 | CPU | 1 | Adequate for concurrent MCP sessions |
 | Timeout | 300s | Long enough for workspace discovery |
 
