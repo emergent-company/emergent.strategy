@@ -55,9 +55,7 @@ func (s *Server) registerStrategyTools() {
 	// Tool: epf_get_value_propositions
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_value_propositions",
-			mcp.WithDescription("Get value propositions from the strategy formula. "+
-				"Optionally filter by persona ID to get propositions relevant to a specific persona. "+
-				"Use before feature design to understand what value the product delivers and to whom."),
+			mcp.WithDescription("[Query] USE WHEN you need value propositions, optionally filtered by persona. Returns what value the product delivers and to whom."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -584,7 +582,7 @@ func (s *Server) registerStrategyContextTools() {
 	// Tool: epf_get_strategic_context
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_strategic_context",
-			mcp.WithDescription("Get the strategic context for a feature. Returns the feature's value model contributions (resolved), related KRs, and dependency relationships. Use this to understand how a feature connects to strategy."),
+			mcp.WithDescription("[Query] USE WHEN you need to understand how a specific feature connects to strategy. Returns resolved contributes_to paths, related KRs, and dependencies."),
 			mcp.WithString("feature_id",
 				mcp.Required(),
 				mcp.Description("The feature ID or slug (e.g., 'fd-001', 'knowledge-exploration')"),
@@ -600,7 +598,7 @@ func (s *Server) registerStrategyContextTools() {
 	// Tool: epf_explain_value_path
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_explain_value_path",
-			mcp.WithDescription("Explain what a value model path means. Returns layer info, component details, maturity, contributing features, and targeting KRs. Use this to understand any value model path reference."),
+			mcp.WithDescription("[Query] USE WHEN you need to understand what a value model path like Product.Core.Search means. Returns layer info, maturity, contributing features, and targeting KRs."),
 			mcp.WithString("path",
 				mcp.Required(),
 				mcp.Description("The value model path to explain (e.g., 'Product.Discovery.KnowledgeExploration', 'Strategy.Growth.MarketExpansion')"),
@@ -616,7 +614,7 @@ func (s *Server) registerStrategyContextTools() {
 	// Tool: epf_analyze_coverage
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_analyze_coverage",
-			mcp.WithDescription("Analyze feature coverage of the value model. Shows which L2 components have features contributing to them and identifies gaps. Use this to find strategic blind spots."),
+			mcp.WithDescription("[Query] USE WHEN you need to find strategic blind spots. Shows which value model components have features contributing to them and which have gaps."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -631,7 +629,7 @@ func (s *Server) registerStrategyContextTools() {
 	// Tool: epf_list_definitions
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_list_definitions",
-			mcp.WithDescription("List EPF track definitions. Product track definitions are EXAMPLES to learn from. Strategy, OrgOps, and Commercial track definitions are CANONICAL and should be adopted directly."),
+			mcp.WithDescription("[Query] USE WHEN you want to browse EPF track definitions. Product definitions are examples; strategy/org_ops/commercial are canonical."),
 			mcp.WithString("track",
 				mcp.Description("Optional: Filter by track (product, strategy, org_ops, commercial)"),
 			),
@@ -648,7 +646,7 @@ func (s *Server) registerStrategyContextTools() {
 	// Tool: epf_get_definition
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_definition",
-			mcp.WithDescription("Get a specific EPF definition by ID. Returns the full YAML content with usage guidance based on whether it's an example or canonical definition."),
+			mcp.WithDescription("[Query] USE WHEN you need the full YAML content of a specific track definition by ID."),
 			mcp.WithString("id",
 				mcp.Required(),
 				mcp.Description("The definition ID (e.g., 'fd-001' for product, 'pd-005' for org_ops, 'sd-001' for strategy)"),
@@ -660,8 +658,7 @@ func (s *Server) registerStrategyContextTools() {
 	// Tool: epf_aim_status
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_aim_status",
-			mcp.WithDescription("Get comprehensive status of the Living Reality Assessment (LRA). "+
-				"Shows lifecycle stage, adoption level, organizational context, track maturity baselines, current focus, and warnings."),
+			mcp.WithDescription("[AIM] USE WHEN you need a quick overview of the Living Reality Assessment — lifecycle stage, adoption level, track maturity, and warnings."),
 			mcp.WithString("instance_path",
 				mcp.Description("Path to EPF instance (default: current directory)"),
 			),
@@ -672,9 +669,7 @@ func (s *Server) registerStrategyContextTools() {
 	// Tool: epf_aim_okr_progress
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_aim_okr_progress",
-			mcp.WithDescription("Calculate OKR and Key Result achievement rates from assessments. "+
-				"Analyzes assessment reports to compute achievement rates (exceeded+met/total). "+
-				"Can filter by track and cycle, and show trends across all cycles."),
+			mcp.WithDescription("[AIM] USE WHEN you need OKR achievement rates from assessments. Shows exceeded/met/partial/missed rates by track and cycle."),
 			mcp.WithString("instance_path",
 				mcp.Description("Path to EPF instance (default: current directory)"),
 			),

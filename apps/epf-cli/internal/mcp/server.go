@@ -148,9 +148,7 @@ func (s *Server) registerEssentialTools() {
 
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_locate_instance",
-			mcp.WithDescription("Find EPF instances in a directory tree with confidence scoring. "+
-				"Returns instances grouped by status (valid, legacy, broken) with suggestions for fixing issues. "+
-				"Use require_anchor=true to only return instances with anchor files (_epf.yaml)."),
+			mcp.WithDescription("[Instance] USE WHEN you need to find EPF instances in a directory tree. Returns instances with confidence scoring grouped by status."),
 			mcp.WithString("path",
 				mcp.Description("Starting path to search (defaults to current directory)"),
 			),
@@ -330,7 +328,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_list_schemas
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_list_schemas",
-			mcp.WithDescription("List all available EPF schemas with their artifact types, phases, and descriptions. Use this to discover what schemas are available for validation."),
+			mcp.WithDescription("[Schema] USE WHEN you need to see what artifact schemas exist. Lists all JSON schemas with artifact types, phases, and descriptions."),
 		),
 		s.handleListSchemas,
 	)
@@ -338,7 +336,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_get_schema
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_schema",
-			mcp.WithDescription("Get the JSON Schema for a specific EPF artifact type. Use this to understand the structure and validation rules for EPF YAML files."),
+			mcp.WithDescription("[Schema] USE WHEN you need the validation rules for an artifact type. Returns the full JSON Schema with field constraints, enums, and patterns."),
 			mcp.WithString("artifact_type",
 				mcp.Required(),
 				mcp.Description("The artifact type to get the schema for (e.g., 'north_star', 'feature_definition', 'value_model'). Use epf_list_schemas to see all available types."),
@@ -350,10 +348,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_validate_file
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_validate_file",
-			mcp.WithDescription("Validate a local EPF YAML file against its schema. Automatically detects the artifact type from the filename/path pattern. "+
-				"Use ai_friendly=true for structured output optimized for AI agents with error classification, priorities, and fix hints. "+
-				"POST-CONDITION: If structural_issue is true, you MUST call the recommended_tool before attempting fixes. "+
-				"After writing or modifying any EPF YAML file, you MUST call this tool to validate your changes."),
+			mcp.WithDescription("[Validate] USE WHEN you wrote or edited an EPF YAML file. Validates against schema with auto-detected artifact type. Returns errors with fix hints. Use ai_friendly=true for structured AI output. MUST call after every EPF file write."),
 			mcp.WithString("path",
 				mcp.Required(),
 				mcp.Description("The path to the YAML file to validate"),
@@ -416,9 +411,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_get_section_example
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_section_example",
-			mcp.WithDescription("Get a template example for a specific section of an artifact type. "+
-				"Returns the corresponding section from the canonical template, showing the expected structure and example values. "+
-				"Useful when fixing validation errors to see what the section should look like."),
+			mcp.WithDescription("[Schema] USE WHEN you need to see the correct YAML structure for a specific section. Returns the template example for that section with expected values."),
 			mcp.WithString("artifact_type",
 				mcp.Required(),
 				mcp.Description("The artifact type (e.g., 'insight_analyses', 'feature_definition')"),
@@ -434,7 +427,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_get_phase_artifacts
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_phase_artifacts",
-			mcp.WithDescription("Get all artifact types for a specific EPF phase (READY, FIRE, or AIM)."),
+			mcp.WithDescription("[Schema] USE WHEN you need to know what artifact types belong to READY, FIRE, or AIM phase."),
 			mcp.WithString("phase",
 				mcp.Required(),
 				mcp.Description("The phase to get artifacts for: READY, FIRE, or AIM"),
@@ -446,13 +439,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_health_check
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_health_check",
-			mcp.WithDescription("Run a comprehensive health check on an EPF instance. "+
-				"RECOMMENDED FIRST STEP: Always run health check before starting work to assess scope. "+
-				"Returns structure validation, schema validation, content readiness, and workflow guidance. "+
-				"If significant issues are found, the response includes planning recommendations - "+
-				"check your available planning tools (todo lists, task trackers, openspec/, etc.) before diving into fixes. "+
-				"POST-CONDITION: After receiving results, you MUST read and follow the action_required field and "+
-				"required_next_tool_calls before proceeding to any other work. Do NOT ignore these directives."),
+			mcp.WithDescription("[Health] USE WHEN starting work on an EPF instance or diagnosing problems. Runs all checks (structure, schema, content readiness, relationships). Call this FIRST before other EPF work. Follow the required_next_tool_calls in the response."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory (contains READY/, FIRE/, AIM/ directories)"),
@@ -467,7 +454,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_list_artifacts
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_list_artifacts",
-			mcp.WithDescription("List all EPF artifact types with metadata including templates, schemas, and phase information. Use this to discover what artifacts you can create and which have templates available."),
+			mcp.WithDescription("[Schema] USE WHEN you need to browse all artifact types with their templates and schema availability."),
 			mcp.WithString("phase",
 				mcp.Description("Optional: Filter artifacts by phase (READY, FIRE, or AIM)"),
 			),
@@ -478,8 +465,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_get_template
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_template",
-			mcp.WithDescription("Get the starting template YAML for an EPF artifact type. Templates provide the structure to fill in when creating new artifacts. "+
-				"POST-CONDITION: After filling in the template per wizard guidance, you MUST validate with epf_validate_file before considering the artifact complete."),
+			mcp.WithDescription("[Schema] USE WHEN you need a starting YAML template to create a new artifact. Returns the skeleton to fill in. MUST validate with epf_validate_file after filling."),
 			mcp.WithString("artifact_type",
 				mcp.Required(),
 				mcp.Description("The artifact type to get the template for (e.g., 'north_star', 'feature_definition', 'value_model')"),
@@ -519,7 +505,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_get_migration_guide
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_migration_guide",
-			mcp.WithDescription("Generate a migration guide for an EPF instance. Shows what files need updates, schema validation errors, and specific changes required to bring files up to the current schema version."),
+			mcp.WithDescription("[Instance] USE WHEN you need to upgrade an EPF instance to a newer schema version. Shows what files need updates and specific changes required."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -538,9 +524,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_list_wizards
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_list_wizards",
-			mcp.WithDescription("List available EPF wizards and agent prompts. "+
-				"Wizards guide users through EPF workflows like creating features, planning roadmaps, and running assessments. "+
-				"MUST be used to discover available guided workflows before creating artifacts."),
+			mcp.WithDescription("[Wizard] USE WHEN you want to browse available guided workflows by phase (READY/FIRE/AIM) or type (wizard/agent_prompt). Returns names and metadata."),
 			mcp.WithString("phase",
 				mcp.Description("Optional: Filter by phase (READY, FIRE, AIM)"),
 			),
@@ -554,12 +538,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_get_wizard
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_wizard",
-			mcp.WithDescription("Get the full content and metadata for an EPF wizard. "+
-				"Use this to retrieve wizard instructions for guiding users through EPF workflows. "+
-				"MUST be called after epf_get_wizard_for_task identifies the right wizard. "+
-				"The wizard content provides the authoritative step-by-step workflow for creating, modifying, or evaluating EPF artifacts. "+
-				"Review wizards (strategic_coherence_review, feature_quality_review, value_model_review) provide semantic quality evaluation workflows. "+
-				"POST-CONDITION: After following wizard guidance to create or modify an artifact, you MUST validate with epf_validate_file."),
+			mcp.WithDescription("[Wizard] USE WHEN you know which wizard you need and want its full step-by-step instructions. MUST validate output with epf_validate_file after following wizard."),
 			mcp.WithString("name",
 				mcp.Required(),
 				mcp.Description("The wizard name (e.g., 'start_epf', 'pathfinder', 'feature_definition')"),
@@ -571,7 +550,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_get_wizard_for_task
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_wizard_for_task",
-			mcp.WithDescription("[Wizard] USE WHEN you need step-by-step guidance for creating or modifying an EPF artifact. Recommends the best wizard based on your task. Returns wizard content inline when confidence is high."),
+			mcp.WithDescription("[Wizard] USE WHEN you need step-by-step guidance for creating or modifying an EPF artifact. Recommends the best wizard for your task description."),
 			mcp.WithString("task",
 				mcp.Required(),
 				mcp.Description("Description of what the user wants to do (e.g., 'create a feature definition', 'analyze market trends')"),
@@ -586,7 +565,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_get_agent_instructions
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_agent_instructions",
-			mcp.WithDescription("Get the full content of an EPF agent instructions file. Use this to retrieve comprehensive guidance for AI agents."),
+			mcp.WithDescription("[Wizard] USE WHEN you need the content of a specific agent instruction file (e.g., AGENTS.md, copilot-instructions.md)."),
 			mcp.WithString("name",
 				mcp.Required(),
 				mcp.Description("The instruction file name (e.g., 'AGENTS.md', 'copilot-instructions.md')"),
@@ -602,7 +581,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_list_generators
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_list_generators",
-			mcp.WithDescription("List available EPF output generators. Generators create documents from EPF data (investor memos, compliance docs, context sheets, etc.)"),
+			mcp.WithDescription("[Generator] USE WHEN you want to browse available output generators (investor memos, compliance docs, context sheets, etc.). Filter by category or source."),
 			mcp.WithString("category",
 				mcp.Description("Optional: Filter by category (compliance, marketing, investor, internal, development, custom)"),
 			),
@@ -616,7 +595,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_get_generator
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_generator",
-			mcp.WithDescription("Get full details of an EPF output generator including wizard instructions. Use this to understand how to generate a specific output type."),
+			mcp.WithDescription("[Generator] USE WHEN you know which generator to use and need its wizard instructions and output schema."),
 			mcp.WithString("name",
 				mcp.Required(),
 				mcp.Description("The generator name (e.g., 'context-sheet', 'investor-memo', 'skattefunn-application')"),
@@ -634,7 +613,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_scaffold_generator
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_scaffold_generator",
-			mcp.WithDescription("Create a new EPF output generator with all required files in the product instance. Use this to help users create custom generators for their specific output needs. Generators are created in the instance's generators/ directory."),
+			mcp.WithDescription("[Generator] USE WHEN you need to create a custom generator for a new output type. Creates all required files in the instance generators/ directory."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance (e.g., 'docs/EPF/_instances/my-product')"),
@@ -725,9 +704,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_get_agent_for_task
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_agent_for_task",
-			mcp.WithDescription("Recommend the best agent for a user's task. Analyzes the task description and suggests "+
-				"the most appropriate agent with alternatives. When confidence is high and content is requested, "+
-				"includes the agent's system prompt inline."),
+			mcp.WithDescription("[Agent] USE WHEN you need to find the right EPF workflow for a task. Analyzes your task description and recommends the best agent (or direct tool) to use. START HERE for any EPF work."),
 			mcp.WithString("task",
 				mcp.Required(),
 				mcp.Description("Description of what the user wants to do (e.g., 'create a feature definition', 'plan our roadmap')"),
@@ -742,8 +719,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_scaffold_agent
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_scaffold_agent",
-			mcp.WithDescription("Create a new EPF agent definition with manifest and prompt files. "+
-				"Creates an agent directory with agent.yaml and prompt.md in the instance's agents/ directory."),
+			mcp.WithDescription("[Agent] USE WHEN you need to create a new EPF agent definition with manifest and prompt files."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -768,8 +744,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_import_agent
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_import_agent",
-			mcp.WithDescription("Import an agent definition from an external format (raw text, CrewAI YAML, OpenAI JSON) "+
-				"into the EPF instance. Auto-detects format, creates agent.yaml manifest and prompt.md, and marks fields needing review."),
+			mcp.WithDescription("[Agent] USE WHEN you have an agent definition in an external format (CrewAI, OpenAI) and want to import it into EPF."),
 			mcp.WithString("source",
 				mcp.Required(),
 				mcp.Description("Path to the source file to import"),
@@ -830,9 +805,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_scaffold_skill
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_scaffold_skill",
-			mcp.WithDescription("Create a new EPF skill with all required files. Supports all skill types "+
-				"(creation, generation, review, enrichment, analysis). Generation-type skills are created with "+
-				"legacy file names (generator.yaml, wizard.instructions.md) for backward compatibility."),
+			mcp.WithDescription("[Skill] USE WHEN you need to create a new skill with all required files. Supports creation, generation, review, enrichment, and analysis types."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -875,8 +848,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_import_skill
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_import_skill",
-			mcp.WithDescription("Import a skill definition from an external format (raw text, CrewAI task YAML) "+
-				"into the EPF instance. Auto-detects format, creates skill.yaml manifest and prompt.md, and marks fields needing review."),
+			mcp.WithDescription("[Skill] USE WHEN you have a skill in an external format and want to import it into EPF."),
 			mcp.WithString("source",
 				mcp.Required(),
 				mcp.Description("Path to the source file to import"),
@@ -898,7 +870,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_check_skill_prereqs
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_check_skill_prereqs",
-			mcp.WithDescription("Check if an EPF instance has the required artifacts to use a skill."),
+			mcp.WithDescription("[Skill] USE WHEN you want to verify an instance has the required artifacts before using a skill."),
 			mcp.WithString("name",
 				mcp.Required(),
 				mcp.Description("The skill name to check prerequisites for"),
@@ -939,7 +911,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_add_implementation_reference
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_add_implementation_reference",
-			mcp.WithDescription("Add or update an implementation reference (spec, issue, PR, code) to a feature definition. Use this after implementing a feature to link it to its implementation artifacts."),
+			mcp.WithDescription("[Write] USE WHEN you implemented a feature and need to link the PR, spec, or code to the feature definition. Adds implementation references."),
 			mcp.WithString("feature_id",
 				mcp.Required(),
 				mcp.Description("Feature ID or slug (e.g., 'fd-012', 'epf-cli-local-development')"),
@@ -973,7 +945,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_update_capability_maturity
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_update_capability_maturity",
-			mcp.WithDescription("Update the maturity level of a capability in a feature definition. Use this after completing a KR or milestone that advances a capability."),
+			mcp.WithDescription("[Write] USE WHEN a capability advanced from one maturity stage to another (e.g., hypothetical to emerging). Records evidence and delivery KR."),
 			mcp.WithString("feature_id",
 				mcp.Required(),
 				mcp.Description("Feature ID or slug (e.g., 'fd-012', 'epf-cli-local-development')"),
@@ -1007,7 +979,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_add_mapping_artifact
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_add_mapping_artifact",
-			mcp.WithDescription("Add a new artifact to mappings.yaml for a value model path. Use this after creating code, documentation, or tests that implement a value model component."),
+			mcp.WithDescription("[Write] USE WHEN you created code, docs, or tests that implement a value model component. Adds the artifact to mappings.yaml."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -1035,7 +1007,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_suggest_relationships
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_suggest_relationships",
-			mcp.WithDescription("Analyze an artifact and suggest relationships it should have. Use this to discover missing contributes_to paths, implementation references, or mappings."),
+			mcp.WithDescription("[Write] USE WHEN you want AI-assisted discovery of missing contributes_to paths, implementation references, or mappings for a feature or code file."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -1062,9 +1034,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_agent_instructions
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_agent_instructions",
-			mcp.WithDescription("Get comprehensive AI agent instructions for working with EPF. "+
-				"Returns epf-cli authority declaration, discovery status, key commands, MCP tools, "+
-				"and workflow guidance. AI agents should call this first when entering an EPF context."),
+			mcp.WithDescription("[Instance] USE WHEN entering an EPF context for the first time. Returns comprehensive AI agent guidance including discovery status and workflow instructions."),
 			mcp.WithString("path",
 				mcp.Description("Optional path to check for EPF instance (defaults to current directory)"),
 			),
@@ -1075,9 +1045,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_locate_instance
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_locate_instance",
-			mcp.WithDescription("Find EPF instances in a directory tree with confidence scoring. "+
-				"Returns instances grouped by status (valid, legacy, broken) with suggestions for fixing issues. "+
-				"Use require_anchor=true to only return instances with anchor files (_epf.yaml)."),
+			mcp.WithDescription("[Instance] USE WHEN you need to find EPF instances in a directory tree. Returns instances with confidence scoring grouped by status."),
 			mcp.WithString("path",
 				mcp.Description("Starting path to search (defaults to current directory)"),
 			),
@@ -1098,9 +1066,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_init_instance
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_init_instance",
-			mcp.WithDescription("Initialize a new EPF instance with the recommended directory structure. "+
-				"Creates READY/FIRE/AIM directories, anchor file (_epf.yaml), and optional template files. "+
-				"Use dry_run=true to preview what would be created without making changes."),
+			mcp.WithDescription("[Instance] USE WHEN you need to create a new EPF instance from scratch. Creates READY/FIRE/AIM directories, anchor file, and optional templates."),
 			mcp.WithString("path",
 				mcp.Required(),
 				mcp.Description("Path where the EPF instance should be created"),
@@ -1131,9 +1097,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_fix_file
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_fix_file",
-			mcp.WithDescription("Auto-fix common issues in EPF YAML files. "+
-				"Can fix whitespace, line endings, tabs, trailing newlines, and add missing meta.epf_version. "+
-				"Use dry_run=true to preview changes without modifying files."),
+			mcp.WithDescription("[Instance] USE WHEN an EPF YAML file has formatting issues (whitespace, tabs, line endings, missing version). Auto-fixes common problems. Use --dry-run to preview."),
 			mcp.WithString("path",
 				mcp.Required(),
 				mcp.Description("Path to the YAML file or directory to fix"),
@@ -1155,9 +1119,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_aim_bootstrap
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_aim_bootstrap",
-			mcp.WithDescription("Create a Living Reality Assessment (LRA) non-interactively. "+
-				"The LRA is the foundational baseline that captures organizational context, track maturity, and current focus. "+
-				"All AIM tools require an LRA to exist. Use force=true to overwrite an existing LRA."),
+			mcp.WithDescription("[AIM] USE WHEN setting up AIM for the first time. Creates the Living Reality Assessment (LRA) with organizational context, track maturity, and focus."),
 			mcp.WithString("instance_path",
 				mcp.Description("Path to EPF instance (default: current directory)"),
 			),
@@ -1197,9 +1159,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_aim_assess
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_aim_assess",
-			mcp.WithDescription("Generate an assessment report template from roadmap data. "+
-				"Pre-populates OKRs, Key Results, and assumptions from the roadmap for evaluation. "+
-				"Returns YAML template with TODO placeholders to fill in."),
+			mcp.WithDescription("[AIM] USE WHEN starting a cycle assessment. Generates an assessment report template pre-populated with OKRs and KRs from the roadmap."),
 			mcp.WithString("instance_path",
 				mcp.Description("Path to EPF instance (default: current directory)"),
 			),
@@ -1213,9 +1173,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_aim_validate_assumptions
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_aim_validate_assumptions",
-			mcp.WithDescription("Check assumption validation status from assessment reports. "+
-				"Cross-references assumptions from roadmap with evidence from assessment reports. "+
-				"Returns counts of validated, invalidated, inconclusive, and pending assumptions."),
+			mcp.WithDescription("[AIM] USE WHEN you need to check which roadmap assumptions have been validated, invalidated, or are still pending based on assessment evidence."),
 			mcp.WithString("instance_path",
 				mcp.Description("Path to EPF instance (default: current directory)"),
 			),
@@ -1235,8 +1193,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_aim_update_lra
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_aim_update_lra",
-			mcp.WithDescription("Apply field-level updates to the Living Reality Assessment and append an evolution log entry. "+
-				"Uses structured input rather than freeform YAML editing. Both 'trigger' and 'summary' must be provided together for evolution logging."),
+			mcp.WithDescription("[AIM] USE WHEN you need to update specific fields in the Living Reality Assessment (cycle reference, primary objective, track focus, etc.)."),
 			mcp.WithString("instance_path",
 				mcp.Description("Path to EPF instance (default: current directory)"),
 			),
@@ -1271,8 +1228,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_aim_write_assessment
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_aim_write_assessment",
-			mcp.WithDescription("Write an assessment report to the AIM directory from YAML content. "+
-				"The assessment report captures OKR progress, key result outcomes, and assumption validation evidence for a cycle."),
+			mcp.WithDescription("[AIM] USE WHEN you have completed assessment YAML content and need to write it to the AIM directory."),
 			mcp.WithString("instance_path",
 				mcp.Description("Path to EPF instance (default: current directory)"),
 				mcp.Required(),
@@ -1288,8 +1244,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_aim_write_calibration
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_aim_write_calibration",
-			mcp.WithDescription("Write a calibration memo to the AIM directory from YAML content. "+
-				"The calibration memo captures the persevere/pivot/pull-the-plug decision, learnings, and next-cycle inputs."),
+			mcp.WithDescription("[AIM] USE WHEN you have a calibration memo (persevere/pivot/pull-the-plug decision) and need to write it to the AIM directory."),
 			mcp.WithString("instance_path",
 				mcp.Description("Path to EPF instance (default: current directory)"),
 				mcp.Required(),
@@ -1305,8 +1260,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_aim_init_cycle
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_aim_init_cycle",
-			mcp.WithDescription("Initialize a new cycle by optionally archiving the previous cycle, "+
-				"removing old assessment/calibration artifacts, and updating the LRA cycle reference."),
+			mcp.WithDescription("[AIM] USE WHEN starting a new cycle. Optionally archives the previous cycle and updates the LRA cycle reference."),
 			mcp.WithString("instance_path",
 				mcp.Description("Path to EPF instance (default: current directory)"),
 				mcp.Required(),
@@ -1328,9 +1282,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_aim_archive_cycle
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_aim_archive_cycle",
-			mcp.WithDescription("Archive current cycle's AIM artifacts to AIM/cycles/cycle-N/ directory. "+
-				"Copies assessment_report.yaml, calibration_memo.yaml, and living_reality_assessment.yaml (if they exist) as snapshots. "+
-				"Original files are NOT removed."),
+			mcp.WithDescription("[AIM] USE WHEN a cycle is complete and you want to snapshot assessment and calibration artifacts to the cycles archive."),
 			mcp.WithString("instance_path",
 				mcp.Description("Path to EPF instance (default: current directory)"),
 				mcp.Required(),
@@ -1346,10 +1298,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_aim_generate_src
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_aim_generate_src",
-			mcp.WithDescription("Generate a Strategic Reality Check (SRC) by running automated mechanical checks "+
-				"against the EPF instance. Auto-populates market currency (freshness), strategic alignment "+
-				"(cross-references), and execution reality (maturity mismatches). Leaves belief validity "+
-				"as TODO placeholders for AI/human input. Writes result to AIM/strategic_reality_check.yaml."),
+			mcp.WithDescription("[AIM] USE WHEN you need a Strategic Reality Check. Runs automated mechanical checks against the EPF instance and generates SRC template."),
 			mcp.WithString("instance_path",
 				mcp.Description("Path to EPF instance (default: current directory)"),
 				mcp.Required(),
@@ -1367,9 +1316,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_aim_write_src
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_aim_write_src",
-			mcp.WithDescription("Write or update a Strategic Reality Check from YAML content. "+
-				"Use this after running epf_aim_generate_src and filling in subjective sections "+
-				"(belief validity evidence, market changes). Writes to AIM/strategic_reality_check.yaml."),
+			mcp.WithDescription("[AIM] USE WHEN you have filled in the subjective sections of a Strategic Reality Check and need to write it."),
 			mcp.WithString("instance_path",
 				mcp.Description("Path to EPF instance (default: current directory)"),
 				mcp.Required(),
@@ -1385,10 +1332,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_aim_recalibrate
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_aim_recalibrate",
-			mcp.WithDescription("Generate a recalibration changeset from calibration memo and/or SRC. "+
-				"Maps calibration decisions and SRC findings to specific READY/FIRE artifact changes. "+
-				"Use apply=true to write LRA updates and log the recalibration event. "+
-				"Without apply, returns a dry-run report showing what needs to change."),
+			mcp.WithDescription("[AIM] USE WHEN you have a completed calibration memo and/or SRC and want to generate a recalibration changeset with specific artifact changes."),
 			mcp.WithString("instance_path",
 				mcp.Description("Path to EPF instance (default: current directory)"),
 				mcp.Required(),
@@ -1406,11 +1350,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_aim_health
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_aim_health",
-			mcp.WithDescription("Run AIM-specific health diagnostics on an EPF instance. "+
-				"Checks for LRA staleness, missing assessments, overdue triggers, "+
-				"delivery drift (features delivered without maturity updates), "+
-				"evidence gaps (KRs without assessment outcomes), and surfaces SRC findings. "+
-				"Complementary to epf_health_check — focuses specifically on AIM phase."),
+			mcp.WithDescription("[AIM] USE WHEN you need AIM-specific diagnostics (LRA staleness, missing assessments, delivery drift, evidence gaps). Complementary to epf_health_check."),
 			mcp.WithString("instance_path",
 				mcp.Description("Path to EPF instance (default: current directory)"),
 				mcp.Required(),
@@ -1426,9 +1366,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_diff_artifacts
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_diff_artifacts",
-			mcp.WithDescription("Compare two EPF artifacts or instance directories. "+
-				"Shows structural differences including added, removed, and modified fields. "+
-				"Supports file-to-file and directory-to-directory comparison."),
+			mcp.WithDescription("[Diff] USE WHEN you need to compare two EPF artifacts or instance directories side by side. Shows added, removed, and modified fields."),
 			mcp.WithString("path1",
 				mcp.Required(),
 				mcp.Description("Path to source file or directory"),
@@ -1447,9 +1385,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_diff_template
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_diff_template",
-			mcp.WithDescription("Compare a file against its canonical template. "+
-				"Auto-detects artifact type and shows structural differences with fix hints and priorities. "+
-				"Useful for understanding why validation fails."),
+			mcp.WithDescription("[Diff] USE WHEN you want to see how a file differs from its canonical template. Shows structural gaps with fix hints and priorities."),
 			mcp.WithString("file_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF artifact file to compare"),
@@ -1487,9 +1423,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_rename_value_path
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_rename_value_path",
-			mcp.WithDescription("Rename a value model path across all features and roadmap KRs. "+
-				"Updates contributes_to in feature definitions and value_model_target.component_path in KRs. "+
-				"Use dry_run=true to preview changes before applying."),
+			mcp.WithDescription("[Write] USE WHEN a value model path needs to be renamed across all features and roadmap KRs. Updates contributes_to and value_model_target references."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -1512,9 +1446,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_update_kr
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_update_kr",
-			mcp.WithDescription("Update fields on a Key Result in the roadmap. "+
-				"Supports updating status, actual value, evidence, and value_model_target.component_path. "+
-				"Pass fields as a JSON object with the fields to update. Use dry_run=true to preview."),
+			mcp.WithDescription("[Write] USE WHEN you need to update a Key Result status, actual value, evidence, or value model target in the roadmap."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -1533,9 +1465,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_add_value_model_component
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_add_value_model_component",
-			mcp.WithDescription("Add a new L2 component to a value model layer. "+
-				"Creates the component under the specified L1 layer with name, and optional active status. "+
-				"Use dry_run=true to preview changes."),
+			mcp.WithDescription("[Write] USE WHEN you need to add a new L2 component to a value model layer."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -1569,10 +1499,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_add_value_model_sub
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_add_value_model_sub",
-			mcp.WithDescription("Add a new L3 sub-component to a value model component. "+
-				"Creates the sub-component under the specified L2 component. "+
-				"Automatically uses 'sub_components' for Product track and 'subs' for other tracks. "+
-				"Use dry_run=true to preview changes."),
+			mcp.WithDescription("[Write] USE WHEN you need to add a new L3 sub-component to a value model component."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -1614,11 +1541,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_list_workspaces
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_list_workspaces",
-			mcp.WithDescription("List EPF workspaces accessible to the authenticated user. "+
-				"Scans the user's GitHub repositories for EPF instances (identified by _epf.yaml anchor files) "+
-				"and returns a list of workspaces with their instance_path values for use with other EPF tools. "+
-				"Results are cached per-user with a 10-minute TTL. "+
-				"Only available in multi-tenant mode — returns an error in local/single-tenant mode."),
+			mcp.WithDescription("[Instance] USE WHEN you need to see which EPF workspaces are accessible to the authenticated user. Multi-tenant mode only."),
 		),
 		s.handleListWorkspaces,
 	)
