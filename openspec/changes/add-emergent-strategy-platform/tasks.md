@@ -84,15 +84,16 @@ All three tiers use the same OpenAI-compatible chat completions API (Ollama also
 - [x] 1.4.5 Implement `TieredReasoner` at `apps/epf-cli/internal/reasoning/tiered.go` — routes by inertia tier, supports confidence-based escalation (threshold default 0.6), graceful fallback when tier is unconfigured
 - [x] 1.4.6 Write 12 tests: unchanged/modified/needs_review verdicts, invalid JSON handling, markdown-wrapped JSON, tier routing, confidence escalation, no-escalation for unchanged, missing tier fallback, JSON extraction, prompt construction
 
-### 1.5 Semantic Graph Construction — PARTIALLY COMPLETE
-Core ingestion pipeline is complete and live. Semantic and causal edge computation are deferred until the propagation circuit needs them.
+### 1.5 Semantic Graph Construction ✅ CORE COMPLETE
+Core ingestion pipeline complete and live. Semantic edges computed via search-with-neighbors workaround (34 edges created). Similarity API still broken (#97) but workaround is functional.
 - [x] 1.5.1 Implement full ingestion pipeline at `apps/epf-cli/internal/ingest/ingest.go`: decompose → upsert objects via REST (not JSONL/blueprints) → resolve keys → create relationships. Fixed Memory API field names: `src_id`/`dst_id` (not `fromId`/`toId`).
 - [x] 1.5.2 Structural edge creation — handled by the decomposer (contributes_to, depends_on, tests_assumption, targets, serves, elaborates, contains). Produces 812 edges for the Emergent instance.
-- [ ] 1.5.3 Implement semantic edge computation: query Memory for embedding similarity between objects, create semantic edges above confidence threshold
-- [ ] 1.5.4 Implement causal edge computation with priority ordering (Finding 5): (1) explicit declarations (informs_ready_phase sections), (2) structural references (contributes_to, dependencies), (3) embedding similarity as fallback
-- [x] 1.5.5 Add `epf ingest` CLI command with `--dry-run`, `--url`, `--project`, `--token` flags and env var support. MCP tool deferred.
+- [x] 1.5.3 Implement semantic edge computation at `apps/epf-cli/internal/ingest/semantic_edges.go`: uses search-with-neighbors API to find semantically similar objects across types. Classifies edges as informs/parallels/supports based on inertia tier comparison. 34 semantic edges created for the Emergent instance. CLI: `epf semantic-edges`. Workaround for broken similarity API (#97).
+- [ ] 1.5.4 Implement causal edge computation with priority ordering (deferred — structural + semantic edges cover the main use cases)
+- [x] 1.5.5 Add `epf ingest` CLI command with `--dry-run`, `--url`, `--project`, `--token` flags and env var support.
 - [x] 1.5.6 Write 4 ingestion tests: unit (mock server), error handling, idempotency, integration against live Emergent instance
 - [x] 1.5.7 First live ingestion: 739 objects, 812 relationships into `epf-engine` project on emergent.memory (2026-03-17). Semantic search verified working.
+- [x] 1.5.8 Verified semantic edges enable cross-type cascade: Belief → ValueModelComponent propagation now works via semantic edges.
 
 ### 1.6 Incremental Sync ✅ CORE COMPLETE
 Content hashing detects which objects have changed. Only changed objects are upserted to Memory, skipping unchanged ones entirely (739 skipped in no-change test).
