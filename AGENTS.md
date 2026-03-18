@@ -97,21 +97,49 @@ EPF uses a three-layer architecture for AI integration:
 
 The MCP server works well standalone. The plugin enhances the experience with automatic guardrails.
 
-### Agent-First Protocol (Mandatory)
+### Tool Selection Protocol
 
-When working with EPF artifacts, you MUST follow the agent-first workflow:
+**Start with `epf_get_agent_for_task`** — it routes to the right tool or agent:
 
-1. `epf_get_agent_for_task` — find the right agent for your task
-2. `epf_get_agent` — retrieve the agent's instructions and required skills
-3. `epf_get_skill` — retrieve each skill needed for execution
-4. Write the artifact following agent/skill guidance
-5. `epf_validate_file` — validate the result
+- For direct operations (validate, search, health check), it returns a `direct_tool` recommendation — call that tool immediately, no agent needed.
+- For authoring workflows (create feature, plan roadmap), it recommends an agent to activate.
 
-Legacy tools (`epf_get_wizard_for_task`, `epf_get_wizard`, `epf_list_generators`, `epf_get_generator`) coexist as independent tools backed by separate loaders. They load the same embedded content but return different response shapes. Prefer the agent/skill tools (`epf_get_agent_for_task`, `epf_get_agent`, `epf_list_skills`, `epf_get_skill`) for new workflows — they provide structured metadata (capability class, tool scoping, activation data) that the legacy tools do not.
+All tool descriptions use the format `[Category] USE WHEN <trigger>` — scan the first sentence to find the right tool.
+
+### Agent-First Protocol (for authoring)
+
+When creating or modifying EPF artifacts:
+
+1. `epf_get_agent_for_task` — routes to agent or direct tool
+2. If agent recommended: `epf_get_agent` → `epf_get_skill` → write → `epf_validate_file`
+3. If direct tool recommended: call it directly
+
+Wizard tools (`epf_get_wizard_for_task`, `epf_get_wizard`) and generator tools (`epf_list_generators`, `epf_get_generator`) coexist permanently with agent/skill tools. Prefer agent/skill tools for new workflows.
 
 ### Strategy Context Tools
 
 Before feature work, roadmap changes, or competitive decisions, query strategy context using: `epf_get_product_vision`, `epf_get_personas`, `epf_get_competitive_position`, `epf_get_roadmap_summary`, `epf_search_strategy`.
+
+### Removed Tools (use equivalents)
+
+These tools were removed as redundant. Use the equivalent:
+
+| Removed | Use instead |
+|---------|------------|
+| `epf_review_strategic_coherence` | `epf_get_wizard("strategic_coherence_review")` |
+| `epf_review_feature_quality` | `epf_get_wizard("feature_quality_review")` |
+| `epf_review_value_model` | `epf_get_wizard("value_model_review")` |
+| `epf_recommend_reviews` | `epf_list_wizards(type="review")` |
+| `epf_check_instance` | `epf_health_check` |
+| `epf_check_content_readiness` | `epf_health_check` |
+| `epf_check_feature_quality` | `epf_health_check` |
+| `epf_detect_artifact_type` | `epf_validate_file` (auto-detects) |
+| `epf_check_migration_status` | `epf_get_migration_guide` |
+| `epf_reload_instance` | Automatic on file change |
+| `epf_list_agent_skills` | `epf_get_agent` (includes skills) |
+| `epf_migrate_definitions` | CLI: `epf-cli migrate-definitions` |
+| `epf_sync_canonical` | CLI: `epf-cli sync-canonical` |
+| `epf_generate_report` | CLI: `epf-cli report` |
 
 ## Semantic Strategy Engine
 
@@ -139,6 +167,7 @@ export EPF_MEMORY_TOKEN="<project-token>"
 | `epf_semantic_search` | Search the strategy graph by meaning |
 | `epf_semantic_neighbors` | Get connected nodes with edge types |
 | `epf_semantic_impact` | Run propagation circuit (dry-run cascade) |
+| `epf_contradictions` | Detect structural contradictions in the graph |
 
 ### Engine Packages
 
