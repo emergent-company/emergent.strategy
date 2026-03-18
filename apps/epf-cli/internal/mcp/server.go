@@ -120,13 +120,7 @@ func NewStrategyOnlyServer(defaultInstancePath string) (*Server, error) {
 func (s *Server) registerEssentialTools() {
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_health_check",
-			mcp.WithDescription("Run a comprehensive health check on an EPF instance. "+
-				"RECOMMENDED FIRST STEP: Always run health check before starting work to assess scope. "+
-				"Returns structure validation, schema validation, content readiness, and workflow guidance. "+
-				"If significant issues are found, the response includes planning recommendations - "+
-				"check your available planning tools (todo lists, task trackers, openspec/, etc.) before diving into fixes. "+
-				"POST-CONDITION: After receiving results, you MUST read and follow the action_required field and "+
-				"required_next_tool_calls before proceeding to any other work. Do NOT ignore these directives."),
+			mcp.WithDescription("[Health] USE WHEN starting work on an EPF instance or diagnosing problems. Runs all checks (structure, schema, content readiness, relationships). Call this FIRST before other EPF work. Follow the required_next_tool_calls in the response."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory (contains READY/, FIRE/, AIM/ directories)"),
@@ -140,11 +134,7 @@ func (s *Server) registerEssentialTools() {
 
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_validate_file",
-			mcp.WithDescription("Validate a local EPF YAML file against its schema. "+
-				"Automatically detects the artifact type from the filename/path pattern. "+
-				"Use ai_friendly=true for structured output optimized for AI agents with error classification, priorities, and fix hints. "+
-				"POST-CONDITION: If structural_issue is true, you MUST call the recommended_tool before attempting fixes. "+
-				"After writing or modifying any EPF YAML file, you MUST call this tool to validate your changes."),
+			mcp.WithDescription("[Validate] USE WHEN you wrote or edited an EPF YAML file. Validates against schema with auto-detected artifact type. Returns errors with fix hints. Use ai_friendly=true for structured AI output. MUST call after every EPF file write."),
 			mcp.WithString("path",
 				mcp.Required(),
 				mcp.Description("The path to the YAML file to validate"),
@@ -176,9 +166,7 @@ func (s *Server) registerEssentialTools() {
 
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_agent_for_task",
-			mcp.WithDescription("Recommend the best agent for a user's task. "+
-				"Analyzes the task description and suggests the most appropriate agent with alternatives. "+
-				"When confidence is high and content is requested, includes the agent's system prompt inline."),
+			mcp.WithDescription("[Agent] USE WHEN you need to find the right EPF workflow for a task. Analyzes your task description and recommends the best agent (or direct tool) to use. START HERE for any EPF work."),
 			mcp.WithString("task",
 				mcp.Required(),
 				mcp.Description("Description of what the user wants to do (e.g., 'create a feature definition', 'plan our roadmap')"),
@@ -380,7 +368,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_validate_content
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_validate_content",
-			mcp.WithDescription("Validate YAML content directly against an EPF schema without writing to a file."),
+			mcp.WithDescription("[Validate] USE WHEN you want to check YAML content before writing it to disk. Validates a YAML string against a specified artifact type schema without needing a file."),
 			mcp.WithString("content",
 				mcp.Required(),
 				mcp.Description("The YAML content to validate"),
@@ -400,11 +388,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_validate_with_plan
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_validate_with_plan",
-			mcp.WithDescription("Validate a file and return a chunked fix plan for AI agents. "+
-				"The fix plan groups errors into manageable chunks with priorities and fix strategies. "+
-				"IMPORTANT: For substantial work (16+ errors), the response includes workflow_guidance with planning recommendations. "+
-				"Before processing chunks, check what planning tools you have available (todo lists, task trackers, "+
-				"openspec/, .plan/, etc.) and consider creating a plan to track progress across chunks."),
+			mcp.WithDescription("[Validate] USE WHEN a file has many errors and you need a step-by-step fix plan. Returns errors grouped into manageable chunks with priorities and fix strategies for processing one section at a time."),
 			mcp.WithString("path",
 				mcp.Required(),
 				mcp.Description("The path to the YAML file to validate"),
@@ -416,9 +400,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_validate_section
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_validate_section",
-			mcp.WithDescription("Validate a specific section of a YAML file. "+
-				"Use this for incremental validation when fixing a file section by section. "+
-				"Returns AI-friendly output with errors scoped to the specified section."),
+			mcp.WithDescription("[Validate] USE WHEN you fixed one section of a file and want to verify just that section. Validates a specific YAML section (e.g., target_users) without re-checking the entire file."),
 			mcp.WithString("path",
 				mcp.Required(),
 				mcp.Description("The path to the YAML file to validate"),
@@ -518,7 +500,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_validate_relationships
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_validate_relationships",
-			mcp.WithDescription("Validate all relationship paths in features and KRs against the value model. Returns detailed errors with 'did you mean' suggestions for invalid paths."),
+			mcp.WithDescription("[Validate] USE WHEN you need to check that contributes_to paths and KR targets point to real value model components. Returns errors with did-you-mean suggestions for invalid paths."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
@@ -589,13 +571,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_get_wizard_for_task
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_wizard_for_task",
-			mcp.WithDescription("Recommend the best wizard for a user's task. "+
-				"This is the MANDATORY first step before creating, modifying, or evaluating any EPF artifact or instance. "+
-				"You MUST call this tool before writing feature definitions, roadmaps, assessments, or any other EPF content. "+
-				"Also use this to find review wizards for quality evaluation tasks. "+
-				"Analyzes the task description and suggests the most appropriate wizard with alternatives. "+
-				"POST-CONDITION: If wizard_content_preview is included, use it directly. "+
-				"Otherwise, call epf_get_wizard with the recommended wizard name to get the full content."),
+			mcp.WithDescription("[Wizard] USE WHEN you need step-by-step guidance for creating or modifying an EPF artifact. Recommends the best wizard based on your task. Returns wizard content inline when confidence is high."),
 			mcp.WithString("task",
 				mcp.Required(),
 				mcp.Description("Description of what the user wants to do (e.g., 'create a feature definition', 'analyze market trends')"),
@@ -698,7 +674,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_validate_generator_output
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_validate_generator_output",
-			mcp.WithDescription("Validate generator output against its schema and optional bash validator. Use this to check if generated content conforms to the expected format."),
+			mcp.WithDescription("[Validate] USE WHEN you generated output using a generator and need to verify it matches the expected format. Validates content against the generator schema."),
 			mcp.WithString("generator",
 				mcp.Required(),
 				mcp.Description("Generator name (e.g., 'context-sheet', 'investor-memo')"),
@@ -723,9 +699,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_list_agents
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_list_agents",
-			mcp.WithDescription("List available EPF agents. Agents are named AI personas with structured metadata "+
-				"(identity, personality, skills, routing rules) that orchestrate EPF workflows. "+
-				"Use this to discover available agents for guided EPF work."),
+			mcp.WithDescription("[Agent] USE WHEN you want to browse all available EPF agents by phase or type. Returns agent names, descriptions, and types."),
 			mcp.WithString("phase",
 				mcp.Description("Optional: Filter by phase (READY, FIRE, AIM, Onboarding)"),
 			),
@@ -739,8 +713,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_get_agent
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_agent",
-			mcp.WithDescription("Get full details of an EPF agent including manifest, prompt content, and activation metadata. "+
-				"The response includes the system prompt, required tools, and aggregated skill scope declarations for orchestration plugins."),
+			mcp.WithDescription("[Agent] USE WHEN you know which agent you need and want its full prompt and skill requirements. Returns the agent manifest, system prompt, and tool scoping."),
 			mcp.WithString("name",
 				mcp.Required(),
 				mcp.Description("The agent name (e.g., 'pathfinder', 'product_architect', 'onboarding-guide')"),
@@ -822,9 +795,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_list_skills
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_list_skills",
-			mcp.WithDescription("List available EPF skills. Skills are bundled capabilities with prompts, prerequisites, "+
-				"and validation that unify the previous wizard and generator concepts. "+
-				"Filter by type (creation, generation, review, enrichment, analysis), category, or source."),
+			mcp.WithDescription("[Skill] USE WHEN you want to browse available skills by type (creation, generation, review, analysis). Returns skill names and descriptions."),
 			mcp.WithString("type",
 				mcp.Description("Optional: Filter by type (creation, generation, review, enrichment, analysis)"),
 			),
@@ -841,8 +812,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_get_skill
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_skill",
-			mcp.WithDescription("Get full details of an EPF skill including manifest, prompt content, and optionally the validation schema. "+
-				"Skills replace the previous wizard and generator concepts with a unified format."),
+			mcp.WithDescription("[Skill] USE WHEN you know which skill you need and want its full prompt and requirements. Returns the skill manifest and prompt content."),
 			mcp.WithString("name",
 				mcp.Required(),
 				mcp.Description("The skill name (e.g., 'context-sheet', 'feature-definition-creation')"),
@@ -944,8 +914,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_validate_skill_output
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_validate_skill_output",
-			mcp.WithDescription("Validate skill output against its schema and optional bash validator. "+
-				"Use this to check if generated content conforms to the expected format."),
+			mcp.WithDescription("[Validate] USE WHEN you generated output using a skill and need to verify it matches the expected format. Validates content against the skill schema."),
 			mcp.WithString("skill",
 				mcp.Required(),
 				mcp.Description("Skill name"),
@@ -1501,9 +1470,7 @@ func (s *Server) registerTools() {
 	// Tool: epf_batch_validate
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_batch_validate",
-			mcp.WithDescription("Validate all YAML files in an EPF instance at once. "+
-				"Returns per-file pass/fail with error counts and an overall summary. "+
-				"Filter by artifact type or use 'all' (default) to validate everything."),
+			mcp.WithDescription("[Validate] USE WHEN you need to check all YAML files in an instance at once. Validates every file and returns a per-file pass/fail summary. Filter by artifact type with artifact_type param."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
 				mcp.Description("Path to the EPF instance directory"),
