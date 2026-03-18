@@ -19,6 +19,23 @@ VERSION?=$(shell cat VERSION 2>/dev/null || echo "dev")
 GIT_COMMIT?=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_DATE?=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 CANONICAL_EPF?=$(shell realpath ../../../canonical-epf 2>/dev/null || echo "")
+GCP_PROJECT?=outblocks
+GCP_REGION?=europe-west1
+SERVICE_NAME?=epf-strategy
+AR_REPO?=epf
+IMAGE_NAME?=epf-server
+IMAGE_TAG?=$(VERSION)
+IMAGE_URI?=$(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT)/$(AR_REPO)/$(IMAGE_NAME):$(IMAGE_TAG)
+DOCKER_PLATFORM?=linux/amd64
+DEPLOY_IMAGE_REF?=$(IMAGE_URI)
+RUNTIME_SERVICE_ACCOUNT?=epf-runtime@$(GCP_PROJECT).iam.gserviceaccount.com
+DOCKER_PORT?=8080
+DOCKER_RUN_ENV_FILE?=
+SERVICE_DOMAIN?=strategy.emergent-company.ai
+SERVICE_ENV_VARS?=EPF_SERVER_MODE=strategy,EPF_SERVER_URL=https://$(SERVICE_DOMAIN)
+SERVICE_ARGS?=serve,--http,--sse,--port,8080,--cors-origins=*
+DEPLOY_SECRETS?=EPF_OAUTH_CLIENT_ID=epf-oauth-client-id:latest,EPF_OAUTH_CLIENT_SECRET=epf-oauth-client-secret:latest,EPF_SESSION_SECRET=epf-session-secret:latest,EPF_GITHUB_APP_ID=epf-github-app-id:latest,EPF_GITHUB_APP_PRIVATE_KEY=epf-github-app-private-key:latest
+OPTIONAL_DEPLOY_SECRETS?=EPF_GITHUB_APP_CLIENT_ID=epf-github-app-client-id EPF_GITHUB_APP_CLIENT_SECRET=epf-github-app-client-secret
 
 # Build flags — inject into internal/version package (single source of truth)
 VERSION_PKG=github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/version
@@ -30,7 +47,7 @@ LDFLAGS=-ldflags "-X $(VERSION_PKG).Version=$(VERSION) \
 PLATFORMS=darwin/amd64 darwin/arm64 linux/amd64 linux/arm64 windows/amd64
 DIST_DIR=dist
 
-.PHONY: all build clean test sync-embedded help build-all release clean-dist dist-local check-version
+.PHONY: all build clean test sync-embedded help build-all release clean-dist dist-local check-version docker-build docker-run docker-push-gcp deploy-manual deploy-check
 
 # Default target
 all: build
@@ -89,6 +106,101 @@ test-coverage:
 	go test -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
+
+docker-build:
+	@echo "Building Docker image $(IMAGE_URI)..."
+	@TOKEN="$${EPF_CANONICAL_TOKEN:-$${GITHUB_TOKEN:-}}"; \
+	if [ -z "$$TOKEN" ]; then \
+		echo "Error: set EPF_CANONICAL_TOKEN or GITHUB_TOKEN for Docker build access"; \
+		exit 1; \
+	fi; \
+	BUILD_GH_TOKEN="$$TOKEN" docker build \
+		--platform $(DOCKER_PLATFORM) \
+		-f Dockerfile \
+		--secret id=gh_token,env=BUILD_GH_TOKEN \
+		--build-arg VERSION=$(VERSION) \
+		--build-arg GIT_COMMIT=$(GIT_COMMIT) \
+		--build-arg BUILD_DATE=$(BUILD_DATE) \
+		-t $(IMAGE_URI) .
+
+docker-run:
+	@echo "Running Docker image $(IMAGE_URI) on port $(DOCKER_PORT)..."
+	@ENV_FILE_PATH="$(DOCKER_RUN_ENV_FILE)"; \
+	if [ -n "$(DOCKER_RUN_ENV_FILE)" ]; then \
+		docker run --rm -p $(DOCKER_PORT):8080 --env-file "$$ENV_FILE_PATH" $(IMAGE_URI); \
+	else \
+		docker run --rm -p $(DOCKER_PORT):8080 $(IMAGE_URI); \
+	fi; \
+	true
+
+docker-push-gcp:
+	@echo "Pushing Docker image $(IMAGE_URI)..."
+	gcloud auth configure-docker $(GCP_REGION)-docker.pkg.dev --quiet
+	docker push $(IMAGE_URI)
+
+deploy-manual:
+	@echo "Deploying $(IMAGE_URI) to Cloud Run service $(SERVICE_NAME)..."
+	@IMAGE_REF="$(DEPLOY_IMAGE_REF)"; \
+	if [ -z "$$IMAGE_REF" ]; then \
+		echo "Error: set DEPLOY_IMAGE_REF to an Artifact Registry image ref or digest"; \
+		exit 1; \
+	fi; \
+	if [[ "$$IMAGE_REF" == *@sha256:* ]]; then \
+		RESOLVED_IMAGE_REF="$$IMAGE_REF"; \
+	else \
+		DIGEST="$$(gcloud artifacts docker images describe "$$IMAGE_REF" --project $(GCP_PROJECT) --format='value(image_summary.digest)')"; \
+		if [ -z "$$DIGEST" ]; then \
+			echo "Error: could not resolve digest for $$IMAGE_REF"; \
+			exit 1; \
+		fi; \
+		RESOLVED_IMAGE_REF="$${IMAGE_REF%%:*}@$$DIGEST"; \
+	fi; \
+	SECRET_BINDINGS="$(DEPLOY_SECRETS)"; \
+	for OPTIONAL in $(OPTIONAL_DEPLOY_SECRETS); do \
+		ENV_NAME="$${OPTIONAL%%=*}"; \
+		SECRET_NAME="$${OPTIONAL#*=}"; \
+		SECRET_VERSION="$$(gcloud secrets versions list "$$SECRET_NAME" --project $(GCP_PROJECT) --filter='state=enabled' --limit=1 --format='value(name)' 2>/dev/null || true)"; \
+		if [ -n "$$SECRET_VERSION" ]; then \
+			SECRET_BINDINGS="$$SECRET_BINDINGS,$$ENV_NAME=$$SECRET_NAME:latest"; \
+		fi; \
+	done; \
+	echo "Using image $$RESOLVED_IMAGE_REF"; \
+	gcloud run deploy $(SERVICE_NAME) \
+		--image "$$RESOLVED_IMAGE_REF" \
+		--region $(GCP_REGION) \
+		--project $(GCP_PROJECT) \
+		--platform managed \
+		--allow-unauthenticated \
+		--service-account $(RUNTIME_SERVICE_ACCOUNT) \
+		--port 8080 \
+		--min-instances 0 \
+		--max-instances 10 \
+		--memory 512Mi \
+		--cpu 1 \
+		--timeout 300 \
+		--set-env-vars $(SERVICE_ENV_VARS) \
+		--set-secrets "$$SECRET_BINDINGS" \
+		--args "$(SERVICE_ARGS)" \
+		--cpu-boost \
+		--execution-environment gen2
+
+deploy-check:
+	@echo "Checking Cloud Run health for $(SERVICE_NAME)..."
+	@SERVICE_URL="$$(gcloud run services describe $(SERVICE_NAME) --region $(GCP_REGION) --project $(GCP_PROJECT) --format='value(status.url)')"; \
+	if [ -z "$$SERVICE_URL" ]; then \
+		echo "Error: could not resolve service URL"; \
+		exit 1; \
+	fi; \
+	echo "Service URL: $$SERVICE_URL"; \
+	curl --fail --silent --show-error "$$SERVICE_URL/health"; \
+	if gcloud beta run domain-mappings describe $(SERVICE_DOMAIN) --region $(GCP_REGION) --project $(GCP_PROJECT) >/dev/null 2>&1; then \
+		echo "Public URL: https://$(SERVICE_DOMAIN)"; \
+		curl --fail --silent --show-error "https://$(SERVICE_DOMAIN)/health"; \
+	else \
+		echo "Skipping custom-domain health check; domain mapping is not configured yet."; \
+	fi; \
+	echo ""; \
+	echo "Health check passed"
 
 # Install to GOPATH/bin
 install: build
@@ -159,6 +271,11 @@ help:
 	@echo "  version        - Show version info"
 	@echo "  check-version  - Check if VERSION needs bumping (warns of unbumped changes)"
 	@echo "  check-embedded - Show status of embedded artifacts"
+	@echo "  docker-build   - Build the release container locally"
+	@echo "  docker-run     - Run the local container on port 8080"
+	@echo "  docker-push-gcp - Push the local image to Artifact Registry"
+	@echo "  deploy-manual  - Manually deploy the tagged image to Cloud Run"
+	@echo "  deploy-check   - Curl the deployed Cloud Run /health endpoint"
 	@echo "  help           - Show this help"
 	@echo ""
 	@echo "Local-only (dev/testing, NOT for production releases):"
@@ -168,6 +285,9 @@ help:
 	@echo "Environment variables:"
 	@echo "  CANONICAL_EPF  - Path to canonical-epf repo (default: ../../../canonical-epf)"
 	@echo "  VERSION        - Version string (default: read from VERSION file)"
+	@echo "  EPF_CANONICAL_TOKEN or GITHUB_TOKEN - Required for docker-build"
+	@echo "  DOCKER_PLATFORM - Local image target platform (default: linux/amd64)"
+	@echo "  GCP_PROJECT/GCP_REGION/SERVICE_NAME - Override Cloud Run deploy defaults"
 
 # Build for all platforms (LOCAL DEV ONLY — production releases use GoReleaser CI)
 build-all: sync-embedded

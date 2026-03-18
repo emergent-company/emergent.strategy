@@ -57,7 +57,7 @@ RUN --mount=type=secret,id=gh_token \
     GITHUB_TOKEN="$(cat /run/secrets/gh_token 2>/dev/null || echo '')" && \
     if [ -n "$GITHUB_TOKEN" ]; then \
         git clone --depth 1 \
-            "https://x-access-token:${GITHUB_TOKEN}@github.com/emergent-company/epf-canonical.git" \
+            "https://23doors:${GITHUB_TOKEN}@github.com/emergent-company/epf-canonical.git" \
             /tmp/canonical-epf && \
         ./scripts/sync-embedded.sh /tmp/canonical-epf && \
         rm -rf /tmp/canonical-epf; \

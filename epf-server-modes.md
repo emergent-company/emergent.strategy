@@ -146,6 +146,8 @@ Multi-tenant mode supports two auth backends that can run simultaneously:
 
 When both are configured, GitHub App is the primary path. The OAuth App path is kept as a fallback during the transition period.
 
+Important: in the current implementation, `EPF_OAUTH_CLIENT_ID`, `EPF_OAUTH_CLIENT_SECRET`, and `EPF_SESSION_SECRET` are still required to start multi-tenant mode at all. GitHub App credentials are additive; they do not currently replace the OAuth/session bootstrap.
+
 #### Legacy OAuth App env vars
 
 | Variable | Required | Description |
@@ -230,6 +232,28 @@ epf-cli serve --http --port 8080 --cors-origins "https://your-frontend.com"
 # 5b. Deploy (strategy-only, 16 tools)
 EPF_SERVER_MODE=strategy epf-cli serve --http --port 8080 --cors-origins "https://your-frontend.com"
 ```
+
+#### Release-driven Cloud Run example
+
+For the production deployment in this repository:
+
+```bash
+# 1. Export the credentials that bootstrap should copy to Secret Manager
+export EPF_OAUTH_CLIENT_ID="Iv1.abc123..."
+export EPF_OAUTH_CLIENT_SECRET="secret..."
+export EPF_GITHUB_APP_ID="123456"
+export EPF_GITHUB_APP_PRIVATE_KEY="$(cat /path/to/key.pem)"
+
+# 2. Bootstrap GCP once (also generates EPF_SESSION_SECRET if missing)
+cd apps/epf-cli
+./scripts/setup-gcp.sh
+
+# 3. Ship a release
+git tag v0.25.0
+git push origin v0.25.0
+```
+
+That release flow publishes the image to GHCR and Artifact Registry, then deploys public Cloud Run service `epf-strategy` in `outblocks/europe-west1` with `EPF_SERVER_MODE=strategy`, `EPF_SERVER_URL=https://strategy.emergent-company.ai`, `--cors-origins=*`, and autoscaling `0..10`. The custom domain mapping itself is still a one-time post-deploy GCP/DNS step.
 
 In multi-tenant mode, `instance_path` on MCP tools accepts `owner/repo` format (e.g., `emergent-company/emergent-epf`) and the server verifies access before routing.
 
