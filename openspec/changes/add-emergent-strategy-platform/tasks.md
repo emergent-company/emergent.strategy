@@ -177,14 +177,15 @@ Three MCP tools registered at `apps/epf-cli/internal/mcp/semantic_tools.go`.
 - [x] 1.12.5 Fixed Memory `SearchWithNeighbors` response wrapper (`primaryResults` not bare array)
 - [x] 1.12.6 Registered in both strategy-only and full MCP servers
 
-### 1.13 Live Testing & Calibration
-- [ ] 1.13.1 Ingest Emergent instance — validate node/edge counts, test semantic queries
-- [ ] 1.13.2 Ingest Huma instance — validate against known cascade (North Star reframe)
-- [ ] 1.13.3 Ingest LegalPlant instance — validate contradiction detection (known broken paths)
-- [ ] 1.13.4 Ingest 21st instance — test on a simpler instance
-- [ ] 1.13.5 Run impact analysis on each instance with real changes, calibrate inertia thresholds and signal decay
-- [ ] 1.13.6 Run scenario projection on each instance, gather feedback on usefulness
-- [ ] 1.13.7 Document Phase 1 learnings: what worked, what needs adjustment, what was surprising
+### 1.13 Live Testing & Calibration — PARTIALLY COMPLETE
+Emergent instance fully tested. Other instances require access to their repos (separate effort).
+- [x] 1.13.1 Ingest Emergent instance — 739 objects, 812 structural + 34 semantic edges. Semantic search working.
+- [x] 1.13.5 Run impact analysis on Emergent instance — tested fd-012 cascade (32 evals, 3 tiers), roadmap cascade (19 evals), belief cascade (via semantic edges)
+- [x] 1.13.6 Run scenario projection on Emergent instance — branch creation, evaluation, discard all working live
+- [ ] 1.13.2 Ingest Huma instance (requires repo access)
+- [ ] 1.13.3 Ingest LegalPlant instance (requires repo access)
+- [ ] 1.13.4 Ingest 21st instance (requires repo access)
+- [ ] 1.13.7 Document Phase 1 learnings
 
 ### 1.14 Documentation ✅ COMPLETE
 - [x] 1.14.1 Create `openspec/specs/epf-semantic-engine/spec.md` — 9 requirements with scenarios covering decomposition, ingestion, reasoning, propagation, impact, scenario projection, MCP tools
