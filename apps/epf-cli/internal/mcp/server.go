@@ -449,18 +449,6 @@ func (s *Server) registerTools() {
 		s.handleGetSectionExample,
 	)
 
-	// Tool: epf_detect_artifact_type
-	s.mcpServer.AddTool(
-		mcp.NewTool("epf_detect_artifact_type",
-			mcp.WithDescription("Detect the EPF artifact type from a file path based on naming conventions."),
-			mcp.WithString("path",
-				mcp.Required(),
-				mcp.Description("The file path to analyze"),
-			),
-		),
-		s.handleDetectArtifactType,
-	)
-
 	// Tool: epf_get_phase_artifacts
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_phase_artifacts",
@@ -492,42 +480,6 @@ func (s *Server) registerTools() {
 			),
 		),
 		s.handleHealthCheck,
-	)
-
-	// Tool: epf_check_instance
-	s.mcpServer.AddTool(
-		mcp.NewTool("epf_check_instance",
-			mcp.WithDescription("Check the structure of an EPF instance (READY/FIRE/AIM directories, required files)."),
-			mcp.WithString("instance_path",
-				mcp.Required(),
-				mcp.Description("Path to the EPF instance directory"),
-			),
-		),
-		s.handleCheckInstance,
-	)
-
-	// Tool: epf_check_content_readiness
-	s.mcpServer.AddTool(
-		mcp.NewTool("epf_check_content_readiness",
-			mcp.WithDescription("Check for placeholder content (TBD, TODO, [placeholder], etc.) in EPF artifacts."),
-			mcp.WithString("path",
-				mcp.Required(),
-				mcp.Description("Path to check (file or directory)"),
-			),
-		),
-		s.handleCheckContentReadiness,
-	)
-
-	// Tool: epf_check_feature_quality
-	s.mcpServer.AddTool(
-		mcp.NewTool("epf_check_feature_quality",
-			mcp.WithDescription("Validate feature definition quality (personas, scenarios, narratives)."),
-			mcp.WithString("instance_path",
-				mcp.Required(),
-				mcp.Description("Path to the EPF instance directory"),
-			),
-		),
-		s.handleCheckFeatureQuality,
 	)
 
 	// Tool: epf_list_artifacts
@@ -597,18 +549,6 @@ func (s *Server) registerTools() {
 		s.handleGetMigrationGuide,
 	)
 
-	// Tool: epf_check_migration_status
-	s.mcpServer.AddTool(
-		mcp.NewTool("epf_check_migration_status",
-			mcp.WithDescription("Quick check of migration status for an EPF instance. Returns whether migration is needed, file counts, and version information."),
-			mcp.WithString("instance_path",
-				mcp.Required(),
-				mcp.Description("Path to the EPF instance directory"),
-			),
-		),
-		s.handleCheckMigrationStatus,
-	)
-
 	// ==========================================================================
 	// Wizard Tools
 	// ==========================================================================
@@ -667,58 +607,6 @@ func (s *Server) registerTools() {
 		s.handleGetWizardForTask,
 	)
 
-	// Tool: epf_recommend_reviews
-	s.mcpServer.AddTool(
-		mcp.NewTool("epf_recommend_reviews",
-			mcp.WithDescription("Returns applicable semantic review wizards for evaluating an EPF instance's strategic quality. "+
-				"Use this to discover review wizards for quality evaluation tasks. "+
-				"Returns all 3 review wizards (strategic_coherence_review, feature_quality_review, value_model_review) "+
-				"with their purpose, type, and invocation syntax. Optionally includes instance-specific context."),
-			mcp.WithString("instance_path",
-				mcp.Description("Path to the EPF instance directory (optional, uses default)"),
-			),
-		),
-		s.handleRecommendReviews,
-	)
-
-	// Tool: epf_review_strategic_coherence (wrapper for strategic_coherence_review wizard)
-	s.mcpServer.AddTool(
-		mcp.NewTool("epf_review_strategic_coherence",
-			mcp.WithDescription("Retrieve the strategic coherence review wizard for evaluating strategic alignment across all EPF artifacts. "+
-				"This is an evaluation/review tool — it checks vision-to-execution chain, cross-references, and strategic coherence. "+
-				"Equivalent to: epf_get_wizard { \"name\": \"strategic_coherence_review\" }"),
-		),
-		s.handleReviewStrategicCoherence,
-	)
-
-	// Tool: epf_review_feature_quality (wrapper for feature_quality_review wizard)
-	s.mcpServer.AddTool(
-		mcp.NewTool("epf_review_feature_quality",
-			mcp.WithDescription("Retrieve the feature quality review wizard for evaluating feature definition quality. "+
-				"This is an evaluation/review tool — it checks personas, scenarios, narratives, JTBD completeness, and capability structure. "+
-				"Equivalent to: epf_get_wizard { \"name\": \"feature_quality_review\" }"),
-		),
-		s.handleReviewFeatureQuality,
-	)
-
-	// Tool: epf_review_value_model (wrapper for value_model_review wizard)
-	s.mcpServer.AddTool(
-		mcp.NewTool("epf_review_value_model",
-			mcp.WithDescription("Retrieve the value model review wizard for evaluating value model structure. "+
-				"This is an evaluation/review tool — it checks layer consistency, naming conventions, maturity tracking, and anti-patterns. "+
-				"Equivalent to: epf_get_wizard { \"name\": \"value_model_review\" }"),
-		),
-		s.handleReviewValueModel,
-	)
-
-	// Tool: epf_list_agent_instructions
-	s.mcpServer.AddTool(
-		mcp.NewTool("epf_list_agent_instructions",
-			mcp.WithDescription("List EPF agent instruction files. These provide AI agents with guidance for working with EPF."),
-		),
-		s.handleListAgentInstructions,
-	)
-
 	// Tool: epf_get_agent_instructions
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_get_agent_instructions",
@@ -765,22 +653,6 @@ func (s *Server) registerTools() {
 			),
 		),
 		s.handleGetGenerator,
-	)
-
-	// Tool: epf_check_generator_prereqs
-	s.mcpServer.AddTool(
-		mcp.NewTool("epf_check_generator_prereqs",
-			mcp.WithDescription("Check if an EPF instance has the required artifacts to run a generator."),
-			mcp.WithString("name",
-				mcp.Required(),
-				mcp.Description("The generator name to check prerequisites for"),
-			),
-			mcp.WithString("instance_path",
-				mcp.Required(),
-				mcp.Description("Path to the EPF instance directory"),
-			),
-		),
-		s.handleCheckGeneratorPrereqs,
 	)
 
 	// Tool: epf_scaffold_generator
@@ -941,19 +813,6 @@ func (s *Server) registerTools() {
 			),
 		),
 		s.handleImportAgent,
-	)
-
-	// Tool: epf_list_agent_skills
-	s.mcpServer.AddTool(
-		mcp.NewTool("epf_list_agent_skills",
-			mcp.WithDescription("List the skills associated with a specific agent, based on the agent's manifest declaration. "+
-				"Returns required and optional skills with their availability status."),
-			mcp.WithString("agent",
-				mcp.Required(),
-				mcp.Description("Agent name to list skills for"),
-			),
-		),
-		s.handleListAgentSkills,
 	)
 
 	// ==========================================================================
@@ -1320,59 +1179,6 @@ func (s *Server) registerTools() {
 		s.handleFixFile,
 	)
 
-	// Tool: epf_sync_canonical
-	s.mcpServer.AddTool(
-		mcp.NewTool("epf_sync_canonical",
-			mcp.WithDescription("Sync missing canonical artifacts (definitions and value models) to an existing EPF instance. "+
-				"Adds canonical track definitions (strategy, org_ops, commercial) and canonical value models. "+
-				"Product artifacts are NOT synced (they are user-authored). "+
-				"By default, existing files are skipped. Use force=true to overwrite. Use dry_run=true to preview."),
-			mcp.WithString("instance_path",
-				mcp.Required(),
-				mcp.Description("Path to the EPF instance directory"),
-			),
-			mcp.WithString("force",
-				mcp.Description("Overwrite existing files (true/false, default: false)"),
-			),
-			mcp.WithString("dry_run",
-				mcp.Description("Preview changes without writing files (true/false, default: false)"),
-			),
-		),
-		s.handleSyncCanonical,
-	)
-
-	// Tool: epf_migrate_definitions
-	s.mcpServer.AddTool(
-		mcp.NewTool("epf_migrate_definitions",
-			mcp.WithDescription("Migrate definitions from legacy locations to unified FIRE/definitions/ structure. "+
-				"Moves FIRE/feature_definitions/ to FIRE/definitions/product/, and READY/definitions/{track}/ to FIRE/definitions/{track}/. "+
-				"If the instance is a git submodule, migration is refused (must be done in the source repo). "+
-				"Use dry_run=true to preview changes."),
-			mcp.WithString("instance_path",
-				mcp.Required(),
-				mcp.Description("Path to the EPF instance directory"),
-			),
-			mcp.WithString("dry_run",
-				mcp.Description("Preview changes without modifying files (true/false, default: false)"),
-			),
-		),
-		s.handleMigrateDefinitions,
-	)
-
-	// Tool: epf_reload_instance
-	s.mcpServer.AddTool(
-		mcp.NewTool("epf_reload_instance",
-			mcp.WithDescription("Force reload the cached strategy data for an EPF instance. "+
-				"Use this when you know files have changed outside of epf-cli tools (e.g., manual edits, git operations). "+
-				"The cache auto-detects changes via file modification times, but this tool provides an explicit reload."),
-			mcp.WithString("instance_path",
-				mcp.Required(),
-				mcp.Description("Path to the EPF instance directory"),
-			),
-		),
-		s.handleReloadInstance,
-	)
-
 	// ==========================================================================
 	// AIM Tools (v0.14.0)
 	// ==========================================================================
@@ -1647,25 +1453,6 @@ func (s *Server) registerTools() {
 	// ==========================================================================
 	// Report & Diff Tools (v0.14.0)
 	// ==========================================================================
-
-	// Tool: epf_generate_report
-	s.mcpServer.AddTool(
-		mcp.NewTool("epf_generate_report",
-			mcp.WithDescription("Generate comprehensive health report for an EPF instance. "+
-				"Runs all health checks and compiles results into markdown, HTML, or JSON format. "+
-				"Returns report content (does not write to file)."),
-			mcp.WithString("instance_path",
-				mcp.Description("Path to EPF instance (default: current directory)"),
-			),
-			mcp.WithString("format",
-				mcp.Description("Output format: markdown (default), html, json"),
-			),
-			mcp.WithString("verbose",
-				mcp.Description("Include detailed information (true/false, default: false)"),
-			),
-		),
-		s.handleGenerateReport,
-	)
 
 	// Tool: epf_diff_artifacts
 	s.mcpServer.AddTool(
