@@ -2,72 +2,82 @@
 
 ## Why
 
-The EPF CLI MCP server exposes ~94 tools. This is too many for LLMs to handle effectively:
+The EPF CLI MCP server exposes ~94 tools. This causes real problems for LLMs:
 
 1. **Context cost**: ~20K tokens consumed by tool definitions before any conversation starts
-2. **Selection confusion**: 8 validation variants, 7 wizard variants, 5 generator variants — LLMs pick the wrong one
-3. **Legacy duplication**: Wizard and generator tools are parallel to the newer agent and skill tools (same content, different response shapes)
-4. **Not everything needs to be an MCP tool**: Some operations (migration, scaffolding, report generation) are better served by CLI commands, since they're rare, produce large output, or are one-time operations
+2. **Selection confusion**: Similar tools with similar descriptions — LLMs pick the wrong one (8 validation tools, 4 review wrappers, 3 health check subsets)
+3. **Trivial wrappers and subsets**: Some tools exist only as convenience aliases (review wrappers = `get_wizard` with a hardcoded name) or strict subsets of other tools (`check_instance` is a subset of `health_check`)
+4. **No guidance on when to use what**: Tool descriptions say what the tool does, not when to use it — LLMs can't distinguish between tools with similar functions
 
-The tool count will only grow as capabilities are added (semantic engine, scenario projection, multi-instance networking). Without architectural principles governing what becomes an MCP tool, the problem compounds.
+The tool count will grow as capabilities are added. Without principles governing what becomes an MCP tool and how tools describe themselves, the problem compounds.
 
 ## Principles
 
-### P1: MCP tools are for LLM decision-making, not CLI wrapping
+### P1: MCP tools are for LLM decision-making during conversations
 
-An operation should be an MCP tool only if it helps the LLM make a better decision during an active conversation. Operations that are:
-- **One-time setup** (migration, scaffolding, import) → CLI command
-- **Large output** (reports, exports) → CLI command
-- **Cache management** (reload, sync) → Automatic or CLI command
-- **Subset of another tool** (check_instance is a subset of health_check) → Parameter on parent tool
+An operation should be an MCP tool if the LLM needs it during an active conversation. Operations that are one-time setup (migration), produce large files (reports), or manage internal caches (reload) are better served by CLI commands. But **authoring operations** (scaffold, import) remain MCP tools because agents in MCP-only clients (Claude Desktop, web UIs) cannot run CLI commands.
 
-### P2: One tool per concern, parameters for variants
+### P2: No trivial wrappers or strict subsets
 
-Instead of 8 validation tools, one `epf_validate` tool with a `mode` parameter. Instead of 3 review tools, `epf_get_wizard("strategic_coherence_review")`. Fewer tools with richer parameters > many tools with narrow scope.
+If a tool is literally `get_wizard("some_name")` with a hardcoded argument, it shouldn't be a separate tool — the LLM should call `get_wizard` directly. If a tool's output is a strict subset of another tool's output, it shouldn't exist separately.
 
-### P3: Response chaining replaces tool chaining
+### P3: Descriptions tell you WHEN, not just WHAT
 
-When tool A always leads to tool B, tool A should include tool B's output in its response (or a `next_tool` directive). The LLM shouldn't need to discover and call tool B separately — the response tells it what to do.
+Every tool description starts with when to use it, using a `[Category] USE WHEN <trigger>` format. This lets the LLM scan 70 descriptions quickly and match the right tool to the task without reading full paragraphs.
 
-### P4: Progressive disclosure via a router tool
+### P4: Response chaining over tool discovery
 
-A single `epf` routing tool can handle broad queries ("I need to validate", "help me create a feature") and return the specific tool name + parameters to call. This replaces browsing 94 descriptions with asking one tool.
+When tool A always leads to tool B, tool A should tell the LLM what to call next via `required_next_tool_calls` in its response. The LLM follows instructions, not discovery. The existing `epf_get_agent_for_task` and `epf_get_wizard_for_task` already serve as routers — we improve them rather than adding a third.
 
-### P5: Tiered registration for different consumers
+### P5: Honor existing commitments
+
+Generator tools and wizard tools were declared permanent ("no deprecation"). We honor that. They coexist with agent/skill tools. The goal is not to remove functional tools but to remove wrappers, subsets, and unused surface area.
+
+### P6: Tiered registration for different consumers
 
 | Consumer | Needs | Mode |
 |----------|-------|------|
-| Coding agent (OpenCode) | Full authoring toolset | Default (~40 tools after consolidation) |
+| Coding agent (OpenCode) | Full authoring toolset | Default (~70 tools after cleanup) |
 | Strategy consumer app | Read-only strategy queries | `EPF_SERVER_MODE=strategy` (~26 tools) |
-| Integrated strategy tool | Everything + semantic engine | `EPF_SERVER_MODE=full` (all tools) |
 | Standalone CLI user | CLI commands, no MCP | `epf-cli` directly |
 
 ## What Changes
 
-### Phase 1: Consolidate duplicates and remove legacy wrappers (~94 → ~55 tools)
+### Phase 1: Remove wrappers, subsets, and dead weight + rewrite descriptions (~94 → ~72 tools)
 
-1. **Remove legacy generator tools** (5 tools) — `epf_list_generators`, `epf_get_generator`, `epf_check_generator_prereqs`, `epf_scaffold_generator`, `epf_validate_generator_output` — all are parallel to skill tools
-2. **Remove review tool wrappers** (4 tools) — `epf_review_strategic_coherence`, `epf_review_feature_quality`, `epf_review_value_model`, `epf_recommend_reviews` — agents call `epf_get_wizard` directly
-3. **Merge validation tools** — `epf_validate_file` absorbs `epf_validate_with_plan` (mode param), `epf_validate_section` (section param), `epf_validate_content` (content param)
-4. **Merge catalog tools** — `epf_list_schemas`, `epf_list_artifacts`, `epf_get_phase_artifacts` → one `epf_browse` tool
-5. **Move rare ops to CLI-only** — `epf_migrate_definitions`, `epf_sync_canonical`, `epf_generate_report`, `epf_import_agent`, `epf_import_skill`
-6. **Eliminate subsets** — `epf_check_instance`, `epf_check_content_readiness`, `epf_check_feature_quality` (all subsets of health_check), `epf_detect_artifact_type` (built into validate), `epf_check_migration_status` (subset of migration_guide)
+The highest-impact, lowest-risk changes. No tool consolidation, no parameter merging, no breaking changes to tool APIs.
 
-### Phase 2: Add router tool and improve descriptions (~55 tools, better navigable)
+1. **Remove review tool wrappers** (4 tools) — `epf_review_strategic_coherence`, `epf_review_feature_quality`, `epf_review_value_model` are aliases for `get_wizard(name)`. `epf_recommend_reviews` lists 3 hardcoded wizards. Agents call `epf_get_wizard` directly.
 
-1. **Add `epf` router tool** — single entry point that takes a task description and returns which tool to call with what parameters. Replaces browsing 55 descriptions.
-2. **Rewrite descriptions with "USE WHEN" prefix** — every tool description starts with when to use it, not what it does. E.g., "USE WHEN you just wrote or edited an EPF YAML file and need to verify it's valid."
-3. **Add tool categories to descriptions** — prefix with `[Validate]`, `[Query]`, `[Write]`, `[AIM]` etc.
+2. **Remove health check subsets** (3 tools) — `epf_check_instance`, `epf_check_content_readiness`, `epf_check_feature_quality` are strict subsets of `epf_health_check` which runs all three. No reason to call the subset when the superset exists.
 
-### Phase 3: Context-aware tool filtering (future)
+3. **Remove utility tools with no standalone value** (5 tools) — `epf_detect_artifact_type` (built into validate), `epf_check_migration_status` (subset of migration_guide), `epf_reload_instance` (should be automatic), `epf_list_agent_skills` (redundant — agent response includes skills), `epf_list_agent_instructions` (fold into `epf_agent_instructions`).
 
-1. **Agent-scoped tools** — when an EPF agent is activated, only tools relevant to that agent's skills are exposed
-2. **Dynamic registration** — tools registered/unregistered based on context (instance detected, Memory API configured, etc.)
+4. **Move true one-time operations to CLI-only** (4 tools) — `epf_migrate_definitions`, `epf_sync_canonical`, `epf_generate_report`, `epf_check_generator_prereqs`. These are run once per instance lifecycle, not during conversations.
+
+5. **Rewrite all tool descriptions** — Apply `[Category] USE WHEN <trigger>` format to every remaining tool. This is the highest-impact single change.
+
+6. **Improve existing routers** — Enhance `epf_get_agent_for_task` to also recommend specific MCP tools (not just agent personas). No new router tool needed.
+
+### Phase 2: Deeper consolidation where it clearly helps (~72 → ~60 tools)
+
+Only consolidate where it genuinely reduces confusion without adding parameter complexity.
+
+1. **Merge aim cycle tools** — `epf_aim_init_cycle` + `epf_aim_archive_cycle` → `epf_aim_cycle` with `action` param (these are closely related and always used together)
+2. **Merge diff tools** — `epf_diff_artifacts` + `epf_diff_template` → `epf_diff` with `mode` param (same concept, just different inputs)
+3. **Merge value model write tools** — `epf_add_value_model_component` + `epf_add_value_model_sub` → `epf_add_value_model_node` with `level` param
+4. **Fold `epf_aim_health` into `epf_health_check`** — health check should run AIM diagnostics as part of its sweep
+5. **Context-aware registration** — only register semantic tools when Memory API is configured, only register multi-tenant tools in multi-tenant mode
+
+### Phase 3: Context-aware tool scoping (future)
+
+1. **Agent-scoped tools** — when an EPF agent is activated, the tool list is filtered to that agent's declared skill requirements
+2. **Dynamic tool registration** — tools registered/unregistered based on detected instance state
 
 ## Impact
 
 - Affected specs: `epf-cli-mcp`
 - Affected code: `apps/epf-cli/internal/mcp/server.go`, all `*_tools.go` files
-- **BREAKING**: Generator tool names removed (callers must use skill tools)
-- **BREAKING**: Some tool names change (validate_with_plan → validate_file with mode param)
-- Backward compatibility: Legacy tools can be re-enabled via `EPF_LEGACY_TOOLS=true` env var during transition
+- **No breaking changes in Phase 1** — only removes wrappers/subsets (no real caller depends on `epf_review_strategic_coherence` instead of `epf_get_wizard`)
+- **Minor breaking changes in Phase 2** — tool renames (diff_artifacts → diff, aim_init_cycle → aim_cycle)
+- Generator tools, wizard tools, skill tools, agent tools all kept as committed

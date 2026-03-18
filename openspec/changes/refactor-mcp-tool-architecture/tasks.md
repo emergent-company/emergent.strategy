@@ -1,97 +1,99 @@
-## Phase 1: Consolidate and Remove (~94 → ~55 tools)
+## Phase 1: Remove Redundancies + Description Rewrite (~94 → ~72 tools)
 
-### 1.1 Remove Legacy Generator Tools (5 tools)
-- [ ] 1.1.1 Remove `epf_list_generators` from MCP registration
-- [ ] 1.1.2 Remove `epf_get_generator` from MCP registration
-- [ ] 1.1.3 Remove `epf_check_generator_prereqs` from MCP registration
-- [ ] 1.1.4 Remove `epf_scaffold_generator` from MCP registration
-- [ ] 1.1.5 Remove `epf_validate_generator_output` from MCP registration
-- [ ] 1.1.6 Add `EPF_LEGACY_TOOLS=true` env var to re-enable during transition
-- [ ] 1.1.7 Update AGENTS.md to reference skill tools instead of generator tools
+Zero breaking changes. Every removed tool has an exact equivalent.
 
-### 1.2 Remove Review Tool Wrappers (4 tools)
-- [ ] 1.2.1 Remove `epf_review_strategic_coherence` (alias for `epf_get_wizard("strategic_coherence_review")`)
-- [ ] 1.2.2 Remove `epf_review_feature_quality` (alias for `epf_get_wizard("feature_quality_review")`)
-- [ ] 1.2.3 Remove `epf_review_value_model` (alias for `epf_get_wizard("value_model_review")`)
-- [ ] 1.2.4 Remove `epf_recommend_reviews` (convenience wrapper)
+### 1.1 Remove Review Tool Wrappers (4 tools)
+- [ ] 1.1.1 Remove `epf_review_strategic_coherence` from MCP registration
+- [ ] 1.1.2 Remove `epf_review_feature_quality` from MCP registration
+- [ ] 1.1.3 Remove `epf_review_value_model` from MCP registration
+- [ ] 1.1.4 Remove `epf_recommend_reviews` from MCP registration
+- [ ] 1.1.5 Update AGENTS.md references: replace `epf_review_*` → `epf_get_wizard("..._review")`
 
-### 1.3 Consolidate Validation Tools (remove 3, keep 3)
-- [ ] 1.3.1 Add `mode` parameter to `epf_validate_file`: `file` (default), `plan`, `section`
-- [ ] 1.3.2 Add `content` parameter to `epf_validate_file` for inline content validation
-- [ ] 1.3.3 Remove standalone `epf_validate_with_plan` (now `mode=plan`)
-- [ ] 1.3.4 Remove standalone `epf_validate_section` (now `section` param)
-- [ ] 1.3.5 Remove standalone `epf_validate_content` (now `content` param)
-- [ ] 1.3.6 Keep `epf_validate_relationships` (separate concern)
-- [ ] 1.3.7 Keep `epf_batch_validate` (directory-level validation with summary)
-- [ ] 1.3.8 Keep `epf_validate_skill_output` (skill-specific validation)
+### 1.2 Remove Health Check Subsets (3 tools)
+- [ ] 1.2.1 Remove `epf_check_instance` from MCP registration
+- [ ] 1.2.2 Remove `epf_check_content_readiness` from MCP registration
+- [ ] 1.2.3 Remove `epf_check_feature_quality` from MCP registration
+- [ ] 1.2.4 Verify `epf_health_check` output includes all data these tools returned
 
-### 1.4 Consolidate Catalog/Browse Tools (remove 2, keep 1)
-- [ ] 1.4.1 Create `epf_browse` tool with `what` param: `schemas`, `artifacts`, `phase`
-- [ ] 1.4.2 Remove standalone `epf_list_schemas`
-- [ ] 1.4.3 Remove standalone `epf_get_phase_artifacts`
-- [ ] 1.4.4 Keep `epf_list_artifacts` (rename to `epf_browse` with backward compat)
+### 1.3 Remove Utility Tools With No Standalone Value (5 tools)
+- [ ] 1.3.1 Remove `epf_detect_artifact_type` (already built into `epf_validate_file`)
+- [ ] 1.3.2 Remove `epf_check_migration_status` (strict subset of `epf_get_migration_guide`)
+- [ ] 1.3.3 Remove `epf_reload_instance` (make automatic on file change detection)
+- [ ] 1.3.4 Remove `epf_list_agent_skills` (redundant — `epf_get_agent` response includes skills)
+- [ ] 1.3.5 Fold `epf_list_agent_instructions` into `epf_agent_instructions` with optional `name` param
 
-### 1.5 Move Rare Operations to CLI-Only (8 tools)
-- [ ] 1.5.1 Remove `epf_migrate_definitions` from MCP (keep CLI command)
-- [ ] 1.5.2 Remove `epf_sync_canonical` from MCP (keep CLI command)
-- [ ] 1.5.3 Remove `epf_generate_report` from MCP (keep CLI command)
-- [ ] 1.5.4 Remove `epf_import_agent` from MCP (keep CLI command)
-- [ ] 1.5.5 Remove `epf_import_skill` from MCP (keep CLI command)
-- [ ] 1.5.6 Remove `epf_reload_instance` from MCP (make automatic on file change)
-- [ ] 1.5.7 Remove `epf_detect_artifact_type` from MCP (built into validate)
-- [ ] 1.5.8 Remove `epf_check_migration_status` from MCP (subset of migration_guide)
+### 1.4 Move One-Time Operations to CLI-Only (4 tools)
+- [ ] 1.4.1 Remove `epf_migrate_definitions` from MCP (keep `epf-cli migrate-definitions` CLI command)
+- [ ] 1.4.2 Remove `epf_sync_canonical` from MCP (keep `epf-cli sync-canonical` CLI command)
+- [ ] 1.4.3 Remove `epf_generate_report` from MCP (keep `epf-cli report` CLI command)
+- [ ] 1.4.4 Remove `epf_check_generator_prereqs` from MCP (already checked by `epf_get_generator`)
 
-### 1.6 Remove Health Check Subsets (3 tools)
-- [ ] 1.6.1 Remove `epf_check_instance` (subset of `epf_health_check`)
-- [ ] 1.6.2 Remove `epf_check_content_readiness` (subset of `epf_health_check`)
-- [ ] 1.6.3 Remove `epf_check_feature_quality` (subset of `epf_health_check`)
+### 1.5 Rewrite All Tool Descriptions
+- [ ] 1.5.1 Define category list: [Validate], [Health], [Query], [Write], [AIM], [Semantic], [Agent], [Wizard], [Skill], [Generator], [Instance], [Diff], [Audit]
+- [ ] 1.5.2 Rewrite descriptions for validation tools (epf_validate_file, epf_validate_content, epf_validate_with_plan, epf_validate_section, epf_batch_validate, epf_validate_relationships, epf_validate_skill_output, epf_validate_generator_output)
+- [ ] 1.5.3 Rewrite descriptions for health/instance tools (epf_health_check, epf_locate_instance, epf_init_instance, epf_fix_file)
+- [ ] 1.5.4 Rewrite descriptions for wizard tools (epf_list_wizards, epf_get_wizard, epf_get_wizard_for_task)
+- [ ] 1.5.5 Rewrite descriptions for agent tools (epf_list_agents, epf_get_agent, epf_get_agent_for_task, epf_scaffold_agent, epf_import_agent)
+- [ ] 1.5.6 Rewrite descriptions for skill tools (epf_list_skills, epf_get_skill, epf_scaffold_skill, epf_import_skill, epf_check_skill_prereqs, epf_validate_skill_output)
+- [ ] 1.5.7 Rewrite descriptions for generator tools (epf_list_generators, epf_get_generator, epf_scaffold_generator, epf_validate_generator_output)
+- [ ] 1.5.8 Rewrite descriptions for strategy query tools (8 tools)
+- [ ] 1.5.9 Rewrite descriptions for strategy context tools (8 tools)
+- [ ] 1.5.10 Rewrite descriptions for AIM tools (10 tools)
+- [ ] 1.5.11 Rewrite descriptions for relationship maintenance tools (4 tools)
+- [ ] 1.5.12 Rewrite descriptions for value model write tools (3 tools)
+- [ ] 1.5.13 Rewrite descriptions for diff/report tools (2 tools)
+- [ ] 1.5.14 Rewrite descriptions for semantic engine tools (4 tools)
+- [ ] 1.5.15 Rewrite descriptions for audit tools (2 tools)
+- [ ] 1.5.16 Verify all triggers are unique — no two tools have the same USE WHEN
 
-### 1.7 Consolidate Smaller Tool Groups (5 tools)
-- [ ] 1.7.1 Merge `epf_aim_init_cycle` + `epf_aim_archive_cycle` → `epf_aim_cycle` with `action` param
-- [ ] 1.7.2 Remove `epf_aim_health` (fold into `epf_health_check`)
-- [ ] 1.7.3 Merge `epf_diff_artifacts` + `epf_diff_template` → `epf_diff` with `mode` param
-- [ ] 1.7.4 Merge `epf_add_value_model_component` + `epf_add_value_model_sub` → `epf_add_value_model_node`
-- [ ] 1.7.5 Remove `epf_list_agent_skills` (redundant — agent response includes skills)
+### 1.6 Enhance Existing Router
+- [ ] 1.6.1 Extend `epf_get_agent_for_task` to return `direct_tool` + `parameters` when no agent activation needed
+- [ ] 1.6.2 Add tool routing patterns for common tasks (validate, search, create feature, check health, etc.)
+- [ ] 1.6.3 Return `direct_tool` with high confidence for unambiguous tasks
 
-### 1.8 Consolidate Agent Discovery (2 tools)
-- [ ] 1.8.1 Merge `epf_list_agent_instructions` + `epf_get_agent_instructions` → `epf_agent_instructions` with optional `name` param
-- [ ] 1.8.2 Remove standalone `epf_list_agent_instructions`
+### 1.7 Update Documentation
+- [ ] 1.7.1 Update AGENTS.md tool inventory and references to removed tools
+- [ ] 1.7.2 Update AGENTS.md tool discovery section with new description format
+- [ ] 1.7.3 Update openspec/specs/epf-cli-mcp/spec.md with revised tool inventory
+- [ ] 1.7.4 Check all wizard/agent prompts for references to removed tools
 
-### 1.9 Update Documentation
-- [ ] 1.9.1 Update AGENTS.md with new tool names and consolidated parameters
-- [ ] 1.9.2 Update openspec/specs/epf-cli-mcp/spec.md with revised tool inventory
-- [ ] 1.9.3 Update opencode-epf plugin if it references removed tools
+### 1.8 Test
+- [ ] 1.8.1 Run full test suite — all existing tests must pass
+- [ ] 1.8.2 Manual test: verify each removed tool's functionality via its equivalent
+- [ ] 1.8.3 Test description quality: give 10 common tasks to an LLM with the new descriptions, verify tool selection accuracy
 
-## Phase 2: Router Tool and Description Quality
+## Phase 2: Targeted Consolidation (~72 → ~66 tools)
 
-### 2.1 Router Tool
-- [ ] 2.1.1 Create `internal/mcp/router.go` with task→tool routing table
-- [ ] 2.1.2 Define routing patterns: regex patterns → tool name + default params
-- [ ] 2.1.3 Register `epf` router tool (or `epf_help` — decide naming)
-- [ ] 2.1.4 Include routing for all ~55 remaining tools
-- [ ] 2.1.5 Return confidence, reasoning, and alternatives
-- [ ] 2.1.6 Test routing with 20+ common task descriptions
+Only merge tools that share implementation and have obvious parameter semantics.
 
-### 2.2 Description Rewrite
-- [ ] 2.2.1 Define description format: `[Category] USE WHEN <trigger>. <what>. <constraint>.`
-- [ ] 2.2.2 Rewrite all ~55 tool descriptions in the new format
-- [ ] 2.2.3 Add category prefixes: [Validate], [Query], [Write], [AIM], [Semantic], [Manage]
-- [ ] 2.2.4 Test with multiple LLMs (Claude, GPT-4, Gemini) for tool selection accuracy
+### 2.1 Merge AIM Cycle Tools
+- [ ] 2.1.1 Create `epf_aim_cycle` with `action` param (`init` or `archive`)
+- [ ] 2.1.2 Remove `epf_aim_init_cycle` and `epf_aim_archive_cycle`
 
-### 2.3 Validation
-- [ ] 2.3.1 Run full test suite — all existing tests must pass
-- [ ] 2.3.2 Manual testing: exercise the consolidated tools with real EPF instances
-- [ ] 2.3.3 Verify `EPF_LEGACY_TOOLS=true` re-enables removed tools
-- [ ] 2.3.4 Test router tool accuracy on 20+ task descriptions
+### 2.2 Merge Diff Tools
+- [ ] 2.2.1 Create `epf_diff` with `mode` param (`artifacts` or `template`)
+- [ ] 2.2.2 Remove `epf_diff_artifacts` and `epf_diff_template`
 
-## Phase 3: Context-Aware Filtering (Future)
+### 2.3 Merge Value Model Write Tools
+- [ ] 2.3.1 Create `epf_add_value_model_node` with `level` param (`component` or `sub_component`)
+- [ ] 2.3.2 Remove `epf_add_value_model_component` and `epf_add_value_model_sub`
 
-### 3.1 Agent-Scoped Tools
-- [ ] 3.1.1 Design agent→tool scoping manifest format
-- [ ] 3.1.2 Implement dynamic tool filtering when agent is activated
-- [ ] 3.1.3 Verify scoped tool count per agent (target: 10-15 per agent)
+### 2.4 Fold AIM Health Into Health Check
+- [ ] 2.4.1 Add AIM diagnostics to `epf_health_check` output
+- [ ] 2.4.2 Remove `epf_aim_health`
 
-### 3.2 Context-Aware Registration
-- [ ] 3.2.1 Only register semantic tools when Memory API is configured
-- [ ] 3.2.2 Only register AIM tools when AIM directory exists
-- [ ] 3.2.3 Only register multi-tenant tools when in multi-tenant mode
+### 2.5 Context-Aware Registration
+- [ ] 2.5.1 Only register semantic tools when `EPF_MEMORY_URL` is set
+- [ ] 2.5.2 Only register `epf_list_workspaces` in multi-tenant mode
+- [ ] 2.5.3 Only register `epf_aim_*` tools when AIM directory exists in the instance
+
+## Phase 3: Agent-Scoped Tools (Future)
+
+### 3.1 Design
+- [ ] 3.1.1 Define agent→tool scoping manifest format (which tools each agent needs)
+- [ ] 3.1.2 Design MCP dynamic tool registration or description modification
+
+### 3.2 Implementation
+- [ ] 3.2.1 Implement tool filtering when agent is activated
+- [ ] 3.2.2 Verify scoped tool count per agent (target: 10-15 per agent)
+- [ ] 3.2.3 Test with multiple agents to ensure no needed tool is accidentally scoped out

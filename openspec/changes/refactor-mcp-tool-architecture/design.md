@@ -2,115 +2,124 @@
 
 ## Context
 
-The EPF CLI MCP server has grown organically to ~94 tools across 16 categories. LLMs struggle with tool selection at this scale. The tool count will keep growing as new capabilities are added. We need architectural principles and a concrete plan to bring the count down without losing functionality.
+The EPF CLI MCP server has grown to ~94 tools. LLMs struggle with selection at this scale — not because of the count alone, but because similar tools have similar descriptions, making it hard to pick the right one. The fix is a combination of removing genuinely redundant tools and rewriting descriptions so the remaining ones are clearly distinguishable.
 
 ## Goals
 
-- Reduce MCP tool count from ~94 to ~40 for the default coding agent mode
-- Establish clear principles for what becomes an MCP tool vs CLI command
-- Make remaining tools easily navigable via a router tool
-- Support multiple consumer modes (coding agent, strategy reader, full suite)
-- Maintain backward compatibility during transition
+- Remove wrappers, subsets, and dead weight (~94 → ~72)
+- Make every remaining tool clearly distinguishable via description format
+- Honor the "no deprecation" commitment for generator and wizard tools
+- Support multiple consumer modes (coding agent, strategy reader)
+- Zero breaking changes in Phase 1
 
 ## Non-Goals
 
-- Removing functionality — every current capability remains accessible (via CLI or MCP)
-- Changing the MCP protocol — we work within standard MCP
-- Building a dynamic tool registry — out of scope for now
+- Consolidating tools by adding mode parameters (learned: replaces tool confusion with parameter confusion)
+- Adding a new router tool (learned: overlaps with existing agent/wizard-for-task routers)
+- Removing generator or wizard tools (committed to permanent coexistence)
 
 ## Decisions
 
-### Decision 1: The Router Tool
+### Decision 1: Description Format
 
-A single `epf` tool serves as the entry point for agents who don't know which tool to call. It accepts a free-text `task` description and returns:
-
-```json
-{
-  "recommended_tool": "epf_validate_file",
-  "parameters": {"path": "...", "ai_friendly": "true"},
-  "confidence": 0.95,
-  "reasoning": "You mentioned validating after editing a YAML file",
-  "alternatives": [
-    {"tool": "epf_health_check", "when": "If you want a comprehensive check, not just this file"}
-  ]
-}
-```
-
-This is similar to `epf_get_agent_for_task` but operates at the tool level, not the agent level. It uses keyword matching and task classification — no LLM call needed.
-
-**Implementation**: A static routing table mapping task patterns → tools. Lives in `internal/mcp/router.go`. Patterns are compiled regexes with priority ordering.
-
-### Decision 2: Parameter Consolidation Strategy
-
-| Current Tools | Consolidated Tool | Discriminating Parameter |
-|--------------|-------------------|------------------------|
-| `epf_validate_file` + `epf_validate_with_plan` + `epf_validate_section` + `epf_validate_content` | `epf_validate` | `mode`: `file` (default), `plan`, `section`, `content` |
-| `epf_list_schemas` + `epf_list_artifacts` + `epf_get_phase_artifacts` | `epf_browse` | `what`: `schemas`, `artifacts`, `phase` |
-| `epf_add_implementation_reference` + `epf_update_capability_maturity` + `epf_add_mapping_artifact` | `epf_update_relationships` | `action`: `add_reference`, `update_maturity`, `add_mapping` |
-| `epf_aim_init_cycle` + `epf_aim_archive_cycle` | `epf_aim_cycle` | `action`: `init`, `archive` |
-| `epf_diff_artifacts` + `epf_diff_template` | `epf_diff` | `mode`: `artifacts`, `template` |
-| `epf_add_value_model_component` + `epf_add_value_model_sub` | `epf_add_value_model_node` | `level`: `component`, `sub_component` |
-
-### Decision 3: CLI-Only Operations
-
-These operations move to CLI-only (removed from MCP):
-
-| Operation | Why CLI-only |
-|-----------|-------------|
-| `epf_migrate_definitions` | One-time migration, rare |
-| `epf_sync_canonical` | One-time sync, rare |
-| `epf_generate_report` | Large output, better as file |
-| `epf_import_agent` | Rare, complex format detection |
-| `epf_import_skill` | Rare, complex format detection |
-| `epf_reload_instance` | Should be automatic on file change |
-| `epf_check_migration_status` | Subset of `epf_get_migration_guide` |
-| `epf_detect_artifact_type` | Built into `epf_validate` |
-
-### Decision 4: Legacy Tool Sunset
-
-Generator tools (`epf_list_generators`, `epf_get_generator`, etc.) and review tool wrappers (`epf_review_strategic_coherence`, etc.) are removed from default registration. They can be re-enabled via `EPF_LEGACY_TOOLS=true` for transition.
-
-The wizard tools (`epf_list_wizards`, `epf_get_wizard`, `epf_get_wizard_for_task`) are kept — they're still referenced in AGENTS.md and serve a different routing purpose than agent tools.
-
-### Decision 5: Description Format
-
-Every tool description follows this template:
+Every tool description follows:
 
 ```
-[Category] USE WHEN <trigger>. <one-line what it does>. <key constraint or post-condition if any>.
+[Category] USE WHEN <trigger>. <one-line what>. <constraint>.
 ```
+
+Categories: `[Validate]`, `[Health]`, `[Query]`, `[Write]`, `[AIM]`, `[Semantic]`, `[Agent]`, `[Wizard]`, `[Skill]`, `[Generator]`, `[Instance]`, `[Diff]`, `[Audit]`
 
 Examples:
 
 ```
-[Validate] USE WHEN you wrote or edited an EPF YAML file. Validates against its schema and returns errors with fix hints. MUST be called after every write.
+BEFORE: "Validate a local EPF YAML file against its schema. Automatically detects
+the artifact type from the filename/path pattern. Use ai_friendly=true for
+structured output optimized for AI agents..."
 
-[Query] USE WHEN you need to understand who the product is for. Returns all target personas with ID, name, role, and description.
-
-[Write] USE WHEN you need to track that a PR implements a feature. Links implementation artifacts (PRs, specs, code) to feature definitions.
+AFTER: "[Validate] USE WHEN you wrote or edited an EPF YAML file. Validates against
+schema with auto-detected artifact type. MUST call after every write to an EPF file."
 ```
 
-### Decision 6: Tool Count Targets
+```
+BEFORE: "Run a comprehensive health check on an EPF instance. RECOMMENDED FIRST STEP:
+Always run health check before starting work to assess scope. Returns structure
+validation, schema validation, content readiness..."
 
-| Mode | Current | After Phase 1 | After Phase 2 |
-|------|---------|---------------|---------------|
-| Full (all tools) | ~94 | ~55 | ~55 + router |
-| Default (coding agent) | ~94 | ~55 | ~40 (router assists) |
-| Strategy-only (consumer) | ~26 | ~26 | ~26 + router |
+AFTER: "[Health] USE WHEN starting work on an EPF instance or diagnosing problems.
+Runs all checks (structure, schema, content readiness, relationships). Call this FIRST."
+```
+
+The key insight: the trigger sentence must be unique across all tools. Two tools should never have the same trigger.
+
+### Decision 2: What Gets Removed (Phase 1)
+
+**Strict rule**: A tool is removed only if calling it is equivalent to calling another tool with specific arguments. No functionality is lost.
+
+| Removed Tool | Equivalent | Why redundant |
+|-------------|-----------|---------------|
+| `epf_review_strategic_coherence` | `epf_get_wizard("strategic_coherence_review")` | Hardcoded alias |
+| `epf_review_feature_quality` | `epf_get_wizard("feature_quality_review")` | Hardcoded alias |
+| `epf_review_value_model` | `epf_get_wizard("value_model_review")` | Hardcoded alias |
+| `epf_recommend_reviews` | `epf_list_wizards(type="review")` | Lists 3 hardcoded names |
+| `epf_check_instance` | `epf_health_check` | Strict subset |
+| `epf_check_content_readiness` | `epf_health_check` | Strict subset |
+| `epf_check_feature_quality` | `epf_health_check` | Strict subset |
+| `epf_detect_artifact_type` | `epf_validate_file` | Built into validate |
+| `epf_check_migration_status` | `epf_get_migration_guide` | Strict subset |
+| `epf_reload_instance` | Automatic on file change | Cache management |
+| `epf_list_agent_skills` | `epf_get_agent` response | Already included |
+| `epf_list_agent_instructions` | `epf_agent_instructions` | Fold into existing |
+
+**CLI-only moves** (tool still works, just not registered as MCP):
+
+| Tool | Why CLI-only |
+|------|-------------|
+| `epf_migrate_definitions` | One-time per instance lifecycle |
+| `epf_sync_canonical` | One-time sync operation |
+| `epf_generate_report` | Large output, better as file |
+| `epf_check_generator_prereqs` | Rare, already checked by `epf_get_generator` |
+
+### Decision 3: Enhance Existing Routers Instead of Adding New Ones
+
+`epf_get_agent_for_task` already routes tasks → agents. We extend it to also suggest specific MCP tools when no agent activation is needed. For example:
+
+```json
+Input: {"task": "validate my feature definition"}
+Output: {
+  "agent": null,
+  "direct_tool": "epf_validate_file",
+  "parameters": {"path": "...", "ai_friendly": "true"},
+  "reasoning": "Validation doesn't require agent activation — call epf_validate_file directly"
+}
+```
+
+This means the existing router covers both agent workflows and direct tool usage, without adding tool count.
+
+### Decision 4: Phase 2 Consolidation Criteria
+
+A tool merge in Phase 2 is only justified if:
+1. The two tools share a handler implementation (same code, just different entry point)
+2. The merged parameters are obvious (no ambiguity about which "mode" to use)
+3. The merged tool name clearly covers both use cases
+
+Tools that meet all three: `aim_init_cycle` + `aim_archive_cycle` (both are cycle management), `diff_artifacts` + `diff_template` (both are diff), `add_value_model_component` + `add_value_model_sub` (both add VM nodes).
+
+Tools that fail: validation tools (different output shapes), catalog tools (different data sources), relationship maintenance tools (different write targets).
 
 ## Risks / Trade-offs
 
-### Risk: Breaking existing integrations
-- **Mitigation**: `EPF_LEGACY_TOOLS=true` re-enables removed tools. Transition period of 2 cycles before hard removal. AGENTS.md updated before tools are removed.
+### Risk: Removing subsets breaks some workflow that depends on the narrow tool
+- **Mitigation**: Check AGENTS.md and all wizard/agent prompts for references to removed tools before removal. Update references.
 
-### Risk: Parameter consolidation makes tools harder to discover
-- **Mitigation**: The router tool handles discovery. Tool descriptions mention all modes.
+### Risk: Description rewrite changes meaning for tools with established usage patterns
+- **Mitigation**: Keep the core information, just restructure it. The trigger is added, not replacing.
 
-### Risk: CLI-only operations aren't accessible from MCP clients
-- **Mitigation**: These are genuinely rare operations. An agent can still run CLI commands via bash tool.
+### Risk: CLI-only tools are inaccessible from MCP-only clients
+- **Mitigation**: Only truly one-time operations go CLI-only. Scaffold, import, and other authoring tools stay MCP.
 
 ## Open Questions
 
-1. Should the router tool be named `epf` (very short, might conflict) or `epf_find_tool` or `epf_help`?
-2. Should we deprecate wizard tools in favor of agent tools, or keep both permanently?
-3. How do we handle the AGENTS.md update — do we update it before or after the tool changes?
+1. Should we deprecate wizard tools in favor of agent tools eventually, or commit to permanent coexistence?
+2. Should description rewrite be validated by testing tool selection accuracy with multiple LLMs?
+3. What's the right category prefix for tools that span concerns (e.g., `epf_get_strategic_context` is both Query and Synthesis)?
