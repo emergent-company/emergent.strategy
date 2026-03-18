@@ -16,8 +16,13 @@ import (
 )
 
 // registerSemanticTools registers the semantic strategy engine MCP tools.
-// These tools require Memory API access (EPF_MEMORY_URL, EPF_MEMORY_PROJECT, EPF_MEMORY_TOKEN).
+// Only registers when Memory API is configured (EPF_MEMORY_URL set).
+// Without Memory, these tools would always error — no point showing them to the LLM.
 func (s *Server) registerSemanticTools() {
+	if os.Getenv("EPF_MEMORY_URL") == "" {
+		return // Memory not configured — don't register tools the LLM can't use
+	}
+
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_contradictions",
 			mcp.WithDescription("[Semantic] USE WHEN you want to find inconsistencies in the strategy graph. Detects orphaned references, status conflicts, broken dependencies, and maturity gaps. Requires Memory API config."),
