@@ -14,11 +14,7 @@ func (s *Server) registerAuditTools() {
 	// Tool: epf_session_audit
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_session_audit",
-			mcp.WithDescription(
-				"Returns the session audit log showing which MCP tools were actually called. "+
-					"Default response is a compact summary (total calls, unique tool names, evicted count) "+
-					"to minimize context window token usage. Use verbose=true for individual entries with pagination.",
-			),
+			mcp.WithDescription("[Audit] USE WHEN you need to see which MCP tools were called during this session. Returns call counts and tool names for workflow verification."),
 			mcp.WithString("tool_name",
 				mcp.Description("Optional: filter to a specific tool name"),
 			),
@@ -38,11 +34,7 @@ func (s *Server) registerAuditTools() {
 	// Tool: epf_verify_workflow
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_verify_workflow",
-			mcp.WithDescription(
-				"Verify that expected tool calls were actually made during this session. "+
-					"Pass a list of expected tool names and get back which were called vs. missing. "+
-					"Use this to verify multi-step workflows were completed, not fabricated.",
-			),
+			mcp.WithDescription("[Audit] USE WHEN you need to confirm specific tools were actually called (not fabricated). Pass expected tool names and get back which were called vs missing."),
 			mcp.WithString("expected_tools",
 				mcp.Required(),
 				mcp.Description("Comma-separated list of expected tool names (e.g., 'epf_health_check,epf_validate_file,epf_get_wizard_for_task')"),
