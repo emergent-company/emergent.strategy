@@ -109,8 +109,86 @@ func NewStrategyOnlyServer(defaultInstancePath string) (*Server, error) {
 	s.registerStrategyContextTools()
 	s.registerAuditTools()
 	s.registerSemanticTools()
+	s.registerEssentialTools()
 
 	return s, nil
+}
+
+// registerEssentialTools adds the must-have tools for any coding agent:
+// health check, file validation, locate instance, and wizard/agent discovery.
+// These complement the strategy query tools in the strategy-only server.
+func (s *Server) registerEssentialTools() {
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_health_check",
+			mcp.WithDescription("Run a comprehensive health check on an EPF instance. "+
+				"RECOMMENDED FIRST STEP: Always run health check before starting work to assess scope. "+
+				"Returns structure validation, schema validation, content readiness, and workflow guidance. "+
+				"If significant issues are found, the response includes planning recommendations - "+
+				"check your available planning tools (todo lists, task trackers, openspec/, etc.) before diving into fixes. "+
+				"POST-CONDITION: After receiving results, you MUST read and follow the action_required field and "+
+				"required_next_tool_calls before proceeding to any other work. Do NOT ignore these directives."),
+			mcp.WithString("instance_path",
+				mcp.Required(),
+				mcp.Description("Path to the EPF instance directory (contains READY/, FIRE/, AIM/ directories)"),
+			),
+			mcp.WithString("detail_level",
+				mcp.Description("Level of detail in output: 'summary' (counts only), 'warnings_only' (skip info-level items), 'full' (everything). Defaults to 'warnings_only' for instances with >20 files, 'full' otherwise."),
+			),
+		),
+		s.handleHealthCheck,
+	)
+
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_validate_file",
+			mcp.WithDescription("Validate a local EPF YAML file against its schema. "+
+				"Automatically detects the artifact type from the filename/path pattern. "+
+				"Use ai_friendly=true for structured output optimized for AI agents with error classification, priorities, and fix hints. "+
+				"POST-CONDITION: If structural_issue is true, you MUST call the recommended_tool before attempting fixes. "+
+				"After writing or modifying any EPF YAML file, you MUST call this tool to validate your changes."),
+			mcp.WithString("path",
+				mcp.Required(),
+				mcp.Description("The path to the YAML file to validate"),
+			),
+			mcp.WithString("ai_friendly",
+				mcp.Description("Return AI-friendly structured output with error classification and fix hints (true/false, default: false)"),
+			),
+		),
+		s.handleValidateFile,
+	)
+
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_locate_instance",
+			mcp.WithDescription("Find EPF instances in a directory tree with confidence scoring. "+
+				"Returns instances grouped by status (valid, legacy, broken) with suggestions for fixing issues. "+
+				"Use require_anchor=true to only return instances with anchor files (_epf.yaml)."),
+			mcp.WithString("path",
+				mcp.Description("Starting path to search (defaults to current directory)"),
+			),
+			mcp.WithString("require_anchor",
+				mcp.Description("Only return instances with anchor files (true/false, default: false)"),
+			),
+			mcp.WithString("max_depth",
+				mcp.Description("Maximum directory depth to search (default: 5)"),
+			),
+		),
+		s.handleLocateInstance,
+	)
+
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_get_agent_for_task",
+			mcp.WithDescription("Recommend the best agent for a user's task. "+
+				"Analyzes the task description and suggests the most appropriate agent with alternatives. "+
+				"When confidence is high and content is requested, includes the agent's system prompt inline."),
+			mcp.WithString("task",
+				mcp.Required(),
+				mcp.Description("Description of what the user wants to do (e.g., 'create a feature definition', 'plan our roadmap')"),
+			),
+			mcp.WithString("include_content",
+				mcp.Description("When 'true' (default) and confidence is high, includes the agent content inline. Set to 'false' to omit."),
+			),
+		),
+		s.handleGetAgentForTask,
+	)
 }
 
 // NewServer creates a new EPF MCP server
