@@ -428,6 +428,27 @@ Auth: Bearer token from `EPF_MEMORY_TOKEN` environment variable or project token
 
 **Why**: MCP is the existing universal interface. The EPF-CLI MCP server already supports multi-tenant mode. Sovereignty weights encode the hierarchical relationship between instances without hard-coding levels. A subsidiary that grows to influence the group simply gets a higher sovereignty weight on its upward connection.
 
+### Decision 14: Decomposer owns its own YAML parsing (no strategy parser dependency)
+
+**What**: The `decompose` package reads raw YAML files directly using its own struct definitions, independent of the `strategy` parser package. It does not import or depend on `strategy.StrategyModel`, `strategy.NorthStar`, `strategy.Feature`, etc.
+
+**Why**: The strategy parser and the decomposer have fundamentally different jobs. The parser exists to answer MCP queries ("what's the vision?", "who are the personas?") and intentionally omits fields irrelevant to those queries. The decomposer needs *everything* — every belief, every assumption, every dependency, every capability. Forcing both through the same code leads to either a bloated parser or perpetual raw YAML workarounds in the decomposer.
+
+The strategy parser has known gaps — e.g., it reads capabilities from `implementation.capabilities` when the actual YAML has them at `definition.capabilities`. It also doesn't expose individual core beliefs, riskiest assumptions, or feature dependencies. Rather than fixing the parser (which would change working MCP behavior), the decomposer has its own structs that mirror the YAML exactly.
+
+This means canonical schema changes (field renames, moves) require updating one place — the decomposer's raw structs — instead of two (the strategy parser AND the decomposer). The decomposer also checks `meta.epf_version` and warns if the instance version is newer than what it supports (`MaxSupportedMajorVersion = 2`).
+
+**Coupling surfaces**:
+- **`memory.UpsertObjectRequest`** — correct coupling; changes when we change the Memory schema (fully under our control)
+- **YAML field names from epf-canonical** — the only external dependency; one place to fix when canonical evolves
+- **Zero dependency on `strategy` package** — parser refactors cannot break the decomposer
+
+**Alternatives considered**:
+- Extend the strategy parser — rejected: adds unused fields to MCP query types, couples decomposer to parser bugs
+- Dual approach (typed model + raw workarounds) — tried first, then rejected: two code paths reading the same YAML, `MergeResults` deduplication, subtle overlapping outputs
+
+**Result**: Single-file `decompose.go` (680 lines) replaces two-file approach (1038 lines). Live Emergent instance: 739 objects, 927 relationships, 30ms. More complete extraction than the dual approach (431 ValueModelComponents vs 118 — the old parser missed `subs` variant and `path_segment` overrides).
+
 ## Risks / Trade-offs
 
 ### Risk: Embedding quality determines semantic accuracy

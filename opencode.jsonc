@@ -25,25 +25,8 @@
       },
     },
   },
-  "mcp": {
-    "epf-strategy": {
-      "type": "local",
-      "command": [
-        "epf-cli",
-        "serve",
-        "--instance",
-        "docs/EPF/_instances/emergent",
-        "--watch",
-      ],
-      "timeout": 60000,
-    },
-  },
-  "lsp": {
-    "epf": {
-      "command": ["epf-cli", "lsp"],
-      "extensions": [".yaml", ".yml"],
-    },
-  },
+  // EPF MCP server and LSP are configured globally in ~/.config/opencode/opencode.json
+  // No project-specific MCP needed — epf-cli auto-detects instances
   "instructions": [".opencode/instructions.md"],
   "tools": {
     "todowrite": true,
