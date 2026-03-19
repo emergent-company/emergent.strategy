@@ -300,13 +300,15 @@ func getToolTiers() []ToolTierInfo {
 				"epf_health_check",
 				"epf_get_wizard_for_task", "epf_get_agent_for_task",
 				"epf_validate_file",
+				"epf_memory_status",
 			},
 		},
 		{
 			Tier:  2,
 			Label: "Guided",
 			Description: "Use after Tier 1 directs you here, or when querying strategy context. " +
-				"These tools provide templates, schemas, wizard/agent/skill content, and strategic information.",
+				"These tools provide templates, schemas, wizard/agent/skill content, strategic information, " +
+				"graph queries, and quality analysis.",
 			Tools: []string{
 				"epf_get_wizard", "epf_get_agent", "epf_get_skill",
 				"epf_get_template", "epf_get_schema",
@@ -318,6 +320,8 @@ func getToolTiers() []ToolTierInfo {
 				"epf_get_feature_strategy_context",
 				"epf_recommend_reviews", "epf_review_strategic_coherence",
 				"epf_review_feature_quality", "epf_review_value_model",
+				"epf_graph_list", "epf_graph_similar",
+				"epf_quality_audit", "epf_suggest_enrichment",
 			},
 		},
 		{

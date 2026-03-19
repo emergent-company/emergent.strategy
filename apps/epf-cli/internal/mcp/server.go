@@ -109,6 +109,7 @@ func NewStrategyOnlyServer(defaultInstancePath string) (*Server, error) {
 	s.registerStrategyContextTools()
 	s.registerAuditTools()
 	s.registerSemanticTools()
+	s.registerMemoryTools()
 	s.registerEssentialTools()
 
 	return s, nil
@@ -1560,6 +1561,11 @@ func (s *Server) registerTools() {
 	// Semantic Strategy Engine Tools (graph search, neighbors, impact analysis)
 	// ==========================================================================
 	s.registerSemanticTools()
+
+	// ==========================================================================
+	// Memory Integration Tools (status, graph queries, quality audit, enrichment)
+	// ==========================================================================
+	s.registerMemoryTools()
 }
 
 // SchemaListItem represents a schema in the list response
@@ -4347,8 +4353,9 @@ type AgentInstructionsOutput struct {
 		KeyRules    []string         `json:"key_rules"`
 	} `json:"track_architecture"`
 
-	Orchestration   *PluginInfo           `json:"orchestration,omitempty"`
-	StrategyContext *AgentStrategyContext `json:"strategy_context,omitempty"`
+	Orchestration     *PluginInfo             `json:"orchestration,omitempty"`
+	StrategyContext   *AgentStrategyContext   `json:"strategy_context,omitempty"`
+	MemoryIntegration *AgentMemoryIntegration `json:"memory_integration,omitempty"`
 
 	ToolTiers             []ToolTierInfo `json:"tool_tiers"`
 	ToolDiscoveryGuidance string         `json:"tool_discovery_guidance"`
@@ -4359,6 +4366,14 @@ type AgentInstructionsOutput struct {
 		FirstSteps    []string `json:"first_steps"`
 		BestPractices []string `json:"best_practices"`
 	} `json:"workflow"`
+}
+
+// AgentMemoryIntegration provides Memory graph integration info when configured
+type AgentMemoryIntegration struct {
+	Configured bool     `json:"configured"`
+	Commands   []string `json:"commands"`
+	Warning    string   `json:"warning"`
+	Tools      []string `json:"tools"`
 }
 
 // AgentMandatoryProtocol defines a workflow agents MUST follow
@@ -4670,6 +4685,37 @@ func buildAgentInstructionsOutput(disc *discovery.DiscoveryResult, defaultInstan
 			When:        "When building automation or searching for instances",
 			Tier:        "Specialized",
 		},
+		// Memory integration tools
+		{
+			Name:        "epf_memory_status",
+			Description: "Check Memory configuration and ingestion status",
+			When:        "When starting work to check if Memory graph is available",
+			Tier:        "Essential",
+		},
+		{
+			Name:        "epf_graph_list",
+			Description: "List graph objects by type with optional property filter (deterministic, no embeddings)",
+			When:        "When you need structured queries like 'all delivered features' or 'scenarios for fd-009'",
+			Tier:        "Guided",
+		},
+		{
+			Name:        "epf_graph_similar",
+			Description: "Find semantically similar objects by embedding distance",
+			When:        "When looking for related features, cross-references, or potential dependencies",
+			Tier:        "Guided",
+		},
+		{
+			Name:        "epf_quality_audit",
+			Description: "Combined graph-based quality audit (contradictions, generic content, disconnected nodes)",
+			When:        "When evaluating instance quality via the Memory graph",
+			Tier:        "Guided",
+		},
+		{
+			Name:        "epf_suggest_enrichment",
+			Description: "Per-feature graph-driven enrichment suggestions",
+			When:        "When enriching a specific feature with missing content or dependency suggestions",
+			Tier:        "Guided",
+		},
 		// Review/evaluation tools
 		{
 			Name:        "epf_recommend_reviews",
@@ -4747,6 +4793,26 @@ func buildAgentInstructionsOutput(disc *discovery.DiscoveryResult, defaultInstan
 				output.StrategyContext.ProductName = anchorData.ProductName
 				output.StrategyContext.Description = anchorData.Description
 			}
+		}
+	}
+
+	// Memory Integration section (only when Memory is configured)
+	if os.Getenv("EPF_MEMORY_URL") != "" {
+		output.MemoryIntegration = &AgentMemoryIntegration{
+			Configured: true,
+			Commands: []string{
+				"epf-cli ingest [instance-path]     # Full decomposition → 700+ objects with section-level breakdown",
+				"epf-cli sync [instance-path]       # Incremental sync — only changed objects",
+				"epf-cli semantic-edges             # Cross-type meaning connections (run after embeddings propagate)",
+			},
+			Warning: "Do NOT manually create entities via Memory MCP tools (memory_entity-create, etc.). Use epf-cli ingest for complete decomposition. Manual creation produces flat entities without section-level breakdown.",
+			Tools: []string{
+				"epf_memory_status      — Check configuration and ingestion status",
+				"epf_graph_list         — Structured graph queries by type and filter",
+				"epf_graph_similar      — Find semantically similar objects",
+				"epf_quality_audit      — Combined quality checks with fix instructions",
+				"epf_suggest_enrichment — Per-feature enrichment suggestions",
+			},
 		}
 	}
 

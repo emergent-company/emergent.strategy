@@ -129,3 +129,35 @@ func (c *Client) RestoreObject(ctx context.Context, id string) (*Object, error) 
 	}
 	return &obj, nil
 }
+
+// ProjectStats holds summary counts for a Memory project.
+type ProjectStats struct {
+	ObjectCount       int `json:"object_count"`
+	RelationshipCount int `json:"relationship_count"`
+}
+
+// GetProjectStats returns object and relationship counts for the project.
+// Queries list endpoints with limit=1 to read totals from pagination metadata.
+func (c *Client) GetProjectStats(ctx context.Context) (*ProjectStats, error) {
+	stats := &ProjectStats{}
+
+	// Get object count via the total field in paginated response
+	var objPage ListPage[Object]
+	objParams := url.Values{}
+	objParams.Set("limit", "1")
+	if err := c.doWithQuery(ctx, "/api/graph/objects/search", objParams, &objPage); err != nil {
+		return nil, fmt.Errorf("get object count: %w", err)
+	}
+	stats.ObjectCount = objPage.Total
+
+	// Get relationship count
+	var relPage ListPage[Relationship]
+	relParams := url.Values{}
+	relParams.Set("limit", "1")
+	if err := c.doWithQuery(ctx, "/api/graph/relationships/search", relParams, &relPage); err != nil {
+		return nil, fmt.Errorf("get relationship count: %w", err)
+	}
+	stats.RelationshipCount = relPage.Total
+
+	return stats, nil
+}

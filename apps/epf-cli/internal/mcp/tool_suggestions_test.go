@@ -301,15 +301,15 @@ func TestGetToolTiers(t *testing.T) {
 		t.Fatalf("Expected 3 tiers, got %d", len(tiers))
 	}
 
-	// Tier 1: Essential — exactly 4 tools (wizard + agent entry points)
+	// Tier 1: Essential — exactly 5 tools (wizard + agent entry points + memory status)
 	if tiers[0].Tier != 1 {
 		t.Errorf("Expected tier 1, got %d", tiers[0].Tier)
 	}
 	if tiers[0].Label != "Essential" {
 		t.Errorf("Expected label 'Essential', got %s", tiers[0].Label)
 	}
-	if len(tiers[0].Tools) != 4 {
-		t.Errorf("Expected 4 essential tools, got %d", len(tiers[0].Tools))
+	if len(tiers[0].Tools) != 5 {
+		t.Errorf("Expected 5 essential tools, got %d", len(tiers[0].Tools))
 	}
 
 	// Verify essential tools are the right ones
@@ -318,6 +318,7 @@ func TestGetToolTiers(t *testing.T) {
 		"epf_get_wizard_for_task": false,
 		"epf_get_agent_for_task":  false,
 		"epf_validate_file":       false,
+		"epf_memory_status":       false,
 	}
 	for _, tool := range tiers[0].Tools {
 		if _, ok := essentialSet[tool]; ok {

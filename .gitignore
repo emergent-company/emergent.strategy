@@ -135,3 +135,6 @@ apps/epf-cli/internal/mcp/AIM/
 # OpenCode state files
 tui.json
 *.tui-migration.bak
+
+# direnv
+.envrc

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	mcp "github.com/mark3labs/mcp-go/mcp"
@@ -214,6 +215,18 @@ func (s *Server) handleSemanticNeighbors(ctx context.Context, request mcp.CallTo
 		"total_edges":    len(outgoing) + len(incoming),
 	}
 
+	// Add quality hints for low-connectivity nodes
+	if len(outgoing) == 0 {
+		switch node.Type {
+		case "Belief", "Trend", "Insight":
+			response["quality_hint"] = fmt.Sprintf(
+				"This %s node has no outgoing connections. Consider adding references in feature definitions that relate to this %s via strategic_context or contributes_to paths.",
+				node.Type, strings.ToLower(node.Type))
+		case "Feature":
+			response["quality_hint"] = "This Feature has no outgoing connections (no contributes_to, no capabilities). Consider adding value model contributions and capabilities."
+		}
+	}
+
 	jsonBytes, _ := json.MarshalIndent(response, "", "  ")
 	return mcp.NewToolResultText(string(jsonBytes)), nil
 }
@@ -340,13 +353,48 @@ func (s *Server) handleContradictions(ctx context.Context, request mcp.CallToolR
 
 	var items []map[string]any
 	for _, c := range contradictions {
-		items = append(items, map[string]any{
+		item := map[string]any{
 			"type":        string(c.Type),
 			"severity":    c.Severity,
 			"description": c.Description,
 			"node_a":      c.NodeAKey,
 			"node_b":      c.NodeBKey,
-		})
+		}
+
+		// Add fix_with based on contradiction type
+		switch c.Type {
+		case propagation.ContradictionStatusConflict:
+			item["fix_with"] = map[string]any{
+				"tool": "epf_update_capability_maturity",
+				"params": map[string]any{
+					"feature_id":    extractFeatureID(c.NodeAKey),
+					"capability_id": extractCapabilityID(c.NodeBKey),
+					"maturity":      "proven",
+					"evidence":      "(provide evidence of capability maturity)",
+				},
+			}
+		case propagation.ContradictionOrphanedRef:
+			item["fix_with"] = map[string]any{
+				"tool": "epf_validate_relationships",
+				"params": map[string]any{
+					"instance_path": "(provide instance path)",
+				},
+			}
+		case propagation.ContradictionBrokenDep:
+			item["fix_with"] = map[string]any{
+				"tool": "epf_validate_relationships",
+				"params": map[string]any{
+					"instance_path": "(provide instance path)",
+				},
+			}
+		case propagation.ContradictionDisconnected:
+			item["fix_with"] = map[string]any{
+				"tool":        "manual",
+				"description": "Add references to this node in feature definitions or strategic artifacts to connect it to the graph",
+			}
+		}
+
+		items = append(items, item)
 	}
 
 	response := map[string]any{

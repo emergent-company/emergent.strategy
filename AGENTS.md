@@ -165,9 +165,19 @@ export EPF_MEMORY_TOKEN="<project-token>"
 | Tool | Description |
 |------|-------------|
 | `epf_semantic_search` | Search the strategy graph by meaning |
-| `epf_semantic_neighbors` | Get connected nodes with edge types |
+| `epf_semantic_neighbors` | Get connected nodes with edge types (includes quality hints for disconnected nodes) |
 | `epf_semantic_impact` | Run propagation circuit (dry-run cascade) |
-| `epf_contradictions` | Detect structural contradictions in the graph |
+| `epf_contradictions` | Detect structural contradictions in the graph (includes fix_with instructions) |
+
+### MCP Tools (Memory Integration)
+
+| Tool | Description |
+|------|-------------|
+| `epf_memory_status` | Check Memory configuration and ingestion status |
+| `epf_graph_list` | List graph objects by type with optional property filter (deterministic) |
+| `epf_graph_similar` | Find semantically similar objects by embedding distance |
+| `epf_quality_audit` | Combined quality checks (contradictions, generic content, disconnected nodes) with fix instructions |
+| `epf_suggest_enrichment` | Per-feature enrichment suggestions (missing fields, contradictions, weak UVPs, dependency suggestions) |
 
 ### Engine Packages
 
