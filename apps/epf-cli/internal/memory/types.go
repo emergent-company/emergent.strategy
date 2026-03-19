@@ -5,6 +5,7 @@ import "time"
 // Object represents a graph object (entity) in emergent.memory.
 type Object struct {
 	ID         string         `json:"id"`
+	EntityID   string         `json:"entity_id,omitempty"`
 	Type       string         `json:"type"`
 	Key        string         `json:"key,omitempty"`
 	Status     string         `json:"status,omitempty"`
@@ -14,6 +15,16 @@ type Object struct {
 	BranchID   string         `json:"branchId,omitempty"`
 	CreatedAt  time.Time      `json:"createdAt,omitempty"`
 	UpdatedAt  time.Time      `json:"updatedAt,omitempty"`
+}
+
+// StableID returns the entity_id (stable across versions) if available,
+// falling back to id (version-specific). Relationships reference entity IDs,
+// so this must be used when building node→ID maps for edge resolution.
+func (o Object) StableID() string {
+	if o.EntityID != "" {
+		return o.EntityID
+	}
+	return o.ID
 }
 
 // Relationship represents a directed edge between two graph objects.

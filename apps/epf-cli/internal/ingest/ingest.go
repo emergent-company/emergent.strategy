@@ -95,7 +95,7 @@ func (ing *Ingester) upsertObjects(ctx context.Context, objects []memory.UpsertO
 			stats.Warnings = append(stats.Warnings, fmt.Sprintf("upsert failed for %s/%s: %v", obj.Type, obj.Key, err))
 			continue
 		}
-		keyToID[obj.Key] = resp.ID
+		keyToID[obj.Key] = resp.StableID()
 		stats.ObjectsUpserted++
 	}
 

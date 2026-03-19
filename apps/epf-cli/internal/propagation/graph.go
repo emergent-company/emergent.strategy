@@ -113,15 +113,18 @@ func LoadGraphSnapshot(ctx context.Context, client *memory.Client) (*GraphSnapsh
 		}
 
 		for _, obj := range objects {
+			// Use StableID (entity_id) for edge resolution — relationships
+			// reference entity IDs, not version IDs.
+			stableID := obj.StableID()
 			node := &GraphNode{
 				Key:        obj.Key,
-				ID:         obj.ID,
+				ID:         stableID,
 				Type:       obj.Type,
 				Properties: obj.Properties,
 			}
 			node.InertiaTier = parseInertiaTier(obj.Properties)
 			snap.Nodes[obj.Key] = node
-			snap.nodesByID[obj.ID] = obj.Key
+			snap.nodesByID[stableID] = obj.Key
 		}
 
 		if nextCursor == "" || len(objects) == 0 {
@@ -186,15 +189,16 @@ func NewGraphSnapshotFromData(objects []memory.Object, relationships []memory.Re
 	}
 
 	for _, obj := range objects {
+		stableID := obj.StableID()
 		node := &GraphNode{
 			Key:        obj.Key,
-			ID:         obj.ID,
+			ID:         stableID,
 			Type:       obj.Type,
 			Properties: obj.Properties,
 		}
 		node.InertiaTier = parseInertiaTier(obj.Properties)
 		snap.Nodes[obj.Key] = node
-		snap.nodesByID[obj.ID] = obj.Key
+		snap.nodesByID[stableID] = obj.Key
 	}
 
 	for _, rel := range relationships {
