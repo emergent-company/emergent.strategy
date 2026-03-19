@@ -59,10 +59,20 @@ type SearchResult struct {
 }
 
 // SimilarResult represents a result from the find-similar endpoint.
+// The API returns flat object fields with an added `distance` field
+// (lower distance = more similar, cosine distance 0.0-2.0).
 type SimilarResult struct {
-	Object   Object  `json:"object"`
-	Score    float64 `json:"score"`
-	Distance float64 `json:"distance"`
+	ID         string         `json:"id"`
+	Type       string         `json:"type"`
+	Key        string         `json:"key"`
+	Properties map[string]any `json:"properties,omitempty"`
+	Distance   float64        `json:"distance"`
+}
+
+// Score converts distance to a similarity score (1.0 = identical, 0.0 = unrelated).
+func (r SimilarResult) Score() float64 {
+	// Cosine distance is 0.0-2.0, convert to 0.0-1.0 similarity
+	return 1.0 - (r.Distance / 2.0)
 }
 
 // ExpandResult represents the result of a BFS graph expansion.
