@@ -14,7 +14,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/memory"
@@ -77,64 +76,46 @@ func (ing *Ingester) ComputeSemanticEdges(ctx context.Context, config SemanticEd
 
 	log.Printf("[semantic-edges] Loaded %d objects, %d existing edges", len(allObjects), len(existingEdges))
 
-	// For each source node, find semantically similar objects.
-	//
-	// UPGRADE PATH: When Memory's /objects/{id}/similar API is fixed (issue #97),
-	// replace the search-with-neighbors workaround below with:
-	//
-	//   results, err := ing.client.FindSimilar(ctx, obj.ID, memory.SimilarOptions{
-	//       Limit: config.SearchLimit,
-	//   })
-	//
-	// This uses the object's actual embedding vector for direct vector-to-vector
-	// comparison — more accurate than re-embedding a text query, no truncation
-	// issues, and the buildQueryText function can be deleted entirely.
+	// For each source node, find semantically similar objects using
+	// the Memory similarity API (direct vector-to-vector comparison).
 	for _, obj := range allObjects {
 		if !sourceTypes[obj.Type] {
 			continue
 		}
 
-		// WORKAROUND: Use search-with-neighbors with a text query constructed
-		// from the object's properties. This re-embeds the query text on each call
-		// instead of using the object's existing embedding. Remove when #97 is fixed.
-		queryText := buildQueryText(obj)
-		if queryText == "" {
-			continue
-		}
-
 		stats.NodesSearched++
 
-		results, err := ing.client.SearchWithNeighbors(ctx, memory.SearchRequest{
-			Query: queryText,
+		results, err := ing.client.FindSimilar(ctx, obj.ID, memory.SimilarOptions{
 			Limit: config.SearchLimit,
 		})
 		if err != nil {
 			stats.SearchErrors++
-			log.Printf("[semantic-edges] search error for %s: %v", obj.Key, err)
+			log.Printf("[semantic-edges] similarity error for %s: %v", obj.Key, err)
 			continue
 		}
 
 		if len(results) > 0 {
-			log.Printf("[semantic-edges] %s: %d results (top: %.3f %s)", obj.Key, len(results), results[0].Score, results[0].Object.Key)
+			log.Printf("[semantic-edges] %s: %d results (top: %.4f distance %s)", obj.Key, len(results), results[0].Distance, results[0].Key)
 		} else {
-			log.Printf("[semantic-edges] %s: 0 results for query: %s", obj.Key, queryText[:min(60, len(queryText))])
+			log.Printf("[semantic-edges] %s: 0 similar objects found", obj.Key)
 		}
 
 		edgesForNode := 0
 		for _, r := range results {
 			// Skip self
-			if r.Object.ID == obj.ID || r.Object.Key == obj.Key {
+			if r.ID == obj.ID || r.Key == obj.Key {
 				continue
 			}
 
-			// Skip below threshold
-			if r.Score < config.MinScore {
+			// Skip below threshold (convert distance to score for comparison)
+			score := r.Score()
+			if score < config.MinScore {
 				stats.EdgesSkipped++
 				continue
 			}
 
 			// Skip if structural edge already exists
-			edgeKey := edgePairKey(obj.ID, r.Object.ID)
+			edgeKey := edgePairKey(obj.ID, r.ID)
 			if existingEdges[edgeKey] {
 				stats.EdgesSkipped++
 				continue
@@ -146,17 +127,17 @@ func (ing *Ingester) ComputeSemanticEdges(ctx context.Context, config SemanticEd
 			}
 
 			// Classify the semantic relationship
-			relType := classifySemanticRelation(obj, r.Object)
+			relType := classifySemanticRelationFromResult(obj, r)
 
 			if !config.DryRun {
 				_, err := ing.client.CreateRelationship(ctx, memory.CreateRelationshipRequest{
 					Type:   relType,
 					FromID: obj.ID,
-					ToID:   r.Object.ID,
+					ToID:   r.ID,
 					Properties: map[string]any{
-						"weight":      fmt.Sprintf("%.3f", r.Score),
+						"weight":      fmt.Sprintf("%.3f", score),
 						"edge_source": "semantic",
-						"confidence":  fmt.Sprintf("%.3f", r.Score),
+						"confidence":  fmt.Sprintf("%.3f", score),
 					},
 				})
 				if err != nil {
@@ -170,7 +151,7 @@ func (ing *Ingester) ComputeSemanticEdges(ctx context.Context, config SemanticEd
 
 			// Add to existing edges to avoid duplicates within this run
 			existingEdges[edgeKey] = true
-			existingEdges[edgePairKey(r.Object.ID, obj.ID)] = true
+			existingEdges[edgePairKey(r.ID, obj.ID)] = true
 		}
 	}
 
@@ -215,49 +196,9 @@ func (ing *Ingester) loadObjectsAndEdges(ctx context.Context) ([]memory.Object, 
 	return allObjects, existingEdges, nil
 }
 
-// buildQueryText extracts meaningful text from an object for similarity search.
-// Uses a short, concept-focused query to get broader semantic matches rather than
-// exact matches of the source text.
-//
-// DELETE THIS FUNCTION when Memory's /objects/{id}/similar API is fixed (#97).
-// The similarity API uses the object's actual embedding vector directly —
-// no text query construction needed.
-func buildQueryText(obj memory.Object) string {
-	// Use just the name for the query — it captures the concept without
-	// being so specific that only the source object matches.
-	name, _ := obj.Properties["name"].(string)
-	if name == "" {
-		return ""
-	}
-
-	// For types with very short names, add context from description
-	if len(name) < 20 {
-		if desc, ok := obj.Properties["description"].(string); ok && desc != "" {
-			// Take just the first sentence
-			if idx := strings.IndexAny(desc, ".!?"); idx > 0 && idx < 100 {
-				name = name + ". " + desc[:idx]
-			} else if len(desc) < 100 {
-				name = name + ". " + desc
-			}
-		} else if stmt, ok := obj.Properties["statement"].(string); ok && stmt != "" {
-			if idx := strings.IndexAny(stmt, ".!?"); idx > 0 && idx < 100 {
-				name = name + ". " + stmt[:idx]
-			}
-		}
-	}
-
-	// Keep query short to get broader matches
-	if len(name) > 120 {
-		name = name[:120]
-	}
-
-	return name
-}
-
-// classifySemanticRelation determines the semantic edge type between two objects.
-func classifySemanticRelation(from, to memory.Object) string {
-	// Default to "supports" — the most common semantic relationship
-	// More sophisticated classification would use LLM reasoning
+// classifySemanticRelationFromResult determines the semantic edge type
+// between a source object and a similar result.
+func classifySemanticRelationFromResult(from memory.Object, to memory.SimilarResult) string {
 	fromTier := parseTier(from.Properties)
 	toTier := parseTier(to.Properties)
 

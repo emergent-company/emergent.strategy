@@ -164,8 +164,8 @@ func TestFindSimilar(t *testing.T) {
 		}
 
 		results := []SimilarResult{
-			{Object: Object{ID: "obj-456", Type: "Feature"}, Score: 0.89},
-			{Object: Object{ID: "obj-789", Type: "Positioning"}, Score: 0.73},
+			{ID: "obj-456", Type: "Feature", Key: "Feature:fd-001", Distance: 0.22, Properties: map[string]any{"inertia_tier": "6"}},
+			{ID: "obj-789", Type: "Positioning", Key: "Positioning:pos-001", Distance: 0.54, Properties: map[string]any{"inertia_tier": "3"}},
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(results)
@@ -183,8 +183,9 @@ func TestFindSimilar(t *testing.T) {
 	if len(results) != 2 {
 		t.Fatalf("got %d results, want 2", len(results))
 	}
-	if results[0].Score != 0.89 {
-		t.Errorf("got score %f, want 0.89", results[0].Score)
+	// Distance 0.22 → Score 0.89 (1 - 0.22/2)
+	if score := results[0].Score(); score < 0.88 || score > 0.90 {
+		t.Errorf("got score %f, want ~0.89", score)
 	}
 }
 
