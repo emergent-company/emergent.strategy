@@ -8,7 +8,10 @@ EPF is a braided holistic strategy framework where strategy propagates across 4 
 - **Strategy formula** — only positioning/moat decomposed. Missing: ecosystem differentiation, value creation, business model, constraints, trade-offs, risks, success metrics
 - **Strategy foundations** — not decomposed at all. Missing: product vision, value proposition, strategic sequencing, information architecture
 - **Insight opportunity** — not decomposed at all. Missing: opportunity with context, evidence, value hypothesis
-- **Non-product track definitions** — zero decomposition code for strategy/org_ops/commercial definitions
+- **Non-product track definitions** — zero decomposition code for strategy/org_ops/commercial definitions (131 canonical definitions exist)
+- **Mappings** — `FIRE/mappings.yaml` (code-to-value-model traceability) is not decomposed at all, losing the strategy ↔ implementation bridge
+- **Value models** — already decomposed for all 4 tracks (confirmed working)
+- **Roadmap** — already decomposed for all 4 tracks (confirmed working)
 
 This means the strategy graph is fundamentally incomplete. Propagation circuits can't trace how a market change (insight) affects positioning (strategy formula), which affects which features to prioritize (product), which affects team processes (org_ops), which affects go-to-market (commercial). The braided cross-track nature of EPF is lost.
 
@@ -55,7 +58,15 @@ Expand the decomposer to extract all sections from existing READY artifacts:
 - `TradeOff` from `strategy.trade_offs[]`
 - `StrategicRisk` from `strategy.risks[]`
 
-### Phase 2: Non-product track definition decomposition
+### Phase 1d: Mappings decomposition
+
+Decompose `FIRE/mappings.yaml` to connect the value model to implementation artifacts:
+
+- Create `MappingArtifact` objects from each artifact entry (type, url, description)
+- Create `implements` edges from MappingArtifact to ValueModelComponent
+- This bridges the strategy graph to external code, completing the strategy ↔ implementation traceability that EPF provides
+
+### Phase 2: Non-product track definition decomposition (FIRE phase completion)
 
 Add a `decomposeTrackDefinitions()` function that handles strategy (`sd-*`), org_ops (`pd-*`), and commercial (`cd-*`) definitions:
 

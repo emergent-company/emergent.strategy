@@ -104,6 +104,26 @@ The decomposer SHALL extract all 8 sections of `04_strategy_formula.yaml`, not j
 - **WHEN** strategy formula contains `business_model`
 - **THEN** the decomposer captures pricing philosophy, tiers, unit economics targets, and growth engines as properties on a strategy-level object
 
+### Requirement: Mappings Decomposition
+
+The decomposer SHALL extract `FIRE/mappings.yaml` into graph objects that bridge the value model to implementation artifacts, completing the strategy-to-code traceability.
+
+#### Scenario: Mapping artifact extraction
+
+- **WHEN** `FIRE/mappings.yaml` contains track entries with `sub_component_id` and `artifacts[]`
+- **THEN** the decomposer creates `MappingArtifact` objects with type (code/test/documentation/design), url, and description
+- **AND** creates `implements` edges from each MappingArtifact to the referenced ValueModelComponent
+
+#### Scenario: Multi-track mappings
+
+- **WHEN** mappings.yaml contains entries under `product:`, `strategy:`, `org_ops:`, and/or `commercial:` tracks
+- **THEN** the decomposer processes all tracks, not just product
+
+#### Scenario: Missing mappings file
+
+- **WHEN** `FIRE/mappings.yaml` does not exist
+- **THEN** the decomposer silently skips mappings without errors
+
 ### Requirement: Non-Product Track Definition Decomposition
 
 The decomposer SHALL extract strategy (`sd-*`), org_ops (`pd-*`), and commercial (`cd-*`) definitions from `FIRE/definitions/` into `TrackDefinition` graph objects.
@@ -179,9 +199,9 @@ The decomposer SHALL infer structural relationships that connect insights to str
 
 The decomposer SHALL produce objects for all structurally-extractable types defined in the schema.
 
-Previously produced 15 types. Now produces up to 29 types:
+Previously produced 15 types. Now produces up to 31 types:
 - Existing (15): `Artifact`, `Belief`, `Trend`, `Persona`, `PainPoint`, `Positioning`, `OKR`, `Assumption`, `ValueModelComponent`, `Feature`, `Scenario`, `Capability`, `Constraint`, `CrossTrackDependency`, `ReferenceDocument`
-- Added (14): `Competitor`, `MarketSegment`, `WhiteSpace`, `Strength`, `Weakness`, `Opportunity`, `Threat`, `Hypothesis`, `KeyInsight`, `ValueProposition`, `StrategicPhase`, `ValueDriver`, `StrategicRisk`, `TrackDefinition`, `PractitionerScenario`
+- Added (16): `Competitor`, `MarketSegment`, `WhiteSpace`, `Strength`, `Weakness`, `Opportunity`, `Threat`, `Hypothesis`, `KeyInsight`, `ValueProposition`, `StrategicPhase`, `ValueDriver`, `StrategicRisk`, `MappingArtifact`, `TrackDefinition`, `PractitionerScenario`
 
 #### Scenario: Full decomposition produces all applicable types
 
@@ -195,7 +215,7 @@ The decomposer SHALL produce all structural relationships that can be inferred f
 
 Previously produced 16 structural types. Now produces up to 24 structural types:
 - Existing (16): `contains`, `contributes_to`, `targets`, `serves`, `depends_on`, `tests_assumption`, `uses_skill`, `delivers`, `shared_technology`, `converges_at`, `informs`, `constrains`, `validates`, `supports`, `contradicts`, `elaborates`, `parallels`, `invalidates`
-- Added (8): `competes_with`, `addresses_white_space`, `mitigates`, `leverages`, `targets_segment`, `validates_hypothesis`, `requires_process`, `related_definition`
+- Added (9): `competes_with`, `addresses_white_space`, `mitigates`, `leverages`, `targets_segment`, `validates_hypothesis`, `requires_process`, `related_definition`, `implements`
 
 #### Scenario: Cross-track cascade path exists
 

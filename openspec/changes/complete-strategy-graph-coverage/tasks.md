@@ -44,7 +44,16 @@
 - [ ] 3.8 Write tests for each new extraction function
 - [ ] 3.9 Test on emergent instance — verify strategy foundations and opportunity produce objects
 
-## Phase 2: Non-Product Track Definitions
+## Phase 1d: Mappings Decomposition
+
+- [ ] 3.10 Add `MappingArtifact` type to schema.go (code, test, documentation, design artifacts linked to value model)
+- [ ] 3.11 Add `rawMappings` struct for `FIRE/mappings.yaml` YAML structure
+- [ ] 3.12 Add `decomposeMappings()` — scan per-track mapping entries
+- [ ] 3.13 Create `implements` edges from MappingArtifact to ValueModelComponent
+- [ ] 3.14 Create `contains` edges from Artifact node to each MappingArtifact
+- [ ] 3.15 Write tests for mappings decomposition
+
+## Phase 2: Non-Product Track Definitions (FIRE Phase Completion)
 
 - [ ] 4.1 Add `TrackDefinition` type to schema.go
 - [ ] 4.2 Add `PractitionerScenario` type to schema.go
