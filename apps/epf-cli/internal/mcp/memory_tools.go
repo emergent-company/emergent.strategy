@@ -15,11 +15,14 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/propagation"
 )
 
-// validEPFObjectTypes lists the object types produced by the EPF decomposer (schema v2).
+// validEPFObjectTypes lists the object types produced by the EPF decomposer.
+// Derived from decompose.ObjectTypeNames() — kept as a static list for MCP tool registration.
 var validEPFObjectTypes = []string{
 	"Feature", "Capability", "Scenario", "Persona", "PainPoint",
-	"Belief", "Trend", "OKR", "KeyResult", "ValueModelComponent",
-	"ValueProposition", "Competitor", "Insight", "Artifact",
+	"Belief", "Trend", "OKR", "ValueModelComponent",
+	"Positioning", "Assumption", "Artifact",
+	"Constraint", "CrossTrackDependency",
+	"Agent", "Skill",
 }
 
 // registerMemoryTools registers the Memory integration MCP tools.

@@ -44,6 +44,15 @@ func (ing *Ingester) Ingest(ctx context.Context, instancePath string) (*Stats, e
 	stats := &Stats{}
 	start := time.Now()
 
+	// Step 0: Reconcile schema — ensure Memory has all types the decomposer needs
+	reconcileResult, err := Reconcile(ctx, ing.client)
+	if err != nil {
+		log.Printf("[ingest] WARNING: Schema reconciliation failed: %v (continuing anyway)", err)
+		stats.Warnings = append(stats.Warnings, fmt.Sprintf("schema reconciliation failed: %v", err))
+	} else if reconcileResult.Action != "none" && reconcileResult.Action != "skipped" {
+		log.Printf("[ingest] %s", reconcileResult.Message)
+	}
+
 	// Step 1: Decompose
 	dec := decompose.New(instancePath)
 	result, err := dec.DecomposeInstance()

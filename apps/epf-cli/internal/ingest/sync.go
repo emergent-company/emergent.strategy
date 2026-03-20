@@ -32,6 +32,15 @@ func (ing *Ingester) Sync(ctx context.Context, instancePath string) (*SyncStats,
 	stats := &SyncStats{}
 	start := time.Now()
 
+	// Step 0: Reconcile schema
+	reconcileResult, err := Reconcile(ctx, ing.client)
+	if err != nil {
+		log.Printf("[sync] WARNING: Schema reconciliation failed: %v (continuing anyway)", err)
+		stats.Warnings = append(stats.Warnings, fmt.Sprintf("schema reconciliation failed: %v", err))
+	} else if reconcileResult.Action != "none" && reconcileResult.Action != "skipped" {
+		log.Printf("[sync] %s", reconcileResult.Message)
+	}
+
 	// Step 1: Decompose current state
 	dec := decompose.New(instancePath)
 	result, err := dec.DecomposeInstance()

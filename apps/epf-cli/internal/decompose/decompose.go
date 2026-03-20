@@ -85,6 +85,12 @@ func (d *Decomposer) DecomposeInstance() (*Result, error) {
 	d.decomposeFeatures(result)
 	d.decomposeValueModels(result)
 
+	// Cross-cutting structural relationships (require multiple artifacts to be decomposed first)
+	d.addInformsEdges(result)
+	d.addConstrainsEdges(result)
+	d.addValidatesEdges(result)
+	d.addSharedTechnologyEdges(result)
+
 	return result, nil
 }
 
@@ -630,6 +636,9 @@ func (d *Decomposer) decomposeRoadmap(result *Result) {
 			}
 		}
 	}
+
+	// Cross-track dependencies and technical constraints
+	d.decomposeRoadmapExtras(artKey, result)
 }
 
 // ============================================================
