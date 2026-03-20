@@ -206,6 +206,19 @@ func ObjectTypes() []ObjectTypeDef {
 				"dependency_type": {Type: "string", Description: "Type: requires, enables, blocks"},
 			}),
 		},
+		// Evidence / reference documents (AIM phase)
+		{
+			Name: "ReferenceDocument", Label: "Reference Document", InertiaTier: 2, Category: "Evidence", Icon: "FileText", Color: "#64748B",
+			Description: "Unstructured evidence from AIM/evidence/ — competitive intelligence, partner context, technical data, market analysis. Not authoritative — supplements formal EPF artifacts for AIM processes.",
+			Properties: mergeProps(commonProps(), map[string]PropertyDef{
+				"name":         {Type: "string", Description: "Document filename"},
+				"description":  {Type: "string", Description: "Brief summary or first line of the document"},
+				"category":     {Type: "string", Description: "Evidence category: competitive, partner, technical, market, narrative, product-specs, internal"},
+				"content_hash": {Type: "string", Description: "SHA-256 hash for change detection during sync"},
+				"file_format":  {Type: "string", Description: "File format: md, pdf, docx, html"},
+			}),
+		},
+
 		// Agent and Skill types (tooling, not strategy — included for completeness)
 		{
 			Name: "Agent", Label: "Agent", InertiaTier: 6, Category: "AI", Icon: "Zap", Color: "#8B5CF6",

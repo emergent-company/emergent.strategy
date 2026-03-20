@@ -593,6 +593,16 @@ func createInstanceStructure(instanceDir, productName, canonicalPath string, use
 		}
 	}
 
+	// Create AIM subdirectories
+	aimDirs := []string{"evidence"}
+	for _, dir := range aimDirs {
+		path := filepath.Join(instanceDir, "AIM", dir)
+		if err := os.MkdirAll(path, 0755); err != nil {
+			return err
+		}
+		os.WriteFile(filepath.Join(path, ".gitkeep"), []byte{}, 0644)
+	}
+
 	// Create FIRE subdirectories
 	fireDirs := []string{"definitions/product", "definitions/strategy", "definitions/org_ops", "definitions/commercial", "value_models", "workflows"}
 	for _, dir := range fireDirs {

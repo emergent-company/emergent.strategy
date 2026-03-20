@@ -22,6 +22,7 @@ var validEPFObjectTypes = []string{
 	"Belief", "Trend", "OKR", "ValueModelComponent",
 	"Positioning", "Assumption", "Artifact",
 	"Constraint", "CrossTrackDependency",
+	"ReferenceDocument",
 	"Agent", "Skill",
 }
 

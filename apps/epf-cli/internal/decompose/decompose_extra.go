@@ -1,7 +1,10 @@
 package decompose
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/memory"
@@ -140,15 +143,141 @@ func (d *Decomposer) addSharedTechnologyEdges(result *Result) {
 }
 
 // ============================================================
-// Additional YAML extraction: cross-track dependencies
+// AIM/evidence/ — unstructured reference library
 // ============================================================
 
-// decomposeRoadmapCrossTrackDeps extracts CrossTrackDependency objects from
-// the roadmap's cross_track_dependencies section. Called from decomposeRoadmap.
-func (d *Decomposer) decomposeRoadmapCrossTrackDeps(raw interface{}, artKey string, result *Result) {
-	// The cross_track_dependencies are already parsed in the rawRoadmap struct
-	// but were not decomposed. We need to handle them via a generic approach
-	// since rawRoadmap doesn't have the field yet.
+// evidenceExtensions lists the file extensions that qualify as evidence documents.
+var evidenceExtensions = map[string]bool{
+	".md":   true,
+	".pdf":  true,
+	".docx": true,
+	".html": true,
+}
+
+// validEvidenceCategories are the canonical category subdirectories.
+var validEvidenceCategories = map[string]bool{
+	"competitive":   true,
+	"partner":       true,
+	"technical":     true,
+	"market":        true,
+	"narrative":     true,
+	"product-specs": true,
+	"internal":      true,
+}
+
+// EvidenceDocument represents a scanned evidence file for ingest/sync.
+type EvidenceDocument struct {
+	Key         string // graph node key
+	Name        string // filename
+	Category    string // subdirectory name
+	SourcePath  string // relative path within instance
+	AbsPath     string // absolute path for content upload
+	ContentHash string // SHA-256 for change detection
+	Format      string // file extension without dot
+	FirstLine   string // first non-empty line for description
+}
+
+// decomposeEvidence scans AIM/evidence/ for reference documents and creates
+// ReferenceDocument graph nodes. Called from DecomposeInstance.
+func (d *Decomposer) decomposeEvidence(result *Result) {
+	evidenceDir := filepath.Join(d.instancePath, "AIM", "evidence")
+	if _, err := os.Stat(evidenceDir); os.IsNotExist(err) {
+		return // No evidence directory — not an error
+	}
+
+	// Walk the evidence directory
+	err := filepath.Walk(evidenceDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+
+		ext := strings.ToLower(filepath.Ext(path))
+		if !evidenceExtensions[ext] {
+			return nil
+		}
+
+		// Skip README files
+		if strings.EqualFold(info.Name(), "README.md") {
+			return nil
+		}
+
+		// Determine category from parent directory
+		relPath, _ := filepath.Rel(d.instancePath, path)
+		parts := strings.Split(relPath, string(filepath.Separator))
+		// parts: ["AIM", "evidence", "<category>", "<file>"] or ["AIM", "evidence", "<file>"]
+		category := "uncategorized"
+		if len(parts) >= 4 {
+			category = parts[2] // The subdirectory name
+		}
+
+		// Read content for hash and description
+		content, err := os.ReadFile(path)
+		if err != nil {
+			d.warn(result, fmt.Sprintf("evidence: failed to read %s: %v", relPath, err))
+			return nil
+		}
+
+		hash := fmt.Sprintf("%x", sha256.Sum256(content))
+		firstLine := extractFirstLine(string(content))
+
+		docKey := objectKey("ReferenceDocument", fmt.Sprintf("evidence:%s", relPath))
+		d.addObject(result, memory.UpsertObjectRequest{
+			Type: "ReferenceDocument", Key: docKey,
+			Properties: map[string]any{
+				"name":            info.Name(),
+				"description":     truncate(firstLine, 200),
+				"category":        category,
+				"source_path":     relPath,
+				"content_hash":    hash,
+				"file_format":     strings.TrimPrefix(ext, "."),
+				"inertia_tier":    "2",
+				"source_artifact": relPath,
+				"section_path":    fmt.Sprintf("AIM/evidence/%s", category),
+			},
+		})
+
+		// Store evidence doc info for the ingester to upload content later
+		result.EvidenceDocuments = append(result.EvidenceDocuments, EvidenceDocument{
+			Key:         docKey,
+			Name:        info.Name(),
+			Category:    category,
+			SourcePath:  relPath,
+			AbsPath:     path,
+			ContentHash: hash,
+			Format:      strings.TrimPrefix(ext, "."),
+			FirstLine:   firstLine,
+		})
+
+		return nil
+	})
+
+	if err != nil {
+		d.warn(result, fmt.Sprintf("evidence: walk error: %v", err))
+	}
+
+	if len(result.EvidenceDocuments) > 0 {
+		// Create an Artifact node for the evidence directory itself
+		artKey := d.addArtifactNode(result,
+			"AIM/evidence/", "evidence_library", "AIM",
+			fmt.Sprintf("Evidence library — %d reference documents", len(result.EvidenceDocuments)), "2")
+
+		// Add contains edges from the evidence artifact to each document
+		for _, doc := range result.EvidenceDocuments {
+			d.addContains(result, artKey, "Artifact", doc.Key, "ReferenceDocument")
+		}
+	}
+}
+
+// extractFirstLine returns the first non-empty, non-heading line from content.
+func extractFirstLine(content string) string {
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "---") {
+			continue
+		}
+		return line
+	}
+	return ""
 }
 
 // ============================================================

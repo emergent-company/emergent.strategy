@@ -62,6 +62,9 @@ func (ing *Ingester) Ingest(ctx context.Context, instancePath string) (*Stats, e
 
 	stats.Warnings = append(stats.Warnings, result.Warnings...)
 	log.Printf("[ingest] Decomposed: %d objects, %d relationships", len(result.Objects), len(result.Relationships))
+	if len(result.EvidenceDocuments) > 0 {
+		log.Printf("[ingest] Found %d evidence documents in AIM/evidence/", len(result.EvidenceDocuments))
+	}
 
 	// Step 2: Upsert objects
 	keyToID := ing.upsertObjects(ctx, result.Objects, stats)

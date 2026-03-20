@@ -40,9 +40,10 @@ const MaxSupportedMajorVersion = 2
 // Result holds the complete decomposition output — objects and relationships
 // ready for upsert into emergent.memory.
 type Result struct {
-	Objects       []memory.UpsertObjectRequest
-	Relationships []RelationshipSpec
-	Warnings      []string
+	Objects           []memory.UpsertObjectRequest
+	Relationships     []RelationshipSpec
+	Warnings          []string
+	EvidenceDocuments []EvidenceDocument // Evidence files for content upload by the ingester
 }
 
 // RelationshipSpec describes a relationship to create, using object keys
@@ -84,6 +85,9 @@ func (d *Decomposer) DecomposeInstance() (*Result, error) {
 	// FIRE phase artifacts
 	d.decomposeFeatures(result)
 	d.decomposeValueModels(result)
+
+	// AIM phase: evidence library
+	d.decomposeEvidence(result)
 
 	// Cross-cutting structural relationships (require multiple artifacts to be decomposed first)
 	d.addInformsEdges(result)
