@@ -79,6 +79,7 @@ func (d *Decomposer) DecomposeInstance() (*Result, error) {
 	// READY phase artifacts
 	d.decomposeNorthStar(result)
 	d.decomposeInsightAnalyses(result)
+	d.decomposeInsightAnalysesExpanded(result) // Phase 1a: remaining 16 sections
 	d.decomposeStrategyFormula(result)
 	d.decomposeRoadmap(result)
 

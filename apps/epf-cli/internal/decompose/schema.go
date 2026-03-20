@@ -127,6 +127,80 @@ func ObjectTypes() []ObjectTypeDef {
 			}),
 		},
 		{
+			Name: "Competitor", Label: "Competitor", InertiaTier: 2, Category: "Insights", Icon: "Users", Color: "#EF4444",
+			Description: "A competitor from insight analyses competitive landscape. Tier 2.",
+			Properties: mergeProps(commonProps(), map[string]PropertyDef{
+				"name": {Type: "string", Description: "Competitor name"}, "positioning": {Type: "string", Description: "Their market positioning"},
+				"strengths": {Type: "string", Description: "Key strengths (semicolon-separated)"}, "weaknesses": {Type: "string", Description: "Key weaknesses (semicolon-separated)"},
+				"competitor_type": {Type: "string", Description: "Type: direct, strategy_tool, indirect, substitute"},
+				"threat_level":    {Type: "string", Description: "Threat level for indirect/substitutes"},
+			}),
+		},
+		{
+			Name: "MarketSegment", Label: "Market Segment", InertiaTier: 2, Category: "Insights", Icon: "PieChart", Color: "#8B5CF6",
+			Description: "A market segment from insight analyses market structure. Tier 2.",
+			Properties: mergeProps(commonProps(), map[string]PropertyDef{
+				"name": {Type: "string", Description: "Segment name"}, "size": {Type: "string", Description: "Segment size"},
+				"characteristics": {Type: "string", Description: "Key characteristics (semicolon-separated)"},
+				"unmet_needs":     {Type: "string", Description: "Unmet needs (semicolon-separated)"},
+			}),
+		},
+		{
+			Name: "WhiteSpace", Label: "White Space", InertiaTier: 2, Category: "Insights", Icon: "Compass", Color: "#06B6D4",
+			Description: "A market gap identified in insight analyses. Tier 2.",
+			Properties: mergeProps(commonProps(), map[string]PropertyDef{
+				"name": {Type: "string", Description: "Gap description"}, "description": {Type: "string", Description: "Full gap text"},
+				"evidence":              {Type: "string", Description: "Supporting evidence (semicolon-separated)"},
+				"opportunity_potential": {Type: "string", Description: "Opportunity potential assessment"},
+			}),
+		},
+		{
+			Name: "Strength", Label: "Strength", InertiaTier: 2, Category: "Insights", Icon: "ThumbsUp", Color: "#10B981",
+			Description: "An organizational strength from SWOT analysis. Tier 2.",
+			Properties: mergeProps(commonProps(), map[string]PropertyDef{
+				"name": {Type: "string", Description: "Strength summary"}, "description": {Type: "string", Description: "Full text"},
+				"evidence":        {Type: "string", Description: "Supporting evidence (semicolon-separated)"},
+				"strategic_value": {Type: "string", Description: "Strategic value assessment"},
+			}),
+		},
+		{
+			Name: "Weakness", Label: "Weakness", InertiaTier: 2, Category: "Insights", Icon: "AlertTriangle", Color: "#F97316",
+			Description: "An organizational weakness from SWOT analysis. Tier 2.",
+			Properties: mergeProps(commonProps(), map[string]PropertyDef{
+				"name": {Type: "string", Description: "Weakness summary"}, "description": {Type: "string", Description: "Full text"},
+				"impact":     {Type: "string", Description: "Impact of this weakness"},
+				"mitigation": {Type: "string", Description: "Mitigation approach"},
+			}),
+		},
+		{
+			Name: "Threat", Label: "Threat", InertiaTier: 2, Category: "Insights", Icon: "ShieldOff", Color: "#DC2626",
+			Description: "An external threat from SWOT analysis. Tier 2.",
+			Properties: mergeProps(commonProps(), map[string]PropertyDef{
+				"name": {Type: "string", Description: "Threat summary"}, "description": {Type: "string", Description: "Full text"},
+				"likelihood": {Type: "string", Description: "Likelihood: high, medium, low"},
+				"mitigation": {Type: "string", Description: "Mitigation approach"},
+			}),
+		},
+		{
+			Name: "Hypothesis", Label: "Hypothesis", InertiaTier: 3, Category: "Insights", Icon: "Beaker", Color: "#A855F7",
+			Description: "A problem-solution hypothesis from insight analyses. Tier 3.",
+			Properties: mergeProps(commonProps(), map[string]PropertyDef{
+				"name": {Type: "string", Description: "Hypothesis summary"}, "hypothesis": {Type: "string", Description: "The hypothesis statement"},
+				"test_approach":       {Type: "string", Description: "How to test this hypothesis"},
+				"validation_status":   {Type: "string", Description: "Status: pending, partially-validated, validated, invalidated"},
+				"validation_evidence": {Type: "string", Description: "Evidence supporting validation status"},
+			}),
+		},
+		{
+			Name: "KeyInsight", Label: "Key Insight", InertiaTier: 2, Category: "Insights", Icon: "Lightbulb", Color: "#FBBF24",
+			Description: "A synthesized key insight from insight analyses. Tier 2.",
+			Properties: mergeProps(commonProps(), map[string]PropertyDef{
+				"name": {Type: "string", Description: "Insight summary"}, "insight": {Type: "string", Description: "The insight text"},
+				"supporting_trends":     {Type: "string", Description: "Supporting trend references (semicolon-separated)"},
+				"strategic_implication": {Type: "string", Description: "What this insight implies for strategy"},
+			}),
+		},
+		{
 			Name: "Positioning", Label: "Positioning", InertiaTier: 3, Category: "Strategy", Icon: "Flag", Color: "#DC2626",
 			Description: "A competitive positioning claim from the strategy formula. Tier 3.",
 			Properties: mergeProps(commonProps(), map[string]PropertyDef{
