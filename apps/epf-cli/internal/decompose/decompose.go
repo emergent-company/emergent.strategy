@@ -724,13 +724,20 @@ type rawFeature struct {
 	} `yaml:"dependencies"`
 
 	FeatureMaturity struct {
-		OverallStage       string `yaml:"overall_stage"`
+		OverallStage string `yaml:"overall_stage"`
+		// Array format (legacy): capability_maturity: [{capability_id, stage, evidence}]
 		CapabilityMaturity []struct {
 			CapabilityID  string `yaml:"capability_id"`
 			Stage         string `yaml:"stage"`
 			DeliveredByKR string `yaml:"delivered_by_kr"`
 			Evidence      string `yaml:"evidence"`
 		} `yaml:"capability_maturity"`
+		// Map format (current): capabilities: {cap-001: {maturity, evidence}}
+		Capabilities map[string]struct {
+			Maturity      string `yaml:"maturity"`
+			Evidence      string `yaml:"evidence"`
+			DeliveredByKR string `yaml:"delivered_by_kr"`
+		} `yaml:"capabilities"`
 	} `yaml:"feature_maturity"`
 }
 
@@ -811,10 +818,15 @@ func (d *Decomposer) decomposeFeatureFile(absPath, fileName string, result *Resu
 			map[string]any{"weight": "1.0", "edge_source": "structural"})
 	}
 
-	// Build maturity lookup for capabilities
+	// Build maturity lookup for capabilities (supports both array and map formats)
 	maturityMap := map[string]struct{ stage, evidence string }{}
+	// Array format (legacy): capability_maturity: [{capability_id, stage}]
 	for _, cm := range raw.FeatureMaturity.CapabilityMaturity {
 		maturityMap[cm.CapabilityID] = struct{ stage, evidence string }{cm.Stage, cm.Evidence}
+	}
+	// Map format (current): capabilities: {cap-001: {maturity, evidence}}
+	for capID, cm := range raw.FeatureMaturity.Capabilities {
+		maturityMap[capID] = struct{ stage, evidence string }{cm.Maturity, cm.Evidence}
 	}
 
 	// Capabilities
