@@ -79,26 +79,46 @@ func (ing *Ingester) Sync(ctx context.Context, instancePath string) (*SyncStats,
 		log.Printf("[sync] %d objects in Memory no longer in instance (not deleted — needs manual review)", stats.ObjectsDeleted)
 	}
 
-	// Step 5: Recreate relationships from fresh decomposition.
-	// The Memory API handles duplicate relationships gracefully.
-	for _, rel := range result.Relationships {
-		fromID, fromOK := keyToID[rel.FromKey]
-		toID, toOK := keyToID[rel.ToKey]
-		if !fromOK || !toOK {
-			stats.RelationshipsSkipped++
-			continue
+	// Step 5: Only recreate relationships for objects that were created or updated.
+	// Unchanged objects already have their relationships in Memory.
+	changedKeys := make(map[string]bool, stats.ObjectsCreated+stats.ObjectsUpdated)
+	for _, obj := range result.Objects {
+		hash := hashProperties(obj.Properties)
+		if ex, exists := existing[obj.Key]; exists && ex.PropertiesHash == hash {
+			continue // unchanged — relationships already exist
 		}
-		_, err := ing.client.CreateRelationship(ctx, memory.CreateRelationshipRequest{
-			Type:       rel.Type,
-			FromID:     fromID,
-			ToID:       toID,
-			Properties: rel.Properties,
-		})
-		if err != nil {
-			stats.RelationshipsFailed++
-			continue
+		changedKeys[obj.Key] = true
+	}
+
+	if len(changedKeys) > 0 {
+		relCount := 0
+		for _, rel := range result.Relationships {
+			// Only create relationships where at least one endpoint changed
+			if !changedKeys[rel.FromKey] && !changedKeys[rel.ToKey] {
+				continue
+			}
+			fromID, fromOK := keyToID[rel.FromKey]
+			toID, toOK := keyToID[rel.ToKey]
+			if !fromOK || !toOK {
+				stats.RelationshipsSkipped++
+				continue
+			}
+			_, err := ing.client.CreateRelationship(ctx, memory.CreateRelationshipRequest{
+				Type:       rel.Type,
+				FromID:     fromID,
+				ToID:       toID,
+				Properties: rel.Properties,
+			})
+			if err != nil {
+				stats.RelationshipsFailed++
+				continue
+			}
+			stats.RelationshipsCreated++
+			relCount++
 		}
-		stats.RelationshipsCreated++
+		log.Printf("[sync] Relationships: %d created for %d changed objects", relCount, len(changedKeys))
+	} else {
+		log.Printf("[sync] No objects changed — skipping relationship sync")
 	}
 
 	stats.Duration = time.Since(start)
