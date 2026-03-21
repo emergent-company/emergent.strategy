@@ -94,23 +94,16 @@ func Reconcile(ctx context.Context, client *memory.Client) (*ReconcileResult, er
 		log.Printf("[reconcile] Missing %d types: %v — will install schema", len(missing), missing)
 	}
 
-	// Generate and install the template pack from Go definitions
+	// Generate and install the template pack from Go definitions using --merge
+	// Merge is additive-only — creates missing types, leaves existing ones unchanged.
+	// No need to uninstall the old schema first.
 	pack := decompose.GenerateTemplatePack()
 	packJSON, err := json.MarshalIndent(pack, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("reconcile: marshal template pack: %w", err)
 	}
 
-	// If there's an existing epf-engine schema, uninstall it first
-	if epfSchema != nil {
-		log.Printf("[reconcile] Uninstalling existing epf-engine schema %s (v%s)", epfSchema.ID, epfSchema.Version)
-		if err := client.UninstallSchema(ctx, epfSchema.ID); err != nil {
-			log.Printf("[reconcile] WARNING: failed to uninstall old schema: %v (will try merge install)", err)
-		}
-	}
-
-	// Install the new schema
-	log.Printf("[reconcile] Installing epf-engine schema v2.1.0 (%d object types, %d relationship types)",
+	log.Printf("[reconcile] Installing epf-engine schema with --merge (%d object types, %d relationship types)",
 		len(expectedTypes), len(decompose.RelationshipTypes()))
 
 	if err := client.InstallSchemaFromJSON(ctx, packJSON, true); err != nil {

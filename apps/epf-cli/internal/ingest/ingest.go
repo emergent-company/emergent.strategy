@@ -87,8 +87,22 @@ func (ing *Ingester) IngestResult(ctx context.Context, result *decompose.Result)
 
 	stats.Warnings = append(stats.Warnings, result.Warnings...)
 
-	keyToID := ing.upsertObjects(ctx, result.Objects, stats)
-	ing.createRelationships(ctx, result.Relationships, keyToID, stats)
+	// Use batch subgraph API for full ingest — much faster than individual upserts.
+	// Falls back to individual upserts if batch fails.
+	err := ing.batchIngest(ctx, result.Objects, result.Relationships, stats)
+	if err != nil {
+		log.Printf("[ingest] Batch ingest failed: %v — falling back to individual upserts", err)
+		stats.Warnings = append(stats.Warnings, fmt.Sprintf("batch ingest failed, using fallback: %v", err))
+		// Reset counts from failed batch attempt
+		stats.ObjectsUpserted = 0
+		stats.ObjectsFailed = 0
+		stats.RelationshipsCreated = 0
+		stats.RelationshipsFailed = 0
+		stats.RelationshipsSkipped = 0
+
+		keyToID := ing.upsertObjects(ctx, result.Objects, stats)
+		ing.createRelationships(ctx, result.Relationships, keyToID, stats)
+	}
 
 	stats.Duration = time.Since(start)
 	return stats, nil
@@ -96,7 +110,140 @@ func (ing *Ingester) IngestResult(ctx context.Context, result *decompose.Result)
 
 // --- Internal ---
 
-// upsertObjects pushes all objects to Memory and returns a key→ID map.
+const batchChunkSize = 400 // Keep under 500 limit with margin
+
+// batchIngest uses the subgraph API to create objects and relationships in chunks.
+// Uses _ref placeholders for relationship wiring within each chunk.
+func (ing *Ingester) batchIngest(ctx context.Context, objects []memory.UpsertObjectRequest, rels []decompose.RelationshipSpec, stats *Stats) error {
+	if len(objects) == 0 {
+		return nil
+	}
+
+	// Build ref map: object key → _ref placeholder
+	keyToRef := make(map[string]string, len(objects))
+	for i, obj := range objects {
+		ref := fmt.Sprintf("obj-%d", i)
+		keyToRef[obj.Key] = ref
+	}
+
+	// Chunk objects
+	for chunkStart := 0; chunkStart < len(objects); chunkStart += batchChunkSize {
+		chunkEnd := chunkStart + batchChunkSize
+		if chunkEnd > len(objects) {
+			chunkEnd = len(objects)
+		}
+		objChunk := objects[chunkStart:chunkEnd]
+
+		// Build refs for this chunk
+		chunkRefs := make(map[string]string, len(objChunk))
+		var subObjects []memory.SubgraphObject
+		for i, obj := range objChunk {
+			ref := fmt.Sprintf("obj-%d", chunkStart+i)
+			chunkRefs[obj.Key] = ref
+			name, _ := obj.Properties["name"].(string)
+			subObjects = append(subObjects, memory.SubgraphObject{
+				Ref:        ref,
+				Type:       obj.Type,
+				Key:        obj.Key,
+				Name:       name,
+				Properties: obj.Properties,
+			})
+		}
+
+		// Find relationships where both endpoints are in this chunk
+		var subRels []memory.SubgraphRelationship
+		for _, rel := range rels {
+			srcRef, srcOK := chunkRefs[rel.FromKey]
+			dstRef, dstOK := chunkRefs[rel.ToKey]
+			if srcOK && dstOK {
+				subRels = append(subRels, memory.SubgraphRelationship{
+					Type:       rel.Type,
+					SrcRef:     srcRef,
+					DstRef:     dstRef,
+					Properties: rel.Properties,
+				})
+			}
+		}
+
+		req := memory.SubgraphRequest{
+			Objects:       subObjects,
+			Relationships: subRels,
+		}
+
+		result, err := ing.client.CreateSubgraph(ctx, req)
+		if err != nil {
+			return fmt.Errorf("batch chunk %d-%d failed: %w", chunkStart, chunkEnd, err)
+		}
+
+		stats.ObjectsUpserted += len(result.Objects)
+		stats.RelationshipsCreated += len(result.Relationships)
+
+		log.Printf("[ingest] Batch chunk %d-%d: %d objects, %d relationships",
+			chunkStart, chunkEnd, len(result.Objects), len(result.Relationships))
+	}
+
+	// Handle cross-chunk relationships (endpoints in different chunks)
+	// These need object IDs, so we resolve them from the key map
+	// For now, upsert remaining relationships individually using key-based lookup
+	keyToID := make(map[string]string)
+	// Build key→ID map from all created objects
+	allObjects, _, err := ing.client.ListObjects(ctx, memory.ListOptions{Limit: len(objects) + 100})
+	if err != nil {
+		log.Printf("[ingest] WARNING: Could not list objects for cross-chunk relationships: %v", err)
+	} else {
+		for _, obj := range allObjects {
+			keyToID[obj.Key] = obj.StableID()
+		}
+	}
+
+	// Create cross-chunk relationships
+	crossChunkRels := 0
+	for _, rel := range rels {
+		// Skip relationships already created in chunks
+		fromChunk := -1
+		toChunk := -1
+		for i := range objects {
+			if objects[i].Key == rel.FromKey {
+				fromChunk = i / batchChunkSize
+			}
+			if objects[i].Key == rel.ToKey {
+				toChunk = i / batchChunkSize
+			}
+		}
+		if fromChunk == toChunk && fromChunk >= 0 {
+			continue // Already created in-chunk
+		}
+
+		fromID, fromOK := keyToID[rel.FromKey]
+		toID, toOK := keyToID[rel.ToKey]
+		if !fromOK || !toOK {
+			stats.RelationshipsSkipped++
+			continue
+		}
+
+		_, err := ing.client.CreateRelationship(ctx, memory.CreateRelationshipRequest{
+			Type:       rel.Type,
+			FromID:     fromID,
+			ToID:       toID,
+			Properties: rel.Properties,
+		})
+		if err != nil {
+			stats.RelationshipsFailed++
+			continue
+		}
+		crossChunkRels++
+		stats.RelationshipsCreated++
+	}
+
+	if crossChunkRels > 0 {
+		log.Printf("[ingest] Created %d cross-chunk relationships individually", crossChunkRels)
+	}
+
+	return nil
+}
+
+// upsertObjects pushes all objects to Memory individually and returns a key→ID map.
+// Used as fallback when batch ingest fails, and for incremental sync.
 func (ing *Ingester) upsertObjects(ctx context.Context, objects []memory.UpsertObjectRequest, stats *Stats) map[string]string {
 	keyToID := make(map[string]string, len(objects))
 
@@ -114,7 +261,8 @@ func (ing *Ingester) upsertObjects(ctx context.Context, objects []memory.UpsertO
 	return keyToID
 }
 
-// createRelationships resolves relationship specs to IDs and creates them.
+// createRelationships resolves relationship specs to IDs and creates them individually.
+// Used as fallback when batch ingest fails, and for incremental sync.
 func (ing *Ingester) createRelationships(ctx context.Context, rels []decompose.RelationshipSpec, keyToID map[string]string, stats *Stats) {
 	for _, rel := range rels {
 		fromID, fromOK := keyToID[rel.FromKey]

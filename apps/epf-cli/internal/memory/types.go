@@ -169,13 +169,21 @@ type SearchRequest struct {
 	MinScore float64  `json:"minScore,omitempty"`
 }
 
+// FilterParam represents a server-side property filter for list queries.
+type FilterParam struct {
+	Key   string // property key (e.g., "status", "feature_ref")
+	Value string // value to match
+	Op    string // operator: eq (default), neq, gt, gte, lt, lte, contains, in, exists
+}
+
 // ListOptions holds common query parameters for list endpoints.
 type ListOptions struct {
-	Limit  int
-	Offset int    // deprecated — use Cursor for pagination
-	Cursor string // cursor from previous page's NextCursor
-	Type   string // filter by object/relationship type
-	Status string // filter by status
+	Limit   int
+	Offset  int           // deprecated — use Cursor for pagination
+	Cursor  string        // cursor from previous page's NextCursor
+	Type    string        // filter by object/relationship type
+	Status  string        // filter by status
+	Filters []FilterParam // server-side property filters
 }
 
 // ListPage wraps a page of list results with pagination cursor.

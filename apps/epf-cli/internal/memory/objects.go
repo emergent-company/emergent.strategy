@@ -65,6 +65,13 @@ func (c *Client) ListObjects(ctx context.Context, opts ListOptions) ([]Object, s
 	if opts.Status != "" {
 		params.Set("status", opts.Status)
 	}
+	// Server-side property filters
+	for _, f := range opts.Filters {
+		params.Add("filter", f.Key+"="+f.Value)
+		if f.Op != "" && f.Op != "eq" {
+			params.Set("filter-op", f.Op)
+		}
+	}
 
 	// The API returns {"items": [...], "next_cursor": "...", "total": N}
 	var page ListPage[Object]
