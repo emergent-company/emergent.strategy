@@ -15,28 +15,38 @@ import (
 // These require multiple artifacts to be decomposed first.
 // ============================================================
 
-// addInformsEdges creates Belief → Positioning edges.
-// Every Belief informs the strategic Positioning — the positioning claims
-// are grounded in core beliefs about market, users, and approach.
+// addInformsEdges creates Belief/Trend/KeyInsight → Positioning edges.
+// Beliefs, Trends, and KeyInsights inform the strategic Positioning — the
+// positioning claims are grounded in market intelligence and core beliefs.
 func (d *Decomposer) addInformsEdges(result *Result) {
-	// Collect belief and positioning keys from existing objects
-	var beliefKeys []string
+	// Collect source nodes (Beliefs, Trends, KeyInsights) and target nodes (Positioning)
+	type sourceNode struct {
+		key     string
+		objType string
+		weight  string
+	}
+	var sources []sourceNode
 	var positioningKeys []string
 
 	for _, obj := range result.Objects {
 		switch obj.Type {
 		case "Belief":
-			beliefKeys = append(beliefKeys, obj.Key)
+			sources = append(sources, sourceNode{key: obj.Key, objType: "Belief", weight: "0.6"})
+		case "Trend":
+			sources = append(sources, sourceNode{key: obj.Key, objType: "Trend", weight: "0.4"})
+		case "KeyInsight":
+			sources = append(sources, sourceNode{key: obj.Key, objType: "KeyInsight", weight: "0.5"})
 		case "Positioning":
 			positioningKeys = append(positioningKeys, obj.Key)
 		}
 	}
 
-	// Each belief informs all positioning claims (broad causal influence)
-	for _, bKey := range beliefKeys {
+	// Each source node informs all positioning claims (broad causal influence)
+	// Beliefs have strongest influence (0.6), KeyInsights medium (0.5), Trends lighter (0.4)
+	for _, src := range sources {
 		for _, pKey := range positioningKeys {
-			d.addRel(result, "informs", bKey, "Belief", pKey, "Positioning",
-				map[string]any{"strength": "0.6", "weight": "0.6", "edge_source": "causal"})
+			d.addRel(result, "informs", src.key, src.objType, pKey, "Positioning",
+				map[string]any{"strength": src.weight, "weight": src.weight, "edge_source": "causal"})
 		}
 	}
 }
