@@ -226,13 +226,17 @@ func (s *Server) handleGraphList(ctx context.Context, request mcp.CallToolReques
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	// Build list options with server-side filters
+	// Build list options — fetch enough for client-side property filtering.
+	// The decomposer stores most data in the properties map, and the Memory API's
+	// server-side filters operate on object metadata fields, not nested properties.
+	fetchLimit := limit
+	if filterKey != "" {
+		fetchLimit = 1000 // Fetch broadly for client-side filtering
+	}
+
 	opts := memory.ListOptions{
 		Type:  objType,
-		Limit: limit,
-	}
-	if filterKey != "" {
-		opts.Filters = []memory.FilterParam{{Key: filterKey, Value: filterValue, Op: "eq"}}
+		Limit: fetchLimit,
 	}
 
 	objects, _, err := client.ListObjects(ctx, opts)
@@ -240,7 +244,23 @@ func (s *Server) handleGraphList(ctx context.Context, request mcp.CallToolReques
 		return mcp.NewToolResultError(fmt.Sprintf("List objects failed: %v", err)), nil
 	}
 
-	filtered := objects
+	// Client-side property filtering
+	var filtered []memory.Object
+	if filterKey != "" {
+		for _, obj := range objects {
+			propVal := fmt.Sprintf("%v", obj.Properties[filterKey])
+			if propVal == filterValue {
+				filtered = append(filtered, obj)
+			}
+		}
+	} else {
+		filtered = objects
+	}
+
+	// Apply limit after filtering
+	if len(filtered) > limit {
+		filtered = filtered[:limit]
+	}
 
 	// Format results
 	var results []map[string]any

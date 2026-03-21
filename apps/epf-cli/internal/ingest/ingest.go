@@ -66,14 +66,36 @@ func (ing *Ingester) Ingest(ctx context.Context, instancePath string) (*Stats, e
 		log.Printf("[ingest] Found %d evidence documents in AIM/evidence/", len(result.EvidenceDocuments))
 	}
 
-	// Step 2: Upsert objects
-	keyToID := ing.upsertObjects(ctx, result.Objects, stats)
-	log.Printf("[ingest] Upserted: %d succeeded, %d failed", stats.ObjectsUpserted, stats.ObjectsFailed)
+	// Step 2+3: Check if project is empty → batch subgraph (fast), otherwise upsert (idempotent)
+	projectStats, _ := ing.client.GetProjectStats(ctx)
+	if projectStats != nil && projectStats.ObjectCount == 0 {
+		// Empty project — use batch subgraph API for speed
+		log.Printf("[ingest] Empty project — using batch subgraph API")
+		err = ing.batchIngest(ctx, result.Objects, result.Relationships, stats)
+		if err != nil {
+			log.Printf("[ingest] Batch ingest failed: %v — falling back to individual upserts", err)
+			stats.Warnings = append(stats.Warnings, fmt.Sprintf("batch ingest failed, using fallback: %v", err))
+			stats.ObjectsUpserted = 0
+			stats.ObjectsFailed = 0
+			stats.RelationshipsCreated = 0
+			stats.RelationshipsFailed = 0
+			stats.RelationshipsSkipped = 0
 
-	// Step 3: Create relationships
-	ing.createRelationships(ctx, result.Relationships, keyToID, stats)
-	log.Printf("[ingest] Relationships: %d created, %d failed, %d skipped (unresolved keys)",
-		stats.RelationshipsCreated, stats.RelationshipsFailed, stats.RelationshipsSkipped)
+			keyToID := ing.upsertObjects(ctx, result.Objects, stats)
+			log.Printf("[ingest] Upserted: %d succeeded, %d failed", stats.ObjectsUpserted, stats.ObjectsFailed)
+			ing.createRelationships(ctx, result.Relationships, keyToID, stats)
+			log.Printf("[ingest] Relationships: %d created, %d failed, %d skipped (unresolved keys)",
+				stats.RelationshipsCreated, stats.RelationshipsFailed, stats.RelationshipsSkipped)
+		}
+	} else {
+		// Project has existing data — use individual upserts for idempotent create-or-update
+		log.Printf("[ingest] Project has existing data — using individual upserts (idempotent)")
+		keyToID := ing.upsertObjects(ctx, result.Objects, stats)
+		log.Printf("[ingest] Upserted: %d succeeded, %d failed", stats.ObjectsUpserted, stats.ObjectsFailed)
+		ing.createRelationships(ctx, result.Relationships, keyToID, stats)
+		log.Printf("[ingest] Relationships: %d created, %d failed, %d skipped (unresolved keys)",
+			stats.RelationshipsCreated, stats.RelationshipsFailed, stats.RelationshipsSkipped)
+	}
 
 	stats.Duration = time.Since(start)
 	return stats, nil
@@ -110,7 +132,10 @@ func (ing *Ingester) IngestResult(ctx context.Context, result *decompose.Result)
 
 // --- Internal ---
 
-const batchChunkSize = 400 // Keep under 500 limit with margin
+const (
+	batchObjectChunkSize = 400 // Keep under 500 object limit with margin
+	batchRelChunkSize    = 400 // Keep under 500 relationship limit with margin
+)
 
 // batchIngest uses the subgraph API to create objects and relationships in chunks.
 // Uses _ref placeholders for relationship wiring within each chunk.
@@ -127,8 +152,8 @@ func (ing *Ingester) batchIngest(ctx context.Context, objects []memory.UpsertObj
 	}
 
 	// Chunk objects
-	for chunkStart := 0; chunkStart < len(objects); chunkStart += batchChunkSize {
-		chunkEnd := chunkStart + batchChunkSize
+	for chunkStart := 0; chunkStart < len(objects); chunkStart += batchObjectChunkSize {
+		chunkEnd := chunkStart + batchObjectChunkSize
 		if chunkEnd > len(objects) {
 			chunkEnd = len(objects)
 		}
@@ -150,9 +175,12 @@ func (ing *Ingester) batchIngest(ctx context.Context, objects []memory.UpsertObj
 			})
 		}
 
-		// Find relationships where both endpoints are in this chunk
+		// Find relationships where both endpoints are in this chunk (cap at batchRelChunkSize)
 		var subRels []memory.SubgraphRelationship
 		for _, rel := range rels {
+			if len(subRels) >= batchRelChunkSize {
+				break
+			}
 			srcRef, srcOK := chunkRefs[rel.FromKey]
 			dstRef, dstOK := chunkRefs[rel.ToKey]
 			if srcOK && dstOK {
@@ -204,10 +232,10 @@ func (ing *Ingester) batchIngest(ctx context.Context, objects []memory.UpsertObj
 		toChunk := -1
 		for i := range objects {
 			if objects[i].Key == rel.FromKey {
-				fromChunk = i / batchChunkSize
+				fromChunk = i / batchObjectChunkSize
 			}
 			if objects[i].Key == rel.ToKey {
-				toChunk = i / batchChunkSize
+				toChunk = i / batchObjectChunkSize
 			}
 		}
 		if fromChunk == toChunk && fromChunk >= 0 {
