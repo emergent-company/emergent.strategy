@@ -28,6 +28,7 @@ var validEPFObjectTypes = []string{
 	"Hypothesis", "KeyInsight",
 	"ValueDriver", "StrategicRisk", "ValueProposition",
 	"StrategicPhase", "MappingArtifact",
+	"TrackDefinition", "PractitionerScenario",
 	"Agent", "Skill",
 }
 

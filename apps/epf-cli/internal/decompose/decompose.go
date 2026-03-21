@@ -89,7 +89,8 @@ func (d *Decomposer) DecomposeInstance() (*Result, error) {
 	// FIRE phase artifacts
 	d.decomposeFeatures(result)
 	d.decomposeValueModels(result)
-	d.decomposeMappings(result) // Phase 1d: value model → implementation mappings
+	d.decomposeMappings(result)         // Phase 1d: value model → implementation mappings
+	d.decomposeTrackDefinitions(result) // Phase 2: strategy, org_ops, commercial definitions
 
 	// AIM phase: evidence library
 	d.decomposeEvidence(result)

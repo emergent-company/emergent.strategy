@@ -1041,6 +1041,108 @@
       }
     },
     {
+      "description": "A strategy, org_ops, or commercial process definition. Tier 5.",
+      "label": "Track Definition",
+      "name": "TrackDefinition",
+      "properties": {
+        "cadence": {
+          "description": "Frequency/timing",
+          "type": "string"
+        },
+        "category": {
+          "description": "Category within track",
+          "type": "string"
+        },
+        "definition_id": {
+          "description": "EPF definition ID (sd-/pd-/cd-)",
+          "type": "string"
+        },
+        "description": {
+          "description": "Purpose of this process",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "name": {
+          "description": "Definition name",
+          "type": "string"
+        },
+        "outcome": {
+          "description": "Expected outcome",
+          "type": "string"
+        },
+        "owner": {
+          "description": "Process owner role",
+          "type": "string"
+        },
+        "purpose": {
+          "description": "Why this process exists",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        },
+        "status": {
+          "description": "Status",
+          "type": "string"
+        },
+        "track": {
+          "description": "Track: strategy, org_ops, commercial",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "description": "A real-world practitioner scenario from a track definition. Tier 6.",
+      "label": "Practitioner Scenario",
+      "name": "PractitionerScenario",
+      "properties": {
+        "definition_ref": {
+          "description": "Parent definition ID",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "name": {
+          "description": "Scenario name",
+          "type": "string"
+        },
+        "outcome": {
+          "description": "Outcome achieved",
+          "type": "string"
+        },
+        "practitioner": {
+          "description": "Role of the practitioner",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "situation": {
+          "description": "The situation",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        },
+        "trigger": {
+          "description": "What triggers this scenario",
+          "type": "string"
+        }
+      }
+    },
+    {
       "description": "Unstructured evidence from AIM/evidence/ — competitive intelligence, partner context, technical data, market analysis. Not authoritative — supplements formal EPF artifacts for AIM processes.",
       "label": "Reference Document",
       "name": "ReferenceDocument",
@@ -1405,6 +1507,31 @@
       ]
     },
     {
+      "description": "A track definition is related to another definition (requires, enables, follows)",
+      "label": "Related Definition",
+      "name": "related_definition",
+      "properties": {
+        "edge_source": {
+          "description": "Source: structural, semantic, or causal",
+          "type": "string"
+        },
+        "relationship": {
+          "description": "Relationship type: requires, enables, follows, parallel, alternative",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "TrackDefinition"
+      ],
+      "targetTypes": [
+        "TrackDefinition"
+      ]
+    },
+    {
       "description": "One node semantically supports or reinforces another",
       "label": "Supports",
       "name": "supports",
@@ -1450,6 +1577,8 @@
         "Capability",
         "Constraint",
         "CrossTrackDependency",
+        "TrackDefinition",
+        "PractitionerScenario",
         "ReferenceDocument",
         "Agent",
         "Skill"
@@ -1482,6 +1611,8 @@
         "Capability",
         "Constraint",
         "CrossTrackDependency",
+        "TrackDefinition",
+        "PractitionerScenario",
         "ReferenceDocument",
         "Agent",
         "Skill"
@@ -1533,6 +1664,8 @@
         "Capability",
         "Constraint",
         "CrossTrackDependency",
+        "TrackDefinition",
+        "PractitionerScenario",
         "ReferenceDocument",
         "Agent",
         "Skill"
@@ -1565,6 +1698,8 @@
         "Capability",
         "Constraint",
         "CrossTrackDependency",
+        "TrackDefinition",
+        "PractitionerScenario",
         "ReferenceDocument",
         "Agent",
         "Skill"
@@ -1616,6 +1751,8 @@
         "Capability",
         "Constraint",
         "CrossTrackDependency",
+        "TrackDefinition",
+        "PractitionerScenario",
         "ReferenceDocument",
         "Agent",
         "Skill"
@@ -1648,6 +1785,8 @@
         "Capability",
         "Constraint",
         "CrossTrackDependency",
+        "TrackDefinition",
+        "PractitionerScenario",
         "ReferenceDocument",
         "Agent",
         "Skill"
@@ -1699,6 +1838,8 @@
         "Capability",
         "Constraint",
         "CrossTrackDependency",
+        "TrackDefinition",
+        "PractitionerScenario",
         "ReferenceDocument",
         "Agent",
         "Skill"
@@ -1731,6 +1872,8 @@
         "Capability",
         "Constraint",
         "CrossTrackDependency",
+        "TrackDefinition",
+        "PractitionerScenario",
         "ReferenceDocument",
         "Agent",
         "Skill"
@@ -1782,6 +1925,8 @@
         "Capability",
         "Constraint",
         "CrossTrackDependency",
+        "TrackDefinition",
+        "PractitionerScenario",
         "ReferenceDocument",
         "Agent",
         "Skill"
@@ -1814,6 +1959,8 @@
         "Capability",
         "Constraint",
         "CrossTrackDependency",
+        "TrackDefinition",
+        "PractitionerScenario",
         "ReferenceDocument",
         "Agent",
         "Skill"
@@ -1865,6 +2012,8 @@
         "Capability",
         "Constraint",
         "CrossTrackDependency",
+        "TrackDefinition",
+        "PractitionerScenario",
         "ReferenceDocument",
         "Agent",
         "Skill"
@@ -1920,6 +2069,8 @@
         "Capability",
         "Constraint",
         "CrossTrackDependency",
+        "TrackDefinition",
+        "PractitionerScenario",
         "ReferenceDocument",
         "Agent",
         "Skill"
@@ -1975,6 +2126,8 @@
         "Capability",
         "Constraint",
         "CrossTrackDependency",
+        "TrackDefinition",
+        "PractitionerScenario",
         "ReferenceDocument",
         "Agent",
         "Skill"
@@ -2007,6 +2160,8 @@
         "Capability",
         "Constraint",
         "CrossTrackDependency",
+        "TrackDefinition",
+        "PractitionerScenario",
         "ReferenceDocument",
         "Agent",
         "Skill"
@@ -2099,6 +2254,11 @@
       "color": "#DC2626",
       "icon": "Flag"
     },
+    "PractitionerScenario": {
+      "category": "Execution",
+      "color": "#0E7490",
+      "icon": "BookOpen"
+    },
     "ReferenceDocument": {
       "category": "Evidence",
       "color": "#64748B",
@@ -2133,6 +2293,11 @@
       "category": "Insights",
       "color": "#DC2626",
       "icon": "ShieldOff"
+    },
+    "TrackDefinition": {
+      "category": "Execution",
+      "color": "#0891B2",
+      "icon": "Clipboard"
     },
     "Trend": {
       "category": "Insights",

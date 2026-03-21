@@ -2,6 +2,8 @@ package decompose
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/memory"
@@ -563,6 +565,149 @@ func (d *Decomposer) decomposeMappings(result *Result) {
 				d.addRel(result, "implements", key, "MappingArtifact", vmcKey, "ValueModelComponent",
 					map[string]any{"weight": "1.0", "edge_source": "structural"})
 			}
+		}
+	}
+}
+
+// ============================================================
+// Phase 2: Non-product track definition decomposition
+// ============================================================
+
+type rawTrackDefinition struct {
+	ID     string `yaml:"id"`
+	Name   string `yaml:"name"`
+	Slug   string `yaml:"slug"`
+	Track  string `yaml:"track"`
+	Status string `yaml:"status"`
+
+	ContributesTo []string `yaml:"contributes_to"`
+
+	Definition struct {
+		Purpose string `yaml:"purpose"`
+		Outcome string `yaml:"outcome"`
+		Owner   string `yaml:"owner"`
+		Cadence struct {
+			Frequency string `yaml:"frequency"`
+		} `yaml:"cadence"`
+	} `yaml:"definition"`
+
+	PractitionerScenarios []struct {
+		ID           string `yaml:"id"`
+		Name         string `yaml:"name"`
+		Practitioner string `yaml:"practitioner"`
+		Situation    string `yaml:"situation"`
+		Trigger      string `yaml:"trigger"`
+		Actions      string `yaml:"actions"`
+		Outcome      string `yaml:"outcome"`
+	} `yaml:"practitioner_scenarios"`
+}
+
+// decomposeTrackDefinitions scans FIRE/definitions/strategy/, org_ops/, and commercial/
+// for track definition YAML files and creates TrackDefinition + PractitionerScenario objects.
+func (d *Decomposer) decomposeTrackDefinitions(result *Result) {
+	tracks := []struct {
+		name string
+		dir  string
+	}{
+		{"strategy", "FIRE/definitions/strategy"},
+		{"org_ops", "FIRE/definitions/org_ops"},
+		{"commercial", "FIRE/definitions/commercial"},
+	}
+
+	for _, track := range tracks {
+		trackDir := filepath.Join(d.instancePath, track.dir)
+		if _, err := os.Stat(trackDir); os.IsNotExist(err) {
+			continue
+		}
+
+		err := filepath.Walk(trackDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil || info.IsDir() {
+				return nil
+			}
+			ext := strings.ToLower(filepath.Ext(path))
+			if ext != ".yaml" && ext != ".yml" {
+				return nil
+			}
+
+			relPath, _ := filepath.Rel(d.instancePath, path)
+			var raw rawTrackDefinition
+			if err := d.readYAML(relPath, &raw); err != nil {
+				return nil
+			}
+			if raw.ID == "" || raw.Name == "" {
+				return nil
+			}
+
+			artKey := d.addArtifactNode(result,
+				relPath, "track_definition", "FIRE",
+				fmt.Sprintf("%s track definition: %s", track.name, raw.Name), "5")
+
+			// Determine category from subdirectory
+			parts := strings.Split(relPath, string(filepath.Separator))
+			category := ""
+			if len(parts) >= 4 {
+				category = parts[3] // FIRE/definitions/strategy/<category>/file.yaml
+			}
+
+			defKey := objectKey("TrackDefinition", fmt.Sprintf("definition:%s", raw.ID))
+			cadence := ""
+			if raw.Definition.Cadence.Frequency != "" {
+				cadence = raw.Definition.Cadence.Frequency
+			}
+			d.addObject(result, memory.UpsertObjectRequest{
+				Type: "TrackDefinition", Key: defKey,
+				Properties: map[string]any{
+					"name":            raw.Name,
+					"description":     truncate(raw.Definition.Purpose, 200),
+					"definition_id":   raw.ID,
+					"track":           raw.Track,
+					"status":          raw.Status,
+					"category":        category,
+					"purpose":         truncate(raw.Definition.Purpose, 500),
+					"outcome":         truncate(raw.Definition.Outcome, 500),
+					"owner":           raw.Definition.Owner,
+					"cadence":         cadence,
+					"inertia_tier":    "5",
+					"source_artifact": relPath,
+					"section_path":    "definition",
+				},
+			})
+			d.addContains(result, artKey, "Artifact", defKey, "TrackDefinition")
+
+			// contributes_to edges
+			for _, path := range raw.ContributesTo {
+				vmcKey := objectKey("ValueModelComponent", fmt.Sprintf("value_model:%s", path))
+				d.addRel(result, "contributes_to", defKey, "TrackDefinition", vmcKey, "ValueModelComponent",
+					map[string]any{"weight": "0.8", "edge_source": "structural"})
+			}
+
+			// Practitioner scenarios
+			for _, ps := range raw.PractitionerScenarios {
+				if ps.Name == "" {
+					continue
+				}
+				psKey := objectKey("PractitionerScenario", fmt.Sprintf("definition:%s:%s", raw.ID, ps.ID))
+				d.addObject(result, memory.UpsertObjectRequest{
+					Type: "PractitionerScenario", Key: psKey,
+					Properties: map[string]any{
+						"name":            ps.Name,
+						"practitioner":    ps.Practitioner,
+						"situation":       truncate(ps.Situation, 500),
+						"trigger":         ps.Trigger,
+						"outcome":         truncate(ps.Outcome, 500),
+						"definition_ref":  raw.ID,
+						"inertia_tier":    "6",
+						"source_artifact": relPath,
+						"section_path":    fmt.Sprintf("practitioner_scenarios.%s", ps.ID),
+					},
+				})
+				d.addContains(result, defKey, "TrackDefinition", psKey, "PractitionerScenario")
+			}
+
+			return nil
+		})
+		if err != nil {
+			d.warn(result, fmt.Sprintf("track definitions walk error for %s: %v", track.name, err))
 		}
 	}
 }

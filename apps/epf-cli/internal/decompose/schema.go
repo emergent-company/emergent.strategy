@@ -324,6 +324,27 @@ func ObjectTypes() []ObjectTypeDef {
 				"dependency_type": {Type: "string", Description: "Type: requires, enables, blocks"},
 			}),
 		},
+		// Non-product track definitions (strategy, org_ops, commercial)
+		{
+			Name: "TrackDefinition", Label: "Track Definition", InertiaTier: 5, Category: "Execution", Icon: "Clipboard", Color: "#0891B2",
+			Description: "A strategy, org_ops, or commercial process definition. Tier 5.",
+			Properties: mergeProps(commonProps(), map[string]PropertyDef{
+				"name": {Type: "string", Description: "Definition name"}, "description": {Type: "string", Description: "Purpose of this process"},
+				"definition_id": {Type: "string", Description: "EPF definition ID (sd-/pd-/cd-)"}, "track": {Type: "string", Description: "Track: strategy, org_ops, commercial"},
+				"status": {Type: "string", Description: "Status"}, "category": {Type: "string", Description: "Category within track"},
+				"purpose": {Type: "string", Description: "Why this process exists"}, "outcome": {Type: "string", Description: "Expected outcome"},
+				"owner": {Type: "string", Description: "Process owner role"}, "cadence": {Type: "string", Description: "Frequency/timing"},
+			}),
+		},
+		{
+			Name: "PractitionerScenario", Label: "Practitioner Scenario", InertiaTier: 6, Category: "Execution", Icon: "BookOpen", Color: "#0E7490",
+			Description: "A real-world practitioner scenario from a track definition. Tier 6.",
+			Properties: mergeProps(commonProps(), map[string]PropertyDef{
+				"name": {Type: "string", Description: "Scenario name"}, "practitioner": {Type: "string", Description: "Role of the practitioner"},
+				"situation": {Type: "string", Description: "The situation"}, "trigger": {Type: "string", Description: "What triggers this scenario"},
+				"outcome": {Type: "string", Description: "Outcome achieved"}, "definition_ref": {Type: "string", Description: "Parent definition ID"},
+			}),
+		},
 		// Evidence / reference documents (AIM phase)
 		{
 			Name: "ReferenceDocument", Label: "Reference Document", InertiaTier: 2, Category: "Evidence", Icon: "FileText", Color: "#64748B",
@@ -404,6 +425,12 @@ func RelationshipTypes() []RelTypeDef {
 		{Name: "follows", Label: "Follows", EdgeSource: "structural",
 			Description: "A strategic phase follows another phase in sequence",
 			FromTypes:   []string{"StrategicPhase"}, ToTypes: []string{"StrategicPhase"}, Properties: weightEdgeProps},
+		{Name: "related_definition", Label: "Related Definition", EdgeSource: "structural",
+			Description: "A track definition is related to another definition (requires, enables, follows)",
+			FromTypes:   []string{"TrackDefinition"}, ToTypes: []string{"TrackDefinition"},
+			Properties: mergeProps(weightEdgeProps, map[string]PropertyDef{
+				"relationship": {Type: "string", Description: "Relationship type: requires, enables, follows, parallel, alternative"},
+			})},
 
 		// === Semantic edges (created by semantic-edges, NOT decomposer) ===
 		{Name: "supports", Label: "Supports", EdgeSource: "semantic",
