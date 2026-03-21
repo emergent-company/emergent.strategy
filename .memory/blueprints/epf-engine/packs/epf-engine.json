@@ -1,168 +1,1825 @@
 {
-  "name": "epf-engine",
-  "version": "1.0.0",
-  "description": "Knowledge graph schema for the EPF (Emergent Product Framework) strategy engine — tracks artifacts, value models, features, personas, OKRs, agents, and skills.",
   "author": "emergent-company",
+  "description": "Semantic strategy runtime schema — section-level strategy artifacts as graph nodes with structural, semantic, and causal edges. Auto-managed by epf-cli.",
+  "name": "epf-engine",
   "objectTypes": [
     {
-      "name": "Artifact",
+      "description": "An EPF YAML artifact file. Parent node for section-level objects extracted from this file.",
       "label": "Artifact",
-      "description": "An EPF YAML artifact such as a north star, strategy formula, insight analysis, or roadmap recipe. Lives in the READY/FIRE/AIM phased structure.",
-      "extraction_guidelines": "Extract when a document references a specific EPF file or artifact type (north_star, strategy_formula, insight_analyses, roadmap_recipe, value_model, etc.). Capture the artifact type, phase, and purpose.",
+      "name": "Artifact",
       "properties": {
-        "name": { "type": "string", "description": "Artifact name or filename (e.g. 00_north_star.yaml)" },
-        "description": { "type": "string", "description": "What this artifact defines or contains" },
-        "artifact_type": { "type": "string", "description": "EPF artifact type: north_star, strategy_formula, insight_analyses, roadmap_recipe, feature_definition, value_model, assessment_report, etc." },
-        "phase": { "type": "string", "description": "EPF phase: READY, FIRE, or AIM" },
-        "file_path": { "type": "string", "description": "Relative path within the EPF instance" }
+        "artifact_type": {
+          "description": "EPF type: north_star, strategy_formula, etc.",
+          "type": "string"
+        },
+        "description": {
+          "description": "What this artifact defines or contains",
+          "type": "string"
+        },
+        "file_path": {
+          "description": "Relative path within the EPF instance",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier based on artifact type",
+          "type": "string"
+        },
+        "name": {
+          "description": "Artifact filename",
+          "type": "string"
+        },
+        "phase": {
+          "description": "EPF phase: READY, FIRE, or AIM",
+          "type": "string"
+        }
       }
     },
     {
-      "name": "ValueModelComponent",
-      "label": "Value Model Component",
-      "description": "A component in the EPF value model hierarchy. Value models have 3 levels: L1 (track/layer), L2 (component), L3 (sub-component). Paths follow the format Track.L1.L2 or Track.L1.L2.L3.",
-      "extraction_guidelines": "Extract when a document references value model paths like Product.Core.GraphEngine or Strategy.Growth.MarketExpansion. Capture the full dotted path, the level, and the track.",
+      "description": "A single core belief from the North Star. Tier 1 — highest inertia, requires strong evidence to change.",
+      "label": "Belief",
+      "name": "Belief",
       "properties": {
-        "name": { "type": "string", "description": "Component name (e.g. GraphEngine, KnowledgeExploration)" },
-        "description": { "type": "string", "description": "What value this component delivers" },
-        "value_path": { "type": "string", "description": "Full dotted path (e.g. Product.Core.GraphEngine)" },
-        "track": { "type": "string", "description": "Track: Product, Strategy, OrgOps, or Commercial" },
-        "level": { "type": "string", "description": "Hierarchy level: L1, L2, or L3" },
-        "maturity": { "type": "string", "description": "Maturity level: hypothetical, emerging, proven, or scaled" }
+        "category": {
+          "description": "Belief category",
+          "type": "string"
+        },
+        "evidence": {
+          "description": "Evidence supporting this belief",
+          "type": "string"
+        },
+        "implication": {
+          "description": "What this belief implies",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "name": {
+          "description": "Short label for the belief",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        },
+        "statement": {
+          "description": "The belief statement",
+          "type": "string"
+        }
       }
     },
     {
-      "name": "Persona",
+      "description": "A market, technology, or user behavior trend from insight analyses. Tier 2.",
+      "label": "Trend",
+      "name": "Trend",
+      "properties": {
+        "description": {
+          "description": "What this trend is",
+          "type": "string"
+        },
+        "impact": {
+          "description": "Expected impact",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "name": {
+          "description": "Trend name",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        },
+        "timeframe": {
+          "description": "Timeframe: near_term, medium_term, long_term",
+          "type": "string"
+        },
+        "trend_type": {
+          "description": "Type: technology, market, user_behavior, regulatory",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "description": "A specific persona pain point from insight analyses or feature definitions. Tier 2.",
+      "label": "Pain Point",
+      "name": "PainPoint",
+      "properties": {
+        "description": {
+          "description": "What the pain point is",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "name": {
+          "description": "Short label",
+          "type": "string"
+        },
+        "persona_ref": {
+          "description": "Reference to persona",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "severity": {
+          "description": "Severity: critical, high, medium, low",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "description": "A target user persona defined in the EPF strategy. Tier 2.",
       "label": "Persona",
-      "description": "A target user persona defined in the EPF strategy. Personas represent the people the product is built for, with goals, pain points, and usage context.",
-      "extraction_guidelines": "Extract when a document describes a target user, their role, goals, pain points, or usage patterns. Look for persona IDs (e.g. persona-001) or named user archetypes.",
+      "name": "Persona",
       "properties": {
-        "name": { "type": "string", "description": "Persona name or archetype (e.g. Solo Developer, Product Manager)" },
-        "description": { "type": "string", "description": "Who this persona is and what they care about" },
-        "persona_id": { "type": "string", "description": "EPF persona identifier (e.g. persona-001)" },
-        "role": { "type": "string", "description": "Professional role or title" },
-        "goals": { "type": "string", "description": "Primary goals and motivations" },
-        "pain_points": { "type": "string", "description": "Key frustrations or challenges" }
+        "description": {
+          "description": "Who this persona is",
+          "type": "string"
+        },
+        "goals": {
+          "description": "Primary goals",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "name": {
+          "description": "Persona name",
+          "type": "string"
+        },
+        "persona_id": {
+          "description": "EPF persona identifier",
+          "type": "string"
+        },
+        "role": {
+          "description": "Professional role",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        }
       }
     },
     {
-      "name": "Feature",
-      "label": "Feature",
-      "description": "A product feature defined as an EPF feature definition. Features have capabilities, maturity levels, and contribute to value model components.",
-      "extraction_guidelines": "Extract when a document references a feature definition (fd-xxx), a named product capability, or describes functionality being built. Capture the feature ID, status, and what value model paths it contributes to.",
+      "description": "A competitor from insight analyses competitive landscape. Tier 2.",
+      "label": "Competitor",
+      "name": "Competitor",
       "properties": {
-        "name": { "type": "string", "description": "Feature name (e.g. Knowledge Exploration, CLI Local Development)" },
-        "description": { "type": "string", "description": "What this feature does and why it matters" },
-        "feature_id": { "type": "string", "description": "EPF feature ID (e.g. fd-001, fd-012)" },
-        "status": { "type": "string", "description": "Feature status: draft, active, delivered, deprecated" },
-        "contributes_to": { "type": "string", "description": "Comma-separated value model paths this feature contributes to" }
+        "competitor_type": {
+          "description": "Type: direct, strategy_tool, indirect, substitute",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "name": {
+          "description": "Competitor name",
+          "type": "string"
+        },
+        "positioning": {
+          "description": "Their market positioning",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        },
+        "strengths": {
+          "description": "Key strengths (semicolon-separated)",
+          "type": "string"
+        },
+        "threat_level": {
+          "description": "Threat level for indirect/substitutes",
+          "type": "string"
+        },
+        "weaknesses": {
+          "description": "Key weaknesses (semicolon-separated)",
+          "type": "string"
+        }
       }
     },
     {
-      "name": "OKR",
+      "description": "A market segment from insight analyses market structure. Tier 2.",
+      "label": "Market Segment",
+      "name": "MarketSegment",
+      "properties": {
+        "characteristics": {
+          "description": "Key characteristics (semicolon-separated)",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "name": {
+          "description": "Segment name",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "size": {
+          "description": "Segment size",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        },
+        "unmet_needs": {
+          "description": "Unmet needs (semicolon-separated)",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "description": "A market gap identified in insight analyses. Tier 2.",
+      "label": "White Space",
+      "name": "WhiteSpace",
+      "properties": {
+        "description": {
+          "description": "Full gap text",
+          "type": "string"
+        },
+        "evidence": {
+          "description": "Supporting evidence (semicolon-separated)",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "name": {
+          "description": "Gap description",
+          "type": "string"
+        },
+        "opportunity_potential": {
+          "description": "Opportunity potential assessment",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "description": "An organizational strength from SWOT analysis. Tier 2.",
+      "label": "Strength",
+      "name": "Strength",
+      "properties": {
+        "description": {
+          "description": "Full text",
+          "type": "string"
+        },
+        "evidence": {
+          "description": "Supporting evidence (semicolon-separated)",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "name": {
+          "description": "Strength summary",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        },
+        "strategic_value": {
+          "description": "Strategic value assessment",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "description": "An organizational weakness from SWOT analysis. Tier 2.",
+      "label": "Weakness",
+      "name": "Weakness",
+      "properties": {
+        "description": {
+          "description": "Full text",
+          "type": "string"
+        },
+        "impact": {
+          "description": "Impact of this weakness",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "mitigation": {
+          "description": "Mitigation approach",
+          "type": "string"
+        },
+        "name": {
+          "description": "Weakness summary",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "description": "An external threat from SWOT analysis. Tier 2.",
+      "label": "Threat",
+      "name": "Threat",
+      "properties": {
+        "description": {
+          "description": "Full text",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "likelihood": {
+          "description": "Likelihood: high, medium, low",
+          "type": "string"
+        },
+        "mitigation": {
+          "description": "Mitigation approach",
+          "type": "string"
+        },
+        "name": {
+          "description": "Threat summary",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "description": "A problem-solution hypothesis from insight analyses. Tier 3.",
+      "label": "Hypothesis",
+      "name": "Hypothesis",
+      "properties": {
+        "hypothesis": {
+          "description": "The hypothesis statement",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "name": {
+          "description": "Hypothesis summary",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        },
+        "test_approach": {
+          "description": "How to test this hypothesis",
+          "type": "string"
+        },
+        "validation_evidence": {
+          "description": "Evidence supporting validation status",
+          "type": "string"
+        },
+        "validation_status": {
+          "description": "Status: pending, partially-validated, validated, invalidated",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "description": "A synthesized key insight from insight analyses. Tier 2.",
+      "label": "Key Insight",
+      "name": "KeyInsight",
+      "properties": {
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "insight": {
+          "description": "The insight text",
+          "type": "string"
+        },
+        "name": {
+          "description": "Insight summary",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        },
+        "strategic_implication": {
+          "description": "What this insight implies for strategy",
+          "type": "string"
+        },
+        "supporting_trends": {
+          "description": "Supporting trend references (semicolon-separated)",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "description": "A competitive positioning claim from the strategy formula. Tier 3.",
+      "label": "Positioning",
+      "name": "Positioning",
+      "properties": {
+        "claim": {
+          "description": "Positioning statement",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "moat_type": {
+          "description": "Competitive advantage type",
+          "type": "string"
+        },
+        "name": {
+          "description": "Short label",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        },
+        "vs_competitor": {
+          "description": "Competitor this positions against",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "description": "An Objective or Key Result from the EPF roadmap. Tier 4.",
       "label": "OKR",
-      "description": "An Objective and Key Result from the EPF roadmap. OKRs define measurable goals organized by track and cycle.",
-      "extraction_guidelines": "Extract when a document references objectives, key results, OKR IDs (e.g. kr-p-2025-q1-001), targets, or measurable outcomes tied to the roadmap.",
+      "name": "OKR",
       "properties": {
-        "name": { "type": "string", "description": "Objective or Key Result title" },
-        "description": { "type": "string", "description": "What this OKR aims to achieve" },
-        "okr_id": { "type": "string", "description": "Key Result ID (e.g. kr-p-2025-q1-001)" },
-        "track": { "type": "string", "description": "Track: product, strategy, org_ops, or commercial" },
-        "cycle": { "type": "string", "description": "Cycle reference (e.g. C1, 2025-Q1)" },
-        "status": { "type": "string", "description": "Status: not_started, in_progress, met, exceeded, missed" },
-        "target_value": { "type": "string", "description": "Target metric or outcome" }
+        "cycle": {
+          "description": "Cycle reference",
+          "type": "string"
+        },
+        "description": {
+          "description": "What this OKR aims to achieve",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "name": {
+          "description": "OKR title",
+          "type": "string"
+        },
+        "okr_id": {
+          "description": "Key Result ID",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        },
+        "status": {
+          "description": "Status",
+          "type": "string"
+        },
+        "target_value": {
+          "description": "Target metric or outcome",
+          "type": "string"
+        },
+        "track": {
+          "description": "Track: product, strategy, org_ops, commercial",
+          "type": "string"
+        }
       }
     },
     {
-      "name": "Agent",
+      "description": "A riskiest assumption from the roadmap. Tier 4.",
+      "label": "Assumption",
+      "name": "Assumption",
+      "properties": {
+        "assumption_id": {
+          "description": "EPF assumption ID",
+          "type": "string"
+        },
+        "category": {
+          "description": "Category: feasibility, desirability, viability",
+          "type": "string"
+        },
+        "criticality": {
+          "description": "Criticality",
+          "type": "string"
+        },
+        "hypothesis": {
+          "description": "Assumption statement",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "name": {
+          "description": "Short label",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        },
+        "status": {
+          "description": "Status: pending, validated, invalidated",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "description": "A component in the EPF value model hierarchy (L1/L2/L3). Tier 5.",
+      "label": "Value Model Component",
+      "name": "ValueModelComponent",
+      "properties": {
+        "description": {
+          "description": "What value this delivers",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "level": {
+          "description": "Hierarchy level: L1, L2, L3",
+          "type": "string"
+        },
+        "maturity": {
+          "description": "Maturity stage",
+          "type": "string"
+        },
+        "name": {
+          "description": "Component name",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        },
+        "track": {
+          "description": "Track",
+          "type": "string"
+        },
+        "value_path": {
+          "description": "Full dotted path",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "description": "A product feature from an EPF feature definition. Tier 6.",
+      "label": "Feature",
+      "name": "Feature",
+      "properties": {
+        "description": {
+          "description": "What this feature does",
+          "type": "string"
+        },
+        "feature_id": {
+          "description": "EPF feature ID",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "jtbd": {
+          "description": "Jobs-to-be-done statement",
+          "type": "string"
+        },
+        "name": {
+          "description": "Feature name",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        },
+        "status": {
+          "description": "Status",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "description": "A user scenario from a feature definition. Tier 6.",
+      "label": "Scenario",
+      "name": "Scenario",
+      "properties": {
+        "description": {
+          "description": "The scenario narrative",
+          "type": "string"
+        },
+        "feature_ref": {
+          "description": "Reference to parent feature",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "name": {
+          "description": "Scenario name",
+          "type": "string"
+        },
+        "persona_ref": {
+          "description": "Reference to persona",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "description": "A single capability within a feature definition. Tier 7 — lowest inertia.",
+      "label": "Capability",
+      "name": "Capability",
+      "properties": {
+        "capability_id": {
+          "description": "EPF capability ID",
+          "type": "string"
+        },
+        "description": {
+          "description": "What this capability does",
+          "type": "string"
+        },
+        "evidence": {
+          "description": "Evidence supporting maturity",
+          "type": "string"
+        },
+        "feature_ref": {
+          "description": "Reference to parent feature",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "maturity": {
+          "description": "Maturity stage",
+          "type": "string"
+        },
+        "name": {
+          "description": "Capability name",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "description": "A technical or strategic constraint from feature definitions or roadmap. Tier 3.",
+      "label": "Constraint",
+      "name": "Constraint",
+      "properties": {
+        "constraint_type": {
+          "description": "Type: technical, strategic, resource, regulatory",
+          "type": "string"
+        },
+        "description": {
+          "description": "Full constraint text",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "name": {
+          "description": "Constraint description",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "description": "A dependency between key results across different tracks. Tier 4.",
+      "label": "Cross-Track Dependency",
+      "name": "CrossTrackDependency",
+      "properties": {
+        "dependency_type": {
+          "description": "Type: requires, enables, blocks",
+          "type": "string"
+        },
+        "description": {
+          "description": "Why this dependency exists",
+          "type": "string"
+        },
+        "from_kr": {
+          "description": "Source KR ID",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "name": {
+          "description": "Dependency description",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        },
+        "to_kr": {
+          "description": "Target KR ID",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "description": "Unstructured evidence from AIM/evidence/ — competitive intelligence, partner context, technical data, market analysis. Not authoritative — supplements formal EPF artifacts for AIM processes.",
+      "label": "Reference Document",
+      "name": "ReferenceDocument",
+      "properties": {
+        "category": {
+          "description": "Evidence category: competitive, partner, technical, market, narrative, product-specs, internal",
+          "type": "string"
+        },
+        "content_hash": {
+          "description": "SHA-256 hash for change detection during sync",
+          "type": "string"
+        },
+        "description": {
+          "description": "Brief summary or first line of the document",
+          "type": "string"
+        },
+        "file_format": {
+          "description": "File format: md, pdf, docx, html",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "name": {
+          "description": "Document filename",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "description": "An AI agent persona that orchestrates EPF workflows.",
       "label": "Agent",
-      "description": "An AI agent persona that orchestrates EPF workflows. Agents have identity, personality, required skills, and routing rules.",
-      "extraction_guidelines": "Extract when a document describes an AI agent, its role, personality, required skills, or the tasks it handles. Look for agent names like pathfinder, product_architect, onboarding-guide.",
+      "name": "Agent",
       "properties": {
-        "name": { "type": "string", "description": "Agent name (e.g. pathfinder, product_architect)" },
-        "description": { "type": "string", "description": "What this agent does and when to use it" },
-        "agent_type": { "type": "string", "description": "Agent type: guide, strategist, specialist, architect, reviewer" },
-        "phase": { "type": "string", "description": "EPF phase this agent operates in: READY, FIRE, AIM, Onboarding" }
+        "agent_type": {
+          "description": "Type: guide, strategist, specialist, architect, reviewer",
+          "type": "string"
+        },
+        "description": {
+          "description": "What this agent does",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "6",
+          "type": "string"
+        },
+        "name": {
+          "description": "Agent name",
+          "type": "string"
+        },
+        "phase": {
+          "description": "EPF phase",
+          "type": "string"
+        }
       }
     },
     {
-      "name": "Skill",
+      "description": "A bundled capability with prompts, prerequisites, and validation.",
       "label": "Skill",
-      "description": "A bundled capability with prompts, prerequisites, and validation. Skills unify the previous wizard and generator concepts. Types include creation, generation, review, enrichment, and analysis.",
-      "extraction_guidelines": "Extract when a document references a skill, wizard, or generator by name. Look for skill types (creation, generation, review) and their required artifacts or prerequisites.",
+      "name": "Skill",
       "properties": {
-        "name": { "type": "string", "description": "Skill name (e.g. context-sheet, feature-definition-creation)" },
-        "description": { "type": "string", "description": "What this skill produces or evaluates" },
-        "skill_type": { "type": "string", "description": "Skill type: creation, generation, review, enrichment, analysis" },
-        "category": { "type": "string", "description": "Category: compliance, marketing, investor, internal, development, custom" }
+        "category": {
+          "description": "Category",
+          "type": "string"
+        },
+        "description": {
+          "description": "What this skill produces",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "7",
+          "type": "string"
+        },
+        "name": {
+          "description": "Skill name",
+          "type": "string"
+        },
+        "skill_type": {
+          "description": "Type: creation, generation, review, enrichment, analysis",
+          "type": "string"
+        }
       }
     }
   ],
   "relationshipTypes": [
     {
-      "name": "contributes_to",
-      "label": "Contributes To",
+      "description": "An artifact contains a section-level object, or a feature contains capabilities/scenarios",
+      "label": "Contains",
+      "name": "contains",
+      "properties": {
+        "edge_source": {
+          "description": "Source: structural, semantic, or causal",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "Artifact",
+        "Feature",
+        "OKR"
+      ],
+      "targetTypes": [
+        "Belief",
+        "Trend",
+        "PainPoint",
+        "Positioning",
+        "Assumption",
+        "Capability",
+        "Scenario",
+        "Persona",
+        "OKR",
+        "Constraint",
+        "CrossTrackDependency"
+      ]
+    },
+    {
       "description": "A feature contributes value to a value model component",
-      "fromTypes": ["Feature"],
-      "toTypes": ["ValueModelComponent"]
+      "label": "Contributes To",
+      "name": "contributes_to",
+      "properties": {
+        "edge_source": {
+          "description": "Source: structural, semantic, or causal",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "Feature"
+      ],
+      "targetTypes": [
+        "ValueModelComponent"
+      ]
     },
     {
-      "name": "targets",
-      "label": "Targets",
       "description": "An OKR targets advancement of a value model component",
-      "fromTypes": ["OKR"],
-      "toTypes": ["ValueModelComponent"]
+      "label": "Targets",
+      "name": "targets",
+      "properties": {
+        "edge_source": {
+          "description": "Source: structural, semantic, or causal",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "OKR"
+      ],
+      "targetTypes": [
+        "ValueModelComponent"
+      ]
     },
     {
-      "name": "serves",
+      "description": "A feature serves a specific persona",
       "label": "Serves",
-      "description": "A feature is designed to serve a specific persona",
-      "fromTypes": ["Feature"],
-      "toTypes": ["Persona"]
+      "name": "serves",
+      "properties": {
+        "edge_source": {
+          "description": "Source: structural, semantic, or causal",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "Feature"
+      ],
+      "targetTypes": [
+        "Persona"
+      ]
     },
     {
-      "name": "uses_skill",
-      "label": "Uses Skill",
-      "description": "An agent requires or optionally uses a skill",
-      "fromTypes": ["Agent"],
-      "toTypes": ["Skill"]
-    },
-    {
-      "name": "depends_on",
-      "label": "Depends On",
       "description": "A feature depends on another feature",
-      "fromTypes": ["Feature"],
-      "toTypes": ["Feature"]
+      "label": "Depends On",
+      "name": "depends_on",
+      "properties": {
+        "edge_source": {
+          "description": "Source: structural, semantic, or causal",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "Feature"
+      ],
+      "targetTypes": [
+        "Feature"
+      ]
     },
     {
-      "name": "references",
-      "label": "References",
-      "description": "An artifact references or defines a feature, persona, or OKR",
-      "fromTypes": ["Artifact"],
-      "toTypes": ["Feature", "Persona", "OKR", "ValueModelComponent"]
+      "description": "A feature or OKR tests a riskiest assumption",
+      "label": "Tests Assumption",
+      "name": "tests_assumption",
+      "properties": {
+        "edge_source": {
+          "description": "Source: structural, semantic, or causal",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "Feature",
+        "OKR"
+      ],
+      "targetTypes": [
+        "Assumption"
+      ]
     },
     {
-      "name": "belongs_to_phase",
-      "label": "Belongs To Phase",
-      "description": "An artifact or entity belongs to an EPF phase (READY, FIRE, or AIM)",
-      "fromTypes": ["Artifact", "Feature", "Agent", "Skill"],
-      "toTypes": ["Artifact"]
+      "description": "An agent requires or uses a skill",
+      "label": "Uses Skill",
+      "name": "uses_skill",
+      "properties": {
+        "edge_source": {
+          "description": "Source: structural, semantic, or causal",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "Agent"
+      ],
+      "targetTypes": [
+        "Skill"
+      ]
     },
     {
-      "name": "delivers",
-      "label": "Delivers",
       "description": "An OKR delivers or advances a feature",
-      "fromTypes": ["OKR"],
-      "toTypes": ["Feature"]
+      "label": "Delivers",
+      "name": "delivers",
+      "properties": {
+        "edge_source": {
+          "description": "Source: structural, semantic, or causal",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "OKR"
+      ],
+      "targetTypes": [
+        "Feature"
+      ]
+    },
+    {
+      "description": "Two features share contributes_to paths to the same value model component",
+      "label": "Shared Technology",
+      "name": "shared_technology",
+      "properties": {
+        "edge_source": {
+          "description": "Source: structural, semantic, or causal",
+          "type": "string"
+        },
+        "shared_component": {
+          "description": "Value model path they share",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "Feature"
+      ],
+      "targetTypes": [
+        "Feature"
+      ]
+    },
+    {
+      "description": "A cross-track dependency converges at a KR",
+      "label": "Converges At",
+      "name": "converges_at",
+      "properties": {
+        "edge_source": {
+          "description": "Source: structural, semantic, or causal",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "CrossTrackDependency"
+      ],
+      "targetTypes": [
+        "OKR"
+      ]
+    },
+    {
+      "description": "One node semantically supports or reinforces another",
+      "label": "Supports",
+      "name": "supports",
+      "properties": {
+        "confidence": {
+          "description": "Confidence score (0.0-1.0) from embedding similarity",
+          "type": "string"
+        },
+        "edge_source": {
+          "description": "Source: semantic",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "Artifact",
+        "Belief",
+        "Trend",
+        "PainPoint",
+        "Persona",
+        "Competitor",
+        "MarketSegment",
+        "WhiteSpace",
+        "Strength",
+        "Weakness",
+        "Threat",
+        "Hypothesis",
+        "KeyInsight",
+        "Positioning",
+        "OKR",
+        "Assumption",
+        "ValueModelComponent",
+        "Feature",
+        "Scenario",
+        "Capability",
+        "Constraint",
+        "CrossTrackDependency",
+        "ReferenceDocument",
+        "Agent",
+        "Skill"
+      ],
+      "targetTypes": [
+        "Artifact",
+        "Belief",
+        "Trend",
+        "PainPoint",
+        "Persona",
+        "Competitor",
+        "MarketSegment",
+        "WhiteSpace",
+        "Strength",
+        "Weakness",
+        "Threat",
+        "Hypothesis",
+        "KeyInsight",
+        "Positioning",
+        "OKR",
+        "Assumption",
+        "ValueModelComponent",
+        "Feature",
+        "Scenario",
+        "Capability",
+        "Constraint",
+        "CrossTrackDependency",
+        "ReferenceDocument",
+        "Agent",
+        "Skill"
+      ]
+    },
+    {
+      "description": "One node semantically contradicts another",
+      "label": "Contradicts",
+      "name": "contradicts",
+      "properties": {
+        "confidence": {
+          "description": "Confidence score (0.0-1.0) from embedding similarity",
+          "type": "string"
+        },
+        "edge_source": {
+          "description": "Source: semantic",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "Artifact",
+        "Belief",
+        "Trend",
+        "PainPoint",
+        "Persona",
+        "Competitor",
+        "MarketSegment",
+        "WhiteSpace",
+        "Strength",
+        "Weakness",
+        "Threat",
+        "Hypothesis",
+        "KeyInsight",
+        "Positioning",
+        "OKR",
+        "Assumption",
+        "ValueModelComponent",
+        "Feature",
+        "Scenario",
+        "Capability",
+        "Constraint",
+        "CrossTrackDependency",
+        "ReferenceDocument",
+        "Agent",
+        "Skill"
+      ],
+      "targetTypes": [
+        "Artifact",
+        "Belief",
+        "Trend",
+        "PainPoint",
+        "Persona",
+        "Competitor",
+        "MarketSegment",
+        "WhiteSpace",
+        "Strength",
+        "Weakness",
+        "Threat",
+        "Hypothesis",
+        "KeyInsight",
+        "Positioning",
+        "OKR",
+        "Assumption",
+        "ValueModelComponent",
+        "Feature",
+        "Scenario",
+        "Capability",
+        "Constraint",
+        "CrossTrackDependency",
+        "ReferenceDocument",
+        "Agent",
+        "Skill"
+      ]
+    },
+    {
+      "description": "One node provides more detail for another",
+      "label": "Elaborates",
+      "name": "elaborates",
+      "properties": {
+        "confidence": {
+          "description": "Confidence score (0.0-1.0) from embedding similarity",
+          "type": "string"
+        },
+        "edge_source": {
+          "description": "Source: semantic",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "Artifact",
+        "Belief",
+        "Trend",
+        "PainPoint",
+        "Persona",
+        "Competitor",
+        "MarketSegment",
+        "WhiteSpace",
+        "Strength",
+        "Weakness",
+        "Threat",
+        "Hypothesis",
+        "KeyInsight",
+        "Positioning",
+        "OKR",
+        "Assumption",
+        "ValueModelComponent",
+        "Feature",
+        "Scenario",
+        "Capability",
+        "Constraint",
+        "CrossTrackDependency",
+        "ReferenceDocument",
+        "Agent",
+        "Skill"
+      ],
+      "targetTypes": [
+        "Artifact",
+        "Belief",
+        "Trend",
+        "PainPoint",
+        "Persona",
+        "Competitor",
+        "MarketSegment",
+        "WhiteSpace",
+        "Strength",
+        "Weakness",
+        "Threat",
+        "Hypothesis",
+        "KeyInsight",
+        "Positioning",
+        "OKR",
+        "Assumption",
+        "ValueModelComponent",
+        "Feature",
+        "Scenario",
+        "Capability",
+        "Constraint",
+        "CrossTrackDependency",
+        "ReferenceDocument",
+        "Agent",
+        "Skill"
+      ]
+    },
+    {
+      "description": "Two nodes express similar concepts in different contexts",
+      "label": "Parallels",
+      "name": "parallels",
+      "properties": {
+        "confidence": {
+          "description": "Confidence score (0.0-1.0) from embedding similarity",
+          "type": "string"
+        },
+        "edge_source": {
+          "description": "Source: semantic",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "Artifact",
+        "Belief",
+        "Trend",
+        "PainPoint",
+        "Persona",
+        "Competitor",
+        "MarketSegment",
+        "WhiteSpace",
+        "Strength",
+        "Weakness",
+        "Threat",
+        "Hypothesis",
+        "KeyInsight",
+        "Positioning",
+        "OKR",
+        "Assumption",
+        "ValueModelComponent",
+        "Feature",
+        "Scenario",
+        "Capability",
+        "Constraint",
+        "CrossTrackDependency",
+        "ReferenceDocument",
+        "Agent",
+        "Skill"
+      ],
+      "targetTypes": [
+        "Artifact",
+        "Belief",
+        "Trend",
+        "PainPoint",
+        "Persona",
+        "Competitor",
+        "MarketSegment",
+        "WhiteSpace",
+        "Strength",
+        "Weakness",
+        "Threat",
+        "Hypothesis",
+        "KeyInsight",
+        "Positioning",
+        "OKR",
+        "Assumption",
+        "ValueModelComponent",
+        "Feature",
+        "Scenario",
+        "Capability",
+        "Constraint",
+        "CrossTrackDependency",
+        "ReferenceDocument",
+        "Agent",
+        "Skill"
+      ]
+    },
+    {
+      "description": "A higher-tier node informs a lower-tier node (Belief → Positioning)",
+      "label": "Informs",
+      "name": "informs",
+      "properties": {
+        "edge_source": {
+          "description": "Source: causal",
+          "type": "string"
+        },
+        "strength": {
+          "description": "Causal strength (0.0-1.0)",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "Artifact",
+        "Belief",
+        "Trend",
+        "PainPoint",
+        "Persona",
+        "Competitor",
+        "MarketSegment",
+        "WhiteSpace",
+        "Strength",
+        "Weakness",
+        "Threat",
+        "Hypothesis",
+        "KeyInsight",
+        "Positioning",
+        "OKR",
+        "Assumption",
+        "ValueModelComponent",
+        "Feature",
+        "Scenario",
+        "Capability",
+        "Constraint",
+        "CrossTrackDependency",
+        "ReferenceDocument",
+        "Agent",
+        "Skill"
+      ],
+      "targetTypes": [
+        "Artifact",
+        "Belief",
+        "Trend",
+        "PainPoint",
+        "Persona",
+        "Competitor",
+        "MarketSegment",
+        "WhiteSpace",
+        "Strength",
+        "Weakness",
+        "Threat",
+        "Hypothesis",
+        "KeyInsight",
+        "Positioning",
+        "OKR",
+        "Assumption",
+        "ValueModelComponent",
+        "Feature",
+        "Scenario",
+        "Capability",
+        "Constraint",
+        "CrossTrackDependency",
+        "ReferenceDocument",
+        "Agent",
+        "Skill"
+      ]
+    },
+    {
+      "description": "Proven capability validates an assumption",
+      "label": "Validates",
+      "name": "validates",
+      "properties": {
+        "edge_source": {
+          "description": "Source: causal",
+          "type": "string"
+        },
+        "strength": {
+          "description": "Causal strength (0.0-1.0)",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "Artifact",
+        "Belief",
+        "Trend",
+        "PainPoint",
+        "Persona",
+        "Competitor",
+        "MarketSegment",
+        "WhiteSpace",
+        "Strength",
+        "Weakness",
+        "Threat",
+        "Hypothesis",
+        "KeyInsight",
+        "Positioning",
+        "OKR",
+        "Assumption",
+        "ValueModelComponent",
+        "Feature",
+        "Scenario",
+        "Capability",
+        "Constraint",
+        "CrossTrackDependency",
+        "ReferenceDocument",
+        "Agent",
+        "Skill"
+      ],
+      "targetTypes": [
+        "Belief",
+        "Assumption"
+      ]
+    },
+    {
+      "description": "AIM evidence invalidates a belief or assumption",
+      "label": "Invalidates",
+      "name": "invalidates",
+      "properties": {
+        "edge_source": {
+          "description": "Source: causal",
+          "type": "string"
+        },
+        "strength": {
+          "description": "Causal strength (0.0-1.0)",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "Artifact",
+        "Belief",
+        "Trend",
+        "PainPoint",
+        "Persona",
+        "Competitor",
+        "MarketSegment",
+        "WhiteSpace",
+        "Strength",
+        "Weakness",
+        "Threat",
+        "Hypothesis",
+        "KeyInsight",
+        "Positioning",
+        "OKR",
+        "Assumption",
+        "ValueModelComponent",
+        "Feature",
+        "Scenario",
+        "Capability",
+        "Constraint",
+        "CrossTrackDependency",
+        "ReferenceDocument",
+        "Agent",
+        "Skill"
+      ],
+      "targetTypes": [
+        "Belief",
+        "Assumption"
+      ]
+    },
+    {
+      "description": "An assumption constrains a feature (reverse of tests_assumption)",
+      "label": "Constrains",
+      "name": "constrains",
+      "properties": {
+        "edge_source": {
+          "description": "Source: causal",
+          "type": "string"
+        },
+        "strength": {
+          "description": "Causal strength (0.0-1.0)",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "Artifact",
+        "Belief",
+        "Trend",
+        "PainPoint",
+        "Persona",
+        "Competitor",
+        "MarketSegment",
+        "WhiteSpace",
+        "Strength",
+        "Weakness",
+        "Threat",
+        "Hypothesis",
+        "KeyInsight",
+        "Positioning",
+        "OKR",
+        "Assumption",
+        "ValueModelComponent",
+        "Feature",
+        "Scenario",
+        "Capability",
+        "Constraint",
+        "CrossTrackDependency",
+        "ReferenceDocument",
+        "Agent",
+        "Skill"
+      ],
+      "targetTypes": [
+        "Artifact",
+        "Belief",
+        "Trend",
+        "PainPoint",
+        "Persona",
+        "Competitor",
+        "MarketSegment",
+        "WhiteSpace",
+        "Strength",
+        "Weakness",
+        "Threat",
+        "Hypothesis",
+        "KeyInsight",
+        "Positioning",
+        "OKR",
+        "Assumption",
+        "ValueModelComponent",
+        "Feature",
+        "Scenario",
+        "Capability",
+        "Constraint",
+        "CrossTrackDependency",
+        "ReferenceDocument",
+        "Agent",
+        "Skill"
+      ]
     }
   ],
   "ui_configs": {
-    "Artifact": { "icon": "FileText", "color": "#6366F1", "category": "Framework" },
-    "ValueModelComponent": { "icon": "Layers", "color": "#10B981", "category": "Strategy" },
-    "Persona": { "icon": "User", "color": "#F59E0B", "category": "Strategy" },
-    "Feature": { "icon": "Box", "color": "#3B82F6", "category": "Execution" },
-    "OKR": { "icon": "Target", "color": "#EF4444", "category": "Execution" },
-    "Agent": { "icon": "Zap", "color": "#8B5CF6", "category": "AI" },
-    "Skill": { "icon": "Shield", "color": "#EC4899", "category": "AI" }
-  }
+    "Agent": {
+      "category": "AI",
+      "color": "#8B5CF6",
+      "icon": "Zap"
+    },
+    "Artifact": {
+      "category": "Framework",
+      "color": "#6366F1",
+      "icon": "FileText"
+    },
+    "Assumption": {
+      "category": "Roadmap",
+      "color": "#FBBF24",
+      "icon": "HelpCircle"
+    },
+    "Belief": {
+      "category": "North Star",
+      "color": "#7C3AED",
+      "icon": "Compass"
+    },
+    "Capability": {
+      "category": "Execution",
+      "color": "#059669",
+      "icon": "CheckCircle"
+    },
+    "Competitor": {
+      "category": "Insights",
+      "color": "#EF4444",
+      "icon": "Users"
+    },
+    "Constraint": {
+      "category": "Strategy",
+      "color": "#9CA3AF",
+      "icon": "Lock"
+    },
+    "CrossTrackDependency": {
+      "category": "Roadmap",
+      "color": "#D97706",
+      "icon": "GitBranch"
+    },
+    "Feature": {
+      "category": "Execution",
+      "color": "#3B82F6",
+      "icon": "Box"
+    },
+    "Hypothesis": {
+      "category": "Insights",
+      "color": "#A855F7",
+      "icon": "Beaker"
+    },
+    "KeyInsight": {
+      "category": "Insights",
+      "color": "#FBBF24",
+      "icon": "Lightbulb"
+    },
+    "MarketSegment": {
+      "category": "Insights",
+      "color": "#8B5CF6",
+      "icon": "PieChart"
+    },
+    "OKR": {
+      "category": "Roadmap",
+      "color": "#EF4444",
+      "icon": "Target"
+    },
+    "PainPoint": {
+      "category": "Insights",
+      "color": "#F97316",
+      "icon": "AlertTriangle"
+    },
+    "Persona": {
+      "category": "Insights",
+      "color": "#F59E0B",
+      "icon": "User"
+    },
+    "Positioning": {
+      "category": "Strategy",
+      "color": "#DC2626",
+      "icon": "Flag"
+    },
+    "ReferenceDocument": {
+      "category": "Evidence",
+      "color": "#64748B",
+      "icon": "FileText"
+    },
+    "Scenario": {
+      "category": "Execution",
+      "color": "#2563EB",
+      "icon": "Play"
+    },
+    "Skill": {
+      "category": "AI",
+      "color": "#EC4899",
+      "icon": "Shield"
+    },
+    "Strength": {
+      "category": "Insights",
+      "color": "#10B981",
+      "icon": "ThumbsUp"
+    },
+    "Threat": {
+      "category": "Insights",
+      "color": "#DC2626",
+      "icon": "ShieldOff"
+    },
+    "Trend": {
+      "category": "Insights",
+      "color": "#0EA5E9",
+      "icon": "TrendingUp"
+    },
+    "ValueModelComponent": {
+      "category": "Value Model",
+      "color": "#10B981",
+      "icon": "Layers"
+    },
+    "Weakness": {
+      "category": "Insights",
+      "color": "#F97316",
+      "icon": "AlertTriangle"
+    },
+    "WhiteSpace": {
+      "category": "Insights",
+      "color": "#06B6D4",
+      "icon": "Compass"
+    }
+  },
+  "version": "2.1.0"
 }

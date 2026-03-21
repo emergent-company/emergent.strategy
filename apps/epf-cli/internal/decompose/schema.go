@@ -415,26 +415,31 @@ func GenerateTemplatePack() map[string]any {
 		})
 	}
 
+	// Build wildcard type list for relationship types with nil from/to
+	allTypeNames := ObjectTypeNames()
+
 	var relationshipTypeSchemas []map[string]any
 	for _, rt := range relTypes {
 		props := map[string]any{}
 		for k, v := range rt.Properties {
 			props[k] = map[string]any{"type": v.Type, "description": v.Description}
 		}
+		// Memory API uses sourceTypes/targetTypes field names
+		// Nil means "any type" → use wildcard list of all object types
 		from := rt.FromTypes
 		to := rt.ToTypes
 		if from == nil {
-			from = []string{}
+			from = allTypeNames
 		}
 		if to == nil {
-			to = []string{}
+			to = allTypeNames
 		}
 		relationshipTypeSchemas = append(relationshipTypeSchemas, map[string]any{
 			"name":        rt.Name,
 			"label":       rt.Label,
 			"description": rt.Description,
-			"fromTypes":   from,
-			"toTypes":     to,
+			"sourceTypes": from,
+			"targetTypes": to,
 			"properties":  props,
 		})
 	}
