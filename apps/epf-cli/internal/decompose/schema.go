@@ -432,6 +432,26 @@ func RelationshipTypes() []RelTypeDef {
 				"relationship": {Type: "string", Description: "Relationship type: requires, enables, follows, parallel, alternative"},
 			})},
 
+		// === Cross-artifact structural edges (Phase 3 — inferred from text matching and ID refs) ===
+		{Name: "competes_with", Label: "Competes With", EdgeSource: "structural",
+			Description: "A positioning claim references a specific competitor",
+			FromTypes:   []string{"Positioning"}, ToTypes: []string{"Competitor"}, Properties: weightEdgeProps},
+		{Name: "mitigates", Label: "Mitigates", EdgeSource: "structural",
+			Description: "A feature or capability mitigates a threat or strategic risk",
+			FromTypes:   []string{"Feature", "Capability"}, ToTypes: []string{"Threat", "StrategicRisk"}, Properties: weightEdgeProps},
+		{Name: "leverages", Label: "Leverages", EdgeSource: "structural",
+			Description: "A feature leverages an organizational strength",
+			FromTypes:   []string{"Feature"}, ToTypes: []string{"Strength"}, Properties: weightEdgeProps},
+		{Name: "targets_segment", Label: "Targets Segment", EdgeSource: "structural",
+			Description: "A feature targets a market segment",
+			FromTypes:   []string{"Feature"}, ToTypes: []string{"MarketSegment"}, Properties: weightEdgeProps},
+		{Name: "validates_hypothesis", Label: "Validates Hypothesis", EdgeSource: "structural",
+			Description: "A proven capability validates a problem-solution hypothesis",
+			FromTypes:   []string{"Capability"}, ToTypes: []string{"Hypothesis"}, Properties: weightEdgeProps},
+		{Name: "addresses_white_space", Label: "Addresses White Space", EdgeSource: "structural",
+			Description: "A feature addresses a market gap / white space",
+			FromTypes:   []string{"Feature"}, ToTypes: []string{"WhiteSpace"}, Properties: weightEdgeProps},
+
 		// === Semantic edges (created by semantic-edges, NOT decomposer) ===
 		{Name: "supports", Label: "Supports", EdgeSource: "semantic",
 			Description: "One node semantically supports or reinforces another",

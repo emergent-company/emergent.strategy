@@ -1532,6 +1532,134 @@
       ]
     },
     {
+      "description": "A positioning claim references a specific competitor",
+      "label": "Competes With",
+      "name": "competes_with",
+      "properties": {
+        "edge_source": {
+          "description": "Source: structural, semantic, or causal",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "Positioning"
+      ],
+      "targetTypes": [
+        "Competitor"
+      ]
+    },
+    {
+      "description": "A feature or capability mitigates a threat or strategic risk",
+      "label": "Mitigates",
+      "name": "mitigates",
+      "properties": {
+        "edge_source": {
+          "description": "Source: structural, semantic, or causal",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "Feature",
+        "Capability"
+      ],
+      "targetTypes": [
+        "Threat",
+        "StrategicRisk"
+      ]
+    },
+    {
+      "description": "A feature leverages an organizational strength",
+      "label": "Leverages",
+      "name": "leverages",
+      "properties": {
+        "edge_source": {
+          "description": "Source: structural, semantic, or causal",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "Feature"
+      ],
+      "targetTypes": [
+        "Strength"
+      ]
+    },
+    {
+      "description": "A feature targets a market segment",
+      "label": "Targets Segment",
+      "name": "targets_segment",
+      "properties": {
+        "edge_source": {
+          "description": "Source: structural, semantic, or causal",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "Feature"
+      ],
+      "targetTypes": [
+        "MarketSegment"
+      ]
+    },
+    {
+      "description": "A proven capability validates a problem-solution hypothesis",
+      "label": "Validates Hypothesis",
+      "name": "validates_hypothesis",
+      "properties": {
+        "edge_source": {
+          "description": "Source: structural, semantic, or causal",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "Capability"
+      ],
+      "targetTypes": [
+        "Hypothesis"
+      ]
+    },
+    {
+      "description": "A feature addresses a market gap / white space",
+      "label": "Addresses White Space",
+      "name": "addresses_white_space",
+      "properties": {
+        "edge_source": {
+          "description": "Source: structural, semantic, or causal",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "Feature"
+      ],
+      "targetTypes": [
+        "WhiteSpace"
+      ]
+    },
+    {
       "description": "One node semantically supports or reinforces another",
       "label": "Supports",
       "name": "supports",

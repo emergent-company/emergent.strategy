@@ -101,6 +101,15 @@ func (d *Decomposer) DecomposeInstance() (*Result, error) {
 	d.addValidatesEdges(result)
 	d.addSharedTechnologyEdges(result)
 
+	// Phase 3: Cross-artifact relationships (text matching and ID refs)
+	d.addCompetesWithEdges(result)
+	d.addValidatesHypothesisEdges(result)
+	d.addMitigatesEdges(result)
+	d.addLeveragesEdges(result)
+	d.addTargetsSegmentEdges(result)
+	d.addAddressesWhiteSpaceEdges(result)
+	d.addRelatedDefinitionEdges(result)
+
 	return result, nil
 }
 
