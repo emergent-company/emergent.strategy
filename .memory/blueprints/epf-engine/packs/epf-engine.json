@@ -514,6 +514,213 @@
       }
     },
     {
+      "description": "A value creation driver from strategy formula. Tier 3.",
+      "label": "Value Driver",
+      "name": "ValueDriver",
+      "properties": {
+        "driver": {
+          "description": "What drives value",
+          "type": "string"
+        },
+        "flywheel": {
+          "description": "Flywheel effect",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "mechanism": {
+          "description": "How it creates value",
+          "type": "string"
+        },
+        "name": {
+          "description": "Driver name",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "description": "A strategic risk from strategy formula. Tier 3.",
+      "label": "Strategic Risk",
+      "name": "StrategicRisk",
+      "properties": {
+        "impact": {
+          "description": "Impact: high, medium, low",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "likelihood": {
+          "description": "Likelihood: high, medium, low",
+          "type": "string"
+        },
+        "mitigation": {
+          "description": "Mitigation approach",
+          "type": "string"
+        },
+        "monitoring": {
+          "description": "How to monitor",
+          "type": "string"
+        },
+        "name": {
+          "description": "Risk summary",
+          "type": "string"
+        },
+        "risk": {
+          "description": "Risk description",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "description": "The product value proposition from strategy foundations. Tier 3.",
+      "label": "Value Proposition",
+      "name": "ValueProposition",
+      "properties": {
+        "economic_value": {
+          "description": "Cost savings, revenue gains, risk reduction",
+          "type": "string"
+        },
+        "emotional_value": {
+          "description": "Feelings created, pains eliminated",
+          "type": "string"
+        },
+        "functional_value": {
+          "description": "Jobs-to-be-done and key benefits",
+          "type": "string"
+        },
+        "headline": {
+          "description": "Value proposition headline",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "name": {
+          "description": "Headline",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        },
+        "target_segment": {
+          "description": "Target segment",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "description": "A strategic sequencing phase from strategy foundations. Tier 3.",
+      "label": "Strategic Phase",
+      "name": "StrategicPhase",
+      "properties": {
+        "focus": {
+          "description": "What this phase focuses on",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "name": {
+          "description": "Phase name",
+          "type": "string"
+        },
+        "phase_number": {
+          "description": "Phase number (1, 2, 3...)",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        },
+        "success_criteria": {
+          "description": "Success criteria (semicolon-separated)",
+          "type": "string"
+        },
+        "target_segment": {
+          "description": "Target segment for this phase",
+          "type": "string"
+        },
+        "timeframe": {
+          "description": "Phase timeframe",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "description": "A code, test, documentation, or design artifact linked to a value model component via mappings.yaml. Tier 5.",
+      "label": "Mapping Artifact",
+      "name": "MappingArtifact",
+      "properties": {
+        "artifact_type": {
+          "description": "Type: code, test, documentation, design",
+          "type": "string"
+        },
+        "description": {
+          "description": "What this artifact implements",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "name": {
+          "description": "Artifact description",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        },
+        "sub_component_id": {
+          "description": "Value model path this implements",
+          "type": "string"
+        },
+        "track": {
+          "description": "Track: product, strategy, org_ops, commercial",
+          "type": "string"
+        },
+        "url": {
+          "description": "URL to the artifact",
+          "type": "string"
+        }
+      }
+    },
+    {
       "description": "An Objective or Key Result from the EPF roadmap. Tier 4.",
       "label": "OKR",
       "name": "OKR",
@@ -1156,6 +1363,48 @@
       ]
     },
     {
+      "description": "A mapping artifact implements a value model component",
+      "label": "Implements",
+      "name": "implements",
+      "properties": {
+        "edge_source": {
+          "description": "Source: structural, semantic, or causal",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "MappingArtifact"
+      ],
+      "targetTypes": [
+        "ValueModelComponent"
+      ]
+    },
+    {
+      "description": "A strategic phase follows another phase in sequence",
+      "label": "Follows",
+      "name": "follows",
+      "properties": {
+        "edge_source": {
+          "description": "Source: structural, semantic, or causal",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Edge weight (0.0-1.0)",
+          "type": "string"
+        }
+      },
+      "sourceTypes": [
+        "StrategicPhase"
+      ],
+      "targetTypes": [
+        "StrategicPhase"
+      ]
+    },
+    {
       "description": "One node semantically supports or reinforces another",
       "label": "Supports",
       "name": "supports",
@@ -1188,6 +1437,11 @@
         "Hypothesis",
         "KeyInsight",
         "Positioning",
+        "ValueDriver",
+        "StrategicRisk",
+        "ValueProposition",
+        "StrategicPhase",
+        "MappingArtifact",
         "OKR",
         "Assumption",
         "ValueModelComponent",
@@ -1215,6 +1469,11 @@
         "Hypothesis",
         "KeyInsight",
         "Positioning",
+        "ValueDriver",
+        "StrategicRisk",
+        "ValueProposition",
+        "StrategicPhase",
+        "MappingArtifact",
         "OKR",
         "Assumption",
         "ValueModelComponent",
@@ -1261,6 +1520,11 @@
         "Hypothesis",
         "KeyInsight",
         "Positioning",
+        "ValueDriver",
+        "StrategicRisk",
+        "ValueProposition",
+        "StrategicPhase",
+        "MappingArtifact",
         "OKR",
         "Assumption",
         "ValueModelComponent",
@@ -1288,6 +1552,11 @@
         "Hypothesis",
         "KeyInsight",
         "Positioning",
+        "ValueDriver",
+        "StrategicRisk",
+        "ValueProposition",
+        "StrategicPhase",
+        "MappingArtifact",
         "OKR",
         "Assumption",
         "ValueModelComponent",
@@ -1334,6 +1603,11 @@
         "Hypothesis",
         "KeyInsight",
         "Positioning",
+        "ValueDriver",
+        "StrategicRisk",
+        "ValueProposition",
+        "StrategicPhase",
+        "MappingArtifact",
         "OKR",
         "Assumption",
         "ValueModelComponent",
@@ -1361,6 +1635,11 @@
         "Hypothesis",
         "KeyInsight",
         "Positioning",
+        "ValueDriver",
+        "StrategicRisk",
+        "ValueProposition",
+        "StrategicPhase",
+        "MappingArtifact",
         "OKR",
         "Assumption",
         "ValueModelComponent",
@@ -1407,6 +1686,11 @@
         "Hypothesis",
         "KeyInsight",
         "Positioning",
+        "ValueDriver",
+        "StrategicRisk",
+        "ValueProposition",
+        "StrategicPhase",
+        "MappingArtifact",
         "OKR",
         "Assumption",
         "ValueModelComponent",
@@ -1434,6 +1718,11 @@
         "Hypothesis",
         "KeyInsight",
         "Positioning",
+        "ValueDriver",
+        "StrategicRisk",
+        "ValueProposition",
+        "StrategicPhase",
+        "MappingArtifact",
         "OKR",
         "Assumption",
         "ValueModelComponent",
@@ -1480,6 +1769,11 @@
         "Hypothesis",
         "KeyInsight",
         "Positioning",
+        "ValueDriver",
+        "StrategicRisk",
+        "ValueProposition",
+        "StrategicPhase",
+        "MappingArtifact",
         "OKR",
         "Assumption",
         "ValueModelComponent",
@@ -1507,6 +1801,11 @@
         "Hypothesis",
         "KeyInsight",
         "Positioning",
+        "ValueDriver",
+        "StrategicRisk",
+        "ValueProposition",
+        "StrategicPhase",
+        "MappingArtifact",
         "OKR",
         "Assumption",
         "ValueModelComponent",
@@ -1553,6 +1852,11 @@
         "Hypothesis",
         "KeyInsight",
         "Positioning",
+        "ValueDriver",
+        "StrategicRisk",
+        "ValueProposition",
+        "StrategicPhase",
+        "MappingArtifact",
         "OKR",
         "Assumption",
         "ValueModelComponent",
@@ -1603,6 +1907,11 @@
         "Hypothesis",
         "KeyInsight",
         "Positioning",
+        "ValueDriver",
+        "StrategicRisk",
+        "ValueProposition",
+        "StrategicPhase",
+        "MappingArtifact",
         "OKR",
         "Assumption",
         "ValueModelComponent",
@@ -1653,6 +1962,11 @@
         "Hypothesis",
         "KeyInsight",
         "Positioning",
+        "ValueDriver",
+        "StrategicRisk",
+        "ValueProposition",
+        "StrategicPhase",
+        "MappingArtifact",
         "OKR",
         "Assumption",
         "ValueModelComponent",
@@ -1680,6 +1994,11 @@
         "Hypothesis",
         "KeyInsight",
         "Positioning",
+        "ValueDriver",
+        "StrategicRisk",
+        "ValueProposition",
+        "StrategicPhase",
+        "MappingArtifact",
         "OKR",
         "Assumption",
         "ValueModelComponent",
@@ -1750,6 +2069,11 @@
       "color": "#FBBF24",
       "icon": "Lightbulb"
     },
+    "MappingArtifact": {
+      "category": "Value Model",
+      "color": "#64748B",
+      "icon": "Link"
+    },
     "MarketSegment": {
       "category": "Insights",
       "color": "#8B5CF6",
@@ -1790,6 +2114,16 @@
       "color": "#EC4899",
       "icon": "Shield"
     },
+    "StrategicPhase": {
+      "category": "Strategy",
+      "color": "#6366F1",
+      "icon": "GitCommit"
+    },
+    "StrategicRisk": {
+      "category": "Strategy",
+      "color": "#DC2626",
+      "icon": "AlertOctagon"
+    },
     "Strength": {
       "category": "Insights",
       "color": "#10B981",
@@ -1805,10 +2139,20 @@
       "color": "#0EA5E9",
       "icon": "TrendingUp"
     },
+    "ValueDriver": {
+      "category": "Strategy",
+      "color": "#F59E0B",
+      "icon": "Zap"
+    },
     "ValueModelComponent": {
       "category": "Value Model",
       "color": "#10B981",
       "icon": "Layers"
+    },
+    "ValueProposition": {
+      "category": "Strategy",
+      "color": "#10B981",
+      "icon": "Gift"
     },
     "Weakness": {
       "category": "Insights",

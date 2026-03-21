@@ -26,6 +26,8 @@ var validEPFObjectTypes = []string{
 	"Competitor", "MarketSegment", "WhiteSpace",
 	"Strength", "Weakness", "Opportunity", "Threat",
 	"Hypothesis", "KeyInsight",
+	"ValueDriver", "StrategicRisk", "ValueProposition",
+	"StrategicPhase", "MappingArtifact",
 	"Agent", "Skill",
 }
 

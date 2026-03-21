@@ -80,12 +80,16 @@ func (d *Decomposer) DecomposeInstance() (*Result, error) {
 	d.decomposeNorthStar(result)
 	d.decomposeInsightAnalyses(result)
 	d.decomposeInsightAnalysesExpanded(result) // Phase 1a: remaining 16 sections
+	d.decomposeStrategyFoundations(result)     // Phase 1c: vision, value prop, sequencing
+	d.decomposeInsightOpportunity(result)      // Phase 1c: validated opportunity
 	d.decomposeStrategyFormula(result)
+	d.decomposeStrategyFormulaExpanded(result) // Phase 1b: remaining 6 sections
 	d.decomposeRoadmap(result)
 
 	// FIRE phase artifacts
 	d.decomposeFeatures(result)
 	d.decomposeValueModels(result)
+	d.decomposeMappings(result) // Phase 1d: value model → implementation mappings
 
 	// AIM phase: evidence library
 	d.decomposeEvidence(result)

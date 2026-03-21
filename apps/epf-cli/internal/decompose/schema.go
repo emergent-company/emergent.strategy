@@ -209,6 +209,50 @@ func ObjectTypes() []ObjectTypeDef {
 			}),
 		},
 		{
+			Name: "ValueDriver", Label: "Value Driver", InertiaTier: 3, Category: "Strategy", Icon: "Zap", Color: "#F59E0B",
+			Description: "A value creation driver from strategy formula. Tier 3.",
+			Properties: mergeProps(commonProps(), map[string]PropertyDef{
+				"name": {Type: "string", Description: "Driver name"}, "driver": {Type: "string", Description: "What drives value"},
+				"mechanism": {Type: "string", Description: "How it creates value"}, "flywheel": {Type: "string", Description: "Flywheel effect"},
+			}),
+		},
+		{
+			Name: "StrategicRisk", Label: "Strategic Risk", InertiaTier: 3, Category: "Strategy", Icon: "AlertOctagon", Color: "#DC2626",
+			Description: "A strategic risk from strategy formula. Tier 3.",
+			Properties: mergeProps(commonProps(), map[string]PropertyDef{
+				"name": {Type: "string", Description: "Risk summary"}, "risk": {Type: "string", Description: "Risk description"},
+				"likelihood": {Type: "string", Description: "Likelihood: high, medium, low"}, "impact": {Type: "string", Description: "Impact: high, medium, low"},
+				"mitigation": {Type: "string", Description: "Mitigation approach"}, "monitoring": {Type: "string", Description: "How to monitor"},
+			}),
+		},
+		{
+			Name: "ValueProposition", Label: "Value Proposition", InertiaTier: 3, Category: "Strategy", Icon: "Gift", Color: "#10B981",
+			Description: "The product value proposition from strategy foundations. Tier 3.",
+			Properties: mergeProps(commonProps(), map[string]PropertyDef{
+				"name": {Type: "string", Description: "Headline"}, "headline": {Type: "string", Description: "Value proposition headline"},
+				"target_segment": {Type: "string", Description: "Target segment"}, "functional_value": {Type: "string", Description: "Jobs-to-be-done and key benefits"},
+				"emotional_value": {Type: "string", Description: "Feelings created, pains eliminated"}, "economic_value": {Type: "string", Description: "Cost savings, revenue gains, risk reduction"},
+			}),
+		},
+		{
+			Name: "StrategicPhase", Label: "Strategic Phase", InertiaTier: 3, Category: "Strategy", Icon: "GitCommit", Color: "#6366F1",
+			Description: "A strategic sequencing phase from strategy foundations. Tier 3.",
+			Properties: mergeProps(commonProps(), map[string]PropertyDef{
+				"name": {Type: "string", Description: "Phase name"}, "phase_number": {Type: "string", Description: "Phase number (1, 2, 3...)"},
+				"timeframe": {Type: "string", Description: "Phase timeframe"}, "focus": {Type: "string", Description: "What this phase focuses on"},
+				"target_segment": {Type: "string", Description: "Target segment for this phase"}, "success_criteria": {Type: "string", Description: "Success criteria (semicolon-separated)"},
+			}),
+		},
+		{
+			Name: "MappingArtifact", Label: "Mapping Artifact", InertiaTier: 5, Category: "Value Model", Icon: "Link", Color: "#64748B",
+			Description: "A code, test, documentation, or design artifact linked to a value model component via mappings.yaml. Tier 5.",
+			Properties: mergeProps(commonProps(), map[string]PropertyDef{
+				"name": {Type: "string", Description: "Artifact description"}, "description": {Type: "string", Description: "What this artifact implements"},
+				"artifact_type": {Type: "string", Description: "Type: code, test, documentation, design"}, "url": {Type: "string", Description: "URL to the artifact"},
+				"track": {Type: "string", Description: "Track: product, strategy, org_ops, commercial"}, "sub_component_id": {Type: "string", Description: "Value model path this implements"},
+			}),
+		},
+		{
 			Name: "OKR", Label: "OKR", InertiaTier: 4, Category: "Roadmap", Icon: "Target", Color: "#EF4444",
 			Description: "An Objective or Key Result from the EPF roadmap. Tier 4.",
 			Properties: mergeProps(commonProps(), map[string]PropertyDef{
@@ -354,6 +398,12 @@ func RelationshipTypes() []RelTypeDef {
 		{Name: "converges_at", Label: "Converges At", EdgeSource: "structural",
 			Description: "A cross-track dependency converges at a KR",
 			FromTypes:   []string{"CrossTrackDependency"}, ToTypes: []string{"OKR"}, Properties: weightEdgeProps},
+		{Name: "implements", Label: "Implements", EdgeSource: "structural",
+			Description: "A mapping artifact implements a value model component",
+			FromTypes:   []string{"MappingArtifact"}, ToTypes: []string{"ValueModelComponent"}, Properties: weightEdgeProps},
+		{Name: "follows", Label: "Follows", EdgeSource: "structural",
+			Description: "A strategic phase follows another phase in sequence",
+			FromTypes:   []string{"StrategicPhase"}, ToTypes: []string{"StrategicPhase"}, Properties: weightEdgeProps},
 
 		// === Semantic edges (created by semantic-edges, NOT decomposer) ===
 		{Name: "supports", Label: "Supports", EdgeSource: "semantic",
