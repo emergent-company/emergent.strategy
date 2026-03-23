@@ -25,10 +25,15 @@ type SchemaInfo struct {
 	Author  string `json:"author"`
 }
 
+// schemasProjectPath returns the project-scoped schema API base path.
+func (c *Client) schemasProjectPath() string {
+	return "/api/schemas/projects/" + url.PathEscape(c.projectID)
+}
+
 // ListInstalledSchemas returns schemas installed in the project.
 func (c *Client) ListInstalledSchemas(ctx context.Context) ([]InstalledSchema, error) {
 	var result []InstalledSchema
-	if err := c.do(ctx, "GET", "/api/template-packs/installed", nil, &result); err != nil {
+	if err := c.do(ctx, "GET", c.schemasProjectPath()+"/installed", nil, &result); err != nil {
 		return nil, fmt.Errorf("list installed schemas: %w", err)
 	}
 	return result, nil
@@ -37,7 +42,7 @@ func (c *Client) ListInstalledSchemas(ctx context.Context) ([]InstalledSchema, e
 // InstallSchemaFromJSON installs a schema from a JSON pack definition.
 // If merge is true, it additively merges types into the project.
 func (c *Client) InstallSchemaFromJSON(ctx context.Context, packJSON []byte, merge bool) error {
-	endpoint := "/api/template-packs/install"
+	endpoint := c.schemasProjectPath() + "/assign"
 	if merge {
 		endpoint += "?merge=true"
 	}
@@ -51,7 +56,7 @@ func (c *Client) InstallSchemaFromJSON(ctx context.Context, packJSON []byte, mer
 
 // UninstallSchema removes a schema assignment from the project.
 func (c *Client) UninstallSchema(ctx context.Context, assignmentID string) error {
-	if err := c.do(ctx, "DELETE", "/api/template-packs/installed/"+url.PathEscape(assignmentID), nil, nil); err != nil {
+	if err := c.do(ctx, "DELETE", c.schemasProjectPath()+"/assignments/"+url.PathEscape(assignmentID), nil, nil); err != nil {
 		return fmt.Errorf("uninstall schema: %w", err)
 	}
 	return nil
@@ -80,7 +85,7 @@ type CompiledRelationshipType struct {
 // GetCompiledTypes returns the merged type registry for the project.
 func (c *Client) GetCompiledTypes(ctx context.Context) (*CompiledTypes, error) {
 	var result CompiledTypes
-	if err := c.do(ctx, "GET", "/api/template-packs/compiled-types", nil, &result); err != nil {
+	if err := c.do(ctx, "GET", c.schemasProjectPath()+"/compiled-types", nil, &result); err != nil {
 		return nil, fmt.Errorf("get compiled types: %w", err)
 	}
 	return &result, nil

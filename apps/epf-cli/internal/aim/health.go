@@ -790,7 +790,7 @@ func checkCanonicalCompleteness(instancePath string) []HealthDiagnostic {
 	expectedVMs := embedded.ListCanonicalValueModels()
 
 	// Count missing definitions
-	defDir := filepath.Join(instancePath, "READY", "definitions")
+	defDir := filepath.Join(instancePath, "FIRE", "definitions")
 	missingDefCount := 0
 	missingByTrack := make(map[string]int)
 	for _, def := range expectedDefs {
