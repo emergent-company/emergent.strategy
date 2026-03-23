@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	mcp "github.com/mark3labs/mcp-go/mcp"
 
@@ -899,7 +900,21 @@ func (s *Server) handleAsk(ctx context.Context, request mcp.CallToolRequest) (*m
 		return mcp.NewToolResultError("question parameter is required"), nil
 	}
 
-	client, err := s.getMemoryClient()
+	// Create a client with a longer timeout for the ask API — SSE streams
+	// can take 30-60 seconds for complex multi-hop graph traversal.
+	memURL := os.Getenv("EPF_MEMORY_URL")
+	memProject := os.Getenv("EPF_MEMORY_PROJECT")
+	memToken := os.Getenv("EPF_MEMORY_TOKEN")
+	if memURL == "" || memProject == "" || memToken == "" {
+		return memoryNotConfiguredResponse(), nil
+	}
+
+	client, err := memory.NewClient(memory.Config{
+		BaseURL:   memURL,
+		ProjectID: memProject,
+		Token:     memToken,
+		Timeout:   120 * time.Second,
+	})
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
