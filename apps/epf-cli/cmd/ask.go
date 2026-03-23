@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -19,8 +20,12 @@ var askCmd = &cobra.Command{
 	Long: `Ask a natural language question about your EPF strategy graph.
 
 The question is enriched with EPF domain context (type vocabulary,
-relationship semantics, query patterns) and sent to the Memory ask API
-for graph-powered reasoning.
+relationship semantics, query patterns) and sent to the Memory
+graph-query-agent for graph-powered reasoning. The agent has access
+to graph query tools (entity-query, entity-edges-get, search-hybrid)
+enabling it to traverse and analyze your strategy graph.
+
+Use --session to continue a previous conversation (multi-turn).
 
 Examples:
   epf-cli ask What are our biggest strategic risks and how are they mitigated?
@@ -38,6 +43,7 @@ var (
 	askShowTools bool
 	askShowTime  bool
 	askJSON      bool
+	askSession   string
 )
 
 func init() {
@@ -45,6 +51,7 @@ func init() {
 	askCmd.Flags().BoolVar(&askShowTools, "show-tools", false, "Show which Memory tools were used")
 	askCmd.Flags().BoolVar(&askShowTime, "show-time", false, "Show elapsed time")
 	askCmd.Flags().BoolVar(&askJSON, "json", false, "Output as JSON")
+	askCmd.Flags().StringVar(&askSession, "session", "", "Continue a previous query session")
 }
 
 func runAsk(cmd *cobra.Command, args []string) error {
@@ -73,7 +80,7 @@ func runAsk(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 	start := time.Now()
 
-	result, err := client.Ask(ctx, enrichedQuestion)
+	result, err := client.AskWithSession(ctx, enrichedQuestion, askSession)
 	if err != nil {
 		return fmt.Errorf("ask failed: %w", err)
 	}
@@ -81,9 +88,17 @@ func runAsk(cmd *cobra.Command, args []string) error {
 	elapsed := time.Since(start)
 
 	if askJSON {
-		fmt.Printf(`{"question":%q,"response":%q,"tools":%q,"elapsed_ms":%d}`,
-			question, result.Response, result.Tools, elapsed.Milliseconds())
-		fmt.Println()
+		jsonResult := map[string]any{
+			"question":   question,
+			"response":   result.Response,
+			"tools":      result.Tools,
+			"elapsed_ms": elapsed.Milliseconds(),
+		}
+		if result.SessionID != "" {
+			jsonResult["session_id"] = result.SessionID
+		}
+		jsonBytes, _ := marshalJSON(jsonResult)
+		fmt.Println(string(jsonBytes))
 		return nil
 	}
 
@@ -98,5 +113,15 @@ func runAsk(cmd *cobra.Command, args []string) error {
 		fmt.Printf("\nElapsed: %s\n", elapsed.Round(time.Millisecond))
 	}
 
+	// Print session ID for multi-turn support
+	if result.SessionID != "" {
+		fmt.Fprintf(os.Stderr, "\nSession: %s\n", result.SessionID)
+	}
+
 	return nil
+}
+
+// marshalJSON marshals a value to JSON, handling any encoding errors gracefully.
+func marshalJSON(v any) ([]byte, error) {
+	return json.MarshalIndent(v, "", "  ")
 }

@@ -893,14 +893,20 @@ func extractCapabilityID(key string) string {
 	return key
 }
 
-// handleAsk enriches a strategy question with EPF context and delegates to Memory ask API.
+// handleAsk enriches a strategy question with EPF context and delegates to
+// the Memory chat stream API (graph-query-agent with tool access).
+//
+// Uses /api/chat/stream instead of /api/ask — the chat stream endpoint
+// provides the LLM with graph query tools (entity-query, entity-edges-get,
+// search-hybrid), enabling it to actually traverse the strategy graph.
+// See: https://github.com/emergent-company/emergent-strategy/issues/23
 func (s *Server) handleAsk(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	question, _ := request.RequireString("question")
 	if question == "" {
 		return mcp.NewToolResultError("question parameter is required"), nil
 	}
 
-	// Create a client with a longer timeout for the ask API — SSE streams
+	// Create a client with a longer timeout for the chat stream API — SSE streams
 	// can take 30-60 seconds for complex multi-hop graph traversal.
 	memURL := os.Getenv("EPF_MEMORY_URL")
 	memProject := os.Getenv("EPF_MEMORY_PROJECT")
@@ -933,6 +939,9 @@ func (s *Server) handleAsk(ctx context.Context, request mcp.CallToolRequest) (*m
 	}
 	if len(result.Tools) > 0 {
 		response["tools_used"] = result.Tools
+	}
+	if result.SessionID != "" {
+		response["session_id"] = result.SessionID
 	}
 
 	jsonBytes, _ := json.MarshalIndent(response, "", "  ")

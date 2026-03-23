@@ -189,6 +189,161 @@ func TestFindSimilar(t *testing.T) {
 	}
 }
 
+func TestAsk_ChatStream(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" || r.URL.Path != "/api/chat/stream" {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		if r.Header.Get("Authorization") != "Bearer test-token" {
+			t.Error("missing or wrong auth header")
+		}
+		if r.Header.Get("X-Project-ID") != "test-project" {
+			t.Error("missing or wrong project header")
+		}
+
+		var req ChatStreamRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		if req.Message == "" {
+			t.Error("message should not be empty")
+		}
+
+		// Simulate SSE response with tool usage and token streaming
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+
+		events := []string{
+			`data: {"type":"meta","sessionId":"sess-abc123"}`,
+			`data: {"type":"mcp_tool","tool":"entity-query","status":"started"}`,
+			`data: {"type":"mcp_tool","tool":"entity-query","status":"completed"}`,
+			`data: {"type":"mcp_tool","tool":"entity-edges-get","status":"started"}`,
+			`data: {"type":"mcp_tool","tool":"entity-edges-get","status":"completed"}`,
+			`data: {"type":"token","token":"Found "}`,
+			`data: {"type":"token","token":"3 trends "}`,
+			`data: {"type":"token","token":"in the graph."}`,
+			`data: {"type":"done"}`,
+		}
+		for _, event := range events {
+			w.Write([]byte(event + "\n"))
+		}
+	}))
+	defer server.Close()
+
+	client, _ := NewClient(Config{
+		BaseURL:   server.URL,
+		ProjectID: "test-project",
+		Token:     "test-token",
+	})
+
+	result, err := client.Ask(context.Background(), "What trends exist?")
+	if err != nil {
+		t.Fatalf("Ask: %v", err)
+	}
+	if result.Response != "Found 3 trends in the graph." {
+		t.Errorf("got response %q, want 'Found 3 trends in the graph.'", result.Response)
+	}
+	if len(result.Tools) != 2 {
+		t.Errorf("got %d tools, want 2", len(result.Tools))
+	}
+	if result.SessionID != "sess-abc123" {
+		t.Errorf("got session ID %q, want 'sess-abc123'", result.SessionID)
+	}
+
+	// Verify tool names
+	toolSet := map[string]bool{}
+	for _, tool := range result.Tools {
+		toolSet[tool] = true
+	}
+	if !toolSet["entity-query"] {
+		t.Error("missing tool 'entity-query'")
+	}
+	if !toolSet["entity-edges-get"] {
+		t.Error("missing tool 'entity-edges-get'")
+	}
+}
+
+func TestAskWithSession(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req ChatStreamRequest
+		json.NewDecoder(r.Body).Decode(&req)
+
+		if req.SessionID != "sess-abc123" {
+			t.Errorf("expected session ID 'sess-abc123', got %q", req.SessionID)
+		}
+
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`data: {"type":"meta","sessionId":"sess-abc123"}` + "\n"))
+		w.Write([]byte(`data: {"type":"token","token":"Follow-up answer."}` + "\n"))
+		w.Write([]byte(`data: {"type":"done"}` + "\n"))
+	}))
+	defer server.Close()
+
+	client, _ := NewClient(Config{BaseURL: server.URL, ProjectID: "p", Token: "t"})
+	result, err := client.AskWithSession(context.Background(), "Follow-up question", "sess-abc123")
+	if err != nil {
+		t.Fatalf("AskWithSession: %v", err)
+	}
+	if result.Response != "Follow-up answer." {
+		t.Errorf("got response %q, want 'Follow-up answer.'", result.Response)
+	}
+}
+
+func TestAsk_EmptyResponse_NoTools(t *testing.T) {
+	// Verify that even with the new endpoint, if no tools are used
+	// the response is still returned (just the LLM's direct answer)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`data: {"type":"token","token":"Direct answer without tools."}` + "\n"))
+		w.Write([]byte(`data: {"type":"done"}` + "\n"))
+	}))
+	defer server.Close()
+
+	client, _ := NewClient(Config{BaseURL: server.URL, ProjectID: "p", Token: "t"})
+	result, err := client.Ask(context.Background(), "Simple question")
+	if err != nil {
+		t.Fatalf("Ask: %v", err)
+	}
+	if result.Response != "Direct answer without tools." {
+		t.Errorf("got response %q, want 'Direct answer without tools.'", result.Response)
+	}
+	if len(result.Tools) != 0 {
+		t.Errorf("expected no tools, got %d", len(result.Tools))
+	}
+}
+
+func TestAsk_APIError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"error":"unauthorized"}`))
+	}))
+	defer server.Close()
+
+	client, _ := NewClient(Config{BaseURL: server.URL, ProjectID: "p", Token: "t"})
+	_, err := client.Ask(context.Background(), "test")
+	if err == nil {
+		t.Fatal("expected error for 401 response")
+	}
+	if !contains(err.Error(), "401") {
+		t.Errorf("error should contain '401', got: %v", err)
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && searchString(s, substr)
+}
+
+func searchString(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
 func TestCreateBranch(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" || r.URL.Path != "/api/graph/branches" {
