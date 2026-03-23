@@ -59,7 +59,7 @@ func runAsk(cmd *cobra.Command, args []string) error {
 		BaseURL:   memURL,
 		ProjectID: memProject,
 		Token:     memToken,
-		Timeout:   60 * time.Second,
+		Timeout:   120 * time.Second,
 	})
 	if err != nil {
 		return fmt.Errorf("create Memory client: %w", err)

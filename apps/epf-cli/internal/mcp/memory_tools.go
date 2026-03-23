@@ -893,20 +893,46 @@ func extractCapabilityID(key string) string {
 
 // handleAsk answers strategic questions about the EPF strategy graph.
 //
-// This feature is currently disabled — it requires the Memory graph-query-agent
-// to support project token authentication (emergent.memory#132).
+// Delegates to the Memory CLI's `memory query` command, which uses the
+// server-side graph-query-agent with graph traversal tools. The Memory
+// CLI handles auth via --project-token, no OAuth session required.
 //
-// See: https://github.com/emergent-company/emergent-strategy/issues/24
+// See: https://github.com/emergent-company/emergent-strategy/issues/23
 func (s *Server) handleAsk(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	question, _ := request.RequireString("question")
 	if question == "" {
 		return mcp.NewToolResultError("question parameter is required"), nil
 	}
 
-	return mcp.NewToolResultError(fmt.Sprintf(
-		"The ask feature is not yet available.\n\n"+
-			"It requires the Memory graph-query-agent to support project token\n"+
-			"authentication, which has been requested (emergent.memory#132).\n\n"+
-			"In the meantime, use the Memory CLI directly:\n"+
-			"  memory query %q", question)), nil
+	memURL := os.Getenv("EPF_MEMORY_URL")
+	memProject := os.Getenv("EPF_MEMORY_PROJECT")
+	memToken := os.Getenv("EPF_MEMORY_TOKEN")
+	if memURL == "" || memProject == "" || memToken == "" {
+		return memoryNotConfiguredResponse(), nil
+	}
+
+	client, err := memory.NewClient(memory.Config{
+		BaseURL:   memURL,
+		ProjectID: memProject,
+		Token:     memToken,
+	})
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	result, err := client.Ask(ctx, question)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Ask failed: %v", err)), nil
+	}
+
+	response := map[string]any{
+		"question": question,
+		"response": result.Response,
+	}
+	if len(result.Tools) > 0 {
+		response["tools_used"] = result.Tools
+	}
+
+	jsonBytes, _ := json.MarshalIndent(response, "", "  ")
+	return mcp.NewToolResultText(string(jsonBytes)), nil
 }

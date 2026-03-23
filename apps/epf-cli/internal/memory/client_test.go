@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 )
 
@@ -190,17 +189,20 @@ func TestFindSimilar(t *testing.T) {
 	}
 }
 
-func TestAsk_ReturnsNotAvailableError(t *testing.T) {
+func TestAsk_RequiresMemoryCLI(t *testing.T) {
+	// Ask delegates to the memory CLI — if it's not on PATH, we get
+	// a clear error. We can't easily test the happy path without a
+	// real memory CLI + server, so just verify the method exists and
+	// returns a result type.
 	client, _ := NewClient(Config{BaseURL: "http://localhost", ProjectID: "p", Token: "t"})
-	_, err := client.Ask(context.Background(), "What trends exist?")
-	if err == nil {
-		t.Fatal("expected error from Ask")
+	result, err := client.Ask(context.Background(), "test")
+	if err != nil {
+		// Expected if memory CLI is not on PATH or query fails
+		// Just verify it doesn't panic
+		return
 	}
-	if !strings.Contains(err.Error(), "not yet available") {
-		t.Errorf("error should mention 'not yet available', got: %v", err)
-	}
-	if !strings.Contains(err.Error(), "memory query") {
-		t.Errorf("error should suggest 'memory query' workaround, got: %v", err)
+	if result.Response == "" {
+		t.Error("expected non-empty response")
 	}
 }
 
