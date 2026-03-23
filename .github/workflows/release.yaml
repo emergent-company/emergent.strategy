@@ -8,6 +8,16 @@ on:
 permissions:
   contents: write
   packages: write
+  id-token: write
+
+env:
+  GCP_PROJECT_ID: outblocks
+  GCP_REGION: europe-west1
+  SERVICE_NAME: epf-strategy
+  SERVICE_DOMAIN: strategy.emergent-company.ai
+  REGISTRY_REPO: epf
+  IMAGE_NAME: epf-server
+  RUNTIME_SERVICE_ACCOUNT: epf-runtime@outblocks.iam.gserviceaccount.com
 
 jobs:
   release:
@@ -41,20 +51,38 @@ jobs:
           CANONICAL_EPF_PATH: ${{ runner.temp }}/canonical-epf
 
   docker:
-    name: Docker (GHCR)
+    name: Docker (GHCR + Artifact Registry)
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      ar_image_ref: ${{ steps.image.outputs.ar_image_ref }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.EPF_CANONICAL_TOKEN }}
 
-      - name: Extract version from tag
+      - name: Extract release metadata
         id: meta
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
+          SHORT_SHA="$(echo "${GITHUB_SHA}" | cut -c1-7)"
+          BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "short_sha=$(echo ${GITHUB_SHA} | cut -c1-7)" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "build_date=${BUILD_DATE}" >> "$GITHUB_OUTPUT"
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -66,7 +94,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build and push release image
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: apps/epf-cli
@@ -75,10 +104,102 @@ jobs:
           tags: |
             ghcr.io/emergent-company/epf-server:latest
             ghcr.io/emergent-company/epf-server:${{ steps.meta.outputs.version }}
+            ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
           build-args: |
             VERSION=${{ steps.meta.outputs.version }}
             GIT_COMMIT=${{ steps.meta.outputs.short_sha }}
-            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            BUILD_DATE=${{ steps.meta.outputs.build_date }}
           secrets: |
             gh_token=${{ secrets.EPF_CANONICAL_TOKEN }}
           platforms: linux/amd64,linux/arm64
+
+      - name: Capture Artifact Registry image reference
+        id: image
+        run: |
+          echo "ar_image_ref=${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REGISTRY_REPO }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: Deploy to Cloud Run
+    needs:
+      - release
+      - docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Resolve Cloud Run secrets
+        id: secrets
+        run: |
+          SECRET_BINDINGS="EPF_OAUTH_CLIENT_ID=epf-oauth-client-id:latest,EPF_OAUTH_CLIENT_SECRET=epf-oauth-client-secret:latest,EPF_SESSION_SECRET=epf-session-secret:latest,EPF_GITHUB_APP_ID=epf-github-app-id:latest,EPF_GITHUB_APP_PRIVATE_KEY=epf-github-app-private-key:latest"
+
+          for OPTIONAL in \
+            "EPF_GITHUB_APP_CLIENT_ID=epf-github-app-client-id" \
+            "EPF_GITHUB_APP_CLIENT_SECRET=epf-github-app-client-secret"; do
+            ENV_NAME="${OPTIONAL%%=*}"
+            SECRET_NAME="${OPTIONAL#*=}"
+            SECRET_VERSION="$(gcloud secrets versions list "${SECRET_NAME}" \
+              --project="${GCP_PROJECT_ID}" \
+              --filter='state=enabled' \
+              --limit=1 \
+              --format='value(name)' 2>/dev/null || true)"
+
+            if [[ -n "${SECRET_VERSION}" ]]; then
+              SECRET_BINDINGS+="${SECRET_BINDINGS:+,}${ENV_NAME}=${SECRET_NAME}:latest"
+            fi
+          done
+
+          echo "secret_bindings=${SECRET_BINDINGS}" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy release image
+        run: |
+          gcloud run deploy "${SERVICE_NAME}" \
+            --image="${{ needs.docker.outputs.ar_image_ref }}" \
+            --region="${GCP_REGION}" \
+            --project="${GCP_PROJECT_ID}" \
+            --platform=managed \
+            --allow-unauthenticated \
+            --service-account="${RUNTIME_SERVICE_ACCOUNT}" \
+            --port=8080 \
+            --min-instances=0 \
+            --max-instances=10 \
+            --memory=512Mi \
+            --cpu=1 \
+            --timeout=300 \
+            --set-env-vars="EPF_SERVER_MODE=strategy,EPF_SERVER_URL=https://${SERVICE_DOMAIN}" \
+            --set-secrets="${{ steps.secrets.outputs.secret_bindings }}" \
+            --args="serve,--http,--sse,--port,8080,--cors-origins=*" \
+            --cpu-boost \
+            --execution-environment=gen2
+
+      - name: Verify deployment health
+        run: |
+          SERVICE_URL="$(gcloud run services describe "${SERVICE_NAME}" \
+            --region="${GCP_REGION}" \
+            --project="${GCP_PROJECT_ID}" \
+            --format='value(status.url)')"
+
+          echo "Service URL: ${SERVICE_URL}"
+          curl --fail --silent --show-error "${SERVICE_URL}/health"
+
+          if gcloud beta run domain-mappings describe "${SERVICE_DOMAIN}" \
+            --region="${GCP_REGION}" \
+            --project="${GCP_PROJECT_ID}" >/dev/null 2>&1; then
+            echo "Public URL: https://${SERVICE_DOMAIN}"
+            curl --fail --silent --show-error "https://${SERVICE_DOMAIN}/health"
+          else
+            echo "Skipping custom-domain health check; domain mapping is not configured yet."
+          fi
+
+          echo ""
+          echo "Deployment complete"
+          echo "  Version: ${{ needs.docker.outputs.version }}"
+          echo "  Image:   ${{ needs.docker.outputs.ar_image_ref }}"
+          echo "  URL:     ${SERVICE_URL}"

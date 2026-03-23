@@ -331,7 +331,7 @@ Multi-tenant mode requires a GitHub OAuth App for user authentication.
    - Go to [GitHub Developer Settings > OAuth Apps](https://github.com/settings/developers) → New OAuth App
    - **Application name**: e.g. `EPF Strategy Server`
    - **Homepage URL**: your server URL (e.g. `http://localhost:8080`)
-   - **Authorization callback URL**: your server URL (e.g. `http://localhost:8080`)
+   - **Authorization callback URL**: your server callback URL (e.g. `http://localhost:8080/auth/github/callback`)
    - Check **Enable Device Flow** (required for CLI login)
    - Click "Register application"
 
@@ -410,11 +410,17 @@ See `.env.example` for an annotated template with all options.
 
 **Multi-tenant mode:**
 
+Current production multi-tenant mode still requires GitHub OAuth plus a session secret. GitHub App credentials are additive for installation-scoped repo access; they do not replace `EPF_OAUTH_*` today.
+
 | Variable | Required | Description |
 | --- | --- | --- |
 | `EPF_OAUTH_CLIENT_ID` | Yes | GitHub OAuth App client ID |
 | `EPF_OAUTH_CLIENT_SECRET` | Yes | GitHub OAuth App client secret |
 | `EPF_SESSION_SECRET` | Yes | 64+ hex char session signing secret (`openssl rand -hex 32`) |
+| `EPF_GITHUB_APP_ID` | Yes | GitHub App ID for installation-scoped repo access |
+| `EPF_GITHUB_APP_PRIVATE_KEY` | Yes | Inline PEM or file path for signing GitHub App JWTs |
+| `EPF_GITHUB_APP_CLIENT_ID` | No | Enables refresh of GitHub App user tokens (`ghu_`) |
+| `EPF_GITHUB_APP_CLIENT_SECRET` | No | Enables refresh of GitHub App user tokens (`ghu_`) |
 | `EPF_SERVER_URL` | Recommended | External server URL for OAuth redirects (default: `http://localhost:PORT`) |
 | `EPF_SESSION_TTL` | No | Session lifetime as Go duration (default: `24h`) |
 | `PORT` | No | HTTP port (default: `8080`) |
@@ -438,7 +444,7 @@ See `.env.example` for an annotated template with all options.
 
 | Endpoint | Method | Auth | Description |
 | --- | --- | --- | --- |
-| `/mcp` | POST | Bearer JWT | MCP Streamable HTTP transport (80+ tools) |
+| `/mcp` | POST | None in local/single-tenant, Bearer JWT in multi-tenant | MCP Streamable HTTP transport (80+ tools) |
 | `/health` | GET | None | Health check (status, uptime, mode, version) |
 
 **Multi-tenant mode (additional):**
@@ -464,30 +470,75 @@ See `.env.example` for an annotated template with all options.
 
 ### Deploying to GCP Cloud Run
 
-For production deployment with auto-deploy:
+Production deploys are release-driven. Each Git tag matching `v*` runs `.github/workflows/release.yaml`, publishes the container to GHCR and Artifact Registry, then deploys Cloud Run service `epf-strategy` in `outblocks/europe-west1`.
 
 ```bash
-# 1. Run one-time GCP infrastructure setup
+# 1. Export the secrets that should be copied into GCP Secret Manager
+export EPF_OAUTH_CLIENT_ID=<oauth-client-id>
+export EPF_OAUTH_CLIENT_SECRET=<oauth-client-secret>
+export EPF_GITHUB_APP_ID=<github-app-id>
+export EPF_GITHUB_APP_PRIVATE_KEY="$(cat /path/to/github-app-private-key.pem)"
+
+# Optional GitHub App refresh credentials
+# export EPF_GITHUB_APP_CLIENT_ID=<github-app-client-id>
+# export EPF_GITHUB_APP_CLIENT_SECRET=<github-app-client-secret>
+
+# 2. Run one-time GCP infrastructure setup
 cd apps/epf-cli
-./scripts/setup-gcp.sh --project YOUR_GCP_PROJECT_ID
+./scripts/setup-gcp.sh
 
-# 2. Add secrets to GCP Secret Manager (script prints the exact commands)
+# 3. Configure the GitHub repository secrets printed by the bootstrap script
 
-# 3. Configure GitHub repository secrets and variables (script prints what to set)
-
-# 4. Push to main — the deploy workflow builds, pushes, and deploys automatically
-git push origin main
+# 4. Create a release tag
+git tag v0.25.0
+git push origin v0.25.0
 ```
 
-The deploy workflow (`.github/workflows/deploy.yaml`) handles everything: runs tests, builds the Docker image with embedded schemas, pushes to Artifact Registry, and deploys to Cloud Run.
+Bootstrap creates the required GCP infrastructure, stores the exported runtime credentials in Secret Manager, and generates `EPF_SESSION_SECRET` automatically when the secret does not already exist.
+
+The release workflow is the primary production path. `.github/workflows/deploy.yaml` remains as a manual fallback for redeploying a specific Artifact Registry image. The service is configured with `EPF_SERVER_URL=https://strategy.emergent-company.ai`, so GitHub OAuth metadata and callbacks use the public custom domain rather than the temporary Cloud Run URL.
 
 | Setting | Value | Rationale |
 | --- | --- | --- |
+| Service | `epf-strategy` | Public strategy server |
+| Region | `europe-west1` | Target production region |
+| Custom domain | `strategy.emergent-company.ai` | Stable external URL after one-time domain mapping |
+| CORS | `*` | Public browser clients can connect |
 | Min instances | 0 | Scale to zero when idle |
-| Max instances | 3 | Sufficient for team use |
-| Memory | 256Mi | EPF data is small |
-| CPU | 1 | Handles many concurrent MCP sessions |
+| Max instances | 10 | Burst capacity for public traffic |
+| Memory | 512Mi | Small distroless runtime |
+| CPU | 1 | Adequate for concurrent MCP sessions |
 | Timeout | 300s | Long enough for workspace discovery |
+
+### Local Docker and Manual Deploy Commands
+
+The `Makefile` includes local helpers that mirror the production container/deploy path:
+
+```bash
+cd apps/epf-cli
+
+# Build the container locally (requires EPF_CANONICAL_TOKEN or GITHUB_TOKEN)
+make docker-build VERSION=dev
+
+# Run the built container locally
+make docker-run VERSION=dev DOCKER_RUN_ENV_FILE=.env
+
+# Push the image to Artifact Registry
+make docker-push-gcp VERSION=dev
+
+# Manually deploy the pushed image to Cloud Run (tag is resolved to a digest first)
+make deploy-manual VERSION=dev
+
+# Or deploy an explicit immutable image reference
+make deploy-manual DEPLOY_IMAGE_REF=europe-west1-docker.pkg.dev/outblocks/epf/epf-server@sha256:<digest>
+
+# Verify the deployed /health endpoint
+make deploy-check
+```
+
+For local production-like deploys, the same secret names and Cloud Run settings are reused.
+
+The custom domain mapping itself remains a one-time GCP/DNS step after the first successful deploy.
 
 ## Architecture
 

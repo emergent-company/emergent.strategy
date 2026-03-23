@@ -171,18 +171,24 @@ func serveHTTP(mcpSrv *mcp.Server, port int, enableSSE bool, corsOrigins string)
 	mode := auth.DetectMode()
 	fmt.Fprintf(os.Stderr, "Server mode: %s\n", mode)
 
-	// Set up GitHub-backed strategy store if configured (single-tenant mode).
-	ghKey, err := setupGitHubStore()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error configuring GitHub source: %v\n", err)
-		os.Exit(1)
-	}
-	if ghKey != "" {
-		// Override instancePath for health info display.
-		instancePath = ghKey
+	// Set up the GitHub-backed strategy store only when the single-tenant
+	// owner/repo source is explicitly configured. Multi-tenant deployments may
+	// still use GitHub App credentials for per-user installation access, but they
+	// should not require the single-tenant store wiring on startup.
+	if os.Getenv(EnvGitHubOwner) != "" || os.Getenv(EnvGitHubRepo) != "" {
+		ghKey, err := setupGitHubStore()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error configuring GitHub source: %v\n", err)
+			os.Exit(1)
+		}
+		if ghKey != "" {
+			// Override instancePath for health info display.
+			instancePath = ghKey
+		}
 	}
 
 	// Set up auth handler for multi-tenant mode.
+	var err error
 	var authHandler *auth.AuthHandler
 	var authMiddleware *auth.AuthMiddleware
 	var workspacesHandler http.Handler
