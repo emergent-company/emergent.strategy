@@ -187,6 +187,15 @@ func ObjectTypes() []ObjectTypeDef {
 			}),
 		},
 		{
+			Name: "Opportunity", Label: "Opportunity", InertiaTier: 2, Category: "Insights", Icon: "Sunrise", Color: "#22C55E",
+			Description: "A market opportunity from SWOT analysis or insight opportunity artifact. Tier 2.",
+			Properties: mergeProps(commonProps(), map[string]PropertyDef{
+				"name": {Type: "string", Description: "Opportunity summary"}, "description": {Type: "string", Description: "Full text"},
+				"how_to_exploit": {Type: "string", Description: "How to exploit this opportunity"},
+				"priority":       {Type: "string", Description: "Priority: high, medium, low"},
+			}),
+		},
+		{
 			Name: "Hypothesis", Label: "Hypothesis", InertiaTier: 3, Category: "Insights", Icon: "Beaker", Color: "#A855F7",
 			Description: "A problem-solution hypothesis from insight analyses. Tier 3.",
 			Properties: mergeProps(commonProps(), map[string]PropertyDef{
@@ -360,6 +369,7 @@ func ObjectTypes() []ObjectTypeDef {
 				"category":     {Type: "string", Description: "Evidence category: competitive, partner, technical, market, narrative, product-specs, internal"},
 				"content_hash": {Type: "string", Description: "SHA-256 hash for change detection during sync"},
 				"file_format":  {Type: "string", Description: "File format: md, pdf, docx, html"},
+				"source_path":  {Type: "string", Description: "Relative path within the EPF instance"},
 			}),
 		},
 
@@ -452,7 +462,10 @@ func RelationshipTypes() []RelTypeDef {
 			FromTypes:   []string{"Feature"}, ToTypes: []string{"MarketSegment"}, Properties: weightEdgeProps},
 		{Name: "validates_hypothesis", Label: "Validates Hypothesis", EdgeSource: "structural",
 			Description: "A proven capability validates a problem-solution hypothesis",
-			FromTypes:   []string{"Capability"}, ToTypes: []string{"Hypothesis"}, Properties: weightEdgeProps},
+			FromTypes:   []string{"Capability"}, ToTypes: []string{"Hypothesis"},
+			Properties: mergeProps(weightEdgeProps, map[string]PropertyDef{
+				"evidence": {Type: "string", Description: "Evidence from the capability supporting validation"},
+			})},
 		{Name: "addresses_white_space", Label: "Addresses White Space", EdgeSource: "structural",
 			Description: "A feature addresses a market gap / white space",
 			FromTypes:   []string{"Feature"}, ToTypes: []string{"WhiteSpace"}, Properties: weightEdgeProps},
@@ -477,7 +490,10 @@ func RelationshipTypes() []RelTypeDef {
 			FromTypes:   nil, ToTypes: nil, Properties: causalEdgeProps},
 		{Name: "validates", Label: "Validates", EdgeSource: "causal",
 			Description: "Proven capability validates an assumption",
-			FromTypes:   nil, ToTypes: []string{"Belief", "Assumption"}, Properties: causalEdgeProps},
+			FromTypes:   nil, ToTypes: []string{"Belief", "Assumption"},
+			Properties: mergeProps(causalEdgeProps, map[string]PropertyDef{
+				"evidence": {Type: "string", Description: "Evidence from the capability supporting validation"},
+			})},
 		{Name: "invalidates", Label: "Invalidates", EdgeSource: "causal",
 			Description: "AIM evidence invalidates a belief or assumption",
 			FromTypes:   nil, ToTypes: []string{"Belief", "Assumption"}, Properties: causalEdgeProps},

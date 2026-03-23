@@ -405,6 +405,41 @@
       }
     },
     {
+      "description": "A market opportunity from SWOT analysis or insight opportunity artifact. Tier 2.",
+      "label": "Opportunity",
+      "name": "Opportunity",
+      "properties": {
+        "description": {
+          "description": "Full text",
+          "type": "string"
+        },
+        "how_to_exploit": {
+          "description": "How to exploit this opportunity",
+          "type": "string"
+        },
+        "inertia_tier": {
+          "description": "Inertia tier (1-7) in the EPF hierarchy",
+          "type": "string"
+        },
+        "name": {
+          "description": "Opportunity summary",
+          "type": "string"
+        },
+        "priority": {
+          "description": "Priority: high, medium, low",
+          "type": "string"
+        },
+        "section_path": {
+          "description": "YAML path within the artifact",
+          "type": "string"
+        },
+        "source_artifact": {
+          "description": "Path to the source YAML file",
+          "type": "string"
+        }
+      }
+    },
+    {
       "description": "A problem-solution hypothesis from insight analyses. Tier 3.",
       "label": "Hypothesis",
       "name": "Hypothesis",
@@ -1178,6 +1213,10 @@
         "source_artifact": {
           "description": "Path to the source YAML file",
           "type": "string"
+        },
+        "source_path": {
+          "description": "Relative path within the EPF instance",
+          "type": "string"
         }
       }
     },
@@ -1626,6 +1665,10 @@
           "description": "Source: structural, semantic, or causal",
           "type": "string"
         },
+        "evidence": {
+          "description": "Evidence from the capability supporting validation",
+          "type": "string"
+        },
         "weight": {
           "description": "Edge weight (0.0-1.0)",
           "type": "string"
@@ -1689,6 +1732,7 @@
         "Strength",
         "Weakness",
         "Threat",
+        "Opportunity",
         "Hypothesis",
         "KeyInsight",
         "Positioning",
@@ -1723,6 +1767,7 @@
         "Strength",
         "Weakness",
         "Threat",
+        "Opportunity",
         "Hypothesis",
         "KeyInsight",
         "Positioning",
@@ -1776,6 +1821,7 @@
         "Strength",
         "Weakness",
         "Threat",
+        "Opportunity",
         "Hypothesis",
         "KeyInsight",
         "Positioning",
@@ -1810,6 +1856,7 @@
         "Strength",
         "Weakness",
         "Threat",
+        "Opportunity",
         "Hypothesis",
         "KeyInsight",
         "Positioning",
@@ -1863,6 +1910,7 @@
         "Strength",
         "Weakness",
         "Threat",
+        "Opportunity",
         "Hypothesis",
         "KeyInsight",
         "Positioning",
@@ -1897,6 +1945,7 @@
         "Strength",
         "Weakness",
         "Threat",
+        "Opportunity",
         "Hypothesis",
         "KeyInsight",
         "Positioning",
@@ -1950,6 +1999,7 @@
         "Strength",
         "Weakness",
         "Threat",
+        "Opportunity",
         "Hypothesis",
         "KeyInsight",
         "Positioning",
@@ -1984,6 +2034,7 @@
         "Strength",
         "Weakness",
         "Threat",
+        "Opportunity",
         "Hypothesis",
         "KeyInsight",
         "Positioning",
@@ -2037,6 +2088,7 @@
         "Strength",
         "Weakness",
         "Threat",
+        "Opportunity",
         "Hypothesis",
         "KeyInsight",
         "Positioning",
@@ -2071,6 +2123,7 @@
         "Strength",
         "Weakness",
         "Threat",
+        "Opportunity",
         "Hypothesis",
         "KeyInsight",
         "Positioning",
@@ -2103,6 +2156,10 @@
           "description": "Source: causal",
           "type": "string"
         },
+        "evidence": {
+          "description": "Evidence from the capability supporting validation",
+          "type": "string"
+        },
         "strength": {
           "description": "Causal strength (0.0-1.0)",
           "type": "string"
@@ -2124,6 +2181,7 @@
         "Strength",
         "Weakness",
         "Threat",
+        "Opportunity",
         "Hypothesis",
         "KeyInsight",
         "Positioning",
@@ -2181,6 +2239,7 @@
         "Strength",
         "Weakness",
         "Threat",
+        "Opportunity",
         "Hypothesis",
         "KeyInsight",
         "Positioning",
@@ -2238,6 +2297,7 @@
         "Strength",
         "Weakness",
         "Threat",
+        "Opportunity",
         "Hypothesis",
         "KeyInsight",
         "Positioning",
@@ -2272,6 +2332,7 @@
         "Strength",
         "Weakness",
         "Threat",
+        "Opportunity",
         "Hypothesis",
         "KeyInsight",
         "Positioning",
@@ -2366,6 +2427,11 @@
       "category": "Roadmap",
       "color": "#EF4444",
       "icon": "Target"
+    },
+    "Opportunity": {
+      "category": "Insights",
+      "color": "#22C55E",
+      "icon": "Sunrise"
     },
     "PainPoint": {
       "category": "Insights",
