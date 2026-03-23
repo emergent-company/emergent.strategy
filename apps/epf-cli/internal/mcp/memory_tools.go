@@ -8,11 +8,9 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	mcp "github.com/mark3labs/mcp-go/mcp"
 
-	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/decompose"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/memory"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/propagation"
 )
@@ -893,57 +891,22 @@ func extractCapabilityID(key string) string {
 	return key
 }
 
-// handleAsk enriches a strategy question with EPF context and delegates to
-// the Memory chat stream API (graph-query-agent with tool access).
+// handleAsk answers strategic questions about the EPF strategy graph.
 //
-// Uses /api/chat/stream instead of /api/ask — the chat stream endpoint
-// provides the LLM with graph query tools (entity-query, entity-edges-get,
-// search-hybrid), enabling it to actually traverse the strategy graph.
-// See: https://github.com/emergent-company/emergent-strategy/issues/23
+// This feature is currently disabled — it requires the Memory graph-query-agent
+// to support project token authentication (emergent.memory#132).
+//
+// See: https://github.com/emergent-company/emergent-strategy/issues/24
 func (s *Server) handleAsk(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	question, _ := request.RequireString("question")
 	if question == "" {
 		return mcp.NewToolResultError("question parameter is required"), nil
 	}
 
-	// Create a client with a longer timeout for the chat stream API — SSE streams
-	// can take 30-60 seconds for complex multi-hop graph traversal.
-	memURL := os.Getenv("EPF_MEMORY_URL")
-	memProject := os.Getenv("EPF_MEMORY_PROJECT")
-	memToken := os.Getenv("EPF_MEMORY_TOKEN")
-	if memURL == "" || memProject == "" || memToken == "" {
-		return memoryNotConfiguredResponse(), nil
-	}
-
-	client, err := memory.NewClient(memory.Config{
-		BaseURL:   memURL,
-		ProjectID: memProject,
-		Token:     memToken,
-		Timeout:   120 * time.Second,
-	})
-	if err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
-	}
-
-	// Enrich the question with EPF domain context
-	enrichedQuestion := decompose.GenerateAskContext() + question
-
-	result, err := client.Ask(ctx, enrichedQuestion)
-	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Ask failed: %v", err)), nil
-	}
-
-	response := map[string]any{
-		"question": question,
-		"response": result.Response,
-	}
-	if len(result.Tools) > 0 {
-		response["tools_used"] = result.Tools
-	}
-	if result.SessionID != "" {
-		response["session_id"] = result.SessionID
-	}
-
-	jsonBytes, _ := json.MarshalIndent(response, "", "  ")
-	return mcp.NewToolResultText(string(jsonBytes)), nil
+	return mcp.NewToolResultError(fmt.Sprintf(
+		"The ask feature is not yet available.\n\n"+
+			"It requires the Memory graph-query-agent to support project token\n"+
+			"authentication, which has been requested (emergent.memory#132).\n\n"+
+			"In the meantime, use the Memory CLI directly:\n"+
+			"  memory query %q", question)), nil
 }

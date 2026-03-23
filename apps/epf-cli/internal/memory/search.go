@@ -6,11 +6,13 @@ import (
 
 // Search performs hybrid search (text + vector) across graph objects.
 func (c *Client) Search(ctx context.Context, req SearchRequest) ([]SearchResult, error) {
-	var results []SearchResult
-	if err := c.do(ctx, "POST", "/api/graph/search", req, &results); err != nil {
+	var wrapper struct {
+		Data []SearchResult `json:"data"`
+	}
+	if err := c.do(ctx, "POST", "/api/graph/search", req, &wrapper); err != nil {
 		return nil, err
 	}
-	return results, nil
+	return wrapper.Data, nil
 }
 
 // SearchWithNeighbors performs hybrid search and includes graph neighbors
