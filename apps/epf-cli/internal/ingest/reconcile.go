@@ -12,114 +12,78 @@ import (
 
 // ReconcileResult reports what the reconciliation did.
 type ReconcileResult struct {
-	InstalledSchemaName    string   `json:"installed_schema_name,omitempty"`
-	InstalledSchemaVersion string   `json:"installed_schema_version,omitempty"`
-	Action                 string   `json:"action"` // "none", "installed", "upgraded", "skipped"
-	TypesExpected          int      `json:"types_expected"`
-	TypesPresent           int      `json:"types_present"`
-	TypesCreated           []string `json:"types_created,omitempty"`
-	Message                string   `json:"message"`
+	Action             string   `json:"action"` // "none", "synced", "skipped"
+	MissingObjectTypes []string `json:"missing_object_types,omitempty"`
+	ObjectTypesPresent int      `json:"object_types_present"`
+	ObjectTypesNeeded  int      `json:"object_types_needed"`
+	Message            string   `json:"message"`
 }
 
-// Reconcile ensures the Memory project has all types the decomposer needs.
-// It checks what's installed, compares against the Go-defined types, and
-// installs or upgrades the schema if needed.
+// Reconcile ensures the Memory project has all object types that the
+// decomposer needs. It compares the Go-defined types against the project's
+// compiled type registry and installs any missing types.
 //
-// Reconciliation is additive-only — it never removes types.
-// If the Memory API doesn't support schema management, it warns and continues.
+// epf-cli owns the schema. Memory is the semantic store. If types are
+// missing, epf-cli pushes them via the schema API (the only mechanism
+// Memory exposes for registering types). This is an implementation detail
+// -- we don't track schema versions or names.
+//
+// Relationship types are not checked because the Memory API does not
+// enforce them (compiled-types only returns object types).
+//
+// Reconciliation is additive-only and idempotent.
 func Reconcile(ctx context.Context, client *memory.Client) (*ReconcileResult, error) {
+	expectedTypes := decompose.ObjectTypes()
+
 	result := &ReconcileResult{
-		TypesExpected: len(decompose.ObjectTypes()),
+		ObjectTypesNeeded: len(expectedTypes),
 	}
 
-	// Check what schemas are installed
-	installed, err := client.ListInstalledSchemas(ctx)
-	if err != nil {
-		// Schema API may not be available — degrade gracefully
-		log.Printf("[reconcile] Schema management API unavailable: %v (continuing without reconciliation)", err)
-		result.Action = "skipped"
-		result.Message = fmt.Sprintf("Schema management API unavailable: %v", err)
-		return result, nil
-	}
-
-	// Find the epf-engine schema among installed schemas
-	var epfSchema *memory.InstalledSchema
-	for i, s := range installed {
-		if s.Name == "epf-engine" {
-			epfSchema = &installed[i]
-			break
-		}
-	}
-
-	if epfSchema != nil {
-		result.InstalledSchemaName = epfSchema.Name
-		result.InstalledSchemaVersion = epfSchema.Version
-	}
-
-	// Check compiled types to see what's actually available
+	// Get compiled types to see what object types exist
 	compiled, err := client.GetCompiledTypes(ctx)
 	if err != nil {
 		log.Printf("[reconcile] Could not get compiled types: %v (will attempt install)", err)
-	} else {
-		result.TypesPresent = len(compiled.ObjectTypes)
+		// Can't check — fall through to install all types
 	}
 
-	// Determine if we need to install/upgrade
-	expectedTypes := decompose.ObjectTypes()
-
 	if compiled != nil {
-		// Build a set of existing type names
+		result.ObjectTypesPresent = len(compiled.ObjectTypes)
+
 		existing := map[string]bool{}
 		for _, t := range compiled.ObjectTypes {
 			existing[t.Name] = true
 		}
 
-		// Check if all expected types exist
-		var missing []string
 		for _, t := range expectedTypes {
 			if !existing[t.Name] {
-				missing = append(missing, t.Name)
+				result.MissingObjectTypes = append(result.MissingObjectTypes, t.Name)
 			}
 		}
 
-		if len(missing) == 0 {
-			// All types present — no action needed
+		if len(result.MissingObjectTypes) == 0 {
 			result.Action = "none"
-			result.Message = fmt.Sprintf("All %d object types present in Memory project", len(expectedTypes))
-			log.Printf("[reconcile] All %d types present — no schema changes needed", len(expectedTypes))
+			result.Message = fmt.Sprintf("All %d object types present", len(expectedTypes))
+			log.Printf("[reconcile] %s", result.Message)
 			return result, nil
 		}
 
-		result.TypesCreated = missing
-		log.Printf("[reconcile] Missing %d types: %v — will install schema", len(missing), missing)
+		log.Printf("[reconcile] Missing %d object types: %v", len(result.MissingObjectTypes), result.MissingObjectTypes)
 	}
 
-	// Generate and install the template pack from Go definitions using --merge
-	// Merge is additive-only — creates missing types, leaves existing ones unchanged.
-	// No need to uninstall the old schema first.
+	// Push type definitions via the schema API with merge.
+	// This is idempotent — existing types are unchanged, missing ones are added.
 	pack := decompose.GenerateTemplatePack()
 	packJSON, err := json.MarshalIndent(pack, "", "  ")
 	if err != nil {
-		return nil, fmt.Errorf("reconcile: marshal template pack: %w", err)
+		return nil, fmt.Errorf("reconcile: marshal types: %w", err)
 	}
-
-	log.Printf("[reconcile] Installing epf-engine schema with --merge (%d object types, %d relationship types)",
-		len(expectedTypes), len(decompose.RelationshipTypes()))
 
 	if err := client.InstallSchemaFromJSON(ctx, packJSON, true); err != nil {
-		return nil, fmt.Errorf("reconcile: install schema: %w", err)
+		return nil, fmt.Errorf("reconcile: push types: %w", err)
 	}
 
-	if epfSchema != nil {
-		result.Action = "upgraded"
-		result.Message = fmt.Sprintf("Schema upgraded: epf-engine v%s → v2.1.0 (%d object types, %d relationship types)",
-			epfSchema.Version, len(expectedTypes), len(decompose.RelationshipTypes()))
-	} else {
-		result.Action = "installed"
-		result.Message = fmt.Sprintf("Schema installed: epf-engine v2.1.0 (%d object types, %d relationship types)",
-			len(expectedTypes), len(decompose.RelationshipTypes()))
-	}
-
+	result.Action = "synced"
+	result.Message = fmt.Sprintf("Pushed %d missing object types to Memory", len(result.MissingObjectTypes))
 	log.Printf("[reconcile] %s", result.Message)
 	return result, nil
 }
