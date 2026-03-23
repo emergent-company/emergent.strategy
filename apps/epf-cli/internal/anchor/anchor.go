@@ -52,6 +52,10 @@ type Anchor struct {
 
 	// Structure describes the EPF directory structure in use
 	Structure *StructureInfo `yaml:"structure,omitempty" json:"structure,omitempty"`
+
+	// Deployment describes how this instance is used across repositories.
+	// Optional, but recommended for submodule-based EPF instances.
+	Deployment *Deployment `yaml:"deployment,omitempty" json:"deployment,omitempty"`
 }
 
 // StructureInfo describes the EPF directory structure
@@ -62,6 +66,46 @@ type StructureInfo struct {
 	// Location is the relative path from repo root to EPF instance
 	// e.g., "docs/epf/_instances/emergent" or "."
 	Location string `yaml:"location,omitempty" json:"location,omitempty"`
+}
+
+// Deployment describes how this EPF instance is deployed across repositories.
+type Deployment struct {
+	// Mode is the deployment mode: "integrated", "submodule", or "standalone"
+	// - integrated: EPF lives inside a product repo (e.g., docs/epf/)
+	// - submodule: EPF is its own repo, used as git submodule in other repos
+	// - standalone: EPF repo not connected to any product repo
+	Mode string `yaml:"mode" json:"mode"`
+
+	// Consumers lists repos that use this EPF instance as a git submodule.
+	// Only populated when Mode is "submodule".
+	Consumers []Consumer `yaml:"consumers,omitempty" json:"consumers,omitempty"`
+
+	// Source describes the parent repo. Only populated when Mode is "integrated".
+	Source *SourceInfo `yaml:"source,omitempty" json:"source,omitempty"`
+}
+
+// Consumer represents a repo that consumes this EPF instance as a git submodule.
+type Consumer struct {
+	// Repo is the GitHub repository in "owner/name" format
+	Repo string `yaml:"repo" json:"repo"`
+
+	// Path is where the submodule is mounted in the consumer repo
+	Path string `yaml:"path" json:"path"`
+
+	// Branch is the branch in the consumer repo (default: "main")
+	Branch string `yaml:"branch,omitempty" json:"branch,omitempty"`
+
+	// AutoUpdate controls whether epf-cli push auto-updates this consumer
+	AutoUpdate bool `yaml:"auto_update,omitempty" json:"auto_update,omitempty"`
+}
+
+// SourceInfo describes the parent repo for integrated EPF instances.
+type SourceInfo struct {
+	// Repo is the GitHub repository in "owner/name" format
+	Repo string `yaml:"repo" json:"repo"`
+
+	// Path is the path within the repo where the EPF instance lives
+	Path string `yaml:"path" json:"path"`
 }
 
 // ValidationResult contains the result of anchor file validation
@@ -296,4 +340,22 @@ func InferFromLegacy(path string) (*Anchor, error) {
 	}
 
 	return anchor, nil
+}
+
+// IsSubmodule returns true if this instance is deployed as a git submodule.
+func (a *Anchor) IsSubmodule() bool {
+	return a.Deployment != nil && a.Deployment.Mode == "submodule"
+}
+
+// IsIntegrated returns true if this instance lives inside a product repo.
+func (a *Anchor) IsIntegrated() bool {
+	return a.Deployment != nil && a.Deployment.Mode == "integrated"
+}
+
+// GetConsumers returns the list of consumer repos, or nil if not a submodule.
+func (a *Anchor) GetConsumers() []Consumer {
+	if a.Deployment == nil {
+		return nil
+	}
+	return a.Deployment.Consumers
 }

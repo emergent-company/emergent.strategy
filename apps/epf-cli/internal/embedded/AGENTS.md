@@ -2506,6 +2506,77 @@ Editor → stdio → LSP Server (internal/lsp/)
 
 The server auto-detects the EPF instance root from open files, loads value models and relationship data, and provides cross-file intelligence without any configuration.
 
+## Git Submodule & Deployment Mode
+
+EPF instances can be deployed in three modes, configured in `_epf.yaml`:
+
+- **integrated**: EPF lives inside a product repo (default)
+- **submodule**: EPF is its own repo, used as git submodule in product repos
+- **standalone**: EPF repo not connected to product repos
+
+### How to detect your context
+
+Before editing EPF files, check which mode you're in:
+
+1. **Check `_epf.yaml`** for a `deployment:` section with `mode:` field
+2. **Check `.git`**: Is it a file (submodule consumer) or directory (source repo)?
+3. **Check `.gitmodules`** in the repo root for submodule path references
+4. **Run `git submodule status`** to see if any paths are submodules
+
+### Rules for submodule mode
+
+**If you're working IN the EPF repo (source):**
+- Commit and push to THIS repo's remote
+- After pushing, update consumer submodule pointers:
+  ```bash
+  # For each consumer listed in _epf.yaml deployment.consumers:
+  git -C <consumer-repo>/<submodule-path> pull
+  cd <consumer-repo>
+  git add <submodule-path>
+  git commit -m "chore: update strategy submodule"
+  git push
+  ```
+- The submodule pointer should ALWAYS point to the latest main commit
+- Feature branches belong in this repo, not in consumer repos
+
+**If you're working IN a consumer repo:**
+- Do NOT edit files under the submodule path directly
+- Reading submodule files for context is fine
+- To update the submodule to latest:
+  ```bash
+  git submodule update --remote <submodule-path>
+  git add <submodule-path>
+  git commit -m "chore: update strategy submodule to latest"
+  git push
+  ```
+- If you need to change strategy content, tell the user:
+  "These files live in the EPF strategy repo. Changes need to be made
+  there and the submodule updated here."
+
+### `_epf.yaml` deployment configuration
+
+```yaml
+# Submodule mode — EPF repo consumed by product repos
+deployment:
+  mode: submodule
+  consumers:
+    - repo: "MyOrg/my-product"
+      path: "docs/strategy"
+      branch: "main"
+      auto_update: true
+
+# Integrated mode — EPF inside a product repo
+deployment:
+  mode: integrated
+  source:
+    repo: "MyOrg/my-product"
+    path: "docs/epf"
+
+# Standalone mode — no connection to product repos
+deployment:
+  mode: standalone
+```
+
 ## Development Commands
 
 ```bash
