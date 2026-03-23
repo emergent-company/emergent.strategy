@@ -72,6 +72,16 @@ func runSemanticEdges(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("create memory client: %w", err)
 	}
 
+	// Pre-flight: check embedding progress
+	ctx := context.Background()
+	pct := client.EmbeddingProgressPercent(ctx)
+	if pct >= 0 && pct < 80 {
+		fmt.Fprintf(os.Stderr, "⚠ Embedding progress: %.0f%%. Semantic edges may be incomplete.\n", pct)
+		if pct < 20 {
+			fmt.Fprintf(os.Stderr, "⚠ Only %.0f%% embedded — results will be unreliable. Consider waiting.\n", pct)
+		}
+	}
+
 	config := ingest.DefaultSemanticEdgeConfig()
 	config.MinScore = semEdgesMinScore
 	config.MaxEdgesPerNode = semEdgesMaxPerNode

@@ -13,10 +13,12 @@ import (
 )
 
 var (
-	ingestMemoryURL   string
-	ingestProjectID   string
-	ingestMemoryToken string
-	ingestDryRun      bool
+	ingestMemoryURL    string
+	ingestProjectID    string
+	ingestMemoryToken  string
+	ingestDryRun       bool
+	ingestWaitEmbed    bool
+	ingestEmbedTimeout int
 )
 
 var ingestCmd = &cobra.Command{
@@ -53,6 +55,8 @@ func init() {
 	ingestCmd.Flags().StringVar(&ingestProjectID, "project", "", "Memory project ID (or EPF_MEMORY_PROJECT)")
 	ingestCmd.Flags().StringVar(&ingestMemoryToken, "token", "", "Memory API token (or EPF_MEMORY_TOKEN)")
 	ingestCmd.Flags().BoolVar(&ingestDryRun, "dry-run", false, "Decompose only, don't push to Memory")
+	ingestCmd.Flags().BoolVar(&ingestWaitEmbed, "wait-for-embeddings", false, "Wait for embeddings to complete after ingest")
+	ingestCmd.Flags().IntVar(&ingestEmbedTimeout, "embed-timeout", 300, "Timeout in seconds for --wait-for-embeddings (default: 300)")
 
 	rootCmd.AddCommand(ingestCmd)
 }
@@ -99,6 +103,39 @@ func runIngest(cmd *cobra.Command, args []string) error {
 	}
 
 	printIngestStats(stats)
+
+	// Report current embedding progress
+	pct := client.EmbeddingProgressPercent(context.Background())
+	if pct >= 0 {
+		fmt.Fprintf(os.Stderr, "Embedding progress: %.0f%%\n", pct)
+		if pct < 80 {
+			fmt.Fprintf(os.Stderr, "  Run 'epf-cli semantic-edges' after embeddings complete (~%.0f%% remaining)\n", 100-pct)
+		}
+	}
+
+	// Optionally wait for embeddings to complete
+	if ingestWaitEmbed && stats.ObjectsUpserted > 0 {
+		fmt.Fprintf(os.Stderr, "\nWaiting for embeddings to complete (timeout: %ds)...\n", ingestEmbedTimeout)
+		deadline := time.Now().Add(time.Duration(ingestEmbedTimeout) * time.Second)
+		for time.Now().Before(deadline) {
+			pct := client.EmbeddingProgressPercent(context.Background())
+			if pct < 0 {
+				fmt.Fprintf(os.Stderr, "  Embedding progress API not available — skipping wait\n")
+				break
+			}
+			if pct >= 100 {
+				fmt.Fprintf(os.Stderr, "  ✓ Embeddings complete (100%%)\n")
+				break
+			}
+			fmt.Fprintf(os.Stderr, "  Embedding: %.0f%% complete...\r", pct)
+			time.Sleep(5 * time.Second)
+		}
+		if time.Now().After(deadline) {
+			pct := client.EmbeddingProgressPercent(context.Background())
+			fmt.Fprintf(os.Stderr, "\n  ⚠ Embedding incomplete after timeout (%.0f%% done)\n", pct)
+		}
+	}
+
 	return nil
 }
 

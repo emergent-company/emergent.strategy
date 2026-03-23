@@ -11,6 +11,7 @@ import (
 
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/anchor"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/config"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/discovery"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/embedded"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/template"
 	"github.com/spf13/cobra"
@@ -18,7 +19,7 @@ import (
 
 var (
 	initForce bool
-	initMode  string // "integrated" (default) or "standalone"
+	initMode  string // "integrated" (default), "standalone", or "submodule"
 )
 
 var initCmd = &cobra.Command{
@@ -67,9 +68,17 @@ func runInit(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
+	// Auto-detect deployment mode if not explicitly set
+	if initMode == "integrated" { // default value, might need auto-detection
+		if discovery.IsSubmodule(".") {
+			fmt.Println("Auto-detected: running inside a git submodule")
+			initMode = "integrated" // EPF inside consumer as submodule
+		}
+	}
+
 	// Validate mode
-	if initMode != "integrated" && initMode != "standalone" {
-		fmt.Fprintf(os.Stderr, "Error: Invalid mode '%s'. Must be 'integrated' or 'standalone'\n", initMode)
+	if initMode != "integrated" && initMode != "standalone" && initMode != "submodule" {
+		fmt.Fprintf(os.Stderr, "Error: Invalid mode '%s'. Must be 'integrated', 'standalone', or 'submodule'\n", initMode)
 		os.Exit(1)
 	}
 
@@ -168,6 +177,36 @@ func runInit(cmd *cobra.Command, args []string) {
 		}
 		if err := rc.SaveRepoConfig(repoRoot); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: Could not create .epf.yaml: %v\n", err)
+		}
+
+		// Auto-detect if this standalone repo will be used as a submodule
+		// by checking if .git is a directory (standalone/submodule source)
+		gitPath := filepath.Join(instanceDir, ".git")
+		if info, err := os.Lstat(gitPath); err == nil && info.IsDir() {
+			// This is a proper git repo — ask about submodule usage
+			fmt.Println()
+			fmt.Println("This repo has its own git history.")
+			fmt.Println("Will it be used as a git submodule in other repos?")
+			fmt.Print("Add submodule deployment config? [y/N]: ")
+			reader := bufio.NewReader(os.Stdin)
+			answer, _ := reader.ReadString('\n')
+			answer = strings.TrimSpace(strings.ToLower(answer))
+			if answer == "y" || answer == "yes" {
+				// Read existing anchor and add deployment config
+				anchorPath := filepath.Join(instanceDir, anchor.AnchorFileName)
+				a, err := anchor.Load(anchorPath)
+				if err == nil {
+					a.Deployment = &anchor.Deployment{
+						Mode: "submodule",
+					}
+					if err := a.Save(anchorPath); err != nil {
+						fmt.Fprintf(os.Stderr, "Warning: Could not update anchor with deployment config: %v\n", err)
+					} else {
+						fmt.Println("Deployment mode set to 'submodule'")
+						fmt.Println("  Add consumers later with: epf-cli config add-consumer --repo owner/name --path docs/strategy")
+					}
+				}
+			}
 		}
 
 		fmt.Println()
@@ -981,5 +1020,5 @@ func printPostInitGuidance(instanceDir, productName string) {
 func init() {
 	rootCmd.AddCommand(initCmd)
 	initCmd.Flags().BoolVarP(&initForce, "force", "f", false, "overwrite existing instance")
-	initCmd.Flags().StringVar(&initMode, "mode", "integrated", "initialization mode: integrated (default) or standalone")
+	initCmd.Flags().StringVar(&initMode, "mode", "integrated", "Instance mode: integrated, standalone, or submodule")
 }

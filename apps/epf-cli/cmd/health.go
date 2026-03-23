@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -695,6 +696,18 @@ func runHealthCheck(instancePath string, schemasPath string) *HealthResult {
 			if !healthJSON {
 				printMetadataConsistencySummary(mcResult)
 			}
+		}
+	}
+
+	// 12. Submodule Drift Check
+	driftWarnings := checkSubmoduleDrift(instancePath)
+	if len(driftWarnings) > 0 {
+		result.HasWarnings = true
+		if !healthJSON {
+			for _, w := range driftWarnings {
+				fmt.Printf("  WARNING SUBMODULE DRIFT: %s\n", w)
+			}
+			fmt.Println()
 		}
 	}
 
@@ -2076,6 +2089,70 @@ func printMetadataConsistencySummary(result *checks.MetadataConsistencyResult) {
 		}
 	}
 	fmt.Println()
+}
+
+// checkSubmoduleDrift detects when consumer repos have stale submodule pointers
+// that don't match the current HEAD of this EPF instance.
+func checkSubmoduleDrift(instancePath string) []string {
+	var warnings []string
+
+	anchorPath := filepath.Join(instancePath, anchor.AnchorFileName)
+	a, err := anchor.Load(anchorPath)
+	if err != nil || !a.IsSubmodule() {
+		return nil
+	}
+
+	consumers := a.GetConsumers()
+	if len(consumers) == 0 {
+		return nil
+	}
+
+	cwd, _ := os.Getwd()
+	if cwd == "" {
+		cwd = instancePath
+	}
+	parentDir := filepath.Dir(cwd)
+
+	// Get current HEAD commit
+	headCmd := exec.Command("git", "rev-parse", "HEAD")
+	headCmd.Dir = instancePath
+	headOut, err := headCmd.Output()
+	if err != nil {
+		return nil
+	}
+	headCommit := strings.TrimSpace(string(headOut))
+
+	for _, consumer := range consumers {
+		parts := strings.Split(consumer.Repo, "/")
+		repoName := parts[len(parts)-1]
+		consumerDir := filepath.Join(parentDir, repoName)
+
+		if _, err := os.Stat(consumerDir); os.IsNotExist(err) {
+			continue // Consumer not cloned locally
+		}
+
+		submodulePath := filepath.Join(consumerDir, consumer.Path)
+		if _, err := os.Stat(submodulePath); os.IsNotExist(err) {
+			continue
+		}
+
+		// Get submodule's current commit
+		subHeadCmd := exec.Command("git", "-C", submodulePath, "rev-parse", "HEAD")
+		subOut, err := subHeadCmd.Output()
+		if err != nil {
+			continue
+		}
+		subCommit := strings.TrimSpace(string(subOut))
+
+		if subCommit != headCommit {
+			warnings = append(warnings, fmt.Sprintf(
+				"Consumer %s (%s) submodule is behind: %s vs HEAD %s. Run 'epf-cli push' to update.",
+				consumer.Repo, consumer.Path, subCommit[:8], headCommit[:8],
+			))
+		}
+	}
+
+	return warnings
 }
 
 func init() {
