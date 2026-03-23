@@ -5,6 +5,11 @@
 // There is no separate schema JSON file to maintain.
 package decompose
 
+import (
+	"fmt"
+	"strings"
+)
+
 // ObjectTypeDef defines an object type the decomposer produces.
 type ObjectTypeDef struct {
 	Name        string
@@ -561,4 +566,48 @@ func GenerateTemplatePack() map[string]any {
 		"relationshipTypes": relationshipTypeSchemas,
 		"ui_configs":        uiConfigs,
 	}
+}
+
+// GenerateAskContext produces the EPF domain context that is prepended to
+// questions sent to the Memory ask API. This is derived from the same type
+// definitions the decomposer uses, so it stays in sync automatically.
+func GenerateAskContext() string {
+	var sb strings.Builder
+
+	sb.WriteString("You are querying an EPF (Emergent Product Framework) strategy graph. ")
+	sb.WriteString("EPF is a braided holistic strategy framework with 4 tracks: Product, Strategy, OrgOps, Commercial. ")
+	sb.WriteString("The graph contains section-level decomposed strategy artifacts as typed nodes with structural, semantic, and causal edges.\n\n")
+
+	sb.WriteString("IMPORTANT: Use the entity-query tool (not entity-search or search-hybrid) to list objects by type. ")
+	sb.WriteString("Use entity-edges-get to find relationships between objects. These are the most reliable tools for EPF graph queries.\n\n")
+
+	// Object types with strategic meaning
+	sb.WriteString("Object types in this graph (query with entity-query):\n")
+	for _, ot := range ObjectTypes() {
+		sb.WriteString(fmt.Sprintf("- %s (tier %d): %s\n", ot.Name, ot.InertiaTier, ot.Description))
+	}
+
+	// Key relationship types with strategic meaning
+	sb.WriteString("\nKey relationship types (check with entity-edges-get):\n")
+	for _, rt := range RelationshipTypes() {
+		if rt.EdgeSource == "semantic" {
+			continue // Skip semantic-only edges for brevity
+		}
+		sb.WriteString(fmt.Sprintf("- %s: %s\n", rt.Name, rt.Description))
+	}
+
+	// Strategic query patterns
+	sb.WriteString("\nCommon EPF query patterns:\n")
+	sb.WriteString("- Competitive analysis: Query Competitor objects, then find competes_with edges to Positioning\n")
+	sb.WriteString("- Risk mitigation: Query Threat/StrategicRisk objects, then find mitigates edges from Features\n")
+	sb.WriteString("- White space coverage: Query WhiteSpace objects, then find addresses_white_space edges from Features\n")
+	sb.WriteString("- Assumption validation: Query Assumption objects, then find validates edges from proven Capabilities\n")
+	sb.WriteString("- Market targeting: Query MarketSegment objects, then find targets_segment edges from Features\n")
+	sb.WriteString("- Value chain: Query Feature objects, then follow contributes_to edges to ValueModelComponent\n")
+	sb.WriteString("- Track definitions: Query TrackDefinition with filter track=strategy|org_ops|commercial\n")
+	sb.WriteString("- Strategic cascade: Follow informs edges from Belief/Trend/KeyInsight → Positioning → Features\n")
+
+	sb.WriteString("\nNow answer the following question using the graph:\n\n")
+
+	return sb.String()
 }

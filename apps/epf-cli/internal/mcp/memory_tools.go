@@ -11,6 +11,7 @@ import (
 
 	mcp "github.com/mark3labs/mcp-go/mcp"
 
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/decompose"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/memory"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/propagation"
 )
@@ -86,6 +87,14 @@ func (s *Server) registerMemoryTools() {
 			mcp.WithString("instance_path", mcp.Description("Path to EPF instance (uses default if not provided)")),
 		),
 		s.handleSuggestEnrichment,
+	)
+
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_ask",
+			mcp.WithDescription("[Strategy] USE WHEN you need to answer complex strategic questions that require multi-hop graph reasoning across EPF artifacts. Enriches the question with EPF domain context and delegates to Memory's graph-powered reasoning."),
+			mcp.WithString("question", mcp.Required(), mcp.Description("Natural language strategy question (e.g., 'What threatens our competitive position and how are we mitigating it?')")),
+		),
+		s.handleAsk,
 	)
 }
 
@@ -881,4 +890,36 @@ func extractCapabilityID(key string) string {
 		return key[idx+1:]
 	}
 	return key
+}
+
+// handleAsk enriches a strategy question with EPF context and delegates to Memory ask API.
+func (s *Server) handleAsk(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	question, _ := request.RequireString("question")
+	if question == "" {
+		return mcp.NewToolResultError("question parameter is required"), nil
+	}
+
+	client, err := s.getMemoryClient()
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	// Enrich the question with EPF domain context
+	enrichedQuestion := decompose.GenerateAskContext() + question
+
+	result, err := client.Ask(ctx, enrichedQuestion)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Ask failed: %v", err)), nil
+	}
+
+	response := map[string]any{
+		"question": question,
+		"response": result.Response,
+	}
+	if len(result.Tools) > 0 {
+		response["tools_used"] = result.Tools
+	}
+
+	jsonBytes, _ := json.MarshalIndent(response, "", "  ")
+	return mcp.NewToolResultText(string(jsonBytes)), nil
 }
