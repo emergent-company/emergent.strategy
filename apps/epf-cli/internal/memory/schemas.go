@@ -41,16 +41,34 @@ func (c *Client) ListInstalledSchemas(ctx context.Context) ([]InstalledSchema, e
 
 // InstallSchemaFromJSON installs a schema from a JSON pack definition.
 // If merge is true, it additively merges types into the project.
+//
+// This is a two-step process:
+//  1. Create the schema in the org registry via POST /api/schemas
+//  2. Assign it to the project via POST /api/schemas/projects/{pid}/assign
 func (c *Client) InstallSchemaFromJSON(ctx context.Context, packJSON []byte, merge bool) error {
+	// Step 1: Create the schema in the org registry.
+	var pack json.RawMessage = packJSON
+	var created SchemaInfo
+	if err := c.do(ctx, "POST", "/api/schemas", &pack, &created); err != nil {
+		return fmt.Errorf("create schema: %w", err)
+	}
+
+	if created.ID == "" {
+		return fmt.Errorf("create schema: API returned empty schema ID")
+	}
+
+	// Step 2: Assign the schema to the project.
+	assignBody := map[string]any{
+		"schema_id": created.ID,
+	}
 	endpoint := c.schemasProjectPath() + "/assign"
 	if merge {
 		endpoint += "?merge=true"
 	}
-	// Use raw JSON — the pack is already serialized
-	var pack json.RawMessage = packJSON
-	if err := c.do(ctx, "POST", endpoint, &pack, nil); err != nil {
-		return fmt.Errorf("install schema: %w", err)
+	if err := c.do(ctx, "POST", endpoint, assignBody, nil); err != nil {
+		return fmt.Errorf("assign schema %s to project: %w", created.ID, err)
 	}
+
 	return nil
 }
 

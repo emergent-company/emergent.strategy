@@ -542,7 +542,7 @@ func GenerateTemplatePack() map[string]any {
 		for k, v := range rt.Properties {
 			props[k] = map[string]any{"type": v.Type, "description": v.Description}
 		}
-		// Memory API uses sourceTypes/targetTypes field names
+		// Memory API uses sourceType/targetType field names (singular, arrays)
 		// Nil means "any type" → use wildcard list of all object types
 		from := rt.FromTypes
 		to := rt.ToTypes
@@ -556,8 +556,8 @@ func GenerateTemplatePack() map[string]any {
 			"name":        rt.Name,
 			"label":       rt.Label,
 			"description": rt.Description,
-			"sourceTypes": from,
-			"targetTypes": to,
+			"sourceType":  from,
+			"targetType":  to,
 			"properties":  props,
 		})
 	}
@@ -574,13 +574,13 @@ func GenerateTemplatePack() map[string]any {
 	}
 
 	return map[string]any{
-		"name":              "epf-engine",
-		"version":           "2.1.0",
-		"description":       "Semantic strategy runtime schema — section-level strategy artifacts as graph nodes with structural, semantic, and causal edges. Auto-managed by epf-cli.",
-		"author":            "emergent-company",
-		"objectTypes":       objectTypeSchemas,
-		"relationshipTypes": relationshipTypeSchemas,
-		"ui_configs":        uiConfigs,
+		"name":                    "epf-engine",
+		"version":                 "2.1.0",
+		"description":             "Semantic strategy runtime schema — section-level strategy artifacts as graph nodes with structural, semantic, and causal edges. Auto-managed by epf-cli.",
+		"author":                  "emergent-company",
+		"objectTypeSchemas":       objectTypeSchemas,
+		"relationshipTypeSchemas": relationshipTypeSchemas,
+		"uiConfigs":               uiConfigs,
 	}
 }
 
