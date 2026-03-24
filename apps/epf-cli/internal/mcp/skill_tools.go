@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/agent"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/compute"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/pathutil"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/skill"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -138,6 +139,11 @@ func (s *Server) handleListSkills(ctx context.Context, request mcp.CallToolReque
 			if sk.Category != "" {
 				sb.WriteString(fmt.Sprintf(" (%s)", sk.Category))
 			}
+			if sk.Execution == skill.ExecutionInline {
+				sb.WriteString(" ⚡ inline")
+			} else if sk.Execution == skill.ExecutionScript {
+				sb.WriteString(" 📜 script")
+			}
 			sb.WriteString("\n")
 
 			if sk.Description != "" {
@@ -204,6 +210,7 @@ func skillTypeIcon(t skill.SkillType) string {
 type SkillResponse struct {
 	Name              string                `json:"name"`
 	Type              string                `json:"type"`
+	Execution         string                `json:"execution,omitempty"`
 	Phase             string                `json:"phase,omitempty"`
 	Version           string                `json:"version,omitempty"`
 	Description       string                `json:"description"`
@@ -219,6 +226,8 @@ type SkillResponse struct {
 	RequiredTools     []string              `json:"required_tools,omitempty"`
 	Capability        *agent.CapabilitySpec `json:"capability,omitempty"`
 	Scope             *skill.ScopeSpec      `json:"scope,omitempty"`
+	Inline            *skill.InlineSpec     `json:"inline,omitempty"`
+	Script            *skill.ScriptSpec     `json:"script,omitempty"`
 	HasManifest       bool                  `json:"has_manifest"`
 	HasPrompt         bool                  `json:"has_prompt"`
 	HasSchema         bool                  `json:"has_schema"`
@@ -259,6 +268,7 @@ func (s *Server) handleGetSkill(ctx context.Context, request mcp.CallToolRequest
 	response := SkillResponse{
 		Name:              sk.Name,
 		Type:              string(sk.Type),
+		Execution:         string(sk.Execution),
 		Phase:             sk.Phase,
 		Version:           sk.Version,
 		Description:       sk.Description,
@@ -274,6 +284,8 @@ func (s *Server) handleGetSkill(ctx context.Context, request mcp.CallToolRequest
 		RequiredTools:     sk.RequiredTools,
 		Capability:        sk.Capability,
 		Scope:             sk.Scope,
+		Inline:            sk.Inline,
+		Script:            sk.Script,
 		HasManifest:       sk.HasManifest,
 		HasPrompt:         sk.HasPrompt,
 		HasSchema:         sk.HasSchema,
@@ -300,6 +312,29 @@ func (s *Server) handleGetSkill(ctx context.Context, request mcp.CallToolRequest
 		scopeText := FormatSkillScope(sk.Scope.PreferredTools, sk.Scope.AvoidTools)
 		if scopeText != "" && response.Prompt != "" {
 			response.Prompt += scopeText
+		}
+	}
+
+	// Add execution mode redirection for inline/script skills
+	switch sk.Execution {
+	case skill.ExecutionInline:
+		response.Guidance.NextSteps = append(response.Guidance.NextSteps,
+			fmt.Sprintf("This is a computational skill (execution: inline). Call epf_execute_skill with skill='%s' and instance_path to execute it directly.", sk.Name))
+		if sk.Inline != nil {
+			response.Guidance.Tips = append(response.Guidance.Tips,
+				fmt.Sprintf("Handler: %s", sk.Inline.Handler))
+		}
+		// For hybrid skills, still include the prompt for the LLM-driven parts
+		if content.PromptContent != "" {
+			response.Guidance.Tips = append(response.Guidance.Tips,
+				"This is a hybrid skill: call epf_execute_skill for the computational part, then use the prompt content for narrative/reasoning output.")
+		}
+	case skill.ExecutionScript:
+		response.Guidance.NextSteps = append(response.Guidance.NextSteps,
+			fmt.Sprintf("This is a script skill (execution: script). Call epf_execute_skill with skill='%s' and instance_path to execute it directly.", sk.Name))
+		if sk.Script != nil {
+			response.Guidance.Tips = append(response.Guidance.Tips,
+				fmt.Sprintf("Command: %s %s", sk.Script.Command, strings.Join(sk.Script.Args, " ")))
 		}
 	}
 
@@ -331,6 +366,113 @@ func (s *Server) handleGetSkill(ctx context.Context, request mcp.CallToolRequest
 	jsonBytes, err := json.MarshalIndent(response, "", "  ")
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize response: %s", err.Error())), nil
+	}
+
+	return mcp.NewToolResultText(string(jsonBytes)), nil
+}
+
+// =============================================================================
+// Skill Execution
+// =============================================================================
+
+// handleExecuteSkill handles the epf_execute_skill tool.
+func (s *Server) handleExecuteSkill(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	if s.skillLoader == nil || !s.skillLoader.HasSkills() {
+		return mcp.NewToolResultError("Skills not loaded. Ensure EPF skills/generators/wizards directory exists."), nil
+	}
+
+	skillName, err := request.RequireString("skill")
+	if err != nil {
+		return mcp.NewToolResultError("skill parameter is required"), nil
+	}
+
+	instancePath, err := request.RequireString("instance_path")
+	if err != nil {
+		return mcp.NewToolResultError("instance_path parameter is required"), nil
+	}
+
+	// Resolve instance path
+	instancePath = pathutil.ExpandTilde(instancePath)
+	if !filepath.IsAbs(instancePath) {
+		instancePath, _ = filepath.Abs(instancePath)
+	}
+
+	// Parse optional parameters
+	var params map[string]interface{}
+	paramsStr, _ := request.RequireString("parameters")
+	if paramsStr != "" {
+		if err := json.Unmarshal([]byte(paramsStr), &params); err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Invalid parameters JSON: %v", err)), nil
+		}
+	}
+
+	// Look up the skill
+	sk, err := s.skillLoader.GetSkill(skillName)
+	if err != nil {
+		names := s.skillLoader.GetSkillNames()
+		sort.Strings(names)
+		return mcp.NewToolResultError(fmt.Sprintf("Skill not found: %s. Available skills: %s", skillName, strings.Join(names, ", "))), nil
+	}
+
+	// Build execution input
+	input := &compute.ExecutionInput{
+		InstancePath: instancePath,
+		Parameters:   params,
+		SkillDir:     sk.Path,
+	}
+
+	var result *compute.ExecutionResult
+
+	switch sk.Execution {
+	case skill.ExecutionInline:
+		// Look up the registered handler
+		if sk.Inline == nil || sk.Inline.Handler == "" {
+			return mcp.NewToolResultError(fmt.Sprintf("Skill %q is marked as inline but has no handler specified", skillName)), nil
+		}
+		if s.computeRegistry == nil {
+			return mcp.NewToolResultError("Compute registry not initialized"), nil
+		}
+		result, err = s.computeRegistry.Execute(ctx, sk.Inline.Handler, input)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Inline execution failed: %v", err)), nil
+		}
+
+	case skill.ExecutionScript:
+		// Execute via script executor
+		if sk.Script == nil || sk.Script.Command == "" {
+			return mcp.NewToolResultError(fmt.Sprintf("Skill %q is marked as script but has no command specified", skillName)), nil
+		}
+		if sk.Source != skill.SourceInstance {
+			return mcp.NewToolResultError(fmt.Sprintf("Script skills can only be executed from instance-local skills (source: %s)", sk.Source)), nil
+		}
+		if s.scriptExecutor == nil {
+			return mcp.NewToolResultError("Script executor not initialized"), nil
+		}
+		result, err = s.scriptExecutor.Execute(ctx, sk.Script, input)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Script execution failed: %v", err)), nil
+		}
+
+	case skill.ExecutionPromptDelivery, "":
+		return mcp.NewToolResultError(fmt.Sprintf(
+			"Skill %q uses prompt-delivery execution. Use epf_get_skill to get its prompt content instead of epf_execute_skill.",
+			skillName,
+		)), nil
+
+	case skill.ExecutionPlugin:
+		return mcp.NewToolResultError(fmt.Sprintf(
+			"Skill %q uses plugin execution which is not yet supported (Phase 2).",
+			skillName,
+		)), nil
+
+	default:
+		return mcp.NewToolResultError(fmt.Sprintf("Unknown execution mode %q for skill %q", sk.Execution, skillName)), nil
+	}
+
+	// Serialize and return the result
+	jsonBytes, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize result: %v", err)), nil
 	}
 
 	return mcp.NewToolResultText(string(jsonBytes)), nil

@@ -16,6 +16,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/anchor"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/auth"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/checks"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/compute"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/discovery"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/fixplan"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/generator"
@@ -52,6 +53,10 @@ type Server struct {
 	generatorLoader     *generator.Loader
 	agentLoader         *agent.Loader
 	skillLoader         *skill.Loader
+
+	// Compute: inline skill execution
+	computeRegistry *compute.Registry
+	scriptExecutor  *compute.ScriptExecutor
 
 	// Plugin detection (standalone vs plugin-assisted mode)
 	pluginInfo *PluginInfo
@@ -287,6 +292,8 @@ func NewServer(schemasDir string) (*Server, error) {
 		generatorLoader:     generatorLoader,
 		agentLoader:         agentLoader,
 		skillLoader:         skillLoader,
+		computeRegistry:     compute.DefaultRegistry,
+		scriptExecutor:      compute.NewScriptExecutor(),
 		pluginInfo:          pluginInfo,
 		analyzers:           make(map[string]*relationships.Analyzer),
 		auditLog:            auditLog,
@@ -801,6 +808,25 @@ func (s *Server) registerTools() {
 			),
 		),
 		s.handleGetSkill,
+	)
+
+	// Tool: epf_execute_skill
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_execute_skill",
+			mcp.WithDescription("[Skill] USE WHEN you need to run a computational skill (execution: inline or script). Returns structured results directly instead of prompt content. Use epf_get_skill for prompt-delivery skills."),
+			mcp.WithString("skill",
+				mcp.Required(),
+				mcp.Description("The skill name to execute"),
+			),
+			mcp.WithString("instance_path",
+				mcp.Required(),
+				mcp.Description("Path to the EPF instance providing input data"),
+			),
+			mcp.WithString("parameters",
+				mcp.Description("JSON object with skill-specific parameters"),
+			),
+		),
+		s.handleExecuteSkill,
 	)
 
 	// Tool: epf_scaffold_skill
