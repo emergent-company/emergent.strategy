@@ -154,7 +154,13 @@ func (l *Loader) loadFromDir(dir string, source SkillSource) int {
 			continue
 		}
 
-		// Higher-priority sources overwrite lower ones
+		// Higher-priority sources overwrite lower ones, but within the same
+		// source priority, don't let a manifest-less entry overwrite one that
+		// has a manifest. This prevents legacy outputs/ dirs (which may lack
+		// skill.yaml) from clobbering correctly-loaded skills/ entries.
+		if existing, ok := l.skills[info.Name]; ok && existing.Source == source && existing.HasManifest && !info.HasManifest {
+			continue
+		}
 		l.skills[info.Name] = info
 		count++
 	}
