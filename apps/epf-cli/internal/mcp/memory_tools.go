@@ -124,12 +124,20 @@ func (s *Server) handleMemoryStatus(ctx context.Context, request mcp.CallToolReq
 	project := os.Getenv("EPF_MEMORY_PROJECT")
 	token := os.Getenv("EPF_MEMORY_TOKEN")
 
+	// Check memory CLI availability (needed for epf_ask)
+	preflight := memory.CheckAskPreflight()
+
 	response := map[string]any{
 		"configured": false,
 		"env_vars": map[string]any{
 			"EPF_MEMORY_URL":     memURL != "",
 			"EPF_MEMORY_PROJECT": project != "",
 			"EPF_MEMORY_TOKEN":   token != "",
+		},
+		"memory_cli": map[string]any{
+			"available": preflight.Available,
+			"path":      preflight.MemoryBin,
+			"error":     preflight.Error,
 		},
 	}
 
