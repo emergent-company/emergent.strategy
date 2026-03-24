@@ -28,9 +28,20 @@ These are deterministic algorithms that should run as code, not LLM prompt-follo
 1. **value-model-preview** -- Pure template rendering. Go's `text/template` processes the HTML template with value model data from `internal/valuemodel/`. Zero LLM involvement. Core EPF operation, stays in binary permanently.
 2. **balance-checker** -- Algorithmic roadmap analysis. Go implements the graph algorithms and scoring formulas from the prompt's pseudocode. The LLM handles only the initial capacity gathering (interactive) and final narrative recommendations. Core EPF operation, stays in binary permanently.
 
+## Skill Builder Agent
+
+A prompt-delivery agent (`skill-builder`) embedded in `epf-cli` that guides users through creating their own custom skills and plugin packs. This is a meta-skill that uses the skill system to teach users how to extend it. The agent:
+
+- Analyzes what the user wants to automate and recommends the right execution mode (prompt-delivery, script, or plugin)
+- Generates working `skill.yaml` manifests with correct execution mode, parameters, and required artifacts
+- Scaffolds starter scripts in the user's preferred language with the JSON stdin/stdout contract wired up
+- Generates Go module scaffolds for plugin packs with the CLI contract (`list-skills`, `execute`)
+- Produces test harnesses alongside each skill so the user can verify it works immediately
+- Places files in the correct instance directory and verifies the skill appears in discovery
+
 ## Phased Roadmap
 
-**Phase 1 (this proposal):** Execution mode infrastructure + core inline skills. Adds `execution` field, `internal/compute/` package, `epf_execute_skill` tool, script executor. Implements value-model-preview and balance-checker as inline handlers.
+**Phase 1 (this proposal):** Execution mode infrastructure + core inline skills + skill builder agent. Adds `execution` field, `internal/compute/` package, `epf_execute_skill` tool, script executor. Implements value-model-preview and balance-checker as inline handlers. Embeds skill-builder agent for user extensibility.
 
 **Phase 2 (future):** Plugin system infrastructure. Plugin discovery (`epf-pack-*` on PATH), execution routing, scaffold tooling (`epf-cli plugins create`). No packs yet -- just the infrastructure.
 
