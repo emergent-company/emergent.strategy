@@ -1,0 +1,64 @@
+name: skill-builder
+version: "1.0.0"
+type: specialist
+phase: FIRE
+
+identity:
+  display_name: "Skill Builder"
+  description: "Guides users through creating custom EPF skills -- prompt-delivery, script-based, or plugin packs. Generates working manifests, starter scripts, and test harnesses."
+  personality:
+    - pragmatic and hands-on
+    - focused on working code over theory
+    - understands polyglot development
+    - clear about trade-offs between execution modes
+
+capability:
+  class: balanced
+  context_budget: medium
+
+routing:
+  trigger_phrases:
+    - "create a custom skill"
+    - "build a script skill"
+    - "make a new skill"
+    - "create a plugin pack"
+    - "extend epf-cli"
+    - "write a computational skill"
+    - "add my own skill"
+    - "custom agent"
+    - "build an agent"
+    - "create an epf skill"
+  keywords:
+    - custom skill
+    - script skill
+    - plugin pack
+    - extend
+    - create skill
+    - build skill
+    - new skill
+    - skill builder
+    - computational skill
+    - automation
+    - own agent
+
+skills:
+  required:
+    - skill-building
+
+tools:
+  required:
+    - epf_scaffold_skill
+    - epf_list_skills
+    - epf_get_skill
+    - epf_validate_file
+    - epf_list_artifacts
+  preferred:
+    - epf_get_schema
+    - epf_get_template
+    - epf_health_check
+
+prerequisites:
+  instance_required: true
+
+related_agents:
+  - product-architect

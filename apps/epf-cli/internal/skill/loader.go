@@ -411,6 +411,49 @@ func (l *Loader) inferSkillInfo(skillDir string, source SkillSource) (*SkillInfo
 	return info, nil
 }
 
+// validateExecutionMode checks execution mode constraints on a manifest.
+// Returns warnings (non-fatal) and errors (fatal).
+func validateExecutionMode(m *SkillManifest, source SkillSource) (warnings []string, errs []error) {
+	// Default to prompt-delivery if not specified
+	if m.Execution == "" {
+		m.Execution = ExecutionPromptDelivery
+	}
+
+	switch m.Execution {
+	case ExecutionPromptDelivery:
+		// Warn if inline/script blocks are present on a prompt-delivery skill
+		if m.Inline != nil {
+			warnings = append(warnings, fmt.Sprintf("skill %q: inline block ignored for prompt-delivery skill", m.Name))
+		}
+		if m.Script != nil {
+			warnings = append(warnings, fmt.Sprintf("skill %q: script block ignored for prompt-delivery skill", m.Name))
+		}
+
+	case ExecutionInline:
+		if m.Inline == nil || m.Inline.Handler == "" {
+			errs = append(errs, fmt.Errorf("skill %q: execution mode 'inline' requires inline.handler", m.Name))
+		}
+
+	case ExecutionScript:
+		if m.Script == nil || m.Script.Command == "" {
+			errs = append(errs, fmt.Errorf("skill %q: execution mode 'script' requires script.command", m.Name))
+		}
+		// Script execution only allowed for instance-local skills
+		if source != SourceInstance && source != "" {
+			warnings = append(warnings, fmt.Sprintf("skill %q: script execution only available for instance-local skills (source: %s), treating as prompt-delivery", m.Name, source))
+			m.Execution = ExecutionPromptDelivery
+		}
+
+	case ExecutionPlugin:
+		errs = append(errs, fmt.Errorf("skill %q: execution mode 'plugin' is not yet supported", m.Name))
+
+	default:
+		errs = append(errs, fmt.Errorf("skill %q: unknown execution mode %q (valid: prompt-delivery, inline, script, plugin)", m.Name, m.Execution))
+	}
+
+	return warnings, errs
+}
+
 // populateFromManifest fills SkillInfo from a parsed manifest.
 func (l *Loader) populateFromManifest(info *SkillInfo, m *SkillManifest) {
 	if m.Name != "" {
@@ -418,7 +461,17 @@ func (l *Loader) populateFromManifest(info *SkillInfo, m *SkillManifest) {
 	}
 	info.Version = m.Version
 	info.Type = m.Type
+
+	// Validate and default execution mode
+	warnings, errs := validateExecutionMode(m, info.Source)
+	for _, w := range warnings {
+		fmt.Fprintf(os.Stderr, "Warning: %s\n", w)
+	}
+	for _, e := range errs {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", e)
+	}
 	info.Execution = m.Execution
+
 	info.Phase = m.Phase
 	info.Description = m.Description
 	info.Category = m.Category
