@@ -1,9 +1,28 @@
 name: value-model-preview
-version: "1.0.0"
+version: "1.1.0"
 type: generation
 description: "Generates shareable HTML previews of EPF value models for stakeholder review, with interactive visualization and maturity indicators."
 category: internal
 author: "EPF Framework"
+execution: inline
+inline:
+  handler: value-model-preview
+  parameters:
+    - name: instance_path
+      type: string
+      required: true
+    - name: track
+      type: string
+    - name: theme
+      type: string
+      default: auto
+      enum: [auto, light, dark]
+    - name: title
+      type: string
+    - name: subtitle
+      type: string
+    - name: footer_text
+      type: string
 
 capability:
   class: fast-exec

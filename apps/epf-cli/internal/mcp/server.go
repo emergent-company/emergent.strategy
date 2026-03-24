@@ -17,6 +17,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/auth"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/checks"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/compute"
+	_ "github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/compute/valuemodel" // Register inline handler
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/discovery"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/fixplan"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/generator"
