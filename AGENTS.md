@@ -116,6 +116,16 @@ When creating or modifying EPF artifacts:
 
 Wizard tools (`epf_get_wizard_for_task`, `epf_get_wizard`) and generator tools (`epf_list_generators`, `epf_get_generator`) coexist permanently with agent/skill tools. Prefer agent/skill tools for new workflows.
 
+### Computational Skill Execution
+
+Some skills use `execution: inline` or `execution: script` instead of prompt-delivery. These run deterministic code rather than relying on the LLM to follow instructions.
+
+- **`epf_execute_skill`** -- Runs inline or script skills and returns structured `ExecutionResult` JSON. Use this instead of `epf_get_skill` for computational skills.
+- When `epf_get_skill` is called for an inline/script skill, it returns redirection instructions directing you to call `epf_execute_skill` instead.
+- Inline skills: `value-model-preview` (HTML rendering), `balance-checker` (roadmap viability scoring)
+- Script skills: user-authored skills in instance `skills/` directories (any language, JSON stdin/stdout)
+- Use the `skill-builder` agent to help users create custom script or prompt-delivery skills
+
 ### Strategy Context Tools
 
 Before feature work, roadmap changes, or competitive decisions, query strategy context using: `epf_get_product_vision`, `epf_get_personas`, `epf_get_competitive_position`, `epf_get_roadmap_summary`, `epf_search_strategy`.

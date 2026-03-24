@@ -42,6 +42,8 @@ The EPF CLI includes an MCP server for AI agent integration. It provides:
 
 - **Agents** — AI personas that orchestrate EPF workflows (replacing wizards)
 - **Skills** — Bundled capabilities with prompts, validation, and tools (replacing wizards + generators)
+- **Computational skills** — Inline Go handlers and script-based skills for deterministic execution (`epf_execute_skill`)
+- **Skill builder** — Agent that guides users through creating custom skills
 - **Validation** — Schema validation, relationship checks, content readiness
 - **Strategy queries** — Vision, personas, roadmap, competitive context
 - **Instance management** — Health checks, scaffolding, migration
