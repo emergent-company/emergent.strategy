@@ -1,8 +1,21 @@
 name: balance-checker
-version: "1.0.0"
+version: "1.1.0"
 type: review
 phase: READY
 description: "Evaluates roadmap viability across all 4 tracks (Product, Strategy, OrgOps, Commercial), checking resource balance, conflicts, and strategic alignment."
+execution: inline
+inline:
+  handler: balance-checker
+  parameters:
+    - name: instance_path
+      type: string
+      required: true
+    - name: team_size
+      type: number
+    - name: weeks
+      type: number
+    - name: points_per_week
+      type: number
 
 capability:
   class: balanced
