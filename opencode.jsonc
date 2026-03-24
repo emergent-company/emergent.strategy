@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "github-copilot/claude-opus-4.6",
+  "model": "google-vertex-anthropic/claude-opus-4-6",
   "provider": {
     "google-vertex-anthropic": {
       "options": {
