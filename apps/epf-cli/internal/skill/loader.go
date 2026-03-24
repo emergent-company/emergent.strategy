@@ -418,11 +418,14 @@ func (l *Loader) populateFromManifest(info *SkillInfo, m *SkillManifest) {
 	}
 	info.Version = m.Version
 	info.Type = m.Type
+	info.Execution = m.Execution
 	info.Phase = m.Phase
 	info.Description = m.Description
 	info.Category = m.Category
 	info.Author = m.Author
 	info.Regions = m.Regions
+	info.Inline = m.Inline
+	info.Script = m.Script
 
 	if m.Requires != nil {
 		info.RequiredArtifacts = m.Requires.Artifacts

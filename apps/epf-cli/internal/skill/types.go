@@ -163,6 +163,73 @@ func CategoryFromString(s string) (Category, error) {
 	}
 }
 
+// ExecutionMode specifies how a skill is executed.
+type ExecutionMode string
+
+const (
+	// ExecutionPromptDelivery is the default mode: prompt content is returned to the LLM.
+	ExecutionPromptDelivery ExecutionMode = "prompt-delivery"
+
+	// ExecutionInline means the skill is executed by a Go handler compiled into the binary.
+	ExecutionInline ExecutionMode = "inline"
+
+	// ExecutionScript means the skill is executed as a subprocess (any language).
+	ExecutionScript ExecutionMode = "script"
+
+	// ExecutionPlugin means the skill is executed by an external skill pack binary (Phase 2).
+	ExecutionPlugin ExecutionMode = "plugin"
+)
+
+// ExecutionModeFromString converts a string to ExecutionMode with validation.
+func ExecutionModeFromString(s string) (ExecutionMode, error) {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "", "prompt-delivery":
+		return ExecutionPromptDelivery, nil
+	case "inline":
+		return ExecutionInline, nil
+	case "script":
+		return ExecutionScript, nil
+	case "plugin":
+		return ExecutionPlugin, nil
+	default:
+		return "", fmt.Errorf("unknown execution mode: %q (valid: prompt-delivery, inline, script, plugin)", s)
+	}
+}
+
+// ValidExecutionModes returns all valid execution mode values.
+func ValidExecutionModes() []ExecutionMode {
+	return []ExecutionMode{
+		ExecutionPromptDelivery,
+		ExecutionInline,
+		ExecutionScript,
+		ExecutionPlugin,
+	}
+}
+
+// InlineSpec specifies how an inline skill is executed by the Go binary.
+type InlineSpec struct {
+	Handler    string            `yaml:"handler" json:"handler"`                           // Maps to a registered Go handler function
+	Parameters []InlineParameter `yaml:"parameters,omitempty" json:"parameters,omitempty"` // Input parameter definitions
+}
+
+// InlineParameter describes a parameter for an inline skill.
+type InlineParameter struct {
+	Name     string   `yaml:"name" json:"name"`
+	Type     string   `yaml:"type" json:"type"`
+	Required bool     `yaml:"required,omitempty" json:"required,omitempty"`
+	Default  string   `yaml:"default,omitempty" json:"default,omitempty"`
+	Enum     []string `yaml:"enum,omitempty" json:"enum,omitempty"`
+}
+
+// ScriptSpec specifies how a script skill is executed as a subprocess.
+type ScriptSpec struct {
+	Command string   `yaml:"command" json:"command"`                     // Executable name or path
+	Args    []string `yaml:"args,omitempty" json:"args,omitempty"`       // Arguments (relative paths resolved from skill dir)
+	Input   string   `yaml:"input,omitempty" json:"input,omitempty"`     // stdin format: "json" (default)
+	Output  string   `yaml:"output,omitempty" json:"output,omitempty"`   // stdout format: "json" (default)
+	Timeout int      `yaml:"timeout,omitempty" json:"timeout,omitempty"` // Execution timeout in seconds (default: 30)
+}
+
 // OutputFormat specifies the format of generated output.
 type OutputFormat string
 
@@ -212,6 +279,11 @@ type SkillManifest struct {
 	Phase       string    `yaml:"phase,omitempty" json:"phase,omitempty"`
 	Description string    `yaml:"description" json:"description"`
 
+	// Execution mode (default: prompt-delivery)
+	Execution ExecutionMode `yaml:"execution,omitempty" json:"execution,omitempty"`
+	Inline    *InlineSpec   `yaml:"inline,omitempty" json:"inline,omitempty"`
+	Script    *ScriptSpec   `yaml:"script,omitempty" json:"script,omitempty"`
+
 	// Preserved from generator.yaml for backward compatibility
 	Category Category `yaml:"category,omitempty" json:"category,omitempty"`
 	Author   string   `yaml:"author,omitempty" json:"author,omitempty"`
@@ -242,10 +314,15 @@ type SkillInfo struct {
 	Path   string      `json:"path"` // Full path to skill directory
 
 	// From manifest (or inferred from legacy format)
-	Type        SkillType `json:"type"`
-	Phase       string    `json:"phase,omitempty"`
-	Version     string    `json:"version,omitempty"`
-	Description string    `json:"description"`
+	Type        SkillType     `json:"type"`
+	Execution   ExecutionMode `json:"execution,omitempty"`
+	Phase       string        `json:"phase,omitempty"`
+	Version     string        `json:"version,omitempty"`
+	Description string        `json:"description"`
+
+	// Execution specs (only one is set based on Execution mode)
+	Inline *InlineSpec `json:"inline,omitempty"`
+	Script *ScriptSpec `json:"script,omitempty"`
 
 	// Preserved from generator format
 	Category Category `json:"category,omitempty"`

@@ -1,54 +1,79 @@
-# Change: Add Delegated Skill Execution to EPF CLI
+# Change: Add Computational Skill Execution to EPF CLI
 
 ## Why
 
 The epf-cli skill system currently operates in a single mode: **prompt-delivery**. Skills are bundles of metadata + prompt text returned to the LLM, which follows the instructions manually. This works well for strategic reasoning tasks (writing feature definitions, generating investor memos, conducting trend analysis).
 
-However, some EPF/strategy workflows need **deterministic code execution** rather than LLM prompt-following:
+However, some EPF skills contain **deterministic algorithms and template rendering** that the LLM executes unreliably:
 
-- **Memory graph operations** -- Ingesting, syncing, querying, and maintaining the strategy graph in emergent.memory requires precise API calls, retry logic, and structured data handling that LLMs handle unreliably.
-- **Batch validation pipelines** -- Running comprehensive quality audits across an entire instance with structured output aggregation.
-- **Data transformation pipelines** -- Converting EPF artifacts into formats for external systems (CRM sync, project management tools, reporting dashboards).
-- **Automated assessment workflows** -- Collecting metrics, comparing against baselines, and producing assessment reports with deterministic calculations.
+- **value-model-preview** -- A 728-line HTML template with `{{VARIABLE}}` substitution, `{{#each}}` loops, and `{{#if}}` conditionals. The LLM acts as a template engine. The 362-line validator exists because the LLM fumbles placeholder replacement.
+- **balance-checker** -- 500+ lines of pseudocode for dependency graph cycle detection (DFS), critical path calculation (topological sort), capacity scoring, and portfolio distribution math. Asking an LLM to execute graph algorithms produces unreliable results.
+- **skattefunn-application** -- Budget arithmetic, TRL range filtering, timeline gap analysis, and character count enforcement. Wrong numbers in a SkatteFUNN application is a real compliance problem.
 
-The prompt-delivery model cannot handle these reliably -- the LLM cannot manage retry loops, cannot guarantee API call sequences, and introduces non-determinism where determinism is required.
-
-This proposal adds a `delegated` execution mode to skill manifests and introduces `packages/epf-agents/` -- a TypeScript MCP server in this repo that provides computational skill execution for EPF and strategy workloads.
+These are deterministic algorithms that should run as code, not LLM prompt-following.
 
 ## What Changes
 
-- **ADDED: `execution` field on `SkillManifest`** -- Three modes: `prompt-delivery` (default, existing behavior), `delegated` (proxied to a companion MCP server), and `inline` (future: executed by the Go binary directly).
-- **ADDED: `delegate` block on `SkillManifest`** -- For `delegated` skills, specifies the target MCP server name and tool name.
-- **MODIFIED: `handleGetSkill` in MCP server** -- For `delegated` skills, returns delegation instructions (which MCP server + tool to call) instead of prompt content. The LLM acts as an orchestrator, not an executor.
-- **ADDED: `packages/epf-agents/`** -- A TypeScript MCP server (Bun) providing computational agent/skill implementations for EPF and strategy workloads. Runs as a separate MCP server alongside `epf-cli serve`.
-- **ADDED: Computational skill implementations** -- Initial set of skills focused on Memory graph operations (deterministic ingestion, graph maintenance, structured queries).
+- **ADDED: `execution` field on `SkillManifest`** -- Three active modes: `prompt-delivery` (default, existing behavior), `inline` (executed by the Go binary directly), and `script` (executed as a subprocess with JSON stdin/stdout). A fourth mode `plugin` is reserved for future external skill packs.
+- **ADDED: `InlineSpec` on `SkillManifest`** -- For `inline` skills, specifies the Go handler name and input parameters.
+- **ADDED: `ScriptSpec` on `SkillManifest`** -- For `script` skills, specifies the command, args, and I/O format. Enables users to write custom computational skills in any language without forking epf-cli.
+- **ADDED: `internal/compute/` package** -- Go implementations of computational skills. Each skill is a standalone function that takes structured input and returns structured output.
+- **ADDED: New MCP tool `epf_execute_skill`** -- Executes inline and script skills directly and returns structured results. Distinct from `epf_get_skill` which returns prompt content.
+- **MODIFIED: `handleGetSkill` in MCP server** -- For `inline` and `script` skills, returns execution instructions directing the LLM to call `epf_execute_skill` instead of following a prompt.
+- **ADDED: Plugin discovery system** -- `epf-cli` discovers external skill packs (`epf-pack-*` binaries on PATH) and registers their skills in the discovery system. Reserved for Phase 2.
 - **NON-BREAKING: Existing skills unchanged** -- The `execution` field defaults to `prompt-delivery`. All existing prompt-delivery skills continue to work identically. No migration required.
+
+## Initial Inline Skills (Phase 1)
+
+1. **value-model-preview** -- Pure template rendering. Go's `text/template` processes the HTML template with value model data from `internal/valuemodel/`. Zero LLM involvement. Core EPF operation, stays in binary permanently.
+2. **balance-checker** -- Algorithmic roadmap analysis. Go implements the graph algorithms and scoring formulas from the prompt's pseudocode. The LLM handles only the initial capacity gathering (interactive) and final narrative recommendations. Core EPF operation, stays in binary permanently.
+
+## Phased Roadmap
+
+**Phase 1 (this proposal):** Execution mode infrastructure + core inline skills. Adds `execution` field, `internal/compute/` package, `epf_execute_skill` tool, script executor. Implements value-model-preview and balance-checker as inline handlers.
+
+**Phase 2 (future):** Plugin system infrastructure. Plugin discovery (`epf-pack-*` on PATH), execution routing, scaffold tooling (`epf-cli plugins create`). No packs yet -- just the infrastructure.
+
+**Phase 3 (future):** Extract domain-specific skills to packs. SkatteFUNN and future soft-funding generators (Enova, SEIS, Horizon Europe) move to `epf-pack-softfunding`. Investor memo and pitch deck generators may move to `epf-pack-investor`. Domain-specific skills stay as prompt-delivery in the core binary until their pack exists.
 
 ## Scope Clarification
 
-- **In scope:** EPF and strategy computational skills (Memory operations, validation pipelines, assessment automation).
-- **Out of scope:** Marketing/agency computational skills (those belong in `sequence-agents` in the CouplerAgency/sequence repo).
-- **Out of scope:** Hard coupling with `sequence-agents`. The teams share learnings and best practices but the implementations are independent.
-- **Prompt-delivery agents/skills** continue to live in `epf-canonical` (emergent-epf repo). Only computational skills that need code execution live in `packages/epf-agents/`.
+- **In scope:** Inline Go execution for core computational skills. Script execution for user-authored computational skills. Plugin discovery system (Phase 2).
+- **Out of scope:** Companion TypeScript MCP server (superseded by inline Go execution). Memory graph operation skills (deferred until Memory server matures).
+- **Prompt-delivery agents/skills** continue to live in `epf-canonical`. Only computational skills that benefit from deterministic code execution move to inline or script.
 
 ## Impact
 
-- Affected specs: `epf-cli-mcp` (skill execution, new tool behavior)
-- Affected code (epf-cli):
-  - `internal/skill/types.go` -- Add `Execution`, `DelegateSpec` fields to `SkillManifest`
-  - `internal/mcp/skill_tools.go` -- `handleGetSkill` checks execution mode, returns delegation instructions for `delegated` skills
-  - `internal/embedded/` -- Embed delegated skill manifests (YAML only, no TS code)
-- New code:
-  - `packages/epf-agents/` -- TypeScript MCP server with computational skill implementations
+- Affected specs: `epf-cli-mcp` (skill execution, new tool)
+- Affected code:
+  - `internal/skill/types.go` -- Add `Execution`, `InlineSpec` fields to `SkillManifest`
+  - `internal/mcp/skill_tools.go` -- `handleGetSkill` checks execution mode; new `handleExecuteSkill` handler
+  - `internal/mcp/server.go` -- Register `epf_execute_skill` tool
+  - `internal/compute/` -- New package for inline skill implementations
+  - `internal/compute/valuemodel/` -- value-model-preview implementation
+  - `internal/compute/balance/` -- balance-checker implementation
 - No changes to:
   - Three-tier discovery (instance > framework > global > embedded)
   - Agent-to-skill relationships (`skills.required` in agent.yaml)
   - Recommender system (keyword matching works on manifests regardless of execution mode)
-  - Plugin interaction (opencode-epf tool scoping, validation hooks)
+
+## Distribution and Extensibility
+
+**Core skills** (inline) compile into the `epf-cli` binary. Same distribution as today: `brew install epf-cli` gets everything.
+
+**User skills** (script) live in the EPF instance's `skills/` directory alongside a script file. No compilation, no separate binary. Users write a script in any language that reads JSON from stdin and writes JSON to stdout. The skill manifest specifies the command to run. This works with any stock `epf-cli` installation or Docker image.
+
+**Shared skill packs** (plugin, Phase 2) distribute as separate binaries: `brew install epf-pack-compliance`. The plugin protocol uses subprocess + JSON, so packs are independently compiled and versioned.
+
+| Execution mode | Author | Lives in | Distribution | Requires |
+|----------------|--------|----------|-------------|----------|
+| `prompt-delivery` | Anyone | Instance, canonical, embedded | YAML + markdown | Nothing extra |
+| `inline` | EPF core team | Compiled into `epf-cli` | `brew install epf-cli` | Nothing extra |
+| `script` | Instance users | Instance `skills/` directory | Not distributed (local) | Script runtime (Python, etc.) |
+| `plugin` | Pack authors | Separate binary on PATH | `brew install epf-pack-*` | Pack binary |
 
 ## Related
 
-- GitHub Issue #25: Proposal that inspired this (contains examples from bildebot/sequence context that are out of scope here)
-- `refactor-agents-and-skills` change: Established the current agent/skill architecture (Phase 1 complete)
+- GitHub Issue #25: Original inspiration (companion server approach superseded)
+- `refactor-agents-and-skills` change: Established the current agent/skill architecture
 - `migrate-canonical-agents-skills` change: Phase 2 canonical content migration (in progress)
-- CouplerAgency/sequence `sequence-agents`: Parallel effort using similar patterns for marketing execution (no hard coupling)
