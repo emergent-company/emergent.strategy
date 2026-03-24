@@ -11,6 +11,7 @@ import (
 
 	mcp "github.com/mark3labs/mcp-go/mcp"
 
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/config"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/memory"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/propagation"
 )
@@ -45,7 +46,8 @@ func (s *Server) registerMemoryTools() {
 	)
 
 	// Remaining tools require Memory to be configured
-	if os.Getenv("EPF_MEMORY_URL") == "" {
+	cfg := config.ResolveMemoryConfig("", "", "")
+	if !cfg.IsComplete() {
 		return
 	}
 
@@ -120,9 +122,8 @@ func memoryNotConfiguredResponse() *mcp.CallToolResult {
 
 // handleMemoryStatus checks Memory configuration and ingestion status.
 func (s *Server) handleMemoryStatus(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	memURL := os.Getenv("EPF_MEMORY_URL")
-	project := os.Getenv("EPF_MEMORY_PROJECT")
-	token := os.Getenv("EPF_MEMORY_TOKEN")
+	// Use the config resolver to find Memory config from any source
+	memCfg := config.ResolveMemoryConfig("", "", "")
 
 	// Check memory CLI availability (needed for epf_ask)
 	preflight := memory.CheckAskPreflight()
@@ -130,10 +131,11 @@ func (s *Server) handleMemoryStatus(ctx context.Context, request mcp.CallToolReq
 	response := map[string]any{
 		"configured": false,
 		"env_vars": map[string]any{
-			"EPF_MEMORY_URL":     memURL != "",
-			"EPF_MEMORY_PROJECT": project != "",
-			"EPF_MEMORY_TOKEN":   token != "",
+			"EPF_MEMORY_URL":     memCfg.URL != "",
+			"EPF_MEMORY_PROJECT": memCfg.ProjectID != "",
+			"EPF_MEMORY_TOKEN":   memCfg.Token != "",
 		},
+		"config_source": memCfg.Source,
 		"memory_cli": map[string]any{
 			"available": preflight.Available,
 			"path":      preflight.MemoryBin,
@@ -141,23 +143,14 @@ func (s *Server) handleMemoryStatus(ctx context.Context, request mcp.CallToolReq
 		},
 	}
 
-	if memURL == "" || project == "" || token == "" {
-		missing := []string{}
-		if memURL == "" {
-			missing = append(missing, "EPF_MEMORY_URL")
-		}
-		if project == "" {
-			missing = append(missing, "EPF_MEMORY_PROJECT")
-		}
-		if token == "" {
-			missing = append(missing, "EPF_MEMORY_TOKEN")
-		}
-		response["missing_vars"] = missing
+	if !memCfg.IsComplete() {
+		response["missing_fields"] = memCfg.MissingFields()
 		response["setup_steps"] = []string{
-			"1. Create a Memory project or get credentials for an existing one",
-			"2. Set the three environment variables: EPF_MEMORY_URL, EPF_MEMORY_PROJECT, EPF_MEMORY_TOKEN",
+			"1. Run 'memory init' in the project directory (auto-configures .env.local)",
+			"2. Or set EPF_MEMORY_URL, EPF_MEMORY_PROJECT, EPF_MEMORY_TOKEN environment variables",
 			"3. Run 'epf-cli ingest <instance-path>' to populate the graph",
 		}
+		response["resolution_order"] = "CLI flags → EPF_MEMORY_* env → MEMORY_PROJECT_* env → .env.local"
 		jsonBytes, _ := json.MarshalIndent(response, "", "  ")
 		return mcp.NewToolResultText(string(jsonBytes)), nil
 	}

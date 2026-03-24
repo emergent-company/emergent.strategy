@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/config"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/ingest"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/memory"
 	"github.com/spf13/cobra"
@@ -53,12 +55,14 @@ func runSync(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("instance path %q not found: %w", instancePath, err)
 	}
 
-	memURL := resolveConfig(syncMemoryURL, "EPF_MEMORY_URL")
-	projectID := resolveConfig(syncProjectID, "EPF_MEMORY_PROJECT")
-	token := resolveConfig(syncMemoryToken, "EPF_MEMORY_TOKEN")
+	// Resolve Memory configuration (flags → EPF_MEMORY_* → MEMORY_PROJECT_* → .env.local)
+	memURL, projectID, token := resolveMemoryFlags(syncMemoryURL, syncProjectID, syncMemoryToken)
 
 	if memURL == "" || projectID == "" || token == "" {
-		return fmt.Errorf("Memory configuration required. Set via flags or env vars:\n  --url / EPF_MEMORY_URL\n  --project / EPF_MEMORY_PROJECT\n  --token / EPF_MEMORY_TOKEN")
+		cfg := config.ResolveMemoryConfig(syncMemoryURL, syncProjectID, syncMemoryToken)
+		missing := cfg.MissingFields()
+		return fmt.Errorf("Memory configuration incomplete (missing: %s).\nResolution order: CLI flags → EPF_MEMORY_* env → MEMORY_PROJECT_* env → .env.local\nRun 'memory init' to configure, or set:\n  --url / EPF_MEMORY_URL\n  --project / EPF_MEMORY_PROJECT\n  --token / EPF_MEMORY_TOKEN",
+			strings.Join(missing, ", "))
 	}
 
 	client, err := memory.NewClient(memory.Config{

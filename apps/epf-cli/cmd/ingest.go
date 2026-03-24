@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/config"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/decompose"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/ingest"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/memory"
@@ -75,13 +77,14 @@ func runIngest(cmd *cobra.Command, args []string) error {
 		return runIngestDryRun(instancePath)
 	}
 
-	// Resolve Memory configuration
-	memURL := resolveConfig(ingestMemoryURL, "EPF_MEMORY_URL")
-	projectID := resolveConfig(ingestProjectID, "EPF_MEMORY_PROJECT")
-	token := resolveConfig(ingestMemoryToken, "EPF_MEMORY_TOKEN")
+	// Resolve Memory configuration (flags → EPF_MEMORY_* → MEMORY_PROJECT_* → .env.local)
+	memURL, projectID, token := resolveMemoryFlags(ingestMemoryURL, ingestProjectID, ingestMemoryToken)
 
 	if memURL == "" || projectID == "" || token == "" {
-		return fmt.Errorf("Memory configuration required. Set via flags or env vars:\n  --url / EPF_MEMORY_URL\n  --project / EPF_MEMORY_PROJECT\n  --token / EPF_MEMORY_TOKEN")
+		cfg := config.ResolveMemoryConfig(ingestMemoryURL, ingestProjectID, ingestMemoryToken)
+		missing := cfg.MissingFields()
+		return fmt.Errorf("Memory configuration incomplete (missing: %s).\nResolution order: CLI flags → EPF_MEMORY_* env → MEMORY_PROJECT_* env → .env.local\nRun 'memory init' to configure, or set:\n  --url / EPF_MEMORY_URL\n  --project / EPF_MEMORY_PROJECT\n  --token / EPF_MEMORY_TOKEN",
+			strings.Join(missing, ", "))
 	}
 
 	client, err := memory.NewClient(memory.Config{
@@ -205,4 +208,11 @@ func resolveConfig(flag, envVar string) string {
 		return flag
 	}
 	return os.Getenv(envVar)
+}
+
+// resolveMemoryFlags resolves Memory config from CLI flags, using the central resolver
+// as fallback for any flags not provided.
+func resolveMemoryFlags(urlFlag, projectFlag, tokenFlag string) (url, project, token string) {
+	cfg := config.ResolveMemoryConfig(urlFlag, projectFlag, tokenFlag)
+	return cfg.URL, cfg.ProjectID, cfg.Token
 }

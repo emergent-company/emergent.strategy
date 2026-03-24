@@ -4,23 +4,24 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	mcp "github.com/mark3labs/mcp-go/mcp"
 
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/config"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/memory"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/propagation"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/reasoning"
 )
 
 // registerSemanticTools registers the semantic strategy engine MCP tools.
-// Only registers when Memory API is configured (EPF_MEMORY_URL set).
+// Only registers when Memory API is configured (env vars or .env.local).
 // Without Memory, these tools would always error — no point showing them to the LLM.
 func (s *Server) registerSemanticTools() {
-	if os.Getenv("EPF_MEMORY_URL") == "" {
+	cfg := config.ResolveMemoryConfig("", "", "")
+	if !cfg.IsComplete() {
 		return // Memory not configured — don't register tools the LLM can't use
 	}
 
@@ -61,20 +62,21 @@ func (s *Server) registerSemanticTools() {
 	)
 }
 
-// getMemoryClient creates a Memory client from environment variables.
+// getMemoryClient creates a Memory client using the config resolution chain.
+// Resolution order: EPF_MEMORY_* env → MEMORY_PROJECT_* env → .env.local
 func (s *Server) getMemoryClient() (*memory.Client, error) {
-	url := os.Getenv("EPF_MEMORY_URL")
-	project := os.Getenv("EPF_MEMORY_PROJECT")
-	token := os.Getenv("EPF_MEMORY_TOKEN")
+	cfg := config.ResolveMemoryConfig("", "", "")
 
-	if url == "" || project == "" || token == "" {
-		return nil, fmt.Errorf("Memory API not configured. Set EPF_MEMORY_URL, EPF_MEMORY_PROJECT, EPF_MEMORY_TOKEN environment variables")
+	if !cfg.IsComplete() {
+		missing := cfg.MissingFields()
+		return nil, fmt.Errorf("Memory API not configured (missing: %s).\nResolution order: EPF_MEMORY_* env → MEMORY_PROJECT_* env → .env.local\nRun 'memory init' to configure.",
+			strings.Join(missing, ", "))
 	}
 
 	return memory.NewClient(memory.Config{
-		BaseURL:   url,
-		ProjectID: project,
-		Token:     token,
+		BaseURL:   cfg.URL,
+		ProjectID: cfg.ProjectID,
+		Token:     cfg.Token,
 		Timeout:   30 * time.Second,
 	})
 }
