@@ -3,6 +3,7 @@ package decompose
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -608,5 +609,218 @@ func assertMin(t *testing.T, got, min int, label string) {
 	t.Helper()
 	if got < min {
 		t.Errorf("%s: got %d, want >= %d", label, got, min)
+	}
+}
+
+// TestDecomposeMappingsValidatesVMCTargets verifies that MappingArtifact implements
+// edges are only created when the target ValueModelComponent exists (issue #28).
+func TestDecomposeMappingsValidatesVMCTargets(t *testing.T) {
+	d := New("testdata")
+	result, err := d.DecomposeInstance()
+	if err != nil {
+		t.Fatalf("DecomposeInstance failed: %v", err)
+	}
+
+	counts := countByType(result)
+
+	// testdata/FIRE/mappings.yaml has 3 artifacts total:
+	// - 2 under Product.Core.Search (valid VMC target)
+	// - 1 under Product.Nonexistent.Path (invalid VMC target)
+	// - 1 under Strategy.AlsoNonexistent.Path (invalid VMC target)
+	if counts["MappingArtifact"] != 4 {
+		t.Errorf("Expected 4 MappingArtifact objects, got %d", counts["MappingArtifact"])
+	}
+
+	// Count implements edges — only the 2 artifacts with valid VMC targets should get them
+	implementsCount := 0
+	for _, rel := range result.Relationships {
+		if rel.Type == "implements" && rel.FromType == "MappingArtifact" {
+			implementsCount++
+		}
+	}
+	if implementsCount != 2 {
+		t.Errorf("Expected 2 implements edges (only valid VMC targets), got %d", implementsCount)
+		for _, rel := range result.Relationships {
+			if rel.Type == "implements" {
+				t.Logf("  implements: %s → %s", rel.FromKey, rel.ToKey)
+			}
+		}
+	}
+
+	// All 4 MappingArtifacts should still have contains edges (they're valid objects)
+	containsCount := 0
+	for _, rel := range result.Relationships {
+		if rel.Type == "contains" && rel.ToType == "MappingArtifact" {
+			containsCount++
+		}
+	}
+	if containsCount != 4 {
+		t.Errorf("Expected 4 contains edges for MappingArtifacts, got %d", containsCount)
+	}
+
+	// Should have warnings for the orphaned mappings
+	warningCount := 0
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "does not match any value model component") {
+			warningCount++
+		}
+	}
+	if warningCount != 2 {
+		t.Errorf("Expected 2 warnings for orphaned mapping paths, got %d", warningCount)
+	}
+}
+
+// TestTrendInformsInsightEdges verifies that Trend → KeyInsight edges are created
+// based on supporting_trends references in KeyInsight objects (issue #29).
+func TestTrendInformsInsightEdges(t *testing.T) {
+	// Create a temporary instance with trends and key insights
+	tmpDir := t.TempDir()
+	readyDir := filepath.Join(tmpDir, "READY")
+	if err := os.MkdirAll(readyDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	insightAnalyses := `trends:
+  technology:
+    - trend: "AI transformation of legal work"
+      timeframe: "near term"
+      impact: "Automates routine legal tasks"
+    - trend: "Shift from on-premise to cloud-based legal software"
+      timeframe: "medium term"
+      impact: "Enables remote collaboration"
+  market:
+    - trend: "Legal process outsourcing growth"
+      timeframe: "near term"
+      impact: "Cost pressure on firms"
+key_insights:
+  - insight: "RAG and knowledge graphs are becoming table stakes for legal AI"
+    supporting_trends:
+      - "AI transformation of legal work"
+      - "Shift from on-premise to cloud-based legal software"
+    strategic_implication: "Must invest in RAG capabilities"
+  - insight: "Cost pressures are driving outsourcing adoption"
+    supporting_trends:
+      - "Legal process outsourcing growth"
+    strategic_implication: "Opportunity for cost-effective tooling"
+  - insight: "An insight with no matching trends"
+    supporting_trends:
+      - "Some trend that does not exist in our data"
+    strategic_implication: "Should not create any edges"
+`
+	if err := os.WriteFile(filepath.Join(readyDir, "01_insight_analyses.yaml"), []byte(insightAnalyses), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	d := New(tmpDir)
+	result, err := d.DecomposeInstance()
+	if err != nil {
+		t.Fatalf("DecomposeInstance failed: %v", err)
+	}
+
+	counts := countByType(result)
+	if counts["Trend"] < 3 {
+		t.Errorf("Expected at least 3 Trend objects, got %d", counts["Trend"])
+	}
+	if counts["KeyInsight"] < 3 {
+		t.Errorf("Expected at least 3 KeyInsight objects, got %d", counts["KeyInsight"])
+	}
+
+	// Count Trend → KeyInsight informs edges
+	trendToInsightCount := 0
+	for _, rel := range result.Relationships {
+		if rel.Type == "informs" && rel.FromType == "Trend" && rel.ToType == "KeyInsight" {
+			trendToInsightCount++
+		}
+	}
+
+	// First insight references 2 matching trends, second references 1 = 3 edges
+	// Third insight references a non-existent trend = 0 edges
+	if trendToInsightCount != 3 {
+		t.Errorf("Expected 3 Trend→KeyInsight informs edges, got %d", trendToInsightCount)
+		for _, rel := range result.Relationships {
+			if rel.Type == "informs" {
+				t.Logf("  informs: %s (%s) → %s (%s)", rel.FromKey, rel.FromType, rel.ToKey, rel.ToType)
+			}
+		}
+	}
+
+	// Verify specific edges exist
+	// "AI transformation of legal work" trend → first KeyInsight
+	aiTrendKey := objectKey("Trend", "insight_analyses:trends.technology[0]")
+	firstInsightKey := objectKey("KeyInsight", "insight_analyses:key_insights[0]")
+	if !hasRel(result, "informs", aiTrendKey, firstInsightKey) {
+		t.Error("Missing informs edge: AI transformation trend → first key insight")
+	}
+}
+
+// TestSharedTechnologyNoSelfLoops verifies that shared_technology edges don't
+// create self-loops from duplicate contributes_to entries (issue #30).
+func TestSharedTechnologyNoSelfLoops(t *testing.T) {
+	// Create a temporary instance with a feature that has duplicate contributes_to
+	tmpDir := t.TempDir()
+	productDir := filepath.Join(tmpDir, "FIRE", "definitions", "product")
+	vmDir := filepath.Join(tmpDir, "FIRE", "value_models")
+	if err := os.MkdirAll(productDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(vmDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Feature with duplicate contributes_to paths
+	feature := `id: "fd-010"
+name: "Cloud Storage Integration"
+strategic_context:
+  contributes_to:
+    - 'Product.Core.Storage'
+    - 'Product.Core.Storage'
+definition:
+  job_to_be_done: "Integrate cloud storage"
+`
+	if err := os.WriteFile(filepath.Join(productDir, "fd-010_cloud_storage.yaml"), []byte(feature), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Value model with the target component
+	valueModel := `track_name: product
+description: 'Product value model'
+layers:
+  - id: 'core'
+    name: 'Core'
+    path_segment: 'Core'
+    description: 'Core layer'
+    components:
+      - id: 'storage'
+        name: 'Storage'
+        path_segment: 'Storage'
+        description: 'Storage functionality'
+        active: true
+`
+	if err := os.WriteFile(filepath.Join(vmDir, "product.yaml"), []byte(valueModel), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	d := New(tmpDir)
+	result, err := d.DecomposeInstance()
+	if err != nil {
+		t.Fatalf("DecomposeInstance failed: %v", err)
+	}
+
+	// Check there are no self-loops in any relationship
+	for _, rel := range result.Relationships {
+		if rel.FromKey == rel.ToKey {
+			t.Errorf("Self-loop detected: type=%s key=%s", rel.Type, rel.FromKey)
+		}
+	}
+
+	// shared_technology edges should not be created since there's only 1 unique feature
+	sharedTechCount := 0
+	for _, rel := range result.Relationships {
+		if rel.Type == "shared_technology" {
+			sharedTechCount++
+		}
+	}
+	if sharedTechCount != 0 {
+		t.Errorf("Expected 0 shared_technology edges (only 1 unique feature), got %d", sharedTechCount)
 	}
 }

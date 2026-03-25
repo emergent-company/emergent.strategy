@@ -51,6 +51,95 @@ func (d *Decomposer) addInformsEdges(result *Result) {
 	}
 }
 
+// addTrendInformsInsightEdges creates Trend → KeyInsight edges based on
+// supporting_trends references in KeyInsight objects. Each KeyInsight stores
+// supporting_trends as a semicolon-joined string of trend descriptions.
+// This function fuzzy-matches those descriptions against Trend node names
+// to create structural informs edges, giving Trend nodes outgoing connections
+// beyond the broad Trend → Positioning edges from addInformsEdges.
+func (d *Decomposer) addTrendInformsInsightEdges(result *Result) {
+	// Collect all Trend objects with their names (lowercased for matching)
+	type trendInfo struct {
+		key      string
+		name     string
+		nameLow  string
+		keywords []string // significant words for fuzzy matching
+	}
+	var trends []trendInfo
+	for _, obj := range result.Objects {
+		if obj.Type != "Trend" {
+			continue
+		}
+		name, _ := obj.Properties["name"].(string)
+		if name == "" {
+			continue
+		}
+		nameLow := strings.ToLower(name)
+		// Extract keywords (words > 4 chars) for fuzzy matching
+		var keywords []string
+		for _, w := range strings.Fields(nameLow) {
+			w = strings.Trim(w, ".,;:!?\"'()[]{}/-")
+			if len(w) > 4 {
+				keywords = append(keywords, w)
+			}
+		}
+		trends = append(trends, trendInfo{key: obj.Key, name: name, nameLow: nameLow, keywords: keywords})
+	}
+	if len(trends) == 0 {
+		return
+	}
+
+	// Scan KeyInsight objects for supporting_trends references
+	for _, obj := range result.Objects {
+		if obj.Type != "KeyInsight" {
+			continue
+		}
+		stRaw, _ := obj.Properties["supporting_trends"].(string)
+		if stRaw == "" {
+			continue
+		}
+
+		// Split the semicolon-joined supporting_trends string
+		refs := strings.Split(stRaw, "; ")
+		for _, ref := range refs {
+			ref = strings.TrimSpace(ref)
+			if ref == "" {
+				continue
+			}
+			refLow := strings.ToLower(ref)
+
+			// Match against Trend nodes: try substring match first, then keyword overlap
+			for _, trend := range trends {
+				matched := false
+
+				// Exact substring match (either direction)
+				if strings.Contains(refLow, trend.nameLow) || strings.Contains(trend.nameLow, refLow) {
+					matched = true
+				}
+
+				// Keyword overlap: require at least 2 keyword matches
+				if !matched && len(trend.keywords) >= 2 {
+					matchCount := 0
+					for _, kw := range trend.keywords {
+						if strings.Contains(refLow, kw) {
+							matchCount++
+						}
+					}
+					if matchCount >= 2 {
+						matched = true
+					}
+				}
+
+				if matched {
+					d.addRel(result, "informs", trend.key, "Trend", obj.Key, "KeyInsight",
+						map[string]any{"strength": "0.7", "weight": "0.7", "edge_source": "causal"})
+					break // Only match one trend per reference
+				}
+			}
+		}
+	}
+}
+
 // addConstrainsEdges creates Assumption → Feature edges (reverse of tests_assumption).
 // If a Feature tests an Assumption, the Assumption also constrains the Feature.
 func (d *Decomposer) addConstrainsEdges(result *Result) {
@@ -116,11 +205,24 @@ func (d *Decomposer) addValidatesEdges(result *Result) {
 // addSharedTechnologyEdges creates Feature → Feature edges for features
 // that share contributes_to paths to the same ValueModelComponent.
 func (d *Decomposer) addSharedTechnologyEdges(result *Result) {
-	// Build map: value model key → list of feature keys that contribute to it
-	vmToFeatures := map[string][]string{}
+	// Build map: value model key → deduplicated set of feature keys.
+	// Deduplication prevents self-loops when a feature has duplicate
+	// contributes_to entries pointing to the same VMC.
+	vmToFeatureSet := map[string]map[string]bool{}
 	for _, rel := range result.Relationships {
 		if rel.Type == "contributes_to" && rel.FromType == "Feature" {
-			vmToFeatures[rel.ToKey] = append(vmToFeatures[rel.ToKey], rel.FromKey)
+			if vmToFeatureSet[rel.ToKey] == nil {
+				vmToFeatureSet[rel.ToKey] = map[string]bool{}
+			}
+			vmToFeatureSet[rel.ToKey][rel.FromKey] = true
+		}
+	}
+
+	// Convert sets to slices for pair iteration
+	vmToFeatures := map[string][]string{}
+	for vmKey, featureSet := range vmToFeatureSet {
+		for fk := range featureSet {
+			vmToFeatures[vmKey] = append(vmToFeatures[vmKey], fk)
 		}
 	}
 

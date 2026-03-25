@@ -531,12 +531,27 @@ func (d *Decomposer) decomposeMappings(result *Result) {
 		"FIRE/mappings.yaml", "mappings", "FIRE",
 		"Value model to implementation artifact mappings", "5")
 
+	// Build a set of known ValueModelComponent keys for target validation.
+	// MappingArtifact → VMC implements edges are only created when the target
+	// VMC exists in the decomposed result, preventing disconnected nodes
+	// when mappings.yaml references paths not present in the value models.
+	vmcKeys := map[string]bool{}
+	for _, obj := range result.Objects {
+		if obj.Type == "ValueModelComponent" {
+			vmcKeys[obj.Key] = true
+		}
+	}
+
 	artifactIdx := 0
 	for track, entries := range raw {
 		for _, entry := range entries {
 			if entry.SubComponentID == "" {
 				continue
 			}
+
+			vmcKey := objectKey("ValueModelComponent", fmt.Sprintf("value_model:%s", entry.SubComponentID))
+			vmcExists := vmcKeys[vmcKey]
+
 			for _, artifact := range entry.Artifacts {
 				if artifact.URL == "" {
 					continue
@@ -561,9 +576,14 @@ func (d *Decomposer) decomposeMappings(result *Result) {
 				d.addContains(result, artKey, "Artifact", key, "MappingArtifact")
 
 				// implements edge: MappingArtifact → ValueModelComponent
-				vmcKey := objectKey("ValueModelComponent", fmt.Sprintf("value_model:%s", entry.SubComponentID))
-				d.addRel(result, "implements", key, "MappingArtifact", vmcKey, "ValueModelComponent",
-					map[string]any{"weight": "1.0", "edge_source": "structural"})
+				// Only create when the target VMC exists in the decomposed result
+				// to prevent orphaned MappingArtifact nodes from dangling references.
+				if vmcExists {
+					d.addRel(result, "implements", key, "MappingArtifact", vmcKey, "ValueModelComponent",
+						map[string]any{"weight": "1.0", "edge_source": "structural"})
+				} else {
+					d.warn(result, fmt.Sprintf("mappings: sub_component_id %q (%s track) does not match any value model component — skipping implements edge", entry.SubComponentID, track))
+				}
 			}
 		}
 	}

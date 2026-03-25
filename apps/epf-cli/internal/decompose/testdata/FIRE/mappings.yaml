@@ -1,0 +1,20 @@
+product:
+  - sub_component_id: 'Product.Core.Search'
+    artifacts:
+      - type: 'code'
+        url: 'https://github.com/example/repo/search'
+        description: 'Search implementation'
+      - type: 'test'
+        url: 'https://github.com/example/repo/search_test'
+        description: 'Search tests'
+  - sub_component_id: 'Product.Nonexistent.Path'
+    artifacts:
+      - type: 'code'
+        url: 'https://github.com/example/repo/orphan'
+        description: 'Orphaned mapping with invalid VMC path'
+strategy:
+  - sub_component_id: 'Strategy.AlsoNonexistent.Path'
+    artifacts:
+      - type: 'documentation'
+        url: 'https://github.com/example/repo/strategy-doc'
+        description: 'Strategy doc with no matching VMC'
