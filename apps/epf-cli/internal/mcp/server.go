@@ -1938,9 +1938,19 @@ func (s *Server) handleHealthCheck(ctx context.Context, request mcp.CallToolRequ
 	// Valid values: "summary", "warnings_only", "full"
 	// Default is determined later based on instance file count
 
-	// CLOUD MODE: If this is a registered store (e.g., github://owner/repo),
+	// CLOUD MODE: If this is a registered store or a remote path (owner/repo),
 	// skip filesystem validation and build health response from strategy store data.
+	// In multi-tenant mode, the store may not yet be registered — resolveAndLoadStore
+	// will dynamically create it on first access.
 	if IsRegisteredStore(instancePath) {
+		return s.handleHealthCheckCloud(ctx, instancePath, detailLevel)
+	}
+	_, _, _, isRemote := auth.ParseInstancePath(instancePath)
+	if isRemote {
+		// Ensure the store is loaded (creates dynamically in multi-tenant mode).
+		if _, err := s.resolveAndLoadStore(ctx, instancePath); err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to load remote instance %s: %v", instancePath, err)), nil
+		}
 		return s.handleHealthCheckCloud(ctx, instancePath, detailLevel)
 	}
 

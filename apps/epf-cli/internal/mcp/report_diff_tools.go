@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/auth"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/checks"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/pathutil"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/schema"
@@ -78,8 +79,9 @@ func (s *Server) handleGenerateReport(ctx context.Context, request mcp.CallToolR
 	verboseStr, _ := request.RequireString("verbose")
 	verbose := strings.ToLower(verboseStr) == "true"
 
-	// Validate instance exists — skip for registered stores (cloud mode)
-	if !IsRegisteredStore(instancePath) {
+	// Validate instance exists — skip for registered stores and remote paths (cloud mode)
+	_, _, _, isRemoteReport := auth.ParseInstancePath(instancePath)
+	if !IsRegisteredStore(instancePath) && !isRemoteReport {
 		if _, err := os.Stat(instancePath); os.IsNotExist(err) {
 			result := ReportResult{
 				Success: false,
