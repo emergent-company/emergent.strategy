@@ -947,6 +947,140 @@ layers:
 	}
 }
 
+// TestDecomposeMappingsVMCNormalizedResolution verifies that the decomposer
+// resolves sub_component_id paths to VMCs when they differ only by naming
+// convention (CamelCase vs UPPER + spaces, ampersands, etc.) — issue #28.
+func TestDecomposeMappingsVMCNormalizedResolution(t *testing.T) {
+	tmpDir := t.TempDir()
+	vmDir := filepath.Join(tmpDir, "FIRE", "value_models")
+	if err := os.MkdirAll(vmDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Value model using display names with spaces, UPPER CASE, and ampersands
+	valueModel := `track_name: strategy
+description: 'Strategy value model'
+layers:
+  - id: 'context'
+    name: 'CONTEXT'
+    path_segment: 'CONTEXT'
+    description: 'Strategic context analysis'
+    components:
+      - id: 'market-analysis'
+        name: 'Market Analysis'
+        path_segment: 'Market Analysis'
+        description: 'Market research and analysis'
+        active: true
+      - id: 'competitor-analysis'
+        name: 'Competitor Analysis'
+        path_segment: 'Competitor Analysis'
+        description: 'Competitive landscape analysis'
+        active: true
+  - id: 'strategic-roadmap'
+    name: 'STRATEGIC ROADMAP'
+    path_segment: 'STRATEGIC ROADMAP'
+    description: 'Strategic planning and execution'
+    components:
+      - id: 'vision-mission'
+        name: 'Vision & mission'
+        path_segment: 'Vision & mission'
+        description: 'Vision and mission alignment'
+        active: true
+      - id: 'goal-prioritization'
+        name: 'Goal Prioritization'
+        path_segment: 'Goal Prioritization'
+        description: 'Goal setting and prioritization'
+        active: true
+`
+	if err := os.WriteFile(filepath.Join(vmDir, "strategy.yaml"), []byte(valueModel), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// OrgOps value model with ampersand in layer name
+	orgOpsVM := `track_name: org_ops
+description: 'OrgOps value model'
+layers:
+  - id: 'facilities-it'
+    name: 'FACILITIES & IT'
+    path_segment: 'FACILITIES & IT'
+    description: 'Facilities and IT management'
+    components:
+      - id: 'it-systems'
+        name: 'IT Systems'
+        path_segment: 'IT Systems'
+        description: 'IT systems and infrastructure'
+        active: true
+`
+	if err := os.WriteFile(filepath.Join(vmDir, "org_ops.yaml"), []byte(orgOpsVM), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Mappings using CamelCase convention (no spaces, no ampersands)
+	mappings := `strategy:
+  - sub_component_id: 'Strategy.Context.MarketAnalysis'
+    artifacts:
+      - type: 'documentation'
+        url: 'https://example.com/market-analysis'
+        description: 'Market analysis doc'
+  - sub_component_id: 'Strategy.Context.CompetitorAnalysis'
+    artifacts:
+      - type: 'documentation'
+        url: 'https://example.com/competitor-analysis'
+        description: 'Competitor analysis doc'
+  - sub_component_id: 'Strategy.StrategicRoadmap.VisionMission'
+    artifacts:
+      - type: 'documentation'
+        url: 'https://example.com/vision-mission'
+        description: 'Vision and mission doc'
+  - sub_component_id: 'Strategy.StrategicRoadmap.GoalPrioritization'
+    artifacts:
+      - type: 'documentation'
+        url: 'https://example.com/goal-prioritization'
+        description: 'Goal prioritization doc'
+org_ops:
+  - sub_component_id: 'OrgOps.FacilitiesIt.ItSystems'
+    artifacts:
+      - type: 'documentation'
+        url: 'https://example.com/it-systems'
+        description: 'IT systems doc'
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "FIRE", "mappings.yaml"), []byte(mappings), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	d := New(tmpDir)
+	result, err := d.DecomposeInstance()
+	if err != nil {
+		t.Fatalf("DecomposeInstance failed: %v", err)
+	}
+
+	// Count implements edges
+	implementsCount := 0
+	for _, rel := range result.Relationships {
+		if rel.Type == "implements" && rel.FromType == "MappingArtifact" {
+			implementsCount++
+			t.Logf("  implements: %s → %s", rel.FromKey, rel.ToKey)
+		}
+	}
+
+	// All 5 MappingArtifacts should resolve via normalized matching
+	if implementsCount != 5 {
+		t.Errorf("Expected 5 implements edges (all resolved via normalization), got %d", implementsCount)
+	}
+
+	// Should have zero warnings about unresolved VMC paths
+	warningCount := 0
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "does not match any value model component") {
+			warningCount++
+			t.Logf("  WARNING: %s", w)
+		}
+	}
+	if warningCount != 0 {
+		t.Errorf("Expected 0 VMC resolution warnings, got %d", warningCount)
+	}
+}
+
 // TestDecomposeMappingsVMCPrefixDeterministic verifies that prefix-match VMC
 // resolution is deterministic across runs (picks shortest matching path).
 func TestDecomposeMappingsVMCPrefixDeterministic(t *testing.T) {

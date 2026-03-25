@@ -537,13 +537,30 @@ func (d *Decomposer) decomposeMappings(result *Result) {
 	// MappingArtifact → VMC implements edges are only created when the target
 	// VMC exists in the decomposed result, preventing disconnected nodes
 	// when mappings.yaml references paths not present in the value models.
+	// normalizeVMCPath strips spaces, ampersands, and other special characters
+	// then lowercases. This normalizes paths like "Strategy.CONTEXT.Market Analysis"
+	// and "Strategy.Context.MarketAnalysis" to the same form for comparison.
+	// Dots are preserved as path separators.
+	normalizeVMCPath := func(path string) string {
+		var b strings.Builder
+		for _, r := range strings.ToLower(path) {
+			if r == '.' || (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+				b.WriteRune(r)
+			}
+			// Drop spaces, ampersands, hyphens, underscores, and other punctuation
+		}
+		return b.String()
+	}
+
 	vmcKeys := map[string]bool{}
-	vmcPathToKey := map[string]string{} // value_path → object key (for prefix matching)
+	vmcPathToKey := map[string]string{}     // value_path → object key (exact)
+	vmcNormPathToKey := map[string]string{} // normalized value_path → object key (for fuzzy matching)
 	for _, obj := range result.Objects {
 		if obj.Type == "ValueModelComponent" {
 			vmcKeys[obj.Key] = true
 			if vp, ok := obj.Properties["value_path"].(string); ok {
 				vmcPathToKey[vp] = obj.Key
+				vmcNormPathToKey[normalizeVMCPath(vp)] = obj.Key
 			}
 		}
 	}
@@ -566,29 +583,36 @@ func (d *Decomposer) decomposeMappings(result *Result) {
 				continue
 			}
 
-			// Resolve the VMC target using a 3-tier strategy:
+			// Resolve the VMC target using a 5-tier strategy:
 			// 1. Exact key match (sub_component_id matches VMC key suffix)
-			// 2. value_path match (sub_component_id matches VMC value_path property)
-			// 3. Prefix match (sub_component_id is a prefix of a VMC value_path,
-			//    which handles L2 paths matching their parent L2 VMC node)
-			// This accommodates mappings.yaml using path_segment-based IDs
-			// while value models may use display names, or vice versa.
+			// 2. Exact value_path match
+			// 3. Normalized value_path match (case-insensitive, strips spaces/special chars)
+			// 4. Exact prefix match (sub_component_id is prefix of a VMC value_path)
+			// 5. Normalized prefix match (case-insensitive prefix matching)
+			// This accommodates naming convention differences between
+			// mappings.yaml (CamelCase, no spaces) and value models
+			// (UPPER CASE, spaces, ampersands).
 			vmcKey := objectKey("ValueModelComponent", fmt.Sprintf("value_model:%s", entry.SubComponentID))
 			vmcExists := vmcKeys[vmcKey]
 			if !vmcExists {
-				// Try matching against the value_path property directly
+				// Tier 2: exact value_path match
 				if resolvedKey, ok := vmcPathToKey[entry.SubComponentID]; ok {
 					vmcKey = resolvedKey
 					vmcExists = true
 				}
 			}
 			if !vmcExists {
-				// Try prefix match: find VMCs whose value_path starts with
-				// the sub_component_id followed by a dot. This handles cases
-				// where the mapping targets an L2 path that has children (L3)
-				// but the L2 node itself uses a different naming convention.
-				// We collect all matching children, sort them for determinism,
-				// and pick the shortest path (closest to the target level).
+				// Tier 3: normalized value_path match (handles CamelCase vs "UPPER CASE",
+				// spaces, ampersands, etc.)
+				normID := normalizeVMCPath(entry.SubComponentID)
+				if resolvedKey, ok := vmcNormPathToKey[normID]; ok {
+					vmcKey = resolvedKey
+					vmcExists = true
+				}
+			}
+			if !vmcExists {
+				// Tier 4: exact prefix match — find VMCs whose value_path starts
+				// with the sub_component_id followed by a dot.
 				prefix := entry.SubComponentID + "."
 				var matchingPaths []string
 				for vp := range vmcPathToKey {
@@ -598,7 +622,6 @@ func (d *Decomposer) decomposeMappings(result *Result) {
 				}
 				if len(matchingPaths) > 0 {
 					sort.Strings(matchingPaths)
-					// Pick the shortest matching path (closest ancestor/sibling)
 					best := matchingPaths[0]
 					for _, mp := range matchingPaths[1:] {
 						if len(mp) < len(best) {
@@ -606,6 +629,28 @@ func (d *Decomposer) decomposeMappings(result *Result) {
 						}
 					}
 					vmcKey = vmcPathToKey[best]
+					vmcExists = true
+				}
+			}
+			if !vmcExists {
+				// Tier 5: normalized prefix match — handles CamelCase vs display
+				// names with spaces/special chars at the prefix level.
+				normPrefix := normalizeVMCPath(entry.SubComponentID) + "."
+				var matchingNormPaths []string
+				for np := range vmcNormPathToKey {
+					if strings.HasPrefix(np, normPrefix) {
+						matchingNormPaths = append(matchingNormPaths, np)
+					}
+				}
+				if len(matchingNormPaths) > 0 {
+					sort.Strings(matchingNormPaths)
+					best := matchingNormPaths[0]
+					for _, mp := range matchingNormPaths[1:] {
+						if len(mp) < len(best) {
+							best = mp
+						}
+					}
+					vmcKey = vmcNormPathToKey[best]
 					vmcExists = true
 				}
 			}
