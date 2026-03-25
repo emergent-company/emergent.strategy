@@ -16,6 +16,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/transport"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/version"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/workspace"
+	mcpserver "github.com/mark3labs/mcp-go/server"
 	"github.com/spf13/cobra"
 )
 
@@ -111,6 +112,15 @@ EXAMPLES:
 		serverMode := os.Getenv(EnvServerMode)
 		strategyOnly := strings.EqualFold(serverMode, "strategy")
 
+		// Detect auth mode early to inject mode-aware instructions into the
+		// MCP initialize response. This helps AI agents understand whether
+		// they're connected to a local, single-tenant, or multi-tenant server.
+		authMode := auth.DetectMode()
+		var mcpInstructions string
+		if useHTTP {
+			mcpInstructions = buildMCPInstructions(authMode)
+		}
+
 		var server *mcp.Server
 		if strategyOnly {
 			var err error
@@ -134,9 +144,14 @@ EXAMPLES:
 				fmt.Fprintln(os.Stderr, "Note: Using embedded schemas (no filesystem schemas found)")
 			}
 
-			// Create the full MCP server (80 tools)
+			// Create the full MCP server (80 tools), with optional instructions
+			var extraOpts []mcpserver.ServerOption
+			if mcpInstructions != "" {
+				extraOpts = append(extraOpts, mcpserver.WithInstructions(mcpInstructions))
+			}
+
 			var err error
-			server, err = mcp.NewServer(schemasDir)
+			server, err = mcp.NewServer(schemasDir, extraOpts...)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error creating MCP server: %v\n", err)
 				os.Exit(1)
@@ -450,6 +465,27 @@ func setupMultiTenantAuth() (*auth.AuthHandler, *auth.SessionManager, error) {
 		oauthCfg.ClientID, sessionCfg.TTL, sessionCfg.MaxSessions)
 
 	return handler, sessionMgr, nil
+}
+
+// buildMCPInstructions returns mode-aware instructions text for the MCP initialize response.
+// This is the first thing an AI agent sees when connecting, guiding it on how to use
+// the server correctly based on its operating mode.
+func buildMCPInstructions(mode auth.ServerMode) string {
+	switch mode {
+	case auth.ModeMultiTenant:
+		return "This is a multi-tenant EPF strategy server. " +
+			"Use owner/repo format for instance_path (e.g., 'emergent-company/emergent-epf'). " +
+			"Start by calling epf_list_workspaces to discover available instances. " +
+			"Authentication is via GitHub OAuth — if you get auth errors, the user needs to re-authenticate. " +
+			"Write operations (scaffold, init, fix, validate_file) are NOT available — use strategy query tools for read-only access."
+	case auth.ModeSingleTenant:
+		return "This is a single-tenant EPF strategy server serving one pre-configured instance. " +
+			"Use owner/repo format for instance_path (e.g., 'emergent-company/emergent-epf'). " +
+			"Call epf_health_check to verify the instance is loaded. " +
+			"Write operations (scaffold, init, fix, validate_file) are NOT available — use strategy query tools for read-only access."
+	default:
+		return ""
+	}
 }
 
 func init() {

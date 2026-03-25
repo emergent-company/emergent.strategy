@@ -314,6 +314,20 @@ func mtimesChanged(recorded, current map[string]time.Time) bool {
 	return false
 }
 
+// IsRemotePath checks if a path looks like a remote owner/repo path.
+// Returns the formatted error message if it is a remote path and the tool requires filesystem access.
+// Returns "" if the path is a local filesystem path.
+func IsRemotePath(path string) string {
+	_, _, _, isRemote := auth.ParseInstancePath(path)
+	if isRemote {
+		return fmt.Sprintf("This tool requires filesystem access and cannot be used with remote instances. "+
+			"The path %q looks like a remote owner/repo reference. "+
+			"Use strategy query tools (epf_get_product_vision, epf_list_features, etc.) to read remote instance data, "+
+			"or run this tool against a local EPF instance.", path)
+	}
+	return ""
+}
+
 // SetMultiTenantAuth configures multi-tenant authentication on the server.
 // Call this after creating the server when running in multi-tenant mode.
 // The accessChecker and sessionManager enable per-request access control
@@ -386,7 +400,10 @@ func (s *Server) resolveAndLoadStore(ctx context.Context, instancePath string) (
 
 	// No registered store — only allowed in multi-tenant mode (dynamic routing).
 	if s.serverMode != auth.ModeMultiTenant {
-		return nil, fmt.Errorf("remote instance %q not configured; in single-tenant mode, configure EPF_GITHUB_OWNER and EPF_GITHUB_REPO", instancePath)
+		return nil, fmt.Errorf("remote instance %q is not available on this server. "+
+			"This server runs in %s mode and only serves pre-configured instances. "+
+			"Use epf_list_workspaces to discover available instances, or connect to a multi-tenant server for dynamic instance routing",
+			instancePath, s.serverMode)
 	}
 
 	// Verify user has access before loading the instance.
@@ -414,7 +431,8 @@ func (s *Server) resolveAndLoadStore(ctx context.Context, instancePath string) (
 func (s *Server) verifyRepoAccess(ctx context.Context, owner, repo string) error {
 	user := auth.UserFromContext(ctx)
 	if user == nil {
-		return fmt.Errorf("authentication required to access remote instance %s/%s", owner, repo)
+		return fmt.Errorf("authentication required to access remote instance %s/%s. "+
+			"Authenticate via the server's /auth/github/login endpoint, then retry", owner, repo)
 	}
 
 	if s.sessionManager == nil || s.accessChecker == nil {

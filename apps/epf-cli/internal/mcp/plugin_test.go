@@ -4,6 +4,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/auth"
 )
 
 // =============================================================================
@@ -312,7 +314,7 @@ func TestBuildAgentInstructionsOutput_WithStandalonePlugin(t *testing.T) {
 		StandaloneProtocols: standaloneProtocols,
 	}
 
-	output := buildAgentInstructionsOutput(nil, "", pluginInfo)
+	output := buildAgentInstructionsOutput(nil, "", pluginInfo, auth.ModeLocal)
 
 	if output.Orchestration == nil {
 		t.Fatal("Expected Orchestration section in output")
@@ -340,7 +342,7 @@ func TestBuildAgentInstructionsOutput_WithDetectedPlugin(t *testing.T) {
 		ActiveGuardrails: activeGuardrails,
 	}
 
-	output := buildAgentInstructionsOutput(nil, "", pluginInfo)
+	output := buildAgentInstructionsOutput(nil, "", pluginInfo, auth.ModeLocal)
 
 	if output.Orchestration == nil {
 		t.Fatal("Expected Orchestration section in output")
@@ -360,9 +362,49 @@ func TestBuildAgentInstructionsOutput_WithDetectedPlugin(t *testing.T) {
 }
 
 func TestBuildAgentInstructionsOutput_NilPlugin(t *testing.T) {
-	output := buildAgentInstructionsOutput(nil, "", nil)
+	output := buildAgentInstructionsOutput(nil, "", nil, auth.ModeLocal)
 
 	if output.Orchestration != nil {
 		t.Error("Expected no Orchestration section when pluginInfo is nil")
+	}
+}
+
+func TestBuildAgentInstructionsOutput_MultiTenantMode(t *testing.T) {
+	output := buildAgentInstructionsOutput(nil, "", nil, auth.ModeMultiTenant)
+
+	if output.RemoteMode == nil {
+		t.Fatal("Expected RemoteMode section in multi-tenant mode")
+	}
+	if output.RemoteMode.ServerMode != "multi-tenant" {
+		t.Errorf("Expected ServerMode='multi-tenant', got '%s'", output.RemoteMode.ServerMode)
+	}
+	if len(output.RemoteMode.AvailableTools) == 0 {
+		t.Error("Expected available tools list")
+	}
+	if len(output.RemoteMode.UnavailableTools) == 0 {
+		t.Error("Expected unavailable tools list")
+	}
+	if output.RemoteMode.AuthInfo == "" {
+		t.Error("Expected auth info for multi-tenant mode")
+	}
+	// Discovery should be overridden for remote mode
+	if output.Discovery.InstanceFound {
+		t.Error("Expected instance_found=false in remote mode")
+	}
+	// Workflow should mention epf_list_workspaces
+	if len(output.Workflow.FirstSteps) == 0 || !strings.Contains(output.Workflow.FirstSteps[0], "epf_list_workspaces") {
+		t.Error("Expected first step to mention epf_list_workspaces")
+	}
+}
+
+func TestBuildAgentInstructionsOutput_LocalMode(t *testing.T) {
+	output := buildAgentInstructionsOutput(nil, "", nil, auth.ModeLocal)
+
+	if output.RemoteMode != nil {
+		t.Error("Expected no RemoteMode section in local mode")
+	}
+	// Workflow should mention epf_health_check as first step
+	if len(output.Workflow.FirstSteps) == 0 || !strings.Contains(output.Workflow.FirstSteps[0], "epf_health_check") {
+		t.Error("Expected first step to mention epf_health_check")
 	}
 }

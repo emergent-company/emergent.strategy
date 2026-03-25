@@ -300,7 +300,9 @@ type RepoAccessDeniedError struct {
 }
 
 func (e *RepoAccessDeniedError) Error() string {
-	return fmt.Sprintf("access denied: user %q does not have access to %s/%s", e.Username, e.Owner, e.Repo)
+	return fmt.Sprintf("access denied: user %q does not have access to %s/%s. "+
+		"Verify the repository exists, you have read access, and the EPF GitHub App (if used) is installed on the %s organization",
+		e.Username, e.Owner, e.Repo, e.Owner)
 }
 
 // tokenForAccess is a helper type for passing token retrieval context.

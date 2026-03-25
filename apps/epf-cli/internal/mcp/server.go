@@ -131,7 +131,7 @@ func (s *Server) registerEssentialTools() {
 			mcp.WithDescription("[Health] USE WHEN starting work on an EPF instance or diagnosing problems. Runs all checks (structure, schema, content readiness, relationships). Call this FIRST before other EPF work. Follow the required_next_tool_calls in the response."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
-				mcp.Description("Path to the EPF instance directory (contains READY/, FIRE/, AIM/ directories)"),
+				mcp.Description("Path to the EPF instance directory, or owner/repo for remote instances (e.g., 'emergent-company/emergent-epf')"),
 			),
 			mcp.WithString("detail_level",
 				mcp.Description("Level of detail in output: 'summary' (counts only), 'warnings_only' (skip info-level items), 'full' (everything). Defaults to 'warnings_only' for instances with >20 files, 'full' otherwise."),
@@ -185,8 +185,10 @@ func (s *Server) registerEssentialTools() {
 	)
 }
 
-// NewServer creates a new EPF MCP server
-func NewServer(schemasDir string) (*Server, error) {
+// NewServer creates a new EPF MCP server.
+// Optional server.ServerOption args are passed through to the underlying mcp-go server
+// (e.g., server.WithInstructions() for setting init response instructions).
+func NewServer(schemasDir string, extraOpts ...server.ServerOption) (*Server, error) {
 	val, err := validator.NewValidator(schemasDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create validator: %w", err)
@@ -272,11 +274,15 @@ func NewServer(schemasDir string) (*Server, error) {
 
 	// Create audit log and MCP server with audit middleware
 	auditLog := NewAuditLog()
+	opts := []server.ServerOption{
+		server.WithLogging(),
+		server.WithToolHandlerMiddleware(AuditMiddleware(auditLog)),
+	}
+	opts = append(opts, extraOpts...)
 	mcpServer := server.NewMCPServer(
 		ServerName,
 		version.Version,
-		server.WithLogging(),
-		server.WithToolHandlerMiddleware(AuditMiddleware(auditLog)),
+		opts...,
 	)
 
 	// Detect orchestration plugin status (standalone vs plugin-assisted mode)
@@ -446,13 +452,13 @@ func (s *Server) registerTools() {
 		s.handleGetPhaseArtifacts,
 	)
 
-	// Tool: epf_health_check
+	// Tool: epf_health_check (full server registration — strategy-only server has its own in registerEssentialTools)
 	s.mcpServer.AddTool(
 		mcp.NewTool("epf_health_check",
 			mcp.WithDescription("[Health] USE WHEN starting work on an EPF instance or diagnosing problems. Runs all checks (structure, schema, content readiness, relationships). Call this FIRST before other EPF work. Follow the required_next_tool_calls in the response."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
-				mcp.Description("Path to the EPF instance directory (contains READY/, FIRE/, AIM/ directories)"),
+				mcp.Description("Path to the EPF instance directory, or owner/repo for remote instances (e.g., 'emergent-company/emergent-epf')"),
 			),
 			mcp.WithString("detail_level",
 				mcp.Description("Level of detail in output: 'summary' (counts only), 'warnings_only' (skip info-level items), 'full' (everything). Defaults to 'warnings_only' for instances with >20 files, 'full' otherwise."),
@@ -1715,6 +1721,11 @@ func (s *Server) handleValidateFile(ctx context.Context, request mcp.CallToolReq
 		return mcp.NewToolResultError("path parameter is required"), nil
 	}
 	path = pathutil.ExpandTilde(path)
+
+	// Guard: reject remote paths — this tool requires filesystem access
+	if errMsg := IsRemotePath(path); errMsg != "" {
+		return mcp.NewToolResultError(errMsg), nil
+	}
 
 	// Check for ai_friendly parameter
 	aiFriendlyStr, _ := request.RequireString("ai_friendly")
@@ -4400,10 +4411,23 @@ type AgentInstructionsOutput struct {
 
 	ResponseProcessingProtocol *AgentResponseProcessingProtocol `json:"response_processing_protocol,omitempty"`
 
+	// Remote/cloud mode guidance (only present when server is in multi-tenant or single-tenant mode)
+	RemoteMode *AgentRemoteModeInfo `json:"remote_mode,omitempty"`
+
 	Workflow struct {
 		FirstSteps    []string `json:"first_steps"`
 		BestPractices []string `json:"best_practices"`
 	} `json:"workflow"`
+}
+
+// AgentRemoteModeInfo provides guidance for AI agents connecting to a remote MCP server
+type AgentRemoteModeInfo struct {
+	ServerMode         string   `json:"server_mode"`          // "multi-tenant", "single-tenant", or "local"
+	InstancePathFormat string   `json:"instance_path_format"` // How to format instance_path
+	FirstStep          string   `json:"first_step"`           // What the agent should do first
+	AvailableTools     []string `json:"available_tools"`      // Tools that work remotely
+	UnavailableTools   []string `json:"unavailable_tools"`    // Tools that require filesystem
+	AuthInfo           string   `json:"auth_info,omitempty"`  // How to authenticate
 }
 
 // AgentMemoryIntegration provides Memory graph integration info when configured
@@ -4487,10 +4511,13 @@ func (s *Server) handleAgentInstructions(ctx context.Context, request mcp.CallTo
 		}
 	}
 
-	// Discover EPF instance at the path
-	disc, _ := discovery.DiscoverSingle(path)
+	// Discover EPF instance at the path (skip for remote/cloud modes where filesystem isn't relevant)
+	var disc *discovery.DiscoveryResult
+	if s.serverMode == auth.ModeLocal {
+		disc, _ = discovery.DiscoverSingle(path)
+	}
 
-	output := buildAgentInstructionsOutput(disc, s.defaultInstancePath, s.pluginInfo)
+	output := buildAgentInstructionsOutput(disc, s.defaultInstancePath, s.pluginInfo, s.serverMode)
 
 	jsonBytes, err := json.MarshalIndent(output, "", "  ")
 	if err != nil {
@@ -4501,7 +4528,7 @@ func (s *Server) handleAgentInstructions(ctx context.Context, request mcp.CallTo
 }
 
 // buildAgentInstructionsOutput builds the structured output for AI agents
-func buildAgentInstructionsOutput(disc *discovery.DiscoveryResult, defaultInstancePath string, pluginInfo *PluginInfo) *AgentInstructionsOutput {
+func buildAgentInstructionsOutput(disc *discovery.DiscoveryResult, defaultInstancePath string, pluginInfo *PluginInfo, serverMode auth.ServerMode) *AgentInstructionsOutput {
 	output := &AgentInstructionsOutput{}
 
 	// Authority section
@@ -4859,30 +4886,129 @@ func buildAgentInstructionsOutput(disc *discovery.DiscoveryResult, defaultInstan
 		output.Orchestration = pluginInfo
 	}
 
-	// Tool Tiers and Discovery Guidance
-	output.ToolTiers = getToolTiers()
-	output.ToolDiscoveryGuidance = "Start with Tier 1 (Essential) tools only. " +
-		"epf_health_check, epf_get_wizard_for_task, and epf_validate_file are your entry points. " +
-		"Their responses include required_next_tool_calls that tell you exactly which Tier 2/3 tools to use next. " +
-		"Do NOT scan tool descriptions to decide what to call — follow the structured suggestions in tool responses. " +
-		"Do NOT fall back on pre-training knowledge about EPF structure — always consult wizards first."
+	// Remote mode guidance (multi-tenant and single-tenant)
+	if serverMode == auth.ModeMultiTenant || serverMode == auth.ModeSingleTenant {
+		remoteInfo := &AgentRemoteModeInfo{
+			ServerMode: serverMode.String(),
+			InstancePathFormat: "Use owner/repo format (e.g., 'emergent-company/emergent-epf'). " +
+				"Do NOT use filesystem paths like 'docs/EPF/_instances/...' — those only work in local mode.",
+			AvailableTools: []string{
+				"epf_health_check", "epf_agent_instructions",
+				"epf_get_product_vision", "epf_get_personas", "epf_get_persona_details",
+				"epf_get_value_propositions", "epf_get_competitive_position",
+				"epf_get_roadmap_summary", "epf_search_strategy", "epf_get_feature_strategy_context",
+				"epf_list_features", "epf_get_strategic_context", "epf_analyze_coverage",
+				"epf_explain_value_path", "epf_get_roadmap_summary",
+				"epf_list_definitions", "epf_get_definition",
+				"epf_aim_status", "epf_aim_okr_progress", "epf_aim_validate_assumptions",
+				"epf_get_agent_for_task", "epf_get_agent", "epf_get_skill",
+				"epf_list_agents", "epf_list_skills", "epf_list_wizards", "epf_get_wizard",
+				"epf_list_schemas", "epf_get_schema", "epf_get_template",
+				"epf_semantic_search", "epf_semantic_neighbors", "epf_semantic_impact",
+				"epf_contradictions", "epf_quality_audit", "epf_suggest_enrichment",
+				"epf_graph_list", "epf_graph_similar",
+				"epf_session_audit", "epf_verify_workflow",
+			},
+			UnavailableTools: []string{
+				"epf_validate_file (requires filesystem)",
+				"epf_fix_file (requires filesystem)",
+				"epf_init_instance (requires filesystem)",
+				"epf_scaffold_agent (requires filesystem)",
+				"epf_scaffold_skill (requires filesystem)",
+				"epf_scaffold_generator (requires filesystem)",
+				"epf_import_agent (requires filesystem)",
+				"epf_import_skill (requires filesystem)",
+				"epf_locate_instance (searches local filesystem)",
+				"epf_diff_artifacts (requires filesystem)",
+				"epf_diff_template (requires filesystem)",
+				"epf_validate_with_plan (requires filesystem)",
+				"epf_validate_section (requires filesystem)",
+				"epf_generate_report (requires filesystem)",
+			},
+		}
 
-	// Workflow guidance (wizard-first, mandatory language)
-	output.Workflow.FirstSteps = []string{
-		"1. Run epf_health_check to assess current instance state",
-		"2. Call epf_get_wizard_for_task before creating ANY artifact",
-		"3. Query strategy context (epf_get_product_vision, epf_get_personas) before feature work",
-		"4. Follow wizard instructions, then validate with epf_validate_file",
+		if serverMode == auth.ModeMultiTenant {
+			remoteInfo.FirstStep = "Call epf_list_workspaces to discover available EPF instances, " +
+				"then use the returned instance_path (owner/repo format) with other tools."
+			remoteInfo.AuthInfo = "Authentication is handled via GitHub OAuth. " +
+				"If you receive 'authentication required' errors, the user needs to re-authenticate " +
+				"at the server's /auth/github/login endpoint."
+		} else {
+			remoteInfo.FirstStep = "Call epf_health_check with the pre-configured instance path to verify the store is loaded."
+		}
+
+		output.RemoteMode = remoteInfo
+
+		// Override discovery section for remote mode (filesystem discovery doesn't apply)
+		output.Discovery.InstanceFound = false
+		output.Discovery.Suggestions = []string{
+			"This is a remote " + serverMode.String() + " server. Use epf_list_workspaces to discover available instances.",
+			"Instance paths use owner/repo format (e.g., 'emergent-company/emergent-epf').",
+		}
+
+		// Override commands section (CLI commands are not relevant for remote MCP clients)
+		output.Commands = []AgentCommandInfo{
+			{
+				Name:        "epf_list_workspaces",
+				Description: "Discover EPF instances accessible to you",
+				Example:     "Call this tool first to find available instances",
+				When:        "First thing after connecting to the remote server",
+			},
+			{
+				Name:        "epf_health_check",
+				Description: "Check instance health (use owner/repo as instance_path)",
+				Example:     `epf_health_check { "instance_path": "owner/repo" }`,
+				When:        "After discovering workspaces, to verify an instance is accessible",
+			},
+		}
 	}
 
-	output.Workflow.BestPractices = []string{
-		"You MUST call epf_get_wizard_for_task before creating any EPF artifact",
-		"You MUST validate every file after editing with epf_validate_file",
-		"You MUST query strategy context before feature work or roadmap changes",
-		"NEVER delete and recreate EPF YAML files — always edit in place to preserve curated strategic content",
-		"Run health check before and after major changes",
-		"Never guess artifact structure — use schemas, templates, and wizards",
-		"Prefer MCP tools over direct file manipulation when available",
+	// Tool Tiers and Discovery Guidance
+	output.ToolTiers = getToolTiers()
+	if serverMode == auth.ModeMultiTenant {
+		output.ToolDiscoveryGuidance = "This is a remote multi-tenant server. " +
+			"Start by calling epf_list_workspaces to discover available EPF instances. " +
+			"Use the returned instance_path (owner/repo format) with strategy query tools. " +
+			"Write operations (scaffold, init, fix, validate_file) are NOT available remotely — " +
+			"they require filesystem access on a local MCP server."
+	} else {
+		output.ToolDiscoveryGuidance = "Start with Tier 1 (Essential) tools only. " +
+			"epf_health_check, epf_get_wizard_for_task, and epf_validate_file are your entry points. " +
+			"Their responses include required_next_tool_calls that tell you exactly which Tier 2/3 tools to use next. " +
+			"Do NOT scan tool descriptions to decide what to call — follow the structured suggestions in tool responses. " +
+			"Do NOT fall back on pre-training knowledge about EPF structure — always consult wizards first."
+	}
+
+	// Workflow guidance (wizard-first, mandatory language)
+	if serverMode == auth.ModeMultiTenant || serverMode == auth.ModeSingleTenant {
+		output.Workflow.FirstSteps = []string{
+			"1. Call epf_list_workspaces to discover available EPF instances",
+			"2. Use the instance_path from step 1 (owner/repo format) with epf_health_check",
+			"3. Query strategy context (epf_get_product_vision, epf_get_personas, epf_get_roadmap_summary)",
+			"4. Use strategy query and analysis tools for your task",
+		}
+		output.Workflow.BestPractices = []string{
+			"Always use owner/repo format for instance_path (e.g., 'emergent-company/emergent-epf')",
+			"Query strategy context before feature work or roadmap changes",
+			"Write operations (scaffold, init, validate_file) are not available on remote servers",
+			"Use epf_search_strategy to find specific content across all strategy artifacts",
+		}
+	} else {
+		output.Workflow.FirstSteps = []string{
+			"1. Run epf_health_check to assess current instance state",
+			"2. Call epf_get_wizard_for_task before creating ANY artifact",
+			"3. Query strategy context (epf_get_product_vision, epf_get_personas) before feature work",
+			"4. Follow wizard instructions, then validate with epf_validate_file",
+		}
+		output.Workflow.BestPractices = []string{
+			"You MUST call epf_get_wizard_for_task before creating any EPF artifact",
+			"You MUST validate every file after editing with epf_validate_file",
+			"You MUST query strategy context before feature work or roadmap changes",
+			"NEVER delete and recreate EPF YAML files — always edit in place to preserve curated strategic content",
+			"Run health check before and after major changes",
+			"Never guess artifact structure — use schemas, templates, and wizards",
+			"Prefer MCP tools over direct file manipulation when available",
+		}
 	}
 
 	// Response Processing Protocol — mandatory field processing order for all models

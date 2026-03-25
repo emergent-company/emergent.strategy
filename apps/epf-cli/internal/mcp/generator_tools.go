@@ -590,6 +590,11 @@ func (s *Server) handleScaffoldGenerator(ctx context.Context, request mcp.CallTo
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
 
+	// Guard: reject remote paths — this tool requires filesystem access
+	if errMsg := IsRemotePath(instancePath); errMsg != "" {
+		return mcp.NewToolResultError(errMsg), nil
+	}
+
 	name, err := request.RequireString("name")
 	if err != nil {
 		return mcp.NewToolResultError("name parameter is required"), nil

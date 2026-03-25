@@ -576,6 +576,11 @@ func (s *Server) handleScaffoldAgent(ctx context.Context, request mcp.CallToolRe
 		return mcp.NewToolResultError("instance_path parameter is required"), nil
 	}
 
+	// Guard: reject remote paths — this tool requires filesystem access
+	if errMsg := IsRemotePath(instancePath); errMsg != "" {
+		return mcp.NewToolResultError(errMsg), nil
+	}
+
 	name, err := request.RequireString("name")
 	if err != nil {
 		return mcp.NewToolResultError("name parameter is required"), nil
@@ -862,7 +867,17 @@ func (s *Server) handleImportAgent(ctx context.Context, request mcp.CallToolRequ
 		return mcp.NewToolResultError("Missing required parameter 'source'"), nil
 	}
 
+	// Guard: reject remote source paths
+	if errMsg := IsRemotePath(source); errMsg != "" {
+		return mcp.NewToolResultError(errMsg), nil
+	}
+
 	instancePath := s.resolveInstancePath(request)
+
+	// Guard: reject remote instance paths
+	if errMsg := IsRemotePath(instancePath); errMsg != "" {
+		return mcp.NewToolResultError(errMsg), nil
+	}
 
 	formatStr, _ := request.RequireString("format")
 	forceStr, _ := request.RequireString("force")

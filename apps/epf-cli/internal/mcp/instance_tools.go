@@ -49,6 +49,11 @@ func (s *Server) handleInitInstance(ctx context.Context, request mcp.CallToolReq
 	}
 	path = pathutil.ExpandTilde(path)
 
+	// Guard: reject remote paths — this tool requires filesystem access
+	if errMsg := IsRemotePath(path); errMsg != "" {
+		return mcp.NewToolResultError(errMsg), nil
+	}
+
 	productName, err := request.RequireString("product_name")
 	if err != nil {
 		return mcp.NewToolResultError("product_name parameter is required"), nil
@@ -765,6 +770,11 @@ func (s *Server) handleFixFile(ctx context.Context, request mcp.CallToolRequest)
 		return mcp.NewToolResultError("path parameter is required"), nil
 	}
 	path = pathutil.ExpandTilde(path)
+
+	// Guard: reject remote paths — this tool requires filesystem access
+	if errMsg := IsRemotePath(path); errMsg != "" {
+		return mcp.NewToolResultError(errMsg), nil
+	}
 
 	// Optional parameters
 	dryRunStr, _ := request.RequireString("dry_run")

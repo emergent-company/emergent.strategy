@@ -10,6 +10,10 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
+// instancePathDesc is the standard description for instance_path parameters.
+// It mentions both local filesystem and remote owner/repo formats.
+const instancePathDesc = "Path to the EPF instance directory, or owner/repo for remote instances (e.g., 'emergent-company/emergent-epf')"
+
 // registerStrategyTools registers all strategy-related MCP tools.
 func (s *Server) registerStrategyTools() {
 	// Tool: epf_get_product_vision
@@ -18,7 +22,7 @@ func (s *Server) registerStrategyTools() {
 			mcp.WithDescription("[Query] USE WHEN you need the product vision, mission, purpose, and values. Returns the North Star artifact — the enduring strategic context that rarely changes."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
-				mcp.Description("Path to the EPF instance directory"),
+				mcp.Description(instancePathDesc),
 			),
 		),
 		s.handleGetProductVision,
@@ -30,7 +34,7 @@ func (s *Server) registerStrategyTools() {
 			mcp.WithDescription("[Query] USE WHEN you need to know who the product is built for. Returns all target personas with ID, name, role, and description."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
-				mcp.Description("Path to the EPF instance directory"),
+				mcp.Description(instancePathDesc),
 			),
 		),
 		s.handleGetPersonas,
@@ -42,7 +46,7 @@ func (s *Server) registerStrategyTools() {
 			mcp.WithDescription("[Query] USE WHEN you need deep detail on a specific persona including goals, pain points, and usage context. Pass a persona_id from epf_get_personas."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
-				mcp.Description("Path to the EPF instance directory"),
+				mcp.Description(instancePathDesc),
 			),
 			mcp.WithString("persona_id",
 				mcp.Required(),
@@ -58,7 +62,7 @@ func (s *Server) registerStrategyTools() {
 			mcp.WithDescription("[Query] USE WHEN you need value propositions, optionally filtered by persona. Returns what value the product delivers and to whom."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
-				mcp.Description("Path to the EPF instance directory"),
+				mcp.Description(instancePathDesc),
 			),
 			mcp.WithString("persona_id",
 				mcp.Description("Optional persona ID to filter value propositions"),
@@ -73,7 +77,7 @@ func (s *Server) registerStrategyTools() {
 			mcp.WithDescription("[Query] USE WHEN you need competitive analysis before making feature or positioning decisions. Returns competitive moat, advantages, and competitor comparisons."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
-				mcp.Description("Path to the EPF instance directory"),
+				mcp.Description(instancePathDesc),
 			),
 		),
 		s.handleGetCompetitivePosition,
@@ -85,7 +89,7 @@ func (s *Server) registerStrategyTools() {
 			mcp.WithDescription("[Query] USE WHEN you need current OKRs and key results. Optionally filter by track (product/strategy/org_ops/commercial) or cycle number."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
-				mcp.Description("Path to the EPF instance directory"),
+				mcp.Description(instancePathDesc),
 			),
 			mcp.WithString("track",
 				mcp.Description("Optional track name to filter (product, strategy, org_ops, commercial)"),
@@ -103,7 +107,7 @@ func (s *Server) registerStrategyTools() {
 			mcp.WithDescription("[Query] USE WHEN you need to find strategy content by keyword across all artifacts. Returns relevance-scored results with snippets."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
-				mcp.Description("Path to the EPF instance directory"),
+				mcp.Description(instancePathDesc),
 			),
 			mcp.WithString("query",
 				mcp.Required(),
@@ -125,7 +129,7 @@ func (s *Server) registerStrategyTools() {
 			mcp.WithDescription("[Query] USE WHEN you need the full strategic context for a specific topic. Traverses relationships to gather vision, personas, features, OKRs, and competitive context."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
-				mcp.Description("Path to the EPF instance directory"),
+				mcp.Description(instancePathDesc),
 			),
 			mcp.WithString("topic",
 				mcp.Required(),
@@ -570,7 +574,7 @@ func (s *Server) registerStrategyContextTools() {
 			mcp.WithDescription("[Query] USE WHEN you need an overview of all feature definitions with their status, strategic alignment, and quality scores."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
-				mcp.Description("Path to the EPF instance directory"),
+				mcp.Description(instancePathDesc),
 			),
 			mcp.WithString("include_quality",
 				mcp.Description("Include quality scores from feature quality checker (true/false, default: true)"),
@@ -589,7 +593,7 @@ func (s *Server) registerStrategyContextTools() {
 			),
 			mcp.WithString("instance_path",
 				mcp.Required(),
-				mcp.Description("Path to the EPF instance directory"),
+				mcp.Description(instancePathDesc),
 			),
 		),
 		s.handleGetStrategicContext,
@@ -605,7 +609,7 @@ func (s *Server) registerStrategyContextTools() {
 			),
 			mcp.WithString("instance_path",
 				mcp.Required(),
-				mcp.Description("Path to the EPF instance directory (contains READY/, FIRE/, AIM/ directories)"),
+				mcp.Description(instancePathDesc),
 			),
 		),
 		s.handleExplainValuePath,
@@ -617,7 +621,7 @@ func (s *Server) registerStrategyContextTools() {
 			mcp.WithDescription("[Query] USE WHEN you need to find strategic blind spots. Shows which value model components have features contributing to them and which have gaps."),
 			mcp.WithString("instance_path",
 				mcp.Required(),
-				mcp.Description("Path to the EPF instance directory"),
+				mcp.Description(instancePathDesc),
 			),
 			mcp.WithString("track",
 				mcp.Description("Optional: Filter to a specific track (Product, Strategy, OrgOps, Commercial). Omit for all tracks."),
