@@ -1349,3 +1349,410 @@ func TestDecomposeMappingsDeterministicKeys(t *testing.T) {
 
 	t.Logf("Verified %d MappingArtifact keys are deterministic across %d runs", len(firstRunKeys), runs)
 }
+
+// TestFeatureContributesToResolution verifies that Feature contributes_to
+// paths using CamelCase conventions are resolved to VMC keys that use
+// display names (UPPER CASE, spaces, ampersands) — issue #31.
+func TestFeatureContributesToResolution(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create value model with display-name path segments
+	vmDir := filepath.Join(tmpDir, "FIRE", "value_models")
+	prodDir := filepath.Join(tmpDir, "FIRE", "definitions", "product")
+	if err := os.MkdirAll(vmDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(prodDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	valueModel := `track_name: product
+description: 'Product value model'
+layers:
+  - id: 'onboard-and-map'
+    name: 'ONBOARD & MAP'
+    path_segment: 'ONBOARD & MAP'
+    description: 'Onboarding and mapping'
+    components:
+      - id: 'onboard-map-road-network'
+        name: 'Map physical road network'
+        path_segment: 'Map physical road network'
+        description: 'Digitize road networks'
+        active: true
+  - id: 'allocate-costs'
+    name: 'ALLOCATE COSTS'
+    path_segment: 'ALLOCATE COSTS'
+    description: 'Cost allocation'
+    components:
+      - id: 'allocate-track-road-expenses'
+        name: 'Track road expenses'
+        path_segment: 'Track road expenses'
+        description: 'Track and allocate expenses'
+        active: true
+`
+	if err := os.WriteFile(filepath.Join(vmDir, "product.yaml"), []byte(valueModel), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Feature using CamelCase contributes_to paths
+	feature := `id: 'fd-001'
+name: 'Road Network Digitization'
+status: 'in-progress'
+strategic_context:
+  contributes_to:
+    - Product.OnboardAndMap.OnboardMapRoadNetwork
+    - Product.AllocateCosts.AllocateTrackRoadExpenses
+definition:
+  job_to_be_done: 'Digitize road networks'
+  capabilities:
+    - id: 'cap-001'
+      name: 'Network Upload'
+      description: 'Upload road network data'
+`
+	if err := os.WriteFile(filepath.Join(prodDir, "fd-001-road-network.yaml"), []byte(feature), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	d := New(tmpDir)
+	result, err := d.DecomposeInstance()
+	if err != nil {
+		t.Fatalf("DecomposeInstance failed: %v", err)
+	}
+
+	// Check that contributes_to edges were created
+	contributesTo := map[string]string{} // from → to
+	for _, rel := range result.Relationships {
+		if rel.Type == "contributes_to" && rel.FromType == "Feature" {
+			contributesTo[rel.FromKey] = rel.ToKey
+			t.Logf("  contributes_to: %s → %s", rel.FromKey, rel.ToKey)
+		}
+	}
+
+	featureKey := objectKey("Feature", "feature:fd-001")
+	if len(contributesTo) == 0 {
+		t.Error("Expected contributes_to edges from feature, got none")
+	}
+
+	// Verify specific edges were created and point to the right VMC keys
+	found := 0
+	for _, rel := range result.Relationships {
+		if rel.Type == "contributes_to" && rel.FromKey == featureKey {
+			found++
+			// The VMC key should contain the display name, not the CamelCase
+			if !strings.Contains(rel.ToKey, "ONBOARD & MAP") && !strings.Contains(rel.ToKey, "ALLOCATE COSTS") {
+				t.Errorf("contributes_to edge target %q should reference display-name VMC, not CamelCase", rel.ToKey)
+			}
+		}
+	}
+	if found != 2 {
+		t.Errorf("Expected 2 contributes_to edges from fd-001, got %d", found)
+	}
+
+	// Verify no warnings about unresolved paths
+	unresolvedWarnings := 0
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "contributes_to path") && strings.Contains(w, "does not match") {
+			unresolvedWarnings++
+			t.Logf("WARNING: %s", w)
+		}
+	}
+	if unresolvedWarnings > 0 {
+		t.Errorf("Expected 0 unresolved contributes_to warnings, got %d", unresolvedWarnings)
+	}
+}
+
+// TestTrackDefinitionContributesToResolution verifies that canonical track
+// definitions with L2-name + slug contributes_to paths are resolved to VMC
+// keys — issue #31.
+func TestTrackDefinitionContributesToResolution(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create value model
+	vmDir := filepath.Join(tmpDir, "FIRE", "value_models")
+	if err := os.MkdirAll(vmDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	valueModel := `track_name: strategy
+description: 'Strategy value model'
+layers:
+  - id: 'strategic-communications'
+    name: 'STRATEGIC COMMUNICATIONS'
+    path_segment: 'STRATEGIC COMMUNICATIONS'
+    description: 'Communications strategy'
+    components:
+      - id: 'identity-definition'
+        name: 'Identity Definition'
+        path_segment: 'Identity Definition'
+        description: 'Brand identity'
+        active: true
+        sub_components:
+          - id: 'naming-conventions'
+            name: 'Naming conventions'
+            path_segment: 'Naming conventions'
+            description: 'Naming convention guidelines'
+            active: true
+          - id: 'core-values-and-tone'
+            name: 'Core values and tone'
+            path_segment: 'Core values and tone'
+            description: 'Core values and tone of voice'
+            active: true
+`
+	if err := os.WriteFile(filepath.Join(vmDir, "strategy.yaml"), []byte(valueModel), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create track definitions in nested subdirectory (issue #32 pattern)
+	defDir := filepath.Join(tmpDir, "FIRE", "definitions", "strategy", "communications")
+	if err := os.MkdirAll(defDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Definition using L2 name + slug format
+	def1 := `id: 'sd-028'
+name: 'Naming Conventions'
+slug: 'naming-conventions'
+track: 'strategy'
+status: 'active'
+contributes_to:
+  - Strategy.Identity Definition.naming-conventions
+definition:
+  purpose: 'Establish naming conventions'
+  outcome: 'Consistent naming across the org'
+  owner: 'Brand Manager'
+`
+	def2 := `id: 'sd-029'
+name: 'Core Values and Tone'
+slug: 'core-values-and-tone'
+track: 'strategy'
+status: 'active'
+contributes_to:
+  - Strategy.Identity Definition.core-values-and-tone
+definition:
+  purpose: 'Define core values and tone of voice'
+  outcome: 'Consistent brand communication'
+  owner: 'Brand Manager'
+`
+	if err := os.WriteFile(filepath.Join(defDir, "sd-028-naming-conventions.yaml"), []byte(def1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(defDir, "sd-029-core-values.yaml"), []byte(def2), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	d := New(tmpDir)
+	result, err := d.DecomposeInstance()
+	if err != nil {
+		t.Fatalf("DecomposeInstance failed: %v", err)
+	}
+
+	// Verify both track definitions were decomposed
+	defCount := 0
+	for _, obj := range result.Objects {
+		if obj.Type == "TrackDefinition" {
+			defCount++
+			t.Logf("  TrackDefinition: %s (track=%v)", obj.Key, obj.Properties["track"])
+		}
+	}
+	if defCount != 2 {
+		t.Errorf("Expected 2 TrackDefinition objects, got %d", defCount)
+	}
+
+	// Verify contributes_to edges were created
+	contributesToEdges := 0
+	for _, rel := range result.Relationships {
+		if rel.Type == "contributes_to" && rel.FromType == "TrackDefinition" {
+			contributesToEdges++
+			t.Logf("  contributes_to: %s → %s", rel.FromKey, rel.ToKey)
+			// The target should be the display-name VMC key
+			if !strings.Contains(rel.ToKey, "Naming conventions") && !strings.Contains(rel.ToKey, "Core values and tone") {
+				t.Errorf("contributes_to edge target %q should reference display-name VMC", rel.ToKey)
+			}
+		}
+	}
+	if contributesToEdges != 2 {
+		t.Errorf("Expected 2 contributes_to edges from track definitions, got %d", contributesToEdges)
+	}
+
+	// Verify no warnings
+	unresolvedWarnings := 0
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "contributes_to path") && strings.Contains(w, "does not match") {
+			unresolvedWarnings++
+			t.Logf("WARNING: %s", w)
+		}
+	}
+	if unresolvedWarnings > 0 {
+		t.Errorf("Expected 0 unresolved contributes_to warnings, got %d", unresolvedWarnings)
+	}
+}
+
+// TestNestedTrackDefinitionDiscovery verifies that track definitions in nested
+// subdirectories are discovered by the recursive filepath.Walk — issue #32.
+func TestNestedTrackDefinitionDiscovery(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create nested definition structure matching the veilag pattern
+	dirs := []string{
+		filepath.Join(tmpDir, "FIRE", "definitions", "org_ops", "culture-communications"),
+		filepath.Join(tmpDir, "FIRE", "definitions", "org_ops", "talent-management"),
+		filepath.Join(tmpDir, "FIRE", "definitions", "commercial", "partnerships"),
+		filepath.Join(tmpDir, "FIRE", "definitions", "strategy", "context"),
+	}
+	for _, dir := range dirs {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Create definitions in nested dirs
+	defs := map[string]string{
+		filepath.Join(dirs[0], "pd-003-team-feedback.yaml"): `id: 'pd-003'
+name: 'Team Feedback Process'
+track: 'org_ops'
+status: 'active'
+definition:
+  purpose: 'Enable team feedback'
+  outcome: 'Better communication'
+`,
+		filepath.Join(dirs[1], "pd-001-orientation.yaml"): `id: 'pd-001'
+name: 'New Hire Orientation'
+track: 'org_ops'
+status: 'active'
+definition:
+  purpose: 'Onboard new hires'
+  outcome: 'Faster ramp-up'
+`,
+		filepath.Join(dirs[2], "cd-001-partner-discovery.yaml"): `id: 'cd-001'
+name: 'Partner Discovery'
+track: 'commercial'
+status: 'active'
+definition:
+  purpose: 'Find partners'
+  outcome: 'New partnerships'
+`,
+		filepath.Join(dirs[3], "sd-001-market-trends.yaml"): `id: 'sd-001'
+name: 'Market Trends Analysis'
+track: 'strategy'
+status: 'active'
+definition:
+  purpose: 'Analyze market trends'
+  outcome: 'Informed strategy'
+`,
+	}
+	for path, content := range defs {
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	d := New(tmpDir)
+	result, err := d.DecomposeInstance()
+	if err != nil {
+		t.Fatalf("DecomposeInstance failed: %v", err)
+	}
+
+	// Count track definitions by track
+	trackCounts := map[string]int{}
+	for _, obj := range result.Objects {
+		if obj.Type == "TrackDefinition" {
+			track := obj.Properties["track"].(string)
+			trackCounts[track]++
+			t.Logf("  TrackDefinition: %s (track=%s, category=%v)", obj.Key, track, obj.Properties["category"])
+		}
+	}
+
+	if trackCounts["org_ops"] != 2 {
+		t.Errorf("Expected 2 org_ops definitions, got %d", trackCounts["org_ops"])
+	}
+	if trackCounts["commercial"] != 1 {
+		t.Errorf("Expected 1 commercial definition, got %d", trackCounts["commercial"])
+	}
+	if trackCounts["strategy"] != 1 {
+		t.Errorf("Expected 1 strategy definition, got %d", trackCounts["strategy"])
+	}
+
+	total := trackCounts["org_ops"] + trackCounts["commercial"] + trackCounts["strategy"]
+	if total != 4 {
+		t.Errorf("Expected 4 total track definitions from nested dirs, got %d", total)
+	}
+}
+
+// TestContributesToUnresolvedWarning verifies that unresolved contributes_to
+// paths produce warnings and skip edge creation rather than creating dangling edges.
+func TestContributesToUnresolvedWarning(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create minimal value model
+	vmDir := filepath.Join(tmpDir, "FIRE", "value_models")
+	prodDir := filepath.Join(tmpDir, "FIRE", "definitions", "product")
+	if err := os.MkdirAll(vmDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(prodDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	valueModel := `track_name: product
+description: 'Product value model'
+layers:
+  - id: 'core'
+    name: 'Core'
+    path_segment: 'Core'
+    components:
+      - id: 'search'
+        name: 'Search'
+        path_segment: 'Search'
+        active: true
+`
+	if err := os.WriteFile(filepath.Join(vmDir, "product.yaml"), []byte(valueModel), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Feature with both valid and invalid contributes_to paths
+	feature := `id: 'fd-001'
+name: 'Test Feature'
+status: 'draft'
+strategic_context:
+  contributes_to:
+    - Product.Core.Search
+    - Product.Nonexistent.FakeComponent
+    - Strategy.Missing.AlsoFake
+definition:
+  job_to_be_done: 'Test feature'
+`
+	if err := os.WriteFile(filepath.Join(prodDir, "fd-001-test.yaml"), []byte(feature), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	d := New(tmpDir)
+	result, err := d.DecomposeInstance()
+	if err != nil {
+		t.Fatalf("DecomposeInstance failed: %v", err)
+	}
+
+	// Count contributes_to edges
+	edgeCount := 0
+	for _, rel := range result.Relationships {
+		if rel.Type == "contributes_to" && rel.FromType == "Feature" {
+			edgeCount++
+			t.Logf("  contributes_to: %s → %s", rel.FromKey, rel.ToKey)
+		}
+	}
+
+	// Only the valid path should create an edge
+	if edgeCount != 1 {
+		t.Errorf("Expected 1 contributes_to edge (only valid path), got %d", edgeCount)
+	}
+
+	// Should have 2 warnings for the invalid paths
+	warningCount := 0
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "contributes_to path") && strings.Contains(w, "does not match") {
+			warningCount++
+		}
+	}
+	if warningCount != 2 {
+		t.Errorf("Expected 2 unresolved path warnings, got %d", warningCount)
+	}
+}

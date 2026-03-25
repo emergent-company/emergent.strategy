@@ -27,9 +27,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/memory"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/valuemodel"
 	"gopkg.in/yaml.v3"
 )
 
@@ -57,14 +59,31 @@ type RelationshipSpec struct {
 	Properties map[string]any
 }
 
+// vmcLookup caches ValueModelComponent keys for path resolution.
+// It enables 5-tier matching between contributes_to paths (which use
+// various naming conventions) and VMC object keys (which use
+// path_segment or name from the value model YAML).
+type vmcLookup struct {
+	exactKeys map[string]bool   // VMC object key → exists
+	pathToKey map[string]string // value_path → object key (exact)
+	normToKey map[string]string // normalized value_path → object key
+}
+
 // Decomposer converts an EPF instance directory into graph objects and relationships.
 // It reads raw YAML files directly — no dependency on the strategy parser package.
+// The valuemodel package is used for path resolution only (not for parsing).
 type Decomposer struct {
 	instancePath string
 	// seenPersonas tracks which persona keys have already been emitted as objects.
 	// This enables deduplication when the same persona appears across multiple
 	// feature definitions and/or insight analyses.
 	seenPersonas map[string]bool
+	// vmc caches VMC path lookups, built after decomposeValueModels runs.
+	vmc *vmcLookup
+	// vmResolver resolves contributes_to paths (CamelCase, slugs, etc.) to
+	// canonical value model paths. Loaded from the same YAML files that
+	// decomposeValueModels reads.
+	vmResolver *valuemodel.Resolver
 }
 
 // New creates a Decomposer for the given EPF instance path.
@@ -94,8 +113,12 @@ func (d *Decomposer) DecomposeInstance() (*Result, error) {
 	d.decomposeRoadmap(result)
 
 	// FIRE phase artifacts
-	d.decomposeFeatures(result)
+	// Value models must be decomposed first so the VMC lookup is available
+	// for resolving contributes_to paths in features, mappings, and definitions.
 	d.decomposeValueModels(result)
+	d.buildVMCLookup(result)
+	d.loadVMResolver() // Load valuemodel.Resolver for cross-convention path matching
+	d.decomposeFeatures(result)
 	d.decomposeMappings(result)         // Phase 1d: value model → implementation mappings
 	d.decomposeTrackDefinitions(result) // Phase 2: strategy, org_ops, commercial definitions
 
@@ -175,6 +198,252 @@ func (d *Decomposer) addArtifactNode(result *Result, fileName, artifactType, pha
 func (d *Decomposer) warn(result *Result, msg string) {
 	result.Warnings = append(result.Warnings, msg)
 	log.Printf("[decompose] WARNING: %s", msg)
+}
+
+// --- VMC path resolution ---
+
+// normalizeVMCPath strips spaces, ampersands, hyphens, underscores, and other
+// special characters, then lowercases. This normalizes paths like
+// "Strategy.CONTEXT.Market Analysis" and "Strategy.Context.MarketAnalysis"
+// to the same form for comparison. Dots are preserved as path separators.
+func normalizeVMCPath(path string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(path) {
+		if r == '.' || (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// loadVMResolver loads value models via the valuemodel package and creates a
+// Resolver for cross-convention path matching. The Resolver can match CamelCase
+// contributes_to paths (e.g., "Product.OnboardAndMap.OnboardMapRoadNetwork")
+// against value model components that use display names or path_segment.
+// Must be called after buildVMCLookup.
+func (d *Decomposer) loadVMResolver() {
+	loader := valuemodel.NewLoader(d.instancePath)
+	models, err := loader.Load()
+	if err != nil {
+		log.Printf("[decompose] WARNING: failed to load value models for resolver: %v", err)
+		return
+	}
+	if len(models.Models) == 0 {
+		return
+	}
+	d.vmResolver = valuemodel.NewResolver(models)
+}
+
+// buildVMCLookup scans all decomposed objects and builds lookup maps from
+// value_path to object key. Must be called after decomposeValueModels.
+func (d *Decomposer) buildVMCLookup(result *Result) {
+	d.vmc = &vmcLookup{
+		exactKeys: make(map[string]bool),
+		pathToKey: make(map[string]string),
+		normToKey: make(map[string]string),
+	}
+	for _, obj := range result.Objects {
+		if obj.Type == "ValueModelComponent" {
+			d.vmc.exactKeys[obj.Key] = true
+			if vp, ok := obj.Properties["value_path"].(string); ok {
+				d.vmc.pathToKey[vp] = obj.Key
+				d.vmc.normToKey[normalizeVMCPath(vp)] = obj.Key
+			}
+		}
+	}
+}
+
+// resolveVMCKey resolves a contributes_to path to a VMC object key using
+// 6-tier matching:
+//  0. Resolver match (uses valuemodel.Resolver to handle CamelCase IDs, slugs,
+//     and other naming conventions, then rebuilds VMC key from resolved components)
+//  1. Exact key match (path matches VMC key suffix directly)
+//  2. Exact value_path match
+//  3. Normalized value_path match (case-insensitive, strips spaces/special chars)
+//  4. Exact prefix match (path is a prefix of a VMC value_path)
+//  5. Normalized prefix match (normalized prefix matching)
+//
+// Returns the resolved VMC key and true if found, or the raw key and false if not.
+func (d *Decomposer) resolveVMCKey(path string) (string, bool) {
+	if d.vmc == nil {
+		// Fallback: no lookup built, use raw key
+		return objectKey("ValueModelComponent", fmt.Sprintf("value_model:%s", path)), false
+	}
+
+	// Tier 0: resolver-based matching
+	// The valuemodel.Resolver can match CamelCase IDs (e.g., "OnboardAndMap")
+	// against value model components that use display names (e.g., "ONBOARD & MAP")
+	// or kebab-case IDs (e.g., "onboard-and-map"). After resolving, we rebuild the
+	// VMC key using the same PathSegment||Name logic as decomposeValueModelFile.
+	if d.vmResolver != nil {
+		if resolution, err := d.vmResolver.Resolve(path); err == nil {
+			vmcPath := d.buildVMCPathFromResolution(resolution)
+			vmcKey := objectKey("ValueModelComponent", fmt.Sprintf("value_model:%s", vmcPath))
+			if d.vmc.exactKeys[vmcKey] {
+				return vmcKey, true
+			}
+			// Also try exact and normalized path lookup with the rebuilt path
+			if resolvedKey, ok := d.vmc.pathToKey[vmcPath]; ok {
+				return resolvedKey, true
+			}
+			if resolvedKey, ok := d.vmc.normToKey[normalizeVMCPath(vmcPath)]; ok {
+				return resolvedKey, true
+			}
+		}
+		// Tier 0b: cross-layer component search
+		// Track definitions sometimes use shortened paths like
+		// "Strategy.Identity Definition.naming-conventions" where the L1 layer
+		// is omitted. The resolver expects Track.L1.L2[.L3] and will fail on these.
+		// Handle this by searching all layers for a matching component+sub path.
+		if key, ok := d.resolveShortPath(path); ok {
+			return key, true
+		}
+	}
+
+	// Tier 1: exact key match
+	rawKey := objectKey("ValueModelComponent", fmt.Sprintf("value_model:%s", path))
+	if d.vmc.exactKeys[rawKey] {
+		return rawKey, true
+	}
+
+	// Tier 2: exact value_path match
+	if resolvedKey, ok := d.vmc.pathToKey[path]; ok {
+		return resolvedKey, true
+	}
+
+	// Tier 3: normalized value_path match
+	normPath := normalizeVMCPath(path)
+	if resolvedKey, ok := d.vmc.normToKey[normPath]; ok {
+		return resolvedKey, true
+	}
+
+	// Tier 4: exact prefix match
+	prefix := path + "."
+	var matchingPaths []string
+	for vp := range d.vmc.pathToKey {
+		if strings.HasPrefix(vp, prefix) {
+			matchingPaths = append(matchingPaths, vp)
+		}
+	}
+	if len(matchingPaths) > 0 {
+		sort.Strings(matchingPaths)
+		best := shortestString(matchingPaths)
+		return d.vmc.pathToKey[best], true
+	}
+
+	// Tier 5: normalized prefix match
+	normPrefix := normPath + "."
+	var matchingNormPaths []string
+	for np := range d.vmc.normToKey {
+		if strings.HasPrefix(np, normPrefix) {
+			matchingNormPaths = append(matchingNormPaths, np)
+		}
+	}
+	if len(matchingNormPaths) > 0 {
+		sort.Strings(matchingNormPaths)
+		best := shortestString(matchingNormPaths)
+		return d.vmc.normToKey[best], true
+	}
+
+	return rawKey, false
+}
+
+// resolveShortPath handles shortened contributes_to paths that omit the L1 layer.
+// For example, "Strategy.Identity Definition.naming-conventions" where
+// "Identity Definition" is actually an L2 component under some L1 layer.
+// It searches all layers in the track for a matching component, then optionally
+// a sub-component within it.
+func (d *Decomposer) resolveShortPath(path string) (string, bool) {
+	parts := strings.Split(path, ".")
+	if len(parts) < 2 || len(parts) > 3 {
+		return "", false
+	}
+
+	trackName := normalizeTrackName(parts[0])
+	compSearch := parts[1]
+	var subSearch string
+	if len(parts) == 3 {
+		subSearch = parts[2]
+	}
+
+	// Search all VMC value_paths for a match
+	compNorm := normalizeVMCPath(compSearch)
+
+	for vp, key := range d.vmc.pathToKey {
+		vpParts := strings.Split(vp, ".")
+		if len(vpParts) < 3 {
+			continue
+		}
+		// Check track matches
+		if vpParts[0] != trackName {
+			continue
+		}
+		// Check if any L2 component matches (vpParts[2] is L2 in a Track.L1.L2 path)
+		if normalizeVMCPath(vpParts[2]) != compNorm {
+			continue
+		}
+
+		if subSearch == "" {
+			// Just looking for L2 component
+			if len(vpParts) == 3 {
+				return key, true
+			}
+			continue
+		}
+
+		// Looking for L3 sub-component under matching L2
+		if len(vpParts) == 4 && normalizeVMCPath(vpParts[3]) == normalizeVMCPath(subSearch) {
+			return key, true
+		}
+	}
+
+	return "", false
+}
+
+// buildVMCPathFromResolution rebuilds a value_path from a PathResolution using
+// the same PathSegment||Name fallback logic that decomposeValueModelFile uses
+// when creating VMC object keys. This bridges the gap between the resolver's
+// canonical paths (which use normalizePathSegment) and the decomposer's VMC keys
+// (which use raw PathSegment or Name).
+func (d *Decomposer) buildVMCPathFromResolution(res *valuemodel.PathResolution) string {
+	parts := []string{string(res.Track)}
+
+	if res.Layer != nil {
+		seg := res.Layer.PathSegment
+		if seg == "" {
+			seg = res.Layer.Name
+		}
+		parts = append(parts, seg)
+	}
+
+	if res.Component != nil {
+		seg := res.Component.PathSegment
+		if seg == "" {
+			seg = res.Component.Name
+		}
+		parts = append(parts, seg)
+	}
+
+	if res.SubComponent != nil {
+		seg := res.SubComponent.PathSegment
+		if seg == "" {
+			seg = res.SubComponent.Name
+		}
+		parts = append(parts, seg)
+	}
+
+	return strings.Join(parts, ".")
+}
+
+// shortestString returns the shortest string from a non-empty slice.
+func shortestString(ss []string) string {
+	best := ss[0]
+	for _, s := range ss[1:] {
+		if len(s) < len(best) {
+			best = s
+		}
+	}
+	return best
 }
 
 // --- Version check ---
@@ -796,9 +1065,13 @@ func (d *Decomposer) decomposeFeatureFile(absPath, fileName string, result *Resu
 
 	// contributes_to → ValueModelComponent
 	for _, path := range raw.StrategicContext.ContributesTo {
-		vmKey := objectKey("ValueModelComponent", fmt.Sprintf("value_model:%s", path))
-		d.addRel(result, "contributes_to", featureKey, "Feature", vmKey, "ValueModelComponent",
-			map[string]any{"weight": "1.0", "edge_source": "structural"})
+		vmKey, resolved := d.resolveVMCKey(path)
+		if resolved {
+			d.addRel(result, "contributes_to", featureKey, "Feature", vmKey, "ValueModelComponent",
+				map[string]any{"weight": "1.0", "edge_source": "structural"})
+		} else {
+			d.warn(result, fmt.Sprintf("feature %s: contributes_to path %q does not match any value model component — skipping edge", raw.ID, path))
+		}
 	}
 
 	// tests_assumption → Assumption
@@ -980,6 +1253,7 @@ type rawValueModel struct {
 type rawSubComponent struct {
 	ID          string `yaml:"id"`
 	Name        string `yaml:"name"`
+	PathSegment string `yaml:"path_segment"`
 	Description string `yaml:"description"`
 	UVP         string `yaml:"uvp"`
 	Active      bool   `yaml:"active"`
@@ -1063,7 +1337,11 @@ func (d *Decomposer) decomposeValueModelFile(absPath, fileName string, result *R
 			subs = append(subs, comp.Subs...)
 
 			for _, sub := range subs {
-				subPath := fmt.Sprintf("%s.%s", compPath, sub.Name)
+				subPathSeg := sub.PathSegment
+				if subPathSeg == "" {
+					subPathSeg = sub.Name
+				}
+				subPath := fmt.Sprintf("%s.%s", compPath, subPathSeg)
 				subKey := objectKey("ValueModelComponent", fmt.Sprintf("value_model:%s", subPath))
 				subDesc := sub.Description
 				if subDesc == "" {
