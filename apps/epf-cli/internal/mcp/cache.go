@@ -53,11 +53,31 @@ var (
 // (e.g., a GitHub-backed store loaded from a github:// URI). This is used by tools
 // that need to distinguish between filesystem and remote instances to skip filesystem
 // validation (os.Stat, anchor file checks) for remote sources.
+//
+// The key can be in any of these formats:
+//   - "github://owner/repo" (canonical cache key)
+//   - "owner/repo" (raw user input from MCP tool parameters)
+//   - "owner/repo/subpath" (with subpath)
+//
+// Raw owner/repo paths are normalized to the github:// cache key format before lookup.
 func IsRegisteredStore(key string) bool {
 	strategyStoreMu.RLock()
 	defer strategyStoreMu.RUnlock()
-	_, ok := registeredStores[key]
-	return ok
+
+	// Direct lookup first (handles github:// keys and filesystem paths).
+	if _, ok := registeredStores[key]; ok {
+		return true
+	}
+
+	// If the key looks like a remote path (owner/repo), normalize to cache key format.
+	owner, repo, subpath, isRemote := auth.ParseInstancePath(key)
+	if isRemote {
+		cacheKey := buildGitHubCacheKey(owner, repo, subpath)
+		_, ok := registeredStores[cacheKey]
+		return ok
+	}
+
+	return false
 }
 
 // RegisterStrategyStore adds a pre-configured strategy store to the cache.

@@ -1,11 +1,43 @@
 package mcp
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/strategy"
 )
+
+// mockStrategyStore is a minimal mock for testing IsRegisteredStore.
+// It only needs to satisfy the interface — no methods are called in these tests.
+type mockStrategyStore struct{}
+
+func (m *mockStrategyStore) Load(context.Context) error                      { return nil }
+func (m *mockStrategyStore) Reload(context.Context) error                    { return nil }
+func (m *mockStrategyStore) Close() error                                    { return nil }
+func (m *mockStrategyStore) GetProductVision() (*strategy.NorthStar, error)  { return nil, nil }
+func (m *mockStrategyStore) GetPersonas() ([]strategy.PersonaSummary, error) { return nil, nil }
+func (m *mockStrategyStore) GetPersonaDetails(string) (*strategy.TargetUser, []strategy.PainPoint, error) {
+	return nil, nil, nil
+}
+func (m *mockStrategyStore) GetValuePropositions(string) ([]strategy.ValueProposition, error) {
+	return nil, nil
+}
+func (m *mockStrategyStore) GetCompetitivePosition() (*strategy.CompetitiveMoat, *strategy.Positioning, error) {
+	return nil, nil, nil
+}
+func (m *mockStrategyStore) GetRoadmapSummary(string, int) (*strategy.Roadmap, error) {
+	return nil, nil
+}
+func (m *mockStrategyStore) GetFeatures(string) ([]strategy.FeatureSummary, error) { return nil, nil }
+func (m *mockStrategyStore) GetFeatureDetails(string) (*strategy.Feature, error)   { return nil, nil }
+func (m *mockStrategyStore) Search(string, int) ([]strategy.SearchResult, error)   { return nil, nil }
+func (m *mockStrategyStore) GetStrategicContext(string) (*strategy.StrategicContextResult, error) {
+	return nil, nil
+}
+func (m *mockStrategyStore) GetModel() *strategy.StrategyModel { return nil }
 
 // =============================================================================
 // Cache Invalidation Integration Tests (Tasks 1.7 + 1.8)
@@ -318,6 +350,90 @@ feature_maturity:
 	}
 	if len(model2.Features) != 1 {
 		t.Errorf("Expected 1 feature after adding file, got %d (stale cache)", len(model2.Features))
+	}
+}
+
+// TestIsRegisteredStore_NormalizesRemotePaths tests that IsRegisteredStore
+// correctly resolves raw "owner/repo" paths to "github://owner/repo" cache keys.
+// This is the fix for the bug where handleHealthCheck passed raw user input to
+// IsRegisteredStore but stores were registered under github:// keys.
+func TestIsRegisteredStore_NormalizesRemotePaths(t *testing.T) {
+	// Register a store under the canonical github:// key.
+	dummyStore := &mockStrategyStore{}
+	strategyStoreMu.Lock()
+	registeredStores["github://test-org/test-repo"] = dummyStore
+	startupStores["github://test-org/test-repo"] = true
+	strategyStoreMu.Unlock()
+
+	defer func() {
+		strategyStoreMu.Lock()
+		delete(registeredStores, "github://test-org/test-repo")
+		delete(startupStores, "github://test-org/test-repo")
+		strategyStoreMu.Unlock()
+	}()
+
+	tests := []struct {
+		name     string
+		key      string
+		expected bool
+	}{
+		{
+			name:     "canonical github:// key",
+			key:      "github://test-org/test-repo",
+			expected: true,
+		},
+		{
+			name:     "raw owner/repo input",
+			key:      "test-org/test-repo",
+			expected: true,
+		},
+		{
+			name:     "non-existent repo",
+			key:      "other-org/other-repo",
+			expected: false,
+		},
+		{
+			name:     "local filesystem path",
+			key:      "/Users/test/docs/EPF/_instances/product",
+			expected: false,
+		},
+		{
+			name:     "relative path (not remote)",
+			key:      "./docs/EPF/_instances/product",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsRegisteredStore(tt.key)
+			if result != tt.expected {
+				t.Errorf("IsRegisteredStore(%q) = %v, want %v", tt.key, result, tt.expected)
+			}
+		})
+	}
+}
+
+// TestIsRegisteredStore_WithSubpath tests that owner/repo/subpath format is handled.
+func TestIsRegisteredStore_WithSubpath(t *testing.T) {
+	dummyStore := &mockStrategyStore{}
+	cacheKey := "github://test-org/test-repo/docs/EPF/_instances/product"
+
+	strategyStoreMu.Lock()
+	registeredStores[cacheKey] = dummyStore
+	startupStores[cacheKey] = true
+	strategyStoreMu.Unlock()
+
+	defer func() {
+		strategyStoreMu.Lock()
+		delete(registeredStores, cacheKey)
+		delete(startupStores, cacheKey)
+		strategyStoreMu.Unlock()
+	}()
+
+	// Raw user input with subpath should match
+	if !IsRegisteredStore("test-org/test-repo/docs/EPF/_instances/product") {
+		t.Error("Expected IsRegisteredStore to resolve owner/repo/subpath to github:// key")
 	}
 }
 
