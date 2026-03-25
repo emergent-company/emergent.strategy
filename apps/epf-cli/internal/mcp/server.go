@@ -90,13 +90,21 @@ type Server struct {
 //   - 8 strategy query tools (vision, personas, roadmap, competitive, search)
 //   - 8 strategy context tools (features list, value model paths, coverage,
 //     definitions, OKR progress, organizational status)
-func NewStrategyOnlyServer(defaultInstancePath string) (*Server, error) {
+func NewStrategyOnlyServer(defaultInstancePath string, extraOpts ...server.ServerOption) (*Server, error) {
 	auditLog := NewAuditLog()
+
+	// Base options for the strategy-only server.
+	opts := []server.ServerOption{
+		server.WithLogging(),
+		server.WithToolHandlerMiddleware(AuditMiddleware(auditLog)),
+	}
+	// Append any extra options (e.g., WithInstructions for remote servers).
+	opts = append(opts, extraOpts...)
+
 	mcpServer := server.NewMCPServer(
 		ServerName+"-strategy",
 		version.Version,
-		server.WithLogging(),
-		server.WithToolHandlerMiddleware(AuditMiddleware(auditLog)),
+		opts...,
 	)
 
 	// Create definition loader (embedded) — needed for epf_list_definitions / epf_get_definition
@@ -182,6 +190,25 @@ func (s *Server) registerEssentialTools() {
 			),
 		),
 		s.handleGetAgentForTask,
+	)
+
+	// Tool: epf_agent_instructions — essential for agents entering an EPF context.
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_agent_instructions",
+			mcp.WithDescription("[Instance] USE WHEN entering an EPF context for the first time. Returns comprehensive AI agent guidance including discovery status and workflow instructions."),
+			mcp.WithString("path",
+				mcp.Description("Optional path to check for EPF instance (defaults to current directory)"),
+			),
+		),
+		s.handleAgentInstructions,
+	)
+
+	// Tool: epf_list_workspaces — essential for remote agents to discover instances.
+	s.mcpServer.AddTool(
+		mcp.NewTool("epf_list_workspaces",
+			mcp.WithDescription("[Instance] USE WHEN you need to see which EPF workspaces are accessible to the authenticated user. Multi-tenant mode only."),
+		),
+		s.handleListWorkspaces,
 	)
 }
 

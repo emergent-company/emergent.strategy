@@ -121,15 +121,21 @@ EXAMPLES:
 			mcpInstructions = buildMCPInstructions(authMode)
 		}
 
+		// Build extra MCP server options (e.g., WithInstructions for remote servers).
+		var extraOpts []mcpserver.ServerOption
+		if mcpInstructions != "" {
+			extraOpts = append(extraOpts, mcpserver.WithInstructions(mcpInstructions))
+		}
+
 		var server *mcp.Server
 		if strategyOnly {
 			var err error
-			server, err = mcp.NewStrategyOnlyServer(instancePath)
+			server, err = mcp.NewStrategyOnlyServer(instancePath, extraOpts...)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error creating strategy server: %v\n", err)
 				os.Exit(1)
 			}
-			fmt.Fprintln(os.Stderr, "Server mode: strategy-only (16 read-only tools)")
+			fmt.Fprintln(os.Stderr, "Server mode: strategy-only (read-only tools)")
 		} else {
 			// Auto-detect schemas directory if not specified
 			if schemasDir == "" {
@@ -142,12 +148,6 @@ EXAMPLES:
 			// If no filesystem schemas found, that's okay - validator will use embedded schemas
 			if schemasDir == "" {
 				fmt.Fprintln(os.Stderr, "Note: Using embedded schemas (no filesystem schemas found)")
-			}
-
-			// Create the full MCP server (80 tools), with optional instructions
-			var extraOpts []mcpserver.ServerOption
-			if mcpInstructions != "" {
-				extraOpts = append(extraOpts, mcpserver.WithInstructions(mcpInstructions))
 			}
 
 			var err error
