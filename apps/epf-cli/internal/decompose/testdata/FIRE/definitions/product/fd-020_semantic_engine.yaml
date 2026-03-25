@@ -1,6 +1,27 @@
 id: "fd-020"
 name: "Semantic Strategy Engine"
 definition:
+  personas:
+    - id: "strategy-lead"
+      name: "Strategy Lead"
+      role: "Head of Strategy"
+      description: "Senior leader responsible for defining and executing company strategy."
+      goals:
+        - "Maintain strategic alignment across all teams"
+        - "Identify strategic blind spots early"
+      pain_points:
+        - "Cannot query strategy relationships programmatically"
+        - "Manual cross-referencing of strategy artifacts is error-prone"
+      current_situation: "Currently uses spreadsheets and documents to track strategy alignment, spending hours manually cross-referencing artifacts."
+    - id: "product-engineer"
+      name: "Product Engineer"
+      role: "Senior Software Engineer"
+      description: "Engineer who implements features aligned to product strategy."
+      goals:
+        - "Understand how code changes impact strategic objectives"
+      pain_points:
+        - "No visibility into which strategic goals my work supports"
+      current_situation: "Ships code without understanding the strategic context, leading to misaligned implementations."
   capabilities:
     - id: "cap-001"
       name: "Artifact Decomposition"

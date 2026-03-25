@@ -100,6 +100,154 @@ func TestDecomposeFeatureDependencies(t *testing.T) {
 	}
 }
 
+// TestDecomposeFeaturePersonas tests persona extraction from definition.personas.
+func TestDecomposeFeaturePersonas(t *testing.T) {
+	d := New("testdata")
+	result, err := d.DecomposeInstance()
+	if err != nil {
+		t.Fatalf("DecomposeInstance failed: %v", err)
+	}
+
+	counts := countByType(result)
+
+	// fd-020 has 2 personas: strategy-lead, product-engineer
+	if counts["Persona"] < 2 {
+		t.Errorf("Expected at least 2 Persona objects from feature personas, got %d", counts["Persona"])
+		for _, obj := range result.Objects {
+			if obj.Type == "Persona" {
+				t.Logf("  %s: name=%v", obj.Key, obj.Properties["name"])
+			}
+		}
+	}
+
+	// Check specific persona properties
+	for _, obj := range result.Objects {
+		if obj.Type == "Persona" && obj.Properties["persona_id"] == "strategy-lead" {
+			if obj.Properties["name"] != "Strategy Lead" {
+				t.Errorf("strategy-lead should have name='Strategy Lead', got %v", obj.Properties["name"])
+			}
+			if obj.Properties["role"] != "Head of Strategy" {
+				t.Errorf("strategy-lead should have role='Head of Strategy', got %v", obj.Properties["role"])
+			}
+			if obj.Properties["inertia_tier"] != "2" {
+				t.Errorf("strategy-lead should have inertia_tier=2, got %v", obj.Properties["inertia_tier"])
+			}
+			goals, _ := obj.Properties["goals"].(string)
+			if goals == "" {
+				t.Error("strategy-lead should have goals populated")
+			}
+		}
+	}
+
+	// Check serves edges: Feature → Persona
+	relCounts := countRelsByType(result)
+	if relCounts["serves"] < 2 {
+		t.Errorf("Expected at least 2 serves edges, got %d", relCounts["serves"])
+	}
+	if !hasRel(result, "serves", "Feature:feature:fd-020", "Persona:persona:strategy-lead") {
+		t.Error("Missing serves edge: fd-020 → strategy-lead")
+	}
+	if !hasRel(result, "serves", "Feature:feature:fd-020", "Persona:persona:product-engineer") {
+		t.Error("Missing serves edge: fd-020 → product-engineer")
+	}
+
+	// Check PainPoint extraction from feature personas
+	if counts["PainPoint"] < 3 {
+		t.Errorf("Expected at least 3 PainPoint objects from feature personas, got %d", counts["PainPoint"])
+	}
+
+	// Check elaborates edges: Persona → PainPoint
+	if relCounts["elaborates"] < 3 {
+		t.Errorf("Expected at least 3 elaborates edges, got %d", relCounts["elaborates"])
+	}
+}
+
+// TestDecomposeFeaturePersonaDeduplication tests that the same persona across multiple features
+// only produces one Persona object but multiple serves edges.
+func TestDecomposeFeaturePersonaDeduplication(t *testing.T) {
+	// Create a temporary instance with two features sharing a persona
+	tmpDir := t.TempDir()
+	productDir := filepath.Join(tmpDir, "FIRE", "definitions", "product")
+	if err := os.MkdirAll(productDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	feature1 := `id: "fd-001"
+name: "Feature One"
+definition:
+  personas:
+    - id: "shared-persona"
+      name: "Shared Persona"
+      role: "Engineer"
+      description: "A persona shared across features"
+      goals:
+        - "Build great software"
+      current_situation: "Currently does things manually."
+`
+	feature2 := `id: "fd-002"
+name: "Feature Two"
+definition:
+  personas:
+    - id: "shared-persona"
+      name: "Shared Persona"
+      role: "Engineer"
+      description: "A persona shared across features"
+      goals:
+        - "Build great software"
+      current_situation: "Also does things manually."
+    - id: "unique-persona"
+      name: "Unique Persona"
+      role: "Designer"
+      description: "Only in feature two"
+`
+	if err := os.WriteFile(filepath.Join(productDir, "fd-001_feature_one.yaml"), []byte(feature1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(productDir, "fd-002_feature_two.yaml"), []byte(feature2), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	d := New(tmpDir)
+	result, err := d.DecomposeInstance()
+	if err != nil {
+		t.Fatalf("DecomposeInstance failed: %v", err)
+	}
+
+	counts := countByType(result)
+
+	// Should have exactly 2 Persona objects (shared-persona deduplicated, unique-persona separate)
+	if counts["Persona"] != 2 {
+		t.Errorf("Expected 2 Persona objects (deduplicated), got %d", counts["Persona"])
+		for _, obj := range result.Objects {
+			if obj.Type == "Persona" {
+				t.Logf("  %s", obj.Key)
+			}
+		}
+	}
+
+	// Should have 3 serves edges (fd-001→shared, fd-002→shared, fd-002→unique)
+	relCounts := countRelsByType(result)
+	if relCounts["serves"] != 3 {
+		t.Errorf("Expected 3 serves edges, got %d", relCounts["serves"])
+		for _, rel := range result.Relationships {
+			if rel.Type == "serves" {
+				t.Logf("  serves: %s → %s", rel.FromKey, rel.ToKey)
+			}
+		}
+	}
+
+	// Both features should have serves edges to the shared persona
+	if !hasRel(result, "serves", "Feature:feature:fd-001", "Persona:persona:shared-persona") {
+		t.Error("Missing serves edge: fd-001 → shared-persona")
+	}
+	if !hasRel(result, "serves", "Feature:feature:fd-002", "Persona:persona:shared-persona") {
+		t.Error("Missing serves edge: fd-002 → shared-persona")
+	}
+	if !hasRel(result, "serves", "Feature:feature:fd-002", "Persona:persona:unique-persona") {
+		t.Error("Missing serves edge: fd-002 → unique-persona")
+	}
+}
+
 // TestDecomposeFeatureCapabilities tests capability extraction from definition.capabilities.
 func TestDecomposeFeatureCapabilities(t *testing.T) {
 	d := New("testdata")

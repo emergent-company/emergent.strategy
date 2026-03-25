@@ -10,7 +10,7 @@
 // Mapping from EPF sections to epf-engine schema v2 object types:
 //
 //	North Star purpose/vision/mission/values/core_beliefs → Belief (tier 1)
-//	Trends, personas, pain points → Trend, PainPoint, Persona (tier 2)
+//	Trends, personas, pain points → Trend, PainPoint, Persona (tier 2) [from insight analyses + feature definitions]
 //	Positioning, competitive moat → Positioning (tier 3)
 //	OKRs, key results, assumptions → OKR, Assumption (tier 4)
 //	Value model components → ValueModelComponent (tier 5)
@@ -61,11 +61,18 @@ type RelationshipSpec struct {
 // It reads raw YAML files directly — no dependency on the strategy parser package.
 type Decomposer struct {
 	instancePath string
+	// seenPersonas tracks which persona keys have already been emitted as objects.
+	// This enables deduplication when the same persona appears across multiple
+	// feature definitions and/or insight analyses.
+	seenPersonas map[string]bool
 }
 
 // New creates a Decomposer for the given EPF instance path.
 func New(instancePath string) *Decomposer {
-	return &Decomposer{instancePath: instancePath}
+	return &Decomposer{
+		instancePath: instancePath,
+		seenPersonas: make(map[string]bool),
+	}
 }
 
 // DecomposeInstance reads all YAML files from the instance and produces
@@ -437,6 +444,7 @@ func (d *Decomposer) decomposeInsightAnalyses(result *Result) {
 				"source_artifact": "READY/01_insight_analyses.yaml",
 			},
 		})
+		d.seenPersonas[personaKey] = true
 		d.addContains(result, artKey, "Artifact", personaKey, "Persona")
 
 		for j, prob := range tu.Problems {
@@ -872,28 +880,69 @@ func (d *Decomposer) decomposeFeatureFile(absPath, fileName string, result *Resu
 		d.addContains(result, featureKey, "Feature", scnKey, "Scenario")
 	}
 
-	// Persona scenarios (from definition.personas narrative fields)
+	// Persona extraction and scenarios (from definition.personas)
 	for _, persona := range raw.Definition.Personas {
-		if persona.ID == "" || persona.CurrentSituation == "" {
+		if persona.ID == "" {
 			continue
 		}
-		scnKey := objectKey("Scenario", fmt.Sprintf("feature:%s:persona:%s", raw.ID, persona.ID))
-		d.addObject(result, memory.UpsertObjectRequest{
-			Type: "Scenario", Key: scnKey,
-			Properties: map[string]any{
-				"name":        fmt.Sprintf("%s using %s", persona.Name, raw.Name),
-				"description": persona.CurrentSituation,
-				"persona_ref": persona.ID, "feature_ref": raw.ID,
-				"inertia_tier": "6", "source_artifact": relPath,
-				"section_path": fmt.Sprintf("definition.personas[%s]", persona.ID),
-			},
-		})
-		d.addContains(result, featureKey, "Feature", scnKey, "Scenario")
 
-		// serves → Persona
 		personaKey := objectKey("Persona", fmt.Sprintf("persona:%s", persona.ID))
+
+		// Extract Persona as a first-class graph object if not already seen.
+		// Deduplication: when the same persona_id appears across multiple features,
+		// only the first occurrence creates the object. All features create serves edges.
+		if !d.seenPersonas[personaKey] {
+			goalsStr := strings.Join(persona.Goals, "; ")
+			painPointsStr := strings.Join(persona.PainPoints, "; ")
+			d.addObject(result, memory.UpsertObjectRequest{
+				Type: "Persona", Key: personaKey,
+				Properties: map[string]any{
+					"name": persona.Name, "description": persona.Description,
+					"persona_id": persona.ID, "role": persona.Role,
+					"goals": goalsStr, "inertia_tier": "2",
+					"source_artifact": relPath,
+				},
+			})
+			d.seenPersonas[personaKey] = true
+
+			// Extract pain_points as PainPoint objects linked to this persona
+			for j, pp := range persona.PainPoints {
+				ppKey := objectKey("PainPoint", fmt.Sprintf("feature:%s:persona:%s:pain_point[%d]", raw.ID, persona.ID, j))
+				d.addObject(result, memory.UpsertObjectRequest{
+					Type: "PainPoint", Key: ppKey,
+					Properties: map[string]any{
+						"name": truncate(pp, 60), "description": pp,
+						"severity": "", "persona_ref": persona.ID,
+						"inertia_tier": "2", "source_artifact": relPath,
+						"section_path": fmt.Sprintf("definition.personas[%s].pain_points[%d]", persona.ID, j),
+					},
+				})
+				d.addRel(result, "elaborates", personaKey, "Persona", ppKey, "PainPoint",
+					map[string]any{"confidence": "1.0", "weight": "0.8", "edge_source": "structural"})
+			}
+
+			_ = painPointsStr // used for PainPoint extraction above
+		}
+
+		// serves → Persona (always created, even for deduplicated personas)
 		d.addRel(result, "serves", featureKey, "Feature", personaKey, "Persona",
 			map[string]any{"weight": "0.8", "edge_source": "structural"})
+
+		// Persona scenario (from narrative fields) — only if narrative is present
+		if persona.CurrentSituation != "" {
+			scnKey := objectKey("Scenario", fmt.Sprintf("feature:%s:persona:%s", raw.ID, persona.ID))
+			d.addObject(result, memory.UpsertObjectRequest{
+				Type: "Scenario", Key: scnKey,
+				Properties: map[string]any{
+					"name":        fmt.Sprintf("%s using %s", persona.Name, raw.Name),
+					"description": persona.CurrentSituation,
+					"persona_ref": persona.ID, "feature_ref": raw.ID,
+					"inertia_tier": "6", "source_artifact": relPath,
+					"section_path": fmt.Sprintf("definition.personas[%s]", persona.ID),
+				},
+			})
+			d.addContains(result, featureKey, "Feature", scnKey, "Scenario")
+		}
 	}
 }
 
