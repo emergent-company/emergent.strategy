@@ -140,6 +140,110 @@ func (d *Decomposer) addTrendInformsInsightEdges(result *Result) {
 	}
 }
 
+// addDisconnectedTrendFallbackEdges creates Trend → KeyInsight edges for Trend
+// nodes that have no outgoing edges after addInformsEdges and addTrendInformsInsightEdges.
+// This handles market_dynamics entries and trends not referenced by any KeyInsight's
+// supporting_trends list. It uses keyword overlap between Trend descriptions and
+// KeyInsight insight text to find plausible connections, using a lower weight (0.5)
+// to distinguish from explicit supporting_trends matches (0.7).
+func (d *Decomposer) addDisconnectedTrendFallbackEdges(result *Result) {
+	// Build set of Trend keys that already have outgoing edges
+	connectedTrends := map[string]bool{}
+	for _, rel := range result.Relationships {
+		if rel.FromType == "Trend" {
+			connectedTrends[rel.FromKey] = true
+		}
+	}
+
+	// Collect disconnected Trend nodes with their descriptions
+	type disconnectedTrend struct {
+		key         string
+		name        string
+		description string
+		keywords    []string // significant words for matching
+	}
+	var disconnected []disconnectedTrend
+	for _, obj := range result.Objects {
+		if obj.Type != "Trend" {
+			continue
+		}
+		if connectedTrends[obj.Key] {
+			continue
+		}
+		name, _ := obj.Properties["name"].(string)
+		desc, _ := obj.Properties["description"].(string)
+		if name == "" {
+			continue
+		}
+		// Combine name and description for keyword extraction
+		text := strings.ToLower(name + " " + desc)
+		var keywords []string
+		for _, w := range strings.Fields(text) {
+			w = strings.Trim(w, ".,;:!?\"'()[]{}/-–—")
+			if len(w) > 4 {
+				keywords = append(keywords, w)
+			}
+		}
+		if len(keywords) == 0 {
+			continue
+		}
+		disconnected = append(disconnected, disconnectedTrend{
+			key: obj.Key, name: name, description: desc, keywords: keywords,
+		})
+	}
+	if len(disconnected) == 0 {
+		return
+	}
+
+	// Collect KeyInsight nodes with their searchable text
+	type insightInfo struct {
+		key     string
+		textLow string // lowercased insight + description for matching
+	}
+	var insights []insightInfo
+	for _, obj := range result.Objects {
+		if obj.Type != "KeyInsight" {
+			continue
+		}
+		insight, _ := obj.Properties["insight"].(string)
+		desc, _ := obj.Properties["description"].(string)
+		name, _ := obj.Properties["name"].(string)
+		text := strings.ToLower(insight + " " + desc + " " + name)
+		if text == "  " { // all empty
+			continue
+		}
+		insights = append(insights, insightInfo{key: obj.Key, textLow: text})
+	}
+	if len(insights) == 0 {
+		return
+	}
+
+	// For each disconnected Trend, find KeyInsights with best keyword overlap
+	for _, trend := range disconnected {
+		bestKey := ""
+		bestScore := 0
+
+		for _, ins := range insights {
+			score := 0
+			for _, kw := range trend.keywords {
+				if strings.Contains(ins.textLow, kw) {
+					score++
+				}
+			}
+			if score > bestScore {
+				bestScore = score
+				bestKey = ins.key
+			}
+		}
+
+		// Require at least 2 keyword matches for a plausible connection
+		if bestScore >= 2 && bestKey != "" {
+			d.addRel(result, "informs", trend.key, "Trend", bestKey, "KeyInsight",
+				map[string]any{"strength": "0.5", "weight": "0.5", "edge_source": "inferred"})
+		}
+	}
+}
+
 // addConstrainsEdges creates Assumption → Feature edges (reverse of tests_assumption).
 // If a Feature tests an Assumption, the Assumption also constrains the Feature.
 func (d *Decomposer) addConstrainsEdges(result *Result) {

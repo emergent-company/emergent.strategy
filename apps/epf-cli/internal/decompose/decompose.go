@@ -104,7 +104,8 @@ func (d *Decomposer) DecomposeInstance() (*Result, error) {
 
 	// Cross-cutting structural relationships (require multiple artifacts to be decomposed first)
 	d.addInformsEdges(result)
-	d.addTrendInformsInsightEdges(result) // Trend → KeyInsight via supporting_trends
+	d.addTrendInformsInsightEdges(result)       // Trend → KeyInsight via supporting_trends
+	d.addDisconnectedTrendFallbackEdges(result) // Trend → KeyInsight via keyword overlap (fallback)
 	d.addConstrainsEdges(result)
 	d.addValidatesEdges(result)
 	d.addSharedTechnologyEdges(result)

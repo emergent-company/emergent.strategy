@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/memory"
@@ -531,26 +532,83 @@ func (d *Decomposer) decomposeMappings(result *Result) {
 		"FIRE/mappings.yaml", "mappings", "FIRE",
 		"Value model to implementation artifact mappings", "5")
 
-	// Build a set of known ValueModelComponent keys for target validation.
+	// Build a set of known ValueModelComponent keys for target validation,
+	// and a map of value_path → key for prefix matching.
 	// MappingArtifact → VMC implements edges are only created when the target
 	// VMC exists in the decomposed result, preventing disconnected nodes
 	// when mappings.yaml references paths not present in the value models.
 	vmcKeys := map[string]bool{}
+	vmcPathToKey := map[string]string{} // value_path → object key (for prefix matching)
 	for _, obj := range result.Objects {
 		if obj.Type == "ValueModelComponent" {
 			vmcKeys[obj.Key] = true
+			if vp, ok := obj.Properties["value_path"].(string); ok {
+				vmcPathToKey[vp] = obj.Key
+			}
 		}
 	}
 
+	// Sort track keys for deterministic iteration order.
+	// Go map iteration is nondeterministic; without sorting, the global
+	// artifact counter would assign different indices across runs, creating
+	// orphaned objects in Memory on incremental sync.
+	tracks := make([]string, 0, len(raw))
+	for track := range raw {
+		tracks = append(tracks, track)
+	}
+	sort.Strings(tracks)
+
 	artifactIdx := 0
-	for track, entries := range raw {
+	for _, track := range tracks {
+		entries := raw[track]
 		for _, entry := range entries {
 			if entry.SubComponentID == "" {
 				continue
 			}
 
+			// Resolve the VMC target using a 3-tier strategy:
+			// 1. Exact key match (sub_component_id matches VMC key suffix)
+			// 2. value_path match (sub_component_id matches VMC value_path property)
+			// 3. Prefix match (sub_component_id is a prefix of a VMC value_path,
+			//    which handles L2 paths matching their parent L2 VMC node)
+			// This accommodates mappings.yaml using path_segment-based IDs
+			// while value models may use display names, or vice versa.
 			vmcKey := objectKey("ValueModelComponent", fmt.Sprintf("value_model:%s", entry.SubComponentID))
 			vmcExists := vmcKeys[vmcKey]
+			if !vmcExists {
+				// Try matching against the value_path property directly
+				if resolvedKey, ok := vmcPathToKey[entry.SubComponentID]; ok {
+					vmcKey = resolvedKey
+					vmcExists = true
+				}
+			}
+			if !vmcExists {
+				// Try prefix match: find VMCs whose value_path starts with
+				// the sub_component_id followed by a dot. This handles cases
+				// where the mapping targets an L2 path that has children (L3)
+				// but the L2 node itself uses a different naming convention.
+				// We collect all matching children, sort them for determinism,
+				// and pick the shortest path (closest to the target level).
+				prefix := entry.SubComponentID + "."
+				var matchingPaths []string
+				for vp := range vmcPathToKey {
+					if strings.HasPrefix(vp, prefix) {
+						matchingPaths = append(matchingPaths, vp)
+					}
+				}
+				if len(matchingPaths) > 0 {
+					sort.Strings(matchingPaths)
+					// Pick the shortest matching path (closest ancestor/sibling)
+					best := matchingPaths[0]
+					for _, mp := range matchingPaths[1:] {
+						if len(mp) < len(best) {
+							best = mp
+						}
+					}
+					vmcKey = vmcPathToKey[best]
+					vmcExists = true
+				}
+			}
 
 			for _, artifact := range entry.Artifacts {
 				if artifact.URL == "" {
