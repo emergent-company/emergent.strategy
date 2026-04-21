@@ -138,3 +138,6 @@ tui.json
 
 # direnv
 .envrc
+
+# OpenCode local config (contains Memory API token)
+opencode.json
