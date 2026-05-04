@@ -32,68 +32,88 @@ const (
 // Extend this map as new UI copy is added. Never hard-code user-facing strings outside this file.
 var messages = map[Locale]map[string]string{
 	LocaleEN: {
-		// Generic
-		"error.not_found":    "Not found",
-		"error.bad_request":  "Bad request",
-		"error.forbidden":    "Forbidden",
-		"error.unauthorized": "Unauthorized",
-		"error.internal":     "An unexpected error occurred",
-		"error.conflict":     "Conflict",
-		"action.save":        "Save",
-		"action.cancel":      "Cancel",
-		"action.delete":      "Delete",
-		"action.edit":        "Edit",
-		"action.create":      "Create",
-		"action.archive":     "Archive",
-		"action.commit":      "Commit changes",
-		"action.discard":     "Discard changes",
-		// Workspace
+		// Generic errors (100xxx)
+		"error.not_found":     "Not found",
+		"error.bad_request":   "Bad request",
+		"error.forbidden":     "Forbidden",
+		"error.unauthorized":  "Unauthorized",
+		"error.internal":      "An unexpected error occurred",
+		"error.conflict":      "Conflict",
+		"error.unprocessable": "Unprocessable request",
+		// Actions
+		"action.save":    "Save",
+		"action.cancel":  "Cancel",
+		"action.delete":  "Delete",
+		"action.edit":    "Edit",
+		"action.create":  "Create",
+		"action.archive": "Archive",
+		"action.commit":  "Commit changes",
+		"action.discard": "Discard changes",
+		// Workspace (110xxx)
 		"workspace.title":     "Workspaces",
 		"workspace.create":    "Create workspace",
 		"workspace.not_found": "Workspace not found",
-		"workspace.conflict":  "A workspace with this GitHub owner already exists",
-		// Instance
+		"workspace.conflict":  "A workspace with this name already exists",
+		// Instance (111xxx)
 		"instance.title":     "Strategy instances",
 		"instance.create":    "Import instance",
 		"instance.not_found": "Strategy instance not found",
 		"instance.archived":  "This instance has been archived",
-		// Authoring
+		// Mutation / authoring (112xxx)
+		"mutation.not_found": "Mutation not found",
+		"batch.not_found":    "Staging batch not found",
+		"batch.conflict":     "A staging batch already exists for this session",
+		"validation.failed":  "Artifact validation failed",
+		// Authoring actions
 		"authoring.staged":    "Changes staged. Review and commit when ready.",
 		"authoring.committed": "Changes committed successfully.",
 		"authoring.discarded": "Staged changes discarded.",
+		// Semantic engine (113xxx)
+		"semantic.unavailable": "Semantic engine unavailable",
+		"scenario.not_found":   "Scenario not found",
 		// Health
 		"health.ok": "OK",
 	},
 	LocaleNB: {
-		// Generic
-		"error.not_found":    "Ikke funnet",
-		"error.bad_request":  "Ugyldig forespørsel",
-		"error.forbidden":    "Forbudt",
-		"error.unauthorized": "Ikke autorisert",
-		"error.internal":     "En uventet feil oppstod",
-		"error.conflict":     "Konflikt",
-		"action.save":        "Lagre",
-		"action.cancel":      "Avbryt",
-		"action.delete":      "Slett",
-		"action.edit":        "Rediger",
-		"action.create":      "Opprett",
-		"action.archive":     "Arkiver",
-		"action.commit":      "Bekreft endringer",
-		"action.discard":     "Forkast endringer",
-		// Workspace
+		// Generic errors (100xxx)
+		"error.not_found":     "Ikke funnet",
+		"error.bad_request":   "Ugyldig forespørsel",
+		"error.forbidden":     "Forbudt",
+		"error.unauthorized":  "Ikke autorisert",
+		"error.internal":      "En uventet feil oppstod",
+		"error.conflict":      "Konflikt",
+		"error.unprocessable": "Kan ikke behandle forespørselen",
+		// Actions
+		"action.save":    "Lagre",
+		"action.cancel":  "Avbryt",
+		"action.delete":  "Slett",
+		"action.edit":    "Rediger",
+		"action.create":  "Opprett",
+		"action.archive": "Arkiver",
+		"action.commit":  "Bekreft endringer",
+		"action.discard": "Forkast endringer",
+		// Workspace (110xxx)
 		"workspace.title":     "Arbeidsområder",
 		"workspace.create":    "Opprett arbeidsområde",
 		"workspace.not_found": "Arbeidsområde ikke funnet",
-		"workspace.conflict":  "Et arbeidsområde med denne GitHub-eieren finnes allerede",
-		// Instance
+		"workspace.conflict":  "Et arbeidsområde med dette navnet finnes allerede",
+		// Instance (111xxx)
 		"instance.title":     "Strategiinstanser",
 		"instance.create":    "Importer instans",
 		"instance.not_found": "Strategiinstans ikke funnet",
 		"instance.archived":  "Denne instansen er arkivert",
-		// Authoring
+		// Mutation / authoring (112xxx)
+		"mutation.not_found": "Mutasjon ikke funnet",
+		"batch.not_found":    "Klargjøringsbatch ikke funnet",
+		"batch.conflict":     "En klargjøringsbatch finnes allerede for denne sesjonen",
+		"validation.failed":  "Artefaktvalidering feilet",
+		// Authoring actions
 		"authoring.staged":    "Endringer klargjort. Gjennomgå og bekreft når du er klar.",
 		"authoring.committed": "Endringer bekreftet.",
 		"authoring.discarded": "Klargjorte endringer forkastet.",
+		// Semantic engine (113xxx)
+		"semantic.unavailable": "Semantisk motor utilgjengelig",
+		"scenario.not_found":   "Scenario ikke funnet",
 		// Health
 		"health.ok": "OK",
 	},

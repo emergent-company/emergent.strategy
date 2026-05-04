@@ -116,8 +116,8 @@ func registerKnowledgePrompt(s *server.MCPServer) {
 // Helpers
 // ---------------------------------------------------------------------------
 
-func toolErr(err error) *mcp.CallToolResult {
-	return mcp.NewToolResultError(err.Error())
+func toolErr(ctx context.Context, err error) *mcp.CallToolResult {
+	return mcp.NewToolResultError(apperror.LocalizeErr(ctx, err))
 }
 
 func argString(req mcp.CallToolRequest, key string) string {
@@ -151,7 +151,7 @@ func registerWorkspaceReadTools(s *server.MCPServer, svc Services) {
 			Limit:  argInt(req, "limit", 50),
 		})
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(result)
 	})
@@ -162,11 +162,11 @@ func registerWorkspaceReadTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "workspace_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		ws, err := svc.Workspace.GetWorkspace(ctx, id)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(ws)
 	})
@@ -181,7 +181,7 @@ func registerInstanceReadTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		wsID, err := parseUUID(argString(req, "workspace_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		result, err := svc.Instance.ListInstances(ctx, instance.ListParams{
 			WorkspaceID: wsID,
@@ -189,7 +189,7 @@ func registerInstanceReadTools(s *server.MCPServer, svc Services) {
 			Limit:       argInt(req, "limit", 50),
 		})
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(result)
 	})
@@ -200,11 +200,11 @@ func registerInstanceReadTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		inst, err := svc.Instance.GetInstance(ctx, id)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(inst)
 	})
@@ -215,15 +215,15 @@ func registerInstanceReadTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		inst, err := svc.Instance.GetInstance(ctx, id)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		artifacts, err := svc.Strategy.ListCurrentArtifacts(ctx, id, "")
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 
 		// Standard pack status: report current version and whether it is up to date.
@@ -266,11 +266,11 @@ func registerArtifactContextTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		artifacts, err := svc.Strategy.ListCurrentArtifacts(ctx, id, "")
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(artifacts)
 	})
@@ -281,11 +281,11 @@ func registerArtifactContextTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		raw, err := svc.Strategy.GetCurrentArtifact(ctx, id, "north_star")
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mcp.NewToolResultText(string(raw)), nil
 	})
@@ -296,11 +296,11 @@ func registerArtifactContextTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		raw, err := svc.Strategy.GetCurrentArtifact(ctx, id, "strategy_foundations")
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mcp.NewToolResultText(string(raw)), nil
 	})
@@ -311,11 +311,11 @@ func registerArtifactContextTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		raw, err := svc.Strategy.GetCurrentArtifact(ctx, id, "insight_analyses")
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mcp.NewToolResultText(string(raw)), nil
 	})
@@ -326,11 +326,11 @@ func registerArtifactContextTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		raw, err := svc.Strategy.GetCurrentArtifact(ctx, id, "roadmap_recipe")
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mcp.NewToolResultText(string(raw)), nil
 	})
@@ -345,11 +345,11 @@ func registerArtifactMutationTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		features, err := svc.Strategy.ListCurrentArtifacts(ctx, id, "feature")
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(features)
 	})
@@ -361,11 +361,11 @@ func registerArtifactMutationTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		raw, err := svc.Strategy.GetCurrentArtifact(ctx, id, argString(req, "feature_key"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mcp.NewToolResultText(string(raw)), nil
 	})
@@ -377,11 +377,11 @@ func registerArtifactMutationTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		artifacts, err := svc.Strategy.ListCurrentArtifacts(ctx, id, argString(req, "artifact_type"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(artifacts)
 	})
@@ -393,11 +393,11 @@ func registerArtifactMutationTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		rels, err := svc.Strategy.ListRelationships(ctx, id, argString(req, "artifact_key"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(rels)
 	})
@@ -412,7 +412,7 @@ func registerArtifactMutationTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		includeStaged := argString(req, "include_staged") == "true"
 		limit := req.GetInt("limit", 50)
@@ -420,7 +420,7 @@ func registerArtifactMutationTools(s *server.MCPServer, svc Services) {
 		sinceMutationID := argString(req, "since_mutation_id")
 		mutations, nextCursor, err := svc.Strategy.ListMutations(ctx, id, argString(req, "artifact_type"), includeStaged, limit, cursor, sinceMutationID)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(map[string]any{"mutations": mutations, "next_cursor": nextCursor})
 	})
@@ -431,11 +431,11 @@ func registerArtifactMutationTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "mutation_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		m, err := svc.Strategy.GetMutation(ctx, id)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(m)
 	})
@@ -458,7 +458,7 @@ func registerSemanticReadTools(s *server.MCPServer, svc Services) {
 			argInt(req, "limit", 10),
 		)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(results)
 	})
@@ -469,7 +469,7 @@ func registerSemanticReadTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		results, err := svc.Semantic.DetectContradictions(ctx, argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(results)
 	})
@@ -487,7 +487,7 @@ func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		owner := argString(req, "github_owner")
 		if owner == "" {
-			return toolErr(apperror.ErrBadRequest.WithDetail("github_owner is required")), nil
+			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("github_owner is required")), nil
 		}
 		var namePtr *string
 		if name := argString(req, "display_name"); name != "" {
@@ -495,7 +495,7 @@ func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 		}
 		ws, err := svc.Workspace.CreateWorkspace(ctx, owner, namePtr)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(ws)
 	})
@@ -509,7 +509,7 @@ func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		wsID, err := parseUUID(argString(req, "workspace_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		p := instance.ImportParams{
 			WorkspaceID: wsID,
@@ -523,7 +523,7 @@ func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 		}
 		inst, err := svc.Instance.ImportInstance(ctx, p)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(inst)
 	})
@@ -534,10 +534,10 @@ func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		if err := svc.Instance.ActivateInstance(ctx, id); err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mcp.NewToolResultText(fmt.Sprintf(`{"activated":true,"instance_id":%q}`, id)), nil
 	})
@@ -548,10 +548,10 @@ func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		if err := svc.Instance.ArchiveInstance(ctx, id); err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mcp.NewToolResultText(fmt.Sprintf(`{"archived":true,"instance_id":%q}`, id)), nil
 	})
@@ -612,11 +612,11 @@ func registerBatchWriteTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		batchID, err := parseUUID(argString(req, "batch_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		n, err := svc.Strategy.CommitBatch(ctx, batchID)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(map[string]any{"committed": true, "batch_id": batchID, "count": n})
 	})
@@ -627,11 +627,11 @@ func registerBatchWriteTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		batchID, err := parseUUID(argString(req, "batch_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		n, err := svc.Strategy.DiscardBatch(ctx, batchID)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(map[string]any{"discarded": true, "batch_id": batchID, "count": n})
 	})
@@ -648,11 +648,11 @@ func registerAgentRuntimeTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		batches, err := svc.Strategy.ListPendingBatches(ctx, id)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(batches)
 	})
@@ -665,15 +665,15 @@ func registerAgentRuntimeTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		batchID, err := parseUUID(argString(req, "batch_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		agentID := argString(req, "agent_id")
 		description := argString(req, "description")
 		if agentID == "" || description == "" {
-			return toolErr(apperror.ErrBadRequest.WithDetail("agent_id and description are required")), nil
+			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("agent_id and description are required")), nil
 		}
 		if err := svc.Strategy.DescribeBatch(ctx, batchID, agentID, description); err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(map[string]any{
 			"described":   true,
@@ -738,7 +738,7 @@ func registerExpandedWriteTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		track := argString(req, "track")
 		if track == "" {
-			return toolErr(apperror.ErrBadRequest.WithDetail("track is required")), nil
+			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("track is required")), nil
 		}
 		artifactKey := "value_model_" + track + ".value_model"
 		return stageArtifact(ctx, req, svc.Strategy, artifactKey, "value_model", "update")
@@ -759,12 +759,12 @@ func registerExpandedWriteTools(s *server.MCPServer, svc Services) {
 		switch action {
 		case "create", "update", "archive":
 		default:
-			return toolErr(apperror.ErrBadRequest.WithDetail("action must be create, update, or archive")), nil
+			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("action must be create, update, or archive")), nil
 		}
 		artifactType := argString(req, "artifact_type")
 		artifactKey := argString(req, "artifact_key")
 		if artifactType == "" || artifactKey == "" {
-			return toolErr(apperror.ErrBadRequest.WithDetail("artifact_type and artifact_key are required")), nil
+			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("artifact_type and artifact_key are required")), nil
 		}
 		return stageArtifact(ctx, req, svc.Strategy, artifactKey, artifactType, action)
 	})
@@ -778,12 +778,12 @@ func registerExpandedWriteTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 
 		artifactsJSON := argString(req, "artifacts")
 		if artifactsJSON == "" {
-			return toolErr(apperror.ErrBadRequest.WithDetail("artifacts is required")), nil
+			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("artifacts is required")), nil
 		}
 
 		var items []struct {
@@ -792,10 +792,10 @@ func registerExpandedWriteTools(s *server.MCPServer, svc Services) {
 			Payload      json.RawMessage `json:"payload"`
 		}
 		if err := json.Unmarshal([]byte(artifactsJSON), &items); err != nil {
-			return toolErr(apperror.ErrBadRequest.WithDetail("artifacts must be a JSON array: " + err.Error())), nil
+			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("artifacts must be a JSON array: " + err.Error())), nil
 		}
 		if len(items) == 0 {
-			return toolErr(apperror.ErrBadRequest.WithDetail("artifacts array must not be empty")), nil
+			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("artifacts array must not be empty")), nil
 		}
 
 		var batchID *uuid.UUID
@@ -803,7 +803,7 @@ func registerExpandedWriteTools(s *server.MCPServer, svc Services) {
 
 		for _, item := range items {
 			if item.ArtifactType == "" || item.ArtifactKey == "" {
-				return toolErr(apperror.ErrBadRequest.WithDetail("each artifact must have artifact_type and artifact_key")), nil
+				return toolErr(ctx, apperror.ErrBadRequest.WithDetail("each artifact must have artifact_type and artifact_key")), nil
 			}
 			payload := item.Payload
 			if len(payload) == 0 {
@@ -820,7 +820,7 @@ func registerExpandedWriteTools(s *server.MCPServer, svc Services) {
 			}
 			newBatchID, err := svc.Strategy.Stage(ctx, p)
 			if err != nil {
-				return toolErr(err), nil
+				return toolErr(ctx, err), nil
 			}
 			if batchID == nil {
 				batchID = &newBatchID
@@ -846,10 +846,10 @@ func registerEmbeddedKnowledgeTools(s *server.MCPServer) {
 	// --- Schemas ---
 	s.AddTool(mcp.NewTool("list_schemas",
 		mcp.WithDescription("USE WHEN you need to discover which EPF artifact schemas are available for validation or authoring guidance."),
-	), func(_ context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	), func(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		names, err := embedded.ListSchemas()
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(map[string]any{"schemas": names, "version": embedded.Version})
 	})
@@ -857,10 +857,10 @@ func registerEmbeddedKnowledgeTools(s *server.MCPServer) {
 	s.AddTool(mcp.NewTool("get_schema",
 		mcp.WithDescription("USE WHEN you need the full JSON Schema for a specific EPF artifact type to validate content or understand required fields."),
 		mcp.WithString("filename", mcp.Required(), mcp.Description("Schema filename, e.g. feature_definition_schema.json")),
-	), func(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		data, err := embedded.GetSchema(argString(req, "filename"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mcp.NewToolResultText(string(data)), nil
 	})
@@ -868,10 +868,10 @@ func registerEmbeddedKnowledgeTools(s *server.MCPServer) {
 	// --- Templates ---
 	s.AddTool(mcp.NewTool("list_templates",
 		mcp.WithDescription("USE WHEN you need to see all available EPF artifact templates across READY, FIRE, and AIM phases."),
-	), func(_ context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	), func(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		paths, err := embedded.ListTemplates()
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(map[string]any{"templates": paths, "version": embedded.Version})
 	})
@@ -879,10 +879,10 @@ func registerEmbeddedKnowledgeTools(s *server.MCPServer) {
 	s.AddTool(mcp.NewTool("get_template",
 		mcp.WithDescription("USE WHEN you need the YAML template for a specific EPF artifact to scaffold a new artifact or understand its structure."),
 		mcp.WithString("path", mcp.Required(), mcp.Description("Template path relative to templates root, e.g. READY/00_north_star.yaml")),
-	), func(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		data, err := embedded.GetTemplate(argString(req, "path"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mcp.NewToolResultText(string(data)), nil
 	})
@@ -890,10 +890,10 @@ func registerEmbeddedKnowledgeTools(s *server.MCPServer) {
 	// --- Agents ---
 	s.AddTool(mcp.NewTool("list_agents",
 		mcp.WithDescription("USE WHEN you need to discover which EPF AI agents are available for orchestrating authoring workflows."),
-	), func(_ context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	), func(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		names, err := embedded.ListAgents()
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(map[string]any{"agents": names, "version": embedded.Version})
 	})
@@ -901,15 +901,15 @@ func registerEmbeddedKnowledgeTools(s *server.MCPServer) {
 	s.AddTool(mcp.NewTool("get_agent",
 		mcp.WithDescription("USE WHEN you need the full agent definition (metadata + prompt) for a specific EPF agent to activate it or understand its capabilities."),
 		mcp.WithString("name", mcp.Required(), mcp.Description("Agent directory name, e.g. pathfinder")),
-	), func(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		name := argString(req, "name")
 		agentYAML, err := embedded.GetAgentYAML(name)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		prompt, err := embedded.GetAgentPrompt(name)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		result := map[string]any{
 			"name":       name,
@@ -924,10 +924,10 @@ func registerEmbeddedKnowledgeTools(s *server.MCPServer) {
 	// --- Skills ---
 	s.AddTool(mcp.NewTool("list_skills",
 		mcp.WithDescription("USE WHEN you need to discover which EPF skills are available to guide a specific authoring task."),
-	), func(_ context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	), func(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		names, err := embedded.ListSkills()
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(map[string]any{"skills": names, "version": embedded.Version})
 	})
@@ -935,15 +935,15 @@ func registerEmbeddedKnowledgeTools(s *server.MCPServer) {
 	s.AddTool(mcp.NewTool("get_skill",
 		mcp.WithDescription("USE WHEN you need the full skill definition (metadata + prompt) for a specific EPF skill to execute a guided authoring workflow."),
 		mcp.WithString("name", mcp.Required(), mcp.Description("Skill directory name, e.g. feature-definition")),
-	), func(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		name := argString(req, "name")
 		skillYAML, err := embedded.GetSkillYAML(name)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		prompt, err := embedded.GetSkillPrompt(name)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		result := map[string]any{
 			"name":       name,
@@ -958,10 +958,10 @@ func registerEmbeddedKnowledgeTools(s *server.MCPServer) {
 	// --- Wizards (legacy) ---
 	s.AddTool(mcp.NewTool("list_wizards",
 		mcp.WithDescription("USE WHEN you need to discover available legacy EPF wizard files for artifact authoring guidance."),
-	), func(_ context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	), func(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		names, err := embedded.ListWizards()
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(map[string]any{"wizards": names, "version": embedded.Version})
 	})
@@ -969,10 +969,10 @@ func registerEmbeddedKnowledgeTools(s *server.MCPServer) {
 	s.AddTool(mcp.NewTool("get_wizard",
 		mcp.WithDescription("USE WHEN you need the full wizard instructions for a specific EPF artifact type (legacy format)."),
 		mcp.WithString("filename", mcp.Required(), mcp.Description("Wizard filename, e.g. feature_definition.wizard.md")),
-	), func(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		data, err := embedded.GetWizard(argString(req, "filename"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mcp.NewToolResultText(string(data)), nil
 	})
@@ -993,23 +993,23 @@ func registerAIMTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		payloadStr := argString(req, "payload")
 		if !json.Valid([]byte(payloadStr)) {
-			return toolErr(apperror.ErrBadRequest.WithDetail("payload must be valid JSON")), nil
+			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("payload must be valid JSON")), nil
 		}
 		var batchID *uuid.UUID
 		if bStr := argString(req, "batch_id"); bStr != "" {
 			bid, err := parseUUID(bStr)
 			if err != nil {
-				return toolErr(err), nil
+				return toolErr(ctx, err), nil
 			}
 			batchID = &bid
 		}
 		bID, err := svc.Strategy.StageLRA(ctx, instID, argString(req, "artifact_key"), json.RawMessage(payloadStr), batchID)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(map[string]any{
 			"staged":        true,
@@ -1030,23 +1030,23 @@ func registerAIMTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		payloadStr := argString(req, "payload")
 		if !json.Valid([]byte(payloadStr)) {
-			return toolErr(apperror.ErrBadRequest.WithDetail("payload must be valid JSON")), nil
+			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("payload must be valid JSON")), nil
 		}
 		var batchID *uuid.UUID
 		if bStr := argString(req, "batch_id"); bStr != "" {
 			bid, err := parseUUID(bStr)
 			if err != nil {
-				return toolErr(err), nil
+				return toolErr(ctx, err), nil
 			}
 			batchID = &bid
 		}
 		bID, err := svc.Strategy.UpdateLRA(ctx, instID, argString(req, "artifact_key"), json.RawMessage(payloadStr), batchID)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(map[string]any{
 			"staged":        true,
@@ -1065,11 +1065,11 @@ func registerAIMTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		raw, err := svc.Strategy.GetLRA(ctx, instID, argString(req, "artifact_key"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mcp.NewToolResultText(string(raw)), nil
 	})
@@ -1084,23 +1084,23 @@ func registerAIMTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		payloadStr := argString(req, "payload")
 		if !json.Valid([]byte(payloadStr)) {
-			return toolErr(apperror.ErrBadRequest.WithDetail("payload must be valid JSON")), nil
+			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("payload must be valid JSON")), nil
 		}
 		var batchID *uuid.UUID
 		if bStr := argString(req, "batch_id"); bStr != "" {
 			bid, err := parseUUID(bStr)
 			if err != nil {
-				return toolErr(err), nil
+				return toolErr(ctx, err), nil
 			}
 			batchID = &bid
 		}
 		bID, err := svc.Strategy.StageAIMReport(ctx, instID, argString(req, "artifact_key"), json.RawMessage(payloadStr), batchID)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(map[string]any{
 			"staged":        true,
@@ -1118,11 +1118,11 @@ func registerAIMTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		summary, err := svc.Strategy.GetAIMSummary(ctx, instID)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(summary)
 	})
@@ -1138,7 +1138,7 @@ func registerValidationTools(s *server.MCPServer, svc Services) {
 		mcp.WithDescription("USE WHEN you want to validate a JSON artifact payload against its EPF schema. Auto-detects the artifact type when not provided. Returns valid/invalid status plus a list of schema errors."),
 		mcp.WithString("payload", mcp.Required(), mcp.Description("JSON payload of the artifact to validate")),
 		mcp.WithString("artifact_type", mcp.Description("EPF artifact type (e.g. feature, north_star). Auto-detected when omitted.")),
-	), func(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		payloadStr := argString(req, "payload")
 		if !json.Valid([]byte(payloadStr)) {
 			return mustJSON(embedded.ValidationResult{
@@ -1157,11 +1157,11 @@ func registerValidationTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		artifacts, err := svc.Strategy.ListCurrentArtifacts(ctx, instID, "")
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 
 		type artifactValidation struct {
@@ -1198,13 +1198,13 @@ func registerValidationTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 
 		// Build a set of all known artifact keys.
 		artifacts, err := svc.Strategy.ListCurrentArtifacts(ctx, instID, "")
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		knownKeys := make(map[string]bool, len(artifacts))
 		for _, a := range artifacts {
@@ -1268,7 +1268,7 @@ func registerValidationTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 
 		artifactKey := argString(req, "artifact_key")
@@ -1276,7 +1276,7 @@ func registerValidationTools(s *server.MCPServer, svc Services) {
 			// Single artifact.
 			a, err := svc.Strategy.GetCurrentArtifactFull(ctx, instID, artifactKey)
 			if err != nil {
-				return toolErr(err), nil
+				return toolErr(ctx, err), nil
 			}
 			report := embedded.CheckContentReadiness(a.ArtifactType, a.ArtifactKey, a.Payload)
 			return mustJSON(report)
@@ -1285,7 +1285,7 @@ func registerValidationTools(s *server.MCPServer, svc Services) {
 		// All features.
 		artifacts, err := svc.Strategy.ListCurrentArtifacts(ctx, instID, "feature")
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		reports := make([]embedded.ReadinessReport, 0, len(artifacts))
 		totalScore := 0
@@ -1319,11 +1319,11 @@ func registerExportTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		result, err := svc.Strategy.ExportInstance(ctx, instID)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(result)
 	})
@@ -1336,11 +1336,11 @@ func registerExportTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		entry, err := svc.Strategy.ExportFeature(ctx, instID, argString(req, "feature_key"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(entry)
 	})
@@ -1352,11 +1352,11 @@ func registerExportTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		report, err := svc.Strategy.ExportReport(ctx, instID)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(report)
 	})
@@ -1374,11 +1374,11 @@ func registerDerivedReadTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		result, err := svc.Strategy.GetStrategicContextForFeature(ctx, instID, argString(req, "feature_key"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(result)
 	})
@@ -1390,11 +1390,11 @@ func registerDerivedReadTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		paths, err := svc.Strategy.ExplainValuePath(ctx, instID, argString(req, "feature_key"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(map[string]any{
 			"feature_key": argString(req, "feature_key"),
@@ -1409,11 +1409,11 @@ func registerDerivedReadTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		entries, err := svc.Strategy.GetCoverageAnalysis(ctx, instID)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(map[string]any{
 			"coverage":   entries,
@@ -1427,11 +1427,11 @@ func registerDerivedReadTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		propositions, err := svc.Strategy.GetValuePropositions(ctx, instID)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(map[string]any{
 			"features":      propositions,
@@ -1445,11 +1445,11 @@ func registerDerivedReadTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		assumptions, err := svc.Strategy.GetAssumptions(ctx, instID)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(map[string]any{
 			"assumptions":      assumptions,
@@ -1463,11 +1463,11 @@ func registerDerivedReadTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		graph, err := svc.Strategy.GetFeatureDependencies(ctx, instID)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(graph)
 	})
@@ -1493,14 +1493,14 @@ func stageArtifact(
 ) (*mcp.CallToolResult, error) {
 	instID, err := parseUUID(argString(req, "instance_id"))
 	if err != nil {
-		return toolErr(err), nil
+		return toolErr(ctx, err), nil
 	}
 
 	var payloadRaw json.RawMessage
 	payloadStr := argString(req, "payload")
 	if payloadStr != "" {
 		if !json.Valid([]byte(payloadStr)) {
-			return toolErr(apperror.ErrBadRequest.WithDetail("payload must be valid JSON")), nil
+			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("payload must be valid JSON")), nil
 		}
 		payloadRaw = json.RawMessage(payloadStr)
 	} else {
@@ -1518,14 +1518,14 @@ func stageArtifact(
 	if batchStr := argString(req, "batch_id"); batchStr != "" {
 		bID, err := parseUUID(batchStr)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		p.BatchID = &bID
 	}
 
 	batchID, err := svc.Stage(ctx, p)
 	if err != nil {
-		return toolErr(err), nil
+		return toolErr(ctx, err), nil
 	}
 
 	return mustJSON(map[string]any{

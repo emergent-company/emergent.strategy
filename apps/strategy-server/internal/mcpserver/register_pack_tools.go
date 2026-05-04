@@ -46,16 +46,16 @@ func registerSkillResolutionTools(s *server.MCPServer, svc Services) { //nolint:
 		mcp.WithString("source_filter", mcp.Description("Filter by source: installed | canonical | all (default: all)")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		if svc.Pack == nil {
-			return toolErr(fmt.Errorf("pack service not available")), nil
+			return toolErr(ctx, fmt.Errorf("pack service not available")), nil
 		}
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		filter := argString(req, "source_filter")
 		skills, err := svc.Pack.ListAvailableSkills(ctx, id, filter)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(skills)
 	})
@@ -67,19 +67,19 @@ func registerSkillResolutionTools(s *server.MCPServer, svc Services) { //nolint:
 		mcp.WithString("skill_name", mcp.Required(), mcp.Description("Kebab-case skill name")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		if svc.Pack == nil {
-			return toolErr(fmt.Errorf("pack service not available")), nil
+			return toolErr(ctx, fmt.Errorf("pack service not available")), nil
 		}
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		skillName := argString(req, "skill_name")
 		if skillName == "" {
-			return toolErr(fmt.Errorf("skill_name is required")), nil
+			return toolErr(ctx, fmt.Errorf("skill_name is required")), nil
 		}
 		skill, err := svc.Pack.ResolveSkill(ctx, id, skillName)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(skill)
 	})
@@ -92,28 +92,28 @@ func registerSkillResolutionTools(s *server.MCPServer, svc Services) { //nolint:
 		mcp.WithString("params", mcp.Description("Optional JSON object passed to the skill as params")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		if svc.Pack == nil {
-			return toolErr(fmt.Errorf("pack service not available")), nil
+			return toolErr(ctx, fmt.Errorf("pack service not available")), nil
 		}
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		skillName := argString(req, "skill_name")
 		if skillName == "" {
-			return toolErr(fmt.Errorf("skill_name is required")), nil
+			return toolErr(ctx, fmt.Errorf("skill_name is required")), nil
 		}
 		skill, err := svc.Pack.ResolveSkill(ctx, id, skillName)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 
 		switch skill.ExecutionMode {
 		case "inline":
-			return toolErr(fmt.Errorf("skill %q uses inline execution which is reserved for core embedded skills and cannot be invoked via run_skill", skillName)), nil
+			return toolErr(ctx, fmt.Errorf("skill %q uses inline execution which is reserved for core embedded skills and cannot be invoked via run_skill", skillName)), nil
 
 		case "script":
 			if skill.ScriptSrc == nil || *skill.ScriptSrc == "" {
-				return toolErr(fmt.Errorf("skill %q is script-mode but has no script_src", skillName)), nil
+				return toolErr(ctx, fmt.Errorf("skill %q is script-mode but has no script_src", skillName)), nil
 			}
 			lang := "sh"
 			if skill.ScriptLang != nil {
@@ -124,7 +124,7 @@ func registerSkillResolutionTools(s *server.MCPServer, svc Services) { //nolint:
 			var paramsMap map[string]interface{}
 			if raw := argString(req, "params"); raw != "" {
 				if err := json.Unmarshal([]byte(raw), &paramsMap); err != nil {
-					return toolErr(fmt.Errorf("params is not valid JSON: %w", err)), nil
+					return toolErr(ctx, fmt.Errorf("params is not valid JSON: %w", err)), nil
 				}
 			}
 			artifacts, _ := svc.Strategy.ListCurrentArtifacts(ctx, id, "")
@@ -137,7 +137,7 @@ func registerSkillResolutionTools(s *server.MCPServer, svc Services) { //nolint:
 
 			result, err := skillrunner.Run(ctx, *skill.ScriptSrc, lang, stdinBytes)
 			if err != nil {
-				return toolErr(err), nil
+				return toolErr(ctx, err), nil
 			}
 			// Parse the output JSON.
 			var out struct {
@@ -188,22 +188,22 @@ func registerSkillAuthoringTools(s *server.MCPServer, _ Services) { //nolint:goc
 		mcp.WithString("requires_artifacts", mcp.Description("Comma-separated artifact types the skill requires")),
 		mcp.WithString("requires_tools", mcp.Description("Comma-separated MCP tool names the skill uses")),
 		mcp.WithString("script_lang", mcp.Description("Script language (script mode only): py | sh | ts | js (default: sh)")),
-	), func(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		name := argString(req, "name")
 		skillType := argString(req, "type")
 		execution := argString(req, "execution")
 		description := argString(req, "description")
 
 		if name == "" || skillType == "" || execution == "" || description == "" {
-			return toolErr(fmt.Errorf("name, type, execution, and description are all required")), nil
+			return toolErr(ctx, fmt.Errorf("name, type, execution, and description are all required")), nil
 		}
 
 		validTypes := map[string]bool{"creation": true, "review": true, "generation": true, "analysis": true}
 		if !validTypes[skillType] {
-			return toolErr(fmt.Errorf("type must be one of: creation, review, generation, analysis; got %q", skillType)), nil
+			return toolErr(ctx, fmt.Errorf("type must be one of: creation, review, generation, analysis; got %q", skillType)), nil
 		}
 		if execution != "prompt" && execution != "script" {
-			return toolErr(fmt.Errorf("execution must be prompt or script; got %q", execution)), nil
+			return toolErr(ctx, fmt.Errorf("execution must be prompt or script; got %q", execution)), nil
 		}
 
 		phase := argString(req, "phase")
@@ -212,7 +212,7 @@ func registerSkillAuthoringTools(s *server.MCPServer, _ Services) { //nolint:goc
 		}
 		validPhases := map[string]bool{"READY": true, "FIRE": true, "AIM": true}
 		if !validPhases[phase] {
-			return toolErr(fmt.Errorf("phase must be READY, FIRE, or AIM; got %q", phase)), nil
+			return toolErr(ctx, fmt.Errorf("phase must be READY, FIRE, or AIM; got %q", phase)), nil
 		}
 
 		scriptLang := argString(req, "script_lang")
@@ -345,15 +345,15 @@ func registerPackManagementTools(s *server.MCPServer, svc Services) { //nolint:g
 		mcp.WithBoolean("force", mcp.Description("Replace existing pack if already installed (default: false)")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		if svc.Pack == nil {
-			return toolErr(fmt.Errorf("pack service not available")), nil
+			return toolErr(ctx, fmt.Errorf("pack service not available")), nil
 		}
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		packYAML := argString(req, "pack_yaml")
 		if packYAML == "" {
-			return toolErr(fmt.Errorf("pack_yaml is required")), nil
+			return toolErr(ctx, fmt.Errorf("pack_yaml is required")), nil
 		}
 		force := argBool(req, "force")
 
@@ -368,7 +368,7 @@ func registerPackManagementTools(s *server.MCPServer, svc Services) { //nolint:g
 				ScriptLang *string `json:"script_lang"`
 			}
 			if err := json.Unmarshal([]byte(raw), &items); err != nil {
-				return toolErr(fmt.Errorf("skills is not valid JSON array: %w", err)), nil
+				return toolErr(ctx, fmt.Errorf("skills is not valid JSON array: %w", err)), nil
 			}
 			for _, item := range items {
 				skillBundles = append(skillBundles, pack.SkillBundle{
@@ -383,10 +383,10 @@ func registerPackManagementTools(s *server.MCPServer, svc Services) { //nolint:g
 
 		bundle, err := pack.ParsePackBundle(packYAML, skillBundles)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		if err := svc.Pack.InstallPack(ctx, id, bundle, force); err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(map[string]any{
 			"installed":    true,
@@ -403,15 +403,15 @@ func registerPackManagementTools(s *server.MCPServer, svc Services) { //nolint:g
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		if svc.Pack == nil {
-			return toolErr(fmt.Errorf("pack service not available")), nil
+			return toolErr(ctx, fmt.Errorf("pack service not available")), nil
 		}
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		packs, err := svc.Pack.ListInstalledPacks(ctx, id)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		serverVersion := strings.TrimSpace(embedded.Version)
 		// Annotate standard pack with up_to_date.
@@ -438,19 +438,19 @@ func registerPackManagementTools(s *server.MCPServer, svc Services) { //nolint:g
 		mcp.WithString("pack_name", mcp.Required(), mcp.Description("Pack name")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		if svc.Pack == nil {
-			return toolErr(fmt.Errorf("pack service not available")), nil
+			return toolErr(ctx, fmt.Errorf("pack service not available")), nil
 		}
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		packName := argString(req, "pack_name")
 		if packName == "" {
-			return toolErr(fmt.Errorf("pack_name is required")), nil
+			return toolErr(ctx, fmt.Errorf("pack_name is required")), nil
 		}
 		skills, err := svc.Pack.ListAvailableSkills(ctx, id, "installed")
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		var packSkills []map[string]any
 		for _, sk := range skills {
@@ -466,7 +466,7 @@ func registerPackManagementTools(s *server.MCPServer, svc Services) { //nolint:g
 		getPackAppSvc := appdom.NewService(svc.Strategy.DB())
 		allApps, err := getPackAppSvc.ListApps(ctx, id)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		var packApps []map[string]any
 		for _, a := range allApps {
@@ -478,7 +478,7 @@ func registerPackManagementTools(s *server.MCPServer, svc Services) { //nolint:g
 			}
 		}
 		if len(packSkills) == 0 && len(packApps) == 0 {
-			return toolErr(fmt.Errorf("pack %q is not installed for this instance", packName)), nil
+			return toolErr(ctx, fmt.Errorf("pack %q is not installed for this instance", packName)), nil
 		}
 		return mustJSON(map[string]any{
 			"pack_name":   packName,
@@ -496,25 +496,25 @@ func registerPackManagementTools(s *server.MCPServer, svc Services) { //nolint:g
 		mcp.WithString("pack_name", mcp.Required(), mcp.Description("Pack name to uninstall")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		if svc.Pack == nil {
-			return toolErr(fmt.Errorf("pack service not available")), nil
+			return toolErr(ctx, fmt.Errorf("pack service not available")), nil
 		}
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		packName := argString(req, "pack_name")
 		if packName == "" {
-			return toolErr(fmt.Errorf("pack_name is required")), nil
+			return toolErr(ctx, fmt.Errorf("pack_name is required")), nil
 		}
 		skillsRemoved, err := svc.Pack.UninstallPack(ctx, id, packName)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		// Also remove any apps belonging to this pack.
 		uninstallAppSvc := appdom.NewService(svc.Strategy.DB())
 		appsRemoved, err := uninstallAppSvc.UninstallApps(ctx, id, packName)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(map[string]any{
 			"uninstalled":    true,
@@ -584,11 +584,11 @@ func registerAppPlatformTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		apps, err := appSvc.ListApps(ctx, id)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(apps)
 	})
@@ -602,22 +602,22 @@ func registerAppPlatformTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		appName := argString(req, "app_name")
 		if appName == "" {
-			return toolErr(fmt.Errorf("app_name is required")), nil
+			return toolErr(ctx, fmt.Errorf("app_name is required")), nil
 		}
 		var params map[string]interface{}
 		if raw := argString(req, "params"); raw != "" {
 			if err := json.Unmarshal([]byte(raw), &params); err != nil {
-				return toolErr(fmt.Errorf("params is not valid JSON: %w", err)), nil
+				return toolErr(ctx, fmt.Errorf("params is not valid JSON: %w", err)), nil
 			}
 		}
 		stager := &strategyMutationStager{svc: svc.Strategy}
 		result, err := appSvc.RunApp(ctx, id, appName, params, svc.Strategy, stager)
 		if err != nil {
-			return toolErr(err), nil
+			return toolErr(ctx, err), nil
 		}
 		return mustJSON(result)
 	})
