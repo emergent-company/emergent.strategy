@@ -1,0 +1,505 @@
+# OrgOps Process Definition: Career Progression Framework
+# Schema: org_ops_definition_schema.json v1.1.0
+
+id: pd-012
+name: Career Progression Framework
+slug: career-progression-framework
+track: org_ops
+status: ready
+
+contributes_to:
+  - OrgOps.Career Progression.individual-development-plans
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Simple leveling with clear expectations"
+    includes:
+      - 3-4 levels per role family (Junior/Mid/Senior/Lead)
+      - Written expectations per level
+      - Salary bands per level
+    effort: "2-3 days initial creation"
+    
+  tier_2_intermediate:
+    description: "Competency-based progression paths"
+    adds:
+      - Detailed competency matrices
+      - IC vs Manager track options
+      - Skills gap analysis
+      - Promotion criteria documented
+    effort: "1-2 weeks creation, ongoing maintenance"
+    
+  tier_3_advanced:
+    description: "Dynamic career development system"
+    adds:
+      - Multiple career path options
+      - Cross-functional moves supported
+      - Skills marketplace
+      - External benchmarking
+    effort: "Dedicated HR function"
+
+definition:
+  purpose: |
+    Without clear progression paths, top performers leave because they don't 
+    see how to grow. Promotions feel arbitrary. Managers struggle to give 
+    developmental direction. A career framework provides clarity and fairness.
+    
+  outcome: |
+    Every role has clear levels with documented expectations. Employees 
+    understand what's required to advance. Promotions are consistent and 
+    defensible. Development conversations are grounded in clear criteria.
+    
+  owner: People Lead or HR
+  
+  inputs:
+    - name: Role families
+      description: Groupings of similar roles
+      source: Org structure, job architecture
+    - name: Current compensation data
+      description: What people are paid now
+      source: Payroll, market data
+    - name: Performance expectations
+      description: What good looks like at each level
+      source: Managers, high performers, industry standards
+      
+  outputs:
+    - name: Career ladder document
+      description: Levels, titles, expectations per role family
+      consumer: All employees, managers
+    - name: Compensation bands
+      description: Salary ranges per level
+      consumer: HR, managers (for offers/promotions)
+    - name: Promotion guidelines
+      description: How advancement decisions are made
+      consumer: Managers, employees
+      
+  steps:
+    - step: 1
+      action: Identify role families (Engineering, Design, Sales, etc.)
+      responsible: People Lead
+      duration: "1-2 hours"
+      deliverable: Role family list
+      
+    - step: 2
+      action: Define levels (typically 3-5 per family)
+      responsible: People Lead + Department Heads
+      duration: "2-4 hours per family"
+      deliverable: Level definitions with titles
+      
+    - step: 3
+      action: Write expectations per level
+      responsible: Department Heads
+      duration: "2-4 hours per family"
+      deliverable: Competency/expectation matrix
+      
+    - step: 4
+      action: Set compensation bands per level
+      responsible: People Lead + Finance
+      duration: "2-4 hours"
+      deliverable: Salary bands with ranges
+      tools:
+        - Market data (Pave, Levels.fyi, Radford)
+      
+    - step: 5
+      action: Document promotion criteria
+      responsible: People Lead
+      duration: "1-2 hours"
+      deliverable: Promotion guidelines
+      
+    - step: 6
+      action: Communicate to organization
+      responsible: People Lead + CEO
+      duration: "1 hour"
+      deliverable: All-hands presentation, published docs
+      
+  cadence:
+    frequency: annually
+    trigger: Annual review cycle, major org changes
+    duration: "2-4 weeks for full refresh"
+    
+  participants:
+    - role: People Lead
+      responsibility: Own framework creation and maintenance
+      time_commitment: "20-40 hours initial, 5-10 hours annual refresh"
+    - role: Department Heads
+      responsibility: Define role-specific expectations
+      time_commitment: "4-8 hours"
+    - role: Finance Lead
+      responsibility: Validate compensation bands
+      time_commitment: "2-4 hours"
+
+  success_criteria:
+    - Every employee can see their current level and next level
+    - Expectations are written and accessible
+    - Promotion decisions reference the framework
+    - Framework reviewed at least annually
+
+operational_context:
+  prerequisites:
+    - Role architecture (job titles, reporting lines)
+    - Access to compensation market data
+    - Buy-in from leadership team
+    
+  common_blockers:
+    - "Too many unique roles → Group into role families"
+    - "Perfection paralysis → Start simple, iterate"
+    - "Manager resistance → Involve them in creation"
+    
+  metrics:
+    - name: Framework coverage
+      description: Percentage of employees with defined ladder
+      target: "100%"
+      tier: 1
+    - name: Promotion consistency
+      description: Promotions aligned with framework criteria
+      target: ">90%"
+      tier: 2
+
+tools_ecosystem:
+  recommended:
+    - category: Career Frameworks
+      examples:
+        - Progression.fyi
+        - Lattice
+      purpose: Framework hosting and visualization
+    - category: Compensation Data
+      examples:
+        - Pave
+        - Levels.fyi
+        - Option Impact
+      purpose: Market benchmarking
+
+related_definitions:
+  - id: pd-006
+    relationship: requires
+    description: "Performance reviews assess against level expectations"
+  - id: pd-011
+    relationship: enhances
+    description: "360 feedback provides input for progression readiness"
+  - id: pd-013
+    relationship: enables
+    description: "Career framework supports succession planning"
+
+adaptation:
+  customize:
+    - Number of levels
+    - Role families
+    - Competency categories
+    - Compensation philosophy (percentile targeting)
+  preserve:
+    - Written expectations per level
+    - Clear distinction between levels
+    - Regular review cadence
+  common_variations:
+    - "Small startup: 3 levels only (Junior/Senior/Lead)"
+    - "Tech focus: Separate IC and Manager tracks"
+    - "Fast-growing: Include 'stretch' zones between levels"
+
+# Sample Framework Structure (Tier 1)
+framework_template:
+  engineering:
+    levels:
+      - level: 1
+        title: "Software Engineer"
+        summary: "Delivers assigned tasks with guidance"
+        expectations:
+          - Completes well-defined tasks
+          - Writes functional code with support
+          - Participates in code reviews
+          - Asks for help when stuck
+      - level: 2
+        title: "Software Engineer II"
+        summary: "Works independently on features"
+        expectations:
+          - Breaks down features into tasks
+          - Writes clean, tested code
+          - Reviews others' code constructively
+          - Mentors new engineers occasionally
+      - level: 3
+        title: "Senior Software Engineer"
+        summary: "Leads technical efforts, influences team"
+        expectations:
+          - Owns significant system areas
+          - Makes architectural decisions
+          - Mentors regularly
+          - Identifies and addresses tech debt
+      - level: 4
+        title: "Staff Engineer"
+        summary: "Cross-team technical leadership"
+        expectations:
+          - Influences engineering direction
+          - Solves ambiguous, high-impact problems
+          - Raises team capabilities
+          - Partners with product/design on strategy
+
+# ============================================================
+# PRACTITIONER SCENARIOS
+# ============================================================
+practitioner_scenarios:
+  - id: ps-012-001
+    name: "Creating First Career Ladder During Rapid Growth"
+    practitioner: VP of Engineering at 45-person startup
+    organization_context: |
+      Series A startup that grew from 8 to 45 in 18 months. Engineering team 
+      is 22 people—mix of early employees (some with inflated titles) and 
+      recent hires (some with compressed titles). One engineer is "Principal" 
+      because she was employee #3, another is "Software Engineer" despite 
+      being more senior. No promotion criteria exist.
+    situation: |
+      Three engineers asked about promotion in the same week. One had been 
+      promised "senior title next year" during hiring. Two felt stuck without 
+      knowing what advancement looks like. Meanwhile, employee #3 ("Principal") 
+      is resistant to any framework that might question her title.
+    trigger: |
+      Junior engineer asked: "What do I need to do to become a Senior Engineer?"
+      VP realized she couldn't answer objectively. Title decisions were subjective.
+    actions:
+      - "Week 1: Researched industry frameworks (Progression.fyi, Dropbox, Buffer, GitLab public ladders)"
+      - "Week 1: Interviewed 3 senior engineers: 'What does great look like at your level?'"
+      - "Week 2: Drafted 4-level ladder (SE, SE2, Senior, Staff) with expectations per level"
+      - "Week 2: Calibration session with engineering leads—mapped all 22 engineers to levels"
+      - "Week 2: Identified 5 misaligned titles: 2 under-titled (immediate promotion), 3 over-titled (no change but expectations clarified)"
+      - "Week 3: One-on-ones with misaligned individuals—explained new framework and their position"
+      - "Week 3: Created compensation bands for each level with HR"
+      - "Week 4: Published framework on internal wiki, presented at engineering all-hands"
+      - "Week 4: Defined promotion process—manager nomination, calibration, approval cycle"
+    outcome: |
+      Framework established. Two under-titled engineers promoted immediately with 
+      back-pay adjustment. Three over-titled employees had difficult but necessary 
+      conversations—all stayed, one became a culture advocate for the new system. 
+      Future promotions now reference framework. Principal Engineer (employee #3) 
+      eventually embraced framework as it validated her seniority. Recruiting 
+      became easier with clear leveling.
+    lessons:
+      - "Start simple—4-5 levels is enough for <50 engineers"
+      - "Mapping existing team reveals misalignment that must be addressed"
+      - "Over-titled individuals need careful handling—clarify expectations, not title"
+      - "Published frameworks make recruiting conversations clearer"
+      - "Framework doesn't solve politics, but makes discussions more objective"
+
+  - id: ps-012-002
+    name: "Adding Manager Track to IC-Only Ladder"
+    practitioner: Director of People at 80-person tech company
+    organization_context: |
+      Series B company with established IC ladder (4 levels: SE, SE2, Senior, 
+      Staff). No management track. Senior engineers are pressured into management 
+      because it's the only "promotion" visible. Three recent manager transitions 
+      failed—great engineers becoming struggling managers. Senior engineers want 
+      advancement but not all want to manage.
+    situation: |
+      Top senior engineer says she'll leave if the only path forward is management. 
+      She wants to grow technically but sees manager title as only recognition. 
+      Meanwhile, accidental managers are drowning and their teams are suffering. 
+      Need to create real alternative for technical excellence.
+    trigger: |
+      Senior engineer in 1:1: "I've been Senior for 2 years. If I can't become 
+      Staff without managing, I need to find somewhere I can grow as an IC."
+    actions:
+      - "Month 1: Interviewed 5 senior ICs about what 'Staff' means to them"
+      - "Month 1: Interviewed 3 struggling managers about why they became managers"
+      - "Month 1: Researched dual-track models (Spotify, Etsy, Stripe)"
+      - "Month 2: Drafted parallel manager track: Engineering Manager → Senior EM → Director"
+      - "Month 2: Drafted IC track extension: Staff Engineer → Principal Engineer"
+      - "Month 2: Key distinction: Managers grow people/teams, Staff/Principal grow technical leverage"
+      - "Month 3: Defined switching criteria—when ICs can become managers and vice versa"
+      - "Month 3: Recalibrated current managers and senior ICs against new framework"
+      - "Month 3: One manager transitioned back to IC track (Staff) with full support"
+      - "Month 4: Published dual-track framework, announced promotions of 2 to Staff"
+    outcome: |
+      Dual track successful. Senior engineer who threatened to leave became 
+      first Staff promotion, stayed 3+ years. Accidental manager returned to 
+      IC track and became top performer. Future manager selections improved—
+      people opted in rather than defaulting. Both tracks compensated equally 
+      (eliminating management premium). Engineering culture improved significantly.
+    lessons:
+      - "Management is a career change, not a promotion—should be opt-in"
+      - "Equal compensation removes false incentive to become a manager"
+      - "Switching between tracks should be possible (not a one-way door)"
+      - "Staff/Principal roles need clear scope—company-wide impact, not just senior work"
+      - "Accidental managers become great ICs when given off-ramp"
+
+  - id: ps-012-003
+    name: "Extending Framework to Non-Technical Functions"
+    practitioner: Chief People Officer at 200-person B2B company
+    organization_context: |
+      Well-established engineering ladder (6 levels, dual-track). But sales, 
+      marketing, customer success have no framework. Sales reps promoted 
+      based on quota attainment only. Marketing has only 3 undefined levels. 
+      CS reps feel stuck. Tension between "engineering gets everything" and 
+      other functions.
+    situation: |
+      Head of Customer Success escalating: "My best CSM is leaving because 
+      there's no path to Senior or Manager. Engineering has 6 levels, we have 
+      2." Similar complaints from Sales and Marketing. CEO wants parity across 
+      functions without creating bureaucracy.
+    trigger: |
+      CS team attrition hit 35% annual—exit interviews cited lack of growth path.
+    actions:
+      - "Month 1: Audited all functions—Engineering (6 levels), Sales (2), Marketing (3), CS (2), Ops (undefined)"
+      - "Month 1: Benchmarked with 3 similar companies for non-technical frameworks"
+      - "Month 2: Worked with each function head to draft 4-level frameworks"
+      - "Month 2: Key principle: consistent structure (IC1 → IC2 → Senior → Principal), function-specific expectations"
+      - "Month 2: Mapped all current employees to new levels—identified gaps and anomalies"
+      - "Month 3: Calibration sessions per function—harder in sales where quota dominates thinking"
+      - "Month 3: Created compensation bands aligned with engineering (same level = same range)"
+      - "Month 3: Addressed 12 under-leveled employees with promotions, 8 over-leveled with clarified expectations"
+      - "Month 4: Rolled out across company with function-specific all-hands"
+      - "Month 6: First cross-function calibration—ensured 'Senior' means similar across company"
+    outcome: |
+      Unified framework across all functions. CS attrition dropped to 18% 
+      within a year. Sales initially resistant but adopted after seeing 
+      clarity it provided. Marketing embraced for recruiting advantage. 
+      Cross-functional moves became easier with level equivalency. "Engineering 
+      favoritism" perception eliminated. Took 18 months to fully mature across 
+      all functions.
+    lessons:
+      - "Same structure, different expectations—levels should translate across functions"
+      - "Quota attainment ≠ career progression—sales needs skill-based criteria too"
+      - "Cross-function calibration prevents level inflation in any one function"
+      - "Each function head must own their framework—HR facilitates, doesn't dictate"
+      - "Rolling out takes time—don't rush, get each function right"
+
+# ============================================================
+# RISKS
+# ============================================================
+risks:
+  execution_risks:
+    - risk: Framework becomes checkbox exercise
+      likelihood: medium
+      impact: high
+      mitigation: "Expectations should be outcomes-based not task lists, require demonstrated judgment not just activity, calibrate regularly"
+    
+    - risk: Levels inflate over time
+      likelihood: high
+      impact: medium
+      mitigation: "External benchmarking annually, cross-team calibration, resist title pressure in hiring"
+    
+    - risk: Framework too complex to use
+      likelihood: medium
+      impact: medium
+      mitigation: "Start simple (3-4 levels), add complexity only when needed, keep documentation concise"
+    
+    - risk: Promotion decisions still feel arbitrary
+      likelihood: medium
+      impact: high
+      mitigation: "Transparent calibration process, clear criteria with examples, manager training on evaluation"
+    
+    - risk: Framework doesn't fit all roles
+      likelihood: medium
+      impact: medium
+      mitigation: "Group roles into families with shared structure, allow function-specific expectations, don't force-fit"
+    
+    - risk: Compensation misaligned with levels
+      likelihood: medium
+      impact: high
+      mitigation: "Build comp bands simultaneously with levels, market data per level, no level without band"
+
+  organizational_risks:
+    - risk: Management seen as only path
+      impact: "ICs leave because management is the only visible advancement; company loses technical depth"
+      prevention: "Create parallel IC and management tracks with equal compensation and recognition"
+    
+    - risk: Framework becomes political tool
+      impact: "Levels used to justify decisions already made, not to guide development"
+      prevention: "Calibration across managers, clear appeals process, connect to development not just evaluation"
+    
+    - risk: Over-titled employees cause friction
+      impact: "Employees with inflated titles relative to new framework feel demoted; can trigger departures"
+      prevention: "Grandfather existing titles or clarify expectations privately, no public demotions"
+
+# ============================================================
+# DOMAIN CONTEXT
+# ============================================================
+domain_context:
+  industry_landscape: |
+    Career frameworks have evolved from HR bureaucracy to competitive necessity. 
+    Public frameworks from GitLab, Buffer, Artsy, and others have raised 
+    transparency expectations. Candidates increasingly ask "what's your career 
+    ladder?" during interviews. Glassdoor reviews mention "no growth path" as 
+    top departure reason.
+    
+    The dual-track model (IC vs Manager) is now table stakes for tech companies 
+    beyond 50 people. Companies like Spotify, Stripe, and Netflix have 
+    sophisticated frameworks that clearly distinguish technical leadership 
+    from people management. The myth that "management is a promotion" is 
+    fading as companies realize it's a different skill set.
+    
+    Compensation transparency laws and pay equity requirements have made 
+    explicit leveling essential. You can't have fair, defensible compensation 
+    without clear levels. Career frameworks have become compliance infrastructure 
+    as well as development tools.
+
+  best_practices:
+    - practice: "Dual-track IC/Manager paths"
+      description: "Separate tracks for individual contributors and people managers with clear switching criteria"
+      evidence: "Companies with dual tracks report 25% lower IC attrition and 30% better manager quality"
+    
+    - practice: "Expectations-based levels"
+      description: "Levels defined by demonstrated behavior and impact, not tasks or tenure"
+      evidence: "Expectations-based frameworks correlate with clearer development conversations"
+    
+    - practice: "Public frameworks"
+      description: "Career ladder published internally (and sometimes externally) for transparency"
+      evidence: "Public frameworks improve recruiting (candidates know what they're getting) and retention (employees see path)"
+    
+    - practice: "Regular calibration"
+      description: "Cross-manager calibration to ensure consistent leveling across teams"
+      evidence: "Calibration reduces level inflation and perceived unfairness"
+
+  anti_patterns:
+    - anti_pattern: "Levels as tenure reward"
+      description: "Promoting based on time in role rather than demonstrated capability"
+      consequence: "Level inflation, Peter Principle promotions, high performers leave"
+    
+    - anti_pattern: "Manager-only advancement"
+      description: "Only path to higher compensation is management"
+      consequence: "Accidental managers, lost technical depth, IC attrition"
+    
+    - anti_pattern: "Framework exists but isn't used"
+      description: "Career ladder on wiki but promotions still arbitrary"
+      consequence: "Cynicism about HR processes, worse than no framework"
+    
+    - anti_pattern: "One framework fits all"
+      description: "Same expectations for all functions without adaptation"
+      consequence: "Framework doesn't fit non-engineering roles, creates second-class citizens"
+
+  benchmarks:
+    - metric: "Level coverage"
+      top_quartile: "100% of employees mapped to defined level with documented expectations"
+      median: "Engineering has levels, other functions partial"
+      laggard: "Ad-hoc levels, many roles undefined"
+    
+    - metric: "Promotion rate"
+      top_quartile: "15-20% annual promotion rate with clear criteria justification"
+      median: "10-15% annually"
+      laggard: "<5% or >30% (too slow or too fast)"
+    
+    - metric: "Level consistency"
+      top_quartile: "Cross-functional calibration, consistent meaning of 'Senior' company-wide"
+      median: "Within-function calibration only"
+      laggard: "No calibration, manager discretion only"
+    
+    - metric: "Dual-track balance"
+      top_quartile: "40-50% of senior+ ICs choose IC track over management"
+      median: "20-30% choose IC track"
+      laggard: "No IC track, or IC track is 'second class'"
+
+  maturity_indicators:
+    tier_1_signals:
+      - "Levels defined for primary functions"
+      - "Written expectations per level"
+      - "Compensation bands aligned to levels"
+      - "Promotion process exists"
+    
+    tier_2_signals:
+      - "Dual-track IC/Manager paths"
+      - "All functions covered with consistent structure"
+      - "Regular calibration across managers"
+      - "Framework actively used in development conversations"
+    
+    tier_3_signals:
+      - "Skills taxonomy integrated with levels"
+      - "Internal mobility enabled by clear level equivalency"
+      - "External benchmarking of levels and expectations"
+      - "Framework evolution based on organizational learning"

@@ -1,0 +1,347 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "strategy_definition_schema.json",
+  "title": "EPF Strategy Definition Schema",
+  "version": "1.1.0",
+  "description": "Schema for Strategy track definitions. Extends track_definition_base_schema.json with strategy-specific fields (steps, cadence, decision_frameworks, practitioner_scenarios, risks, domain_context). Strategy definitions are input for leadership teams to develop and execute strategic processes.",
+  "$comment": "Strategy definitions cover: Context (trends, competitive, internal), Strategic Roadmap (north star, OKRs, portfolio), Tactical Roadmap (resource, risk, milestones), Communications (value prop, messaging, storytelling). These are canonical templates usable by any organization. Version 1.1: Added practitioner_scenarios, risks, and domain_context fields for richer practitioner guidance.",
+  "allOf": [
+    {
+      "$ref": "track_definition_base_schema.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^sd-[0-9]{3}$",
+          "description": "Strategy definition ID. Format: sd-{number}"
+        },
+        "track": {
+          "const": "strategy"
+        },
+        "definition": {
+          "type": "object",
+          "properties": {
+            "steps": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["step", "action", "responsible"],
+                "properties": {
+                  "step": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Step number in sequence"
+                  },
+                  "action": {
+                    "type": "string",
+                    "description": "What to do in this step"
+                  },
+                  "responsible": {
+                    "type": "string",
+                    "description": "Role responsible for this step"
+                  },
+                  "duration": {
+                    "type": "string",
+                    "description": "Typical time for this step",
+                    "examples": ["2-4 hours", "1 day", "1 week"]
+                  },
+                  "deliverable": {
+                    "type": "string",
+                    "description": "What this step produces"
+                  },
+                  "questions": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Key questions to answer in this step"
+                  },
+                  "avoid": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Common mistakes to avoid in this step"
+                  }
+                },
+                "additionalProperties": true
+              },
+              "minItems": 1,
+              "maxItems": 12,
+              "description": "Sequential steps to execute this strategic process. Keep to 6-8 for Tier 1.",
+              "$comment": "Strategy steps often include decision points, analysis phases, and synthesis. Each step should have clear deliverables. Steps can include additional guidance fields like 'questions' and 'avoid' for strategic depth."
+            },
+            "cadence": {
+              "type": "object",
+              "description": "When and how often this strategic process runs",
+              "properties": {
+                "frequency": {
+                  "type": "string",
+                  "description": "How often this process executes",
+                  "examples": ["Quarterly", "Annually", "On major pivots", "Continuous monitoring"]
+                },
+                "trigger": {
+                  "type": "string",
+                  "description": "What initiates this process",
+                  "examples": ["Quarterly planning cycle", "Market shift", "New funding round", "Strategic pivot"]
+                },
+                "duration": {
+                  "type": "string",
+                  "description": "Total time from start to completion",
+                  "examples": ["1-2 weeks", "2-4 weeks", "Ongoing"]
+                },
+                "ongoing": {
+                  "type": "array",
+                  "items": {"type": "string"},
+                  "description": "Ongoing activities after initial process completion"
+                }
+              }
+            },
+            "participants": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "role": {"type": "string"},
+                  "responsibility": {"type": "string"},
+                  "time_commitment": {"type": "string"}
+                }
+              },
+              "description": "All roles involved in this strategic process"
+            }
+          }
+        },
+        "operational_context": {
+          "type": "object",
+          "description": "Strategy-specific context for process execution",
+          "properties": {
+            "prerequisites": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "What must be in place before this process can run"
+            },
+            "common_blockers": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Typical obstacles and how to address them"
+            },
+            "metrics": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {"type": "string"},
+                  "description": {"type": "string"},
+                  "target": {"type": "string"},
+                  "tier": {
+                    "type": "integer",
+                    "enum": [1, 2, 3],
+                    "description": "Which maturity tier introduces this metric"
+                  }
+                }
+              },
+              "description": "Process metrics for tracking effectiveness"
+            }
+          }
+        },
+        "decision_frameworks": {
+          "type": "object",
+          "description": "Frameworks for strategic decision-making within this process",
+          "$comment": "Strategy definitions often involve complex trade-offs. Decision frameworks provide structured approaches for making these choices consistently.",
+          "properties": {
+            "key_decisions": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Critical decisions this process must address"
+            },
+            "evaluation_criteria": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {"type": "string"},
+                  "weight": {"type": "string"},
+                  "how_to_assess": {"type": "string"}
+                }
+              },
+              "description": "Criteria for evaluating strategic options"
+            },
+            "trade_off_guidance": {
+              "type": "string",
+              "description": "Guidance on navigating common trade-offs in this process"
+            }
+          }
+        },
+        "tools_ecosystem": {
+          "type": "object",
+          "description": "Tool recommendations (suggestions, not mandates)",
+          "properties": {
+            "recommended": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "category": {"type": "string"},
+                  "examples": {
+                    "type": "array",
+                    "items": {"type": "string"}
+                  },
+                  "purpose": {"type": "string"}
+                }
+              }
+            },
+            "integrations": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Common integration points with other systems"
+            }
+          }
+        },
+        "practitioner_scenarios": {
+          "type": "array",
+          "description": "Concrete scenarios showing how this strategic process plays out in real organizations.",
+          "$comment": "Practitioner scenarios help leadership teams understand how the process works in practice. Each scenario shows a realistic situation, the practitioner's actions, and outcomes. Include both 'first-time' and 'mature organization' scenarios to show the range.",
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "practitioner", "situation", "trigger", "actions", "outcome"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^ps-[0-9]+$",
+                "description": "Unique scenario ID. Format: ps-{number}",
+                "examples": ["ps-001", "ps-002"]
+              },
+              "name": {
+                "type": "string",
+                "minLength": 10,
+                "description": "Descriptive name summarizing the scenario",
+                "examples": ["First-time OKR implementation", "Vision reset after pivot"]
+              },
+              "practitioner": {
+                "type": "string",
+                "description": "Who is executing this process (role, not person name)",
+                "examples": ["CEO", "VP Strategy", "Head of Product", "Founder"]
+              },
+              "organization_context": {
+                "type": "string",
+                "description": "Brief description of org size, stage, and relevant context",
+                "examples": ["20-person seed-stage startup", "100-person Series C scale-up"]
+              },
+              "situation": {
+                "type": "string",
+                "minLength": 50,
+                "description": "The specific situation that makes this scenario realistic and educational."
+              },
+              "trigger": {
+                "type": "string",
+                "description": "What initiates this specific instance of the process"
+              },
+              "actions": {
+                "type": "string",
+                "minLength": 100,
+                "description": "Step-by-step narrative of what the practitioner does"
+              },
+              "outcome": {
+                "type": "string",
+                "minLength": 50,
+                "description": "What happens as a result"
+              },
+              "lessons": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Key takeaways for practitioners facing similar situations"
+              }
+            }
+          }
+        },
+        "risks": {
+          "type": "object",
+          "description": "What can go wrong and how to prevent/mitigate.",
+          "$comment": "Risks section addresses both execution risks (things that can go wrong during the process) and organizational risks (consequences of poorly executed strategy).",
+          "properties": {
+            "execution_risks": {
+              "type": "array",
+              "description": "Things that can go wrong during process execution",
+              "items": {
+                "type": "object",
+                "required": ["risk", "likelihood", "impact", "mitigation"],
+                "properties": {
+                  "risk": {
+                    "type": "string",
+                    "description": "What could go wrong"
+                  },
+                  "likelihood": {
+                    "type": "string",
+                    "enum": ["low", "medium", "high"],
+                    "description": "How likely is this to occur"
+                  },
+                  "impact": {
+                    "type": "string",
+                    "enum": ["low", "medium", "high"],
+                    "description": "How serious if it occurs"
+                  },
+                  "mitigation": {
+                    "type": "string",
+                    "description": "How to prevent or handle this risk"
+                  }
+                }
+              }
+            },
+            "organizational_risks": {
+              "type": "array",
+              "description": "Business/organizational consequences of poorly executed strategy",
+              "items": {
+                "type": "object",
+                "required": ["risk", "impact", "prevention"],
+                "properties": {
+                  "risk": {
+                    "type": "string",
+                    "description": "What organizational harm could result"
+                  },
+                  "impact": {
+                    "type": "string",
+                    "description": "How this affects the organization"
+                  },
+                  "prevention": {
+                    "type": "string",
+                    "description": "How proper process execution prevents this"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "domain_context": {
+          "type": "object",
+          "description": "Strategic domain context including related processes and synergies.",
+          "$comment": "Domain context helps practitioners understand how this definition fits within the broader strategic landscape and what it produces/requires.",
+          "properties": {
+            "related_l2": {
+              "type": "string",
+              "description": "The L2 category this definition belongs to",
+              "examples": ["Strategic Roadmap", "Context", "Communications"]
+            },
+            "related_l1": {
+              "type": "string",
+              "description": "The L1 pillar this definition belongs to",
+              "examples": ["STRATEGIC ROADMAP", "CONTEXT", "TACTICAL ROADMAP", "COMMUNICATIONS"]
+            },
+            "synergies": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "How this process connects to other strategic processes"
+            },
+            "artifacts_produced": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Concrete outputs this process produces"
+            },
+            "prerequisites": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "What must exist before running this process"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

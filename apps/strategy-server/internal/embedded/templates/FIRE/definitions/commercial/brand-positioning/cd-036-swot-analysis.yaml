@@ -1,0 +1,430 @@
+# Commercial Process Definition: Brand SWOT Analysis
+# Schema: commercial_definition_schema.json v1.1.0
+
+id: cd-036
+name: Brand SWOT Analysis
+slug: swot-analysis
+track: commercial
+status: ready
+
+contributes_to:
+  - Commercial.Market Differentiation.swot-analysis
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Foundational brand position assessment"
+    includes:
+      - Basic 2x2 SWOT matrix for brand
+      - Key strengths and weaknesses identified
+      - Major opportunities and threats listed
+      - Annual refresh cadence
+    effort: "4-6 hours for initial assessment"
+    
+  tier_2_intermediate:
+    description: "Strategic SWOT with action planning"
+    adds:
+      - Evidence-backed items (data, quotes, research)
+      - Prioritization by impact and likelihood
+      - SO/WO/ST/WT strategy development
+      - Quarterly review cycle
+      - Competitive context for each item
+    effort: "1-2 weeks for comprehensive analysis"
+    
+  tier_3_advanced:
+    description: "Dynamic strategic intelligence"
+    adds:
+      - Continuous monitoring and updates
+      - Integration with competitive intelligence
+      - Scenario planning based on SWOT
+      - Quantified impact assessment
+      - Cross-functional input process
+    effort: "1-2 months for system implementation"
+
+definition:
+  purpose: |
+    SWOT analysis is often dismissed as a basic exercise, but when done well, 
+    it forces strategic clarity. It answers: What are we really good at 
+    (that competitors aren't)? Where do we honestly fall short? What market 
+    shifts could we capitalize on? What could hurt us if we ignore it?
+    
+    For brand positioning, SWOT creates the foundation for differentiation 
+    strategy. You can't differentiate on a weakness or ignore a threat. You 
+    should leverage strengths to capture opportunities. This framework, 
+    despite its simplicity, prevents the magical thinking that dooms strategies.
+    
+    The value of SWOT isn't in the matrix—it's in the honest conversations 
+    required to fill it. When the leadership team debates whether something 
+    is really a strength or wishful thinking, that's where strategy happens.
+    
+    The danger is doing SWOT superficially: listing generic items, not 
+    connecting to action, and never updating it. A SWOT that sits in a drawer 
+    is worse than none—it gives false confidence that strategic analysis 
+    was done.
+    
+  outcome: |
+    Clear-eyed understanding of brand's competitive position. Strategic 
+    priorities grounded in honest assessment. Shared vocabulary for discussing 
+    strengths, gaps, and market dynamics. Foundation for positioning and 
+    messaging decisions.
+    
+  owner: Head of Strategy / CMO / CEO (early stage)
+  
+  inputs:
+    - name: Customer research
+      description: What customers value, why they choose you
+      source: Customer interviews, Win/loss analysis, NPS comments
+    - name: Competitive intelligence
+      description: Competitor strengths, weaknesses, strategies
+      source: Competitive analysis, Market research
+    - name: Internal capabilities assessment
+      description: Honest view of what you're good/bad at
+      source: Leadership team, Product team, Sales feedback
+      
+  outputs:
+    - name: SWOT analysis document
+      description: Completed matrix with evidence and context
+      consumer: Leadership, Strategy, Marketing, Sales
+    - name: Strategic implications summary
+      description: What SWOT means for strategy and priorities
+      consumer: Leadership team
+    - name: Action items by quadrant
+      description: Specific moves to leverage, fix, capture, or mitigate
+      consumer: Functional teams
+
+  steps:
+    - step: 1
+      action: "Gather input data and perspectives"
+      responsible: Strategy Lead
+      duration: "4-8 hours"
+      deliverable: "Input synthesis document"
+      templates:
+        - "Stakeholder interview guide"
+        - "Data collection checklist"
+      best_practices:
+        - Include perspectives from sales, product, support, leadership
+        - Gather customer feedback specifically about perception
+        - Review competitive intelligence materials
+        - Look at win/loss data for honest assessment
+      avoid:
+        - Only executive input (front-line has different view)
+        - Skipping data review (opinions without evidence)
+        
+    - step: 2
+      action: "Conduct SWOT workshop"
+      responsible: Strategy Lead
+      duration: "2-3 hours"
+      deliverable: "Raw SWOT items from workshop"
+      templates:
+        - "SWOT workshop facilitation guide"
+        - "Voting and prioritization template"
+      best_practices:
+        - Include cross-functional perspectives (5-8 people)
+        - Encourage candor—psychological safety is essential
+        - Use silent brainstorming first to avoid groupthink
+        - Capture everything, prioritize later
+      avoid:
+        - Letting one voice dominate
+        - Editing during brainstorming (capture, then evaluate)
+        
+    - step: 3
+      action: "Validate and evidence each item"
+      responsible: Strategy Lead
+      duration: "2-4 hours"
+      deliverable: "Evidenced SWOT items"
+      templates:
+        - "Evidence documentation template"
+        - "Validation checklist"
+      best_practices:
+        - Each item needs at least one piece of evidence
+        - Customer quotes and data trump internal opinions
+        - Challenge items that "everyone knows" but can't prove
+        - Remove or flag items without validation
+      avoid:
+        - Keeping items based on gut feel alone
+        - Treating internal consensus as evidence
+        
+    - step: 4
+      action: "Prioritize within each quadrant"
+      responsible: Leadership Team
+      duration: "1-2 hours"
+      deliverable: "Prioritized SWOT matrix"
+      templates:
+        - "Impact/certainty prioritization matrix"
+        - "Top 5 per quadrant template"
+      best_practices:
+        - Limit to 5-7 items per quadrant (focus)
+        - Rank by strategic importance, not just size
+        - Consider interconnections (strength enables opportunity)
+        - Identify "critical few" in each quadrant
+      avoid:
+        - Keeping everything (defeats purpose of prioritization)
+        - Equal weight to all items
+        
+    - step: 5
+      action: "Develop strategic implications"
+      responsible: Strategy Lead
+      duration: "2-3 hours"
+      deliverable: "Strategic implications document"
+      templates:
+        - "SWOT combination matrix (SO, WO, ST, WT)"
+        - "Strategic option framework"
+      best_practices:
+        - "Use combinations: leverage S to capture O, address W to capture O"
+        - Identify must-do vs. nice-to-do
+        - Connect to existing strategic priorities
+        - Note trade-offs and choices
+      avoid:
+        - Generic implications that don't drive action
+        - Ignoring difficult implications
+        
+    - step: 6
+      action: "Define actions and owners"
+      responsible: Leadership Team
+      duration: "1-2 hours"
+      deliverable: "SWOT action plan"
+      templates:
+        - "Action planning template"
+        - "RACI for SWOT actions"
+      best_practices:
+        - Specific actions, not vague goals
+        - Clear owners and timelines
+        - Realistic scope (can't address everything)
+        - Integration with existing initiatives
+      avoid:
+        - Actions without owners
+        - Too many actions (5-10 is plenty)
+        
+    - step: 7
+      action: "Document and communicate"
+      responsible: Strategy Lead
+      duration: "2-4 hours"
+      deliverable: "Final SWOT package"
+      templates:
+        - "SWOT presentation template"
+        - "One-page summary"
+      best_practices:
+        - Executive summary for quick consumption
+        - Full document for reference
+        - Share broadly—SWOT should inform many decisions
+        - Schedule review in calendar
+      avoid:
+        - Creating and forgetting
+        - Keeping SWOT confidential (limits utility)
+
+  cadence:
+    frequency: "Comprehensive review annually, light refresh quarterly"
+    triggers:
+      - Major competitive development
+      - Significant market shift
+      - New product launch or pivot
+      - M&A (yours or competitors')
+    ongoing:
+      - Track progress on SWOT-driven actions
+      - Note items that should be added/removed
+      - Validate assumptions quarterly
+      - Connect new information to SWOT items
+
+practitioner_scenarios:
+  - id: ps-001
+    name: "First SWOT Analysis for Strategic Clarity"
+    practitioner: "CEO"
+    organization_context: |
+      25-person startup that's been heads-down building product for 2 years. 
+      Now raising Series A and investors ask about competitive positioning. 
+      Leadership has intuitions but never done formal strategic analysis.
+    situation: |
+      Investor asked "what's your unfair advantage?" and "what keeps you up 
+      at night?" CEO gave different answers in different meetings. Team 
+      realized there's no shared understanding of strengths, weaknesses, 
+      or market position.
+    trigger: |
+      Board member said "before Series A, you need to be able to articulate 
+      your strategic position clearly—sounds like you haven't done the work." 
+      CEO scheduled SWOT session.
+    actions: |
+      Prepared for the session by gathering customer feedback (NPS comments, 
+      win/loss notes), competitive intelligence (marketing materials, G2 
+      reviews), and sales insights (why we win, why we lose). Ran 3-hour 
+      workshop with 6 people: CEO, CTO, VP Sales, VP Product, Head of 
+      Customer Success, and marketing lead. Started with silent brainstorming 
+      where each person wrote items on sticky notes for 10 minutes per 
+      quadrant. Grouped and discussed, pushing back on items without evidence. 
+      For strengths, asked "can competitors claim this too?" (removed 3 items). 
+      For weaknesses, pushed for honesty beyond comfortable admissions. 
+      Prioritized to top 5 per quadrant using dot voting. Developed strategic 
+      implications: lead with technical differentiation (strength), address 
+      enterprise readiness gap (weakness blocking opportunity), monitor but 
+      don't overreact to larger competitor (threat, but serving different 
+      segment). Documented in clear deck with evidence for each item. Shared 
+      with broader team and board.
+    outcome: |
+      CEO gave consistent, confident answer to competitive positioning 
+      questions in all investor meetings. Identified need to accelerate 
+      enterprise features (weakness + opportunity). Sales team got positioning 
+      ammunition from evidenced strengths. Board impressed with strategic 
+      clarity. Used SWOT to inform Series A story and product roadmap.
+    lessons:
+      - SWOT forces the strategic conversations you've been avoiding
+      - Evidence requirement separates real insights from wishful thinking
+      - Cross-functional input catches blind spots in leadership view
+      - Shared SWOT vocabulary helps team alignment
+
+  - id: ps-002
+    name: "Using SWOT to Navigate Market Disruption"
+    practitioner: "VP Strategy"
+    organization_context: |
+      80-person B2B company that's been market leader in niche for 5 years. 
+      New category disruptor raised $100M and is getting attention. Leadership 
+      worried but unsure how to respond.
+    situation: |
+      Disruptor is all over the press, winning some deals, and making 
+      customers ask "should we switch?" Team is reactive—some want to copy 
+      the disruptor, others say stay the course. No framework for deciding.
+    trigger: |
+      Lost a renewal to the disruptor. CEO called emergency meeting: "We 
+      need to understand what we're dealing with and decide how to respond."
+    actions: |
+      Ran disruption-focused SWOT by reframing each quadrant around the 
+      competitive threat. For strengths, identified what they have that 
+      disruptor can't quickly replicate (installed base, integrations, 
+      enterprise features, customer relationships). For weaknesses, honestly 
+      assessed where disruptor is genuinely better (modern UX, pricing 
+      model, speed of innovation). For opportunities, identified what the 
+      disruption opens up (customers wanting proven + modern, competitors 
+      distracted by disruptor, talent attracted to innovation). For threats, 
+      assessed realistic scenarios (how fast can disruptor grow, what's 
+      their weakness). Developed three response options: compete head-on 
+      (try to match their innovation), differentiate up-market (own 
+      enterprise, cede SMB), partner or acquire (if they're better, join 
+      forces). Analyzed each option against SWOT and chose differentiate 
+      up-market because it leverages strengths (enterprise features, 
+      relationships) and avoids weakness (innovation speed). Created action 
+      plan: accelerate enterprise roadmap, own the "enterprise-ready" 
+      positioning, let disruptor have price-sensitive SMB.
+    outcome: |
+      Clear strategic response instead of panic. Team aligned on 
+      differentiation path. Messaging updated to own "enterprise-ready" 
+      positioning. Saved resources by not trying to match disruptor feature-
+      for-feature. Six months later: enterprise retention strong, SMB churn 
+      to disruptor acceptable, revenue grew because enterprise deals larger. 
+      Disruptor struggling with enterprise complexity, validating the strategy.
+    lessons:
+      - SWOT can be focused on specific strategic questions (not just generic)
+      - Sometimes the right response to disruption is to differentiate, not match
+      - Honest weakness assessment prevents wasting resources on catch-up
+      - Options analysis against SWOT makes decisions more rigorous
+
+  - id: ps-003
+    name: "Quarterly SWOT Review for Strategy Calibration"
+    practitioner: "Head of Strategy"
+    organization_context: |
+      150-person company with mature strategy function. Has done annual 
+      SWOT for years but it becomes stale within months. Market moves 
+      faster than annual planning cycles.
+    situation: |
+      Annual SWOT from January no longer reflects reality in June. Major 
+      competitor acquired, new technology emerged, customer needs shifted. 
+      Strategy team wants more dynamic approach without creating busywork.
+    trigger: |
+      Q2 strategy review revealed decisions being made on outdated SWOT. 
+      CEO asked for a way to keep strategic analysis current without 
+      constant reinvention.
+    actions: |
+      Designed quarterly SWOT refresh process that takes 2-4 hours, not 
+      2-4 days. Created SWOT monitoring dashboard with items linked to 
+      leading indicators (customer signals, competitive intelligence, 
+      market data). Quarterly refresh reviews indicators first to see 
+      what changed, then updates SWOT based on evidence of change. Added 
+      "emerging items" section for things that might become S/W/O/T but 
+      aren't there yet. Assigned ownership for each SWOT item to track 
+      changes (sales owns win/loss items, product owns capability items). 
+      Quarterly session is 90 minutes: 30 minutes reviewing what changed, 
+      30 minutes updating the matrix, 30 minutes adjusting implications 
+      and actions. Annual refresh remains comprehensive—quarterly is 
+      calibration, not reinvention. Connected SWOT to quarterly business 
+      reviews so strategy items are visible alongside operational metrics.
+    outcome: |
+      SWOT stays current throughout the year. Strategy decisions reference 
+      recent analysis, not stale document. Changes are tracked, creating 
+      strategic learning. Quarterly rhythm creates discipline without 
+      bureaucracy. Emerging item section caught competitor M&A two months 
+      before it happened (had been tracking as emerging threat).
+    lessons:
+      - Quarterly refresh is calibration, not re-creation
+      - Leading indicators help spot changes before they're obvious
+      - Ownership of SWOT items creates accountability for currency
+      - Emerging items section captures what is coming before it arrives
+
+risks:
+  execution_risks:
+    - risk: "SWOT becomes box-checking exercise"
+      likelihood: high
+      impact: high
+      mitigation: |
+        Require evidence for every item. Push back on generic statements. 
+        Connect directly to strategic decisions and actions. If SWOT 
+        doesn't inform decisions, why are you doing it?
+        
+    - risk: "Strengths overstated, weaknesses understated"
+      likelihood: high
+      impact: high
+      mitigation: |
+        Include external perspectives (customers, advisors). Use data over 
+        opinions. Ask "can competitors claim this too?" for strengths. 
+        Look at losses for honest weakness assessment.
+        
+    - risk: "SWOT created and forgotten"
+      likelihood: high
+      impact: high
+      mitigation: |
+        Connect to action plans with owners. Schedule quarterly review. 
+        Reference in strategic decisions. Make it a living document, not 
+        a one-time exercise.
+        
+    - risk: "Analysis paralysis—too much thinking, not enough doing"
+      likelihood: medium
+      impact: medium
+      mitigation: |
+        Time-box the process. Limit items per quadrant. Focus on 
+        implications and actions, not just the matrix. "Good enough" 
+        SWOT that drives action beats perfect SWOT that doesn't.
+        
+  organizational_risks:
+    - risk: "Lack of candor produces useless SWOT"
+      impact: |
+        Weaknesses hidden or minimized. Threats dismissed. SWOT reflects 
+        what team wants to believe, not reality. Strategy built on faulty 
+        foundation.
+      prevention: |
+        Create psychological safety for honest input. Anonymous input 
+        option. External facilitation for sensitive topics. Celebrate 
+        candor, not just positive news. CEO models honest self-assessment.
+        
+    - risk: "SWOT becomes political document"
+      impact: |
+        Each function promotes their strengths, hides their weaknesses. 
+        SWOT reflects internal politics, not market reality. Strategic 
+        decisions distorted by bias.
+      prevention: |
+        Cross-functional participation with balanced influence. Evidence 
+        requirement (can't assert without proof). External validation. 
+        Focus on company-level, not department-level items.
+
+domain_context:
+  related_l2: "Market Differentiation"
+  related_l1: "BRAND & POSITIONING"
+  synergies:
+    - "Comparative Benchmarking (cd-038) - Provides competitive input for SWOT"
+    - "Differentiator Messaging (cd-037) - SWOT informs differentiation strategy"
+    - "Industry Positioning Maps (cd-039) - Visual representation of competitive position"
+  dependencies:
+    - "Requires customer research and competitive intelligence inputs"
+    - "Benefits from win/loss analysis data"
+
+references:
+  - title: "SWOT Analysis: How To With Examples"
+    url: "https://www.mindtools.com/amtbj63/swot-analysis"
+  - title: "Beyond SWOT: Practical Strategic Analysis"
+    url: "https://hbr.org/2020/01/stop-using-swot-analyses"

@@ -1,0 +1,408 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://emergent.build/schemas/outputs/context_sheet.schema.json",
+  "title": "AI Context Sheet",
+  "description": "Schema for EPF-derived AI Context Sheets used with external AI tools",
+  "type": "object",
+  "version": "1.0.0",
+  
+  "definitions": {
+    "metadata": {
+      "type": "object",
+      "description": "Generation metadata tracking source and freshness",
+      "required": ["generated_at", "generator", "epf_version", "source_files"],
+      "properties": {
+        "generated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of generation"
+        },
+        "generator": {
+          "type": "string",
+          "description": "Name of the wizard/script that generated this output",
+          "pattern": "^[a-z_]+\\.wizard\\.md$"
+        },
+        "generator_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Semantic version of the generator"
+        },
+        "epf_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "EPF framework version used"
+        },
+        "source_files": {
+          "type": "array",
+          "description": "EPF source files used to generate this output",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["path", "last_modified"],
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Relative path to source file from repo root"
+              },
+              "last_modified": {
+                "type": "string",
+                "format": "date-time",
+                "description": "When the source file was last modified"
+              },
+              "version": {
+                "type": "string",
+                "description": "Version of the source artifact (if versioned)"
+              }
+            }
+          }
+        }
+      }
+    },
+    
+    "quick_reference": {
+      "type": "object",
+      "description": "High-level product identity",
+      "required": ["product_name", "purpose", "vision"],
+      "properties": {
+        "product_name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Name of the product"
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 10,
+          "description": "Why the product exists (from North Star)"
+        },
+        "vision": {
+          "type": "string",
+          "minLength": 10,
+          "description": "Aspirational future state (from North Star)"
+        },
+        "mission": {
+          "type": "string",
+          "minLength": 10,
+          "description": "What the product does to achieve the vision (from North Star)"
+        },
+        "target_customer": {
+          "type": "string",
+          "description": "Primary customer profile (from Strategy Formula)"
+        },
+        "unique_value_proposition": {
+          "type": "string",
+          "description": "Core UVP statement (from Strategy Formula)"
+        },
+        "category": {
+          "type": "string",
+          "description": "Product category/positioning (from Strategy Formula)"
+        }
+      }
+    },
+    
+    "core_values": {
+      "type": "array",
+      "description": "Organizational values guiding decisions",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "description"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Value name (e.g., 'Customer-Centric')"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 10,
+            "description": "What this value means in practice"
+          }
+        }
+      }
+    },
+    
+    "capability": {
+      "type": "object",
+      "description": "A capability area with specific features",
+      "required": ["name", "description", "features"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Capability area name"
+        },
+        "description": {
+          "type": "string",
+          "description": "What this capability enables"
+        },
+        "jtbd": {
+          "type": "string",
+          "description": "Jobs-to-be-Done statement for this capability"
+        },
+        "uvp": {
+          "type": "string",
+          "description": "Unique Value Proposition for this capability"
+        },
+        "features": {
+          "type": "array",
+          "description": "Specific features within this capability",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Feature name"
+              },
+              "description": {
+                "type": "string",
+                "description": "What this feature does"
+              },
+              "status": {
+                "type": "string",
+                "enum": ["active", "planned", "beta"],
+                "description": "Feature availability status"
+              },
+              "premium": {
+                "type": "boolean",
+                "description": "Whether this is a premium/paid feature"
+              }
+            }
+          }
+        }
+      }
+    },
+    
+    "jtbd_statement": {
+      "type": "object",
+      "description": "Jobs-to-be-Done statement",
+      "required": ["situation", "motivation", "outcome"],
+      "properties": {
+        "situation": {
+          "type": "string",
+          "description": "When [situation occurs]"
+        },
+        "motivation": {
+          "type": "string",
+          "description": "I want to [take action]"
+        },
+        "outcome": {
+          "type": "string",
+          "description": "So I can [achieve outcome]"
+        },
+        "user_type": {
+          "type": "string",
+          "description": "Which user persona this applies to"
+        }
+      }
+    },
+    
+    "value_proposition": {
+      "type": "object",
+      "description": "Value delivered to specific user type",
+      "required": ["user_type", "value_delivered"],
+      "properties": {
+        "user_type": {
+          "type": "string",
+          "minLength": 1,
+          "description": "User type or persona"
+        },
+        "value_delivered": {
+          "type": "string",
+          "minLength": 10,
+          "description": "What value they get"
+        },
+        "differentiator": {
+          "type": "string",
+          "description": "What makes this value unique"
+        }
+      }
+    },
+    
+    "current_focus": {
+      "type": "object",
+      "description": "Current strategic priorities and initiatives",
+      "required": ["strategic_priority"],
+      "properties": {
+        "strategic_priority": {
+          "type": "string",
+          "minLength": 10,
+          "description": "Main focus for current cycle"
+        },
+        "active_initiatives": {
+          "type": "array",
+          "description": "Key initiatives being executed",
+          "items": {
+            "type": "string"
+          }
+        },
+        "what_were_building": {
+          "type": "array",
+          "description": "Specific features/capabilities in development",
+          "items": {
+            "type": "string"
+          }
+        },
+        "success_criteria": {
+          "type": "array",
+          "description": "How we'll know we've succeeded",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  
+  "required": ["metadata", "quick_reference", "capabilities"],
+  
+  "properties": {
+    "metadata": {
+      "$ref": "#/definitions/metadata"
+    },
+    
+    "quick_reference": {
+      "$ref": "#/definitions/quick_reference"
+    },
+    
+    "core_values": {
+      "$ref": "#/definitions/core_values"
+    },
+    
+    "capabilities": {
+      "type": "array",
+      "description": "Core product capabilities with features",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/capability"
+      }
+    },
+    
+    "jobs_to_be_done": {
+      "type": "array",
+      "description": "Jobs-to-be-Done statements",
+      "items": {
+        "$ref": "#/definitions/jtbd_statement"
+      }
+    },
+    
+    "value_propositions": {
+      "type": "array",
+      "description": "Value delivered to different user types",
+      "items": {
+        "$ref": "#/definitions/value_proposition"
+      }
+    },
+    
+    "current_focus": {
+      "$ref": "#/definitions/current_focus"
+    },
+    
+    "out_of_scope": {
+      "type": "array",
+      "description": "What the product explicitly doesn't do",
+      "items": {
+        "type": "string"
+      }
+    },
+    
+    "competitive_advantages": {
+      "type": "array",
+      "description": "Key competitive differentiators",
+      "items": {
+        "type": "string"
+      }
+    },
+    
+    "technical_context": {
+      "type": "object",
+      "description": "Technical implementation details (optional)",
+      "properties": {
+        "stack": {
+          "type": "string",
+          "description": "Technology stack summary"
+        },
+        "platform": {
+          "type": "string",
+          "description": "Deployment platform"
+        },
+        "integrations": {
+          "type": "array",
+          "description": "Key integration points",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    
+    "business_model": {
+      "type": "object",
+      "description": "Business model context (optional)",
+      "properties": {
+        "revenue_model": {
+          "type": "string",
+          "description": "How the product generates revenue"
+        },
+        "pricing_tiers": {
+          "type": "array",
+          "description": "Available pricing tiers (high-level)",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  
+  "examples": [
+    {
+      "metadata": {
+        "generated_at": "2025-12-30T10:00:00Z",
+        "generator": "context_sheet_generator.wizard.md",
+        "generator_version": "1.0.0",
+        "epf_version": "2.1.0",
+        "source_files": [
+          {
+            "path": "docs/EPF/_instances/emergent/00_north_star.yaml",
+            "last_modified": "2025-12-28T15:30:00Z",
+            "version": "1.2.0"
+          },
+          {
+            "path": "docs/EPF/_instances/emergent/04_strategy_formula.yaml",
+            "last_modified": "2025-12-25T09:00:00Z"
+          }
+        ]
+      },
+      "quick_reference": {
+        "product_name": "Emergent",
+        "purpose": "Help teams build better products through structured thinking and AI-augmented workflows",
+        "vision": "Every product team has access to world-class product methodology",
+        "mission": "Provide the framework and tools to systematically discover, define, and deliver valuable products",
+        "target_customer": "Product teams in B2B SaaS companies with 10-100 employees",
+        "unique_value_proposition": "The only AI-powered product management platform built on a formal methodology",
+        "category": "Product Management & Strategy Software"
+      },
+      "capabilities": [
+        {
+          "name": "Knowledge Extraction",
+          "description": "Extract structured insights from documents",
+          "features": [
+            {
+              "name": "Document Analysis",
+              "status": "active",
+              "premium": false
+            },
+            {
+              "name": "Entity Recognition",
+              "status": "active",
+              "premium": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

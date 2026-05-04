@@ -1,0 +1,32 @@
+name: skill-importer
+version: "1.0.0"
+type: creation
+phase: FIRE
+description: "Guided workflow for importing an external skill (raw YAML, URL, or canonical name) into the strategy-server pack system. Handles schema normalisation, rewrites inline execution to prompt, and gates install_pack on user confirmation."
+
+capability:
+  class: balanced
+  context_budget: medium
+
+requires:
+  tools:
+    - get_skill
+    - scaffold_skill
+    - install_pack
+    - get_installed_skill
+
+output:
+  format: yaml
+  artifact_type: installed_skill
+
+scope:
+  preferred_tools:
+    - get_skill
+    - scaffold_skill
+    - install_pack
+    - get_installed_skill
+    - list_installed_skills
+  avoid_tools:
+    - commit_batch
+    - discard_batch
+    - archive_instance

@@ -1,0 +1,31 @@
+name: value-model-review
+version: "1.0.0"
+type: review
+phase: FIRE
+description: "Reviews value model quality, detects product-catalog anti-patterns, and guides restructuring into proper value-delivery models."
+
+capability:
+  class: balanced
+  context_budget: medium
+
+requires:
+  artifacts:
+    - value_model
+  optional:
+    - north_star
+    - feature_definition
+  tools:
+    - epf_explain_value_path
+    - epf_validate_relationships
+    - epf_analyze_coverage
+
+scope:
+  preferred_tools:
+    - epf_explain_value_path
+    - epf_validate_relationships
+    - epf_analyze_coverage
+    - epf_list_features
+  avoid_tools:
+    - epf_scaffold_generator
+    - epf_init_instance
+    - epf_aim_assess

@@ -1,0 +1,45 @@
+name: context-sheet
+version: "1.0.0"
+type: generation
+description: "Generates AI context summaries from EPF data for use with external AI tools and team onboarding."
+category: internal
+author: "EPF Framework"
+
+capability:
+  class: balanced
+  context_budget: medium
+
+requires:
+  artifacts:
+    - north_star
+    - personas
+    - strategy_formula
+  optional:
+    - roadmap_recipe
+    - value_model
+    - feature_definition
+  tools:
+    - epf_get_product_vision
+    - epf_get_personas
+    - epf_get_roadmap_summary
+
+output:
+  format: markdown
+  schema: schema.json
+  validator: validator.sh
+
+files:
+  prompt: wizard.instructions.md
+  schema: schema.json
+  validator: validator.sh
+
+scope:
+  preferred_tools:
+    - epf_get_product_vision
+    - epf_get_personas
+    - epf_get_competitive_position
+    - epf_get_roadmap_summary
+    - epf_get_value_propositions
+  avoid_tools:
+    - epf_init_instance
+    - epf_scaffold_generator

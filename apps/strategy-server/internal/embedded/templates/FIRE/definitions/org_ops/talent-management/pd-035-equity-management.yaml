@@ -1,0 +1,275 @@
+# OrgOps Process Definition: Equity Management
+# Schema: org_ops_definition_schema.json v1.0.0
+
+id: pd-035
+name: Equity Management
+slug: equity-management
+track: org_ops
+status: ready
+
+contributes_to:
+  - OrgOps.Compensation & Benefits.compensation-reviews
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Track grants and vesting"
+    includes:
+      - Cap table management
+      - Option grant tracking
+      - Vesting schedules
+    effort: "2-4 hours per month"
+    
+  tier_2_intermediate:
+    description: "Structured equity program"
+    adds:
+      - Equity bands by role/level
+      - Refresh grant program
+      - Employee education
+      - Exercise assistance
+    effort: "1 day per month"
+    
+  tier_3_advanced:
+    description: "Strategic equity management"
+    adds:
+      - 409A valuations
+      - Early exercise programs
+      - Secondary sales
+      - Full compensation modeling
+    effort: "Dedicated legal/finance function"
+
+definition:
+  purpose: |
+    Equity is a key tool for attracting and retaining talent in startups. 
+    Poor equity management creates confusion, legal risk, and employee 
+    frustration. A good process ensures accuracy, compliance, and 
+    employee understanding.
+    
+  outcome: |
+    Grants are accurately tracked. Employees understand their equity. 
+    Vesting is monitored. Exercises are processed correctly. 
+    Cap table is clean and current.
+    
+  owner: Finance Lead or CFO
+  
+  inputs:
+    - name: Equity plan
+      description: Stock option plan terms
+      source: Board-approved plan
+    - name: Grant decisions
+      description: Who gets how much
+      source: Hiring, promotions, refresh
+    - name: Employee events
+      description: Exercises, terminations
+      source: Employees, HR
+      
+  outputs:
+    - name: Grant agreements
+      description: Legal documentation
+      consumer: Employees
+    - name: Cap table
+      description: Current ownership view
+      consumer: Finance, investors
+    - name: Vesting schedules
+      description: What's vested vs unvested
+      consumer: Employees, finance
+      
+  steps:
+    - step: 1
+      action: Approve new grants
+      responsible: CEO (and Board if required)
+      duration: "As needed"
+      deliverable: Grant approval
+      typical_triggers:
+        - New hire offers
+        - Promotions
+        - Annual refresh
+        - Retention
+      
+    - step: 2
+      action: Issue grant documents
+      responsible: Finance or Legal
+      duration: "30 min per grant"
+      deliverable: Signed grant agreement
+      
+    - step: 3
+      action: Update cap table
+      responsible: Finance
+      duration: "15 min per grant"
+      deliverable: Cap table current
+      
+    - step: 4
+      action: Track vesting
+      responsible: Finance
+      duration: "Monthly review"
+      deliverable: Vesting records current
+      
+    - step: 5
+      action: Process exercises
+      responsible: Finance + Legal
+      duration: "1-2 hours per exercise"
+      deliverable: Shares issued
+      
+    - step: 6
+      action: Handle terminations
+      responsible: Finance + HR
+      duration: "30 min per term"
+      deliverable: Post-termination exercise window tracked
+      
+    - step: 7
+      action: Educate employees
+      responsible: Finance or HR
+      duration: "1-2 hours per session"
+      deliverable: Employees informed
+      
+  cadence:
+    frequency: monthly
+    trigger: Grants, exercises, terminations
+    duration: "2-4 hours monthly"
+    
+  participants:
+    - role: Finance Lead
+      responsibility: Manage equity, cap table
+      time_commitment: "4-8 hours monthly"
+    - role: Legal
+      responsibility: Grant documents, compliance
+      time_commitment: "As needed"
+    - role: HR
+      responsibility: Coordinate with hiring/terms
+      time_commitment: "1-2 hours monthly"
+
+  success_criteria:
+    - Cap table is accurate
+    - All grants documented
+    - Employees understand their equity
+    - Exercises processed timely
+
+operational_context:
+  prerequisites:
+    - Board-approved equity plan
+    - 409A valuation
+    - Cap table software
+    
+  common_blockers:
+    - "Cap table mess → Clean up, use software"
+    - "Employee confusion → Education sessions"
+    - "Expired options → Track exercise windows"
+    
+  metrics:
+    - name: Cap table accuracy
+      description: Cap table matches reality
+      target: "100% accurate"
+      tier: 1
+    - name: Grant processing time
+      description: Days from approval to signed
+      target: "<14 days"
+      tier: 2
+
+tools_ecosystem:
+  recommended:
+    - category: Cap Table Management
+      examples:
+        - Carta
+        - Pulley
+        - Shareworks
+      purpose: Track equity, issue grants
+    - category: Valuation
+      examples:
+        - Carta
+        - Valuation firms
+      purpose: 409A valuations
+
+compliance:
+  legal:
+    - 409A valuation (annually or more)
+    - Board approval for grants
+    - Plan compliance
+    - Securities law compliance
+  records:
+    - Grant agreements
+    - Exercise records
+    - Cap table history
+
+related_definitions:
+  - id: pd-032
+    relationship: enables
+    description: "Equity part of total comp"
+  - id: pd-031
+    relationship: requires
+    description: "Equity in hiring offers"
+  - id: pd-016
+    relationship: requires
+    description: "Equity handled at offboarding"
+
+adaptation:
+  customize:
+    - Grant levels by role
+    - Vesting schedules
+    - Refresh philosophy
+    - Exercise policies
+  preserve:
+    - Accurate tracking
+    - Board approval
+    - 409A compliance
+    - Employee communication
+  common_variations:
+    - "Early stage: Simple grants, basic tracking"
+    - "Growth: Refresh program, bands"
+    - "Pre-IPO: Complex, dedicated team"
+
+# Equity Education Topics
+education_topics:
+  basics:
+    - "What are stock options?"
+    - "ISOs vs NSOs"
+    - "Vesting and cliff"
+    - "Exercise price"
+    - "Fair market value (409A)"
+    
+  advanced:
+    - "Tax implications of exercise"
+    - "Early exercise (if available)"
+    - "When to exercise"
+    - "AMT considerations"
+    
+  exit_scenarios:
+    - "IPO implications"
+    - "M&A scenarios"
+    - "What happens to your equity"
+
+# Equity FAQ Template
+faq_template:
+  - question: "How much equity do I have?"
+    answer: "Check your grant agreement and vesting schedule in [system]"
+    
+  - question: "What is my equity worth?"
+    answer: "Value = (409A price - exercise price) × vested shares. But this is theoretical until an exit."
+    
+  - question: "When can I exercise?"
+    answer: "Vested options can be exercised anytime (usually). Check plan terms."
+    
+  - question: "What happens if I leave?"
+    answer: "You typically have 90 days to exercise vested options. Check your grant agreement."
+    
+  - question: "Should I exercise now?"
+    answer: "Consult a tax advisor. Consider: company trajectory, your financial situation, tax implications."
+
+# Grant Level Example (IC Track)
+grant_example:
+  individual_contributor:
+    - level: "L1"
+      typical_grant: "0.03% - 0.06%"
+      notes: "Entry level"
+    - level: "L2"
+      typical_grant: "0.05% - 0.10%"
+    - level: "Senior"
+      typical_grant: "0.10% - 0.20%"
+    - level: "Staff"
+      typical_grant: "0.15% - 0.30%"
+    - level: "Principal"
+      typical_grant: "0.25% - 0.50%"
+  notes:
+    - "Ranges vary significantly by company stage"
+    - "Later stage = lower percentages but higher value"
+    - "Adjust based on cash comp trade-off"

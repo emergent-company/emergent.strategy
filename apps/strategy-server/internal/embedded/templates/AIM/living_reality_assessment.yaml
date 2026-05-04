@@ -1,0 +1,178 @@
+# EPF v2.0.0 - Living Reality Assessment Template
+# Living Reality Assessment (AIM Baseline)
+# This is the persistent "ground truth" document that evolves through emergence.
+# Initially created during bootstrap (Cycle 0), updated via THA signals during AIM.
+#
+# Lifecycle: bootstrap -> maturing -> evolved
+# Key principle: This document reflects reality, not plans.
+# Updates flow FROM execution signals, not TO-DO speculation.
+#
+# Related Resources:
+# - Schema: ../../schemas/living_reality_assessment_schema.json
+# - Protocol: ../../docs/protocols/reality_baseline_protocol.md
+# - Signal Collection: track_health_signals.yaml (ephemeral, feeds updates here)
+
+# =============================================================================
+# METADATA - Lifecycle tracking
+# =============================================================================
+metadata:
+  created_at: null           # ISO 8601 datetime of initial creation
+  last_updated: null         # ISO 8601 datetime of most recent update
+  last_updated_by: null      # Who made the last update (human or agent)
+  lifecycle_stage: bootstrap # bootstrap | maturing | evolved
+  cycles_completed: 0        # Number of READY-FIRE-AIM cycles completed
+  adoption_level: 0          # 0 (solo 1-2), 1 (small 3-5), 2 (growing 6-15), 3 (org 15+)
+  bootstrap_time_invested: null  # e.g., "15 min", "4h" (pattern: number + min|hour|h|m)
+  bootstrap_type: initial_adoption  # initial_adoption | major_pivot | product_line_addition | team_transition
+
+# =============================================================================
+# ADOPTION CONTEXT - Organizational reality (stable, changes rarely)
+# =============================================================================
+adoption_context:
+  organization_type: solo_founder
+  # solo_founder | cofounding_team | bootstrapped_startup | funded_startup
+  # corporate_spinout | enterprise_division | agency_project | open_source
+
+  funding_stage: bootstrapped
+  # pre_seed | bootstrapped | seed | series_a | series_b_plus | profitable | enterprise_budget
+
+  team_size: 1  # Current team size (people, not AI agents)
+
+  ai_capability_level: ai_assisted
+  # manual_only | ai_assisted | ai_first | agentic
+  # manual_only: Traditional human processes
+  # ai_assisted: Humans use AI tools for code, docs, analysis
+  # ai_first: AI handles most execution, humans review
+  # agentic: AI agents operate autonomously with human oversight
+
+  primary_bottleneck: null
+  # execution_capacity | strategic_clarity | market_validation | funding
+  # hiring | technical_capability | attention_bandwidth
+
+  runway_months: null  # Approximate runway in months (omit for profitable/enterprise)
+
+# =============================================================================
+# TRACK BASELINES - Current state of each track (evolves via THA signals)
+# =============================================================================
+track_baselines:
+  product:
+    maturity: implicit  # absent | implicit | explicit | measured | optimized
+    status: emerging    # not_applicable | not_started | emerging | established | mature
+    description: null   # Brief description of current state
+    key_activities: []  # What's actually happening in this track
+    pain_points: []     # Current challenges
+    strengths: []       # What's working well
+
+  strategy:
+    maturity: absent
+    status: not_started
+    description: null
+    key_activities: []
+    pain_points: []
+    strengths: []
+
+  org_ops:
+    maturity: absent
+    status: not_applicable  # Often N/A for solo founders
+    description: null
+    key_activities: []
+    pain_points: []
+    strengths: []
+
+  commercial:
+    maturity: absent
+    status: not_started
+    description: null
+    key_activities: []
+    pain_points: []
+    strengths: []
+
+# =============================================================================
+# EXISTING ASSETS - What already exists (stable, grows over time)
+# Schema uses typed sub-objects: code_assets, documentation_assets,
+# customer_assets, strategic_assets, process_assets
+# =============================================================================
+existing_assets:
+  code_assets:
+    exists: false
+    maturity: null       # prototype | mvp | production | scaling
+    tech_stack_summary: null  # e.g., "React + Node.js + PostgreSQL"
+
+  documentation_assets:
+    exists: false
+    types: []            # product_specs | technical_docs | user_guides | api_docs | pitch_deck | business_plan | market_research
+    quality_assessment: null  # outdated | partial | adequate | comprehensive
+
+  customer_assets:
+    has_users: false
+    user_count_estimate: "none"  # none | 1-10 | 10-100 | 100-1000 | 1000-10000 | 10000+
+    paying_customers: false
+    customer_feedback_exists: false
+
+  strategic_assets:
+    has_positioning: false
+    positioning_documented: false
+    competitor_analysis_exists: false
+    investor_materials_exist: false
+
+  process_assets:
+    has_defined_process: false
+    process_types: []    # sprint_planning | okr_process | design_system | ci_cd | customer_support | sales_process | hiring_process
+
+# =============================================================================
+# CONSTRAINTS AND ASSUMPTIONS - Hard boundaries and operating assumptions
+# =============================================================================
+constraints_and_assumptions:
+  hard_constraints:
+    - constraint: "TBD — describe the non-negotiable constraint (10-200 chars)"
+      impact: null       # timeline | budget | scope | quality | team | regulatory
+      flexibility: none  # none | negotiable_with_tradeoffs | soft_preference
+
+  operating_assumptions:
+    - assumption: "TBD — describe the operating assumption, not a strategic hypothesis (10-200 chars)"
+      confidence: null   # high | medium | low
+      source: null       # past experience | industry benchmark | team estimate | founder intuition
+
+  capability_gaps:
+    - gap: "TBD — describe the capability gap (10-200 chars)"
+      track: null        # product | strategy | org_ops | commercial
+      mitigation_approach: null  # hire | contractor | ai_augmentation | training | defer | partner
+      mitigation_status: planned  # planned | in_progress | resolved | deferred
+
+# =============================================================================
+# CURRENT FOCUS - Where attention is allocated NOW (evolves each cycle)
+# =============================================================================
+current_focus:
+  cycle_reference: "cycle-0-bootstrap"  # Which cycle this focus reflects
+  primary_track: product   # Where most attention should go
+  secondary_track: none    # product | strategy | org_ops | commercial | none
+  primary_objective: null  # One sentence: What are we trying to achieve this cycle? (20-300 chars)
+
+  success_signals:
+    - "TBD — how will we know we're succeeding? (10-150 chars)"
+
+  attention_allocation:
+    # Rough percentage (should sum to 100)
+    # This is strategic attention, not headcount
+    product: 80
+    strategy: 10
+    org_ops: 0
+    commercial: 10
+
+# =============================================================================
+# EVOLUTION LOG - History of changes (append-only, grows each update)
+# =============================================================================
+evolution_log:
+  - cycle_reference: bootstrap  # bootstrap | C1 | C2 | C3 ...
+    timestamp: null  # ISO 8601 datetime
+    updated_by: null
+    trigger: bootstrap_complete
+    # bootstrap_complete | aim_signals | external_change | milestone_reached
+    # constraint_change | cycle_transition | manual_update
+    summary: "Initial reality baseline established"
+    changes:
+      - section: metadata
+        field: lifecycle_stage
+        change_type: created
+        new_value: bootstrap
+        reason: "First creation of reality baseline"

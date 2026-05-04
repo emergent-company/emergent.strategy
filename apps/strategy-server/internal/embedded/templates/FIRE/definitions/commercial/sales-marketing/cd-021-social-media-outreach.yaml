@@ -1,0 +1,745 @@
+# Commercial Process Definition: Social Media Outreach
+# Schema: commercial_definition_schema.json v1.1.0
+
+id: cd-021
+name: Social Media Outreach
+slug: social-media-outreach
+track: commercial
+status: ready
+
+contributes_to:
+  - Commercial.Marketing Operations.social-media-outreach
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Founder-driven social presence"
+    includes:
+      - Personal accounts for business
+      - Ad hoc posting
+      - Direct engagement with prospects
+      - LinkedIn and Twitter focus
+    effort: "2-4 hours/week"
+    
+  tier_2_intermediate:
+    description: "Structured social program"
+    adds:
+      - Company accounts with calendar
+      - Content strategy alignment
+      - Community building
+      - Social listening
+    effort: "8-12 hours/week"
+    
+  tier_3_advanced:
+    description: "Scaled social engine"
+    adds:
+      - Multi-platform orchestration
+      - Employee advocacy programs
+      - Paid social integration
+      - Advanced analytics
+    effort: "Full-time role + tools"
+
+definition:
+  purpose: |
+    Social media outreach builds visibility, trust, and community 
+    through strategic presence on social platforms. For startups, 
+    social media is often the most cost-effective way to reach 
+    target audiences.
+    
+    Why social media matters for startups:
+    
+    1. Zero cost to start. Unlike paid channels, organic social 
+       requires only time.
+    
+    2. Direct access. Reach prospects, investors, and talent 
+       directly where they spend time.
+    
+    3. Credibility building. Consistent, thoughtful presence 
+       builds trust over time.
+    
+    4. Community. Social creates relationships, not just 
+       impressions.
+    
+    5. Amplification. Good content gets shared, extending reach 
+       beyond followers.
+    
+    Key social platforms for B2B startups:
+    
+    1. LinkedIn: Professional network, best for B2B thought 
+       leadership and lead generation.
+    
+    2. Twitter/X: Real-time conversation, good for building 
+       personal brands and industry engagement.
+    
+    3. YouTube: Long-form educational content, demos, and 
+       tutorials.
+    
+    4. Instagram: Visual storytelling, culture, and employer 
+       branding.
+    
+    5. TikTok: Emerging for B2B, particularly for reaching 
+       younger decision-makers.
+    
+  outcome: |
+    Growing audience of target prospects and influencers. 
+    Consistent visibility and engagement. Pipeline contribution 
+    from social activities. Strong personal and company brands.
+    
+  owner: Marketing (strategy and execution), Founders (personal brands)
+  
+  inputs:
+    - name: Target audience profile
+      description: "Who we want to reach"
+      source: Marketing, Product
+      
+    - name: Content strategy
+      description: "What topics and themes we cover"
+      source: Marketing, Content team
+      
+    - name: Brand guidelines
+      description: "Voice, tone, visual standards"
+      source: Marketing, Brand
+      
+    - name: Company news and updates
+      description: "What is happening to share"
+      source: Product, Leadership, HR
+      
+  outputs:
+    - name: Social content
+      description: "Posts, threads, videos"
+      consumer: Audience, Sales (social selling)
+      
+    - name: Engagement and community
+      description: "Followers, interactions, relationships"
+      consumer: Sales, Recruiting, Partnerships
+      
+    - name: Social analytics
+      description: "Performance data"
+      consumer: Marketing, Leadership
+
+  steps:
+    - step: 1
+      action: Define social strategy
+      responsible: Marketing lead or Founder
+      duration: "2-4 hours"
+      deliverable: Social media strategy document
+      platform_selection:
+        primary_platform:
+          choice: "Where does your audience spend time?"
+          for_b2b_saas:
+            linkedin:
+              best_for:
+                - "Enterprise and mid-market"
+                - "Professional audiences"
+                - "Thought leadership"
+              user_behavior: "Browse during work, professional mindset"
+            twitter:
+              best_for:
+                - "Tech-savvy audiences"
+                - "Developer and founder communities"
+                - "Real-time engagement"
+              user_behavior: "Quick consumption, conversational"
+          recommendation: "Start with one, master it, then expand"
+        secondary_platforms:
+          add_when:
+            - "Primary platform optimized"
+            - "Clear audience on secondary"
+            - "Resources to maintain quality"
+          common_combinations:
+            - "LinkedIn + Twitter for B2B tech"
+            - "LinkedIn + YouTube for education"
+            - "Twitter + YouTube for developer tools"
+      audience_targeting:
+        who_to_reach:
+          primary:
+            - "Target buyers"
+            - "Key decision-makers"
+            - "Industry influencers"
+          secondary:
+            - "Talent prospects"
+            - "Investors"
+            - "Partners"
+        how_to_find_them:
+          linkedin:
+            - "Search by title, company, industry"
+            - "Follow target accounts"
+            - "Join relevant groups"
+          twitter:
+            - "Follow industry hashtags"
+            - "Follow key accounts"
+            - "Search relevant topics"
+      content_pillars:
+        define:
+          - "What topics will you consistently cover?"
+          - "What makes your perspective unique?"
+          - "What value do you provide?"
+        example_pillars:
+          for_product_startup:
+            - "Industry trends and insights"
+            - "Product thinking and methodology"
+            - "Customer success stories"
+            - "Behind-the-scenes and culture"
+      goals_and_metrics:
+        awareness:
+          - "Follower growth"
+          - "Reach and impressions"
+          - "Share of voice"
+        engagement:
+          - "Engagement rate"
+          - "Comments and conversations"
+          - "Content shares"
+        business:
+          - "Website traffic from social"
+          - "Leads attributed to social"
+          - "Pipeline influence"
+      best_practices:
+        - "Start narrow and focused"
+        - "Be authentic and consistent"
+        - "Think long-term relationships"
+        - "Balance promotion with value"
+
+    - step: 2
+      action: Create content engine
+      responsible: Marketing or Founder
+      duration: "4-8 hours initial setup"
+      deliverable: Content system
+      content_types:
+        linkedin:
+          text_posts:
+            description: "Long-form text (up to 3,000 chars)"
+            best_for: "Thought leadership, stories, insights"
+            frequency: "3-5 per week"
+          carousel_posts:
+            description: "Multi-slide visual content"
+            best_for: "Frameworks, how-tos, lists"
+            frequency: "1-2 per week"
+          video:
+            description: "Native video content"
+            best_for: "Personality, demos, updates"
+            frequency: "1-2 per week"
+          articles:
+            description: "Long-form LinkedIn articles"
+            best_for: "Deep dives, cornerstone content"
+            frequency: "1-2 per month"
+        twitter:
+          tweets:
+            description: "Short-form content (280 chars)"
+            best_for: "Quick insights, takes, engagement"
+            frequency: "3-10 per day"
+          threads:
+            description: "Multi-tweet stories"
+            best_for: "Deep dives, frameworks, stories"
+            frequency: "1-2 per week"
+          replies:
+            description: "Engagement with others"
+            best_for: "Community building, visibility"
+            frequency: "10-20 per day"
+      content_calendar:
+        planning:
+          weekly: "Plan content for the week"
+          themes: "Assign themes to days"
+          events: "Align with company/industry events"
+        balance:
+          value_content: "70% - educate, inform, entertain"
+          engagement_content: "20% - community, conversation"
+          promotional_content: "10% - product, company news"
+        tools:
+          simple: "Spreadsheet or Notion"
+          intermediate: "Buffer, Hootsuite"
+          advanced: "Sprout Social, Brandwatch"
+      content_creation_workflow:
+        weekly:
+          step_1: "Review calendar and plan content"
+          step_2: "Create drafts for scheduled posts"
+          step_3: "Create visuals as needed"
+          step_4: "Schedule posts"
+        daily:
+          step_1: "Check and engage with audience"
+          step_2: "Post any real-time content"
+          step_3: "Respond to comments and messages"
+      best_practices:
+        - "Batch content creation"
+        - "Repurpose content across formats"
+        - "Maintain consistent voice"
+        - "Quality over quantity"
+
+    - step: 3
+      action: Build personal brands
+      responsible: Founders and key team members
+      duration: "Ongoing (2-5 hours/week per person)"
+      deliverable: Active personal social presence
+      why_personal_brands:
+        linkedin_algorithm:
+          - "Personal posts get 5-10x more reach than company pages"
+          - "People follow people, not logos"
+          - "Trust is built through individuals"
+        for_founders:
+          - "Attracts talent, customers, investors"
+          - "Builds company credibility"
+          - "Creates long-term asset"
+      founder_linkedin_playbook:
+        profile_optimization:
+          headline:
+            format: "Role | What you do | Who you help"
+            example: "CEO at Acme | Building the future of X | Helping Y do Z"
+          about:
+            structure:
+              - "Hook (what you're about)"
+              - "Background and expertise"
+              - "What you share here"
+              - "Call to action"
+          experience: "Tell story, not just list duties"
+          featured: "Pin best content, links, media"
+        posting_cadence:
+          minimum: "3 posts per week"
+          optimal: "5 posts per week"
+          best_times: "7-9am, 12pm, 5-6pm weekdays"
+        content_mix:
+          stories: "Founder journey, lessons learned"
+          insights: "Industry perspectives, opinions"
+          value: "Tips, frameworks, how-tos"
+          engagement: "Questions, polls, discussions"
+        engagement_habits:
+          daily:
+            - "Comment on 5-10 relevant posts"
+            - "Respond to all comments on your posts"
+            - "Check and respond to messages"
+          weekly:
+            - "Connect with 10-20 relevant people"
+            - "Engage with target accounts"
+      team_social:
+        employee_advocacy:
+          why: "Employees extend reach"
+          how:
+            - "Encourage sharing company content"
+            - "Provide easy-to-share content"
+            - "Celebrate team wins"
+        key_voices:
+          identify: "Who has natural social aptitude?"
+          support: "Help them build presence"
+          leverage: "Feature their expertise"
+      best_practices:
+        - "Be authentic, not corporate"
+        - "Share learnings, not just wins"
+        - "Engage genuinely with others"
+        - "Consistency beats perfection"
+
+    - step: 4
+      action: Engage community
+      responsible: Marketing or Community manager
+      duration: "1-2 hours/day"
+      deliverable: Active, engaged community
+      community_building:
+        finding_your_community:
+          linkedin:
+            - "Relevant industry groups"
+            - "Comment sections of influencers"
+            - "Hashtag followers"
+          twitter:
+            - "Industry conversations"
+            - "Relevant communities"
+            - "Event hashtags"
+        engagement_tactics:
+          commenting:
+            approach: "Add value, not just agreement"
+            examples:
+              - "Share related experience"
+              - "Add different perspective"
+              - "Ask thoughtful question"
+            cadence: "5-10 meaningful comments daily"
+          direct_messages:
+            approach: "Genuine, not salesy"
+            uses:
+              - "Thank for insights"
+              - "Share relevant resource"
+              - "Request connection"
+            do_not: "Pitch in first message"
+          amplification:
+            approach: "Share others' great content"
+            benefits:
+              - "Builds relationships"
+              - "Curates value for audience"
+              - "Earns reciprocity"
+      social_selling:
+        for_founders:
+          linkedin_sales:
+            - "Connect with target prospects"
+            - "Engage with their content"
+            - "Share relevant value"
+            - "Warm before outreach"
+        for_sales_team:
+          social_selling_basics:
+            - "Optimize LinkedIn profile"
+            - "Share relevant content"
+            - "Engage with prospects"
+            - "Use insights in outreach"
+      responding_to_engagement:
+        comments:
+          always: "Respond to every comment"
+          speed: "Within 24 hours, ideally sooner"
+          approach: "Genuine, appreciative, add value"
+        messages:
+          filter: "Prioritize relevant conversations"
+          respond: "Same day for hot leads"
+          manage: "Set expectations for volume"
+        mentions:
+          monitor: "Track brand mentions"
+          respond: "Thank positive, address negative"
+          amplify: "Share great mentions"
+      best_practices:
+        - "Engagement is two-way"
+        - "Quality engagement over volume"
+        - "Build relationships, not transactions"
+        - "Show up consistently"
+
+    - step: 5
+      action: Integrate with marketing
+      responsible: Marketing lead
+      duration: "Ongoing"
+      deliverable: Coordinated social marketing
+      content_integration:
+        with_content_strategy:
+          alignment:
+            - "Social supports content themes"
+            - "Repurpose long-form to social"
+            - "Social drives to content"
+          workflow:
+            - "Content calendar includes social"
+            - "Social promotes new content"
+            - "Social feedback informs content"
+        with_campaigns:
+          coordination:
+            - "Social supports campaign launches"
+            - "Consistent messaging across channels"
+            - "Campaign hashtags and tracking"
+      lead_generation:
+        linkedin_lead_gen:
+          organic:
+            - "Content that attracts target audience"
+            - "CTAs to resources or demos"
+            - "Profile optimized for conversion"
+          paid:
+            - "Sponsored content"
+            - "Lead gen forms"
+            - "InMail campaigns"
+        attribution:
+          tracking:
+            - "UTM parameters on links"
+            - "Social as traffic source"
+            - "Lead source capture"
+          challenges:
+            - "Dark social (untracked shares)"
+            - "Multi-touch attribution"
+            - "Brand vs. demand"
+      employer_branding:
+        culture_content:
+          types:
+            - "Team highlights"
+            - "Behind-the-scenes"
+            - "Values in action"
+            - "Career opportunities"
+        talent_attraction:
+          - "Company page presence"
+          - "Employee sharing"
+          - "Job post promotion"
+      investor_relations:
+        for_fundraising:
+          - "Visibility before raise"
+          - "Thought leadership credibility"
+          - "Warm connections through social"
+      best_practices:
+        - "Social supports all marketing goals"
+        - "Coordinate, don't silo"
+        - "Measure contribution"
+        - "Evolve with strategy"
+
+    - step: 6
+      action: Measure and optimize
+      responsible: Marketing lead
+      duration: "Ongoing (2-4 hours/week)"
+      deliverable: Performance insights
+      metrics_framework:
+        vanity_metrics:
+          what: "Followers, likes, impressions"
+          use: "Trend indicators, benchmarks"
+          do_not: "Obsess or optimize solely for"
+        engagement_metrics:
+          what: "Comments, shares, saves"
+          use: "Content quality indicators"
+          benchmark: "2-5% engagement rate on LinkedIn"
+        business_metrics:
+          what: "Traffic, leads, pipeline"
+          use: "Actual business impact"
+          track: "UTMs, attribution, CRM integration"
+      measurement_cadence:
+        weekly:
+          review:
+            - "Post performance"
+            - "Engagement trends"
+            - "Top content"
+          action: "Adjust content mix based on performance"
+        monthly:
+          review:
+            - "Follower growth"
+            - "Engagement rate trends"
+            - "Traffic and leads from social"
+          action: "Refine strategy based on trends"
+        quarterly:
+          review:
+            - "Platform performance comparison"
+            - "Content pillar performance"
+            - "ROI analysis"
+          action: "Strategic adjustments"
+      optimization:
+        content_optimization:
+          what_works:
+            - "Track top-performing posts"
+            - "Identify patterns"
+            - "Do more of what works"
+          experimentation:
+            - "Test formats"
+            - "Test topics"
+            - "Test timing"
+        audience_optimization:
+          growth:
+            - "Analyze who follows"
+            - "Attract more of the right people"
+            - "Prune if needed"
+          engagement:
+            - "Who engages most?"
+            - "What do they want?"
+        platform_optimization:
+          algorithm:
+            - "Stay current on platform changes"
+            - "Adapt to algorithm preferences"
+          features:
+            - "Adopt new features early"
+            - "Experiment with platform tools"
+      tools:
+        analytics:
+          native: "LinkedIn Analytics, Twitter Analytics"
+          third_party: "Sprout Social, Hootsuite"
+        tracking:
+          - "UTM builder"
+          - "Google Analytics"
+          - "CRM integration"
+      best_practices:
+        - "Measure what matters to business"
+        - "Look for trends, not individual posts"
+        - "Test and learn continuously"
+        - "Share insights with team"
+
+  cadence:
+    frequency: "Daily posting, weekly planning"
+    trigger: "Always on"
+    duration: "Ongoing program"
+    ongoing:
+      - Daily posting and engagement
+      - Weekly content planning
+      - Monthly performance review
+      - Quarterly strategy review
+
+practitioner_scenarios:
+  - id: ps-001
+    name: "Founder Building LinkedIn Presence"
+    practitioner: "CEO / Founder"
+    organization_context: |
+      Pre-seed startup, just launched product. Founder has LinkedIn 
+      but rarely posts. Wants to build visibility for company and 
+      attract early customers.
+    situation: |
+      500 LinkedIn connections, mostly former colleagues. Rarely 
+      posts. Knows LinkedIn could help but unsure how to start. 
+      Limited time between product and fundraising.
+    trigger: |
+      Saw competitor founder building large following and attracting 
+      customers through LinkedIn. Investor mentioned social presence 
+      matters for credibility.
+    actions: |
+      1. Optimized LinkedIn profile:
+         - New headline: "Building [product] to help [customer] do [outcome]"
+         - Rewrote About section with story and CTA
+         - Added product links and media
+         - Updated experience with narrative
+      2. Defined simple content strategy:
+         - Three pillars: industry insights, founder journey, product thinking
+         - Goal: 5 posts per week
+         - Best times: 8am and 5pm weekdays
+      3. Created content batch for first two weeks:
+         - Week 1: Introduction post, 4 insight posts
+         - Week 2: Story post, 4 value posts
+         - Scheduled using LinkedIn native
+      4. Built engagement habit:
+         - 30 minutes morning: engage with 5 posts
+         - 30 minutes evening: respond to comments
+         - Connected with 10 relevant people daily
+      5. Tracked simple metrics:
+         - Follower growth
+         - Engagement per post
+         - Website traffic from LinkedIn
+      6. First month results:
+         - Grew from 500 to 1,200 followers
+         - One post got 50,000 impressions
+         - 3 demo requests attributed to LinkedIn
+         - 2 investor conversations started
+    outcome: |
+      LinkedIn presence established. Growing audience of target 
+      customers and investors. First customers attributed to 
+      social visibility. Building habit that compounds.
+    lessons:
+      - Start with profile optimization
+      - Consistency beats perfection
+      - Engagement is as important as posting
+      - Early results compound over time
+
+  - id: ps-002
+    name: "Marketing Lead Scaling Social Program"
+    practitioner: "VP Marketing"
+    organization_context: |
+      Series A startup with growing marketing team. Founder active 
+      on social but no company accounts. Need to build company 
+      presence and support sales.
+    situation: |
+      Founder has 15K LinkedIn followers and drives most social 
+      visibility. No company LinkedIn or Twitter. Sales team 
+      asking for social selling support.
+    trigger: |
+      Board asked about marketing channels and social presence. 
+      Sales team frustrated by lack of company content to share.
+    actions: |
+      1. Assessed current state:
+         - Founder: 15K followers, 3-4 posts/week
+         - Company: No LinkedIn page, no Twitter
+         - Team: Minimal social presence
+      2. Created company social strategy:
+         - LinkedIn company page (primary)
+         - Twitter company account (secondary)
+         - Goals: awareness, lead gen, employer brand
+      3. Set up company accounts:
+         - LinkedIn page with full branding
+         - Connected to founder profile
+         - Twitter with consistent branding
+      4. Built content engine:
+         - Content calendar (Notion)
+         - Asset library for team sharing
+         - Repurposing workflow (blog → social)
+      5. Launched employee advocacy:
+         - Trained sales team on social selling
+         - Provided weekly content to share
+         - Celebrated team participation
+      6. Integrated with marketing:
+         - Social supports all campaigns
+         - Consistent messaging across channels
+         - Lead tracking with UTMs
+      7. Six-month results:
+         - Company page: 5K followers
+         - Twitter: 2K followers
+         - Sales team active on LinkedIn
+         - Social contributing 15% of leads
+    outcome: |
+      Scaled from founder-only to company social program. All 
+      channels contributing to pipeline. Sales enabled for 
+      social selling. Foundation for continued growth.
+    lessons:
+      - Build on founder success, don't replace
+      - Company pages support, personal brands lead
+      - Enable team for advocacy
+      - Integration multiplies impact
+
+  - id: ps-003
+    name: "Founder Recovering from Social Media Mistakes"
+    practitioner: "CEO / Founder"
+    organization_context: |
+      Series B startup. Founder posts frequently on Twitter but 
+      recent controversial post caused backlash. Need to manage 
+      situation and rebuild.
+    situation: |
+      Founder tweeted opinion on industry topic that was perceived 
+      as insensitive. Quote tweets and criticism spreading. 
+      Several customers and employees expressed concern.
+    trigger: |
+      VP Marketing flagged growing backlash. Customer success 
+      reported customer inquiries. Board member called asking 
+      what was happening.
+    actions: |
+      1. Assessed situation:
+         - Original tweet was tone-deaf but not intentionally harmful
+         - ~50 negative quote tweets
+         - 2 customer complaints
+         - Internal concern from 3 employees
+         - Growing but not viral
+      2. Decided on response approach:
+         - Do not delete (would amplify)
+         - Acknowledge, don't defend
+         - Take accountability
+         - Move forward
+      3. Posted response:
+         - Acknowledged the concern
+         - Apologized for insensitivity
+         - Did not overexplain or defend
+         - Committed to learning
+      4. Handled direct concerns:
+         - Called concerned customers personally
+         - Met with concerned employees
+         - Briefed board member
+      5. Let situation settle:
+         - Did not post for 3 days
+         - Continued engaging (not hiding)
+         - Let response stand
+      6. Returned to normal:
+         - Resumed posting after cool-down
+         - More thoughtful content
+         - Rebuilt positive momentum
+      7. Created guidelines:
+         - Personal social media guidelines
+         - Review process for sensitive topics
+         - Crisis response plan
+    outcome: |
+      Situation managed without escalation. Maintained customer 
+      and employee relationships. Learned from mistake. Created 
+      process to prevent recurrence.
+    lessons:
+      - Acknowledge and apologize, do not defend
+      - Handle direct concerns directly
+      - Let situations settle before resuming
+      - Create guidelines to prevent repeat
+
+operational_context:
+  prerequisites:
+    - Clear target audience understanding
+    - Content topics and expertise
+    - Time commitment (founder or team)
+    - Brand guidelines (even basic)
+    
+  common_blockers:
+    - "No time - Start with minimum viable presence"
+    - "Nothing to say - Extract from existing knowledge"
+    - "Fear of exposure - Start with low-risk content"
+    - "Inconsistency - Batch and schedule"
+    
+  integration_points:
+    - Content strategy: Repurposing and coordination
+    - Sales: Social selling enablement
+    - Recruiting: Employer branding
+    - Leadership: Personal brand development
+
+risks:
+  if_skipped: |
+    Invisible to target audience. Competitors build presence 
+    while you stay unknown. Miss low-cost demand generation. 
+    No social proof for prospects researching.
+    
+  if_over_engineered: |
+    Over-produced content that feels inauthentic. Slow execution 
+    from approval processes. Resources consumed without impact. 
+    Corporate voice that does not resonate.
+
+domain_context:
+  related_l2: "Marketing Operations"
+  related_l1: "MARKETING AND BRAND"
+  synergies:
+    - "Content Strategy (cd-029): Provides content for social"
+    - "Email Marketing (cd-020): Coordinated messaging"
+    - "Campaign Analytics (cd-025): Measurement integration"
+    - "Brand Positioning (cd-033+): Voice and messaging"

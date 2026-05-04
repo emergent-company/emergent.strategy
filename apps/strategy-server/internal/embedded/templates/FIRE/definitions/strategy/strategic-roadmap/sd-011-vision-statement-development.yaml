@@ -1,0 +1,497 @@
+# Strategy Process Definition: Vision Statement Development
+# Schema: strategy_definition_schema.json v1.1.0
+# EPF Track: Strategy > Vision & Mission > Vision Statement
+
+id: sd-011
+name: Vision Statement Development
+slug: vision-statement-development
+track: strategy
+status: ready
+
+contributes_to:
+  - Strategy.Vision & mission.vision-statement-development
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Founder-crafted vision statement"
+    includes:
+      - Written vision statement (1-2 sentences)
+      - Shared with team and early hires
+      - Used in pitch deck and about page
+    effort: "4-8 hours to develop and refine"
+    
+  tier_2_intermediate:
+    description: "Validated and operationalized vision"
+    adds:
+      - Team input and buy-in process
+      - Connection to strategic planning
+      - Regular reference in decision-making
+      - Integration into hiring and culture
+    effort: "2-4 weeks of iterative development"
+    
+  tier_3_advanced:
+    description: "Living vision with measurement"
+    adds:
+      - Progress metrics toward vision
+      - Annual vision refresh process
+      - Employee understanding surveys
+      - External communication strategy
+    effort: "Ongoing program with annual review"
+
+definition:
+  purpose: |
+    A vision statement answers: "What does the future look like if we succeed?" It's 
+    the destination, not the journey. While mission defines what you do today, vision 
+    describes the world you're working toward.
+    
+    A strong vision statement:
+    - Is ambitious but achievable (10-25 year horizon)
+    - Paints a picture of a different future
+    - Inspires and motivates stakeholders
+    - Guides strategic decisions ("Does this get us closer to the vision?")
+    - Is specific enough to differentiate (not "make the world better")
+    
+    Warning signs of weak vision:
+    - Could describe any company in your industry
+    - Doesn't survive the "and do what?" test
+    - Team can't recite it or explain it
+    - Doesn't inform any actual decisions
+    
+  outcome: |
+    A vision statement that:
+    - Inspires and aligns the team
+    - Differentiates from competitors
+    - Guides strategic choices
+    - Attracts talent and investors who share the aspiration
+    
+  owner: CEO / Founder (with input from leadership)
+  
+  inputs:
+    - name: Purpose/North Star
+      description: Why the company exists
+      source: Founder motivation, company origin story
+    - name: Market understanding
+      description: Where the industry is heading
+      source: Trend analysis, customer insights
+    - name: Founder ambition
+      description: What the founders want to achieve
+      source: Founder conversations, origin story
+    - name: Stakeholder aspirations
+      description: What customers, employees want the future to look like
+      source: Interviews, feedback
+      
+  outputs:
+    - name: Vision statement
+      description: 1-2 sentence articulation of the future we're building
+      consumer: All stakeholders (team, investors, customers, partners)
+    - name: Vision narrative
+      description: Expanded explanation of what the vision means
+      consumer: Team, new hires, investors
+    - name: Vision connection points
+      description: How vision connects to strategy and daily work
+      consumer: Team, managers
+      
+  steps:
+    - step: 1
+      action: Gather inputs and inspiration
+      responsible: CEO
+      duration: "2-4 hours"
+      deliverable: Vision inputs document
+      activities:
+        - "Re-read purpose/North Star: Why do we exist?"
+        - "Review market trends: Where is the world heading?"
+        - "Interview 3-5 team members: 'What do you hope we achieve?'"
+        - "Interview 3-5 customers: 'What problem would you love to see solved?'"
+        - "Study vision statements of admired companies (not to copy, but to learn)"
+      questions_to_answer:
+        - "If we succeed completely, what has changed?"
+        - "What will customers' lives look like?"
+        - "What will the industry look like?"
+        - "What will the team have built?"
+      
+    - step: 2
+      action: Generate vision candidates
+      responsible: CEO / Leadership team
+      duration: "2-4 hours"
+      deliverable: 5-10 vision statement drafts
+      prompts:
+        - "A world where..."
+        - "In the future, [X] will be..."
+        - "We envision..."
+        - "Our vision is to..."
+        - "We're building a future where..."
+      principles:
+        - "Be specific: 'Financial inclusion for 1B people' > 'Help people'"
+        - "Be aspirational: Stretch, don't play it safe"
+        - "Be differentiated: Could competitors claim this?"
+        - "Be memorable: Can someone repeat it?"
+      examples:
+        - "A world where every SMB has enterprise-grade cybersecurity"
+        - "To be the most customer-centric company on Earth"
+        - "A future where distance is no longer a barrier to great healthcare"
+        - "Every person has access to the same financial tools as the wealthy"
+      
+    - step: 3
+      action: Test and refine
+      responsible: CEO
+      duration: "1-2 weeks"
+      deliverable: Top 2-3 candidates
+      testing_methods:
+        - "Read each to 3-5 people. Ask 'What do you think this means?'"
+        - "Check differentiation: Could a competitor claim this?"
+        - "'So what?' test: Does it inspire or just describe?"
+        - "Decision test: Would this help choose between two strategies?"
+        - "10-year test: Is this still inspiring in 10 years?"
+      refinement:
+        - "If too vague → Add specificity (who, what, how much)"
+        - "If too tactical → Zoom out (what's the world we're creating?)"
+        - "If too similar to competitors → Find your unique angle"
+        - "If too long → Edit ruthlessly (20 words max)"
+      
+    - step: 4
+      action: Select and finalize
+      responsible: CEO (with board/founder input if relevant)
+      duration: "2-4 hours"
+      deliverable: Final vision statement
+      selection_criteria:
+        - "Does it inspire the team?"
+        - "Does it differentiate us?"
+        - "Does it pass the 10-year test?"
+        - "Can someone remember it?"
+        - "Does the CEO want to repeat it 1000 times?"
+      final_polish:
+        - "Read aloud multiple times"
+        - "Get language review (clarity, grammar)"
+        - "Test pronunciation and flow"
+        - "Ensure CEO can say it with conviction"
+      
+    - step: 5
+      action: Build the narrative
+      responsible: CEO / Communications
+      duration: "4-8 hours"
+      deliverable: Vision narrative document
+      components:
+        - "The vision (1-2 sentences)"
+        - "What this means (expanded explanation)"
+        - "Why we believe this (trends, evidence, conviction)"
+        - "How we'll get there (high-level path)"
+        - "What success looks like (concrete outcomes)"
+        - "How this connects to daily work"
+      usage:
+        - "New hire onboarding"
+        - "Investor pitch deck"
+        - "All-hands presentations"
+        - "Strategic planning kickoffs"
+        
+    - step: 6
+      action: Roll out and embed
+      responsible: CEO + Leadership
+      duration: "Ongoing"
+      deliverable: Vision embedded in culture
+      rollout:
+        - "Announce at all-hands: CEO explains vision and narrative"
+        - "Q&A session: Allow questions and discussion"
+        - "Team exercises: 'How does your work connect to the vision?'"
+        - "Update materials: pitch deck, website, job descriptions"
+      embedding:
+        - "Reference in strategic decisions"
+        - "Include in new hire onboarding"
+        - "Use in performance conversations: 'How did this move us toward vision?'"
+        - "Annual refresh: Is vision still inspiring and relevant?"
+
+  cadence:
+    frequency: "Develop once, review annually"
+    trigger: Company founding, major pivot, vision no longer resonates
+    duration: "2-4 weeks initial development, half-day annual review"
+    review_triggers:
+      - "Achieving original vision (need new one)"
+      - "Major strategic pivot"
+      - "Team disconnected from vision"
+      - "Vision feels dated or irrelevant"
+    
+  participants:
+    - role: CEO/Founder
+      responsibility: Own vision, final decision, primary communicator
+      time_commitment: "20-40 hours during development"
+    - role: Leadership Team
+      responsibility: Input, refinement, champion in their teams
+      time_commitment: "8-16 hours during development"
+    - role: Board/Advisors
+      responsibility: Challenge, validate, external perspective
+      time_commitment: "2-4 hours input"
+    - role: Team members
+      responsibility: Input on aspirations, adoption
+      time_commitment: "1-2 hours (surveys, discussions)"
+
+  success_criteria:
+    - Team can articulate vision without looking it up
+    - Vision is referenced in strategic discussions
+    - New hires cite vision as reason for joining
+    - Investors can explain what you're building toward
+    - Vision differentiates from competitors
+
+operational_context:
+  prerequisites:
+    - Clarity on purpose/mission
+    - Understanding of market direction
+    - CEO commitment to process
+    
+  common_blockers:
+    - "Too many opinions → CEO must ultimately decide"
+    - "Vision too vague → Push for specificity"
+    - "Can't agree on ambition level → Discuss risk appetite"
+    - "Sounds like competitors → Find unique angle"
+    - "Team doesn't connect → Better narrative and communication"
+    
+  metrics:
+    - name: Vision recall
+      description: "% of employees who can state vision"
+      target: ">90%"
+      tier: 1
+    - name: Vision understanding
+      description: "% who can explain what it means"
+      target: ">80%"
+      tier: 2
+    - name: Vision connection
+      description: "% who see connection to their work"
+      target: ">70%"
+      tier: 2
+    - name: Decision reference
+      description: Vision referenced in strategic decisions
+      target: "In every major decision"
+      tier: 3
+
+tools_ecosystem:
+  recommended:
+    - category: Collaboration
+      examples:
+        - Miro/FigJam (visual brainstorming)
+        - Notion/Google Docs (writing and iteration)
+      purpose: Collaborative drafting and feedback
+    - category: Communication
+      examples:
+        - All-hands meetings
+        - Loom (CEO video explaining vision)
+        - Notion/Wiki (internal documentation)
+      purpose: Roll out and ongoing reference
+    - category: Measurement
+      examples:
+        - Employee surveys (Culture Amp, Lattice)
+        - Onboarding check-ins
+      purpose: Track vision understanding
+
+# Practitioner Scenarios - How This Plays Out in Real Organizations
+practitioner_scenarios:
+  - id: ps-001
+    name: "Technical founder needs a vision beyond the product"
+    practitioner: "CEO / Founder (Technical)"
+    organization_context: "15-person seed-stage B2B startup, founder is strong on product but vision is unclear"
+    situation: |
+      Marcus (CEO, technical founder) has built a great product - an AI-powered 
+      data pipeline tool. When asked about vision, he says things like "build the 
+      best data pipeline product" or "help data teams move faster." The team is 
+      motivated by the technology but unclear on the bigger picture. Investors 
+      keep asking "what's the long-term vision?" and Marcus struggles to articulate 
+      something inspiring. New hires ask "where is this company going?" and get 
+      vague answers.
+    trigger: "Investor asks 'Where do you see this in 10 years?' and Marcus stumbles"
+    actions: |
+      1. Marcus realizes he needs to articulate a vision beyond "great product." 
+         Blocks 2 days to work on this.
+      2. Starts with purpose: Why did he start this company? Answer: "Spent years 
+         watching data teams struggle with plumbing instead of analysis. Frustrating 
+         to see smart people doing dumb work."
+      3. Interviews 5 customers: "What would your world look like if data was easy?"
+         Patterns: "We could focus on insights, not infrastructure." "We'd be 
+         strategic partners, not maintenance workers." "We'd finally prove our value."
+      4. Thinks about the future: If we succeed completely, what's different? 
+         "Data teams are strategic, not operational. They're valued, not overlooked."
+      5. Drafts candidates:
+         - "A world where data teams are heroes, not plumbers"
+         - "Every data team becomes a strategic driver of the business"
+         - "Transform data teams from cost centers to growth engines"
+      6. Tests with team: "Data teams as heroes" resonates most. Expands to:
+         "A world where every data team is recognized as a strategic driver 
+         of business growth."
+      7. Builds narrative: "Today, data teams spend 80% of time on plumbing and 
+         20% on insights. We're flipping that ratio. When data is easy, data 
+         teams become strategic advisors, not infrastructure maintainers."
+      8. Rolls out at all-hands. Team energized - they're not just building tools, 
+         they're changing how data teams are valued.
+    outcome: |
+      Clear vision that goes beyond product features. Team aligned on bigger 
+      purpose. Investor conversations became clearer - they understand the 
+      long-term aspiration. Key learning: Vision is about the world you're 
+      creating, not the product you're building.
+    lessons:
+      - "Technical founders often stop at 'great product' - push for 'great outcome'"
+      - "Customer interviews reveal what they really want (status, not just features)"
+      - "Vision is about transformation in the world, not product capabilities"
+      - "Test candidates with the team - what energizes them?"
+      - "Vision makes fundraising easier - investors buy futures"
+      - "Narrative is as important as the statement itself"
+
+  - id: ps-002
+    name: "Post-pivot company needs vision refresh"
+    practitioner: "CEO"
+    organization_context: "60-person Series A company, recently pivoted from B2C to B2B, old vision no longer fits"
+    situation: |
+      Elena (CEO) led a successful pivot 6 months ago. The old vision was "Make 
+      personal finance fun for everyone." Now they're selling B2B expense 
+      management. The old vision is still on the website, in the pitch deck, 
+      everywhere. It's confusing - employees don't know what to say, the 
+      marketing team is stuck. Some original team members joined for the B2C 
+      vision and are questioning fit.
+    trigger: "Marketing asks 'What should our new website say?' and no one has an answer"
+    actions: |
+      1. Elena acknowledges the problem: "We pivoted the business but not the 
+         vision. That's on me." Schedules vision development as top priority.
+      2. Takes stock of what changed: New customer (B2B CFOs), new problem 
+         (expense chaos), new value (visibility and control). What stayed: 
+         belief that finance should be simple.
+      3. Interviews B2B customers: "What does success look like for you?"
+         Answers: "Complete visibility." "No surprises at quarter-end." "CFO 
+         looks like a hero, not a gatekeeper."
+      4. Identifies the thread between B2C and B2B: Making finance simple and 
+         empowering, whether for individuals or companies.
+      5. Drafts new vision candidates:
+         - "A world where finance empowers, never constrains"
+         - "Every CFO a strategic partner, not a cop"
+         - "Financial clarity for every company, from startup to enterprise"
+      6. Tests with leadership team. Lands on: "A world where finance empowers 
+         every organization to grow confidently."
+      7. Addresses the team: "Our vision evolved because our understanding 
+         evolved. The core belief remains: finance should empower, not constrain. 
+         Here's how our new vision captures that for B2B."
+      8. Updates all materials: website, pitch deck, job descriptions, onboarding.
+         Some team members who joined for B2C decide to leave - that's okay, 
+         better clarity for everyone.
+    outcome: |
+      New vision that bridges past and future. Team aligned on B2B direction.
+      Lost 3 team members who preferred B2C mission - but gained clarity.
+      Marketing can now speak with one voice. Key learning: Pivot the vision 
+      when you pivot the business.
+    lessons:
+      - "When the business pivots, the vision must follow"
+      - "Find the thread that connects old and new - helps transition team"
+      - "Be honest: some team members won't fit the new vision"
+      - "Don't just change the statement - update ALL materials"
+      - "Address the change directly with the team - don't let it drift"
+      - "New vision enables new marketing, hiring, strategy"
+
+  - id: ps-003
+    name: "Vision is ignored and gathering dust"
+    practitioner: "COO"
+    organization_context: "150-person Series B company, vision exists but nobody uses it"
+    situation: |
+      Omar (COO) notices that despite having a vision statement, nobody references 
+      it. It's on the website: "Empowering the next generation of builders." But 
+      in strategic meetings, no one mentions it. New hires can't recall it. When 
+      asked about priorities, people talk about OKRs, not vision. The vision has 
+      become wallpaper - decorative but meaningless. CEO is frustrated: "Why 
+      doesn't anyone care about the vision?"
+    trigger: "CEO asks at all-hands 'What's our vision?' and gets silence"
+    actions: |
+      1. Omar diagnoses the problem: The vision isn't bad, but it's disconnected 
+         from daily reality. Nobody sees how it connects to their work.
+      2. Surveys team (anonymous): "Can you state our vision? What does it mean 
+         to you? How does your work connect?" Results: 30% can state it, 15% 
+         see connection to their work.
+      3. Works with CEO to revitalize, not replace. The vision is fine - the 
+         problem is operationalization.
+      4. Creates vision connection framework:
+         - How each team contributes to "empowering builders"
+         - Specific examples: "Product team: build tools that simplify creation"
+         - Quarterly connection: "How did we empower builders this quarter?"
+      5. Integrates vision into existing rhythms:
+         - All-hands: CEO spends 5 min on vision progress
+         - OKR setting: "How does this OKR advance our vision?"
+         - Performance reviews: "How did this person embody our vision?"
+      6. Creates visual representation: Progress toward vision milestones.
+         "We've empowered 50,000 builders. Next milestone: 100,000."
+      7. CEO records 10-minute video explaining vision deeply. Required 
+         watching for new hires.
+      8. After 6 months: Re-survey shows 80% can state vision, 60% see 
+         connection to their work. Still improving.
+    outcome: |
+      Vision went from wallpaper to working tool. Team can articulate and 
+      connect to it. Decisions reference vision. Key learning: A vision 
+      without operationalization is just decoration.
+    lessons:
+      - "Vision on the wall isn't vision in the culture"
+      - "Connection to daily work is what makes vision matter"
+      - "Embed in existing rhythms (OKRs, reviews, all-hands)"
+      - "Make it measurable where possible"
+      - "CEO must be primary champion and repeat constantly"
+      - "New hires are opportunity to embed vision early"
+
+# Risks - What Can Go Wrong and How to Prevent/Handle
+risks:
+  execution_risks:
+    - risk: "Vision is too vague"
+      likelihood: high
+      impact: medium
+      mitigation: |
+        Push for specificity. If competitors could claim it, it's too vague.
+        Include who, what, or how much. "Help people" → "Financial inclusion 
+        for 1 billion underbanked people."
+        
+    - risk: "Vision doesn't inspire"
+      likelihood: medium
+      impact: high
+      mitigation: |
+        Test with real people - does it make them lean in? If vision gets 
+        polite nods but not excitement, it needs work. Great visions make 
+        people want to join the mission.
+        
+    - risk: "Team doesn't understand or remember"
+      likelihood: high
+      impact: medium
+      mitigation: |
+        Simplify until memorable. Build narrative that explains. CEO must 
+        repeat constantly. Test comprehension regularly. If people can't 
+        remember it, it's not working.
+        
+    - risk: "Vision becomes outdated"
+      likelihood: medium
+      impact: medium
+      mitigation: |
+        Annual review: Is this still inspiring? Still relevant? Still 
+        differentiated? Refresh when needed, but don't change too often 
+        (team whiplash).
+        
+  organizational_risks:
+    - risk: "Vision is CEO's alone"
+      impact: |
+        Team doesn't feel ownership. Vision feels imposed rather than shared.
+        People comply rather than commit. Cynicism grows.
+      prevention: |
+        Include team in development (input, not decision). Explain the 'why' 
+        behind the vision. Create space for discussion and questions. Let 
+        people find their own connection to it.
+        
+    - risk: "Vision/reality gap"
+      impact: |
+        Team sees hypocrisy. Decisions contradict stated vision. Cynicism 
+        replaces inspiration. "We say X but do Y."
+      prevention: |
+        Reference vision in actual decisions. Call out when decisions are 
+        hard because of vision trade-offs. Admit when falling short and 
+        course-correct. Consistency builds credibility.
+
+domain_context:
+  related_l2: "Vision & mission"
+  related_l1: "STRATEGIC ROADMAP"
+  synergies:
+    - "sd-010 (Purpose/North Star): Purpose feeds vision"
+    - "sd-015 (OKRs): OKRs should advance vision"
+    - "sd-031 (Value Proposition): Vision informs positioning"
+  artifacts_produced:
+    - "Vision statement"
+    - "Vision narrative"
+    - "Vision connection framework"
+  prerequisites:
+    - "Clarity on purpose"
+    - "CEO commitment to own and champion"

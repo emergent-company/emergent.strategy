@@ -1,0 +1,31 @@
+name: skill-building
+version: "1.0.0"
+type: creation
+phase: FIRE
+description: "Create custom EPF skills -- prompt-delivery, script-based, or plugin packs. Generates working manifests, starter scripts, test harnesses, and wires skills into the instance."
+
+capability:
+  class: balanced
+  context_budget: medium
+
+requires:
+  tools:
+    - epf_scaffold_skill
+    - epf_list_skills
+    - epf_get_skill
+    - epf_validate_file
+    - epf_list_artifacts
+
+scope:
+  preferred_tools:
+    - epf_scaffold_skill
+    - epf_list_skills
+    - epf_get_skill
+    - epf_validate_file
+    - epf_list_artifacts
+    - epf_get_schema
+    - epf_get_template
+  avoid_tools:
+    - epf_aim_assess
+    - epf_aim_bootstrap
+    - epf_generate_report

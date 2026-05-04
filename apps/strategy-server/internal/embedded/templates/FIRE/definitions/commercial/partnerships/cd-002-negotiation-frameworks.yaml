@@ -1,0 +1,394 @@
+# Commercial Process Definition: Negotiation Frameworks
+# Schema: commercial_definition_schema.json v1.1.0
+
+id: cd-002
+name: Negotiation Frameworks
+slug: negotiation-frameworks
+track: commercial
+status: ready
+
+contributes_to:
+  - Commercial.Strategic Partnerships.negotiation-frameworks
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Basic negotiation structure for small teams"
+    includes:
+      - Standard term sheet template
+      - Simple decision matrix (deal/no-deal criteria)
+      - Basic negotiation talking points document
+      - Post-negotiation debrief notes
+    effort: "4-6 hours initial setup"
+    
+  tier_2_intermediate:
+    description: "Structured negotiation playbook"
+    adds:
+      - BATNA analysis template
+      - Zone of possible agreement (ZOPA) worksheets
+      - Stakeholder mapping for multi-party deals
+      - Negotiation outcome tracking
+      - Lessons learned repository
+    effort: "1-2 weeks to establish"
+    
+  tier_3_advanced:
+    description: "Enterprise negotiation center of excellence"
+    adds:
+      - Deal desk function with approval workflows
+      - Negotiation training program
+      - AI-assisted term analysis
+      - Contract playbook with pre-approved fallbacks
+      - Win/loss analysis by negotiation approach
+    effort: "2-3 months full implementation"
+
+definition:
+  purpose: |
+    Negotiation is where partnerships are won or lost. Most startups wing it - they 
+    walk into partner/vendor/customer negotiations without a framework, end up 
+    conceding too much or being too rigid, and either lose deals or sign bad ones.
+    
+    Good negotiation isn't about winning at the other party's expense. It's about 
+    finding agreements that work for both sides while protecting your core interests.
+    This requires: knowing your walk-away point, understanding what they value, and 
+    having a structured approach to finding creative solutions.
+    
+    Without a framework, negotiations become personality-driven. The aggressive 
+    founder leaves value on the table by damaging relationships. The conflict-averse 
+    founder gives away too much. A framework makes good negotiation teachable and 
+    repeatable.
+    
+  outcome: |
+    Every significant negotiation follows a documented approach. Team members 
+    can articulate BATNA, key terms, and decision criteria before entering 
+    discussions. Post-negotiation reviews capture learnings for future deals.
+    
+  owner: Head of BD / Head of Partnerships / CEO (early stage)
+  
+  inputs:
+    - name: Deal context
+      description: What are we negotiating and why it matters
+      source: BD/Sales team, Strategic planning
+    - name: Market comparables
+      description: Standard terms in similar deals
+      source: Industry research, Advisor network
+    - name: Internal priorities
+      description: What matters most and what we can flex on
+      source: Leadership team, Finance
+      
+  outputs:
+    - name: Negotiation prep document
+      description: BATNA, ZOPA, key terms, decision matrix
+      consumer: Negotiation team
+    - name: Approved term ranges
+      description: Pre-authorized flexibility on key terms
+      consumer: Negotiators
+    - name: Deal summary
+      description: Final terms, concessions made, learnings
+      consumer: Leadership, Future negotiations
+
+  steps:
+    - step: 1
+      action: "Define negotiation objectives and priorities"
+      responsible: BD Lead / CEO
+      duration: "1-2 hours"
+      deliverable: "Objectives document with ranked priorities"
+      questions:
+        - "What does success look like for this negotiation?"
+        - "What are our must-haves vs nice-to-haves?"
+        - "What are we willing to give to get what we need?"
+      avoid:
+        - Starting negotiations without clear objectives
+        - Having too many must-haves (everything can't be essential)
+        
+    - step: 2
+      action: "Calculate BATNA (Best Alternative to Negotiated Agreement)"
+      responsible: BD Lead
+      duration: "2-4 hours"
+      deliverable: "BATNA analysis document"
+      questions:
+        - "What happens if this deal falls through?"
+        - "What are our alternatives?"
+        - "At what point is no deal better than a bad deal?"
+      avoid:
+        - Overestimating your alternatives
+        - Entering negotiation desperate (weak BATNA)
+        
+    - step: 3
+      action: "Research counterparty and estimate their priorities"
+      responsible: BD Team
+      duration: "2-4 hours"
+      deliverable: "Counterparty analysis"
+      questions:
+        - "What do they need from this deal?"
+        - "What constraints are they operating under?"
+        - "Who are the decision-makers and influencers?"
+      avoid:
+        - Assuming they want what you would want
+        - Ignoring internal politics on their side
+        
+    - step: 4
+      action: "Map Zone of Possible Agreement (ZOPA)"
+      responsible: BD Lead
+      duration: "1-2 hours"
+      deliverable: "ZOPA worksheet"
+      questions:
+        - "What's our reservation point (walk-away)?"
+        - "What do we estimate as their reservation point?"
+        - "Where is the overlap where both sides can agree?"
+      avoid:
+        - Starting with extreme positions just to have room to move
+        - Revealing your reservation point
+        
+    - step: 5
+      action: "Prepare negotiation strategy and talking points"
+      responsible: Lead Negotiator
+      duration: "2-3 hours"
+      deliverable: "Negotiation playbook for this deal"
+      questions:
+        - "What's our opening position and rationale?"
+        - "What concessions can we make and in what order?"
+        - "What are our non-negotiables and how do we explain them?"
+      avoid:
+        - Being inflexible on things that don't matter
+        - Making concessions without getting something in return
+        
+    - step: 6
+      action: "Conduct negotiation with documented approach"
+      responsible: Negotiation Team
+      duration: "Varies by deal complexity"
+      deliverable: "Agreed terms or clear next steps"
+      questions:
+        - "Are we staying within our approved ranges?"
+        - "Are we building relationship or damaging it?"
+        - "When do we need to pause and regroup?"
+      avoid:
+        - Making commitments without authority
+        - Letting emotions drive decisions
+        - Negotiating against yourself
+        
+    - step: 7
+      action: "Post-negotiation debrief and documentation"
+      responsible: BD Lead
+      duration: "1-2 hours"
+      deliverable: "Deal summary and lessons learned"
+      questions:
+        - "Did we achieve our objectives?"
+        - "What worked well? What would we do differently?"
+        - "What did we learn about the counterparty?"
+      avoid:
+        - Skipping debrief because deal is done
+        - Only debriefing failed negotiations
+
+  cadence:
+    frequency: "Per negotiation, with quarterly review"
+    triggers:
+      - Any partnership discussion entering term negotiation
+      - Vendor contracts above threshold
+      - Customer deals with non-standard terms
+    ongoing:
+      - Maintain negotiation playbook with approved ranges
+      - Update BATNA quarterly as alternatives change
+      - Train new team members on framework
+
+practitioner_scenarios:
+  - id: ps-001
+    name: "Founder Negotiating First Enterprise Customer"
+    practitioner: "CEO / Founder"
+    organization_context: |
+      Early-stage SaaS startup, largest customer currently pays $500/month. 
+      No enterprise sales experience. Need the logo for credibility but 
+      cannot set bad precedents.
+    situation: |
+      An enterprise prospect wants to buy but is asking for significant 
+      concessions: 60% discount, custom SLAs, security questionnaire, 90-day 
+      payment terms, and 3-year contract with annual outs. The founder has 
+      never negotiated an enterprise deal and is unsure what's reasonable.
+    trigger: |
+      Enterprise procurement team sent initial term sheet with aggressive 
+      asks. Need to respond within one week with counter-proposal.
+    actions: |
+      1. Before negotiation, calculated BATNA: determined that losing this 
+         deal would hurt but 3 more SMB customers could replace the revenue.
+      2. Researched enterprise priorities through the champion contact: learned 
+         that SLAs mattered more than price (reliability is their main concern).
+      3. Defined must-haves: willing to do discount but not annual outs (churn 
+         risk too high), SLAs acceptable, payment terms negotiable.
+      4. During negotiation, asked clarifying questions before making offers: 
+         "Help me understand why the annual out matters" - discovered it was 
+         procurement policy, not actual intent to leave.
+      5. Traded concessions strategically: offered 60% discount in exchange for 
+         annual prepay instead of quarterly (gave on price, got cash flow).
+      6. Held firm on deal-breaker: "We can't do annual outs, but we can include 
+         a 90-day cure period for any SLA breaches."
+      7. Documented every term for future playbook and noted which asks were 
+         real priorities versus opening positions.
+    outcome: |
+      Closed first enterprise deal at $15K/year (60% discount from list but 
+      still 2.5x largest customer). Annual prepay improved cash position. 
+      No annual outs but added SLA cure period as compromise. Created negotiation 
+      playbook template for future enterprise deals. Maintained relationship 
+      and expanded to $45K in year two.
+    lessons:
+      - Enterprises expect pushback on initial terms - their first ask is not their final position
+      - Asking questions before countering reveals which terms actually matter to them
+      - Trading concessions (discount for prepay) creates value for both sides
+      - Documenting lessons immediately after deal creates institutional knowledge
+
+  - id: ps-002
+    name: "Negotiating Revenue Share with Strategic Partner"
+    practitioner: "Head of Business Development"
+    organization_context: |
+      Series A B2B SaaS company with product-market fit but limited distribution. 
+      Current CAC is high through direct sales. First channel partnership 
+      opportunity with no precedent for terms.
+    situation: |
+      A larger company wants to resell the product and has proposed 40% revenue 
+      share (they keep 40%, you get 60%). This is the first channel partner 
+      and there's no internal data on what's fair or standard.
+    trigger: |
+      Partner sent standard reseller agreement with 40% margin. CEO asked 
+      BD lead to negotiate but get the partnership done.
+    actions: |
+      1. Researched market norms: found typical SaaS reseller margins are 20-30%, 
+         but 40% is reasonable if partner does full sales cycle.
+      2. Mapped value exchange clearly: partner providing leads, sales, first-line 
+         support; we provide product, implementation, customer success.
+      3. Calculated BATNA: direct sales costs 30% of revenue in CAC, so 40% 
+         to partner is only marginally worse if they do everything.
+      4. Reframed negotiation from percentage to total value: asked partner 
+         for volume commitment (40% of $10M better than 20% of $2M).
+      5. Tied margin to effort: proposed 40% if they handle full cycle including 
+         demos, 25% if we do demos and they just close.
+      6. Built in performance adjustments: start at 35%, drops to 25% if they 
+         hit 2x volume (incentivizes growth while reducing our margin at scale).
+      7. Explored trade-offs: non-exclusive for lower margin, minimum commits 
+         for higher margin, support responsibility affects split.
+    outcome: |
+      Signed partnership at 32% margin (they wanted 40%, we wanted 20%). They 
+      committed to 50 deals in year one minimum. Margin steps down to 25% after 
+      100 deals. Clear responsibility matrix for sales vs. post-sales. Agreement 
+      to revisit terms annually. Both parties satisfied with balanced outcome.
+    lessons:
+      - Never negotiate percentage in isolation - volume commitments matter more
+      - Performance-based margin tiers align incentives for both parties  
+      - Take it or leave it from a partner is a red flag - real partners negotiate
+      - Clear responsibility matrices prevent disputes later
+
+  - id: ps-003
+    name: "Renegotiating Vendor Contract at Renewal"
+    practitioner: "Head of Operations"
+    organization_context: |
+      50-person startup, 150 users on critical SaaS tool that's deeply 
+      integrated into workflows. Two-year customer with good relationship 
+      but no formal negotiation at renewal previously.
+    situation: |
+      Vendor notified of 25% price increase at renewal (60 days notice). 
+      The tool is critical but not irreplaceable. Switching would be painful 
+      (2-3 month migration) but possible if needed.
+    trigger: |
+      Received renewal quote with 25% increase and auto-renewal deadline 
+      in 45 days. CFO asked Ops lead to negotiate or find alternatives.
+    actions: |
+      1. Calculated true switching cost: not just license savings but 2-3 months 
+         of disruption, data migration, retraining. Determined BATNA cost was 
+         approximately $40K in total switching expense.
+      2. Researched alternatives: got quotes from three competitors, found one 
+         offering 30% less than current vendor's new price.
+      3. Understood vendor's position: verified this was company-wide increase, 
+         not targeting us specifically. Vendor is profitable, not desperate.
+      4. Did not accept first offer: replied that 25% is unworkable given our 
+         two-year loyalty and user expansion.
+      5. Led with relationship: "We've grown from 50 to 150 users and been vocal 
+         advocates. We expected partnership pricing, not a surprise increase."
+      6. Presented concrete alternative: "Competitor X quoted 30% below your new 
+         price. We prefer to stay but need you to meet us halfway."
+      7. Proposed creative solution: offered 2-year commitment in exchange for 
+         price lock at current rate plus 10% (not 25%).
+      8. Escalated when stonewalled: asked to speak with sales leadership when 
+         initial rep said increase was final.
+    outcome: |
+      Final negotiated increase was 12% instead of 25% (saved $18K over two 
+      years). Secured price lock for 24 months. Added 50-user expansion at 
+      same per-user rate. Relationship preserved with vendor, now flagged as 
+      key account. Created renewal playbook for all vendor contracts.
+    lessons:
+      - Always negotiate renewals - first quote is never the best offer
+      - Real alternatives (with quotes) dramatically strengthen position
+      - Multi-year commitments are valuable currency in vendor negotiations
+      - Escalating past front-line reps often unlocks better terms
+
+operational_context:
+  prerequisites:
+    - Clear authority levels (who can approve what terms)
+    - Basic understanding of legal/financial implications
+    - Time to prepare (rushed negotiations favor the prepared party)
+    
+  common_blockers:
+    - "We don't have leverage → You always have BATNA; find alternatives"
+    - "They won't negotiate → Everyone negotiates; find what they value"
+    - "We need this too badly → Desperation is a choice; improve alternatives"
+    - "Legal is too slow → Pre-approve standard terms and ranges"
+    - "Founder gets emotional → Role-play before, use prepared talking points"
+    
+  integration_points:
+    - "Legal: Term sheet review, contract drafting, risk assessment"
+    - "Finance: Financial modeling, approval for non-standard terms"
+    - "Product: Technical feasibility of custom commitments"
+    - "Leadership: Approval for strategic terms, escalation path"
+    
+  success_criteria:
+    - Deals close with terms within approved ranges
+    - Relationship maintained or improved post-negotiation
+    - Learnings documented and applied to future deals
+    
+  metrics:
+    - name: Deal close rate
+      description: "% of negotiations that result in signed agreement"
+      target: ">60% (of qualified deals entering negotiation)"
+      tier: 1
+    - name: Term preservation
+      description: "% of key terms maintained vs. original position"
+      target: ">70% on must-haves, >50% on nice-to-haves"
+      tier: 2
+    - name: Time to close
+      description: Average time from first term sheet to signature
+      target: "<4 weeks for standard deals"
+      tier: 2
+    - name: Relationship score
+      description: Partner/customer satisfaction post-negotiation
+      target: ">7/10"
+      tier: 3
+
+risks:
+  if_skipped: |
+    Negotiations become personality-dependent. Aggressive negotiators damage 
+    relationships; passive ones give away too much. No institutional learning 
+    from deals. Same mistakes repeated across team members.
+  if_over_engineered: |
+    Negotiations become bureaucratic. Deal desk slows everything down. 
+    Counterparties frustrated by inflexibility. Good deals lost to faster 
+    competitors. Analysis paralysis on every term.
+
+domain_context:
+  related_l2: "Strategic Partnerships"
+  related_l1: "BUSINESS DEVELOPMENT AND PARTNERSHIPS"
+  synergies:
+    - "Builds on cd-001 (Partnership Scouting) - scouted partners enter negotiation"
+    - "Informs cd-003 (Partnership Metrics) - negotiated terms become measured"
+    - "Connects to cd-005 (Agreement Reviews) - negotiated terms get documented"
+    - "Links to value proposition (sd-031) - messaging informs negotiation positioning"
+
+references:
+  - title: "Getting to Yes"
+    author: "Fisher & Ury"
+    url: https://www.williamury.com/books/getting-to-yes/
+    type: book
+  - title: "Never Split the Difference"
+    author: "Chris Voss"
+    url: https://www.blackswanltd.com/never-split-the-difference
+    type: book
+  - title: "BATNA Basics: Boost Your Power at the Bargaining Table"
+    author: "Harvard Law School PON"
+    url: https://www.pon.harvard.edu/daily/batna/batna-basics-boost-your-power-at-the-bargaining-table/
+    type: article

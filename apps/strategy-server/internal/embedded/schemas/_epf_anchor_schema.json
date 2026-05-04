@@ -1,0 +1,115 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "_epf_anchor_schema.json",
+  "version": "1.0.0",
+  "title": "EPF Anchor File",
+  "description": "Schema for _epf.yaml — the anchor file that identifies a valid EPF instance directory and configures its deployment mode.",
+  "$comment": "The _epf.yaml file is the root marker for any EPF instance. Its presence (with epf_anchor: true) is how tools discover and validate EPF directories. The file also carries deployment configuration that tells epf-cli how to push changes to consumer repos. Fields instance_id and created_at are write-once — generated at init, never modified. The deployment section is optional but recommended for multi-repo setups.",
+  "type": "object",
+  "required": ["epf_anchor", "version", "instance_id", "created_at"],
+  "additionalProperties": false,
+  "properties": {
+    "epf_anchor": {
+      "type": "boolean",
+      "const": true,
+      "description": "Must be true. Marks this file as a valid EPF anchor."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Anchor file schema version (e.g., '1.0.0')"
+    },
+    "instance_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for this EPF instance. Generated once at init, never changed."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this EPF instance was initialized."
+    },
+    "epf_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "EPF framework version this instance uses (e.g., '2.0.0')."
+    },
+    "product_name": {
+      "type": "string",
+      "description": "Name of the product this instance represents."
+    },
+    "description": {
+      "type": "string",
+      "description": "Brief description of the instance."
+    },
+    "structure": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Directory structure configuration for the instance.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["phased", "flat"],
+          "description": "Directory structure type. 'phased' = READY/FIRE/AIM directories, 'flat' = legacy single-level layout."
+        }
+      }
+    },
+    "deployment": {
+      "type": "object",
+      "description": "How this EPF instance is deployed and used across repositories.",
+      "required": ["mode"],
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["integrated", "submodule", "standalone"],
+          "description": "Deployment mode. 'integrated': EPF lives inside a product repo (e.g., docs/EPF/). 'submodule': EPF is its own repo, mounted as a git submodule in consumer repos. 'standalone': EPF repo not connected to any product repo."
+        },
+        "consumers": {
+          "type": "array",
+          "description": "Repos that consume this EPF instance as a git submodule. Only relevant when mode is 'submodule'.",
+          "items": {
+            "type": "object",
+            "required": ["repo", "path"],
+            "additionalProperties": false,
+            "properties": {
+              "repo": {
+                "type": "string",
+                "description": "GitHub repo in 'owner/name' format (e.g., 'Huma-Energy/huma-ui')."
+              },
+              "path": {
+                "type": "string",
+                "description": "Path where the submodule is mounted in the consumer repo (e.g., 'docs/strategy')."
+              },
+              "branch": {
+                "type": "string",
+                "default": "main",
+                "description": "Branch in the consumer repo where submodule updates are pushed."
+              },
+              "auto_update": {
+                "type": "boolean",
+                "default": true,
+                "description": "Whether epf-cli push should automatically update this consumer's submodule pointer."
+              }
+            }
+          }
+        },
+        "source": {
+          "type": "object",
+          "description": "Source repo info. Only relevant when mode is 'integrated'.",
+          "additionalProperties": false,
+          "properties": {
+            "repo": {
+              "type": "string",
+              "description": "GitHub repo in 'owner/name' format."
+            },
+            "path": {
+              "type": "string",
+              "description": "Path within the repo where the EPF instance lives (e.g., 'docs/EPF/_instances/my-product')."
+            }
+          }
+        }
+      }
+    }
+  }
+}

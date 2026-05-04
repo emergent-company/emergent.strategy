@@ -1,0 +1,527 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://emergent.sh/schemas/investor-memo-package-v1.schema.json",
+  "title": "Investor Memo Package",
+  "description": "Schema for validating complete investor materials package including comprehensive memo, executive summary, one-page pitch, FAQ, and materials index",
+  "type": "object",
+  "required": ["metadata", "comprehensive_memo", "executive_summary", "one_page_pitch", "faq", "materials_index"],
+  "additionalProperties": false,
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "description": "Package-level metadata tracking EPF sources and generation context",
+      "required": ["generated_at", "epf_version", "product_name", "round_type", "package_version", "epf_sources"],
+      "additionalProperties": false,
+      "properties": {
+        "generated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when package was generated",
+          "examples": ["2025-12-30T12:00:00Z"]
+        },
+        "epf_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "EPF Framework version used for generation",
+          "examples": ["2.1.0"]
+        },
+        "product_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Product or company name",
+          "examples": ["Emergent"]
+        },
+        "round_type": {
+          "type": "string",
+          "enum": ["pre-seed", "seed", "series-a", "series-b", "series-c", "growth"],
+          "description": "Funding round stage these materials target"
+        },
+        "package_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+$",
+          "description": "Version of this materials package (major.minor)",
+          "examples": ["1.0", "1.1", "2.0"]
+        },
+        "last_updated": {
+          "type": "string",
+          "format": "date",
+          "description": "Human-readable last update date",
+          "examples": ["December 30, 2025"]
+        },
+        "epf_sources": {
+          "type": "object",
+          "description": "EPF source files used to generate materials",
+          "required": ["north_star", "strategy_formula", "roadmap_recipe", "value_models"],
+          "additionalProperties": false,
+          "properties": {
+            "north_star": {
+              "type": "string",
+              "description": "Path to north star YAML file",
+              "examples": ["docs/EPF/_instances/emergent/00_north_star.yaml"]
+            },
+            "strategy_formula": {
+              "type": "string",
+              "description": "Path to strategy formula YAML file",
+              "examples": ["docs/EPF/_instances/emergent/04_strategy_formula.yaml"]
+            },
+            "roadmap_recipe": {
+              "type": "string",
+              "description": "Path to roadmap recipe YAML file",
+              "examples": ["docs/EPF/_instances/emergent/05_roadmap_recipe.yaml"]
+            },
+            "value_models": {
+              "type": "array",
+              "description": "Paths to value model files",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "examples": [["docs/EPF/_instances/emergent/value_models/core_product.yaml"]]
+            },
+            "insight_analyses": {
+              "type": "array",
+              "description": "Optional paths to insight analysis documents",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "contact_info": {
+          "type": "object",
+          "description": "Contact information for investor inquiries",
+          "properties": {
+            "company": {
+              "type": "string",
+              "description": "Company name"
+            },
+            "website": {
+              "type": "string",
+              "format": "uri",
+              "description": "Company website URL"
+            },
+            "email": {
+              "type": "string",
+              "format": "email",
+              "description": "Contact email for investor relations"
+            }
+          }
+        }
+      }
+    },
+    "comprehensive_memo": {
+      "type": "object",
+      "description": "Full detailed investor memo (30-40 pages, 45-60 min read)",
+      "required": ["filename", "title", "sections"],
+      "additionalProperties": false,
+      "properties": {
+        "filename": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}_investor_memo\\.md$",
+          "description": "Output filename following convention",
+          "examples": ["2025-12-30_investor_memo.md"]
+        },
+        "title": {
+          "type": "string",
+          "description": "Document title",
+          "examples": ["Emergent: Comprehensive Investor Memo"]
+        },
+        "sections": {
+          "type": "object",
+          "required": [
+            "executive_summary",
+            "problem_statement",
+            "market_opportunity",
+            "product_technology",
+            "business_model",
+            "strategic_roadmap",
+            "team_execution",
+            "investment_thesis",
+            "financial_projections",
+            "use_of_funds",
+            "appendix"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "executive_summary": {
+              "$ref": "#/definitions/section"
+            },
+            "problem_statement": {
+              "$ref": "#/definitions/section"
+            },
+            "market_opportunity": {
+              "$ref": "#/definitions/section"
+            },
+            "product_technology": {
+              "$ref": "#/definitions/section"
+            },
+            "business_model": {
+              "$ref": "#/definitions/section"
+            },
+            "strategic_roadmap": {
+              "$ref": "#/definitions/section"
+            },
+            "team_execution": {
+              "$ref": "#/definitions/section"
+            },
+            "investment_thesis": {
+              "$ref": "#/definitions/section"
+            },
+            "financial_projections": {
+              "$ref": "#/definitions/section"
+            },
+            "use_of_funds": {
+              "$ref": "#/definitions/section"
+            },
+            "appendix": {
+              "$ref": "#/definitions/section"
+            }
+          }
+        }
+      }
+    },
+    "executive_summary": {
+      "type": "object",
+      "description": "Executive summary document (12-15 pages, 15-20 min read)",
+      "required": ["filename", "title", "sections"],
+      "additionalProperties": false,
+      "properties": {
+        "filename": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}_investor_memo_executive_summary\\.md$",
+          "description": "Output filename following convention",
+          "examples": ["2025-12-30_investor_memo_executive_summary.md"]
+        },
+        "title": {
+          "type": "string",
+          "description": "Document title",
+          "examples": ["Emergent: Executive Summary"]
+        },
+        "sections": {
+          "type": "object",
+          "required": [
+            "opportunity_60_seconds",
+            "market_opportunity",
+            "product_differentiation",
+            "competitive_analysis",
+            "business_model",
+            "strategic_roadmap",
+            "team_credentials",
+            "financial_highlights",
+            "investment_ask"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "opportunity_60_seconds": {
+              "$ref": "#/definitions/section"
+            },
+            "market_opportunity": {
+              "$ref": "#/definitions/section"
+            },
+            "product_differentiation": {
+              "$ref": "#/definitions/section"
+            },
+            "competitive_analysis": {
+              "$ref": "#/definitions/section"
+            },
+            "business_model": {
+              "$ref": "#/definitions/section"
+            },
+            "strategic_roadmap": {
+              "$ref": "#/definitions/section"
+            },
+            "team_credentials": {
+              "$ref": "#/definitions/section"
+            },
+            "financial_highlights": {
+              "$ref": "#/definitions/section"
+            },
+            "investment_ask": {
+              "$ref": "#/definitions/section"
+            }
+          }
+        }
+      }
+    },
+    "one_page_pitch": {
+      "type": "object",
+      "description": "One-page pitch document (4-6 pages, 5 min read)",
+      "required": ["filename", "title", "sections"],
+      "additionalProperties": false,
+      "properties": {
+        "filename": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}_investor_memo_one_page_pitch\\.md$",
+          "description": "Output filename following convention",
+          "examples": ["2025-12-30_investor_memo_one_page_pitch.md"]
+        },
+        "title": {
+          "type": "string",
+          "description": "Document title",
+          "examples": ["Emergent: One-Page Pitch"]
+        },
+        "sections": {
+          "type": "object",
+          "required": [
+            "problem",
+            "solution",
+            "market_opportunity",
+            "competitive_advantage",
+            "business_model",
+            "traction",
+            "team",
+            "financial_snapshot",
+            "investment_ask"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "problem": {
+              "$ref": "#/definitions/section"
+            },
+            "solution": {
+              "$ref": "#/definitions/section"
+            },
+            "market_opportunity": {
+              "$ref": "#/definitions/section"
+            },
+            "competitive_advantage": {
+              "$ref": "#/definitions/section"
+            },
+            "business_model": {
+              "$ref": "#/definitions/section"
+            },
+            "traction": {
+              "$ref": "#/definitions/section"
+            },
+            "team": {
+              "$ref": "#/definitions/section"
+            },
+            "financial_snapshot": {
+              "$ref": "#/definitions/section"
+            },
+            "investment_ask": {
+              "$ref": "#/definitions/section"
+            }
+          }
+        }
+      }
+    },
+    "faq": {
+      "type": "object",
+      "description": "Investor FAQ document (20-30 pages, reference)",
+      "required": ["filename", "title", "categories"],
+      "additionalProperties": false,
+      "properties": {
+        "filename": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}_investor_faq\\.md$",
+          "description": "Output filename following convention",
+          "examples": ["2025-12-30_investor_faq.md"]
+        },
+        "title": {
+          "type": "string",
+          "description": "Document title",
+          "examples": ["Emergent: Investor FAQ"]
+        },
+        "categories": {
+          "type": "array",
+          "description": "FAQ categories with questions and answers",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/faq_category"
+          }
+        }
+      }
+    },
+    "materials_index": {
+      "type": "object",
+      "description": "Materials index document cataloging the complete package",
+      "required": ["filename", "title", "overview", "document_suite"],
+      "additionalProperties": false,
+      "properties": {
+        "filename": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}_investor_materials_index\\.md$",
+          "description": "Output filename following convention",
+          "examples": ["2025-12-30_investor_materials_index.md"]
+        },
+        "title": {
+          "type": "string",
+          "description": "Document title",
+          "examples": ["Emergent: Investor Materials Index"]
+        },
+        "overview": {
+          "type": "object",
+          "required": ["description", "last_updated", "version", "status"],
+          "properties": {
+            "description": {
+              "type": "string",
+              "description": "Package description"
+            },
+            "last_updated": {
+              "type": "string",
+              "format": "date",
+              "description": "Last update date"
+            },
+            "version": {
+              "type": "string",
+              "description": "Package version"
+            },
+            "status": {
+              "type": "string",
+              "description": "Round status",
+              "examples": ["Seed Round Materials"]
+            }
+          }
+        },
+        "document_suite": {
+          "type": "array",
+          "description": "List of documents in the package",
+          "minItems": 4,
+          "items": {
+            "$ref": "#/definitions/document_entry"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "section": {
+      "type": "object",
+      "description": "A document section with content requirements",
+      "required": ["present", "word_count_range"],
+      "additionalProperties": false,
+      "properties": {
+        "present": {
+          "type": "boolean",
+          "description": "Whether this section exists in the document"
+        },
+        "word_count_range": {
+          "type": "object",
+          "required": ["min", "max"],
+          "properties": {
+            "min": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Minimum expected word count"
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Maximum expected word count"
+            }
+          }
+        },
+        "subsections": {
+          "type": "array",
+          "description": "Expected subsections within this section",
+          "items": {
+            "type": "string"
+          }
+        },
+        "key_elements": {
+          "type": "array",
+          "description": "Key content elements that must be present",
+          "items": {
+            "type": "string"
+          }
+        },
+        "epf_sources": {
+          "type": "array",
+          "description": "EPF source paths used for this section",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "faq_category": {
+      "type": "object",
+      "description": "FAQ category grouping related questions",
+      "required": ["name", "questions"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Category name",
+          "examples": ["Product & Technology", "Market & Competition", "Business Model", "Team & Execution"]
+        },
+        "questions": {
+          "type": "array",
+          "description": "Questions and answers in this category",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/faq_qa"
+          }
+        }
+      }
+    },
+    "faq_qa": {
+      "type": "object",
+      "description": "FAQ question and answer pair",
+      "required": ["question", "answer"],
+      "additionalProperties": false,
+      "properties": {
+        "question": {
+          "type": "string",
+          "minLength": 5,
+          "description": "Question text"
+        },
+        "answer": {
+          "type": "string",
+          "minLength": 20,
+          "description": "Answer text with supporting details"
+        },
+        "epf_source": {
+          "type": "string",
+          "description": "Primary EPF source for this answer"
+        }
+      }
+    },
+    "document_entry": {
+      "type": "object",
+      "description": "Entry in the materials index for a single document",
+      "required": ["title", "filename", "length", "read_time", "use_case", "contents", "best_for"],
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Document title"
+        },
+        "filename": {
+          "type": "string",
+          "description": "Document filename"
+        },
+        "length": {
+          "type": "string",
+          "description": "Approximate page length",
+          "examples": ["~5 pages", "~15 pages", "~35 pages"]
+        },
+        "read_time": {
+          "type": "string",
+          "description": "Estimated reading time",
+          "examples": ["5 minutes", "15-20 minutes", "45-60 minutes"]
+        },
+        "use_case": {
+          "type": "string",
+          "description": "Primary use case for this document"
+        },
+        "contents": {
+          "type": "array",
+          "description": "List of main content sections",
+          "items": {
+            "type": "string"
+          }
+        },
+        "best_for": {
+          "type": "array",
+          "description": "Scenarios where this document is most appropriate",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

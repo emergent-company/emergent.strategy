@@ -1,0 +1,507 @@
+# This is the default, canonical value model for the Org & Ops track.
+# It provides a comprehensive starting point for most organizations.
+# The sections here form the basis of the living Org & Ops Requirement Document (ORD).
+
+track_name: "OrgOps"
+version: "1.1.0"
+status: "active"
+description: "Builds and maintains the company's operational and cultural engine."
+packaged_default: true
+activation_notes: 'Flip `active: true` on L3 sub-components as you invest. Start narrow.'
+
+# VALUE MODEL MATURITY (VMM) - Track Level Summary
+# Tracks where this value model is on its journey from hypothesis to scaled value delivery.
+# Maturity EMERGES from L3 sub-component evidence, calculated upward using 80% rule.
+# Value domain for OrgOps: organizational context, team capabilities, process maturity
+# See docs/guides/VALUE_MODEL_MATURITY_GUIDE.md for full documentation.
+track_maturity:
+  overall_stage: "hypothetical"  # hypothetical | emerging | proven | scaled
+  stage_override: false
+  value_domain: "Organizational context"  # Example: team capabilities, process maturity, culture health
+  current_milestone: "none"      # none | problem_approach_fit | value_recipient_fit | sustainable_domain_fit
+  next_milestone_criteria:
+    - description: "Define criteria for reaching problem_approach_fit..."
+      status: "not_met"
+  l1_distribution:
+    hypothetical: 0
+    emerging: 0
+    proven: 0
+    scaled: 0
+
+layers:
+  - id: orgops-l1-staffing-talent-acquisition
+    name: STAFFING/TALENT ACQUISITION
+    active: false
+    components:
+    - id: orgops-c-recruitment
+      name: Recruitment
+      active: false
+      subs:
+      - id: orgops-s-job-description-creation
+        name: Job description creation
+        active: false
+      - id: orgops-s-talent-sourcing-strategies
+        name: Talent sourcing strategies
+        active: false
+      - id: orgops-s-hiring-pipelines
+        name: Hiring pipelines
+        active: false
+    - id: orgops-c-workforce-planning
+      name: Workforce Planning
+      active: false
+      subs:
+      - id: orgops-s-role-gap-analysis
+        name: Role gap analysis
+        active: false
+      - id: orgops-s-succession-planning
+        name: Succession planning
+        active: false
+      - id: orgops-s-workforce-forecasting
+        name: Workforce forecasting
+        active: false
+
+  - id: orgops-l1-talent-management
+    name: TALENT MANAGEMENT
+    active: false
+    components:
+    - id: orgops-c-onboarding
+      name: Onboarding
+      active: false
+      subs:
+      - id: orgops-s-orientation-programs
+        name: Orientation programs
+        active: false
+      - id: orgops-s-training-sessions
+        name: Training sessions
+        active: false
+      - id: orgops-s-system-access-and-setup
+        name: System access and setup
+        active: false
+    - id: orgops-c-offboarding
+      name: Offboarding
+      active: false
+      subs:
+      - id: orgops-s-exit-interviews
+        name: Exit interviews
+        active: false
+      - id: orgops-s-knowledge-transfer
+        name: Knowledge transfer
+        active: false
+      - id: orgops-s-access-revocation
+        name: Access revocation
+        active: false
+    - id: orgops-c-training-programs
+      name: Training Programs
+      active: false
+      subs:
+      - id: orgops-s-skill-specific-training
+        name: Skill-specific training
+        active: false
+      - id: orgops-s-leadership-workshops
+        name: Leadership workshops
+        active: false
+      - id: orgops-s-external-certifications
+        name: External certifications
+        active: false
+    - id: orgops-c-career-progression
+      name: Career Progression
+      active: false
+      subs:
+      - id: orgops-s-promotion-pathways
+        name: Promotion pathways
+        active: false
+      - id: orgops-s-growth-frameworks
+        name: Growth frameworks
+        active: false
+      - id: orgops-s-individual-development-plans
+        name: Individual development plans
+        active: false
+      - id: orgops-s-mentorship-programs
+        name: Mentorship programs
+        active: false
+    - id: orgops-c-feedback-performance
+      name: Feedback & Performance
+      active: false
+      subs:
+      - id: orgops-s-performance-reviews
+        name: Performance reviews
+        active: false
+      - id: orgops-s-continuous-feedback-mechanisms
+        name: Continuous feedback mechanisms
+        active: false
+      - id: orgops-s-peer-assessments
+        name: Peer assessments
+        active: false
+      - id: orgops-s-goal-setting-frameworks
+        name: Goal-setting frameworks
+        active: false
+    - id: orgops-c-compensation-benefits
+      name: Compensation & Benefits
+      active: false
+      subs:
+      - id: orgops-s-compensation-reviews
+        name: Compensation reviews
+        active: false
+      - id: orgops-s-benefits-administration
+        name: Benefits administration
+        active: false
+      - id: orgops-s-equity-programs
+        name: Equity programs
+        active: false
+      - id: orgops-s-salary-benchmarking
+        name: Salary benchmarking
+        active: false
+
+  - id: orgops-l1-culture-internal-communications
+    name: CULTURE & INTERNAL COMMUNICATIONS
+    active: false
+    components:
+    - id: orgops-c-values-and-principles
+      name: Values and Principles
+      active: false
+      subs:
+      - id: orgops-s-core-value-articulation
+        name: Core value articulation
+        active: false
+      - id: orgops-s-behavioral-expectations
+        name: Behavioral expectations
+        active: false
+      - id: orgops-s-leadership-alignment
+        name: Leadership alignment
+        active: false
+      - id: orgops-s-diversity-and-inclusion
+        name: Diversity and inclusion
+        active: false
+    - id: orgops-c-collaboration-protocols
+      name: Collaboration Protocols
+      active: false
+      subs:
+      - id: orgops-s-meeting-cadences
+        name: Meeting cadences
+        active: false
+      - id: orgops-s-project-communication-tools
+        name: Project communication tools
+        active: false
+      - id: orgops-s-cross-team-workflows
+        name: Cross-team workflows
+        active: false
+      - id: orgops-s-conflict-resolution
+        name: Conflict resolution
+        active: false
+      - id: orgops-s-knowledge-management
+        name: Knowledge management
+        active: false
+    - id: orgops-c-feedback-mechanisms
+      name: Feedback Mechanisms
+      active: false
+      subs:
+      - id: orgops-s-pulse-surveys
+        name: Pulse surveys
+        active: false
+      - id: orgops-s-retrospectives
+        name: Retrospectives
+        active: false
+      - id: orgops-s-open-forums
+        name: Open forums
+        active: false
+
+  - id: orgops-l1-financial-legal
+    name: FINANCIAL & LEGAL
+    active: false
+    components:
+    - id: orgops-c-budgeting
+      name: Budgeting
+      active: false
+      subs:
+      - id: orgops-s-annual-budget-planning
+        name: Annual budget planning
+        active: false
+      - id: orgops-s-scenario-modeling
+        name: Scenario modeling
+        active: false
+      - id: orgops-s-budget-adjustments
+        name: Budget adjustments
+        active: false
+    - id: orgops-c-accounting
+      name: Accounting
+      active: false
+      subs:
+      - id: orgops-s-bookkeeping
+        name: Bookkeeping
+        active: false
+      - id: orgops-s-expense-tracking
+        name: Expense tracking
+        active: false
+      - id: orgops-s-audit-preparation
+        name: Audit preparation
+        active: false
+      - id: orgops-s-cash-flow-management
+        name: Cash flow management
+        active: false
+    - id: orgops-c-compliance
+      name: Compliance
+      active: false
+      subs:
+      - id: orgops-s-legal-requirements
+        name: Legal requirements
+        active: false
+      - id: orgops-s-regulatory-filings
+        name: Regulatory filings
+        active: false
+      - id: orgops-s-risk-assessments
+        name: Risk assessments
+        active: false
+    - id: orgops-c-risk-management
+      name: Risk Management
+      active: false
+      subs:
+      - id: orgops-s-insurance-policies
+        name: Insurance policies
+        active: false
+      - id: orgops-s-contingency-planning
+        name: Contingency planning
+        active: false
+      - id: orgops-s-risk-mitigation-frameworks
+        name: Risk mitigation frameworks
+        active: false
+    - id: orgops-c-financial-transactions
+      name: Financial Transactions
+      active: false
+      subs:
+      - id: orgops-s-invoicing-and-revenue-collection
+        name: Invoicing & revenue collection
+        active: false
+      - id: orgops-s-supplier-payments
+        name: Supplier payments
+        active: false
+      - id: orgops-s-salary-calculation-and-payments
+        name: Salary calculation & payments
+        active: false
+    - id: orgops-c-intellectual-property-management
+      name: Intellectual Property Management
+      active: false
+      subs:
+      - id: orgops-s-patent-filings
+        name: Patent filings
+        active: false
+      - id: orgops-s-trademark-registration
+        name: Trademark registration
+        active: false
+      - id: orgops-s-trade-secret-protection
+        name: Trade secret protection
+        active: false
+      - id: orgops-s-ip-licensing
+        name: IP licensing
+        active: false
+      - id: orgops-s-ip-portfolio-reviews
+        name: IP portfolio reviews
+        active: false
+
+  - id: orgops-l1-facilities-it
+    name: FACILITIES & IT
+    active: false
+    components:
+    - id: orgops-c-infrastructure-management
+      name: Infrastructure Management
+      active: false
+      subs:
+      - id: orgops-s-physical-workspace-optimization
+        name: Physical workspace optimization
+        active: false
+      - id: orgops-s-vendor-management
+        name: Vendor management
+        active: false
+      - id: orgops-s-equipment-lifecycle-tracking
+        name: Equipment lifecycle tracking
+        active: false
+      - id: orgops-s-remote-work-infrastructure
+        name: Remote work infrastructure
+        active: false
+    - id: orgops-c-it-systems
+      name: IT Systems
+      active: false
+      subs:
+      - id: orgops-s-software-licensing
+        name: Software licensing
+        active: false
+      - id: orgops-s-network-security
+        name: Network security
+        active: false
+      - id: orgops-s-it-helpdesk
+        name: IT helpdesk
+        active: false
+    - id: orgops-c-tools-and-platforms
+      name: Tools and Platforms
+      active: false
+      subs:
+      - id: orgops-s-productivity-tools
+        name: Productivity tools
+        active: false
+      - id: orgops-s-collaboration-platforms
+        name: Collaboration platforms
+        active: false
+      - id: orgops-s-data-management-systems
+        name: Data management systems
+        active: false
+    - id: orgops-c-data-compliance
+      name: Data Compliance
+      active: false
+      subs:
+      - id: orgops-s-gdpr-compliance
+        name: GDPR compliance
+        active: false
+      - id: orgops-s-data-retention-policies
+        name: Data retention policies
+        active: false
+      - id: orgops-s-privacy-impact-assessments
+        name: Privacy impact assessments
+        active: false
+      - id: orgops-s-data-subject-requests
+        name: Data subject requests
+        active: false
+      - id: orgops-s-cross-border-data-transfers
+        name: Cross-border data transfers
+        active: false
+
+  - id: orgops-l1-company-governance-compliance
+    name: COMPANY GOVERNANCE & COMPLIANCE
+    active: false
+    components:
+    - id: orgops-c-board
+      name: Board
+      active: false
+      subs:
+      - id: orgops-s-board-meeting-cadence
+        name: Board meeting cadence
+        active: false
+      - id: orgops-s-board-materials-preparation
+        name: Board materials preparation
+        active: false
+      - id: orgops-s-board-governance-policies
+        name: Board governance policies
+        active: false
+      - id: orgops-s-director-onboarding
+        name: Director onboarding
+        active: false
+      - id: orgops-s-committee-structure
+        name: Committee structure
+        active: false
+    - id: orgops-c-shareholders-investors
+      name: Shareholders & Investors
+      active: false
+      subs:
+      - id: orgops-s-cap-table-management
+        name: Cap table management
+        active: false
+      - id: orgops-s-investor-communications
+        name: Investor communications
+        active: false
+      - id: orgops-s-shareholder-voting
+        name: Shareholder voting
+        active: false
+      - id: orgops-s-equity-administration
+        name: Equity administration
+        active: false
+      - id: orgops-s-investor-reporting
+        name: Investor reporting
+        active: false
+    - id: orgops-c-strategy-execution
+      name: Strategy Execution
+      active: false
+      subs:
+      - id: orgops-s-okr-tracking
+        name: OKR tracking
+        active: false
+      - id: orgops-s-strategic-initiative-reviews
+        name: Strategic initiative reviews
+        active: false
+      - id: orgops-s-cross-functional-alignment
+        name: Cross-functional alignment
+        active: false
+      - id: orgops-s-progress-reporting
+        name: Progress reporting
+        active: false
+      - id: orgops-s-pivot-decision-protocols
+        name: Pivot decision protocols
+        active: false
+    - id: orgops-c-corporate-structure
+      name: Corporate Structure
+      active: false
+      subs:
+      - id: orgops-s-legal-entity-hierarchy
+        name: Legal entity hierarchy
+        active: false
+      - id: orgops-s-subsidiary-management
+        name: Subsidiary management
+        active: false
+      - id: orgops-s-intercompany-agreements
+        name: Intercompany agreements
+        active: false
+      - id: orgops-s-consolidated-governance
+        name: Consolidated governance
+        active: false
+      - id: orgops-s-transfer-pricing-policies
+        name: Transfer pricing policies
+        active: false
+
+  - id: orgops-l1-operational-structure
+    name: OPERATIONAL STRUCTURE
+    active: false
+    components:
+    - id: orgops-c-org-design
+      name: Org Design
+      active: false
+      subs:
+      - id: orgops-s-reporting-structures
+        name: Reporting structures
+        active: false
+      - id: orgops-s-team-topology
+        name: Team topology
+        active: false
+      - id: orgops-s-role-definitions
+        name: Role definitions
+        active: false
+      - id: orgops-s-span-of-control-policies
+        name: Span of control policies
+        active: false
+      - id: orgops-s-reorganization-protocols
+        name: Reorganization protocols
+        active: false
+    - id: orgops-c-process-optimization
+      name: Process Optimization
+      active: false
+      subs:
+      - id: orgops-s-workflow-documentation
+        name: Workflow documentation
+        active: false
+      - id: orgops-s-bottleneck-analysis
+        name: Bottleneck analysis
+        active: false
+      - id: orgops-s-automation-opportunities
+        name: Automation opportunities
+        active: false
+      - id: orgops-s-sop-maintenance
+        name: SOP maintenance
+        active: false
+      - id: orgops-s-continuous-improvement
+        name: Continuous improvement
+        active: false
+    - id: orgops-c-resource-allocation
+      name: Resource Allocation
+      active: false
+      subs:
+      - id: orgops-s-headcount-planning
+        name: Headcount planning
+        active: false
+      - id: orgops-s-capacity-utilization
+        name: Capacity utilization
+        active: false
+      - id: orgops-s-cross-team-lending
+        name: Cross-team lending
+        active: false
+      - id: orgops-s-contractor-management
+        name: Contractor management
+        active: false
+      - id: orgops-s-workload-balancing
+        name: Workload balancing
+        active: false

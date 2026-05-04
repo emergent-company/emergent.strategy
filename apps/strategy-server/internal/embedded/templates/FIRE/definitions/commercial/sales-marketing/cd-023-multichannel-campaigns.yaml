@@ -1,0 +1,859 @@
+# Commercial Process Definition: Multichannel Campaigns
+# Schema: commercial_definition_schema.json v1.1.0
+
+id: cd-023
+name: Multichannel Campaigns
+slug: multichannel-campaigns
+track: commercial
+status: ready
+
+contributes_to:
+  - Commercial.Marketing Operations.multichannel-campaigns
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Coordinated multi-touch campaigns"
+    includes:
+      - Email + social coordination
+      - Simple campaign themes
+      - Manual cross-channel posting
+      - Basic tracking
+    effort: "2-4 weeks per campaign"
+    
+  tier_2_intermediate:
+    description: "Integrated campaign programs"
+    adds:
+      - Multi-channel automation
+      - Consistent messaging across channels
+      - Cross-channel attribution
+      - Campaign playbooks
+    effort: "4-8 weeks program setup, 2-3 weeks per campaign"
+    
+  tier_3_advanced:
+    description: "Orchestrated omnichannel marketing"
+    adds:
+      - Real-time personalization
+      - Dynamic channel optimization
+      - Advanced attribution models
+      - AI-powered orchestration
+    effort: "Sophisticated martech stack + team"
+
+definition:
+  purpose: |
+    Multichannel campaigns coordinate messaging across multiple 
+    marketing channels to amplify impact and reach audiences 
+    wherever they are. Modern buyers interact across email, 
+    social, search, web, and more - campaigns must meet them.
+    
+    Why multichannel matters:
+    
+    1. Reach and frequency. Prospects need 7-10+ touches before 
+       they engage. Single channels rarely deliver enough.
+    
+    2. Meet buyers where they are. Different people prefer 
+       different channels. Multichannel ensures you reach them.
+    
+    3. Reinforced messaging. Consistent message across channels 
+       builds recognition and trust.
+    
+    4. Maximize investment. Content and campaigns work harder 
+       when amplified across channels.
+    
+    5. Attribution clarity. See how channels work together 
+       to drive conversions.
+    
+    Common multichannel campaign types:
+    
+    1. Product launch: Announce new features or products 
+       across all channels.
+    
+    2. Content campaigns: Promote major content pieces through 
+       coordinated distribution.
+    
+    3. Event campaigns: Drive event registration and follow-up 
+       across channels.
+    
+    4. ABM campaigns: Target specific accounts through 
+       personalized multichannel outreach.
+    
+    5. Nurture campaigns: Guide prospects through journey 
+       with coordinated touches.
+    
+  outcome: |
+    Campaigns that reach audiences across preferred channels. 
+    Consistent messaging that builds recognition. Higher 
+    engagement and conversion through coordinated touches. 
+    Clear attribution of channel contribution.
+    
+  owner: Marketing (demand gen, content, and channel specialists)
+  
+  inputs:
+    - name: Campaign objective
+      description: "What we want to achieve"
+      source: Marketing strategy
+      
+    - name: Target audience
+      description: "Who we want to reach"
+      source: Marketing, Sales
+      
+    - name: Content assets
+      description: "What we have to promote"
+      source: Content team
+      
+    - name: Channel capabilities
+      description: "What channels are available"
+      source: Marketing ops
+      
+  outputs:
+    - name: Campaign plan
+      description: "Coordinated channel activities"
+      consumer: Marketing team
+      
+    - name: Campaign assets
+      description: "Channel-specific content"
+      consumer: Channel specialists
+      
+    - name: Campaign results
+      description: "Performance across channels"
+      consumer: Marketing leadership
+
+  steps:
+    - step: 1
+      action: Define campaign strategy
+      responsible: Marketing lead
+      duration: "2-4 hours"
+      deliverable: Campaign brief
+      campaign_definition:
+        objectives:
+          primary:
+            options:
+              - "Generate leads (demand gen)"
+              - "Drive awareness (brand)"
+              - "Enable sales (ABM)"
+              - "Drive adoption (product)"
+            guidance: "One primary objective per campaign"
+          success_metrics:
+            awareness:
+              - "Impressions"
+              - "Reach"
+              - "Brand searches"
+            engagement:
+              - "Clicks"
+              - "Content consumption"
+              - "Social engagement"
+            conversion:
+              - "Leads generated"
+              - "Demos requested"
+              - "Pipeline created"
+        audience:
+          definition:
+            - "Who specifically are we targeting?"
+            - "What segments matter?"
+            - "What is their current awareness?"
+          targeting:
+            - "Job titles and roles"
+            - "Company attributes"
+            - "Behavioral signals"
+        message:
+          core_message:
+            - "What is the one thing they should remember?"
+            - "What is the value proposition?"
+            - "What is the call to action?"
+          message_hierarchy:
+            primary: "Main message (consistent everywhere)"
+            supporting: "Evidence and details"
+            cta: "What we want them to do"
+        offer:
+          what:
+            - "Content (ebook, webinar, etc.)"
+            - "Product (demo, trial, etc.)"
+            - "Event (registration, attendance)"
+          value: "Why should they respond?"
+      channel_selection:
+        available_channels:
+          owned:
+            - "Email"
+            - "Website"
+            - "Blog"
+            - "Social (organic)"
+          earned:
+            - "PR"
+            - "Reviews"
+            - "Word of mouth"
+          paid:
+            - "Paid social"
+            - "Search ads"
+            - "Display"
+            - "Sponsored content"
+        selection_criteria:
+          - "Where is our audience?"
+          - "What is our budget?"
+          - "What resources do we have?"
+          - "What has worked before?"
+      campaign_timeline:
+        phases:
+          pre_launch: "Build anticipation"
+          launch: "Main push"
+          sustain: "Ongoing promotion"
+          follow_up: "Conversion and nurture"
+        duration:
+          short_burst: "1-2 weeks (announcements)"
+          standard: "4-6 weeks (content campaigns)"
+          extended: "8-12 weeks (major launches)"
+      best_practices:
+        - "Start with objective, not tactics"
+        - "Clear audience before channel selection"
+        - "Message consistency across channels"
+        - "Realistic resource assessment"
+
+    - step: 2
+      action: Plan channel orchestration
+      responsible: Marketing lead + channel specialists
+      duration: "4-8 hours"
+      deliverable: Campaign calendar
+      channel_planning:
+        channel_roles:
+          email:
+            role: "Direct communication to known audience"
+            strengths:
+              - "High reach to existing database"
+              - "Personalization possible"
+              - "Trackable"
+            use_for:
+              - "Launch announcements"
+              - "Nurture sequences"
+              - "Conversion push"
+          social_organic:
+            role: "Broad awareness and engagement"
+            strengths:
+              - "Reach beyond email list"
+              - "Social proof and engagement"
+              - "Shareable"
+            use_for:
+              - "Content promotion"
+              - "Community building"
+              - "Real-time updates"
+          social_paid:
+            role: "Targeted reach and amplification"
+            strengths:
+              - "Precise targeting"
+              - "Guaranteed reach"
+              - "Scalable"
+            use_for:
+              - "Lead generation"
+              - "Retargeting"
+              - "ABM targeting"
+          website:
+            role: "Destination and conversion"
+            strengths:
+              - "Full message control"
+              - "Conversion optimization"
+              - "SEO value"
+            use_for:
+              - "Landing pages"
+              - "Content hosting"
+              - "Conversion"
+          content_syndication:
+            role: "Extended reach"
+            strengths:
+              - "New audience access"
+              - "Third-party credibility"
+            use_for:
+              - "Lead generation"
+              - "Awareness building"
+          paid_search:
+            role: "Intent capture"
+            strengths:
+              - "High intent traffic"
+              - "Keyword targeting"
+            use_for:
+              - "Demand capture"
+              - "Branded terms"
+      sequencing:
+        launch_sequence:
+          day_0:
+            - "Website launch (landing page live)"
+            - "Email to engaged segment"
+            - "Social announcement"
+          day_1_3:
+            - "Email to broader list"
+            - "Social series begins"
+            - "Paid social launches"
+          week_1_2:
+            - "Blog content"
+            - "Continued social"
+            - "Retargeting active"
+          ongoing:
+            - "Nurture sequences"
+            - "Evergreen promotion"
+            - "Sales enablement"
+        frequency:
+          email: "2-3 touches per campaign"
+          social: "Daily during active phase"
+          paid: "Continuous during campaign"
+      messaging_coordination:
+        message_adaptation:
+          principle: "Same message, channel-appropriate format"
+          example:
+            core_message: "Introducing feature X"
+            email: "Subject: Announcing X | Body: Full value prop"
+            social_linkedin: "We just launched X. Here's why it matters... [link]"
+            social_twitter: "X is here! [emoji] Learn more: [link]"
+            paid: "Feature X: [benefit]. Try it free."
+        visual_consistency:
+          - "Consistent campaign visuals"
+          - "Adapted for channel specs"
+          - "Recognizable across touches"
+      calendar_creation:
+        format:
+          - "Date/time"
+          - "Channel"
+          - "Content/asset"
+          - "Owner"
+          - "Status"
+        tools:
+          simple: "Spreadsheet or Notion"
+          intermediate: "Marketing calendar tools"
+          advanced: "Marketing automation platform"
+      best_practices:
+        - "Map the full customer journey"
+        - "Build in flexibility"
+        - "Coordinate timing precisely"
+        - "Plan for optimization"
+
+    - step: 3
+      action: Create channel assets
+      responsible: Content + Design + Channel specialists
+      duration: "1-3 weeks"
+      deliverable: Campaign assets
+      asset_types:
+        core_assets:
+          landing_page:
+            elements:
+              - "Headline (core message)"
+              - "Value proposition"
+              - "Supporting content"
+              - "Form or CTA"
+            optimization:
+              - "Mobile responsive"
+              - "Fast loading"
+              - "Clear conversion path"
+          hero_content:
+            types:
+              - "Ebook or guide"
+              - "Webinar"
+              - "Demo video"
+              - "Tool or calculator"
+            purpose: "Primary conversion offer"
+        channel_assets:
+          email:
+            assets:
+              - "Subject lines (multiple for testing)"
+              - "Email body copy"
+              - "Preview text"
+              - "Images"
+            versions: "By segment or stage"
+          social:
+            linkedin:
+              - "Text posts"
+              - "Image posts"
+              - "Carousel slides"
+              - "Video content"
+            twitter:
+              - "Tweet copy (multiple)"
+              - "Thread content"
+              - "Images"
+            specs: "Follow platform specifications"
+          paid:
+            linkedin_ads:
+              - "Sponsored content (1200x627)"
+              - "Ad copy variants"
+              - "Lead gen form"
+            facebook_instagram:
+              - "Feed ads (various formats)"
+              - "Stories (1080x1920)"
+            google:
+              - "Search ad copy"
+              - "Display banners (multiple sizes)"
+          website:
+            - "Blog posts"
+            - "Banner CTAs"
+            - "Pop-ups or slide-ins"
+      asset_creation_workflow:
+        briefing:
+          - "Clear creative brief per asset"
+          - "Message and objectives"
+          - "Specs and requirements"
+        creation:
+          - "Copywriting"
+          - "Design"
+          - "Development (if needed)"
+        review:
+          - "Internal review"
+          - "Stakeholder approval"
+          - "Legal review (if needed)"
+        delivery:
+          - "Final assets organized"
+          - "Versioning clear"
+          - "Ready for scheduling"
+      asset_management:
+        organization:
+          - "Folder structure by campaign"
+          - "Clear naming conventions"
+          - "Version control"
+        tools:
+          simple: "Google Drive or Dropbox"
+          intermediate: "Notion or Airtable"
+          advanced: "DAM (Digital Asset Management)"
+      best_practices:
+        - "Create core message first, adapt for channels"
+        - "Build in testing variants"
+        - "Think mobile-first"
+        - "Plan for repurposing"
+
+    - step: 4
+      action: Execute campaign launch
+      responsible: Marketing team
+      duration: "Campaign period (1-8 weeks)"
+      deliverable: Active campaign
+      pre_launch:
+        checklist:
+          assets:
+            - "All assets created and approved"
+            - "Landing page live and tested"
+            - "Forms working and integrated"
+            - "Tracking in place"
+          scheduling:
+            - "Emails scheduled"
+            - "Social posts scheduled"
+            - "Paid ads ready to launch"
+          team:
+            - "Everyone knows their role"
+            - "Escalation process clear"
+            - "Response protocols ready"
+        testing:
+          - "Email rendering tests"
+          - "Link testing"
+          - "Form submission testing"
+          - "Mobile testing"
+      launch_execution:
+        launch_day:
+          morning:
+            - "Final checks"
+            - "Launch landing page (if not live)"
+            - "Send first emails"
+            - "Post social announcements"
+            - "Activate paid ads"
+          throughout_day:
+            - "Monitor initial performance"
+            - "Respond to engagement"
+            - "Address any issues"
+        first_week:
+          - "Daily performance monitoring"
+          - "Engagement response"
+          - "Issue resolution"
+          - "Quick optimizations"
+      in-flight_management:
+        monitoring:
+          daily:
+            - "Email opens and clicks"
+            - "Social engagement"
+            - "Ad performance"
+            - "Landing page conversions"
+          weekly:
+            - "Lead flow"
+            - "Channel attribution"
+            - "Budget pacing"
+        optimization:
+          email:
+            - "Subject line testing"
+            - "Send time optimization"
+            - "Segment performance"
+          social:
+            - "Post performance"
+            - "Engagement patterns"
+            - "Content adjustments"
+          paid:
+            - "Ad creative testing"
+            - "Audience adjustments"
+            - "Budget reallocation"
+        issue_handling:
+          common_issues:
+            - "Low email opens"
+            - "Poor ad performance"
+            - "Low landing page conversion"
+          response: "Diagnose and adjust quickly"
+      campaign_communication:
+        internal:
+          - "Daily updates during launch"
+          - "Weekly summary during run"
+          - "Issue escalation as needed"
+        stakeholders:
+          - "Regular progress updates"
+          - "Early results sharing"
+      best_practices:
+        - "Monitor closely early"
+        - "Optimize continuously"
+        - "Document what is working"
+        - "Communicate proactively"
+
+    - step: 5
+      action: Manage lead flow
+      responsible: Marketing + Sales
+      duration: "During and after campaign"
+      deliverable: Qualified leads to sales
+      lead_capture:
+        forms:
+          - "Progressive profiling"
+          - "Minimal friction"
+          - "Clear value exchange"
+        enrichment:
+          - "Append company data"
+          - "Append contact data"
+          - "Score based on engagement"
+      lead_routing:
+        scoring:
+          factors:
+            - "Fit (company, title)"
+            - "Engagement (actions taken)"
+            - "Intent signals"
+          thresholds:
+            mql: "Score threshold for marketing qualified"
+            sql: "Score threshold for sales ready"
+        routing:
+          by_segment: "Territory, vertical, size"
+          by_source: "Campaign-specific routing"
+          speed: "Real-time or near-real-time"
+        sla:
+          definition: "Speed and method of follow-up"
+          tracking: "SLA compliance monitoring"
+      sales_handoff:
+        information:
+          - "Lead source and campaign"
+          - "Content consumed"
+          - "Engagement history"
+          - "Qualifying information"
+        process:
+          notification: "How sales is notified"
+          assignment: "How leads are assigned"
+          expectations: "Follow-up requirements"
+        feedback:
+          - "Lead quality feedback"
+          - "Disposition tracking"
+          - "Win/loss information"
+      nurture:
+        not_ready_leads:
+          approach: "Continued nurture"
+          content: "Educational, value-adding"
+          goal: "Build relationship until ready"
+        re-engagement:
+          for: "Leads that go cold"
+          approach: "New offers or content"
+      best_practices:
+        - "Speed matters for hot leads"
+        - "Provide context to sales"
+        - "Track through to outcome"
+        - "Close the feedback loop"
+
+    - step: 6
+      action: Analyze and report
+      responsible: Marketing
+      duration: "Campaign end + 2 weeks"
+      deliverable: Campaign report
+      performance_analysis:
+        by_channel:
+          metrics:
+            email:
+              - "Sends, opens, clicks"
+              - "Click-through rate"
+              - "Conversions"
+            social:
+              - "Reach, impressions"
+              - "Engagement rate"
+              - "Clicks and conversions"
+            paid:
+              - "Impressions, clicks"
+              - "Cost per click"
+              - "Cost per lead"
+              - "ROAS"
+            website:
+              - "Traffic"
+              - "Conversion rate"
+              - "Bounce rate"
+        overall:
+          - "Total leads"
+          - "Cost per lead"
+          - "Pipeline generated"
+          - "ROI"
+      attribution:
+        models:
+          first_touch: "Credit to first channel"
+          last_touch: "Credit to last channel"
+          linear: "Equal credit to all touches"
+          position_based: "More credit to first and last"
+        challenges:
+          - "Cross-device tracking"
+          - "Dark social"
+          - "Long sales cycles"
+        approach: "Use multiple models, focus on trends"
+      reporting:
+        campaign_report:
+          sections:
+            - "Executive summary"
+            - "Objectives vs. results"
+            - "Channel performance"
+            - "Lead and pipeline impact"
+            - "Learnings and recommendations"
+        stakeholder_updates:
+          for_leadership: "Results and ROI"
+          for_sales: "Lead quality and volume"
+          for_marketing: "Tactical learnings"
+      learnings:
+        document:
+          what_worked:
+            - "High-performing channels"
+            - "Best content/messaging"
+            - "Successful tactics"
+          what_did_not:
+            - "Underperforming areas"
+            - "Challenges faced"
+            - "Things to avoid"
+        apply:
+          - "Improve future campaigns"
+          - "Update playbooks"
+          - "Share with team"
+      best_practices:
+        - "Report while campaign is fresh"
+        - "Connect to business outcomes"
+        - "Be honest about what did not work"
+        - "Apply learnings immediately"
+
+  cadence:
+    frequency: "Monthly or quarterly campaigns"
+    trigger: "Product launch, content release, event, quarterly goals"
+    duration: "2-8 weeks per campaign"
+    ongoing:
+      - Continuous campaign calendar
+      - Monthly performance reviews
+      - Quarterly strategy refinement
+      - Annual planning
+
+practitioner_scenarios:
+  - id: ps-001
+    name: "Founder Running First Multichannel Launch"
+    practitioner: "CEO / Founder"
+    organization_context: |
+      Seed-stage startup launching first major product update. 
+      Limited marketing resources. Need to maximize impact of 
+      launch announcement.
+    situation: |
+      Launching significant new feature. Have email list (2,000), 
+      LinkedIn presence, basic website. Want to make splash but 
+      no marketing team. Founder doing it all.
+    trigger: |
+      Feature ready to launch in 2 weeks. Need to plan and 
+      execute launch campaign. Want to generate demos and 
+      show traction to investors.
+    actions: |
+      1. Defined simple campaign:
+         - Objective: Generate 50 demo requests
+         - Audience: Existing list + LinkedIn network
+         - Message: New feature solves problem X
+         - Offer: Early access demo
+      2. Planned three channels:
+         - Email: 3 sends over 2 weeks
+         - LinkedIn: Daily posts + personal outreach
+         - Website: Landing page + blog post
+      3. Created minimal assets:
+         - Landing page with demo form
+         - 3 emails (announce, remind, last chance)
+         - 10 LinkedIn posts
+         - Blog post with details
+         - Demo video (self-recorded)
+      4. Executed launch:
+         - Day 0: Landing page live, email 1, LinkedIn post
+         - Day 1-3: LinkedIn posts, personal DMs to prospects
+         - Day 7: Email 2
+         - Day 14: Email 3 (last chance)
+      5. Managed leads:
+         - Demo requests routed to calendar
+         - Founder followed up same day
+         - Tracked source of each demo
+      6. Results:
+         - 65 demo requests (exceeded goal)
+         - 40% from email, 35% from LinkedIn, 25% from blog
+         - 10 demos converted to trials
+    outcome: |
+      Successful launch with limited resources. Exceeded demo 
+      target. Proved multichannel approach works. Built 
+      repeatable playbook for future launches.
+    lessons:
+      - Simple works when resources are limited
+      - Personal touch matters at early stage
+      - Coordinate timing for maximum impact
+      - Track everything for learning
+
+  - id: ps-002
+    name: "Marketing Manager Scaling Campaign Operations"
+    practitioner: "Marketing Manager"
+    organization_context: |
+      Series A startup with small marketing team. Running 
+      campaigns but not coordinated. Need to build repeatable 
+      multichannel programs.
+    situation: |
+      Running email, social, and some paid separately. Campaigns 
+      not coordinated. No playbooks. Results inconsistent. 
+      Need to professionalize campaign operations.
+    trigger: |
+      VP Marketing asked for campaign strategy. Board wants to 
+      see CAC improvement. Need to demonstrate marketing 
+      effectiveness.
+    actions: |
+      1. Audited current campaigns:
+         - Email: Sporadic, no cadence
+         - Social: Random posts
+         - Paid: On/off, not tied to campaigns
+         - No coordination or measurement
+      2. Built campaign framework:
+         - Campaign types defined
+         - Channel roles clarified
+         - Standard timeline created
+         - Templates and checklists built
+      3. Created campaign playbooks:
+         - Content launch playbook
+         - Webinar playbook
+         - Product launch playbook
+         - Each with timeline, channels, assets
+      4. Built campaign calendar:
+         - Quarterly planning
+         - Monthly campaigns
+         - Channel-level scheduling
+      5. Implemented measurement:
+         - UTM standards
+         - Lead source tracking
+         - Campaign attribution
+         - Regular reporting
+      6. Piloted with content campaign:
+         - Promoted new ebook
+         - 4-channel coordinated push
+         - 6-week campaign
+         - Measured everything
+      7. Results:
+         - 3x leads vs. previous content launch
+         - Clear attribution by channel
+         - Repeatable process established
+    outcome: |
+      Transformed ad hoc marketing into coordinated campaigns. 
+      Playbooks enable consistent execution. Measurement drives 
+      improvement. Foundation for scale.
+    lessons:
+      - Process before tools
+      - Playbooks save time
+      - Coordination multiplies impact
+      - Measurement enables optimization
+
+  - id: ps-003
+    name: "VP Marketing Orchestrating Major Product Launch"
+    practitioner: "VP Marketing"
+    organization_context: |
+      Series B company launching major new product line. 
+      Biggest launch in company history. Multiple channels, 
+      large budget, high expectations.
+    situation: |
+      Launching new product that represents company pivot. 
+      $200K marketing budget for launch. 6-week campaign 
+      window. Board and investors watching closely.
+    trigger: |
+      Product GA date set for 8 weeks out. CEO asked for 
+      launch marketing plan. Need to orchestrate largest 
+      campaign ever run.
+    actions: |
+      1. Built comprehensive strategy:
+         - Objectives: 500 leads, 100 trials, 25 closed
+         - Budget: $200K allocated by channel
+         - Timeline: 2-week pre-launch + 4-week launch
+         - Message: New category, new approach
+      2. Planned full-channel launch:
+         - Email: 5-touch sequence to database
+         - Social organic: Daily for 6 weeks
+         - Social paid: $75K LinkedIn + Twitter
+         - Search paid: $50K brand + category terms
+         - Content: Blog, webinars, PR
+         - Events: Launch event + demos
+         - ABM: Top 50 target accounts
+      3. Created extensive assets:
+         - Product video (professional)
+         - Website section (new pages)
+         - Sales enablement kit
+         - 20+ content pieces
+         - Ad creative suite
+      4. Executed pre-launch:
+         - Teaser campaign
+         - Analyst briefings
+         - Customer beta stories
+         - Internal enablement
+      5. Executed launch:
+         - Day 0: Full coordinated launch
+         - Week 1: Heavy push all channels
+         - Weeks 2-4: Sustain and optimize
+         - Week 5-6: Follow-up and nurture
+      6. Managed in-flight:
+         - Daily performance reviews
+         - Real-time optimization
+         - Budget reallocation
+         - Issue management
+      7. Results:
+         - 750 leads (50% over goal)
+         - 150 trials (50% over goal)
+         - 35 closed in window (40% over goal)
+         - $1.2M pipeline generated
+    outcome: |
+      Most successful launch in company history. Exceeded all 
+      targets. Demonstrated marketing's strategic value. 
+      Established model for future major launches.
+    lessons:
+      - Big launches require months of prep
+      - Coordination is everything
+      - Optimize aggressively in-flight
+      - Over-invest in what is working
+
+operational_context:
+  prerequisites:
+    - Multiple channel capabilities
+    - Content assets to promote
+    - Budget (even if limited)
+    - Tracking and measurement ability
+    
+  common_blockers:
+    - "No coordination - Establish shared calendar"
+    - "Siloed channels - Create campaign pods"
+    - "Poor attribution - Implement tracking"
+    - "Resource constraints - Prioritize channels"
+    
+  integration_points:
+    - Content strategy: Assets for campaigns
+    - Demand gen: Lead management
+    - Sales: Lead handoff and feedback
+    - Product: Launch coordination
+
+risks:
+  if_skipped: |
+    Fragmented marketing with lower impact. Wasted channel 
+    investments. Inconsistent customer experience. Missed 
+    opportunities for amplification.
+    
+  if_over_engineered: |
+    Campaign delays from complexity. High overhead per 
+    campaign. Over-planning reduces agility. Diminishing 
+    returns from small optimizations.
+
+domain_context:
+  related_l2: "Marketing Operations"
+  related_l1: "MARKETING AND BRAND"
+  synergies:
+    - "Email Marketing (cd-020): Core campaign channel"
+    - "Social Media (cd-021): Distribution and engagement"
+    - "Content Strategy (cd-029): Campaign assets"
+    - "Campaign Analytics (cd-025): Performance measurement"

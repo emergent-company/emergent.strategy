@@ -1,0 +1,246 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "track_definition_base_schema.json",
+  "title": "EPF Track Definition Base Schema",
+  "version": "1.0.0",
+  "description": "Base schema for track definitions across all EPF tracks (Product, Strategy, OrgOps, Commercial). Track definitions are procedural templates that practitioners use as input to produce track-specific outputs. They embody EPF's 'grow with the organization' philosophy through maturity tiers.",
+  "$comment": "This base schema defines common structure shared by all track definitions. Track-specific schemas (feature_definition_schema, strategy_definition_schema, org_ops_definition_schema, commercial_definition_schema) extend this base with track-specific fields. Definitions are intentionally NARROW in scope - single responsibility, MVP-implementable in 1-2 days, iteratively expandable. NOTE: additionalProperties intentionally NOT set to false - track-specific schemas extend with additional properties.",
+  "type": "object",
+  "required": ["id", "name", "slug", "track", "status", "contributes_to", "maturity", "definition"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^(fd|sd|pd|cd)-[0-9]{3}$",
+      "description": "Unique identifier. Format: {track-prefix}-{number}. Prefixes: fd (feature/product), sd (strategy), pd (process/org_ops), cd (commercial)",
+      "$comment": "Track-specific prefixes enable easy identification: fd-* for Product features, sd-* for Strategy definitions, pd-* for OrgOps processes, cd-* for Commercial definitions. Three-digit numbers allow up to 999 definitions per track. Example: pd-001 (first process definition), sd-042 (42nd strategy definition).",
+      "examples": ["fd-001", "sd-015", "pd-042", "cd-007"]
+    },
+    "name": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 60,
+      "description": "Human-readable name describing the definition's outcome. Title case, 3-6 words.",
+      "$comment": "Name should describe WHAT this definition produces or enables. Use outcome-oriented language. Good: 'New Hire Orientation', 'OKR Planning Cycle', 'Partnership Qualification'. Avoid: 'The Process for Onboarding' (wordy), 'Onboarding' (too vague).",
+      "examples": ["New Hire Orientation", "OKR Planning Cycle", "Partnership Qualification", "Brand Voice Guidelines"]
+    },
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "description": "URL-safe lowercase identifier derived from name",
+      "examples": ["new-hire-orientation", "okr-planning-cycle", "partnership-qualification"]
+    },
+    "track": {
+      "type": "string",
+      "enum": ["product", "strategy", "org_ops", "commercial"],
+      "description": "The EPF track this definition belongs to",
+      "$comment": "Determines which value model this definition contributes to and which team typically owns execution. product = engineering teams building features, strategy = leadership defining direction, org_ops = operations teams running processes, commercial = revenue teams acquiring/retaining customers."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "ready", "in-use", "deprecated"],
+      "description": "Lifecycle status of this definition template",
+      "$comment": "draft = incomplete, not ready for adoption. ready = validated template, can be adopted. in-use = actively being used by organizations. deprecated = superseded by newer definition, do not adopt."
+    },
+    "contributes_to": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^(Product|Strategy|OrgOps|Commercial)\\.[A-Za-z0-9 &-]+\\.[a-z0-9-]+$"
+      },
+      "minItems": 1,
+      "description": "Value Model L1.L2.L3 paths this definition contributes to",
+      "$comment": "Links definition to value model capabilities. Format: {L1-Pillar}.{L2-Theme}.{L3-Capability}. L2 can contain spaces and ampersands (e.g., 'Feedback & Performance'). L3 is kebab-case (e.g., 'performance-reviews'). A definition typically contributes to 1-2 paths. Multiple paths indicate cross-cutting value.",
+      "examples": [
+        ["OrgOps.Feedback & Performance.performance-reviews"],
+        ["Strategy.Strategic Roadmap.goal-prioritization"],
+        ["Commercial.Sales & Marketing.lead-generation"]
+      ]
+    },
+    "maturity": {
+      "type": "object",
+      "required": ["current_tier"],
+      "description": "Maturity tier model supporting EPF's 'grow with organization' philosophy",
+      "$comment": "Definitions start at Tier 1 (basic/MVP) and organizations can grow into higher tiers as they scale. This prevents over-engineering for small teams while providing a growth path. Canonical EPF definitions typically cover Tier 1 with guidance for Tier 2/3.",
+      "properties": {
+        "current_tier": {
+          "type": "integer",
+          "enum": [1, 2, 3],
+          "description": "Which tier this definition template covers. 1=basic, 2=intermediate, 3=advanced"
+        },
+        "tier_1_basic": {
+          "type": "object",
+          "description": "Minimum viable implementation. 1-2 days effort. For teams of 1-10.",
+          "properties": {
+            "description": {
+              "type": "string",
+              "description": "What Tier 1 includes"
+            },
+            "includes": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Key elements included at this tier"
+            },
+            "effort": {
+              "type": "string",
+              "description": "Typical implementation effort",
+              "examples": ["1-2 days", "4-8 hours"]
+            }
+          }
+        },
+        "tier_2_intermediate": {
+          "type": "object",
+          "description": "Adds structure, metrics, documentation. 1-2 weeks effort. For teams of 10-50.",
+          "properties": {
+            "description": {"type": "string"},
+            "adds": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "What this tier adds on top of Tier 1"
+            },
+            "effort": {"type": "string"}
+          }
+        },
+        "tier_3_advanced": {
+          "type": "object",
+          "description": "Full governance, integrations, optimization. 1+ months effort. For teams of 50+.",
+          "properties": {
+            "description": {"type": "string"},
+            "adds": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "What this tier adds on top of Tier 2"
+            },
+            "effort": {"type": "string"}
+          }
+        }
+      }
+    },
+    "definition": {
+      "type": "object",
+      "required": ["purpose", "outcome", "owner"],
+      "description": "Core definition content - expanded for practitioner-ready templates with rich context",
+      "$comment": "Definition section focuses on WHAT this produces and WHO is responsible. Limits increased to support rich, practitioner-ready content that's immediately actionable.",
+      "properties": {
+        "purpose": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 1500,
+          "description": "Why this definition exists and what problem it solves",
+          "$comment": "Multiple paragraphs explaining the 'why' with practical context. Focus on pain point addressed, value delivered, and when to use. Rich templates include real-world examples and common pitfalls. 1500 char limit supports practitioner-ready depth."
+        },
+        "outcome": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 800,
+          "description": "What exists after successful execution that didn't exist before",
+          "$comment": "Concrete deliverable or state change. Should be verifiable. Can include multiple outcome aspects. Good: 'New hire has completed all first-day tasks, met their team, has access to core systems, and knows who to ask for help.' Rich templates may expand on outcome components."
+        },
+        "owner": {
+          "type": "string",
+          "description": "Role (not person) responsible for this definition",
+          "$comment": "Use role titles that exist across organizations. Examples: 'Engineering Manager', 'HR Lead', 'CFO', 'Product Manager'. Avoid org-specific titles.",
+          "examples": ["Engineering Manager", "HR Lead", "CFO", "Product Manager", "Head of Partnerships"]
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": {"type": "string"},
+              "description": {"type": "string"},
+              "source": {
+                "type": "string",
+                "description": "Where this input comes from (role, system, or prior process)"
+              }
+            }
+          },
+          "description": "What's needed before this definition can be executed"
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": {"type": "string"},
+              "description": {"type": "string"},
+              "consumer": {
+                "type": "string",
+                "description": "Who/what uses this output"
+              }
+            }
+          },
+          "description": "What this definition produces"
+        },
+        "success_criteria": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "How to know if execution was successful",
+          "$comment": "Keep criteria measurable and verifiable. 3-5 criteria typical for narrow definitions."
+        }
+      }
+    },
+    "related_definitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "relationship"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^(fd|sd|pd|cd)-[0-9]{3}$",
+            "description": "ID of related definition"
+          },
+          "relationship": {
+            "type": "string",
+            "enum": ["requires", "enables", "follows", "parallel", "alternative"],
+            "description": "How this definition relates to the other"
+          },
+          "description": {
+            "type": "string",
+            "description": "Brief explanation of the relationship"
+          }
+        }
+      },
+      "description": "Connections to other track definitions enabling composition",
+      "$comment": "Narrow definitions can be composed into larger workflows. 'requires' = must be done first, 'enables' = makes possible, 'follows' = typically done after, 'parallel' = can run simultaneously, 'alternative' = different approach to same outcome."
+    },
+    "adaptation": {
+      "type": "object",
+      "description": "Guidance for customizing this canonical template",
+      "properties": {
+        "customize": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Elements that organizations SHOULD adapt to their context"
+        },
+        "preserve": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Elements that SHOULD remain standard for best results"
+        },
+        "common_variations": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Typical ways organizations modify this template"
+        }
+      }
+    },
+    "references": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string"},
+          "url": {"type": "string", "format": "uri"},
+          "type": {
+            "type": "string",
+            "enum": ["book", "article", "framework", "tool", "template"]
+          }
+        }
+      },
+      "description": "External resources for deeper learning"
+    }
+  }
+}

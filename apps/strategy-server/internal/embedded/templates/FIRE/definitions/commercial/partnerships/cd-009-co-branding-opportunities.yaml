@@ -1,0 +1,810 @@
+# Commercial Process Definition: Co-Branding Opportunities
+# Schema: commercial_definition_schema.json v1.1.0
+
+id: cd-009
+name: Co-Branding Opportunities
+slug: co-branding-opportunities
+track: commercial
+status: ready
+
+contributes_to:
+  - Commercial.Alliance Management.co-branding-opportunities
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Simple co-branding collaborations"
+    includes:
+      - Logo placement exchanges
+      - Joint press releases
+      - Event co-sponsorship
+      - Founder-managed relationships
+    effort: "1-2 weeks to execute"
+    
+  tier_2_intermediate:
+    description: "Structured co-branding programs"
+    adds:
+      - Brand guidelines for partnerships
+      - Joint content creation
+      - Integrated campaigns
+      - Systematic approval processes
+    effort: "4-8 weeks to establish"
+    
+  tier_3_advanced:
+    description: "Strategic brand partnerships"
+    adds:
+      - Co-branded products
+      - Deep brand integration
+      - Multi-channel campaigns
+      - Brand partnership portfolio
+    effort: "3-6 months to develop"
+
+definition:
+  purpose: |
+    Co-branding brings two or more brands together in ways that 
+    benefit all parties. Effective co-branding extends reach, 
+    borrows credibility, and creates unique value for customers.
+    
+    Common co-branding scenarios:
+    
+    1. Logo/endorsement: Partner logos on websites, materials, 
+       products (e.g., "Powered by" or "Integrated with").
+    
+    2. Content collaboration: Joint whitepapers, webinars, case 
+       studies, or thought leadership.
+    
+    3. Event partnership: Co-sponsored events, trade shows, 
+       conferences, or workshops.
+    
+    4. Campaign collaboration: Joint marketing campaigns, 
+       promotions, or product launches.
+    
+    5. Product integration: Co-branded features, integrations, 
+       or bundled offerings.
+    
+    Why co-branding matters for startups:
+    
+    1. Credibility transfer. Association with established brands 
+       signals quality and trust.
+    
+    2. Audience expansion. Reach partner's audience you could 
+       not access alone.
+    
+    3. Resource efficiency. Share marketing costs and effort 
+       with partners.
+    
+    4. Differentiation. Unique partnerships differentiate from 
+       competitors.
+    
+    5. Relationship deepening. Co-branding strengthens partner 
+       commitment.
+    
+  outcome: |
+    Co-branding initiatives that extend reach and credibility. 
+    Clear guidelines that protect brand while enabling collaboration. 
+    Measurable results from co-marketing efforts. Stronger partner 
+    relationships through successful joint activities.
+    
+  owner: VP Marketing (brand), VP BD (partnerships)
+  
+  inputs:
+    - name: Partnership context
+      description: "Nature and depth of partner relationship"
+      source: BD, Partnership agreements
+      
+    - name: Brand guidelines
+      description: "Rules for how our brand can be used"
+      source: Marketing, Brand team
+      
+    - name: Partner brand assets
+      description: "Partner's logos, guidelines, materials"
+      source: Partner marketing team
+      
+    - name: Marketing objectives
+      description: "What we want to achieve"
+      source: Marketing strategy
+      
+  outputs:
+    - name: Co-branding guidelines
+      description: "Rules for joint brand usage"
+      consumer: Marketing, Partners, Agencies
+      
+    - name: Co-branded assets
+      description: "Joint materials and content"
+      consumer: Sales, Marketing, Partners
+      
+    - name: Campaign results
+      description: "Performance of co-branded initiatives"
+      consumer: Marketing, BD, Leadership
+
+  steps:
+    - step: 1
+      action: Identify co-branding opportunities
+      responsible: Marketing + BD
+      duration: "2-4 hours"
+      deliverable: Co-branding opportunity assessment
+      opportunity_identification:
+        existing_partnerships:
+          review:
+            - "Current partner relationships"
+            - "Partnership tier and commitment"
+            - "Marketing clauses in agreements"
+          assessment:
+            - "Which partners would benefit from co-branding?"
+            - "Which have marketing resources to contribute?"
+            - "Which have aligned target audiences?"
+        prospective_partnerships:
+          targets:
+            - "Strategic partners sought"
+            - "Industry leaders for credibility"
+            - "Complementary brands"
+          approach:
+            - "Can co-branding be partnership catalyst?"
+            - "What value can we offer?"
+        brand_fit_assessment:
+          criteria:
+            audience_alignment:
+              question: "Do we target similar customers?"
+              weight: "High"
+            value_alignment:
+              question: "Do our brand values align?"
+              weight: "High"
+            quality_perception:
+              question: "Are brand quality levels compatible?"
+              weight: "Medium"
+            competitive_clarity:
+              question: "Are we clearly non-competitive?"
+              weight: "Critical"
+          scoring:
+            excellent: "All criteria strong match"
+            good: "Most criteria match, minor gaps"
+            weak: "Significant gaps, proceed with caution"
+            avoid: "Values or competitive misalignment"
+      opportunity_types:
+        quick_wins:
+          description: "Low-effort, fast execution"
+          examples:
+            - "Logo placement"
+            - "Case study quote"
+            - "Social media mention"
+          timeline: "Days to weeks"
+        standard_collaborations:
+          description: "Moderate effort, good impact"
+          examples:
+            - "Joint webinar"
+            - "Co-authored content"
+            - "Event co-sponsorship"
+          timeline: "Weeks to months"
+        strategic_initiatives:
+          description: "High effort, high impact"
+          examples:
+            - "Co-branded product"
+            - "Integrated campaign"
+            - "Joint market entry"
+          timeline: "Months to quarters"
+      best_practices:
+        - "Start with strongest partnerships"
+        - "Match opportunity to relationship depth"
+        - "Consider brand fit before excitement"
+        - "Prioritize based on marketing objectives"
+
+    - step: 2
+      action: Define co-branding scope and objectives
+      responsible: Marketing + BD
+      duration: "2-4 hours"
+      deliverable: Co-branding brief
+      scope_definition:
+        initiative_type:
+          options:
+            - "One-time campaign or event"
+            - "Ongoing content collaboration"
+            - "Product-level integration"
+            - "Long-term brand partnership"
+        what_is_included:
+          examples:
+            - "Joint webinar series (quarterly)"
+            - "Co-branded case study (one-time)"
+            - "Logo placement on integration page (ongoing)"
+            - "Co-sponsored industry event (annual)"
+        what_is_excluded:
+          explicitly_state:
+            - "Uses not covered"
+            - "Channels not included"
+            - "Timeframe limitations"
+      objectives:
+        for_us:
+          awareness:
+            - "Reach partner's audience"
+            - "Impressions and visibility"
+          credibility:
+            - "Association with respected brand"
+            - "Third-party validation"
+          leads:
+            - "New prospects generated"
+            - "Pipeline contribution"
+          engagement:
+            - "Audience engagement metrics"
+            - "Content consumption"
+        for_partner:
+          identify: "What they want to achieve"
+          ensure: "Mutual benefit for commitment"
+        success_metrics:
+          define:
+            - "How will we measure success?"
+            - "What targets are we aiming for?"
+            - "How will we track?"
+      resource_commitment:
+        from_us:
+          - "Staff time"
+          - "Budget contribution"
+          - "Content creation"
+          - "Promotional effort"
+        from_partner:
+          - "What they will contribute"
+          - "Resources committed"
+          - "Promotional commitment"
+      best_practices:
+        - "Align objectives before execution"
+        - "Define success metrics upfront"
+        - "Ensure mutual commitment"
+        - "Document expectations clearly"
+
+    - step: 3
+      action: Establish brand guidelines for collaboration
+      responsible: Marketing (Brand)
+      duration: "4-8 hours"
+      deliverable: Co-branding guidelines
+      our_brand_guidelines:
+        logo_usage:
+          approved_uses:
+            - "Logo formats provided (PNG, SVG, etc.)"
+            - "Minimum size requirements"
+            - "Clear space requirements"
+            - "Color specifications"
+          prohibited_uses:
+            - "Modification of logo"
+            - "Unapproved color changes"
+            - "Distortion or effects"
+            - "Inappropriate contexts"
+        brand_elements:
+          colors:
+            - "Primary and secondary colors"
+            - "Usage rules"
+          typography:
+            - "Approved fonts"
+            - "Usage guidelines"
+          messaging:
+            - "Approved language"
+            - "Tone and voice"
+            - "Claims that can be made"
+        approval_process:
+          who_approves: "Marketing lead or designated approver"
+          what_needs_approval:
+            - "Any use of logo"
+            - "Co-branded materials"
+            - "Joint messaging"
+          timeline: "Approval turnaround time"
+          how_to_submit: "Process for requesting approval"
+      partner_guidelines:
+        receive:
+          - "Partner brand guidelines"
+          - "Approved logo formats"
+          - "Usage restrictions"
+        ensure:
+          - "Understand partner requirements"
+          - "Have appropriate approvals"
+          - "Follow their process"
+      co-branded_asset_rules:
+        logo_placement:
+          hierarchy:
+            options:
+              - "Equal placement (side by side)"
+              - "Primary/secondary (lead brand first)"
+              - "Endorsement (smaller supporting logo)"
+            decision_factors:
+              - "Who is leading initiative"
+              - "Partnership tier"
+              - "Audience expectations"
+        joint_materials:
+          requirements:
+            - "Both brand guidelines followed"
+            - "Approval from both parties"
+            - "Clear ownership and usage rights"
+        messaging_guidelines:
+          how_to_describe_relationship:
+            - "Approved relationship language"
+            - "Claims that can be made"
+            - "What to avoid"
+      best_practices:
+        - "Create co-branding one-pager for partners"
+        - "Provide logo files in needed formats"
+        - "Fast approval for trusted partners"
+        - "Regular review of guidelines"
+
+    - step: 4
+      action: Create co-branded assets and content
+      responsible: Marketing + Partner Marketing
+      duration: "1-4 weeks"
+      deliverable: Co-branded materials
+      asset_types:
+        digital_assets:
+          integration_pages:
+            purpose: "Showcase partnership/integration"
+            elements:
+              - "Both logos"
+              - "Integration description"
+              - "Value proposition"
+              - "CTA"
+          partner_badges:
+            purpose: "Display partnership status"
+            variants:
+              - "Partner tier badge"
+              - "Integration badge"
+              - "Certification badge"
+          social_graphics:
+            purpose: "Social media announcements"
+            formats:
+              - "LinkedIn (1200x627)"
+              - "Twitter (1200x600)"
+              - "Instagram (1080x1080)"
+        content_assets:
+          case_studies:
+            joint_customer_stories:
+              - "Customer using both solutions"
+              - "Integration success story"
+              - "Joint implementation"
+            elements:
+              - "Challenge"
+              - "Solution (both products)"
+              - "Results"
+          webinars:
+            formats:
+              - "Educational (thought leadership)"
+              - "Product-focused (integration demo)"
+              - "Customer-focused (joint customer story)"
+            promotion: "Both parties promote"
+          whitepapers:
+            topics:
+              - "Industry trends (both perspectives)"
+              - "Best practices (combined expertise)"
+              - "Research (joint study)"
+          blog_posts:
+            types:
+              - "Partnership announcement"
+              - "Integration how-to"
+              - "Joint thought leadership"
+        event_materials:
+          trade_shows:
+            - "Co-branded booth materials"
+            - "Joint presentations"
+            - "Shared collateral"
+          sponsored_events:
+            - "Co-sponsored signage"
+            - "Joint speaking slots"
+            - "Shared attendee lists"
+      creation_process:
+        planning:
+          - "Agree on asset specs"
+          - "Assign responsibilities"
+          - "Set timeline"
+        creation:
+          - "Draft content/design"
+          - "Internal review"
+          - "Partner review"
+        approval:
+          - "Both parties approve"
+          - "Final sign-off"
+          - "Asset storage"
+        launch:
+          - "Coordinate release"
+          - "Promotion plan"
+          - "Track performance"
+      best_practices:
+        - "Start with templates when possible"
+        - "Build in approval buffer time"
+        - "Coordinate launch timing"
+        - "Share assets in usable formats"
+
+    - step: 5
+      action: Execute co-branded campaigns
+      responsible: Marketing + Partner Marketing
+      duration: "2-8 weeks"
+      deliverable: Campaign execution
+      campaign_planning:
+        campaign_types:
+          launch_campaigns:
+            purpose: "Announce partnership or integration"
+            elements:
+              - "Press release"
+              - "Blog posts (both sides)"
+              - "Social announcements"
+              - "Email to customers"
+              - "Sales enablement"
+          lead_generation_campaigns:
+            purpose: "Generate qualified leads"
+            elements:
+              - "Gated content"
+              - "Webinar with registration"
+              - "Promotional emails"
+              - "Paid promotion"
+          awareness_campaigns:
+            purpose: "Build visibility"
+            elements:
+              - "Content series"
+              - "Social campaign"
+              - "PR and media"
+              - "Event presence"
+        campaign_timeline:
+          pre_launch:
+            - "Finalize assets"
+            - "Prep promotion channels"
+            - "Brief internal teams"
+            - "Coordinate timing"
+          launch:
+            - "Publish content"
+            - "Send announcements"
+            - "Social media push"
+            - "PR outreach"
+          sustain:
+            - "Ongoing promotion"
+            - "Content distribution"
+            - "Follow-up engagement"
+          post_campaign:
+            - "Results analysis"
+            - "Lead follow-up"
+            - "Learnings capture"
+      coordination:
+        communication:
+          - "Shared campaign calendar"
+          - "Regular sync meetings"
+          - "Shared communication channel"
+        responsibilities:
+          define_clearly:
+            - "Who creates what"
+            - "Who promotes where"
+            - "Who tracks what"
+        lead_handling:
+          attribution:
+            - "How are leads attributed?"
+            - "How are they shared?"
+            - "Who follows up?"
+          process:
+            - "Lead capture mechanism"
+            - "Lead sharing process"
+            - "Follow-up coordination"
+      execution_checklist:
+        content:
+          - "All assets approved and ready"
+          - "Published to agreed locations"
+          - "Links working"
+          - "Tracking in place"
+        promotion:
+          - "Email sends scheduled"
+          - "Social posts scheduled"
+          - "Paid promotion live"
+          - "PR coordinated"
+        internal:
+          - "Sales team briefed"
+          - "Customer success informed"
+          - "Support prepared"
+      best_practices:
+        - "Over-communicate during campaigns"
+        - "Coordinate timing precisely"
+        - "Track everything"
+        - "Follow up on leads quickly"
+
+    - step: 6
+      action: Measure and optimize
+      responsible: Marketing
+      duration: "Ongoing"
+      deliverable: Co-branding performance insights
+      measurement:
+        activity_metrics:
+          reach:
+            - "Impressions"
+            - "Views"
+            - "Attendees"
+          engagement:
+            - "Clicks"
+            - "Downloads"
+            - "Registrations"
+            - "Social engagement"
+        outcome_metrics:
+          leads:
+            - "Leads generated"
+            - "Lead quality"
+            - "Pipeline contribution"
+          brand:
+            - "Brand awareness lift"
+            - "Perception changes"
+            - "Share of voice"
+          relationship:
+            - "Partner satisfaction"
+            - "Repeat collaborations"
+            - "Partnership growth"
+        roi_calculation:
+          investment:
+            - "Staff time"
+            - "Budget spent"
+            - "Opportunity cost"
+          return:
+            - "Lead value"
+            - "Pipeline influenced"
+            - "Brand value"
+      reporting:
+        post_campaign:
+          - "Campaign performance report"
+          - "Leads and attribution"
+          - "Learnings and recommendations"
+        periodic:
+          - "Quarterly co-branding summary"
+          - "Partner-by-partner performance"
+          - "Portfolio assessment"
+        sharing:
+          - "Share results with partner"
+          - "Celebrate successes"
+          - "Discuss improvements"
+      optimization:
+        campaign_level:
+          what_worked: "Double down"
+          what_did_not: "Adjust or stop"
+          new_ideas: "Test and learn"
+        partner_level:
+          strong_performers: "Expand collaboration"
+          weak_performers: "Diagnose and fix or reduce"
+          new_opportunities: "Explore expansion"
+        program_level:
+          resource_allocation: "Focus on highest ROI"
+          process_improvement: "Streamline execution"
+          strategy_adjustment: "Align with objectives"
+      best_practices:
+        - "Measure what matters (outcomes > activities)"
+        - "Share results with partners"
+        - "Learn from every campaign"
+        - "Continuously optimize"
+
+  cadence:
+    frequency: "Ongoing with campaigns"
+    trigger: "Partnership formed, Marketing opportunity, Seasonal"
+    duration: "Weeks to months per initiative"
+    ongoing:
+      - Weekly campaign coordination during active campaigns
+      - Monthly co-branding pipeline review
+      - Quarterly partner marketing planning
+      - Annual brand partnership strategy
+
+practitioner_scenarios:
+  - id: ps-001
+    name: "Founder Launching First Integration Partnership"
+    practitioner: "CEO / Founder"
+    organization_context: |
+      Seed-stage startup. Just completed integration with major 
+      platform partner. Integration technically live, need to 
+      announce and drive adoption.
+    situation: |
+      Built integration with well-known platform (10x our size). 
+      Integration working, but no co-marketing plan. Want to 
+      maximize launch impact and start generating leads.
+    trigger: |
+      Integration approved for partner marketplace. Partner 
+      marketing team reached out about launch activities.
+    actions: |
+      1. Met with partner marketing team:
+         - They offered listing in marketplace
+         - Optional: joint blog post if we write
+         - Optional: webinar slot in 6 weeks
+         - They will share on social if we tag them
+      2. Defined our objectives:
+         - Announce integration to our audience
+         - Get partner's credibility boost
+         - Generate leads from partner's audience
+         - Build foundation for deeper collaboration
+      3. Created launch plan:
+         - Day 0: Integration page on our site live
+         - Day 1: Blog post (our site)
+         - Day 1: Social media announcement
+         - Week 2: Email to our customers
+         - Week 3: Partner blog post (their site)
+         - Week 6: Joint webinar
+      4. Created assets:
+         - Integration landing page with both logos
+         - Blog post (partner reviewed and approved)
+         - Social graphics following both guidelines
+         - Webinar slides and registration page
+      5. Coordinated with partner:
+         - Shared blog draft, they edited
+         - Sent graphics for approval
+         - Agreed on webinar topic and format
+         - Set up lead sharing for webinar
+      6. Executed launch:
+         - Published on schedule
+         - Partner amplified on social
+         - Webinar had 150 registrants
+         - Generated 45 qualified leads
+      7. Followed up:
+         - Split leads with partner
+         - Sent thank you and results
+         - Proposed next collaboration
+    outcome: |
+      Integration announced with strong partner support. 45 leads 
+      generated, 8 converted to trials. Partner relationship 
+      strengthened. Invited to partner conference as integration 
+      spotlight.
+    lessons:
+      - Partner marketing teams want easy wins too
+      - Do the work to make their job easy
+      - Start with what is offered, then ask for more
+      - Quick results lead to more opportunities
+
+  - id: ps-002
+    name: "VP Marketing Building Co-Branding Program"
+    practitioner: "VP Marketing"
+    organization_context: |
+      Series B SaaS with 15+ integration partners. Ad hoc co-
+      marketing happening but no structure. Opportunity to 
+      systematize and scale.
+    situation: |
+      Random co-branding requests from partners and BD. Some 
+      partners get lots of marketing, others none. No guidelines, 
+      no measurement, no prioritization.
+    trigger: |
+      CEO asked why certain partners get marketing attention and 
+      others do not. BD frustrated by inconsistent partner 
+      marketing support.
+    actions: |
+      1. Audited current state:
+         - 15 integration partners
+         - 5 have active co-marketing
+         - 10 have only logo placement
+         - No clear criteria for differences
+         - No measurement of results
+      2. Created partner marketing tiers:
+         - Tier 1 (Strategic - 3 partners):
+           - Quarterly joint webinar
+           - Annual case study
+           - Campaign collaboration
+           - Dedicated marketing contact
+         - Tier 2 (Growth - 5 partners):
+           - Annual webinar
+           - Integration content
+           - Social amplification
+         - Tier 3 (Standard - 7 partners):
+           - Marketplace listing
+           - Logo placement
+           - Joint announcements
+      3. Developed co-branding guidelines:
+         - Logo usage rules
+         - Approval process
+         - Asset templates
+         - Partner resource kit
+      4. Created partner marketing playbooks:
+         - Integration launch playbook
+         - Joint webinar playbook
+         - Case study playbook
+         - Campaign playbook
+      5. Built measurement framework:
+         - Track all co-marketing activities
+         - Measure leads by partner
+         - Calculate partner marketing ROI
+      6. Staffed appropriately:
+         - Hired partner marketing manager
+         - Created partner marketing calendar
+         - Established partner marketing budget
+      7. Communicated to partners:
+         - Shared tier criteria
+         - Explained benefits per tier
+         - Provided resource kits
+         - Set expectations
+    outcome: |
+      Structured co-branding program launched. Clear tiers and 
+      expectations. Measurable results. Partner satisfaction 
+      increased. More partners pursuing tier upgrades.
+    lessons:
+      - Structure enables scale
+      - Tiers create clarity and motivation
+      - Playbooks reduce friction
+      - Measurement drives improvement
+
+  - id: ps-003
+    name: "CMO Managing Brand Risk in Partnership"
+    practitioner: "CMO"
+    organization_context: |
+      Series C company with strong brand. Major co-branding 
+      opportunity with industry leader, but concerns about 
+      brand positioning and control.
+    situation: |
+      Industry leader (100x our size) wants deep co-branding: 
+      co-branded product, joint marketing campaign, shared 
+      trade show presence. Exciting but risky.
+    trigger: |
+      BD brought opportunity after partner expressed interest. 
+      CEO enthusiastic. CMO concerned about brand dilution and 
+      control.
+    actions: |
+      1. Assessed opportunity:
+         - Partner: Industry leader, strong reputation
+         - Proposal: Co-branded product feature
+         - Reach: Access to their large customer base
+         - Risk: Our brand subordinated, loss of control
+      2. Defined brand protection requirements:
+         - Logo always equal or leading position
+         - Our brand colors and identity preserved
+         - Joint messaging we approve
+         - No exclusivity that limits other partnerships
+         - Clear product ownership (we built it)
+      3. Negotiated co-branding terms:
+         - Equal logo placement on product
+         - Joint press release with equal billing
+         - Separate landing pages (they drive to ours)
+         - Approval rights on all co-branded materials
+         - 90-day notice for any brand-related changes
+      4. Created detailed co-branding agreement:
+         - Specific approved uses
+         - Prohibited uses explicitly listed
+         - Approval process defined
+         - Termination rights if brand misused
+         - Regular review cadence
+      5. Prepared internal brand assets:
+         - Co-branded templates we control
+         - Pre-approved messaging
+         - Asset library for partner
+         - Internal review checklist
+      6. Established governance:
+         - Marketing lead reviews all uses
+         - Weekly sync during campaign
+         - Escalation path for issues
+         - Quarterly brand review
+      7. Executed with controls:
+         - Provided all assets to partner
+         - Reviewed all materials before use
+         - Monitored usage
+         - Addressed issues quickly
+    outcome: |
+      Co-branding launched successfully. Brand integrity preserved. 
+      Strong leads from partnership. Template established for 
+      future strategic partnerships.
+    lessons:
+      - Protect brand in negotiations, not after
+      - Be specific about approved and prohibited uses
+      - Provide assets to maintain control
+      - Monitor and address issues quickly
+
+operational_context:
+  prerequisites:
+    - Partnership relationships worth co-branding
+    - Brand guidelines and assets
+    - Marketing capacity to execute
+    - Legal framework for brand usage
+    
+  common_blockers:
+    - "No brand guidelines - Create them first"
+    - "Partner delays - Build buffer into timelines"
+    - "Unclear objectives - Align before executing"
+    - "Resource constraints - Prioritize high-value opportunities"
+    
+  integration_points:
+    - Marketing: Brand, content, campaigns
+    - BD: Partnership relationships
+    - Sales: Enablement and lead handling
+    - Legal: Brand usage agreements
+
+risks:
+  if_skipped: |
+    Brand used inconsistently by partners. Missed reach and 
+    credibility opportunities. Partners frustrated by lack of 
+    marketing support. No measurement of partnership marketing value.
+    
+  if_over_engineered: |
+    Partners discouraged by process complexity. Opportunities 
+    missed due to slow approvals. Marketing capacity consumed 
+    by process rather than execution.
+
+domain_context:
+  related_l2: "Alliance Management"
+  related_l1: "BUSINESS DEVELOPMENT AND PARTNERSHIPS"
+  synergies:
+    - "Partnership Metrics (cd-003): Measure co-branding impact"
+    - "Stakeholder Relationship (cd-004): Partner relationships"
+    - "Agreement Reviews (cd-005): Co-branding agreements"
+    - "Revenue Sharing (cd-007): Commercial aspects of partnerships"

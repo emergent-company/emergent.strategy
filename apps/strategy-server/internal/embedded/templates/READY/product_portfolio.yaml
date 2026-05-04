@@ -1,0 +1,349 @@
+# EPF v1.13.0 - Product Portfolio Template
+# Product Portfolio Template
+# Schema: schemas/product_portfolio_schema.json
+#
+# PURPOSE:
+# Defines the complete product portfolio for your organization, including:
+# - Product lines (distinct value models with separate development tracks)
+# - Relationships between product lines (dependencies, integrations)
+# - Brands (how products are marketed and sold)
+# - Offerings (specific SKUs combining components under brands)
+#
+# WHEN TO USE:
+# - You have multiple distinct product lines (e.g., software + hardware)
+# - Products need to integrate or depend on each other
+# - You sell under multiple brand names
+#
+# Related Resources:
+# - Schema: ../../schemas/product_portfolio_schema.json
+# - Guide: ../../docs/guides/PRODUCT_PORTFOLIO_GUIDE.md
+
+# - You need to map components to market offerings
+#
+# INSTRUCTIONS:
+# 1. Start with the portfolio metadata
+# 2. Define each distinct product line with its own value model
+# 3. Map relationships between product lines (if any)
+# 4. Define your brand strategy
+# 5. Create offerings (specific products sold to customers)
+#
+# See docs/guides/PRODUCT_PORTFOLIO_GUIDE.md for detailed explanation
+
+portfolio:
+  # Unique identifier for this portfolio
+  # Pattern: portfolio-{org-slug}
+  id: "portfolio-your-org"
+  
+  # Portfolio name
+  name: "Your Organization Product Portfolio"
+  
+  # High-level description of your complete portfolio
+  description: |
+    Brief overview of your organization's product portfolio, what problems
+    it solves, and how the pieces fit together.
+    
+    Example: "Acme's portfolio combines hardware sensors with cloud analytics
+    to deliver complete IoT monitoring solutions for industrial facilities."
+  
+  # Schema version (use current)
+  version: "1.0.0"
+  
+  # Organization owning this portfolio
+  organization:
+    name: "Your Organization Name"
+    legal_entity: "Your Legal Entity Name (if different)"
+
+  # ============================================================================
+  # PRODUCT LINES
+  # ============================================================================
+  # Each product line represents a distinct value model with separate development.
+  # Examples:
+  # - Software platform vs hardware devices
+  # - Consumer product line vs enterprise product line
+  # - Core product vs complementary service
+  #
+  # KEY QUESTIONS:
+  # - Does this have a fundamentally different value model?
+  # - Does it target different customer segments?
+  # - Is it developed on a different track/timeline?
+  # - Could it be sold independently?
+  
+  product_lines:
+    # Example Product Line 1
+    - id: "pl-example-1"
+      name: "Example Product Line 1"
+      codename: "Internal Codename"
+      type: "software" # or hardware, service, platform, data, hybrid, other
+      
+      description: |
+        What this product line delivers and to whom.
+        
+        Example: "Cloud-based analytics platform that processes sensor data
+        and delivers insights to operations teams through web dashboards
+        and mobile apps."
+      
+      # Reference to the value model file for this product line
+      # Located in your instance: _instances/{product}/FIRE/value_models/
+      value_model_ref: "product_line_1.value_model.yaml"
+      
+      # Development status
+      status: "development" # or active, sunset, concept
+      
+      # Target market for this product line
+      target_market:
+        segments:
+          - "Example Segment 1"
+          - "Example Segment 2"
+        verticals:
+          - "Example Industry 1"
+          - "Example Industry 2"
+        geographies:
+          - "Example Region 1"
+          - "Example Region 2"
+      
+      # Key components that make up this product line
+      # Each component should be defined in the value model
+      key_components:
+        - component_ref: "ComponentName1"
+          role: core # or supporting
+        - component_ref: "ComponentName2"
+          role: supporting
+      
+      # Version management for this product line
+      versioning:
+        current_version: "1.0.0"
+        version_strategy: "semver" # or codename, date-based
+        release_cadence: "quarterly" # or monthly, on-demand, continuous
+      
+      # Dependencies and requirements
+      dependencies:
+        requires_product_lines: [] # IDs of other product lines needed
+        external_dependencies:
+          - "External System 1"
+          - "External Service 2"
+
+    # Example Product Line 2
+    # (Copy pattern above for additional product lines)
+    # - id: "pl-example-2"
+    #   name: "Example Product Line 2"
+    #   ...
+
+  # ============================================================================
+  # PRODUCT LINE RELATIONSHIPS
+  # ============================================================================
+  # Define how product lines interact, integrate, or depend on each other.
+  # Common relationship types:
+  # - controls: One product line provides control/orchestration for another
+  # - enables: One product line provides foundation for another
+  # - complements: Product lines enhance each other's value
+  # - integrates: Product lines share data or functionality
+  
+  product_line_relationships:
+    # Example: Software controls Hardware
+    - id: "plr-software-controls-hardware"
+      from_product_line: "pl-example-1"
+      to_product_line: "pl-example-2"
+      relationship_type: "controls" # or enables, complements, integrates
+      
+      description: |
+        Describe how these product lines interact.
+        
+        Example: "Software platform provides operational control and monitoring
+        for hardware devices. Software sends configuration and control signals;
+        hardware returns telemetry and status data."
+      
+      # Specific integration points between components
+      integration_points:
+        - from_component: "ComponentFromPL1"
+          to_component: "ComponentFromPL2"
+          integration_type: "control_signal" # or data_flow, api_call, event_stream
+          description: "What data/signals flow between components"
+        
+        - from_component: "AnotherComponentFromPL1"
+          to_component: "AnotherComponentFromPL2"
+          integration_type: "data_flow"
+          description: "Another integration point description"
+      
+      # Does information flow both ways?
+      bidirectional: true # or false
+
+    # Add more relationships as needed
+    # - id: "plr-example-relationship-2"
+    #   ...
+
+  # ============================================================================
+  # BRANDS
+  # ============================================================================
+  # Brands define how you present products to the market.
+  # Types:
+  # - master: Company/organization brand
+  # - product: Specific product brand (e.g., "Humatopia")
+  # - sub: Variants or editions (e.g., "Pro", "Enterprise")
+  
+  brands:
+    # Master Brand (typically one per organization)
+    - id: "brand-master"
+      name: "Your Organization Brand"
+      type: "master"
+      
+      description: |
+        The master brand represents your organization and overall mission.
+        
+        Example: "Acme represents innovation in industrial IoT, bringing
+        smart monitoring to traditional manufacturing."
+      
+      status: "active"
+      
+      # Which product lines does this brand cover?
+      applies_to:
+        product_lines:
+          - "pl-example-1"
+          - "pl-example-2"
+      
+      # Brand elements
+      brand_elements:
+        tagline: "Your Brand Tagline"
+        value_proposition_summary: |
+          High-level value proposition for this brand.
+          
+          Example: "Making industrial operations smarter through real-time
+          data and AI-powered insights."
+        
+        brand_personality:
+          - "Innovative"
+          - "Reliable"
+          - "Customer-focused"
+      
+      # Brand history/evolution
+      history:
+        - date: "YYYY-MM-DD"
+          event: "created"
+          description: "Brand established"
+
+    # Product Brand (for specific product lines)
+    - id: "brand-product-1"
+      name: "Product Brand Name"
+      type: "product"
+      
+      description: |
+        Brand identity for a specific product line.
+        
+        Example: "Humatopia is the brand for our software platform,
+        representing intelligent energy management."
+      
+      status: "active"
+      
+      applies_to:
+        product_lines:
+          - "pl-example-1"
+      
+      brand_elements:
+        tagline: "Product-specific tagline"
+        value_proposition_summary: |
+          Value proposition specific to this product brand.
+        brand_personality:
+          - "User-friendly"
+          - "Powerful"
+      
+      history:
+        - date: "YYYY-MM-DD"
+          event: "created"
+          description: "Product brand launched"
+
+  # ============================================================================
+  # OFFERINGS
+  # ============================================================================
+  # Offerings are specific products sold to customers (SKUs).
+  # They combine components from product lines under a brand.
+  #
+  # Example: "Enterprise Suite" offering includes:
+  # - Software Platform (from PL1) + Premium Support (from PL2)
+  # - Sold under "Acme Pro" brand
+  # - Has specific SKU, pricing, and customer segments
+  
+  offerings:
+    # Example Offering
+    - id: "offering-example-1"
+      name: "Example Offering Name"
+      description: |
+        What the customer gets when they buy this offering.
+        
+        Example: "Enterprise Suite includes full platform access,
+        unlimited sensors, 24/7 support, and custom integrations."
+      
+      # Which brand is this sold under?
+      brand_id: "brand-product-1"
+      
+      # Components included in this offering
+      includes:
+        components:
+          - product_line_id: "pl-example-1"
+            component_ref: "ComponentName1"
+            quantity: 1
+            configuration: "Standard configuration details"
+          
+          - product_line_id: "pl-example-2"
+            component_ref: "ComponentName2"
+            quantity: 1
+            configuration: "Standard configuration details"
+        
+        services:
+          - "Installation"
+          - "Training"
+          - "Premium Support"
+      
+      # Target segments for this specific offering
+      target_segments:
+        - "Enterprise Customers"
+        - "High-volume Users"
+      
+      # Pricing model
+      pricing:
+        model: "subscription" # or one-time, usage-based, tiered
+        base_price: null # Fill in if publicly disclosed
+        currency: "USD"
+        billing_period: "monthly" # or annual, one-time
+      
+      # SKU information
+      sku:
+        sku_id: "SKU-001"
+        variations:
+          - variant: "Standard"
+            sku_suffix: "-STD"
+          - variant: "Premium"
+            sku_suffix: "-PRE"
+      
+      # Lifecycle status
+      status: "active" # or planned, sunset, archived
+      
+      availability:
+        regions:
+          - "North America"
+          - "Europe"
+        launch_date: "YYYY-MM-DD"
+        sunset_date: null
+
+    # Add more offerings as needed
+    # - id: "offering-example-2"
+    #   ...
+
+# ============================================================================
+# NEXT STEPS
+# ============================================================================
+# After creating your portfolio:
+#
+# 1. Create value models for each product line
+#    Location: _instances/{product}/FIRE/value_models/{product_line}.value_model.yaml
+#
+# 2. Define feature definitions for capabilities
+#    Location: _instances/{product}/FIRE/feature_definitions/fd-*.yaml
+#
+# 3. Map to your North Star and Strategy Foundations
+#    - How do product lines support your mission?
+#    - Which strategic pillars does each line address?
+#
+# 4. Create roadmap recipes
+#    - What's the development sequence for product lines?
+#    - What are the milestones and dependencies?
+#
+# See docs/guides/INSTANTIATION_GUIDE.md for complete workflow

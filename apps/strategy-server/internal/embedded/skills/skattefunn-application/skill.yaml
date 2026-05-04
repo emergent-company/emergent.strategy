@@ -1,0 +1,46 @@
+name: skattefunn-application
+version: "1.0.0"
+type: generation
+description: "Creates Norwegian SkatteFUNN R&D tax credit applications from EPF strategy data, following Skattetaten guidelines and format requirements."
+category: compliance
+author: "EPF Framework"
+regions:
+  - "NO"
+
+capability:
+  class: balanced
+  context_budget: large
+
+requires:
+  artifacts:
+    - north_star
+    - strategy_formula
+    - roadmap_recipe
+  optional:
+    - personas
+    - value_model
+    - feature_definition
+  tools:
+    - epf_get_product_vision
+    - epf_get_roadmap_summary
+
+output:
+  format: markdown
+  schema: schema.json
+  validator: validator.sh
+
+files:
+  prompt: wizard.instructions.md
+  schema: schema.json
+  validator: validator.sh
+  template: template.md
+
+scope:
+  preferred_tools:
+    - epf_get_product_vision
+    - epf_get_roadmap_summary
+    - epf_get_value_propositions
+    - epf_search_strategy
+  avoid_tools:
+    - epf_init_instance
+    - epf_scaffold_generator

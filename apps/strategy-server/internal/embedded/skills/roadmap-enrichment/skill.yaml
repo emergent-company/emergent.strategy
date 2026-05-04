@@ -1,0 +1,33 @@
+name: roadmap-enrichment
+version: "1.0.0"
+type: enrichment
+phase: READY
+description: "Enriches roadmap with TRL fields, hypothesis-driven validation tracking, and innovation maturity levels across all four tracks."
+
+capability:
+  class: balanced
+  context_budget: medium
+
+requires:
+  artifacts:
+    - roadmap_recipe
+  optional:
+    - value_model
+    - strategy_formula
+  tools:
+    - epf_get_schema
+    - epf_validate_file
+
+output:
+  format: yaml
+  artifact_type: roadmap_recipe
+
+scope:
+  preferred_tools:
+    - epf_get_schema
+    - epf_get_template
+    - epf_validate_file
+    - epf_get_roadmap_summary
+  avoid_tools:
+    - epf_scaffold_generator
+    - epf_init_instance

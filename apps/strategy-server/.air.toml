@@ -1,0 +1,20 @@
+[build]
+  cmd = "go build -o build/strategy-server ."
+  bin = "build/strategy-server server"
+  delay = 1000
+  exclude_dir = ["build", "vendor", "web/node_modules"]
+  include_ext = ["go", "toml"]
+  kill_delay = "0s"
+  log = "build-errors.log"
+
+[log]
+  time = true
+
+[color]
+  main = "magenta"
+  watcher = "cyan"
+  build = "yellow"
+  runner = "green"
+
+[misc]
+  clean_on_exit = true

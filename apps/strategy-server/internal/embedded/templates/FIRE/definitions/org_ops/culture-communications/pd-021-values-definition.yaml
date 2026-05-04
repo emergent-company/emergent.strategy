@@ -1,0 +1,511 @@
+# OrgOps Process Definition: Values Definition
+# Schema: org_ops_definition_schema.json v1.1.0
+
+id: pd-021
+name: Values Definition
+slug: values-definition
+track: org_ops
+status: ready
+
+contributes_to:
+  - OrgOps.Values and Principles.core-value-articulation
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Articulated core values"
+    includes:
+      - 3-5 core values documented
+      - Simple descriptions of each
+      - Shared with team
+    effort: "Half day for founders/leadership"
+    
+  tier_2_intermediate:
+    description: "Values with behavioral anchors"
+    adds:
+      - Observable behaviors for each value
+      - Counter-examples (what we don't mean)
+      - Integration into hiring
+      - Regular reinforcement
+    effort: "1-2 days development, ongoing reinforcement"
+    
+  tier_3_advanced:
+    description: "Living values system"
+    adds:
+      - Values assessment in performance
+      - Recognition tied to values
+      - Values evolution process
+      - Cultural narrative
+    effort: "Ongoing culture function"
+
+definition:
+  purpose: |
+    Values are how we decide when there's no clear answer. Without explicit 
+    values, decisions are inconsistent and culture forms by accident. 
+    Defined values create alignment and help with hiring, conflict 
+    resolution, and strategic choices.
+    
+  outcome: |
+    Organization has clearly articulated values that reflect who they are 
+    and who they aspire to be. People can reference values when making 
+    decisions. Values are used in hiring and reinforced in practice.
+    
+  owner: CEO or Founders
+  
+  inputs:
+    - name: Founder beliefs
+      description: What founders fundamentally believe about work/company
+      source: Founder reflection
+    - name: Cultural reality
+      description: What actually characterizes the team
+      source: Observation, team input
+    - name: Aspirational elements
+      description: What we want to become
+      source: Strategic vision
+      
+  outputs:
+    - name: Values document
+      description: Written values with descriptions
+      consumer: All employees, candidates
+    - name: Behavioral anchors (Tier 2)
+      description: Observable behaviors for each value
+      consumer: Hiring, performance
+      
+  steps:
+    - step: 1
+      action: Reflect on foundational beliefs
+      responsible: Founders/CEO
+      duration: "1-2 hours"
+      deliverable: Raw notes on beliefs and priorities
+      questions:
+        - What do we believe about how work should be done?
+        - What behaviors do we celebrate?
+        - What would make us fire someone regardless of performance?
+      
+    - step: 2
+      action: Gather team input (if team exists)
+      responsible: CEO or People Lead
+      duration: "1-2 hours"
+      deliverable: Team perspectives
+      methods:
+        - Survey asking what characterizes the team
+        - Discussion in team meeting
+        - 1:1 conversations with tenured employees
+      
+    - step: 3
+      action: Synthesize into 3-5 values
+      responsible: Founders/CEO
+      duration: "2-3 hours"
+      deliverable: Draft values list
+      criteria:
+        - Distinctive (not generic like "integrity")
+        - Memorable
+        - Actionable
+        - True (reflects reality or genuine aspiration)
+      
+    - step: 4
+      action: Write descriptions
+      responsible: CEO
+      duration: "1-2 hours"
+      deliverable: Value + description for each
+      
+    - step: 5
+      action: Get feedback and refine
+      responsible: CEO + Leadership
+      duration: "1 hour"
+      deliverable: Final values
+      
+    - step: 6
+      action: Share with organization
+      responsible: CEO
+      duration: "30 minutes"
+      deliverable: All-hands or written communication
+      
+  cadence:
+    frequency: once
+    trigger: Company formation, major pivot, values drift
+    duration: "Initial: half to full day | Review: annually"
+    
+  participants:
+    - role: Founders/CEO
+      responsibility: Lead definition, own values
+      time_commitment: "4-8 hours"
+    - role: Leadership team
+      responsibility: Input and feedback
+      time_commitment: "1-2 hours"
+    - role: All employees (optional)
+      responsibility: Input on cultural reality
+      time_commitment: "30 minutes"
+
+  success_criteria:
+    - Values are documented and accessible
+    - Employees can name the values
+    - Values referenced in hiring
+    - Values reinforced in recognition and decisions
+
+operational_context:
+  prerequisites:
+    - Founders have thought about what matters
+    - Some team culture exists to observe (or founders define aspirationally)
+    
+  common_blockers:
+    - "Values feel generic → Push for distinctiveness"
+    - "Too many values → Focus on 3-5"
+    - "Aspirational vs real gap → Acknowledge and address"
+    
+  metrics:
+    - name: Value recall
+      description: Employees can name values unprompted
+      target: ">70%"
+      tier: 1
+    - name: Value integration
+      description: Values used in hiring, performance
+      target: "100% of interviews include values"
+      tier: 2
+
+tools_ecosystem:
+  recommended:
+    - category: Documentation
+      examples:
+        - Notion
+        - Employee handbook
+        - Company wiki
+      purpose: Publish and share values
+
+related_definitions:
+  - id: pd-001
+    relationship: enables
+    description: "Values communicated in onboarding"
+  - id: pd-006
+    relationship: enables
+    description: "Values referenced in performance reviews"
+
+adaptation:
+  customize:
+    - Number of values (3-7 typical)
+    - Level of behavioral detail
+    - How aspirational vs descriptive
+  preserve:
+    - Founder/leadership ownership
+    - Written documentation
+    - Distinctive (not generic)
+  common_variations:
+    - "Early startup: Founder-driven, minimal input"
+    - "Growing company: Broader input, behavioral anchors"
+    - "Mature company: Values refresh with evolution"
+
+# Values Development Framework
+framework:
+  characteristics_of_good_values:
+    - Distinctive: "Unique to this organization, not generic"
+    - Memorable: "People can remember them"
+    - Actionable: "Provide guidance for decisions"
+    - True: "Reflect reality or genuine aspiration"
+    - Few: "3-5 is ideal, never more than 7"
+    
+  anti_patterns:
+    - "Generic platitudes (integrity, excellence, innovation)"
+    - "Too many to remember"
+    - "Wall decorations that nobody lives"
+    - "Aspirational with no path to get there"
+    
+  examples:
+    distinctive:
+      - "Move fast and break things (early Facebook)"
+      - "Be a host (Airbnb)"
+      - "Default to transparency (Buffer)"
+    generic_to_avoid:
+      - "Integrity"
+      - "Excellence"
+      - "Teamwork"
+      - "Customer focus"
+      
+# Value Definition Template
+template:
+  format:
+    name: "Short, memorable phrase (2-4 words)"
+    description: "One paragraph explaining what this means in practice"
+    
+  tier_2_addition:
+    looks_like:
+      - "Observable behavior example 1"
+      - "Observable behavior example 2"
+    doesnt_look_like:
+      - "Counter-example 1"
+      - "Counter-example 2"
+    interview_questions:
+      - "Question to assess this value in candidates"
+
+# ============================================================
+# PRACTITIONER SCENARIOS
+# ============================================================
+practitioner_scenarios:
+  - id: ps-021-001
+    name: "First-Time Values Definition for a Growing Startup"
+    practitioner: CEO at 15-person startup
+    organization_context: |
+      Company grew from 4 to 15 people in one year. Culture was implicit—
+      founders' behavior set the tone. Now hiring 5 more people, and new 
+      hires ask "what's the culture here?" CEO realizes they can't just 
+      absorb culture by osmosis anymore. Need to codify what matters.
+    situation: |
+      Two recent hires don't fit. One was technically strong but dismissive 
+      of customers. Another was nice but wouldn't take ownership. CEO had 
+      gut sense during interviews but couldn't articulate what was off. 
+      Team members asking: "Are we the kind of company that works weekends?" 
+      "Is it okay to push back on founders?" No clear answers.
+    trigger: |
+      Third hire in a row feels wrong. HR advisor says: "You need to define 
+      your values. Not for the website—for hiring and decision-making." 
+      CEO commits to articulating what's actually true about how they work.
+    actions:
+      - "Week 1: CEO reflected on best moments in company history—what behaviors drove success?"
+      - "Week 1: Identified worst moments—what behaviors caused pain?"
+      - "Week 2: Had 1:1s with 8 team members asking: 'What do you think makes us different?'"
+      - "Week 2: Looked for patterns—same themes emerging from multiple conversations"
+      - "Week 3: Drafted 5 candidate values with 1-paragraph descriptions each"
+      - "Week 3: Tested draft: 'Would we hire someone who didn't have this? Would we fire someone who violated this?'"
+      - "Week 3: Eliminated 2 values that failed the test (they were nice-to-haves, not essentials)"
+      - "Week 4: Shared 3 final values with team for feedback, refined language"
+      - "Week 4: Published values internally with examples of 'looks like' and 'doesn't look like'"
+      - "Month 2: Integrated into hiring—added values interview, trained team on questions"
+    outcome: |
+      Final values: (1) "Customer problems first" (2) "Own your work" 
+      (3) "Say the hard thing." Each had clear description and examples. 
+      Team said: "This is actually what we do—just written down." Next 
+      5 hires much better. Could articulate during interviews what they 
+      were looking for. One candidate self-selected out: "This doesn't 
+      sound like me." Saved everyone time.
+    lessons:
+      - "Values come from observing what's already true, not aspirations"
+      - "Team input reveals shared patterns founders might not articulate"
+      - "Fewer values (3-5) are more useful than comprehensive lists"
+      - "The 'hire/fire' test eliminates nice-to-haves"
+      - "Values must have examples to be actionable"
+
+  - id: ps-021-002
+    name: "Revising Values After Scaling Creates Dysfunction"
+    practitioner: COO at 80-person Series B company
+    organization_context: |
+      Company defined values at 20 people, 4 years ago. Now 80 people. 
+      Original values: "Move fast," "Customer obsession," "One team." 
+      But moving fast now creates chaos. "Customer obsession" is used to 
+      justify bypassing process. "One team" means no one can say no. Values 
+      became shields for dysfunction.
+    situation: |
+      Leadership team recognizes values need revision. Not because they 
+      were wrong—they were right for 20-person startup. But company is 
+      different now. "Move fast" at scale means "break everything." Need 
+      to evolve values while respecting origin and not demoralizing team.
+    trigger: |
+      Major customer escalation. Sales promised feature that broke product 
+      roadmap. When challenged, salesperson said: "Customer obsession—I 
+      did the right thing." Engineering frustrated. CEO says: "Our values 
+      are being weaponized. We need to fix this."
+    actions:
+      - "Week 1: Leadership offsite to diagnose—which values are causing problems and why?"
+      - "Week 1: Realized values weren't wrong, but lacked nuance for scale"
+      - "Week 2: Surveyed company: 'What do our values mean to you? What's working? What's not?'"
+      - "Week 2: Found common themes: speed vs stability, customer vs team, individual vs collective"
+      - "Week 3: Drafted revised values—not new values, evolved values with more precision"
+      - "Week 3: 'Move fast' → 'Move fast, together' (added coordination requirement)"
+      - "Week 3: 'Customer obsession' → 'Sustainable customer success' (added sustainability)"
+      - "Week 4: Tested with trusted team members before broad rollout"
+      - "Week 4: All-hands to explain evolution—not rejection of past, maturation for scale"
+      - "Week 5: Updated hiring questions, performance review criteria, decision frameworks"
+    outcome: |
+      Team received the evolution well because it addressed real pain. 
+      The addition of "together" to "move fast" legitimized coordination 
+      requests without killing speed. "Sustainable customer success" gave 
+      product and engineering vocabulary to push back on unreasonable 
+      sales promises. Within 2 quarters, cross-functional conflicts 
+      decreased and customer satisfaction improved.
+    lessons:
+      - "Values should evolve with company stage—rigid values become dysfunction"
+      - "Diagnose the problem before revising—what specifically is breaking?"
+      - "Evolution is better received than revolution—honor the origin"
+      - "Involve the team—they experience the dysfunction and own the solution"
+      - "Update all systems that touch values—hiring, reviews, decisions"
+
+  - id: ps-021-003
+    name: "Values Definition After Merger of Two Startups"
+    practitioner: CEO of combined entity, 45 people
+    organization_context: |
+      Two complementary startups merged—one product-focused (25 people), 
+      one sales-focused (20 people). Each had strong cultures and implicit 
+      values. Now combined, cultural clash is immediate. Product team sees 
+      sales team as pushy and short-term. Sales team sees product team as 
+      slow and precious. Need unified culture fast.
+    situation: |
+      Two months post-merger, tension is visible. Product and sales teams 
+      eat lunch separately. Decisions stall because each side assumes bad 
+      intent. Retention risk: top performers on both sides wondering if 
+      they fit in the new company. CEO needs to create shared identity 
+      without erasing what made each team great.
+    trigger: |
+      Two key employees resign within a week—one from each original company. 
+      Exit interviews reveal: "I don't recognize this place anymore" and 
+      "The other team's culture is winning." CEO realizes culture crisis 
+      is existential. Commits to explicit values process within 30 days.
+    actions:
+      - "Week 1: Acknowledged the problem publicly—'We haven't defined who we are together'"
+      - "Week 1: Created mixed working group (4 from each original company + 2 new hires)"
+      - "Week 2: Working group interviewed 15 people: 'What did you love about original culture? What do you want in the new one?'"
+      - "Week 2: Found surprising overlap—both teams valued ownership, customer focus, learning"
+      - "Week 2: Identified genuine differences—product valued craft, sales valued speed"
+      - "Week 3: Drafted unified values that honored both: 'Craft that sells' combined excellence with pragmatism"
+      - "Week 3: Each value had input from both original cultures—no winner/loser"
+      - "Week 3: CEO shared draft with both original CEOs (now execs) for buy-in"
+      - "Week 4: All-hands launch—each value presented by mixed pair (one from each original company)"
+      - "Week 4: Announced 'culture council' to monitor values integration and address friction"
+    outcome: |
+      Values launch stopped the bleeding. The process itself (mixed working 
+      group, shared presentation) was as important as the output. Teams 
+      saw that new culture wasn't one side winning. "Craft that sells" 
+      became rallying cry that both sides could own. Six months later, 
+      integrated culture stabilized. Still some friction but shared 
+      vocabulary for resolving it.
+    lessons:
+      - "Merger requires explicit culture work—implicit cultures will clash"
+      - "The process of defining values is as important as the values themselves"
+      - "Find genuine overlap—merged cultures often share more than they realize"
+      - "Honor both origins—no winning or losing culture"
+      - "Monitor and maintain—culture integration is ongoing, not one-time event"
+
+# ============================================================
+# RISKS
+# ============================================================
+risks:
+  execution_risks:
+    - risk: Values are too generic
+      likelihood: high
+      impact: high
+      mitigation: "Apply distinctiveness test—would competitors say the same thing? Use 'Netflix test': would we be unusual for having this value?"
+    
+    - risk: Values are aspirational, not actual
+      likelihood: medium
+      impact: high
+      mitigation: "Ground in observed behavior, not wishful thinking. Ask: 'Can we name 3 people who exemplify this?'"
+    
+    - risk: Too many values to remember
+      likelihood: medium
+      impact: medium
+      mitigation: "Limit to 3-5 values. If you can't recite them, neither can the team."
+    
+    - risk: Values defined but not integrated
+      likelihood: high
+      impact: high
+      mitigation: "Update hiring, reviews, promotions, decisions. Values without integration are wall art."
+    
+    - risk: Leader behavior contradicts stated values
+      likelihood: medium
+      impact: critical
+      mitigation: "360 feedback on leader adherence, visible accountability when leaders violate values"
+
+  organizational_risks:
+    - risk: Values become shields for bad behavior
+      impact: "Values weaponized to justify dysfunction ('move fast' justifies skipping important steps)"
+      prevention: "Values need 'looks like / doesn't look like' examples, regular review of how values are invoked"
+    
+    - risk: Cynicism about values exercise
+      impact: "Team views values as corporate BS, disengages from culture work"
+      prevention: "Ground in real examples, acknowledge when values aren't lived, follow through on accountability"
+    
+    - risk: Values resist necessary evolution
+      impact: "What worked at 20 people breaks at 100—values become sacred cows"
+      prevention: "Build in regular review cadence, treat values as living documents, evolve rather than abandon"
+
+# ============================================================
+# DOMAIN CONTEXT
+# ============================================================
+domain_context:
+  industry_landscape: |
+    Company values went through phases: 1990s poster-on-wall platitudes, 
+    2000s Enron-driven skepticism, 2010s tech culture manifestos. Today's 
+    best practice recognizes values as operating system for culture—not 
+    marketing but management tools.
+    
+    The Netflix culture deck (2009) reset expectations for what company 
+    values could be: specific, behavioral, sometimes controversial. Companies 
+    like Bridgewater (radical transparency), Stripe (high standards), and 
+    Gitlab (handbook-first) have shown that distinctive values create 
+    distinctive cultures.
+    
+    Remote work has increased value of explicit values—when you can't absorb 
+    culture by osmosis, codification matters more. Values increasingly 
+    function as decision-making frameworks rather than hiring filters.
+
+  best_practices:
+    - practice: "Fewer, more distinctive values (3-5)"
+      description: "Limit values to what people can remember and use daily"
+      evidence: "Companies with fewer than 5 values report 2x higher value recall and application"
+    
+    - practice: "Behavioral examples for each value"
+      description: "Define 'looks like' and 'doesn't look like' for each value"
+      evidence: "Values with behavioral examples are applied 3x more consistently in reviews"
+    
+    - practice: "Ground in reality, not aspiration"
+      description: "Values describe how you actually operate, not how you wish to"
+      evidence: "Aspirational values are 4x more likely to become cynicism generators"
+    
+    - practice: "Integrate into all people systems"
+      description: "Values reflected in hiring, reviews, promotions, terminations"
+      evidence: "Values integration correlates with 2.5x higher cultural consistency across locations"
+
+  anti_patterns:
+    - anti_pattern: "Generic value set"
+      description: "Integrity, excellence, teamwork, innovation, customer focus"
+      consequence: "Indistinguishable from every other company, provides no decision guidance"
+    
+    - anti_pattern: "Values as wall art"
+      description: "Values prominently displayed but never referenced in decisions"
+      consequence: "Breeds cynicism, signals that stated culture is performative"
+    
+    - anti_pattern: "Founder-only values definition"
+      description: "CEO defines values in isolation, announces to team"
+      consequence: "Values may not reflect actual culture, less buy-in, feels imposed"
+    
+    - anti_pattern: "Values immune from evolution"
+      description: "Original values treated as sacred, never revised"
+      consequence: "Values become increasingly irrelevant as company changes, eventually abandoned"
+
+  benchmarks:
+    - metric: "Value recall"
+      top_quartile: ">90% of employees can name all values from memory"
+      median: "50-70% can name most values"
+      laggard: "<30% can name values without looking"
+    
+    - metric: "Decision reference"
+      top_quartile: "Values cited in >50% of significant decisions"
+      median: "Values occasionally referenced"
+      laggard: "Values rarely if ever cited in decisions"
+    
+    - metric: "Hiring integration"
+      top_quartile: "Dedicated values interview, trained interviewers"
+      median: "Values mentioned in interviews, not systematically assessed"
+      laggard: "Values not part of hiring process"
+    
+    - metric: "Leader modeling"
+      top_quartile: "Leaders held accountable to values, visible course-correction"
+      median: "Leaders mostly model values"
+      laggard: "Leader behavior contradicts stated values"
+
+  maturity_indicators:
+    tier_1_signals:
+      - "Values exist and are documented"
+      - "Team can mostly recall values"
+      - "Values mentioned in onboarding"
+      - "Founders model values (most of the time)"
+    
+    tier_2_signals:
+      - "Behavioral examples for each value"
+      - "Values integrated into hiring and reviews"
+      - "Regular values discussions in team meetings"
+      - "Accountability when values violated"
+    
+    tier_3_signals:
+      - "Values used explicitly in major decisions"
+      - "Regular values health assessment"
+      - "Evolution process when values need updating"
+      - "Values calibration across locations/teams"

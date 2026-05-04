@@ -1,0 +1,393 @@
+{
+  "version": "1.0.0",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Strategic Reality Check Schema",
+  "description": "Defines the structure for Strategic Reality Check (SRC) artifacts that evaluate all READY and FIRE artifacts against current reality. Unlike Assessment Reports (which track OKR/KR execution), the SRC asks: are the foundations still valid?",
+  "$comment": "The Strategic Reality Check is an AIM artifact that surfaces cross-artifact health issues organized by detection type, not by artifact. It covers five categories: belief validity (are our assumptions still true?), market currency (are our analyses fresh?), strategic alignment (are cross-references intact?), execution reality (does maturity match claims?), and recalibration plan (what needs updating?). The SRC feeds into the Calibration Memo as evidence and into Phase 2's aim recalibrate command as actionable input. Write an SRC alongside or before Assessment Reports at the end of each cycle. Use aim generate-src for mechanical checks (freshness, cross-references, maturity mismatches), then aim write-src to add subjective assessments (belief validity, confidence drift). Every finding links to a specific source_artifact file path and field_path, making it traceable and actionable.",
+  "type": "object",
+  "properties": {
+    "cycle": {
+      "type": "integer",
+      "description": "Cycle number this SRC evaluates. Each cycle represents one FIRE execution iteration.",
+      "$comment": "Links the SRC to the same cycle as the Assessment Report and Calibration Memo. Enables tracking foundation health across cycles: early cycles often have many stale cross-references (building phase), mid cycles should show improving alignment, late cycles should show stable foundations or signal strategic pivot.",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "assessment_date": {
+      "type": ["string", "null"],
+      "description": "Date when the SRC was conducted. ISO 8601 format (YYYY-MM-DD).",
+      "$comment": "Should be performed at the end of each cycle, ideally before writing the Calibration Memo. Null only if the SRC is in progress (partially populated by aim generate-src, awaiting subjective sections).",
+      "format": "date",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "belief_validity": {
+      "type": "array",
+      "description": "Evaluates whether core beliefs, strategic risks, and roadmap assumptions still hold against current evidence. Covers North Star belief_challenges, Strategy Formula risks, and Roadmap riskiest_assumptions.",
+      "$comment": "Belief validity is the most subjective SRC section — it requires evaluating current evidence against recorded beliefs. aim generate-src populates this section with TODO placeholders for each belief/risk/assumption that has a monitoring directive; the AI agent or human then fills in current_evidence and assesses the signal. This section differs from Assessment Report assumption_validations in scope: assumption_validations track roadmap-specific assumptions tested during the cycle, while belief_validity tracks foundational beliefs that may not be tied to any specific cycle. Example: North Star belief 'AI will become the primary interface for knowledge work' might hold across many cycles, while roadmap assumption 'Users will pay $20/month' is cycle-specific.",
+      "minItems": 0,
+      "maxItems": 30,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique finding identifier for cross-referencing from recalibration_plan.",
+            "pattern": "^src-[a-z0-9-]+$",
+            "minLength": 5,
+            "maxLength": 50
+          },
+          "source_artifact": {
+            "type": "string",
+            "description": "Relative file path to the artifact containing the belief (e.g., 'READY/00_north_star.yaml', 'READY/04_strategy_formula.yaml').",
+            "$comment": "Use the standard EPF path relative to the instance root. This enables aim recalibrate to locate and update the specific file.",
+            "minLength": 5,
+            "maxLength": 200
+          },
+          "field_path": {
+            "type": "string",
+            "description": "YAML field path within the source artifact (e.g., 'belief_challenges[0].monitoring', 'risks[2].monitoring').",
+            "$comment": "Use dot-notation with array indices. This enables aim recalibrate to target the specific field for update.",
+            "minLength": 3,
+            "maxLength": 200
+          },
+          "original_belief": {
+            "type": "string",
+            "description": "The belief, assumption, or risk statement being evaluated, extracted from the source artifact.",
+            "minLength": 10,
+            "maxLength": 500
+          },
+          "current_evidence": {
+            "type": "string",
+            "description": "Current evidence for or against the belief. Cite data, market signals, user feedback, or competitive changes.",
+            "$comment": "Good evidence is specific and sourced: 'Gartner 2025 report shows 40% of enterprises now use AI interfaces' rather than 'AI seems popular'. Include both supporting and contradicting evidence for honest assessment.",
+            "minLength": 20,
+            "maxLength": 800
+          },
+          "signal": {
+            "type": "string",
+            "enum": ["strengthening", "holding", "weakening", "invalidated"],
+            "description": "Current signal strength for this belief: strengthening (growing evidence supports it), holding (status quo, no new evidence), weakening (evidence accumulating against it), invalidated (clear evidence contradicts it).",
+            "$comment": "Use consistently: strengthening = new evidence reinforces the belief, consider escalating to core assumption; holding = no material change, maintain current confidence; weakening = evidence starting to contradict, flag for review; invalidated = clear contradiction, requires immediate strategic response. Multiple 'weakening' findings across related beliefs suggests a larger strategic shift is needed."
+          },
+          "confidence_delta": {
+            "type": "string",
+            "enum": ["increased", "decreased", "no_change"],
+            "description": "How this finding affects overall confidence in the belief."
+          }
+        },
+        "required": ["id", "source_artifact", "field_path", "signal"]
+      }
+    },
+    "market_currency": {
+      "type": "array",
+      "description": "Evaluates freshness and relevance of market-facing artifacts. Checks review dates, competitive landscape currency, and whether market changes have occurred since last analysis.",
+      "$comment": "Market currency is partially mechanical (checking last_reviewed/next_review dates against today) and partially subjective (assessing whether market conditions have materially changed). aim generate-src auto-populates staleness checks from review dates in North Star (yearly review), Insight Analyses (3-6 month review), and Feature Definitions (90-day assessment). The AI agent adds market_changes_detected based on current knowledge. Staleness levels: low = within review window, medium = approaching review date, high = past review date, critical = significantly overdue with known market changes.",
+      "minItems": 0,
+      "maxItems": 30,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique finding identifier for cross-referencing from recalibration_plan.",
+            "pattern": "^src-[a-z0-9-]+$",
+            "minLength": 5,
+            "maxLength": 50
+          },
+          "source_artifact": {
+            "type": "string",
+            "description": "Relative file path to the artifact being evaluated for freshness.",
+            "minLength": 5,
+            "maxLength": 200
+          },
+          "field_path": {
+            "type": "string",
+            "description": "YAML field path to the review date or freshness-relevant field.",
+            "minLength": 3,
+            "maxLength": 200
+          },
+          "staleness_level": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "critical"],
+            "description": "How stale the artifact or section is: low (within review window), medium (approaching review date), high (past review date), critical (significantly overdue with known market changes)."
+          },
+          "days_since_review": {
+            "type": "integer",
+            "description": "Number of days since the artifact or section was last reviewed.",
+            "$comment": "Populated mechanically by aim generate-src from last_reviewed, next_review_date, or last_assessment_date fields. Zero means reviewed today.",
+            "minimum": 0,
+            "maximum": 3650
+          },
+          "market_changes_detected": {
+            "type": "string",
+            "description": "Description of relevant market changes that have occurred since last review. Empty string if no changes detected.",
+            "$comment": "This is the subjective portion — the AI agent or human assesses whether market conditions have materially changed. Examples: 'Major competitor launched similar feature', 'Regulatory change in target market', 'New market research contradicts current assumptions'. Leave empty if staleness is purely date-driven with no known changes.",
+            "minLength": 0,
+            "maxLength": 500
+          },
+          "recommended_action": {
+            "type": "string",
+            "description": "Recommended next step for this finding (e.g., 'Schedule review', 'Update competitive analysis', 'Reassess opportunity sizing').",
+            "minLength": 5,
+            "maxLength": 300
+          }
+        },
+        "required": ["id", "source_artifact", "staleness_level"]
+      }
+    },
+    "strategic_alignment": {
+      "type": "array",
+      "description": "Checks cross-reference integrity across EPF artifacts. Validates value model paths, KR links, feature dependencies, and maturity vocabulary consistency.",
+      "$comment": "Strategic alignment is the most mechanical SRC section — aim generate-src can fully populate it by cross-referencing artifacts. It checks: (1) value_model_path — do contributes_to[] paths in features resolve to valid value model components? (2) kr_link — do KR target paths and assumption linked_to_kr references point to valid KRs? (3) feature_dependency — do feature dependencies[] reference valid feature IDs? (4) maturity_vocabulary — do LRA track maturity levels match value model maturity vocabulary? This overlaps with the existing epf_validate_relationships tool but produces structured findings rather than just pass/fail.",
+      "minItems": 0,
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique finding identifier for cross-referencing from recalibration_plan.",
+            "pattern": "^src-[a-z0-9-]+$",
+            "minLength": 5,
+            "maxLength": 50
+          },
+          "check_type": {
+            "type": "string",
+            "enum": ["value_model_path", "kr_link", "feature_dependency", "maturity_vocabulary"],
+            "description": "Type of cross-reference check: value_model_path (contributes_to validation), kr_link (KR target/assumption validation), feature_dependency (inter-feature references), maturity_vocabulary (LRA vs value model maturity consistency)."
+          },
+          "source_artifact": {
+            "type": "string",
+            "description": "Relative file path to the artifact containing the reference.",
+            "minLength": 5,
+            "maxLength": 200
+          },
+          "field_path": {
+            "type": "string",
+            "description": "YAML field path to the specific reference being checked.",
+            "minLength": 3,
+            "maxLength": 200
+          },
+          "status": {
+            "type": "string",
+            "enum": ["valid", "broken", "stale"],
+            "description": "Reference status: valid (resolves correctly), broken (target not found), stale (target exists but may be outdated).",
+            "$comment": "valid = reference resolves to an existing, active target; broken = target artifact or field does not exist (renamed, deleted, or typo); stale = target exists but hasn't been updated in a long time or has maturity inconsistencies."
+          },
+          "details": {
+            "type": "string",
+            "description": "Details about the finding, including the reference value and what was expected.",
+            "$comment": "For broken references, include a 'did you mean' suggestion when possible (similar to epf_validate_relationships). Example: 'contributes_to path Product.Core.Search not found in value model. Did you mean Product.Discovery.Search?'",
+            "minLength": 10,
+            "maxLength": 500
+          },
+          "suggested_fix": {
+            "type": "string",
+            "description": "Suggested correction for broken or stale references.",
+            "minLength": 5,
+            "maxLength": 300
+          }
+        },
+        "required": ["id", "check_type", "source_artifact", "status"]
+      }
+    },
+    "execution_reality": {
+      "type": "array",
+      "description": "Assesses whether feature maturity progression, implementation status, and capability claims match actual reality. Identifies gaps between stated and actual state.",
+      "$comment": "Execution reality checks compare what EPF artifacts claim against observable evidence. Examples: (1) Feature Definition says status 'delivered' but capability maturity is still 'hypothetical', (2) Value Model L3 maturity says 'proven' but no implementation references exist, (3) Feature last_assessment_date is 6 months ago for an 'in-progress' feature, (4) LRA says product_stage 'growth' but only 2 features are 'delivered'. aim generate-src populates mechanical checks (maturity mismatches, status inconsistencies). Subjective assessments require human/AI judgment about whether the gap matters.",
+      "minItems": 0,
+      "maxItems": 30,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique finding identifier for cross-referencing from recalibration_plan.",
+            "pattern": "^src-[a-z0-9-]+$",
+            "minLength": 5,
+            "maxLength": 50
+          },
+          "source_artifact": {
+            "type": "string",
+            "description": "Relative file path to the artifact with the discrepancy.",
+            "minLength": 5,
+            "maxLength": 200
+          },
+          "field_path": {
+            "type": "string",
+            "description": "YAML field path to the field with the discrepancy.",
+            "minLength": 3,
+            "maxLength": 200
+          },
+          "expected_state": {
+            "type": "string",
+            "description": "What the artifact claims or what is expected based on other artifacts (e.g., 'status: delivered', 'maturity: proven').",
+            "minLength": 5,
+            "maxLength": 300
+          },
+          "actual_state": {
+            "type": "string",
+            "description": "What evidence suggests the actual state is (e.g., 'no implementation references found', 'last assessment 180 days ago').",
+            "minLength": 5,
+            "maxLength": 300
+          },
+          "gap_description": {
+            "type": "string",
+            "description": "Description of the gap between expected and actual state, and why it matters.",
+            "$comment": "Focus on the impact: 'Feature fd-005 claims delivered status but has no implementation references, making it impossible to verify delivery or track capability maturity.' Not just the observation but the consequence.",
+            "minLength": 20,
+            "maxLength": 500
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["info", "warning", "critical"],
+            "description": "Severity of the gap: info (minor, cosmetic), warning (should be addressed soon), critical (materially affects strategic decisions).",
+            "$comment": "info = no strategic impact, fix when convenient (e.g., missing optional field); warning = could affect planning accuracy, address this cycle (e.g., stale assessment date); critical = actively misleading, fix immediately (e.g., status claims 'delivered' but nothing was built)."
+          }
+        },
+        "required": ["id", "source_artifact", "severity"]
+      }
+    },
+    "recalibration_plan": {
+      "type": "array",
+      "description": "Prioritized list of READY/FIRE artifacts needing update based on findings from the other four sections. This is the primary actionable output of the SRC.",
+      "$comment": "The recalibration plan transforms diagnostic findings into a prioritized action list. Each action targets a specific artifact and section, with effort estimates and rationale. This section feeds directly into the Calibration Memo (as evidence for strategic decisions) and into Phase 2's aim recalibrate command (as input for automated changeset generation). Actions are ordered by priority: critical items first, then high, medium, low. linked_findings references finding IDs from the other four sections, creating traceability from diagnosis to action.",
+      "minItems": 0,
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique action identifier (e.g., 'rp-001', 'rp-002').",
+            "pattern": "^rp-[a-z0-9-]+$",
+            "minLength": 5,
+            "maxLength": 50
+          },
+          "target_artifact": {
+            "type": "string",
+            "description": "Relative file path to the artifact that needs updating.",
+            "minLength": 5,
+            "maxLength": 200
+          },
+          "target_section": {
+            "type": "string",
+            "description": "YAML field path to the section that needs updating (e.g., 'competitive_landscape', 'belief_challenges[0]').",
+            "minLength": 3,
+            "maxLength": 200
+          },
+          "action": {
+            "type": "string",
+            "enum": ["review", "update", "rewrite", "archive"],
+            "description": "Type of action needed: review (assess whether change is needed), update (modify specific fields), rewrite (substantial rework needed), archive (artifact or section no longer relevant).",
+            "$comment": "review = lowest effort, just evaluate whether content is still valid; update = moderate effort, change specific values or add missing content; rewrite = high effort, section or artifact needs fundamental rethinking; archive = remove or deprecate, content is obsolete."
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low"],
+            "description": "Priority for this action: critical (affects current strategic decisions), high (should be addressed this cycle), medium (address next cycle), low (nice to have)."
+          },
+          "effort_estimate": {
+            "type": "string",
+            "description": "Rough effort estimate (e.g., '15 minutes', '1 hour', '2-3 hours', 'half day').",
+            "$comment": "Keep estimates practical. Most review actions are 15-30 minutes. Updates are typically 30-60 minutes. Rewrites can take 2-4 hours. These help prioritize the recalibration effort when multiple actions compete for attention.",
+            "minLength": 3,
+            "maxLength": 50
+          },
+          "rationale": {
+            "type": "string",
+            "description": "Why this action is needed. Reference specific findings or evidence.",
+            "minLength": 20,
+            "maxLength": 500
+          },
+          "linked_findings": {
+            "type": "array",
+            "description": "Finding IDs from belief_validity, market_currency, strategic_alignment, or execution_reality that support this action.",
+            "$comment": "Reference finding IDs (e.g., ['src-bv-001', 'src-mc-003']). Multiple findings may support a single action. This creates traceability from diagnosis to prescription.",
+            "minItems": 0,
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "pattern": "^src-[a-z0-9-]+$",
+              "minLength": 5,
+              "maxLength": 50
+            }
+          }
+        },
+        "required": ["id", "target_artifact", "action", "priority"]
+      }
+    },
+    "summary": {
+      "type": "object",
+      "description": "Overall SRC summary including health assessment and finding counts.",
+      "$comment": "The summary provides an at-a-glance health assessment. overall_health is the headline metric: healthy means foundations are solid, attention_needed means some issues to address, at_risk means multiple foundation problems, critical means strategic foundations are materially compromised. finding_counts enables tracking health trends across cycles.",
+      "properties": {
+        "overall_health": {
+          "type": "string",
+          "enum": ["healthy", "attention_needed", "at_risk", "critical"],
+          "description": "Overall health of the strategic foundations: healthy (0-2 non-info findings), attention_needed (3-5 findings or any high priority), at_risk (6+ findings or any critical), critical (multiple critical findings requiring immediate action)."
+        },
+        "finding_counts": {
+          "type": "object",
+          "description": "Count of findings per section for trend tracking.",
+          "properties": {
+            "belief_validity": {
+              "type": "integer",
+              "description": "Number of belief validity findings.",
+              "minimum": 0,
+              "maximum": 30
+            },
+            "market_currency": {
+              "type": "integer",
+              "description": "Number of market currency findings.",
+              "minimum": 0,
+              "maximum": 30
+            },
+            "strategic_alignment": {
+              "type": "integer",
+              "description": "Number of strategic alignment findings.",
+              "minimum": 0,
+              "maximum": 50
+            },
+            "execution_reality": {
+              "type": "integer",
+              "description": "Number of execution reality findings.",
+              "minimum": 0,
+              "maximum": 30
+            },
+            "recalibration_actions": {
+              "type": "integer",
+              "description": "Number of recalibration plan actions.",
+              "minimum": 0,
+              "maximum": 100
+            }
+          }
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when the SRC was generated or last updated."
+        }
+      },
+      "required": ["overall_health"]
+    },
+    "meta": {
+      "type": "object",
+      "description": "Optional metadata written by tooling (CLI, MCP tools). Not required for human-authored SRCs.",
+      "$comment": "The meta object is written automatically by EPF CLI tools (aim generate-src, aim write-src). It enables downstream tools to know which EPF version produced the artifact and when it was last machine-updated. Human authors can omit this entirely.",
+      "properties": {
+        "epf_version": {
+          "type": "string",
+          "description": "EPF framework version that produced this artifact",
+          "examples": ["2.0.0"]
+        },
+        "last_updated": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of last machine update"
+        }
+      }
+    }
+  },
+  "required": ["cycle", "summary"]
+}

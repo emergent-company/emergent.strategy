@@ -1,0 +1,216 @@
+# This is the default, canonical value model for the Strategy track.
+# It provides a comprehensive starting point for most organizations.
+# The sections here form the basis of the living Strategy Requirement Document (SRD).
+
+track_name: "Strategy"
+version: "1.0.0"
+status: "active"
+description: "Defines, communicates, and executes the company's overarching strategy."
+packaged_default: true
+activation_notes: 'Flip `active: true` on L3 sub-components as you invest. Start narrow.'
+
+# VALUE MODEL MATURITY (VMM) - Track Level Summary
+# Tracks where this value model is on its journey from hypothesis to scaled value delivery.
+# Maturity EMERGES from L3 sub-component evidence, calculated upward using 80% rule.
+# Value domain for Strategy: competitive landscape, market positioning, strategic coherence
+# See docs/guides/VALUE_MODEL_MATURITY_GUIDE.md for full documentation.
+track_maturity:
+  overall_stage: "hypothetical"  # hypothetical | emerging | proven | scaled
+  stage_override: false
+  value_domain: "Competitive landscape"  # Example: market positioning, thought leadership, strategic clarity
+  current_milestone: "none"      # none | problem_approach_fit | value_recipient_fit | sustainable_domain_fit
+  next_milestone_criteria:
+    - description: "Define criteria for reaching problem_approach_fit..."
+      status: "not_met"
+  l1_distribution:
+    hypothetical: 0
+    emerging: 0
+    proven: 0
+    scaled: 0
+
+layers:
+  - id: strategy-l1-context
+    name: CONTEXT
+    active: false
+    components:
+    - id: strategy-c-market-analysis
+      name: Market Analysis
+      active: false
+      subs:
+      - id: strategy-s-trends-and-opportunities
+        name: Trends and opportunities
+        active: false
+      - id: strategy-s-emerging-markets
+        name: Emerging markets
+        active: false
+      - id: strategy-s-demographics-and-segmentation
+        name: Demographics and segmentation
+        active: false
+    - id: strategy-c-competitor-analysis
+      name: Competitor Analysis
+      active: false
+      subs:
+      - id: strategy-s-competitive-benchmarking
+        name: Competitive benchmarking
+        active: false
+      - id: strategy-s-strengths-and-weaknesses
+        name: Strengths and weaknesses
+        active: false
+      - id: strategy-s-differentiation-opportunities
+        name: Differentiation opportunities
+        active: false
+    - id: strategy-c-user-insight
+      name: User Insight
+      active: false
+      subs:
+      - id: strategy-s-needs-and-expectations
+        name: Needs and expectations
+        active: false
+      - id: strategy-s-pain-points
+        name: Pain points
+        active: false
+      - id: strategy-s-behavioral-patterns
+        name: Behavioral patterns
+        active: false
+  - id: strategy-l1-strategic-roadmap
+    name: STRATEGIC ROADMAP
+    active: false
+    components:
+    - id: strategy-c-vision-mission
+      name: Vision & mission
+      active: false
+      subs:
+      - id: strategy-s-long-term-organizational-purpose
+        name: Long-term organizational purpose
+        active: false
+      - id: strategy-s-vision-statement-development
+        name: Vision statement development
+        active: false
+      - id: strategy-s-organizational-aspirations
+        name: Organizational aspirations
+        active: false
+    - id: strategy-c-goal-prioritization
+      name: Goal Prioritization
+      active: false
+      subs:
+      - id: strategy-s-high-priority-goals
+        name: High-priority goals
+        active: false
+      - id: strategy-s-alignment-with-mission
+        name: Alignment with mission
+        active: false
+      - id: strategy-s-key-result-identification-okrs
+        name: Key result identification (OKRs)
+        active: false
+    - id: strategy-c-long-term-initiatives
+      name: Long-term Initiatives
+      active: false
+      subs:
+      - id: strategy-s-program-roadmaps
+        name: Program roadmaps
+        active: false
+      - id: strategy-s-resource-allocation-strategies
+        name: Resource allocation strategies
+        active: false
+      - id: strategy-s-milestone-tracking
+        name: Milestone tracking
+        active: false
+  - id: strategy-l1-tactical-roadmap
+    name: TACTICAL ROADMAP
+    active: false
+    components:
+    - id: strategy-c-actionable-priorities
+      name: Actionable Priorities
+      active: false
+      subs:
+      - id: strategy-s-short-term-goals
+        name: Short-term goals
+        active: false
+      - id: strategy-s-cross-team-dependencies
+        name: Cross-team dependencies
+        active: false
+      - id: strategy-s-sprint-objectives
+        name: Sprint objectives
+        active: false
+    - id: strategy-c-iterative-execution-plan
+      name: Iterative Execution Plan
+      active: false
+      subs:
+      - id: strategy-s-timeline-management
+        name: Timeline management
+        active: false
+      - id: strategy-s-deliverable-prioritization
+        name: Deliverable prioritization
+        active: false
+      - id: strategy-s-testing-and-validation-steps
+        name: Testing and validation steps
+        active: false
+    - id: strategy-c-short-term-deliverables
+      name: Short-term Deliverables
+      active: false
+      subs:
+      - id: strategy-s-outcome-tracking
+        name: Outcome tracking
+        active: false
+      - id: strategy-s-feedback-loops
+        name: Feedback loops
+        active: false
+      - id: strategy-s-refinement-protocols
+        name: Refinement protocols
+        active: false
+  - id: strategy-l1-communications
+    name: COMMUNICATIONS
+    active: false
+    components:
+    - id: strategy-c-identity-definition
+      name: Identity Definition
+      active: false
+      subs:
+      - id: strategy-s-naming-conventions
+        name: Naming conventions
+        active: false
+      - id: strategy-s-core-values-and-tone
+        name: Core values and tone
+        active: false
+      - id: strategy-s-consistency-guidelines
+        name: Consistency guidelines
+        active: false
+    - id: strategy-c-market-positioning
+      name: Market Positioning
+      active: false
+      subs:
+      - id: strategy-s-value-proposition
+        name: Value proposition
+        active: false
+      - id: strategy-s-unique-differentiators
+        name: Unique differentiators
+        active: false
+      - id: strategy-s-target-audience-narratives
+        name: Target audience narratives
+        active: false
+    - id: strategy-c-narrative-building
+      name: Narrative Building
+      active: false
+      subs:
+      - id: strategy-s-core-story-development
+        name: Core story development
+        active: false
+      - id: strategy-s-elevator-pitches
+        name: Elevator pitches
+        active: false
+      - id: strategy-s-organizational-history
+        name: Organizational history
+        active: false
+    - id: strategy-c-engagement-strategies
+      name: Engagement Strategies
+      active: false
+      subs:
+      - id: strategy-s-internal-messaging
+        name: Internal messaging
+        active: false
+      - id: strategy-s-public-relations
+        name: Public relations
+        active: false
+      - id: strategy-s-partner-alignment
+        name: Partner alignment
+        active: false

@@ -1,0 +1,1002 @@
+# Content Creation Workflows - Commercial Definition
+# EPF Track Definition v1.0.0
+# Track: Commercial > Sales & Marketing
+
+id: cd-030
+name: Content Creation Workflows
+slug: content-creation-workflows
+track: commercial
+status: ready
+
+contributes_to:
+  - Commercial.Content Operations.content-creation-workflows
+  - Commercial.Pipeline.awareness
+  - Commercial.Brand.authority
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Ad-hoc content creation by founders/generalists"
+    includes:
+      - Simple brief templates (Google Docs)
+      - Manual review and approval
+      - Basic style guidelines
+      - One person handling most content
+    effort: "2-4 hours to set up basic templates"
+    
+  tier_2_intermediate:
+    description: "Structured workflow with dedicated content team"
+    adds:
+      - Content calendar and planning system
+      - Formal brief templates with approval workflow
+      - Brand/style guide documentation
+      - Project management tool integration
+      - Quality review checklist
+    effort: "2-4 weeks to establish processes"
+    
+  tier_3_advanced:
+    description: "Scaled content operation with automation"
+    adds:
+      - Content workflow automation (Notion, Airtable, Monday)
+      - Performance-based content prioritization
+      - Multi-stakeholder approval workflows
+      - Content reuse and atomization system
+      - Full content operations dashboard
+    effort: "2-3 months to build and optimize"
+
+definition:
+  purpose: |
+    Establish systematic processes for creating high-quality marketing content at scale
+    while maintaining brand consistency, editorial standards, and strategic alignment.
+    Transform ad-hoc content creation into a predictable, efficient operation that 
+    supports all marketing channels and business objectives.
+    
+  outcome: |
+    A well-oiled content production machine that delivers on-brand, high-quality 
+    content consistently. Clear ownership, efficient processes, and quality controls
+    ensure content serves strategic goals while meeting deadlines and resource constraints.
+    
+  owner: Content Manager / Marketing Operations Lead
+  
+  inputs:
+    - name: content_strategy
+      description: |
+        Overall content strategy with themes, pillars, and goals:
+        - Content pillars and key themes
+        - Target audience personas
+        - Channel priorities
+        - Success metrics and KPIs
+      source: cd-029-content-strategy
+      
+    - name: brand_guidelines
+      description: |
+        Brand standards for consistent execution:
+        - Visual identity (logo, colors, typography)
+        - Voice and tone guidelines
+        - Messaging frameworks
+        - Approved templates and assets
+      source: cd-033-brand-identity
+      
+    - name: marketing_calendar
+      description: |
+        Editorial and campaign calendar:
+        - Planned campaigns and launches
+        - Seasonal and industry events
+        - Regular content cadences
+        - Key business dates
+      source: marketing operations
+      
+    - name: resource_inventory
+      description: |
+        Available content creation resources:
+        - In-house team capabilities
+        - Agency and freelancer network
+        - Tools and technology stack
+        - Budget allocations
+      source: marketing operations
+      
+    - name: content_requests
+      description: |
+        Incoming content needs from stakeholders:
+        - Sales enablement requests
+        - Product marketing needs
+        - Customer success materials
+        - Leadership communications
+      source: cross-functional teams
+      
+  outputs:
+    - name: content_workflow_documentation
+      description: |
+        Documented processes for content creation:
+        - Workflow diagrams and SOPs
+        - Role and responsibility matrices (RACI)
+        - Approval hierarchies
+        - Handoff procedures
+      consumers:
+        - content team
+        - marketing operations
+        - stakeholders
+        
+    - name: content_briefs
+      description: |
+        Standardized briefs for content production:
+        - Clear objectives and success metrics
+        - Target audience and journey stage
+        - Key messages and CTAs
+        - SEO requirements and keywords
+        - Format specifications and assets needed
+      consumers:
+        - writers and designers
+        - agencies
+        - freelancers
+        
+    - name: editorial_calendar
+      description: |
+        Detailed production schedule:
+        - Content assignments and owners
+        - Draft and review deadlines
+        - Publication dates
+        - Distribution plan
+      consumers:
+        - content team
+        - marketing operations
+        - stakeholders
+        
+    - name: content_assets
+      description: |
+        Finished content ready for distribution:
+        - Blog posts and articles
+        - Social media content
+        - Video and multimedia
+        - Downloadable resources
+        - Email templates
+      consumers:
+        - distribution channels
+        - sales team
+        - partners
+        
+    - name: content_library
+      description: |
+        Organized repository of content assets:
+        - Searchable content database
+        - Metadata and tagging
+        - Version control
+        - Usage tracking
+      consumers:
+        - marketing team
+        - sales team
+        - partners
+        
+  steps:
+    - step: 1
+      action: "Content Planning and Prioritization"
+      responsible: Content Manager
+      details:
+        description: |
+          Establish the content creation pipeline by planning what to create,
+          when to create it, and how it aligns with business priorities.
+          
+        sub_steps:
+          - name: "Strategic Alignment Review"
+            activities:
+              - Review quarterly business objectives and marketing goals
+              - Map content pillars to buyer journey stages
+              - Identify content gaps in current library
+              - Assess competitive content landscape
+            outputs:
+              - Content gap analysis
+              - Strategic priority ranking
+              - Opportunity identification
+              
+          - name: "Content Ideation System"
+            activities:
+              - Establish regular brainstorming cadence (weekly/bi-weekly)
+              - Create idea capture system (Slack channel, form, or board)
+              - Implement idea scoring criteria (impact, effort, alignment)
+              - Build idea backlog with prioritization
+            idea_sources:
+              - Customer questions and feedback
+              - Sales team insights and objections heard
+              - Industry trends and news
+              - SEO keyword research
+              - Competitor content analysis
+              - Internal expertise and thought leadership
+            scoring_criteria:
+              strategic_alignment: "How well does this support business goals? (1-5)"
+              audience_value: "How valuable is this to target audience? (1-5)"
+              search_potential: "What's the SEO opportunity? (1-5)"
+              production_effort: "How much effort to create? (1-5, inverted)"
+              competitive_advantage: "Do we have unique perspective? (1-5)"
+              
+          - name: "Editorial Calendar Management"
+            activities:
+              - Build monthly/quarterly content calendar
+              - Balance content types and pillars
+              - Align with campaigns and launches
+              - Account for production lead times
+            calendar_structure:
+              theme_planning: "Monthly theme aligned with campaigns"
+              weekly_cadence: "Consistent publishing schedule"
+              lead_time: "2-4 weeks for standard content, 6-8 weeks for premium"
+              buffer: "20% capacity buffer for reactive content"
+            tool_requirements:
+              - Shared calendar visible to all stakeholders
+              - Integration with project management
+              - Publishing platform connections
+              
+          - name: "Resource Allocation"
+            activities:
+              - Assess team capacity and capabilities
+              - Identify outsourcing needs (agencies, freelancers)
+              - Allocate budget across content types
+              - Plan for seasonal peaks and campaigns
+            capacity_planning:
+              internal_capacity: "X pieces per week based on team size"
+              external_support: "Agency for premium content, freelancers for scale"
+              budget_split: "60% production, 20% promotion, 20% tools"
+              
+        success_indicators:
+          - Content calendar filled 4+ weeks in advance
+          - 80%+ calendar adherence rate
+          - Balanced content across pillars and journey stages
+          - Clear ownership for every content piece
+          
+    - step: 2
+      action: "Content Brief Development"
+      responsible: Content Manager / Content Strategist
+      details:
+        description: |
+          Create comprehensive briefs that give content creators everything
+          they need to produce aligned, on-brand content efficiently.
+          
+        sub_steps:
+          - name: "Brief Template Creation"
+            activities:
+              - Design standardized brief templates by content type
+              - Include all required fields and guidance
+              - Create examples and best practices
+              - Build into workflow tools
+            template_sections:
+              overview:
+                - Content title/working title
+                - Content type and format
+                - Target word count or length
+                - Due date and publication date
+              strategic_context:
+                - Primary objective (awareness, consideration, decision)
+                - Target persona(s)
+                - Buyer journey stage
+                - Key message or takeaway
+              content_requirements:
+                - Main topic and angle
+                - Key points to cover
+                - Questions to answer
+                - Unique perspective or POV
+              seo_requirements:
+                - Primary keyword and search intent
+                - Secondary keywords
+                - Meta description guidance
+                - Internal linking opportunities
+              brand_and_style:
+                - Voice and tone guidance
+                - Brand messaging to include
+                - Formatting requirements
+                - Visual asset needs
+              reference_materials:
+                - Competitor examples
+                - Internal resources and data
+                - Subject matter experts to interview
+                - Existing content to reference
+                
+          - name: "Brief Completion Process"
+            activities:
+              - Requester fills initial brief
+              - Content strategist reviews and enriches
+              - SEO input added for relevant content
+              - Brief finalized and assigned
+            enrichment_checklist:
+              - Target keyword research completed
+              - Competitor content analyzed
+              - Unique angle identified
+              - SME interview scheduled if needed
+              - Assets and visuals planned
+              
+          - name: "Brief Quality Standards"
+            activities:
+              - Define minimum brief requirements
+              - Create brief quality checklist
+              - Establish approval for brief completeness
+              - Track brief quality metrics
+            minimum_requirements:
+              - Clear objective and success metrics
+              - Defined target audience
+              - Primary keyword (for web content)
+              - Draft deadline
+              - Reviewer/approver identified
+              
+        success_indicators:
+          - 100% of content has completed brief before production starts
+          - Brief-to-production time under 2 days
+          - Writer feedback: brief clarity rating 4+/5
+          - Fewer revision rounds due to unclear requirements
+          
+    - step: 3
+      action: "Content Production Workflow"
+      responsible: Content Team / Writers / Designers
+      details:
+        description: |
+          Execute content creation through clear stages, with defined handoffs
+          and quality checkpoints along the way.
+          
+        sub_steps:
+          - name: "Production Stage Definition"
+            activities:
+              - Define clear production stages
+              - Establish stage entry/exit criteria
+              - Create handoff protocols
+              - Build tracking in project management
+            standard_stages:
+              assigned: "Brief complete, creator assigned"
+              research: "Creator gathering information and outlining"
+              drafting: "First draft in progress"
+              review: "Draft submitted for editorial review"
+              revision: "Incorporating feedback"
+              design: "Visual assets being created"
+              approval: "Final stakeholder sign-off"
+              scheduled: "Ready for publication"
+              published: "Live on channel"
+            stage_criteria:
+              research_exit:
+                - Outline approved
+                - SME interviews complete
+                - Competitor research done
+              drafting_exit:
+                - Full draft complete
+                - Self-edit checklist done
+                - Meets minimum length
+              review_exit:
+                - Editorial feedback provided
+                - Fact-check complete
+                - Brand alignment verified
+                
+          - name: "Writer and Creator Workflow"
+            activities:
+              - Provide clear production guidelines
+              - Establish communication protocols
+              - Create self-edit checklists
+              - Enable focused work time
+            production_guidelines:
+              research_phase:
+                - Review brief thoroughly
+                - Conduct additional research as needed
+                - Interview SMEs (record for accuracy)
+                - Analyze competitor content
+                - Create detailed outline
+              drafting_phase:
+                - Write from outline, focus on structure
+                - Include all required elements from brief
+                - Add internal links and CTAs
+                - Note areas needing visual support
+              self_edit_phase:
+                - Read aloud for flow
+                - Check against brief requirements
+                - Verify keyword usage
+                - Ensure proper formatting
+                - Run grammar/spelling check
+                
+          - name: "Editorial Review Process"
+            activities:
+              - Establish review criteria and standards
+              - Create feedback protocols (constructive, specific)
+              - Define turnaround time expectations
+              - Track revision efficiency
+            review_criteria:
+              strategic_alignment:
+                - Meets stated objective?
+                - Appropriate for target audience?
+                - Clear key message/takeaway?
+              content_quality:
+                - Accurate and well-researched?
+                - Logical structure and flow?
+                - Engaging and readable?
+              brand_compliance:
+                - Correct voice and tone?
+                - Follows style guide?
+                - Appropriate messaging?
+              technical_requirements:
+                - SEO elements complete?
+                - Formatting correct?
+                - Links working?
+            feedback_protocol:
+              - Use track changes or commenting
+              - Be specific and actionable
+              - Prioritize feedback (must-fix vs. nice-to-have)
+              - Provide reasoning for significant changes
+              
+          - name: "Design and Visual Production"
+            activities:
+              - Brief design requirements with content context
+              - Maintain visual asset templates
+              - Establish design review process
+              - Build asset library for reuse
+            visual_asset_types:
+              hero_images: "Featured images for blogs/articles"
+              social_graphics: "Platform-specific visuals"
+              infographics: "Data visualization"
+              video_thumbnails: "Video preview images"
+              downloadable_assets: "eBook covers, worksheet designs"
+            design_process:
+              - Writer includes visual suggestions in draft
+              - Designer reviews and proposes approach
+              - Draft designs reviewed for brand alignment
+              - Final assets delivered with content
+              
+        success_indicators:
+          - Average production time meets targets by content type
+          - First draft approval rate 70%+
+          - Revision rounds average less than 2
+          - On-time delivery rate 90%+
+          
+    - step: 4
+      action: "Quality Assurance and Approval"
+      responsible: Content Manager / Stakeholders
+      details:
+        description: |
+          Ensure content meets quality standards and receives appropriate
+          approvals before publication. Balance thoroughness with efficiency.
+          
+        sub_steps:
+          - name: "Quality Checklist Implementation"
+            activities:
+              - Create comprehensive QA checklists
+              - Assign QA responsibilities
+              - Build QA into workflow stages
+              - Track quality metrics
+            qa_checklist_categories:
+              content_accuracy:
+                - Facts verified with sources
+                - Statistics current and accurate
+                - Quotes attributed correctly
+                - Technical accuracy (for SME content)
+              brand_compliance:
+                - Voice and tone appropriate
+                - Messaging aligned with guidelines
+                - Visual identity consistent
+                - Legal and compliance requirements met
+              technical_quality:
+                - Grammar and spelling correct
+                - Formatting consistent
+                - Links functional
+                - Images optimized
+                - Mobile rendering verified
+              seo_optimization:
+                - Title tag and meta description
+                - Header structure (H1, H2, etc.)
+                - Keyword placement natural
+                - Alt text for images
+                - Internal and external links
+                
+          - name: "Approval Workflow Design"
+            activities:
+              - Define approval requirements by content type
+              - Establish approval hierarchy
+              - Set turnaround time expectations
+              - Create escalation procedures
+            approval_matrix:
+              standard_blog:
+                required: ["Editorial review"]
+                optional: ["Subject matter expert"]
+                sla: "24 hours"
+              thought_leadership:
+                required: ["Editorial", "Executive"]
+                optional: ["Legal/compliance"]
+                sla: "48 hours"
+              product_content:
+                required: ["Editorial", "Product marketing"]
+                optional: ["Legal/compliance"]
+                sla: "48 hours"
+              customer_stories:
+                required: ["Editorial", "Customer success", "Customer approval"]
+                optional: ["Legal/compliance"]
+                sla: "1 week (including customer)"
+              regulatory_content:
+                required: ["Editorial", "Legal/compliance"]
+                optional: ["Executive"]
+                sla: "72 hours"
+                
+          - name: "Feedback and Revision Management"
+            activities:
+              - Standardize feedback collection
+              - Manage conflicting feedback
+              - Track revision history
+              - Measure approval efficiency
+            feedback_management:
+              collection_method: "Consolidated in single document/tool"
+              conflict_resolution: "Content manager arbitrates"
+              version_control: "Clear naming and history"
+              time_limits: "Feedback due within SLA or approve as-is"
+              
+        success_indicators:
+          - QA catches 95%+ of issues before publication
+          - Average approval time meets SLA
+          - Stakeholder satisfaction with final content 4+/5
+          - Post-publication corrections rare (<5%)
+          
+    - step: 5
+      action: "Content Operations and Tools"
+      responsible: Marketing Operations / Content Manager
+      details:
+        description: |
+          Build the operational infrastructure that enables efficient content
+          production at scale, including tools, templates, and systems.
+          
+        sub_steps:
+          - name: "Content Management System Setup"
+            activities:
+              - Select appropriate CMS for needs
+              - Configure workflow features
+              - Set up user roles and permissions
+              - Establish content architecture
+            cms_requirements:
+              workflow_features:
+                - Draft/review/publish states
+                - Scheduled publishing
+                - Version history
+                - Collaboration features
+              organization:
+                - Category/tag taxonomy
+                - Author management
+                - Media library
+                - Content types/templates
+              integration:
+                - Marketing automation
+                - Analytics
+                - DAM system
+                - Social publishing
+                
+          - name: "Project Management Integration"
+            activities:
+              - Choose project management tool
+              - Create content workflow boards/pipelines
+              - Automate notifications and updates
+              - Build reporting dashboards
+            pm_setup:
+              structure:
+                - Board/pipeline per content type or team
+                - Stages matching workflow steps
+                - Custom fields for content metadata
+                - Automation for status changes
+              views:
+                - Calendar view for deadlines
+                - Board view for workflow status
+                - Timeline view for dependencies
+                - Report view for metrics
+              integrations:
+                - Calendar sync
+                - Slack notifications
+                - Time tracking
+                - Document linking
+                
+          - name: "Template and Asset Library"
+            activities:
+              - Build content templates for each type
+              - Create brand asset library
+              - Establish naming conventions
+              - Implement version control
+            template_types:
+              briefs: "Standardized brief templates by content type"
+              content_templates: "Outline templates, formatting guides"
+              design_templates: "Social graphics, presentation decks"
+              email_templates: "Newsletter layouts, promotional emails"
+            asset_organization:
+              naming_convention: "[Type]_[Topic]_[Version]_[Date]"
+              folder_structure: "By category, subcategory, date"
+              metadata: "Tags, descriptions, usage rights"
+              access_control: "Role-based permissions"
+              
+          - name: "Content Collaboration Tools"
+            activities:
+              - Enable real-time collaboration
+              - Implement commenting and feedback
+              - Create shared workspaces
+              - Establish communication channels
+            collaboration_stack:
+              writing: "Google Docs, Notion, or similar"
+              design: "Figma, Canva, or Adobe"
+              communication: "Slack channels for content team"
+              file_storage: "Cloud storage with sync"
+              
+        success_indicators:
+          - All team members trained on tools
+          - Content discoverable in library
+          - Minimal duplicate asset creation
+          - Tool adoption rate 90%+
+          
+    - step: 6
+      action: "Process Improvement and Scaling"
+      responsible: Content Manager / Marketing Operations
+      details:
+        description: |
+          Continuously improve content operations through measurement, feedback,
+          and systematic optimization. Build for scale.
+          
+        sub_steps:
+          - name: "Workflow Metrics and Analysis"
+            activities:
+              - Define key operational metrics
+              - Build tracking mechanisms
+              - Analyze bottlenecks and inefficiencies
+              - Identify improvement opportunities
+            operational_metrics:
+              velocity:
+                - Content pieces produced per week/month
+                - Average time from brief to publish
+                - Stage cycle times
+              quality:
+                - First draft approval rate
+                - Revision rounds average
+                - Post-publication corrections
+              efficiency:
+                - Cost per content piece
+                - Resource utilization
+                - Calendar adherence rate
+              satisfaction:
+                - Creator satisfaction scores
+                - Stakeholder satisfaction scores
+                - Process friction feedback
+                
+          - name: "Regular Process Review"
+            activities:
+              - Conduct retrospectives (monthly/quarterly)
+              - Gather team feedback systematically
+              - Identify quick wins and larger improvements
+              - Implement changes incrementally
+            retrospective_format:
+              frequency: "Monthly for team, quarterly for cross-functional"
+              participants: "Content team + key stakeholders"
+              structure:
+                - Review metrics and trends
+                - What's working well?
+                - What's causing friction?
+                - Proposed improvements
+                - Prioritization and action items
+                
+          - name: "Scaling Content Production"
+            activities:
+              - Build repeatable processes
+              - Develop content creator network
+              - Create training and onboarding
+              - Plan capacity for growth
+            scaling_strategies:
+              process_documentation:
+                - SOPs for all content types
+                - Training materials and videos
+                - Onboarding checklists
+                - Style guide and examples
+              resource_expansion:
+                - Freelancer network development
+                - Agency partnerships
+                - Internal hiring plan
+                - AI tool integration
+              efficiency_gains:
+                - Template optimization
+                - Automation opportunities
+                - Batch production methods
+                - Content repurposing workflows
+                
+          - name: "AI and Automation Integration"
+            activities:
+              - Identify automation opportunities
+              - Evaluate AI writing tools
+              - Implement AI assistance appropriately
+              - Maintain quality standards
+            automation_areas:
+              content_creation:
+                - First draft generation
+                - Research compilation
+                - Outline creation
+                - Social media variations
+              workflow_automation:
+                - Status notifications
+                - Deadline reminders
+                - Content scheduling
+                - Distribution triggers
+              quality_assurance:
+                - Grammar checking
+                - SEO optimization suggestions
+                - Brand voice consistency
+                - Accessibility checks
+            ai_guidelines:
+              - AI as assistant, not replacement
+              - Human review required for all AI content
+              - Fact-checking mandatory
+              - Voice and brand alignment verified
+              
+        success_indicators:
+          - Month-over-month efficiency improvements
+          - Scaling without proportional cost increase
+          - High team satisfaction and retention
+          - Documented and repeatable processes
+          
+  cadence:
+    planning: "Weekly editorial meetings, monthly content planning"
+    production: "Continuous with daily standups"
+    review: "Monthly retrospectives, quarterly process audits"
+    reporting: "Weekly velocity reports, monthly comprehensive reviews"
+
+practitioner_scenarios:
+  - id: ps-001
+    name: "Establishing Content Workflow from Scratch"
+    practitioner: "Content Manager"
+    organization_context: "50-person Series A startup, first dedicated content hire"
+    situation: |
+      Amara just joined a 50-person Series A startup as their first dedicated 
+      content manager. The company has been creating content ad-hoc - the CEO 
+      writes occasional blog posts, the product team creates help docs, and 
+      marketing coordinators post on social. There's no consistent process, 
+      brand guidelines exist but aren't followed, and content quality varies 
+      wildly. Leadership wants to scale content marketing but doesn't know how.
+    trigger: "CMO sets goal of 12 blog posts per month within 6 months"
+    actions: |
+      1. Amara audits current state in week 1: interviews stakeholders, maps 
+         existing ad-hoc workflows, inventories all content, identifies pain 
+         points. Findings reveal no editorial calendar, briefs via email/Slack, 
+         CEO bottleneck on reviews, and inconsistent quality.
+      2. Implements quick wins immediately: shared editorial calendar (Notion), 
+         standard brief template, weekly editorial meeting.
+      3. Designs core workflow with 8 stages: Ideation → Briefing → Writing → 
+         Review → Revision → Design → Approval → Publish. Simplifies approval 
+         matrix to remove CEO from 80% of content.
+      4. Builds infrastructure: brief template with all required fields, Asana 
+         board matching workflow stages, content templates for each format.
+      5. Trains team: 1-hour workflow training, brief writing workshop, 
+         editorial standards review. Rolls out in phases over 4 weeks.
+      6. Measures results after month 1: time to publish down from 12 to 8 
+         days, first draft approval rate up from 45% to 70%, output doubled.
+         Makes adjustments based on learnings.
+    outcome: |
+      By month 3, the team is publishing 10 pieces per month with consistent 
+      quality. The workflow is documented, repeatable, and no longer dependent 
+      on Amara being in every conversation. By month 6, they hit the 12-post 
+      goal with capacity to spare.
+    lessons:
+      - "Start with audit to understand current state before designing new process"
+      - "Quick wins build credibility and momentum for larger changes"
+      - "Simplify approval matrix to remove bottlenecks"
+      - "Phase rollout to allow learning and adjustment"
+      
+  - id: ps-002
+    name: "Scaling Content with Limited Resources"
+    practitioner: "Content Marketer"
+    organization_context: "30-person B2B SaaS, single content marketer"
+    situation: |
+      Jordan is the only content marketer at a 30-person B2B SaaS company. 
+      They're currently producing 4 blog posts per month, managing social, 
+      and creating sales enablement materials. Leadership wants to double 
+      content output without adding headcount.
+    trigger: "VP of Marketing requests doubled output with freelance budget only"
+    actions: |
+      1. Jordan audits current time allocation: 16 hours writing, 6 hours 
+         research, 4 hours editing, 6 hours social, 4 hours sales enablement.
+         Identifies pain points: repetitive research, revisions from unclear 
+         direction, reactive social media, interrupting sales requests.
+      2. Implements process optimization: brief-first approach (reduces 
+         revision rounds from 2.5 to 1.2), research templates and batching, 
+         social media batching (6 hours to 4 weekly), sales enablement office 
+         hours. Net savings: 8+ hours weekly.
+      3. Builds freelance network: tests 5 writers with paid trials, selects 
+         2 reliable writers, creates onboarding doc and brand guidelines. 
+         Jordan handles thought leadership and complex technical content; 
+         freelancers handle how-to posts and updates.
+      4. Implements content repurposing: every blog becomes 5-7 social posts, 
+         LinkedIn carousel, Twitter thread. Quarterly premium piece atomized 
+         into 8+ blog posts plus social and email content.
+      5. Integrates AI tools for research summarization, outline creation, 
+         and social variations. All AI content heavily edited and fact-checked.
+    outcome: |
+      Jordan scales from 4 to 8 blog posts per month without burning out. 
+      Mix is 4 posts by Jordan (higher complexity), 4 by freelancers. Social 
+      presence doubles. Sales enablement is systematized. Same hours but 
+      more strategic focus.
+    lessons:
+      - "Audit time first to find efficiency opportunities before adding resources"
+      - "Brief-first approach eliminates revision cycles"
+      - "Freelancer quality requires investment in onboarding and feedback"
+      - "Repurposing multiplies content ROI without proportional effort"
+
+  - id: ps-003
+    name: "Improving Quality Through Better Process"
+    practitioner: "Editorial Director"
+    organization_context: "6-person content team at marketing agency"
+    situation: |
+      Marcus leads a 6-person content team at a marketing agency serving 
+      mid-market B2B clients. Quality has been inconsistent - some content 
+      is excellent, some mediocre. Clients have complained about uneven 
+      quality, and the team is frustrated by unclear standards.
+    trigger: "Key client puts $150K account on review due to inconsistent quality"
+    actions: |
+      1. Marcus conducts quality audit: reviews last 50 pieces, scores on 
+         rubric (accuracy, clarity, voice, SEO), identifies patterns. Root 
+         causes: incomplete briefs (40%), inconsistent editing (30%), no 
+         client style guides (20%), rush deadlines (10%).
+      2. Defines quality standards: universal rubric scored 1-5 across 
+         accuracy, clarity, engagement, technical, brand alignment. Sets 
+         minimum threshold (no category below 3, average 4+). Creates 
+         client-specific style guides.
+      3. Redesigns process with quality checkpoints: brief completion gate 
+         (100% complete before writing), outline approval step, standardized 
+         2-round editing with rubric scoring, weekly quality review meeting.
+      4. Implements editor calibration program: monthly calibration sessions 
+         where editors score same content independently, align on rubric 
+         interpretation. Creates detailed editorial guide with examples.
+      5. Builds writer development system: documented feedback, pattern 
+         analysis, personalized improvement plans. Tracks first draft 
+         approval rate and quality scores per writer.
+    outcome: |
+      Within 60 days, average quality scores improve from 3.6 to 4.2. First 
+      draft approval rate increases from 55% to 78%. The at-risk client 
+      renews. Team morale improves with clear expectations and recognition.
+    lessons:
+      - "Audit content to find root causes, not just symptoms"
+      - "Quality rubrics create shared language and objective standards"
+      - "Editor calibration ensures consistency across team"
+      - "Writer feedback must be documented and systematic, not ad-hoc"
+
+operational_context:
+  tools:
+    content_management:
+      - name: "WordPress / Webflow / Similar"
+        purpose: "Content publishing and management"
+        features: ["Editorial workflow", "Scheduling", "SEO plugins"]
+      - name: "Notion / Confluence"
+        purpose: "Content operations and documentation"
+        features: ["Databases", "Templates", "Collaboration"]
+    project_management:
+      - name: "Asana / Monday.com / ClickUp"
+        purpose: "Content production workflow tracking"
+        features: ["Board views", "Automation", "Calendar"]
+      - name: "Airtable"
+        purpose: "Editorial calendar and content database"
+        features: ["Custom fields", "Views", "Automation"]
+    writing_and_editing:
+      - name: "Google Docs / Notion"
+        purpose: "Collaborative writing and editing"
+        features: ["Real-time collaboration", "Comments", "Version history"]
+      - name: "Grammarly / Hemingway"
+        purpose: "Writing quality assistance"
+        features: ["Grammar", "Clarity", "Tone"]
+    design_tools:
+      - name: "Canva / Figma"
+        purpose: "Visual content creation"
+        features: ["Templates", "Brand kit", "Collaboration"]
+      - name: "DAM (Bynder, Brandfolder)"
+        purpose: "Digital asset management"
+        features: ["Organization", "Version control", "Sharing"]
+        
+  common_challenges:
+    - challenge: "Inconsistent content quality across creators"
+      solutions:
+        - "Implement detailed briefs with clear requirements"
+        - "Create quality rubrics and checklists"
+        - "Establish editing standards and training"
+        - "Regular calibration sessions"
+    - challenge: "Approval bottlenecks slowing production"
+      solutions:
+        - "Simplify approval matrix (fewer approvers)"
+        - "Set and enforce SLAs"
+        - "Enable async approval tools"
+        - "Escalation procedures for delays"
+    - challenge: "Scope creep and unclear requirements"
+      solutions:
+        - "Enforce complete briefs before production"
+        - "Change request process with impact assessment"
+        - "Clear stage gates in workflow"
+        - "Stakeholder education on process"
+    - challenge: "Scaling content without quality loss"
+      solutions:
+        - "Document processes as SOPs"
+        - "Build template libraries"
+        - "Develop freelancer network with training"
+        - "Strategic AI tool integration"
+        
+  integration_points:
+    - name: "Content Strategy (cd-029)"
+      relationship: "Workflows execute on strategy direction"
+    - name: "Content Distribution (cd-031)"
+      relationship: "Finished content flows to distribution"
+    - name: "Brand Identity (cd-033)"
+      relationship: "Brand guidelines inform content standards"
+
+risks:
+  execution_risks:
+    - risk: "Over-process slowing agility and creativity"
+      likelihood: medium
+      impact: medium
+      mitigation: |
+        Balance structure with flexibility. Establish expedited tracks for time-sensitive 
+        content. Empower creators to make decisions within guidelines. Regular process 
+        audits to eliminate unnecessary steps. Keep overhead proportional to content stakes.
+        
+    - risk: "Quality variance with external creators"
+      likelihood: high
+      impact: medium
+      mitigation: |
+        Comprehensive onboarding for all external creators. Clear brand guidelines and 
+        style guides with examples. Quality checkpoints at key stages, not just final 
+        review. Build relationships with proven creators for repeat work.
+        
+    - risk: "Tool overload and adoption failure"
+      likelihood: medium
+      impact: medium
+      mitigation: |
+        Minimize tool count - consolidate where possible. Provide training and support 
+        during rollout. Integrate tools to reduce context switching. Monitor actual usage 
+        and kill underused tools. Choose tools the team will actually use.
+        
+    - risk: "Bottlenecks at review/approval stages"
+      likelihood: high
+      impact: high
+      mitigation: |
+        Establish SLAs for review turnaround. Clear escalation paths when SLAs missed. 
+        Simplify approval matrix based on content type and risk. Delegate approval for 
+        lower-risk content. Batch reviews for efficiency.
+        
+  organizational_risks:
+    - risk: "Content creation becomes disconnected from strategy"
+      impact: |
+        Teams produce content that doesn't serve business goals. Effort wasted on 
+        low-impact assets. Content lacks coherence across touchpoints. 
+        Strategy-execution gap widens.
+      prevention: |
+        Tie every content request to strategic objective. Regular alignment reviews 
+        between content and strategy teams. Content briefs require strategic context. 
+        Kill content that can't be tied to outcomes.
+        
+    - risk: "Burnout in content team"
+      impact: |
+        Quality drops, turnover increases, institutional knowledge lost. 
+        Reactive firefighting replaces proactive creation. Team morale suffers.
+      prevention: |
+        Realistic capacity planning. Push back on scope creep. Invest in systems 
+        and tools that reduce manual work. Celebrate wins. Protect focused work time.
+
+domain_context:
+  industry_variations:
+    b2b_tech:
+      workflow_notes: "Technical review steps, SME involvement, longer cycles"
+      priorities: ["Accuracy", "Thought leadership", "SEO"]
+    b2b_services:
+      workflow_notes: "Case study focus, compliance review, partner content"
+      priorities: ["Credibility", "Proof points", "Personalization"]
+    d2c:
+      workflow_notes: "High volume, visual emphasis, fast turnaround"
+      priorities: ["Speed", "Visual quality", "Brand voice"]
+    regulated_industries:
+      workflow_notes: "Compliance review, legal approval, archive requirements"
+      priorities: ["Accuracy", "Compliance", "Audit trail"]
+      
+  team_size_adaptations:
+    solo_practitioner:
+      approach: "Streamlined workflow, templates over process"
+      priorities: ["Efficiency", "Self-editing", "Batching"]
+    small_team:
+      approach: "Clear ownership, minimal handoffs"
+      priorities: ["Communication", "Quality checks", "Flexibility"]
+    large_team:
+      approach: "Specialized roles, detailed workflow stages"
+      priorities: ["Consistency", "Scalability", "Metrics"]
+      
+  maturity_evolution:
+    level_1_ad_hoc:
+      characteristics: "No formal process, reactive creation"
+      next_steps: ["Basic calendar", "Brief templates", "Simple approval"]
+    level_2_defined:
+      characteristics: "Documented workflow, clear ownership"
+      next_steps: ["Quality standards", "Metrics tracking", "Tool optimization"]
+    level_3_managed:
+      characteristics: "Metrics-driven, consistent quality"
+      next_steps: ["Process optimization", "Scaling", "Innovation"]
+    level_4_optimized:
+      characteristics: "Continuous improvement, predictable output"
+      next_steps: ["Automation", "AI integration", "Thought leadership"]

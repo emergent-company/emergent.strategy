@@ -1,0 +1,500 @@
+# OrgOps Process Definition: New Hire Orientation
+# Schema: org_ops_definition_schema.json v1.1.0
+
+id: pd-001
+name: New Hire Orientation
+slug: new-hire-orientation
+track: org_ops
+status: ready
+
+contributes_to:
+  - OrgOps.Onboarding.orientation-programs
+
+# Maturity Model - Grow with Organization
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Simple, personal welcome process for small teams"
+    includes:
+      - Welcome message from founder/manager
+      - Team introductions
+      - Essential tools access
+      - First-day checklist
+    effort: "4-8 hours to set up, 2 hours per new hire"
+    
+  tier_2_intermediate:
+    description: "Structured onboarding with documentation and tracking"
+    adds:
+      - Onboarding portal/wiki page
+      - Standardized 30-60-90 day plan
+      - Onboarding buddy assignment
+      - Feedback survey at 2 weeks
+      - Manager check-in schedule
+    effort: "1-2 weeks to set up, 4 hours per new hire"
+    
+  tier_3_advanced:
+    description: "Fully automated onboarding with analytics"
+    adds:
+      - Automated workflow triggers (HRIS integration)
+      - Department-specific tracks
+      - Cohort-based sessions for scaling
+      - Onboarding metrics dashboard
+      - New hire NPS tracking
+      - Continuous improvement process
+    effort: "1-2 months to set up, minimal per-hire overhead"
+
+# Core Definition (Tier 1 Focus)
+definition:
+  purpose: |
+    New hires often feel overwhelmed and uncertain in their first days. Without proper 
+    orientation, they may struggle to understand company culture, meet key people, or 
+    find essential information - leading to slower ramp-up and early attrition. This 
+    process ensures every new hire has a welcoming, consistent first-day experience 
+    that sets them up for success.
+    
+  outcome: |
+    New hire has completed all first-day essentials: met their team, understands their 
+    role and first-week priorities, has access to core systems, and knows who to ask 
+    for help. They feel welcomed and confident about their first week.
+    
+  owner: People Operations Lead
+  
+  inputs:
+    - name: New hire information
+      description: Name, role, start date, manager, team
+      source: Hiring process / Offer acceptance
+    - name: Team introduction list
+      description: Key people the new hire should meet
+      source: Hiring manager
+    - name: System access requirements
+      description: Tools and permissions needed for role
+      source: IT / Role template
+      
+  outputs:
+    - name: Completed orientation checklist
+      description: Record of all first-day activities completed
+      consumer: HR records
+    - name: New hire feedback
+      description: Initial impressions and questions
+      consumer: Manager / People Ops
+    - name: Access confirmations
+      description: Verification all systems are working
+      consumer: IT support
+      
+  steps:
+    - step: 1
+      action: Send pre-start welcome email with first-day logistics
+      responsible: People Operations
+      duration: "15 minutes"
+      deliverable: Welcome email sent
+      
+    - step: 2
+      action: Prepare workspace (physical or virtual) with essentials
+      responsible: Manager + IT
+      duration: "30 minutes"
+      tools:
+        - HRIS system
+        - IT ticketing
+      deliverable: Workspace ready
+      
+    - step: 3
+      action: Manager greets new hire and walks through first-day agenda
+      responsible: Manager
+      duration: "30 minutes"
+      deliverable: New hire knows the day's plan
+      
+    - step: 4
+      action: Team introductions (informal or structured depending on size)
+      responsible: Manager
+      duration: "30-60 minutes"
+      deliverable: New hire has met immediate team
+      
+    - step: 5
+      action: Walk through essential tools and verify access
+      responsible: IT or Buddy
+      duration: "30 minutes"
+      tools:
+        - Access checklist
+      deliverable: Core systems accessible
+      
+    - step: 6
+      action: Share role expectations and first-week priorities
+      responsible: Manager
+      duration: "30 minutes"
+      deliverable: Clear priorities documented
+      
+    - step: 7
+      action: "End-of-day check-in: questions, feedback, next steps"
+      responsible: Manager
+      duration: "15 minutes"
+      deliverable: New hire feedback captured
+      
+  cadence:
+    frequency: event-triggered
+    trigger: New hire start date
+    duration: "1 day (with follow-up in first week)"
+    
+  participants:
+    - role: New Hire
+      responsibility: Participate actively, ask questions
+      time_commitment: "Full day"
+    - role: Manager
+      responsibility: Welcome, set expectations, check in
+      time_commitment: "2-3 hours"
+    - role: People Operations
+      responsibility: Coordinate logistics, send materials
+      time_commitment: "1 hour"
+    - role: IT/Systems Admin
+      responsibility: Provision access, verify setup
+      time_commitment: "30 minutes"
+    - role: Team Members
+      responsibility: Welcome, introduce themselves
+      time_commitment: "15-30 minutes each"
+      
+  success_criteria:
+    - New hire can log into all essential systems by end of day 1
+    - New hire can name their team members and knows their roles
+    - New hire knows their top 3 priorities for week 1
+    - New hire knows who to contact for different types of questions
+    - New hire reports feeling welcomed (qualitative check-in)
+
+# OrgOps-Specific Context
+operational_context:
+  prerequisites:
+    - Offer signed and start date confirmed
+    - Manager availability on start date
+    - IT provisioning request submitted (ideally 3+ days before)
+    - Workspace prepared (desk, equipment, or remote setup shipped)
+    
+  common_blockers:
+    - "IT access delays → Submit requests 5 days before start, have backup plan"
+    - "Manager unavailable → Assign deputy or reschedule to when manager available"
+    - "Remote timezone challenges → Adjust schedule or record key sessions"
+    - "Overwhelming information → Focus on essentials day 1, spread rest across week"
+    
+  metrics:
+    - name: Time to productivity
+      description: Days until new hire completes first meaningful contribution
+      target: "< 2 weeks for basic role proficiency"
+      tier: 2
+    - name: Onboarding completion rate
+      description: Percentage of checklist items completed on day 1
+      target: "> 90%"
+      tier: 1
+    - name: New hire satisfaction
+      description: Survey score at 2-week mark
+      target: "> 4.0/5.0"
+      tier: 2
+    - name: Early attrition rate
+      description: Voluntary departures within 90 days
+      target: "< 10%"
+      tier: 3
+
+compliance:
+  regulatory_requirements:
+    - "Employment documentation (I-9, W-4 in US; equivalents elsewhere)"
+    - "Required training acknowledgments (safety, harassment prevention)"
+    - "Data privacy consent (GDPR where applicable)"
+  documentation_required:
+    - Signed offer letter
+    - Tax forms
+    - Orientation checklist (signed)
+    - Required training completion records
+  audit_considerations: |
+    Auditors may review: consistent application of orientation process, 
+    timely completion of required documentation, appropriate access controls.
+
+tools_ecosystem:
+  recommended:
+    - category: HRIS / People Platform
+      examples:
+        - BambooHR
+        - Rippling
+        - Gusto
+        - Deel
+      purpose: Centralize employee data, automate workflows
+    - category: Communication
+      examples:
+        - Slack
+        - Microsoft Teams
+      purpose: Team introductions, quick questions
+    - category: Documentation
+      examples:
+        - Notion
+        - Confluence
+        - Google Docs
+      purpose: Onboarding guide, checklists
+    - category: IT Provisioning
+      examples:
+        - Okta
+        - JumpCloud
+        - Google Workspace Admin
+      purpose: Single sign-on, access management
+  integrations:
+    - HRIS → IT ticketing (auto-create access requests)
+    - Calendar → Meeting scheduling for introductions
+    - Checklist tool → Progress tracking
+
+# Practitioner Scenarios - How This Plays Out in Real Organizations
+practitioner_scenarios:
+  - id: ps-001
+    name: "First engineering hire in a 4-person startup"
+    practitioner: "CEO/Founder"
+    organization_context: "4-person pre-seed startup, fully remote, no HR function"
+    situation: |
+      Maria just hired their first engineer, Alex, who starts Monday. There's no HR, 
+      no onboarding checklist, and everyone is heads-down on an investor demo. The 
+      CEO realizes Friday afternoon they haven't prepared anything for Alex's first day.
+    trigger: "Friday 4pm realization that new hire starts Monday"
+    actions: |
+      1. Maria spends 30 minutes Saturday creating a simple Google Doc checklist: welcome → tools → 
+         intro calls → first task. She adds links to Notion wiki, Slack invite, and GitHub.
+      2. Sunday evening, sends Alex a personal welcome email with checklist and "excited to 
+         have you, we'll keep it simple day 1."
+      3. Monday 9am: 30-min video call to walk through the checklist together, answer questions.
+      4. Maria schedules 4 x 30-min 1:1s with each team member across the week.
+      5. Assigns a small "first PR" task that touches the codebase but isn't critical path.
+      6. End of day 1: 15-min check-in asking "what's confusing? what do you need?"
+    outcome: |
+      Alex had a productive first day despite minimal preparation. The checklist became the 
+      template for future hires. Key learning: sending the checklist ahead reduced day-1 anxiety.
+    lessons:
+      - "A simple checklist beats no process - can be created in 30 minutes"
+      - "Sending materials before day 1 reduces new hire stress significantly"
+      - "Small first task builds confidence faster than observation"
+      - "End-of-day check-in catches problems before they compound"
+
+  - id: ps-002
+    name: "Scaling onboarding from 2 to 8 hires per month"
+    practitioner: "Head of People Operations"
+    organization_context: "45-person Series A startup, 3 offices + remote, growing rapidly"
+    situation: |
+      Six months ago, Jamie (People Ops) personally onboarded every new hire with white-glove 
+      service. Now they're hiring 8 people per month and Jamie is spending 50% of time on 
+      onboarding. Quality is dropping - last week a new hire didn't get laptop access for 3 days.
+    trigger: "Third complaint this month about onboarding issues; CEO asks what's happening"
+    actions: |
+      1. Jamie maps current process, finds 23 manual steps per hire, 6 require their personal involvement.
+      2. Creates Notion onboarding hub with: welcome video, company overview, team pages, tool guides.
+      3. Builds automated workflow in HRIS: 7 days before start → trigger IT provisioning, 
+         manager reminder, buddy assignment.
+      4. Introduces "onboarding buddy" role: peer who handles day-1 logistics, answers questions.
+      5. Creates cohort onboarding: bi-weekly "Welcome to Company" session for all new hires 
+         (replaces 1:1 culture explanation).
+      6. Implements 2-week survey with 5 questions to catch issues early.
+    outcome: |
+      Jamie's involvement dropped from 4 hours to 30 minutes per hire. Laptop/access issues 
+      eliminated through automation. New hire satisfaction actually improved (4.2 → 4.5/5) 
+      because buddies provided more accessible support than busy People Ops.
+    lessons:
+      - "Automation enables scale but buddy system maintains human touch"
+      - "Cohort sessions are more efficient AND create new hire community"
+      - "The 2-week survey catches issues before they become attrition"
+      - "Manager involvement can't be automated - schedule their time explicitly"
+
+  - id: ps-003
+    name: "Remote-first onboarding across 8 timezones"
+    practitioner: "Office Manager / Remote Experience Lead"
+    organization_context: "70-person fully remote company, team distributed globally, async-first culture"
+    situation: |
+      New customer success hire in Singapore, manager in NYC, team spread across APAC and 
+      Americas. Live overlap is only 2 hours. Previous remote onboardings felt disconnected - 
+      one new hire said "I didn't feel like part of the team until month 3."
+    trigger: "New APAC hire starting next week, CEO wants better remote onboarding experience"
+    actions: |
+      1. Ships welcome box 2 weeks early: laptop, swag, handwritten note from manager, snack box.
+      2. Creates async onboarding: Loom videos from CEO (culture), manager (role), each teammate 
+         (personal intro + "here's what I work on").
+      3. Schedules the 2-hour overlap for high-value sync: 1:1 with manager + meet-the-team call.
+      4. Assigns APAC buddy in similar timezone for daily async check-ins first 2 weeks.
+      5. Creates "First Week Quest": gamified checklist with small tasks + reward (shipped snack box).
+      6. Manager commits to async Loom response within 24 hours for questions.
+    outcome: |
+      New hire reported feeling "surprisingly connected" despite timezone challenges. The 
+      async video intros were rewatchable (new hire watched manager intro 3 times). Buddy in 
+      timezone handled the "stupid questions" that new hires feel awkward asking manager.
+    lessons:
+      - "Physical welcome box compensates for lack of in-person warmth"
+      - "Async video intros are better than live for timezone-distributed teams"
+      - "Same-timezone buddy is essential - not optional - for remote hires"
+      - "Gamification of checklist increased completion rate from 60% to 95%"
+
+# Risks - What Can Go Wrong and How to Prevent/Handle
+risks:
+  execution_risks:
+    - risk: "IT access not ready on day 1 - new hire can't work"
+      likelihood: medium
+      impact: high
+      mitigation: |
+        Submit IT provisioning request 5+ business days before start. Create "day 1 backup kit": 
+        guest wifi, temporary logins, offline reading materials. Have IT on standby day 1 morning.
+        
+    - risk: "Manager double-booked or unavailable on start date"
+      likelihood: medium
+      impact: high
+      mitigation: |
+        Block manager calendar 2 weeks ahead. Require deputy designation. If truly unavailable, 
+        reschedule start date - a manager-less first day signals "you don't matter."
+        
+    - risk: "Information overload - new hire overwhelmed and retains nothing"
+      likelihood: high
+      impact: medium
+      mitigation: |
+        Limit day 1 to essentials: team, tools, first task. Spread content across week 1. 
+        Provide written reference (wiki, doc) so new hire isn't memorizing. Check in end of day.
+        
+    - risk: "New hire feels isolated (especially remote)"
+      likelihood: medium
+      impact: high
+      mitigation: |
+        Assign buddy who checks in daily. Schedule social touchpoints (virtual coffee). 
+        For remote: ship welcome box, use video for meetings, introduce in team chat.
+        
+    - risk: "No clear first task - new hire doesn't know what to do"
+      likelihood: medium
+      impact: medium
+      mitigation: |
+        Manager prepares specific first task before day 1. Task should be achievable in 1-2 days, 
+        provide quick win, and touch real work. "Read the docs" is not a task.
+        
+  organizational_risks:
+    - risk: "Poor onboarding leads to early attrition (quit within 90 days)"
+      impact: |
+        Losing a hire within 90 days costs 1.5-3x annual salary in recruiting, lost 
+        productivity, team disruption, and knowledge loss. Early attrition is often 
+        cited as "culture fit" but frequently traces back to onboarding failures.
+      prevention: |
+        Systematic orientation with clear expectations, buddy system, 2-week check-in survey. 
+        Track early attrition and conduct exit interviews to identify onboarding gaps.
+        
+    - risk: "Inconsistent onboarding creates unequal employee experience"
+      impact: |
+        When onboarding quality depends on which manager or which office, employees compare 
+        notes. This breeds resentment ("my friend got 2 weeks of training, I got a Slack message") 
+        and can surface as retention or DEI issues.
+      prevention: |
+        Standardized checklist and core content that all managers follow. Central People Ops 
+        oversight. Regular manager training on onboarding responsibilities.
+        
+    - risk: "Compliance failures: missing documentation, incomplete training"
+      impact: |
+        Audit findings, legal exposure, regulatory penalties. In some jurisdictions, failure 
+        to complete required training (harassment, safety) within mandated timeframe is violation.
+      prevention: |
+        Automated checklist tracking with compliance items marked as mandatory. Don't close 
+        onboarding until all required items complete. Regular audit of completion records.
+
+# Domain Context - Industry Best Practices and Benchmarks
+domain_context:
+  industry_landscape: |
+    Onboarding has evolved significantly from "HR paperwork day" to a strategic investment in 
+    employee success. Research shows strong onboarding improves retention by 82% (Brandon Hall) 
+    and productivity by 70%. Yet 88% of organizations don't onboard well (Gallup). The shift to 
+    remote/hybrid has forced companies to rethink onboarding entirely - physical office tours 
+    and lunch introductions are no longer default options.
+    
+    Leading companies now view onboarding as extending through the first 90 days, not just 
+    day 1. "Preboarding" (engagement between offer acceptance and start date) is emerging as 
+    a differentiator. There's also growing recognition that manager involvement - not just 
+    HR execution - is the primary driver of onboarding success.
+
+  best_practices:
+    - "Send preboarding materials 1-2 weeks before start (reduces first-day anxiety, builds excitement)"
+    - "Assign an onboarding buddy separate from manager (safe space for 'stupid questions')"
+    - "Limit day 1 to essentials: people, tools, first task. Spread content across week 1"
+    - "Provide a 'quick win' first task - achievable in 1-2 days, builds confidence"
+    - "Schedule regular check-ins: day 1, week 1, week 2, day 30, day 60, day 90"
+    - "Use cohort onboarding at scale - builds peer community, more efficient"
+    - "Create written reference materials (wiki) - don't rely on new hire memory"
+    - "For remote: invest in physical welcome experience (shipped box, handwritten note)"
+    
+  anti_patterns:
+    - "Drinking from the firehose: 8 hours of presentations on day 1 (retention near zero)"
+    - "Manager MIA: delegating entire onboarding to HR or buddy (signals low priority)"
+    - "No first task: new hire spends week 1 'reading docs' with no direction"
+    - "Inconsistent experience: onboarding quality depends on luck of manager/team"
+    - "Compliance-only: treating onboarding as paperwork exercise, not cultural immersion"
+    - "Sink or swim: assuming smart people will 'figure it out' (wastes talent, causes attrition)"
+    - "Ignoring remote differences: running same program for office and remote hires"
+    
+  benchmarks:
+    - metric: "Time to productivity (role proficiency)"
+      poor: "> 3 months"
+      average: "2-3 months"
+      excellent: "< 1 month for basic proficiency"
+      source: "Industry surveys, varies by role complexity"
+    - metric: "Onboarding satisfaction score"
+      poor: "< 3.5/5"
+      average: "3.5-4.0/5"
+      excellent: "> 4.2/5"
+      source: "Internal survey at 2-week mark"
+    - metric: "Early attrition rate (voluntary departures within 90 days)"
+      poor: "> 15%"
+      average: "8-15%"
+      excellent: "< 5%"
+      source: "SHRM benchmarks"
+    - metric: "Day 1 checklist completion"
+      poor: "< 70%"
+      average: "70-85%"
+      excellent: "> 95%"
+      source: "Internal tracking"
+    - metric: "Preboarding engagement"
+      poor: "No preboarding"
+      average: "Email with paperwork"
+      excellent: "Welcome video, team intros, equipment shipped pre-start"
+      source: "Emerging practice"
+      
+  maturity_indicators:
+    tier_1_signs:
+      - "Company has made first hire or two"
+      - "Founder is personally handling onboarding"
+      - "No documented process exists"
+      - "New hires asking lots of basic questions (no reference materials)"
+    tier_2_signs:
+      - "Hiring 2+ people per month"
+      - "Same person onboarding every new hire (bottleneck emerging)"
+      - "Quality varies by manager"
+      - "Repeated access/logistics issues"
+      - "Time spent on onboarding becoming unsustainable"
+    tier_3_signs:
+      - "10+ hires per month"
+      - "Multiple offices/locations or significant remote workforce"
+      - "Need for analytics to track onboarding effectiveness"
+      - "Compliance requirements demanding audit trail"
+      - "Cohort-based onboarding needed for efficiency"
+
+# Relationships to Other Definitions
+related_definitions:
+  - id: pd-002
+    relationship: follows
+    description: "System Access Setup runs in parallel or immediately after orientation"
+  - id: pd-008
+    relationship: enables
+    description: "Skills Training Program can begin once basic orientation complete"
+
+# Adaptation Guidance
+adaptation:
+  customize:
+    - Team introduction format (1:1s vs group, formal vs casual)
+    - First-week priorities specific to role
+    - Tool-specific access checklists
+    - Company culture elements to emphasize
+  preserve:
+    - Manager involvement on day 1
+    - End-of-day check-in
+    - Clear first-week priorities
+    - Access verification before leaving
+  common_variations:
+    - "Remote-first: Ship equipment early, use video for introductions"
+    - "Engineering: Include dev environment setup as step"
+    - "Sales: Include CRM and playbook orientation"
+    - "Executive: Include board/investor relationship briefing"
+
+references:
+  - name: "The First 90 Days"
+    url: "https://www.amazon.com/First-90-Days-Strategies-Expanded/dp/1422188612"
+    type: book
+  - name: "Google's Noogler Orientation"
+    url: "https://rework.withgoogle.com/guides/hiring-onboard-new-hires/steps/introduction/"
+    type: article

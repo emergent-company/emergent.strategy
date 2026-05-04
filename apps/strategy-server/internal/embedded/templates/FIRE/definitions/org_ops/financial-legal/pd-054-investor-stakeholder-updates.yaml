@@ -1,0 +1,514 @@
+# OrgOps Process Definition: Investor Stakeholder Updates
+# Schema: org_ops_definition_schema.json v1.1.0
+#
+# Rationale for placement: Stakeholder updates to existing investors and board 
+# members is relationship maintenance, not investor acquisition. Commercial 
+# acquires investors; OrgOps maintains ongoing investor communications.
+
+id: pd-054
+name: Investor Stakeholder Updates
+slug: investor-stakeholder-updates
+track: org_ops
+status: ready
+
+contributes_to:
+  - OrgOps.Shareholders & Investors.investor-communications
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Ad-hoc updates to key stakeholders"
+    includes:
+      - Reactive responses to stakeholder inquiries
+      - Major milestone announcements
+      - Crisis communication when needed
+      - Informal updates via email or calls
+    effort: "As-needed, variable hours"
+    
+  tier_2_intermediate:
+    description: "Structured communication program"
+    adds:
+      - Stakeholder map and communication plan
+      - Regular cadence of updates (monthly/quarterly)
+      - Tailored messaging for different audiences
+      - Two-way feedback collection
+    effort: "4-6 hours/month ongoing"
+    
+  tier_3_advanced:
+    description: "Strategic stakeholder management"
+    adds:
+      - Stakeholder influence mapping
+      - Proactive relationship building
+      - Crisis communication playbook
+      - Measurement of stakeholder health
+    effort: "8-12 hours/month, dedicated resource"
+
+definition:
+  purpose: |
+    Stakeholder updates extend beyond investors to include everyone with 
+    a vested interest in your company's success: customers, partners, 
+    advisors, employees (as a group), and sometimes the broader community. 
+    Each group needs different information, in different formats, at 
+    different frequencies.
+    
+    Effective stakeholder communication builds trust, creates advocates, 
+    and surfaces issues before they become problems. Stakeholders who 
+    feel informed and valued become assets - making introductions, 
+    providing referrals, offering support during difficult times.
+    
+    The opposite - sporadic or one-way communication - creates stakeholders 
+    who feel taken for granted. When you need their support, it's not there. 
+    Worse, uninformed stakeholders may create problems by acting on 
+    incomplete information.
+    
+    Warning signs of poor stakeholder communication:
+    - Stakeholders learn news from outside sources
+    - Requests for introductions or help are declined
+    - Customers surprised by product changes
+    - Partners feel out of the loop
+    - Former advocates become neutral or negative
+    
+  outcome: |
+    A stakeholder communication practice that keeps all key groups informed, 
+    maintains strong relationships, surfaces feedback and issues early, 
+    and creates a network of advocates for the company.
+    
+  owner: CEO (overall) / functional leads for their stakeholders
+  
+  inputs:
+    - name: Stakeholder map
+      description: "List of key stakeholders by category"
+      source: CEO / Leadership team
+      
+    - name: Company updates
+      description: "News, milestones, changes to share"
+      source: Leadership, Product, Marketing
+      
+    - name: Stakeholder feedback
+      description: "Input and concerns from stakeholders"
+      source: Customer success, BD, HR
+      
+  outputs:
+    - name: Stakeholder update communications
+      description: "Emails, newsletters, calls tailored by audience"
+      consumer: Various stakeholder groups
+      
+    - name: Stakeholder health assessment
+      description: "Tracking of relationship health"
+      consumer: Leadership team
+
+  steps:
+    - step: 1
+      action: Map your stakeholders
+      responsible: CEO + Leadership team
+      duration: "2-4 hours"
+      deliverable: Stakeholder map
+      stakeholder_categories:
+        investors:
+          includes: "Board, major investors, angels, strategic investors"
+          relationship_owner: "CEO"
+          communication_needs: "Financial performance, strategy, risks"
+        customers:
+          includes: "Key accounts, customer segments, champions"
+          relationship_owner: "Sales Lead / CS Lead"
+          communication_needs: "Product updates, roadmap, support"
+        partners:
+          includes: "Channel partners, technology partners, strategic allies"
+          relationship_owner: "BD Lead / CEO"
+          communication_needs: "Joint initiatives, integration updates"
+        employees:
+          includes: "All employees as a stakeholder group"
+          relationship_owner: "CEO / HR Lead"
+          communication_needs: "Company direction, wins, changes"
+        advisors:
+          includes: "Formal advisors, informal mentors"
+          relationship_owner: "CEO"
+          communication_needs: "Progress updates, specific questions"
+        community:
+          includes: "Industry, media, public if applicable"
+          relationship_owner: "Marketing / CEO"
+          communication_needs: "Thought leadership, announcements"
+      mapping_template:
+        columns:
+          - Stakeholder name or group
+          - Category
+          - Relationship owner
+          - Current relationship health (1-5)
+          - Communication frequency
+          - Last contact date
+          - Key interests or concerns
+      prioritization:
+        high_influence_high_interest: "Manage closely (frequent, two-way)"
+        high_influence_low_interest: "Keep satisfied (periodic updates)"
+        low_influence_high_interest: "Keep informed (regular updates)"
+        low_influence_low_interest: "Monitor (minimal effort)"
+      best_practices:
+        - "Include individuals, not just categories"
+        - "Be realistic about relationship health"
+        - "Identify gaps and risks"
+        - "Review and update quarterly"
+
+    - step: 2
+      action: Define communication cadence
+      responsible: CEO
+      duration: "1-2 hours"
+      deliverable: Communication calendar
+      cadence_by_stakeholder:
+        board_investors:
+          formal: "Quarterly board meetings"
+          informal: "Monthly brief check-ins"
+          ad_hoc: "Major news immediately"
+        major_investors:
+          formal: "Quarterly investor update"
+          informal: "As-needed for asks or updates"
+        customers:
+          formal: "Product updates (monthly or per release)"
+          informal: "Account check-ins (CS driven)"
+          ad_hoc: "Outages or breaking changes immediately"
+        partners:
+          formal: "Quarterly business reviews"
+          informal: "Monthly relationship calls"
+          ad_hoc: "Integration changes, joint opportunities"
+        employees:
+          formal: "All-hands (monthly or bi-weekly)"
+          informal: "Team updates (weekly)"
+          ad_hoc: "Major news immediately"
+        advisors:
+          formal: "Quarterly catch-up"
+          informal: "As-needed for specific questions"
+      calendar_template:
+        monthly_rhythm:
+          week_1: "Investor update draft, Employee all-hands prep"
+          week_2: "Investor update sent, Customer newsletter draft"
+          week_3: "Partner check-ins, Advisor outreach"
+          week_4: "Customer newsletter sent, Month-end wrap-up"
+      best_practices:
+        - "Set recurring calendar events"
+        - "Batch communications when possible"
+        - "Balance thoroughness with sustainability"
+        - "Adjust cadence based on company stage"
+
+    - step: 3
+      action: Create tailored messaging
+      responsible: CEO + Communications (if exists)
+      duration: "2-4 hours per update cycle"
+      deliverable: Stakeholder-specific communications
+      message_tailoring:
+        principle: "Same news, different emphasis"
+        investor_focus: "Financial impact, strategic implications"
+        customer_focus: "How this benefits them, what to expect"
+        partner_focus: "Joint opportunity, integration impact"
+        employee_focus: "What it means for them, how to contribute"
+      communication_formats:
+        email_update:
+          when: "Regular updates, news, requests"
+          format: "Scannable, action-oriented"
+          length: "Under 500 words usually"
+        newsletter:
+          when: "Customers, community, broad updates"
+          format: "Structured sections, visual"
+          length: "3-5 minute read"
+        video_message:
+          when: "Major announcements, personal connection"
+          format: "CEO talking, 2-3 minutes"
+          when_to_use: "Funding, layoffs, major pivots"
+        call_or_meeting:
+          when: "Sensitive topics, two-way discussion"
+          format: "Prepared but conversational"
+          when_to_use: "Key customers, partners, individual investors"
+      tone_guidelines:
+        honest: "Never hide bad news; always pair with plan"
+        confident: "Measured optimism, not hype"
+        grateful: "Thank stakeholders for their support"
+        clear: "Simple language, no jargon"
+      best_practices:
+        - "Lead with what matters to the audience"
+        - "Make asks specific and easy to act on"
+        - "Include next steps or call to action"
+        - "Test important messages with trusted advisor"
+
+    - step: 4
+      action: Deliver updates and collect feedback
+      responsible: Relationship owners
+      duration: "Variable per stakeholder"
+      deliverable: Completed communications, feedback notes
+      delivery_execution:
+        batch_communications: "Email updates, newsletters"
+        individual_outreach: "Calls, personalized notes"
+        broadcast: "All-hands, webinars, announcements"
+      feedback_collection:
+        investors:
+          methods: "Board discussion, direct conversation"
+          what_to_capture: "Strategic input, concerns, introductions offered"
+        customers:
+          methods: "NPS, surveys, CS conversations"
+          what_to_capture: "Product feedback, satisfaction, risks"
+        partners:
+          methods: "QBR discussions, relationship calls"
+          what_to_capture: "Joint opportunity ideas, integration needs"
+        employees:
+          methods: "Engagement surveys, skip-levels, AMAs"
+          what_to_capture: "Morale, concerns, ideas"
+      two_way_communication:
+        principle: "Updates without listening is broadcasting, not communicating"
+        ask_questions: "What questions do you have? What would help you?"
+        follow_up: "Close the loop on feedback received"
+      best_practices:
+        - "Confirm important messages were received"
+        - "Make it easy to respond"
+        - "Track feedback systematically"
+        - "Act on feedback and communicate back"
+
+    - step: 5
+      action: Handle sensitive communications
+      responsible: CEO
+      duration: "Variable, often urgent"
+      deliverable: Sensitive communication executed well
+      sensitive_topics:
+        layoffs:
+          principle: "Treat people with dignity"
+          sequence: "Affected individuals first, then all employees, then external"
+          key_messages: "Why, how decisions made, support provided"
+        funding_challenges:
+          principle: "Transparency without panic"
+          who_tells: "CEO to board, then leadership, then company"
+          key_messages: "Situation, plan, what you need from them"
+        leadership_changes:
+          principle: "Clear transition, respect for departing"
+          sequence: "Board, leadership, company, external"
+          key_messages: "Reason (appropriate level), plan, confidence"
+        pivot_or_major_change:
+          principle: "Explain the why, acknowledge the hard"
+          sequence: "Board, leadership, company, customers"
+          key_messages: "What changed, why this is right, what it means"
+      crisis_communication:
+        principles:
+          speed: "Communicate quickly, even if imperfectly"
+          honesty: "Tell the truth; never cover up"
+          empathy: "Acknowledge impact on stakeholders"
+          action: "Share what you are doing about it"
+        common_crises:
+          security_incident: "Notify affected parties quickly, be transparent"
+          product_failure: "Acknowledge, explain, remediate"
+          pr_issue: "Respond thoughtfully, don't be defensive"
+      best_practices:
+        - "Prepare messaging before sensitive conversations"
+        - "Align leadership on messaging"
+        - "Anticipate questions and prepare answers"
+        - "Document what was communicated"
+
+    - step: 6
+      action: Monitor stakeholder health
+      responsible: CEO or CoS
+      duration: "1-2 hours/month"
+      deliverable: Stakeholder health dashboard
+      health_indicators:
+        investors:
+          positive: "Quick responses, proactive intros, supportive comments"
+          concerning: "Delayed responses, declined requests, challenging questions"
+        customers:
+          positive: "High NPS, renewals, referrals, expansion"
+          concerning: "Low NPS, churn signals, complaints"
+        partners:
+          positive: "Joint deals, integration investment, advocacy"
+          concerning: "Reduced engagement, competing partnerships"
+        employees:
+          positive: "High engagement scores, low attrition, referrals"
+          concerning: "Declining engagement, key departures, Glassdoor issues"
+      tracking_approach:
+        stakeholder_dashboard:
+          format: "Simple spreadsheet or CRM"
+          update: "Monthly review"
+          contents: "Name, category, health score, last contact, notes"
+        health_scoring:
+          scale: "1-5 or Red/Yellow/Green"
+          criteria: "Response rate, sentiment, engagement level"
+      intervention_triggers:
+        declining_health: "Proactive outreach, address concerns"
+        negative_sentiment: "Direct conversation, problem-solving"
+        lost_stakeholder: "Exit interview, learn from it"
+      best_practices:
+        - "Review stakeholder health monthly"
+        - "Intervene early when health declines"
+        - "Celebrate stakeholder wins"
+        - "Treat stakeholder health as leading indicator"
+
+  cadence:
+    frequency: "Monthly review, Ongoing communications"
+    trigger: "News to share, Stakeholder signals, Calendar rhythm"
+    duration: "4-8 hours/month for communications, 2 hours/month for review"
+    ongoing:
+      - Monthly stakeholder health review
+      - Regular update communications
+      - Ad-hoc outreach for news or asks
+      - Quarterly stakeholder map refresh
+
+practitioner_scenarios:
+  - id: ps-001
+    name: "First-Time Founder Building Stakeholder Practice"
+    practitioner: "CEO / Founder"
+    organization_context: |
+      Post-seed startup, 12 employees. Has 8 angel investors, 3 customers, 
+      2 advisors. No formal stakeholder communication practice. Angels 
+      only hear from founder when there's news.
+    situation: |
+      One angel asked why they have not heard anything in 4 months. 
+      Another mentioned feeling out of the loop. Founder realizes 
+      ad-hoc communication is not working.
+    trigger: |
+      Advisor suggested establishing quarterly investor updates. Founder 
+      decides to build proper stakeholder communication practice.
+    actions: |
+      1. Created stakeholder map: listed all 8 angels, 3 key customers, 
+         2 advisors. Rated current relationship health (several at 2/5).
+      2. Designed communication cadence:
+         - Angels: Quarterly email update
+         - Key customers: Monthly product updates
+         - Advisors: Quarterly call
+      3. Created first investor update: shared metrics, recent progress, 
+         challenges, and specific asks for introductions.
+      4. Sent update with personal note acknowledging past silence and 
+         committing to regular updates going forward.
+      5. Set up calendar reminders for ongoing cadence.
+      6. Tracked responses and feedback in simple spreadsheet.
+      7. Three months later, sent second quarterly update. Responses 
+         were warmer, two angels offered introductions.
+    outcome: |
+      Angel relationships improved significantly. One angel who was 
+      disengaged became active again, making valuable introduction. 
+      Customers appreciated product updates and gave more product 
+      feedback. Advisors more responsive when asked for help.
+    lessons:
+      - Stakeholders want to feel informed and valued
+      - Acknowledging past gaps shows self-awareness
+      - Consistency matters more than perfection
+      - Small effort yields outsized relationship returns
+
+  - id: ps-002
+    name: "CEO Communicating Layoffs to Multiple Stakeholders"
+    practitioner: "CEO"
+    organization_context: |
+      100-person Series B company. Need to reduce headcount by 25% 
+      due to market conditions and extended runway requirements. 
+      Multiple stakeholder groups need different communications.
+    situation: |
+      Board approved layoffs last week. Need to communicate to 
+      affected employees, remaining employees, customers, partners, 
+      and investors - each with different needs and concerns.
+    trigger: |
+      Board meeting concluded with layoff decision. CEO has 1 week 
+      to plan and execute communications before news leaks.
+    actions: |
+      1. Created communication plan with sequence and timing:
+         - Day 1: Affected employees (HR + manager conversations)
+         - Day 1 (same day, after): All-hands for remaining employees
+         - Day 1 (same day, EOD): Investor email
+         - Day 2: Key customer outreach (personal calls)
+         - Day 2: Partner notification (calls for key partners)
+         - Day 3: Blog post if appropriate for public communication
+      2. Drafted messaging for each audience:
+         - Employees: Why, how decisions made, support for departing
+         - Investors: Business rationale, runway impact, path forward
+         - Customers: No impact on service, leadership stability
+         - Partners: Continued commitment, no program changes
+      3. Prepared leadership team with talking points and FAQ.
+      4. Executed Day 1: individual conversations with dignity, 
+         all-hands with transparency, investor update with detail.
+      5. Day 2: CEO personally called top 5 customers and top 3 
+         partners. Reassured about stability and commitment.
+      6. Monitored feedback and sentiment. Addressed concerns quickly.
+      7. Week 2: Follow-up update to all stakeholders on stability.
+    outcome: |
+      Difficult but well-handled. Affected employees felt treated 
+      fairly. Remaining team, while shaken, understood the why. 
+      Zero customer churn attributed to layoffs. Partners stayed 
+      committed. Investors praised the handling.
+    lessons:
+      - "Sequence matters - insiders before outsiders"
+      - "Tailored messaging shows you understand each group"
+      - "Personal outreach for key relationships"
+      - "Follow-up communications show ongoing care"
+
+  - id: ps-003
+    name: "VP of CS Building Customer Communication Program"
+    practitioner: "VP of Customer Success"
+    organization_context: |
+      B2B SaaS with 150 customers. Product updates and company news 
+      reach customers inconsistently. Some customers complain they 
+      are surprised by changes. NPS declining.
+    situation: |
+      CEO asked VP CS to fix customer communications. Customers 
+      are valuable stakeholders who feel out of the loop. Need 
+      proactive communication program.
+    trigger: |
+      Major customer threatened to churn citing poor communication 
+      about product changes. CEO made customer communication a priority.
+    actions: |
+      1. Surveyed customers: asked how they want to hear about updates, 
+         what information they need, current gaps.
+      2. Designed tiered communication approach:
+         - All customers: Monthly newsletter (product updates, tips)
+         - Enterprise customers: Quarterly business reviews
+         - Key accounts: Monthly check-ins with AM
+         - Product changes: Advance notice with migration guides
+      3. Created customer newsletter: product updates, feature 
+         spotlights, customer stories, upcoming changes.
+      4. Established advance notice protocol: major changes 
+         announced 30 days ahead, with migration documentation.
+      5. Implemented customer advisory board for top 10 customers: 
+         quarterly calls to discuss roadmap and get input.
+      6. Trained CS team on proactive communication and feedback 
+         collection.
+      7. Measured: customer communication satisfaction score, 
+         complaints about surprises, NPS trend.
+    outcome: |
+      Customer communication satisfaction improved from 3.2 to 4.1 
+      out of 5. Complaints about surprises dropped 80%. NPS improved 
+      10 points over 6 months. Customer advisory board became source 
+      of product ideas and referrals.
+    lessons:
+      - Ask customers how they want to communicate
+      - Advance notice prevents most surprise complaints
+      - Tiered approach matches effort to relationship value
+      - Proactive communication is cheaper than reactive retention
+
+operational_context:
+  prerequisites:
+    - Stakeholder list exists (even if informal)
+    - Company news and updates to share
+    - Basic communication tools (email, calendar)
+    - Time allocated for relationship maintenance
+    
+  common_blockers:
+    - "Too busy to communicate - Make it a scheduled priority"
+    - "Nothing new to share - Share perspective, not just news"
+    - "Dont want to bother them - Stakeholders want to hear from you"
+    - "Bad news to deliver - Better from you than from others"
+    
+  integration_points:
+    - CEO: Overall stakeholder strategy and investor relations
+    - CS: Customer communication and feedback
+    - BD: Partner communication
+    - HR: Employee communication
+    - Marketing: Community and public communication
+
+risks:
+  if_skipped: |
+    Stakeholders feel ignored. Relationship capital erodes. Lose 
+    support when you need it. Stakeholders become detractors. 
+    Communication gaps filled with rumors.
+    
+  if_over_engineered: |
+    Spend too much time communicating vs. doing. Overload stakeholders 
+    with unnecessary updates. Create expectations for communication 
+    volume that is not sustainable.
+
+domain_context:
+  related_l2: "Financial Structuring"
+  related_l1: "FINANCING"
+  synergies:
+    - "Quarterly Reporting (cd-017): Investor updates are subset"
+    - "Governance Meetings (cd-019): Board is key stakeholder group"
+    - "Partnership Metrics (cd-003): Partner communication ties to metrics"
+    - "Customer Success: Customer stakeholder communication"

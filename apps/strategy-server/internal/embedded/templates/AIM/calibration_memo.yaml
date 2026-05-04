@@ -1,0 +1,54 @@
+# EPF v2.0.0 - Calibration Memo Template
+# This document records the team's final decision for the cycle.
+# It's a collaborative artifact created by the team and the AI Synthesizer agent.
+# It determines the direction for the next READY phase (INSIGHT -> STRATEGY -> ROADMAP).
+#
+# Related Resources:
+# - Schema: ../../schemas/calibration_memo_schema.json
+# - Wizard: ../../wizards/synthesizer.agent_prompt.md
+
+roadmap_id: "roadmap-001" # Reference to the completed roadmap
+cycle: 1
+assessment_date: null
+
+# Strategic Decision
+decision: "pending_assessment" # persevere, pivot, pull_the_plug, pending_assessment
+confidence: "medium" # low, medium, high
+
+# Decision Reasoning — connect evidence from the cycle to the decision
+reasoning: "The cycle has not yet concluded. This memo will be populated after the assessment_report is complete and the team has discussed the findings. Structure: (1) What we expected vs what happened, (2) Key evidence that drove decision, (3) Why this decision over alternatives."
+
+# Key Learnings
+learnings:
+  validated_assumptions:
+    - "Assumptions that were proven true — format: We assumed [X], and evidence showed [Y], confirming [Z]"
+  invalidated_assumptions:
+    - "Assumptions that were proven false — format: We assumed [X], but evidence showed [Y], requiring [Z]"
+  surprises:
+    - "Unexpected findings — format: We discovered [X], which suggests [Y]"
+
+# Next Cycle Direction (Start/Stop/Continue)
+next_cycle_focus:
+  continue_building:
+    - "What to continue investing in — only include items with clear evidence of value"
+  stop_building:
+    - "What to stop or deprioritize — reference invalidated assumptions"
+  start_exploring:
+    - "New areas to explore — these are experiments, not commitments"
+
+# Next READY Phase Inputs
+# These directly update insight_opportunity, strategy_foundations, and roadmap_recipe
+next_ready_inputs:
+  opportunity_update: "How does this cycle change our understanding of the opportunity? Updates to market dynamics, user needs, or competitive landscape."
+  strategy_update: "How does this cycle change our strategic approach? Updates to positioning, ICP, value prop, or delivery model."
+  new_assumptions:
+    - "If we [action], then [expected outcome], because [reasoning] — make testable and falsifiable"
+
+# Immediate Actions — tactical next steps before starting next cycle
+next_steps:
+  - "Pending calibration — format: [Who] will [action] by [when]"
+
+# Optional metadata — written automatically by EPF CLI tools
+meta:
+  epf_version: "2.0.0"
+  last_updated: null

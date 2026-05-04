@@ -1,0 +1,213 @@
+# OrgOps Process Definition: 360 Feedback Process
+# Schema: org_ops_definition_schema.json v1.0.0
+
+id: pd-011
+name: 360 Feedback Process
+slug: 360-feedback-process
+track: org_ops
+status: ready
+
+contributes_to:
+  - OrgOps.Career Progression.individual-development-plans
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Simple multi-source feedback collection"
+    includes:
+      - Manager + 2-3 peer feedback per person
+      - Quarterly or semi-annual
+      - Focus on growth areas and strengths
+    effort: "1 day to set up, 30 min per person per cycle"
+    
+  tier_2_intermediate:
+    description: "Structured competency-based feedback"
+    adds:
+      - Competency framework alignment
+      - Self-assessment included
+      - Direct report feedback (for managers)
+      - Trend tracking over time
+    effort: "2-3 days setup, 45 min per person"
+    
+  tier_3_advanced:
+    description: "Integrated development ecosystem"
+    adds:
+      - Real-time feedback capability
+      - Integration with development planning
+      - Executive coaching triggers
+      - Organizational capability mapping
+    effort: "Ongoing HR function"
+
+definition:
+  purpose: |
+    People have blind spots about their own behavior and impact. Single-source 
+    feedback (just from manager) misses important perspectives. 360 feedback 
+    provides a more complete picture for development planning.
+    
+  outcome: |
+    Each participant receives aggregated, anonymous feedback from multiple 
+    perspectives. Clear strengths and development areas are identified. 
+    Input feeds into development planning and career conversations.
+    
+  owner: People Lead or HR
+  
+  inputs:
+    - name: Feedback participants
+      description: Who gives and receives feedback
+      source: Manager nominations, org chart
+    - name: Feedback questions
+      description: What to ask about
+      source: Competency framework or simple question set
+    - name: Timeline
+      description: When feedback is due
+      source: HR calendar
+      
+  outputs:
+    - name: Individual feedback reports
+      description: Aggregated, anonymous feedback per person
+      consumer: Individual + their manager
+    - name: Development themes
+      description: Common patterns across the org
+      consumer: People Lead for planning
+      
+  steps:
+    - step: 1
+      action: Define feedback participants (who reviews whom)
+      responsible: People Lead + Managers
+      duration: "30 minutes"
+      deliverable: Participant list with reviewer assignments
+      
+    - step: 2
+      action: Communicate process and timeline
+      responsible: People Lead
+      duration: "15 minutes"
+      deliverable: Email/Slack announcement with expectations
+      
+    - step: 3
+      action: Collect feedback (5-7 day window)
+      responsible: All participants
+      duration: "15-20 min per review"
+      tools:
+        - Survey tool (Google Forms, Culture Amp, Lattice)
+      deliverable: Completed feedback submissions
+      
+    - step: 4
+      action: Aggregate and anonymize results
+      responsible: People Lead
+      duration: "30 min per person"
+      deliverable: Individual feedback reports
+      notes: "Minimum 3 responses for anonymity"
+      
+    - step: 5
+      action: Deliver reports to individuals
+      responsible: People Lead
+      duration: "10 min per person"
+      deliverable: Reports distributed
+      
+    - step: 6
+      action: Manager-employee debrief conversation
+      responsible: Managers
+      duration: "30-60 min per report"
+      deliverable: Development focus areas identified
+      
+  cadence:
+    frequency: semi-annual
+    trigger: Usually aligned with review cycle
+    duration: "2-3 weeks end-to-end"
+    
+  participants:
+    - role: People Lead
+      responsibility: Orchestrate process, aggregate results
+      time_commitment: "4-8 hours per cycle"
+    - role: Managers
+      responsibility: Select reviewers, debrief with reports
+      time_commitment: "2-3 hours"
+    - role: All employees
+      responsibility: Provide thoughtful feedback
+      time_commitment: "1-2 hours"
+
+  success_criteria:
+    - 80%+ feedback submission rate
+    - Minimum 3 reviewers per person (for anonymity)
+    - Reports delivered within 2 weeks of collection close
+    - Debrief conversations completed within 2 weeks of report delivery
+
+operational_context:
+  prerequisites:
+    - Clear communication about purpose (growth, not punishment)
+    - Manager training on debrief conversations
+    - Trust in anonymity
+    
+  common_blockers:
+    - "Fear of retaliation → Enforce anonymity, aggregate only 3+"
+    - "Feedback too vague → Provide examples and prompts"
+    - "Time burden → Keep question set short (5-7 questions)"
+    
+  metrics:
+    - name: Participation rate
+      description: Percentage of requested feedback submitted
+      target: ">80%"
+      tier: 1
+    - name: Report usefulness
+      description: Did participants find feedback helpful?
+      target: "4+/5 rating"
+      tier: 2
+
+tools_ecosystem:
+  recommended:
+    - category: 360 Feedback Platforms
+      examples:
+        - Culture Amp
+        - Lattice
+        - 15Five
+        - Leapsome
+      purpose: Collection, aggregation, reporting
+    - category: Survey Tools (Tier 1)
+      examples:
+        - Google Forms
+        - Typeform
+      purpose: Simple collection with manual aggregation
+
+compliance:
+  data_protection:
+    - Feedback data is confidential
+    - Raw responses accessible only to People Lead
+    - Individuals see aggregated results only
+  documentation:
+    - Retain reports for trend tracking
+    - Delete raw responses after aggregation
+
+related_definitions:
+  - id: pd-006
+    relationship: enhances
+    description: "360 feedback provides input for performance reviews"
+  - id: pd-012
+    relationship: enables
+    description: "Feeds into career progression discussions"
+
+adaptation:
+  customize:
+    - Question set (competency-based vs general)
+    - Frequency (quarterly vs semi-annual)
+    - Reviewer selection (manager-picked vs self-nominated)
+  preserve:
+    - Anonymity (minimum 3 respondents aggregated)
+    - Debrief conversation requirement
+    - Growth-focused framing
+  common_variations:
+    - "Small teams: Cross-team feedback to ensure anonymity"
+    - "Leadership focus: Include direct report feedback"
+    - "New managers: Upward feedback emphasis"
+
+# Sample Question Set (Tier 1)
+sample_questions:
+  strengths:
+    - "What does this person do exceptionally well?"
+    - "When have you seen them at their best?"
+  growth:
+    - "What's one thing that would make them even more effective?"
+    - "Where do you see opportunity for growth?"
+  collaboration:
+    - "How well does this person collaborate with others?"
+    - "How would you describe working with them?"

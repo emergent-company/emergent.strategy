@@ -1,0 +1,110 @@
+version: '3'
+
+vars:
+  BINARY: strategy-server
+  BUILD_DIR: build
+
+tasks:
+  build:
+    desc: Build the production binary
+    cmds:
+      - go build -tags notui -ldflags "-s -w" -o {{.BUILD_DIR}}/{{.BINARY}} .
+    generates:
+      - "{{.BUILD_DIR}}/{{.BINARY}}"
+
+  build-server:
+    desc: Build the server binary (alias for build)
+    cmds:
+      - task: build
+
+  run:
+    desc: Run the server in development mode
+    cmds:
+      - go run . server
+
+  docker-deps:
+    desc: Start Postgres in Docker and wait until ready
+    cmds:
+      - docker compose up -d postgres
+      - docker compose exec postgres sh -c 'until pg_isready -U strategy; do sleep 1; done'
+
+  db:migrate:
+    desc: Run pending database migrations
+    cmds:
+      - go run . db --migrate
+
+  db:reset:
+    desc: Drop and recreate the database (dev only)
+    cmds:
+      - go run . db --reset
+
+  format:
+    desc: Format all Go source files
+    cmds:
+      - gofmt -w .
+
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - golangci-lint run ./...
+
+  test:
+    desc: Run all tests (requires docker-deps)
+    cmds:
+      - go test ./...
+
+  test-verbose:
+    desc: Run all tests with verbose output
+    cmds:
+      - go test -v ./...
+
+  test-e2e:
+    desc: Run end-to-end tests
+    cmds:
+      - go test -v ./tests/e2e/...
+
+  test-race:
+    desc: Run tests with race detector
+    cmds:
+      - go test -race ./...
+
+  clean:
+    desc: Remove build artifacts
+    cmds:
+      - rm -rf {{.BUILD_DIR}}
+
+  dev:
+    desc: Start development server with live reload (requires air)
+    cmds:
+      - air
+
+  css:
+    desc: Build Tailwind CSS (requires Node.js and go-daisy)
+    dir: web
+    cmds:
+      - npm run build
+
+  css-watch:
+    desc: Watch and rebuild Tailwind CSS
+    dir: web
+    cmds:
+      - npm run watch
+
+  generate:
+    desc: Run all code generators (templ, etc.)
+    cmds:
+      - templ generate ./...
+
+  sync-embedded:
+    desc: Sync canonical EPF content into internal/embedded/ for go:embed
+    cmds:
+      - ./scripts/sync-embedded.sh {{.CANONICAL_EPF_PATH | default ""}}
+    vars:
+      CANONICAL_EPF_PATH: '{{.CANONICAL_EPF_PATH | default ""}}'
+
+  check:
+    desc: Run format, lint, and test (CI equivalent)
+    cmds:
+      - task: format
+      - task: lint
+      - task: test

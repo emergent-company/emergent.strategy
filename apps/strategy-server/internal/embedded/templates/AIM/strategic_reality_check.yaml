@@ -1,0 +1,157 @@
+# Strategic Reality Check (SRC)
+# Evaluates all READY and FIRE artifacts against current reality.
+# Unlike the Assessment Report (which tracks OKR execution), the SRC asks:
+# "Are the foundations still valid?"
+#
+# Organized by detection type, not by artifact:
+# - belief_validity: Are our assumptions and beliefs still true?
+# - market_currency: Are our analyses and data still fresh?
+# - strategic_alignment: Are cross-references intact?
+# - execution_reality: Does stated maturity match actual reality?
+# - recalibration_plan: What needs updating, prioritized?
+#
+# Usage:
+#   1. Run `aim generate-src` to auto-populate mechanical checks
+#   2. Fill in subjective sections (belief_validity, market_currency)
+#   3. Run `aim write-src` to finalize
+#   4. Use findings to inform Calibration Memo decisions
+
+cycle: 1
+
+assessment_date: "2025-01-15"
+
+# Section 1: Belief Validity
+# Evaluates North Star beliefs, Strategy Formula risks, and Roadmap assumptions.
+# Signal values:
+#   strengthening - growing evidence supports the belief
+#   holding       - no material change, status quo
+#   weakening     - evidence accumulating against it
+#   invalidated   - clear evidence contradicts it
+belief_validity:
+  - id: src-bv-001
+    source_artifact: "READY/00_north_star.yaml"
+    field_path: "belief_challenges[0].monitoring"
+    original_belief: "TBD - extract the belief statement from the source artifact"
+    current_evidence: "TBD - describe current evidence for or against this belief"
+    signal: holding
+    confidence_delta: no_change
+  - id: src-bv-002
+    source_artifact: "READY/04_strategy_formula.yaml"
+    field_path: "risks[0].monitoring"
+    original_belief: "TBD - extract the risk statement from the source artifact"
+    current_evidence: "TBD - describe current evidence regarding this risk"
+    signal: holding
+    confidence_delta: no_change
+
+# Section 2: Market Currency
+# Evaluates freshness of market-facing artifacts.
+# Staleness levels:
+#   low      - within review window
+#   medium   - approaching review date
+#   high     - past review date
+#   critical - significantly overdue with known market changes
+market_currency:
+  - id: src-mc-001
+    source_artifact: "READY/00_north_star.yaml"
+    field_path: "last_reviewed"
+    staleness_level: low
+    days_since_review: 30
+    market_changes_detected: ""
+    recommended_action: "No action needed, within review window"
+  - id: src-mc-002
+    source_artifact: "READY/01_insight_analyses.yaml"
+    field_path: "next_review_date"
+    staleness_level: medium
+    days_since_review: 120
+    market_changes_detected: "TBD - note any market changes since last review"
+    recommended_action: "Schedule review within next 2 weeks"
+
+# Section 3: Strategic Alignment
+# Checks cross-reference integrity across EPF artifacts.
+# Check types:
+#   value_model_path    - contributes_to[] paths resolve to valid value model components
+#   kr_link             - KR target paths and assumption links are valid
+#   feature_dependency  - feature dependencies[] reference valid feature IDs
+#   maturity_vocabulary - LRA track maturity matches value model maturity
+# Status values:
+#   valid  - reference resolves correctly
+#   broken - target not found
+#   stale  - target exists but may be outdated
+strategic_alignment:
+  - id: src-sa-001
+    check_type: value_model_path
+    source_artifact: "FIRE/feature_definitions/fd-001.yaml"
+    field_path: "strategic_context.contributes_to[0]"
+    status: valid
+    details: "Path Product.Discovery.KnowledgeExploration resolves correctly to value model component"
+  - id: src-sa-002
+    check_type: feature_dependency
+    source_artifact: "FIRE/feature_definitions/fd-002.yaml"
+    field_path: "dependencies[0]"
+    status: valid
+    details: "Dependency on fd-001 resolves to existing feature"
+
+# Section 4: Execution Reality
+# Assesses whether stated status matches actual implementation state.
+# Severity values:
+#   info     - minor, cosmetic issue
+#   warning  - should be addressed soon
+#   critical - materially affects strategic decisions
+execution_reality:
+  - id: src-er-001
+    source_artifact: "FIRE/feature_definitions/fd-001.yaml"
+    field_path: "feature_maturity.overall_stage"
+    expected_state: "TBD - what the artifact claims"
+    actual_state: "TBD - what evidence suggests"
+    gap_description: "TBD - describe the gap and its impact on strategic planning"
+    severity: info
+  - id: src-er-002
+    source_artifact: "FIRE/value_models/product_value_model.yaml"
+    field_path: "layers[0].components[0].maturity"
+    expected_state: "TBD - stated maturity level"
+    actual_state: "TBD - evidence-based assessment"
+    gap_description: "TBD - describe the maturity gap"
+    severity: warning
+
+# Section 5: Recalibration Plan
+# Prioritized list of artifacts needing update based on findings above.
+# Action types:
+#   review  - assess whether change is needed (lowest effort)
+#   update  - modify specific fields
+#   rewrite - substantial rework needed
+#   archive - artifact or section no longer relevant
+# Priority values:
+#   critical - affects current strategic decisions
+#   high     - should be addressed this cycle
+#   medium   - address next cycle
+#   low      - nice to have
+recalibration_plan:
+  - id: rp-001
+    target_artifact: "READY/01_insight_analyses.yaml"
+    target_section: "competitive_landscape"
+    action: review
+    priority: medium
+    effort_estimate: "30 minutes"
+    rationale: "Market currency check flagged approaching review date with potential market changes"
+    linked_findings:
+      - src-mc-002
+
+# Summary
+# overall_health values:
+#   healthy          - 0-2 non-info findings
+#   attention_needed - 3-5 findings or any high priority
+#   at_risk          - 6+ findings or any critical
+#   critical         - multiple critical findings
+summary:
+  overall_health: healthy
+  finding_counts:
+    belief_validity: 2
+    market_currency: 2
+    strategic_alignment: 2
+    execution_reality: 2
+    recalibration_actions: 1
+  generated_at: "2025-01-15T10:00:00Z"
+
+meta:
+  epf_version: "2.0.0"
+  last_updated: "2025-01-15T10:00:00Z"

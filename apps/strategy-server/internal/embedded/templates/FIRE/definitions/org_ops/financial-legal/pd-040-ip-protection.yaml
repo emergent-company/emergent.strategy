@@ -1,0 +1,281 @@
+# OrgOps Process Definition: IP Protection
+# Schema: org_ops_definition_schema.json v1.0.0
+
+id: pd-040
+name: IP Protection
+slug: ip-protection
+track: org_ops
+status: ready
+
+contributes_to:
+  - OrgOps.Intellectual Property Management.trade-secret-protection
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Essential IP protection"
+    includes:
+      - Employee IP assignment agreements
+      - Contractor IP agreements
+      - Trade secret awareness
+    effort: "1 day initial setup"
+    
+  tier_2_intermediate:
+    description: "IP management program"
+    adds:
+      - Patent/trademark strategy
+      - IP audit
+      - Third-party IP compliance
+      - Open source policy
+    effort: "1 week initial, ongoing"
+    
+  tier_3_advanced:
+    description: "Strategic IP portfolio"
+    adds:
+      - Patent portfolio
+      - IP licensing strategy
+      - Freedom to operate analysis
+      - Dedicated IP counsel
+    effort: "Ongoing legal function"
+
+definition:
+  purpose: |
+    Intellectual property is often a startup's most valuable asset. 
+    Without proper protection, IP can be lost to former employees, 
+    contractors, or competitors. A good IP program protects what 
+    you've created and respects others' IP.
+    
+  outcome: |
+    Company owns IP created by employees and contractors. Trade 
+    secrets are protected. Trademarks are registered. Patent 
+    strategy exists (if applicable). Third-party IP is properly used.
+    
+  owner: Legal or CEO
+  
+  inputs:
+    - name: Company IP
+      description: What we've created
+      source: Engineering, design
+    - name: Agreements
+      description: Contracts with employees, contractors
+      source: HR, legal
+    - name: Third-party IP
+      description: What we use from others
+      source: Engineering, procurement
+      
+  outputs:
+    - name: IP assignments
+      description: Clear ownership
+      consumer: Legal files
+    - name: Registered IP
+      description: Trademarks, patents
+      consumer: Legal files
+    - name: IP policies
+      description: Guidelines for team
+      consumer: Employees, contractors
+      
+  steps:
+    - step: 1
+      action: Ensure IP assignment in all agreements
+      responsible: Legal/HR
+      duration: "1-2 hours"
+      deliverable: Templates updated
+      covers:
+        - Employment agreements
+        - Contractor agreements
+        - Advisor agreements
+      
+    - step: 2
+      action: Protect trade secrets
+      responsible: Legal + Leadership
+      duration: "1-2 hours"
+      deliverable: Trade secret practices
+      includes:
+        - NDA with employees/contractors
+        - Confidentiality training
+        - Access controls
+      
+    - step: 3
+      action: Register trademarks
+      responsible: Legal
+      duration: "2-4 hours to file"
+      deliverable: Trademark applications
+      priority:
+        - Company name
+        - Key product names
+        - Logo
+      
+    - step: 4
+      action: Establish open source policy
+      responsible: Engineering + Legal
+      duration: "2-4 hours"
+      deliverable: OSS policy
+      
+    - step: 5
+      action: Patent strategy (if applicable)
+      responsible: CEO + Legal
+      duration: "4-8 hours"
+      deliverable: Patent decision
+      considerations:
+        - Patentable innovations?
+        - Cost/benefit analysis
+        - Defensive vs offensive
+      
+    - step: 6
+      action: Regular IP review
+      responsible: Legal
+      duration: "Annually"
+      deliverable: IP inventory updated
+      
+  cadence:
+    frequency: annually
+    trigger: Initial setup, annual review
+    duration: "1 day annual review"
+    
+  participants:
+    - role: Legal
+      responsibility: Protect and register IP
+      time_commitment: "8-16 hours annually"
+    - role: Engineering
+      responsibility: Identify innovations, follow policies
+      time_commitment: "As needed"
+    - role: All employees
+      responsibility: Sign agreements, follow policies
+      time_commitment: "At hire"
+
+  success_criteria:
+    - All employees/contractors have IP assignment
+    - Key trademarks registered
+    - Trade secrets protected
+    - Open source policy followed
+
+operational_context:
+  prerequisites:
+    - Legal counsel (internal or external)
+    - Standard agreement templates
+    
+  common_blockers:
+    - "Cost of patents → Focus on trademarks, trade secrets"
+    - "Missing historical agreements → Get retroactive where possible"
+    - "Open source confusion → Clear policy"
+    
+  metrics:
+    - name: IP assignment coverage
+      description: Team with proper agreements
+      target: "100%"
+      tier: 1
+    - name: Trademark protection
+      description: Key marks registered
+      target: "Primary marks registered"
+      tier: 1
+
+tools_ecosystem:
+  recommended:
+    - category: IP Management
+      examples:
+        - External IP counsel
+        - USPTO Direct Filing
+        - WIPO
+      purpose: Registration and protection
+    - category: OSS Management
+      examples:
+        - FOSSA
+        - Snyk
+        - WhiteSource
+      purpose: Open source compliance
+
+compliance:
+  legal:
+    - Proper IP assignments
+    - Trademark registration
+    - Patent filing deadlines
+    - Open source licenses
+  international:
+    - Consider international protection
+    - Country-specific requirements
+
+related_definitions:
+  - id: pd-001
+    relationship: requires
+    description: "IP agreement signed at onboarding"
+  - id: pd-026
+    relationship: enables
+    description: "IP terms in contracts"
+  - id: pd-039
+    relationship: enables
+    description: "Trade secret protection"
+
+adaptation:
+  customize:
+    - Patent strategy
+    - Trademark scope
+    - OSS policy details
+  preserve:
+    - IP assignment in agreements
+    - Basic trademark protection
+    - Trade secret practices
+  common_variations:
+    - "Software startup: Trade secrets + trademarks, selective patents"
+    - "Hardware/biotech: Patents more critical"
+    - "Agency/services: Focus on client IP boundaries"
+
+# IP Assignment Checklist
+assignment_checklist:
+  employees:
+    - "Standard PIIA (Proprietary Information and Inventions Assignment)"
+    - "Sign at hire"
+    - "Review annually if updates needed"
+    
+  contractors:
+    - "IP assignment clause in contractor agreement"
+    - "Specify work product ownership"
+    - "Clear on background IP"
+    
+  advisors:
+    - "PIIA or NDA + IP assignment"
+    - "May be lighter than employee"
+    
+  founders:
+    - "Confirm no prior employer claims"
+    - "Assignment of prior work if contributing"
+
+# Open Source Policy Template
+oss_policy:
+  using_oss:
+    permitted:
+      - "MIT, BSD, Apache 2.0"
+      - "Other permissive licenses (review first)"
+    restricted:
+      - "GPL, LGPL, AGPL (requires review)"
+      - "Proprietary (requires license)"
+    process:
+      - "Check license before adding dependency"
+      - "Document third-party components"
+      - "Flag copyleft for review"
+      
+  contributing_oss:
+    permitted:
+      - "Bug fixes to projects we use"
+      - "General-purpose utilities"
+    requires_approval:
+      - "Core technology contributions"
+      - "Starting new OSS project"
+    process:
+      - "Get approval before contributing"
+      - "Use company identity"
+
+# Trademark Priority
+trademark_priority:
+  register_first:
+    - "Company name"
+    - "Primary product name"
+    - "Logo/wordmark"
+  consider:
+    - "Taglines"
+    - "Feature names"
+    - "Domain names"
+  process:
+    - "Search before use"
+    - "File federal registration"
+    - "Monitor and enforce"

@@ -1,0 +1,534 @@
+# OrgOps Process Definition: Knowledge Management
+# Schema: org_ops_definition_schema.json v1.1.0
+
+id: pd-043
+name: Knowledge Management
+slug: knowledge-management
+track: org_ops
+status: ready
+
+contributes_to:
+  - OrgOps.Collaboration Protocols.knowledge-management
+
+maturity:
+  current_tier: 1
+  
+  tier_1_basic:
+    description: "Central documentation"
+    includes:
+      - Single documentation tool
+      - Basic organization
+      - New hire orientation
+    effort: "Ongoing maintenance"
+    
+  tier_2_intermediate:
+    description: "Structured knowledge base"
+    adds:
+      - Clear taxonomy
+      - Ownership and review
+      - Search optimization
+      - Templates
+    effort: "1-2 days monthly maintenance"
+    
+  tier_3_advanced:
+    description: "Learning organization"
+    adds:
+      - Knowledge capture processes
+      - Post-mortem culture
+      - AI-enhanced search
+      - Expertise mapping
+    effort: "Dedicated knowledge function"
+
+definition:
+  purpose: |
+    Institutional knowledge is valuable but easily lost. When knowledge 
+    lives only in people's heads, it leaves when they do. A knowledge 
+    management system captures, organizes, and shares knowledge so 
+    everyone can benefit.
+    
+  outcome: |
+    Critical knowledge is documented. Information is findable. 
+    Onboarding is faster. Mistakes aren't repeated. Expertise is 
+    accessible beyond the expert.
+    
+  owner: People Lead or Operations
+  
+  inputs:
+    - name: Team knowledge
+      description: What people know
+      source: All employees
+    - name: Processes
+      description: How things work
+      source: Process owners
+    - name: Decisions
+      description: Why we do things
+      source: Decision makers
+      
+  outputs:
+    - name: Documentation
+      description: Written knowledge
+      consumer: All employees
+    - name: Knowledge base
+      description: Organized, searchable
+      consumer: All employees
+      
+  steps:
+    - step: 1
+      action: Choose documentation tool
+      responsible: Operations/People Lead
+      duration: "1-2 hours"
+      deliverable: Tool selected
+      considerations:
+        - Search capability
+        - Easy to edit
+        - Access control
+        - Integrations
+      
+    - step: 2
+      action: Create basic structure
+      responsible: Operations/People Lead
+      duration: "2-4 hours"
+      deliverable: Taxonomy created
+      common_areas:
+        - Company (mission, values, policies)
+        - Teams (team-specific)
+        - Projects (project docs)
+        - How-to (processes, guides)
+      
+    - step: 3
+      action: Document critical knowledge
+      responsible: All teams
+      duration: "Ongoing"
+      deliverable: Key docs created
+      priority:
+        - Onboarding info
+        - Critical processes
+        - Frequently asked
+      
+    - step: 4
+      action: Establish maintenance norms
+      responsible: Operations/People Lead
+      duration: "1 hour"
+      deliverable: Norms documented
+      includes:
+        - Who owns what
+        - Review cadence
+        - Archiving stale content
+      
+    - step: 5
+      action: Regular review
+      responsible: Doc owners
+      duration: "Quarterly"
+      deliverable: Docs current
+      
+  cadence:
+    frequency: ongoing
+    trigger: New knowledge, changes, review cycle
+    duration: "1-2 hours weekly maintenance"
+    
+  participants:
+    - role: Operations/People Lead
+      responsibility: Maintain system
+      time_commitment: "2-4 hours weekly"
+    - role: All employees
+      responsibility: Create and update docs
+      time_commitment: "As needed"
+    - role: Doc owners
+      responsibility: Keep areas current
+      time_commitment: "1-2 hours quarterly"
+
+  success_criteria:
+    - Critical knowledge documented
+    - People can find information
+    - Docs are reasonably current
+    - New hires use effectively
+
+operational_context:
+  prerequisites:
+    - Documentation tool
+    - Buy-in for documentation culture
+    - Basic structure
+    
+  common_blockers:
+    - "No one documents → Make it part of work"
+    - "Can't find anything → Better organization, search"
+    - "Docs outdated → Review cycles, ownership"
+    
+  metrics:
+    - name: Findability
+      description: Can find info when needed
+      target: ">80% agree"
+      tier: 1
+    - name: Usage
+      description: People use the knowledge base
+      target: "Regular active users"
+      tier: 2
+
+tools_ecosystem:
+  recommended:
+    - category: Documentation
+      examples:
+        - Notion
+        - Confluence
+        - Slite
+        - GitBook
+      purpose: Central knowledge base
+    - category: Search
+      examples:
+        - Tool native search
+        - Kapa.ai
+      purpose: Find information
+
+related_definitions:
+  - id: pd-001
+    relationship: requires
+    description: "New hire uses knowledge base"
+  - id: pd-042
+    relationship: enables
+    description: "Docs support internal comms"
+  - id: pd-030
+    relationship: contains
+    description: "Handbook in knowledge base"
+
+adaptation:
+  customize:
+    - Tool choice
+    - Structure/taxonomy
+    - Review cadence
+  preserve:
+    - Single source of truth
+    - Basic organization
+    - Ownership
+  common_variations:
+    - "Technical team: Code-adjacent docs (README, wiki)"
+    - "Non-technical: User-friendly tools (Notion)"
+    - "Large org: Federated with central index"
+
+# Knowledge Base Structure Template
+structure_template:
+  company:
+    - "Mission, Vision, Values"
+    - "Strategy and OKRs"
+    - "Organizational chart"
+    - "Company policies"
+    - "Benefits and perks"
+    
+  people:
+    - "Employee handbook"
+    - "Onboarding guide"
+    - "Career ladder"
+    - "Recognition program"
+    
+  teams:
+    - "[Each team has section]"
+    - "Team mission"
+    - "Team members"
+    - "Team processes"
+    - "Team resources"
+    
+  product:
+    - "Product vision"
+    - "Roadmap"
+    - "User personas"
+    - "Feature documentation"
+    
+  operations:
+    - "How-to guides"
+    - "Vendor information"
+    - "Tools and access"
+    - "Process documentation"
+    
+  projects:
+    - "[Organized by project]"
+    - "Goals and status"
+    - "Meeting notes"
+    - "Decisions made"
+
+# Documentation Best Practices
+best_practices:
+  creating:
+    - "Write for the reader, not yourself"
+    - "Start with the key point"
+    - "Use headings and bullets"
+    - "Include examples"
+    - "Link to related docs"
+    
+  maintaining:
+    - "Assign owners"
+    - "Date and version"
+    - "Review quarterly"
+    - "Archive, don't delete"
+    
+  culture:
+    - "Document as you work"
+    - "If you answer the same question twice, document"
+    - "Update when processes change"
+    - "Celebrate documentation"
+
+# ============================================================
+# PRACTITIONER SCENARIOS
+# ============================================================
+practitioner_scenarios:
+  - id: ps-043-001
+    name: "Rebuilding Knowledge After Key Departure"
+    practitioner: CTO at 40-person company
+    organization_context: |
+      Founding engineer (7 years tenure) leaves for new opportunity. 
+      They were the "oracle"—knew everything about the system, why 
+      decisions were made, where the bodies are buried. Documentation 
+      was always "on the list" but never prioritized. Now critical 
+      knowledge is walking out the door.
+    situation: |
+      Engineer gives 2-week notice. CTO realizes the depth of 
+      undocumented knowledge: infrastructure architecture, why certain 
+      workarounds exist, vendor relationships, historical context. 
+      Team will be left guessing. Some knowledge may be permanently 
+      lost.
+    trigger: |
+      In knowledge transfer meeting, departing engineer says: "I 
+      don't even know where to start. I've just been doing this so 
+      long, I don't know what I know." CTO realizes this is bigger 
+      than a 2-week handoff.
+    actions:
+      - "Week 1: CTO scheduled intensive knowledge extraction sessions—recording everything"
+      - "Week 1: Organized by system area: infrastructure, deployment, integrations, historical decisions"
+      - "Week 1: Other engineers asked questions they'd always wanted to ask—documented answers"
+      - "Week 1: Created 'decision log' documenting WHY things are the way they are"
+      - "Week 2: Engineer pair-programmed through critical systems with designated inheritors"
+      - "Week 2: Recorded screen shares of complex processes"
+      - "Week 2: Captured tribal knowledge in searchable wiki format"
+      - "Post-departure: Identified knowledge gaps as they emerged—documented what 'we don't know'"
+      - "Month 1: Established ongoing documentation practice: 'never let this happen again'"
+      - "Month 3: Made documentation part of definition of done for all work"
+    outcome: |
+      Captured ~70% of critical knowledge before departure. First 
+      month post-departure was rough—team hit gaps they hadn't 
+      anticipated. Over time, documentation culture improved. CTO 
+      learned expensive lesson: document continuously, not in crisis.
+    lessons:
+      - "Single points of knowledge failure are organizational risk—mitigate proactively"
+      - "Crisis documentation captures urgency but is inherently incomplete"
+      - "Record video/screen shares—some knowledge is procedural, hard to write"
+      - "Document 'why' not just 'what'—decisions without context become mysteries"
+      - "Make documentation ongoing practice, not departure scramble"
+
+  - id: ps-043-002
+    name: "Creating Documentation Culture from Nothing"
+    practitioner: Head of Operations at 30-person company
+    organization_context: |
+      Company has grown fast. Processes exist in people's heads. 
+      Every question requires finding the right person. New hires 
+      are overwhelmed—there's no onboarding documentation, no 
+      process guides, no "how we do things here." Leadership 
+      recognizes the problem but doesn't know where to start.
+    situation: |
+      New operations hire (week 3) escalates to CEO: "I can't do my 
+      job. I don't know how anything works here, and everyone's too 
+      busy to explain. I'm questioning whether this was the right 
+      move." CEO realizes documentation debt is affecting retention 
+      and productivity.
+    trigger: |
+      CEO tells Head of Operations: "I want us to have a knowledge 
+      base that a new hire can use to be productive within a week. 
+      Figure out how to make that happen."
+    actions:
+      - "Week 1: Head of Ops audited what documentation exists—scattered Google Docs, some Notion, mostly nothing"
+      - "Week 1: Chose single tool (Notion) as canonical knowledge base"
+      - "Week 2: Started with onboarding—documented 'first week' experience as the new hire experienced it"
+      - "Week 2: New hire became documentation partner—'document as you learn' approach"
+      - "Week 3: Established structure: Company, Teams, Processes, Tools"
+      - "Week 3: Assigned documentation 'owners' for each section—accountability, not just authorship"
+      - "Week 4: Leadership wrote 'Company' section—mission, values, strategy (set the tone)"
+      - "Month 1: Required each team to document their 'How We Work' basics"
+      - "Month 2: Made documentation searchable and discoverable—no more 'where is that doc?'"
+      - "Month 3: Added to performance expectations: 'maintains team documentation'"
+    outcome: |
+      Within 3 months, core documentation in place. Next hire had 
+      dramatically better onboarding. Culture shift started—people 
+      began linking to docs instead of explaining repeatedly. 
+      Documentation became living system, not static artifact.
+    lessons:
+      - "Start with onboarding—highest ROI documentation for growing companies"
+      - "New hires make excellent documentation partners—fresh eyes, motivated learners"
+      - "Choose one tool and commit—scattered docs are worse than no docs"
+      - "Assign owners, not just authors—ownership creates maintenance accountability"
+      - "Make it searchable—documentation that can't be found doesn't exist"
+
+  - id: ps-043-003
+    name: "Maintaining Documentation in Fast-Moving Team"
+    practitioner: Engineering Lead at 50-person company
+    organization_context: |
+      Engineering team has good documentation practices established. 
+      But as team grows and moves faster, documentation lags. 
+      Architecture docs are months old. API documentation is 
+      incomplete. Engineers complain docs are unreliable—they've 
+      learned to ignore them and read the code.
+    situation: |
+      New API launched without documentation. Consuming team wastes 
+      2 days figuring out how to integrate. When they complain, 
+      publishing team says: "We were moving fast. Documentation 
+      slows us down." Engineering Lead realizes docs have become 
+      optional, not integral.
+    trigger: |
+      CEO observes in all-hands: "I hear we have documentation 
+      problems. This seems like it's costing us velocity, not 
+      saving it." Engineering Lead is asked to fix it.
+    actions:
+      - "Week 1: Engineering Lead audited documentation state—classified as current, stale, missing"
+      - "Week 1: Found: 30% current, 40% stale, 30% missing (worse than expected)"
+      - "Week 2: Identified root cause: documentation not part of 'done'—ships without docs"
+      - "Week 2: Proposed: 'No merge without docs' policy for APIs and architecture changes"
+      - "Week 2: Established lightweight doc templates—reduced friction of 'how do I document this?'"
+      - "Week 3: Added documentation check to PR review—reviewers verify docs match code"
+      - "Week 3: Created 'documentation debt' tracker—visible backlog of stale docs"
+      - "Month 1: Allocated 10% of sprint capacity to documentation catch-up"
+      - "Month 2: Current docs jumped to 75%—stale/missing decreased"
+      - "Month 3: Feedback from consuming teams: 'Documentation is actually useful now'"
+    outcome: |
+      Documentation became reliable again. Engineers started trusting 
+      docs, reducing "read the code" cycles. API launches included 
+      documentation by default. Initial velocity "cost" of writing 
+      docs was more than offset by reduced integration confusion.
+    lessons:
+      - "Documentation must be part of definition of done—optional means absent"
+      - "Stale documentation is worse than no documentation—creates false confidence"
+      - "Templates reduce friction—make documentation easy to do right"
+      - "PR review is checkpoint for docs—catches gaps before merge"
+      - "Allocate explicit capacity for documentation debt—it won't happen otherwise"
+
+# ============================================================
+# RISKS
+# ============================================================
+risks:
+  execution_risks:
+    - risk: Documentation created but not maintained
+      likelihood: high
+      impact: high
+      mitigation: "Assigned owners with review cadence, stale detection, documentation as part of change process"
+    
+    - risk: Documentation scattered across tools
+      likelihood: medium
+      impact: medium
+      mitigation: "Choose canonical tool, migrate legacy, resist tool proliferation"
+    
+    - risk: Documentation that no one reads
+      likelihood: medium
+      impact: medium
+      mitigation: "Make discoverable (search, links), promote actively, measure usage"
+    
+    - risk: Documentation bottlenecked on few people
+      likelihood: high
+      impact: medium
+      mitigation: "Distributed ownership, templates for self-serve creation, documentation training"
+    
+    - risk: Perfectionism prevents publishing
+      likelihood: medium
+      impact: low
+      mitigation: "'Good enough' culture, iterate publicly, version clearly"
+
+  organizational_risks:
+    - risk: Knowledge loss when people leave
+      impact: "Critical knowledge walks out door, team scrambles, mistakes repeated"
+      prevention: "Ongoing documentation as work practice, succession planning, knowledge audits"
+    
+    - risk: Tribal knowledge as power
+      impact: "Knowledge hoarding for job security, organizational fragility"
+      prevention: "Value documentation in performance, make sharing rewarded, no 'oracle' tolerance"
+    
+    - risk: Documentation theater
+      impact: "Docs exist but are useless—checkbox compliance without utility"
+      prevention: "Measure doc usage and usefulness, user feedback, quality over quantity"
+
+# ============================================================
+# DOMAIN CONTEXT
+# ============================================================
+domain_context:
+  industry_landscape: |
+    Knowledge management is essential for scaling organizations. 
+    Small teams can operate on shared context and verbal knowledge 
+    transfer. As organizations grow, this breaks down—you can't be 
+    in every conversation, and new hires can't absorb 5 years of 
+    context by osmosis.
+    
+    Modern knowledge management emphasizes: searchability, living 
+    documentation, distributed ownership, and integration with work 
+    tools. The shift is from "documentation as artifact" to 
+    "documentation as process."
+    
+    Remote and distributed work has accelerated documentation needs. 
+    Without casual observation and hallway conversations, explicit 
+    knowledge capture becomes essential, not optional.
+
+  best_practices:
+    - practice: "Write for discovery"
+      description: "Structure and title for searchability—people find docs by searching"
+      evidence: "Docs with clear titles and headers are 3x more likely to be found and used"
+    
+    - practice: "Document as you work"
+      description: "Capture knowledge in the moment—not as separate documentation project"
+      evidence: "Real-time documentation is 5x more likely to be accurate than retrospective"
+    
+    - practice: "Assign owners, not authors"
+      description: "Every doc has accountable owner for maintenance"
+      evidence: "Owned docs stay current; orphan docs go stale within months"
+    
+    - practice: "Link aggressively"
+      description: "Connect related documents—create web of knowledge"
+      evidence: "Linked docs are more discoverable and provide richer context"
+
+  anti_patterns:
+    - anti_pattern: "Documentation as project"
+      description: "Periodic 'documentation sprints' instead of ongoing practice"
+      consequence: "Docs become project, then debt, then abandoned—cycle repeats"
+    
+    - anti_pattern: "Knowledge hoarding"
+      description: "Information as power—individuals gatekeep knowledge"
+      consequence: "Organizational fragility, bottlenecks, political dysfunction"
+    
+    - anti_pattern: "Write-only documentation"
+      description: "Docs created but never read or maintained"
+      consequence: "Documentation theater—effort without value, trust erodes"
+    
+    - anti_pattern: "Tool proliferation"
+      description: "Docs scattered across Notion, Confluence, Google Docs, Slack, email"
+      consequence: "Unfindable knowledge, duplicated effort, confusion"
+
+  benchmarks:
+    - metric: "Onboarding documentation"
+      top_quartile: "New hire productive within 1-2 weeks using docs"
+      median: "Partial documentation, significant mentor dependency"
+      laggard: "No onboarding docs, sink-or-swim approach"
+    
+    - metric: "Documentation currency"
+      top_quartile: "80%+ of docs current and accurate"
+      median: "50% current, significant stale content"
+      laggard: "Mostly stale or missing, docs untrusted"
+    
+    - metric: "Knowledge redundancy"
+      top_quartile: "No single points of knowledge failure"
+      median: "Some 'oracle' dependencies"
+      laggard: "Critical knowledge in single heads"
+    
+    - metric: "Documentation ownership"
+      top_quartile: "Clear owner for every major doc/section"
+      median: "Partial ownership, orphan docs exist"
+      laggard: "No ownership model, no maintenance"
+
+  maturity_indicators:
+    tier_1_signals:
+      - "Central knowledge base tool chosen"
+      - "Basic structure established"
+      - "Some documentation exists for key areas"
+      - "New hires can find basic information"
+    
+    tier_2_signals:
+      - "Documentation owners assigned"
+      - "Review cadence established"
+      - "Documentation part of work processes"
+      - "Searchable and discoverable"
+    
+    tier_3_signals:
+      - "Living documentation culture"
+      - "No single points of knowledge failure"
+      - "Documentation measured and improved"
+      - "Knowledge sharing valued in performance and culture"
