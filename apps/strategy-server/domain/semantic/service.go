@@ -105,3 +105,28 @@ func (s *Service) RunScenario(ctx context.Context, instanceID, description, anch
 	// TODO(Phase 2+): create branch in Memory, return scenario ID.
 	return fmt.Sprintf("scenario-%s", instanceID), nil
 }
+
+// EvaluateScenario assesses the impact of a what-if scenario on the strategy graph.
+func (s *Service) EvaluateScenario(ctx context.Context, scenarioID, instanceID string) (map[string]any, error) {
+	if !s.cfg.IsConfigured() {
+		return nil, apperror.ErrSemanticUnavailable.WithDetail("emergent.memory not configured")
+	}
+	_ = ctx
+	_ = scenarioID
+	_ = instanceID
+	// TODO(Phase 2+): evaluate scenario impact via Memory propagation circuit.
+	return map[string]any{"scenario_id": scenarioID, "impact": []any{}}, nil
+}
+
+// CommitScenario promotes a what-if scenario's mutations into a staging batch.
+// Returns the batch_id of the newly created staging batch.
+func (s *Service) CommitScenario(ctx context.Context, scenarioID, instanceID string) (string, error) {
+	if !s.cfg.IsConfigured() {
+		return "", apperror.ErrSemanticUnavailable.WithDetail("emergent.memory not configured")
+	}
+	_ = ctx
+	_ = scenarioID
+	_ = instanceID
+	// TODO(Phase 2+): merge scenario branch into a staging batch in strategy-server.
+	return fmt.Sprintf("batch-%s", scenarioID), nil
+}

@@ -289,6 +289,7 @@ func TestMCP_ToolDiscovery(t *testing.T) {
 		"list_mutations", "get_mutation",
 		// Read — semantic
 		"search_strategy", "detect_contradictions",
+		"get_neighbors", "run_scenario", "evaluate_scenario", "commit_scenario",
 		// Read — embedded knowledge (Phase C)
 		"list_schemas", "get_schema",
 		"list_templates", "get_template",
@@ -3562,6 +3563,341 @@ func TestMCP_FreshSetup_EPFInitialisationDryRun(t *testing.T) {
 		artifactCount, finalSPS)
 
 	t.Log("✓ Fresh EPF setup dry run complete — all 20 steps passed")
+	_ = id
+}
+
+// ---------------------------------------------------------------------------
+// Scenario 5 (standalone): Archive a feature — include_archived filter
+// ---------------------------------------------------------------------------
+
+// TestMCP_Scenario_ArchiveFeature covers the archive-feature user journey from
+// the strategy-scenarios spec:
+//
+//  1. Feature visible in default list
+//  2. archive_feature → batch_id
+//  3. commit_batch
+//  4. Feature absent from default list
+//  5. Feature visible with include_archived=true, status=archived
+func TestMCP_Scenario_ArchiveFeature(t *testing.T) {
+	svc := buildSvc(t)
+	c := newMCPClient(t, svc)
+	id := 1
+
+	_, instID := seedInstance(t, svc, "test-org-archive-"+uuid.New().String()[:8], map[string]any{
+		"fd-arc-001": map[string]any{"id": "fd-arc-001", "name": "Feature To Archive"},
+	})
+	instIDStr := instID.String()
+
+	// Step 1 — feature visible in default list
+	var before []map[string]any
+	c.call(id, "list_features", map[string]any{"instance_id": instIDStr}).
+		assertOK().decode(&before)
+	id++
+	found := false
+	for _, f := range before {
+		if f["artifact_key"] == "fd-arc-001" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("Step 1: fd-arc-001 not in list before archive (got %d features)", len(before))
+	}
+	t.Logf("Step 1 — list_features: fd-arc-001 present in %d features", len(before))
+
+	// Step 2 — archive_feature
+	var staged struct {
+		BatchID string `json:"batch_id"`
+	}
+	c.call(id, "archive_feature", map[string]any{
+		"instance_id": instIDStr,
+		"feature_key": "fd-arc-001",
+		"payload":     `{}`,
+	}).assertOK().decode(&staged)
+	id++
+	if staged.BatchID == "" {
+		t.Fatal("Step 2: archive_feature returned empty batch_id")
+	}
+	t.Logf("Step 2 — archive_feature: batch_id=%s", staged.BatchID)
+
+	// Step 3 — commit_batch
+	c.call(id, "commit_batch", map[string]any{"batch_id": staged.BatchID}).assertOK()
+	id++
+	t.Log("Step 3 — commit_batch: OK")
+
+	// Step 4 — feature absent from default list
+	var afterDefault []map[string]any
+	c.call(id, "list_features", map[string]any{"instance_id": instIDStr}).
+		assertOK().decode(&afterDefault)
+	id++
+	for _, f := range afterDefault {
+		if f["artifact_key"] == "fd-arc-001" {
+			t.Error("Step 4: fd-arc-001 still present in default list after archive")
+		}
+	}
+	t.Logf("Step 4 — list_features (default): %d features, fd-arc-001 absent", len(afterDefault))
+
+	// Step 5 — feature visible with include_archived=true, status=archived
+	var withArchived []map[string]any
+	c.call(id, "list_features", map[string]any{
+		"instance_id":      instIDStr,
+		"include_archived": "true",
+	}).assertOK().decode(&withArchived)
+	id++
+	archivedFound := false
+	for _, f := range withArchived {
+		if f["artifact_key"] == "fd-arc-001" {
+			archivedFound = true
+			if f["status"] != "archived" {
+				t.Errorf("Step 5: fd-arc-001 status=%q, want archived", f["status"])
+			}
+		}
+	}
+	if !archivedFound {
+		t.Error("Step 5: fd-arc-001 not found in include_archived list")
+	}
+	t.Logf("Step 5 — list_features (include_archived): fd-arc-001 found=%v", archivedFound)
+
+	t.Log("✓ Archive feature scenario complete")
+	_ = id
+}
+
+// ---------------------------------------------------------------------------
+// Scenario 6: Semantic search — stub and graceful degradation
+// ---------------------------------------------------------------------------
+
+// TestMCP_Scenario_SemanticSearch covers the semantic search user journey.
+// Since Memory is not configured in tests, the scenario validates:
+//   - search_strategy degrades gracefully (returns error, not panic)
+//   - get_neighbors degrades gracefully
+//   - When Memory IS configured (future), results would be non-empty
+//
+// The stub path (Memory unconfigured) is the only path testable without an
+// external dependency. The test documents expected behaviour for both paths.
+func TestMCP_Scenario_SemanticSearch(t *testing.T) {
+	svc := buildSvc(t) // Semantic.Config{} — Memory not configured
+	c := newMCPClient(t, svc)
+	id := 1
+
+	_, instID := seedInstance(t, svc, "test-org-search-"+uuid.New().String()[:8], map[string]any{
+		"fd-001": map[string]any{"id": "fd-001", "name": "Enterprise SSO"},
+		"fd-002": map[string]any{"id": "fd-002", "name": "Multi-tenant billing"},
+	})
+	instIDStr := instID.String()
+
+	// Step 1 — search_strategy: Memory unavailable → tool-level error, not panic
+	r1 := c.call(id, "search_strategy", map[string]any{
+		"instance_id": instIDStr,
+		"query":       "features targeting enterprise",
+	})
+	id++
+	// Graceful degradation: either an error result (Memory unconfigured) or empty
+	// results array. Both are acceptable; what is NOT acceptable is a 500 / panic.
+	if r1.isError {
+		t.Logf("Step 1 — search_strategy: correctly returns error when Memory unconfigured: %s",
+			r1.text[:min(len(r1.text), 120)])
+	} else {
+		var results []map[string]any
+		r1.decode(&results)
+		t.Logf("Step 1 — search_strategy: returned %d results (stub empty set)", len(results))
+	}
+
+	// Step 2 — get_neighbors: same graceful degradation
+	r2 := c.call(id, "get_neighbors", map[string]any{
+		"instance_id": instIDStr,
+		"node_key":    "fd-001",
+	})
+	id++
+	if r2.isError {
+		t.Logf("Step 2 — get_neighbors: error as expected (Memory unconfigured): %s",
+			r2.text[:min(len(r2.text), 120)])
+	} else {
+		var neighbors []map[string]any
+		r2.decode(&neighbors)
+		t.Logf("Step 2 — get_neighbors: returned %d neighbors (stub empty set)", len(neighbors))
+	}
+
+	// Step 3 — verify the server is still healthy after semantic errors
+	var health map[string]any
+	c.call(id, "health_check", map[string]any{"instance_id": instIDStr}).
+		assertOK().decode(&health)
+	id++
+	t.Logf("Step 3 — health_check after semantic errors: status=%v", health["status"])
+
+	t.Log("✓ Semantic search scenario complete (stub path — Memory not configured)")
+	_ = id
+}
+
+// ---------------------------------------------------------------------------
+// Scenario 7: Detect contradictions and fix
+// ---------------------------------------------------------------------------
+
+// TestMCP_Scenario_DetectAndFix covers the contradiction detection scenario.
+// With Memory unconfigured the tool returns gracefully. The test validates the
+// full workflow shape — detect, fix via update, commit, detect again — and
+// asserts the server handles each step without error.
+func TestMCP_Scenario_DetectAndFix(t *testing.T) {
+	svc := buildSvc(t)
+	c := newMCPClient(t, svc)
+	id := 1
+
+	_, instID := seedInstance(t, svc, "test-org-contradict-"+uuid.New().String()[:8], map[string]any{
+		"fd-001": map[string]any{
+			"id":   "fd-001",
+			"name": "Feature with inconsistency",
+			"strategic_context": map[string]any{
+				"contributes_to": []string{"Product.Core"},
+			},
+		},
+	})
+	instIDStr := instID.String()
+
+	// Step 1 — detect_contradictions
+	r1 := c.call(id, "detect_contradictions", map[string]any{
+		"instance_id": instIDStr,
+	})
+	id++
+	if r1.isError {
+		// Memory not configured — graceful error is acceptable
+		t.Logf("Step 1 — detect_contradictions: Memory unconfigured (expected): %s",
+			r1.text[:min(len(r1.text), 120)])
+	} else {
+		var contradictions []map[string]any
+		r1.decode(&contradictions)
+		t.Logf("Step 1 — detect_contradictions: %d contradictions found", len(contradictions))
+	}
+
+	// Step 2 — apply a fix: update the feature
+	var staged struct {
+		BatchID string `json:"batch_id"`
+	}
+	c.call(id, "update_feature", map[string]any{
+		"instance_id": instIDStr,
+		"feature_key": "fd-001",
+		"payload": `{"id":"fd-001","name":"Feature with inconsistency",` +
+			`"strategic_context":{"contributes_to":["Product.Core","Product.Discovery"]}}`,
+	}).assertOK().decode(&staged)
+	id++
+	if staged.BatchID == "" {
+		t.Fatal("Step 2: update_feature returned empty batch_id")
+	}
+	t.Logf("Step 2 — update_feature: batch_id=%s", staged.BatchID)
+
+	// Step 3 — commit the fix
+	c.call(id, "commit_batch", map[string]any{"batch_id": staged.BatchID}).assertOK()
+	id++
+	t.Log("Step 3 — commit_batch: OK")
+
+	// Step 4 — verify the update is reflected
+	var updated map[string]any
+	c.call(id, "get_feature", map[string]any{
+		"instance_id": instIDStr,
+		"feature_key": "fd-001",
+	}).assertOK().decode(&updated)
+	id++
+	t.Logf("Step 4 — get_feature: payload present=%v", updated["payload"] != nil)
+
+	// Step 5 — detect_contradictions again — with Memory configured this would
+	// show one fewer contradiction; without Memory we confirm no panic/500.
+	r5 := c.call(id, "detect_contradictions", map[string]any{
+		"instance_id": instIDStr,
+	})
+	id++
+	if r5.isError {
+		t.Logf("Step 5 — detect_contradictions (post-fix): still Memory unconfigured (expected)")
+	} else {
+		var contradictions2 []map[string]any
+		r5.decode(&contradictions2)
+		t.Logf("Step 5 — detect_contradictions (post-fix): %d contradictions", len(contradictions2))
+	}
+
+	t.Log("✓ Detect contradictions and fix scenario complete")
+	_ = id
+}
+
+// ---------------------------------------------------------------------------
+// Scenario 8: What-if scenario exploration
+// ---------------------------------------------------------------------------
+
+// TestMCP_Scenario_WhatIf covers the what-if scenario exploration journey.
+// Since Memory is not configured, the scenario tools return graceful errors.
+// The test validates the full workflow shape and that the server remains stable.
+func TestMCP_Scenario_WhatIf(t *testing.T) {
+	svc := buildSvc(t)
+	c := newMCPClient(t, svc)
+	id := 1
+
+	_, instID := seedInstance(t, svc, "test-org-whatif-"+uuid.New().String()[:8], map[string]any{
+		"fd-001": map[string]any{"id": "fd-001", "name": "Core feature"},
+		"fd-002": map[string]any{"id": "fd-002", "name": "Optional feature"},
+		"fd-003": map[string]any{"id": "fd-003", "name": "Feature under evaluation"},
+	})
+	instIDStr := instID.String()
+
+	// Step 1 — run_scenario: create a what-if branch
+	r1 := c.call(id, "run_scenario", map[string]any{
+		"instance_id": instIDStr,
+		"description": "What if we deprioritise fd-003?",
+		"anchor_node": "fd-003",
+	})
+	id++
+
+	var scenarioID string
+	if r1.isError {
+		// Memory not configured — acceptable
+		t.Logf("Step 1 — run_scenario: Memory unconfigured (expected): %s",
+			r1.text[:min(len(r1.text), 120)])
+		// Skip remaining steps since scenario_id is unavailable
+		t.Log("✓ What-if scenario complete (stub path — Memory not configured)")
+		return
+	}
+	var scenarioResult struct {
+		ScenarioID string `json:"scenario_id"`
+	}
+	r1.decode(&scenarioResult)
+	scenarioID = scenarioResult.ScenarioID
+	if scenarioID == "" {
+		t.Fatal("Step 1: run_scenario returned empty scenario_id")
+	}
+	t.Logf("Step 1 — run_scenario: scenario_id=%s", scenarioID)
+
+	// Step 2 — evaluate_scenario
+	r2 := c.call(id, "evaluate_scenario", map[string]any{
+		"scenario_id": scenarioID,
+		"instance_id": instIDStr,
+	})
+	id++
+	if r2.isError {
+		t.Logf("Step 2 — evaluate_scenario: error=%s", r2.text[:min(len(r2.text), 120)])
+	} else {
+		t.Logf("Step 2 — evaluate_scenario: OK (text len=%d)", len(r2.text))
+	}
+
+	// Step 3 — commit_scenario: promote mutations to a staging batch
+	r3 := c.call(id, "commit_scenario", map[string]any{
+		"scenario_id": scenarioID,
+		"instance_id": instIDStr,
+	})
+	id++
+	if r3.isError {
+		t.Logf("Step 3 — commit_scenario: error=%s", r3.text[:min(len(r3.text), 120)])
+	} else {
+		// If scenario committed, a batch_id should be present for final commit
+		var batchResult struct {
+			BatchID string `json:"batch_id"`
+		}
+		if err := json.Unmarshal([]byte(r3.text), &batchResult); err == nil && batchResult.BatchID != "" {
+			c.call(id, "commit_batch", map[string]any{"batch_id": batchResult.BatchID}).assertOK()
+			id++
+			t.Logf("Step 3 — commit_scenario: batch committed, batch_id=%s", batchResult.BatchID)
+		}
+	}
+
+	// Step 4 — server remains healthy after scenario operations
+	c.call(id, "health_check", map[string]any{"instance_id": instIDStr}).assertOK()
+	id++
+	t.Log("Step 4 — health_check: server stable after scenario operations")
+
+	t.Log("✓ What-if scenario complete")
 	_ = id
 }
 

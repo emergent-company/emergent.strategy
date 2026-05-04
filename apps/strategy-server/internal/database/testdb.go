@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"math/rand"
 	"os"
 	"testing"
 
@@ -38,7 +39,8 @@ func TestDB(t *testing.T) *bun.DB {
 	t.Helper()
 
 	// Use a unique database name per test to achieve isolation.
-	dbName := fmt.Sprintf("strategy_test_%s", sanitizeTestName(t.Name()))
+	// The random suffix ensures -count=N reruns don't share the same DB.
+	dbName := fmt.Sprintf("strategy_test_%s_%06d", sanitizeTestName(t.Name()), rand.Intn(1_000_000)) //nolint:gosec
 
 	// Connect to the maintenance "postgres" database to create/drop test databases.
 	maintenanceDSN := testMaintenanceDSN()

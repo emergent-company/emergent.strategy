@@ -86,10 +86,20 @@ func (s *Service) GetCurrentArtifactFull(ctx context.Context, instanceID uuid.UU
 // ListCurrentArtifacts returns all non-archived artifacts for an instance,
 // optionally filtered by artifact_type.
 func (s *Service) ListCurrentArtifacts(ctx context.Context, instanceID uuid.UUID, artifactType string) ([]*domain.StrategyArtifact, error) {
+	return s.ListArtifactsFiltered(ctx, instanceID, artifactType, false)
+}
+
+// ListArtifactsFiltered returns artifacts for an instance, optionally filtered by
+// artifact_type. When includeArchived is false, archived artifacts are excluded.
+func (s *Service) ListArtifactsFiltered(ctx context.Context, instanceID uuid.UUID, artifactType string, includeArchived bool) ([]*domain.StrategyArtifact, error) {
 	q := s.db.NewSelect().
 		Model((*domain.StrategyArtifact)(nil)).
-		Where("instance_id = ? AND status != ?", instanceID, domain.ArtifactStatusArchived).
+		Where("instance_id = ?", instanceID).
 		OrderExpr("artifact_type, artifact_key")
+
+	if !includeArchived {
+		q = q.Where("status != ?", domain.ArtifactStatusArchived)
+	}
 
 	if artifactType != "" {
 		q = q.Where("artifact_type = ?", artifactType)

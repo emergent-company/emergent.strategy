@@ -342,12 +342,14 @@ func registerArtifactMutationTools(s *server.MCPServer, svc Services) {
 	s.AddTool(mcp.NewTool("list_features",
 		mcp.WithDescription("USE WHEN you need the feature list with strategic alignment for an instance."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+		mcp.WithString("include_archived", mcp.Description(`Set to "true" to include archived features in the response (default: false).`)),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
-		features, err := svc.Strategy.ListCurrentArtifacts(ctx, id, "feature")
+		includeArchived := argString(req, "include_archived") == "true"
+		features, err := svc.Strategy.ListArtifactsFiltered(ctx, id, "feature", includeArchived)
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
@@ -472,6 +474,68 @@ func registerSemanticReadTools(s *server.MCPServer, svc Services) {
 			return toolErr(ctx, err), nil
 		}
 		return mustJSON(results)
+	})
+
+	s.AddTool(mcp.NewTool("get_neighbors",
+		mcp.WithDescription("USE WHEN you need the semantic graph neighbourhood of a strategy node — connected artifacts and edge types."),
+		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+		mcp.WithString("node_key", mcp.Required(), mcp.Description("Artifact key to expand (e.g. fd-001)")),
+	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		results, err := svc.Semantic.GetNeighbors(ctx,
+			argString(req, "instance_id"),
+			argString(req, "node_key"),
+		)
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		return mustJSON(results)
+	})
+
+	s.AddTool(mcp.NewTool("run_scenario",
+		mcp.WithDescription("USE WHEN you need to explore a what-if strategy branch without committing to main. Returns a scenario_id for evaluation."),
+		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+		mcp.WithString("description", mcp.Required(), mcp.Description("What-if question or hypothesis")),
+		mcp.WithString("anchor_node", mcp.Description("Optional artifact key to anchor the scenario")),
+	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		scenarioID, err := svc.Semantic.RunScenario(ctx,
+			argString(req, "instance_id"),
+			argString(req, "description"),
+			argString(req, "anchor_node"),
+		)
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		return mustJSON(map[string]string{"scenario_id": scenarioID})
+	})
+
+	s.AddTool(mcp.NewTool("evaluate_scenario",
+		mcp.WithDescription("USE WHEN you need to assess the impact of a what-if scenario on the strategy graph."),
+		mcp.WithString("scenario_id", mcp.Required(), mcp.Description("Scenario ID from run_scenario")),
+		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		result, err := svc.Semantic.EvaluateScenario(ctx,
+			argString(req, "scenario_id"),
+			argString(req, "instance_id"),
+		)
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		return mustJSON(result)
+	})
+
+	s.AddTool(mcp.NewTool("commit_scenario",
+		mcp.WithDescription("USE WHEN you want to promote a what-if scenario's mutations into a staging batch for review and commit."),
+		mcp.WithString("scenario_id", mcp.Required(), mcp.Description("Scenario ID from run_scenario")),
+		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		batchID, err := svc.Semantic.CommitScenario(ctx,
+			argString(req, "scenario_id"),
+			argString(req, "instance_id"),
+		)
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		return mustJSON(map[string]string{"batch_id": batchID})
 	})
 }
 
@@ -792,7 +856,7 @@ func registerExpandedWriteTools(s *server.MCPServer, svc Services) {
 			Payload      json.RawMessage `json:"payload"`
 		}
 		if err := json.Unmarshal([]byte(artifactsJSON), &items); err != nil {
-			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("artifacts must be a JSON array: " + err.Error())), nil
+			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("artifacts must be a JSON array: "+err.Error())), nil
 		}
 		if len(items) == 0 {
 			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("artifacts array must not be empty")), nil
