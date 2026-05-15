@@ -22,7 +22,7 @@
 - [x] 3.2 Implement the core runner (`internal/navigation/`) — load graph, evaluate transitions, track state, record history
 - [x] 3.3 Implement guard profile: a set of satisfied guard IDs and guard groups, togglable at runtime
 - [x] 3.4 Implement navigation graph adapter: load `navigation_graph` YAML into the runner's graph model
-- [ ] 3.5 Implement workflow graph adapter: load `workflow` YAML into the same runner (same engine, different graph type) — DEFERRED: workflow adapter not yet needed
+- [x] 3.5 Implement workflow graph adapter: `internal/workflow/` with types, loader, validator, `ToNavigationGraph()` adapter (18 tests)
 - [x] 3.6 Write runner unit tests: traversal, guard blocking, history tracking, reachability, pathfinding, scenarios (22 tests)
 
 ## 4. CLI Commands — DEFERRED
@@ -56,28 +56,26 @@
 - [x] 6.5 Add decompose test with navigation graph fixture (`TestDecomposeNavigationGraph`)
 - [ ] 6.6 Verify ingestion round-trip with mock Memory server — DEFERRED: covered by existing reconcile tests
 
-## 7. Multi-Service Composition — DEFERRED
-
-> Schema supports imports and portal_edges. Implementation deferred until real multi-service use case.
+## 7. Multi-Service Composition
 
 - [x] 7.1 Design portal edge schema extension (in `navigation_graph_schema.json`)
 - [x] 7.2 Design graph import/merge semantics (in `navigation_graph_schema.json`)
-- [ ] 7.3 Implement composition validation (portal targets resolve across sub-graphs)
-- [ ] 7.4 Write composition test with two sub-graphs and portal edges
-- [ ] 7.5 Document composition patterns in EPF framework docs
+- [x] 7.3 Implement composition validation — `ValidateComposition()` in `compose.go` (portal source/target resolution, guard refs, duplicate IDs)
+- [x] 7.4 Write composition test with twentyfirst platform + captable sub-graph fixture (7 tests: load, compose, validate, broken portals, merge+traverse, cross-service reachability, cross-service shortest path)
+- [x] 7.5 Document composition patterns in AGENTS.md (imports, portal edges, namespace, abstraction boundary)
 
 ## 8. Reference Migration
 
-- [ ] 8.1 Extract a strategic navigation graph YAML from the 21st-captable reference implementation
-- [ ] 8.2 Validate the extracted graph against the new schema
-- [ ] 8.3 Run the state machine runner against the extracted graph
-- [ ] 8.4 Document the abstraction boundary: what lives in EPF (topology) vs what lives in the implementation (rendering)
-- [ ] 8.5 Document migration guide: from code-based graph to YAML artifact + implementation config
+- [x] 8.1 Extract 21st-captable navigation graph to YAML — 115 contexts, 151 transitions, 8 guards, 9 groups, 2 menus (2005 lines)
+- [x] 8.2 Validate extracted graph — all structural checks pass (unique IDs, entry context, transitions, guards, landing contexts)
+- [x] 8.3 Run state machine runner — journey scenario, role-based reachability (full=109, minimal=5, member=85), shortest paths, guard blocking (5 tests)
+- [x] 8.4 Document abstraction boundary in AGENTS.md — topology (graph) vs rendering (implementation) table
+- [x] 8.5 Document migration guide in AGENTS.md — 7-step process from code-based graphs to YAML artifacts
 
 ## 9. Documentation & Release
 
 - [x] 9.1 Update AGENTS.md with navigation graph artifact type, runner, and MCP tools
 - [x] 9.2 Update CONSTITUTION.md directory layout with navigation package
-- [ ] 9.3 Add navigation graph wizard/skill to canonical EPF — DEFERRED: lower priority
+- [x] 9.3 Add navigation graph authoring skill to canonical EPF (`skills/navigation-graph/` with skill.yaml + prompt.md)
 - [x] 9.4 Run full test suite and lint — all tests pass
 - [ ] 9.5 Release with updated epf-cli

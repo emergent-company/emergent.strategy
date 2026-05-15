@@ -89,7 +89,8 @@ apps/epf-cli/
 │   ├── lsp/                 # LSP server for editor integration
 │   ├── checks/              # Health check implementations
 │   ├── strategy/            # Strategy store (query tools)
-│   ├── navigation/          # Navigation graph types, loader, validator, runner
+│   ├── navigation/          # Navigation graph types, loader, validator, runner, composition
+│   ├── workflow/            # Workflow state machine types, loader, validator, runner adapter
 │   ├── decompose/           # YAML → graph objects
 │   ├── memory/              # emergent.memory REST API client
 │   ├── ingest/              # Ingestion pipeline + incremental sync

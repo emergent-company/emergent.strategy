@@ -1,0 +1,45 @@
+name: navigation-graph
+version: "1.0.0"
+type: creation
+phase: FIRE
+description: "Step-by-step guidance for creating EPF navigation graph artifacts that define a product's interaction topology — contexts, transitions, guards, groups, and multi-service composition."
+
+capability:
+  class: balanced
+  context_budget: large
+
+requires:
+  artifacts:
+    - north_star
+  optional:
+    - feature_definition
+    - roadmap_recipe
+    - workflow
+  tools:
+    - epf_get_template
+    - epf_get_schema
+    - epf_validate_file
+    - epf_get_personas
+    - epf_journey_search
+    - epf_journey_reachability
+
+output:
+  format: yaml
+  artifact_type: navigation_graph
+
+scope:
+  preferred_tools:
+    - epf_get_template
+    - epf_get_schema
+    - epf_validate_file
+    - epf_get_personas
+    - epf_get_persona_details
+    - epf_journey_search
+    - epf_journey_reachability
+    - epf_journey_path
+    - epf_journey_guards
+    - epf_journey_run
+  avoid_tools:
+    - epf_scaffold_generator
+    - epf_init_instance
+    - epf_aim_assess

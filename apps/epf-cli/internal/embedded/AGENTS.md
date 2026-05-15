@@ -1728,6 +1728,93 @@ All strategy tools return JSON with consistent structure:
 }
 ```
 
+### Navigation Graph / Journey Tools
+
+These tools query and test navigation graph artifacts — the strategic topology of a product's user journey.
+
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `epf_journey_search` | `instance_path`, `query` | Search interaction contexts by keyword, title, category, or group |
+| `epf_journey_reachability` | `instance_path`, `source`, `guards` (opt), `guard_groups` (opt) | Guard-aware reachability from a source context. Shows reachable and blocked contexts |
+| `epf_journey_path` | `instance_path`, `from`, `to`, `guards` (opt), `guard_groups` (opt) | Shortest path between contexts with guard diagnosis for blocked paths |
+| `epf_journey_guards` | `instance_path`, `context_id` | Explain which guards affect access — inbound transition guards and group visibility guards |
+| `epf_journey_run` | `instance_path`, `steps`, `guards` (opt), `guard_groups` (opt), `start_at` (opt), `expected_end` (opt) | Execute a scripted journey scenario and report pass/fail |
+
+**Use cases:**
+
+- **`epf_journey_search`**: Find contexts by keyword ("settings", "billing", "onboarding")
+- **`epf_journey_reachability`**: "What can a free-tier user reach from the dashboard?" Pass guard profile to simulate persona access
+- **`epf_journey_path`**: "How does a user get from the workspace list to the vision editor?" Returns step-by-step path with guards
+- **`epf_journey_guards`**: "Why can't an observer edit features?" Shows which guards block access
+- **`epf_journey_run`**: Test customer journey scenarios against the graph — "can a strategist reach contradiction resolution in 6 steps?"
+
+**Guard profile parameters:**
+
+Guards and guard groups are comma-separated strings:
+- `guards`: `"authenticated,instance-active,can-write"`
+- `guard_groups`: `"semantic-engine,premium"`
+
+### Multi-Service Composition
+
+Navigation graphs support multi-service composition via `imports` and `portal_edges`. This enables products built from multiple services to define a unified navigation topology.
+
+**Key concepts:**
+
+| Concept | Description |
+|---------|-------------|
+| **Import** | Declares a sub-graph from another service: `service` name + `path` to its YAML file |
+| **Portal edge** | Cross-service transition connecting contexts across service boundaries |
+| **Namespace** | Imported contexts are prefixed with `service:` to avoid ID collisions |
+| **Composition** | `Compose()` loads sub-graphs; `Merge()` creates a single flat graph for the runner |
+
+**Example: platform with captable service**
+
+```yaml
+# platform.yaml (root graph)
+imports:
+  - service: captable
+    path: captable.yaml
+
+portal_edges:
+  - id: portal-to-captable
+    source: company-dashboard          # local context
+    target: "captable:cap-table"       # namespaced sub-graph context
+    label: "view cap table"
+    guard: company-selected
+  - id: portal-voting-back
+    source: "captable:ga-voting"       # from sub-graph
+    target: meeting-detail             # back to platform
+    label: "back to meeting"
+```
+
+**Validation checks:**
+- Portal source/target must reference valid contexts (local or `service:id`)
+- Import service names must be unique
+- Portal edge IDs must be unique
+- Guard references on portal edges must exist in the root or imported graph
+
+**Abstraction boundary — topology vs rendering:**
+
+Navigation graphs define **what** a user can reach and **how** (topology), not **how it looks** (rendering). The YAML captures:
+
+| In the graph (topology) | In the implementation (rendering) |
+|------------------------|-----------------------------------|
+| Contexts (where a user can be) | URL routes, page components, templates |
+| Transitions (how users move) | Links, buttons, menu items, keyboard shortcuts |
+| Guards (access control rules) | Middleware, DB queries, session checks |
+| Groups (logical sections) | Sidebar sections, tab bars, nav menus |
+| Data requirements | API calls, DB queries, data loaders |
+
+**Migration guide — from code-based graphs to YAML:**
+
+1. **Extract** screen/node definitions from code → `contexts` in YAML
+2. **Extract** transition wiring → `transitions` in YAML
+3. **Extract** guard definitions → `guards` in YAML (separate the *what* from the *how*)
+4. **Map** sidebar groups / tab groups → `groups` in YAML
+5. **Move** rendering details (URL patterns, icons, CSS classes) to `implementation_hints` or `properties`
+6. **Keep** guard enforcement logic in the implementation — the graph only names guards, code enforces them
+7. **Validate** with `epf-cli validate` and run journey scenarios to verify equivalence
+
 ## Artifact Type Detection
 
 Filename patterns → artifact types (defined in `internal/schema/loader.go`):
@@ -1746,6 +1833,9 @@ Filename patterns → artifact types (defined in `internal/schema/loader.go`):
 "fd-*.yaml"                    → feature_definition
 "value_models/*.yaml"          → value_model
 "workflows/*.yaml"             → workflow
+"FIRE/navigation_graph.yaml"   → navigation_graph
+"FIRE/*_navigation.yaml"       → navigation_graph
+"FIRE/navigation/*.yaml"       → navigation_graph
 "mappings.yaml"                → mappings
 
 // AIM Phase

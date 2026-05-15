@@ -1,0 +1,35 @@
+name: 'board-meeting-decision'
+applies_to_machine: 'canonical_decision.state_machine.yaml'
+
+state_policies:
+  - state: 'deliberation'
+    rules:
+      - description: 'All board members must be invited to the meeting'
+      - description: 'Quorum requirements must be met before resolving'
+
+  - state: 'ratification-in-progress'
+    ratification:
+      required_signatures: 'board_members'
+      signature_deadline: '7_days'
+
+migrations:
+  - from: 'ratification-in-progress'
+    to: 'documented'
+    reason: 'Allow reverting to documentation phase if signatures are incomplete'
+
+  - from: null
+    to: 'ratification-in-progress'
+    reason: 'Skip straight to signature collection for urgent decisions'
+
+notifications:
+  - trigger: 'on_enter_deliberation'
+    recipients: ['all_attendees']
+    template: 'meeting_invitation'
+
+  - trigger: 'on_enter_ratification-in-progress'
+    recipients: ['required_signers']
+    template: 'signature_request'
+
+  - trigger: 'on_enter_ratified'
+    recipients: ['all_stakeholders']
+    template: 'decision_ratified'
