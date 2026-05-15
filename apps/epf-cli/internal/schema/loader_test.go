@@ -74,6 +74,7 @@ func TestDetectArtifactType(t *testing.T) {
 		{"FIRE/value_models/some_model.yaml", ArtifactValueModel, false},
 		{"something_value_model.yaml", ArtifactValueModel, false},
 		{"FIRE/workflows/process.yaml", ArtifactWorkflow, false},
+		{"instance/FIRE/workflows/onboarding.yaml", ArtifactWorkflow, false},
 		{"FIRE/mappings.yaml", ArtifactMappings, false},
 
 		// AIM phase files
@@ -103,10 +104,12 @@ func TestDetectArtifactType(t *testing.T) {
 		{"living_reality_assessment.yaml", ArtifactLivingRealityAssessment, false},
 		{"aim_trigger_config.yaml", ArtifactAimTriggerConfig, false},
 
-		// Unknown files
+		// Unknown files (should NOT match any EPF type)
 		{"random_file.yaml", "", true},
 		{"READY/unknown.yaml", "", true},
 		{"some/path/file.txt", "", true},
+		{".github/workflows/release.yaml", "", true},
+		{".github/workflows/ci.yaml", "", true},
 	}
 
 	for _, tt := range tests {

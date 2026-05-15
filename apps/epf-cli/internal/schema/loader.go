@@ -96,7 +96,7 @@ var artifactMapping = []struct {
 	{regexp.MustCompile(`(?i)fd-[^/]*\.ya?ml$`), ArtifactFeatureDefinition, PhaseFIRE, "Feature Definition - Feature specification"},
 	{regexp.MustCompile(`(?i)value_models?/[^/]*\.ya?ml$`), ArtifactValueModel, PhaseFIRE, "Value Model - Value creation model"},
 	{regexp.MustCompile(`(?i)_value_model\.ya?ml$`), ArtifactValueModel, PhaseFIRE, "Value Model - Value creation model"},
-	{regexp.MustCompile(`(?i)workflows?/[^/]*\.ya?ml$`), ArtifactWorkflow, PhaseFIRE, "Workflow - Process workflow"},
+	{regexp.MustCompile(`(?i)(?:^|/)(?:FIRE|fire)/workflows?/[^/]*\.ya?ml$`), ArtifactWorkflow, PhaseFIRE, "Workflow - Process workflow"},
 	{regexp.MustCompile(`(?i)mappings\.ya?ml$`), ArtifactMappings, PhaseFIRE, "Mappings - Cross-reference mappings"},
 
 	// AIM Phase
