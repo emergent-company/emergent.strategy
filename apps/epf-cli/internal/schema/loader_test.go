@@ -82,12 +82,20 @@ func TestDetectArtifactType(t *testing.T) {
 		{"AIM/assessment_report_c2.yaml", ArtifactAssessmentReport, false},
 		{"AIM/calibration_memo.yaml", ArtifactCalibrationMemo, false},
 
-		// Track definitions
+		// Track definitions (flat directory)
 		{"FIRE/definitions/strategy/sd-001.yaml", ArtifactStrategyDefinition, false},
 		{"FIRE/definitions/strategy/strategy-definition.yaml", ArtifactStrategyDefinition, false},
 		{"FIRE/definitions/org_ops/pd-001.yaml", ArtifactOrgOpsDefinition, false},
 		{"FIRE/definitions/org_ops/orgops_definition.yaml", ArtifactOrgOpsDefinition, false},
 		{"FIRE/definitions/commercial/cd-001.yaml", ArtifactCommercialDefinition, false},
+
+		// Track definitions (nested category subdirectories — #32 regression)
+		{"FIRE/definitions/strategy/context/sd-001-market-analysis.yaml", ArtifactStrategyDefinition, false},
+		{"FIRE/definitions/strategy/strategic-roadmap/sd-010-roadmap.yaml", ArtifactStrategyDefinition, false},
+		{"FIRE/definitions/org_ops/culture-communications/pd-003-internal-comms.yaml", ArtifactOrgOpsDefinition, false},
+		{"FIRE/definitions/org_ops/talent-management/pd-001-new-hire-orientation.yaml", ArtifactOrgOpsDefinition, false},
+		{"FIRE/definitions/commercial/partnerships/cd-007-revenue-sharing.yaml", ArtifactCommercialDefinition, false},
+		{"FIRE/definitions/commercial/brand-positioning/cd-035-verbal-guidelines.yaml", ArtifactCommercialDefinition, false},
 
 		// Other artifacts
 		{"track_health_assessment.yaml", ArtifactTrackHealthAssessment, false},

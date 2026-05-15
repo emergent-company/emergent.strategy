@@ -536,14 +536,14 @@ func GenerateTemplatePack() map[string]any {
 	// Build wildcard type list for relationship types with nil from/to
 	allTypeNames := ObjectTypeNames()
 
-	var relationshipTypeSchemas []map[string]any
+	relationshipTypeSchemas := map[string]any{}
 	for _, rt := range relTypes {
 		props := map[string]any{}
 		for k, v := range rt.Properties {
 			props[k] = map[string]any{"type": v.Type, "description": v.Description}
 		}
-		// Memory API uses sourceType/targetType field names (singular, arrays)
-		// Nil means "any type" → use wildcard list of all object types
+		// Memory API object/map format uses fromTypes/toTypes (arrays) keyed by name.
+		// Nil means "any type" → use wildcard list of all object types.
 		from := rt.FromTypes
 		to := rt.ToTypes
 		if from == nil {
@@ -552,14 +552,16 @@ func GenerateTemplatePack() map[string]any {
 		if to == nil {
 			to = allTypeNames
 		}
-		relationshipTypeSchemas = append(relationshipTypeSchemas, map[string]any{
-			"name":        rt.Name,
+		entry := map[string]any{
 			"label":       rt.Label,
 			"description": rt.Description,
-			"sourceType":  from,
-			"targetType":  to,
-			"properties":  props,
-		})
+			"fromTypes":   from,
+			"toTypes":     to,
+		}
+		if len(props) > 0 {
+			entry["properties"] = props
+		}
+		relationshipTypeSchemas[rt.Name] = entry
 	}
 
 	uiConfigs := map[string]any{}
@@ -574,13 +576,13 @@ func GenerateTemplatePack() map[string]any {
 	}
 
 	return map[string]any{
-		"name":                    "epf-engine",
-		"version":                 "2.1.0",
-		"description":             "Semantic strategy runtime schema — section-level strategy artifacts as graph nodes with structural, semantic, and causal edges. Auto-managed by epf-cli.",
-		"author":                  "emergent-company",
-		"objectTypeSchemas":       objectTypeSchemas,
-		"relationshipTypeSchemas": relationshipTypeSchemas,
-		"uiConfigs":               uiConfigs,
+		"name":                      "epf-engine",
+		"version":                   "2.1.0",
+		"description":               "Semantic strategy runtime schema — section-level strategy artifacts as graph nodes with structural, semantic, and causal edges. Auto-managed by epf-cli.",
+		"author":                    "emergent-company",
+		"object_type_schemas":       objectTypeSchemas,
+		"relationship_type_schemas": relationshipTypeSchemas,
+		"ui_configs":                uiConfigs,
 	}
 }
 

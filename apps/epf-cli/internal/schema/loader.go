@@ -104,10 +104,10 @@ var artifactMapping = []struct {
 	{regexp.MustCompile(`(?i)calibration_memo\.ya?ml$`), ArtifactCalibrationMemo, PhaseAIM, "Calibration Memo - Strategic calibration"},
 	{regexp.MustCompile(`(?i)strategic_reality_check\.ya?ml$`), ArtifactStrategicRealityCheck, PhaseAIM, "Strategic Reality Check - Cross-artifact health evaluation"},
 
-	// Track definitions (all in FIRE/definitions/{track}/)
-	{regexp.MustCompile(`(?i)definitions/strategy/[^/]*\.ya?ml$`), ArtifactStrategyDefinition, PhaseFIRE, "Strategy Track Definition"},
-	{regexp.MustCompile(`(?i)definitions/org_ops/[^/]*\.ya?ml$`), ArtifactOrgOpsDefinition, PhaseFIRE, "OrgOps Track Definition"},
-	{regexp.MustCompile(`(?i)definitions/commercial/[^/]*\.ya?ml$`), ArtifactCommercialDefinition, PhaseFIRE, "Commercial Track Definition"},
+	// Track definitions (FIRE/definitions/{track}/ and nested category subdirectories)
+	{regexp.MustCompile(`(?i)definitions/strategy/(.+/)?[^/]*\.ya?ml$`), ArtifactStrategyDefinition, PhaseFIRE, "Strategy Track Definition"},
+	{regexp.MustCompile(`(?i)definitions/org_ops/(.+/)?[^/]*\.ya?ml$`), ArtifactOrgOpsDefinition, PhaseFIRE, "OrgOps Track Definition"},
+	{regexp.MustCompile(`(?i)definitions/commercial/(.+/)?[^/]*\.ya?ml$`), ArtifactCommercialDefinition, PhaseFIRE, "Commercial Track Definition"},
 
 	// Health assessments
 	{regexp.MustCompile(`(?i)track[_-]health[_-]assessment\.ya?ml$`), ArtifactTrackHealthAssessment, "", "Track Health Assessment"},

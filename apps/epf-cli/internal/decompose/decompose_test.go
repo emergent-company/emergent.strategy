@@ -1756,3 +1756,74 @@ definition:
 		t.Errorf("Expected 2 unresolved path warnings, got %d", warningCount)
 	}
 }
+
+// TestGenerateTemplatePack_Format verifies the generated template pack uses the
+// Memory API-compatible format: snake_case top-level keys and object-map format
+// for relationship_type_schemas with fromTypes/toTypes arrays.
+func TestGenerateTemplatePack_Format(t *testing.T) {
+	pack := GenerateTemplatePack()
+
+	// Top-level keys must be snake_case to match Memory API CreatePackRequest.
+	for _, key := range []string{"name", "version", "description", "author", "object_type_schemas", "relationship_type_schemas", "ui_configs"} {
+		if _, ok := pack[key]; !ok {
+			t.Errorf("missing expected top-level key %q", key)
+		}
+	}
+	// Reject camelCase variants that would be silently ignored by the server.
+	for _, bad := range []string{"objectTypeSchemas", "relationshipTypeSchemas", "uiConfigs"} {
+		if _, ok := pack[bad]; ok {
+			t.Errorf("found camelCase key %q — must use snake_case for Memory API compatibility", bad)
+		}
+	}
+
+	// object_type_schemas must be an array of maps with "name" keys.
+	objSchemas, ok := pack["object_type_schemas"].([]map[string]any)
+	if !ok {
+		t.Fatalf("object_type_schemas is not []map[string]any, got %T", pack["object_type_schemas"])
+	}
+	if len(objSchemas) == 0 {
+		t.Fatal("object_type_schemas is empty")
+	}
+	for _, ot := range objSchemas {
+		if _, ok := ot["name"]; !ok {
+			t.Error("object type schema missing 'name' key")
+		}
+	}
+
+	// relationship_type_schemas must be a map (object format), not an array.
+	relSchemas, ok := pack["relationship_type_schemas"].(map[string]any)
+	if !ok {
+		t.Fatalf("relationship_type_schemas is not map[string]any, got %T", pack["relationship_type_schemas"])
+	}
+	if len(relSchemas) == 0 {
+		t.Fatal("relationship_type_schemas is empty")
+	}
+
+	// Each relationship type entry must have fromTypes and toTypes as []string.
+	for name, v := range relSchemas {
+		entry, ok := v.(map[string]any)
+		if !ok {
+			t.Errorf("relationship type %q is not map[string]any", name)
+			continue
+		}
+		from, ok := entry["fromTypes"]
+		if !ok {
+			t.Errorf("relationship type %q missing fromTypes", name)
+		} else if _, ok := from.([]string); !ok {
+			t.Errorf("relationship type %q fromTypes is %T, want []string", name, from)
+		}
+		to, ok := entry["toTypes"]
+		if !ok {
+			t.Errorf("relationship type %q missing toTypes", name)
+		} else if _, ok := to.([]string); !ok {
+			t.Errorf("relationship type %q toTypes is %T, want []string", name, to)
+		}
+		// Must NOT have sourceType/targetType (array format fields).
+		if _, ok := entry["sourceType"]; ok {
+			t.Errorf("relationship type %q has sourceType — must use fromTypes/toTypes (map format)", name)
+		}
+		if _, ok := entry["targetType"]; ok {
+			t.Errorf("relationship type %q has targetType — must use fromTypes/toTypes (map format)", name)
+		}
+	}
+}
