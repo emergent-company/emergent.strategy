@@ -30,6 +30,7 @@ const (
 	ArtifactFeatureDefinition ArtifactType = "feature_definition"
 	ArtifactValueModel        ArtifactType = "value_model"
 	ArtifactWorkflow          ArtifactType = "workflow"
+	ArtifactNavigationGraph   ArtifactType = "navigation_graph"
 	ArtifactMappings          ArtifactType = "mappings"
 
 	// AIM Phase artifacts
@@ -97,6 +98,9 @@ var artifactMapping = []struct {
 	{regexp.MustCompile(`(?i)value_models?/[^/]*\.ya?ml$`), ArtifactValueModel, PhaseFIRE, "Value Model - Value creation model"},
 	{regexp.MustCompile(`(?i)_value_model\.ya?ml$`), ArtifactValueModel, PhaseFIRE, "Value Model - Value creation model"},
 	{regexp.MustCompile(`(?i)(?:^|/)(?:FIRE|fire)/workflows?/[^/]*\.ya?ml$`), ArtifactWorkflow, PhaseFIRE, "Workflow - Process workflow"},
+	{regexp.MustCompile(`(?i)(?:^|/)(?:FIRE|fire)/navigation_graph\.ya?ml$`), ArtifactNavigationGraph, PhaseFIRE, "Navigation Graph - User journey topology"},
+	{regexp.MustCompile(`(?i)(?:^|/)(?:FIRE|fire)/[^/]*_navigation\.ya?ml$`), ArtifactNavigationGraph, PhaseFIRE, "Navigation Graph - User journey topology"},
+	{regexp.MustCompile(`(?i)(?:^|/)(?:FIRE|fire)/navigation/[^/]*\.ya?ml$`), ArtifactNavigationGraph, PhaseFIRE, "Navigation Graph - User journey topology"},
 	{regexp.MustCompile(`(?i)mappings\.ya?ml$`), ArtifactMappings, PhaseFIRE, "Mappings - Cross-reference mappings"},
 
 	// AIM Phase
@@ -127,6 +131,7 @@ var schemaFileMapping = map[ArtifactType]string{
 	ArtifactFeatureDefinition:       "feature_definition_schema.json",
 	ArtifactValueModel:              "value_model_schema.json",
 	ArtifactWorkflow:                "workflow_schema.json",
+	ArtifactNavigationGraph:         "navigation_graph_schema.json",
 	ArtifactMappings:                "mappings_schema.json",
 	ArtifactAssessmentReport:        "assessment_report_schema.json",
 	ArtifactCalibrationMemo:         "calibration_memo_schema.json",

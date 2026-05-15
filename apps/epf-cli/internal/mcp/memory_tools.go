@@ -31,6 +31,7 @@ var validEPFObjectTypes = []string{
 	"StrategicPhase", "MappingArtifact",
 	"TrackDefinition", "PractitionerScenario",
 	"Agent", "Skill",
+	"InteractionContext", "NavigationGuard",
 }
 
 // registerMemoryTools registers the Memory integration MCP tools.

@@ -21,6 +21,8 @@ func TestArtifactTypeFromString(t *testing.T) {
 		{"feature_definition", ArtifactFeatureDefinition, false},
 		{"feature-definition", ArtifactFeatureDefinition, false},
 		{"value_model", ArtifactValueModel, false},
+		{"navigation_graph", ArtifactNavigationGraph, false},
+		{"navigation-graph", ArtifactNavigationGraph, false},
 		{"roadmap_recipe", ArtifactRoadmapRecipe, false},
 		{"mappings", ArtifactMappings, false},
 		{"unknown_type", "", true},
@@ -75,6 +77,12 @@ func TestDetectArtifactType(t *testing.T) {
 		{"something_value_model.yaml", ArtifactValueModel, false},
 		{"FIRE/workflows/process.yaml", ArtifactWorkflow, false},
 		{"instance/FIRE/workflows/onboarding.yaml", ArtifactWorkflow, false},
+		{"FIRE/navigation_graph.yaml", ArtifactNavigationGraph, false},
+		{"FIRE/navigation_graph.yml", ArtifactNavigationGraph, false},
+		{"instance/FIRE/navigation_graph.yaml", ArtifactNavigationGraph, false},
+		{"FIRE/product_navigation.yaml", ArtifactNavigationGraph, false},
+		{"FIRE/navigation/main.yaml", ArtifactNavigationGraph, false},
+		{"FIRE/navigation/customer_portal.yaml", ArtifactNavigationGraph, false},
 		{"FIRE/mappings.yaml", ArtifactMappings, false},
 
 		// AIM phase files

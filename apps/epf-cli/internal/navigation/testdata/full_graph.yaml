@@ -1,0 +1,309 @@
+# Full strategic navigation graph — ~15 contexts, guards, groups, menus
+name: strategy-platform
+title: "Emergent Strategy Platform"
+description: |
+  Navigation graph for the Emergent Strategy platform.
+  Models the user journey through workspace management,
+  strategy authoring, semantic analysis, and history review.
+
+entry_context: workspace-list
+
+contexts:
+  # Workspace management
+  - id: workspace-list
+    title: "Workspaces"
+    description: "List of all accessible workspaces"
+    mode: landing
+    group: workspaces
+    category: operations
+    data_requirements:
+      - type: workspaces
+        qualifier: all
+
+  - id: workspace-detail
+    title: "Workspace Detail"
+    description: "Workspace overview with instances"
+    mode: detail
+    parent: workspace-list
+    group: workspaces
+    category: operations
+    scoped: true
+    data_requirements:
+      - type: workspace
+        qualifier: current
+      - type: instances
+        qualifier: all
+
+  - id: create-workspace
+    title: "Create Workspace"
+    description: "Create a new workspace"
+    mode: modal
+    parent: workspace-list
+    group: workspaces
+    category: setup
+
+  # Instance management
+  - id: instance-overview
+    title: "Instance Overview"
+    description: "Strategy instance dashboard"
+    mode: landing
+    parent: workspace-detail
+    group: strategy
+    category: operations
+    scoped: true
+    data_requirements:
+      - type: instance
+        qualifier: current
+      - type: strategy-context
+        qualifier: summary
+
+  - id: import-instance
+    title: "Import Instance"
+    description: "Import a strategy instance from GitHub"
+    mode: modal
+    parent: workspace-detail
+    group: strategy
+    category: setup
+
+  # Strategy reading
+  - id: vision
+    title: "Vision & Mission"
+    description: "View and edit the north star vision"
+    parent: instance-overview
+    group: strategy
+    category: operations
+    data_requirements:
+      - type: north-star
+        qualifier: current
+
+  - id: edit-vision
+    title: "Edit Vision"
+    description: "Edit the north star vision"
+    mode: modal
+    parent: vision
+    group: strategy
+    category: operations
+    implementation_hints:
+      - "Form with rich text editing"
+      - "Requires staging workflow"
+
+  - id: personas
+    title: "Personas"
+    description: "View target user personas"
+    parent: instance-overview
+    group: strategy
+    category: operations
+
+  - id: roadmap
+    title: "Roadmap"
+    description: "OKR-based roadmap view"
+    parent: instance-overview
+    group: strategy
+    category: operations
+
+  - id: features
+    title: "Features"
+    description: "Feature definition list"
+    mode: landing
+    parent: instance-overview
+    group: features
+    category: operations
+
+  - id: feature-detail
+    title: "Feature Detail"
+    description: "Detailed view of a single feature"
+    mode: detail
+    parent: features
+    group: features
+    category: operations
+    scoped: true
+
+  # Semantic analysis
+  - id: semantic-search
+    title: "Semantic Search"
+    description: "Search the strategy graph by meaning"
+    mode: landing
+    parent: instance-overview
+    group: analysis
+    category: reporting
+    data_requirements:
+      - type: semantic-graph
+        qualifier: connected
+
+  - id: contradictions
+    title: "Contradictions"
+    description: "Detect and resolve structural contradictions"
+    parent: instance-overview
+    group: analysis
+    category: reporting
+
+  # Staging & history
+  - id: staging-review
+    title: "Staging Review"
+    description: "Review staged changes before commit"
+    mode: modal
+    parent: instance-overview
+    group: strategy
+    category: operations
+    scoped: true
+
+  - id: mutation-history
+    title: "History"
+    description: "Mutation history and audit trail"
+    mode: landing
+    parent: instance-overview
+    group: history
+    category: reporting
+
+transitions:
+  # Workspace navigation
+  - id: list-to-workspace
+    from: workspace-list
+    to: workspace-detail
+    label: "Open workspace"
+    category: drill-down
+
+  - id: list-to-create
+    from: workspace-list
+    to: create-workspace
+    label: "Create workspace"
+    category: modal
+
+  - id: workspace-to-instance
+    from: workspace-detail
+    to: instance-overview
+    label: "Open instance"
+    guard: instance-active
+    category: drill-down
+
+  - id: workspace-to-import
+    from: workspace-detail
+    to: import-instance
+    label: "Import instance"
+    category: modal
+
+  # Strategy navigation
+  - id: instance-to-vision
+    from: instance-overview
+    to: vision
+    label: "View vision"
+    category: navigation
+
+  - id: vision-to-edit
+    from: vision
+    to: edit-vision
+    label: "Edit vision"
+    guard: authenticated
+    category: action
+
+  - id: instance-to-personas
+    from: instance-overview
+    to: personas
+    label: "View personas"
+    category: navigation
+
+  - id: instance-to-roadmap
+    from: instance-overview
+    to: roadmap
+    label: "View roadmap"
+    category: navigation
+
+  - id: instance-to-features
+    from: instance-overview
+    to: features
+    label: "View features"
+    category: navigation
+
+  - id: features-to-detail
+    from: features
+    to: feature-detail
+    label: "View feature"
+    category: drill-down
+
+  # Semantic analysis
+  - id: instance-to-search
+    from: instance-overview
+    to: semantic-search
+    label: "Search strategy"
+    guard: memory-connected
+    category: navigation
+
+  - id: instance-to-contradictions
+    from: instance-overview
+    to: contradictions
+    label: "Check contradictions"
+    guard: memory-connected
+    category: navigation
+
+  # Staging & history
+  - id: instance-to-staging
+    from: instance-overview
+    to: staging-review
+    label: "Review staged changes"
+    guard: has-staged-changes
+    category: action
+
+  - id: instance-to-history
+    from: instance-overview
+    to: mutation-history
+    label: "View history"
+    category: navigation
+
+guards:
+  - id: authenticated
+    description: "User must be authenticated"
+    type: role
+    message: "Please log in to continue."
+    fallback: workspace-list
+
+  - id: instance-active
+    description: "Strategy instance must be in active status"
+    type: entity-state
+    message: "This instance is not active."
+
+  - id: memory-connected
+    description: "emergent.memory must be configured and reachable"
+    type: domain-rule
+    guard_group: semantic-engine
+    message: "Semantic engine is not available. Configure emergent.memory to use this feature."
+
+  - id: has-staged-changes
+    description: "At least one staged mutation exists in the current batch"
+    type: entity-state
+    message: "No staged changes to review."
+
+groups:
+  - id: workspaces
+    title: "Workspaces"
+    order: 0
+
+  - id: strategy
+    title: "Strategy"
+    order: 1
+
+  - id: features
+    title: "Features"
+    order: 2
+
+  - id: analysis
+    title: "Analysis"
+    order: 3
+    visibility_guard: memory-connected
+
+  - id: history
+    title: "History"
+    order: 4
+
+menus:
+  - context: instance-overview
+    title: "Quick Actions"
+    items:
+      - transition_id: instance-to-vision
+        label: "Vision"
+        description: "View product vision and mission"
+      - transition_id: instance-to-features
+        label: "Features"
+        description: "Browse feature definitions"
+      - transition_id: instance-to-search
+        label: "Search"
+        description: "Semantic search across strategy"

@@ -1627,6 +1627,11 @@ func (s *Server) registerTools() {
 	// Memory Integration Tools (status, graph queries, quality audit, enrichment)
 	// ==========================================================================
 	s.registerMemoryTools()
+
+	// ==========================================================================
+	// Navigation Graph / Journey Tools (search, reachability, path, guards, run)
+	// ==========================================================================
+	s.registerJourneyTools()
 }
 
 // SchemaListItem represents a schema in the list response

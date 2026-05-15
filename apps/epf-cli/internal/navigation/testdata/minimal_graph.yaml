@@ -1,0 +1,39 @@
+# Minimal valid navigation graph — 3 contexts, 2 transitions
+name: minimal-product
+title: "Minimal Product"
+description: "A minimal navigation graph for testing"
+entry_context: home
+
+contexts:
+  - id: home
+    title: "Home"
+    mode: landing
+    group: main
+
+  - id: settings
+    title: "Settings"
+    parent: home
+    group: main
+
+  - id: profile
+    title: "Profile"
+    parent: home
+    group: main
+
+transitions:
+  - id: home-to-settings
+    from: home
+    to: settings
+    label: "Open settings"
+    category: navigation
+
+  - id: home-to-profile
+    from: home
+    to: profile
+    label: "Open profile"
+    category: navigation
+
+groups:
+  - id: main
+    title: "Main"
+    order: 0

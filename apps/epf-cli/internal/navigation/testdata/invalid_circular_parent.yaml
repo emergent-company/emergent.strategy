@@ -1,0 +1,34 @@
+# Invalid graph — circular parent chain (A -> B -> C -> A)
+name: invalid-circular
+title: "Invalid Circular Parent Graph"
+entry_context: page-a
+
+contexts:
+  - id: page-a
+    title: "Page A"
+    parent: page-c
+    mode: landing
+    group: main
+
+  - id: page-b
+    title: "Page B"
+    parent: page-a
+    group: main
+
+  - id: page-c
+    title: "Page C"
+    parent: page-b
+    group: main
+
+transitions:
+  - id: a-to-b
+    from: page-a
+    to: page-b
+
+  - id: b-to-c
+    from: page-b
+    to: page-c
+
+groups:
+  - id: main
+    title: "Main"

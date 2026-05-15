@@ -373,6 +373,32 @@ func ObjectTypes() []ObjectTypeDef {
 			}),
 		},
 
+		// Navigation graph types (FIRE phase — user journey topology)
+		{
+			Name: "InteractionContext", Label: "Interaction Context", InertiaTier: 5, Category: "Execution", Icon: "LayoutDashboard", Color: "#0EA5E9",
+			Description: "An interaction context from a navigation graph — a meaningful place a user can be in the product. Tier 5.",
+			Properties: mergeProps(commonProps(), map[string]PropertyDef{
+				"name":        {Type: "string", Description: "Context title"},
+				"description": {Type: "string", Description: "What the user accomplishes here"},
+				"group":       {Type: "string", Description: "Group ID for navigation section"},
+				"category":    {Type: "string", Description: "Semantic domain classification"},
+				"mode":        {Type: "string", Description: "Presentation mode: default, landing, detail, modal, embedded"},
+				"scoped":      {Type: "string", Description: "Whether context is entity-scoped (true/false)"},
+				"context_id":  {Type: "string", Description: "Stable context ID from the navigation graph"},
+			}),
+		},
+		{
+			Name: "NavigationGuard", Label: "Navigation Guard", InertiaTier: 5, Category: "Execution", Icon: "Shield", Color: "#F97316",
+			Description: "A named precondition that governs transition access in a navigation graph. Tier 5.",
+			Properties: mergeProps(commonProps(), map[string]PropertyDef{
+				"name":        {Type: "string", Description: "Guard description"},
+				"description": {Type: "string", Description: "What this guard checks"},
+				"guard_type":  {Type: "string", Description: "Guard type: role, tier, entity-state, domain-rule, feature-flag, temporal"},
+				"guard_group": {Type: "string", Description: "Guard group for domain-mode filtering"},
+				"guard_id":    {Type: "string", Description: "Stable guard ID from the navigation graph"},
+			}),
+		},
+
 		// Agent and Skill types (tooling, not strategy — included for completeness)
 		{
 			Name: "Agent", Label: "Agent", InertiaTier: 6, Category: "AI", Icon: "Zap", Color: "#8B5CF6",
@@ -402,7 +428,7 @@ func RelationshipTypes() []RelTypeDef {
 		// === Structural edges (created by the decomposer) ===
 		{Name: "contains", Label: "Contains", EdgeSource: "structural",
 			Description: "An artifact contains a section-level object, or a feature contains capabilities/scenarios",
-			FromTypes:   []string{"Artifact", "Feature", "OKR"}, ToTypes: []string{"Belief", "Trend", "PainPoint", "Positioning", "Assumption", "Capability", "Scenario", "Persona", "OKR", "Constraint", "CrossTrackDependency"},
+			FromTypes:   []string{"Artifact", "Feature", "OKR"}, ToTypes: []string{"Belief", "Trend", "PainPoint", "Positioning", "Assumption", "Capability", "Scenario", "Persona", "OKR", "Constraint", "CrossTrackDependency", "InteractionContext", "NavigationGuard"},
 			Properties: weightEdgeProps},
 		{Name: "contributes_to", Label: "Contributes To", EdgeSource: "structural",
 			Description: "A feature contributes value to a value model component",
@@ -446,6 +472,21 @@ func RelationshipTypes() []RelTypeDef {
 			Properties: mergeProps(weightEdgeProps, map[string]PropertyDef{
 				"relationship": {Type: "string", Description: "Relationship type: requires, enables, follows, parallel, alternative"},
 			})},
+
+		// Navigation graph edges
+		{Name: "navigation_transition", Label: "Navigation Transition", EdgeSource: "structural",
+			Description: "A user journey transition between interaction contexts in a navigation graph",
+			FromTypes:   []string{"InteractionContext"}, ToTypes: []string{"InteractionContext"},
+			Properties: mergeProps(weightEdgeProps, map[string]PropertyDef{
+				"label":         {Type: "string", Description: "Transition label"},
+				"guard":         {Type: "string", Description: "Guard ID that governs this transition"},
+				"category":      {Type: "string", Description: "Transition category: navigation, action, drill-down, modal, back, portal"},
+				"transition_id": {Type: "string", Description: "Stable transition ID from the navigation graph"},
+			})},
+		{Name: "guards", Label: "Guards", EdgeSource: "structural",
+			Description: "A navigation guard governs a transition between interaction contexts",
+			FromTypes:   []string{"NavigationGuard"}, ToTypes: []string{"InteractionContext"},
+			Properties: weightEdgeProps},
 
 		// === Cross-artifact structural edges (Phase 3 — inferred from text matching and ID refs) ===
 		{Name: "competes_with", Label: "Competes With", EdgeSource: "structural",

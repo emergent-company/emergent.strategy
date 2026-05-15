@@ -1,0 +1,23 @@
+# Invalid graph — duplicate context IDs
+name: invalid-duplicates
+title: "Invalid Duplicate ID Graph"
+entry_context: home
+
+contexts:
+  - id: home
+    title: "Home"
+    mode: landing
+    group: main
+
+  - id: home
+    title: "Home Duplicate"
+    group: main
+
+transitions:
+  - id: self-link
+    from: home
+    to: home
+
+groups:
+  - id: main
+    title: "Main"
