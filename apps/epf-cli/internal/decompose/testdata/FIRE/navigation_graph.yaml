@@ -1,0 +1,54 @@
+name: test-navigation
+title: "Test Navigation Graph"
+entry_context: dashboard
+
+contexts:
+  - id: dashboard
+    title: "Dashboard"
+    mode: landing
+    group: main
+    category: operations
+
+  - id: settings
+    title: "Settings"
+    description: "Configure application"
+    parent: dashboard
+    group: main
+    category: setup
+
+  - id: admin
+    title: "Admin"
+    mode: landing
+    parent: dashboard
+    group: admin
+    category: operations
+
+transitions:
+  - id: dash-to-settings
+    from: dashboard
+    to: settings
+    label: "Open settings"
+    category: navigation
+
+  - id: dash-to-admin
+    from: dashboard
+    to: admin
+    label: "Open admin"
+    guard: admin-role
+    category: navigation
+
+guards:
+  - id: admin-role
+    description: "Must be an administrator"
+    type: role
+    guard_group: admin-access
+
+groups:
+  - id: main
+    title: "Main"
+    order: 0
+
+  - id: admin
+    title: "Admin"
+    order: 1
+    visibility_guard: admin-role

@@ -1827,3 +1827,77 @@ func TestGenerateTemplatePack_Format(t *testing.T) {
 		}
 	}
 }
+
+// TestDecomposeNavigationGraph verifies that a navigation graph decomposes into
+// InteractionContext objects, NavigationGuard objects, and navigation_transition edges.
+func TestDecomposeNavigationGraph(t *testing.T) {
+	d := New("testdata")
+	result, err := d.DecomposeInstance()
+	if err != nil {
+		t.Fatalf("DecomposeInstance failed: %v", err)
+	}
+
+	counts := countByType(result)
+	relCounts := countRelsByType(result)
+
+	// testdata/FIRE/navigation_graph.yaml has:
+	// - 3 contexts (dashboard, settings, admin)
+	// - 1 guard (admin-role)
+	// - 2 transitions (dash-to-settings, dash-to-admin)
+
+	if counts["InteractionContext"] != 3 {
+		t.Errorf("Expected 3 InteractionContext objects, got %d", counts["InteractionContext"])
+	}
+
+	if counts["NavigationGuard"] != 1 {
+		t.Errorf("Expected 1 NavigationGuard object, got %d", counts["NavigationGuard"])
+	}
+
+	if relCounts["navigation_transition"] != 2 {
+		t.Errorf("Expected 2 navigation_transition edges, got %d", relCounts["navigation_transition"])
+	}
+
+	// Verify contains edges from Artifact to contexts and guards
+	// 3 contexts + 1 guard = 4 contains edges from the navigation artifact
+	navContains := 0
+	for _, rel := range result.Relationships {
+		if rel.Type == "contains" && rel.FromKey == "Artifact:FIRE/navigation_graph.yaml" {
+			navContains++
+		}
+	}
+	if navContains != 4 {
+		t.Errorf("Expected 4 contains edges from navigation artifact, got %d", navContains)
+	}
+
+	// Verify guard edge: admin-role guards the admin context via dash-to-admin
+	if relCounts["guards"] < 1 {
+		t.Errorf("Expected at least 1 guards edge, got %d", relCounts["guards"])
+	}
+
+	// Check InteractionContext properties
+	for _, obj := range result.Objects {
+		if obj.Type == "InteractionContext" && obj.Properties["context_id"] == "dashboard" {
+			if obj.Properties["mode"] != "landing" {
+				t.Errorf("dashboard mode = %v, want landing", obj.Properties["mode"])
+			}
+			if obj.Properties["category"] != "operations" {
+				t.Errorf("dashboard category = %v, want operations", obj.Properties["category"])
+			}
+			if obj.Properties["inertia_tier"] != "5" {
+				t.Errorf("dashboard inertia_tier = %v, want 5", obj.Properties["inertia_tier"])
+			}
+		}
+	}
+
+	// Check NavigationGuard properties
+	for _, obj := range result.Objects {
+		if obj.Type == "NavigationGuard" && obj.Properties["guard_id"] == "admin-role" {
+			if obj.Properties["guard_type"] != "role" {
+				t.Errorf("admin-role guard_type = %v, want role", obj.Properties["guard_type"])
+			}
+			if obj.Properties["guard_group"] != "admin-access" {
+				t.Errorf("admin-role guard_group = %v, want admin-access", obj.Properties["guard_group"])
+			}
+		}
+	}
+}

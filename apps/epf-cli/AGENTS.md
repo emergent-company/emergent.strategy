@@ -1728,6 +1728,32 @@ All strategy tools return JSON with consistent structure:
 }
 ```
 
+### Navigation Graph / Journey Tools
+
+These tools query and test navigation graph artifacts — the strategic topology of a product's user journey.
+
+| Tool | Parameters | Description |
+|------|------------|-------------|
+| `epf_journey_search` | `instance_path`, `query` | Search interaction contexts by keyword, title, category, or group |
+| `epf_journey_reachability` | `instance_path`, `source`, `guards` (opt), `guard_groups` (opt) | Guard-aware reachability from a source context. Shows reachable and blocked contexts |
+| `epf_journey_path` | `instance_path`, `from`, `to`, `guards` (opt), `guard_groups` (opt) | Shortest path between contexts with guard diagnosis for blocked paths |
+| `epf_journey_guards` | `instance_path`, `context_id` | Explain which guards affect access — inbound transition guards and group visibility guards |
+| `epf_journey_run` | `instance_path`, `steps`, `guards` (opt), `guard_groups` (opt), `start_at` (opt), `expected_end` (opt) | Execute a scripted journey scenario and report pass/fail |
+
+**Use cases:**
+
+- **`epf_journey_search`**: Find contexts by keyword ("settings", "billing", "onboarding")
+- **`epf_journey_reachability`**: "What can a free-tier user reach from the dashboard?" Pass guard profile to simulate persona access
+- **`epf_journey_path`**: "How does a user get from the workspace list to the vision editor?" Returns step-by-step path with guards
+- **`epf_journey_guards`**: "Why can't an observer edit features?" Shows which guards block access
+- **`epf_journey_run`**: Test customer journey scenarios against the graph — "can a strategist reach contradiction resolution in 6 steps?"
+
+**Guard profile parameters:**
+
+Guards and guard groups are comma-separated strings:
+- `guards`: `"authenticated,instance-active,can-write"`
+- `guard_groups`: `"semantic-engine,premium"`
+
 ## Artifact Type Detection
 
 Filename patterns → artifact types (defined in `internal/schema/loader.go`):
@@ -1746,6 +1772,9 @@ Filename patterns → artifact types (defined in `internal/schema/loader.go`):
 "fd-*.yaml"                    → feature_definition
 "value_models/*.yaml"          → value_model
 "workflows/*.yaml"             → workflow
+"FIRE/navigation_graph.yaml"   → navigation_graph
+"FIRE/*_navigation.yaml"       → navigation_graph
+"FIRE/navigation/*.yaml"       → navigation_graph
 "mappings.yaml"                → mappings
 
 // AIM Phase
