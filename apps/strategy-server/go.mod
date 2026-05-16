@@ -4,6 +4,9 @@ go 1.26.1
 
 require (
 	github.com/alexflint/go-arg v1.6.1
+	github.com/emergent-company/emergent-strategy/apps/epf-cli v0.0.0-00010101000000-000000000000
+	github.com/golang-jwt/jwt/v5 v5.3.1
+	github.com/google/go-github/v68 v68.0.0
 	github.com/google/uuid v1.6.0
 	github.com/labstack/echo/v4 v4.15.2
 	github.com/mark3labs/mcp-go v0.50.0
@@ -21,6 +24,7 @@ replace github.com/emergent-company/emergent-strategy/apps/epf-cli => ../epf-cli
 require (
 	github.com/alexflint/go-scalar v1.2.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/jsonschema-go v0.4.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/labstack/gommon v0.5.0 // indirect

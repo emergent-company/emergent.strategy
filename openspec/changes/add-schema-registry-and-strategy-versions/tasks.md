@@ -73,42 +73,42 @@
 
 ### 3.1 Database
 
-- [ ] 3.1.1 Write migration `013_github_sync_log.sql` — `github_sync_log` table (instance_id, version_id, github_repo, branch_name, pr_number, pr_url, status, artifact_count, error_message)
+- [x] 3.1.1 Write migration `013_github_sync_log.sql` — `github_sync_log` table (instance_id, version_id, github_repo, branch_name, pr_number, pr_url, status, artifact_count, error_message)
 
 ### 3.2 GitHub App Client
 
-- [ ] 3.2.1 Add `google/go-github/v68` to `go.mod`
-- [ ] 3.2.2 Add GitHub App config fields to `config/config.go` (`GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY_PATH`)
-- [ ] 3.2.3 Create `internal/github/client.go` — GitHub App JWT generation, installation token exchange
-- [ ] 3.2.4 Implement `GetInstallationToken(owner)` — look up installation by org, generate short-lived token
-- [ ] 3.2.5 Implement `CreateBranch(repo, baseBranch, newBranch)` — create a feature branch
-- [ ] 3.2.6 Implement `CommitFiles(repo, branch, files, message)` — create a Git tree + commit with all artifact files
-- [ ] 3.2.7 Implement `CreatePullRequest(repo, head, base, title, body)` — open PR
+- [x] 3.2.1 Add `google/go-github/v68` to `go.mod`
+- [x] 3.2.2 Add GitHub App config fields to `config/config.go` (`GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY_PATH`)
+- [x] 3.2.3 Create `internal/github/client.go` — GitHub App JWT generation, installation token exchange
+- [x] 3.2.4 Implement `GetInstallationToken(owner)` — look up installation by org, generate short-lived token
+- [x] 3.2.5 Implement `CreateBranch(repo, baseBranch, newBranch)` — create a feature branch
+- [x] 3.2.6 Implement `CommitFiles(repo, branch, files, message)` — create a Git tree + commit with all artifact files
+- [x] 3.2.7 Implement `CreatePullRequest(repo, head, base, title, body)` — open PR
 - [ ] 3.2.8 Write unit tests with GitHub API mocks (httptest)
 
 ### 3.3 Sync Service
 
-- [ ] 3.3.1 Create `domain/sync/service.go` — `SyncService` with `RepoWriter` interface (domain-pure; `internal/github/` implements the interface)
-- [ ] 3.3.2 Implement `SyncToGithub(instanceID, versionID)` — export artifacts, create branch, commit files, open PR, log result
-- [ ] 3.3.3 Handle draft sync (no version — exports current working state)
-- [ ] 3.3.4 Handle version sync (exports a specific published version's snapshot)
-- [ ] 3.3.5 Generate PR body with structured summary (added/modified/archived artifacts, version label, instance link)
-- [ ] 3.3.6 Generate branch name: `strategy-sync/<instance-name>/<version-or-timestamp>`
-- [ ] 3.3.7 Record sync attempt in `github_sync_log`
-- [ ] 3.3.8 Write integration tests for sync service
+- [x] 3.3.1 Create `domain/sync/service.go` — `SyncService` with `RepoWriter` interface (domain-pure; `internal/github/` implements the interface)
+- [x] 3.3.2 Implement `SyncToGithub(instanceID, versionID)` — export artifacts, create branch, commit files, open PR, log result
+- [x] 3.3.3 Handle draft sync (no version — exports current working state)
+- [x] 3.3.4 Handle version sync (exports a specific published version's snapshot)
+- [x] 3.3.5 Generate PR body with structured summary (added/modified/archived artifacts, version label, instance link)
+- [x] 3.3.6 Generate branch name: `strategy-sync/<instance-name>/<version-or-timestamp>`
+- [x] 3.3.7 Record sync attempt in `github_sync_log`
+- [x] 3.3.8 Write integration tests for sync service
 
 ### 3.4 MCP Tools
 
-- [ ] 3.4.1 `sync_to_github` — export current or versioned state and create a PR
-- [ ] 3.4.2 `get_sync_status` — show last sync status, open PRs, sync history for an instance
-- [ ] 3.4.3 Register tools in `internal/mcpserver/`
+- [x] 3.4.1 `sync_to_github` — export current or versioned state and create a PR
+- [x] 3.4.2 `get_sync_status` — show last sync status, open PRs, sync history for an instance
+- [x] 3.4.3 Register tools in `internal/mcpserver/`
 - [ ] 3.4.4 Write MCP tool tests
 
 ### 3.5 Graceful Degradation
 
-- [ ] 3.5.1 If GitHub App is not configured, sync tools return a clear error (not panic)
-- [ ] 3.5.2 If `github_repo` is not set on the instance, return actionable error message
-- [ ] 3.5.3 If the GitHub App is not installed on the target org, return clear error with install link
+- [x] 3.5.1 If GitHub App is not configured, sync tools return a clear error (not panic)
+- [x] 3.5.2 If `github_repo` is not set on the instance, return actionable error message
+- [x] 3.5.3 If the GitHub App is not installed on the target org, return clear error with install link
 
 ---
 

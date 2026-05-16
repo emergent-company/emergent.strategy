@@ -72,6 +72,10 @@ type Config struct {
 	ZitadelDebugToken   string `arg:"env:ZITADEL_DEBUG_TOKEN" help:"Debug token for integration tests (non-production only)"`
 	IntrospectionCacheTTL int  `arg:"env:INTROSPECTION_CACHE_TTL" default:"300" help:"Token introspection cache TTL in seconds"`
 
+	// GitHub App (for repo sync / write-back)
+	GithubAppID            int64  `arg:"env:GITHUB_APP_ID" help:"GitHub App ID for repo sync"`
+	GithubAppPrivateKeyPath string `arg:"env:GITHUB_APP_PRIVATE_KEY_PATH" help:"Path to GitHub App PEM private key file"`
+
 	// GitHub OAuth (deprecated — kept for migration period)
 	GithubClientID     string `arg:"env:EPF_OAUTH_CLIENT_ID" help:"GitHub OAuth App client ID (deprecated)"`
 	GithubClientSecret string `arg:"env:EPF_OAUTH_CLIENT_SECRET" help:"GitHub OAuth App client secret (deprecated)"`
@@ -117,4 +121,9 @@ func (c *Config) MemoryConfigured() bool {
 // ZitadelConfigured returns true when Zitadel OIDC settings are provided.
 func (c *Config) ZitadelConfigured() bool {
 	return c.ZitadelIssuer != "" && c.ZitadelClientID != ""
+}
+
+// GithubAppConfigured returns true when GitHub App settings are provided.
+func (c *Config) GithubAppConfigured() bool {
+	return c.GithubAppID != 0 && c.GithubAppPrivateKeyPath != ""
 }

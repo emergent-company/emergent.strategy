@@ -39,6 +39,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
 	schemadom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/schema"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
+	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
 	versiondom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/version"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/agent"
@@ -63,6 +64,7 @@ type Services struct {
 	Org       *orgdom.Service
 	Schema    *schemadom.Service    // optional — nil falls back to embedded-only validation
 	Version   *versiondom.Service  // optional — nil disables versioning tools
+	Sync      *syncdom.Service     // optional — nil disables GitHub sync tools
 	Ingest    IngestEnqueuer       // optional — nil when Memory is not configured
 }
 
@@ -96,6 +98,7 @@ func New(svc Services) http.Handler {
 	registerOrgTools(s, svc)
 	registerPhase2cTools(s, svc)
 	registerVersionTools(s, svc)
+	registerSyncTools(s, svc)
 	registerKnowledgePrompt(s)
 
 	return server.NewStreamableHTTPServer(s)

@@ -24,8 +24,10 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/org"
 	schemadom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/schema"
+	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/user"
 	versiondom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/version"
+	ghclient "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/github"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/auth"
@@ -91,17 +93,36 @@ func runServer(cfg *config.Config) error {
 
 	orgSvc := org.NewService(db)
 	versionSvc := versiondom.NewService(db)
+	strategySvc := strategy.NewService(db)
+
+	// GitHub sync — only available when GitHub App is configured.
+	var syncSvc *syncdom.Service
+	if cfg.GithubAppConfigured() {
+		ghClient, ghErr := ghclient.NewClient(ghclient.Config{
+			AppID:          cfg.GithubAppID,
+			PrivateKeyPath: cfg.GithubAppPrivateKeyPath,
+		})
+		if ghErr != nil {
+			log.Warn("github app client failed to initialize (sync disabled)", "err", ghErr)
+		} else {
+			syncSvc = syncdom.NewService(db, strategySvc, versionSvc, ghclient.NewRepoWriterAdapter(ghClient))
+			log.Info("github sync enabled", "app_id", cfg.GithubAppID)
+		}
+	} else {
+		log.Info("github sync disabled (GITHUB_APP_ID not configured)")
+	}
 
 	svc := mcpserver.Services{
 		Workspace: workspace.NewService(db),
 		Instance:  instSvc,
-		Strategy:  strategy.NewService(db),
+		Strategy:  strategySvc,
 		Pack:      packSvc,
 		App:       appdom.NewService(db),
 		Semantic:  semanticSvc,
 		Org:       orgSvc,
 		Schema:    schemaSvc,
 		Version:   versionSvc,
+		Sync:      syncSvc,
 		Ingest:    ingestSvc,
 	}
 

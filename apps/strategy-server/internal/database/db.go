@@ -113,5 +113,6 @@ func registerModels(db *bun.DB) {
 		(*domain.OrgInvitation)(nil),
 		(*domain.SchemaRegistryEntry)(nil),
 		(*domain.StrategyVersion)(nil),
+		(*domain.GithubSyncLog)(nil),
 	)
 }

@@ -344,6 +344,33 @@ const (
 	VersionStatusRestored   = "restored"
 )
 
+// GithubSyncLog records each sync attempt from strategy-server to a GitHub repo.
+type GithubSyncLog struct {
+	bun.BaseModel `bun:"table:github_sync_log,alias:gsl"`
+
+	ID            uuid.UUID  `bun:"id,pk,type:uuid"                    json:"id"`
+	InstanceID    uuid.UUID  `bun:"instance_id,notnull,type:uuid"      json:"instance_id"`
+	VersionID     *uuid.UUID `bun:"version_id,type:uuid"               json:"version_id,omitempty"`
+	GithubRepo    string     `bun:"github_repo,notnull"                json:"github_repo"`
+	BranchName    string     `bun:"branch_name,notnull"                json:"branch_name"`
+	PRNumber      *int       `bun:"pr_number"                          json:"pr_number,omitempty"`
+	PRUrl         *string    `bun:"pr_url"                             json:"pr_url,omitempty"`
+	Status        string     `bun:"status,notnull,default:'pending'"   json:"status"`
+	ArtifactCount int        `bun:"artifact_count,notnull"             json:"artifact_count"`
+	ErrorMessage  *string    `bun:"error_message"                      json:"error_message,omitempty"`
+	CreatedBy     *uuid.UUID `bun:"created_by,type:uuid"               json:"created_by,omitempty"`
+	CreatedAt     time.Time  `bun:"created_at,notnull,default:now()"   json:"created_at"`
+}
+
+// SyncStatus enumerates valid values for GithubSyncLog.Status.
+const (
+	SyncStatusPending   = "pending"
+	SyncStatusPushed    = "pushed"
+	SyncStatusPRCreated = "pr_created"
+	SyncStatusMerged    = "merged"
+	SyncStatusFailed    = "failed"
+)
+
 // SchemaRegistryEntry stores a single JSON schema document in the runtime registry.
 type SchemaRegistryEntry struct {
 	bun.BaseModel `bun:"table:schema_registry,alias:scr"`
