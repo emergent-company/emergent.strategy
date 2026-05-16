@@ -1,0 +1,25 @@
+# Invalid graph — transition references undefined guard
+name: invalid-guard
+title: "Invalid Guard Graph"
+entry_context: home
+
+contexts:
+  - id: home
+    title: "Home"
+    mode: landing
+    group: main
+
+  - id: admin
+    title: "Admin"
+    parent: home
+    group: main
+
+transitions:
+  - id: home-to-admin
+    from: home
+    to: admin
+    guard: nonexistent-guard
+
+groups:
+  - id: main
+    title: "Main"

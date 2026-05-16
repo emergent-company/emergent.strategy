@@ -1,0 +1,119 @@
+# Root graph: Twenty First governance platform
+# Imports the captable service and connects via portal edges
+name: twentyfirst-platform
+title: "Twenty First Platform"
+description: "Governance platform with captable service integration"
+entry_context: home
+
+guards:
+  - id: authenticated
+    description: "User is logged in"
+    type: role
+    message: "Please log in"
+  - id: company-selected
+    description: "A company is selected in context"
+    type: entity-state
+    fallback: company-list
+    message: "Select a company first"
+
+groups:
+  - id: main
+    title: "Main"
+    order: 1
+  - id: governance
+    title: "Governance"
+    order: 2
+
+contexts:
+  - id: home
+    title: "Home"
+    group: main
+    mode: landing
+  - id: company-list
+    title: "Organizations"
+    group: main
+  - id: company-dashboard
+    title: "Company Dashboard"
+    parent: company-list
+    group: main
+    scoped: true
+  - id: meeting-list
+    title: "Meetings"
+    parent: company-dashboard
+    group: governance
+    scoped: true
+    mode: landing
+  - id: meeting-detail
+    title: "Meeting Detail"
+    parent: meeting-list
+    group: governance
+    scoped: true
+  - id: document-list
+    title: "Documents"
+    parent: company-dashboard
+    group: governance
+    scoped: true
+  - id: shareholder-list
+    title: "Shareholders"
+    parent: company-dashboard
+    group: main
+    scoped: true
+    description: "Basic shareholder CRUD — superseded by captable for equity operations"
+
+transitions:
+  - id: home-to-orgs
+    from: home
+    to: company-list
+    label: "organizations"
+  - id: orgs-to-company
+    from: company-list
+    to: company-dashboard
+    label: "select"
+    guard: company-selected
+  - id: company-to-meetings
+    from: company-dashboard
+    to: meeting-list
+    label: "meetings"
+    guard: company-selected
+  - id: company-to-docs
+    from: company-dashboard
+    to: document-list
+    label: "documents"
+    guard: company-selected
+  - id: company-to-shareholders
+    from: company-dashboard
+    to: shareholder-list
+    label: "shareholders"
+    guard: company-selected
+  - id: meetings-to-detail
+    from: meeting-list
+    to: meeting-detail
+    label: "view"
+  - id: company-back
+    from: company-dashboard
+    to: company-list
+    label: "back"
+
+# Multi-service composition
+imports:
+  - service: captable
+    path: captable.yaml
+
+portal_edges:
+  # From platform's shareholder list to captable's cap table view
+  - id: portal-shareholders-to-captable
+    source: shareholder-list
+    target: "captable:cap-table"
+    label: "view cap table"
+    guard: company-selected
+  # From captable's voting summary back to platform's meeting detail
+  - id: portal-voting-to-meeting
+    source: "captable:ga-voting"
+    target: meeting-detail
+    label: "back to meeting"
+  # From platform dashboard directly to captable dashboard
+  - id: portal-company-to-captable
+    source: company-dashboard
+    target: "captable:captable-dashboard"
+    label: "cap table"
+    guard: company-selected

@@ -1,0 +1,15 @@
+track_name: product
+description: 'Product value model for testing'
+layers:
+  - id: 'core'
+    name: 'Core'
+    path_segment: 'Core'
+    description: 'Core layer'
+    components:
+      - id: 'search'
+        name: 'Search'
+        path_segment: 'Search'
+        description: 'Search functionality'
+        active: true
+        maturity:
+          stage: 'emerging'

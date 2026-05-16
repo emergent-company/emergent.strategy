@@ -1,0 +1,104 @@
+# Sub-graph: 21st-captable shareholder registry service
+name: twentyfirst-captable
+title: "Cap Table Service"
+description: "Shareholder registry, equity instruments, and corporate actions"
+entry_context: captable-dashboard
+
+guards:
+  - id: share-classes
+    description: "At least one share class exists"
+    type: entity-state
+    fallback: create-class
+    message: "Create a share class first"
+  - id: shares-exist
+    description: "At least one share is issued"
+    type: entity-state
+    fallback: issue-shares
+    message: "Issue shares first"
+
+groups:
+  - id: captable
+    title: "Cap Table"
+    order: 1
+  - id: reporting
+    title: "Reporting"
+    order: 2
+
+contexts:
+  - id: captable-dashboard
+    title: "Cap Table Dashboard"
+    group: captable
+    mode: landing
+    scoped: true
+  - id: cap-table
+    title: "Cap Table View"
+    parent: captable-dashboard
+    group: captable
+    scoped: true
+  - id: share-register
+    title: "Share Register"
+    parent: captable-dashboard
+    group: captable
+    scoped: true
+  - id: issue-shares
+    title: "Issue Shares"
+    parent: cap-table
+    group: captable
+    scoped: true
+  - id: transfer-shares
+    title: "Transfer Shares"
+    parent: cap-table
+    group: captable
+    scoped: true
+  - id: create-class
+    title: "Create Share Class"
+    parent: cap-table
+    group: captable
+    scoped: true
+  - id: ga-voting
+    title: "GA Voting Summary"
+    parent: captable-dashboard
+    group: captable
+    scoped: true
+  - id: rf1086
+    title: "RF-1086 Tax Report"
+    parent: captable-dashboard
+    group: reporting
+    scoped: true
+    mode: landing
+
+transitions:
+  - id: dash-to-captable
+    from: captable-dashboard
+    to: cap-table
+    label: "cap table"
+  - id: dash-to-register
+    from: captable-dashboard
+    to: share-register
+    label: "register"
+  - id: cap-to-issue
+    from: cap-table
+    to: issue-shares
+    label: "issue"
+    guard: share-classes
+  - id: cap-to-transfer
+    from: cap-table
+    to: transfer-shares
+    label: "transfer"
+    guard: shares-exist
+  - id: cap-to-class
+    from: cap-table
+    to: create-class
+    label: "new class"
+  - id: dash-to-voting
+    from: captable-dashboard
+    to: ga-voting
+    label: "voting"
+  - id: dash-to-rf1086
+    from: captable-dashboard
+    to: rf1086
+    label: "RF-1086"
+  - id: cap-back
+    from: cap-table
+    to: captable-dashboard
+    label: "back"

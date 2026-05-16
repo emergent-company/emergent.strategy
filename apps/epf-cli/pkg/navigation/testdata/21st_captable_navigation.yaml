@@ -1,0 +1,2005 @@
+# Navigation graph for the 21st-captable shareholder registry platform
+# 115 contexts, 151 transitions, 8 guards, 9 groups, 2 menus
+name: twentyfirst-captable
+title: "Twenty First Cap Table"
+description: |
+  Navigation topology for the 21st-captable shareholder registry platform.
+  Models the user journey through company dashboards, shareholder management,
+  equity instruments, exit planning, governance, reporting, and administration.
+entry_context: global-dashboard
+
+guards:
+  - id: company-exists
+    description: "Company is loaded"
+    type: entity-state
+    message: "Company not found"
+
+  - id: share-classes
+    description: "At least one share class exists"
+    type: entity-state
+    fallback: create-share-class
+    message: "Create a share class first"
+
+  - id: shares-exist
+    description: "At least one share is issued"
+    type: entity-state
+    fallback: share-issue
+    message: "Issue shares first"
+
+  - id: shares-allowed
+    description: "Registry mode allows shares (AS/ASA)"
+    type: domain-rule
+    message: "This organization type does not have a shareholder registry"
+
+  - id: partners-allowed
+    description: "Registry mode allows partners (ANS/DA/KS)"
+    type: domain-rule
+    message: "This organization type does not have a partnership registry"
+
+  - id: members-allowed
+    description: "Registry mode allows members (SA/BRL/BBL)"
+    type: domain-rule
+    message: "This organization type does not have a membership registry"
+
+  - id: premium-tier
+    description: "Premium subscription required"
+    type: domain-rule
+    message: "This feature requires a premium subscription"
+
+  - id: instrument-at-cursor
+    description: "Equity instrument selected"
+    type: entity-state
+    message: "Select an instrument first"
+
+groups:
+  - id: overview
+    title: "Overview"
+    order: 1
+
+  - id: captable
+    title: "Cap Table"
+    order: 2
+
+  - id: members
+    title: "Members"
+    order: 2
+    visibility_guard: members-allowed
+
+  - id: equity
+    title: "Equity"
+    order: 3
+
+  - id: exit
+    title: "Exit & Liquidity"
+    order: 4
+
+  - id: governance
+    title: "Governance"
+    order: 5
+
+  - id: reporting
+    title: "Reporting"
+    order: 6
+
+  - id: data
+    title: "Records"
+    order: 7
+
+  - id: setup
+    title: "Admin"
+    order: 8
+
+contexts:
+  # ── Overview ──────────────────────────────────────────────────
+  - id: global-dashboard
+    title: "Dashboard"
+    category: core
+    mode: landing
+    data_requirements:
+      - type: companies
+        qualifier: all
+
+  - id: company-list
+    title: "Organizations"
+    group: overview
+    category: core
+    data_requirements:
+      - type: companies
+        qualifier: all
+
+  - id: company-dashboard
+    title: "Company Dashboard"
+    parent: company-list
+    group: overview
+    category: core
+    mode: landing
+    scoped: true
+    data_requirements:
+      - type: company
+        qualifier: current
+      - type: share-capital
+        qualifier: summary
+
+  - id: company-overview
+    title: "Company Overview"
+    parent: company-dashboard
+    group: overview
+    category: core
+    scoped: true
+
+  - id: notifications
+    title: "Notifications"
+    parent: global-dashboard
+    group: overview
+    category: operations
+
+  - id: activity-feed
+    title: "Activity Feed"
+    parent: company-dashboard
+    group: overview
+    category: operations
+    scoped: true
+
+  # ── Cap Table ─────────────────────────────────────────────────
+  - id: captable-summary
+    title: "Cap Table Summary"
+    parent: company-dashboard
+    group: captable
+    category: core
+    mode: landing
+    scoped: true
+    data_requirements:
+      - type: shareholders
+        qualifier: all
+      - type: share-classes
+        qualifier: all
+
+  - id: shareholder-list
+    title: "Shareholders"
+    parent: captable-summary
+    group: captable
+    category: core
+    scoped: true
+    data_requirements:
+      - type: shareholders
+        qualifier: all
+
+  - id: shareholder-detail
+    title: "Shareholder Detail"
+    parent: shareholder-list
+    group: captable
+    category: core
+    mode: detail
+    scoped: true
+    data_requirements:
+      - type: shareholder
+        qualifier: current
+      - type: holdings
+        qualifier: by-shareholder
+
+  - id: shareholder-create
+    title: "Add Shareholder"
+    parent: shareholder-list
+    group: captable
+    category: setup
+    mode: modal
+    scoped: true
+
+  - id: shareholder-edit
+    title: "Edit Shareholder"
+    parent: shareholder-detail
+    group: captable
+    category: operations
+    mode: modal
+    scoped: true
+
+  - id: share-class-list
+    title: "Share Classes"
+    parent: captable-summary
+    group: captable
+    category: core
+    scoped: true
+    data_requirements:
+      - type: share-classes
+        qualifier: all
+
+  - id: share-class-detail
+    title: "Share Class Detail"
+    parent: share-class-list
+    group: captable
+    category: core
+    mode: detail
+    scoped: true
+
+  - id: create-share-class
+    title: "Create Share Class"
+    parent: share-class-list
+    group: captable
+    category: setup
+    mode: modal
+    scoped: true
+
+  - id: edit-share-class
+    title: "Edit Share Class"
+    parent: share-class-detail
+    group: captable
+    category: operations
+    mode: modal
+    scoped: true
+
+  - id: share-issue
+    title: "Issue Shares"
+    parent: captable-summary
+    group: captable
+    category: operations
+    mode: modal
+    scoped: true
+
+  - id: share-transfer
+    title: "Transfer Shares"
+    parent: captable-summary
+    group: captable
+    category: operations
+    mode: modal
+    scoped: true
+
+  - id: share-split
+    title: "Share Split"
+    parent: captable-summary
+    group: captable
+    category: operations
+    mode: modal
+    scoped: true
+
+  - id: share-consolidation
+    title: "Share Consolidation"
+    parent: captable-summary
+    group: captable
+    category: operations
+    mode: modal
+    scoped: true
+
+  - id: ownership-chart
+    title: "Ownership Chart"
+    parent: captable-summary
+    group: captable
+    category: reporting
+    scoped: true
+
+  - id: dilution-model
+    title: "Dilution Model"
+    parent: captable-summary
+    group: captable
+    category: reporting
+    scoped: true
+
+  - id: par-value-change
+    title: "Par Value Change"
+    parent: captable-summary
+    group: captable
+    category: operations
+    mode: modal
+    scoped: true
+
+  - id: capital-increase
+    title: "Capital Increase"
+    parent: captable-summary
+    group: captable
+    category: operations
+    mode: modal
+    scoped: true
+
+  - id: capital-decrease
+    title: "Capital Decrease"
+    parent: captable-summary
+    group: captable
+    category: operations
+    mode: modal
+    scoped: true
+
+  - id: share-buyback
+    title: "Share Buyback"
+    parent: captable-summary
+    group: captable
+    category: operations
+    mode: modal
+    scoped: true
+
+  - id: share-cancellation
+    title: "Share Cancellation"
+    parent: captable-summary
+    group: captable
+    category: operations
+    mode: modal
+    scoped: true
+
+  - id: treasury-shares
+    title: "Treasury Shares"
+    parent: captable-summary
+    group: captable
+    category: core
+    scoped: true
+
+  # ── Members ──────────────────────────────────────────────────
+  - id: member-list
+    title: "Members"
+    parent: company-dashboard
+    group: members
+    category: core
+    mode: landing
+    scoped: true
+    data_requirements:
+      - type: members
+        qualifier: all
+
+  - id: member-detail
+    title: "Member Detail"
+    parent: member-list
+    group: members
+    category: core
+    mode: detail
+    scoped: true
+
+  - id: member-create
+    title: "Add Member"
+    parent: member-list
+    group: members
+    category: setup
+    mode: modal
+    scoped: true
+
+  - id: member-edit
+    title: "Edit Member"
+    parent: member-detail
+    group: members
+    category: operations
+    mode: modal
+    scoped: true
+
+  - id: member-contribution
+    title: "Member Contribution"
+    parent: member-detail
+    group: members
+    category: operations
+    mode: modal
+    scoped: true
+
+  - id: membership-transfer
+    title: "Membership Transfer"
+    parent: member-list
+    group: members
+    category: operations
+    mode: modal
+    scoped: true
+
+  # ── Equity ────────────────────────────────────────────────────
+  - id: equity-overview
+    title: "Equity Overview"
+    parent: company-dashboard
+    group: equity
+    category: core
+    mode: landing
+    scoped: true
+
+  - id: instrument-list
+    title: "Instruments"
+    parent: equity-overview
+    group: equity
+    category: core
+    scoped: true
+    data_requirements:
+      - type: instruments
+        qualifier: all
+
+  - id: instrument-detail
+    title: "Instrument Detail"
+    parent: instrument-list
+    group: equity
+    category: core
+    mode: detail
+    scoped: true
+
+  - id: instrument-create
+    title: "Create Instrument"
+    parent: instrument-list
+    group: equity
+    category: setup
+    mode: modal
+    scoped: true
+
+  - id: instrument-edit
+    title: "Edit Instrument"
+    parent: instrument-detail
+    group: equity
+    category: operations
+    mode: modal
+    scoped: true
+
+  - id: option-plan-list
+    title: "Option Plans"
+    parent: equity-overview
+    group: equity
+    category: core
+    scoped: true
+
+  - id: option-plan-detail
+    title: "Option Plan Detail"
+    parent: option-plan-list
+    group: equity
+    category: core
+    mode: detail
+    scoped: true
+
+  - id: option-plan-create
+    title: "Create Option Plan"
+    parent: option-plan-list
+    group: equity
+    category: setup
+    mode: modal
+    scoped: true
+
+  - id: option-grant-list
+    title: "Option Grants"
+    parent: option-plan-detail
+    group: equity
+    category: core
+    scoped: true
+
+  - id: option-grant-detail
+    title: "Option Grant Detail"
+    parent: option-grant-list
+    group: equity
+    category: core
+    mode: detail
+    scoped: true
+
+  - id: option-grant-create
+    title: "Create Option Grant"
+    parent: option-grant-list
+    group: equity
+    category: setup
+    mode: modal
+    scoped: true
+
+  - id: option-exercise
+    title: "Exercise Options"
+    parent: option-grant-detail
+    group: equity
+    category: operations
+    mode: modal
+    scoped: true
+
+  - id: warrant-list
+    title: "Warrants"
+    parent: equity-overview
+    group: equity
+    category: core
+    scoped: true
+
+  - id: warrant-detail
+    title: "Warrant Detail"
+    parent: warrant-list
+    group: equity
+    category: core
+    mode: detail
+    scoped: true
+
+  - id: warrant-create
+    title: "Create Warrant"
+    parent: warrant-list
+    group: equity
+    category: setup
+    mode: modal
+    scoped: true
+
+  - id: warrant-exercise
+    title: "Exercise Warrant"
+    parent: warrant-detail
+    group: equity
+    category: operations
+    mode: modal
+    scoped: true
+
+  - id: convertible-list
+    title: "Convertible Notes"
+    parent: equity-overview
+    group: equity
+    category: core
+    scoped: true
+
+  - id: convertible-detail
+    title: "Convertible Note Detail"
+    parent: convertible-list
+    group: equity
+    category: core
+    mode: detail
+    scoped: true
+
+  - id: convertible-create
+    title: "Create Convertible Note"
+    parent: convertible-list
+    group: equity
+    category: setup
+    mode: modal
+    scoped: true
+
+  - id: convertible-convert
+    title: "Convert Note to Equity"
+    parent: convertible-detail
+    group: equity
+    category: operations
+    mode: modal
+    scoped: true
+
+  - id: vesting-schedule-list
+    title: "Vesting Schedules"
+    parent: equity-overview
+    group: equity
+    category: core
+    scoped: true
+
+  - id: vesting-schedule-detail
+    title: "Vesting Schedule Detail"
+    parent: vesting-schedule-list
+    group: equity
+    category: core
+    mode: detail
+    scoped: true
+
+  - id: vesting-schedule-create
+    title: "Create Vesting Schedule"
+    parent: vesting-schedule-list
+    group: equity
+    category: setup
+    mode: modal
+    scoped: true
+
+  - id: vesting-simulation
+    title: "Vesting Simulation"
+    parent: vesting-schedule-detail
+    group: equity
+    category: reporting
+    scoped: true
+
+  # ── Exit & Liquidity ──────────────────────────────────────────
+  - id: exit-overview
+    title: "Exit Overview"
+    parent: company-dashboard
+    group: exit
+    category: core
+    mode: landing
+    scoped: true
+
+  - id: valuation-history
+    title: "Valuation History"
+    parent: exit-overview
+    group: exit
+    category: reporting
+    scoped: true
+    data_requirements:
+      - type: valuations
+        qualifier: all
+
+  - id: valuation-create
+    title: "Record Valuation"
+    parent: valuation-history
+    group: exit
+    category: operations
+    mode: modal
+    scoped: true
+
+  - id: waterfall-analysis
+    title: "Waterfall Analysis"
+    parent: exit-overview
+    group: exit
+    category: reporting
+    scoped: true
+
+  - id: waterfall-scenario
+    title: "Waterfall Scenario"
+    parent: waterfall-analysis
+    group: exit
+    category: reporting
+    mode: detail
+    scoped: true
+
+  - id: waterfall-scenario-create
+    title: "Create Waterfall Scenario"
+    parent: waterfall-analysis
+    group: exit
+    category: operations
+    mode: modal
+    scoped: true
+
+  - id: liquidity-event
+    title: "Liquidity Events"
+    parent: exit-overview
+    group: exit
+    category: core
+    scoped: true
+
+  - id: liquidity-event-detail
+    title: "Liquidity Event Detail"
+    parent: liquidity-event
+    group: exit
+    category: core
+    mode: detail
+    scoped: true
+
+  - id: liquidity-event-create
+    title: "Create Liquidity Event"
+    parent: liquidity-event
+    group: exit
+    category: operations
+    mode: modal
+    scoped: true
+
+  - id: distribution-plan
+    title: "Distribution Plan"
+    parent: liquidity-event-detail
+    group: exit
+    category: operations
+    scoped: true
+
+  - id: secondary-sale
+    title: "Secondary Sale"
+    parent: exit-overview
+    group: exit
+    category: operations
+    mode: modal
+    scoped: true
+
+  - id: right-of-first-refusal
+    title: "Right of First Refusal"
+    parent: exit-overview
+    group: exit
+    category: operations
+    mode: modal
+    scoped: true
+
+  # ── Governance ────────────────────────────────────────────────
+  - id: governance-overview
+    title: "Governance Overview"
+    parent: company-dashboard
+    group: governance
+    category: core
+    mode: landing
+    scoped: true
+
+  - id: board-list
+    title: "Board of Directors"
+    parent: governance-overview
+    group: governance
+    category: core
+    scoped: true
+
+  - id: board-member-detail
+    title: "Board Member Detail"
+    parent: board-list
+    group: governance
+    category: core
+    mode: detail
+    scoped: true
+
+  - id: board-member-add
+    title: "Add Board Member"
+    parent: board-list
+    group: governance
+    category: setup
+    mode: modal
+    scoped: true
+
+  - id: resolution-list
+    title: "Resolutions"
+    parent: governance-overview
+    group: governance
+    category: core
+    scoped: true
+
+  - id: resolution-detail
+    title: "Resolution Detail"
+    parent: resolution-list
+    group: governance
+    category: core
+    mode: detail
+    scoped: true
+
+  - id: resolution-create
+    title: "Create Resolution"
+    parent: resolution-list
+    group: governance
+    category: operations
+    mode: modal
+    scoped: true
+
+  - id: voting-round
+    title: "Voting Round"
+    parent: resolution-detail
+    group: governance
+    category: operations
+    scoped: true
+
+  - id: shareholder-agreement-list
+    title: "Shareholder Agreements"
+    parent: governance-overview
+    group: governance
+    category: core
+    scoped: true
+
+  - id: shareholder-agreement-detail
+    title: "Agreement Detail"
+    parent: shareholder-agreement-list
+    group: governance
+    category: core
+    mode: detail
+    scoped: true
+
+  - id: shareholder-agreement-create
+    title: "Create Agreement"
+    parent: shareholder-agreement-list
+    group: governance
+    category: setup
+    mode: modal
+    scoped: true
+
+  - id: general-meeting
+    title: "General Meeting"
+    parent: governance-overview
+    group: governance
+    category: operations
+    scoped: true
+
+  - id: general-meeting-create
+    title: "Create General Meeting"
+    parent: governance-overview
+    group: governance
+    category: operations
+    mode: modal
+    scoped: true
+
+  - id: proxy-voting
+    title: "Proxy Voting"
+    parent: general-meeting
+    group: governance
+    category: operations
+    mode: modal
+    scoped: true
+
+  # ── Reporting ─────────────────────────────────────────────────
+  - id: reporting-overview
+    title: "Reporting Overview"
+    parent: company-dashboard
+    group: reporting
+    category: reporting
+    mode: landing
+    scoped: true
+
+  - id: shareholder-register-report
+    title: "Shareholder Register Report"
+    parent: reporting-overview
+    group: reporting
+    category: reporting
+    scoped: true
+
+  - id: cap-table-snapshot
+    title: "Cap Table Snapshot"
+    parent: reporting-overview
+    group: reporting
+    category: reporting
+    scoped: true
+
+  - id: equity-summary-report
+    title: "Equity Summary Report"
+    parent: reporting-overview
+    group: reporting
+    category: reporting
+    scoped: true
+
+  - id: transaction-log
+    title: "Transaction Log"
+    parent: reporting-overview
+    group: reporting
+    category: reporting
+    scoped: true
+    data_requirements:
+      - type: transactions
+        qualifier: all
+
+  - id: altinn-filing
+    title: "Altinn Filing"
+    parent: reporting-overview
+    group: reporting
+    category: reporting
+    scoped: true
+    implementation_hints:
+      - "Integration with Norwegian Altinn government portal"
+
+  - id: brreg-filing
+    title: "Brønnøysund Filing"
+    parent: reporting-overview
+    group: reporting
+    category: reporting
+    scoped: true
+    implementation_hints:
+      - "Integration with Brønnøysundregistrene"
+
+  - id: tax-report
+    title: "Tax Report"
+    parent: reporting-overview
+    group: reporting
+    category: reporting
+    scoped: true
+
+  - id: annual-statement
+    title: "Annual Statement"
+    parent: reporting-overview
+    group: reporting
+    category: reporting
+    scoped: true
+
+  - id: export-pdf
+    title: "Export PDF"
+    parent: reporting-overview
+    group: reporting
+    category: operations
+    mode: modal
+    scoped: true
+
+  - id: export-csv
+    title: "Export CSV"
+    parent: reporting-overview
+    group: reporting
+    category: operations
+    mode: modal
+    scoped: true
+
+  # ── Records (Data) ───────────────────────────────────────────
+  - id: data-overview
+    title: "Records Overview"
+    parent: company-dashboard
+    group: data
+    category: core
+    mode: landing
+    scoped: true
+
+  - id: document-list
+    title: "Documents"
+    parent: data-overview
+    group: data
+    category: core
+    scoped: true
+
+  - id: document-detail
+    title: "Document Detail"
+    parent: document-list
+    group: data
+    category: core
+    mode: detail
+    scoped: true
+
+  - id: document-upload
+    title: "Upload Document"
+    parent: document-list
+    group: data
+    category: operations
+    mode: modal
+    scoped: true
+
+  - id: audit-trail
+    title: "Audit Trail"
+    parent: data-overview
+    group: data
+    category: reporting
+    scoped: true
+    data_requirements:
+      - type: audit-events
+        qualifier: all
+
+  - id: ledger-entries
+    title: "Ledger Entries"
+    parent: data-overview
+    group: data
+    category: core
+    scoped: true
+    data_requirements:
+      - type: ledger
+        qualifier: all
+
+  - id: beneficial-owners
+    title: "Beneficial Owners"
+    parent: data-overview
+    group: data
+    category: core
+    scoped: true
+
+  - id: beneficial-owner-detail
+    title: "Beneficial Owner Detail"
+    parent: beneficial-owners
+    group: data
+    category: core
+    mode: detail
+    scoped: true
+
+  - id: import-data
+    title: "Import Data"
+    parent: data-overview
+    group: data
+    category: operations
+    mode: modal
+    scoped: true
+
+  # ── Admin (Setup) ─────────────────────────────────────────────
+  - id: settings-overview
+    title: "Settings"
+    parent: company-dashboard
+    group: setup
+    category: setup
+    mode: landing
+    scoped: true
+
+  - id: company-settings
+    title: "Company Settings"
+    parent: settings-overview
+    group: setup
+    category: setup
+    scoped: true
+
+  - id: registry-mode
+    title: "Registry Mode"
+    parent: settings-overview
+    group: setup
+    category: setup
+    scoped: true
+    implementation_hints:
+      - "URL: /companies/:id/settings/registry"
+      - "Controls AS/ASA/ANS/DA/KS/SA/BRL/BBL mode"
+
+  - id: user-management
+    title: "User Management"
+    parent: settings-overview
+    group: setup
+    category: setup
+    scoped: true
+
+  - id: user-invite
+    title: "Invite User"
+    parent: user-management
+    group: setup
+    category: setup
+    mode: modal
+    scoped: true
+
+  - id: role-management
+    title: "Role Management"
+    parent: settings-overview
+    group: setup
+    category: setup
+    scoped: true
+
+  - id: billing
+    title: "Billing"
+    parent: settings-overview
+    group: setup
+    category: setup
+    scoped: true
+
+  - id: subscription
+    title: "Subscription"
+    parent: billing
+    group: setup
+    category: setup
+    scoped: true
+
+  - id: api-keys
+    title: "API Keys"
+    parent: settings-overview
+    group: setup
+    category: setup
+    scoped: true
+
+  - id: integration-settings
+    title: "Integrations"
+    parent: settings-overview
+    group: setup
+    category: setup
+    scoped: true
+
+  - id: company-create
+    title: "Create Company"
+    parent: company-list
+    group: setup
+    category: setup
+    mode: modal
+
+  - id: profile-settings
+    title: "Profile Settings"
+    parent: global-dashboard
+    group: setup
+    category: setup
+
+
+
+transitions:
+  # ── Overview transitions ──────────────────────────────────────
+  - id: dashboard-to-orgs
+    from: global-dashboard
+    to: company-list
+    label: "organizations"
+    category: navigation
+
+  - id: dashboard-to-notifications
+    from: global-dashboard
+    to: notifications
+    label: "notifications"
+    category: navigation
+
+  - id: dashboard-to-profile
+    from: global-dashboard
+    to: profile-settings
+    label: "profile"
+    category: navigation
+
+  - id: orgs-to-company
+    from: company-list
+    to: company-dashboard
+    label: "open company"
+    guard: company-exists
+    category: drill-down
+
+  - id: orgs-to-create
+    from: company-list
+    to: company-create
+    label: "create company"
+    category: modal
+
+  - id: company-to-overview
+    from: company-dashboard
+    to: company-overview
+    label: "overview"
+    category: navigation
+
+  - id: company-to-activity
+    from: company-dashboard
+    to: activity-feed
+    label: "activity"
+    category: navigation
+
+  # ── Cap Table transitions ─────────────────────────────────────
+  - id: company-to-captable
+    from: company-dashboard
+    to: captable-summary
+    label: "cap table"
+    guard: shares-allowed
+    category: navigation
+
+  - id: captable-to-shareholders
+    from: captable-summary
+    to: shareholder-list
+    label: "shareholders"
+    category: navigation
+
+  - id: shareholders-to-detail
+    from: shareholder-list
+    to: shareholder-detail
+    label: "view shareholder"
+    category: drill-down
+
+  - id: shareholders-to-create
+    from: shareholder-list
+    to: shareholder-create
+    label: "add shareholder"
+    category: modal
+
+  - id: shareholder-to-edit
+    from: shareholder-detail
+    to: shareholder-edit
+    label: "edit shareholder"
+    category: modal
+
+  - id: captable-to-classes
+    from: captable-summary
+    to: share-class-list
+    label: "share classes"
+    category: navigation
+
+  - id: classes-to-detail
+    from: share-class-list
+    to: share-class-detail
+    label: "view share class"
+    category: drill-down
+
+  - id: classes-to-create
+    from: share-class-list
+    to: create-share-class
+    label: "create share class"
+    category: modal
+
+  - id: class-to-edit
+    from: share-class-detail
+    to: edit-share-class
+    label: "edit share class"
+    category: modal
+
+  - id: captable-to-issue
+    from: captable-summary
+    to: share-issue
+    label: "issue shares"
+    guard: share-classes
+    category: action
+
+  - id: captable-to-transfer
+    from: captable-summary
+    to: share-transfer
+    label: "transfer shares"
+    guard: shares-exist
+    category: action
+
+  - id: captable-to-split
+    from: captable-summary
+    to: share-split
+    label: "share split"
+    guard: shares-exist
+    category: action
+
+  - id: captable-to-consolidation
+    from: captable-summary
+    to: share-consolidation
+    label: "consolidation"
+    guard: shares-exist
+    category: action
+
+  - id: captable-to-ownership
+    from: captable-summary
+    to: ownership-chart
+    label: "ownership chart"
+    guard: shares-exist
+    category: navigation
+
+  - id: captable-to-dilution
+    from: captable-summary
+    to: dilution-model
+    label: "dilution model"
+    guard: shares-exist
+    category: navigation
+
+  - id: captable-to-par-value
+    from: captable-summary
+    to: par-value-change
+    label: "change par value"
+    guard: shares-exist
+    category: action
+
+  - id: captable-to-cap-increase
+    from: captable-summary
+    to: capital-increase
+    label: "capital increase"
+    guard: share-classes
+    category: action
+
+  - id: captable-to-cap-decrease
+    from: captable-summary
+    to: capital-decrease
+    label: "capital decrease"
+    guard: shares-exist
+    category: action
+
+  - id: captable-to-buyback
+    from: captable-summary
+    to: share-buyback
+    label: "buyback"
+    guard: shares-exist
+    category: action
+
+  - id: captable-to-cancellation
+    from: captable-summary
+    to: share-cancellation
+    label: "cancel shares"
+    guard: shares-exist
+    category: action
+
+  - id: captable-to-treasury
+    from: captable-summary
+    to: treasury-shares
+    label: "treasury shares"
+    guard: shares-exist
+    category: navigation
+
+  # ── Member transitions ────────────────────────────────────────
+  - id: company-to-members
+    from: company-dashboard
+    to: member-list
+    label: "members"
+    guard: members-allowed
+    category: navigation
+
+  - id: members-to-detail
+    from: member-list
+    to: member-detail
+    label: "view member"
+    category: drill-down
+
+  - id: members-to-create
+    from: member-list
+    to: member-create
+    label: "add member"
+    category: modal
+
+  - id: member-to-edit
+    from: member-detail
+    to: member-edit
+    label: "edit member"
+    category: modal
+
+  - id: member-to-contribution
+    from: member-detail
+    to: member-contribution
+    label: "record contribution"
+    category: action
+
+  - id: members-to-transfer
+    from: member-list
+    to: membership-transfer
+    label: "transfer membership"
+    category: action
+
+  # ── Equity transitions ────────────────────────────────────────
+  - id: company-to-equity
+    from: company-dashboard
+    to: equity-overview
+    label: "equity"
+    guard: shares-allowed
+    category: navigation
+
+  - id: equity-to-instruments
+    from: equity-overview
+    to: instrument-list
+    label: "instruments"
+    category: navigation
+
+  - id: instruments-to-detail
+    from: instrument-list
+    to: instrument-detail
+    label: "view instrument"
+    category: drill-down
+
+  - id: instruments-to-create
+    from: instrument-list
+    to: instrument-create
+    label: "create instrument"
+    category: modal
+
+  - id: instrument-to-edit
+    from: instrument-detail
+    to: instrument-edit
+    label: "edit instrument"
+    guard: instrument-at-cursor
+    category: modal
+
+  - id: equity-to-option-plans
+    from: equity-overview
+    to: option-plan-list
+    label: "option plans"
+    category: navigation
+
+  - id: option-plans-to-detail
+    from: option-plan-list
+    to: option-plan-detail
+    label: "view plan"
+    category: drill-down
+
+  - id: option-plans-to-create
+    from: option-plan-list
+    to: option-plan-create
+    label: "create plan"
+    category: modal
+
+  - id: plan-to-grants
+    from: option-plan-detail
+    to: option-grant-list
+    label: "view grants"
+    category: navigation
+
+  - id: grants-to-detail
+    from: option-grant-list
+    to: option-grant-detail
+    label: "view grant"
+    category: drill-down
+
+  - id: grants-to-create
+    from: option-grant-list
+    to: option-grant-create
+    label: "create grant"
+    category: modal
+
+  - id: grant-to-exercise
+    from: option-grant-detail
+    to: option-exercise
+    label: "exercise options"
+    category: action
+
+  - id: equity-to-warrants
+    from: equity-overview
+    to: warrant-list
+    label: "warrants"
+    category: navigation
+
+  - id: warrants-to-detail
+    from: warrant-list
+    to: warrant-detail
+    label: "view warrant"
+    category: drill-down
+
+  - id: warrants-to-create
+    from: warrant-list
+    to: warrant-create
+    label: "create warrant"
+    category: modal
+
+  - id: warrant-to-exercise
+    from: warrant-detail
+    to: warrant-exercise
+    label: "exercise warrant"
+    category: action
+
+  - id: equity-to-convertibles
+    from: equity-overview
+    to: convertible-list
+    label: "convertible notes"
+    category: navigation
+
+  - id: convertibles-to-detail
+    from: convertible-list
+    to: convertible-detail
+    label: "view note"
+    category: drill-down
+
+  - id: convertibles-to-create
+    from: convertible-list
+    to: convertible-create
+    label: "create note"
+    category: modal
+
+  - id: convertible-to-convert
+    from: convertible-detail
+    to: convertible-convert
+    label: "convert to equity"
+    guard: share-classes
+    category: action
+
+  - id: equity-to-vesting
+    from: equity-overview
+    to: vesting-schedule-list
+    label: "vesting schedules"
+    category: navigation
+
+  - id: vesting-to-detail
+    from: vesting-schedule-list
+    to: vesting-schedule-detail
+    label: "view schedule"
+    category: drill-down
+
+  - id: vesting-to-create
+    from: vesting-schedule-list
+    to: vesting-schedule-create
+    label: "create schedule"
+    category: modal
+
+  - id: vesting-to-simulation
+    from: vesting-schedule-detail
+    to: vesting-simulation
+    label: "simulate vesting"
+    category: navigation
+
+  # ── Exit & Liquidity transitions ──────────────────────────────
+  - id: company-to-exit
+    from: company-dashboard
+    to: exit-overview
+    label: "exit & liquidity"
+    guard: premium-tier
+    category: navigation
+
+  - id: exit-to-valuations
+    from: exit-overview
+    to: valuation-history
+    label: "valuations"
+    category: navigation
+
+  - id: valuations-to-create
+    from: valuation-history
+    to: valuation-create
+    label: "record valuation"
+    category: modal
+
+  - id: exit-to-waterfall
+    from: exit-overview
+    to: waterfall-analysis
+    label: "waterfall"
+    guard: shares-exist
+    category: navigation
+
+  - id: waterfall-to-scenario
+    from: waterfall-analysis
+    to: waterfall-scenario
+    label: "view scenario"
+    category: drill-down
+
+  - id: waterfall-to-create-scenario
+    from: waterfall-analysis
+    to: waterfall-scenario-create
+    label: "create scenario"
+    category: modal
+
+  - id: exit-to-liquidity
+    from: exit-overview
+    to: liquidity-event
+    label: "liquidity events"
+    category: navigation
+
+  - id: liquidity-to-detail
+    from: liquidity-event
+    to: liquidity-event-detail
+    label: "view event"
+    category: drill-down
+
+  - id: liquidity-to-create
+    from: liquidity-event
+    to: liquidity-event-create
+    label: "create event"
+    category: modal
+
+  - id: liquidity-to-distribution
+    from: liquidity-event-detail
+    to: distribution-plan
+    label: "distribution plan"
+    category: navigation
+
+  - id: exit-to-secondary
+    from: exit-overview
+    to: secondary-sale
+    label: "secondary sale"
+    guard: shares-exist
+    category: action
+
+  - id: exit-to-rofr
+    from: exit-overview
+    to: right-of-first-refusal
+    label: "right of first refusal"
+    guard: shares-exist
+    category: action
+
+  # ── Governance transitions ────────────────────────────────────
+  - id: company-to-governance
+    from: company-dashboard
+    to: governance-overview
+    label: "governance"
+    category: navigation
+
+  - id: governance-to-board
+    from: governance-overview
+    to: board-list
+    label: "board"
+    category: navigation
+
+  - id: board-to-detail
+    from: board-list
+    to: board-member-detail
+    label: "view member"
+    category: drill-down
+
+  - id: board-to-add
+    from: board-list
+    to: board-member-add
+    label: "add member"
+    category: modal
+
+  - id: governance-to-resolutions
+    from: governance-overview
+    to: resolution-list
+    label: "resolutions"
+    category: navigation
+
+  - id: resolutions-to-detail
+    from: resolution-list
+    to: resolution-detail
+    label: "view resolution"
+    category: drill-down
+
+  - id: resolutions-to-create
+    from: resolution-list
+    to: resolution-create
+    label: "create resolution"
+    category: modal
+
+  - id: resolution-to-voting
+    from: resolution-detail
+    to: voting-round
+    label: "start voting"
+    category: action
+
+  - id: governance-to-agreements
+    from: governance-overview
+    to: shareholder-agreement-list
+    label: "agreements"
+    category: navigation
+
+  - id: agreements-to-detail
+    from: shareholder-agreement-list
+    to: shareholder-agreement-detail
+    label: "view agreement"
+    category: drill-down
+
+  - id: agreements-to-create
+    from: shareholder-agreement-list
+    to: shareholder-agreement-create
+    label: "create agreement"
+    category: modal
+
+  - id: governance-to-meeting
+    from: governance-overview
+    to: general-meeting
+    label: "general meeting"
+    category: navigation
+
+  - id: governance-to-create-meeting
+    from: governance-overview
+    to: general-meeting-create
+    label: "create meeting"
+    category: modal
+
+  - id: meeting-to-proxy
+    from: general-meeting
+    to: proxy-voting
+    label: "proxy voting"
+    category: action
+
+  # ── Reporting transitions ─────────────────────────────────────
+  - id: company-to-reporting
+    from: company-dashboard
+    to: reporting-overview
+    label: "reporting"
+    category: navigation
+
+  - id: reporting-to-register
+    from: reporting-overview
+    to: shareholder-register-report
+    label: "shareholder register"
+    guard: shares-exist
+    category: navigation
+
+  - id: reporting-to-snapshot
+    from: reporting-overview
+    to: cap-table-snapshot
+    label: "cap table snapshot"
+    guard: shares-exist
+    category: navigation
+
+  - id: reporting-to-equity-summary
+    from: reporting-overview
+    to: equity-summary-report
+    label: "equity summary"
+    category: navigation
+
+  - id: reporting-to-transactions
+    from: reporting-overview
+    to: transaction-log
+    label: "transaction log"
+    category: navigation
+
+  - id: reporting-to-altinn
+    from: reporting-overview
+    to: altinn-filing
+    label: "altinn filing"
+    guard: premium-tier
+    category: navigation
+
+  - id: reporting-to-brreg
+    from: reporting-overview
+    to: brreg-filing
+    label: "brønnøysund filing"
+    guard: premium-tier
+    category: navigation
+
+  - id: reporting-to-tax
+    from: reporting-overview
+    to: tax-report
+    label: "tax report"
+    category: navigation
+
+  - id: reporting-to-annual
+    from: reporting-overview
+    to: annual-statement
+    label: "annual statement"
+    category: navigation
+
+  - id: reporting-to-export-pdf
+    from: reporting-overview
+    to: export-pdf
+    label: "export PDF"
+    category: action
+
+  - id: reporting-to-export-csv
+    from: reporting-overview
+    to: export-csv
+    label: "export CSV"
+    category: action
+
+  # ── Records (Data) transitions ────────────────────────────────
+  - id: company-to-data
+    from: company-dashboard
+    to: data-overview
+    label: "records"
+    category: navigation
+
+  - id: data-to-documents
+    from: data-overview
+    to: document-list
+    label: "documents"
+    category: navigation
+
+  - id: documents-to-detail
+    from: document-list
+    to: document-detail
+    label: "view document"
+    category: drill-down
+
+  - id: documents-to-upload
+    from: document-list
+    to: document-upload
+    label: "upload document"
+    category: modal
+
+  - id: data-to-audit
+    from: data-overview
+    to: audit-trail
+    label: "audit trail"
+    category: navigation
+
+  - id: data-to-ledger
+    from: data-overview
+    to: ledger-entries
+    label: "ledger entries"
+    category: navigation
+
+  - id: data-to-beneficial
+    from: data-overview
+    to: beneficial-owners
+    label: "beneficial owners"
+    category: navigation
+
+  - id: beneficial-to-detail
+    from: beneficial-owners
+    to: beneficial-owner-detail
+    label: "view owner"
+    category: drill-down
+
+  - id: data-to-import
+    from: data-overview
+    to: import-data
+    label: "import data"
+    category: action
+
+  # ── Admin (Setup) transitions ─────────────────────────────────
+  - id: company-to-settings
+    from: company-dashboard
+    to: settings-overview
+    label: "settings"
+    category: navigation
+
+  - id: settings-to-company
+    from: settings-overview
+    to: company-settings
+    label: "company settings"
+    category: navigation
+
+  - id: settings-to-registry
+    from: settings-overview
+    to: registry-mode
+    label: "registry mode"
+    category: navigation
+
+  - id: settings-to-users
+    from: settings-overview
+    to: user-management
+    label: "users"
+    category: navigation
+
+  - id: users-to-invite
+    from: user-management
+    to: user-invite
+    label: "invite user"
+    category: modal
+
+  - id: settings-to-roles
+    from: settings-overview
+    to: role-management
+    label: "roles"
+    category: navigation
+
+  - id: settings-to-billing
+    from: settings-overview
+    to: billing
+    label: "billing"
+    category: navigation
+
+  - id: billing-to-subscription
+    from: billing
+    to: subscription
+    label: "subscription"
+    category: navigation
+
+  - id: settings-to-api-keys
+    from: settings-overview
+    to: api-keys
+    label: "API keys"
+    category: navigation
+
+  - id: settings-to-integrations
+    from: settings-overview
+    to: integration-settings
+    label: "integrations"
+    category: navigation
+
+  # ── Cross-group transitions ───────────────────────────────────
+  - id: shareholder-to-holdings
+    from: shareholder-detail
+    to: captable-summary
+    label: "view holdings"
+    category: navigation
+
+  - id: captable-to-equity
+    from: captable-summary
+    to: equity-overview
+    label: "equity instruments"
+    category: navigation
+
+  - id: captable-to-exit
+    from: captable-summary
+    to: exit-overview
+    label: "exit planning"
+    guard: premium-tier
+    category: navigation
+
+  - id: ownership-to-waterfall
+    from: ownership-chart
+    to: waterfall-analysis
+    label: "waterfall analysis"
+    guard: premium-tier
+    category: navigation
+
+  - id: shareholder-to-agreements
+    from: shareholder-detail
+    to: shareholder-agreement-list
+    label: "agreements"
+    category: navigation
+
+  - id: option-grant-to-shareholder
+    from: option-grant-detail
+    to: shareholder-detail
+    label: "view shareholder"
+    category: navigation
+
+  - id: transaction-to-shareholder
+    from: transaction-log
+    to: shareholder-detail
+    label: "view shareholder"
+    category: drill-down
+
+  - id: transaction-to-instrument
+    from: transaction-log
+    to: instrument-detail
+    label: "view instrument"
+    category: drill-down
+
+  - id: audit-to-transaction
+    from: audit-trail
+    to: transaction-log
+    label: "view transactions"
+    category: navigation
+
+  - id: dilution-to-instruments
+    from: dilution-model
+    to: instrument-list
+    label: "view instruments"
+    category: navigation
+
+  - id: vesting-to-grants
+    from: vesting-schedule-detail
+    to: option-grant-list
+    label: "linked grants"
+    category: navigation
+
+  - id: captable-to-governance
+    from: captable-summary
+    to: governance-overview
+    label: "governance"
+    category: navigation
+
+  - id: shareholder-to-voting
+    from: shareholder-detail
+    to: resolution-list
+    label: "voting history"
+    category: navigation
+
+  - id: equity-to-reporting
+    from: equity-overview
+    to: reporting-overview
+    label: "reporting"
+    category: navigation
+
+  - id: captable-to-reporting
+    from: captable-summary
+    to: reporting-overview
+    label: "reports"
+    category: navigation
+
+  - id: waterfall-to-captable
+    from: waterfall-analysis
+    to: captable-summary
+    label: "back to cap table"
+    category: navigation
+
+  - id: governance-to-captable
+    from: governance-overview
+    to: captable-summary
+    label: "cap table"
+    guard: shares-allowed
+    category: navigation
+
+  - id: beneficial-to-shareholder
+    from: beneficial-owner-detail
+    to: shareholder-detail
+    label: "view shareholder"
+    category: navigation
+
+  - id: instrument-to-grants
+    from: instrument-detail
+    to: option-grant-list
+    label: "related grants"
+    category: navigation
+
+  - id: resolution-to-meeting
+    from: resolution-detail
+    to: general-meeting
+    label: "meeting context"
+    category: navigation
+
+  - id: convertible-to-captable
+    from: convertible-detail
+    to: captable-summary
+    label: "cap table"
+    category: navigation
+
+  - id: warrant-to-captable
+    from: warrant-detail
+    to: captable-summary
+    label: "cap table"
+    category: navigation
+
+  - id: ledger-to-shareholder
+    from: ledger-entries
+    to: shareholder-detail
+    label: "view shareholder"
+    category: drill-down
+
+  - id: ledger-to-transaction
+    from: ledger-entries
+    to: transaction-log
+    label: "transactions"
+    category: navigation
+
+  - id: exit-to-equity
+    from: exit-overview
+    to: equity-overview
+    label: "equity instruments"
+    category: navigation
+
+  - id: exit-to-captable
+    from: exit-overview
+    to: captable-summary
+    label: "cap table"
+    category: navigation
+
+  - id: distribution-to-waterfall
+    from: distribution-plan
+    to: waterfall-analysis
+    label: "waterfall"
+    category: navigation
+
+  - id: snapshot-to-captable
+    from: cap-table-snapshot
+    to: captable-summary
+    label: "current cap table"
+    category: navigation
+
+  - id: register-to-shareholders
+    from: shareholder-register-report
+    to: shareholder-list
+    label: "shareholder list"
+    category: navigation
+
+  - id: equity-summary-to-instruments
+    from: equity-summary-report
+    to: instrument-list
+    label: "instruments"
+    category: navigation
+
+  - id: voting-to-resolution
+    from: voting-round
+    to: resolution-detail
+    label: "back to resolution"
+    category: navigation
+
+  - id: meeting-to-resolutions
+    from: general-meeting
+    to: resolution-list
+    label: "resolutions"
+    category: navigation
+
+  - id: member-to-captable
+    from: member-list
+    to: captable-summary
+    label: "cap table"
+    guard: shares-allowed
+    category: navigation
+
+  - id: shareholder-to-documents
+    from: shareholder-detail
+    to: document-list
+    label: "documents"
+    category: navigation
+
+  - id: dashboard-to-company
+    from: global-dashboard
+    to: company-dashboard
+    label: "recent company"
+    guard: company-exists
+    category: drill-down
+
+  - id: agreement-to-shareholder
+    from: shareholder-agreement-detail
+    to: shareholder-detail
+    label: "view party"
+    category: navigation
+
+  - id: valuation-to-waterfall
+    from: valuation-history
+    to: waterfall-analysis
+    label: "waterfall analysis"
+    guard: shares-exist
+    category: navigation
+
+menus:
+  - context: reporting-overview
+    title: "Reports"
+    items:
+      - transition_id: reporting-to-register
+        label: "Shareholder Register"
+        description: "Full shareholder register report"
+      - transition_id: reporting-to-snapshot
+        label: "Cap Table Snapshot"
+        description: "Point-in-time cap table snapshot"
+      - transition_id: reporting-to-equity-summary
+        label: "Equity Summary"
+        description: "Summary of all equity instruments"
+      - transition_id: reporting-to-transactions
+        label: "Transaction Log"
+        description: "All share transactions"
+
+  - context: captable-summary
+    title: "Restructuring"
+    items:
+      - transition_id: captable-to-split
+        label: "Share Split"
+        description: "Split existing shares"
+      - transition_id: captable-to-consolidation
+        label: "Consolidation"
+        description: "Consolidate shares"
+      - transition_id: captable-to-cap-increase
+        label: "Capital Increase"
+        description: "Increase share capital"
+      - transition_id: captable-to-cap-decrease
+        label: "Capital Decrease"
+        description: "Decrease share capital"
+      - transition_id: captable-to-buyback
+        label: "Buyback"
+        description: "Buy back shares from shareholders"

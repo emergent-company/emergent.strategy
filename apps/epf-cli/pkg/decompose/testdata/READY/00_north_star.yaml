@@ -1,0 +1,30 @@
+north_star:
+  organization: "Test Corp"
+  core_beliefs:
+    about_our_market:
+      - belief: "Strategy is fundamentally semantic, not structural."
+        implication: "Path-checking alone cannot catch meaning changes."
+        evidence: "Adding NOT to a belief invalidates downstream features."
+      - belief: "Product teams need living strategy, not static documents."
+        implication: "Real-time propagation is essential."
+        evidence: "Manual updates take days and miss inconsistencies."
+    about_our_users:
+      - belief: "Strategic managers think in systems, not files."
+        implication: "Graph-based interfaces will resonate."
+        evidence: "User interviews show frustration with file-based tools."
+    about_our_approach:
+      - belief: "AI should augment, not replace, human strategic judgment."
+        implication: "High-inertia artifacts always require human approval."
+        evidence: "Autonomous strategy changes without oversight fail."
+    about_value_creation:
+      - belief: "The propagation circuit is a universal mechanism."
+        implication: "Same circuit works at every scale."
+        evidence: "Manual tests show identical patterns within and across instances."
+    about_competition:
+      - belief: "No competitor treats strategy as a semantic graph."
+        implication: "First-mover advantage in semantic strategy."
+        evidence: "Market scan shows no semantic propagation tools."
+    belief_challenges:
+      - belief: "Strategy is fundamentally semantic, not structural."
+        counter_evidence: "Some structural changes (path renames) are sufficient."
+        monitoring: "Track ratio of semantic vs structural changes detected."

@@ -1,0 +1,1447 @@
+// Package decompose converts EPF YAML artifacts into section-level graph objects
+// and structural edges for ingestion into emergent.memory.
+//
+// The decomposer owns its own YAML parsing — it reads raw YAML files directly,
+// independent of the strategy parser package. This eliminates coupling to the
+// strategy parser's Go structs and ensures the decomposer extracts everything
+// the graph needs (core beliefs, assumptions, capabilities, dependencies)
+// without workarounds for parser gaps.
+//
+// Mapping from EPF sections to epf-engine schema v2 object types:
+//
+//	North Star purpose/vision/mission/values/core_beliefs → Belief (tier 1)
+//	Trends, personas, pain points → Trend, PainPoint, Persona (tier 2) [from insight analyses + feature definitions]
+//	Positioning, competitive moat → Positioning (tier 3)
+//	OKRs, key results, assumptions → OKR, Assumption (tier 4)
+//	Value model components → ValueModelComponent (tier 5)
+//	Features, scenarios → Feature, Scenario (tier 6)
+//	Capabilities → Capability (tier 7)
+//
+// Each EPF YAML file also gets an Artifact node that contains its section-level children.
+//
+// Supported EPF versions: 2.x (will warn for unknown versions).
+package decompose
+
+import (
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/pkg/valuemodel"
+	"gopkg.in/yaml.v3"
+)
+
+// MaxSupportedMajorVersion is the highest EPF major version the decomposer knows about.
+// If an instance reports a higher version, decomposition still runs but emits a warning.
+const MaxSupportedMajorVersion = 2
+
+// GraphObject is a graph node ready for upsert into a semantic graph store.
+// It mirrors the structure of memory.UpsertObjectRequest but is defined locally
+// to keep the decompose package free of infrastructure dependencies.
+type GraphObject struct {
+	Type       string         `json:"type"`
+	Key        string         `json:"key"`
+	Status     string         `json:"status,omitempty"`
+	Labels     []string       `json:"labels,omitempty"`
+	Properties map[string]any `json:"properties,omitempty"`
+}
+
+// Result holds the complete decomposition output — objects and relationships
+// ready for upsert into emergent.memory.
+type Result struct {
+	Objects           []GraphObject
+	Relationships     []RelationshipSpec
+	Warnings          []string
+	EvidenceDocuments []EvidenceDocument // Evidence files for content upload by the ingester
+}
+
+// RelationshipSpec describes a relationship to create, using object keys
+// (not IDs) so it can be resolved after upsert.
+type RelationshipSpec struct {
+	Type       string
+	FromKey    string // object key (Type:stable_id)
+	FromType   string // object type name
+	ToKey      string // object key
+	ToType     string // object type name
+	Properties map[string]any
+}
+
+// vmcLookup caches ValueModelComponent keys for path resolution.
+// It enables 5-tier matching between contributes_to paths (which use
+// various naming conventions) and VMC object keys (which use
+// path_segment or name from the value model YAML).
+type vmcLookup struct {
+	exactKeys map[string]bool   // VMC object key → exists
+	pathToKey map[string]string // value_path → object key (exact)
+	normToKey map[string]string // normalized value_path → object key
+}
+
+// Decomposer converts an EPF instance directory into graph objects and relationships.
+// It reads raw YAML files directly — no dependency on the strategy parser package.
+// The valuemodel package is used for path resolution only (not for parsing).
+type Decomposer struct {
+	instancePath string
+	// seenPersonas tracks which persona keys have already been emitted as objects.
+	// This enables deduplication when the same persona appears across multiple
+	// feature definitions and/or insight analyses.
+	seenPersonas map[string]bool
+	// vmc caches VMC path lookups, built after decomposeValueModels runs.
+	vmc *vmcLookup
+	// vmResolver resolves contributes_to paths (CamelCase, slugs, etc.) to
+	// canonical value model paths. Loaded from the same YAML files that
+	// decomposeValueModels reads.
+	vmResolver *valuemodel.Resolver
+}
+
+// New creates a Decomposer for the given EPF instance path.
+func New(instancePath string) *Decomposer {
+	return &Decomposer{
+		instancePath: instancePath,
+		seenPersonas: make(map[string]bool),
+	}
+}
+
+// DecomposeInstance reads all YAML files from the instance and produces
+// graph objects and structural edges.
+func (d *Decomposer) DecomposeInstance() (*Result, error) {
+	result := &Result{}
+
+	// Check EPF version
+	d.checkVersion(result)
+
+	// READY phase artifacts
+	d.decomposeNorthStar(result)
+	d.decomposeInsightAnalyses(result)
+	d.decomposeInsightAnalysesExpanded(result) // Phase 1a: remaining 16 sections
+	d.decomposeStrategyFoundations(result)     // Phase 1c: vision, value prop, sequencing
+	d.decomposeInsightOpportunity(result)      // Phase 1c: validated opportunity
+	d.decomposeStrategyFormula(result)
+	d.decomposeStrategyFormulaExpanded(result) // Phase 1b: remaining 6 sections
+	d.decomposeRoadmap(result)
+
+	// FIRE phase artifacts
+	// Value models must be decomposed first so the VMC lookup is available
+	// for resolving contributes_to paths in features, mappings, and definitions.
+	d.decomposeValueModels(result)
+	d.buildVMCLookup(result)
+	d.loadVMResolver() // Load valuemodel.Resolver for cross-convention path matching
+	d.decomposeFeatures(result)
+	d.decomposeMappings(result)         // Phase 1d: value model → implementation mappings
+	d.decomposeTrackDefinitions(result) // Phase 2: strategy, org_ops, commercial definitions
+	d.decomposeNavigationGraph(result)  // Navigation graph: interaction contexts + transitions
+
+	// AIM phase: evidence library
+	d.decomposeEvidence(result)
+
+	// Cross-cutting structural relationships (require multiple artifacts to be decomposed first)
+	d.addInformsEdges(result)
+	d.addTrendInformsInsightEdges(result)       // Trend → KeyInsight via supporting_trends
+	d.addDisconnectedTrendFallbackEdges(result) // Trend → KeyInsight via keyword overlap (fallback)
+	d.addConstrainsEdges(result)
+	d.addValidatesEdges(result)
+	d.addSharedTechnologyEdges(result)
+
+	// Phase 3: Cross-artifact relationships (text matching and ID refs)
+	d.addCompetesWithEdges(result)
+	d.addValidatesHypothesisEdges(result)
+	d.addMitigatesEdges(result)
+	d.addLeveragesEdges(result)
+	d.addTargetsSegmentEdges(result)
+	d.addAddressesWhiteSpaceEdges(result)
+	d.addRelatedDefinitionEdges(result)
+
+	return result, nil
+}
+
+// --- Internal helpers ---
+
+func (d *Decomposer) readYAML(relPath string, out any) error {
+	data, err := os.ReadFile(filepath.Join(d.instancePath, relPath))
+	if err != nil {
+		return err
+	}
+	return yaml.Unmarshal(data, out)
+}
+
+func objectKey(objType, id string) string {
+	return fmt.Sprintf("%s:%s", objType, id)
+}
+
+func artifactKey(filePath string) string {
+	return objectKey("Artifact", filePath)
+}
+
+func (d *Decomposer) addObject(result *Result, obj GraphObject) {
+	result.Objects = append(result.Objects, obj)
+}
+
+func (d *Decomposer) addContains(result *Result, parentKey, parentType, childKey, childType string) {
+	result.Relationships = append(result.Relationships, RelationshipSpec{
+		Type: "contains", FromKey: parentKey, FromType: parentType,
+		ToKey: childKey, ToType: childType,
+		Properties: map[string]any{"weight": "1.0", "edge_source": "structural"},
+	})
+}
+
+func (d *Decomposer) addRel(result *Result, relType, fromKey, fromType, toKey, toType string, props map[string]any) {
+	result.Relationships = append(result.Relationships, RelationshipSpec{
+		Type: relType, FromKey: fromKey, FromType: fromType,
+		ToKey: toKey, ToType: toType, Properties: props,
+	})
+}
+
+func (d *Decomposer) addArtifactNode(result *Result, fileName, artifactType, phase, description, inertiaTier string) string {
+	key := artifactKey(fileName)
+	d.addObject(result, GraphObject{
+		Type: "Artifact", Key: key,
+		Properties: map[string]any{
+			"name": fileName, "description": description,
+			"artifact_type": artifactType, "phase": phase,
+			"file_path": fileName, "inertia_tier": inertiaTier,
+		},
+	})
+	return key
+}
+
+func (d *Decomposer) warn(result *Result, msg string) {
+	result.Warnings = append(result.Warnings, msg)
+	log.Printf("[decompose] WARNING: %s", msg)
+}
+
+// --- VMC path resolution ---
+
+// normalizeVMCPath strips spaces, ampersands, hyphens, underscores, and other
+// special characters, then lowercases. This normalizes paths like
+// "Strategy.CONTEXT.Market Analysis" and "Strategy.Context.MarketAnalysis"
+// to the same form for comparison. Dots are preserved as path separators.
+func normalizeVMCPath(path string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(path) {
+		if r == '.' || (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// loadVMResolver loads value models via the valuemodel package and creates a
+// Resolver for cross-convention path matching. The Resolver can match CamelCase
+// contributes_to paths (e.g., "Product.OnboardAndMap.OnboardMapRoadNetwork")
+// against value model components that use display names or path_segment.
+// Must be called after buildVMCLookup.
+func (d *Decomposer) loadVMResolver() {
+	loader := valuemodel.NewLoader(d.instancePath)
+	models, err := loader.Load()
+	if err != nil {
+		log.Printf("[decompose] WARNING: failed to load value models for resolver: %v", err)
+		return
+	}
+	if len(models.Models) == 0 {
+		return
+	}
+	d.vmResolver = valuemodel.NewResolver(models)
+}
+
+// buildVMCLookup scans all decomposed objects and builds lookup maps from
+// value_path to object key. Must be called after decomposeValueModels.
+func (d *Decomposer) buildVMCLookup(result *Result) {
+	d.vmc = &vmcLookup{
+		exactKeys: make(map[string]bool),
+		pathToKey: make(map[string]string),
+		normToKey: make(map[string]string),
+	}
+	for _, obj := range result.Objects {
+		if obj.Type == "ValueModelComponent" {
+			d.vmc.exactKeys[obj.Key] = true
+			if vp, ok := obj.Properties["value_path"].(string); ok {
+				d.vmc.pathToKey[vp] = obj.Key
+				d.vmc.normToKey[normalizeVMCPath(vp)] = obj.Key
+			}
+		}
+	}
+}
+
+// resolveVMCKey resolves a contributes_to path to a VMC object key using
+// 6-tier matching:
+//  0. Resolver match (uses valuemodel.Resolver to handle CamelCase IDs, slugs,
+//     and other naming conventions, then rebuilds VMC key from resolved components)
+//  1. Exact key match (path matches VMC key suffix directly)
+//  2. Exact value_path match
+//  3. Normalized value_path match (case-insensitive, strips spaces/special chars)
+//  4. Exact prefix match (path is a prefix of a VMC value_path)
+//  5. Normalized prefix match (normalized prefix matching)
+//
+// Returns the resolved VMC key and true if found, or the raw key and false if not.
+func (d *Decomposer) resolveVMCKey(path string) (string, bool) {
+	if d.vmc == nil {
+		// Fallback: no lookup built, use raw key
+		return objectKey("ValueModelComponent", fmt.Sprintf("value_model:%s", path)), false
+	}
+
+	// Tier 0: resolver-based matching
+	// The valuemodel.Resolver can match CamelCase IDs (e.g., "OnboardAndMap")
+	// against value model components that use display names (e.g., "ONBOARD & MAP")
+	// or kebab-case IDs (e.g., "onboard-and-map"). After resolving, we rebuild the
+	// VMC key using the same PathSegment||Name logic as decomposeValueModelFile.
+	if d.vmResolver != nil {
+		if resolution, err := d.vmResolver.Resolve(path); err == nil {
+			vmcPath := d.buildVMCPathFromResolution(resolution)
+			vmcKey := objectKey("ValueModelComponent", fmt.Sprintf("value_model:%s", vmcPath))
+			if d.vmc.exactKeys[vmcKey] {
+				return vmcKey, true
+			}
+			// Also try exact and normalized path lookup with the rebuilt path
+			if resolvedKey, ok := d.vmc.pathToKey[vmcPath]; ok {
+				return resolvedKey, true
+			}
+			if resolvedKey, ok := d.vmc.normToKey[normalizeVMCPath(vmcPath)]; ok {
+				return resolvedKey, true
+			}
+		}
+		// Tier 0b: cross-layer component search
+		// Track definitions sometimes use shortened paths like
+		// "Strategy.Identity Definition.naming-conventions" where the L1 layer
+		// is omitted. The resolver expects Track.L1.L2[.L3] and will fail on these.
+		// Handle this by searching all layers for a matching component+sub path.
+		if key, ok := d.resolveShortPath(path); ok {
+			return key, true
+		}
+	}
+
+	// Tier 1: exact key match
+	rawKey := objectKey("ValueModelComponent", fmt.Sprintf("value_model:%s", path))
+	if d.vmc.exactKeys[rawKey] {
+		return rawKey, true
+	}
+
+	// Tier 2: exact value_path match
+	if resolvedKey, ok := d.vmc.pathToKey[path]; ok {
+		return resolvedKey, true
+	}
+
+	// Tier 3: normalized value_path match
+	normPath := normalizeVMCPath(path)
+	if resolvedKey, ok := d.vmc.normToKey[normPath]; ok {
+		return resolvedKey, true
+	}
+
+	// Tier 4: exact prefix match
+	prefix := path + "."
+	var matchingPaths []string
+	for vp := range d.vmc.pathToKey {
+		if strings.HasPrefix(vp, prefix) {
+			matchingPaths = append(matchingPaths, vp)
+		}
+	}
+	if len(matchingPaths) > 0 {
+		sort.Strings(matchingPaths)
+		best := shortestString(matchingPaths)
+		return d.vmc.pathToKey[best], true
+	}
+
+	// Tier 5: normalized prefix match
+	normPrefix := normPath + "."
+	var matchingNormPaths []string
+	for np := range d.vmc.normToKey {
+		if strings.HasPrefix(np, normPrefix) {
+			matchingNormPaths = append(matchingNormPaths, np)
+		}
+	}
+	if len(matchingNormPaths) > 0 {
+		sort.Strings(matchingNormPaths)
+		best := shortestString(matchingNormPaths)
+		return d.vmc.normToKey[best], true
+	}
+
+	return rawKey, false
+}
+
+// resolveShortPath handles shortened contributes_to paths that omit the L1 layer.
+// For example, "Strategy.Identity Definition.naming-conventions" where
+// "Identity Definition" is actually an L2 component under some L1 layer.
+// It searches all layers in the track for a matching component, then optionally
+// a sub-component within it.
+func (d *Decomposer) resolveShortPath(path string) (string, bool) {
+	parts := strings.Split(path, ".")
+	if len(parts) < 2 || len(parts) > 3 {
+		return "", false
+	}
+
+	trackName := normalizeTrackName(parts[0])
+	compSearch := parts[1]
+	var subSearch string
+	if len(parts) == 3 {
+		subSearch = parts[2]
+	}
+
+	// Search all VMC value_paths for a match
+	compNorm := normalizeVMCPath(compSearch)
+
+	for vp, key := range d.vmc.pathToKey {
+		vpParts := strings.Split(vp, ".")
+		if len(vpParts) < 3 {
+			continue
+		}
+		// Check track matches
+		if vpParts[0] != trackName {
+			continue
+		}
+		// Check if any L2 component matches (vpParts[2] is L2 in a Track.L1.L2 path)
+		if normalizeVMCPath(vpParts[2]) != compNorm {
+			continue
+		}
+
+		if subSearch == "" {
+			// Just looking for L2 component
+			if len(vpParts) == 3 {
+				return key, true
+			}
+			continue
+		}
+
+		// Looking for L3 sub-component under matching L2
+		if len(vpParts) == 4 && normalizeVMCPath(vpParts[3]) == normalizeVMCPath(subSearch) {
+			return key, true
+		}
+	}
+
+	return "", false
+}
+
+// buildVMCPathFromResolution rebuilds a value_path from a PathResolution using
+// the same PathSegment||Name fallback logic that decomposeValueModelFile uses
+// when creating VMC object keys. This bridges the gap between the resolver's
+// canonical paths (which use normalizePathSegment) and the decomposer's VMC keys
+// (which use raw PathSegment or Name).
+func (d *Decomposer) buildVMCPathFromResolution(res *valuemodel.PathResolution) string {
+	parts := []string{string(res.Track)}
+
+	if res.Layer != nil {
+		seg := res.Layer.PathSegment
+		if seg == "" {
+			seg = res.Layer.Name
+		}
+		parts = append(parts, seg)
+	}
+
+	if res.Component != nil {
+		seg := res.Component.PathSegment
+		if seg == "" {
+			seg = res.Component.Name
+		}
+		parts = append(parts, seg)
+	}
+
+	if res.SubComponent != nil {
+		seg := res.SubComponent.PathSegment
+		if seg == "" {
+			seg = res.SubComponent.Name
+		}
+		parts = append(parts, seg)
+	}
+
+	return strings.Join(parts, ".")
+}
+
+// shortestString returns the shortest string from a non-empty slice.
+func shortestString(ss []string) string {
+	best := ss[0]
+	for _, s := range ss[1:] {
+		if len(s) < len(best) {
+			best = s
+		}
+	}
+	return best
+}
+
+// --- Version check ---
+
+func (d *Decomposer) checkVersion(result *Result) {
+	// Try _epf.yaml first, then _meta.yaml
+	type anchor struct {
+		EPFVersion string `yaml:"epf_version"`
+	}
+	var a anchor
+	if err := d.readYAML("_epf.yaml", &a); err != nil {
+		// Try _meta.yaml
+		type meta struct {
+			EPFVersion string `yaml:"epf_version"`
+		}
+		var m meta
+		if err := d.readYAML("_meta.yaml", &m); err == nil {
+			a.EPFVersion = m.EPFVersion
+		}
+	}
+	if a.EPFVersion == "" {
+		return
+	}
+	// Parse major version
+	parts := strings.SplitN(a.EPFVersion, ".", 2)
+	if len(parts) > 0 {
+		var major int
+		if _, err := fmt.Sscanf(parts[0], "%d", &major); err == nil && major > MaxSupportedMajorVersion {
+			d.warn(result, fmt.Sprintf(
+				"Instance EPF version %s is newer than decomposer supports (max %d.x). Some sections may not be decomposed.",
+				a.EPFVersion, MaxSupportedMajorVersion))
+		}
+	}
+}
+
+// ============================================================
+// READY/00_north_star.yaml
+// ============================================================
+
+type rawNorthStar struct {
+	NorthStar struct {
+		Purpose struct {
+			Statement      string `yaml:"statement"`
+			ProblemWeSolve string `yaml:"problem_we_solve"`
+			WhoWeServe     string `yaml:"who_we_serve"`
+			ImpactWeSeek   string `yaml:"impact_we_seek"`
+		} `yaml:"purpose"`
+		Vision struct {
+			Statement        string   `yaml:"vision_statement"`
+			Timeframe        string   `yaml:"timeframe"`
+			SuccessLooksLike []string `yaml:"success_looks_like"`
+		} `yaml:"vision"`
+		Mission struct {
+			Statement  string   `yaml:"mission_statement"`
+			WhatWeDo   []string `yaml:"what_we_do"`
+			HowDeliver struct {
+				Approach string `yaml:"approach"`
+			} `yaml:"how_we_deliver"`
+		} `yaml:"mission"`
+		Values []struct {
+			Value             string   `yaml:"value"`
+			Definition        string   `yaml:"definition"`
+			BehaviorsWeExpect []string `yaml:"behaviors_we_expect"`
+			ExampleDecision   string   `yaml:"example_decision"`
+		} `yaml:"values"`
+		CoreBeliefs struct {
+			AboutOurMarket     []rawBelief `yaml:"about_our_market"`
+			AboutOurUsers      []rawBelief `yaml:"about_our_users"`
+			AboutOurApproach   []rawBelief `yaml:"about_our_approach"`
+			AboutValueCreation []rawBelief `yaml:"about_value_creation"`
+			AboutCompetition   []rawBelief `yaml:"about_competition"`
+		} `yaml:"core_beliefs"`
+	} `yaml:"north_star"`
+}
+
+type rawBelief struct {
+	Belief      string `yaml:"belief"`
+	Implication string `yaml:"implication"`
+	Evidence    string `yaml:"evidence"`
+}
+
+func (d *Decomposer) decomposeNorthStar(result *Result) {
+	var raw rawNorthStar
+	if err := d.readYAML("READY/00_north_star.yaml", &raw); err != nil {
+		return // file doesn't exist — not an error
+	}
+
+	artKey := d.addArtifactNode(result,
+		"READY/00_north_star.yaml", "north_star", "READY",
+		"North Star — vision, mission, purpose, core beliefs", "1")
+
+	ns := raw.NorthStar
+
+	// Purpose
+	if ns.Purpose.Statement != "" {
+		key := objectKey("Belief", "north_star:purpose")
+		d.addObject(result, GraphObject{
+			Type: "Belief", Key: key,
+			Properties: map[string]any{
+				"name": "Purpose", "statement": ns.Purpose.Statement,
+				"implication": ns.Purpose.ImpactWeSeek, "evidence": ns.Purpose.ProblemWeSolve,
+				"category": "about_value_creation", "inertia_tier": "1",
+				"source_artifact": "READY/00_north_star.yaml", "section_path": "north_star.purpose",
+			},
+		})
+		d.addContains(result, artKey, "Artifact", key, "Belief")
+	}
+
+	// Vision
+	if ns.Vision.Statement != "" {
+		key := objectKey("Belief", "north_star:vision")
+		d.addObject(result, GraphObject{
+			Type: "Belief", Key: key,
+			Properties: map[string]any{
+				"name": "Vision", "statement": ns.Vision.Statement,
+				"implication": strings.Join(ns.Vision.SuccessLooksLike, "; "), "evidence": "",
+				"category": "about_our_market", "inertia_tier": "1",
+				"source_artifact": "READY/00_north_star.yaml", "section_path": "north_star.vision",
+			},
+		})
+		d.addContains(result, artKey, "Artifact", key, "Belief")
+	}
+
+	// Mission
+	if ns.Mission.Statement != "" {
+		key := objectKey("Belief", "north_star:mission")
+		d.addObject(result, GraphObject{
+			Type: "Belief", Key: key,
+			Properties: map[string]any{
+				"name": "Mission", "statement": ns.Mission.Statement,
+				"implication": strings.Join(ns.Mission.WhatWeDo, "; "),
+				"evidence":    ns.Mission.HowDeliver.Approach,
+				"category":    "about_our_approach", "inertia_tier": "1",
+				"source_artifact": "READY/00_north_star.yaml", "section_path": "north_star.mission",
+			},
+		})
+		d.addContains(result, artKey, "Artifact", key, "Belief")
+	}
+
+	// Values
+	for i, v := range ns.Values {
+		key := objectKey("Belief", fmt.Sprintf("north_star:values[%d]", i))
+		d.addObject(result, GraphObject{
+			Type: "Belief", Key: key,
+			Properties: map[string]any{
+				"name": fmt.Sprintf("Value: %s", v.Value), "statement": v.Definition,
+				"implication": v.ExampleDecision,
+				"evidence":    strings.Join(v.BehaviorsWeExpect, "; "),
+				"category":    "about_our_approach", "inertia_tier": "1",
+				"source_artifact": "READY/00_north_star.yaml",
+				"section_path":    fmt.Sprintf("north_star.values[%d]", i),
+			},
+		})
+		d.addContains(result, artKey, "Artifact", key, "Belief")
+	}
+
+	// Core beliefs by category
+	categories := map[string][]rawBelief{
+		"about_our_market":     ns.CoreBeliefs.AboutOurMarket,
+		"about_our_users":      ns.CoreBeliefs.AboutOurUsers,
+		"about_our_approach":   ns.CoreBeliefs.AboutOurApproach,
+		"about_value_creation": ns.CoreBeliefs.AboutValueCreation,
+		"about_competition":    ns.CoreBeliefs.AboutCompetition,
+	}
+	for category, beliefs := range categories {
+		for i, b := range beliefs {
+			if b.Belief == "" {
+				continue
+			}
+			key := objectKey("Belief", fmt.Sprintf("north_star:core_beliefs.%s[%d]", category, i))
+			d.addObject(result, GraphObject{
+				Type: "Belief", Key: key,
+				Properties: map[string]any{
+					"name": truncate(b.Belief, 60), "statement": b.Belief,
+					"implication": b.Implication, "evidence": b.Evidence,
+					"category": category, "inertia_tier": "1",
+					"source_artifact": "READY/00_north_star.yaml",
+					"section_path":    fmt.Sprintf("north_star.core_beliefs.%s[%d]", category, i),
+				},
+			})
+			d.addContains(result, artKey, "Artifact", key, "Belief")
+		}
+	}
+}
+
+// ============================================================
+// READY/01_insight_analyses.yaml
+// ============================================================
+
+type rawInsightAnalyses struct {
+	Trends struct {
+		Technology   []rawTrend `yaml:"technology"`
+		Market       []rawTrend `yaml:"market"`
+		UserBehavior []rawTrend `yaml:"user_behavior"`
+		Regulatory   []rawTrend `yaml:"regulatory"`
+		Competitive  []rawTrend `yaml:"competitive"`
+	} `yaml:"trends"`
+	TargetUsers []rawTargetUser `yaml:"target_users"`
+}
+
+type rawTrend struct {
+	Trend     string   `yaml:"trend"`
+	Timeframe string   `yaml:"timeframe"`
+	Impact    string   `yaml:"impact"`
+	Evidence  []string `yaml:"evidence"`
+}
+
+type rawTargetUser struct {
+	Persona      string `yaml:"persona"`
+	Description  string `yaml:"description"`
+	CurrentState struct {
+		Goals []string `yaml:"goals"`
+	} `yaml:"current_state"`
+	Problems []rawProblem `yaml:"problems"`
+}
+
+type rawProblem struct {
+	Problem  string `yaml:"problem"`
+	Severity string `yaml:"severity"`
+}
+
+func (d *Decomposer) decomposeInsightAnalyses(result *Result) {
+	var raw rawInsightAnalyses
+	if err := d.readYAML("READY/01_insight_analyses.yaml", &raw); err != nil {
+		return
+	}
+
+	artKey := d.addArtifactNode(result,
+		"READY/01_insight_analyses.yaml", "insight_analyses", "READY",
+		"Insight analyses — trends, market structure, personas, pain points", "2")
+
+	// Trends
+	trendGroups := map[string][]rawTrend{
+		"technology":    raw.Trends.Technology,
+		"market":        raw.Trends.Market,
+		"user_behavior": raw.Trends.UserBehavior,
+		"regulatory":    raw.Trends.Regulatory,
+		"competitive":   raw.Trends.Competitive,
+	}
+	for trendType, trends := range trendGroups {
+		for i, t := range trends {
+			key := objectKey("Trend", fmt.Sprintf("insight_analyses:trends.%s[%d]", trendType, i))
+			d.addObject(result, GraphObject{
+				Type: "Trend", Key: key,
+				Properties: map[string]any{
+					"name": t.Trend, "description": t.Impact,
+					"trend_type": trendType, "timeframe": normalizeTimeframe(t.Timeframe),
+					"impact": t.Impact, "inertia_tier": "2",
+					"source_artifact": "READY/01_insight_analyses.yaml",
+					"section_path":    fmt.Sprintf("trends.%s[%d]", trendType, i),
+				},
+			})
+			d.addContains(result, artKey, "Artifact", key, "Trend")
+		}
+	}
+
+	// Personas and pain points
+	for _, tu := range raw.TargetUsers {
+		personaID := sanitizeKey(tu.Persona)
+		personaKey := objectKey("Persona", fmt.Sprintf("persona:%s", personaID))
+		goalsStr := strings.Join(tu.CurrentState.Goals, "; ")
+
+		d.addObject(result, GraphObject{
+			Type: "Persona", Key: personaKey,
+			Properties: map[string]any{
+				"name": tu.Persona, "description": tu.Description,
+				"persona_id": personaID, "role": tu.Persona,
+				"goals": goalsStr, "inertia_tier": "2",
+				"source_artifact": "READY/01_insight_analyses.yaml",
+			},
+		})
+		d.seenPersonas[personaKey] = true
+		d.addContains(result, artKey, "Artifact", personaKey, "Persona")
+
+		for j, prob := range tu.Problems {
+			ppKey := objectKey("PainPoint", fmt.Sprintf("insight_analyses:persona:%s:problem[%d]", personaID, j))
+			d.addObject(result, GraphObject{
+				Type: "PainPoint", Key: ppKey,
+				Properties: map[string]any{
+					"name": truncate(prob.Problem, 60), "description": prob.Problem,
+					"severity": prob.Severity, "persona_ref": personaID,
+					"inertia_tier": "2", "source_artifact": "READY/01_insight_analyses.yaml",
+					"section_path": fmt.Sprintf("target_users[%s].problems[%d]", personaID, j),
+				},
+			})
+			d.addContains(result, artKey, "Artifact", ppKey, "PainPoint")
+			d.addRel(result, "elaborates", personaKey, "Persona", ppKey, "PainPoint",
+				map[string]any{"confidence": "1.0", "weight": "0.8", "edge_source": "structural"})
+		}
+	}
+}
+
+// ============================================================
+// READY/04_strategy_formula.yaml
+// ============================================================
+
+type rawStrategyFormula struct {
+	Strategy struct {
+		Positioning struct {
+			PositioningStatement string `yaml:"positioning_statement"`
+			CategoryPosition     string `yaml:"category_position"`
+		} `yaml:"positioning"`
+		CompetitiveMoat struct {
+			Advantages []struct {
+				Name          string `yaml:"name"`
+				Description   string `yaml:"description"`
+				Defensibility string `yaml:"defensibility"`
+			} `yaml:"advantages"`
+			VsCompetitors []struct {
+				Competitor    string `yaml:"competitor"`
+				TheirStrength string `yaml:"their_strength"`
+				OurAngle      string `yaml:"our_angle"`
+				Wedge         string `yaml:"wedge"`
+			} `yaml:"vs_competitors"`
+		} `yaml:"competitive_moat"`
+	} `yaml:"strategy"`
+}
+
+func (d *Decomposer) decomposeStrategyFormula(result *Result) {
+	var raw rawStrategyFormula
+	if err := d.readYAML("READY/04_strategy_formula.yaml", &raw); err != nil {
+		return
+	}
+
+	artKey := d.addArtifactNode(result,
+		"READY/04_strategy_formula.yaml", "strategy_formula", "READY",
+		"Strategy formula — positioning, competitive moat, business model", "3")
+
+	sf := raw.Strategy
+
+	// Positioning
+	if sf.Positioning.PositioningStatement != "" {
+		key := objectKey("Positioning", "strategy_formula:positioning")
+		d.addObject(result, GraphObject{
+			Type: "Positioning", Key: key,
+			Properties: map[string]any{
+				"name": "Market Positioning", "claim": sf.Positioning.PositioningStatement,
+				"vs_competitor": "", "moat_type": "methodology",
+				"inertia_tier": "3", "source_artifact": "READY/04_strategy_formula.yaml",
+				"section_path": "strategy.positioning",
+			},
+		})
+		d.addContains(result, artKey, "Artifact", key, "Positioning")
+	}
+
+	// Advantages
+	for i, adv := range sf.CompetitiveMoat.Advantages {
+		key := objectKey("Positioning", fmt.Sprintf("strategy_formula:advantages[%d]", i))
+		d.addObject(result, GraphObject{
+			Type: "Positioning", Key: key,
+			Properties: map[string]any{
+				"name": adv.Name, "claim": adv.Description,
+				"vs_competitor": "", "moat_type": classifyMoatType(adv.Defensibility),
+				"inertia_tier": "3", "source_artifact": "READY/04_strategy_formula.yaml",
+				"section_path": fmt.Sprintf("strategy.competitive_moat.advantages[%d]", i),
+			},
+		})
+		d.addContains(result, artKey, "Artifact", key, "Positioning")
+	}
+
+	// Competitor comparisons
+	for i, vc := range sf.CompetitiveMoat.VsCompetitors {
+		key := objectKey("Positioning", fmt.Sprintf("strategy_formula:vs_competitors[%d]", i))
+		d.addObject(result, GraphObject{
+			Type: "Positioning", Key: key,
+			Properties: map[string]any{
+				"name": fmt.Sprintf("vs %s", vc.Competitor), "claim": vc.OurAngle,
+				"vs_competitor": vc.Competitor, "moat_type": classifyMoatType(vc.Wedge),
+				"inertia_tier": "3", "source_artifact": "READY/04_strategy_formula.yaml",
+				"section_path": fmt.Sprintf("strategy.competitive_moat.vs_competitors[%d]", i),
+			},
+		})
+		d.addContains(result, artKey, "Artifact", key, "Positioning")
+	}
+}
+
+// ============================================================
+// READY/05_roadmap_recipe.yaml
+// ============================================================
+
+type rawRoadmap struct {
+	Roadmap struct {
+		ID     string `yaml:"id"`
+		Cycle  int    `yaml:"cycle"`
+		Tracks map[string]struct {
+			TrackObjective string `yaml:"track_objective"`
+			OKRs           []struct {
+				ID         string `yaml:"id"`
+				Objective  string `yaml:"objective"`
+				KeyResults []struct {
+					ID                string `yaml:"id"`
+					Description       string `yaml:"description"`
+					Target            string `yaml:"target"`
+					Status            string `yaml:"status"`
+					MeasurementMethod string `yaml:"measurement_method"`
+					ValueModelTarget  struct {
+						ComponentPath string `yaml:"component_path"`
+					} `yaml:"value_model_target"`
+				} `yaml:"key_results"`
+			} `yaml:"okrs"`
+			RiskiestAssumptions []struct {
+				ID               string   `yaml:"id"`
+				Description      string   `yaml:"description"`
+				Type             string   `yaml:"type"`
+				Criticality      string   `yaml:"criticality"`
+				Confidence       string   `yaml:"confidence"`
+				EvidenceRequired string   `yaml:"evidence_required"`
+				LinkedToKR       []string `yaml:"linked_to_kr"`
+			} `yaml:"riskiest_assumptions"`
+		} `yaml:"tracks"`
+	} `yaml:"roadmap"`
+}
+
+func (d *Decomposer) decomposeRoadmap(result *Result) {
+	var raw rawRoadmap
+	if err := d.readYAML("READY/05_roadmap_recipe.yaml", &raw); err != nil {
+		return
+	}
+
+	artKey := d.addArtifactNode(result,
+		"READY/05_roadmap_recipe.yaml", "roadmap_recipe", "READY",
+		"Roadmap — OKRs, key results, assumptions", "4")
+
+	rm := raw.Roadmap
+	cycle := fmt.Sprintf("C%d", rm.Cycle)
+
+	for trackName, track := range rm.Tracks {
+		// OKRs and Key Results
+		for _, okr := range track.OKRs {
+			okrKey := objectKey("OKR", fmt.Sprintf("roadmap:%s", okr.ID))
+			d.addObject(result, GraphObject{
+				Type: "OKR", Key: okrKey,
+				Properties: map[string]any{
+					"name": okr.Objective, "description": okr.Objective,
+					"okr_id": okr.ID, "track": trackName,
+					"cycle": cycle, "status": "", "target_value": "",
+					"inertia_tier": "4", "source_artifact": "READY/05_roadmap_recipe.yaml",
+				},
+			})
+			d.addContains(result, artKey, "Artifact", okrKey, "OKR")
+
+			for _, kr := range okr.KeyResults {
+				krKey := objectKey("OKR", fmt.Sprintf("roadmap:%s", kr.ID))
+				d.addObject(result, GraphObject{
+					Type: "OKR", Key: krKey,
+					Properties: map[string]any{
+						"name": kr.Description, "description": kr.Description,
+						"okr_id": kr.ID, "track": trackName,
+						"cycle": cycle, "status": kr.Status, "target_value": kr.Target,
+						"inertia_tier": "4", "source_artifact": "READY/05_roadmap_recipe.yaml",
+					},
+				})
+				d.addContains(result, okrKey, "OKR", krKey, "OKR")
+
+				// KR → ValueModelComponent
+				vmPath := kr.ValueModelTarget.ComponentPath
+				if vmPath != "" {
+					vmKey := objectKey("ValueModelComponent", fmt.Sprintf("value_model:%s", vmPath))
+					d.addRel(result, "targets", krKey, "OKR", vmKey, "ValueModelComponent",
+						map[string]any{"weight": "1.0", "edge_source": "structural"})
+				}
+			}
+		}
+
+		// Riskiest assumptions
+		for _, asm := range track.RiskiestAssumptions {
+			if asm.ID == "" {
+				continue
+			}
+			asmKey := objectKey("Assumption", fmt.Sprintf("roadmap:%s", asm.ID))
+			d.addObject(result, GraphObject{
+				Type: "Assumption", Key: asmKey,
+				Properties: map[string]any{
+					"name": truncate(asm.Description, 60), "assumption_id": asm.ID,
+					"hypothesis": asm.Description, "category": asm.Type,
+					"criticality": asm.Criticality, "status": "pending",
+					"inertia_tier": "4", "source_artifact": "READY/05_roadmap_recipe.yaml",
+					"section_path": fmt.Sprintf("roadmap.tracks.%s.riskiest_assumptions[%s]", trackName, asm.ID),
+				},
+			})
+			d.addContains(result, artKey, "Artifact", asmKey, "Assumption")
+
+			// Assumption → KR edges
+			for _, krID := range asm.LinkedToKR {
+				krKey := objectKey("OKR", fmt.Sprintf("roadmap:%s", krID))
+				d.addRel(result, "tests_assumption", krKey, "OKR", asmKey, "Assumption",
+					map[string]any{"weight": "1.0", "edge_source": "structural"})
+			}
+		}
+	}
+
+	// Cross-track dependencies and technical constraints
+	d.decomposeRoadmapExtras(artKey, result)
+}
+
+// ============================================================
+// FIRE/definitions/product/fd-*.yaml
+// ============================================================
+
+type rawFeature struct {
+	ID     string `yaml:"id"`
+	Name   string `yaml:"name"`
+	Slug   string `yaml:"slug"`
+	Status string `yaml:"status"`
+
+	StrategicContext struct {
+		ContributesTo     []string `yaml:"contributes_to"`
+		Tracks            []string `yaml:"tracks"`
+		AssumptionsTested []string `yaml:"assumptions_tested"`
+	} `yaml:"strategic_context"`
+
+	Definition struct {
+		JobToBeDone      string `yaml:"job_to_be_done"`
+		SolutionApproach string `yaml:"solution_approach"`
+		Personas         []struct {
+			ID                   string   `yaml:"id"`
+			Name                 string   `yaml:"name"`
+			Role                 string   `yaml:"role"`
+			Description          string   `yaml:"description"`
+			Goals                []string `yaml:"goals"`
+			PainPoints           []string `yaml:"pain_points"`
+			UsageContext         string   `yaml:"usage_context"`
+			TechnicalProficiency string   `yaml:"technical_proficiency"`
+			CurrentSituation     string   `yaml:"current_situation"`
+			TransformationMoment string   `yaml:"transformation_moment"`
+			EmotionalResolution  string   `yaml:"emotional_resolution"`
+		} `yaml:"personas"`
+		Capabilities []struct {
+			ID          string `yaml:"id"`
+			Name        string `yaml:"name"`
+			Description string `yaml:"description"`
+			Maturity    string `yaml:"maturity"`
+		} `yaml:"capabilities"`
+		Scenarios []struct {
+			ID       string   `yaml:"id"`
+			Name     string   `yaml:"name"`
+			Actor    string   `yaml:"actor"`
+			Context  string   `yaml:"context"`
+			Trigger  string   `yaml:"trigger"`
+			Action   string   `yaml:"action"`
+			Outcome  string   `yaml:"outcome"`
+			Criteria []string `yaml:"acceptance_criteria"`
+		} `yaml:"scenarios"`
+	} `yaml:"definition"`
+
+	Dependencies struct {
+		Requires []struct {
+			ID     string `yaml:"id"`
+			Name   string `yaml:"name"`
+			Reason string `yaml:"reason"`
+		} `yaml:"requires"`
+		Enables []struct {
+			ID     string `yaml:"id"`
+			Name   string `yaml:"name"`
+			Reason string `yaml:"reason"`
+		} `yaml:"enables"`
+	} `yaml:"dependencies"`
+
+	FeatureMaturity struct {
+		OverallStage string `yaml:"overall_stage"`
+		// Array format (legacy): capability_maturity: [{capability_id, stage, evidence}]
+		CapabilityMaturity []struct {
+			CapabilityID  string `yaml:"capability_id"`
+			Stage         string `yaml:"stage"`
+			DeliveredByKR string `yaml:"delivered_by_kr"`
+			Evidence      string `yaml:"evidence"`
+		} `yaml:"capability_maturity"`
+		// Map format (current): capabilities: {cap-001: {maturity, evidence}}
+		Capabilities map[string]struct {
+			Maturity      string `yaml:"maturity"`
+			Evidence      string `yaml:"evidence"`
+			DeliveredByKR string `yaml:"delivered_by_kr"`
+		} `yaml:"capabilities"`
+	} `yaml:"feature_maturity"`
+}
+
+func (d *Decomposer) decomposeFeatures(result *Result) {
+	featureDir := filepath.Join(d.instancePath, "FIRE", "definitions", "product")
+	entries, err := os.ReadDir(featureDir)
+	if err != nil {
+		return
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yaml") {
+			continue
+		}
+		fpath := filepath.Join(featureDir, entry.Name())
+		d.decomposeFeatureFile(fpath, entry.Name(), result)
+	}
+}
+
+func (d *Decomposer) decomposeFeatureFile(absPath, fileName string, result *Result) {
+	data, err := os.ReadFile(absPath)
+	if err != nil {
+		return
+	}
+
+	var raw rawFeature
+	if err := yaml.Unmarshal(data, &raw); err != nil || raw.ID == "" {
+		return
+	}
+
+	relPath := fmt.Sprintf("FIRE/definitions/product/%s", fileName)
+	artKey := d.addArtifactNode(result, relPath, "feature_definition", "FIRE", raw.Name, "6")
+
+	// Feature node
+	featureKey := objectKey("Feature", fmt.Sprintf("feature:%s", raw.ID))
+	d.addObject(result, GraphObject{
+		Type: "Feature", Key: featureKey,
+		Properties: map[string]any{
+			"name": raw.Name, "description": raw.Definition.JobToBeDone,
+			"feature_id": raw.ID, "status": raw.Status,
+			"jtbd": raw.Definition.JobToBeDone, "inertia_tier": "6",
+			"source_artifact": relPath,
+		},
+	})
+	d.addContains(result, artKey, "Artifact", featureKey, "Feature")
+
+	// contributes_to → ValueModelComponent
+	for _, path := range raw.StrategicContext.ContributesTo {
+		vmKey, resolved := d.resolveVMCKey(path)
+		if resolved {
+			d.addRel(result, "contributes_to", featureKey, "Feature", vmKey, "ValueModelComponent",
+				map[string]any{"weight": "1.0", "edge_source": "structural"})
+		} else {
+			d.warn(result, fmt.Sprintf("feature %s: contributes_to path %q does not match any value model component — skipping edge", raw.ID, path))
+		}
+	}
+
+	// tests_assumption → Assumption
+	for _, asmID := range raw.StrategicContext.AssumptionsTested {
+		asmKey := objectKey("Assumption", fmt.Sprintf("roadmap:%s", asmID))
+		d.addRel(result, "tests_assumption", featureKey, "Feature", asmKey, "Assumption",
+			map[string]any{"weight": "1.0", "edge_source": "structural"})
+	}
+
+	// depends_on (requires)
+	for _, dep := range raw.Dependencies.Requires {
+		if dep.ID == "" {
+			continue
+		}
+		depKey := objectKey("Feature", fmt.Sprintf("feature:%s", dep.ID))
+		d.addRel(result, "depends_on", featureKey, "Feature", depKey, "Feature",
+			map[string]any{"weight": "1.0", "edge_source": "structural"})
+	}
+
+	// depends_on (enables — reverse direction)
+	for _, dep := range raw.Dependencies.Enables {
+		if dep.ID == "" {
+			continue
+		}
+		depKey := objectKey("Feature", fmt.Sprintf("feature:%s", dep.ID))
+		d.addRel(result, "depends_on", depKey, "Feature", featureKey, "Feature",
+			map[string]any{"weight": "1.0", "edge_source": "structural"})
+	}
+
+	// Build maturity lookup for capabilities (supports both array and map formats)
+	maturityMap := map[string]struct{ stage, evidence string }{}
+	// Array format (legacy): capability_maturity: [{capability_id, stage}]
+	for _, cm := range raw.FeatureMaturity.CapabilityMaturity {
+		maturityMap[cm.CapabilityID] = struct{ stage, evidence string }{cm.Stage, cm.Evidence}
+	}
+	// Map format (current): capabilities: {cap-001: {maturity, evidence}}
+	for capID, cm := range raw.FeatureMaturity.Capabilities {
+		maturityMap[capID] = struct{ stage, evidence string }{cm.Maturity, cm.Evidence}
+	}
+
+	// Capabilities
+	for _, cap := range raw.Definition.Capabilities {
+		if cap.ID == "" {
+			continue
+		}
+		maturity := cap.Maturity
+		evidence := ""
+		if m, ok := maturityMap[cap.ID]; ok {
+			maturity = m.stage
+			evidence = m.evidence
+		}
+		if maturity == "" {
+			maturity = "hypothetical"
+		}
+		capKey := objectKey("Capability", fmt.Sprintf("feature:%s:%s", raw.ID, cap.ID))
+		d.addObject(result, GraphObject{
+			Type: "Capability", Key: capKey,
+			Properties: map[string]any{
+				"name": cap.Name, "description": cap.Description,
+				"capability_id": cap.ID, "maturity": maturity, "evidence": evidence,
+				"feature_ref": raw.ID, "inertia_tier": "7",
+				"source_artifact": relPath,
+				"section_path":    fmt.Sprintf("definition.capabilities[%s]", cap.ID),
+			},
+		})
+		d.addContains(result, featureKey, "Feature", capKey, "Capability")
+	}
+
+	// Scenarios from definition.scenarios
+	for _, scn := range raw.Definition.Scenarios {
+		scnKey := objectKey("Scenario", fmt.Sprintf("feature:%s:scenario:%s", raw.ID, scn.ID))
+		d.addObject(result, GraphObject{
+			Type: "Scenario", Key: scnKey,
+			Properties: map[string]any{
+				"name": scn.Name, "description": scn.Context,
+				"persona_ref": scn.Actor, "feature_ref": raw.ID,
+				"inertia_tier": "6", "source_artifact": relPath,
+				"section_path": fmt.Sprintf("definition.scenarios[%s]", scn.ID),
+			},
+		})
+		d.addContains(result, featureKey, "Feature", scnKey, "Scenario")
+	}
+
+	// Persona extraction and scenarios (from definition.personas)
+	for _, persona := range raw.Definition.Personas {
+		if persona.ID == "" {
+			continue
+		}
+
+		personaKey := objectKey("Persona", fmt.Sprintf("persona:%s", persona.ID))
+
+		// Extract Persona as a first-class graph object if not already seen.
+		// Deduplication: when the same persona_id appears across multiple features,
+		// only the first occurrence creates the object. All features create serves edges.
+		if !d.seenPersonas[personaKey] {
+			goalsStr := strings.Join(persona.Goals, "; ")
+			painPointsStr := strings.Join(persona.PainPoints, "; ")
+			d.addObject(result, GraphObject{
+				Type: "Persona", Key: personaKey,
+				Properties: map[string]any{
+					"name": persona.Name, "description": persona.Description,
+					"persona_id": persona.ID, "role": persona.Role,
+					"goals": goalsStr, "inertia_tier": "2",
+					"source_artifact": relPath,
+				},
+			})
+			d.seenPersonas[personaKey] = true
+
+			// Extract pain_points as PainPoint objects linked to this persona
+			for j, pp := range persona.PainPoints {
+				ppKey := objectKey("PainPoint", fmt.Sprintf("feature:%s:persona:%s:pain_point[%d]", raw.ID, persona.ID, j))
+				d.addObject(result, GraphObject{
+					Type: "PainPoint", Key: ppKey,
+					Properties: map[string]any{
+						"name": truncate(pp, 60), "description": pp,
+						"severity": "", "persona_ref": persona.ID,
+						"inertia_tier": "2", "source_artifact": relPath,
+						"section_path": fmt.Sprintf("definition.personas[%s].pain_points[%d]", persona.ID, j),
+					},
+				})
+				d.addRel(result, "elaborates", personaKey, "Persona", ppKey, "PainPoint",
+					map[string]any{"confidence": "1.0", "weight": "0.8", "edge_source": "structural"})
+			}
+
+			_ = painPointsStr // used for PainPoint extraction above
+		}
+
+		// serves → Persona (always created, even for deduplicated personas)
+		d.addRel(result, "serves", featureKey, "Feature", personaKey, "Persona",
+			map[string]any{"weight": "0.8", "edge_source": "structural"})
+
+		// Persona scenario (from narrative fields) — only if narrative is present
+		if persona.CurrentSituation != "" {
+			scnKey := objectKey("Scenario", fmt.Sprintf("feature:%s:persona:%s", raw.ID, persona.ID))
+			d.addObject(result, GraphObject{
+				Type: "Scenario", Key: scnKey,
+				Properties: map[string]any{
+					"name":        fmt.Sprintf("%s using %s", persona.Name, raw.Name),
+					"description": persona.CurrentSituation,
+					"persona_ref": persona.ID, "feature_ref": raw.ID,
+					"inertia_tier": "6", "source_artifact": relPath,
+					"section_path": fmt.Sprintf("definition.personas[%s]", persona.ID),
+				},
+			})
+			d.addContains(result, featureKey, "Feature", scnKey, "Scenario")
+		}
+	}
+}
+
+// ============================================================
+// FIRE/value_models/*.yaml
+// ============================================================
+
+type rawValueModel struct {
+	TrackName   string `yaml:"track_name"`
+	Description string `yaml:"description"`
+	Layers      []struct {
+		ID          string `yaml:"id"`
+		Name        string `yaml:"name"`
+		PathSegment string `yaml:"path_segment"`
+		Description string `yaml:"description"`
+		Components  []struct {
+			ID          string `yaml:"id"`
+			Name        string `yaml:"name"`
+			PathSegment string `yaml:"path_segment"`
+			Description string `yaml:"description"`
+			UVP         string `yaml:"uvp"`
+			Active      bool   `yaml:"active"`
+			Maturity    struct {
+				Stage string `yaml:"stage"`
+			} `yaml:"maturity"`
+			// Both sub_components and subs are used in practice
+			SubComponents []rawSubComponent `yaml:"sub_components"`
+			Subs          []rawSubComponent `yaml:"subs"`
+		} `yaml:"components"`
+	} `yaml:"layers"`
+}
+
+type rawSubComponent struct {
+	ID          string `yaml:"id"`
+	Name        string `yaml:"name"`
+	PathSegment string `yaml:"path_segment"`
+	Description string `yaml:"description"`
+	UVP         string `yaml:"uvp"`
+	Active      bool   `yaml:"active"`
+	Maturity    struct {
+		Stage string `yaml:"stage"`
+	} `yaml:"maturity"`
+}
+
+func (d *Decomposer) decomposeValueModels(result *Result) {
+	vmDir := filepath.Join(d.instancePath, "FIRE", "value_models")
+	entries, err := os.ReadDir(vmDir)
+	if err != nil {
+		return
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yaml") {
+			continue
+		}
+		fpath := filepath.Join(vmDir, entry.Name())
+		d.decomposeValueModelFile(fpath, entry.Name(), result)
+	}
+}
+
+func (d *Decomposer) decomposeValueModelFile(absPath, fileName string, result *Result) {
+	data, err := os.ReadFile(absPath)
+	if err != nil {
+		return
+	}
+
+	var raw rawValueModel
+	if err := yaml.Unmarshal(data, &raw); err != nil || len(raw.Layers) == 0 {
+		return
+	}
+
+	track := normalizeTrackName(raw.TrackName)
+	relPath := fmt.Sprintf("FIRE/value_models/%s", fileName)
+	artKey := d.addArtifactNode(result, relPath, "value_model", "FIRE", raw.Description, "5")
+
+	for _, layer := range raw.Layers {
+		pathSeg := layer.PathSegment
+		if pathSeg == "" {
+			pathSeg = layer.Name
+		}
+		layerPath := fmt.Sprintf("%s.%s", track, pathSeg)
+		layerKey := objectKey("ValueModelComponent", fmt.Sprintf("value_model:%s", layerPath))
+		d.addObject(result, GraphObject{
+			Type: "ValueModelComponent", Key: layerKey,
+			Properties: map[string]any{
+				"name": layer.Name, "description": layer.Description,
+				"value_path": layerPath, "track": track, "level": "L1",
+				"maturity": "", "inertia_tier": "5", "source_artifact": relPath,
+			},
+		})
+		d.addContains(result, artKey, "Artifact", layerKey, "ValueModelComponent")
+
+		for _, comp := range layer.Components {
+			compPathSeg := comp.PathSegment
+			if compPathSeg == "" {
+				compPathSeg = comp.Name
+			}
+			compPath := fmt.Sprintf("%s.%s", layerPath, compPathSeg)
+			compKey := objectKey("ValueModelComponent", fmt.Sprintf("value_model:%s", compPath))
+			desc := comp.Description
+			if desc == "" {
+				desc = comp.UVP
+			}
+			d.addObject(result, GraphObject{
+				Type: "ValueModelComponent", Key: compKey,
+				Properties: map[string]any{
+					"name": comp.Name, "description": desc,
+					"value_path": compPath, "track": track, "level": "L2",
+					"maturity": comp.Maturity.Stage, "inertia_tier": "5",
+					"source_artifact": relPath,
+				},
+			})
+			d.addContains(result, layerKey, "ValueModelComponent", compKey, "ValueModelComponent")
+
+			// Merge sub_components and subs (both keys are used in practice)
+			subs := comp.SubComponents
+			subs = append(subs, comp.Subs...)
+
+			for _, sub := range subs {
+				subPathSeg := sub.PathSegment
+				if subPathSeg == "" {
+					subPathSeg = sub.Name
+				}
+				subPath := fmt.Sprintf("%s.%s", compPath, subPathSeg)
+				subKey := objectKey("ValueModelComponent", fmt.Sprintf("value_model:%s", subPath))
+				subDesc := sub.Description
+				if subDesc == "" {
+					subDesc = sub.UVP
+				}
+				d.addObject(result, GraphObject{
+					Type: "ValueModelComponent", Key: subKey,
+					Properties: map[string]any{
+						"name": sub.Name, "description": subDesc,
+						"value_path": subPath, "track": track, "level": "L3",
+						"maturity": sub.Maturity.Stage, "inertia_tier": "5",
+						"source_artifact": relPath,
+					},
+				})
+				d.addContains(result, compKey, "ValueModelComponent", subKey, "ValueModelComponent")
+			}
+		}
+	}
+}
+
+// ============================================================
+// Utility functions
+// ============================================================
+
+func sanitizeKey(s string) string {
+	s = strings.ToLower(s)
+	s = strings.Map(func(r rune) rune {
+		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-' || r == '_' {
+			return r
+		}
+		if r == ' ' {
+			return '-'
+		}
+		return -1
+	}, s)
+	if len(s) > 80 {
+		s = s[:80]
+	}
+	return s
+}
+
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "..."
+}
+
+func normalizeTimeframe(tf string) string {
+	tf = strings.ToLower(tf)
+	switch {
+	case strings.Contains(tf, "near"):
+		return "near_term"
+	case strings.Contains(tf, "medium"):
+		return "medium_term"
+	case strings.Contains(tf, "long"):
+		return "long_term"
+	default:
+		return tf
+	}
+}
+
+func normalizeTrackName(name string) string {
+	switch strings.ToLower(name) {
+	case "product":
+		return "Product"
+	case "strategy":
+		return "Strategy"
+	case "org_ops", "orgops":
+		return "OrgOps"
+	case "commercial":
+		return "Commercial"
+	default:
+		return name
+	}
+}
+
+func classifyMoatType(desc string) string {
+	desc = strings.ToLower(desc)
+	switch {
+	case strings.Contains(desc, "technolog") || strings.Contains(desc, "algorithm") || strings.Contains(desc, "engineering"):
+		return "technology"
+	case strings.Contains(desc, "network") || strings.Contains(desc, "ecosystem"):
+		return "network"
+	case strings.Contains(desc, "data") || strings.Contains(desc, "graph"):
+		return "data"
+	case strings.Contains(desc, "brand") || strings.Contains(desc, "trust"):
+		return "brand"
+	default:
+		return "methodology"
+	}
+}

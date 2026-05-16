@@ -1,0 +1,28 @@
+# Invalid graph — orphan context (no transitions, no parent)
+name: invalid-orphan
+title: "Invalid Orphan Graph"
+entry_context: home
+
+contexts:
+  - id: home
+    title: "Home"
+    mode: landing
+    group: main
+
+  - id: settings
+    title: "Settings"
+    parent: home
+    group: main
+
+  - id: orphan-page
+    title: "Orphan Page"
+    # No parent, no transitions — this is unreachable
+
+transitions:
+  - id: home-to-settings
+    from: home
+    to: settings
+
+groups:
+  - id: main
+    title: "Main"

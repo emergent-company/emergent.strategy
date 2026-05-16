@@ -1,0 +1,1339 @@
+package navigation
+
+import (
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"testing"
+)
+
+func testdataPath(name string) string {
+	_, filename, _, _ := runtime.Caller(0)
+	return filepath.Join(filepath.Dir(filename), "testdata", name)
+}
+
+// --- Loader tests ---
+
+func TestLoadMinimalGraph(t *testing.T) {
+	g, err := LoadFile(testdataPath("minimal_graph.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+	if g.Name != "minimal-product" {
+		t.Errorf("Name = %q, want %q", g.Name, "minimal-product")
+	}
+	if len(g.Contexts) != 3 {
+		t.Errorf("Contexts = %d, want 3", len(g.Contexts))
+	}
+	if len(g.Transitions) != 2 {
+		t.Errorf("Transitions = %d, want 2", len(g.Transitions))
+	}
+	if g.EntryContext != "home" {
+		t.Errorf("EntryContext = %q, want %q", g.EntryContext, "home")
+	}
+}
+
+func TestLoadFullGraph(t *testing.T) {
+	g, err := LoadFile(testdataPath("full_graph.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+	if g.Name != "strategy-platform" {
+		t.Errorf("Name = %q, want %q", g.Name, "strategy-platform")
+	}
+	if len(g.Contexts) < 10 {
+		t.Errorf("Contexts = %d, want >= 10", len(g.Contexts))
+	}
+	if len(g.Guards) < 3 {
+		t.Errorf("Guards = %d, want >= 3", len(g.Guards))
+	}
+	if len(g.Groups) < 3 {
+		t.Errorf("Groups = %d, want >= 3", len(g.Groups))
+	}
+	if len(g.Menus) > 0 {
+		if len(g.Menus[0].Items) == 0 {
+			t.Error("Expected menu items in first menu")
+		}
+	}
+}
+
+func TestContextByID(t *testing.T) {
+	g, err := LoadFile(testdataPath("minimal_graph.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	ctx := g.ContextByID("home")
+	if ctx == nil {
+		t.Fatal("ContextByID(home) returned nil")
+	}
+	if ctx.Title != "Home" {
+		t.Errorf("Title = %q, want %q", ctx.Title, "Home")
+	}
+
+	if g.ContextByID("nonexistent") != nil {
+		t.Error("ContextByID(nonexistent) should return nil")
+	}
+}
+
+func TestTransitionsFrom(t *testing.T) {
+	g, err := LoadFile(testdataPath("minimal_graph.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	from := g.TransitionsFrom("home")
+	if len(from) != 2 {
+		t.Errorf("TransitionsFrom(home) = %d, want 2", len(from))
+	}
+
+	from = g.TransitionsFrom("settings")
+	if len(from) != 0 {
+		t.Errorf("TransitionsFrom(settings) = %d, want 0", len(from))
+	}
+}
+
+// --- Validation tests ---
+
+func TestValidateMinimalGraph(t *testing.T) {
+	g, err := LoadFile(testdataPath("minimal_graph.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+	errs := Validate(g)
+	if len(errs) != 0 {
+		t.Errorf("Validate minimal graph: got %d errors, want 0:", len(errs))
+		for _, e := range errs {
+			t.Logf("  %s", e)
+		}
+	}
+}
+
+func TestValidateFullGraph(t *testing.T) {
+	g, err := LoadFile(testdataPath("full_graph.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+	errs := Validate(g)
+	if len(errs) != 0 {
+		t.Errorf("Validate full graph: got %d errors, want 0:", len(errs))
+		for _, e := range errs {
+			t.Logf("  %s", e)
+		}
+	}
+}
+
+func TestValidateOrphanDetected(t *testing.T) {
+	g, err := LoadFile(testdataPath("invalid_orphan.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+	errs := Validate(g)
+	found := false
+	for _, e := range errs {
+		if e.Code == "orphan-context" && e.Context == "orphan-page" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("Expected orphan-context error for 'orphan-page'")
+		for _, e := range errs {
+			t.Logf("  %s", e)
+		}
+	}
+}
+
+func TestValidateUndefinedGuard(t *testing.T) {
+	g, err := LoadFile(testdataPath("invalid_missing_guard.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+	errs := Validate(g)
+	found := false
+	for _, e := range errs {
+		if e.Code == "undefined-guard-ref" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("Expected undefined-guard-ref error")
+		for _, e := range errs {
+			t.Logf("  %s", e)
+		}
+	}
+}
+
+func TestValidateCircularParent(t *testing.T) {
+	g, err := LoadFile(testdataPath("invalid_circular_parent.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+	errs := Validate(g)
+	found := false
+	for _, e := range errs {
+		if e.Code == "circular-parent-chain" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("Expected circular-parent-chain error")
+		for _, e := range errs {
+			t.Logf("  %s", e)
+		}
+	}
+}
+
+func TestValidateDuplicateIDs(t *testing.T) {
+	g, err := LoadFile(testdataPath("invalid_duplicate_ids.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+	errs := Validate(g)
+	found := false
+	for _, e := range errs {
+		if e.Code == "duplicate-context-id" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("Expected duplicate-context-id error")
+		for _, e := range errs {
+			t.Logf("  %s", e)
+		}
+	}
+}
+
+// --- Runner tests ---
+
+func TestRunnerBasicTraversal(t *testing.T) {
+	g, err := LoadFile(testdataPath("minimal_graph.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	runner := NewRunner(g, nil)
+	if runner.Current() != "home" {
+		t.Errorf("Current = %q, want %q", runner.Current(), "home")
+	}
+
+	if err := runner.Traverse("home-to-settings"); err != nil {
+		t.Fatalf("Traverse: %v", err)
+	}
+	if runner.Current() != "settings" {
+		t.Errorf("Current = %q, want %q", runner.Current(), "settings")
+	}
+
+	history := runner.History()
+	if len(history) != 1 {
+		t.Fatalf("History = %d entries, want 1", len(history))
+	}
+	if history[0].TransitionID != "home-to-settings" {
+		t.Errorf("History[0].TransitionID = %q, want %q", history[0].TransitionID, "home-to-settings")
+	}
+}
+
+func TestRunnerGuardBlocking(t *testing.T) {
+	g, err := LoadFile(testdataPath("full_graph.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	// Start without the "instance-active" guard → should block
+	runner := NewRunner(g, nil)
+
+	// Navigate to workspace-detail first
+	if err := runner.Traverse("list-to-workspace"); err != nil {
+		t.Fatalf("Traverse list-to-workspace: %v", err)
+	}
+
+	// Try to navigate to instance overview — guarded by instance-active
+	err = runner.Traverse("workspace-to-instance")
+	if err == nil {
+		t.Fatal("Expected guard to block workspace-to-instance")
+	}
+
+	// Now enable the guard
+	runner.Profile().ToggleGuard("instance-active")
+	if err := runner.Traverse("workspace-to-instance"); err != nil {
+		t.Fatalf("Traverse with guard enabled: %v", err)
+	}
+	if runner.Current() != "instance-overview" {
+		t.Errorf("Current = %q, want %q", runner.Current(), "instance-overview")
+	}
+}
+
+func TestRunnerAvailableTransitions(t *testing.T) {
+	g, err := LoadFile(testdataPath("full_graph.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	runner := NewRunner(g, nil)
+
+	// Navigate to workspace-detail
+	if err := runner.Traverse("list-to-workspace"); err != nil {
+		t.Fatalf("Traverse: %v", err)
+	}
+
+	available := runner.Available()
+	if len(available) == 0 {
+		t.Fatal("Expected available transitions from workspace-detail")
+	}
+
+	// Find the guarded transition
+	var guardedFound bool
+	for _, at := range available {
+		if at.Transition.ID == "workspace-to-instance" {
+			guardedFound = true
+			if at.Allowed {
+				t.Error("workspace-to-instance should be blocked without guard")
+			}
+			if at.BlockedBy == nil {
+				t.Error("Expected BlockedBy to be set")
+			}
+		}
+	}
+	if !guardedFound {
+		t.Error("Expected workspace-to-instance in available transitions")
+	}
+}
+
+func TestRunnerInvalidTransition(t *testing.T) {
+	g, err := LoadFile(testdataPath("minimal_graph.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	runner := NewRunner(g, nil)
+
+	// Try a nonexistent transition
+	if err := runner.Traverse("nonexistent"); err == nil {
+		t.Error("Expected error for nonexistent transition")
+	}
+
+	// Try a transition from wrong context
+	if err := runner.Traverse("home-to-settings"); err != nil {
+		t.Fatalf("Traverse: %v", err)
+	}
+	// Now at settings, try home-to-profile (which starts at home, not settings)
+	if err := runner.Traverse("home-to-profile"); err == nil {
+		t.Error("Expected error for transition from wrong context")
+	}
+}
+
+// --- Scenario runner tests ---
+
+func TestRunScenarioPass(t *testing.T) {
+	g, err := LoadFile(testdataPath("full_graph.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	scenario := JourneyScenario{
+		Name:        "navigate to vision",
+		Steps:       []string{"list-to-workspace", "workspace-to-instance", "instance-to-vision"},
+		Guards:      []string{"instance-active"},
+		ExpectedEnd: "vision",
+	}
+
+	result := RunScenario(g, scenario)
+	if !result.Passed {
+		t.Errorf("Scenario failed: %s (at step %d)", result.FailReason, result.FailedAt)
+	}
+	if result.FinalState != "vision" {
+		t.Errorf("FinalState = %q, want %q", result.FinalState, "vision")
+	}
+}
+
+func TestRunScenarioGuardFails(t *testing.T) {
+	g, err := LoadFile(testdataPath("full_graph.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	scenario := JourneyScenario{
+		Name:  "navigate without guard",
+		Steps: []string{"list-to-workspace", "workspace-to-instance"},
+		// No guards enabled — instance-active guard will block
+	}
+
+	result := RunScenario(g, scenario)
+	if result.Passed {
+		t.Error("Expected scenario to fail on guard")
+	}
+	if result.FailedAt != 1 {
+		t.Errorf("FailedAt = %d, want 1", result.FailedAt)
+	}
+}
+
+func TestRunScenarioWrongEnd(t *testing.T) {
+	g, err := LoadFile(testdataPath("minimal_graph.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	scenario := JourneyScenario{
+		Name:        "expect wrong end",
+		Steps:       []string{"home-to-settings"},
+		ExpectedEnd: "profile", // We went to settings, not profile
+	}
+
+	result := RunScenario(g, scenario)
+	if result.Passed {
+		t.Error("Expected scenario to fail on wrong end context")
+	}
+}
+
+// --- Reachability tests ---
+
+func TestReachableNoGuards(t *testing.T) {
+	g, err := LoadFile(testdataPath("minimal_graph.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	reachable := Reachable(g, "home", nil)
+	// home itself, settings, profile — 3 contexts reachable
+	if len(reachable) != 3 {
+		t.Errorf("Reachable from home = %d contexts, want 3", len(reachable))
+	}
+	if _, ok := reachable["settings"]; !ok {
+		t.Error("settings should be reachable from home")
+	}
+	if _, ok := reachable["profile"]; !ok {
+		t.Error("profile should be reachable from home")
+	}
+}
+
+func TestReachableWithGuards(t *testing.T) {
+	g, err := LoadFile(testdataPath("full_graph.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	// Without any guards, should only reach workspace-list + workspace-detail + create-workspace + import-instance
+	noGuards := Reachable(g, "workspace-list", NewGuardProfile())
+
+	// With instance-active guard, should reach more
+	withGuard := NewGuardProfile()
+	withGuard.Guards["instance-active"] = true
+	withGuardResult := Reachable(g, "workspace-list", withGuard)
+
+	if len(withGuardResult) <= len(noGuards) {
+		t.Errorf("With instance-active guard, should reach more contexts: %d vs %d", len(withGuardResult), len(noGuards))
+	}
+}
+
+func TestShortestPath(t *testing.T) {
+	g, err := LoadFile(testdataPath("full_graph.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	profile := NewGuardProfile()
+	profile.Guards["instance-active"] = true
+
+	path := ShortestPath(g, "workspace-list", "vision", profile)
+	if path == nil {
+		t.Fatal("Expected a path from workspace-list to vision")
+	}
+	if len(path) != 3 {
+		t.Errorf("ShortestPath = %d steps, want 3 (list-to-workspace, workspace-to-instance, instance-to-vision)", len(path))
+	}
+}
+
+func TestShortestPathUnreachable(t *testing.T) {
+	g, err := LoadFile(testdataPath("full_graph.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	// Without guards, semantic-search is guarded — unreachable via longer path
+	path := ShortestPath(g, "workspace-list", "semantic-search", NewGuardProfile())
+	if path != nil {
+		t.Errorf("Expected no path to semantic-search without guards, got %v", path)
+	}
+}
+
+// --- Guard profile tests ---
+
+func TestGuardProfileToggle(t *testing.T) {
+	p := NewGuardProfile()
+	p.ToggleGuard("admin")
+	if !p.Guards["admin"] {
+		t.Error("Expected admin guard to be enabled")
+	}
+	p.ToggleGuard("admin")
+	if p.Guards["admin"] {
+		t.Error("Expected admin guard to be disabled after toggle")
+	}
+
+	p.ToggleGuardGroup("semantic-engine")
+	if !p.GuardGroups["semantic-engine"] {
+		t.Error("Expected semantic-engine group to be enabled")
+	}
+}
+
+func TestGuardProfileSatisfies(t *testing.T) {
+	p := NewGuardProfile()
+	p.Guards["admin-role"] = true
+	p.GuardGroups["premium"] = true
+
+	// Direct guard match
+	guard := &Guard{ID: "admin-role", Description: "test"}
+	if !p.Satisfies(guard) {
+		t.Error("Expected admin-role to be satisfied")
+	}
+
+	// Guard group match
+	groupGuard := &Guard{ID: "pro-feature", Description: "test", GuardGroup: "premium"}
+	if !p.Satisfies(groupGuard) {
+		t.Error("Expected pro-feature to be satisfied via premium group")
+	}
+
+	// Unsatisfied guard
+	otherGuard := &Guard{ID: "super-admin", Description: "test"}
+	if p.Satisfies(otherGuard) {
+		t.Error("Expected super-admin to NOT be satisfied")
+	}
+
+	// Nil guard always passes
+	if !p.Satisfies(nil) {
+		t.Error("Expected nil guard to always be satisfied")
+	}
+}
+
+// --- Emergent Strategy Platform navigation graph (dogfooding) ---
+
+func emergentStrategyGraphPath() string {
+	_, filename, _, _ := runtime.Caller(0)
+	// Navigate from internal/navigation/ up to repo root, then to the EPF instance
+	repoRoot := filepath.Join(filepath.Dir(filename), "..", "..", "..", "..")
+	return filepath.Join(repoRoot, "docs", "EPF", "_instances", "emergent", "FIRE", "navigation_graph.yaml")
+}
+
+func TestEmergentStrategyGraphLoads(t *testing.T) {
+	path := emergentStrategyGraphPath()
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		t.Skipf("Emergent strategy graph not found at %s", path)
+	}
+
+	g, err := LoadFile(path)
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	if g.Name != "emergent-ecosystem" {
+		t.Errorf("Name = %q, want %q", g.Name, "emergent-ecosystem")
+	}
+	if len(g.Contexts) < 30 {
+		t.Errorf("Contexts = %d, want >= 30", len(g.Contexts))
+	}
+	if len(g.Transitions) < 40 {
+		t.Errorf("Transitions = %d, want >= 40", len(g.Transitions))
+	}
+	if len(g.Guards) < 5 {
+		t.Errorf("Guards = %d, want >= 5", len(g.Guards))
+	}
+	if len(g.Groups) < 8 {
+		t.Errorf("Groups = %d, want >= 8", len(g.Groups))
+	}
+}
+
+func TestEmergentStrategyGraphValidates(t *testing.T) {
+	path := emergentStrategyGraphPath()
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		t.Skipf("Emergent strategy graph not found at %s", path)
+	}
+
+	g, err := LoadFile(path)
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	errs := Validate(g)
+	if len(errs) != 0 {
+		t.Errorf("Validate emergent-strategy graph: got %d errors, want 0:", len(errs))
+		for _, e := range errs {
+			t.Logf("  %s", e)
+		}
+	}
+}
+
+func TestEmergentStrategyScenarioOnboard(t *testing.T) {
+	path := emergentStrategyGraphPath()
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		t.Skipf("Emergent strategy graph not found at %s", path)
+	}
+
+	g, err := LoadFile(path)
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	// Scenario: Select project, open strategy dashboard
+	scenario := JourneyScenario{
+		Name:        "onboard-to-dashboard",
+		Description: "New user selects a project and reaches the strategy dashboard",
+		Steps: []string{
+			"home-to-projects",
+			"projects-to-strategy",
+		},
+		Guards:      []string{"project-selected", "instance-active"},
+		ExpectedEnd: "strategy-dashboard",
+	}
+
+	result := RunScenario(g, scenario)
+	if !result.Passed {
+		t.Errorf("Scenario failed: %s (at step %d)", result.FailReason, result.FailedAt)
+	}
+}
+
+func TestEmergentStrategyScenarioUpdateVision(t *testing.T) {
+	path := emergentStrategyGraphPath()
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		t.Skipf("Emergent strategy graph not found at %s", path)
+	}
+
+	g, err := LoadFile(path)
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	// Scenario: Navigate to vision, edit it
+	scenario := JourneyScenario{
+		Name:        "update-vision-flow",
+		Description: "Strategist navigates to vision and edits it",
+		Steps: []string{
+			"home-to-projects",
+			"projects-to-strategy",
+			"dashboard-to-vision",
+			"vision-to-edit",
+		},
+		Guards:      []string{"project-selected", "instance-active", "can-write"},
+		ExpectedEnd: "edit-vision",
+	}
+
+	result := RunScenario(g, scenario)
+	if !result.Passed {
+		t.Errorf("Scenario failed: %s (at step %d)", result.FailReason, result.FailedAt)
+	}
+}
+
+func TestEmergentStrategyScenarioCreateFeature(t *testing.T) {
+	path := emergentStrategyGraphPath()
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		t.Skipf("Emergent strategy graph not found at %s", path)
+	}
+
+	g, err := LoadFile(path)
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	// Scenario: Navigate to features, create new
+	scenario := JourneyScenario{
+		Name:        "create-feature-flow",
+		Description: "Operator navigates to features and creates a new one",
+		Steps: []string{
+			"home-to-projects",
+			"projects-to-strategy",
+			"dashboard-to-features",
+			"features-to-create",
+		},
+		Guards:      []string{"project-selected", "instance-active", "can-write"},
+		ExpectedEnd: "create-feature",
+	}
+
+	result := RunScenario(g, scenario)
+	if !result.Passed {
+		t.Errorf("Scenario failed: %s (at step %d)", result.FailReason, result.FailedAt)
+	}
+}
+
+func TestEmergentStrategyScenarioSemanticSearch(t *testing.T) {
+	path := emergentStrategyGraphPath()
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		t.Skipf("Emergent strategy graph not found at %s", path)
+	}
+
+	g, err := LoadFile(path)
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	// Scenario: Navigate to search, drill into neighborhood
+	scenario := JourneyScenario{
+		Name:        "semantic-search-flow",
+		Description: "User searches strategy, drills into graph neighborhood",
+		Steps: []string{
+			"home-to-projects",
+			"projects-to-strategy",
+			"dashboard-to-search",
+			"search-to-graph",
+		},
+		Guards:      []string{"project-selected", "instance-active", "memory-connected"},
+		ExpectedEnd: "graph-neighborhood",
+	}
+
+	result := RunScenario(g, scenario)
+	if !result.Passed {
+		t.Errorf("Scenario failed: %s (at step %d)", result.FailReason, result.FailedAt)
+	}
+}
+
+func TestEmergentStrategyScenarioContradictionFix(t *testing.T) {
+	path := emergentStrategyGraphPath()
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		t.Skipf("Emergent strategy graph not found at %s", path)
+	}
+
+	g, err := LoadFile(path)
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	// Scenario: Find contradiction, fix it via feature edit
+	scenario := JourneyScenario{
+		Name:        "contradiction-fix-flow",
+		Description: "User finds contradiction, navigates to fix via feature edit",
+		Steps: []string{
+			"home-to-projects",
+			"projects-to-strategy",
+			"dashboard-to-contradictions",
+			"contradiction-to-edit",
+		},
+		Guards:      []string{"project-selected", "instance-active", "can-write", "memory-connected"},
+		ExpectedEnd: "edit-feature",
+	}
+
+	result := RunScenario(g, scenario)
+	if !result.Passed {
+		t.Errorf("Scenario failed: %s (at step %d)", result.FailReason, result.FailedAt)
+	}
+}
+
+func TestEmergentStrategyScenarioWhatIf(t *testing.T) {
+	path := emergentStrategyGraphPath()
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		t.Skipf("Emergent strategy graph not found at %s", path)
+	}
+
+	g, err := LoadFile(path)
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	// Scenario: Create a what-if scenario
+	scenario := JourneyScenario{
+		Name:        "what-if-flow",
+		Description: "User creates a what-if scenario",
+		Steps: []string{
+			"home-to-projects",
+			"projects-to-strategy",
+			"dashboard-to-scenarios",
+			"scenarios-to-create",
+		},
+		Guards:      []string{"project-selected", "instance-active", "can-write", "memory-connected"},
+		ExpectedEnd: "create-scenario",
+	}
+
+	result := RunScenario(g, scenario)
+	if !result.Passed {
+		t.Errorf("Scenario failed: %s (at step %d)", result.FailReason, result.FailedAt)
+	}
+}
+
+func TestEmergentStrategyScenarioObserverReadOnly(t *testing.T) {
+	path := emergentStrategyGraphPath()
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		t.Skipf("Emergent strategy graph not found at %s", path)
+	}
+
+	g, err := LoadFile(path)
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	// Scenario: Observer (no can-write) can view strategy but NOT edit
+	scenario := JourneyScenario{
+		Name:        "observer-blocked-from-editing",
+		Description: "Observer can view vision but is blocked from editing (no can-write guard)",
+		Steps: []string{
+			"home-to-projects",
+			"projects-to-strategy",
+			"dashboard-to-vision",
+			"vision-to-edit", // Should FAIL — guarded by can-write
+		},
+		Guards: []string{"project-selected", "instance-active"},
+		// Deliberately NOT including "can-write"
+	}
+
+	result := RunScenario(g, scenario)
+	if result.Passed {
+		t.Error("Expected observer to be blocked from editing vision")
+	}
+	if result.FailedAt != 3 {
+		t.Errorf("FailedAt = %d, want 3 (vision-to-edit)", result.FailedAt)
+	}
+}
+
+func TestEmergentStrategyReachabilityByPersona(t *testing.T) {
+	path := emergentStrategyGraphPath()
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		t.Skipf("Emergent strategy graph not found at %s", path)
+	}
+
+	g, err := LoadFile(path)
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	// Strategist: full access
+	strategist := NewGuardProfile()
+	strategist.Guards["project-selected"] = true
+	strategist.Guards["instance-active"] = true
+	strategist.Guards["can-write"] = true
+	strategist.Guards["memory-connected"] = true
+	strategistReach := Reachable(g, g.EntryContext, strategist)
+
+	// Observer: read-only, no memory
+	observer := NewGuardProfile()
+	observer.Guards["project-selected"] = true
+	observer.Guards["instance-active"] = true
+	observerReach := Reachable(g, g.EntryContext, observer)
+
+	// Unauthenticated: nothing beyond ecosystem-home
+	unauth := NewGuardProfile()
+	unauthReach := Reachable(g, g.EntryContext, unauth)
+
+	t.Logf("Strategist reaches %d contexts", len(strategistReach))
+	t.Logf("Observer reaches %d contexts", len(observerReach))
+	t.Logf("Unauthenticated reaches %d contexts", len(unauthReach))
+
+	// Strategist should reach more than observer
+	if len(strategistReach) <= len(observerReach) {
+		t.Errorf("Strategist (%d) should reach more than observer (%d)", len(strategistReach), len(observerReach))
+	}
+
+	// Observer should reach more than unauthenticated
+	if len(observerReach) <= len(unauthReach) {
+		t.Errorf("Observer (%d) should reach more than unauthenticated (%d)", len(observerReach), len(unauthReach))
+	}
+
+	// Strategist should reach edit-vision, observer should not
+	if _, ok := strategistReach["edit-vision"]; !ok {
+		t.Error("Strategist should reach edit-vision")
+	}
+	if _, ok := observerReach["edit-vision"]; ok {
+		t.Error("Observer should NOT reach edit-vision")
+	}
+
+	// Strategist should reach strategy-search (memory-connected), observer should not
+	if _, ok := strategistReach["strategy-search"]; !ok {
+		t.Error("Strategist should reach strategy-search")
+	}
+	if _, ok := observerReach["strategy-search"]; ok {
+		t.Error("Observer should NOT reach strategy-search (no memory guard)")
+	}
+}
+
+// --- Mermaid Diagram Tests ---
+
+func TestMermaidMinimalGraph(t *testing.T) {
+	g, err := LoadFile(testdataPath("minimal_graph.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+	mmd := g.ToMermaid(nil)
+	if !strings.Contains(mmd, "graph TD") {
+		t.Error("expected graph TD header")
+	}
+	if !strings.Contains(mmd, "home") {
+		t.Error("expected home node")
+	}
+	if !strings.Contains(mmd, "-->") {
+		t.Error("expected transition arrows")
+	}
+	t.Log("Minimal graph Mermaid:\n" + mmd)
+}
+
+func TestMermaidWithGroups(t *testing.T) {
+	g, err := LoadFile(testdataPath("full_graph.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+	mmd := g.ToMermaid(&MermaidOptions{ShowGroups: true, ShowGuards: true})
+	if !strings.Contains(mmd, "subgraph") {
+		t.Error("expected subgraph for groups")
+	}
+	t.Log("Full graph with groups:\n" + mmd)
+}
+
+func TestMermaidReachability(t *testing.T) {
+	g, err := LoadFile(testdataPath("full_graph.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	profile := NewGuardProfile()
+	profile.Guards["authenticated"] = true
+	profile.Guards["instance-active"] = true
+
+	mmd := g.ToMermaid(&MermaidOptions{
+		Profile:    profile,
+		ShowGuards: true,
+	})
+	if !strings.Contains(mmd, "classDef reachable") {
+		t.Error("expected reachable class definition")
+	}
+	if !strings.Contains(mmd, "classDef blocked") {
+		t.Error("expected blocked class definition")
+	}
+	t.Log("Reachability diagram:\n" + mmd)
+}
+
+func TestMermaidGroupFilter(t *testing.T) {
+	g, err := LoadFile(testdataPath("21st_captable_navigation.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	// Render only the captable group
+	mmd := g.ToMermaid(&MermaidOptions{
+		Group:      "captable",
+		ShowGuards: true,
+		Direction:  "LR",
+	})
+	// Should contain captable contexts but not governance/reporting contexts
+	if !strings.Contains(mmd, "captable_summary") {
+		t.Error("expected captable-summary node")
+	}
+	t.Log("21st-captable (captable group only):\n" + mmd)
+}
+
+func TestMermaidComposition(t *testing.T) {
+	root, err := LoadFile(testdataPath("composition/platform.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+	composed, err := Compose(root, testdataPath("composition"))
+	if err != nil {
+		t.Fatalf("Compose: %v", err)
+	}
+
+	mmd := ToMermaidComposed(composed, nil)
+	if !strings.Contains(mmd, "subgraph root") {
+		t.Error("expected root subgraph")
+	}
+	if !strings.Contains(mmd, "subgraph captable") {
+		t.Error("expected captable subgraph")
+	}
+	if !strings.Contains(mmd, "-.->") {
+		t.Error("expected dashed portal edge arrows")
+	}
+	t.Log("Composition diagram:\n" + mmd)
+}
+
+// --- 21st-captable Reference Migration Tests ---
+
+func TestLoad21stCaptableGraph(t *testing.T) {
+	g, err := LoadFile(testdataPath("21st_captable_navigation.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+	if g.Name != "twentyfirst-captable" {
+		t.Errorf("Name = %q, want %q", g.Name, "twentyfirst-captable")
+	}
+	if g.EntryContext != "global-dashboard" {
+		t.Errorf("EntryContext = %q, want global-dashboard", g.EntryContext)
+	}
+
+	// Verify scale
+	if len(g.Contexts) < 100 {
+		t.Errorf("Contexts = %d, want >= 100 (production-scale graph)", len(g.Contexts))
+	}
+	if len(g.Transitions) < 140 {
+		t.Errorf("Transitions = %d, want >= 140", len(g.Transitions))
+	}
+	if len(g.Guards) != 8 {
+		t.Errorf("Guards = %d, want 8", len(g.Guards))
+	}
+	if len(g.Groups) < 9 {
+		t.Errorf("Groups = %d, want >= 9", len(g.Groups))
+	}
+	if len(g.Menus) != 2 {
+		t.Errorf("Menus = %d, want 2", len(g.Menus))
+	}
+	t.Logf("21st-captable graph: %d contexts, %d transitions, %d guards, %d groups, %d menus",
+		len(g.Contexts), len(g.Transitions), len(g.Guards), len(g.Groups), len(g.Menus))
+}
+
+func TestValidate21stCaptableGraph(t *testing.T) {
+	g, err := LoadFile(testdataPath("21st_captable_navigation.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+	errs := Validate(g)
+	if len(errs) != 0 {
+		t.Errorf("expected 0 validation errors, got %d:", len(errs))
+		for _, e := range errs {
+			t.Logf("  %s", e)
+		}
+	}
+}
+
+func TestRun21stCaptableHappyPath(t *testing.T) {
+	g, err := LoadFile(testdataPath("21st_captable_navigation.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	// Scenario: Company admin navigates from dashboard to cap table, then issues shares
+	scenario := JourneyScenario{
+		Name:        "admin-issue-shares",
+		Description: "Company admin navigates from dashboard to cap table, then issues shares",
+		Steps: []string{
+			"dashboard-to-orgs",
+			"orgs-to-company",
+			"company-to-captable",
+			"captable-to-issue",
+		},
+		Guards:      []string{"company-exists", "share-classes", "shares-exist", "shares-allowed"},
+		ExpectedEnd: "share-issue",
+	}
+	result := RunScenario(g, scenario)
+	if !result.Passed {
+		t.Errorf("scenario %q failed at step %d: %s", result.Scenario, result.FailedAt, result.FailReason)
+	}
+}
+
+func TestReachability21stCaptableByRole(t *testing.T) {
+	g, err := LoadFile(testdataPath("21st_captable_navigation.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	// Full access profile (AS company, shares exist, premium)
+	fullProfile := NewGuardProfile()
+	for _, guardID := range []string{
+		"company-exists", "share-classes", "shares-exist",
+		"shares-allowed", "premium-tier", "instrument-at-cursor",
+	} {
+		fullProfile.Guards[guardID] = true
+	}
+
+	// Minimal profile (just logged in, no company)
+	minimalProfile := NewGuardProfile()
+
+	// Members-only profile (SA/BRL company — cooperative)
+	memberProfile := NewGuardProfile()
+	memberProfile.Guards["company-exists"] = true
+	memberProfile.Guards["members-allowed"] = true
+
+	fullReach := Reachable(g, "global-dashboard", fullProfile)
+	minimalReach := Reachable(g, "global-dashboard", minimalProfile)
+	memberReach := Reachable(g, "global-dashboard", memberProfile)
+
+	t.Logf("Full-access reaches %d contexts", len(fullReach))
+	t.Logf("Minimal reaches %d contexts", len(minimalReach))
+	t.Logf("Member-mode reaches %d contexts", len(memberReach))
+
+	// Full access should reach significantly more than minimal
+	if len(fullReach) <= len(minimalReach) {
+		t.Errorf("Full access (%d) should reach more than minimal (%d)", len(fullReach), len(minimalReach))
+	}
+
+	// Member profile should reach member-list (behind members-allowed guard)
+	if _, ok := memberReach["member-list"]; !ok {
+		t.Error("Member profile should reach member-list screen")
+	}
+
+	// Full access should reach captable-summary, minimal should not
+	if _, ok := fullReach["captable-summary"]; !ok {
+		t.Error("Full-access profile should reach captable-summary")
+	}
+	if _, ok := minimalReach["captable-summary"]; ok {
+		t.Error("Minimal profile should NOT reach captable-summary")
+	}
+}
+
+func TestShortestPath21stCaptable(t *testing.T) {
+	g, err := LoadFile(testdataPath("21st_captable_navigation.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	// Full access profile
+	profile := NewGuardProfile()
+	for _, guardID := range []string{
+		"company-exists", "share-classes", "shares-exist", "shares-allowed",
+	} {
+		profile.Guards[guardID] = true
+	}
+
+	// Dashboard to tax-report should be reachable
+	path := ShortestPath(g, "global-dashboard", "tax-report", profile)
+	if path == nil {
+		t.Fatal("No path from global-dashboard to tax-report")
+	}
+	t.Logf("Dashboard -> Tax Report: %d steps via %v", len(path), path)
+
+	// Dashboard to share-issue should be reachable
+	path = ShortestPath(g, "global-dashboard", "share-issue", profile)
+	if path == nil {
+		t.Fatal("No path from global-dashboard to share-issue")
+	}
+	t.Logf("Dashboard -> Share Issue: %d steps via %v", len(path), path)
+
+	// Without share-classes, share-issue should be unreachable from dashboard
+	// (all direct paths to share-issue require the share-classes guard)
+	restrictedProfile := NewGuardProfile()
+	restrictedProfile.Guards["company-exists"] = true
+	restrictedProfile.Guards["shares-allowed"] = true
+	// Has shares-allowed but not share-classes
+	path = ShortestPath(g, "global-dashboard", "share-issue", restrictedProfile)
+	if path != nil {
+		t.Errorf("Should NOT reach share-issue without share-classes guard, but found path: %v", path)
+	}
+}
+
+// --- Multi-Service Composition Tests ---
+
+func TestComposeLoadAndValidate(t *testing.T) {
+	root, err := LoadFile(testdataPath("composition/platform.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile platform: %v", err)
+	}
+
+	// Verify imports and portal edges parsed correctly
+	if len(root.Imports) != 1 {
+		t.Fatalf("imports = %d, want 1", len(root.Imports))
+	}
+	if root.Imports[0].Service != "captable" {
+		t.Errorf("import service = %q, want captable", root.Imports[0].Service)
+	}
+	if len(root.PortalEdges) != 3 {
+		t.Fatalf("portal_edges = %d, want 3", len(root.PortalEdges))
+	}
+}
+
+func TestComposeWithSubGraph(t *testing.T) {
+	root, err := LoadFile(testdataPath("composition/platform.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile platform: %v", err)
+	}
+
+	composed, err := Compose(root, testdataPath("composition"))
+	if err != nil {
+		t.Fatalf("Compose: %v", err)
+	}
+
+	if len(composed.Services) != 1 {
+		t.Fatalf("services = %d, want 1", len(composed.Services))
+	}
+	captable := composed.Services["captable"]
+	if captable == nil {
+		t.Fatal("captable service not loaded")
+	}
+	if len(captable.Contexts) < 5 {
+		t.Errorf("captable contexts = %d, want >= 5", len(captable.Contexts))
+	}
+}
+
+func TestValidateCompositionValid(t *testing.T) {
+	root, err := LoadFile(testdataPath("composition/platform.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	composed, err := Compose(root, testdataPath("composition"))
+	if err != nil {
+		t.Fatalf("Compose: %v", err)
+	}
+
+	errs := ValidateComposition(root, composed.Services)
+	if len(errs) != 0 {
+		t.Errorf("expected 0 composition errors, got %d:", len(errs))
+		for _, e := range errs {
+			t.Logf("  %s", e)
+		}
+	}
+}
+
+func TestValidateCompositionBrokenPortal(t *testing.T) {
+	root, err := LoadFile(testdataPath("composition/platform.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	// Add a broken portal edge
+	root.PortalEdges = append(root.PortalEdges, PortalEdge{
+		ID:     "portal-broken",
+		Source: "nonexistent-context",
+		Target: "captable:also-nonexistent",
+	})
+
+	composed, err := Compose(root, testdataPath("composition"))
+	if err != nil {
+		t.Fatalf("Compose: %v", err)
+	}
+
+	errs := ValidateComposition(root, composed.Services)
+	if len(errs) < 2 {
+		t.Errorf("expected at least 2 errors for broken portal, got %d", len(errs))
+	}
+
+	foundSource := false
+	foundTarget := false
+	for _, e := range errs {
+		if e.Code == "unresolved-portal-source" {
+			foundSource = true
+		}
+		if e.Code == "unresolved-portal-target" {
+			foundTarget = true
+		}
+	}
+	if !foundSource {
+		t.Error("expected unresolved-portal-source error")
+	}
+	if !foundTarget {
+		t.Error("expected unresolved-portal-target error")
+	}
+}
+
+func TestMergeAndTraverse(t *testing.T) {
+	root, err := LoadFile(testdataPath("composition/platform.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	composed, err := Compose(root, testdataPath("composition"))
+	if err != nil {
+		t.Fatalf("Compose: %v", err)
+	}
+
+	merged := composed.Merge()
+
+	// Merged graph should have contexts from both services
+	rootContexts := 7  // platform
+	subContexts := 8   // captable
+	if len(merged.Contexts) != rootContexts+subContexts {
+		t.Errorf("merged contexts = %d, want %d", len(merged.Contexts), rootContexts+subContexts)
+	}
+
+	// Should have transitions from both + portal edges
+	rootTransitions := 7
+	subTransitions := 8
+	portalTransitions := 3
+	expectedTransitions := rootTransitions + subTransitions + portalTransitions
+	if len(merged.Transitions) != expectedTransitions {
+		t.Errorf("merged transitions = %d, want %d", len(merged.Transitions), expectedTransitions)
+	}
+
+	// The merged graph should be traversable with the runner
+	profile := NewGuardProfile()
+	profile.Guards["company-selected"] = true
+
+	runner := NewRunner(merged, profile)
+	if runner.Current() != "home" {
+		t.Errorf("start = %q, want home", runner.Current())
+	}
+
+	// Navigate: home -> company-list -> company-dashboard -> portal to captable
+	steps := []string{
+		"home-to-orgs",
+		"orgs-to-company",
+		"portal-company-to-captable",
+	}
+	for _, step := range steps {
+		if err := runner.Traverse(step); err != nil {
+			t.Fatalf("Traverse(%q): %v", step, err)
+		}
+	}
+
+	// Should now be in the captable service's dashboard (namespaced)
+	if runner.Current() != "captable:captable-dashboard" {
+		t.Errorf("after portal: %q, want captable:captable-dashboard", runner.Current())
+	}
+
+	// Continue inside the captable sub-graph
+	if err := runner.Traverse("captable:dash-to-captable"); err != nil {
+		t.Fatalf("Traverse captable:dash-to-captable: %v", err)
+	}
+	if runner.Current() != "captable:cap-table" {
+		t.Errorf("in captable: %q, want captable:cap-table", runner.Current())
+	}
+}
+
+func TestMergeReachabilityAcrossPortals(t *testing.T) {
+	root, err := LoadFile(testdataPath("composition/platform.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	composed, err := Compose(root, testdataPath("composition"))
+	if err != nil {
+		t.Fatalf("Compose: %v", err)
+	}
+
+	merged := composed.Merge()
+
+	// Full access profile
+	profile := NewGuardProfile()
+	profile.Guards["company-selected"] = true
+	profile.Guards["captable:share-classes"] = true
+	profile.Guards["captable:shares-exist"] = true
+
+	reachable := Reachable(merged, "home", profile)
+
+	t.Logf("Reachable from home across services: %d contexts", len(reachable))
+
+	// Should reach captable contexts through portal edges
+	if _, ok := reachable["captable:cap-table"]; !ok {
+		t.Error("should reach captable:cap-table through portal edge")
+	}
+	if _, ok := reachable["captable:issue-shares"]; !ok {
+		t.Error("should reach captable:issue-shares through portal + captable transitions")
+	}
+	if _, ok := reachable["captable:rf1086"]; !ok {
+		t.Error("should reach captable:rf1086 through portal")
+	}
+
+	// Should also reach platform contexts
+	if _, ok := reachable["meeting-list"]; !ok {
+		t.Error("should reach meeting-list (platform context)")
+	}
+}
+
+func TestMergeShortestPathAcrossPortals(t *testing.T) {
+	root, err := LoadFile(testdataPath("composition/platform.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	composed, err := Compose(root, testdataPath("composition"))
+	if err != nil {
+		t.Fatalf("Compose: %v", err)
+	}
+
+	merged := composed.Merge()
+
+	profile := NewGuardProfile()
+	profile.Guards["company-selected"] = true
+
+	// Path from platform home to captable's GA voting (cross-service)
+	path := ShortestPath(merged, "home", "captable:ga-voting", profile)
+	if path == nil {
+		t.Fatal("no path from home to captable:ga-voting")
+	}
+	t.Logf("Home -> captable:ga-voting: %d steps via %v", len(path), path)
+
+	// Path from captable's voting back to platform's meeting (via portal edge)
+	path = ShortestPath(merged, "captable:ga-voting", "meeting-detail", profile)
+	if path == nil {
+		t.Fatal("no path from captable:ga-voting to meeting-detail")
+	}
+	t.Logf("captable:ga-voting -> meeting-detail: %d steps via %v", len(path), path)
+}
