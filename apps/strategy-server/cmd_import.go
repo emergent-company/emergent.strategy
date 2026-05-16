@@ -102,7 +102,7 @@ func runImport(cfg *config.Config) error {
 
 	// --- Optionally ingest into Memory graph ---
 	if imp.Reingest && cfg.MemoryConfigured() {
-		slog.Info("decomposing and ingesting into Memory graph")
+		slog.Info("ingesting into Memory graph (artifact + decomposed layers)")
 
 		authMode := memory.AuthModeAPIKey
 		if cfg.MemoryAuthMode == "bearer" {
@@ -117,15 +117,18 @@ func runImport(cfg *config.Config) error {
 		if err != nil {
 			slog.Warn("ingest: failed to create Memory client, skipping", "err", err)
 		} else {
+			// Layer 1: Flat artifacts (label: layer:artifact).
+			// These are the direct YAML-file-level objects that MCP tools reference.
+			ingestSvc := ingest.NewService(db, memClient)
+			if err := ingestSvc.ReingestInstance(ctx, inst.ID); err != nil {
+				slog.Warn("ingest: flat artifact layer failed", "err", err)
+			}
+
+			// Layer 2: Decomposed sub-entities (label: layer:decomposed).
+			// These provide fine-grained search and graph traversal.
 			absPath, _ := filepath.Abs(imp.InstancePath)
 			if err := ingestDecomposed(ctx, memClient, absPath, inst.ID.String()); err != nil {
-				slog.Warn("ingest: decompose failed, falling back to flat re-ingest", "err", err)
-				ingestSvc := ingest.NewService(db, memClient)
-				if err := ingestSvc.ReingestInstance(ctx, inst.ID); err != nil {
-					slog.Warn("ingest: flat re-ingest also failed", "err", err)
-				}
-			} else {
-				slog.Info("ingest: decomposed ingestion complete")
+				slog.Warn("ingest: decomposed layer failed", "err", err)
 			}
 		}
 	}
@@ -329,11 +332,13 @@ func ingestDecomposed(ctx context.Context, client *memory.Client, instancePath, 
 	keyToID := make(map[string]string, len(result.Objects))
 	upserted, upsertFailed := 0, 0
 	for _, obj := range result.Objects {
+		// Merge decomposer labels with the layer:decomposed label.
+		labels := append(obj.Labels, "layer:decomposed")
 		created, err := client.UpsertObject(ctx, memory.UpsertObjectRequest{
 			Type:       obj.Type,
 			Key:        obj.Key,
 			Status:     obj.Status,
-			Labels:     obj.Labels,
+			Labels:     labels,
 			Properties: obj.Properties,
 		})
 		if err != nil {

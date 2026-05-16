@@ -217,6 +217,7 @@ func (s *Service) upsertGraphObject(ctx context.Context, a domain.StrategyArtifa
 		Type:       a.ArtifactType,
 		Key:        a.ArtifactKey,
 		Status:     a.Status,
+		Labels:     []string{"layer:artifact"},
 		Properties: props,
 	})
 	return obj, err
