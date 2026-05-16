@@ -151,6 +151,8 @@ func ExtractRelationships(artifactType, artifactKey string, payload []byte) []Re
 		return extractPortfolioRelationships(artifactKey, raw)
 	case "assessment_report":
 		return extractAssessmentRelationships(artifactKey, raw)
+	case "calibration_memo":
+		return extractCalibrationRelationships(artifactKey, raw)
 	}
 	return nil
 }
@@ -375,6 +377,72 @@ func extractAssessmentRelationships(key string, raw map[string]any) []Relationsh
 				Metadata:     map[string]any{"status": strField(av, "status")},
 			})
 		}
+	}
+
+	return rels
+}
+
+// ---------------------------------------------------------------------------
+// Calibration memo: references to strategy artifacts that need updating
+// ---------------------------------------------------------------------------
+
+func extractCalibrationRelationships(key string, raw map[string]any) []Relationship {
+	var rels []Relationship
+
+	// calibration.decision references the overall strategic decision
+	cal := nestedMap(raw, "calibration")
+	if cal == nil {
+		cal = raw // flat structure fallback
+	}
+
+	// continue_doing / stop_doing / start_exploring may reference artifact keys
+	for _, action := range []string{"continue_doing", "stop_doing", "start_exploring"} {
+		for _, item := range mapSlice(cal, action) {
+			if ref := strField(item, "artifact_key"); ref != "" {
+				rels = append(rels, Relationship{
+					TargetKey:    ref,
+					TargetType:   "artifact",
+					Relationship: "calibrates",
+					Metadata:     map[string]any{"action": action},
+				})
+			}
+		}
+	}
+
+	// inputs_for_next_ready may reference specific artifacts to update
+	inputs := nestedMap(cal, "inputs_for_next_ready")
+	if inputs != nil {
+		for _, section := range []string{"opportunity_update", "strategy_update", "new_assumptions"} {
+			items := mapSlice(inputs, section)
+			for _, item := range items {
+				if ref := strField(item, "artifact_key"); ref != "" {
+					rels = append(rels, Relationship{
+						TargetKey:    ref,
+						TargetType:   "artifact",
+						Relationship: "calibrates",
+						Metadata:     map[string]any{"section": section},
+					})
+				}
+			}
+		}
+	}
+
+	// If the calibration has a decision (persevere/pivot/pull_the_plug),
+	// link to north_star and strategy_formula as they may need review.
+	decision := strField(cal, "decision")
+	if decision == "pivot" || decision == "pull_the_plug" {
+		rels = append(rels, Relationship{
+			TargetKey:    "north_star",
+			TargetType:   "north_star",
+			Relationship: "calibrates",
+			Metadata:     map[string]any{"decision": decision},
+		})
+		rels = append(rels, Relationship{
+			TargetKey:    "strategy_formula",
+			TargetType:   "strategy_formula",
+			Relationship: "calibrates",
+			Metadata:     map[string]any{"decision": decision},
+		})
 	}
 
 	return rels

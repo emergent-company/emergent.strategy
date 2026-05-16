@@ -183,11 +183,88 @@ func AnalyzeStructuralRipple(ctx context.Context, db *bun.DB, instanceID uuid.UU
 		})
 	}
 
+	// Multi-hop propagation: when the changed artifact references intermediate
+	// nodes (like assumptions), find other artifacts that also reference those
+	// nodes. This is critical for AIM → READY/FIRE ripple.
+	//
+	// Example: assessment_report validates_assumption asm-001
+	//          fd-003 tests_assumption asm-001
+	//          → fd-003 should get a ripple signal because asm-001's status changed.
+	for _, r := range upstreamRels {
+		// For each target this artifact points at, find OTHER artifacts
+		// that also point at the same target (via any relationship).
+		var coTargetRels []domain.StrategyRelationship
+		err = db.NewSelect().Model(&coTargetRels).
+			Where("sr.instance_id = ?", instanceID).
+			Where("sr.target_key = ?", r.TargetKey).
+			Where("sr.source_key != ?", changedKey). // exclude self
+			Scan(ctx)
+		if err != nil {
+			continue
+		}
+
+		for _, coRel := range coTargetRels {
+			// Skip if already in the affected list.
+			alreadyIncluded := false
+			for _, a := range report.AffectedArtifacts {
+				if a.ArtifactKey == coRel.SourceKey {
+					alreadyIncluded = true
+					break
+				}
+			}
+			if alreadyIncluded {
+				continue
+			}
+
+			a := artifactMap[coRel.SourceKey]
+			if a == nil {
+				// Load this artifact if not already loaded.
+				loadedArt := new(domain.StrategyArtifact)
+				loadErr := db.NewSelect().Model(loadedArt).
+					Where("sa.instance_id = ?", instanceID).
+					Where("sa.artifact_key = ?", coRel.SourceKey).
+					Where("sa.status = ?", domain.ArtifactStatusActive).
+					Scan(ctx)
+				if loadErr != nil {
+					continue
+				}
+				a = loadedArt
+			}
+
+			staleDays := 0
+			if a.UpdatedAt.Before(changeTime) {
+				staleDays = int(changeTime.Sub(a.UpdatedAt).Hours() / 24)
+			}
+			name := ""
+			if a.Name != nil {
+				name = *a.Name
+			}
+			track := ""
+			if a.Track != nil {
+				track = *a.Track
+			}
+
+			report.AffectedArtifacts = append(report.AffectedArtifacts, AffectedArtifact{
+				ArtifactKey:  a.ArtifactKey,
+				ArtifactType: a.ArtifactType,
+				Name:         name,
+				Track:        track,
+				Relationship: fmt.Sprintf("co-references %s via %s", r.TargetKey, coRel.Relationship),
+				Direction:    "transitive",
+				StaleDays:    staleDays,
+				UpdatedAt:    a.UpdatedAt.Format(time.RFC3339),
+			})
+		}
+	}
+
 	// Classify severity.
 	for _, a := range report.AffectedArtifacts {
-		if a.Direction == "downstream" && a.StaleDays > 0 {
+		switch {
+		case a.Direction == "downstream" && a.StaleDays > 0:
 			report.WarningCount++
-		} else {
+		case a.Direction == "transitive" && a.StaleDays > 0:
+			report.WarningCount++
+		default:
 			report.InfoCount++
 		}
 	}
@@ -281,9 +358,9 @@ func AnalyzeCoherence(ctx context.Context, db *bun.DB, instanceID uuid.UUID) (*S
 func GenerateSignalsFromRipple(instanceID uuid.UUID, report *StructuralRippleReport) []*domain.RippleSignal {
 	var signals []*domain.RippleSignal
 
-	// Signals for stale downstream artifacts.
+	// Signals for stale downstream and transitive artifacts.
 	for _, a := range report.AffectedArtifacts {
-		if a.Direction != "downstream" || a.StaleDays == 0 {
+		if (a.Direction != "downstream" && a.Direction != "transitive") || a.StaleDays == 0 {
 			continue
 		}
 		severity := domain.SignalSeverityInfo
@@ -293,9 +370,17 @@ func GenerateSignalsFromRipple(instanceID uuid.UUID, report *StructuralRippleRep
 		if a.StaleDays > 30 {
 			severity = domain.SignalSeverityCritical
 		}
-		desc := fmt.Sprintf("%s (%s) has not been updated in %d days since %s changed. Relationship: %s.",
-			a.ArtifactKey, a.ArtifactType, a.StaleDays, report.ChangedKey, a.Relationship)
-		suggestion := fmt.Sprintf("Review %s for alignment with recent changes to %s.", a.ArtifactKey, report.ChangedKey)
+
+		var desc, suggestion string
+		if a.Direction == "transitive" {
+			desc = fmt.Sprintf("%s (%s) may need review — it %s which was affected by changes to %s. Last updated %d days ago.",
+				a.ArtifactKey, a.ArtifactType, a.Relationship, report.ChangedKey, a.StaleDays)
+			suggestion = fmt.Sprintf("Review %s — a shared dependency was updated by %s. Check if the artifact's content still aligns with the updated context.", a.ArtifactKey, report.ChangedKey)
+		} else {
+			desc = fmt.Sprintf("%s (%s) has not been updated in %d days since %s changed. Relationship: %s.",
+				a.ArtifactKey, a.ArtifactType, a.StaleDays, report.ChangedKey, a.Relationship)
+			suggestion = fmt.Sprintf("Review %s for alignment with recent changes to %s.", a.ArtifactKey, report.ChangedKey)
+		}
 
 		signals = append(signals, &domain.RippleSignal{
 			InstanceID:  instanceID,
