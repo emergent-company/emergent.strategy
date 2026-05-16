@@ -524,20 +524,20 @@ func TestEmergentStrategyGraphLoads(t *testing.T) {
 		t.Fatalf("LoadFile: %v", err)
 	}
 
-	if g.Name != "emergent-strategy-platform" {
-		t.Errorf("Name = %q, want %q", g.Name, "emergent-strategy-platform")
+	if g.Name != "emergent-ecosystem" {
+		t.Errorf("Name = %q, want %q", g.Name, "emergent-ecosystem")
 	}
-	if len(g.Contexts) < 20 {
-		t.Errorf("Contexts = %d, want >= 20", len(g.Contexts))
+	if len(g.Contexts) < 30 {
+		t.Errorf("Contexts = %d, want >= 30", len(g.Contexts))
 	}
-	if len(g.Transitions) < 30 {
-		t.Errorf("Transitions = %d, want >= 30", len(g.Transitions))
+	if len(g.Transitions) < 40 {
+		t.Errorf("Transitions = %d, want >= 40", len(g.Transitions))
 	}
-	if len(g.Guards) < 4 {
-		t.Errorf("Guards = %d, want >= 4", len(g.Guards))
+	if len(g.Guards) < 5 {
+		t.Errorf("Guards = %d, want >= 5", len(g.Guards))
 	}
-	if len(g.Groups) < 6 {
-		t.Errorf("Groups = %d, want >= 6", len(g.Groups))
+	if len(g.Groups) < 8 {
+		t.Errorf("Groups = %d, want >= 8", len(g.Groups))
 	}
 }
 
@@ -572,15 +572,16 @@ func TestEmergentStrategyScenarioOnboard(t *testing.T) {
 		t.Fatalf("LoadFile: %v", err)
 	}
 
-	// Scenario: Onboard → create workspace → import instance → view dashboard
+	// Scenario: Select project, open strategy dashboard
 	scenario := JourneyScenario{
 		Name:        "onboard-to-dashboard",
-		Description: "New user creates a workspace, imports an instance, reaches the dashboard",
+		Description: "New user selects a project and reaches the strategy dashboard",
 		Steps: []string{
-			"list-to-create-workspace",   // workspace-list → create-workspace
-			// After POST, redirects back to workspace-list, then to workspace-detail
+			"home-to-projects",
+			"projects-to-strategy",
 		},
-		ExpectedEnd: "create-workspace",
+		Guards:      []string{"project-selected", "instance-active"},
+		ExpectedEnd: "strategy-dashboard",
 	}
 
 	result := RunScenario(g, scenario)
@@ -600,20 +601,18 @@ func TestEmergentStrategyScenarioUpdateVision(t *testing.T) {
 		t.Fatalf("LoadFile: %v", err)
 	}
 
-	// Scenario: Navigate to vision, edit, review staging, commit
+	// Scenario: Navigate to vision, edit it
 	scenario := JourneyScenario{
 		Name:        "update-vision-flow",
-		Description: "Strategist navigates to vision, edits it, reviews staged change, commits",
+		Description: "Strategist navigates to vision and edits it",
 		Steps: []string{
-			"list-to-workspace",          // workspace-list → workspace-detail
-			"workspace-to-instance",      // workspace-detail → instance-dashboard
-			"dashboard-to-vision",        // instance-dashboard → vision
-			"vision-to-edit",             // vision → edit-vision
-			"edit-vision-to-staging",     // edit-vision → staging-review
-			"staging-commit-to-dashboard", // staging-review → instance-dashboard
+			"home-to-projects",
+			"projects-to-strategy",
+			"dashboard-to-vision",
+			"vision-to-edit",
 		},
-		Guards:      []string{"authenticated", "instance-active", "can-write"},
-		ExpectedEnd: "instance-dashboard",
+		Guards:      []string{"project-selected", "instance-active", "can-write"},
+		ExpectedEnd: "edit-vision",
 	}
 
 	result := RunScenario(g, scenario)
@@ -633,20 +632,18 @@ func TestEmergentStrategyScenarioCreateFeature(t *testing.T) {
 		t.Fatalf("LoadFile: %v", err)
 	}
 
-	// Scenario: Navigate to features, create new, review staging, commit
+	// Scenario: Navigate to features, create new
 	scenario := JourneyScenario{
 		Name:        "create-feature-flow",
-		Description: "Operator creates a new feature, reviews staged change, commits",
+		Description: "Operator navigates to features and creates a new one",
 		Steps: []string{
-			"list-to-workspace",
-			"workspace-to-instance",
+			"home-to-projects",
+			"projects-to-strategy",
 			"dashboard-to-features",
 			"features-to-create",
-			"create-feature-to-staging",
-			"staging-commit-to-dashboard",
 		},
-		Guards:      []string{"authenticated", "instance-active", "can-write"},
-		ExpectedEnd: "instance-dashboard",
+		Guards:      []string{"project-selected", "instance-active", "can-write"},
+		ExpectedEnd: "create-feature",
 	}
 
 	result := RunScenario(g, scenario)
@@ -671,13 +668,12 @@ func TestEmergentStrategyScenarioSemanticSearch(t *testing.T) {
 		Name:        "semantic-search-flow",
 		Description: "User searches strategy, drills into graph neighborhood",
 		Steps: []string{
-			"list-to-workspace",
-			"workspace-to-instance",
+			"home-to-projects",
+			"projects-to-strategy",
 			"dashboard-to-search",
-			"search-to-neighborhood",
+			"search-to-graph",
 		},
-		Guards:      []string{"authenticated", "instance-active", "memory-connected"},
-		GuardGroups: []string{"semantic-engine"},
+		Guards:      []string{"project-selected", "instance-active", "memory-connected"},
 		ExpectedEnd: "graph-neighborhood",
 	}
 
@@ -698,21 +694,18 @@ func TestEmergentStrategyScenarioContradictionFix(t *testing.T) {
 		t.Fatalf("LoadFile: %v", err)
 	}
 
-	// Scenario: Find contradiction, fix it via feature edit, commit
+	// Scenario: Find contradiction, fix it via feature edit
 	scenario := JourneyScenario{
 		Name:        "contradiction-fix-flow",
-		Description: "User finds contradiction, navigates to fix via feature edit, stages and commits",
+		Description: "User finds contradiction, navigates to fix via feature edit",
 		Steps: []string{
-			"list-to-workspace",
-			"workspace-to-instance",
+			"home-to-projects",
+			"projects-to-strategy",
 			"dashboard-to-contradictions",
-			"contradictions-to-edit-feature",
-			"edit-feature-to-staging",
-			"staging-commit-to-dashboard",
+			"contradiction-to-edit",
 		},
-		Guards:      []string{"authenticated", "instance-active", "can-write", "memory-connected"},
-		GuardGroups: []string{"semantic-engine"},
-		ExpectedEnd: "instance-dashboard",
+		Guards:      []string{"project-selected", "instance-active", "can-write", "memory-connected"},
+		ExpectedEnd: "edit-feature",
 	}
 
 	result := RunScenario(g, scenario)
@@ -732,18 +725,17 @@ func TestEmergentStrategyScenarioWhatIf(t *testing.T) {
 		t.Fatalf("LoadFile: %v", err)
 	}
 
-	// Scenario: Create a what-if scenario, review, commit to staging
+	// Scenario: Create a what-if scenario
 	scenario := JourneyScenario{
 		Name:        "what-if-flow",
-		Description: "User creates a what-if scenario, evaluates it, commits to staging",
+		Description: "User creates a what-if scenario",
 		Steps: []string{
-			"list-to-workspace",
-			"workspace-to-instance",
+			"home-to-projects",
+			"projects-to-strategy",
 			"dashboard-to-scenarios",
 			"scenarios-to-create",
 		},
-		Guards:      []string{"authenticated", "instance-active", "can-write", "memory-connected"},
-		GuardGroups: []string{"semantic-engine"},
+		Guards:      []string{"project-selected", "instance-active", "can-write", "memory-connected"},
 		ExpectedEnd: "create-scenario",
 	}
 
@@ -769,12 +761,12 @@ func TestEmergentStrategyScenarioObserverReadOnly(t *testing.T) {
 		Name:        "observer-blocked-from-editing",
 		Description: "Observer can view vision but is blocked from editing (no can-write guard)",
 		Steps: []string{
-			"list-to-workspace",
-			"workspace-to-instance",
+			"home-to-projects",
+			"projects-to-strategy",
 			"dashboard-to-vision",
 			"vision-to-edit", // Should FAIL — guarded by can-write
 		},
-		Guards: []string{"authenticated", "instance-active"},
+		Guards: []string{"project-selected", "instance-active"},
 		// Deliberately NOT including "can-write"
 	}
 
@@ -800,22 +792,21 @@ func TestEmergentStrategyReachabilityByPersona(t *testing.T) {
 
 	// Strategist: full access
 	strategist := NewGuardProfile()
-	strategist.Guards["authenticated"] = true
+	strategist.Guards["project-selected"] = true
 	strategist.Guards["instance-active"] = true
 	strategist.Guards["can-write"] = true
 	strategist.Guards["memory-connected"] = true
-	strategist.GuardGroups["semantic-engine"] = true
-	strategistReach := Reachable(g, "workspace-list", strategist)
+	strategistReach := Reachable(g, g.EntryContext, strategist)
 
 	// Observer: read-only, no memory
 	observer := NewGuardProfile()
-	observer.Guards["authenticated"] = true
+	observer.Guards["project-selected"] = true
 	observer.Guards["instance-active"] = true
-	observerReach := Reachable(g, "workspace-list", observer)
+	observerReach := Reachable(g, g.EntryContext, observer)
 
-	// Unauthenticated: nothing beyond workspace-list
+	// Unauthenticated: nothing beyond ecosystem-home
 	unauth := NewGuardProfile()
-	unauthReach := Reachable(g, "workspace-list", unauth)
+	unauthReach := Reachable(g, g.EntryContext, unauth)
 
 	t.Logf("Strategist reaches %d contexts", len(strategistReach))
 	t.Logf("Observer reaches %d contexts", len(observerReach))
@@ -839,12 +830,12 @@ func TestEmergentStrategyReachabilityByPersona(t *testing.T) {
 		t.Error("Observer should NOT reach edit-vision")
 	}
 
-	// Strategist should reach semantic-search, observer should not (no memory-connected)
-	if _, ok := strategistReach["semantic-search"]; !ok {
-		t.Error("Strategist should reach semantic-search")
+	// Strategist should reach strategy-search (memory-connected), observer should not
+	if _, ok := strategistReach["strategy-search"]; !ok {
+		t.Error("Strategist should reach strategy-search")
 	}
-	if _, ok := observerReach["semantic-search"]; ok {
-		t.Error("Observer should NOT reach semantic-search (no memory guard)")
+	if _, ok := observerReach["strategy-search"]; ok {
+		t.Error("Observer should NOT reach strategy-search (no memory guard)")
 	}
 }
 
