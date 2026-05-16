@@ -42,6 +42,70 @@ type DependencyRef struct {
 	Reason string `yaml:"reason"`
 }
 
+// DefinitionTrack represents the track a definition belongs to.
+type DefinitionTrack string
+
+const (
+	TrackProduct    DefinitionTrack = "product"
+	TrackStrategy   DefinitionTrack = "strategy"
+	TrackOrgOps     DefinitionTrack = "org_ops"
+	TrackCommercial DefinitionTrack = "commercial"
+)
+
+// AllDefinitionTracks returns all 4 EPF definition tracks.
+func AllDefinitionTracks() []DefinitionTrack {
+	return []DefinitionTrack{TrackProduct, TrackStrategy, TrackOrgOps, TrackCommercial}
+}
+
+// DefinitionTrackDirs maps each track to its subdirectory name under FIRE/definitions/.
+var DefinitionTrackDirs = map[DefinitionTrack]string{
+	TrackProduct:    "product",
+	TrackStrategy:   "strategy",
+	TrackOrgOps:     "org_ops",
+	TrackCommercial: "commercial",
+}
+
+// DefinitionPrefixToTrack maps definition ID prefixes to tracks.
+var DefinitionPrefixToTrack = map[string]DefinitionTrack{
+	"fd": TrackProduct,
+	"sd": TrackStrategy,
+	"pd": TrackOrgOps,
+	"cd": TrackCommercial,
+}
+
+// IsDefinitionFile returns true if the filename matches a known definition prefix.
+func IsDefinitionFile(basename string) bool {
+	for prefix := range DefinitionPrefixToTrack {
+		if strings.HasPrefix(basename, prefix+"-") {
+			return true
+		}
+	}
+	return false
+}
+
+// InferTrackFromPath returns the track for a definition based on its file path.
+// It checks the parent directory name first (definitions/<track>/), then falls
+// back to the ID prefix.
+func InferTrackFromPath(filePath string) DefinitionTrack {
+	// Check parent directory
+	dir := filepath.Dir(filePath)
+	dirName := filepath.Base(dir)
+	for track, trackDir := range DefinitionTrackDirs {
+		if dirName == trackDir {
+			return track
+		}
+	}
+	// Fall back to prefix
+	base := filepath.Base(filePath)
+	parts := strings.SplitN(base, "-", 2)
+	if len(parts) >= 2 {
+		if track, ok := DefinitionPrefixToTrack[parts[0]]; ok {
+			return track
+		}
+	}
+	return TrackProduct // default
+}
+
 // FeatureDefinition represents a feature definition that defines
 // solution specifications for a user problem.
 type FeatureDefinition struct {
@@ -62,6 +126,9 @@ type FeatureDefinition struct {
 
 	// FilePath is set by the loader to indicate where this was loaded from.
 	FilePath string `yaml:"-"`
+
+	// Track is set by the loader to indicate which track this definition belongs to.
+	Track DefinitionTrack `yaml:"-"`
 }
 
 // FeatureSet holds all loaded feature definitions with various indexes.
@@ -78,6 +145,9 @@ type FeatureSet struct {
 	// Reverse index: value_model_path -> features that contribute to it
 	ByValueModelPath map[string][]*FeatureDefinition
 
+	// Features indexed by definition track
+	ByDefinitionTrack map[DefinitionTrack][]*FeatureDefinition
+
 	// Instance path this was loaded from
 	Instance string
 }
@@ -85,10 +155,11 @@ type FeatureSet struct {
 // NewFeatureSet creates an empty feature set.
 func NewFeatureSet() *FeatureSet {
 	return &FeatureSet{
-		ByID:             make(map[string]*FeatureDefinition),
-		BySlug:           make(map[string]*FeatureDefinition),
-		ByStatus:         make(map[FeatureStatus][]*FeatureDefinition),
-		ByValueModelPath: make(map[string][]*FeatureDefinition),
+		ByID:              make(map[string]*FeatureDefinition),
+		BySlug:            make(map[string]*FeatureDefinition),
+		ByStatus:          make(map[FeatureStatus][]*FeatureDefinition),
+		ByValueModelPath:  make(map[string][]*FeatureDefinition),
+		ByDefinitionTrack: make(map[DefinitionTrack][]*FeatureDefinition),
 	}
 }
 
@@ -104,60 +175,68 @@ func NewFeatureLoader(instancePath string) *FeatureLoader {
 	}
 }
 
-// Load loads all feature definitions from the instance's FIRE/definitions/product/ directory.
+// Load loads all feature definitions from the instance's FIRE/definitions/ directory,
+// scanning all 4 track subdirectories: product/, strategy/, org_ops/, commercial/.
 func (l *FeatureLoader) Load() (*FeatureSet, error) {
 	set := NewFeatureSet()
 	set.Instance = l.instancePath
 
-	// Feature definitions are in FIRE/definitions/product/
-	featureDefsDir := filepath.Join(l.instancePath, "FIRE", "definitions", "product")
+	// Scan all 4 track subdirectories under FIRE/definitions/
+	for _, track := range AllDefinitionTracks() {
+		trackDir := filepath.Join(l.instancePath, "FIRE", "definitions", DefinitionTrackDirs[track])
 
-	// Check if directory exists
-	if _, err := os.Stat(featureDefsDir); os.IsNotExist(err) {
-		return set, nil // No feature definitions directory - return empty set
-	}
-
-	// Find all YAML files
-	entries, err := os.ReadDir(featureDefsDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read definitions/product directory: %w", err)
-	}
-
-	for _, entry := range entries {
-		if entry.IsDir() {
+		// Skip tracks whose directory doesn't exist
+		if _, err := os.Stat(trackDir); os.IsNotExist(err) {
 			continue
 		}
 
-		name := entry.Name()
-		if !strings.HasSuffix(name, ".yaml") && !strings.HasSuffix(name, ".yml") {
-			continue
-		}
-
-		filePath := filepath.Join(featureDefsDir, name)
-		feature, err := l.LoadFile(filePath)
+		entries, err := os.ReadDir(trackDir)
 		if err != nil {
-			// Log warning but continue with other files
-			fmt.Fprintf(os.Stderr, "Warning: failed to load feature definition %s: %v\n", name, err)
-			continue
+			return nil, fmt.Errorf("failed to read definitions/%s directory: %w", DefinitionTrackDirs[track], err)
 		}
 
-		// Index by ID
-		if feature.ID != "" {
-			set.ByID[feature.ID] = feature
-		}
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
 
-		// Index by slug
-		if feature.Slug != "" {
-			set.BySlug[feature.Slug] = feature
-		}
+			name := entry.Name()
+			if !strings.HasSuffix(name, ".yaml") && !strings.HasSuffix(name, ".yml") {
+				continue
+			}
 
-		// Index by status
-		set.ByStatus[feature.Status] = append(set.ByStatus[feature.Status], feature)
+			filePath := filepath.Join(trackDir, name)
+			feature, err := l.LoadFile(filePath)
+			if err != nil {
+				// Log warning but continue with other files
+				fmt.Fprintf(os.Stderr, "Warning: failed to load definition %s: %v\n", name, err)
+				continue
+			}
 
-		// Build reverse index: value_model_path -> features
-		for _, path := range feature.StrategicContext.ContributesTo {
-			normalizedPath := NormalizeValueModelPath(path)
-			set.ByValueModelPath[normalizedPath] = append(set.ByValueModelPath[normalizedPath], feature)
+			// Set the track from directory
+			feature.Track = track
+
+			// Index by ID
+			if feature.ID != "" {
+				set.ByID[feature.ID] = feature
+			}
+
+			// Index by slug
+			if feature.Slug != "" {
+				set.BySlug[feature.Slug] = feature
+			}
+
+			// Index by status
+			set.ByStatus[feature.Status] = append(set.ByStatus[feature.Status], feature)
+
+			// Index by definition track
+			set.ByDefinitionTrack[track] = append(set.ByDefinitionTrack[track], feature)
+
+			// Build reverse index: value_model_path -> features
+			for _, path := range feature.StrategicContext.ContributesTo {
+				normalizedPath := NormalizeValueModelPath(path)
+				set.ByValueModelPath[normalizedPath] = append(set.ByValueModelPath[normalizedPath], feature)
+			}
 		}
 	}
 

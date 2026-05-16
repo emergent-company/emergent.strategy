@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/relationships"
-	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/template"
 )
 
 // RelationshipsChecker validates EPF artifact relationships.
@@ -153,17 +152,10 @@ func (c *RelationshipsChecker) Check() (*RelationshipsResult, error) {
 		result.OrphanFeatures = len(coverageAnalysis.OrphanFeatures)
 		result.UncoveredL2s = len(coverageAnalysis.UncoveredL2Components)
 
-		// Filter strategic gaps to product track only.
-		// Canonical tracks (strategy, org_ops, commercial) don't have user-authored
-		// feature definitions (fd-* files), so KR targets in those tracks without
-		// feature coverage should not penalize the score.
-		productGaps := 0
-		for _, gap := range coverageAnalysis.KRTargetsWithoutFeatures {
-			if strings.HasPrefix(gap, "Product.") || template.IsProductTrackString(strings.SplitN(gap, ".", 2)[0]) {
-				productGaps++
-			}
-		}
-		result.StrategicGaps = productGaps
+		// Count strategic gaps across all tracks.
+		// Now that all tracks have definitions loaded, KR targets without
+		// feature coverage in any track are genuine gaps.
+		result.StrategicGaps = len(coverageAnalysis.KRTargetsWithoutFeatures)
 
 		// Get detailed per-track coverage
 		trackDetails := analyzer.GetDetailedCoverageByTrack()
@@ -210,78 +202,91 @@ func (c *RelationshipsChecker) generateSuggestions(
 		}
 	}
 
-	// 2. High priority: Strategic gaps (KR targets without features)
-	// Only show gaps for product track paths — canonical tracks don't have
-	// user-authored feature definitions
+	// 2. High priority: Strategic gaps (KR targets without features) across all tracks
+	gapSuggestionCount := 0
 	for _, gap := range coverageAnalysis.KRTargetsWithoutFeatures {
-		if !strings.HasPrefix(gap, "Product.") {
-			continue // Skip canonical track gaps
+		// Determine the track directory from the path prefix
+		trackDir := "product"
+		if parts := strings.SplitN(gap, ".", 2); len(parts) >= 1 {
+			switch strings.ToLower(parts[0]) {
+			case "strategy":
+				trackDir = "strategy"
+			case "orgops", "org_ops":
+				trackDir = "org_ops"
+			case "commercial":
+				trackDir = "commercial"
+			}
 		}
 		suggestions = append(suggestions, RelationshipSuggestion{
 			Priority: "high",
 			Category: "strategic_gap",
-			Message:  fmt.Sprintf("KR targets '%s' but no features contribute to it", gap),
-			Action:   "Create a feature definition with contributes_to including this path, or add this path to an existing feature's contributes_to",
+			Message:  fmt.Sprintf("KR targets '%s' but no definitions contribute to it", gap),
+			Action:   "Create a definition with contributes_to including this path, or add this path to an existing definition's contributes_to",
 			MCPTool:  "epf_suggest_relationships",
 			MCPParams: map[string]string{
 				"artifact_type": "feature",
-				"artifact_path": "FIRE/definitions/product/",
+				"artifact_path": "FIRE/definitions/" + trackDir + "/",
 			},
 		})
+		gapSuggestionCount++
 		// Limit strategic gap suggestions
-		if len(suggestions) >= 3 {
+		if gapSuggestionCount >= 3 {
 			break
 		}
 	}
 
 	// 3. Medium priority: Orphan features (no contributes_to)
+	orphanSuggestionCount := 0
 	for _, feature := range coverageAnalysis.OrphanFeatures {
+		// Determine the track directory from the feature's ID prefix
+		trackDir := "product"
+		if parts := strings.SplitN(feature.ID, "-", 2); len(parts) >= 1 {
+			switch parts[0] {
+			case "sd":
+				trackDir = "strategy"
+			case "pd":
+				trackDir = "org_ops"
+			case "cd":
+				trackDir = "commercial"
+			}
+		}
 		suggestions = append(suggestions, RelationshipSuggestion{
 			Priority: "medium",
 			Category: "orphan_feature",
 			Source:   feature.ID,
-			Message:  fmt.Sprintf("Feature %s (%s) has no contributes_to paths", feature.ID, feature.Name),
-			Action:   "Add contributes_to paths to link this feature to the value model",
+			Message:  fmt.Sprintf("Definition %s (%s) has no contributes_to paths", feature.ID, feature.Name),
+			Action:   "Add contributes_to paths to link this definition to the value model",
 			MCPTool:  "epf_suggest_relationships",
 			MCPParams: map[string]string{
 				"artifact_type": "feature",
-				"artifact_path": fmt.Sprintf("FIRE/definitions/product/%s.yaml", feature.ID),
+				"artifact_path": fmt.Sprintf("FIRE/definitions/%s/%s.yaml", trackDir, feature.ID),
 			},
 		})
+		orphanSuggestionCount++
 		// Limit orphan suggestions
-		if len(suggestions) >= 5 {
+		if orphanSuggestionCount >= 5 {
 			break
 		}
 	}
 
 	// 4. Low priority: Low coverage advice
 	if coverageAnalysis.CoveragePercent < 20 && len(coverageAnalysis.UncoveredL2Components) > 0 {
-		// Find the Product track uncovered components (most likely relevant)
-		var productUncovered []string
-		for _, path := range coverageAnalysis.UncoveredL2Components {
-			if template.IsProductTrackString(strings.SplitN(path, ".", 2)[0]) {
-				productUncovered = append(productUncovered, path)
-			}
+		// Show up to 3 uncovered paths across all tracks
+		showPaths := coverageAnalysis.UncoveredL2Components
+		if len(showPaths) > 3 {
+			showPaths = showPaths[:3]
+		}
+		pathList := ""
+		for _, p := range showPaths {
+			pathList += "\n      - " + p
 		}
 
-		if len(productUncovered) > 0 {
-			// Show up to 3 uncovered Product paths
-			showPaths := productUncovered
-			if len(showPaths) > 3 {
-				showPaths = showPaths[:3]
-			}
-			pathList := ""
-			for _, p := range showPaths {
-				pathList += "\n      - " + p
-			}
-
-			suggestions = append(suggestions, RelationshipSuggestion{
-				Priority: "low",
-				Category: "low_coverage",
-				Message:  fmt.Sprintf("Only %.0f%% of value model is covered by features. Key uncovered Product paths:%s", coverageAnalysis.CoveragePercent, pathList),
-				Action:   "Review existing features and add contributes_to paths, or create new features for uncovered components",
-			})
-		}
+		suggestions = append(suggestions, RelationshipSuggestion{
+			Priority: "low",
+			Category: "low_coverage",
+			Message:  fmt.Sprintf("Only %.0f%% of value model is covered by definitions. Key uncovered paths:%s", coverageAnalysis.CoveragePercent, pathList),
+			Action:   "Review existing definitions and add contributes_to paths, or create new definitions for uncovered components",
+		})
 	}
 
 	// 5. Suggest running suggest_relationships for analysis
@@ -336,12 +341,8 @@ func (c *RelationshipsChecker) calculateScore(result *RelationshipsResult) int {
 	score -= gapPenalty
 
 	// Bonus for high coverage (up to 10 points back)
-	// Use product-track-only coverage if available, as canonical tracks
-	// don't have feature definitions and would dilute the overall percentage
+	// Now that all tracks load definitions, overall coverage reflects all tracks.
 	coveragePct := result.CoveragePercent
-	if productTrack, ok := result.CoverageByTrack["Product"]; ok && productTrack.CoveragePercent >= 0 {
-		coveragePct = productTrack.CoveragePercent
-	}
 	if coveragePct >= 80 {
 		score += 10
 	} else if coveragePct >= 60 {

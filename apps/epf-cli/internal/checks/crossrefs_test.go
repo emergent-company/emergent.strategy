@@ -6,9 +6,9 @@ import (
 	"testing"
 )
 
-// TestCrossRefExcludesCanonicalDefinitions verifies that cross-reference
-// checking only looks at fd-* files, not canonical definitions (sd-*, pd-*, cd-*).
-func TestCrossRefExcludesCanonicalDefinitions(t *testing.T) {
+// TestCrossRefChecksAllTracks verifies that cross-reference checking validates
+// definitions from all tracks (product, strategy, org_ops, commercial).
+func TestCrossRefChecksAllTracks(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create FIRE/definitions/product with one product feature
@@ -20,58 +20,97 @@ dependencies:
   requires: []
 `), 0644)
 
-	// Create READY/definitions with canonical definitions that have "dependencies"
-	// These should NOT be checked
-	defDir := filepath.Join(tmpDir, "FIRE", "definitions", "strategy")
-	os.MkdirAll(defDir, 0755)
-	os.WriteFile(filepath.Join(defDir, "sd-001.yaml"), []byte(`id: "sd-001"
+	// Create strategy definition that references product feature
+	sdDir := filepath.Join(tmpDir, "FIRE", "definitions", "strategy")
+	os.MkdirAll(sdDir, 0755)
+	os.WriteFile(filepath.Join(sdDir, "sd-001.yaml"), []byte(`id: "sd-001"
 name: "Strategy Def"
 dependencies:
   requires:
-    - id: "nonexistent-feature"
-      reason: "Should not be checked"
+    - id: "fd-001"
+      reason: "Cross-track dependency"
 `), 0644)
 
-	// Check only FIRE dir (normal usage)
+	// Check the FIRE directory
 	checker := NewCrossReferenceChecker(filepath.Join(tmpDir, "FIRE"))
 	result, err := checker.Check()
 	if err != nil {
 		t.Fatalf("Check() error: %v", err)
 	}
 
-	// Should only find fd-001
-	if result.TotalFeatures != 1 {
-		t.Errorf("Expected 1 feature, got %d", result.TotalFeatures)
+	// Should find both fd-001 and sd-001
+	if result.TotalFeatures != 2 {
+		t.Errorf("Expected 2 features (fd-001 + sd-001), got %d", result.TotalFeatures)
 	}
 
-	// No broken links (fd-001 has empty requires)
+	// No broken links — sd-001 references fd-001 which exists
 	if len(result.BrokenLinks) != 0 {
 		t.Errorf("Expected 0 broken links, got %d", len(result.BrokenLinks))
+		for _, bl := range result.BrokenLinks {
+			t.Logf("  Broken: %s -> %s (%s)", bl.SourceFeatureID, bl.TargetID, bl.Message)
+		}
 	}
 }
 
-// TestCrossRefFromInstanceRoot verifies canonical defs in READY/ are excluded
-// when checking from the instance root.
-func TestCrossRefFromInstanceRoot(t *testing.T) {
+// TestCrossRefDetectsBrokenCrossTrackDependency verifies that a broken
+// cross-track dependency reference is properly detected.
+func TestCrossRefDetectsBrokenCrossTrackDependency(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create a canonical definition in READY
-	defDir := filepath.Join(tmpDir, "FIRE", "definitions", "org_ops")
-	os.MkdirAll(defDir, 0755)
-	os.WriteFile(filepath.Join(defDir, "pd-001.yaml"), []byte(`id: "pd-001"
-name: "OrgOps Def"
+	// Create a commercial definition with a broken cross-track reference
+	cdDir := filepath.Join(tmpDir, "FIRE", "definitions", "commercial")
+	os.MkdirAll(cdDir, 0755)
+	os.WriteFile(filepath.Join(cdDir, "cd-001.yaml"), []byte(`id: "cd-001"
+name: "Commercial Def"
+dependencies:
+  requires:
+    - id: "nonexistent-feature"
+      reason: "Should be detected as broken"
 `), 0644)
 
-	// No definitions/product dir
 	checker := NewCrossReferenceChecker(tmpDir)
 	result, err := checker.Check()
 	if err != nil {
 		t.Fatalf("Check() error: %v", err)
 	}
 
-	// Should find 0 features (pd-001 doesn't match fd-* prefix)
-	if result.TotalFeatures != 0 {
-		t.Errorf("Expected 0 features (canonical excluded), got %d", result.TotalFeatures)
+	if result.TotalFeatures != 1 {
+		t.Errorf("Expected 1 feature (cd-001), got %d", result.TotalFeatures)
+	}
+
+	if len(result.BrokenLinks) != 1 {
+		t.Errorf("Expected 1 broken link, got %d", len(result.BrokenLinks))
+	}
+}
+
+// TestCrossRefFromInstanceRootFindsAllTracks verifies that checking from the
+// instance root finds definitions across all tracks.
+func TestCrossRefFromInstanceRootFindsAllTracks(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create an org_ops definition
+	pdDir := filepath.Join(tmpDir, "FIRE", "definitions", "org_ops")
+	os.MkdirAll(pdDir, 0755)
+	os.WriteFile(filepath.Join(pdDir, "pd-001.yaml"), []byte(`id: "pd-001"
+name: "OrgOps Def"
+`), 0644)
+
+	// Create a product definition
+	fdDir := filepath.Join(tmpDir, "FIRE", "definitions", "product")
+	os.MkdirAll(fdDir, 0755)
+	os.WriteFile(filepath.Join(fdDir, "fd-001.yaml"), []byte(`id: "fd-001"
+name: "Product Def"
+`), 0644)
+
+	checker := NewCrossReferenceChecker(tmpDir)
+	result, err := checker.Check()
+	if err != nil {
+		t.Fatalf("Check() error: %v", err)
+	}
+
+	// Should find both pd-001 and fd-001
+	if result.TotalFeatures != 2 {
+		t.Errorf("Expected 2 features (pd-001 + fd-001), got %d", result.TotalFeatures)
 	}
 }
 

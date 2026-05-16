@@ -292,11 +292,11 @@ func TestCoverageGapStructure(t *testing.T) {
 	}
 }
 
-// TestExtractRoadmapKeyResultFieldsProductOnly tests that only product track KR fields are extracted
-func TestExtractRoadmapKeyResultFieldsProductOnly(t *testing.T) {
+// TestExtractRoadmapKeyResultFieldsAllTracks tests that KR fields from all tracks are extracted
+func TestExtractRoadmapKeyResultFieldsAllTracks(t *testing.T) {
 	checker := NewFieldCoverageChecker("/instance", "/taxonomy")
 
-	// Roadmap with product and canonical tracks
+	// Roadmap with product and other tracks
 	content := map[string]interface{}{
 		"roadmap": map[string]interface{}{
 			"tracks": map[string]interface{}{
@@ -357,30 +357,22 @@ func TestExtractRoadmapKeyResultFieldsProductOnly(t *testing.T) {
 
 	fields := checker.extractRoadmapKeyResultFields(content)
 
-	// Product track fields should be present
-	productFields := []string{"id", "trl_start", "trl_target", "technical_hypothesis", "success_criteria"}
-	for _, f := range productFields {
+	// Fields from all tracks should be present
+	allFields := []string{"id", "trl_start", "trl_target", "technical_hypothesis", "success_criteria", "strategy_field", "ops_field", "commercial_field"}
+	for _, f := range allFields {
 		if !fields[f] {
-			t.Errorf("Expected product field %q to be present", f)
-		}
-	}
-
-	// Canonical track fields should NOT be present
-	canonicalOnlyFields := []string{"strategy_field", "ops_field", "commercial_field"}
-	for _, f := range canonicalOnlyFields {
-		if fields[f] {
-			t.Errorf("Canonical-only field %q should NOT be present in extracted fields", f)
+			t.Errorf("Expected field %q to be present (should extract from all tracks)", f)
 		}
 	}
 }
 
-// TestExtractRoadmapKeyResultFieldsNoCanonicalInflation verifies that having
-// canonical tracks with all fields doesn't inflate the product coverage score.
-func TestExtractRoadmapKeyResultFieldsNoCanonicalInflation(t *testing.T) {
+// TestExtractRoadmapKeyResultFieldsAcrossTracks verifies that fields from all
+// tracks are extracted and combined.
+func TestExtractRoadmapKeyResultFieldsAcrossTracks(t *testing.T) {
 	checker := NewFieldCoverageChecker("/instance", "/taxonomy")
 
-	// Product track is missing critical fields
-	contentWithCanonical := map[string]interface{}{
+	// Product track has some fields, strategy track has additional fields
+	content := map[string]interface{}{
 		"roadmap": map[string]interface{}{
 			"tracks": map[string]interface{}{
 				"product": map[string]interface{}{
@@ -390,7 +382,6 @@ func TestExtractRoadmapKeyResultFieldsNoCanonicalInflation(t *testing.T) {
 								map[string]interface{}{
 									"id":   "kr-p-001",
 									"name": "Some KR",
-									// Missing trl_start, trl_target, etc.
 								},
 							},
 						},
@@ -415,23 +406,21 @@ func TestExtractRoadmapKeyResultFieldsNoCanonicalInflation(t *testing.T) {
 		},
 	}
 
-	// Product-only result (no canonical track inflation)
-	fieldsWithCanonical := checker.extractRoadmapKeyResultFields(contentWithCanonical)
+	// All track fields should now be extracted
+	fields := checker.extractRoadmapKeyResultFields(content)
 
-	// Product track is missing TRL fields — those from strategy should NOT leak in
-	if fieldsWithCanonical["trl_start"] {
-		t.Error("trl_start should not be present — it only exists in canonical strategy track")
-	}
-	if fieldsWithCanonical["technical_hypothesis"] {
-		t.Error("technical_hypothesis should not be present — it only exists in canonical strategy track")
-	}
-
-	// Only product track fields should be present
-	if !fieldsWithCanonical["id"] {
+	// Fields from both tracks should be present
+	if !fields["id"] {
 		t.Error("id should be present from product track")
 	}
-	if !fieldsWithCanonical["name"] {
+	if !fields["name"] {
 		t.Error("name should be present from product track")
+	}
+	if !fields["trl_start"] {
+		t.Error("trl_start should be present from strategy track (all tracks now extracted)")
+	}
+	if !fields["technical_hypothesis"] {
+		t.Error("technical_hypothesis should be present from strategy track (all tracks now extracted)")
 	}
 }
 

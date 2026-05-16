@@ -36,35 +36,29 @@ func TestCalculateScoreNoCanonicalGapPenalty(t *testing.T) {
 	}
 }
 
-// TestCalculateScoreProductOnlyCoverageBonus verifies that the coverage bonus
-// uses product-track coverage instead of overall coverage.
-func TestCalculateScoreProductOnlyCoverageBonus(t *testing.T) {
+// TestCalculateScoreOverallCoverageBonus verifies that the coverage bonus
+// uses overall coverage across all tracks.
+func TestCalculateScoreOverallCoverageBonus(t *testing.T) {
 	checker := NewRelationshipsChecker("/test")
 
-	// Overall coverage is 30% (canonical tracks dragging it down),
-	// but Product track is 80% — should still get the 10-point bonus
+	// Overall coverage is 30% — now that all tracks have definitions,
+	// this is the true coverage across all tracks.
 	result := &RelationshipsResult{
 		TotalPathsChecked: 5,
 		ValidPaths:        5,
 		InvalidPaths:      0,
 		OrphanFeatures:    0,
 		StrategicGaps:     0,
-		CoveragePercent:   30, // Low overall — diluted by canonical tracks
+		CoveragePercent:   30, // Low overall coverage — no bonus
 		CoverageByTrack: map[string]*TrackCoverage{
 			"Product": {
 				TrackName:       "Product",
 				TotalL2:         5,
 				CoveredL2:       4,
-				CoveragePercent: 80, // High product-only coverage
+				CoveragePercent: 80,
 			},
 			"Strategy": {
 				TrackName:       "Strategy",
-				TotalL2:         10,
-				CoveredL2:       0,
-				CoveragePercent: 0, // No features in canonical track
-			},
-			"OrgOps": {
-				TrackName:       "OrgOps",
 				TotalL2:         10,
 				CoveredL2:       0,
 				CoveragePercent: 0,
@@ -73,9 +67,9 @@ func TestCalculateScoreProductOnlyCoverageBonus(t *testing.T) {
 	}
 
 	score := checker.calculateScore(result)
-	// 100 base + 10 bonus (product at 80%) = 110, capped at 100
+	// 100 base + 0 bonus (overall at 30%, below 60% threshold) = 100
 	if score != 100 {
-		t.Errorf("Expected score 100 (with product coverage bonus), got %d", score)
+		t.Errorf("Expected score 100 (no bonus for low overall coverage), got %d", score)
 	}
 }
 

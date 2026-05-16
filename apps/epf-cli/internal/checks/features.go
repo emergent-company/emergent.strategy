@@ -103,8 +103,9 @@ func (c *FeatureQualityChecker) Check() (*FeatureQualitySummary, error) {
 				return nil
 			}
 
-			// Check if it's a feature definition (fd-*.yaml or in definitions/product/)
-			if strings.HasPrefix(base, "fd-") || strings.Contains(path, "definitions/product") {
+			// Check if it's a definition file from any track
+			// Matches: fd-*, sd-*, pd-*, cd-* prefixes or files under definitions/<track>/
+			if isDefinitionFile(base, path) {
 				result := c.checkFeatureFile(path)
 				summary.Results = append(summary.Results, result)
 				summary.TotalFeatures++
@@ -667,6 +668,29 @@ func (c *FeatureQualityChecker) checkContributesToCardinality(feature map[string
 			Actual:   fmt.Sprintf("%d path", len(ct)),
 		})
 	}
+}
+
+// definitionPrefixes are the ID prefixes for all EPF definition tracks.
+var definitionPrefixes = []string{"fd-", "sd-", "pd-", "cd-"}
+
+// definitionTrackDirs are the directory names for all EPF definition tracks.
+var definitionTrackDirs = []string{"product", "strategy", "org_ops", "commercial"}
+
+// isDefinitionFile returns true if a file is a definition from any track.
+// Matches files with known prefixes (fd-*, sd-*, pd-*, cd-*) or files
+// under any definitions/<track>/ directory.
+func isDefinitionFile(basename, fullPath string) bool {
+	for _, prefix := range definitionPrefixes {
+		if strings.HasPrefix(basename, prefix) {
+			return true
+		}
+	}
+	for _, trackDir := range definitionTrackDirs {
+		if strings.Contains(fullPath, "definitions/"+trackDir) {
+			return true
+		}
+	}
+	return false
 }
 
 // getNestedString gets a nested string value from a map

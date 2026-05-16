@@ -412,3 +412,92 @@ func TestFeatureIndexCaseInsensitiveLookup(t *testing.T) {
 		t.Logf("Path %q returned %d entries", path, len(entries))
 	}
 }
+
+func TestFeatureLoaderMultiTrack(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create definitions in all 4 tracks
+	tracks := map[DefinitionTrack]struct {
+		dir  string
+		file string
+		id   string
+		name string
+	}{
+		TrackProduct:    {"product", "fd-001.yaml", "fd-001", "Product Feature"},
+		TrackStrategy:   {"strategy", "sd-001.yaml", "sd-001", "Strategy Definition"},
+		TrackOrgOps:     {"org_ops", "pd-001.yaml", "pd-001", "OrgOps Definition"},
+		TrackCommercial: {"commercial", "cd-001.yaml", "cd-001", "Commercial Definition"},
+	}
+
+	for _, tc := range tracks {
+		dir := filepath.Join(tmpDir, "FIRE", "definitions", tc.dir)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatalf("Failed to create dir %s: %v", tc.dir, err)
+		}
+		content := `id: "` + tc.id + `"
+name: "` + tc.name + `"
+slug: "` + tc.id + `-slug"
+status: "planned"
+strategic_context:
+  contributes_to: []
+`
+		if err := os.WriteFile(filepath.Join(dir, tc.file), []byte(content), 0644); err != nil {
+			t.Fatalf("Failed to write %s: %v", tc.file, err)
+		}
+	}
+
+	loader := NewFeatureLoader(tmpDir)
+	features, err := loader.Load()
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+
+	// Should load all 4 definitions
+	if len(features.ByID) != 4 {
+		t.Errorf("Expected 4 features, got %d", len(features.ByID))
+		for id := range features.ByID {
+			t.Logf("  Loaded: %s", id)
+		}
+	}
+
+	// Each should have the correct track
+	for track, tc := range tracks {
+		feature, ok := features.GetFeature(tc.id)
+		if !ok {
+			t.Errorf("Feature %s not found", tc.id)
+			continue
+		}
+		if feature.Track != track {
+			t.Errorf("Feature %s: expected track %q, got %q", tc.id, track, feature.Track)
+		}
+	}
+
+	// ByDefinitionTrack should have entries for all tracks
+	for track := range tracks {
+		defs := features.ByDefinitionTrack[track]
+		if len(defs) != 1 {
+			t.Errorf("Expected 1 definition for track %q, got %d", track, len(defs))
+		}
+	}
+}
+
+func TestFeatureLoaderTrackInference(t *testing.T) {
+	tests := []struct {
+		path     string
+		expected DefinitionTrack
+	}{
+		{"/instance/FIRE/definitions/product/fd-001.yaml", TrackProduct},
+		{"/instance/FIRE/definitions/strategy/sd-001.yaml", TrackStrategy},
+		{"/instance/FIRE/definitions/org_ops/pd-001.yaml", TrackOrgOps},
+		{"/instance/FIRE/definitions/commercial/cd-001.yaml", TrackCommercial},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			result := InferTrackFromPath(tt.path)
+			if result != tt.expected {
+				t.Errorf("InferTrackFromPath(%q) = %q, want %q", tt.path, result, tt.expected)
+			}
+		})
+	}
+}

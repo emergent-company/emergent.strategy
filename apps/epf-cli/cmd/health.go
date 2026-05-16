@@ -479,13 +479,13 @@ func runHealthCheck(instancePath string, schemasPath string) *HealthResult {
 		}
 	}
 
-	// 3. Feature Quality Check
-	firePath := filepath.Join(instancePath, "FIRE", "definitions", "product")
-	if _, err := os.Stat(firePath); err == nil {
+	// 3. Feature Quality Check (all tracks)
+	fireDefsPath := filepath.Join(instancePath, "FIRE", "definitions")
+	if _, err := os.Stat(fireDefsPath); err == nil {
 		if !healthJSON {
 			fmt.Println("▶ Checking feature quality...")
 		}
-		featureChecker := checks.NewFeatureQualityChecker(firePath)
+		featureChecker := checks.NewFeatureQualityChecker(fireDefsPath)
 		featureResult, err := featureChecker.Check()
 		if err == nil {
 			result.FeatureQuality = featureResult
@@ -499,12 +499,12 @@ func runHealthCheck(instancePath string, schemasPath string) *HealthResult {
 		}
 	}
 
-	// 4. Cross-Reference Check
-	if _, err := os.Stat(firePath); err == nil {
+	// 4. Cross-Reference Check (all tracks)
+	if _, err := os.Stat(fireDefsPath); err == nil {
 		if !healthJSON {
 			fmt.Println("▶ Checking cross-references...")
 		}
-		crossRefChecker := checks.NewCrossReferenceChecker(firePath)
+		crossRefChecker := checks.NewCrossReferenceChecker(fireDefsPath)
 		crossRefResult, err := crossRefChecker.Check()
 		if err == nil {
 			result.CrossReferences = crossRefResult

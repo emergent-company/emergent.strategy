@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/template"
 	"gopkg.in/yaml.v3"
 )
 
@@ -126,10 +125,12 @@ func (c *FieldCoverageChecker) Check() (*FieldCoverageResult, error) {
 		c.analyzeRoadmaps(readyPath, result)
 	}
 
-	// Analyze feature definitions (FIRE phase)
-	firePath := filepath.Join(c.instancePath, "FIRE", "definitions", "product")
-	if _, err := os.Stat(firePath); err == nil {
-		c.analyzeFeatureDefinitions(firePath, result)
+	// Analyze feature definitions from all tracks (FIRE phase)
+	for _, trackDir := range definitionTrackDirs {
+		firePath := filepath.Join(c.instancePath, "FIRE", "definitions", trackDir)
+		if _, err := os.Stat(firePath); err == nil {
+			c.analyzeFeatureDefinitions(firePath, result)
+		}
 	}
 
 	// Calculate health score
@@ -265,15 +266,9 @@ func (c *FieldCoverageChecker) extractRoadmapKeyResultFields(content map[string]
 		return presentFields
 	}
 
-	// Only extract fields from product (user-authored) tracks.
-	// Canonical tracks (strategy, org_ops, commercial) are framework-provided
-	// and may not have TRL/hypothesis fields — including them would inflate
-	// or deflate coverage scores unfairly.
-	for trackName, trackValue := range tracks {
-		// Skip canonical tracks — only score product track KR field coverage
-		if template.IsCanonicalTrackString(trackName) {
-			continue
-		}
+	// Extract fields from all tracks. Now that all tracks have definitions
+	// loaded and validated, KR field coverage should reflect all tracks.
+	for _, trackValue := range tracks {
 
 		track, ok := trackValue.(map[string]interface{})
 		if !ok {
