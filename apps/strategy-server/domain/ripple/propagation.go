@@ -57,6 +57,9 @@ func AnalyzeStructuralRipple(ctx context.Context, db *bun.DB, instanceID uuid.UU
 	}
 
 	// Get the changed artifact's updated_at as the baseline.
+	// The changed key may be an artifact row or a relationship target (like a
+	// value model path) that has no artifact row. Both are valid.
+	var changeTime time.Time
 	var changedArtifact domain.StrategyArtifact
 	err := db.NewSelect().Model(&changedArtifact).
 		Where("sa.instance_id = ?", instanceID).
@@ -64,9 +67,12 @@ func AnalyzeStructuralRipple(ctx context.Context, db *bun.DB, instanceID uuid.UU
 		Where("sa.status = ?", domain.ArtifactStatusActive).
 		Scan(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("get changed artifact %s: %w", changedKey, err)
+		// Not found as an artifact — use current time as change baseline.
+		// This happens for relationship targets like value model paths.
+		changeTime = time.Now()
+	} else {
+		changeTime = changedArtifact.UpdatedAt
 	}
-	changeTime := changedArtifact.UpdatedAt
 
 	// Find downstream artifacts: things that reference the changed artifact.
 	// These are relationships where target_key = changedKey (others point AT this artifact).

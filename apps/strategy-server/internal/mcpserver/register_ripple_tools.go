@@ -83,7 +83,15 @@ func registerRippleTools(s *server.MCPServer, svc Services) {
 			return toolErr(ctx, err), nil
 		}
 
-		// Also get active signal counts.
+		// Persist structural signals from coherence report.
+		structuralSignals := ripple.GenerateSignalsFromRipple(instID, report)
+		if len(structuralSignals) > 0 {
+			if createErr := svc.Ripple.CreateSignals(ctx, structuralSignals); createErr != nil {
+				slog.WarnContext(ctx, "ripple: failed to persist structural signals", "error", createErr)
+			}
+		}
+
+		// Get active signal counts (after structural signals created).
 		counts, _ := svc.Ripple.CountByStatus(ctx, instID)
 		topSignals, _ := svc.Ripple.TopCritical(ctx, instID, 5)
 
