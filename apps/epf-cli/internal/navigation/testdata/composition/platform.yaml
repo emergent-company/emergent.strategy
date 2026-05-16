@@ -8,7 +8,7 @@ entry_context: home
 guards:
   - id: authenticated
     description: "User is logged in"
-    type: session
+    type: role
     message: "Please log in"
   - id: company-selected
     description: "A company is selected in context"
