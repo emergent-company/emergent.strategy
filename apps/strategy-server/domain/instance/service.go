@@ -56,6 +56,7 @@ type ListResult struct {
 }
 
 // ListInstances returns strategy instances in a workspace.
+// The cursor is a composite "created_at|id" string that matches the sort order.
 func (s *Service) ListInstances(ctx context.Context, p ListParams) (*ListResult, error) {
 	limit := p.Limit
 	if limit <= 0 || limit > 200 {
@@ -72,7 +73,10 @@ func (s *Service) ListInstances(ctx context.Context, p ListParams) (*ListResult,
 		q = q.Where("status != ?", domain.InstanceStatusArchived)
 	}
 	if p.Cursor != "" {
-		q = q.Where("id > ?", p.Cursor)
+		cursorTime, cursorID, ok := parseCursor(p.Cursor)
+		if ok {
+			q = q.Where("(created_at, id) > (?, ?)", cursorTime, cursorID)
+		}
 	}
 
 	var instances []*domain.StrategyInstance
@@ -82,7 +86,9 @@ func (s *Service) ListInstances(ctx context.Context, p ListParams) (*ListResult,
 
 	var nextCursor string
 	if len(instances) > limit {
-		nextCursor = instances[limit].ID.String()
+		// Cursor = last item on the current page (not the peek-ahead row).
+		last := instances[limit-1]
+		nextCursor = encodeCursor(last.CreatedAt, last.ID)
 		instances = instances[:limit]
 	}
 
@@ -325,4 +331,33 @@ func inferArtifactType(key string) string {
 		return "value_model"
 	}
 	return "artifact"
+}
+
+// ---------------------------------------------------------------------------
+// Cursor helpers — composite (created_at, id) cursors
+// ---------------------------------------------------------------------------
+
+// cursorSep is the separator for composite cursor encoding.
+const cursorSep = "|"
+
+// encodeCursor produces an opaque "created_at|id" cursor string.
+func encodeCursor(createdAt time.Time, id uuid.UUID) string {
+	return createdAt.UTC().Format(time.RFC3339Nano) + cursorSep + id.String()
+}
+
+// parseCursor decodes a composite cursor. Returns false if the cursor is malformed.
+func parseCursor(cursor string) (time.Time, uuid.UUID, bool) {
+	parts := strings.SplitN(cursor, cursorSep, 2)
+	if len(parts) != 2 {
+		return time.Time{}, uuid.Nil, false
+	}
+	t, err := time.Parse(time.RFC3339Nano, parts[0])
+	if err != nil {
+		return time.Time{}, uuid.Nil, false
+	}
+	id, err := uuid.Parse(parts[1])
+	if err != nil {
+		return time.Time{}, uuid.Nil, false
+	}
+	return t, id, true
 }

@@ -129,10 +129,11 @@ The CLI provides:
 2. **MCP Server** (`epf-cli serve`) — Universal interface: agents, skills, tools, resources, prompts
 3. **Orchestration Plugin** (`opencode-epf`) — Platform-specific: persona injection, auto-validation, tool scoping (TypeScript)
 
-## strategy-server (Phase 1 — In Progress)
+## strategy-server (Phase 2 — In Progress)
 
-A new Go application at `apps/strategy-server/` — a constitution-compliant backend that
-serves the live strategy authoring platform.
+A Go application at `apps/strategy-server/` — a constitution-compliant backend that
+serves the live strategy authoring platform. 96 MCP tools, Zitadel auth, multi-tenant
+orgs, optional semantic graph via emergent.memory.
 
 ### Tech Stack
 
@@ -142,26 +143,29 @@ serves the live strategy authoring platform.
 | Database | PostgreSQL 16 (`uptrace/bun` + `jackc/pgx/v5`) |
 | HTTP | Echo v4 + `danielgtaylor/huma/v2` |
 | CLI/Config | `alexflint/go-arg` |
-| Migrations | `pressly/goose/v3` embedded SQL |
+| Migrations | `pressly/goose/v3` embedded SQL (10 migrations) |
 | Logging | `log/slog` JSON |
 | UUIDs | `google/uuid` |
-| MCP | `mark3labs/mcp-go` (Phase 2) |
+| MCP | `mark3labs/mcp-go` |
+| Auth | Zitadel OIDC introspection (`internal/auth/`) |
+| Semantic | emergent.memory REST API (`internal/memory/`) |
 | Templates | `a-h/templ` (Phase 3) |
 
 ### Relationship to epf-cli
 
 - **epf-cli is frozen** — bug fixes only, no new features
-- **strategy-server imports epf-cli's `internal/` packages** as a library (same go.work workspace)
+- **strategy-server has its own `internal/memory/` client** — cannot import
+  epf-cli's `internal/` packages due to Go visibility rules
 - epf-cli remains the reference validator and local developer CLI/MCP tool
 
 ### Four-Phase Build Order
 
-| Phase | Exit Gate |
-|-------|-----------|
-| Phase 1 | All capability specs written; day-one scaffolding verified; `task build/test/lint` green |
-| Phase 2 | All MCP tools implemented; every scenario in strategy-scenarios passes via agent |
-| Phase 3 | All navigation graph screens implemented; all scenarios pass via web UI |
-| Phase 4 | AI chat panel integrated; write ops go through staging in UI |
+| Phase | Status | Exit Gate |
+|-------|--------|-----------|
+| Phase 1 | **Complete** | All capability specs; day-one scaffolding; `task build/test/lint` green |
+| Phase 2 | **In Progress** | 96 MCP tools implemented; auth + semantic engine wired; E2E tests pending |
+| Phase 3 | Not started | All navigation graph screens; all scenarios pass via web UI |
+| Phase 4 | Not started | AI chat panel; write ops through staging in UI |
 
 ### Day-One Patterns (installed in Phase 1)
 
@@ -172,17 +176,25 @@ serves the live strategy authoring platform.
 ### Build & Test
 
 ```bash
+cd apps/strategy-server
+
+# One-command local dev setup (starts Postgres, runs migrations, starts server)
+task dev-up
+
+# With Memory server (semantic features)
+task dev-up-full
+
 # Build
-cd apps/strategy-server && task build
+task build
 
-# Run (requires Postgres: task docker-deps)
-cd apps/strategy-server && task run
+# Run (auto-sources .env.local for port, DB, Memory config)
+task run
 
-# Unit tests (no DB required)
-cd apps/strategy-server && go test ./pkg/... ./internal/audit/... ./internal/langs/...
+# Run tests (requires Postgres: task dev-deps first)
+go test ./...
 
-# All tests (requires running Postgres)
-cd apps/strategy-server && task test
+# Stop containers
+task dev-down
 ```
 
 ### Capability Specs

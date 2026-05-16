@@ -11,16 +11,22 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	echomw "github.com/labstack/echo/v4/middleware"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/config"
+	appdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/app"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ingest"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/pack"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/org"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/user"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/auth"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/mcpserver"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/skillrunner"
@@ -56,16 +62,34 @@ func runServer(cfg *config.Config) error {
 	instSvc := instance.NewService(db)
 	instSvc.WithPackEnsurer(packSvc) // post-commit standard pack auto-install
 
+	semanticSvc := semantic.NewService(semantic.Config{
+		URL:     cfg.MemoryURL,
+		Project: cfg.MemoryProject,
+		Token:   cfg.MemoryToken,
+	})
+
+	// Verify Memory schemas at startup (non-blocking — logs warning if unavailable).
+	if semanticSvc.IsAvailable() {
+		if err := semanticSvc.VerifySchemas(context.Background()); err != nil {
+			log.Warn("semantic schema verification failed (non-fatal)", "err", err)
+		}
+	}
+
+	// Ingestion pipeline: converts committed mutations into Memory graph objects.
+	ingestSvc := ingest.NewService(db, semanticSvc.Client())
+	ingestSvc.Start(2) // 2 worker goroutines
+	defer ingestSvc.Stop()
+
+	orgSvc := org.NewService(db)
+
 	svc := mcpserver.Services{
 		Workspace: workspace.NewService(db),
 		Instance:  instSvc,
 		Strategy:  strategy.NewService(db),
 		Pack:      packSvc,
-		Semantic: semantic.NewService(semantic.Config{
-			URL:     cfg.MemoryURL,
-			Project: cfg.MemoryProject,
-			Token:   cfg.MemoryToken,
-		}),
+		App:       appdom.NewService(db),
+		Semantic:  semanticSvc,
+		Org:       orgSvc,
 	}
 
 	// Echo instance.
@@ -110,8 +134,34 @@ func runServer(cfg *config.Config) error {
 		}
 	})
 
+	// Auth — Zitadel introspection (if configured).
+	var introspector *auth.Introspector
+	if cfg.ZitadelConfigured() {
+		var intrErr error
+		introspector, intrErr = auth.NewIntrospector(auth.Config{
+			Issuer:     cfg.ZitadelIssuer,
+			ClientID:   cfg.ZitadelClientID,
+			KeyPath:    cfg.ZitadelKeyPath,
+			DebugToken: cfg.ZitadelDebugToken,
+			CacheTTL:   time.Duration(cfg.IntrospectionCacheTTL) * time.Second,
+		}, db)
+		if intrErr != nil {
+			return fmt.Errorf("create introspector: %w", intrErr)
+		}
+	}
+
+	// User service for EnsureUser on auth.
+	userSvc := user.NewService(db)
+	ensureUser := func(ctx context.Context, sub, email, name string) (uuid.UUID, error) {
+		u, err := userSvc.EnsureUser(ctx, sub, email, name)
+		if err != nil {
+			return uuid.Nil, err
+		}
+		return u.ID, nil
+	}
+
 	// Auth middleware — injects User + ActorID.
-	e.Use(web.AuthMiddleware(cfg.AuthEnabled))
+	e.Use(web.AuthMiddleware(cfg.AuthEnabled, introspector, ensureUser))
 
 	// Audit source middleware — sets source = mcp or web by path prefix.
 	e.Use(web.AuditMiddleware())

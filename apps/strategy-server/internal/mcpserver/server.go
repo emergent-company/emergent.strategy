@@ -1,28 +1,22 @@
 // Package mcpserver wires all strategy-server domain services to MCP tools.
 //
-// Tool inventory (76 tools):
-//   - 40 read/validation tools: list_workspaces, get_workspace, list_instances, get_instance,
-//     get_strategy_context, get_product_vision, get_personas, get_competitive_position,
-//     get_roadmap, list_features, get_feature, list_artifacts, list_relationships,
-//     list_mutations, get_mutation, health_check, search_strategy, detect_contradictions,
-//     list_schemas, get_schema, list_templates, get_template,
-//     list_agents, get_agent, list_skills, get_skill, list_wizards, get_wizard,
-//     list_pending_batches, describe_batch,
-//     get_strategic_context_for_feature, explain_value_path, get_coverage_analysis,
-//     get_value_propositions, get_assumptions, get_feature_dependencies,
-//     validate_artifact, validate_instance, validate_relationships, check_content_readiness
-//   - 22 write tools: create_workspace, import_instance, activate_instance, archive_instance,
-//     update_north_star, create_feature, update_feature, archive_feature,
-//     commit_batch, discard_batch,
-//     update_strategy_foundations, update_insight_analyses, update_strategy_formula,
-//     update_roadmap, update_value_model,
-//     stage_artifact, batch_create_artifacts,
-//     create_lra, update_lra, create_aim_report
-//   - 3 export tools: export_instance_yaml, export_feature_yaml, export_report
-//   - 2 AIM read tools: get_lra, get_aim_summary
-//   - 11 skill pack & app platform tools: list_installed_skills, get_installed_skill, run_skill,
-//     scaffold_skill, install_pack, list_packs, get_pack, uninstall_pack,
-//     list_apps, run_app, describe_pack_format
+// Tool inventory (96 tools + 1 prompt):
+//
+//	Workspace/Instance:  5 read + 4 write
+//	Strategy context:    5 read
+//	Artifact/Mutation:   6 read
+//	Semantic:            7 (search, neighbors, contradictions, scenario lifecycle)
+//	Embedded knowledge:  12 (schemas, templates, agents, skills, wizards, routing)
+//	Agent runtime:       2 (pending batches, describe)
+//	Mutation write:      4 core + 7 expanded + 2 batch
+//	Derived reads:       6 (value paths, coverage, assumptions, dependencies)
+//	Validation:          5 (artifact, instance, relationships, readiness, fix plan)
+//	Export:              3
+//	AIM lifecycle:       5 read/write + 2 phase 2c (validate_assumptions, stage_calibration)
+//	Organisation:        5
+//	Skill pack/app:      11
+//	Phase 2c additions:  10 (phase artifacts, definitions, persona details,
+//	                        relationships, scenario discard)
 //
 // All write tools create staged mutations; commit_batch promotes them.
 package mcpserver
@@ -38,7 +32,9 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
+	appdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/app"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
+	orgdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/org"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/pack"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
@@ -54,7 +50,9 @@ type Services struct {
 	Instance  *instance.Service
 	Strategy  *strategy.Service
 	Pack      *pack.Service
+	App       *appdom.Service
 	Semantic  *semantic.Service
+	Org       *orgdom.Service
 }
 
 // New creates and registers all MCP tools, returning the StreamableHTTPServer
@@ -84,6 +82,8 @@ func New(svc Services) http.Handler {
 	registerExportTools(s, svc)
 	registerAIMTools(s, svc)
 	registerPackTools(s, svc)
+	registerOrgTools(s, svc)
+	registerPhase2cTools(s, svc)
 	registerKnowledgePrompt(s)
 
 	return server.NewStreamableHTTPServer(s)
@@ -907,6 +907,19 @@ func registerExpandedWriteTools(s *server.MCPServer, svc Services) {
 // ---------------------------------------------------------------------------
 
 func registerEmbeddedKnowledgeTools(s *server.MCPServer) {
+	// --- Agent routing ---
+	s.AddTool(mcp.NewTool("get_agent_for_task",
+		mcp.WithDescription("USE FIRST to route any task to the right tool or agent. Returns direct_tool or agent recommendation."),
+		mcp.WithString("task_description", mcp.Required(), mcp.Description("Natural-language description of what you want to do")),
+	), func(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		desc := argString(req, "task_description")
+		if desc == "" {
+			return mcp.NewToolResultError("task_description is required"), nil
+		}
+		result := agent.RouteTask(desc)
+		return mustJSON(result)
+	})
+
 	// --- Schemas ---
 	s.AddTool(mcp.NewTool("list_schemas",
 		mcp.WithDescription("USE WHEN you need to discover which EPF artifact schemas are available for validation or authoring guidance."),

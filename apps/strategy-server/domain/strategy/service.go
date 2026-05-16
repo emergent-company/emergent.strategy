@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -245,6 +246,15 @@ func (s *Service) DescribeBatch(ctx context.Context, batchID uuid.UUID, agentID,
 	if n == 0 {
 		return apperror.ErrBatchNotFound
 	}
+
+	audit.FromContext(ctx).Write(ctx, audit.Entry{
+		EntityType: "strategy_mutation",
+		Action:     "describe_batch",
+		Source:     audit.SourceFromContext(ctx),
+		ActorID:    audit.ActorFromContext(ctx),
+		Details:    map[string]any{"batch_id": batchID, "agent_id": agentID},
+	})
+
 	return nil
 }
 
@@ -295,6 +305,15 @@ func (s *Service) Stage(ctx context.Context, p StageParams) (uuid.UUID, error) {
 		return uuid.Nil, fmt.Errorf("stage mutation: %w", err)
 	}
 
+	audit.FromContext(ctx).Write(ctx, audit.Entry{
+		EntityType: "strategy_mutation",
+		EntityID:   m.ID,
+		Action:     "stage",
+		Source:     audit.SourceFromContext(ctx),
+		ActorID:    actorID,
+		Details:    map[string]any{"batch_id": batchID, "artifact_key": p.ArtifactKey, "artifact_type": p.ArtifactType},
+	})
+
 	return batchID, nil
 }
 
@@ -334,7 +353,10 @@ func (s *Service) CommitBatch(ctx context.Context, batchID uuid.UUID) (int, erro
 		if err := s.deriveIndex(ctx, m); err != nil {
 			// Log but don't fail the commit — the mutation is already committed.
 			// The backfill command can re-derive on next run.
-			_ = err // TODO: structured log
+			slog.WarnContext(ctx, "derive index failed for committed mutation",
+				"mutation_id", m.ID,
+				"artifact_key", m.ArtifactKey,
+				"err", err)
 		}
 	}
 
@@ -368,7 +390,10 @@ func (s *Service) deriveIndex(ctx context.Context, m *domain.StrategyMutation) e
 			Model((*domain.StrategyRelationship)(nil)).
 			Where("instance_id = ? AND source_key = ?", m.InstanceID, m.ArtifactKey).
 			Exec(ctx)
-		return err
+		if err != nil {
+			return fmt.Errorf("delete relationships for archived %q: %w", m.ArtifactKey, err)
+		}
+		return nil
 	}
 
 	// Upsert into strategy_artifacts.
@@ -426,7 +451,15 @@ func (s *Service) deriveIndex(ctx context.Context, m *domain.StrategyMutation) e
 		for _, r := range rels {
 			var meta json.RawMessage
 			if r.Metadata != nil {
-				meta, _ = json.Marshal(r.Metadata)
+				var marshalErr error
+				meta, marshalErr = json.Marshal(r.Metadata)
+				if marshalErr != nil {
+					slog.WarnContext(ctx, "skip relationship metadata marshal",
+						"artifact_key", m.ArtifactKey,
+						"target_key", r.TargetKey,
+						"err", marshalErr)
+					meta = nil
+				}
 			}
 			rows = append(rows, &domain.StrategyRelationship{
 				ID:           uuid.New(),
@@ -473,6 +506,15 @@ func (s *Service) BackfillIndex(ctx context.Context, instanceID uuid.UUID) (int,
 		}
 		count++
 	}
+
+	audit.FromContext(ctx).Write(ctx, audit.Entry{
+		EntityType: "strategy_mutation",
+		Action:     "backfill_index",
+		Source:     audit.SourceFromContext(ctx),
+		ActorID:    audit.ActorFromContext(ctx),
+		Details:    map[string]any{"instance_id": instanceID, "count": count},
+	})
+
 	return count, nil
 }
 
@@ -872,7 +914,12 @@ func (s *Service) ListArtifacts(ctx context.Context, instanceID uuid.UUID, artif
 	out := make([]map[string]interface{}, 0, len(artifacts))
 	for _, a := range artifacts {
 		var payload interface{}
-		_ = json.Unmarshal(a.Payload, &payload)
+		if err := json.Unmarshal(a.Payload, &payload); err != nil {
+			slog.WarnContext(ctx, "skip artifact with invalid payload JSON",
+				"artifact_key", a.ArtifactKey,
+				"err", err)
+			continue
+		}
 		out = append(out, map[string]interface{}{
 			"artifact_key":  a.ArtifactKey,
 			"artifact_type": a.ArtifactType,
@@ -906,8 +953,14 @@ func (s *Service) ListAllRelationships(ctx context.Context, instanceID uuid.UUID
 		}
 		if r.Metadata != nil {
 			var meta interface{}
-			_ = json.Unmarshal(r.Metadata, &meta)
-			row["metadata"] = meta
+			if err := json.Unmarshal(r.Metadata, &meta); err != nil {
+				slog.WarnContext(ctx, "skip relationship metadata unmarshal",
+					"source_key", r.SourceKey,
+					"target_key", r.TargetKey,
+					"err", err)
+			} else {
+				row["metadata"] = meta
+			}
 		}
 		out = append(out, row)
 	}

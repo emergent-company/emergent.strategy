@@ -102,6 +102,14 @@ func registerModels(db *bun.DB) {
 		(*domain.Workspace)(nil),
 		(*domain.StrategyInstance)(nil),
 		(*domain.StrategyMutation)(nil),
+		(*domain.StrategyArtifact)(nil),
+		(*domain.StrategyRelationship)(nil),
+		(*domain.InstalledSkill)(nil),
+		(*domain.StrategyApp)(nil),
 		(*domain.AuditLog)(nil),
+		(*domain.User)(nil),
+		(*domain.Org)(nil),
+		(*domain.OrgMembership)(nil),
+		(*domain.OrgInvitation)(nil),
 	)
 }

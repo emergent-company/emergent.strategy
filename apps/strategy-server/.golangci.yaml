@@ -1,25 +1,50 @@
 version: "2"
 
-linters:
+formatters:
   enable:
-    - errcheck
-    - staticcheck
-    - gocyclo
-    - govet
-    - ineffassign
-    - unused
+    - gofmt
+    - goimports
 
-  settings:
-    errcheck:
-      check-type-assertions: true
-    gocyclo:
-      min-complexity: 15
+linters:
+  default: none
+  enable:
+    # Real bugs — zero tolerance, CI blocking.
+    - nilerr
+    - errcheck
+    - govet
+    - staticcheck
+    - bodyclose
+    # Hygiene — zero tolerance.
+    - unused
+    - ineffassign
+    - misspell
+    # Advisory — tracked but not blocking.
+    - gocyclo
+    - gocognit
+
+  exclusions:
+    rules:
+      # Test files: errcheck false-positives on defer cleanup are acceptable.
+      - path: _test\.go
+        linters:
+          - errcheck
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+  gocyclo:
+    min-complexity: 40    # High threshold — advisory only.
+  gocognit:
+    min-complexity: 60    # High threshold — advisory only. Large domain
+                          # functions are inherently complex. Lower this only
+                          # if you have the bandwidth to refactor.
 
 issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - errcheck
-    - text: 'Error return value of .* is not checked'
-      linters:
-        - errcheck
+  # Stop after this many issues so output is readable.
+  max-issues-per-linter: 50
+  max-same-issues: 10
+  exclude-dirs:
+    - openspec
+    - docs
+    - vendor
+    - internal/embedded

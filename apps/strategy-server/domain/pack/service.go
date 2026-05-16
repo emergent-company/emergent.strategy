@@ -16,6 +16,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/google/uuid"
@@ -166,7 +167,7 @@ func (s *Service) InstallPack(ctx context.Context, instanceID uuid.UUID, bundle 
 		installedBy = actor.String()
 	}
 
-	return s.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+	err := s.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
 		// Check if pack already installed.
 		var existing domain.InstalledSkill
 		err := tx.NewSelect().Model(&existing).
@@ -214,6 +215,28 @@ func (s *Service) InstallPack(ctx context.Context, instanceID uuid.UUID, bundle 
 
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	action := "install"
+	if force {
+		action = "upgrade"
+	}
+	audit.FromContext(ctx).Write(ctx, audit.Entry{
+		EntityType: "installed_skill",
+		Action:     action,
+		Source:     audit.SourceFromContext(ctx),
+		ActorID:    audit.ActorFromContext(ctx),
+		Details: map[string]any{
+			"instance_id":  instanceID,
+			"pack_name":    bundle.Manifest.Name,
+			"pack_version": bundle.Manifest.Version,
+			"skill_count":  len(bundle.Skills),
+		},
+	})
+
+	return nil
 }
 
 // ---------------------------------------------------------------------------
@@ -234,6 +257,15 @@ func (s *Service) UninstallPack(ctx context.Context, instanceID uuid.UUID, packN
 		return 0, apperror.ErrNotFound.WithDetail(
 			fmt.Sprintf("pack %q is not installed for this instance", packName))
 	}
+
+	audit.FromContext(ctx).Write(ctx, audit.Entry{
+		EntityType: "installed_skill",
+		Action:     "uninstall",
+		Source:     audit.SourceFromContext(ctx),
+		ActorID:    audit.ActorFromContext(ctx),
+		Details:    map[string]any{"instance_id": instanceID, "pack_name": packName, "skills_removed": n},
+	})
+
 	return int(n), nil
 }
 
@@ -331,7 +363,10 @@ func (s *Service) ListAvailableSkills(ctx context.Context, instanceID uuid.UUID,
 
 	if sourceFilter == "canonical" {
 		// Return canonical skills only — no installed skills, no shadowing.
-		names, _ := embedded.ListSkills()
+		names, listErr := embedded.ListSkills()
+		if listErr != nil {
+			slog.WarnContext(ctx, "list canonical skills failed", "err", listErr)
+		}
 		for _, name := range names {
 			r, err := resolveFromEmbedded(name)
 			if err == nil {
@@ -342,7 +377,10 @@ func (s *Service) ListAvailableSkills(ctx context.Context, instanceID uuid.UUID,
 	}
 
 	// sourceFilter == "" || "all": canonical + installed; installed takes precedence by name.
-	names, _ := embedded.ListSkills()
+	names, listErr := embedded.ListSkills()
+	if listErr != nil {
+		slog.WarnContext(ctx, "list canonical skills failed", "err", listErr)
+	}
 	for _, name := range names {
 		if _, shadowed := installedMap[name]; shadowed {
 			continue

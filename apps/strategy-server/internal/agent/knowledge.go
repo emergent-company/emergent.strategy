@@ -530,6 +530,99 @@ If these tools return ErrSemanticUnavailable, fall back to:
   - check_content_readiness for content quality.`,
 	},
 	{
+		Topic: "Phase and definition discovery",
+		Body: `Two discovery tools help orient you within the EPF artifact structure:
+
+  - get_phase_artifacts(phase) — returns all artifact types in READY, FIRE,
+    or AIM with descriptions, schema files, and template paths. Use when you
+    need to understand what artifacts belong to each phase.
+  - list_definitions(track?) — lists canonical track definition templates
+    from FIRE/definitions/ (commercial, org_ops, strategy). Filter by track
+    to narrow results. Use get_definition(path) to retrieve the full YAML.
+
+These are read-only tools with no side effects. They query the embedded
+canonical EPF framework data, not instance data.`,
+	},
+	{
+		Topic: "Relationship management",
+		Body: `Cross-artifact relationships (contributes_to, depends_on, tests_assumption,
+enables, in_tracks, implements) are the backbone of EPF's strategic traceability.
+
+Read tools:
+  - list_relationships(instance_id, artifact_key) — all relationships for an
+    artifact, both inbound and outbound.
+  - suggest_relationships(instance_id, feature_key) — identifies missing
+    relationships for a feature (no value model contribution? no track? no
+    assumption testing?). Returns prioritised suggestions.
+
+Write tools:
+  - add_relationship(instance_id, source_key, target_key, relationship,
+    target_type?) — stages a new cross-artifact relationship. Target type is
+    auto-inferred from the relationship type when not provided.
+    Stages a mutation; call commit_batch after review.
+
+Always run suggest_relationships after creating or updating a feature to ensure
+strategic traceability is complete.`,
+	},
+	{
+		Topic: "Assumption validation and calibration",
+		Body: `Two tools support the AIM phase's evidence loop:
+
+  - validate_assumptions(instance_id) — checks which strategic assumptions
+    have features testing them. Returns a risk assessment: untested (no
+    features test this assumption), partially_tested (one feature), or
+    well_tested (multiple features). Untested assumptions are strategic risks.
+  - stage_calibration(instance_id, artifact_key, payload) — stages a
+    calibration memo after an AIM review. Captures strategic adjustments,
+    lessons learned, and persevere/pivot/pull-the-plug decisions.
+
+Use validate_assumptions before an AIM cycle to identify which assumptions
+the current FIRE results can actually address.`,
+	},
+	{
+		Topic: "Validation fix planning",
+		Body: `When an instance has many validation errors, use validate_with_plan instead
+of validate_instance to get a prioritised fix plan:
+
+  - validate_with_plan(instance_id) — validates all artifacts and groups
+    errors by priority (critical → high → medium → low). Foundation artifacts
+    (north_star, strategy_foundations, strategy_formula) are always critical.
+    Each error includes a fix hint and the suggested repair order.
+
+Work through the fix plan in priority order. Critical items first, as
+other artifacts depend on foundation artifacts being valid.`,
+	},
+	{
+		Topic: "Scenario lifecycle",
+		Body: `What-if exploration uses Memory branches for isolated strategy mutation:
+
+  1. run_scenario(instance_id, description, anchor_node?) — creates a branch.
+     Returns a scenario_id for subsequent operations.
+  2. Stage mutations on the branch using write tools.
+  3. evaluate_scenario(scenario_id, instance_id) — assess the impact of changes.
+  4. commit_scenario(scenario_id, instance_id) — merge the branch into a staging
+     batch (still needs commit_batch to finalise).
+  5. discard_scenario(instance_id, scenario_id) — permanently remove the branch
+     without merging. Use when the scenario is no longer useful.
+
+Scenarios require Memory configuration. If Memory is not available, these tools
+return ErrSemanticUnavailable.`,
+	},
+	{
+		Topic: "Organisation management",
+		Body: `Multi-tenant isolation is enforced through organisations:
+
+  - create_org(name) — creates an organisation; the caller becomes admin.
+  - list_orgs — lists all organisations the caller belongs to.
+  - invite_member(org_id, email) — invite a user by email (requires org_admin).
+  - remove_member(org_id, user_id) — remove a member (requires org_admin;
+    last admin cannot be removed).
+  - list_members(org_id) — list members and pending invitations.
+
+All workspaces, instances, and artifacts are scoped to an org. Users can only
+see and modify data within their own orgs.`,
+	},
+	{
 		Topic: "Common mistakes to avoid",
 		Body: `1. **Sending partial payloads**: Always read the current artifact state before
    updating. The write tools replace the full artifact — partial payloads drop

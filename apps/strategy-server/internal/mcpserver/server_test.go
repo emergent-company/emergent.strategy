@@ -27,6 +27,7 @@ import (
 
 	"github.com/google/uuid"
 
+	appdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/app"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/pack"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
@@ -262,6 +263,7 @@ func buildSvc(t *testing.T) mcpserver.Services {
 		Instance:  instSvc,
 		Strategy:  strategy.NewService(db),
 		Pack:      packSvc,
+		App:       appdom.NewService(db),
 		Semantic:  semantic.NewService(semantic.Config{}),
 	}
 }

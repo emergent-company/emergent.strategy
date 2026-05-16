@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -34,12 +35,12 @@ func runImport(cfg *config.Config) error {
 	defer func() { _ = db.Close() }()
 
 	// --- Parse the EPF instance YAML files from disk ---
-	_, _ = fmt.Fprintf(os.Stdout, "Scanning EPF instance at %s …\n", imp.InstancePath)
+	slog.Info("scanning EPF instance", "path", imp.InstancePath)
 	payloads, productName, err := scanEPFInstance(imp.InstancePath)
 	if err != nil {
 		return fmt.Errorf("scan instance: %w", err)
 	}
-	_, _ = fmt.Fprintf(os.Stdout, "Found %d artifacts for product %q\n", len(payloads), productName)
+	slog.Info("scan complete", "artifact_count", len(payloads), "product_name", productName)
 
 	// --- Prepare context (audit + auth) ---
 	ctx := context.Background()
@@ -53,7 +54,7 @@ func runImport(cfg *config.Config) error {
 	if err != nil {
 		return fmt.Errorf("ensure workspace: %w", err)
 	}
-	_, _ = fmt.Fprintf(os.Stdout, "Workspace: %s (%s)\n", ws.GithubOwner, ws.ID)
+	slog.Info("workspace resolved", "github_owner", ws.GithubOwner, "workspace_id", ws.ID)
 
 	// --- Determine instance name ---
 	instanceName := imp.InstanceName
@@ -74,29 +75,29 @@ func runImport(cfg *config.Config) error {
 	if err != nil {
 		return fmt.Errorf("import instance: %w", err)
 	}
-	_, _ = fmt.Fprintf(os.Stdout, "Imported instance: %s (%s)\n", inst.Name, inst.ID)
+	slog.Info("instance imported", "name", inst.Name, "instance_id", inst.ID)
 
 	// --- Backfill Strategic Index ---
 	// ImportInstance inserts mutations as committed directly (bypassing CommitBatch),
 	// so we must run the backfill explicitly to populate strategy_artifacts and
 	// strategy_relationships from the imported mutations.
-	_, _ = fmt.Fprintln(os.Stdout, "Deriving Strategic Index …")
+	slog.Info("deriving strategic index")
 	stratSvc := strategysvc.NewService(db)
 	indexed, err := stratSvc.BackfillIndex(ctx, inst.ID)
 	if err != nil {
 		return fmt.Errorf("backfill index: %w", err)
 	}
-	_, _ = fmt.Fprintf(os.Stdout, "Indexed %d artifacts\n", indexed)
+	slog.Info("index derived", "artifact_count", indexed)
 
 	// --- Optionally activate ---
 	if imp.Activate {
 		if err := instSvc.ActivateInstance(ctx, inst.ID); err != nil {
 			return fmt.Errorf("activate instance: %w", err)
 		}
-		_, _ = fmt.Fprintln(os.Stdout, "Instance activated")
+		slog.Info("instance activated")
 	}
 
-	_, _ = fmt.Fprintf(os.Stdout, "\nDone. Instance ID: %s\n", inst.ID)
+	slog.Info("import complete", "instance_id", inst.ID)
 	return nil
 }
 
@@ -119,7 +120,7 @@ func ensureWorkspace(ctx context.Context, svc *workspace.Service, githubOwner st
 func scanEPFInstance(instancePath string) (map[string]any, string, error) {
 	abs, err := filepath.Abs(instancePath)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("resolve absolute path %q: %w", instancePath, err)
 	}
 
 	payloads := make(map[string]any)
@@ -169,7 +170,8 @@ func processYAMLFile(path, filename, relPath string, productName *string) (strin
 
 	var rawAny any
 	if err := yaml.Unmarshal(data, &rawAny); err != nil {
-		return "", nil, true, nil // skip unparseable files
+		slog.Warn("skip unparseable YAML file", "path", path, "err", err)
+		return "", nil, true, nil
 	}
 	normalized := normalizeYAML(rawAny)
 	raw, ok := normalized.(map[string]any)

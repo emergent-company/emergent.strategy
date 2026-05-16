@@ -18,15 +18,70 @@ tasks:
       - task: build
 
   run:
-    desc: Run the server in development mode
+    desc: Run the server in development mode (sources .env.local if present)
     cmds:
-      - go run . server
+      - |
+        if [ -f .env.local ]; then
+          set -a; source .env.local; set +a
+        fi
+        go run -tags notui . server
+
+  dev-up:
+    desc: "Start full local dev environment (Postgres + server). Use -- --with-memory for semantic features."
+    cmds:
+      - ./scripts/dev-setup.sh {{.CLI_ARGS}}
+
+  dev-up-full:
+    desc: Start full local dev environment with Memory (semantic features enabled)
+    cmds:
+      - ./scripts/dev-setup.sh --with-memory
+
+  dev-deps:
+    desc: Start containers only (no server), write .env.local
+    cmds:
+      - ./scripts/dev-setup.sh --deps-only {{.CLI_ARGS}}
+
+  dev-down:
+    desc: Stop all Docker containers and clean up
+    cmds:
+      - docker compose down
+      - echo "Containers stopped. .env.local preserved."
+
+  dev-reset:
+    desc: Full reset — stop containers, remove volumes, delete .env.local
+    cmds:
+      - docker compose down -v
+      - rm -f .env.local
+      - echo "Reset complete. Run 'task dev-up' to start fresh."
 
   docker-deps:
     desc: Start Postgres in Docker and wait until ready
     cmds:
       - docker compose up -d postgres
       - docker compose exec postgres sh -c 'until pg_isready -U strategy; do sleep 1; done'
+
+  docker-deps-memory:
+    desc: Start Postgres and Memory server in Docker
+    cmds:
+      - docker compose up -d postgres memory
+      - docker compose exec postgres sh -c 'until pg_isready -U strategy; do sleep 1; done'
+      - |
+        for i in $(seq 1 30); do
+          if curl -sf http://localhost:8787/health >/dev/null 2>&1; then
+            echo "Memory server is healthy"
+            break
+          fi
+          if [ "$i" -eq 30 ]; then
+            echo "Memory server not healthy after 30s"
+            exit 1
+          fi
+          sleep 1
+        done
+
+  setup-memory:
+    desc: Create Memory project and install EPF schemas
+    cmds:
+      - ./scripts/setup-memory.sh
 
   db:migrate:
     desc: Run pending database migrations

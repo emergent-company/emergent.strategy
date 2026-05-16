@@ -3,19 +3,22 @@ package web
 
 import (
 	"context"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/auth"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 )
 
 // User represents the authenticated caller on a request.
 type User struct {
-	ID          uuid.UUID
-	GithubLogin string
-	Name        string
+	ID    uuid.UUID
+	Sub   string
+	Email string
+	Name  string
 }
 
 type userKey struct{}
@@ -33,19 +36,29 @@ func ContextWithUser(ctx context.Context, u *User) context.Context {
 
 // DevUser is the user injected in dev mode (auth disabled).
 var DevUser = &User{
-	ID:          uuid.MustParse("00000000-0000-0000-0000-000000000001"),
-	GithubLogin: "dev",
-	Name:        "Dev User",
+	ID:    uuid.MustParse("00000000-0000-0000-0000-000000000001"),
+	Sub:   "dev",
+	Email: "dev@strategy.local",
+	Name:  "Dev User",
 }
+
+// EnsureUserFunc is called after successful token introspection to
+// create or update the user record in the database. Set by cmd_serve.go.
+type EnsureUserFunc func(ctx context.Context, sub, email, name string) (uuid.UUID, error)
 
 // AuthMiddleware returns an Echo middleware that enforces authentication.
 //
 // When authEnabled is false (development), requests pass through with DevUser injected.
-// When authEnabled is true, the middleware validates the Bearer JWT and rejects
-// unauthenticated requests with 401.
-func AuthMiddleware(authEnabled bool) echo.MiddlewareFunc {
+// When authEnabled is true, the middleware validates the Bearer token via Zitadel
+// introspection and rejects unauthenticated requests with 401.
+func AuthMiddleware(authEnabled bool, introspector *auth.Introspector, ensureUser EnsureUserFunc) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
+			// Skip auth for health check.
+			if c.Request().URL.Path == "/health" {
+				return next(c)
+			}
+
 			if !authEnabled {
 				// Dev pass-through: inject a stable dev user so handlers always have a user.
 				ctx := ContextWithUser(c.Request().Context(), DevUser)
@@ -54,10 +67,44 @@ func AuthMiddleware(authEnabled bool) echo.MiddlewareFunc {
 				return next(c)
 			}
 
-			// TODO(Phase 2): validate Bearer JWT from Authorization header.
-			// Extract user info from validated token, call ContextWithUser + ContextWithActor.
-			// For now, return 401 to make auth-enabled mode safe but non-functional.
-			return echo.ErrUnauthorized
+			// Extract bearer token.
+			authHeader := c.Request().Header.Get("Authorization")
+			if !strings.HasPrefix(authHeader, "Bearer ") {
+				return echo.ErrUnauthorized
+			}
+			token := strings.TrimPrefix(authHeader, "Bearer ")
+
+			if introspector == nil {
+				return echo.ErrUnauthorized
+			}
+
+			// Introspect the token.
+			result, err := introspector.Introspect(c.Request().Context(), token)
+			if err != nil || !result.Active {
+				return echo.ErrUnauthorized
+			}
+
+			// Ensure user record exists.
+			var userID uuid.UUID
+			if ensureUser != nil {
+				uid, err := ensureUser(c.Request().Context(), result.Sub, result.Email, result.Name)
+				if err != nil {
+					return echo.ErrUnauthorized
+				}
+				userID = uid
+			}
+
+			user := &User{
+				ID:    userID,
+				Sub:   result.Sub,
+				Email: result.Email,
+				Name:  result.Name,
+			}
+
+			ctx := ContextWithUser(c.Request().Context(), user)
+			ctx = audit.ContextWithActor(ctx, user.ID)
+			c.SetRequest(c.Request().WithContext(ctx))
+			return next(c)
 		}
 	}
 }

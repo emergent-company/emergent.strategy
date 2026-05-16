@@ -18,6 +18,7 @@ type Workspace struct {
 	ID          uuid.UUID  `bun:"id,pk,type:uuid"                   json:"id"`
 	GithubOwner string     `bun:"github_owner,notnull"               json:"github_owner"`
 	DisplayName *string    `bun:"display_name"                       json:"display_name,omitempty"`
+	OrgID       *uuid.UUID `bun:"org_id,type:uuid"                   json:"org_id,omitempty"`
 	CreatedBy   *uuid.UUID `bun:"created_by,type:uuid"               json:"created_by,omitempty"`
 	CreatedAt   time.Time  `bun:"created_at,notnull,default:now()"   json:"created_at"`
 	UpdatedAt   time.Time  `bun:"updated_at,notnull,default:now()"   json:"updated_at"`
@@ -25,6 +26,7 @@ type Workspace struct {
 
 	// Relations (populated on demand)
 	Instances []*StrategyInstance `bun:"rel:has-many,join:id=workspace_id" json:"instances,omitempty"`
+	Org       *Org                `bun:"rel:belongs-to,join:org_id=id"     json:"org,omitempty"`
 }
 
 // StrategyInstance represents a versioned EPF instance within a workspace.
@@ -230,4 +232,84 @@ const (
 	AppStatusActive   = "active"
 	AppStatusDegraded = "degraded"
 	AppStatusDisabled = "disabled"
+)
+
+// ---------------------------------------------------------------------------
+// Auth and multi-tenant
+// ---------------------------------------------------------------------------
+
+// User represents an authenticated user persisted on first login.
+type User struct {
+	bun.BaseModel `bun:"table:users,alias:u"`
+
+	ID        uuid.UUID  `bun:"id,pk,type:uuid"                   json:"id"`
+	Sub       string     `bun:"sub,notnull"                        json:"sub"`
+	Email     string     `bun:"email,notnull"                      json:"email"`
+	Name      *string    `bun:"name"                               json:"name,omitempty"`
+	Status    string     `bun:"status,notnull,default:'active'"    json:"status"`
+	CreatedAt time.Time  `bun:"created_at,notnull,default:now()"   json:"created_at"`
+	UpdatedAt time.Time  `bun:"updated_at,notnull,default:now()"   json:"updated_at"`
+	DeletedAt *time.Time `bun:"deleted_at,soft_delete"             json:"deleted_at,omitempty"`
+}
+
+// UserStatus values.
+const (
+	UserStatusActive  = "active"
+	UserStatusDeleted = "deleted"
+)
+
+// Org represents an organisation — the tenant container for workspaces.
+type Org struct {
+	bun.BaseModel `bun:"table:orgs,alias:o"`
+
+	ID        uuid.UUID  `bun:"id,pk,type:uuid"                   json:"id"`
+	Name      string     `bun:"name,notnull"                       json:"name"`
+	Slug      string     `bun:"slug,notnull"                       json:"slug"`
+	CreatedBy *uuid.UUID `bun:"created_by,type:uuid"               json:"created_by,omitempty"`
+	CreatedAt time.Time  `bun:"created_at,notnull,default:now()"   json:"created_at"`
+	UpdatedAt time.Time  `bun:"updated_at,notnull,default:now()"   json:"updated_at"`
+	DeletedAt *time.Time `bun:"deleted_at,soft_delete"             json:"deleted_at,omitempty"`
+}
+
+// OrgMembership links a user to an org with a role.
+type OrgMembership struct {
+	bun.BaseModel `bun:"table:org_memberships,alias:om"`
+
+	ID        uuid.UUID `bun:"id,pk,type:uuid"                   json:"id"`
+	OrgID     uuid.UUID `bun:"org_id,notnull,type:uuid"          json:"org_id"`
+	UserID    uuid.UUID `bun:"user_id,notnull,type:uuid"         json:"user_id"`
+	Role      string    `bun:"role,notnull,default:'org_viewer'"  json:"role"`
+	CreatedAt time.Time `bun:"created_at,notnull,default:now()"  json:"created_at"`
+	UpdatedAt time.Time `bun:"updated_at,notnull,default:now()"  json:"updated_at"`
+
+	// Relations
+	User *User `bun:"rel:belongs-to,join:user_id=id" json:"user,omitempty"`
+	Org  *Org  `bun:"rel:belongs-to,join:org_id=id"  json:"org,omitempty"`
+}
+
+// OrgRole values.
+const (
+	OrgRoleAdmin  = "org_admin"
+	OrgRoleViewer = "org_viewer"
+)
+
+// OrgInvitation represents a pending invitation to join an org.
+type OrgInvitation struct {
+	bun.BaseModel `bun:"table:org_invitations,alias:oi"`
+
+	ID        uuid.UUID  `bun:"id,pk,type:uuid"                   json:"id"`
+	OrgID     uuid.UUID  `bun:"org_id,notnull,type:uuid"          json:"org_id"`
+	Email     string     `bun:"email,notnull"                      json:"email"`
+	Role      string     `bun:"role,notnull,default:'org_viewer'"  json:"role"`
+	Status    string     `bun:"status,notnull,default:'pending'"   json:"status"`
+	InvitedBy *uuid.UUID `bun:"invited_by,type:uuid"               json:"invited_by,omitempty"`
+	CreatedAt time.Time  `bun:"created_at,notnull,default:now()"   json:"created_at"`
+	UpdatedAt time.Time  `bun:"updated_at,notnull,default:now()"   json:"updated_at"`
+}
+
+// InvitationStatus values.
+const (
+	InvitationStatusPending  = "pending"
+	InvitationStatusAccepted = "accepted"
+	InvitationStatusRevoked  = "revoked"
 )

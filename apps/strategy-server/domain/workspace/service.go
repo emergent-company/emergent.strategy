@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -27,6 +28,9 @@ func NewService(db *bun.DB) *Service {
 }
 
 // ListParams controls workspace listing.
+// Cursor is an opaque string of the form "created_at|id" produced by a previous
+// ListResult.NextCursor. Legacy callers that pass a bare UUID are handled for
+// backward compatibility.
 type ListParams struct {
 	Cursor string
 	Limit  int
@@ -39,6 +43,7 @@ type ListResult struct {
 }
 
 // ListWorkspaces returns all non-deleted workspaces with cursor pagination.
+// The cursor is a composite "created_at|id" string that matches the sort order.
 func (s *Service) ListWorkspaces(ctx context.Context, p ListParams) (*ListResult, error) {
 	limit := p.Limit
 	if limit <= 0 || limit > 200 {
@@ -52,7 +57,10 @@ func (s *Service) ListWorkspaces(ctx context.Context, p ListParams) (*ListResult
 		Limit(limit + 1)
 
 	if p.Cursor != "" {
-		q = q.Where("id > ?", p.Cursor)
+		cursorTime, cursorID, ok := parseCursor(p.Cursor)
+		if ok {
+			q = q.Where("(created_at, id) > (?, ?)", cursorTime, cursorID)
+		}
 	}
 
 	var workspaces []*domain.Workspace
@@ -62,7 +70,9 @@ func (s *Service) ListWorkspaces(ctx context.Context, p ListParams) (*ListResult
 
 	var nextCursor string
 	if len(workspaces) > limit {
-		nextCursor = workspaces[limit].ID.String()
+		// Cursor = last item on the current page (not the peek-ahead row).
+		last := workspaces[limit-1]
+		nextCursor = encodeCursor(last.CreatedAt, last.ID)
 		workspaces = workspaces[:limit]
 	}
 
@@ -197,3 +207,32 @@ func (s *Service) DeleteWorkspace(ctx context.Context, id uuid.UUID) error {
 
 // StrategyInstance is an alias so callers don't need to import internal/domain directly.
 type StrategyInstance = domain.StrategyInstance
+
+// ---------------------------------------------------------------------------
+// Cursor helpers — composite (created_at, id) cursors
+// ---------------------------------------------------------------------------
+
+// cursorSep is the separator for composite cursor encoding.
+const cursorSep = "|"
+
+// encodeCursor produces an opaque "created_at|id" cursor string.
+func encodeCursor(createdAt time.Time, id uuid.UUID) string {
+	return createdAt.UTC().Format(time.RFC3339Nano) + cursorSep + id.String()
+}
+
+// parseCursor decodes a composite cursor. Returns false if the cursor is malformed.
+func parseCursor(cursor string) (time.Time, uuid.UUID, bool) {
+	parts := strings.SplitN(cursor, cursorSep, 2)
+	if len(parts) != 2 {
+		return time.Time{}, uuid.Nil, false
+	}
+	t, err := time.Parse(time.RFC3339Nano, parts[0])
+	if err != nil {
+		return time.Time{}, uuid.Nil, false
+	}
+	id, err := uuid.Parse(parts[1])
+	if err != nil {
+		return time.Time{}, uuid.Nil, false
+	}
+	return t, id, true
+}

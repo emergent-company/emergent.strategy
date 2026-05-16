@@ -70,10 +70,9 @@ func packTestAuditCtx() context.Context {
 	return ctx
 }
 
-// packTestAppSvc returns an app.Service backed by the same DB as svc.
-func packTestAppSvc(t *testing.T, svc mcpserver.Services) *appdom.Service {
-	t.Helper()
-	return appdom.NewService(svc.Strategy.DB())
+// packTestAppSvc returns the app.Service from the test Services bundle.
+func packTestAppSvc(_ *testing.T, svc mcpserver.Services) *appdom.Service {
+	return svc.App
 }
 
 // ---------------------------------------------------------------------------

@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"path"
 	"strings"
 
@@ -140,6 +141,10 @@ func (s *Service) ExportInstance(ctx context.Context, instanceID uuid.UUID) (*Ex
 		yamlBytes, err := jsonToYAML(a.Payload)
 		if err != nil {
 			// Skip artifacts that can't be serialised; don't fail the whole export.
+			slog.WarnContext(ctx, "skip artifact with invalid payload during export",
+				"artifact_key", a.ArtifactKey,
+				"artifact_type", a.ArtifactType,
+				"err", err)
 			continue
 		}
 		dir := artifactTypeToDirPath(a.ArtifactType)

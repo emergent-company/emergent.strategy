@@ -19,6 +19,22 @@ type ImportCmd struct {
 	Activate     bool   `arg:"--activate,env:IMPORT_ACTIVATE" default:"false" help:"Activate the instance after import"`
 }
 
+// DBMode controls how strategy-server co-locates with emergent.memory's database.
+type DBMode string
+
+const (
+	// DBModeShared uses a single Postgres instance shared with Memory.
+	// Strategy-server reads user/org data from Memory's core/kb schemas.
+	DBModeShared DBMode = "shared"
+
+	// DBModeStandalone uses a separate Postgres instance for strategy-server.
+	// No cross-schema reads; user/org data is stored in strategy schema.
+	DBModeStandalone DBMode = "standalone"
+
+	// DBModeDev is the default development mode — no auth, no Memory required.
+	DBModeDev DBMode = "dev"
+)
+
 // Config is the top-level configuration struct parsed by go-arg.
 // All fields bind to environment variables automatically.
 type Config struct {
@@ -32,26 +48,36 @@ type Config struct {
 
 	// Database
 	PGHost    string `arg:"--pg-host,env:PGHOST" default:"localhost" help:"PostgreSQL host"`
-	PGPort    int    `arg:"--pg-port,env:PGPORT" default:"5432" help:"PostgreSQL port"`
+	PGPort    int    `arg:"--pg-port,env:PGPORT" default:"5433" help:"PostgreSQL port"`
 	PGUser    string `arg:"--pg-user,env:PGUSER" default:"strategy" help:"PostgreSQL user"`
 	PGPass    string `arg:"--pg-password,env:PGPASSWORD" default:"strategy" help:"PostgreSQL password"`
 	PGDBName  string `arg:"--pg-database,env:PGDATABASE" default:"strategy" help:"PostgreSQL database name"`
 	PGSSLMode string `arg:"--pg-sslmode,env:PGSSLMODE" default:"disable" help:"PostgreSQL SSL mode"`
+
+	// Database mode — controls Memory co-location strategy.
+	StrategyDBMode string `arg:"--db-mode,env:STRATEGY_DB_MODE" default:"dev" help:"Database mode: shared, standalone, dev"`
 
 	// HTTP Server
 	Port      int    `arg:"--port,env:PORT" default:"8080" help:"HTTP listen port"`
 	ServerURL string `arg:"--server-url,env:SERVER_URL" help:"Public base URL of this server"`
 
 	// Auth
-	AuthEnabled bool `arg:"--auth-enabled,env:AUTH_ENABLED" default:"false" help:"Enable GitHub OAuth authentication"`
+	AuthEnabled bool `arg:"--auth-enabled,env:AUTH_ENABLED" default:"false" help:"Enable authentication"`
 
-	// GitHub OAuth
-	GithubClientID     string `arg:"env:EPF_OAUTH_CLIENT_ID" help:"GitHub OAuth App client ID"`
-	GithubClientSecret string `arg:"env:EPF_OAUTH_CLIENT_SECRET" help:"GitHub OAuth App client secret"`
-	SessionSecret      string `arg:"env:EPF_SESSION_SECRET" help:"Session signing secret (64+ hex chars)"`
+	// Zitadel OIDC
+	ZitadelIssuer       string `arg:"env:ZITADEL_ISSUER" help:"Zitadel issuer URL (e.g. https://auth.example.com)"`
+	ZitadelClientID     string `arg:"env:ZITADEL_CLIENT_ID" help:"Zitadel service account client ID"`
+	ZitadelKeyPath      string `arg:"env:ZITADEL_KEY_PATH" help:"Path to Zitadel JWT key file"`
+	ZitadelDebugToken   string `arg:"env:ZITADEL_DEBUG_TOKEN" help:"Debug token for integration tests (non-production only)"`
+	IntrospectionCacheTTL int  `arg:"env:INTROSPECTION_CACHE_TTL" default:"300" help:"Token introspection cache TTL in seconds"`
+
+	// GitHub OAuth (deprecated — kept for migration period)
+	GithubClientID     string `arg:"env:EPF_OAUTH_CLIENT_ID" help:"GitHub OAuth App client ID (deprecated)"`
+	GithubClientSecret string `arg:"env:EPF_OAUTH_CLIENT_SECRET" help:"GitHub OAuth App client secret (deprecated)"`
+	SessionSecret      string `arg:"env:EPF_SESSION_SECRET" help:"Session signing secret (deprecated)"`
 
 	// emergent.memory (semantic graph)
-	MemoryURL     string `arg:"env:EPF_MEMORY_URL" help:"emergent.memory base URL"`
+	MemoryURL     string `arg:"env:EPF_MEMORY_URL" default:"http://localhost:8787" help:"emergent.memory base URL"`
 	MemoryProject string `arg:"env:EPF_MEMORY_PROJECT" help:"emergent.memory project ID"`
 	MemoryToken   string `arg:"env:EPF_MEMORY_TOKEN" help:"emergent.memory project token"`
 }
@@ -65,4 +91,28 @@ func (c *Config) PostgresDSN() string {
 // IsDev returns true when running in development mode.
 func (c *Config) IsDev() bool {
 	return c.Env == "development"
+}
+
+// GetDBMode returns the parsed database mode. Defaults to DBModeDev for invalid values.
+func (c *Config) GetDBMode() DBMode {
+	switch DBMode(c.StrategyDBMode) {
+	case DBModeShared:
+		return DBModeShared
+	case DBModeStandalone:
+		return DBModeStandalone
+	case DBModeDev:
+		return DBModeDev
+	default:
+		return DBModeDev
+	}
+}
+
+// MemoryConfigured returns true when Memory connection settings are provided.
+func (c *Config) MemoryConfigured() bool {
+	return c.MemoryURL != "" && c.MemoryProject != "" && c.MemoryToken != ""
+}
+
+// ZitadelConfigured returns true when Zitadel OIDC settings are provided.
+func (c *Config) ZitadelConfigured() bool {
+	return c.ZitadelIssuer != "" && c.ZitadelClientID != ""
 }

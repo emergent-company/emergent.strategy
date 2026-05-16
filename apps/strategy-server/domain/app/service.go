@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -33,6 +34,7 @@ import (
 	"github.com/uptrace/bun"
 	"gopkg.in/yaml.v3"
 
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
@@ -236,6 +238,16 @@ func (s *Service) InstallApp(ctx context.Context, instanceID uuid.UUID, packName
 	if _, err := s.db.NewInsert().Model(app).Exec(ctx); err != nil {
 		return fmt.Errorf("install app %q: %w", m.Name, err)
 	}
+
+	audit.FromContext(ctx).Write(ctx, audit.Entry{
+		EntityType: "strategy_app",
+		EntityID:   app.ID,
+		Action:     "install",
+		Source:     audit.SourceFromContext(ctx),
+		ActorID:    audit.ActorFromContext(ctx),
+		Details:    map[string]any{"app_name": m.Name, "pack_name": packName, "instance_id": instanceID},
+	})
+
 	return nil
 }
 
@@ -253,6 +265,17 @@ func (s *Service) UninstallApps(ctx context.Context, instanceID uuid.UUID, packN
 		return 0, fmt.Errorf("uninstall apps for pack %q: %w", packName, err)
 	}
 	n, _ := res.RowsAffected()
+
+	if n > 0 {
+		audit.FromContext(ctx).Write(ctx, audit.Entry{
+			EntityType: "strategy_app",
+			Action:     "uninstall",
+			Source:     audit.SourceFromContext(ctx),
+			ActorID:    audit.ActorFromContext(ctx),
+			Details:    map[string]any{"pack_name": packName, "instance_id": instanceID, "count": n},
+		})
+	}
+
 	return int(n), nil
 }
 
@@ -390,8 +413,8 @@ func (s *Service) RunApp(ctx context.Context, instanceID uuid.UUID, appName stri
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		if recordErr := s.recordFailure(ctx, &app); recordErr != nil {
-			// log but don't mask the original error
-			_ = recordErr
+			slog.WarnContext(ctx, "record app failure failed",
+				"app_name", appName, "err", recordErr)
 		}
 		return nil, fmt.Errorf("call app %q: %w", appName, err)
 	}
@@ -399,13 +422,17 @@ func (s *Service) RunApp(ctx context.Context, instanceID uuid.UUID, appName stri
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		if recordErr := s.recordFailure(ctx, &app); recordErr != nil {
-			_ = recordErr
+			slog.WarnContext(ctx, "record app failure failed",
+				"app_name", appName, "err", recordErr)
 		}
 		return nil, fmt.Errorf("app %q returned HTTP %d", appName, resp.StatusCode)
 	}
 
 	// Success — reset fail count.
-	_ = s.resetFailures(ctx, &app)
+	if resetErr := s.resetFailures(ctx, &app); resetErr != nil {
+		slog.WarnContext(ctx, "reset app failures failed",
+			"app_name", appName, "err", resetErr)
+	}
 
 	// Parse response.
 	var appResp appRunResponse
@@ -423,6 +450,15 @@ func (s *Service) RunApp(ctx context.Context, instanceID uuid.UUID, appName stri
 		}
 		result.BatchID = batchID
 	}
+
+	audit.FromContext(ctx).Write(ctx, audit.Entry{
+		EntityType: "strategy_app",
+		EntityID:   app.ID,
+		Action:     "run",
+		Source:     audit.SourceFromContext(ctx),
+		ActorID:    audit.ActorFromContext(ctx),
+		Details:    map[string]any{"app_name": appName, "instance_id": instanceID, "has_mutations": result.BatchID != nil},
+	})
 
 	return result, nil
 }
@@ -460,7 +496,10 @@ func (s *Service) HealthCheckApp(ctx context.Context, appID uuid.UUID) error {
 		Set("last_health_at = ?", now).
 		Where("id = ?", appID).
 		Exec(ctx)
-	return dbErr
+	if dbErr != nil {
+		return fmt.Errorf("update app health status %q: %w", app.AppName, dbErr)
+	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------
@@ -480,7 +519,10 @@ func (s *Service) recordFailure(ctx context.Context, app *domain.StrategyApp) er
 		Set("last_health_at = ?", now).
 		Where("id = ?", app.ID).
 		Exec(ctx)
-	return err
+	if err != nil {
+		return fmt.Errorf("record failure for app %q: %w", app.AppName, err)
+	}
+	return nil
 }
 
 func (s *Service) resetFailures(ctx context.Context, app *domain.StrategyApp) error {
@@ -492,13 +534,16 @@ func (s *Service) resetFailures(ctx context.Context, app *domain.StrategyApp) er
 		Set("status = ?", domain.AppStatusActive).
 		Where("id = ?", app.ID).
 		Exec(ctx)
-	return err
+	if err != nil {
+		return fmt.Errorf("reset failures for app %q: %w", app.AppName, err)
+	}
+	return nil
 }
 
 func generateSigningSecret() (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
-		return "", err
+		return "", fmt.Errorf("generate signing secret: %w", err)
 	}
 	return hex.EncodeToString(b), nil
 }

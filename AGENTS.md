@@ -1,3 +1,43 @@
+# Agent Instructions
+
+This file is read by AI coding agents working in this repository.
+Read it fully before starting any task. No exceptions.
+
+---
+
+## 1. Read the Constitution First
+
+Before writing any code, read `CONSTITUTION.md`. It defines the tech stack,
+architecture patterns, naming conventions, testing strategy, and non-negotiables
+for this project. If your implementation would violate the constitution, stop and
+reconsider the approach — do not proceed and note the violation as a comment.
+
+---
+
+## 2. Task Workflow
+
+Follow this sequence for every task, no matter how small:
+
+```
+1. Read CONSTITUTION.md (if not already done this session)
+2. Run tests — record baseline
+   - epf-cli:         cd apps/epf-cli && go test ./...
+   - strategy-server:  cd apps/strategy-server && go test ./...
+3. Understand the full scope before writing any code
+4. Implement the change
+5. Run tests — compare to baseline
+6. Fix any regressions (do not skip this step)
+7. Report results to the user
+```
+
+For non-trivial tasks (new capability, breaking change, multi-package change):
+also read `openspec/AGENTS.md` and follow the OpenSpec proposal workflow before
+implementing.
+
+---
+
+## 3. OpenSpec — When to Write a Proposal
+
 <!-- OPENSPEC:START -->
 
 # OpenSpec Instructions
@@ -20,17 +60,51 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 <!-- OPENSPEC:END -->
 
-# AI Agent Instructions
+---
 
-## Repository Overview
+## 4. Go Conventions
+
+Load the `go-microservice` skill immediately at the start of every session.
+It contains the full reference for tech stack, architecture, error handling,
+linting, and testing conventions.
+
+The most commonly violated rules in this repo (quick reference — full detail
+in the skill and CONSTITUTION.md):
+
+- **Errors:** Never return `nil` when you have a non-nil error. This is the
+  `nilerr` anti-pattern — the single most common source of invisible failures.
+- **Error wrapping:** Use `fmt.Errorf("context: %w", err)` to preserve the chain.
+- **Logging:** `log/slog` only. Never `fmt.Println` or `log.Printf`.
+- **Command handlers:** CLI commands parse args and call internal packages.
+  No business logic in `cmd/*.go`.
+- **Embedded artifacts:** Never edit files in `internal/embedded/` manually.
+  Always sync from canonical EPF via `make sync-embedded`.
+- **MCP responses:** Never return raw Go errors to MCP clients. Use structured
+  error responses.
+- **Schema source of truth:** JSON schemas live in canonical-epf, synced to
+  `internal/embedded/schemas/`. Never invent validation rules in Go that
+  contradict the schema.
+
+---
+
+## 5. Known Pre-Existing Test Failures
+
+These tests were failing before the current development session. Do not treat
+them as regressions caused by your changes. Do fix them if your task touches
+the relevant code.
+
+_No pre-existing test failures as of 2026-05-05. All tests pass._
+
+---
+
+## 6. Repository Overview
 
 This repository (`emergent-strategy`) is focused on **strategy tooling**:
 
 - **`apps/epf-cli/`** - Go-based EPF (Emergent Product Framework) CLI tool
+- **`apps/strategy-server/`** - Go backend for the Emergent Strategy platform (gradually replacing epf-cli)
 - **`docs/EPF/`** - EPF framework documentation and instances
 - **`openspec/`** - Spec-driven development infrastructure
-
-The admin/server apps have been migrated to `emergent-company/emergent`.
 
 ## Quick Reference
 
@@ -38,27 +112,62 @@ The admin/server apps have been migrated to `emergent-company/emergent`.
 
 ```bash
 # Build
-cd apps/epf-cli && go build
+cd apps/epf-cli && make build
 
 # Run tests
 cd apps/epf-cli && go test ./...
 
 # Run CLI
 ./apps/epf-cli/epf-cli --help
+
+# Run MCP server
+./apps/epf-cli/epf-cli serve
 ```
+
+### Strategy Server
+
+```bash
+# One-command local dev setup (starts Postgres, runs migrations, starts server)
+cd apps/strategy-server && task dev-up
+
+# With Memory server (semantic features: search, contradictions, scenarios)
+cd apps/strategy-server && task dev-up-full
+
+# Build
+cd apps/strategy-server && task build
+
+# Run (auto-sources .env.local for port, DB, Memory config)
+cd apps/strategy-server && task run
+
+# Run tests (requires Postgres: task dev-deps first)
+cd apps/strategy-server && go test ./...
+
+# Lint
+cd apps/strategy-server && task lint
+
+# Stop containers
+cd apps/strategy-server && task dev-down
+
+# Full reset (removes volumes + .env.local)
+cd apps/strategy-server && task dev-reset
+```
+
+The server listens on port 8090 (default). MCP endpoint: `http://localhost:8090/mcp`.
+96 MCP tools are registered. See `apps/strategy-server/AGENTS.md` for full details.
 
 ### Code Style
 
-- **Go**: Follow standard Go conventions (`gofmt`, `go vet`)
+- **Go**: Follow standard Go conventions (`gofmt`, `go vet`), plus `golangci-lint`
 - **YAML/Markdown**: Consistent formatting in EPF artifacts
 
 ## Key Directories
 
-| Directory       | Purpose                                   |
-| --------------- | ----------------------------------------- |
-| `apps/epf-cli/` | EPF CLI tool (Go)                         |
-| `docs/EPF/`     | EPF framework docs and product instances  |
-| `openspec/`     | Spec-driven development specs and changes |
+| Directory                  | Purpose                                   |
+| -------------------------- | ----------------------------------------- |
+| `apps/epf-cli/`            | EPF CLI tool (Go)                         |
+| `apps/strategy-server/`    | Strategy platform backend (Go)            |
+| `docs/EPF/`                | EPF framework docs and product instances  |
+| `openspec/`                | Spec-driven development specs and changes |
 
 ## EPF Strategy Context
 

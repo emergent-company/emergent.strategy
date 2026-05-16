@@ -9,9 +9,53 @@ applyTo: "**"
 
 This repository (`emergent-strategy`) is focused on **strategy tooling**:
 
-- **`apps/epf-cli/`** - Go-based EPF (Emergent Product Framework) CLI tool
+- **`apps/epf-cli/`** - Go-based EPF (Emergent Product Framework) CLI tool (frozen — do not modify)
+- **`apps/strategy-server/`** - Go backend for the Emergent Strategy platform (active development)
 - **`docs/EPF/`** - EPF framework documentation and instances
 - **`openspec/`** - Spec-driven development infrastructure
+
+## Strategy Server Development
+
+The strategy-server is the primary application under active development. It serves
+96 MCP tools for strategy management, with Zitadel auth, multi-tenant orgs, and
+optional semantic graph features via emergent.memory.
+
+### Quick Start
+
+```bash
+cd apps/strategy-server
+
+# One command — starts Postgres, runs migrations, starts server on port 8090
+task dev-up
+
+# With Memory server for semantic features (search, contradictions, scenarios)
+task dev-up-full
+
+# Run tests (requires Postgres — start with task dev-deps first)
+go test ./...
+
+# Stop containers
+task dev-down
+```
+
+MCP endpoint: `http://localhost:8090/mcp`
+
+### Key Tasks
+
+| Task | Purpose |
+|------|---------|
+| `task dev-up` | Full local env (Postgres + server) |
+| `task dev-up-full` | Full local env with Memory server |
+| `task dev-deps` | Start containers only, write `.env.local` |
+| `task dev-down` | Stop containers |
+| `task dev-reset` | Full reset (remove volumes + `.env.local`) |
+| `task run` | Start server (auto-sources `.env.local`) |
+| `task build` | Build production binary |
+| `task test` | Run all tests |
+| `task lint` | Run golangci-lint |
+
+See `apps/strategy-server/AGENTS.md` for architecture, package layout, and full
+MCP tool inventory.
 
 ## EPF CLI Development
 
@@ -63,11 +107,12 @@ The EPF CLI includes an MCP server for AI agent integration. It provides:
 
 ## Key Directories
 
-| Directory       | Purpose                                  |
-| --------------- | ---------------------------------------- |
-| `apps/epf-cli/` | EPF CLI tool (Go)                        |
-| `docs/EPF/`     | EPF framework docs and product instances |
-| `openspec/`     | Spec-driven development infrastructure   |
+| Directory                  | Purpose                                   |
+| -------------------------- | ----------------------------------------- |
+| `apps/epf-cli/`            | EPF CLI tool (Go) — frozen                |
+| `apps/strategy-server/`    | Strategy platform backend (Go) — active   |
+| `docs/EPF/`                | EPF framework docs and product instances  |
+| `openspec/`                | Spec-driven development infrastructure    |
 
 ## EPF Strategy Context
 
