@@ -1900,4 +1900,27 @@ func TestDecomposeNavigationGraph(t *testing.T) {
 			}
 		}
 	}
+
+	// Verify realizes edges: dashboard → Product.Core.Dashboard, settings → Product.Core.Configuration
+	if relCounts["realizes"] != 2 {
+		t.Errorf("Expected 2 realizes edges, got %d", relCounts["realizes"])
+	}
+	foundDashboardRealizes := false
+	foundSettingsRealizes := false
+	for _, rel := range result.Relationships {
+		if rel.Type == "realizes" {
+			if rel.ToKey == "ValueModelComponent:Product.Core.Dashboard" {
+				foundDashboardRealizes = true
+			}
+			if rel.ToKey == "ValueModelComponent:Product.Core.Configuration" {
+				foundSettingsRealizes = true
+			}
+		}
+	}
+	if !foundDashboardRealizes {
+		t.Error("Expected realizes edge from dashboard to Product.Core.Dashboard")
+	}
+	if !foundSettingsRealizes {
+		t.Error("Expected realizes edge from settings to Product.Core.Configuration")
+	}
 }

@@ -115,6 +115,100 @@ Shown with tab-group subgraphs.
 
 ```mermaid
 graph TD
+    subgraph governance["Governance"]
+        governance_overview[["Governance Overview"]]
+        board_list["Board of Directors"]
+        board_member_detail["Board Member Detail"]
+        board_member_add["Add Board Member"]
+        resolution_list["Resolutions"]
+        resolution_detail["Resolution Detail"]
+        resolution_create["Create Resolution"]
+        voting_round["Voting Round"]
+        shareholder_agreement_list["Shareholder Agreements"]
+        shareholder_agreement_detail["Agreement Detail"]
+        shareholder_agreement_create["Create Agreement"]
+        general_meeting["General Meeting"]
+        general_meeting_create["Create General Meeting"]
+        proxy_voting["Proxy Voting"]
+    end
+    subgraph equity["Equity"]
+        equity_overview[["Equity Overview"]]
+        instrument_list["Instruments"]
+        instrument_detail["Instrument Detail"]
+        instrument_create["Create Instrument"]
+        instrument_edit["Edit Instrument"]
+        option_plan_list["Option Plans"]
+        option_plan_detail["Option Plan Detail"]
+        option_plan_create["Create Option Plan"]
+        option_grant_list["Option Grants"]
+        option_grant_detail["Option Grant Detail"]
+        option_grant_create["Create Option Grant"]
+        option_exercise["Exercise Options"]
+        warrant_list["Warrants"]
+        warrant_detail["Warrant Detail"]
+        warrant_create["Create Warrant"]
+        warrant_exercise["Exercise Warrant"]
+        convertible_list["Convertible Notes"]
+        convertible_detail["Convertible Note Detail"]
+        convertible_create["Create Convertible Note"]
+        convertible_convert["Convert Note to Equity"]
+        vesting_schedule_list["Vesting Schedules"]
+        vesting_schedule_detail["Vesting Schedule Detail"]
+        vesting_schedule_create["Create Vesting Schedule"]
+        vesting_simulation["Vesting Simulation"]
+    end
+    subgraph exit["Exit & Liquidity"]
+        exit_overview[["Exit Overview"]]
+        valuation_history["Valuation History"]
+        valuation_create["Record Valuation"]
+        waterfall_analysis["Waterfall Analysis"]
+        waterfall_scenario["Waterfall Scenario"]
+        waterfall_scenario_create["Create Waterfall Scenario"]
+        liquidity_event["Liquidity Events"]
+        liquidity_event_detail["Liquidity Event Detail"]
+        liquidity_event_create["Create Liquidity Event"]
+        distribution_plan["Distribution Plan"]
+        secondary_sale["Secondary Sale"]
+        right_of_first_refusal["Right of First Refusal"]
+    end
+    subgraph reporting["Reporting"]
+        reporting_overview[["Reporting Overview"]]
+        shareholder_register_report["Shareholder Register Report"]
+        cap_table_snapshot["Cap Table Snapshot"]
+        equity_summary_report["Equity Summary Report"]
+        transaction_log["Transaction Log"]
+        altinn_filing["Altinn Filing"]
+        brreg_filing["Brønnøysund Filing"]
+        tax_report["Tax Report"]
+        annual_statement["Annual Statement"]
+        export_pdf["Export PDF"]
+        export_csv["Export CSV"]
+    end
+    subgraph data["Records"]
+        data_overview[["Records Overview"]]
+        document_list["Documents"]
+        document_detail["Document Detail"]
+        document_upload["Upload Document"]
+        audit_trail["Audit Trail"]
+        ledger_entries["Ledger Entries"]
+        beneficial_owners["Beneficial Owners"]
+        beneficial_owner_detail["Beneficial Owner Detail"]
+        import_data["Import Data"]
+    end
+    subgraph setup["Admin"]
+        settings_overview[["Settings"]]
+        company_settings["Company Settings"]
+        registry_mode["Registry Mode"]
+        user_management["User Management"]
+        user_invite["Invite User"]
+        role_management["Role Management"]
+        billing["Billing"]
+        subscription["Subscription"]
+        api_keys["API Keys"]
+        integration_settings["Integrations"]
+        company_create("Create Company")
+        profile_settings("Profile Settings")
+    end
     subgraph overview["Overview"]
         company_list("Organizations")
         company_dashboard[["Company Dashboard"]]
@@ -145,33 +239,6 @@ graph TD
         share_cancellation["Share Cancellation"]
         treasury_shares["Treasury Shares"]
     end
-    subgraph exit["Exit & Liquidity"]
-        exit_overview[["Exit Overview"]]
-        valuation_history["Valuation History"]
-        valuation_create["Record Valuation"]
-        waterfall_analysis["Waterfall Analysis"]
-        waterfall_scenario["Waterfall Scenario"]
-        waterfall_scenario_create["Create Waterfall Scenario"]
-        liquidity_event["Liquidity Events"]
-        liquidity_event_detail["Liquidity Event Detail"]
-        liquidity_event_create["Create Liquidity Event"]
-        distribution_plan["Distribution Plan"]
-        secondary_sale["Secondary Sale"]
-        right_of_first_refusal["Right of First Refusal"]
-    end
-    subgraph reporting["Reporting"]
-        reporting_overview[["Reporting Overview"]]
-        shareholder_register_report["Shareholder Register Report"]
-        cap_table_snapshot["Cap Table Snapshot"]
-        equity_summary_report["Equity Summary Report"]
-        transaction_log["Transaction Log"]
-        altinn_filing["Altinn Filing"]
-        brreg_filing["Brønnøysund Filing"]
-        tax_report["Tax Report"]
-        annual_statement["Annual Statement"]
-        export_pdf["Export PDF"]
-        export_csv["Export CSV"]
-    end
     subgraph members["Members"]
         member_list[["Members"]]
         member_detail["Member Detail"]
@@ -179,73 +246,6 @@ graph TD
         member_edit["Edit Member"]
         member_contribution["Member Contribution"]
         membership_transfer["Membership Transfer"]
-    end
-    subgraph equity["Equity"]
-        equity_overview[["Equity Overview"]]
-        instrument_list["Instruments"]
-        instrument_detail["Instrument Detail"]
-        instrument_create["Create Instrument"]
-        instrument_edit["Edit Instrument"]
-        option_plan_list["Option Plans"]
-        option_plan_detail["Option Plan Detail"]
-        option_plan_create["Create Option Plan"]
-        option_grant_list["Option Grants"]
-        option_grant_detail["Option Grant Detail"]
-        option_grant_create["Create Option Grant"]
-        option_exercise["Exercise Options"]
-        warrant_list["Warrants"]
-        warrant_detail["Warrant Detail"]
-        warrant_create["Create Warrant"]
-        warrant_exercise["Exercise Warrant"]
-        convertible_list["Convertible Notes"]
-        convertible_detail["Convertible Note Detail"]
-        convertible_create["Create Convertible Note"]
-        convertible_convert["Convert Note to Equity"]
-        vesting_schedule_list["Vesting Schedules"]
-        vesting_schedule_detail["Vesting Schedule Detail"]
-        vesting_schedule_create["Create Vesting Schedule"]
-        vesting_simulation["Vesting Simulation"]
-    end
-    subgraph governance["Governance"]
-        governance_overview[["Governance Overview"]]
-        board_list["Board of Directors"]
-        board_member_detail["Board Member Detail"]
-        board_member_add["Add Board Member"]
-        resolution_list["Resolutions"]
-        resolution_detail["Resolution Detail"]
-        resolution_create["Create Resolution"]
-        voting_round["Voting Round"]
-        shareholder_agreement_list["Shareholder Agreements"]
-        shareholder_agreement_detail["Agreement Detail"]
-        shareholder_agreement_create["Create Agreement"]
-        general_meeting["General Meeting"]
-        general_meeting_create["Create General Meeting"]
-        proxy_voting["Proxy Voting"]
-    end
-    subgraph data["Records"]
-        data_overview[["Records Overview"]]
-        document_list["Documents"]
-        document_detail["Document Detail"]
-        document_upload["Upload Document"]
-        audit_trail["Audit Trail"]
-        ledger_entries["Ledger Entries"]
-        beneficial_owners["Beneficial Owners"]
-        beneficial_owner_detail["Beneficial Owner Detail"]
-        import_data["Import Data"]
-    end
-    subgraph setup["Admin"]
-        settings_overview[["Settings"]]
-        company_settings["Company Settings"]
-        registry_mode["Registry Mode"]
-        user_management["User Management"]
-        user_invite["Invite User"]
-        role_management["Role Management"]
-        billing["Billing"]
-        subscription["Subscription"]
-        api_keys["API Keys"]
-        integration_settings["Integrations"]
-        company_create("Create Company")
-        profile_settings("Profile Settings")
     end
     global_dashboard[["Dashboard"]]
 
@@ -426,6 +426,13 @@ They **cannot** access shareholder-specific features (`shares-allowed` blocked).
 
 ```mermaid
 graph TD
+    subgraph overview["Overview"]
+        company_list("Organizations")
+        company_dashboard[["Company Dashboard"]]
+        company_overview["Company Overview"]
+        notifications("Notifications")
+        activity_feed["Activity Feed"]
+    end
     subgraph members["Members"]
         member_list[["Members"]]
         member_detail["Member Detail"]
@@ -433,6 +440,20 @@ graph TD
         member_edit["Edit Member"]
         member_contribution["Member Contribution"]
         membership_transfer["Membership Transfer"]
+    end
+    subgraph exit["Exit & Liquidity"]
+        exit_overview[["Exit Overview"]]
+        valuation_history["Valuation History"]
+        valuation_create["Record Valuation"]
+        waterfall_analysis["Waterfall Analysis"]
+        waterfall_scenario["Waterfall Scenario"]
+        waterfall_scenario_create["Create Waterfall Scenario"]
+        liquidity_event["Liquidity Events"]
+        liquidity_event_detail["Liquidity Event Detail"]
+        liquidity_event_create["Create Liquidity Event"]
+        distribution_plan["Distribution Plan"]
+        secondary_sale["Secondary Sale"]
+        right_of_first_refusal["Right of First Refusal"]
     end
     subgraph governance["Governance"]
         governance_overview[["Governance Overview"]]
@@ -450,6 +471,19 @@ graph TD
         general_meeting_create["Create General Meeting"]
         proxy_voting["Proxy Voting"]
     end
+    subgraph reporting["Reporting"]
+        reporting_overview[["Reporting Overview"]]
+        shareholder_register_report["Shareholder Register Report"]
+        cap_table_snapshot["Cap Table Snapshot"]
+        equity_summary_report["Equity Summary Report"]
+        transaction_log["Transaction Log"]
+        altinn_filing["Altinn Filing"]
+        brreg_filing["Brønnøysund Filing"]
+        tax_report["Tax Report"]
+        annual_statement["Annual Statement"]
+        export_pdf["Export PDF"]
+        export_csv["Export CSV"]
+    end
     subgraph data["Records"]
         data_overview[["Records Overview"]]
         document_list["Documents"]
@@ -460,13 +494,6 @@ graph TD
         beneficial_owners["Beneficial Owners"]
         beneficial_owner_detail["Beneficial Owner Detail"]
         import_data["Import Data"]
-    end
-    subgraph overview["Overview"]
-        company_list("Organizations")
-        company_dashboard[["Company Dashboard"]]
-        company_overview["Company Overview"]
-        notifications("Notifications")
-        activity_feed["Activity Feed"]
     end
     subgraph captable["Cap Table"]
         captable_summary[["Cap Table Summary"]]
@@ -516,33 +543,6 @@ graph TD
         vesting_schedule_detail["Vesting Schedule Detail"]
         vesting_schedule_create["Create Vesting Schedule"]
         vesting_simulation["Vesting Simulation"]
-    end
-    subgraph exit["Exit & Liquidity"]
-        exit_overview[["Exit Overview"]]
-        valuation_history["Valuation History"]
-        valuation_create["Record Valuation"]
-        waterfall_analysis["Waterfall Analysis"]
-        waterfall_scenario["Waterfall Scenario"]
-        waterfall_scenario_create["Create Waterfall Scenario"]
-        liquidity_event["Liquidity Events"]
-        liquidity_event_detail["Liquidity Event Detail"]
-        liquidity_event_create["Create Liquidity Event"]
-        distribution_plan["Distribution Plan"]
-        secondary_sale["Secondary Sale"]
-        right_of_first_refusal["Right of First Refusal"]
-    end
-    subgraph reporting["Reporting"]
-        reporting_overview[["Reporting Overview"]]
-        shareholder_register_report["Shareholder Register Report"]
-        cap_table_snapshot["Cap Table Snapshot"]
-        equity_summary_report["Equity Summary Report"]
-        transaction_log["Transaction Log"]
-        altinn_filing["Altinn Filing"]
-        brreg_filing["Brønnøysund Filing"]
-        tax_report["Tax Report"]
-        annual_statement["Annual Statement"]
-        export_pdf["Export PDF"]
-        export_csv["Export CSV"]
     end
     subgraph setup["Admin"]
         settings_overview[["Settings"]]
@@ -733,29 +733,6 @@ No guards satisfied — only root-level screens are reachable.
 
 ```mermaid
 graph TD
-    subgraph captable["Cap Table"]
-        captable_summary[["Cap Table Summary"]]
-        shareholder_list["Shareholders"]
-        shareholder_detail["Shareholder Detail"]
-        shareholder_create["Add Shareholder"]
-        shareholder_edit["Edit Shareholder"]
-        share_class_list["Share Classes"]
-        share_class_detail["Share Class Detail"]
-        create_share_class["Create Share Class"]
-        edit_share_class["Edit Share Class"]
-        share_issue["Issue Shares"]
-        share_transfer["Transfer Shares"]
-        share_split["Share Split"]
-        share_consolidation["Share Consolidation"]
-        ownership_chart["Ownership Chart"]
-        dilution_model["Dilution Model"]
-        par_value_change["Par Value Change"]
-        capital_increase["Capital Increase"]
-        capital_decrease["Capital Decrease"]
-        share_buyback["Share Buyback"]
-        share_cancellation["Share Cancellation"]
-        treasury_shares["Treasury Shares"]
-    end
     subgraph exit["Exit & Liquidity"]
         exit_overview[["Exit Overview"]]
         valuation_history["Valuation History"]
@@ -810,12 +787,49 @@ graph TD
         beneficial_owner_detail["Beneficial Owner Detail"]
         import_data["Import Data"]
     end
+    subgraph setup["Admin"]
+        settings_overview[["Settings"]]
+        company_settings["Company Settings"]
+        registry_mode["Registry Mode"]
+        user_management["User Management"]
+        user_invite["Invite User"]
+        role_management["Role Management"]
+        billing["Billing"]
+        subscription["Subscription"]
+        api_keys["API Keys"]
+        integration_settings["Integrations"]
+        company_create("Create Company")
+        profile_settings("Profile Settings")
+    end
     subgraph overview["Overview"]
         company_list("Organizations")
         company_dashboard[["Company Dashboard"]]
         company_overview["Company Overview"]
         notifications("Notifications")
         activity_feed["Activity Feed"]
+    end
+    subgraph captable["Cap Table"]
+        captable_summary[["Cap Table Summary"]]
+        shareholder_list["Shareholders"]
+        shareholder_detail["Shareholder Detail"]
+        shareholder_create["Add Shareholder"]
+        shareholder_edit["Edit Shareholder"]
+        share_class_list["Share Classes"]
+        share_class_detail["Share Class Detail"]
+        create_share_class["Create Share Class"]
+        edit_share_class["Edit Share Class"]
+        share_issue["Issue Shares"]
+        share_transfer["Transfer Shares"]
+        share_split["Share Split"]
+        share_consolidation["Share Consolidation"]
+        ownership_chart["Ownership Chart"]
+        dilution_model["Dilution Model"]
+        par_value_change["Par Value Change"]
+        capital_increase["Capital Increase"]
+        capital_decrease["Capital Decrease"]
+        share_buyback["Share Buyback"]
+        share_cancellation["Share Cancellation"]
+        treasury_shares["Treasury Shares"]
     end
     subgraph members["Members"]
         member_list[["Members"]]
@@ -850,20 +864,6 @@ graph TD
         vesting_schedule_detail["Vesting Schedule Detail"]
         vesting_schedule_create["Create Vesting Schedule"]
         vesting_simulation["Vesting Simulation"]
-    end
-    subgraph setup["Admin"]
-        settings_overview[["Settings"]]
-        company_settings["Company Settings"]
-        registry_mode["Registry Mode"]
-        user_management["User Management"]
-        user_invite["Invite User"]
-        role_management["Role Management"]
-        billing["Billing"]
-        subscription["Subscription"]
-        api_keys["API Keys"]
-        integration_settings["Integrations"]
-        company_create("Create Company")
-        profile_settings("Profile Settings")
     end
     global_dashboard[["Dashboard"]]
 
@@ -1041,27 +1041,6 @@ Full access strategist with all guards and guard groups satisfied.
 
 ```mermaid
 graph TD
-    subgraph workspaces["Workspaces"]
-        workspace_list[["Workspaces"]]
-        create_workspace("Create Workspace")
-        workspace_detail["Workspace Detail"]
-        import_instance["Import Instance"]
-    end
-    subgraph strategy["Strategy"]
-        instance_dashboard[["Instance Dashboard"]]
-        vision("Vision & Mission")
-        personas("Personas")
-        roadmap("Roadmap")
-        competitive("Competitive Position")
-        edit_vision("Edit Vision")
-        instance_health("Instance Health")
-    end
-    subgraph features["Features"]
-        features_list[["Features"]]
-        feature_detail["Feature Detail"]
-        create_feature["Create Feature"]
-        edit_feature["Edit Feature"]
-    end
     subgraph authoring["Authoring"]
         staging_review[["Staging Review"]]
     end
@@ -1083,6 +1062,27 @@ graph TD
     subgraph auth["Authentication"]
         auth_login[["Login"]]
         auth_callback("Auth Callback")
+    end
+    subgraph workspaces["Workspaces"]
+        workspace_list[["Workspaces"]]
+        create_workspace("Create Workspace")
+        workspace_detail["Workspace Detail"]
+        import_instance["Import Instance"]
+    end
+    subgraph strategy["Strategy"]
+        instance_dashboard[["Instance Dashboard"]]
+        vision("Vision & Mission")
+        personas("Personas")
+        roadmap("Roadmap")
+        competitive("Competitive Position")
+        edit_vision("Edit Vision")
+        instance_health("Instance Health")
+    end
+    subgraph features["Features"]
+        features_list[["Features"]]
+        feature_detail["Feature Detail"]
+        create_feature["Create Feature"]
+        edit_feature["Edit Feature"]
     end
 
     auth_login -->|Complete authentication #lpar;authenticated#rpar;| workspace_list
@@ -1139,9 +1139,6 @@ Observer with `authenticated` + `instance-active` only. Cannot write or access s
 
 ```mermaid
 graph TD
-    subgraph authoring["Authoring"]
-        staging_review[["Staging Review"]]
-    end
     subgraph analysis["Analysis"]
         semantic_search[["Semantic Search"]]
         graph_neighborhood["Graph Neighborhood"]
@@ -1181,6 +1178,9 @@ graph TD
         feature_detail["Feature Detail"]
         create_feature["Create Feature"]
         edit_feature["Edit Feature"]
+    end
+    subgraph authoring["Authoring"]
+        staging_review[["Staging Review"]]
     end
 
     auth_login -->|Complete authentication #lpar;authenticated#rpar;| workspace_list

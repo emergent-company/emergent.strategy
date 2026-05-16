@@ -8,6 +8,8 @@ contexts:
     mode: landing
     group: main
     category: operations
+    contributes_to:
+      - "Product.Core.Dashboard"
 
   - id: settings
     title: "Settings"
@@ -15,6 +17,8 @@ contexts:
     parent: dashboard
     group: main
     category: setup
+    contributes_to:
+      - "Product.Core.Configuration"
 
   - id: admin
     title: "Admin"

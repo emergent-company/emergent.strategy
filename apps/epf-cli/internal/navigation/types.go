@@ -29,6 +29,7 @@ type Context struct {
 	Scoped              bool              `yaml:"scoped,omitempty" json:"scoped,omitempty"`
 	DataRequirements    []DataRequirement `yaml:"data_requirements,omitempty" json:"data_requirements,omitempty"`
 	ImplementationHints []string          `yaml:"implementation_hints,omitempty" json:"implementation_hints,omitempty"`
+	ContributesTo       []string          `yaml:"contributes_to,omitempty" json:"contributes_to,omitempty"`
 	Properties          map[string]any    `yaml:"properties,omitempty" json:"properties,omitempty"`
 }
 

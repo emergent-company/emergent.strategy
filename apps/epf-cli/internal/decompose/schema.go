@@ -487,6 +487,10 @@ func RelationshipTypes() []RelTypeDef {
 			Description: "A navigation guard governs a transition between interaction contexts",
 			FromTypes:   []string{"NavigationGuard"}, ToTypes: []string{"InteractionContext"},
 			Properties: weightEdgeProps},
+		{Name: "realizes", Label: "Realizes", EdgeSource: "structural",
+			Description: "An interaction context realizes (delivers the user experience for) a value model component",
+			FromTypes:   []string{"InteractionContext"}, ToTypes: []string{"ValueModelComponent"},
+			Properties: weightEdgeProps},
 
 		// === Cross-artifact structural edges (Phase 3 — inferred from text matching and ID refs) ===
 		{Name: "competes_with", Label: "Competes With", EdgeSource: "structural",

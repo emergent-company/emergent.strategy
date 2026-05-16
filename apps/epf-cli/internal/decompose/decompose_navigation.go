@@ -52,6 +52,18 @@ func (d *Decomposer) decomposeNavigationGraph(result *Result) {
 			},
 		})
 		d.addContains(result, artKey, "Artifact", key, "InteractionContext")
+
+		// Link to value model components via contributes_to
+		for _, vmPath := range ctx.ContributesTo {
+			vmKey := objectKey("ValueModelComponent", vmPath)
+			d.addRel(result, "realizes",
+				key, "InteractionContext",
+				vmKey, "ValueModelComponent",
+				map[string]any{
+					"weight":      "1.0",
+					"edge_source": "structural",
+				})
+		}
 	}
 
 	// Decompose guards into NavigationGuard objects
