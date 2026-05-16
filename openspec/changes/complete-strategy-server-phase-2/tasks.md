@@ -76,10 +76,10 @@
 - [x] 7.2 Wire real auth path in `AuthMiddleware` (introspect → EnsureUser → context)
 - [ ] 7.3 Implement shared mode — read from `core.user_profiles`, `kb.orgs`
 - [x] 7.4 Implement standalone mode — read from `strategy.users`, `strategy.orgs`
-- [ ] 7.5 Scope `list_workspaces` by org membership
-- [ ] 7.6 Scope `list_instances`, `list_mutations`, `get_artifact` by workspace → org
-- [ ] 7.7 Assert org membership before `commit_batch`, `discard_batch`
-- [ ] 7.8 Write integration tests for tenant isolation (two users, two orgs, cross-access denied)
+- [x] 7.5 Scope `list_workspaces` by org membership
+- [x] 7.6 Scope `list_instances`, `get_instance`, `import_instance` by workspace → org
+- [x] 7.7 Assert org membership before `commit_batch`, `discard_batch`
+- [x] 7.8 Write integration tests for tenant isolation (two users, two orgs, cross-access denied)
 
 ### 8. Org MCP Tools
 
@@ -132,7 +132,7 @@
 - [x] 12.2 Write E2E test: stage feature → commit → verify in semantic graph
 - [x] 12.3 Write E2E test: search strategy → verify ranked results from Memory
 - [x] 12.4 Write E2E test: create scenario → evaluate → commit/discard
-- [ ] 12.5 Write E2E test: multi-tenant isolation (two orgs, cross-access denied)
+- [x] 12.5 Write E2E test: multi-tenant isolation (two orgs, cross-access denied)
 - [x] 12.6 Write E2E test: full agent workflow (routing → query → mutate → commit → verify)
 
 ### 13. Dogfooding

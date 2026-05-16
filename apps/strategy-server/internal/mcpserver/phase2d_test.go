@@ -851,3 +851,222 @@ func (c *mcpClientWithUser) call(id int, toolName string, args map[string]any) t
 		isError: envelope.Result.IsError,
 	}
 }
+
+// ---------------------------------------------------------------------------
+// newMCPClientForUser creates an MCP client that injects a specific user into
+// every request context. Used for multi-tenant isolation tests.
+// ---------------------------------------------------------------------------
+
+func newMCPClientForUser(t *testing.T, svc mcpserver.Services, u *web.User) *mcpClientWithUser {
+	t.Helper()
+	handler := mcpserver.New(svc)
+
+	wrappedHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := web.ContextWithUser(r.Context(), u)
+		ctx = audit.ContextWithActor(ctx, u.ID)
+		ctx = audit.ContextWithSource(ctx, audit.SourceMCP)
+		ctx = audit.ContextWithAudit(ctx, audit.NewSlogWriter())
+		handler.ServeHTTP(w, r.WithContext(ctx))
+	})
+
+	ts := httptest.NewServer(wrappedHandler)
+	t.Cleanup(ts.Close)
+
+	c := &mcpClientWithUser{}
+	c.t = t
+	c.server = ts
+	c.initialize()
+	return c
+}
+
+// ---------------------------------------------------------------------------
+// Scenario: Multi-tenant isolation — two orgs, cross-access denied
+// ---------------------------------------------------------------------------
+
+func TestMCP_MultiTenantIsolation(t *testing.T) {
+	db := database.TestDB(t)
+	ctx := context.Background()
+	ctx = audit.ContextWithSource(ctx, audit.SourceSystem)
+	ctx = audit.ContextWithAudit(ctx, audit.NewSlogWriter())
+
+	// Create two users.
+	userSvc := user.NewService(db)
+	userAlice, err := userSvc.EnsureUser(ctx, "alice-sub", "alice@example.com", "Alice")
+	if err != nil {
+		t.Fatalf("create alice: %v", err)
+	}
+	userBob, err := userSvc.EnsureUser(ctx, "bob-sub", "bob@example.com", "Bob")
+	if err != nil {
+		t.Fatalf("create bob: %v", err)
+	}
+
+	// Create two orgs.
+	orgSvc := orgdom.NewService(db)
+	orgAlice, err := orgSvc.Create(ctx, "Alice Corp", userAlice.ID)
+	if err != nil {
+		t.Fatalf("create alice org: %v", err)
+	}
+	orgBob, err := orgSvc.Create(ctx, "Bob Inc", userBob.ID)
+	if err != nil {
+		t.Fatalf("create bob org: %v", err)
+	}
+
+	// Create workspaces scoped to each org.
+	wsSvc := workspace.NewService(db)
+	wsAlice, err := wsSvc.CreateWorkspace(ctx, "alice-github", nil)
+	if err != nil {
+		t.Fatalf("create alice workspace: %v", err)
+	}
+	if err := wsSvc.SetOrgID(ctx, wsAlice.ID, orgAlice.ID); err != nil {
+		t.Fatalf("set alice workspace org: %v", err)
+	}
+
+	wsBob, err := wsSvc.CreateWorkspace(ctx, "bob-github", nil)
+	if err != nil {
+		t.Fatalf("create bob workspace: %v", err)
+	}
+	if err := wsSvc.SetOrgID(ctx, wsBob.ID, orgBob.ID); err != nil {
+		t.Fatalf("set bob workspace org: %v", err)
+	}
+
+	// Create instances in each workspace.
+	instSvc := instance.NewService(db)
+	instAlice, err := instSvc.ImportInstance(ctx, instance.ImportParams{
+		WorkspaceID: wsAlice.ID,
+		Name:        "Alice Strategy",
+	})
+	if err != nil {
+		t.Fatalf("import alice instance: %v", err)
+	}
+
+	instBob, err := instSvc.ImportInstance(ctx, instance.ImportParams{
+		WorkspaceID: wsBob.ID,
+		Name:        "Bob Strategy",
+	})
+	if err != nil {
+		t.Fatalf("import bob instance: %v", err)
+	}
+
+	// Stage a feature in Bob's instance (using system context for setup).
+	stratSvc := strategy.NewService(db)
+	batchIDBob, err := stratSvc.Stage(ctx, strategy.StageParams{
+		InstanceID:   instBob.ID,
+		ArtifactType: "feature",
+		ArtifactKey:  "fd-001",
+		Action:       "create",
+		Payload:      map[string]any{"name": "Bob's Feature"},
+	})
+	if err != nil {
+		t.Fatalf("stage bob feature: %v", err)
+	}
+
+	// Build MCP services.
+	packSvc := pack.NewService(db)
+	svc := mcpserver.Services{
+		Workspace: wsSvc,
+		Instance:  instSvc,
+		Strategy:  stratSvc,
+		Pack:      packSvc,
+		App:       appdom.NewService(db),
+		Semantic:  semantic.NewService(semantic.Config{}),
+		Org:       orgSvc,
+	}
+
+	// Create MCP clients for each user.
+	aliceUser := &web.User{ID: userAlice.ID, Sub: "alice-sub", Email: "alice@example.com", Name: "Alice"}
+	bobUser := &web.User{ID: userBob.ID, Sub: "bob-sub", Email: "bob@example.com", Name: "Bob"}
+	aliceClient := newMCPClientForUser(t, svc, aliceUser)
+	bobClient := newMCPClientForUser(t, svc, bobUser)
+
+	id := 1
+
+	// -----------------------------------------------------------------------
+	// Test 1: list_workspaces — each user sees only their org's workspaces
+	// -----------------------------------------------------------------------
+	t.Run("list_workspaces_scoped", func(t *testing.T) {
+		var aliceResult struct {
+			Workspaces []struct {
+				ID string `json:"id"`
+			} `json:"workspaces"`
+		}
+		aliceClient.call(id, "list_workspaces", map[string]any{}).assertOK().decode(&aliceResult)
+		id++
+		if len(aliceResult.Workspaces) != 1 {
+			t.Fatalf("alice should see 1 workspace, got %d", len(aliceResult.Workspaces))
+		}
+		if aliceResult.Workspaces[0].ID != wsAlice.ID.String() {
+			t.Errorf("alice sees wrong workspace: %s", aliceResult.Workspaces[0].ID)
+		}
+
+		var bobResult struct {
+			Workspaces []struct {
+				ID string `json:"id"`
+			} `json:"workspaces"`
+		}
+		bobClient.call(id, "list_workspaces", map[string]any{}).assertOK().decode(&bobResult)
+		id++
+		if len(bobResult.Workspaces) != 1 {
+			t.Fatalf("bob should see 1 workspace, got %d", len(bobResult.Workspaces))
+		}
+		if bobResult.Workspaces[0].ID != wsBob.ID.String() {
+			t.Errorf("bob sees wrong workspace: %s", bobResult.Workspaces[0].ID)
+		}
+	})
+
+	// -----------------------------------------------------------------------
+	// Test 2: get_instance — cross-org access denied
+	// -----------------------------------------------------------------------
+	t.Run("get_instance_cross_org_denied", func(t *testing.T) {
+		// Alice can access her own instance.
+		aliceClient.call(id, "get_instance", map[string]any{
+			"instance_id": instAlice.ID.String(),
+		}).assertOK()
+		id++
+
+		// Alice CANNOT access Bob's instance.
+		aliceClient.call(id, "get_instance", map[string]any{
+			"instance_id": instBob.ID.String(),
+		}).assertError()
+		id++
+		t.Log("alice correctly denied access to bob's instance")
+	})
+
+	// -----------------------------------------------------------------------
+	// Test 3: commit_batch — cross-org write denied
+	// -----------------------------------------------------------------------
+	t.Run("commit_batch_cross_org_denied", func(t *testing.T) {
+		// Alice CANNOT commit Bob's batch.
+		aliceClient.call(id, "commit_batch", map[string]any{
+			"batch_id": batchIDBob.String(),
+		}).assertError()
+		id++
+		t.Log("alice correctly denied commit on bob's batch")
+
+		// Bob CAN commit his own batch.
+		bobClient.call(id, "commit_batch", map[string]any{
+			"batch_id": batchIDBob.String(),
+		}).assertOK()
+		id++
+		t.Log("bob successfully committed his own batch")
+	})
+
+	// -----------------------------------------------------------------------
+	// Test 4: list_instances — cross-org workspace access denied
+	// -----------------------------------------------------------------------
+	t.Run("list_instances_cross_org_denied", func(t *testing.T) {
+		// Alice can list instances in her workspace.
+		aliceClient.call(id, "list_instances", map[string]any{
+			"workspace_id": wsAlice.ID.String(),
+		}).assertOK()
+		id++
+
+		// Alice CANNOT list instances in Bob's workspace.
+		aliceClient.call(id, "list_instances", map[string]any{
+			"workspace_id": wsBob.ID.String(),
+		}).assertError()
+		id++
+		t.Log("alice correctly denied access to bob's workspace instances")
+	})
+
+	t.Logf("multi-tenant isolation: all checks passed (alice org=%s, bob org=%s)", orgAlice.ID, orgBob.ID)
+}

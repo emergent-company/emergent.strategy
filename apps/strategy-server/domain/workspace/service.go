@@ -34,6 +34,9 @@ func NewService(db *bun.DB) *Service {
 type ListParams struct {
 	Cursor string
 	Limit  int
+	// OrgIDs filters to workspaces belonging to these orgs.
+	// When nil or empty, no org filtering is applied (admin/dev mode).
+	OrgIDs []uuid.UUID
 }
 
 // ListResult is the paginated workspace list response.
@@ -55,6 +58,10 @@ func (s *Service) ListWorkspaces(ctx context.Context, p ListParams) (*ListResult
 		Where("deleted_at IS NULL").
 		OrderExpr("created_at ASC, id ASC").
 		Limit(limit + 1)
+
+	if len(p.OrgIDs) > 0 {
+		q = q.Where("org_id IN (?)", bun.In(p.OrgIDs))
+	}
 
 	if p.Cursor != "" {
 		cursorTime, cursorID, ok := parseCursor(p.Cursor)
@@ -203,6 +210,36 @@ func (s *Service) DeleteWorkspace(ctx context.Context, id uuid.UUID) error {
 
 		return nil
 	})
+}
+
+// SetOrgID assigns an org to a workspace. Used when creating a workspace in
+// the context of an org.
+func (s *Service) SetOrgID(ctx context.Context, workspaceID, orgID uuid.UUID) error {
+	res, err := s.db.NewUpdate().
+		Model((*domain.Workspace)(nil)).
+		Set("org_id = ?, updated_at = ?", orgID, time.Now().UTC()).
+		Where("id = ? AND deleted_at IS NULL", workspaceID).
+		Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("set org_id: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rows affected: %w", err)
+	}
+	if n == 0 {
+		return apperror.ErrWorkspaceNotFound
+	}
+	return nil
+}
+
+// OrgIDForWorkspace returns the org_id for a workspace, or nil if unset.
+func (s *Service) OrgIDForWorkspace(ctx context.Context, workspaceID uuid.UUID) (*uuid.UUID, error) {
+	ws, err := s.GetWorkspace(ctx, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	return ws.OrgID, nil
 }
 
 // StrategyInstance is an alias so callers don't need to import internal/domain directly.

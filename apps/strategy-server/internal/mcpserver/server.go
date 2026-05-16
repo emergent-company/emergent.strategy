@@ -164,6 +164,7 @@ func registerWorkspaceReadTools(s *server.MCPServer, svc Services) {
 		result, err := svc.Workspace.ListWorkspaces(ctx, workspace.ListParams{
 			Cursor: argString(req, "cursor"),
 			Limit:  argInt(req, "limit", 50),
+			OrgIDs: userOrgIDs(ctx, svc),
 		})
 		if err != nil {
 			return toolErr(ctx, err), nil
@@ -177,6 +178,9 @@ func registerWorkspaceReadTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "workspace_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertWorkspaceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
 		ws, err := svc.Workspace.GetWorkspace(ctx, id)
@@ -198,6 +202,9 @@ func registerInstanceReadTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertWorkspaceAccess(ctx, svc, wsID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		result, err := svc.Instance.ListInstances(ctx, instance.ListParams{
 			WorkspaceID: wsID,
 			Cursor:      argString(req, "cursor"),
@@ -215,6 +222,9 @@ func registerInstanceReadTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
 		inst, err := svc.Instance.GetInstance(ctx, id)
@@ -591,6 +601,14 @@ func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+
+		// Auto-assign the workspace to the user's first org (if they have one).
+		orgIDs := userOrgIDs(ctx, svc)
+		if len(orgIDs) > 0 {
+			_ = svc.Workspace.SetOrgID(ctx, ws.ID, orgIDs[0]) // best-effort
+			ws.OrgID = &orgIDs[0]
+		}
+
 		return mustJSON(ws)
 	})
 
@@ -603,6 +621,9 @@ func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		wsID, err := parseUUID(argString(req, "workspace_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertWorkspaceAccess(ctx, svc, wsID); err != nil {
 			return toolErr(ctx, err), nil
 		}
 		p := instance.ImportParams{
@@ -708,17 +729,23 @@ func registerBatchWriteTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+
+		// Check access via batch → instance → workspace → org.
+		instanceID := svc.Strategy.InstanceIDForBatch(ctx, batchID)
+		if instanceID != uuid.Nil {
+			if err := assertInstanceAccess(ctx, svc, instanceID); err != nil {
+				return toolErr(ctx, err), nil
+			}
+		}
+
 		n, err := svc.Strategy.CommitBatch(ctx, batchID)
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
 
 		// Enqueue async Memory ingestion for the committed batch.
-		if svc.Ingest != nil {
-			instanceID := svc.Strategy.InstanceIDForBatch(ctx, batchID)
-			if instanceID != uuid.Nil {
-				svc.Ingest.EnqueueBatch(instanceID, batchID)
-			}
+		if svc.Ingest != nil && instanceID != uuid.Nil {
+			svc.Ingest.EnqueueBatch(instanceID, batchID)
 		}
 
 		return mustJSON(map[string]any{"committed": true, "batch_id": batchID, "count": n})
@@ -732,6 +759,15 @@ func registerBatchWriteTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+
+		// Check access via batch → instance → workspace → org.
+		instanceID := svc.Strategy.InstanceIDForBatch(ctx, batchID)
+		if instanceID != uuid.Nil {
+			if err := assertInstanceAccess(ctx, svc, instanceID); err != nil {
+				return toolErr(ctx, err), nil
+			}
+		}
+
 		n, err := svc.Strategy.DiscardBatch(ctx, batchID)
 		if err != nil {
 			return toolErr(ctx, err), nil
