@@ -249,6 +249,36 @@ var routingTable = []routeEntry{
 		},
 	},
 
+	// Ripple coherence tools.
+	{
+		keywords: []string{"impact", "blast radius", "ripple", "what does this affect", "propose change", "downstream"},
+		result: RoutingResult{
+			Type: "direct_tool", ToolName: "propose_change",
+			Reason: "Use propose_change to preview the blast radius of a change before committing.",
+		},
+	},
+	{
+		keywords: []string{"coherence", "coherent", "graph health", "misalignment", "orphan", "stale artifact"},
+		result: RoutingResult{
+			Type: "direct_tool", ToolName: "coherence_check",
+			Reason: "Use coherence_check for a full-graph coherence analysis of the strategy instance.",
+		},
+	},
+	{
+		keywords: []string{"signal", "signals", "ripple signal", "active signal", "misalign"},
+		result: RoutingResult{
+			Type: "direct_tool", ToolName: "list_signals",
+			Reason: "Use list_signals to see active ripple signals — detected misalignments between connected artifacts.",
+		},
+	},
+	{
+		keywords: []string{"resolve ripple", "fix ripple", "address signal", "ripple batch"},
+		result: RoutingResult{
+			Type: "direct_tool", ToolName: "generate_ripple_batch",
+			Reason: "Use generate_ripple_batch to assemble context for AI-assisted ripple resolution of active signals.",
+		},
+	},
+
 	// Fresh start / new product.
 	{
 		keywords: []string{"new product", "fresh start", "start from scratch", "new instance", "scaffold", "bootstrap new", "set up new", "setup new"},

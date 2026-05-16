@@ -70,6 +70,7 @@ type StrategyMutation struct {
 	Source           string          `bun:"source,notnull,default:'system'"   json:"source"`
 	AgentID          *string         `bun:"agent_id"                          json:"agent_id,omitempty"`
 	BatchDescription *string         `bun:"batch_description"                 json:"batch_description,omitempty"`
+	BatchMetadata    json.RawMessage `bun:"batch_metadata,type:jsonb"         json:"batch_metadata,omitempty"`
 	CreatedBy        *uuid.UUID      `bun:"created_by,type:uuid"              json:"created_by,omitempty"`
 	CreatedAt        time.Time       `bun:"created_at,notnull,default:now()"  json:"created_at"`
 
@@ -371,6 +372,56 @@ const (
 	SyncStatusPRCreated = "pr_created"
 	SyncStatusMerged    = "merged"
 	SyncStatusFailed    = "failed"
+)
+
+// ---------------------------------------------------------------------------
+// Ripple Signals
+// ---------------------------------------------------------------------------
+
+// RippleSignal represents a detected misalignment between connected strategy
+// artifacts. Signals are ephemeral observations — not versioned artifacts.
+type RippleSignal struct {
+	bun.BaseModel `bun:"table:ripple_signals,alias:rs"`
+
+	ID          uuid.UUID       `bun:"id,pk,type:uuid"                    json:"id"`
+	InstanceID  uuid.UUID       `bun:"instance_id,notnull,type:uuid"      json:"instance_id"`
+	SignalType  string          `bun:"signal_type,notnull"                json:"signal_type"`
+	Severity    string          `bun:"severity,notnull"                   json:"severity"`
+	Status      string          `bun:"status,notnull,default:'active'"    json:"status"`
+	SourceKey   string          `bun:"source_key,notnull"                 json:"source_key"`
+	TargetKey   string          `bun:"target_key,notnull"                 json:"target_key"`
+	Description string          `bun:"description,notnull"                json:"description"`
+	Suggestion  *string         `bun:"suggestion"                         json:"suggestion,omitempty"`
+	Metadata    json.RawMessage `bun:"metadata,type:jsonb"                json:"metadata,omitempty"`
+	BatchID     *uuid.UUID      `bun:"batch_id,type:uuid"                 json:"batch_id,omitempty"`
+	CreatedBy   *uuid.UUID      `bun:"created_by,type:uuid"               json:"created_by,omitempty"`
+	CreatedAt   time.Time       `bun:"created_at,notnull,default:now()"   json:"created_at"`
+	ResolvedAt  *time.Time      `bun:"resolved_at"                        json:"resolved_at,omitempty"`
+}
+
+// SignalType enumerates ripple signal types.
+const (
+	SignalTypeDrift       = "drift"
+	SignalTypePropagation = "propagation"
+	SignalTypeTension     = "tension"
+	SignalTypeStaleness   = "staleness"
+	SignalTypeClustering  = "clustering"
+	SignalTypeOrphan      = "orphan"
+)
+
+// SignalSeverity enumerates ripple signal severity levels.
+const (
+	SignalSeverityCritical = "critical"
+	SignalSeverityWarning  = "warning"
+	SignalSeverityInfo     = "info"
+)
+
+// SignalStatus enumerates ripple signal lifecycle states.
+const (
+	SignalStatusActive       = "active"
+	SignalStatusAcknowledged = "acknowledged"
+	SignalStatusResolved     = "resolved"
+	SignalStatusDismissed    = "dismissed"
 )
 
 // SchemaRegistryEntry stores a single JSON schema document in the runtime registry.

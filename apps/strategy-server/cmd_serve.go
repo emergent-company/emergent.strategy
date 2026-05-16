@@ -23,6 +23,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/org"
+	rippledom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ripple"
 	schemadom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/schema"
 	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/user"
@@ -94,6 +95,7 @@ func runServer(cfg *config.Config) error {
 	orgSvc := org.NewService(db)
 	versionSvc := versiondom.NewService(db)
 	strategySvc := strategy.NewService(db)
+	rippleSvc := rippledom.NewService(db)
 
 	// GitHub sync — only available when GitHub App is configured.
 	var syncSvc *syncdom.Service
@@ -123,6 +125,7 @@ func runServer(cfg *config.Config) error {
 		Schema:    schemaSvc,
 		Version:   versionSvc,
 		Sync:      syncSvc,
+		Ripple:    rippleSvc,
 		Ingest:    ingestSvc,
 	}
 

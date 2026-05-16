@@ -40,6 +40,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
 	schemadom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/schema"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
+	rippledom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ripple"
 	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
 	versiondom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/version"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
@@ -65,8 +66,9 @@ type Services struct {
 	Org       *orgdom.Service
 	Schema    *schemadom.Service    // optional — nil falls back to embedded-only validation
 	Version   *versiondom.Service  // optional — nil disables versioning tools
-	Sync      *syncdom.Service     // optional — nil disables GitHub sync tools
-	Ingest    IngestEnqueuer       // optional — nil when Memory is not configured
+	Sync      *syncdom.Service      // optional — nil disables GitHub sync tools
+	Ripple    *rippledom.Service   // optional — nil disables ripple coherence tools
+	Ingest    IngestEnqueuer        // optional — nil when Memory is not configured
 }
 
 // New creates and registers all MCP tools, returning the StreamableHTTPServer
@@ -100,6 +102,7 @@ func New(svc Services) http.Handler {
 	registerPhase2cTools(s, svc)
 	registerVersionTools(s, svc)
 	registerSyncTools(s, svc)
+	registerRippleTools(s, svc)
 	registerKnowledgePrompt(s)
 
 	return server.NewStreamableHTTPServer(s)
@@ -289,14 +292,35 @@ func registerInstanceReadTools(s *server.MCPServer, svc Services) {
 		// Lifecycle mode detection — tells the user what to do next.
 		lifecycle := detectLifecycleMode(ctx, svc, inst, artifacts)
 
-		return mustJSON(map[string]any{
+		result := map[string]any{
 			"instance":             inst,
 			"artifact_count":       len(artifacts),
 			"status":               inst.Status,
 			"lifecycle":            lifecycle,
 			"standard_pack_status": standardPackStatus,
 			"schema_status":        schemaStatus,
-		})
+		}
+
+		// Add ripple signal summary when available.
+		if svc.Ripple != nil {
+			counts, countErr := svc.Ripple.CountByStatus(ctx, id)
+			if countErr == nil {
+				activeTotal := counts["critical"] + counts["warning"] + counts["info"]
+				signalSummary := map[string]any{
+					"active_total":    activeTotal,
+					"critical_count":  counts["critical"],
+					"warning_count":   counts["warning"],
+					"info_count":      counts["info"],
+				}
+				if activeTotal > 0 {
+					topSignals, _ := svc.Ripple.TopCritical(ctx, id, 3)
+					signalSummary["top_signals"] = topSignals
+				}
+				result["ripple_signals"] = signalSummary
+			}
+		}
+
+		return mustJSON(result)
 	})
 }
 
@@ -821,10 +845,17 @@ func registerBatchWriteTools(s *server.MCPServer, svc Services) {
 			svc.Ingest.EnqueueBatch(instanceID, batchID)
 		}
 
+		// Post-commit ripple analysis: detect misalignments and auto-resolve.
+		result := map[string]any{"committed": true, "batch_id": batchID, "count": n}
+		if instanceID != uuid.Nil {
+			if rippleSummary := postCommitRippleAnalysis(ctx, svc, instanceID, batchID); rippleSummary != nil {
+				result["ripple_signals"] = rippleSummary
+			}
+		}
+
 		// Post-commit: run validation on the committed artifacts and include
 		// any schema warnings in the response. This surfaces issues immediately
 		// without blocking the commit.
-		result := map[string]any{"committed": true, "batch_id": batchID, "count": n}
 		if instanceID != uuid.Nil {
 			mutations, _, _ := svc.Strategy.ListMutations(ctx, instanceID, "", false, 100, "", "")
 			var warnings []string
