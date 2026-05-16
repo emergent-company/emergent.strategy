@@ -119,11 +119,13 @@ Four-phase build order — do not start the next phase until the exit gate is me
 ### Phase 2 status
 
 - **2a (Memory integration):** Complete — docker-compose, memory client, semantic
-  service wiring, async ingestion pipeline
+  service wiring, async ingestion pipeline, dual-layer graph (artifact + decomposed)
 - **2b (Auth + multi-tenant):** Complete — Zitadel introspection, user/org model,
   auth middleware, org MCP tools
 - **2c (Tool parity):** Complete — 96 MCP tools, agent routing, knowledge base
-- **2d (Integration tests):** Not started
+- **2d (Integration tests):** In progress — E2E tests for semantic tools (mocked Memory),
+  org lifecycle, ingest pipeline, full agent workflow. Remaining: multi-tenant isolation,
+  documentation
 
 ## Tech Stack
 
