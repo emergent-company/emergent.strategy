@@ -371,6 +371,22 @@ func (s *Service) CommitBatch(ctx context.Context, batchID uuid.UUID) (int, erro
 	return int(n), nil
 }
 
+// InstanceIDForBatch returns the instance_id for a batch by reading the first
+// mutation in that batch. Returns uuid.Nil if not found.
+func (s *Service) InstanceIDForBatch(ctx context.Context, batchID uuid.UUID) uuid.UUID {
+	var m domain.StrategyMutation
+	err := s.db.NewSelect().
+		Model(&m).
+		Column("instance_id").
+		Where("batch_id = ?", batchID).
+		Limit(1).
+		Scan(ctx)
+	if err != nil {
+		return uuid.Nil
+	}
+	return m.InstanceID
+}
+
 // deriveIndex upserts strategy_artifacts and replaces strategy_relationships
 // for a single committed mutation.
 func (s *Service) deriveIndex(ctx context.Context, m *domain.StrategyMutation) error {

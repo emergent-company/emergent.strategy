@@ -45,9 +45,11 @@ type Edge struct {
 }
 
 // Edges groups incoming and outgoing edges for a node.
+// The Memory API returns flat Relationship objects in each array — to get
+// the connected objects, callers must resolve src_id/dst_id separately.
 type Edges struct {
-	Incoming []Edge `json:"incoming"`
-	Outgoing []Edge `json:"outgoing"`
+	Incoming []Relationship `json:"incoming"`
+	Outgoing []Relationship `json:"outgoing"`
 }
 
 // Branch represents a graph branch for what-if exploration.

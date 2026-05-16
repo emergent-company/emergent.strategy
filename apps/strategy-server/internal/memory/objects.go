@@ -90,6 +90,7 @@ func (c *Client) ObjectEdges(ctx context.Context, id string) (*Edges, error) {
 // ListObjectsOptions configures object listing.
 type ListObjectsOptions struct {
 	Type   string
+	Key    string
 	Status string
 	Cursor string
 	Limit  int
@@ -100,6 +101,9 @@ func (c *Client) ListObjects(ctx context.Context, opts ListObjectsOptions) (*Lis
 	params := url.Values{}
 	if opts.Type != "" {
 		params.Set("type", opts.Type)
+	}
+	if opts.Key != "" {
+		params.Set("key", opts.Key)
 	}
 	if opts.Status != "" {
 		params.Set("status", opts.Status)
@@ -120,6 +124,22 @@ func (c *Client) ListObjects(ctx context.Context, opts ListObjectsOptions) (*Lis
 		return nil, fmt.Errorf("list objects: %w", err)
 	}
 	return decodeJSON[*ListPage[Object]](data)
+}
+
+// GetObjectByKey looks up a single object by its exact key.
+// Returns nil, nil if no object with that key exists.
+func (c *Client) GetObjectByKey(ctx context.Context, key string) (*Object, error) {
+	page, err := c.ListObjects(ctx, ListObjectsOptions{
+		Key:   key,
+		Limit: 1,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("get object by key %q: %w", key, err)
+	}
+	if len(page.Items) == 0 {
+		return nil, nil
+	}
+	return &page.Items[0], nil
 }
 
 // BulkCreateObjects creates multiple objects in a single request.

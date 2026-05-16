@@ -118,43 +118,43 @@ func TestGetNeighbors_NotConfigured(t *testing.T) {
 func TestGetNeighbors_Success(t *testing.T) {
 	svc := newTestService(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
-		case r.URL.Path == "/api/graph/search" && r.Method == http.MethodPost:
-			// Return the node we're looking for.
+		case r.URL.Path == "/api/graph/objects/search" && r.Method == http.MethodGet:
+			// GetObjectByKey — return the node by key filter.
 			resp := map[string]any{
-				"results": []map[string]any{
+				"items": []map[string]any{
 					{
-						"object": map[string]any{
-							"id":   "obj-1",
-							"type": "feature",
-							"key":  "fd-001",
-						},
-						"score": 1.0,
+						"id":   "obj-1",
+						"type": "feature",
+						"key":  "fd-001",
 					},
 				},
+				"total": 1,
 			}
 			_ = json.NewEncoder(w).Encode(resp)
 
 		case strings.HasSuffix(r.URL.Path, "/edges"):
+			// Memory API returns flat Relationship objects.
 			resp := map[string]any{
 				"incoming": []map[string]any{
-					{
-						"relationship": map[string]any{"id": "rel-1", "type": "contributes_to"},
-						"direction":    "incoming",
-						"object":       map[string]any{"id": "obj-2", "type": "persona", "key": "user-researcher"},
-					},
+					{"id": "rel-1", "type": "contributes_to", "src_id": "obj-2", "dst_id": "obj-1"},
 				},
 				"outgoing": []map[string]any{
-					{
-						"relationship": map[string]any{"id": "rel-2", "type": "depends_on"},
-						"direction":    "outgoing",
-						"object":       map[string]any{"id": "obj-3", "type": "feature", "key": "fd-002"},
-					},
+					{"id": "rel-2", "type": "depends_on", "src_id": "obj-1", "dst_id": "obj-3"},
 				},
 			}
 			_ = json.NewEncoder(w).Encode(resp)
 
+		case r.URL.Path == "/api/graph/objects/obj-2" && r.Method == http.MethodGet:
+			// Resolve connected object for incoming edge.
+			resp := map[string]any{"id": "obj-2", "type": "persona", "key": "user-researcher"}
+			_ = json.NewEncoder(w).Encode(resp)
+
+		case r.URL.Path == "/api/graph/objects/obj-3" && r.Method == http.MethodGet:
+			// Resolve connected object for outgoing edge.
+			resp := map[string]any{"id": "obj-3", "type": "feature", "key": "fd-002"}
+			_ = json.NewEncoder(w).Encode(resp)
+
 		default:
-			// ListObjects fallback.
 			_ = json.NewEncoder(w).Encode(map[string]any{"items": []any{}, "total": 0})
 		}
 	}))

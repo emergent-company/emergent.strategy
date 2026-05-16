@@ -44,6 +44,12 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
 
+// IngestEnqueuer is the interface used to trigger async Memory graph ingestion
+// after a batch is committed.
+type IngestEnqueuer interface {
+	EnqueueBatch(instanceID, batchID uuid.UUID)
+}
+
 // Services bundles all domain services used by the MCP server.
 type Services struct {
 	Workspace *workspace.Service
@@ -53,6 +59,7 @@ type Services struct {
 	App       *appdom.Service
 	Semantic  *semantic.Service
 	Org       *orgdom.Service
+	Ingest    IngestEnqueuer // optional — nil when Memory is not configured
 }
 
 // New creates and registers all MCP tools, returning the StreamableHTTPServer
@@ -682,6 +689,15 @@ func registerBatchWriteTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+
+		// Enqueue async Memory ingestion for the committed batch.
+		if svc.Ingest != nil {
+			instanceID := svc.Strategy.InstanceIDForBatch(ctx, batchID)
+			if instanceID != uuid.Nil {
+				svc.Ingest.EnqueueBatch(instanceID, batchID)
+			}
+		}
+
 		return mustJSON(map[string]any{"committed": true, "batch_id": batchID, "count": n})
 	})
 

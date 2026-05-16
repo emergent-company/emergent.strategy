@@ -152,51 +152,59 @@ func (s *Service) GetNeighbors(ctx context.Context, instanceID, nodeKey string) 
 		return nil, err
 	}
 
-	// Find the object by key first.
-	page, err := s.client.ListObjects(ctx, memory.ListObjectsOptions{
-		Limit: 1,
-	})
+	// Look up the object by exact key.
+	obj, err := s.client.GetObjectByKey(ctx, nodeKey)
 	if err != nil {
-		return nil, fmt.Errorf("get neighbors: list objects: %w", err)
+		return nil, fmt.Errorf("get neighbors: lookup node %q: %w", nodeKey, err)
 	}
-
-	// Search by key — we need to find the specific object.
-	// Use search to find the node by its key.
-	searchResults, err := s.client.Search(ctx, memory.SearchRequest{
-		Query: nodeKey,
-		Limit: 1,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("get neighbors: search for node: %w", err)
-	}
-	_ = page // suppress unused warning from first query
-
-	if len(searchResults) == 0 {
+	if obj == nil {
 		return []*Neighbor{}, nil
 	}
 
-	objectID := searchResults[0].Object.StableID()
-
 	// Get edges for this object.
-	edges, err := s.client.ObjectEdges(ctx, objectID)
+	edges, err := s.client.ObjectEdges(ctx, obj.StableID())
 	if err != nil {
 		return nil, fmt.Errorf("get neighbors: edges: %w", err)
 	}
 
-	var out []*Neighbor
-	for _, e := range edges.Outgoing {
+	// The edges endpoint returns flat Relationship objects (src_id/dst_id).
+	// Resolve connected object IDs to get their key and type.
+	objectID := obj.StableID()
+	out := make([]*Neighbor, 0, len(edges.Outgoing)+len(edges.Incoming))
+
+	for _, rel := range edges.Outgoing {
+		// For outgoing edges, the connected node is the destination.
+		connectedID := rel.ToID
+		if connectedID == objectID {
+			connectedID = rel.FromID // shouldn't happen but be safe
+		}
+		connected, err := s.client.GetObject(ctx, connectedID)
+		if err != nil {
+			slog.Debug("get neighbors: resolve outgoing object failed", "id", connectedID, "err", err)
+			continue
+		}
 		out = append(out, &Neighbor{
-			NodeKey:  e.Object.Key,
-			NodeType: e.Object.Type,
-			EdgeType: e.Relationship.Type,
+			NodeKey:  connected.Key,
+			NodeType: connected.Type,
+			EdgeType: rel.Type,
 			EdgeDir:  "outbound",
 		})
 	}
-	for _, e := range edges.Incoming {
+	for _, rel := range edges.Incoming {
+		// For incoming edges, the connected node is the source.
+		connectedID := rel.FromID
+		if connectedID == objectID {
+			connectedID = rel.ToID
+		}
+		connected, err := s.client.GetObject(ctx, connectedID)
+		if err != nil {
+			slog.Debug("get neighbors: resolve incoming object failed", "id", connectedID, "err", err)
+			continue
+		}
 		out = append(out, &Neighbor{
-			NodeKey:  e.Object.Key,
-			NodeType: e.Object.Type,
-			EdgeType: e.Relationship.Type,
+			NodeKey:  connected.Key,
+			NodeType: connected.Type,
+			EdgeType: rel.Type,
 			EdgeDir:  "inbound",
 		})
 	}

@@ -91,6 +91,7 @@ func runServer(cfg *config.Config) error {
 		App:       appdom.NewService(db),
 		Semantic:  semanticSvc,
 		Org:       orgSvc,
+		Ingest:    ingestSvc,
 	}
 
 	// Echo instance.

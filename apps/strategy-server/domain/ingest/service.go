@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -155,7 +156,7 @@ func (s *Service) ingestBatch(ctx context.Context, job ingestJob) error {
 			continue
 		}
 
-		if err := s.upsertGraphObject(ctx, artifact); err != nil {
+		if _, err := s.upsertGraphObject(ctx, artifact); err != nil {
 			return fmt.Errorf("upsert %s: %w", artifact.ArtifactKey, err)
 		}
 	}
@@ -178,7 +179,8 @@ func (s *Service) ingestBatch(ctx context.Context, job ingestJob) error {
 }
 
 // upsertGraphObject creates or updates a Memory graph object from a strategy artifact.
-func (s *Service) upsertGraphObject(ctx context.Context, a domain.StrategyArtifact) error {
+// Returns the upserted object (for key index building) or nil on error.
+func (s *Service) upsertGraphObject(ctx context.Context, a domain.StrategyArtifact) (*memory.Object, error) {
 	// Build properties from the artifact payload.
 	props := map[string]any{
 		"artifact_type": a.ArtifactType,
@@ -211,29 +213,79 @@ func (s *Service) upsertGraphObject(ctx context.Context, a domain.StrategyArtifa
 		props["name"] = *a.Name
 	}
 
-	_, err := s.client.UpsertObject(ctx, memory.UpsertObjectRequest{
+	obj, err := s.client.UpsertObject(ctx, memory.UpsertObjectRequest{
 		Type:       a.ArtifactType,
 		Key:        a.ArtifactKey,
 		Status:     a.Status,
 		Properties: props,
 	})
-	return err
+	return obj, err
 }
 
 // deleteGraphObject removes a graph object for an archived artifact.
 func (s *Service) deleteGraphObject(ctx context.Context, instanceID uuid.UUID, artifactKey string) error {
-	// Find the object by key, then delete it.
-	results, err := s.client.Search(ctx, memory.SearchRequest{
-		Query: artifactKey,
-		Limit: 1,
-	})
+	obj, err := s.client.GetObjectByKey(ctx, artifactKey)
 	if err != nil {
-		return fmt.Errorf("search for %s: %w", artifactKey, err)
+		return fmt.Errorf("lookup %s: %w", artifactKey, err)
 	}
-	if len(results) == 0 {
+	if obj == nil {
 		return nil // already gone
 	}
-	return s.client.DeleteObject(ctx, results[0].Object.StableID())
+	return s.client.DeleteObject(ctx, obj.StableID())
+}
+
+// objectKeyIndex caches artifact key → Memory object ID mappings to avoid
+// per-relationship API calls. Built once per reingest from all upserted objects.
+type objectKeyIndex struct {
+	exact  map[string]string // artifact_key -> stable ID (exact match)
+	prefix map[string]string // short prefix (e.g. "fd-001") -> stable ID
+}
+
+func newObjectKeyIndex() *objectKeyIndex {
+	return &objectKeyIndex{
+		exact:  make(map[string]string),
+		prefix: make(map[string]string),
+	}
+}
+
+// add registers an artifact key and its Memory object ID.
+func (idx *objectKeyIndex) add(artifactKey, objectID string) {
+	idx.exact[artifactKey] = objectID
+
+	// For keys like "fd-001_knowledge_graph_engine", also index the short
+	// prefix "fd-001" so relationships using short IDs can resolve.
+	if i := strings.Index(artifactKey, "_"); i > 0 {
+		prefix := artifactKey[:i]
+		// Only set if not already claimed by another artifact.
+		if _, exists := idx.prefix[prefix]; !exists {
+			idx.prefix[prefix] = objectID
+		}
+	}
+}
+
+// resolve looks up a key: exact match first, then prefix match.
+func (idx *objectKeyIndex) resolve(key string) string {
+	if id, ok := idx.exact[key]; ok {
+		return id
+	}
+	if id, ok := idx.prefix[key]; ok {
+		return id
+	}
+	return ""
+}
+
+// resolveObjectID looks up a Memory object by its artifact key using the
+// provided index (for batch operations) or an API call (for single lookups).
+func (s *Service) resolveObjectID(ctx context.Context, key string) string {
+	obj, err := s.client.GetObjectByKey(ctx, key)
+	if err != nil {
+		slog.Debug("ingest: resolve object failed", "key", key, "err", err)
+		return ""
+	}
+	if obj == nil {
+		return ""
+	}
+	return obj.StableID()
 }
 
 // ingestRelationships upserts relationships for the given artifact keys.
@@ -248,28 +300,30 @@ func (s *Service) ingestRelationships(ctx context.Context, instanceID uuid.UUID,
 		return fmt.Errorf("load relationships: %w", err)
 	}
 
-	// For each relationship, we need the Memory object IDs.
-	// Use search to find source and target objects.
+	s.createRelationships(ctx, instanceID, rels)
+	return nil
+}
+
+// createRelationships resolves object IDs by key (via API) and creates edges in Memory.
+// Used by ingestBatch for incremental updates.
+func (s *Service) createRelationships(ctx context.Context, instanceID uuid.UUID, rels []domain.StrategyRelationship) {
+	created, skipped := 0, 0
 	for _, rel := range rels {
-		srcResults, err := s.client.Search(ctx, memory.SearchRequest{
-			Query: rel.SourceKey,
-			Limit: 1,
-		})
-		if err != nil || len(srcResults) == 0 {
+		srcID := s.resolveObjectID(ctx, rel.SourceKey)
+		if srcID == "" {
+			skipped++
 			continue
 		}
-		tgtResults, err := s.client.Search(ctx, memory.SearchRequest{
-			Query: rel.TargetKey,
-			Limit: 1,
-		})
-		if err != nil || len(tgtResults) == 0 {
+		tgtID := s.resolveObjectID(ctx, rel.TargetKey)
+		if tgtID == "" {
+			skipped++
 			continue
 		}
 
-		_, err = s.client.CreateRelationship(ctx, memory.CreateRelationshipRequest{
+		_, err := s.client.CreateRelationship(ctx, memory.CreateRelationshipRequest{
 			Type:   rel.Relationship,
-			FromID: srcResults[0].Object.StableID(),
-			ToID:   tgtResults[0].Object.StableID(),
+			FromID: srcID,
+			ToID:   tgtID,
 			Properties: map[string]any{
 				"instance_id": instanceID.String(),
 			},
@@ -280,10 +334,52 @@ func (s *Service) ingestRelationships(ctx context.Context, instanceID uuid.UUID,
 				"source", rel.SourceKey,
 				"target", rel.TargetKey,
 				"err", err)
+		} else {
+			created++
 		}
 	}
+	if len(rels) > 0 {
+		slog.Info("ingest: relationships processed", "total", len(rels), "created", created, "skipped", skipped)
+	}
+}
 
-	return nil
+// createRelationshipsIndexed resolves object IDs using a pre-built local index
+// (with prefix matching for short IDs). Used by ReingestInstance for bulk operations.
+func (s *Service) createRelationshipsIndexed(ctx context.Context, instanceID uuid.UUID, rels []domain.StrategyRelationship, idx *objectKeyIndex) {
+	created, skipped := 0, 0
+	for _, rel := range rels {
+		srcID := idx.resolve(rel.SourceKey)
+		if srcID == "" {
+			skipped++
+			continue
+		}
+		tgtID := idx.resolve(rel.TargetKey)
+		if tgtID == "" {
+			skipped++
+			continue
+		}
+
+		_, err := s.client.CreateRelationship(ctx, memory.CreateRelationshipRequest{
+			Type:   rel.Relationship,
+			FromID: srcID,
+			ToID:   tgtID,
+			Properties: map[string]any{
+				"instance_id": instanceID.String(),
+			},
+		})
+		if err != nil {
+			slog.Warn("ingest: create relationship failed",
+				"type", rel.Relationship,
+				"source", rel.SourceKey,
+				"target", rel.TargetKey,
+				"err", err)
+		} else {
+			created++
+		}
+	}
+	if len(rels) > 0 {
+		slog.Info("ingest: relationships processed", "total", len(rels), "created", created, "skipped", skipped)
+	}
 }
 
 // ReingestInstance does a full re-ingest of all current artifacts for an instance.
@@ -296,7 +392,7 @@ func (s *Service) ReingestInstance(ctx context.Context, instanceID uuid.UUID) er
 	err := s.db.NewSelect().
 		Model(&artifacts).
 		Where("instance_id = ?", instanceID).
-		Where("status = ?", domain.ArtifactStatusActive).
+		Where("status != ?", domain.ArtifactStatusArchived).
 		Scan(ctx)
 	if err != nil {
 		return fmt.Errorf("load artifacts: %w", err)
@@ -304,13 +400,20 @@ func (s *Service) ReingestInstance(ctx context.Context, instanceID uuid.UUID) er
 
 	slog.Info("ingest: re-ingesting instance", "instance_id", instanceID, "artifact_count", len(artifacts))
 
+	// Upsert all artifacts and build a key index for relationship resolution.
+	idx := newObjectKeyIndex()
 	for _, a := range artifacts {
-		if err := s.upsertGraphObject(ctx, a); err != nil {
+		obj, err := s.upsertGraphObject(ctx, a)
+		if err != nil {
 			slog.Warn("ingest: re-ingest upsert failed", "artifact_key", a.ArtifactKey, "err", err)
+			continue
+		}
+		if obj != nil {
+			idx.add(a.ArtifactKey, obj.StableID())
 		}
 	}
 
-	// Re-ingest all relationships.
+	// Re-ingest all relationships using the local index for fast resolution.
 	var rels []domain.StrategyRelationship
 	err = s.db.NewSelect().
 		Model(&rels).
@@ -320,32 +423,7 @@ func (s *Service) ReingestInstance(ctx context.Context, instanceID uuid.UUID) er
 		return fmt.Errorf("load relationships: %w", err)
 	}
 
-	for _, rel := range rels {
-		srcResults, err := s.client.Search(ctx, memory.SearchRequest{
-			Query: rel.SourceKey,
-			Limit: 1,
-		})
-		if err != nil || len(srcResults) == 0 {
-			continue
-		}
-		tgtResults, err := s.client.Search(ctx, memory.SearchRequest{
-			Query: rel.TargetKey,
-			Limit: 1,
-		})
-		if err != nil || len(tgtResults) == 0 {
-			continue
-		}
-
-		_, err = s.client.CreateRelationship(ctx, memory.CreateRelationshipRequest{
-			Type:   rel.Relationship,
-			FromID: srcResults[0].Object.StableID(),
-			ToID:   tgtResults[0].Object.StableID(),
-		})
-		if err != nil {
-			slog.Warn("ingest: re-ingest relationship failed",
-				"type", rel.Relationship, "err", err)
-		}
-	}
+	s.createRelationshipsIndexed(ctx, instanceID, rels, idx)
 
 	slog.Info("ingest: re-ingest complete", "instance_id", instanceID,
 		"artifacts", len(artifacts), "relationships", len(rels))
