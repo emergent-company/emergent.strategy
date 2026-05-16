@@ -153,6 +153,8 @@ func ExtractRelationships(artifactType, artifactKey string, payload []byte) []Re
 		return extractAssessmentRelationships(artifactKey, raw)
 	case "calibration_memo":
 		return extractCalibrationRelationships(artifactKey, raw)
+	case "living_reality_assessment":
+		return extractLRARelationships(artifactKey, raw)
 	}
 	return nil
 }
@@ -346,6 +348,9 @@ func extractPortfolioRelationships(key string, raw map[string]any) []Relationshi
 func extractAssessmentRelationships(key string, raw map[string]any) []Relationship {
 	var rels []Relationship
 
+	hasMissedKR := false
+	hasRefutedAssumption := false
+
 	for _, oa := range mapSlice(raw, "okr_assessments") {
 		okrID := strField(oa, "okr_id")
 		if okrID != "" {
@@ -358,11 +363,16 @@ func extractAssessmentRelationships(key string, raw map[string]any) []Relationsh
 		for _, kro := range mapSlice(oa, "key_result_outcomes") {
 			krID := strField(kro, "kr_id")
 			if krID != "" {
+				status := strField(kro, "status")
 				rels = append(rels, Relationship{
 					TargetKey:    krID,
 					TargetType:   "key_result",
 					Relationship: "assesses_kr",
+					Metadata:     map[string]any{"status": status},
 				})
+				if status == "missed" || status == "partially_met" {
+					hasMissedKR = true
+				}
 			}
 		}
 	}
@@ -370,13 +380,44 @@ func extractAssessmentRelationships(key string, raw map[string]any) []Relationsh
 	for _, av := range mapSlice(raw, "assumption_validations") {
 		asmID := strField(av, "id")
 		if asmID != "" {
+			status := strField(av, "status")
 			rels = append(rels, Relationship{
 				TargetKey:    asmID,
 				TargetType:   "assumption",
 				Relationship: "validates_assumption",
-				Metadata:     map[string]any{"status": strField(av, "status")},
+				Metadata:     map[string]any{"status": status},
 			})
+			if status == "refuted" || status == "invalidated" {
+				hasRefutedAssumption = true
+			}
 		}
+	}
+
+	// When KRs are missed, the roadmap needs review — the plan didn't work.
+	if hasMissedKR {
+		rels = append(rels, Relationship{
+			TargetKey:    "roadmap_recipe",
+			TargetType:   "roadmap_recipe",
+			Relationship: "challenges",
+			Metadata:     map[string]any{"reason": "missed_key_results"},
+		})
+	}
+
+	// When assumptions are refuted, the strategy formula needs review —
+	// the strategic bets may need to change.
+	if hasRefutedAssumption {
+		rels = append(rels, Relationship{
+			TargetKey:    "strategy_formula",
+			TargetType:   "strategy_formula",
+			Relationship: "challenges",
+			Metadata:     map[string]any{"reason": "refuted_assumptions"},
+		})
+		rels = append(rels, Relationship{
+			TargetKey:    "strategy_foundations",
+			TargetType:   "strategy_foundations",
+			Relationship: "challenges",
+			Metadata:     map[string]any{"reason": "refuted_assumptions"},
+		})
 	}
 
 	return rels
@@ -443,6 +484,137 @@ func extractCalibrationRelationships(key string, raw map[string]any) []Relations
 			Relationship: "calibrates",
 			Metadata:     map[string]any{"decision": decision},
 		})
+	}
+
+	return rels
+}
+
+// ---------------------------------------------------------------------------
+// Living Reality Assessment: track focus, capability gaps, lifecycle signals
+// ---------------------------------------------------------------------------
+
+func extractLRARelationships(key string, raw map[string]any) []Relationship {
+	var rels []Relationship
+
+	// current_focus.primary_track / secondary_track → track references.
+	// When the LRA says "focus is on product track", that's an implicit
+	// relationship to the product value model and product features.
+	focus := nestedMap(raw, "current_focus")
+	if focus != nil {
+		for _, field := range []string{"primary_track", "secondary_track"} {
+			track := strField(focus, field)
+			if track != "" {
+				rels = append(rels, Relationship{
+					TargetKey:    track,
+					TargetType:   "track",
+					Relationship: "focuses_on",
+					Metadata:     map[string]any{"focus_type": field},
+				})
+			}
+		}
+	}
+
+	// track_baselines — each track with a baseline is monitored.
+	// If a track's maturity/status changes, artifacts in that track need review.
+	baselines := nestedMap(raw, "track_baselines")
+	if baselines != nil {
+		for _, trackName := range []string{"product", "strategy", "org_ops", "commercial"} {
+			tb := nestedMap(baselines, trackName)
+			if tb == nil {
+				continue
+			}
+			maturity := strField(tb, "maturity")
+			status := strField(tb, "status")
+			if maturity != "" || status != "" {
+				rels = append(rels, Relationship{
+					TargetKey:    trackName,
+					TargetType:   "track",
+					Relationship: "monitors_track",
+					Metadata:     map[string]any{"maturity": maturity, "status": status},
+				})
+			}
+		}
+	}
+
+	// constraints_and_assumptions.capability_gaps[].track → track references.
+	constraints := nestedMap(raw, "constraints_and_assumptions")
+	if constraints != nil {
+		for _, gap := range mapSlice(constraints, "capability_gaps") {
+			track := strField(gap, "track")
+			desc := strField(gap, "description")
+			if track != "" {
+				rels = append(rels, Relationship{
+					TargetKey:    track,
+					TargetType:   "track",
+					Relationship: "capability_gap_in",
+					Metadata:     map[string]any{"description": desc},
+				})
+			}
+		}
+
+		// operating_assumptions[].id → assumption references.
+		for _, oa := range mapSlice(constraints, "operating_assumptions") {
+			asmID := strField(oa, "id")
+			if asmID == "" {
+				asmID = strField(oa, "assumption")
+			}
+			if asmID != "" {
+				rels = append(rels, Relationship{
+					TargetKey:    asmID,
+					TargetType:   "assumption",
+					Relationship: "tracks_assumption",
+					Metadata:     map[string]any{"confidence": strField(oa, "confidence")},
+				})
+			}
+		}
+	}
+
+	// lifecycle_stage changes imply strategic review.
+	// If stage is "evolved" or "maturing", the LRA is stable.
+	// This creates a baseline relationship to the north star.
+	meta := nestedMap(raw, "metadata")
+	if meta != nil {
+		stage := strField(meta, "lifecycle_stage")
+		if stage != "" {
+			rels = append(rels, Relationship{
+				TargetKey:    "north_star",
+				TargetType:   "north_star",
+				Relationship: "grounds",
+				Metadata:     map[string]any{"lifecycle_stage": stage},
+			})
+		}
+	}
+
+	// evolution_log — the most recent entry may reference sections that changed,
+	// which implies those sections' upstream artifacts need review.
+	for _, entry := range mapSlice(raw, "evolution_log") {
+		for _, change := range mapSlice(entry, "changes") {
+			section := strField(change, "section")
+			// Map LRA sections to upstream artifacts.
+			switch section {
+			case "track_baselines", "track_baselines.product":
+				rels = append(rels, Relationship{
+					TargetKey:    "roadmap_recipe",
+					TargetType:   "roadmap_recipe",
+					Relationship: "informs",
+					Metadata:     map[string]any{"lra_section": section, "trigger": strField(entry, "trigger")},
+				})
+			case "current_focus":
+				rels = append(rels, Relationship{
+					TargetKey:    "strategy_formula",
+					TargetType:   "strategy_formula",
+					Relationship: "informs",
+					Metadata:     map[string]any{"lra_section": section, "trigger": strField(entry, "trigger")},
+				})
+			case "constraints_and_assumptions":
+				rels = append(rels, Relationship{
+					TargetKey:    "roadmap_recipe",
+					TargetType:   "roadmap_recipe",
+					Relationship: "informs",
+					Metadata:     map[string]any{"lra_section": section, "trigger": strField(entry, "trigger")},
+				})
+			}
+		}
 	}
 
 	return rels
