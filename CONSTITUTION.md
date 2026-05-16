@@ -5,14 +5,20 @@ Adapted from the organisational Go microservice constitution.
 
 This repo contains two Go applications:
 
-- **`apps/epf-cli/`** — CLI tool (cobra, no database, MCP server)
-- **`apps/strategy-server/`** — Backend server (go-arg, PostgreSQL/bun, MCP + HTTP)
+- **`apps/epf-cli/`** — CLI tool (cobra, no database, MCP server) — **frozen**
+- **`apps/strategy-server/`** — Backend server (go-arg, PostgreSQL/bun, MCP + HTTP) — **active development**
 
 The `strategy-server` follows the full `go-microservice` skill conventions
 (PostgreSQL, bun, huma, go-arg, goose, etc.). See its own `AGENTS.md` for
 app-specific rules. This constitution covers the shared principles and the
 epf-cli-specific conventions. Where a section says "this project", it means
 whichever app you are currently working in.
+
+### Strategy Server Summary
+
+103 MCP tools, 14 migrations, multi-tenant org model, schema registry,
+strategy versioning, GitHub sync write-back, Memory semantic graph integration.
+See `apps/strategy-server/AGENTS.md` for the full reference.
 
 ---
 
@@ -30,8 +36,11 @@ incorrect system is a liability.
 Infrastructure must not leak into domain. Enforce this by package layout,
 not willpower.
 
-**Schema first.** The JSON schemas in `docs/EPF/schemas/` are the source of
-truth. The CLI validates against them — it never invents its own rules.
+**Schema first.** The JSON schemas in canonical-epf are the authoring source of
+truth. They are synced to embedded filesystems at build time. The strategy-server
+also stores them in a runtime schema registry (PostgreSQL) for version-aware
+validation. Neither app invents its own validation rules — all validation
+derives from the canonical schemas.
 
 **Agent as writer, tool as linter.** `epf-cli` never writes EPF content.
 It only validates, analyses, and provides tooling. AI agents write content;
@@ -109,11 +118,60 @@ apps/epf-cli/
 └── VERSION                  # Release version (bumped manually)
 ```
 
-### Package rules
+### Package rules (epf-cli)
 - `internal/<capability>/` — each package has a single responsibility.
 - No circular dependencies between internal packages.
 - Cross-package imports flow inward: `cmd → internal/*`, `mcp → schema/validator/checks/strategy`.
 - The `embedded/` package contains artifacts synced from canonical EPF — never edit these manually.
+
+### Strategy Server layout
+```
+apps/strategy-server/
+├── main.go                      # go-arg subcommand dispatch
+├── cmd_serve.go                 # Echo server wiring (services, middleware, MCP)
+├── cmd_db.go                    # Migration runner
+├── cmd_import.go                # Local EPF instance import
+├── config/                      # Config struct (env vars, defaults)
+├── domain/                      # Pure domain logic (12 packages)
+│   ├── workspace/               # Workspace CRUD
+│   ├── instance/                # Strategy instance lifecycle
+│   ├── strategy/                # Artifact CRUD, mutations, batches, export
+│   ├── schema/                  # Schema registry (DB + embedded fallback)
+│   ├── version/                 # Strategy versioning (publish/diff/restore)
+│   ├── sync/                    # GitHub sync (RepoWriter interface)
+│   ├── semantic/                # Semantic graph via Memory
+│   ├── ingest/                  # Async ingestion pipeline
+│   ├── user/                    # User identity
+│   ├── org/                     # Organisation management
+│   ├── pack/                    # Skill pack installation
+│   └── app/                     # Strategy app platform
+├── internal/
+│   ├── mcpserver/               # 103 MCP tools (7 registration files)
+│   ├── database/                # DB connection, migrations (14), TestDB(t)
+│   ├── embedded/                # go:embed schemas, templates, agents, skills
+│   ├── github/                  # GitHub App client (JWT, Git tree API)
+│   ├── memory/                  # emergent.memory REST client
+│   ├── auth/                    # Zitadel OIDC introspection
+│   ├── agent/                   # Task routing + knowledge base
+│   ├── web/                     # Auth + audit + lang middleware
+│   ├── audit/                   # Audit context contract
+│   ├── domain/                  # Shared bun-tagged model structs
+│   ├── index/                   # Strategic relationship derivation
+│   ├── langs/                   # i18n translations
+│   └── skillrunner/             # Script skill subprocess execution
+├── pkg/
+│   ├── apperror/                # Typed HTTP errors with i18n keys
+│   └── logger/                  # slog configuration
+├── docker-compose.yml           # Postgres + Memory containers
+└── Taskfile.yml                 # dev-up, build, test, lint
+```
+
+### Package rules (strategy-server)
+- `domain/<capability>/` — pure domain logic, `*bun.DB` passed to constructor, zero infrastructure imports.
+- `internal/<infra>/` — infrastructure adapters (DB, GitHub, Memory, auth).
+- Cross-package imports: `mcpserver → domain → (nothing)`.
+- Domain services query DB directly (no repository layer).
+- Infrastructure packages implement domain interfaces (e.g., `internal/github/` implements `domain/sync/RepoWriter`).
 
 ---
 

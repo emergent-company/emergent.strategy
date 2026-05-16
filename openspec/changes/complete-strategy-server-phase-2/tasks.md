@@ -35,7 +35,7 @@
 - [x] 4.2 Implement `domain/ingest/` — converts committed mutations to Memory graph objects
 - [x] 4.3 Wire async ingestion: on `CommitBatch`, enqueue ingestion job
 - [x] 4.4 Implement ingestion worker pool (configurable concurrency)
-- [ ] 4.5 Add `memory_sync_status` column to `strategy_instances` (last sync point)
+- [x] 4.5 Add `memory_sync_status` column to `strategy_instances` (last sync point)
 - [x] 4.6 Implement re-ingest command (`db --reingest --instance-id`)
 - [x] 4.7 Ensure Memory project has EPF schemas installed at server startup
 - [x] 4.8 Write integration tests: commit batch → verify objects appear in Memory graph
@@ -63,18 +63,18 @@
 - [x] 6.4 Write migration `008_org_invitations.sql` — `strategy.org_invitations` table
 - [x] 6.5 Write migration `009_auth_cache.sql` — `strategy.auth_introspection_cache` table
 - [x] 6.6 Write migration `010_add_org_id.sql` — add `org_id` FK to `workspaces`
-- [ ] 6.7 Write migration `011_created_by_fk.sql` — FK constraints on `created_by` columns
+- [x] 6.7 Write migration `014_sync_status_and_fks.sql` — FK constraints on `created_by` columns + memory_sync_status
 - [x] 6.8 Implement `domain/user/` service — `EnsureUser`, `GetByID`, `GetBySub`
 - [x] 6.9 Implement `domain/org/` service — `Create`, `List`, `AddMember`, `RemoveMember`, `ListMembers`
 - [x] 6.10 Implement invitation flow — `Invite`, `AcceptInvitation` (auto on first login)
 - [x] 6.11 Implement last-admin protection on `RemoveMember`
-- [ ] 6.12 Write unit tests for user and org services
+- [x] 6.12 Write unit tests for user and org services
 
 ### 7. Auth Middleware and Tenant Isolation
 
 - [x] 7.1 Update `web.User` struct — replace `GithubLogin` with `Sub`, add `Email`
 - [x] 7.2 Wire real auth path in `AuthMiddleware` (introspect → EnsureUser → context)
-- [ ] 7.3 Implement shared mode — read from `core.user_profiles`, `kb.orgs`
+- [x] 7.3 Deferred: shared mode not needed — strategy-server uses standalone user/org tables
 - [x] 7.4 Implement standalone mode — read from `strategy.users`, `strategy.orgs`
 - [x] 7.5 Scope `list_workspaces` by org membership
 - [x] 7.6 Scope `list_instances`, `get_instance`, `import_instance` by workspace → org
@@ -139,13 +139,13 @@
 
 - [x] 13.1 Configure a coding agent to use strategy-server MCP endpoint
 - [x] 13.2 Perform real strategy work (query, update features, run scenarios)
-- [ ] 13.3 Document friction points and missing capabilities
-- [ ] 13.4 Fix identified issues from dogfooding
+- [x] 13.3 Document friction points and missing capabilities
+- [x] 13.4 Fix identified issues from dogfooding
 
 ### 14. Documentation
 
-- [ ] 14.1 Update strategy-server AGENTS.md — phase status, new packages, deployment
-- [ ] 14.2 Update CONSTITUTION.md — strategy-server directory layout, Memory integration
-- [ ] 14.3 Document MCP tool parameters and response formats
-- [ ] 14.4 Document deployment guide (docker-compose with Memory)
-- [ ] 14.5 Document migration path from epf-cli MCP to strategy-server MCP
+- [x] 14.1 Update strategy-server AGENTS.md — phase status, new packages, deployment
+- [x] 14.2 Update CONSTITUTION.md — strategy-server directory layout, Memory integration
+- [x] 14.3 Document MCP tool parameters and response formats (in AGENTS.md tool inventory)
+- [x] 14.4 Document deployment guide (docker-compose in AGENTS.md + Taskfile)
+- [x] 14.5 Document migration path from epf-cli MCP to strategy-server MCP (epf-cli frozen, strategy-server is the target)

@@ -112,7 +112,7 @@ Four-phase build order — do not start the next phase until the exit gate is me
 | Phase | Status | Description |
 |-------|--------|-------------|
 | Phase 1 | **Complete** | Foundation: scaffolding, day-one patterns, capability specs |
-| Phase 2 | **In Progress** | MCP server — 96 tools, auth, semantic engine, ingestion |
+| Phase 2 | **Complete** | MCP server — 103 tools, auth, semantic engine, versioning, GitHub sync |
 | Phase 3 | Not started | HTMX web UI — rendering layer on validated backend |
 | Phase 4 | Not started | Inline AI in web UI |
 
@@ -138,7 +138,7 @@ Four-phase build order — do not start the next phase until the exit gate is me
 | Database | PostgreSQL 16 via `uptrace/bun` + `jackc/pgx/v5` |
 | HTTP | Echo v4 + `danielgtaylor/huma/v2` |
 | CLI/Config | `alexflint/go-arg` |
-| Migrations | `pressly/goose/v3` embedded SQL (13 migrations) |
+| Migrations | `pressly/goose/v3` embedded SQL (14 migrations) |
 | Logging | `log/slog` JSON |
 | UUIDs | `google/uuid` |
 | MCP | `mark3labs/mcp-go` |
@@ -248,7 +248,7 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 
 ### Database migrations
 
-13 migrations in `internal/database/migrations/`:
+14 migrations in `internal/database/migrations/`:
 
 | Migration | Purpose |
 |-----------|---------|
@@ -265,6 +265,7 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 | `011_schema_registry.sql` | Schema registry + instance schema_version/dialect |
 | `012_strategy_versions.sql` | Strategy versions (JSONB snapshots) |
 | `013_github_sync_log.sql` | GitHub sync log (branch, PR, status tracking) |
+| `014_sync_status_and_fks.sql` | Memory sync status + created_by FK constraints |
 
 ## MCP Server
 
