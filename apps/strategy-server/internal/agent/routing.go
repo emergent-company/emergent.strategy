@@ -74,6 +74,13 @@ var routingTable = []routeEntry{
 		},
 	},
 	{
+		keywords: []string{"create vision", "build vision", "write vision", "set vision", "create north star", "new north star", "build north star", "write north star", "set north star", "define vision", "define north star", "update vision", "update north star", "update mission"},
+		result: RoutingResult{
+			Type: "direct_tool", ToolName: "update_north_star",
+			Reason: "Use update_north_star to create or modify the vision. Stage the change, then commit_batch.",
+		},
+	},
+	{
 		keywords: []string{"vision", "north star", "mission"},
 		result: RoutingResult{
 			Type: "direct_tool", ToolName: "get_product_vision",
@@ -239,6 +246,87 @@ var routingTable = []routeEntry{
 		result: RoutingResult{
 			Type: "direct_tool", ToolName: "discard_scenario",
 			Reason: "Scenario discard is a direct write tool.",
+		},
+	},
+
+	// Fresh start / new product.
+	{
+		keywords: []string{"new product", "fresh start", "start from scratch", "new instance", "scaffold", "bootstrap new", "set up new", "setup new"},
+		result: RoutingResult{
+			Type: "direct_tool", ToolName: "scaffold_instance",
+			Reason: "Use scaffold_instance to create a new instance pre-populated with READY-phase templates. Then use get_agent('start-epf') to guide the user through filling them in.",
+		},
+	},
+	{
+		keywords: []string{"start epf", "begin epf", "getting started", "new to epf", "onboard"},
+		result: RoutingResult{
+			Type: "agent", AgentName: "start-epf",
+			Reason: "The start-epf agent guides new users through onboarding and routes to lean-start or pathfinder.",
+		},
+	},
+	{
+		keywords: []string{"lean start", "quick start", "solo founder", "small team"},
+		result: RoutingResult{
+			Type: "agent", AgentName: "lean-start",
+			Reason: "The lean-start agent provides a lightweight getting-started flow for solo founders and small teams.",
+		},
+	},
+
+	// Recalibration / strategic pivot.
+	{
+		keywords: []string{"recalibrat", "pivot", "reassess", "rethink strategy", "strategy review", "major change", "strategic shift"},
+		result: RoutingResult{
+			Type: "agent", AgentName: "synthesizer",
+			Skills: []string{"aim-trigger-assessment", "strategic-reality-check"},
+			Reason: "Strategic recalibration requires the synthesizer agent. Start with a Living Reality Assessment (create_lra), then assess and calibrate.",
+		},
+	},
+
+	// Version management.
+	{
+		keywords: []string{"publish version", "snapshot", "publish strategy", "create version", "publish"},
+		result: RoutingResult{
+			Type: "direct_tool", ToolName: "publish_version",
+			Reason: "Publishing a version creates an atomic snapshot of all artifacts.",
+		},
+	},
+	{
+		keywords: []string{"version history", "list version", "show version", "version log"},
+		result: RoutingResult{
+			Type: "direct_tool", ToolName: "list_versions",
+			Reason: "List all published versions for an instance.",
+		},
+	},
+	{
+		keywords: []string{"compare version", "diff version", "version diff", "what changed between"},
+		result: RoutingResult{
+			Type: "direct_tool", ToolName: "diff_versions",
+			Reason: "Compare two versions to see what changed.",
+		},
+	},
+	{
+		keywords: []string{"restore version", "revert", "rollback", "go back to version"},
+		result: RoutingResult{
+			Type: "direct_tool", ToolName: "restore_version",
+			Reason: "Restore to a previous version's state.",
+		},
+	},
+
+	// GitHub sync.
+	{
+		keywords: []string{"sync github", "push to github", "push github", "create pr", "sync repo", "github sync"},
+		result: RoutingResult{
+			Type: "direct_tool", ToolName: "sync_to_github",
+			Reason: "Sync artifacts to a GitHub repository as a pull request.",
+		},
+	},
+
+	// Export.
+	{
+		keywords: []string{"export", "download", "yaml export", "generate report"},
+		result: RoutingResult{
+			Type: "direct_tool", ToolName: "export_instance_yaml",
+			Reason: "Export all artifacts as YAML files in EPF directory structure.",
 		},
 	},
 }

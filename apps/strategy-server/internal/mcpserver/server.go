@@ -31,6 +31,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+	"gopkg.in/yaml.v3"
 
 	appdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/app"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
@@ -643,6 +644,74 @@ func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 		return mustJSON(inst)
 	})
 
+	// scaffold_instance — create a new instance pre-populated with READY-phase templates.
+	s.AddTool(mcp.NewTool("scaffold_instance",
+		mcp.WithDescription("USE WHEN you need to create a new strategy instance with template artifacts pre-populated. Creates the instance with all READY-phase artifacts (north star, foundations, formula, roadmap, insights) seeded from canonical templates, giving the user a starting point to fill in rather than a blank slate."),
+		mcp.WithString("workspace_id", mcp.Required(), mcp.Description("Workspace UUID")),
+		mcp.WithString("name", mcp.Required(), mcp.Description("Product or strategy name")),
+		mcp.WithString("github_repo", mcp.Description("GitHub repo slug, e.g. org/repo")),
+	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		wsID, err := parseUUID(argString(req, "workspace_id"))
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertWorkspaceAccess(ctx, svc, wsID); err != nil {
+			return toolErr(ctx, err), nil
+		}
+
+		// Load READY-phase templates and parse to JSON payloads.
+		templateMap := map[string]string{
+			"north_star":           "READY/00_north_star.yaml",
+			"insight_analyses":     "READY/01_insight_analyses.yaml",
+			"strategy_foundations": "READY/02_strategy_foundations.yaml",
+			"insight_opportunity":  "READY/03_insight_opportunity.yaml",
+			"strategy_formula":     "READY/04_strategy_formula.yaml",
+			"roadmap_recipe":       "READY/05_roadmap_recipe.yaml",
+		}
+
+		initialPayloads := make(map[string]any)
+		var seededArtifacts []string
+		for key, templatePath := range templateMap {
+			yamlBytes, tErr := embedded.GetTemplate(templatePath)
+			if tErr != nil {
+				continue // skip templates that don't exist
+			}
+			var parsed any
+			if yErr := yaml.Unmarshal(yamlBytes, &parsed); yErr != nil {
+				continue // skip unparseable templates
+			}
+			initialPayloads[key] = parsed
+			seededArtifacts = append(seededArtifacts, key)
+		}
+
+		p := instance.ImportParams{
+			WorkspaceID:     wsID,
+			Name:            argString(req, "name"),
+			InitialPayloads: initialPayloads,
+		}
+		if repo := argString(req, "github_repo"); repo != "" {
+			p.GithubRepo = &repo
+		}
+
+		inst, err := svc.Instance.ImportInstance(ctx, p)
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+
+		return mustJSON(map[string]any{
+			"instance":    inst,
+			"scaffolded":  true,
+			"seeded":      seededArtifacts,
+			"next_steps": []string{
+				"1. Use get_product_vision to read the template North Star, then update_north_star to fill in your vision",
+				"2. Use get_template to see any template structure before editing",
+				"3. Use health_check to see current state and validate_instance for schema compliance",
+				"4. Create features with create_feature — use get_schema('feature_definition_schema.json') for the required structure",
+				"5. Use publish_version to snapshot your strategy when ready",
+			},
+		})
+	})
+
 	s.AddTool(mcp.NewTool("activate_instance",
 		mcp.WithDescription("USE WHEN you need to set a strategy instance as the active one for its workspace."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
@@ -748,7 +817,35 @@ func registerBatchWriteTools(s *server.MCPServer, svc Services) {
 			svc.Ingest.EnqueueBatch(instanceID, batchID)
 		}
 
-		return mustJSON(map[string]any{"committed": true, "batch_id": batchID, "count": n})
+		// Post-commit: run validation on the committed artifacts and include
+		// any schema warnings in the response. This surfaces issues immediately
+		// without blocking the commit.
+		result := map[string]any{"committed": true, "batch_id": batchID, "count": n}
+		if instanceID != uuid.Nil {
+			mutations, _, _ := svc.Strategy.ListMutations(ctx, instanceID, "", false, 100, "", "")
+			var warnings []string
+			for _, m := range mutations {
+				if m.BatchID != nil && *m.BatchID == batchID {
+					// Build schema source for validation.
+					var source embedded.SchemaSource
+					if svc.Schema != nil {
+						source = schemadom.NewRegistrySchemaSource(ctx, svc.Schema, "", "standard")
+					}
+					vr := embedded.ValidateArtifactWithSource(m.ArtifactType, m.Payload, source)
+					if !vr.Valid {
+						for _, e := range vr.Errors {
+							warnings = append(warnings, fmt.Sprintf("%s: %s", m.ArtifactKey, e))
+						}
+					}
+				}
+			}
+			if len(warnings) > 0 {
+				result["validation_warnings"] = warnings
+				result["validation_note"] = "These artifacts were committed but have schema validation issues. Use validate_with_plan for a prioritized fix list."
+			}
+		}
+
+		return mustJSON(result)
 	})
 
 	s.AddTool(mcp.NewTool("discard_batch",

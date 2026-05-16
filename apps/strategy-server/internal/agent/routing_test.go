@@ -69,6 +69,49 @@ func TestRouteTask_Unknown(t *testing.T) {
 	}
 }
 
+func TestRouteTask_NewRoutes(t *testing.T) {
+	tests := []struct {
+		task     string
+		wantType string
+		wantTool string
+		wantAgent string
+	}{
+		// Fresh start.
+		{"set up new product from scratch", "direct_tool", "scaffold_instance", ""},
+		{"start epf for a new project", "agent", "", "start-epf"},
+		{"lean start for my solo project", "agent", "", "lean-start"},
+		// Recalibration.
+		{"we need to recalibrate our strategy", "agent", "", "synthesizer"},
+		{"time to pivot our approach", "agent", "", "synthesizer"},
+		// Versioning.
+		{"publish version snapshot", "direct_tool", "publish_version", ""},
+		{"show version history", "direct_tool", "list_versions", ""},
+		{"compare version changes", "direct_tool", "diff_versions", ""},
+		{"revert to previous version", "direct_tool", "restore_version", ""},
+		// Sync.
+		{"push to github", "direct_tool", "sync_to_github", ""},
+		// Export.
+		{"export all artifacts", "direct_tool", "export_instance_yaml", ""},
+		// Create vs read vision.
+		{"create a new north star", "direct_tool", "update_north_star", ""},
+		{"what is the product vision", "direct_tool", "get_product_vision", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.task, func(t *testing.T) {
+			result := RouteTask(tt.task)
+			if result.Type != tt.wantType {
+				t.Errorf("type = %q, want %q", result.Type, tt.wantType)
+			}
+			if tt.wantTool != "" && result.ToolName != tt.wantTool {
+				t.Errorf("tool = %q, want %q", result.ToolName, tt.wantTool)
+			}
+			if tt.wantAgent != "" && result.AgentName != tt.wantAgent {
+				t.Errorf("agent = %q, want %q", result.AgentName, tt.wantAgent)
+			}
+		})
+	}
+}
+
 func TestRouteTask_Scenarios(t *testing.T) {
 	result := RouteTask("what if we double our pricing")
 	if result.ToolName != "run_scenario" {
