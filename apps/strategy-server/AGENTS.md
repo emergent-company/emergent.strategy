@@ -126,6 +126,9 @@ Four-phase build order — do not start the next phase until the exit gate is me
 - **2d (Integration tests):** In progress — E2E tests for semantic tools (mocked Memory),
   org lifecycle, ingest pipeline, full agent workflow. Remaining: multi-tenant isolation,
   documentation
+- **2e (Schema registry + versioning + GitHub sync):** Complete — schema registry with
+  DB + embedded fallback, strategy versioning (publish/list/get/diff/restore), GitHub
+  App write-back (branch + commit + PR), decomposer field reconciliation. 103 MCP tools.
 
 ## Tech Stack
 
@@ -135,7 +138,7 @@ Four-phase build order — do not start the next phase until the exit gate is me
 | Database | PostgreSQL 16 via `uptrace/bun` + `jackc/pgx/v5` |
 | HTTP | Echo v4 + `danielgtaylor/huma/v2` |
 | CLI/Config | `alexflint/go-arg` |
-| Migrations | `pressly/goose/v3` embedded SQL (10 migrations) |
+| Migrations | `pressly/goose/v3` embedded SQL (13 migrations) |
 | Logging | `log/slog` JSON |
 | UUIDs | `google/uuid` |
 | MCP | `mark3labs/mcp-go` |
@@ -221,17 +224,21 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 | `domain/org/` | Organisation management (create, invite, membership) |
 | `domain/pack/` | Skill pack installation and resolution |
 | `domain/app/` | Strategy app platform |
+| `domain/schema/` | Schema registry (DB + embedded fallback) |
+| `domain/version/` | Strategy versioning (publish/list/get/diff/restore) |
+| `domain/sync/` | GitHub sync (RepoWriter interface, sync log) |
 
 ### Internal packages
 
 | Package | Purpose |
 |---------|---------|
 | `internal/database/` | DB connection, migrations, `TestDB(t)` |
-| `internal/mcpserver/` | 96 MCP tools across 4 registration files |
+| `internal/mcpserver/` | 103 MCP tools across 7 registration files |
 | `internal/auth/` | Zitadel OIDC introspection + PostgreSQL cache |
 | `internal/memory/` | emergent.memory REST API client (7 files) |
 | `internal/agent/` | Task routing (`get_agent_for_task`) + knowledge base |
-| `internal/embedded/` | go:embed EPF schemas, templates, agents, skills |
+| `internal/embedded/` | go:embed EPF schemas, templates, agents, skills, field manifest |
+| `internal/github/` | GitHub App client (JWT, installation tokens, Git tree API) |
 | `internal/web/` | Auth + audit + lang middleware |
 | `internal/audit/` | Audit context contract |
 | `internal/langs/` | i18n translations |
@@ -241,7 +248,7 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 
 ### Database migrations
 
-10 migrations in `internal/database/migrations/`:
+13 migrations in `internal/database/migrations/`:
 
 | Migration | Purpose |
 |-----------|---------|
@@ -255,10 +262,13 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 | `008_org_invitations.sql` | Email invitations |
 | `009_auth_cache.sql` | Token introspection cache |
 | `010_add_org_id.sql` | Org FK on workspaces |
+| `011_schema_registry.sql` | Schema registry + instance schema_version/dialect |
+| `012_strategy_versions.sql` | Strategy versions (JSONB snapshots) |
+| `013_github_sync_log.sql` | GitHub sync log (branch, PR, status tracking) |
 
 ## MCP Server
 
-The server exposes 96 MCP tools at `/mcp`. Key categories:
+The server exposes 103 MCP tools at `/mcp`. Key categories:
 
 | Category | Count | Examples |
 |----------|-------|---------|
@@ -275,6 +285,40 @@ The server exposes 96 MCP tools at `/mcp`. Key categories:
 | AIM lifecycle | 7 | `create_lra`, `validate_assumptions`, `stage_calibration` |
 | Export | 3 | `export_instance_yaml`, `export_report` |
 | Phase discovery | 4 | `get_phase_artifacts`, `list_definitions`, `get_definition` |
+| Strategy versions | 5 | `publish_version`, `list_versions`, `diff_versions`, `restore_version` |
+| GitHub sync | 2 | `sync_to_github`, `get_sync_status` |
+
+### Strategy Versioning Workflow
+
+1. Mutate artifacts via MCP tools (create/update features, north star, etc.)
+2. `publish_version` — snapshots all artifacts + relationships as an atomic version
+3. `list_versions` / `diff_versions` — review version history and changes
+4. `restore_version` — revert to a previous version's state (creates a new version)
+
+### GitHub Sync Workflow
+
+1. Ensure `github_repo` is set on the instance (e.g. `org/strategy-repo`)
+2. `sync_to_github` — exports artifacts as YAML, creates a branch + commit + PR
+3. `get_sync_status` — check sync history, open PRs, last sync result
+
+Requires a GitHub App installation. Configure with `GITHUB_APP_ID` and
+`GITHUB_APP_PRIVATE_KEY_PATH` env vars. The App needs `contents: write` and
+`pull_requests: write` permissions.
+
+### Schema Registry
+
+The server maintains a runtime schema registry in PostgreSQL. On startup,
+embedded schemas are auto-imported. Validation uses a 3-tier lookup:
+1. DB exact match (version + dialect)
+2. DB latest version (standard dialect)
+3. Embedded fallback
+
+After syncing schemas from canonical-epf, run the decomposer reconciliation
+test to verify field compatibility:
+
+```bash
+go test ./internal/embedded/... -run TestDecomposerFieldsMatchSchemas
+```
 
 Use `get_agent_for_task(task_description)` as the entry point — it routes to the
 right tool or agent based on keyword matching.

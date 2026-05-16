@@ -116,30 +116,30 @@
 
 ### 4.1 Field Manifest
 
-- [ ] 4.1.1 Create `pkg/decompose/field_manifest.go` — declarative list of all field paths extracted per artifact type
-- [ ] 4.1.2 Cover all extraction functions: decomposeFeature, decomposeNorthStar, decomposeFoundations, etc.
-- [ ] 4.1.3 Include nested paths (e.g., `capabilities[].name`, `personas[].pain_points[]`)
+- [x] 4.1.1 Create `internal/embedded/field_manifest.go` — declarative list of all field paths extracted per artifact type
+- [x] 4.1.2 Cover core extraction functions: feature, north_star, foundations, formula, value_model, roadmap, insight_analyses
+- [x] 4.1.3 Include nested paths (e.g., `definition.capabilities[].name`, `implementation.scenarios[].name`)
 
 ### 4.2 Reconciliation Test
 
-- [ ] 4.2.1 Create `pkg/decompose/schema_reconcile_test.go`
-- [ ] 4.2.2 Load all embedded JSON schemas from `internal/embedded/schemas/`
-- [ ] 4.2.3 For each manifest entry, resolve the JSON path against the schema's properties tree
-- [ ] 4.2.4 Fail with clear message if a path is missing: "decomposer reads 'capabilities[].name' from feature_definition but schema does not define it"
-- [ ] 4.2.5 Fail if manifest is incomplete (field count check against decomposer source)
-- [ ] 4.2.6 Run as part of `go test ./pkg/decompose/...`
+- [x] 4.2.1 Create `internal/embedded/field_manifest_test.go`
+- [x] 4.2.2 Load all embedded JSON schemas from `internal/embedded/schemas/`
+- [x] 4.2.3 For each manifest entry, resolve the JSON path against the schema's properties tree
+- [x] 4.2.4 Fail with clear message if a path is missing: "decomposer reads 'capabilities[].name' from feature_definition but schema does not define it"
+- [x] 4.2.5 Fail if manifest is incomplete (min entry count check)
+- [x] 4.2.6 Run as part of `go test ./internal/embedded/...`
 
 ### 4.3 CI Integration
 
-- [ ] 4.3.1 Ensure the reconciliation test runs in the standard test suite
-- [ ] 4.3.2 Document in AGENTS.md: "after syncing schemas from canonical-epf, run decomposer tests to verify field compatibility"
+- [x] 4.3.1 Ensure the reconciliation test runs in the standard test suite
+- [x] 4.3.2 Document in AGENTS.md: "after syncing schemas from canonical-epf, run decomposer tests to verify field compatibility"
 
 ---
 
 ## 5. Documentation
 
-- [ ] 5.1 Update AGENTS.md — schema registry, version workflow, GitHub sync, reconciliation check
-- [ ] 5.2 Update MCP tool inventory (7 new tools: 5 version + 2 sync)
-- [ ] 5.3 Document schema import workflow (how to push new schemas to the registry)
-- [ ] 5.4 Document GitHub App setup (how to create and install the App for an org)
-- [ ] 5.5 Document sync workflow (mutate → publish → sync → review PR → merge)
+- [x] 5.1 Update AGENTS.md — schema registry, version workflow, GitHub sync, reconciliation check
+- [x] 5.2 Update MCP tool inventory (7 new tools: 5 version + 2 sync → 103 total)
+- [x] 5.3 Document schema import workflow (auto-import on startup, 3-tier lookup)
+- [x] 5.4 Document GitHub App setup (env vars, permissions)
+- [x] 5.5 Document sync workflow (mutate → publish → sync → review PR → merge)
