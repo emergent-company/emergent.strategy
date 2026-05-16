@@ -194,6 +194,25 @@ func runServer(cfg *config.Config) error {
 		return u.ID, nil
 	}
 
+	// In dev mode, ensure the dev user exists in the DB so FK constraints on
+	// created_by columns don't fail. EnsureUser is idempotent.
+	if !cfg.AuthEnabled {
+		devCtx := audit.ContextWithSource(context.Background(), audit.SourceSystem)
+		devCtx = audit.ContextWithAudit(devCtx, auditWriter)
+		u, devErr := userSvc.EnsureUser(devCtx, web.DevUser.Sub, web.DevUser.Email, web.DevUser.Name)
+		if devErr != nil {
+			log.Warn("failed to seed dev user (non-fatal)", "err", devErr)
+		} else if u.ID != web.DevUser.ID {
+			// Override the auto-generated ID to match the hardcoded DevUser.ID
+			// so that web.UserFromContext returns a user whose ID matches the DB.
+			_, _ = db.NewUpdate().TableExpr("users").
+				Set("id = ?", web.DevUser.ID).
+				Where("sub = ?", web.DevUser.Sub).
+				Exec(devCtx)
+			log.Info("dev user seeded", "id", web.DevUser.ID)
+		}
+	}
+
 	// Auth middleware — injects User + ActorID.
 	e.Use(web.AuthMiddleware(cfg.AuthEnabled, introspector, ensureUser))
 
