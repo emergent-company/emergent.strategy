@@ -25,6 +25,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -933,6 +934,8 @@ func registerAgentRuntimeTools(s *server.MCPServer, svc Services) {
 		mcp.WithString("batch_id", mcp.Required(), mcp.Description("Batch UUID to annotate")),
 		mcp.WithString("agent_id", mcp.Required(), mcp.Description("Identifier of the agent authoring this batch, e.g. pathfinder")),
 		mcp.WithString("description", mcp.Required(), mcp.Description("Human-readable summary of what this batch changes")),
+		mcp.WithString("root_cause_key", mcp.Description("Optional: artifact key that triggered this ripple batch")),
+		mcp.WithString("ripple_chain", mcp.Description("Optional: JSON array of artifact keys showing the propagation chain")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		batchID, err := parseUUID(argString(req, "batch_id"))
 		if err != nil {
@@ -946,12 +949,34 @@ func registerAgentRuntimeTools(s *server.MCPServer, svc Services) {
 		if err := svc.Strategy.DescribeBatch(ctx, batchID, agentID, description); err != nil {
 			return toolErr(ctx, err), nil
 		}
-		return mustJSON(map[string]any{
+
+		result := map[string]any{
 			"described":   true,
 			"batch_id":    batchID,
 			"agent_id":    agentID,
 			"description": description,
-		})
+		}
+
+		// Store ripple batch metadata if provided.
+		rootCauseKey := argString(req, "root_cause_key")
+		rippleChain := argString(req, "ripple_chain")
+		if rootCauseKey != "" || rippleChain != "" {
+			metadata := map[string]any{}
+			if rootCauseKey != "" {
+				metadata["root_cause_key"] = rootCauseKey
+			}
+			if rippleChain != "" {
+				metadata["ripple_chain"] = json.RawMessage(rippleChain)
+			}
+			metaJSON, _ := json.Marshal(metadata)
+			if metaErr := svc.Strategy.SetBatchMetadata(ctx, batchID, metaJSON); metaErr != nil {
+				slog.WarnContext(ctx, "describe_batch: failed to set ripple metadata", "error", metaErr)
+			} else {
+				result["ripple_metadata"] = metadata
+			}
+		}
+
+		return mustJSON(result)
 	})
 }
 

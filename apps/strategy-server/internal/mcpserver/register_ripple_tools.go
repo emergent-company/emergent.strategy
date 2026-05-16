@@ -11,6 +11,7 @@ import (
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ripple"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/memory"
 )
 
 func registerRippleTools(s *server.MCPServer, svc Services) {
@@ -93,11 +94,39 @@ func registerRippleTools(s *server.MCPServer, svc Services) {
 			"active_signals":       counts,
 			"top_signals":          topSignals,
 		}
-		if report.WarningCount == 0 && len(topSignals) == 0 {
+
+		// Run semantic analysis if Memory is available.
+		var memClient *memory.Client
+		if svc.Semantic != nil {
+			memClient = svc.Semantic.Client()
+		}
+		analyzer := ripple.NewSemanticAnalyzer(memClient, svc.Strategy.DB())
+		if analyzer != nil {
+			semanticSignals := analyzer.FullSemanticAnalysis(ctx, instID)
+			if len(semanticSignals) > 0 {
+				// Persist the semantic signals.
+				if createErr := svc.Ripple.CreateSignals(ctx, semanticSignals); createErr != nil {
+					slog.WarnContext(ctx, "ripple: failed to persist semantic signals", "error", createErr)
+				}
+				result["semantic_signals_created"] = len(semanticSignals)
+				// Refresh counts after creating semantic signals.
+				counts, _ = svc.Ripple.CountByStatus(ctx, instID)
+				result["active_signals"] = counts
+				topSignals, _ = svc.Ripple.TopCritical(ctx, instID, 5)
+				result["top_signals"] = topSignals
+			}
+			result["semantic_analysis"] = true
+		} else {
+			result["semantic_analysis"] = false
+			result["semantic_note"] = "Memory is not configured — semantic analysis unavailable. Showing structural signals only."
+		}
+
+		totalActive := counts[domain.SignalSeverityCritical] + counts[domain.SignalSeverityWarning] + counts[domain.SignalSeverityInfo]
+		if report.WarningCount == 0 && totalActive == 0 {
 			result["note"] = "Strategy graph is coherent. No orphaned paths, untested assumptions, or active signals."
 		} else {
-			result["note"] = fmt.Sprintf("Found %d coherence issues and %d active signals. Use list_signals for details.",
-				report.WarningCount, counts[domain.SignalSeverityCritical]+counts[domain.SignalSeverityWarning]+counts[domain.SignalSeverityInfo])
+			result["note"] = fmt.Sprintf("Found %d structural issues and %d active signals. Use list_signals for details.",
+				report.WarningCount, totalActive)
 		}
 		return mustJSON(result)
 	})
@@ -339,6 +368,38 @@ func postCommitRippleAnalysis(ctx context.Context, svc Services, instanceID, bat
 		}
 		newSignals := ripple.GenerateSignalsFromRipple(instanceID, report)
 		allNewSignals = append(allNewSignals, newSignals...)
+	}
+
+	// Semantic change classification (async-safe, non-blocking).
+	var memClient *memory.Client
+	if svc.Semantic != nil {
+		memClient = svc.Semantic.Client()
+	}
+	analyzer := ripple.NewSemanticAnalyzer(memClient, svc.Strategy.DB())
+	if analyzer != nil {
+		for _, m := range mutations {
+			if m.BatchID == nil || *m.BatchID != batchID || m.Status != domain.MutationStatusCommitted {
+				continue
+			}
+			// Get old payload (previous version) for classification.
+			oldArt, oldErr := svc.Strategy.GetCurrentArtifactFull(ctx, instanceID, m.ArtifactKey)
+			if oldErr != nil || oldArt == nil {
+				continue
+			}
+			result, classErr := analyzer.ClassifyChange(ctx, m.ArtifactKey, oldArt.Payload, m.Payload)
+			if classErr != nil {
+				continue
+			}
+			// Log significant+ changes for visibility.
+			if result.Class == ripple.ChangeClassSignificant || result.Class == ripple.ChangeClassMajor {
+				slog.InfoContext(ctx, "ripple: semantic change detected",
+					"key", m.ArtifactKey,
+					"class", result.Class,
+					"score", result.Score,
+					"description", result.Description,
+				)
+			}
+		}
 	}
 
 	// Deduplicate signals by (source_key, target_key, signal_type).

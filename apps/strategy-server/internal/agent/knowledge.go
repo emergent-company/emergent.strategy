@@ -644,6 +644,44 @@ see and modify data within their own orgs.`,
    required_next_steps when the instance has issues. Follow them before starting
    authoring work. Operating on a broken instance amplifies existing problems.`,
 	},
+	{
+		Topic: "Ripple coherence — the strategy graph is alive",
+		Body: `EPF strategy is an interconnected graph, not a collection of independent
+documents. When one artifact changes, connected artifacts may become misaligned.
+The ripple coherence engine detects these misalignments and surfaces them as signals.
+
+**Key tools:**
+- propose_change: BEFORE committing, preview the blast radius of a change — which
+  downstream artifacts are affected, how stale they are, which tracks are impacted.
+- coherence_check: Full-graph analysis — orphaned value paths, untested assumptions,
+  semantic drift (when Memory available), cross-track tensions.
+- list_signals: View active ripple signals with severity and suggested actions.
+- generate_ripple_batch: Get context for all active signals so you can draft fixes.
+
+**Signal lifecycle:**
+Signals are created automatically when commit_batch detects stale downstream
+artifacts. They are auto-resolved when the target artifact is updated. The human
+can also acknowledge (seen but not fixing now) or dismiss (intentional, with reason).
+
+**Ripple batch workflow:**
+1. Commit a change → system reports ripple signals in response
+2. Call list_signals to see what needs attention
+3. Call generate_ripple_batch to get context for drafting fixes
+4. Stage updates for affected artifacts in a single batch
+5. Call describe_batch with root_cause_key to tag it as a ripple batch
+6. Commit → signals auto-resolve
+
+**When to use propose_change:**
+- Before any change to north_star, strategy_foundations, or strategy_formula
+- Before archiving a feature that other features depend on
+- Before updating a value model that features contribute to
+- Any time a human says "what would happen if we changed X?"
+
+**Severity classification:**
+- critical: downstream artifact stale > 30 days, or semantic contradiction
+- warning: downstream stale 14-30 days, orphaned value path, untested assumption
+- info: downstream stale < 14 days, suggested missing connections`,
+	},
 }
 
 // ServerInstructions returns a concise EPF persona statement suitable for

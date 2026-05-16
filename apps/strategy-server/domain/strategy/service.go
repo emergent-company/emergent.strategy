@@ -258,6 +258,24 @@ func (s *Service) DescribeBatch(ctx context.Context, batchID uuid.UUID, agentID,
 	return nil
 }
 
+// SetBatchMetadata updates the batch_metadata JSONB column on all mutations
+// in a staged batch. Used to attach ripple context (root_cause_key, chain).
+func (s *Service) SetBatchMetadata(ctx context.Context, batchID uuid.UUID, metadata json.RawMessage) error {
+	res, err := s.db.NewUpdate().
+		Model((*domain.StrategyMutation)(nil)).
+		Set("batch_metadata = ?", metadata).
+		Where("batch_id = ? AND status = ?", batchID, domain.MutationStatusStaged).
+		Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("set batch metadata: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return apperror.ErrBatchNotFound
+	}
+	return nil
+}
+
 // ---------------------------------------------------------------------------
 // Write operations — staged batch pattern
 // ---------------------------------------------------------------------------
