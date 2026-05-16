@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/embedded"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/navigation"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/template"
 	"gopkg.in/yaml.v3"
 )
@@ -902,6 +903,12 @@ func (t *yamlPathTracker) path() string {
 	return strings.Join(parts, ".")
 }
 
+// NavigationIssue represents a structural issue found in a navigation graph.
+type NavigationIssue struct {
+	File    string `json:"file"`
+	Message string `json:"message"`
+}
+
 // ContentReadinessResult contains the result of content readiness check
 type ContentReadinessResult struct {
 	Path         string             `json:"path"`
@@ -910,6 +917,9 @@ type ContentReadinessResult struct {
 	Score        int                `json:"score"` // 0-100
 	Grade        string             `json:"grade"` // A, B, C, D, F
 	Placeholders []PlaceholderMatch `json:"placeholders"`
+
+	// Navigation graph structural issues
+	NavigationIssues []NavigationIssue `json:"navigation_issues,omitempty"`
 
 	// Canonical artifact tracking — canonical files are excluded from scoring
 	CanonicalFiles        int                `json:"canonical_files"`
@@ -1008,11 +1018,14 @@ func (c *ContentReadinessChecker) Check() (*ContentReadinessResult, error) {
 		return nil, err
 	}
 
-	// Calculate score — only based on product (non-canonical) placeholders
+	// Validate navigation graphs found in the instance
+	result.NavigationIssues = c.checkNavigationGraphs()
+
+	// Calculate score — based on product placeholders + navigation issues
 	if result.FilesChecked > 0 {
-		// Base score of 100, minus points for each product placeholder
 		placeholderPenalty := len(result.Placeholders) * 5
-		result.Score = 100 - placeholderPenalty
+		navigationPenalty := len(result.NavigationIssues) * 3
+		result.Score = 100 - placeholderPenalty - navigationPenalty
 		if result.Score < 0 {
 			result.Score = 0
 		}
@@ -1033,6 +1046,50 @@ func (c *ContentReadinessChecker) Check() (*ContentReadinessResult, error) {
 	}
 
 	return result, nil
+}
+
+// checkNavigationGraphs finds and validates navigation graph files in the instance.
+// Returns structural issues (orphaned contexts, broken guards, unreachable nodes, etc.)
+// that indicate the navigation graph is not content-ready.
+func (c *ContentReadinessChecker) checkNavigationGraphs() []NavigationIssue {
+	var issues []NavigationIssue
+
+	// Find navigation graph files using the same patterns as schema detection:
+	// FIRE/navigation_graph.yaml, FIRE/*_navigation.yaml, FIRE/navigation/*.yaml
+	patterns := []string{
+		filepath.Join(c.path, "FIRE", "navigation_graph.yaml"),
+		filepath.Join(c.path, "FIRE", "*_navigation.yaml"),
+		filepath.Join(c.path, "FIRE", "navigation", "*.yaml"),
+	}
+
+	var navFiles []string
+	for _, pattern := range patterns {
+		matches, err := filepath.Glob(pattern)
+		if err == nil {
+			navFiles = append(navFiles, matches...)
+		}
+	}
+
+	for _, navFile := range navFiles {
+		g, err := navigation.LoadFile(navFile)
+		if err != nil {
+			issues = append(issues, NavigationIssue{
+				File:    navFile,
+				Message: fmt.Sprintf("failed to load navigation graph: %v", err),
+			})
+			continue
+		}
+
+		validationErrors := navigation.Validate(g)
+		for _, ve := range validationErrors {
+			issues = append(issues, NavigationIssue{
+				File:    navFile,
+				Message: ve.Error(),
+			})
+		}
+	}
+
+	return issues
 }
 
 // =============================================================================

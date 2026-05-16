@@ -922,6 +922,10 @@ func calculateTiers(result *HealthResult) *HealthTiers {
 				}
 				tiers.Quality.Details = append(tiers.Quality.Details, detail)
 			}
+			if len(result.ContentReadiness.NavigationIssues) > 0 {
+				tiers.Quality.Details = append(tiers.Quality.Details,
+					fmt.Sprintf("%d navigation graph structural issue(s)", len(result.ContentReadiness.NavigationIssues)))
+			}
 		}
 	}
 
@@ -1370,6 +1374,22 @@ func printContentReadinessSummary(result *checks.ContentReadinessResult) {
 					break
 				}
 				fmt.Printf("      - %s:%d: %s\n", filepath.Base(p.File), p.Line, truncateString(p.Content, 50))
+				shown++
+			}
+		}
+	}
+
+	// Navigation graph issues
+	if len(result.NavigationIssues) > 0 {
+		fmt.Printf("    • %d navigation graph issue(s) found\n", len(result.NavigationIssues))
+		if healthVerbose {
+			shown := 0
+			for _, ni := range result.NavigationIssues {
+				if shown >= 5 {
+					fmt.Printf("    • ... and %d more\n", len(result.NavigationIssues)-5)
+					break
+				}
+				fmt.Printf("      - %s: %s\n", filepath.Base(ni.File), ni.Message)
 				shown++
 			}
 		}
