@@ -1,6 +1,6 @@
 ## 1. Decomposer Schema Definition (Go code as source of truth)
 
-- [ ] 1.1 Create `internal/decompose/schema.go` with `ObjectTypeDefinition` and `RelTypeDefinition` structs
+- [ ] 1.1 Create `pkg/decompose/schema.go` with `ObjectTypeDefinition` and `RelTypeDefinition` structs
 - [ ] 1.2 Define all 14 object types as Go constants with name, description, inertia tier, and property schema
 - [ ] 1.3 Define all 16 structural relationship types as Go constants with name, description, and directionality
 - [ ] 1.4 Export `ObjectTypes()` and `RelationshipTypes()` functions for reconciliation use
@@ -16,7 +16,7 @@
 
 ## 3. Declarative Reconciliation
 
-- [ ] 3.1 Add `Reconcile(ctx, client) (*ReconcileResult, error)` function in `internal/decompose/`
+- [ ] 3.1 Add `Reconcile(ctx, client) (*ReconcileResult, error)` function in `pkg/decompose/`
 - [ ] 3.2 List existing types in Memory project, compare against Go definitions
 - [ ] 3.3 Create missing object types (additive only — never remove)
 - [ ] 3.4 Create missing relationship types (additive only)

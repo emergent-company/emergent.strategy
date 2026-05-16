@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -68,7 +69,7 @@ func (s *Service) EnsureUser(ctx context.Context, sub, email, name string) (*dom
 		// Accept pending invitations for this email.
 		if err := s.acceptPendingInvitations(ctx, &user); err != nil {
 			// Non-fatal — log and continue.
-			fmt.Printf("warning: accept invitations failed: %v\n", err)
+			slog.Warn("accept invitations failed", "email", user.Email, "err", err)
 		}
 
 		return &user, nil

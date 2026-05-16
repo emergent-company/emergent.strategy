@@ -53,7 +53,7 @@ Semantic-only relationships remain in `semantic-edges`: `supports`, `contradicts
 
 - Affected specs: `epf-semantic-engine`
 - Affected code:
-  - `apps/epf-cli/internal/decompose/` — new types, relationships, and schema definition constants
+  - `apps/epf-cli/pkg/decompose/` — new types, relationships, and schema definition constants
   - `apps/epf-cli/internal/ingest/` — reconciliation step added to Ingest() and Sync()
   - `apps/epf-cli/internal/memory/` — type management API methods (or template pack generation)
   - `apps/epf-cli/internal/mcp/memory_tools.go` — reconciliation status in `epf_memory_status`, updated type list
@@ -61,6 +61,17 @@ Semantic-only relationships remain in `semantic-edges`: `supports`, `contradicts
 - Graph impact: ~900+ objects, ~2800+ relationships per Emergent instance
 - Cascade depth: Beliefs reach Features through `informs` chain
 - GitHub issues resolved: #11, #12
+
+## Relationship to Other Proposals
+
+- **`complete-strategy-graph-coverage`**: Sections 5-6 of this proposal (new object types and
+  relationships) overlap significantly. That proposal covers 14 new object types and 8 new
+  relationship types across all 4 EPF tracks. Implementation should be coordinated — avoid
+  defining the same types in both proposals.
+- **`add-schema-registry-and-strategy-versions`**: Section 4 of that proposal adds a build-time
+  check verifying decomposer field paths against JSON schemas. That is complementary to this
+  proposal's runtime Memory reconciliation — one checks YAML schema alignment, the other checks
+  Memory type alignment.
 
 ## References
 
