@@ -14,11 +14,22 @@ import (
 	"time"
 )
 
+// AuthMode controls how the client authenticates with the Memory server.
+type AuthMode string
+
+const (
+	// AuthModeBearer uses Authorization: Bearer (production Zitadel tokens).
+	AuthModeBearer AuthMode = "bearer"
+	// AuthModeAPIKey uses X-API-Key header (standalone/dev mode).
+	AuthModeAPIKey AuthMode = "api-key"
+)
+
 // Config holds the connection settings for the Memory server.
 type Config struct {
 	BaseURL   string
 	ProjectID string
 	Token     string
+	AuthMode  AuthMode      // defaults to AuthModeBearer if empty
 	Timeout   time.Duration // defaults to 30s if zero
 }
 
@@ -99,8 +110,12 @@ func (c *Client) do(ctx context.Context, method, path string, body any) ([]byte,
 		return nil, fmt.Errorf("memory: create request: %w", err)
 	}
 
-	// Standard headers.
-	req.Header.Set("Authorization", "Bearer "+c.cfg.Token)
+	// Auth header — standalone mode uses X-API-Key, production uses Bearer token.
+	if c.cfg.AuthMode == AuthModeAPIKey {
+		req.Header.Set("X-API-Key", c.cfg.Token)
+	} else {
+		req.Header.Set("Authorization", "Bearer "+c.cfg.Token)
+	}
 	req.Header.Set("X-Project-ID", c.cfg.ProjectID)
 	if c.branchID != "" {
 		req.Header.Set("X-Branch-ID", c.branchID)

@@ -12,12 +12,14 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/config"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ingest"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
 	strategysvc "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/memory"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
 
@@ -95,6 +97,32 @@ func runImport(cfg *config.Config) error {
 			return fmt.Errorf("activate instance: %w", err)
 		}
 		slog.Info("instance activated")
+	}
+
+	// --- Optionally ingest into Memory graph ---
+	if imp.Reingest && cfg.MemoryConfigured() {
+		slog.Info("ingesting artifacts into Memory graph")
+
+		authMode := memory.AuthModeAPIKey
+		if cfg.MemoryAuthMode == "bearer" {
+			authMode = memory.AuthModeBearer
+		}
+		memClient, err := memory.New(memory.Config{
+			BaseURL:   cfg.MemoryURL,
+			ProjectID: cfg.MemoryProject,
+			Token:     cfg.MemoryToken,
+			AuthMode:  authMode,
+		})
+		if err != nil {
+			slog.Warn("ingest: failed to create Memory client, skipping", "err", err)
+		} else {
+			ingestSvc := ingest.NewService(db, memClient)
+			if err := ingestSvc.ReingestInstance(ctx, inst.ID); err != nil {
+				slog.Warn("ingest: re-ingest failed", "err", err)
+			} else {
+				slog.Info("ingest: complete")
+			}
+		}
 	}
 
 	slog.Info("import complete", "instance_id", inst.ID)

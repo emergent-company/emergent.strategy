@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: strategy
       POSTGRES_PASSWORD: strategy
@@ -9,27 +9,8 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-memory-db.sql:/docker-entrypoint-initdb.d/10-memory-db.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U strategy"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  memory:
-    image: ghcr.io/emergent-company/memory-server:latest
-    platform: linux/amd64
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: "postgres://strategy:strategy@postgres:5432/memory?sslmode=disable"
-      PORT: "8787"
-      LOG_LEVEL: "info"
-    ports:
-      - "8787:8787"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8787/health || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 10

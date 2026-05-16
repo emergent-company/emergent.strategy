@@ -15,8 +15,20 @@ type SearchRequest struct {
 }
 
 // SearchResponse wraps the search result list.
+// The Memory API returns results under "data", not "results".
 type SearchResponse struct {
-	Results []SearchResult `json:"results"`
+	Data    []SearchResult `json:"data"`
+	Results []SearchResult `json:"results"` // fallback for compatibility
+	Total   int            `json:"total"`
+	HasMore bool           `json:"hasMore"`
+}
+
+// Items returns the search results from whichever field is populated.
+func (r SearchResponse) Items() []SearchResult {
+	if len(r.Data) > 0 {
+		return r.Data
+	}
+	return r.Results
 }
 
 // Search performs hybrid text+vector search over graph objects.
@@ -29,7 +41,7 @@ func (c *Client) Search(ctx context.Context, req SearchRequest) ([]SearchResult,
 	if err != nil {
 		return nil, err
 	}
-	return resp.Results, nil
+	return resp.Items(), nil
 }
 
 // SearchWithNeighbors performs hybrid search and includes graph neighbor context.
@@ -42,5 +54,5 @@ func (c *Client) SearchWithNeighbors(ctx context.Context, req SearchRequest) ([]
 	if err != nil {
 		return nil, err
 	}
-	return resp.Results, nil
+	return resp.Items(), nil
 }

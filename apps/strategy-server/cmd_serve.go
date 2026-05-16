@@ -63,9 +63,10 @@ func runServer(cfg *config.Config) error {
 	instSvc.WithPackEnsurer(packSvc) // post-commit standard pack auto-install
 
 	semanticSvc := semantic.NewService(semantic.Config{
-		URL:     cfg.MemoryURL,
-		Project: cfg.MemoryProject,
-		Token:   cfg.MemoryToken,
+		URL:      cfg.MemoryURL,
+		Project:  cfg.MemoryProject,
+		Token:    cfg.MemoryToken,
+		AuthMode: cfg.MemoryAuthMode,
 	})
 
 	// Verify Memory schemas at startup (non-blocking — logs warning if unavailable).

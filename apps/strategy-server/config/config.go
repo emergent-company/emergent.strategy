@@ -17,6 +17,7 @@ type ImportCmd struct {
 	GithubOwner  string `arg:"--workspace,required,env:IMPORT_WORKSPACE" help:"GitHub owner / workspace slug (e.g. emergent-company)"`
 	InstanceName string `arg:"--name,env:IMPORT_INSTANCE_NAME" help:"Override the instance display name (default: product name from _meta.yaml)"`
 	Activate     bool   `arg:"--activate,env:IMPORT_ACTIVATE" default:"false" help:"Activate the instance after import"`
+	Reingest     bool   `arg:"--reingest,env:IMPORT_REINGEST" default:"false" help:"Ingest artifacts into Memory graph after import"`
 }
 
 // DBMode controls how strategy-server co-locates with emergent.memory's database.
@@ -77,9 +78,10 @@ type Config struct {
 	SessionSecret      string `arg:"env:EPF_SESSION_SECRET" help:"Session signing secret (deprecated)"`
 
 	// emergent.memory (semantic graph)
-	MemoryURL     string `arg:"env:EPF_MEMORY_URL" default:"http://localhost:8787" help:"emergent.memory base URL"`
-	MemoryProject string `arg:"env:EPF_MEMORY_PROJECT" help:"emergent.memory project ID"`
-	MemoryToken   string `arg:"env:EPF_MEMORY_TOKEN" help:"emergent.memory project token"`
+	MemoryURL      string `arg:"env:EPF_MEMORY_URL" default:"http://localhost:3002" help:"emergent.memory base URL"`
+	MemoryProject  string `arg:"env:EPF_MEMORY_PROJECT" help:"emergent.memory project ID"`
+	MemoryToken    string `arg:"env:EPF_MEMORY_TOKEN" help:"emergent.memory project token"`
+	MemoryAuthMode string `arg:"env:EPF_MEMORY_AUTH_MODE" default:"api-key" help:"Memory auth mode: api-key (standalone) or bearer (production)"`
 }
 
 // PostgresDSN returns a valid PostgreSQL DSN from the config.

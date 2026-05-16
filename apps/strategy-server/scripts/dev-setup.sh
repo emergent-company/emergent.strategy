@@ -73,13 +73,8 @@ fail()  { echo -e "${RED}FAIL${NC} $1"; exit 1; }
 
 cd "$PROJECT_DIR"
 
-if $WITH_MEMORY; then
-    info "Starting Postgres + Memory containers..."
-    docker compose up -d postgres memory 2>&1 | tail -5
-else
-    info "Starting Postgres container..."
-    docker compose up -d postgres 2>&1 | tail -5
-fi
+info "Starting Postgres container..."
+docker compose up -d postgres 2>&1 | tail -5
 
 # ---------------------------------------------------------------------------
 # 2. Wait for Postgres
@@ -102,69 +97,60 @@ done
 # ---------------------------------------------------------------------------
 
 MEMORY_TOKEN=""
+MEMORY_URL=""
+MEMORY_PROJECT_ID=""
 if $WITH_MEMORY; then
-    info "Waiting for Memory server..."
-    for i in $(seq 1 60); do
-        if curl -sf http://localhost:8787/health >/dev/null 2>&1; then
-            ok "Memory server is ready (port 8787)"
-            break
-        fi
-        if [ "$i" -eq 60 ]; then
-            warn "Memory server not ready after 60s — continuing without it"
-            WITH_MEMORY=false
-            break
-        fi
-        sleep 1
-    done
-fi
-
-if $WITH_MEMORY; then
-    info "Setting up Memory project..."
-
     # Check memory CLI is installed.
     if ! command -v memory &>/dev/null; then
-        warn "'memory' CLI not found — skipping Memory project setup"
-        warn "Install: go install github.com/emergent-company/memory/cmd/memory@latest"
+        warn "'memory' CLI not found — skipping Memory setup"
+        warn "Install with: curl -sSfL https://memory.emergent-company.ai/install | sh"
         WITH_MEMORY=false
     fi
 fi
 
 if $WITH_MEMORY; then
-    MEMORY_URL="http://localhost:8787"
-    MEMORY_ORG="strategy-dev"
-    MEMORY_PROJECT="strategy"
-
-    # Create org (ignore error if already exists).
-    memory orgs create --name "${MEMORY_ORG}" --server "${MEMORY_URL}" 2>/dev/null || true
-
-    # Get org ID.
-    ORG_ID=$(memory orgs list --server "${MEMORY_URL}" --json 2>/dev/null | \
-        python3 -c "
-import sys, json
-orgs = json.load(sys.stdin)
-for o in orgs:
-    if o.get('name') == '${MEMORY_ORG}':
-        print(o['id'])
-        break
-" 2>/dev/null || echo "")
-
-    # Create project (ignore error if already exists).
-    if [ -n "${ORG_ID}" ]; then
-        memory projects create --name "${MEMORY_PROJECT}" --org-id "${ORG_ID}" --server "${MEMORY_URL}" 2>/dev/null || true
-    else
-        memory projects create --name "${MEMORY_PROJECT}" --server "${MEMORY_URL}" 2>/dev/null || true
+    # Use the standalone Memory install (managed by 'memory server ctl').
+    # Install if not already present.
+    if [ ! -f "${HOME}/.memory/docker/docker-compose.yml" ]; then
+        info "Installing standalone Memory server..."
+        memory server install --skip-start 2>&1 | tail -5
     fi
 
-    # Create or retrieve a project token.
-    TOKEN_JSON=$(memory projects create-token --server "${MEMORY_URL}" --project "${MEMORY_PROJECT}" --json 2>/dev/null || echo "")
-    if [ -n "${TOKEN_JSON}" ]; then
-        MEMORY_TOKEN=$(echo "${TOKEN_JSON}" | python3 -c "import sys,json; print(json.load(sys.stdin).get('token',''))" 2>/dev/null || echo "")
-    fi
+    info "Starting Memory server (standalone)..."
+    memory server ctl start 2>&1 | grep -v "new version" || true
 
-    if [ -n "${MEMORY_TOKEN}" ]; then
-        ok "Memory project '${MEMORY_PROJECT}' ready (token obtained)"
+    info "Waiting for Memory server..."
+    for i in $(seq 1 90); do
+        if curl -s http://localhost:3002/health 2>/dev/null | python3 -c "import sys,json; sys.exit(0 if json.load(sys.stdin).get('checks',{}).get('database',{}).get('status')=='healthy' else 1)" 2>/dev/null; then
+            ok "Memory server is ready (port 3002)"
+            break
+        fi
+        if [ "$i" -eq 90 ]; then
+            warn "Memory server not fully ready after 90s — continuing anyway"
+            break
+        fi
+        sleep 1
+    done
+
+    # Read the standalone config to get API key and project ID.
+    MEMORY_ENV="${HOME}/.memory/config/.env.local"
+    if [ -f "${MEMORY_ENV}" ]; then
+        MEMORY_TOKEN=$(grep '^STANDALONE_API_KEY=' "${MEMORY_ENV}" | cut -d= -f2)
+        MEMORY_URL="http://localhost:3002"
+
+        # Get the default project ID from the API.
+        MEMORY_PROJECT_ID=$(curl -s http://localhost:3002/api/projects \
+            -H "X-API-Key: ${MEMORY_TOKEN}" 2>/dev/null | \
+            python3 -c "import sys,json; projects=json.load(sys.stdin); print(projects[0]['id'] if projects else '')" 2>/dev/null || echo "")
+
+        if [ -n "${MEMORY_PROJECT_ID}" ]; then
+            ok "Memory project: ${MEMORY_PROJECT_ID}"
+        else
+            warn "Could not retrieve Memory project ID"
+        fi
     else
-        warn "Could not obtain Memory token — semantic features may not work"
+        warn "Memory standalone config not found at ${MEMORY_ENV}"
+        WITH_MEMORY=false
     fi
 fi
 
@@ -198,13 +184,14 @@ STRATEGY_DB_MODE=dev
 AUTH_ENABLED=false
 EOF
 
-if $WITH_MEMORY && [ -n "${MEMORY_TOKEN}" ]; then
+if $WITH_MEMORY && [ -n "${MEMORY_TOKEN}" ] && [ -n "${MEMORY_PROJECT_ID}" ]; then
     cat >> "${ENV_FILE}" << EOF
 
-# Memory (semantic graph)
-EPF_MEMORY_URL=http://localhost:8787
-EPF_MEMORY_PROJECT=strategy
+# Memory (standalone — semantic graph)
+EPF_MEMORY_URL=${MEMORY_URL}
+EPF_MEMORY_PROJECT=${MEMORY_PROJECT_ID}
 EPF_MEMORY_TOKEN=${MEMORY_TOKEN}
+EPF_MEMORY_AUTH_MODE=api-key
 EOF
     ok ".env.local written (with Memory)"
 else

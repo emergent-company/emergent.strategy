@@ -14,9 +14,10 @@ import (
 
 // Config holds the emergent.memory connection settings.
 type Config struct {
-	URL     string
-	Project string
-	Token   string
+	URL      string
+	Project  string
+	Token    string
+	AuthMode string // "api-key" (standalone) or "bearer" (production)
 }
 
 // IsConfigured returns true when all required Memory fields are set.
@@ -68,10 +69,15 @@ func NewService(cfg Config) *Service {
 	s := &Service{cfg: cfg}
 
 	if cfg.IsConfigured() {
+		authMode := memory.AuthModeAPIKey // default for standalone/dev
+		if cfg.AuthMode == "bearer" {
+			authMode = memory.AuthModeBearer
+		}
 		c, err := memory.New(memory.Config{
 			BaseURL:   cfg.URL,
 			ProjectID: cfg.Project,
 			Token:     cfg.Token,
+			AuthMode:  authMode,
 		})
 		if err != nil {
 			slog.Warn("semantic service: failed to create Memory client, semantic features disabled",
