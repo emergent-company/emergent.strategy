@@ -286,10 +286,14 @@ func registerInstanceReadTools(s *server.MCPServer, svc Services) {
 			schemaStatus["registry_available"] = false
 		}
 
+		// Lifecycle mode detection — tells the user what to do next.
+		lifecycle := detectLifecycleMode(ctx, svc, inst, artifacts)
+
 		return mustJSON(map[string]any{
 			"instance":             inst,
 			"artifact_count":       len(artifacts),
 			"status":               inst.Status,
+			"lifecycle":            lifecycle,
 			"standard_pack_status": standardPackStatus,
 			"schema_status":        schemaStatus,
 		})
