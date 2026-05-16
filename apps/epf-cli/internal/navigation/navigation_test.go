@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -845,6 +846,103 @@ func TestEmergentStrategyReachabilityByPersona(t *testing.T) {
 	if _, ok := observerReach["semantic-search"]; ok {
 		t.Error("Observer should NOT reach semantic-search (no memory guard)")
 	}
+}
+
+// --- Mermaid Diagram Tests ---
+
+func TestMermaidMinimalGraph(t *testing.T) {
+	g, err := LoadFile(testdataPath("minimal_graph.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+	mmd := g.ToMermaid(nil)
+	if !strings.Contains(mmd, "graph TD") {
+		t.Error("expected graph TD header")
+	}
+	if !strings.Contains(mmd, "home") {
+		t.Error("expected home node")
+	}
+	if !strings.Contains(mmd, "-->") {
+		t.Error("expected transition arrows")
+	}
+	t.Log("Minimal graph Mermaid:\n" + mmd)
+}
+
+func TestMermaidWithGroups(t *testing.T) {
+	g, err := LoadFile(testdataPath("full_graph.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+	mmd := g.ToMermaid(&MermaidOptions{ShowGroups: true, ShowGuards: true})
+	if !strings.Contains(mmd, "subgraph") {
+		t.Error("expected subgraph for groups")
+	}
+	t.Log("Full graph with groups:\n" + mmd)
+}
+
+func TestMermaidReachability(t *testing.T) {
+	g, err := LoadFile(testdataPath("full_graph.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	profile := NewGuardProfile()
+	profile.Guards["authenticated"] = true
+	profile.Guards["instance-active"] = true
+
+	mmd := g.ToMermaid(&MermaidOptions{
+		Profile:    profile,
+		ShowGuards: true,
+	})
+	if !strings.Contains(mmd, "classDef reachable") {
+		t.Error("expected reachable class definition")
+	}
+	if !strings.Contains(mmd, "classDef blocked") {
+		t.Error("expected blocked class definition")
+	}
+	t.Log("Reachability diagram:\n" + mmd)
+}
+
+func TestMermaidGroupFilter(t *testing.T) {
+	g, err := LoadFile(testdataPath("21st_captable_navigation.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+
+	// Render only the captable group
+	mmd := g.ToMermaid(&MermaidOptions{
+		Group:      "captable",
+		ShowGuards: true,
+		Direction:  "LR",
+	})
+	// Should contain captable contexts but not governance/reporting contexts
+	if !strings.Contains(mmd, "captable_summary") {
+		t.Error("expected captable-summary node")
+	}
+	t.Log("21st-captable (captable group only):\n" + mmd)
+}
+
+func TestMermaidComposition(t *testing.T) {
+	root, err := LoadFile(testdataPath("composition/platform.yaml"))
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+	composed, err := Compose(root, testdataPath("composition"))
+	if err != nil {
+		t.Fatalf("Compose: %v", err)
+	}
+
+	mmd := ToMermaidComposed(composed, nil)
+	if !strings.Contains(mmd, "subgraph root") {
+		t.Error("expected root subgraph")
+	}
+	if !strings.Contains(mmd, "subgraph captable") {
+		t.Error("expected captable subgraph")
+	}
+	if !strings.Contains(mmd, "-.->") {
+		t.Error("expected dashed portal edge arrows")
+	}
+	t.Log("Composition diagram:\n" + mmd)
 }
 
 // --- 21st-captable Reference Migration Tests ---
