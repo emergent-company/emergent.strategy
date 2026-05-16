@@ -16,6 +16,7 @@ import (
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/embedded"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
 
@@ -128,6 +129,7 @@ func (s *Service) ImportInstance(ctx context.Context, p ImportParams) (*domain.S
 	actorID := audit.ActorFromContext(ctx)
 	source := string(audit.SourceFromContext(ctx))
 
+	schemaVersion := strings.TrimSpace(embedded.Version)
 	inst := &domain.StrategyInstance{
 		ID:             uuid.New(),
 		WorkspaceID:    p.WorkspaceID,
@@ -136,6 +138,8 @@ func (s *Service) ImportInstance(ctx context.Context, p ImportParams) (*domain.S
 		GithubRepo:     p.GithubRepo,
 		GithubBasePath: p.GithubBasePath,
 		Status:         domain.InstanceStatusDraft,
+		SchemaVersion:  &schemaVersion,
+		Dialect:        "standard",
 		CreatedBy:      actorID,
 		CreatedAt:      time.Now().UTC(),
 		UpdatedAt:      time.Now().UTC(),

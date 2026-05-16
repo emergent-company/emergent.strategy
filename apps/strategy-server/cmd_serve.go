@@ -23,7 +23,9 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/org"
+	schemadom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/schema"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/user"
+	versiondom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/version"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/auth"
@@ -49,6 +51,12 @@ func runServer(cfg *config.Config) error {
 
 	if err := database.Migrate(db); err != nil {
 		return fmt.Errorf("run migrations: %w", err)
+	}
+
+	// Schema registry — auto-imports embedded schemas on first run.
+	schemaSvc := schemadom.NewService(db)
+	if err := schemaSvc.EnsureImported(context.Background()); err != nil {
+		log.Warn("schema registry auto-import failed (non-fatal)", "err", err)
 	}
 
 	// Audit writer — persists to audit_log table.
@@ -82,6 +90,7 @@ func runServer(cfg *config.Config) error {
 	defer ingestSvc.Stop()
 
 	orgSvc := org.NewService(db)
+	versionSvc := versiondom.NewService(db)
 
 	svc := mcpserver.Services{
 		Workspace: workspace.NewService(db),
@@ -91,6 +100,8 @@ func runServer(cfg *config.Config) error {
 		App:       appdom.NewService(db),
 		Semantic:  semanticSvc,
 		Org:       orgSvc,
+		Schema:    schemaSvc,
+		Version:   versionSvc,
 		Ingest:    ingestSvc,
 	}
 

@@ -111,5 +111,7 @@ func registerModels(db *bun.DB) {
 		(*domain.Org)(nil),
 		(*domain.OrgMembership)(nil),
 		(*domain.OrgInvitation)(nil),
+		(*domain.SchemaRegistryEntry)(nil),
+		(*domain.StrategyVersion)(nil),
 	)
 }

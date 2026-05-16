@@ -37,7 +37,9 @@ import (
 	orgdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/org"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/pack"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
+	schemadom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/schema"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
+	versiondom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/version"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/agent"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/embedded"
@@ -59,7 +61,9 @@ type Services struct {
 	App       *appdom.Service
 	Semantic  *semantic.Service
 	Org       *orgdom.Service
-	Ingest    IngestEnqueuer // optional — nil when Memory is not configured
+	Schema    *schemadom.Service    // optional — nil falls back to embedded-only validation
+	Version   *versiondom.Service  // optional — nil disables versioning tools
+	Ingest    IngestEnqueuer       // optional — nil when Memory is not configured
 }
 
 // New creates and registers all MCP tools, returning the StreamableHTTPServer
@@ -91,6 +95,7 @@ func New(svc Services) http.Handler {
 	registerPackTools(s, svc)
 	registerOrgTools(s, svc)
 	registerPhase2cTools(s, svc)
+	registerVersionTools(s, svc)
 	registerKnowledgePrompt(s)
 
 	return server.NewStreamableHTTPServer(s)
@@ -253,11 +258,26 @@ func registerInstanceReadTools(s *server.MCPServer, svc Services) {
 			}
 		}
 
+		// Schema registry status.
+		schemaStatus := map[string]any{
+			"schema_version": inst.SchemaVersion,
+			"dialect":        inst.Dialect,
+		}
+		if svc.Schema != nil {
+			schemaStatus["registry_available"] = true
+			if latest, ok, schErr := svc.Schema.LatestVersion(ctx); schErr == nil && ok {
+				schemaStatus["registry_latest_version"] = latest
+			}
+		} else {
+			schemaStatus["registry_available"] = false
+		}
+
 		return mustJSON(map[string]any{
 			"instance":             inst,
 			"artifact_count":       len(artifacts),
 			"status":               inst.Status,
 			"standard_pack_status": standardPackStatus,
+			"schema_status":        schemaStatus,
 		})
 	})
 }
@@ -1239,7 +1259,13 @@ func registerValidationTools(s *server.MCPServer, svc Services) {
 				Errors: []string{"payload is not valid JSON"},
 			})
 		}
-		result := embedded.ValidateArtifact(argString(req, "artifact_type"), []byte(payloadStr))
+
+		// Use registry-backed schema source when available.
+		var source embedded.SchemaSource
+		if svc.Schema != nil {
+			source = schemadom.NewRegistrySchemaSource(ctx, svc.Schema, "", "standard")
+		}
+		result := embedded.ValidateArtifactWithSource(argString(req, "artifact_type"), []byte(payloadStr), source)
 		return mustJSON(result)
 	})
 
@@ -1257,6 +1283,19 @@ func registerValidationTools(s *server.MCPServer, svc Services) {
 			return toolErr(ctx, err), nil
 		}
 
+		// Build a schema source from the instance's schema version when the registry is available.
+		var source embedded.SchemaSource
+		if svc.Schema != nil {
+			inst, instErr := svc.Instance.GetInstance(ctx, instID)
+			if instErr == nil {
+				version := ""
+				if inst.SchemaVersion != nil {
+					version = *inst.SchemaVersion
+				}
+				source = schemadom.NewRegistrySchemaSource(ctx, svc.Schema, version, inst.Dialect)
+			}
+		}
+
 		type artifactValidation struct {
 			ArtifactKey string `json:"artifact_key"`
 			embedded.ValidationResult
@@ -1264,7 +1303,7 @@ func registerValidationTools(s *server.MCPServer, svc Services) {
 		results := make([]artifactValidation, 0, len(artifacts))
 		totalValid, totalInvalid := 0, 0
 		for _, a := range artifacts {
-			r := embedded.ValidateArtifact(a.ArtifactType, a.Payload)
+			r := embedded.ValidateArtifactWithSource(a.ArtifactType, a.Payload, source)
 			results = append(results, artifactValidation{
 				ArtifactKey:      a.ArtifactKey,
 				ValidationResult: r,

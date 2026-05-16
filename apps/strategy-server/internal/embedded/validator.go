@@ -99,6 +99,29 @@ func DetectArtifactType(payload []byte) (string, bool) {
 }
 
 // ---------------------------------------------------------------------------
+// Schema source interface
+// ---------------------------------------------------------------------------
+
+// SchemaSource provides raw JSON Schema bytes by filename.
+// The DB-backed registry implements this; the embedded filesystem is the default.
+type SchemaSource interface {
+	// GetSchemaBytes returns the raw JSON Schema document for the given filename.
+	GetSchemaBytes(schemaName string) ([]byte, error)
+}
+
+// embeddedSchemaSource is the default SchemaSource backed by go:embed.
+type embeddedSchemaSource struct{}
+
+func (embeddedSchemaSource) GetSchemaBytes(schemaName string) ([]byte, error) {
+	return GetSchema(schemaName)
+}
+
+// EmbeddedSchemaSource returns a SchemaSource backed by the embedded filesystem.
+func EmbeddedSchemaSource() SchemaSource {
+	return embeddedSchemaSource{}
+}
+
+// ---------------------------------------------------------------------------
 // Validation result
 // ---------------------------------------------------------------------------
 
@@ -120,7 +143,21 @@ type ValidationResult struct {
 //
 // When no schema is registered for the type, the function returns a result with
 // Valid=true and a warning rather than an error — unknown types pass through.
+//
+// This convenience wrapper uses the embedded filesystem as the schema source.
+// Use ValidateArtifactWithSource when a DB-backed registry is available.
 func ValidateArtifact(artifactType string, payload []byte) ValidationResult {
+	return ValidateArtifactWithSource(artifactType, payload, EmbeddedSchemaSource())
+}
+
+// ValidateArtifactWithSource validates a JSON payload against the schema for
+// artifactType using the provided SchemaSource.  If artifactType is empty,
+// auto-detection is attempted first.
+func ValidateArtifactWithSource(artifactType string, payload []byte, source SchemaSource) ValidationResult {
+	if source == nil {
+		source = EmbeddedSchemaSource()
+	}
+
 	// Auto-detect if type is not provided.
 	detected := false
 	if artifactType == "" {
@@ -150,8 +187,8 @@ func ValidateArtifact(artifactType string, payload []byte) ValidationResult {
 		return result
 	}
 
-	// Load the schema bytes.
-	schemaBytes, err := GetSchema(schemaFile)
+	// Load the schema bytes from the provided source.
+	schemaBytes, err := source.GetSchemaBytes(schemaFile)
 	if err != nil {
 		return ValidationResult{
 			Valid:        false,

@@ -41,6 +41,8 @@ type StrategyInstance struct {
 	GithubBasePath      *string    `bun:"github_base_path"                   json:"github_base_path,omitempty"`
 	Status              string     `bun:"status,notnull,default:'draft'"     json:"status"`
 	StandardPackVersion *string    `bun:"standard_pack_version"              json:"standard_pack_version,omitempty"`
+	SchemaVersion       *string    `bun:"schema_version"                     json:"schema_version,omitempty"`
+	Dialect             string     `bun:"dialect,notnull,default:'standard'" json:"dialect"`
 	CreatedBy           *uuid.UUID `bun:"created_by,type:uuid"               json:"created_by,omitempty"`
 	CreatedAt           time.Time  `bun:"created_at,notnull,default:now()"   json:"created_at"`
 	UpdatedAt           time.Time  `bun:"updated_at,notnull,default:now()"   json:"updated_at"`
@@ -313,3 +315,43 @@ const (
 	InvitationStatusAccepted = "accepted"
 	InvitationStatusRevoked  = "revoked"
 )
+
+// ---------------------------------------------------------------------------
+// Schema registry
+// ---------------------------------------------------------------------------
+
+// StrategyVersion is an atomic snapshot of all artifacts and relationships in an instance.
+type StrategyVersion struct {
+	bun.BaseModel `bun:"table:strategy_versions,alias:sv"`
+
+	ID              uuid.UUID       `bun:"id,pk,type:uuid"                    json:"id"`
+	InstanceID      uuid.UUID       `bun:"instance_id,notnull,type:uuid"      json:"instance_id"`
+	Version         int             `bun:"version,notnull"                     json:"version"`
+	Label           *string         `bun:"label"                               json:"label,omitempty"`
+	Description     *string         `bun:"description"                         json:"description,omitempty"`
+	Status          string          `bun:"status,notnull,default:'published'"  json:"status"`
+	ParentVersionID *uuid.UUID      `bun:"parent_version_id,type:uuid"         json:"parent_version_id,omitempty"`
+	Snapshot        json.RawMessage `bun:"snapshot,notnull,type:jsonb"         json:"snapshot"`
+	PublishedBy     *uuid.UUID      `bun:"published_by,type:uuid"              json:"published_by,omitempty"`
+	PublishedAt     time.Time       `bun:"published_at,notnull,default:now()"  json:"published_at"`
+	CreatedAt       time.Time       `bun:"created_at,notnull,default:now()"    json:"created_at"`
+}
+
+// VersionStatus enumerates valid values for StrategyVersion.Status.
+const (
+	VersionStatusPublished  = "published"
+	VersionStatusSuperseded = "superseded"
+	VersionStatusRestored   = "restored"
+)
+
+// SchemaRegistryEntry stores a single JSON schema document in the runtime registry.
+type SchemaRegistryEntry struct {
+	bun.BaseModel `bun:"table:schema_registry,alias:scr"`
+
+	ID         uuid.UUID       `bun:"id,pk,type:uuid"                   json:"id"`
+	Version    string          `bun:"version,notnull"                    json:"version"`
+	Dialect    string          `bun:"dialect,notnull,default:'standard'" json:"dialect"`
+	SchemaName string          `bun:"schema_name,notnull"                json:"schema_name"`
+	Content    json.RawMessage `bun:"content,notnull,type:jsonb"         json:"content"`
+	CreatedAt  time.Time       `bun:"created_at,notnull,default:now()"   json:"created_at"`
+}

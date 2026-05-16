@@ -2,36 +2,36 @@
 
 ### 1.1 Database
 
-- [ ] 1.1.1 Write migration `011_schema_registry.sql` — `schema_registry` table (version, dialect, schema_name, content JSONB)
-- [ ] 1.1.2 Add `schema_version TEXT` column to `strategy_instances`
-- [ ] 1.1.3 Add `dialect TEXT DEFAULT 'standard'` column to `strategy_instances`
+- [x] 1.1.1 Write migration `011_schema_registry.sql` — `schema_registry` table (version, dialect, schema_name, content JSONB)
+- [x] 1.1.2 Add `schema_version TEXT` column to `strategy_instances`
+- [x] 1.1.3 Add `dialect TEXT DEFAULT 'standard'` column to `strategy_instances`
 
 ### 1.2 Registry Service
 
-- [ ] 1.2.1 Create `domain/schema/service.go` — `SchemaService` with `GetSchema(version, dialect, name)`, `ImportSchemas(version, dialect, schemas)`, `ListVersions()`
-- [ ] 1.2.2 Implement DB lookup with embedded fallback in `GetSchema`
-- [ ] 1.2.3 Implement `ImportFromEmbedded(version)` — bulk-inserts all embedded schemas into the registry
-- [ ] 1.2.4 Implement `LatestVersion()` — returns the highest registered version
-- [ ] 1.2.5 Write unit tests for registry service (DB + fallback scenarios)
+- [x] 1.2.1 Create `domain/schema/service.go` — `SchemaService` with `GetSchema(version, dialect, name)`, `ImportSchemas(version, dialect, schemas)`, `ListVersions()`
+- [x] 1.2.2 Implement DB lookup with embedded fallback in `GetSchema`
+- [x] 1.2.3 Implement `ImportFromEmbedded(version)` — bulk-inserts all embedded schemas into the registry
+- [x] 1.2.4 Implement `LatestVersion()` — returns the highest registered version
+- [x] 1.2.5 Write unit tests for registry service (DB + fallback scenarios)
 
 ### 1.3 Validation Wiring
 
-- [ ] 1.3.1 Update `internal/embedded/validator.go` to accept a schema source interface (DB or embedded)
-- [ ] 1.3.2 Wire `ValidateArtifact` to query the registry first, then embedded fallback
-- [ ] 1.3.3 Ensure `$ref` cross-references resolve correctly when schemas come from DB
-- [ ] 1.3.4 Write integration test: validate artifact against DB-stored schema
+- [x] 1.3.1 Update `internal/embedded/validator.go` to accept a schema source interface (DB or embedded)
+- [x] 1.3.2 Wire `ValidateArtifact` to query the registry first, then embedded fallback
+- [x] 1.3.3 Ensure `$ref` cross-references resolve correctly when schemas come from DB
+- [x] 1.3.4 Write integration test: validate artifact against DB-stored schema
 
 ### 1.4 Auto-Import on Startup
 
-- [ ] 1.4.1 On server startup, check if current embedded version exists in registry
-- [ ] 1.4.2 If not, call `ImportFromEmbedded()` to bootstrap the registry
-- [ ] 1.4.3 Log the import result (schema count, version)
+- [x] 1.4.1 On server startup, check if current embedded version exists in registry
+- [x] 1.4.2 If not, call `ImportFromEmbedded()` to bootstrap the registry
+- [x] 1.4.3 Log the import result (schema count, version)
 
 ### 1.5 Instance Schema Tracking
 
-- [ ] 1.5.1 Set `schema_version` on instance creation/import (from embedded VERSION)
-- [ ] 1.5.2 Include `schema_version` and `dialect` in instance GET responses
-- [ ] 1.5.3 Add `schema_version` to health check report
+- [x] 1.5.1 Set `schema_version` on instance creation/import (from embedded VERSION)
+- [x] 1.5.2 Include `schema_version` and `dialect` in instance GET responses
+- [x] 1.5.3 Add `schema_version` to health check report
 
 ---
 
@@ -39,26 +39,26 @@
 
 ### 2.1 Database
 
-- [ ] 2.1.1 Write migration `012_strategy_versions.sql` — `strategy_versions` table (version int, label, description, status, parent_version_id, snapshot JSONB, published_at)
+- [x] 2.1.1 Write migration `012_strategy_versions.sql` — `strategy_versions` table (version int, label, description, status, parent_version_id, snapshot JSONB, published_at)
 
 ### 2.2 Version Service
 
-- [ ] 2.2.1 Create `domain/version/service.go` — `VersionService`
-- [ ] 2.2.2 Implement `Publish(instanceID, label, description)` — snapshot all current artifacts + relationships into JSONB, assign next version number, set status to 'published', supersede previous version
-- [ ] 2.2.3 Implement `List(instanceID)` — return version history
-- [ ] 2.2.4 Implement `Get(instanceID, versionID)` — return full snapshot
-- [ ] 2.2.5 Implement `Diff(instanceID, fromVersionID, toVersionID)` — structured diff (added/removed/changed artifacts)
-- [ ] 2.2.6 Implement `Restore(instanceID, versionID)` — create mutations from snapshot to restore to that state
-- [ ] 2.2.7 Write unit tests for version service
+- [x] 2.2.1 Create `domain/version/service.go` — `VersionService`
+- [x] 2.2.2 Implement `Publish(instanceID, label, description)` — snapshot all current artifacts + relationships into JSONB, assign next version number, set status to 'published', supersede previous version
+- [x] 2.2.3 Implement `List(instanceID)` — return version history
+- [x] 2.2.4 Implement `Get(instanceID, versionID)` — return full snapshot
+- [x] 2.2.5 Implement `Diff(instanceID, fromVersionID, toVersionID)` — structured diff (added/removed/changed artifacts)
+- [x] 2.2.6 Implement `Restore(instanceID, versionID)` — create mutations from snapshot to restore to that state
+- [x] 2.2.7 Write unit tests for version service
 
 ### 2.3 MCP Tools
 
-- [ ] 2.3.1 `publish_version` — snapshot and publish current state
-- [ ] 2.3.2 `list_versions` — show version history for an instance
-- [ ] 2.3.3 `get_version` — read a specific version's artifacts
-- [ ] 2.3.4 `diff_versions` — compare two versions
-- [ ] 2.3.5 `restore_version` — create mutations to revert to a previous state
-- [ ] 2.3.6 Register tools in `internal/mcpserver/`
+- [x] 2.3.1 `publish_version` — snapshot and publish current state
+- [x] 2.3.2 `list_versions` — show version history for an instance
+- [x] 2.3.3 `get_version` — read a specific version's artifacts
+- [x] 2.3.4 `diff_versions` — compare two versions
+- [x] 2.3.5 `restore_version` — create mutations to revert to a previous state
+- [x] 2.3.6 Register tools in `internal/mcpserver/`
 
 ### 2.4 MCP Tool Tests
 
