@@ -5,12 +5,25 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
+
+func seedTestOrg(t *testing.T, db *bun.DB) uuid.UUID {
+	t.Helper()
+	orgID := uuid.New()
+	_, err := db.ExecContext(context.Background(),
+		"INSERT INTO orgs (id, name, slug, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())",
+		orgID, "Test Org", "test-org-"+orgID.String()[:8])
+	if err != nil {
+		t.Fatalf("seed org: %v", err)
+	}
+	return orgID
+}
 
 func newCtx() context.Context {
 	ctx := context.Background()
@@ -22,8 +35,9 @@ func TestCreateWorkspace(t *testing.T) {
 	svc := workspace.NewService(db)
 	ctx := newCtx()
 
+	orgID := seedTestOrg(t, db)
 	name := "Acme Corp"
-	ws, err := svc.CreateWorkspace(ctx, "acme-corp", &name)
+	ws, err := svc.CreateWorkspace(ctx, "acme-corp", &name, orgID)
 	if err != nil {
 		t.Fatalf("CreateWorkspace: %v", err)
 	}
@@ -40,11 +54,12 @@ func TestCreateWorkspace_Duplicate(t *testing.T) {
 	svc := workspace.NewService(db)
 	ctx := newCtx()
 
-	if _, err := svc.CreateWorkspace(ctx, "dup-org", nil); err != nil {
+	orgID := seedTestOrg(t, db)
+	if _, err := svc.CreateWorkspace(ctx, "dup-org", nil, orgID); err != nil {
 		t.Fatalf("first create: %v", err)
 	}
 
-	_, err := svc.CreateWorkspace(ctx, "dup-org", nil)
+	_, err := svc.CreateWorkspace(ctx, "dup-org", nil, orgID)
 	ae := apperror.AsAppError(err)
 	if ae == nil {
 		t.Fatalf("expected AppError on duplicate, got %v", err)
@@ -75,7 +90,8 @@ func TestListWorkspaces_Pagination(t *testing.T) {
 	ctx := newCtx()
 
 	for _, owner := range []string{"org-a", "org-b", "org-c"} {
-		if _, err := svc.CreateWorkspace(ctx, owner, nil); err != nil {
+		orgID := seedTestOrg(t, db)
+		if _, err := svc.CreateWorkspace(ctx, owner, nil, orgID); err != nil {
 			t.Fatalf("create %q: %v", owner, err)
 		}
 	}
@@ -105,7 +121,8 @@ func TestDeleteWorkspace_SoftDelete(t *testing.T) {
 	svc := workspace.NewService(db)
 	ctx := newCtx()
 
-	ws, err := svc.CreateWorkspace(ctx, "delete-me", nil)
+	orgID := seedTestOrg(t, db)
+	ws, err := svc.CreateWorkspace(ctx, "delete-me", nil, orgID)
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}

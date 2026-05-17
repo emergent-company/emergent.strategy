@@ -46,11 +46,8 @@ func assertWorkspaceAccess(ctx context.Context, svc Services, workspaceID uuid.U
 	if err != nil {
 		return err
 	}
-	if orgID == nil {
-		return nil // workspace not scoped to an org — allow access
-	}
 
-	isMember, _, err := svc.Org.IsMember(ctx, *orgID, u.ID)
+	isMember, _, err := svc.Org.IsMember(ctx, orgID, u.ID)
 	if err != nil {
 		return fmt.Errorf("check org membership: %w", err)
 	}

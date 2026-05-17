@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
@@ -14,6 +15,18 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
 )
+
+func seedTestOrg(t *testing.T, db *bun.DB) uuid.UUID {
+	t.Helper()
+	orgID := uuid.New()
+	_, err := db.ExecContext(context.Background(),
+		"INSERT INTO orgs (id, name, slug, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())",
+		orgID, "Test Org", "test-org-"+orgID.String()[:8])
+	if err != nil {
+		t.Fatalf("seed org: %v", err)
+	}
+	return orgID
+}
 
 func newCtx() context.Context {
 	ctx := context.Background()
@@ -31,7 +44,8 @@ func seedInstance(t *testing.T) (context.Context, *strategy.Service, *version.Se
 	stratSvc := strategy.NewService(db)
 	verSvc := version.NewService(db)
 
-	ws, err := wsSvc.CreateWorkspace(ctx, "ver-test-org", nil)
+	orgID := seedTestOrg(t, db)
+	ws, err := wsSvc.CreateWorkspace(ctx, "ver-test-org", nil, orgID)
 	if err != nil {
 		t.Fatalf("CreateWorkspace: %v", err)
 	}

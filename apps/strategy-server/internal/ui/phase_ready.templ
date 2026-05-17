@@ -1,0 +1,154 @@
+package ui
+
+import (
+	"strconv"
+
+	"github.com/emergent-company/go-daisy/components/ui"
+)
+
+// ReadyPhaseData holds all data for the READY phase dashboard.
+type ReadyPhaseData struct {
+	InstanceID string
+
+	// North Star
+	NorthStarExists bool
+	NorthStarOrg    string // organisation name from payload
+	NorthStarVision string // vision statement (truncated)
+
+	// Foundation artifacts — each has exists + key summary
+	InsightExists      bool
+	InsightTitle       string
+	FoundationExists   bool
+	FoundationTitle    string
+	FormulaExists      bool
+	FormulaTitle       string
+	RoadmapExists      bool
+	RoadmapTitle       string
+	OpportunityExists  bool
+	OpportunityTitle   string
+
+	// Roadmap OKR summary
+	TrackOKRs []TrackOKRSummary
+
+	// Counts
+	TotalArtifacts     int
+	CompletedArtifacts int // artifacts that exist (out of expected)
+}
+
+// TrackOKRSummary shows OKR count per track from the roadmap.
+type TrackOKRSummary struct {
+	Track      string
+	Icon       string
+	Objectives int
+	KeyResults int
+}
+
+// ReadyPhaseContent renders the READY phase dashboard content.
+templ ReadyPhaseContent(data ReadyPhaseData) {
+	<div class="space-y-6">
+		// Progress bar
+		@ui.ProgressCard(ui.ProgressCardProps{
+			Title:         "READY Phase",
+			Subtitle:      "Strategic foundation completeness",
+			ProgressValue: readyProgress(data),
+			ProgressLabel: strconv.Itoa(data.CompletedArtifacts) + "/" + strconv.Itoa(data.TotalArtifacts) + " artifacts",
+			Stats: []ui.ProgressStat{
+				{Label: "Total Artifacts", Value: strconv.Itoa(data.TotalArtifacts)},
+				{Label: "Completed", Value: strconv.Itoa(data.CompletedArtifacts)},
+			},
+		})
+
+		// North Star card — prominent
+		if data.NorthStarExists {
+			@northStarCard(data)
+		}
+
+		// Foundation grid: Insight -> Formula -> Roadmap flow
+		<div class="grid gap-4 md:grid-cols-3">
+			@readyArtifactCard("Insight & Opportunity", "The big opportunity identified from market analysis", "lucide--search", data.InsightExists, data.InsightTitle, "/strategies/" + data.InstanceID + "/ready/insights")
+			@readyArtifactCard("Winning Formula", "Strategic positioning, moat, and value creation model", "lucide--brain", data.FormulaExists, data.FormulaTitle, "/strategies/" + data.InstanceID + "/ready/formula")
+			@readyArtifactCard("Solution Recipe", "Four-track execution plan with OKRs and milestones", "lucide--map", data.RoadmapExists, data.RoadmapTitle, "/strategies/" + data.InstanceID + "/ready/roadmap")
+		</div>
+
+		// Supporting artifacts
+		<div class="grid gap-4 md:grid-cols-2">
+			@readyArtifactCard("Foundations", "Personas, positioning, ICP, and product vision", "lucide--layers", data.FoundationExists, data.FoundationTitle, "/strategies/" + data.InstanceID + "/ready/foundations")
+			@readyArtifactCard("North Star", "Purpose, vision, mission, values, and core beliefs", "lucide--star", data.NorthStarExists, data.NorthStarOrg, "/strategies/" + data.InstanceID + "/ready/north-star")
+		</div>
+
+		// Roadmap OKR summary
+		if len(data.TrackOKRs) > 0 {
+			@roadmapOKRSummary(data.TrackOKRs)
+		}
+	</div>
+}
+
+templ northStarCard(data ReadyPhaseData) {
+	<div class="card bg-gradient-to-r from-primary/5 to-secondary/5 border border-primary/20 shadow-sm">
+		<div class="card-body p-5">
+			<div class="flex items-start gap-3">
+				<div class="rounded-xl bg-primary/10 p-2.5 shrink-0">
+					<span class="iconify lucide--star size-6 text-primary"></span>
+				</div>
+				<div class="min-w-0">
+					<h3 class="text-base font-semibold text-base-content">{ data.NorthStarOrg }</h3>
+					if data.NorthStarVision != "" {
+						<p class="text-sm text-base-content/70 mt-1 line-clamp-2">{ data.NorthStarVision }</p>
+					}
+				</div>
+			</div>
+		</div>
+	</div>
+}
+
+templ readyArtifactCard(title, description, icon string, exists bool, summary string, href string) {
+	<a
+		href={ templ.URL(href) }
+		hx-get={ href }
+		hx-target="#tab-content"
+		hx-swap="innerHTML"
+		hx-push-url="true"
+		class="card bg-base-100 border border-base-content/10 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+	>
+		<div class="card-body p-4">
+			<div class="flex items-start gap-3">
+				<div class={ "rounded-lg p-1.5 shrink-0", templ.KV("bg-success/10", exists), templ.KV("bg-base-content/5", !exists) }>
+					<span class={ "iconify size-5", icon, templ.KV("text-success", exists), templ.KV("text-base-content/30", !exists) }></span>
+				</div>
+				<div class="min-w-0">
+					<div class="flex items-center gap-2">
+						<h3 class="text-sm font-semibold text-base-content">{ title }</h3>
+						if exists {
+							<span class="iconify lucide--check-circle-2 size-3.5 text-success shrink-0"></span>
+						} else {
+							<span class="iconify lucide--circle-dashed size-3.5 text-base-content/30 shrink-0"></span>
+						}
+					</div>
+					<p class="text-xs text-base-content/50 mt-0.5">{ description }</p>
+					if exists && summary != "" {
+						<p class="text-xs text-base-content/70 mt-2 font-medium truncate">{ summary }</p>
+					}
+				</div>
+			</div>
+		</div>
+	</a>
+}
+
+templ roadmapOKRSummary(tracks []TrackOKRSummary) {
+	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card-body p-5">
+			<h3 class="text-base font-semibold text-base-content mb-3">Roadmap OKRs by Track</h3>
+			<div class="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+				for _, t := range tracks {
+					<div class="flex items-center gap-3 rounded-lg bg-base-200/50 px-3 py-2.5">
+						<span class={ "iconify size-4 text-base-content/60 " + t.Icon }></span>
+						<div class="min-w-0">
+							<p class="text-sm font-medium text-base-content">{ t.Track }</p>
+							<p class="text-xs text-base-content/50">{ strconv.Itoa(t.Objectives) } objectives, { strconv.Itoa(t.KeyResults) } key results</p>
+						</div>
+					</div>
+				}
+			</div>
+		</div>
+	</div>
+}

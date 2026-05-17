@@ -1924,3 +1924,231 @@ func TestDecomposeNavigationGraph(t *testing.T) {
 		t.Error("Expected realizes edge from settings to Product.Core.Configuration")
 	}
 }
+
+// ============================================================
+// DecomposePayload tests — in-memory decomposition
+// ============================================================
+
+func TestDecomposePayload_NorthStar(t *testing.T) {
+	payload := map[string]any{
+		"north_star": map[string]any{
+			"organization": "Test Corp",
+			"purpose": map[string]any{
+				"statement":      "We exist to make strategy executable",
+				"problem_we_solve": "Strategy documents rot in drawers",
+				"impact_we_seek":   "Every team aligned to living strategy",
+			},
+			"vision": map[string]any{
+				"vision_statement":  "A world where strategy is alive",
+				"timeframe":         "5 years",
+				"success_looks_like": []any{"Strategy is a verb", "Teams self-align"},
+			},
+			"mission": map[string]any{
+				"mission_statement": "We build the semantic strategy engine",
+				"what_we_do":        []any{"Build tools", "Connect teams"},
+				"how_we_deliver": map[string]any{
+					"approach": "AI-augmented human judgment",
+				},
+			},
+			"values": []any{
+				map[string]any{
+					"value":               "Transparency",
+					"definition":          "We share openly",
+					"behaviors_we_expect": []any{"Share context", "Ask questions"},
+					"example_decision":    "Open-source our framework",
+				},
+			},
+			"core_beliefs": map[string]any{
+				"about_our_market": []any{
+					map[string]any{
+						"belief":      "Strategy is semantic",
+						"implication": "Path-checking is insufficient",
+						"evidence":    "Adding NOT invalidates downstream",
+					},
+				},
+			},
+		},
+	}
+
+	result, err := DecomposePayload("north_star", payload)
+	if err != nil {
+		t.Fatalf("DecomposePayload failed: %v", err)
+	}
+
+	counts := countByType(result)
+
+	// Should have: Artifact(1) + Purpose(1) + Vision(1) + Mission(1) + Value(1) + CoreBelief(1) = 6
+	if counts["Belief"] < 4 {
+		t.Errorf("Expected at least 4 Belief objects (purpose, vision, mission, value, core_belief), got %d", counts["Belief"])
+	}
+	if counts["Artifact"] != 1 {
+		t.Errorf("Expected 1 Artifact node, got %d", counts["Artifact"])
+	}
+
+	// Check purpose belief has correct content
+	for _, obj := range result.Objects {
+		if obj.Type == "Belief" && obj.Key == "Belief:north_star:purpose" {
+			if obj.Properties["statement"] != "We exist to make strategy executable" {
+				t.Errorf("Purpose statement = %v, want 'We exist to make strategy executable'", obj.Properties["statement"])
+			}
+		}
+	}
+}
+
+func TestDecomposePayload_Feature(t *testing.T) {
+	payload := map[string]any{
+		"id":     "fd-001",
+		"name":   "Knowledge Explorer",
+		"slug":   "knowledge-explorer",
+		"status": "in-progress",
+		"strategic_context": map[string]any{
+			"contributes_to":     []any{"Product.Core.Search"},
+			"tracks":             []any{"product"},
+			"assumptions_tested": []any{"asm-p-001"},
+		},
+		"definition": map[string]any{
+			"job_to_be_done":   "Search and discover knowledge",
+			"solution_approach": "Graph-based exploration",
+			"capabilities": []any{
+				map[string]any{
+					"id":          "cap-001",
+					"name":        "Semantic Search",
+					"description": "Full-text + embedding search",
+				},
+			},
+			"scenarios": []any{
+				map[string]any{
+					"id":      "scn-001",
+					"name":    "Quick search",
+					"actor":   "researcher",
+					"context": "Working on a project",
+					"trigger": "Needs specific info",
+					"action":  "Types query",
+					"outcome": "Finds relevant docs",
+				},
+			},
+		},
+		"dependencies": map[string]any{
+			"requires": []any{
+				map[string]any{"id": "fd-002", "name": "Data Pipeline", "reason": "Needs indexed data"},
+			},
+		},
+	}
+
+	result, err := DecomposePayload("feature", payload)
+	if err != nil {
+		t.Fatalf("DecomposePayload failed: %v", err)
+	}
+
+	counts := countByType(result)
+
+	if counts["Feature"] != 1 {
+		t.Errorf("Expected 1 Feature, got %d", counts["Feature"])
+	}
+	if counts["Capability"] != 1 {
+		t.Errorf("Expected 1 Capability, got %d", counts["Capability"])
+	}
+	if counts["Scenario"] != 1 {
+		t.Errorf("Expected 1 Scenario, got %d", counts["Scenario"])
+	}
+
+	// Check feature properties
+	for _, obj := range result.Objects {
+		if obj.Type == "Feature" {
+			if obj.Properties["feature_id"] != "fd-001" {
+				t.Errorf("feature_id = %v, want fd-001", obj.Properties["feature_id"])
+			}
+			if obj.Properties["status"] != "in-progress" {
+				t.Errorf("status = %v, want in-progress", obj.Properties["status"])
+			}
+		}
+	}
+
+	// Check relationships
+	relCounts := countRelsByType(result)
+	// contributes_to edges are NOT created in single-payload mode because VMC
+	// resolution requires value model data (loaded from the full instance).
+	// This is expected — callers should use DecomposeInstance for full graph.
+	if relCounts["tests_assumption"] != 1 {
+		t.Errorf("Expected 1 tests_assumption edge, got %d", relCounts["tests_assumption"])
+	}
+	if relCounts["depends_on"] != 1 {
+		t.Errorf("Expected 1 depends_on edge, got %d", relCounts["depends_on"])
+	}
+}
+
+func TestDecomposePayload_Roadmap(t *testing.T) {
+	payload := map[string]any{
+		"roadmap": map[string]any{
+			"id":    "roadmap-q1",
+			"cycle": 1,
+			"tracks": map[string]any{
+				"product": map[string]any{
+					"track_objective": "Build core platform",
+					"okrs": []any{
+						map[string]any{
+							"id":        "okr-p-001",
+							"objective": "Launch MVP",
+							"key_results": []any{
+								map[string]any{
+									"id":          "kr-p-001",
+									"description": "100 active users",
+									"target":      "100",
+									"status":      "in_progress",
+								},
+							},
+						},
+					},
+					"riskiest_assumptions": []any{
+						map[string]any{
+							"id":          "asm-p-001",
+							"description": "Users want graph-based exploration",
+							"type":        "desirability",
+							"criticality": "high",
+							"linked_to_kr": []any{"kr-p-001"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	result, err := DecomposePayload("roadmap_recipe", payload)
+	if err != nil {
+		t.Fatalf("DecomposePayload failed: %v", err)
+	}
+
+	counts := countByType(result)
+
+	if counts["OKR"] < 2 { // 1 OKR + 1 KR
+		t.Errorf("Expected at least 2 OKR objects (objective + key result), got %d", counts["OKR"])
+	}
+	if counts["Assumption"] != 1 {
+		t.Errorf("Expected 1 Assumption, got %d", counts["Assumption"])
+	}
+
+	// Check assumption-KR edge
+	relCounts := countRelsByType(result)
+	if relCounts["tests_assumption"] != 1 {
+		t.Errorf("Expected 1 tests_assumption edge, got %d", relCounts["tests_assumption"])
+	}
+}
+
+func TestDecomposePayload_UnsupportedType(t *testing.T) {
+	_, err := DecomposePayload("unknown_type", map[string]any{})
+	if err == nil {
+		t.Fatal("Expected error for unsupported artifact type")
+	}
+}
+
+func TestDecomposePayload_EmptyPayload(t *testing.T) {
+	// North star with empty payload should produce minimal result (just an Artifact node)
+	result, err := DecomposePayload("north_star", map[string]any{})
+	if err != nil {
+		t.Fatalf("DecomposePayload failed: %v", err)
+	}
+	counts := countByType(result)
+	if counts["Artifact"] != 1 {
+		t.Errorf("Expected 1 Artifact node even for empty payload, got %d", counts["Artifact"])
+	}
+}

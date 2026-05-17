@@ -1,0 +1,188 @@
+package ui
+
+import (
+	"strconv"
+
+	"github.com/emergent-company/go-daisy/components/layout"
+	"github.com/emergent-company/go-daisy/components/ui"
+)
+
+// InstanceDashboardData holds all the data for the instance dashboard.
+type InstanceDashboardData struct {
+	InstanceID   string
+	InstanceName string
+	Status       string
+
+	// READY phase
+	HasNorthStar  bool
+	HasFoundation bool
+	HasInsights   bool
+	HasFormula    bool
+	HasRoadmap    bool
+
+	// FIRE phase
+	FeatureCount     int
+	ProductCount     int
+	CommercialCount  int
+	StrategyCount    int
+	OrgOpsCount      int
+
+	// AIM phase
+	AssumptionCount  int
+	TestedCount      int
+	SignalCount      int
+	CoherenceScore   string // e.g. "0.85"
+}
+
+// InstanceDashboardPage renders the full page for an instance dashboard.
+templ InstanceDashboardPage(currentPath string, sidebarGroups []layout.SidebarGroup, tabs []TabProps, data InstanceDashboardData) {
+	@InstanceShellPage("Strategy — "+data.InstanceName, currentPath, sidebarGroups, data.InstanceName, tabs) {
+		@InstanceDashboardContent(data)
+	}
+}
+
+// InstanceDashboardContent renders just the content (for HTMX partial swaps).
+templ InstanceDashboardContent(data InstanceDashboardData) {
+	<div class="space-y-6">
+		@ui.StatCards([]ui.StatCardProps{
+			{Label: "Features", Value: strconv.Itoa(data.FeatureCount), Icon: "lucide--file-text", IconColor: "bg-primary/10 text-primary"},
+			{Label: "Assumptions", Value: strconv.Itoa(data.AssumptionCount), Icon: "lucide--flask-conical", IconColor: "bg-secondary/10 text-secondary"},
+			{Label: "Tested", Value: strconv.Itoa(data.TestedCount), Icon: "lucide--check-circle-2", IconColor: "bg-success/10 text-success"},
+			{Label: "Active Signals", Value: strconv.Itoa(data.SignalCount), Icon: "lucide--alert-circle", IconColor: "bg-warning/10 text-warning"},
+		})
+
+		<div class="grid gap-6 lg:grid-cols-3">
+			@readyPhaseWidget(data)
+			@firePhaseWidget(data)
+			@aimPhaseWidget(data)
+		</div>
+	</div>
+}
+
+templ readyPhaseWidget(data InstanceDashboardData) {
+	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card-body p-5">
+			<div class="flex items-center gap-2 mb-4">
+				<div class="rounded-lg bg-primary/10 p-1.5">
+					<span class="iconify lucide--compass size-5 text-primary"></span>
+				</div>
+				<h2 class="text-base font-semibold text-base-content">READY</h2>
+				<span class="text-xs text-base-content/50 ml-auto">Foundation</span>
+			</div>
+
+			<div class="space-y-2">
+				@readySubItem("Insight & Opportunity", "lucide--search", data.HasInsights, "/strategies/" + data.InstanceID + "/ready/insights")
+				@readySubItem("Winning Formula", "lucide--brain", data.HasFormula, "/strategies/" + data.InstanceID + "/ready/formula")
+				@readySubItem("Solution Recipe", "lucide--map", data.HasRoadmap, "/strategies/" + data.InstanceID + "/ready/roadmap")
+			</div>
+
+			<div class="divider my-2"></div>
+
+			<div class="space-y-2">
+				@readySubItem("North Star", "lucide--star", data.HasNorthStar, "/strategies/" + data.InstanceID + "/ready/north-star")
+				@readySubItem("Foundations", "lucide--layers", data.HasFoundation, "/strategies/" + data.InstanceID + "/ready/foundations")
+			</div>
+		</div>
+	</div>
+}
+
+templ readySubItem(label string, icon string, completed bool, href string) {
+	<a
+		href={ templ.URL(href) }
+		hx-get={ href }
+		hx-target="#tab-content"
+		hx-swap="innerHTML"
+		hx-push-url="true"
+		class="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-base-200 transition-colors cursor-pointer group"
+	>
+		<span class={ "iconify size-4 text-base-content/60 group-hover:text-primary " + icon }></span>
+		<span class="text-sm text-base-content grow">{ label }</span>
+		if completed {
+			<span class="iconify lucide--check-circle-2 size-4 text-success"></span>
+		} else {
+			<span class="iconify lucide--circle-dashed size-4 text-base-content/30"></span>
+		}
+	</a>
+}
+
+templ firePhaseWidget(data InstanceDashboardData) {
+	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card-body p-5">
+			<div class="flex items-center gap-2 mb-4">
+				<div class="rounded-lg bg-error/10 p-1.5">
+					<span class="iconify lucide--rocket size-5 text-error"></span>
+				</div>
+				<h2 class="text-base font-semibold text-base-content">FIRE</h2>
+				<span class="text-xs text-base-content/50 ml-auto">Execution</span>
+			</div>
+
+			<div class="space-y-2">
+				@trackSubItem("Product", "lucide--code-2", data.ProductCount, "/strategies/" + data.InstanceID + "/fire/product")
+				@trackSubItem("Commercial", "lucide--briefcase", data.CommercialCount, "/strategies/" + data.InstanceID + "/fire/commercial")
+				@trackSubItem("Strategy", "lucide--navigation", data.StrategyCount, "/strategies/" + data.InstanceID + "/fire/strategy")
+				@trackSubItem("Org & Ops", "lucide--container", data.OrgOpsCount, "/strategies/" + data.InstanceID + "/fire/org-ops")
+			</div>
+
+			<div class="divider my-2"></div>
+
+			<div class="flex items-center justify-between text-sm">
+				<span class="text-base-content/60">Total definitions</span>
+				<span class="font-semibold text-base-content">{ strconv.Itoa(data.FeatureCount) }</span>
+			</div>
+		</div>
+	</div>
+}
+
+templ trackSubItem(label string, icon string, count int, href string) {
+	<a
+		href={ templ.URL(href) }
+		hx-get={ href }
+		hx-target="#tab-content"
+		hx-swap="innerHTML"
+		hx-push-url="true"
+		class="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-base-200 transition-colors cursor-pointer group"
+	>
+		<span class={ "iconify size-4 text-base-content/60 group-hover:text-primary " + icon }></span>
+		<span class="text-sm text-base-content grow">{ label }</span>
+		<span class="badge badge-sm badge-ghost">{ strconv.Itoa(count) }</span>
+	</a>
+}
+
+templ aimPhaseWidget(data InstanceDashboardData) {
+	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card-body p-5">
+			<div class="flex items-center gap-2 mb-4">
+				<div class="rounded-lg bg-warning/10 p-1.5">
+					<span class="iconify lucide--target size-5 text-warning"></span>
+				</div>
+				<h2 class="text-base font-semibold text-base-content">AIM</h2>
+				<span class="text-xs text-base-content/50 ml-auto">Calibration</span>
+			</div>
+
+			<div class="space-y-2">
+				@aimSubItem("Assumptions", "lucide--flask-conical", aimSubLabel(data.TestedCount, data.AssumptionCount, "tested"), "/strategies/" + data.InstanceID + "/aim/assumptions")
+				@aimSubItem("Living Reality", "lucide--activity", "", "/strategies/" + data.InstanceID + "/aim/lra")
+				@aimSubItem("Assessment", "lucide--bar-chart-2", "", "/strategies/" + data.InstanceID + "/aim/assessment")
+				@aimSubItem("Calibration", "lucide--sliders-horizontal", "", "/strategies/" + data.InstanceID + "/aim/calibration")
+				@aimSubItem("Coherence", "lucide--shield-check", data.CoherenceScore, "/strategies/" + data.InstanceID + "/aim/coherence")
+			</div>
+		</div>
+	</div>
+}
+
+templ aimSubItem(label string, icon string, detail string, href string) {
+	<a
+		href={ templ.URL(href) }
+		hx-get={ href }
+		hx-target="#tab-content"
+		hx-swap="innerHTML"
+		hx-push-url="true"
+		class="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-base-200 transition-colors cursor-pointer group"
+	>
+		<span class={ "iconify size-4 text-base-content/60 group-hover:text-primary " + icon }></span>
+		<span class="text-sm text-base-content grow">{ label }</span>
+		if detail != "" {
+			<span class="text-xs text-base-content/50">{ detail }</span>
+		}
+	</a>
+}

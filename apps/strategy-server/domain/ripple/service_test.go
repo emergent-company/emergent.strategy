@@ -17,10 +17,14 @@ import (
 func seedInstance(t *testing.T, db *bun.DB) uuid.UUID {
 	t.Helper()
 	ctx := context.Background()
+
+	orgID := seedTestOrg(t, db)
+
 	wsID := uuid.New()
 	_, err := db.NewInsert().Model(&domain.Workspace{
 		ID:          wsID,
 		GithubOwner: "test-" + wsID.String()[:8],
+		OrgID:       orgID,
 	}).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed workspace: %v", err)

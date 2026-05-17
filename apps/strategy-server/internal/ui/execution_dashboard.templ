@@ -1,0 +1,214 @@
+package ui
+
+import (
+	"strconv"
+)
+
+// ExecutionData holds all data for the execution dashboard.
+type ExecutionData struct {
+	InstanceID   string
+	InstanceName string
+	Timeframe    string // e.g. "Q2 2026 – Q4 2026"
+	Cycle        string // e.g. "Cycle 2"
+	Status       string // roadmap status
+
+	// Track OKR groups — each track has OKRs → KRs → Features
+	Tracks []ExecutionTrack
+
+	// Summary stats
+	TotalOKRs      int
+	TotalKRs       int
+	ActiveFeatures int
+	DraftFeatures  int
+	Assumptions    int
+	ActiveSignals  int
+}
+
+// ExecutionTrack represents one track's OKR execution data.
+type ExecutionTrack struct {
+	Name string // e.g. "Product"
+	Icon string // lucide icon
+	OKRs []ExecutionOKR
+}
+
+// ExecutionOKR represents a single OKR with its key results.
+type ExecutionOKR struct {
+	ID        string
+	Objective string
+	KRs       []ExecutionKR
+}
+
+// ExecutionKR represents a single key result with linked features and AIM data.
+type ExecutionKR struct {
+	ID          string
+	Description string
+	Target      string
+	Baseline    string
+
+	// Linked features
+	Features []ExecutionFeature
+
+	// AIM inline data
+	Assumptions []ExecutionAssumption
+}
+
+// ExecutionFeature is a feature linked to a KR.
+type ExecutionFeature struct {
+	Key    string
+	Name   string
+	Status string
+	Href   string
+}
+
+// ExecutionAssumption is an assumption being tested, with confidence.
+type ExecutionAssumption struct {
+	ID          string
+	Description string
+	Confidence  string // high, medium, low
+	Criticality string // high, medium, low
+}
+
+// ExecutionDashboardContent renders the execution-focused strategy dashboard.
+templ ExecutionDashboardContent(data ExecutionData) {
+	<div class="space-y-6">
+		// Header
+		<div class="flex items-center justify-between">
+			<div>
+				<h2 class="text-xl font-bold text-base-content">Execution</h2>
+				if data.Timeframe != "" {
+					<p class="text-sm text-base-content/50 mt-0.5">{ data.Timeframe }{ cycleLabel(data.Cycle) }</p>
+				}
+			</div>
+			<div class="flex gap-2">
+				<div class="badge badge-lg badge-ghost gap-1">
+					<span class="iconify lucide--target size-3.5"></span>
+					{ strconv.Itoa(data.TotalKRs) } Key Results
+				</div>
+				<div class="badge badge-lg badge-ghost gap-1">
+					<span class="iconify lucide--file-text size-3.5"></span>
+					{ strconv.Itoa(data.ActiveFeatures + data.DraftFeatures) } Features
+				</div>
+				if data.ActiveSignals > 0 {
+					<div class="badge badge-lg badge-warning gap-1">
+						<span class="iconify lucide--alert-circle size-3.5"></span>
+						{ strconv.Itoa(data.ActiveSignals) } Signals
+					</div>
+				}
+			</div>
+		</div>
+
+		// Track sections
+		for _, track := range data.Tracks {
+			if len(track.OKRs) > 0 {
+				@executionTrackSection(track, data.InstanceID)
+			}
+		}
+	</div>
+}
+
+templ executionTrackSection(track ExecutionTrack, instanceID string) {
+	<div class="space-y-3">
+		<div class="flex items-center gap-2">
+			<span class={ "iconify size-4 text-base-content/60 " + track.Icon }></span>
+			<h3 class="text-sm font-semibold text-base-content/70 uppercase tracking-wider">{ track.Name } Track</h3>
+		</div>
+
+		for _, okr := range track.OKRs {
+			@executionOKRCard(okr, instanceID)
+		}
+	</div>
+}
+
+templ executionOKRCard(okr ExecutionOKR, instanceID string) {
+	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card-body p-4 gap-3">
+			// OKR header
+			<div class="flex items-start gap-2">
+				<span class="badge badge-sm badge-primary font-mono shrink-0">{ okr.ID }</span>
+				<p class="text-sm font-semibold text-base-content">{ okr.Objective }</p>
+			</div>
+
+			// Key Results
+			<div class="space-y-2 ml-2">
+				for _, kr := range okr.KRs {
+					@executionKRRow(kr, instanceID)
+				}
+			</div>
+		</div>
+	</div>
+}
+
+templ executionKRRow(kr ExecutionKR, instanceID string) {
+	<div class="rounded-lg border border-base-content/5 bg-base-200/30 p-3">
+		// KR header
+		<div class="flex items-start gap-2 mb-2">
+			<span class="font-mono text-xs text-base-content/50 shrink-0 mt-0.5">{ kr.ID }</span>
+			<div class="min-w-0">
+				<p class="text-sm text-base-content">{ kr.Description }</p>
+				if kr.Target != "" {
+					<p class="text-xs text-base-content/40 mt-0.5">Target: { kr.Target }</p>
+				}
+			</div>
+		</div>
+
+		// Linked features
+		if len(kr.Features) > 0 {
+			<div class="ml-6 space-y-1">
+				for _, f := range kr.Features {
+					<a
+						href={ templ.URL(f.Href) }
+						hx-get={ f.Href }
+						hx-target="#tab-content"
+						hx-swap="innerHTML"
+						hx-push-url="true"
+						class="flex items-center gap-2 rounded px-2 py-1 hover:bg-base-200 transition-colors cursor-pointer group text-sm"
+					>
+						<span class="iconify lucide--file-text size-3.5 text-base-content/40 group-hover:text-primary"></span>
+						<span class="font-mono text-xs text-base-content/40">{ f.Key }</span>
+						<span class="text-base-content truncate">{ f.Name }</span>
+						@execFeatureStatus(f.Status)
+					</a>
+				}
+			</div>
+		}
+
+		// Assumptions inline
+		if len(kr.Assumptions) > 0 {
+			<div class="ml-6 mt-2 space-y-1">
+				for _, a := range kr.Assumptions {
+					<div class="flex items-center gap-2 text-xs">
+						@confidenceIndicator(a.Confidence)
+						<span class="font-mono text-base-content/40">{ a.ID }</span>
+						<span class="text-base-content/60 truncate">{ a.Description }</span>
+					</div>
+				}
+			</div>
+		}
+	</div>
+}
+
+templ execFeatureStatus(status string) {
+	switch status {
+		case "delivered":
+			<span class="badge badge-xs badge-success ml-auto shrink-0">Delivered</span>
+		case "in-progress":
+			<span class="badge badge-xs badge-primary ml-auto shrink-0">In Progress</span>
+		case "draft":
+			<span class="badge badge-xs badge-warning ml-auto shrink-0">Draft</span>
+		default:
+			<span class="badge badge-xs badge-ghost ml-auto shrink-0">{ status }</span>
+	}
+}
+
+templ confidenceIndicator(confidence string) {
+	switch confidence {
+		case "high":
+			<span class="iconify lucide--check-circle-2 size-3.5 text-success" title="High confidence"></span>
+		case "medium":
+			<span class="iconify lucide--circle size-3.5 text-warning" title="Medium confidence"></span>
+		case "low":
+			<span class="iconify lucide--alert-circle size-3.5 text-error" title="Low confidence"></span>
+		default:
+			<span class="iconify lucide--circle-dashed size-3.5 text-base-content/30"></span>
+	}
+}

@@ -26,6 +26,18 @@ import (
 
 const emergentInstancePath = "../../../../docs/EPF/_instances/emergent"
 
+func seedTestOrg(t *testing.T, db *bun.DB) uuid.UUID {
+	t.Helper()
+	orgID := uuid.New()
+	_, err := db.ExecContext(context.Background(),
+		"INSERT INTO orgs (id, name, slug, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())",
+		orgID, "Test Org", "test-org-"+orgID.String()[:8])
+	if err != nil {
+		t.Fatalf("seed org: %v", err)
+	}
+	return orgID
+}
+
 // TestConvergence_RealEmergentInstance loads the actual Emergent EPF instance
 // from disk, imports it into a test database, then runs the full convergence
 // loop to observe how the engine behaves against real strategic content.
@@ -46,7 +58,8 @@ func TestConvergence_RealEmergentInstance(t *testing.T) {
 	t.Log("=== Phase 1: Import Emergent EPF instance ===")
 
 	wsSvc := workspace.NewService(db)
-	ws, err := wsSvc.CreateWorkspace(ctx, "emergent-company", nil)
+	orgID := seedTestOrg(t, db)
+	ws, err := wsSvc.CreateWorkspace(ctx, "emergent-company", nil, orgID)
 	if err != nil {
 		t.Fatalf("create workspace: %v", err)
 	}
@@ -281,7 +294,8 @@ func TestConvergence_RealEmergentInstance_WithMemory(t *testing.T) {
 	// --- Phase 1: Import ---
 	t.Log("=== Phase 1: Import Emergent EPF instance ===")
 	wsSvc := workspace.NewService(db)
-	ws, err := wsSvc.CreateWorkspace(ctx, "emergent-semantic-test", nil)
+	orgID := seedTestOrg(t, db)
+	ws, err := wsSvc.CreateWorkspace(ctx, "emergent-semantic-test", nil, orgID)
 	if err != nil {
 		t.Fatalf("create workspace: %v", err)
 	}
@@ -475,7 +489,8 @@ func TestConvergence_RealEmergentInstance_FullLoop(t *testing.T) {
 	// --- Import ---
 	t.Log("=== Import ===")
 	wsSvc := workspace.NewService(db)
-	ws, _ := wsSvc.CreateWorkspace(ctx, "emergent-fullloop", nil)
+	orgID := seedTestOrg(t, db)
+	ws, _ := wsSvc.CreateWorkspace(ctx, "emergent-fullloop", nil, orgID)
 	payloads, productName := scanTestInstance(t, absPath)
 	instSvc := instance.NewService(db)
 	inst, err := instSvc.ImportInstance(ctx, instance.ImportParams{

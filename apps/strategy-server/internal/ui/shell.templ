@@ -1,0 +1,129 @@
+package ui
+
+import (
+	"github.com/emergent-company/go-daisy/components/layout"
+)
+
+// StrategyShellPage renders the full page shell with sidebar and navbar.
+// Used for root-level pages (dashboard, settings).
+templ StrategyShellPage(title string, currentPath string, sidebarGroups []layout.SidebarGroup) {
+	@layout.Page(title, "nord") {
+		@themeRestoreScript()
+		@layout.AppShell("Emergent Strategy") {
+			@layout.Sidebar("Emergent Strategy", sidebarGroups)
+			<div class="flex min-w-0 grow flex-col overflow-hidden">
+				@layout.Navbar("Emergent Strategy") {
+					@layout.ThemeToggle("nord", "dark")
+				}
+				<main id="main-content" class="grow overflow-auto bg-base-200">
+					{ children... }
+				</main>
+			</div>
+		}
+	}
+}
+
+// InstanceShellPage renders the full page shell for a strategy-scoped page.
+// Includes tabs (Execution / READY / FIRE / AIM) below the strategy name.
+templ InstanceShellPage(title string, currentPath string, sidebarGroups []layout.SidebarGroup, instanceName string, tabs []TabProps) {
+	@layout.Page(title, "nord") {
+		@themeRestoreScript()
+		@layout.AppShell("Emergent Strategy") {
+			@layout.Sidebar("Emergent Strategy", sidebarGroups)
+			<div class="flex min-w-0 grow flex-col overflow-hidden">
+				@layout.Navbar("Emergent Strategy") {
+					@layout.ThemeToggle("nord", "dark")
+				}
+				<main id="main-content" class="grow overflow-auto bg-base-200">
+					@InstanceChrome(instanceName, tabs, currentPath) {
+						{ children... }
+					}
+				</main>
+			</div>
+		}
+	}
+}
+
+// InstanceChrome renders the strategy header with tabs.
+templ InstanceChrome(instanceName string, tabs []TabProps, currentPath string) {
+	<div id="instance-chrome">
+		<div class="border-b border-base-content/10 bg-base-100 px-6 pt-4">
+			<h1 class="text-lg font-semibold text-base-content mb-3">{ instanceName }</h1>
+			@StrategyTabs(tabs, currentPath)
+		</div>
+		<div id="tab-content" class="p-6">
+			{ children... }
+		</div>
+	</div>
+}
+
+// TabProps describes a single tab.
+type TabProps struct {
+	Label    string
+	Icon     string
+	URL      string
+	IsActive bool
+}
+
+// StrategyTabs renders the Execution / READY / FIRE / AIM horizontal tab bar.
+templ StrategyTabs(tabs []TabProps, currentPath string) {
+	<div role="tablist" class="flex gap-1">
+		for _, tab := range tabs {
+			<a
+				role="tab"
+				href={ templ.URL(tab.URL) }
+				hx-get={ tab.URL }
+				hx-target="#tab-content"
+				hx-swap="innerHTML"
+				hx-push-url="true"
+				class={ "tab tab-bordered pb-3 px-4 gap-2 text-sm font-medium",
+					templ.KV("tab-active", tab.IsActive) }
+			>
+				if tab.Icon != "" {
+					<span class={ "iconify size-4 " + tab.Icon }></span>
+				}
+				{ tab.Label }
+			</a>
+		}
+	</div>
+}
+
+// PhaseRenderData bundles a phase title with its rendered content.
+type PhaseRenderData struct {
+	Title   string
+	Content templ.Component
+}
+
+// InstancePhaseFullPage renders the full page shell with instance chrome and content.
+templ InstancePhaseFullPage(title string, currentPath string, sidebarGroups []layout.SidebarGroup, instanceName string, tabs []TabProps, content templ.Component) {
+	@InstanceShellPage(title, currentPath, sidebarGroups, instanceName, tabs) {
+		@content
+	}
+}
+
+// InstanceChromeWithContent renders the instance chrome with content pre-filled.
+templ InstanceChromeWithContent(instanceName string, tabs []TabProps, currentPath string, content templ.Component) {
+	@InstanceChrome(instanceName, tabs, currentPath) {
+		@content
+	}
+}
+
+// themeRestoreScript restores the saved theme from localStorage on page load.
+templ themeRestoreScript() {
+	<script>
+		(function() {
+			try {
+				var saved = localStorage.getItem('go-daisy-theme');
+				if (saved) {
+					document.documentElement.setAttribute('data-theme', saved);
+					if (saved === 'dark') {
+						var sun = document.getElementById('theme-icon-sun');
+						var moon = document.getElementById('theme-icon-moon');
+						if (sun) sun.style.display = 'none';
+						if (moon) moon.style.display = '';
+					}
+				}
+			} catch(e) {}
+		})();
+	</script>
+}

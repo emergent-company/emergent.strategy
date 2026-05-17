@@ -18,7 +18,7 @@ type Workspace struct {
 	ID          uuid.UUID  `bun:"id,pk,type:uuid"                   json:"id"`
 	GithubOwner string     `bun:"github_owner,notnull"               json:"github_owner"`
 	DisplayName *string    `bun:"display_name"                       json:"display_name,omitempty"`
-	OrgID       *uuid.UUID `bun:"org_id,type:uuid"                   json:"org_id,omitempty"`
+	OrgID       uuid.UUID  `bun:"org_id,notnull,type:uuid"           json:"org_id"`
 	CreatedBy   *uuid.UUID `bun:"created_by,type:uuid"               json:"created_by,omitempty"`
 	CreatedAt   time.Time  `bun:"created_at,notnull,default:now()"   json:"created_at"`
 	UpdatedAt   time.Time  `bun:"updated_at,notnull,default:now()"   json:"updated_at"`
@@ -264,16 +264,23 @@ const (
 )
 
 // Org represents an organisation — the tenant container for workspaces.
+// Identity fields (OrgNumber, Country, TwentyfirstID) are compatible with the
+// 21st ecosystem for future cross-service federation.
 type Org struct {
 	bun.BaseModel `bun:"table:orgs,alias:o"`
 
-	ID        uuid.UUID  `bun:"id,pk,type:uuid"                   json:"id"`
-	Name      string     `bun:"name,notnull"                       json:"name"`
-	Slug      string     `bun:"slug,notnull"                       json:"slug"`
-	CreatedBy *uuid.UUID `bun:"created_by,type:uuid"               json:"created_by,omitempty"`
-	CreatedAt time.Time  `bun:"created_at,notnull,default:now()"   json:"created_at"`
-	UpdatedAt time.Time  `bun:"updated_at,notnull,default:now()"   json:"updated_at"`
-	DeletedAt *time.Time `bun:"deleted_at,soft_delete"             json:"deleted_at,omitempty"`
+	ID            uuid.UUID  `bun:"id,pk,type:uuid"                   json:"id"`
+	Name          string     `bun:"name,notnull"                       json:"name"`
+	Slug          string     `bun:"slug,notnull"                       json:"slug"`
+	OrgNumber     string     `bun:"org_number,notnull"                 json:"org_number"`
+	Country       string     `bun:"country,notnull"                    json:"country"`
+	Website       string     `bun:"website,notnull"                    json:"website"`
+	LogoURL       string     `bun:"logo_url,notnull"                   json:"logo_url"`
+	TwentyfirstID *int       `bun:"twentyfirst_id"                     json:"twentyfirst_id,omitempty"`
+	CreatedBy     *uuid.UUID `bun:"created_by,type:uuid"               json:"created_by,omitempty"`
+	CreatedAt     time.Time  `bun:"created_at,notnull,default:now()"   json:"created_at"`
+	UpdatedAt     time.Time  `bun:"updated_at,notnull,default:now()"   json:"updated_at"`
+	DeletedAt     *time.Time `bun:"deleted_at,soft_delete"             json:"deleted_at,omitempty"`
 }
 
 // OrgMembership links a user to an org with a role.

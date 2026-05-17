@@ -173,7 +173,10 @@ func (d *Decomposer) decomposeInsightAnalysesExpanded(result *Result) {
 	if err := d.readYAML("READY/01_insight_analyses.yaml", &raw); err != nil {
 		return
 	}
+	d.decomposeInsightAnalysesExpandedRaw(result, &raw)
+}
 
+func (d *Decomposer) decomposeInsightAnalysesExpandedRaw(result *Result, raw *rawInsightAnalysesExpanded) {
 	// Find the existing artifact key for insight analyses
 	artKey := objectKey("Artifact", "READY/01_insight_analyses.yaml")
 

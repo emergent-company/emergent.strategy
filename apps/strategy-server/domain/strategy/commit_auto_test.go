@@ -17,10 +17,12 @@ func TestCommitAuto_CreatesMutation(t *testing.T) {
 	ctx := context.Background()
 
 	// Seed a workspace and instance.
+	orgID := seedTestOrg(t, db)
 	wsID := uuid.New()
 	_, err := db.NewInsert().Model(&domain.Workspace{
 		ID:          wsID,
 		GithubOwner: "test-" + wsID.String()[:8],
+		OrgID:       orgID,
 	}).Exec(ctx)
 	if err != nil {
 		t.Fatalf("seed workspace: %v", err)
@@ -100,10 +102,12 @@ func TestCommitAuto_WithoutSignalID(t *testing.T) {
 	ctx := context.Background()
 
 	// Seed workspace + instance.
+	orgID := seedTestOrg(t, db)
 	wsID := uuid.New()
 	_, _ = db.NewInsert().Model(&domain.Workspace{
 		ID:          wsID,
 		GithubOwner: "test-nosig-" + wsID.String()[:8],
+		OrgID:       orgID,
 	}).Exec(ctx)
 	instID := uuid.New()
 	_, _ = db.NewInsert().Model(&domain.StrategyInstance{

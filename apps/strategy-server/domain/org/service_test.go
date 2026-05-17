@@ -36,7 +36,7 @@ func TestCreate(t *testing.T) {
 	svc := org.NewService(db)
 	u := seedUser(t, db, "create-sub", "create@example.com", "Creator")
 
-	o, err := svc.Create(ctx, "Test Org", u.ID)
+	o, err := svc.Create(ctx, org.CreateParams{Name: "Test Org"}, u.ID)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestList(t *testing.T) {
 	}
 
 	// After creating one.
-	svc.Create(ctx, "Org One", u.ID) //nolint:errcheck
+	svc.Create(ctx, org.CreateParams{Name: "Org One"}, u.ID) //nolint:errcheck
 	orgs, err = svc.List(ctx, u.ID)
 	if err != nil {
 		t.Fatalf("List: %v", err)
@@ -93,7 +93,7 @@ func TestAddMember(t *testing.T) {
 	admin := seedUser(t, db, "admin-sub", "admin@example.com", "Admin")
 	viewer := seedUser(t, db, "viewer-sub", "viewer@example.com", "Viewer")
 
-	o, _ := svc.Create(ctx, "Member Org", admin.ID)
+	o, _ := svc.Create(ctx, org.CreateParams{Name: "Member Org"}, admin.ID)
 
 	membership, err := svc.AddMember(ctx, o.ID, viewer.ID, "org_viewer")
 	if err != nil {
@@ -120,7 +120,7 @@ func TestRemoveMember(t *testing.T) {
 	admin := seedUser(t, db, "rm-admin", "rm-admin@example.com", "Admin")
 	viewer := seedUser(t, db, "rm-viewer", "rm-viewer@example.com", "Viewer")
 
-	o, _ := svc.Create(ctx, "Remove Org", admin.ID)
+	o, _ := svc.Create(ctx, org.CreateParams{Name: "Remove Org"}, admin.ID)
 	svc.AddMember(ctx, o.ID, viewer.ID, "org_viewer") //nolint:errcheck
 
 	// Remove the viewer.
@@ -141,7 +141,7 @@ func TestRemoveMember_LastAdmin(t *testing.T) {
 	svc := org.NewService(db)
 	admin := seedUser(t, db, "last-admin", "last@example.com", "Admin")
 
-	o, _ := svc.Create(ctx, "Solo Org", admin.ID)
+	o, _ := svc.Create(ctx, org.CreateParams{Name: "Solo Org"}, admin.ID)
 
 	// Should fail — can't remove the last admin.
 	err := svc.RemoveMember(ctx, o.ID, admin.ID)
@@ -158,7 +158,7 @@ func TestIsMember_NotMember(t *testing.T) {
 	admin := seedUser(t, db, "is-admin", "is-admin@example.com", "Admin")
 	stranger := seedUser(t, db, "stranger", "stranger@example.com", "Stranger")
 
-	o, _ := svc.Create(ctx, "Private Org", admin.ID)
+	o, _ := svc.Create(ctx, org.CreateParams{Name: "Private Org"}, admin.ID)
 
 	isMember, _, err := svc.IsMember(ctx, o.ID, stranger.ID)
 	if err != nil {
@@ -175,8 +175,8 @@ func TestUserOrgIDs(t *testing.T) {
 	svc := org.NewService(db)
 	u := seedUser(t, db, "multi-org", "multi@example.com", "Multi")
 
-	svc.Create(ctx, "Org A", u.ID) //nolint:errcheck
-	svc.Create(ctx, "Org B", u.ID) //nolint:errcheck
+	svc.Create(ctx, org.CreateParams{Name: "Org A"}, u.ID) //nolint:errcheck
+	svc.Create(ctx, org.CreateParams{Name: "Org B"}, u.ID) //nolint:errcheck
 
 	orgIDs, err := svc.UserOrgIDs(ctx, u.ID)
 	if err != nil {
@@ -194,7 +194,7 @@ func TestInvite_ExistingUser(t *testing.T) {
 	admin := seedUser(t, db, "inv-admin", "inv-admin@example.com", "Admin")
 	invitee := seedUser(t, db, "inv-user", "invitee@example.com", "Invitee")
 
-	o, _ := svc.Create(ctx, "Invite Org", admin.ID)
+	o, _ := svc.Create(ctx, org.CreateParams{Name: "Invite Org"}, admin.ID)
 
 	// Invite an existing user — should create membership directly.
 	err := svc.Invite(ctx, o.ID, invitee.Email, "org_viewer", admin.ID)
@@ -217,7 +217,7 @@ func TestInvite_PendingUser(t *testing.T) {
 	svc := org.NewService(db)
 	admin := seedUser(t, db, "pend-admin", "pend-admin@example.com", "Admin")
 
-	o, _ := svc.Create(ctx, "Pending Org", admin.ID)
+	o, _ := svc.Create(ctx, org.CreateParams{Name: "Pending Org"}, admin.ID)
 
 	// Invite a non-existent user — should create a pending invitation.
 	err := svc.Invite(ctx, o.ID, "future@example.com", "org_viewer", admin.ID)

@@ -26,15 +26,18 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/uptrace/bun"
 
 	appdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/app"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
+	orgdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/org"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/pack"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/mcpserver"
 )
 
@@ -213,6 +216,32 @@ func min(a, b int) int {
 // Seed helpers
 // ---------------------------------------------------------------------------
 
+// seedOrg creates a test user and org directly in the DB, returning the org ID.
+// This bypasses the org service (which requires memberships and valid users)
+// to allow test workspace creation with a valid org FK.
+func seedOrg(t *testing.T, db *bun.DB, ctx context.Context) uuid.UUID {
+	t.Helper()
+	userID := uuid.New()
+	user := &domain.User{
+		ID:    userID,
+		Sub:   "test-" + userID.String()[:8],
+		Email: "test-" + userID.String()[:8] + "@test.local",
+	}
+	if _, err := db.NewInsert().Model(user).Exec(ctx); err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+	org := &domain.Org{
+		ID:        uuid.New(),
+		Name:      "Test Org " + userID.String()[:8],
+		Slug:      "test-org-" + userID.String()[:8],
+		CreatedBy: &userID,
+	}
+	if _, err := db.NewInsert().Model(org).Exec(ctx); err != nil {
+		t.Fatalf("seed org: %v", err)
+	}
+	return org.ID
+}
+
 // seedInstance creates a workspace + instance with the given payloads and
 // returns (workspaceID, instanceID).
 // It calls BackfillIndex after import so strategy_artifacts is populated.
@@ -222,7 +251,8 @@ func seedInstance(t *testing.T, svc mcpserver.Services, githubOwner string, payl
 	ctx = audit.ContextWithSource(ctx, audit.SourceSystem)
 	ctx = audit.ContextWithAudit(ctx, audit.NewSlogWriter())
 
-	ws, err := svc.Workspace.CreateWorkspace(ctx, githubOwner, nil)
+	orgID := seedOrg(t, svc.Strategy.DB(), ctx)
+	ws, err := svc.Workspace.CreateWorkspace(ctx, githubOwner, nil, orgID)
 	if err != nil {
 		t.Fatalf("seed workspace: %v", err)
 	}
@@ -265,6 +295,7 @@ func buildSvc(t *testing.T) mcpserver.Services {
 		Pack:      packSvc,
 		App:       appdom.NewService(db),
 		Semantic:  semantic.NewService(semantic.Config{}),
+		Org:       orgdom.NewService(db),
 	}
 }
 
@@ -361,6 +392,12 @@ func TestMCP_WorkspaceAndInstanceLifecycle(t *testing.T) {
 	c := newMCPClient(t, svc)
 	id := 1
 
+	// Create an org (required FK for workspace).
+	ctx := context.Background()
+	ctx = audit.ContextWithSource(ctx, audit.SourceSystem)
+	ctx = audit.ContextWithAudit(ctx, audit.NewSlogWriter())
+	orgID := seedOrg(t, svc.Strategy.DB(), ctx)
+
 	// Create workspace
 	var ws struct {
 		ID          string `json:"id"`
@@ -369,6 +406,7 @@ func TestMCP_WorkspaceAndInstanceLifecycle(t *testing.T) {
 	c.call(id, "create_workspace", map[string]any{
 		"github_owner": "test-org-lifecycle",
 		"display_name": "Lifecycle Test Org",
+		"org_id":       orgID.String(),
 	}).assertOK().decode(&ws)
 	id++
 
@@ -928,10 +966,14 @@ func TestMCP_ErrorHandling(t *testing.T) {
 	}).assertError()
 	id++
 
-	// Duplicate workspace
-	c.call(id, "create_workspace", map[string]any{"github_owner": "dup-org"}).assertOK()
+	// Duplicate workspace — seed an org for the FK.
+	dupCtx := context.Background()
+	dupCtx = audit.ContextWithSource(dupCtx, audit.SourceSystem)
+	dupCtx = audit.ContextWithAudit(dupCtx, audit.NewSlogWriter())
+	dupOrgID := seedOrg(t, svc.Strategy.DB(), dupCtx)
+	c.call(id, "create_workspace", map[string]any{"github_owner": "dup-org", "org_id": dupOrgID.String()}).assertOK()
 	id++
-	c.call(id, "create_workspace", map[string]any{"github_owner": "dup-org"}).assertError()
+	c.call(id, "create_workspace", map[string]any{"github_owner": "dup-org", "org_id": dupOrgID.String()}).assertError()
 }
 
 // ---------------------------------------------------------------------------
@@ -3234,6 +3276,12 @@ func TestMCP_FreshSetup_EPFInitialisationDryRun(t *testing.T) {
 	c := newMCPClient(t, svc)
 	id := 1
 
+	// Seed an org for the workspace FK.
+	freshCtx := context.Background()
+	freshCtx = audit.ContextWithSource(freshCtx, audit.SourceSystem)
+	freshCtx = audit.ContextWithAudit(freshCtx, audit.NewSlogWriter())
+	freshOrgID := seedOrg(t, svc.Strategy.DB(), freshCtx)
+
 	// ── Step 1: create workspace ──────────────────────────────────────────────
 	var ws struct {
 		ID          string `json:"ID"`
@@ -3241,6 +3289,7 @@ func TestMCP_FreshSetup_EPFInitialisationDryRun(t *testing.T) {
 	}
 	c.call(id, "create_workspace", map[string]any{
 		"github_owner": "acme-corp",
+		"org_id":       freshOrgID.String(),
 	}).assertOK().decode(&ws)
 	id++
 	if ws.ID == "" {

@@ -1,0 +1,167 @@
+package ui
+
+import (
+	"strconv"
+
+	"github.com/emergent-company/go-daisy/components/ui"
+)
+
+// FirePhaseData holds all data for the FIRE phase dashboard.
+type FirePhaseData struct {
+	InstanceID string
+
+	// Features by status
+	DeliveredCount  int
+	InProgressCount int
+	DraftCount      int
+	TotalFeatures   int
+
+	// Track definitions
+	Tracks []TrackSummary
+
+	// Value models
+	ValueModels []ValueModelSummary
+
+	// Recent features (top 10)
+	RecentFeatures []FeatureSummary
+}
+
+// TrackSummary shows definition counts per track.
+type TrackSummary struct {
+	Name  string
+	Icon  string
+	Count int
+	Track string // DB track value
+}
+
+// ValueModelSummary shows value model status per track.
+type ValueModelSummary struct {
+	Track    string
+	Status   string
+	Icon     string
+}
+
+// FeatureSummary is a minimal feature for listing.
+type FeatureSummary struct {
+	Key    string
+	Name   string
+	Status string
+	Track  string
+}
+
+// FirePhaseContent renders the FIRE phase dashboard content.
+templ FirePhaseContent(data FirePhaseData) {
+	<div class="space-y-6">
+		// Feature status stats
+		@ui.StatCards([]ui.StatCardProps{
+			{Label: "Delivered", Value: strconv.Itoa(data.DeliveredCount), Icon: "lucide--check-circle-2", IconColor: "bg-success/10 text-success"},
+			{Label: "In Progress", Value: strconv.Itoa(data.InProgressCount), Icon: "lucide--loader-circle", IconColor: "bg-primary/10 text-primary"},
+			{Label: "Draft", Value: strconv.Itoa(data.DraftCount), Icon: "lucide--circle-dashed", IconColor: "bg-warning/10 text-warning"},
+			{Label: "Total Features", Value: strconv.Itoa(data.TotalFeatures), Icon: "lucide--file-text", IconColor: "bg-secondary/10 text-secondary"},
+		})
+
+		// Four tracks
+		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+			for _, t := range data.Tracks {
+				@trackCard(data.InstanceID, t)
+			}
+		</div>
+
+		// Value models
+		if len(data.ValueModels) > 0 {
+			<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+				<div class="card-body p-5">
+					<h3 class="text-base font-semibold text-base-content mb-3">Value Models</h3>
+					<div class="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+						for _, vm := range data.ValueModels {
+							@valueModelBadge(vm)
+						}
+					</div>
+				</div>
+			</div>
+		}
+
+		// Feature list
+		if len(data.RecentFeatures) > 0 {
+			@featureList(data)
+		}
+	</div>
+}
+
+templ trackCard(instanceID string, t TrackSummary) {
+	<a
+		href={ templ.URL("/strategies/" + instanceID + "/fire/" + t.Track) }
+		hx-get={ "/strategies/" + instanceID + "/fire/" + t.Track }
+		hx-target="#tab-content"
+		hx-swap="innerHTML"
+		hx-push-url="true"
+		class="card bg-base-100 border border-base-content/10 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+	>
+		<div class="card-body p-4">
+			<div class="flex items-center gap-3">
+				<div class="rounded-lg bg-primary/10 p-1.5">
+					<span class={ "iconify size-5 text-primary " + t.Icon }></span>
+				</div>
+				<div>
+					<h3 class="text-sm font-semibold text-base-content">{ t.Name }</h3>
+					<p class="text-xs text-base-content/50">{ strconv.Itoa(t.Count) } definitions</p>
+				</div>
+			</div>
+		</div>
+	</a>
+}
+
+templ valueModelBadge(vm ValueModelSummary) {
+	<div class="flex items-center gap-2 rounded-lg bg-base-200/50 px-3 py-2">
+		<span class={ "iconify size-4 text-base-content/60 " + vm.Icon }></span>
+		<span class="text-sm text-base-content">{ vm.Track }</span>
+		@featureStatusBadge(vm.Status)
+	</div>
+}
+
+templ featureList(data FirePhaseData) {
+	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card-body p-5">
+			<h3 class="text-base font-semibold text-base-content mb-3">Features</h3>
+			<div class="overflow-x-auto">
+				<table class="table table-sm">
+					<thead>
+						<tr>
+							<th>Key</th>
+							<th>Name</th>
+							<th>Status</th>
+						</tr>
+					</thead>
+					<tbody>
+						for _, f := range data.RecentFeatures {
+							<tr class="hover">
+								<td class="font-mono text-xs text-base-content/60">{ f.Key }</td>
+								<td>{ f.Name }</td>
+								<td>@featureStatusBadge(f.Status)</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+}
+
+templ featureStatusBadge(status string) {
+	switch status {
+		case "delivered":
+			<span class="badge badge-sm badge-success">Delivered</span>
+		case "in-progress":
+			<span class="badge badge-sm badge-primary">In Progress</span>
+		case "draft":
+			<span class="badge badge-sm badge-warning">Draft</span>
+		case "ready":
+			<span class="badge badge-sm badge-info">Ready</span>
+		case "active":
+			<span class="badge badge-sm badge-success">Active</span>
+		case "placeholder":
+			<span class="badge badge-sm badge-ghost">Placeholder</span>
+		default:
+			<span class="badge badge-sm badge-ghost">{ status }</span>
+	}
+}

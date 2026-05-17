@@ -541,7 +541,10 @@ func (d *Decomposer) decomposeNorthStar(result *Result) {
 	if err := d.readYAML("READY/00_north_star.yaml", &raw); err != nil {
 		return // file doesn't exist — not an error
 	}
+	d.decomposeNorthStarRaw(result, &raw)
+}
 
+func (d *Decomposer) decomposeNorthStarRaw(result *Result, raw *rawNorthStar) {
 	artKey := d.addArtifactNode(result,
 		"READY/00_north_star.yaml", "north_star", "READY",
 		"North Star — vision, mission, purpose, core beliefs", "1")
@@ -681,7 +684,10 @@ func (d *Decomposer) decomposeInsightAnalyses(result *Result) {
 	if err := d.readYAML("READY/01_insight_analyses.yaml", &raw); err != nil {
 		return
 	}
+	d.decomposeInsightAnalysesRaw(result, &raw)
+}
 
+func (d *Decomposer) decomposeInsightAnalysesRaw(result *Result, raw *rawInsightAnalyses) {
 	artKey := d.addArtifactNode(result,
 		"READY/01_insight_analyses.yaml", "insight_analyses", "READY",
 		"Insight analyses — trends, market structure, personas, pain points", "2")
@@ -778,7 +784,10 @@ func (d *Decomposer) decomposeStrategyFormula(result *Result) {
 	if err := d.readYAML("READY/04_strategy_formula.yaml", &raw); err != nil {
 		return
 	}
+	d.decomposeStrategyFormulaRaw(result, &raw)
+}
 
+func (d *Decomposer) decomposeStrategyFormulaRaw(result *Result, raw *rawStrategyFormula) {
 	artKey := d.addArtifactNode(result,
 		"READY/04_strategy_formula.yaml", "strategy_formula", "READY",
 		"Strategy formula — positioning, competitive moat, business model", "3")
@@ -873,7 +882,10 @@ func (d *Decomposer) decomposeRoadmap(result *Result) {
 	if err := d.readYAML("READY/05_roadmap_recipe.yaml", &raw); err != nil {
 		return
 	}
+	d.decomposeRoadmapRaw(result, &raw)
+}
 
+func (d *Decomposer) decomposeRoadmapRaw(result *Result, raw *rawRoadmap) {
 	artKey := d.addArtifactNode(result,
 		"READY/05_roadmap_recipe.yaml", "roadmap_recipe", "READY",
 		"Roadmap — OKRs, key results, assumptions", "4")
@@ -1059,6 +1071,10 @@ func (d *Decomposer) decomposeFeatureFile(absPath, fileName string, result *Resu
 	}
 
 	relPath := fmt.Sprintf("FIRE/definitions/product/%s", fileName)
+	d.decomposeFeatureRaw(result, &raw, relPath)
+}
+
+func (d *Decomposer) decomposeFeatureRaw(result *Result, raw *rawFeature, relPath string) {
 	artKey := d.addArtifactNode(result, relPath, "feature_definition", "FIRE", raw.Name, "6")
 
 	// Feature node
@@ -1300,8 +1316,12 @@ func (d *Decomposer) decomposeValueModelFile(absPath, fileName string, result *R
 		return
 	}
 
-	track := normalizeTrackName(raw.TrackName)
 	relPath := fmt.Sprintf("FIRE/value_models/%s", fileName)
+	d.decomposeValueModelRaw(result, &raw, relPath)
+}
+
+func (d *Decomposer) decomposeValueModelRaw(result *Result, raw *rawValueModel, relPath string) {
+	track := normalizeTrackName(raw.TrackName)
 	artKey := d.addArtifactNode(result, relPath, "value_model", "FIRE", raw.Description, "5")
 
 	for _, layer := range raw.Layers {

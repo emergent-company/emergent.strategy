@@ -1,0 +1,159 @@
+package ui
+
+// ArtifactViewData holds the data for viewing a single artifact.
+type ArtifactViewData struct {
+	InstanceID   string
+	ArtifactKey  string
+	ArtifactType string
+	Name         string
+	Status       string
+	Track        string
+	Payload      map[string]any
+}
+
+// ArtifactViewContent renders a read-only view of an artifact payload.
+// Uses a recursive section renderer for nested JSON structures.
+templ ArtifactViewContent(data ArtifactViewData) {
+	<div class="space-y-6">
+		// Header
+		<div class="flex items-start justify-between">
+			<div>
+				<div class="flex items-center gap-2">
+					<h2 class="text-xl font-bold text-base-content">{ data.Name }</h2>
+					if data.Status != "" {
+						@artifactStatusBadge(data.Status)
+					}
+				</div>
+				<p class="text-sm text-base-content/50 mt-1">
+					<span class="font-mono">{ data.ArtifactKey }</span>
+					if data.Track != "" {
+						<span class="mx-1">&middot;</span>
+						<span>{ data.Track }</span>
+					}
+					<span class="mx-1">&middot;</span>
+					<span>{ data.ArtifactType }</span>
+				</p>
+			</div>
+		</div>
+
+		// Render payload sections
+		for _, key := range sortedKeys(data.Payload) {
+			@renderSection(key, data.Payload[key], 0)
+		}
+	</div>
+}
+
+templ artifactStatusBadge(status string) {
+	switch status {
+		case "active":
+			<span class="badge badge-success">Active</span>
+		case "delivered":
+			<span class="badge badge-success">Delivered</span>
+		case "in-progress":
+			<span class="badge badge-primary">In Progress</span>
+		case "draft":
+			<span class="badge badge-warning">Draft</span>
+		case "ready":
+			<span class="badge badge-info">Ready</span>
+		default:
+			<span class="badge badge-ghost">{ status }</span>
+	}
+}
+
+// renderSection renders a single top-level section of a payload.
+templ renderSection(key string, value any, depth int) {
+	if m, ok := asMap(value); ok {
+		<div class={ "card bg-base-100 border border-base-content/10 shadow-sm", templ.KV("ml-0", depth == 0), templ.KV("border-l-2 border-l-primary/20 ml-4", depth > 0) }>
+			<div class="card-body p-4">
+				<h3 class={ sectionTitleClass(depth) }>{ formatKey(key) }</h3>
+				<div class="space-y-3 mt-2">
+					for _, k := range sortedKeys(m) {
+						@renderField(k, m[k], depth+1)
+					}
+				</div>
+			</div>
+		</div>
+	} else if arr, ok := asSlice(value); ok {
+		<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+			<div class="card-body p-4">
+				<h3 class={ sectionTitleClass(depth) }>{ formatKey(key) } <span class="text-base-content/40 font-normal text-sm">({ lenStr(arr) })</span></h3>
+				@renderArray(arr, depth+1)
+			</div>
+		</div>
+	} else {
+		<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+			<div class="card-body p-4">
+				<div class="flex items-start gap-2">
+					<span class="text-sm font-medium text-base-content/70 min-w-[140px] shrink-0">{ formatKey(key) }</span>
+					<span class="text-sm text-base-content">{ formatValue(value) }</span>
+				</div>
+			</div>
+		</div>
+	}
+}
+
+// renderField renders a key-value pair within a section.
+templ renderField(key string, value any, depth int) {
+	if m, ok := asMap(value); ok {
+		<details class="collapse collapse-arrow border border-base-content/5 rounded-lg bg-base-200/30">
+			<summary class="collapse-title text-sm font-medium py-2 min-h-0">{ formatKey(key) }</summary>
+			<div class="collapse-content px-3 pb-3">
+				<div class="space-y-2">
+					for _, k := range sortedKeys(m) {
+						@renderField(k, m[k], depth+1)
+					}
+				</div>
+			</div>
+		</details>
+	} else if arr, ok := asSlice(value); ok {
+		if len(arr) > 0 {
+			if isSimpleArray(arr) {
+				<div class="flex items-start gap-2">
+					<span class="text-sm font-medium text-base-content/70 min-w-[140px] shrink-0">{ formatKey(key) }</span>
+					<div class="flex flex-wrap gap-1">
+						for _, item := range arr {
+							<span class="badge badge-sm badge-ghost">{ formatValue(item) }</span>
+						}
+					</div>
+				</div>
+			} else {
+				<details class="collapse collapse-arrow border border-base-content/5 rounded-lg bg-base-200/30">
+					<summary class="collapse-title text-sm font-medium py-2 min-h-0">{ formatKey(key) } <span class="text-base-content/40 font-normal">({ lenStr(arr) })</span></summary>
+					<div class="collapse-content px-3 pb-3">
+						@renderArray(arr, depth+1)
+					</div>
+				</details>
+			}
+		}
+	} else {
+		<div class="flex items-start gap-2 py-0.5">
+			<span class="text-sm font-medium text-base-content/70 min-w-[140px] shrink-0">{ formatKey(key) }</span>
+			<span class="text-sm text-base-content whitespace-pre-wrap">{ formatValue(value) }</span>
+		</div>
+	}
+}
+
+// renderArray renders an array of items.
+templ renderArray(arr []any, depth int) {
+	<div class="space-y-2 mt-1">
+		for i, item := range arr {
+			if m, ok := asMap(item); ok {
+				<div class={ "rounded-lg border border-base-content/5 bg-base-200/20 p-3", templ.KV("mt-2", i > 0) }>
+					// Try to find a title field
+					if title := mapTitle(m); title != "" {
+						<p class="text-sm font-medium text-base-content mb-2">{ title }</p>
+					}
+					<div class="space-y-1.5">
+						for _, k := range sortedKeys(m) {
+							if !isTitleKey(k) {
+								@renderField(k, m[k], depth+1)
+							}
+						}
+					</div>
+				</div>
+			} else {
+				<div class="text-sm text-base-content py-0.5">{ formatValue(item) }</div>
+			}
+		}
+	</div>
+}

@@ -32,14 +32,29 @@ func NewService(db *bun.DB) *Service {
 	return &Service{db: db}
 }
 
+// CreateParams holds optional enrichment fields for org creation.
+type CreateParams struct {
+	Name      string
+	OrgNumber string
+	Country   string // defaults to "NO" if empty
+	Website   string
+}
+
 // Create creates an org and adds the caller as admin.
-func (s *Service) Create(ctx context.Context, name string, callerID uuid.UUID) (*domain.Org, error) {
-	slug := slugify(name)
+func (s *Service) Create(ctx context.Context, p CreateParams, callerID uuid.UUID) (*domain.Org, error) {
+	slug := slugify(p.Name)
+	country := p.Country
+	if country == "" {
+		country = "NO"
+	}
 
 	org := &domain.Org{
 		ID:        uuid.New(),
-		Name:      name,
+		Name:      p.Name,
 		Slug:      slug,
+		OrgNumber: p.OrgNumber,
+		Country:   country,
+		Website:   p.Website,
 		CreatedBy: &callerID,
 	}
 
@@ -67,6 +82,94 @@ func (s *Service) Create(ctx context.Context, name string, callerID uuid.UUID) (
 	})
 
 	return org, nil
+}
+
+// GetByName retrieves an org by name (case-insensitive).
+func (s *Service) GetByName(ctx context.Context, name string) (*domain.Org, error) {
+	var org domain.Org
+	err := s.db.NewSelect().
+		Model(&org).
+		Where("LOWER(name) = LOWER(?)", name).
+		Where("deleted_at IS NULL").
+		Scan(ctx)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, apperror.ErrNotFound.WithDetail("org not found")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get org by name: %w", err)
+	}
+	return &org, nil
+}
+
+// GetOrCreate finds an org by name (case-insensitive) or creates one if not found.
+// When creating, the caller becomes the org admin.
+func (s *Service) GetOrCreate(ctx context.Context, name string, callerID uuid.UUID) (*domain.Org, error) {
+	existing, err := s.GetByName(ctx, name)
+	if err == nil {
+		return existing, nil
+	}
+	ae := apperror.AsAppError(err)
+	if ae == nil || ae.HTTPStatus != 404 {
+		return nil, err
+	}
+	return s.Create(ctx, CreateParams{Name: name}, callerID)
+}
+
+// GetOrCreateWithParams finds an org by name (case-insensitive) or creates one with
+// the provided enrichment fields. When creating, the caller becomes the org admin.
+func (s *Service) GetOrCreateWithParams(ctx context.Context, p CreateParams, callerID uuid.UUID) (*domain.Org, error) {
+	existing, err := s.GetByName(ctx, p.Name)
+	if err == nil {
+		return existing, nil
+	}
+	ae := apperror.AsAppError(err)
+	if ae == nil || ae.HTTPStatus != 404 {
+		return nil, err
+	}
+	return s.Create(ctx, p, callerID)
+}
+
+// Update modifies mutable org fields. Only non-zero fields are updated.
+func (s *Service) Update(ctx context.Context, id uuid.UUID, p CreateParams) (*domain.Org, error) {
+	q := s.db.NewUpdate().
+		Model((*domain.Org)(nil)).
+		Where("id = ? AND deleted_at IS NULL", id).
+		Set("updated_at = ?", time.Now().UTC())
+
+	if p.Name != "" {
+		q = q.Set("name = ?", p.Name).Set("slug = ?", slugify(p.Name))
+	}
+	if p.OrgNumber != "" {
+		q = q.Set("org_number = ?", p.OrgNumber)
+	}
+	if p.Country != "" {
+		q = q.Set("country = ?", p.Country)
+	}
+	if p.Website != "" {
+		q = q.Set("website = ?", p.Website)
+	}
+
+	res, err := q.Exec(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("update org: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("rows affected: %w", err)
+	}
+	if n == 0 {
+		return nil, apperror.ErrNotFound.WithDetail("org not found")
+	}
+
+	audit.FromContext(ctx).Write(ctx, audit.Entry{
+		EntityType: "org",
+		EntityID:   id,
+		Action:     "update",
+		Source:     audit.SourceFromContext(ctx),
+		ActorID:    audit.ActorFromContext(ctx),
+	})
+
+	return s.GetByID(ctx, id)
 }
 
 // List returns all orgs the given user is a member of.

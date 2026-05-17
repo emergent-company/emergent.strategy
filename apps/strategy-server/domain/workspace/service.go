@@ -120,14 +120,15 @@ func (s *Service) GetWorkspaceByOwner(ctx context.Context, githubOwner string) (
 }
 
 // CreateWorkspace registers a new workspace. Returns ErrWorkspaceConflict if the
-// github_owner already exists.
-func (s *Service) CreateWorkspace(ctx context.Context, githubOwner string, displayName *string) (*domain.Workspace, error) {
+// github_owner already exists. Every workspace must belong to an org.
+func (s *Service) CreateWorkspace(ctx context.Context, githubOwner string, displayName *string, orgID uuid.UUID) (*domain.Workspace, error) {
 	actorID := audit.ActorFromContext(ctx)
 
 	ws := &domain.Workspace{
 		ID:          uuid.New(),
 		GithubOwner: githubOwner,
 		DisplayName: displayName,
+		OrgID:       orgID,
 		CreatedBy:   actorID,
 		CreatedAt:   time.Now().UTC(),
 		UpdatedAt:   time.Now().UTC(),
@@ -212,16 +213,24 @@ func (s *Service) DeleteWorkspace(ctx context.Context, id uuid.UUID) error {
 	})
 }
 
-// SetOrgID assigns an org to a workspace. Used when creating a workspace in
-// the context of an org.
-func (s *Service) SetOrgID(ctx context.Context, workspaceID, orgID uuid.UUID) error {
+// OrgIDForWorkspace returns the org_id for a workspace.
+func (s *Service) OrgIDForWorkspace(ctx context.Context, workspaceID uuid.UUID) (uuid.UUID, error) {
+	ws, err := s.GetWorkspace(ctx, workspaceID)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return ws.OrgID, nil
+}
+
+// ReassignOrg moves a workspace to a different org.
+func (s *Service) ReassignOrg(ctx context.Context, workspaceID, orgID uuid.UUID) error {
 	res, err := s.db.NewUpdate().
 		Model((*domain.Workspace)(nil)).
 		Set("org_id = ?, updated_at = ?", orgID, time.Now().UTC()).
 		Where("id = ? AND deleted_at IS NULL", workspaceID).
 		Exec(ctx)
 	if err != nil {
-		return fmt.Errorf("set org_id: %w", err)
+		return fmt.Errorf("reassign org: %w", err)
 	}
 	n, err := res.RowsAffected()
 	if err != nil {
@@ -230,16 +239,34 @@ func (s *Service) SetOrgID(ctx context.Context, workspaceID, orgID uuid.UUID) er
 	if n == 0 {
 		return apperror.ErrWorkspaceNotFound
 	}
+
+	audit.FromContext(ctx).Write(ctx, audit.Entry{
+		EntityType: "workspace",
+		EntityID:   workspaceID,
+		Action:     "reassign_org",
+		Source:     audit.SourceFromContext(ctx),
+		ActorID:    audit.ActorFromContext(ctx),
+	})
+
 	return nil
 }
 
-// OrgIDForWorkspace returns the org_id for a workspace, or nil if unset.
-func (s *Service) OrgIDForWorkspace(ctx context.Context, workspaceID uuid.UUID) (*uuid.UUID, error) {
-	ws, err := s.GetWorkspace(ctx, workspaceID)
+// AdoptOrphanWorkspaces assigns all workspaces with a specific org_id to a new org.
+// Used during dev startup to adopt workspaces from the migration default org.
+func (s *Service) AdoptOrphanWorkspaces(ctx context.Context, fromOrgID, toOrgID uuid.UUID) (int, error) {
+	res, err := s.db.NewUpdate().
+		Model((*domain.Workspace)(nil)).
+		Set("org_id = ?, updated_at = ?", toOrgID, time.Now().UTC()).
+		Where("org_id = ? AND deleted_at IS NULL", fromOrgID).
+		Exec(ctx)
 	if err != nil {
-		return nil, err
+		return 0, fmt.Errorf("adopt orphan workspaces: %w", err)
 	}
-	return ws.OrgID, nil
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("rows affected: %w", err)
+	}
+	return int(n), nil
 }
 
 // StrategyInstance is an alias so callers don't need to import internal/domain directly.

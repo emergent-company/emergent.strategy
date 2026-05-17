@@ -16,6 +16,9 @@ type ImportCmd struct {
 	InstancePath string `arg:"--instance-path,required,env:IMPORT_INSTANCE_PATH" help:"Path to the local EPF instance directory"`
 	GithubOwner  string `arg:"--workspace,required,env:IMPORT_WORKSPACE" help:"GitHub owner / workspace slug (e.g. emergent-company)"`
 	InstanceName string `arg:"--name,env:IMPORT_INSTANCE_NAME" help:"Override the instance display name (default: product name from _meta.yaml)"`
+	Org          string `arg:"--org,env:IMPORT_ORG" help:"Organisation name or UUID to link this import to"`
+	OrgNumber    string `arg:"--org-number,env:IMPORT_ORG_NUMBER" help:"Norwegian organisation number (for org enrichment)"`
+	Country      string `arg:"--country,env:IMPORT_COUNTRY" help:"ISO country code (default: NO)"`
 	Activate     bool   `arg:"--activate,env:IMPORT_ACTIVATE" default:"false" help:"Activate the instance after import"`
 	Reingest     bool   `arg:"--reingest,env:IMPORT_REINGEST" default:"false" help:"Ingest artifacts into Memory graph after import"`
 }

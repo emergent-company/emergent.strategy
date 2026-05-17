@@ -1,0 +1,177 @@
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: nord --default, dark, flow;
+}
+
+@plugin "daisyui/theme" {
+  name: "flow";
+  default: false;
+  prefersdark: false;
+
+  --color-primary: oklch(56.4% 0.148 187.6);      /* teal #0d9488 */
+  --color-primary-content: oklch(98% 0 0);
+  --color-secondary: oklch(64% 0.12 220);
+  --color-secondary-content: oklch(98% 0 0);
+  --color-accent: oklch(72% 0.15 150);
+  --color-accent-content: oklch(10% 0 0);
+  --color-neutral: oklch(32% 0.02 250);
+  --color-neutral-content: oklch(95% 0 0);
+  --color-base-100: oklch(98% 0 0);
+  --color-base-200: oklch(95% 0.005 230);
+  --color-base-300: oklch(90% 0.01 230);
+  --color-base-content: oklch(20% 0.02 250);
+  --color-info: oklch(65% 0.14 230);
+  --color-info-content: oklch(98% 0 0);
+  --color-success: oklch(62% 0.17 145);
+  --color-success-content: oklch(98% 0 0);
+  --color-warning: oklch(80% 0.17 75);
+  --color-warning-content: oklch(20% 0 0);
+  --color-error: oklch(60% 0.22 25);
+  --color-error-content: oklch(98% 0 0);
+  --radius-selector: 0.375rem;
+  --radius-field: 0.375rem;
+  --radius-box: 0.5rem;
+  --border: 1px;
+}
+
+/* Iconify (Lucide icons via utility classes) */
+@plugin "@iconify/tailwind4" {
+  prefixes: lucide;
+}
+
+/* Safelist icons used by consumers of go-daisy (not directly in this repo's source files) */
+@source inline("{lucide--activity,lucide--alert-circle,lucide--app-window,lucide--archive,lucide--arrow-left,lucide--arrow-right,lucide--bar-chart-2,lucide--bell,lucide--bot,lucide--brain,lucide--briefcase,lucide--check,lucide--check-circle-2,lucide--chevron-down,lucide--chevron-right,lucide--chevron-up,lucide--circle,lucide--circle-check,lucide--circle-dashed,lucide--loader-circle,lucide--send,lucide--circle-dollar-sign,lucide--clock,lucide--code-2,lucide--container,lucide--copy,lucide--cpu,lucide--database,lucide--ellipsis,lucide--ellipsis-vertical,lucide--eye,lucide--file-text,lucide--folder,lucide--folder-open,lucide--form-input,lucide--git-branch,lucide--git-pull-request,lucide--github,lucide--globe,lucide--hash,lucide--info,lucide--layers,lucide--layout,lucide--layout-dashboard,lucide--layout-grid,lucide--lock,lucide--log-out,lucide--map,lucide--menu,lucide--message-square,lucide--monitor-dot,lucide--moon,lucide--mouse-pointer-click,lucide--navigation,lucide--panel-left-close,lucide--pencil,lucide--play,lucide--plug,lucide--plus,lucide--plus-circle,lucide--puzzle,lucide--refresh-cw,lucide--rocket,lucide--search,lucide--settings,lucide--square,lucide--sticky-note,lucide--sun,lucide--table,lucide--terminal,lucide--trash-2,lucide--user,lucide--x,lucide--x-circle,lucide--zap,lucide--bug,lucide--flask-conical,lucide--folder-git-2,lucide--key,lucide--list-ordered,lucide--rotate-ccw,lucide--save,lucide--settings-2,lucide--shield-check,lucide--sliders-horizontal,lucide--sparkles}");
+@source inline("border-base-content/{10,20}");
+@source inline("border-primary/{10,20,30}");
+@source inline("bg-primary/{5,10,20}");
+@source inline("bg-secondary/{5,10,20}");
+@source inline("bg-success bg-success/{5,10,20}");
+@source inline("bg-warning bg-warning/{5,10,20}");
+@source inline("bg-error bg-error/{5,10,20}");
+@source inline("bg-base-100/{50,80}");
+@source inline("bg-base-200/{40,60,80}");
+@source inline("text-base-content/{5,10,20,30,40,50,60,70,80,90}");
+@source inline("bg-base-content/{20,30,40}");
+@source inline("size-{1,2,3,4}");
+@source inline("animate-pulse");
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, sans-serif;
+
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 18px;
+  --text-xl: 20px;
+}
+
+body {
+  @apply font-sans text-base;
+}
+
+strong {
+  @apply font-medium;
+}
+
+/* ── Layout: Sidebar ─────────────────────────────────────────── */
+
+:root {
+  --layout-sidebar-width: 256px;
+}
+
+.sidebar-menu {
+  .menu-label {
+    @apply text-base-content/70 text-xs font-semibold uppercase tracking-wider;
+  }
+
+  .menu-item {
+    @apply rounded-box flex h-8 items-center gap-2 px-2.5 text-sm;
+  }
+
+  a.menu-item,
+  .menu-item-link.menu-item {
+    @apply cursor-pointer hover:bg-base-200 text-base-content/80;
+
+    &.active {
+      @apply bg-base-200 font-medium text-base-content;
+    }
+  }
+}
+
+#layout-sidebar {
+  width: var(--layout-sidebar-width);
+  min-width: var(--layout-sidebar-width);
+  max-height: 100vh;
+  @apply relative top-0 bottom-0 z-10 flex flex-col transition-[margin] duration-300;
+}
+
+#layout-topbar {
+  @apply sticky top-0 z-10 max-h-16 min-h-16;
+}
+
+#layout-content {
+  @apply grow p-6;
+}
+
+/* Desktop: sidebar hidden when checkbox checked */
+#layout-sidebar-toggle-trigger:checked ~ #layout-sidebar {
+  margin-inline-start: calc(var(--layout-sidebar-width) * -1);
+}
+
+/* Mobile: sidebar hidden by default, shown when checked */
+@media (max-width: theme(--breakpoint-lg)) {
+  #layout-sidebar {
+    @apply fixed z-[500];
+  }
+
+  #layout-sidebar-toggle-trigger:not(:checked) ~ #layout-sidebar {
+    margin-inline-start: calc(var(--layout-sidebar-width) * -1);
+  }
+
+  #layout-sidebar-toggle-trigger:checked ~ #layout-sidebar {
+    margin-inline-start: 0;
+  }
+
+  #layout-sidebar-backdrop {
+    display: none;
+  }
+
+  #layout-sidebar-toggle-trigger:checked ~ #layout-sidebar-backdrop {
+    @apply bg-base-content/20 fixed inset-0 z-[499] transition-all;
+    display: block;
+  }
+}
+
+/* Border on sidebar and topbar */
+#layout-sidebar {
+  @apply border-base-200 border-e;
+}
+
+#layout-topbar {
+  @apply border-base-200 border-b;
+}
+
+/* Topbar hamburger icon swap based on sidebar state */
+@media (min-width: theme(--breakpoint-lg)) {
+  #topbar-menu-icon {
+    display: none;
+  }
+  #topbar-close-icon {
+    display: inline-block;
+  }
+  #layout-sidebar-toggle-trigger:checked ~ * #topbar-menu-icon {
+    display: inline-block;
+  }
+  #layout-sidebar-toggle-trigger:checked ~ * #topbar-close-icon {
+    display: none;
+  }
+}
+
+@media (max-width: theme(--breakpoint-lg)) {
+  #topbar-menu-icon {
+    display: inline-block;
+  }
+  #topbar-close-icon {
+    display: none !important;
+  }
+}

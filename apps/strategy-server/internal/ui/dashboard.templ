@@ -1,0 +1,124 @@
+package ui
+
+import (
+	"strconv"
+
+	"github.com/emergent-company/go-daisy/components/layout"
+	"github.com/emergent-company/go-daisy/components/ui"
+)
+
+// GlobalDashboardData holds the data for the global dashboard.
+type GlobalDashboardData struct {
+	Workspaces []WorkspaceInfo
+	Instances  []InstanceInfo
+}
+
+// WorkspaceInfo is the minimal workspace data for the dashboard.
+type WorkspaceInfo struct {
+	ID          string
+	DisplayName string
+	GithubOwner string
+}
+
+// InstanceInfo is the minimal instance data for the dashboard.
+type InstanceInfo struct {
+	ID            string
+	Name          string
+	Status        string
+	WorkspaceID   string
+	OrgName       string
+	FeatureCount  int
+	ArtifactCount int
+}
+
+// GlobalDashboardPage renders the full dashboard page with shell.
+templ GlobalDashboardPage(currentPath string, sidebarGroups []layout.SidebarGroup, data GlobalDashboardData) {
+	@StrategyShellPage("Dashboard — Emergent Strategy", currentPath, sidebarGroups) {
+		@GlobalDashboardContent(data)
+	}
+}
+
+// GlobalDashboardContent renders just the dashboard content (for HTMX partial).
+templ GlobalDashboardContent(data GlobalDashboardData) {
+	<div class="p-6">
+		<div class="mb-6">
+			<h1 class="text-2xl font-bold text-base-content">Strategy Dashboard</h1>
+			<p class="text-sm text-base-content/60 mt-1">Overview of your strategy instances</p>
+		</div>
+
+		@ui.StatCards([]ui.StatCardProps{
+			{Label: "Workspaces", Value: strconv.Itoa(len(data.Workspaces)), Icon: "lucide--folder", IconColor: "bg-primary/10 text-primary"},
+			{Label: "Strategy Instances", Value: strconv.Itoa(len(data.Instances)), Icon: "lucide--layers", IconColor: "bg-secondary/10 text-secondary"},
+			{Label: "Active", Value: strconv.Itoa(countActive(data.Instances)), Icon: "lucide--circle-check", IconColor: "bg-success/10 text-success"},
+			{Label: "Draft", Value: strconv.Itoa(countDraft(data.Instances)), Icon: "lucide--circle-dashed", IconColor: "bg-warning/10 text-warning"},
+		})
+
+		if len(data.Instances) > 0 {
+			<div class="mt-6">
+				<h2 class="text-lg font-semibold text-base-content mb-3">Strategy Instances</h2>
+				<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+					for _, inst := range data.Instances {
+						@instanceCard(inst)
+					}
+				</div>
+			</div>
+		} else {
+			@emptyDashboard()
+		}
+	</div>
+}
+
+templ instanceCard(inst InstanceInfo) {
+	<a
+		href={ templ.URL("/strategies/" + inst.ID) }
+		hx-get={ "/strategies/" + inst.ID }
+		hx-target="#main-content"
+		hx-swap="innerHTML"
+		hx-push-url="true"
+		class="card bg-base-100 border border-base-content/10 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+	>
+		<div class="card-body p-4">
+			<div class="flex items-center gap-3">
+				<div class="rounded-xl bg-primary/10 p-2">
+					<span class="iconify lucide--layers size-5 text-primary"></span>
+				</div>
+				<div class="min-w-0">
+					<h3 class="font-semibold text-base-content truncate">{ inst.Name }</h3>
+					if inst.OrgName != "" {
+						<p class="text-xs text-base-content/50 truncate">{ inst.OrgName }</p>
+					}
+					<div class="flex items-center gap-2 mt-1">
+						@statusBadge(inst.Status)
+						<span class="text-xs text-base-content/50">{ strconv.Itoa(inst.FeatureCount) } features</span>
+					</div>
+				</div>
+			</div>
+		</div>
+	</a>
+}
+
+templ statusBadge(status string) {
+	switch status {
+		case "active":
+			<span class="badge badge-sm badge-success">Active</span>
+		case "draft":
+			<span class="badge badge-sm badge-warning">Draft</span>
+		case "archived":
+			<span class="badge badge-sm badge-ghost">Archived</span>
+		default:
+			<span class="badge badge-sm badge-ghost">{ status }</span>
+	}
+}
+
+templ emptyDashboard() {
+	<div class="flex flex-col items-center justify-center py-16 text-center">
+		<div class="rounded-full bg-base-content/5 p-6 mb-4">
+			<span class="iconify lucide--layers size-12 text-base-content/30"></span>
+		</div>
+		<h3 class="text-lg font-semibold text-base-content mb-2">No strategy instances yet</h3>
+		<p class="text-sm text-base-content/60 max-w-md">
+			Create a workspace and import a strategy instance to get started.
+			Use the MCP tools or CLI to scaffold your first EPF strategy.
+		</p>
+	</div>
+}

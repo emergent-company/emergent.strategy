@@ -902,31 +902,25 @@ func TestMCP_MultiTenantIsolation(t *testing.T) {
 
 	// Create two orgs.
 	orgSvc := orgdom.NewService(db)
-	orgAlice, err := orgSvc.Create(ctx, "Alice Corp", userAlice.ID)
+	orgAlice, err := orgSvc.Create(ctx, orgdom.CreateParams{Name: "Alice Corp"}, userAlice.ID)
 	if err != nil {
 		t.Fatalf("create alice org: %v", err)
 	}
-	orgBob, err := orgSvc.Create(ctx, "Bob Inc", userBob.ID)
+	orgBob, err := orgSvc.Create(ctx, orgdom.CreateParams{Name: "Bob Inc"}, userBob.ID)
 	if err != nil {
 		t.Fatalf("create bob org: %v", err)
 	}
 
 	// Create workspaces scoped to each org.
 	wsSvc := workspace.NewService(db)
-	wsAlice, err := wsSvc.CreateWorkspace(ctx, "alice-github", nil)
+	wsAlice, err := wsSvc.CreateWorkspace(ctx, "alice-github", nil, orgAlice.ID)
 	if err != nil {
 		t.Fatalf("create alice workspace: %v", err)
 	}
-	if err := wsSvc.SetOrgID(ctx, wsAlice.ID, orgAlice.ID); err != nil {
-		t.Fatalf("set alice workspace org: %v", err)
-	}
 
-	wsBob, err := wsSvc.CreateWorkspace(ctx, "bob-github", nil)
+	wsBob, err := wsSvc.CreateWorkspace(ctx, "bob-github", nil, orgBob.ID)
 	if err != nil {
 		t.Fatalf("create bob workspace: %v", err)
-	}
-	if err := wsSvc.SetOrgID(ctx, wsBob.ID, orgBob.ID); err != nil {
-		t.Fatalf("set bob workspace org: %v", err)
 	}
 
 	// Create instances in each workspace.

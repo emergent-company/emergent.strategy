@@ -12,15 +12,29 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 )
 
+func seedTestOrg(t *testing.T, db *bun.DB) uuid.UUID {
+	t.Helper()
+	orgID := uuid.New()
+	_, err := db.ExecContext(context.Background(),
+		"INSERT INTO orgs (id, name, slug, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())",
+		orgID, "Test Org", "test-org-"+orgID.String()[:8])
+	if err != nil {
+		t.Fatalf("seed org: %v", err)
+	}
+	return orgID
+}
+
 func TestWorkspace_InsertAndSelect(t *testing.T) {
 	db := database.TestDB(t)
 	ctx := context.Background()
 
+	orgID := seedTestOrg(t, db)
 	name := "acme"
 	ws := &domain.Workspace{
 		ID:          uuid.New(),
 		GithubOwner: "acme-corp",
 		DisplayName: &name,
+		OrgID:       orgID,
 	}
 
 	_, err := db.NewInsert().Model(ws).Exec(ctx)
@@ -130,9 +144,11 @@ func TestAuditLog_Insert(t *testing.T) {
 
 func insertWorkspace(t *testing.T, db *bun.DB, ctx context.Context, owner string) *domain.Workspace {
 	t.Helper()
+	orgID := seedTestOrg(t, db)
 	ws := &domain.Workspace{
 		ID:          uuid.New(),
 		GithubOwner: owner,
+		OrgID:       orgID,
 	}
 	_, err := db.NewInsert().Model(ws).Exec(ctx)
 	if err != nil {

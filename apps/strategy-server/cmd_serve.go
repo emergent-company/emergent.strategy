@@ -19,20 +19,21 @@ import (
 	appdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/app"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ingest"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/pack"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/org"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/pack"
 	rippledom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ripple"
 	schemadom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/schema"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
 	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/user"
 	versiondom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/version"
-	ghclient "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/github"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/auth"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
+	ghclient "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/github"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/handler"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/llm"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/mcpserver"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/skillrunner"
@@ -131,8 +132,9 @@ func runServer(cfg *config.Config) error {
 		log.Info("github sync disabled (GITHUB_APP_ID not configured)")
 	}
 
+	wsSvc := workspace.NewService(db)
 	svc := mcpserver.Services{
-		Workspace: workspace.NewService(db),
+		Workspace: wsSvc,
 		Instance:  instSvc,
 		Strategy:  strategySvc,
 		Pack:      packSvc,
@@ -232,6 +234,22 @@ func runServer(cfg *config.Config) error {
 				Exec(devCtx)
 			log.Info("dev user seeded", "id", web.DevUser.ID)
 		}
+
+		// Ensure dev org exists and adopt orphan workspaces from the migration
+		// default org (00000000-...-000000000099).
+		devOrg, devOrgErr := orgSvc.EnsureDevOrg(devCtx, web.DevUser.ID)
+		if devOrgErr != nil {
+			log.Warn("failed to create dev org (non-fatal)", "err", devOrgErr)
+		} else {
+			log.Info("dev org ready", "org_id", devOrg.ID, "slug", devOrg.Slug)
+			defaultOrgID := uuid.MustParse("00000000-0000-0000-0000-000000000099")
+			adopted, adoptErr := wsSvc.AdoptOrphanWorkspaces(devCtx, defaultOrgID, devOrg.ID)
+			if adoptErr != nil {
+				log.Warn("failed to adopt orphan workspaces (non-fatal)", "err", adoptErr)
+			} else if adopted > 0 {
+				log.Info("adopted orphan workspaces to dev org", "count", adopted)
+			}
+		}
 	}
 
 	// Auth middleware — injects User + ActorID.
@@ -255,6 +273,13 @@ func runServer(cfg *config.Config) error {
 	mcpHandler := mcpserver.New(svc)
 	e.Any("/mcp", echo.WrapHandler(mcpHandler))
 	e.Any("/mcp/*", echo.WrapHandler(mcpHandler))
+
+	// Static assets — local CSS overrides, go-daisy JS/fonts fallback.
+	e.GET("/static/*", echo.WrapHandler(web.StaticHandler()))
+
+	// Web UI routes.
+	webHandler := handler.New(db, log)
+	webHandler.RegisterRoutes(e)
 
 	// Server timeouts.
 	srv := &http.Server{

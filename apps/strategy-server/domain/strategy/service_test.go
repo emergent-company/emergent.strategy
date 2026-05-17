@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
@@ -14,6 +15,18 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
+
+func seedTestOrg(t *testing.T, db *bun.DB) uuid.UUID {
+	t.Helper()
+	orgID := uuid.New()
+	_, err := db.ExecContext(context.Background(),
+		"INSERT INTO orgs (id, name, slug, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())",
+		orgID, "Test Org", "test-org-"+orgID.String()[:8])
+	if err != nil {
+		t.Fatalf("seed org: %v", err)
+	}
+	return orgID
+}
 
 func newCtx() context.Context {
 	ctx := context.Background()
@@ -27,7 +40,8 @@ func TestStageAndCommitBatch(t *testing.T) {
 	svc := strategy.NewService(db)
 	ctx := newCtx()
 
-	ws, err := wsSvc.CreateWorkspace(ctx, "strategy-org-1", nil)
+	orgID := seedTestOrg(t, db)
+	ws, err := wsSvc.CreateWorkspace(ctx, "strategy-org-1", nil, orgID)
 	if err != nil {
 		t.Fatalf("CreateWorkspace: %v", err)
 	}
@@ -90,7 +104,8 @@ func TestStageAndDiscardBatch(t *testing.T) {
 	svc := strategy.NewService(db)
 	ctx := newCtx()
 
-	ws, err := wsSvc.CreateWorkspace(ctx, "strategy-org-2", nil)
+	orgID := seedTestOrg(t, db)
+	ws, err := wsSvc.CreateWorkspace(ctx, "strategy-org-2", nil, orgID)
 	if err != nil {
 		t.Fatalf("CreateWorkspace: %v", err)
 	}
@@ -165,7 +180,8 @@ func TestListCurrentArtifacts(t *testing.T) {
 	svc := strategy.NewService(db)
 	ctx := newCtx()
 
-	ws, err := wsSvc.CreateWorkspace(ctx, "strategy-org-3", nil)
+	orgID := seedTestOrg(t, db)
+	ws, err := wsSvc.CreateWorkspace(ctx, "strategy-org-3", nil, orgID)
 	if err != nil {
 		t.Fatalf("CreateWorkspace: %v", err)
 	}
@@ -231,7 +247,8 @@ func TestStageBatchID_Grouping(t *testing.T) {
 	svc := strategy.NewService(db)
 	ctx := newCtx()
 
-	ws, err := wsSvc.CreateWorkspace(ctx, "strategy-org-4", nil)
+	orgID := seedTestOrg(t, db)
+	ws, err := wsSvc.CreateWorkspace(ctx, "strategy-org-4", nil, orgID)
 	if err != nil {
 		t.Fatalf("CreateWorkspace: %v", err)
 	}

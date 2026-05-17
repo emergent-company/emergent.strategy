@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
@@ -13,15 +14,28 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
 
+func seedTestOrg(t *testing.T, db *bun.DB) uuid.UUID {
+	t.Helper()
+	orgID := uuid.New()
+	_, err := db.ExecContext(context.Background(),
+		"INSERT INTO orgs (id, name, slug, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())",
+		orgID, "Test Org", "test-org-"+orgID.String()[:8])
+	if err != nil {
+		t.Fatalf("seed org: %v", err)
+	}
+	return orgID
+}
+
 func newCtx() context.Context {
 	ctx := context.Background()
 	return audit.ContextWithSource(ctx, audit.SourceSystem)
 }
 
 // createWorkspace is a test helper that creates a workspace and returns its ID.
-func createWorkspace(t *testing.T, svc *workspace.Service, ctx context.Context, owner string) uuid.UUID {
+func createWorkspace(t *testing.T, db *bun.DB, svc *workspace.Service, ctx context.Context, owner string) uuid.UUID {
 	t.Helper()
-	ws, err := svc.CreateWorkspace(ctx, owner, nil)
+	orgID := seedTestOrg(t, db)
+	ws, err := svc.CreateWorkspace(ctx, owner, nil, orgID)
 	if err != nil {
 		t.Fatalf("create workspace %q: %v", owner, err)
 	}
@@ -34,7 +48,7 @@ func TestImportInstance(t *testing.T) {
 	svc := instance.NewService(db)
 	ctx := newCtx()
 
-	wsID := createWorkspace(t, wsSvc, ctx, "import-org")
+	wsID := createWorkspace(t, db, wsSvc, ctx, "import-org")
 
 	repo := "import-org/my-product"
 	inst, err := svc.ImportInstance(ctx, instance.ImportParams{
@@ -80,7 +94,7 @@ func TestActivateInstance(t *testing.T) {
 	svc := instance.NewService(db)
 	ctx := newCtx()
 
-	wsID := createWorkspace(t, wsSvc, ctx, "activate-org")
+	wsID := createWorkspace(t, db, wsSvc, ctx, "activate-org")
 
 	inst1, err := svc.ImportInstance(ctx, instance.ImportParams{
 		WorkspaceID: wsID,
@@ -147,7 +161,7 @@ func TestArchiveInstance_DiscardsStaged(t *testing.T) {
 	svc := instance.NewService(db)
 	ctx := newCtx()
 
-	wsID := createWorkspace(t, wsSvc, ctx, "archive-org")
+	wsID := createWorkspace(t, db, wsSvc, ctx, "archive-org")
 
 	inst, err := svc.ImportInstance(ctx, instance.ImportParams{
 		WorkspaceID: wsID,

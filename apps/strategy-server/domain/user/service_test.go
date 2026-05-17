@@ -112,7 +112,7 @@ func TestEnsureUser_AcceptsPendingInvitations(t *testing.T) {
 
 	// Create an admin user and org.
 	admin, _ := userSvc.EnsureUser(ctx, "admin-sub", "admin@example.com", "Admin")
-	o, _ := orgSvc.Create(ctx, "Test Org", admin.ID)
+	o, _ := orgSvc.Create(ctx, org.CreateParams{Name: "Test Org"}, admin.ID)
 
 	// Invite a new user by email.
 	err := orgSvc.Invite(ctx, o.ID, "newuser@example.com", "org_viewer", admin.ID)

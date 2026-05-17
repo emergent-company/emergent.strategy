@@ -631,35 +631,33 @@ func registerSemanticReadTools(s *server.MCPServer, svc Services) {
 
 func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 	s.AddTool(mcp.NewTool("create_workspace",
-		mcp.WithDescription("USE WHEN you need to register a new workspace for a GitHub organisation."),
+		mcp.WithDescription("USE WHEN you need to register a new workspace for a GitHub organisation. Every workspace must belong to an org."),
 		mcp.WithString("github_owner", mcp.Required(), mcp.Description("GitHub organisation or user login")),
+		mcp.WithString("org_id", mcp.Required(), mcp.Description("Organisation UUID that will own this workspace")),
 		mcp.WithString("display_name", mcp.Description("Human-readable workspace name")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		owner := argString(req, "github_owner")
 		if owner == "" {
 			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("github_owner is required")), nil
 		}
+		orgID, err := parseUUID(argString(req, "org_id"))
+		if err != nil {
+			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("org_id is required")), nil
+		}
 		var namePtr *string
 		if name := argString(req, "display_name"); name != "" {
 			namePtr = &name
 		}
-		ws, err := svc.Workspace.CreateWorkspace(ctx, owner, namePtr)
+		ws, err := svc.Workspace.CreateWorkspace(ctx, owner, namePtr, orgID)
 		if err != nil {
 			return toolErr(ctx, err), nil
-		}
-
-		// Auto-assign the workspace to the user's first org (if they have one).
-		orgIDs := userOrgIDs(ctx, svc)
-		if len(orgIDs) > 0 {
-			_ = svc.Workspace.SetOrgID(ctx, ws.ID, orgIDs[0]) // best-effort
-			ws.OrgID = &orgIDs[0]
 		}
 
 		return mustJSON(ws)
 	})
 
 	s.AddTool(mcp.NewTool("import_instance",
-		mcp.WithDescription("USE WHEN you need to import EPF artifacts from a GitHub repository into a workspace."),
+		mcp.WithDescription("USE WHEN you need to create an empty strategy instance in a workspace. Optionally link to a GitHub repo for future sync. Does not fetch artifacts — use CLI import for that."),
 		mcp.WithString("workspace_id", mcp.Required(), mcp.Description("Workspace UUID")),
 		mcp.WithString("name", mcp.Required(), mcp.Description("Instance display name")),
 		mcp.WithString("github_repo", mcp.Description("GitHub repo slug, e.g. org/repo")),

@@ -11,10 +11,13 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/google/uuid"
+
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/pkg/decompose"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/config"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ingest"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/org"
 	strategysvc "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
@@ -51,9 +54,17 @@ func runImport(cfg *config.Config) error {
 	ctx = audit.ContextWithAudit(ctx, audit.NewSlogWriter())
 	// CLI import: no user actor; leave actor as nil (system operation)
 
+	// --- Resolve org ownership ---
+	orgSvc := org.NewService(db)
+	resolvedOrg, err := resolveImportOrg(ctx, orgSvc, *imp, payloads)
+	if err != nil {
+		return fmt.Errorf("resolve org: %w", err)
+	}
+	slog.Info("org resolved", "org_name", resolvedOrg.Name, "org_id", resolvedOrg.ID)
+
 	// --- Ensure workspace exists ---
 	wsSvc := workspace.NewService(db)
-	ws, err := ensureWorkspace(ctx, wsSvc, imp.GithubOwner)
+	ws, err := ensureWorkspace(ctx, wsSvc, imp.GithubOwner, resolvedOrg.ID)
 	if err != nil {
 		return fmt.Errorf("ensure workspace: %w", err)
 	}
@@ -138,8 +149,8 @@ func runImport(cfg *config.Config) error {
 }
 
 // ensureWorkspace returns the workspace for githubOwner, creating it if it does not exist.
-func ensureWorkspace(ctx context.Context, svc *workspace.Service, githubOwner string) (*domain.Workspace, error) {
-	ws, err := svc.CreateWorkspace(ctx, githubOwner, nil)
+func ensureWorkspace(ctx context.Context, svc *workspace.Service, githubOwner string, orgID uuid.UUID) (*domain.Workspace, error) {
+	ws, err := svc.CreateWorkspace(ctx, githubOwner, nil, orgID)
 	if err == nil {
 		return ws, nil
 	}
@@ -148,6 +159,65 @@ func ensureWorkspace(ctx context.Context, svc *workspace.Service, githubOwner st
 	}
 	// Workspace already exists — find it by github_owner.
 	return svc.GetWorkspaceByOwner(ctx, githubOwner)
+}
+
+// resolveImportOrg determines which org to link the import to.
+// Resolution chain: --org flag > north_star.organization > workspace github_owner.
+func resolveImportOrg(ctx context.Context, orgSvc *org.Service, imp config.ImportCmd, payloads map[string]any) (*domain.Org, error) {
+	// System actor for CLI import — use a nil-safe UUID.
+	callerID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
+
+	// 1. Explicit --org flag (name or UUID).
+	if imp.Org != "" {
+		// Try parsing as UUID first.
+		if id, err := uuid.Parse(imp.Org); err == nil {
+			return orgSvc.GetByID(ctx, id)
+		}
+		// Otherwise treat as org name.
+		p := org.CreateParams{
+			Name:      imp.Org,
+			OrgNumber: imp.OrgNumber,
+			Country:   imp.Country,
+		}
+		return orgSvc.GetOrCreateWithParams(ctx, p, callerID)
+	}
+
+	// 2. Extract from north_star.organization in payloads.
+	if orgName := extractNorthStarOrg(payloads); orgName != "" {
+		slog.Info("extracted org name from north_star", "org_name", orgName)
+		p := org.CreateParams{
+			Name:      orgName,
+			OrgNumber: imp.OrgNumber,
+			Country:   imp.Country,
+		}
+		return orgSvc.GetOrCreateWithParams(ctx, p, callerID)
+	}
+
+	// 3. Fallback to github_owner.
+	return orgSvc.GetOrCreate(ctx, imp.GithubOwner, callerID)
+}
+
+// extractNorthStarOrg extracts the organization name from a north_star artifact payload.
+func extractNorthStarOrg(payloads map[string]any) string {
+	nsRaw, ok := payloads["north_star"]
+	if !ok {
+		return ""
+	}
+	nsMap, ok := nsRaw.(map[string]any)
+	if !ok {
+		return ""
+	}
+	// Try nested: north_star.organization
+	if inner, ok := nsMap["north_star"].(map[string]any); ok {
+		if name, ok := inner["organization"].(string); ok && name != "" {
+			return name
+		}
+	}
+	// Try flat: organization
+	if name, ok := nsMap["organization"].(string); ok && name != "" {
+		return name
+	}
+	return ""
 }
 
 // scanEPFInstance walks an EPF instance directory, reads all YAML files, and

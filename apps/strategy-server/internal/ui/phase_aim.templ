@@ -1,0 +1,156 @@
+package ui
+
+import (
+	"strconv"
+
+	"github.com/emergent-company/go-daisy/components/ui"
+)
+
+// AimPhaseData holds all data for the AIM phase dashboard.
+type AimPhaseData struct {
+	InstanceID string
+
+	// Assumptions
+	TotalAssumptions  int
+	TestedAssumptions int
+
+	// Signals
+	ActiveSignals   int
+	CriticalSignals int
+	WarningSignals  int
+
+	// AIM artifacts
+	HasLRA              bool
+	LRALifecycleStage   string // bootstrap, maturing, evolved
+	HasAssessmentReport bool
+	HasCalibration      bool
+	HasTriggerConfig    bool
+	HasRealityCheck     bool
+
+	// Versions
+	VersionCount int
+}
+
+// AimPhaseContent renders the AIM phase dashboard content.
+templ AimPhaseContent(data AimPhaseData) {
+	<div class="space-y-6">
+		// Stats
+		@ui.StatCards([]ui.StatCardProps{
+			{Label: "Assumptions Tested", Value: assumptionLabel(data.TestedAssumptions, data.TotalAssumptions), Icon: "lucide--flask-conical", IconColor: "bg-primary/10 text-primary"},
+			{Label: "Active Signals", Value: strconv.Itoa(data.ActiveSignals), Icon: "lucide--alert-circle", IconColor: signalColor(data.CriticalSignals)},
+			{Label: "Versions", Value: strconv.Itoa(data.VersionCount), Icon: "lucide--git-branch", IconColor: "bg-secondary/10 text-secondary"},
+			{Label: "AIM Artifacts", Value: strconv.Itoa(aimArtifactCount(data)), Icon: "lucide--target", IconColor: "bg-success/10 text-success"},
+		})
+
+		<div class="grid gap-4 md:grid-cols-2">
+			// Calibration monitors
+			@aimArtifactsCard(data)
+			// Coherence & signals
+			@coherenceCard(data)
+		</div>
+
+		// Assumption coverage
+		if data.TotalAssumptions > 0 {
+			@assumptionCoverageCard(data)
+		}
+	</div>
+}
+
+templ aimArtifactsCard(data AimPhaseData) {
+	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card-body p-5">
+			<h3 class="text-base font-semibold text-base-content mb-4">Calibration Artifacts</h3>
+			<div class="space-y-2">
+				@aimArtifactRow("Living Reality Assessment", "lucide--activity", data.HasLRA, data.LRALifecycleStage, "/strategies/" + data.InstanceID + "/aim/lra")
+				@aimArtifactRow("Assessment Report", "lucide--bar-chart-2", data.HasAssessmentReport, "", "/strategies/" + data.InstanceID + "/aim/assessment")
+				@aimArtifactRow("Calibration Memo", "lucide--sliders-horizontal", data.HasCalibration, "", "/strategies/" + data.InstanceID + "/aim/calibration")
+				@aimArtifactRow("Strategic Reality Check", "lucide--shield-check", data.HasRealityCheck, "", "/strategies/" + data.InstanceID + "/aim/coherence")
+				@aimArtifactRow("Trigger Config", "lucide--settings-2", data.HasTriggerConfig, "", "/strategies/" + data.InstanceID + "/aim/calibration")
+			</div>
+		</div>
+	</div>
+}
+
+templ aimArtifactRow(label, icon string, exists bool, detail, href string) {
+	<a
+		href={ templ.URL(href) }
+		hx-get={ href }
+		hx-target="#tab-content"
+		hx-swap="innerHTML"
+		hx-push-url="true"
+		class="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-base-200 transition-colors cursor-pointer group"
+	>
+		<span class={ "iconify size-4 group-hover:text-primary " + icon, templ.KV("text-success", exists), templ.KV("text-base-content/30", !exists) }></span>
+		<span class="text-sm text-base-content grow">{ label }</span>
+		if exists {
+			if detail != "" {
+				<span class="text-xs text-base-content/50">{ detail }</span>
+			}
+			<span class="iconify lucide--check-circle-2 size-3.5 text-success"></span>
+		} else {
+			<span class="iconify lucide--circle-dashed size-3.5 text-base-content/30"></span>
+		}
+	</a>
+}
+
+templ coherenceCard(data AimPhaseData) {
+	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card-body p-5">
+			<h3 class="text-base font-semibold text-base-content mb-4">Coherence & Signals</h3>
+			<div class="space-y-4">
+				// Signal breakdown
+				<div class="grid grid-cols-3 gap-3">
+					<div class="text-center rounded-lg bg-error/5 px-3 py-2.5">
+						<p class="text-lg font-bold text-error">{ strconv.Itoa(data.CriticalSignals) }</p>
+						<p class="text-xs text-base-content/50">Critical</p>
+					</div>
+					<div class="text-center rounded-lg bg-warning/5 px-3 py-2.5">
+						<p class="text-lg font-bold text-warning">{ strconv.Itoa(data.WarningSignals) }</p>
+						<p class="text-xs text-base-content/50">Warning</p>
+					</div>
+					<div class="text-center rounded-lg bg-success/5 px-3 py-2.5">
+						<p class="text-lg font-bold text-success">{ strconv.Itoa(data.ActiveSignals - data.CriticalSignals - data.WarningSignals) }</p>
+						<p class="text-xs text-base-content/50">Info</p>
+					</div>
+				</div>
+
+				if data.ActiveSignals == 0 {
+					<div class="text-center py-4">
+						<span class="iconify lucide--shield-check size-8 text-success/60 mx-auto mb-2"></span>
+						<p class="text-sm text-base-content/60">No active coherence signals</p>
+					</div>
+				}
+			</div>
+		</div>
+	</div>
+}
+
+templ assumptionCoverageCard(data AimPhaseData) {
+	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card-body p-5">
+			<div class="flex items-center justify-between mb-3">
+				<h3 class="text-base font-semibold text-base-content">Assumption Testing Coverage</h3>
+				<a
+					href={ templ.URL("/strategies/" + data.InstanceID + "/aim/assumptions") }
+					hx-get={ "/strategies/" + data.InstanceID + "/aim/assumptions" }
+					hx-target="#tab-content"
+					hx-swap="innerHTML"
+					hx-push-url="true"
+					class="btn btn-sm btn-ghost"
+				>
+					View all
+				</a>
+			</div>
+			<div class="flex items-center gap-3">
+				<progress
+					class="progress progress-primary flex-1"
+					value={ strconv.Itoa(assumptionPercent(data.TestedAssumptions, data.TotalAssumptions)) }
+					max="100"
+				></progress>
+				<span class="text-sm font-medium text-base-content/60 whitespace-nowrap">
+					{ strconv.Itoa(data.TestedAssumptions) }/{ strconv.Itoa(data.TotalAssumptions) } tested
+				</span>
+			</div>
+		</div>
+	</div>
+}

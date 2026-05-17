@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
@@ -14,6 +15,18 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
 )
+
+func seedTestOrg(t *testing.T, db *bun.DB) uuid.UUID {
+	t.Helper()
+	orgID := uuid.New()
+	_, err := db.ExecContext(context.Background(),
+		"INSERT INTO orgs (id, name, slug, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())",
+		orgID, "Test Org", "test-org-"+orgID.String()[:8])
+	if err != nil {
+		t.Fatalf("seed org: %v", err)
+	}
+	return orgID
+}
 
 // mockRepoWriter records all calls for assertion.
 type mockRepoWriter struct {
@@ -71,7 +84,8 @@ func TestSyncToGithub_DraftSync(t *testing.T) {
 	syncSvc := syncdom.NewService(db, stratSvc, verSvc, mock)
 
 	// Create workspace and instance with github_repo.
-	ws, err := wsSvc.CreateWorkspace(ctx, "sync-test-org", nil)
+	orgID := seedTestOrg(t, db)
+	ws, err := wsSvc.CreateWorkspace(ctx, "sync-test-org", nil, orgID)
 	if err != nil {
 		t.Fatalf("CreateWorkspace: %v", err)
 	}
@@ -158,7 +172,8 @@ func TestSyncToGithub_NoGithubRepo(t *testing.T) {
 	mock := &mockRepoWriter{installationToken: "ghs_test", defaultBranch: "main"}
 	syncSvc := syncdom.NewService(db, stratSvc, verSvc, mock)
 
-	ws, _ := wsSvc.CreateWorkspace(ctx, "no-repo-org", nil)
+	orgID := seedTestOrg(t, db)
+	ws, _ := wsSvc.CreateWorkspace(ctx, "no-repo-org", nil, orgID)
 	inst, _ := instSvc.ImportInstance(ctx, instance.ImportParams{
 		WorkspaceID: ws.ID,
 		Name:        "No Repo Instance",

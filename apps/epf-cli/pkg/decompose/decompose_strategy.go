@@ -97,7 +97,10 @@ func (d *Decomposer) decomposeStrategyFormulaExpanded(result *Result) {
 	if err := d.readYAML("READY/04_strategy_formula.yaml", &raw); err != nil {
 		return
 	}
+	d.decomposeStrategyFormulaExpandedRaw(result, &raw)
+}
 
+func (d *Decomposer) decomposeStrategyFormulaExpandedRaw(result *Result, raw *rawStrategyFormulaExpanded) {
 	artKey := objectKey("Artifact", "READY/04_strategy_formula.yaml")
 
 	// Ecosystem components → Positioning objects (tier 3, they're strategy-level)
@@ -315,7 +318,10 @@ func (d *Decomposer) decomposeStrategyFoundations(result *Result) {
 	if err := d.readYAML("READY/02_strategy_foundations.yaml", &raw); err != nil {
 		return
 	}
+	d.decomposeStrategyFoundationsRaw(result, &raw)
+}
 
+func (d *Decomposer) decomposeStrategyFoundationsRaw(result *Result, raw *rawStrategyFoundations) {
 	artKey := d.addArtifactNode(result,
 		"READY/02_strategy_foundations.yaml", "strategy_foundations", "READY",
 		"Strategy foundations — product vision, value proposition, strategic sequencing, information architecture", "2")
@@ -472,7 +478,10 @@ func (d *Decomposer) decomposeInsightOpportunity(result *Result) {
 	if err := d.readYAML("READY/03_insight_opportunity.yaml", &raw); err != nil {
 		return
 	}
+	d.decomposeInsightOpportunityRaw(result, &raw)
+}
 
+func (d *Decomposer) decomposeInsightOpportunityRaw(result *Result, raw *rawInsightOpportunity) {
 	artKey := d.addArtifactNode(result,
 		"READY/03_insight_opportunity.yaml", "insight_opportunity", "READY",
 		"Insight opportunity — validated market opportunity with evidence", "2")
