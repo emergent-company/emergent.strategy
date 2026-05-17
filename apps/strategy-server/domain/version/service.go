@@ -55,16 +55,18 @@ type SnapshotMetadata struct {
 
 // VersionSummary is a lightweight view returned by List (no snapshot blob).
 type VersionSummary struct {
-	ID              uuid.UUID  `json:"id"`
-	InstanceID      uuid.UUID  `json:"instance_id"`
-	Version         int        `json:"version"`
-	Label           *string    `json:"label,omitempty"`
-	Description     *string    `json:"description,omitempty"`
-	Status          string     `json:"status"`
-	ParentVersionID *uuid.UUID `json:"parent_version_id,omitempty"`
-	ArtifactCount   int        `json:"artifact_count"`
-	PublishedBy     *uuid.UUID `json:"published_by,omitempty"`
-	PublishedAt     string     `json:"published_at"`
+	ID               uuid.UUID  `json:"id"`
+	InstanceID       uuid.UUID  `json:"instance_id"`
+	Version          int        `json:"version"`
+	Label            *string    `json:"label,omitempty"`
+	Description      *string    `json:"description,omitempty"`
+	Status           string     `json:"status"`
+	Source           string     `json:"source"`
+	ParentVersionID  *uuid.UUID `json:"parent_version_id,omitempty"`
+	ArtifactCount    int        `json:"artifact_count"`
+	EquilibriumScore *float64   `json:"equilibrium_score,omitempty"`
+	PublishedBy      *uuid.UUID `json:"published_by,omitempty"`
+	PublishedAt      string     `json:"published_at"`
 }
 
 // DiffResult is the structured output of comparing two versions.
@@ -251,7 +253,9 @@ func (s *Service) List(ctx context.Context, instanceID uuid.UUID) ([]VersionSumm
 	var versions []*domain.StrategyVersion
 	err := s.db.NewSelect().
 		Model((*domain.StrategyVersion)(nil)).
-		Column("id", "instance_id", "version", "label", "description", "status", "parent_version_id", "published_by", "published_at", "snapshot").
+		Column("id", "instance_id", "version", "label", "description", "status",
+			"source", "equilibrium_score", "parent_version_id", "published_by",
+			"published_at", "snapshot").
 		Where("instance_id = ?", instanceID).
 		OrderExpr("version DESC").
 		Scan(ctx, &versions)
@@ -262,15 +266,17 @@ func (s *Service) List(ctx context.Context, instanceID uuid.UUID) ([]VersionSumm
 	summaries := make([]VersionSummary, 0, len(versions))
 	for _, v := range versions {
 		sum := VersionSummary{
-			ID:              v.ID,
-			InstanceID:      v.InstanceID,
-			Version:         v.Version,
-			Label:           v.Label,
-			Description:     v.Description,
-			Status:          v.Status,
-			ParentVersionID: v.ParentVersionID,
-			PublishedBy:     v.PublishedBy,
-			PublishedAt:     v.PublishedAt.UTC().Format("2006-01-02T15:04:05Z"),
+			ID:               v.ID,
+			InstanceID:       v.InstanceID,
+			Version:          v.Version,
+			Label:            v.Label,
+			Description:      v.Description,
+			Status:           v.Status,
+			Source:           v.Source,
+			EquilibriumScore: v.EquilibriumScore,
+			ParentVersionID:  v.ParentVersionID,
+			PublishedBy:      v.PublishedBy,
+			PublishedAt:      v.PublishedAt.UTC().Format("2006-01-02T15:04:05Z"),
 		}
 		// Extract artifact count from snapshot metadata without deserializing the whole blob.
 		var snap Snapshot

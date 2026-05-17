@@ -2,6 +2,7 @@ package mcpserver
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 
@@ -332,6 +333,135 @@ func registerRippleTools(s *server.MCPServer, svc Services) {
 		}
 		return mustJSON(result)
 	})
+
+	// -----------------------------------------------------------------------
+	// get_ripple_config — read current ripple config for an instance
+	// -----------------------------------------------------------------------
+	s.AddTool(mcp.NewTool("get_ripple_config",
+		mcp.WithDescription("USE WHEN you need the current ripple configuration for instance."),
+		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		instID, err := parseUUID(argString(req, "instance_id"))
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
+		cfg, err := svc.Ripple.GetConfig(ctx, instID)
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		return mustJSON(cfg)
+	})
+
+	// -----------------------------------------------------------------------
+	// update_ripple_config — update ripple thresholds for an instance
+	// -----------------------------------------------------------------------
+	s.AddTool(mcp.NewTool("update_ripple_config",
+		mcp.WithDescription("USE WHEN you need to update ripple thresholds for an instance."),
+		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+		mcp.WithString("config", mcp.Required(), mcp.Description("JSON ripple config (partial updates merged with existing)")),
+	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		instID, err := parseUUID(argString(req, "instance_id"))
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
+
+		configJSON := argString(req, "config")
+		if configJSON == "" {
+			return toolErr(ctx, fmt.Errorf("config is required")), nil
+		}
+
+		// Start from current config and merge.
+		cfg, err := svc.Ripple.GetConfig(ctx, instID)
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+
+		// Unmarshal partial update into existing config.
+		if jsonErr := json.Unmarshal([]byte(configJSON), &cfg); jsonErr != nil {
+			return toolErr(ctx, fmt.Errorf("invalid config JSON: %w", jsonErr)), nil
+		}
+
+		if err := svc.Ripple.UpdateConfig(ctx, instID, cfg); err != nil {
+			return toolErr(ctx, err), nil
+		}
+
+		return mustJSON(map[string]any{
+			"updated": true,
+			"config":  cfg,
+		})
+	})
+
+	// -----------------------------------------------------------------------
+	// get_equilibrium_status — current equilibrium score and breakdown
+	// -----------------------------------------------------------------------
+	s.AddTool(mcp.NewTool("get_equilibrium_status",
+		mcp.WithDescription("USE WHEN you need the current equilibrium score and coherence breakdown for an instance."),
+		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		instID, err := parseUUID(argString(req, "instance_id"))
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
+
+		cfg, err := svc.Ripple.GetConfig(ctx, instID)
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+
+		report, err := ripple.ComputeEquilibrium(ctx, svc.Strategy.DB(), instID, cfg)
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+
+		return mustJSON(report)
+	})
+
+	// -----------------------------------------------------------------------
+	// get_convergence_history — past convergence loop runs
+	// -----------------------------------------------------------------------
+	s.AddTool(mcp.NewTool("get_convergence_history",
+		mcp.WithDescription("USE WHEN you need to see past convergence loop runs for an instance."),
+		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+		mcp.WithString("damping_reason", mcp.Description("Filter by damping reason: max_iterations, change_budget_exceeded, anchor_drift, emergency_brake")),
+		mcp.WithString("limit", mcp.Description("Max results (1-100, default 20)")),
+	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		instID, err := parseUUID(argString(req, "instance_id"))
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
+
+		limit := 20
+		if l := argString(req, "limit"); l != "" {
+			_, _ = fmt.Sscanf(l, "%d", &limit)
+		}
+		dampingReason := argString(req, "damping_reason")
+
+		runs, err := svc.Ripple.ListConvergenceRuns(ctx, instID, dampingReason, limit)
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+
+		result := map[string]any{
+			"runs":  runs,
+			"count": len(runs),
+		}
+		if len(runs) == 0 {
+			result["note"] = "No convergence runs recorded yet for this instance."
+		}
+		return mustJSON(result)
+	})
 }
 
 // postCommitRippleAnalysis runs structural ripple analysis after a batch commit
@@ -384,6 +514,15 @@ func postCommitRippleAnalysis(ctx context.Context, svc Services, instanceID, bat
 		memClient = svc.Semantic.Client()
 	}
 	analyzer := ripple.NewSemanticAnalyzer(memClient, svc.Strategy.DB())
+
+	// Load ripple config for classification thresholds.
+	cfg := ripple.DefaultRippleConfig()
+	if svc.Ripple != nil {
+		if loadedCfg, cfgErr := svc.Ripple.GetConfig(ctx, instanceID); cfgErr == nil {
+			cfg = loadedCfg
+		}
+	}
+
 	if analyzer != nil {
 		for _, m := range mutations {
 			if m.BatchID == nil || *m.BatchID != batchID || m.Status != domain.MutationStatusCommitted {
@@ -394,7 +533,7 @@ func postCommitRippleAnalysis(ctx context.Context, svc Services, instanceID, bat
 			if oldErr != nil || oldArt == nil {
 				continue
 			}
-			result, classErr := analyzer.ClassifyChange(ctx, m.ArtifactKey, oldArt.Payload, m.Payload)
+			result, classErr := analyzer.ClassifyChange(ctx, m.ArtifactKey, oldArt.Payload, m.Payload, cfg)
 			if classErr != nil {
 				continue
 			}
@@ -404,6 +543,7 @@ func postCommitRippleAnalysis(ctx context.Context, svc Services, instanceID, bat
 					"key", m.ArtifactKey,
 					"class", result.Class,
 					"score", result.Score,
+					"authority", result.AuthorityTier,
 					"description", result.Description,
 				)
 			}

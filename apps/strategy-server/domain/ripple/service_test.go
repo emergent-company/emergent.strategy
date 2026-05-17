@@ -39,8 +39,6 @@ func seedInstance(t *testing.T, db *bun.DB) uuid.UUID {
 	return instID
 }
 
-
-
 func TestCreateAndListSignals(t *testing.T) {
 	db := database.TestDB(t)
 	svc := ripple.NewService(db)

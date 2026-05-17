@@ -327,17 +327,20 @@ const (
 type StrategyVersion struct {
 	bun.BaseModel `bun:"table:strategy_versions,alias:sv"`
 
-	ID              uuid.UUID       `bun:"id,pk,type:uuid"                    json:"id"`
-	InstanceID      uuid.UUID       `bun:"instance_id,notnull,type:uuid"      json:"instance_id"`
-	Version         int             `bun:"version,notnull"                     json:"version"`
-	Label           *string         `bun:"label"                               json:"label,omitempty"`
-	Description     *string         `bun:"description"                         json:"description,omitempty"`
-	Status          string          `bun:"status,notnull,default:'published'"  json:"status"`
-	ParentVersionID *uuid.UUID      `bun:"parent_version_id,type:uuid"         json:"parent_version_id,omitempty"`
-	Snapshot        json.RawMessage `bun:"snapshot,notnull,type:jsonb"         json:"snapshot"`
-	PublishedBy     *uuid.UUID      `bun:"published_by,type:uuid"              json:"published_by,omitempty"`
-	PublishedAt     time.Time       `bun:"published_at,notnull,default:now()"  json:"published_at"`
-	CreatedAt       time.Time       `bun:"created_at,notnull,default:now()"    json:"created_at"`
+	ID               uuid.UUID       `bun:"id,pk,type:uuid"                    json:"id"`
+	InstanceID       uuid.UUID       `bun:"instance_id,notnull,type:uuid"      json:"instance_id"`
+	Version          int             `bun:"version,notnull"                     json:"version"`
+	Label            *string         `bun:"label"                               json:"label,omitempty"`
+	Description      *string         `bun:"description"                         json:"description,omitempty"`
+	Status           string          `bun:"status,notnull,default:'published'"  json:"status"`
+	ParentVersionID  *uuid.UUID      `bun:"parent_version_id,type:uuid"         json:"parent_version_id,omitempty"`
+	Snapshot         json.RawMessage `bun:"snapshot,notnull,type:jsonb"         json:"snapshot"`
+	Source           string          `bun:"source,notnull,default:'manual'"     json:"source"`
+	EquilibriumScore *float64        `bun:"equilibrium_score"                   json:"equilibrium_score,omitempty"`
+	ConvergenceMeta  json.RawMessage `bun:"convergence_meta,type:jsonb"         json:"convergence_meta,omitempty"`
+	PublishedBy      *uuid.UUID      `bun:"published_by,type:uuid"              json:"published_by,omitempty"`
+	PublishedAt      time.Time       `bun:"published_at,notnull,default:now()"  json:"published_at"`
+	CreatedAt        time.Time       `bun:"created_at,notnull,default:now()"    json:"created_at"`
 }
 
 // VersionStatus enumerates valid values for StrategyVersion.Status.
@@ -383,20 +386,51 @@ const (
 type RippleSignal struct {
 	bun.BaseModel `bun:"table:ripple_signals,alias:rs"`
 
-	ID          uuid.UUID       `bun:"id,pk,type:uuid"                    json:"id"`
-	InstanceID  uuid.UUID       `bun:"instance_id,notnull,type:uuid"      json:"instance_id"`
-	SignalType  string          `bun:"signal_type,notnull"                json:"signal_type"`
-	Severity    string          `bun:"severity,notnull"                   json:"severity"`
-	Status      string          `bun:"status,notnull,default:'active'"    json:"status"`
-	SourceKey   string          `bun:"source_key,notnull"                 json:"source_key"`
-	TargetKey   string          `bun:"target_key,notnull"                 json:"target_key"`
-	Description string          `bun:"description,notnull"                json:"description"`
-	Suggestion  *string         `bun:"suggestion"                         json:"suggestion,omitempty"`
-	Metadata    json.RawMessage `bun:"metadata,type:jsonb"                json:"metadata,omitempty"`
-	BatchID     *uuid.UUID      `bun:"batch_id,type:uuid"                 json:"batch_id,omitempty"`
-	CreatedBy   *uuid.UUID      `bun:"created_by,type:uuid"               json:"created_by,omitempty"`
-	CreatedAt   time.Time       `bun:"created_at,notnull,default:now()"   json:"created_at"`
-	ResolvedAt  *time.Time      `bun:"resolved_at"                        json:"resolved_at,omitempty"`
+	ID            uuid.UUID       `bun:"id,pk,type:uuid"                    json:"id"`
+	InstanceID    uuid.UUID       `bun:"instance_id,notnull,type:uuid"      json:"instance_id"`
+	SignalType    string          `bun:"signal_type,notnull"                json:"signal_type"`
+	Severity      string          `bun:"severity,notnull"                   json:"severity"`
+	Status        string          `bun:"status,notnull,default:'active'"    json:"status"`
+	SourceKey     string          `bun:"source_key,notnull"                 json:"source_key"`
+	TargetKey     string          `bun:"target_key,notnull"                 json:"target_key"`
+	Description   string          `bun:"description,notnull"                json:"description"`
+	Suggestion    *string         `bun:"suggestion"                         json:"suggestion,omitempty"`
+	AuthorityTier *string         `bun:"authority_tier"                     json:"authority_tier,omitempty"`
+	Metadata      json.RawMessage `bun:"metadata,type:jsonb"                json:"metadata,omitempty"`
+	BatchID       *uuid.UUID      `bun:"batch_id,type:uuid"                 json:"batch_id,omitempty"`
+	CreatedBy     *uuid.UUID      `bun:"created_by,type:uuid"               json:"created_by,omitempty"`
+	CreatedAt     time.Time       `bun:"created_at,notnull,default:now()"   json:"created_at"`
+	ResolvedAt    *time.Time      `bun:"resolved_at"                        json:"resolved_at,omitempty"`
+}
+
+// RippleConfigRow stores per-instance ripple configuration.
+type RippleConfigRow struct {
+	bun.BaseModel `bun:"table:ripple_config,alias:rc"`
+
+	ID         uuid.UUID       `bun:"id,pk,type:uuid"                    json:"id"`
+	InstanceID uuid.UUID       `bun:"instance_id,notnull,type:uuid"      json:"instance_id"`
+	Config     json.RawMessage `bun:"config,notnull,type:jsonb"           json:"config"`
+	CreatedAt  time.Time       `bun:"created_at,notnull,default:now()"   json:"created_at"`
+	UpdatedAt  time.Time       `bun:"updated_at,notnull,default:now()"   json:"updated_at"`
+}
+
+// ConvergenceRun records a single convergence loop execution.
+type ConvergenceRun struct {
+	bun.BaseModel `bun:"table:convergence_runs,alias:cr"`
+
+	ID                 uuid.UUID       `bun:"id,pk,type:uuid"                    json:"id"`
+	InstanceID         uuid.UUID       `bun:"instance_id,notnull,type:uuid"      json:"instance_id"`
+	TriggeringBatchID  *uuid.UUID      `bun:"triggering_batch_id,type:uuid"      json:"triggering_batch_id,omitempty"`
+	Iterations         int             `bun:"iterations,notnull,default:0"        json:"iterations"`
+	AutoResolved       int             `bun:"auto_resolved,notnull,default:0"     json:"auto_resolved"`
+	Escalated          int             `bun:"escalated,notnull,default:0"          json:"escalated"`
+	StartingScore      *float64        `bun:"starting_score"                      json:"starting_score,omitempty"`
+	EndingScore        *float64        `bun:"ending_score"                        json:"ending_score,omitempty"`
+	EquilibriumReached bool            `bun:"equilibrium_reached,notnull"         json:"equilibrium_reached"`
+	DampingReason      *string         `bun:"damping_reason"                      json:"damping_reason,omitempty"`
+	Summary            json.RawMessage `bun:"summary,type:jsonb"                  json:"summary,omitempty"`
+	VersionID          *uuid.UUID      `bun:"version_id,type:uuid"                json:"version_id,omitempty"`
+	CreatedAt          time.Time       `bun:"created_at,notnull,default:now()"    json:"created_at"`
 }
 
 // SignalType enumerates ripple signal types.

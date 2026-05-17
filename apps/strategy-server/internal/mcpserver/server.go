@@ -38,15 +38,16 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
 	orgdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/org"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/pack"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
-	schemadom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/schema"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
 	rippledom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ripple"
+	schemadom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/schema"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
 	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
 	versiondom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/version"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/agent"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/embedded"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/memory"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
 
@@ -69,6 +70,7 @@ type Services struct {
 	Version   *versiondom.Service  // optional — nil disables versioning tools
 	Sync      *syncdom.Service      // optional — nil disables GitHub sync tools
 	Ripple    *rippledom.Service   // optional — nil disables ripple coherence tools
+	Resolver  rippledom.SignalResolver // optional — nil = agent-orchestrated mode
 	Ingest    IngestEnqueuer        // optional — nil when Memory is not configured
 }
 
@@ -318,6 +320,20 @@ func registerInstanceReadTools(s *server.MCPServer, svc Services) {
 					signalSummary["top_signals"] = topSignals
 				}
 				result["ripple_signals"] = signalSummary
+			}
+
+			// Add equilibrium status.
+			cfg, cfgErr := svc.Ripple.GetConfig(ctx, id)
+			if cfgErr == nil {
+				eqReport, eqErr := rippledom.ComputeEquilibrium(ctx, svc.Strategy.DB(), id, cfg)
+				if eqErr == nil {
+					result["equilibrium"] = map[string]any{
+						"score":          eqReport.Score,
+						"threshold":      eqReport.Threshold,
+						"in_equilibrium": eqReport.InEquilibrium,
+						"deficit":        eqReport.Deficit,
+					}
+				}
 			}
 		}
 
@@ -852,6 +868,72 @@ func registerBatchWriteTools(s *server.MCPServer, svc Services) {
 			if rippleSummary := postCommitRippleAnalysis(ctx, svc, instanceID, batchID); rippleSummary != nil {
 				result["ripple_signals"] = rippleSummary
 			}
+		}
+
+		// Run convergence loop after ripple analysis.
+		if instanceID != uuid.Nil && svc.Ripple != nil {
+			cfg := rippledom.DefaultRippleConfig()
+			if loadedCfg, cfgErr := svc.Ripple.GetConfig(ctx, instanceID); cfgErr == nil {
+				cfg = loadedCfg
+			}
+
+			var memClient *memory.Client
+			if svc.Semantic != nil {
+				memClient = svc.Semantic.Client()
+			}
+
+			convSvc := rippledom.ConvergenceServices{
+				DB:       svc.Strategy.DB(),
+				Ripple:   svc.Ripple,
+				Mem:      memClient,
+				Ingest:   svc.Ingest,
+				Resolver: svc.Resolver, // nil in agent-orchestrated mode, LLM-backed in server-orchestrated mode
+			}
+
+			// Wire CommitAutoFn to the strategy service's CommitAuto.
+			convSvc.CommitAutoFn = func(commitCtx context.Context, instID uuid.UUID, artifactKey, artifactType string, payload json.RawMessage, signalID uuid.UUID) error {
+				_, err := svc.Strategy.CommitAuto(commitCtx, strategy.CommitAutoParams{
+					InstanceID:   instID,
+					ArtifactType: artifactType,
+					ArtifactKey:  artifactKey,
+					Action:       "update",
+					Payload:      payload,
+					SignalID:     &signalID,
+				})
+				return err
+			}
+
+			// Wire up version publisher for equilibrium-triggered snapshots.
+			if svc.Version != nil {
+				convSvc.VersionPublisher = func(pubCtx context.Context, instID uuid.UUID, score float64, summary rippledom.ConvergenceSummary) (string, error) {
+					shortBatchID := batchID.String()[:8]
+					label := fmt.Sprintf("Equilibrium after batch %s", shortBatchID)
+					desc := fmt.Sprintf("Auto-published by convergence loop. Score: %.2f, iterations: %d, auto-resolved: %d",
+						score, summary.Iterations, summary.AutoResolved)
+					ver, pubErr := svc.Version.Publish(pubCtx, instID, label, desc)
+					if pubErr != nil {
+						return "", pubErr
+					}
+					// Enrich the version with convergence metadata.
+					eqScore := score
+					ver.Source = "convergence"
+					ver.EquilibriumScore = &eqScore
+					if summaryJSON, jsonErr := json.Marshal(summary); jsonErr == nil {
+						ver.ConvergenceMeta = summaryJSON
+					}
+					_, updateErr := svc.Strategy.DB().NewUpdate().Model(ver).
+						Column("source", "equilibrium_score", "convergence_meta").
+						WherePK().
+						Exec(pubCtx)
+					if updateErr != nil {
+						slog.WarnContext(pubCtx, "convergence: failed to update version metadata", "error", updateErr)
+					}
+					return ver.ID.String(), nil
+				}
+			}
+
+			convergenceSummary := rippledom.RunConvergenceLoop(ctx, instanceID, &batchID, cfg, convSvc)
+			result["convergence_summary"] = convergenceSummary
 		}
 
 		// Post-commit: run validation on the committed artifacts and include

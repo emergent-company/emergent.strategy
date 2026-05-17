@@ -84,16 +84,24 @@ func registerVersionTools(s *server.MCPServer, svc Services) {
 			snap = ver.Snapshot
 		}
 
-		return mustJSON(map[string]any{
-			"id":          ver.ID,
-			"instance_id": ver.InstanceID,
-			"version":     ver.Version,
-			"label":       ver.Label,
-			"description": ver.Description,
-			"status":      ver.Status,
+		result := map[string]any{
+			"id":           ver.ID,
+			"instance_id":  ver.InstanceID,
+			"version":      ver.Version,
+			"label":        ver.Label,
+			"description":  ver.Description,
+			"status":       ver.Status,
+			"source":       ver.Source,
 			"published_at": ver.PublishedAt.UTC().Format("2006-01-02T15:04:05Z"),
-			"snapshot":    snap,
-		})
+			"snapshot":     snap,
+		}
+		if ver.EquilibriumScore != nil {
+			result["equilibrium_score"] = *ver.EquilibriumScore
+		}
+		if len(ver.ConvergenceMeta) > 0 {
+			result["convergence_meta"] = json.RawMessage(ver.ConvergenceMeta)
+		}
+		return mustJSON(result)
 	})
 
 	// diff_versions — compare two versions.
@@ -119,7 +127,27 @@ func registerVersionTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
-		return mustJSON(diff)
+
+		// Enrich with convergence context from the target version if available.
+		result := map[string]any{
+			"from_version": diff.FromVersion,
+			"to_version":   diff.ToVersion,
+			"added":        diff.Added,
+			"removed":      diff.Removed,
+			"changed":      diff.Changed,
+			"summary":      diff.Summary,
+		}
+		toVer, toErr := svc.Version.Get(ctx, instID, toID)
+		if toErr == nil && toVer.Source == "convergence" {
+			result["target_source"] = toVer.Source
+			if toVer.EquilibriumScore != nil {
+				result["target_equilibrium_score"] = *toVer.EquilibriumScore
+			}
+			if len(toVer.ConvergenceMeta) > 0 {
+				result["target_convergence_meta"] = json.RawMessage(toVer.ConvergenceMeta)
+			}
+		}
+		return mustJSON(result)
 	})
 
 	// restore_version — create mutations to revert to a previous state.

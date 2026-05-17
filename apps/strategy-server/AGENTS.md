@@ -227,6 +227,7 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 | `domain/schema/` | Schema registry (DB + embedded fallback) |
 | `domain/version/` | Strategy versioning (publish/list/get/diff/restore) |
 | `domain/sync/` | GitHub sync (RepoWriter interface, sync log) |
+| `domain/ripple/` | Ripple coherence engine (signals, propagation, convergence, equilibrium) |
 
 ### Internal packages
 
@@ -266,10 +267,12 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 | `012_strategy_versions.sql` | Strategy versions (JSONB snapshots) |
 | `013_github_sync_log.sql` | GitHub sync log (branch, PR, status tracking) |
 | `014_sync_status_and_fks.sql` | Memory sync status + created_by FK constraints |
+| `015_ripple_signals.sql` | Ripple signals table + batch_metadata column |
+| `016_ripple_convergence.sql` | Ripple config, convergence runs, version metadata enrichment |
 
 ## MCP Server
 
-The server exposes 103 MCP tools at `/mcp`. Key categories:
+The server exposes 107 MCP tools at `/mcp`. Key categories:
 
 | Category | Count | Examples |
 |----------|-------|---------|
@@ -284,10 +287,97 @@ The server exposes 103 MCP tools at `/mcp`. Key categories:
 | Skill packs/apps | 11 | `install_pack`, `run_skill`, `run_app` |
 | Relationship tools | 3 | `add_relationship`, `suggest_relationships`, `list_relationships` |
 | AIM lifecycle | 7 | `create_lra`, `validate_assumptions`, `stage_calibration` |
+| Ripple coherence | 11 | `coherence_check`, `list_signals`, `get_equilibrium_status`, `get_convergence_history` |
 | Export | 3 | `export_instance_yaml`, `export_report` |
 | Phase discovery | 4 | `get_phase_artifacts`, `list_definitions`, `get_definition` |
 | Strategy versions | 5 | `publish_version`, `list_versions`, `diff_versions`, `restore_version` |
 | GitHub sync | 2 | `sync_to_github`, `get_sync_status` |
+
+### Ripple Coherence Engine
+
+The strategy graph is interconnected — changing one artifact can misalign others.
+The Ripple Coherence Engine detects these misalignments, classifies them by
+authority tier, and runs a convergence loop to reach equilibrium.
+
+**After every `commit_batch`:**
+1. Post-commit ripple analysis detects structural misalignments
+2. Semantic change classification (via Memory when available) assigns authority tiers
+3. Convergence loop iterates until equilibrium or damping limits
+4. If equilibrium is reached with changes, an auto-published version snapshot is created
+
+**Authority tiers:**
+- `autonomous` — trivial/minor changes (high semantic similarity). Auto-resolvable.
+- `gated` — significant changes. Require human `commit_batch` approval.
+- `escalated` — major changes. Require human review with blast radius acknowledgment.
+
+**Equilibrium:** Threshold-based coherence score (0.0-1.0, default 0.70). Accounts for
+natural inter-track tension (Product-Commercial divergence of 0.25 is normal).
+
+**Damping:** 4-layer safety net — max iterations (5), change budget (0.50),
+anchor drift (0.10 for North Star/formula), emergency brake (signal count increasing).
+
+**Key tools:**
+| Tool | Purpose |
+|------|---------|
+| `propose_change` | Preview blast radius before committing |
+| `coherence_check` | Full-graph coherence analysis |
+| `list_signals` | View active ripple signals |
+| `generate_ripple_batch` | Context for AI-assisted resolution |
+| `acknowledge_signal` | Mark signal as seen |
+| `resolve_signal` | Mark signal as addressed |
+| `dismiss_signal` | Mark signal as intentional |
+| `get_equilibrium_status` | Current coherence score and breakdown |
+| `get_convergence_history` | Past convergence runs and outcomes |
+| `get_ripple_config` | Current thresholds and baselines |
+| `update_ripple_config` | Adjust thresholds and baselines |
+
+**Configuration examples:**
+
+Default config (conservative — suitable for most organizations):
+```json
+{
+  "equilibrium_threshold": 0.70,
+  "damping": {"max_iterations": 5, "change_budget": 0.50, "anchor_drift_limit": 0.10},
+  "authority_thresholds": {
+    "_default": {"autonomous_above": 0.85, "gated_above": 0.70},
+    "north_star": {"autonomous_above": 0.92, "gated_above": 0.80},
+    "feature": {"autonomous_above": 0.80, "gated_above": 0.65}
+  },
+  "natural_tension_baselines": {
+    "commercial|product": 0.25, "product|strategy": 0.15,
+    "commercial|org_ops": 0.25, "org_ops|strategy": 0.15
+  }
+}
+```
+
+Product-led growth (low Product-Commercial tension, tighter equilibrium):
+```json
+{
+  "equilibrium_threshold": 0.80,
+  "natural_tension_baselines": {
+    "commercial|product": 0.10,
+    "product|strategy": 0.10
+  }
+}
+```
+
+Enterprise sales (higher natural tension between Product and Commercial):
+```json
+{
+  "equilibrium_threshold": 0.65,
+  "natural_tension_baselines": {
+    "commercial|product": 0.35,
+    "commercial|strategy": 0.30
+  }
+}
+```
+
+**Dual-mode operation:**
+- **Agent-orchestrated** (default, MCP clients): The convergence loop detects
+  and classifies signals. The AI agent sees the `convergence_summary` in the
+  `commit_batch` response and drives resolution via subsequent MCP calls.
+- **Server-orchestrated** (future, web UI): An LLM provider is configured and
+  the convergence loop autonomously resolves low-authority signals.
 
 ### Strategy Versioning Workflow
 
@@ -295,6 +385,10 @@ The server exposes 103 MCP tools at `/mcp`. Key categories:
 2. `publish_version` — snapshots all artifacts + relationships as an atomic version
 3. `list_versions` / `diff_versions` — review version history and changes
 4. `restore_version` — revert to a previous version's state (creates a new version)
+
+Versions are also auto-published when the convergence loop reaches equilibrium
+with changes. Auto-published versions are tagged with `source='convergence'` and
+include the equilibrium score and convergence summary in their metadata.
 
 ### GitHub Sync Workflow
 

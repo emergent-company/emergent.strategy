@@ -86,6 +86,16 @@ type Config struct {
 	MemoryProject  string `arg:"env:EPF_MEMORY_PROJECT" help:"emergent.memory project ID"`
 	MemoryToken    string `arg:"env:EPF_MEMORY_TOKEN" help:"emergent.memory project token"`
 	MemoryAuthMode string `arg:"env:EPF_MEMORY_AUTH_MODE" default:"api-key" help:"Memory auth mode: api-key (standalone) or bearer (production)"`
+
+	// LLM provider (for server-orchestrated convergence loop resolution)
+	LLMProviderURL string `arg:"env:LLM_PROVIDER_URL" help:"LLM API base URL (OpenAI-compatible, e.g. https://api.openai.com or http://localhost:11434 for Ollama)"`
+	LLMAPIKey      string `arg:"env:LLM_API_KEY" help:"LLM API key (Bearer token; empty for Ollama local)"`
+	LLMModel       string `arg:"env:LLM_MODEL" default:"gpt-4o-mini" help:"LLM model name (e.g. gpt-4o-mini, claude-sonnet-4-20250514, llama3.2:8b)"`
+}
+
+// LLMConfigured returns true when LLM provider settings are provided.
+func (c *Config) LLMConfigured() bool {
+	return c.LLMProviderURL != ""
 }
 
 // PostgresDSN returns a valid PostgreSQL DSN from the config.

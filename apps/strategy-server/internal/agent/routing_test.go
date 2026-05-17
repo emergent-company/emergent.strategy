@@ -119,6 +119,33 @@ func TestRouteTask_Scenarios(t *testing.T) {
 	}
 }
 
+func TestRouteTask_RippleConvergence(t *testing.T) {
+	tests := []struct {
+		task     string
+		wantTool string
+	}{
+		{"check equilibrium score", "get_equilibrium_status"},
+		{"what is the alignment score", "get_equilibrium_status"},
+		{"show convergence history", "get_convergence_history"},
+		{"what was auto-resolved", "get_convergence_history"},
+		{"show ripple config", "get_ripple_config"},
+		{"adjust authority thresholds", "get_ripple_config"},
+		{"change tension baseline", "get_ripple_config"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.task, func(t *testing.T) {
+			result := RouteTask(tt.task)
+			if result.Type != "direct_tool" {
+				t.Errorf("type = %q, want direct_tool", result.Type)
+			}
+			if result.ToolName != tt.wantTool {
+				t.Errorf("tool = %q, want %q", result.ToolName, tt.wantTool)
+			}
+		})
+	}
+}
+
 func TestRouteTask_Phase2cTools(t *testing.T) {
 	tests := []struct {
 		task     string

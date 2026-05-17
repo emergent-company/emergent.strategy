@@ -278,6 +278,27 @@ var routingTable = []routeEntry{
 			Reason: "Use generate_ripple_batch to assemble context for AI-assisted ripple resolution of active signals.",
 		},
 	},
+	{
+		keywords: []string{"equilibrium", "coherence score", "graph score", "alignment score"},
+		result: RoutingResult{
+			Type: "direct_tool", ToolName: "get_equilibrium_status",
+			Reason: "Use get_equilibrium_status to see the current coherence score and whether the graph is in equilibrium.",
+		},
+	},
+	{
+		keywords: []string{"convergence", "convergence history", "convergence run", "auto-resolved", "auto resolved"},
+		result: RoutingResult{
+			Type: "direct_tool", ToolName: "get_convergence_history",
+			Reason: "Use get_convergence_history to see past convergence loop runs with their outcomes and damping reasons.",
+		},
+	},
+	{
+		keywords: []string{"ripple config", "ripple threshold", "tension baseline", "authority threshold", "damping config"},
+		result: RoutingResult{
+			Type: "direct_tool", ToolName: "get_ripple_config",
+			Reason: "Use get_ripple_config to view current ripple thresholds and baselines, or update_ripple_config to change them.",
+		},
+	},
 
 	// Fresh start / new product.
 	{

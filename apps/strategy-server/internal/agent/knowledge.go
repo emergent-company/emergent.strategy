@@ -680,7 +680,36 @@ can also acknowledge (seen but not fixing now) or dismiss (intentional, with rea
 **Severity classification:**
 - critical: downstream artifact stale > 30 days, or semantic contradiction
 - warning: downstream stale 14-30 days, orphaned value path, untested assumption
-- info: downstream stale < 14 days, suggested missing connections`,
+- info: downstream stale < 14 days, suggested missing connections
+
+**Convergence loop:**
+After every commit_batch, a convergence loop runs automatically. It iteratively
+detects misalignments, classifies their authority tier (autonomous/gated/escalated),
+and re-evaluates until the graph reaches equilibrium or damping limits are hit.
+The response includes a convergence_summary showing iterations, auto-resolved
+count, and the final equilibrium score.
+
+**Authority tiers:**
+- autonomous: trivial/minor changes (high semantic similarity). AI agents can
+  auto-commit these without human review.
+- gated: significant changes. Require human commit_batch approval.
+- escalated: major changes. Require human review with blast radius acknowledgment.
+
+**Equilibrium:**
+The coherence score (0.0-1.0) measures how aligned the strategy graph is.
+It accounts for natural inter-track tension — product and commercial tracks
+naturally diverge, and that's healthy. Use get_equilibrium_status to see the
+current score, and get_ripple_config / update_ripple_config to adjust thresholds.
+
+When the convergence loop reaches equilibrium with at least one change, it
+auto-publishes a version snapshot tagged with source='convergence'.
+
+**Key tools:**
+- get_equilibrium_status: Current coherence score and breakdown.
+- get_convergence_history: Past convergence runs with damping reasons.
+- get_ripple_config: View current thresholds and baselines.
+- update_ripple_config: Adjust authority thresholds, equilibrium threshold,
+  damping parameters, or natural tension baselines.`,
 	},
 }
 

@@ -17,10 +17,10 @@ type AffectedArtifact struct {
 	ArtifactType string `json:"artifact_type"`
 	Name         string `json:"name,omitempty"`
 	Track        string `json:"track,omitempty"`
-	Relationship string `json:"relationship"`    // how it connects to the changed artifact
-	Direction    string `json:"direction"`        // "downstream" or "upstream"
-	StaleDays    int    `json:"stale_days"`       // days since this artifact was updated after the change
-	UpdatedAt    string `json:"updated_at"`       // ISO timestamp of last update
+	Relationship string `json:"relationship"` // how it connects to the changed artifact
+	Direction    string `json:"direction"`    // "downstream" or "upstream"
+	StaleDays    int    `json:"stale_days"`   // days since this artifact was updated after the change
+	UpdatedAt    string `json:"updated_at"`   // ISO timestamp of last update
 }
 
 // OrphanedPath describes a value model path with no contributing features.
@@ -38,14 +38,14 @@ type UntestedAssumption struct {
 
 // StructuralRippleReport is the result of structural ripple analysis.
 type StructuralRippleReport struct {
-	ChangedKey           string              `json:"changed_key"`
-	ChangedType          string              `json:"changed_type"`
-	AffectedArtifacts    []AffectedArtifact  `json:"affected_artifacts"`
-	OrphanedPaths        []OrphanedPath      `json:"orphaned_paths"`
-	UntestedAssumptions  []UntestedAssumption `json:"untested_assumptions"`
-	CriticalCount        int                 `json:"critical_count"`
-	WarningCount         int                 `json:"warning_count"`
-	InfoCount            int                 `json:"info_count"`
+	ChangedKey          string               `json:"changed_key"`
+	ChangedType         string               `json:"changed_type"`
+	AffectedArtifacts   []AffectedArtifact   `json:"affected_artifacts"`
+	OrphanedPaths       []OrphanedPath       `json:"orphaned_paths"`
+	UntestedAssumptions []UntestedAssumption `json:"untested_assumptions"`
+	CriticalCount       int                  `json:"critical_count"`
+	WarningCount        int                  `json:"warning_count"`
+	InfoCount           int                  `json:"info_count"`
 }
 
 // AnalyzeStructuralRipple walks the relationship graph from a changed artifact

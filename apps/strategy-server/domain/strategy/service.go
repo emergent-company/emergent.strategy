@@ -389,6 +389,72 @@ func (s *Service) CommitBatch(ctx context.Context, batchID uuid.UUID) (int, erro
 	return int(n), nil
 }
 
+// CommitAutoParams is the input for creating an autonomous (convergence loop) commit.
+type CommitAutoParams struct {
+	InstanceID   uuid.UUID
+	ArtifactType string
+	ArtifactKey  string
+	Action       string
+	Payload      any
+	SignalID     *uuid.UUID // the signal that triggered this auto-commit
+}
+
+// CommitAuto creates a committed mutation directly without staging, for use by
+// the convergence loop. The mutation is tagged with source='ripple_auto' and
+// includes the originating signal ID in batch_metadata. It derives the strategic
+// index immediately.
+func (s *Service) CommitAuto(ctx context.Context, p CommitAutoParams) (*domain.StrategyMutation, error) {
+	raw, err := json.Marshal(p.Payload)
+	if err != nil {
+		return nil, fmt.Errorf("marshal auto-commit payload: %w", err)
+	}
+
+	var metadata json.RawMessage
+	if p.SignalID != nil {
+		metadata, _ = json.Marshal(map[string]any{
+			"authority_tier": "autonomous",
+			"signal_id":      p.SignalID.String(),
+		})
+	}
+
+	m := &domain.StrategyMutation{
+		ID:            uuid.New(),
+		InstanceID:    p.InstanceID,
+		ArtifactType:  p.ArtifactType,
+		ArtifactKey:   p.ArtifactKey,
+		Action:        p.Action,
+		Payload:       raw,
+		Status:        domain.MutationStatusCommitted,
+		Source:        "ripple_auto",
+		BatchMetadata: metadata,
+		CreatedAt:     time.Now().UTC(),
+	}
+
+	if _, err := s.db.NewInsert().Model(m).Exec(ctx); err != nil {
+		return nil, fmt.Errorf("auto-commit mutation: %w", err)
+	}
+
+	// Derive the strategic index for the auto-committed mutation.
+	if err := s.deriveIndex(ctx, m); err != nil {
+		slog.WarnContext(ctx, "auto-commit: derive index failed",
+			"artifact_key", p.ArtifactKey, "err", err)
+	}
+
+	audit.FromContext(ctx).Write(ctx, audit.Entry{
+		EntityType: "strategy_mutation",
+		EntityID:   m.ID,
+		Action:     "commit_auto",
+		Source:     "ripple_auto",
+		Details: map[string]any{
+			"artifact_key":  p.ArtifactKey,
+			"artifact_type": p.ArtifactType,
+			"signal_id":     p.SignalID,
+		},
+	})
+
+	return m, nil
+}
+
 // InstanceIDForBatch returns the instance_id for a batch by reading the first
 // mutation in that batch. Returns uuid.Nil if not found.
 func (s *Service) InstanceIDForBatch(ctx context.Context, batchID uuid.UUID) uuid.UUID {

@@ -90,27 +90,27 @@ func TestTruncateForSearch(t *testing.T) {
 
 func TestClassifyChangeResult_FromRatio(t *testing.T) {
 	tests := []struct {
-		name     string
-		old      string
-		new      string
-		wantMin  SemanticChangeClass
+		name    string
+		old     string
+		new     string
+		wantMin SemanticChangeClass
 	}{
 		{
-			name: "identical",
-			old:  "enterprise data governance platform",
-			new:  "enterprise data governance platform",
+			name:    "identical",
+			old:     "enterprise data governance platform",
+			new:     "enterprise data governance platform",
 			wantMin: ChangeClassTrivial,
 		},
 		{
-			name: "typo fix",
-			old:  "enterprise data governace platform for regulated industries with compliance requirements",
-			new:  "enterprise data governance platform for regulated industries with compliance requirements",
+			name:    "typo fix",
+			old:     "enterprise data governace platform for regulated industries with compliance requirements",
+			new:     "enterprise data governance platform for regulated industries with compliance requirements",
 			wantMin: ChangeClassTrivial,
 		},
 		{
-			name: "major pivot",
-			old:  "democratize data analytics for everyone regardless of technical expertise",
-			new:  "enterprise compliance and regulatory governance for financial institutions",
+			name:    "major pivot",
+			old:     "democratize data analytics for everyone regardless of technical expertise",
+			new:     "enterprise compliance and regulatory governance for financial institutions",
 			wantMin: ChangeClassSignificant,
 		},
 	}

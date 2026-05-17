@@ -33,6 +33,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/auth"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/llm"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/mcpserver"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/skillrunner"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/web"
@@ -97,6 +98,22 @@ func runServer(cfg *config.Config) error {
 	strategySvc := strategy.NewService(db)
 	rippleSvc := rippledom.NewService(db)
 
+	// LLM provider — enables server-orchestrated convergence loop resolution.
+	var llmClient *llm.Client
+	if cfg.LLMConfigured() {
+		llmClient = llm.New(llm.Config{
+			BaseURL: cfg.LLMProviderURL,
+			APIKey:  cfg.LLMAPIKey,
+			Model:   cfg.LLMModel,
+		})
+		if llmClient != nil {
+			log.Info("llm provider enabled for convergence resolution",
+				"url", cfg.LLMProviderURL, "model", cfg.LLMModel)
+		}
+	} else {
+		log.Info("llm provider not configured — convergence runs in agent-orchestrated mode (detection only)")
+	}
+
 	// GitHub sync — only available when GitHub App is configured.
 	var syncSvc *syncdom.Service
 	if cfg.GithubAppConfigured() {
@@ -126,6 +143,7 @@ func runServer(cfg *config.Config) error {
 		Version:   versionSvc,
 		Sync:      syncSvc,
 		Ripple:    rippleSvc,
+		Resolver:  rippledom.NewLLMResolver(llmClient, db),
 		Ingest:    ingestSvc,
 	}
 

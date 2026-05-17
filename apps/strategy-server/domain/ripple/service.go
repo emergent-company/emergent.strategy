@@ -4,7 +4,11 @@ package ripple
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -52,12 +56,41 @@ func (s *Service) CreateSignal(ctx context.Context, sig *domain.RippleSignal) er
 	return nil
 }
 
-// CreateSignals inserts multiple signals in a single statement.
+// CreateSignals inserts multiple signals, skipping any that duplicate an
+// existing active/acknowledged signal with the same (instance_id, source_key,
+// target_key, signal_type). This prevents signal accumulation across
+// convergence loop iterations.
 func (s *Service) CreateSignals(ctx context.Context, sigs []*domain.RippleSignal) error {
 	if len(sigs) == 0 {
 		return nil
 	}
+
+	// Load existing active/acknowledged signal keys for dedup.
+	instanceID := sigs[0].InstanceID
+	var existing []*domain.RippleSignal
+	err := s.db.NewSelect().Model(&existing).
+		Column("source_key", "target_key", "signal_type").
+		Where("rs.instance_id = ?", instanceID).
+		Where("rs.status IN (?, ?)", domain.SignalStatusActive, domain.SignalStatusAcknowledged).
+		Scan(ctx)
+	if err != nil {
+		// If dedup check fails, fall through to insert all (better to duplicate
+		// than to silently drop signals).
+		slog.WarnContext(ctx, "ripple: dedup check failed, inserting all signals", "error", err)
+	}
+
+	existingKeys := make(map[string]bool, len(existing))
+	for _, e := range existing {
+		key := e.SourceKey + "|" + e.TargetKey + "|" + e.SignalType
+		existingKeys[key] = true
+	}
+
+	var toInsert []*domain.RippleSignal
 	for _, sig := range sigs {
+		key := sig.SourceKey + "|" + sig.TargetKey + "|" + sig.SignalType
+		if existingKeys[key] {
+			continue // skip duplicate
+		}
 		if sig.ID == uuid.Nil {
 			sig.ID = uuid.New()
 		}
@@ -67,8 +100,15 @@ func (s *Service) CreateSignals(ctx context.Context, sigs []*domain.RippleSignal
 		if sig.CreatedAt.IsZero() {
 			sig.CreatedAt = time.Now()
 		}
+		toInsert = append(toInsert, sig)
+		existingKeys[key] = true // prevent intra-batch duplicates too
 	}
-	_, err := s.db.NewInsert().Model(&sigs).Exec(ctx)
+
+	if len(toInsert) == 0 {
+		return nil
+	}
+
+	_, err = s.db.NewInsert().Model(&toInsert).Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("create ripple signals: %w", err)
 	}
@@ -254,4 +294,94 @@ func (s *Service) TopCritical(ctx context.Context, instanceID uuid.UUID, limit i
 		return nil, fmt.Errorf("top critical signals: %w", err)
 	}
 	return sigs, nil
+}
+
+// ---------------------------------------------------------------------------
+// Config
+// ---------------------------------------------------------------------------
+
+// GetConfig returns the ripple configuration for an instance, or defaults.
+func (s *Service) GetConfig(ctx context.Context, instanceID uuid.UUID) (RippleConfig, error) {
+	var row domain.RippleConfigRow
+	err := s.db.NewSelect().Model(&row).
+		Where("rc.instance_id = ?", instanceID).
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return DefaultRippleConfig(), nil
+		}
+		return DefaultRippleConfig(), fmt.Errorf("get ripple config: %w", err)
+	}
+
+	var cfg RippleConfig
+	if unmarshalErr := json.Unmarshal(row.Config, &cfg); unmarshalErr != nil {
+		slog.WarnContext(ctx, "ripple: invalid config JSON, using defaults", "error", unmarshalErr)
+		return DefaultRippleConfig(), nil //nolint:nilerr // intentional: corrupt config falls back to defaults
+	}
+	return cfg, nil
+}
+
+// UpdateConfig persists a (potentially partial) ripple configuration for an instance.
+func (s *Service) UpdateConfig(ctx context.Context, instanceID uuid.UUID, cfg RippleConfig) error {
+	data, err := json.Marshal(cfg)
+	if err != nil {
+		return fmt.Errorf("marshal ripple config: %w", err)
+	}
+
+	row := domain.RippleConfigRow{
+		ID:         uuid.New(),
+		InstanceID: instanceID,
+		Config:     data,
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	}
+
+	_, err = s.db.NewInsert().Model(&row).
+		On("CONFLICT (instance_id) DO UPDATE").
+		Set("config = EXCLUDED.config").
+		Set("updated_at = EXCLUDED.updated_at").
+		Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("upsert ripple config: %w", err)
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Convergence History
+// ---------------------------------------------------------------------------
+
+// SaveConvergenceRun persists a convergence run record.
+func (s *Service) SaveConvergenceRun(ctx context.Context, run *domain.ConvergenceRun) error {
+	if run.ID == uuid.Nil {
+		run.ID = uuid.New()
+	}
+	if run.CreatedAt.IsZero() {
+		run.CreatedAt = time.Now()
+	}
+	_, err := s.db.NewInsert().Model(run).Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("save convergence run: %w", err)
+	}
+	return nil
+}
+
+// ListConvergenceRuns returns recent convergence runs for an instance.
+func (s *Service) ListConvergenceRuns(ctx context.Context, instanceID uuid.UUID, dampingReason string, limit int) ([]*domain.ConvergenceRun, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	var runs []*domain.ConvergenceRun
+	q := s.db.NewSelect().Model(&runs).
+		Where("cr.instance_id = ?", instanceID).
+		Order("cr.created_at DESC").
+		Limit(limit)
+	if dampingReason != "" {
+		q = q.Where("cr.damping_reason = ?", dampingReason)
+	}
+	err := q.Scan(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list convergence runs: %w", err)
+	}
+	return runs, nil
 }
