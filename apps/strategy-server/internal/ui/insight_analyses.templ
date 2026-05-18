@@ -1,0 +1,534 @@
+package ui
+
+import (
+	"strconv"
+)
+
+// InsightAnalysesData holds all data for the bespoke Insight Analyses view.
+type InsightAnalysesData struct {
+	NavContext
+	ArtifactKey  string
+	Name         string
+	Status       string
+	LastUpdated  string
+	Confidence   string
+
+	// Trends by category
+	Trends map[string][]InsightTrend
+
+	// Personas
+	Personas []InsightPersona
+
+	// SWOT
+	Strengths     []InsightStrength
+	Weaknesses    []InsightWeakness
+	Opportunities []InsightOpportunity
+	Threats       []InsightThreat
+
+	// Competitive landscape
+	DirectCompetitors   []InsightCompetitor
+	StrategyTools       []InsightCompetitor
+	IndirectCompetitors []InsightIndirect
+
+	// Key insights
+	KeyInsights []InsightKey
+
+	// White spaces
+	WhiteSpaces []InsightWhiteSpace
+
+	// Market
+	MarketDefinition InsightMarket
+	MarketSegments   []InsightSegment
+
+	// Synthesis
+	OpportunityConvergence []InsightConvergence
+	StrategicTensions      []InsightTension
+}
+
+type InsightTrend struct {
+	Trend, Impact, Timeframe string
+	Evidence                 []string
+}
+type InsightPersona struct {
+	Name, Description, Context, Frequency string
+	Goals                                 []string
+	Problems                              []InsightProblem
+}
+type InsightProblem struct {
+	Problem, Severity, Frequency string
+}
+type InsightStrength struct {
+	Strength, StrategicValue string
+	Evidence                 []string
+}
+type InsightWeakness struct {
+	Weakness, Impact, Mitigation string
+}
+type InsightOpportunity struct {
+	Opportunity, Priority, HowToExploit string
+}
+type InsightThreat struct {
+	Threat, Likelihood, Mitigation string
+}
+type InsightCompetitor struct {
+	Name, Positioning string
+	Strengths         []string
+	Weaknesses        []string
+}
+type InsightIndirect struct {
+	Name, ThreatLevel, HowTheySolve string
+}
+type InsightKey struct {
+	Insight, StrategicImplication string
+	SupportingTrends             []string
+}
+type InsightWhiteSpace struct {
+	Gap, OpportunityPotential string
+	Evidence                  []string
+}
+type InsightMarket struct {
+	TAM, SAM, SOM, GrowthRate, MarketStage string
+}
+type InsightSegment struct {
+	Segment, Size    string
+	Characteristics  []string
+	UnmetNeeds       []string
+}
+type InsightConvergence struct {
+	Opportunity, Strength string
+	SupportingAnalyses    []string
+}
+type InsightTension struct {
+	Tension, Tradeoff string
+}
+
+templ InsightAnalysesContent(data InsightAnalysesData) {
+	@TabBackLink(data.TabGroup, data.InstanceID, data.CurrentPath)
+	<div class="space-y-8">
+		// ── Hero ──
+		<div class="relative overflow-hidden rounded-xl bg-gradient-to-br from-info/10 via-base-100 to-primary/10 border border-info/10">
+			<div class="px-6 py-8 sm:px-8">
+				<div class="flex items-start justify-between">
+					<div class="space-y-2">
+						<div class="flex items-center gap-2">
+							<span class="iconify lucide--search size-5 text-info"></span>
+							<span class="text-xs font-semibold uppercase tracking-widest text-info">Insight Analyses</span>
+							if data.Confidence != "" {
+								<span class={ "badge badge-sm", confidenceBadgeClass(data.Confidence) }>{ data.Confidence }</span>
+							}
+						</div>
+						<h1 class="text-2xl font-bold text-base-content sm:text-3xl">{ data.Name }</h1>
+					</div>
+					if data.LastUpdated != "" {
+				<div class="hidden sm:block text-right text-xs text-base-content/60">
+					<p>Updated { data.LastUpdated }</p>
+				</div>
+					}
+				</div>
+			</div>
+		</div>
+
+		// ── Market Overview ──
+		if data.MarketDefinition.TAM != "" || data.MarketDefinition.MarketStage != "" {
+			<section>
+				@sectionHeading("Market", "lucide--globe", "info", marketSubtitle(data.MarketDefinition))
+				<div class="mt-4 grid gap-3 md:grid-cols-4">
+					if data.MarketDefinition.TAM != "" {
+						@marketStatCard("TAM", data.MarketDefinition.TAM)
+					}
+					if data.MarketDefinition.SAM != "" {
+						@marketStatCard("SAM", data.MarketDefinition.SAM)
+					}
+					if data.MarketDefinition.SOM != "" {
+						@marketStatCard("SOM", data.MarketDefinition.SOM)
+					}
+					if data.MarketDefinition.GrowthRate != "" {
+						@marketStatCard("Growth", data.MarketDefinition.GrowthRate)
+					}
+				</div>
+				if len(data.MarketSegments) > 0 {
+					<div class="mt-4 space-y-2">
+						for _, seg := range data.MarketSegments {
+							@segmentRow(seg)
+						}
+					</div>
+				}
+			</section>
+		}
+
+		// ── Trends ──
+		if len(data.Trends) > 0 {
+			<section>
+				@sectionHeading("Trends", "lucide--trending-up", "accent", trendSubtitle(data.Trends))
+				<div class="mt-4 space-y-3">
+					for _, cat := range trendCategoryOrder() {
+						if trends, ok := data.Trends[cat]; ok && len(trends) > 0 {
+							@trendCategoryAccordion(cat, trends)
+						}
+					}
+				</div>
+			</section>
+		}
+
+		// ── Personas ──
+		if len(data.Personas) > 0 {
+			<section>
+				@sectionHeading("Target Users", "lucide--users", "primary", strconv.Itoa(len(data.Personas)) + " personas identified")
+				<div class="mt-4 space-y-4">
+					for _, p := range data.Personas {
+						@personaCard(p)
+					}
+				</div>
+			</section>
+		}
+
+		// ── Key Insights ──
+		if len(data.KeyInsights) > 0 {
+			<section>
+				@sectionHeading("Key Insights", "lucide--lightbulb", "warning", "")
+				<div class="mt-4 space-y-3">
+					for _, ins := range data.KeyInsights {
+						@keyInsightCard(ins)
+					}
+				</div>
+			</section>
+		}
+
+		// ── Competitive Landscape ──
+		if len(data.DirectCompetitors) > 0 || len(data.StrategyTools) > 0 {
+			<section>
+				@sectionHeading("Competitive Landscape", "lucide--swords", "error", "")
+				<div class="mt-4 space-y-4">
+					if len(data.DirectCompetitors) > 0 {
+						<div>
+							<h4 class="text-sm font-semibold text-base-content/70 mb-2">Direct Competitors</h4>
+							<div class="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+								for _, c := range data.DirectCompetitors {
+									@insightCompetitorCard(c)
+								}
+							</div>
+						</div>
+					}
+					if len(data.StrategyTools) > 0 {
+						<div>
+							<h4 class="text-sm font-semibold text-base-content/70 mb-2">Strategy Tools</h4>
+							<div class="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+								for _, c := range data.StrategyTools {
+									@insightCompetitorCard(c)
+								}
+							</div>
+						</div>
+					}
+					if len(data.IndirectCompetitors) > 0 {
+						<div>
+							<h4 class="text-sm font-semibold text-base-content/70 mb-2">Indirect Competitors</h4>
+							<div class="space-y-2">
+								for _, c := range data.IndirectCompetitors {
+									<div class="rounded-lg bg-base-200/40 px-4 py-3 flex items-start justify-between gap-4">
+										<div>
+											<p class="text-sm font-medium text-base-content">{ c.Name }</p>
+											if c.HowTheySolve != "" {
+												<p class="text-xs text-base-content/60 mt-0.5">{ c.HowTheySolve }</p>
+											}
+										</div>
+										if c.ThreatLevel != "" {
+											<span class={ "badge badge-xs shrink-0", likelihoodBadge(c.ThreatLevel) }>{ c.ThreatLevel }</span>
+										}
+									</div>
+								}
+							</div>
+						</div>
+					}
+				</div>
+			</section>
+		}
+
+		// ── SWOT ──
+		if len(data.Strengths) > 0 || len(data.Weaknesses) > 0 || len(data.Opportunities) > 0 || len(data.Threats) > 0 {
+			<section>
+				@sectionHeading("SWOT Analysis", "lucide--grid-2x2", "secondary", "")
+				<div class="mt-4 grid gap-4 md:grid-cols-2">
+					if len(data.Strengths) > 0 {
+						@swotQuadrant("Strengths", "lucide--check-circle-2", "success", len(data.Strengths)) {
+							for _, s := range data.Strengths {
+								<div class="rounded-lg bg-success/5 px-3 py-2">
+									<p class="text-sm font-medium text-base-content">{ s.Strength }</p>
+									if s.StrategicValue != "" {
+										<p class="text-xs text-base-content/60 mt-0.5">{ s.StrategicValue }</p>
+									}
+								</div>
+							}
+						}
+					}
+					if len(data.Weaknesses) > 0 {
+						@swotQuadrant("Weaknesses", "lucide--alert-circle", "warning", len(data.Weaknesses)) {
+							for _, w := range data.Weaknesses {
+								<div class="rounded-lg bg-warning/5 px-3 py-2">
+									<p class="text-sm font-medium text-base-content">{ w.Weakness }</p>
+									if w.Mitigation != "" {
+										<p class="text-xs text-base-content/60 mt-0.5">{ w.Mitigation }</p>
+									}
+								</div>
+							}
+						}
+					}
+					if len(data.Opportunities) > 0 {
+						@swotQuadrant("Opportunities", "lucide--sparkles", "info", len(data.Opportunities)) {
+							for _, o := range data.Opportunities {
+								<div class="rounded-lg bg-info/5 px-3 py-2 flex items-start justify-between gap-2">
+									<div>
+										<p class="text-sm font-medium text-base-content">{ o.Opportunity }</p>
+										if o.HowToExploit != "" {
+											<p class="text-xs text-base-content/60 mt-0.5">{ o.HowToExploit }</p>
+										}
+									</div>
+									if o.Priority != "" {
+										<span class={ "badge badge-xs shrink-0", priorityBadge(o.Priority) }>{ o.Priority }</span>
+									}
+								</div>
+							}
+						}
+					}
+					if len(data.Threats) > 0 {
+						@swotQuadrant("Threats", "lucide--shield-alert", "error", len(data.Threats)) {
+							for _, t := range data.Threats {
+								<div class="rounded-lg bg-error/5 px-3 py-2 flex items-start justify-between gap-2">
+									<div>
+										<p class="text-sm font-medium text-base-content">{ t.Threat }</p>
+										if t.Mitigation != "" {
+											<p class="text-xs text-base-content/60 mt-0.5">{ t.Mitigation }</p>
+										}
+									</div>
+									if t.Likelihood != "" {
+										<span class={ "badge badge-xs shrink-0", likelihoodBadge(t.Likelihood) }>{ t.Likelihood }</span>
+									}
+								</div>
+							}
+						}
+					}
+				</div>
+			</section>
+		}
+
+		// ── White Spaces ──
+		if len(data.WhiteSpaces) > 0 {
+			<section>
+				@sectionHeading("White Spaces", "lucide--map-pin", "accent", "Gaps in the market")
+				<div class="mt-4 grid gap-3 md:grid-cols-2">
+					for _, ws := range data.WhiteSpaces {
+						<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+							<div class="card-body p-4">
+								<p class="text-sm font-medium text-base-content">{ ws.Gap }</p>
+								if ws.OpportunityPotential != "" {
+									<span class={ "badge badge-xs mt-2", priorityBadge(ws.OpportunityPotential) }>{ ws.OpportunityPotential }</span>
+								}
+								if len(ws.Evidence) > 0 {
+									<div class="flex flex-wrap gap-1 mt-2">
+										for _, e := range ws.Evidence {
+											<span class="badge badge-xs badge-ghost">{ e }</span>
+										}
+									</div>
+								}
+							</div>
+						</div>
+					}
+				</div>
+			</section>
+		}
+
+		// ── Opportunity Convergence ──
+		if len(data.OpportunityConvergence) > 0 {
+			<section>
+				@sectionHeading("Opportunity Convergence", "lucide--merge", "primary", "Where multiple signals align")
+				<div class="mt-4 space-y-3">
+					for _, oc := range data.OpportunityConvergence {
+						<div class="card bg-base-100 border border-primary/10 shadow-sm">
+							<div class="card-body p-4">
+								<p class="text-sm font-semibold text-base-content">{ oc.Opportunity }</p>
+								if oc.Strength != "" {
+									<p class="text-xs text-primary/70 mt-1">{ oc.Strength }</p>
+								}
+								if len(oc.SupportingAnalyses) > 0 {
+									<div class="flex flex-wrap gap-1 mt-2">
+										for _, sa := range oc.SupportingAnalyses {
+											<span class="badge badge-xs badge-outline badge-primary">{ sa }</span>
+										}
+									</div>
+								}
+							</div>
+						</div>
+					}
+				</div>
+			</section>
+		}
+	</div>
+}
+
+// ── Sub-components ──
+
+templ trendCategoryAccordion(category string, trends []InsightTrend) {
+	<details class="group rounded-xl border border-base-content/10 bg-base-100 shadow-sm" open?={ category == "technology" }>
+		<summary class="flex cursor-pointer items-center gap-3 px-5 py-3.5 text-sm font-semibold text-base-content select-none">
+			<span class={ "iconify size-4 text-base-content/50", trendCategoryIcon(category) }></span>
+			<span class="grow">{ formatTrendCategory(category) }</span>
+			<span class="badge badge-sm badge-ghost">{ strconv.Itoa(len(trends)) }</span>
+			<span class="iconify lucide--chevron-right size-4 text-base-content/50 transition-transform group-open:rotate-90"></span>
+		</summary>
+		<div class="border-t border-base-content/5 px-5 pb-4 pt-3 space-y-3">
+			for _, t := range trends {
+				<div class="rounded-lg bg-base-200/40 px-4 py-3">
+					<div class="flex items-start justify-between gap-2">
+						<p class="text-sm text-base-content">{ t.Trend }</p>
+						if t.Timeframe != "" {
+							<span class="badge badge-xs badge-ghost shrink-0">{ t.Timeframe }</span>
+						}
+					</div>
+				if t.Impact != "" {
+					<p class="text-xs text-base-content/70 mt-1">{ t.Impact }</p>
+					}
+				</div>
+			}
+		</div>
+	</details>
+}
+
+templ personaCard(p InsightPersona) {
+	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card-body p-5">
+			<div class="flex items-center gap-3 mb-3">
+				<div class="rounded-full bg-primary/10 p-2">
+					<span class="iconify lucide--user size-5 text-primary"></span>
+				</div>
+				<div>
+					<h4 class="text-sm font-bold text-base-content">{ p.Name }</h4>
+				if p.Description != "" {
+					<p class="text-xs text-base-content/70">{ p.Description }</p>
+					}
+				</div>
+			</div>
+			if len(p.Goals) > 0 {
+				<div class="mb-3">
+					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60 mb-1">Goals</p>
+					<div class="flex flex-wrap gap-1">
+						for _, g := range p.Goals {
+							<span class="badge badge-sm badge-ghost">{ g }</span>
+						}
+					</div>
+				</div>
+			}
+			if len(p.Problems) > 0 {
+				<div>
+					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60 mb-1">Pain Points</p>
+					<div class="space-y-1.5">
+						for _, prob := range p.Problems {
+							<div class="flex items-start gap-2">
+								<span class={ "size-2 rounded-full mt-1.5 shrink-0", severityDot(prob.Severity) }></span>
+								<span class="text-xs text-base-content/80">{ prob.Problem }</span>
+							</div>
+						}
+					</div>
+				</div>
+			}
+		</div>
+	</div>
+}
+
+templ keyInsightCard(ins InsightKey) {
+	<div class="card bg-base-100 border border-warning/10 shadow-sm">
+		<div class="card-body p-4">
+			<div class="flex items-start gap-3">
+				<span class="iconify lucide--lightbulb size-4 text-warning mt-0.5 shrink-0"></span>
+				<div>
+					<p class="text-sm font-medium text-base-content">{ ins.Insight }</p>
+			if ins.StrategicImplication != "" {
+					<p class="text-xs text-base-content/70 mt-1">{ ins.StrategicImplication }</p>
+					}
+					if len(ins.SupportingTrends) > 0 {
+						<div class="flex flex-wrap gap-1 mt-2">
+							for _, t := range ins.SupportingTrends {
+								<span class="badge badge-xs badge-ghost">{ t }</span>
+							}
+						</div>
+					}
+				</div>
+			</div>
+		</div>
+	</div>
+}
+
+templ insightCompetitorCard(c InsightCompetitor) {
+	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card-body p-4">
+			<h5 class="text-sm font-bold text-base-content">{ c.Name }</h5>
+		if c.Positioning != "" {
+			<p class="text-xs text-base-content/70 mt-1">{ c.Positioning }</p>
+			}
+			if len(c.Strengths) > 0 || len(c.Weaknesses) > 0 {
+				<div class="grid grid-cols-2 gap-2 mt-2">
+					if len(c.Strengths) > 0 {
+						<div>
+					<p class="text-xs font-medium text-success mb-0.5">Strengths</p>
+					<ul class="space-y-0.5">
+						for _, s := range c.Strengths {
+							<li class="text-xs text-base-content/70">{ s }</li>
+						}
+					</ul>
+				</div>
+			}
+			if len(c.Weaknesses) > 0 {
+				<div>
+					<p class="text-xs font-medium text-error mb-0.5">Weaknesses</p>
+					<ul class="space-y-0.5">
+						for _, w := range c.Weaknesses {
+							<li class="text-xs text-base-content/70">{ w }</li>
+								}
+							</ul>
+						</div>
+					}
+				</div>
+			}
+		</div>
+	</div>
+}
+
+templ swotQuadrant(title, icon, color string, count int) {
+	<div class={ "card border shadow-sm", borderColor(color) }>
+		<div class="card-body p-4">
+			<div class="flex items-center gap-2 mb-3">
+				<span class={ "iconify size-4", icon, textColor(color) }></span>
+				<h4 class="text-sm font-semibold text-base-content">{ title }</h4>
+				<span class="badge badge-xs badge-ghost">{ strconv.Itoa(count) }</span>
+			</div>
+			<div class="space-y-2">
+				{ children... }
+			</div>
+		</div>
+	</div>
+}
+
+templ marketStatCard(label, value string) {
+	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card-body p-3 text-center">
+			<p class="text-lg font-bold text-base-content">{ value }</p>
+			<p class="text-xs text-base-content/50">{ label }</p>
+		</div>
+	</div>
+}
+
+templ segmentRow(seg InsightSegment) {
+	<div class="rounded-lg bg-base-200/40 px-4 py-3">
+		<div class="flex items-start justify-between gap-2">
+			<p class="text-sm font-medium text-base-content">{ seg.Segment }</p>
+			if seg.Size != "" {
+				<span class="badge badge-xs badge-ghost shrink-0">{ seg.Size }</span>
+			}
+		</div>
+		if len(seg.UnmetNeeds) > 0 {
+			<div class="flex flex-wrap gap-1 mt-1.5">
+				for _, n := range seg.UnmetNeeds {
+					<span class="badge badge-xs badge-outline badge-info">{ n }</span>
+				}
+			</div>
+		}
+	</div>
+}

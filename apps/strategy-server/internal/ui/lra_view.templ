@@ -1,0 +1,365 @@
+package ui
+
+import (
+	"strconv"
+)
+
+// LRAViewData holds all data for the bespoke Living Reality Assessment view.
+type LRAViewData struct {
+	NavContext
+	ArtifactKey    string
+	Name           string
+	Status         string
+	LifecycleStage string
+	AdoptionLevel  int
+	CyclesCompleted int
+	CreatedAt      string
+	LastUpdated    string
+
+	// Adoption context
+	TeamSize           string
+	FundingStage       string
+	OrgType            string
+	PrimaryBottleneck  string
+	AICapability       string
+
+	// Current focus
+	PrimaryTrack        string
+	SecondaryTrack      string
+	CycleRef            string
+	PrimaryObjective    string
+	SuccessSignals      []string
+	AttentionAllocation map[string]int // track → percentage
+
+	// Track baselines
+	TrackBaselines []LRATrackBaseline
+
+	// Constraints
+	HardConstraints []LRAConstraint
+
+	// Evolution
+	Evolution []LRAEvolution
+}
+
+// LRATrackBaseline holds baseline data for a single track.
+type LRATrackBaseline struct {
+	Track       string
+	Maturity    string
+	Status      string
+	Description string
+	Strengths   []string
+	PainPoints  []string
+}
+
+// LRAConstraint holds a hard constraint with its impact and flexibility.
+type LRAConstraint struct {
+	Constraint  string
+	Impact      string
+	Flexibility string
+}
+
+// LRAEvolution holds a single evolution log entry.
+type LRAEvolution struct {
+	Timestamp string
+	Trigger   string
+	Summary   string
+}
+
+// LRAContent renders the bespoke Living Reality Assessment view.
+templ LRAContent(data LRAViewData) {
+	@TabBackLink(data.TabGroup, data.InstanceID, data.CurrentPath)
+	<div class="space-y-8">
+		// ── Hero ──
+		@lraHero(data)
+
+		// ── Org Context ──
+		if data.TeamSize != "" || data.FundingStage != "" || data.OrgType != "" {
+			@lraOrgContextSection(data)
+		}
+
+		// ── Current Focus ──
+		if data.PrimaryTrack != "" || data.PrimaryObjective != "" {
+			@lraCurrentFocusSection(data)
+		}
+
+		// ── Track Baselines ──
+		if len(data.TrackBaselines) > 0 {
+			@lraTrackBaselinesSection(data.TrackBaselines)
+		}
+
+		// ── Constraints ──
+		if len(data.HardConstraints) > 0 {
+			@lraConstraintsSection(data.HardConstraints)
+		}
+
+		// ── Evolution ──
+		if len(data.Evolution) > 0 {
+			@lraEvolutionSection(data.Evolution)
+		}
+	</div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Hero
+// ──────────────────────────────────────────────────────────────────────
+
+templ lraHero(data LRAViewData) {
+	<div class="relative overflow-hidden rounded-xl bg-gradient-to-br from-info/10 via-base-100 to-accent/10 border border-info/10">
+		<div class="px-6 py-8 sm:px-8">
+			<div class="flex items-start justify-between">
+				<div class="space-y-2">
+					<div class="flex items-center gap-2">
+						<span class="iconify lucide--activity size-5 text-info"></span>
+						<span class="text-xs font-semibold uppercase tracking-widest text-info">Living Reality Assessment</span>
+						if data.LifecycleStage != "" {
+							<span class={ "badge badge-sm", lifecycleStageBadge(data.LifecycleStage) }>{ data.LifecycleStage }</span>
+						}
+						if data.AdoptionLevel > 0 {
+							<span class="badge badge-sm badge-info">Level { strconv.Itoa(data.AdoptionLevel) }</span>
+						}
+					</div>
+					<h1 class="text-2xl font-bold text-base-content sm:text-3xl">{ data.Name }</h1>
+				</div>
+				<div class="hidden sm:block text-right text-xs text-base-content/60 space-y-0.5">
+					if data.CyclesCompleted > 0 {
+						<p>{ strconv.Itoa(data.CyclesCompleted) } cycles completed</p>
+					}
+					if data.LastUpdated != "" {
+						<p>Updated { data.LastUpdated }</p>
+					}
+				</div>
+			</div>
+		</div>
+	</div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Org Context
+// ──────────────────────────────────────────────────────────────────────
+
+templ lraOrgContextSection(data LRAViewData) {
+	<section>
+		@sectionHeading("Organisation Context", "lucide--building-2", "info", "Current organisational reality")
+		<div class="mt-4 grid gap-3 md:grid-cols-3 lg:grid-cols-5">
+			if data.TeamSize != "" {
+				@lraStatCard("Team Size", data.TeamSize, "lucide--users")
+			}
+			if data.FundingStage != "" {
+				@lraStatCard("Funding", data.FundingStage, "lucide--wallet")
+			}
+			if data.OrgType != "" {
+				@lraStatCard("Org Type", data.OrgType, "lucide--building")
+			}
+			if data.PrimaryBottleneck != "" {
+				@lraStatCard("Bottleneck", data.PrimaryBottleneck, "lucide--alert-triangle")
+			}
+			if data.AICapability != "" {
+				@lraStatCard("AI Capability", data.AICapability, "lucide--brain")
+			}
+		</div>
+	</section>
+}
+
+templ lraStatCard(label, value, icon string) {
+	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card-body p-3 text-center">
+			<div class="flex items-center justify-center gap-1.5 mb-1">
+			<span class={ "iconify size-3.5 text-base-content/60", icon }></span>
+			<p class="text-xs text-base-content/70">{ label }</p>
+			</div>
+			<p class="text-sm font-bold text-base-content">{ value }</p>
+		</div>
+	</div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Current Focus
+// ──────────────────────────────────────────────────────────────────────
+
+templ lraCurrentFocusSection(data LRAViewData) {
+	<section>
+		@sectionHeading("Current Focus", "lucide--crosshair", "accent", lraFocusSubtitle(data.CycleRef))
+		<div class="mt-4 space-y-4">
+			// Track badges
+			<div class="flex items-center gap-3">
+				if data.PrimaryTrack != "" {
+					<div class="flex items-center gap-2">
+						<span class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Primary</span>
+						<span class={ "badge badge-sm badge-outline", "badge-" + trackColorName(data.PrimaryTrack) }>{ data.PrimaryTrack }</span>
+					</div>
+				}
+				if data.SecondaryTrack != "" {
+					<div class="flex items-center gap-2">
+						<span class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Secondary</span>
+						<span class={ "badge badge-sm badge-outline", "badge-" + trackColorName(data.SecondaryTrack) }>{ data.SecondaryTrack }</span>
+					</div>
+				}
+			</div>
+
+			// Objective
+			if data.PrimaryObjective != "" {
+				<div class="rounded-xl bg-gradient-to-r from-accent/5 to-transparent border border-accent/10 p-5">
+					<blockquote class="text-base text-base-content leading-relaxed italic">
+						{ data.PrimaryObjective }
+					</blockquote>
+				</div>
+			}
+
+			// Attention allocation
+			if len(data.AttentionAllocation) > 0 {
+				<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+					<div class="card-body p-4">
+						<h4 class="text-xs font-semibold uppercase tracking-wide text-base-content/70 mb-3">Attention Allocation</h4>
+						<div class="flex flex-wrap gap-4">
+							for _, track := range sortedIntMapKeys(data.AttentionAllocation) {
+								<div class="text-center">
+									<p class={ "text-lg font-bold", "text-" + trackColorName(track) }>{ strconv.Itoa(data.AttentionAllocation[track]) }%</p>
+									<p class="text-xs text-base-content/70">{ formatKey(track) }</p>
+								</div>
+							}
+						</div>
+					</div>
+				</div>
+			}
+
+			// Success signals
+			if len(data.SuccessSignals) > 0 {
+				<div class="flex flex-wrap gap-2">
+					for _, signal := range data.SuccessSignals {
+						<span class="badge badge-sm badge-outline badge-success">{ signal }</span>
+					}
+				</div>
+			}
+		</div>
+	</section>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Track Baselines
+// ──────────────────────────────────────────────────────────────────────
+
+templ lraTrackBaselinesSection(baselines []LRATrackBaseline) {
+	<section>
+		@sectionHeading("Track Baselines", "lucide--gauge", "secondary", strconv.Itoa(len(baselines))+" tracks assessed")
+		<div class="mt-4 space-y-3">
+			for _, baseline := range baselines {
+				@lraTrackBaselineAccordion(baseline)
+			}
+		</div>
+	</section>
+}
+
+templ lraTrackBaselineAccordion(b LRATrackBaseline) {
+	<details class="group rounded-xl border border-base-content/10 bg-base-100 shadow-sm">
+		<summary class="flex cursor-pointer items-center gap-3 px-5 py-3.5 text-sm font-semibold text-base-content select-none">
+			<span class={ "iconify lucide--layers size-4", "text-" + trackColorName(b.Track) }></span>
+			<span class="grow">{ formatKey(b.Track) }</span>
+			if b.Maturity != "" {
+				<span class={ "badge badge-xs", trackMaturityBadge(b.Maturity) }>{ b.Maturity }</span>
+			}
+			if b.Status != "" {
+				@artifactStatusBadge(b.Status)
+			}
+			<span class="iconify lucide--chevron-right size-4 text-base-content/50 transition-transform group-open:rotate-90"></span>
+		</summary>
+		<div class="border-t border-base-content/5 px-5 pb-4 pt-3 space-y-3">
+			if b.Description != "" {
+				<p class="text-sm text-base-content/70 leading-relaxed">{ b.Description }</p>
+			}
+			<div class="grid gap-4 md:grid-cols-2">
+				if len(b.Strengths) > 0 {
+					<div>
+						<p class="text-xs font-semibold uppercase tracking-wide text-success/70 mb-1.5">Strengths</p>
+					<ul class="space-y-1">
+						for _, s := range b.Strengths {
+							<li class="flex items-start gap-1.5 text-xs text-base-content/70">
+									<span class="iconify lucide--check size-3 text-success mt-0.5 shrink-0"></span>
+									{ s }
+								</li>
+							}
+						</ul>
+					</div>
+				}
+				if len(b.PainPoints) > 0 {
+					<div>
+						<p class="text-xs font-semibold uppercase tracking-wide text-error/70 mb-1.5">Pain Points</p>
+					<ul class="space-y-1">
+						for _, p := range b.PainPoints {
+							<li class="flex items-start gap-1.5 text-xs text-base-content/70">
+									<span class="iconify lucide--circle size-3 text-error mt-0.5 shrink-0"></span>
+									{ p }
+								</li>
+							}
+						</ul>
+					</div>
+				}
+			</div>
+		</div>
+	</details>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Constraints
+// ──────────────────────────────────────────────────────────────────────
+
+templ lraConstraintsSection(constraints []LRAConstraint) {
+	<section>
+		@sectionHeading("Constraints", "lucide--lock", "error", strconv.Itoa(len(constraints))+" hard constraints")
+		<div class="mt-4 space-y-2">
+			for _, c := range constraints {
+				@lraConstraintRow(c)
+			}
+		</div>
+	</section>
+}
+
+templ lraConstraintRow(c LRAConstraint) {
+	<div class="rounded-lg border border-base-content/10 bg-base-100 shadow-sm px-4 py-3">
+		<div class="flex items-start justify-between gap-3">
+			<div class="min-w-0 grow">
+				<p class="text-sm font-medium text-base-content">{ c.Constraint }</p>
+				if c.Impact != "" {
+			<p class="text-xs text-base-content/70 mt-1">
+					<span class="font-medium text-base-content/60">Impact:</span> { c.Impact }
+					</p>
+				}
+			</div>
+			if c.Flexibility != "" {
+				<span class={ "badge badge-xs shrink-0", flexibilityBadge(c.Flexibility) }>{ c.Flexibility }</span>
+			}
+		</div>
+	</div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Evolution Timeline
+// ──────────────────────────────────────────────────────────────────────
+
+templ lraEvolutionSection(entries []LRAEvolution) {
+	<section>
+		@sectionHeading("Evolution", "lucide--git-branch", "info", "How the assessment has changed over time")
+		<div class="mt-4">
+			<div class="relative border-l-2 border-base-content/10 ml-3 space-y-6 pl-6">
+				for i, e := range entries {
+					@lraEvolutionEntry(e, i == 0)
+				}
+			</div>
+		</div>
+	</section>
+}
+
+templ lraEvolutionEntry(e LRAEvolution, latest bool) {
+	<div class="relative">
+		// Timeline dot
+		<div class={ "absolute -left-[31px] top-1 size-3 rounded-full border-2 border-base-content/20", templ.KV("bg-info border-info", latest), templ.KV("bg-base-100", !latest) }></div>
+		<div class={ "rounded-lg px-4 py-3", templ.KV("bg-info/5 border border-info/10", latest), templ.KV("bg-base-200/40", !latest) }>
+			<div class="flex items-center gap-2 mb-1">
+				<span class="text-xs font-mono text-base-content/60">{ e.Timestamp }</span>
+				if e.Trigger != "" {
+					<span class="badge badge-xs badge-ghost">{ e.Trigger }</span>
+				}
+			</div>
+			<p class="text-sm text-base-content">{ e.Summary }</p>
+		</div>
+	</div>
+}

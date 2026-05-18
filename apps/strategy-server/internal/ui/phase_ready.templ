@@ -45,6 +45,7 @@ type TrackOKRSummary struct {
 
 // ReadyPhaseContent renders the READY phase dashboard content.
 templ ReadyPhaseContent(data ReadyPhaseData) {
+	@TabRelatedPages("ready", data.InstanceID, "/strategies/" + data.InstanceID + "/ready")
 	<div class="space-y-6">
 		// Progress bar
 		@ui.ProgressCard(ui.ProgressCardProps{
@@ -71,9 +72,10 @@ templ ReadyPhaseContent(data ReadyPhaseData) {
 		</div>
 
 		// Supporting artifacts
-		<div class="grid gap-4 md:grid-cols-2">
+		<div class="grid gap-4 md:grid-cols-3">
 			@readyArtifactCard("Foundations", "Personas, positioning, ICP, and product vision", "lucide--layers", data.FoundationExists, data.FoundationTitle, "/strategies/" + data.InstanceID + "/ready/foundations")
 			@readyArtifactCard("North Star", "Purpose, vision, mission, values, and core beliefs", "lucide--star", data.NorthStarExists, data.NorthStarOrg, "/strategies/" + data.InstanceID + "/ready/north-star")
+			@readyArtifactCard("Validated Opportunity", "The big opportunity validated from insight analyses", "lucide--lightbulb", data.OpportunityExists, data.OpportunityTitle, "/strategies/" + data.InstanceID + "/ready/opportunity")
 		</div>
 
 		// Roadmap OKR summary
@@ -113,7 +115,7 @@ templ readyArtifactCard(title, description, icon string, exists bool, summary st
 		<div class="card-body p-4">
 			<div class="flex items-start gap-3">
 				<div class={ "rounded-lg p-1.5 shrink-0", templ.KV("bg-success/10", exists), templ.KV("bg-base-content/5", !exists) }>
-					<span class={ "iconify size-5", icon, templ.KV("text-success", exists), templ.KV("text-base-content/30", !exists) }></span>
+					<span class={ "iconify size-5", icon, templ.KV("text-success", exists), templ.KV("text-base-content/40", !exists) }></span>
 				</div>
 				<div class="min-w-0">
 					<div class="flex items-center gap-2">
@@ -121,12 +123,12 @@ templ readyArtifactCard(title, description, icon string, exists bool, summary st
 						if exists {
 							<span class="iconify lucide--check-circle-2 size-3.5 text-success shrink-0"></span>
 						} else {
-							<span class="iconify lucide--circle-dashed size-3.5 text-base-content/30 shrink-0"></span>
+							<span class="iconify lucide--circle-dashed size-3.5 text-base-content/40 shrink-0"></span>
 						}
 					</div>
-					<p class="text-xs text-base-content/50 mt-0.5">{ description }</p>
-					if exists && summary != "" {
-						<p class="text-xs text-base-content/70 mt-2 font-medium truncate">{ summary }</p>
+					<p class="text-xs text-base-content/70 mt-0.5">{ description }</p>
+				if exists && summary != "" {
+					<p class="text-xs text-base-content/80 mt-2 font-medium truncate">{ summary }</p>
 					}
 				</div>
 			</div>
@@ -141,10 +143,10 @@ templ roadmapOKRSummary(tracks []TrackOKRSummary) {
 			<div class="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
 				for _, t := range tracks {
 					<div class="flex items-center gap-3 rounded-lg bg-base-200/50 px-3 py-2.5">
-						<span class={ "iconify size-4 text-base-content/60 " + t.Icon }></span>
+						<span class={ "iconify size-4 text-base-content/70 " + t.Icon }></span>
 						<div class="min-w-0">
 							<p class="text-sm font-medium text-base-content">{ t.Track }</p>
-							<p class="text-xs text-base-content/50">{ strconv.Itoa(t.Objectives) } objectives, { strconv.Itoa(t.KeyResults) } key results</p>
+							<p class="text-xs text-base-content/70">{ strconv.Itoa(t.Objectives) } objectives, { strconv.Itoa(t.KeyResults) } key results</p>
 						</div>
 					</div>
 				}

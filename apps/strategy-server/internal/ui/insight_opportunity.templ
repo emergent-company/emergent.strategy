@@ -1,0 +1,253 @@
+package ui
+
+
+
+// InsightOpportunityData holds all data for the bespoke Insight Opportunity view.
+type InsightOpportunityData struct {
+	NavContext
+	ArtifactKey string
+	Name        string
+	Status      string
+
+	// Opportunity
+	OpportunityID   string
+	Title           string
+	Description     string
+	ConfidenceLevel string
+	ValidationDate  string
+
+	// Context
+	Urgency       string
+	MarketSize    string
+	TargetSegment string
+	PainPoints    []string
+
+	// Evidence
+	QualitativeEvidence  []OpportunityEvidence
+	QuantitativeEvidence []OpportunityEvidence
+	CompetitiveLandscape []string
+
+	// Value Hypothesis
+	UserValue    string
+	BusinessValue string
+	StrategicFit string
+
+	// Success
+	SuccessIndicators []FoundationIndicator
+}
+
+type OpportunityEvidence struct {
+	Source  string
+	Insight string
+}
+
+// InsightOpportunityContent renders the bespoke Insight Opportunity view.
+templ InsightOpportunityContent(data InsightOpportunityData) {
+	@TabBackLink(data.TabGroup, data.InstanceID, data.CurrentPath)
+	<div class="space-y-8">
+		// ── Hero ──
+		@opportunityHero(data)
+
+		// ── Opportunity Description ──
+		if data.Description != "" {
+			@opportunityDescriptionSection(data)
+		}
+
+		// ── Context ──
+		if data.Urgency != "" || data.MarketSize != "" || data.TargetSegment != "" || len(data.PainPoints) > 0 {
+			@opportunityContextSection(data)
+		}
+
+		// ── Evidence ──
+		if len(data.QualitativeEvidence) > 0 || len(data.QuantitativeEvidence) > 0 || len(data.CompetitiveLandscape) > 0 {
+			@opportunityEvidenceSection(data)
+		}
+
+		// ── Value Hypothesis ──
+		if data.UserValue != "" || data.BusinessValue != "" || data.StrategicFit != "" {
+			@opportunityValueHypothesisSection(data)
+		}
+
+		// ── Success Indicators ──
+		if len(data.SuccessIndicators) > 0 {
+			@opportunitySuccessSection(data.SuccessIndicators)
+		}
+	</div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Hero
+// ──────────────────────────────────────────────────────────────────────
+
+templ opportunityHero(data InsightOpportunityData) {
+	<div class="relative overflow-hidden rounded-xl bg-gradient-to-br from-warning/10 via-base-100 to-accent/10 border border-warning/10">
+		<div class="px-6 py-8 sm:px-8">
+			<div class="flex items-start justify-between">
+				<div class="space-y-2">
+					<div class="flex items-center gap-2">
+						<span class="iconify lucide--lightbulb size-5 text-warning"></span>
+						<span class="text-xs font-semibold uppercase tracking-widest text-warning">Validated Opportunity</span>
+						if data.Status != "" {
+							@artifactStatusBadge(data.Status)
+						}
+						if data.ConfidenceLevel != "" {
+							<span class={ "badge badge-sm", confidenceBadgeClass(data.ConfidenceLevel) }>{ data.ConfidenceLevel } confidence</span>
+						}
+					</div>
+					<h1 class="text-2xl font-bold text-base-content sm:text-3xl">{ data.Title }</h1>
+					if data.OpportunityID != "" {
+						<p class="text-xs font-mono text-base-content/40">{ data.OpportunityID }</p>
+					}
+				</div>
+			if data.ValidationDate != "" {
+				<div class="hidden sm:block text-right text-xs text-base-content/60">
+					<p>Validated { data.ValidationDate }</p>
+				</div>
+			}
+			</div>
+		</div>
+	</div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Opportunity Description
+// ──────────────────────────────────────────────────────────────────────
+
+templ opportunityDescriptionSection(data InsightOpportunityData) {
+	<section>
+		@sectionHeading("Opportunity", "lucide--sparkles", "warning", "")
+		<div class="mt-4">
+			<div class="rounded-xl bg-gradient-to-r from-warning/5 to-transparent border border-warning/10 p-5">
+				<blockquote class="text-base text-base-content leading-relaxed italic">
+					{ data.Description }
+				</blockquote>
+			</div>
+		</div>
+	</section>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Context
+// ──────────────────────────────────────────────────────────────────────
+
+templ opportunityContextSection(data InsightOpportunityData) {
+	<section>
+		@sectionHeading("Context", "lucide--map", "info", "Market conditions and environment")
+		<div class="mt-4 space-y-4">
+			if data.Urgency != "" || data.MarketSize != "" || data.TargetSegment != "" {
+				<div class="grid gap-4 md:grid-cols-3">
+					if data.Urgency != "" {
+						@editorialCard("Urgency", data.Urgency, "lucide--clock")
+					}
+					if data.MarketSize != "" {
+						@editorialCard("Market Size", data.MarketSize, "lucide--globe")
+					}
+					if data.TargetSegment != "" {
+						@editorialCard("Target Segment", data.TargetSegment, "lucide--users")
+					}
+				</div>
+			}
+			if len(data.PainPoints) > 0 {
+				@bulletListCard("Pain Points", data.PainPoints, "lucide--alert-circle", "error")
+			}
+		</div>
+	</section>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Evidence
+// ──────────────────────────────────────────────────────────────────────
+
+templ opportunityEvidenceSection(data InsightOpportunityData) {
+	<section>
+		@sectionHeading("Evidence", "lucide--file-search", "accent", "Supporting research and data")
+		<div class="mt-4 space-y-4">
+			if len(data.QualitativeEvidence) > 0 || len(data.QuantitativeEvidence) > 0 {
+				<div class="grid gap-4 md:grid-cols-2">
+					if len(data.QualitativeEvidence) > 0 {
+						<div>
+							<h4 class="text-sm font-semibold text-base-content/70 mb-2">Qualitative Evidence</h4>
+							<div class="space-y-2">
+								for _, ev := range data.QualitativeEvidence {
+									@evidenceCard(ev, "lucide--message-circle", "accent")
+								}
+							</div>
+						</div>
+					}
+					if len(data.QuantitativeEvidence) > 0 {
+						<div>
+							<h4 class="text-sm font-semibold text-base-content/70 mb-2">Quantitative Evidence</h4>
+							<div class="space-y-2">
+								for _, ev := range data.QuantitativeEvidence {
+									@evidenceCard(ev, "lucide--bar-chart-3", "info")
+								}
+							</div>
+						</div>
+					}
+				</div>
+			}
+			if len(data.CompetitiveLandscape) > 0 {
+				@bulletListCard("Competitive Landscape", data.CompetitiveLandscape, "lucide--swords", "warning")
+			}
+		</div>
+	</section>
+}
+
+templ evidenceCard(ev OpportunityEvidence, icon, color string) {
+	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card-body p-4">
+			<div class="flex items-start gap-3">
+				<span class={ "iconify size-4 mt-0.5 shrink-0", icon, textColor(color) }></span>
+				<div>
+				if ev.Source != "" {
+					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60 mb-1">{ ev.Source }</p>
+				}
+				<p class="text-sm text-base-content/90 leading-relaxed">{ ev.Insight }</p>
+				</div>
+			</div>
+		</div>
+	</div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Value Hypothesis
+// ──────────────────────────────────────────────────────────────────────
+
+templ opportunityValueHypothesisSection(data InsightOpportunityData) {
+	<section>
+		@sectionHeading("Value Hypothesis", "lucide--flask-conical", "primary", "Why this matters")
+		<div class="mt-4 grid gap-4 md:grid-cols-3">
+			if data.UserValue != "" {
+				@editorialCard("User Value", data.UserValue, "lucide--heart")
+			}
+			if data.BusinessValue != "" {
+				@editorialCard("Business Value", data.BusinessValue, "lucide--wallet")
+			}
+			if data.StrategicFit != "" {
+				@editorialCard("Strategic Fit", data.StrategicFit, "lucide--puzzle")
+			}
+		</div>
+	</section>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Success Indicators
+// ──────────────────────────────────────────────────────────────────────
+
+templ opportunitySuccessSection(indicators []FoundationIndicator) {
+	<section>
+		@sectionHeading("Success Indicators", "lucide--bar-chart-3", "success", "How we measure impact")
+		<div class="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+			for _, ind := range indicators {
+				<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+					<div class="card-body p-3 text-center">
+						if ind.Target != "" {
+							<p class="text-lg font-bold text-base-content">{ ind.Target }</p>
+						}
+						<p class="text-xs text-base-content/70">{ ind.Indicator }</p>
+					</div>
+				</div>
+			}
+		</div>
+	</section>
+}

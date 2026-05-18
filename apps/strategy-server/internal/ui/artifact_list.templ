@@ -1,0 +1,92 @@
+package ui
+
+import (
+	"strconv"
+)
+
+// ArtifactListData holds data for a list of artifacts.
+type ArtifactListData struct {
+	InstanceID  string
+	ScreenID    string // navigation.ScreenID for breadcrumbs
+	TabGroup    string // "ready", "fire", or "aim"
+	CurrentPath string
+	Title       string
+	Subtitle    string
+	Icon        string
+	Color       string
+	Items       []ArtifactListItem
+	BaseURL     string // e.g. "/strategies/:id/fire/features"
+}
+
+// ArtifactListItem is a single artifact in a list.
+type ArtifactListItem struct {
+	Key      string
+	Name     string
+	Status   string
+	Track    string
+	Subtitle string // extracted summary
+	ViewURL  string
+}
+
+// ArtifactListContent renders a list of artifacts with sub-nav, breadcrumbs, and clickable cards.
+templ ArtifactListContent(data ArtifactListData) {
+	@TabBackLink(data.TabGroup, data.InstanceID, data.CurrentPath)
+	<div class="space-y-6">
+		// Header
+		<div class="flex items-center gap-3">
+			<div class={ "rounded-lg p-2", bgColor(data.Color) }>
+				<span class={ "iconify size-5", data.Icon, textColor(data.Color) }></span>
+			</div>
+			<div>
+				<h2 class="text-lg font-bold text-base-content">{ data.Title }</h2>
+				if data.Subtitle != "" {
+					<p class="text-xs text-base-content/50">{ data.Subtitle }</p>
+				}
+			</div>
+			<span class="badge badge-ghost ml-auto">{ strconv.Itoa(len(data.Items)) }</span>
+		</div>
+
+		if len(data.Items) == 0 {
+			@PlaceholderContent(data.Title, "No artifacts found.", data.Icon)
+		} else {
+			<div class="space-y-2">
+				for _, item := range data.Items {
+					@artifactListRow(item)
+				}
+			</div>
+		}
+	</div>
+}
+
+templ artifactListRow(item ArtifactListItem) {
+	<a
+		href={ templ.URL(item.ViewURL) }
+		hx-get={ item.ViewURL }
+		hx-target="#tab-content"
+		hx-swap="innerHTML"
+		hx-push-url="true"
+		class="card bg-base-100 border border-base-content/10 shadow-sm hover:shadow-md hover:border-primary/20 transition-all cursor-pointer"
+	>
+		<div class="card-body p-4 flex-row items-center gap-4">
+			<div class="min-w-0 grow">
+				<div class="flex items-center gap-2">
+					<span class="text-sm font-semibold text-base-content">{ item.Name }</span>
+					if item.Status != "" {
+						@featureStatusBadge(item.Status)
+					}
+				</div>
+				<div class="flex items-center gap-2 mt-0.5">
+					<span class="font-mono text-xs text-base-content/60">{ item.Key }</span>
+					if item.Track != "" {
+						<span class="text-xs text-base-content/40">&middot;</span>
+						<span class="text-xs text-base-content/60">{ item.Track }</span>
+					}
+				</div>
+			if item.Subtitle != "" {
+				<p class="text-xs text-base-content/70 mt-1 line-clamp-1">{ item.Subtitle }</p>
+			}
+			</div>
+			<span class="iconify lucide--chevron-right size-4 text-base-content/50 shrink-0"></span>
+		</div>
+	</a>
+}

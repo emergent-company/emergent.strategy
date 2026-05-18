@@ -67,7 +67,7 @@ templ readyPhaseWidget(data InstanceDashboardData) {
 					<span class="iconify lucide--compass size-5 text-primary"></span>
 				</div>
 				<h2 class="text-base font-semibold text-base-content">READY</h2>
-				<span class="text-xs text-base-content/50 ml-auto">Foundation</span>
+				<span class="text-xs text-base-content/70 ml-auto">Foundation</span>
 			</div>
 
 			<div class="space-y-2">
@@ -100,7 +100,7 @@ templ readySubItem(label string, icon string, completed bool, href string) {
 		if completed {
 			<span class="iconify lucide--check-circle-2 size-4 text-success"></span>
 		} else {
-			<span class="iconify lucide--circle-dashed size-4 text-base-content/30"></span>
+			<span class="iconify lucide--circle-dashed size-4 text-base-content/40"></span>
 		}
 	</a>
 }
@@ -113,11 +113,11 @@ templ firePhaseWidget(data InstanceDashboardData) {
 					<span class="iconify lucide--rocket size-5 text-error"></span>
 				</div>
 				<h2 class="text-base font-semibold text-base-content">FIRE</h2>
-				<span class="text-xs text-base-content/50 ml-auto">Execution</span>
+				<span class="text-xs text-base-content/70 ml-auto">Execution</span>
 			</div>
 
 			<div class="space-y-2">
-				@trackSubItem("Product", "lucide--code-2", data.ProductCount, "/strategies/" + data.InstanceID + "/fire/product")
+				@trackSubItem("Product", "lucide--code-2", data.ProductCount, "/strategies/" + data.InstanceID + "/fire/features")
 				@trackSubItem("Commercial", "lucide--briefcase", data.CommercialCount, "/strategies/" + data.InstanceID + "/fire/commercial")
 				@trackSubItem("Strategy", "lucide--navigation", data.StrategyCount, "/strategies/" + data.InstanceID + "/fire/strategy")
 				@trackSubItem("Org & Ops", "lucide--container", data.OrgOpsCount, "/strategies/" + data.InstanceID + "/fire/org-ops")
@@ -126,7 +126,7 @@ templ firePhaseWidget(data InstanceDashboardData) {
 			<div class="divider my-2"></div>
 
 			<div class="flex items-center justify-between text-sm">
-				<span class="text-base-content/60">Total definitions</span>
+				<span class="text-base-content/70">Total definitions</span>
 				<span class="font-semibold text-base-content">{ strconv.Itoa(data.FeatureCount) }</span>
 			</div>
 		</div>
@@ -156,7 +156,7 @@ templ aimPhaseWidget(data InstanceDashboardData) {
 					<span class="iconify lucide--target size-5 text-warning"></span>
 				</div>
 				<h2 class="text-base font-semibold text-base-content">AIM</h2>
-				<span class="text-xs text-base-content/50 ml-auto">Calibration</span>
+				<span class="text-xs text-base-content/70 ml-auto">Calibration</span>
 			</div>
 
 			<div class="space-y-2">
@@ -182,7 +182,7 @@ templ aimSubItem(label string, icon string, detail string, href string) {
 		<span class={ "iconify size-4 text-base-content/60 group-hover:text-primary " + icon }></span>
 		<span class="text-sm text-base-content grow">{ label }</span>
 		if detail != "" {
-			<span class="text-xs text-base-content/50">{ detail }</span>
+			<span class="text-xs text-base-content/70">{ detail }</span>
 		}
 	</a>
 }

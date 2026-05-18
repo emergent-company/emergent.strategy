@@ -1,0 +1,261 @@
+package ui
+
+import (
+	"strconv"
+)
+
+// AssessmentViewData holds all data for the bespoke Assessment Report view.
+type AssessmentViewData struct {
+	NavContext
+	ArtifactKey   string
+	Name          string
+	Status        string
+	Cycle         int
+	RoadmapID     string
+	LastUpdated   string
+
+	// OKR Assessments
+	OKRAssessments []AssessmentOKR
+
+	// Assumptions
+	AssumptionValidations []AssessmentAssumption
+
+	// Insights & Recommendations
+	StrategicInsights []string
+	Recommendations   []string
+}
+
+// AssessmentOKR holds the assessment for a single OKR.
+type AssessmentOKR struct {
+	OKRID      string
+	Assessment string
+	KeyResults []AssessmentKR
+}
+
+// AssessmentKR holds the outcome for a single Key Result.
+type AssessmentKR struct {
+	KRID      string
+	Status    string
+	Target    string
+	Actual    string
+	Learnings []string
+}
+
+// AssessmentAssumption holds the validation result for a single assumption.
+type AssessmentAssumption struct {
+	ID               string
+	Status           string
+	Evidence         string
+	ConfidenceChange string
+}
+
+// AssessmentContent renders the bespoke Assessment Report view.
+templ AssessmentContent(data AssessmentViewData) {
+	@TabBackLink(data.TabGroup, data.InstanceID, data.CurrentPath)
+	<div class="space-y-8">
+		// ── Hero ──
+		@assessmentHero(data)
+
+		// ── OKR Assessments ──
+		if len(data.OKRAssessments) > 0 {
+			@assessmentOKRSection(data.OKRAssessments)
+		}
+
+		// ── Assumption Validations ──
+		if len(data.AssumptionValidations) > 0 {
+			@assessmentAssumptionsSection(data.AssumptionValidations)
+		}
+
+		// ── Strategic Insights ──
+		if len(data.StrategicInsights) > 0 {
+			@assessmentInsightsSection(data.StrategicInsights)
+		}
+
+		// ── Recommendations ──
+		if len(data.Recommendations) > 0 {
+			@assessmentRecommendationsSection(data.Recommendations)
+		}
+	</div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Hero
+// ──────────────────────────────────────────────────────────────────────
+
+templ assessmentHero(data AssessmentViewData) {
+	<div class="relative overflow-hidden rounded-xl bg-gradient-to-br from-secondary/10 via-base-100 to-info/10 border border-secondary/10">
+		<div class="px-6 py-8 sm:px-8">
+			<div class="flex items-start justify-between">
+				<div class="space-y-2">
+					<div class="flex items-center gap-2">
+						<span class="iconify lucide--clipboard-check size-5 text-secondary"></span>
+						<span class="text-xs font-semibold uppercase tracking-widest text-secondary">Assessment Report</span>
+						if data.Cycle > 0 {
+							<span class="badge badge-sm badge-info">Cycle { strconv.Itoa(data.Cycle) }</span>
+						}
+						if data.Status != "" {
+							@artifactStatusBadge(data.Status)
+						}
+					</div>
+					<h1 class="text-2xl font-bold text-base-content sm:text-3xl">{ data.Name }</h1>
+			if data.RoadmapID != "" {
+					<p class="text-xs text-base-content/70">Roadmap: <span class="font-mono">{ data.RoadmapID }</span></p>
+				}
+				</div>
+			if data.LastUpdated != "" {
+				<div class="hidden sm:block text-right text-xs text-base-content/60">
+					<p>Updated { data.LastUpdated }</p>
+				</div>
+			}
+		</div>
+		</div>
+	</div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// OKR Assessments
+// ──────────────────────────────────────────────────────────────────────
+
+templ assessmentOKRSection(okrs []AssessmentOKR) {
+	<section>
+		@sectionHeading("OKR Assessments", "lucide--target", "primary", strconv.Itoa(len(okrs))+" objectives assessed")
+		<div class="mt-4 space-y-3">
+			for _, okr := range okrs {
+				@assessmentOKRAccordion(okr)
+			}
+		</div>
+	</section>
+}
+
+templ assessmentOKRAccordion(okr AssessmentOKR) {
+	<details class="group rounded-xl border border-base-content/10 bg-base-100 shadow-sm">
+		<summary class="flex cursor-pointer items-center gap-3 px-5 py-3.5 text-sm font-semibold text-base-content select-none">
+			<span class="iconify lucide--flag size-4 text-primary/70"></span>
+			<span class="grow">{ okr.OKRID }</span>
+			<span class="badge badge-sm badge-ghost">{ strconv.Itoa(len(okr.KeyResults)) } KRs</span>
+			<span class="iconify lucide--chevron-right size-4 text-base-content/50 transition-transform group-open:rotate-90"></span>
+		</summary>
+		<div class="border-t border-base-content/5 px-5 pb-4 pt-3 space-y-4">
+			if okr.Assessment != "" {
+				<p class="text-sm text-base-content/80 leading-relaxed">{ okr.Assessment }</p>
+			}
+			if len(okr.KeyResults) > 0 {
+				<div class="space-y-2">
+					for _, kr := range okr.KeyResults {
+						@assessmentKRRow(kr)
+					}
+				</div>
+			}
+		</div>
+	</details>
+}
+
+templ assessmentKRRow(kr AssessmentKR) {
+	<div class="rounded-lg border border-base-content/5 bg-base-200/30 px-4 py-3">
+		<div class="flex items-start justify-between gap-3">
+			<div class="min-w-0 grow">
+				<p class="text-sm font-medium text-base-content">{ kr.KRID }</p>
+			<div class="flex flex-wrap gap-x-6 gap-y-1 mt-1 text-xs text-base-content/70">
+				if kr.Target != "" {
+					<span><span class="font-medium text-base-content/60">Target:</span> { kr.Target }</span>
+				}
+				if kr.Actual != "" {
+					<span><span class="font-medium text-base-content/60">Actual:</span> { kr.Actual }</span>
+				}
+				</div>
+			</div>
+			if kr.Status != "" {
+				<span class={ "badge badge-xs shrink-0", krStatusBadge(kr.Status) }>{ kr.Status }</span>
+			}
+		</div>
+		if len(kr.Learnings) > 0 {
+			<div class="mt-2 pt-2 border-t border-base-content/5">
+				<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60 mb-1">Learnings</p>
+				<ul class="space-y-0.5">
+					for _, l := range kr.Learnings {
+						<li class="flex items-start gap-1.5 text-xs text-base-content/70">
+							<span class="iconify lucide--message-circle size-3 text-base-content/50 mt-0.5 shrink-0"></span>
+							{ l }
+						</li>
+					}
+				</ul>
+			</div>
+		}
+	</div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Assumption Validations
+// ──────────────────────────────────────────────────────────────────────
+
+templ assessmentAssumptionsSection(assumptions []AssessmentAssumption) {
+	<section>
+		@sectionHeading("Assumption Validations", "lucide--flask-conical", "warning", strconv.Itoa(len(assumptions))+" assumptions tested")
+		<div class="mt-4 space-y-2">
+			for _, a := range assumptions {
+				@assessmentAssumptionRow(a)
+			}
+		</div>
+	</section>
+}
+
+templ assessmentAssumptionRow(a AssessmentAssumption) {
+	<div class="rounded-lg border border-base-content/10 bg-base-100 shadow-sm px-4 py-3">
+		<div class="flex items-start justify-between gap-3">
+			<div class="min-w-0 grow">
+				<div class="flex items-center gap-2 mb-1">
+					<p class="text-sm font-medium text-base-content">{ a.ID }</p>
+					if a.Status != "" {
+						<span class={ "badge badge-xs", assumptionStatusBadge(a.Status) }>{ a.Status }</span>
+					}
+				</div>
+				if a.Evidence != "" {
+					<p class="text-xs text-base-content/60">{ a.Evidence }</p>
+				}
+			</div>
+			if a.ConfidenceChange != "" {
+				<div class="flex items-center gap-1 shrink-0">
+					<span class={ "iconify size-3.5", confidenceChangeIcon(a.ConfidenceChange), confidenceChangeColor(a.ConfidenceChange) }></span>
+					<span class={ "text-xs font-medium", confidenceChangeColor(a.ConfidenceChange) }>{ a.ConfidenceChange }</span>
+				</div>
+			}
+		</div>
+	</div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Strategic Insights
+// ──────────────────────────────────────────────────────────────────────
+
+templ assessmentInsightsSection(insights []string) {
+	<section>
+		@sectionHeading("Strategic Insights", "lucide--lightbulb", "warning", "")
+		<div class="mt-4 space-y-3">
+			for i, insight := range insights {
+				<div class="card bg-base-100 border border-warning/10 shadow-sm">
+					<div class="card-body p-4">
+						<div class="flex items-start gap-3">
+							<div class="flex items-center justify-center size-6 rounded-full bg-warning/10 text-warning text-xs font-bold shrink-0">
+								{ strconv.Itoa(i + 1) }
+							</div>
+							<p class="text-sm text-base-content leading-relaxed">{ insight }</p>
+						</div>
+					</div>
+				</div>
+			}
+		</div>
+	</section>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Recommendations
+// ──────────────────────────────────────────────────────────────────────
+
+templ assessmentRecommendationsSection(recommendations []string) {
+	<section>
+		@sectionHeading("Recommendations", "lucide--list-checks", "accent", "")
+		<div class="mt-4">
+			@bulletListCard("Recommended Actions", recommendations, "lucide--arrow-right", "accent")
+		</div>
+	</section>
+}

@@ -1,0 +1,405 @@
+package ui
+
+import (
+	"strconv"
+)
+
+// RoadmapRecipeData holds all data for the bespoke Roadmap Recipe view.
+type RoadmapRecipeData struct {
+	NavContext
+	ArtifactKey      string
+	Name             string
+	Status           string
+	RoadmapID        string
+	Cycle            string
+	Timeframe        string
+	StartDate        string
+	TargetCompletion string
+	LastUpdated      string
+
+	// Tracks (4 tracks, each with OKRs)
+	Tracks []RoadmapTrack
+
+	// Execution plan
+	CriticalPath []string
+	Milestones   []RoadmapMilestone
+
+	// Cross-track dependencies
+	Dependencies []RoadmapDependency
+}
+
+// RoadmapTrack is a single strategy track with its OKRs and assumptions.
+type RoadmapTrack struct {
+	Name        string
+	Objective   string
+	OKRs        []RoadmapOKR
+	Assumptions []RoadmapAssumption
+}
+
+// RoadmapOKR is a single Objective with Key Results.
+type RoadmapOKR struct {
+	ID        string
+	Objective string
+	KeyResults []RoadmapKR
+}
+
+// RoadmapKR is a single Key Result within an OKR.
+type RoadmapKR struct {
+	ID          string
+	Description string
+	Baseline    string
+	Target      string
+	TRLStart    string
+	TRLTarget   string
+}
+
+// RoadmapAssumption is a bet the track is making.
+type RoadmapAssumption struct {
+	ID          string
+	Description string
+	Criticality string
+	Confidence  string
+}
+
+// RoadmapMilestone is a dated milestone in the execution plan.
+type RoadmapMilestone struct {
+	Date        string
+	Milestone   string
+	Description string
+	Status      string
+}
+
+// RoadmapDependency is a cross-track dependency between KRs.
+type RoadmapDependency struct {
+	FromKR         string
+	ToKR           string
+	Description    string
+	DependencyType string
+}
+
+// RoadmapRecipeContent renders the bespoke Roadmap Recipe view.
+templ RoadmapRecipeContent(data RoadmapRecipeData) {
+	@TabBackLink(data.TabGroup, data.InstanceID, data.CurrentPath)
+	<div class="space-y-8">
+		// ── Hero ──
+		@roadmapHero(data)
+
+		// ── Tracks ──
+		if len(data.Tracks) > 0 {
+			@roadmapTracksSection(data.Tracks)
+		}
+
+		// ── Assumptions ──
+		if roadmapHasAssumptions(data.Tracks) {
+			@roadmapAssumptionsSection(data.Tracks)
+		}
+
+		// ── Milestones ──
+		if len(data.Milestones) > 0 {
+			@roadmapMilestonesSection(data.Milestones)
+		}
+
+		// ── Critical Path ──
+		if len(data.CriticalPath) > 0 {
+			@roadmapCriticalPathSection(data.CriticalPath)
+		}
+
+		// ── Dependencies ──
+		if len(data.Dependencies) > 0 {
+			@roadmapDependenciesSection(data.Dependencies)
+		}
+	</div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Hero
+// ──────────────────────────────────────────────────────────────────────
+
+templ roadmapHero(data RoadmapRecipeData) {
+	<div class="relative overflow-hidden rounded-xl bg-gradient-to-br from-accent/10 via-base-100 to-warning/10 border border-accent/10">
+		<div class="px-6 py-8 sm:px-8">
+			<div class="flex items-start justify-between">
+				<div class="space-y-2">
+					<div class="flex items-center gap-2">
+						<span class="iconify lucide--map size-5 text-accent"></span>
+						<span class="text-xs font-semibold uppercase tracking-widest text-accent">Solution Recipe</span>
+						if data.Status != "" {
+							@artifactStatusBadge(data.Status)
+						}
+						if data.Cycle != "" {
+							<span class="badge badge-sm badge-outline badge-accent">{ data.Cycle }</span>
+						}
+						if data.Timeframe != "" {
+							<span class="badge badge-sm badge-outline badge-warning">{ data.Timeframe }</span>
+						}
+					</div>
+					<h1 class="text-2xl font-bold text-base-content sm:text-3xl">{ data.Name }</h1>
+				</div>
+				if data.StartDate != "" || data.TargetCompletion != "" || data.LastUpdated != "" {
+					<div class="hidden sm:block text-right text-xs text-base-content/60 space-y-0.5">
+						if data.StartDate != "" {
+							<p>Start { data.StartDate }</p>
+						}
+						if data.TargetCompletion != "" {
+							<p>Target { data.TargetCompletion }</p>
+						}
+						if data.LastUpdated != "" {
+							<p>Updated { data.LastUpdated }</p>
+						}
+					</div>
+				}
+			</div>
+		</div>
+	</div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Tracks
+// ──────────────────────────────────────────────────────────────────────
+
+templ roadmapTracksSection(tracks []RoadmapTrack) {
+	<section>
+		@sectionHeading("Tracks", "lucide--layers", "accent", strconv.Itoa(len(tracks))+" strategy tracks")
+		<div class="mt-4 space-y-3">
+			for _, track := range tracks {
+				@roadmapTrackAccordion(track)
+			}
+		</div>
+	</section>
+}
+
+templ roadmapTrackAccordion(track RoadmapTrack) {
+	<details class="group rounded-xl border border-base-content/10 bg-base-100 shadow-sm">
+		<summary class="flex cursor-pointer items-center gap-3 px-5 py-3.5 text-sm font-semibold text-base-content select-none">
+			<span class={ "iconify size-4", trackIcon(track.Name), textColor(trackColor(track.Name)) }></span>
+			<span class="grow">{ formatTrackName(track.Name) }</span>
+			<span class="badge badge-sm badge-ghost">{ strconv.Itoa(len(track.OKRs)) } OKRs</span>
+			<span class="iconify lucide--chevron-right size-4 text-base-content/50 transition-transform group-open:rotate-90"></span>
+		</summary>
+		<div class="border-t border-base-content/5 px-5 pb-4 pt-3 space-y-4">
+			if track.Objective != "" {
+				<div class={ "rounded-xl bg-gradient-to-r to-transparent border p-5", trackGradientBg(track.Name), trackBorderColor(track.Name) }>
+					<blockquote class="text-base text-base-content leading-relaxed italic">
+						{ track.Objective }
+					</blockquote>
+				</div>
+			}
+			for _, okr := range track.OKRs {
+				@roadmapOKRCard(okr, track.Name)
+			}
+		</div>
+	</details>
+}
+
+templ roadmapOKRCard(okr RoadmapOKR, trackName string) {
+	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card-body p-4">
+			<div class="flex items-center gap-2 mb-3">
+				if okr.ID != "" {
+					<span class="badge badge-xs badge-ghost font-mono">{ okr.ID }</span>
+				}
+				<h5 class="text-sm font-bold text-base-content">{ okr.Objective }</h5>
+			</div>
+			if len(okr.KeyResults) > 0 {
+				<div class="space-y-2">
+					for _, kr := range okr.KeyResults {
+						@roadmapKRRow(kr, trackName)
+					}
+				</div>
+			}
+		</div>
+	</div>
+}
+
+templ roadmapKRRow(kr RoadmapKR, trackName string) {
+	<div class="rounded-lg bg-base-200/40 px-4 py-3">
+		<div class="flex items-start gap-2">
+			if kr.ID != "" {
+				<span class="badge badge-xs badge-ghost font-mono shrink-0 mt-0.5">{ kr.ID }</span>
+			}
+			<div class="min-w-0 grow">
+				<p class="text-sm text-base-content">{ kr.Description }</p>
+				<div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 items-center">
+					if kr.Baseline != "" || kr.Target != "" {
+						<div class="flex items-center gap-1.5 text-xs text-base-content/70">
+							if kr.Baseline != "" {
+								<span class="font-mono">{ kr.Baseline }</span>
+							}
+						if kr.Baseline != "" && kr.Target != "" {
+							<span class="iconify lucide--arrow-right size-3 text-base-content/50"></span>
+						}
+						if kr.Target != "" {
+							<span class={ "font-mono font-medium", textColor(trackColor(trackName)) }>{ kr.Target }</span>
+						}
+					</div>
+				}
+				if kr.TRLStart != "" || kr.TRLTarget != "" {
+					<div class="flex items-center gap-1.5 text-xs">
+						if kr.TRLStart != "" {
+							<span class="badge badge-xs badge-ghost">TRL { kr.TRLStart }</span>
+						}
+						if kr.TRLStart != "" && kr.TRLTarget != "" {
+							<span class="iconify lucide--arrow-right size-3 text-base-content/50"></span>
+						}
+							if kr.TRLTarget != "" {
+								<span class={ "badge badge-xs", "badge-outline", trackBadgeColor(trackName) }>TRL { kr.TRLTarget }</span>
+							}
+						</div>
+					}
+				</div>
+			</div>
+		</div>
+	</div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Assumptions
+// ──────────────────────────────────────────────────────────────────────
+
+templ roadmapAssumptionsSection(tracks []RoadmapTrack) {
+	<section>
+		@sectionHeading("Assumptions", "lucide--flask-conical", "warning", "Bets each track is making")
+		<div class="mt-4 space-y-3">
+			for _, track := range tracks {
+				if len(track.Assumptions) > 0 {
+					@roadmapTrackAssumptions(track)
+				}
+			}
+		</div>
+	</section>
+}
+
+templ roadmapTrackAssumptions(track RoadmapTrack) {
+	<div>
+		<h4 class="text-sm font-semibold text-base-content/70 mb-2 flex items-center gap-2">
+			<span class={ "iconify size-4", trackIcon(track.Name), textColor(trackColor(track.Name)) }></span>
+			{ formatTrackName(track.Name) }
+			<span class="badge badge-xs badge-ghost">{ strconv.Itoa(len(track.Assumptions)) }</span>
+		</h4>
+		<div class="space-y-2">
+			for _, a := range track.Assumptions {
+				@roadmapAssumptionRow(a)
+			}
+		</div>
+	</div>
+}
+
+templ roadmapAssumptionRow(a RoadmapAssumption) {
+	<div class="rounded-lg border border-base-content/5 bg-base-200/30 px-4 py-3">
+		<div class="flex items-start gap-3">
+			<span class={ "size-2 rounded-full mt-1.5 shrink-0", criticalityDot(a.Criticality) }></span>
+			<div class="min-w-0 grow">
+				<div class="flex items-start justify-between gap-2">
+					<p class="text-sm text-base-content">{ a.Description }</p>
+					if a.ID != "" {
+						<span class="badge badge-xs badge-ghost font-mono shrink-0">{ a.ID }</span>
+					}
+				</div>
+				<div class="flex flex-wrap gap-2 mt-1.5">
+					if a.Criticality != "" {
+						<span class={ "badge badge-xs", likelihoodBadge(a.Criticality) }>{ a.Criticality }</span>
+					}
+					if a.Confidence != "" {
+						<span class={ "badge badge-xs", confidenceBadgeClass(a.Confidence) }>{ a.Confidence } confidence</span>
+					}
+				</div>
+			</div>
+		</div>
+	</div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Milestones (vertical timeline)
+// ──────────────────────────────────────────────────────────────────────
+
+templ roadmapMilestonesSection(milestones []RoadmapMilestone) {
+	<section>
+		@sectionHeading("Milestones", "lucide--flag", "info", strconv.Itoa(len(milestones))+" milestones")
+		<div class="mt-4">
+			<div class="relative border-l-2 border-base-content/10 ml-3 space-y-6 pl-6">
+				for i, m := range milestones {
+					@roadmapMilestoneEntry(m, i == 0)
+				}
+			</div>
+		</div>
+	</section>
+}
+
+templ roadmapMilestoneEntry(m RoadmapMilestone, latest bool) {
+	<div class="relative">
+		// Timeline dot
+		<div class={ "absolute -left-[31px] top-1 size-3 rounded-full border-2 border-base-content/20", templ.KV("bg-primary border-primary", latest), templ.KV("bg-base-100", !latest) }></div>
+		<div class={ "rounded-lg px-4 py-3", templ.KV("bg-primary/5 border border-primary/10", latest), templ.KV("bg-base-200/40", !latest) }>
+			<div class="flex items-center gap-2 mb-1">
+				<span class="text-xs font-mono text-base-content/60">{ m.Date }</span>
+				if m.Status != "" {
+					@artifactStatusBadge(m.Status)
+				}
+			</div>
+			<p class="text-sm font-medium text-base-content">{ m.Milestone }</p>
+			if m.Description != "" {
+				<p class="text-xs text-base-content/70 mt-1">{ m.Description }</p>
+			}
+		</div>
+	</div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Critical Path
+// ──────────────────────────────────────────────────────────────────────
+
+templ roadmapCriticalPathSection(steps []string) {
+	<section>
+		@sectionHeading("Critical Path", "lucide--route", "error", "Sequence of must-hit steps")
+		<div class="mt-4">
+			<div class="flex flex-col gap-0">
+				for i, step := range steps {
+					<div class="flex items-start gap-4">
+						<div class="flex flex-col items-center">
+							<div class="flex items-center justify-center size-7 rounded-full bg-error/10 text-error text-xs font-bold shrink-0">
+								{ strconv.Itoa(i + 1) }
+							</div>
+							if i < len(steps)-1 {
+								<div class="w-0.5 h-8 bg-error/20"></div>
+							}
+						</div>
+						<div class="pb-4 min-w-0">
+							<p class="text-sm text-base-content">{ step }</p>
+						</div>
+					</div>
+				}
+			</div>
+		</div>
+	</section>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Dependencies
+// ──────────────────────────────────────────────────────────────────────
+
+templ roadmapDependenciesSection(deps []RoadmapDependency) {
+	<section>
+		@sectionHeading("Cross-Track Dependencies", "lucide--git-merge", "secondary", strconv.Itoa(len(deps))+" dependencies")
+		<div class="mt-4 space-y-2">
+			for _, d := range deps {
+				@roadmapDependencyRow(d)
+			}
+		</div>
+	</section>
+}
+
+templ roadmapDependencyRow(d RoadmapDependency) {
+	<div class="rounded-lg border border-base-content/5 bg-base-200/30 px-4 py-3">
+		<div class="flex items-center gap-3">
+			<span class="badge badge-xs badge-ghost font-mono shrink-0">{ d.FromKR }</span>
+			<span class="iconify lucide--arrow-right size-3.5 text-base-content/50"></span>
+			<span class="badge badge-xs badge-ghost font-mono shrink-0">{ d.ToKR }</span>
+			if d.DependencyType != "" {
+				<span class="badge badge-xs badge-outline badge-secondary">{ d.DependencyType }</span>
+			}
+		</div>
+		if d.Description != "" {
+		<p class="text-xs text-base-content/70 mt-1.5 ml-1">{ d.Description }</p>
+	}
+	</div>
+}

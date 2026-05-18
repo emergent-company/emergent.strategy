@@ -24,7 +24,7 @@ templ ArtifactViewContent(data ArtifactViewData) {
 						@artifactStatusBadge(data.Status)
 					}
 				</div>
-				<p class="text-sm text-base-content/50 mt-1">
+				<p class="text-sm text-base-content/70 mt-1">
 					<span class="font-mono">{ data.ArtifactKey }</span>
 					if data.Track != "" {
 						<span class="mx-1">&middot;</span>
@@ -84,8 +84,8 @@ templ renderSection(key string, value any, depth int) {
 		<div class="card bg-base-100 border border-base-content/10 shadow-sm">
 			<div class="card-body p-4">
 				<div class="flex items-start gap-2">
-					<span class="text-sm font-medium text-base-content/70 min-w-[140px] shrink-0">{ formatKey(key) }</span>
-					<span class="text-sm text-base-content">{ formatValue(value) }</span>
+				<span class="text-sm font-medium text-base-content/80 min-w-[140px] shrink-0">{ formatKey(key) }</span>
+				<span class="text-sm text-base-content">{ formatValue(value) }</span>
 				</div>
 			</div>
 		</div>
@@ -127,7 +127,7 @@ templ renderField(key string, value any, depth int) {
 		}
 	} else {
 		<div class="flex items-start gap-2 py-0.5">
-			<span class="text-sm font-medium text-base-content/70 min-w-[140px] shrink-0">{ formatKey(key) }</span>
+			<span class="text-sm font-medium text-base-content/80 min-w-[140px] shrink-0">{ formatKey(key) }</span>
 			<span class="text-sm text-base-content whitespace-pre-wrap">{ formatValue(value) }</span>
 		</div>
 	}

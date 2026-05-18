@@ -1,0 +1,461 @@
+package ui
+
+import (
+	"strconv"
+)
+
+// StrategyFormulaData holds all data for the bespoke Strategy Formula view.
+type StrategyFormulaData struct {
+	NavContext
+	ArtifactKey  string
+	Name         string
+	Status       string
+	Title        string
+	LastUpdated  string
+	Confidence   string
+
+	// Positioning
+	CategoryPosition string
+	PositioningStmt  string
+	TargetCustomer   string
+	UniqueValue      string
+	Taglines         []string
+
+	// Competitive moat
+	Differentiation string
+	Advantages      []FormulaAdvantage
+	VsCompetitors   []FormulaCompetitor
+	BarriersToEntry []string
+
+	// Business model
+	RevenueModel      string
+	PricingPhilosophy string
+	PricingTiers      []FormulaTier
+	GrowthEngines     []FormulaEngine
+	UnitEconomics     map[string]string
+
+	// Value creation
+	UserJourney     []FormulaJourneyStep
+	ValueDrivers    []FormulaValueDriver
+	KeyCapabilities []FormulaCapability
+
+	// Risks
+	Risks []FormulaRisk
+
+	// Trade-offs
+	TradeOffs []FormulaTradeOff
+
+	// Constraints
+	Constraints []FormulaConstraint
+
+	// Success metrics
+	NorthStarMetric    string
+	SupportingMetrics  []FormulaMetric
+
+	// Ecosystem
+	EcosystemSummary    string
+	EcosystemComponents []FormulaEcoComponent
+	EcosystemSynergies  []FormulaSynergy
+}
+
+type FormulaAdvantage struct {
+	Name, Description, Evidence, Defensibility string
+}
+type FormulaCompetitor struct {
+	Competitor, TheirStrength, OurAngle, Wedge string
+}
+type FormulaTier struct {
+	Tier, Price, Purpose, Limits string
+}
+type FormulaEngine struct {
+	Engine, Mechanism, Investment string
+}
+type FormulaJourneyStep struct {
+	Step, Action, Value, Delight string
+}
+type FormulaValueDriver struct {
+	Driver, Mechanism, Flywheel string
+}
+type FormulaCapability struct {
+	Capability, WhyCritical, CurrentState string
+}
+type FormulaRisk struct {
+	Risk, Impact, Likelihood, Mitigation, Monitoring string
+}
+type FormulaTradeOff struct {
+	Decision, Rationale, WhatWeGain, WhatWeGiveUp string
+}
+type FormulaConstraint struct {
+	Constraint, Strategy, Implication string
+}
+type FormulaMetric struct {
+	Metric, Target, Why string
+}
+type FormulaEcoComponent struct {
+	Component, Metaphor, Role, StandaloneValue, EcosystemValue string
+}
+type FormulaSynergy struct {
+	Synergy, How, UniqueToUs string
+}
+
+templ StrategyFormulaContent(data StrategyFormulaData) {
+	@TabBackLink(data.TabGroup, data.InstanceID, data.CurrentPath)
+	<div class="space-y-8">
+		// ── Hero ──
+		<div class="relative overflow-hidden rounded-xl bg-gradient-to-br from-secondary/10 via-base-100 to-accent/10 border border-secondary/10">
+			<div class="px-6 py-8 sm:px-8">
+				<div class="flex items-start justify-between">
+					<div class="space-y-2">
+						<div class="flex items-center gap-2">
+							<span class="iconify lucide--brain size-5 text-secondary"></span>
+							<span class="text-xs font-semibold uppercase tracking-widest text-secondary">Strategy Formula</span>
+							if data.Status != "" {
+								@artifactStatusBadge(data.Status)
+							}
+							if data.Confidence != "" {
+								<span class={ "badge badge-sm", confidenceBadgeClass(data.Confidence) }>{ data.Confidence } confidence</span>
+							}
+						</div>
+						<h1 class="text-2xl font-bold text-base-content sm:text-3xl">{ data.Title }</h1>
+					</div>
+					if data.LastUpdated != "" {
+				<div class="hidden sm:block text-right text-xs text-base-content/60">
+						<p>Updated { data.LastUpdated }</p>
+					</div>
+					}
+				</div>
+			</div>
+		</div>
+
+		// ── Positioning ──
+		if data.PositioningStmt != "" || data.CategoryPosition != "" {
+			<section>
+				@sectionHeading("Positioning", "lucide--crosshair", "secondary", data.CategoryPosition)
+				<div class="mt-4 space-y-4">
+					if data.PositioningStmt != "" {
+						<div class="rounded-xl bg-gradient-to-r from-secondary/5 to-transparent border border-secondary/10 p-5">
+							<blockquote class="text-base text-base-content leading-relaxed italic">{ data.PositioningStmt }</blockquote>
+						</div>
+					}
+					<div class="grid gap-4 md:grid-cols-2">
+						if data.TargetCustomer != "" {
+							@editorialCard("Target Customer", data.TargetCustomer, "lucide--users")
+						}
+						if data.UniqueValue != "" {
+							@editorialCard("Unique Value", data.UniqueValue, "lucide--sparkles")
+						}
+					</div>
+					if len(data.Taglines) > 0 {
+						<div class="flex flex-wrap gap-2">
+							for _, t := range data.Taglines {
+								<span class="badge badge-outline badge-secondary">{ t }</span>
+							}
+						</div>
+					}
+				</div>
+			</section>
+		}
+
+		// ── Competitive Moat ──
+		if len(data.Advantages) > 0 || len(data.VsCompetitors) > 0 {
+			<section>
+				@sectionHeading("Competitive Moat", "lucide--shield", "primary", data.Differentiation)
+				<div class="mt-4 space-y-4">
+					if len(data.Advantages) > 0 {
+						<h4 class="text-sm font-semibold text-base-content/70">Advantages</h4>
+						<div class="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+							for _, a := range data.Advantages {
+								<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+									<div class="card-body p-4">
+										<h5 class="text-sm font-bold text-base-content">{ a.Name }</h5>
+										<p class="text-xs text-base-content/80 mt-1">{ a.Description }</p>
+										if a.Defensibility != "" {
+											<div class="mt-2">
+												<span class="badge badge-xs badge-outline badge-primary">{ a.Defensibility }</span>
+											</div>
+										}
+									</div>
+								</div>
+							}
+						</div>
+					}
+					if len(data.VsCompetitors) > 0 {
+						<h4 class="text-sm font-semibold text-base-content/70 mt-2">vs Competitors</h4>
+						<div class="space-y-2">
+							for _, c := range data.VsCompetitors {
+								@competitorRow(c)
+							}
+						</div>
+					}
+				</div>
+			</section>
+		}
+
+		// ── Value Creation Journey ──
+		if len(data.UserJourney) > 0 {
+			<section>
+				@sectionHeading("Value Creation", "lucide--route", "accent", "How users experience value")
+				<div class="mt-4">
+					<div class="flex flex-col gap-0">
+						for i, step := range data.UserJourney {
+							@journeyStep(step, i, len(data.UserJourney))
+						}
+					</div>
+				</div>
+				if len(data.ValueDrivers) > 0 {
+					<div class="mt-6 grid gap-3 md:grid-cols-3">
+						for _, d := range data.ValueDrivers {
+							<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+								<div class="card-body p-4">
+									<h5 class="text-sm font-bold text-base-content">{ d.Driver }</h5>
+									<p class="text-xs text-base-content/70 mt-1">{ d.Mechanism }</p>
+									if d.Flywheel != "" {
+										<p class="text-xs text-accent/70 mt-2 italic">{ d.Flywheel }</p>
+									}
+								</div>
+							</div>
+						}
+					</div>
+				}
+			</section>
+		}
+
+		// ── Business Model ──
+		if data.RevenueModel != "" || len(data.PricingTiers) > 0 {
+			<section>
+				@sectionHeading("Business Model", "lucide--wallet", "warning", data.RevenueModel)
+				<div class="mt-4 space-y-4">
+					if data.PricingPhilosophy != "" {
+						<p class="text-sm text-base-content/70 leading-relaxed">{ data.PricingPhilosophy }</p>
+					}
+					if len(data.PricingTiers) > 0 {
+						<div class="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+							for _, t := range data.PricingTiers {
+								@tierCard(t)
+							}
+						</div>
+					}
+					if len(data.UnitEconomics) > 0 {
+						<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+							<div class="card-body p-4">
+								<h4 class="text-xs font-semibold uppercase tracking-wide text-base-content/70 mb-3">Unit Economics Targets</h4>
+								<div class="flex flex-wrap gap-4">
+									for _, k := range sortedMapKeys(data.UnitEconomics) {
+										<div class="text-center">
+											<p class="text-lg font-bold text-base-content">{ data.UnitEconomics[k] }</p>
+											<p class="text-xs text-base-content/70">{ k }</p>
+										</div>
+									}
+								</div>
+							</div>
+						</div>
+					}
+				</div>
+			</section>
+		}
+
+		// ── Risks ──
+		if len(data.Risks) > 0 {
+			<section>
+				@sectionHeading("Risks", "lucide--alert-triangle", "error", strconv.Itoa(len(data.Risks)) + " identified risks")
+				<div class="mt-4 space-y-2">
+					for _, r := range data.Risks {
+						@riskRow(r)
+					}
+				</div>
+			</section>
+		}
+
+		// ── Trade-offs ──
+		if len(data.TradeOffs) > 0 {
+			<section>
+				@sectionHeading("Trade-offs", "lucide--scale", "warning", "Conscious strategic decisions")
+				<div class="mt-4 space-y-3">
+					for _, t := range data.TradeOffs {
+						@tradeOffCard(t)
+					}
+				</div>
+			</section>
+		}
+
+		// ── Success Metrics ──
+		if data.NorthStarMetric != "" || len(data.SupportingMetrics) > 0 {
+			<section>
+				@sectionHeading("Success Metrics", "lucide--bar-chart-3", "info", "")
+				<div class="mt-4 space-y-4">
+					if data.NorthStarMetric != "" {
+						<div class="rounded-xl bg-gradient-to-r from-info/5 to-transparent border border-info/10 p-5">
+							<p class="text-xs font-semibold uppercase tracking-wide text-info mb-1">North Star Metric</p>
+							<p class="text-sm text-base-content leading-relaxed">{ data.NorthStarMetric }</p>
+						</div>
+					}
+					if len(data.SupportingMetrics) > 0 {
+						<div class="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+							for _, m := range data.SupportingMetrics {
+								<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+									<div class="card-body p-3">
+										<p class="text-sm font-medium text-base-content">{ m.Metric }</p>
+										if m.Target != "" {
+											<p class="text-xs text-accent font-mono mt-1">{ m.Target }</p>
+										}
+								if m.Why != "" {
+									<p class="text-xs text-base-content/70 mt-1">{ m.Why }</p>
+								}
+									</div>
+								</div>
+							}
+						</div>
+					}
+				</div>
+			</section>
+		}
+
+		// ── Ecosystem ──
+		if len(data.EcosystemComponents) > 0 {
+			<section>
+				@sectionHeading("Ecosystem", "lucide--network", "secondary", data.EcosystemSummary)
+				<div class="mt-4 grid gap-4 lg:grid-cols-3">
+					for _, comp := range data.EcosystemComponents {
+						@ecoComponentCard(comp)
+					}
+				</div>
+				if len(data.EcosystemSynergies) > 0 {
+					<div class="mt-4 space-y-2">
+						for _, syn := range data.EcosystemSynergies {
+							<div class="rounded-lg bg-base-200/40 px-4 py-3">
+								<p class="text-sm font-medium text-base-content">{ syn.Synergy }</p>
+								<p class="text-xs text-base-content/70 mt-1">{ syn.How }</p>
+							</div>
+						}
+					</div>
+				}
+			</section>
+		}
+	</div>
+}
+
+// ── Formula sub-components ──
+
+templ competitorRow(c FormulaCompetitor) {
+	<div class="rounded-lg border border-base-content/5 bg-base-200/30 px-4 py-3">
+		<div class="flex items-start gap-4">
+			<div class="min-w-0 grow">
+				<p class="text-sm font-semibold text-base-content">vs { c.Competitor }</p>
+					<div class="grid gap-x-6 gap-y-1 md:grid-cols-2 mt-1 text-xs text-base-content/70">
+				if c.TheirStrength != "" {
+					<span><span class="font-medium text-base-content/60">Their strength:</span> { c.TheirStrength }</span>
+					}
+					if c.OurAngle != "" {
+						<span><span class="font-medium text-accent/70">Our angle:</span> { c.OurAngle }</span>
+					}
+				</div>
+			</div>
+			if c.Wedge != "" {
+				<span class="badge badge-xs badge-outline badge-accent shrink-0">{ c.Wedge }</span>
+			}
+		</div>
+	</div>
+}
+
+templ journeyStep(step FormulaJourneyStep, idx, total int) {
+	<div class="flex items-start gap-4">
+		// Vertical connector
+		<div class="flex flex-col items-center">
+			<div class="flex items-center justify-center size-7 rounded-full bg-accent/10 text-accent text-xs font-bold shrink-0">
+				{ strconv.Itoa(idx + 1) }
+			</div>
+			if idx < total-1 {
+				<div class="w-0.5 h-8 bg-accent/20"></div>
+			}
+		</div>
+		<div class="pb-4 min-w-0">
+			<p class="text-sm font-semibold text-base-content">{ step.Step }</p>
+		if step.Action != "" {
+			<p class="text-xs text-base-content/70 mt-0.5">{ step.Action }</p>
+			}
+			if step.Value != "" {
+				<p class="text-xs text-accent/70 mt-0.5">{ step.Value }</p>
+			}
+		</div>
+	</div>
+}
+
+templ tierCard(t FormulaTier) {
+	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card-body p-4 text-center">
+			<h5 class="text-sm font-bold text-base-content">{ t.Tier }</h5>
+			if t.Price != "" {
+				<p class="text-lg font-bold text-accent mt-1">{ t.Price }</p>
+			}
+		if t.Purpose != "" {
+			<p class="text-xs text-base-content/70 mt-1">{ t.Purpose }</p>
+			}
+		</div>
+	</div>
+}
+
+templ riskRow(r FormulaRisk) {
+	<details class="group rounded-lg border border-base-content/10 bg-base-100 shadow-sm">
+		<summary class="flex cursor-pointer items-center gap-3 px-4 py-3 text-sm select-none">
+			<span class={ "size-2 rounded-full shrink-0", likelihoodDot(r.Likelihood) }></span>
+			<span class="grow font-medium text-base-content">{ r.Risk }</span>
+			<span class={ "badge badge-xs", likelihoodBadge(r.Impact) }>{ r.Impact }</span>
+			<span class="iconify lucide--chevron-right size-3.5 text-base-content/30 transition-transform group-open:rotate-90"></span>
+		</summary>
+		<div class="border-t border-base-content/5 px-4 pb-3 pt-2 text-xs text-base-content/70 space-y-1">
+		if r.Mitigation != "" {
+			<p><span class="font-medium text-base-content/60">Mitigation:</span> { r.Mitigation }</p>
+		}
+		if r.Monitoring != "" {
+			<p><span class="font-medium text-base-content/60">Monitoring:</span> { r.Monitoring }</p>
+			}
+		</div>
+	</details>
+}
+
+templ tradeOffCard(t FormulaTradeOff) {
+	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card-body p-4">
+			<p class="text-sm font-semibold text-base-content">{ t.Decision }</p>
+		if t.Rationale != "" {
+			<p class="text-xs text-base-content/70 mt-1">{ t.Rationale }</p>
+			}
+			<div class="grid gap-4 md:grid-cols-2 mt-3">
+				if t.WhatWeGain != "" {
+					<div class="flex items-start gap-2">
+						<span class="iconify lucide--plus-circle size-3.5 text-success mt-0.5 shrink-0"></span>
+						<span class="text-xs text-base-content/70">{ t.WhatWeGain }</span>
+					</div>
+				}
+				if t.WhatWeGiveUp != "" {
+					<div class="flex items-start gap-2">
+						<span class="iconify lucide--minus-circle size-3.5 text-error mt-0.5 shrink-0"></span>
+						<span class="text-xs text-base-content/70">{ t.WhatWeGiveUp }</span>
+					</div>
+				}
+			</div>
+		</div>
+	</div>
+}
+
+templ ecoComponentCard(comp FormulaEcoComponent) {
+	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card-body p-4">
+			<div class="flex items-center gap-2 mb-2">
+				<span class="iconify lucide--component size-4 text-secondary"></span>
+				<h5 class="text-sm font-bold text-base-content">{ comp.Component }</h5>
+			</div>
+		if comp.Metaphor != "" {
+			<p class="text-xs text-secondary italic mb-2">{ comp.Metaphor }</p>
+			}
+		if comp.Role != "" {
+			<p class="text-xs text-base-content/80">{ comp.Role }</p>
+			}
+			if comp.EcosystemValue != "" {
+				<div class="mt-2 pt-2 border-t border-base-content/5">
+					<p class="text-xs text-base-content/70"><span class="font-medium">Ecosystem value:</span> { comp.EcosystemValue }</p>
+				</div>
+			}
+		</div>
+	</div>
+}

@@ -2,6 +2,9 @@ package ui
 
 import (
 	"github.com/emergent-company/go-daisy/components/layout"
+	"github.com/emergent-company/go-daisy/components/nav"
+
+	strategynav "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/navigation"
 )
 
 // StrategyShellPage renders the full page shell with sidebar and navbar.
@@ -11,13 +14,17 @@ templ StrategyShellPage(title string, currentPath string, sidebarGroups []layout
 		@themeRestoreScript()
 		@layout.AppShell("Emergent Strategy") {
 			@layout.Sidebar("Emergent Strategy", sidebarGroups)
+			<div class="flex min-w-0 grow overflow-hidden">
 			<div class="flex min-w-0 grow flex-col overflow-hidden">
 				@layout.Navbar("Emergent Strategy") {
 					@layout.ThemeToggle("nord", "dark")
 				}
-				<main id="main-content" class="grow overflow-auto bg-base-200">
-					{ children... }
+				<main id="main-content" class="flex flex-col flex-1 min-w-0 overflow-hidden bg-base-200">
+					<div class="flex flex-col flex-1 min-h-0 overflow-y-auto">
+						{ children... }
+					</div>
 				</main>
+			</div>
 			</div>
 		}
 	}
@@ -30,31 +37,66 @@ templ InstanceShellPage(title string, currentPath string, sidebarGroups []layout
 		@themeRestoreScript()
 		@layout.AppShell("Emergent Strategy") {
 			@layout.Sidebar("Emergent Strategy", sidebarGroups)
+			<div class="flex min-w-0 grow overflow-hidden">
 			<div class="flex min-w-0 grow flex-col overflow-hidden">
 				@layout.Navbar("Emergent Strategy") {
 					@layout.ThemeToggle("nord", "dark")
 				}
-				<main id="main-content" class="grow overflow-auto bg-base-200">
-					@InstanceChrome(instanceName, tabs, currentPath) {
-						{ children... }
-					}
-				</main>
+			<main id="main-content" class="flex flex-col flex-1 min-w-0 overflow-hidden bg-base-200">
+				@InstanceChrome(instanceName, tabs, currentPath) {
+					{ children... }
+				}
+			</main>
+			</div>
 			</div>
 		}
 	}
 }
 
-// InstanceChrome renders the strategy header with tabs.
+// InstanceChrome renders the instance breadcrumb + tab content area.
+// Matches 21st-captable's companyChrome pattern exactly: the breadcrumb div
+// and #tab-content are rendered as direct children of #main-content (no
+// intermediate wrapper div), so Chrome's flex height chain is unbroken.
 templ InstanceChrome(instanceName string, tabs []TabProps, currentPath string) {
-	<div id="instance-chrome">
-		<div class="border-b border-base-content/10 bg-base-100 px-6 pt-4">
-			<h1 class="text-lg font-semibold text-base-content mb-3">{ instanceName }</h1>
+	// Breadcrumb bar — "Strategies > Instance Name"
+	<div class="bg-base-100 border-b border-base-200 px-6 py-3">
+		<nav class="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
+			<a href="/strategies" class="text-base-content/70 hover:text-base-content transition-colors">Strategies</a>
+			<svg class="w-3 h-3 text-base-content/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
+			<span class="font-bold text-base-content text-lg">
+				if instanceName != "" {
+					{ instanceName }
+				} else {
+					Strategy
+				}
+			</span>
+		</nav>
+	</div>
+	@instanceTabContent(tabs, currentPath) {
+		{ children... }
+	}
+}
+
+// instanceTabContent renders the tab bar + content. This is also the fragment
+// returned for HTMX tab/sub-nav swaps (swapped into #tab-content).
+templ instanceTabContent(tabs []TabProps, currentPath string) {
+	<div id="tab-content" class="flex flex-col flex-1 min-h-0 overflow-x-auto overflow-y-auto">
+		<div class="border-b border-base-content/10 bg-base-100 px-6">
 			@StrategyTabs(tabs, currentPath)
 		</div>
-		<div id="tab-content" class="p-6">
+		<div class="px-3 py-4 sm:px-6">
 			{ children... }
 		</div>
 	</div>
+}
+
+// InstanceTabContent renders the tab bar + content for HTMX swaps.
+// This is the second-to-content tier in RenderTriple: when HTMX targets
+// #tab-content, this re-renders the tab bar with correct active state.
+templ InstanceTabContent(tabs []TabProps, currentPath string, content templ.Component) {
+	@instanceTabContent(tabs, currentPath) {
+		@content
+	}
 }
 
 // TabProps describes a single tab.
@@ -88,6 +130,162 @@ templ StrategyTabs(tabs []TabProps, currentPath string) {
 	</div>
 }
 
+// --- Sub-navigation components (rendered by page content templates) ---
+
+// TabSubNavItem describes a single sub-navigation link within a tab.
+type TabSubNavItem struct {
+	Label  string
+	Icon   string
+	Href   string
+	Active bool
+}
+
+// navGraph is the singleton navigation graph used for sub-nav and breadcrumb generation.
+var navGraph = strategynav.DefaultGraph()
+
+// tabSubNavItems returns sub-navigation items for a tab's child pages.
+func tabSubNavItems(tabGroup strategynav.TabGroup, instanceID, currentPath string) []TabSubNavItem {
+	screens := navGraph.TabSubNavScreens(tabGroup)
+	if len(screens) == 0 {
+		return nil
+	}
+	items := make([]TabSubNavItem, 0, len(screens))
+	for _, s := range screens {
+		href := "/strategies/" + instanceID + s.URLPattern
+		icon := s.Icon
+		if icon == "" {
+			icon = "lucide--circle"
+		}
+		items = append(items, TabSubNavItem{
+			Label:  s.Title,
+			Icon:   icon,
+			Href:   href,
+			Active: currentPath == href,
+		})
+	}
+	return items
+}
+
+// TabRelatedPages renders the sub-nav on a tab landing page.
+// The landing item is shown first (highlighted), followed by related sub-pages.
+templ TabRelatedPages(tabGroup string, instanceID string, currentPath string) {
+	{{ tab := strategynav.TabGroup(tabGroup) }}
+	{{ items := tabSubNavItems(tab, instanceID, currentPath) }}
+	if len(items) > 0 {
+		{{ meta := strategynav.TabDisplay(tab) }}
+		<div class="flex flex-wrap items-center gap-1 mb-4 text-sm">
+			{{ landingHref := "/strategies/" + instanceID + meta.LandingURL }}
+			<a
+				href={ templ.SafeURL(landingHref) }
+				hx-get={ string(templ.SafeURL(landingHref)) }
+				hx-target="#tab-content"
+				hx-swap="innerHTML"
+				hx-push-url="true"
+				class={ "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors",
+					templ.KV("bg-primary/10 text-primary font-medium", currentPath == landingHref),
+					templ.KV("text-base-content/60 hover:text-base-content hover:bg-base-200", currentPath != landingHref) }
+			>
+				<span class={ "iconify size-3.5 " + meta.Icon }></span>
+				{ meta.Label }
+			</a>
+			<span class="text-base-content/20">|</span>
+			for _, item := range items {
+				<a
+					href={ templ.SafeURL(item.Href) }
+					hx-get={ string(templ.SafeURL(item.Href)) }
+					hx-target="#tab-content"
+					hx-swap="innerHTML"
+					hx-push-url="true"
+					class={ "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors",
+						templ.KV("bg-primary/10 text-primary font-medium", item.Active),
+						templ.KV("text-base-content/60 hover:text-base-content hover:bg-base-200", !item.Active) }
+				>
+					<span class={ "iconify size-3.5 " + item.Icon }></span>
+					{ item.Label }
+				</a>
+			}
+		</div>
+	}
+}
+
+// TabBackLink renders the sub-nav on a sub-page within a tab.
+// The current page is highlighted in the sub-nav bar.
+templ TabBackLink(tabGroup string, instanceID string, currentPath string) {
+	@TabRelatedPages(tabGroup, instanceID, currentPath)
+}
+
+// --- Page Header (breadcrumbs from graph) ---
+
+// graphCrumbs builds breadcrumb steps for a screen from the navigation graph.
+// For instance-scoped screens, steps above the current tab landing are removed
+// since the chrome already shows the instance name and tab bar.
+func graphCrumbs(screenID string, instanceID string, instanceName string) []nav.BreadcrumbStep {
+	chain := navGraph.BreadcrumbChain(strategynav.ScreenID(screenID), instanceID)
+
+	// Skip entries up to and including Execution (the instance landing).
+	// The chrome already shows instance name + tab bar.
+	cutIdx := -1
+	for i, entry := range chain {
+		if entry.Label == "Dashboard" || entry.Label == "Execution" {
+			cutIdx = i
+		}
+	}
+	if cutIdx >= 0 && cutIdx+1 < len(chain) {
+		chain = chain[cutIdx+1:]
+	} else if cutIdx >= 0 {
+		return nil
+	}
+
+	steps := make([]nav.BreadcrumbStep, 0, len(chain))
+	for _, entry := range chain {
+		steps = append(steps, nav.BreadcrumbStep{
+			Label: entry.Label,
+			URL:   entry.Href,
+		})
+	}
+	return steps
+}
+
+// --- Shared nav context ---
+
+// NavContext is embedded in every bespoke artifact data struct so templates can
+// render their own TabBackLink sub-nav, matching the 21st-captable pattern
+// where each content template owns its sub-nav.
+type NavContext struct {
+	InstanceID  string
+	CurrentPath string
+	ScreenID    string // navigation screen ID for graphCrumbs
+	TabGroup    string // "ready", "fire", or "aim"
+}
+
+// --- Screen ID constants (for use in templ templates) ---
+
+const (
+	ScreenReadyOverview      = string(strategynav.ReadyOverview)
+	ScreenNorthStar          = string(strategynav.NorthStar)
+	ScreenInsightAnalyses    = string(strategynav.InsightAnalyses)
+	ScreenFoundations        = string(strategynav.StrategyFoundation)
+	ScreenOpportunity        = string(strategynav.InsightOpportunity)
+	ScreenFormula            = string(strategynav.StrategyFormula)
+	ScreenRoadmap            = string(strategynav.RoadmapRecipe)
+	ScreenPortfolio          = string(strategynav.ProductPortfolio)
+	ScreenFireOverview       = string(strategynav.FireOverview)
+	ScreenFeatureList        = string(strategynav.FeatureList)
+	ScreenFeatureDetail      = string(strategynav.FeatureDetail)
+	ScreenValueModelList     = string(strategynav.ValueModelList)
+	ScreenValueModelDetail   = string(strategynav.ValueModelDetail)
+	ScreenCommercialTrack    = string(strategynav.CommercialTrack)
+	ScreenStrategyTrack      = string(strategynav.StrategyTrack)
+	ScreenOrgOpsTrack        = string(strategynav.OrgOpsTrack)
+	ScreenDefinitionDetail   = string(strategynav.DefinitionDetail)
+	ScreenAimOverview        = string(strategynav.AimOverview)
+	ScreenLRA                = string(strategynav.LRA)
+	ScreenAssessment         = string(strategynav.AssessmentReport)
+	ScreenAssumptions        = string(strategynav.Assumptions)
+	ScreenCalibration        = string(strategynav.Calibration)
+	ScreenCoherence          = string(strategynav.Coherence)
+)
+
 // PhaseRenderData bundles a phase title with its rendered content.
 type PhaseRenderData struct {
 	Title   string
@@ -95,6 +293,7 @@ type PhaseRenderData struct {
 }
 
 // InstancePhaseFullPage renders the full page shell with instance chrome and content.
+// Tier 1 of RenderTriple: full page for direct browser loads.
 templ InstancePhaseFullPage(title string, currentPath string, sidebarGroups []layout.SidebarGroup, instanceName string, tabs []TabProps, content templ.Component) {
 	@InstanceShellPage(title, currentPath, sidebarGroups, instanceName, tabs) {
 		@content
@@ -102,6 +301,7 @@ templ InstancePhaseFullPage(title string, currentPath string, sidebarGroups []la
 }
 
 // InstanceChromeWithContent renders the instance chrome with content pre-filled.
+// Tier 2 of RenderTriple: sidebar navigation swaps into #main-content.
 templ InstanceChromeWithContent(instanceName string, tabs []TabProps, currentPath string, content templ.Component) {
 	@InstanceChrome(instanceName, tabs, currentPath) {
 		@content

@@ -170,7 +170,7 @@ func readyPhaseWidget(data InstanceDashboardData) templ.Component {
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-5\"><div class=\"flex items-center gap-2 mb-4\"><div class=\"rounded-lg bg-primary/10 p-1.5\"><span class=\"iconify lucide--compass size-5 text-primary\"></span></div><h2 class=\"text-base font-semibold text-base-content\">READY</h2><span class=\"text-xs text-base-content/50 ml-auto\">Foundation</span></div><div class=\"space-y-2\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-5\"><div class=\"flex items-center gap-2 mb-4\"><div class=\"rounded-lg bg-primary/10 p-1.5\"><span class=\"iconify lucide--compass size-5 text-primary\"></span></div><h2 class=\"text-base font-semibold text-base-content\">READY</h2><span class=\"text-xs text-base-content/70 ml-auto\">Foundation</span></div><div class=\"space-y-2\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -298,7 +298,7 @@ func readySubItem(label string, icon string, completed bool, href string) templ.
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<span class=\"iconify lucide--circle-dashed size-4 text-base-content/30\"></span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<span class=\"iconify lucide--circle-dashed size-4 text-base-content/40\"></span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -332,11 +332,11 @@ func firePhaseWidget(data InstanceDashboardData) templ.Component {
 			templ_7745c5c3_Var11 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-5\"><div class=\"flex items-center gap-2 mb-4\"><div class=\"rounded-lg bg-error/10 p-1.5\"><span class=\"iconify lucide--rocket size-5 text-error\"></span></div><h2 class=\"text-base font-semibold text-base-content\">FIRE</h2><span class=\"text-xs text-base-content/50 ml-auto\">Execution</span></div><div class=\"space-y-2\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-5\"><div class=\"flex items-center gap-2 mb-4\"><div class=\"rounded-lg bg-error/10 p-1.5\"><span class=\"iconify lucide--rocket size-5 text-error\"></span></div><h2 class=\"text-base font-semibold text-base-content\">FIRE</h2><span class=\"text-xs text-base-content/70 ml-auto\">Execution</span></div><div class=\"space-y-2\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = trackSubItem("Product", "lucide--code-2", data.ProductCount, "/strategies/"+data.InstanceID+"/fire/product").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = trackSubItem("Product", "lucide--code-2", data.ProductCount, "/strategies/"+data.InstanceID+"/fire/features").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -352,7 +352,7 @@ func firePhaseWidget(data InstanceDashboardData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</div><div class=\"divider my-2\"></div><div class=\"flex items-center justify-between text-sm\"><span class=\"text-base-content/60\">Total definitions</span> <span class=\"font-semibold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</div><div class=\"divider my-2\"></div><div class=\"flex items-center justify-between text-sm\"><span class=\"text-base-content/70\">Total definitions</span> <span class=\"font-semibold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -497,7 +497,7 @@ func aimPhaseWidget(data InstanceDashboardData) templ.Component {
 			templ_7745c5c3_Var20 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-5\"><div class=\"flex items-center gap-2 mb-4\"><div class=\"rounded-lg bg-warning/10 p-1.5\"><span class=\"iconify lucide--target size-5 text-warning\"></span></div><h2 class=\"text-base font-semibold text-base-content\">AIM</h2><span class=\"text-xs text-base-content/50 ml-auto\">Calibration</span></div><div class=\"space-y-2\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-5\"><div class=\"flex items-center gap-2 mb-4\"><div class=\"rounded-lg bg-warning/10 p-1.5\"><span class=\"iconify lucide--target size-5 text-warning\"></span></div><h2 class=\"text-base font-semibold text-base-content\">AIM</h2><span class=\"text-xs text-base-content/70 ml-auto\">Calibration</span></div><div class=\"space-y-2\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -616,7 +616,7 @@ func aimSubItem(label string, icon string, detail string, href string) templ.Com
 			return templ_7745c5c3_Err
 		}
 		if detail != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<span class=\"text-xs text-base-content/50\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<span class=\"text-xs text-base-content/70\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

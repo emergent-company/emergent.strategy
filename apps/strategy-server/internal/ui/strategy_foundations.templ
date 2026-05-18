@@ -1,0 +1,346 @@
+package ui
+
+import (
+	"strconv"
+)
+
+// StrategyFoundationsData holds all data for the bespoke Strategy Foundations view.
+type StrategyFoundationsData struct {
+	NavContext
+	ArtifactKey string
+	Name        string
+	Status      string
+	LastUpdated string
+	Confidence  string
+
+	// Product Vision
+	VisionStatement  string
+	TargetTimeframe  string
+	SuccessIndicators []FoundationIndicator
+
+	// Value Proposition
+	VPHeadline      string
+	VPTargetSegment string
+	ProofPoints     []FoundationProofPoint
+	JobsToBeDone    []string
+	KeyBenefits     []string
+	PainsWeEliminate []string
+	FeelingsWeCreate []string
+	EconomicValue   FoundationEconomicValue
+
+	// Strategic Sequencing
+	SequencingPrinciple string
+	Phases              []FoundationPhase
+
+	// Design Principles
+	DesignPrinciples []FoundationPrinciple
+}
+
+type FoundationIndicator struct {
+	Indicator string
+	Target    string
+}
+
+type FoundationProofPoint struct {
+	Claim string
+	Proof string
+}
+
+type FoundationEconomicValue struct {
+	CostSavings   string
+	RevenueGains  string
+	RiskReduction string
+}
+
+type FoundationPhase struct {
+	Phase             string
+	Name              string
+	Focus             string
+	Timeframe         string
+	TargetSegment     string
+	ValueDelivered    []string
+	StrategicRationale string
+}
+
+type FoundationPrinciple struct {
+	Principle     string
+	Manifestation string
+}
+
+// StrategyFoundationsContent renders the bespoke Strategy Foundations view.
+templ StrategyFoundationsContent(data StrategyFoundationsData) {
+	@TabBackLink(data.TabGroup, data.InstanceID, data.CurrentPath)
+	<div class="space-y-8">
+		// ── Hero ──
+		@foundationsHero(data)
+
+		// ── Product Vision ──
+		if data.VisionStatement != "" || len(data.SuccessIndicators) > 0 {
+			@foundationsVisionSection(data)
+		}
+
+		// ── Value Proposition ──
+		if data.VPHeadline != "" || len(data.ProofPoints) > 0 || len(data.JobsToBeDone) > 0 {
+			@foundationsValuePropSection(data)
+		}
+
+		// ── Strategic Sequencing ──
+		if data.SequencingPrinciple != "" || len(data.Phases) > 0 {
+			@foundationsSequencingSection(data)
+		}
+
+		// ── Design Principles ──
+		if len(data.DesignPrinciples) > 0 {
+			@foundationsDesignPrinciplesSection(data.DesignPrinciples)
+		}
+	</div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Hero
+// ──────────────────────────────────────────────────────────────────────
+
+templ foundationsHero(data StrategyFoundationsData) {
+	<div class="relative overflow-hidden rounded-xl bg-gradient-to-br from-accent/10 via-base-100 to-info/10 border border-accent/10">
+		<div class="px-6 py-8 sm:px-8">
+			<div class="flex items-start justify-between">
+				<div class="space-y-2">
+					<div class="flex items-center gap-2">
+						<span class="iconify lucide--compass size-5 text-accent"></span>
+						<span class="text-xs font-semibold uppercase tracking-widest text-accent">Strategy Foundations</span>
+						if data.Status != "" {
+							@artifactStatusBadge(data.Status)
+						}
+						if data.Confidence != "" {
+							<span class={ "badge badge-sm", confidenceBadgeClass(data.Confidence) }>{ data.Confidence } confidence</span>
+						}
+					</div>
+					<h1 class="text-2xl font-bold text-base-content sm:text-3xl">{ data.Name }</h1>
+				</div>
+				if data.LastUpdated != "" {
+			<div class="hidden sm:block text-right text-xs text-base-content/60">
+					<p>Updated { data.LastUpdated }</p>
+				</div>
+				}
+			</div>
+		</div>
+	</div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Product Vision
+// ──────────────────────────────────────────────────────────────────────
+
+templ foundationsVisionSection(data StrategyFoundationsData) {
+	<section>
+		@sectionHeading("Product Vision", "lucide--eye", "accent", "Where we're heading")
+		<div class="mt-4 space-y-4">
+			if data.VisionStatement != "" {
+				<div class="rounded-xl bg-gradient-to-r from-accent/5 to-transparent border border-accent/10 p-5">
+					<blockquote class="text-base text-base-content leading-relaxed italic">
+						{ data.VisionStatement }
+					</blockquote>
+					if data.TargetTimeframe != "" {
+						<div class="mt-3">
+							<span class="badge badge-sm badge-outline badge-accent">{ data.TargetTimeframe }</span>
+						</div>
+					}
+				</div>
+			}
+			if len(data.SuccessIndicators) > 0 {
+				<div class="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+					for _, ind := range data.SuccessIndicators {
+						<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+							<div class="card-body p-3 text-center">
+								if ind.Target != "" {
+									<p class="text-lg font-bold text-base-content">{ ind.Target }</p>
+								}
+								<p class="text-xs text-base-content/70">{ ind.Indicator }</p>
+							</div>
+						</div>
+					}
+				</div>
+			}
+		</div>
+	</section>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Value Proposition
+// ──────────────────────────────────────────────────────────────────────
+
+templ foundationsValuePropSection(data StrategyFoundationsData) {
+	<section>
+		@sectionHeading("Value Proposition", "lucide--sparkles", "primary", data.VPTargetSegment)
+		<div class="mt-4 space-y-4">
+			if data.VPHeadline != "" {
+				<div class="rounded-xl bg-gradient-to-r from-primary/5 to-transparent border border-primary/10 p-5">
+					<blockquote class="text-base text-base-content leading-relaxed italic">
+						{ data.VPHeadline }
+					</blockquote>
+				</div>
+			}
+			// Proof Points
+			if len(data.ProofPoints) > 0 {
+				<div class="grid gap-3 md:grid-cols-2">
+					for _, pp := range data.ProofPoints {
+						<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+							<div class="card-body p-4">
+								<p class="text-sm font-medium text-base-content">{ pp.Claim }</p>
+					if pp.Proof != "" {
+								<p class="text-xs text-base-content/70 mt-1">
+									<span class="font-medium text-base-content/60">Proof:</span> { pp.Proof }
+									</p>
+								}
+							</div>
+						</div>
+					}
+				</div>
+			}
+			// Jobs To Be Done + Key Benefits (two-column)
+			if len(data.JobsToBeDone) > 0 || len(data.KeyBenefits) > 0 {
+				<div class="grid gap-4 md:grid-cols-2">
+					if len(data.JobsToBeDone) > 0 {
+						@bulletListCard("Jobs To Be Done", data.JobsToBeDone, "lucide--target", "primary")
+					}
+					if len(data.KeyBenefits) > 0 {
+						@bulletListCard("Key Benefits", data.KeyBenefits, "lucide--check-circle-2", "success")
+					}
+				</div>
+			}
+			// Emotional Value (Pains / Feelings two-tone)
+			if len(data.PainsWeEliminate) > 0 || len(data.FeelingsWeCreate) > 0 {
+				<div class="grid gap-4 md:grid-cols-2">
+					if len(data.PainsWeEliminate) > 0 {
+						@bulletListCard("Pains We Eliminate", data.PainsWeEliminate, "lucide--x-circle", "error")
+					}
+					if len(data.FeelingsWeCreate) > 0 {
+						@bulletListCard("Feelings We Create", data.FeelingsWeCreate, "lucide--heart", "success")
+					}
+				</div>
+			}
+			// Economic Value
+			if data.EconomicValue.CostSavings != "" || data.EconomicValue.RevenueGains != "" || data.EconomicValue.RiskReduction != "" {
+				<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+					<div class="card-body p-4">
+						<h4 class="text-xs font-semibold uppercase tracking-wide text-base-content/70 mb-3">Economic Value</h4>
+						<div class="grid gap-4 md:grid-cols-3">
+							if data.EconomicValue.CostSavings != "" {
+								<div class="text-center">
+									<span class="iconify lucide--piggy-bank size-5 text-success mx-auto mb-1"></span>
+									<p class="text-lg font-bold text-base-content">{ data.EconomicValue.CostSavings }</p>
+									<p class="text-xs text-base-content/70">Cost Savings</p>
+								</div>
+							}
+							if data.EconomicValue.RevenueGains != "" {
+								<div class="text-center">
+									<span class="iconify lucide--trending-up size-5 text-accent mx-auto mb-1"></span>
+									<p class="text-lg font-bold text-base-content">{ data.EconomicValue.RevenueGains }</p>
+									<p class="text-xs text-base-content/70">Revenue Gains</p>
+								</div>
+							}
+							if data.EconomicValue.RiskReduction != "" {
+								<div class="text-center">
+									<span class="iconify lucide--shield-check size-5 text-info mx-auto mb-1"></span>
+									<p class="text-lg font-bold text-base-content">{ data.EconomicValue.RiskReduction }</p>
+									<p class="text-xs text-base-content/70">Risk Reduction</p>
+								</div>
+							}
+						</div>
+					</div>
+				</div>
+			}
+		</div>
+	</section>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Strategic Sequencing
+// ──────────────────────────────────────────────────────────────────────
+
+templ foundationsSequencingSection(data StrategyFoundationsData) {
+	<section>
+		@sectionHeading("Strategic Sequencing", "lucide--list-ordered", "secondary", "How we phase our approach")
+		<div class="mt-4 space-y-4">
+			if data.SequencingPrinciple != "" {
+				<div class="rounded-xl bg-gradient-to-r from-secondary/5 to-transparent border border-secondary/10 p-5">
+					<blockquote class="text-base text-base-content leading-relaxed italic">
+						{ data.SequencingPrinciple }
+					</blockquote>
+				</div>
+			}
+			if len(data.Phases) > 0 {
+				<div class="flex flex-col gap-0">
+					for i, phase := range data.Phases {
+						@foundationsPhaseStep(phase, i, len(data.Phases))
+					}
+				</div>
+			}
+		</div>
+	</section>
+}
+
+templ foundationsPhaseStep(phase FoundationPhase, idx, total int) {
+	<div class="flex items-start gap-4">
+		// Vertical connector
+		<div class="flex flex-col items-center">
+			<div class="flex items-center justify-center size-7 rounded-full bg-secondary/10 text-secondary text-xs font-bold shrink-0">
+				{ strconv.Itoa(idx + 1) }
+			</div>
+			if idx < total-1 {
+				<div class="w-0.5 h-8 bg-secondary/20"></div>
+			}
+		</div>
+		<div class="pb-4 min-w-0 grow">
+			<div class="flex items-center gap-2">
+				<p class="text-sm font-semibold text-base-content">{ phase.Name }</p>
+				if phase.Timeframe != "" {
+					<span class="badge badge-xs badge-outline badge-secondary">{ phase.Timeframe }</span>
+				}
+			</div>
+		if phase.Focus != "" {
+			<p class="text-xs text-base-content/70 mt-0.5">{ phase.Focus }</p>
+		}
+		if phase.TargetSegment != "" {
+			<p class="text-xs text-base-content/70 mt-0.5">
+				<span class="font-medium text-base-content/60">Segment:</span> { phase.TargetSegment }
+				</p>
+			}
+			if len(phase.ValueDelivered) > 0 {
+				<div class="flex flex-wrap gap-1 mt-2">
+					for _, v := range phase.ValueDelivered {
+						<span class="badge badge-xs badge-ghost">{ v }</span>
+					}
+				</div>
+			}
+			if phase.StrategicRationale != "" {
+				<p class="text-xs text-secondary/70 mt-1.5 italic">{ phase.StrategicRationale }</p>
+			}
+		</div>
+	</div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Design Principles
+// ──────────────────────────────────────────────────────────────────────
+
+templ foundationsDesignPrinciplesSection(principles []FoundationPrinciple) {
+	<section>
+		@sectionHeading("Design Principles", "lucide--ruler", "warning", "Standards that shape our product")
+		<div class="mt-4 grid gap-3 md:grid-cols-2">
+			for _, p := range principles {
+				<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+					<div class="card-body p-4">
+						<div class="flex items-center gap-2 mb-2">
+							<span class="iconify lucide--compass size-4 text-warning"></span>
+							<h4 class="text-sm font-bold text-base-content">{ p.Principle }</h4>
+						</div>
+						if p.Manifestation != "" {
+							<p class="text-sm text-base-content/70 leading-relaxed">{ p.Manifestation }</p>
+						}
+					</div>
+				</div>
+			}
+		</div>
+	</section>
+}

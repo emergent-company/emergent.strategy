@@ -33,6 +33,7 @@ type AimPhaseData struct {
 
 // AimPhaseContent renders the AIM phase dashboard content.
 templ AimPhaseContent(data AimPhaseData) {
+	@TabRelatedPages("aim", data.InstanceID, "/strategies/" + data.InstanceID + "/aim")
 	<div class="space-y-6">
 		// Stats
 		@ui.StatCards([]ui.StatCardProps{
@@ -80,15 +81,15 @@ templ aimArtifactRow(label, icon string, exists bool, detail, href string) {
 		hx-push-url="true"
 		class="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-base-200 transition-colors cursor-pointer group"
 	>
-		<span class={ "iconify size-4 group-hover:text-primary " + icon, templ.KV("text-success", exists), templ.KV("text-base-content/30", !exists) }></span>
+		<span class={ "iconify size-4 group-hover:text-primary " + icon, templ.KV("text-success", exists), templ.KV("text-base-content/40", !exists) }></span>
 		<span class="text-sm text-base-content grow">{ label }</span>
 		if exists {
 			if detail != "" {
-				<span class="text-xs text-base-content/50">{ detail }</span>
+				<span class="text-xs text-base-content/70">{ detail }</span>
 			}
 			<span class="iconify lucide--check-circle-2 size-3.5 text-success"></span>
 		} else {
-			<span class="iconify lucide--circle-dashed size-3.5 text-base-content/30"></span>
+			<span class="iconify lucide--circle-dashed size-3.5 text-base-content/40"></span>
 		}
 	</a>
 }
@@ -102,22 +103,22 @@ templ coherenceCard(data AimPhaseData) {
 				<div class="grid grid-cols-3 gap-3">
 					<div class="text-center rounded-lg bg-error/5 px-3 py-2.5">
 						<p class="text-lg font-bold text-error">{ strconv.Itoa(data.CriticalSignals) }</p>
-						<p class="text-xs text-base-content/50">Critical</p>
+						<p class="text-xs text-base-content/70">Critical</p>
 					</div>
 					<div class="text-center rounded-lg bg-warning/5 px-3 py-2.5">
 						<p class="text-lg font-bold text-warning">{ strconv.Itoa(data.WarningSignals) }</p>
-						<p class="text-xs text-base-content/50">Warning</p>
+						<p class="text-xs text-base-content/70">Warning</p>
 					</div>
 					<div class="text-center rounded-lg bg-success/5 px-3 py-2.5">
 						<p class="text-lg font-bold text-success">{ strconv.Itoa(data.ActiveSignals - data.CriticalSignals - data.WarningSignals) }</p>
-						<p class="text-xs text-base-content/50">Info</p>
+						<p class="text-xs text-base-content/70">Info</p>
 					</div>
 				</div>
 
 				if data.ActiveSignals == 0 {
 					<div class="text-center py-4">
 						<span class="iconify lucide--shield-check size-8 text-success/60 mx-auto mb-2"></span>
-						<p class="text-sm text-base-content/60">No active coherence signals</p>
+						<p class="text-sm text-base-content/70">No active coherence signals</p>
 					</div>
 				}
 			</div>
@@ -147,7 +148,7 @@ templ assumptionCoverageCard(data AimPhaseData) {
 					value={ strconv.Itoa(assumptionPercent(data.TestedAssumptions, data.TotalAssumptions)) }
 					max="100"
 				></progress>
-				<span class="text-sm font-medium text-base-content/60 whitespace-nowrap">
+				<span class="text-sm font-medium text-base-content/70 whitespace-nowrap">
 					{ strconv.Itoa(data.TestedAssumptions) }/{ strconv.Itoa(data.TotalAssumptions) } tested
 				</span>
 			</div>
