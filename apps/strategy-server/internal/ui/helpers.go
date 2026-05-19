@@ -73,6 +73,14 @@ func BuildSidebarGroups(currentPath string, instances []InstanceSummary) []layou
 		})
 	}
 
+	// System group — always at the bottom.
+	groups = append(groups, layout.SidebarGroup{
+		Label: "System",
+		Items: []layout.SidebarItem{
+			{Label: "Settings", Icon: "lucide--settings", Href: "/settings", Active: hasPrefix(currentPath, "/settings")},
+		},
+	})
+
 	return groups
 }
 
@@ -552,6 +560,46 @@ func vmMaturityBadge(stage string) string {
 		return "badge-ghost"
 	default:
 		return "badge-ghost"
+	}
+}
+
+// countMissingVMLinks counts how many definitions in a slice are missing their
+// value model link (contributes_to). Used to show a gap badge in section headers.
+func countMissingVMLinks(defs []FireTrackDefinition) int {
+	n := 0
+	for _, d := range defs {
+		if d.MissingValueModelLink {
+			n++
+		}
+	}
+	return n
+}
+
+// vmDefTierLabel returns the "T1" / "T2" / "T3" prefix for a canonical definition chip.
+func vmDefTierLabel(tier int) string {
+	switch tier {
+	case 1:
+		return "T1"
+	case 2:
+		return "T2"
+	case 3:
+		return "T3"
+	default:
+		return ""
+	}
+}
+
+// vmDefStatusDot returns the dot color class for a feature/definition status chip.
+func vmDefStatusDot(status string) string {
+	switch status {
+	case "in_progress":
+		return "bg-primary"
+	case "delivered":
+		return "bg-success"
+	case "draft":
+		return "bg-warning"
+	default:
+		return "bg-base-content/30"
 	}
 }
 

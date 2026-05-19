@@ -9,10 +9,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/pkg/decompose"
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
@@ -20,10 +23,37 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/memory"
 )
 
+// InstanceExporter produces YAML files for a strategy instance.
+// Implemented by domain/strategy.Service — passed in to avoid a circular import.
+type InstanceExporter interface {
+	ExportInstance(ctx context.Context, instanceID uuid.UUID) (*ExportResult, error)
+}
+
+// ExportResult is a minimal mirror of strategy.ExportResult so this package
+// has no import dependency on domain/strategy.
+type ExportResult struct {
+	Files []ExportFile
+}
+
+// ExportFile is one artifact YAML file.
+type ExportFile struct {
+	RelPath string
+	Content string
+}
+
+// syncResult holds counts to write back to the DB after a successful ingest.
+type syncResult struct {
+	objectCount           int
+	edgeCount             int
+	decomposedObjectCount int
+	decomposedEdgeCount   int
+}
+
 // Service converts committed strategy artifacts into Memory graph objects.
 type Service struct {
-	db     *bun.DB
-	client *memory.Client
+	db       *bun.DB
+	client   *memory.Client
+	exporter InstanceExporter // optional — enables decomposed layer ingest
 
 	// Worker pool for async ingestion.
 	jobs chan ingestJob
@@ -43,6 +73,12 @@ func NewService(db *bun.DB, client *memory.Client) *Service {
 		jobs:   make(chan ingestJob, 100),
 	}
 	return s
+}
+
+// SetExporter configures the strategy exporter used for decomposed-layer ingest.
+// Must be called before Start(). If not set, decomposed ingest is skipped.
+func (s *Service) SetExporter(e InstanceExporter) {
+	s.exporter = e
 }
 
 // Start launches the ingestion worker pool. Call Stop() on shutdown.
@@ -68,6 +104,46 @@ func (s *Service) Stop() {
 	slog.Info("ingest: worker pool stopped")
 }
 
+// EnqueueAllInstances enqueues a full re-ingest for every non-archived strategy
+// instance. Called once at startup so Memory stays current after restarts.
+// Runs in a goroutine; logs errors but never returns them.
+func (s *Service) EnqueueAllInstances(ctx context.Context, db *bun.DB, log interface {
+	Info(msg string, args ...any)
+	Warn(msg string, args ...any)
+}) {
+	if s.client == nil {
+		return
+	}
+
+	var ids []struct {
+		ID uuid.UUID `bun:"id"`
+	}
+	err := db.NewSelect().
+		TableExpr("strategy_instances AS si").
+		ColumnExpr("si.id").
+		Join("JOIN workspaces AS w ON w.id = si.workspace_id").
+		Where("si.status != ?", "archived").
+		Where("w.deleted_at IS NULL").
+		Where("w.github_owner NOT LIKE ?", "e2e-%").
+		Where("w.github_owner NOT LIKE ?", "ripple-%").
+		Where("w.github_owner NOT LIKE ?", "aim-ripple-%").
+		Scan(ctx, &ids)
+	if err != nil {
+		log.Warn("ingest: startup sweep: failed to load instances", "err", err)
+		return
+	}
+
+	log.Info("ingest: startup sweep: queuing re-ingest", "instance_count", len(ids))
+	for _, row := range ids {
+		// Use a nil batchID to signal a full re-ingest, not a batch update.
+		select {
+		case s.jobs <- ingestJob{InstanceID: row.ID, BatchID: uuid.Nil}:
+		default:
+			log.Warn("ingest: startup sweep: queue full, skipping instance", "instance_id", row.ID)
+		}
+	}
+}
+
 // EnqueueBatch enqueues a batch for async ingestion after commit.
 // Non-blocking — returns immediately. If the queue is full, the job is dropped
 // with a warning (it can be recovered via re-ingest).
@@ -88,8 +164,15 @@ func (s *Service) EnqueueBatch(instanceID, batchID uuid.UUID) {
 func (s *Service) worker() {
 	defer s.wg.Done()
 	for job := range s.jobs {
-		if err := s.ingestBatch(context.Background(), job); err != nil {
-			slog.Error("ingest: batch failed", "instance_id", job.InstanceID,
+		var err error
+		if job.BatchID == uuid.Nil {
+			// Full re-ingest (startup sweep or manual trigger).
+			err = s.ReingestInstance(context.Background(), job.InstanceID)
+		} else {
+			err = s.ingestBatch(context.Background(), job)
+		}
+		if err != nil {
+			slog.Error("ingest: job failed", "instance_id", job.InstanceID,
 				"batch_id", job.BatchID, "err", err)
 			// Retry with exponential backoff.
 			s.retryIngest(job)
@@ -103,7 +186,13 @@ func (s *Service) retryIngest(job ingestJob) {
 	for i, delay := range delays {
 		time.Sleep(delay)
 		slog.Info("ingest: retry attempt", "attempt", i+1, "instance_id", job.InstanceID)
-		if err := s.ingestBatch(context.Background(), job); err != nil {
+		var err error
+		if job.BatchID == uuid.Nil {
+			err = s.ReingestInstance(context.Background(), job.InstanceID)
+		} else {
+			err = s.ingestBatch(context.Background(), job)
+		}
+		if err != nil {
 			slog.Warn("ingest: retry failed", "attempt", i+1, "err", err)
 			continue
 		}
@@ -174,6 +263,10 @@ func (s *Service) ingestBatch(ctx context.Context, job ingestJob) error {
 		"instance_id", job.InstanceID,
 		"batch_id", job.BatchID,
 		"mutations", len(mutations))
+
+	// Update sync status and counts in Postgres.
+	res := s.countIngested(ctx, job.InstanceID)
+	s.updateSyncStatus(ctx, job.InstanceID, res)
 
 	return nil
 }
@@ -429,7 +522,185 @@ func (s *Service) ReingestInstance(ctx context.Context, instanceID uuid.UUID) er
 	slog.Info("ingest: re-ingest complete", "instance_id", instanceID,
 		"artifacts", len(artifacts), "relationships", len(rels))
 
+	// Ingest the decomposed layer if an exporter is configured.
+	res := s.countIngested(ctx, instanceID)
+	if s.exporter != nil {
+		dObjs, dEdges, dErr := s.ReingestInstanceDecomposed(ctx, instanceID)
+		if dErr != nil {
+			slog.Warn("ingest: decomposed layer failed (non-fatal)", "instance_id", instanceID, "err", dErr)
+		} else {
+			res.decomposedObjectCount = dObjs
+			res.decomposedEdgeCount = dEdges
+		}
+	}
+
+	// Update sync status and counts in Postgres.
+	s.updateSyncStatus(ctx, instanceID, res)
+
 	return nil
+}
+
+// updateSyncStatus writes sync metadata back to strategy_instances after a
+// successful ingest. Called at the end of ingestBatch and ReingestInstance.
+func (s *Service) updateSyncStatus(ctx context.Context, instanceID uuid.UUID, res syncResult) {
+	now := time.Now()
+	synced := "synced"
+	_, err := s.db.NewUpdate().
+		TableExpr("strategy_instances").
+		Set("memory_sync_status = ?", synced).
+		Set("memory_last_synced_at = ?", now).
+		Set("memory_object_count = ?", res.objectCount).
+		Set("memory_edge_count = ?", res.edgeCount).
+		Set("memory_decomposed_object_count = ?", res.decomposedObjectCount).
+		Set("memory_decomposed_edge_count = ?", res.decomposedEdgeCount).
+		Set("updated_at = ?", now).
+		Where("id = ?", instanceID).
+		Exec(ctx)
+	if err != nil {
+		slog.Warn("ingest: failed to update sync status", "instance_id", instanceID, "err", err)
+	}
+}
+
+// countIngested returns the current object and edge counts in Memory for an
+// instance by counting artifacts in the DB (objects written = non-archived
+// artifacts) and relationships (edges written). This avoids a per-instance
+// Memory API call and is accurate immediately after a successful ingest.
+func (s *Service) countIngested(ctx context.Context, instanceID uuid.UUID) syncResult {
+	objCount, err := s.db.NewSelect().
+		TableExpr("strategy_artifacts").
+		Where("instance_id = ?", instanceID).
+		Where("status != ?", domain.ArtifactStatusArchived).
+		Count(ctx)
+	if err != nil {
+		slog.Warn("ingest: count artifacts failed", "instance_id", instanceID, "err", err)
+	}
+	edgeCount, err := s.db.NewSelect().
+		TableExpr("strategy_relationships").
+		Where("instance_id = ?", instanceID).
+		Count(ctx)
+	if err != nil {
+		slog.Warn("ingest: count relationships failed", "instance_id", instanceID, "err", err)
+	}
+	return syncResult{objectCount: int(objCount), edgeCount: int(edgeCount)}
+}
+
+// ReingestInstanceDecomposed exports instance artifacts to YAML, runs the
+// decomposer, and upserts the resulting sub-entity objects and relationships
+// into Memory under the "layer:decomposed" label.
+// Returns (objectCount, edgeCount, error).
+func (s *Service) ReingestInstanceDecomposed(ctx context.Context, instanceID uuid.UUID) (int, int, error) {
+	if s.client == nil {
+		return 0, 0, fmt.Errorf("ingest: Memory client not configured")
+	}
+	if s.exporter == nil {
+		return 0, 0, fmt.Errorf("ingest: no exporter configured for decomposed layer")
+	}
+
+	// Export all artifacts to a temporary directory.
+	export, err := s.exporter.ExportInstance(ctx, instanceID)
+	if err != nil {
+		return 0, 0, fmt.Errorf("export instance for decompose: %w", err)
+	}
+
+	tmpDir, err := os.MkdirTemp("", "ingest-decompose-*")
+	if err != nil {
+		return 0, 0, fmt.Errorf("create temp dir: %w", err)
+	}
+	defer func() {
+		if rmErr := os.RemoveAll(tmpDir); rmErr != nil {
+			slog.Warn("ingest: failed to remove temp dir", "dir", tmpDir, "err", rmErr)
+		}
+	}()
+
+	// Write each artifact YAML to the expected EPF directory layout.
+	for _, f := range export.Files {
+		dest := filepath.Join(tmpDir, f.RelPath)
+		if mkErr := os.MkdirAll(filepath.Dir(dest), 0o750); mkErr != nil {
+			return 0, 0, fmt.Errorf("mkdir for %s: %w", f.RelPath, mkErr)
+		}
+		if writeErr := os.WriteFile(dest, []byte(f.Content), 0o600); writeErr != nil {
+			return 0, 0, fmt.Errorf("write %s: %w", f.RelPath, writeErr)
+		}
+	}
+
+	// Run the decomposer.
+	d := decompose.New(tmpDir)
+	result, err := d.DecomposeInstance()
+	if err != nil {
+		return 0, 0, fmt.Errorf("decompose instance: %w", err)
+	}
+	for _, w := range result.Warnings {
+		slog.Debug("ingest: decompose warning", "instance_id", instanceID, "msg", w)
+	}
+
+	slog.Info("ingest: decompose complete",
+		"instance_id", instanceID,
+		"objects", len(result.Objects),
+		"relationships", len(result.Relationships))
+
+	// Upsert all decomposed objects and build key→ID index.
+	keyToID := make(map[string]string, len(result.Objects))
+	upserted, upsertFailed := 0, 0
+	for _, obj := range result.Objects {
+		labels := append(obj.Labels, "layer:decomposed") //nolint:gocritic
+		// Inject instance_id into properties for traceability.
+		props := obj.Properties
+		if props == nil {
+			props = make(map[string]any)
+		}
+		props["instance_id"] = instanceID.String()
+
+		created, upsertErr := s.client.UpsertObject(ctx, memory.UpsertObjectRequest{
+			Type:       obj.Type,
+			Key:        obj.Key,
+			Status:     obj.Status,
+			Labels:     labels,
+			Properties: props,
+		})
+		if upsertErr != nil {
+			slog.Debug("ingest: decompose upsert failed", "key", obj.Key, "err", upsertErr)
+			upsertFailed++
+			continue
+		}
+		keyToID[obj.Key] = created.StableID()
+		upserted++
+	}
+	slog.Info("ingest: decompose objects upserted",
+		"instance_id", instanceID, "upserted", upserted, "failed", upsertFailed)
+
+	// Create relationships using the key index.
+	relCreated, relSkipped := 0, 0
+	for _, rel := range result.Relationships {
+		fromID, ok1 := keyToID[rel.FromKey]
+		toID, ok2 := keyToID[rel.ToKey]
+		if !ok1 || !ok2 {
+			relSkipped++
+			continue
+		}
+
+		props := rel.Properties
+		if props == nil {
+			props = map[string]any{}
+		}
+		props["instance_id"] = instanceID.String()
+
+		_, relErr := s.client.CreateRelationship(ctx, memory.CreateRelationshipRequest{
+			Type:   rel.Type,
+			FromID: fromID,
+			ToID:   toID,
+			Properties: props,
+		})
+		if relErr != nil {
+			slog.Debug("ingest: decompose relationship failed",
+				"type", rel.Type, "from", rel.FromKey, "to", rel.ToKey, "err", relErr)
+			continue
+		}
+		relCreated++
+	}
+	slog.Info("ingest: decompose relationships created",
+		"instance_id", instanceID, "created", relCreated, "skipped", relSkipped)
+
+	return upserted, relCreated, nil
 }
 
 // extractSnippet builds a short text snippet from common artifact fields.

@@ -43,8 +43,12 @@ type StrategyInstance struct {
 	StandardPackVersion *string    `bun:"standard_pack_version"              json:"standard_pack_version,omitempty"`
 	SchemaVersion       *string    `bun:"schema_version"                     json:"schema_version,omitempty"`
 	Dialect             string     `bun:"dialect,notnull,default:'standard'" json:"dialect"`
-	MemorySyncStatus    *string    `bun:"memory_sync_status"                 json:"memory_sync_status,omitempty"`
-	MemoryLastSyncedAt  *time.Time `bun:"memory_last_synced_at"              json:"memory_last_synced_at,omitempty"`
+	MemorySyncStatus               *string    `bun:"memory_sync_status"                        json:"memory_sync_status,omitempty"`
+	MemoryLastSyncedAt             *time.Time `bun:"memory_last_synced_at"                     json:"memory_last_synced_at,omitempty"`
+	MemoryObjectCount              *int       `bun:"memory_object_count"                       json:"memory_object_count,omitempty"`
+	MemoryEdgeCount                *int       `bun:"memory_edge_count"                         json:"memory_edge_count,omitempty"`
+	MemoryDecomposedObjectCount    *int       `bun:"memory_decomposed_object_count"            json:"memory_decomposed_object_count,omitempty"`
+	MemoryDecomposedEdgeCount      *int       `bun:"memory_decomposed_edge_count"              json:"memory_decomposed_edge_count,omitempty"`
 	CreatedBy           *uuid.UUID `bun:"created_by,type:uuid"               json:"created_by,omitempty"`
 	CreatedAt           time.Time  `bun:"created_at,notnull,default:now()"   json:"created_at"`
 	UpdatedAt           time.Time  `bun:"updated_at,notnull,default:now()"   json:"updated_at"`

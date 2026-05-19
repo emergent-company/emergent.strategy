@@ -150,3 +150,21 @@ func (c *Client) BulkCreateObjects(ctx context.Context, objects []CreateObjectRe
 	}
 	return decodeJSON[[]Object](data)
 }
+
+// CountArtifactObjects returns the total number of artifact-layer graph objects
+// in the project. Used as a quick health signal on the settings page.
+func (c *Client) CountArtifactObjects(ctx context.Context) (int, error) {
+	params := url.Values{}
+	params.Set("limit", "1")
+	params.Set("label", "layer:artifact")
+	path := "/api/graph/objects/search?" + params.Encode()
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return 0, fmt.Errorf("count artifact objects: %w", err)
+	}
+	page, err := decodeJSON[*ListPage[Object]](data)
+	if err != nil {
+		return 0, err
+	}
+	return page.Total, nil
+}

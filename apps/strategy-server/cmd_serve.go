@@ -94,10 +94,21 @@ func runServer(cfg *config.Config) error {
 	ingestSvc.Start(2) // 2 worker goroutines
 	defer ingestSvc.Stop()
 
+	// Startup sweep: enqueue a full re-ingest for every active instance so that
+	// Memory stays in sync after server restarts or first-time setup.
+	if semanticSvc.IsAvailable() {
+		go ingestSvc.EnqueueAllInstances(context.Background(), db, log)
+	}
+
 	orgSvc := org.NewService(db)
 	versionSvc := versiondom.NewService(db)
 	strategySvc := strategy.NewService(db)
 	rippleSvc := rippledom.NewService(db)
+
+	// Wire the strategy exporter into the ingest service for decomposed-layer sync.
+	if semanticSvc.IsAvailable() {
+		ingestSvc.SetExporter(&strategyExporterAdapter{svc: strategySvc})
+	}
 
 	// LLM provider — enables server-orchestrated convergence loop resolution.
 	var llmClient *llm.Client
@@ -278,7 +289,7 @@ func runServer(cfg *config.Config) error {
 	e.GET("/static/*", echo.WrapHandler(web.StaticHandler()))
 
 	// Web UI routes.
-	webHandler := handler.New(db, log)
+	webHandler := handler.New(db, log, semanticSvc)
 	webHandler.RegisterRoutes(e)
 
 	// Server timeouts.
@@ -313,4 +324,24 @@ func runServer(cfg *config.Config) error {
 
 	log.Info("shutdown complete")
 	return nil
+}
+
+// strategyExporterAdapter adapts *strategy.Service to the ingest.InstanceExporter interface.
+type strategyExporterAdapter struct {
+	svc *strategy.Service
+}
+
+func (a *strategyExporterAdapter) ExportInstance(ctx context.Context, instanceID uuid.UUID) (*ingest.ExportResult, error) {
+	res, err := a.svc.ExportInstance(ctx, instanceID)
+	if err != nil {
+		return nil, err
+	}
+	files := make([]ingest.ExportFile, len(res.Files))
+	for i, f := range res.Files {
+		files[i] = ingest.ExportFile{
+			RelPath: f.RelPath,
+			Content: f.Content,
+		}
+	}
+	return &ingest.ExportResult{Files: files}, nil
 }

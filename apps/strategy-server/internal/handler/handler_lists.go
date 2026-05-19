@@ -111,6 +111,7 @@ func (s *Server) handleTrackDashboard(track string) echo.HandlerFunc {
 				name = r.ArtifactKey
 			}
 			tier := 0
+			missingVMLink := false
 			var p map[string]any
 			if json.Unmarshal(r.Payload, &p) == nil {
 				if mat, ok := p["maturity"].(map[string]any); ok {
@@ -118,13 +119,16 @@ func (s *Server) handleTrackDashboard(track string) echo.HandlerFunc {
 						tier = int(t)
 					}
 				}
+				// Detect missing contributes_to (required by EPF schema for all definition types).
+				missingVMLink = !hasContributesTo(p, isProduct)
 			}
 			def := ui.FireTrackDefinition{
-				Key:          r.ArtifactKey,
-				Name:         name,
-				Status:       r.Status,
-				MaturityTier: tier,
-				ViewURL:      meta.defURL(instanceID, r.ArtifactKey),
+				Key:                   r.ArtifactKey,
+				Name:                  name,
+				Status:                r.Status,
+				MaturityTier:          tier,
+				ViewURL:               meta.defURL(instanceID, r.ArtifactKey),
+				MissingValueModelLink: missingVMLink,
 			}
 			if isProduct {
 				def.MaturityStage, def.CapabilityCount, def.ImplLinks = extractFeatureDefFields(r.Payload)

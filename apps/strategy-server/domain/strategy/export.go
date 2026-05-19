@@ -24,6 +24,7 @@ import (
 
 // artifactTypeToDirPath returns the EPF subdirectory for a given artifact type.
 // The directory is relative to the instance root.
+// Paths must match the canonical EPF structure that the decomposer reads from.
 func artifactTypeToDirPath(artifactType string) string {
 	switch artifactType {
 	case "north_star":
@@ -36,12 +37,16 @@ func artifactTypeToDirPath(artifactType string) string {
 		return "READY"
 	case "insight_opportunity":
 		return "READY"
-	case "value_model":
-		return "FIRE/value_model"
-	case "feature":
-		return "FIRE/definitions/features"
+	// roadmap/roadmap_recipe is a singleton READY file — dir is READY, filename
+	// is overridden in artifactKeyToFilename to "05_roadmap_recipe.yaml".
 	case "roadmap", "roadmap_recipe":
-		return "FIRE/definitions/roadmap"
+		return "READY"
+	// value_model uses plural "value_models" to match decomposer expectations.
+	case "value_model":
+		return "FIRE/value_models"
+	// features live in "product" to match the decomposer's decomposeFeatures path.
+	case "feature":
+		return "FIRE/definitions/product"
 	case "org_ops_def":
 		return "FIRE/definitions/org_ops"
 	case "commercial_def":
@@ -50,8 +55,9 @@ func artifactTypeToDirPath(artifactType string) string {
 		return "FIRE/definitions/strategy"
 	case "product_portfolio":
 		return "FIRE/definitions"
+	// mappings is a singleton file at FIRE/mappings.yaml (not inside FIRE/definitions/).
 	case "mappings":
-		return "FIRE/definitions"
+		return "FIRE"
 	case "assessment_report":
 		return "AIM"
 	case "living_reality_assessment":
@@ -66,21 +72,30 @@ func artifactTypeToDirPath(artifactType string) string {
 // artifactKeyToFilename derives a YAML filename from the artifact key.
 // For keys that already end in .yaml / .yml, just use the basename.
 // Otherwise append .yaml.
+// Filenames for singleton READY artifacts use the canonical numeric-prefixed names
+// that the decomposer expects (e.g. "00_north_star.yaml").
 func artifactKeyToFilename(artifactType, artifactKey string) string {
 	base := path.Base(artifactKey)
 	if strings.HasSuffix(base, ".yaml") || strings.HasSuffix(base, ".yml") {
 		return base
 	}
 	// Use the type-specific default filenames for singleton artifacts.
+	// Prefixes must match the hardcoded paths in decompose.DecomposeInstance().
 	switch artifactType {
 	case "north_star":
-		return "north_star.yaml"
-	case "strategy_foundations":
-		return "strategy_foundations.yaml"
-	case "strategy_formula":
-		return "strategy_formula.yaml"
+		return "00_north_star.yaml"
 	case "insight_analyses":
-		return "insight_analyses.yaml"
+		return "01_insight_analyses.yaml"
+	case "strategy_foundations":
+		return "02_strategy_foundations.yaml"
+	case "insight_opportunity":
+		return "03_insight_opportunity.yaml"
+	case "strategy_formula":
+		return "04_strategy_formula.yaml"
+	case "roadmap", "roadmap_recipe":
+		return "05_roadmap_recipe.yaml"
+	case "mappings":
+		return "mappings.yaml"
 	case "value_model":
 		return artifactKey + ".yaml"
 	default:

@@ -57,6 +57,9 @@ type FireTrackDefinition struct {
 	MaturityStage   string         // overall_stage: "emerging", "proven", "scaled"
 	CapabilityCount int            // number of capabilities defined
 	ImplLinks       []FireImplLink // implementation_references specs with URLs
+
+	// Quality gaps — true when a required field is missing
+	MissingValueModelLink bool // contributes_to is empty (required by EPF schema)
 }
 
 // FireImplLink is a single implementation reference link (OpenSpec, Linear, GitHub, etc.)
@@ -213,6 +216,12 @@ templ FireTrackDashboardContent(data FireTrackDashboardData) {
 					<span class={ "ml-auto inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold bg-" + data.Color + "/15 text-" + data.Color }>
 						{ strconv.Itoa(len(data.Definitions)) }
 					</span>
+					if gaps := countMissingVMLinks(data.Definitions); gaps > 0 {
+						<span class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold bg-error/10 text-error" title="Definitions missing a value model link (contributes_to)">
+							<span class="iconify lucide--alert-triangle size-3"></span>
+							{ strconv.Itoa(gaps) }
+						</span>
+					}
 				</div>
 			if len(data.ProductLines) > 0 {
 				<!-- Product track: single table, product line → layer → component as divider rows -->
@@ -406,7 +415,14 @@ templ featureDefinitionRow(d FireTrackDefinition) {
 		hx-swap="innerHTML"
 		hx-push-url="true"
 	>
-		<td class="text-sm text-base-content font-medium">{ d.Name }</td>
+		<td class="text-sm text-base-content font-medium">
+			<div class="flex items-center gap-1.5">
+				{ d.Name }
+				if d.MissingValueModelLink {
+					<span class="iconify lucide--alert-triangle size-3 text-error shrink-0" title="No value model path linked (contributes_to missing)"></span>
+				}
+			</div>
+		</td>
 		<td class="whitespace-nowrap">@featureStatusBadge(d.Status)</td>
 		<td class="whitespace-nowrap">
 			@maturityStageBadge(d.MaturityStage)

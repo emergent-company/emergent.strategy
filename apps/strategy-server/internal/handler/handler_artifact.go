@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -63,7 +64,7 @@ func (s *Server) handleArtifactView(c echo.Context) error {
 	tabGroup := artifactTabGroup(row.ArtifactType)
 	screenID := artifactScreenID(row.ArtifactType)
 	navCtx := ui.NavContext{InstanceID: instanceID, CurrentPath: currentPath, ScreenID: screenID, TabGroup: tabGroup}
-	content := s.bespokeContent(navCtx, row.ArtifactType, row.ArtifactKey, name, row.Status, payload)
+	content := s.bespokeContent(ctx, instanceID, row.Track, navCtx, row.ArtifactType, row.ArtifactKey, name, row.Status, payload)
 
 	render.RenderTriple(c.Response().Writer, c.Request(),
 		ui.InstancePhaseFullPage(name+" — "+instance.Name, currentPath, sidebarGroups, instance.Name, tabs, content),
@@ -120,7 +121,7 @@ func (s *Server) handleArtifactViewByType(artifactType string) echo.HandlerFunc 
 		tabGroup := artifactTabGroup(artifactType)
 		screenID := artifactScreenID(artifactType)
 		navCtx := ui.NavContext{InstanceID: instanceID, CurrentPath: currentPath, ScreenID: screenID, TabGroup: tabGroup}
-		content := s.bespokeContent(navCtx, artifactType, row.ArtifactKey, name, row.Status, payload)
+		content := s.bespokeContent(ctx, instanceID, row.Track, navCtx, artifactType, row.ArtifactKey, name, row.Status, payload)
 
 		tabs := s.strategyTabs(instanceID, currentPath)
 		sidebarGroups := s.sidebarGroups(c)
@@ -138,7 +139,7 @@ func (s *Server) handleArtifactViewByType(artifactType string) echo.HandlerFunc 
 // Each bespoke view owns its own sub-nav and PageHeader (set via NavContext).
 // If the artifact type has no bespoke view or decomposition fails, it falls back to
 // the generic ArtifactViewContent renderer (which does not own its sub-nav).
-func (s *Server) bespokeContent(navCtx ui.NavContext, artifactType, artifactKey, name, status string, payload map[string]any) templ.Component {
+func (s *Server) bespokeContent(ctx context.Context, instanceID, track string, navCtx ui.NavContext, artifactType, artifactKey, name, status string, payload map[string]any) templ.Component {
 	switch artifactType {
 	case "north_star":
 		if c := s.northStarContent(navCtx, artifactKey, name, status, payload); c != nil {
@@ -161,7 +162,7 @@ func (s *Server) bespokeContent(navCtx ui.NavContext, artifactType, artifactKey,
 	case "feature_definition", "feature":
 		return s.featureViewContent(navCtx, artifactKey, name, status, payload)
 	case "value_model":
-		return s.valueModelContent(navCtx, artifactKey, name, status, payload)
+		return s.valueModelContent(ctx, instanceID, track, navCtx, artifactKey, name, status, payload)
 	case "living_reality_assessment":
 		return s.lraContent(navCtx, artifactKey, name, status, payload)
 	case "assessment_report":
@@ -339,6 +340,21 @@ func propStr(m map[string]any, key string) string {
 		return v
 	}
 	return ""
+}
+
+// hasContributesTo reports whether a definition/feature payload has a non-empty
+// contributes_to field. For features the field is nested under strategic_context;
+// for canonical defs it is top-level.
+func hasContributesTo(p map[string]any, isFeature bool) bool {
+	var ct []any
+	if isFeature {
+		if sc, ok := p["strategic_context"].(map[string]any); ok {
+			ct, _ = sc["contributes_to"].([]any)
+		}
+	} else {
+		ct, _ = p["contributes_to"].([]any)
+	}
+	return len(ct) > 0
 }
 
 // payloadStr is an alias for propStr — extracts a string from a JSONB map.

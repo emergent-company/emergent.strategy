@@ -96,6 +96,12 @@ func (s *Service) Client() *memory.Client {
 	return s.client
 }
 
+// Config returns the service configuration (URL, Project, Token).
+// Used by the settings handler to display connection details.
+func (s *Service) Config() Config {
+	return s.cfg
+}
+
 // IsAvailable returns true when the Memory client is wired and operational.
 func (s *Service) IsAvailable() bool {
 	return s.client != nil

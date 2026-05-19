@@ -1,0 +1,223 @@
+package ui
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/emergent-company/go-daisy/components/layout"
+)
+
+// MemoryHealthStatus represents the current connectivity to the Memory server.
+type MemoryHealthStatus struct {
+	Configured         bool   // EPF_MEMORY_URL + PROJECT + TOKEN are set
+	Healthy            bool   // ping succeeded
+	URL                string // configured URL (empty if not configured)
+	ProjectID          string // configured project ID
+	Version            string // server version from health check
+	Error              string // last error message (empty if healthy)
+	TotalGraphObjects  int    // total artifact objects in the Memory graph (0 if unavailable)
+}
+
+// InstanceMemoryStatus tracks the ingest state of a single strategy instance.
+type InstanceMemoryStatus struct {
+	ID                    string
+	Name                  string
+	OrgName               string
+	MemorySyncStatus      string     // "", "synced", "pending", "failed"
+	ArtifactCount         int        // total artifacts in DB
+	GraphObjectCount      int        // layer:artifact objects in Memory
+	GraphEdgeCount        int        // layer:artifact edges in Memory
+	DecomposedObjectCount int        // layer:decomposed objects in Memory
+	DecomposedEdgeCount   int        // layer:decomposed edges in Memory
+	LastSyncedAt          *time.Time // last successful sync time
+}
+
+// SettingsData is the full data bundle for the settings page.
+type SettingsData struct {
+	Memory    MemoryHealthStatus
+	Instances []InstanceMemoryStatus
+}
+
+// SettingsPage renders the full settings page with shell.
+templ SettingsPage(currentPath string, sidebarGroups []layout.SidebarGroup, data SettingsData) {
+	@StrategyShellPage("Settings — Emergent Strategy", currentPath, sidebarGroups) {
+		@SettingsContent(data)
+	}
+}
+
+// settingsContent renders the settings content (inner body, no shell).
+templ SettingsContent(data SettingsData) {
+	<div class="px-6 py-5 space-y-6">
+		<!-- Page header -->
+		<div>
+			<h1 class="text-xl font-bold text-base-content">Settings</h1>
+			<p class="text-sm text-base-content/60 mt-0.5">System status and configuration</p>
+		</div>
+
+		<!-- Memory server status card -->
+		@memoryStatusCard(data.Memory)
+
+		<!-- Per-instance ingest status -->
+		if len(data.Instances) > 0 {
+			@instanceIngestTable(data.Instances)
+		}
+	</div>
+}
+
+// memoryStatusCard renders the Memory server health section.
+templ memoryStatusCard(m MemoryHealthStatus) {
+	<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden">
+		<!-- Header -->
+		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/10">
+			<span class="iconify lucide--brain-circuit size-5 text-base-content/60"></span>
+			<div class="grow">
+				<h2 class="text-sm font-bold text-base-content uppercase tracking-widest">Semantic Memory</h2>
+				<p class="text-xs text-base-content/50 mt-0.5">emergent.memory — semantic graph for strategy search and contradiction detection</p>
+			</div>
+			<!-- Status badge -->
+			if !m.Configured {
+				<span class="badge badge-ghost badge-sm">Not configured</span>
+			} else if m.Healthy {
+				<span class="inline-flex items-center gap-1.5 badge badge-success badge-sm">
+					<span class="size-1.5 rounded-full bg-success-content inline-block"></span>
+					Connected
+				</span>
+			} else {
+				<span class="inline-flex items-center gap-1.5 badge badge-error badge-sm">
+					<span class="size-1.5 rounded-full bg-error-content inline-block"></span>
+					Unreachable
+				</span>
+			}
+		</div>
+
+		<!-- Body -->
+		<div class="px-5 py-4 space-y-4">
+			if !m.Configured {
+				<!-- Not configured state -->
+				<div class="rounded-lg bg-base-200/60 border border-base-content/10 px-4 py-3 space-y-2">
+					<p class="text-sm text-base-content/70">
+						Memory is not configured. Set the following environment variables and restart the server:
+					</p>
+					<pre class="text-xs text-base-content/80 bg-base-300/40 rounded p-3 overflow-x-auto">EPF_MEMORY_URL=http://localhost:3002
+EPF_MEMORY_PROJECT=&lt;project-id&gt;
+EPF_MEMORY_TOKEN=&lt;standalone-api-key&gt;
+EPF_MEMORY_AUTH_MODE=api-key</pre>
+					<p class="text-xs text-base-content/50">
+						Start the Memory server with <code class="bg-base-300/40 px-1 rounded">memory server ctl start</code>,
+						then re-run <code class="bg-base-300/40 px-1 rounded">task dev-up</code> to auto-detect it.
+					</p>
+				</div>
+			} else {
+			<!-- Configured state: show connection details -->
+			<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+				@settingsKV("URL", m.URL)
+				@settingsKV("Project ID", m.ProjectID)
+				if m.Version != "" {
+					@settingsKV("Server version", m.Version)
+				}
+				if m.TotalGraphObjects > 0 {
+					@settingsKV("Graph objects (artifacts)", fmt.Sprintf("%d", m.TotalGraphObjects))
+				}
+				if m.Error != "" {
+					<div class="sm:col-span-2">
+						<dt class="text-xs font-medium text-base-content/50 uppercase tracking-wide mb-0.5">Last error</dt>
+						<dd class="text-xs text-error font-mono break-all">{ m.Error }</dd>
+					</div>
+				}
+			</div>
+
+				if !m.Healthy {
+					<div class="rounded-lg bg-error/10 border border-error/25 px-4 py-3 flex items-start gap-2">
+						<span class="iconify lucide--alert-triangle size-4 text-error shrink-0 mt-0.5"></span>
+						<p class="text-sm text-error">
+							Cannot reach Memory server at <strong>{ m.URL }</strong>.
+							Check that the server is running: <code class="bg-error/10 px-1 rounded">memory server ctl status</code>
+						</p>
+					</div>
+				}
+			}
+		</div>
+	</div>
+}
+
+// instanceIngestTable renders per-instance Memory sync status.
+templ instanceIngestTable(instances []InstanceMemoryStatus) {
+	<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden">
+		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/10">
+			<span class="iconify lucide--layers size-5 text-base-content/60"></span>
+			<div class="grow">
+				<h2 class="text-sm font-bold text-base-content uppercase tracking-widest">Strategy Instances</h2>
+				<p class="text-xs text-base-content/50 mt-0.5">Memory graph sync status per instance</p>
+			</div>
+			<span class="badge badge-ghost badge-sm">{ fmt.Sprintf("%d instances", len(instances)) }</span>
+		</div>
+		<div class="divide-y divide-base-content/5">
+			for _, inst := range instances {
+				@instanceIngestRow(inst)
+			}
+		</div>
+	</div>
+}
+
+// instanceIngestRow renders a single instance row in the ingest table.
+templ instanceIngestRow(inst InstanceMemoryStatus) {
+	<div class="flex items-center gap-4 px-5 py-3">
+		<!-- Instance name + org -->
+		<div class="grow min-w-0">
+			<p class="text-sm font-medium text-base-content truncate">{ inst.Name }</p>
+			if inst.OrgName != "" {
+				<p class="text-xs text-base-content/50">{ inst.OrgName }</p>
+			}
+			if inst.LastSyncedAt != nil {
+				<p class="text-xs text-base-content/40 mt-0.5">synced { inst.LastSyncedAt.Format("2 Jan 15:04") }</p>
+			}
+		</div>
+
+		<!-- Graph counts -->
+		<div class="text-right shrink-0 hidden sm:block">
+			<p class="text-xs text-base-content/50">{ fmt.Sprintf("%d artifacts", inst.ArtifactCount) }</p>
+			if inst.GraphObjectCount > 0 {
+				<p class="text-xs text-base-content/40">{ fmt.Sprintf("%d obj · %d edges", inst.GraphObjectCount, inst.GraphEdgeCount) }</p>
+			}
+			if inst.DecomposedObjectCount > 0 {
+				<p class="text-xs text-base-content/30">{ fmt.Sprintf("+%d obj · %d edges decomposed", inst.DecomposedObjectCount, inst.DecomposedEdgeCount) }</p>
+			}
+		</div>
+
+		<!-- Sync status badge -->
+		<div class="shrink-0">
+			@ingestStatusBadge(inst.MemorySyncStatus)
+		</div>
+	</div>
+}
+
+// ingestStatusBadge renders a status chip for memory sync state.
+templ ingestStatusBadge(status string) {
+	switch status {
+		case "synced":
+			<span class="inline-flex items-center gap-1.5 badge badge-success badge-sm">
+				<span class="iconify lucide--check size-3"></span>
+				Synced
+			</span>
+		case "pending":
+			<span class="inline-flex items-center gap-1.5 badge badge-warning badge-sm">
+				<span class="iconify lucide--clock size-3"></span>
+				Pending
+			</span>
+		case "failed":
+			<span class="inline-flex items-center gap-1.5 badge badge-error badge-sm">
+				<span class="iconify lucide--x size-3"></span>
+				Failed
+			</span>
+		default:
+			<span class="badge badge-ghost badge-sm text-base-content/40">Not synced</span>
+	}
+}
+
+// settingsKV renders a key-value definition pair.
+templ settingsKV(label, value string) {
+	<div>
+		<dt class="text-xs font-medium text-base-content/50 uppercase tracking-wide mb-0.5">{ label }</dt>
+		<dd class="text-sm text-base-content font-mono break-all">{ value }</dd>
+	</div>
+}

@@ -11,6 +11,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/uptrace/bun"
 
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/navigation"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 )
@@ -20,15 +21,17 @@ var navGraph = navigation.DefaultGraph()
 
 // Server holds dependencies for web handlers.
 type Server struct {
-	db  *bun.DB
-	log *slog.Logger
+	db          *bun.DB
+	log         *slog.Logger
+	semanticSvc *semantic.Service
 }
 
 // New creates a new web handler Server.
-func New(db *bun.DB, log *slog.Logger) *Server {
+func New(db *bun.DB, log *slog.Logger, semanticSvc *semantic.Service) *Server {
 	return &Server{
-		db:  db,
-		log: log,
+		db:          db,
+		log:         log,
+		semanticSvc: semanticSvc,
 	}
 }
 
@@ -100,6 +103,9 @@ func (s *Server) RegisterRoutes(e *echo.Echo) {
 			}
 		}
 	}
+
+	// Settings page — not in the navigation graph, registered separately.
+	e.GET("/settings", s.handleSettings)
 }
 
 // sidebarGroups builds sidebar navigation groups with instance list.

@@ -427,18 +427,8 @@ func (s *Server) loadCanonicalLayerGroups(
 				owner, _ = def["owner"].(string)
 			}
 		}
-		def := ui.FireTrackDefinition{
-			Key:                 r.ArtifactKey,
-			Name:                name,
-			Status:              r.Status,
-			MaturityTier:        tier,
-			MaturityDescription: tierDesc,
-			Effort:              effort,
-			Owner:               owner,
-			ViewURL:             defURL(instanceID, r.ArtifactKey),
-		}
-
-		// Extract contributes_to paths; each is "Track.ComponentName.def-slug"
+		// Extract contributes_to paths first so MissingValueModelLink can be set accurately.
+		// Each path is "Track.ComponentName.def-slug"
 		var paths []string
 		if ct, ok := p["contributes_to"].([]any); ok {
 			for _, v := range ct {
@@ -446,6 +436,18 @@ func (s *Server) loadCanonicalLayerGroups(
 					paths = append(paths, s)
 				}
 			}
+		}
+
+		def := ui.FireTrackDefinition{
+			Key:                   r.ArtifactKey,
+			Name:                  name,
+			Status:                r.Status,
+			MaturityTier:          tier,
+			MaturityDescription:   tierDesc,
+			Effort:                effort,
+			Owner:                 owner,
+			ViewURL:               defURL(instanceID, r.ArtifactKey),
+			MissingValueModelLink: len(paths) == 0,
 		}
 
 		placed := make(map[string]bool) // prevent placing same def in same comp twice
@@ -683,13 +685,14 @@ func (s *Server) loadProductLineGroups(ctx context.Context, instanceID string, d
 			name = fr.ArtifactKey
 		}
 		def := ui.FireTrackDefinition{
-			Key:             fr.ArtifactKey,
-			Name:            name,
-			Status:          fr.Status,
-			ViewURL:         defURL(instanceID, fr.ArtifactKey),
-			MaturityStage:   maturityStage,
-			CapabilityCount: capCount,
-			ImplLinks:       implLinks,
+			Key:                   fr.ArtifactKey,
+			Name:                  name,
+			Status:                fr.Status,
+			ViewURL:               defURL(instanceID, fr.ArtifactKey),
+			MaturityStage:         maturityStage,
+			CapabilityCount:       capCount,
+			ImplLinks:             implLinks,
+			MissingValueModelLink: len(paths) == 0,
 		}
 
 		placed := make(map[key3]bool)
