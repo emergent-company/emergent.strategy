@@ -115,62 +115,6 @@ Shown with tab-group subgraphs.
 
 ```mermaid
 graph TD
-    subgraph governance["Governance"]
-        governance_overview[["Governance Overview"]]
-        board_list["Board of Directors"]
-        board_member_detail["Board Member Detail"]
-        board_member_add["Add Board Member"]
-        resolution_list["Resolutions"]
-        resolution_detail["Resolution Detail"]
-        resolution_create["Create Resolution"]
-        voting_round["Voting Round"]
-        shareholder_agreement_list["Shareholder Agreements"]
-        shareholder_agreement_detail["Agreement Detail"]
-        shareholder_agreement_create["Create Agreement"]
-        general_meeting["General Meeting"]
-        general_meeting_create["Create General Meeting"]
-        proxy_voting["Proxy Voting"]
-    end
-    subgraph equity["Equity"]
-        equity_overview[["Equity Overview"]]
-        instrument_list["Instruments"]
-        instrument_detail["Instrument Detail"]
-        instrument_create["Create Instrument"]
-        instrument_edit["Edit Instrument"]
-        option_plan_list["Option Plans"]
-        option_plan_detail["Option Plan Detail"]
-        option_plan_create["Create Option Plan"]
-        option_grant_list["Option Grants"]
-        option_grant_detail["Option Grant Detail"]
-        option_grant_create["Create Option Grant"]
-        option_exercise["Exercise Options"]
-        warrant_list["Warrants"]
-        warrant_detail["Warrant Detail"]
-        warrant_create["Create Warrant"]
-        warrant_exercise["Exercise Warrant"]
-        convertible_list["Convertible Notes"]
-        convertible_detail["Convertible Note Detail"]
-        convertible_create["Create Convertible Note"]
-        convertible_convert["Convert Note to Equity"]
-        vesting_schedule_list["Vesting Schedules"]
-        vesting_schedule_detail["Vesting Schedule Detail"]
-        vesting_schedule_create["Create Vesting Schedule"]
-        vesting_simulation["Vesting Simulation"]
-    end
-    subgraph exit["Exit & Liquidity"]
-        exit_overview[["Exit Overview"]]
-        valuation_history["Valuation History"]
-        valuation_create["Record Valuation"]
-        waterfall_analysis["Waterfall Analysis"]
-        waterfall_scenario["Waterfall Scenario"]
-        waterfall_scenario_create["Create Waterfall Scenario"]
-        liquidity_event["Liquidity Events"]
-        liquidity_event_detail["Liquidity Event Detail"]
-        liquidity_event_create["Create Liquidity Event"]
-        distribution_plan["Distribution Plan"]
-        secondary_sale["Secondary Sale"]
-        right_of_first_refusal["Right of First Refusal"]
-    end
     subgraph reporting["Reporting"]
         reporting_overview[["Reporting Overview"]]
         shareholder_register_report["Shareholder Register Report"]
@@ -246,6 +190,62 @@ graph TD
         member_edit["Edit Member"]
         member_contribution["Member Contribution"]
         membership_transfer["Membership Transfer"]
+    end
+    subgraph equity["Equity"]
+        equity_overview[["Equity Overview"]]
+        instrument_list["Instruments"]
+        instrument_detail["Instrument Detail"]
+        instrument_create["Create Instrument"]
+        instrument_edit["Edit Instrument"]
+        option_plan_list["Option Plans"]
+        option_plan_detail["Option Plan Detail"]
+        option_plan_create["Create Option Plan"]
+        option_grant_list["Option Grants"]
+        option_grant_detail["Option Grant Detail"]
+        option_grant_create["Create Option Grant"]
+        option_exercise["Exercise Options"]
+        warrant_list["Warrants"]
+        warrant_detail["Warrant Detail"]
+        warrant_create["Create Warrant"]
+        warrant_exercise["Exercise Warrant"]
+        convertible_list["Convertible Notes"]
+        convertible_detail["Convertible Note Detail"]
+        convertible_create["Create Convertible Note"]
+        convertible_convert["Convert Note to Equity"]
+        vesting_schedule_list["Vesting Schedules"]
+        vesting_schedule_detail["Vesting Schedule Detail"]
+        vesting_schedule_create["Create Vesting Schedule"]
+        vesting_simulation["Vesting Simulation"]
+    end
+    subgraph exit["Exit & Liquidity"]
+        exit_overview[["Exit Overview"]]
+        valuation_history["Valuation History"]
+        valuation_create["Record Valuation"]
+        waterfall_analysis["Waterfall Analysis"]
+        waterfall_scenario["Waterfall Scenario"]
+        waterfall_scenario_create["Create Waterfall Scenario"]
+        liquidity_event["Liquidity Events"]
+        liquidity_event_detail["Liquidity Event Detail"]
+        liquidity_event_create["Create Liquidity Event"]
+        distribution_plan["Distribution Plan"]
+        secondary_sale["Secondary Sale"]
+        right_of_first_refusal["Right of First Refusal"]
+    end
+    subgraph governance["Governance"]
+        governance_overview[["Governance Overview"]]
+        board_list["Board of Directors"]
+        board_member_detail["Board Member Detail"]
+        board_member_add["Add Board Member"]
+        resolution_list["Resolutions"]
+        resolution_detail["Resolution Detail"]
+        resolution_create["Create Resolution"]
+        voting_round["Voting Round"]
+        shareholder_agreement_list["Shareholder Agreements"]
+        shareholder_agreement_detail["Agreement Detail"]
+        shareholder_agreement_create["Create Agreement"]
+        general_meeting["General Meeting"]
+        general_meeting_create["Create General Meeting"]
+        proxy_voting["Proxy Voting"]
     end
     global_dashboard[["Dashboard"]]
 
@@ -426,35 +426,6 @@ They **cannot** access shareholder-specific features (`shares-allowed` blocked).
 
 ```mermaid
 graph TD
-    subgraph overview["Overview"]
-        company_list("Organizations")
-        company_dashboard[["Company Dashboard"]]
-        company_overview["Company Overview"]
-        notifications("Notifications")
-        activity_feed["Activity Feed"]
-    end
-    subgraph members["Members"]
-        member_list[["Members"]]
-        member_detail["Member Detail"]
-        member_create["Add Member"]
-        member_edit["Edit Member"]
-        member_contribution["Member Contribution"]
-        membership_transfer["Membership Transfer"]
-    end
-    subgraph exit["Exit & Liquidity"]
-        exit_overview[["Exit Overview"]]
-        valuation_history["Valuation History"]
-        valuation_create["Record Valuation"]
-        waterfall_analysis["Waterfall Analysis"]
-        waterfall_scenario["Waterfall Scenario"]
-        waterfall_scenario_create["Create Waterfall Scenario"]
-        liquidity_event["Liquidity Events"]
-        liquidity_event_detail["Liquidity Event Detail"]
-        liquidity_event_create["Create Liquidity Event"]
-        distribution_plan["Distribution Plan"]
-        secondary_sale["Secondary Sale"]
-        right_of_first_refusal["Right of First Refusal"]
-    end
     subgraph governance["Governance"]
         governance_overview[["Governance Overview"]]
         board_list["Board of Directors"]
@@ -470,53 +441,6 @@ graph TD
         general_meeting["General Meeting"]
         general_meeting_create["Create General Meeting"]
         proxy_voting["Proxy Voting"]
-    end
-    subgraph reporting["Reporting"]
-        reporting_overview[["Reporting Overview"]]
-        shareholder_register_report["Shareholder Register Report"]
-        cap_table_snapshot["Cap Table Snapshot"]
-        equity_summary_report["Equity Summary Report"]
-        transaction_log["Transaction Log"]
-        altinn_filing["Altinn Filing"]
-        brreg_filing["Brønnøysund Filing"]
-        tax_report["Tax Report"]
-        annual_statement["Annual Statement"]
-        export_pdf["Export PDF"]
-        export_csv["Export CSV"]
-    end
-    subgraph data["Records"]
-        data_overview[["Records Overview"]]
-        document_list["Documents"]
-        document_detail["Document Detail"]
-        document_upload["Upload Document"]
-        audit_trail["Audit Trail"]
-        ledger_entries["Ledger Entries"]
-        beneficial_owners["Beneficial Owners"]
-        beneficial_owner_detail["Beneficial Owner Detail"]
-        import_data["Import Data"]
-    end
-    subgraph captable["Cap Table"]
-        captable_summary[["Cap Table Summary"]]
-        shareholder_list["Shareholders"]
-        shareholder_detail["Shareholder Detail"]
-        shareholder_create["Add Shareholder"]
-        shareholder_edit["Edit Shareholder"]
-        share_class_list["Share Classes"]
-        share_class_detail["Share Class Detail"]
-        create_share_class["Create Share Class"]
-        edit_share_class["Edit Share Class"]
-        share_issue["Issue Shares"]
-        share_transfer["Transfer Shares"]
-        share_split["Share Split"]
-        share_consolidation["Share Consolidation"]
-        ownership_chart["Ownership Chart"]
-        dilution_model["Dilution Model"]
-        par_value_change["Par Value Change"]
-        capital_increase["Capital Increase"]
-        capital_decrease["Capital Decrease"]
-        share_buyback["Share Buyback"]
-        share_cancellation["Share Cancellation"]
-        treasury_shares["Treasury Shares"]
     end
     subgraph equity["Equity"]
         equity_overview[["Equity Overview"]]
@@ -544,6 +468,30 @@ graph TD
         vesting_schedule_create["Create Vesting Schedule"]
         vesting_simulation["Vesting Simulation"]
     end
+    subgraph reporting["Reporting"]
+        reporting_overview[["Reporting Overview"]]
+        shareholder_register_report["Shareholder Register Report"]
+        cap_table_snapshot["Cap Table Snapshot"]
+        equity_summary_report["Equity Summary Report"]
+        transaction_log["Transaction Log"]
+        altinn_filing["Altinn Filing"]
+        brreg_filing["Brønnøysund Filing"]
+        tax_report["Tax Report"]
+        annual_statement["Annual Statement"]
+        export_pdf["Export PDF"]
+        export_csv["Export CSV"]
+    end
+    subgraph data["Records"]
+        data_overview[["Records Overview"]]
+        document_list["Documents"]
+        document_detail["Document Detail"]
+        document_upload["Upload Document"]
+        audit_trail["Audit Trail"]
+        ledger_entries["Ledger Entries"]
+        beneficial_owners["Beneficial Owners"]
+        beneficial_owner_detail["Beneficial Owner Detail"]
+        import_data["Import Data"]
+    end
     subgraph setup["Admin"]
         settings_overview[["Settings"]]
         company_settings["Company Settings"]
@@ -557,6 +505,58 @@ graph TD
         integration_settings["Integrations"]
         company_create("Create Company")
         profile_settings("Profile Settings")
+    end
+    subgraph overview["Overview"]
+        company_list("Organizations")
+        company_dashboard[["Company Dashboard"]]
+        company_overview["Company Overview"]
+        notifications("Notifications")
+        activity_feed["Activity Feed"]
+    end
+    subgraph captable["Cap Table"]
+        captable_summary[["Cap Table Summary"]]
+        shareholder_list["Shareholders"]
+        shareholder_detail["Shareholder Detail"]
+        shareholder_create["Add Shareholder"]
+        shareholder_edit["Edit Shareholder"]
+        share_class_list["Share Classes"]
+        share_class_detail["Share Class Detail"]
+        create_share_class["Create Share Class"]
+        edit_share_class["Edit Share Class"]
+        share_issue["Issue Shares"]
+        share_transfer["Transfer Shares"]
+        share_split["Share Split"]
+        share_consolidation["Share Consolidation"]
+        ownership_chart["Ownership Chart"]
+        dilution_model["Dilution Model"]
+        par_value_change["Par Value Change"]
+        capital_increase["Capital Increase"]
+        capital_decrease["Capital Decrease"]
+        share_buyback["Share Buyback"]
+        share_cancellation["Share Cancellation"]
+        treasury_shares["Treasury Shares"]
+    end
+    subgraph members["Members"]
+        member_list[["Members"]]
+        member_detail["Member Detail"]
+        member_create["Add Member"]
+        member_edit["Edit Member"]
+        member_contribution["Member Contribution"]
+        membership_transfer["Membership Transfer"]
+    end
+    subgraph exit["Exit & Liquidity"]
+        exit_overview[["Exit Overview"]]
+        valuation_history["Valuation History"]
+        valuation_create["Record Valuation"]
+        waterfall_analysis["Waterfall Analysis"]
+        waterfall_scenario["Waterfall Scenario"]
+        waterfall_scenario_create["Create Waterfall Scenario"]
+        liquidity_event["Liquidity Events"]
+        liquidity_event_detail["Liquidity Event Detail"]
+        liquidity_event_create["Create Liquidity Event"]
+        distribution_plan["Distribution Plan"]
+        secondary_sale["Secondary Sale"]
+        right_of_first_refusal["Right of First Refusal"]
     end
     global_dashboard[["Dashboard"]]
 
@@ -733,103 +733,12 @@ No guards satisfied — only root-level screens are reachable.
 
 ```mermaid
 graph TD
-    subgraph exit["Exit & Liquidity"]
-        exit_overview[["Exit Overview"]]
-        valuation_history["Valuation History"]
-        valuation_create["Record Valuation"]
-        waterfall_analysis["Waterfall Analysis"]
-        waterfall_scenario["Waterfall Scenario"]
-        waterfall_scenario_create["Create Waterfall Scenario"]
-        liquidity_event["Liquidity Events"]
-        liquidity_event_detail["Liquidity Event Detail"]
-        liquidity_event_create["Create Liquidity Event"]
-        distribution_plan["Distribution Plan"]
-        secondary_sale["Secondary Sale"]
-        right_of_first_refusal["Right of First Refusal"]
-    end
-    subgraph governance["Governance"]
-        governance_overview[["Governance Overview"]]
-        board_list["Board of Directors"]
-        board_member_detail["Board Member Detail"]
-        board_member_add["Add Board Member"]
-        resolution_list["Resolutions"]
-        resolution_detail["Resolution Detail"]
-        resolution_create["Create Resolution"]
-        voting_round["Voting Round"]
-        shareholder_agreement_list["Shareholder Agreements"]
-        shareholder_agreement_detail["Agreement Detail"]
-        shareholder_agreement_create["Create Agreement"]
-        general_meeting["General Meeting"]
-        general_meeting_create["Create General Meeting"]
-        proxy_voting["Proxy Voting"]
-    end
-    subgraph reporting["Reporting"]
-        reporting_overview[["Reporting Overview"]]
-        shareholder_register_report["Shareholder Register Report"]
-        cap_table_snapshot["Cap Table Snapshot"]
-        equity_summary_report["Equity Summary Report"]
-        transaction_log["Transaction Log"]
-        altinn_filing["Altinn Filing"]
-        brreg_filing["Brønnøysund Filing"]
-        tax_report["Tax Report"]
-        annual_statement["Annual Statement"]
-        export_pdf["Export PDF"]
-        export_csv["Export CSV"]
-    end
-    subgraph data["Records"]
-        data_overview[["Records Overview"]]
-        document_list["Documents"]
-        document_detail["Document Detail"]
-        document_upload["Upload Document"]
-        audit_trail["Audit Trail"]
-        ledger_entries["Ledger Entries"]
-        beneficial_owners["Beneficial Owners"]
-        beneficial_owner_detail["Beneficial Owner Detail"]
-        import_data["Import Data"]
-    end
-    subgraph setup["Admin"]
-        settings_overview[["Settings"]]
-        company_settings["Company Settings"]
-        registry_mode["Registry Mode"]
-        user_management["User Management"]
-        user_invite["Invite User"]
-        role_management["Role Management"]
-        billing["Billing"]
-        subscription["Subscription"]
-        api_keys["API Keys"]
-        integration_settings["Integrations"]
-        company_create("Create Company")
-        profile_settings("Profile Settings")
-    end
     subgraph overview["Overview"]
         company_list("Organizations")
         company_dashboard[["Company Dashboard"]]
         company_overview["Company Overview"]
         notifications("Notifications")
         activity_feed["Activity Feed"]
-    end
-    subgraph captable["Cap Table"]
-        captable_summary[["Cap Table Summary"]]
-        shareholder_list["Shareholders"]
-        shareholder_detail["Shareholder Detail"]
-        shareholder_create["Add Shareholder"]
-        shareholder_edit["Edit Shareholder"]
-        share_class_list["Share Classes"]
-        share_class_detail["Share Class Detail"]
-        create_share_class["Create Share Class"]
-        edit_share_class["Edit Share Class"]
-        share_issue["Issue Shares"]
-        share_transfer["Transfer Shares"]
-        share_split["Share Split"]
-        share_consolidation["Share Consolidation"]
-        ownership_chart["Ownership Chart"]
-        dilution_model["Dilution Model"]
-        par_value_change["Par Value Change"]
-        capital_increase["Capital Increase"]
-        capital_decrease["Capital Decrease"]
-        share_buyback["Share Buyback"]
-        share_cancellation["Share Cancellation"]
-        treasury_shares["Treasury Shares"]
     end
     subgraph members["Members"]
         member_list[["Members"]]
@@ -864,6 +773,97 @@ graph TD
         vesting_schedule_detail["Vesting Schedule Detail"]
         vesting_schedule_create["Create Vesting Schedule"]
         vesting_simulation["Vesting Simulation"]
+    end
+    subgraph exit["Exit & Liquidity"]
+        exit_overview[["Exit Overview"]]
+        valuation_history["Valuation History"]
+        valuation_create["Record Valuation"]
+        waterfall_analysis["Waterfall Analysis"]
+        waterfall_scenario["Waterfall Scenario"]
+        waterfall_scenario_create["Create Waterfall Scenario"]
+        liquidity_event["Liquidity Events"]
+        liquidity_event_detail["Liquidity Event Detail"]
+        liquidity_event_create["Create Liquidity Event"]
+        distribution_plan["Distribution Plan"]
+        secondary_sale["Secondary Sale"]
+        right_of_first_refusal["Right of First Refusal"]
+    end
+    subgraph reporting["Reporting"]
+        reporting_overview[["Reporting Overview"]]
+        shareholder_register_report["Shareholder Register Report"]
+        cap_table_snapshot["Cap Table Snapshot"]
+        equity_summary_report["Equity Summary Report"]
+        transaction_log["Transaction Log"]
+        altinn_filing["Altinn Filing"]
+        brreg_filing["Brønnøysund Filing"]
+        tax_report["Tax Report"]
+        annual_statement["Annual Statement"]
+        export_pdf["Export PDF"]
+        export_csv["Export CSV"]
+    end
+    subgraph data["Records"]
+        data_overview[["Records Overview"]]
+        document_list["Documents"]
+        document_detail["Document Detail"]
+        document_upload["Upload Document"]
+        audit_trail["Audit Trail"]
+        ledger_entries["Ledger Entries"]
+        beneficial_owners["Beneficial Owners"]
+        beneficial_owner_detail["Beneficial Owner Detail"]
+        import_data["Import Data"]
+    end
+    subgraph captable["Cap Table"]
+        captable_summary[["Cap Table Summary"]]
+        shareholder_list["Shareholders"]
+        shareholder_detail["Shareholder Detail"]
+        shareholder_create["Add Shareholder"]
+        shareholder_edit["Edit Shareholder"]
+        share_class_list["Share Classes"]
+        share_class_detail["Share Class Detail"]
+        create_share_class["Create Share Class"]
+        edit_share_class["Edit Share Class"]
+        share_issue["Issue Shares"]
+        share_transfer["Transfer Shares"]
+        share_split["Share Split"]
+        share_consolidation["Share Consolidation"]
+        ownership_chart["Ownership Chart"]
+        dilution_model["Dilution Model"]
+        par_value_change["Par Value Change"]
+        capital_increase["Capital Increase"]
+        capital_decrease["Capital Decrease"]
+        share_buyback["Share Buyback"]
+        share_cancellation["Share Cancellation"]
+        treasury_shares["Treasury Shares"]
+    end
+    subgraph governance["Governance"]
+        governance_overview[["Governance Overview"]]
+        board_list["Board of Directors"]
+        board_member_detail["Board Member Detail"]
+        board_member_add["Add Board Member"]
+        resolution_list["Resolutions"]
+        resolution_detail["Resolution Detail"]
+        resolution_create["Create Resolution"]
+        voting_round["Voting Round"]
+        shareholder_agreement_list["Shareholder Agreements"]
+        shareholder_agreement_detail["Agreement Detail"]
+        shareholder_agreement_create["Create Agreement"]
+        general_meeting["General Meeting"]
+        general_meeting_create["Create General Meeting"]
+        proxy_voting["Proxy Voting"]
+    end
+    subgraph setup["Admin"]
+        settings_overview[["Settings"]]
+        company_settings["Company Settings"]
+        registry_mode["Registry Mode"]
+        user_management["User Management"]
+        user_invite["Invite User"]
+        role_management["Role Management"]
+        billing["Billing"]
+        subscription["Subscription"]
+        api_keys["API Keys"]
+        integration_settings["Integrations"]
+        company_create("Create Company")
+        profile_settings("Profile Settings")
     end
     global_dashboard[["Dashboard"]]
 
@@ -1041,96 +1041,129 @@ Full access strategist with all guards and guard groups satisfied.
 
 ```mermaid
 graph TD
-    subgraph authoring["Authoring"]
-        staging_review[["Staging Review"]]
-    end
-    subgraph analysis["Analysis"]
-        semantic_search[["Semantic Search"]]
-        graph_neighborhood["Graph Neighborhood"]
-        contradictions("Contradictions")
-        quality_audit("Quality Audit")
+    subgraph memory["Memory"]
+        graph_explorer[["Graph Explorer"]]
+        graph_object_detail["Object Detail"]
+        semantic_search("Semantic Search")
+        document_library("Document Library")
+        document_detail["Document Detail"]
+        template_packs("Template Packs")
+        ai_chat("AI Chat")
+        agents_list("Agents")
+        agent_detail["Agent Detail"]
+        agent_run_detail["Agent Run Detail"]
+        memory_settings("Memory Settings")
     end
     subgraph scenarios["Scenarios"]
         scenarios_list[["Scenarios"]]
         scenario_detail["Scenario Detail"]
         create_scenario("Create Scenario")
     end
-    subgraph history["History"]
-        mutation_history[["History"]]
-        mutation_detail["Mutation Detail"]
+    subgraph tools["Tools"]
+        cli_workspace[["CLI Workspace"]]
+        mcp_server("MCP Server")
     end
-    subgraph auth["Authentication"]
-        auth_login[["Login"]]
-        auth_callback("Auth Callback")
+    subgraph diane["Diane"]
+        diane_assistant[["Diane"]]
     end
-    subgraph workspaces["Workspaces"]
-        workspace_list[["Workspaces"]]
-        create_workspace("Create Workspace")
-        workspace_detail["Workspace Detail"]
-        import_instance["Import Instance"]
+    subgraph ecosystem["Ecosystem"]
+        ecosystem_home[["Ecosystem Home"]]
+        project_selector("Project Selector")
     end
     subgraph strategy["Strategy"]
-        instance_dashboard[["Instance Dashboard"]]
-        vision("Vision & Mission")
+        strategy_dashboard[["Strategy Dashboard"]]
+        vision("Vision & North Star")
         personas("Personas")
-        roadmap("Roadmap")
         competitive("Competitive Position")
-        edit_vision("Edit Vision")
+        strategy_formula("Strategy Formula")
+        roadmap("Roadmap")
+        value_model("Value Model")
         instance_health("Instance Health")
     end
     subgraph features["Features"]
         features_list[["Features"]]
         feature_detail["Feature Detail"]
-        create_feature["Create Feature"]
-        edit_feature["Edit Feature"]
+        create_feature("Create Feature")
+        edit_feature("Edit Feature")
+    end
+    subgraph authoring["Authoring"]
+        edit_vision("Edit Vision")
+        staging_review[["Staging Review"]]
+        mutation_history("Mutation History")
+    end
+    subgraph analysis["Analysis"]
+        strategy_search[["Strategy Search"]]
+        graph_neighborhood("Graph Neighborhood")
+        contradictions("Contradictions")
+        quality_audit("Quality Audit")
+        coverage_analysis("Coverage Analysis")
+    end
+    subgraph aim["AIM"]
+        aim_dashboard[["AIM Dashboard"]]
+        lra_detail("Living Reality Assessment")
+        assessment_report("Assessment Report")
+        recalibration_proposal("Recalibration Proposal")
     end
 
-    auth_login -->|Complete authentication #lpar;authenticated#rpar;| workspace_list
-    workspace_list -->|Create new workspace| create_workspace
-    workspace_list -->|Open workspace| workspace_detail
-    workspace_detail -->|Import strategy instance| import_instance
-    workspace_detail -->|Open instance #lpar;instance-active#rpar;| instance_dashboard
-    instance_dashboard -->|View vision & mission| vision
-    instance_dashboard -->|View personas| personas
-    instance_dashboard -->|View roadmap| roadmap
-    instance_dashboard -->|View competitive position| competitive
-    instance_dashboard -->|View features| features_list
-    instance_dashboard -->|Check instance health| instance_health
-    features_list -->|View feature| feature_detail
-    features_list -->|Create new feature #lpar;can-write#rpar;| create_feature
-    feature_detail -->|Edit feature #lpar;can-write#rpar;| edit_feature
-    vision -->|Edit vision #lpar;can-write#rpar;| edit_vision
-    edit_vision -->|Review staged vision change| staging_review
-    create_feature -->|Review staged new feature| staging_review
-    edit_feature -->|Review staged feature edit| staging_review
-    instance_dashboard -->|Review pending staged changes #lpar;has-staged-changes#rpar;| staging_review
-    staging_review -->|Commit and return to dashboard| instance_dashboard
-    staging_review -->|Discard and return to dashboard| instance_dashboard
-    instance_dashboard -->|Search strategy #lpar;memory-connected#rpar;| semantic_search
-    semantic_search -->|View graph neighborhood| graph_neighborhood
-    instance_dashboard -->|Check contradictions #lpar;memory-connected#rpar;| contradictions
-    instance_dashboard -->|Run quality audit #lpar;memory-connected#rpar;| quality_audit
-    instance_dashboard -->|Explore scenarios #lpar;memory-connected#rpar;| scenarios_list
-    scenarios_list -->|View scenario| scenario_detail
-    scenarios_list -->|Create scenario #lpar;can-write#rpar;| create_scenario
-    scenario_detail -->|Commit scenario to staging #lpar;can-write#rpar;| staging_review
-    instance_dashboard -->|View history| mutation_history
-    mutation_history -->|View mutation detail| mutation_detail
-    contradictions -->|Fix contradiction in feature #lpar;can-write#rpar;| edit_feature
-    quality_audit -->|Fix quality issue in feature #lpar;can-write#rpar;| edit_feature
-    feature_detail -->|Back to features| features_list
-    graph_neighborhood -->|Back to search| semantic_search
-    scenario_detail -->|Back to scenarios| scenarios_list
-    mutation_detail -->|Back to history| mutation_history
+    ecosystem_home -->|select project| project_selector
+    project_selector -->|open strategy #lpar;project-selected#rpar;| strategy_dashboard
+    project_selector -->|explore graph #lpar;project-selected#rpar;| graph_explorer
+    project_selector -->|manage documents #lpar;project-selected#rpar;| document_library
+    graph_explorer -->|view object| graph_object_detail
+    graph_explorer -->|search graph| semantic_search
+    document_library -->|view document| document_detail
+    graph_explorer -->|manage agents| agents_list
+    agents_list -->|view agent| agent_detail
+    agent_detail -->|view run| agent_run_detail
+    graph_explorer -->|manage schemas| template_packs
+    graph_explorer -->|ask AI| ai_chat
+    graph_explorer -->|settings #lpar;admin#rpar;| memory_settings
+    strategy_dashboard -->|view vision| vision
+    strategy_dashboard -->|view personas| personas
+    strategy_dashboard -->|competitive analysis| competitive
+    strategy_dashboard -->|strategy formula| strategy_formula
+    strategy_dashboard -->|view roadmap| roadmap
+    strategy_dashboard -->|value model| value_model
+    strategy_dashboard -->|view features| features_list
+    strategy_dashboard -->|health check| instance_health
+    strategy_dashboard -->|review staged changes #lpar;has-staged-changes#rpar;| staging_review
+    strategy_dashboard -->|change history| mutation_history
+    strategy_dashboard -->|AIM dashboard| aim_dashboard
+    features_list -->|view feature| feature_detail
+    features_list -->|create feature #lpar;can-write#rpar;| create_feature
+    feature_detail -->|edit feature #lpar;can-write#rpar;| edit_feature
+    vision -->|edit vision #lpar;can-write#rpar;| edit_vision
+    strategy_dashboard -->|search strategy #lpar;memory-connected#rpar;| strategy_search
+    strategy_dashboard -->|explore graph #lpar;memory-connected#rpar;| graph_neighborhood
+    strategy_dashboard -->|detect contradictions #lpar;memory-connected#rpar;| contradictions
+    strategy_dashboard -->|quality audit| quality_audit
+    strategy_dashboard -->|coverage analysis| coverage_analysis
+    strategy_dashboard -->|explore scenarios #lpar;memory-connected#rpar;| scenarios_list
+    scenarios_list -->|view scenario| scenario_detail
+    scenarios_list -->|create scenario #lpar;can-write#rpar;| create_scenario
+    aim_dashboard -->|view LRA| lra_detail
+    aim_dashboard -->|create assessment #lpar;can-write#rpar;| assessment_report
+    aim_dashboard -->|recalibrate #lpar;can-write#rpar;| recalibration_proposal
+    strategy_dashboard -->|open knowledge graph #lpar;memory-connected#rpar;| graph_explorer
+    graph_explorer -->|open strategy #lpar;instance-active#rpar;| strategy_dashboard
+    ecosystem_home -->|open terminal| cli_workspace
+    ecosystem_home -->|MCP tools| mcp_server
+    ecosystem_home -->|open Diane| diane_assistant
+    strategy_search -->|explore in graph| graph_neighborhood
+    feature_detail -->|check coverage| coverage_analysis
+    contradictions -->|fix feature #lpar;can-write#rpar;| edit_feature
+    quality_audit -->|fix feature #lpar;can-write#rpar;| edit_feature
+    scenario_detail -->|commit scenario to staging #lpar;can-write#rpar;| staging_review
 
     classDef reachable fill:#d4edda,stroke:#28a745,color:#155724
-    class workspace_list,create_workspace,workspace_detail,import_instance,instance_dashboard,vision,personas,roadmap,competitive,features_list,feature_detail,create_feature,edit_feature,edit_vision,staging_review reachable
-    class semantic_search,graph_neighborhood,contradictions,quality_audit,scenarios_list,scenario_detail,create_scenario,mutation_history,mutation_detail,instance_health reachable
+    class ecosystem_home,project_selector,cli_workspace,mcp_server,diane_assistant reachable
     classDef blocked fill:#f8d7da,stroke:#dc3545,color:#721c24
-    class auth_login,auth_callback blocked
+    class graph_explorer,graph_object_detail,semantic_search,document_library,document_detail,template_packs,ai_chat,agents_list,agent_detail,agent_run_detail,memory_settings,strategy_dashboard,vision,personas,competitive blocked
+    class strategy_formula,roadmap,value_model,features_list,feature_detail,create_feature,edit_feature,edit_vision,staging_review,mutation_history,strategy_search,graph_neighborhood,contradictions,quality_audit,coverage_analysis blocked
+    class scenarios_list,scenario_detail,create_scenario,aim_dashboard,lra_detail,assessment_report,recalibration_proposal,instance_health blocked
 
     classDef entry fill:#cce5ff,stroke:#004085,color:#004085,stroke-width:3px
-    class workspace_list entry
+    class ecosystem_home entry
 ```
 
 ## 7. Emergent Strategy Platform: Observer View
@@ -1139,94 +1172,128 @@ Observer with `authenticated` + `instance-active` only. Cannot write or access s
 
 ```mermaid
 graph TD
-    subgraph analysis["Analysis"]
-        semantic_search[["Semantic Search"]]
-        graph_neighborhood["Graph Neighborhood"]
-        contradictions("Contradictions")
-        quality_audit("Quality Audit")
-    end
     subgraph scenarios["Scenarios"]
         scenarios_list[["Scenarios"]]
         scenario_detail["Scenario Detail"]
         create_scenario("Create Scenario")
     end
-    subgraph history["History"]
-        mutation_history[["History"]]
-        mutation_detail["Mutation Detail"]
+    subgraph tools["Tools"]
+        cli_workspace[["CLI Workspace"]]
+        mcp_server("MCP Server")
     end
-    subgraph auth["Authentication"]
-        auth_login[["Login"]]
-        auth_callback("Auth Callback")
+    subgraph diane["Diane"]
+        diane_assistant[["Diane"]]
     end
-    subgraph workspaces["Workspaces"]
-        workspace_list[["Workspaces"]]
-        create_workspace("Create Workspace")
-        workspace_detail["Workspace Detail"]
-        import_instance["Import Instance"]
+    subgraph ecosystem["Ecosystem"]
+        ecosystem_home[["Ecosystem Home"]]
+        project_selector("Project Selector")
     end
-    subgraph strategy["Strategy"]
-        instance_dashboard[["Instance Dashboard"]]
-        vision("Vision & Mission")
-        personas("Personas")
-        roadmap("Roadmap")
-        competitive("Competitive Position")
-        edit_vision("Edit Vision")
-        instance_health("Instance Health")
+    subgraph memory["Memory"]
+        graph_explorer[["Graph Explorer"]]
+        graph_object_detail["Object Detail"]
+        semantic_search("Semantic Search")
+        document_library("Document Library")
+        document_detail["Document Detail"]
+        template_packs("Template Packs")
+        ai_chat("AI Chat")
+        agents_list("Agents")
+        agent_detail["Agent Detail"]
+        agent_run_detail["Agent Run Detail"]
+        memory_settings("Memory Settings")
     end
     subgraph features["Features"]
         features_list[["Features"]]
         feature_detail["Feature Detail"]
-        create_feature["Create Feature"]
-        edit_feature["Edit Feature"]
+        create_feature("Create Feature")
+        edit_feature("Edit Feature")
     end
     subgraph authoring["Authoring"]
+        edit_vision("Edit Vision")
         staging_review[["Staging Review"]]
+        mutation_history("Mutation History")
+    end
+    subgraph analysis["Analysis"]
+        strategy_search[["Strategy Search"]]
+        graph_neighborhood("Graph Neighborhood")
+        contradictions("Contradictions")
+        quality_audit("Quality Audit")
+        coverage_analysis("Coverage Analysis")
+    end
+    subgraph aim["AIM"]
+        aim_dashboard[["AIM Dashboard"]]
+        lra_detail("Living Reality Assessment")
+        assessment_report("Assessment Report")
+        recalibration_proposal("Recalibration Proposal")
+    end
+    subgraph strategy["Strategy"]
+        strategy_dashboard[["Strategy Dashboard"]]
+        vision("Vision & North Star")
+        personas("Personas")
+        competitive("Competitive Position")
+        strategy_formula("Strategy Formula")
+        roadmap("Roadmap")
+        value_model("Value Model")
+        instance_health("Instance Health")
     end
 
-    auth_login -->|Complete authentication #lpar;authenticated#rpar;| workspace_list
-    workspace_list -->|Create new workspace| create_workspace
-    workspace_list -->|Open workspace| workspace_detail
-    workspace_detail -->|Import strategy instance| import_instance
-    workspace_detail -->|Open instance #lpar;instance-active#rpar;| instance_dashboard
-    instance_dashboard -->|View vision & mission| vision
-    instance_dashboard -->|View personas| personas
-    instance_dashboard -->|View roadmap| roadmap
-    instance_dashboard -->|View competitive position| competitive
-    instance_dashboard -->|View features| features_list
-    instance_dashboard -->|Check instance health| instance_health
-    features_list -->|View feature| feature_detail
-    features_list -->|Create new feature #lpar;can-write#rpar;| create_feature
-    feature_detail -->|Edit feature #lpar;can-write#rpar;| edit_feature
-    vision -->|Edit vision #lpar;can-write#rpar;| edit_vision
-    edit_vision -->|Review staged vision change| staging_review
-    create_feature -->|Review staged new feature| staging_review
-    edit_feature -->|Review staged feature edit| staging_review
-    instance_dashboard -->|Review pending staged changes #lpar;has-staged-changes#rpar;| staging_review
-    staging_review -->|Commit and return to dashboard| instance_dashboard
-    staging_review -->|Discard and return to dashboard| instance_dashboard
-    instance_dashboard -->|Search strategy #lpar;memory-connected#rpar;| semantic_search
-    semantic_search -->|View graph neighborhood| graph_neighborhood
-    instance_dashboard -->|Check contradictions #lpar;memory-connected#rpar;| contradictions
-    instance_dashboard -->|Run quality audit #lpar;memory-connected#rpar;| quality_audit
-    instance_dashboard -->|Explore scenarios #lpar;memory-connected#rpar;| scenarios_list
-    scenarios_list -->|View scenario| scenario_detail
-    scenarios_list -->|Create scenario #lpar;can-write#rpar;| create_scenario
-    scenario_detail -->|Commit scenario to staging #lpar;can-write#rpar;| staging_review
-    instance_dashboard -->|View history| mutation_history
-    mutation_history -->|View mutation detail| mutation_detail
-    contradictions -->|Fix contradiction in feature #lpar;can-write#rpar;| edit_feature
-    quality_audit -->|Fix quality issue in feature #lpar;can-write#rpar;| edit_feature
-    feature_detail -->|Back to features| features_list
-    graph_neighborhood -->|Back to search| semantic_search
-    scenario_detail -->|Back to scenarios| scenarios_list
-    mutation_detail -->|Back to history| mutation_history
+    ecosystem_home -->|select project| project_selector
+    project_selector -->|open strategy #lpar;project-selected#rpar;| strategy_dashboard
+    project_selector -->|explore graph #lpar;project-selected#rpar;| graph_explorer
+    project_selector -->|manage documents #lpar;project-selected#rpar;| document_library
+    graph_explorer -->|view object| graph_object_detail
+    graph_explorer -->|search graph| semantic_search
+    document_library -->|view document| document_detail
+    graph_explorer -->|manage agents| agents_list
+    agents_list -->|view agent| agent_detail
+    agent_detail -->|view run| agent_run_detail
+    graph_explorer -->|manage schemas| template_packs
+    graph_explorer -->|ask AI| ai_chat
+    graph_explorer -->|settings #lpar;admin#rpar;| memory_settings
+    strategy_dashboard -->|view vision| vision
+    strategy_dashboard -->|view personas| personas
+    strategy_dashboard -->|competitive analysis| competitive
+    strategy_dashboard -->|strategy formula| strategy_formula
+    strategy_dashboard -->|view roadmap| roadmap
+    strategy_dashboard -->|value model| value_model
+    strategy_dashboard -->|view features| features_list
+    strategy_dashboard -->|health check| instance_health
+    strategy_dashboard -->|review staged changes #lpar;has-staged-changes#rpar;| staging_review
+    strategy_dashboard -->|change history| mutation_history
+    strategy_dashboard -->|AIM dashboard| aim_dashboard
+    features_list -->|view feature| feature_detail
+    features_list -->|create feature #lpar;can-write#rpar;| create_feature
+    feature_detail -->|edit feature #lpar;can-write#rpar;| edit_feature
+    vision -->|edit vision #lpar;can-write#rpar;| edit_vision
+    strategy_dashboard -->|search strategy #lpar;memory-connected#rpar;| strategy_search
+    strategy_dashboard -->|explore graph #lpar;memory-connected#rpar;| graph_neighborhood
+    strategy_dashboard -->|detect contradictions #lpar;memory-connected#rpar;| contradictions
+    strategy_dashboard -->|quality audit| quality_audit
+    strategy_dashboard -->|coverage analysis| coverage_analysis
+    strategy_dashboard -->|explore scenarios #lpar;memory-connected#rpar;| scenarios_list
+    scenarios_list -->|view scenario| scenario_detail
+    scenarios_list -->|create scenario #lpar;can-write#rpar;| create_scenario
+    aim_dashboard -->|view LRA| lra_detail
+    aim_dashboard -->|create assessment #lpar;can-write#rpar;| assessment_report
+    aim_dashboard -->|recalibrate #lpar;can-write#rpar;| recalibration_proposal
+    strategy_dashboard -->|open knowledge graph #lpar;memory-connected#rpar;| graph_explorer
+    graph_explorer -->|open strategy #lpar;instance-active#rpar;| strategy_dashboard
+    ecosystem_home -->|open terminal| cli_workspace
+    ecosystem_home -->|MCP tools| mcp_server
+    ecosystem_home -->|open Diane| diane_assistant
+    strategy_search -->|explore in graph| graph_neighborhood
+    feature_detail -->|check coverage| coverage_analysis
+    contradictions -->|fix feature #lpar;can-write#rpar;| edit_feature
+    quality_audit -->|fix feature #lpar;can-write#rpar;| edit_feature
+    scenario_detail -->|commit scenario to staging #lpar;can-write#rpar;| staging_review
 
     classDef reachable fill:#d4edda,stroke:#28a745,color:#155724
-    class workspace_list,create_workspace,workspace_detail,import_instance,instance_dashboard,vision,personas,roadmap,competitive,features_list,feature_detail,mutation_history,mutation_detail,instance_health reachable
+    class ecosystem_home,project_selector,cli_workspace,mcp_server,diane_assistant reachable
     classDef blocked fill:#f8d7da,stroke:#dc3545,color:#721c24
-    class auth_login,auth_callback,create_feature,edit_feature,edit_vision,staging_review,semantic_search,graph_neighborhood,contradictions,quality_audit,scenarios_list,scenario_detail,create_scenario blocked
+    class graph_explorer,graph_object_detail,semantic_search,document_library,document_detail,template_packs,ai_chat,agents_list,agent_detail,agent_run_detail,memory_settings,strategy_dashboard,vision,personas,competitive blocked
+    class strategy_formula,roadmap,value_model,features_list,feature_detail,create_feature,edit_feature,edit_vision,staging_review,mutation_history,strategy_search,graph_neighborhood,contradictions,quality_audit,coverage_analysis blocked
+    class scenarios_list,scenario_detail,create_scenario,aim_dashboard,lra_detail,assessment_report,recalibration_proposal,instance_health blocked
 
     classDef entry fill:#cce5ff,stroke:#004085,color:#004085,stroke-width:3px
-    class workspace_list entry
+    class ecosystem_home entry
 ```
 

@@ -484,7 +484,7 @@ func lraCurrentFocusSection(data LRAViewData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var17 = []any{"badge badge-sm badge-outline", "badge-" + trackColorName(data.PrimaryTrack)}
+			var templ_7745c5c3_Var17 = []any{"badge badge-sm", "badge-" + trackColorName(data.PrimaryTrack)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var17...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -509,7 +509,7 @@ func lraCurrentFocusSection(data LRAViewData) templ.Component {
 			var templ_7745c5c3_Var19 string
 			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(data.PrimaryTrack)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/lra_view.templ`, Line: 188, Col: 118}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/lra_view.templ`, Line: 188, Col: 104}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 			if templ_7745c5c3_Err != nil {
@@ -525,7 +525,7 @@ func lraCurrentFocusSection(data LRAViewData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var20 = []any{"badge badge-sm badge-outline", "badge-" + trackColorName(data.SecondaryTrack)}
+			var templ_7745c5c3_Var20 = []any{"badge badge-sm", "badge-" + trackColorName(data.SecondaryTrack)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var20...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -550,7 +550,7 @@ func lraCurrentFocusSection(data LRAViewData) templ.Component {
 			var templ_7745c5c3_Var22 string
 			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(data.SecondaryTrack)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/lra_view.templ`, Line: 194, Col: 122}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/lra_view.templ`, Line: 194, Col: 108}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 			if templ_7745c5c3_Err != nil {

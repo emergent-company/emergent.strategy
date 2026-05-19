@@ -57,8 +57,8 @@ func (s *Server) renderPhaseContent(c echo.Context, loadFn func(string, echo.Con
 		ui.InstancePhaseFullPage(phaseData.Title+" — "+instance.Name, currentPath, sidebarGroups, instance.Name, tabs, phaseData.Content),
 		// Sidebar nav swap: chrome + content
 		ui.InstanceChromeWithContent(instance.Name, tabs, currentPath, phaseData.Content),
-		// Tab swap: content only
-		phaseData.Content,
+		// Tab/sub-nav swap: tabs + content (re-renders tab bar)
+		ui.InstanceTabContent(tabs, currentPath, phaseData.Content),
 	)
 	return nil
 }

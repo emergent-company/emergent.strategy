@@ -77,10 +77,10 @@ templ valueModelHero(data ValueModelViewData) {
 					<div class="flex items-center gap-2">
 						<span class="iconify lucide--layers size-5 text-warning"></span>
 						if data.TrackName != "" {
-							<span class="text-xs font-semibold uppercase tracking-widest text-warning">{ data.TrackName }</span>
-							<span class="text-xs text-base-content/40">·</span>
-						}
-						<span class="text-xs font-semibold uppercase tracking-widest text-warning">Value Model</span>
+						<span class="text-xs font-semibold uppercase tracking-widest text-base-content/70">{ data.TrackName }</span>
+						<span class="text-xs text-base-content/40">·</span>
+					}
+					<span class="text-xs font-semibold uppercase tracking-widest text-base-content/70">Value Model</span>
 						if data.Status != "" {
 							@artifactStatusBadge(data.Status)
 						}

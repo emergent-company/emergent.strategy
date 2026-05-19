@@ -21,7 +21,7 @@ type RoadmapRecipeData struct {
 	Tracks []RoadmapTrack
 
 	// Execution plan
-	CriticalPath []string
+	CriticalPath []RoadmapCriticalPathStep
 	Milestones   []RoadmapMilestone
 
 	// Cross-track dependencies
@@ -51,6 +51,14 @@ type RoadmapKR struct {
 	Target      string
 	TRLStart    string
 	TRLTarget   string
+}
+
+// RoadmapCriticalPathStep is one resolved step in the critical path.
+type RoadmapCriticalPathStep struct {
+	RawID       string // original "track:kr-id" value
+	KRDescription string // resolved KR description
+	Target      string // KR target
+	AnchorID    string // HTML anchor id to scroll to on the same page
 }
 
 // RoadmapAssumption is a bet the track is making.
@@ -130,7 +138,7 @@ templ roadmapHero(data RoadmapRecipeData) {
 							<span class="badge badge-sm badge-outline badge-accent">{ data.Cycle }</span>
 						}
 						if data.Timeframe != "" {
-							<span class="badge badge-sm badge-outline badge-warning">{ data.Timeframe }</span>
+							<span class="badge badge-sm badge-warning">{ data.Timeframe }</span>
 						}
 					</div>
 					<h1 class="text-2xl font-bold text-base-content sm:text-3xl">{ data.Name }</h1>
@@ -212,7 +220,7 @@ templ roadmapOKRCard(okr RoadmapOKR, trackName string) {
 }
 
 templ roadmapKRRow(kr RoadmapKR, trackName string) {
-	<div class="rounded-lg bg-base-200/40 px-4 py-3">
+	<div class="rounded-lg bg-base-200/40 px-4 py-3" if kr.ID != "" { id={ kr.ID } }>
 		<div class="flex items-start gap-2">
 			if kr.ID != "" {
 				<span class="badge badge-xs badge-ghost font-mono shrink-0 mt-0.5">{ kr.ID }</span>
@@ -229,7 +237,7 @@ templ roadmapKRRow(kr RoadmapKR, trackName string) {
 							<span class="iconify lucide--arrow-right size-3 text-base-content/50"></span>
 						}
 						if kr.Target != "" {
-							<span class={ "font-mono font-medium", textColor(trackColor(trackName)) }>{ kr.Target }</span>
+							<span class={ "font-mono font-medium", textColorSafe(trackColor(trackName)) }>{ kr.Target }</span>
 						}
 					</div>
 				}
@@ -242,7 +250,7 @@ templ roadmapKRRow(kr RoadmapKR, trackName string) {
 							<span class="iconify lucide--arrow-right size-3 text-base-content/50"></span>
 						}
 							if kr.TRLTarget != "" {
-								<span class={ "badge badge-xs", "badge-outline", trackBadgeColor(trackName) }>TRL { kr.TRLTarget }</span>
+								<span class={ "badge badge-xs", trackBadgeColor(trackName) }>TRL { kr.TRLTarget }</span>
 							}
 						</div>
 					}
@@ -295,14 +303,20 @@ templ roadmapAssumptionRow(a RoadmapAssumption) {
 						<span class="badge badge-xs badge-ghost font-mono shrink-0">{ a.ID }</span>
 					}
 				</div>
-				<div class="flex flex-wrap gap-2 mt-1.5">
-					if a.Criticality != "" {
+			<div class="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-1.5 text-xs text-base-content/50">
+				if a.Criticality != "" {
+					<span class="flex items-center gap-1">
+						<span>Criticality</span>
 						<span class={ "badge badge-xs", likelihoodBadge(a.Criticality) }>{ a.Criticality }</span>
-					}
-					if a.Confidence != "" {
-						<span class={ "badge badge-xs", confidenceBadgeClass(a.Confidence) }>{ a.Confidence } confidence</span>
-					}
-				</div>
+					</span>
+				}
+				if a.Confidence != "" {
+					<span class="flex items-center gap-1">
+						<span>Confidence</span>
+						<span class={ "badge badge-xs", confidenceBadgeClass(a.Confidence) }>{ a.Confidence }</span>
+					</span>
+				}
+			</div>
 			</div>
 		</div>
 	</div>
@@ -348,7 +362,7 @@ templ roadmapMilestoneEntry(m RoadmapMilestone, latest bool) {
 // Critical Path
 // ──────────────────────────────────────────────────────────────────────
 
-templ roadmapCriticalPathSection(steps []string) {
+templ roadmapCriticalPathSection(steps []RoadmapCriticalPathStep) {
 	<section>
 		@sectionHeading("Critical Path", "lucide--route", "error", "Sequence of must-hit steps")
 		<div class="mt-4">
@@ -364,7 +378,35 @@ templ roadmapCriticalPathSection(steps []string) {
 							}
 						</div>
 						<div class="pb-4 min-w-0">
-							<p class="text-sm text-base-content">{ step }</p>
+							if step.AnchorID != "" {
+								<a
+									href={ templ.URL("#" + step.AnchorID) }
+									class="group flex flex-col gap-0.5"
+								>
+									<span class="text-sm text-base-content group-hover:text-primary transition-colors leading-snug">
+										if step.KRDescription != "" {
+											{ step.KRDescription }
+										} else {
+											{ step.RawID }
+										}
+									</span>
+									if step.Target != "" {
+										<span class="text-xs text-base-content/45 leading-snug">{ step.Target }</span>
+									}
+									<span class="text-xs text-base-content/30 font-mono">{ step.RawID } <span class="iconify lucide--arrow-down size-3 inline align-middle opacity-50"></span></span>
+								</a>
+							} else {
+								<p class="text-sm text-base-content leading-snug">
+									if step.KRDescription != "" {
+										{ step.KRDescription }
+									} else {
+										{ step.RawID }
+									}
+								</p>
+								if step.Target != "" {
+									<p class="text-xs text-base-content/45 leading-snug mt-0.5">{ step.Target }</p>
+								}
+							}
 						</div>
 					</div>
 				}

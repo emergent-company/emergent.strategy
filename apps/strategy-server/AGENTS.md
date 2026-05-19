@@ -105,6 +105,41 @@ go test ./pkg/... ./internal/audit/... ./internal/agent/... ./internal/embedded/
 task lint
 ```
 
+## CSS Build — Critical Rules
+
+The Tailwind CSS build **must** run from `apps/strategy-server/`, not from inside `web/`.
+
+```bash
+# CORRECT — always use task css
+cd apps/strategy-server && task css
+
+# CORRECT — manual equivalent (note: cd to apps/strategy-server first)
+cd apps/strategy-server && node web/node_modules/.bin/tailwindcss -i web/base.css -o web/staticfiles/static/css/app.css --minify
+
+# WRONG — running from inside web/ only scans base.css, produces ~73KB truncated output
+cd apps/strategy-server/web && node node_modules/.bin/tailwindcss -i base.css -o ...
+```
+
+**CSS size is a correctness signal:**
+- ~168KB = correct (Tailwind scanned all `.templ` + `.go` source files)
+- ~73KB = wrong working directory (only `base.css` was scanned)
+
+**After any CSS change, rebuild the binary** — `app.css` is `go:embed` compiled in:
+
+```bash
+cd apps/strategy-server && task css && go build -o /tmp/strategy-server . && /tmp/strategy-server server
+```
+
+**`@source inline(...)` in `base.css` is for two legitimate cases:**
+1. **go-daisy shell component classes** — `AppShell`, `Sidebar`, `Navbar` live in the Go module
+   cache and emit classes like `px-2.5`, `space-y-0.5`, `min-h-10`, `size-4.5`, `max-lg:hidden`
+   that Tailwind cannot scan. These are safelisted in `base.css`.
+2. **Opacity/modifier variants** — e.g. `bg-primary/10`, `text-base-content/50` used with
+   go-daisy tokens that aren't in our source files.
+
+Never use it to compensate for a wrong build path. If a class is used in our own `.templ`
+files, fix the build path — don't safelist it.
+
 ## Architecture
 
 Four-phase build order — do not start the next phase until the exit gate is met:

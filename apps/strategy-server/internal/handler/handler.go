@@ -5,7 +5,6 @@ package handler
 
 import (
 	"log/slog"
-	"strings"
 
 	"github.com/emergent-company/go-daisy/components/layout"
 	"github.com/emergent-company/go-daisy/render"
@@ -15,6 +14,9 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/navigation"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 )
+
+// navGraph is the singleton navigation graph.
+var navGraph = navigation.DefaultGraph()
 
 // Server holds dependencies for web handlers.
 type Server struct {
@@ -30,35 +32,74 @@ func New(db *bun.DB, log *slog.Logger) *Server {
 	}
 }
 
+// handlerEntry maps a screen to its GET handler.
+type handlerEntry struct {
+	GET echo.HandlerFunc
+}
+
+// buildHandlerRegistry returns a map of ScreenID → handler functions
+// for all screens that have implemented web handlers.
+func (s *Server) buildHandlerRegistry() map[navigation.ScreenID]handlerEntry {
+	return map[navigation.ScreenID]handlerEntry{
+		// Root
+		navigation.GlobalDashboard: {GET: s.handleDashboard},
+
+		// Execution
+		navigation.ExecutionDashboard: {GET: s.handleExecutionDashboard},
+
+		// READY
+		navigation.ReadyOverview:      {GET: s.handleReadyOverview},
+		navigation.NorthStar:          {GET: s.handleArtifactViewByType("north_star")},
+		navigation.InsightAnalyses:    {GET: s.handleArtifactViewByType("insight_analyses")},
+		navigation.StrategyFoundation: {GET: s.handleArtifactViewByType("strategy_foundations")},
+		navigation.InsightOpportunity: {GET: s.handleArtifactViewByType("insight_opportunity")},
+		navigation.StrategyFormula:    {GET: s.handleArtifactViewByType("strategy_formula")},
+		navigation.RoadmapRecipe:      {GET: s.handleArtifactViewByType("roadmap_recipe")},
+		navigation.ProductPortfolio:   {GET: s.handleArtifactViewByType("product_portfolio")},
+
+		// FIRE
+		navigation.FireOverview:     {GET: s.handleFireOverview},
+		navigation.StrategyTrack:    {GET: s.handleTrackDashboard("strategy")},
+		navigation.OrgOpsTrack:      {GET: s.handleTrackDashboard("org_ops")},
+		navigation.ProductTrack:     {GET: s.handleTrackDashboard("product")},
+		navigation.CommercialTrack:  {GET: s.handleTrackDashboard("commercial")},
+		navigation.FeatureDetail:    {GET: s.handleArtifactView},
+		navigation.ValueModelDetail: {GET: s.handleArtifactView},
+		navigation.DefinitionDetail: {GET: s.handleArtifactView},
+
+		// AIM
+		navigation.AimOverview:      {GET: s.handleAimOverview},
+		navigation.LRA:              {GET: s.handleArtifactViewByType("living_reality_assessment")},
+		navigation.AssessmentReport: {GET: s.handleArtifactViewByType("assessment_report")},
+	}
+}
+
 // RegisterRoutes registers all web UI routes on the given Echo instance.
+// Routes are derived from the navigation graph. Screens with handlers get
+// real handlers; screens without get auto-generated placeholder pages.
 func (s *Server) RegisterRoutes(e *echo.Echo) {
-	// Root pages
-	e.GET("/", s.handleDashboard)
+	handlers := s.buildHandlerRegistry()
 
-	// Strategy-scoped pages (using /strategies/:id)
-	e.GET("/strategies/:id", s.handleExecutionDashboard) // default: execution view
-	e.GET("/strategies/:id/ready", s.handleReadyOverview)
-	e.GET("/strategies/:id/ready/north-star", s.handleArtifactViewByType("north_star"))
-	e.GET("/strategies/:id/ready/foundations", s.handleArtifactViewByType("strategy_foundations"))
-	e.GET("/strategies/:id/ready/insights", s.handleArtifactViewByType("insight_analyses"))
-	e.GET("/strategies/:id/ready/formula", s.handleArtifactViewByType("strategy_formula"))
-	e.GET("/strategies/:id/ready/roadmap", s.handleArtifactViewByType("roadmap_recipe"))
+	for _, screen := range navGraph.Screens {
+		if !screen.WebRoute {
+			continue
+		}
 
-	e.GET("/strategies/:id/fire", s.handleFireOverview)
-	e.GET("/strategies/:id/fire/product", s.handlePlaceholder("Product Track", "Product features and definitions.", "lucide--code-2"))
-	e.GET("/strategies/:id/fire/commercial", s.handlePlaceholder("Commercial Track", "Commercial definitions and pricing.", "lucide--briefcase"))
-	e.GET("/strategies/:id/fire/strategy", s.handlePlaceholder("Strategy Track", "Strategic definitions and positioning.", "lucide--navigation"))
-	e.GET("/strategies/:id/fire/org-ops", s.handlePlaceholder("Org & Ops Track", "Organisational and operational definitions.", "lucide--container"))
+		entry, hasHandler := handlers[screen.ID]
 
-	e.GET("/strategies/:id/aim", s.handleAimOverview)
-	e.GET("/strategies/:id/aim/assumptions", s.handlePlaceholder("Assumptions", "Track and test your strategic assumptions.", "lucide--flask-conical"))
-	e.GET("/strategies/:id/aim/lra", s.handleArtifactViewByType("living_reality_assessment"))
-	e.GET("/strategies/:id/aim/assessment", s.handleArtifactViewByType("assessment_report"))
-	e.GET("/strategies/:id/aim/calibration", s.handlePlaceholder("Calibration", "Monitor and calibrate your strategy execution.", "lucide--sliders-horizontal"))
-	e.GET("/strategies/:id/aim/coherence", s.handlePlaceholder("Coherence Status", "View the coherence engine signals and equilibrium.", "lucide--shield-check"))
-
-	// Artifact viewer (any artifact by key)
-	e.GET("/strategies/:id/artifacts/:key", s.handleArtifactView)
+		if screen.InstanceScoped {
+			pattern := "/strategies/:id" + screen.URLPattern
+			if hasHandler {
+				e.GET(pattern, entry.GET)
+			} else {
+				e.GET(pattern, s.handlePlaceholderFromGraph(screen))
+			}
+		} else {
+			if hasHandler {
+				e.GET(screen.URLPattern, entry.GET)
+			}
+		}
+	}
 }
 
 // sidebarGroups builds sidebar navigation groups with instance list.
@@ -73,24 +114,104 @@ func (s *Server) sidebarGroups(c echo.Context) []layout.SidebarGroup {
 	return ui.BuildSidebarGroups(currentPath, instances)
 }
 
-// strategyTabs builds the strategy tabs, setting the active tab.
+// strategyTabs builds the strategy tabs, setting the active tab based on
+// the navigation graph's tab resolution.
 func (s *Server) strategyTabs(instanceID, currentPath string) []ui.TabProps {
-	navTabs := navigation.StrategyTabs(instanceID)
-	tabs := make([]ui.TabProps, len(navTabs))
-	for i, t := range navTabs {
-		isActive := currentPath == t.URL || (t.URL != "/strategies/"+instanceID && strings.HasPrefix(currentPath, t.URL))
-		tabs[i] = ui.TabProps{
-			Label:    t.Label,
-			Icon:     t.Icon,
-			URL:      t.URL,
-			IsActive: isActive,
-		}
+	activeTab := navGraph.ResolveTabForPath(instanceID, currentPath)
+	tabs := navGraph.InstanceTabGroups()
+
+	result := make([]ui.TabProps, 0, len(tabs))
+	for _, tab := range tabs {
+		meta := navigation.TabDisplay(tab)
+		href := "/strategies/" + instanceID + meta.LandingURL
+		result = append(result, ui.TabProps{
+			Label:    meta.Label,
+			Icon:     meta.Icon,
+			URL:      href,
+			IsActive: tab == activeTab,
+		})
 	}
-	return tabs
+	return result
 }
 
-// handlePlaceholder returns a handler that renders a placeholder page.
-func (s *Server) handlePlaceholder(title, description, icon string) echo.HandlerFunc {
+// renderInstancePage is the standard render helper for instance-scoped pages.
+// It computes tabs and renders using the 3-tier RenderTriple pattern:
+//   - Tier 1 (full page): shell + sidebar + chrome + tabs + content
+//   - Tier 2 (sidebar swap → #main-content): chrome + tabs + content
+//   - Tier 3 (tab/sub-nav swap → #tab-content): tabs + content (re-renders tab bar)
+//
+// Sub-navigation and breadcrumbs are rendered by each content template.
+func (s *Server) renderInstancePage(c echo.Context, pageTitle string, content ui.PhaseRenderData) error {
+	instanceID := c.Param("id")
+	ctx := c.Request().Context()
+	currentPath := c.Request().URL.Path
+
+	instance, err := s.loadInstance(ctx, instanceID)
+	if err != nil {
+		return echo.NewHTTPError(404, "Instance not found")
+	}
+
+	tabs := s.strategyTabs(instanceID, currentPath)
+
+	render.RenderTriple(c.Response().Writer, c.Request(),
+		ui.InstancePhaseFullPage(pageTitle+" — "+instance.Name, currentPath, s.sidebarGroups(c), instance.Name, tabs, content.Content),
+		ui.InstanceChromeWithContent(instance.Name, tabs, currentPath, content.Content),
+		ui.InstanceTabContent(tabs, currentPath, content.Content),
+	)
+	return nil
+}
+
+// artifactTabGroup returns the tab group for an artifact type.
+func artifactTabGroup(artifactType string) string {
+	switch artifactType {
+	case "north_star", "insight_analyses", "strategy_foundations",
+		"insight_opportunity", "strategy_formula", "roadmap_recipe",
+		"product_portfolio":
+		return "ready"
+	case "feature_definition", "feature", "value_model",
+		"commercial_def", "strategy_def", "org_ops_def":
+		return "fire"
+	case "living_reality_assessment", "assessment_report",
+		"aim_trigger_config", "calibration_memo", "strategic_reality_check":
+		return "aim"
+	default:
+		return "fire"
+	}
+}
+
+// artifactScreenID returns the navigation screen ID for an artifact type.
+func artifactScreenID(artifactType string) string {
+	switch artifactType {
+	case "north_star":
+		return ui.ScreenNorthStar
+	case "insight_analyses":
+		return ui.ScreenInsightAnalyses
+	case "strategy_foundations":
+		return ui.ScreenFoundations
+	case "insight_opportunity":
+		return ui.ScreenOpportunity
+	case "strategy_formula":
+		return ui.ScreenFormula
+	case "roadmap_recipe":
+		return ui.ScreenRoadmap
+	case "product_portfolio":
+		return ui.ScreenPortfolio
+	case "feature_definition", "feature":
+		return ui.ScreenFeatureDetail
+	case "value_model":
+		return ui.ScreenValueModelDetail
+	case "living_reality_assessment":
+		return ui.ScreenLRA
+	case "assessment_report":
+		return ui.ScreenAssessment
+	default:
+		return ui.ScreenDefinitionDetail
+	}
+}
+
+// handlePlaceholderFromGraph returns a handler that renders a placeholder page
+// for a screen defined in the graph but not yet implemented.
+func (s *Server) handlePlaceholderFromGraph(screen navigation.ScreenDef) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		instanceID := c.Param("id")
 		currentPath := c.Request().URL.Path
@@ -101,12 +222,17 @@ func (s *Server) handlePlaceholder(title, description, icon string) echo.Handler
 			return err
 		}
 
-		content := ui.PlaceholderContent(title, description, icon)
+		icon := screen.Icon
+		if icon == "" {
+			icon = "lucide--circle"
+		}
+
+		content := ui.PlaceholderContent(screen.Title, "This feature is coming soon.", icon)
 
 		render.RenderTriple(c.Response().Writer, c.Request(),
-			ui.InstancePhaseFullPage(title+" — "+instance.Name, currentPath, s.sidebarGroups(c), instance.Name, tabs, content),
+			ui.InstancePhaseFullPage(screen.Title+" — "+instance.Name, currentPath, s.sidebarGroups(c), instance.Name, tabs, content),
 			ui.InstanceChromeWithContent(instance.Name, tabs, currentPath, content),
-			content,
+			ui.InstanceTabContent(tabs, currentPath, content),
 		)
 		return nil
 	}

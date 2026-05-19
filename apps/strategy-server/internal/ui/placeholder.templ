@@ -1,5 +1,12 @@
 package ui
 
+// ArtifactPlaceholder renders a placeholder page with sub-nav and breadcrumbs.
+// Used when an expected artifact has not been created yet.
+templ ArtifactPlaceholder(navCtx NavContext, title string, description string, icon string) {
+	@TabBackLink(navCtx.TabGroup, navCtx.InstanceID, navCtx.CurrentPath)
+	@PlaceholderContent(title, description, icon)
+}
+
 // PlaceholderContent renders a placeholder page for screens not yet implemented.
 templ PlaceholderContent(title string, description string, icon string) {
 	<div class="flex flex-col items-center justify-center py-16 text-center">

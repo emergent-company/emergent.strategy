@@ -2,8 +2,6 @@ package ui
 
 import (
 	"strconv"
-
-	"github.com/emergent-company/go-daisy/components/ui"
 )
 
 // ReadyPhaseData holds all data for the READY phase dashboard.
@@ -11,21 +9,37 @@ type ReadyPhaseData struct {
 	InstanceID string
 
 	// North Star
-	NorthStarExists bool
-	NorthStarOrg    string // organisation name from payload
-	NorthStarVision string // vision statement (truncated)
+	NorthStarExists  bool
+	NorthStarOrg     string // organisation name from payload
+	NorthStarVision  string // vision statement
+	NorthStarPurpose string // purpose.statement — the one-liner "why we exist"
 
-	// Foundation artifacts — each has exists + key summary
-	InsightExists      bool
-	InsightTitle       string
-	FoundationExists   bool
-	FoundationTitle    string
-	FormulaExists      bool
-	FormulaTitle       string
-	RoadmapExists      bool
-	RoadmapTitle       string
-	OpportunityExists  bool
-	OpportunityTitle   string
+	// Insight Analyses
+	InsightExists    bool
+	InsightTitle     string
+	InsightFirstTrend string // first technology trend title for scanning
+
+	// Insight Opportunity
+	OpportunityExists    bool
+	OpportunityTitle     string
+	OpportunityUrgency   string // first sentence of urgency field
+
+	// Strategy Formula
+	FormulaExists   bool
+	FormulaTitle    string
+	FormulaUVP      string // positioning.unique_value_proposition (first sentence)
+	FormulaCategory string // positioning.category_position
+
+	// Strategy Foundations
+	FoundationExists    bool
+	FoundationTitle     string
+	FoundationValueProp string // value_proposition.headline
+	FoundationVision    string // product_vision.vision_statement (first sentence)
+
+	// Roadmap Recipe
+	RoadmapExists bool
+	RoadmapTitle  string
+	RoadmapCycle  string // cycle name if present
 
 	// Roadmap OKR summary
 	TrackOKRs []TrackOKRSummary
@@ -43,97 +57,462 @@ type TrackOKRSummary struct {
 	KeyResults int
 }
 
-// ReadyPhaseContent renders the READY phase dashboard content.
+// ReadyPhaseContent renders the READY phase as an artifact dependency map.
+// The layout visualises EPF's bidirectional emergence model:
+//
+//   NORTH STAR (tier 1 — immovable anchor)
+//     ↓ constrains          ↓ constrains
+//   INSIGHT ANALYSES  →  INSIGHT OPPORTUNITY  (tier 2 — evidence + synthesis)
+//         ↓ evidence + synthesises into
+//   STRATEGY FORMULA  |  STRATEGY FOUNDATIONS (tier 3 — the bet + sequencing)
+//         ↓ constrains         ↓ sequences
+//   ROADMAP RECIPE (tier 4 — current cycle priorities)
+//
 templ ReadyPhaseContent(data ReadyPhaseData) {
-	@TabRelatedPages("ready", data.InstanceID, "/strategies/" + data.InstanceID + "/ready")
-	<div class="space-y-6">
-		// Progress bar
-		@ui.ProgressCard(ui.ProgressCardProps{
-			Title:         "READY Phase",
-			Subtitle:      "Strategic foundation completeness",
-			ProgressValue: readyProgress(data),
-			ProgressLabel: strconv.Itoa(data.CompletedArtifacts) + "/" + strconv.Itoa(data.TotalArtifacts) + " artifacts",
-			Stats: []ui.ProgressStat{
-				{Label: "Total Artifacts", Value: strconv.Itoa(data.TotalArtifacts)},
-				{Label: "Completed", Value: strconv.Itoa(data.CompletedArtifacts)},
-			},
-		})
-
-		// North Star card — prominent
-		if data.NorthStarExists {
-			@northStarCard(data)
-		}
-
-		// Foundation grid: Insight -> Formula -> Roadmap flow
-		<div class="grid gap-4 md:grid-cols-3">
-			@readyArtifactCard("Insight & Opportunity", "The big opportunity identified from market analysis", "lucide--search", data.InsightExists, data.InsightTitle, "/strategies/" + data.InstanceID + "/ready/insights")
-			@readyArtifactCard("Winning Formula", "Strategic positioning, moat, and value creation model", "lucide--brain", data.FormulaExists, data.FormulaTitle, "/strategies/" + data.InstanceID + "/ready/formula")
-			@readyArtifactCard("Solution Recipe", "Four-track execution plan with OKRs and milestones", "lucide--map", data.RoadmapExists, data.RoadmapTitle, "/strategies/" + data.InstanceID + "/ready/roadmap")
-		</div>
-
-		// Supporting artifacts
-		<div class="grid gap-4 md:grid-cols-3">
-			@readyArtifactCard("Foundations", "Personas, positioning, ICP, and product vision", "lucide--layers", data.FoundationExists, data.FoundationTitle, "/strategies/" + data.InstanceID + "/ready/foundations")
-			@readyArtifactCard("North Star", "Purpose, vision, mission, values, and core beliefs", "lucide--star", data.NorthStarExists, data.NorthStarOrg, "/strategies/" + data.InstanceID + "/ready/north-star")
-			@readyArtifactCard("Validated Opportunity", "The big opportunity validated from insight analyses", "lucide--lightbulb", data.OpportunityExists, data.OpportunityTitle, "/strategies/" + data.InstanceID + "/ready/opportunity")
-		</div>
-
-		// Roadmap OKR summary
-		if len(data.TrackOKRs) > 0 {
-			@roadmapOKRSummary(data.TrackOKRs)
-		}
-	</div>
-}
-
-templ northStarCard(data ReadyPhaseData) {
-	<div class="card bg-gradient-to-r from-primary/5 to-secondary/5 border border-primary/20 shadow-sm">
-		<div class="card-body p-5">
-			<div class="flex items-start gap-3">
-				<div class="rounded-xl bg-primary/10 p-2.5 shrink-0">
-					<span class="iconify lucide--star size-6 text-primary"></span>
-				</div>
-				<div class="min-w-0">
-					<h3 class="text-base font-semibold text-base-content">{ data.NorthStarOrg }</h3>
-					if data.NorthStarVision != "" {
-						<p class="text-sm text-base-content/70 mt-1 line-clamp-2">{ data.NorthStarVision }</p>
-					}
-				</div>
+	@TabRelatedPages("ready", data.InstanceID, "/strategies/"+data.InstanceID+"/ready")
+	<div class="space-y-2">
+		<!-- Map header -->
+		<div class="flex items-center justify-between mb-4">
+			<div>
+				<h2 class="text-base font-semibold text-base-content">READY Phase</h2>
+				<p class="text-xs text-base-content/60 mt-0.5">Strategic foundation — artifacts are interconnected, not independent</p>
+			</div>
+			<div class="flex items-center gap-3 text-xs text-base-content/50">
+				<span class="text-base-content/35">Change cadence:</span>
+				<span class="flex items-center gap-1">
+					<span class="inline-block size-2 rounded-full bg-primary/30"></span>
+					Years
+				</span>
+				<span class="flex items-center gap-1">
+					<span class="inline-block size-2 rounded-full bg-secondary/40"></span>
+					Each cycle
+				</span>
+				<span class="flex items-center gap-1">
+					<span class="inline-block size-2 rounded-full bg-accent/40"></span>
+					Quarterly
+				</span>
+				<span class="flex items-center gap-1">
+					<span class="inline-block size-2 rounded-full bg-info/40"></span>
+					Current cycle
+				</span>
 			</div>
 		</div>
+		<!-- Row 1: North Star — full width, immovable anchor -->
+		@readyMapNorthStar(data)
+		<!-- Row connector: North Star → row 2 -->
+		@readyConnectorRow2(data)
+		<!-- Row 2: Discovery cluster — Insight Analyses + Insight Opportunity -->
+		<div class="grid grid-cols-[1fr_auto_1fr] gap-0 items-stretch">
+			<!-- Insight Analyses -->
+			@readyMapCard(readyMapCardProps{
+				Title:      "Insight Analyses",
+				Subtitle:   "Trends · Market · SWOT · User Problems",
+				Icon:       "lucide--search",
+				Href:       "/strategies/" + data.InstanceID + "/ready/insights",
+				Exists:     data.InsightExists,
+				Tier:       2,
+				TierLabel:  "Each cycle",
+				TierColor:  "bg-secondary/10 border-secondary/20",
+				BadgeColor: "bg-secondary/20 text-secondary",
+				Line1:      data.InsightFirstTrend,
+				Line2:      data.InsightTitle,
+			})
+			<!-- Mid connector: → with label "informs" -->
+			<div class="flex flex-col items-center justify-center px-3 min-w-[80px]">
+				<span class="text-xs text-base-content/50 mb-1 whitespace-nowrap">informs</span>
+				@svgArrowRight()
+			</div>
+			<!-- Insight Opportunity -->
+			@readyMapCard(readyMapCardProps{
+				Title:      "Insight Opportunity",
+				Subtitle:   "Synthesised big opportunity from analyses",
+				Icon:       "lucide--lightbulb",
+				Href:       "/strategies/" + data.InstanceID + "/ready/opportunity",
+				Exists:     data.OpportunityExists,
+				Tier:       2,
+				TierLabel:  "Each cycle",
+				TierColor:  "bg-secondary/10 border-secondary/20",
+				BadgeColor: "bg-secondary/20 text-secondary",
+				Line1:      data.OpportunityTitle,
+				Line2:      data.OpportunityUrgency,
+			})
+		</div>
+		<!-- Row connector: row 2 → row 3 (both columns converge downward) -->
+		@readyConnectorRow3()
+		<!-- Row 3: Strategy cluster — Formula + Foundations -->
+		<div class="grid grid-cols-[1fr_auto_1fr] gap-0 items-stretch">
+			<!-- Strategy Formula -->
+			@readyMapCard(readyMapCardProps{
+				Title:      "Strategy Formula",
+				Subtitle:   "Positioning · Moat · Value creation · Business model",
+				Icon:       "lucide--flask-conical",
+				Href:       "/strategies/" + data.InstanceID + "/ready/formula",
+				Exists:     data.FormulaExists,
+				Tier:       3,
+				TierLabel:  "Quarterly",
+				TierColor:  "bg-accent/10 border-accent/20",
+				BadgeColor: "bg-accent/20 text-accent-content",
+				Line1:      data.FormulaCategory,
+				Line2:      data.FormulaUVP,
+			})
+			<!-- Mid divider: no arrow, just a vertical separator -->
+			<div class="flex flex-col items-center justify-center px-3 min-w-[80px]">
+				<div class="h-full w-px bg-base-content/10 my-2"></div>
+			</div>
+			<!-- Strategy Foundations -->
+			@readyMapCard(readyMapCardProps{
+				Title:      "Strategy Foundations",
+				Subtitle:   "Product vision · Value prop · Sequencing · Principles",
+				Icon:       "lucide--building-2",
+				Href:       "/strategies/" + data.InstanceID + "/ready/foundations",
+				Exists:     data.FoundationExists,
+				Tier:       3,
+				TierLabel:  "Quarterly",
+				TierColor:  "bg-accent/10 border-accent/20",
+				BadgeColor: "bg-accent/20 text-accent-content",
+				Line1:      data.FoundationValueProp,
+				Line2:      data.FoundationVision,
+			})
+		</div>
+		<!-- Row connector: row 3 → Roadmap -->
+		@readyConnectorRow4()
+		<!-- Row 4: Roadmap Recipe — full width, current cycle priorities -->
+		@readyMapRoadmap(data)
+		<!-- Handoff connector: Roadmap → FIRE -->
+		@readyFireConnector()
+		<!-- FIRE handoff panel -->
+		@readyFireHandoff(data)
 	</div>
 }
 
-templ readyArtifactCard(title, description, icon string, exists bool, summary string, href string) {
+// readyMapCardProps holds config for a single artifact node in the map.
+type readyMapCardProps struct {
+	Title       string
+	Subtitle    string // short static descriptor (artifact type)
+	Icon        string
+	Href        string
+	Exists      bool
+	Tier        int
+	TierLabel   string // e.g. "Each cycle" or "Quarterly"
+	TierColor   string // card background + border classes
+	BadgeColor  string // tier badge classes
+	// Content lines — shown when artifact exists, for at-a-glance scanning
+	Line1 string // primary content (bold)
+	Line2 string // secondary content (muted)
+}
+
+// readyMapCard renders a clickable artifact node in the dependency map.
+templ readyMapCard(p readyMapCardProps) {
 	<a
-		href={ templ.URL(href) }
-		hx-get={ href }
+		href={ templ.URL(p.Href) }
+		hx-get={ p.Href }
 		hx-target="#tab-content"
 		hx-swap="innerHTML"
 		hx-push-url="true"
-		class="card bg-base-100 border border-base-content/10 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+		class={ "card border shadow-sm hover:shadow-md hover:scale-[1.01] transition-all duration-150 cursor-pointer h-full " + p.TierColor }
+	>
+		<div class="card-body p-4 gap-3">
+			<!-- Header row: icon + title + badge + status -->
+			<div class="flex items-center gap-2.5">
+				<div class={ "rounded-lg p-2 shrink-0", templ.KV("bg-success/10", p.Exists), templ.KV("bg-base-content/5", !p.Exists) }>
+					<span class={ "iconify size-4", p.Icon, templ.KV("text-success", p.Exists), templ.KV("text-base-content/40", !p.Exists) }></span>
+				</div>
+				<div class="min-w-0 flex-1">
+					<div class="flex items-center gap-2 flex-wrap">
+						<h3 class="text-sm font-semibold text-base-content leading-tight">{ p.Title }</h3>
+					<!-- Cadence badge -->
+					if p.TierLabel != "" {
+						<span class={ "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-sans font-medium " + p.BadgeColor }>
+							<span class="iconify lucide--refresh-cw size-3 opacity-70"></span>
+							{ p.TierLabel }
+						</span>
+					}
+					</div>
+					<p class="text-xs text-base-content/50 mt-0.5">{ p.Subtitle }</p>
+				</div>
+				<!-- Status icon -->
+				if p.Exists {
+					<span class="iconify lucide--check-circle-2 size-4 text-success shrink-0"></span>
+				} else {
+					<span class="iconify lucide--circle-dashed size-4 text-base-content/30 shrink-0"></span>
+				}
+			</div>
+			<!-- Content area — strategic snapshot when populated -->
+			if p.Exists && (p.Line1 != "" || p.Line2 != "") {
+				<div class="border-t border-base-content/10 pt-2.5 space-y-1.5">
+					if p.Line1 != "" {
+						<p class="text-xs font-medium text-base-content/90 leading-snug line-clamp-2">{ p.Line1 }</p>
+					}
+					if p.Line2 != "" {
+						<p class="text-xs text-base-content/55 leading-snug line-clamp-2">{ p.Line2 }</p>
+					}
+				</div>
+			} else if !p.Exists {
+				<div class="border-t border-base-content/10 pt-2.5">
+					<p class="text-xs text-base-content/35 italic">Not yet authored</p>
+				</div>
+			}
+		</div>
+	</a>
+}
+
+// readyMapNorthStar renders the North Star as the full-width top node.
+templ readyMapNorthStar(data ReadyPhaseData) {
+	<a
+		href={ templ.URL("/strategies/" + data.InstanceID + "/ready/north-star") }
+		hx-get={ "/strategies/" + data.InstanceID + "/ready/north-star" }
+		hx-target="#tab-content"
+		hx-swap="innerHTML"
+		hx-push-url="true"
+		class="card border border-primary/30 bg-primary/5 shadow-sm hover:shadow-md hover:scale-[1.005] transition-all duration-150 cursor-pointer w-full"
 	>
 		<div class="card-body p-4">
 			<div class="flex items-start gap-3">
-				<div class={ "rounded-lg p-1.5 shrink-0", templ.KV("bg-success/10", exists), templ.KV("bg-base-content/5", !exists) }>
-					<span class={ "iconify size-5", icon, templ.KV("text-success", exists), templ.KV("text-base-content/40", !exists) }></span>
+				<div class={ "rounded-xl p-2.5 shrink-0", templ.KV("bg-primary/15", data.NorthStarExists), templ.KV("bg-base-content/5", !data.NorthStarExists) }>
+					<span class={ "iconify lucide--star size-5", templ.KV("text-primary", data.NorthStarExists), templ.KV("text-base-content/40", !data.NorthStarExists) }></span>
 				</div>
-				<div class="min-w-0">
-					<div class="flex items-center gap-2">
-						<h3 class="text-sm font-semibold text-base-content">{ title }</h3>
-						if exists {
-							<span class="iconify lucide--check-circle-2 size-3.5 text-success shrink-0"></span>
+				<div class="min-w-0 flex-1">
+					<div class="flex items-center gap-2 flex-wrap mb-1">
+						<h3 class="text-sm font-semibold text-base-content">North Star</h3>
+					<span class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-sans font-medium bg-primary/20 text-primary">
+						<span class="iconify lucide--refresh-cw size-3 opacity-70"></span>
+						Years
+					</span>
+						if data.NorthStarExists {
+							<span class="iconify lucide--check-circle-2 size-4 text-success shrink-0"></span>
 						} else {
-							<span class="iconify lucide--circle-dashed size-3.5 text-base-content/40 shrink-0"></span>
+							<span class="iconify lucide--circle-dashed size-4 text-base-content/30 shrink-0"></span>
 						}
 					</div>
-					<p class="text-xs text-base-content/70 mt-0.5">{ description }</p>
-				if exists && summary != "" {
-					<p class="text-xs text-base-content/80 mt-2 font-medium truncate">{ summary }</p>
+					<p class="text-xs text-base-content/50">Purpose · Vision · Mission · Values — immovable anchor</p>
+					if data.NorthStarExists && data.NorthStarPurpose != "" {
+						<p class="text-sm font-medium text-base-content/90 mt-2.5 leading-snug">{ data.NorthStarPurpose }</p>
+					}
+					if data.NorthStarExists && data.NorthStarVision != "" {
+						<p class="text-xs text-base-content/55 mt-1 line-clamp-2">{ data.NorthStarVision }</p>
 					}
 				</div>
+				<!-- Org name pill -->
+				if data.NorthStarOrg != "" {
+					<div class="shrink-0 hidden md:flex flex-col items-end gap-2">
+						<span class="badge badge-ghost badge-sm text-base-content/50">{ data.NorthStarOrg }</span>
+						<span class="text-xs text-base-content/35 italic">calibration feeds back ↑</span>
+					</div>
+				}
 			</div>
 		</div>
 	</a>
+}
+
+// readyMapRoadmap renders the Roadmap as the full-width bottom node.
+templ readyMapRoadmap(data ReadyPhaseData) {
+	<a
+		href={ templ.URL("/strategies/" + data.InstanceID + "/ready/roadmap") }
+		hx-get={ "/strategies/" + data.InstanceID + "/ready/roadmap" }
+		hx-target="#tab-content"
+		hx-swap="innerHTML"
+		hx-push-url="true"
+		class="card border border-info/25 bg-info/5 shadow-sm hover:shadow-md hover:scale-[1.005] transition-all duration-150 cursor-pointer w-full"
+	>
+		<div class="card-body p-4">
+			<div class="flex items-start gap-3">
+				<div class={ "rounded-xl p-2.5 shrink-0", templ.KV("bg-info/15", data.RoadmapExists), templ.KV("bg-base-content/5", !data.RoadmapExists) }>
+					<span class={ "iconify lucide--map size-5", templ.KV("text-info", data.RoadmapExists), templ.KV("text-base-content/40", !data.RoadmapExists) }></span>
+				</div>
+				<div class="min-w-0 flex-1">
+					<div class="flex items-center gap-2 flex-wrap mb-1">
+						<h3 class="text-sm font-semibold text-base-content">Roadmap Recipe</h3>
+					<span class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-sans font-medium bg-info/20 text-info">
+						<span class="iconify lucide--refresh-cw size-3 opacity-70"></span>
+						Each cycle
+					</span>
+						if data.RoadmapExists {
+							<span class="iconify lucide--check-circle-2 size-4 text-success shrink-0"></span>
+						} else {
+							<span class="iconify lucide--circle-dashed size-4 text-base-content/30 shrink-0"></span>
+						}
+					</div>
+					<p class="text-xs text-base-content/50">Current cycle priorities — four-track OKRs, assumptions, milestones</p>
+					if data.RoadmapExists && data.RoadmapCycle != "" {
+						<p class="text-xs font-medium text-base-content/80 mt-2">Cycle: { data.RoadmapCycle }</p>
+					}
+				</div>
+				<!-- OKR summary inline -->
+				if len(data.TrackOKRs) > 0 {
+					<div class="shrink-0 hidden md:flex items-center gap-4 border-l border-base-content/10 pl-4">
+						for _, t := range data.TrackOKRs {
+							<div class="flex flex-col items-center text-center min-w-[36px]">
+								<span class={ "iconify size-4 text-base-content/40 " + t.Icon }></span>
+								<span class="text-sm font-semibold text-base-content leading-tight mt-0.5">{ strconv.Itoa(t.KeyResults) }</span>
+								<span class="text-xs text-base-content/50 leading-none">KRs</span>
+							</div>
+						}
+					</div>
+				}
+			</div>
+		</div>
+	</a>
+}
+
+// readyConnectorRow2 renders the connector between North Star and the tier-2 discovery row.
+// Shows "constrains ↓" on both sides, indicating North Star anchors both insight artifacts.
+templ readyConnectorRow2(data ReadyPhaseData) {
+	<div class="grid grid-cols-[1fr_auto_1fr] items-end h-8">
+		<!-- Left: NS → Insight Analyses -->
+		<div class="flex justify-center">
+			<div class="flex flex-col items-center gap-0.5">
+				<span class="text-xs text-base-content/40 whitespace-nowrap">constrains</span>
+				@svgArrowDown()
+			</div>
+		</div>
+		<!-- Center gap -->
+		<div class="min-w-[80px]"></div>
+		<!-- Right: NS → Insight Opportunity -->
+		<div class="flex justify-center">
+			<div class="flex flex-col items-center gap-0.5">
+				<span class="text-xs text-base-content/40 whitespace-nowrap">constrains</span>
+				@svgArrowDown()
+			</div>
+		</div>
+	</div>
+}
+
+// readyConnectorRow3 renders connectors between the tier-2 and tier-3 rows.
+// The left side shows "evidence → " and the right "synthesises into ↓".
+// Both sides converge, indicating Formula emerges from both Analyses and Opportunity.
+templ readyConnectorRow3() {
+	<div class="grid grid-cols-[1fr_auto_1fr] items-start h-10">
+		<!-- Left: Insight Analyses → Strategy Formula (evidence) -->
+		<div class="flex justify-center pt-1">
+			<div class="flex flex-col items-center gap-0.5">
+				@svgArrowDown()
+				<span class="text-xs text-base-content/40 whitespace-nowrap">evidence grounds</span>
+			</div>
+		</div>
+		<!-- Center: converge label -->
+		<div class="flex flex-col items-center justify-center min-w-[80px] pt-1">
+			<span class="text-xs text-base-content/35 italic text-center leading-tight">both<br/>synthesise</span>
+		</div>
+		<!-- Right: Insight Opportunity → Strategy Formula (synthesises) -->
+		<div class="flex justify-center pt-1">
+			<div class="flex flex-col items-center gap-0.5">
+				@svgArrowDown()
+				<span class="text-xs text-base-content/40 whitespace-nowrap">synthesises into</span>
+			</div>
+		</div>
+	</div>
+}
+
+// readyConnectorRow4 renders connectors between tier-3 and the Roadmap (tier 4).
+templ readyConnectorRow4() {
+	<div class="grid grid-cols-[1fr_auto_1fr] items-start h-8">
+		<!-- Left: Formula → Roadmap -->
+		<div class="flex justify-center">
+			<div class="flex flex-col items-center gap-0.5">
+				@svgArrowDown()
+				<span class="text-xs text-base-content/40 whitespace-nowrap">constrains</span>
+			</div>
+		</div>
+		<!-- Center: merge indicator -->
+		<div class="flex flex-col items-center justify-center min-w-[80px]">
+			<span class="text-xs text-base-content/35 italic">↓</span>
+		</div>
+		<!-- Right: Foundations → Roadmap -->
+		<div class="flex justify-center">
+			<div class="flex flex-col items-center gap-0.5">
+				@svgArrowDown()
+				<span class="text-xs text-base-content/40 whitespace-nowrap">sequences</span>
+			</div>
+		</div>
+	</div>
+}
+
+// readyFireConnector renders the handoff arrow from Roadmap Recipe down to the FIRE panel.
+templ readyFireConnector() {
+	<div class="flex flex-col items-center gap-1 py-1">
+		<div class="w-px h-4 bg-warning/40"></div>
+		<svg width="16" height="10" viewBox="0 0 16 10" fill="none" class="text-warning/60">
+			<line x1="8" y1="0" x2="8" y2="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></line>
+			<polyline points="4,4 8,9 12,4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"></polyline>
+		</svg>
+		<span class="text-xs text-base-content/40 tracking-wide uppercase font-medium">hands off to</span>
+	</div>
+}
+
+// readyFireHandoff renders the FIRE entry point — a full-width navigable panel
+// showing the 4 execution tracks as mini cards. Links to the FIRE phase overview.
+templ readyFireHandoff(data ReadyPhaseData) {
+	<a
+		href={ templ.URL("/strategies/" + data.InstanceID + "/fire") }
+		hx-get={ "/strategies/" + data.InstanceID + "/fire" }
+		hx-target="#tab-content"
+		hx-swap="innerHTML"
+		hx-push-url="true"
+		class="card border border-warning/30 bg-warning/5 shadow-sm hover:shadow-md hover:scale-[1.005] transition-all duration-150 cursor-pointer w-full"
+	>
+		<div class="card-body p-4 gap-3">
+			<!-- Header -->
+			<div class="flex items-center gap-2.5">
+				<div class="rounded-lg p-2 bg-warning/15 shrink-0">
+					<span class="iconify lucide--rocket size-4 text-warning"></span>
+				</div>
+				<div class="min-w-0 flex-1">
+					<div class="flex items-center gap-2">
+						<h3 class="text-sm font-semibold text-base-content">FIRE Phase</h3>
+						<span class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-mono font-semibold bg-warning text-warning-content">
+							Execution <span class="font-sans font-normal opacity-70">→ now</span>
+						</span>
+					</div>
+					<p class="text-xs text-base-content/50 mt-0.5">Features, value models, and track definitions — where strategy becomes delivery</p>
+				</div>
+				<span class="iconify lucide--chevron-right size-4 text-base-content/30 shrink-0"></span>
+			</div>
+			<!-- 4 track mini-cards -->
+			if len(data.TrackOKRs) > 0 {
+				<div class="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1 border-t border-base-content/10">
+					for _, t := range data.TrackOKRs {
+						<div class="flex items-center gap-2 rounded-lg bg-base-100/60 border border-base-content/10 px-3 py-2">
+							<span class={ "iconify size-3.5 text-warning/70 shrink-0 " + t.Icon }></span>
+							<div class="min-w-0">
+								<p class="text-xs font-medium text-base-content leading-tight">{ t.Track }</p>
+								<p class="text-xs text-base-content/50 leading-tight">{ strconv.Itoa(t.Objectives) } obj · { strconv.Itoa(t.KeyResults) } KRs</p>
+							</div>
+						</div>
+					}
+				</div>
+			} else {
+				<div class="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1 border-t border-base-content/10">
+					for _, track := range []struct{ name, icon string }{
+						{"Strategy", "lucide--navigation"},
+						{"Org & Ops", "lucide--container"},
+						{"Product", "lucide--code-2"},
+						{"Commercial", "lucide--briefcase"},
+					} {
+						<div class="flex items-center gap-2 rounded-lg bg-base-100/60 border border-base-content/10 px-3 py-2">
+							<span class={ "iconify size-3.5 text-base-content/30 shrink-0 " + track.icon }></span>
+							<p class="text-xs font-medium text-base-content/50 leading-tight">{ track.name }</p>
+						</div>
+					}
+				</div>
+			}
+		</div>
+	</a>
+}
+
+// svgArrowDown renders a small downward arrow using inline SVG.
+templ svgArrowDown() {
+	<svg width="16" height="14" viewBox="0 0 16 14" fill="none" class="text-base-content/30">
+		<line x1="8" y1="0" x2="8" y2="10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></line>
+		<polyline points="4,7 8,12 12,7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"></polyline>
+	</svg>
+}
+
+// svgArrowRight renders a small right-pointing arrow using inline SVG.
+templ svgArrowRight() {
+	<svg width="28" height="16" viewBox="0 0 28 16" fill="none" class="text-base-content/30">
+		<line x1="0" y1="8" x2="20" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></line>
+		<polyline points="14,3 22,8 14,13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"></polyline>
+	</svg>
 }
 
 templ roadmapOKRSummary(tracks []TrackOKRSummary) {

@@ -231,9 +231,12 @@ templ InsightAnalysesContent(data InsightAnalysesData) {
 												<p class="text-xs text-base-content/60 mt-0.5">{ c.HowTheySolve }</p>
 											}
 										</div>
-										if c.ThreatLevel != "" {
-											<span class={ "badge badge-xs shrink-0", likelihoodBadge(c.ThreatLevel) }>{ c.ThreatLevel }</span>
-										}
+									if c.ThreatLevel != "" {
+										<span class="flex items-center gap-1 shrink-0 text-xs text-base-content/50">
+											<span>Threat</span>
+											<span class={ "badge badge-xs", likelihoodBadge(c.ThreatLevel) }>{ c.ThreatLevel }</span>
+										</span>
+									}
 									</div>
 								}
 							</div>
@@ -299,9 +302,12 @@ templ InsightAnalysesContent(data InsightAnalysesData) {
 											<p class="text-xs text-base-content/60 mt-0.5">{ t.Mitigation }</p>
 										}
 									</div>
-									if t.Likelihood != "" {
-										<span class={ "badge badge-xs shrink-0", likelihoodBadge(t.Likelihood) }>{ t.Likelihood }</span>
-									}
+								if t.Likelihood != "" {
+									<span class="flex items-center gap-1 shrink-0 text-xs text-base-content/50">
+										<span>Likelihood</span>
+										<span class={ "badge badge-xs", likelihoodBadge(t.Likelihood) }>{ t.Likelihood }</span>
+									</span>
+								}
 								</div>
 							}
 						}

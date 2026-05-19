@@ -185,13 +185,13 @@ templ lraCurrentFocusSection(data LRAViewData) {
 				if data.PrimaryTrack != "" {
 					<div class="flex items-center gap-2">
 						<span class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Primary</span>
-						<span class={ "badge badge-sm badge-outline", "badge-" + trackColorName(data.PrimaryTrack) }>{ data.PrimaryTrack }</span>
+						<span class={ "badge badge-sm", "badge-" + trackColorName(data.PrimaryTrack) }>{ data.PrimaryTrack }</span>
 					</div>
 				}
 				if data.SecondaryTrack != "" {
 					<div class="flex items-center gap-2">
 						<span class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Secondary</span>
-						<span class={ "badge badge-sm badge-outline", "badge-" + trackColorName(data.SecondaryTrack) }>{ data.SecondaryTrack }</span>
+						<span class={ "badge badge-sm", "badge-" + trackColorName(data.SecondaryTrack) }>{ data.SecondaryTrack }</span>
 					</div>
 				}
 			</div>

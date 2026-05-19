@@ -4,6 +4,16 @@
 }
 
 @plugin "daisyui/theme" {
+  name: "nord";
+  /* Override error-content to white so badge-error, badge-success, badge-info etc.
+     render white text on their coloured backgrounds in the nord (default) theme. */
+  --color-error-content: oklch(98% 0 0);
+  --color-success-content: oklch(98% 0 0);
+  --color-info-content: oklch(98% 0 0);
+  --color-warning-content: oklch(15% 0 0);
+}
+
+@plugin "daisyui/theme" {
   name: "flow";
   default: false;
   prefersdark: false;
@@ -24,8 +34,8 @@
   --color-info-content: oklch(98% 0 0);
   --color-success: oklch(62% 0.17 145);
   --color-success-content: oklch(98% 0 0);
-  --color-warning: oklch(80% 0.17 75);
-  --color-warning-content: oklch(20% 0 0);
+  --color-warning: oklch(72% 0.19 50);
+  --color-warning-content: oklch(15% 0 0);
   --color-error: oklch(60% 0.22 25);
   --color-error-content: oklch(98% 0 0);
   --radius-selector: 0.375rem;
@@ -40,7 +50,7 @@
 }
 
 /* Safelist icons used by consumers of go-daisy (not directly in this repo's source files) */
-@source inline("{lucide--activity,lucide--alert-circle,lucide--app-window,lucide--archive,lucide--arrow-left,lucide--arrow-right,lucide--bar-chart-2,lucide--bell,lucide--bot,lucide--brain,lucide--briefcase,lucide--check,lucide--check-circle-2,lucide--chevron-down,lucide--chevron-right,lucide--chevron-up,lucide--circle,lucide--circle-check,lucide--circle-dashed,lucide--loader-circle,lucide--send,lucide--circle-dollar-sign,lucide--clock,lucide--code-2,lucide--container,lucide--copy,lucide--cpu,lucide--database,lucide--ellipsis,lucide--ellipsis-vertical,lucide--eye,lucide--file-text,lucide--folder,lucide--folder-open,lucide--form-input,lucide--git-branch,lucide--git-pull-request,lucide--github,lucide--globe,lucide--hash,lucide--info,lucide--layers,lucide--layout,lucide--layout-dashboard,lucide--layout-grid,lucide--lock,lucide--log-out,lucide--map,lucide--menu,lucide--message-square,lucide--monitor-dot,lucide--moon,lucide--mouse-pointer-click,lucide--navigation,lucide--panel-left-close,lucide--pencil,lucide--play,lucide--plug,lucide--plus,lucide--plus-circle,lucide--puzzle,lucide--refresh-cw,lucide--rocket,lucide--search,lucide--settings,lucide--square,lucide--sticky-note,lucide--sun,lucide--table,lucide--terminal,lucide--trash-2,lucide--user,lucide--x,lucide--x-circle,lucide--zap,lucide--bug,lucide--flask-conical,lucide--folder-git-2,lucide--key,lucide--list-ordered,lucide--rotate-ccw,lucide--save,lucide--settings-2,lucide--shield-check,lucide--sliders-horizontal,lucide--sparkles}");
+@source inline("{lucide--activity,lucide--alert-circle,lucide--app-window,lucide--archive,lucide--arrow-left,lucide--arrow-right,lucide--bar-chart-2,lucide--bell,lucide--bot,lucide--brain,lucide--briefcase,lucide--check,lucide--check-circle-2,lucide--chevron-down,lucide--chevron-right,lucide--chevron-up,lucide--circle,lucide--circle-check,lucide--circle-dashed,lucide--loader-circle,lucide--send,lucide--circle-dollar-sign,lucide--clock,lucide--code-2,lucide--container,lucide--copy,lucide--cpu,lucide--database,lucide--ellipsis,lucide--ellipsis-vertical,lucide--eye,lucide--file-text,lucide--folder,lucide--folder-open,lucide--form-input,lucide--git-branch,lucide--git-pull-request,lucide--github,lucide--globe,lucide--hash,lucide--info,lucide--layers,lucide--layout,lucide--layout-dashboard,lucide--layout-grid,lucide--lock,lucide--log-out,lucide--map,lucide--menu,lucide--message-square,lucide--monitor-dot,lucide--moon,lucide--mouse-pointer-click,lucide--navigation,lucide--panel-left-close,lucide--pencil,lucide--play,lucide--plug,lucide--plus,lucide--plus-circle,lucide--puzzle,lucide--refresh-cw,lucide--rocket,lucide--search,lucide--settings,lucide--square,lucide--sticky-note,lucide--sun,lucide--table,lucide--terminal,lucide--trash-2,lucide--user,lucide--x,lucide--x-circle,lucide--zap,lucide--bug,lucide--flask-conical,lucide--folder-git-2,lucide--key,lucide--list-ordered,lucide--rotate-ccw,lucide--save,lucide--settings-2,lucide--shield-check,lucide--sliders-horizontal,lucide--sparkles,lucide--minus,lucide--alert-triangle,lucide--trending-up}");
 @source inline("border-base-content/{10,20}");
 @source inline("border-primary/{10,20,30}");
 @source inline("bg-primary/{5,10,20}");
@@ -54,6 +64,14 @@
 @source inline("bg-base-content/{20,30,40}");
 @source inline("size-{1,2,3,4}");
 @source inline("animate-pulse");
+
+/* go-daisy shell component classes — emitted by AppShell, Sidebar, Navbar from
+   the module cache. Tailwind cannot scan compiled Go, so these must be safelisted. */
+@source inline("h-screen overflow-hidden min-h-10");
+@source inline("px-2.5 py-3 pb-5 pb-1.5 pt-0 pt-4 pt-5 p-2.5");
+@source inline("space-y-0.5");
+@source inline("max-lg:hidden");
+@source inline("size-4.5");
 
 @theme {
   --font-sans: ui-sans-serif, system-ui, sans-serif;

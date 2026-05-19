@@ -21,14 +21,32 @@ type ExecutionData struct {
 	ActiveFeatures int
 	DraftFeatures  int
 	Assumptions    int
-	ActiveSignals  int
+
+	// Signal severity breakdown
+	ActiveSignals   int
+	CriticalSignals int
+	WarningSignals  int
+
+	// AIM data presence
+	HasAssessmentData bool
+	StrategicInsights []string // from latest assessment report
 }
 
 // ExecutionTrack represents one track's OKR execution data.
 type ExecutionTrack struct {
-	Name string // e.g. "Product"
-	Icon string // lucide icon
-	OKRs []ExecutionOKR
+	Name        string // e.g. "Product"
+	Icon        string // lucide icon
+	Objective   string // top-level track objective (from roadmap)
+	OKRs        []ExecutionOKR
+	Definitions []ExecutionDefinition // prioritized definitions for this track
+}
+
+// ExecutionDefinition is a track definition being built/operationalized this cycle.
+type ExecutionDefinition struct {
+	Name        string // display name
+	CurrentTier int    // 1, 2, or 3
+	Status      string // ready, draft, in-progress
+	Href        string // link to the definition detail
 }
 
 // ExecutionOKR represents a single OKR with its key results.
@@ -44,12 +62,18 @@ type ExecutionKR struct {
 	Description string
 	Target      string
 	Baseline    string
+	TRLStart    string
+	TRLTarget   string
 
 	// Linked features
 	Features []ExecutionFeature
 
-	// AIM inline data
+	// Assumption bets
 	Assumptions []ExecutionAssumption
+
+	// AIM tracking — from latest assessment report
+	AssessmentStatus string // met, missed, partial_met, exceeded — empty if no data
+	AssessmentActual string // actual value achieved
 }
 
 // ExecutionFeature is a feature linked to a KR.
@@ -70,115 +94,271 @@ type ExecutionAssumption struct {
 
 // ExecutionDashboardContent renders the execution-focused strategy dashboard.
 templ ExecutionDashboardContent(data ExecutionData) {
-	<div class="space-y-8">
+	<div class="space-y-6">
 		// ── Header ──────────────────────────────────────────────────────────
-		<div class="flex flex-col gap-1">
-			<div class="flex items-end justify-between">
-				<div>
-					<h2 class="text-2xl font-bold text-base-content">Execution</h2>
-					if data.Timeframe != "" {
-						<p class="text-sm text-base-content/50 mt-1">{ data.Timeframe }{ cycleLabel(data.Cycle) }</p>
+		@executionHeader(data)
+
+		// ── Track cards ─────────────────────────────────────────────────────
+		for _, track := range data.Tracks {
+			if len(track.OKRs) > 0 {
+				@executionTrackCard(track, data.InstanceID, data.HasAssessmentData)
+			}
+		}
+
+		// ── Strategic insights from AIM ──────────────────────────────────────
+		if len(data.StrategicInsights) > 0 {
+			@executionInsightsStrip(data.StrategicInsights)
+		}
+	</div>
+}
+
+// ── Header ────────────────────────────────────────────────────────────────────
+
+templ executionHeader(data ExecutionData) {
+	<div class="rounded-xl border border-base-content/10 bg-base-100 px-5 py-4 flex flex-col gap-3 shadow-sm">
+		<div class="flex items-start justify-between gap-4">
+			<div>
+				<div class="flex items-center gap-2 mb-1">
+					<span class="iconify lucide--zap size-4 text-primary"></span>
+					<span class="text-xs font-semibold uppercase tracking-widest text-primary">Execution</span>
+					if data.Cycle != "" {
+						<span class="badge badge-xs badge-ghost font-mono">{ data.Cycle }</span>
 					}
 				</div>
-				if data.ActiveSignals > 0 {
-					<div class="badge badge-warning gap-1.5 px-3 py-2 text-sm">
-						<span class="iconify lucide--alert-circle size-4"></span>
-						{ strconv.Itoa(data.ActiveSignals) } active signals
+				if data.Timeframe != "" {
+					<p class="text-lg font-bold text-base-content">{ data.Timeframe }</p>
+				}
+				<p class="text-xs text-base-content/50 mt-0.5">
+					<span class="font-semibold text-base-content">{ strconv.Itoa(data.TotalOKRs) }</span> objectives
+					<span class="mx-1 text-base-content/20">·</span>
+					<span class="font-semibold text-base-content">{ strconv.Itoa(data.TotalKRs) }</span> key results
+					<span class="mx-1 text-base-content/20">·</span>
+					<span class="font-semibold text-base-content">{ strconv.Itoa(data.ActiveFeatures + data.DraftFeatures) }</span> features
+					if data.HasAssessmentData {
+						<span class="mx-1 text-base-content/20">·</span>
+						<span class="text-success font-semibold">AIM tracked</span>
+					}
+				</p>
+			</div>
+			// Signal pills
+			if data.ActiveSignals > 0 {
+				<div class="flex items-center gap-2 shrink-0">
+					if data.CriticalSignals > 0 {
+						<div class="flex items-center gap-1 rounded-lg bg-error/10 px-2.5 py-1.5 text-xs font-semibold text-error">
+							<span class="iconify lucide--alert-circle size-3.5"></span>
+							{ strconv.Itoa(data.CriticalSignals) } critical
+						</div>
+					}
+					if data.WarningSignals > 0 {
+						<div class="flex items-center gap-1 rounded-lg bg-warning/10 px-2.5 py-1.5 text-xs font-semibold text-warning-content">
+							<span class="iconify lucide--alert-triangle size-3.5 text-warning"></span>
+							{ strconv.Itoa(data.WarningSignals) } warnings
+						</div>
+					}
+				</div>
+			}
+		</div>
+	</div>
+}
+
+// ── Track card ────────────────────────────────────────────────────────────────
+
+templ executionTrackCard(track ExecutionTrack, instanceID string, hasAIM bool) {
+	<div class={ "rounded-xl border bg-base-100 shadow-sm overflow-hidden", trackBorderColor(track.Name) }>
+		// Track header
+		<div class={ "flex items-center gap-3 px-5 py-3 border-b", trackBorderColor(track.Name), trackGradientBg(track.Name), "bg-gradient-to-r to-transparent" }>
+			<span class={ "iconify size-4 shrink-0", trackIcon(track.Name), textColor(trackColor(track.Name)) }></span>
+			<h3 class="text-sm font-bold text-base-content uppercase tracking-widest grow">{ formatTrackName(track.Name) }</h3>
+			<span class="badge badge-xs badge-ghost">{ strconv.Itoa(len(track.OKRs)) } objectives · { executionTrackKRCount(track) } KRs</span>
+		</div>
+
+		// Definitions strip — what we are building/operationalizing to reach the OKRs
+		if len(track.Definitions) > 0 {
+			<div class="flex flex-wrap gap-2 px-5 py-3 border-b border-base-content/5 bg-base-200/30">
+				<span class="text-xs text-base-content/40 font-medium self-center mr-1">Definitions</span>
+				for _, def := range track.Definitions {
+					@execDefinitionChip(def)
+				}
+			</div>
+		}
+
+		// OKRs
+		<div class="divide-y divide-base-content/5">
+			for _, okr := range track.OKRs {
+				@executionOKRSection(okr, track.Name, instanceID, hasAIM)
+			}
+		</div>
+	</div>
+}
+
+templ execDefinitionChip(def ExecutionDefinition) {
+	<a
+		href={ templ.URL(def.Href) }
+		hx-get={ def.Href }
+		hx-target="#tab-content"
+		hx-swap="innerHTML"
+		hx-push-url="true"
+		class="inline-flex items-center gap-1.5 rounded-md border border-base-content/10 bg-base-100 px-2 py-0.5 text-xs text-base-content/70 hover:border-primary/30 hover:bg-primary/5 transition-colors"
+	>
+		@execDefinitionChipPrefix(def)
+		{ def.Name }
+	</a>
+}
+
+templ execDefinitionChipPrefix(def ExecutionDefinition) {
+	switch def.Status {
+	case "in-progress":
+		<span class="size-1.5 rounded-full bg-primary shrink-0"></span>
+	case "draft":
+		<span class="size-1.5 rounded-full bg-warning shrink-0"></span>
+	case "delivered":
+		<span class="size-1.5 rounded-full bg-success shrink-0"></span>
+	default:
+		if def.CurrentTier > 0 {
+			<span class="font-mono text-base-content/30">T{ strconv.Itoa(def.CurrentTier) }</span>
+		}
+	}
+}
+
+func executionTrackKRCount(track ExecutionTrack) string {
+	n := 0
+	for _, o := range track.OKRs {
+		n += len(o.KRs)
+	}
+	return strconv.Itoa(n)
+}
+
+templ executionOKRSection(okr ExecutionOKR, trackName string, instanceID string, hasAIM bool) {
+	<div class="px-5 py-4 space-y-3">
+		// Objective row
+		<div class="flex items-start gap-2">
+			<span class="badge badge-xs badge-ghost font-mono shrink-0 mt-0.5">{ okr.ID }</span>
+			<p class="text-sm font-semibold text-base-content leading-snug">{ okr.Objective }</p>
+		</div>
+		// KR list
+		if len(okr.KRs) > 0 {
+			<div class="space-y-2 ml-1 pl-3 border-l-2 border-base-content/10">
+				for _, kr := range okr.KRs {
+					@executionKRRow(kr, trackName, instanceID, hasAIM)
+				}
+			</div>
+		}
+	</div>
+}
+
+templ executionKRRow(kr ExecutionKR, trackName string, instanceID string, hasAIM bool) {
+	<div class="rounded-lg bg-base-200/40 px-3 py-2.5">
+		<div class="flex items-start gap-2">
+			<span class="badge badge-xs badge-ghost font-mono shrink-0 mt-0.5">{ kr.ID }</span>
+			<div class="min-w-0 grow space-y-1.5">
+
+				// Description + AIM outcome on same row
+				<div class="flex items-start justify-between gap-3">
+					<p class="text-sm text-base-content leading-snug">{ kr.Description }</p>
+					if kr.AssessmentStatus != "" {
+						@execKROutcomeBadge(kr.AssessmentStatus)
+					}
+				</div>
+
+				// Baseline → Target progression
+				if kr.Baseline != "" || kr.Target != "" {
+					<div class="flex items-center gap-1.5 text-xs text-base-content/60">
+						if kr.Baseline != "" {
+							<span class="font-mono">{ kr.Baseline }</span>
+						}
+						if kr.Baseline != "" && kr.Target != "" {
+							<span class="iconify lucide--arrow-right size-3 text-base-content/40"></span>
+						}
+						if kr.Target != "" {
+							<span class={ "font-mono font-medium", textColorSafe(trackColor(trackName)) }>{ kr.Target }</span>
+						}
+						// If we have actual, show it too
+						if kr.AssessmentActual != "" {
+							<span class="text-base-content/30 mx-0.5">|</span>
+							<span class="iconify lucide--check-circle-2 size-3 text-success"></span>
+							<span class="font-mono text-success font-medium">{ kr.AssessmentActual }</span>
+						}
+					</div>
+				}
+
+				// TRL progression
+				if kr.TRLStart != "" || kr.TRLTarget != "" {
+					<div class="flex items-center gap-1.5 text-xs">
+						<span class="iconify lucide--flask-conical size-3 text-base-content/40"></span>
+						if kr.TRLStart != "" {
+							<span class="badge badge-xs badge-ghost">TRL { kr.TRLStart }</span>
+						}
+						if kr.TRLStart != "" && kr.TRLTarget != "" {
+							<span class="iconify lucide--arrow-right size-3 text-base-content/40"></span>
+						}
+						if kr.TRLTarget != "" {
+							<span class={ "badge badge-xs", trackBadgeColor(trackName) }>TRL { kr.TRLTarget }</span>
+						}
+					</div>
+				}
+
+				// Feature chips
+				if len(kr.Features) > 0 {
+					<div class="flex flex-wrap gap-1.5">
+						for _, f := range kr.Features {
+							<a
+								href={ templ.URL(f.Href) }
+								hx-get={ f.Href }
+								hx-target="#tab-content"
+								hx-swap="innerHTML"
+								hx-push-url="true"
+								class="inline-flex items-center gap-1.5 rounded-md border border-base-content/10 bg-base-100 px-2 py-0.5 text-xs hover:border-primary/30 hover:bg-primary/5 transition-colors"
+							>
+								@execFeatureStatusDot(f.Status)
+								<span class="text-base-content/80">{ f.Name }</span>
+							</a>
+						}
+					</div>
+				}
+
+				// Assumption bets (only if no features — keep rows tight)
+				if len(kr.Assumptions) > 0 && len(kr.Features) == 0 {
+					<div class="flex flex-wrap gap-1.5">
+						for _, a := range kr.Assumptions {
+							<span class="inline-flex items-center gap-1 rounded-md border border-base-content/10 bg-base-100/60 px-2 py-0.5 text-xs text-base-content/60">
+								<span class={ "size-1.5 rounded-full shrink-0", criticalityDot(a.Criticality) }></span>
+								{ a.ID }
+								<span class="text-base-content/30">{ a.Confidence }</span>
+							</span>
+						}
 					</div>
 				}
 			</div>
-			// Summary stat row
-			<div class="flex gap-4 mt-2 text-sm text-base-content/60">
-				<span><span class="font-semibold text-base-content">{ strconv.Itoa(data.TotalOKRs) }</span> objectives</span>
-				<span class="text-base-content/20">·</span>
-				<span><span class="font-semibold text-base-content">{ strconv.Itoa(data.TotalKRs) }</span> key results</span>
-				<span class="text-base-content/20">·</span>
-				<span><span class="font-semibold text-base-content">{ strconv.Itoa(data.ActiveFeatures + data.DraftFeatures) }</span> features</span>
-			</div>
 		</div>
-
-		// ── Track sections ───────────────────────────────────────────────────
-		for _, track := range data.Tracks {
-			if len(track.OKRs) > 0 {
-				@executionTrackSection(track, data.InstanceID)
-			}
-		}
 	</div>
 }
 
-templ executionTrackSection(track ExecutionTrack, instanceID string) {
-	<div class="space-y-4">
-		// Track divider
-		<div class="flex items-center gap-3">
-			<div class="flex items-center gap-2">
-				<span class={ "iconify size-5 text-base-content/60 " + track.Icon }></span>
-				<h3 class="text-base font-semibold text-base-content/70 uppercase tracking-widest text-xs">{ track.Name }</h3>
-			</div>
-			<div class="h-px bg-base-content/10 grow"></div>
-			<span class="text-xs text-base-content/60">{ strconv.Itoa(len(track.OKRs)) } objectives</span>
-		</div>
-
-		for _, okr := range track.OKRs {
-			@executionOKRCard(okr, instanceID)
-		}
-	</div>
-}
-
-templ executionOKRCard(okr ExecutionOKR, instanceID string) {
-	<details class="group card bg-base-100 border border-base-content/10 shadow-sm open:shadow-md open:border-primary/20 transition-all">
-		<summary class="flex cursor-pointer select-none items-start gap-4 p-5 list-none">
-			// Left: KR count pill
-			<div class="flex flex-col items-center gap-1 shrink-0 pt-0.5">
-				<span class="font-mono text-xs text-base-content/60">{ okr.ID }</span>
-				<span class="badge badge-sm badge-ghost text-base-content/70">{ strconv.Itoa(len(okr.KRs)) } KRs</span>
-			</div>
-			// Centre: objective
-			<p class="text-base font-semibold text-base-content grow leading-snug">{ okr.Objective }</p>
-			// Right: chevron
-			<span class="iconify lucide--chevron-right size-4 text-base-content/50 shrink-0 mt-1 transition-transform group-open:rotate-90"></span>
-		</summary>
-
-		// Expanded KR list
-		<div class="border-t border-base-content/5 px-5 pb-5 pt-4 space-y-3">
-			for _, kr := range okr.KRs {
-				@executionKRRow(kr, instanceID)
-			}
-		</div>
-	</details>
-}
-
-templ executionKRRow(kr ExecutionKR, instanceID string) {
-	<div class="rounded-xl border border-base-content/5 bg-base-200/40 p-4">
-		// KR header
-		<div class="flex items-start gap-3">
-			<span class="font-mono text-xs text-base-content/60 shrink-0 mt-0.5 pt-px">{ kr.ID }</span>
-			<div class="min-w-0 grow">
-				<p class="text-sm font-medium text-base-content leading-snug">{ kr.Description }</p>
-			if kr.Target != "" {
-				<p class="text-xs text-base-content/60 mt-1">{ kr.Target }</p>
-			}
-			</div>
-		</div>
-
-		// Linked features — only if present
-		if len(kr.Features) > 0 {
-			<div class="mt-3 pt-3 border-t border-base-content/5 flex flex-wrap gap-2">
-				for _, f := range kr.Features {
-					<a
-						href={ templ.URL(f.Href) }
-						hx-get={ f.Href }
-						hx-target="#tab-content"
-						hx-swap="innerHTML"
-						hx-push-url="true"
-						class="inline-flex items-center gap-1.5 rounded-lg border border-base-content/10 bg-base-100 px-2.5 py-1 text-xs hover:border-primary/30 hover:bg-primary/5 transition-colors"
-					>
-						@execFeatureStatusDot(f.Status)
-						<span class="text-base-content/80">{ f.Name }</span>
-					</a>
-				}
-			</div>
-		}
-	</div>
+// execKROutcomeBadge renders an AIM outcome badge for a KR.
+templ execKROutcomeBadge(status string) {
+	switch status {
+	case "exceeded":
+		<span class="badge badge-xs badge-success gap-1 shrink-0">
+			<span class="iconify lucide--trending-up size-3"></span>
+			Exceeded
+		</span>
+	case "met":
+		<span class="badge badge-xs badge-success gap-1 shrink-0">
+			<span class="iconify lucide--check size-3"></span>
+			Met
+		</span>
+	case "partial_met", "partial":
+		<span class="badge badge-xs badge-warning gap-1 shrink-0">
+			<span class="iconify lucide--minus size-3"></span>
+			Partial
+		</span>
+	case "missed":
+		<span class="badge badge-xs badge-error gap-1 shrink-0">
+			<span class="iconify lucide--x size-3"></span>
+			Missed
+		</span>
+	default:
+		<!-- no badge -->
+	}
 }
 
 templ execFeatureStatusDot(status string) {
@@ -194,4 +374,21 @@ templ execFeatureStatusDot(status string) {
 	}
 }
 
+// ── Insights strip ────────────────────────────────────────────────────────────
 
+templ executionInsightsStrip(insights []string) {
+	<div class="rounded-xl border border-info/20 bg-info/5 px-5 py-4">
+		<div class="flex items-center gap-2 mb-3">
+			<span class="iconify lucide--lightbulb size-4 text-info"></span>
+			<span class="text-xs font-semibold uppercase tracking-widest text-info">Strategic Insights from AIM</span>
+		</div>
+		<ul class="space-y-1.5">
+			for _, insight := range insights {
+				<li class="flex items-start gap-2 text-sm text-base-content/80">
+					<span class="iconify lucide--chevron-right size-3.5 text-info/60 mt-0.5 shrink-0"></span>
+					{ insight }
+				</li>
+			}
+		</ul>
+	</div>
+}

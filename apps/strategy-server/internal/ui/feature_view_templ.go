@@ -224,7 +224,7 @@ func featureHero(data FeatureViewData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			for _, track := range data.Tracks {
-				var templ_7745c5c3_Var5 = []any{"badge badge-sm badge-outline", trackBadgeColor(track)}
+				var templ_7745c5c3_Var5 = []any{"badge badge-sm", trackBadgeColor(track)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var5...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -271,7 +271,7 @@ func featureHero(data FeatureViewData) templ.Component {
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(formatTrackName(track))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/feature_view.templ`, Line: 129, Col: 33}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/feature_view.templ`, Line: 129, Col: 32}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {

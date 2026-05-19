@@ -13,6 +13,28 @@ The engine operates in two modes:
 - **Server-orchestrated** (LLM provider configured): the convergence loop
   autonomously resolves low-authority signals via a pluggable `SignalResolver`.
 
+## Theoretical Basis
+
+The engine synthesizes concepts from several established fields:
+
+- **Truth Maintenance Systems** (Doyle 1979, de Kleer 1986): The strategy graph
+  is a belief network with justification chains. Signals are nogoods —
+  inconsistencies detected by dependency tracking.
+- **Change Impact Analysis** (Bohner & Arnold 1996): `propose_change` computes
+  the Estimated Impact Set via structural reachability; semantic analysis
+  narrows to the Actual Impact Set.
+- **Constraint Propagation** (Mackworth 1977): The convergence loop is a
+  fixpoint iteration with arc-consistency-style violation detection and damping
+  to handle non-monotonic resolution.
+- **Feedback Control Systems** (Åström & Murray 2008): The loop is a
+  discrete-time controller with setpoint (equilibrium threshold), error signal
+  (score deficit), and rate limiting (change budget, emergency brake).
+
+The key novelty is using an LLM as the resolution operator — replacing
+deterministic constraint solvers with natural-language reasoning over strategic
+content. This requires the multi-layered damping approach to compensate for
+non-deterministic resolution. See `design.md` for the full theoretical mapping.
+
 ---
 
 ## Requirements

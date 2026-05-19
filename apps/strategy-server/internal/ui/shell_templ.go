@@ -357,7 +357,7 @@ func instanceTabContent(tabs []TabProps, currentPath string) templ.Component {
 			templ_7745c5c3_Var13 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div id=\"tab-content\" class=\"flex flex-col flex-1 min-h-0 overflow-x-auto overflow-y-auto\"><div class=\"border-b border-base-content/10 bg-base-100 px-6\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div id=\"tab-content\" class=\"flex flex-col flex-1 min-h-0\"><div class=\"sticky top-0 z-10 border-b border-base-content/10 bg-base-100 px-6 shrink-0\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -365,7 +365,7 @@ func instanceTabContent(tabs []TabProps, currentPath string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</div><div class=\"px-3 py-4 sm:px-6\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</div><div class=\"overflow-x-auto overflow-y-auto flex-1 px-3 py-4 sm:px-6\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -897,13 +897,12 @@ const (
 	ScreenRoadmap          = string(strategynav.RoadmapRecipe)
 	ScreenPortfolio        = string(strategynav.ProductPortfolio)
 	ScreenFireOverview     = string(strategynav.FireOverview)
-	ScreenFeatureList      = string(strategynav.FeatureList)
-	ScreenFeatureDetail    = string(strategynav.FeatureDetail)
-	ScreenValueModelList   = string(strategynav.ValueModelList)
-	ScreenValueModelDetail = string(strategynav.ValueModelDetail)
-	ScreenCommercialTrack  = string(strategynav.CommercialTrack)
 	ScreenStrategyTrack    = string(strategynav.StrategyTrack)
 	ScreenOrgOpsTrack      = string(strategynav.OrgOpsTrack)
+	ScreenProductTrack     = string(strategynav.ProductTrack)
+	ScreenCommercialTrack  = string(strategynav.CommercialTrack)
+	ScreenFeatureDetail    = string(strategynav.FeatureDetail)
+	ScreenValueModelDetail = string(strategynav.ValueModelDetail)
 	ScreenDefinitionDetail = string(strategynav.DefinitionDetail)
 	ScreenAimOverview      = string(strategynav.AimOverview)
 	ScreenLRA              = string(strategynav.LRA)

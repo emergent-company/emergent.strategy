@@ -143,7 +143,7 @@ func opportunityHero(data InsightOpportunityData) templ.Component {
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"relative overflow-hidden rounded-xl bg-gradient-to-br from-warning/10 via-base-100 to-accent/10 border border-warning/10\"><div class=\"px-6 py-8 sm:px-8\"><div class=\"flex items-start justify-between\"><div class=\"space-y-2\"><div class=\"flex items-center gap-2\"><span class=\"iconify lucide--lightbulb size-5 text-warning\"></span> <span class=\"text-xs font-semibold uppercase tracking-widest text-warning\">Validated Opportunity</span> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"relative overflow-hidden rounded-xl bg-gradient-to-br from-warning/10 via-base-100 to-accent/10 border border-warning/10\"><div class=\"px-6 py-8 sm:px-8\"><div class=\"flex items-start justify-between\"><div class=\"space-y-2\"><div class=\"flex items-center gap-2\"><span class=\"iconify lucide--lightbulb size-5 text-warning\"></span> <span class=\"text-xs font-semibold uppercase tracking-widest text-base-content/70\">Validated Opportunity</span> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

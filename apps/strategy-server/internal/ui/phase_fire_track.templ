@@ -1,0 +1,477 @@
+package ui
+
+import "strconv"
+
+// FireTrackDashboardData holds everything needed to render one track's FIRE dashboard.
+type FireTrackDashboardData struct {
+	InstanceID string
+	ScreenID   string
+
+	// Track identity
+	Name      string // "Strategy", "Org & Ops", "Product", "Commercial"
+	Icon      string
+	Track     string // DB key: "strategy", "org_ops", "product", "commercial"
+	Color     string // DaisyUI token: "secondary", "accent", "primary", "info"
+	SubNavURL string // URL for sub-nav active state
+
+	// Roadmap OKRs for this track
+	Objectives []FireOKRObjective
+
+	// Value models for this track
+	ValueModels []FireTrackValueModel
+
+	// Definitions / features (flat list — used for non-product tracks)
+	Definitions []FireTrackDefinition
+
+	// Product line groups — used only when Track == "product".
+	// When non-empty, replaces the flat Definitions table with grouped sections.
+	ProductLines []FireProductLineGroup
+
+	// Layer groups — used for canonical tracks (strategy, org_ops, commercial).
+	// When non-empty, replaces the flat Definitions table with layer→component sections.
+	Layers []FireLayerGroup
+}
+
+// FireTrackValueModel holds a single value model summary for display.
+type FireTrackValueModel struct {
+	Key     string
+	Name    string // product line name or track name
+	Layers  []string
+	ViewURL string
+}
+
+// FireTrackDefinition holds a single definition or feature for listing.
+type FireTrackDefinition struct {
+	Key     string
+	Name    string
+	Status  string
+	ViewURL string
+
+	// Maturity — canonical tracks (strategy/org_ops/commercial)
+	MaturityTier        int    // 0 = not set; 1–3
+	MaturityDescription string // description of the current tier, e.g. "Simple positioning visualization"
+	Effort              string // effort string at current tier, e.g. "2–4 hours initial creation"
+	Owner               string // definition.owner, e.g. "VP Marketing / Strategy"
+
+	// Maturity — product track features
+	MaturityStage   string         // overall_stage: "emerging", "proven", "scaled"
+	CapabilityCount int            // number of capabilities defined
+	ImplLinks       []FireImplLink // implementation_references specs with URLs
+}
+
+// FireImplLink is a single implementation reference link (OpenSpec, Linear, GitHub, etc.)
+type FireImplLink struct {
+	ID      string // spec ID (e.g. "SPEC-001", "LIN-1234")
+	Label   string // short display label
+	URL     string // empty if path-only (no external URL)
+	ToolName string // "openspec", "linear-specs", etc.
+}
+
+// FireProductLineGroup groups features under a single product line (value model),
+// further grouped by layer → component using the value model hierarchy.
+type FireProductLineGroup struct {
+	Name        string // display name, e.g. "Emergent Memory"
+	VMKey       string // value model artifact key
+	VMViewURL   string
+	LayerChips  []string // layer display names for summary chips
+	Layers      []FireLayerGroup // layer→component→feature grouping (replaces flat Definitions)
+	Definitions []FireTrackDefinition // legacy flat list — kept for fallback; normally empty
+}
+
+// FireLayerGroup groups definitions under one value model layer for canonical tracks.
+type FireLayerGroup struct {
+	LayerID   string
+	LayerName string // display name, e.g. "STRATEGIC ROADMAP"
+	Components []FireComponentGroup
+}
+
+// FireComponentGroup groups definitions under one component within a layer.
+type FireComponentGroup struct {
+	ComponentID   string
+	ComponentName string // display name, e.g. "Vision & mission"
+	Definitions   []FireTrackDefinition
+}
+
+// FireTrackDashboardContent renders the expanded track dashboard —
+// the "flesh out" of one column from the FIRE overview.
+templ FireTrackDashboardContent(data FireTrackDashboardData) {
+	@TabRelatedPages("fire", data.InstanceID, data.SubNavURL)
+	<div class="space-y-4">
+		<!-- Track header -->
+		<div class={ "rounded-xl border border-" + data.Color + "/25 bg-" + data.Color + "/5 px-5 py-4" }>
+			<div class="flex items-center gap-3">
+				<div class={ "rounded-xl p-2.5 bg-" + data.Color + "/15 shrink-0" }>
+					<span class={ "iconify size-5 text-" + data.Color + " " + data.Icon }></span>
+				</div>
+				<div>
+					<h2 class="text-base font-semibold text-base-content">{ data.Name } Track</h2>
+					<p class="text-xs text-base-content/50 mt-0.5">
+						{ strconv.Itoa(len(data.Objectives)) } objectives ·
+						{ strconv.Itoa(len(data.ValueModels)) } value models ·
+						{ strconv.Itoa(len(data.Definitions)) } definitions
+					</p>
+				</div>
+			</div>
+		</div>
+
+		<!-- Section 1: Roadmap KRs -->
+		<div class="card border border-base-content/10 bg-base-100 shadow-sm">
+			<div class="card-body p-5 gap-4">
+				<div class="flex items-center gap-2">
+					<span class="iconify lucide--target size-4 text-base-content/40"></span>
+					<h3 class="text-sm font-semibold text-base-content">Roadmap OKRs</h3>
+					<span class="text-xs text-base-content/40">from READY handoff</span>
+				</div>
+				if len(data.Objectives) == 0 {
+					<p class="text-sm text-base-content/40 italic">No OKRs defined for this track in the roadmap.</p>
+				} else {
+					<div class="space-y-4">
+						for i, obj := range data.Objectives {
+							<div class="flex gap-3">
+								<!-- Objective number -->
+								<div class={ "flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold bg-" + data.Color + "/15 text-" + data.Color }>
+									{ strconv.Itoa(i + 1) }
+								</div>
+								<div class="min-w-0 flex-1 pt-0.5">
+									<p class="text-sm font-medium text-base-content leading-snug">{ obj.Objective }</p>
+								if len(obj.KeyResults) > 0 {
+									<ul class="mt-2 space-y-2">
+										for _, kr := range obj.KeyResults {
+											<li class="flex items-start gap-2 text-xs text-base-content/60 leading-snug">
+												<span class={ "iconify lucide--arrow-right size-3 mt-0.5 shrink-0 text-" + data.Color + "/50" }></span>
+												<span class="flex-1">
+													{ kr.Description }
+													if kr.TRLProgression != "" {
+														<span class="ml-1.5 inline-flex items-center gap-1 rounded bg-base-200 px-1.5 py-0.5 font-mono text-xs text-base-content/50" title="Technology Readiness Level progression">
+															<span class="iconify lucide--flask-conical size-3"></span>
+															{ kr.TRLProgression }
+														</span>
+													}
+												</span>
+											</li>
+										}
+									</ul>
+								}
+								</div>
+							</div>
+						}
+					</div>
+				}
+			</div>
+		</div>
+
+		<!-- Section 2: Value Model -->
+		<div class="card border border-base-content/10 bg-base-100 shadow-sm">
+			<div class="card-body p-5 gap-4">
+				<div class="flex items-center justify-between">
+					<div class="flex items-center gap-2">
+						<span class="iconify lucide--layers size-4 text-base-content/40"></span>
+						<h3 class="text-sm font-semibold text-base-content">Value Model</h3>
+						<span class="text-xs text-base-content/40">names the value generators that deliver outcomes</span>
+					</div>
+				</div>
+				if len(data.ValueModels) == 0 {
+					<p class="text-sm text-base-content/40 italic">No value model defined for this track yet.</p>
+				} else {
+					<div class="space-y-4">
+						for _, vm := range data.ValueModels {
+							<a
+								href={ templ.URL(vm.ViewURL) }
+								hx-get={ vm.ViewURL }
+								hx-target="#tab-content"
+								hx-swap="innerHTML"
+								hx-push-url="true"
+								class="block rounded-lg border border-base-content/10 bg-base-200/30 px-4 py-3 hover:bg-base-200/60 transition-colors cursor-pointer"
+							>
+								<div class="flex items-center justify-between mb-2">
+									<p class="text-xs font-semibold text-base-content/70">{ vm.Name }</p>
+									<span class="iconify lucide--chevron-right size-3.5 text-base-content/30"></span>
+								</div>
+								if len(vm.Layers) > 0 {
+									<div class="flex flex-wrap gap-1">
+										for _, layer := range vm.Layers {
+											<span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs bg-base-100 border border-base-content/10 text-base-content/55 leading-tight">
+												{ layer }
+											</span>
+										}
+									</div>
+								}
+							</a>
+						}
+					</div>
+				}
+			</div>
+		</div>
+
+		<!-- Section 3: Definitions -->
+		<div class="card border border-base-content/10 bg-base-100 shadow-sm">
+			<div class="card-body p-5 gap-4">
+				<div class="flex items-center gap-2">
+					<span class="iconify lucide--file-text size-4 text-base-content/40"></span>
+					<h3 class="text-sm font-semibold text-base-content">Definitions</h3>
+					<span class="text-xs text-base-content/40">requirements for delivering outcomes — each traces to a KR</span>
+					<span class={ "ml-auto inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold bg-" + data.Color + "/15 text-" + data.Color }>
+						{ strconv.Itoa(len(data.Definitions)) }
+					</span>
+				</div>
+			if len(data.ProductLines) > 0 {
+				<!-- Product track: single table, product line → layer → component as divider rows -->
+				<div class="overflow-x-auto rounded-lg border border-base-content/8">
+					<table class="table table-sm w-full">
+						<thead>
+							<tr class="text-xs text-base-content/40">
+								<th class="font-medium">Feature</th>
+								<th class="w-28 font-medium">Status</th>
+								<th class="w-28 font-medium">Maturity</th>
+								<th class="w-24 font-medium">Capabilities</th>
+								<th class="font-medium">Implementation</th>
+							</tr>
+						</thead>
+						<tbody>
+							for _, pl := range data.ProductLines {
+								<!-- Product line header row -->
+								<tr class="pointer-events-none select-none bg-base-300/60">
+									<td colspan="5" class="py-2 px-3">
+										<a
+											href={ templ.URL(pl.VMViewURL) }
+											hx-get={ pl.VMViewURL }
+											hx-target="#tab-content"
+											hx-swap="innerHTML"
+											hx-push-url="true"
+											class="inline-flex items-center gap-2 group pointer-events-auto"
+										>
+											<span class="text-xs font-bold uppercase tracking-wider text-base-content/60 group-hover:text-base-content transition-colors">{ pl.Name }</span>
+											<span class="iconify lucide--arrow-up-right size-3 text-base-content/30 group-hover:text-base-content/60"></span>
+										</a>
+									</td>
+								</tr>
+								if len(pl.Layers) > 0 {
+									for _, layer := range pl.Layers {
+										<!-- Layer divider row -->
+										<tr class="pointer-events-none select-none bg-base-200/40">
+											<td colspan="5" class="py-1 px-3 pl-5">
+												<span class="text-xs font-semibold text-base-content/40 uppercase tracking-wider">{ layer.LayerName }</span>
+											</td>
+										</tr>
+										for _, comp := range layer.Components {
+											<!-- Component divider row -->
+											<tr class="pointer-events-none select-none">
+												<td colspan="5" class="py-1 px-3 pl-8 border-b border-base-content/5">
+													<span class="text-xs font-medium text-base-content/50">{ comp.ComponentName }</span>
+												</td>
+											</tr>
+											if len(comp.Definitions) == 0 {
+												<tr class="pointer-events-none">
+													<td colspan="5" class="text-xs text-base-content/25 italic px-3 pl-10 py-1.5">No features yet.</td>
+												</tr>
+											} else {
+												for _, d := range comp.Definitions {
+													@featureDefinitionRow(d)
+												}
+											}
+										}
+									}
+								} else {
+									for _, d := range pl.Definitions {
+										@featureDefinitionRow(d)
+									}
+								}
+							}
+						</tbody>
+					</table>
+				</div>
+			} else if len(data.Layers) > 0 {
+				<!-- Canonical track: single table, layer → component as divider rows, 5 unified columns -->
+				<!-- Tier legend -->
+				<div class="flex items-center gap-3 mb-2">
+					<span class="text-xs text-base-content/35">Maturity tier:</span>
+					<span class="inline-flex items-center gap-1 text-xs text-base-content/45">
+						<span class="badge badge-ghost badge-sm font-mono">T1</span> Basic — minimum viable, founder-led
+					</span>
+					<span class="inline-flex items-center gap-1 text-xs text-base-content/45">
+						<span class="badge badge-ghost badge-sm font-mono">T2</span> Structured — repeatable, documented
+					</span>
+					<span class="inline-flex items-center gap-1 text-xs text-base-content/45">
+						<span class="badge badge-ghost badge-sm font-mono">T3</span> Advanced — measured, optimised
+					</span>
+				</div>
+				<div class="overflow-x-auto rounded-lg border border-base-content/8">
+					<table class="table table-sm w-full">
+						<thead>
+							<tr class="text-xs text-base-content/40">
+								<th class="font-medium">Definition</th>
+								<th class="w-24 font-medium">Status</th>
+								<th class="font-medium">Maturity</th>
+								<th class="font-medium">Effort</th>
+								<th class="font-medium">Owner</th>
+							</tr>
+						</thead>
+						<tbody>
+							for _, layer := range data.Layers {
+								<!-- Layer divider row -->
+								<tr class="pointer-events-none select-none bg-base-200/40">
+									<td colspan="5" class="py-1.5 px-3">
+										<span class="text-xs font-semibold text-base-content/40 uppercase tracking-wider">{ layer.LayerName }</span>
+									</td>
+								</tr>
+								for _, comp := range layer.Components {
+									<!-- Component divider row -->
+									<tr class="pointer-events-none select-none">
+										<td colspan="5" class="py-1 px-3 pl-5 border-b border-base-content/5">
+											<span class="text-xs font-medium text-base-content/50">{ comp.ComponentName }</span>
+										</td>
+									</tr>
+									if len(comp.Definitions) == 0 {
+										<tr class="pointer-events-none">
+											<td colspan="5" class="text-xs text-base-content/25 italic px-3 pl-7 py-1.5">No definitions yet.</td>
+										</tr>
+									} else {
+										for _, d := range comp.Definitions {
+											<tr
+												class="hover cursor-pointer"
+												hx-get={ d.ViewURL }
+												hx-target="#tab-content"
+												hx-swap="innerHTML"
+												hx-push-url="true"
+											>
+												<td class="text-sm text-base-content">{ d.Name }</td>
+												<td class="w-24 whitespace-nowrap">@featureStatusBadge(d.Status)</td>
+												<td class="whitespace-nowrap">
+													if d.MaturityTier > 0 {
+														<div class="flex flex-col gap-0.5">
+															<span class="badge badge-ghost badge-sm font-mono">T{ strconv.Itoa(d.MaturityTier) }</span>
+															if d.MaturityDescription != "" {
+																<span class="text-xs text-base-content/40 leading-tight">{ d.MaturityDescription }</span>
+															}
+														</div>
+													}
+												</td>
+												<td class="text-xs text-base-content/55">{ d.Effort }</td>
+												<td class="text-xs text-base-content/55">{ d.Owner }</td>
+											</tr>
+										}
+									}
+								}
+							}
+						</tbody>
+					</table>
+				</div>
+				} else if len(data.Definitions) == 0 {
+					<p class="text-sm text-base-content/40 italic">No definitions yet.</p>
+				} else {
+					<!-- Flat fallback (no value model grouping available) -->
+					<div class="overflow-x-auto">
+						<table class="table table-sm w-full">
+							<thead>
+								<tr class="text-xs text-base-content/50">
+									<th class="font-medium">Name</th>
+									<th class="font-medium">Status</th>
+									<th class="font-medium">Maturity</th>
+								</tr>
+							</thead>
+							<tbody>
+								for _, d := range data.Definitions {
+									<tr
+										class="hover cursor-pointer"
+										hx-get={ d.ViewURL }
+										hx-target="#tab-content"
+										hx-swap="innerHTML"
+										hx-push-url="true"
+									>
+										<td class="text-sm text-base-content">{ d.Name }</td>
+										<td>@featureStatusBadge(d.Status)</td>
+										<td>
+											if d.MaturityTier > 0 {
+												<span class="badge badge-ghost badge-sm font-mono">T{ strconv.Itoa(d.MaturityTier) }</span>
+											}
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				}
+			</div>
+		</div>
+	</div>
+}
+
+// featureDefinitionRow renders one row of the product feature table with
+// status, maturity stage, capability count, and implementation links.
+templ featureDefinitionRow(d FireTrackDefinition) {
+	<tr
+		class="hover cursor-pointer"
+		hx-get={ d.ViewURL }
+		hx-target="#tab-content"
+		hx-swap="innerHTML"
+		hx-push-url="true"
+	>
+		<td class="text-sm text-base-content font-medium">{ d.Name }</td>
+		<td class="whitespace-nowrap">@featureStatusBadge(d.Status)</td>
+		<td class="whitespace-nowrap">
+			@maturityStageBadge(d.MaturityStage)
+		</td>
+		<td class="whitespace-nowrap">
+			if d.CapabilityCount > 0 {
+				<span class="inline-flex items-center gap-1 text-xs text-base-content/55">
+					<span class="iconify lucide--puzzle size-3 text-base-content/35"></span>
+					{ strconv.Itoa(d.CapabilityCount) }
+				</span>
+			}
+		</td>
+		<td>
+			if len(d.ImplLinks) == 0 {
+				<span class="text-xs text-base-content/25 italic">—</span>
+			} else {
+				<div class="flex flex-wrap gap-1.5" onclick="event.stopPropagation()">
+					for _, link := range d.ImplLinks {
+						if link.URL != "" {
+							<a
+								href={ templ.URL(link.URL) }
+								target="_blank"
+								rel="noopener noreferrer"
+								class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs bg-base-200 hover:bg-base-300 text-base-content/60 hover:text-base-content transition-colors leading-tight"
+								onclick="event.stopPropagation()"
+							>
+								<span class="iconify lucide--external-link size-3"></span>
+								{ link.Label }
+							</a>
+						} else {
+							<span class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs bg-base-200 text-base-content/40 leading-tight">
+								{ link.Label }
+							</span>
+						}
+					}
+				</div>
+			}
+		</td>
+	</tr>
+}
+
+// maturityStageBadge renders a coloured badge for the feature maturity stage.
+templ maturityStageBadge(stage string) {
+	switch stage {
+		case "scaled":
+			<span class="badge badge-sm badge-success gap-1">
+				<span class="iconify lucide--trending-up size-3"></span>
+				Scaled
+			</span>
+		case "proven":
+			<span class="badge badge-sm badge-info gap-1">
+				<span class="iconify lucide--check size-3"></span>
+				Proven
+			</span>
+		case "emerging":
+			<span class="badge badge-sm badge-warning gap-1">
+				<span class="iconify lucide--sprout size-3"></span>
+				Emerging
+			</span>
+		case "hypothetical":
+			<span class="badge badge-sm badge-ghost gap-1">
+				<span class="iconify lucide--flask-conical size-3"></span>
+				Hypothetical
+			</span>
+		default:
+			<!-- empty — no badge when stage is unknown -->
+	}
+}

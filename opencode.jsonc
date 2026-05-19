@@ -18,8 +18,16 @@
     },
   },
   // EPF MCP server and LSP are configured globally in ~/.config/opencode/opencode.json
-  // No project-specific MCP needed — epf-cli auto-detects instances
   "instructions": [".opencode/instructions.md"],
+  "mcp": {
+    // strategy-server — local dev instance (start with: cd apps/strategy-server && task dev-up)
+    "strategy-server": {
+      "type": "remote",
+      "url": "http://localhost:8090/mcp",
+      "enabled": true,
+      "timeout": 60000,
+    },
+  },
   "tools": {
     "todowrite": true,
     "webfetch": true,

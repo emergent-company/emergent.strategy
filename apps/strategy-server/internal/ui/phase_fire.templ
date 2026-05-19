@@ -2,21 +2,23 @@ package ui
 
 import (
 	"strconv"
-
-	"github.com/emergent-company/go-daisy/components/ui"
 )
 
 // FirePhaseData holds all data for the FIRE phase dashboard.
 type FirePhaseData struct {
 	InstanceID string
 
-	// Features by status
+	// Features by status (for stat cards)
 	DeliveredCount  int
 	InProgressCount int
 	DraftCount      int
 	TotalFeatures   int
 
-	// Track definitions
+	// Per-track data — the circular KR → ValueModel → Definitions model
+	// Ordered: Strategy, OrgOps, Product, Commercial
+	FireTracks []FireTrackData
+
+	// Track definitions (legacy — used by trackCard)
 	Tracks []TrackSummary
 
 	// Value models
@@ -26,19 +28,64 @@ type FirePhaseData struct {
 	RecentFeatures []FeatureSummary
 }
 
+// FireTrackData holds the full circular traceability data for one execution track.
+type FireTrackData struct {
+	// Identity
+	Name  string // "Strategy", "Org & Ops", "Product", "Commercial"
+	Icon  string
+	Track string // DB key: "strategy", "org_ops", "product", "commercial"
+	Color string // Tailwind color token: "primary", "secondary", "accent", "info"
+
+	// From Roadmap Recipe — what the track committed to deliver
+	Objectives []FireOKRObjective
+
+	// Value Model — names the value generators that will deliver outcomes
+	ValueModelExists  bool
+	ValueModelLayers  []string // L1 layer names (the "what" being structured); unused for Product
+	ValueModelCount   int      // total number of value models for this track
+
+	// Product-only: per-product-line summaries shown inside the single Product column
+	ProductLines []FireProductLineSummary
+
+	// Definitions — requirements for delivering those outcomes
+	DefinitionCount int
+	DefinitionURL   string // e.g. /fire/strategy
+}
+
+// FireProductLineSummary is a compact summary for one product line shown in the FIRE overview column.
+type FireProductLineSummary struct {
+	Name   string
+	Layers []string
+}
+
+// FireOKRKeyResult holds one key result with optional TRL progression.
+type FireOKRKeyResult struct {
+	Description    string
+	TRLStart       int    // 0 = not set
+	TRLTarget      int    // 0 = not set
+	TRLProgression string // e.g. "TRL 3 → TRL 6"
+}
+
+// FireOKRObjective holds one objective and its key results for a track.
+type FireOKRObjective struct {
+	Objective  string
+	KeyResults []FireOKRKeyResult
+}
+
 // TrackSummary shows definition counts per track.
 type TrackSummary struct {
 	Name  string
 	Icon  string
 	Count int
 	Track string // DB track value
+	URL   string // destination URL — overrides the default /fire/<track> if set
 }
 
 // ValueModelSummary shows value model status per track.
 type ValueModelSummary struct {
-	Track    string
-	Status   string
-	Icon     string
+	Track  string
+	Status string
+	Icon   string
 }
 
 // FeatureSummary is a minimal feature for listing.
@@ -49,49 +96,245 @@ type FeatureSummary struct {
 	Track  string
 }
 
-// FirePhaseContent renders the FIRE phase dashboard content.
+// FirePhaseContent renders the FIRE phase as a circular traceability map.
+// Each track shows: Roadmap KRs → Value Model (what value generators exist) → Definitions (requirements).
+// The circular arrow back from Definitions to KRs shows traceability: each definition traces to a KR.
 templ FirePhaseContent(data FirePhaseData) {
-	<div class="space-y-6">
-		// Feature status stats
-		@ui.StatCards([]ui.StatCardProps{
-			{Label: "Delivered", Value: strconv.Itoa(data.DeliveredCount), Icon: "lucide--check-circle-2", IconColor: "bg-success/10 text-success"},
-			{Label: "In Progress", Value: strconv.Itoa(data.InProgressCount), Icon: "lucide--loader-circle", IconColor: "bg-primary/10 text-primary"},
-			{Label: "Draft", Value: strconv.Itoa(data.DraftCount), Icon: "lucide--circle-dashed", IconColor: "bg-warning/10 text-warning"},
-			{Label: "Total Features", Value: strconv.Itoa(data.TotalFeatures), Icon: "lucide--file-text", IconColor: "bg-secondary/10 text-secondary"},
-		})
-
-		// Four tracks
-		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-			for _, t := range data.Tracks {
-				@trackCard(data.InstanceID, t)
-			}
+	@TabRelatedPages("fire", data.InstanceID, "/strategies/"+data.InstanceID+"/fire")
+	<div class="space-y-4">
+		<!-- Header -->
+		<div class="flex items-center justify-between">
+			<div>
+				<h2 class="text-base font-semibold text-base-content">FIRE Phase</h2>
+				<p class="text-xs text-base-content/60 mt-0.5">Execution — KRs from READY hand off to four tracks, each traced through a value model to definitions</p>
+			</div>
+			<!-- Feature stat pills -->
+			<div class="hidden md:flex items-center gap-3 text-xs">
+				<span class="flex items-center gap-1 text-success">
+					<span class="iconify lucide--check-circle-2 size-3.5"></span>
+					{ strconv.Itoa(data.DeliveredCount) } delivered
+				</span>
+				<span class="flex items-center gap-1 text-primary">
+					<span class="iconify lucide--loader-circle size-3.5"></span>
+					{ strconv.Itoa(data.InProgressCount) } in progress
+				</span>
+				<span class="flex items-center gap-1 text-base-content/50">
+					<span class="iconify lucide--circle-dashed size-3.5"></span>
+					{ strconv.Itoa(data.DraftCount) } draft
+				</span>
+			</div>
 		</div>
-
-		// Value models
-		if len(data.ValueModels) > 0 {
-			<div class="card bg-base-100 border border-base-content/10 shadow-sm">
-				<div class="card-body p-5">
-					<h3 class="text-base font-semibold text-base-content mb-3">Value Models</h3>
-					<div class="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-						for _, vm := range data.ValueModels {
-							@valueModelBadge(vm)
-						}
-					</div>
-				</div>
+		<!-- Four-track traceability grid -->
+		if len(data.FireTracks) > 0 {
+			<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+				for _, t := range data.FireTracks {
+					@fireTrackColumn(data.InstanceID, t)
+				}
 			</div>
 		}
+		<!-- Handoff connector: FIRE → AIM -->
+		<div class="flex flex-col items-center gap-1 py-1">
+			<div class="w-px h-4 bg-error/40"></div>
+			<svg width="16" height="10" viewBox="0 0 16 10" fill="none" class="text-error/60">
+				<line x1="8" y1="0" x2="8" y2="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></line>
+				<polyline points="4,4 8,9 12,4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"></polyline>
+			</svg>
+			<span class="text-xs text-base-content/40 tracking-wide uppercase font-medium">real-world data feeds</span>
+		</div>
+		<!-- AIM handoff banner -->
+		<a
+			href={ templ.URL("/strategies/" + data.InstanceID + "/aim") }
+			hx-get={ "/strategies/" + data.InstanceID + "/aim" }
+			hx-target="#tab-content"
+			hx-swap="innerHTML"
+			hx-push-url="true"
+			class="card border border-error/25 bg-error/5 shadow-sm hover:shadow-md hover:scale-[1.005] transition-all duration-150 cursor-pointer w-full"
+		>
+			<div class="card-body p-4">
+				<div class="flex items-center gap-2.5">
+					<div class="rounded-lg p-2 bg-error/15 shrink-0">
+						<span class="iconify lucide--activity size-4 text-error"></span>
+					</div>
+					<div class="min-w-0 flex-1">
+						<div class="flex items-center gap-2">
+							<h3 class="text-sm font-semibold text-base-content">AIM Phase</h3>
+							<span class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-mono font-semibold bg-error/15 text-error">
+								Measure <span class="font-sans font-normal opacity-70">→ learn</span>
+							</span>
+						</div>
+						<p class="text-xs text-base-content/50 mt-0.5">Delivery generates evidence — signals, metrics, and reality checks that feed back to calibrate READY</p>
+					</div>
+					<div class="hidden md:flex items-center gap-4 border-l border-base-content/10 pl-4 shrink-0">
+						<div class="flex items-center gap-1.5 text-xs text-base-content/50">
+							<span class="iconify lucide--zap size-3.5"></span>
+							Signals
+						</div>
+						<div class="flex items-center gap-1.5 text-xs text-base-content/50">
+							<span class="iconify lucide--bar-chart-2 size-3.5"></span>
+							Metrics
+						</div>
+						<div class="flex items-center gap-1.5 text-xs text-base-content/50">
+							<span class="iconify lucide--refresh-ccw size-3.5"></span>
+							Calibration
+						</div>
+					</div>
+					<span class="iconify lucide--chevron-right size-4 text-base-content/30 shrink-0"></span>
+				</div>
+			</div>
+		</a>
+	</div>
+}
 
-		// Feature list
-		if len(data.RecentFeatures) > 0 {
-			@featureList(data)
-		}
+// fireTrackColumn renders one track's full circular traceability stack:
+//
+//	┌─────────────────┐
+//	│  Track header   │  (name, icon, KR count)
+//	├─────────────────┤
+//	│  KRs from       │  (objectives + KR list)
+//	│  Roadmap        │
+//	├────────↓────────┤
+//	│  Value Model    │  (layer names — what value generators exist)
+//	├────────↓────────┤
+//	│  Definitions    │  (count + link — requirements for delivery)
+//	│        ↑ traces back to KRs
+//	└─────────────────┘
+templ fireTrackColumn(instanceID string, t FireTrackData) {
+	<div class="flex flex-col gap-0 rounded-xl border border-base-content/10 overflow-hidden shadow-sm">
+		<!-- Track header -->
+		<a
+			href={ templ.URL(t.DefinitionURL) }
+			hx-get={ t.DefinitionURL }
+			hx-target="#tab-content"
+			hx-swap="innerHTML"
+			hx-push-url="true"
+			class={ "flex items-center gap-2.5 px-4 py-3 hover:opacity-90 transition-opacity cursor-pointer bg-" + t.Color + "/10 border-b border-" + t.Color + "/20" }
+		>
+			<div class={ "rounded-lg p-1.5 bg-" + t.Color + "/20 shrink-0" }>
+				<span class={ "iconify size-4 text-" + t.Color + " " + t.Icon }></span>
+			</div>
+			<div class="min-w-0 flex-1">
+				<h3 class="text-sm font-semibold text-base-content leading-tight">{ t.Name }</h3>
+				<p class={ "text-xs text-" + t.Color + "/70" }>{ strconv.Itoa(len(t.Objectives)) } objectives</p>
+			</div>
+			<span class="iconify lucide--chevron-right size-3.5 text-base-content/30 shrink-0"></span>
+		</a>
+		<!-- Section 1: KRs from Roadmap -->
+		<div class="bg-base-100 px-4 py-3 border-b border-base-content/8">
+			<div class="flex items-center gap-1.5 mb-2">
+				<span class="iconify lucide--target size-3.5 text-base-content/40"></span>
+				<span class="text-xs font-medium text-base-content/60 uppercase tracking-wide">Roadmap KRs</span>
+			</div>
+			if len(t.Objectives) == 0 {
+				<p class="text-xs text-base-content/35 italic">No OKRs defined</p>
+			} else {
+				<div class="space-y-2">
+					for _, obj := range t.Objectives {
+						<div>
+							<p class="text-xs font-medium text-base-content/80 leading-snug">{ obj.Objective }</p>
+						if len(obj.KeyResults) > 0 {
+							<ul class="mt-1 space-y-0.5">
+								for _, kr := range obj.KeyResults {
+									<li class="flex items-start gap-1.5 text-xs text-base-content/55 leading-snug">
+										<span class="iconify lucide--arrow-right size-3 mt-0.5 shrink-0 text-base-content/30"></span>
+										<span class="flex-1">
+											{ kr.Description }
+											if kr.TRLProgression != "" {
+												<span class="ml-1 inline-flex items-center gap-0.5 rounded bg-base-200 px-1 py-0.5 font-mono text-xs text-base-content/40">
+													<span class="iconify lucide--flask-conical size-2.5"></span>
+													{ kr.TRLProgression }
+												</span>
+											}
+										</span>
+									</li>
+								}
+							</ul>
+						}
+						</div>
+					}
+				</div>
+			}
+		</div>
+		<!-- Down arrow connector -->
+		<div class="flex justify-center bg-base-100 py-1 border-b border-base-content/8">
+			<span class="iconify lucide--arrow-down size-3.5 text-base-content/25"></span>
+		</div>
+		<!-- Section 2: Value Model -->
+		<a
+			href={ templ.URL(t.DefinitionURL) }
+			hx-get={ t.DefinitionURL }
+			hx-target="#tab-content"
+			hx-swap="innerHTML"
+			hx-push-url="true"
+			class="bg-base-100 px-4 py-3 border-b border-base-content/8 hover:bg-base-200/40 transition-colors cursor-pointer block"
+		>
+			<div class="flex items-center gap-1.5 mb-2">
+				<span class="iconify lucide--layers size-3.5 text-base-content/40"></span>
+				<span class="text-xs font-medium text-base-content/60 uppercase tracking-wide">Value Model</span>
+				if t.ValueModelCount > 1 {
+					<span class="text-xs text-base-content/35">({ strconv.Itoa(t.ValueModelCount) })</span>
+				}
+			</div>
+			if !t.ValueModelExists {
+				<p class="text-xs text-base-content/35 italic">Not yet defined</p>
+			} else if len(t.ProductLines) > 0 {
+				<!-- Product track: show each product line with its layers -->
+				<div class="space-y-2">
+					for _, pl := range t.ProductLines {
+						<div>
+							<p class="text-xs font-semibold text-base-content/65 mb-0.5">{ pl.Name }</p>
+							if len(pl.Layers) > 0 {
+								<div class="flex flex-wrap gap-1">
+									for _, layer := range pl.Layers {
+										<span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs bg-base-200 text-base-content/55 leading-tight">{ layer }</span>
+									}
+								</div>
+							}
+						</div>
+					}
+				</div>
+			} else if len(t.ValueModelLayers) == 0 {
+				<p class="text-xs text-base-content/55">Value model exists</p>
+			} else {
+				<div class="flex flex-wrap gap-1">
+					for _, layer := range t.ValueModelLayers {
+						<span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs bg-base-200 text-base-content/60 leading-tight">{ layer }</span>
+					}
+				</div>
+			}
+		</a>
+		<!-- Down arrow connector -->
+		<div class="flex justify-center bg-base-100 py-1 border-b border-base-content/8">
+			<span class="iconify lucide--arrow-down size-3.5 text-base-content/25"></span>
+		</div>
+		<!-- Section 3: Definitions -->
+		<a
+			href={ templ.URL(t.DefinitionURL) }
+			hx-get={ t.DefinitionURL }
+			hx-target="#tab-content"
+			hx-swap="innerHTML"
+			hx-push-url="true"
+			class="bg-base-100 px-4 py-3 hover:bg-base-200/40 transition-colors cursor-pointer block"
+		>
+			<div class="flex items-center gap-1.5 mb-1.5">
+				<span class="iconify lucide--file-text size-3.5 text-base-content/40"></span>
+				<span class="text-xs font-medium text-base-content/60 uppercase tracking-wide">Definitions</span>
+			</div>
+			<div class="flex items-center justify-between">
+				<p class="text-sm font-semibold text-base-content">{ strconv.Itoa(t.DefinitionCount) }</p>
+				<span class="text-xs text-base-content/40">requirements for delivery →</span>
+			</div>
+			<!-- Circular trace back label -->
+			<p class="text-xs text-base-content/35 italic mt-1.5">Each traces back to a KR ↑</p>
+		</a>
 	</div>
 }
 
 templ trackCard(instanceID string, t TrackSummary) {
+	{{ url := "/strategies/" + instanceID + "/fire/" + t.Track }}
+	{{ if t.URL != "" { url = "/strategies/" + instanceID + t.URL } }}
 	<a
-		href={ templ.URL("/strategies/" + instanceID + "/fire/" + t.Track) }
-		hx-get={ "/strategies/" + instanceID + "/fire/" + t.Track }
+		href={ templ.URL(url) }
+		hx-get={ url }
 		hx-target="#tab-content"
 		hx-swap="innerHTML"
 		hx-push-url="true"
@@ -134,7 +377,13 @@ templ featureList(data FirePhaseData) {
 					</thead>
 					<tbody>
 						for _, f := range data.RecentFeatures {
-							<tr class="hover">
+							<tr
+								class="hover cursor-pointer"
+								hx-get={ "/strategies/" + data.InstanceID + "/artifacts/" + f.Key }
+								hx-target="#tab-content"
+								hx-swap="innerHTML"
+								hx-push-url="true"
+							>
 								<td class="font-mono text-xs text-base-content/60">{ f.Key }</td>
 								<td>{ f.Name }</td>
 								<td>@featureStatusBadge(f.Status)</td>

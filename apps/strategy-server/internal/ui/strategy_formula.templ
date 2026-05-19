@@ -399,7 +399,10 @@ templ riskRow(r FormulaRisk) {
 		<summary class="flex cursor-pointer items-center gap-3 px-4 py-3 text-sm select-none">
 			<span class={ "size-2 rounded-full shrink-0", likelihoodDot(r.Likelihood) }></span>
 			<span class="grow font-medium text-base-content">{ r.Risk }</span>
-			<span class={ "badge badge-xs", likelihoodBadge(r.Impact) }>{ r.Impact }</span>
+			<span class="flex items-center gap-1 shrink-0 text-xs text-base-content/50">
+				<span>Impact</span>
+				<span class={ "badge badge-xs", likelihoodBadge(r.Impact) }>{ r.Impact }</span>
+			</span>
 			<span class="iconify lucide--chevron-right size-3.5 text-base-content/30 transition-transform group-open:rotate-90"></span>
 		</summary>
 		<div class="border-t border-base-content/5 px-4 pb-3 pt-2 text-xs text-base-content/70 space-y-1">

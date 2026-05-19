@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 
 	"github.com/emergent-company/go-daisy/render"
 	"github.com/labstack/echo/v4"
@@ -34,13 +35,13 @@ func (s *Server) handleExecutionDashboard(c echo.Context) error {
 	render.RenderTriple(c.Response().Writer, c.Request(),
 		ui.InstancePhaseFullPage(instance.Name+" — Strategy", currentPath, sidebarGroups, instance.Name, tabs, content),
 		ui.InstanceChromeWithContent(instance.Name, tabs, currentPath, content),
-		content,
+		ui.InstanceTabContent(tabs, currentPath, content),
 	)
 	return nil
 }
 
 // loadExecutionData loads the full execution dashboard data:
-// roadmap OKRs → linked features → assumption confidence.
+// roadmap OKRs → linked features → assumption confidence → AIM assessment outcomes.
 func (s *Server) loadExecutionData(ctx context.Context, instanceID, instanceName string) ui.ExecutionData {
 	data := ui.ExecutionData{
 		InstanceID:   instanceID,
@@ -70,7 +71,6 @@ func (s *Server) loadExecutionData(ctx context.Context, instanceID, instanceName
 		s.log.Warn("execution: no 'roadmap' key in payload", "keys", fmt.Sprintf("%v", mapKeys(roadmapRoot)))
 		return data
 	}
-	s.log.Info("execution: roadmap parsed", "timeframe", roadmap["timeframe"], "tracks_exist", roadmap["tracks"] != nil)
 
 	if tf, ok := roadmap["timeframe"].(string); ok {
 		data.Timeframe = tf
@@ -91,6 +91,30 @@ func (s *Server) loadExecutionData(ctx context.Context, instanceID, instanceName
 	// Load feature → assumption test edges
 	featureAssumptions := s.loadFeatureAssumptionEdges(ctx, instanceID)
 
+	// Load AIM assessment outcomes: map[krID] → {status, actual}
+	krOutcomes, strategicInsights := s.loadAssessmentKROutcomes(ctx, instanceID)
+	data.HasAssessmentData = len(krOutcomes) > 0
+	data.StrategicInsights = strategicInsights
+
+	// Signal severity breakdown
+	data.ActiveSignals, _ = s.db.NewSelect().
+		TableExpr("ripple_signals").
+		Where("instance_id = ?", instanceID).
+		Where("status = ?", "active").
+		Count(ctx)
+	data.CriticalSignals, _ = s.db.NewSelect().
+		TableExpr("ripple_signals").
+		Where("instance_id = ?", instanceID).
+		Where("status = ?", "active").
+		Where("severity = ?", "critical").
+		Count(ctx)
+	data.WarningSignals, _ = s.db.NewSelect().
+		TableExpr("ripple_signals").
+		Where("instance_id = ?", instanceID).
+		Where("status = ?", "active").
+		Where("severity = ?", "warning").
+		Count(ctx)
+
 	// Build tracks
 	tracks, _ := roadmap["tracks"].(map[string]any)
 	if tracks == nil {
@@ -102,10 +126,22 @@ func (s *Server) loadExecutionData(ctx context.Context, instanceID, instanceName
 		name string
 		icon string
 	}{
-		{"product", "Product", "lucide--code-2"},
 		{"strategy", "Strategy", "lucide--navigation"},
 		{"org_ops", "Org & Ops", "lucide--container"},
+		{"product", "Product", "lucide--code-2"},
 		{"commercial", "Commercial", "lucide--briefcase"},
+	}
+
+	// Load definitions per track. Product uses features as its definition equivalent.
+	defArtifactType := map[string]string{
+		"strategy":   "strategy_def",
+		"org_ops":    "org_ops_def",
+		"commercial": "commercial_def",
+		"product":    "feature",
+	}
+	trackDefs := make(map[string][]ui.ExecutionDefinition)
+	for trackKey, artifactType := range defArtifactType {
+		trackDefs[trackKey] = s.loadExecutionDefinitions(ctx, instanceID, trackKey, artifactType)
 	}
 
 	for _, tm := range trackMeta {
@@ -118,7 +154,7 @@ func (s *Server) loadExecutionData(ctx context.Context, instanceID, instanceName
 			continue
 		}
 
-		track := ui.ExecutionTrack{Name: tm.name, Icon: tm.icon}
+		track := ui.ExecutionTrack{Name: tm.name, Icon: tm.icon, Definitions: trackDefs[tm.key]}
 
 		for _, okrRaw := range okrsRaw {
 			okrMap, ok := okrRaw.(map[string]any)
@@ -139,14 +175,21 @@ func (s *Server) loadExecutionData(ctx context.Context, instanceID, instanceName
 					continue
 				}
 
-				krID := strVal(krMap, "id")
-				kr := ui.ExecutionKR{
-					ID:          krID,
-					Description: strVal(krMap, "description"),
-					Target:      strVal(krMap, "target"),
-					Baseline:    strVal(krMap, "baseline"),
-				}
-				data.TotalKRs++
+			krID := strVal(krMap, "id")
+			kr := ui.ExecutionKR{
+				ID:          krID,
+				Description: strVal(krMap, "description"),
+				Target:      strVal(krMap, "target"),
+				Baseline:    strVal(krMap, "baseline"),
+				TRLStart:    payloadIntAsStr(krMap, "trl_start"),
+				TRLTarget:   payloadIntAsStr(krMap, "trl_target"),
+			}
+			// Attach AIM assessment outcome if available
+			if outcome, ok := krOutcomes[krID]; ok {
+				kr.AssessmentStatus = outcome.status
+				kr.AssessmentActual = outcome.actual
+			}
+			data.TotalKRs++
 
 				// Find features that contribute to this KR's value paths
 				// Features are linked via contributes_to value model paths
@@ -157,7 +200,7 @@ func (s *Server) loadExecutionData(ctx context.Context, instanceID, instanceName
 						Key:    f.key,
 						Name:   f.name,
 						Status: f.status,
-						Href:   "/strategies/" + instanceID + "/artifacts/" + f.key,
+						Href:   "/strategies/" + instanceID + "/fire/features/" + f.key,
 					})
 					switch f.status {
 					case "in-progress":
@@ -223,13 +266,6 @@ func (s *Server) loadExecutionData(ctx context.Context, instanceID, instanceName
 
 		data.Tracks = append(data.Tracks, track)
 	}
-
-	// Count active signals
-	data.ActiveSignals, _ = s.db.NewSelect().
-		TableExpr("ripple_signals").
-		Where("instance_id = ?", instanceID).
-		Where("status = ?", "active").
-		Count(ctx)
 
 	return data
 }
@@ -347,4 +383,146 @@ func mapKeys(m map[string]any) []string {
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+// loadExecutionDefinitions loads definitions (or features for product track) for a track,
+// sorted by current tier / status, capped at 8 entries to keep the strip scannable.
+func (s *Server) loadExecutionDefinitions(ctx context.Context, instanceID, trackKey, artifactType string) []ui.ExecutionDefinition {
+	var rows []struct {
+		Key     string `bun:"artifact_key"`
+		Name    string `bun:"name"`
+		Payload []byte `bun:"payload"`
+	}
+	_ = s.db.NewSelect().
+		TableExpr("strategy_artifacts").
+		ColumnExpr("artifact_key, name, payload").
+		Where("instance_id = ?", instanceID).
+		Where("artifact_type = ?", artifactType).
+		OrderExpr("name ASC").
+		Scan(ctx, &rows)
+
+	var defs []ui.ExecutionDefinition
+	for _, r := range rows {
+		var p map[string]any
+		if json.Unmarshal(r.Payload, &p) != nil {
+			continue
+		}
+
+		tier := 0
+		status, _ := p["status"].(string)
+
+		if artifactType == "feature" {
+			// Features use status as primary sort signal: in-progress first, then draft
+			switch status {
+			case "in-progress":
+				tier = 1
+			case "draft":
+				tier = 2
+			default:
+				tier = 3
+			}
+		} else {
+			if mat, ok := p["maturity"].(map[string]any); ok {
+				if t, ok := mat["current_tier"].(float64); ok {
+					tier = int(t)
+				}
+			}
+		}
+
+		// Use the correct URL prefix per artifact type
+		var defURL string
+		if artifactType == "feature" {
+			defURL = "/strategies/" + instanceID + "/fire/features/" + r.Key
+		} else {
+			defURL = "/strategies/" + instanceID + "/fire/definitions/" + r.Key
+		}
+
+		defs = append(defs, ui.ExecutionDefinition{
+			Name:        r.Name,
+			CurrentTier: tier,
+			Status:      status,
+			Href:        defURL,
+		})
+	}
+
+	// Sort by tier (in-progress first for features, T1 first for definitions), then name
+	sort.Slice(defs, func(i, j int) bool {
+		if defs[i].CurrentTier != defs[j].CurrentTier {
+			return defs[i].CurrentTier < defs[j].CurrentTier
+		}
+		return defs[i].Name < defs[j].Name
+	})
+
+	// Cap at 8 to keep the strip compact
+	if len(defs) > 8 {
+		defs = defs[:8]
+	}
+	return defs
+}
+
+type krOutcome struct {
+	status string // met, missed, partial_met, exceeded
+	actual string // actual value achieved
+}
+
+// loadAssessmentKROutcomes parses the latest assessment_report and returns
+// a map of KR ID → outcome, plus top-level strategic insights.
+func (s *Server) loadAssessmentKROutcomes(ctx context.Context, instanceID string) (map[string]krOutcome, []string) {
+	outcomes := make(map[string]krOutcome)
+	var insights []string
+
+	var raw string
+	err := s.db.NewSelect().
+		TableExpr("strategy_artifacts").
+		Column("payload").
+		Where("instance_id = ?", instanceID).
+		Where("artifact_type = ?", domain.ArtifactTypeAssessmentReport).
+		OrderExpr("created_at DESC").
+		Limit(1).
+		Scan(ctx, &raw)
+	if err != nil || raw == "" {
+		return outcomes, insights
+	}
+
+	var payload map[string]any
+	if json.Unmarshal([]byte(raw), &payload) != nil {
+		return outcomes, insights
+	}
+
+	// OKR assessments → KR outcomes
+	if okrs, ok := payload["okr_assessments"].([]any); ok {
+		for _, item := range okrs {
+			om, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			if krs, ok := om["key_results"].([]any); ok {
+				for _, krItem := range krs {
+					km, ok := krItem.(map[string]any)
+					if !ok {
+						continue
+					}
+					id := strVal(km, "kr_id")
+					if id == "" {
+						continue
+					}
+					outcomes[id] = krOutcome{
+						status: strVal(km, "status"),
+						actual: strVal(km, "actual"),
+					}
+				}
+			}
+		}
+	}
+
+	// Strategic insights
+	if si, ok := payload["strategic_insights"].([]any); ok {
+		for _, v := range si {
+			if s, ok := v.(string); ok && s != "" {
+				insights = append(insights, s)
+			}
+		}
+	}
+
+	return outcomes, insights
 }
