@@ -10,6 +10,7 @@ type AimRunPanelData struct {
 	Steps        []AimRunStepRow
 	CreatedAt    string
 	StreamURL    string // SSE endpoint URL
+	LLMMode      bool   // true when at least one step was completed with LLM assistance
 }
 
 // AimRunStepRow is a single step in the run timeline.
@@ -18,6 +19,7 @@ type AimRunStepRow struct {
 	Status  string // pending | running | awaiting_human | done | failed
 	BatchID string // non-empty when step is awaiting_human
 	Error   string
+	LLMUsed bool // true when this step was completed with LLM assistance
 }
 
 // AimRunPanelContent renders the orchestrated AIM cycle run panel.
@@ -50,6 +52,17 @@ templ AimRunPanelContent(data AimRunPanelData) {
 					</div>
 				</div>
 				<div class="flex items-center gap-3">
+					if data.LLMMode {
+						<span class="badge badge-outline gap-1 text-xs border-secondary/40 text-secondary">
+							<span class="iconify lucide--sparkles size-3"></span>
+							AI-assisted
+						</span>
+					} else {
+						<span class="badge badge-ghost gap-1 text-xs text-base-content/40">
+							<span class="iconify lucide--pencil size-3"></span>
+							Skeleton mode
+						</span>
+					}
 					<span class={ "badge", runStatusBadgeClass(data.Status) }>{ runStatusLabel(data.Status) }</span>
 					<a
 						href={ templ.URL("/strategies/" + data.InstanceID + "/aim") }
@@ -114,7 +127,15 @@ templ aimRunStepRow(num int, step AimRunStepRow, instanceID string) {
 
 		// Content
 		<div class="grow min-w-0">
-			<p class={ "text-sm font-semibold", runStepLabelClass(step.Status) }>{ runStepLabel(step.Name) }</p>
+			<div class="flex items-center gap-2">
+				<p class={ "text-sm font-semibold", runStepLabelClass(step.Status) }>{ runStepLabel(step.Name) }</p>
+				if step.LLMUsed {
+					<span class="badge badge-outline badge-xs gap-1 border-secondary/40 text-secondary">
+						<span class="iconify lucide--sparkles size-2.5"></span>
+						AI
+					</span>
+				}
+			</div>
 			if step.Status == "running" {
 				<p class="text-xs text-base-content/50 mt-0.5">In progress…</p>
 			} else if step.Status == "awaiting_human" && step.BatchID != "" {

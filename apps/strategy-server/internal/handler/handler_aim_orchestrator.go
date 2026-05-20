@@ -161,22 +161,29 @@ func (s *Server) handleAIMRunStream(c echo.Context) error {
 // buildRunPanelData converts a Run into the view model for the run panel template.
 func buildRunPanelData(instanceID string, run *orchestration.Run) ui.AimRunPanelData {
 	stepRows := make([]ui.AimRunStepRow, len(run.Steps))
+	llmMode := false
 	for i, sl := range run.Steps {
+		llmUsed, _ := sl.Meta["llm_used"].(bool)
+		if llmUsed {
+			llmMode = true
+		}
 		stepRows[i] = ui.AimRunStepRow{
 			Name:    sl.Name,
 			Status:  sl.Status,
 			BatchID: sl.BatchID,
 			Error:   sl.Error,
+			LLMUsed: llmUsed,
 		}
 	}
 	return ui.AimRunPanelData{
-		InstanceID:  instanceID,
-		RunID:       run.ID.String(),
+		InstanceID:   instanceID,
+		RunID:        run.ID.String(),
 		WorkflowName: run.WorkflowName,
-		Status:      string(run.Status),
-		CurrentStep: run.CurrentStep,
-		Steps:       stepRows,
-		CreatedAt:   run.CreatedAt.Format(time.RFC3339),
-		StreamURL:   fmt.Sprintf("/strategies/%s/aim/runs/%s/stream", instanceID, run.ID),
+		Status:       string(run.Status),
+		CurrentStep:  run.CurrentStep,
+		Steps:        stepRows,
+		CreatedAt:    run.CreatedAt.Format(time.RFC3339),
+		StreamURL:    fmt.Sprintf("/strategies/%s/aim/runs/%s/stream", instanceID, run.ID),
+		LLMMode:      llmMode,
 	}
 }
