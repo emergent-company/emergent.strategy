@@ -243,6 +243,36 @@ func (s *Service) Publish(ctx context.Context, instanceID uuid.UUID, label, desc
 	return &ver, nil
 }
 
+// PublishAIMCycle is like Publish but stamps source='aim_cycle' on the version.
+// It is called by the orchestration snapshot step after a completed AIM cycle.
+func (s *Service) PublishAIMCycle(ctx context.Context, instanceID uuid.UUID, label, description string) error {
+	ver, err := s.Publish(ctx, instanceID, label, description)
+	if err != nil {
+		return err
+	}
+	// Stamp source = 'aim_cycle' — Publish always writes 'manual' (the DB default).
+	if _, err := s.db.NewUpdate().
+		Model((*domain.StrategyVersion)(nil)).
+		Set("source = ?", "aim_cycle").
+		Where("id = ?", ver.ID).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("stamp aim_cycle source: %w", err)
+	}
+	return nil
+}
+
+// CountAIMCycles returns the number of published aim_cycle versions for an instance.
+func (s *Service) CountAIMCycles(ctx context.Context, instanceID uuid.UUID) (int, error) {
+	var count int
+	err := s.db.NewSelect().
+		TableExpr("strategy_versions").
+		ColumnExpr("COUNT(*)").
+		Where("instance_id = ?", instanceID).
+		Where("source = ?", "aim_cycle").
+		Scan(ctx, &count)
+	return count, err
+}
+
 // ---------------------------------------------------------------------------
 // List / Get
 // ---------------------------------------------------------------------------

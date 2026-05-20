@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/a-h/templ"
@@ -241,14 +240,6 @@ func (s *Server) handleDraftCommit(c echo.Context) error {
 		}
 	}
 
-	// Post-commit: trigger cycle snapshot if this was a calibration memo.
-	if primaryArtifactType == "calibration_memo" && s.aimSvc != nil && s.versionSvc != nil {
-		instID, err := uuid.Parse(instanceID)
-		if err == nil {
-			go s.snapshottedCalibrationCycle(instID)
-		}
-	}
-
 	// Look up any orchestration run waiting on this batch — if found, resume it
 	// and redirect back to the run panel so the user can watch the next step.
 	var orchestrationRunID string
@@ -269,75 +260,9 @@ func (s *Server) handleDraftCommit(c echo.Context) error {
 	return c.Redirect(http.StatusSeeOther, redirectAfterCommit(instanceID, primaryArtifactType))
 }
 
-// snapshottedCalibrationCycle publishes a named version after a calibration memo commit.
-// Runs in a background goroutine — uses context.Background() since the HTTP request
-// context will be cancelled before this work completes.
-func (s *Server) snapshottedCalibrationCycle(instID uuid.UUID) {
-	if s.versionSvc == nil || s.aimSvc == nil {
-		return
-	}
-	ctx := context.Background()
-
-	// Count existing aim_cycle versions for cycle number.
-	var cycleCount int
-	_ = s.db.NewSelect().
-		TableExpr("strategy_versions").
-		Where("instance_id = ?", instID).
-		Where("metadata->>'source' = ?", "aim_cycle").
-		ColumnExpr("COUNT(*)").
-		Scan(ctx, &cycleCount)
-	cycleNumber := cycleCount + 1
-
-	// Read the decision from the just-committed calibration memo.
-	var payloadStr string
-	_ = s.db.NewSelect().
-		TableExpr("strategy_artifacts").
-		ColumnExpr("payload").
-		Where("instance_id = ?", instID).
-		Where("artifact_type = ?", "calibration_memo").
-		OrderExpr("updated_at DESC").
-		Limit(1).
-		Scan(ctx, &payloadStr)
-
-	decision := "pending"
-	if payloadStr != "" {
-		var m map[string]any
-		if json.Unmarshal([]byte(payloadStr), &m) == nil {
-			if d, ok := m["decision"].(string); ok && d != "" {
-				decision = d
-			}
-		}
-	}
-
-	label := fmt.Sprintf("Cycle %d — %s", cycleNumber, calibrationLabelForSnapshot(decision))
-	desc := fmt.Sprintf("AIM cycle %d completed with decision: %s. Auto-snapshot created on calibration commit.", cycleNumber, decision)
-
-	_, err := s.versionSvc.Publish(ctx, instID, label, desc)
-	if err != nil {
-		s.log.Error("aim: failed to snapshot cycle", "instance_id", instID, "cycle", cycleNumber, "err", err)
-	}
-}
-
-func calibrationLabelForSnapshot(decision string) string {
-	switch decision {
-	case "persevere":
-		return "Persevere"
-	case "pivot":
-		return "Pivot"
-	case "pull_the_plug":
-		return "Pull the Plug"
-	default:
-		return decision
-	}
-}
-
-// deriveIndexForBatch runs the strategic index derivation for all committed mutations in a batch.
-// Best-effort — errors are logged but do not fail the request.
-func (s *Server) deriveIndexForBatch(ctx context.Context, batchID uuid.UUID) {
-	// Strategic index derivation requires the strategy service, which the handler
-	// does not hold. Log a note and let the next batch commit or ingest sweep pick it up.
-	_ = batchID
-}
+// deriveIndexForBatch is kept as a no-op stub so callers compile.
+// Index derivation now happens inside strategySvc.CommitBatch().
+func (s *Server) deriveIndexForBatch(_ context.Context, _ uuid.UUID) {}
 
 // resumeOrchestrationForBatch looks up any awaiting_human orchestration run
 // whose current step holds the given batchID and resumes it.

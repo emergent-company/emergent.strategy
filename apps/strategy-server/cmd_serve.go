@@ -153,7 +153,7 @@ func runServer(cfg *config.Config) error {
 	if llmClient != nil {
 		aimLLMClient = &llmAIMAdapter{client: llmClient}
 	}
-	aimSvc := aimdom.NewService(db, aimLLMClient)
+	aimSvc := aimdom.NewService(db, aimLLMClient).WithVersionPublisher(versionSvc)
 
 	// Orchestration engine — PostgreSQL-backed goroutine pool.
 	orchBackend := orchpg.NewBackend(db, orchpg.Config{Workers: 4})

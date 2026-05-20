@@ -79,14 +79,22 @@ func defaultTriggerConfig() TriggerConfig {
 
 // Service implements the AIM agent loop.
 type Service struct {
-	db     *bun.DB
-	llm    LLMClient // optional — nil = skeleton mode
+	db         *bun.DB
+	llm        LLMClient        // optional — nil = skeleton mode
+	versionPub VersionPublisher // optional — nil = snapshot is no-op
 }
 
 // NewService creates a new AIM service.
 // Pass nil for llm to operate in skeleton mode (structure without narrative).
 func NewService(db *bun.DB, llm LLMClient) *Service {
 	return &Service{db: db, llm: llm}
+}
+
+// WithVersionPublisher wires the version publisher so SnapshotCycle can publish
+// AIM cycle versions. Must be called after NewService if cycle snapshots are needed.
+func (s *Service) WithVersionPublisher(vp VersionPublisher) *Service {
+	s.versionPub = vp
+	return s
 }
 
 // ---------------------------------------------------------------------------
@@ -1069,39 +1077,42 @@ func (s *Service) flagStrategicBets(formulaPayload map[string]any, _ string) []s
 // SnapshotCycle
 // ---------------------------------------------------------------------------
 
-// VersionPublisher is the interface for publishing a strategy version.
-// This matches the signature of domain/version.Service.Publish to avoid a direct import cycle.
+// VersionPublisher is the interface for publishing an AIM cycle version snapshot.
+// Satisfied by *domain/version.Service.
 type VersionPublisher interface {
-	Publish(ctx context.Context, instanceID uuid.UUID, label, description string) (interface{}, error)
+	PublishAIMCycle(ctx context.Context, instanceID uuid.UUID, label, description string) error
+	CountAIMCycles(ctx context.Context, instanceID uuid.UUID) (int, error)
 }
 
 // SnapshotCycle publishes a named strategy version for a completed AIM cycle.
-// cycleLabel should be "Cycle N — Decision" format.
+// cycleNumber 0 means auto-number (count existing + 1).
 func (s *Service) SnapshotCycle(ctx context.Context, instanceID uuid.UUID, cycleNumber int, decision string) error {
+	if s.versionPub == nil {
+		slog.WarnContext(ctx, "aim: SnapshotCycle called but no VersionPublisher wired — skipping")
+		return nil
+	}
+
 	// Count existing aim_cycle versions for cycle numbering.
 	if cycleNumber == 0 {
 		cycleNumber = s.nextCycleNumber(ctx, instanceID)
 	}
 
 	label := fmt.Sprintf("Cycle %d — %s", cycleNumber, calibrationDecisionLabel(decision))
-	description := fmt.Sprintf("AIM cycle %d completed with decision: %s. Auto-snapshot created on calibration commit.", cycleNumber, decision)
+	description := fmt.Sprintf("AIM cycle %d completed with decision: %s. Auto-snapshot on cycle completion.", cycleNumber, decision)
 
-	// We store the snapshot request — the version service call is wired externally
-	// (see cmd_serve.go) to avoid an import cycle. This method stores cycle metadata
-	// so ListCycles can read it later.
-	slog.InfoContext(ctx, "aim: cycle snapshot requested", "instance_id", instanceID, "cycle", cycleNumber, "decision", decision, "label", label, "description", description)
+	if err := s.versionPub.PublishAIMCycle(ctx, instanceID, label, description); err != nil {
+		return fmt.Errorf("snapshot aim cycle: %w", err)
+	}
+	slog.InfoContext(ctx, "aim: cycle snapshot published", "instance_id", instanceID, "cycle", cycleNumber, "decision", decision)
 	return nil
 }
 
-// nextCycleNumber counts existing aim_cycle versions + 1.
+// nextCycleNumber counts existing aim_cycle versions (source column) + 1.
 func (s *Service) nextCycleNumber(ctx context.Context, instanceID uuid.UUID) int {
-	var count int
-	_ = s.db.NewSelect().
-		TableExpr("strategy_versions").
-		Where("instance_id = ?", instanceID).
-		Where("metadata->>'source' = ?", "aim_cycle").
-		ColumnExpr("COUNT(*)").
-		Scan(ctx, &count)
+	if s.versionPub == nil {
+		return 1
+	}
+	count, _ := s.versionPub.CountAIMCycles(ctx, instanceID)
 	return count + 1
 }
 
@@ -1126,17 +1137,18 @@ func calibrationDecisionLabel(decision string) string {
 // ListCycles returns all AIM cycle versions for the instance, newest first.
 func (s *Service) ListCycles(ctx context.Context, instanceID uuid.UUID) ([]CycleSummary, error) {
 	type versionRow struct {
-		ID          uuid.UUID       `bun:"id"`
-		Metadata    json.RawMessage `bun:"metadata"`
-		PublishedAt time.Time       `bun:"published_at"`
+		ID          uuid.UUID  `bun:"id"`
+		Version     int        `bun:"version"`
+		Label       *string    `bun:"label"`
+		PublishedAt time.Time  `bun:"published_at"`
 	}
 	var rows []versionRow
 
 	err := s.db.NewSelect().
 		TableExpr("strategy_versions").
-		ColumnExpr("id, metadata, published_at").
+		ColumnExpr("id, version, label, published_at").
 		Where("instance_id = ?", instanceID).
-		Where("metadata->>'source' = ?", "aim_cycle").
+		Where("source = ?", "aim_cycle").
 		OrderExpr("published_at DESC").
 		Scan(ctx, &rows)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -1144,19 +1156,36 @@ func (s *Service) ListCycles(ctx context.Context, instanceID uuid.UUID) ([]Cycle
 	}
 
 	var cycles []CycleSummary
-	for _, r := range rows {
-		var meta map[string]any
-		_ = json.Unmarshal(r.Metadata, &meta)
-		cycleNum, _ := meta["cycle_number"].(float64)
-		dec, _ := meta["calibration_decision"].(string)
+	for i, r := range rows {
+		// Cycle number: newest-first list means cycle N = len-i.
+		cycleNum := len(rows) - i
+		decision := ""
+		if r.Label != nil {
+			decision = aimCycleDecisionFromLabel(*r.Label)
+		}
 		cycles = append(cycles, CycleSummary{
-			CycleNumber: int(cycleNum),
-			Decision:    dec,
+			CycleNumber: cycleNum,
+			Decision:    decision,
 			VersionID:   r.ID.String(),
 			PublishedAt: r.PublishedAt.Format(time.RFC3339),
 		})
 	}
 	return cycles, nil
+}
+
+// aimCycleDecisionFromLabel extracts the decision token from a label like "Cycle N — Pivot".
+func aimCycleDecisionFromLabel(label string) string {
+	suffixes := map[string]string{
+		"Persevere":    "persevere",
+		"Pivot":        "pivot",
+		"Pull the Plug": "pull_the_plug",
+	}
+	for suffix, token := range suffixes {
+		if strings.HasSuffix(label, suffix) {
+			return token
+		}
+	}
+	return ""
 }
 
 // ---------------------------------------------------------------------------
