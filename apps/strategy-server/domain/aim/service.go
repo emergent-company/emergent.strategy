@@ -341,8 +341,15 @@ func deriveOKRStatus(_ context.Context, _ *bun.DB, _ uuid.UUID, _ string) string
 	return "pending"
 }
 
-// extractAssumptionValidations reads assumption IDs from the strategic relationship index.
+// extractAssumptionValidations reads assumption IDs from the strategic relationship
+// index and cross-references with the roadmap to ensure only assumptions that have
+// a known description are included. Orphaned IDs (referenced in feature relationships
+// but with no description in the roadmap) are excluded — they add no value to the
+// assessment and cannot be assessed meaningfully.
 func (s *Service) extractAssumptionValidations(ctx context.Context, instanceID uuid.UUID) []map[string]any {
+	// Load the set of assumption IDs that have descriptions in the roadmap.
+	knownAssumptions := s.loadRoadmapAssumptions(ctx, instanceID)
+
 	type relRow struct {
 		TargetKey string `bun:"target_key"`
 	}
@@ -352,10 +359,20 @@ func (s *Service) extractAssumptionValidations(ctx context.Context, instanceID u
 		ColumnExpr("DISTINCT target_key").
 		Where("instance_id = ?", instanceID).
 		Where("relationship IN (?, ?)", "tests_assumption", "validates_assumption").
+		OrderExpr("target_key").
 		Scan(ctx, &rows)
 
+	seen := make(map[string]bool)
 	var validations []map[string]any
 	for _, r := range rows {
+		if seen[r.TargetKey] {
+			continue
+		}
+		seen[r.TargetKey] = true
+		// Only include assumptions we have a description for.
+		if _, known := knownAssumptions[r.TargetKey]; !known {
+			continue
+		}
 		validations = append(validations, map[string]any{
 			"assumption_id": r.TargetKey,
 			"status":        "pending",
@@ -363,6 +380,54 @@ func (s *Service) extractAssumptionValidations(ctx context.Context, instanceID u
 		})
 	}
 	return validations
+}
+
+// loadRoadmapAssumptions returns a map of assumption ID → description for all
+// assumptions defined under any "assumption"-keyed list in the roadmap tracks.
+func (s *Service) loadRoadmapAssumptions(ctx context.Context, instanceID uuid.UUID) map[string]string {
+	payload, err := s.loadArtifactPayload(ctx, instanceID, domain.ArtifactTypeRoadmap)
+	if err != nil {
+		return nil
+	}
+	roadmap, _ := payload["roadmap"].(map[string]any)
+	if roadmap == nil {
+		roadmap = payload
+	}
+
+	result := make(map[string]string)
+	collect := func(list []any) {
+		for _, item := range list {
+			m, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			id, _ := m["id"].(string)
+			desc, _ := m["description"].(string)
+			if id != "" && desc != "" {
+				result[id] = desc
+			}
+		}
+	}
+
+	tracks, _ := roadmap["tracks"].(map[string]any)
+	for _, tv := range tracks {
+		tm, ok := tv.(map[string]any)
+		if !ok {
+			continue
+		}
+		for key, val := range tm {
+			if !strings.Contains(strings.ToLower(key), "assumption") {
+				continue
+			}
+			if list, ok := val.([]any); ok {
+				collect(list)
+			}
+		}
+	}
+	if list, ok := roadmap["assumptions"].([]any); ok {
+		collect(list)
+	}
+	return result
 }
 
 // extractStrategicInsights reads active critical ripple signals for strategic insights.
