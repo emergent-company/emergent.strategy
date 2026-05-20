@@ -54,7 +54,7 @@ templ AimRunPanelContent(data AimRunPanelData) {
 				<div class="flex items-center gap-3">
 					if data.LLMMode {
 						<span class="badge badge-outline gap-1 text-xs border-secondary/40 text-secondary">
-							<span class="iconify lucide--sparkles size-3"></span>
+							<span class="iconify lucide--sparkles size-3 animate-pulse"></span>
 							AI-assisted
 						</span>
 					} else {
@@ -131,7 +131,7 @@ templ aimRunStepRow(num int, step AimRunStepRow, instanceID string) {
 				<p class={ "text-sm font-semibold", runStepLabelClass(step.Status) }>{ runStepLabel(step.Name) }</p>
 				if step.LLMUsed {
 					<span class="badge badge-outline badge-xs gap-1 border-secondary/40 text-secondary">
-						<span class="iconify lucide--sparkles size-2.5"></span>
+						<span class="iconify lucide--sparkles size-2.5 animate-pulse"></span>
 						AI
 					</span>
 				}

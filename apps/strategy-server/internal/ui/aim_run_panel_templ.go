@@ -126,7 +126,7 @@ func AimRunPanelContent(data AimRunPanelData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.LLMMode {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<span class=\"badge badge-outline gap-1 text-xs border-secondary/40 text-secondary\"><span class=\"iconify lucide--sparkles size-3\"></span> AI-assisted</span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<span class=\"badge badge-outline gap-1 text-xs border-secondary/40 text-secondary\"><span class=\"iconify lucide--sparkles size-3 animate-pulse\"></span> AI-assisted</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -401,7 +401,7 @@ func aimRunStepRow(num int, step AimRunStepRow, instanceID string) templ.Compone
 			return templ_7745c5c3_Err
 		}
 		if step.LLMUsed {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<span class=\"badge badge-outline badge-xs gap-1 border-secondary/40 text-secondary\"><span class=\"iconify lucide--sparkles size-2.5\"></span> AI</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<span class=\"badge badge-outline badge-xs gap-1 border-secondary/40 text-secondary\"><span class=\"iconify lucide--sparkles size-2.5 animate-pulse\"></span> AI</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

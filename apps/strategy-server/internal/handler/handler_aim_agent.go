@@ -217,10 +217,23 @@ func (s *Server) handleDraftCommit(c echo.Context) error {
 	// Derive the strategic index for committed mutations (best-effort).
 	s.deriveIndexForBatch(ctx, batchID)
 
-	// Resume any orchestration run waiting on this batch.
+	// Look up any orchestration run waiting on this batch — if found, resume it
+	// and redirect back to the run panel so the user can watch the next step.
+	var orchestrationRunID string
+	if s.orchestrationEngine != nil {
+		run, err := s.orchestrationEngine.FindRunByBatch(ctx, batchIDStr)
+		if err == nil && run != nil {
+			orchestrationRunID = run.ID.String()
+		}
+	}
 	s.resumeOrchestrationForBatch(ctx, batchIDStr, true)
 
-	// Redirect to the relevant AIM sub-page based on artifact type.
+	// If this commit was part of an orchestration run, return to the run panel.
+	if orchestrationRunID != "" {
+		return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim/runs/"+orchestrationRunID)
+	}
+
+	// Otherwise redirect to the relevant AIM sub-page based on artifact type.
 	return c.Redirect(http.StatusSeeOther, redirectAfterCommit(instanceID, primaryArtifactType))
 }
 
@@ -355,9 +368,21 @@ func (s *Server) handleDraftDiscard(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "discard failed")
 	}
 
+	// Look up the run before resuming so we can redirect to it after abort.
+	var orchestrationRunID string
+	if s.orchestrationEngine != nil {
+		run, err := s.orchestrationEngine.FindRunByBatch(ctx, batchIDStr)
+		if err == nil && run != nil {
+			orchestrationRunID = run.ID.String()
+		}
+	}
+
 	// Resume any orchestration run waiting on this batch (committed=false → abort).
 	s.resumeOrchestrationForBatch(ctx, batchIDStr, false)
 
+	if orchestrationRunID != "" {
+		return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim/runs/"+orchestrationRunID)
+	}
 	return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim")
 }
 
