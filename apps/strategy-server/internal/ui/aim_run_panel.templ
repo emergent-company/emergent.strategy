@@ -70,13 +70,14 @@ templ AimRunPanelContent(data AimRunPanelData) {
 
 		// ── Step timeline (live-updated via SSE) ──
 		<div id="aim-run-timeline">
-			@aimRunTimeline(data)
+			@AimRunTimeline(data)
 		</div>
 	</div>
 }
 
-// aimRunTimeline renders the step-by-step timeline — the target for SSE updates.
-templ aimRunTimeline(data AimRunPanelData) {
+// AimRunTimeline renders the step-by-step timeline — the target for SSE updates.
+// Exported so the SSE handler can render it server-side for live HTML push.
+templ AimRunTimeline(data AimRunPanelData) {
 	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
 		<div class="card-body p-5">
 			<div class="flex items-center justify-between mb-4">

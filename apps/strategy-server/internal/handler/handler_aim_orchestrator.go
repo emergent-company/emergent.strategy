@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"encoding/json"
+	"bytes"
 	"errors"
 	"fmt"
 	"net/http"
@@ -98,10 +98,6 @@ func (s *Server) handleAIMRunStream(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid run ID")
 	}
 
-	// Subscribe to events.
-	ch := s.orchestrationEngine.Subscribe(runID)
-	defer s.orchestrationEngine.Unsubscribe(runID, ch)
-
 	// Set SSE headers.
 	w := c.Response().Writer
 	w.Header().Set("Content-Type", "text/event-stream")
@@ -117,36 +113,43 @@ func (s *Server) handleAIMRunStream(c echo.Context) error {
 		}
 	}
 
-	// Send a ping immediately to establish the connection.
-	_, _ = fmt.Fprintf(w, ": ping\n\n")
-	flush()
+	// renderTimeline fetches the latest run state and renders the timeline HTML fragment.
+	// HTMX SSE extension swaps the returned HTML directly into #aim-run-timeline.
+	instanceID := c.Param("id")
+	renderTimeline := func() (string, orchestration.RunStatus) {
+		run, err := s.orchestrationEngine.GetRun(ctx, runID)
+		if err != nil {
+			return "", ""
+		}
+		data := buildRunPanelData(instanceID, run)
+		var buf bytes.Buffer
+		_ = ui.AimRunTimeline(data).Render(ctx, &buf)
+		return buf.String(), run.Status
+	}
 
-	heartbeat := time.NewTicker(15 * time.Second)
-	defer heartbeat.Stop()
+	// Poll the run state every 2 seconds and push HTML to the browser.
+	// This is simpler and more reliable than relying on fanout event delivery,
+	// which has a race between the worker goroutine and the SSE subscriber registration.
+	// Only send when the state actually changes to avoid redundant swaps.
+	var lastHTML string
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
 
 	for {
 		select {
-		case ev, ok := <-ch:
-			if !ok {
+		case <-ticker.C:
+			html, status := renderTimeline()
+			if html != "" && html != lastHTML {
+				_, _ = fmt.Fprintf(w, "data: %s\n\n", html)
+				flush()
+				lastHTML = html
+			}
+			// Stop polling once the run reaches a terminal state.
+			if status == orchestration.StatusCompleted ||
+				status == orchestration.StatusAborted ||
+				status == orchestration.StatusFailed {
 				return nil
 			}
-			raw, err := json.Marshal(ev)
-			if err != nil {
-				continue
-			}
-			_, _ = fmt.Fprintf(w, "data: %s\n\n", raw)
-			flush()
-
-			// Close the stream when the run reaches a terminal state.
-			if ev.Status == orchestration.StatusCompleted ||
-				ev.Status == orchestration.StatusAborted ||
-				ev.Status == orchestration.StatusFailed {
-				return nil
-			}
-
-		case <-heartbeat.C:
-			_, _ = fmt.Fprintf(w, ": heartbeat\n\n")
-			flush()
 
 		case <-ctx.Done():
 			return nil
