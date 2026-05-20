@@ -23,17 +23,13 @@ type AimRunStepRow struct {
 }
 
 // AimRunPanelContent renders the orchestrated AIM cycle run panel.
-// It connects to the SSE stream to receive live updates.
+// It connects to the SSE stream to receive live updates via plain EventSource.
 templ AimRunPanelContent(data AimRunPanelData) {
 	@TabRelatedPages("aim", data.InstanceID, "/strategies/"+data.InstanceID+"/aim")
 	<div
 		id="aim-run-panel"
 		class="space-y-6"
-		hx-ext="sse"
-		sse-connect={ data.StreamURL }
-		sse-swap="message"
-		hx-target="#aim-run-timeline"
-		hx-swap="innerHTML"
+		data-stream-url={ data.StreamURL }
 	>
 		// ── Run header ──
 		<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm px-6 py-5">
@@ -73,6 +69,30 @@ templ AimRunPanelContent(data AimRunPanelData) {
 			@AimRunTimeline(data)
 		</div>
 	</div>
+	// ── SSE wiring via plain EventSource (no HTMX SSE extension needed) ──
+	@aimRunSSEScript()
+}
+
+// aimRunSSEScript injects the EventSource listener that pushes server-rendered
+// HTML into #aim-run-timeline whenever the run state changes.
+templ aimRunSSEScript() {
+	<script>
+		(function() {
+			var panel = document.getElementById('aim-run-panel');
+			if (!panel) return;
+			var url = panel.getAttribute('data-stream-url');
+			if (!url) return;
+			var es = new EventSource(url);
+			es.onmessage = function(e) {
+				var target = document.getElementById('aim-run-timeline');
+				if (target && e.data) {
+					target.innerHTML = e.data;
+					if (window.htmx) htmx.process(target);
+				}
+			};
+			es.onerror = function() { es.close(); };
+		})();
+	</script>
 }
 
 // AimRunTimeline renders the step-by-step timeline — the target for SSE updates.
