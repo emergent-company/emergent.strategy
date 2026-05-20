@@ -4,11 +4,12 @@ package ui
 type AimDraftReviewData struct {
 	NavContext
 
-	InstanceID   string
-	BatchID      string
-	Description  string // batch description
-	ArtifactType string // predominant artifact type in the batch
-	Items        []AimDraftReviewItem
+	InstanceID     string
+	BatchID        string
+	Description    string // batch description
+	ArtifactType   string // predominant artifact type in the batch
+	Items          []AimDraftReviewItem
+	PreviewContent templ.Component // optional: rendered preview of the draft artifact
 }
 
 // AimDraftReviewItem is a single staged mutation shown in the review screen.
@@ -59,6 +60,18 @@ templ AimDraftReviewContent(data AimDraftReviewData) {
 				}
 			</div>
 		</div>
+
+		// Rich preview of the draft artifact (when available)
+		if data.PreviewContent != nil {
+			<div class="rounded-xl border border-base-content/10 bg-base-100 overflow-hidden">
+				<div class="px-6 py-3 border-b border-base-content/10 bg-base-200/50">
+					<p class="text-xs font-semibold uppercase tracking-widest text-base-content/50">Draft Preview</p>
+				</div>
+				<div class="p-4">
+					@data.PreviewContent
+				</div>
+			</div>
+		}
 
 		// Commit / Discard actions
 		<div class="flex items-center justify-between gap-4 rounded-xl border border-base-content/10 bg-base-100 px-6 py-4">

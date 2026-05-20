@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/a-h/templ"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 
@@ -110,17 +111,18 @@ func (s *Server) handleDraftReview(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid batch ID")
 	}
 
-	// Load all staged mutations for this batch.
+	// Load all staged mutations for this batch (including payload for preview).
 	type mutRow struct {
-		ArtifactType     string  `bun:"artifact_type"`
-		ArtifactKey      string  `bun:"artifact_key"`
-		Action           string  `bun:"action"`
-		BatchDescription *string `bun:"batch_description"`
+		ArtifactType     string          `bun:"artifact_type"`
+		ArtifactKey      string          `bun:"artifact_key"`
+		Action           string          `bun:"action"`
+		BatchDescription *string         `bun:"batch_description"`
+		Payload          json.RawMessage `bun:"payload"`
 	}
 	var rows []mutRow
 	err = s.db.NewSelect().
 		TableExpr("strategy_mutations").
-		ColumnExpr("artifact_type, artifact_key, action, batch_description").
+		ColumnExpr("artifact_type, artifact_key, action, batch_description, payload").
 		Where("batch_id = ?", batchID).
 		Where("status = ?", domain.MutationStatusStaged).
 		OrderExpr("created_at ASC").
@@ -155,12 +157,33 @@ func (s *Server) handleDraftReview(c echo.Context) error {
 		TabGroup:    "aim",
 	}
 
+	// Build a rich preview component for artifact types that have bespoke renderers.
+	var previewContent templ.Component
+	for _, r := range rows {
+		if len(r.Payload) == 0 {
+			continue
+		}
+		var payload map[string]any
+		if err := json.Unmarshal(r.Payload, &payload); err != nil {
+			continue
+		}
+		previewNavCtx := ui.NavContext{
+			InstanceID:  instanceID,
+			CurrentPath: currentPath,
+			ScreenID:    "aim-draft-review",
+			TabGroup:    "aim",
+		}
+		previewContent = s.bespokeContent(ctx, instanceID, "", previewNavCtx, r.ArtifactType, r.ArtifactKey, r.ArtifactKey, "staged", payload)
+		break // render preview for the first previewable mutation
+	}
+
 	data := ui.AimDraftReviewData{
-		NavContext:   navCtx,
-		InstanceID:  instanceID,
-		BatchID:     batchIDStr,
-		Description: description,
-		Items:       items,
+		NavContext:     navCtx,
+		InstanceID:     instanceID,
+		BatchID:        batchIDStr,
+		Description:    description,
+		Items:          items,
+		PreviewContent: previewContent,
 	}
 
 	content := ui.AimDraftReviewContent(data)
