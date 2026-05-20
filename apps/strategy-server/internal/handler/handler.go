@@ -74,6 +74,9 @@ func (s *Server) buildHandlerRegistry() map[navigation.ScreenID]handlerEntry {
 		navigation.AimOverview:      {GET: s.handleAimOverview},
 		navigation.LRA:              {GET: s.handleArtifactViewByType("living_reality_assessment")},
 		navigation.AssessmentReport: {GET: s.handleArtifactViewByType("assessment_report")},
+		navigation.Calibration:      {GET: s.handleCalibration},
+		navigation.Assumptions:      {GET: s.handleAssumptions},
+		navigation.Coherence:        {GET: s.handleCoherence},
 	}
 }
 

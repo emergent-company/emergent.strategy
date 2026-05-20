@@ -15,9 +15,15 @@ type ReadyPhaseData struct {
 	NorthStarPurpose string // purpose.statement — the one-liner "why we exist"
 
 	// Insight Analyses
-	InsightExists    bool
-	InsightTitle     string
+	InsightExists     bool
+	InsightTitle      string
 	InsightFirstTrend string // first technology trend title for scanning
+	// At-a-glance counts for the card chip strip
+	InsightTrendCount      int // total trends across all categories
+	InsightPersonaCount    int
+	InsightCompetitorCount int
+	InsightKeyInsightCount int
+	InsightWhiteSpaceCount int
 
 	// Insight Opportunity
 	OpportunityExists    bool
@@ -104,19 +110,7 @@ templ ReadyPhaseContent(data ReadyPhaseData) {
 		<!-- Row 2: Discovery cluster — Insight Analyses + Insight Opportunity -->
 		<div class="grid grid-cols-[1fr_auto_1fr] gap-0 items-stretch">
 			<!-- Insight Analyses -->
-			@readyMapCard(readyMapCardProps{
-				Title:      "Insight Analyses",
-				Subtitle:   "Trends · Market · SWOT · User Problems",
-				Icon:       "lucide--search",
-				Href:       "/strategies/" + data.InstanceID + "/ready/insights",
-				Exists:     data.InsightExists,
-				Tier:       2,
-				TierLabel:  "Each cycle",
-				TierColor:  "bg-secondary/10 border-secondary/20",
-				BadgeColor: "bg-secondary/20 text-secondary",
-				Line1:      data.InsightFirstTrend,
-				Line2:      data.InsightTitle,
-			})
+			@readyInsightCard(data)
 			<!-- Mid connector: → with label "informs" -->
 			<div class="flex flex-col items-center justify-center px-3 min-w-[80px]">
 				<span class="text-xs text-base-content/50 mb-1 whitespace-nowrap">informs</span>
@@ -254,6 +248,82 @@ templ readyMapCard(p readyMapCardProps) {
 			}
 		</div>
 	</a>
+}
+
+// readyInsightCard renders the Insight Analyses card with a count chip strip.
+templ readyInsightCard(data ReadyPhaseData) {
+	<a
+		href={ templ.URL("/strategies/" + data.InstanceID + "/ready/insights") }
+		hx-get={ "/strategies/" + data.InstanceID + "/ready/insights" }
+		hx-target="#tab-content"
+		hx-swap="innerHTML"
+		hx-push-url="true"
+		class="card border shadow-sm hover:shadow-md hover:scale-[1.01] transition-all duration-150 cursor-pointer h-full bg-secondary/10 border-secondary/20"
+	>
+		<div class="card-body p-4 gap-3">
+			<!-- Header -->
+			<div class="flex items-center gap-2.5">
+				<div class={ "rounded-lg p-2 shrink-0", templ.KV("bg-success/10", data.InsightExists), templ.KV("bg-base-content/5", !data.InsightExists) }>
+					<span class={ "iconify lucide--search size-4", templ.KV("text-success", data.InsightExists), templ.KV("text-base-content/40", !data.InsightExists) }></span>
+				</div>
+				<div class="min-w-0 flex-1">
+					<div class="flex items-center gap-2 flex-wrap">
+						<h3 class="text-sm font-semibold text-base-content leading-tight">Insight Analyses</h3>
+						<span class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-sans font-medium bg-secondary/20 text-secondary">
+							<span class="iconify lucide--refresh-cw size-3 opacity-70"></span>
+							Each cycle
+						</span>
+					</div>
+					<p class="text-xs text-base-content/50 mt-0.5">Trends · Market · SWOT · User Problems</p>
+				</div>
+				if data.InsightExists {
+					<span class="iconify lucide--check-circle-2 size-4 text-success shrink-0"></span>
+				} else {
+					<span class="iconify lucide--circle-dashed size-4 text-base-content/30 shrink-0"></span>
+				}
+			</div>
+			<!-- Content -->
+			if data.InsightExists {
+				<div class="border-t border-base-content/10 pt-2.5 space-y-2">
+					if data.InsightFirstTrend != "" {
+						<p class="text-xs font-medium text-base-content/90 leading-snug line-clamp-2">{ data.InsightFirstTrend }</p>
+					}
+					<!-- Count chip strip -->
+					if data.InsightTrendCount > 0 || data.InsightCompetitorCount > 0 || data.InsightKeyInsightCount > 0 || data.InsightPersonaCount > 0 {
+						<div class="flex flex-wrap gap-1.5 pt-0.5">
+							if data.InsightTrendCount > 0 {
+								@insightChip(strconv.Itoa(data.InsightTrendCount), "trends", "lucide--trending-up")
+							}
+							if data.InsightCompetitorCount > 0 {
+								@insightChip(strconv.Itoa(data.InsightCompetitorCount), "competitors", "lucide--swords")
+							}
+							if data.InsightPersonaCount > 0 {
+								@insightChip(strconv.Itoa(data.InsightPersonaCount), "personas", "lucide--users")
+							}
+							if data.InsightKeyInsightCount > 0 {
+								@insightChip(strconv.Itoa(data.InsightKeyInsightCount), "insights", "lucide--lightbulb")
+							}
+							if data.InsightWhiteSpaceCount > 0 {
+								@insightChip(strconv.Itoa(data.InsightWhiteSpaceCount), "gaps", "lucide--scan")
+							}
+						</div>
+					}
+				</div>
+			} else {
+				<div class="border-t border-base-content/10 pt-2.5">
+					<p class="text-xs text-base-content/35 italic">Not yet authored</p>
+				</div>
+			}
+		</div>
+	</a>
+}
+
+templ insightChip(count, label, icon string) {
+	<span class="inline-flex items-center gap-1 rounded-md bg-base-100 border border-base-content/10 px-2 py-0.5 text-xs text-base-content/60">
+		<span class={ "iconify size-3 opacity-60", icon }></span>
+		<span class="font-semibold text-base-content/80">{ count }</span>
+		{ label }
+	</span>
 }
 
 // readyMapNorthStar renders the North Star as the full-width top node.

@@ -1,0 +1,212 @@
+package ui
+
+import "strconv"
+
+// AssumptionsViewData holds data for the assumptions screen.
+type AssumptionsViewData struct {
+	NavContext
+	InstanceID  string
+	Assumptions []AssumptionRow
+}
+
+// AssumptionRow is a single assumption with its test coverage.
+type AssumptionRow struct {
+	Key          string // e.g. asm-001
+	TestedBy     []string // feature keys that test this assumption
+	RiskLevel    string // untested | partially_tested | well_tested
+	// Validation outcome from assessment reports (if any)
+	ValidationStatus string // validated | invalidated | inconclusive | pending | ""
+	Evidence         string
+}
+
+// AssumptionsContent renders the assumptions testing coverage screen.
+templ AssumptionsContent(data AssumptionsViewData) {
+	@TabBackLink(data.TabGroup, data.InstanceID, data.CurrentPath)
+	<div class="space-y-6">
+		// ── Header ──
+		<div class="flex items-center justify-between">
+			<div>
+				<h2 class="text-xl font-bold text-base-content">Assumption Testing Coverage</h2>
+				<p class="text-sm text-base-content/60 mt-0.5">
+					Which strategic bets are being tested, and what has the real world told us?
+				</p>
+			</div>
+			<div class="flex items-center gap-3">
+				@assumptionRiskLegend()
+			</div>
+		</div>
+
+		// ── Summary bar ──
+		@assumptionsSummaryBar(data.Assumptions)
+
+		// ── Assumption list ──
+		if len(data.Assumptions) == 0 {
+			<div class="text-center py-16">
+				<span class="iconify lucide--flask-conical size-12 text-base-content/20 mx-auto block mb-4"></span>
+				<p class="text-base font-medium text-base-content/60">No assumptions found</p>
+				<p class="text-sm text-base-content/40 mt-1">Add assumptions to your roadmap and link features to them via tests_assumption relationships</p>
+			</div>
+		} else {
+			<div class="space-y-2">
+				for _, a := range data.Assumptions {
+					@assumptionCard(a, data.InstanceID)
+				}
+			</div>
+		}
+	</div>
+}
+
+templ assumptionsSummaryBar(assumptions []AssumptionRow) {
+	<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+		<div class="rounded-xl bg-base-100 border border-base-content/10 px-4 py-3 text-center shadow-sm">
+			<p class="text-2xl font-bold text-base-content">{ strconv.Itoa(len(assumptions)) }</p>
+			<p class="text-xs text-base-content/60 mt-0.5">Total</p>
+		</div>
+		<div class="rounded-xl bg-success/5 border border-success/15 px-4 py-3 text-center shadow-sm">
+			<p class="text-2xl font-bold text-success">{ strconv.Itoa(countByRisk(assumptions, "well_tested")) }</p>
+			<p class="text-xs text-base-content/60 mt-0.5">Well tested</p>
+		</div>
+		<div class="rounded-xl bg-warning/5 border border-warning/15 px-4 py-3 text-center shadow-sm">
+			<p class="text-2xl font-bold text-warning">{ strconv.Itoa(countByRisk(assumptions, "partially_tested")) }</p>
+			<p class="text-xs text-base-content/60 mt-0.5">Partially tested</p>
+		</div>
+		<div class="rounded-xl bg-error/5 border border-error/15 px-4 py-3 text-center shadow-sm">
+			<p class="text-2xl font-bold text-error">{ strconv.Itoa(countByRisk(assumptions, "untested")) }</p>
+			<p class="text-xs text-base-content/60 mt-0.5">Untested</p>
+		</div>
+	</div>
+}
+
+templ assumptionCard(a AssumptionRow, instanceID string) {
+	<div class={ "rounded-xl border bg-base-100 shadow-sm px-5 py-4", assumptionCardBorder(a.RiskLevel) }>
+		<div class="flex items-start gap-4">
+			// Risk indicator
+			<div class={ "mt-0.5 size-2.5 rounded-full shrink-0", assumptionRiskDot(a.RiskLevel) }></div>
+
+			<div class="grow min-w-0 space-y-3">
+				// Key + risk badge + validation status
+				<div class="flex items-center gap-2 flex-wrap">
+					<span class="text-sm font-mono font-semibold text-base-content">{ a.Key }</span>
+					<span class={ "badge badge-xs", assumptionRiskBadge(a.RiskLevel) }>{ assumptionRiskLabel(a.RiskLevel) }</span>
+					if a.ValidationStatus != "" {
+						<span class={ "badge badge-xs", assumptionStatusBadge(a.ValidationStatus) }>{ a.ValidationStatus }</span>
+					}
+				</div>
+
+				// Features testing this assumption
+				if len(a.TestedBy) > 0 {
+					<div>
+						<p class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-1.5">Tested by</p>
+						<div class="flex flex-wrap gap-1.5">
+							for _, featureKey := range a.TestedBy {
+								<a
+									href={ templ.URL("/strategies/" + instanceID + "/fire/feature/" + featureKey) }
+									hx-get={ "/strategies/" + instanceID + "/fire/feature/" + featureKey }
+									hx-target="#tab-content"
+									hx-swap="innerHTML"
+									hx-push-url="true"
+									class="badge badge-sm badge-outline badge-primary hover:badge-primary hover:text-primary-content transition-colors"
+								>
+									{ featureKey }
+								</a>
+							}
+						</div>
+					</div>
+				} else {
+					<p class="text-xs text-base-content/40 italic">No features testing this assumption yet</p>
+				}
+
+				// Evidence from assessment reports
+				if a.Evidence != "" {
+					<div class="rounded-lg bg-base-200/50 px-3 py-2">
+						<p class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-1">Evidence</p>
+						<p class="text-xs text-base-content/70 leading-relaxed">{ a.Evidence }</p>
+					</div>
+				}
+			</div>
+		</div>
+	</div>
+}
+
+templ assumptionRiskLegend() {
+	<div class="hidden sm:flex items-center gap-4 text-xs text-base-content/60">
+		<div class="flex items-center gap-1.5">
+			<span class="size-2 rounded-full bg-success inline-block"></span>
+			Well tested
+		</div>
+		<div class="flex items-center gap-1.5">
+			<span class="size-2 rounded-full bg-warning inline-block"></span>
+			Partial
+		</div>
+		<div class="flex items-center gap-1.5">
+			<span class="size-2 rounded-full bg-error inline-block"></span>
+			Untested
+		</div>
+	</div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Helpers
+// ──────────────────────────────────────────────────────────────────────
+
+func assumptionCardBorder(risk string) string {
+	switch risk {
+	case "well_tested":
+		return "border-success/20"
+	case "partially_tested":
+		return "border-warning/20"
+	case "untested":
+		return "border-error/20"
+	default:
+		return "border-base-content/10"
+	}
+}
+
+func assumptionRiskDot(risk string) string {
+	switch risk {
+	case "well_tested":
+		return "bg-success"
+	case "partially_tested":
+		return "bg-warning"
+	case "untested":
+		return "bg-error"
+	default:
+		return "bg-base-content/30"
+	}
+}
+
+func assumptionRiskBadge(risk string) string {
+	switch risk {
+	case "well_tested":
+		return "badge-success"
+	case "partially_tested":
+		return "badge-warning"
+	case "untested":
+		return "badge-error"
+	default:
+		return "badge-ghost"
+	}
+}
+
+func assumptionRiskLabel(risk string) string {
+	switch risk {
+	case "well_tested":
+		return "well tested"
+	case "partially_tested":
+		return "partial"
+	case "untested":
+		return "untested"
+	default:
+		return risk
+	}
+}
+
+func countByRisk(assumptions []AssumptionRow, risk string) int {
+	n := 0
+	for _, a := range assumptions {
+		if a.RiskLevel == risk {
+			n++
+		}
+	}
+	return n
+}

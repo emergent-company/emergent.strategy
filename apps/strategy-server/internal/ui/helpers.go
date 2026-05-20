@@ -180,6 +180,104 @@ func cycleLabel(cycle string) string {
 	return " — " + cycle
 }
 
+// calibrationDecisionLabel returns a human-readable label for a calibration decision.
+func calibrationDecisionLabel(decision string) string {
+	switch decision {
+	case "persevere":
+		return "Persevere — stay the course"
+	case "pivot":
+		return "Pivot — change direction"
+	case "pull_the_plug":
+		return "Pull the plug — stop"
+	case "pending_assessment":
+		return "Pending assessment"
+	default:
+		return decision
+	}
+}
+
+// calibrationDecisionBannerClass returns the banner container classes for a calibration decision.
+func calibrationDecisionBannerClass(decision string) string {
+	switch decision {
+	case "persevere":
+		return "bg-success/5 border-success/20 text-success-content"
+	case "pivot":
+		return "bg-warning/5 border-warning/20 text-warning-content"
+	case "pull_the_plug":
+		return "bg-error/5 border-error/20 text-error-content"
+	default:
+		return "bg-base-200 border-base-content/10 text-base-content"
+	}
+}
+
+// calibrationDecisionIcon returns the icon for a calibration decision.
+func calibrationDecisionIcon(decision string) string {
+	switch decision {
+	case "persevere":
+		return "lucide--trending-up"
+	case "pivot":
+		return "lucide--rotate-ccw"
+	case "pull_the_plug":
+		return "lucide--x-circle"
+	default:
+		return "lucide--help-circle"
+	}
+}
+
+// signalRowClass returns the card classes for a signal row based on severity.
+func signalRowClass(severity string) string {
+	switch severity {
+	case "critical":
+		return "bg-error/5 border-error/20"
+	case "warning":
+		return "bg-warning/5 border-warning/15"
+	default:
+		return "bg-base-200/40 border-base-content/5"
+	}
+}
+
+// signalSeverityIcon returns the icon name for a signal severity.
+func signalSeverityIcon(severity string) string {
+	switch severity {
+	case "critical":
+		return "lucide--alert-circle"
+	case "warning":
+		return "lucide--alert-triangle"
+	default:
+		return "lucide--info"
+	}
+}
+
+// signalSeverityColor returns the text color class for a signal severity.
+func signalSeverityColor(severity string) string {
+	switch severity {
+	case "critical":
+		return "text-error"
+	case "warning":
+		return "text-warning"
+	default:
+		return "text-info"
+	}
+}
+
+// signalTypeBadgeClass returns badge classes for a signal type.
+func signalTypeBadgeClass(signalType string) string {
+	switch signalType {
+	case "drift":
+		return "badge-warning badge-outline"
+	case "propagation":
+		return "badge-info badge-outline"
+	case "tension":
+		return "badge-error badge-outline"
+	case "staleness":
+		return "badge-ghost"
+	case "orphan":
+		return "badge-ghost"
+	default:
+		return "badge-ghost"
+	}
+}
+
 // --- Artifact viewer helpers ---
 
 // sortedKeys returns the keys of a map sorted alphabetically,

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
@@ -21,9 +22,11 @@ func (s *Server) loadReadyPhaseData(ctx context.Context, instanceID string) ui.R
 	data.NorthStarExists, data.NorthStarOrg, data.NorthStarVision = s.loadArtifactSummary(ctx, instanceID, domain.ArtifactTypeNorthStar, "north_star.organization", "north_star.vision.vision_statement")
 	data.NorthStarPurpose = firstSentence(s.extractPayloadField(ctx, instanceID, domain.ArtifactTypeNorthStar, "north_star.purpose.statement"))
 
-	// Insight Analyses — name + first trend title
+	// Insight Analyses — name + first trend title + at-a-glance counts
 	data.InsightExists, data.InsightTitle, _ = s.loadArtifactSummary(ctx, instanceID, domain.ArtifactTypeInsightAnalyses, "name", "")
-	data.InsightFirstTrend = s.extractInsightFirstTrend(ctx, instanceID)
+	data.InsightFirstTrend, data.InsightTrendCount, data.InsightPersonaCount,
+		data.InsightCompetitorCount, data.InsightKeyInsightCount, data.InsightWhiteSpaceCount =
+		s.extractInsightCounts(ctx, instanceID)
 
 	// Insight Opportunity — title + urgency (first sentence)
 	data.OpportunityExists, data.OpportunityTitle, _ = s.loadArtifactSummary(ctx, instanceID, "insight_opportunity", "opportunity.title", "")
@@ -898,7 +901,6 @@ func (s *Server) loadAimPhaseData(ctx context.Context, instanceID string) ui.Aim
 		ColumnExpr("COUNT(DISTINCT target_key)").
 		Scan(ctx, &data.TotalAssumptions)
 
-	// Count features that test assumptions
 	_ = s.db.NewSelect().
 		TableExpr("strategy_relationships").
 		Where("instance_id = ?", instanceID).
@@ -906,7 +908,7 @@ func (s *Server) loadAimPhaseData(ctx context.Context, instanceID string) ui.Aim
 		ColumnExpr("COUNT(DISTINCT source_key)").
 		Scan(ctx, &data.TestedAssumptions)
 
-	// Signals
+	// Signal counts
 	data.ActiveSignals, _ = s.db.NewSelect().
 		TableExpr("ripple_signals").
 		Where("instance_id = ?", instanceID).
@@ -927,6 +929,39 @@ func (s *Server) loadAimPhaseData(ctx context.Context, instanceID string) ui.Aim
 		Where("severity = ?", "warning").
 		Count(ctx)
 
+	// Recent signals feed (up to 5, most critical first, then newest)
+	type signalRow struct {
+		ID          string    `bun:"id"`
+		SignalType  string    `bun:"signal_type"`
+		Severity    string    `bun:"severity"`
+		SourceKey   string    `bun:"source_key"`
+		TargetKey   string    `bun:"target_key"`
+		Description string    `bun:"description"`
+		CreatedAt   time.Time `bun:"created_at"`
+	}
+	var rawSignals []signalRow
+	_ = s.db.NewSelect().
+		TableExpr("ripple_signals").
+		ColumnExpr("id, signal_type, severity, source_key, target_key, description, created_at").
+		Where("instance_id = ?", instanceID).
+		Where("status = ?", "active").
+		OrderExpr("CASE severity WHEN 'critical' THEN 0 WHEN 'warning' THEN 1 ELSE 2 END, created_at DESC").
+		Limit(5).
+		Scan(ctx, &rawSignals)
+
+	data.RecentSignals = make([]ui.AimSignalRow, 0, len(rawSignals))
+	for _, r := range rawSignals {
+		data.RecentSignals = append(data.RecentSignals, ui.AimSignalRow{
+			ID:          r.ID,
+			SignalType:  r.SignalType,
+			Severity:    r.Severity,
+			SourceKey:   r.SourceKey,
+			TargetKey:   r.TargetKey,
+			Description: r.Description,
+			CreatedAt:   r.CreatedAt.Format("2 Jan 15:04"),
+		})
+	}
+
 	// AIM artifacts
 	data.HasLRA = s.hasArtifactType(ctx, instanceID, domain.ArtifactTypeLRA)
 	data.HasAssessmentReport = s.hasArtifactType(ctx, instanceID, domain.ArtifactTypeAssessmentReport)
@@ -937,6 +972,11 @@ func (s *Server) loadAimPhaseData(ctx context.Context, instanceID string) ui.Aim
 	// LRA lifecycle stage
 	if data.HasLRA {
 		data.LRALifecycleStage = s.extractPayloadField(ctx, instanceID, domain.ArtifactTypeLRA, "metadata.lifecycle_stage")
+	}
+
+	// Latest calibration decision
+	if data.HasCalibration {
+		data.LatestCalibrationDecision = s.extractPayloadField(ctx, instanceID, "calibration_memo", "decision")
 	}
 
 	// Versions
@@ -1070,9 +1110,16 @@ func firstSentence(s string) string {
 	return s
 }
 
-// extractInsightFirstTrend pulls the title of the first technology trend from
-// the insight_analyses payload for at-a-glance scanning.
-func (s *Server) extractInsightFirstTrend(ctx context.Context, instanceID string) string {
+// extractInsightCounts reads the insight_analyses payload once and returns:
+//   - firstTrend: title of the first technology trend (for at-a-glance scanning)
+//   - trendCount: total trends across all categories (technology + market + regulatory)
+//   - personaCount: number of personas
+//   - competitorCount: number of competitors
+//   - keyInsightCount: number of key insights
+//   - whiteSpaceCount: number of white spaces / gaps
+func (s *Server) extractInsightCounts(ctx context.Context, instanceID string) (
+	firstTrend string, trendCount, personaCount, competitorCount, keyInsightCount, whiteSpaceCount int,
+) {
 	var payloadStr string
 	err := s.db.NewSelect().
 		TableExpr("strategy_artifacts").
@@ -1082,28 +1129,59 @@ func (s *Server) extractInsightFirstTrend(ctx context.Context, instanceID string
 		Limit(1).
 		Scan(ctx, &payloadStr)
 	if err != nil || payloadStr == "" {
-		return ""
+		return
 	}
 	var m map[string]any
 	if json.Unmarshal([]byte(payloadStr), &m) != nil {
-		return ""
+		return
 	}
-	trends, ok := m["trends"].(map[string]any)
-	if !ok {
-		return ""
+
+	// Trends — sum technology + market + regulatory
+	if trends, ok := m["trends"].(map[string]any); ok {
+		for _, key := range []string{"technology", "market", "regulatory"} {
+			if arr, ok := trends[key].([]any); ok {
+				trendCount += len(arr)
+				// Capture first technology trend title
+				if key == "technology" && len(arr) > 0 && firstTrend == "" {
+					if first, ok := arr[0].(map[string]any); ok {
+						if t, ok := first["trend"].(string); ok {
+							firstTrend = firstSentence(t)
+						}
+					}
+				}
+			}
+		}
 	}
-	tech, ok := trends["technology"].([]any)
-	if !ok || len(tech) == 0 {
-		return ""
+
+	// Personas
+	if arr, ok := m["personas"].([]any); ok {
+		personaCount = len(arr)
 	}
-	first, ok := tech[0].(map[string]any)
-	if !ok {
-		return ""
+
+	// Competitors
+	if arr, ok := m["competitors"].([]any); ok {
+		competitorCount = len(arr)
 	}
-	if t, ok := first["trend"].(string); ok {
-		return firstSentence(t)
+
+	// Key insights
+	if arr, ok := m["key_insights"].([]any); ok {
+		keyInsightCount = len(arr)
 	}
-	return ""
+
+	// White spaces / gaps
+	if arr, ok := m["white_spaces"].([]any); ok {
+		whiteSpaceCount = len(arr)
+	}
+
+	return
+}
+
+// extractInsightFirstTrend pulls the title of the first technology trend from
+// the insight_analyses payload for at-a-glance scanning.
+// Deprecated: use extractInsightCounts which returns all fields in one DB read.
+func (s *Server) extractInsightFirstTrend(ctx context.Context, instanceID string) string {
+	firstTrend, _, _, _, _, _ := s.extractInsightCounts(ctx, instanceID)
+	return firstTrend
 }
 
 // splitDot splits a string by dots.

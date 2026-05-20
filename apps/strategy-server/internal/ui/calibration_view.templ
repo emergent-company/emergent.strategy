@@ -1,0 +1,326 @@
+package ui
+
+import "strconv"
+
+// CalibrationViewData holds all data for the bespoke Calibration Memo view.
+type CalibrationViewData struct {
+	NavContext
+	ArtifactKey string
+	Name        string
+	Status      string
+	Cycle       int
+	RoadmapID   string
+
+	// Core decision
+	Decision   string // persevere | pivot | pull_the_plug | pending_assessment
+	Confidence string // low | medium | high
+	Reasoning  string
+
+	// Learnings
+	ValidatedAssumptions   []string
+	InvalidatedAssumptions []string
+	Surprises              []string
+
+	// Next cycle direction
+	ContinueBuilding  []string
+	StopBuilding      []string
+	StartExploring    []string
+
+	// Feedback into READY/FIRE — the most important output
+	OpportunityUpdate string // → feeds back into READY insight_opportunity
+	StrategyUpdate    string // → feeds back into READY strategy_formula
+	NewAssumptions    []string
+
+	// Next steps
+	NextSteps []string
+}
+
+// CalibrationContent renders the bespoke Calibration Memo view.
+templ CalibrationContent(data CalibrationViewData) {
+	@TabBackLink(data.TabGroup, data.InstanceID, data.CurrentPath)
+	<div class="space-y-8">
+		// ── Hero with decision ──
+		@calibrationHero(data)
+
+		// ── Reasoning ──
+		if data.Reasoning != "" {
+			@calibrationReasoningSection(data.Reasoning)
+		}
+
+		// ── Next cycle direction ──
+		if len(data.ContinueBuilding) > 0 || len(data.StopBuilding) > 0 || len(data.StartExploring) > 0 {
+			@calibrationDirectionSection(data)
+		}
+
+		// ── Learnings ──
+		if len(data.ValidatedAssumptions) > 0 || len(data.InvalidatedAssumptions) > 0 || len(data.Surprises) > 0 {
+			@calibrationLearningsSection(data)
+		}
+
+		// ── Feedback into READY/FIRE — the most consequential section ──
+		if data.OpportunityUpdate != "" || data.StrategyUpdate != "" || len(data.NewAssumptions) > 0 {
+			@calibrationReadyFeedbackSection(data)
+		}
+
+		// ── Next steps ──
+		if len(data.NextSteps) > 0 {
+			@calibrationNextStepsSection(data.NextSteps)
+		}
+	</div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Hero
+// ──────────────────────────────────────────────────────────────────────
+
+templ calibrationHero(data CalibrationViewData) {
+	<div class={ "relative overflow-hidden rounded-xl border", calibrationHeroBg(data.Decision) }>
+		<div class="px-6 py-8 sm:px-8">
+			<div class="flex items-start justify-between gap-6">
+				<div class="space-y-3">
+					<div class="flex items-center gap-2 flex-wrap">
+						<span class="iconify lucide--sliders-horizontal size-5 text-base-content/60"></span>
+						<span class="text-xs font-semibold uppercase tracking-widest text-base-content/60">Calibration Memo</span>
+						if data.Cycle > 0 {
+							<span class="badge badge-sm badge-ghost">Cycle { strconv.Itoa(data.Cycle) }</span>
+						}
+						if data.Status != "" {
+							@artifactStatusBadge(data.Status)
+						}
+					</div>
+
+					// Decision — the most prominent element
+					<div class="flex items-center gap-3">
+						<span class={ "iconify size-8", calibrationDecisionIcon(data.Decision), calibrationDecisionTextColor(data.Decision) }></span>
+						<div>
+							<p class="text-xs font-semibold uppercase tracking-widest text-base-content/60 mb-0.5">Decision</p>
+							<h1 class={ "text-2xl font-bold sm:text-3xl", calibrationDecisionTextColor(data.Decision) }>
+								{ calibrationDecisionLabel(data.Decision) }
+							</h1>
+						</div>
+					</div>
+
+					if data.Confidence != "" {
+						<div class="flex items-center gap-2">
+							<span class="text-xs text-base-content/60">Confidence:</span>
+							<span class={ "badge badge-sm", confidenceBadgeClass(data.Confidence) }>{ data.Confidence }</span>
+						</div>
+					}
+				</div>
+
+				if data.RoadmapID != "" {
+					<div class="hidden sm:block text-right text-xs text-base-content/60 shrink-0">
+						<p class="font-mono">{ data.RoadmapID }</p>
+					</div>
+				}
+			</div>
+		</div>
+	</div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Reasoning
+// ──────────────────────────────────────────────────────────────────────
+
+templ calibrationReasoningSection(reasoning string) {
+	<section>
+		@sectionHeading("Reasoning", "lucide--message-square", "info", "Why this decision was made")
+		<div class="mt-4 rounded-xl bg-info/5 border border-info/10 px-6 py-5">
+			<p class="text-sm text-base-content leading-relaxed">{ reasoning }</p>
+		</div>
+	</section>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Next cycle direction
+// ──────────────────────────────────────────────────────────────────────
+
+templ calibrationDirectionSection(data CalibrationViewData) {
+	<section>
+		@sectionHeading("Next Cycle Direction", "lucide--compass", "accent", "What we build, stop, and explore")
+		<div class="mt-4 grid gap-4 md:grid-cols-3">
+			if len(data.ContinueBuilding) > 0 {
+				@calibrationDirectionCard("Continue Building", data.ContinueBuilding, "lucide--play", "success")
+			}
+			if len(data.StopBuilding) > 0 {
+				@calibrationDirectionCard("Stop Building", data.StopBuilding, "lucide--square", "error")
+			}
+			if len(data.StartExploring) > 0 {
+				@calibrationDirectionCard("Start Exploring", data.StartExploring, "lucide--compass", "info")
+			}
+		</div>
+	</section>
+}
+
+templ calibrationDirectionCard(title string, items []string, icon, color string) {
+	<div class={ "rounded-xl border p-4", "bg-" + color + "/5 border-" + color + "/15" }>
+		<div class="flex items-center gap-2 mb-3">
+			<span class={ "iconify size-4", icon, "text-" + color }></span>
+			<h4 class={ "text-xs font-semibold uppercase tracking-wide", "text-" + color }>{ title }</h4>
+		</div>
+		<ul class="space-y-2">
+			for _, item := range items {
+				<li class="flex items-start gap-2 text-sm text-base-content">
+					<span class={ "iconify size-3 mt-1 shrink-0", "text-" + color,
+						templ.KV("lucide--check", color == "success"),
+						templ.KV("lucide--x", color == "error"),
+						templ.KV("lucide--arrow-right", color == "info") }></span>
+					{ item }
+				</li>
+			}
+		</ul>
+	</div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Learnings
+// ──────────────────────────────────────────────────────────────────────
+
+templ calibrationLearningsSection(data CalibrationViewData) {
+	<section>
+		@sectionHeading("Learnings", "lucide--flask-conical", "secondary", "What we learned this cycle")
+		<div class="mt-4 grid gap-4 md:grid-cols-3">
+			if len(data.ValidatedAssumptions) > 0 {
+				<div>
+					<p class="text-xs font-semibold uppercase tracking-wide text-success mb-2">Validated</p>
+					<div class="space-y-1.5">
+						for _, a := range data.ValidatedAssumptions {
+							<div class="flex items-start gap-2 rounded-lg bg-success/5 border border-success/15 px-3 py-2">
+								<span class="iconify lucide--check size-3.5 text-success mt-0.5 shrink-0"></span>
+								<span class="text-xs text-base-content">{ a }</span>
+							</div>
+						}
+					</div>
+				</div>
+			}
+			if len(data.InvalidatedAssumptions) > 0 {
+				<div>
+					<p class="text-xs font-semibold uppercase tracking-wide text-error mb-2">Invalidated</p>
+					<div class="space-y-1.5">
+						for _, a := range data.InvalidatedAssumptions {
+							<div class="flex items-start gap-2 rounded-lg bg-error/5 border border-error/15 px-3 py-2">
+								<span class="iconify lucide--x size-3.5 text-error mt-0.5 shrink-0"></span>
+								<span class="text-xs text-base-content">{ a }</span>
+							</div>
+						}
+					</div>
+				</div>
+			}
+			if len(data.Surprises) > 0 {
+				<div>
+					<p class="text-xs font-semibold uppercase tracking-wide text-warning mb-2">Surprises</p>
+					<div class="space-y-1.5">
+						for _, s := range data.Surprises {
+							<div class="flex items-start gap-2 rounded-lg bg-warning/5 border border-warning/15 px-3 py-2">
+								<span class="iconify lucide--zap size-3.5 text-warning mt-0.5 shrink-0"></span>
+								<span class="text-xs text-base-content">{ s }</span>
+							</div>
+						}
+					</div>
+				</div>
+			}
+		</div>
+	</section>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Feedback into READY/FIRE
+// ──────────────────────────────────────────────────────────────────────
+
+templ calibrationReadyFeedbackSection(data CalibrationViewData) {
+	<section>
+		@sectionHeading("Feedback into Strategy", "lucide--arrow-up-circle", "primary", "AIM outputs that should update READY & FIRE artifacts")
+		<div class="mt-4 space-y-4">
+			// Banner explaining the feedback loop
+			<div class="rounded-lg bg-primary/5 border border-primary/15 px-4 py-3 flex items-start gap-3">
+				<span class="iconify lucide--info size-4 text-primary mt-0.5 shrink-0"></span>
+				<p class="text-xs text-base-content/70 leading-relaxed">
+					These inputs from the AIM cycle should be reviewed and applied to the relevant READY and FIRE artifacts. They represent the real-world feedback loop closing back into strategy.
+				</p>
+			</div>
+
+			<div class="grid gap-4 md:grid-cols-2">
+				if data.OpportunityUpdate != "" {
+					@calibrationFeedbackCard("Opportunity Update", "lucide--target", "Update insight_opportunity in READY", data.OpportunityUpdate, "primary")
+				}
+				if data.StrategyUpdate != "" {
+					@calibrationFeedbackCard("Strategy Update", "lucide--compass", "Update strategy_formula in READY", data.StrategyUpdate, "secondary")
+				}
+			</div>
+
+			if len(data.NewAssumptions) > 0 {
+				<div class="rounded-xl border border-base-content/10 bg-base-100 p-4">
+					<div class="flex items-center gap-2 mb-3">
+						<span class="iconify lucide--flask-conical size-4 text-base-content/60"></span>
+						<h4 class="text-xs font-semibold uppercase tracking-wide text-base-content/70">New Assumptions for Next Cycle</h4>
+						<span class="badge badge-xs badge-ghost">Add to roadmap</span>
+					</div>
+					<div class="space-y-1.5">
+						for _, a := range data.NewAssumptions {
+							<div class="flex items-start gap-2 text-sm text-base-content">
+								<span class="iconify lucide--plus size-3.5 text-base-content/50 mt-0.5 shrink-0"></span>
+								{ a }
+							</div>
+						}
+					</div>
+				</div>
+			}
+		</div>
+	</section>
+}
+
+templ calibrationFeedbackCard(title, icon, hint, content, color string) {
+	<div class={ "rounded-xl border p-4", "bg-" + color + "/5 border-" + color + "/15" }>
+		<div class="flex items-center gap-2 mb-1">
+			<span class={ "iconify size-4", icon, "text-" + color }></span>
+			<h4 class={ "text-xs font-semibold uppercase tracking-wide", "text-" + color }>{ title }</h4>
+		</div>
+		<p class="text-xs text-base-content/50 mb-3">{ hint }</p>
+		<p class="text-sm text-base-content leading-relaxed">{ content }</p>
+	</div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Next steps
+// ──────────────────────────────────────────────────────────────────────
+
+templ calibrationNextStepsSection(steps []string) {
+	<section>
+		@sectionHeading("Next Steps", "lucide--list-checks", "accent", "")
+		<div class="mt-4">
+			@bulletListCard("Actions", steps, "lucide--arrow-right", "accent")
+		</div>
+	</section>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Helpers
+// ──────────────────────────────────────────────────────────────────────
+
+func calibrationHeroBg(decision string) string {
+	switch decision {
+	case "persevere":
+		return "bg-gradient-to-br from-success/10 via-base-100 to-base-100 border-success/15"
+	case "pivot":
+		return "bg-gradient-to-br from-warning/10 via-base-100 to-base-100 border-warning/15"
+	case "pull_the_plug":
+		return "bg-gradient-to-br from-error/10 via-base-100 to-base-100 border-error/15"
+	default:
+		return "bg-gradient-to-br from-base-200 via-base-100 to-base-100 border-base-content/10"
+	}
+}
+
+func calibrationDecisionTextColor(decision string) string {
+	switch decision {
+	case "persevere":
+		return "text-success"
+	case "pivot":
+		return "text-warning"
+	case "pull_the_plug":
+		return "text-error"
+	default:
+		return "text-base-content"
+	}
+}
+
+

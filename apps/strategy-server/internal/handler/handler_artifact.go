@@ -167,6 +167,8 @@ func (s *Server) bespokeContent(ctx context.Context, instanceID, track string, n
 		return s.lraContent(navCtx, artifactKey, name, status, payload)
 	case "assessment_report":
 		return s.assessmentContent(navCtx, artifactKey, name, status, payload)
+	case "calibration_memo":
+		return s.calibrationContent(navCtx, artifactKey, name, status, payload)
 	}
 
 	// Fallback: generic recursive renderer (no sub-nav — caller wraps if needed)

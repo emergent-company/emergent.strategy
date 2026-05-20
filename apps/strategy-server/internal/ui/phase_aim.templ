@@ -19,6 +19,9 @@ type AimPhaseData struct {
 	CriticalSignals int
 	WarningSignals  int
 
+	// Latest signals for feed (up to 5)
+	RecentSignals []AimSignalRow
+
 	// AIM artifacts
 	HasLRA              bool
 	LRALifecycleStage   string // bootstrap, maturing, evolved
@@ -27,45 +30,185 @@ type AimPhaseData struct {
 	HasTriggerConfig    bool
 	HasRealityCheck     bool
 
+	// Latest calibration decision (if any)
+	LatestCalibrationDecision string // persevere | pivot | pull_the_plug | pending_assessment
+
 	// Versions
 	VersionCount int
+
+	// Last AIM activity timestamp
+	LastActivityAt string
+}
+
+// AimSignalRow is a single ripple signal for display in the feed.
+type AimSignalRow struct {
+	ID          string
+	SignalType  string // drift | propagation | tension | staleness | clustering | orphan
+	Severity    string // critical | warning | info
+	SourceKey   string
+	TargetKey   string
+	Description string
+	CreatedAt   string
 }
 
 // AimPhaseContent renders the AIM phase dashboard content.
 templ AimPhaseContent(data AimPhaseData) {
 	@TabRelatedPages("aim", data.InstanceID, "/strategies/" + data.InstanceID + "/aim")
 	<div class="space-y-6">
-		// Stats
+		// ── Stat bar ──
 		@ui.StatCards([]ui.StatCardProps{
 			{Label: "Assumptions Tested", Value: assumptionLabel(data.TestedAssumptions, data.TotalAssumptions), Icon: "lucide--flask-conical", IconColor: "bg-primary/10 text-primary"},
-			{Label: "Active Signals", Value: strconv.Itoa(data.ActiveSignals), Icon: "lucide--alert-circle", IconColor: signalColor(data.CriticalSignals)},
+			{Label: "Active Signals", Value: strconv.Itoa(data.ActiveSignals), Icon: "lucide--activity", IconColor: signalColor(data.CriticalSignals)},
 			{Label: "Versions", Value: strconv.Itoa(data.VersionCount), Icon: "lucide--git-branch", IconColor: "bg-secondary/10 text-secondary"},
 			{Label: "AIM Artifacts", Value: strconv.Itoa(aimArtifactCount(data)), Icon: "lucide--target", IconColor: "bg-success/10 text-success"},
 		})
 
-		<div class="grid gap-4 md:grid-cols-2">
-			// Calibration monitors
-			@aimArtifactsCard(data)
-			// Coherence & signals
-			@coherenceCard(data)
-		</div>
-
-		// Assumption coverage
-		if data.TotalAssumptions > 0 {
-			@assumptionCoverageCard(data)
+		// ── Calibration decision (most consequential output) ──
+		if data.LatestCalibrationDecision != "" {
+			@calibrationDecisionBanner(data)
 		}
+
+		// ── Main grid: signal feed + artifact checklist ──
+		<div class="grid gap-4 lg:grid-cols-3">
+			// Signal feed (2/3 width) — prepared for live data streaming
+			<div class="lg:col-span-2 space-y-4">
+				@aimSignalFeedCard(data)
+			</div>
+			// Artifact checklist (1/3 width)
+			<div class="space-y-4">
+				@aimArtifactsCard(data)
+				if data.TotalAssumptions > 0 {
+					@assumptionCoverageCard(data)
+				}
+			</div>
+		</div>
+	</div>
+}
+
+// calibrationDecisionBanner renders the latest calibration decision prominently.
+templ calibrationDecisionBanner(data AimPhaseData) {
+	<div class={ "rounded-xl border px-5 py-4 flex items-center gap-4", calibrationDecisionBannerClass(data.LatestCalibrationDecision) }>
+		<span class={ "iconify size-6 shrink-0", calibrationDecisionIcon(data.LatestCalibrationDecision) }></span>
+		<div class="grow min-w-0">
+			<p class="text-xs font-semibold uppercase tracking-widest opacity-70">Latest Calibration Decision</p>
+			<p class="text-base font-bold mt-0.5">{ calibrationDecisionLabel(data.LatestCalibrationDecision) }</p>
+		</div>
+		<a
+			href={ templ.URL("/strategies/" + data.InstanceID + "/aim/calibration") }
+			hx-get={ "/strategies/" + data.InstanceID + "/aim/calibration" }
+			hx-target="#tab-content"
+			hx-swap="innerHTML"
+			hx-push-url="true"
+			class="btn btn-sm btn-ghost shrink-0"
+		>
+			View memo
+			<span class="iconify lucide--arrow-right size-3.5"></span>
+		</a>
+	</div>
+}
+
+// aimSignalFeedCard renders the live signal feed — the central AIM data stream.
+templ aimSignalFeedCard(data AimPhaseData) {
+	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card-body p-5">
+			<div class="flex items-center justify-between mb-4">
+				<div class="flex items-center gap-2">
+					<span class="iconify lucide--radio size-4 text-base-content/60"></span>
+					<h3 class="text-base font-semibold text-base-content">Signal Feed</h3>
+					if data.ActiveSignals > 0 {
+						<span class="badge badge-sm badge-error">{ strconv.Itoa(data.ActiveSignals) } active</span>
+					}
+				</div>
+				<a
+					href={ templ.URL("/strategies/" + data.InstanceID + "/aim/coherence") }
+					hx-get={ "/strategies/" + data.InstanceID + "/aim/coherence" }
+					hx-target="#tab-content"
+					hx-swap="innerHTML"
+					hx-push-url="true"
+					class="btn btn-sm btn-ghost"
+				>
+					View all
+					<span class="iconify lucide--arrow-right size-3.5"></span>
+				</a>
+			</div>
+
+			// Signal severity summary
+			<div class="grid grid-cols-3 gap-2 mb-4">
+				<div class="text-center rounded-lg bg-error/5 border border-error/10 px-3 py-2">
+					<p class="text-lg font-bold text-error">{ strconv.Itoa(data.CriticalSignals) }</p>
+					<p class="text-xs text-base-content/60">Critical</p>
+				</div>
+				<div class="text-center rounded-lg bg-warning/5 border border-warning/10 px-3 py-2">
+					<p class="text-lg font-bold text-warning">{ strconv.Itoa(data.WarningSignals) }</p>
+					<p class="text-xs text-base-content/60">Warning</p>
+				</div>
+				<div class="text-center rounded-lg bg-info/5 border border-info/10 px-3 py-2">
+					<p class="text-lg font-bold text-info">{ strconv.Itoa(data.ActiveSignals - data.CriticalSignals - data.WarningSignals) }</p>
+					<p class="text-xs text-base-content/60">Info</p>
+				</div>
+			</div>
+
+			// Recent signals feed
+			if len(data.RecentSignals) == 0 {
+				<div class="text-center py-8">
+					<span class="iconify lucide--shield-check size-10 text-success/40 mx-auto mb-3 block"></span>
+					<p class="text-sm font-medium text-base-content/70">No active signals</p>
+					<p class="text-xs text-base-content/40 mt-1">Real-world signals processed by agents will appear here</p>
+				</div>
+			} else {
+				<div class="space-y-2">
+					for _, sig := range data.RecentSignals {
+						@aimSignalRow(sig)
+					}
+				</div>
+				if data.ActiveSignals > len(data.RecentSignals) {
+					<p class="text-xs text-base-content/40 text-center pt-2">
+						+{ strconv.Itoa(data.ActiveSignals - len(data.RecentSignals)) } more signals
+					</p>
+				}
+			}
+
+			// Agent processing indicator — prepared for live streaming
+			<div class="mt-4 pt-4 border-t border-base-content/5 flex items-center gap-2">
+				<span class="iconify lucide--cpu size-3.5 text-base-content/30"></span>
+				<p class="text-xs text-base-content/40">
+					Signals processed by coherence engine · agents pipe real-world data here
+				</p>
+			</div>
+		</div>
+	</div>
+}
+
+// aimSignalRow renders a single signal in the feed.
+templ aimSignalRow(sig AimSignalRow) {
+	<div class={ "rounded-lg border px-4 py-3", signalRowClass(sig.Severity) }>
+		<div class="flex items-start gap-3">
+			<span class={ "iconify size-3.5 mt-0.5 shrink-0", signalSeverityIcon(sig.Severity), signalSeverityColor(sig.Severity) }></span>
+			<div class="min-w-0 grow">
+				<div class="flex items-center gap-2 flex-wrap">
+					<span class={ "badge badge-xs", signalTypeBadgeClass(sig.SignalType) }>{ sig.SignalType }</span>
+					if sig.TargetKey != "" {
+						<span class="text-xs font-mono text-base-content/50 truncate">{ sig.TargetKey }</span>
+					}
+				</div>
+				<p class="text-xs text-base-content/70 mt-1 leading-relaxed">{ sig.Description }</p>
+			</div>
+			if sig.CreatedAt != "" {
+				<span class="text-xs text-base-content/30 shrink-0 whitespace-nowrap">{ sig.CreatedAt }</span>
+			}
+		</div>
 	</div>
 }
 
 templ aimArtifactsCard(data AimPhaseData) {
 	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
 		<div class="card-body p-5">
-			<h3 class="text-base font-semibold text-base-content mb-4">Calibration Artifacts</h3>
-			<div class="space-y-2">
-				@aimArtifactRow("Living Reality Assessment", "lucide--activity", data.HasLRA, data.LRALifecycleStage, "/strategies/" + data.InstanceID + "/aim/lra")
+			<h3 class="text-sm font-semibold text-base-content/70 uppercase tracking-widest mb-3">AIM Artifacts</h3>
+			<div class="space-y-1">
+				@aimArtifactRow("Reality Assessment", "lucide--activity", data.HasLRA, data.LRALifecycleStage, "/strategies/" + data.InstanceID + "/aim/lra")
 				@aimArtifactRow("Assessment Report", "lucide--bar-chart-2", data.HasAssessmentReport, "", "/strategies/" + data.InstanceID + "/aim/assessment")
-				@aimArtifactRow("Calibration Memo", "lucide--sliders-horizontal", data.HasCalibration, "", "/strategies/" + data.InstanceID + "/aim/calibration")
-				@aimArtifactRow("Strategic Reality Check", "lucide--shield-check", data.HasRealityCheck, "", "/strategies/" + data.InstanceID + "/aim/coherence")
+				@aimArtifactRow("Calibration Memo", "lucide--sliders-horizontal", data.HasCalibration, data.LatestCalibrationDecision, "/strategies/" + data.InstanceID + "/aim/calibration")
+				@aimArtifactRow("Coherence Signals", "lucide--shield-check", data.ActiveSignals == 0, "", "/strategies/" + data.InstanceID + "/aim/coherence")
 				@aimArtifactRow("Trigger Config", "lucide--settings-2", data.HasTriggerConfig, "", "/strategies/" + data.InstanceID + "/aim/calibration")
 			</div>
 		</div>
@@ -79,65 +222,33 @@ templ aimArtifactRow(label, icon string, exists bool, detail, href string) {
 		hx-target="#tab-content"
 		hx-swap="innerHTML"
 		hx-push-url="true"
-		class="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-base-200 transition-colors cursor-pointer group"
+		class="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-base-200 transition-colors cursor-pointer group"
 	>
 		<span class={ "iconify size-4 group-hover:text-primary " + icon, templ.KV("text-success", exists), templ.KV("text-base-content/40", !exists) }></span>
 		<span class="text-sm text-base-content grow">{ label }</span>
 		if exists {
 			if detail != "" {
-				<span class="text-xs text-base-content/70">{ detail }</span>
+				<span class="text-xs text-base-content/60">{ detail }</span>
 			}
 			<span class="iconify lucide--check-circle-2 size-3.5 text-success"></span>
 		} else {
-			<span class="iconify lucide--circle-dashed size-3.5 text-base-content/40"></span>
+			<span class="iconify lucide--circle-dashed size-3.5 text-base-content/30"></span>
 		}
 	</a>
 }
 
-templ coherenceCard(data AimPhaseData) {
-	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
-		<div class="card-body p-5">
-			<h3 class="text-base font-semibold text-base-content mb-4">Coherence & Signals</h3>
-			<div class="space-y-4">
-				// Signal breakdown
-				<div class="grid grid-cols-3 gap-3">
-					<div class="text-center rounded-lg bg-error/5 px-3 py-2.5">
-						<p class="text-lg font-bold text-error">{ strconv.Itoa(data.CriticalSignals) }</p>
-						<p class="text-xs text-base-content/70">Critical</p>
-					</div>
-					<div class="text-center rounded-lg bg-warning/5 px-3 py-2.5">
-						<p class="text-lg font-bold text-warning">{ strconv.Itoa(data.WarningSignals) }</p>
-						<p class="text-xs text-base-content/70">Warning</p>
-					</div>
-					<div class="text-center rounded-lg bg-success/5 px-3 py-2.5">
-						<p class="text-lg font-bold text-success">{ strconv.Itoa(data.ActiveSignals - data.CriticalSignals - data.WarningSignals) }</p>
-						<p class="text-xs text-base-content/70">Info</p>
-					</div>
-				</div>
-
-				if data.ActiveSignals == 0 {
-					<div class="text-center py-4">
-						<span class="iconify lucide--shield-check size-8 text-success/60 mx-auto mb-2"></span>
-						<p class="text-sm text-base-content/70">No active coherence signals</p>
-					</div>
-				}
-			</div>
-		</div>
-	</div>
-}
-
 templ assumptionCoverageCard(data AimPhaseData) {
 	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
-		<div class="card-body p-5">
+		<div class="card-body p-4">
 			<div class="flex items-center justify-between mb-3">
-				<h3 class="text-base font-semibold text-base-content">Assumption Testing Coverage</h3>
+				<h3 class="text-sm font-semibold text-base-content/70 uppercase tracking-widest">Assumptions</h3>
 				<a
 					href={ templ.URL("/strategies/" + data.InstanceID + "/aim/assumptions") }
 					hx-get={ "/strategies/" + data.InstanceID + "/aim/assumptions" }
 					hx-target="#tab-content"
 					hx-swap="innerHTML"
 					hx-push-url="true"
-					class="btn btn-sm btn-ghost"
+					class="btn btn-xs btn-ghost"
 				>
 					View all
 				</a>
@@ -148,8 +259,8 @@ templ assumptionCoverageCard(data AimPhaseData) {
 					value={ strconv.Itoa(assumptionPercent(data.TestedAssumptions, data.TotalAssumptions)) }
 					max="100"
 				></progress>
-				<span class="text-sm font-medium text-base-content/70 whitespace-nowrap">
-					{ strconv.Itoa(data.TestedAssumptions) }/{ strconv.Itoa(data.TotalAssumptions) } tested
+				<span class="text-xs font-medium text-base-content/60 whitespace-nowrap">
+					{ strconv.Itoa(data.TestedAssumptions) }/{ strconv.Itoa(data.TotalAssumptions) }
 				</span>
 			</div>
 		</div>
