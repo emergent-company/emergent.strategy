@@ -182,26 +182,43 @@ func (s *Service) loadTriggerConfig(ctx context.Context, instanceID uuid.UUID) T
 // DraftAssessment
 // ---------------------------------------------------------------------------
 
-// DraftAssessment reads live roadmap OKRs, assumption relationships, and recent
-// ripple signals, then assembles a structurally complete assessment_report payload
-// staged as a batch. Returns the batchID and a summary.
+// DraftAssessment assembles a new assessment_report draft using:
+//  1. The roadmap OKRs and KR targets (structure)
+//  2. The last committed assessment report (prior actuals + assumption statuses)
+//  3. The LRA evolution log (narrative of what happened since the last cycle)
+//  4. Active ripple signals (system-detected misalignments)
+//
+// If an LLM is configured, it enriches each OKR assessment using the above as
+// evidence. Otherwise it produces a skeleton with prior actuals carried forward.
 func (s *Service) DraftAssessment(ctx context.Context, instanceID uuid.UUID) (uuid.UUID, DraftSummary, error) {
-	// 1. Load roadmap_recipe payload.
+	// 1. Load roadmap_recipe payload (required — defines OKR structure).
 	roadmapPayload, err := s.loadArtifactPayload(ctx, instanceID, domain.ArtifactTypeRoadmap)
 	if err != nil {
 		return uuid.Nil, DraftSummary{}, apperror.ErrBadRequest.WithDetail("No roadmap found for instance")
 	}
 
-	// 2. Extract OKRs from roadmap.
+	// 2. Load the last committed assessment report (optional — provides prior actuals).
+	priorAssessment, _ := s.loadArtifactPayload(ctx, instanceID, domain.ArtifactTypeAssessmentReport)
+
+	// 3. Load the LRA (optional — evolution log carries narrative progress).
+	lraPayload, _ := s.loadArtifactPayload(ctx, instanceID, domain.ArtifactTypeLRA)
+
+	// 4. Extract OKR skeleton from roadmap, seeded with prior actuals where available.
 	okrAssessments := s.extractOKRAssessments(ctx, instanceID, roadmapPayload)
+	if priorAssessment != nil {
+		seedFromPriorAssessment(okrAssessments, priorAssessment)
+	}
 
-	// 3. Extract assumption IDs from relationships.
+	// 5. Extract assumption validations, seeded from prior assessment.
 	assumptionValidations := s.extractAssumptionValidations(ctx, instanceID)
+	if priorAssessment != nil {
+		seedAssumptionsFromPrior(assumptionValidations, priorAssessment)
+	}
 
-	// 4. Extract strategic insights from active critical ripple signals.
+	// 6. Extract strategic insights from active critical ripple signals.
 	strategicInsights := s.extractStrategicInsights(ctx, instanceID)
 
-	// 5. Build the assessment_report payload.
+	// 7. Build the assessment_report payload.
 	report := map[string]any{
 		"name":                   "AI-Drafted Assessment Report",
 		"cycle":                  extractStringField(roadmapPayload, "roadmap.cycle"),
@@ -213,18 +230,18 @@ func (s *Service) DraftAssessment(ctx context.Context, instanceID uuid.UUID) (uu
 			"drafted_by":  "aim_agent",
 			"drafted_at":  time.Now().UTC().Format(time.RFC3339),
 			"llm_used":    false,
-			"instance_id": instanceID.String(), // needed by LLM enrichment for context loading
+			"instance_id": instanceID.String(),
 		},
 	}
 
 	llmUsed := false
 	if s.llm != nil {
 		llmUsed = true
-		s.enrichAssessmentWithLLM(ctx, report, okrAssessments)
+		s.enrichAssessmentWithLLM(ctx, report, okrAssessments, priorAssessment, lraPayload)
 		report["metadata"].(map[string]any)["llm_used"] = true
 	}
 
-	// 6. Stage as a batch.
+	// 8. Stage as a batch.
 	batchID, err := s.stageMutation(ctx, instanceID, domain.ArtifactTypeAssessmentReport, "assessment-draft-"+time.Now().Format("2006-01-02"), domain.MutationActionCreate, report)
 	if err != nil {
 		return uuid.Nil, DraftSummary{}, fmt.Errorf("stage assessment draft: %w", err)
@@ -375,46 +392,72 @@ func (s *Service) extractStrategicInsights(ctx context.Context, instanceID uuid.
 	return insights
 }
 
-// enrichAssessmentWithLLM calls the LLM to add narrative assessment text to each OKR.
-// It loads strategic context (north star mission, strategy foundations synopsis, active
-// ripple signals) once, then enriches each OKR with a grounded assessment.
-func (s *Service) enrichAssessmentWithLLM(ctx context.Context, report map[string]any, okrAssessments []map[string]any) {
+// enrichAssessmentWithLLM calls the LLM once per OKR to write a grounded assessment.
+// Evidence sources (in priority order):
+//  1. priorAssessment — last committed assessment report with real actuals + KR outcomes
+//  2. lraPayload — LRA evolution log entries (narrative of what happened this cycle)
+//  3. Active ripple signals (system-detected misalignments)
+//  4. Strategic context from north star and strategy foundations
+func (s *Service) enrichAssessmentWithLLM(ctx context.Context, report map[string]any, okrAssessments []map[string]any, priorAssessment, lraPayload map[string]any) {
 	instanceID := s.instanceIDFromReport(report)
 
-	// Load strategic context once — reused for every OKR call.
+	// Build shared context sections — loaded once, reused per OKR call.
 	strategicContext := s.loadStrategicContext(ctx, instanceID)
 	signals := s.loadSignalContext(ctx, instanceID)
+	lraContext := buildLRAContext(lraPayload)
 
-	systemPrompt := `You are a strategy assessment analyst. Your job is to write realistic, grounded OKR assessments based on the strategic context provided. 
+	systemPrompt := `You are a strategy assessment analyst writing a new cycle assessment report.
+
+Your job: for each OKR, write a 2-4 sentence assessment grounded in the evidence provided.
+
+Evidence priority:
+1. Prior assessment actuals (most important — real outcomes from the last cycle)
+2. LRA evolution log (what happened narratively since last cycle)
+3. Ripple signals (system-detected strategy misalignments)
+4. Strategic context (mission/vision — background only)
 
 Rules:
-- Acknowledge when data is unavailable — do NOT fabricate metrics or actuals.
-- Reference the specific key results and their targets when assessing status.
-- Use the ripple signals (misalignments detected by the system) as evidence where relevant.
-- Be concise: 2-3 sentences per OKR assessment.
-- Status options: on_track, at_risk, missed, pending (use pending only when truly no signal exists).`
+- Use prior actuals and LRA narrative as your primary evidence. If both are present, synthesise them.
+- Do NOT fabricate numbers. If actual progress on a KR is unknown, say so and name what evidence is needed.
+- Reference specific KR IDs when assessing individual key results.
+- Set status: on_track | at_risk | missed | partially_met | pending
+- Be direct and actionable. No filler phrases like "it's important to note".`
+
+	// Run LLM calls concurrently — one goroutine per OKR.
+	type result struct {
+		idx        int
+		assessment string
+	}
+	resultCh := make(chan result, len(okrAssessments))
 
 	for i, okr := range okrAssessments {
 		objective, _ := okr["objective"].(string)
 		if objective == "" {
+			resultCh <- result{idx: i}
 			continue
 		}
 		okrID, _ := okr["okr_id"].(string)
 		track, _ := okr["track"].(string)
 
-		// Build KR summary.
+		// Build KR section with targets AND prior actuals if available.
 		var krLines []string
 		if krs, ok := okr["kr_assessments"].([]map[string]any); ok {
 			for _, kr := range krs {
 				krID, _ := kr["kr_id"].(string)
 				target, _ := kr["target"].(string)
-				if krID != "" {
-					line := fmt.Sprintf("  - %s", krID)
-					if target != "" {
-						line += fmt.Sprintf(" (target: %s)", target)
-					}
-					krLines = append(krLines, line)
+				actual, _ := kr["actual"].(string)
+				status, _ := kr["status"].(string)
+				if krID == "" {
+					continue
 				}
+				line := fmt.Sprintf("  %s: target=%q", krID, target)
+				if actual != "" {
+					line += fmt.Sprintf(", actual=%q", actual)
+				}
+				if status != "" && status != "pending" && status != "not_started" {
+					line += fmt.Sprintf(", prior_status=%s", status)
+				}
+				krLines = append(krLines, line)
 			}
 		}
 		krSection := "  (no key results defined)"
@@ -422,28 +465,192 @@ Rules:
 			krSection = strings.Join(krLines, "\n")
 		}
 
-		userPrompt := fmt.Sprintf(`Strategic context:
+		userPrompt := fmt.Sprintf(`%s
+
 %s
+
 %s
 ---
 OKR to assess:
 Track: %s
 ID: %s
 Objective: %s
-Key Results:
+Key Results (with prior actuals where available):
 %s
 
-Write a concise assessment (2-3 sentences) of this OKR. If you cannot determine actual progress, say so explicitly and explain what evidence would be needed.`,
-			strategicContext, signals, track, okrID, objective, krSection)
+Write 2-4 sentences assessing this OKR. Reference prior actuals and LRA narrative as primary evidence. Set a clear status at the start: [on_track] [at_risk] [missed] [partially_met] [pending]`,
+			strategicContext, lraContext, signals, track, okrID, objective, krSection)
 
-		result, err := s.llm.Complete(ctx, systemPrompt, userPrompt)
-		if err != nil {
-			slog.WarnContext(ctx, "aim: LLM assessment enrichment failed", "okr_id", okrID, "err", err)
-			continue
+		go func(idx int, id, prompt string) {
+			res, err := s.llm.Complete(ctx, systemPrompt, prompt)
+			if err != nil {
+				slog.WarnContext(ctx, "aim: LLM assessment enrichment failed", "okr_id", id, "err", err)
+				resultCh <- result{idx: idx}
+				return
+			}
+			resultCh <- result{idx: idx, assessment: strings.TrimSpace(res)}
+		}(i, okrID, userPrompt)
+	}
+
+	// Collect all results.
+	for range okrAssessments {
+		r := <-resultCh
+		if r.assessment != "" {
+			okrAssessments[r.idx]["assessment"] = r.assessment
 		}
-		okrAssessments[i]["assessment"] = strings.TrimSpace(result)
 	}
 	report["okr_assessments"] = okrAssessments
+}
+
+// seedFromPriorAssessment carries forward actuals and KR outcomes from the last
+// committed assessment into the new skeleton so the LLM has them as evidence.
+func seedFromPriorAssessment(okrAssessments []map[string]any, prior map[string]any) {
+	priorOKRs, _ := prior["okr_assessments"].([]any)
+	if len(priorOKRs) == 0 {
+		return
+	}
+
+	// Index prior OKR entries by okr_id for O(1) lookup.
+	priorByID := make(map[string]map[string]any, len(priorOKRs))
+	for _, item := range priorOKRs {
+		m, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		if id, _ := m["okr_id"].(string); id != "" {
+			priorByID[id] = m
+		}
+	}
+
+	for i, okr := range okrAssessments {
+		okrID, _ := okr["okr_id"].(string)
+		priorOKR, ok := priorByID[okrID]
+		if !ok {
+			continue
+		}
+
+		// Carry forward the prior OKR-level assessment as context.
+		if priorText, _ := priorOKR["assessment"].(string); priorText != "" {
+			okrAssessments[i]["prior_assessment"] = priorText
+		}
+
+		// Carry forward KR actuals from prior key_result_outcomes into kr_assessments.
+		priorKRs, _ := priorOKR["key_result_outcomes"].([]any)
+		if len(priorKRs) == 0 {
+			continue
+		}
+		priorKRByID := make(map[string]map[string]any, len(priorKRs))
+		for _, krItem := range priorKRs {
+			krm, ok := krItem.(map[string]any)
+			if !ok {
+				continue
+			}
+			if id, _ := krm["kr_id"].(string); id != "" {
+				priorKRByID[id] = krm
+			}
+		}
+
+		krs, _ := okr["kr_assessments"].([]map[string]any)
+		for j, kr := range krs {
+			krID, _ := kr["kr_id"].(string)
+			priorKR, ok := priorKRByID[krID]
+			if !ok {
+				continue
+			}
+			if actual, _ := priorKR["actual"].(string); actual != "" {
+				krs[j]["actual"] = actual
+			}
+			if status, _ := priorKR["status"].(string); status != "" {
+				krs[j]["status"] = status
+			}
+		}
+		okrAssessments[i]["kr_assessments"] = krs
+	}
+}
+
+// seedAssumptionsFromPrior carries forward prior assumption statuses and evidence.
+func seedAssumptionsFromPrior(assumptions []map[string]any, prior map[string]any) {
+	priorValidations, _ := prior["assumption_validations"].([]any)
+	if len(priorValidations) == 0 {
+		return
+	}
+	priorByID := make(map[string]map[string]any, len(priorValidations))
+	for _, item := range priorValidations {
+		m, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		// prior may use "id" or "assumption_id"
+		id, _ := m["id"].(string)
+		if id == "" {
+			id, _ = m["assumption_id"].(string)
+		}
+		if id != "" {
+			priorByID[id] = m
+		}
+	}
+	for i, av := range assumptions {
+		asmID, _ := av["assumption_id"].(string)
+		prior, ok := priorByID[asmID]
+		if !ok {
+			continue
+		}
+		if status, _ := prior["status"].(string); status != "" {
+			assumptions[i]["status"] = status
+		}
+		if evidence, _ := prior["evidence"].(string); evidence != "" {
+			assumptions[i]["evidence"] = evidence
+		}
+	}
+}
+
+// buildLRAContext formats the LRA evolution log into a compact evidence string
+// for inclusion in the LLM prompt.
+func buildLRAContext(lra map[string]any) string {
+	if lra == nil {
+		return ""
+	}
+
+	var lines []string
+
+	// Current focus.
+	if focus, ok := lra["current_focus"].(map[string]any); ok {
+		if obj, _ := focus["primary_objective"].(string); obj != "" {
+			lines = append(lines, "Current cycle objective: "+obj)
+		}
+		if track, _ := focus["primary_track"].(string); track != "" {
+			lines = append(lines, "Primary track: "+track)
+		}
+	}
+
+	// Evolution log — last 3 entries, most recent first.
+	if log, ok := lra["evolution_log"].([]any); ok {
+		lines = append(lines, "\nProgress narrative (LRA evolution log, most recent first):")
+		count := 0
+		for j := len(log) - 1; j >= 0 && count < 3; j-- {
+			entry, ok := log[j].(map[string]any)
+			if !ok {
+				continue
+			}
+			summary, _ := entry["summary"].(string)
+			ts, _ := entry["timestamp"].(string)
+			if summary == "" {
+				continue
+			}
+			if ts != "" && len(ts) >= 10 {
+				ts = ts[:10] // date only
+				lines = append(lines, fmt.Sprintf("  [%s] %s", ts, summary))
+			} else {
+				lines = append(lines, "  "+summary)
+			}
+			count++
+		}
+	}
+
+	if len(lines) == 0 {
+		return ""
+	}
+	return "LRA context (what happened this cycle):\n" + strings.Join(lines, "\n")
 }
 
 // instanceIDFromReport extracts the instance UUID from the metadata section of a report map.
