@@ -14,6 +14,7 @@ import (
 	aimdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/aim"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ripple"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
+	strategydom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
 	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/version"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/navigation"
@@ -30,6 +31,7 @@ type Server struct {
 	log                 *slog.Logger
 	semanticSvc         *semantic.Service
 	rippleSvc           *ripple.Service
+	strategySvc         *strategydom.Service   // required for index derivation on batch commit
 	versionSvc          *version.Service
 	syncSvc             *syncdom.Service       // nil when GitHub App not configured
 	aimSvc              *aimdom.Service        // nil when AIM service not configured
@@ -49,6 +51,13 @@ func New(db *bun.DB, log *slog.Logger, semanticSvc *semantic.Service) *Server {
 // WithRipple wires the ripple service into the handler server.
 func (s *Server) WithRipple(svc *ripple.Service) *Server {
 	s.rippleSvc = svc
+	return s
+}
+
+// WithStrategy wires the strategy service into the handler server.
+// Required for proper strategic index derivation when committing batches via the web UI.
+func (s *Server) WithStrategy(svc *strategydom.Service) *Server {
+	s.strategySvc = svc
 	return s
 }
 

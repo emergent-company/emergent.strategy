@@ -218,15 +218,27 @@ func (s *Server) handleDraftCommit(c echo.Context) error {
 		Limit(1).
 		Scan(ctx, &primaryArtifactType)
 
-	// Commit the batch.
-	_, err = s.db.NewUpdate().
-		Model((*domain.StrategyMutation)(nil)).
-		Set("status = ?", domain.MutationStatusCommitted).
-		Where("batch_id = ? AND status = ?", batchID, domain.MutationStatusStaged).
-		Exec(ctx)
-	if err != nil {
-		s.log.Error("failed to commit draft batch", "batch_id", batchIDStr, "err", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "commit failed")
+	// Commit the batch via the strategy service so that strategy_artifacts is
+	// updated atomically alongside strategy_mutations. The old approach (raw SQL
+	// + no-op deriveIndexForBatch) left strategy_artifacts stale, which caused
+	// ApplyCalibration to fail because it queries strategy_artifacts for the memo.
+	if s.strategySvc != nil {
+		if _, err = s.strategySvc.CommitBatch(ctx, batchID); err != nil {
+			s.log.Error("failed to commit draft batch", "batch_id", batchIDStr, "err", err)
+			return echo.NewHTTPError(http.StatusInternalServerError, "commit failed")
+		}
+	} else {
+		// Fallback: raw SQL only (no index derivation) — strategySvc should always be wired.
+		s.log.Warn("strategySvc not wired — strategic index will not be updated", "batch_id", batchIDStr)
+		_, err = s.db.NewUpdate().
+			Model((*domain.StrategyMutation)(nil)).
+			Set("status = ?", domain.MutationStatusCommitted).
+			Where("batch_id = ? AND status = ?", batchID, domain.MutationStatusStaged).
+			Exec(ctx)
+		if err != nil {
+			s.log.Error("failed to commit draft batch (fallback)", "batch_id", batchIDStr, "err", err)
+			return echo.NewHTTPError(http.StatusInternalServerError, "commit failed")
+		}
 	}
 
 	// Post-commit: trigger cycle snapshot if this was a calibration memo.
@@ -236,9 +248,6 @@ func (s *Server) handleDraftCommit(c echo.Context) error {
 			go s.snapshottedCalibrationCycle(instID)
 		}
 	}
-
-	// Derive the strategic index for committed mutations (best-effort).
-	s.deriveIndexForBatch(ctx, batchID)
 
 	// Look up any orchestration run waiting on this batch — if found, resume it
 	// and redirect back to the run panel so the user can watch the next step.
