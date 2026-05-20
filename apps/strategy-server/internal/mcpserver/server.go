@@ -782,6 +782,34 @@ func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 		}
 		return mcp.NewToolResultText(fmt.Sprintf(`{"archived":true,"instance_id":%q}`, id)), nil
 	})
+
+	s.AddTool(mcp.NewTool("delete_instance",
+		mcp.WithDescription("USE WHEN you need to permanently delete a strategy instance and all its data (mutations, artifacts, relationships, versions, signals). This is irreversible — use archive_instance instead if you only want to hide the instance."),
+		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		id, err := parseUUID(argString(req, "instance_id"))
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := svc.Instance.DeleteInstance(ctx, id); err != nil {
+			return toolErr(ctx, err), nil
+		}
+		return mcp.NewToolResultText(fmt.Sprintf(`{"deleted":true,"instance_id":%q}`, id)), nil
+	})
+
+	s.AddTool(mcp.NewTool("delete_workspace",
+		mcp.WithDescription("USE WHEN you need to permanently delete a workspace and all its strategy instances. This is irreversible — all instances, artifacts, mutations, and history in the workspace will be removed."),
+		mcp.WithString("workspace_id", mcp.Required(), mcp.Description("Workspace UUID")),
+	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		wsID, err := parseUUID(argString(req, "workspace_id"))
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := svc.Workspace.DeleteWorkspace(ctx, wsID); err != nil {
+			return toolErr(ctx, err), nil
+		}
+		return mcp.NewToolResultText(fmt.Sprintf(`{"deleted":true,"workspace_id":%q}`, wsID)), nil
+	})
 }
 
 // ---------------------------------------------------------------------------

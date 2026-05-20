@@ -291,6 +291,40 @@ func (s *Service) ArchiveInstance(ctx context.Context, id uuid.UUID) error {
 	})
 }
 
+// DeleteInstance permanently soft-deletes a strategy instance by setting deleted_at.
+// All child rows (mutations, artifacts, relationships, versions, sync log, signals,
+// packs, apps, ripple config) are removed automatically via ON DELETE CASCADE
+// (migration 020). The instance is excluded from all queries after deletion.
+func (s *Service) DeleteInstance(ctx context.Context, id uuid.UUID) error {
+	actorID := audit.ActorFromContext(ctx)
+
+	res, err := s.db.NewUpdate().
+		Model((*domain.StrategyInstance)(nil)).
+		Set("deleted_at = NOW()").
+		Where("id = ? AND deleted_at IS NULL", id).
+		Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("delete instance: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rows affected: %w", err)
+	}
+	if n == 0 {
+		return apperror.ErrInstanceNotFound
+	}
+
+	audit.FromContext(ctx).Write(ctx, audit.Entry{
+		EntityType: "strategy_instance",
+		EntityID:   id,
+		Action:     "delete",
+		Source:     audit.SourceFromContext(ctx),
+		ActorID:    actorID,
+	})
+
+	return nil
+}
+
 // inferArtifactType maps well-known artifact keys to their type strings.
 func inferArtifactType(key string) string {
 	switch key {
