@@ -309,9 +309,9 @@ func Test82_StartCycle_RunPanelRendersAndSSEConnects(t *testing.T) {
 		t.Errorf("run panel should contain timeline div, got: %s", panelHTML[:min(len(panelHTML), 300)])
 	}
 
-	// Verify SSE connect attribute is wired.
-	if !strings.Contains(panelHTML, "sse-connect") {
-		t.Errorf("run panel should have sse-connect attribute for live updates")
+	// Verify SSE stream URL is wired (via data-stream-url, used by plain EventSource).
+	if !strings.Contains(panelHTML, "data-stream-url") {
+		t.Errorf("run panel should have data-stream-url attribute for live updates")
 	}
 
 	// Verify step names appear in the timeline.

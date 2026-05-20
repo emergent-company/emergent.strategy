@@ -66,15 +66,21 @@ func (s *Server) loadAssumptionStatements(ctx context.Context, instanceID string
 		}
 	}
 
-	// Pattern 2: roadmap.tracks.<track>.riskiest_assumptions[]  (current schema)
+	// Pattern 2: roadmap.tracks.<track>.<any key containing "assumption">[]  (current schema)
+	// Handles: riskiest_assumptions, riskiest_assumptions_orgops_expansion, assumptions, etc.
 	tracks, _ := roadmap["tracks"].(map[string]any)
 	for _, tv := range tracks {
 		tm, ok := tv.(map[string]any)
 		if !ok {
 			continue
 		}
-		if list, ok := tm["riskiest_assumptions"].([]any); ok {
-			collectAssumptions(list)
+		for key, val := range tm {
+			if !strings.Contains(strings.ToLower(key), "assumption") {
+				continue
+			}
+			if list, ok := val.([]any); ok {
+				collectAssumptions(list)
+			}
 		}
 	}
 
@@ -218,7 +224,11 @@ func (s *Server) assessmentContent(ctx context.Context, instanceID string, navCt
 			if !ok {
 				continue
 			}
+			// The field may be "id" (committed reports) or "assumption_id" (AI-drafted reports).
 			id := payloadStr(am, "id")
+			if id == "" {
+				id = payloadStr(am, "assumption_id")
+			}
 			data.AssumptionValidations = append(data.AssumptionValidations, ui.AssessmentAssumption{
 				ID:               id,
 				Statement:        asmStatements[id],
