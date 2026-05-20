@@ -319,6 +319,7 @@ func runServer(cfg *config.Config) error {
 	// Web UI routes.
 	webHandler := handler.New(db, log, semanticSvc).
 		WithStrategy(strategySvc).
+		WithVersion(versionSvc).
 		WithRipple(rippleSvc).
 		WithAIM(aimSvc).
 		WithOrchestration(orchEngine).
