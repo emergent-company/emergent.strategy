@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 )
@@ -1002,6 +1004,27 @@ func (s *Server) loadAimPhaseData(ctx context.Context, instanceID string) ui.Aim
 		TableExpr("strategy_versions").
 		Where("instance_id = ?", instanceID).
 		Count(ctx)
+
+	// Trigger evaluation (lazy — evaluated at render time, no background job)
+	if s.aimSvc != nil {
+		id, err := uuid.Parse(instanceID)
+		if err == nil {
+			trigger := s.aimSvc.EvaluateTriggers(ctx, id)
+			data.TriggerFired = trigger.Fired
+			data.TriggerReason = trigger.Reason
+			data.TriggerReasonMessage = trigger.ReasonMessage
+		}
+	}
+
+	// Active orchestrated run (if any)
+	if s.orchestrationEngine != nil {
+		activeRun, err := s.orchestrationEngine.ActiveRun(ctx, "aim_cycle", instanceID)
+		if err == nil && activeRun != nil {
+			data.ActiveRunID = activeRun.ID.String()
+			data.ActiveRunStatus = string(activeRun.Status)
+			data.ActiveRunStep = activeRun.CurrentStep
+		}
+	}
 
 	return data
 }

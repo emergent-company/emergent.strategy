@@ -121,9 +121,10 @@ func (s *Server) lraContent(navCtx ui.NavContext, artifactKey, name, status stri
 	}
 
 	// ── Evolution Log ──
+	// Reverse so latest entry is first (top of timeline).
 	if evol, ok := payload["evolution_log"].([]any); ok {
-		for _, item := range evol {
-			em, ok := item.(map[string]any)
+		for i := len(evol) - 1; i >= 0; i-- {
+			em, ok := evol[i].(map[string]any)
 			if !ok {
 				continue
 			}

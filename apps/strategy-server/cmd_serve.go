@@ -17,6 +17,7 @@ import (
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/config"
 	appdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/app"
+	aimdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/aim"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ingest"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/org"
@@ -39,6 +40,8 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/skillrunner"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/web"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/logger"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/orchestration"
+	orchpg "github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/orchestration/pg"
 )
 
 func runServer(cfg *config.Config) error {
@@ -144,20 +147,45 @@ func runServer(cfg *config.Config) error {
 	}
 
 	wsSvc := workspace.NewService(db)
+
+	// AIM agent loop service — wraps the llmClient as an aim.LLMClient adapter.
+	var aimLLMClient aimdom.LLMClient
+	if llmClient != nil {
+		aimLLMClient = &llmAIMAdapter{client: llmClient}
+	}
+	aimSvc := aimdom.NewService(db, aimLLMClient)
+
+	// Orchestration engine — PostgreSQL-backed goroutine pool.
+	orchBackend := orchpg.NewBackend(db, orchpg.Config{Workers: 4})
+	orchEngine := orchestration.New(orchBackend)
+	orchEngine.Register(aimdom.NewCycleWorkflow(aimSvc))
+	if err := orchEngine.Start(context.Background()); err != nil {
+		return fmt.Errorf("start orchestration engine: %w", err)
+	}
+	defer func() {
+		stopCtx, stopCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer stopCancel()
+		if stopErr := orchEngine.Stop(stopCtx); stopErr != nil {
+			log.Warn("orchestration engine stop error", "err", stopErr)
+		}
+	}()
+
 	svc := mcpserver.Services{
-		Workspace: wsSvc,
-		Instance:  instSvc,
-		Strategy:  strategySvc,
-		Pack:      packSvc,
-		App:       appdom.NewService(db),
-		Semantic:  semanticSvc,
-		Org:       orgSvc,
-		Schema:    schemaSvc,
-		Version:   versionSvc,
-		Sync:      syncSvc,
-		Ripple:    rippleSvc,
-		Resolver:  rippledom.NewLLMResolver(llmClient, db),
-		Ingest:    ingestSvc,
+		Workspace:     wsSvc,
+		Instance:      instSvc,
+		Strategy:      strategySvc,
+		Pack:          packSvc,
+		App:           appdom.NewService(db),
+		Semantic:      semanticSvc,
+		Org:           orgSvc,
+		Schema:        schemaSvc,
+		Version:       versionSvc,
+		Sync:          syncSvc,
+		Ripple:        rippleSvc,
+		AIM:           aimSvc,
+		Resolver:      rippledom.NewLLMResolver(llmClient, db),
+		Ingest:        ingestSvc,
+		Orchestration: orchEngine,
 	}
 
 	// Echo instance.
@@ -289,7 +317,12 @@ func runServer(cfg *config.Config) error {
 	e.GET("/static/*", echo.WrapHandler(web.StaticHandler()))
 
 	// Web UI routes.
-	webHandler := handler.New(db, log, semanticSvc)
+	webHandler := handler.New(db, log, semanticSvc).
+		WithRipple(rippleSvc).
+		WithVersion(versionSvc).
+		WithSync(syncSvc).
+		WithAIM(aimSvc).
+		WithOrchestration(orchEngine)
 	webHandler.RegisterRoutes(e)
 
 	// Server timeouts.
@@ -344,4 +377,22 @@ func (a *strategyExporterAdapter) ExportInstance(ctx context.Context, instanceID
 		}
 	}
 	return &ingest.ExportResult{Files: files}, nil
+}
+
+// llmAIMAdapter adapts *llm.Client to the aim.LLMClient interface.
+// The aim package uses a simpler Complete(ctx, system, user) signature
+// so handlers don't depend on internal/llm types.
+type llmAIMAdapter struct {
+	client *llm.Client
+}
+
+func (a *llmAIMAdapter) Complete(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
+	result, err := a.client.Chat(ctx, []llm.ChatMessage{
+		{Role: "system", Content: systemPrompt},
+		{Role: "user", Content: userPrompt},
+	}, 0.4)
+	if err != nil {
+		return "", err
+	}
+	return result.Content, nil
 }

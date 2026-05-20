@@ -7,6 +7,7 @@ import (
 	"github.com/a-h/templ"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 	"github.com/labstack/echo/v4"
+	"github.com/uptrace/bun"
 )
 
 // handleAssumptions serves /aim/assumptions.
@@ -18,7 +19,10 @@ func (s *Server) handleAssumptions(c echo.Context) error {
 }
 
 func (s *Server) loadAssumptionsView(ctx context.Context, instanceID string) templ.Component {
-	// All tests_assumption relationships: source=feature, target=assumption key
+	// Pre-load human-readable statements from roadmap.
+	asmStatements := s.loadAssumptionStatements(ctx, instanceID)
+
+	// All tests_assumption / validates_assumption relationships: source=feature, target=assumption key
 	type relRow struct {
 		SourceKey string `bun:"source_key"`
 		TargetKey string `bun:"target_key"`
@@ -28,7 +32,7 @@ func (s *Server) loadAssumptionsView(ctx context.Context, instanceID string) tem
 		TableExpr("strategy_relationships").
 		ColumnExpr("source_key, target_key").
 		Where("instance_id = ?", instanceID).
-		Where("relationship_type = ?", "tests_assumption").
+		Where("relationship IN (?)", bun.In([]string{"tests_assumption", "validates_assumption"})).
 		Scan(ctx, &rels)
 
 	// Build assumption → []feature map
@@ -103,6 +107,7 @@ func (s *Server) loadAssumptionsView(ctx context.Context, instanceID string) tem
 		vr := validationMap[key]
 		rows = append(rows, ui.AssumptionRow{
 			Key:              key,
+			Statement:        asmStatements[key],
 			TestedBy:         ad.testedBy,
 			RiskLevel:        risk,
 			ValidationStatus: vr.ValidationStatus,

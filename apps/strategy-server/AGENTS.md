@@ -164,6 +164,9 @@ Four-phase build order — do not start the next phase until the exit gate is me
 - **2e (Schema registry + versioning + GitHub sync):** Complete — schema registry with
   DB + embedded fallback, strategy versioning (publish/list/get/diff/restore), GitHub
   App write-back (branch + commit + PR), decomposer field reconciliation. 103 MCP tools.
+- **AIM agent loop:** Complete — `domain/aim/` package, 4 MCP tools (`draft_aim_assessment`,
+  `draft_aim_calibration`, `apply_aim_calibration`, `list_aim_cycles`), web UI draft review
+  flow, cycle auto-snapshot on calibration commit. 111 MCP tools total.
 
 ## Tech Stack
 
@@ -263,13 +266,14 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 | `domain/version/` | Strategy versioning (publish/list/get/diff/restore) |
 | `domain/sync/` | GitHub sync (RepoWriter interface, sync log) |
 | `domain/ripple/` | Ripple coherence engine (signals, propagation, convergence, equilibrium) |
+| `domain/aim/` | AI-assisted AIM cycle (trigger evaluation, draft assessment/calibration/apply, cycle snapshots, orchestrated cycle workflow) |
 
 ### Internal packages
 
 | Package | Purpose |
 |---------|---------|
 | `internal/database/` | DB connection, migrations, `TestDB(t)` |
-| `internal/mcpserver/` | 103 MCP tools across 7 registration files |
+| `internal/mcpserver/` | 111 MCP tools across 8 registration files |
 | `internal/auth/` | Zitadel OIDC introspection + PostgreSQL cache |
 | `internal/memory/` | emergent.memory REST API client (7 files) |
 | `internal/agent/` | Task routing (`get_agent_for_task`) + knowledge base |
@@ -279,12 +283,14 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 | `internal/audit/` | Audit context contract |
 | `internal/langs/` | i18n translations |
 | `internal/skillrunner/` | Script skill subprocess execution |
+| `pkg/orchestration/` | Interface-driven async workflow orchestrator (Engine, Backend, Workflow, SSE fanout) |
+| `pkg/orchestration/pg/` | PostgreSQL-backed orchestration backend with goroutine worker pool |
 | `internal/domain/` | Shared struct definitions with bun tags |
 | `internal/index/` | Strategic relationship index derivation |
 
 ### Database migrations
 
-14 migrations in `internal/database/migrations/`:
+21 migrations in `internal/database/migrations/`:
 
 | Migration | Purpose |
 |-----------|---------|
@@ -304,10 +310,16 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 | `014_sync_status_and_fks.sql` | Memory sync status + created_by FK constraints |
 | `015_ripple_signals.sql` | Ripple signals table + batch_metadata column |
 | `016_ripple_convergence.sql` | Ripple config, convergence runs, version metadata enrichment |
+| `017_enrich_orgs.sql` | Org enrichment fields (org_number, country, website, twentyfirst_id) |
+| `018_memory_sync_counts.sql` | Memory sync object/edge counts on instances |
+| `019_memory_decomposed_counts.sql` | Memory decomposed object/edge counts |
+| `020_instance_cascade_delete.sql` | Cascade delete for instance cleanup |
+| `021_aim_cycle_index.sql` | Index on strategy_versions(instance_id, source) for AIM cycle queries |
+| `022_orchestration_runs.sql` | `orchestration_runs` table + index on (workflow_name, concurrency_key, status) |
 
 ## MCP Server
 
-The server exposes 107 MCP tools at `/mcp`. Key categories:
+The server exposes 113 MCP tools at `/mcp`. Key categories:
 
 | Category | Count | Examples |
 |----------|-------|---------|
@@ -322,6 +334,8 @@ The server exposes 107 MCP tools at `/mcp`. Key categories:
 | Skill packs/apps | 11 | `install_pack`, `run_skill`, `run_app` |
 | Relationship tools | 3 | `add_relationship`, `suggest_relationships`, `list_relationships` |
 | AIM lifecycle | 7 | `create_lra`, `validate_assumptions`, `stage_calibration` |
+| AIM agent loop | 4 | `draft_aim_assessment`, `draft_aim_calibration`, `apply_aim_calibration`, `list_aim_cycles` |
+| AIM orchestrator | 2 | `aim_start_cycle`, `aim_get_run` |
 | Ripple coherence | 11 | `coherence_check`, `list_signals`, `get_equilibrium_status`, `get_convergence_history` |
 | Export | 3 | `export_instance_yaml`, `export_report` |
 | Phase discovery | 4 | `get_phase_artifacts`, `list_definitions`, `get_definition` |

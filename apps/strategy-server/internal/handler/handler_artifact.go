@@ -166,7 +166,7 @@ func (s *Server) bespokeContent(ctx context.Context, instanceID, track string, n
 	case "living_reality_assessment":
 		return s.lraContent(navCtx, artifactKey, name, status, payload)
 	case "assessment_report":
-		return s.assessmentContent(navCtx, artifactKey, name, status, payload)
+		return s.assessmentContent(ctx, instanceID, navCtx, artifactKey, name, status, payload)
 	case "calibration_memo":
 		return s.calibrationContent(navCtx, artifactKey, name, status, payload)
 	}

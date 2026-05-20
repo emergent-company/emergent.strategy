@@ -19,6 +19,14 @@ func (s *Server) handleCalibration(c echo.Context) error {
 
 // loadCalibrationView loads the most recent calibration_memo and returns its rendered component.
 func (s *Server) loadCalibrationView(ctx context.Context, instanceID string) templ.Component {
+	currentPath := "/strategies/" + instanceID + "/aim/calibration"
+	navCtx := ui.NavContext{
+		InstanceID:  instanceID,
+		CurrentPath: currentPath,
+		ScreenID:    "aim-calibration",
+		TabGroup:    "aim",
+	}
+
 	type row struct {
 		ArtifactKey string `bun:"artifact_key"`
 		Name        string `bun:"name"`
@@ -36,7 +44,7 @@ func (s *Server) loadCalibrationView(ctx context.Context, instanceID string) tem
 		Scan(ctx, &r)
 
 	if err != nil || r.Payload == "" {
-		return ui.PlaceholderContent("Calibration Memo",
+		return ui.ArtifactPlaceholder(navCtx, "Calibration Memo",
 			"No calibration memo found. Create one after completing an AIM assessment cycle.",
 			"lucide--sliders-horizontal")
 	}
@@ -48,17 +56,9 @@ func (s *Server) loadCalibrationView(ctx context.Context, instanceID string) tem
 
 	var payload map[string]any
 	if json.Unmarshal([]byte(r.Payload), &payload) != nil {
-		return ui.PlaceholderContent("Calibration Memo",
+		return ui.ArtifactPlaceholder(navCtx, "Calibration Memo",
 			"Unable to parse calibration memo payload.",
 			"lucide--sliders-horizontal")
-	}
-
-	currentPath := "/strategies/" + instanceID + "/aim/calibration"
-	navCtx := ui.NavContext{
-		InstanceID:  instanceID,
-		CurrentPath: currentPath,
-		ScreenID:    "aim-calibration",
-		TabGroup:    "aim",
 	}
 
 	return s.calibrationContent(navCtx, r.ArtifactKey, name, r.Status, payload)

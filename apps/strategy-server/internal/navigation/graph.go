@@ -88,6 +88,17 @@ func DefaultGraph() *Graph {
 		{ID: Coherence, Title: "Coherence", Parent: AimOverview,
 			WebRoute: true, URLPattern: "/aim/coherence", Icon: "lucide--shield-check",
 			TabGroup: TabAim, RenderMode: RenderTabPage, InstanceScoped: true},
+		{ID: AimVersions, Title: "Versions", Parent: AimOverview,
+			WebRoute: true, URLPattern: "/aim/versions", Icon: "lucide--history",
+			TabGroup: TabAim, RenderMode: RenderTabPage, InstanceScoped: true},
+		// AI draft review — reachable via POST redirect from draft-* handlers; not in sub-nav.
+		{ID: AimDraftReview, Title: "Draft Review", Parent: AimOverview,
+			WebRoute: false, URLPattern: "/aim/draft-review/:batchID", Icon: "lucide--sparkles",
+			TabGroup: TabAim, RenderMode: RenderTabPage, InstanceScoped: true, SubNavHidden: true},
+		// Orchestrated cycle run panel — reachable via POST redirect from aim/runs; not in sub-nav.
+		{ID: AimRunPanel, Title: "Run", Parent: AimOverview,
+			WebRoute: true, URLPattern: "/aim/runs/:runID", Icon: "lucide--play-circle",
+			TabGroup: TabAim, RenderMode: RenderTabPage, InstanceScoped: true, SubNavHidden: true},
 	}
 
 	return g

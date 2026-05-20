@@ -11,9 +11,10 @@ type AssumptionsViewData struct {
 
 // AssumptionRow is a single assumption with its test coverage.
 type AssumptionRow struct {
-	Key          string // e.g. asm-001
-	TestedBy     []string // feature keys that test this assumption
-	RiskLevel    string // untested | partially_tested | well_tested
+	Key       string   // e.g. asm-001
+	Statement string   // human-readable "We believe..." text from roadmap
+	TestedBy  []string // feature keys that test this assumption
+	RiskLevel string   // untested | partially_tested | well_tested
 	// Validation outcome from assessment reports (if any)
 	ValidationStatus string // validated | invalidated | inconclusive | pending | ""
 	Evidence         string
@@ -22,6 +23,12 @@ type AssumptionRow struct {
 // AssumptionsContent renders the assumptions testing coverage screen.
 templ AssumptionsContent(data AssumptionsViewData) {
 	@TabBackLink(data.TabGroup, data.InstanceID, data.CurrentPath)
+	// Filter CSS: hide cards that don't match the active filter.
+	<style>
+		#assumption-list[data-filter="well_tested"]      [data-risk]:not([data-risk="well_tested"])      { display: none; }
+		#assumption-list[data-filter="partially_tested"] [data-risk]:not([data-risk="partially_tested"]) { display: none; }
+		#assumption-list[data-filter="untested"]         [data-risk]:not([data-risk="untested"])         { display: none; }
+	</style>
 	<div class="space-y-6">
 		// ── Header ──
 		<div class="flex items-center justify-between">
@@ -31,12 +38,9 @@ templ AssumptionsContent(data AssumptionsViewData) {
 					Which strategic bets are being tested, and what has the real world told us?
 				</p>
 			</div>
-			<div class="flex items-center gap-3">
-				@assumptionRiskLegend()
-			</div>
 		</div>
 
-		// ── Summary bar ──
+		// ── Summary bar (clickable filters) ──
 		@assumptionsSummaryBar(data.Assumptions)
 
 		// ── Assumption list ──
@@ -47,7 +51,7 @@ templ AssumptionsContent(data AssumptionsViewData) {
 				<p class="text-sm text-base-content/40 mt-1">Add assumptions to your roadmap and link features to them via tests_assumption relationships</p>
 			</div>
 		} else {
-			<div class="space-y-2">
+			<div id="assumption-list" class="space-y-2">
 				for _, a := range data.Assumptions {
 					@assumptionCard(a, data.InstanceID)
 				}
@@ -58,40 +62,60 @@ templ AssumptionsContent(data AssumptionsViewData) {
 
 templ assumptionsSummaryBar(assumptions []AssumptionRow) {
 	<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-		<div class="rounded-xl bg-base-100 border border-base-content/10 px-4 py-3 text-center shadow-sm">
+		// "All" — clears filter
+		<button
+			onclick="(function(btn){var l=document.getElementById('assumption-list');if(!l)return;var active=l.getAttribute('data-filter')==='';l.removeAttribute('data-filter');document.querySelectorAll('.asm-filter-btn').forEach(function(b){b.classList.remove('ring-2','ring-offset-1')});if(!active)btn.classList.add('ring-2','ring-offset-1')})(this)"
+			class="asm-filter-btn rounded-xl bg-base-100 border border-base-content/10 px-4 py-3 text-center shadow-sm cursor-pointer hover:border-base-content/30 transition-colors"
+		>
 			<p class="text-2xl font-bold text-base-content">{ strconv.Itoa(len(assumptions)) }</p>
 			<p class="text-xs text-base-content/60 mt-0.5">Total</p>
-		</div>
-		<div class="rounded-xl bg-success/5 border border-success/15 px-4 py-3 text-center shadow-sm">
+		</button>
+		// "Well tested" filter
+		<button
+			onclick="(function(btn){var l=document.getElementById('assumption-list');if(!l)return;var key='well_tested';var active=l.getAttribute('data-filter')===key;document.querySelectorAll('.asm-filter-btn').forEach(function(b){b.classList.remove('ring-2','ring-offset-1')});if(active){l.removeAttribute('data-filter')}else{l.setAttribute('data-filter',key);btn.classList.add('ring-2','ring-offset-1','ring-success')}})(this)"
+			class="asm-filter-btn rounded-xl bg-success/5 border border-success/15 px-4 py-3 text-center shadow-sm cursor-pointer hover:border-success/40 transition-colors"
+		>
 			<p class="text-2xl font-bold text-success">{ strconv.Itoa(countByRisk(assumptions, "well_tested")) }</p>
 			<p class="text-xs text-base-content/60 mt-0.5">Well tested</p>
-		</div>
-		<div class="rounded-xl bg-warning/5 border border-warning/15 px-4 py-3 text-center shadow-sm">
+		</button>
+		// "Partial" filter
+		<button
+			onclick="(function(btn){var l=document.getElementById('assumption-list');if(!l)return;var key='partially_tested';var active=l.getAttribute('data-filter')===key;document.querySelectorAll('.asm-filter-btn').forEach(function(b){b.classList.remove('ring-2','ring-offset-1')});if(active){l.removeAttribute('data-filter')}else{l.setAttribute('data-filter',key);btn.classList.add('ring-2','ring-offset-1','ring-warning')}})(this)"
+			class="asm-filter-btn rounded-xl bg-warning/5 border border-warning/15 px-4 py-3 text-center shadow-sm cursor-pointer hover:border-warning/40 transition-colors"
+		>
 			<p class="text-2xl font-bold text-warning">{ strconv.Itoa(countByRisk(assumptions, "partially_tested")) }</p>
 			<p class="text-xs text-base-content/60 mt-0.5">Partially tested</p>
-		</div>
-		<div class="rounded-xl bg-error/5 border border-error/15 px-4 py-3 text-center shadow-sm">
+		</button>
+		// "Untested" filter
+		<button
+			onclick="(function(btn){var l=document.getElementById('assumption-list');if(!l)return;var key='untested';var active=l.getAttribute('data-filter')===key;document.querySelectorAll('.asm-filter-btn').forEach(function(b){b.classList.remove('ring-2','ring-offset-1')});if(active){l.removeAttribute('data-filter')}else{l.setAttribute('data-filter',key);btn.classList.add('ring-2','ring-offset-1','ring-error')}})(this)"
+			class="asm-filter-btn rounded-xl bg-error/5 border border-error/15 px-4 py-3 text-center shadow-sm cursor-pointer hover:border-error/40 transition-colors"
+		>
 			<p class="text-2xl font-bold text-error">{ strconv.Itoa(countByRisk(assumptions, "untested")) }</p>
 			<p class="text-xs text-base-content/60 mt-0.5">Untested</p>
-		</div>
+		</button>
 	</div>
 }
 
 templ assumptionCard(a AssumptionRow, instanceID string) {
-	<div class={ "rounded-xl border bg-base-100 shadow-sm px-5 py-4", assumptionCardBorder(a.RiskLevel) }>
+	<div data-risk={ a.RiskLevel } class={ "rounded-xl border bg-base-100 shadow-sm px-5 py-4", assumptionCardBorder(a.RiskLevel) }>
 		<div class="flex items-start gap-4">
 			// Risk indicator
 			<div class={ "mt-0.5 size-2.5 rounded-full shrink-0", assumptionRiskDot(a.RiskLevel) }></div>
 
 			<div class="grow min-w-0 space-y-3">
-				// Key + risk badge + validation status
+				// ID + risk badge + validation status (small header row)
 				<div class="flex items-center gap-2 flex-wrap">
-					<span class="text-sm font-mono font-semibold text-base-content">{ a.Key }</span>
+					<span class="text-xs font-mono text-base-content/40">{ a.Key }</span>
 					<span class={ "badge badge-xs", assumptionRiskBadge(a.RiskLevel) }>{ assumptionRiskLabel(a.RiskLevel) }</span>
 					if a.ValidationStatus != "" {
 						<span class={ "badge badge-xs", assumptionStatusBadge(a.ValidationStatus) }>{ a.ValidationStatus }</span>
 					}
 				</div>
+				// Statement — main title, always visible
+				if a.Statement != "" {
+					<p class="text-sm font-medium text-base-content leading-snug">{ a.Statement }</p>
+				}
 
 				// Features testing this assumption
 				if len(a.TestedBy) > 0 {
@@ -99,16 +123,16 @@ templ assumptionCard(a AssumptionRow, instanceID string) {
 						<p class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-1.5">Tested by</p>
 						<div class="flex flex-wrap gap-1.5">
 							for _, featureKey := range a.TestedBy {
-								<a
-									href={ templ.URL("/strategies/" + instanceID + "/fire/feature/" + featureKey) }
-									hx-get={ "/strategies/" + instanceID + "/fire/feature/" + featureKey }
-									hx-target="#tab-content"
-									hx-swap="innerHTML"
-									hx-push-url="true"
-									class="badge badge-sm badge-outline badge-primary hover:badge-primary hover:text-primary-content transition-colors"
-								>
-									{ featureKey }
-								</a>
+						<a
+								href={ templ.URL("/strategies/" + instanceID + "/fire/features/" + featureKey) }
+								hx-get={ "/strategies/" + instanceID + "/fire/features/" + featureKey }
+								hx-target="#tab-content"
+								hx-swap="innerHTML"
+								hx-push-url="true"
+								class="badge badge-sm badge-outline badge-primary hover:badge-primary hover:text-primary-content transition-colors"
+							>
+								{ featureKey }
+							</a>
 							}
 						</div>
 					</div>
@@ -129,20 +153,7 @@ templ assumptionCard(a AssumptionRow, instanceID string) {
 }
 
 templ assumptionRiskLegend() {
-	<div class="hidden sm:flex items-center gap-4 text-xs text-base-content/60">
-		<div class="flex items-center gap-1.5">
-			<span class="size-2 rounded-full bg-success inline-block"></span>
-			Well tested
-		</div>
-		<div class="flex items-center gap-1.5">
-			<span class="size-2 rounded-full bg-warning inline-block"></span>
-			Partial
-		</div>
-		<div class="flex items-center gap-1.5">
-			<span class="size-2 rounded-full bg-error inline-block"></span>
-			Untested
-		</div>
-	</div>
+	// Kept for potential reuse elsewhere; no longer used in the main view.
 }
 
 // ──────────────────────────────────────────────────────────────────────

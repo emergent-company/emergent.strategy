@@ -1,0 +1,266 @@
+package ui
+
+// AimRunPanelData is the view model for an orchestrated AIM cycle run panel.
+type AimRunPanelData struct {
+	InstanceID   string
+	RunID        string
+	WorkflowName string
+	Status       string // pending | running | awaiting_human | completed | aborted | failed
+	CurrentStep  string
+	Steps        []AimRunStepRow
+	CreatedAt    string
+	StreamURL    string // SSE endpoint URL
+}
+
+// AimRunStepRow is a single step in the run timeline.
+type AimRunStepRow struct {
+	Name    string
+	Status  string // pending | running | awaiting_human | done | failed
+	BatchID string // non-empty when step is awaiting_human
+	Error   string
+}
+
+// AimRunPanelContent renders the orchestrated AIM cycle run panel.
+// It connects to the SSE stream to receive live updates.
+templ AimRunPanelContent(data AimRunPanelData) {
+	@TabRelatedPages("aim", data.InstanceID, "/strategies/"+data.InstanceID+"/aim")
+	<div
+		id="aim-run-panel"
+		class="space-y-6"
+		hx-ext="sse"
+		sse-connect={ data.StreamURL }
+		sse-swap="message"
+		hx-target="#aim-run-timeline"
+		hx-swap="innerHTML"
+	>
+		// ── Run header ──
+		<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm px-6 py-5">
+			<div class="flex items-center justify-between">
+				<div class="flex items-center gap-3">
+					<span class={ "iconify size-5", runStatusIcon(data.Status), runStatusIconColor(data.Status) }></span>
+					<div>
+						<p class="text-xs font-semibold uppercase tracking-widest text-base-content/50">AIM Cycle Run</p>
+						<p class="text-sm font-medium text-base-content mt-0.5">
+							if data.CurrentStep != "" {
+								Running: { runStepLabel(data.CurrentStep) }
+							} else {
+								{ runStatusLabel(data.Status) }
+							}
+						</p>
+					</div>
+				</div>
+				<div class="flex items-center gap-3">
+					<span class={ "badge", runStatusBadgeClass(data.Status) }>{ runStatusLabel(data.Status) }</span>
+					<a
+						href={ templ.URL("/strategies/" + data.InstanceID + "/aim") }
+						hx-get={ "/strategies/" + data.InstanceID + "/aim" }
+						hx-target="#tab-content"
+						hx-swap="innerHTML"
+						hx-push-url="true"
+						class="btn btn-xs btn-ghost"
+					>
+						Back to AIM
+						<span class="iconify lucide--arrow-right size-3"></span>
+					</a>
+				</div>
+			</div>
+		</div>
+
+		// ── Step timeline (live-updated via SSE) ──
+		<div id="aim-run-timeline">
+			@aimRunTimeline(data)
+		</div>
+	</div>
+}
+
+// aimRunTimeline renders the step-by-step timeline — the target for SSE updates.
+templ aimRunTimeline(data AimRunPanelData) {
+	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card-body p-5">
+			<h3 class="text-sm font-semibold text-base-content/70 uppercase tracking-widest mb-4">Step Progress</h3>
+			if len(data.Steps) == 0 {
+				<div class="flex items-center gap-3 py-4">
+					<span class="iconify lucide--loader size-4 text-base-content/40 animate-spin"></span>
+					<p class="text-sm text-base-content/60">Initialising workflow…</p>
+				</div>
+			} else {
+				<div class="space-y-3">
+					for i, step := range data.Steps {
+						@aimRunStepRow(i+1, step, data.InstanceID)
+					}
+				</div>
+			}
+		</div>
+	</div>
+}
+
+// aimRunStepRow renders a single step in the timeline.
+templ aimRunStepRow(num int, step AimRunStepRow, instanceID string) {
+	<div class={ "flex items-start gap-4 rounded-xl border px-4 py-4", runStepBorderClass(step.Status) }>
+		// Step number / status icon
+		<div class={ "flex items-center justify-center size-7 rounded-full text-xs font-bold shrink-0 mt-0.5", runStepCircleClass(step.Status) }>
+			if step.Status == "done" {
+				<span class="iconify lucide--check size-3.5"></span>
+			} else if step.Status == "failed" {
+				<span class="iconify lucide--x size-3.5"></span>
+			} else if step.Status == "running" {
+				<span class="iconify lucide--loader size-3.5 animate-spin"></span>
+			} else if step.Status == "awaiting_human" {
+				<span class="iconify lucide--user size-3.5"></span>
+			} else {
+				{ itoa(num) }
+			}
+		</div>
+
+		// Content
+		<div class="grow min-w-0">
+			<p class={ "text-sm font-semibold", runStepLabelClass(step.Status) }>{ runStepLabel(step.Name) }</p>
+			if step.Status == "running" {
+				<p class="text-xs text-base-content/50 mt-0.5">In progress…</p>
+			} else if step.Status == "awaiting_human" && step.BatchID != "" {
+				<p class="text-xs text-base-content/60 mt-0.5">Review the AI draft before continuing</p>
+			} else if step.Status == "failed" && step.Error != "" {
+				<p class="text-xs text-error/70 mt-0.5">{ step.Error }</p>
+			}
+		</div>
+
+		// CTA for awaiting_human
+		if step.Status == "awaiting_human" && step.BatchID != "" {
+			<a
+				href={ templ.URL("/strategies/" + instanceID + "/aim/draft-review/" + step.BatchID) }
+				class="btn btn-sm btn-primary gap-2 shrink-0"
+			>
+				<span class="iconify lucide--eye size-3.5"></span>
+				Review draft
+			</a>
+		}
+	</div>
+}
+
+// ── Style helpers ─────────────────────────────────────────────────────────────
+
+func runStatusIcon(status string) string {
+	switch status {
+	case "completed":
+		return "lucide--check-circle-2"
+	case "aborted":
+		return "lucide--ban"
+	case "failed":
+		return "lucide--alert-circle"
+	case "awaiting_human":
+		return "lucide--user-check"
+	case "running":
+		return "lucide--loader-2"
+	default:
+		return "lucide--clock"
+	}
+}
+
+func runStatusIconColor(status string) string {
+	switch status {
+	case "completed":
+		return "text-success"
+	case "aborted", "failed":
+		return "text-error"
+	case "awaiting_human":
+		return "text-warning"
+	case "running":
+		return "text-primary animate-spin"
+	default:
+		return "text-base-content/40"
+	}
+}
+
+func runStatusLabel(status string) string {
+	switch status {
+	case "pending":
+		return "Pending"
+	case "running":
+		return "Running"
+	case "awaiting_human":
+		return "Awaiting Review"
+	case "completed":
+		return "Completed"
+	case "aborted":
+		return "Aborted"
+	case "failed":
+		return "Failed"
+	default:
+		return status
+	}
+}
+
+func runStatusBadgeClass(status string) string {
+	switch status {
+	case "completed":
+		return "badge-success"
+	case "aborted", "failed":
+		return "badge-error"
+	case "awaiting_human":
+		return "badge-warning"
+	case "running":
+		return "badge-info"
+	default:
+		return "badge-ghost"
+	}
+}
+
+func runStepLabel(name string) string {
+	switch name {
+	case "draft_assessment":
+		return "Draft Assessment"
+	case "draft_calibration":
+		return "Draft Calibration"
+	case "apply_calibration":
+		return "Apply Calibration"
+	case "snapshot_cycle":
+		return "Snapshot Cycle"
+	default:
+		return name
+	}
+}
+
+func runStepBorderClass(status string) string {
+	switch status {
+	case "done":
+		return "border-success/20 bg-success/5"
+	case "running":
+		return "border-primary/30 bg-primary/5"
+	case "awaiting_human":
+		return "border-warning/30 bg-warning/5"
+	case "failed":
+		return "border-error/20 bg-error/5"
+	default:
+		return "border-base-content/10 bg-base-100 opacity-60"
+	}
+}
+
+func runStepCircleClass(status string) string {
+	switch status {
+	case "done":
+		return "bg-success text-success-content"
+	case "running":
+		return "bg-primary text-primary-content"
+	case "awaiting_human":
+		return "bg-warning text-warning-content"
+	case "failed":
+		return "bg-error text-error-content"
+	default:
+		return "bg-base-content/10 text-base-content/40"
+	}
+}
+
+func runStepLabelClass(status string) string {
+	switch status {
+	case "done":
+		return "text-success"
+	case "running":
+		return "text-primary"
+	case "awaiting_human":
+		return "text-warning"
+	case "failed":
+		return "text-error"
+	default:
+		return "text-base-content/40"
+	}
+}

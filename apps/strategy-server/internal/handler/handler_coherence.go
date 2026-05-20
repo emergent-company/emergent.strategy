@@ -2,11 +2,15 @@ package handler
 
 import (
 	"context"
+	"net/http"
 	"time"
 
 	"github.com/a-h/templ"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+
+	domainPkg "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 )
 
 // handleCoherence serves /aim/coherence — lists active ripple signals.
@@ -66,6 +70,7 @@ func (s *Server) loadCoherenceView(ctx context.Context, instanceID string) templ
 			Suggestion:    r.Suggestion,
 			Status:        r.Status,
 			CreatedAt:     r.CreatedAt.Format("2 Jan 15:04"),
+			InstanceID:    instanceID,
 		})
 	}
 
@@ -102,3 +107,84 @@ func (s *Server) loadCoherenceView(ctx context.Context, instanceID string) templ
 		EquilibriumScore:  equilibriumScore,
 	})
 }
+
+// ---------------------------------------------------------------------------
+// Signal action handlers (HTMX POST → return updated card fragment)
+// ---------------------------------------------------------------------------
+
+func (s *Server) handleSignalAcknowledge(c echo.Context) error {
+	return s.applySignalAction(c, func(ctx context.Context, signalID uuid.UUID) (*ui.CoherenceSignal, error) {
+		sig, err := s.rippleSvc.AcknowledgeSignal(ctx, signalID)
+		if err != nil {
+			return nil, err
+		}
+		return domainSignalToUI(sig, c.Param("id")), nil
+	})
+}
+
+func (s *Server) handleSignalResolve(c echo.Context) error {
+	return s.applySignalAction(c, func(ctx context.Context, signalID uuid.UUID) (*ui.CoherenceSignal, error) {
+		sig, err := s.rippleSvc.ResolveSignal(ctx, signalID, nil)
+		if err != nil {
+			return nil, err
+		}
+		return domainSignalToUI(sig, c.Param("id")), nil
+	})
+}
+
+func (s *Server) handleSignalDismiss(c echo.Context) error {
+	reason := c.FormValue("reason")
+	if reason == "" {
+		reason = "dismissed via UI"
+	}
+	return s.applySignalAction(c, func(ctx context.Context, signalID uuid.UUID) (*ui.CoherenceSignal, error) {
+		sig, err := s.rippleSvc.DismissSignal(ctx, signalID, reason)
+		if err != nil {
+			return nil, err
+		}
+		return domainSignalToUI(sig, c.Param("id")), nil
+	})
+}
+
+// applySignalAction is the shared HTMX action handler: parse signal ID, apply
+// the action fn, render the updated card fragment.
+func (s *Server) applySignalAction(c echo.Context, fn func(context.Context, uuid.UUID) (*ui.CoherenceSignal, error)) error {
+	if s.rippleSvc == nil {
+		return c.String(http.StatusServiceUnavailable, "ripple service not available")
+	}
+	signalID, err := uuid.Parse(c.Param("signalID"))
+	if err != nil {
+		return c.String(http.StatusBadRequest, "invalid signal ID")
+	}
+	sig, err := fn(c.Request().Context(), signalID)
+	if err != nil {
+		return c.String(http.StatusInternalServerError, err.Error())
+	}
+	return ui.CoherenceSignalCard(*sig).Render(c.Request().Context(), c.Response().Writer)
+}
+
+// domainSignalToUI converts a domain RippleSignal to the UI CoherenceSignal.
+func domainSignalToUI(sig *domainPkg.RippleSignal, instanceID string) *ui.CoherenceSignal {
+	authorityTier := ""
+	if sig.AuthorityTier != nil {
+		authorityTier = *sig.AuthorityTier
+	}
+	suggestion := ""
+	if sig.Suggestion != nil {
+		suggestion = *sig.Suggestion
+	}
+	return &ui.CoherenceSignal{
+		ID:            sig.ID.String(),
+		SignalType:    sig.SignalType,
+		Severity:      sig.Severity,
+		AuthorityTier: authorityTier,
+		SourceKey:     sig.SourceKey,
+		TargetKey:     sig.TargetKey,
+		Description:   sig.Description,
+		Suggestion:    suggestion,
+		Status:        sig.Status,
+		CreatedAt:     sig.CreatedAt.Format("2 Jan 15:04"),
+		InstanceID:    instanceID,
+	}
+}
+

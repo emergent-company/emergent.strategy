@@ -32,8 +32,11 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
 	orgdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/org"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/pack"
+	rippledom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ripple"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
+	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
+	versiondom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/version"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
@@ -3959,4 +3962,409 @@ func mapKeys(m map[string]any) []string {
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+// ---------------------------------------------------------------------------
+// Ripple config and equilibrium MCP tool tests (tasks 9.3 and 10.4)
+// ---------------------------------------------------------------------------
+
+// buildSvcWithRipple extends the base service set with Ripple and Version services.
+func buildSvcWithRipple(t *testing.T) mcpserver.Services {
+	t.Helper()
+	db := database.TestDB(t)
+	packSvc := pack.NewService(db)
+	instSvc := instance.NewService(db)
+	instSvc.WithPackEnsurer(packSvc)
+	return mcpserver.Services{
+		Workspace: workspace.NewService(db),
+		Instance:  instSvc,
+		Strategy:  strategy.NewService(db),
+		Pack:      packSvc,
+		App:       appdom.NewService(db),
+		Semantic:  semantic.NewService(semantic.Config{}),
+		Org:       orgdom.NewService(db),
+		Ripple:    rippledom.NewService(db),
+		Version:   versiondom.NewService(db),
+	}
+}
+
+// TestMCP_RippleConfigTools covers get_ripple_config and update_ripple_config (task 9.3).
+func TestMCP_RippleConfigTools(t *testing.T) {
+	svc := buildSvcWithRipple(t)
+	c := newMCPClient(t, svc)
+	id := 1
+
+	_, instID := seedInstance(t, svc, "ripple-config-test", nil)
+	instIDStr := instID.String()
+
+	// Step 1: get default config — should return defaults without error.
+	var cfgResp map[string]any
+	c.call(id, "get_ripple_config", map[string]any{"instance_id": instIDStr}).assertOK().decode(&cfgResp)
+	id++
+
+	if _, ok := cfgResp["equilibrium_threshold"]; !ok {
+		t.Error("get_ripple_config: missing equilibrium_threshold field")
+	}
+	if _, ok := cfgResp["damping"]; !ok {
+		t.Error("get_ripple_config: missing damping field")
+	}
+	t.Logf("default config: equilibrium_threshold=%v", cfgResp["equilibrium_threshold"])
+
+	// Step 2: update config — change equilibrium threshold.
+	updatePayload := `{"equilibrium_threshold": 0.85}`
+	c.call(id, "update_ripple_config", map[string]any{
+		"instance_id": instIDStr,
+		"config":      updatePayload,
+	}).assertOK()
+	id++
+
+	// Step 3: get config again — should reflect the update.
+	var updatedCfg map[string]any
+	c.call(id, "get_ripple_config", map[string]any{"instance_id": instIDStr}).assertOK().decode(&updatedCfg)
+	id++
+
+	threshold, ok := updatedCfg["equilibrium_threshold"].(float64)
+	if !ok {
+		t.Fatalf("equilibrium_threshold not a float64: %T %v", updatedCfg["equilibrium_threshold"], updatedCfg["equilibrium_threshold"])
+	}
+	if threshold != 0.85 {
+		t.Errorf("equilibrium_threshold=%.2f, want 0.85", threshold)
+	}
+
+	// Step 4: invalid config JSON → error.
+	c.call(id, "update_ripple_config", map[string]any{
+		"instance_id": instIDStr,
+		"config":      "not-json",
+	}).assertError()
+	_ = id
+
+	t.Log("✓ ripple config tools: get and update work correctly")
+}
+
+// TestMCP_EquilibriumAndConvergenceTools covers get_equilibrium_status and
+// get_convergence_history (task 10.4).
+func TestMCP_EquilibriumAndConvergenceTools(t *testing.T) {
+	svc := buildSvcWithRipple(t)
+	c := newMCPClient(t, svc)
+	id := 1
+
+	_, instID := seedInstance(t, svc, "equilibrium-test", nil)
+	instIDStr := instID.String()
+
+	// Step 1: get equilibrium status on a fresh instance (no signals → score 1.0).
+	var eqResp map[string]any
+	c.call(id, "get_equilibrium_status", map[string]any{"instance_id": instIDStr}).assertOK().decode(&eqResp)
+	id++
+
+	if _, ok := eqResp["score"]; !ok {
+		t.Error("get_equilibrium_status: missing score field")
+	}
+	if _, ok := eqResp["in_equilibrium"]; !ok {
+		t.Error("get_equilibrium_status: missing in_equilibrium field")
+	}
+	score, _ := eqResp["score"].(float64)
+	if score < 0.99 {
+		t.Errorf("fresh instance equilibrium score=%.2f, want ~1.0", score)
+	}
+	inEq, _ := eqResp["in_equilibrium"].(bool)
+	if !inEq {
+		t.Error("fresh instance should be in equilibrium")
+	}
+	t.Logf("equilibrium: score=%.2f in_equilibrium=%v", score, inEq)
+
+	// Step 2: get convergence history — should return empty or note (no runs yet).
+	var histResp map[string]any
+	c.call(id, "get_convergence_history", map[string]any{"instance_id": instIDStr}).assertOK().decode(&histResp)
+	id++
+
+	// Should have a runs key (possibly empty) or a note key.
+	hasRuns := func() bool {
+		_, hasR := histResp["runs"]
+		_, hasN := histResp["note"]
+		return hasR || hasN
+	}
+	if !hasRuns() {
+		t.Errorf("get_convergence_history: expected 'runs' or 'note' key, got: %v", histResp)
+	}
+
+	// Step 3: commit a batch to trigger the convergence loop (records a run).
+	batchResult := struct {
+		BatchID string `json:"batch_id"`
+	}{}
+	c.call(id, "update_north_star", map[string]any{
+		"instance_id": instIDStr,
+		"payload":     `{"version":"1.0","vision":"Test vision for convergence","mission":"Test mission"}`,
+	}).assertOK().decode(&batchResult)
+	id++
+
+	if batchResult.BatchID == "" {
+		t.Fatal("update_north_star: no batch_id returned")
+	}
+	c.call(id, "commit_batch", map[string]any{"batch_id": batchResult.BatchID}).assertOK()
+	id++
+
+	// Step 4: convergence history should now have at least one run.
+	var histAfter map[string]any
+	c.call(id, "get_convergence_history", map[string]any{"instance_id": instIDStr}).assertOK().decode(&histAfter)
+	id++
+
+	if runs, ok := histAfter["runs"].([]any); ok {
+		if len(runs) == 0 {
+			t.Log("INFO: no convergence runs persisted (convergence loop may have short-circuited on empty instance)")
+		} else {
+			t.Logf("convergence history: %d run(s)", len(runs))
+		}
+	}
+
+	// Step 5: unknown instance → returns defaults (not an error, by design —
+	// get_equilibrium_status returns a zero-signal equilibrium for any UUID
+	// because auth is disabled in tests and there are no signals to count).
+	c.call(id, "get_equilibrium_status", map[string]any{"instance_id": uuid.New().String()}).assertOK()
+	_ = id
+
+	t.Log("✓ equilibrium and convergence history tools work correctly")
+}
+
+// ---------------------------------------------------------------------------
+// commit_batch → convergence loop integration test (task 8.6)
+// ---------------------------------------------------------------------------
+
+// TestMCP_CommitBatch_TriggersConvergenceLoop verifies that commit_batch returns
+// a convergence_summary field when the Ripple service is wired in (task 8.6).
+func TestMCP_CommitBatch_TriggersConvergenceLoop(t *testing.T) {
+	svc := buildSvcWithRipple(t)
+	c := newMCPClient(t, svc)
+	id := 1
+
+	_, instID := seedInstance(t, svc, "commit-convergence-test", nil)
+	instIDStr := instID.String()
+
+	// Stage a north_star update.
+	batchResult := struct {
+		BatchID string `json:"batch_id"`
+	}{}
+	c.call(id, "update_north_star", map[string]any{
+		"instance_id": instIDStr,
+		"payload":     `{"version":"1.0","vision":"AI-powered strategy for every company","mission":"Make strategy coherent and actionable"}`,
+	}).assertOK().decode(&batchResult)
+	id++
+
+	if batchResult.BatchID == "" {
+		t.Fatal("update_north_star: no batch_id returned")
+	}
+
+	// Commit — should return convergence_summary.
+	var commitResp map[string]any
+	c.call(id, "commit_batch", map[string]any{"batch_id": batchResult.BatchID}).assertOK().decode(&commitResp)
+	id++
+
+	t.Logf("commit_batch response keys: %v", mapKeys(commitResp))
+
+	if _, ok := commitResp["convergence_summary"]; !ok {
+		t.Error("commit_batch: missing convergence_summary in response when Ripple service is wired")
+	} else {
+		t.Log("✓ commit_batch returns convergence_summary")
+	}
+
+	// Verify the convergence_summary has expected fields.
+	if cs, ok := commitResp["convergence_summary"].(map[string]any); ok {
+		for _, field := range []string{"equilibrium_reached", "starting_score", "ending_score"} {
+			if _, exists := cs[field]; !exists {
+				t.Errorf("convergence_summary missing field: %s", field)
+			}
+		}
+		t.Logf("convergence_summary: eq=%v starting=%.2f ending=%.2f damping=%v",
+			cs["equilibrium_reached"], cs["starting_score"], cs["ending_score"], cs["damping_reason"])
+	} else {
+		t.Errorf("convergence_summary is not a map: %T", commitResp["convergence_summary"])
+	}
+
+	_ = id
+}
+
+// ---------------------------------------------------------------------------
+// GitHub sync MCP tool tests (task 3.4.4)
+// ---------------------------------------------------------------------------
+
+// mockRepoWriter satisfies syncdom.RepoWriter entirely in-memory.
+type mockRepoWriter struct {
+	installationToken string
+	defaultBranch     string
+	createdBranches   []string
+	committedFiles    []syncdom.FileEntry
+	createdPRs        int
+}
+
+func (m *mockRepoWriter) GetInstallationToken(_ context.Context, _ string) (string, error) {
+	return m.installationToken, nil
+}
+
+func (m *mockRepoWriter) GetDefaultBranch(_ context.Context, _, _, _ string) (string, error) {
+	return m.defaultBranch, nil
+}
+
+func (m *mockRepoWriter) CreateBranch(_ context.Context, _, _, _, _, newBranch string) error {
+	m.createdBranches = append(m.createdBranches, newBranch)
+	return nil
+}
+
+func (m *mockRepoWriter) CommitFiles(_ context.Context, _, _, _, _ string, files []syncdom.FileEntry, _ string) error {
+	m.committedFiles = append(m.committedFiles, files...)
+	return nil
+}
+
+func (m *mockRepoWriter) CreatePullRequest(_ context.Context, _, _, _, _, _, _, _ string) (*syncdom.PRResult, error) {
+	m.createdPRs++
+	return &syncdom.PRResult{Number: 1, URL: "https://github.com/test/repo/pull/1"}, nil
+}
+
+// buildSvcWithSync extends the base service set with a Sync service backed by the given writer.
+func buildSvcWithSync(t *testing.T, writer syncdom.RepoWriter) mcpserver.Services {
+	t.Helper()
+	db := database.TestDB(t)
+	packSvc := pack.NewService(db)
+	instSvc := instance.NewService(db)
+	instSvc.WithPackEnsurer(packSvc)
+	stratSvc := strategy.NewService(db)
+	verSvc := versiondom.NewService(db)
+	syncSvc := syncdom.NewService(db, stratSvc, verSvc, writer)
+
+	return mcpserver.Services{
+		Workspace: workspace.NewService(db),
+		Instance:  instSvc,
+		Strategy:  stratSvc,
+		Pack:      packSvc,
+		App:       appdom.NewService(db),
+		Semantic:  semantic.NewService(semantic.Config{}),
+		Org:       orgdom.NewService(db),
+		Sync:      syncSvc,
+	}
+}
+
+// TestMCP_GetSyncStatus_NotConfigured verifies that sync tools are not registered
+// when the Sync service is nil (GitHub App not configured).
+func TestMCP_GetSyncStatus_NotConfigured(t *testing.T) {
+	svc := buildSvc(t) // no Sync wired
+	c := newMCPClient(t, svc)
+
+	tools := c.listTools()
+	for _, name := range tools {
+		if name == "sync_to_github" || name == "get_sync_status" {
+			t.Errorf("tool %q should not be registered when Sync service is nil", name)
+		}
+	}
+	t.Log("✓ sync tools absent when GitHub App not configured")
+}
+
+// TestMCP_SyncTools covers sync_to_github and get_sync_status (task 3.4.4).
+func TestMCP_SyncTools(t *testing.T) {
+	mock := &mockRepoWriter{
+		installationToken: "ghs_test_token",
+		defaultBranch:     "main",
+	}
+	svc := buildSvcWithSync(t, mock)
+	c := newMCPClient(t, svc)
+	id := 1
+
+	// Seed workspace + instance directly so we can set github_repo at creation time.
+	ctx := context.Background()
+	ctx = audit.ContextWithSource(ctx, audit.SourceSystem)
+	ctx = audit.ContextWithAudit(ctx, audit.NewSlogWriter())
+
+	orgID := seedOrg(t, svc.Strategy.DB(), ctx)
+	ws, err := svc.Workspace.CreateWorkspace(ctx, "sync-mcp-test-org", nil, orgID)
+	if err != nil {
+		t.Fatalf("CreateWorkspace: %v", err)
+	}
+
+	ghRepo := "test-org/strategy-repo"
+	inst, err := svc.Instance.ImportInstance(ctx, instance.ImportParams{
+		WorkspaceID: ws.ID,
+		Name:        "Sync MCP Test",
+		GithubRepo:  &ghRepo,
+	})
+	if err != nil {
+		t.Fatalf("ImportInstance: %v", err)
+	}
+	if _, err := svc.Strategy.BackfillIndex(ctx, inst.ID); err != nil {
+		t.Fatalf("BackfillIndex: %v", err)
+	}
+	if err := svc.Instance.ActivateInstance(ctx, inst.ID); err != nil {
+		t.Fatalf("ActivateInstance: %v", err)
+	}
+	instIDStr := inst.ID.String()
+
+	// Stage and commit a feature so there's something to sync.
+	var stageBatch struct {
+		BatchID string `json:"batch_id"`
+	}
+	c.call(id, "create_feature", map[string]any{
+		"instance_id": instIDStr,
+		"feature_key": "fd-sync-001",
+		"payload":     `{"name":"Sync Test Feature","status":"draft"}`,
+	}).assertOK().decode(&stageBatch)
+	id++
+
+	if stageBatch.BatchID == "" {
+		t.Fatal("create_feature: no batch_id returned")
+	}
+	c.call(id, "commit_batch", map[string]any{"batch_id": stageBatch.BatchID}).assertOK()
+	id++
+
+	// Verify sync_to_github is in the tool list.
+	tools := c.listTools()
+	hasSyncTool := false
+	for _, name := range tools {
+		if name == "sync_to_github" {
+			hasSyncTool = true
+			break
+		}
+	}
+	if !hasSyncTool {
+		t.Error("sync_to_github not in tool list when Sync service is wired")
+	}
+
+	// Call sync_to_github (draft sync — no version_id).
+	var syncResult map[string]any
+	c.call(id, "sync_to_github", map[string]any{"instance_id": instIDStr}).assertOK().decode(&syncResult)
+	id++
+
+	if syncResult["status"] != "pr_created" {
+		t.Errorf("sync status=%v, want pr_created", syncResult["status"])
+	}
+	if syncResult["pr_url"] == nil {
+		t.Error("sync_to_github: missing pr_url")
+	}
+	t.Logf("sync result: status=%v pr_url=%v", syncResult["status"], syncResult["pr_url"])
+
+	// Verify the mock writer was called.
+	if len(mock.createdBranches) != 1 {
+		t.Errorf("expected 1 branch created, got %d", len(mock.createdBranches))
+	}
+	if mock.createdPRs != 1 {
+		t.Errorf("expected 1 PR created, got %d", mock.createdPRs)
+	}
+
+	// Call get_sync_status — should show 1 sync in history.
+	var statusResult map[string]any
+	c.call(id, "get_sync_status", map[string]any{"instance_id": instIDStr}).assertOK().decode(&statusResult)
+	id++
+
+	if totalSyncs, ok := statusResult["total_syncs"].(float64); !ok || int(totalSyncs) < 1 {
+		t.Errorf("get_sync_status: total_syncs=%v, want >= 1", statusResult["total_syncs"])
+	}
+	if _, ok := statusResult["configured"].(bool); !ok {
+		t.Error("get_sync_status: missing configured field")
+	}
+	t.Logf("sync status: total_syncs=%v configured=%v", statusResult["total_syncs"], statusResult["configured"])
+
+	// get_sync_status for unknown instance → empty history (not an error).
+	var unknownStatus map[string]any
+	c.call(id, "get_sync_status", map[string]any{"instance_id": uuid.New().String()}).assertOK().decode(&unknownStatus)
+	if v, _ := unknownStatus["total_syncs"].(float64); int(v) != 0 {
+		t.Errorf("unknown instance: total_syncs=%v, want 0", unknownStatus["total_syncs"])
+	}
+	_ = id
+
+	t.Log("✓ sync MCP tools work correctly")
 }

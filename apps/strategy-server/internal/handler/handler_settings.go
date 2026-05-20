@@ -8,8 +8,10 @@ import (
 	"time"
 
 	"github.com/emergent-company/go-daisy/render"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 )
 
@@ -18,8 +20,9 @@ func (s *Server) handleSettings(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	data := ui.SettingsData{
-		Memory:    s.probeMemoryHealth(ctx),
-		Instances: s.loadInstanceMemoryStatuses(ctx),
+		Memory:     s.probeMemoryHealth(ctx),
+		Instances:  s.loadInstanceMemoryStatuses(ctx),
+		GithubSync: s.loadGithubSyncStatuses(ctx),
 	}
 
 	sidebarGroups := s.sidebarGroups(c)
@@ -30,6 +33,34 @@ func (s *Server) handleSettings(c echo.Context) error {
 		ui.SettingsContent(data),
 	)
 	return nil
+}
+
+// handleSettingsSync handles POST /settings/sync — triggers a manual GitHub sync
+// for a specific instance. Redirects back to settings.
+func (s *Server) handleSettingsSync(c echo.Context) error {
+	if s.syncSvc == nil {
+		return c.String(http.StatusServiceUnavailable, "GitHub sync is not configured")
+	}
+
+	instanceIDStr := c.FormValue("instance_id")
+	if instanceIDStr == "" {
+		return c.String(http.StatusBadRequest, "instance_id required")
+	}
+	instanceID, err := uuid.Parse(instanceIDStr)
+	if err != nil {
+		return c.String(http.StatusBadRequest, "invalid instance_id")
+	}
+
+	_, err = s.syncSvc.SyncToGithub(c.Request().Context(), sync.SyncParams{
+		InstanceID: instanceID,
+	})
+	if err != nil {
+		s.log.Error("manual github sync failed", "instance_id", instanceIDStr, "err", err)
+		// Redirect back with error indicator — simple approach, no flash messages.
+		return c.Redirect(http.StatusSeeOther, "/settings")
+	}
+
+	return c.Redirect(http.StatusSeeOther, "/settings")
 }
 
 // probeMemoryHealth checks the current Memory server connectivity.
@@ -97,6 +128,70 @@ func (s *Server) probeMemoryHealth(ctx context.Context) ui.MemoryHealthStatus {
 	}
 
 	return status
+}
+
+// loadGithubSyncStatuses loads per-instance GitHub sync history from the sync log.
+// Returns nil when the sync service is not configured.
+func (s *Server) loadGithubSyncStatuses(ctx context.Context) []ui.GithubSyncStatus {
+	if s.syncSvc == nil {
+		return nil
+	}
+
+	type instanceRow struct {
+		ID         string  `bun:"id"`
+		Name       string  `bun:"name"`
+		OrgName    string  `bun:"org_name"`
+		GithubRepo *string `bun:"github_repo"`
+	}
+
+	var instances []instanceRow
+	err := s.db.NewSelect().
+		TableExpr("strategy_instances AS si").
+		ColumnExpr("si.id, si.name, si.github_repo").
+		ColumnExpr("o.name AS org_name").
+		Join("JOIN workspaces AS w ON w.id = si.workspace_id").
+		Join("JOIN orgs AS o ON o.id = w.org_id").
+		Where("si.status != ?", "archived").
+		Where("w.deleted_at IS NULL").
+		Where("w.github_owner NOT LIKE ?", "e2e-%").
+		Where("w.github_owner NOT LIKE ?", "ripple-%").
+		Where("w.github_owner NOT LIKE ?", "aim-ripple-%").
+		OrderExpr("o.name ASC, si.name ASC").
+		Scan(ctx, &instances)
+	if err != nil {
+		s.log.Error("failed to load instances for github sync status", "err", err)
+		return nil
+	}
+
+	result := make([]ui.GithubSyncStatus, 0, len(instances))
+	for _, inst := range instances {
+		status := ui.GithubSyncStatus{
+			InstanceID:   inst.ID,
+			InstanceName: inst.Name,
+			Configured:   s.syncSvc.IsConfigured(),
+		}
+		if inst.GithubRepo != nil && *inst.GithubRepo != "" {
+			status.RepoLinked = true
+			status.Repo = *inst.GithubRepo
+		}
+
+		// Load last sync log entry for this instance.
+		instID, parseErr := uuid.Parse(inst.ID)
+		if parseErr == nil {
+			logs, histErr := s.syncSvc.GetSyncHistory(ctx, instID)
+			if histErr == nil && len(logs) > 0 {
+				last := logs[0]
+				status.LastStatus = last.Status
+				status.LastSyncAt = &last.CreatedAt
+				if last.PRUrl != nil {
+					status.LastSyncPR = *last.PRUrl
+				}
+			}
+		}
+
+		result = append(result, status)
+	}
+	return result
 }
 
 // loadInstanceMemoryStatuses loads per-instance memory sync status.

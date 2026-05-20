@@ -11,9 +11,14 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/uptrace/bun"
 
+	aimdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/aim"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ripple"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
+	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/version"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/navigation"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/orchestration"
 )
 
 // navGraph is the singleton navigation graph.
@@ -21,9 +26,14 @@ var navGraph = navigation.DefaultGraph()
 
 // Server holds dependencies for web handlers.
 type Server struct {
-	db          *bun.DB
-	log         *slog.Logger
-	semanticSvc *semantic.Service
+	db                  *bun.DB
+	log                 *slog.Logger
+	semanticSvc         *semantic.Service
+	rippleSvc           *ripple.Service
+	versionSvc          *version.Service
+	syncSvc             *syncdom.Service       // nil when GitHub App not configured
+	aimSvc              *aimdom.Service        // nil when AIM service not configured
+	orchestrationEngine *orchestration.Engine  // nil when orchestration not configured
 }
 
 // New creates a new web handler Server.
@@ -33,6 +43,36 @@ func New(db *bun.DB, log *slog.Logger, semanticSvc *semantic.Service) *Server {
 		log:         log,
 		semanticSvc: semanticSvc,
 	}
+}
+
+// WithRipple wires the ripple service into the handler server.
+func (s *Server) WithRipple(svc *ripple.Service) *Server {
+	s.rippleSvc = svc
+	return s
+}
+
+// WithVersion wires the version service into the handler server.
+func (s *Server) WithVersion(svc *version.Service) *Server {
+	s.versionSvc = svc
+	return s
+}
+
+// WithSync wires the sync service into the handler server (optional).
+func (s *Server) WithSync(svc *syncdom.Service) *Server {
+	s.syncSvc = svc
+	return s
+}
+
+// WithAIM wires the AIM service into the handler server (optional).
+func (s *Server) WithAIM(svc *aimdom.Service) *Server {
+	s.aimSvc = svc
+	return s
+}
+
+// WithOrchestration wires the orchestration engine into the handler server (optional).
+func (s *Server) WithOrchestration(eng *orchestration.Engine) *Server {
+	s.orchestrationEngine = eng
+	return s
 }
 
 // handlerEntry maps a screen to its GET handler.
@@ -77,6 +117,7 @@ func (s *Server) buildHandlerRegistry() map[navigation.ScreenID]handlerEntry {
 		navigation.Calibration:      {GET: s.handleCalibration},
 		navigation.Assumptions:      {GET: s.handleAssumptions},
 		navigation.Coherence:        {GET: s.handleCoherence},
+		navigation.AimVersions:      {GET: s.handleVersions},
 	}
 }
 
@@ -109,6 +150,29 @@ func (s *Server) RegisterRoutes(e *echo.Echo) {
 
 	// Settings page — not in the navigation graph, registered separately.
 	e.GET("/settings", s.handleSettings)
+	e.POST("/settings/sync", s.handleSettingsSync)
+
+	// Signal action endpoints — HTMX POST, return the updated card fragment.
+	e.POST("/strategies/:id/aim/coherence/signals/:signalID/acknowledge", s.handleSignalAcknowledge)
+	e.POST("/strategies/:id/aim/coherence/signals/:signalID/dismiss", s.handleSignalDismiss)
+	e.POST("/strategies/:id/aim/coherence/signals/:signalID/resolve", s.handleSignalResolve)
+
+	// Version detail + restore — not in nav graph (detail screen, sub-nav hidden).
+	e.GET("/strategies/:id/aim/versions/:versionID", s.handleVersionDetail)
+	e.POST("/strategies/:id/aim/versions/:versionID/restore", s.handleVersionRestore)
+
+	// AIM agent endpoints — AI-assisted draft generation and review.
+	e.POST("/strategies/:id/aim/draft-assessment", s.handleDraftAssessment)
+	e.POST("/strategies/:id/aim/draft-calibration", s.handleDraftCalibration)
+	e.POST("/strategies/:id/aim/apply-calibration", s.handleApplyCalibration)
+	e.GET("/strategies/:id/aim/draft-review/:batchID", s.handleDraftReview)
+	e.POST("/strategies/:id/aim/draft-review/:batchID/commit", s.handleDraftCommit)
+	e.POST("/strategies/:id/aim/draft-review/:batchID/discard", s.handleDraftDiscard)
+
+	// Orchestration endpoints — orchestrated AIM cycle with SSE progress streaming.
+	e.POST("/strategies/:id/aim/runs", s.handleStartAIMRun)
+	e.GET("/strategies/:id/aim/runs/:runID", s.handleGetAIMRun)
+	e.GET("/strategies/:id/aim/runs/:runID/stream", s.handleAIMRunStream)
 }
 
 // sidebarGroups builds sidebar navigation groups with instance list.

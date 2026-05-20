@@ -1,0 +1,260 @@
+package ui
+
+import (
+	"fmt"
+	"strconv"
+)
+
+// VersionRow is a single published strategy version for the list view.
+type VersionRow struct {
+	ID                  string
+	VersionNumber       int
+	Label               string // empty string if no label
+	Description         string
+	Status              string // published | superseded | restored
+	Source              string // manual | convergence | aim_cycle
+	CalibrationDecision string // persevere | pivot | pull_the_plug — set when Source == "aim_cycle"
+	ArtifactCount       int
+	PublishedAt         string
+	EquilibScore        string // formatted "87%" or "" if none
+	InstanceID          string
+}
+
+// VersionDiffEntry is a single artifact in a diff.
+type VersionDiffEntry struct {
+	ArtifactKey string
+}
+
+// VersionDetailData holds data for the single-version detail view.
+type VersionDetailData struct {
+	NavContext
+	InstanceID    string
+	Ver           VersionRow
+	Added         []VersionDiffEntry
+	Removed       []VersionDiffEntry
+	Changed       []VersionDiffEntry
+	DiffSummary   string
+	HasParent     bool
+}
+
+// VersionsViewData holds data for the version list screen.
+type VersionsViewData struct {
+	NavContext
+	InstanceID string
+	Versions   []VersionRow
+}
+
+// VersionsContent renders the version history list.
+templ VersionsContent(data VersionsViewData) {
+	@TabBackLink(data.TabGroup, data.InstanceID, data.CurrentPath)
+	<div class="space-y-6">
+		// ── Header ──
+		<div>
+			<h2 class="text-xl font-bold text-base-content">Version History</h2>
+			<p class="text-sm text-base-content/60 mt-0.5">
+				Published snapshots of this strategy instance
+			</p>
+		</div>
+
+		if len(data.Versions) == 0 {
+			<div class="text-center py-16">
+				<span class="iconify lucide--history size-12 text-base-content/20 mx-auto block mb-4"></span>
+				<p class="text-base font-medium text-base-content/60">No versions yet</p>
+				<p class="text-sm text-base-content/40 mt-1">
+					Publish a version using the <code class="bg-base-200 px-1.5 py-0.5 rounded text-xs">publish_version</code> MCP tool or via the convergence loop.
+				</p>
+			</div>
+		} else {
+			<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden">
+				<div class="divide-y divide-base-content/5">
+					for _, v := range data.Versions {
+						@versionListRow(v)
+					}
+				</div>
+			</div>
+		}
+	</div>
+}
+
+templ versionListRow(v VersionRow) {
+	<a
+		href={ templ.SafeURL("/strategies/" + v.InstanceID + "/aim/versions/" + v.ID) }
+		class="flex items-center gap-4 px-5 py-3.5 hover:bg-base-200/40 transition-colors group"
+	>
+		// Version number + label
+		<div class="grow min-w-0">
+			<div class="flex items-center gap-2 flex-wrap">
+				<span class="text-sm font-bold text-base-content tabular-nums">v{ strconv.Itoa(v.VersionNumber) }</span>
+				if v.Label != "" {
+					<span class="text-sm text-base-content/70">{ v.Label }</span>
+				}
+				@versionSourceBadge(v.Source)
+				if v.CalibrationDecision != "" {
+					@calibrationDecisionMini(v.CalibrationDecision)
+				}
+				@versionStatusBadge(v.Status)
+			</div>
+			if v.Description != "" {
+				<p class="text-xs text-base-content/50 mt-0.5 truncate">{ v.Description }</p>
+			}
+			<p class="text-xs text-base-content/40 mt-0.5">{ v.PublishedAt }</p>
+		</div>
+
+		// Artifact count + equilibrium
+		<div class="text-right shrink-0 hidden sm:block">
+			<p class="text-xs text-base-content/50">{ fmt.Sprintf("%d artifacts", v.ArtifactCount) }</p>
+			if v.EquilibScore != "" {
+				<p class="text-xs text-base-content/40">eq { v.EquilibScore }</p>
+			}
+		</div>
+
+		// Chevron
+		<span class="iconify lucide--chevron-right size-4 text-base-content/30 group-hover:text-base-content/60 shrink-0"></span>
+	</a>
+}
+
+// VersionDetailContent renders a single version with diff from parent.
+templ VersionDetailContent(data VersionDetailData) {
+	@TabBackLink(data.TabGroup, data.InstanceID, data.CurrentPath)
+	<div class="space-y-6">
+		// ── Header ──
+		<div class="flex items-start justify-between gap-4">
+			<div>
+				<div class="flex items-center gap-2 flex-wrap mb-1">
+					<h2 class="text-xl font-bold text-base-content">v{ strconv.Itoa(data.Ver.VersionNumber) }</h2>
+					if data.Ver.Label != "" {
+						<span class="text-xl text-base-content/60">{ data.Ver.Label }</span>
+					}
+					@versionSourceBadge(data.Ver.Source)
+					if data.Ver.CalibrationDecision != "" {
+						@calibrationDecisionMini(data.Ver.CalibrationDecision)
+					}
+					@versionStatusBadge(data.Ver.Status)
+				</div>
+				<p class="text-sm text-base-content/50">{ data.Ver.PublishedAt }</p>
+				if data.Ver.Description != "" {
+					<p class="text-sm text-base-content/60 mt-1">{ data.Ver.Description }</p>
+				}
+			</div>
+			// Restore button — only for non-active versions
+			if data.Ver.Status != "published" || true {
+				<form
+					hx-post={ "/strategies/" + data.InstanceID + "/aim/versions/" + data.Ver.ID + "/restore" }
+					hx-confirm="Restore this version? Current state will be replaced."
+				>
+					<button type="submit" class="btn btn-sm btn-outline gap-2">
+						<span class="iconify lucide--rotate-ccw size-4"></span>
+						Restore
+					</button>
+				</form>
+			}
+		</div>
+
+		// ── Stats ──
+		<div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+			@versionStatCard("Artifacts", fmt.Sprintf("%d", data.Ver.ArtifactCount), "lucide--layers")
+			if data.Ver.EquilibScore != "" {
+				@versionStatCard("Equilibrium", data.Ver.EquilibScore, "lucide--activity")
+			}
+			if data.HasParent {
+				@versionStatCard("Changes vs parent", fmt.Sprintf("+%d / ~%d / -%d", len(data.Added), len(data.Changed), len(data.Removed)), "lucide--diff")
+			}
+		</div>
+
+		// ── Diff ──
+		if data.HasParent {
+			<div class="space-y-4">
+				<h3 class="text-sm font-bold text-base-content/60 uppercase tracking-widest">Changes from previous version</h3>
+				if data.DiffSummary != "" {
+					<p class="text-sm text-base-content/60">{ data.DiffSummary }</p>
+				}
+				if len(data.Added) > 0 {
+					@diffSection("Added", data.Added, "text-success", "lucide--plus-circle")
+				}
+				if len(data.Changed) > 0 {
+					@diffSection("Modified", data.Changed, "text-warning", "lucide--pencil")
+				}
+				if len(data.Removed) > 0 {
+					@diffSection("Removed", data.Removed, "text-error", "lucide--minus-circle")
+				}
+				if len(data.Added) == 0 && len(data.Changed) == 0 && len(data.Removed) == 0 {
+					<p class="text-sm text-base-content/40">No artifact changes detected from parent version.</p>
+				}
+			</div>
+		} else {
+			<div class="rounded-lg bg-base-200/50 border border-base-content/5 px-4 py-3 flex items-start gap-2">
+				<span class="iconify lucide--info size-4 text-base-content/30 mt-0.5 shrink-0"></span>
+				<p class="text-xs text-base-content/40">This is the first version — no parent to diff against.</p>
+			</div>
+		}
+	</div>
+}
+
+templ diffSection(title string, entries []VersionDiffEntry, colorClass, iconClass string) {
+	<div>
+		<div class="flex items-center gap-2 mb-2">
+			<span class={ "iconify size-4", iconClass, colorClass }></span>
+			<span class={ "text-xs font-bold uppercase tracking-wide", colorClass }>{ title } ({ strconv.Itoa(len(entries)) })</span>
+		</div>
+		<div class="space-y-1">
+			for _, e := range entries {
+				<div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-base-200/40">
+					<span class="iconify lucide--file size-3.5 text-base-content/30 shrink-0"></span>
+					<span class="text-xs text-base-content/70 font-mono">{ e.ArtifactKey }</span>
+				</div>
+			}
+		</div>
+	</div>
+}
+
+templ versionStatCard(label, value, icon string) {
+	<div class="rounded-xl border border-base-content/10 bg-base-100 px-4 py-3 text-center">
+		<span class={ "iconify size-4 text-base-content/30 mx-auto block mb-1", icon }></span>
+		<p class="text-lg font-bold text-base-content">{ value }</p>
+		<p class="text-xs text-base-content/50">{ label }</p>
+	</div>
+}
+
+templ versionSourceBadge(source string) {
+	switch source {
+		case "convergence":
+			<span class="badge badge-xs badge-success badge-outline gap-1">
+				<span class="iconify lucide--cpu size-2.5"></span>
+				Auto
+			</span>
+		case "aim_cycle":
+			<span class="badge badge-xs badge-primary badge-outline gap-1">
+				<span class="iconify lucide--sparkles size-2.5"></span>
+				AIM Cycle
+			</span>
+		default:
+			<span class="badge badge-xs badge-ghost gap-1">
+				<span class="iconify lucide--user size-2.5"></span>
+				Manual
+			</span>
+	}
+}
+
+templ calibrationDecisionMini(decision string) {
+	switch decision {
+		case "persevere":
+			<span class="badge badge-xs badge-success gap-1">Persevere</span>
+		case "pivot":
+			<span class="badge badge-xs badge-warning gap-1">Pivot</span>
+		case "pull_the_plug":
+			<span class="badge badge-xs badge-error gap-1">Pull the plug</span>
+	}
+}
+
+templ versionStatusBadge(status string) {
+	switch status {
+		case "published":
+			<span class="badge badge-xs badge-primary">Current</span>
+		case "restored":
+			<span class="badge badge-xs badge-info">Restored</span>
+		case "superseded":
+			<span class="badge badge-xs badge-ghost text-base-content/40">Superseded</span>
+		default:
+			<span class="badge badge-xs badge-ghost">{ status }</span>
+	}
+}

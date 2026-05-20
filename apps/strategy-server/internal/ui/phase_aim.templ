@@ -1,10 +1,6 @@
 package ui
 
-import (
-	"strconv"
-
-	"github.com/emergent-company/go-daisy/components/ui"
-)
+import "strconv"
 
 // AimPhaseData holds all data for the AIM phase dashboard.
 type AimPhaseData struct {
@@ -38,6 +34,16 @@ type AimPhaseData struct {
 
 	// Last AIM activity timestamp
 	LastActivityAt string
+
+	// Trigger state — set when a new AIM cycle is due
+	TriggerFired         bool
+	TriggerReason        string // "time" | "signals"
+	TriggerReasonMessage string
+
+	// Active orchestrated run (if any)
+	ActiveRunID     string // non-empty when a run is in progress
+	ActiveRunStatus string // running | awaiting_human | pending
+	ActiveRunStep   string // current step name
 }
 
 // AimSignalRow is a single ripple signal for display in the feed.
@@ -55,32 +61,333 @@ type AimSignalRow struct {
 templ AimPhaseContent(data AimPhaseData) {
 	@TabRelatedPages("aim", data.InstanceID, "/strategies/" + data.InstanceID + "/aim")
 	<div class="space-y-6">
-		// ── Stat bar ──
-		@ui.StatCards([]ui.StatCardProps{
-			{Label: "Assumptions Tested", Value: assumptionLabel(data.TestedAssumptions, data.TotalAssumptions), Icon: "lucide--flask-conical", IconColor: "bg-primary/10 text-primary"},
-			{Label: "Active Signals", Value: strconv.Itoa(data.ActiveSignals), Icon: "lucide--activity", IconColor: signalColor(data.CriticalSignals)},
-			{Label: "Versions", Value: strconv.Itoa(data.VersionCount), Icon: "lucide--git-branch", IconColor: "bg-secondary/10 text-secondary"},
-			{Label: "AIM Artifacts", Value: strconv.Itoa(aimArtifactCount(data)), Icon: "lucide--target", IconColor: "bg-success/10 text-success"},
-		})
-
-		// ── Calibration decision (most consequential output) ──
-		if data.LatestCalibrationDecision != "" {
-			@calibrationDecisionBanner(data)
+		// ── Active run summary — shown when an orchestrated cycle is in progress ──
+		if data.ActiveRunID != "" {
+			@aimActiveRunCard(data)
 		}
 
-		// ── Main grid: signal feed + artifact checklist ──
+		// ── Cycle stepper — primary orientation element ──
+		@aimCycleStepper(data)
+
+		// ── Trigger banner — shown when a new AIM cycle is due ──
+		if data.TriggerFired {
+			@aimCycleDueBanner(data)
+		}
+
+		// ── Main grid: signal feed + artifact sidebar ──
 		<div class="grid gap-4 lg:grid-cols-3">
-			// Signal feed (2/3 width) — prepared for live data streaming
+			// Signal feed (2/3 width)
 			<div class="lg:col-span-2 space-y-4">
 				@aimSignalFeedCard(data)
 			</div>
-			// Artifact checklist (1/3 width)
+			// Artifact checklist + assumptions (1/3 width)
 			<div class="space-y-4">
 				@aimArtifactsCard(data)
 				if data.TotalAssumptions > 0 {
 					@assumptionCoverageCard(data)
 				}
 			</div>
+		</div>
+	</div>
+}
+
+// aimCycleStepper renders the 4-step AIM loop with current position.
+// Steps: Observe → Assess → Decide → Adapt
+templ aimCycleStepper(data AimPhaseData) {
+	<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm px-6 py-5">
+		// Header
+		<div class="flex items-center justify-between mb-5">
+			<div>
+				<p class="text-xs font-semibold uppercase tracking-widest text-base-content/50">AIM Cycle</p>
+				<p class="text-sm text-base-content/70 mt-0.5">
+					Observe reality → assess outcomes → decide direction → adapt strategy
+				</p>
+			</div>
+			<div class="flex items-center gap-3">
+			if data.LatestCalibrationDecision != "" {
+				<span class={ "badge badge-sm shrink-0", calibrationDecisionBadgeClass(data.LatestCalibrationDecision) }>
+					{ calibrationDecisionLabel(data.LatestCalibrationDecision) }
+				</span>
+			}
+			// Run full cycle button — visible when LRA exists.
+			if data.HasLRA && !data.TriggerFired {
+				<form method="POST" action={ templ.URL("/strategies/" + data.InstanceID + "/aim/runs") }>
+					<button type="submit" class="btn btn-xs btn-primary gap-1.5">
+						<span class="iconify lucide--play size-3"></span>
+						Run cycle
+					</button>
+				</form>
+			}
+		</div>
+		</div>
+
+		// Steps
+		<div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+			@aimCycleStep(aimStepObserve(data))
+			@aimCycleStep(aimStepAssess(data))
+			@aimCycleStep(aimStepDecide(data))
+			@aimCycleStep(aimStepAdapt(data))
+		</div>
+	</div>
+}
+
+// aimCycleStepData is the view model for a single step card.
+type aimCycleStepData struct {
+	Number      int
+	Icon        string
+	Label       string
+	Status      string // done | active | waiting
+	Detail      string // short status line
+	CTA         string // button label
+	CTAHref     string
+	DraftAction string // optional POST action for "Draft with AI" button (e.g. /strategies/:id/aim/draft-assessment)
+}
+
+templ aimCycleStep(s aimCycleStepData) {
+	<div class={ "flex flex-col gap-3 rounded-xl border px-4 py-4", aimStepBorderClass(s.Status) }>
+		// Step number + icon row
+		<div class="flex items-center justify-between">
+			<div class={ "flex items-center justify-center size-7 rounded-full text-xs font-bold", aimStepCircleClass(s.Status) }>
+				if s.Status == "done" {
+					<span class="iconify lucide--check size-3.5"></span>
+				} else {
+					{ strconv.Itoa(s.Number) }
+				}
+			</div>
+			<span class={ "iconify size-4", s.Icon, aimStepIconClass(s.Status) }></span>
+		</div>
+
+		// Label + detail
+		<div class="grow">
+			<p class={ "text-sm font-semibold leading-snug", aimStepLabelClass(s.Status) }>{ s.Label }</p>
+			if s.Detail != "" {
+				<p class="text-xs text-base-content/50 mt-0.5 leading-snug">{ s.Detail }</p>
+			}
+		</div>
+
+		// CTAs row
+		<div class="flex items-center justify-between gap-2">
+			<a
+				href={ templ.URL(s.CTAHref) }
+				hx-get={ s.CTAHref }
+				hx-target="#tab-content"
+				hx-swap="innerHTML"
+				hx-push-url="true"
+				class={ "text-xs font-medium flex items-center gap-1 group", aimStepCTAClass(s.Status) }
+			>
+				{ s.CTA }
+				<span class="iconify lucide--arrow-right size-3 transition-transform group-hover:translate-x-0.5"></span>
+			</a>
+			if s.DraftAction != "" && s.Status == "active" {
+				<form method="POST" action={ templ.URL(s.DraftAction) }>
+					<button type="submit" class="btn btn-xs btn-ghost gap-1 text-primary border-primary/20">
+						<span class="iconify lucide--sparkles size-3"></span>
+						AI draft
+					</button>
+				</form>
+			}
+		</div>
+	</div>
+}
+
+// ── Step builders ──────────────────────────────────────────────────────
+
+func aimStepObserve(data AimPhaseData) aimCycleStepData {
+	s := aimCycleStepData{
+		Number:  1,
+		Icon:    "lucide--eye",
+		Label:   "Observe",
+		CTAHref: "/strategies/" + data.InstanceID + "/aim/lra",
+	}
+	if data.HasLRA {
+		s.Status = "done"
+		s.Detail = "LRA " + data.LRALifecycleStage
+		s.CTA = "View LRA"
+	} else {
+		s.Status = "active"
+		s.Detail = "Start by capturing what's true today"
+		s.CTA = "Create LRA"
+	}
+	return s
+}
+
+func aimStepAssess(data AimPhaseData) aimCycleStepData {
+	s := aimCycleStepData{
+		Number:  2,
+		Icon:    "lucide--clipboard-check",
+		Label:   "Assess",
+		CTAHref: "/strategies/" + data.InstanceID + "/aim/assessment",
+	}
+	if !data.HasLRA {
+		s.Status = "waiting"
+		s.Detail = "Needs LRA first"
+		s.CTA = "View report"
+		return s
+	}
+	if data.HasAssessmentReport {
+		s.Status = "done"
+		s.Detail = "OKRs + assumptions scored"
+		s.CTA = "View report"
+	} else {
+		s.Status = "active"
+		s.Detail = "Score OKRs and test outcomes"
+		s.CTA = "Create report"
+		s.DraftAction = "/strategies/" + data.InstanceID + "/aim/draft-assessment"
+	}
+	return s
+}
+
+func aimStepDecide(data AimPhaseData) aimCycleStepData {
+	s := aimCycleStepData{
+		Number:  3,
+		Icon:    "lucide--sliders-horizontal",
+		Label:   "Decide",
+		CTAHref: "/strategies/" + data.InstanceID + "/aim/calibration",
+	}
+	if !data.HasAssessmentReport {
+		s.Status = "waiting"
+		s.Detail = "Needs assessment first"
+		s.CTA = "View memo"
+		return s
+	}
+	if data.HasCalibration {
+		s.Status = "done"
+		s.Detail = calibrationDecisionLabel(data.LatestCalibrationDecision)
+		s.CTA = "View memo"
+	} else {
+		s.Status = "active"
+		s.Detail = "Persevere, pivot, or stop?"
+		s.CTA = "Write memo"
+		s.DraftAction = "/strategies/" + data.InstanceID + "/aim/draft-calibration"
+	}
+	return s
+}
+
+func aimStepAdapt(data AimPhaseData) aimCycleStepData {
+	s := aimCycleStepData{
+		Number:  4,
+		Icon:    "lucide--refresh-cw",
+		Label:   "Adapt",
+		CTAHref: "/strategies/" + data.InstanceID + "/aim/versions",
+	}
+	if !data.HasCalibration {
+		s.Status = "waiting"
+		s.Detail = "Needs calibration decision first"
+		s.CTA = "View versions"
+		return s
+	}
+	if data.VersionCount > 0 {
+		s.Status = "done"
+		s.Detail = strconv.Itoa(data.VersionCount) + " version(s) published"
+		s.CTA = "View versions"
+	} else {
+		s.Status = "active"
+		s.Detail = "Update strategy, start next cycle"
+		s.CTA = "Publish version"
+		s.DraftAction = "/strategies/" + data.InstanceID + "/aim/apply-calibration"
+	}
+	return s
+}
+
+// ── Step style helpers ─────────────────────────────────────────────────
+
+func aimStepBorderClass(status string) string {
+	switch status {
+	case "done":
+		return "border-success/20 bg-success/5"
+	case "active":
+		return "border-primary/30 bg-primary/5"
+	default:
+		return "border-base-content/10 bg-base-100 opacity-60"
+	}
+}
+
+func aimStepCircleClass(status string) string {
+	switch status {
+	case "done":
+		return "bg-success text-success-content"
+	case "active":
+		return "bg-primary text-primary-content"
+	default:
+		return "bg-base-content/10 text-base-content/40"
+	}
+}
+
+func aimStepIconClass(status string) string {
+	switch status {
+	case "done":
+		return "text-success"
+	case "active":
+		return "text-primary"
+	default:
+		return "text-base-content/30"
+	}
+}
+
+func aimStepLabelClass(status string) string {
+	switch status {
+	case "done":
+		return "text-success"
+	case "active":
+		return "text-base-content"
+	default:
+		return "text-base-content/40"
+	}
+}
+
+func aimStepCTAClass(status string) string {
+	switch status {
+	case "done":
+		return "text-success/70"
+	case "active":
+		return "text-primary"
+	default:
+		return "text-base-content/30"
+	}
+}
+
+func calibrationDecisionBadgeClass(decision string) string {
+	switch decision {
+	case "persevere":
+		return "badge-success"
+	case "pivot":
+		return "badge-warning"
+	case "pull_the_plug":
+		return "badge-error"
+	default:
+		return "badge-ghost"
+	}
+}
+
+// aimCycleDueBanner renders a prominent banner when a new AIM cycle assessment is due.
+templ aimCycleDueBanner(data AimPhaseData) {
+	<div class="rounded-xl border border-primary/30 bg-primary/5 px-5 py-4 flex items-center gap-4">
+		<span class="iconify lucide--bell-ring size-6 text-primary shrink-0"></span>
+		<div class="grow min-w-0">
+			<p class="text-xs font-semibold uppercase tracking-widest text-primary/70">New AIM Cycle Due</p>
+			<p class="text-sm text-base-content mt-0.5">{ data.TriggerReasonMessage }</p>
+		</div>
+		<div class="flex items-center gap-2 shrink-0">
+			// Orchestrated run — runs the full 4-step cycle with SSE progress UI.
+			<form
+				method="POST"
+				action={ templ.URL("/strategies/" + data.InstanceID + "/aim/runs") }
+			>
+				<button type="submit" class="btn btn-sm btn-primary gap-2">
+					<span class="iconify lucide--play size-3.5"></span>
+					Run full cycle
+				</button>
+			</form>
+			// Manual step-by-step draft (legacy flow).
+			<form
+				method="POST"
+				action={ templ.URL("/strategies/" + data.InstanceID + "/aim/draft-assessment") }
+			>
+				<button type="submit" class="btn btn-sm btn-ghost gap-2 text-primary border-primary/20">
+					<span class="iconify lucide--sparkles size-3.5"></span>
+					Draft step
+				</button>
+			</form>
 		</div>
 	</div>
 }
@@ -265,4 +572,44 @@ templ assumptionCoverageCard(data AimPhaseData) {
 			</div>
 		</div>
 	</div>
+}
+
+// aimActiveRunCard renders a summary card for an active orchestrated cycle run.
+// It appears at the top of the AIM landing page when a run is in progress.
+templ aimActiveRunCard(data AimPhaseData) {
+	<div class="rounded-xl border border-primary/30 bg-primary/5 px-5 py-4 flex items-center gap-4">
+		<span class={ "iconify size-5 shrink-0 text-primary", aimActiveRunIcon(data.ActiveRunStatus) }></span>
+		<div class="grow min-w-0">
+			<p class="text-xs font-semibold uppercase tracking-widest text-primary/70">AIM Cycle In Progress</p>
+			<p class="text-sm text-base-content mt-0.5">
+				if data.ActiveRunStep != "" {
+					{ runStepLabel(data.ActiveRunStep) } · { runStatusLabel(data.ActiveRunStatus) }
+				} else {
+					{ runStatusLabel(data.ActiveRunStatus) }
+				}
+			</p>
+		</div>
+		<a
+			href={ templ.URL("/strategies/" + data.InstanceID + "/aim/runs/" + data.ActiveRunID) }
+			hx-get={ "/strategies/" + data.InstanceID + "/aim/runs/" + data.ActiveRunID }
+			hx-target="#tab-content"
+			hx-swap="innerHTML"
+			hx-push-url="true"
+			class="btn btn-sm btn-primary gap-2 shrink-0"
+		>
+			<span class="iconify lucide--eye size-3.5"></span>
+			View run
+		</a>
+	</div>
+}
+
+func aimActiveRunIcon(status string) string {
+	switch status {
+	case "awaiting_human":
+		return "lucide--user-check animate-pulse"
+	case "running":
+		return "lucide--loader-2 animate-spin"
+	default:
+		return "lucide--clock"
+	}
 }

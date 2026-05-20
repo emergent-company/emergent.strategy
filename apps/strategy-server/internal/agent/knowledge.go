@@ -499,17 +499,104 @@ Key AIM concepts:
     maturity baselines, and current focus. Created once per instance with
     create_lra; updated each cycle with update_lra.
   - **AIM Assessment Report**: post-launch assessment of OKR achievement and
-    assumption validation. Created with create_aim_report.
+    assumption validation. Created with create_aim_report (manual) or
+    draft_aim_assessment (AI-assisted).
 
-Workflow for a new AIM cycle:
+**Manual workflow for a new AIM cycle:**
   1. get_aim_summary(instance_id) — see current LRA and report status.
   2. create_lra(instance_id, ...) or update_lra(instance_id, ...) — bootstrap
      or update the organisational baseline.
   3. create_aim_report(instance_id, ...) — capture actuals vs targets.
   4. commit_batch — finalise all AIM artifacts together.
 
+**AI-assisted workflow (preferred):**
+  1. draft_aim_assessment(instance_id) — AI reads OKRs, assumptions, and signals;
+     drafts a complete assessment_report payload; returns a batch_id for review.
+  2. Review the staged batch; call commit_batch(batch_id) to apply it.
+  3. draft_aim_calibration(instance_id) — AI reads the committed assessment and
+     recommends persevere / pivot / pull_the_plug with reasoning; returns batch_id.
+  4. Review and commit_batch.
+  5. apply_aim_calibration(instance_id) — AI generates targeted READY artifact
+     patches based on the calibration decision; returns batch_id for review.
+  6. Review and commit_batch. A cycle snapshot version is auto-published.
+
 Use get_assumptions(instance_id) to see which roadmap assumptions the AIM
-reports have validated or invalidated.`,
+reports have validated or invalidated.
+
+Use list_aim_cycles(instance_id) to see the history of completed AIM cycles with
+their decisions and version snapshots.`,
+	},
+	{
+		Topic: "AIM agent loop — AI-assisted cycle tools",
+		Body: `Four MCP tools drive the AI-assisted AIM cycle. All outputs are staged — no
+autonomous commits without explicit human commit_batch approval.
+
+  - draft_aim_assessment(instance_id) — reads the roadmap OKRs, assumption
+    relationships, and active ripple signals; drafts an assessment_report payload
+    with OKR scores, assumption validations, and signal summary. Returns
+    { batch_id, draft_summary: { okr_count, assumption_count } }.
+
+  - draft_aim_calibration(instance_id) — reads the committed assessment_report;
+    computes OKR hit rate and assumption invalidation rate; applies calibration
+    decision rules: persevere (≥60% OKR hit, 0 invalidated), pivot (<60% OR
+    any invalidated), pull_the_plug (<30% AND ≥2 invalidated); drafts a
+    calibration_memo with suggested decision and reasoning. Returns
+    { batch_id, suggested_decision, reasoning_summary }.
+
+  - apply_aim_calibration(instance_id) — reads the committed calibration_memo;
+    generates targeted READY artifact patches per decision type. Persevere:
+    no READY changes (optionally updates cycle status). Pivot: patches
+    strategy_formula OKRs and roadmap_recipe. Pull the plug: patches north_star
+    and roadmap_recipe. Returns { batch_id, affected_artifacts: [] }.
+
+  - list_aim_cycles(instance_id) — lists completed AIM cycles (versions with
+    source='aim_cycle') with cycle number, calibration decision, and version_id.
+
+The correct tool call order is always:
+  draft_aim_assessment → commit → draft_aim_calibration → commit →
+  apply_aim_calibration → commit (auto-snapshot created)
+
+Never call draft_aim_calibration before the assessment is committed.
+Never call apply_aim_calibration before the calibration memo is committed.
+When in skeleton mode (no LLM configured), tools return placeholder payloads
+with [DRAFT] markers — still useful for structure, but requires human content.`,
+	},
+	{
+		Topic: "AIM orchestrated cycle — automated full-cycle execution",
+		Body: `The AIM orchestrator runs the full 4-step cycle (draft_assessment →
+draft_calibration → apply_calibration → snapshot_cycle) as an automated
+workflow, pausing at each human gate for review.
+
+**When to use the orchestrated cycle:**
+- Use aim_start_cycle when you want to run the full AIM cycle unattended.
+  The engine executes each step sequentially and pauses after each AI draft,
+  waiting for a commit or discard before continuing.
+- Use the individual draft_aim_assessment / draft_aim_calibration / apply_aim_calibration
+  tools when you want to run one step at a time with full manual control.
+
+**Tool reference:**
+  - aim_start_cycle(instance_id) — starts a new orchestrated cycle; returns
+    { run_id, status }. Returns a structured error if a run is already active.
+  - aim_get_run(run_id) — returns full run state with step log, current step,
+    and any batch_id waiting for human review.
+
+**Concurrency:** Only one AIM cycle can run per instance at a time. A second
+start call returns ErrAlreadyActive (HTTP 409, MCP structured error).
+
+**Human gates:** After each AI-drafting step, the run transitions to
+awaiting_human with a batch_id. Call commit_batch(batch_id) to advance the
+run or discard_batch(batch_id) to abort the entire run.
+
+**Server restart:** If the server restarts with a run in progress, the run is
+marked failed. Re-trigger with aim_start_cycle.
+
+**Recommended flow (MCP):**
+  1. aim_start_cycle(instance_id) → returns run_id
+  2. aim_get_run(run_id) — poll until status=awaiting_human
+  3. Review the staged batch (get it via list_pending_batches or aim_get_run)
+  4. commit_batch(batch_id) — engine advances to next step
+  5. Repeat steps 2–4 for each of the 3 gated steps
+  6. After the final snapshot_cycle step, status becomes completed`,
 	},
 	{
 		Topic: "Semantic search and contradiction detection",

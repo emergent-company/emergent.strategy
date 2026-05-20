@@ -7,6 +7,18 @@ import (
 	"github.com/emergent-company/go-daisy/components/layout"
 )
 
+// GithubSyncStatus represents the GitHub App sync state for a single instance.
+type GithubSyncStatus struct {
+	InstanceID   string
+	InstanceName string
+	Repo         string    // "owner/repo" or "" if not configured
+	Configured   bool      // GitHub App is configured server-side
+	RepoLinked   bool      // this instance has a github_repo set
+	LastSyncAt   *time.Time
+	LastSyncPR   string // PR URL of last sync (may be empty)
+	LastStatus   string // "pr_created" | "failed" | "pending" | ""
+}
+
 // MemoryHealthStatus represents the current connectivity to the Memory server.
 type MemoryHealthStatus struct {
 	Configured         bool   // EPF_MEMORY_URL + PROJECT + TOKEN are set
@@ -34,8 +46,9 @@ type InstanceMemoryStatus struct {
 
 // SettingsData is the full data bundle for the settings page.
 type SettingsData struct {
-	Memory    MemoryHealthStatus
-	Instances []InstanceMemoryStatus
+	Memory     MemoryHealthStatus
+	Instances  []InstanceMemoryStatus
+	GithubSync []GithubSyncStatus // one entry per instance; nil when App not configured
 }
 
 // SettingsPage renders the full settings page with shell.
@@ -60,6 +73,11 @@ templ SettingsContent(data SettingsData) {
 		<!-- Per-instance ingest status -->
 		if len(data.Instances) > 0 {
 			@instanceIngestTable(data.Instances)
+		}
+
+		<!-- GitHub sync status -->
+		if len(data.GithubSync) > 0 {
+			@githubSyncCard(data.GithubSync)
 		}
 	</div>
 }
@@ -220,4 +238,80 @@ templ settingsKV(label, value string) {
 		<dt class="text-xs font-medium text-base-content/50 uppercase tracking-wide mb-0.5">{ label }</dt>
 		<dd class="text-sm text-base-content font-mono break-all">{ value }</dd>
 	</div>
+}
+
+// githubSyncCard renders the GitHub sync status section.
+templ githubSyncCard(instances []GithubSyncStatus) {
+	<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden">
+		<!-- Header -->
+		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/10">
+			<span class="iconify lucide--github size-5 text-base-content/60"></span>
+			<div class="grow">
+				<h2 class="text-sm font-bold text-base-content uppercase tracking-widest">GitHub Sync</h2>
+				<p class="text-xs text-base-content/50 mt-0.5">Strategy artifact write-back to GitHub repositories</p>
+			</div>
+			<span class="badge badge-ghost badge-sm">{ fmt.Sprintf("%d instances", len(instances)) }</span>
+		</div>
+		<div class="divide-y divide-base-content/5">
+			for _, inst := range instances {
+				@githubSyncRow(inst)
+			}
+		</div>
+	</div>
+}
+
+// githubSyncRow renders a single instance row in the GitHub sync table.
+templ githubSyncRow(inst GithubSyncStatus) {
+	<div class="flex items-center gap-4 px-5 py-3">
+		<!-- Instance name + repo -->
+		<div class="grow min-w-0">
+			<p class="text-sm font-medium text-base-content truncate">{ inst.InstanceName }</p>
+			if inst.RepoLinked {
+				<p class="text-xs text-base-content/50 font-mono">{ inst.Repo }</p>
+			} else {
+				<p class="text-xs text-base-content/40">No GitHub repo configured</p>
+			}
+			if inst.LastSyncAt != nil {
+				<p class="text-xs text-base-content/40 mt-0.5">synced { inst.LastSyncAt.Format("2 Jan 15:04") }</p>
+			}
+		</div>
+		<!-- PR link -->
+		if inst.LastSyncPR != "" {
+			<a href={ templ.SafeURL(inst.LastSyncPR) } target="_blank" rel="noopener"
+				class="text-xs text-primary hover:underline shrink-0 hidden sm:block">
+				View PR
+			</a>
+		}
+		<!-- Status badge -->
+		<div class="shrink-0">
+			@githubSyncStatusBadge(inst.LastStatus, inst.RepoLinked)
+		</div>
+	</div>
+}
+
+// githubSyncStatusBadge renders the sync status badge.
+templ githubSyncStatusBadge(status string, repoLinked bool) {
+	switch status {
+		case "pr_created":
+			<span class="inline-flex items-center gap-1.5 badge badge-success badge-sm">
+				<span class="iconify lucide--git-pull-request size-3"></span>
+				PR Created
+			</span>
+		case "pending":
+			<span class="inline-flex items-center gap-1.5 badge badge-warning badge-sm">
+				<span class="iconify lucide--clock size-3"></span>
+				Pending
+			</span>
+		case "failed":
+			<span class="inline-flex items-center gap-1.5 badge badge-error badge-sm">
+				<span class="iconify lucide--x size-3"></span>
+				Failed
+			</span>
+		default:
+			if !repoLinked {
+				<span class="badge badge-ghost badge-sm text-base-content/40">Not linked</span>
+			} else {
+				<span class="badge badge-ghost badge-sm text-base-content/40">Never synced</span>
+			}
+	}
 }

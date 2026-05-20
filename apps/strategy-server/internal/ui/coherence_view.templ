@@ -27,6 +27,7 @@ type CoherenceSignal struct {
 	Suggestion    string
 	CreatedAt     string
 	Status        string // active | acknowledged | resolved | dismissed
+	InstanceID    string // needed for action button URLs
 }
 
 // CoherenceContent renders the coherence signals screen.
@@ -61,7 +62,7 @@ templ CoherenceContent(data CoherenceViewData) {
 		} else {
 			<div class="space-y-3">
 				for _, sig := range data.Signals {
-					@coherenceSignalCard(sig)
+					@CoherenceSignalCard(sig)
 				}
 			</div>
 		}
@@ -100,8 +101,10 @@ templ coherenceSeveritySummary(data CoherenceViewData) {
 	</div>
 }
 
-templ coherenceSignalCard(sig CoherenceSignal) {
-	<div class={ "rounded-xl border bg-base-100 shadow-sm overflow-hidden", coherenceCardBorder(sig.Severity) }>
+// CoherenceSignalCard renders a single signal card. Exported so handlers can
+// return it as an HTMX fragment.
+templ CoherenceSignalCard(sig CoherenceSignal) {
+	<div id={ "signal-" + sig.ID } class={ "rounded-xl border bg-base-100 shadow-sm overflow-hidden", coherenceCardBorder(sig.Severity) }>
 		// Severity stripe
 		<div class={ "h-1", coherenceSeverityStripe(sig.Severity) }></div>
 		<div class="px-5 py-4 space-y-3">
@@ -146,7 +149,78 @@ templ coherenceSignalCard(sig CoherenceSignal) {
 					</div>
 				</div>
 			}
+
+			// Action buttons or resolved status chip
+			if sig.Status == "active" {
+				@signalActionButtons(sig)
+			} else {
+				@signalStatusChip(sig.Status)
+			}
 		</div>
+	</div>
+}
+
+// signalStatusChip shows the current non-active status of a signal.
+templ signalStatusChip(status string) {
+	<div class="flex items-center gap-1.5 pt-1">
+		switch status {
+			case "acknowledged":
+				<span class="iconify lucide--eye size-3.5 text-base-content/40"></span>
+				<span class="text-xs text-base-content/40">Acknowledged</span>
+			case "resolved":
+				<span class="iconify lucide--check size-3.5 text-success/60"></span>
+				<span class="text-xs text-success/60">Resolved</span>
+			case "dismissed":
+				<span class="iconify lucide--x size-3.5 text-base-content/30"></span>
+				<span class="text-xs text-base-content/30">Dismissed</span>
+			default:
+				<span class="text-xs text-base-content/30">{ status }</span>
+		}
+	</div>
+}
+
+// signalActionButtons renders the three HTMX action buttons for an active signal.
+// Each button posts to its endpoint and swaps the outer signal card.
+templ signalActionButtons(sig CoherenceSignal) {
+	<div class="flex items-center gap-2 pt-1 border-t border-base-content/5 mt-1" id={ "signal-actions-" + sig.ID }>
+		// Acknowledge
+		<button
+			class="btn btn-xs btn-ghost text-base-content/50 gap-1"
+			hx-post={ "/strategies/" + sig.InstanceID + "/aim/coherence/signals/" + sig.ID + "/acknowledge" }
+			hx-target={ "#signal-" + sig.ID }
+			hx-swap="outerHTML"
+		>
+			<span class="iconify lucide--eye size-3.5"></span>
+			Acknowledge
+		</button>
+		// Resolve
+		<button
+			class="btn btn-xs btn-ghost text-success/70 gap-1"
+			hx-post={ "/strategies/" + sig.InstanceID + "/aim/coherence/signals/" + sig.ID + "/resolve" }
+			hx-target={ "#signal-" + sig.ID }
+			hx-swap="outerHTML"
+		>
+			<span class="iconify lucide--check size-3.5"></span>
+			Resolve
+		</button>
+		// Dismiss inline form
+		<form
+			class="flex items-center gap-1.5 ml-auto"
+			hx-post={ "/strategies/" + sig.InstanceID + "/aim/coherence/signals/" + sig.ID + "/dismiss" }
+			hx-target={ "#signal-" + sig.ID }
+			hx-swap="outerHTML"
+		>
+			<input
+				type="text"
+				name="reason"
+				placeholder="Dismiss reason…"
+				class="input input-xs input-bordered w-36 text-xs"
+			/>
+			<button type="submit" class="btn btn-xs btn-ghost text-base-content/40 gap-1">
+				<span class="iconify lucide--x size-3.5"></span>
+				Dismiss
+			</button>
+		</form>
 	</div>
 }
 

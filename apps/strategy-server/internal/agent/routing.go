@@ -185,11 +185,60 @@ var routingTable = []routeEntry{
 		},
 	},
 	{
-		keywords: []string{"lra", "living reality", "assessment", "aim"},
+		keywords: []string{"lra", "living reality"},
 		result: RoutingResult{
 			Type: "agent", AgentName: "pathfinder",
 			Skills: []string{"living-reality-assessment"},
 			Reason: "LRA creation requires the pathfinder agent with AIM skills.",
+		},
+	},
+	{
+		keywords: []string{"draft assessment", "draft aim assessment", "ai assessment", "generate assessment"},
+		result: RoutingResult{
+			Type: "direct_tool", ToolName: "draft_aim_assessment",
+			Reason: "AI-assisted AIM assessment drafting is a direct tool call — returns a staged batch_id for review.",
+		},
+	},
+	{
+		keywords: []string{"draft calibration", "draft aim calibration", "ai calibration", "generate calibration"},
+		result: RoutingResult{
+			Type: "direct_tool", ToolName: "draft_aim_calibration",
+			Reason: "AI-assisted calibration drafting is a direct tool call — returns a staged batch_id for review.",
+		},
+	},
+	{
+		keywords: []string{"apply calibration", "apply aim calibration", "ai apply calibration"},
+		result: RoutingResult{
+			Type: "direct_tool", ToolName: "apply_aim_calibration",
+			Reason: "AI-assisted calibration application is a direct tool call — stages READY patches for review.",
+		},
+	},
+	{
+		keywords: []string{"list aim cycles", "aim cycle history", "cycle history", "calibration history"},
+		result: RoutingResult{
+			Type: "direct_tool", ToolName: "list_aim_cycles",
+			Reason: "AIM cycle history listing is a direct read tool.",
+		},
+	},
+	{
+		keywords: []string{"start aim cycle", "run full cycle", "orchestrate cycle", "automated cycle", "run cycle"},
+		result: RoutingResult{
+			Type: "direct_tool", ToolName: "aim_start_cycle",
+			Reason: "Use aim_start_cycle to start a full orchestrated AIM cycle — runs all 4 steps automatically with human gates.",
+		},
+	},
+	{
+		keywords: []string{"get run", "aim run", "run status", "run progress", "cycle run"},
+		result: RoutingResult{
+			Type: "direct_tool", ToolName: "aim_get_run",
+			Reason: "Use aim_get_run to check the status and step log of an orchestrated cycle run.",
+		},
+	},
+	{
+		keywords: []string{"aim", "assess", "assessment"},
+		result: RoutingResult{
+			Type: "direct_tool", ToolName: "get_aim_summary",
+			Reason: "AIM summary is the starting point for any AIM cycle task.",
 		},
 	},
 	{

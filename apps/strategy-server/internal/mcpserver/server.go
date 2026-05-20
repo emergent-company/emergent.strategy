@@ -34,6 +34,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 	"gopkg.in/yaml.v3"
 
+	aimdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/aim"
 	appdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/app"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
 	orgdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/org"
@@ -49,6 +50,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/embedded"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/memory"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/orchestration"
 )
 
 // IngestEnqueuer is the interface used to trigger async Memory graph ingestion
@@ -66,12 +68,14 @@ type Services struct {
 	App       *appdom.Service
 	Semantic  *semantic.Service
 	Org       *orgdom.Service
-	Schema    *schemadom.Service    // optional — nil falls back to embedded-only validation
-	Version   *versiondom.Service  // optional — nil disables versioning tools
-	Sync      *syncdom.Service      // optional — nil disables GitHub sync tools
-	Ripple    *rippledom.Service   // optional — nil disables ripple coherence tools
-	Resolver  rippledom.SignalResolver // optional — nil = agent-orchestrated mode
-	Ingest    IngestEnqueuer        // optional — nil when Memory is not configured
+	Schema    *schemadom.Service      // optional — nil falls back to embedded-only validation
+	Version   *versiondom.Service     // optional — nil disables versioning tools
+	Sync      *syncdom.Service        // optional — nil disables GitHub sync tools
+	Ripple    *rippledom.Service      // optional — nil disables ripple coherence tools
+	AIM           *aimdom.Service          // optional — nil disables AIM agent loop tools
+	Resolver      rippledom.SignalResolver  // optional — nil = agent-orchestrated mode
+	Ingest        IngestEnqueuer           // optional — nil when Memory is not configured
+	Orchestration *orchestration.Engine    // optional — nil disables orchestrator MCP tools
 }
 
 // New creates and registers all MCP tools, returning the StreamableHTTPServer
@@ -106,6 +110,8 @@ func New(svc Services) http.Handler {
 	registerVersionTools(s, svc)
 	registerSyncTools(s, svc)
 	registerRippleTools(s, svc)
+	registerAIMAgentTools(s, svc)
+	registerAIMOrchestratorTools(s, svc)
 	registerKnowledgePrompt(s)
 
 	return server.NewStreamableHTTPServer(s)

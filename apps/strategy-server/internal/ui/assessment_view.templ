@@ -28,6 +28,7 @@ type AssessmentViewData struct {
 // AssessmentOKR holds the assessment for a single OKR.
 type AssessmentOKR struct {
 	OKRID      string
+	Title      string // human-readable objective text from roadmap
 	Assessment string
 	KeyResults []AssessmentKR
 }
@@ -44,6 +45,7 @@ type AssessmentKR struct {
 // AssessmentAssumption holds the validation result for a single assumption.
 type AssessmentAssumption struct {
 	ID               string
+	Statement        string // human-readable assumption text from roadmap; may be empty
 	Status           string
 	Evidence         string
 	ConfidenceChange string
@@ -130,10 +132,19 @@ templ assessmentOKRSection(okrs []AssessmentOKR) {
 templ assessmentOKRAccordion(okr AssessmentOKR) {
 	<details class="group rounded-xl border border-base-content/10 bg-base-100 shadow-sm">
 		<summary class="flex cursor-pointer items-center gap-3 px-5 py-3.5 text-sm font-semibold text-base-content select-none">
-			<span class="iconify lucide--flag size-4 text-primary/70"></span>
-			<span class="grow">{ okr.OKRID }</span>
-			<span class="badge badge-sm badge-ghost">{ strconv.Itoa(len(okr.KeyResults)) } KRs</span>
-			<span class="iconify lucide--chevron-right size-4 text-base-content/50 transition-transform group-open:rotate-90"></span>
+			<span class="iconify lucide--flag size-4 text-primary/70 shrink-0"></span>
+			<span class="grow min-w-0">
+				if okr.Title != "" {
+					<span class="block font-semibold leading-snug">{ okr.Title }</span>
+					<span class="block text-xs font-mono font-normal text-base-content/40 mt-0.5">{ okr.OKRID }</span>
+				} else {
+					{ okr.OKRID }
+				}
+			</span>
+			if len(okr.KeyResults) > 0 {
+				<span class="badge badge-sm badge-ghost shrink-0">{ strconv.Itoa(len(okr.KeyResults)) } KRs</span>
+			}
+			<span class="iconify lucide--chevron-right size-4 text-base-content/50 transition-transform group-open:rotate-90 shrink-0"></span>
 		</summary>
 		<div class="border-t border-base-content/5 px-5 pb-4 pt-3 space-y-4">
 			if okr.Assessment != "" {
@@ -200,26 +211,28 @@ templ assessmentAssumptionsSection(assumptions []AssessmentAssumption) {
 }
 
 templ assessmentAssumptionRow(a AssessmentAssumption) {
-	<div class="rounded-lg border border-base-content/10 bg-base-100 shadow-sm px-4 py-3">
-		<div class="flex items-start justify-between gap-3">
-			<div class="min-w-0 grow">
-				<div class="flex items-center gap-2 mb-1">
-					<p class="text-sm font-medium text-base-content">{ a.ID }</p>
-					if a.Status != "" {
-						<span class={ "badge badge-xs", assumptionStatusBadge(a.Status) }>{ a.Status }</span>
-					}
-				</div>
-				if a.Evidence != "" {
-					<p class="text-xs text-base-content/60">{ a.Evidence }</p>
-				}
-			</div>
+	<div class="rounded-lg border border-base-content/10 bg-base-100 shadow-sm px-4 py-3 space-y-2">
+		// Header row: ID + status badge (+ confidence change if present)
+		<div class="flex items-center gap-2 flex-wrap">
+			<span class="text-xs font-mono text-base-content/40">{ a.ID }</span>
+			if a.Status != "" {
+				<span class={ "badge badge-xs", assumptionStatusBadge(a.Status) }>{ a.Status }</span>
+			}
 			if a.ConfidenceChange != "" {
-				<div class="flex items-center gap-1 shrink-0">
+				<div class="flex items-center gap-1">
 					<span class={ "iconify size-3.5", confidenceChangeIcon(a.ConfidenceChange), confidenceChangeColor(a.ConfidenceChange) }></span>
 					<span class={ "text-xs font-medium", confidenceChangeColor(a.ConfidenceChange) }>{ a.ConfidenceChange }</span>
 				</div>
 			}
 		</div>
+		// Statement (the "We believe..." text) — main title, always visible
+		if a.Statement != "" {
+			<p class="text-sm font-medium text-base-content leading-snug">{ a.Statement }</p>
+		}
+		// Evidence — always visible, full text
+		if a.Evidence != "" {
+			<p class="text-xs text-base-content/60 leading-relaxed whitespace-pre-line">{ a.Evidence }</p>
+		}
 	</div>
 }
 
