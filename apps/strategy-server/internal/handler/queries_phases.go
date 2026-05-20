@@ -1111,12 +1111,16 @@ func firstSentence(s string) string {
 }
 
 // extractInsightCounts reads the insight_analyses payload once and returns:
-//   - firstTrend: title of the first technology trend (for at-a-glance scanning)
-//   - trendCount: total trends across all categories (technology + market + regulatory)
-//   - personaCount: number of personas
-//   - competitorCount: number of competitors
-//   - keyInsightCount: number of key insights
-//   - whiteSpaceCount: number of white spaces / gaps
+//   - firstTrend: title of the first trend found across all trend categories
+//   - trendCount: total trends summed across all sub-arrays under "trends"
+//   - personaCount: personas from target_users, primary_users, or personas arrays
+//   - competitorCount: competitors summed from competitive_landscape.direct_competitors
+//     + indirect_competitors, or from a top-level competitors array
+//   - keyInsightCount: items in key_insights or key_insights_summary arrays
+//   - whiteSpaceCount: items in white_spaces or opportunities arrays
+//
+// The insight_analyses payload is freeform across instances — this function
+// tries multiple field names to handle the variation.
 func (s *Server) extractInsightCounts(ctx context.Context, instanceID string) (
 	firstTrend string, trendCount, personaCount, competitorCount, keyInsightCount, whiteSpaceCount int,
 ) {
@@ -1136,41 +1140,69 @@ func (s *Server) extractInsightCounts(ctx context.Context, instanceID string) (
 		return
 	}
 
-	// Trends — sum technology + market + regulatory
+	// Trends — "trends" is always an object; sum all sub-arrays.
+	// Common keys: technology, market, regulatory, competitive, user_behavior.
 	if trends, ok := m["trends"].(map[string]any); ok {
-		for _, key := range []string{"technology", "market", "regulatory"} {
+		// Preferred order for grabbing the first trend title.
+		preferredOrder := []string{"technology", "market", "regulatory", "competitive", "user_behavior"}
+		seen := make(map[string]bool)
+		// First pass: preferred order for firstTrend + count
+		for _, key := range preferredOrder {
+			seen[key] = true
 			if arr, ok := trends[key].([]any); ok {
 				trendCount += len(arr)
-				// Capture first technology trend title
-				if key == "technology" && len(arr) > 0 && firstTrend == "" {
+				if firstTrend == "" && len(arr) > 0 {
 					if first, ok := arr[0].(map[string]any); ok {
-						if t, ok := first["trend"].(string); ok {
+						if t, ok := first["trend"].(string); ok && t != "" {
 							firstTrend = firstSentence(t)
 						}
 					}
 				}
 			}
 		}
+		// Second pass: any remaining keys not in preferred list
+		for key, val := range trends {
+			if !seen[key] {
+				if arr, ok := val.([]any); ok {
+					trendCount += len(arr)
+				}
+			}
+		}
 	}
 
-	// Personas
-	if arr, ok := m["personas"].([]any); ok {
-		personaCount = len(arr)
+	// Personas — try: target_users, primary_users, personas, customer_insights
+	for _, key := range []string{"target_users", "primary_users", "personas", "customer_insights"} {
+		if arr, ok := m[key].([]any); ok && len(arr) > 0 {
+			personaCount = len(arr)
+			break
+		}
 	}
 
-	// Competitors
-	if arr, ok := m["competitors"].([]any); ok {
+	// Competitors — try: competitive_landscape (object with sub-arrays), then top-level competitors array
+	if cl, ok := m["competitive_landscape"].(map[string]any); ok {
+		for _, key := range []string{"direct_competitors", "indirect_competitors", "substitutes"} {
+			if arr, ok := cl[key].([]any); ok {
+				competitorCount += len(arr)
+			}
+		}
+	} else if arr, ok := m["competitors"].([]any); ok {
 		competitorCount = len(arr)
 	}
 
-	// Key insights
-	if arr, ok := m["key_insights"].([]any); ok {
-		keyInsightCount = len(arr)
+	// Key insights — try: key_insights, key_insights_summary, key_strategic_implications
+	for _, key := range []string{"key_insights", "key_insights_summary", "key_strategic_implications"} {
+		if arr, ok := m[key].([]any); ok && len(arr) > 0 {
+			keyInsightCount = len(arr)
+			break
+		}
 	}
 
-	// White spaces / gaps
-	if arr, ok := m["white_spaces"].([]any); ok {
-		whiteSpaceCount = len(arr)
+	// White spaces / gaps — try: white_spaces, opportunities
+	for _, key := range []string{"white_spaces", "opportunities"} {
+		if arr, ok := m[key].([]any); ok && len(arr) > 0 {
+			whiteSpaceCount = len(arr)
+			break
+		}
 	}
 
 	return
