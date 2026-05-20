@@ -10,7 +10,8 @@ type AimRunPanelData struct {
 	Steps        []AimRunStepRow
 	CreatedAt    string
 	StreamURL    string // SSE endpoint URL
-	LLMMode      bool   // true when at least one step was completed with LLM assistance
+	LLMMode      bool   // true when LLM is configured OR at least one step was completed with LLM assistance
+	LLMEnabled   bool   // true when an LLM provider is wired to the server
 }
 
 // AimRunStepRow is a single step in the run timeline.

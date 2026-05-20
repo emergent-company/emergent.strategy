@@ -34,6 +34,7 @@ type Server struct {
 	syncSvc             *syncdom.Service       // nil when GitHub App not configured
 	aimSvc              *aimdom.Service        // nil when AIM service not configured
 	orchestrationEngine *orchestration.Engine  // nil when orchestration not configured
+	llmEnabled          bool                   // true when an LLM provider is wired
 }
 
 // New creates a new web handler Server.
@@ -72,6 +73,13 @@ func (s *Server) WithAIM(svc *aimdom.Service) *Server {
 // WithOrchestration wires the orchestration engine into the handler server (optional).
 func (s *Server) WithOrchestration(eng *orchestration.Engine) *Server {
 	s.orchestrationEngine = eng
+	return s
+}
+
+// WithLLMEnabled records whether an LLM provider is wired to the server.
+// This is used to show the correct mode badge in the run panel UI.
+func (s *Server) WithLLMEnabled(enabled bool) *Server {
+	s.llmEnabled = enabled
 	return s
 }
 

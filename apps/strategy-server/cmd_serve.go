@@ -319,10 +319,9 @@ func runServer(cfg *config.Config) error {
 	// Web UI routes.
 	webHandler := handler.New(db, log, semanticSvc).
 		WithRipple(rippleSvc).
-		WithVersion(versionSvc).
-		WithSync(syncSvc).
 		WithAIM(aimSvc).
-		WithOrchestration(orchEngine)
+		WithOrchestration(orchEngine).
+		WithLLMEnabled(llmClient != nil)
 	webHandler.RegisterRoutes(e)
 
 	// Server timeouts.

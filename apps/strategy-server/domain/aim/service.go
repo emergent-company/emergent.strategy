@@ -210,9 +210,10 @@ func (s *Service) DraftAssessment(ctx context.Context, instanceID uuid.UUID) (uu
 		"strategic_insights":     strategicInsights,
 		"overall_status":         "pending",
 		"metadata": map[string]any{
-			"drafted_by": "aim_agent",
-			"drafted_at": time.Now().UTC().Format(time.RFC3339),
-			"llm_used":   false,
+			"drafted_by":  "aim_agent",
+			"drafted_at":  time.Now().UTC().Format(time.RFC3339),
+			"llm_used":    false,
+			"instance_id": instanceID.String(), // needed by LLM enrichment for context loading
 		},
 	}
 
@@ -374,24 +375,162 @@ func (s *Service) extractStrategicInsights(ctx context.Context, instanceID uuid.
 	return insights
 }
 
-// enrichAssessmentWithLLM calls the LLM to add narrative to OKR assessments.
+// enrichAssessmentWithLLM calls the LLM to add narrative assessment text to each OKR.
+// It loads strategic context (north star mission, strategy foundations synopsis, active
+// ripple signals) once, then enriches each OKR with a grounded assessment.
 func (s *Service) enrichAssessmentWithLLM(ctx context.Context, report map[string]any, okrAssessments []map[string]any) {
-	systemPrompt := `You are a strategy assessment assistant. Given an OKR objective, write a concise 1-2 sentence assessment of whether the objective appears on track, at risk, or missed, based on the context provided. Be specific and actionable.`
+	instanceID := s.instanceIDFromReport(report)
+
+	// Load strategic context once — reused for every OKR call.
+	strategicContext := s.loadStrategicContext(ctx, instanceID)
+	signals := s.loadSignalContext(ctx, instanceID)
+
+	systemPrompt := `You are a strategy assessment analyst. Your job is to write realistic, grounded OKR assessments based on the strategic context provided. 
+
+Rules:
+- Acknowledge when data is unavailable — do NOT fabricate metrics or actuals.
+- Reference the specific key results and their targets when assessing status.
+- Use the ripple signals (misalignments detected by the system) as evidence where relevant.
+- Be concise: 2-3 sentences per OKR assessment.
+- Status options: on_track, at_risk, missed, pending (use pending only when truly no signal exists).`
 
 	for i, okr := range okrAssessments {
 		objective, _ := okr["objective"].(string)
 		if objective == "" {
 			continue
 		}
-		userPrompt := fmt.Sprintf("OKR Objective: %s\n\nWrite a brief assessment status (1-2 sentences).", objective)
+		okrID, _ := okr["okr_id"].(string)
+		track, _ := okr["track"].(string)
+
+		// Build KR summary.
+		var krLines []string
+		if krs, ok := okr["kr_assessments"].([]map[string]any); ok {
+			for _, kr := range krs {
+				krID, _ := kr["kr_id"].(string)
+				target, _ := kr["target"].(string)
+				if krID != "" {
+					line := fmt.Sprintf("  - %s", krID)
+					if target != "" {
+						line += fmt.Sprintf(" (target: %s)", target)
+					}
+					krLines = append(krLines, line)
+				}
+			}
+		}
+		krSection := "  (no key results defined)"
+		if len(krLines) > 0 {
+			krSection = strings.Join(krLines, "\n")
+		}
+
+		userPrompt := fmt.Sprintf(`Strategic context:
+%s
+%s
+---
+OKR to assess:
+Track: %s
+ID: %s
+Objective: %s
+Key Results:
+%s
+
+Write a concise assessment (2-3 sentences) of this OKR. If you cannot determine actual progress, say so explicitly and explain what evidence would be needed.`,
+			strategicContext, signals, track, okrID, objective, krSection)
+
 		result, err := s.llm.Complete(ctx, systemPrompt, userPrompt)
 		if err != nil {
-			slog.WarnContext(ctx, "aim: LLM assessment enrichment failed", "okr_id", okr["okr_id"], "err", err)
+			slog.WarnContext(ctx, "aim: LLM assessment enrichment failed", "okr_id", okrID, "err", err)
 			continue
 		}
-		okrAssessments[i]["assessment"] = result
+		okrAssessments[i]["assessment"] = strings.TrimSpace(result)
 	}
 	report["okr_assessments"] = okrAssessments
+}
+
+// instanceIDFromReport extracts the instance UUID from the metadata section of a report map.
+// Returns uuid.Nil if not found — callers must guard against nil context.
+func (s *Service) instanceIDFromReport(report map[string]any) uuid.UUID {
+	if meta, ok := report["metadata"].(map[string]any); ok {
+		if idStr, ok := meta["instance_id"].(string); ok {
+			if id, err := uuid.Parse(idStr); err == nil {
+				return id
+			}
+		}
+	}
+	return uuid.Nil
+}
+
+// loadStrategicContext builds a compact strategic context string from the north star
+// and strategy foundations artifacts for the given instance.
+func (s *Service) loadStrategicContext(ctx context.Context, instanceID uuid.UUID) string {
+	if instanceID == uuid.Nil {
+		return "(strategic context unavailable — instance ID missing from report metadata)"
+	}
+
+	var lines []string
+
+	// North star — mission and vision.
+	if ns, err := s.loadArtifactPayload(ctx, instanceID, "north_star"); err == nil {
+		if nsInner, ok := ns["north_star"].(map[string]any); ok {
+			if purpose, ok := nsInner["purpose"].(map[string]any); ok {
+				if prob, _ := purpose["problem_we_solve"].(string); prob != "" {
+					lines = append(lines, "Problem we solve: "+prob)
+				}
+				if who, _ := purpose["who_we_serve"].(string); who != "" {
+					lines = append(lines, "Who we serve: "+who)
+				}
+			}
+			if vision, ok := nsInner["vision"].(map[string]any); ok {
+				if tf, _ := vision["timeframe"].(string); tf != "" {
+					lines = append(lines, "Vision timeframe: "+tf)
+				}
+			}
+		}
+	}
+
+	// Strategy foundations — ICP and positioning.
+	if sf, err := s.loadArtifactPayload(ctx, instanceID, "strategy_foundations"); err == nil {
+		if pos, ok := sf["positioning"].(map[string]any); ok {
+			if usp, _ := pos["unique_value_proposition"].(string); usp != "" {
+				lines = append(lines, "Value proposition: "+usp)
+			}
+		}
+	}
+
+	if len(lines) == 0 {
+		return "(no strategic context artifacts found)"
+	}
+	return "Strategic context:\n" + strings.Join(lines, "\n")
+}
+
+// loadSignalContext returns a compact summary of active critical ripple signals
+// to give the LLM awareness of known misalignments in the strategy graph.
+func (s *Service) loadSignalContext(ctx context.Context, instanceID uuid.UUID) string {
+	if instanceID == uuid.Nil {
+		return ""
+	}
+	type sigRow struct {
+		Description string `bun:"description"`
+		Severity    string `bun:"severity"`
+	}
+	var rows []sigRow
+	_ = s.db.NewSelect().
+		TableExpr("ripple_signals").
+		ColumnExpr("description, severity").
+		Where("instance_id = ?", instanceID).
+		Where("status = ?", "active").
+		OrderExpr("CASE severity WHEN 'critical' THEN 0 WHEN 'warning' THEN 1 ELSE 2 END").
+		Limit(5).
+		Scan(ctx, &rows)
+
+	if len(rows) == 0 {
+		return ""
+	}
+	var lines []string
+	lines = append(lines, "\nActive strategy signals (misalignments detected by system):")
+	for _, r := range rows {
+		lines = append(lines, fmt.Sprintf("  [%s] %s", r.Severity, r.Description))
+	}
+	return strings.Join(lines, "\n")
 }
 
 // ---------------------------------------------------------------------------

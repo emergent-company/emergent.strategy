@@ -72,7 +72,7 @@ func (s *Server) handleGetAIMRun(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound, "run not found")
 	}
 
-	data := buildRunPanelData(instanceID, run)
+	data := s.buildRunPanelData(instanceID, run)
 	content := ui.AimRunPanelContent(data)
 	return s.renderInstancePage(c, "AIM Cycle Run", ui.PhaseRenderData{
 		Title:   "AIM Cycle Run",
@@ -121,7 +121,7 @@ func (s *Server) handleAIMRunStream(c echo.Context) error {
 		if err != nil {
 			return "", ""
 		}
-		data := buildRunPanelData(instanceID, run)
+		data := s.buildRunPanelData(instanceID, run)
 		var buf bytes.Buffer
 		_ = ui.AimRunTimeline(data).Render(ctx, &buf)
 		return buf.String(), run.Status
@@ -162,13 +162,13 @@ func (s *Server) handleAIMRunStream(c echo.Context) error {
 // ---------------------------------------------------------------------------
 
 // buildRunPanelData converts a Run into the view model for the run panel template.
-func buildRunPanelData(instanceID string, run *orchestration.Run) ui.AimRunPanelData {
+func (s *Server) buildRunPanelData(instanceID string, run *orchestration.Run) ui.AimRunPanelData {
 	stepRows := make([]ui.AimRunStepRow, len(run.Steps))
-	llmMode := false
+	anyStepUsedLLM := false
 	for i, sl := range run.Steps {
 		llmUsed, _ := sl.Meta["llm_used"].(bool)
 		if llmUsed {
-			llmMode = true
+			anyStepUsedLLM = true
 		}
 		stepRows[i] = ui.AimRunStepRow{
 			Name:    sl.Name,
@@ -178,6 +178,9 @@ func buildRunPanelData(instanceID string, run *orchestration.Run) ui.AimRunPanel
 			LLMUsed: llmUsed,
 		}
 	}
+	// Show AI-assisted mode whenever the LLM is wired (even while the run is in
+	// progress and no step has set llm_used yet), or once any step has used it.
+	llmMode := s.llmEnabled || anyStepUsedLLM
 	return ui.AimRunPanelData{
 		InstanceID:   instanceID,
 		RunID:        run.ID.String(),
@@ -188,5 +191,6 @@ func buildRunPanelData(instanceID string, run *orchestration.Run) ui.AimRunPanel
 		CreatedAt:    run.CreatedAt.Format(time.RFC3339),
 		StreamURL:    fmt.Sprintf("/strategies/%s/aim/runs/%s/stream", instanceID, run.ID),
 		LLMMode:      llmMode,
+		LLMEnabled:   s.llmEnabled,
 	}
 }
