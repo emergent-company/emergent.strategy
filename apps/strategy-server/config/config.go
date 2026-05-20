@@ -62,7 +62,7 @@ type Config struct {
 	StrategyDBMode string `arg:"--db-mode,env:STRATEGY_DB_MODE" default:"dev" help:"Database mode: shared, standalone, dev"`
 
 	// HTTP Server
-	Port      int    `arg:"--port,env:PORT" default:"8080" help:"HTTP listen port"`
+	Port      int    `arg:"--port,env:PORT" default:"8090" help:"HTTP listen port"`
 	ServerURL string `arg:"--server-url,env:SERVER_URL" help:"Public base URL of this server"`
 
 	// Auth

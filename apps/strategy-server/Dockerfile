@@ -10,6 +10,6 @@ FROM alpine:3.21
 RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /app
 COPY --from=build /app/build/strategy-server /app/strategy-server
-EXPOSE 8080
+EXPOSE 8090
 ENTRYPOINT ["/app/strategy-server"]
 CMD ["server"]

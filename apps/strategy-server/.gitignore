@@ -1,3 +1,5 @@
 build/
 tmp/
 .env.local
+# Allow .envrc to be committed (contains no secrets — only dotenv_if_exists .env.local)
+!.envrc
