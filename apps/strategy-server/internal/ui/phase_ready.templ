@@ -364,6 +364,71 @@ templ readyInsightCard(data ReadyPhaseData) {
 </a>
 }
 
+// detailGapBanner renders a completeness banner for a detail screen.
+// Missing sections are shown as actionable red items; present sections as muted checks.
+// Only rendered when there is at least one gap or section to show.
+templ detailGapBanner(gaps []ReadyGap) {
+	if len(gaps) == 0 {
+		return
+	}
+	// Count missing sections.
+	{{ missing := 0 }}
+	for _, g := range gaps {
+		if !g.Present {
+			{{ missing++ }}
+		}
+	}
+	if missing == 0 {
+		<!-- All sections present — show compact "complete" bar -->
+		<div class="flex items-center gap-2 rounded-lg bg-success/5 border border-success/20 px-4 py-2.5">
+			<span class="iconify lucide--circle-check-big size-4 text-success shrink-0"></span>
+			<p class="text-sm text-success font-medium">All sections complete</p>
+			<div class="flex flex-wrap gap-1 ml-2">
+				for _, g := range gaps {
+					<span class="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs text-success/60 bg-success/5">
+						<span class="iconify lucide--check size-3"></span>
+						{ g.Label }
+					</span>
+				}
+			</div>
+		</div>
+	} else {
+		<!-- Some sections missing — show actionable banner -->
+		<div class="rounded-xl border border-error/25 bg-error/5 overflow-hidden">
+			<div class="flex items-center gap-3 px-4 py-3 border-b border-error/15">
+				<span class="iconify lucide--triangle-alert size-4 text-error shrink-0"></span>
+				<p class="text-sm font-semibold text-error">
+					{ strconv.Itoa(missing) } section
+					if missing == 1 {
+						{ " needs content" }
+					} else {
+						{ "s need content" }
+					}
+				</p>
+				<p class="text-xs text-base-content/50 ml-1">Develop these to strengthen this artifact</p>
+			</div>
+			<div class="px-4 py-3 flex flex-wrap gap-2">
+				for _, g := range gaps {
+					if !g.Present {
+						<div class="flex items-center gap-1.5 rounded-lg bg-error/10 border border-error/20 px-3 py-1.5">
+							<span class="iconify lucide--circle-dashed size-3.5 text-error/70 shrink-0"></span>
+							<span class="text-xs font-medium text-error">{ g.Label }</span>
+							if g.Hint != "" {
+								<span class="text-xs text-base-content/50 hidden sm:inline">— { g.Hint }</span>
+							}
+						</div>
+					} else {
+						<div class="flex items-center gap-1 rounded-lg bg-base-200/60 px-2.5 py-1.5">
+							<span class="iconify lucide--check size-3 text-success/60 shrink-0"></span>
+							<span class="text-xs text-base-content/40">{ g.Label }</span>
+						</div>
+					}
+				}
+			</div>
+		</div>
+	}
+}
+
 templ insightChip(count, label, icon string) {
 	<span class="inline-flex items-center gap-1 rounded-md bg-base-100 border border-base-content/10 px-2 py-0.5 text-xs text-base-content/60">
 		<span class={ "iconify size-3 opacity-60", icon }></span>

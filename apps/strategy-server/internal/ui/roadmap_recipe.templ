@@ -26,6 +26,9 @@ type RoadmapRecipeData struct {
 
 	// Cross-track dependencies
 	Dependencies []RoadmapDependency
+
+	// Section completeness gaps
+	Gaps []ReadyGap
 }
 
 // RoadmapTrack is a single strategy track with its OKRs and assumptions.
@@ -89,6 +92,7 @@ type RoadmapDependency struct {
 templ RoadmapRecipeContent(data RoadmapRecipeData) {
 	@TabBackLink(data.TabGroup, data.InstanceID, data.CurrentPath)
 	<div class="space-y-8">
+		@detailGapBanner(data.Gaps)
 		// ── Hero ──
 		@roadmapHero(data)
 

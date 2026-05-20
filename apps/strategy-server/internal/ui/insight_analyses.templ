@@ -43,6 +43,9 @@ type InsightAnalysesData struct {
 	// Synthesis
 	OpportunityConvergence []InsightConvergence
 	StrategicTensions      []InsightTension
+
+	// Section completeness gaps
+	Gaps []ReadyGap
 }
 
 type InsightTrend struct {
@@ -105,6 +108,7 @@ type InsightTension struct {
 templ InsightAnalysesContent(data InsightAnalysesData) {
 	@TabBackLink(data.TabGroup, data.InstanceID, data.CurrentPath)
 	<div class="space-y-8">
+		@detailGapBanner(data.Gaps)
 		// ── Hero ──
 		<div class="relative overflow-hidden rounded-xl bg-gradient-to-br from-info/10 via-base-100 to-primary/10 border border-info/10">
 			<div class="px-6 py-8 sm:px-8">

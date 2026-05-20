@@ -34,6 +34,9 @@ type StrategyFoundationsData struct {
 
 	// Design Principles
 	DesignPrinciples []FoundationPrinciple
+
+	// Section completeness gaps
+	Gaps []ReadyGap
 }
 
 type FoundationIndicator struct {
@@ -71,6 +74,7 @@ type FoundationPrinciple struct {
 templ StrategyFoundationsContent(data StrategyFoundationsData) {
 	@TabBackLink(data.TabGroup, data.InstanceID, data.CurrentPath)
 	<div class="space-y-8">
+		@detailGapBanner(data.Gaps)
 		// ── Hero ──
 		@foundationsHero(data)
 

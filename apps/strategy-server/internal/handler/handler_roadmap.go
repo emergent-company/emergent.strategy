@@ -119,6 +119,7 @@ func (s *Server) roadmapRecipeContent(navCtx ui.NavContext, artifactKey, name, s
 		}
 	}
 
+	data.Gaps = checkRoadmapGaps(payload)
 	return ui.RoadmapRecipeContent(data)
 }
 

@@ -34,6 +34,9 @@ type InsightOpportunityData struct {
 
 	// Success
 	SuccessIndicators []FoundationIndicator
+
+	// Section completeness gaps
+	Gaps []ReadyGap
 }
 
 type OpportunityEvidence struct {
@@ -45,6 +48,7 @@ type OpportunityEvidence struct {
 templ InsightOpportunityContent(data InsightOpportunityData) {
 	@TabBackLink(data.TabGroup, data.InstanceID, data.CurrentPath)
 	<div class="space-y-8">
+		@detailGapBanner(data.Gaps)
 		// ── Hero ──
 		@opportunityHero(data)
 

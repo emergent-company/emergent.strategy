@@ -257,5 +257,6 @@ func (s *Server) strategyFormulaContent(navCtx ui.NavContext, artifactKey, name,
 		}
 	}
 
+	data.Gaps = checkFormulaGaps(payload)
 	return ui.StrategyFormulaContent(data)
 }

@@ -240,6 +240,7 @@ func (s *Server) insightAnalysesContent(navCtx ui.NavContext, artifactKey, name,
 		}
 	}
 
+	data.Gaps = checkInsightGaps(payload)
 	return ui.InsightAnalysesContent(data)
 }
 

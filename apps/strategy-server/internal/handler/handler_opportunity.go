@@ -88,5 +88,6 @@ func (s *Server) insightOpportunityContent(navCtx ui.NavContext, artifactKey, na
 		}
 	}
 
+	data.Gaps = checkOpportunityGaps(payload)
 	return ui.InsightOpportunityContent(data)
 }

@@ -137,5 +137,6 @@ func (s *Server) strategyFoundationsContent(navCtx ui.NavContext, artifactKey, n
 		}
 	}
 
+	data.Gaps = checkFoundationGaps(payload)
 	return ui.StrategyFoundationsContent(data)
 }

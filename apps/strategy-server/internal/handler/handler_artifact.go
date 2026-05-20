@@ -330,6 +330,7 @@ func (s *Server) northStarContent(navCtx ui.NavContext, artifactKey, name, statu
 		}
 	}
 
+	data.Gaps = checkNorthStarGaps(payload)
 	return ui.NorthStarContent(data)
 }
 

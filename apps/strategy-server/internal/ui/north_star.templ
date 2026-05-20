@@ -50,6 +50,9 @@ type NorthStarData struct {
 
 	// Evolution
 	Evolution []EvolutionEntry
+
+	// Section completeness gaps
+	Gaps []ReadyGap
 }
 
 // BeliefData is a single decomposed belief.
@@ -95,6 +98,7 @@ type EvolutionEntry struct {
 templ NorthStarContent(data NorthStarData) {
 	@TabBackLink(data.TabGroup, data.InstanceID, data.CurrentPath)
 	<div class="space-y-8">
+		@detailGapBanner(data.Gaps)
 		// ── Hero ──
 		@northStarHero(data)
 
