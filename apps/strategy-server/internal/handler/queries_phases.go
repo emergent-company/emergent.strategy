@@ -21,30 +21,48 @@ func (s *Server) loadReadyPhaseData(ctx context.Context, instanceID string) ui.R
 	// North Star — org name + vision + purpose statement
 	data.NorthStarExists, data.NorthStarOrg, data.NorthStarVision = s.loadArtifactSummary(ctx, instanceID, domain.ArtifactTypeNorthStar, "north_star.organization", "north_star.vision.vision_statement")
 	data.NorthStarPurpose = firstSentence(s.extractPayloadField(ctx, instanceID, domain.ArtifactTypeNorthStar, "north_star.purpose.statement"))
+	if data.NorthStarExists {
+		data.NorthStarGaps = s.loadArtifactGaps(ctx, instanceID, domain.ArtifactTypeNorthStar, checkNorthStarGaps)
+	}
 
 	// Insight Analyses — name + first trend title + at-a-glance counts
 	data.InsightExists, data.InsightTitle, _ = s.loadArtifactSummary(ctx, instanceID, domain.ArtifactTypeInsightAnalyses, "name", "")
 	data.InsightFirstTrend, data.InsightTrendCount, data.InsightPersonaCount,
 		data.InsightCompetitorCount, data.InsightKeyInsightCount, data.InsightWhiteSpaceCount =
 		s.extractInsightCounts(ctx, instanceID)
+	if data.InsightExists {
+		data.InsightGaps = s.loadInsightGaps(ctx, instanceID)
+	}
 
 	// Insight Opportunity — title + urgency (first sentence)
 	data.OpportunityExists, data.OpportunityTitle, _ = s.loadArtifactSummary(ctx, instanceID, "insight_opportunity", "opportunity.title", "")
 	data.OpportunityUrgency = firstSentence(s.extractPayloadField(ctx, instanceID, "insight_opportunity", "opportunity.context.urgency"))
+	if data.OpportunityExists {
+		data.OpportunityGaps = s.loadArtifactGaps(ctx, instanceID, "insight_opportunity", checkOpportunityGaps)
+	}
 
 	// Strategy Formula — title + UVP (first sentence) + category position
 	data.FormulaExists, data.FormulaTitle, _ = s.loadArtifactSummary(ctx, instanceID, domain.ArtifactTypeStrategyFormula, "strategy.title", "")
 	data.FormulaUVP = firstSentence(s.extractPayloadField(ctx, instanceID, domain.ArtifactTypeStrategyFormula, "strategy.positioning.unique_value_proposition"))
 	data.FormulaCategory = s.extractPayloadField(ctx, instanceID, domain.ArtifactTypeStrategyFormula, "strategy.positioning.category_position")
+	if data.FormulaExists {
+		data.FormulaGaps = s.loadArtifactGaps(ctx, instanceID, domain.ArtifactTypeStrategyFormula, checkFormulaGaps)
+	}
 
 	// Strategy Foundations — value prop headline + product vision (first sentence)
 	data.FoundationExists, data.FoundationTitle, _ = s.loadArtifactSummary(ctx, instanceID, domain.ArtifactTypeStrategyFoundations, "name", "")
 	data.FoundationValueProp = s.extractPayloadField(ctx, instanceID, domain.ArtifactTypeStrategyFoundations, "strategy_foundations.value_proposition.headline")
 	data.FoundationVision = firstSentence(s.extractPayloadField(ctx, instanceID, domain.ArtifactTypeStrategyFoundations, "strategy_foundations.product_vision.vision_statement"))
+	if data.FoundationExists {
+		data.FoundationGaps = s.loadArtifactGaps(ctx, instanceID, domain.ArtifactTypeStrategyFoundations, checkFoundationGaps)
+	}
 
 	// Roadmap Recipe — title + cycle name
 	data.RoadmapExists, data.RoadmapTitle, _ = s.loadArtifactSummary(ctx, instanceID, domain.ArtifactTypeRoadmap, "name", "")
 	data.RoadmapCycle = s.extractPayloadField(ctx, instanceID, domain.ArtifactTypeRoadmap, "roadmap.cycle")
+	if data.RoadmapExists {
+		data.RoadmapGaps = s.loadArtifactGaps(ctx, instanceID, domain.ArtifactTypeRoadmap, checkRoadmapGaps)
+	}
 
 	// Count completed
 	for _, exists := range []bool{data.NorthStarExists, data.InsightExists, data.FoundationExists, data.FormulaExists, data.RoadmapExists, data.OpportunityExists} {
@@ -1108,6 +1126,268 @@ func firstSentence(s string) string {
 		}
 	}
 	return s
+}
+
+// --- section completeness gap checkers ---
+
+// gap returns a ReadyGap. present=true → section is filled, false → it is missing.
+func gap(label string, present bool, hint string) ui.ReadyGap {
+	return ui.ReadyGap{Label: label, Present: present, Hint: hint}
+}
+
+// anyNonEmpty returns true if any candidate path in m resolves to a non-empty string or non-empty array.
+func anyNonEmpty(m map[string]any, paths ...string) bool {
+	for _, path := range paths {
+		parts := splitDot(path)
+		var cur any = m
+		ok := true
+		for _, p := range parts {
+			cm, isMap := cur.(map[string]any)
+			if !isMap {
+				ok = false
+				break
+			}
+			cur, ok = cm[p]
+			if !ok {
+				break
+			}
+		}
+		if !ok {
+			continue
+		}
+		switch v := cur.(type) {
+		case string:
+			if strings.TrimSpace(v) != "" {
+				return true
+			}
+		case []any:
+			if len(v) > 0 {
+				return true
+			}
+		case map[string]any:
+			if len(v) > 0 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// checkInsightGaps evaluates section completeness for an insight_analyses payload.
+func checkInsightGaps(m map[string]any) []ui.ReadyGap {
+	// Trends: any sub-array under "trends" or "trend_analysis"
+	hasTrends := false
+	for _, trendsKey := range []string{"trends", "trend_analysis"} {
+		if t, ok := m[trendsKey].(map[string]any); ok {
+			for _, v := range t {
+				if arr, ok := v.([]any); ok && len(arr) > 0 {
+					hasTrends = true
+					break
+				}
+			}
+		}
+		if hasTrends {
+			break
+		}
+	}
+
+	// Market sizing: any of the common market definition fields
+	hasMarket := anyNonEmpty(m,
+		"market_definition.tam", "market_definition.market_stage",
+		"market_landscape.market_size", "market_landscape.tam",
+		"market_structure.segments",
+	)
+
+	// Competitive landscape: object with at least one non-empty sub-array
+	hasCompetitors := false
+	for _, clKey := range []string{"competitive_landscape", "competitors"} {
+		switch v := m[clKey].(type) {
+		case map[string]any:
+			for _, sv := range v {
+				if arr, ok := sv.([]any); ok && len(arr) > 0 {
+					hasCompetitors = true
+				}
+			}
+		case []any:
+			hasCompetitors = len(v) > 0
+		}
+		if hasCompetitors {
+			break
+		}
+	}
+
+	// User / persona research
+	hasPersonas := anyNonEmpty(m,
+		"target_users", "primary_users", "personas", "customer_insights",
+	)
+
+	// Key insights synthesis
+	hasInsights := anyNonEmpty(m,
+		"key_insights", "key_insights_summary", "key_strategic_implications",
+		"strategic_implications", "opportunity_convergence",
+	)
+
+	// SWOT or equivalent internal analysis
+	hasSWOT := anyNonEmpty(m,
+		"strengths", "weaknesses", "swot_analysis",
+		"swot_analysis.strengths", "customer_insights.key_pain_points",
+	)
+
+	// White spaces / gaps / opportunities
+	hasGaps := anyNonEmpty(m,
+		"white_spaces", "opportunities", "confidence_gaps",
+	)
+
+	return []ui.ReadyGap{
+		gap("Trends", hasTrends, "Add market, technology & regulatory trends"),
+		gap("Market sizing", hasMarket, "Define TAM/SAM and market stage"),
+		gap("Competitors", hasCompetitors, "List direct and indirect competitors"),
+		gap("User research", hasPersonas, "Document target personas and pain points"),
+		gap("Key insights", hasInsights, "Synthesise 3–5 key strategic insights"),
+		gap("SWOT", hasSWOT, "Complete strengths, weaknesses, and threats"),
+		gap("White spaces", hasGaps, "Identify underserved segments and gaps"),
+	}
+}
+
+// checkNorthStarGaps evaluates section completeness for a north_star payload.
+func checkNorthStarGaps(m map[string]any) []ui.ReadyGap {
+	ns := m
+	if inner, ok := m["north_star"].(map[string]any); ok {
+		ns = inner
+	}
+	hasPurpose := anyNonEmpty(ns, "purpose.statement", "purpose", "mission.statement", "mission")
+	hasVision := anyNonEmpty(ns, "vision.vision_statement", "vision.statement", "vision")
+	hasValues := anyNonEmpty(ns, "values", "core_beliefs", "core_values")
+	return []ui.ReadyGap{
+		gap("Purpose", hasPurpose, "Write a purpose / mission statement"),
+		gap("Vision", hasVision, "Write the long-term vision statement"),
+		gap("Values", hasValues, "List core values or beliefs"),
+	}
+}
+
+// checkOpportunityGaps evaluates section completeness for an insight_opportunity payload.
+func checkOpportunityGaps(m map[string]any) []ui.ReadyGap {
+	opp := m
+	if inner, ok := m["opportunity"].(map[string]any); ok {
+		opp = inner
+	}
+	hasTitle := anyNonEmpty(opp, "title", "opportunity.title")
+	hasWhyNow := anyNonEmpty(opp, "context.urgency", "why_now", "context.why_now", "timing")
+	hasEvidence := anyNonEmpty(opp, "evidence", "value_hypothesis", "evidence_base", "context.evidence")
+	hasFit := anyNonEmpty(opp, "strategic_fit", "opportunity_type", "value_hypothesis")
+	return []ui.ReadyGap{
+		gap("Title", hasTitle, "Name the core opportunity"),
+		gap("Why now", hasWhyNow, "Explain the timing and urgency"),
+		gap("Evidence", hasEvidence, "Ground the opportunity in evidence"),
+		gap("Strategic fit", hasFit, "Link to North Star and strategic bets"),
+	}
+}
+
+// checkFormulaGaps evaluates section completeness for a strategy_formula payload.
+func checkFormulaGaps(m map[string]any) []ui.ReadyGap {
+	s := m
+	if inner, ok := m["strategy"].(map[string]any); ok {
+		s = inner
+	}
+	hasPositioning := anyNonEmpty(s,
+		"positioning.unique_value_proposition", "positioning.category_position",
+		"positioning.target_customer", "positioning",
+	)
+	hasMoat := anyNonEmpty(s, "competitive_moat", "moat", "differentiation")
+	hasBizModel := anyNonEmpty(s, "business_model", "business_model.revenue_streams", "revenue_model")
+	hasValue := anyNonEmpty(s, "value_creation", "value_creation.primary_value_drivers")
+	return []ui.ReadyGap{
+		gap("Positioning", hasPositioning, "Define UVP and category position"),
+		gap("Moat", hasMoat, "Articulate the competitive moat"),
+		gap("Business model", hasBizModel, "Describe how value is monetised"),
+		gap("Value creation", hasValue, "Explain the primary value drivers"),
+	}
+}
+
+// checkFoundationGaps evaluates section completeness for a strategy_foundations payload.
+func checkFoundationGaps(m map[string]any) []ui.ReadyGap {
+	sf := m
+	if inner, ok := m["strategy_foundations"].(map[string]any); ok {
+		sf = inner
+	}
+	hasVP := anyNonEmpty(sf,
+		"value_proposition.headline", "value_proposition.primary_benefit", "value_proposition",
+	)
+	hasVision := anyNonEmpty(sf,
+		"product_vision.vision_statement", "product_vision.statement", "product_vision",
+	)
+	hasPersona := anyNonEmpty(sf,
+		"primary_persona", "personas", "target_persona", "icp",
+		"information_architecture",
+	)
+	hasSequencing := anyNonEmpty(sf,
+		"strategic_sequencing", "sequencing", "sequencing_logic",
+	)
+	return []ui.ReadyGap{
+		gap("Value proposition", hasVP, "Write the value proposition headline"),
+		gap("Product vision", hasVision, "Write the product vision statement"),
+		gap("Target persona", hasPersona, "Define the primary target persona"),
+		gap("Sequencing", hasSequencing, "Describe the strategic sequencing logic"),
+	}
+}
+
+// checkRoadmapGaps evaluates section completeness for a roadmap_recipe payload.
+func checkRoadmapGaps(m map[string]any) []ui.ReadyGap {
+	roadmap := m
+	if inner, ok := m["roadmap"].(map[string]any); ok {
+		roadmap = inner
+	}
+	tracks, _ := roadmap["tracks"].(map[string]any)
+	trackHasOKRs := func(key string) bool {
+		if t, ok := tracks[key].(map[string]any); ok {
+			if okrs, ok := t["okrs"].([]any); ok && len(okrs) > 0 {
+				return true
+			}
+		}
+		return false
+	}
+	hasStrategy := trackHasOKRs("strategy")
+	hasOrgOps := trackHasOKRs("org_ops")
+	hasProduct := trackHasOKRs("product")
+	hasCommercial := trackHasOKRs("commercial")
+	return []ui.ReadyGap{
+		gap("Strategy OKRs", hasStrategy, "Add objectives for the Strategy track"),
+		gap("Org & Ops OKRs", hasOrgOps, "Add objectives for the Org & Ops track"),
+		gap("Product OKRs", hasProduct, "Add objectives for the Product track"),
+		gap("Commercial OKRs", hasCommercial, "Add objectives for the Commercial track"),
+	}
+}
+
+// loadInsightGaps loads and checks section completeness for insight_analyses.
+func (s *Server) loadInsightGaps(ctx context.Context, instanceID string) []ui.ReadyGap {
+	var payloadStr string
+	if err := s.db.NewSelect().TableExpr("strategy_artifacts").Column("payload").
+		Where("instance_id = ?", instanceID).
+		Where("artifact_type = ?", domain.ArtifactTypeInsightAnalyses).
+		Limit(1).Scan(ctx, &payloadStr); err != nil || payloadStr == "" {
+		return nil
+	}
+	var m map[string]any
+	if json.Unmarshal([]byte(payloadStr), &m) != nil {
+		return nil
+	}
+	return checkInsightGaps(m)
+}
+
+// loadArtifactGaps loads an artifact payload and runs the provided checker.
+func (s *Server) loadArtifactGaps(ctx context.Context, instanceID, artifactType string, checker func(map[string]any) []ui.ReadyGap) []ui.ReadyGap {
+	var payloadStr string
+	if err := s.db.NewSelect().TableExpr("strategy_artifacts").Column("payload").
+		Where("instance_id = ?", instanceID).
+		Where("artifact_type = ?", artifactType).
+		Limit(1).Scan(ctx, &payloadStr); err != nil || payloadStr == "" {
+		return nil
+	}
+	var m map[string]any
+	if json.Unmarshal([]byte(payloadStr), &m) != nil {
+		return nil
+	}
+	return checker(m)
 }
 
 // extractInsightCounts reads the insight_analyses payload once and returns:

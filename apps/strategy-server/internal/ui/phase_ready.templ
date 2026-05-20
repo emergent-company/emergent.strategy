@@ -4,6 +4,14 @@ import (
 	"strconv"
 )
 
+// ReadyGap represents a single named section that is expected in a READY artifact.
+// Present=true means the section has substantive content; false means it is missing or empty.
+type ReadyGap struct {
+	Label   string // short section name, e.g. "Trends", "Competitors"
+	Present bool
+	Hint    string // one-line action hint shown when missing, e.g. "Add market & technology trends"
+}
+
 // ReadyPhaseData holds all data for the READY phase dashboard.
 type ReadyPhaseData struct {
 	InstanceID string
@@ -13,6 +21,7 @@ type ReadyPhaseData struct {
 	NorthStarOrg     string // organisation name from payload
 	NorthStarVision  string // vision statement
 	NorthStarPurpose string // purpose.statement — the one-liner "why we exist"
+	NorthStarGaps    []ReadyGap
 
 	// Insight Analyses
 	InsightExists     bool
@@ -24,28 +33,33 @@ type ReadyPhaseData struct {
 	InsightCompetitorCount int
 	InsightKeyInsightCount int
 	InsightWhiteSpaceCount int
+	InsightGaps            []ReadyGap
 
 	// Insight Opportunity
 	OpportunityExists    bool
 	OpportunityTitle     string
 	OpportunityUrgency   string // first sentence of urgency field
+	OpportunityGaps      []ReadyGap
 
 	// Strategy Formula
 	FormulaExists   bool
 	FormulaTitle    string
 	FormulaUVP      string // positioning.unique_value_proposition (first sentence)
 	FormulaCategory string // positioning.category_position
+	FormulaGaps     []ReadyGap
 
 	// Strategy Foundations
 	FoundationExists    bool
 	FoundationTitle     string
 	FoundationValueProp string // value_proposition.headline
 	FoundationVision    string // product_vision.vision_statement (first sentence)
+	FoundationGaps      []ReadyGap
 
 	// Roadmap Recipe
 	RoadmapExists bool
 	RoadmapTitle  string
 	RoadmapCycle  string // cycle name if present
+	RoadmapGaps   []ReadyGap
 
 	// Roadmap OKR summary
 	TrackOKRs []TrackOKRSummary
@@ -129,6 +143,7 @@ templ ReadyPhaseContent(data ReadyPhaseData) {
 				BadgeColor: "bg-secondary/20 text-secondary",
 				Line1:      data.OpportunityTitle,
 				Line2:      data.OpportunityUrgency,
+				Gaps:       data.OpportunityGaps,
 			})
 		</div>
 		<!-- Row connector: row 2 → row 3 (both columns converge downward) -->
@@ -148,6 +163,7 @@ templ ReadyPhaseContent(data ReadyPhaseData) {
 				BadgeColor: "bg-accent/20 text-accent-content",
 				Line1:      data.FormulaCategory,
 				Line2:      data.FormulaUVP,
+				Gaps:       data.FormulaGaps,
 			})
 			<!-- Mid divider: no arrow, just a vertical separator -->
 			<div class="flex flex-col items-center justify-center px-3 min-w-[80px]">
@@ -166,6 +182,7 @@ templ ReadyPhaseContent(data ReadyPhaseData) {
 				BadgeColor: "bg-accent/20 text-accent-content",
 				Line1:      data.FoundationValueProp,
 				Line2:      data.FoundationVision,
+				Gaps:       data.FoundationGaps,
 			})
 		</div>
 		<!-- Row connector: row 3 → Roadmap -->
@@ -193,6 +210,8 @@ type readyMapCardProps struct {
 	// Content lines — shown when artifact exists, for at-a-glance scanning
 	Line1 string // primary content (bold)
 	Line2 string // secondary content (muted)
+	// Section-level completeness gaps — shown when artifact exists
+	Gaps []ReadyGap
 }
 
 // readyMapCard renders a clickable artifact node in the dependency map.
@@ -231,23 +250,47 @@ templ readyMapCard(p readyMapCardProps) {
 					<span class="iconify lucide--circle-dashed size-4 text-base-content/30 shrink-0"></span>
 				}
 			</div>
-			<!-- Content area — strategic snapshot when populated -->
-			if p.Exists && (p.Line1 != "" || p.Line2 != "") {
-				<div class="border-t border-base-content/10 pt-2.5 space-y-1.5">
-					if p.Line1 != "" {
-						<p class="text-xs font-medium text-base-content/90 leading-snug line-clamp-2">{ p.Line1 }</p>
-					}
-					if p.Line2 != "" {
-						<p class="text-xs text-base-content/55 leading-snug line-clamp-2">{ p.Line2 }</p>
-					}
-				</div>
-			} else if !p.Exists {
-				<div class="border-t border-base-content/10 pt-2.5">
-					<p class="text-xs text-base-content/35 italic">Not yet authored</p>
-				</div>
+		<!-- Content area — strategic snapshot when populated -->
+		if p.Exists && (p.Line1 != "" || p.Line2 != "") {
+			<div class="border-t border-base-content/10 pt-2.5 space-y-1.5">
+				if p.Line1 != "" {
+					<p class="text-xs font-medium text-base-content/90 leading-snug line-clamp-2">{ p.Line1 }</p>
+				}
+				if p.Line2 != "" {
+					<p class="text-xs text-base-content/55 leading-snug line-clamp-2">{ p.Line2 }</p>
+				}
+			</div>
+		} else if !p.Exists {
+			<div class="border-t border-base-content/10 pt-2.5">
+				<p class="text-xs text-base-content/35 italic">Not yet authored</p>
+			</div>
+		}
+		<!-- Section gap strip — only shown when artifact exists and has gaps defined -->
+		if p.Exists && len(p.Gaps) > 0 {
+			@readyGapStrip(p.Gaps)
+		}
+	</div>
+</a>
+}
+
+// readyGapStrip renders a compact row of section presence/gap indicators.
+// Present sections show a small muted check; missing sections show a red pill with hint.
+templ readyGapStrip(gaps []ReadyGap) {
+	<div class="border-t border-base-content/10 pt-2 flex flex-wrap gap-1">
+		for _, g := range gaps {
+			if g.Present {
+				<span class="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs text-success/60 bg-success/5">
+					<span class="iconify lucide--check size-3"></span>
+					{ g.Label }
+				</span>
+			} else {
+				<span class="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs text-error bg-error/10 border border-error/25" title={ g.Hint }>
+					<span class="iconify lucide--triangle-alert size-3"></span>
+					{ g.Label }
+				</span>
 			}
-		</div>
-	</a>
+		}
+	</div>
 }
 
 // readyInsightCard renders the Insight Analyses card with a count chip strip.
@@ -309,13 +352,16 @@ templ readyInsightCard(data ReadyPhaseData) {
 						</div>
 					}
 				</div>
-			} else {
-				<div class="border-t border-base-content/10 pt-2.5">
-					<p class="text-xs text-base-content/35 italic">Not yet authored</p>
-				</div>
-			}
-		</div>
-	</a>
+		} else {
+			<div class="border-t border-base-content/10 pt-2.5">
+				<p class="text-xs text-base-content/35 italic">Not yet authored</p>
+			</div>
+		}
+		if data.InsightExists && len(data.InsightGaps) > 0 {
+			@readyGapStrip(data.InsightGaps)
+		}
+	</div>
+</a>
 }
 
 templ insightChip(count, label, icon string) {
@@ -361,17 +407,20 @@ templ readyMapNorthStar(data ReadyPhaseData) {
 					if data.NorthStarExists && data.NorthStarVision != "" {
 						<p class="text-xs text-base-content/55 mt-1 line-clamp-2">{ data.NorthStarVision }</p>
 					}
-				</div>
-				<!-- Org name pill -->
-				if data.NorthStarOrg != "" {
-					<div class="shrink-0 hidden md:flex flex-col items-end gap-2">
-						<span class="badge badge-ghost badge-sm text-base-content/50">{ data.NorthStarOrg }</span>
-						<span class="text-xs text-base-content/35 italic">calibration feeds back ↑</span>
-					</div>
-				}
 			</div>
+			<!-- Org name pill -->
+			if data.NorthStarOrg != "" {
+				<div class="shrink-0 hidden md:flex flex-col items-end gap-2">
+					<span class="badge badge-ghost badge-sm text-base-content/50">{ data.NorthStarOrg }</span>
+					<span class="text-xs text-base-content/35 italic">calibration feeds back ↑</span>
+				</div>
+			}
 		</div>
-	</a>
+		if data.NorthStarExists && len(data.NorthStarGaps) > 0 {
+			@readyGapStrip(data.NorthStarGaps)
+		}
+	</div>
+</a>
 }
 
 // readyMapRoadmap renders the Roadmap as the full-width bottom node.
@@ -421,7 +470,10 @@ templ readyMapRoadmap(data ReadyPhaseData) {
 				}
 			</div>
 		</div>
-	</a>
+		if data.RoadmapExists && len(data.RoadmapGaps) > 0 {
+			@readyGapStrip(data.RoadmapGaps)
+		}
+</a>
 }
 
 // readyConnectorRow2 renders the connector between North Star and the tier-2 discovery row.
