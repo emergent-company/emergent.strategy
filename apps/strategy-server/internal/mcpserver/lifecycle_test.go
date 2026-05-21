@@ -137,9 +137,9 @@ func TestComputeMaturityScore_Empty(t *testing.T) {
 
 func TestComputeMaturityScore_Nascent(t *testing.T) {
 	sem := &SemanticSignals{
-		GraphNodeCount:    10,
-		GraphEdgeCount:    2,
-		AvgEdgesPerNode:   0.2,
+		GraphNodeCount:     10,
+		GraphEdgeCount:     2,
+		AvgEdgesPerNode:    0.2,
 		ContributesToEdges: 0,
 	}
 	structural := &LifecycleSignals{}
@@ -195,15 +195,15 @@ func TestComputeMaturityScore_Mature(t *testing.T) {
 func TestAssessMode_RecalibrationFromSemantics(t *testing.T) {
 	// Has features and foundation but graph shows decay.
 	s := LifecycleSignals{
-		ArtifactCount:   10,
-		FeatureCount:    5,
-		HasNorthStar:    true,
-		HasFoundations:  true,
-		HasFormula:      true,
-		HasRoadmap:      true,
-		HasValueModel:   true,
-		VersionCount:    1,
-		DaysSinceUpdate: 5, // recent — structural check would say "operating"
+		ArtifactCount:     10,
+		FeatureCount:      5,
+		HasNorthStar:      true,
+		HasFoundations:    true,
+		HasFormula:        true,
+		HasRoadmap:        true,
+		HasValueModel:     true,
+		VersionCount:      1,
+		DaysSinceUpdate:   5, // recent — structural check would say "operating"
 		SemanticAvailable: true,
 		Semantic: &SemanticSignals{
 			GraphNodeCount:          50,
@@ -226,13 +226,13 @@ func TestAssessMode_RecalibrationFromSemantics(t *testing.T) {
 
 func TestAssessMode_BuildingWithSemantics(t *testing.T) {
 	s := LifecycleSignals{
-		ArtifactCount:   8,
-		FeatureCount:    3,
-		HasNorthStar:    true,
-		HasFoundations:  true,
-		HasFormula:      true,
-		HasValueModel:   true,
-		VersionCount:    1,
+		ArtifactCount:     8,
+		FeatureCount:      3,
+		HasNorthStar:      true,
+		HasFoundations:    true,
+		HasFormula:        true,
+		HasValueModel:     true,
+		VersionCount:      1,
 		SemanticAvailable: true,
 		Semantic: &SemanticSignals{
 			ContributesToEdges: 2,

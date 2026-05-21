@@ -160,26 +160,26 @@ templ ReadyPhaseContent(data ReadyPhaseData) {
 				Tier:       3,
 				TierLabel:  "Quarterly",
 				TierColor:  "bg-accent/10 border-accent/20",
-				BadgeColor: "bg-accent/20 text-accent-content",
-				Line1:      data.FormulaCategory,
-				Line2:      data.FormulaUVP,
-				Gaps:       data.FormulaGaps,
-			})
-			<!-- Mid divider: no arrow, just a vertical separator -->
-			<div class="flex flex-col items-center justify-center px-3 min-w-[80px]">
-				<div class="h-full w-px bg-base-content/10 my-2"></div>
-			</div>
-			<!-- Strategy Foundations -->
-			@readyMapCard(readyMapCardProps{
-				Title:      "Strategy Foundations",
-				Subtitle:   "Product vision · Value prop · Sequencing · Principles",
-				Icon:       "lucide--building-2",
-				Href:       "/strategies/" + data.InstanceID + "/ready/foundations",
-				Exists:     data.FoundationExists,
-				Tier:       3,
-				TierLabel:  "Quarterly",
-				TierColor:  "bg-accent/10 border-accent/20",
-				BadgeColor: "bg-accent/20 text-accent-content",
+		BadgeColor: "bg-accent/20 text-accent",
+			Line1:      data.FormulaCategory,
+			Line2:      data.FormulaUVP,
+			Gaps:       data.FormulaGaps,
+		})
+		<!-- Mid divider: no arrow, just a vertical separator -->
+		<div class="flex flex-col items-center justify-center px-3 min-w-[80px]">
+			<div class="h-full w-px bg-base-content/10 my-2"></div>
+		</div>
+		<!-- Strategy Foundations -->
+		@readyMapCard(readyMapCardProps{
+			Title:      "Strategy Foundations",
+			Subtitle:   "Product vision · Value prop · Sequencing · Principles",
+			Icon:       "lucide--building-2",
+			Href:       "/strategies/" + data.InstanceID + "/ready/foundations",
+			Exists:     data.FoundationExists,
+			Tier:       3,
+			TierLabel:  "Quarterly",
+			TierColor:  "bg-accent/10 border-accent/20",
+			BadgeColor: "bg-accent/20 text-accent",
 				Line1:      data.FoundationValueProp,
 				Line2:      data.FoundationVision,
 				Gaps:       data.FoundationGaps,
@@ -278,14 +278,14 @@ templ readyMapCard(p readyMapCardProps) {
 templ readyGapStrip(gaps []ReadyGap) {
 	<div class="border-t border-base-content/10 pt-2 flex flex-wrap gap-1">
 		for _, g := range gaps {
-			if g.Present {
-				<span class="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs text-success/60 bg-success/5">
-					<span class="iconify lucide--check size-3"></span>
-					{ g.Label }
-				</span>
+		if g.Present {
+			<span class="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs text-base-content/50 bg-base-content/5">
+				<span class="iconify lucide--check size-3 text-emerald-600"></span>
+				{ g.Label }
+			</span>
 			} else {
-				<span class="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs text-error bg-error/10 border border-error/25" title={ g.Hint }>
-					<span class="iconify lucide--triangle-alert size-3"></span>
+				<span class="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs text-base-content/60 bg-amber-50/50 border border-amber-100" title={ g.Hint }>
+					<span class="iconify lucide--triangle-alert size-3 text-amber-600"></span>
 					{ g.Label }
 				</span>
 			}
@@ -384,12 +384,12 @@ templ detailGapBanner(gaps []ReadyGap) {
 			<span class="iconify lucide--circle-check-big size-4 text-success shrink-0"></span>
 			<p class="text-sm text-success font-medium">All sections complete</p>
 			<div class="flex flex-wrap gap-1 ml-2">
-				for _, g := range gaps {
-					<span class="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs text-success/60 bg-success/5">
-						<span class="iconify lucide--check size-3"></span>
-						{ g.Label }
-					</span>
-				}
+			for _, g := range gaps {
+				<span class="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs text-success bg-success/10">
+					<span class="iconify lucide--check size-3"></span>
+					{ g.Label }
+				</span>
+			}
 			</div>
 		</div>
 	} else {
@@ -452,35 +452,36 @@ templ readyMapNorthStar(data ReadyPhaseData) {
 				<div class={ "rounded-xl p-2.5 shrink-0", templ.KV("bg-primary/15", data.NorthStarExists), templ.KV("bg-base-content/5", !data.NorthStarExists) }>
 					<span class={ "iconify lucide--star size-5", templ.KV("text-primary", data.NorthStarExists), templ.KV("text-base-content/40", !data.NorthStarExists) }></span>
 				</div>
-				<div class="min-w-0 flex-1">
-					<div class="flex items-center gap-2 flex-wrap mb-1">
-						<h3 class="text-sm font-semibold text-base-content">North Star</h3>
-					<span class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-sans font-medium bg-primary/20 text-primary">
+			<div class="min-w-0 flex-1">
+				<div class="flex items-center gap-2 mb-1">
+					<h3 class="text-sm font-semibold text-base-content">North Star</h3>
+					<span class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-sans font-medium bg-primary/20 text-primary shrink-0">
 						<span class="iconify lucide--refresh-cw size-3 opacity-70"></span>
 						Years
 					</span>
-						if data.NorthStarExists {
-							<span class="iconify lucide--check-circle-2 size-4 text-success shrink-0"></span>
-						} else {
-							<span class="iconify lucide--circle-dashed size-4 text-base-content/30 shrink-0"></span>
-						}
-					</div>
-					<p class="text-xs text-base-content/50">Purpose · Vision · Mission · Values — immovable anchor</p>
+				</div>
+				<p class="text-xs text-base-content/50">Purpose · Vision · Mission · Values — immovable anchor</p>
 					if data.NorthStarExists && data.NorthStarPurpose != "" {
 						<p class="text-sm font-medium text-base-content/90 mt-2.5 leading-snug">{ data.NorthStarPurpose }</p>
 					}
 					if data.NorthStarExists && data.NorthStarVision != "" {
 						<p class="text-xs text-base-content/55 mt-1 line-clamp-2">{ data.NorthStarVision }</p>
 					}
-			</div>
-			<!-- Org name pill -->
-			if data.NorthStarOrg != "" {
-				<div class="shrink-0 hidden md:flex flex-col items-end gap-2">
-					<span class="badge badge-ghost badge-sm text-base-content/50">{ data.NorthStarOrg }</span>
-					<span class="text-xs text-base-content/35 italic">calibration feeds back ↑</span>
-				</div>
-			}
 		</div>
+		<!-- Status icon -->
+		if data.NorthStarExists {
+			<span class="iconify lucide--check-circle-2 size-4 text-success shrink-0 mt-0.5"></span>
+		} else {
+			<span class="iconify lucide--circle-dashed size-4 text-base-content/30 shrink-0 mt-0.5"></span>
+		}
+		<!-- Org name pill -->
+		if data.NorthStarOrg != "" {
+			<div class="shrink-0 hidden md:flex flex-col items-end gap-2">
+				<span class="badge badge-ghost badge-sm text-base-content/50">{ data.NorthStarOrg }</span>
+				<span class="text-xs text-base-content/35 italic">calibration feeds back ↑</span>
+			</div>
+		}
+	</div>
 		if data.NorthStarExists && len(data.NorthStarGaps) > 0 {
 			@readyGapStrip(data.NorthStarGaps)
 		}
@@ -503,25 +504,26 @@ templ readyMapRoadmap(data ReadyPhaseData) {
 				<div class={ "rounded-xl p-2.5 shrink-0", templ.KV("bg-info/15", data.RoadmapExists), templ.KV("bg-base-content/5", !data.RoadmapExists) }>
 					<span class={ "iconify lucide--map size-5", templ.KV("text-info", data.RoadmapExists), templ.KV("text-base-content/40", !data.RoadmapExists) }></span>
 				</div>
-				<div class="min-w-0 flex-1">
-					<div class="flex items-center gap-2 flex-wrap mb-1">
-						<h3 class="text-sm font-semibold text-base-content">Roadmap Recipe</h3>
-					<span class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-sans font-medium bg-info/20 text-info">
+			<div class="min-w-0 flex-1">
+				<div class="flex items-center gap-2 mb-1">
+					<h3 class="text-sm font-semibold text-base-content">Roadmap Recipe</h3>
+					<span class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-sans font-medium bg-info/20 text-info shrink-0">
 						<span class="iconify lucide--refresh-cw size-3 opacity-70"></span>
 						Each cycle
 					</span>
-						if data.RoadmapExists {
-							<span class="iconify lucide--check-circle-2 size-4 text-success shrink-0"></span>
-						} else {
-							<span class="iconify lucide--circle-dashed size-4 text-base-content/30 shrink-0"></span>
-						}
-					</div>
-					<p class="text-xs text-base-content/50">Current cycle priorities — four-track OKRs, assumptions, milestones</p>
-					if data.RoadmapExists && data.RoadmapCycle != "" {
-						<p class="text-xs font-medium text-base-content/80 mt-2">Cycle: { data.RoadmapCycle }</p>
-					}
 				</div>
-				<!-- OKR summary inline -->
+				<p class="text-xs text-base-content/50">Current cycle priorities — four-track OKRs, assumptions, milestones</p>
+				if data.RoadmapExists && data.RoadmapCycle != "" {
+					<p class="text-xs font-medium text-base-content/80 mt-2">Cycle: { data.RoadmapCycle }</p>
+				}
+			</div>
+			<!-- Status icon -->
+			if data.RoadmapExists {
+				<span class="iconify lucide--check-circle-2 size-4 text-success shrink-0 mt-0.5"></span>
+			} else {
+				<span class="iconify lucide--circle-dashed size-4 text-base-content/30 shrink-0 mt-0.5"></span>
+			}
+			<!-- OKR summary inline -->
 				if len(data.TrackOKRs) > 0 {
 					<div class="shrink-0 hidden md:flex items-center gap-4 border-l border-base-content/10 pl-4">
 						for _, t := range data.TrackOKRs {

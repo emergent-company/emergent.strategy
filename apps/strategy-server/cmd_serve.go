@@ -16,8 +16,9 @@ import (
 	echomw "github.com/labstack/echo/v4/middleware"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/config"
-	appdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/app"
+	activitydom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/activity"
 	aimdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/aim"
+	appdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/app"
 	evidencedom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/evidence"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/heartbeat"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ingest"
@@ -160,9 +161,13 @@ func runServer(cfg *config.Config) error {
 	// Evidence service — created early so heartbeat can use it for proposal context.
 	evidenceSvc := evidencedom.NewService(db).WithMemoryEnqueue(ingestSvc)
 
+	// Activity stream — records significant loop events; feeds SSE fanout.
+	activitySvc := activitydom.NewService(db)
+
 	// Heartbeat — periodic trigger evaluation across all active instances.
 	heartbeatSvc := heartbeat.NewService(db, &aimHeartbeatAdapter{svc: aimSvc}).
-		WithEvidenceCounter(evidenceSvc)
+		WithEvidenceCounter(evidenceSvc).
+		WithActivityRecorder(&heartbeatActivityAdapter{svc: activitySvc})
 	if cfg.HeartbeatInterval > 0 {
 		heartbeatCtx, heartbeatStop := context.WithCancel(context.Background())
 		defer heartbeatStop()
@@ -205,6 +210,7 @@ func runServer(cfg *config.Config) error {
 		Ingest:        ingestSvc,
 		Orchestration: orchEngine,
 		Evidence:      evidenceSvc,
+		Activity:      activitySvc,
 	}
 
 	// Echo instance.
@@ -307,6 +313,16 @@ func runServer(cfg *config.Config) error {
 			} else if adopted > 0 {
 				log.Info("adopted orphan workspaces to dev org", "count", adopted)
 			}
+
+			// Ensure dev user is a member of every org that exists in the DB.
+			// This covers instances imported under real org IDs (e.g. the
+			// Emergent instance) so they're accessible without extra setup.
+			joined, joinErr := orgSvc.EnsureDevMembershipForAllOrgs(devCtx, web.DevUser.ID)
+			if joinErr != nil {
+				log.Warn("failed to ensure dev memberships (non-fatal)", "err", joinErr)
+			} else if joined > 0 {
+				log.Info("dev user joined additional orgs", "count", joined)
+			}
 		}
 	}
 
@@ -341,7 +357,9 @@ func runServer(cfg *config.Config) error {
 		WithVersion(versionSvc).
 		WithRipple(rippleSvc).
 		WithAIM(aimSvc).
+		WithHeartbeat(heartbeatSvc).
 		WithOrchestration(orchEngine).
+		WithActivity(activitySvc).
 		WithLLMEnabled(llmClient != nil)
 	webHandler.RegisterRoutes(e)
 
@@ -408,9 +426,11 @@ type aimHeartbeatAdapter struct {
 func (a *aimHeartbeatAdapter) EvaluateTriggers(ctx context.Context, instanceID uuid.UUID) heartbeat.TriggerState {
 	state := a.svc.EvaluateTriggers(ctx, instanceID)
 	return heartbeat.TriggerState{
-		Fired:         state.Fired,
-		Reason:        state.Reason,
-		ReasonMessage: state.ReasonMessage,
+		Fired:            state.Fired,
+		Reason:           state.Reason,
+		ReasonMessage:    state.ReasonMessage,
+		TriggerSignalIDs: state.TriggerSignalIDs,
+		LastAssessmentAt: state.LastAssessmentAt,
 	}
 }
 
@@ -442,4 +462,18 @@ func (a *llmAIMAdapter) CompleteJSON(ctx context.Context, systemPrompt, userProm
 		return "", err
 	}
 	return result.Content, nil
+}
+
+// heartbeatActivityAdapter adapts *activity.Service to heartbeat.ActivityRecorder.
+// The heartbeat package defines ActivityEvent to avoid importing domain/activity directly.
+type heartbeatActivityAdapter struct {
+	svc *activitydom.Service
+}
+
+func (a *heartbeatActivityAdapter) Record(ctx context.Context, ev heartbeat.ActivityEvent) {
+	a.svc.Record(ctx, activitydom.RecordRequest{
+		InstanceID: ev.InstanceID,
+		EventType:  ev.EventType,
+		Payload:    ev.Payload,
+	})
 }

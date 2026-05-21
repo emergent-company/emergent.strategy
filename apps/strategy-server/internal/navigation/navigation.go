@@ -53,6 +53,7 @@ const (
 	Calibration      ScreenID = "aim-calibration"
 	Coherence        ScreenID = "aim-coherence"
 	AimVersions      ScreenID = "aim-versions"
+	AimProposals     ScreenID = "aim-proposals"    // Cycle proposals inbox — human approval gate
 	AimDraftReview   ScreenID = "aim-draft-review" // AI draft review — hidden from sub-nav
 	AimRunPanel      ScreenID = "aim-run-panel"    // Orchestrated cycle run panel — hidden from sub-nav
 )

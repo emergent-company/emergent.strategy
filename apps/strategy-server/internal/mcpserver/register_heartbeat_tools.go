@@ -228,5 +228,3 @@ func argFloat(req mcp.CallToolRequest, name string) float64 {
 	v, _ := args[name].(float64)
 	return v
 }
-
-

@@ -381,8 +381,8 @@ func TestConvergence_Safety_ManyAutoCommits_ChangeBudgetDamping(t *testing.T) {
 
 	cfg := ripple.DefaultRippleConfig()
 	cfg.Damping.MaxIterations = 10
-	cfg.Damping.ChangeBudget = 0.12    // budget for ~2 fixes at 0.06 each
-	cfg.EquilibriumThreshold = 0.99   // threshold so graph stays non-equilibrium
+	cfg.Damping.ChangeBudget = 0.12 // budget for ~2 fixes at 0.06 each
+	cfg.EquilibriumThreshold = 0.99 // threshold so graph stays non-equilibrium
 
 	// Inject 10 orphan warnings (autonomous).
 	for i := 0; i < 10; i++ {
@@ -402,8 +402,8 @@ func TestConvergence_Safety_ManyAutoCommits_ChangeBudgetDamping(t *testing.T) {
 	}
 	commitCount := 0
 	cs := ripple.ConvergenceServices{
-		DB:     db,
-		Ripple: rippleSvc,
+		DB:       db,
+		Ripple:   rippleSvc,
 		Resolver: resolver,
 		CommitAutoFn: func(_ context.Context, _ uuid.UUID, _, _ string, _ json.RawMessage, _ uuid.UUID) error {
 			commitCount++
@@ -463,8 +463,8 @@ func TestConvergence_Safety_AnchorDrift_DampingFires(t *testing.T) {
 
 	commitCount := 0
 	cs := ripple.ConvergenceServices{
-		DB:     db,
-		Ripple: rippleSvc,
+		DB:       db,
+		Ripple:   rippleSvc,
 		Resolver: resolver,
 		CommitAutoFn: func(autoCtx context.Context, id uuid.UUID, key, artType string, payload json.RawMessage, sigID uuid.UUID) error {
 			commitCount++
@@ -552,7 +552,7 @@ func TestConvergence_AutoCommits_VisibleInListMutations(t *testing.T) {
 		ArtifactKey:  "fd-auto-001",
 		Action:       domain.MutationActionCreate,
 		Payload:      map[string]any{"name": "Auto-resolved feature", "status": "active"},
-		SignalID:      &signalID,
+		SignalID:     &signalID,
 	})
 	if err != nil {
 		t.Fatalf("CommitAuto: %v", err)
@@ -607,7 +607,7 @@ func TestConvergence_RestoreVersion_RevertsAutoCommittedMutations(t *testing.T) 
 			ArtifactKey:  fmt.Sprintf("fd-auto-%03d", i+1),
 			Action:       domain.MutationActionCreate,
 			Payload:      map[string]any{"name": fmt.Sprintf("Auto Feature %d", i+1)},
-			SignalID:      &signalID,
+			SignalID:     &signalID,
 		})
 		if err != nil {
 			t.Fatalf("CommitAuto %d: %v", i, err)

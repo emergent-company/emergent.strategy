@@ -35,6 +35,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 	"gopkg.in/yaml.v3"
 
+	activitydom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/activity"
 	aimdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/aim"
 	appdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/app"
 	evidencedom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/evidence"
@@ -64,23 +65,24 @@ type IngestEnqueuer interface {
 
 // Services bundles all domain services used by the MCP server.
 type Services struct {
-	Workspace *workspace.Service
-	Instance  *instance.Service
-	Strategy  *strategy.Service
-	Pack      *pack.Service
-	App       *appdom.Service
-	Semantic  *semantic.Service
-	Org       *orgdom.Service
-	Schema    *schemadom.Service      // optional — nil falls back to embedded-only validation
-	Version   *versiondom.Service     // optional — nil disables versioning tools
-	Sync      *syncdom.Service        // optional — nil disables GitHub sync tools
-	Ripple    *rippledom.Service      // optional — nil disables ripple coherence tools
+	Workspace     *workspace.Service
+	Instance      *instance.Service
+	Strategy      *strategy.Service
+	Pack          *pack.Service
+	App           *appdom.Service
+	Semantic      *semantic.Service
+	Org           *orgdom.Service
+	Schema        *schemadom.Service       // optional — nil falls back to embedded-only validation
+	Version       *versiondom.Service      // optional — nil disables versioning tools
+	Sync          *syncdom.Service         // optional — nil disables GitHub sync tools
+	Ripple        *rippledom.Service       // optional — nil disables ripple coherence tools
 	AIM           *aimdom.Service          // optional — nil disables AIM agent loop tools
 	Heartbeat     HeartbeatService         // optional — nil disables heartbeat MCP tools
-	Resolver      rippledom.SignalResolver  // optional — nil = agent-orchestrated mode
+	Resolver      rippledom.SignalResolver // optional — nil = agent-orchestrated mode
 	Ingest        IngestEnqueuer           // optional — nil when Memory is not configured
 	Orchestration *orchestration.Engine    // optional — nil disables orchestrator MCP tools
 	Evidence      *evidencedom.Service     // optional — nil disables evidence MCP tools
+	Activity      *activitydom.Service     // optional — nil disables activity stream MCP tools
 }
 
 // HeartbeatService is the interface used by MCP heartbeat tools.
@@ -131,6 +133,7 @@ func New(svc Services) http.Handler {
 	registerAIMOrchestratorTools(s, svc)
 	registerHeartbeatTools(s, svc)
 	registerEvidenceTools(s, svc)
+	registerActivityTools(s, svc)
 	registerKnowledgePrompt(s)
 
 	return server.NewStreamableHTTPServer(s)
@@ -335,10 +338,10 @@ func registerInstanceReadTools(s *server.MCPServer, svc Services) {
 			if countErr == nil {
 				activeTotal := counts["critical"] + counts["warning"] + counts["info"]
 				signalSummary := map[string]any{
-					"active_total":    activeTotal,
-					"critical_count":  counts["critical"],
-					"warning_count":   counts["warning"],
-					"info_count":      counts["info"],
+					"active_total":   activeTotal,
+					"critical_count": counts["critical"],
+					"warning_count":  counts["warning"],
+					"info_count":     counts["info"],
 				}
 				if activeTotal > 0 {
 					topSignals, _ := svc.Ripple.TopCritical(ctx, id, 3)
@@ -767,9 +770,9 @@ func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 		}
 
 		return mustJSON(map[string]any{
-			"instance":    inst,
-			"scaffolded":  true,
-			"seeded":      seededArtifacts,
+			"instance":   inst,
+			"scaffolded": true,
+			"seeded":     seededArtifacts,
 			"next_steps": []string{
 				"1. Use get_product_vision to read the template North Star, then update_north_star to fill in your vision",
 				"2. Use get_template to see any template structure before editing",

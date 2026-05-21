@@ -1029,6 +1029,17 @@ func (s *Server) loadAimPhaseData(ctx context.Context, instanceID string) ui.Aim
 		}
 	}
 
+	// Pending proposals from the continuous loop
+	if s.heartbeatSvc != nil {
+		if id, err := uuid.Parse(instanceID); err == nil {
+			data.PendingProposals, _ = s.db.NewSelect().
+				TableExpr("cycle_proposals").
+				Where("instance_id = ?", id).
+				Where("status = ?", "pending").
+				Count(ctx)
+		}
+	}
+
 	return data
 }
 

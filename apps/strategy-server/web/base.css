@@ -64,6 +64,7 @@
 @source inline("bg-base-content/{20,30,40}");
 @source inline("size-{1,2,3,4}");
 @source inline("animate-pulse");
+@source inline("text-emerald-600 bg-emerald-50 border-emerald-200 text-amber-600 text-amber-700 bg-amber-50 bg-amber-50/50 border-amber-100 border-amber-200");
 
 /* go-daisy shell component classes — emitted by AppShell, Sidebar, Navbar from
    the module cache. Tailwind cannot scan compiled Go, so these must be safelisted. */

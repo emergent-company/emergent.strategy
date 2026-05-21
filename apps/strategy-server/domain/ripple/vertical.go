@@ -15,12 +15,12 @@ import (
 // VerticalAlignmentResult describes the semantic alignment between two artifacts
 // at different EPF layers.
 type VerticalAlignmentResult struct {
-	UpstreamKey   string  `json:"upstream_key"`
-	UpstreamType  string  `json:"upstream_type"`
-	DownstreamKey string  `json:"downstream_key"`
-	DownstreamType string `json:"downstream_type"`
-	Similarity    float64 `json:"similarity"`   // 0-1, higher = more aligned
-	Description   string  `json:"description"`
+	UpstreamKey    string  `json:"upstream_key"`
+	UpstreamType   string  `json:"upstream_type"`
+	DownstreamKey  string  `json:"downstream_key"`
+	DownstreamType string  `json:"downstream_type"`
+	Similarity     float64 `json:"similarity"` // 0-1, higher = more aligned
+	Description    string  `json:"description"`
 }
 
 // DetectVerticalMisalignment checks that downstream artifacts semantically

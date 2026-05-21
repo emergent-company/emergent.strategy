@@ -44,6 +44,9 @@ type AimPhaseData struct {
 	ActiveRunID     string // non-empty when a run is in progress
 	ActiveRunStatus string // running | awaiting_human | pending
 	ActiveRunStep   string // current step name
+
+	// Pending proposals from the continuous loop
+	PendingProposals int
 }
 
 // AimSignalRow is a single ripple signal for display in the feed.
@@ -368,16 +371,31 @@ templ aimCycleDueBanner(data AimPhaseData) {
 			<p class="text-sm text-base-content mt-0.5">{ data.TriggerReasonMessage }</p>
 		</div>
 		<div class="flex items-center gap-2 shrink-0">
-			// Orchestrated run — runs the full 4-step cycle with SSE progress UI.
-			<form
-				method="POST"
-				action={ templ.URL("/strategies/" + data.InstanceID + "/aim/runs") }
-			>
-				<button type="submit" class="btn btn-sm btn-primary gap-2">
-					<span class="iconify lucide--play size-3.5"></span>
-					Run full cycle
-				</button>
-			</form>
+			if data.PendingProposals > 0 {
+				// Proposals waiting for approval — link to inbox.
+				<a
+					href={ templ.URL("/strategies/" + data.InstanceID + "/aim/proposals") }
+					hx-get={ "/strategies/" + data.InstanceID + "/aim/proposals" }
+					hx-target="#tab-content"
+					hx-swap="innerHTML"
+					hx-push-url="true"
+					class="btn btn-sm btn-primary gap-2"
+				>
+					<span class="iconify lucide--inbox size-3.5"></span>
+					Review proposal
+				</a>
+			} else {
+				// No proposal yet — start cycle directly.
+				<form
+					method="POST"
+					action={ templ.URL("/strategies/" + data.InstanceID + "/aim/runs") }
+				>
+					<button type="submit" class="btn btn-sm btn-primary gap-2">
+						<span class="iconify lucide--play size-3.5"></span>
+						Run full cycle
+					</button>
+				</form>
+			}
 			// Manual step-by-step draft (legacy flow).
 			<form
 				method="POST"
@@ -512,14 +530,35 @@ templ aimArtifactsCard(data AimPhaseData) {
 		<div class="card-body p-5">
 			<h3 class="text-sm font-semibold text-base-content/70 uppercase tracking-widest mb-3">AIM Artifacts</h3>
 			<div class="space-y-1">
-				@aimArtifactRow("Reality Assessment", "lucide--activity", data.HasLRA, data.LRALifecycleStage, "/strategies/" + data.InstanceID + "/aim/lra")
-				@aimArtifactRow("Assessment Report", "lucide--bar-chart-2", data.HasAssessmentReport, "", "/strategies/" + data.InstanceID + "/aim/assessment")
-				@aimArtifactRow("Calibration Memo", "lucide--sliders-horizontal", data.HasCalibration, data.LatestCalibrationDecision, "/strategies/" + data.InstanceID + "/aim/calibration")
-				@aimArtifactRow("Coherence Signals", "lucide--shield-check", data.ActiveSignals == 0, "", "/strategies/" + data.InstanceID + "/aim/coherence")
-				@aimArtifactRow("Trigger Config", "lucide--settings-2", data.HasTriggerConfig, "", "/strategies/" + data.InstanceID + "/aim/calibration")
+			@aimArtifactRow("Reality Assessment", "lucide--activity", data.HasLRA, data.LRALifecycleStage, "/strategies/" + data.InstanceID + "/aim/lra")
+			@aimArtifactRow("Assessment Report", "lucide--bar-chart-2", data.HasAssessmentReport, "", "/strategies/" + data.InstanceID + "/aim/assessment")
+			@aimArtifactRow("Calibration Memo", "lucide--sliders-horizontal", data.HasCalibration, data.LatestCalibrationDecision, "/strategies/" + data.InstanceID + "/aim/calibration")
+			@aimArtifactRow("Coherence Signals", "lucide--shield-check", data.ActiveSignals == 0, "", "/strategies/" + data.InstanceID + "/aim/coherence")
+			@aimArtifactRow("Trigger Config", "lucide--settings-2", data.HasTriggerConfig, "", "/strategies/" + data.InstanceID + "/aim/calibration")
+			@aimProposalArtifactRow(data)
 			</div>
 		</div>
 	</div>
+}
+
+// aimProposalArtifactRow shows the proposals inbox link with pending count badge.
+templ aimProposalArtifactRow(data AimPhaseData) {
+	<a
+		href={ templ.URL("/strategies/" + data.InstanceID + "/aim/proposals") }
+		hx-get={ "/strategies/" + data.InstanceID + "/aim/proposals" }
+		hx-target="#tab-content"
+		hx-swap="innerHTML"
+		hx-push-url="true"
+		class="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-base-200 transition-colors cursor-pointer group"
+	>
+		<span class="iconify lucide--inbox size-4 group-hover:text-primary text-base-content/40"></span>
+		<span class="text-sm text-base-content grow">Cycle Proposals</span>
+		if data.PendingProposals > 0 {
+			<span class="badge badge-xs badge-primary">{ strconv.Itoa(data.PendingProposals) }</span>
+		} else {
+			<span class="iconify lucide--circle-dashed size-3.5 text-base-content/30"></span>
+		}
+	</a>
 }
 
 templ aimArtifactRow(label, icon string, exists bool, detail, href string) {

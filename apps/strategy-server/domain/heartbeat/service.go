@@ -24,12 +24,29 @@ type EvidenceCounter interface {
 	CountUnprocessed(ctx context.Context, instanceID uuid.UUID, tagFilter []string) (int, error)
 }
 
+// ActivityRecorder is optionally implemented by domain/activity.Service to
+// record significant heartbeat events in the activity stream.
+// Using an interface avoids a direct import of domain/activity from heartbeat.
+type ActivityRecorder interface {
+	Record(ctx context.Context, req ActivityEvent)
+}
+
+// ActivityEvent is the minimal event shape accepted by the heartbeat package.
+// It mirrors activity.RecordRequest without importing that package.
+type ActivityEvent struct {
+	InstanceID uuid.UUID
+	EventType  string
+	Payload    map[string]any
+}
+
 // TriggerState mirrors aim.TriggerState so the heartbeat package does not
 // import the aim package (avoids circular deps when aim imports heartbeat).
 type TriggerState struct {
-	Fired         bool
-	Reason        string // "time" | "signals" | ""
-	ReasonMessage string
+	Fired             bool
+	Reason            string    // "time" | "signals" | "evidence" | ""
+	ReasonMessage     string
+	TriggerSignalIDs  []string  // IDs of ripple signals that fired the trigger (signals reason only)
+	LastAssessmentAt  time.Time // zero when no prior assessment exists
 }
 
 // Signal is a persisted heartbeat event for a single instance.
@@ -53,7 +70,8 @@ type TriggerResult struct {
 type Service struct {
 	db        *bun.DB
 	evaluator TriggerEvaluator
-	evidence  EvidenceCounter // optional — nil = evidence count not included in proposals
+	evidence  EvidenceCounter  // optional — nil = evidence count not included in proposals
+	activity  ActivityRecorder // optional — nil = activity stream disabled
 }
 
 // NewService creates a new heartbeat Service.
@@ -64,6 +82,13 @@ func NewService(db *bun.DB, evaluator TriggerEvaluator) *Service {
 // WithEvidenceCounter attaches an evidence counter for proposal context enrichment.
 func (s *Service) WithEvidenceCounter(e EvidenceCounter) *Service {
 	s.evidence = e
+	return s
+}
+
+// WithActivityRecorder attaches an activity recorder for the activity stream.
+// When set, significant proposal lifecycle events are recorded (Stage 5.7).
+func (s *Service) WithActivityRecorder(r ActivityRecorder) *Service {
+	s.activity = r
 	return s
 }
 
@@ -93,14 +118,22 @@ func (s *Service) EvaluateAll(ctx context.Context) ([]TriggerResult, error) {
 		return nil, nil
 	}
 
-	// 2. Fetch critical signal counts for all instances in one batched query.
-	criticalCounts, err := s.batchCriticalSignalCounts(ctx, instanceIDs)
+	// 2. Fetch last assessment timestamps — needed for signal novelty filter.
+	lastAssessments, err := s.batchLastAssessmentTimes(ctx, instanceIDs)
+	if err != nil {
+		slog.WarnContext(ctx, "heartbeat: failed to batch assessment times (degraded)", "err", err)
+		lastAssessments = make(map[uuid.UUID]time.Time)
+	}
+
+	// 3a. Fetch novel critical signal counts (only signals since each instance's
+	//     last assessment) for all instances in one batched query.
+	criticalCounts, err := s.batchCriticalSignalCounts(ctx, instanceIDs, lastAssessments)
 	if err != nil {
 		slog.WarnContext(ctx, "heartbeat: failed to batch signal counts (degraded)", "err", err)
 		// Continue — EvaluateTriggers degrades gracefully.
 	}
 
-	// 3. Load existing unacknowledged heartbeat signals to deduplicate.
+	// 3b. Load existing unacknowledged heartbeat signals to deduplicate.
 	existingByInstance, err := s.loadUnacknowledgedByInstance(ctx, instanceIDs)
 	if err != nil {
 		slog.WarnContext(ctx, "heartbeat: failed to load existing signals (degraded)", "err", err)
@@ -147,16 +180,23 @@ func (s *Service) EvaluateAll(ctx context.Context) ([]TriggerResult, error) {
 		if s.evidence != nil {
 			evCount, _ = s.evidence.CountUnprocessed(ctx, instID, nil)
 		}
+		ctxPayload := map[string]any{
+			"critical_signal_count": criticalCounts[instID],
+			"evidence_count":        evCount,
+		}
+		if len(state.TriggerSignalIDs) > 0 {
+			ctxPayload["trigger_signal_ids"] = state.TriggerSignalIDs
+		}
+		if !state.LastAssessmentAt.IsZero() {
+			ctxPayload["last_assessment_at"] = state.LastAssessmentAt.UTC().Format(time.RFC3339)
+		}
 		s.maybeCreateProposal(ctx, CreateProposalParams{
 			InstanceID:     instID,
 			TriggerReason:  state.Reason,
 			TriggerMessage: state.ReasonMessage,
 			EvidenceCount:  evCount,
 			SignalCount:    criticalCounts[instID],
-			ContextPayload: map[string]any{
-				"critical_signal_count": criticalCounts[instID],
-				"evidence_count":        evCount,
-			},
+			ContextPayload: ctxPayload,
 		})
 	}
 
@@ -253,22 +293,66 @@ func (s *Service) listActiveInstanceIDs(ctx context.Context) ([]uuid.UUID, error
 	return ids, err
 }
 
-// batchCriticalSignalCounts returns a map of instance_id → critical signal count
-// using a single SQL GROUP BY query.
-func (s *Service) batchCriticalSignalCounts(ctx context.Context, instanceIDs []uuid.UUID) (map[uuid.UUID]int, error) {
+// batchLastAssessmentTimes returns a map of instance_id → latest assessment_report
+// updated_at for all given instances. Used to apply the novelty filter consistently
+// with EvaluateTriggers.
+func (s *Service) batchLastAssessmentTimes(ctx context.Context, instanceIDs []uuid.UUID) (map[uuid.UUID]time.Time, error) {
+	type row struct {
+		InstanceID uuid.UUID `bun:"instance_id"`
+		UpdatedAt  time.Time `bun:"updated_at"`
+	}
+	var rows []row
+	err := s.db.NewSelect().
+		TableExpr("strategy_artifacts").
+		ColumnExpr("instance_id, MAX(updated_at) AS updated_at").
+		Where("instance_id IN (?)", bun.List(instanceIDs)).
+		Where("artifact_type = ?", "assessment_report").
+		GroupExpr("instance_id").
+		Scan(ctx, &rows)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[uuid.UUID]time.Time, len(rows))
+	for _, r := range rows {
+		result[r.InstanceID] = r.UpdatedAt
+	}
+	return result, nil
+}
+
+// batchCriticalSignalCounts returns a map of instance_id → novel critical signal count.
+// "Novel" means created after the instance's last committed assessment_report, so
+// chronic backlogs don't inflate the count and keep re-firing the trigger.
+// Uses a single SQL query with a per-instance cutoff via a lateral join.
+func (s *Service) batchCriticalSignalCounts(ctx context.Context, instanceIDs []uuid.UUID, lastAssessments map[uuid.UUID]time.Time) (map[uuid.UUID]int, error) {
 	type row struct {
 		InstanceID uuid.UUID `bun:"instance_id"`
 		Count      int       `bun:"count"`
 	}
 
+	// Build a VALUES list of (instance_id, cutoff_timestamp) pairs so we can
+	// filter per-instance in a single query without N+1 round-trips.
+	// For instances with no prior assessment the cutoff is epoch (zero time),
+	// meaning all signals count.
+	type cutoffRow struct {
+		InstanceID uuid.UUID `bun:"instance_id"`
+		Cutoff     time.Time `bun:"cutoff"`
+	}
+	cutoffs := make([]cutoffRow, 0, len(instanceIDs))
+	for _, id := range instanceIDs {
+		cutoffs = append(cutoffs, cutoffRow{InstanceID: id, Cutoff: lastAssessments[id]})
+	}
+
 	var rows []row
 	err := s.db.NewSelect().
-		TableExpr("ripple_signals").
-		ColumnExpr("instance_id, COUNT(*) AS count").
-		Where("instance_id IN (?)", bun.List(instanceIDs)).
-		Where("status = ?", "active").
-		Where("severity = ?", "critical").
-		GroupExpr("instance_id").
+		TableExpr("ripple_signals AS rs").
+		ColumnExpr("rs.instance_id, COUNT(*) AS count").
+		Join("JOIN (?) AS c ON c.instance_id = rs.instance_id AND rs.created_at > c.cutoff",
+			s.db.NewValues(&cutoffs).Column("instance_id", "cutoff"),
+		).
+		Where("rs.instance_id IN (?)", bun.List(instanceIDs)).
+		Where("rs.status = ?", "active").
+		Where("rs.severity = ?", "critical").
+		GroupExpr("rs.instance_id").
 		Scan(ctx, &rows)
 	if err != nil {
 		return nil, err

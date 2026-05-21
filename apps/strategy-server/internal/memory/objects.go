@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
 )
 
 // CreateObjectRequest is the payload for creating a graph object.
@@ -149,6 +150,72 @@ func (c *Client) BulkCreateObjects(ctx context.Context, objects []CreateObjectRe
 		return nil, fmt.Errorf("bulk create objects: %w", err)
 	}
 	return decodeJSON[[]Object](data)
+}
+
+// BulkUpsertResult holds the outcome of a BulkUpsertObjects call.
+type BulkUpsertResult struct {
+	Objects  []Object // successfully upserted objects, in input order (nil entries on failure)
+	KeyToID  map[string]string // object key → stable ID for successfully upserted objects
+	Failed   int               // count of individual upsert failures
+}
+
+// BulkUpsertObjects upserts multiple objects concurrently using individual
+// PUT /api/graph/objects/upsert calls. Unlike CreateSubgraph, this is fully
+// idempotent — safe to call on objects that already exist.
+// concurrency controls the number of parallel requests (default 8).
+func (c *Client) BulkUpsertObjects(ctx context.Context, requests []UpsertObjectRequest, concurrency int) (*BulkUpsertResult, error) {
+	if concurrency <= 0 {
+		concurrency = 8
+	}
+
+	type indexed struct {
+		i   int
+		req UpsertObjectRequest
+	}
+
+	work := make(chan indexed, len(requests))
+	for i, r := range requests {
+		work <- indexed{i, r}
+	}
+	close(work)
+
+	objects := make([]*Object, len(requests))
+	var mu sync.Mutex
+	failed := 0
+
+	var wg sync.WaitGroup
+	for range concurrency {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for item := range work {
+				obj, err := c.UpsertObject(ctx, item.req)
+				mu.Lock()
+				if err != nil {
+					failed++
+				} else {
+					objects[item.i] = obj
+				}
+				mu.Unlock()
+			}
+		}()
+	}
+	wg.Wait()
+
+	result := &BulkUpsertResult{
+		Objects: make([]Object, 0, len(requests)),
+		KeyToID: make(map[string]string, len(requests)),
+		Failed:  failed,
+	}
+	for _, obj := range objects {
+		if obj != nil {
+			result.Objects = append(result.Objects, *obj)
+			if obj.Key != "" {
+				result.KeyToID[obj.Key] = obj.StableID()
+			}
+		}
+	}
+	return result, nil
 }
 
 // CountArtifactObjects returns the total number of artifact-layer graph objects

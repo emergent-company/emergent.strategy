@@ -54,28 +54,28 @@ func seedStrategyGraph(t *testing.T, db *bun.DB) uuid.UUID {
 		{
 			key: "fd-001", artifactType: "feature", track: "product",
 			payload: map[string]any{
-				"name":               "Strategy Editor",
-				"job_to_be_done":     "When I need to edit my strategy, I want an AI-assisted editor so I can maintain alignment",
-				"solution_approach":  "YAML editing with real-time validation and ripple preview",
-				"contributes_to":     []string{"Product.Core.StrategyAuthoring"},
+				"name":              "Strategy Editor",
+				"job_to_be_done":    "When I need to edit my strategy, I want an AI-assisted editor so I can maintain alignment",
+				"solution_approach": "YAML editing with real-time validation and ripple preview",
+				"contributes_to":    []string{"Product.Core.StrategyAuthoring"},
 			},
 		},
 		{
 			key: "fd-002", artifactType: "feature", track: "product",
 			payload: map[string]any{
-				"name":               "Coherence Dashboard",
-				"job_to_be_done":     "When my strategy graph has misalignments, I want to see them clearly so I can fix them",
-				"solution_approach":  "Signal dashboard with severity classification and guided resolution",
-				"contributes_to":     []string{"Product.Core.CoherenceEngine"},
+				"name":              "Coherence Dashboard",
+				"job_to_be_done":    "When my strategy graph has misalignments, I want to see them clearly so I can fix them",
+				"solution_approach": "Signal dashboard with severity classification and guided resolution",
+				"contributes_to":    []string{"Product.Core.CoherenceEngine"},
 			},
 		},
 		{
 			key: "fd-003", artifactType: "feature", track: "commercial",
 			payload: map[string]any{
-				"name":               "Enterprise Onboarding",
-				"job_to_be_done":     "When an enterprise team adopts the platform, I want a guided setup so they get value quickly",
-				"solution_approach":  "Multi-step onboarding wizard with strategy import",
-				"contributes_to":     []string{"Product.Core.StrategyAuthoring"},
+				"name":              "Enterprise Onboarding",
+				"job_to_be_done":    "When an enterprise team adopts the platform, I want a guided setup so they get value quickly",
+				"solution_approach": "Multi-step onboarding wizard with strategy import",
+				"contributes_to":    []string{"Product.Core.StrategyAuthoring"},
 			},
 		},
 	}

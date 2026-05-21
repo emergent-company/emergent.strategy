@@ -91,6 +91,9 @@ func DefaultGraph() *Graph {
 		{ID: AimVersions, Title: "Versions", Parent: AimOverview,
 			WebRoute: true, URLPattern: "/aim/versions", Icon: "lucide--history",
 			TabGroup: TabAim, RenderMode: RenderTabPage, InstanceScoped: true},
+		{ID: AimProposals, Title: "Proposals", Parent: AimOverview,
+			WebRoute: true, URLPattern: "/aim/proposals", Icon: "lucide--inbox",
+			TabGroup: TabAim, RenderMode: RenderTabPage, InstanceScoped: true},
 		// AI draft review — reachable via POST redirect from draft-* handlers; not in sub-nav.
 		{ID: AimDraftReview, Title: "Draft Review", Parent: AimOverview,
 			WebRoute: false, URLPattern: "/aim/draft-review/:batchID", Icon: "lucide--sparkles",

@@ -126,9 +126,9 @@ func registerSkillResolutionTools(s *server.MCPServer, svc Services) { //nolint:
 			// Build stdin JSON.
 			var paramsMap map[string]interface{}
 			if raw := argString(req, "params"); raw != "" {
-			if err := json.Unmarshal([]byte(raw), &paramsMap); err != nil {
-				return toolErr(ctx, apperror.ErrBadRequest.WithDetail("params is not valid JSON: "+err.Error())), nil //nolint:nilerr
-			}
+				if err := json.Unmarshal([]byte(raw), &paramsMap); err != nil {
+					return toolErr(ctx, apperror.ErrBadRequest.WithDetail("params is not valid JSON: "+err.Error())), nil //nolint:nilerr
+				}
 			}
 			artifacts, _ := svc.Strategy.ListCurrentArtifacts(ctx, id, "")
 			stdinData := map[string]interface{}{

@@ -53,12 +53,12 @@ func registerRippleTools(s *server.MCPServer, svc Services) {
 		}
 
 		result := map[string]any{
-			"changed_key":       report.ChangedKey,
-			"changed_type":      report.ChangedType,
+			"changed_key":        report.ChangedKey,
+			"changed_type":       report.ChangedType,
 			"affected_artifacts": report.AffectedArtifacts,
-			"critical_count":    report.CriticalCount,
-			"warning_count":     report.WarningCount,
-			"info_count":        report.InfoCount,
+			"critical_count":     report.CriticalCount,
+			"warning_count":      report.WarningCount,
+			"info_count":         report.InfoCount,
 		}
 		if len(report.AffectedArtifacts) == 0 {
 			result["note"] = "No downstream artifacts are affected by this change."
@@ -313,9 +313,9 @@ func registerRippleTools(s *server.MCPServer, svc Services) {
 
 		// For each signal, load the target artifact's current payload.
 		type signalContext struct {
-			Signal       *domain.RippleSignal `json:"signal"`
-			TargetPayload any                 `json:"target_payload,omitempty"`
-			TargetType   string               `json:"target_type,omitempty"`
+			Signal        *domain.RippleSignal `json:"signal"`
+			TargetPayload any                  `json:"target_payload,omitempty"`
+			TargetType    string               `json:"target_type,omitempty"`
 		}
 		var contexts []signalContext
 

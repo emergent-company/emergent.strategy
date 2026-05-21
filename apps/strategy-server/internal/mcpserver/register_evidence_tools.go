@@ -149,8 +149,8 @@ func registerEvidenceTools(s *server.MCPServer, svc Services) {
 		}
 
 		return mustJSON(map[string]any{
-			"items": items,
-			"count": len(items),
+			"items":          items,
+			"count":          len(items),
 			"suggested_tags": evidencedom.SuggestedTags,
 		})
 	})

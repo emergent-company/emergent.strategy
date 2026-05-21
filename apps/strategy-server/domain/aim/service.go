@@ -35,9 +35,11 @@ type LLMClient interface {
 // TriggerState reports whether a new AIM cycle assessment is due.
 type TriggerState struct {
 	Fired             bool
-	Reason            string // "time" | "signals" | ""
-	ReasonMessage     string // human-readable explanation
-	RecommendedAction string // "draft_aim_assessment"
+	Reason            string    // "time" | "signals" | "evidence" | ""
+	ReasonMessage     string    // human-readable explanation
+	RecommendedAction string    // "draft_aim_assessment"
+	TriggerSignalIDs  []string  // IDs of the ripple signals that fired the trigger (signals reason only)
+	LastAssessmentAt  time.Time // zero when no prior assessment exists
 }
 
 // DraftSummary describes what was produced by DraftAssessment.
@@ -120,28 +122,63 @@ func (s *Service) WithVersionPublisher(vp VersionPublisher) *Service {
 // EvaluateTriggers
 // ---------------------------------------------------------------------------
 
-// EvaluateTriggers evaluates whether a new AIM assessment cycle is due for the given instance.
-// Reads trigger config (or uses defaults), then checks time-based and signal-based conditions.
+// EvaluateTriggers evaluates whether a new AIM cycle assessment is due for the instance.
+// Reads trigger config (or uses defaults), then checks signal-, evidence-, and time-based conditions.
+//
+// Signal novelty: only ripple signals created AFTER the last committed assessment are counted.
+// This prevents chronic backlogs from perpetually re-firing the trigger — the signal trigger
+// means "something new just went wrong", not "there is still old debt".
+//
 // Never returns an error — failures degrade gracefully to Fired=false.
 func (s *Service) EvaluateTriggers(ctx context.Context, instanceID uuid.UUID) TriggerState {
 	cfg := s.loadTriggerConfig(ctx, instanceID)
 
-	// -- Signal-based trigger: critical signal count --
-	var criticalCount int
-	_ = s.db.NewSelect().
+	// -- Load last assessment timestamp first — shared by signal and time checks. --
+	var lastAssessmentAt time.Time
+	err := s.db.NewSelect().
+		TableExpr("strategy_artifacts").
+		Where("instance_id = ?", instanceID).
+		Where("artifact_type = ?", domain.ArtifactTypeAssessmentReport).
+		ColumnExpr("updated_at").
+		OrderExpr("updated_at DESC").
+		Limit(1).
+		Scan(ctx, &lastAssessmentAt)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		slog.WarnContext(ctx, "aim: failed to load last assessment timestamp", "instance_id", instanceID, "err", err)
+		return TriggerState{}
+	}
+
+	// -- Signal-based trigger: novel critical signals since last assessment. --
+	// Only signals created after the last assessment count toward the threshold.
+	// If there has never been an assessment, all active critical signals count.
+	type signalRow struct {
+		ID string `bun:"id"`
+	}
+	var novelSignalRows []signalRow
+	signalQ := s.db.NewSelect().
 		TableExpr("ripple_signals").
+		ColumnExpr("id::text AS id").
 		Where("instance_id = ?", instanceID).
 		Where("status = ?", "active").
-		Where("severity = ?", "critical").
-		ColumnExpr("COUNT(*)").
-		Scan(ctx, &criticalCount)
+		Where("severity = ?", "critical")
+	if !lastAssessmentAt.IsZero() {
+		signalQ = signalQ.Where("created_at > ?", lastAssessmentAt)
+	}
+	_ = signalQ.Scan(ctx, &novelSignalRows)
 
-	if criticalCount > cfg.CriticalSignalThreshold {
+	novelCriticalCount := len(novelSignalRows)
+	if novelCriticalCount > cfg.CriticalSignalThreshold {
+		ids := make([]string, len(novelSignalRows))
+		for i, r := range novelSignalRows {
+			ids[i] = r.ID
+		}
 		return TriggerState{
 			Fired:             true,
 			Reason:            "signals",
-			ReasonMessage:     fmt.Sprintf("%d critical signals active (threshold: %d)", criticalCount, cfg.CriticalSignalThreshold),
+			ReasonMessage:     fmt.Sprintf("%d new critical signals since last assessment (threshold: %d)", novelCriticalCount, cfg.CriticalSignalThreshold),
 			RecommendedAction: "draft_aim_assessment",
+			TriggerSignalIDs:  ids,
+			LastAssessmentAt:  lastAssessmentAt,
 		}
 	}
 
@@ -158,22 +195,13 @@ func (s *Service) EvaluateTriggers(ctx context.Context, instanceID uuid.UUID) Tr
 				Reason:            "evidence",
 				ReasonMessage:     fmt.Sprintf("%d unprocessed evidence items (threshold: %d)", evCount, threshold),
 				RecommendedAction: "draft_aim_assessment",
+				LastAssessmentAt:  lastAssessmentAt,
 			}
 		}
 	}
 
 	// -- Time-based trigger: days since last assessment --
-	var lastAssessmentAt time.Time
-	err := s.db.NewSelect().
-		TableExpr("strategy_artifacts").
-		Where("instance_id = ?", instanceID).
-		Where("artifact_type = ?", domain.ArtifactTypeAssessmentReport).
-		ColumnExpr("updated_at").
-		OrderExpr("updated_at DESC").
-		Limit(1).
-		Scan(ctx, &lastAssessmentAt)
-
-	if errors.Is(err, sql.ErrNoRows) || lastAssessmentAt.IsZero() {
+	if lastAssessmentAt.IsZero() {
 		// No assessment ever — time trigger fires immediately.
 		return TriggerState{
 			Fired:             true,
@@ -181,11 +209,6 @@ func (s *Service) EvaluateTriggers(ctx context.Context, instanceID uuid.UUID) Tr
 			ReasonMessage:     "No assessment report exists yet",
 			RecommendedAction: "draft_aim_assessment",
 		}
-	}
-	if err != nil {
-		// DB error — degrade gracefully.
-		slog.WarnContext(ctx, "aim: failed to load last assessment timestamp", "instance_id", instanceID, "err", err)
-		return TriggerState{}
 	}
 
 	daysSince := int(time.Since(lastAssessmentAt).Hours() / 24)
@@ -195,6 +218,7 @@ func (s *Service) EvaluateTriggers(ctx context.Context, instanceID uuid.UUID) Tr
 			Reason:            "time",
 			ReasonMessage:     fmt.Sprintf("Last assessment was %d days ago (cycle: every %d days)", daysSince, cfg.DaysBetweenAssessments),
 			RecommendedAction: "draft_aim_assessment",
+			LastAssessmentAt:  lastAssessmentAt,
 		}
 	}
 
@@ -389,10 +413,24 @@ func (s *Service) extractOKRAssessments(ctx context.Context, instanceID uuid.UUI
 	return assessments
 }
 
-// deriveOKRStatus classifies an OKR as pending/at_risk/on_track based on active signals.
-func deriveOKRStatus(_ context.Context, _ *bun.DB, _ uuid.UUID, _ string) string {
-	// Rule-based: default to "pending" until actuals are authored.
-	// Future enhancement: check ripple signals referencing this OKR's key.
+// deriveOKRStatus classifies an OKR as pending/at_risk based on active critical signals
+// that reference the OKR ID in their source or target key.
+func deriveOKRStatus(ctx context.Context, db *bun.DB, instanceID uuid.UUID, okrID string) string {
+	if db == nil || okrID == "" {
+		return "pending"
+	}
+	var count int
+	_ = db.NewSelect().
+		TableExpr("ripple_signals").
+		ColumnExpr("COUNT(*)").
+		Where("instance_id = ?", instanceID).
+		Where("status = ?", "active").
+		Where("severity IN (?, ?)", "critical", "warning").
+		Where("(source_key = ? OR target_key = ?)", okrID, okrID).
+		Scan(ctx, &count)
+	if count > 0 {
+		return "at_risk"
+	}
 	return "pending"
 }
 
@@ -560,25 +598,43 @@ Rules:
 		track, _ := okr["track"].(string)
 
 		// Build KR section with targets AND prior actuals if available.
+		// kr_assessments may be []map[string]any (native) or []any (after JSON round-trip).
 		var krLines []string
-		if krs, ok := okr["kr_assessments"].([]map[string]any); ok {
-			for _, kr := range krs {
-				krID, _ := kr["kr_id"].(string)
-				target, _ := kr["target"].(string)
-				actual, _ := kr["actual"].(string)
-				status, _ := kr["status"].(string)
-				if krID == "" {
-					continue
-				}
-				line := fmt.Sprintf("  %s: target=%q", krID, target)
-				if actual != "" {
-					line += fmt.Sprintf(", actual=%q", actual)
-				}
-				if status != "" && status != "pending" && status != "not_started" {
-					line += fmt.Sprintf(", prior_status=%s", status)
-				}
-				krLines = append(krLines, line)
+		toKRMap := func(v any) (map[string]any, bool) {
+			if m, ok := v.(map[string]any); ok {
+				return m, true
 			}
+			return nil, false
+		}
+		var krSlice []any
+		switch krs := okr["kr_assessments"].(type) {
+		case []map[string]any:
+			for _, m := range krs {
+				krSlice = append(krSlice, m)
+			}
+		case []any:
+			krSlice = krs
+		}
+		for _, raw := range krSlice {
+			kr, ok := toKRMap(raw)
+			if !ok {
+				continue
+			}
+			krID, _ := kr["kr_id"].(string)
+			target, _ := kr["target"].(string)
+			actual, _ := kr["actual"].(string)
+			status, _ := kr["status"].(string)
+			if krID == "" {
+				continue
+			}
+			line := fmt.Sprintf("  %s: target=%q", krID, target)
+			if actual != "" {
+				line += fmt.Sprintf(", actual=%q", actual)
+			}
+			if status != "" && status != "pending" && status != "not_started" {
+				line += fmt.Sprintf(", prior_status=%s", status)
+			}
+			krLines = append(krLines, line)
 		}
 		krSection := "  (no key results defined)"
 		if len(krLines) > 0 {

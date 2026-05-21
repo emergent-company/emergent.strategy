@@ -3,7 +3,7 @@ module github.com/emergent-company/emergent-strategy/apps/strategy-server
 go 1.26.1
 
 require (
-	github.com/a-h/templ v0.3.1001
+	github.com/a-h/templ v0.3.1020
 	github.com/alexflint/go-arg v1.6.1
 	github.com/emergent-company/emergent-strategy/apps/epf-cli v0.0.0-00010101000000-000000000000
 	github.com/emergent-company/go-daisy v0.1.2

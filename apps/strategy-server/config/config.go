@@ -19,8 +19,8 @@ type ImportCmd struct {
 	Org          string `arg:"--org,env:IMPORT_ORG" help:"Organisation name or UUID to link this import to"`
 	OrgNumber    string `arg:"--org-number,env:IMPORT_ORG_NUMBER" help:"Norwegian organisation number (for org enrichment)"`
 	Country      string `arg:"--country,env:IMPORT_COUNTRY" help:"ISO country code (default: NO)"`
-	Activate     bool   `arg:"--activate,env:IMPORT_ACTIVATE" default:"false" help:"Activate the instance after import"`
-	Reingest     bool   `arg:"--reingest,env:IMPORT_REINGEST" default:"false" help:"Ingest artifacts into Memory graph after import"`
+	Activate     bool   `arg:"--activate,env:IMPORT_ACTIVATE" default:"true" help:"Activate the instance after import"`
+	Reingest     bool   `arg:"--reingest,env:IMPORT_REINGEST" default:"true" help:"Ingest artifacts into Memory graph after import (skipped when Memory is not configured)"`
 }
 
 // DBMode controls how strategy-server co-locates with emergent.memory's database.

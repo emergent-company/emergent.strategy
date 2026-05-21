@@ -533,7 +533,9 @@ func TestMCP_OrgRemoveMember_LastAdmin(t *testing.T) {
 	id++
 	r.assertOK()
 
-	var org struct{ ID string `json:"id"` }
+	var org struct {
+		ID string `json:"id"`
+	}
 	r.decode(&org)
 
 	// Try to remove self — should fail (last admin protection).
@@ -627,15 +629,15 @@ func TestMCP_FullAgentWorkflow(t *testing.T) {
 	// Seed a rich instance with vision + features.
 	payloads := map[string]any{
 		"north_star": map[string]any{
-			"vision":        "Become the operating system for knowledge work",
-			"mission":       "AI-native knowledge management",
-			"product_name":  "Emergent Memory",
-			"time_horizon":  "3 years",
+			"vision":       "Become the operating system for knowledge work",
+			"mission":      "AI-native knowledge management",
+			"product_name": "Emergent Memory",
+			"time_horizon": "3 years",
 		},
 		"strategy_foundations": map[string]any{
 			"positioning": map[string]any{
-				"category":    "Knowledge Management",
-				"target":      "Engineering teams",
+				"category":       "Knowledge Management",
+				"target":         "Engineering teams",
 				"differentiator": "AI-native graph database",
 			},
 		},

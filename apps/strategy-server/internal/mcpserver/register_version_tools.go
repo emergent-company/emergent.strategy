@@ -30,11 +30,11 @@ func registerVersionTools(s *server.MCPServer, svc Services) {
 		}
 		// Return summary without the full snapshot blob.
 		return mustJSON(map[string]any{
-			"id":          ver.ID,
-			"instance_id": ver.InstanceID,
-			"version":     ver.Version,
-			"label":       ver.Label,
-			"status":      ver.Status,
+			"id":           ver.ID,
+			"instance_id":  ver.InstanceID,
+			"version":      ver.Version,
+			"label":        ver.Label,
+			"status":       ver.Status,
 			"published_at": ver.PublishedAt.UTC().Format("2006-01-02T15:04:05Z"),
 		})
 	})
@@ -169,11 +169,11 @@ func registerVersionTools(s *server.MCPServer, svc Services) {
 			return toolErr(ctx, err), nil
 		}
 		return mustJSON(map[string]any{
-			"id":           ver.ID,
-			"instance_id":  ver.InstanceID,
-			"version":      ver.Version,
-			"label":        ver.Label,
-			"status":       ver.Status,
+			"id":            ver.ID,
+			"instance_id":   ver.InstanceID,
+			"version":       ver.Version,
+			"label":         ver.Label,
+			"status":        ver.Status,
 			"restored_from": verID,
 			"published_at":  ver.PublishedAt.UTC().Format("2006-01-02T15:04:05Z"),
 		})

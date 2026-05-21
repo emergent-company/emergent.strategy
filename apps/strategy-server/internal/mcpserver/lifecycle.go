@@ -47,27 +47,27 @@ type LifecycleSignals struct {
 // SemanticSignals are graph-based maturity indicators from the Memory graph.
 type SemanticSignals struct {
 	// Graph topology.
-	GraphNodeCount         int     `json:"graph_node_count"`
-	GraphEdgeCount         int     `json:"graph_edge_count"`
-	AvgEdgesPerNode        float64 `json:"avg_edges_per_node"`
-	OrphanedNodeCount      int     `json:"orphaned_node_count"`
-	OrphanedNodes          []string `json:"orphaned_nodes,omitempty"`
+	GraphNodeCount    int      `json:"graph_node_count"`
+	GraphEdgeCount    int      `json:"graph_edge_count"`
+	AvgEdgesPerNode   float64  `json:"avg_edges_per_node"`
+	OrphanedNodeCount int      `json:"orphaned_node_count"`
+	OrphanedNodes     []string `json:"orphaned_nodes,omitempty"`
 
 	// Strategic coherence.
-	VisionConnected        bool    `json:"vision_connected"`         // north star has outgoing edges
-	VisionReachableFeatures int    `json:"vision_reachable_features"` // features reachable from north star via BFS
-	ContributesToEdges     int     `json:"contributes_to_edges"`     // features → value model paths
-	TestsAssumptionEdges   int     `json:"tests_assumption_edges"`
-	DependsOnEdges         int     `json:"depends_on_edges"`
+	VisionConnected         bool `json:"vision_connected"`          // north star has outgoing edges
+	VisionReachableFeatures int  `json:"vision_reachable_features"` // features reachable from north star via BFS
+	ContributesToEdges      int  `json:"contributes_to_edges"`      // features → value model paths
+	TestsAssumptionEdges    int  `json:"tests_assumption_edges"`
+	DependsOnEdges          int  `json:"depends_on_edges"`
 
 	// Content depth.
-	PersonaCount           int     `json:"persona_count"`
-	CapabilityCount        int     `json:"capability_count"`
-	AssumptionCount        int     `json:"assumption_count"`
+	PersonaCount    int `json:"persona_count"`
+	CapabilityCount int `json:"capability_count"`
+	AssumptionCount int `json:"assumption_count"`
 
 	// Maturity score (0-100) computed from all signals.
-	MaturityScore          int     `json:"maturity_score"`
-	MaturityLevel          string  `json:"maturity_level"` // "nascent", "emerging", "coherent", "mature"
+	MaturityScore int    `json:"maturity_score"`
+	MaturityLevel string `json:"maturity_level"` // "nascent", "emerging", "coherent", "mature"
 }
 
 // detectLifecycleMode analyzes an instance's state and returns a lifecycle assessment.

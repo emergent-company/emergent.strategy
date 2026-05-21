@@ -11,7 +11,9 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/uptrace/bun"
 
+	activitydom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/activity"
 	aimdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/aim"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/heartbeat"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ripple"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
 	strategydom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
@@ -35,7 +37,9 @@ type Server struct {
 	versionSvc          *version.Service
 	syncSvc             *syncdom.Service      // nil when GitHub App not configured
 	aimSvc              *aimdom.Service       // nil when AIM service not configured
+	heartbeatSvc        *heartbeat.Service    // nil when heartbeat not configured
 	orchestrationEngine *orchestration.Engine // nil when orchestration not configured
+	activitySvc         *activitydom.Service  // nil when activity stream not configured
 	llmEnabled          bool                  // true when an LLM provider is wired
 }
 
@@ -79,9 +83,23 @@ func (s *Server) WithAIM(svc *aimdom.Service) *Server {
 	return s
 }
 
+// WithHeartbeat wires the heartbeat service into the handler server (optional).
+// When set, the proposals inbox and approve/defer actions are active.
+func (s *Server) WithHeartbeat(svc *heartbeat.Service) *Server {
+	s.heartbeatSvc = svc
+	return s
+}
+
 // WithOrchestration wires the orchestration engine into the handler server (optional).
 func (s *Server) WithOrchestration(eng *orchestration.Engine) *Server {
 	s.orchestrationEngine = eng
+	return s
+}
+
+// WithActivity wires the activity stream service into the handler server (optional).
+// When set, the GET /strategies/:id/activity/stream SSE endpoint is active.
+func (s *Server) WithActivity(svc *activitydom.Service) *Server {
+	s.activitySvc = svc
 	return s
 }
 
@@ -135,6 +153,7 @@ func (s *Server) buildHandlerRegistry() map[navigation.ScreenID]handlerEntry {
 		navigation.Assumptions:      {GET: s.handleAssumptions},
 		navigation.Coherence:        {GET: s.handleCoherence},
 		navigation.AimVersions:      {GET: s.handleVersions},
+		navigation.AimProposals:     {GET: s.handleAimProposals},
 	}
 }
 
@@ -190,6 +209,14 @@ func (s *Server) RegisterRoutes(e *echo.Echo) {
 	e.POST("/strategies/:id/aim/runs", s.handleStartAIMRun)
 	e.GET("/strategies/:id/aim/runs/:runID", s.handleGetAIMRun)
 	e.GET("/strategies/:id/aim/runs/:runID/stream", s.handleAIMRunStream)
+
+	// Proposal action endpoints — HTMX POST, return the updated card fragment.
+	e.POST("/strategies/:id/aim/proposals/:proposalID/approve", s.handleProposalApprove)
+	e.POST("/strategies/:id/aim/proposals/:proposalID/defer", s.handleProposalDefer)
+
+	// Activity stream SSE — pushes JSON-encoded activity events to browser clients.
+	// Clients connect with EventSource: new EventSource("/strategies/:id/activity/stream")
+	e.GET("/strategies/:id/activity/stream", s.handleActivityStream)
 }
 
 // sidebarGroups builds sidebar navigation groups with instance list.

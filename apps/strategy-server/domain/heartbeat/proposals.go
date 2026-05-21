@@ -104,6 +104,22 @@ func (s *Service) maybeCreateProposal(ctx context.Context, p CreateProposalParam
 		"instance_id", p.InstanceID,
 		"reason", p.TriggerReason,
 	)
+
+	// Stage 5.7: record in activity stream.
+	if s.activity != nil {
+		s.activity.Record(ctx, ActivityEvent{
+			InstanceID: p.InstanceID,
+			EventType:  "proposal.created",
+			Payload: map[string]any{
+				"proposal_id":     row.ID.String(),
+				"trigger_reason":  p.TriggerReason,
+				"trigger_message": p.TriggerMessage,
+				"evidence_count":  p.EvidenceCount,
+				"signal_count":    p.SignalCount,
+			},
+		})
+	}
+
 	return true
 }
 
@@ -184,6 +200,19 @@ func (s *Service) ApproveProposal(ctx context.Context, proposalID uuid.UUID, sta
 		"instance_id", row.InstanceID,
 		"run_id", run.ID,
 	)
+
+	// Stage 5.7: record in activity stream.
+	if s.activity != nil {
+		s.activity.Record(ctx, ActivityEvent{
+			InstanceID: row.InstanceID,
+			EventType:  "proposal.approved",
+			Payload: map[string]any{
+				"proposal_id": proposalID.String(),
+				"run_id":      run.ID.String(),
+			},
+		})
+	}
+
 	return &p, nil
 }
 

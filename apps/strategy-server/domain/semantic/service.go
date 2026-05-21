@@ -49,11 +49,11 @@ type Contradiction struct {
 
 // ScenarioResult holds the evaluation output for a what-if scenario.
 type ScenarioResult struct {
-	ScenarioID      string         `json:"scenario_id"`
-	ImpactSummary   string         `json:"impact_summary"`
-	AffectedNodes   []string       `json:"affected_nodes"`
-	PropagationDepth int           `json:"propagation_depth"`
-	Confidence      map[string]any `json:"confidence,omitempty"`
+	ScenarioID       string         `json:"scenario_id"`
+	ImpactSummary    string         `json:"impact_summary"`
+	AffectedNodes    []string       `json:"affected_nodes"`
+	PropagationDepth int            `json:"propagation_depth"`
+	Confidence       map[string]any `json:"confidence,omitempty"`
 }
 
 // Service wraps the emergent.memory client with strategy-server domain operations.
@@ -309,12 +309,12 @@ func (s *Service) EvaluateScenario(ctx context.Context, scenarioID, instanceID s
 	}
 
 	return map[string]any{
-		"scenario_id":      scenarioID,
-		"branch_name":      branch.Name,
-		"branch_status":    branch.Status,
-		"affected_nodes":   affectedNodes,
+		"scenario_id":       scenarioID,
+		"branch_name":       branch.Name,
+		"branch_status":     branch.Status,
+		"affected_nodes":    affectedNodes,
 		"propagation_depth": 0, // would need propagation circuit for real depth
-		"impact_summary":   fmt.Sprintf("Scenario affects %d nodes", len(affectedNodes)),
+		"impact_summary":    fmt.Sprintf("Scenario affects %d nodes", len(affectedNodes)),
 	}, nil
 }
 

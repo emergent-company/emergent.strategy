@@ -162,14 +162,14 @@ func buildUserPrompt(signal *domain.RippleSignal, currentPayload json.RawMessage
 	var b strings.Builder
 
 	b.WriteString("## Signal\n\n")
-	b.WriteString(fmt.Sprintf("Type: %s\n", signal.SignalType))
-	b.WriteString(fmt.Sprintf("Severity: %s\n", signal.Severity))
-	b.WriteString(fmt.Sprintf("Source artifact: %s\n", signal.SourceKey))
-	b.WriteString(fmt.Sprintf("Target artifact (to fix): %s\n", signal.TargetKey))
-	b.WriteString(fmt.Sprintf("Description: %s\n", signal.Description))
+	fmt.Fprintf(&b, "Type: %s\n", signal.SignalType)
+	fmt.Fprintf(&b, "Severity: %s\n", signal.Severity)
+	fmt.Fprintf(&b, "Source artifact: %s\n", signal.SourceKey)
+	fmt.Fprintf(&b, "Target artifact (to fix): %s\n", signal.TargetKey)
+	fmt.Fprintf(&b, "Description: %s\n", signal.Description)
 
 	if signal.Suggestion != nil && *signal.Suggestion != "" {
-		b.WriteString(fmt.Sprintf("Suggested action: %s\n", *signal.Suggestion))
+		fmt.Fprintf(&b, "Suggested action: %s\n", *signal.Suggestion)
 	}
 
 	b.WriteString("\n## Current Artifact Payload\n\n")
@@ -202,10 +202,10 @@ func parseResolveResponse(content string) (*ResolveResult, error) {
 	cleaned := extractJSON(content)
 
 	var raw struct {
-		Updated    bool            `json:"updated"`
-		NewPayload json.RawMessage `json:"new_payload"`
-		Explanation string         `json:"explanation"`
-		Distance   float64        `json:"distance"`
+		Updated     bool            `json:"updated"`
+		NewPayload  json.RawMessage `json:"new_payload"`
+		Explanation string          `json:"explanation"`
+		Distance    float64         `json:"distance"`
 	}
 
 	if err := json.Unmarshal([]byte(cleaned), &raw); err != nil {

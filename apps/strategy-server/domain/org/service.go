@@ -431,6 +431,45 @@ func (s *Service) EnsureDevOrg(ctx context.Context, devUserID uuid.UUID) (*domai
 	return &org, nil
 }
 
+// EnsureDevMembershipForAllOrgs adds devUserID as org_admin to every org that
+// exists in the DB but does not yet have the dev user as a member. This is
+// called at startup when AUTH_ENABLED=false so the dev user can access any
+// workspace — including those imported under real org IDs (e.g. the Emergent
+// instance imported under the "emergent" org).
+func (s *Service) EnsureDevMembershipForAllOrgs(ctx context.Context, devUserID uuid.UUID) (int, error) {
+	// Find all orgs where dev user is not yet a member.
+	var orgIDs []uuid.UUID
+	err := s.db.NewSelect().
+		TableExpr("orgs o").
+		ColumnExpr("o.id").
+		Where("o.deleted_at IS NULL").
+		Where("NOT EXISTS (SELECT 1 FROM org_memberships m WHERE m.org_id = o.id AND m.user_id = ?)", devUserID).
+		Scan(ctx, &orgIDs)
+	if err != nil {
+		return 0, fmt.Errorf("list orgs without dev membership: %w", err)
+	}
+	if len(orgIDs) == 0 {
+		return 0, nil
+	}
+
+	memberships := make([]*domain.OrgMembership, 0, len(orgIDs))
+	for _, orgID := range orgIDs {
+		memberships = append(memberships, &domain.OrgMembership{
+			ID:     uuid.New(),
+			OrgID:  orgID,
+			UserID: devUserID,
+			Role:   domain.OrgRoleAdmin,
+		})
+	}
+	if _, err := s.db.NewInsert().
+		Model(&memberships).
+		On("CONFLICT (org_id, user_id) DO NOTHING").
+		Exec(ctx); err != nil {
+		return 0, fmt.Errorf("insert dev memberships: %w", err)
+	}
+	return len(orgIDs), nil
+}
+
 func slugify(name string) string {
 	s := strings.ToLower(strings.TrimSpace(name))
 	s = slugRe.ReplaceAllString(s, "-")
