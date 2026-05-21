@@ -182,7 +182,7 @@ func TestCommitFiles(t *testing.T) {
 	// GET branch ref
 	mux.HandleFunc("/repos/owner/repo/git/ref/", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{
-			"ref": "refs/heads/strategy-sync/test",
+			"ref":    "refs/heads/strategy-sync/test",
 			"object": map[string]any{"sha": "branchsha", "type": "commit"},
 		})
 	})

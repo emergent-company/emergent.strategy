@@ -156,7 +156,7 @@ func TestConvergence_RealEmergentInstance(t *testing.T) {
 	// --- Simulate a North Star change and check blast radius ---
 	t.Log("\n=== Phase 5: Simulate North Star change → blast radius ===")
 
-	blastReport, err := ripple.AnalyzeStructuralRipple(ctx, db, inst.ID, "north_star", "north_star")
+	blastReport, err := ripple.AnalyzeStructuralRipple(ctx, db, nil, inst.ID, "north_star", "north_star")
 	if err != nil {
 		t.Fatalf("blast radius: %v", err)
 	}
@@ -266,6 +266,9 @@ func TestConvergence_RealEmergentInstance(t *testing.T) {
 func TestConvergence_RealEmergentInstance_WithMemory(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping semantic test in short mode")
+	}
+	if os.Getenv("RUN_SEMANTIC_TESTS") == "" {
+		t.Skip("skipping long-running semantic integration test — set RUN_SEMANTIC_TESTS=1 to run")
 	}
 
 	absPath, err := filepath.Abs(emergentInstancePath)
@@ -468,6 +471,9 @@ func TestConvergence_RealEmergentInstance_FullLoop(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping full convergence loop test in short mode")
 	}
+	if os.Getenv("RUN_SEMANTIC_TESTS") == "" {
+		t.Skip("skipping long-running semantic integration test — set RUN_SEMANTIC_TESTS=1 to run")
+	}
 
 	absPath, err := filepath.Abs(emergentInstancePath)
 	if err != nil || !dirExists(absPath) {
@@ -649,7 +655,7 @@ func (r *smartMockResolver) Resolve(ctx context.Context, signal *domain.RippleSi
 	// Parse current payload.
 	var payload map[string]any
 	if err := json.Unmarshal(currentPayload, &payload); err != nil {
-		return nil, nil // can't parse → skip
+		return nil, nil //nolint:nilerr // can't parse → skip this signal, don't abort the loop
 	}
 
 	// Add an alignment marker — simulates what an LLM would do (tighten wording,
@@ -658,7 +664,7 @@ func (r *smartMockResolver) Resolve(ctx context.Context, signal *domain.RippleSi
 
 	newPayload, err := json.Marshal(payload)
 	if err != nil {
-		return nil, nil
+		return nil, nil //nolint:nilerr // marshal failure → skip this signal, don't abort the loop
 	}
 
 	return &ripple.ResolveResult{
@@ -780,11 +786,11 @@ func scanTestInstance(t *testing.T, instancePath string) (map[string]any, string
 
 		data, readErr := os.ReadFile(path)
 		if readErr != nil {
-			return nil
+			return nil //nolint:nilerr // unreadable file → skip and continue WalkDir
 		}
 		var rawAny any
 		if yaml.Unmarshal(data, &rawAny) != nil {
-			return nil
+			return nil //nolint:nilerr // unparseable YAML → skip and continue WalkDir
 		}
 		raw, ok := normalizeYAMLForTest(rawAny).(map[string]any)
 		if !ok || len(raw) == 0 {

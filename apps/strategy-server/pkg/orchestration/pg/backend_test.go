@@ -19,7 +19,7 @@ type mockWorkflow struct {
 }
 
 func (w *mockWorkflow) Name() string                               { return w.name }
-func (w *mockWorkflow) Steps() []orchestration.Step               { return w.steps }
+func (w *mockWorkflow) Steps() []orchestration.Step                { return w.steps }
 func (w *mockWorkflow) ConcurrencyKey(r *orchestration.Run) string { return r.ConcurrencyKey }
 
 func TestPgBackend_InsertAndGet(t *testing.T) {

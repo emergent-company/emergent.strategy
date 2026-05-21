@@ -267,6 +267,8 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 | `domain/sync/` | GitHub sync (RepoWriter interface, sync log) |
 | `domain/ripple/` | Ripple coherence engine (signals, propagation, convergence, equilibrium) |
 | `domain/aim/` | AI-assisted AIM cycle (trigger evaluation, draft assessment/calibration/apply, cycle snapshots, orchestrated cycle workflow) |
+| `domain/heartbeat/` | Background heartbeat ticker, trigger evaluation, cycle proposals (pending/approved/deferred/expired lifecycle) |
+| `domain/evidence/` | Evidence ingestion and management — first-class artifacts stored in strategy_artifacts + Memory |
 
 ### Internal packages
 
@@ -290,7 +292,7 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 
 ### Database migrations
 
-21 migrations in `internal/database/migrations/`:
+24 migrations in `internal/database/migrations/`:
 
 | Migration | Purpose |
 |-----------|---------|
@@ -316,10 +318,12 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 | `020_instance_cascade_delete.sql` | Cascade delete for instance cleanup |
 | `021_aim_cycle_index.sql` | Index on strategy_versions(instance_id, source) for AIM cycle queries |
 | `022_orchestration_runs.sql` | `orchestration_runs` table + index on (workflow_name, concurrency_key, status) |
+| `023_heartbeat_signals.sql` | `heartbeat_signals` table — persistent trigger events per instance |
+| `024_cycle_proposals.sql` | `cycle_proposals` table — AIM cycle proposals with status/snooze lifecycle |
 
 ## MCP Server
 
-The server exposes 113 MCP tools at `/mcp`. Key categories:
+The server exposes 120 MCP tools at `/mcp`. Key categories:
 
 | Category | Count | Examples |
 |----------|-------|---------|
@@ -341,6 +345,8 @@ The server exposes 113 MCP tools at `/mcp`. Key categories:
 | Phase discovery | 4 | `get_phase_artifacts`, `list_definitions`, `get_definition` |
 | Strategy versions | 5 | `publish_version`, `list_versions`, `diff_versions`, `restore_version` |
 | GitHub sync | 2 | `sync_to_github`, `get_sync_status` |
+| Heartbeat/Continuous loop | 4 | `list_heartbeat_signals`, `acknowledge_heartbeat_signal`, `list_cycle_proposals`, `approve_cycle_proposal` |
+| Evidence | 5 | `ingest_evidence`, `get_evidence`, `list_evidence`, `update_evidence`, `link_evidence` |
 
 ### Ripple Coherence Engine
 

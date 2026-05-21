@@ -91,9 +91,9 @@ func (m *mockBackend) ActiveRun(_ context.Context, wfName, ck string) (*orchestr
 
 type mockWorkflow struct{ name string }
 
-func (w *mockWorkflow) Name() string                                    { return w.name }
-func (w *mockWorkflow) Steps() []orchestration.Step                     { return nil }
-func (w *mockWorkflow) ConcurrencyKey(r *orchestration.Run) string      { return r.ConcurrencyKey }
+func (w *mockWorkflow) Name() string                               { return w.name }
+func (w *mockWorkflow) Steps() []orchestration.Step                { return nil }
+func (w *mockWorkflow) ConcurrencyKey(r *orchestration.Run) string { return r.ConcurrencyKey }
 
 // ── tests ─────────────────────────────────────────────────────────────────────
 

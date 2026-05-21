@@ -257,7 +257,7 @@ func (a *SemanticAnalyzer) DetectDrift(ctx context.Context, instanceID uuid.UUID
 	var features []*domain.StrategyArtifact
 	err = a.db.NewSelect().Model(&features).
 		Where("sa.instance_id = ?", instanceID).
-		Where("sa.artifact_key IN (?)", bun.In(featureKeys)).
+		Where("sa.artifact_key IN (?)", bun.List(featureKeys)).
 		Where("sa.status = ?", domain.ArtifactStatusActive).
 		Scan(ctx)
 	if err != nil {

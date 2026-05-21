@@ -148,14 +148,14 @@ func extractRoadmapTrack(trackName string, tm map[string]any) ui.RoadmapTrack {
 					if !ok {
 						continue
 					}
-				okr.KeyResults = append(okr.KeyResults, ui.RoadmapKR{
-					ID:          payloadStr(km, "id"),
-					Description: payloadStr(km, "description"),
-					Baseline:    payloadStr(km, "baseline"),
-					Target:      payloadStr(km, "target"),
-					TRLStart:    payloadIntAsStr(km, "trl_start"),
-					TRLTarget:   payloadIntAsStr(km, "trl_target"),
-				})
+					okr.KeyResults = append(okr.KeyResults, ui.RoadmapKR{
+						ID:          payloadStr(km, "id"),
+						Description: payloadStr(km, "description"),
+						Baseline:    payloadStr(km, "baseline"),
+						Target:      payloadStr(km, "target"),
+						TRLStart:    payloadIntAsStr(km, "trl_start"),
+						TRLTarget:   payloadIntAsStr(km, "trl_target"),
+					})
 				}
 			}
 

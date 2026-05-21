@@ -1,8 +1,32 @@
 package aim
 
 import (
+	"context"
 	"testing"
 )
+
+// ---------------------------------------------------------------------------
+// mockLLMClient — implements LLMClient for unit tests
+// ---------------------------------------------------------------------------
+
+type mockLLMClient struct {
+	completeFunc     func(ctx context.Context, system, user string) (string, error)
+	completeJSONFunc func(ctx context.Context, system, user string) (string, error)
+}
+
+func (m *mockLLMClient) Complete(ctx context.Context, system, user string) (string, error) {
+	if m.completeFunc != nil {
+		return m.completeFunc(ctx, system, user)
+	}
+	return "mock narrative response", nil
+}
+
+func (m *mockLLMClient) CompleteJSON(ctx context.Context, system, user string) (string, error) {
+	if m.completeJSONFunc != nil {
+		return m.completeJSONFunc(ctx, system, user)
+	}
+	return `{"reasoning":"mock structured reasoning"}`, nil
+}
 
 // ---------------------------------------------------------------------------
 // calibrationDecision — rule-based decision logic
@@ -75,17 +99,17 @@ func TestCalibrationDecision(t *testing.T) {
 
 func TestComputeOKRHitRate(t *testing.T) {
 	tests := []struct {
-		name        string
-		payload     map[string]any
-		wantRate    int
-		wantTotal   int
+		name         string
+		payload      map[string]any
+		wantRate     int
+		wantTotal    int
 		wantHitCount int
 	}{
 		{
-			name:        "empty okr assessments",
-			payload:     map[string]any{"okr_assessments": []any{}},
-			wantRate:    0,
-			wantTotal:   0,
+			name:         "empty okr assessments",
+			payload:      map[string]any{"okr_assessments": []any{}},
+			wantRate:     0,
+			wantTotal:    0,
 			wantHitCount: 0,
 		},
 		{
@@ -96,8 +120,8 @@ func TestComputeOKRHitRate(t *testing.T) {
 					map[string]any{"okr_id": "okr-2", "status": "on_track"},
 				},
 			},
-			wantRate:    100,
-			wantTotal:   2,
+			wantRate:     100,
+			wantTotal:    2,
 			wantHitCount: 2,
 		},
 		{
@@ -108,8 +132,8 @@ func TestComputeOKRHitRate(t *testing.T) {
 					map[string]any{"okr_id": "okr-2", "status": "missed"},
 				},
 			},
-			wantRate:    50,
-			wantTotal:   2,
+			wantRate:     50,
+			wantTotal:    2,
 			wantHitCount: 1,
 		},
 		{
@@ -120,8 +144,8 @@ func TestComputeOKRHitRate(t *testing.T) {
 					map[string]any{"okr_id": "okr-2", "status": "at_risk"},
 				},
 			},
-			wantRate:    0,
-			wantTotal:   2,
+			wantRate:     0,
+			wantTotal:    2,
 			wantHitCount: 0,
 		},
 		{
@@ -132,15 +156,15 @@ func TestComputeOKRHitRate(t *testing.T) {
 					map[string]any{"okr_id": "okr-2", "status": "pending"},
 				},
 			},
-			wantRate:    50,
-			wantTotal:   2,
+			wantRate:     50,
+			wantTotal:    2,
 			wantHitCount: 1,
 		},
 		{
-			name:        "missing okr_assessments key",
-			payload:     map[string]any{},
-			wantRate:    0,
-			wantTotal:   0,
+			name:         "missing okr_assessments key",
+			payload:      map[string]any{},
+			wantRate:     0,
+			wantTotal:    0,
 			wantHitCount: 0,
 		},
 	}
@@ -214,40 +238,40 @@ func TestCountInvalidatedAssumptions(t *testing.T) {
 
 func TestBuildReasoningSummary(t *testing.T) {
 	tests := []struct {
-		name       string
-		decision   string
-		hitRate    int
-		total      int
-		hit        int
+		name        string
+		decision    string
+		hitRate     int
+		total       int
+		hit         int
 		invalidated int
-		contains   string
+		contains    string
 	}{
 		{
-			name:       "persevere",
-			decision:   "persevere",
-			hitRate:    80,
-			total:      5,
-			hit:        4,
+			name:        "persevere",
+			decision:    "persevere",
+			hitRate:     80,
+			total:       5,
+			hit:         4,
 			invalidated: 0,
-			contains:   "80%",
+			contains:    "80%",
 		},
 		{
-			name:       "pivot low hit rate",
-			decision:   "pivot",
-			hitRate:    40,
-			total:      5,
-			hit:        2,
+			name:        "pivot low hit rate",
+			decision:    "pivot",
+			hitRate:     40,
+			total:       5,
+			hit:         2,
 			invalidated: 0,
-			contains:   "40%",
+			contains:    "40%",
 		},
 		{
-			name:       "pull_the_plug",
-			decision:   "pull_the_plug",
-			hitRate:    20,
-			total:      5,
-			hit:        1,
+			name:        "pull_the_plug",
+			decision:    "pull_the_plug",
+			hitRate:     20,
+			total:       5,
+			hit:         1,
 			invalidated: 3,
-			contains:   "20%",
+			contains:    "20%",
 		},
 	}
 
@@ -367,4 +391,76 @@ func containsStr(s, substr string) bool {
 			}
 			return false
 		}())
+}
+
+// ---------------------------------------------------------------------------
+// enrichCalibrationWithLLM — structured output path
+// ---------------------------------------------------------------------------
+
+// TestEnrichCalibrationWithLLM_StructuredJSON verifies that when CompleteJSON
+// returns a well-formed {"reasoning":"..."} object, the service uses that
+// reasoning and does NOT fall back to the formula-based text.
+func TestEnrichCalibrationWithLLM_StructuredJSON(t *testing.T) {
+	const wantReasoning = "Pivot is strongly indicated: OKR hit rate of 45% is well below threshold."
+	mock := &mockLLMClient{
+		completeJSONFunc: func(_ context.Context, _, _ string) (string, error) {
+			return `{"reasoning":"` + wantReasoning + `"}`, nil
+		},
+	}
+	svc := &Service{llm: mock}
+
+	got, err := svc.enrichCalibrationWithLLM(context.Background(), "pivot", map[string]any{
+		"decision": "pivot",
+	}, "fallback reasoning")
+	if err != nil {
+		t.Fatalf("enrichCalibrationWithLLM: %v", err)
+	}
+	if got != wantReasoning {
+		t.Errorf("reasoning=%q, want %q", got, wantReasoning)
+	}
+}
+
+// TestEnrichCalibrationWithLLM_FallsBackOnBadJSON verifies that when CompleteJSON
+// returns non-JSON or a missing "reasoning" field, the fallback reasoning is used.
+func TestEnrichCalibrationWithLLM_FallsBackOnBadJSON(t *testing.T) {
+	const fallback = "formula-based fallback reasoning"
+	for _, badResponse := range []string{
+		"this is not json",
+		`{"other_field":"something"}`,
+		`{}`,
+	} {
+		resp := badResponse
+		mock := &mockLLMClient{
+			completeJSONFunc: func(_ context.Context, _, _ string) (string, error) {
+				return resp, nil
+			},
+		}
+		svc := &Service{llm: mock}
+		got, err := svc.enrichCalibrationWithLLM(context.Background(), "persevere", nil, fallback)
+		if err != nil {
+			t.Fatalf("enrichCalibrationWithLLM(%q): %v", resp, err)
+		}
+		if got != fallback {
+			t.Errorf("response %q: reasoning=%q, want fallback %q", resp, got, fallback)
+		}
+	}
+}
+
+// TestEnrichCalibrationWithLLM_FallsBackOnError verifies that when CompleteJSON
+// returns an error, the fallback reasoning is used without propagating the error.
+func TestEnrichCalibrationWithLLM_FallsBackOnError(t *testing.T) {
+	const fallback = "formula reasoning"
+	mock := &mockLLMClient{
+		completeJSONFunc: func(_ context.Context, _, _ string) (string, error) {
+			return "", context.DeadlineExceeded
+		},
+	}
+	svc := &Service{llm: mock}
+	got, err := svc.enrichCalibrationWithLLM(context.Background(), "pivot", nil, fallback)
+	if err != nil {
+		t.Fatalf("expected nil error on LLM failure (graceful fallback), got: %v", err)
+	}
+	if got != fallback {
+		t.Errorf("reasoning=%q, want fallback %q", got, fallback)
+	}
 }

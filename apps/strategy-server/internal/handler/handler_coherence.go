@@ -98,13 +98,13 @@ func (s *Server) loadCoherenceView(ctx context.Context, instanceID string) templ
 	}
 
 	return ui.CoherenceContent(ui.CoherenceViewData{
-		NavContext:        navCtx,
-		InstanceID:        instanceID,
-		Signals:           signals,
-		CriticalCount:     critical,
-		WarningCount:      warning,
-		InfoCount:         info,
-		EquilibriumScore:  equilibriumScore,
+		NavContext:       navCtx,
+		InstanceID:       instanceID,
+		Signals:          signals,
+		CriticalCount:    critical,
+		WarningCount:     warning,
+		InfoCount:        info,
+		EquilibriumScore: equilibriumScore,
 	})
 }
 
@@ -187,4 +187,3 @@ func domainSignalToUI(sig *domainPkg.RippleSignal, instanceID string) *ui.Cohere
 		InstanceID:    instanceID,
 	}
 }
-

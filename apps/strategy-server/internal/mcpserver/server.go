@@ -28,6 +28,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -36,6 +37,8 @@ import (
 
 	aimdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/aim"
 	appdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/app"
+	evidencedom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/evidence"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/heartbeat"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
 	orgdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/org"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/pack"
@@ -73,9 +76,23 @@ type Services struct {
 	Sync      *syncdom.Service        // optional — nil disables GitHub sync tools
 	Ripple    *rippledom.Service      // optional — nil disables ripple coherence tools
 	AIM           *aimdom.Service          // optional — nil disables AIM agent loop tools
+	Heartbeat     HeartbeatService         // optional — nil disables heartbeat MCP tools
 	Resolver      rippledom.SignalResolver  // optional — nil = agent-orchestrated mode
 	Ingest        IngestEnqueuer           // optional — nil when Memory is not configured
 	Orchestration *orchestration.Engine    // optional — nil disables orchestrator MCP tools
+	Evidence      *evidencedom.Service     // optional — nil disables evidence MCP tools
+}
+
+// HeartbeatService is the interface used by MCP heartbeat tools.
+type HeartbeatService interface {
+	ListSignals(ctx context.Context, instanceID uuid.UUID) ([]heartbeat.Signal, error)
+	ListAllSignals(ctx context.Context, instanceID uuid.UUID) ([]heartbeat.Signal, error)
+	Acknowledge(ctx context.Context, signalID uuid.UUID) error
+	// Proposal management.
+	ListProposals(ctx context.Context, instanceID uuid.UUID, status string) ([]heartbeat.Proposal, error)
+	GetProposal(ctx context.Context, proposalID uuid.UUID) (*heartbeat.Proposal, error)
+	ApproveProposal(ctx context.Context, proposalID uuid.UUID, starter heartbeat.CycleStarter, workflowName string) (*heartbeat.Proposal, error)
+	DeferProposal(ctx context.Context, proposalID uuid.UUID, duration time.Duration) (*heartbeat.Proposal, error)
 }
 
 // New creates and registers all MCP tools, returning the StreamableHTTPServer
@@ -112,6 +129,8 @@ func New(svc Services) http.Handler {
 	registerRippleTools(s, svc)
 	registerAIMAgentTools(s, svc)
 	registerAIMOrchestratorTools(s, svc)
+	registerHeartbeatTools(s, svc)
+	registerEvidenceTools(s, svc)
 	registerKnowledgePrompt(s)
 
 	return server.NewStreamableHTTPServer(s)
@@ -648,7 +667,7 @@ func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 		}
 		orgID, err := parseUUID(argString(req, "org_id"))
 		if err != nil {
-			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("org_id is required")), nil
+			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("org_id is required")), nil //nolint:nilerr
 		}
 		var namePtr *string
 		if name := argString(req, "display_name"); name != "" {
@@ -995,6 +1014,19 @@ func registerBatchWriteTools(s *server.MCPServer, svc Services) {
 			}
 		}
 
+		// Post-commit: mark evidence as processed if this batch contained an assessment report.
+		if svc.Evidence != nil && instanceID != uuid.Nil {
+			evInstID, evKeys := svc.Strategy.AssessmentEvidenceKeys(ctx, batchID)
+			if evInstID != uuid.Nil && len(evKeys) > 0 {
+				if markErr := svc.Evidence.MarkProcessed(ctx, evInstID, evKeys, batchID.String()); markErr != nil {
+					slog.WarnContext(ctx, "commit_batch: failed to mark evidence as processed",
+						"batch_id", batchID, "evidence_keys", evKeys, "error", markErr)
+				} else {
+					result["evidence_marked_processed"] = len(evKeys)
+				}
+			}
+		}
+
 		return mustJSON(result)
 	})
 
@@ -1202,7 +1234,7 @@ func registerExpandedWriteTools(s *server.MCPServer, svc Services) {
 			Payload      json.RawMessage `json:"payload"`
 		}
 		if err := json.Unmarshal([]byte(artifactsJSON), &items); err != nil {
-			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("artifacts must be a JSON array: "+err.Error())), nil
+			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("artifacts must be a JSON array: "+err.Error())), nil //nolint:nilerr
 		}
 		if len(items) == 0 {
 			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("artifacts array must not be empty")), nil

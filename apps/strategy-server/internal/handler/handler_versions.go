@@ -33,18 +33,18 @@ func (s *Server) loadVersionsView(instanceID string, c echo.Context) templ.Compo
 
 	if s.versionSvc == nil {
 		return ui.VersionsContent(ui.VersionsViewData{
-			NavContext:  navCtx,
-			InstanceID:  instanceID,
-			Versions:    nil,
+			NavContext: navCtx,
+			InstanceID: instanceID,
+			Versions:   nil,
 		})
 	}
 
 	id, err := uuid.Parse(instanceID)
 	if err != nil {
 		return ui.VersionsContent(ui.VersionsViewData{
-			NavContext:  navCtx,
-			InstanceID:  instanceID,
-			Versions:    nil,
+			NavContext: navCtx,
+			InstanceID: instanceID,
+			Versions:   nil,
 		})
 	}
 
@@ -60,9 +60,9 @@ func (s *Server) loadVersionsView(instanceID string, c echo.Context) templ.Compo
 	}
 
 	return ui.VersionsContent(ui.VersionsViewData{
-		NavContext:  navCtx,
-		InstanceID:  instanceID,
-		Versions:    rows,
+		NavContext: navCtx,
+		InstanceID: instanceID,
+		Versions:   rows,
 	})
 }
 
@@ -134,9 +134,9 @@ func (s *Server) handleVersionDetail(c echo.Context) error {
 	}
 
 	detailData := ui.VersionDetailData{
-		NavContext:  navCtx,
-		InstanceID:  instanceID,
-		Ver:         row,
+		NavContext: navCtx,
+		InstanceID: instanceID,
+		Ver:        row,
 	}
 
 	// Diff against parent if available.

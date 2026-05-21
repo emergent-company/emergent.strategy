@@ -56,12 +56,26 @@ func New(cfg Config) *Client {
 	}
 }
 
+// ResponseFormat controls the output format for structured output.
+// Use FormatJSON for json_object mode (any JSON object).
+// Use FormatText for plain text (default behaviour, same as omitting the field).
+type ResponseFormat struct {
+	Type string `json:"type"` // "text" | "json_object"
+}
+
+// FormatJSON is a convenience value for json_object structured output.
+var FormatJSON = &ResponseFormat{Type: "json_object"}
+
+// FormatText is a convenience value for plain text output (default).
+var FormatText = &ResponseFormat{Type: "text"}
+
 // chatRequest is the OpenAI chat completions request format.
 type chatRequest struct {
-	Model       string        `json:"model"`
-	Messages    []ChatMessage `json:"messages"`
-	Temperature float64       `json:"temperature,omitempty"`
-	MaxTokens   int           `json:"max_tokens,omitempty"`
+	Model          string          `json:"model"`
+	Messages       []ChatMessage   `json:"messages"`
+	Temperature    float64         `json:"temperature,omitempty"`
+	MaxTokens      int             `json:"max_tokens,omitempty"`
+	ResponseFormat *ResponseFormat `json:"response_format,omitempty"`
 }
 
 // ChatMessage represents a single message in a chat conversation.
@@ -90,14 +104,26 @@ type ChatResult struct {
 	OutputTokens int    `json:"output_tokens"`
 }
 
-// Chat sends a chat completion request and returns the response.
-func (c *Client) Chat(ctx context.Context, messages []ChatMessage, temperature float64) (*ChatResult, error) {
+// ChatWithFormat sends a chat completion request with an optional response format.
+// Pass FormatJSON to request json_object structured output.
+// Pass nil or FormatText for plain text (same as Chat).
+func (c *Client) ChatWithFormat(ctx context.Context, messages []ChatMessage, temperature float64, format *ResponseFormat) (*ChatResult, error) {
 	req := chatRequest{
-		Model:       c.model,
-		Messages:    messages,
-		Temperature: temperature,
+		Model:          c.model,
+		Messages:       messages,
+		Temperature:    temperature,
+		ResponseFormat: format,
 	}
+	return c.do(ctx, req)
+}
 
+// Chat sends a chat completion request and returns the response.
+// Equivalent to ChatWithFormat with a nil format (plain text).
+func (c *Client) Chat(ctx context.Context, messages []ChatMessage, temperature float64) (*ChatResult, error) {
+	return c.ChatWithFormat(ctx, messages, temperature, nil)
+}
+
+func (c *Client) do(ctx context.Context, req chatRequest) (*ChatResult, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("marshal chat request: %w", err)
@@ -119,7 +145,7 @@ func (c *Client) Chat(ctx context.Context, messages []ChatMessage, temperature f
 	if err != nil {
 		return nil, fmt.Errorf("llm request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {

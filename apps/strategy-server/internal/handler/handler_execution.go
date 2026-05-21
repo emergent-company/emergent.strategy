@@ -175,21 +175,21 @@ func (s *Server) loadExecutionData(ctx context.Context, instanceID, instanceName
 					continue
 				}
 
-			krID := strVal(krMap, "id")
-			kr := ui.ExecutionKR{
-				ID:          krID,
-				Description: strVal(krMap, "description"),
-				Target:      strVal(krMap, "target"),
-				Baseline:    strVal(krMap, "baseline"),
-				TRLStart:    payloadIntAsStr(krMap, "trl_start"),
-				TRLTarget:   payloadIntAsStr(krMap, "trl_target"),
-			}
-			// Attach AIM assessment outcome if available
-			if outcome, ok := krOutcomes[krID]; ok {
-				kr.AssessmentStatus = outcome.status
-				kr.AssessmentActual = outcome.actual
-			}
-			data.TotalKRs++
+				krID := strVal(krMap, "id")
+				kr := ui.ExecutionKR{
+					ID:          krID,
+					Description: strVal(krMap, "description"),
+					Target:      strVal(krMap, "target"),
+					Baseline:    strVal(krMap, "baseline"),
+					TRLStart:    payloadIntAsStr(krMap, "trl_start"),
+					TRLTarget:   payloadIntAsStr(krMap, "trl_target"),
+				}
+				// Attach AIM assessment outcome if available
+				if outcome, ok := krOutcomes[krID]; ok {
+					kr.AssessmentStatus = outcome.status
+					kr.AssessmentActual = outcome.actual
+				}
+				data.TotalKRs++
 
 				// Find features that contribute to this KR's value paths
 				// Features are linked via contributes_to value model paths

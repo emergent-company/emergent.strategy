@@ -45,10 +45,10 @@ type Introspector struct {
 	key        *rsa.PrivateKey
 
 	// Circuit breaker state.
-	mu            sync.Mutex
-	failCount     int
-	lastFail      time.Time
-	circuitOpen   bool
+	mu              sync.Mutex
+	failCount       int
+	lastFail        time.Time
+	circuitOpen     bool
 	circuitCooldown time.Duration
 }
 

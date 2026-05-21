@@ -18,7 +18,6 @@ type InstanceSummary struct {
 	OrgName string
 }
 
-
 // BuildSidebarGroups builds the sidebar navigation with a dashboard link
 // and strategy instances grouped by organisation.
 func BuildSidebarGroups(currentPath string, instances []InstanceSummary) []layout.SidebarGroup {
@@ -122,62 +121,12 @@ func aimSubLabel(count, total int, label string) string {
 	return strconv.Itoa(count) + "/" + strconv.Itoa(total) + " " + label
 }
 
-// readyProgress calculates the READY phase progress percentage.
-func readyProgress(data ReadyPhaseData) int {
-	if data.TotalArtifacts == 0 {
-		return 0
-	}
-	return (data.CompletedArtifacts * 100) / data.TotalArtifacts
-}
-
-// assumptionLabel formats the assumption count for display.
-func assumptionLabel(tested, total int) string {
-	return strconv.Itoa(tested) + "/" + strconv.Itoa(total)
-}
-
-// signalColor returns the icon color class based on critical signal count.
-func signalColor(critical int) string {
-	if critical > 0 {
-		return "bg-error/10 text-error"
-	}
-	return "bg-success/10 text-success"
-}
-
-// aimArtifactCount returns the number of existing AIM artifacts.
-func aimArtifactCount(data AimPhaseData) int {
-	n := 0
-	if data.HasLRA {
-		n++
-	}
-	if data.HasAssessmentReport {
-		n++
-	}
-	if data.HasCalibration {
-		n++
-	}
-	if data.HasTriggerConfig {
-		n++
-	}
-	if data.HasRealityCheck {
-		n++
-	}
-	return n
-}
-
 // assumptionPercent calculates the percentage of tested assumptions.
 func assumptionPercent(tested, total int) int {
 	if total == 0 {
 		return 0
 	}
 	return (tested * 100) / total
-}
-
-// cycleLabel returns a formatted cycle label, or empty if no cycle.
-func cycleLabel(cycle string) string {
-	if cycle == "" {
-		return ""
-	}
-	return " — " + cycle
 }
 
 // calibrationDecisionLabel returns a human-readable label for a calibration decision.
@@ -409,11 +358,6 @@ func isTitleKey(k string) bool {
 }
 
 // --- North Star helpers ---
-
-// lenInt returns the integer as a string.
-func lenInt(n int) string {
-	return strconv.Itoa(n)
-}
 
 // beliefCategoryOrder returns the canonical display order for belief categories.
 func beliefCategoryOrder() []string {
@@ -714,22 +658,6 @@ func lifecycleStageBadge(stage string) string {
 		return "badge-warning"
 	default:
 		return "badge-ghost"
-	}
-}
-
-// adoptionLevelLabel returns a human label for an adoption level integer.
-func adoptionLevelLabel(level int) string {
-	switch {
-	case level >= 4:
-		return "Advanced"
-	case level >= 3:
-		return "Established"
-	case level >= 2:
-		return "Growing"
-	case level >= 1:
-		return "Beginning"
-	default:
-		return "Not started"
 	}
 }
 

@@ -84,12 +84,12 @@ type Step struct {
 type EventType string
 
 const (
-	EventStepStarted    EventType = "step_started"
-	EventStepFinished   EventType = "step_finished"
-	EventAwaitingHuman  EventType = "awaiting_human"
-	EventCompleted      EventType = "completed"
-	EventAborted        EventType = "aborted"
-	EventFailed         EventType = "failed"
+	EventStepStarted   EventType = "step_started"
+	EventStepFinished  EventType = "step_finished"
+	EventAwaitingHuman EventType = "awaiting_human"
+	EventCompleted     EventType = "completed"
+	EventAborted       EventType = "aborted"
+	EventFailed        EventType = "failed"
 )
 
 // Event is published by the Engine fanout on each lifecycle transition.

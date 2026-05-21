@@ -3,12 +3,14 @@ package ripple
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/memory"
 )
 
 // AffectedArtifact describes a single artifact impacted by a change.
@@ -50,7 +52,9 @@ type StructuralRippleReport struct {
 
 // AnalyzeStructuralRipple walks the relationship graph from a changed artifact
 // and identifies all connected artifacts that may need attention.
-func AnalyzeStructuralRipple(ctx context.Context, db *bun.DB, instanceID uuid.UUID, changedKey, changedType string) (*StructuralRippleReport, error) {
+// mem is optional: when non-nil, multi-hop co-reference traversal uses Memory
+// Expand() instead of per-target SQL queries. When nil, falls back to SQL.
+func AnalyzeStructuralRipple(ctx context.Context, db *bun.DB, mem *memory.Client, instanceID uuid.UUID, changedKey, changedType string) (*StructuralRippleReport, error) {
 	report := &StructuralRippleReport{
 		ChangedKey:  changedKey,
 		ChangedType: changedType,
@@ -114,7 +118,7 @@ func AnalyzeStructuralRipple(ctx context.Context, db *bun.DB, instanceID uuid.UU
 		var artifacts []*domain.StrategyArtifact
 		err = db.NewSelect().Model(&artifacts).
 			Where("sa.instance_id = ?", instanceID).
-			Where("sa.artifact_key IN (?)", bun.In(keys)).
+			Where("sa.artifact_key IN (?)", bun.List(keys)).
 			Where("sa.status = ?", domain.ArtifactStatusActive).
 			Scan(ctx)
 		if err != nil {
@@ -131,7 +135,7 @@ func AnalyzeStructuralRipple(ctx context.Context, db *bun.DB, instanceID uuid.UU
 		if a == nil {
 			continue
 		}
-		staleDays := int(time.Since(a.UpdatedAt).Hours() / 24)
+		var staleDays int
 		if a.UpdatedAt.After(changeTime) {
 			staleDays = 0 // updated after the change — not stale
 		} else {
@@ -190,72 +194,20 @@ func AnalyzeStructuralRipple(ctx context.Context, db *bun.DB, instanceID uuid.UU
 	// Example: assessment_report validates_assumption asm-001
 	//          fd-003 tests_assumption asm-001
 	//          → fd-003 should get a ripple signal because asm-001's status changed.
-	for _, r := range upstreamRels {
-		// For each target this artifact points at, find OTHER artifacts
-		// that also point at the same target (via any relationship).
-		var coTargetRels []domain.StrategyRelationship
-		err = db.NewSelect().Model(&coTargetRels).
-			Where("sr.instance_id = ?", instanceID).
-			Where("sr.target_key = ?", r.TargetKey).
-			Where("sr.source_key != ?", changedKey). // exclude self
-			Scan(ctx)
-		if err != nil {
-			continue
-		}
-
-		for _, coRel := range coTargetRels {
-			// Skip if already in the affected list.
-			alreadyIncluded := false
-			for _, a := range report.AffectedArtifacts {
-				if a.ArtifactKey == coRel.SourceKey {
-					alreadyIncluded = true
-					break
-				}
-			}
-			if alreadyIncluded {
-				continue
-			}
-
-			a := artifactMap[coRel.SourceKey]
-			if a == nil {
-				// Load this artifact if not already loaded.
-				loadedArt := new(domain.StrategyArtifact)
-				loadErr := db.NewSelect().Model(loadedArt).
-					Where("sa.instance_id = ?", instanceID).
-					Where("sa.artifact_key = ?", coRel.SourceKey).
-					Where("sa.status = ?", domain.ArtifactStatusActive).
-					Scan(ctx)
-				if loadErr != nil {
-					continue
-				}
-				a = loadedArt
-			}
-
-			staleDays := 0
-			if a.UpdatedAt.Before(changeTime) {
-				staleDays = int(changeTime.Sub(a.UpdatedAt).Hours() / 24)
-			}
-			name := ""
-			if a.Name != nil {
-				name = *a.Name
-			}
-			track := ""
-			if a.Track != nil {
-				track = *a.Track
-			}
-
-			report.AffectedArtifacts = append(report.AffectedArtifacts, AffectedArtifact{
-				ArtifactKey:  a.ArtifactKey,
-				ArtifactType: a.ArtifactType,
-				Name:         name,
-				Track:        track,
-				Relationship: fmt.Sprintf("co-references %s via %s", r.TargetKey, coRel.Relationship),
-				Direction:    "transitive",
-				StaleDays:    staleDays,
-				UpdatedAt:    a.UpdatedAt.Format(time.RFC3339),
-			})
-		}
+	//
+	// When a Memory client is available, use Expand() for BFS traversal — one
+	// API call instead of N SQL queries (one per upstream relationship target).
+	// Falls back to SQL if Memory is unavailable or the object is not indexed.
+	alreadyAffected := make(map[string]bool, len(report.AffectedArtifacts))
+	for _, a := range report.AffectedArtifacts {
+		alreadyAffected[a.ArtifactKey] = true
 	}
+
+	transitiveAffected, memUsed := multiHopTransitive(ctx, db, mem, instanceID, changedKey, upstreamRels, artifactMap, alreadyAffected, changeTime)
+	slog.Debug("ripple: multi-hop traversal",
+		"instance_id", instanceID, "changed_key", changedKey,
+		"transitive_count", len(transitiveAffected), "memory_used", memUsed)
+	report.AffectedArtifacts = append(report.AffectedArtifacts, transitiveAffected...)
 
 	// Classify severity.
 	for _, a := range report.AffectedArtifacts {
@@ -270,6 +222,192 @@ func AnalyzeStructuralRipple(ctx context.Context, db *bun.DB, instanceID uuid.UU
 	}
 
 	return report, nil
+}
+
+// multiHopTransitive finds artifacts that co-reference the same intermediate
+// nodes as the changed artifact (2-hop propagation). Uses Memory Expand() when
+// available; falls back to per-target SQL queries.
+// Returns the list of newly discovered transitive artifacts and a bool
+// indicating whether Memory was used (true) or SQL (false).
+func multiHopTransitive(
+	ctx context.Context,
+	db *bun.DB,
+	mem *memory.Client,
+	instanceID uuid.UUID,
+	changedKey string,
+	upstreamRels []domain.StrategyRelationship,
+	artifactMap map[string]*domain.StrategyArtifact,
+	alreadyAffected map[string]bool,
+	changeTime time.Time,
+) ([]AffectedArtifact, bool) {
+	if len(upstreamRels) == 0 {
+		return nil, false
+	}
+
+	// Try Memory path: Expand from the changed artifact with depth=2 to find
+	// all nodes within 2 hops, then filter to those not already affected.
+	if mem != nil {
+		affected, ok := multiHopViaMemory(ctx, mem, db, instanceID, changedKey, alreadyAffected, artifactMap, changeTime)
+		if ok {
+			return affected, true
+		}
+		slog.Debug("ripple: Memory expand unavailable or object not indexed, falling back to SQL",
+			"changed_key", changedKey)
+	}
+
+	// SQL fallback: per-target co-reference queries (original approach).
+	return multiHopViaSQL(ctx, db, instanceID, changedKey, upstreamRels, artifactMap, alreadyAffected, changeTime), false
+}
+
+// multiHopViaMemory uses Memory Expand() to find 2-hop transitively affected artifacts.
+// Returns (results, true) on success; (nil, false) if the object isn't indexed or expand fails.
+func multiHopViaMemory(
+	ctx context.Context,
+	mem *memory.Client,
+	db *bun.DB,
+	instanceID uuid.UUID,
+	changedKey string,
+	alreadyAffected map[string]bool,
+	artifactMap map[string]*domain.StrategyArtifact,
+	changeTime time.Time,
+) ([]AffectedArtifact, bool) {
+	// Look up the Memory object ID for the changed artifact.
+	obj, err := mem.GetObjectByKey(ctx, changedKey)
+	if err != nil || obj == nil {
+		return nil, false // not indexed — fall back
+	}
+
+	// BFS expand with depth=2 to capture co-referencing nodes.
+	expand, err := mem.Expand(ctx, memory.ExpandRequest{
+		RootIDs:  []string{obj.StableID()},
+		MaxDepth: 2,
+		MaxNodes: 200,
+	})
+	if err != nil {
+		slog.Debug("ripple: Memory Expand failed", "changed_key", changedKey, "err", err)
+		return nil, false
+	}
+
+	// Collect artifact keys from the expanded objects.
+	var affected []AffectedArtifact
+	for _, expandedObj := range expand.Objects {
+		key := expandedObj.Key
+		if key == "" || key == changedKey || alreadyAffected[key] {
+			continue
+		}
+		// Only include artifacts that exist in this instance.
+		a := artifactMap[key]
+		if a == nil {
+			// Load on demand.
+			loaded := new(domain.StrategyArtifact)
+			loadErr := db.NewSelect().Model(loaded).
+				Where("sa.instance_id = ?", instanceID).
+				Where("sa.artifact_key = ?", key).
+				Where("sa.status = ?", domain.ArtifactStatusActive).
+				Scan(ctx)
+			if loadErr != nil {
+				continue
+			}
+			a = loaded
+		}
+
+		staleDays := 0
+		if a.UpdatedAt.Before(changeTime) {
+			staleDays = int(changeTime.Sub(a.UpdatedAt).Hours() / 24)
+		}
+		name := ""
+		if a.Name != nil {
+			name = *a.Name
+		}
+		track := ""
+		if a.Track != nil {
+			track = *a.Track
+		}
+		affected = append(affected, AffectedArtifact{
+			ArtifactKey:  a.ArtifactKey,
+			ArtifactType: a.ArtifactType,
+			Name:         name,
+			Track:        track,
+			Relationship: "transitive (memory expand)",
+			Direction:    "transitive",
+			StaleDays:    staleDays,
+			UpdatedAt:    a.UpdatedAt.Format(time.RFC3339),
+		})
+		alreadyAffected[key] = true
+	}
+	return affected, true
+}
+
+// multiHopViaSQL is the original SQL-based co-reference traversal.
+// For each upstream relationship target, it finds other source artifacts
+// that point at the same target.
+func multiHopViaSQL(
+	ctx context.Context,
+	db *bun.DB,
+	instanceID uuid.UUID,
+	changedKey string,
+	upstreamRels []domain.StrategyRelationship,
+	artifactMap map[string]*domain.StrategyArtifact,
+	alreadyAffected map[string]bool,
+	changeTime time.Time,
+) []AffectedArtifact {
+	var affected []AffectedArtifact
+	for _, r := range upstreamRels {
+		var coTargetRels []domain.StrategyRelationship
+		err := db.NewSelect().Model(&coTargetRels).
+			Where("sr.instance_id = ?", instanceID).
+			Where("sr.target_key = ?", r.TargetKey).
+			Where("sr.source_key != ?", changedKey).
+			Scan(ctx)
+		if err != nil {
+			continue
+		}
+
+		for _, coRel := range coTargetRels {
+			if alreadyAffected[coRel.SourceKey] {
+				continue
+			}
+
+			a := artifactMap[coRel.SourceKey]
+			if a == nil {
+				loaded := new(domain.StrategyArtifact)
+				loadErr := db.NewSelect().Model(loaded).
+					Where("sa.instance_id = ?", instanceID).
+					Where("sa.artifact_key = ?", coRel.SourceKey).
+					Where("sa.status = ?", domain.ArtifactStatusActive).
+					Scan(ctx)
+				if loadErr != nil {
+					continue
+				}
+				a = loaded
+			}
+
+			staleDays := 0
+			if a.UpdatedAt.Before(changeTime) {
+				staleDays = int(changeTime.Sub(a.UpdatedAt).Hours() / 24)
+			}
+			name := ""
+			if a.Name != nil {
+				name = *a.Name
+			}
+			track := ""
+			if a.Track != nil {
+				track = *a.Track
+			}
+			affected = append(affected, AffectedArtifact{
+				ArtifactKey:  a.ArtifactKey,
+				ArtifactType: a.ArtifactType,
+				Name:         name,
+				Track:        track,
+				Relationship: fmt.Sprintf("co-references %s via %s", r.TargetKey, coRel.Relationship),
+				Direction:    "transitive",
+				StaleDays:    staleDays,
+				UpdatedAt:    a.UpdatedAt.Format(time.RFC3339),
+			})
+			alreadyAffected[coRel.SourceKey] = true
+		}
+	}
+	return affected
 }
 
 // AnalyzeCoherence runs a full structural coherence check on an instance.

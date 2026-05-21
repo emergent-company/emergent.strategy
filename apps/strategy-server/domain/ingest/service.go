@@ -271,8 +271,50 @@ func (s *Service) ingestBatch(ctx context.Context, job ingestJob) error {
 	return nil
 }
 
+// artifactToSubgraphObject converts a strategy artifact into a SubgraphObject
+// for use in CreateSubgraph. The _ref is caller-assigned for cross-linking.
+func artifactToSubgraphObject(a domain.StrategyArtifact, ref string) memory.SubgraphObject {
+	props := map[string]any{
+		"artifact_type": a.ArtifactType,
+		"instance_id":   a.InstanceID.String(),
+		"status":        a.Status,
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(a.Payload, &payload); err == nil {
+		if name, ok := payload["name"].(string); ok {
+			props["name"] = name
+		}
+		if desc, ok := payload["description"].(string); ok {
+			props["description"] = desc
+		}
+		if title, ok := payload["title"].(string); ok {
+			if props["name"] == nil {
+				props["name"] = title
+			}
+		}
+		if snippet := extractSnippet(payload); snippet != "" {
+			props["snippet"] = snippet
+		}
+	}
+	if a.Track != nil {
+		props["track"] = *a.Track
+	}
+	if a.Name != nil {
+		props["name"] = *a.Name
+	}
+	return memory.SubgraphObject{
+		Ref:        ref,
+		Type:       a.ArtifactType,
+		Key:        a.ArtifactKey,
+		Status:     a.Status,
+		Labels:     []string{"layer:artifact"},
+		Properties: props,
+	}
+}
+
 // upsertGraphObject creates or updates a Memory graph object from a strategy artifact.
 // Returns the upserted object (for key index building) or nil on error.
+// Used by ingestBatch (small incremental updates). Full re-ingest uses CreateSubgraph.
 func (s *Service) upsertGraphObject(ctx context.Context, a domain.StrategyArtifact) (*memory.Object, error) {
 	// Build properties from the artifact payload.
 	props := map[string]any{
@@ -296,6 +338,41 @@ func (s *Service) upsertGraphObject(ctx context.Context, a domain.StrategyArtifa
 		// Include the snippet for search results.
 		if snippet := extractSnippet(payload); snippet != "" {
 			props["snippet"] = snippet
+		}
+
+		// Evidence-specific properties — enable tag/source/status filtering in Memory.
+		if a.ArtifactType == "evidence" {
+			if ps, ok := payload["processing_status"].(string); ok {
+				props["processing_status"] = ps
+			}
+			if collectedAt, ok := payload["collected_at"].(string); ok {
+				props["collected_at"] = collectedAt
+			}
+			if src, ok := payload["source"].(map[string]any); ok {
+				if srcName, ok := src["name"].(string); ok {
+					props["source_name"] = srcName
+					if props["name"] == nil {
+						props["name"] = srcName
+					}
+				}
+				if srcType, ok := src["type"].(string); ok {
+					props["source_type"] = srcType
+				}
+			}
+			if tags, ok := payload["tags"].([]any); ok {
+				tagStrs := make([]string, 0, len(tags))
+				for _, t := range tags {
+					if s, ok := t.(string); ok {
+						tagStrs = append(tagStrs, s)
+					}
+				}
+				if len(tagStrs) > 0 {
+					props["tags"] = tagStrs
+				}
+			}
+			if summary, ok := payload["summary"].(string); ok && summary != "" {
+				props["snippet"] = summary // use summary as snippet for semantic search
+			}
 		}
 	}
 
@@ -388,7 +465,7 @@ func (s *Service) ingestRelationships(ctx context.Context, instanceID uuid.UUID,
 	err := s.db.NewSelect().
 		Model(&rels).
 		Where("instance_id = ?", instanceID).
-		Where("source_key IN (?)", bun.In(artifactKeys)).
+		Where("source_key IN (?)", bun.List(artifactKeys)).
 		Scan(ctx)
 	if err != nil {
 		return fmt.Errorf("load relationships: %w", err)
@@ -477,6 +554,8 @@ func (s *Service) createRelationshipsIndexed(ctx context.Context, instanceID uui
 }
 
 // ReingestInstance does a full re-ingest of all current artifacts for an instance.
+// It uses CreateSubgraph for bulk ingestion — one API call per 500-object batch
+// instead of N individual UpsertObject calls.
 func (s *Service) ReingestInstance(ctx context.Context, instanceID uuid.UUID) error {
 	if s.client == nil {
 		return fmt.Errorf("ingest: Memory client not configured")
@@ -494,20 +573,23 @@ func (s *Service) ReingestInstance(ctx context.Context, instanceID uuid.UUID) er
 
 	slog.Info("ingest: re-ingesting instance", "instance_id", instanceID, "artifact_count", len(artifacts))
 
-	// Upsert all artifacts and build a key index for relationship resolution.
-	idx := newObjectKeyIndex()
-	for _, a := range artifacts {
-		obj, err := s.upsertGraphObject(ctx, a)
-		if err != nil {
-			slog.Warn("ingest: re-ingest upsert failed", "artifact_key", a.ArtifactKey, "err", err)
-			continue
+	// Build the subgraph objects and an artifact_key → _ref index.
+	subgraphObjs := make([]memory.SubgraphObject, 0, len(artifacts))
+	refByKey := make(map[string]string, len(artifacts)) // artifact_key -> _ref
+	for i, a := range artifacts {
+		ref := fmt.Sprintf("art-%d", i)
+		refByKey[a.ArtifactKey] = ref
+		// Also index the short prefix (e.g. "fd-001") for relationship resolution.
+		if idx := strings.Index(a.ArtifactKey, "_"); idx > 0 {
+			prefix := a.ArtifactKey[:idx]
+			if _, exists := refByKey[prefix]; !exists {
+				refByKey[prefix] = ref
+			}
 		}
-		if obj != nil {
-			idx.add(a.ArtifactKey, obj.StableID())
-		}
+		subgraphObjs = append(subgraphObjs, artifactToSubgraphObject(a, ref))
 	}
 
-	// Re-ingest all relationships using the local index for fast resolution.
+	// Load all relationships to include in the subgraph.
 	var rels []domain.StrategyRelationship
 	err = s.db.NewSelect().
 		Model(&rels).
@@ -517,7 +599,106 @@ func (s *Service) ReingestInstance(ctx context.Context, instanceID uuid.UUID) er
 		return fmt.Errorf("load relationships: %w", err)
 	}
 
-	s.createRelationshipsIndexed(ctx, instanceID, rels, idx)
+	// Build subgraph relationship list — only include edges where both sides are known refs.
+	subgraphRels := make([]memory.SubgraphRelationship, 0, len(rels))
+	for _, rel := range rels {
+		srcRef := refByKey[rel.SourceKey]
+		dstRef := refByKey[rel.TargetKey]
+		if srcRef == "" || dstRef == "" {
+			continue // one side not in this batch — skip
+		}
+		subgraphRels = append(subgraphRels, memory.SubgraphRelationship{
+			Type:    rel.Relationship,
+			FromRef: srcRef,
+			ToRef:   dstRef,
+			Properties: map[string]any{
+				"instance_id": instanceID.String(),
+			},
+		})
+	}
+
+	// CreateSubgraph in batches of 500 objects (API limit).
+	idx := newObjectKeyIndex()
+	objBatchSize := 500
+	for batchStart := 0; batchStart < len(subgraphObjs); batchStart += objBatchSize {
+		end := batchStart + objBatchSize
+		if end > len(subgraphObjs) {
+			end = len(subgraphObjs)
+		}
+		batchObjs := subgraphObjs[batchStart:end]
+
+		// Include only relationships where both refs are in this object batch.
+		batchRefSet := make(map[string]bool, len(batchObjs))
+		for _, o := range batchObjs {
+			batchRefSet[o.Ref] = true
+		}
+		batchRels := make([]memory.SubgraphRelationship, 0)
+		for _, r := range subgraphRels {
+			if batchRefSet[r.FromRef] && batchRefSet[r.ToRef] {
+				batchRels = append(batchRels, r)
+			}
+		}
+
+		result, err := s.client.CreateSubgraph(ctx, memory.SubgraphRequest{
+			Objects:       batchObjs,
+			Relationships: batchRels,
+		})
+		if err != nil {
+			slog.Warn("ingest: CreateSubgraph batch failed, falling back to per-object upsert",
+				"instance_id", instanceID, "batch_start", batchStart, "err", err)
+			// Fallback: upsert objects individually for this batch.
+			for artIdx := batchStart; artIdx < batchStart+len(batchObjs) && artIdx < len(artifacts); artIdx++ {
+				obj, uErr := s.upsertGraphObject(ctx, artifacts[artIdx])
+				if uErr != nil {
+					slog.Warn("ingest: fallback upsert failed", "artifact_key", artifacts[artIdx].ArtifactKey, "err", uErr)
+					continue
+				}
+				if obj != nil {
+					idx.add(artifacts[artIdx].ArtifactKey, obj.StableID())
+				}
+			}
+			continue
+		}
+
+		// Index the returned object IDs by their _ref to build the key index.
+		for _, obj := range result.Objects {
+			// result.Objects are in the same order as request.Objects.
+			// Use RefMap if available (API returns ref → ID mapping).
+			if result.RefMap != nil {
+				continue // handled below
+			}
+			if obj.Key != "" {
+				idx.add(obj.Key, obj.StableID())
+			}
+		}
+		// If the API returns a ref_map, use that for more reliable mapping.
+		if result.RefMap != nil {
+			// RefMap: _ref → object stable ID
+			for ref, objID := range result.RefMap {
+				// Find the artifact key for this ref.
+				for key, r := range refByKey {
+					if r == ref {
+						idx.add(key, objID)
+						break
+					}
+				}
+			}
+		}
+	}
+
+	// Any relationships where one or both sides weren't in an object batch
+	// (e.g. cross-batch edges) — create them now using the index.
+	crossBatchRels := make([]domain.StrategyRelationship, 0)
+	for _, rel := range rels {
+		srcRef := refByKey[rel.SourceKey]
+		dstRef := refByKey[rel.TargetKey]
+		if srcRef == "" || dstRef == "" {
+			crossBatchRels = append(crossBatchRels, rel)
+		}
+	}
+	if len(crossBatchRels) > 0 {
+		s.createRelationshipsIndexed(ctx, instanceID, crossBatchRels, idx)
+	}
 
 	slog.Info("ingest: re-ingest complete", "instance_id", instanceID,
 		"artifacts", len(artifacts), "relationships", len(rels))
@@ -638,67 +819,124 @@ func (s *Service) ReingestInstanceDecomposed(ctx context.Context, instanceID uui
 		"objects", len(result.Objects),
 		"relationships", len(result.Relationships))
 
-	// Upsert all decomposed objects and build key→ID index.
-	keyToID := make(map[string]string, len(result.Objects))
-	upserted, upsertFailed := 0, 0
-	for _, obj := range result.Objects {
+	// Build SubgraphObjects for all decomposed objects.
+	subObjs := make([]memory.SubgraphObject, 0, len(result.Objects))
+	refByDecompKey := make(map[string]string, len(result.Objects))
+	for i, obj := range result.Objects {
+		ref := fmt.Sprintf("d-%d", i)
+		refByDecompKey[obj.Key] = ref
+
 		labels := append(obj.Labels, "layer:decomposed") //nolint:gocritic
-		// Inject instance_id into properties for traceability.
 		props := obj.Properties
 		if props == nil {
 			props = make(map[string]any)
 		}
 		props["instance_id"] = instanceID.String()
 
-		created, upsertErr := s.client.UpsertObject(ctx, memory.UpsertObjectRequest{
+		subObjs = append(subObjs, memory.SubgraphObject{
+			Ref:        ref,
 			Type:       obj.Type,
 			Key:        obj.Key,
 			Status:     obj.Status,
 			Labels:     labels,
 			Properties: props,
 		})
-		if upsertErr != nil {
-			slog.Debug("ingest: decompose upsert failed", "key", obj.Key, "err", upsertErr)
-			upsertFailed++
-			continue
-		}
-		keyToID[obj.Key] = created.StableID()
-		upserted++
 	}
-	slog.Info("ingest: decompose objects upserted",
-		"instance_id", instanceID, "upserted", upserted, "failed", upsertFailed)
 
-	// Create relationships using the key index.
-	relCreated, relSkipped := 0, 0
+	// Build SubgraphRelationships.
+	subRels := make([]memory.SubgraphRelationship, 0, len(result.Relationships))
+	relSkipped := 0
 	for _, rel := range result.Relationships {
-		fromID, ok1 := keyToID[rel.FromKey]
-		toID, ok2 := keyToID[rel.ToKey]
+		fromRef, ok1 := refByDecompKey[rel.FromKey]
+		toRef, ok2 := refByDecompKey[rel.ToKey]
 		if !ok1 || !ok2 {
 			relSkipped++
 			continue
 		}
-
 		props := rel.Properties
 		if props == nil {
 			props = map[string]any{}
 		}
 		props["instance_id"] = instanceID.String()
-
-		_, relErr := s.client.CreateRelationship(ctx, memory.CreateRelationshipRequest{
-			Type:   rel.Type,
-			FromID: fromID,
-			ToID:   toID,
+		subRels = append(subRels, memory.SubgraphRelationship{
+			Type:       rel.Type,
+			FromRef:    fromRef,
+			ToRef:      toRef,
 			Properties: props,
 		})
-		if relErr != nil {
-			slog.Debug("ingest: decompose relationship failed",
-				"type", rel.Type, "from", rel.FromKey, "to", rel.ToKey, "err", relErr)
+	}
+
+	// CreateSubgraph in batches of 500.
+	const batchSize = 500
+	upserted, relCreated := 0, 0
+	keyToID := make(map[string]string, len(result.Objects))
+
+	for bStart := 0; bStart < len(subObjs); bStart += batchSize {
+		end := bStart + batchSize
+		if end > len(subObjs) {
+			end = len(subObjs)
+		}
+		bObjs := subObjs[bStart:end]
+
+		bRefSet := make(map[string]bool, len(bObjs))
+		for _, o := range bObjs {
+			bRefSet[o.Ref] = true
+		}
+		bRels := make([]memory.SubgraphRelationship, 0)
+		for _, r := range subRels {
+			if bRefSet[r.FromRef] && bRefSet[r.ToRef] {
+				bRels = append(bRels, r)
+			}
+		}
+
+		bResult, bErr := s.client.CreateSubgraph(ctx, memory.SubgraphRequest{
+			Objects:       bObjs,
+			Relationships: bRels,
+		})
+		if bErr != nil {
+			slog.Warn("ingest: decompose CreateSubgraph batch failed, falling back to per-object upsert",
+				"instance_id", instanceID, "batch_start", bStart, "err", bErr)
+			// Fallback: upsert individually.
+			for _, o := range bObjs {
+				created, uErr := s.client.UpsertObject(ctx, memory.UpsertObjectRequest{
+					Type:       o.Type,
+					Key:        o.Key,
+					Status:     o.Status,
+					Labels:     o.Labels,
+					Properties: o.Properties,
+				})
+				if uErr != nil {
+					slog.Debug("ingest: decompose fallback upsert failed", "key", o.Key, "err", uErr)
+					continue
+				}
+				keyToID[o.Key] = created.StableID()
+				upserted++
+			}
 			continue
 		}
-		relCreated++
+
+		// Index returned objects by key.
+		for _, obj := range bResult.Objects {
+			if obj.Key != "" {
+				keyToID[obj.Key] = obj.StableID()
+			}
+		}
+		if bResult.RefMap != nil {
+			for ref, objID := range bResult.RefMap {
+				for key, r := range refByDecompKey {
+					if r == ref {
+						keyToID[key] = objID
+						break
+					}
+				}
+			}
+		}
+		upserted += len(bResult.Objects)
+		relCreated += len(bResult.Relationships)
 	}
-	slog.Info("ingest: decompose relationships created",
-		"instance_id", instanceID, "created", relCreated, "skipped", relSkipped)
+
+	slog.Info("ingest: decompose objects upserted via CreateSubgraph",
+		"instance_id", instanceID, "upserted", upserted, "rel_created", relCreated, "rel_skipped", relSkipped)
 
 	return upserted, relCreated, nil
 }

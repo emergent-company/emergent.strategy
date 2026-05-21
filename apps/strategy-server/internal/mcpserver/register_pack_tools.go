@@ -126,9 +126,9 @@ func registerSkillResolutionTools(s *server.MCPServer, svc Services) { //nolint:
 			// Build stdin JSON.
 			var paramsMap map[string]interface{}
 			if raw := argString(req, "params"); raw != "" {
-				if err := json.Unmarshal([]byte(raw), &paramsMap); err != nil {
-					return toolErr(ctx, apperror.ErrBadRequest.WithDetail("params is not valid JSON: "+err.Error())), nil
-				}
+			if err := json.Unmarshal([]byte(raw), &paramsMap); err != nil {
+				return toolErr(ctx, apperror.ErrBadRequest.WithDetail("params is not valid JSON: "+err.Error())), nil //nolint:nilerr
+			}
 			}
 			artifacts, _ := svc.Strategy.ListCurrentArtifacts(ctx, id, "")
 			stdinData := map[string]interface{}{
@@ -374,7 +374,7 @@ func registerPackManagementTools(s *server.MCPServer, svc Services) { //nolint:g
 				ScriptLang *string `json:"script_lang"`
 			}
 			if err := json.Unmarshal([]byte(raw), &items); err != nil {
-				return toolErr(ctx, apperror.ErrBadRequest.WithDetail("skills is not valid JSON array: "+err.Error())), nil
+				return toolErr(ctx, apperror.ErrBadRequest.WithDetail("skills is not valid JSON array: "+err.Error())), nil //nolint:nilerr
 			}
 			for _, item := range items {
 				skillBundles = append(skillBundles, pack.SkillBundle{
@@ -614,7 +614,7 @@ func registerAppPlatformTools(s *server.MCPServer, svc Services) {
 		var params map[string]interface{}
 		if raw := argString(req, "params"); raw != "" {
 			if err := json.Unmarshal([]byte(raw), &params); err != nil {
-				return toolErr(ctx, apperror.ErrBadRequest.WithDetail("params is not valid JSON: "+err.Error())), nil
+				return toolErr(ctx, apperror.ErrBadRequest.WithDetail("params is not valid JSON: "+err.Error())), nil //nolint:nilerr
 			}
 		}
 		stager := &strategyMutationStager{svc: svc.Strategy}

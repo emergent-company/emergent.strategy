@@ -12,18 +12,6 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/memory"
 )
 
-// EPF layers ordered from top (foundational) to bottom (execution/assessment).
-// Vertical coherence checks that content at each layer semantically aligns
-// with its upstream anchors.
-var epfLayers = []string{
-	"north_star",
-	"strategy_formula",
-	"strategy_foundations",
-	"roadmap_recipe",
-	"feature",
-	"value_model",
-}
-
 // VerticalAlignmentResult describes the semantic alignment between two artifacts
 // at different EPF layers.
 type VerticalAlignmentResult struct {

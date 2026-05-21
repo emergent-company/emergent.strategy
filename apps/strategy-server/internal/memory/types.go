@@ -86,15 +86,15 @@ type InstalledSchema struct {
 
 // MergeResult is the response from merging a branch.
 type MergeResult struct {
-	ObjectsCreated      int `json:"objects_created"`
-	ObjectsUpdated      int `json:"objects_updated"`
+	ObjectsCreated       int `json:"objects_created"`
+	ObjectsUpdated       int `json:"objects_updated"`
 	RelationshipsCreated int `json:"relationships_created"`
 }
 
 // SubgraphResult is the response from an atomic subgraph creation.
 type SubgraphResult struct {
-	Objects       []Object       `json:"objects"`
-	Relationships []Relationship `json:"relationships"`
+	Objects       []Object          `json:"objects"`
+	Relationships []Relationship    `json:"relationships"`
 	RefMap        map[string]string `json:"ref_map,omitempty"`
 }
 

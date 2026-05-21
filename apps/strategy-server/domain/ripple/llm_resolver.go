@@ -51,21 +51,37 @@ func (r *LLMResolver) Resolve(ctx context.Context, signal *domain.RippleSignal, 
 		}
 	}
 
-	result, err := r.client.Chat(ctx, []llm.ChatMessage{
+	// Use json_object structured output — the API guarantees valid JSON back,
+	// so we avoid brittle markdown-stripping parsing.
+	result, err := r.client.ChatWithFormat(ctx, []llm.ChatMessage{
 		{Role: "system", Content: systemPrompt},
 		{Role: "user", Content: userPrompt},
-	}, 0.3) // low temperature for consistent, conservative fixes
+	}, 0.3, llm.FormatJSON) // low temperature for consistent, conservative fixes
 	if err != nil {
 		return nil, fmt.Errorf("llm resolve: %w", err)
 	}
 
-	// Parse the response — expect JSON payload in the response.
+	// Parse the structured response.
 	parsed, parseErr := parseResolveResponse(result.Content)
 	if parseErr != nil {
 		slog.WarnContext(ctx, "llm_resolver: failed to parse LLM response",
-			"signal", signal.ID, "error", parseErr)
+			"signal", signal.ID,
+			"input_tokens", result.InputTokens,
+			"output_tokens", result.OutputTokens,
+			"error", parseErr)
 		return nil, nil // graceful: can't parse → skip this signal
 	}
+
+	// Propagate token usage into the result.
+	parsed.InputTokens = result.InputTokens
+	parsed.OutputTokens = result.OutputTokens
+
+	slog.Debug("llm_resolver: resolved signal",
+		"signal", signal.ID,
+		"updated", parsed.Updated,
+		"distance", parsed.Distance,
+		"input_tokens", result.InputTokens,
+		"output_tokens", result.OutputTokens)
 
 	return parsed, nil
 }
@@ -85,23 +101,17 @@ Rules:
 4. Never remove existing content unless it directly contradicts the upstream change.
 5. Keep the same JSON structure — same keys, same nesting. Only modify values.
 
-Response format — respond with ONLY a JSON object:
-{
-  "updated": true,
-  "new_payload": { ... the updated artifact JSON ... },
-  "explanation": "Brief description of what was changed and why",
-  "distance": 0.05
-}
+You MUST respond with a single JSON object (no markdown, no code fences):
 
-If no fix is needed (the artifact is already aligned), respond:
-{
-  "updated": false,
-  "explanation": "Artifact is already aligned — no changes needed"
-}
+When a fix is applied:
+{"updated":true,"new_payload":{...the updated artifact JSON...},"explanation":"Brief description of what changed and why","distance":0.05}
 
-The "distance" field is a self-assessed semantic distance (0.0-1.0) of your
-change. Typo-level fixes are ~0.02, wording tightening is ~0.05-0.10,
-anything above 0.15 means you're changing too much — scale back.`
+When no fix is needed:
+{"updated":false,"explanation":"Artifact is already aligned — no changes needed"}
+
+The "distance" field is your self-assessed semantic distance (0.0-1.0).
+Typo-level: ~0.02. Wording tightening: ~0.05-0.10.
+Anything above 0.15 means you are changing too much — scale back.`
 }
 
 // buildUserPromptWithContext adds the upstream artifact's content to the prompt
@@ -110,14 +120,14 @@ func buildUserPromptWithContext(signal *domain.RippleSignal, currentPayload, ups
 	var b strings.Builder
 
 	b.WriteString("## Signal\n\n")
-	b.WriteString(fmt.Sprintf("Type: %s\n", signal.SignalType))
-	b.WriteString(fmt.Sprintf("Severity: %s\n", signal.Severity))
-	b.WriteString(fmt.Sprintf("Source artifact (upstream, the reference): %s\n", signal.SourceKey))
-	b.WriteString(fmt.Sprintf("Target artifact (to fix): %s\n", signal.TargetKey))
-	b.WriteString(fmt.Sprintf("Description: %s\n", signal.Description))
+	fmt.Fprintf(&b, "Type: %s\n", signal.SignalType)
+	fmt.Fprintf(&b, "Severity: %s\n", signal.Severity)
+	fmt.Fprintf(&b, "Source artifact (upstream, the reference): %s\n", signal.SourceKey)
+	fmt.Fprintf(&b, "Target artifact (to fix): %s\n", signal.TargetKey)
+	fmt.Fprintf(&b, "Description: %s\n", signal.Description)
 
 	if signal.Suggestion != nil && *signal.Suggestion != "" {
-		b.WriteString(fmt.Sprintf("Suggested action: %s\n", *signal.Suggestion))
+		fmt.Fprintf(&b, "Suggested action: %s\n", *signal.Suggestion)
 	}
 
 	b.WriteString("\n## Upstream Artifact (the source of truth — align the target to this)\n\n")

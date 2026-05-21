@@ -284,7 +284,7 @@ func registerPersonaDetailsTool(s *server.MCPServer, svc Services) {
 		// Parse target_customer and related persona fields.
 		var foundations map[string]any
 		if err := json.Unmarshal(raw, &foundations); err != nil {
-			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("failed to parse strategy_foundations payload")), nil
+			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("failed to parse strategy_foundations payload")), nil //nolint:nilerr
 		}
 
 		// Extract personas from various possible fields.

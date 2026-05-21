@@ -351,9 +351,11 @@ func (s *Service) DiscardScenario(ctx context.Context, instanceID, scenarioID st
 
 // VerifySchemas checks that the Memory project has required EPF schemas installed.
 // Called at server startup to bootstrap schemas if missing.
+// If Memory is not configured (client == nil), returns nil without error —
+// Memory is optional and its absence must not prevent server startup.
 func (s *Service) VerifySchemas(ctx context.Context) error {
 	if err := s.requireClient(); err != nil {
-		return nil // not configured — skip silently
+		return nil //nolint:nilerr // Memory not configured — skip silently, it is optional
 	}
 
 	schemas, err := s.client.ListInstalledSchemas(ctx)

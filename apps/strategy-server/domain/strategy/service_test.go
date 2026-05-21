@@ -298,3 +298,108 @@ func TestStageBatchID_Grouping(t *testing.T) {
 		t.Errorf("expected 2 committed mutations, got %d", n)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// TestAssessmentEvidenceKeys
+// ---------------------------------------------------------------------------
+
+// TestAssessmentEvidenceKeys verifies that committing a batch containing an
+// assessment_report with an evidence_summary returns the correct evidence keys.
+func TestAssessmentEvidenceKeys(t *testing.T) {
+	db := database.TestDB(t)
+	wsSvc := workspace.NewService(db)
+	instSvc := instance.NewService(db)
+	svc := strategy.NewService(db)
+	ctx := newCtx()
+
+	orgID := seedTestOrg(t, db)
+	ws, _ := wsSvc.CreateWorkspace(ctx, "strategy-ev-keys", nil, orgID)
+	inst, _ := instSvc.ImportInstance(ctx, instance.ImportParams{
+		WorkspaceID: ws.ID,
+		Name:        "EvidenceKeys Test",
+	})
+
+	// Stage an assessment_report with an evidence_summary containing two keys.
+	report := map[string]any{
+		"cycle_number": 1,
+		"decision":     "persevere",
+		"evidence_summary": []map[string]any{
+			{"artifact_key": "ev-aaa", "source_name": "Interview A", "tags": []string{"sales"}},
+			{"artifact_key": "ev-bbb", "source_name": "Survey B", "tags": []string{"metric"}},
+		},
+	}
+	batchID, err := svc.Stage(ctx, strategy.StageParams{
+		InstanceID:   inst.ID,
+		ArtifactType: "assessment_report",
+		ArtifactKey:  "aim-report-test",
+		Action:       "create",
+		Payload:      report,
+	})
+	if err != nil {
+		t.Fatalf("Stage assessment_report: %v", err)
+	}
+
+	// Before commit — no evidence keys (mutation still staged).
+	instID, keys := svc.AssessmentEvidenceKeys(ctx, batchID)
+	if instID != uuid.Nil || len(keys) != 0 {
+		t.Errorf("expected no keys before commit, got instID=%s keys=%v", instID, keys)
+	}
+
+	// Commit the batch.
+	if _, err := svc.CommitBatch(ctx, batchID); err != nil {
+		t.Fatalf("CommitBatch: %v", err)
+	}
+
+	// After commit — evidence keys extracted.
+	instID, keys = svc.AssessmentEvidenceKeys(ctx, batchID)
+	if instID == uuid.Nil {
+		t.Error("expected non-nil instance ID after commit")
+	}
+	if len(keys) != 2 {
+		t.Errorf("expected 2 evidence keys, got %d: %v", len(keys), keys)
+	}
+	wantKeys := map[string]bool{"ev-aaa": true, "ev-bbb": true}
+	for _, k := range keys {
+		if !wantKeys[k] {
+			t.Errorf("unexpected evidence key: %s", k)
+		}
+	}
+}
+
+// TestAssessmentEvidenceKeys_NoEvidence verifies that batches without assessment
+// reports (or with reports containing no evidence) return empty keys gracefully.
+func TestAssessmentEvidenceKeys_NoEvidence(t *testing.T) {
+	db := database.TestDB(t)
+	wsSvc := workspace.NewService(db)
+	instSvc := instance.NewService(db)
+	svc := strategy.NewService(db)
+	ctx := newCtx()
+
+	orgID := seedTestOrg(t, db)
+	ws, _ := wsSvc.CreateWorkspace(ctx, "strategy-ev-nokeys", nil, orgID)
+	inst, _ := instSvc.ImportInstance(ctx, instance.ImportParams{
+		WorkspaceID: ws.ID,
+		Name:        "NoEvidence Test",
+	})
+
+	// Stage a regular north_star mutation (not an assessment_report).
+	batchID, err := svc.Stage(ctx, strategy.StageParams{
+		InstanceID:   inst.ID,
+		ArtifactType: "north_star",
+		ArtifactKey:  "north_star",
+		Action:       "create",
+		Payload:      map[string]string{"vision": "test"},
+	})
+	if err != nil {
+		t.Fatalf("Stage: %v", err)
+	}
+	if _, err := svc.CommitBatch(ctx, batchID); err != nil {
+		t.Fatalf("CommitBatch: %v", err)
+	}
+
+	// Should return nil/empty — no assessment_report in this batch.
+	instID, keys := svc.AssessmentEvidenceKeys(ctx, batchID)
+	if instID != uuid.Nil || len(keys) != 0 {
+		t.Errorf("expected nil instance and no keys, got instID=%s keys=%v", instID, keys)
+	}
+}

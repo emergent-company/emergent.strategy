@@ -71,12 +71,12 @@ type VersionSummary struct {
 
 // DiffResult is the structured output of comparing two versions.
 type DiffResult struct {
-	FromVersion int                `json:"from_version"`
-	ToVersion   int                `json:"to_version"`
-	Added       []DiffArtifact     `json:"added"`
-	Removed     []DiffArtifact     `json:"removed"`
-	Changed     []DiffArtifact     `json:"changed"`
-	Summary     string             `json:"summary"`
+	FromVersion int            `json:"from_version"`
+	ToVersion   int            `json:"to_version"`
+	Added       []DiffArtifact `json:"added"`
+	Removed     []DiffArtifact `json:"removed"`
+	Changed     []DiffArtifact `json:"changed"`
+	Summary     string         `json:"summary"`
 }
 
 // DiffArtifact identifies an artifact in a diff.
@@ -548,9 +548,9 @@ func (s *Service) Restore(ctx context.Context, instanceID, versionID uuid.UUID) 
 		Source:     audit.SourceFromContext(ctx),
 		ActorID:    actorID,
 		Details: map[string]any{
-			"instance_id":     instanceID,
-			"restored_from":   sourceVer.Version,
-			"new_version":     restoredVer.Version,
+			"instance_id":   instanceID,
+			"restored_from": sourceVer.Version,
+			"new_version":   restoredVer.Version,
 		},
 	})
 

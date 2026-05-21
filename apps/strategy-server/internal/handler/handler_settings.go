@@ -100,7 +100,7 @@ func (s *Server) probeMemoryHealth(ctx context.Context) ui.MemoryHealthStatus {
 		status.Error = fmt.Sprintf("ping failed: %v", err)
 		return status
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		status.Error = fmt.Sprintf("server returned %d", resp.StatusCode)
@@ -270,5 +270,3 @@ func (s *Server) loadInstanceMemoryStatuses(ctx context.Context) []ui.InstanceMe
 	}
 	return statuses
 }
-
-

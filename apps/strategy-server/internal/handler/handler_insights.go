@@ -171,9 +171,9 @@ func (s *Server) insightAnalysesContent(navCtx ui.NavContext, artifactKey, name,
 				continue
 			}
 			data.WhiteSpaces = append(data.WhiteSpaces, ui.InsightWhiteSpace{
-				Gap:                 payloadStr(wm, "gap"),
+				Gap:                  payloadStr(wm, "gap"),
 				OpportunityPotential: payloadStr(wm, "opportunity_potential"),
-				Evidence:            payloadStrSlice(wm, "evidence"),
+				Evidence:             payloadStrSlice(wm, "evidence"),
 			})
 		}
 	}
@@ -257,10 +257,10 @@ func extractCompetitors(cl map[string]any, key string) []ui.InsightCompetitor {
 			continue
 		}
 		out = append(out, ui.InsightCompetitor{
-			Name:       payloadStr(cm, "name"),
+			Name:        payloadStr(cm, "name"),
 			Positioning: payloadStr(cm, "positioning"),
-			Strengths:  payloadStrSlice(cm, "strengths"),
-			Weaknesses: payloadStrSlice(cm, "weaknesses"),
+			Strengths:   payloadStrSlice(cm, "strengths"),
+			Weaknesses:  payloadStrSlice(cm, "weaknesses"),
 		})
 	}
 	return out

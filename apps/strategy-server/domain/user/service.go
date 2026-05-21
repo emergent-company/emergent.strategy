@@ -45,9 +45,9 @@ func (s *Service) EnsureUser(ctx context.Context, sub, email, name string) (*dom
 	if errors.Is(err, sql.ErrNoRows) {
 		// New user — create.
 		user = domain.User{
-			ID:    uuid.New(),
-			Sub:   sub,
-			Email: email,
+			ID:     uuid.New(),
+			Sub:    sub,
+			Email:  email,
 			Status: domain.UserStatusActive,
 		}
 		if name != "" {

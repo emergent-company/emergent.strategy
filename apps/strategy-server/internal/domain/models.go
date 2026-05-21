@@ -33,26 +33,26 @@ type Workspace struct {
 type StrategyInstance struct {
 	bun.BaseModel `bun:"table:strategy_instances,alias:si"`
 
-	ID                  uuid.UUID  `bun:"id,pk,type:uuid"                   json:"id"`
-	WorkspaceID         uuid.UUID  `bun:"workspace_id,notnull,type:uuid"    json:"workspace_id"`
-	Name                string     `bun:"name,notnull"                       json:"name"`
-	Description         *string    `bun:"description"                        json:"description,omitempty"`
-	GithubRepo          *string    `bun:"github_repo"                        json:"github_repo,omitempty"`
-	GithubBasePath      *string    `bun:"github_base_path"                   json:"github_base_path,omitempty"`
-	Status              string     `bun:"status,notnull,default:'draft'"     json:"status"`
-	StandardPackVersion *string    `bun:"standard_pack_version"              json:"standard_pack_version,omitempty"`
-	SchemaVersion       *string    `bun:"schema_version"                     json:"schema_version,omitempty"`
-	Dialect             string     `bun:"dialect,notnull,default:'standard'" json:"dialect"`
-	MemorySyncStatus               *string    `bun:"memory_sync_status"                        json:"memory_sync_status,omitempty"`
-	MemoryLastSyncedAt             *time.Time `bun:"memory_last_synced_at"                     json:"memory_last_synced_at,omitempty"`
-	MemoryObjectCount              *int       `bun:"memory_object_count"                       json:"memory_object_count,omitempty"`
-	MemoryEdgeCount                *int       `bun:"memory_edge_count"                         json:"memory_edge_count,omitempty"`
-	MemoryDecomposedObjectCount    *int       `bun:"memory_decomposed_object_count"            json:"memory_decomposed_object_count,omitempty"`
-	MemoryDecomposedEdgeCount      *int       `bun:"memory_decomposed_edge_count"              json:"memory_decomposed_edge_count,omitempty"`
-	CreatedBy           *uuid.UUID `bun:"created_by,type:uuid"               json:"created_by,omitempty"`
-	CreatedAt           time.Time  `bun:"created_at,notnull,default:now()"   json:"created_at"`
-	UpdatedAt           time.Time  `bun:"updated_at,notnull,default:now()"   json:"updated_at"`
-	DeletedAt           *time.Time `bun:"deleted_at,soft_delete"             json:"deleted_at,omitempty"`
+	ID                          uuid.UUID  `bun:"id,pk,type:uuid"                   json:"id"`
+	WorkspaceID                 uuid.UUID  `bun:"workspace_id,notnull,type:uuid"    json:"workspace_id"`
+	Name                        string     `bun:"name,notnull"                       json:"name"`
+	Description                 *string    `bun:"description"                        json:"description,omitempty"`
+	GithubRepo                  *string    `bun:"github_repo"                        json:"github_repo,omitempty"`
+	GithubBasePath              *string    `bun:"github_base_path"                   json:"github_base_path,omitempty"`
+	Status                      string     `bun:"status,notnull,default:'draft'"     json:"status"`
+	StandardPackVersion         *string    `bun:"standard_pack_version"              json:"standard_pack_version,omitempty"`
+	SchemaVersion               *string    `bun:"schema_version"                     json:"schema_version,omitempty"`
+	Dialect                     string     `bun:"dialect,notnull,default:'standard'" json:"dialect"`
+	MemorySyncStatus            *string    `bun:"memory_sync_status"                        json:"memory_sync_status,omitempty"`
+	MemoryLastSyncedAt          *time.Time `bun:"memory_last_synced_at"                     json:"memory_last_synced_at,omitempty"`
+	MemoryObjectCount           *int       `bun:"memory_object_count"                       json:"memory_object_count,omitempty"`
+	MemoryEdgeCount             *int       `bun:"memory_edge_count"                         json:"memory_edge_count,omitempty"`
+	MemoryDecomposedObjectCount *int       `bun:"memory_decomposed_object_count"            json:"memory_decomposed_object_count,omitempty"`
+	MemoryDecomposedEdgeCount   *int       `bun:"memory_decomposed_edge_count"              json:"memory_decomposed_edge_count,omitempty"`
+	CreatedBy                   *uuid.UUID `bun:"created_by,type:uuid"               json:"created_by,omitempty"`
+	CreatedAt                   time.Time  `bun:"created_at,notnull,default:now()"   json:"created_at"`
+	UpdatedAt                   time.Time  `bun:"updated_at,notnull,default:now()"   json:"updated_at"`
+	DeletedAt                   *time.Time `bun:"deleted_at,soft_delete"             json:"deleted_at,omitempty"`
 
 	// Relations (populated on demand)
 	Workspace *Workspace `bun:"rel:belongs-to,join:workspace_id=id" json:"workspace,omitempty"`
@@ -178,6 +178,7 @@ const (
 	ArtifactTypeLRA                 = "living_reality_assessment"
 	ArtifactTypeAssessmentReport    = "assessment_report"
 	ArtifactTypeAIMTriggerConfig    = "aim_trigger_config"
+	ArtifactTypeEvidence            = "evidence"
 )
 
 // RelationshipType enumerates cross-artifact relationship kinds.
@@ -467,6 +468,33 @@ const (
 	SignalStatusAcknowledged = "acknowledged"
 	SignalStatusResolved     = "resolved"
 	SignalStatusDismissed    = "dismissed"
+)
+
+// CycleProposal is created by the heartbeat service when an AIM trigger fires
+// and there is no active cycle or pending proposal. Humans approve or defer it.
+type CycleProposal struct {
+	bun.BaseModel `bun:"table:cycle_proposals,alias:cp"`
+
+	ID             uuid.UUID       `bun:"id,pk,type:uuid"                      json:"id"`
+	InstanceID     uuid.UUID       `bun:"instance_id,notnull,type:uuid"         json:"instance_id"`
+	TriggerReason  string          `bun:"trigger_reason,notnull"                json:"trigger_reason"`
+	TriggerMessage string          `bun:"trigger_message,notnull"               json:"trigger_message"`
+	EvidenceCount  int             `bun:"evidence_count,notnull,default:0"      json:"evidence_count"`
+	SignalCount    int             `bun:"signal_count,notnull,default:0"        json:"signal_count"`
+	ContextPayload json.RawMessage `bun:"context_payload,notnull,type:jsonb"    json:"context_payload"`
+	Status         string          `bun:"status,notnull,default:'pending'"      json:"status"`
+	SnoozedUntil   *time.Time      `bun:"snooze_until"                          json:"snooze_until,omitempty"`
+	ApprovedRunID  *uuid.UUID      `bun:"approved_run_id,type:uuid"             json:"approved_run_id,omitempty"`
+	ResolvedAt     *time.Time      `bun:"resolved_at"                           json:"resolved_at,omitempty"`
+	CreatedAt      time.Time       `bun:"created_at,notnull,default:now()"      json:"created_at"`
+}
+
+// CycleProposalStatus enumerates proposal lifecycle states.
+const (
+	CycleProposalStatusPending  = "pending"
+	CycleProposalStatusApproved = "approved"
+	CycleProposalStatusDeferred = "deferred"
+	CycleProposalStatusExpired  = "expired"
 )
 
 // SchemaRegistryEntry stores a single JSON schema document in the runtime registry.

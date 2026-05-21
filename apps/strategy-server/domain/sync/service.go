@@ -50,7 +50,7 @@ type PRResult struct {
 
 // Service manages strategy-to-GitHub sync operations.
 type Service struct {
-	db         *bun.DB
+	db          *bun.DB
 	strategySvc *strategy.Service
 	versionSvc  *versiondom.Service
 	writer      RepoWriter // nil when GitHub App is not configured
@@ -79,12 +79,12 @@ type SyncParams struct {
 
 // SyncResult is the outcome of a sync operation.
 type SyncResult struct {
-	LogID         uuid.UUID  `json:"log_id"`
-	BranchName    string     `json:"branch_name"`
-	PRNumber      *int       `json:"pr_number,omitempty"`
-	PRUrl         *string    `json:"pr_url,omitempty"`
-	ArtifactCount int        `json:"artifact_count"`
-	Status        string     `json:"status"`
+	LogID         uuid.UUID `json:"log_id"`
+	BranchName    string    `json:"branch_name"`
+	PRNumber      *int      `json:"pr_number,omitempty"`
+	PRUrl         *string   `json:"pr_url,omitempty"`
+	ArtifactCount int       `json:"artifact_count"`
+	Status        string    `json:"status"`
 }
 
 // SyncToGithub exports artifacts and creates a PR on the instance's GitHub repo.
@@ -224,9 +224,9 @@ func (s *Service) SyncToGithub(ctx context.Context, p SyncParams) (*SyncResult, 
 		ActorID:    actorID,
 		Details: map[string]any{
 			"instance_id":    p.InstanceID,
-			"github_repo":   *inst.GithubRepo,
-			"branch":        branchName,
-			"pr_number":     prResult.Number,
+			"github_repo":    *inst.GithubRepo,
+			"branch":         branchName,
+			"pr_number":      prResult.Number,
 			"artifact_count": artifactCount,
 		},
 	})
@@ -329,12 +329,12 @@ func generateBranchName(instanceName, versionLabel string) string {
 func generatePRBody(instanceName, versionLabel string, artifactCount int, versionID *uuid.UUID) string {
 	var sb strings.Builder
 	sb.WriteString("## Strategy Sync\n\n")
-	sb.WriteString(fmt.Sprintf("**Instance:** %s\n", instanceName))
-	sb.WriteString(fmt.Sprintf("**Version:** %s\n", versionLabel))
-	sb.WriteString(fmt.Sprintf("**Artifacts:** %d files\n\n", artifactCount))
+	fmt.Fprintf(&sb, "**Instance:** %s\n", instanceName)
+	fmt.Fprintf(&sb, "**Version:** %s\n", versionLabel)
+	fmt.Fprintf(&sb, "**Artifacts:** %d files\n\n", artifactCount)
 
 	if versionID != nil {
-		sb.WriteString(fmt.Sprintf("Version ID: `%s`\n\n", versionID.String()))
+		fmt.Fprintf(&sb, "Version ID: `%s`\n\n", versionID.String())
 	} else {
 		sb.WriteString("_Draft sync (current working state)_\n\n")
 	}

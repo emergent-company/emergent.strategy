@@ -71,9 +71,9 @@ func TestRouteTask_Unknown(t *testing.T) {
 
 func TestRouteTask_NewRoutes(t *testing.T) {
 	tests := []struct {
-		task     string
-		wantType string
-		wantTool string
+		task      string
+		wantType  string
+		wantTool  string
 		wantAgent string
 	}{
 		// Fresh start.

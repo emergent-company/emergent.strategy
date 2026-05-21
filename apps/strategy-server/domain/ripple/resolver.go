@@ -33,6 +33,10 @@ type ResolveResult struct {
 	// Distance is the semantic distance of the fix (0-1). Used to track
 	// cumulative change budget in the convergence loop.
 	Distance float64 `json:"distance"`
+
+	// LLM token usage for this resolve call. Zero when not tracked.
+	InputTokens  int `json:"input_tokens,omitempty"`
+	OutputTokens int `json:"output_tokens,omitempty"`
 }
 
 // AutoCommitter writes resolved fixes to the strategy ledger.

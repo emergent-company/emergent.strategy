@@ -108,8 +108,8 @@ func memoryMux() *http.ServeMux {
 	// Object lookup — used by both ListObjects (no key) and GetObjectByKey (with key).
 	mux.HandleFunc("/api/graph/objects/search", func(w http.ResponseWriter, r *http.Request) {
 		key := r.URL.Query().Get("key")
-		switch {
-		case key == "fd-001_knowledge_graph_engine":
+		switch key {
+		case "fd-001_knowledge_graph_engine":
 			resp := map[string]any{
 				"items": []map[string]any{
 					{"id": "obj-100", "type": "feature", "key": "fd-001_knowledge_graph_engine"},
@@ -117,7 +117,7 @@ func memoryMux() *http.ServeMux {
 				"total": 1,
 			}
 			_ = json.NewEncoder(w).Encode(resp)
-		case key == "":
+		case "":
 			// No key filter — return all objects (used by DetectContradictions).
 			resp := map[string]any{
 				"items": []map[string]any{
@@ -304,7 +304,6 @@ func TestMCP_SemanticSearch_WithMemory(t *testing.T) {
 		"query":       "knowledge graph",
 		"limit":       "10",
 	})
-	id++
 	r.assertOK()
 
 	var results []struct {
@@ -514,7 +513,6 @@ func TestMCP_OrgLifecycle(t *testing.T) {
 	r = c.call(id, "list_members", map[string]any{
 		"org_id": orgID,
 	})
-	id++
 	r.assertOK()
 	r.decode(&membersResp)
 	if len(membersResp.Members) != 1 {
@@ -600,7 +598,6 @@ func TestMCP_CommitBatch_TriggersIngest(t *testing.T) {
 	r = c.call(id, "commit_batch", map[string]any{
 		"batch_id": staged.BatchID,
 	})
-	id++
 	r.assertOK()
 
 	// Verify ingest was enqueued.
@@ -741,7 +738,6 @@ func TestMCP_FullAgentWorkflow(t *testing.T) {
 		"instance_id": instID.String(),
 		"node_key":    "fd-001_knowledge_graph_engine",
 	})
-	id++
 	r.assertOK()
 	// Should have 2 neighbors from our mock.
 	r.contains("fd-002_document_ingestion")

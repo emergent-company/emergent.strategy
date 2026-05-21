@@ -43,7 +43,11 @@ func registerRippleTools(s *server.MCPServer, svc Services) {
 			return toolErr(ctx, fmt.Errorf("artifact_key is required")), nil
 		}
 
-		report, err := ripple.AnalyzeStructuralRipple(ctx, svc.Strategy.DB(), instID, artifactKey, artifactType)
+		var memClient *memory.Client
+		if svc.Semantic != nil {
+			memClient = svc.Semantic.Client()
+		}
+		report, err := ripple.AnalyzeStructuralRipple(ctx, svc.Strategy.DB(), memClient, instID, artifactKey, artifactType)
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
@@ -162,7 +166,7 @@ func registerRippleTools(s *server.MCPServer, svc Services) {
 
 		limit := 50
 		if l := argString(req, "limit"); l != "" {
-			fmt.Sscanf(l, "%d", &limit)
+			fmt.Sscanf(l, "%d", &limit) //nolint:errcheck // fallback to default 50 on parse failure
 		}
 
 		params := ripple.ListParams{
@@ -497,9 +501,13 @@ func postCommitRippleAnalysis(ctx context.Context, svc Services, instanceID, bat
 	}
 
 	// Run structural ripple analysis for each changed artifact.
+	var rippleMemClient *memory.Client
+	if svc.Semantic != nil {
+		rippleMemClient = svc.Semantic.Client()
+	}
 	var allNewSignals []*domain.RippleSignal
 	for _, key := range changedKeys {
-		report, err := ripple.AnalyzeStructuralRipple(ctx, svc.Strategy.DB(), instanceID, key, "")
+		report, err := ripple.AnalyzeStructuralRipple(ctx, svc.Strategy.DB(), rippleMemClient, instanceID, key, "")
 		if err != nil {
 			slog.WarnContext(ctx, "ripple: structural analysis failed", "key", key, "error", err)
 			continue

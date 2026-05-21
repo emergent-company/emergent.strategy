@@ -31,12 +31,12 @@ type Server struct {
 	log                 *slog.Logger
 	semanticSvc         *semantic.Service
 	rippleSvc           *ripple.Service
-	strategySvc         *strategydom.Service   // required for index derivation on batch commit
+	strategySvc         *strategydom.Service // required for index derivation on batch commit
 	versionSvc          *version.Service
-	syncSvc             *syncdom.Service       // nil when GitHub App not configured
-	aimSvc              *aimdom.Service        // nil when AIM service not configured
-	orchestrationEngine *orchestration.Engine  // nil when orchestration not configured
-	llmEnabled          bool                   // true when an LLM provider is wired
+	syncSvc             *syncdom.Service      // nil when GitHub App not configured
+	aimSvc              *aimdom.Service       // nil when AIM service not configured
+	orchestrationEngine *orchestration.Engine // nil when orchestration not configured
+	llmEnabled          bool                  // true when an LLM provider is wired
 }
 
 // New creates a new web handler Server.

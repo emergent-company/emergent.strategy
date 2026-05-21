@@ -471,6 +471,44 @@ func (s *Service) InstanceIDForBatch(ctx context.Context, batchID uuid.UUID) uui
 	return m.InstanceID
 }
 
+// AssessmentEvidenceKeys returns the artifact_keys from the evidence_summary
+// embedded in any assessment_report mutation in the given batch. Used to mark
+// evidence as processed after an assessment batch is committed.
+func (s *Service) AssessmentEvidenceKeys(ctx context.Context, batchID uuid.UUID) (instanceID uuid.UUID, evidenceKeys []string) {
+	var mutations []*domain.StrategyMutation
+	if err := s.db.NewSelect().
+		Model((*domain.StrategyMutation)(nil)).
+		Column("instance_id", "artifact_type", "artifact_key", "payload").
+		Where("batch_id = ?", batchID).
+		Where("artifact_type = ?", domain.ArtifactTypeAssessmentReport).
+		Where("status = ?", domain.MutationStatusCommitted).
+		Scan(ctx, &mutations); err != nil || len(mutations) == 0 {
+		return uuid.Nil, nil
+	}
+
+	instanceID = mutations[0].InstanceID
+	assessmentKey := mutations[0].ArtifactKey
+
+	// Parse evidence_summary from the payload.
+	var payload map[string]any
+	if err := json.Unmarshal(mutations[0].Payload, &payload); err != nil {
+		return instanceID, nil
+	}
+	summaryRaw, ok := payload["evidence_summary"].([]any)
+	if !ok {
+		return instanceID, nil
+	}
+	for _, entry := range summaryRaw {
+		if m, ok := entry.(map[string]any); ok {
+			if k, ok := m["artifact_key"].(string); ok && k != "" {
+				evidenceKeys = append(evidenceKeys, k)
+			}
+		}
+	}
+	_ = assessmentKey // available for future use (e.g. recording which assessment consumed it)
+	return instanceID, evidenceKeys
+}
+
 // deriveIndex upserts strategy_artifacts and replaces strategy_relationships
 // for a single committed mutation.
 func (s *Service) deriveIndex(ctx context.Context, m *domain.StrategyMutation) error {

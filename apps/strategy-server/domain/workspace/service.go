@@ -60,7 +60,7 @@ func (s *Service) ListWorkspaces(ctx context.Context, p ListParams) (*ListResult
 		Limit(limit + 1)
 
 	if len(p.OrgIDs) > 0 {
-		q = q.Where("org_id IN (?)", bun.In(p.OrgIDs))
+		q = q.Where("org_id IN (?)", bun.List(p.OrgIDs))
 	}
 
 	if p.Cursor != "" {

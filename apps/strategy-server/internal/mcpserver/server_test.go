@@ -1398,7 +1398,6 @@ func TestMCP_StrategicIndex_MultiTypeEPFInstance(t *testing.T) {
 	var all []artifactSummary
 	c.call(id, "list_artifacts", map[string]any{"instance_id": instIDStr}).
 		assertOK().decode(&all)
-	id++
 
 	if len(all) != 5 {
 		t.Fatalf("list_artifacts: expected 5 artifacts, got %d", len(all))
@@ -1543,7 +1542,6 @@ func TestMCP_RelationshipGraph_FeatureEdgesAfterCommit(t *testing.T) {
 		"instance_id":  instIDStr,
 		"artifact_key": "fd-001",
 	}).assertOK().decode(&rels)
-	id++
 
 	// Build a set of (relationship, target_key) pairs for easy lookup.
 	type relKey struct{ rel, target string }
@@ -1696,7 +1694,6 @@ func TestMCP_CrossTrackQuery_ListArtifactsByType(t *testing.T) {
 	var allArtifacts []artifactSummary
 	c.call(id, "list_artifacts", map[string]any{"instance_id": instIDStr}).
 		assertOK().decode(&allArtifacts)
-	id++
 
 	if len(allArtifacts) != 6 {
 		t.Errorf("unfiltered artifact count: got %d, want 6", len(allArtifacts))
@@ -1839,7 +1836,6 @@ func TestMCP_StrategyDefAuthoringCycle(t *testing.T) {
 		"instance_id":   instIDStr,
 		"artifact_type": "strategy_def",
 	}).assertOK().decode(&updatedDefs)
-	id++
 
 	if len(updatedDefs) != 1 {
 		t.Fatalf("strategy_def count after update: got %d, want 1", len(updatedDefs))
@@ -1936,7 +1932,6 @@ func TestMCP_RelationshipReplacement_OnFeatureUpdate(t *testing.T) {
 		"instance_id":  instIDStr,
 		"artifact_key": "fd-001",
 	}).assertOK().decode(&rels2)
-	id++
 
 	contribs2 := filterRelEntries(rels2, "contributes_to")
 	if len(contribs2) != 2 {
@@ -2080,7 +2075,6 @@ func TestMCP_AgentIdentityRoundTrip(t *testing.T) {
 	var pendingAfterCommit []pendingBatch
 	c.call(id, "list_pending_batches", map[string]any{"instance_id": instIDStr}).
 		assertOK().decode(&pendingAfterCommit)
-	id++
 
 	for _, b := range pendingAfterCommit {
 		if b.BatchID == batchID {
@@ -2380,7 +2374,6 @@ func TestMCP_BatchCreateArtifacts(t *testing.T) {
 		"instance_id":  instIDStr,
 		"artifact_key": "fd-001",
 	}).assertOK().decode(&fd001Rels)
-	id++
 
 	hasContrib := false
 	for _, r := range fd001Rels {

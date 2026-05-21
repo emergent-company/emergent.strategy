@@ -69,14 +69,14 @@ type Config struct {
 	AuthEnabled bool `arg:"--auth-enabled,env:AUTH_ENABLED" default:"false" help:"Enable authentication"`
 
 	// Zitadel OIDC
-	ZitadelIssuer       string `arg:"env:ZITADEL_ISSUER" help:"Zitadel issuer URL (e.g. https://auth.example.com)"`
-	ZitadelClientID     string `arg:"env:ZITADEL_CLIENT_ID" help:"Zitadel service account client ID"`
-	ZitadelKeyPath      string `arg:"env:ZITADEL_KEY_PATH" help:"Path to Zitadel JWT key file"`
-	ZitadelDebugToken   string `arg:"env:ZITADEL_DEBUG_TOKEN" help:"Debug token for integration tests (non-production only)"`
-	IntrospectionCacheTTL int  `arg:"env:INTROSPECTION_CACHE_TTL" default:"300" help:"Token introspection cache TTL in seconds"`
+	ZitadelIssuer         string `arg:"env:ZITADEL_ISSUER" help:"Zitadel issuer URL (e.g. https://auth.example.com)"`
+	ZitadelClientID       string `arg:"env:ZITADEL_CLIENT_ID" help:"Zitadel service account client ID"`
+	ZitadelKeyPath        string `arg:"env:ZITADEL_KEY_PATH" help:"Path to Zitadel JWT key file"`
+	ZitadelDebugToken     string `arg:"env:ZITADEL_DEBUG_TOKEN" help:"Debug token for integration tests (non-production only)"`
+	IntrospectionCacheTTL int    `arg:"env:INTROSPECTION_CACHE_TTL" default:"300" help:"Token introspection cache TTL in seconds"`
 
 	// GitHub App (for repo sync / write-back)
-	GithubAppID            int64  `arg:"env:GITHUB_APP_ID" help:"GitHub App ID for repo sync"`
+	GithubAppID             int64  `arg:"env:GITHUB_APP_ID" help:"GitHub App ID for repo sync"`
 	GithubAppPrivateKeyPath string `arg:"env:GITHUB_APP_PRIVATE_KEY_PATH" help:"Path to GitHub App PEM private key file"`
 
 	// GitHub OAuth (deprecated — kept for migration period)
@@ -94,6 +94,9 @@ type Config struct {
 	LLMProviderURL string `arg:"env:LLM_PROVIDER_URL" help:"LLM API base URL (OpenAI-compatible, e.g. https://api.openai.com or http://localhost:11434 for Ollama)"`
 	LLMAPIKey      string `arg:"env:LLM_API_KEY" help:"LLM API key (Bearer token; empty for Ollama local)"`
 	LLMModel       string `arg:"env:LLM_MODEL" default:"gpt-4o-mini" help:"LLM model name (e.g. gpt-4o-mini, claude-sonnet-4-20250514, llama3.2:8b)"`
+
+	// Heartbeat (continuous trigger evaluation)
+	HeartbeatInterval int `arg:"env:HEARTBEAT_INTERVAL" default:"300" help:"Seconds between heartbeat trigger evaluations (default: 300 = 5 minutes; 0 disables)"`
 }
 
 // LLMConfigured returns true when LLM provider settings are provided.

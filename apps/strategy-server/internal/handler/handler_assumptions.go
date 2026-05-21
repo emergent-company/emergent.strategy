@@ -32,7 +32,7 @@ func (s *Server) loadAssumptionsView(ctx context.Context, instanceID string) tem
 		TableExpr("strategy_relationships").
 		ColumnExpr("source_key, target_key").
 		Where("instance_id = ?", instanceID).
-		Where("relationship IN (?)", bun.In([]string{"tests_assumption", "validates_assumption"})).
+		Where("relationship IN (?)", bun.List([]string{"tests_assumption", "validates_assumption"})).
 		Scan(ctx, &rels)
 
 	// Build assumption → []feature map
@@ -46,14 +46,6 @@ func (s *Server) loadAssumptionsView(ctx context.Context, instanceID string) tem
 		}
 		assumptionMap[r.TargetKey].testedBy = append(assumptionMap[r.TargetKey].testedBy, r.SourceKey)
 	}
-
-	// Also pick up assumptions from roadmap that may have no test coverage yet
-	type asmRow struct {
-		Key string `bun:"key"`
-	}
-	// We approximate by looking at all known target_keys in tests_assumption; roadmap
-	// assumptions not referenced have no row yet — they're not surfaced.
-	// For a richer view we'd parse the roadmap payload; keep it simple for now.
 
 	// Build assumption validation outcomes from assessment reports
 	type validationRow struct {
@@ -133,10 +125,10 @@ func (s *Server) loadAssumptionsView(ctx context.Context, instanceID string) tem
 
 // assumptionRiskLevel classifies risk based on how many features test it.
 func assumptionRiskLevel(testedByCount int) string {
-	switch {
-	case testedByCount == 0:
+	switch testedByCount {
+	case 0:
 		return "untested"
-	case testedByCount == 1:
+	case 1:
 		return "partially_tested"
 	default:
 		return "well_tested"

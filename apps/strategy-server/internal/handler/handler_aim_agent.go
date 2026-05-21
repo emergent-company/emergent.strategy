@@ -260,10 +260,6 @@ func (s *Server) handleDraftCommit(c echo.Context) error {
 	return c.Redirect(http.StatusSeeOther, redirectAfterCommit(instanceID, primaryArtifactType))
 }
 
-// deriveIndexForBatch is kept as a no-op stub so callers compile.
-// Index derivation now happens inside strategySvc.CommitBatch().
-func (s *Server) deriveIndexForBatch(_ context.Context, _ uuid.UUID) {}
-
 // resumeOrchestrationForBatch looks up any awaiting_human orchestration run
 // whose current step holds the given batchID and resumes it.
 // committed=true → run continues; committed=false → run is aborted.
@@ -342,5 +338,3 @@ func (s *Server) handleDraftDiscard(c echo.Context) error {
 	}
 	return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim")
 }
-
-

@@ -119,13 +119,13 @@ func (s *Server) loadFirePhaseData(ctx context.Context, instanceID string) ui.Fi
 func (s *Server) loadFireTracks(ctx context.Context, instanceID string) []ui.FireTrackData {
 	// Track metadata in canonical order
 	trackMeta := []struct {
-		name       string
-		icon       string
-		track      string // roadmap payload key
-		dbTrack    string // artifact_type for definitions
-		vmName     string // value_model name in DB
-		color      string
-		defURL     string
+		name    string
+		icon    string
+		track   string // roadmap payload key
+		dbTrack string // artifact_type for definitions
+		vmName  string // value_model name in DB
+		color   string
+		defURL  string
 	}{
 		{"Strategy", "lucide--navigation", "strategy", "strategy_def", "Strategy", "secondary", "/fire/strategy"},
 		{"Org & Ops", "lucide--container", "org_ops", "org_ops_def", "OrgOps", "accent", "/fire/org-ops"},
@@ -356,9 +356,9 @@ func (s *Server) loadCanonicalLayerGroups(
 		idx  int // position within layer
 	}
 	type layerMeta struct {
-		id        string
-		name      string
-		comps     []compMeta
+		id         string
+		name       string
+		comps      []compMeta
 		compByName map[string]int // lowercased comp name → index in comps
 	}
 
@@ -434,11 +434,14 @@ func (s *Server) loadCanonicalLayerGroups(
 				if t, ok := mat["current_tier"].(float64); ok {
 					tier = int(t)
 					// Pull description + effort from the current tier block.
-					tierKey := fmt.Sprintf("tier_%d_basic", tier)
-					if tier == 2 {
+					var tierKey string
+					switch tier {
+					case 2:
 						tierKey = "tier_2_intermediate"
-					} else if tier == 3 {
+					case 3:
 						tierKey = "tier_3_advanced"
+					default:
+						tierKey = fmt.Sprintf("tier_%d_basic", tier)
 					}
 					if tb, ok := mat[tierKey].(map[string]any); ok {
 						tierDesc, _ = tb["description"].(string)
@@ -581,23 +584,23 @@ func (s *Server) loadProductLineGroups(ctx context.Context, instanceID string, d
 
 	// Internal types for building the hierarchy.
 	type compMeta struct {
-		id          string // kebab-case, e.g. "knowledge-graph"
-		name        string // display name, e.g. "Knowledge Graph"
-		normalKey   string // lowercase, no hyphens — for matching
+		id        string // kebab-case, e.g. "knowledge-graph"
+		name      string // display name, e.g. "Knowledge Graph"
+		normalKey string // lowercase, no hyphens — for matching
 	}
 	type layerMeta struct {
 		id        string
-		name      string       // display name
+		name      string          // display name
 		layerKeys map[string]bool // camelCase variants from kebabToCamelCaseVariants
 		comps     []compMeta
 		compByKey map[string]int // normalKey → index in comps
 	}
 	type vmMeta struct {
-		key       string
-		name      string
-		layers    []layerMeta
+		key    string
+		name   string
+		layers []layerMeta
 		// fast lookup: camelCase layer key → layer index
-		layerIdx  map[string]int
+		layerIdx map[string]int
 	}
 
 	vms := make([]vmMeta, 0, len(vmRows))
@@ -1418,7 +1421,7 @@ func (s *Server) loadArtifactGaps(ctx context.Context, instanceID, artifactType 
 //   - trendCount: total trends summed across all sub-arrays under "trends"
 //   - personaCount: personas from target_users, primary_users, or personas arrays
 //   - competitorCount: competitors summed from competitive_landscape.direct_competitors
-//     + indirect_competitors, or from a top-level competitors array
+//   - indirect_competitors, or from a top-level competitors array
 //   - keyInsightCount: items in key_insights or key_insights_summary arrays
 //   - whiteSpaceCount: items in white_spaces or opportunities arrays
 //
@@ -1509,14 +1512,6 @@ func (s *Server) extractInsightCounts(ctx context.Context, instanceID string) (
 	}
 
 	return
-}
-
-// extractInsightFirstTrend pulls the title of the first technology trend from
-// the insight_analyses payload for at-a-glance scanning.
-// Deprecated: use extractInsightCounts which returns all fields in one DB read.
-func (s *Server) extractInsightFirstTrend(ctx context.Context, instanceID string) string {
-	firstTrend, _, _, _, _, _ := s.extractInsightCounts(ctx, instanceID)
-	return firstTrend
 }
 
 // splitDot splits a string by dots.

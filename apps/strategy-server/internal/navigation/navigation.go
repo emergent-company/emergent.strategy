@@ -53,8 +53,8 @@ const (
 	Calibration      ScreenID = "aim-calibration"
 	Coherence        ScreenID = "aim-coherence"
 	AimVersions      ScreenID = "aim-versions"
-	AimDraftReview   ScreenID = "aim-draft-review"  // AI draft review — hidden from sub-nav
-	AimRunPanel      ScreenID = "aim-run-panel"     // Orchestrated cycle run panel — hidden from sub-nav
+	AimDraftReview   ScreenID = "aim-draft-review" // AI draft review — hidden from sub-nav
+	AimRunPanel      ScreenID = "aim-run-panel"    // Orchestrated cycle run panel — hidden from sub-nav
 )
 
 // TabGroup identifies which instance tab a screen belongs to.

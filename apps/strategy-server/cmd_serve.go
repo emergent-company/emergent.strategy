@@ -18,6 +18,8 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/config"
 	appdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/app"
 	aimdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/aim"
+	evidencedom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/evidence"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/heartbeat"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ingest"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/org"
@@ -155,6 +157,21 @@ func runServer(cfg *config.Config) error {
 	}
 	aimSvc := aimdom.NewService(db, aimLLMClient).WithVersionPublisher(versionSvc)
 
+	// Evidence service — created early so heartbeat can use it for proposal context.
+	evidenceSvc := evidencedom.NewService(db).WithMemoryEnqueue(ingestSvc)
+
+	// Heartbeat — periodic trigger evaluation across all active instances.
+	heartbeatSvc := heartbeat.NewService(db, &aimHeartbeatAdapter{svc: aimSvc}).
+		WithEvidenceCounter(evidenceSvc)
+	if cfg.HeartbeatInterval > 0 {
+		heartbeatCtx, heartbeatStop := context.WithCancel(context.Background())
+		defer heartbeatStop()
+		go heartbeatSvc.RunTicker(heartbeatCtx, time.Duration(cfg.HeartbeatInterval)*time.Second)
+		log.Info("heartbeat ticker started", "interval_s", cfg.HeartbeatInterval)
+	} else {
+		log.Info("heartbeat disabled (HEARTBEAT_INTERVAL=0)")
+	}
+
 	// Orchestration engine — PostgreSQL-backed goroutine pool.
 	orchBackend := orchpg.NewBackend(db, orchpg.Config{Workers: 4})
 	orchEngine := orchestration.New(orchBackend)
@@ -183,9 +200,11 @@ func runServer(cfg *config.Config) error {
 		Sync:          syncSvc,
 		Ripple:        rippleSvc,
 		AIM:           aimSvc,
+		Heartbeat:     heartbeatSvc,
 		Resolver:      rippledom.NewLLMResolver(llmClient, db),
 		Ingest:        ingestSvc,
 		Orchestration: orchEngine,
+		Evidence:      evidenceSvc,
 	}
 
 	// Echo instance.
@@ -380,6 +399,21 @@ func (a *strategyExporterAdapter) ExportInstance(ctx context.Context, instanceID
 	return &ingest.ExportResult{Files: files}, nil
 }
 
+// aimHeartbeatAdapter adapts *aim.Service to the heartbeat.TriggerEvaluator interface.
+// The heartbeat package uses its own TriggerState type to avoid a circular import.
+type aimHeartbeatAdapter struct {
+	svc *aimdom.Service
+}
+
+func (a *aimHeartbeatAdapter) EvaluateTriggers(ctx context.Context, instanceID uuid.UUID) heartbeat.TriggerState {
+	state := a.svc.EvaluateTriggers(ctx, instanceID)
+	return heartbeat.TriggerState{
+		Fired:         state.Fired,
+		Reason:        state.Reason,
+		ReasonMessage: state.ReasonMessage,
+	}
+}
+
 // llmAIMAdapter adapts *llm.Client to the aim.LLMClient interface.
 // The aim package uses a simpler Complete(ctx, system, user) signature
 // so handlers don't depend on internal/llm types.
@@ -392,6 +426,18 @@ func (a *llmAIMAdapter) Complete(ctx context.Context, systemPrompt, userPrompt s
 		{Role: "system", Content: systemPrompt},
 		{Role: "user", Content: userPrompt},
 	}, 0.4)
+	if err != nil {
+		return "", err
+	}
+	return result.Content, nil
+}
+
+// CompleteJSON calls the LLM with json_object response_format for structured output.
+func (a *llmAIMAdapter) CompleteJSON(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
+	result, err := a.client.ChatWithFormat(ctx, []llm.ChatMessage{
+		{Role: "system", Content: systemPrompt},
+		{Role: "user", Content: userPrompt},
+	}, 0.3, llm.FormatJSON) // lower temperature for structured output
 	if err != nil {
 		return "", err
 	}

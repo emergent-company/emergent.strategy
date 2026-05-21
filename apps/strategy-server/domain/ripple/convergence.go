@@ -23,6 +23,9 @@ type ConvergenceSummary struct {
 	DampingReason      string  `json:"damping_reason,omitempty"`
 	VersionPublished   bool    `json:"version_published,omitempty"`
 	VersionID          string  `json:"version_id,omitempty"`
+	// LLM token usage accumulated across all resolver calls in this convergence run.
+	LLMInputTokens  int `json:"llm_input_tokens,omitempty"`
+	LLMOutputTokens int `json:"llm_output_tokens,omitempty"`
 }
 
 // IngestEnqueuer is the interface for triggering async Memory ingestion.
@@ -90,14 +93,13 @@ func RunConvergenceLoop(ctx context.Context, instanceID uuid.UUID, triggerBatchI
 
 	// Capture anchor embeddings (North Star + strategy formula) before the cycle
 	// for drift comparison. We use Memory search score as the similarity measure.
-	var anchorSnapshots map[string]string // key -> searchable text at cycle start
-	anchorSnapshots = captureAnchorTexts(ctx, svc.DB, instanceID)
+	anchorSnapshots := captureAnchorTexts(ctx, svc.DB, instanceID) // key -> searchable text at cycle start
 
 	for iter := 0; iter < cfg.Damping.MaxIterations; iter++ {
 		summary.Iterations = iter + 1
 
 		// Sense: run structural coherence check.
-		report, cohErr := AnalyzeCoherence(ctx, svc.DB, instanceID)
+		report, cohErr := AnalyzeCoherence(ctx, svc.DB, instanceID) //nolint:staticcheck // mem not needed for coherence check
 		if cohErr != nil {
 			slog.WarnContext(ctx, "convergence: coherence check failed", "iteration", iter, "error", cohErr)
 			summary.DampingReason = "coherence_error"
@@ -190,6 +192,8 @@ func RunConvergenceLoop(ctx context.Context, instanceID uuid.UUID, triggerBatchI
 				cumulativeChange += result.Distance
 				changedThisCycle = true
 				summary.AutoResolved++
+				summary.LLMInputTokens += result.InputTokens
+				summary.LLMOutputTokens += result.OutputTokens
 
 				// Auto-resolve the signal.
 				if _, resolveSignalErr := svc.Ripple.ResolveSignal(ctx, sig.ID, nil); resolveSignalErr != nil {

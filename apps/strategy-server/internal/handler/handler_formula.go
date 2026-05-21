@@ -49,10 +49,10 @@ func (s *Server) strategyFormulaContent(navCtx ui.NavContext, artifactKey, name,
 					continue
 				}
 				data.Advantages = append(data.Advantages, ui.FormulaAdvantage{
-					Name:           payloadStr(am, "name"),
-					Description:    payloadStr(am, "description"),
-					Evidence:       payloadStr(am, "evidence"),
-					Defensibility:  payloadStr(am, "defensibility"),
+					Name:          payloadStr(am, "name"),
+					Description:   payloadStr(am, "description"),
+					Evidence:      payloadStr(am, "evidence"),
+					Defensibility: payloadStr(am, "defensibility"),
 				})
 			}
 		}
@@ -183,10 +183,10 @@ func (s *Server) strategyFormulaContent(navCtx ui.NavContext, artifactKey, name,
 				continue
 			}
 			data.TradeOffs = append(data.TradeOffs, ui.FormulaTradeOff{
-				Decision:      payloadStr(tm, "decision"),
-				Rationale:     payloadStr(tm, "rationale"),
-				WhatWeGain:    payloadStr(tm, "what_we_gain"),
-				WhatWeGiveUp:  payloadStr(tm, "what_we_give_up"),
+				Decision:     payloadStr(tm, "decision"),
+				Rationale:    payloadStr(tm, "rationale"),
+				WhatWeGain:   payloadStr(tm, "what_we_gain"),
+				WhatWeGiveUp: payloadStr(tm, "what_we_give_up"),
 			})
 		}
 	}
@@ -234,11 +234,11 @@ func (s *Server) strategyFormulaContent(navCtx ui.NavContext, artifactKey, name,
 					continue
 				}
 				data.EcosystemComponents = append(data.EcosystemComponents, ui.FormulaEcoComponent{
-					Component:      payloadStr(cm, "component"),
-					Metaphor:       payloadStr(cm, "metaphor"),
-					Role:           payloadStr(cm, "role"),
+					Component:       payloadStr(cm, "component"),
+					Metaphor:        payloadStr(cm, "metaphor"),
+					Role:            payloadStr(cm, "role"),
 					StandaloneValue: payloadStr(cm, "standalone_value"),
-					EcosystemValue: payloadStr(cm, "ecosystem_value"),
+					EcosystemValue:  payloadStr(cm, "ecosystem_value"),
 				})
 			}
 		}

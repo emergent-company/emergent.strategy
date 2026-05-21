@@ -11,7 +11,6 @@ package e2e
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -600,23 +599,3 @@ func Test_AIMPage_ShowsActiveRunCard(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers: JSON batch ID lookup via pending batches endpoint
-// ---------------------------------------------------------------------------
-
-// getPendingBatchID queries the server for any pending batch for this instance.
-// Falls back to HTML scraping if no JSON API available.
-func getPendingBatchID(t *testing.T, instanceID string) string {
-	t.Helper()
-	resp, err := http.Get(baseURL + "/strategies/" + instanceID + "/aim/runs/latest") //nolint:noctx
-	if err == nil && resp.StatusCode == 200 {
-		var result map[string]any
-		if json.NewDecoder(resp.Body).Decode(&result) == nil {
-			if bid, ok := result["batch_id"].(string); ok && bid != "" {
-				resp.Body.Close()
-				return bid
-			}
-		}
-		resp.Body.Close()
-	}
-	return ""
-}

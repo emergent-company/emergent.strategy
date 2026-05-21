@@ -23,7 +23,13 @@ import (
 // LLMClient is the interface for calling an LLM to generate narrative content.
 // When nil, the service operates in skeleton mode (structure without narrative).
 type LLMClient interface {
+	// Complete calls the LLM and returns the response as plain text.
 	Complete(ctx context.Context, systemPrompt, userPrompt string) (string, error)
+	// CompleteJSON calls the LLM with json_object response_format and returns
+	// the raw JSON string. The caller is responsible for unmarshaling.
+	// Falls back to plain text parsing if the provider does not support
+	// structured output (callers should handle partial JSON gracefully).
+	CompleteJSON(ctx context.Context, systemPrompt, userPrompt string) (string, error)
 }
 
 // TriggerState reports whether a new AIM cycle assessment is due.
@@ -38,7 +44,10 @@ type TriggerState struct {
 type DraftSummary struct {
 	OKRCount        int  `json:"okr_count"`
 	AssumptionCount int  `json:"assumption_count"`
+	EvidenceCount   int  `json:"evidence_count,omitempty"`
 	LLMUsed         bool `json:"llm_used"`
+	InputTokens     int  `json:"input_tokens,omitempty"`
+	OutputTokens    int  `json:"output_tokens,omitempty"`
 }
 
 // CalibrationDraftSummary describes what was produced by DraftCalibration.
@@ -48,6 +57,8 @@ type CalibrationDraftSummary struct {
 	InvalidatedCount  int    `json:"invalidated_assumption_count"`
 	ReasoningSummary  string `json:"reasoning_summary"`
 	LLMUsed           bool   `json:"llm_used"`
+	InputTokens       int    `json:"input_tokens,omitempty"`
+	OutputTokens      int    `json:"output_tokens,omitempty"`
 }
 
 // ApplyCalibrationResult describes what patches were staged.
@@ -58,21 +69,29 @@ type ApplyCalibrationResult struct {
 
 // CycleSummary is a single AIM cycle from version history.
 type CycleSummary struct {
-	CycleNumber  int    `json:"cycle_number"`
-	Decision     string `json:"decision"`
-	VersionID    string `json:"version_id"`
-	PublishedAt  string `json:"published_at"`
+	CycleNumber int    `json:"cycle_number"`
+	Decision    string `json:"decision"`
+	VersionID   string `json:"version_id"`
+	PublishedAt string `json:"published_at"`
 }
 
 // TriggerConfig holds per-instance trigger thresholds (stored as artifact_type = 'aim_trigger_config').
 type TriggerConfig struct {
-	DaysBetweenAssessments int `json:"days_between_assessments"` // default 90
-	CriticalSignalThreshold int `json:"critical_signal_threshold"` // default 3
+	DaysBetweenAssessments  int              `json:"days_between_assessments"`     // default 90
+	CriticalSignalThreshold int              `json:"critical_signal_threshold"`    // default 3
+	EvidenceThreshold       *EvidenceTrigger `json:"evidence_threshold,omitempty"` // optional
+}
+
+// EvidenceTrigger configures the evidence-count trigger.
+type EvidenceTrigger struct {
+	Enabled                   bool     `json:"enabled"`
+	UnprocessedCountThreshold int      `json:"unprocessed_count_threshold"` // default 5
+	TagFilter                 []string `json:"tag_filter,omitempty"`        // optional: only count items with these tags
 }
 
 func defaultTriggerConfig() TriggerConfig {
 	return TriggerConfig{
-		DaysBetweenAssessments: 90,
+		DaysBetweenAssessments:  90,
 		CriticalSignalThreshold: 3,
 	}
 }
@@ -123,6 +142,23 @@ func (s *Service) EvaluateTriggers(ctx context.Context, instanceID uuid.UUID) Tr
 			Reason:            "signals",
 			ReasonMessage:     fmt.Sprintf("%d critical signals active (threshold: %d)", criticalCount, cfg.CriticalSignalThreshold),
 			RecommendedAction: "draft_aim_assessment",
+		}
+	}
+
+	// -- Evidence-based trigger: unprocessed evidence count --
+	if et := cfg.EvidenceThreshold; et != nil && et.Enabled {
+		threshold := et.UnprocessedCountThreshold
+		if threshold <= 0 {
+			threshold = 5
+		}
+		evCount := s.countUnprocessedEvidence(ctx, instanceID, et.TagFilter)
+		if evCount >= threshold {
+			return TriggerState{
+				Fired:             true,
+				Reason:            "evidence",
+				ReasonMessage:     fmt.Sprintf("%d unprocessed evidence items (threshold: %d)", evCount, threshold),
+				RecommendedAction: "draft_aim_assessment",
+			}
 		}
 	}
 
@@ -195,6 +231,7 @@ func (s *Service) loadTriggerConfig(ctx context.Context, instanceID uuid.UUID) T
 //  2. The last committed assessment report (prior actuals + assumption statuses)
 //  3. The LRA evolution log (narrative of what happened since the last cycle)
 //  4. Active ripple signals (system-detected misalignments)
+//  5. Unprocessed evidence items (Door 2 structured evidence + Door 1 metadata)
 //
 // If an LLM is configured, it enriches each OKR assessment using the above as
 // evidence. Otherwise it produces a skeleton with prior actuals carried forward.
@@ -226,6 +263,11 @@ func (s *Service) DraftAssessment(ctx context.Context, instanceID uuid.UUID) (uu
 	// 6. Extract strategic insights from active critical ripple signals.
 	strategicInsights := s.extractStrategicInsights(ctx, instanceID)
 
+	// 6.5. Load unprocessed evidence items — both Door 2 (strategy_artifacts type=evidence)
+	// and Door 1 (ReferenceDocument metadata from memory). Evidence is included in the
+	// report as evidence_summary for human review and LLM context.
+	evidenceSummary := s.loadUnprocessedEvidenceSummary(ctx, instanceID)
+
 	// 7. Build the assessment_report payload.
 	report := map[string]any{
 		"name":                   "AI-Drafted Assessment Report",
@@ -235,11 +277,15 @@ func (s *Service) DraftAssessment(ctx context.Context, instanceID uuid.UUID) (uu
 		"strategic_insights":     strategicInsights,
 		"overall_status":         "pending",
 		"metadata": map[string]any{
-			"drafted_by":  "aim_agent",
-			"drafted_at":  time.Now().UTC().Format(time.RFC3339),
-			"llm_used":    false,
-			"instance_id": instanceID.String(),
+			"drafted_by":     "aim_agent",
+			"drafted_at":     time.Now().UTC().Format(time.RFC3339),
+			"llm_used":       false,
+			"instance_id":    instanceID.String(),
+			"evidence_count": len(evidenceSummary),
 		},
+	}
+	if len(evidenceSummary) > 0 {
+		report["evidence_summary"] = evidenceSummary
 	}
 
 	llmUsed := false
@@ -258,6 +304,7 @@ func (s *Service) DraftAssessment(ctx context.Context, instanceID uuid.UUID) (uu
 	summary := DraftSummary{
 		OKRCount:        len(okrAssessments),
 		AssumptionCount: len(assumptionValidations),
+		EvidenceCount:   len(evidenceSummary),
 		LLMUsed:         llmUsed,
 	}
 	return batchID, summary, nil
@@ -851,15 +898,15 @@ func (s *Service) DraftCalibration(ctx context.Context, instanceID uuid.UUID) (u
 
 	// Build calibration_memo payload.
 	memo := map[string]any{
-		"name":        "AI-Drafted Calibration Memo",
-		"decision":    decision,
-		"reasoning":   reasoning,
-		"okr_hit_rate_pct": hitRate,
+		"name":                         "AI-Drafted Calibration Memo",
+		"decision":                     decision,
+		"reasoning":                    reasoning,
+		"okr_hit_rate_pct":             hitRate,
 		"invalidated_assumption_count": invalidatedCount,
 		"metadata": map[string]any{
-			"drafted_by": "aim_agent",
-			"drafted_at": time.Now().UTC().Format(time.RFC3339),
-			"llm_used":   llmUsed,
+			"drafted_by":   "aim_agent",
+			"drafted_at":   time.Now().UTC().Format(time.RFC3339),
+			"llm_used":     llmUsed,
 			"ai_suggested": true,
 		},
 	}
@@ -949,16 +996,32 @@ func buildReasoningSummary(decision string, hitRate, total, hit, invalidated int
 }
 
 // enrichCalibrationWithLLM uses the LLM to generate narrative reasoning.
+// Uses structured json_object output to get a reliable {"reasoning": "..."} response.
 func (s *Service) enrichCalibrationWithLLM(ctx context.Context, decision string, assessmentPayload map[string]any, fallbackReasoning string) (string, error) {
 	assessmentJSON, _ := json.Marshal(assessmentPayload)
-	systemPrompt := `You are a strategy calibration assistant. Given assessment results and a recommended decision (persevere/pivot/pull_the_plug), write a concise 2-3 sentence strategic reasoning that explains why this decision is recommended. Be direct and actionable.`
-	userPrompt := fmt.Sprintf("Decision: %s\n\nAssessment data:\n%s\n\nDefault reasoning: %s\n\nWrite an improved strategic reasoning:", decision, string(assessmentJSON), fallbackReasoning)
+	systemPrompt := `You are a strategy calibration assistant. Given assessment results and a recommended decision (persevere/pivot/pull_the_plug), produce a JSON object with a single "reasoning" field containing a concise 2-3 sentence strategic explanation of why this decision is recommended. Be direct and actionable.
 
-	result, err := s.llm.Complete(ctx, systemPrompt, userPrompt)
+Response format (JSON only, no markdown):
+{"reasoning": "2-3 sentence explanation here"}`
+	userPrompt := fmt.Sprintf("Decision: %s\n\nAssessment data:\n%s\n\nDefault reasoning: %s",
+		decision, string(assessmentJSON), fallbackReasoning)
+
+	raw, err := s.llm.CompleteJSON(ctx, systemPrompt, userPrompt)
 	if err != nil {
-		return fallbackReasoning, err
+		// Fall back to the formula-based reasoning — LLM is optional.
+		return fallbackReasoning, nil //nolint:nilerr // fallback is intentional
 	}
-	return result, nil
+
+	// Parse the structured response.
+	var structured struct {
+		Reasoning string `json:"reasoning"`
+	}
+	if jsonErr := json.Unmarshal([]byte(raw), &structured); jsonErr != nil || structured.Reasoning == "" {
+		slog.Warn("aim: calibration LLM response not structured, falling back",
+			"decision", decision, "raw_len", len(raw), "err", jsonErr)
+		return fallbackReasoning, nil
+	}
+	return strings.TrimSpace(structured.Reasoning), nil
 }
 
 // ---------------------------------------------------------------------------
@@ -1137,10 +1200,10 @@ func calibrationDecisionLabel(decision string) string {
 // ListCycles returns all AIM cycle versions for the instance, newest first.
 func (s *Service) ListCycles(ctx context.Context, instanceID uuid.UUID) ([]CycleSummary, error) {
 	type versionRow struct {
-		ID          uuid.UUID  `bun:"id"`
-		Version     int        `bun:"version"`
-		Label       *string    `bun:"label"`
-		PublishedAt time.Time  `bun:"published_at"`
+		ID          uuid.UUID `bun:"id"`
+		Version     int       `bun:"version"`
+		Label       *string   `bun:"label"`
+		PublishedAt time.Time `bun:"published_at"`
 	}
 	var rows []versionRow
 
@@ -1176,8 +1239,8 @@ func (s *Service) ListCycles(ctx context.Context, instanceID uuid.UUID) ([]Cycle
 // aimCycleDecisionFromLabel extracts the decision token from a label like "Cycle N — Pivot".
 func aimCycleDecisionFromLabel(label string) string {
 	suffixes := map[string]string{
-		"Persevere":    "persevere",
-		"Pivot":        "pivot",
+		"Persevere":     "persevere",
+		"Pivot":         "pivot",
 		"Pull the Plug": "pull_the_plug",
 	}
 	for suffix, token := range suffixes {
@@ -1249,6 +1312,87 @@ func (s *Service) stageMutationWithBatch(ctx context.Context, instanceID uuid.UU
 		return uuid.Nil, fmt.Errorf("insert staged mutation: %w", err)
 	}
 	return batchID, nil
+}
+
+// loadUnprocessedEvidenceSummary loads unprocessed evidence items for the
+// instance and returns a summary suitable for the assessment_report payload.
+// Returns an empty slice when no evidence exists (backward-compatible).
+func (s *Service) loadUnprocessedEvidenceSummary(ctx context.Context, instanceID uuid.UUID) []map[string]any {
+	type row struct {
+		ArtifactKey string          `bun:"artifact_key"`
+		Payload     json.RawMessage `bun:"payload"`
+	}
+
+	var rows []row
+	err := s.db.NewSelect().
+		TableExpr("strategy_artifacts").
+		ColumnExpr("artifact_key, payload").
+		Where("instance_id = ?", instanceID).
+		Where("artifact_type = ?", domain.ArtifactTypeEvidence).
+		Where("status != ?", domain.ArtifactStatusArchived).
+		Where("payload->>'processing_status' = ?", "unprocessed").
+		OrderExpr("created_at DESC").
+		Limit(20).
+		Scan(ctx, &rows)
+	if err != nil {
+		return nil
+	}
+
+	var summary []map[string]any
+	for _, r := range rows {
+		var p map[string]any
+		if err := json.Unmarshal(r.Payload, &p); err != nil {
+			continue
+		}
+
+		entry := map[string]any{
+			"artifact_key": r.ArtifactKey,
+		}
+		if src, ok := p["source"].(map[string]any); ok {
+			entry["source_name"] = src["name"]
+			entry["source_type"] = src["type"]
+		}
+		if tags, ok := p["tags"].([]any); ok && len(tags) > 0 {
+			entry["tags"] = tags
+		}
+		if sum, ok := p["summary"].(string); ok && sum != "" {
+			entry["summary"] = sum
+		}
+		if links, ok := p["linked_artifacts"].([]any); ok && len(links) > 0 {
+			entry["linked_to"] = links
+		}
+		if ca, ok := p["collected_at"].(string); ok {
+			entry["collected_at"] = ca
+		}
+		summary = append(summary, entry)
+	}
+	return summary
+}
+
+// countUnprocessedEvidence returns the number of unprocessed evidence artifacts
+// for an instance. If tagFilter is non-empty, only items matching at least one
+// tag are counted. On DB error returns 0 (fail-open).
+func (s *Service) countUnprocessedEvidence(ctx context.Context, instanceID uuid.UUID, tagFilter []string) int {
+	q := s.db.NewSelect().
+		TableExpr("strategy_artifacts").
+		ColumnExpr("COUNT(*)").
+		Where("instance_id = ?", instanceID).
+		Where("artifact_type = ?", domain.ArtifactTypeEvidence).
+		Where("status != ?", domain.ArtifactStatusArchived).
+		Where("payload->>'processing_status' = ?", "unprocessed")
+
+	if len(tagFilter) > 0 {
+		// Use EXISTS + jsonb_array_elements_text to avoid ?| (bun treats ? as placeholder).
+		tagsJSON, _ := json.Marshal(tagFilter)
+		q = q.Where(
+			"EXISTS (SELECT 1 FROM jsonb_array_elements_text(payload->'tags') _t WHERE _t.value = ANY(ARRAY(SELECT jsonb_array_elements_text(?::jsonb))))",
+			string(tagsJSON),
+		)
+	}
+
+	var count int
+	_ = q.Scan(ctx, &count)
+	return count
 }
 
 // extractStringField navigates a dot-separated path in a map[string]any.

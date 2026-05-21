@@ -261,17 +261,17 @@ func (s *Service) ExportReport(ctx context.Context, instanceID uuid.UUID) (*Stra
 	var sb strings.Builder
 
 	// Header.
-	sb.WriteString(fmt.Sprintf("# Strategy Report\n\n**Instance:** `%s`\n\n", instanceID))
+	fmt.Fprintf(&sb, "# Strategy Report\n\n**Instance:** `%s`\n\n", instanceID)
 
 	// Inventory.
 	sb.WriteString("## Artifact Inventory\n\n")
-	sb.WriteString(fmt.Sprintf("Total artifacts: **%d**\n\n", len(artifacts)))
+	fmt.Fprintf(&sb, "Total artifacts: **%d**\n\n", len(artifacts))
 	for _, atype := range []string{
 		"feature", "north_star", "strategy_foundations", "strategy_formula",
 		"insight_analyses", "value_model", "roadmap", "assessment_report",
 	} {
 		if n := byType[atype]; n > 0 {
-			sb.WriteString(fmt.Sprintf("- `%s`: %d\n", atype, n))
+			fmt.Fprintf(&sb, "- `%s`: %d\n", atype, n)
 		}
 	}
 	// Remaining types not in the ordered list.
@@ -282,7 +282,7 @@ func (s *Service) ExportReport(ctx context.Context, instanceID uuid.UUID) (*Stra
 	}
 	for t, n := range byType {
 		if !orderedTypes[t] {
-			sb.WriteString(fmt.Sprintf("- `%s`: %d\n", t, n))
+			fmt.Fprintf(&sb, "- `%s`: %d\n", t, n)
 		}
 	}
 	sb.WriteString("\n")
@@ -297,15 +297,15 @@ func (s *Service) ExportReport(ctx context.Context, instanceID uuid.UUID) (*Stra
 			if f.Name != nil && *f.Name != "" {
 				name = *f.Name
 			}
-			sb.WriteString(fmt.Sprintf("### %s\n", name))
+			fmt.Fprintf(&sb, "### %s\n", name)
 			if f.Track != nil {
-				sb.WriteString(fmt.Sprintf("**Track:** %s  \n", *f.Track))
+				fmt.Fprintf(&sb, "**Track:** %s  \n", *f.Track)
 			}
-			sb.WriteString(fmt.Sprintf("**Status:** %s  \n", f.Status))
+			fmt.Fprintf(&sb, "**Status:** %s  \n", f.Status)
 			if len(f.ContributesTo) > 0 {
 				sb.WriteString("**Contributes to:**\n")
 				for _, p := range f.ContributesTo {
-					sb.WriteString(fmt.Sprintf("- %s\n", p))
+					fmt.Fprintf(&sb, "- %s\n", p)
 				}
 			}
 			sb.WriteString("\n")
@@ -318,8 +318,8 @@ func (s *Service) ExportReport(ctx context.Context, instanceID uuid.UUID) (*Stra
 		sb.WriteString("_No value path relationships found._\n\n")
 	} else {
 		for _, entry := range coverage {
-			sb.WriteString(fmt.Sprintf("- **%s** — covered by %d feature(s): %s\n",
-				entry.ValuePath, len(entry.Features), strings.Join(entry.Features, ", ")))
+			fmt.Fprintf(&sb, "- **%s** — covered by %d feature(s): %s\n",
+				entry.ValuePath, len(entry.Features), strings.Join(entry.Features, ", "))
 		}
 		sb.WriteString("\n")
 	}
@@ -330,8 +330,8 @@ func (s *Service) ExportReport(ctx context.Context, instanceID uuid.UUID) (*Stra
 		sb.WriteString("_No tested assumptions found._\n\n")
 	} else {
 		for _, a := range assumptions {
-			sb.WriteString(fmt.Sprintf("- **%s** — tested by: %s\n",
-				a.AssumptionKey, strings.Join(a.TestedBy, ", ")))
+			fmt.Fprintf(&sb, "- **%s** — tested by: %s\n",
+				a.AssumptionKey, strings.Join(a.TestedBy, ", "))
 		}
 		sb.WriteString("\n")
 	}

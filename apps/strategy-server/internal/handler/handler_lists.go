@@ -39,7 +39,7 @@ var trackMeta = []struct {
 	{
 		track: "product", dbType: "feature",
 		vmName: "Product", // matches on name prefix in DB
-		name: "Product", icon: "lucide--code-2", color: "primary",
+		name:   "Product", icon: "lucide--code-2", color: "primary",
 		screenID: navigation.ProductTrack, subNavURL: "/fire/product",
 		defURL: func(id, key string) string { return "/strategies/" + id + "/fire/features/" + key },
 	},
@@ -240,31 +240,6 @@ func (s *Server) renderFireTrackPage(c echo.Context, title string, data ui.FireT
 	tabs := s.strategyTabs(instanceID, currentPath)
 	sidebarGroups := s.sidebarGroups(c)
 	content := ui.FireTrackDashboardContent(data)
-
-	render.RenderTriple(c.Response().Writer, c.Request(),
-		ui.InstancePhaseFullPage(title+" — "+instance.Name, currentPath, sidebarGroups, instance.Name, tabs, content),
-		ui.InstanceChromeWithContent(instance.Name, tabs, currentPath, content),
-		ui.InstanceTabContent(tabs, currentPath, content),
-	)
-	return nil
-}
-
-
-
-// renderListPage handles 3-tier rendering for list pages.
-func (s *Server) renderListPage(c echo.Context, title string, data ui.ArtifactListData) error {
-	instanceID := c.Param("id")
-	ctx := c.Request().Context()
-	currentPath := c.Request().URL.Path
-
-	instance, err := s.loadInstance(ctx, instanceID)
-	if err != nil {
-		return echo.NewHTTPError(404, "Instance not found")
-	}
-
-	tabs := s.strategyTabs(instanceID, currentPath)
-	sidebarGroups := s.sidebarGroups(c)
-	content := ui.ArtifactListContent(data)
 
 	render.RenderTriple(c.Response().Writer, c.Request(),
 		ui.InstancePhaseFullPage(title+" — "+instance.Name, currentPath, sidebarGroups, instance.Name, tabs, content),

@@ -129,3 +129,117 @@ func TestNew_NilForEmptyURL(t *testing.T) {
 		t.Error("expected nil client for empty base URL")
 	}
 }
+
+// TestChatWithFormat_JSONObjectMode verifies that ChatWithFormat sends
+// response_format: {"type": "json_object"} in the request body.
+func TestChatWithFormat_JSONObjectMode(t *testing.T) {
+	var capturedFormat *ResponseFormat
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req chatRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		capturedFormat = req.ResponseFormat
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(chatResponse{ //nolint:errcheck
+			Choices: []struct {
+				Message struct {
+					Content string `json:"content"`
+				} `json:"message"`
+			}{
+				{Message: struct {
+					Content string `json:"content"`
+				}{Content: `{"updated":false,"explanation":"already aligned"}`}},
+			},
+			Usage: struct {
+				PromptTokens     int `json:"prompt_tokens"`
+				CompletionTokens int `json:"completion_tokens"`
+			}{PromptTokens: 80, CompletionTokens: 20},
+		})
+	}))
+	defer server.Close()
+
+	client := New(Config{BaseURL: server.URL, Model: "test"})
+	result, err := client.ChatWithFormat(context.Background(), []ChatMessage{
+		{Role: "system", Content: "You are a helper."},
+		{Role: "user", Content: "Fix this."},
+	}, 0.3, FormatJSON)
+	if err != nil {
+		t.Fatalf("ChatWithFormat: %v", err)
+	}
+
+	// Verify request had response_format set.
+	if capturedFormat == nil {
+		t.Fatal("expected response_format in request, got nil")
+	}
+	if capturedFormat.Type != "json_object" {
+		t.Errorf("response_format.type=%q, want json_object", capturedFormat.Type)
+	}
+
+	// Verify token counts propagated.
+	if result.InputTokens != 80 {
+		t.Errorf("input_tokens=%d, want 80", result.InputTokens)
+	}
+	if result.OutputTokens != 20 {
+		t.Errorf("output_tokens=%d, want 20", result.OutputTokens)
+	}
+}
+
+// TestChatWithFormat_NilFormat verifies nil format omits response_format from request.
+func TestChatWithFormat_NilFormat(t *testing.T) {
+	var capturedFormat *ResponseFormat
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req chatRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		capturedFormat = req.ResponseFormat
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(chatResponse{ //nolint:errcheck
+			Choices: []struct {
+				Message struct {
+					Content string `json:"content"`
+				} `json:"message"`
+			}{
+				{Message: struct {
+					Content string `json:"content"`
+				}{Content: "plain text"}},
+			},
+		})
+	}))
+	defer server.Close()
+
+	client := New(Config{BaseURL: server.URL, Model: "test"})
+	if _, err := client.ChatWithFormat(context.Background(), []ChatMessage{
+		{Role: "user", Content: "hi"},
+	}, 0.5, nil); err != nil {
+		t.Fatalf("ChatWithFormat: %v", err)
+	}
+
+	if capturedFormat != nil {
+		t.Errorf("expected nil response_format in request, got %+v", capturedFormat)
+	}
+}
+
+// TestModelSelector_DefaultReturnsConfiguredModel verifies DefaultModelSelector
+// returns the same config for all task types.
+func TestModelSelector_DefaultReturnsConfiguredModel(t *testing.T) {
+	cfg := Config{BaseURL: "http://example.com", Model: "gpt-4o"}
+	sel := NewDefaultModelSelector(cfg)
+
+	for _, task := range []TaskType{
+		TaskSignalClassification,
+		TaskAssessmentEnrichment,
+		TaskCalibrationReasoning,
+		TaskSignalResolution,
+	} {
+		got := sel.SelectModel(task)
+		if got.Model != cfg.Model {
+			t.Errorf("task %s: model=%q, want %q", task, got.Model, cfg.Model)
+		}
+		if got.BaseURL != cfg.BaseURL {
+			t.Errorf("task %s: baseURL=%q, want %q", task, got.BaseURL, cfg.BaseURL)
+		}
+	}
+}
