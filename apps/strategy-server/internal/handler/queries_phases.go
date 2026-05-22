@@ -986,6 +986,9 @@ func (s *Server) loadAimPhaseData(ctx context.Context, instanceID string) ui.Aim
 		})
 	}
 
+	// Foundation artifacts needed for LRA drafting
+	data.HasNorthStar = s.hasArtifactType(ctx, instanceID, domain.ArtifactTypeNorthStar)
+
 	// AIM artifacts
 	data.HasLRA = s.hasArtifactType(ctx, instanceID, domain.ArtifactTypeLRA)
 	data.HasAssessmentReport = s.hasArtifactType(ctx, instanceID, domain.ArtifactTypeAssessmentReport)

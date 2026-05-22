@@ -1,0 +1,22 @@
+name: draft-lra
+version: "1.0.0"
+type: creation
+phase: AIM
+description: "Generates an initial Living Reality Assessment from strategy context. Reads north_star, strategy_foundations, and roadmap_recipe to produce a schema-valid LRA with sensible defaults. Marks sections that require real-world context (market conditions, team situation) as placeholders for human review."
+
+capability:
+  class: balanced
+  context_budget: medium
+
+requires:
+  artifacts:
+    - north_star
+  optional:
+    - strategy_foundations
+    - roadmap_recipe
+    - strategy_formula
+
+output:
+  format: json
+  artifact_types:
+    - living_reality_assessment

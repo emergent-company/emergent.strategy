@@ -21,6 +21,9 @@ type AimPhaseData struct {
 	// Latest signals for feed (up to 5)
 	RecentSignals []AimSignalRow
 
+	// Foundation artifacts needed for LRA drafting
+	HasNorthStar bool
+
 	// AIM artifacts
 	HasLRA              bool
 	LRALifecycleStage   string // bootstrap, maturing, evolved
@@ -226,10 +229,19 @@ func aimStepObserve(data AimPhaseData) aimCycleStepData {
 		s.Status = "done"
 		s.Detail = "LRA " + data.LRALifecycleStage
 		s.CTA = "View LRA"
-	} else {
+	} else if data.HasNorthStar {
+		// Foundation artifacts exist — AI can draft an LRA.
 		s.Status = "active"
 		s.Detail = "Start by capturing what's true today"
 		s.CTA = "Create LRA"
+		s.DraftAction = "/strategies/" + data.InstanceID + "/aim/draft-lra"
+		s.DraftLabel = "AI draft"
+	} else {
+		// No foundation artifacts yet — LRA drafting is not possible.
+		s.Status = "waiting"
+		s.Detail = "Complete North Star first"
+		s.CTA = "Go to READY"
+		s.CTAHref = "/strategies/" + data.InstanceID + "/ready"
 	}
 	return s
 }
