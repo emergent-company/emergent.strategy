@@ -88,8 +88,9 @@ type PipelineTimelineEvent struct {
 	IsActive    bool // currently in progress
 }
 
-// PipelineActiveStage returns which pipeline stage is currently "active":
-// observe | propose | execute | review | result | idle
+// PipelineActiveStage returns which pipeline stage currently needs attention:
+// observe | propose | execute | review | idle
+// "idle" means the loop completed and is waiting for the next trigger.
 func (d AimPipelineData) PipelineActiveStage() string {
 	if len(d.PendingBatches) > 0 {
 		return "review"
@@ -103,10 +104,13 @@ func (d AimPipelineData) PipelineActiveStage() string {
 	if d.TriggerFired {
 		return "observe"
 	}
-	if d.VersionCount > 0 {
-		return "result"
-	}
 	return "idle"
+}
+
+// HasCompletedCycle returns true when at least one full cycle has completed
+// (LRA exists + calibration decided + version published).
+func (d AimPipelineData) HasCompletedCycle() bool {
+	return d.HasLRA && calibrationDecisionIsReal(d.LatestCalibDecision) && d.VersionCount > 0
 }
 
 // ---------------------------------------------------------------------------
@@ -196,28 +200,29 @@ templ aimPipelineStages(data AimPipelineData) {
 		</div>
 
 		// 5-stage pipeline
+		{{ completed := data.HasCompletedCycle() }}
 		<div class="grid grid-cols-5 gap-2">
 			@pipelineStage(pipelineStageData{
 				Icon: "lucide--eye", Label: "Observe",
-				Status: pipelineStageStatus(active, "observe", data.ActiveSignals > 0 || data.HasLRA),
-				Badge: pipelineStageBadge(data.ActiveSignals, data.CriticalSignals),
+				Status: pipelineObserveStatus(active, data),
+				Badge: pipelineObserveBadge(data),
 				Href: "/strategies/" + data.InstanceID + "/aim/coherence",
 			})
 			@pipelineStage(pipelineStageData{
 				Icon: "lucide--inbox", Label: "Propose",
-				Status: pipelineStageStatus(active, "propose", data.LatestProposalStatus == "approved"),
+				Status: pipelineStageStatus(active, "propose", completed),
 				Badge: pipelineProposalBadge(data.PendingProposals),
 				Href: "/strategies/" + data.InstanceID + "/aim/proposals",
 			})
 			@pipelineStage(pipelineStageData{
 				Icon: "lucide--play-circle", Label: "Execute",
-				Status: pipelineStageStatus(active, "execute", data.ActiveRunID != ""),
+				Status: pipelineStageStatus(active, "execute", completed),
 				Badge: pipelineRunBadge(data.ActiveRunStatus, data.ActiveRunStep),
 				Href: pipelineRunHref(data),
 			})
 			@pipelineStage(pipelineStageData{
 				Icon: "lucide--sparkles", Label: "Review",
-				Status: pipelineStageStatus(active, "review", false),
+				Status: pipelineStageStatus(active, "review", completed),
 				Badge: pipelineReviewBadge(len(data.PendingBatches)),
 				Href: "/strategies/" + data.InstanceID + "/aim",
 			})
@@ -264,6 +269,8 @@ templ pipelineStage(s pipelineStageData) {
 }
 
 // pipelineStageStatus determines the visual state of a pipeline stage.
+// When activeStage is "idle", no stage gets the "active" highlight — they show
+// as "done" (if previously completed) or "waiting" (if not).
 func pipelineStageStatus(activeStage, thisStage string, hasCompleted bool) string {
 	if activeStage == thisStage {
 		return "active"
@@ -272,6 +279,34 @@ func pipelineStageStatus(activeStage, thisStage string, hasCompleted bool) strin
 		return "done"
 	}
 	return "waiting"
+}
+
+// pipelineObserveStatus handles the Observe stage which has more nuanced logic:
+// - "active" when trigger fired (signals demanding attention)
+// - "done" when LRA exists and no active signals needing attention
+// - "waiting" otherwise (no LRA yet)
+func pipelineObserveStatus(activeStage string, data AimPipelineData) string {
+	if activeStage == "observe" {
+		return "active"
+	}
+	if data.HasLRA {
+		return "done"
+	}
+	return "waiting"
+}
+
+// pipelineObserveBadge returns contextual text for the Observe stage.
+func pipelineObserveBadge(data AimPipelineData) string {
+	if data.CriticalSignals > 0 {
+		return fmt.Sprintf("%d critical", data.CriticalSignals)
+	}
+	if data.ActiveSignals > 0 {
+		return fmt.Sprintf("%d signal(s)", data.ActiveSignals)
+	}
+	if data.HasLRA {
+		return "LRA " + data.LRALifecycleStage
+	}
+	return "No LRA yet"
 }
 
 func pipelineStageBorderClass(status string) string {
@@ -305,16 +340,6 @@ func pipelineStageLabelClass(status string) string {
 	default:
 		return "text-base-content/40"
 	}
-}
-
-func pipelineStageBadge(active, critical int) string {
-	if critical > 0 {
-		return fmt.Sprintf("%d critical", critical)
-	}
-	if active > 0 {
-		return fmt.Sprintf("%d active", active)
-	}
-	return "No signals"
 }
 
 func pipelineProposalBadge(pending int) string {
