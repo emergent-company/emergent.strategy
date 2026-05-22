@@ -394,11 +394,11 @@ func (e *Executor) runChunkedInternal(ctx context.Context, instanceID uuid.UUID,
 		chunkResult, err := e.callWithValidationChunk(ctx, skillName, chunkNum, chunk.outputKey, chunk.artifactType, rendered, instanceID)
 		if err != nil {
 			e.record(ctx, instanceID, "skill.failed", map[string]any{
-				"skill_name":   skillName,
-				"batch_id":     batchID.String(),
-				"chunk":        chunkNum,
-				"output_key":   chunk.outputKey,
-				"error":        err.Error(),
+				"skill_name":    skillName,
+				"batch_id":      batchID.String(),
+				"chunk":         chunkNum,
+				"output_key":    chunk.outputKey,
+				"error":         err.Error(),
 				"staged_so_far": allArtifactTypes,
 			})
 			// Record failure in the run ledger.
@@ -887,7 +887,7 @@ func renderPrompt(promptMD string, bundle *ContextBundle) (string, int, error) {
 				tier, _ := sig["authority_tier"].(string)
 				sev, _ := sig["severity"].(string)
 				target, _ := sig["target_key"].(string)
-				sb.WriteString(fmt.Sprintf("- **%s** (%s/%s): %s\n", target, tier, sev, desc))
+				fmt.Fprintf(&sb, "- **%s** (%s/%s): %s\n", target, tier, sev, desc)
 			}
 			return sb.String()
 		},

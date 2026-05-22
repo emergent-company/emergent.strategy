@@ -16,6 +16,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/heartbeat"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ripple"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/skillrun"
 	strategydom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
 	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/version"
@@ -40,6 +41,7 @@ type Server struct {
 	heartbeatSvc        *heartbeat.Service    // nil when heartbeat not configured
 	orchestrationEngine *orchestration.Engine // nil when orchestration not configured
 	activitySvc         *activitydom.Service  // nil when activity stream not configured
+	skillRunSvc         *skillrun.Service     // nil when skill run ledger not configured
 	llmEnabled          bool                  // true when an LLM provider is wired
 }
 
@@ -100,6 +102,13 @@ func (s *Server) WithOrchestration(eng *orchestration.Engine) *Server {
 // When set, the GET /strategies/:id/activity/stream SSE endpoint is active.
 func (s *Server) WithActivity(svc *activitydom.Service) *Server {
 	s.activitySvc = svc
+	return s
+}
+
+// WithSkillRun wires the skill run ledger into the handler server (optional).
+// When set, the cascade tracker reads active runs and recent completions.
+func (s *Server) WithSkillRun(svc *skillrun.Service) *Server {
+	s.skillRunSvc = svc
 	return s
 }
 
@@ -218,6 +227,9 @@ func (s *Server) RegisterRoutes(e *echo.Echo) {
 	// Activity stream SSE — pushes JSON-encoded activity events to browser clients.
 	// Clients connect with EventSource: new EventSource("/strategies/:id/activity/stream")
 	e.GET("/strategies/:id/activity/stream", s.handleActivityStream)
+
+	// Cascade tracker partial — HTMX-compatible fragment for the live cascade panel.
+	e.GET("/strategies/:id/cascade", s.handleGetCascade)
 }
 
 // sidebarGroups builds sidebar navigation groups with instance list.

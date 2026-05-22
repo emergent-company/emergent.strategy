@@ -43,11 +43,11 @@ type ActivityEvent struct {
 // TriggerState mirrors aim.TriggerState so the heartbeat package does not
 // import the aim package (avoids circular deps when aim imports heartbeat).
 type TriggerState struct {
-	Fired             bool
-	Reason            string    // "time" | "signals" | "evidence" | ""
-	ReasonMessage     string
-	TriggerSignalIDs  []string  // IDs of ripple signals that fired the trigger (signals reason only)
-	LastAssessmentAt  time.Time // zero when no prior assessment exists
+	Fired            bool
+	Reason           string // "time" | "signals" | "evidence" | ""
+	ReasonMessage    string
+	TriggerSignalIDs []string  // IDs of ripple signals that fired the trigger (signals reason only)
+	LastAssessmentAt time.Time // zero when no prior assessment exists
 }
 
 // Signal is a persisted heartbeat event for a single instance.

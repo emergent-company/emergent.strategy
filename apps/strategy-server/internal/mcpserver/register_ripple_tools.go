@@ -595,14 +595,14 @@ func postCommitRippleAnalysis(ctx context.Context, svc Services, instanceID, bat
 // adapt-foundations can update. Signals whose target_key is one of these
 // trigger the async foundation draft.
 var foundationArtifactKeys = map[string]bool{
-	"north-star":            true,
-	"north_star":            true,
-	"strategy-foundations":  true,
-	"strategy_foundations":  true,
-	"insight-analyses":      true,
-	"insight_analyses":      true,
-	"insight-opportunity":   true,
-	"insight_opportunity":   true,
+	"north-star":           true,
+	"north_star":           true,
+	"strategy-foundations": true,
+	"strategy_foundations": true,
+	"insight-analyses":     true,
+	"insight_analyses":     true,
+	"insight-opportunity":  true,
+	"insight_opportunity":  true,
 }
 
 // enqueueFoundationDraft checks whether any newly created signals target

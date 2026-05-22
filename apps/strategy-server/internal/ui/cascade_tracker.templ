@@ -1,0 +1,335 @@
+package ui
+
+import "fmt"
+
+// CascadeData is the view model for the cascade tracker panel.
+// It aggregates the live operational state for one strategy instance:
+// active AIM cycle, active skill runs, pending review batches, and recent completions.
+type CascadeData struct {
+	InstanceID string
+
+	// Active AIM orchestration run (nil when none is running).
+	ActiveAIMRun *CascadeAIMRun
+
+	// Active skill runs (skill executor goroutines currently in flight).
+	ActiveSkillRuns []CascadeSkillRun
+
+	// Pending staged batches waiting for human review.
+	PendingBatches []CascadeBatch
+
+	// Recent completed skill runs (up to 5, newest first).
+	RecentRuns []CascadeSkillRun
+}
+
+// HasActivity returns true when there is anything worth showing in the tracker.
+func (d *CascadeData) HasActivity() bool {
+	return d.ActiveAIMRun != nil ||
+		len(d.ActiveSkillRuns) > 0 ||
+		len(d.PendingBatches) > 0 ||
+		len(d.RecentRuns) > 0
+}
+
+// CascadeAIMRun summarises the active orchestrated AIM cycle.
+type CascadeAIMRun struct {
+	RunID       string
+	Status      string // running | awaiting_human
+	CurrentStep string // human-readable step name
+}
+
+// CascadeSkillRun summarises one skill execution record.
+type CascadeSkillRun struct {
+	RunID            string
+	SkillName        string
+	Status           string  // running | completed | failed
+	Trigger          string  // manual | ripple | aim_cycle
+	ChunksCompleted  int
+	ChunkCount       int
+	TotalInputTokens int
+	TotalOutputTokens int
+	DurationSec      float64
+	HasTruncation    bool   // any chunk had context_truncated=true
+	DroppedFeatures  int    // sum of dropped_features across chunks
+	BatchID          string // non-empty for completed runs
+	Error            string // non-empty for failed runs
+}
+
+// CascadeBatch is a pending staged batch awaiting human review.
+type CascadeBatch struct {
+	BatchID     string
+	Description string // batch_description from strategy_mutations
+	AgentID     string // agent_id from strategy_mutations
+	MutationCount int
+	ReviewURL   string
+	// DownstreamHint explains what happens after this batch is committed.
+	DownstreamHint string
+}
+
+// ---------------------------------------------------------------------------
+// CascadeTrackerPanel renders the cascade tracker panel.
+// It is designed to be refreshed via HTMX polling or SSE-triggered swap.
+// ---------------------------------------------------------------------------
+
+templ CascadeTrackerPanel(data CascadeData) {
+	<div id="cascade-tracker" class="space-y-3">
+		if data.ActiveAIMRun != nil {
+			@cascadeAIMRunCard(*data.ActiveAIMRun, data.InstanceID)
+		}
+		for _, run := range data.ActiveSkillRuns {
+			@cascadeSkillRunCard(run, data.InstanceID, true)
+		}
+		for _, batch := range data.PendingBatches {
+			@cascadeBatchCard(batch, data.InstanceID)
+		}
+		if len(data.RecentRuns) > 0 && len(data.ActiveSkillRuns) == 0 && data.ActiveAIMRun == nil {
+			<details class="group">
+				<summary class="flex items-center gap-2 text-xs font-semibold text-base-content/50 uppercase tracking-widest cursor-pointer select-none">
+					<span class="iconify lucide--history size-3.5"></span>
+					Recent runs
+					<span class="iconify lucide--chevron-right size-3 group-open:rotate-90 transition-transform ml-auto"></span>
+				</summary>
+				<div class="mt-2 space-y-2">
+					for _, run := range data.RecentRuns {
+						@cascadeSkillRunCard(run, data.InstanceID, false)
+					}
+				</div>
+			</details>
+		}
+	</div>
+}
+
+// cascadeAIMRunCard renders the active AIM orchestration run.
+templ cascadeAIMRunCard(run CascadeAIMRun, instanceID string) {
+	<a
+		href={ templ.URL("/strategies/" + instanceID + "/aim/runs/" + run.RunID) }
+		class="flex items-center gap-3 rounded-xl border border-warning/30 bg-warning/5 px-4 py-3 hover:bg-warning/10 transition-colors group"
+	>
+		<span class="iconify lucide--loader-2 size-4 text-warning animate-spin shrink-0"></span>
+		<div class="min-w-0 grow">
+			<p class="text-xs font-semibold text-base-content">AIM Cycle Running</p>
+			if run.CurrentStep != "" {
+				<p class="text-xs text-base-content/60 truncate">{ cascadeStepLabel(run.CurrentStep) }</p>
+			}
+		</div>
+		<span class="iconify lucide--arrow-right size-3.5 text-base-content/40 group-hover:text-warning transition-colors shrink-0"></span>
+	</a>
+}
+
+// cascadeSkillRunCard renders one skill run row (active or recent).
+templ cascadeSkillRunCard(run CascadeSkillRun, instanceID string, isActive bool) {
+	<div class={ "rounded-xl border px-4 py-3", cascadeRunBorderClass(run.Status, isActive) }>
+		<div class="flex items-start gap-3">
+			// Status icon
+			<span class={ "iconify size-4 shrink-0 mt-0.5", cascadeRunIcon(run.Status), cascadeRunIconColor(run.Status) }></span>
+
+			// Main content
+			<div class="min-w-0 grow space-y-1">
+				// Skill name + trigger badge
+				<div class="flex items-center gap-2 flex-wrap">
+					<p class="text-xs font-semibold text-base-content">{ cascadeSkillLabel(run.SkillName) }</p>
+					@cascadeTriggerBadge(run.Trigger)
+				</div>
+
+				// Progress row (active runs)
+				if isActive && run.ChunkCount > 0 {
+					<div class="flex items-center gap-2">
+						<div class="flex-1 h-1 rounded-full bg-base-content/10 overflow-hidden">
+							<div
+								class="h-1 rounded-full bg-primary transition-all"
+								style={ fmt.Sprintf("width: %.0f%%", cascadeProgress(run.ChunksCompleted, run.ChunkCount)) }
+							></div>
+						</div>
+						<span class="text-xs text-base-content/50 shrink-0">
+							{ itoa(run.ChunksCompleted) }/{ itoa(run.ChunkCount) } chunks
+						</span>
+					</div>
+				}
+
+				// Completed run summary: tokens + duration
+				if !isActive && run.Status == "completed" {
+					<div class="flex items-center gap-3 text-xs text-base-content/50">
+						if run.TotalInputTokens+run.TotalOutputTokens > 0 {
+							<span class="flex items-center gap-1">
+								<span class="iconify lucide--zap size-3"></span>
+								{ formatTokens(run.TotalInputTokens + run.TotalOutputTokens) } tokens
+							</span>
+						}
+						if run.DurationSec > 0 {
+							<span>{ formatDuration(run.DurationSec) }</span>
+						}
+					</div>
+				}
+
+				// Error row
+				if run.Status == "failed" && run.Error != "" {
+					<p class="text-xs text-error/80 truncate">{ run.Error }</p>
+				}
+
+				// Context truncation warning
+				if run.HasTruncation && run.DroppedFeatures > 0 {
+					<div class="flex items-center gap-1.5 text-xs text-warning">
+						<span class="iconify lucide--alert-triangle size-3"></span>
+						{ itoa(run.DroppedFeatures) } features dropped from context due to token budget
+					</div>
+				}
+			</div>
+
+			// Review link for completed runs with a batch
+			if run.Status == "completed" && run.BatchID != "" {
+				<a
+					href={ templ.URL("/strategies/" + instanceID + "/aim/draft-review/" + run.BatchID) }
+					class="btn btn-xs btn-primary shrink-0"
+				>Review</a>
+			}
+		</div>
+	</div>
+}
+
+// cascadeBatchCard renders a pending batch awaiting human review.
+templ cascadeBatchCard(batch CascadeBatch, instanceID string) {
+	<div class="rounded-xl border border-info/20 bg-info/5 px-4 py-3">
+		<div class="flex items-start gap-3">
+			<span class="iconify lucide--sparkles size-4 text-info shrink-0 mt-0.5"></span>
+			<div class="min-w-0 grow space-y-1">
+				<p class="text-xs font-semibold text-base-content">AI draft pending review</p>
+				if batch.Description != "" {
+					<p class="text-xs text-base-content/60 line-clamp-1">{ batch.Description }</p>
+				} else if batch.AgentID != "" {
+					<p class="text-xs text-base-content/60">From { batch.AgentID }</p>
+				}
+				if batch.MutationCount > 0 {
+					<p class="text-xs text-base-content/40">{ itoa(batch.MutationCount) } changes staged</p>
+				}
+				if batch.DownstreamHint != "" {
+					<div class="flex items-start gap-1 text-xs text-info/70 mt-1">
+						<span class="iconify lucide--git-branch size-3 shrink-0 mt-0.5"></span>
+						<span>{ batch.DownstreamHint }</span>
+					</div>
+				}
+			</div>
+			<a
+				href={ templ.URL(batch.ReviewURL) }
+				class="btn btn-xs btn-info shrink-0"
+			>Review</a>
+		</div>
+	</div>
+}
+
+// ---------------------------------------------------------------------------
+// Style and label helpers
+// ---------------------------------------------------------------------------
+
+func cascadeRunBorderClass(status string, isActive bool) string {
+	if isActive {
+		return "border-primary/20 bg-primary/5"
+	}
+	switch status {
+	case "completed":
+		return "border-success/15 bg-success/5"
+	case "failed":
+		return "border-error/15 bg-error/5"
+	default:
+		return "border-base-content/10"
+	}
+}
+
+func cascadeRunIcon(status string) string {
+	switch status {
+	case "running":
+		return "lucide--loader-2"
+	case "completed":
+		return "lucide--check-circle-2"
+	case "failed":
+		return "lucide--alert-circle"
+	default:
+		return "lucide--clock"
+	}
+}
+
+func cascadeRunIconColor(status string) string {
+	switch status {
+	case "running":
+		return "text-primary animate-spin"
+	case "completed":
+		return "text-success"
+	case "failed":
+		return "text-error"
+	default:
+		return "text-base-content/40"
+	}
+}
+
+func cascadeSkillLabel(name string) string {
+	switch name {
+	case "adapt-strategy":
+		return "Adapt Strategy"
+	case "adapt-foundations":
+		return "Adapt Foundations"
+	default:
+		return name
+	}
+}
+
+func cascadeStepLabel(step string) string {
+	switch step {
+	case "draft_assessment":
+		return "Drafting assessment…"
+	case "draft_calibration":
+		return "Drafting calibration…"
+	case "apply_calibration":
+		return "Applying calibration…"
+	case "snapshot_cycle":
+		return "Snapshotting cycle…"
+	default:
+		return step
+	}
+}
+
+func cascadeProgress(done, total int) float64 {
+	if total <= 0 {
+		return 0
+	}
+	p := float64(done) / float64(total) * 100
+	if p > 100 {
+		p = 100
+	}
+	return p
+}
+
+templ cascadeTriggerBadge(trigger string) {
+	switch trigger {
+	case "ripple":
+		<span class="badge badge-xs badge-ghost gap-1 text-base-content/50">
+			<span class="iconify lucide--waves size-2.5"></span>
+			ripple
+		</span>
+	case "aim_cycle":
+		<span class="badge badge-xs badge-ghost gap-1 text-base-content/50">
+			<span class="iconify lucide--rotate-ccw size-2.5"></span>
+			AIM
+		</span>
+	default:
+		<!-- manual: no badge to keep it quiet -->
+	}
+}
+
+func formatTokens(n int) string {
+	if n >= 1000000 {
+		return fmt.Sprintf("%.1fM", float64(n)/1000000)
+	}
+	if n >= 1000 {
+		return fmt.Sprintf("%.1fK", float64(n)/1000)
+	}
+	return itoa(n)
+}
+
+func formatDuration(sec float64) string {
+	if sec < 60 {
+		return fmt.Sprintf("%.0fs", sec)
+	}
+	m := int(sec) / 60
+	s := int(sec) % 60
+	if s == 0 {
+		return fmt.Sprintf("%dm", m)
+	}
+	return fmt.Sprintf("%dm %ds", m, s)
+}

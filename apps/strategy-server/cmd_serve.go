@@ -204,8 +204,8 @@ func runServer(cfg *config.Config) error {
 		log.Info("skill executor enabled (autonomous mode)")
 	} else {
 		skillExecutor = skillexec.New(db, packSvc, nil). // skeleton mode
-			WithActivityRecorder(activitySvc).
-			WithRunLedger(skillRunLedger)
+									WithActivityRecorder(activitySvc).
+									WithRunLedger(skillRunLedger)
 		log.Info("skill executor in skeleton mode (no LLM configured)")
 	}
 
@@ -391,6 +391,7 @@ func runServer(cfg *config.Config) error {
 		WithHeartbeat(heartbeatSvc).
 		WithOrchestration(orchEngine).
 		WithActivity(activitySvc).
+		WithSkillRun(skillRunSvc).
 		WithLLMEnabled(llmClient != nil)
 	webHandler.RegisterRoutes(e)
 

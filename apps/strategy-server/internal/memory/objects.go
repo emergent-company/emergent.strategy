@@ -154,9 +154,9 @@ func (c *Client) BulkCreateObjects(ctx context.Context, objects []CreateObjectRe
 
 // BulkUpsertResult holds the outcome of a BulkUpsertObjects call.
 type BulkUpsertResult struct {
-	Objects  []Object // successfully upserted objects, in input order (nil entries on failure)
-	KeyToID  map[string]string // object key → stable ID for successfully upserted objects
-	Failed   int               // count of individual upsert failures
+	Objects []Object          // successfully upserted objects, in input order (nil entries on failure)
+	KeyToID map[string]string // object key → stable ID for successfully upserted objects
+	Failed  int               // count of individual upsert failures
 }
 
 // BulkUpsertObjects upserts multiple objects concurrently using individual

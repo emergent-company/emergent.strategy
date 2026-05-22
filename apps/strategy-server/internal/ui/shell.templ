@@ -75,10 +75,38 @@ templ InstanceChrome(instanceName string, tabs []TabProps, currentPath string) {
 	@instanceTabContent(tabs, currentPath) {
 		{ children... }
 	}
+	// Cascade tracker panel — fixed bottom-right, hidden until there is activity.
+	// The SSE script fetches and swaps the panel content on skill/batch events.
+	<div
+		id="cascade-tracker-container"
+		class="fixed bottom-4 right-4 z-50 w-80 space-y-1 hidden"
+		aria-label="Cascade tracker"
+	>
+		// Header bar (always visible when the container is shown)
+		<div class="flex items-center justify-between px-3 py-1.5 rounded-t-lg bg-base-300 border border-base-content/10 text-xs font-semibold text-base-content/60 uppercase tracking-widest">
+			<div class="flex items-center gap-1.5">
+				<span class="iconify lucide--activity size-3.5"></span>
+				Live activity
+			</div>
+			<button
+				type="button"
+				onclick="document.getElementById('cascade-tracker-container').classList.add('hidden')"
+				class="hover:text-base-content transition-colors"
+				aria-label="Close cascade tracker"
+			>
+				<span class="iconify lucide--x size-3.5"></span>
+			</button>
+		</div>
+		// Panel body — swapped by SSE on activity events
+		<div class="rounded-b-lg bg-base-100 border border-t-0 border-base-content/10 shadow-xl px-3 py-3">
+			<div id="cascade-tracker"></div>
+		</div>
+	</div>
 	@activityStreamSSE()
 }
 
-// activityStreamSSE wires the SSE activity stream to drive live UI indicators.
+// activityStreamSSE wires the SSE activity stream to drive live UI indicators
+// and the cascade tracker panel.
 // Extracts instance ID from the URL path and opens an EventSource to
 // /strategies/:id/activity/stream. Handles skill.started, skill.chunk_staged,
 // skill.completed, and skill.failed events.
@@ -98,6 +126,30 @@ templ activityStreamSSE() {
 			'adapt-foundations':  ['north_star', 'strategy_foundations', 'insight_analyses', 'insight_opportunity']
 		};
 
+		// refreshCascade fetches the cascade tracker partial and swaps it into
+		// #cascade-tracker, then shows the container if it has content.
+		function refreshCascade() {
+			fetch('/strategies/' + instanceId + '/cascade')
+				.then(function(r) { return r.text(); })
+				.then(function(html) {
+					var tracker = document.getElementById('cascade-tracker');
+					var container = document.getElementById('cascade-tracker-container');
+					if (!tracker || !container) return;
+					tracker.innerHTML = html;
+					// Show container only when the panel has children.
+					var hasContent = tracker.children.length > 0 && tracker.textContent.trim() !== '';
+					if (hasContent) {
+						container.classList.remove('hidden');
+					} else {
+						container.classList.add('hidden');
+					}
+				})
+				.catch(function() { /* ignore network errors */ });
+		}
+
+		// Load cascade tracker on page load (shows pending batches immediately).
+		refreshCascade();
+
 		es.addEventListener('activity', function(e) {
 			try {
 				var evt = JSON.parse(e.data);
@@ -110,12 +162,14 @@ templ activityStreamSSE() {
 						var badge = document.getElementById('generating-' + t);
 						if (badge) badge.classList.remove('hidden');
 					});
+					refreshCascade();
 				}
 				if (evt.event_type === 'skill.chunk_staged') {
 					var progress = document.getElementById('skill-progress');
 					if (progress) {
 						progress.textContent = (payload.chunk || '?') + ' of ' + (payload.chunk_count || '?') + ' chunks';
 					}
+					refreshCascade();
 				}
 				if (evt.event_type === 'skill.completed' || evt.event_type === 'skill.failed') {
 					targets.forEach(function(t) {
@@ -130,6 +184,7 @@ templ activityStreamSSE() {
 							if (link) link.href = '/strategies/' + instanceId + '/aim/draft-review/' + payload.batch_id;
 						}
 					}
+					refreshCascade();
 				}
 			} catch(err) { /* ignore parse errors */ }
 		});

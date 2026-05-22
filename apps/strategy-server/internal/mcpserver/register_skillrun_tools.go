@@ -48,19 +48,19 @@ func registerSkillRunTools(s *server.MCPServer, svc Services) {
 
 		// Build response with computed duration.
 		type runEntry struct {
-			RunID           string   `json:"run_id"`
-			SkillName       string   `json:"skill_name"`
-			Status          string   `json:"status"`
-			Trigger         string   `json:"trigger"`
-			StartedAt       string   `json:"started_at"`
-			CompletedAt     *string  `json:"completed_at,omitempty"`
-			DurationSeconds float64  `json:"duration_seconds"`
-			ChunksCompleted int      `json:"chunks_completed"`
-			ChunkCount      int      `json:"chunk_count"`
-			InputTokens     int      `json:"input_tokens"`
-			OutputTokens    int      `json:"output_tokens"`
-			BatchID         *string  `json:"batch_id,omitempty"`
-			Error           *string  `json:"error,omitempty"`
+			RunID           string  `json:"run_id"`
+			SkillName       string  `json:"skill_name"`
+			Status          string  `json:"status"`
+			Trigger         string  `json:"trigger"`
+			StartedAt       string  `json:"started_at"`
+			CompletedAt     *string `json:"completed_at,omitempty"`
+			DurationSeconds float64 `json:"duration_seconds"`
+			ChunksCompleted int     `json:"chunks_completed"`
+			ChunkCount      int     `json:"chunk_count"`
+			InputTokens     int     `json:"input_tokens"`
+			OutputTokens    int     `json:"output_tokens"`
+			BatchID         *string `json:"batch_id,omitempty"`
+			Error           *string `json:"error,omitempty"`
 		}
 		entries := make([]runEntry, 0, len(runs))
 		for _, r := range runs {
@@ -109,7 +109,7 @@ func registerSkillRunTools(s *server.MCPServer, svc Services) {
 
 		run, err := svc.SkillRun.GetByID(ctx, runID)
 		if err != nil {
-			return toolErr(ctx, apperror.ErrNotFound.WithDetail("skill run not found")), nil
+			return toolErr(ctx, apperror.ErrNotFound.WithDetail("skill run not found")), nil //nolint:nilerr // err is always sql.ErrNoRows; wrap for MCP client
 		}
 
 		// Access check via instance.
@@ -164,11 +164,11 @@ func registerSkillRunTools(s *server.MCPServer, svc Services) {
 		}
 
 		return mustJSON(map[string]any{
-			"instance_id":        id.String(),
-			"total_input_tokens": totalIn,
+			"instance_id":         id.String(),
+			"total_input_tokens":  totalIn,
 			"total_output_tokens": totalOut,
-			"total_runs":         totalRuns,
-			"by_skill":           usage,
+			"total_runs":          totalRuns,
+			"by_skill":            usage,
 		})
 	})
 }
