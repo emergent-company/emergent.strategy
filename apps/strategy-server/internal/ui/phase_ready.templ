@@ -355,9 +355,6 @@ templ readyMapCard(p readyMapCardProps) {
 					{ p.TierLabel }
 				</span>
 			}
-				if p.ArtifactType != "" {
-					@GeneratingBadge(p.ArtifactType)
-				}
 				</div>
 					<p class="text-xs text-base-content/50 mt-0.5">{ p.Subtitle }</p>
 				</div>
@@ -459,7 +456,7 @@ templ readyInsightCard(data ReadyPhaseData) {
 							<span class="iconify lucide--clock size-3 opacity-70"></span>
 							Each cycle
 						</span>
-						@GeneratingBadge("insight_analyses")
+	
 					</div>
 					<p class="text-xs text-base-content/50 mt-0.5">Trends · Market · SWOT · User Problems</p>
 				</div>
@@ -620,7 +617,7 @@ templ readyMapNorthStar(data ReadyPhaseData) {
 						<span class="iconify lucide--clock size-3 opacity-70"></span>
 						Years
 					</span>
-					@GeneratingBadge("north_star")
+	
 				</div>
 				<p class="text-xs text-base-content/50">Purpose · Vision · Mission · Values — immovable anchor</p>
 					if data.NorthStarExists && data.NorthStarPurpose != "" {
@@ -698,7 +695,7 @@ templ readyMapRoadmap(data ReadyPhaseData) {
 						<span class="iconify lucide--clock size-3 opacity-70"></span>
 						Each cycle
 					</span>
-					@GeneratingBadge("roadmap_recipe")
+	
 				</div>
 				<p class="text-xs text-base-content/50">Current cycle priorities — four-track OKRs, assumptions, milestones</p>
 				if data.RoadmapExists && data.RoadmapCycle != "" {
