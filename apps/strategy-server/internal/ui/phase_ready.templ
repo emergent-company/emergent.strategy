@@ -349,12 +349,12 @@ templ readyMapCard(p readyMapCardProps) {
 					<div class="flex items-center gap-2 flex-wrap">
 						<h3 class="text-sm font-semibold text-base-content leading-tight">{ p.Title }</h3>
 				<!-- Cadence badge -->
-				if p.TierLabel != "" {
-					<span class={ "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-sans font-medium " + p.BadgeColor }>
-						<span class="iconify lucide--refresh-cw size-3 opacity-70"></span>
-						{ p.TierLabel }
-					</span>
-				}
+			if p.TierLabel != "" {
+				<span class={ "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-sans font-medium " + p.BadgeColor }>
+					<span class="iconify lucide--clock size-3 opacity-70"></span>
+					{ p.TierLabel }
+				</span>
+			}
 				if p.ArtifactType != "" {
 					@GeneratingBadge(p.ArtifactType)
 				}
@@ -456,7 +456,7 @@ templ readyInsightCard(data ReadyPhaseData) {
 					<div class="flex items-center gap-2 flex-wrap">
 						<h3 class="text-sm font-semibold text-base-content leading-tight">Insight Analyses</h3>
 						<span class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-sans font-medium bg-secondary/20 text-secondary">
-							<span class="iconify lucide--refresh-cw size-3 opacity-70"></span>
+							<span class="iconify lucide--clock size-3 opacity-70"></span>
 							Each cycle
 						</span>
 						@GeneratingBadge("insight_analyses")
@@ -617,7 +617,7 @@ templ readyMapNorthStar(data ReadyPhaseData) {
 				<div class="flex items-center gap-2 mb-1">
 					<h3 class="text-sm font-semibold text-base-content">North Star</h3>
 					<span class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-sans font-medium bg-primary/20 text-primary shrink-0">
-						<span class="iconify lucide--refresh-cw size-3 opacity-70"></span>
+						<span class="iconify lucide--clock size-3 opacity-70"></span>
 						Years
 					</span>
 					@GeneratingBadge("north_star")
@@ -695,7 +695,7 @@ templ readyMapRoadmap(data ReadyPhaseData) {
 				<div class="flex items-center gap-2 mb-1">
 					<h3 class="text-sm font-semibold text-base-content">Roadmap Recipe</h3>
 					<span class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-sans font-medium bg-info/20 text-info shrink-0">
-						<span class="iconify lucide--refresh-cw size-3 opacity-70"></span>
+						<span class="iconify lucide--clock size-3 opacity-70"></span>
 						Each cycle
 					</span>
 					@GeneratingBadge("roadmap_recipe")

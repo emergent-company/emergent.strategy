@@ -603,14 +603,14 @@ func readyMapCard(p readyMapCardProps) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "\"><span class=\"iconify lucide--refresh-cw size-3 opacity-70\"></span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "\"><span class=\"iconify lucide--clock size-3 opacity-70\"></span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var17 string
 			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(p.TierLabel)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 355, Col: 19}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 355, Col: 18}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 			if templ_7745c5c3_Err != nil {
@@ -1025,7 +1025,7 @@ func readyInsightCard(data ReadyPhaseData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "\"></span></div><div class=\"min-w-0 flex-1\"><div class=\"flex items-center gap-2 flex-wrap\"><h3 class=\"text-sm font-semibold text-base-content leading-tight\">Insight Analyses</h3><span class=\"inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-sans font-medium bg-secondary/20 text-secondary\"><span class=\"iconify lucide--refresh-cw size-3 opacity-70\"></span> Each cycle</span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "\"></span></div><div class=\"min-w-0 flex-1\"><div class=\"flex items-center gap-2 flex-wrap\"><h3 class=\"text-sm font-semibold text-base-content leading-tight\">Insight Analyses</h3><span class=\"inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-sans font-medium bg-secondary/20 text-secondary\"><span class=\"iconify lucide--clock size-3 opacity-70\"></span> Each cycle</span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1565,7 +1565,7 @@ func readyMapNorthStar(data ReadyPhaseData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 124, "\"></span></div><div class=\"min-w-0 flex-1\"><div class=\"flex items-center gap-2 mb-1\"><h3 class=\"text-sm font-semibold text-base-content\">North Star</h3><span class=\"inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-sans font-medium bg-primary/20 text-primary shrink-0\"><span class=\"iconify lucide--refresh-cw size-3 opacity-70\"></span> Years</span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 124, "\"></span></div><div class=\"min-w-0 flex-1\"><div class=\"flex items-center gap-2 mb-1\"><h3 class=\"text-sm font-semibold text-base-content\">North Star</h3><span class=\"inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-sans font-medium bg-primary/20 text-primary shrink-0\"><span class=\"iconify lucide--clock size-3 opacity-70\"></span> Years</span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1847,7 +1847,7 @@ func readyMapRoadmap(data ReadyPhaseData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 153, "\"></span></div><div class=\"min-w-0 flex-1\"><div class=\"flex items-center gap-2 mb-1\"><h3 class=\"text-sm font-semibold text-base-content\">Roadmap Recipe</h3><span class=\"inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-sans font-medium bg-info/20 text-info shrink-0\"><span class=\"iconify lucide--refresh-cw size-3 opacity-70\"></span> Each cycle</span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 153, "\"></span></div><div class=\"min-w-0 flex-1\"><div class=\"flex items-center gap-2 mb-1\"><h3 class=\"text-sm font-semibold text-base-content\">Roadmap Recipe</h3><span class=\"inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-sans font-medium bg-info/20 text-info shrink-0\"><span class=\"iconify lucide--clock size-3 opacity-70\"></span> Each cycle</span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
