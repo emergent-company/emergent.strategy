@@ -70,7 +70,9 @@ func (s *Server) handleReadyDraft(c echo.Context) error {
 	result, err := s.skillExecutor.RunChunked(ctx, instID, cfg.skillName, params)
 	if err != nil {
 		s.log.Error("ready draft skill failed", "instance_id", instanceID, "skill", cfg.skillName, "err", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "draft failed: "+err.Error())
+		// Redirect back to READY page — user sees their page intact and can retry.
+		// Error is logged server-side; a flash message system can surface it later.
+		return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/ready")
 	}
 
 	s.log.Info("ready draft complete", "instance_id", instanceID, "skill", cfg.skillName, "batch_id", result.BatchID)

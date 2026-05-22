@@ -37,7 +37,8 @@ func (s *Server) handleAlignPortfolio(c echo.Context) error {
 	result, err := s.skillExecutor.RunChunked(ctx, instID, "align-portfolio", params)
 	if err != nil {
 		s.log.Error("align-portfolio skill failed", "instance_id", instanceID, "err", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "alignment failed: "+err.Error())
+		// Redirect back to FIRE page — user sees their page intact and can retry.
+		return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/fire")
 	}
 
 	s.log.Info("align-portfolio complete", "instance_id", instanceID, "batch_id", result.BatchID)
