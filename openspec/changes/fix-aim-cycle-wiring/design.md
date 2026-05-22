@@ -225,6 +225,62 @@ runs steps sequentially with explicit human gates, and adapt-foundations in step
   should produce a minimal valid LRA as a starting point, clearly marking
   sections that need human input.
 
+## Future consideration: manual editing
+
+A later stage will add direct web UI editing of strategy artifacts — a human
+opens the North Star, changes the vision statement, saves. This creates a
+mutation that follows the same commit pipeline as MCP and skill-generated
+batches.
+
+The architecture in this proposal already supports manual edits correctly
+because:
+
+**1. Shared post-commit pipeline handles all commit sources.**
+Once task group 1 is implemented, every commit (MCP, web UI skill draft, web UI
+manual edit) runs the same pipeline: ripple analysis → convergence → foundation
+triggers. Manual edits get the same coherence checking as automated ones.
+
+**2. Cascade protection applies regardless of trigger source.**
+The generation tracking, escalation at depth 2, hard stop at depth 3, and
+per-instance cooldowns are keyed by instance + skill, not by commit source. A
+manual North Star edit → ripple → adapt-foundations trigger → cascade protection
+applies identically to an AIM cycle → adapt-strategy → ripple → same path.
+
+**3. Batch metadata distinguishes commit sources.**
+The `_trigger` field in batch_metadata should support a `"manual"` value
+alongside `"ripple"`, `"aim_cycle"`, and `"manual"` (MCP). This lets the UI
+show context: "This draft was triggered by your North Star edit" vs "This
+draft was triggered by ripple signals after an AIM cycle."
+
+**Design considerations to keep in mind during implementation:**
+
+**a) Authority tier for human-initiated ripple signals.**
+When a human deliberately edits the North Star, the resulting signals should
+carry context that the root cause was a human decision. This doesn't change the
+authority tier of the downstream adaptation (adapt-foundations still runs at
+gated/escalated tier) but the signal description should say "Misalignment
+detected after manual edit to north_star" rather than generic "Structural
+drift detected." The batch_metadata `_trigger: "manual"` propagated from the
+source commit provides this context.
+
+**b) Semantic magnitude filtering.**
+Without Memory, all edits look structurally identical — a typo fix and a vision
+rewrite both change the north_star artifact. With Memory, semantic change
+classification distinguishes small from large changes. The implementation should
+ensure that small manual edits (typo fixes, formatting) produce autonomous-tier
+signals that don't trigger heavy adaptation, while substantive changes produce
+gated signals that do. This already works through the semantic similarity
+scoring in the ripple engine, but is worth validating with real manual edit
+scenarios.
+
+**c) Multi-edit coherence.**
+A human might edit strategy_formula today and roadmap_recipe tomorrow. Each
+triggers ripple independently. The cooldown mechanism prevents rapid-fire
+adaptation, but we should consider whether "batch" manual edits (editing
+multiple related artifacts in a short window) should be coalesced into a
+single ripple evaluation rather than triggering adaptation twice. This is
+an optimization for later — the cooldown prevents the worst case.
+
 ## Open Questions
 
 1. Should the 5th step (adapt-foundations) be auto-committed when the calibration
@@ -233,3 +289,7 @@ runs steps sequentially with explicit human gates, and adapt-foundations in step
 
 2. Should the draft-review page allow committing all pending batches in sequence
    (a "commit all" flow) for orchestrated cycles where the user trusts the AI?
+
+3. When manual editing is implemented, should edits to multiple READY artifacts
+   within a short window (e.g., 15 minutes) be coalesced into a single ripple
+   evaluation, or should each edit trigger independently?
