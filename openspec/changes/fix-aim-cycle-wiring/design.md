@@ -83,15 +83,45 @@ Steps: []Step{
 ```
 
 `stepAdaptFoundations` calls `executor.RunChunked("adapt-foundations")` with
-the same instance context. If the executor determines no changes are needed
-(e.g., foundations are already aligned), it returns an empty batch and the step
-completes immediately.
+the same instance context.
+
+**Graceful empty-step handling:** In most cycles — particularly "persevere"
+decisions — foundations won't need changes. The North Star doesn't drift just
+because you scored OKRs and decided to stay the course. The step must handle
+this gracefully:
+
+- The skill executor runs and evaluates whether foundation changes are needed
+  based on the calibration decision and any ripple signals.
+- **If no mutations are produced** (empty batch): the step auto-advances past
+  the human gate. The run panel shows the step as "Completed — no changes
+  needed" (not "waiting for review"). No user action required.
+- **If mutations are produced**: the step pauses at the human gate as normal
+  and the user reviews the foundation updates.
+- **The version snapshot proceeds either way.** The version is complete because
+  there genuinely weren't any foundation changes to capture — not because
+  they were missed.
+
+This means in a quiet "persevere" cycle, the user experience is:
+1. Review assessment report → commit
+2. Review calibration memo → commit
+3. Review strategy rewrite → commit
+4. Foundations: "No changes needed" (auto-advanced, ~2 seconds)
+5. Version published
+
+The cycle doesn't feel broken or stalled — step 4 simply reports that
+foundations are already aligned.
+
+**Implementation:** The orchestration engine's `waitForResume` is only called
+when `HumanGate: true` AND the step result contains a non-empty `BatchID`. The
+step executor returns a `StepResult` with an empty `BatchID` when no mutations
+were staged, and the engine skips the gate.
 
 The snapshot at step 5 now captures all artifact updates — both execution-layer
 and foundation-layer — in one version.
 
 **Note:** The ripple-triggered async adapt-foundations path remains for non-AIM
-commits. The orchestrated cycle simply doesn't depend on it.
+commits (e.g., manual strategy_formula edits via MCP). The orchestrated cycle
+simply doesn't depend on it.
 
 ### 4. draft-lra skill
 

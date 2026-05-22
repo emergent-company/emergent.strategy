@@ -107,9 +107,17 @@ reflects the complete strategy update.
 
 #### Scenario: Full cycle with no foundation changes needed
 - **WHEN** the adapt_foundations step runs
-- **AND** the executor determines no foundation changes are needed
-- **THEN** the step completes with an empty result
+- **AND** the executor determines no foundation changes are needed (e.g., persevere decision with aligned foundations)
+- **THEN** the step auto-advances past the human gate without user action
+- **AND** the run panel shows the step as "Completed — no changes needed"
 - **AND** the snapshot proceeds immediately
+
+#### Scenario: Persevere cycle — typical flow
+- **WHEN** an orchestrated AIM cycle runs with a "persevere" calibration decision
+- **THEN** steps 1-3 pause for human review as normal
+- **AND** step 4 (adapt_foundations) auto-completes because foundations are aligned
+- **AND** step 5 publishes the version
+- **AND** the cycle completes without the user reviewing an empty foundation batch
 
 #### Scenario: User discards at any step
 - **WHEN** the user discards a batch at any gated step

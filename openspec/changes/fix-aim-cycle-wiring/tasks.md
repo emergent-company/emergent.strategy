@@ -36,15 +36,22 @@
       calls `executor.RunChunked("adapt-foundations")` with instance context
 - [ ] 3.2 Insert the new step between `adapt_strategy` and `snapshot_cycle` in the
       Steps slice, with `HumanGate: true`
-- [ ] 3.3 Handle the empty-batch case: if adapt-foundations produces no changes
-      (executor returns empty result), auto-advance past the human gate
-- [ ] 3.4 Update `stepSnapshotCycle` to use the correct cycle number (now step 5
+- [ ] 3.3 Handle the empty-batch case in the orchestration engine: when a step
+      with `HumanGate: true` returns a `StepResult` with empty `BatchID`, the
+      engine SHALL skip `waitForResume` and auto-advance. Update `pg/pool.go`
+      `executeRun` to check `result.BatchID != ""` before entering the gate.
+- [ ] 3.4 Add "Completed — no changes needed" step status rendering in the run
+      panel — distinguish between "completed after review" and "completed
+      because nothing changed" (different icon/label in the step timeline)
+- [ ] 3.5 Update `stepSnapshotCycle` to use the correct cycle number (now step 5
       instead of step 4)
-- [ ] 3.5 Update the AIM run panel UI labels: `runStepLabel` in `aim_run_panel.templ`
-      to include the new step name
-- [ ] 3.6 Update web UI `aimCycleStepper` automation hint and step count references
-- [ ] 3.7 Test orchestrated cycle end-to-end: verify the version snapshot includes
-      foundation updates
+- [ ] 3.6 Update the AIM run panel UI labels: `runStepLabel` in `aim_run_panel.templ`
+      to include `adapt_foundations` step name (e.g., "Aligning foundations...")
+- [ ] 3.7 Update web UI `aimCycleStepper` automation hint and step count references
+- [ ] 3.8 Test orchestrated cycle end-to-end with "persevere" decision: verify
+      step 4 auto-advances and version snapshot completes without user action
+- [ ] 3.9 Test orchestrated cycle with "pivot" decision: verify step 4 pauses
+      for review when foundation changes are produced
 
 ## 4. Create draft-lra skill and web handler
 
