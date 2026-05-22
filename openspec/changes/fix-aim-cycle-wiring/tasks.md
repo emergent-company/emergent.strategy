@@ -105,13 +105,42 @@
 - [ ] 7.3 After committing any batch, check for other pending batches and show
       a "Continue reviewing" link or redirect to the next pending batch
 
-## 8. Tests
+## 8. Cascade depth tracking and escalation
 
-- [ ] 8.1 Test shared post-commit pipeline: verify ripple analysis runs for both
+- [ ] 8.1 Add `cascade_generation` integer field to `batch_metadata` JSONB. Set to
+      0 for direct skill runs, propagated + incremented for cascade-triggered runs.
+- [ ] 8.2 In `enqueueFoundationDraft`, read the triggering batch's `cascade_generation`
+      from `batch_metadata` and pass `generation + 1` to the new run's params
+- [ ] 8.3 In `executor.RunChunked`, write `cascade_generation` into the staged
+      batch's `batch_metadata`
+- [ ] 8.4 Add escalation rule: when `cascade_generation >= 2`, force authority tier
+      to `escalated` and add a warning message to the batch description
+- [ ] 8.5 Add hard stop: when `cascade_generation >= 3`, `enqueueFoundationDraft`
+      logs a warning and returns without triggering — the cascade chain is broken
+- [ ] 8.6 Make the escalation threshold (default 2) and hard stop threshold (default 3)
+      configurable via the ripple config (`cascade_escalation_depth`,
+      `cascade_max_depth`)
+- [ ] 8.7 Add per-instance skill cooldown: after a skill run completes for an
+      instance, enforce a minimum interval (default 5min for adapt-foundations,
+      10min for adapt-strategy) before the same skill can be auto-triggered again.
+      Check in `enqueueFoundationDraft` and skip if cooldown hasn't elapsed.
+- [ ] 8.8 Display cascade generation in the review inbox: batches with
+      `cascade_generation >= 1` show a "Cascade (gen N)" badge so the user
+      understands the chain depth
+
+## 9. Tests
+
+- [ ] 9.1 Test shared post-commit pipeline: verify ripple analysis runs for both
       MCP and web UI commit paths
-- [ ] 8.2 Test 5-step orchestrated cycle: verify version snapshot includes all
+- [ ] 9.2 Test 5-step orchestrated cycle: verify version snapshot includes all
       artifact updates from both adapt-strategy and adapt-foundations
-- [ ] 8.3 Test draft-lra skill: verify it produces schema-valid LRA from
+- [ ] 9.3 Test draft-lra skill: verify it produces schema-valid LRA from
       existing strategy context
-- [ ] 8.4 Test empty adapt-foundations: verify the step auto-advances when no
+- [ ] 9.4 Test empty adapt-foundations: verify the step auto-advances when no
       foundation changes are needed
+- [ ] 9.5 Test cascade generation tracking: verify generation increments across
+      cascade chain and escalation fires at threshold
+- [ ] 9.6 Test cascade hard stop: verify enqueueFoundationDraft refuses at
+      max depth and logs appropriately
+- [ ] 9.7 Test skill cooldown: verify rapid re-triggering of same skill for
+      same instance is blocked within the cooldown window

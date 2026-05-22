@@ -145,6 +145,70 @@ filtered to batches that touch READY artifact types.
 Render a banner at the top of the READY dashboard when pending batches exist,
 with a link to the draft review page.
 
+### 6. Cascade depth tracking and escalation
+
+The READY artifacts are bidirectional and interconnected. Changing north_star can
+create signals targeting strategy_formula, and vice versa. The current system has
+damping within a single convergence loop (max iterations, change budget, anchor
+drift, emergency brake), but no protection against **cross-commit cascade loops**
+where:
+
+1. AIM cycle commits strategy_formula changes
+2. Ripple triggers adapt-foundations (changes north_star, foundations, etc.)
+3. User commits foundation changes
+4. Ripple detects misalignment between updated north_star and strategy_formula
+5. Agent/user re-runs adapt-strategy → goto 1
+
+This loop is bounded by human gates (the user must commit each batch), but an
+AI agent using MCP tools could drive it automatically without limit.
+
+**Safeguards to add:**
+
+**A. Cascade generation counter on batches**
+
+Add a `cascade_generation` integer to `batch_metadata`. The first batch in a
+chain (e.g., the AIM cycle's adapt-strategy output) gets `generation: 0`.
+When adapt-foundations is triggered by that commit, its batch gets `generation: 1`.
+If signals from that commit trigger further adaptation, `generation: 2`, etc.
+
+The `enqueueFoundationDraft` function propagates the generation from the
+triggering batch's metadata, incrementing by 1.
+
+**B. Escalation at generation depth threshold**
+
+When `cascade_generation >= 2` (configurable via ripple config), the batch is
+automatically escalated to `authority_tier: "escalated"` regardless of semantic
+distance. This forces human review with a clear warning:
+
+> "This draft is the result of a 3rd-generation cascade. The strategy artifacts
+> have been modified multiple times in this chain. Review carefully to ensure
+> the changes converge rather than oscillate."
+
+**C. Hard stop at generation depth limit**
+
+When `cascade_generation >= 3` (configurable), `enqueueFoundationDraft` refuses
+to trigger and logs a warning instead:
+
+> "Cascade depth limit reached (generation 3). Manual review required to break
+> the adaptation loop."
+
+The user must manually run adapt-foundations or adapt-strategy if they want to
+continue the chain.
+
+**D. Per-instance cooldown for skill runs**
+
+After a skill run completes for an instance, enforce a minimum cooldown before
+the same skill can be triggered again for that instance. Default: 5 minutes for
+adapt-foundations, 10 minutes for adapt-strategy. This prevents rapid-fire
+cascades even if an agent is driving commits programmatically.
+
+The cooldown is checked in `enqueueFoundationDraft` and in the executor's
+`RunChunked`. If the cooldown hasn't elapsed, the trigger is logged but skipped.
+
+**Within the orchestrated AIM cycle**, these mechanisms don't fire — the cycle
+runs steps sequentially with explicit human gates, and adapt-foundations in step
+4 is not triggered by ripple but by the workflow directly.
+
 ## Risks / Trade-offs
 
 - **5-step cycle is longer:** Adding adapt-foundations as a gated step means the
