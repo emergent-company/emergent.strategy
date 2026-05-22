@@ -54,7 +54,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/agent"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/embedded"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/memory"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/pipeline"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/orchestration"
 )
@@ -932,77 +932,30 @@ func registerBatchWriteTools(s *server.MCPServer, svc Services) {
 		}
 
 		// Post-commit ripple analysis: detect misalignments and auto-resolve.
+		// Run the shared post-commit pipeline: ripple analysis, convergence loop,
+		// adapt-foundations enqueue, schema validation warnings.
 		result := map[string]any{"committed": true, "batch_id": batchID, "count": n}
 		if instanceID != uuid.Nil {
-			if rippleSummary := postCommitRippleAnalysis(ctx, svc, instanceID, batchID); rippleSummary != nil {
-				result["ripple_signals"] = rippleSummary
+			p := pipeline.PostCommitPipeline{
+				RippleSvc:   svc.Ripple,
+				SemanticSvc: svc.Semantic,
+				StrategySvc: svc.Strategy,
+				VersionSvc:  svc.Version,
+				SkillExec:   svc.SkillExecutor,
+				SchemaSvc:   svc.Schema,
+				Ingest:      svc.Ingest,
+				Resolver:    svc.Resolver,
 			}
-		}
-
-		// Run convergence loop after ripple analysis.
-		if instanceID != uuid.Nil && svc.Ripple != nil {
-			cfg := rippledom.DefaultRippleConfig()
-			if loadedCfg, cfgErr := svc.Ripple.GetConfig(ctx, instanceID); cfgErr == nil {
-				cfg = loadedCfg
-			}
-
-			var memClient *memory.Client
-			if svc.Semantic != nil {
-				memClient = svc.Semantic.Client()
-			}
-
-			convSvc := rippledom.ConvergenceServices{
-				DB:       svc.Strategy.DB(),
-				Ripple:   svc.Ripple,
-				Mem:      memClient,
-				Ingest:   svc.Ingest,
-				Resolver: svc.Resolver, // nil in agent-orchestrated mode, LLM-backed in server-orchestrated mode
-			}
-
-			// Wire CommitAutoFn to the strategy service's CommitAuto.
-			convSvc.CommitAutoFn = func(commitCtx context.Context, instID uuid.UUID, artifactKey, artifactType string, payload json.RawMessage, signalID uuid.UUID) error {
-				_, err := svc.Strategy.CommitAuto(commitCtx, strategy.CommitAutoParams{
-					InstanceID:   instID,
-					ArtifactType: artifactType,
-					ArtifactKey:  artifactKey,
-					Action:       "update",
-					Payload:      payload,
-					SignalID:     &signalID,
-				})
-				return err
-			}
-
-			// Wire up version publisher for equilibrium-triggered snapshots.
-			if svc.Version != nil {
-				convSvc.VersionPublisher = func(pubCtx context.Context, instID uuid.UUID, score float64, summary rippledom.ConvergenceSummary) (string, error) {
-					shortBatchID := batchID.String()[:8]
-					label := fmt.Sprintf("Equilibrium after batch %s", shortBatchID)
-					desc := fmt.Sprintf("Auto-published by convergence loop. Score: %.2f, iterations: %d, auto-resolved: %d",
-						score, summary.Iterations, summary.AutoResolved)
-					ver, pubErr := svc.Version.Publish(pubCtx, instID, label, desc)
-					if pubErr != nil {
-						return "", pubErr
-					}
-					// Enrich the version with convergence metadata.
-					eqScore := score
-					ver.Source = "convergence"
-					ver.EquilibriumScore = &eqScore
-					if summaryJSON, jsonErr := json.Marshal(summary); jsonErr == nil {
-						ver.ConvergenceMeta = summaryJSON
-					}
-					_, updateErr := svc.Strategy.DB().NewUpdate().Model(ver).
-						Column("source", "equilibrium_score", "convergence_meta").
-						WherePK().
-						Exec(pubCtx)
-					if updateErr != nil {
-						slog.WarnContext(pubCtx, "convergence: failed to update version metadata", "error", updateErr)
-					}
-					return ver.ID.String(), nil
+			pResult := p.Run(ctx, instanceID, batchID)
+			if pResult.NewSignals > 0 || pResult.ResolvedSignals > 0 {
+				result["ripple_signals"] = map[string]any{
+					"new_signals":      pResult.NewSignals,
+					"resolved_signals": pResult.ResolvedSignals,
+					"active_total":     pResult.ActiveTotal,
 				}
 			}
-
-			convergenceSummary := rippledom.RunConvergenceLoop(ctx, instanceID, &batchID, cfg, convSvc)
-			result["convergence_summary"] = convergenceSummary
+			// Return full ConvergenceSummary for backward compat with existing tests/clients.
+			result["convergence_summary"] = pResult.ConvergenceSummary
 		}
 
 		// Post-commit: run validation on the committed artifacts and include

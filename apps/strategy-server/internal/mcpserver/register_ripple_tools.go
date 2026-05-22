@@ -468,9 +468,12 @@ func registerRippleTools(s *server.MCPServer, svc Services) {
 	})
 }
 
-// postCommitRippleAnalysis runs structural ripple analysis after a batch commit
-// and creates/resolves signals. Called from the commit_batch handler.
-func postCommitRippleAnalysis(ctx context.Context, svc Services, instanceID, batchID uuid.UUID) map[string]any {
+// postCommitRippleAnalysis is kept as a compile-time stub so that any
+// stray references surface a clear error. The real implementation has moved
+// to internal/pipeline/postcommit.go (PostCommitPipeline.Run).
+//
+// Deprecated: use pipeline.PostCommitPipeline.Run instead.
+func postCommitRippleAnalysis(ctx context.Context, svc Services, instanceID, batchID uuid.UUID) map[string]any { //nolint:unused
 	if svc.Ripple == nil {
 		return nil
 	}

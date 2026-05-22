@@ -392,6 +392,7 @@ func runServer(cfg *config.Config) error {
 		WithOrchestration(orchEngine).
 		WithActivity(activitySvc).
 		WithSkillRun(skillRunSvc).
+		WithSkillExecutor(skillExecutor).
 		WithLLMEnabled(llmClient != nil)
 	webHandler.RegisterRoutes(e)
 

@@ -221,6 +221,11 @@ func (s *Server) handleDraftCommit(c echo.Context) error {
 	// updated atomically alongside strategy_mutations. The old approach (raw SQL
 	// + no-op deriveIndexForBatch) left strategy_artifacts stale, which caused
 	// ApplyCalibration to fail because it queries strategy_artifacts for the memo.
+	instID, parseErr := uuid.Parse(instanceID)
+	if parseErr != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid instance ID")
+	}
+
 	if s.strategySvc != nil {
 		if _, err = s.strategySvc.CommitBatch(ctx, batchID); err != nil {
 			s.log.Error("failed to commit draft batch", "batch_id", batchIDStr, "err", err)
@@ -238,6 +243,20 @@ func (s *Server) handleDraftCommit(c echo.Context) error {
 			s.log.Error("failed to commit draft batch (fallback)", "batch_id", batchIDStr, "err", err)
 			return echo.NewHTTPError(http.StatusInternalServerError, "commit failed")
 		}
+	}
+
+	// Run the shared post-commit pipeline: ripple analysis, convergence loop,
+	// adapt-foundations enqueue. This matches what MCP commit_batch does.
+	if s.postCommitPipeline != nil {
+		result := s.postCommitPipeline.Run(ctx, instID, batchID)
+		s.log.Info("postcommit: pipeline complete",
+			"instance_id", instanceID,
+			"batch_id", batchIDStr,
+			"new_signals", result.NewSignals,
+			"resolved_signals", result.ResolvedSignals,
+			"active_total", result.ActiveTotal,
+			"convergence_iters", result.ConvergenceIters,
+		)
 	}
 
 	// Look up any orchestration run waiting on this batch — if found, resume it
@@ -260,11 +279,8 @@ func (s *Server) handleDraftCommit(c echo.Context) error {
 	// auto-publish a version snapshot so the AIM cycle is complete, then land on
 	// the versions page rather than bouncing the user to /ready.
 	if isApplyCalibrationArtifactType(primaryArtifactType) && s.versionSvc != nil {
-		instID, parseErr := uuid.Parse(instanceID)
-		if parseErr == nil {
-			if _, pubErr := s.versionSvc.Publish(ctx, instID, "", "Published after applying AIM calibration"); pubErr != nil {
-				s.log.Warn("auto-publish after apply-calibration failed (non-fatal)", "instance_id", instanceID, "err", pubErr)
-			}
+		if _, pubErr := s.versionSvc.Publish(ctx, instID, "", "Published after applying AIM calibration"); pubErr != nil {
+			s.log.Warn("auto-publish after apply-calibration failed (non-fatal)", "instance_id", instanceID, "err", pubErr)
 		}
 		return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim/versions")
 	}

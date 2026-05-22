@@ -15,7 +15,9 @@ import (
 	aimdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/aim"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/heartbeat"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ripple"
+	schemadom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/schema"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/skillexec"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/skillrun"
 	strategydom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
 	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
@@ -42,6 +44,9 @@ type Server struct {
 	orchestrationEngine *orchestration.Engine // nil when orchestration not configured
 	activitySvc         *activitydom.Service  // nil when activity stream not configured
 	skillRunSvc         *skillrun.Service     // nil when skill run ledger not configured
+	skillExecutor       *skillexec.Executor   // nil when no LLM provider is wired
+	schemaSvc           *schemadom.Service    // nil when schema registry is not configured
+	postCommitPipeline  *PostCommitPipeline   // nil when ripple is not configured
 	llmEnabled          bool                  // true when an LLM provider is wired
 }
 
@@ -57,6 +62,7 @@ func New(db *bun.DB, log *slog.Logger, semanticSvc *semantic.Service) *Server {
 // WithRipple wires the ripple service into the handler server.
 func (s *Server) WithRipple(svc *ripple.Service) *Server {
 	s.rippleSvc = svc
+	s.rebuildPostCommitPipeline()
 	return s
 }
 
@@ -64,12 +70,14 @@ func (s *Server) WithRipple(svc *ripple.Service) *Server {
 // Required for proper strategic index derivation when committing batches via the web UI.
 func (s *Server) WithStrategy(svc *strategydom.Service) *Server {
 	s.strategySvc = svc
+	s.rebuildPostCommitPipeline()
 	return s
 }
 
 // WithVersion wires the version service into the handler server.
 func (s *Server) WithVersion(svc *version.Service) *Server {
 	s.versionSvc = svc
+	s.rebuildPostCommitPipeline()
 	return s
 }
 
@@ -112,11 +120,45 @@ func (s *Server) WithSkillRun(svc *skillrun.Service) *Server {
 	return s
 }
 
+// WithSkillExecutor wires the skill executor into the handler server (optional).
+// Required for the Apply Calibration button to call adapt-strategy via the executor.
+func (s *Server) WithSkillExecutor(exec *skillexec.Executor) *Server {
+	s.skillExecutor = exec
+	s.rebuildPostCommitPipeline()
+	return s
+}
+
+// WithSchema wires the schema service into the handler server (optional).
+// When set, the post-commit pipeline runs schema validation warnings.
+func (s *Server) WithSchema(svc *schemadom.Service) *Server {
+	s.schemaSvc = svc
+	s.rebuildPostCommitPipeline()
+	return s
+}
+
 // WithLLMEnabled records whether an LLM provider is wired to the server.
 // This is used to show the correct mode badge in the run panel UI.
 func (s *Server) WithLLMEnabled(enabled bool) *Server {
 	s.llmEnabled = enabled
 	return s
+}
+
+// rebuildPostCommitPipeline reconstructs the PostCommitPipeline from the
+// current set of wired services. Called by each With* method that the pipeline
+// depends on, so callers don't need to worry about order.
+func (s *Server) rebuildPostCommitPipeline() {
+	if s.rippleSvc == nil || s.strategySvc == nil {
+		s.postCommitPipeline = nil
+		return
+	}
+	s.postCommitPipeline = &PostCommitPipeline{
+		RippleSvc:   s.rippleSvc,
+		SemanticSvc: s.semanticSvc,
+		StrategySvc: s.strategySvc,
+		VersionSvc:  s.versionSvc,
+		SkillExec:   s.skillExecutor,
+		SchemaSvc:   s.schemaSvc,
+	}
 }
 
 // handlerEntry maps a screen to its GET handler.
