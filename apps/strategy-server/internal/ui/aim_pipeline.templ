@@ -660,9 +660,21 @@ templ aimPipelineSignalSummary(data AimPipelineData) {
 // ---------------------------------------------------------------------------
 
 templ aimPipelineQuickStats(data AimPipelineData) {
+	// ── AIM Artifacts — direct links to LRA, Assessment, Calibration ──
 	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
 		<div class="card-body p-5">
-			<h3 class="text-sm font-semibold text-base-content/70 uppercase tracking-widest mb-3">AIM Status</h3>
+			<h3 class="text-sm font-semibold text-base-content/70 uppercase tracking-widest mb-3">AIM Artifacts</h3>
+			<div class="space-y-1">
+				@aimArtifactRow("Reality Assessment", "lucide--eye", data.HasLRA, data.LRALifecycleStage, "/strategies/" + data.InstanceID + "/aim/lra")
+				@aimArtifactRow("Assessment Report", "lucide--bar-chart-2", data.HasAssessmentReport, "", "/strategies/" + data.InstanceID + "/aim/assessment")
+				@aimArtifactRow("Calibration Memo", "lucide--sliders-horizontal", data.HasCalibration, pipelineCalibLabel(data.LatestCalibDecision), "/strategies/" + data.InstanceID + "/aim/calibration")
+			</div>
+		</div>
+	</div>
+	// ── Operational status ──
+	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card-body p-5">
+			<h3 class="text-sm font-semibold text-base-content/70 uppercase tracking-widest mb-3">Status</h3>
 			<div class="space-y-2">
 				@pipelineStatRow("lucide--activity", "Signals", strconv.Itoa(data.ActiveSignals)+" active", data.CriticalSignals > 0, "/strategies/" + data.InstanceID + "/aim/coherence")
 				@pipelineStatRow("lucide--inbox", "Proposals", pipelineProposalBadge(data.PendingProposals), data.PendingProposals > 0, "/strategies/" + data.InstanceID + "/aim/proposals")
@@ -672,6 +684,13 @@ templ aimPipelineQuickStats(data AimPipelineData) {
 			</div>
 		</div>
 	</div>
+}
+
+func pipelineCalibLabel(decision string) string {
+	if decision == "" {
+		return ""
+	}
+	return calibrationDecisionLabel(decision)
 }
 
 templ pipelineStatRow(icon, label, value string, highlight bool, href string) {
