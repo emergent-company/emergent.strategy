@@ -59,6 +59,17 @@ func (s *Server) loadProposalsView(ctx context.Context, instanceID string) templ
 		PendingCount: pendingCount,
 		Proposals:    proposals,
 	}
+
+	// Check for active orchestrated AIM cycle run.
+	if s.orchestrationEngine != nil {
+		activeRun, runErr := s.orchestrationEngine.ActiveRun(ctx, aimdom.WorkflowName, instanceID)
+		if runErr == nil && activeRun != nil {
+			data.ActiveRunID = activeRun.ID.String()
+			data.ActiveRunStatus = string(activeRun.Status)
+			data.ActiveRunStep = activeRun.CurrentStep
+		}
+	}
+
 	return ui.AimProposalsContent(data)
 }
 

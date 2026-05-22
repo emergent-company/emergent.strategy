@@ -97,7 +97,7 @@ func (s *Server) loadCoherenceView(ctx context.Context, instanceID string) templ
 		TabGroup:    "aim",
 	}
 
-	return ui.CoherenceContent(ui.CoherenceViewData{
+	data := ui.CoherenceViewData{
 		NavContext:       navCtx,
 		InstanceID:       instanceID,
 		Signals:          signals,
@@ -105,7 +105,21 @@ func (s *Server) loadCoherenceView(ctx context.Context, instanceID string) templ
 		WarningCount:     warning,
 		InfoCount:        info,
 		EquilibriumScore: equilibriumScore,
-	})
+	}
+
+	// Check for active skill run triggered by ripple signals.
+	if s.skillRunSvc != nil {
+		instUUID, parseErr := uuid.Parse(instanceID)
+		if parseErr == nil {
+			activeRun, runErr := s.skillRunSvc.ActiveForInstance(ctx, instUUID)
+			if runErr == nil && activeRun != nil && activeRun.Trigger == "ripple" {
+				data.ActiveResolutionSkill = activeRun.SkillName
+				data.ActiveResolutionRunID = activeRun.ID.String()
+			}
+		}
+	}
+
+	return ui.CoherenceContent(data)
 }
 
 // ---------------------------------------------------------------------------

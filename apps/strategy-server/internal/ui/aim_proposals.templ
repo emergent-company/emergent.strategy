@@ -25,6 +25,10 @@ type AimProposalsData struct {
 	InstanceID      string
 	PendingCount    int
 	Proposals       []AimProposalRow
+	// Active cycle context — shown when an AIM cycle is currently running.
+	ActiveRunID     string // orchestration run ID, empty if none
+	ActiveRunStatus string // running | awaiting_human
+	ActiveRunStep   string // current step name
 }
 
 // AimProposalsContent renders the cycle proposals inbox.
@@ -46,6 +50,39 @@ templ AimProposalsContent(data AimProposalsData) {
 				</span>
 			}
 		</div>
+
+		// Active cycle banner
+		if data.ActiveRunID != "" {
+			<div class="rounded-xl border border-primary/20 bg-primary/5 px-5 py-3 flex items-center gap-3">
+				<span class="iconify lucide--loader-2 size-4 text-primary animate-spin shrink-0"></span>
+				<div class="grow">
+					<p class="text-sm font-semibold text-base-content">AIM cycle in progress</p>
+					<p class="text-xs text-base-content/60">
+						if data.ActiveRunStep != "" {
+							Currently: { runStepLabel(data.ActiveRunStep) }
+						} else {
+							Status: { runStatusLabel(data.ActiveRunStatus) }
+						}
+					</p>
+				</div>
+				<a
+					href={ templ.URL("/strategies/" + data.InstanceID + "/aim/runs/" + data.ActiveRunID) }
+					hx-get={ "/strategies/" + data.InstanceID + "/aim/runs/" + data.ActiveRunID }
+					hx-target="#tab-content"
+					hx-swap="innerHTML"
+					hx-push-url="true"
+					class="btn btn-xs btn-primary"
+				>View run</a>
+				<a
+					href={ templ.URL("/strategies/" + data.InstanceID + "/activity") }
+					hx-get={ "/strategies/" + data.InstanceID + "/activity" }
+					hx-target="#tab-content"
+					hx-swap="innerHTML"
+					hx-push-url="true"
+					class="btn btn-xs btn-ghost"
+				>Activity</a>
+			</div>
+		}
 
 		// Proposal list
 		if len(data.Proposals) == 0 {

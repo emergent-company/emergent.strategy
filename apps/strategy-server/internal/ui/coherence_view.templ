@@ -13,6 +13,10 @@ type CoherenceViewData struct {
 	InfoCount     int
 	// Equilibrium score (0.0 – 1.0, -1 if unknown)
 	EquilibriumScore float64
+	// Active resolution context — populated when a skill run is actively
+	// resolving signals (e.g. adapt-foundations triggered by ripple).
+	ActiveResolutionSkill string // e.g. "adapt-foundations", empty if none
+	ActiveResolutionRunID string // skill run ID, empty if none
 }
 
 // CoherenceSignal is a single ripple signal for detailed display.
@@ -49,6 +53,27 @@ templ CoherenceContent(data CoherenceViewData) {
 
 		// ── Severity summary ──
 		@coherenceSeveritySummary(data)
+
+		// ── Active resolution banner ──
+		if data.ActiveResolutionSkill != "" {
+			<div class="rounded-xl border border-primary/20 bg-primary/5 px-5 py-3 flex items-center gap-3">
+				<span class="iconify lucide--loader-2 size-4 text-primary animate-spin shrink-0"></span>
+				<div class="grow">
+					<p class="text-sm font-semibold text-base-content">Resolution in progress</p>
+					<p class="text-xs text-base-content/60">
+						{ cascadeSkillLabel(data.ActiveResolutionSkill) } is running to resolve these signals.
+					</p>
+				</div>
+				<a
+					href={ templ.URL("/strategies/" + data.InstanceID + "/activity") }
+					hx-get={ "/strategies/" + data.InstanceID + "/activity" }
+					hx-target="#tab-content"
+					hx-swap="innerHTML"
+					hx-push-url="true"
+					class="btn btn-xs btn-primary"
+				>View activity</a>
+			</div>
+		}
 
 		// ── Signal list ──
 		if len(data.Signals) == 0 {

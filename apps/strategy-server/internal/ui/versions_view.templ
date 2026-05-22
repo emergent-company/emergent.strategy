@@ -109,11 +109,31 @@ templ versionListRow(v VersionRow) {
 				if v.Label != "" {
 					<span class="text-sm text-base-content/70">{ v.Label }</span>
 				}
-				@versionSourceBadge(v.Source)
-				if v.CalibrationDecision != "" {
-					@calibrationDecisionMini(v.CalibrationDecision)
-				}
-				@versionStatusBadge(v.Status)
+			@versionSourceBadge(v.Source)
+			if v.Source == "convergence" {
+				<a
+					href={ templ.URL("/strategies/" + v.InstanceID + "/activity") }
+					class="badge badge-xs badge-ghost gap-1 hover:badge-primary transition-colors"
+					onclick="event.stopPropagation()"
+				>
+					<span class="iconify lucide--activity size-2.5"></span>
+					Activity
+				</a>
+			}
+			if v.Source == "aim_cycle" {
+				<a
+					href={ templ.URL("/strategies/" + v.InstanceID + "/aim") }
+					class="badge badge-xs badge-ghost gap-1 hover:badge-primary transition-colors"
+					onclick="event.stopPropagation()"
+				>
+					<span class="iconify lucide--play-circle size-2.5"></span>
+					AIM cycle
+				</a>
+			}
+			if v.CalibrationDecision != "" {
+				@calibrationDecisionMini(v.CalibrationDecision)
+			}
+			@versionStatusBadge(v.Status)
 			</div>
 			if v.Description != "" {
 				<p class="text-xs text-base-content/50 mt-0.5 truncate">{ v.Description }</p>
