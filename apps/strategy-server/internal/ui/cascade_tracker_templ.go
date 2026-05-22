@@ -630,6 +630,20 @@ func cascadeSkillLabel(name string) string {
 		return "Adapt Strategy"
 	case "adapt-foundations":
 		return "Adapt Foundations"
+	case "draft-north-star":
+		return "Draft North Star"
+	case "draft-insights":
+		return "Draft Insight Analyses"
+	case "draft-foundations":
+		return "Draft Foundations"
+	case "draft-opportunity":
+		return "Draft Opportunity"
+	case "draft-formula":
+		return "Draft Strategy Formula"
+	case "draft-roadmap":
+		return "Draft Roadmap"
+	case "align-portfolio":
+		return "Align Portfolio"
 	default:
 		return name
 	}
