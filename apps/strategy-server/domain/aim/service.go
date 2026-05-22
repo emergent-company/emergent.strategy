@@ -324,8 +324,13 @@ func (s *Service) DraftAssessment(ctx context.Context, instanceID uuid.UUID) (uu
 
 	llmUsed := false
 	if s.llm != nil {
+		enriched := s.enrichAssessmentWithLLM(ctx, report, okrAssessments, priorAssessment, lraPayload)
+		if enriched == 0 && len(okrAssessments) > 0 {
+			// All LLM calls failed (e.g. 429 spending cap). Staging an empty skeleton
+			// would be misleading — surface the error so the user can retry.
+			return uuid.Nil, DraftSummary{}, fmt.Errorf("LLM enrichment failed for all %d OKRs — check API key quota and retry", len(okrAssessments))
+		}
 		llmUsed = true
-		s.enrichAssessmentWithLLM(ctx, report, okrAssessments, priorAssessment, lraPayload)
 		report["metadata"].(map[string]any)["llm_used"] = true
 	}
 
@@ -566,7 +571,8 @@ func (s *Service) extractStrategicInsights(ctx context.Context, instanceID uuid.
 //  2. lraPayload — LRA evolution log entries (narrative of what happened this cycle)
 //  3. Active ripple signals (system-detected misalignments)
 //  4. Strategic context from north star and strategy foundations
-func (s *Service) enrichAssessmentWithLLM(ctx context.Context, report map[string]any, okrAssessments []map[string]any, priorAssessment, lraPayload map[string]any) {
+// enrichAssessmentWithLLM returns the number of OKRs successfully enriched.
+func (s *Service) enrichAssessmentWithLLM(ctx context.Context, report map[string]any, okrAssessments []map[string]any, priorAssessment, lraPayload map[string]any) int {
 	instanceID := s.instanceIDFromReport(report)
 
 	// Build shared context sections — loaded once, reused per OKR call.
@@ -679,13 +685,16 @@ Write 2-4 sentences assessing this OKR. Reference prior actuals and LRA narrativ
 	}
 
 	// Collect all results.
+	enriched := 0
 	for range okrAssessments {
 		r := <-resultCh
 		if r.assessment != "" {
 			okrAssessments[r.idx]["assessment"] = r.assessment
+			enriched++
 		}
 	}
 	report["okr_assessments"] = okrAssessments
+	return enriched
 }
 
 // seedFromPriorAssessment carries forward actuals and KR outcomes from the last
