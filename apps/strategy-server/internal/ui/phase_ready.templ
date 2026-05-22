@@ -12,6 +12,14 @@ type ReadyGap struct {
 	Hint    string // one-line action hint shown when missing, e.g. "Add market & technology trends"
 }
 
+// EvidenceSufficiencyResult describes whether an artifact type has enough evidence
+// to produce a useful AI draft.
+type EvidenceSufficiencyResult struct {
+	Sufficient   bool
+	EvidenceCount int
+	MissingTags  []string // tags that would improve coverage
+}
+
 // ReadyPhaseData holds all data for the READY phase dashboard.
 type ReadyPhaseData struct {
 	InstanceID string
@@ -67,6 +75,21 @@ type ReadyPhaseData struct {
 	// Counts
 	TotalArtifacts     int
 	CompletedArtifacts int // artifacts that exist (out of expected)
+	EvidenceCount      int // total number of evidence items loaded for this instance
+
+	// Evidence sufficiency per artifact type — used to show draft button state.
+	EvidenceSufficiency map[string]EvidenceSufficiencyResult
+
+	// HasSkillExecutor — true when the LLM executor is configured, enables draft buttons.
+	HasSkillExecutor bool
+
+	// Readiness score (0–100) and blockers for the progress bar.
+	ReadinessScore   int
+	ReadinessBlockers []string
+
+	// VersionCount — number of published strategy versions; used to show
+	// "Publish first version" banner when score >= 80 and count == 0.
+	VersionCount int
 
 	// Pending batches — AI-generated drafts touching READY artifacts awaiting human review.
 	PendingBatches []ReadyPendingBatch
@@ -110,6 +133,17 @@ templ ReadyPhaseContent(data ReadyPhaseData) {
 			<div>
 				<h2 class="text-base font-semibold text-base-content">READY Phase</h2>
 				<p class="text-xs text-base-content/60 mt-0.5">Strategic foundation — artifacts are interconnected, not independent</p>
+				if data.EvidenceCount > 0 {
+					<a href={ templ.URL("/strategies/" + data.InstanceID + "/aim/evidence") } class="text-xs text-primary/70 hover:text-primary mt-0.5 flex items-center gap-1">
+						<span class="iconify lucide--database size-3"></span>
+						{ strconv.Itoa(data.EvidenceCount) } evidence items loaded
+					</a>
+				} else {
+					<a href={ templ.URL("/strategies/" + data.InstanceID + "/aim/evidence") } class="text-xs text-base-content/40 hover:text-base-content/60 mt-0.5 flex items-center gap-1">
+						<span class="iconify lucide--database size-3"></span>
+						Add evidence to improve AI drafts
+					</a>
+				}
 			</div>
 			<div class="flex items-center gap-3 text-xs text-base-content/50">
 				<span class="text-base-content/35">Change cadence:</span>
@@ -131,6 +165,14 @@ templ ReadyPhaseContent(data ReadyPhaseData) {
 				</span>
 			</div>
 		</div>
+		<!-- Readiness score progress bar -->
+		if data.ReadinessScore > 0 || data.CompletedArtifacts > 0 {
+			@readyScoreBar(data)
+		}
+		<!-- First version publication banner — shown when score >= 80 and no version exists -->
+		if data.ReadinessScore >= 80 && data.VersionCount == 0 {
+			@readyPublishBanner(data.InstanceID)
+		}
 		<!-- Row 1: North Star — full width, immovable anchor -->
 		@readyMapNorthStar(data)
 		<!-- Row connector: North Star → row 2 -->
@@ -145,20 +187,26 @@ templ ReadyPhaseContent(data ReadyPhaseData) {
 				@svgArrowRight()
 			</div>
 			<!-- Insight Opportunity -->
+			{{ insightOpportCanDraft := data.InsightExists }}
 			@readyMapCard(readyMapCardProps{
-				Title:        "Insight Opportunity",
-				Subtitle:     "Synthesised big opportunity from analyses",
-				Icon:         "lucide--lightbulb",
-				Href:         "/strategies/" + data.InstanceID + "/ready/opportunity",
-				Exists:       data.OpportunityExists,
-				ArtifactType: "insight_opportunity",
-				Tier:         2,
-				TierLabel:    "Each cycle",
-				TierColor:    "bg-secondary/10 border-secondary/20",
-				BadgeColor:   "bg-secondary/20 text-secondary",
-				Line1:        data.OpportunityTitle,
-				Line2:        data.OpportunityUrgency,
-				Gaps:         data.OpportunityGaps,
+				Title:           "Insight Opportunity",
+				Subtitle:        "Synthesised big opportunity from analyses",
+				Icon:            "lucide--lightbulb",
+				Href:            "/strategies/" + data.InstanceID + "/ready/opportunity",
+				Exists:          data.OpportunityExists,
+				ArtifactType:   "insight_opportunity",
+				Tier:            2,
+				TierLabel:       "Each cycle",
+				TierColor:       "bg-secondary/10 border-secondary/20",
+				BadgeColor:      "bg-secondary/20 text-secondary",
+				Line1:           data.OpportunityTitle,
+				Line2:           data.OpportunityUrgency,
+				Gaps:            data.OpportunityGaps,
+				SufficiencyHint: evidenceSufficiencyHint(data.EvidenceSufficiency["insight_opportunity"]),
+				EvidenceReady:   data.EvidenceSufficiency["insight_opportunity"].Sufficient,
+				DraftURL:        readyDraftURL(data.InstanceID, "opportunity"),
+				DraftLabel:      readyDraftLabel(data.EvidenceSufficiency["insight_opportunity"].Sufficient, data.HasSkillExecutor && insightOpportCanDraft),
+				CanDraft:        data.HasSkillExecutor && insightOpportCanDraft,
 			})
 		</div>
 		<!-- Row connector: row 2 → row 3 (both columns converge downward) -->
@@ -166,41 +214,53 @@ templ ReadyPhaseContent(data ReadyPhaseData) {
 		<!-- Row 3: Strategy cluster — Formula + Foundations -->
 		<div class="grid grid-cols-[1fr_auto_1fr] gap-0 items-stretch">
 			<!-- Strategy Formula -->
+			{{ formulaCanDraft := data.NorthStarExists && data.FoundationExists }}
 			@readyMapCard(readyMapCardProps{
-				Title:        "Strategy Formula",
-				Subtitle:     "Positioning · Moat · Value creation · Business model",
-				Icon:         "lucide--flask-conical",
-				Href:         "/strategies/" + data.InstanceID + "/ready/formula",
-				Exists:       data.FormulaExists,
-				ArtifactType: "strategy_formula",
-				Tier:         3,
-				TierLabel:    "Quarterly",
-				TierColor:    "bg-accent/10 border-accent/20",
-		BadgeColor: "bg-accent/20 text-accent",
-			Line1:      data.FormulaCategory,
-			Line2:      data.FormulaUVP,
-			Gaps:       data.FormulaGaps,
-		})
+				Title:           "Strategy Formula",
+				Subtitle:        "Positioning · Moat · Value creation · Business model",
+				Icon:            "lucide--flask-conical",
+				Href:            "/strategies/" + data.InstanceID + "/ready/formula",
+				Exists:          data.FormulaExists,
+				ArtifactType:   "strategy_formula",
+				Tier:            3,
+				TierLabel:       "Quarterly",
+				TierColor:       "bg-accent/10 border-accent/20",
+				BadgeColor:      "bg-accent/20 text-accent",
+				Line1:           data.FormulaCategory,
+				Line2:           data.FormulaUVP,
+				Gaps:            data.FormulaGaps,
+				SufficiencyHint: evidenceSufficiencyHint(data.EvidenceSufficiency["strategy_formula"]),
+				EvidenceReady:   data.EvidenceSufficiency["strategy_formula"].Sufficient,
+				DraftURL:        readyDraftURL(data.InstanceID, "formula"),
+				DraftLabel:      readyDraftLabel(data.EvidenceSufficiency["strategy_formula"].Sufficient, data.HasSkillExecutor && formulaCanDraft),
+				CanDraft:        data.HasSkillExecutor && formulaCanDraft,
+			})
 		<!-- Mid divider: no arrow, just a vertical separator -->
 		<div class="flex flex-col items-center justify-center px-3 min-w-[80px]">
 			<div class="h-full w-px bg-base-content/10 my-2"></div>
 		</div>
 		<!-- Strategy Foundations -->
+		{{ foundCanDraft := data.NorthStarExists }}
 		@readyMapCard(readyMapCardProps{
-			Title:        "Strategy Foundations",
-			Subtitle:     "Product vision · Value prop · Sequencing · Principles",
-			Icon:         "lucide--building-2",
-			Href:         "/strategies/" + data.InstanceID + "/ready/foundations",
-			Exists:       data.FoundationExists,
-			ArtifactType: "strategy_foundations",
-			Tier:         3,
-			TierLabel:    "Quarterly",
-			TierColor:    "bg-accent/10 border-accent/20",
-			BadgeColor:   "bg-accent/20 text-accent",
-				Line1:      data.FoundationValueProp,
-				Line2:      data.FoundationVision,
-				Gaps:       data.FoundationGaps,
-			})
+			Title:           "Strategy Foundations",
+			Subtitle:        "Product vision · Value prop · Sequencing · Principles",
+			Icon:            "lucide--building-2",
+			Href:            "/strategies/" + data.InstanceID + "/ready/foundations",
+			Exists:          data.FoundationExists,
+			ArtifactType:   "strategy_foundations",
+			Tier:            3,
+			TierLabel:       "Quarterly",
+			TierColor:       "bg-accent/10 border-accent/20",
+			BadgeColor:      "bg-accent/20 text-accent",
+			Line1:           data.FoundationValueProp,
+			Line2:           data.FoundationVision,
+			Gaps:            data.FoundationGaps,
+			SufficiencyHint: evidenceSufficiencyHint(data.EvidenceSufficiency["strategy_foundations"]),
+			EvidenceReady:   data.EvidenceSufficiency["strategy_foundations"].Sufficient,
+			DraftURL:        readyDraftURL(data.InstanceID, "foundations"),
+			DraftLabel:      readyDraftLabel(data.EvidenceSufficiency["strategy_foundations"].Sufficient, data.HasSkillExecutor && foundCanDraft),
+			CanDraft:        data.HasSkillExecutor && foundCanDraft,
+		})
 		</div>
 		<!-- Row connector: row 3 → Roadmap -->
 		@readyConnectorRow4()
@@ -211,6 +271,36 @@ templ ReadyPhaseContent(data ReadyPhaseData) {
 		<!-- FIRE handoff panel -->
 		@readyFireHandoff(data)
 	</div>
+}
+
+// readyDraftURL returns the POST URL for drafting an artifact from the READY dashboard.
+func readyDraftURL(instanceID, draftKey string) string {
+	return "/strategies/" + instanceID + "/ready/draft-" + draftKey
+}
+
+// readyDraftLabel returns the button label based on evidence sufficiency and prerequisite state.
+func readyDraftLabel(sufficient, canDraft bool) string {
+	if !canDraft {
+		return "Prerequisites missing"
+	}
+	if sufficient {
+		return "Draft from evidence"
+	}
+	return "Draft with AI"
+}
+
+// evidenceSufficiencyHint builds a display hint string from a sufficiency result.
+func evidenceSufficiencyHint(s EvidenceSufficiencyResult) string {
+	if s.Sufficient {
+		return strconv.Itoa(s.EvidenceCount) + " evidence item(s) ready for draft"
+	}
+	if len(s.MissingTags) == 0 {
+		return "Add evidence to improve AI draft"
+	}
+	if len(s.MissingTags) == 1 {
+		return "Add " + s.MissingTags[0] + " evidence to improve draft"
+	}
+	return "Add " + s.MissingTags[0] + " or " + s.MissingTags[1] + " evidence to improve draft"
 }
 
 // readyMapCardProps holds config for a single artifact node in the map.
@@ -230,6 +320,13 @@ type readyMapCardProps struct {
 	Line2 string // secondary content (muted)
 	// Section-level completeness gaps — shown when artifact exists
 	Gaps []ReadyGap
+	// Evidence hint — shown when artifact does not exist (optional)
+	SufficiencyHint string // e.g. "Add vision/strategy evidence to improve draft"
+	EvidenceReady   bool   // true when sufficient evidence exists for this artifact
+	// Draft action
+	DraftURL   string // POST URL for the draft action (empty = no button)
+	DraftLabel string // button label, e.g. "Draft from evidence" or "Draft with AI"
+	CanDraft   bool   // true when prerequisites are met
 }
 
 // readyMapCard renders a clickable artifact node in the dependency map.
@@ -282,13 +379,38 @@ templ readyMapCard(p readyMapCardProps) {
 				}
 			</div>
 		} else if !p.Exists {
-			<div class="border-t border-base-content/10 pt-2.5">
+			<div class="border-t border-base-content/10 pt-2.5 space-y-1.5">
 				<p class="text-xs text-base-content/35 italic">Not yet authored</p>
+				if p.SufficiencyHint != "" {
+					<p class={ "text-xs flex items-center gap-1", templ.KV("text-success/70", p.EvidenceReady), templ.KV("text-base-content/40", !p.EvidenceReady) }>
+						if p.EvidenceReady {
+							<span class="iconify lucide--database size-3"></span>
+						} else {
+							<span class="iconify lucide--database size-3"></span>
+						}
+						{ p.SufficiencyHint }
+					</p>
+				}
 			</div>
 		}
 		<!-- Section gap strip — only shown when artifact exists and has gaps defined -->
 		if p.Exists && len(p.Gaps) > 0 {
 			@readyGapStrip(p.Gaps)
+		}
+		<!-- Draft action button — shown when not yet authored and skill executor available -->
+		if !p.Exists && p.DraftURL != "" {
+			<div class="border-t border-base-content/10 pt-2" onclick="event.preventDefault(); event.stopPropagation();">
+				if p.CanDraft {
+					<form method="POST" action={ templ.URL(p.DraftURL) } class="w-full">
+						<button type="submit" class="btn btn-xs btn-ghost w-full text-primary hover:bg-primary/10">
+							<span class="iconify lucide--sparkles size-3"></span>
+							{ p.DraftLabel }
+						</button>
+					</form>
+				} else {
+					<p class="text-xs text-base-content/30 text-center py-0.5 italic">{ p.DraftLabel }</p>
+				}
+			</div>
 		}
 	</div>
 </a>
@@ -375,8 +497,25 @@ templ readyInsightCard(data ReadyPhaseData) {
 					}
 				</div>
 		} else {
-			<div class="border-t border-base-content/10 pt-2.5">
+			<div class="border-t border-base-content/10 pt-2.5 space-y-1.5">
 				<p class="text-xs text-base-content/35 italic">Not yet authored</p>
+				{{ s := data.EvidenceSufficiency["insight_analyses"] }}
+				if s.EvidenceCount > 0 || len(s.MissingTags) > 0 {
+					<p class={ "text-xs flex items-center gap-1", templ.KV("text-success/70", s.Sufficient), templ.KV("text-base-content/40", !s.Sufficient) }>
+						<span class="iconify lucide--database size-3"></span>
+						{ evidenceSufficiencyHint(s) }
+					</p>
+				}
+				if data.HasSkillExecutor {
+					<div onclick="event.preventDefault(); event.stopPropagation();">
+						<form method="POST" action={ templ.URL(readyDraftURL(data.InstanceID, "insights")) }>
+							<button type="submit" class="btn btn-xs btn-ghost text-secondary hover:bg-secondary/10 w-full">
+								<span class="iconify lucide--sparkles size-3"></span>
+								{ readyDraftLabel(s.Sufficient, true) }
+							</button>
+						</form>
+					</div>
+				}
 			</div>
 		}
 		if data.InsightExists && len(data.InsightGaps) > 0 {
@@ -508,6 +647,31 @@ templ readyMapNorthStar(data ReadyPhaseData) {
 		if data.NorthStarExists && len(data.NorthStarGaps) > 0 {
 			@readyGapStrip(data.NorthStarGaps)
 		}
+		if !data.NorthStarExists {
+			<div class="border-t border-base-content/10 pt-2.5 space-y-2">
+				<div class="flex items-center gap-2">
+					<p class="text-xs text-base-content/35 italic">Not yet authored</p>
+					{{ s := data.EvidenceSufficiency["north_star"] }}
+					if s.EvidenceCount > 0 || len(s.MissingTags) > 0 {
+						<p class={ "text-xs flex items-center gap-1", templ.KV("text-success/70", s.Sufficient), templ.KV("text-base-content/40", !s.Sufficient) }>
+							<span class="mx-1 text-base-content/20">·</span>
+							<span class="iconify lucide--database size-3"></span>
+							{ evidenceSufficiencyHint(s) }
+						</p>
+					}
+				</div>
+				if data.HasSkillExecutor {
+					<div onclick="event.preventDefault(); event.stopPropagation();">
+						<form method="POST" action={ templ.URL(readyDraftURL(data.InstanceID, "north-star")) }>
+							<button type="submit" class="btn btn-xs btn-ghost text-primary hover:bg-primary/10">
+								<span class="iconify lucide--sparkles size-3"></span>
+								{ readyDraftLabel(data.EvidenceSufficiency["north_star"].Sufficient, true) }
+							</button>
+						</form>
+					</div>
+				}
+			</div>
+		}
 	</div>
 </a>
 }
@@ -563,6 +727,22 @@ templ readyMapRoadmap(data ReadyPhaseData) {
 		</div>
 		if data.RoadmapExists && len(data.RoadmapGaps) > 0 {
 			@readyGapStrip(data.RoadmapGaps)
+		}
+		if !data.RoadmapExists && data.HasSkillExecutor {
+			{{ roadmapCanDraft := data.FormulaExists && data.FoundationExists }}
+			<div class="border-t border-base-content/10 pt-2.5 space-y-1.5" onclick="event.preventDefault(); event.stopPropagation();">
+				<p class="text-xs text-base-content/35 italic">Not yet authored</p>
+				<form method="POST" action={ templ.URL(readyDraftURL(data.InstanceID, "roadmap")) }>
+					<button
+						type="submit"
+						class={ "btn btn-xs btn-ghost w-full text-info hover:bg-info/10", templ.KV("opacity-40 cursor-not-allowed", !roadmapCanDraft) }
+						disabled?={ !roadmapCanDraft }
+					>
+						<span class="iconify lucide--sparkles size-3"></span>
+						{ readyDraftLabel(data.EvidenceSufficiency["roadmap_recipe"].Sufficient, roadmapCanDraft) }
+					</button>
+				</form>
+			</div>
 		}
 </a>
 }
@@ -744,5 +924,60 @@ templ roadmapOKRSummary(tracks []TrackOKRSummary) {
 				}
 			</div>
 		</div>
+	</div>
+}
+
+// readyScoreBar renders a compact readiness progress bar in the READY dashboard header.
+templ readyScoreBar(data ReadyPhaseData) {
+	<div class="flex items-center gap-3 mb-3">
+		<div class="flex-1">
+			<div class="flex items-center justify-between mb-1">
+				<span class="text-xs text-base-content/50">Foundation readiness</span>
+				<span class={ "text-xs font-semibold", templ.KV("text-success", data.ReadinessScore >= 80), templ.KV("text-warning", data.ReadinessScore >= 50 && data.ReadinessScore < 80), templ.KV("text-base-content/60", data.ReadinessScore < 50) }>
+					{ strconv.Itoa(data.ReadinessScore) }%
+				</span>
+			</div>
+			<div class="h-1.5 rounded-full bg-base-content/10 overflow-hidden">
+				<div
+					class={ "h-full rounded-full transition-all duration-500", templ.KV("bg-success", data.ReadinessScore >= 80), templ.KV("bg-warning", data.ReadinessScore >= 50 && data.ReadinessScore < 80), templ.KV("bg-base-content/30", data.ReadinessScore < 50) }
+					style={ "width: " + strconv.Itoa(data.ReadinessScore) + "%" }
+				></div>
+			</div>
+		</div>
+		<span class="text-xs text-base-content/40 whitespace-nowrap shrink-0">
+			{ strconv.Itoa(data.CompletedArtifacts) } / { strconv.Itoa(data.TotalArtifacts) } artifacts
+		</span>
+	</div>
+	if data.ReadinessScore < 80 && len(data.ReadinessBlockers) > 0 {
+		<div class="flex flex-wrap gap-1.5 mb-3">
+			for _, blocker := range data.ReadinessBlockers {
+				<span class="inline-flex items-center gap-1 rounded-md bg-warning/10 border border-warning/20 px-2 py-0.5 text-xs text-warning">
+					<span class="iconify lucide--triangle-alert size-3"></span>
+					{ blocker }
+				</span>
+			}
+		</div>
+	}
+}
+
+// readyPublishBanner renders a "Publish first version" call-to-action banner.
+// Only shown when readiness >= 80 and no versions have been published yet.
+templ readyPublishBanner(instanceID string) {
+	<div class="alert alert-success shadow-sm mb-3 flex items-center justify-between">
+		<div class="flex items-center gap-2">
+			<span class="iconify lucide--rocket size-5 text-success"></span>
+			<div>
+				<p class="text-sm font-semibold">Your strategy is ready to publish</p>
+				<p class="text-xs opacity-80">Capture this as your initial version — it becomes the baseline for your first AIM cycle.</p>
+			</div>
+		</div>
+		<form method="POST" action={ templ.URL("/strategies/" + instanceID + "/aim/publish") } class="shrink-0">
+			<input type="hidden" name="label" value="Initial Strategy"/>
+			<input type="hidden" name="description" value="First strategy version — published from the READY dashboard."/>
+			<button type="submit" class="btn btn-sm btn-success">
+				<span class="iconify lucide--bookmark size-4"></span>
+				Publish initial version
+			</button>
+		</form>
 	</div>
 }

@@ -726,8 +726,14 @@ The time investment pays off in implementation clarity and reduced rework!
 
 ## Related Resources
 
-- **Feature Definition Schema (v2.0)**: [../schemas/feature_definition_schema.json](../schemas/feature_definition_schema.json)
 - **Value Model Business Language Guide**: [../docs/guides/VALUE_MODEL_BUSINESS_LANGUAGE_GUIDE.md](../docs/guides/VALUE_MODEL_BUSINESS_LANGUAGE_GUIDE.md)
-- **Schema Enhancement Recommendations**: [../docs/guides/technical/schema_enhancement_recommendations.md](../docs/guides/technical/schema_enhancement_recommendations.md)
-- **Product Architect Wizard**: [./product_architect.agent_prompt.md](./product_architect.agent_prompt.md)
 - **Roadmap Recipe Template**: [../templates/READY/05_roadmap_recipe.yaml](../templates/READY/05_roadmap_recipe.yaml)
+
+---
+
+## Canonical Schema Reference
+
+The following constraints are derived live from the canonical EPF feature schema.
+They take precedence over any field names, enums, or structure described elsewhere in this document.
+
+{{schemaConstraints "feature"}}

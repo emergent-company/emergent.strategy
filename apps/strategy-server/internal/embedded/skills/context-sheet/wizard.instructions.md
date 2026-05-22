@@ -552,3 +552,15 @@ jobs:
 ---
 
 **Need Help?** Ask your AI assistant for guidance on EPF output generation.
+
+---
+
+## Canonical Schema Reference
+
+The YAML field paths shown in Step 3 are illustrative. If a field is not found at
+the expected path, consult the canonical schemas below — they are the authoritative
+source of truth for all field names, required fields, and allowed values.
+
+{{schemaConstraints "north_star"}}
+{{schemaConstraints "strategy_formula"}}
+{{schemaConstraints "roadmap_recipe"}}

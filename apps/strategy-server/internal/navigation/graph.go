@@ -98,6 +98,9 @@ func DefaultGraph() *Graph {
 		{ID: AimProposals, Title: "Proposals", Parent: AimOverview,
 			WebRoute: true, URLPattern: "/aim/proposals", Icon: "lucide--inbox",
 			TabGroup: TabAim, RenderMode: RenderTabPage, InstanceScoped: true},
+		{ID: AimEvidence, Title: "Evidence", Parent: AimOverview,
+			WebRoute: true, URLPattern: "/aim/evidence", Icon: "lucide--database",
+			TabGroup: TabAim, RenderMode: RenderTabPage, InstanceScoped: true},
 		// Artifact detail pages — accessible by direct URL, hidden from sub-nav.
 		{ID: LRA, Title: "Living Reality Assessment", Parent: AimOverview,
 			WebRoute: true, URLPattern: "/aim/lra", Icon: "lucide--eye",

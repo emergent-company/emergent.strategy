@@ -20,6 +20,7 @@ import (
 	aimdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/aim"
 	appdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/app"
 	evidencedom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/evidence"
+	watchdogdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/watchdog"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/heartbeat"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ingest"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
@@ -242,6 +243,7 @@ func runServer(cfg *config.Config) error {
 		Orchestration: orchEngine,
 		Evidence:      evidenceSvc,
 		Activity:      activitySvc,
+		Watchdog:      watchdogdom.NewService(db),
 	}
 
 	// Echo instance.
@@ -393,6 +395,7 @@ func runServer(cfg *config.Config) error {
 		WithActivity(activitySvc).
 		WithSkillRun(skillRunSvc).
 		WithSkillExecutor(skillExecutor).
+		WithEvidence(evidenceSvc).
 		WithLLMEnabled(llmClient != nil)
 	webHandler.RegisterRoutes(e)
 

@@ -87,6 +87,13 @@ type Services struct {
 	Orchestration *orchestration.Engine    // optional — nil disables orchestrator MCP tools
 	Evidence      *evidencedom.Service     // optional — nil disables evidence MCP tools
 	Activity      *activitydom.Service     // optional — nil disables activity stream MCP tools
+	Watchdog      WatchdogRunner           // optional — nil disables watchdog health checks in health_check
+}
+
+// WatchdogRunner runs a watchdog health check for an instance.
+// The watchdog.Service satisfies this interface via its RunAny method.
+type WatchdogRunner interface {
+	RunAny(ctx context.Context, instanceID uuid.UUID) (any, error)
 }
 
 // HeartbeatService is the interface used by MCP heartbeat tools.
@@ -367,6 +374,14 @@ func registerInstanceReadTools(s *server.MCPServer, svc Services) {
 						"deficit":        eqReport.Deficit,
 					}
 				}
+			}
+		}
+
+		// Add watchdog health report when available.
+		if svc.Watchdog != nil {
+			wdReport, wdErr := svc.Watchdog.RunAny(ctx, id)
+			if wdErr == nil {
+				result["watchdog"] = wdReport
 			}
 		}
 

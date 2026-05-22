@@ -498,6 +498,82 @@ func TestDraftLRASkill_ResolvesCorrectly(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Bootstrap skills — Groups 3/11
+// ---------------------------------------------------------------------------
+
+// bootstrapSkillSpec defines the minimum expected contents for each READY bootstrap skill.
+var bootstrapSkillSpecs = []struct {
+	name          string
+	phase         string
+	promptKeyword string // a word that must appear in the prompt
+}{
+	{"draft-north-star", "READY", "north_star"},
+	{"draft-insights", "READY", "insight_analyses"},
+	{"draft-foundations", "READY", "strategy_foundations"},
+	{"draft-opportunity", "READY", "insight_opportunity"},
+	{"draft-formula", "READY", "strategy_formula"},
+	{"draft-roadmap", "READY", "roadmap_recipe"},
+}
+
+func TestBootstrapSkills_YAMLExistsAndValid(t *testing.T) {
+	for _, spec := range bootstrapSkillSpecs {
+		t.Run(spec.name, func(t *testing.T) {
+			data, err := embedded.GetSkillYAML(spec.name)
+			if err != nil {
+				t.Fatalf("GetSkillYAML(%q): %v", spec.name, err)
+			}
+			raw := string(data)
+			if !strings.Contains(raw, "name: "+spec.name) {
+				t.Errorf("skill.yaml missing 'name: %s'", spec.name)
+			}
+			if !strings.Contains(raw, "phase: "+spec.phase) {
+				t.Errorf("skill.yaml missing 'phase: %s'", spec.phase)
+			}
+			if !strings.Contains(raw, "execution: prompt") {
+				t.Errorf("skill.yaml missing 'execution: prompt'")
+			}
+		})
+	}
+}
+
+func TestBootstrapSkills_PromptExistsAndContainsKeyword(t *testing.T) {
+	for _, spec := range bootstrapSkillSpecs {
+		t.Run(spec.name, func(t *testing.T) {
+			data, err := embedded.GetSkillPrompt(spec.name)
+			if err != nil {
+				t.Fatalf("GetSkillPrompt(%q): %v", spec.name, err)
+			}
+			if len(data) == 0 {
+				t.Fatal("prompt is empty")
+			}
+			prompt := string(data)
+			// Artifact type keyword must appear (in schemaConstraints call or context block).
+			if !strings.Contains(prompt, spec.promptKeyword) {
+				t.Errorf("prompt missing expected keyword %q", spec.promptKeyword)
+			}
+			// Must use schemaConstraints — not hardcode field names.
+			if !strings.Contains(prompt, "schemaConstraints") {
+				t.Errorf("prompt missing {{schemaConstraints}} call — field names must not be hardcoded")
+			}
+		})
+	}
+}
+
+func TestBootstrapSkills_ResolveViaSkillFS(t *testing.T) {
+	for _, spec := range bootstrapSkillSpecs {
+		t.Run(spec.name, func(t *testing.T) {
+			skill, err := embedded.ResolveSkill(spec.name)
+			if err != nil {
+				t.Fatalf("ResolveSkill(%q): %v", spec.name, err)
+			}
+			if skill.Name != spec.name {
+				t.Errorf("Name=%q, want %q", skill.Name, spec.name)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 

@@ -216,7 +216,10 @@ func (s *Server) handlePublishVersion(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid instance ID")
 	}
 
-	if _, err := s.versionSvc.Publish(ctx, instID, "", ""); err != nil {
+	label := c.FormValue("label")
+	description := c.FormValue("description")
+
+	if _, err := s.versionSvc.Publish(ctx, instID, label, description); err != nil {
 		s.log.Error("failed to publish version", "instance_id", instanceID, "err", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "publish failed: "+err.Error())
 	}

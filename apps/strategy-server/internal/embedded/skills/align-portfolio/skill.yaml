@@ -1,0 +1,23 @@
+name: align-portfolio
+version: "1.0.0"
+type: generation
+phase: FIRE
+execution: prompt
+description: "Aligns the value model and track definitions with the current roadmap and strategy formula. Reads strategy_formula, roadmap_recipe, and canonical value model templates. Produces value model state updates and definition activation/tier changes across all four tracks (product, strategy, org_ops, commercial)."
+
+capability:
+  class: balanced
+  context_budget: large
+
+requires:
+  artifacts:
+    - roadmap_recipe
+    - strategy_formula
+  optional:
+    - strategy_foundations
+    - north_star
+
+output:
+  format: json
+  artifact_types:
+    - value_model

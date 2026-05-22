@@ -64,34 +64,6 @@ Generate a schema-valid `living_reality_assessment` artifact. Follow these princ
 
 5. **Output format:** Respond with a JSON object containing exactly one key:
    `living_reality_assessment`, whose value is the full LRA payload.
+   Do not include any text outside the JSON object. No markdown fences, no explanation.
 
-```json
-{
-  "living_reality_assessment": {
-    "metadata": {
-      "version": "1.0.0",
-      "assessment_date": "YYYY-MM-DD",
-      "cycle_number": 1,
-      "status": "draft"
-    },
-    "adoption_context": {
-      "current_phase": "...",
-      "key_milestones": ["..."]
-    },
-    "track_baselines": [
-      {
-        "track": "product",
-        "baseline": "PLACEHOLDER: describe current product metrics",
-        "trajectory": "unknown",
-        "okrs": []
-      }
-    ],
-    "current_focus": {
-      "primary_objective": "...",
-      "riskiest_assumptions": ["PLACEHOLDER: identify top assumption to test"]
-    }
-  }
-}
-```
-
-Generate the LRA now. Do not include explanation outside the JSON object.
+{{schemaConstraints "living_reality_assessment"}}

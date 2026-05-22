@@ -166,15 +166,12 @@ You MUST respond with a single valid JSON object with these top-level keys:
 2. `lra_evolution_entry.timestamp` must be a valid ISO 8601 datetime (e.g., "2026-05-21T10:00:00Z").
 3. `lra_evolution_entry.cycle_reference` must match pattern `C<number>` (e.g., "C2") — derive the cycle number from the assessment report's `cycle_number` field + 1.
 4. `new_assumptions` must be an array. For pull_the_plug decisions, return an empty array `[]`.
-5. Each assumption `id` must match pattern `asm-[psoc]-[0-9]{3}` (e.g., "asm-p-001").
-6. Each assumption `description` must be 50–500 characters and state a testable hypothesis.
-7. Do not include any text outside the JSON object. No markdown fences, no explanation.
-8. **Preserve existing IDs** wherever the underlying element is not being replaced.
-9. The constraints below are machine-enforced — violations cause the entire output to be rejected.
-10. `lra_evolution_entry.changes[].section` must be one of exactly these values (no others are valid): `metadata`, `adoption_context`, `track_baselines`, `existing_assets`, `constraints`, `capability_gaps`, `current_focus`.
-11. `roadmap_recipe.roadmap.strategy_id` must match pattern `^strategy-[a-z0-9]+(-[a-z0-9]+)*$` (e.g. `"strategy-sequence-pivot"`). Copy this value verbatim from the current roadmap_recipe artifact — do not invent a new one.
-12. `roadmap_recipe.roadmap.timeframe` must be at most 50 characters. If needed, abbreviate (e.g. "Q3 2026–Q2 2027" not "Q3 2026 through Q2 2027 (Pivot Execution)").
-13. `roadmap_recipe.roadmap.status` must be one of: `draft`, `approved`, `active`, `completed`, `cancelled`. Never use `pivoted`, `discontinued`, or any other value.
+5. Each assumption `description` must be 50–500 characters and state a testable hypothesis.
+6. Do not include any text outside the JSON object. No markdown fences, no explanation.
+7. **Preserve existing IDs** wherever the underlying element is not being replaced.
+8. The constraints below are machine-enforced — violations cause the entire output to be rejected.
+9. `roadmap_recipe.roadmap.strategy_id` must match pattern `^strategy-[a-z0-9]+(-[a-z0-9]+)*$`. Copy this value verbatim from the current roadmap_recipe artifact — do not invent a new one.
+10. `roadmap_recipe.roadmap.timeframe` must be at most 50 characters. Use short quarter/year formats only: `"Q2 2026"`, `"H1 2026"`, `"2026"`. Never write phrases with dashes or ranges.
 
 ---
 
@@ -182,3 +179,4 @@ You MUST respond with a single valid JSON object with these top-level keys:
 
 {{schemaConstraints "strategy_formula"}}
 {{schemaConstraints "roadmap_recipe"}}
+{{schemaConstraints "living_reality_assessment"}}

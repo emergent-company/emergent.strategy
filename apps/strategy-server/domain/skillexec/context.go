@@ -43,6 +43,12 @@ type ContextBundle struct {
 	// Each entry has: id, type, severity, authority_tier, source_key, target_key, description.
 	// Empty when the skill is invoked manually rather than by the ripple trigger.
 	TriggeringSignals []map[string]any
+
+	// Evidence is the list of evidence items for the instance, as flat maps ready
+	// for template injection. Keys: artifact_key, source_name, source_type, summary,
+	// tags ([]string), content (string or object), processing_status.
+	// Only populated for bootstrap skills — nil otherwise.
+	Evidence []map[string]any
 }
 
 // buildContextBundle queries committed artifacts for the instance and
@@ -56,17 +62,58 @@ func buildContextBundle(ctx context.Context, db *bun.DB, instanceID uuid.UUID, p
 	decision := extractDecisionFromCalibration(artifacts)
 	assessmentSummary := extractAssessmentSummary(artifacts)
 
+	// Load evidence items — injected for bootstrap skills that need context.
+	evidence := loadEvidenceForBundle(ctx, db, instanceID)
+
 	bundle := &ContextBundle{
 		InstanceID:        instanceID.String(),
 		Decision:          decision,
 		AssessmentSummary: assessmentSummary,
 		Artifacts:         artifacts,
 		Params:            params,
+		Evidence:          evidence,
 	}
 	if bundle.Params == nil {
 		bundle.Params = map[string]any{}
 	}
 	return bundle, nil
+}
+
+// loadEvidenceForBundle returns evidence items as flat maps for template injection.
+// Returns nil on error (evidence is optional context — skill still runs).
+func loadEvidenceForBundle(ctx context.Context, db *bun.DB, instanceID uuid.UUID) []map[string]any {
+	type row struct {
+		Payload json.RawMessage `bun:"payload"`
+	}
+
+	var rows []row
+	err := db.NewSelect().
+		TableExpr("strategy_artifacts").
+		Column("payload").
+		Where("instance_id = ?", instanceID).
+		Where("artifact_type = ?", domain.ArtifactTypeEvidence).
+		Where("status != ?", domain.ArtifactStatusArchived).
+		OrderExpr("created_at DESC").
+		Limit(50). // cap at 50 items to avoid context overflow
+		Scan(ctx, &rows)
+	if err != nil {
+		return nil
+	}
+
+	items := make([]map[string]any, 0, len(rows))
+	for _, r := range rows {
+		var p map[string]any
+		if err := json.Unmarshal(r.Payload, &p); err != nil {
+			continue
+		}
+		// Flatten source sub-object for easier template access.
+		if src, ok := p["source"].(map[string]any); ok {
+			p["source_name"] = src["name"]
+			p["source_type"] = src["type"]
+		}
+		items = append(items, p)
+	}
+	return items
 }
 
 // loadAllArtifacts returns all non-archived committed artifacts for the instance.

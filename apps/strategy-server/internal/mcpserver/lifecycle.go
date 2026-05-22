@@ -31,9 +31,12 @@ type LifecycleSignals struct {
 	VersionCount      int      `json:"version_count"`
 	HasNorthStar      bool     `json:"has_north_star"`
 	HasFoundations    bool     `json:"has_foundations"`
+	HasInsightAnalyses   bool  `json:"has_insight_analyses"`
+	HasInsightOpportunity bool `json:"has_insight_opportunity"`
 	HasFormula        bool     `json:"has_formula"`
 	HasRoadmap        bool     `json:"has_roadmap"`
 	HasValueModel     bool     `json:"has_value_model"`
+	EvidenceCount     int      `json:"evidence_count"`
 	MissingFoundation []string `json:"missing_foundation,omitempty"`
 	InstanceStatus    string   `json:"instance_status"`
 	DaysSinceCreation int      `json:"days_since_creation"`
@@ -94,24 +97,39 @@ func detectLifecycleMode(
 			signals.HasNorthStar = true
 		case "strategy_foundations":
 			signals.HasFoundations = true
+		case "insight_analyses":
+			signals.HasInsightAnalyses = true
+		case "insight_opportunity":
+			signals.HasInsightOpportunity = true
 		case "strategy_formula":
 			signals.HasFormula = true
 		case "roadmap_recipe":
 			signals.HasRoadmap = true
 		case "value_model":
 			signals.HasValueModel = true
+		case "evidence":
+			signals.EvidenceCount++
 		}
 	}
 
-	// Check missing foundation artifacts.
+	// Check missing foundation artifacts (all 7 READY artifact types).
 	if !signals.HasNorthStar {
 		signals.MissingFoundation = append(signals.MissingFoundation, "north_star")
+	}
+	if !signals.HasInsightAnalyses {
+		signals.MissingFoundation = append(signals.MissingFoundation, "insight_analyses")
+	}
+	if !signals.HasInsightOpportunity {
+		signals.MissingFoundation = append(signals.MissingFoundation, "insight_opportunity")
 	}
 	if !signals.HasFoundations {
 		signals.MissingFoundation = append(signals.MissingFoundation, "strategy_foundations")
 	}
 	if !signals.HasFormula {
 		signals.MissingFoundation = append(signals.MissingFoundation, "strategy_formula")
+	}
+	if !signals.HasRoadmap {
+		signals.MissingFoundation = append(signals.MissingFoundation, "roadmap_recipe")
 	}
 
 	// Count versions if service is available.
@@ -342,9 +360,10 @@ func assessMode(s LifecycleSignals, instanceID uuid.UUID) LifecycleMode {
 			Mode:        "bootstrap",
 			Description: "Empty instance — no artifacts created yet.",
 			NextSteps: []string{
-				"Option A: Use scaffold_instance to create a new instance with READY-phase templates pre-populated.",
-				"Option B: Use get_agent('start-epf') for guided onboarding.",
-				"Option C: Use get_agent('lean-start') for a quick lightweight setup.",
+				"Step 1: Load your existing material — use ingest_evidence with pitch decks, strategy notes, market research, or competitive analysis.",
+				"Step 2: Once evidence is loaded, use the bootstrap skills to draft all READY artifacts: run_skill('draft-north-star'), run_skill('draft-insights'), run_skill('draft-foundations'), run_skill('draft-opportunity'), run_skill('draft-formula'), run_skill('draft-roadmap').",
+				"Step 3: Review and refine the drafts, then use publish_version to create your first strategy snapshot.",
+				"Alternative: Use scaffold_instance for template-based setup (no AI drafting).",
 			},
 			Signals: s,
 		}
@@ -353,20 +372,60 @@ func assessMode(s LifecycleSignals, instanceID uuid.UUID) LifecycleMode {
 	// Foundation: has some artifacts but missing key READY-phase pieces.
 	if len(s.MissingFoundation) > 0 || s.FeatureCount == 0 {
 		steps := []string{}
+
+		// When evidence exists, recommend the AI bootstrap flow.
+		hasEvidenceWithMissingArtifacts := s.EvidenceCount > 0 && len(s.MissingFoundation) > 0
+		if hasEvidenceWithMissingArtifacts {
+			steps = append(steps, fmt.Sprintf(
+				"You have %d evidence item(s) loaded — use the AI bootstrap skills to draft missing artifacts: "+
+					"run_skill('draft-north-star'), run_skill('draft-insights'), run_skill('draft-foundations'), "+
+					"run_skill('draft-opportunity'), run_skill('draft-formula'), run_skill('draft-roadmap').",
+				s.EvidenceCount))
+		}
+
 		if !s.HasNorthStar {
-			steps = append(steps, "Create your North Star — use get_template('READY/00_north_star.yaml') for the structure, then update_north_star.")
+			if s.EvidenceCount > 0 {
+				steps = append(steps, "Draft North Star from your evidence — use run_skill('draft-north-star').")
+			} else {
+				steps = append(steps, "Create your North Star — use get_template('READY/00_north_star.yaml') for the structure, then update_north_star.")
+			}
+		}
+		if !s.HasInsightAnalyses {
+			if s.EvidenceCount > 0 {
+				steps = append(steps, "Draft Insight Analyses from your evidence — use run_skill('draft-insights').")
+			} else {
+				steps = append(steps, "Define insight analyses — load market/competitive evidence first, then use run_skill('draft-insights').")
+			}
+		}
+		if !s.HasInsightOpportunity {
+			steps = append(steps, "Draft Insight Opportunity — use run_skill('draft-opportunity') after insight_analyses exists.")
 		}
 		if !s.HasFoundations {
-			steps = append(steps, "Define strategy foundations — use update_strategy_foundations with product vision, value proposition, and sequencing.")
+			if s.EvidenceCount > 0 {
+				steps = append(steps, "Draft Strategy Foundations — use run_skill('draft-foundations') after north_star exists.")
+			} else {
+				steps = append(steps, "Define strategy foundations — use update_strategy_foundations with product vision, value proposition, and sequencing.")
+			}
 		}
 		if !s.HasFormula {
-			steps = append(steps, "Write the strategy formula — use update_strategy_formula with positioning, competitive moat, and success metrics.")
+			if s.EvidenceCount > 0 {
+				steps = append(steps, "Draft Strategy Formula — use run_skill('draft-formula') after north_star and strategy_foundations exist.")
+			} else {
+				steps = append(steps, "Write the strategy formula — use update_strategy_formula with positioning, competitive moat, and success metrics.")
+			}
 		}
 		if !s.HasRoadmap {
-			steps = append(steps, "Create a roadmap — use update_roadmap with tracks, milestones, and execution plan.")
+			if s.EvidenceCount > 0 {
+				steps = append(steps, "Draft Roadmap — use run_skill('draft-roadmap') after strategy_formula and strategy_foundations exist.")
+			} else {
+				steps = append(steps, "Create a roadmap — use update_roadmap with tracks, milestones, and execution plan.")
+			}
 		}
 		if !s.HasValueModel {
-			steps = append(steps, "Define a value model — use update_value_model to map capability layers.")
+			steps = append(steps, "Align value model to roadmap — use run_skill('align-portfolio') after roadmap_recipe exists.")
+		}
+		if s.EvidenceCount == 0 {
+			steps = append(steps, "Load evidence first — use ingest_evidence with pitch decks, market research, or strategy notes to improve draft quality.")
 		}
 		if s.FeatureCount == 0 {
 			steps = append(steps, "Create your first feature — use create_feature with strategic_context.contributes_to linking to your value model.")

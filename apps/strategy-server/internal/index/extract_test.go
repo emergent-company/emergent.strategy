@@ -480,3 +480,102 @@ func relsByKind(rels []index.Relationship, kind string) []index.Relationship {
 	}
 	return result
 }
+
+// ---------------------------------------------------------------------------
+// READY artifact relationship extraction — Group 6/11
+// ---------------------------------------------------------------------------
+
+func TestExtractRelationships_NorthStar_ContributesToFormula(t *testing.T) {
+	payload := `{"north_star": {"organization": "Test Co", "vision": {"vision_statement": "v"}}}`
+	rels := index.ExtractRelationships("north_star", "north_star", []byte(payload))
+	if len(rels) == 0 {
+		t.Fatal("expected relationships from north_star, got none")
+	}
+	targets := make(map[string]bool)
+	for _, r := range rels {
+		targets[r.TargetKey] = true
+	}
+	if !targets["strategy_formula"] {
+		t.Error("north_star should contribute_to strategy_formula")
+	}
+	if !targets["strategy_foundations"] {
+		t.Error("north_star should contribute_to strategy_foundations")
+	}
+}
+
+func TestExtractRelationships_StrategyFoundations_ContributesToRoadmap(t *testing.T) {
+	payload := `{"name": "Strategy Foundations"}`
+	rels := index.ExtractRelationships("strategy_foundations", "strategy_foundations", []byte(payload))
+	targets := make(map[string]bool)
+	for _, r := range rels {
+		targets[r.TargetKey] = true
+	}
+	if !targets["strategy_formula"] {
+		t.Error("strategy_foundations should contribute_to strategy_formula")
+	}
+	if !targets["roadmap_recipe"] {
+		t.Error("strategy_foundations should contribute_to roadmap_recipe")
+	}
+}
+
+func TestExtractRelationships_InsightAnalyses_ContributesToOpportunity(t *testing.T) {
+	payload := `{"name": "Insight Analyses"}`
+	rels := index.ExtractRelationships("insight_analyses", "insight_analyses", []byte(payload))
+	targets := make(map[string]bool)
+	for _, r := range rels {
+		targets[r.TargetKey] = true
+	}
+	if !targets["insight_opportunity"] {
+		t.Error("insight_analyses should contribute_to insight_opportunity")
+	}
+	if !targets["strategy_foundations"] {
+		t.Error("insight_analyses should contribute_to strategy_foundations")
+	}
+}
+
+func TestExtractRelationships_InsightOpportunity_ContributesToFormula(t *testing.T) {
+	payload := `{"opportunity": {"title": "Big Bet"}}`
+	rels := index.ExtractRelationships("insight_opportunity", "insight_opportunity", []byte(payload))
+	targets := make(map[string]bool)
+	for _, r := range rels {
+		targets[r.TargetKey] = true
+	}
+	if !targets["strategy_formula"] {
+		t.Error("insight_opportunity should contribute_to strategy_formula")
+	}
+}
+
+func TestExtractRelationships_StrategyFormula_ContributesToRoadmap(t *testing.T) {
+	payload := `{"strategy": {"title": "Our Formula"}}`
+	rels := index.ExtractRelationships("strategy_formula", "strategy_formula", []byte(payload))
+	targets := make(map[string]bool)
+	for _, r := range rels {
+		targets[r.TargetKey] = true
+	}
+	if !targets["roadmap_recipe"] {
+		t.Error("strategy_formula should contribute_to roadmap_recipe")
+	}
+}
+
+func TestExtractRelationships_Evidence_LinkedArtifacts(t *testing.T) {
+	payload := `{"linked_artifacts": ["north_star", "fd-001"]}`
+	rels := index.ExtractRelationships("evidence", "ev-abc", []byte(payload))
+	targets := make(map[string]bool)
+	for _, r := range rels {
+		targets[r.TargetKey] = true
+	}
+	if !targets["north_star"] {
+		t.Error("evidence should have contributes_to north_star from linked_artifacts")
+	}
+	if !targets["fd-001"] {
+		t.Error("evidence should have contributes_to fd-001 from linked_artifacts")
+	}
+}
+
+func TestExtractRelationships_Evidence_EmptyLinkedArtifacts(t *testing.T) {
+	payload := `{"source": {"name": "Test"}, "content": "stuff"}`
+	rels := index.ExtractRelationships("evidence", "ev-xyz", []byte(payload))
+	if len(rels) != 0 {
+		t.Errorf("evidence with no linked_artifacts should produce 0 rels, got %d", len(rels))
+	}
+}

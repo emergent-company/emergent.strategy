@@ -60,12 +60,9 @@ Respond with a single valid JSON object containing ONLY the `lra_evolution_entry
 1. `cycle_reference` must match pattern `C<number>` (e.g. "C2"). Derive from the
    assessment report's `cycle_number` field + 1, or from the current LRA evolution_log.
 2. `timestamp` must be a valid ISO 8601 datetime (e.g. "2026-05-21T10:00:00Z").
-3. `trigger` must be one of: `bootstrap_complete`, `aim_signals`, `external_change`,
-   `milestone_reached`, `constraint_change`, `cycle_transition`, `manual_update`.
-   For pivot decisions use `aim_signals`. For persevere use `cycle_transition`.
+3. For pivot decisions use `trigger: "aim_signals"`. For persevere use `trigger: "cycle_transition"`.
 4. `summary` must be at most 200 characters.
-5. `changes[].section` must be one of exactly these values (no others are valid):
-   `metadata`, `adoption_context`, `track_baselines`, `existing_assets`,
-   `constraints`, `capability_gaps`, `current_focus`.
-6. `changes` must have at least 1 entry.
-7. Do not include any text outside the JSON object. No markdown fences, no explanation.
+5. `changes` must have at least 1 entry.
+6. Do not include any text outside the JSON object. No markdown fences, no explanation.
+
+{{schemaConstraints "living_reality_assessment"}}

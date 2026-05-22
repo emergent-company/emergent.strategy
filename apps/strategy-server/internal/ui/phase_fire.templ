@@ -14,6 +14,10 @@ type FirePhaseData struct {
 	DraftCount      int
 	TotalFeatures   int
 
+	// Bootstrap / alignment capabilities
+	HasRoadmap       bool // roadmap_recipe exists — required for align-portfolio
+	HasSkillExecutor bool // LLM provider is configured
+
 	// Per-track data — the circular KR → ValueModel → Definitions model
 	// Ordered: Strategy, OrgOps, Product, Commercial
 	FireTracks []FireTrackData
@@ -107,6 +111,19 @@ templ FirePhaseContent(data FirePhaseData) {
 			<div>
 				<h2 class="text-base font-semibold text-base-content">FIRE Phase</h2>
 				<p class="text-xs text-base-content/60 mt-0.5">Execution — KRs from READY hand off to four tracks, each traced through a value model to definitions</p>
+			</div>
+			<!-- Align portfolio button + feature stat pills -->
+			<div class="flex items-center gap-3">
+			if data.HasSkillExecutor && data.HasRoadmap {
+				<form method="POST" action={ templ.URL("/strategies/" + data.InstanceID + "/fire/align-portfolio") }>
+					<button type="submit" class="btn btn-xs btn-outline btn-secondary gap-1">
+						<span class="iconify lucide--layers size-3.5"></span>
+						Align portfolio
+					</button>
+				</form>
+			} else if data.HasRoadmap {
+				<span class="text-xs text-base-content/40 italic">LLM required for alignment</span>
+			}
 			</div>
 			<!-- Feature stat pills -->
 			<div class="hidden md:flex items-center gap-3 text-xs">

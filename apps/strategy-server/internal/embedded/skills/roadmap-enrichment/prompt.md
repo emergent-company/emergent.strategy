@@ -642,4 +642,11 @@ After roadmap enrichment:
 
 ---
 
-**Questions?** See [UNIVERSAL_TRL_FRAMEWORK.md](../schemas/UNIVERSAL_TRL_FRAMEWORK.md) for detailed TRL guidance across all tracks.
+---
+
+## Canonical Schema Reference
+
+The following constraints are derived live from the canonical EPF roadmap_recipe schema.
+They take precedence over any field names, enums, or structure described elsewhere in this document.
+
+{{schemaConstraints "roadmap_recipe"}}

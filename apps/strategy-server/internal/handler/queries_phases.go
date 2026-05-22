@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	evidencedom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/evidence"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/skillrun"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
@@ -84,6 +85,31 @@ func (s *Server) loadReadyPhaseData(ctx context.Context, instanceID string) ui.R
 	// Pending batches — staged batches touching any READY artifact type
 	data.PendingBatches = s.loadReadyPendingBatches(ctx, instanceID)
 
+	// Evidence count — total evidence items for this instance
+	data.EvidenceCount, _ = s.db.NewSelect().
+		TableExpr("strategy_artifacts").
+		Where("instance_id = ?", instanceID).
+		Where("artifact_type = ?", domain.ArtifactTypeEvidence).
+		Where("status != ?", "archived").
+		Count(ctx)
+
+	// Evidence sufficiency — used to show draft button state on each card.
+	if instID, err := uuid.Parse(instanceID); err == nil {
+		data.EvidenceSufficiency = s.computeEvidenceSufficiency(ctx, instID)
+	}
+
+	// Skill executor availability — enables draft buttons on READY cards.
+	data.HasSkillExecutor = s.skillExecutor != nil
+
+	// Readiness score and blockers.
+	data.ReadinessScore, data.ReadinessBlockers = computeReadyReadiness(data)
+
+	// Version count — for publication banner.
+	data.VersionCount, _ = s.db.NewSelect().
+		TableExpr("strategy_versions").
+		Where("instance_id = ?", instanceID).
+		Count(ctx)
+
 	return data
 }
 
@@ -155,6 +181,10 @@ func (s *Server) loadFirePhaseData(ctx context.Context, instanceID string) ui.Fi
 
 	// Features
 	data.RecentFeatures = s.loadFeatures(ctx, instanceID)
+
+	// Bootstrap/alignment capabilities
+	data.HasRoadmap = s.hasArtifactType(ctx, instanceID, domain.ArtifactTypeRoadmap)
+	data.HasSkillExecutor = s.skillExecutor != nil
 
 	return data
 }
@@ -1442,6 +1472,137 @@ func (s *Server) loadPipelineTimeline(ctx context.Context, instanceID string) []
 	}
 
 	return events
+}
+
+// --- readiness scoring ---
+
+// computeReadyReadiness computes a 0-100 readiness score based on artifact presence,
+// evidence loading, and completeness signals. Returns score + blockers when score < 80.
+//
+// Scoring model:
+//   - Each of the 6 core READY artifacts: 14 points when present (total 84)
+//   - Evidence loaded (>= 2 items): 8 points
+//   - No pending batches blocking review: 8 points
+//   Total max: 100
+func computeReadyReadiness(data ui.ReadyPhaseData) (int, []string) {
+	score := 0
+	var blockers []string
+
+	// Artifact presence (14 pts each × 6 = 84 pts max)
+	artifacts := []struct {
+		exists bool
+		name   string
+	}{
+		{data.NorthStarExists, "North Star"},
+		{data.InsightExists, "Insight Analyses"},
+		{data.OpportunityExists, "Insight Opportunity"},
+		{data.FoundationExists, "Strategy Foundations"},
+		{data.FormulaExists, "Strategy Formula"},
+		{data.RoadmapExists, "Roadmap Recipe"},
+	}
+	for _, a := range artifacts {
+		if a.exists {
+			score += 14
+		} else {
+			blockers = append(blockers, "Missing: "+a.name)
+		}
+	}
+
+	// Evidence loaded: 8 pts
+	if data.EvidenceCount >= 2 {
+		score += 8
+	} else if data.EvidenceCount == 1 {
+		score += 4
+	} else {
+		blockers = append(blockers, "No evidence loaded")
+	}
+
+	// No pending draft batches: 8 pts (clear queue = stable foundation)
+	if len(data.PendingBatches) == 0 {
+		score += 8
+	}
+
+	// Cap at 100
+	if score > 100 {
+		score = 100
+	}
+
+	return score, blockers
+}
+
+// --- evidence sufficiency ---
+
+// evidenceSufficiencySpec maps each READY artifact type to the evidence tags that
+// make a useful AI draft. Thresholds are deliberately low — rough is fine.
+var evidenceSufficiencySpec = map[string]struct {
+	RequiredTags []string // at least 1 item must match one of these tags to be sufficient
+	MinCount     int      // minimum number of distinct evidence items needed
+}{
+	"north_star":           {RequiredTags: []string{"vision", "strategy", "pitch", "purpose"}, MinCount: 1},
+	"insight_analyses":     {RequiredTags: []string{"market", "competitive", "trends", "user_research"}, MinCount: 2},
+	"insight_opportunity":  {RequiredTags: []string{"market", "competitive", "user_research"}, MinCount: 1},
+	"strategy_formula":     {RequiredTags: []string{"strategy", "vision", "pitch"}, MinCount: 1},
+	"strategy_foundations": {RequiredTags: []string{"user_research", "market", "strategy"}, MinCount: 1},
+	"roadmap_recipe":       {RequiredTags: []string{"strategy", "product", "vision"}, MinCount: 1},
+}
+
+// computeEvidenceSufficiency returns a sufficiency result for each READY artifact type.
+// It lists all evidence once and evaluates each artifact type against the loaded items.
+func (s *Server) computeEvidenceSufficiency(ctx context.Context, instID uuid.UUID) map[string]ui.EvidenceSufficiencyResult {
+	result := make(map[string]ui.EvidenceSufficiencyResult, len(evidenceSufficiencySpec))
+
+	if s.evidenceSvc == nil {
+		for k := range evidenceSufficiencySpec {
+			result[k] = ui.EvidenceSufficiencyResult{}
+		}
+		return result
+	}
+
+	items, err := s.evidenceSvc.List(ctx, instID, evidencedom.ListFilters{})
+	if err != nil {
+		for k := range evidenceSufficiencySpec {
+			result[k] = ui.EvidenceSufficiencyResult{}
+		}
+		return result
+	}
+
+	// Build a set of all tags present across all evidence items.
+	tagCount := map[string]int{} // tag → count of distinct items
+	for _, item := range items {
+		seen := map[string]bool{}
+		for _, tag := range item.Tags {
+			if !seen[tag] {
+				tagCount[tag]++
+				seen[tag] = true
+			}
+		}
+	}
+
+	for artType, spec := range evidenceSufficiencySpec {
+		// Count evidence items that match any required tag.
+		matchCount := 0
+		for _, tag := range spec.RequiredTags {
+			if tagCount[tag] > 0 {
+				matchCount += tagCount[tag]
+			}
+		}
+
+		// Determine missing tags (ones with zero matching items).
+		var missingTags []string
+		for _, tag := range spec.RequiredTags {
+			if tagCount[tag] == 0 {
+				missingTags = append(missingTags, tag)
+			}
+		}
+
+		sufficient := matchCount >= spec.MinCount
+		result[artType] = ui.EvidenceSufficiencyResult{
+			Sufficient:    sufficient,
+			EvidenceCount: matchCount,
+			MissingTags:  missingTags,
+		}
+	}
+	return result
 }
 
 // --- helper queries ---

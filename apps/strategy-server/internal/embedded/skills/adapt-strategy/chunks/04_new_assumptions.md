@@ -62,9 +62,7 @@ Respond with a single valid JSON object containing ONLY the `new_assumptions` ke
 For pull_the_plug, return: `{"new_assumptions": []}`
 
 **Rules:**
-1. Each `id` must match pattern `asm-[psoc]-[0-9]{3}` (e.g. "asm-p-001").
-2. Each `description` must be 50–500 characters and state a testable hypothesis.
-3. `type` must be one of: `desirability`, `feasibility`, `viability`, `adaptability`.
-4. `criticality` must be one of: `high`, `medium`, `low`.
-5. `confidence` must be one of: `low`, `medium`, `high`.
-6. Do not include any text outside the JSON object. No markdown fences, no explanation.
+1. Each `description` must be 50–500 characters and state a testable hypothesis.
+2. Do not include any text outside the JSON object. No markdown fences, no explanation.
+
+{{schemaConstraints "strategy_formula"}}

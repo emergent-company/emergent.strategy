@@ -1,0 +1,20 @@
+name: draft-insights
+version: "1.0.0"
+type: creation
+phase: READY
+execution: prompt
+description: "Generates an initial Insight Analyses artifact from evidence. Reads evidence tagged market/competitive/trends/user_research and the north_star for context. Produces a schema-valid insight_analyses with market trends, competitor profiles, personas, and white space opportunities."
+
+capability:
+  class: balanced
+  context_budget: large
+
+requires:
+  artifacts: []
+  optional:
+    - north_star
+
+output:
+  format: json
+  artifact_types:
+    - insight_analyses

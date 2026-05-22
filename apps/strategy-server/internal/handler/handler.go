@@ -13,6 +13,7 @@ import (
 
 	activitydom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/activity"
 	aimdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/aim"
+	evidencedom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/evidence"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/heartbeat"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ripple"
 	schemadom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/schema"
@@ -36,7 +37,7 @@ type Server struct {
 	log                 *slog.Logger
 	semanticSvc         *semantic.Service
 	rippleSvc           *ripple.Service
-	strategySvc         *strategydom.Service // required for index derivation on batch commit
+	strategySvc         *strategydom.Service  // required for index derivation on batch commit
 	versionSvc          *version.Service
 	syncSvc             *syncdom.Service      // nil when GitHub App not configured
 	aimSvc              *aimdom.Service       // nil when AIM service not configured
@@ -46,6 +47,7 @@ type Server struct {
 	skillRunSvc         *skillrun.Service     // nil when skill run ledger not configured
 	skillExecutor       *skillexec.Executor   // nil when no LLM provider is wired
 	schemaSvc           *schemadom.Service    // nil when schema registry is not configured
+	evidenceSvc         *evidencedom.Service  // nil when evidence service not configured
 	postCommitPipeline  *PostCommitPipeline   // nil when ripple is not configured
 	llmEnabled          bool                  // true when an LLM provider is wired
 }
@@ -143,6 +145,11 @@ func (s *Server) WithLLMEnabled(enabled bool) *Server {
 	return s
 }
 
+func (s *Server) WithEvidence(svc *evidencedom.Service) *Server {
+	s.evidenceSvc = svc
+	return s
+}
+
 // rebuildPostCommitPipeline reconstructs the PostCommitPipeline from the
 // current set of wired services. Called by each With* method that the pipeline
 // depends on, so callers don't need to worry about order.
@@ -209,6 +216,7 @@ func (s *Server) buildHandlerRegistry() map[navigation.ScreenID]handlerEntry {
 		navigation.Coherence:        {GET: s.handleCoherence},
 		navigation.AimVersions:      {GET: s.handleVersions},
 		navigation.AimProposals:     {GET: s.handleAimProposals},
+		navigation.AimEvidence:      {GET: s.handleEvidencePage},
 	}
 }
 
@@ -251,6 +259,18 @@ func (s *Server) RegisterRoutes(e *echo.Echo) {
 	// Version detail + restore — not in nav graph (detail screen, sub-nav hidden).
 	e.GET("/strategies/:id/aim/versions/:versionID", s.handleVersionDetail)
 	e.POST("/strategies/:id/aim/versions/:versionID/restore", s.handleVersionRestore)
+
+	// Evidence endpoints — evidence collection and management.
+	e.GET("/strategies/:id/aim/evidence", s.handleEvidencePage)
+	e.GET("/strategies/:id/aim/evidence/interview", s.handleEvidenceInterviewPage)
+	e.POST("/strategies/:id/evidence/ingest", s.handleIngestEvidence)
+	e.POST("/strategies/:id/evidence/interview", s.handleSubmitInterview)
+
+	// READY bootstrap draft actions — POST /strategies/:id/ready/draft-:key
+	e.POST("/strategies/:id/ready/draft-:key", s.handleReadyDraft)
+
+	// FIRE portfolio alignment — POST /strategies/:id/fire/align-portfolio
+	e.POST("/strategies/:id/fire/align-portfolio", s.handleAlignPortfolio)
 
 	// AIM agent endpoints — AI-assisted draft generation and review.
 	e.POST("/strategies/:id/aim/publish", s.handlePublishVersion)

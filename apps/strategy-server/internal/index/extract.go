@@ -155,6 +155,18 @@ func ExtractRelationships(artifactType, artifactKey string, payload []byte) []Re
 		return extractCalibrationRelationships(artifactKey, raw)
 	case "living_reality_assessment":
 		return extractLRARelationships(artifactKey, raw)
+	case "north_star":
+		return extractNorthStarRelationships(artifactKey, raw)
+	case "strategy_foundations":
+		return extractFoundationsRelationships(artifactKey, raw)
+	case "strategy_formula":
+		return extractFormulaRelationships(artifactKey, raw)
+	case "insight_analyses":
+		return extractInsightAnalysesRelationships(artifactKey, raw)
+	case "insight_opportunity":
+		return extractInsightOpportunityRelationships(artifactKey, raw)
+	case "evidence":
+		return extractEvidenceRelationships(artifactKey, raw)
 	}
 	return nil
 }
@@ -705,4 +717,101 @@ func coalesceStr(vals ...string) string {
 		}
 	}
 	return ""
+}
+
+// ---------------------------------------------------------------------------
+// READY artifact relationships (structural edges between READY-layer artifacts)
+// ---------------------------------------------------------------------------
+
+// extractNorthStarRelationships derives structural edges from north_star.
+// North Star grounds the strategy_formula and is informed by insight_analyses.
+func extractNorthStarRelationships(key string, raw map[string]any) []Relationship {
+	// North Star informs strategy_formula (structural — both exist)
+	return []Relationship{
+		{
+			TargetKey:    "strategy_formula",
+			TargetType:   "strategy_formula",
+			Relationship: "contributes_to",
+		},
+		{
+			TargetKey:    "strategy_foundations",
+			TargetType:   "strategy_foundations",
+			Relationship: "contributes_to",
+		},
+	}
+}
+
+// extractFoundationsRelationships derives structural edges from strategy_foundations.
+// Foundations are derived from north_star and inform the strategy_formula and roadmap.
+func extractFoundationsRelationships(key string, raw map[string]any) []Relationship {
+	return []Relationship{
+		{
+			TargetKey:    "strategy_formula",
+			TargetType:   "strategy_formula",
+			Relationship: "contributes_to",
+		},
+		{
+			TargetKey:    "roadmap_recipe",
+			TargetType:   "roadmap_recipe",
+			Relationship: "contributes_to",
+		},
+	}
+}
+
+// extractFormulaRelationships derives structural edges from strategy_formula.
+// Formula operationalises into the roadmap.
+func extractFormulaRelationships(key string, raw map[string]any) []Relationship {
+	return []Relationship{
+		{
+			TargetKey:    "roadmap_recipe",
+			TargetType:   "roadmap_recipe",
+			Relationship: "contributes_to",
+		},
+	}
+}
+
+// extractInsightAnalysesRelationships derives structural edges from insight_analyses.
+// Analyses feed into insight_opportunity and inform strategy_foundations.
+func extractInsightAnalysesRelationships(key string, raw map[string]any) []Relationship {
+	return []Relationship{
+		{
+			TargetKey:    "insight_opportunity",
+			TargetType:   "insight_opportunity",
+			Relationship: "contributes_to",
+		},
+		{
+			TargetKey:    "strategy_foundations",
+			TargetType:   "strategy_foundations",
+			Relationship: "contributes_to",
+		},
+	}
+}
+
+// extractInsightOpportunityRelationships derives structural edges from insight_opportunity.
+// The big opportunity informs the strategy_formula.
+func extractInsightOpportunityRelationships(key string, raw map[string]any) []Relationship {
+	return []Relationship{
+		{
+			TargetKey:    "strategy_formula",
+			TargetType:   "strategy_formula",
+			Relationship: "contributes_to",
+		},
+	}
+}
+
+// extractEvidenceRelationships extracts linked_artifacts from the evidence payload
+// and creates supports edges to each.
+func extractEvidenceRelationships(key string, raw map[string]any) []Relationship {
+	var rels []Relationship
+	links, _ := raw["linked_artifacts"].([]any)
+	for _, l := range links {
+		if link, ok := l.(string); ok && link != "" {
+			rels = append(rels, Relationship{
+				TargetKey:    link,
+				TargetType:   "", // auto-resolved by index
+				Relationship: "contributes_to",
+			})
+		}
+	}
+	return rels
 }

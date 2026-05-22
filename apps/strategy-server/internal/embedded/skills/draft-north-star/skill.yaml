@@ -1,0 +1,20 @@
+name: draft-north-star
+version: "1.0.0"
+type: creation
+phase: READY
+execution: prompt
+description: "Generates an initial North Star artifact from evidence. Reads evidence tagged vision/strategy/pitch and any existing LRA. Falls back to minimal generation when evidence is sparse. Produces a schema-valid north_star artifact with sections that need real-world input clearly marked as placeholders."
+
+capability:
+  class: balanced
+  context_budget: medium
+
+requires:
+  artifacts: []
+  optional:
+    - living_reality_assessment
+
+output:
+  format: json
+  artifact_types:
+    - north_star
