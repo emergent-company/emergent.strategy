@@ -71,23 +71,39 @@ func (s *Server) handleDraftCalibration(c echo.Context) error {
 // POST /strategies/:id/aim/apply-calibration
 // ---------------------------------------------------------------------------
 
-// handleApplyCalibration calls ApplyCalibration and redirects to the draft review screen.
+// handleApplyCalibration runs the adapt-strategy skill (when executor is available)
+// or falls back to the legacy ApplyCalibration stub. Redirects to the draft review page.
 func (s *Server) handleApplyCalibration(c echo.Context) error {
 	instanceID := c.Param("id")
 	ctx := c.Request().Context()
-
-	if s.aimSvc == nil {
-		return echo.NewHTTPError(http.StatusServiceUnavailable, "AIM service not available")
-	}
 
 	instID, err := uuid.Parse(instanceID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid instance ID")
 	}
 
+	// Primary path: skill executor runs adapt-strategy chunked.
+	if s.skillExecutor != nil {
+		params := map[string]any{
+			"_trigger":         "aim_cycle",
+			"_trigger_context": map[string]any{"source": "apply_calibration_button"},
+		}
+		result, runErr := s.skillExecutor.RunChunked(ctx, instID, "adapt-strategy", params)
+		if runErr != nil {
+			s.log.Error("apply calibration (adapt-strategy) failed", "instance_id", instanceID, "err", runErr)
+			return echo.NewHTTPError(http.StatusInternalServerError, "apply calibration failed: "+runErr.Error())
+		}
+		return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim/draft-review/"+result.BatchID.String())
+	}
+
+	// Fallback: legacy stub when executor is nil (e.g. no LLM configured).
+	if s.aimSvc == nil {
+		return echo.NewHTTPError(http.StatusServiceUnavailable, "AIM service not available")
+	}
+
 	batchID, _, err := s.aimSvc.ApplyCalibration(ctx, instID)
 	if err != nil {
-		s.log.Error("apply calibration failed", "instance_id", instanceID, "err", err)
+		s.log.Error("apply calibration (legacy) failed", "instance_id", instanceID, "err", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "apply calibration failed: "+err.Error())
 	}
 
