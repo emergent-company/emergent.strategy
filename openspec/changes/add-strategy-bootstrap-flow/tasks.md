@@ -98,20 +98,44 @@
       version count == 0
 - [ ] 7.2 "Publish version" button with label "Initial strategy"
 
-## 8. Lifecycle mode completeness
+## 8. Value model activation and definition alignment
 
-- [ ] 8.1 Update `lifecycle.go` to check all 7 READY artifacts
-- [ ] 8.2 When evidence exists but artifacts are placeholder-only,
+- [ ] 8.1 Create `align-portfolio` skill: type=generation, phase=FIRE,
+      execution=prompt. Reads strategy_formula, roadmap_recipe, features,
+      canonical value model templates, canonical track definitions. Produces
+      value model state updates and definition activation/tier changes.
+- [ ] 8.2 Add chunk plan: 4 chunks (one per track: product, strategy, org_ops,
+      commercial). Each chunk reads the track's OKRs from roadmap + canonical
+      definitions + canonical value model template, outputs updated value model
+      states and selected definitions with tiers.
+- [ ] 8.3 Create web handler: POST `/strategies/:id/fire/align-portfolio`.
+      Calls executor with the alignment skill. Redirects to draft review.
+- [ ] 8.4 Add "Align portfolio" button on FIRE dashboard (or on each track
+      page) — available after roadmap_recipe exists.
+- [ ] 8.5 Wire into AIM cycle: after adapt-strategy produces a new roadmap,
+      the alignment skill can optionally run to update value models. This
+      could be a 6th step in the orchestrated cycle or triggered by ripple
+      signals targeting value model artifacts.
+- [ ] 8.6 Wire into bootstrap flow: after draft-roadmap completes, suggest
+      running align-portfolio to set initial component activation.
+
+## 9. Lifecycle mode completeness
+
+- [ ] 9.1 Update `lifecycle.go` to check all 7 READY artifacts
+- [ ] 9.2 When evidence exists but artifacts are placeholder-only,
       recommend the bootstrap flow
-- [ ] 8.3 Update next_steps to reference bootstrap skills
+- [ ] 9.3 Update next_steps to reference bootstrap skills
 
-## 9. Tests
+## 10. Tests
 
-- [ ] 9.1 Test evidence ingestion from web UI
-- [ ] 9.2 Test evidence sufficiency assessment (various tag combos)
-- [ ] 9.3 Test each bootstrap skill with evidence context
-- [ ] 9.4 Test each bootstrap skill without evidence (sparse fallback)
-- [ ] 9.5 Test dependency enforcement
-- [ ] 9.6 Test readiness scoring across states (empty, placeholder, partial, full)
-- [ ] 9.7 Test inter-READY relationship extraction
-- [ ] 9.8 Test guided interview → evidence item creation
+- [ ] 10.1 Test evidence ingestion from web UI
+- [ ] 10.2 Test evidence sufficiency assessment (various tag combos)
+- [ ] 10.3 Test each bootstrap skill with evidence context
+- [ ] 10.4 Test each bootstrap skill without evidence (sparse fallback)
+- [ ] 10.5 Test dependency enforcement
+- [ ] 10.6 Test readiness scoring across states (empty, placeholder, partial, full)
+- [ ] 10.7 Test inter-READY relationship extraction
+- [ ] 10.8 Test guided interview → evidence item creation
+- [ ] 10.9 Test align-portfolio: verify value model states and definition tiers
+      are set based on roadmap OKRs
+- [ ] 10.10 Test align-portfolio with no roadmap: verify graceful failure

@@ -107,6 +107,33 @@ dependency chain and be visible to the ripple engine.
 - **WHEN** both north_star and strategy_foundations are committed
 - **THEN** a derived_from edge exists from strategy_foundations to north_star
 
+### Requirement: Value Model Activation and Definition Alignment
+
+The system SHALL provide an alignment skill that configures per-instance value
+model component states and track definition tiers based on the current strategy
+formula and roadmap OKRs. The skill SHALL read canonical templates as structural
+input and produce per-instance state/tier updates as output. It SHALL NOT modify
+canonical content.
+
+#### Scenario: Bootstrap activation
+- **WHEN** a roadmap_recipe has been drafted during bootstrap
+- **AND** the user triggers the align-portfolio skill
+- **THEN** the skill reads the roadmap OKRs and canonical value model templates
+- **AND** sets component states (active, future, non_active) aligned with the roadmap
+- **AND** selects relevant track definitions and sets their current_tier
+- **AND** stages the updates for human review
+
+#### Scenario: Post-AIM realignment
+- **WHEN** the AIM cycle has adapted strategy_formula and roadmap_recipe
+- **AND** the align-portfolio skill runs (manually or via cascade)
+- **THEN** value model states are updated to reflect the new strategic priorities
+- **AND** definition tiers are adjusted if roadmap maturity targets changed
+
+#### Scenario: No roadmap exists
+- **WHEN** the align-portfolio skill is triggered
+- **AND** no roadmap_recipe artifact exists
+- **THEN** the system indicates that a roadmap is required first
+
 ### Requirement: First Version Publication Prompt
 
 The READY dashboard SHALL prompt the user to publish their first strategy

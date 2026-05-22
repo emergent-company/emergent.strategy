@@ -190,7 +190,43 @@ Structural edges between READY artifacts (derived_from, synthesized_from,
 operationalizes, constrained_by, informed_by). Created when both artifacts
 exist. Visible to ripple engine.
 
-### 7. Lifecycle mode completeness
+### 7. Value model activation and definition alignment
+
+The canonical value models (product, strategy, org_ops, commercial) provide the
+structural framework — L1 layers, L2 components, L3 sub-components. The canonical
+track definitions (~90 definitions across 3 tracks) define maturity tiers and
+operational capabilities. These are framework structure, NOT authored per-instance.
+
+But each instance needs to **configure** which components are active and which
+definitions are relevant, aligned with its specific strategy and roadmap:
+
+- **Value model activation:** Set component `state` fields (`active`, `future`,
+  `non_active`) based on the roadmap's current cycle OKRs and feature priorities.
+  A product-led growth strategy activates different components than an enterprise
+  sales pivot.
+
+- **Definition selection and tier setting:** Select which canonical definitions
+  are relevant for each track and set their `current_tier` based on the roadmap's
+  maturity targets.
+
+Create an `align-portfolio` skill that:
+1. Reads the committed strategy_formula, roadmap_recipe, and features
+2. Reads the canonical value model templates and track definitions
+3. Sets value model component states to match the roadmap priorities
+4. Selects and activates relevant track definitions at appropriate tiers
+5. Produces staged updates to value_model and definition artifacts
+
+This skill runs:
+- During bootstrap (after roadmap_recipe is drafted) to set initial activation
+- During AIM cycle adaptation (after adapt-strategy, before or alongside
+  adapt-foundations) to realign when strategy/roadmap changes
+- On demand via web UI or MCP when the user wants to review portfolio alignment
+
+This is a configuration/alignment skill, not a content writer — it adjusts
+states and tiers, not prose. It's much lighter and more deterministic than the
+READY bootstrap skills.
+
+### 8. Lifecycle mode completeness
 
 Check all 7 READY artifacts for foundation → building transition. When evidence
 exists but artifacts are placeholder-only, recommend the bootstrap flow.
@@ -199,8 +235,9 @@ exists but artifacts are placeholder-only, recommend the bootstrap flow.
 
 - **Affected specs**: `strategy-web`
 - **Affected code**: Skills, executor, web handlers, evidence service, READY
-  dashboard, index extraction, lifecycle detection
+  dashboard, index extraction, lifecycle detection, value model activation
 - **No breaking changes**: MCP tools and agent workflows unaffected
 - **Dependency on `fix-aim-cycle-wiring`**: `draft-lra` skill defined there
 - **Database**: No new migrations
-- **Canonical definitions**: NOT affected
+- **Canonical definitions**: Read-only. The alignment skill reads canonical
+  templates but only writes per-instance value model and definition artifacts.
