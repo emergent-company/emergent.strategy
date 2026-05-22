@@ -104,6 +104,9 @@ templ AimPhaseContent(data AimPhaseData) {
 
 // aimCycleStepper renders the 4-step AIM loop with current position.
 // Steps: Observe → Assess → Decide → Adapt
+// The orchestrated cycle runs 5 internal steps:
+// draft_assessment, draft_calibration, adapt_strategy, adapt_foundations, snapshot_cycle.
+// adapt_foundations auto-advances when no foundation changes are needed (persevere cycles).
 templ aimCycleStepper(data AimPhaseData) {
 	<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm px-6 py-5">
 		// Header

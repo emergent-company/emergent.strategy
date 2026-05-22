@@ -40,7 +40,13 @@ func (w *CycleWorkflow) ConcurrencyKey(run *orchestration.Run) string {
 	return ""
 }
 
-// Steps returns the four ordered steps of an AIM cycle.
+// Steps returns the five ordered steps of an AIM cycle.
+//
+//	1. draft_assessment  → human reviews assessment report
+//	2. draft_calibration → human reviews calibration memo + decision
+//	3. adapt_strategy    → human reviews execution-layer rewrites
+//	4. adapt_foundations → human reviews foundation-layer updates (auto-advances when empty)
+//	5. snapshot_cycle    → auto-publishes version snapshot
 func (w *CycleWorkflow) Steps() []orchestration.Step {
 	return []orchestration.Step{
 		{
@@ -56,6 +62,11 @@ func (w *CycleWorkflow) Steps() []orchestration.Step {
 		{
 			Name:      "adapt_strategy",
 			Execute:   w.stepAdaptStrategy,
+			HumanGate: true,
+		},
+		{
+			Name:      "adapt_foundations",
+			Execute:   w.stepAdaptFoundations,
 			HumanGate: true,
 		},
 		{
@@ -158,6 +169,55 @@ func (w *CycleWorkflow) stepAdaptStrategy(ctx context.Context, run *orchestratio
 		Meta: map[string]any{
 			"decision":           result.Decision,
 			"affected_artifacts": result.AffectedArtifacts,
+		},
+	}, nil
+}
+
+// stepAdaptFoundations runs adapt-foundations to align READY-layer artifacts
+// with the execution-layer changes from adapt_strategy. Returns an empty
+// StepResult (no BatchID) when the skill determines no foundation changes are
+// needed — the orchestration engine auto-advances past the human gate in that case.
+func (w *CycleWorkflow) stepAdaptFoundations(ctx context.Context, run *orchestration.Run) (orchestration.StepResult, error) {
+	instanceID, err := runInstanceID(run)
+	if err != nil {
+		return orchestration.StepResult{}, err
+	}
+
+	if w.executor == nil {
+		// No executor wired — skip this step silently (legacy mode).
+		return orchestration.StepResult{}, nil
+	}
+
+	params := map[string]any{
+		"_trigger": "aim_cycle",
+		"_trigger_context": map[string]any{
+			"run_id":    run.ID.String(),
+			"step_name": "adapt_foundations",
+			"source":    "orchestrated_cycle_step4",
+		},
+	}
+
+	result, err := w.executor.RunChunked(ctx, instanceID, "adapt-foundations", params)
+	if err != nil {
+		return orchestration.StepResult{}, fmt.Errorf("adapt foundations: %w", err)
+	}
+
+	// If no artifacts were staged (empty batch), return empty BatchID so the
+	// orchestration engine auto-advances without waiting for human review.
+	if result.BatchID == (uuid.UUID{}) {
+		return orchestration.StepResult{
+			Meta: map[string]any{
+				"auto_advanced_reason": "no_foundation_changes_needed",
+			},
+		}, nil
+	}
+
+	return orchestration.StepResult{
+		BatchID: result.BatchID.String(),
+		Meta: map[string]any{
+			"artifact_types":    result.ArtifactTypes,
+			"llm_used":          result.LLMUsed,
+			"validation_passed": result.ValidationPassed,
 		},
 	}, nil
 }

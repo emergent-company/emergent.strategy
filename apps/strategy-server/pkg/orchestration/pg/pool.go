@@ -187,7 +187,24 @@ func (p *pool) executeRun(runID uuid.UUID) {
 			run.Steps[i].Meta["artifact"] = result.Artifact
 		}
 
-		if step.HumanGate {
+		if step.HumanGate && result.BatchID == "" {
+			// Empty batch — step produced no mutations (e.g. adapt-foundations
+			// determined no foundation changes were needed). Auto-advance without
+			// blocking on human review.
+			run.Steps[i].Status = "done"
+			if run.Steps[i].Meta == nil {
+				run.Steps[i].Meta = make(map[string]any)
+			}
+			run.Steps[i].Meta["auto_advanced"] = true
+			run.Steps[i].Meta["auto_advanced_reason"] = "no_changes_needed"
+			_ = p.store.updateStatus(ctx, run.ID, orchestration.StatusRunning, step.Name, "", run.Steps)
+			p.publish(orchestration.Event{
+				Type:   orchestration.EventStepFinished,
+				RunID:  run.ID,
+				Step:   step.Name,
+				Status: orchestration.StatusRunning,
+			})
+		} else if step.HumanGate {
 			run.Steps[i].Status = "awaiting_human"
 			_ = p.store.updateStatus(ctx, run.ID, orchestration.StatusAwaitingHuman, step.Name, "", run.Steps)
 			p.publish(orchestration.Event{
