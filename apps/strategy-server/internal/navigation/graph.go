@@ -16,6 +16,18 @@ func DefaultGraph() *Graph {
 			WebRoute: true, URLPattern: "", Icon: "lucide--zap",
 			TabGroup: TabExecution, RenderMode: RenderTabLanding, InstanceScoped: true},
 
+		// --- Execution sub-pages ---
+		{ID: ActivityOverview, Title: "Activity", Parent: ExecutionDashboard,
+			WebRoute: true, URLPattern: "/activity", Icon: "lucide--activity",
+			TabGroup: TabExecution, RenderMode: RenderTabPage, InstanceScoped: true},
+		{ID: SkillRuns, Title: "Skill Runs", Parent: ExecutionDashboard,
+			WebRoute: true, URLPattern: "/skill-runs", Icon: "lucide--cpu",
+			TabGroup: TabExecution, RenderMode: RenderTabPage, InstanceScoped: true},
+		// Detail screen — hidden from sub-nav, reachable by direct URL
+		{ID: SkillRunDetail, Title: "Skill Run", Parent: SkillRuns,
+			WebRoute: true, URLPattern: "/skill-runs/:runID", Icon: "lucide--cpu",
+			TabGroup: TabExecution, RenderMode: RenderTabPage, InstanceScoped: true, SubNavHidden: true},
+
 		// --- READY tab ---
 		{ID: ReadyOverview, Title: "READY", Parent: ExecutionDashboard,
 			WebRoute: true, URLPattern: "/ready", Icon: "lucide--compass",

@@ -133,6 +133,9 @@ func (s *Server) buildHandlerRegistry() map[navigation.ScreenID]handlerEntry {
 
 		// Execution
 		navigation.ExecutionDashboard: {GET: s.handleExecutionDashboard},
+		navigation.ActivityOverview:   {GET: s.handleActivityOverview},
+		navigation.SkillRuns:          {GET: s.handleSkillRuns},
+		navigation.SkillRunDetail:     {GET: s.handleSkillRunDetail},
 
 		// READY
 		navigation.ReadyOverview:      {GET: s.handleReadyOverview},

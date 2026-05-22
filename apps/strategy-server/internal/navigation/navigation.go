@@ -24,6 +24,9 @@ const (
 
 	// Instance-scoped screens (strategy instance)
 	ExecutionDashboard ScreenID = "execution-dashboard"
+	ActivityOverview   ScreenID = "activity-overview"   // Live cascade tracker — active runs, pending batches
+	SkillRuns          ScreenID = "skill-runs"           // Skill run history + LLM usage
+	SkillRunDetail     ScreenID = "skill-run-detail"     // Single run detail (hidden from sub-nav)
 
 	// READY phase screens
 	ReadyOverview      ScreenID = "ready-overview"

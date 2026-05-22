@@ -1,0 +1,44 @@
+package ui
+
+// ActivityPageData holds the data for the Activity page.
+type ActivityPageData struct {
+	Nav     NavContext
+	Cascade CascadeData
+}
+
+// ActivityPageContent renders the Activity page — live cascade tracker
+// with SSE-driven auto-refresh as a proper sub-page of the Execution tab.
+templ ActivityPageContent(data ActivityPageData) {
+	@TabRelatedPages("execution", data.Nav.InstanceID, data.Nav.CurrentPath)
+	<div class="space-y-6">
+		// Header
+		<div class="flex items-center justify-between">
+			<div class="flex items-center gap-3">
+				<span class="iconify lucide--activity size-5 text-primary"></span>
+				<div>
+					<h2 class="text-lg font-bold text-base-content">Live Activity</h2>
+					<p class="text-xs text-base-content/50">Active skill runs, pending drafts, and AIM cycles</p>
+				</div>
+			</div>
+		</div>
+		// Cascade tracker content — auto-refreshes via HTMX polling
+		<div
+			id="activity-cascade"
+			hx-get={ "/strategies/" + data.Nav.InstanceID + "/cascade" }
+			hx-trigger="every 5s"
+			hx-swap="innerHTML"
+		>
+			@CascadeTrackerPanel(data.Cascade)
+		</div>
+		// Empty state
+		if !data.Cascade.HasActivity() {
+			<div class="flex flex-col items-center justify-center py-16 text-center">
+				<span class="iconify lucide--coffee size-10 text-base-content/20 mb-4"></span>
+				<p class="text-sm font-medium text-base-content/50">No active operations</p>
+				<p class="text-xs text-base-content/30 mt-1 max-w-xs">
+					When a skill run starts, an AIM cycle kicks off, or a draft is staged for review, it will appear here in real time.
+				</p>
+			</div>
+		}
+	</div>
+}
