@@ -125,6 +125,13 @@ templ activityStreamSSE() {
 			'adapt-strategy':     ['strategy_formula', 'roadmap_recipe'],
 			'adapt-foundations':  ['north_star', 'strategy_foundations', 'insight_analyses', 'insight_opportunity']
 		};
+		// Flat set of all artifact IDs that can have a generating badge.
+		var allBadgeIds = [];
+		for (var k in skillArtifacts) {
+			skillArtifacts[k].forEach(function(id) {
+				if (allBadgeIds.indexOf(id) === -1) allBadgeIds.push(id);
+			});
+		}
 
 		// refreshCascade fetches the cascade tracker partial and swaps it into
 		// #cascade-tracker, then shows the container if it has content.
@@ -147,8 +154,58 @@ templ activityStreamSSE() {
 				.catch(function() { /* ignore network errors */ });
 		}
 
-		// Load cascade tracker on page load (shows pending batches immediately).
-		refreshCascade();
+		// reconcileBadges checks the cascade endpoint and shows/hides generating
+		// badges based on which skill runs are actually active right now.
+		// This prevents stale badges when SSE events are missed (tab throttled,
+		// connection dropped, user navigated back to an already-open tab).
+		function reconcileBadges() {
+			fetch('/strategies/' + instanceId + '/cascade')
+				.then(function(r) { return r.text(); })
+				.then(function(html) {
+					// Parse the cascade HTML to find active skill names.
+					// Active runs have the text "Adapt Foundations" or "Adapt Strategy".
+					var activeSkills = [];
+					if (html.indexOf('Adapt Foundations') !== -1) activeSkills.push('adapt-foundations');
+					if (html.indexOf('Adapt Strategy') !== -1) activeSkills.push('adapt-strategy');
+					// Only count as active if it's a running row (has the spinner icon).
+					var hasRunningRow = html.indexOf('animate-spin') !== -1 && html.indexOf('lucide--loader') !== -1;
+
+					// Build set of artifact IDs that should be active.
+					var activeIds = {};
+					if (hasRunningRow) {
+						activeSkills.forEach(function(sk) {
+							(skillArtifacts[sk] || []).forEach(function(id) { activeIds[id] = true; });
+						});
+					}
+					// Apply: show active, hide inactive.
+					allBadgeIds.forEach(function(id) {
+						var badge = document.getElementById('generating-' + id);
+						if (!badge) return;
+						if (activeIds[id]) {
+							badge.classList.remove('hidden');
+						} else {
+							badge.classList.add('hidden');
+						}
+					});
+
+					// Also update cascade container.
+					var tracker = document.getElementById('cascade-tracker');
+					var container = document.getElementById('cascade-tracker-container');
+					if (tracker && container) {
+						tracker.innerHTML = html;
+						var hasContent = tracker.children.length > 0 && tracker.textContent.trim() !== '';
+						if (hasContent) { container.classList.remove('hidden'); }
+						else { container.classList.add('hidden'); }
+					}
+				})
+				.catch(function() { /* ignore network errors */ });
+		}
+
+		// Reconcile on page load — catches stale state from previous visits.
+		reconcileBadges();
+
+		// Periodic reconciliation every 30s as a safety net for dropped SSE events.
+		setInterval(reconcileBadges, 30000);
 
 		es.addEventListener('activity', function(e) {
 			try {
@@ -165,10 +222,6 @@ templ activityStreamSSE() {
 					refreshCascade();
 				}
 				if (evt.event_type === 'skill.chunk_staged') {
-					var progress = document.getElementById('skill-progress');
-					if (progress) {
-						progress.textContent = (payload.chunk || '?') + ' of ' + (payload.chunk_count || '?') + ' chunks';
-					}
 					refreshCascade();
 				}
 				if (evt.event_type === 'skill.completed' || evt.event_type === 'skill.failed') {

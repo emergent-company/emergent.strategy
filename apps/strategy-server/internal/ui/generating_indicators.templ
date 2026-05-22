@@ -3,15 +3,15 @@ package ui
 // GeneratingBadge renders a pulsing "AI draft in progress" indicator.
 // The id should be "generating-{artifact_type}" to match the SSE JS.
 // Hidden by default; the SSE handler removes the "hidden" class when active.
+// The SSE reconcileBadges() function clears stale badges on page load and
+// periodically, so the badge never persists after a run completes.
 templ GeneratingBadge(artifactType string) {
 	<span
 		id={ "generating-" + artifactType }
-		class="hidden inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary animate-pulse"
+		class="hidden inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary animate-pulse"
 	>
-		<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-			<path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z" stroke-linecap="round" stroke-linejoin="round"></path>
-		</svg>
-		AI draft in progress
+		<span class="iconify lucide--sparkles size-3 shrink-0"></span>
+		Drafting…
 	</span>
 }
 

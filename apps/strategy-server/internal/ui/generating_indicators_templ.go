@@ -11,6 +11,8 @@ import templruntime "github.com/a-h/templ/runtime"
 // GeneratingBadge renders a pulsing "AI draft in progress" indicator.
 // The id should be "generating-{artifact_type}" to match the SSE JS.
 // Hidden by default; the SSE handler removes the "hidden" class when active.
+// The SSE reconcileBadges() function clears stale badges on page load and
+// periodically, so the badge never persists after a run completes.
 func GeneratingBadge(artifactType string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -39,13 +41,13 @@ func GeneratingBadge(artifactType string) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue("generating-" + artifactType)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/generating_indicators.templ`, Line: 8, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/generating_indicators.templ`, Line: 10, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" class=\"hidden inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary animate-pulse\"><svg class=\"w-3.5 h-3.5\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z\" stroke-linecap=\"round\" stroke-linejoin=\"round\"></path></svg> AI draft in progress</span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" class=\"hidden inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary animate-pulse\"><span class=\"iconify lucide--sparkles size-3 shrink-0\"></span> Drafting…</span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

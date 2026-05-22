@@ -24,6 +24,7 @@ type SchemaConstraints struct {
 	ArtifactType string
 	IDPatterns   []FieldConstraint // fields with a "pattern" keyword
 	MinLengths   []FieldConstraint // string fields with minLength > 0
+	MaxLengths   []FieldConstraint // string fields with maxLength
 	MinItems     []FieldConstraint // array fields with minItems > 0
 	Enums        []FieldConstraint // fields with an enum keyword
 	Required     []FieldConstraint // fields that are required at their level
@@ -65,6 +66,7 @@ func ExtractSchemaConstraints(artifactType string) (SchemaConstraints, error) {
 
 	result.IDPatterns = walker.patterns
 	result.MinLengths = walker.minLengths
+	result.MaxLengths = walker.maxLengths
 	result.MinItems = walker.minItems
 	result.Enums = walker.enums
 	result.Required = walker.required
@@ -77,7 +79,7 @@ func ExtractSchemaConstraints(artifactType string) (SchemaConstraints, error) {
 // there are no constraints to show.
 func RenderConstraintAppendix(sc SchemaConstraints) string {
 	if len(sc.IDPatterns) == 0 && len(sc.MinLengths) == 0 &&
-		len(sc.MinItems) == 0 && len(sc.Enums) == 0 {
+		len(sc.MaxLengths) == 0 && len(sc.MinItems) == 0 && len(sc.Enums) == 0 {
 		return ""
 	}
 
@@ -97,6 +99,15 @@ func RenderConstraintAppendix(sc SchemaConstraints) string {
 		sb.WriteString("**Minimum character lengths** (shorter values will be rejected):\n\n")
 		sb.WriteString("| Field | Minimum characters |\n|---|---|\n")
 		for _, c := range sc.MinLengths {
+			fmt.Fprintf(&sb, "| `%s` | %s |\n", c.JSONPath, c.Constraint)
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(sc.MaxLengths) > 0 {
+		sb.WriteString("**Maximum character lengths** (longer values will be rejected — count carefully):\n\n")
+		sb.WriteString("| Field | Maximum characters |\n|---|---|\n")
+		for _, c := range sc.MaxLengths {
 			fmt.Fprintf(&sb, "| `%s` | %s |\n", c.JSONPath, c.Constraint)
 		}
 		sb.WriteString("\n")
@@ -131,6 +142,7 @@ type constraintWalker struct {
 	schema     map[string]any
 	patterns   []FieldConstraint
 	minLengths []FieldConstraint
+	maxLengths []FieldConstraint
 	minItems   []FieldConstraint
 	enums      []FieldConstraint
 	required   []FieldConstraint
@@ -192,6 +204,12 @@ func (w *constraintWalker) extractLeafConstraints(node map[string]any, typ, path
 			w.minLengths = append(w.minLengths, FieldConstraint{
 				JSONPath:   path,
 				Constraint: fmt.Sprintf("%d", int(minLen)),
+			})
+		}
+		if maxLen, ok := numericValue(node["maxLength"]); ok && maxLen > 0 {
+			w.maxLengths = append(w.maxLengths, FieldConstraint{
+				JSONPath:   path,
+				Constraint: fmt.Sprintf("%d", int(maxLen)),
 			})
 		}
 	}
