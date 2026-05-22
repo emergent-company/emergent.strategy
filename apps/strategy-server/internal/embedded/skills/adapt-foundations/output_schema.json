@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "adapt-foundations output",
+  "description": "Output produced by the adapt-foundations skill. All keys are full replacement payloads for their respective READY-layer artifacts.",
+  "type": "object",
+  "properties": {
+    "north_star": {
+      "type": "object",
+      "description": "Full replacement payload for the north_star artifact."
+    },
+    "strategy_foundations": {
+      "type": "object",
+      "description": "Full replacement payload for the strategy_foundations artifact."
+    },
+    "insight_analyses": {
+      "type": "object",
+      "description": "Full replacement payload for the insight_analyses artifact."
+    },
+    "insight_opportunity": {
+      "type": "object",
+      "description": "Full replacement payload for the insight_opportunity artifact."
+    }
+  },
+  "additionalProperties": false
+}

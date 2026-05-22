@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/skillexec"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/orchestration"
 )
 
@@ -17,12 +18,14 @@ const WorkflowName = "aim_cycle"
 // The Engine knows nothing about AIM; AIM knows about the Engine
 // only through the orchestration.Workflow interface.
 type CycleWorkflow struct {
-	svc *Service
+	svc      *Service
+	executor *skillexec.Executor // optional — nil = legacy ApplyCalibration stub
 }
 
 // NewCycleWorkflow creates a new AIM cycle workflow.
-func NewCycleWorkflow(svc *Service) *CycleWorkflow {
-	return &CycleWorkflow{svc: svc}
+// Pass a non-nil executor to use the unified skill executor for the adapt_strategy step.
+func NewCycleWorkflow(svc *Service, executor *skillexec.Executor) *CycleWorkflow {
+	return &CycleWorkflow{svc: svc, executor: executor}
 }
 
 // Name returns the unique workflow name.
@@ -51,8 +54,8 @@ func (w *CycleWorkflow) Steps() []orchestration.Step {
 			HumanGate: true,
 		},
 		{
-			Name:      "apply_calibration",
-			Execute:   w.stepApplyCalibration,
+			Name:      "adapt_strategy",
+			Execute:   w.stepAdaptStrategy,
 			HumanGate: true,
 		},
 		{
@@ -108,15 +111,46 @@ func (w *CycleWorkflow) stepDraftCalibration(ctx context.Context, run *orchestra
 	}, nil
 }
 
-func (w *CycleWorkflow) stepApplyCalibration(ctx context.Context, run *orchestration.Run) (orchestration.StepResult, error) {
+func (w *CycleWorkflow) stepAdaptStrategy(ctx context.Context, run *orchestration.Run) (orchestration.StepResult, error) {
 	instanceID, err := runInstanceID(run)
 	if err != nil {
 		return orchestration.StepResult{}, err
 	}
 
+	// If the unified executor is wired, use the adapt-strategy skill.
+	if w.executor != nil {
+		// Build params: pass the decision from run input (if provided) or rely on
+		// the context bundle to extract it from the calibration memo.
+		params := map[string]any{
+			"_trigger": "aim_cycle",
+			"_trigger_context": map[string]any{
+				"run_id":    run.ID.String(),
+				"step_name": "adapt_strategy",
+			},
+		}
+		if decision, ok := run.Input["decision"].(string); ok && decision != "" {
+			params["decision"] = decision
+		}
+
+		result, err := w.executor.RunChunked(ctx, instanceID, "adapt-strategy", params)
+		if err != nil {
+			return orchestration.StepResult{}, fmt.Errorf("adapt strategy: %w", err)
+		}
+
+		return orchestration.StepResult{
+			BatchID: result.BatchID.String(),
+			Meta: map[string]any{
+				"artifact_types":    result.ArtifactTypes,
+				"llm_used":          result.LLMUsed,
+				"validation_passed": result.ValidationPassed,
+			},
+		}, nil
+	}
+
+	// Fallback: legacy ApplyCalibration stub (backward compatibility).
 	batchID, result, err := w.svc.ApplyCalibration(ctx, instanceID)
 	if err != nil {
-		return orchestration.StepResult{}, fmt.Errorf("apply calibration: %w", err)
+		return orchestration.StepResult{}, fmt.Errorf("apply calibration (fallback): %w", err)
 	}
 
 	return orchestration.StepResult{
@@ -134,10 +168,12 @@ func (w *CycleWorkflow) stepSnapshotCycle(ctx context.Context, run *orchestratio
 		return orchestration.StepResult{}, err
 	}
 
-	// Derive the calibration decision from the apply_calibration step meta.
+	// Derive the calibration decision from the adapt_strategy step meta.
+	// The executor stores it in the context bundle from the calibration memo;
+	// the legacy fallback stores it explicitly as "decision" in the meta.
 	decision := ""
 	for _, sl := range run.Steps {
-		if sl.Name == "apply_calibration" {
+		if sl.Name == "adapt_strategy" || sl.Name == "apply_calibration" {
 			if d, ok := sl.Meta["decision"].(string); ok {
 				decision = d
 			}

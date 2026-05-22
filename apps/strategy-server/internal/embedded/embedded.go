@@ -406,6 +406,20 @@ func SkillFS(name string) (fs.FS, error) {
 	return sub, nil
 }
 
+// GetSkillOutputSchema returns the raw output_schema.json bytes for the named
+// embedded skill. Returns nil, nil if no output_schema.json exists (not all
+// skills declare an output schema).
+func GetSkillOutputSchema(name string) ([]byte, error) {
+	data, err := skillsFS.ReadFile(path.Join("skills", name, "output_schema.json"))
+	if err != nil {
+		if isNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get skill output schema %q: %w", name, err)
+	}
+	return data, nil
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

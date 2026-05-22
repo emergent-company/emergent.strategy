@@ -10,22 +10,22 @@ import (
 // ---------------------------------------------------------------------------
 
 type mockLLMClient struct {
-	completeFunc     func(ctx context.Context, system, user string) (string, error)
-	completeJSONFunc func(ctx context.Context, system, user string) (string, error)
+	completeFunc     func(ctx context.Context, system, user string) (LLMResult, error)
+	completeJSONFunc func(ctx context.Context, system, user string) (LLMResult, error)
 }
 
-func (m *mockLLMClient) Complete(ctx context.Context, system, user string) (string, error) {
+func (m *mockLLMClient) Complete(ctx context.Context, system, user string) (LLMResult, error) {
 	if m.completeFunc != nil {
 		return m.completeFunc(ctx, system, user)
 	}
-	return "mock narrative response", nil
+	return LLMResult{Content: "mock narrative response", InputTokens: 50, OutputTokens: 20}, nil
 }
 
-func (m *mockLLMClient) CompleteJSON(ctx context.Context, system, user string) (string, error) {
+func (m *mockLLMClient) CompleteJSON(ctx context.Context, system, user string) (LLMResult, error) {
 	if m.completeJSONFunc != nil {
 		return m.completeJSONFunc(ctx, system, user)
 	}
-	return `{"reasoning":"mock structured reasoning"}`, nil
+	return LLMResult{Content: `{"reasoning":"mock structured reasoning"}`, InputTokens: 100, OutputTokens: 50}, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -403,8 +403,8 @@ func containsStr(s, substr string) bool {
 func TestEnrichCalibrationWithLLM_StructuredJSON(t *testing.T) {
 	const wantReasoning = "Pivot is strongly indicated: OKR hit rate of 45% is well below threshold."
 	mock := &mockLLMClient{
-		completeJSONFunc: func(_ context.Context, _, _ string) (string, error) {
-			return `{"reasoning":"` + wantReasoning + `"}`, nil
+		completeJSONFunc: func(_ context.Context, _, _ string) (LLMResult, error) {
+			return LLMResult{Content: `{"reasoning":"` + wantReasoning + `"}`}, nil
 		},
 	}
 	svc := &Service{llm: mock}
@@ -431,8 +431,8 @@ func TestEnrichCalibrationWithLLM_FallsBackOnBadJSON(t *testing.T) {
 	} {
 		resp := badResponse
 		mock := &mockLLMClient{
-			completeJSONFunc: func(_ context.Context, _, _ string) (string, error) {
-				return resp, nil
+			completeJSONFunc: func(_ context.Context, _, _ string) (LLMResult, error) {
+				return LLMResult{Content: resp}, nil
 			},
 		}
 		svc := &Service{llm: mock}
@@ -451,8 +451,8 @@ func TestEnrichCalibrationWithLLM_FallsBackOnBadJSON(t *testing.T) {
 func TestEnrichCalibrationWithLLM_FallsBackOnError(t *testing.T) {
 	const fallback = "formula reasoning"
 	mock := &mockLLMClient{
-		completeJSONFunc: func(_ context.Context, _, _ string) (string, error) {
-			return "", context.DeadlineExceeded
+		completeJSONFunc: func(_ context.Context, _, _ string) (LLMResult, error) {
+			return LLMResult{}, context.DeadlineExceeded
 		},
 	}
 	svc := &Service{llm: mock}

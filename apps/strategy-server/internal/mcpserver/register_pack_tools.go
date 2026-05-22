@@ -13,6 +13,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/google/uuid"
@@ -91,6 +92,7 @@ func registerSkillResolutionTools(s *server.MCPServer, svc Services) { //nolint:
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 		mcp.WithString("skill_name", mcp.Required(), mcp.Description("Kebab-case skill name")),
 		mcp.WithString("params", mcp.Description("Optional JSON object passed to the skill as params")),
+		mcp.WithString("mode", mcp.Description("Execution mode: interactive (default) or autonomous. Autonomous mode calls the LLM server-side and stages mutations.")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		if svc.Pack == nil {
 			return toolErr(ctx, apperror.ErrInternal.WithDetail("pack service not available")), nil
@@ -103,6 +105,53 @@ func registerSkillResolutionTools(s *server.MCPServer, svc Services) { //nolint:
 		if skillName == "" {
 			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("skill_name is required")), nil
 		}
+
+		mode := argString(req, "mode")
+		if mode == "" {
+			mode = "interactive"
+		}
+
+		// Autonomous mode: launch the chunked executor in a background goroutine so
+		// long-running multi-chunk skills (e.g. adapt-foundations ~4 min) don't time
+		// out the HTTP request. Returns immediately with status="running". The skill
+		// stages its batch(es) asynchronously; use list_pending_batches to check progress.
+		if mode == "autonomous" {
+			if svc.SkillExecutor == nil {
+				return toolErr(ctx, apperror.ErrBadRequest.WithDetail("autonomous mode requires LLM configuration")), nil
+			}
+
+			var paramsMap map[string]any
+			if raw := argString(req, "params"); raw != "" {
+				if err := json.Unmarshal([]byte(raw), &paramsMap); err != nil {
+					return toolErr(ctx, apperror.ErrBadRequest.WithDetail("params is not valid JSON: "+err.Error())), nil //nolint:nilerr
+				}
+			}
+
+			executor := svc.SkillExecutor
+			go func() {
+				bgCtx := context.Background()
+				result, err := executor.RunChunked(bgCtx, id, skillName, paramsMap)
+				if err != nil {
+					slog.Warn("run_skill: autonomous execution failed",
+						"instance_id", id, "skill", skillName, "err", err)
+					return
+				}
+				slog.Info("run_skill: autonomous execution staged",
+					"instance_id", id, "skill", skillName,
+					"batch_id", result.BatchID,
+					"artifact_types", result.ArtifactTypes,
+				)
+			}()
+
+			return mustJSON(map[string]any{
+				"mode":       "autonomous",
+				"skill_name": skillName,
+				"status":     "running",
+				"message":    "Skill is running in the background. Use get_skill_run or list_skill_runs to track progress, or list_pending_batches to check when the batch is ready for review.",
+			})
+		}
+
+		// Interactive / script mode: existing path unchanged.
 		skill, err := svc.Pack.ResolveSkill(ctx, id, skillName)
 		if err != nil {
 			return toolErr(ctx, err), nil
@@ -166,7 +215,7 @@ func registerSkillResolutionTools(s *server.MCPServer, svc Services) { //nolint:
 				promptMD = *skill.PromptMD
 			}
 			return mustJSON(map[string]any{
-				"mode":       "prompt",
+				"mode":       "interactive",
 				"skill_name": skillName,
 				"prompt_md":  promptMD,
 				"requires":   extractRequires(skill.SkillYAML),

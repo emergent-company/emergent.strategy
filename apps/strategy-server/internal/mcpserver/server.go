@@ -46,6 +46,8 @@ import (
 	rippledom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ripple"
 	schemadom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/schema"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/skillexec"
+	skillrundom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/skillrun"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
 	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
 	versiondom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/version"
@@ -77,6 +79,8 @@ type Services struct {
 	Sync          *syncdom.Service         // optional — nil disables GitHub sync tools
 	Ripple        *rippledom.Service       // optional — nil disables ripple coherence tools
 	AIM           *aimdom.Service          // optional — nil disables AIM agent loop tools
+	SkillExecutor *skillexec.Executor      // optional — nil = interactive-only for run_skill
+	SkillRun      *skillrundom.Service     // optional — nil disables skill run observability tools
 	Heartbeat     HeartbeatService         // optional — nil disables heartbeat MCP tools
 	Resolver      rippledom.SignalResolver // optional — nil = agent-orchestrated mode
 	Ingest        IngestEnqueuer           // optional — nil when Memory is not configured
@@ -134,6 +138,7 @@ func New(svc Services) http.Handler {
 	registerHeartbeatTools(s, svc)
 	registerEvidenceTools(s, svc)
 	registerActivityTools(s, svc)
+	registerSkillRunTools(s, svc)
 	registerKnowledgePrompt(s)
 
 	return server.NewStreamableHTTPServer(s)
@@ -916,6 +921,16 @@ func registerBatchWriteTools(s *server.MCPServer, svc Services) {
 			svc.Ingest.EnqueueBatch(instanceID, batchID)
 		}
 
+		// Resume any AIM orchestration run awaiting human review for this batch.
+		// This makes MCP commit_batch equivalent to the web UI commit path.
+		if svc.Orchestration != nil {
+			if run, findErr := svc.Orchestration.FindRunByBatch(ctx, batchID.String()); findErr == nil && run != nil {
+				if resumeErr := svc.Orchestration.Resume(ctx, run.ID, true); resumeErr != nil {
+					slog.WarnContext(ctx, "commit_batch: orchestration resume failed (non-fatal)", "run_id", run.ID, "err", resumeErr)
+				}
+			}
+		}
+
 		// Post-commit ripple analysis: detect misalignments and auto-resolve.
 		result := map[string]any{"committed": true, "batch_id": batchID, "count": n}
 		if instanceID != uuid.Nil {
@@ -1054,6 +1069,16 @@ func registerBatchWriteTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+
+		// Abort any AIM orchestration run awaiting human review for this batch.
+		if svc.Orchestration != nil {
+			if run, findErr := svc.Orchestration.FindRunByBatch(ctx, batchID.String()); findErr == nil && run != nil {
+				if resumeErr := svc.Orchestration.Resume(ctx, run.ID, false); resumeErr != nil {
+					slog.WarnContext(ctx, "discard_batch: orchestration abort failed (non-fatal)", "run_id", run.ID, "err", resumeErr)
+				}
+			}
+		}
+
 		return mustJSON(map[string]any{"discarded": true, "batch_id": batchID, "count": n})
 	})
 }

@@ -1,0 +1,25 @@
+name: adapt-strategy
+version: "1.0.0"
+type: generation
+phase: AIM
+description: "Generates full replacement payloads for strategy_formula and roadmap_recipe based on a committed calibration decision. Also produces an LRA evolution entry and updated riskiest assumptions."
+
+capability:
+  class: autonomous
+  context_budget: large
+
+requires:
+  artifacts:
+    - calibration_memo
+    - assessment_report
+    - strategy_formula
+    - roadmap_recipe
+    - living_reality_assessment
+
+output:
+  format: json
+  schema: output_schema.json
+  artifact_types:
+    - strategy_formula
+    - roadmap_recipe
+    - living_reality_assessment

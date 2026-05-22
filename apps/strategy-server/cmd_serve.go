@@ -28,6 +28,8 @@ import (
 	rippledom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ripple"
 	schemadom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/schema"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/skillexec"
+	skillrundom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/skillrun"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
 	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/user"
@@ -154,7 +156,7 @@ func runServer(cfg *config.Config) error {
 	// AIM agent loop service — wraps the llmClient as an aim.LLMClient adapter.
 	var aimLLMClient aimdom.LLMClient
 	if llmClient != nil {
-		aimLLMClient = &llmAIMAdapter{client: llmClient}
+		aimLLMClient = &aimLLMAdapter{client: llmClient}
 	}
 	aimSvc := aimdom.NewService(db, aimLLMClient).WithVersionPublisher(versionSvc)
 
@@ -180,7 +182,34 @@ func runServer(cfg *config.Config) error {
 	// Orchestration engine — PostgreSQL-backed goroutine pool.
 	orchBackend := orchpg.NewBackend(db, orchpg.Config{Workers: 4})
 	orchEngine := orchestration.New(orchBackend)
-	orchEngine.Register(aimdom.NewCycleWorkflow(aimSvc))
+	// Skill run ledger — tracks all autonomous skill executions.
+	skillRunSvc := skillrundom.NewService(db)
+	skillRunLedger := skillrundom.NewAdapter(skillRunSvc)
+
+	// Unified skill executor — drives the adapt_strategy step in the AIM cycle.
+	// Uses a separate LLM client with a longer timeout: skill prompts are large
+	// (full artifact JSON + schema constraints) and routinely exceed 60 seconds.
+	var skillExecutor *skillexec.Executor
+	if llmClient != nil {
+		skillLLMClient := llm.New(llm.Config{
+			BaseURL: cfg.LLMProviderURL,
+			APIKey:  cfg.LLMAPIKey,
+			Model:   cfg.LLMModel,
+			Timeout: 3 * time.Minute,
+		})
+		skillLLMAdapter := &skillexecLLMAdapter{client: skillLLMClient}
+		skillExecutor = skillexec.New(db, packSvc, skillLLMAdapter).
+			WithActivityRecorder(activitySvc).
+			WithRunLedger(skillRunLedger)
+		log.Info("skill executor enabled (autonomous mode)")
+	} else {
+		skillExecutor = skillexec.New(db, packSvc, nil). // skeleton mode
+			WithActivityRecorder(activitySvc).
+			WithRunLedger(skillRunLedger)
+		log.Info("skill executor in skeleton mode (no LLM configured)")
+	}
+
+	orchEngine.Register(aimdom.NewCycleWorkflow(aimSvc, skillExecutor))
 	if err := orchEngine.Start(context.Background()); err != nil {
 		return fmt.Errorf("start orchestration engine: %w", err)
 	}
@@ -205,6 +234,8 @@ func runServer(cfg *config.Config) error {
 		Sync:          syncSvc,
 		Ripple:        rippleSvc,
 		AIM:           aimSvc,
+		SkillExecutor: skillExecutor,
+		SkillRun:      skillRunSvc,
 		Heartbeat:     heartbeatSvc,
 		Resolver:      rippledom.NewLLMResolver(llmClient, db),
 		Ingest:        ingestSvc,
@@ -434,34 +465,61 @@ func (a *aimHeartbeatAdapter) EvaluateTriggers(ctx context.Context, instanceID u
 	}
 }
 
-// llmAIMAdapter adapts *llm.Client to the aim.LLMClient interface.
-// The aim package uses a simpler Complete(ctx, system, user) signature
-// so handlers don't depend on internal/llm types.
-type llmAIMAdapter struct {
+// aimLLMAdapter adapts *llm.Client to the aim.LLMClient interface,
+// propagating token usage from llm.ChatResult.
+type aimLLMAdapter struct {
 	client *llm.Client
 }
 
-func (a *llmAIMAdapter) Complete(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
+func (a *aimLLMAdapter) Complete(ctx context.Context, systemPrompt, userPrompt string) (aimdom.LLMResult, error) {
 	result, err := a.client.Chat(ctx, []llm.ChatMessage{
 		{Role: "system", Content: systemPrompt},
 		{Role: "user", Content: userPrompt},
 	}, 0.4)
 	if err != nil {
-		return "", err
+		return aimdom.LLMResult{}, err
 	}
-	return result.Content, nil
+	return aimdom.LLMResult{
+		Content:      result.Content,
+		InputTokens:  result.InputTokens,
+		OutputTokens: result.OutputTokens,
+	}, nil
 }
 
-// CompleteJSON calls the LLM with json_object response_format for structured output.
-func (a *llmAIMAdapter) CompleteJSON(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
+func (a *aimLLMAdapter) CompleteJSON(ctx context.Context, systemPrompt, userPrompt string) (aimdom.LLMResult, error) {
 	result, err := a.client.ChatWithFormat(ctx, []llm.ChatMessage{
 		{Role: "system", Content: systemPrompt},
 		{Role: "user", Content: userPrompt},
-	}, 0.3, llm.FormatJSON) // lower temperature for structured output
+	}, 0.3, llm.FormatJSON)
 	if err != nil {
-		return "", err
+		return aimdom.LLMResult{}, err
 	}
-	return result.Content, nil
+	return aimdom.LLMResult{
+		Content:      result.Content,
+		InputTokens:  result.InputTokens,
+		OutputTokens: result.OutputTokens,
+	}, nil
+}
+
+// skillexecLLMAdapter adapts *llm.Client to the skillexec.LLMClient interface,
+// propagating token usage from llm.ChatResult.
+type skillexecLLMAdapter struct {
+	client *llm.Client
+}
+
+func (a *skillexecLLMAdapter) CompleteJSON(ctx context.Context, systemPrompt, userPrompt string) (skillexec.LLMResult, error) {
+	result, err := a.client.ChatWithFormat(ctx, []llm.ChatMessage{
+		{Role: "system", Content: systemPrompt},
+		{Role: "user", Content: userPrompt},
+	}, 0.3, llm.FormatJSON)
+	if err != nil {
+		return skillexec.LLMResult{}, err
+	}
+	return skillexec.LLMResult{
+		Content:      result.Content,
+		InputTokens:  result.InputTokens,
+		OutputTokens: result.OutputTokens,
+	}, nil
 }
 
 // heartbeatActivityAdapter adapts *activity.Service to heartbeat.ActivityRecorder.

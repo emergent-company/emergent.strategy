@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 
@@ -79,17 +80,42 @@ func runImport(cfg *config.Config) error {
 		instanceName = filepath.Base(filepath.Clean(imp.InstancePath))
 	}
 
-	// --- Import the instance ---
+	// --- Import the instance (upsert: reuse existing if name+workspace match) ---
 	instSvc := instance.NewService(db)
-	inst, err := instSvc.ImportInstance(ctx, instance.ImportParams{
-		WorkspaceID:     ws.ID,
-		Name:            instanceName,
-		InitialPayloads: payloads,
-	})
-	if err != nil {
-		return fmt.Errorf("import instance: %w", err)
+
+	// Check for an existing active instance with the same name in this workspace.
+	var existingInst domain.StrategyInstance
+	existingErr := db.NewSelect().
+		Model(&existingInst).
+		Where("workspace_id = ?", ws.ID).
+		Where("name = ?", instanceName).
+		Where("deleted_at IS NULL").
+		OrderExpr("created_at DESC").
+		Limit(1).
+		Scan(ctx)
+
+	var inst *domain.StrategyInstance
+	if existingErr == nil {
+		// Re-import into the existing instance: replace its artifacts.
+		slog.Info("instance already exists — re-importing artifacts",
+			"name", existingInst.Name, "instance_id", existingInst.ID)
+		if err := instSvc.ReimportArtifacts(ctx, existingInst.ID, payloads); err != nil {
+			return fmt.Errorf("replace artifacts: %w", err)
+		}
+		inst = &existingInst
+		slog.Info("artifacts replaced", "instance_id", inst.ID)
+	} else {
+		var err error
+		inst, err = instSvc.ImportInstance(ctx, instance.ImportParams{
+			WorkspaceID:     ws.ID,
+			Name:            instanceName,
+			InitialPayloads: payloads,
+		})
+		if err != nil {
+			return fmt.Errorf("import instance: %w", err)
+		}
+		slog.Info("instance imported", "name", inst.Name, "instance_id", inst.ID)
 	}
-	slog.Info("instance imported", "name", inst.Name, "instance_id", inst.ID)
 
 	// --- Backfill Strategic Index ---
 	// ImportInstance inserts mutations as committed directly (bypassing CommitBatch),
@@ -138,8 +164,22 @@ func runImport(cfg *config.Config) error {
 			// Layer 2: Decomposed sub-entities (label: layer:decomposed).
 			// These provide fine-grained search and graph traversal.
 			absPath, _ := filepath.Abs(imp.InstancePath)
-			if err := ingestDecomposed(ctx, memClient, absPath, inst.ID.String()); err != nil {
-				slog.Warn("ingest: decomposed layer failed", "err", err)
+			dObjs, dEdges, dErr := ingestDecomposed(ctx, memClient, absPath, inst.ID.String())
+			if dErr != nil {
+				slog.Warn("ingest: decomposed layer failed", "err", dErr)
+			} else {
+				// Write decomposed counts back to the instance row so the
+				// settings page shows accurate numbers.
+				now := time.Now()
+				if _, dbErr := db.NewUpdate().
+					TableExpr("strategy_instances").
+					Set("memory_decomposed_object_count = ?", dObjs).
+					Set("memory_decomposed_edge_count = ?", dEdges).
+					Set("updated_at = ?", now).
+					Where("id = ?", inst.ID).
+					Exec(ctx); dbErr != nil {
+					slog.Warn("ingest: failed to update decomposed counts", "err", dbErr)
+				}
 			}
 		}
 	}
@@ -383,11 +423,11 @@ func extractProductName(raw map[string]any) (string, bool) {
 // upserts the resulting graph objects and relationships into Memory.
 // This produces a fine-grained graph (beliefs, trends, personas, capabilities,
 // value model components, etc.) instead of one flat object per YAML file.
-func ingestDecomposed(ctx context.Context, client *memory.Client, instancePath, instanceID string) error {
+func ingestDecomposed(ctx context.Context, client *memory.Client, instancePath, instanceID string) (int, int, error) {
 	d := decompose.New(instancePath)
 	result, err := d.DecomposeInstance()
 	if err != nil {
-		return fmt.Errorf("decompose: %w", err)
+		return 0, 0, fmt.Errorf("decompose: %w", err)
 	}
 
 	for _, w := range result.Warnings {
@@ -452,5 +492,5 @@ func ingestDecomposed(ctx context.Context, client *memory.Client, instancePath, 
 	}
 	slog.Info("decompose: relationships created", "created", relCreated, "skipped", relSkipped)
 
-	return nil
+	return upserted, relCreated, nil
 }

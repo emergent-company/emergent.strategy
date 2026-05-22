@@ -202,6 +202,55 @@ func (s *Service) ImportInstance(ctx context.Context, p ImportParams) (*domain.S
 	return inst, nil
 }
 
+// ReimportArtifacts replaces all mutations, artifacts, and relationships for an
+// existing instance with a fresh set of payloads. This is used by the import
+// command when re-importing an instance that already exists (upsert behaviour).
+// After this call the caller must re-run BackfillIndex.
+func (s *Service) ReimportArtifacts(ctx context.Context, id uuid.UUID, payloads map[string]any) error {
+	actorID := audit.ActorFromContext(ctx)
+	source := string(audit.SourceFromContext(ctx))
+
+	return s.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		// Wipe existing derived state and mutations.
+		for _, table := range []string{
+			"strategy_relationships",
+			"strategy_artifacts",
+			"strategy_mutations",
+		} {
+			if _, err := tx.NewDelete().
+				TableExpr(table).
+				Where("instance_id = ?", id).
+				Exec(ctx); err != nil {
+				return fmt.Errorf("wipe %s: %w", table, err)
+			}
+		}
+
+		// Seed fresh committed mutations.
+		for key, payload := range payloads {
+			raw, err := json.Marshal(payload)
+			if err != nil {
+				return fmt.Errorf("marshal payload for %q: %w", key, err)
+			}
+			m := &domain.StrategyMutation{
+				ID:           uuid.New(),
+				InstanceID:   id,
+				ArtifactType: inferArtifactType(key),
+				ArtifactKey:  key,
+				Action:       domain.MutationActionCreate,
+				Payload:      raw,
+				Status:       domain.MutationStatusCommitted,
+				Source:       source,
+				CreatedBy:    actorID,
+				CreatedAt:    time.Now().UTC(),
+			}
+			if _, err := tx.NewInsert().Model(m).Exec(ctx); err != nil {
+				return fmt.Errorf("insert mutation for %q: %w", key, err)
+			}
+		}
+		return nil
+	})
+}
+
 // ActivateInstance sets an instance to active, demoting any currently active instance.
 func (s *Service) ActivateInstance(ctx context.Context, id uuid.UUID) error {
 	actorID := audit.ActorFromContext(ctx)

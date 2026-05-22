@@ -223,8 +223,8 @@ func TestMCP_SkillPackRunPromptMode(t *testing.T) {
 	}).assertOK().decode(&result)
 	id++
 
-	if result["mode"] != "prompt" {
-		t.Errorf("run_skill: mode=%v, want prompt", result["mode"])
+	if result["mode"] != "interactive" {
+		t.Errorf("run_skill: mode=%v, want interactive", result["mode"])
 	}
 	if !strings.Contains(fmt.Sprintf("%v", result["prompt_md"]), "Run Prompt Skill") {
 		t.Errorf("run_skill: prompt_md missing expected content; got %v", result["prompt_md"])
@@ -1050,8 +1050,8 @@ func TestMCP_SkillImporter_CoreSkillExists(t *testing.T) {
 		"skill_name":  "skill-importer",
 	}).assertOK().decode(&result)
 
-	if result["mode"] != "prompt" {
-		t.Errorf("skill-importer: mode=%v, want prompt", result["mode"])
+	if result["mode"] != "interactive" {
+		t.Errorf("skill-importer: mode=%v, want interactive", result["mode"])
 	}
 	promptMD := fmt.Sprintf("%v", result["prompt_md"])
 	if len(promptMD) < 20 {

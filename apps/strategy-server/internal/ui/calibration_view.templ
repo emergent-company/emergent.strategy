@@ -39,6 +39,11 @@ type CalibrationViewData struct {
 templ CalibrationContent(data CalibrationViewData) {
 	@TabBackLink(data.TabGroup, data.InstanceID, data.CurrentPath)
 	<div class="space-y-8">
+		// ── Pending-assessment notice — shown when decision is not yet made ──
+		if data.Decision == "pending_assessment" || data.Decision == "" {
+			@calibrationPendingBanner(data.InstanceID)
+		}
+
 		// ── Hero with decision ──
 		@calibrationHero(data)
 
@@ -66,6 +71,30 @@ templ CalibrationContent(data CalibrationViewData) {
 		if len(data.NextSteps) > 0 {
 			@calibrationNextStepsSection(data.NextSteps)
 		}
+	</div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Pending-assessment banner
+// ──────────────────────────────────────────────────────────────────────
+
+templ calibrationPendingBanner(instanceID string) {
+	<div class="rounded-xl border border-warning/30 bg-warning/5 px-5 py-4">
+		<div class="flex items-start gap-4">
+			<span class="iconify lucide--clock size-5 text-warning shrink-0 mt-0.5"></span>
+			<div class="grow min-w-0">
+				<p class="text-sm font-semibold text-base-content">Decision not yet made</p>
+				<p class="text-xs text-base-content/60 mt-1 leading-relaxed">
+					This memo is a scaffold — the assessment report needs to be reviewed before a persevere / pivot / pull-the-plug decision can be recorded. Use AI draft to generate a decision based on the assessment.
+				</p>
+			</div>
+			<form method="POST" action={ templ.URL("/strategies/" + instanceID + "/aim/draft-calibration") } class="shrink-0">
+				<button type="submit" class="btn btn-sm btn-warning gap-2">
+					<span class="iconify lucide--sparkles size-3.5"></span>
+					AI draft decision
+				</button>
+			</form>
+		</div>
 	</div>
 }
 

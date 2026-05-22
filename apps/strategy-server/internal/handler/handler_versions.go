@@ -59,10 +59,15 @@ func (s *Server) loadVersionsView(instanceID string, c echo.Context) templ.Compo
 		rows = append(rows, versionSummaryToRow(v))
 	}
 
+	// Determine whether a real calibration decision exists (for the empty-state CTA).
+	calDecision := s.extractPayloadField(ctx, instanceID, "calibration_memo", "decision")
+	hasRealCal := calDecision == "persevere" || calDecision == "pivot" || calDecision == "pull_the_plug"
+
 	return ui.VersionsContent(ui.VersionsViewData{
-		NavContext: navCtx,
-		InstanceID: instanceID,
-		Versions:   rows,
+		NavContext:         navCtx,
+		InstanceID:         instanceID,
+		Versions:           rows,
+		HasRealCalibration: hasRealCal,
 	})
 }
 
@@ -193,6 +198,29 @@ func (s *Server) handleVersionRestore(c echo.Context) error {
 	}
 
 	// Redirect to the version list after a successful restore.
+	return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim/versions")
+}
+
+// handlePublishVersion serves POST /strategies/:id/aim/publish — publishes a
+// manual version snapshot and redirects to the version list.
+func (s *Server) handlePublishVersion(c echo.Context) error {
+	instanceID := c.Param("id")
+	ctx := c.Request().Context()
+
+	if s.versionSvc == nil {
+		return c.String(http.StatusServiceUnavailable, "version service not available")
+	}
+
+	instID, err := uuid.Parse(instanceID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid instance ID")
+	}
+
+	if _, err := s.versionSvc.Publish(ctx, instID, "", ""); err != nil {
+		s.log.Error("failed to publish version", "instance_id", instanceID, "err", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "publish failed: "+err.Error())
+	}
+
 	return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim/versions")
 }
 

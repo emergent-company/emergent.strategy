@@ -1008,7 +1008,7 @@ func (s *Server) loadAimPhaseData(ctx context.Context, instanceID string) ui.Aim
 		Where("instance_id = ?", instanceID).
 		Count(ctx)
 
-	// Trigger evaluation (lazy — evaluated at render time, no background job)
+	// Trigger evaluation + config (lazy — evaluated at render time, no background job)
 	if s.aimSvc != nil {
 		id, err := uuid.Parse(instanceID)
 		if err == nil {
@@ -1016,6 +1016,17 @@ func (s *Server) loadAimPhaseData(ctx context.Context, instanceID string) ui.Aim
 			data.TriggerFired = trigger.Fired
 			data.TriggerReason = trigger.Reason
 			data.TriggerReasonMessage = trigger.ReasonMessage
+
+			// Expose trigger thresholds for automation lead text.
+			cfg := s.aimSvc.GetTriggerConfig(ctx, id)
+			data.TriggerDays = cfg.DaysBetweenAssessments
+			data.TriggerSignalThreshold = cfg.CriticalSignalThreshold
+
+			// Days since last assessment (-1 = never assessed).
+			data.DaysSinceAssessment = -1
+			if !trigger.LastAssessmentAt.IsZero() {
+				data.DaysSinceAssessment = int(time.Since(trigger.LastAssessmentAt).Hours() / 24)
+			}
 		}
 	}
 
@@ -1077,6 +1088,7 @@ func (s *Server) extractPayloadField(ctx context.Context, instanceID, artifactTy
 		Column("payload").
 		Where("instance_id = ?", instanceID).
 		Where("artifact_type = ?", artifactType).
+		OrderExpr("updated_at DESC").
 		Limit(1).
 		Scan(ctx, &payloadStr)
 	if err != nil || payloadStr == "" {

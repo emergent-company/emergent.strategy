@@ -44,7 +44,25 @@ const (
 	EventEvidenceIngested     = "evidence.ingested"
 	EventEvidenceProcessed    = "evidence.processed"
 	EventHeartbeatFired       = "heartbeat.fired"
+
+	// Skill execution events — emitted by the unified skill executor.
+	EventSkillStarted     = "skill.started"
+	EventSkillChunkStaged = "skill.chunk_staged"
+	EventSkillCompleted   = "skill.completed"
+	EventSkillFailed      = "skill.failed"
+	EventSkillRetrying    = "skill.retrying"
 )
+
+// ---------------------------------------------------------------------------
+// Recorder interface
+// ---------------------------------------------------------------------------
+
+// Recorder is the minimal interface that domain packages (e.g. skillexec) use
+// to emit activity events without importing the full Service. Service satisfies
+// this interface. Pass nil to disable activity recording.
+type Recorder interface {
+	Record(ctx context.Context, req RecordRequest)
+}
 
 // ---------------------------------------------------------------------------
 // Activity model

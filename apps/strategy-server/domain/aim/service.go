@@ -20,16 +20,21 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
 
+// LLMResult carries the LLM response content together with token usage metrics.
+type LLMResult struct {
+	Content      string `json:"content"`
+	InputTokens  int    `json:"input_tokens"`
+	OutputTokens int    `json:"output_tokens"`
+}
+
 // LLMClient is the interface for calling an LLM to generate narrative content.
 // When nil, the service operates in skeleton mode (structure without narrative).
 type LLMClient interface {
 	// Complete calls the LLM and returns the response as plain text.
-	Complete(ctx context.Context, systemPrompt, userPrompt string) (string, error)
+	Complete(ctx context.Context, systemPrompt, userPrompt string) (LLMResult, error)
 	// CompleteJSON calls the LLM with json_object response_format and returns
 	// the raw JSON string. The caller is responsible for unmarshaling.
-	// Falls back to plain text parsing if the provider does not support
-	// structured output (callers should handle partial JSON gracefully).
-	CompleteJSON(ctx context.Context, systemPrompt, userPrompt string) (string, error)
+	CompleteJSON(ctx context.Context, systemPrompt, userPrompt string) (LLMResult, error)
 }
 
 // TriggerState reports whether a new AIM cycle assessment is due.
@@ -223,6 +228,11 @@ func (s *Service) EvaluateTriggers(ctx context.Context, instanceID uuid.UUID) Tr
 	}
 
 	return TriggerState{}
+}
+
+// GetTriggerConfig returns the effective trigger config for an instance (exported for UI).
+func (s *Service) GetTriggerConfig(ctx context.Context, instanceID uuid.UUID) TriggerConfig {
+	return s.loadTriggerConfig(ctx, instanceID)
 }
 
 // loadTriggerConfig reads per-instance trigger config from strategy_artifacts.
@@ -664,7 +674,7 @@ Write 2-4 sentences assessing this OKR. Reference prior actuals and LRA narrativ
 				resultCh <- result{idx: idx}
 				return
 			}
-			resultCh <- result{idx: idx, assessment: strings.TrimSpace(res)}
+			resultCh <- result{idx: idx, assessment: strings.TrimSpace(res.Content)}
 		}(i, okrID, userPrompt)
 	}
 
@@ -1072,9 +1082,9 @@ Response format (JSON only, no markdown):
 	var structured struct {
 		Reasoning string `json:"reasoning"`
 	}
-	if jsonErr := json.Unmarshal([]byte(raw), &structured); jsonErr != nil || structured.Reasoning == "" {
+	if jsonErr := json.Unmarshal([]byte(raw.Content), &structured); jsonErr != nil || structured.Reasoning == "" {
 		slog.Warn("aim: calibration LLM response not structured, falling back",
-			"decision", decision, "raw_len", len(raw), "err", jsonErr)
+			"decision", decision, "raw_len", len(raw.Content), "err", jsonErr)
 		return fallbackReasoning, nil
 	}
 	return strings.TrimSpace(structured.Reasoning), nil

@@ -3367,8 +3367,8 @@ func TestMCP_FreshSetup_EPFInitialisationDryRun(t *testing.T) {
 	}).assertOK().decode(&skillResult)
 	id++
 
-	if skillResult["mode"] != "prompt" {
-		t.Errorf("Step 7 — run_skill feature-definition: mode=%v, want prompt", skillResult["mode"])
+	if skillResult["mode"] != "interactive" {
+		t.Errorf("Step 7 — run_skill feature-definition: mode=%v, want interactive", skillResult["mode"])
 	}
 	if len(fmt.Sprintf("%v", skillResult["prompt_md"])) < 50 {
 		t.Errorf("Step 7 — run_skill feature-definition: prompt_md too short")

@@ -150,6 +150,70 @@ func ValidateArtifact(artifactType string, payload []byte) ValidationResult {
 	return ValidateArtifactWithSource(artifactType, payload, EmbeddedSchemaSource())
 }
 
+// ValidateArtifactFromBytes validates a JSON payload against a caller-supplied
+// JSON Schema document (schemaBytes). artifactType is used only for labelling
+// the result — it does not affect schema lookup.
+//
+// This is used by the skill executor to validate LLM output against a skill's
+// output_schema.json without going through the artifact-type registry.
+func ValidateArtifactFromBytes(artifactType string, payload, schemaBytes []byte) ValidationResult {
+	const schemaID = "inline-schema.json"
+
+	schemaDoc, err := jsonschema.UnmarshalJSON(bytes.NewReader(schemaBytes))
+	if err != nil {
+		return ValidationResult{
+			Valid:        false,
+			ArtifactType: artifactType,
+			Errors:       []string{fmt.Sprintf("failed to parse schema: %v", err)},
+		}
+	}
+
+	c := jsonschema.NewCompiler()
+	if err := c.AddResource(schemaID, schemaDoc); err != nil {
+		return ValidationResult{
+			Valid:        false,
+			ArtifactType: artifactType,
+			Errors:       []string{fmt.Sprintf("failed to register schema: %v", err)},
+		}
+	}
+
+	sch, err := c.Compile(schemaID)
+	if err != nil {
+		return ValidationResult{
+			Valid:        false,
+			ArtifactType: artifactType,
+			Errors:       []string{fmt.Sprintf("failed to compile schema: %v", err)},
+		}
+	}
+
+	instance, err := jsonschema.UnmarshalJSON(bytes.NewReader(payload))
+	if err != nil {
+		return ValidationResult{
+			Valid:        false,
+			ArtifactType: artifactType,
+			Errors:       []string{fmt.Sprintf("invalid JSON payload: %v", err)},
+		}
+	}
+
+	result := ValidationResult{ArtifactType: artifactType}
+	if err := sch.Validate(instance); err != nil {
+		result.Valid = false
+		if ve, ok := err.(*jsonschema.ValidationError); ok {
+			for _, e := range ve.Causes {
+				result.Errors = append(result.Errors, e.Error())
+			}
+			if len(result.Errors) == 0 {
+				result.Errors = []string{ve.Error()}
+			}
+		} else {
+			result.Errors = []string{err.Error()}
+		}
+	} else {
+		result.Valid = true
+	}
+	return result
+}
+
 // ValidateArtifactWithSource validates a JSON payload against the schema for
 // artifactType using the provided SchemaSource.  If artifactType is empty,
 // auto-detection is attempted first.

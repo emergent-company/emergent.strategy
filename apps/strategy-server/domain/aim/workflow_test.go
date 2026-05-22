@@ -10,7 +10,7 @@ import (
 
 // TestCycleWorkflow_Name verifies the canonical workflow name.
 func TestCycleWorkflow_Name(t *testing.T) {
-	wf := NewCycleWorkflow(nil) // nil svc — not called in this test
+	wf := NewCycleWorkflow(nil, nil) // nil svc — not called in this test
 	if got := wf.Name(); got != WorkflowName {
 		t.Errorf("want %q, got %q", WorkflowName, got)
 	}
@@ -21,7 +21,7 @@ func TestCycleWorkflow_Name(t *testing.T) {
 
 // TestCycleWorkflow_Steps verifies the four steps and their HumanGate settings.
 func TestCycleWorkflow_Steps(t *testing.T) {
-	wf := NewCycleWorkflow(nil)
+	wf := NewCycleWorkflow(nil, nil)
 	steps := wf.Steps()
 
 	if len(steps) != 4 {
@@ -34,7 +34,7 @@ func TestCycleWorkflow_Steps(t *testing.T) {
 	}{
 		{"draft_assessment", true},
 		{"draft_calibration", true},
-		{"apply_calibration", true},
+		{"adapt_strategy", true},
 		{"snapshot_cycle", false},
 	}
 
@@ -53,7 +53,7 @@ func TestCycleWorkflow_Steps(t *testing.T) {
 
 // TestCycleWorkflow_ConcurrencyKey verifies instance_id extraction from run input.
 func TestCycleWorkflow_ConcurrencyKey(t *testing.T) {
-	wf := NewCycleWorkflow(nil)
+	wf := NewCycleWorkflow(nil, nil)
 	id := uuid.New()
 
 	run := &orchestration.Run{
@@ -67,7 +67,7 @@ func TestCycleWorkflow_ConcurrencyKey(t *testing.T) {
 
 // TestCycleWorkflow_ConcurrencyKey_missing verifies graceful handling of missing instance_id.
 func TestCycleWorkflow_ConcurrencyKey_missing(t *testing.T) {
-	wf := NewCycleWorkflow(nil)
+	wf := NewCycleWorkflow(nil, nil)
 	run := &orchestration.Run{Input: map[string]any{}}
 	got := wf.ConcurrencyKey(run)
 	if got != "" {

@@ -256,6 +256,19 @@ func (s *Server) handleDraftCommit(c echo.Context) error {
 		return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim/runs/"+orchestrationRunID)
 	}
 
+	// For apply-calibration batches (strategy_formula / north_star / roadmap_recipe),
+	// auto-publish a version snapshot so the AIM cycle is complete, then land on
+	// the versions page rather than bouncing the user to /ready.
+	if isApplyCalibrationArtifactType(primaryArtifactType) && s.versionSvc != nil {
+		instID, parseErr := uuid.Parse(instanceID)
+		if parseErr == nil {
+			if _, pubErr := s.versionSvc.Publish(ctx, instID, "", "Published after applying AIM calibration"); pubErr != nil {
+				s.log.Warn("auto-publish after apply-calibration failed (non-fatal)", "instance_id", instanceID, "err", pubErr)
+			}
+		}
+		return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim/versions")
+	}
+
 	// Otherwise redirect to the relevant AIM sub-page based on artifact type.
 	return c.Redirect(http.StatusSeeOther, redirectAfterCommit(instanceID, primaryArtifactType))
 }
@@ -281,7 +294,19 @@ func (s *Server) resumeOrchestrationForBatch(ctx context.Context, batchIDStr str
 	}
 }
 
+// isApplyCalibrationArtifactType returns true for artifact types that
+// ApplyCalibration can patch (strategy_formula, north_star, roadmap_recipe).
+// These commits auto-publish a version and redirect to /aim/versions.
+func isApplyCalibrationArtifactType(t string) bool {
+	switch t {
+	case "strategy_formula", "north_star", "roadmap_recipe":
+		return true
+	}
+	return false
+}
+
 // redirectAfterCommit returns the URL to redirect to after committing a draft batch.
+// apply-calibration artifact types are handled separately (auto-publish + /aim/versions).
 func redirectAfterCommit(instanceID, artifactType string) string {
 	base := "/strategies/" + instanceID + "/aim"
 	switch artifactType {
@@ -289,8 +314,6 @@ func redirectAfterCommit(instanceID, artifactType string) string {
 		return base + "/assessment"
 	case "calibration_memo":
 		return base + "/calibration"
-	case "strategy_formula", "north_star", "roadmap_recipe":
-		return "/strategies/" + instanceID + "/ready"
 	default:
 		return base
 	}

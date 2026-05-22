@@ -6,6 +6,7 @@ package heartbeat
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -342,13 +343,25 @@ func (s *Service) batchCriticalSignalCounts(ctx context.Context, instanceIDs []u
 		cutoffs = append(cutoffs, cutoffRow{InstanceID: id, Cutoff: lastAssessments[id]})
 	}
 
+	// Build a raw VALUES clause with explicit column aliases so Postgres can
+	// reference c.instance_id and c.cutoff in the JOIN condition.
+	// bun.NewValues does not emit named columns when used inside JOIN subqueries.
+	// Use bun's '?' placeholder format (not $N) so bun rewrites them to $1, $2...
+	// when it assembles the final query. Passing $N literals directly causes bun
+	// to log "has args but no placeholders" because it doesn't scan the JOIN string.
+	valArgs := make([]any, 0, len(cutoffs)*2)
+	valPlaceholders := make([]string, 0, len(cutoffs))
+	for _, c := range cutoffs {
+		valPlaceholders = append(valPlaceholders, "(?::uuid, ?::timestamptz)")
+		valArgs = append(valArgs, c.InstanceID, c.Cutoff)
+	}
+	valSQL := "(VALUES " + strings.Join(valPlaceholders, ", ") + ") AS c(instance_id, cutoff)"
+
 	var rows []row
 	err := s.db.NewSelect().
 		TableExpr("ripple_signals AS rs").
 		ColumnExpr("rs.instance_id, COUNT(*) AS count").
-		Join("JOIN (?) AS c ON c.instance_id = rs.instance_id AND rs.created_at > c.cutoff",
-			s.db.NewValues(&cutoffs).Column("instance_id", "cutoff"),
-		).
+		Join("JOIN "+valSQL+" ON c.instance_id = rs.instance_id AND rs.created_at > c.cutoff", valArgs...).
 		Where("rs.instance_id IN (?)", bun.List(instanceIDs)).
 		Where("rs.status = ?", "active").
 		Where("rs.severity = ?", "critical").

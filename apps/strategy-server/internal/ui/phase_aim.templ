@@ -1,6 +1,9 @@
 package ui
 
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+)
 
 // AimPhaseData holds all data for the AIM phase dashboard.
 type AimPhaseData struct {
@@ -47,6 +50,11 @@ type AimPhaseData struct {
 
 	// Pending proposals from the continuous loop
 	PendingProposals int
+
+	// Trigger config — shown in automation lead text
+	TriggerDays            int // days between assessments (default 90)
+	TriggerSignalThreshold int // critical signals needed to fire (default 3)
+	DaysSinceAssessment    int // -1 means no prior assessment
 }
 
 // AimSignalRow is a single ripple signal for display in the feed.
@@ -105,6 +113,10 @@ templ aimCycleStepper(data AimPhaseData) {
 				<p class="text-sm text-base-content/70 mt-0.5">
 					Observe reality → assess outcomes → decide direction → adapt strategy
 				</p>
+				<p class="text-xs text-base-content/40 mt-1.5 flex items-center gap-1.5">
+					<span class="iconify lucide--timer size-3"></span>
+					{ aimAutomationHint(data) }
+				</p>
 			</div>
 			<div class="flex items-center gap-3">
 			if data.LatestCalibrationDecision != "" {
@@ -143,7 +155,8 @@ type aimCycleStepData struct {
 	Detail      string // short status line
 	CTA         string // button label
 	CTAHref     string
-	DraftAction string // optional POST action for "Draft with AI" button (e.g. /strategies/:id/aim/draft-assessment)
+	DraftAction string // optional POST action for secondary action button
+	DraftLabel  string // label for DraftAction button; defaults to "AI draft"
 }
 
 templ aimCycleStep(s aimCycleStepData) {
@@ -185,7 +198,11 @@ templ aimCycleStep(s aimCycleStepData) {
 				<form method="POST" action={ templ.URL(s.DraftAction) }>
 					<button type="submit" class="btn btn-xs btn-ghost gap-1 text-primary border-primary/20">
 						<span class="iconify lucide--sparkles size-3"></span>
-						AI draft
+						if s.DraftLabel != "" {
+							{ s.DraftLabel }
+						} else {
+							AI draft
+						}
 					</button>
 				</form>
 			}
@@ -253,10 +270,16 @@ func aimStepDecide(data AimPhaseData) aimCycleStepData {
 		s.CTA = "View memo"
 		return s
 	}
-	if data.HasCalibration {
+	if data.HasCalibration && calibrationDecisionIsReal(data.LatestCalibrationDecision) {
 		s.Status = "done"
 		s.Detail = calibrationDecisionLabel(data.LatestCalibrationDecision)
 		s.CTA = "View memo"
+	} else if data.HasCalibration {
+		// Stub memo exists (pending_assessment) — visible but incomplete.
+		s.Status = "active"
+		s.Detail = "Memo exists — decision still needed"
+		s.CTA = "Complete memo"
+		s.DraftAction = "/strategies/" + data.InstanceID + "/aim/draft-calibration"
 	} else {
 		s.Status = "active"
 		s.Detail = "Persevere, pivot, or stop?"
@@ -273,7 +296,7 @@ func aimStepAdapt(data AimPhaseData) aimCycleStepData {
 		Label:   "Adapt",
 		CTAHref: "/strategies/" + data.InstanceID + "/aim/versions",
 	}
-	if !data.HasCalibration {
+	if !data.HasCalibration || !calibrationDecisionIsReal(data.LatestCalibrationDecision) {
 		s.Status = "waiting"
 		s.Detail = "Needs calibration decision first"
 		s.CTA = "View versions"
@@ -284,10 +307,14 @@ func aimStepAdapt(data AimPhaseData) aimCycleStepData {
 		s.Detail = strconv.Itoa(data.VersionCount) + " version(s) published"
 		s.CTA = "View versions"
 	} else {
+		// Calibration decided but not yet applied — primary action is to
+		// generate strategy patches, then publish a version.
 		s.Status = "active"
-		s.Detail = "Update strategy, start next cycle"
-		s.CTA = "Publish version"
+		s.CTAHref = "/strategies/" + data.InstanceID + "/aim/versions"
+		s.Detail = "AI rewrites strategy_formula and roadmap from calibration decision"
+		s.CTA = "View versions"
 		s.DraftAction = "/strategies/" + data.InstanceID + "/aim/apply-calibration"
+		s.DraftLabel = "Generate strategy rewrite"
 	}
 	return s
 }
@@ -346,6 +373,41 @@ func aimStepCTAClass(status string) string {
 		return "text-primary"
 	default:
 		return "text-base-content/30"
+	}
+}
+
+// aimAutomationHint returns a short string describing when the next cycle will be
+// proposed automatically, for display in the stepper header.
+func aimAutomationHint(data AimPhaseData) string {
+	days := data.TriggerDays
+	if days <= 0 {
+		days = 90
+	}
+	sigs := data.TriggerSignalThreshold
+	if sigs <= 0 {
+		sigs = 3
+	}
+	if data.DaysSinceAssessment < 0 {
+		// No prior assessment
+		return fmt.Sprintf("Cycle proposed automatically every %d days or when %d+ critical signals accumulate", days, sigs)
+	}
+	remaining := days - data.DaysSinceAssessment
+	if remaining <= 0 {
+		return "Time-based cycle trigger is active — proposal will be created automatically"
+	}
+	return fmt.Sprintf("Next cycle proposed automatically in ~%d days or when %d+ critical signals accumulate", remaining, sigs)
+}
+
+// calibrationDecisionIsReal returns true only when the calibration memo
+// contains a real decision (persevere, pivot, pull_the_plug). A memo with
+// decision "pending_assessment" or empty is a scaffold stub — it should not
+// unlock the Adapt step.
+func calibrationDecisionIsReal(decision string) bool {
+	switch decision {
+	case "persevere", "pivot", "pull_the_plug":
+		return true
+	default:
+		return false
 	}
 }
 
@@ -478,7 +540,7 @@ templ aimSignalFeedCard(data AimPhaseData) {
 				<div class="text-center py-8">
 					<span class="iconify lucide--shield-check size-10 text-success/40 mx-auto mb-3 block"></span>
 					<p class="text-sm font-medium text-base-content/70">No active signals</p>
-					<p class="text-xs text-base-content/40 mt-1">Real-world signals processed by agents will appear here</p>
+					<p class="text-xs text-base-content/40 mt-1">The coherence engine runs after every strategy change and flags misalignments automatically</p>
 				</div>
 			} else {
 				<div class="space-y-2">
@@ -493,11 +555,15 @@ templ aimSignalFeedCard(data AimPhaseData) {
 				}
 			}
 
-			// Agent processing indicator — prepared for live streaming
-			<div class="mt-4 pt-4 border-t border-base-content/5 flex items-center gap-2">
+		// Agent processing indicator
+		<div class="mt-4 pt-4 border-t border-base-content/5 flex items-center gap-2">
 				<span class="iconify lucide--cpu size-3.5 text-base-content/30"></span>
 				<p class="text-xs text-base-content/40">
-					Signals processed by coherence engine · agents pipe real-world data here
+					if data.TriggerSignalThreshold > 0 {
+						{ fmt.Sprintf("Coherence engine monitors continuously · %d+ critical signals will auto-trigger a new cycle", data.TriggerSignalThreshold) }
+					} else {
+						Coherence engine monitors continuously · critical signals auto-trigger a new cycle
+					}
 				</p>
 			</div>
 		</div>

@@ -150,38 +150,60 @@
 
 ## Stage 6: Activity Stream
 
-- [ ] 6.1 Create `domain/activity/` package with `Service` struct
-- [ ] 6.2 Define activity types: convergence_run, signal_created, signal_auto_resolved,
-      evidence_ingested, trigger_evaluated, trigger_fired, cycle_proposed,
-      cycle_started, cycle_step_completed, heartbeat_run
-- [ ] 6.3 Create migration for `strategy_activities` table — instance_id, activity_type,
-      payload (JSONB), created_at, with index on (instance_id, created_at)
-- [ ] 6.4 Add `Record(ctx, instanceID, activityType, payload)` — synchronous write,
-      also publishes to SSE fanout
-- [ ] 6.5 Wire activity recording into existing code:
-      - Convergence loop: record run start/end with summary
-      - Ripple service: record signal creation and auto-resolution
-      - Heartbeat: record each evaluation run
-      - AIM workflow: record step completions
-      - Evidence service: record ingestion events
-- [ ] 6.6 Add SSE endpoint for activity streaming (per-instance)
-- [ ] 6.7 Add MCP tool `list_activities` with cursor pagination and type filter
-- [ ] 6.8 Write tests for activity recording and retrieval
-- [ ] 6.9 Verify: all autonomous actions produce activity entries, SSE stream
-      delivers events in real time, MCP tool returns correct results
+- [x] 6.1 Create `domain/activity/` package with `Service` struct
+- [x] 6.2 Define activity event type constants: cycle.started/completed/aborted/failed,
+      assessment.committed, calibration.committed, evidence.ingested/processed,
+      heartbeat.fired, proposal.created/approved/deferred/expired
+- [x] 6.3 Create migration for `strategy_activities` table (migration 025) — instance_id,
+      actor, event_type, payload (JSONB), created_at; index on (instance_id, created_at)
+- [x] 6.4 Add `Record(ctx, RecordRequest)` — synchronous DB write + non-blocking SSE fanout
+      publish; failures logged and swallowed (non-fatal)
+- [x] 6.5 Wire activity recording into heartbeat (proposal lifecycle events)
+- [x] 6.6 SSE endpoint `GET /strategies/:id/activity/stream` — per-instance fanout,
+      keepalive every 30s, delivers `event: activity\ndata: <JSON>\n\n` frames
+- [x] 6.7 Add MCP tool `list_activities` with limit and cursor pagination
+- [x] 6.8 Wire `skill.started`, `skill.chunk_staged`, `skill.completed`, `skill.failed`,
+      `skill.retrying` events into `domain/skillexec/executor.go` — requires
+      `ActivityRecorder` interface injected into `Executor`; wire in `cmd_serve.go`
+- [ ] 6.9 Wire `cycle.started`, `cycle.step_completed`, `cycle.completed`,
+      `cycle.failed` into `domain/aim/workflow.go` CycleWorkflow steps
+- [ ] 6.10 Wire `assessment.committed` and `calibration.committed` into the web
+       handler `handleDraftCommit` (`internal/handler/handler_aim_agent.go`)
+- [ ] 6.11 Write tests: skill execution activity events (mock activitySvc, verify
+       chunk_staged fires per artifact type, retrying fires on validation failure)
+- [ ] 6.12 Verify: SSE stream delivers skill.chunk_staged events in real time as
+       chunks complete; MCP list_activities returns correct events with pagination
 
-## Stage 7: Enriched Calibration Feedback
+## Stage 7: Chunked Skill Executor (adapt-strategy)
 
-- [ ] 7.1 Enhance `ApplyCalibration` to generate evidence-backed roadmap KR
-      adjustments — read evidence linked to KRs, propose specific target changes
-- [ ] 7.2 Add LRA update generation — draft evolution_log entries from cycle findings
-- [ ] 7.3 Add new assumption generation — from invalidated assumptions, propose
-      replacement hypotheses
-- [ ] 7.4 Add feature priority suggestions — based on value path coverage shifts
-      detected during assessment
-- [ ] 7.5 All amendments staged in a single batch for human review
-- [ ] 7.6 Use structured LLM output (Stage 3) for generating amendments
-- [ ] 7.7 Wire evidence data (Stage 4) into amendment generation context
-- [ ] 7.8 Write tests for enriched calibration (mock LLM, verify patch structure)
-- [ ] 7.9 Verify: calibration produces concrete amendments that pass schema validation,
-      amendments propagate through convergence loop correctly
+- [x] 7.1 Add `ActivityRecorder` interface to `domain/skillexec/` — minimal interface
+      (`Record(ctx, req)`) to avoid import cycles; wire into `Executor` struct and
+      `New()` constructor; update `cmd_serve.go` wiring
+- [x] 7.2 Implement `Executor.RunChunked()` — replaces `Run()` as the default
+      autonomous path; executes artifact types sequentially under a shared batch_id:
+        1. strategy_formula  (context: calibration_memo + current formula)
+        2. roadmap_recipe    (context: calibration_memo + new strategy_formula)
+        3. lra_evolution_entry (context: calibration_memo + summary of changes)
+        4. new_assumptions   (context: new strategy_formula + pivot direction)
+      Each chunk: render focused prompt → LLM call → validate → stage → emit
+      skill.chunk_staged activity event
+- [x] 7.3 Split `adapt-strategy/prompt.md` into four focused per-chunk templates
+      (or use a single template parameterised by `{{.OutputArtifact}}` which scopes
+      instructions and `{{schemaConstraints}}` to only the target artifact type);
+      remove the monolithic output format section
+- [x] 7.4 Each chunk prompt SHALL include only the context it needs — pass prior chunk
+      outputs as `{{.PriorOutputs}}` in the template data; keep total prompt tokens
+      under 8k per chunk
+- [x] 7.5 Each chunk validates independently: envelope schema (scoped to one artifact
+      type) + canonical EPF schema; correction prompt scoped to that chunk's errors only
+- [x] 7.6 Emit `skill.retrying` activity event inside `callWithValidation` on each
+      retry attempt (attempt number + error summary in payload)
+- [x] 7.7 Update `run_skill` MCP tool handler: route `mode: autonomous` to
+      `RunChunked()` instead of `Run()`; keep `Run()` for script/inline skills
+- [x] 7.8 Update `domain/aim/workflow.go` `stepAdaptStrategy` to call `RunChunked()`
+- [x] 7.9 Write tests for `RunChunked()` — mock LLM returning valid per-chunk JSON;
+      verify: 4 staged mutations share batch_id, 4 chunk_staged events emitted,
+      chunk 2 receives chunk 1 output in context, partial batch survives chunk 3 failure
+- [x] 7.10 Verify end-to-end: trigger `run_skill adapt-strategy mode:autonomous` on
+       Sequence instance; observe SSE events in activity stream; confirm batch staged
+       within 3 minutes; commit batch and verify AIM cycle snapshot publishes

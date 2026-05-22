@@ -577,6 +577,9 @@ func postCommitRippleAnalysis(ctx context.Context, svc Services, instanceID, bat
 		}
 	}
 
+	// Enqueue adapt-foundations if gated/escalated signals target foundation artifacts.
+	enqueueFoundationDraft(ctx, svc, instanceID, deduped, changedKeys)
+
 	// Get updated counts.
 	counts, _ := svc.Ripple.CountByStatus(ctx, instanceID)
 	activeTotal := counts[domain.SignalSeverityCritical] + counts[domain.SignalSeverityWarning] + counts[domain.SignalSeverityInfo]
@@ -586,4 +589,138 @@ func postCommitRippleAnalysis(ctx context.Context, svc Services, instanceID, bat
 		"resolved_signals": totalResolved,
 		"active_total":     activeTotal,
 	}
+}
+
+// foundationArtifactKeys is the set of READY-layer artifact keys that
+// adapt-foundations can update. Signals whose target_key is one of these
+// trigger the async foundation draft.
+var foundationArtifactKeys = map[string]bool{
+	"north-star":            true,
+	"north_star":            true,
+	"strategy-foundations":  true,
+	"strategy_foundations":  true,
+	"insight-analyses":      true,
+	"insight_analyses":      true,
+	"insight-opportunity":   true,
+	"insight_opportunity":   true,
+}
+
+// enqueueFoundationDraft checks whether any newly created signals target
+// foundation artifacts with gated or escalated authority. If so, it runs
+// adapt-foundations asynchronously, producing a staged batch for human review.
+// This function is non-blocking — it launches a goroutine and returns immediately.
+func enqueueFoundationDraft(ctx context.Context, svc Services, instanceID uuid.UUID, newSignals []*domain.RippleSignal, changedKeys []string) {
+	if svc.SkillExecutor == nil {
+		slog.WarnContext(ctx, "ripple: adapt-foundations not enqueued: skill executor unavailable",
+			"instance_id", instanceID)
+		return
+	}
+
+	// Only trigger when execution-layer artifacts actually changed.
+	executionChanged := false
+	for _, k := range changedKeys {
+		if k == "strategy-formula" || k == "strategy_formula" ||
+			k == "roadmap-recipe" || k == "roadmap_recipe" {
+			executionChanged = true
+			break
+		}
+	}
+	if !executionChanged {
+		return
+	}
+
+	// Collect foundation-targeting gated/escalated signals.
+	var triggerSignals []*domain.RippleSignal
+	highestTier := ""
+	for _, sig := range newSignals {
+		if !foundationArtifactKeys[sig.TargetKey] {
+			continue
+		}
+		tier := ""
+		if sig.AuthorityTier != nil {
+			tier = string(*sig.AuthorityTier)
+		}
+		if tier != string(ripple.AuthorityGated) && tier != string(ripple.AuthorityEscalated) {
+			continue
+		}
+		triggerSignals = append(triggerSignals, sig)
+		if tier == string(ripple.AuthorityEscalated) {
+			highestTier = tier
+		} else if highestTier == "" {
+			highestTier = tier
+		}
+	}
+
+	if len(triggerSignals) == 0 {
+		return
+	}
+
+	// Build the batch description.
+	tierLabel := "Formulation alignment"
+	if highestTier == string(ripple.AuthorityEscalated) {
+		tierLabel = "Strategic realignment"
+	}
+	batchDesc := fmt.Sprintf("%s draft — triggered by %d ripple signal(s) after execution layer changes. Authority: %s. Review carefully before committing.",
+		tierLabel, len(triggerSignals), highestTier)
+
+	// Serialise triggering signals for the ContextBundle.
+	triggeringSignalsMaps := make([]map[string]any, 0, len(triggerSignals))
+	for _, sig := range triggerSignals {
+		tier := ""
+		if sig.AuthorityTier != nil {
+			tier = string(*sig.AuthorityTier)
+		}
+		triggeringSignalsMaps = append(triggeringSignalsMaps, map[string]any{
+			"id":             sig.ID.String(),
+			"type":           sig.SignalType,
+			"severity":       sig.Severity,
+			"authority_tier": tier,
+			"source_key":     sig.SourceKey,
+			"target_key":     sig.TargetKey,
+			"description":    sig.Description,
+		})
+	}
+
+	// Collect signal IDs for auto-resolve on commit.
+	signalIDs := make([]string, 0, len(triggerSignals))
+	for _, sig := range triggerSignals {
+		signalIDs = append(signalIDs, sig.ID.String())
+	}
+
+	params := map[string]any{
+		"triggered_by_signals": signalIDs,
+		"batch_desc_override":  batchDesc,
+		"_trigger":             "ripple",
+		"_trigger_context": map[string]any{
+			"signal_ids":     signalIDs,
+			"authority_tier": highestTier,
+			"changed_keys":   changedKeys,
+		},
+	}
+
+	executor := svc.SkillExecutor
+	slog.InfoContext(ctx, "ripple: enqueuing adapt-foundations",
+		"instance_id", instanceID,
+		"signal_count", len(triggerSignals),
+		"highest_tier", highestTier)
+
+	// Launch async — commit_batch must return immediately.
+	go func() {
+		// Use a background context so the HTTP request context cancellation
+		// doesn't abort the skill run mid-chunk.
+		bgCtx := context.Background()
+
+		result, err := executor.RunChunkedWithSignals(bgCtx, instanceID, "adapt-foundations", params, triggeringSignalsMaps, batchDesc)
+		if err != nil {
+			slog.Warn("ripple: adapt-foundations run failed",
+				"instance_id", instanceID,
+				"error", err,
+				"staged_so_far", result.ArtifactTypes)
+			return
+		}
+		slog.Info("ripple: adapt-foundations staged",
+			"instance_id", instanceID,
+			"batch_id", result.BatchID,
+			"artifact_types", result.ArtifactTypes)
+	}()
 }

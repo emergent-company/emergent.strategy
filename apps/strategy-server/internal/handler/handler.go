@@ -198,6 +198,7 @@ func (s *Server) RegisterRoutes(e *echo.Echo) {
 	e.POST("/strategies/:id/aim/versions/:versionID/restore", s.handleVersionRestore)
 
 	// AIM agent endpoints — AI-assisted draft generation and review.
+	e.POST("/strategies/:id/aim/publish", s.handlePublishVersion)
 	e.POST("/strategies/:id/aim/draft-assessment", s.handleDraftAssessment)
 	e.POST("/strategies/:id/aim/draft-calibration", s.handleDraftCalibration)
 	e.POST("/strategies/:id/aim/apply-calibration", s.handleApplyCalibration)

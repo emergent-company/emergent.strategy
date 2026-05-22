@@ -197,32 +197,71 @@ Proposals SHALL have lifecycle statuses: pending, approved, deferred, expired.
 
 ### Requirement: Enriched Calibration Feedback
 
-The system SHALL generate substantive READY artifact amendments during
-`apply_aim_calibration`, using evidence data and structured LLM output to produce
-concrete changes rather than structural flags only.
+The system SHALL generate substantive READY artifact amendments during the
+`adapt-strategy` AIM cycle step, using the committed calibration memo and
+structured LLM output to produce concrete changes rather than structural flags only.
 
-Enriched amendments SHALL include: roadmap KR target adjustments, LRA evolution log
-entries, new assumption hypotheses, and feature priority suggestions.
+The executor SHALL process artifacts sequentially in chunks — one LLM call per
+artifact type — so that each chunk can be validated and staged independently.
+All chunks share one `batch_id` so the human reviews a single cohesive batch.
 
-All amendments SHALL be staged as a single batch for human review.
+Each chunk call SHALL receive the outputs of prior chunks as additional context
+(e.g. the roadmap chunk sees the newly written strategy_formula).
 
-#### Scenario: Enriched persevere calibration
+Amendments SHALL include: `strategy_formula` (bet revision + OKR retargeting),
+`roadmap_recipe` (phase reprioritisation), `living_reality_assessment` (evolution
+log entry), and `new_assumptions` (merged into the roadmap artifact).
 
-- **WHEN** `apply_aim_calibration` runs for a committed calibration with decision
-  "persevere"
-- **AND** evidence data exists for the instance
-- **THEN** the staged batch includes: roadmap cycle_status=completed, LRA evolution
-  log entry with cycle summary, and any KR target adjustments based on evidence
+All amendments SHALL be staged under a single `batch_id` for human review.
+A `skill.chunk_staged` activity event SHALL be emitted after each chunk is staged.
 
-#### Scenario: Enriched pivot calibration
+#### Scenario: Chunked pivot adaptation
 
-- **WHEN** `apply_aim_calibration` runs for a committed calibration with decision
-  "pivot"
-- **THEN** the staged batch includes: strategy_formula updates with specific strategic
-  bet modifications (not just review flags), new assumptions derived from invalidated
-  ones, and feature priority adjustments based on value path coverage analysis
+- **WHEN** `run_skill` is called with `mode: autonomous` and skill `adapt-strategy`
+- **AND** a committed pivot calibration memo exists for the instance
+- **THEN** the executor runs 4 sequential LLM calls (strategy_formula, roadmap_recipe,
+  lra_evolution_entry, new_assumptions)
+- **AND** each chunk is schema-validated and staged individually under the same batch_id
+- **AND** a `skill.chunk_staged` activity event is emitted after each successful chunk
+- **AND** the total elapsed time is under 3 minutes for a typical instance
+
+#### Scenario: Chunk failure does not discard prior chunks
+
+- **WHEN** chunk 3 (lra_evolution_entry) fails schema validation after all retries
+- **THEN** chunks 1 and 2 (already staged) remain in the batch
+- **AND** the error is reported with which chunk failed
+- **AND** the partial batch can be committed or discarded by the human
 
 #### Scenario: Amendments pass schema validation
 
-- **WHEN** enriched calibration generates READY artifact amendments
+- **WHEN** the chunked executor generates READY artifact amendments
 - **THEN** every amended artifact payload passes its EPF JSON Schema validation
+- **AND** no validation errors escape to the staged batch
+
+### Requirement: Skill Execution Activity Stream
+
+The system SHALL emit structured activity events during skill execution so that
+humans and automated systems can observe progress without polling.
+
+The `domain/activity/` package SHALL define and record the following skill event types:
+`skill.started`, `skill.chunk_staged`, `skill.completed`, `skill.failed`,
+`skill.retrying`.
+
+The existing `GET /strategies/:id/activity/stream` SSE endpoint SHALL deliver these
+events in real time alongside other instance activity (cycle events, evidence ingestion,
+heartbeat signals).
+
+#### Scenario: Skill progress visible via SSE
+
+- **WHEN** `run_skill` is called in autonomous mode
+- **AND** a client is subscribed to `GET /strategies/:id/activity/stream`
+- **THEN** the client receives `skill.started` immediately
+- **AND** `skill.chunk_staged` events as each artifact is staged (within seconds of
+  each LLM call completing)
+- **AND** `skill.completed` with the final batch_id when all chunks are done
+
+#### Scenario: Retry visible in activity stream
+
+- **WHEN** a chunk's LLM output fails schema validation
+- **THEN** a `skill.retrying` event is emitted with the attempt number and error summary
+- **AND** the retry is visible to the human before the corrected output is staged

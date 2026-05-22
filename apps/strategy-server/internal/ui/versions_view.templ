@@ -40,8 +40,9 @@ type VersionDetailData struct {
 // VersionsViewData holds data for the version list screen.
 type VersionsViewData struct {
 	NavContext
-	InstanceID string
-	Versions   []VersionRow
+	InstanceID          string
+	Versions            []VersionRow
+	HasRealCalibration  bool // true when a real (non-stub) calibration decision exists
 }
 
 // VersionsContent renders the version history list.
@@ -57,12 +58,32 @@ templ VersionsContent(data VersionsViewData) {
 		</div>
 
 		if len(data.Versions) == 0 {
-			<div class="text-center py-16">
+			<div class="text-center py-12">
 				<span class="iconify lucide--history size-12 text-base-content/20 mx-auto block mb-4"></span>
 				<p class="text-base font-medium text-base-content/60">No versions yet</p>
-				<p class="text-sm text-base-content/40 mt-1">
-					Publish a version using the <code class="bg-base-200 px-1.5 py-0.5 rounded text-xs">publish_version</code> MCP tool or via the convergence loop.
-				</p>
+				if data.HasRealCalibration {
+					<p class="text-sm text-base-content/40 mt-1 mb-6">
+						A calibration decision is ready — apply it to generate strategy patches, then publish a snapshot.
+					</p>
+					<div class="flex items-center justify-center gap-3">
+						<form method="POST" action={ templ.URL("/strategies/" + data.InstanceID + "/aim/apply-calibration") }>
+							<button type="submit" class="btn btn-primary gap-2">
+								<span class="iconify lucide--sparkles size-4"></span>
+								Apply calibration
+							</button>
+						</form>
+						<form method="POST" action={ templ.URL("/strategies/" + data.InstanceID + "/aim/publish") }>
+							<button type="submit" class="btn btn-outline gap-2">
+								<span class="iconify lucide--bookmark size-4"></span>
+								Publish snapshot
+							</button>
+						</form>
+					</div>
+				} else {
+					<p class="text-sm text-base-content/40 mt-1">
+						Complete the AIM cycle first, then publish a version snapshot to record this strategy state.
+					</p>
+				}
 			</div>
 		} else {
 			<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden">
