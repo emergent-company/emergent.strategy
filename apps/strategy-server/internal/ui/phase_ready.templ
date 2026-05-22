@@ -132,18 +132,19 @@ templ ReadyPhaseContent(data ReadyPhaseData) {
 			</div>
 			<!-- Insight Opportunity -->
 			@readyMapCard(readyMapCardProps{
-				Title:      "Insight Opportunity",
-				Subtitle:   "Synthesised big opportunity from analyses",
-				Icon:       "lucide--lightbulb",
-				Href:       "/strategies/" + data.InstanceID + "/ready/opportunity",
-				Exists:     data.OpportunityExists,
-				Tier:       2,
-				TierLabel:  "Each cycle",
-				TierColor:  "bg-secondary/10 border-secondary/20",
-				BadgeColor: "bg-secondary/20 text-secondary",
-				Line1:      data.OpportunityTitle,
-				Line2:      data.OpportunityUrgency,
-				Gaps:       data.OpportunityGaps,
+				Title:        "Insight Opportunity",
+				Subtitle:     "Synthesised big opportunity from analyses",
+				Icon:         "lucide--lightbulb",
+				Href:         "/strategies/" + data.InstanceID + "/ready/opportunity",
+				Exists:       data.OpportunityExists,
+				ArtifactType: "insight_opportunity",
+				Tier:         2,
+				TierLabel:    "Each cycle",
+				TierColor:    "bg-secondary/10 border-secondary/20",
+				BadgeColor:   "bg-secondary/20 text-secondary",
+				Line1:        data.OpportunityTitle,
+				Line2:        data.OpportunityUrgency,
+				Gaps:         data.OpportunityGaps,
 			})
 		</div>
 		<!-- Row connector: row 2 → row 3 (both columns converge downward) -->
@@ -152,14 +153,15 @@ templ ReadyPhaseContent(data ReadyPhaseData) {
 		<div class="grid grid-cols-[1fr_auto_1fr] gap-0 items-stretch">
 			<!-- Strategy Formula -->
 			@readyMapCard(readyMapCardProps{
-				Title:      "Strategy Formula",
-				Subtitle:   "Positioning · Moat · Value creation · Business model",
-				Icon:       "lucide--flask-conical",
-				Href:       "/strategies/" + data.InstanceID + "/ready/formula",
-				Exists:     data.FormulaExists,
-				Tier:       3,
-				TierLabel:  "Quarterly",
-				TierColor:  "bg-accent/10 border-accent/20",
+				Title:        "Strategy Formula",
+				Subtitle:     "Positioning · Moat · Value creation · Business model",
+				Icon:         "lucide--flask-conical",
+				Href:         "/strategies/" + data.InstanceID + "/ready/formula",
+				Exists:       data.FormulaExists,
+				ArtifactType: "strategy_formula",
+				Tier:         3,
+				TierLabel:    "Quarterly",
+				TierColor:    "bg-accent/10 border-accent/20",
 		BadgeColor: "bg-accent/20 text-accent",
 			Line1:      data.FormulaCategory,
 			Line2:      data.FormulaUVP,
@@ -171,15 +173,16 @@ templ ReadyPhaseContent(data ReadyPhaseData) {
 		</div>
 		<!-- Strategy Foundations -->
 		@readyMapCard(readyMapCardProps{
-			Title:      "Strategy Foundations",
-			Subtitle:   "Product vision · Value prop · Sequencing · Principles",
-			Icon:       "lucide--building-2",
-			Href:       "/strategies/" + data.InstanceID + "/ready/foundations",
-			Exists:     data.FoundationExists,
-			Tier:       3,
-			TierLabel:  "Quarterly",
-			TierColor:  "bg-accent/10 border-accent/20",
-			BadgeColor: "bg-accent/20 text-accent",
+			Title:        "Strategy Foundations",
+			Subtitle:     "Product vision · Value prop · Sequencing · Principles",
+			Icon:         "lucide--building-2",
+			Href:         "/strategies/" + data.InstanceID + "/ready/foundations",
+			Exists:       data.FoundationExists,
+			ArtifactType: "strategy_foundations",
+			Tier:         3,
+			TierLabel:    "Quarterly",
+			TierColor:    "bg-accent/10 border-accent/20",
+			BadgeColor:   "bg-accent/20 text-accent",
 				Line1:      data.FoundationValueProp,
 				Line2:      data.FoundationVision,
 				Gaps:       data.FoundationGaps,
@@ -198,15 +201,16 @@ templ ReadyPhaseContent(data ReadyPhaseData) {
 
 // readyMapCardProps holds config for a single artifact node in the map.
 type readyMapCardProps struct {
-	Title       string
-	Subtitle    string // short static descriptor (artifact type)
-	Icon        string
-	Href        string
-	Exists      bool
-	Tier        int
-	TierLabel   string // e.g. "Each cycle" or "Quarterly"
-	TierColor   string // card background + border classes
-	BadgeColor  string // tier badge classes
+	Title        string
+	Subtitle     string // short static descriptor (artifact type)
+	Icon         string
+	Href         string
+	Exists       bool
+	ArtifactType string // used for generating badge ID
+	Tier         int
+	TierLabel    string // e.g. "Each cycle" or "Quarterly"
+	TierColor    string // card background + border classes
+	BadgeColor   string // tier badge classes
 	// Content lines — shown when artifact exists, for at-a-glance scanning
 	Line1 string // primary content (bold)
 	Line2 string // secondary content (muted)
@@ -233,14 +237,17 @@ templ readyMapCard(p readyMapCardProps) {
 				<div class="min-w-0 flex-1">
 					<div class="flex items-center gap-2 flex-wrap">
 						<h3 class="text-sm font-semibold text-base-content leading-tight">{ p.Title }</h3>
-					<!-- Cadence badge -->
-					if p.TierLabel != "" {
-						<span class={ "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-sans font-medium " + p.BadgeColor }>
-							<span class="iconify lucide--refresh-cw size-3 opacity-70"></span>
-							{ p.TierLabel }
-						</span>
-					}
-					</div>
+				<!-- Cadence badge -->
+				if p.TierLabel != "" {
+					<span class={ "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-sans font-medium " + p.BadgeColor }>
+						<span class="iconify lucide--refresh-cw size-3 opacity-70"></span>
+						{ p.TierLabel }
+					</span>
+				}
+				if p.ArtifactType != "" {
+					@GeneratingBadge(p.ArtifactType)
+				}
+				</div>
 					<p class="text-xs text-base-content/50 mt-0.5">{ p.Subtitle }</p>
 				</div>
 				<!-- Status icon -->
@@ -316,6 +323,7 @@ templ readyInsightCard(data ReadyPhaseData) {
 							<span class="iconify lucide--refresh-cw size-3 opacity-70"></span>
 							Each cycle
 						</span>
+						@GeneratingBadge("insight_analyses")
 					</div>
 					<p class="text-xs text-base-content/50 mt-0.5">Trends · Market · SWOT · User Problems</p>
 				</div>
@@ -459,6 +467,7 @@ templ readyMapNorthStar(data ReadyPhaseData) {
 						<span class="iconify lucide--refresh-cw size-3 opacity-70"></span>
 						Years
 					</span>
+					@GeneratingBadge("north_star")
 				</div>
 				<p class="text-xs text-base-content/50">Purpose · Vision · Mission · Values — immovable anchor</p>
 					if data.NorthStarExists && data.NorthStarPurpose != "" {
@@ -511,6 +520,7 @@ templ readyMapRoadmap(data ReadyPhaseData) {
 						<span class="iconify lucide--refresh-cw size-3 opacity-70"></span>
 						Each cycle
 					</span>
+					@GeneratingBadge("roadmap_recipe")
 				</div>
 				<p class="text-xs text-base-content/50">Current cycle priorities — four-track OKRs, assumptions, milestones</p>
 				if data.RoadmapExists && data.RoadmapCycle != "" {

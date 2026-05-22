@@ -1,0 +1,55 @@
+package ui
+
+// GeneratingBadge renders a pulsing "AI draft in progress" indicator.
+// The id should be "generating-{artifact_type}" to match the SSE JS.
+// Hidden by default; the SSE handler removes the "hidden" class when active.
+templ GeneratingBadge(artifactType string) {
+	<span
+		id={ "generating-" + artifactType }
+		class="hidden inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary animate-pulse"
+	>
+		<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+			<path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z" stroke-linecap="round" stroke-linejoin="round"></path>
+		</svg>
+		AI draft in progress
+	</span>
+}
+
+// PendingDraftBanner renders an info banner prompting the user to review a staged batch.
+// Hidden by default; the SSE handler removes the "hidden" class when a batch is available.
+// The link href is set dynamically by the SSE handler.
+templ PendingDraftBanner() {
+	<div
+		id="pending-draft-banner"
+		class="hidden alert alert-info shadow-sm mb-4"
+	>
+		<svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+			<path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z" stroke-linecap="round" stroke-linejoin="round"></path>
+		</svg>
+		<div class="flex flex-col">
+			<span class="font-semibold text-sm">AI draft available for review</span>
+			<span class="text-xs opacity-70">A skill run has completed and staged changes for this artifact.</span>
+		</div>
+		<a href="#" class="btn btn-sm btn-primary">Review draft</a>
+	</div>
+}
+
+// PendingDraftBannerActive renders a visible banner when a pending batch is known at render time.
+// Unlike PendingDraftBanner, this is shown immediately (not hidden).
+templ PendingDraftBannerActive(batchID string, instanceID string, batchDesc string) {
+	<div class="alert alert-info shadow-sm mb-4">
+		<svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+			<path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z" stroke-linecap="round" stroke-linejoin="round"></path>
+		</svg>
+		<div class="flex flex-col">
+			<span class="font-semibold text-sm">AI draft available for review</span>
+			if batchDesc != "" {
+				<span class="text-xs opacity-70">{ batchDesc }</span>
+			}
+		</div>
+		<a
+			href={ templ.SafeURL("/strategies/" + instanceID + "/aim/draft-review/" + batchID) }
+			class="btn btn-sm btn-primary"
+		>Review draft</a>
+	</div>
+}

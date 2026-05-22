@@ -36,6 +36,10 @@ templ ArtifactViewContent(data ArtifactViewData) {
 			</div>
 		</div>
 
+		// SSE-driven banners (hidden by default, shown via activity stream events)
+		@GeneratingBadge(data.ArtifactType)
+		@PendingDraftBanner()
+
 		// Render payload sections
 		for _, key := range sortedKeys(data.Payload) {
 			@renderSection(key, data.Payload[key], 0)

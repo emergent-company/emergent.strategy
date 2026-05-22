@@ -75,6 +75,69 @@ templ InstanceChrome(instanceName string, tabs []TabProps, currentPath string) {
 	@instanceTabContent(tabs, currentPath) {
 		{ children... }
 	}
+	@activityStreamSSE()
+}
+
+// activityStreamSSE wires the SSE activity stream to drive live UI indicators.
+// Extracts instance ID from the URL path and opens an EventSource to
+// /strategies/:id/activity/stream. Handles skill.started, skill.chunk_staged,
+// skill.completed, and skill.failed events.
+templ activityStreamSSE() {
+	<script>
+	(function() {
+		// Extract instance ID from URL: /strategies/:id/...
+		var m = window.location.pathname.match(/^\/strategies\/([0-9a-f-]{36})/);
+		if (!m) return;
+		var instanceId = m[1];
+
+		var es = new EventSource('/strategies/' + instanceId + '/activity/stream');
+
+		// Skill name → affected artifact CSS IDs (for toggling generating badges).
+		var skillArtifacts = {
+			'adapt-strategy':     ['strategy_formula', 'roadmap_recipe'],
+			'adapt-foundations':  ['north_star', 'strategy_foundations', 'insight_analyses', 'insight_opportunity']
+		};
+
+		es.addEventListener('activity', function(e) {
+			try {
+				var evt = JSON.parse(e.data);
+				var payload = evt.payload || {};
+				var skillName = payload.skill_name || '';
+				var targets = skillArtifacts[skillName] || [];
+
+				if (evt.event_type === 'skill.started') {
+					targets.forEach(function(t) {
+						var badge = document.getElementById('generating-' + t);
+						if (badge) badge.classList.remove('hidden');
+					});
+				}
+				if (evt.event_type === 'skill.chunk_staged') {
+					var progress = document.getElementById('skill-progress');
+					if (progress) {
+						progress.textContent = (payload.chunk || '?') + ' of ' + (payload.chunk_count || '?') + ' chunks';
+					}
+				}
+				if (evt.event_type === 'skill.completed' || evt.event_type === 'skill.failed') {
+					targets.forEach(function(t) {
+						var badge = document.getElementById('generating-' + t);
+						if (badge) badge.classList.add('hidden');
+					});
+					if (evt.event_type === 'skill.completed' && payload.batch_id) {
+						var banner = document.getElementById('pending-draft-banner');
+						if (banner) {
+							banner.classList.remove('hidden');
+							var link = banner.querySelector('a');
+							if (link) link.href = '/strategies/' + instanceId + '/aim/draft-review/' + payload.batch_id;
+						}
+					}
+				}
+			} catch(err) { /* ignore parse errors */ }
+		});
+
+		// Close on navigation away (SPA-style).
+		window.addEventListener('beforeunload', function() { es.close(); });
+	})();
+	</script>
 }
 
 // instanceTabContent renders the tab bar + content. This is also the fragment
