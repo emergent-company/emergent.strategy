@@ -81,7 +81,52 @@ func (s *Server) loadReadyPhaseData(ctx context.Context, instanceID string) ui.R
 	// Load roadmap OKR summary from payload
 	data.TrackOKRs = s.loadRoadmapOKRs(ctx, instanceID)
 
+	// Pending batches — staged batches touching any READY artifact type
+	data.PendingBatches = s.loadReadyPendingBatches(ctx, instanceID)
+
 	return data
+}
+
+// loadReadyPendingBatches returns staged batches that touch one or more READY artifact types.
+// READY artifact types: north_star, strategy_foundations, insight_analyses, insight_opportunity,
+// strategy_formula, roadmap_recipe.
+func (s *Server) loadReadyPendingBatches(ctx context.Context, instanceID string) []ui.ReadyPendingBatch {
+	type batchRow struct {
+		BatchID          string  `bun:"batch_id"`
+		BatchDescription *string `bun:"batch_description"`
+	}
+	var rows []batchRow
+	// Use a raw IN list — no bun.In needed, types are hardcoded constants.
+	const readyTypeList = "'north_star','strategy_foundations','insight_analyses'," +
+		"'insight_opportunity','strategy_formula','roadmap_recipe'"
+	_ = s.db.NewSelect().
+		TableExpr("strategy_mutations").
+		ColumnExpr("batch_id::text AS batch_id").
+		ColumnExpr("MAX(batch_description) AS batch_description").
+		Where("instance_id = ?", instanceID).
+		Where("status = ?", "staged").
+		Where("artifact_type IN (" + readyTypeList + ")").
+		GroupExpr("batch_id").
+		OrderExpr("MIN(created_at) ASC").
+		Limit(5).
+		Scan(ctx, &rows)
+
+	out := make([]ui.ReadyPendingBatch, 0, len(rows))
+	for _, r := range rows {
+		if r.BatchID == "" {
+			continue
+		}
+		desc := ""
+		if r.BatchDescription != nil {
+			desc = *r.BatchDescription
+		}
+		out = append(out, ui.ReadyPendingBatch{
+			BatchID:     r.BatchID,
+			Description: desc,
+			ReviewURL:   "/strategies/" + instanceID + "/aim/draft-review/" + r.BatchID,
+		})
+	}
+	return out
 }
 
 // loadFirePhaseData loads data for the FIRE phase dashboard.
@@ -986,6 +1031,9 @@ func (s *Server) loadAimPhaseData(ctx context.Context, instanceID string) ui.Aim
 		})
 	}
 
+	// Skill executor availability — drives button label in Adapt step
+	data.HasSkillExecutor = s.skillExecutor != nil
+
 	// Foundation artifacts needed for LRA drafting
 	data.HasNorthStar = s.hasArtifactType(ctx, instanceID, domain.ArtifactTypeNorthStar)
 
@@ -1195,14 +1243,26 @@ func (s *Server) loadPipelineReviewItems(ctx context.Context, instanceID string)
 		if b.ArtifactTypes != "" {
 			artifactTypes = strings.Split(b.ArtifactTypes, ",")
 		}
+		// Extract cascade_generation from batch_metadata (8.8).
+		cascadeGen := 0
+		if len(b.BatchMetadata) > 0 {
+			var meta struct {
+				CascadeGeneration int `json:"cascade_generation"`
+			}
+			if err := json.Unmarshal(b.BatchMetadata, &meta); err == nil {
+				cascadeGen = meta.CascadeGeneration
+			}
+		}
+
 		items = append(items, ui.PipelineReviewItem{
-			BatchID:        b.BatchID,
-			Description:    desc,
-			AgentID:        agentID,
-			MutationCount:  b.MutationCount,
-			ReviewURL:      "/strategies/" + instanceID + "/aim/draft-review/" + b.BatchID,
-			DownstreamHint: cascadeDownstreamHint(agentID, b.BatchMetadata),
-			ArtifactTypes:  artifactTypes,
+			BatchID:           b.BatchID,
+			Description:       desc,
+			AgentID:           agentID,
+			MutationCount:     b.MutationCount,
+			ReviewURL:         "/strategies/" + instanceID + "/aim/draft-review/" + b.BatchID,
+			DownstreamHint:    cascadeDownstreamHint(agentID, b.BatchMetadata),
+			ArtifactTypes:     artifactTypes,
+			CascadeGeneration: cascadeGen,
 		})
 	}
 	return items

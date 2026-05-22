@@ -67,6 +67,16 @@ type ReadyPhaseData struct {
 	// Counts
 	TotalArtifacts     int
 	CompletedArtifacts int // artifacts that exist (out of expected)
+
+	// Pending batches — AI-generated drafts touching READY artifacts awaiting human review.
+	PendingBatches []ReadyPendingBatch
+}
+
+// ReadyPendingBatch represents a staged batch that touches one or more READY artifacts.
+type ReadyPendingBatch struct {
+	BatchID     string
+	Description string
+	ReviewURL   string
 }
 
 // TrackOKRSummary shows OKR count per track from the roadmap.
@@ -91,6 +101,10 @@ type TrackOKRSummary struct {
 templ ReadyPhaseContent(data ReadyPhaseData) {
 	@TabRelatedPages("ready", data.InstanceID, "/strategies/"+data.InstanceID+"/ready")
 	<div class="space-y-2">
+		<!-- Pending draft banners — shown when AI-generated drafts are awaiting review -->
+		for _, batch := range data.PendingBatches {
+			@PendingDraftBannerActive(batch.BatchID, data.InstanceID, batch.Description)
+		}
 		<!-- Map header -->
 		<div class="flex items-center justify-between mb-4">
 			<div>

@@ -641,10 +641,12 @@ func cascadeStepLabel(step string) string {
 		return "Drafting assessment…"
 	case "draft_calibration":
 		return "Drafting calibration…"
-	case "apply_calibration":
-		return "Applying calibration…"
+	case "adapt_strategy", "apply_calibration":
+		return "Adapting strategy…"
+	case "adapt_foundations":
+		return "Aligning foundations…"
 	case "snapshot_cycle":
-		return "Snapshotting cycle…"
+		return "Publishing version…"
 	default:
 		return step
 	}

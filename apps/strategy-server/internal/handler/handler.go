@@ -158,6 +158,7 @@ func (s *Server) rebuildPostCommitPipeline() {
 		VersionSvc:  s.versionSvc,
 		SkillExec:   s.skillExecutor,
 		SchemaSvc:   s.schemaSvc,
+		DB:          s.db,
 	}
 }
 

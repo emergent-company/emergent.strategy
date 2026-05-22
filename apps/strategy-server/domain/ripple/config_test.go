@@ -2,6 +2,70 @@ package ripple
 
 import "testing"
 
+// ---------------------------------------------------------------------------
+// Cascade depth config helpers (Group 8, tasks 9.5–9.7)
+// ---------------------------------------------------------------------------
+
+func TestDefaultRippleConfig_CascadeDefaults(t *testing.T) {
+	cfg := DefaultRippleConfig()
+
+	if got := cfg.CascadeEscalationDepthOrDefault(); got != 2 {
+		t.Errorf("CascadeEscalationDepthOrDefault=%d, want 2", got)
+	}
+	if got := cfg.CascadeMaxDepthOrDefault(); got != 3 {
+		t.Errorf("CascadeMaxDepthOrDefault=%d, want 3", got)
+	}
+	if got := cfg.SkillCooldownSeconds("adapt-foundations"); got != 300 {
+		t.Errorf("SkillCooldownSeconds(adapt-foundations)=%d, want 300", got)
+	}
+	if got := cfg.SkillCooldownSeconds("adapt-strategy"); got != 600 {
+		t.Errorf("SkillCooldownSeconds(adapt-strategy)=%d, want 600", got)
+	}
+	if got := cfg.SkillCooldownSeconds("unknown-skill"); got != 0 {
+		t.Errorf("SkillCooldownSeconds(unknown-skill)=%d, want 0", got)
+	}
+}
+
+func TestCascadeEscalationDepthOrDefault_UsesConfiguredValue(t *testing.T) {
+	cfg := RippleConfig{CascadeEscalationDepth: 5}
+	if got := cfg.CascadeEscalationDepthOrDefault(); got != 5 {
+		t.Errorf("CascadeEscalationDepthOrDefault=%d, want 5", got)
+	}
+}
+
+func TestCascadeMaxDepthOrDefault_UsesConfiguredValue(t *testing.T) {
+	cfg := RippleConfig{CascadeMaxDepth: 7}
+	if got := cfg.CascadeMaxDepthOrDefault(); got != 7 {
+		t.Errorf("CascadeMaxDepthOrDefault=%d, want 7", got)
+	}
+}
+
+func TestSkillCooldownSeconds_NilMap_ReturnsDefaults(t *testing.T) {
+	cfg := RippleConfig{SkillCooldowns: nil}
+	if got := cfg.SkillCooldownSeconds("adapt-foundations"); got != 300 {
+		t.Errorf("nil map adapt-foundations=%d, want 300", got)
+	}
+	if got := cfg.SkillCooldownSeconds("adapt-strategy"); got != 600 {
+		t.Errorf("nil map adapt-strategy=%d, want 600", got)
+	}
+}
+
+func TestSkillCooldownSeconds_CustomMap(t *testing.T) {
+	cfg := RippleConfig{SkillCooldowns: map[string]int{
+		"adapt-foundations": 60,
+		"custom-skill":      120,
+	}}
+	if got := cfg.SkillCooldownSeconds("adapt-foundations"); got != 60 {
+		t.Errorf("custom adapt-foundations=%d, want 60", got)
+	}
+	if got := cfg.SkillCooldownSeconds("custom-skill"); got != 120 {
+		t.Errorf("custom custom-skill=%d, want 120", got)
+	}
+	if got := cfg.SkillCooldownSeconds("adapt-strategy"); got != 0 {
+		t.Errorf("missing key adapt-strategy=%d, want 0 (not in custom map)", got)
+	}
+}
+
 func TestDefaultRippleConfig(t *testing.T) {
 	cfg := DefaultRippleConfig()
 

@@ -24,6 +24,10 @@ type AimPhaseData struct {
 	// Foundation artifacts needed for LRA drafting
 	HasNorthStar bool
 
+	// HasSkillExecutor indicates whether the AI skill executor is available.
+	// When true, draft actions produce AI-written content; otherwise they produce flag patches.
+	HasSkillExecutor bool
+
 	// AIM artifacts
 	HasLRA              bool
 	LRALifecycleStage   string // bootstrap, maturing, evolved
@@ -329,7 +333,11 @@ func aimStepAdapt(data AimPhaseData) aimCycleStepData {
 		s.Detail = "AI rewrites strategy_formula and roadmap from calibration decision"
 		s.CTA = "View versions"
 		s.DraftAction = "/strategies/" + data.InstanceID + "/aim/apply-calibration"
-		s.DraftLabel = "Generate strategy rewrite"
+		if data.HasSkillExecutor {
+			s.DraftLabel = "AI strategy rewrite"
+		} else {
+			s.DraftLabel = "Apply calibration patches"
+		}
 	}
 	return s
 }

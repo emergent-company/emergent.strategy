@@ -585,10 +585,12 @@ func runStepLabel(name string) string {
 		return "Draft Assessment"
 	case "draft_calibration":
 		return "Draft Calibration"
-	case "apply_calibration":
-		return "Apply Calibration"
+	case "adapt_strategy", "apply_calibration":
+		return "Adapt Strategy"
+	case "adapt_foundations":
+		return "Align Foundations"
 	case "snapshot_cycle":
-		return "Snapshot Cycle"
+		return "Publish Version"
 	default:
 		return name
 	}

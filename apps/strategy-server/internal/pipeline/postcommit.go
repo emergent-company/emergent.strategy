@@ -18,8 +18,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ripple"
 	schemadom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/schema"
@@ -49,6 +51,7 @@ type PostCommitPipeline struct {
 	SchemaSvc   *schemadom.Service
 	Ingest      IngestEnqueuer
 	Resolver    ripple.SignalResolver
+	DB          *bun.DB // for cascade depth reads and cooldown checks
 }
 
 // PostCommitResult summarises what the pipeline did. Zero values are safe.
@@ -167,7 +170,7 @@ func (p *PostCommitPipeline) Run(ctx context.Context, instanceID, batchID uuid.U
 	// ------------------------------------------------------------------
 	// 6. Enqueue adapt-foundations if warranted.
 	// ------------------------------------------------------------------
-	p.enqueueFoundationDraft(ctx, instanceID, deduped, changedKeys)
+	p.enqueueFoundationDraft(ctx, instanceID, batchID, deduped, changedKeys)
 
 	// ------------------------------------------------------------------
 	// 7. Convergence loop.
@@ -273,7 +276,15 @@ var foundationArtifactKeys = map[string]bool{
 // foundation artifacts with gated or escalated authority. If so, it runs
 // adapt-foundations asynchronously, producing a staged batch for human review.
 // This is a non-blocking goroutine launch.
-func (p *PostCommitPipeline) enqueueFoundationDraft(ctx context.Context, instanceID uuid.UUID, newSignals []*domain.RippleSignal, changedKeys []string) {
+//
+// Cascade depth protection (8.1–8.7):
+//   - Reads cascade_generation from the triggering batch's batch_metadata.
+//   - Increments and passes it to the new run so the executor stores it.
+//   - At CascadeEscalationDepth (default 2): forces authority to "escalated" and
+//     adds a warning to the batch description.
+//   - At CascadeMaxDepth (default 3): refuses to trigger (hard stop).
+//   - Enforces per-instance skill cooldown before triggering.
+func (p *PostCommitPipeline) enqueueFoundationDraft(ctx context.Context, instanceID, triggeringBatchID uuid.UUID, newSignals []*domain.RippleSignal, changedKeys []string) {
 	if p.SkillExec == nil {
 		return
 	}
@@ -316,12 +327,90 @@ func (p *PostCommitPipeline) enqueueFoundationDraft(ctx context.Context, instanc
 		return
 	}
 
+	// --- Cascade depth protection ---
+
+	// Load ripple config for thresholds (8.6).
+	cfg := ripple.DefaultRippleConfig()
+	if p.RippleSvc != nil {
+		if loaded, err := p.RippleSvc.GetConfig(ctx, instanceID); err == nil {
+			cfg = loaded
+		}
+	}
+
+	// Read cascade_generation from triggering batch metadata (8.2).
+	triggeringGen := 0
+	if p.DB != nil {
+		var rawMeta []byte
+		_ = p.DB.NewSelect().
+			TableExpr("strategy_mutations").
+			ColumnExpr("MAX(batch_metadata)::text::bytea").
+			Where("batch_id = ?", triggeringBatchID).
+			Scan(ctx, &rawMeta)
+		if len(rawMeta) > 0 {
+			var meta struct {
+				CascadeGeneration int `json:"cascade_generation"`
+			}
+			if err := json.Unmarshal(rawMeta, &meta); err == nil {
+				triggeringGen = meta.CascadeGeneration
+			}
+		}
+	}
+	nextGen := triggeringGen + 1
+
+	// Hard stop (8.5): refuse at cascade_max_depth.
+	if nextGen >= cfg.CascadeMaxDepthOrDefault() {
+		slog.WarnContext(ctx, "postcommit: cascade hard stop — max depth reached, skipping adapt-foundations",
+			"instance_id", instanceID,
+			"cascade_generation", nextGen,
+			"max_depth", cfg.CascadeMaxDepthOrDefault())
+		return
+	}
+
+	// Skill cooldown check (8.7): reject rapid re-triggering.
+	if p.DB != nil {
+		cooldownSecs := cfg.SkillCooldownSeconds("adapt-foundations")
+		if cooldownSecs > 0 {
+			var lastCreated time.Time
+			_ = p.DB.NewSelect().
+				TableExpr("strategy_mutations").
+				ColumnExpr("MIN(created_at)").
+				Where("instance_id = ?", instanceID).
+				Where("batch_metadata->>'skill_name' = ?", "adapt-foundations").
+				Where("status IN ('staged', 'committed')").
+				Where("created_at > NOW() - INTERVAL '1 hour'").
+				OrderExpr("created_at DESC").
+				Limit(1).
+				Scan(ctx, &lastCreated)
+			if !lastCreated.IsZero() && time.Since(lastCreated) < time.Duration(cooldownSecs)*time.Second {
+				slog.InfoContext(ctx, "postcommit: adapt-foundations cooldown active — skipping",
+					"instance_id", instanceID,
+					"last_run", lastCreated,
+					"cooldown_secs", cooldownSecs)
+				return
+			}
+		}
+	}
+
+	// --- Build batch descriptor ---
+
+	// Escalation warning (8.4): force tier to "escalated" at cascade_escalation_depth.
+	escalated := false
+	if nextGen >= cfg.CascadeEscalationDepthOrDefault() {
+		escalated = true
+		highestTier = string(ripple.AuthorityEscalated)
+	}
+
 	tierLabel := "Formulation alignment"
 	if highestTier == string(ripple.AuthorityEscalated) {
 		tierLabel = "Strategic realignment"
 	}
 	batchDesc := fmt.Sprintf("%s draft — triggered by %d ripple signal(s) after execution layer changes. Authority: %s. Review carefully before committing.",
 		tierLabel, len(triggerSignals), highestTier)
+	if escalated {
+		batchDesc = fmt.Sprintf("[CASCADE gen %d — ESCALATED] %s", nextGen, batchDesc)
+	} else if nextGen > 0 {
+		batchDesc = fmt.Sprintf("[CASCADE gen %d] %s", nextGen, batchDesc)
+	}
 
 	triggeringSignalsMaps := make([]map[string]any, 0, len(triggerSignals))
 	for _, sig := range triggerSignals {
@@ -349,10 +438,12 @@ func (p *PostCommitPipeline) enqueueFoundationDraft(ctx context.Context, instanc
 		"triggered_by_signals": signalIDs,
 		"batch_desc_override":  batchDesc,
 		"_trigger":             "ripple",
+		"_cascade_generation":  nextGen,
 		"_trigger_context": map[string]any{
-			"signal_ids":     signalIDs,
-			"authority_tier": highestTier,
-			"changed_keys":   changedKeys,
+			"signal_ids":         signalIDs,
+			"authority_tier":     highestTier,
+			"changed_keys":       changedKeys,
+			"cascade_generation": nextGen,
 		},
 	}
 
@@ -360,7 +451,8 @@ func (p *PostCommitPipeline) enqueueFoundationDraft(ctx context.Context, instanc
 	slog.InfoContext(ctx, "postcommit: enqueuing adapt-foundations",
 		"instance_id", instanceID,
 		"signal_count", len(triggerSignals),
-		"highest_tier", highestTier)
+		"highest_tier", highestTier,
+		"cascade_generation", nextGen)
 
 	go func() {
 		bgCtx := context.Background()
@@ -369,12 +461,14 @@ func (p *PostCommitPipeline) enqueueFoundationDraft(ctx context.Context, instanc
 			slog.Warn("postcommit: adapt-foundations run failed",
 				"instance_id", instanceID,
 				"error", err,
+				"cascade_generation", nextGen,
 				"staged_so_far", result.ArtifactTypes)
 			return
 		}
 		slog.Info("postcommit: adapt-foundations staged",
 			"instance_id", instanceID,
 			"batch_id", result.BatchID,
+			"cascade_generation", nextGen,
 			"artifact_types", result.ArtifactTypes)
 	}()
 }

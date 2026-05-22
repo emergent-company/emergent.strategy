@@ -67,13 +67,14 @@ type AimPipelineData struct {
 
 // PipelineReviewItem is a pending batch in the review inbox.
 type PipelineReviewItem struct {
-	BatchID        string
-	Description    string
-	AgentID        string
-	MutationCount  int
-	ReviewURL      string
-	DownstreamHint string
-	ArtifactTypes  []string // affected artifact types
+	BatchID           string
+	Description       string
+	AgentID           string
+	MutationCount     int
+	ReviewURL         string
+	DownstreamHint    string
+	ArtifactTypes     []string // affected artifact types
+	CascadeGeneration int      // 0 = direct run; ≥1 = cascade chain depth
 }
 
 // PipelineTimelineEvent is a single event in the cascade timeline.
@@ -262,6 +263,11 @@ templ pipelineReviewItem(item PipelineReviewItem, instanceID string) {
 			<div class="min-w-0 grow space-y-1">
 				<div class="flex items-center gap-2 flex-wrap">
 					<p class="text-xs font-semibold text-base-content">AI draft pending review</p>
+					if item.CascadeGeneration >= 1 {
+						<span class="badge badge-xs badge-warning" title="This draft was auto-generated as part of a cascade chain">
+							Cascade (gen { strconv.Itoa(item.CascadeGeneration) })
+						</span>
+					}
 					if item.AgentID != "" {
 						<span class="badge badge-xs badge-ghost">{ item.AgentID }</span>
 					}

@@ -431,6 +431,73 @@ func TestResolveSkill_NotFound(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// draft-lra skill — task 9.3
+// ---------------------------------------------------------------------------
+
+// TestDraftLRASkill_YAMLExistsAndValid verifies that the draft-lra skill YAML
+// is embedded and declares the expected phase, type, and execution mode.
+func TestDraftLRASkill_YAMLExistsAndValid(t *testing.T) {
+	data, err := embedded.GetSkillYAML("draft-lra")
+	if err != nil {
+		t.Fatalf("GetSkillYAML(draft-lra): %v", err)
+	}
+	if !strings.Contains(string(data), "name: draft-lra") {
+		t.Errorf("draft-lra skill.yaml missing 'name: draft-lra'")
+	}
+	if !strings.Contains(string(data), "phase: AIM") {
+		t.Errorf("draft-lra skill.yaml missing 'phase: AIM'")
+	}
+	if !strings.Contains(string(data), "execution: prompt") {
+		t.Errorf("draft-lra skill.yaml missing 'execution: prompt'")
+	}
+}
+
+// TestDraftLRASkill_PromptContainsLRAFields verifies that the prompt references
+// key LRA fields, ensuring the schema-valid output contract is specified.
+func TestDraftLRASkill_PromptContainsLRAFields(t *testing.T) {
+	data, err := embedded.GetSkillPrompt("draft-lra")
+	if err != nil {
+		t.Fatalf("GetSkillPrompt(draft-lra): %v", err)
+	}
+	if len(data) == 0 {
+		t.Fatal("draft-lra prompt is empty")
+	}
+	prompt := string(data)
+	for _, field := range []string{
+		"living_reality_assessment",
+		"adoption_context",
+		"track_baselines",
+	} {
+		if !strings.Contains(prompt, field) {
+			t.Errorf("draft-lra prompt missing expected field reference %q", field)
+		}
+	}
+}
+
+// TestDraftLRASkill_ResolvesCorrectly verifies the skill resolves via ResolveSkill.
+func TestDraftLRASkill_ResolvesCorrectly(t *testing.T) {
+	skill, err := embedded.ResolveSkill("draft-lra")
+	if err != nil {
+		t.Fatalf("ResolveSkill(draft-lra): %v", err)
+	}
+	if skill.Name != "draft-lra" {
+		t.Errorf("Name=%q, want %q", skill.Name, "draft-lra")
+	}
+	// Phase and execution are in the raw YAML — verify via GetSkillYAML.
+	yamlData, err := embedded.GetSkillYAML("draft-lra")
+	if err != nil {
+		t.Fatalf("GetSkillYAML after resolve: %v", err)
+	}
+	raw := string(yamlData)
+	if !strings.Contains(raw, "phase: AIM") {
+		t.Errorf("draft-lra YAML missing 'phase: AIM': %s", raw[:min(len(raw), 200)])
+	}
+	if skill.SkillYAML == nil {
+		t.Error("ResolveSkill: SkillYAML should not be nil")
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 

@@ -19,6 +19,21 @@ type RippleConfig struct {
 	// Key format: "trackA|trackB" (alphabetically ordered).
 	// Value is expected semantic divergence that doesn't generate warnings.
 	NaturalTensionBaselines map[string]float64 `json:"natural_tension_baselines,omitempty"`
+
+	// CascadeEscalationDepth is the cascade_generation at which the authority tier
+	// is forced to "escalated" and a warning is added to the batch description.
+	// Default: 2.
+	CascadeEscalationDepth int `json:"cascade_escalation_depth,omitempty"`
+
+	// CascadeMaxDepth is the cascade_generation at which enqueueFoundationDraft
+	// refuses to trigger and logs a warning instead, breaking the cascade chain.
+	// Default: 3.
+	CascadeMaxDepth int `json:"cascade_max_depth,omitempty"`
+
+	// SkillCooldowns is a map of skill name → minimum seconds between auto-triggered
+	// runs for the same skill+instance pair. 0 means no cooldown.
+	// Default: {"adapt-foundations": 300, "adapt-strategy": 600}
+	SkillCooldowns map[string]int `json:"skill_cooldowns,omitempty"`
 }
 
 // AuthorityThresholds defines the semantic distance boundaries for each authority tier.
@@ -96,7 +111,45 @@ func DefaultRippleConfig() RippleConfig {
 			"org_ops|strategy":    0.15,
 			"commercial|org_ops":  0.25,
 		},
+		CascadeEscalationDepth: 2,
+		CascadeMaxDepth:        3,
+		SkillCooldowns: map[string]int{
+			"adapt-foundations": 300,  // 5 minutes
+			"adapt-strategy":    600,  // 10 minutes
+		},
 	}
+}
+
+// CascadeEscalationDepthOrDefault returns CascadeEscalationDepth or its default.
+func (c RippleConfig) CascadeEscalationDepthOrDefault() int {
+	if c.CascadeEscalationDepth > 0 {
+		return c.CascadeEscalationDepth
+	}
+	return 2
+}
+
+// CascadeMaxDepthOrDefault returns CascadeMaxDepth or its default.
+func (c RippleConfig) CascadeMaxDepthOrDefault() int {
+	if c.CascadeMaxDepth > 0 {
+		return c.CascadeMaxDepth
+	}
+	return 3
+}
+
+// SkillCooldownSeconds returns the cooldown in seconds for a given skill name.
+// Returns 0 if no cooldown is configured.
+func (c RippleConfig) SkillCooldownSeconds(skillName string) int {
+	if c.SkillCooldowns == nil {
+		// Return hardcoded defaults matching DefaultRippleConfig.
+		switch skillName {
+		case "adapt-foundations":
+			return 300
+		case "adapt-strategy":
+			return 600
+		}
+		return 0
+	}
+	return c.SkillCooldowns[skillName]
 }
 
 // ThresholdsForType returns the authority thresholds for a given artifact type,

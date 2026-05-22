@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/a-h/templ"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 
@@ -172,8 +171,9 @@ func (s *Server) handleDraftReview(c echo.Context) error {
 		TabGroup:    "aim",
 	}
 
-	// Build a rich preview component for artifact types that have bespoke renderers.
-	var previewContent templ.Component
+	// Build rich previews for all previewable mutations in the batch (6.1–6.3).
+	// Each artifact type that has a bespoke renderer gets its own collapsible section.
+	var previews []ui.AimDraftPreview
 	for _, r := range rows {
 		if len(r.Payload) == 0 {
 			continue
@@ -188,17 +188,23 @@ func (s *Server) handleDraftReview(c echo.Context) error {
 			ScreenID:    "aim-draft-review",
 			TabGroup:    "aim",
 		}
-		previewContent = s.bespokeContent(ctx, instanceID, "", previewNavCtx, r.ArtifactType, r.ArtifactKey, r.ArtifactKey, "staged", payload)
-		break // render preview for the first previewable mutation
+		content := s.bespokeContent(ctx, instanceID, "", previewNavCtx, r.ArtifactType, r.ArtifactKey, r.ArtifactKey, "staged", payload)
+		if content != nil {
+			previews = append(previews, ui.AimDraftPreview{
+				ArtifactType: r.ArtifactType,
+				ArtifactKey:  r.ArtifactKey,
+				Content:      content,
+			})
+		}
 	}
 
 	data := ui.AimDraftReviewData{
-		NavContext:     navCtx,
-		InstanceID:     instanceID,
-		BatchID:        batchIDStr,
-		Description:    description,
-		Items:          items,
-		PreviewContent: previewContent,
+		NavContext:   navCtx,
+		InstanceID:   instanceID,
+		BatchID:      batchIDStr,
+		Description:  description,
+		Items:        items,
+		Previews:     previews,
 	}
 
 	content := ui.AimDraftReviewContent(data)
@@ -301,8 +307,32 @@ func (s *Server) handleDraftCommit(c echo.Context) error {
 		return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim/versions")
 	}
 
+	// After committing, check whether another staged batch is waiting for review
+	// on this instance. If so, redirect directly to it so the user can continue
+	// reviewing without returning to the dashboard first (task 7.3).
+	if nextBatchID := s.nextPendingBatchID(ctx, instanceID, batchIDStr); nextBatchID != "" {
+		return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim/draft-review/"+nextBatchID)
+	}
+
 	// Otherwise redirect to the relevant AIM sub-page based on artifact type.
 	return c.Redirect(http.StatusSeeOther, redirectAfterCommit(instanceID, primaryArtifactType))
+}
+
+// nextPendingBatchID returns the batch_id of the next staged batch for an
+// instance, excluding the just-committed batch. Returns "" if none.
+func (s *Server) nextPendingBatchID(ctx context.Context, instanceID, excludeBatchID string) string {
+	var batchID string
+	_ = s.db.NewSelect().
+		TableExpr("strategy_mutations").
+		ColumnExpr("batch_id::text AS batch_id").
+		Where("instance_id = ?", instanceID).
+		Where("status = ?", domain.MutationStatusStaged).
+		Where("batch_id::text != ?", excludeBatchID).
+		GroupExpr("batch_id").
+		OrderExpr("MIN(created_at) ASC").
+		Limit(1).
+		Scan(ctx, &batchID)
+	return batchID
 }
 
 // resumeOrchestrationForBatch looks up any awaiting_human orchestration run

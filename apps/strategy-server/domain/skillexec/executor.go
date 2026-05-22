@@ -466,13 +466,33 @@ func (e *Executor) runChunkedInternal(ctx context.Context, instanceID uuid.UUID,
 		_ = e.runLedger.Complete(ctx, runID, batchID)
 	}
 
+	// Write cascade_generation to batch_metadata for all staged mutations in this batch.
+	// _cascade_generation is set by enqueueFoundationDraft when cascading; 0 for direct runs.
+	cascadeGen := 0
+	if gen, ok := params["_cascade_generation"].(int); ok {
+		cascadeGen = gen
+	}
+	meta := map[string]any{
+		"cascade_generation": cascadeGen,
+		"skill_name":         skillName,
+		"trigger":            trigger,
+	}
+	if metaRaw, err := json.Marshal(meta); err == nil {
+		_, _ = e.db.NewUpdate().
+			TableExpr("strategy_mutations").
+			Set("batch_metadata = ?", metaRaw).
+			Where("batch_id = ? AND status = ?", batchID, domain.MutationStatusStaged).
+			Exec(ctx)
+	}
+
 	e.record(ctx, instanceID, "skill.completed", map[string]any{
-		"skill_name":     skillName,
-		"batch_id":       batchID.String(),
-		"artifact_types": allArtifactTypes,
-		"input_tokens":   totalInputTokens,
-		"output_tokens":  totalOutputTokens,
-		"run_id":         runID.String(),
+		"skill_name":         skillName,
+		"batch_id":           batchID.String(),
+		"artifact_types":     allArtifactTypes,
+		"input_tokens":       totalInputTokens,
+		"output_tokens":      totalOutputTokens,
+		"run_id":             runID.String(),
+		"cascade_generation": cascadeGen,
 	})
 
 	return SkillResult{
