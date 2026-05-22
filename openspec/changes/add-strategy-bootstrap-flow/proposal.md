@@ -2,166 +2,205 @@
 
 ## Why
 
-A strategy instance goes from empty scaffold to "ready for execution" through
-7 READY artifacts authored in dependency order. Today this process has gaps in
-AI assistance, completeness checking, and web UI guidance. The result is that
-genesis is only possible via MCP agents (pathfinder/lean-start interviews) with
-no web UI equivalent.
+A strategy instance starts empty and needs a first set of READY artifacts to
+become operational. Today this process is only possible through MCP agents
+(pathfinder/lean-start interviews) with no web UI equivalent. It lacks a
+consistent evidence pipeline and has no clear "ready enough" gate.
 
-### How genesis actually works in practice
+## Core insight: all evidence collection methods produce the same thing
 
-From practical experimentation with epf-cli, most instance owners do NOT start
-from a blank canvas. They typically have existing material:
+Whether the strategy manager uploads a pitch deck, answers interview questions,
+or pastes competitive analysis notes, the output is the same: **evidence items
+in the AIM phase**. The distinction between "I have existing material" and "I'm
+starting from zero" is a false dichotomy — interviews ARE evidence production.
 
-- Pitch decks, investor memos
-- Market research, competitive analyses
-- Product documentation, technical specs
-- Strategy notes, board presentations
-- User research, interview transcripts
+The unified model:
 
-The real bootstrap pattern is **evidence-first**:
+```
+Evidence collection (any combination of):
+  - Upload/paste existing documents → evidence items (tagged)
+  - Answer guided interview questions → evidence items (tagged)
+  - Import from external tools → evidence items (tagged)
 
-1. **Load source material** — existing documents, research, notes go into the
-   AIM evidence system as source documents
-2. **Create LRA** — the Living Reality Assessment captures the current reality,
-   grounded in the source material
-3. **First "genesis cycle"** — AI unpacks the source material + LRA into
-   structured READY artifacts (north_star, foundations, formula, roadmap, etc.)
-4. **Human reviews and refines** — each generated artifact is staged for review
+When enough evidence is collected:
+  → Generate READY artifacts from evidence (in dependency order)
+  → Human reviews each draft
+  → Publish first version
+```
 
-This is conceptually the first AIM cycle, except the "assessment" is the source
-material itself rather than OKR scoring.
+This means:
+- There is no separate "bootstrap mode" — genesis IS the first AIM cycle
+- The interview is just one evidence collection method alongside upload and paste
+- A user with a full pitch deck and one with nothing both follow the same flow —
+  they just accumulate evidence differently
+- The readiness gate is "enough evidence to generate a first draft" — not
+  "perfect artifacts"
 
-### Important: canonical definitions are NOT user-authored
+## Design principles for the first cycle
 
-The strategy, org_ops, and commercial **definitions** come from canonical EPF.
-They are embedded in the binary at build time (via `sync-embedded.sh`),
-auto-imported into the schema registry at startup, and served via
-`list_definitions` / `get_definition` MCP tools. They are global framework
-structure, not per-instance artifacts that need bootstrap skills.
+**Lean first cycle.** The first version of the strategy will be rough. That's
+by design. The AIM cycle exists to refine it over time as more evidence
+accumulates. There is no reason to over-engineer the first cycle — it should
+produce a "good enough" foundation that can be iterated on.
 
-Value models are FIRE-phase artifacts that reference these canonical definitions
-but are authored per-instance. Product portfolio is a structural artifact
-referencing value models. Neither is part of the READY foundation.
+**Evidence sufficiency, not evidence perfection.** The system should assess
+whether enough evidence exists to attempt each READY artifact, not whether
+the evidence is comprehensive. A pitch deck alone is sufficient to draft a
+North Star. Market research adds depth but isn't required for a first pass.
 
-### Current gaps
+**Progressive enrichment.** Each AIM cycle adds evidence (signals, assessment
+outcomes, user feedback). The strategy gets better over time. The first cycle
+just needs to be good enough to start.
 
-**Gap 1: No AI writers for initial READY artifact creation from source material**
+## How genesis works in practice
 
-The bootstrap skills need to work like the evidence-first pattern: read loaded
-source documents and existing artifacts, then draft the next artifact in the
-dependency chain. Today only `insight_analyses` has partial coverage (4 analysis
-skills). All other READY artifacts require agent interview or manual creation.
+From practical experimentation, strategy managers arrive with varying amounts
+of existing material:
 
-**Gap 2: No web UI for loading source material**
+**Scenario A — Rich existing material:**
+Pitch decks, market research, competitive analysis, product docs, investor
+memos. These get loaded as evidence → AI unpacks and structures into READY
+artifacts → human reviews → first version published. Fast, mostly automated.
 
-Evidence ingestion exists (`domain/evidence/Ingest()`) but only through MCP
-tools. The web UI has no upload or paste interface for source documents. The
-import CLI can load YAML files from a local directory, but there's no web
-equivalent.
+**Scenario B — Some material + gaps:**
+A product vision doc and some competitive notes, but no market sizing or formal
+strategy. The existing material gets loaded as evidence → guided interview
+fills the gaps (producing more evidence items) → AI drafts from the combined
+evidence set → human reviews → first version.
 
-**Gap 3: No completeness gate**
+**Scenario C — Starting from scratch:**
+No prior documentation. The system runs a guided interview covering vision,
+market, competition, value proposition, and team context. Each answer becomes
+an evidence item. When enough answers are collected → AI drafts READY artifacts
+→ human reviews → first version. This is the slowest path but produces the
+same output.
 
-Lifecycle mode detection checks only 3 of 7 READY artifacts (north_star,
-strategy_foundations, strategy_formula). No tool aggregates artifact presence,
-section completeness, placeholder detection, and schema validation into a
-single readiness verdict.
+All three scenarios converge on the same pipeline: evidence → READY artifacts.
 
-**Gap 4: Inter-READY relationships not auto-derived**
+## Important: canonical definitions are NOT user-authored
 
-Auto-extracted relationships work for features, definitions, value models, and
-AIM artifacts. READY foundation artifacts produce ZERO outbound relationships.
-The dependency graph (north_star informs foundations, foundations derive formula,
-formula operationalizes into roadmap) exists only as agent prompt guidance.
+Strategy, org_ops, and commercial definitions come from canonical EPF at build
+time. They are framework structure, not per-instance bootstrap targets. Value
+models are FIRE-phase artifacts. Product portfolio references value models.
+Neither is part of the READY foundation bootstrap.
+
+## Current gaps
+
+**Gap 1: No unified evidence collection in web UI**
+
+Evidence ingestion exists (`domain/evidence/Ingest()`) but only through MCP.
+No web UI for upload, paste, or guided interview. The user has no way to load
+source material from the browser.
+
+**Gap 2: No evidence-to-artifact generation pipeline**
+
+No skill reads evidence items and produces READY artifacts. The existing
+bootstrap skills (`adapt-foundations`, `adapt-strategy`) update existing
+artifacts, not create initial ones. The pathfinder agent interview works via
+MCP but isn't integrated with the evidence system — interview answers aren't
+stored as evidence items.
+
+**Gap 3: No "evidence sufficiency" assessment**
+
+No mechanism tells the user "you have enough evidence to draft a North Star"
+or "add market research to improve the Insight Analyses draft." The readiness
+concept needs to apply to evidence collection, not just artifact completeness.
+
+**Gap 4: No completeness gate for READY phase**
+
+Lifecycle detection checks only 3 of 7 READY artifacts. No holistic readiness
+score. No "publish first version" prompt.
+
+**Gap 5: Inter-READY relationships not auto-derived**
+
+READY foundation artifacts produce zero outbound relationship edges. The
+dependency graph is invisible to the ripple engine.
 
 ## What Changes
 
-### 1. Evidence-aware bootstrap skills
+### 1. Unified evidence collection
 
-Create bootstrap skills that read source evidence as primary context. Each skill
-in the dependency chain reads:
-- Any loaded evidence items (tagged with relevant categories)
-- Previously created READY artifacts (for context coherence)
-- The LRA (when it exists) for grounding
+Build a web UI evidence collection interface on the AIM tab that supports
+all three input methods:
 
-| Skill | Primary input | Context artifacts | Output |
-|-------|--------------|-------------------|--------|
-| `draft-lra` | Evidence items + user answers | — | `living_reality_assessment` |
-| `draft-north-star` | Evidence items | LRA (if exists) | `north_star` |
-| `draft-insights` | Evidence items | north_star | `insight_analyses` (full, not section-by-section) |
-| `draft-foundations` | Evidence items | north_star, insight_analyses | `strategy_foundations` |
-| `draft-opportunity` | Evidence items | insight_analyses, north_star | `insight_opportunity` |
-| `draft-formula` | Evidence items | north_star, strategy_foundations, insight_opportunity | `strategy_formula` |
-| `draft-roadmap` | Evidence items | strategy_formula, strategy_foundations | `roadmap_recipe` |
+**a) Text paste:** Textarea with source_type selector (pitch_deck, market_research,
+competitive_analysis, product_doc, strategy_notes, user_research, interview_notes)
+and auto-suggested tags. Each submission creates an evidence item.
 
-The skills degrade gracefully: when no evidence is loaded, they fall back to
-interactive prompts (asking the user targeted questions). When evidence IS
-loaded, they extract and structure content from it.
+**b) Guided interview:** A structured questionnaire that produces evidence items.
+The interview adapts based on what evidence already exists — if a pitch deck was
+uploaded, the interview skips vision/purpose questions and focuses on gaps. Each
+answer is stored as an evidence item with source_type `interview` and appropriate
+tags.
 
-The `draft-lra` skill is shared with the `fix-aim-cycle-wiring` proposal (task
-group 4). It is listed here for completeness of the dependency chain.
+**c) Evidence from existing artifacts:** When an instance is imported with
+existing YAML files (via CLI import), the import process should create summary
+evidence items from the imported artifacts, making the existing strategy content
+available to the evidence pipeline.
 
-### 2. Web UI evidence loading
+### 2. Evidence sufficiency assessment
 
-Add a simple evidence ingestion interface to the AIM tab or a dedicated
-bootstrap page:
-- Text paste area for notes, strategy excerpts, competitive analysis
-- Each pasted block becomes an evidence item with source_type and tags
-- The evidence feeds into the bootstrap skills as context
+Before each READY artifact can be drafted, assess whether sufficient evidence
+exists. The assessment is tag-based:
 
-Full document upload (PDF, DOCX) is out of scope — that path goes through
-epf-cli's decomposer and Memory pipeline. This is a lightweight text-based
-entry point.
+| READY artifact | Required evidence tags (any of) | Minimum items |
+|---------------|-------------------------------|---------------|
+| North Star | vision, strategy, pitch, purpose | 1 |
+| Insight Analyses | market, competitive, trends, user_research | 2 |
+| Strategy Foundations | vision, value_proposition, positioning | 1 (+ north_star exists) |
+| Insight Opportunity | market, competitive, user_research | 1 (+ insight_analyses exists) |
+| Strategy Formula | strategy, positioning, competitive | 1 (+ foundations exists) |
+| Roadmap Recipe | strategy, product, planning | 1 (+ formula exists) |
 
-### 3. Web UI draft actions on READY dashboard
+The thresholds are deliberately low — the first cycle should be lean. Better
+evidence produces better artifacts, but the system shouldn't block on perfection.
 
-Add "Draft with AI" buttons to READY dashboard cards for missing artifacts.
-Buttons enforce dependency order (disabled when prerequisites missing).
-When evidence items exist, the button label changes to "Draft from evidence"
-to signal that source material will be used.
+### 3. Evidence-aware bootstrap skills
 
-### 4. READY phase readiness score
+Create skills that read evidence items as primary context. Each skill:
+- Queries evidence items filtered by relevant tags
+- Reads prerequisite READY artifacts for coherence
+- Produces a schema-valid first draft
+- Falls back to minimal generation when evidence is sparse
 
-Compute a 0-100 readiness score based on:
-- Artifact presence (7 artifacts)
-- Section completeness (aggregate gap ratio)
-- Placeholder detection (template text vs real content)
-- Schema validation
-- Relationship coverage (inter-READY edges exist)
+The skills are the same ones listed in the original proposal (draft-north-star,
+draft-insights, draft-foundations, draft-opportunity, draft-formula,
+draft-roadmap) but they are now explicitly part of the evidence pipeline, not
+standalone creation tools.
 
-Surface as progress bar on READY dashboard, in health_check response, and
-as "Publish first version" prompt at score >= 80.
+### 4. Web UI draft actions on READY dashboard
 
-### 5. Auto-derive inter-READY relationships
+"Draft with AI" buttons on READY cards. The button state reflects evidence
+sufficiency:
+- **Enabled + "Draft from evidence"**: sufficient evidence exists
+- **Enabled + "Draft with AI"**: insufficient evidence but prerequisites met
+  (will produce a sparser draft)
+- **Disabled + prerequisite hint**: dependency artifact missing
+- **Hidden or "Redraft"**: artifact already has substantive content
 
-Extend `index.ExtractRelationships` to produce structural edges for READY
-artifacts:
+### 5. READY phase readiness score
 
-| Source | Relationship | Target |
-|--------|-------------|--------|
-| strategy_foundations | derived_from | north_star |
-| strategy_formula | derived_from | strategy_foundations |
-| insight_opportunity | synthesized_from | insight_analyses |
-| roadmap_recipe | operationalizes | strategy_formula |
-| roadmap_recipe | constrained_by | strategy_foundations |
-| north_star | informed_by | insight_analyses |
+0-100 score based on artifact presence, section completeness, placeholder
+detection, schema validation. Surfaces as progress bar, health_check field,
+and "Publish first version" prompt at >= 80.
 
-These are structural (exist when both artifacts exist), making the dependency
-graph visible to the ripple engine and semantic graph.
+### 6. Auto-derive inter-READY relationships
 
-### 6. Lifecycle mode completeness
+Structural edges between READY artifacts (derived_from, synthesized_from,
+operationalizes, constrained_by, informed_by). Created when both artifacts
+exist. Visible to ripple engine.
 
-Update lifecycle detection to check all 7 READY artifacts for the `foundation`
-→ `building` transition, not just 3.
+### 7. Lifecycle mode completeness
+
+Check all 7 READY artifacts for foundation → building transition. When evidence
+exists but artifacts are placeholder-only, recommend the bootstrap flow.
 
 ## Impact
 
 - **Affected specs**: `strategy-web`
-- **Affected code**: Skills, executor chunk plans, web handlers, READY dashboard
-  template, index extraction, lifecycle detection
-- **No breaking changes**: Existing MCP tools and agent workflows unaffected
-- **Dependency on `fix-aim-cycle-wiring`**: The `draft-lra` skill is defined in
-  that proposal. This proposal extends the bootstrap chain around it.
+- **Affected code**: Skills, executor, web handlers, evidence service, READY
+  dashboard, index extraction, lifecycle detection
+- **No breaking changes**: MCP tools and agent workflows unaffected
+- **Dependency on `fix-aim-cycle-wiring`**: `draft-lra` skill defined there
 - **Database**: No new migrations
-- **Canonical definitions**: NOT affected. Definitions are framework structure,
-  not bootstrap targets.
+- **Canonical definitions**: NOT affected
