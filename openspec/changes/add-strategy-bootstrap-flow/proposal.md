@@ -3,167 +3,165 @@
 ## Why
 
 A strategy instance goes from empty scaffold to "ready for execution" through
-a sequence of 7 READY artifacts that must be authored in a specific dependency
-order. Today this process has no guided flow, no AI-assisted creation for most
-artifacts, and no completeness gate. The result:
+7 READY artifacts authored in dependency order. Today this process has gaps in
+AI assistance, completeness checking, and web UI guidance. The result is that
+genesis is only possible via MCP agents (pathfinder/lean-start interviews) with
+no web UI equivalent.
 
-### Gap 1: No AI writers for initial READY artifact creation
+### How genesis actually works in practice
 
-The scaffold populates 6 artifacts with YAML templates containing placeholder
-text ("Your Organization Name", "YYYY-MM-DD"). But there are no skills that
-can draft real content for most READY artifacts from scratch:
+From practical experimentation with epf-cli, most instance owners do NOT start
+from a blank canvas. They typically have existing material:
 
-| Artifact | Has creation skill? |
-|----------|-------------------|
-| North Star | No — relies on agent interview (pathfinder/lean-start) |
-| Insight Analyses | Partial — 4 analysis skills (trend-scout, market-mapper, internal-mirror, problem-detective) each produce one section |
-| Strategy Foundations | No — agent interview only |
-| Insight Opportunity | No — synthesized by agent from analyses |
-| Strategy Formula | No — agent interview only |
-| Roadmap Recipe | No — agent interview only |
-| Product Portfolio | No skill, not even scaffolded |
+- Pitch decks, investor memos
+- Market research, competitive analyses
+- Product documentation, technical specs
+- Strategy notes, board presentations
+- User research, interview transcripts
 
-The agent-interview approach works well via MCP (an AI agent follows the
-pathfinder prompt), but it's invisible from the web UI. A user on the web UI
-sees 6 template-filled cards with placeholder text and no guidance on what to
-do next.
+The real bootstrap pattern is **evidence-first**:
 
-### Gap 2: No completeness gate
+1. **Load source material** — existing documents, research, notes go into the
+   AIM evidence system as source documents
+2. **Create LRA** — the Living Reality Assessment captures the current reality,
+   grounded in the source material
+3. **First "genesis cycle"** — AI unpacks the source material + LRA into
+   structured READY artifacts (north_star, foundations, formula, roadmap, etc.)
+4. **Human reviews and refines** — each generated artifact is staged for review
 
-There is no single mechanism that tells the user "your READY phase is complete,
-you're ready to move to FIRE." The lifecycle mode detection checks only 3 of 7
-artifacts (north_star, strategy_foundations, strategy_formula). The health check
-reports schema compliance, not content completeness. The web UI shows per-artifact
-gaps but doesn't aggregate them into a phase-level readiness verdict.
+This is conceptually the first AIM cycle, except the "assessment" is the source
+material itself rather than OKR scoring.
 
-### Gap 3: Inter-READY relationships not auto-derived
+### Important: canonical definitions are NOT user-authored
 
-Auto-extracted relationships only work for features, definitions, value models,
-assessment reports, calibration memos, and LRAs. The READY-phase foundation
-artifacts (north_star, insight_analyses, strategy_foundations, insight_opportunity,
-strategy_formula, roadmap_recipe) produce ZERO outbound relationships when committed.
-The logical dependencies between them (north_star informs strategy_foundations,
-analyses synthesize into opportunity, formula derives from foundations, roadmap
-operationalizes formula) exist only as agent prompt guidance, not as graph edges.
+The strategy, org_ops, and commercial **definitions** come from canonical EPF.
+They are embedded in the binary at build time (via `sync-embedded.sh`),
+auto-imported into the schema registry at startup, and served via
+`list_definitions` / `get_definition` MCP tools. They are global framework
+structure, not per-instance artifacts that need bootstrap skills.
 
-### Gap 4: No web UI authoring flow
+Value models are FIRE-phase artifacts that reference these canonical definitions
+but are authored per-instance. Product portfolio is a structural artifact
+referencing value models. Neither is part of the READY foundation.
 
-The web UI READY dashboard is read-only. It shows which artifacts exist, which
-sections have content, and links to the artifact detail viewer. But there is no
-way to:
-- Create a missing artifact from the web UI
-- Trigger an AI draft for a specific artifact
-- Follow a guided step-by-step creation flow
-- See the dependency order ("create North Star first, then Foundations")
+### Current gaps
 
-The MCP agent flow (pathfinder → interview → create artifacts) is powerful but
-entirely invisible from the browser.
+**Gap 1: No AI writers for initial READY artifact creation from source material**
+
+The bootstrap skills need to work like the evidence-first pattern: read loaded
+source documents and existing artifacts, then draft the next artifact in the
+dependency chain. Today only `insight_analyses` has partial coverage (4 analysis
+skills). All other READY artifacts require agent interview or manual creation.
+
+**Gap 2: No web UI for loading source material**
+
+Evidence ingestion exists (`domain/evidence/Ingest()`) but only through MCP
+tools. The web UI has no upload or paste interface for source documents. The
+import CLI can load YAML files from a local directory, but there's no web
+equivalent.
+
+**Gap 3: No completeness gate**
+
+Lifecycle mode detection checks only 3 of 7 READY artifacts (north_star,
+strategy_foundations, strategy_formula). No tool aggregates artifact presence,
+section completeness, placeholder detection, and schema validation into a
+single readiness verdict.
+
+**Gap 4: Inter-READY relationships not auto-derived**
+
+Auto-extracted relationships work for features, definitions, value models, and
+AIM artifacts. READY foundation artifacts produce ZERO outbound relationships.
+The dependency graph (north_star informs foundations, foundations derive formula,
+formula operationalizes into roadmap) exists only as agent prompt guidance.
 
 ## What Changes
 
-### 1. READY artifact creation skills
+### 1. Evidence-aware bootstrap skills
 
-Create dedicated "bootstrap" skills for each READY artifact that can generate
-a substantive first draft from available context:
+Create bootstrap skills that read source evidence as primary context. Each skill
+in the dependency chain reads:
+- Any loaded evidence items (tagged with relevant categories)
+- Previously created READY artifacts (for context coherence)
+- The LRA (when it exists) for grounding
 
-| Skill | Inputs | Output |
-|-------|--------|--------|
-| `draft-north-star` | Company name, industry, product description (user input) | `north_star` with purpose, vision, values |
-| `draft-foundations` | `north_star` + user interview answers | `strategy_foundations` with product_vision, value_proposition, strategic_sequencing |
-| `draft-formula` | `north_star` + `strategy_foundations` | `strategy_formula` with positioning, moat, business_model |
-| `draft-roadmap` | `strategy_formula` + `strategy_foundations` | `roadmap_recipe` with 4-track OKR structure |
-| `draft-opportunity` | `insight_analyses` | `insight_opportunity` synthesized from analyses |
+| Skill | Primary input | Context artifacts | Output |
+|-------|--------------|-------------------|--------|
+| `draft-lra` | Evidence items + user answers | — | `living_reality_assessment` |
+| `draft-north-star` | Evidence items | LRA (if exists) | `north_star` |
+| `draft-insights` | Evidence items | north_star | `insight_analyses` (full, not section-by-section) |
+| `draft-foundations` | Evidence items | north_star, insight_analyses | `strategy_foundations` |
+| `draft-opportunity` | Evidence items | insight_analyses, north_star | `insight_opportunity` |
+| `draft-formula` | Evidence items | north_star, strategy_foundations, insight_opportunity | `strategy_formula` |
+| `draft-roadmap` | Evidence items | strategy_formula, strategy_foundations | `roadmap_recipe` |
 
-The 4 existing analysis skills (trend-scout, market-mapper, internal-mirror,
-problem-detective) already cover `insight_analyses` sections and stay as-is.
+The skills degrade gracefully: when no evidence is loaded, they fall back to
+interactive prompts (asking the user targeted questions). When evidence IS
+loaded, they extract and structure content from it.
 
-Each skill uses the existing skill executor's chunked execution to produce
-schema-valid artifacts. They read existing artifacts as context (when available)
-and produce a staged batch for human review.
+The `draft-lra` skill is shared with the `fix-aim-cycle-wiring` proposal (task
+group 4). It is listed here for completeness of the dependency chain.
 
-### 2. Web UI creation actions
+### 2. Web UI evidence loading
 
-Add "Draft with AI" buttons to the READY dashboard for each missing artifact.
-The button POSTs to `/strategies/:id/ready/draft-{artifact}` and triggers the
-corresponding skill via the executor. The user is redirected to the draft review
-page to review and commit the generated artifact.
+Add a simple evidence ingestion interface to the AIM tab or a dedicated
+bootstrap page:
+- Text paste area for notes, strategy excerpts, competitive analysis
+- Each pasted block becomes an evidence item with source_type and tags
+- The evidence feeds into the bootstrap skills as context
 
-The dependency order is enforced:
-- North Star can always be drafted (no prerequisites)
-- Foundations requires North Star
-- Formula requires North Star + Foundations
-- Roadmap requires Formula
-- Opportunity requires Insight Analyses
-- Analyses skills have no prerequisites
+Full document upload (PDF, DOCX) is out of scope — that path goes through
+epf-cli's decomposer and Memory pipeline. This is a lightweight text-based
+entry point.
 
-Missing prerequisites are shown as disabled buttons with hints ("Requires
-North Star").
+### 3. Web UI draft actions on READY dashboard
 
-### 3. READY phase completeness check
+Add "Draft with AI" buttons to READY dashboard cards for missing artifacts.
+Buttons enforce dependency order (disabled when prerequisites missing).
+When evidence items exist, the button label changes to "Draft from evidence"
+to signal that source material will be used.
 
-Add a `ReadyPhaseReadiness` assessment that scores the READY phase holistically:
+### 4. READY phase readiness score
 
-**Artifact presence** (7 artifacts × existence check):
-- Each artifact present and non-placeholder: full credit
-- Present but template/placeholder content: partial credit
-- Missing: zero credit
+Compute a 0-100 readiness score based on:
+- Artifact presence (7 artifacts)
+- Section completeness (aggregate gap ratio)
+- Placeholder detection (template text vs real content)
+- Schema validation
+- Relationship coverage (inter-READY edges exist)
 
-**Section completeness** (aggregate gap strip data):
-- Ratio of filled sections to total expected sections across all artifacts
+Surface as progress bar on READY dashboard, in health_check response, and
+as "Publish first version" prompt at score >= 80.
 
-**Relationship coverage** (new):
-- Are key inter-READY relationships present?
-- Does the roadmap reference OKRs that link to strategy formula?
-- Do features link to value model paths?
+### 5. Auto-derive inter-READY relationships
 
-**Schema validation** (existing):
-- Do all artifacts pass their JSON schema?
-
-The assessment produces a 0-100 readiness score and a list of actionable
-blockers. It surfaces as:
-- A progress bar on the READY dashboard
-- A "Ready for FIRE" gate (when score >= 80)
-- An entry in the health check response
-
-### 4. Auto-derive inter-READY relationships
-
-Extend `index.ExtractRelationships` to produce edges for READY foundation
+Extend `index.ExtractRelationships` to produce structural edges for READY
 artifacts:
 
-| Source | Relationship | Target | Extraction logic |
-|--------|-------------|--------|-----------------|
-| `strategy_foundations` | `derived_from` | `north_star` | Always (if both exist) |
-| `strategy_formula` | `derived_from` | `strategy_foundations` | Always (if both exist) |
-| `insight_opportunity` | `synthesized_from` | `insight_analyses` | Always (if both exist) |
-| `roadmap_recipe` | `operationalizes` | `strategy_formula` | Always (if both exist) |
-| `roadmap_recipe` | `constrained_by` | `strategy_foundations` | Always (if both exist) |
-| `north_star` | `informed_by` | `insight_analyses` | Always (if both exist) |
+| Source | Relationship | Target |
+|--------|-------------|--------|
+| strategy_foundations | derived_from | north_star |
+| strategy_formula | derived_from | strategy_foundations |
+| insight_opportunity | synthesized_from | insight_analyses |
+| roadmap_recipe | operationalizes | strategy_formula |
+| roadmap_recipe | constrained_by | strategy_foundations |
+| north_star | informed_by | insight_analyses |
 
-These are structural relationships (they exist whenever both artifacts exist)
-rather than content-derived. They encode the authoring dependency graph into
-the strategy graph, making it visible to the ripple engine and the semantic
-graph.
+These are structural (exist when both artifacts exist), making the dependency
+graph visible to the ripple engine and semantic graph.
 
-### 5. First version publication prompt
+### 6. Lifecycle mode completeness
 
-When all 7 READY artifacts exist and the readiness score is >= 80, surface a
-prompt on the READY dashboard: "Your strategy foundation is complete. Publish
-your first version to create a baseline snapshot." with a "Publish version"
-button.
+Update lifecycle detection to check all 7 READY artifacts for the `foundation`
+→ `building` transition, not just 3.
 
 ## Impact
 
 - **Affected specs**: `strategy-web`
-- **Affected code**:
-  - `internal/embedded/skills/draft-{north-star,foundations,formula,roadmap,opportunity}/` — 5 new skills
-  - `domain/skillexec/executor.go` — chunk plans for new skills
-  - `internal/handler/handler_ready_draft.go` — new web handlers for draft actions
-  - `internal/handler/queries_phases.go` — readiness scoring
-  - `internal/ui/phase_ready.templ` — draft buttons, readiness bar, publish prompt
-  - `internal/index/extract.go` — inter-READY relationship extraction
-  - `internal/mcpserver/lifecycle.go` — completeness gate integration
-- **No breaking changes**: Existing MCP tools and agent workflows unaffected.
-  The bootstrap skills are additive — the pathfinder agent interview still
-  works as before.
-- **Database**: No new migrations. Relationships use the existing
-  `strategy_relationships` table.
+- **Affected code**: Skills, executor chunk plans, web handlers, READY dashboard
+  template, index extraction, lifecycle detection
+- **No breaking changes**: Existing MCP tools and agent workflows unaffected
+- **Dependency on `fix-aim-cycle-wiring`**: The `draft-lra` skill is defined in
+  that proposal. This proposal extends the bootstrap chain around it.
+- **Database**: No new migrations
+- **Canonical definitions**: NOT affected. Definitions are framework structure,
+  not bootstrap targets.
