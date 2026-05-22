@@ -122,6 +122,10 @@ func ExecutionDashboardContent(data ExecutionData) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = TabRelatedPages("execution", data.InstanceID, "/strategies/"+data.InstanceID).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"space-y-6\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -186,7 +190,7 @@ func executionHeader(data ExecutionData) templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(data.Cycle)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 125, Col: 69}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 126, Col: 69}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -209,7 +213,7 @@ func executionHeader(data ExecutionData) templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(data.Timeframe)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 129, Col: 68}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 130, Col: 68}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -227,7 +231,7 @@ func executionHeader(data ExecutionData) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(data.TotalOKRs))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 132, Col: 81}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 133, Col: 81}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
@@ -240,7 +244,7 @@ func executionHeader(data ExecutionData) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(data.TotalKRs))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 134, Col: 80}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 135, Col: 80}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
@@ -253,7 +257,7 @@ func executionHeader(data ExecutionData) templ.Component {
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(data.ActiveFeatures + data.DraftFeatures))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 136, Col: 107}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 137, Col: 107}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -286,7 +290,7 @@ func executionHeader(data ExecutionData) templ.Component {
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(data.CriticalSignals))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 149, Col: 43}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 150, Col: 43}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 				if templ_7745c5c3_Err != nil {
@@ -305,7 +309,7 @@ func executionHeader(data ExecutionData) templ.Component {
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(data.WarningSignals))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 155, Col: 42}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 156, Col: 42}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {
@@ -420,7 +424,7 @@ func executionTrackCard(track ExecutionTrack, instanceID string, hasAIM bool) te
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(formatTrackName(track.Name))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 171, Col: 111}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 172, Col: 111}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
@@ -433,7 +437,7 @@ func executionTrackCard(track ExecutionTrack, instanceID string, hasAIM bool) te
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(len(track.OKRs)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 172, Col: 75}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 173, Col: 75}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 		if templ_7745c5c3_Err != nil {
@@ -446,7 +450,7 @@ func executionTrackCard(track ExecutionTrack, instanceID string, hasAIM bool) te
 		var templ_7745c5c3_Var19 string
 		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(executionTrackKRCount(track))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 172, Col: 122}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 173, Col: 122}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 		if templ_7745c5c3_Err != nil {
@@ -518,7 +522,7 @@ func execDefinitionChip(def ExecutionDefinition) templ.Component {
 		var templ_7745c5c3_Var21 templ.SafeURL
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(def.Href))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 196, Col: 28}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 197, Col: 28}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 		if templ_7745c5c3_Err != nil {
@@ -531,7 +535,7 @@ func execDefinitionChip(def ExecutionDefinition) templ.Component {
 		var templ_7745c5c3_Var22 string
 		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.ResolveAttributeValue(def.Href)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 197, Col: 19}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 198, Col: 19}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 		if templ_7745c5c3_Err != nil {
@@ -548,7 +552,7 @@ func execDefinitionChip(def ExecutionDefinition) templ.Component {
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(def.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 204, Col: 12}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 205, Col: 12}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 		if templ_7745c5c3_Err != nil {
@@ -608,7 +612,7 @@ func execDefinitionChipPrefix(def ExecutionDefinition) templ.Component {
 				var templ_7745c5c3_Var25 string
 				templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(def.CurrentTier))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 218, Col: 80}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 219, Col: 80}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 				if templ_7745c5c3_Err != nil {
@@ -660,7 +664,7 @@ func executionOKRSection(okr ExecutionOKR, trackName string, instanceID string, 
 		var templ_7745c5c3_Var27 string
 		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(okr.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 235, Col: 78}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 236, Col: 78}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 		if templ_7745c5c3_Err != nil {
@@ -673,7 +677,7 @@ func executionOKRSection(okr ExecutionOKR, trackName string, instanceID string, 
 		var templ_7745c5c3_Var28 string
 		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(okr.Objective)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 236, Col: 82}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 237, Col: 82}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 		if templ_7745c5c3_Err != nil {
@@ -735,7 +739,7 @@ func executionKRRow(kr ExecutionKR, trackName string, instanceID string, hasAIM 
 		var templ_7745c5c3_Var30 string
 		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(kr.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 252, Col: 77}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 253, Col: 77}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 		if templ_7745c5c3_Err != nil {
@@ -748,7 +752,7 @@ func executionKRRow(kr ExecutionKR, trackName string, instanceID string, hasAIM 
 		var templ_7745c5c3_Var31 string
 		templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(kr.Description)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 257, Col: 71}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 258, Col: 71}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 		if templ_7745c5c3_Err != nil {
@@ -781,7 +785,7 @@ func executionKRRow(kr ExecutionKR, trackName string, instanceID string, hasAIM 
 				var templ_7745c5c3_Var32 string
 				templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(kr.Baseline)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 267, Col: 44}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 268, Col: 44}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 				if templ_7745c5c3_Err != nil {
@@ -824,7 +828,7 @@ func executionKRRow(kr ExecutionKR, trackName string, instanceID string, hasAIM 
 				var templ_7745c5c3_Var35 string
 				templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(kr.Target)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 273, Col: 96}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 274, Col: 96}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 				if templ_7745c5c3_Err != nil {
@@ -843,7 +847,7 @@ func executionKRRow(kr ExecutionKR, trackName string, instanceID string, hasAIM 
 				var templ_7745c5c3_Var36 string
 				templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(kr.AssessmentActual)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 279, Col: 77}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 280, Col: 77}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 				if templ_7745c5c3_Err != nil {
@@ -872,7 +876,7 @@ func executionKRRow(kr ExecutionKR, trackName string, instanceID string, hasAIM 
 				var templ_7745c5c3_Var37 string
 				templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(kr.TRLStart)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 289, Col: 65}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 290, Col: 65}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 				if templ_7745c5c3_Err != nil {
@@ -915,7 +919,7 @@ func executionKRRow(kr ExecutionKR, trackName string, instanceID string, hasAIM 
 				var templ_7745c5c3_Var40 string
 				templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(kr.TRLTarget)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 295, Col: 86}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 296, Col: 86}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 				if templ_7745c5c3_Err != nil {
@@ -944,7 +948,7 @@ func executionKRRow(kr ExecutionKR, trackName string, instanceID string, hasAIM 
 				var templ_7745c5c3_Var41 templ.SafeURL
 				templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(f.Href))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 305, Col: 32}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 306, Col: 32}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 				if templ_7745c5c3_Err != nil {
@@ -957,7 +961,7 @@ func executionKRRow(kr ExecutionKR, trackName string, instanceID string, hasAIM 
 				var templ_7745c5c3_Var42 string
 				templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.Href)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 306, Col: 23}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 307, Col: 23}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var42)
 				if templ_7745c5c3_Err != nil {
@@ -978,7 +982,7 @@ func executionKRRow(kr ExecutionKR, trackName string, instanceID string, hasAIM 
 				var templ_7745c5c3_Var43 string
 				templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(f.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 313, Col: 51}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 314, Col: 51}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 				if templ_7745c5c3_Err != nil {
@@ -1029,7 +1033,7 @@ func executionKRRow(kr ExecutionKR, trackName string, instanceID string, hasAIM 
 				var templ_7745c5c3_Var46 string
 				templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(a.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 325, Col: 14}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 326, Col: 14}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
 				if templ_7745c5c3_Err != nil {
@@ -1042,7 +1046,7 @@ func executionKRRow(kr ExecutionKR, trackName string, instanceID string, hasAIM 
 				var templ_7745c5c3_Var47 string
 				templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(a.Confidence)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 326, Col: 57}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 327, Col: 57}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
 				if templ_7745c5c3_Err != nil {
@@ -1200,7 +1204,7 @@ func executionInsightsStrip(insights []string) templ.Component {
 			var templ_7745c5c3_Var51 string
 			templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(insight)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 389, Col: 14}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/execution_dashboard.templ`, Line: 390, Col: 14}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 			if templ_7745c5c3_Err != nil {
