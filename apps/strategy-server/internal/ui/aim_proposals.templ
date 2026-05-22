@@ -130,8 +130,11 @@ templ AimProposalCard(p AimProposalRow, instanceID string) {
 				</span>
 			</div>
 
-			// Trigger message
-			<p class="text-sm text-base-content leading-relaxed mb-4">{ p.TriggerMessage }</p>
+		// Trigger message
+		<div class="mb-4">
+			<p class="text-xs text-base-content/50 uppercase tracking-widest font-semibold mb-1">Why now</p>
+			<p class="text-sm text-base-content leading-relaxed">{ p.TriggerMessage }</p>
+		</div>
 
 			// Snooze info
 			if p.SnoozedUntil != nil && p.Status == "deferred" {
