@@ -1,0 +1,681 @@
+package ui
+
+import (
+	"fmt"
+	"strconv"
+)
+
+// ---------------------------------------------------------------------------
+// AIM Pipeline View — unified lifecycle overview
+// ---------------------------------------------------------------------------
+
+// AimPipelineData is the view model for the unified AIM pipeline page.
+// It replaces AimPhaseData as the primary data source for the AIM landing page,
+// combining data from signals, proposals, orchestration, pending batches, and versions.
+type AimPipelineData struct {
+	InstanceID string
+
+	// ── Stage 1: Observe ──
+	ActiveSignals   int
+	CriticalSignals int
+	WarningSignals  int
+	RecentSignals   []AimSignalRow // up to 5
+	HasLRA          bool
+
+	// ── Stage 2: Propose ──
+	PendingProposals      int
+	LatestProposalStatus  string // pending | approved | deferred | "" (none)
+	LatestProposalReason  string // time | signals | evidence
+	LatestProposalMessage string
+
+	// ── Stage 3: Execute ──
+	ActiveRunID     string // non-empty when cycle is running
+	ActiveRunStatus string // running | awaiting_human | pending
+	ActiveRunStep   string // current step name
+
+	// ── Stage 4: Review ──
+	PendingBatches []PipelineReviewItem
+
+	// ── Stage 5: Result ──
+	VersionCount        int
+	LatestVersionLabel  string
+	LatestVersionAt     string
+	EquilibriumScore    string // e.g. "87%" or ""
+	LatestCalibDecision string // persevere | pivot | pull_the_plug
+
+	// ── Cascade timeline ──
+	TimelineEvents []PipelineTimelineEvent
+
+	// ── Assumptions summary ──
+	TotalAssumptions  int
+	TestedAssumptions int
+
+	// ── AIM artifacts presence (for cycle stepper compatibility) ──
+	HasAssessmentReport bool
+	HasCalibration      bool
+	HasTriggerConfig    bool
+	LRALifecycleStage   string
+
+	// ── Trigger config (for automation hint) ──
+	TriggerFired           bool
+	TriggerReason          string
+	TriggerReasonMessage   string
+	TriggerDays            int
+	TriggerSignalThreshold int
+	DaysSinceAssessment    int
+}
+
+// PipelineReviewItem is a pending batch in the review inbox.
+type PipelineReviewItem struct {
+	BatchID        string
+	Description    string
+	AgentID        string
+	MutationCount  int
+	ReviewURL      string
+	DownstreamHint string
+	ArtifactTypes  []string // affected artifact types
+}
+
+// PipelineTimelineEvent is a single event in the cascade timeline.
+type PipelineTimelineEvent struct {
+	Icon        string // iconify class
+	IconColor   string // tailwind color class
+	Title       string
+	Detail      string
+	Timestamp   string
+	LinkHref    string // optional drill-down URL
+	LinkLabel   string
+	IsActive    bool // currently in progress
+}
+
+// PipelineActiveStage returns which pipeline stage is currently "active":
+// observe | propose | execute | review | result | idle
+func (d AimPipelineData) PipelineActiveStage() string {
+	if len(d.PendingBatches) > 0 {
+		return "review"
+	}
+	if d.ActiveRunID != "" {
+		return "execute"
+	}
+	if d.PendingProposals > 0 {
+		return "propose"
+	}
+	if d.TriggerFired {
+		return "observe"
+	}
+	if d.VersionCount > 0 {
+		return "result"
+	}
+	return "idle"
+}
+
+// ---------------------------------------------------------------------------
+// AIM Pipeline Content — the main template
+// ---------------------------------------------------------------------------
+
+templ AimPipelineContent(data AimPipelineData) {
+	@TabRelatedPages("aim", data.InstanceID, "/strategies/" + data.InstanceID + "/aim")
+	<div class="space-y-6">
+		// ── Pipeline stages ──
+		@aimPipelineStages(data)
+
+		// ── Active state card — shown when something needs attention ──
+		if data.ActiveRunID != "" {
+			@aimPipelineActiveRun(data)
+		}
+		if data.TriggerFired && data.ActiveRunID == "" {
+			@aimPipelineTriggerBanner(data)
+		}
+
+		// ── Main content: 2-column layout ──
+		<div class="grid gap-4 lg:grid-cols-3">
+			// Left column (2/3): review inbox + timeline
+			<div class="lg:col-span-2 space-y-4">
+				// Review inbox
+				if len(data.PendingBatches) > 0 {
+					@aimPipelineReviewInbox(data)
+				}
+				// Cascade timeline
+				if len(data.TimelineEvents) > 0 {
+					@aimPipelineTimeline(data)
+				}
+				// Signal feed (compact)
+				@aimPipelineSignalSummary(data)
+			</div>
+			// Right column (1/3): quick stats + assumptions
+			<div class="space-y-4">
+				@aimPipelineQuickStats(data)
+				if data.TotalAssumptions > 0 {
+					@assumptionCoverageCard(aimPipelineToPhaseData(data))
+				}
+			</div>
+		</div>
+	</div>
+}
+
+// aimPipelineToPhaseData converts pipeline data to AimPhaseData for reusing
+// the assumptionCoverageCard component.
+func aimPipelineToPhaseData(data AimPipelineData) AimPhaseData {
+	return AimPhaseData{
+		InstanceID:        data.InstanceID,
+		TotalAssumptions:  data.TotalAssumptions,
+		TestedAssumptions: data.TestedAssumptions,
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline stages — horizontal bar showing the 5 lifecycle stages
+// ---------------------------------------------------------------------------
+
+templ aimPipelineStages(data AimPipelineData) {
+	{{ active := data.PipelineActiveStage() }}
+	<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm px-6 py-5">
+		<div class="flex items-center justify-between mb-4">
+			<div>
+				<p class="text-xs font-semibold uppercase tracking-widest text-base-content/50">Strategy Loop</p>
+				<p class="text-xs text-base-content/40 mt-1 flex items-center gap-1.5">
+					<span class="iconify lucide--timer size-3"></span>
+					{ aimPipelineAutomationHint(data) }
+				</p>
+			</div>
+			<div class="flex items-center gap-2">
+				if data.LatestCalibDecision != "" {
+					<span class={ "badge badge-sm shrink-0", calibrationDecisionBadgeClass(data.LatestCalibDecision) }>
+						{ calibrationDecisionLabel(data.LatestCalibDecision) }
+					</span>
+				}
+				if data.HasLRA && data.ActiveRunID == "" {
+					<form method="POST" action={ templ.URL("/strategies/" + data.InstanceID + "/aim/runs") }>
+						<button type="submit" class="btn btn-xs btn-primary gap-1.5">
+							<span class="iconify lucide--play size-3"></span>
+							Run cycle
+						</button>
+					</form>
+				}
+			</div>
+		</div>
+
+		// 5-stage pipeline
+		<div class="grid grid-cols-5 gap-2">
+			@pipelineStage(pipelineStageData{
+				Icon: "lucide--eye", Label: "Observe",
+				Status: pipelineStageStatus(active, "observe", data.ActiveSignals > 0 || data.HasLRA),
+				Badge: pipelineStageBadge(data.ActiveSignals, data.CriticalSignals),
+				Href: "/strategies/" + data.InstanceID + "/aim/coherence",
+			})
+			@pipelineStage(pipelineStageData{
+				Icon: "lucide--inbox", Label: "Propose",
+				Status: pipelineStageStatus(active, "propose", data.LatestProposalStatus == "approved"),
+				Badge: pipelineProposalBadge(data.PendingProposals),
+				Href: "/strategies/" + data.InstanceID + "/aim/proposals",
+			})
+			@pipelineStage(pipelineStageData{
+				Icon: "lucide--play-circle", Label: "Execute",
+				Status: pipelineStageStatus(active, "execute", data.ActiveRunID != ""),
+				Badge: pipelineRunBadge(data.ActiveRunStatus, data.ActiveRunStep),
+				Href: pipelineRunHref(data),
+			})
+			@pipelineStage(pipelineStageData{
+				Icon: "lucide--sparkles", Label: "Review",
+				Status: pipelineStageStatus(active, "review", false),
+				Badge: pipelineReviewBadge(len(data.PendingBatches)),
+				Href: "/strategies/" + data.InstanceID + "/aim",
+			})
+			@pipelineStage(pipelineStageData{
+				Icon: "lucide--history", Label: "Result",
+				Status: pipelineStageStatus(active, "result", data.VersionCount > 0),
+				Badge: pipelineResultBadge(data.VersionCount, data.EquilibriumScore),
+				Href: "/strategies/" + data.InstanceID + "/aim/versions",
+			})
+		</div>
+	</div>
+}
+
+type pipelineStageData struct {
+	Icon   string
+	Label  string
+	Status string // active | done | waiting
+	Badge  string // short status text
+	Href   string
+}
+
+templ pipelineStage(s pipelineStageData) {
+	<a
+		href={ templ.URL(s.Href) }
+		hx-get={ s.Href }
+		hx-target="#tab-content"
+		hx-swap="innerHTML"
+		hx-push-url="true"
+		class={ "flex flex-col items-center gap-2 rounded-xl border px-3 py-3 transition-colors hover:bg-base-200 group cursor-pointer text-center",
+			pipelineStageBorderClass(s.Status) }
+	>
+		<div class={ "flex items-center justify-center size-8 rounded-full", pipelineStageCircleClass(s.Status) }>
+			if s.Status == "done" {
+				<span class="iconify lucide--check size-4"></span>
+			} else {
+				<span class={ "iconify size-4 " + s.Icon }></span>
+			}
+		</div>
+		<p class={ "text-xs font-semibold", pipelineStageLabelClass(s.Status) }>{ s.Label }</p>
+		if s.Badge != "" {
+			<p class="text-[10px] text-base-content/50 leading-tight">{ s.Badge }</p>
+		}
+	</a>
+}
+
+// pipelineStageStatus determines the visual state of a pipeline stage.
+func pipelineStageStatus(activeStage, thisStage string, hasCompleted bool) string {
+	if activeStage == thisStage {
+		return "active"
+	}
+	if hasCompleted {
+		return "done"
+	}
+	return "waiting"
+}
+
+func pipelineStageBorderClass(status string) string {
+	switch status {
+	case "active":
+		return "border-primary/30 bg-primary/5"
+	case "done":
+		return "border-success/20 bg-success/5"
+	default:
+		return "border-base-content/10 bg-base-100 opacity-60"
+	}
+}
+
+func pipelineStageCircleClass(status string) string {
+	switch status {
+	case "active":
+		return "bg-primary text-primary-content"
+	case "done":
+		return "bg-success text-success-content"
+	default:
+		return "bg-base-content/10 text-base-content/40"
+	}
+}
+
+func pipelineStageLabelClass(status string) string {
+	switch status {
+	case "active":
+		return "text-primary"
+	case "done":
+		return "text-success"
+	default:
+		return "text-base-content/40"
+	}
+}
+
+func pipelineStageBadge(active, critical int) string {
+	if critical > 0 {
+		return fmt.Sprintf("%d critical", critical)
+	}
+	if active > 0 {
+		return fmt.Sprintf("%d active", active)
+	}
+	return "No signals"
+}
+
+func pipelineProposalBadge(pending int) string {
+	if pending > 0 {
+		return fmt.Sprintf("%d pending", pending)
+	}
+	return "No proposals"
+}
+
+func pipelineRunBadge(status, step string) string {
+	if status == "" {
+		return "Idle"
+	}
+	label := runStepLabel(step)
+	if status == "awaiting_human" {
+		return label + " (waiting)"
+	}
+	return label
+}
+
+func pipelineRunHref(data AimPipelineData) string {
+	if data.ActiveRunID != "" {
+		return "/strategies/" + data.InstanceID + "/aim/runs/" + data.ActiveRunID
+	}
+	return "/strategies/" + data.InstanceID + "/aim"
+}
+
+func pipelineReviewBadge(count int) string {
+	if count > 0 {
+		return fmt.Sprintf("%d to review", count)
+	}
+	return "No drafts"
+}
+
+func pipelineResultBadge(versionCount int, eqScore string) string {
+	if versionCount == 0 {
+		return "No versions"
+	}
+	s := strconv.Itoa(versionCount) + " version(s)"
+	if eqScore != "" {
+		s += " · " + eqScore
+	}
+	return s
+}
+
+func aimPipelineAutomationHint(data AimPipelineData) string {
+	return aimAutomationHint(AimPhaseData{
+		TriggerDays:            data.TriggerDays,
+		TriggerSignalThreshold: data.TriggerSignalThreshold,
+		DaysSinceAssessment:    data.DaysSinceAssessment,
+	})
+}
+
+// ---------------------------------------------------------------------------
+// Active run card
+// ---------------------------------------------------------------------------
+
+templ aimPipelineActiveRun(data AimPipelineData) {
+	<div class="rounded-xl border border-primary/30 bg-primary/5 px-5 py-4 flex items-center gap-4">
+		<span class={ "iconify size-5 shrink-0 text-primary", aimActiveRunIcon(data.ActiveRunStatus) }></span>
+		<div class="grow min-w-0">
+			<p class="text-xs font-semibold uppercase tracking-widest text-primary/70">AIM Cycle In Progress</p>
+			<p class="text-sm text-base-content mt-0.5">
+				if data.ActiveRunStep != "" {
+					{ runStepLabel(data.ActiveRunStep) } · { runStatusLabel(data.ActiveRunStatus) }
+				} else {
+					{ runStatusLabel(data.ActiveRunStatus) }
+				}
+			</p>
+		</div>
+		<a
+			href={ templ.URL("/strategies/" + data.InstanceID + "/aim/runs/" + data.ActiveRunID) }
+			hx-get={ "/strategies/" + data.InstanceID + "/aim/runs/" + data.ActiveRunID }
+			hx-target="#tab-content"
+			hx-swap="innerHTML"
+			hx-push-url="true"
+			class="btn btn-sm btn-primary gap-2 shrink-0"
+		>
+			<span class="iconify lucide--eye size-3.5"></span>
+			View run
+		</a>
+	</div>
+}
+
+// ---------------------------------------------------------------------------
+// Trigger banner — when a cycle is due but not yet started
+// ---------------------------------------------------------------------------
+
+templ aimPipelineTriggerBanner(data AimPipelineData) {
+	<div class="rounded-xl border border-primary/30 bg-primary/5 px-5 py-4 flex items-center gap-4">
+		<span class="iconify lucide--bell-ring size-6 text-primary shrink-0"></span>
+		<div class="grow min-w-0">
+			<p class="text-xs font-semibold uppercase tracking-widest text-primary/70">New AIM Cycle Due</p>
+			<p class="text-sm text-base-content mt-0.5">{ data.TriggerReasonMessage }</p>
+		</div>
+		<div class="flex items-center gap-2 shrink-0">
+			if data.PendingProposals > 0 {
+				<a
+					href={ templ.URL("/strategies/" + data.InstanceID + "/aim/proposals") }
+					hx-get={ "/strategies/" + data.InstanceID + "/aim/proposals" }
+					hx-target="#tab-content"
+					hx-swap="innerHTML"
+					hx-push-url="true"
+					class="btn btn-sm btn-primary gap-2"
+				>
+					<span class="iconify lucide--inbox size-3.5"></span>
+					Review proposal
+				</a>
+			} else {
+				<form method="POST" action={ templ.URL("/strategies/" + data.InstanceID + "/aim/runs") }>
+					<button type="submit" class="btn btn-sm btn-primary gap-2">
+						<span class="iconify lucide--play size-3.5"></span>
+						Run cycle
+					</button>
+				</form>
+			}
+		</div>
+	</div>
+}
+
+// ---------------------------------------------------------------------------
+// Review Inbox — consolidated pending batches
+// ---------------------------------------------------------------------------
+
+templ aimPipelineReviewInbox(data AimPipelineData) {
+	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card-body p-5">
+			<div class="flex items-center gap-2 mb-4">
+				<span class="iconify lucide--inbox size-4 text-info"></span>
+				<h3 class="text-base font-semibold text-base-content">Pending Reviews</h3>
+				<span class="badge badge-sm badge-info">{ strconv.Itoa(len(data.PendingBatches)) }</span>
+			</div>
+			<div class="space-y-3">
+				for _, batch := range data.PendingBatches {
+					@pipelineReviewItem(batch, data.InstanceID)
+				}
+			</div>
+		</div>
+	</div>
+}
+
+templ pipelineReviewItem(item PipelineReviewItem, instanceID string) {
+	<div class="rounded-xl border border-info/20 bg-info/5 px-4 py-3">
+		<div class="flex items-start gap-3">
+			<span class="iconify lucide--sparkles size-4 text-info shrink-0 mt-0.5"></span>
+			<div class="min-w-0 grow space-y-1">
+				<div class="flex items-center gap-2 flex-wrap">
+					<p class="text-xs font-semibold text-base-content">AI draft pending review</p>
+					if item.AgentID != "" {
+						<span class="badge badge-xs badge-ghost">{ item.AgentID }</span>
+					}
+				</div>
+				if item.Description != "" {
+					<p class="text-xs text-base-content/60 line-clamp-2">{ item.Description }</p>
+				}
+				<div class="flex items-center gap-3 text-xs text-base-content/40">
+					<span>{ strconv.Itoa(item.MutationCount) } changes</span>
+					if len(item.ArtifactTypes) > 0 {
+						<span class="flex items-center gap-1">
+							<span class="iconify lucide--layers size-3"></span>
+							for i, at := range item.ArtifactTypes {
+								if i > 0 {
+									, 
+								}
+								{ at }
+							}
+						</span>
+					}
+				</div>
+				if item.DownstreamHint != "" {
+					<div class="flex items-start gap-1 text-xs text-info/70 mt-1">
+						<span class="iconify lucide--git-branch size-3 shrink-0 mt-0.5"></span>
+						<span>{ item.DownstreamHint }</span>
+					</div>
+				}
+			</div>
+			<div class="flex items-center gap-2 shrink-0">
+				<form method="POST" action={ templ.URL("/strategies/" + instanceID + "/aim/draft-review/" + item.BatchID + "/discard") }>
+					<button type="submit" class="btn btn-xs btn-ghost text-error">Discard</button>
+				</form>
+				<a href={ templ.URL(item.ReviewURL) } class="btn btn-xs btn-info">Review</a>
+			</div>
+		</div>
+	</div>
+}
+
+// ---------------------------------------------------------------------------
+// Cascade Timeline
+// ---------------------------------------------------------------------------
+
+templ aimPipelineTimeline(data AimPipelineData) {
+	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card-body p-5">
+			<details class="group" open?={ len(data.TimelineEvents) <= 8 }>
+				<summary class="flex items-center gap-2 cursor-pointer select-none mb-4">
+					<span class="iconify lucide--git-commit-horizontal size-4 text-base-content/60"></span>
+					<h3 class="text-base font-semibold text-base-content">Cascade Timeline</h3>
+					<span class="text-xs text-base-content/40">({ strconv.Itoa(len(data.TimelineEvents)) } events)</span>
+					<span class="iconify lucide--chevron-right size-3.5 group-open:rotate-90 transition-transform ml-auto text-base-content/40"></span>
+				</summary>
+				<div class="relative pl-6">
+					// Vertical line
+					<div class="absolute left-[11px] top-0 bottom-0 w-px bg-base-content/10"></div>
+					<div class="space-y-3">
+						for _, ev := range data.TimelineEvents {
+							@pipelineTimelineEvent(ev)
+						}
+					</div>
+				</div>
+			</details>
+		</div>
+	</div>
+}
+
+templ pipelineTimelineEvent(ev PipelineTimelineEvent) {
+	<div class="relative flex items-start gap-3">
+		// Dot on the timeline
+		<div class={ "absolute -left-6 mt-1 flex items-center justify-center size-5 rounded-full border-2 bg-base-100",
+			templ.KV("border-primary", ev.IsActive),
+			templ.KV("border-base-content/20", !ev.IsActive) }>
+			<span class={ "iconify size-3", ev.Icon, ev.IconColor }></span>
+		</div>
+		// Content
+		<div class="min-w-0 grow pb-1">
+			<div class="flex items-center gap-2 flex-wrap">
+				<p class={ "text-xs font-semibold",
+					templ.KV("text-base-content", ev.IsActive),
+					templ.KV("text-base-content/70", !ev.IsActive) }>
+					{ ev.Title }
+				</p>
+				if ev.Timestamp != "" {
+					<span class="text-[10px] text-base-content/30">{ ev.Timestamp }</span>
+				}
+			</div>
+			if ev.Detail != "" {
+				<p class="text-xs text-base-content/50 mt-0.5">{ ev.Detail }</p>
+			}
+			if ev.LinkHref != "" {
+				<a
+					href={ templ.URL(ev.LinkHref) }
+					hx-get={ ev.LinkHref }
+					hx-target="#tab-content"
+					hx-swap="innerHTML"
+					hx-push-url="true"
+					class="text-[10px] text-primary hover:underline mt-0.5 inline-flex items-center gap-1"
+				>
+					{ ev.LinkLabel }
+					<span class="iconify lucide--arrow-right size-2.5"></span>
+				</a>
+			}
+		</div>
+	</div>
+}
+
+// ---------------------------------------------------------------------------
+// Signal summary — compact signal grid with link to coherence
+// ---------------------------------------------------------------------------
+
+templ aimPipelineSignalSummary(data AimPipelineData) {
+	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card-body p-5">
+			<div class="flex items-center justify-between mb-3">
+				<div class="flex items-center gap-2">
+					<span class="iconify lucide--radio size-4 text-base-content/60"></span>
+					<h3 class="text-sm font-semibold text-base-content">Signal Feed</h3>
+					if data.ActiveSignals > 0 {
+						<span class="badge badge-sm badge-error">{ strconv.Itoa(data.ActiveSignals) } active</span>
+					}
+				</div>
+				<a
+					href={ templ.URL("/strategies/" + data.InstanceID + "/aim/coherence") }
+					hx-get={ "/strategies/" + data.InstanceID + "/aim/coherence" }
+					hx-target="#tab-content"
+					hx-swap="innerHTML"
+					hx-push-url="true"
+					class="btn btn-xs btn-ghost"
+				>
+					View all
+					<span class="iconify lucide--arrow-right size-3.5"></span>
+				</a>
+			</div>
+
+			// Severity grid
+			<div class="grid grid-cols-3 gap-2 mb-3">
+				<div class="text-center rounded-lg bg-error/5 border border-error/10 px-3 py-2">
+					<p class="text-lg font-bold text-error">{ strconv.Itoa(data.CriticalSignals) }</p>
+					<p class="text-xs text-base-content/60">Critical</p>
+				</div>
+				<div class="text-center rounded-lg bg-warning/5 border border-warning/10 px-3 py-2">
+					<p class="text-lg font-bold text-warning">{ strconv.Itoa(data.WarningSignals) }</p>
+					<p class="text-xs text-base-content/60">Warning</p>
+				</div>
+				<div class="text-center rounded-lg bg-info/5 border border-info/10 px-3 py-2">
+					<p class="text-lg font-bold text-info">{ strconv.Itoa(data.ActiveSignals - data.CriticalSignals - data.WarningSignals) }</p>
+					<p class="text-xs text-base-content/60">Info</p>
+				</div>
+			</div>
+
+			// Recent signals
+			if len(data.RecentSignals) == 0 {
+				<div class="text-center py-6">
+					<span class="iconify lucide--shield-check size-8 text-success/40 mx-auto mb-2 block"></span>
+					<p class="text-xs font-medium text-base-content/70">No active signals</p>
+				</div>
+			} else {
+				<div class="space-y-2">
+					for _, sig := range data.RecentSignals {
+						@aimSignalRow(sig)
+					}
+				</div>
+			}
+		</div>
+	</div>
+}
+
+// ---------------------------------------------------------------------------
+// Quick stats sidebar
+// ---------------------------------------------------------------------------
+
+templ aimPipelineQuickStats(data AimPipelineData) {
+	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card-body p-5">
+			<h3 class="text-sm font-semibold text-base-content/70 uppercase tracking-widest mb-3">AIM Status</h3>
+			<div class="space-y-2">
+				@pipelineStatRow("lucide--activity", "Signals", strconv.Itoa(data.ActiveSignals)+" active", data.CriticalSignals > 0, "/strategies/" + data.InstanceID + "/aim/coherence")
+				@pipelineStatRow("lucide--inbox", "Proposals", pipelineProposalBadge(data.PendingProposals), data.PendingProposals > 0, "/strategies/" + data.InstanceID + "/aim/proposals")
+				@pipelineStatRow("lucide--sparkles", "Pending Reviews", strconv.Itoa(len(data.PendingBatches))+" drafts", len(data.PendingBatches) > 0, "")
+				@pipelineStatRow("lucide--history", "Versions", strconv.Itoa(data.VersionCount)+" published", false, "/strategies/" + data.InstanceID + "/aim/versions")
+				@pipelineStatRow("lucide--flask-conical", "Assumptions", strconv.Itoa(data.TestedAssumptions)+"/"+strconv.Itoa(data.TotalAssumptions)+" tested", false, "/strategies/" + data.InstanceID + "/aim/assumptions")
+			</div>
+		</div>
+	</div>
+}
+
+templ pipelineStatRow(icon, label, value string, highlight bool, href string) {
+	if href != "" {
+		<a
+			href={ templ.URL(href) }
+			hx-get={ href }
+			hx-target="#tab-content"
+			hx-swap="innerHTML"
+			hx-push-url="true"
+			class="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-base-200 transition-colors cursor-pointer group"
+		>
+			<span class={ "iconify size-4 group-hover:text-primary", icon,
+				templ.KV("text-primary", highlight),
+				templ.KV("text-base-content/40", !highlight) }></span>
+			<span class="text-sm text-base-content grow">{ label }</span>
+			<span class={ "text-xs",
+				templ.KV("text-primary font-semibold", highlight),
+				templ.KV("text-base-content/50", !highlight) }>{ value }</span>
+		</a>
+	} else {
+		<div class="flex items-center gap-3 rounded-lg px-3 py-2">
+			<span class={ "iconify size-4", icon,
+				templ.KV("text-primary", highlight),
+				templ.KV("text-base-content/40", !highlight) }></span>
+			<span class="text-sm text-base-content grow">{ label }</span>
+			<span class={ "text-xs",
+				templ.KV("text-primary font-semibold", highlight),
+				templ.KV("text-base-content/50", !highlight) }>{ value }</span>
+		</div>
+	}
+}

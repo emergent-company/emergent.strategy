@@ -29,10 +29,10 @@ func (s *Server) handleFireOverview(c echo.Context) error {
 
 func (s *Server) handleAimOverview(c echo.Context) error {
 	return s.renderPhaseContent(c, func(instanceID string, c echo.Context) ui.PhaseRenderData {
-		data := s.loadAimPhaseData(c.Request().Context(), instanceID)
+		data := s.loadAimPipelineData(c.Request().Context(), instanceID)
 		return ui.PhaseRenderData{
 			Title:   "AIM",
-			Content: ui.AimPhaseContent(data),
+			Content: ui.AimPipelineContent(data),
 		}
 	})
 }

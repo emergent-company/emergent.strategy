@@ -30,6 +30,12 @@ type ExecutionData struct {
 	// AIM data presence
 	HasAssessmentData bool
 	StrategicInsights []string // from latest assessment report
+
+	// Strategy loop widget
+	LoopCycleRunning bool
+	LoopCycleStep    string // current step name (empty if not running)
+	LoopPendingCount int    // pending review batches
+	LoopLastVersion  string // "2 Jan 15:04" or ""
 }
 
 // ExecutionTrack represents one track's OKR execution data.
@@ -98,6 +104,11 @@ templ ExecutionDashboardContent(data ExecutionData) {
 	<div class="space-y-6">
 		// ── Header ──────────────────────────────────────────────────────────
 		@executionHeader(data)
+
+		// ── Strategy loop widget ────────────────────────────────────────────
+		if data.LoopCycleRunning || data.LoopPendingCount > 0 || data.LoopLastVersion != "" {
+			@strategyLoopWidget(data)
+		}
 
 		// ── Track cards ─────────────────────────────────────────────────────
 		for _, track := range data.Tracks {
@@ -392,4 +403,45 @@ templ executionInsightsStrip(insights []string) {
 			}
 		</ul>
 	</div>
+}
+
+// strategyLoopWidget renders a compact status card showing the current strategy loop state.
+templ strategyLoopWidget(data ExecutionData) {
+	<a
+		href={ templ.URL("/strategies/" + data.InstanceID + "/aim") }
+		hx-get={ "/strategies/" + data.InstanceID + "/aim" }
+		hx-target="#tab-content"
+		hx-swap="innerHTML"
+		hx-push-url="true"
+		class="rounded-xl border border-base-content/10 bg-base-100 px-5 py-3 flex items-center gap-4 shadow-sm hover:bg-base-200 transition-colors group cursor-pointer"
+	>
+		<span class="iconify lucide--target size-5 text-base-content/50 group-hover:text-primary shrink-0"></span>
+		<div class="flex items-center gap-4 grow min-w-0 text-xs text-base-content/60">
+			if data.LoopCycleRunning {
+				<span class="flex items-center gap-1.5">
+					<span class="iconify lucide--loader-2 size-3 text-primary animate-spin"></span>
+					<span class="font-semibold text-primary">
+						if data.LoopCycleStep != "" {
+							{ data.LoopCycleStep }
+						} else {
+							Cycle running
+						}
+					</span>
+				</span>
+			}
+			if data.LoopPendingCount > 0 {
+				<span class="flex items-center gap-1.5">
+					<span class="iconify lucide--inbox size-3 text-info"></span>
+					<span class="font-semibold text-info">{ strconv.Itoa(data.LoopPendingCount) } pending review(s)</span>
+				</span>
+			}
+			if data.LoopLastVersion != "" {
+				<span class="flex items-center gap-1.5">
+					<span class="iconify lucide--history size-3"></span>
+					Last version: { data.LoopLastVersion }
+				</span>
+			}
+		</div>
+		<span class="iconify lucide--arrow-right size-4 text-base-content/30 group-hover:text-primary shrink-0"></span>
+	</a>
 }

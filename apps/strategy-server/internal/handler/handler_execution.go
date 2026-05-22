@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/emergent-company/go-daisy/render"
 	"github.com/labstack/echo/v4"
@@ -143,6 +144,9 @@ func (s *Server) loadExecutionData(ctx context.Context, instanceID, instanceName
 	for trackKey, artifactType := range defArtifactType {
 		trackDefs[trackKey] = s.loadExecutionDefinitions(ctx, instanceID, trackKey, artifactType)
 	}
+
+	// Strategy loop widget data
+	s.loadStrategyLoopWidget(ctx, instanceID, &data)
 
 	for _, tm := range trackMeta {
 		trackData, ok := tracks[tm.key].(map[string]any)
@@ -467,6 +471,39 @@ type krOutcome struct {
 
 // loadAssessmentKROutcomes parses the latest assessment_report and returns
 // a map of KR ID → outcome, plus top-level strategic insights.
+// loadStrategyLoopWidget populates the strategy loop widget fields on ExecutionData.
+func (s *Server) loadStrategyLoopWidget(ctx context.Context, instanceID string, data *ui.ExecutionData) {
+	// Active AIM cycle
+	if s.orchestrationEngine != nil {
+		activeRun, err := s.orchestrationEngine.ActiveRun(ctx, "aim_cycle", instanceID)
+		if err == nil && activeRun != nil {
+			data.LoopCycleRunning = true
+			data.LoopCycleStep = pipelineStepLabel(activeRun.CurrentStep)
+		}
+	}
+
+	// Pending review batches (distinct batch count)
+	_ = s.db.NewSelect().
+		TableExpr("strategy_mutations").
+		ColumnExpr("COUNT(DISTINCT batch_id) AS cnt").
+		Where("instance_id = ?", instanceID).
+		Where("status = ?", "staged").
+		Scan(ctx, &data.LoopPendingCount)
+
+	// Last version published
+	var publishedAt time.Time
+	_ = s.db.NewSelect().
+		TableExpr("strategy_versions").
+		ColumnExpr("published_at").
+		Where("instance_id = ?", instanceID).
+		OrderExpr("published_at DESC").
+		Limit(1).
+		Scan(ctx, &publishedAt)
+	if !publishedAt.IsZero() {
+		data.LoopLastVersion = publishedAt.Format("2 Jan 15:04")
+	}
+}
+
 func (s *Server) loadAssessmentKROutcomes(ctx context.Context, instanceID string) (map[string]krOutcome, []string) {
 	outcomes := make(map[string]krOutcome)
 	var insights []string

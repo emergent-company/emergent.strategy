@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/skillrun"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 )
@@ -1054,6 +1055,332 @@ func (s *Server) loadAimPhaseData(ctx context.Context, instanceID string) ui.Aim
 	return data
 }
 
+// loadAimPipelineData assembles the unified pipeline view data for the AIM landing page.
+// It reuses loadAimPhaseData for common fields and adds pipeline-specific data
+// (pending batches, cascade timeline, latest version info).
+func (s *Server) loadAimPipelineData(ctx context.Context, instanceID string) ui.AimPipelineData {
+	// Load base AIM data using existing query.
+	base := s.loadAimPhaseData(ctx, instanceID)
+
+	data := ui.AimPipelineData{
+		InstanceID:             instanceID,
+		ActiveSignals:          base.ActiveSignals,
+		CriticalSignals:        base.CriticalSignals,
+		WarningSignals:         base.WarningSignals,
+		RecentSignals:          base.RecentSignals,
+		HasLRA:                 base.HasLRA,
+		PendingProposals:       base.PendingProposals,
+		ActiveRunID:            base.ActiveRunID,
+		ActiveRunStatus:        base.ActiveRunStatus,
+		ActiveRunStep:          base.ActiveRunStep,
+		VersionCount:           base.VersionCount,
+		LatestCalibDecision:    base.LatestCalibrationDecision,
+		TotalAssumptions:       base.TotalAssumptions,
+		TestedAssumptions:      base.TestedAssumptions,
+		HasAssessmentReport:    base.HasAssessmentReport,
+		HasCalibration:         base.HasCalibration,
+		HasTriggerConfig:       base.HasTriggerConfig,
+		LRALifecycleStage:      base.LRALifecycleStage,
+		TriggerFired:           base.TriggerFired,
+		TriggerReason:          base.TriggerReason,
+		TriggerReasonMessage:   base.TriggerReasonMessage,
+		TriggerDays:            base.TriggerDays,
+		TriggerSignalThreshold: base.TriggerSignalThreshold,
+		DaysSinceAssessment:    base.DaysSinceAssessment,
+	}
+
+	// ── Latest proposal status ──
+	if data.PendingProposals > 0 {
+		data.LatestProposalStatus = "pending"
+		// Load the latest proposal's details.
+		type proposalRow struct {
+			Status  string `bun:"status"`
+			Reason  string `bun:"trigger_reason"`
+			Message string `bun:"trigger_message"`
+		}
+		var p proposalRow
+		_ = s.db.NewSelect().
+			TableExpr("cycle_proposals").
+			ColumnExpr("status, trigger_reason, trigger_message").
+			Where("instance_id = ?", instanceID).
+			OrderExpr("created_at DESC").
+			Limit(1).
+			Scan(ctx, &p)
+		if p.Status != "" {
+			data.LatestProposalStatus = p.Status
+			data.LatestProposalReason = p.Reason
+			data.LatestProposalMessage = p.Message
+		}
+	}
+
+	// ── Pending batches (review inbox) ──
+	data.PendingBatches = s.loadPipelineReviewItems(ctx, instanceID)
+
+	// ── Latest version info ──
+	type versionRow struct {
+		Label      *string    `bun:"label"`
+		Published  time.Time  `bun:"published_at"`
+		Score      *string    `bun:"equilibrium_score"`
+	}
+	var v versionRow
+	err := s.db.NewSelect().
+		TableExpr("strategy_versions").
+		ColumnExpr("label, published_at").
+		ColumnExpr("metadata->>'equilibrium_score' AS equilibrium_score").
+		Where("instance_id = ?", instanceID).
+		OrderExpr("published_at DESC").
+		Limit(1).
+		Scan(ctx, &v)
+	if err == nil {
+		if v.Label != nil {
+			data.LatestVersionLabel = *v.Label
+		}
+		if !v.Published.IsZero() {
+			data.LatestVersionAt = v.Published.Format("2 Jan 15:04")
+		}
+		if v.Score != nil && *v.Score != "" {
+			data.EquilibriumScore = *v.Score
+		}
+	}
+
+	// ── Cascade timeline ──
+	data.TimelineEvents = s.loadPipelineTimeline(ctx, instanceID)
+
+	return data
+}
+
+// loadPipelineReviewItems loads pending staged batches with affected artifact types.
+func (s *Server) loadPipelineReviewItems(ctx context.Context, instanceID string) []ui.PipelineReviewItem {
+	type batchRow struct {
+		BatchID          string  `bun:"batch_id"`
+		BatchDescription *string `bun:"batch_description"`
+		AgentID          *string `bun:"agent_id"`
+		MutationCount    int     `bun:"mutation_count"`
+		ArtifactTypes    string  `bun:"artifact_types"`
+		BatchMetadata    []byte  `bun:"batch_metadata"`
+	}
+	var rows []batchRow
+	_ = s.db.NewSelect().
+		TableExpr("strategy_mutations").
+		ColumnExpr("batch_id::text AS batch_id").
+		ColumnExpr("MAX(batch_description) AS batch_description").
+		ColumnExpr("MAX(agent_id) AS agent_id").
+		ColumnExpr("COUNT(*) AS mutation_count").
+		ColumnExpr("STRING_AGG(DISTINCT artifact_type, ',' ORDER BY artifact_type) AS artifact_types").
+		ColumnExpr("MAX(batch_metadata::text)::jsonb AS batch_metadata").
+		Where("instance_id = ?", instanceID).
+		Where("status = ?", "staged").
+		GroupExpr("batch_id").
+		OrderExpr("MIN(created_at) ASC").
+		Limit(10).
+		Scan(ctx, &rows)
+
+	var items []ui.PipelineReviewItem
+	for _, b := range rows {
+		if b.BatchID == "" {
+			continue
+		}
+		desc := ""
+		if b.BatchDescription != nil {
+			desc = *b.BatchDescription
+		}
+		agentID := ""
+		if b.AgentID != nil {
+			agentID = *b.AgentID
+		}
+		var artifactTypes []string
+		if b.ArtifactTypes != "" {
+			artifactTypes = strings.Split(b.ArtifactTypes, ",")
+		}
+		items = append(items, ui.PipelineReviewItem{
+			BatchID:        b.BatchID,
+			Description:    desc,
+			AgentID:        agentID,
+			MutationCount:  b.MutationCount,
+			ReviewURL:      "/strategies/" + instanceID + "/aim/draft-review/" + b.BatchID,
+			DownstreamHint: cascadeDownstreamHint(agentID, b.BatchMetadata),
+			ArtifactTypes:  artifactTypes,
+		})
+	}
+	return items
+}
+
+// loadPipelineTimeline builds a chronological event list for the cascade timeline.
+// It combines: active signals, proposals, orchestration runs, skill runs, and versions.
+func (s *Server) loadPipelineTimeline(ctx context.Context, instanceID string) []ui.PipelineTimelineEvent {
+	var events []ui.PipelineTimelineEvent
+
+	// Recent signals (up to 3)
+	type signalRow struct {
+		Severity  string    `bun:"severity"`
+		TargetKey string    `bun:"target_key"`
+		CreatedAt time.Time `bun:"created_at"`
+	}
+	var signals []signalRow
+	_ = s.db.NewSelect().
+		TableExpr("ripple_signals").
+		ColumnExpr("severity, target_key, created_at").
+		Where("instance_id = ?", instanceID).
+		Where("status = ?", "active").
+		OrderExpr("created_at DESC").
+		Limit(3).
+		Scan(ctx, &signals)
+
+	for _, sig := range signals {
+		iconColor := "text-warning"
+		if sig.Severity == "critical" {
+			iconColor = "text-error"
+		}
+		sevLabel := sig.Severity
+		if len(sevLabel) > 0 {
+			sevLabel = strings.ToUpper(sevLabel[:1]) + sevLabel[1:]
+		}
+		events = append(events, ui.PipelineTimelineEvent{
+			Icon:      "lucide--alert-triangle",
+			IconColor: iconColor,
+			Title:     sevLabel + " signal detected",
+			Detail:    sig.TargetKey,
+			Timestamp: sig.CreatedAt.Format("2 Jan 15:04"),
+			LinkHref:  "/strategies/" + instanceID + "/aim/coherence",
+			LinkLabel: "View signals",
+		})
+	}
+
+	// Latest proposal (if any)
+	type proposalRow struct {
+		ID        string    `bun:"id"`
+		Status    string    `bun:"status"`
+		Reason    string    `bun:"trigger_reason"`
+		CreatedAt time.Time `bun:"created_at"`
+	}
+	var proposal proposalRow
+	err := s.db.NewSelect().
+		TableExpr("cycle_proposals").
+		ColumnExpr("id, status, trigger_reason, created_at").
+		Where("instance_id = ?", instanceID).
+		OrderExpr("created_at DESC").
+		Limit(1).
+		Scan(ctx, &proposal)
+	if err == nil && proposal.ID != "" {
+		statusLabel := proposal.Status
+		icon := "lucide--inbox"
+		iconColor := "text-base-content/50"
+		isActive := false
+		if proposal.Status == "pending" {
+			statusLabel = "awaiting approval"
+			iconColor = "text-warning"
+			isActive = true
+		} else if proposal.Status == "approved" {
+			statusLabel = "approved"
+			iconColor = "text-success"
+		}
+		events = append(events, ui.PipelineTimelineEvent{
+			Icon:      icon,
+			IconColor: iconColor,
+			Title:     "Cycle proposal " + statusLabel,
+			Detail:    "Trigger: " + proposal.Reason,
+			Timestamp: proposal.CreatedAt.Format("2 Jan 15:04"),
+			LinkHref:  "/strategies/" + instanceID + "/aim/proposals",
+			LinkLabel: "View proposals",
+			IsActive:  isActive,
+		})
+	}
+
+	// Active orchestration run steps
+	if s.orchestrationEngine != nil {
+		activeRun, err := s.orchestrationEngine.ActiveRun(ctx, "aim_cycle", instanceID)
+		if err == nil && activeRun != nil {
+			events = append(events, ui.PipelineTimelineEvent{
+				Icon:      "lucide--play-circle",
+				IconColor: "text-primary",
+				Title:     "AIM cycle " + pipelineStatusLabel(string(activeRun.Status)),
+				Detail:    "Current step: " + pipelineStepLabel(activeRun.CurrentStep),
+				Timestamp: activeRun.CreatedAt.Format("2 Jan 15:04"),
+				LinkHref:  "/strategies/" + instanceID + "/aim/runs/" + activeRun.ID.String(),
+				LinkLabel: "View run",
+				IsActive:  true,
+			})
+		}
+	}
+
+	// Recent skill runs (up to 3, non-running)
+	if s.skillRunSvc != nil {
+		instUUID, parseErr := uuid.Parse(instanceID)
+		if parseErr == nil {
+			runs, listErr := s.skillRunSvc.ListByInstance(ctx, instUUID, skillrun.ListParams{Limit: 3})
+			if listErr == nil {
+				for _, r := range runs {
+					if r.Status == skillrun.StatusRunning {
+						events = append(events, ui.PipelineTimelineEvent{
+							Icon:      "lucide--loader-2",
+							IconColor: "text-primary",
+							Title:     pipelineSkillLabel(r.SkillName) + " running",
+							Detail:    fmt.Sprintf("Chunk %d/%d", r.ChunksCompleted, r.ChunkCount),
+							Timestamp: r.CreatedAt.Format("2 Jan 15:04"),
+							LinkHref:  "/strategies/" + instanceID + "/skill-runs/" + r.ID.String(),
+							LinkLabel: "View run",
+							IsActive:  true,
+						})
+					} else {
+						icon := "lucide--check-circle-2"
+						iconColor := "text-success"
+						title := pipelineSkillLabel(r.SkillName) + " completed"
+						if r.Status == skillrun.StatusFailed {
+							icon = "lucide--alert-circle"
+							iconColor = "text-error"
+							title = pipelineSkillLabel(r.SkillName) + " failed"
+						}
+						detail := fmt.Sprintf("%d tokens, %.0fs", r.TotalInputTokens+r.TotalOutputTokens, r.DurationSeconds())
+						events = append(events, ui.PipelineTimelineEvent{
+							Icon:      icon,
+							IconColor: iconColor,
+							Title:     title,
+							Detail:    detail,
+							Timestamp: r.CreatedAt.Format("2 Jan 15:04"),
+							LinkHref:  "/strategies/" + instanceID + "/skill-runs/" + r.ID.String(),
+							LinkLabel: "View run",
+						})
+					}
+				}
+			}
+		}
+	}
+
+	// Recent versions (up to 2)
+	type versionRow2 struct {
+		ID          string    `bun:"id"`
+		Label       *string   `bun:"label"`
+		Source      string    `bun:"source"`
+		PublishedAt time.Time `bun:"published_at"`
+	}
+	var versions []versionRow2
+	_ = s.db.NewSelect().
+		TableExpr("strategy_versions").
+		ColumnExpr("id, label, source, published_at").
+		Where("instance_id = ?", instanceID).
+		OrderExpr("published_at DESC").
+		Limit(2).
+		Scan(ctx, &versions)
+
+	for _, v := range versions {
+		label := "Version published"
+		if v.Label != nil && *v.Label != "" {
+			label = "Version: " + *v.Label
+		}
+		events = append(events, ui.PipelineTimelineEvent{
+			Icon:      "lucide--git-commit-horizontal",
+			IconColor: "text-success",
+			Title:     label,
+			Detail:    "Source: " + v.Source,
+			Timestamp: v.PublishedAt.Format("2 Jan 15:04"),
+			LinkHref:  "/strategies/" + instanceID + "/aim/versions/" + v.ID,
+			LinkLabel: "View version",
+		})
+	}
+
+	return events
+}
+
 // --- helper queries ---
 
 // loadArtifactSummary checks if an artifact type exists and extracts fields from its payload.
@@ -1693,4 +2020,49 @@ func (s *Server) loadRoadmapOKRs(ctx context.Context, instanceID string) []ui.Tr
 		})
 	}
 	return summaries
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline label helpers (handler-local copies of ui-package helpers)
+// ---------------------------------------------------------------------------
+
+func pipelineStepLabel(name string) string {
+	switch name {
+	case "draft_assessment":
+		return "Drafting assessment"
+	case "draft_calibration":
+		return "Drafting calibration"
+	case "apply_calibration":
+		return "Applying calibration"
+	case "snapshot_cycle":
+		return "Snapshotting cycle"
+	default:
+		return name
+	}
+}
+
+func pipelineStatusLabel(status string) string {
+	switch status {
+	case "running":
+		return "running"
+	case "awaiting_human":
+		return "awaiting review"
+	case "completed":
+		return "completed"
+	case "failed":
+		return "failed"
+	default:
+		return status
+	}
+}
+
+func pipelineSkillLabel(name string) string {
+	switch name {
+	case "adapt-strategy":
+		return "Adapt Strategy"
+	case "adapt-foundations":
+		return "Adapt Foundations"
+	default:
+		return name
+	}
 }
