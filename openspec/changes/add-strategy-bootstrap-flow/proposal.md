@@ -231,6 +231,56 @@ READY bootstrap skills.
 Check all 7 READY artifacts for foundation → building transition. When evidence
 exists but artifacts are placeholder-only, recommend the bootstrap flow.
 
+### 9. Strategy completeness watchdog
+
+The web UI pipeline is rigid — it runs AIM cycle steps in order and stops. If
+an artifact falls outside the pipeline's scope, it goes stale silently. The
+audit found 5 artifact types that are completely invisible to all automated
+systems, and 5 more with significant gaps.
+
+**Critical blind spots** (invisible to AIM, ripple, health check, relationships):
+- `insight_analyses` — never read by AIM, no ripple checks, no relationships
+- `insight_opportunity` — no domain constant, ghost artifact
+- `mappings` — registered in phase discovery but zero integration
+- `strategic_reality_check` — registered but completely unintegrated
+- `track_health_assessment` — registered but completely unintegrated
+
+**High-risk gaps** (partially visible but can drift undetected):
+- `strategy_foundations` — in health check but no relationships, no update mechanism after creation
+- `value_model` — orphan detection works but content never validated against features/roadmap
+- `commercial_def` / `org_ops_def` / `strategy_def` — have contributes_to edges but no staleness detection
+- `evidence` — linked_artifacts in payload never extracted into relationship index
+
+Add a **strategy completeness watchdog** that runs periodically (alongside the
+heartbeat ticker) or on-demand via the health check:
+
+**a) Staleness detection for all artifact types:**
+For each committed artifact, check `updated_at` against a configurable
+staleness threshold per type. READY artifacts stale after 90 days.
+FIRE definitions stale after 180 days. Flag stale artifacts as informational
+signals in the AIM dashboard.
+
+**b) Orphan artifact detection:**
+Extend the existing orphan check (currently value_model paths only) to all
+artifact types. An artifact with zero inbound AND zero outbound relationships
+is an orphan. Orphans get flagged as warning signals.
+
+**c) Cross-phase coherence checks:**
+- Features without KR mappings (delivered_by_kr edges)
+- KRs without delivering features
+- Value model components set to `active` but no feature contributes to them
+- Definitions at tier > 1 but no corresponding roadmap OKR targets that tier
+- Evidence items unprocessed for > 30 days
+
+**d) Retire ghost artifact types:**
+`mappings`, `strategic_reality_check`, and `track_health_assessment` are
+registered in the phase discovery system but have zero integration. Either
+integrate them properly or remove them from the registry to reduce confusion.
+
+The watchdog produces a structured report that surfaces on the AIM dashboard
+as a "Strategy health" card, similar to how signals surface today but covering
+completeness and staleness rather than just coherence.
+
 ## Impact
 
 - **Affected specs**: `strategy-web`

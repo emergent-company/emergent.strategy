@@ -126,16 +126,48 @@
       recommend the bootstrap flow
 - [ ] 9.3 Update next_steps to reference bootstrap skills
 
-## 10. Tests
+## 10. Strategy completeness watchdog
 
-- [ ] 10.1 Test evidence ingestion from web UI
-- [ ] 10.2 Test evidence sufficiency assessment (various tag combos)
-- [ ] 10.3 Test each bootstrap skill with evidence context
-- [ ] 10.4 Test each bootstrap skill without evidence (sparse fallback)
-- [ ] 10.5 Test dependency enforcement
-- [ ] 10.6 Test readiness scoring across states (empty, placeholder, partial, full)
-- [ ] 10.7 Test inter-READY relationship extraction
-- [ ] 10.8 Test guided interview → evidence item creation
-- [ ] 10.9 Test align-portfolio: verify value model states and definition tiers
-      are set based on roadmap OKRs
-- [ ] 10.10 Test align-portfolio with no roadmap: verify graceful failure
+- [ ] 10.1 Create `domain/watchdog/` package with `Service` that checks staleness,
+      orphans, and cross-phase coherence for all artifact types
+- [ ] 10.2 Staleness detection: for each artifact type, configurable threshold
+      (READY: 90 days, FIRE definitions: 180 days, features: 60 days).
+      Flag stale artifacts as informational signals.
+- [ ] 10.3 Orphan detection: extend beyond value_model paths to all artifact types.
+      An artifact with zero relationships (inbound + outbound) is an orphan.
+- [ ] 10.4 Cross-phase coherence checks:
+      - Features without delivered_by_kr edges → "unlinked feature"
+      - Roadmap KRs without delivering features → "undelivered KR"
+      - Value model components set active but no contributes_to → "unused component"
+      - Definitions at tier > 1 without roadmap OKR support → "unsupported tier"
+      - Unprocessed evidence items older than 30 days → "stale evidence"
+- [ ] 10.5 Extend relationship extraction for currently-blind artifact types:
+      - `north_star`: extract informed_by insight_analyses, grounds strategy_formula
+      - `strategy_foundations`: extract derived_from north_star, informs strategy_formula
+      - `strategy_formula`: extract derived_from strategy_foundations, operationalized_by roadmap
+      - `insight_analyses`: extract informed_by evidence, synthesized_into insight_opportunity
+      - `evidence`: extract linked_artifacts payload field into relationship edges
+- [ ] 10.6 Wire watchdog to run alongside heartbeat ticker (every 24 hours,
+      or configurable) and on-demand via health_check
+- [ ] 10.7 Surface watchdog results on AIM dashboard as "Strategy health" card:
+      stale artifacts, orphans, unlinked features, undelivered KRs
+- [ ] 10.8 Audit ghost artifact types (`mappings`, `strategic_reality_check`,
+      `track_health_assessment`): decide per type whether to integrate
+      properly or remove from the phase registry
+
+## 11. Tests
+
+- [ ] 11.1 Test evidence ingestion from web UI
+- [ ] 11.2 Test evidence sufficiency assessment (various tag combos)
+- [ ] 11.3 Test each bootstrap skill with evidence context
+- [ ] 11.4 Test each bootstrap skill without evidence (sparse fallback)
+- [ ] 11.5 Test dependency enforcement
+- [ ] 11.6 Test readiness scoring across states (empty, placeholder, partial, full)
+- [ ] 11.7 Test inter-READY relationship extraction
+- [ ] 11.8 Test guided interview → evidence item creation
+- [ ] 11.9 Test align-portfolio: verify value model states and definition tiers
+- [ ] 11.10 Test watchdog staleness detection
+- [ ] 11.11 Test watchdog orphan detection
+- [ ] 11.12 Test watchdog cross-phase coherence (unlinked features, undelivered KRs)
+- [ ] 11.13 Test extended relationship extraction for north_star, strategy_foundations,
+      strategy_formula, insight_analyses, evidence

@@ -143,6 +143,34 @@ version when the readiness score is sufficient and no version exists.
 - **WHEN** readiness score >= 80 AND version count is 0
 - **THEN** a "Publish first version" banner with button appears
 
+### Requirement: Strategy Completeness Watchdog
+
+The system SHALL periodically evaluate all artifact types for staleness, orphan
+status, and cross-phase coherence. The watchdog SHALL surface findings on the
+AIM dashboard and in the health check response. No artifact type SHALL be
+invisible to all automated evaluation systems.
+
+#### Scenario: Stale artifact detected
+- **WHEN** a READY artifact has not been updated for longer than its staleness threshold
+- **THEN** the watchdog flags it as an informational signal
+- **AND** the AIM dashboard shows the artifact in the "Strategy health" card
+
+#### Scenario: Orphan artifact detected
+- **WHEN** an artifact has zero inbound AND zero outbound relationship edges
+- **THEN** the watchdog flags it as a warning
+- **AND** suggests adding relationships or reviewing the artifact
+
+#### Scenario: Cross-phase coherence gap
+- **WHEN** a feature exists without a delivered_by_kr relationship
+- **OR** a roadmap KR has no delivering features
+- **OR** a value model component is active but has no contributes_to sources
+- **THEN** the watchdog flags the specific gap with an actionable suggestion
+
+#### Scenario: Watchdog frequency
+- **WHEN** the heartbeat ticker runs
+- **THEN** the watchdog evaluation runs at the configured interval (default: daily)
+- **AND** results are cached until the next run
+
 ## MODIFIED Requirements
 
 ### Requirement: Lifecycle Mode Detection
