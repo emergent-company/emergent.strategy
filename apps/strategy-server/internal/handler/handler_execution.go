@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/emergent-company/go-daisy/render"
@@ -494,17 +495,81 @@ func (s *Server) loadStrategyLoopWidget(ctx context.Context, instanceID string, 
 		Scan(ctx, &data.LoopPendingCount)
 
 	// Last version published
-	var publishedAt time.Time
+	var lastVersion struct {
+		ID          string    `bun:"id"`
+		Label       *string   `bun:"label"`
+		Description *string   `bun:"description"`
+		PublishedAt time.Time `bun:"published_at"`
+	}
 	_ = s.db.NewSelect().
 		TableExpr("strategy_versions").
-		ColumnExpr("published_at").
+		ColumnExpr("id, label, description, published_at").
 		Where("instance_id = ?", instanceID).
 		OrderExpr("published_at DESC").
 		Limit(1).
-		Scan(ctx, &publishedAt)
-	if !publishedAt.IsZero() {
-		data.LoopLastVersion = publishedAt.Format("2 Jan 15:04")
+		Scan(ctx, &lastVersion)
+	if !lastVersion.PublishedAt.IsZero() {
+		data.LoopLastVersion = lastVersion.PublishedAt.Format("2 Jan 15:04")
+		data.LoopLastVersionID = lastVersion.ID
+		if lastVersion.Label != nil && *lastVersion.Label != "" {
+			data.LoopLastVersionLabel = *lastVersion.Label
+		}
+
+		// Try to build a rich tooltip from the calibration memo.
+		data.LoopLastVersionDesc = s.loadCalibrationTooltip(ctx, instanceID)
+		if data.LoopLastVersionDesc == "" {
+			// Fall back to version description.
+			if lastVersion.Description != nil && *lastVersion.Description != "" {
+				data.LoopLastVersionDesc = *lastVersion.Description
+			}
+		}
 	}
+}
+
+// loadCalibrationTooltip builds a tooltip string from the latest calibration memo.
+// Returns "" if no calibration memo exists.
+func (s *Server) loadCalibrationTooltip(ctx context.Context, instanceID string) string {
+	var payload struct {
+		Decision    string `json:"decision"`
+		Reasoning   string `json:"reasoning"`
+		OKRHitRate  *int   `json:"okr_hit_rate_pct"`
+	}
+
+	var raw string
+	err := s.db.NewSelect().
+		TableExpr("strategy_artifacts").
+		ColumnExpr("payload::text").
+		Where("instance_id = ?", instanceID).
+		Where("artifact_type = ?", "calibration_memo").
+		Where("artifact_key = ?", "calibration-memo").
+		Scan(ctx, &raw)
+	if err != nil || raw == "" {
+		return ""
+	}
+
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		return ""
+	}
+	if payload.Decision == "" {
+		return ""
+	}
+
+	var b strings.Builder
+	b.WriteString("Calibration: ")
+	b.WriteString(payload.Decision)
+	if payload.OKRHitRate != nil {
+		b.WriteString(fmt.Sprintf(" · OKR hit rate: %d%%", *payload.OKRHitRate))
+	}
+	if payload.Reasoning != "" {
+		reasoning := payload.Reasoning
+		// Truncate long reasoning for tooltip readability.
+		if len(reasoning) > 200 {
+			reasoning = reasoning[:197] + "..."
+		}
+		b.WriteString(" — ")
+		b.WriteString(reasoning)
+	}
+	return b.String()
 }
 
 func (s *Server) loadAssessmentKROutcomes(ctx context.Context, instanceID string) (map[string]krOutcome, []string) {

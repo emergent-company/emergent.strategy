@@ -50,6 +50,11 @@ func (s *Server) handleActivityStream(c echo.Context) error {
 		}
 	}
 
+	// Tell the browser to wait 5 seconds before reconnecting on disconnect.
+	// This prevents a flood of reconnect attempts in the console.
+	_, _ = fmt.Fprintf(w, "retry: 5000\n\n")
+	flush()
+
 	// Initial keepalive so the browser knows the connection is open.
 	_, _ = fmt.Fprintf(w, ": keepalive\n\n")
 	flush()
@@ -72,11 +77,15 @@ func (s *Server) handleActivityStream(c echo.Context) error {
 			if err != nil {
 				continue
 			}
-			_, _ = fmt.Fprintf(w, "event: activity\ndata: %s\n\n", raw)
+			if _, werr := fmt.Fprintf(w, "event: activity\ndata: %s\n\n", raw); werr != nil {
+				return nil // client disconnected
+			}
 			flush()
 
 		case <-keepalive.C:
-			_, _ = fmt.Fprintf(w, ": keepalive\n\n")
+			if _, werr := fmt.Fprintf(w, ": keepalive\n\n"); werr != nil {
+				return nil // client disconnected
+			}
 			flush()
 
 		case <-ctx.Done():

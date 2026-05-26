@@ -115,32 +115,137 @@ func (s *Service) EnqueueAllInstances(ctx context.Context, db *bun.DB, log inter
 		return
 	}
 
-	var ids []struct {
-		ID uuid.UUID `bun:"id"`
+	// Compare content hashes to skip instances whose artifacts haven't changed
+	// since the last ingest. This avoids 30-40s of heavy Memory API calls on
+	// every server restart when nothing has changed.
+	type instanceRow struct {
+		ID          uuid.UUID `bun:"id"`
+		ContentHash *string   `bun:"memory_content_hash"`
+		CurrentHash string    `bun:"current_hash"`
 	}
+	var rows []instanceRow
 	err := db.NewSelect().
 		TableExpr("strategy_instances AS si").
 		ColumnExpr("si.id").
+		ColumnExpr("si.memory_content_hash").
+		ColumnExpr(`(
+			SELECT md5(string_agg(a.artifact_key || ':' || a.payload::text, '|' ORDER BY a.artifact_key))
+			FROM strategy_artifacts a
+			WHERE a.instance_id = si.id AND a.status != 'archived'
+		) AS current_hash`).
 		Join("JOIN workspaces AS w ON w.id = si.workspace_id").
 		Where("si.status != ?", "archived").
 		Where("w.deleted_at IS NULL").
 		Where("w.github_owner NOT LIKE ?", "e2e-%").
 		Where("w.github_owner NOT LIKE ?", "ripple-%").
 		Where("w.github_owner NOT LIKE ?", "aim-ripple-%").
-		Scan(ctx, &ids)
+		Scan(ctx, &rows)
 	if err != nil {
 		log.Warn("ingest: startup sweep: failed to load instances", "err", err)
 		return
 	}
 
-	log.Info("ingest: startup sweep: queuing re-ingest", "instance_count", len(ids))
-	for _, row := range ids {
+	// Filter to instances where the content hash changed (or was never set).
+	var staleIDs []uuid.UUID
+	for _, row := range rows {
+		if row.ContentHash == nil || *row.ContentHash != row.CurrentHash {
+			staleIDs = append(staleIDs, row.ID)
+		}
+	}
+
+	if len(staleIDs) == 0 {
+		log.Info("ingest: startup sweep: all instances unchanged, skipping",
+			"total_instances", len(rows))
+		return
+	}
+
+	log.Info("ingest: startup sweep: queuing re-ingest",
+		"stale_count", len(staleIDs), "total_instances", len(rows))
+	for _, id := range staleIDs {
 		// Use a nil batchID to signal a full re-ingest, not a batch update.
 		select {
-		case s.jobs <- ingestJob{InstanceID: row.ID, BatchID: uuid.Nil}:
+		case s.jobs <- ingestJob{InstanceID: id, BatchID: uuid.Nil}:
 		default:
-			log.Warn("ingest: startup sweep: queue full, skipping instance", "instance_id", row.ID)
+			log.Warn("ingest: startup sweep: queue full, skipping instance", "instance_id", id)
 		}
+	}
+}
+
+// EnqueueInstance enqueues a full re-ingest for a single instance.
+// Non-blocking — returns immediately. Useful for drift recovery.
+func (s *Service) EnqueueInstance(instanceID uuid.UUID) {
+	if s.client == nil {
+		return
+	}
+	select {
+	case s.jobs <- ingestJob{InstanceID: instanceID, BatchID: uuid.Nil}:
+		slog.Info("ingest: enqueued full re-ingest", "instance_id", instanceID)
+	default:
+		slog.Warn("ingest: job queue full, re-ingest dropped", "instance_id", instanceID)
+	}
+}
+
+// IsConfigured returns true when a Memory client is wired.
+func (s *Service) IsConfigured() bool {
+	return s.client != nil
+}
+
+// RepairMemoryDrift implements heartbeat.MemoryDriftRepairer.
+// It checks whether the Memory server has restarted since the last successful
+// sync for any instance. If so, it re-queues those instances for re-ingestion.
+// This recovers automatically from Memory restarts that wipe the graph.
+func (s *Service) RepairMemoryDrift(ctx context.Context) {
+	if s.client == nil {
+		return
+	}
+
+	// Get memory server startup time.
+	status, err := s.client.Health(ctx)
+	if err != nil {
+		slog.WarnContext(ctx, "ingest: drift check: memory unhealthy, skipping", "err", err)
+		return
+	}
+
+	// Find instances that were synced before the memory server last started.
+	// Those instances' graphs were wiped by the restart.
+	type row struct {
+		ID             uuid.UUID  `bun:"id"`
+		Name           string     `bun:"name"`
+		LastSyncedAt   *time.Time `bun:"memory_last_synced_at"`
+		ObjectCount    *int       `bun:"memory_object_count"`
+	}
+	var stale []row
+	err = s.db.NewSelect().
+		TableExpr("strategy_instances si").
+		Join("JOIN workspaces w ON w.id = si.workspace_id").
+		ColumnExpr("si.id, si.name, si.memory_last_synced_at, si.memory_object_count").
+		Where("si.status != ?", "archived").
+		Where("w.deleted_at IS NULL").
+		// Only instances that had Memory objects (positive count means they were synced).
+		Where("si.memory_object_count > 0").
+		// Only instances synced before Memory restarted.
+		Where("si.memory_last_synced_at < ?", status.StartedAt).
+		Scan(ctx, &stale)
+	if err != nil {
+		slog.WarnContext(ctx, "ingest: drift check: query failed", "err", err)
+		return
+	}
+
+	if len(stale) == 0 {
+		return
+	}
+
+	slog.InfoContext(ctx, "ingest: memory drift detected — re-queuing stale instances",
+		"count", len(stale),
+		"memory_started_at", status.StartedAt.Format(time.RFC3339),
+	)
+
+	for _, r := range stale {
+		slog.InfoContext(ctx, "ingest: re-queuing due to memory restart",
+			"instance_id", r.ID,
+			"instance_name", r.Name,
+		)
+		s.EnqueueInstance(r.ID)
 	}
 }
 
@@ -264,9 +369,9 @@ func (s *Service) ingestBatch(ctx context.Context, job ingestJob) error {
 		"batch_id", job.BatchID,
 		"mutations", len(mutations))
 
-	// Update sync status and counts in Postgres.
+	// Update sync status and counts in Postgres (incremental — no hash recomputation).
 	res := s.countIngested(ctx, job.InstanceID)
-	s.updateSyncStatus(ctx, job.InstanceID, res)
+	s.updateSyncStatus(ctx, job.InstanceID, res, false)
 
 	return nil
 }
@@ -637,18 +742,22 @@ func (s *Service) ReingestInstance(ctx context.Context, instanceID uuid.UUID) er
 		}
 	}
 
-	// Update sync status and counts in Postgres.
-	s.updateSyncStatus(ctx, instanceID, res)
+	// Update sync status and counts in Postgres (full ingest — compute and store hash).
+	s.updateSyncStatus(ctx, instanceID, res, true)
 
 	return nil
 }
 
 // updateSyncStatus writes sync metadata back to strategy_instances after a
 // successful ingest. Called at the end of ingestBatch and ReingestInstance.
-func (s *Service) updateSyncStatus(ctx context.Context, instanceID uuid.UUID, res syncResult) {
+// When fullIngest is true (ReingestInstance), the content hash is computed and
+// stored. When false (incremental batch ingest), the hash is left unchanged —
+// it will be recomputed on the next full re-ingest.
+func (s *Service) updateSyncStatus(ctx context.Context, instanceID uuid.UUID, res syncResult, fullIngest bool) {
 	now := time.Now()
 	synced := "synced"
-	_, err := s.db.NewUpdate().
+
+	q := s.db.NewUpdate().
 		TableExpr("strategy_instances").
 		Set("memory_sync_status = ?", synced).
 		Set("memory_last_synced_at = ?", now).
@@ -657,11 +766,41 @@ func (s *Service) updateSyncStatus(ctx context.Context, instanceID uuid.UUID, re
 		Set("memory_decomposed_object_count = ?", res.decomposedObjectCount).
 		Set("memory_decomposed_edge_count = ?", res.decomposedEdgeCount).
 		Set("updated_at = ?", now).
-		Where("id = ?", instanceID).
-		Exec(ctx)
-	if err != nil {
+		Where("id = ?", instanceID)
+
+	if fullIngest {
+		// Compute and store the content hash so the next startup sweep can
+		// skip this instance if nothing has changed.
+		contentHash := s.computeContentHash(ctx, instanceID)
+		if contentHash != "" {
+			q = q.Set("memory_content_hash = ?", contentHash)
+		}
+	} else {
+		// Incremental ingest — invalidate the hash so the next startup sweep
+		// re-ingests if the server restarts before a full ingest runs.
+		q = q.Set("memory_content_hash = NULL")
+	}
+
+	if _, err := q.Exec(ctx); err != nil {
 		slog.Warn("ingest: failed to update sync status", "instance_id", instanceID, "err", err)
 	}
+}
+
+// computeContentHash returns an MD5 hash of all non-archived artifact payloads
+// for an instance. Returns "" on error.
+func (s *Service) computeContentHash(ctx context.Context, instanceID uuid.UUID) string {
+	var hash string
+	err := s.db.NewSelect().
+		TableExpr("strategy_artifacts").
+		ColumnExpr("md5(string_agg(artifact_key || ':' || payload::text, '|' ORDER BY artifact_key))").
+		Where("instance_id = ?", instanceID).
+		Where("status != ?", "archived").
+		Scan(ctx, &hash)
+	if err != nil {
+		slog.Warn("ingest: failed to compute content hash", "instance_id", instanceID, "err", err)
+		return ""
+	}
+	return hash
 }
 
 // countIngested returns the current object and edge counts in Memory for an

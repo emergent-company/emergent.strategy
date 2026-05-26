@@ -35,7 +35,10 @@ type ExecutionData struct {
 	LoopCycleRunning bool
 	LoopCycleStep    string // current step name (empty if not running)
 	LoopPendingCount int    // pending review batches
-	LoopLastVersion  string // "2 Jan 15:04" or ""
+	LoopLastVersion      string // "2 Jan 15:04" or ""
+	LoopLastVersionID    string // version UUID for link target
+	LoopLastVersionLabel string // version label, e.g. "Q2 Strategy" or ""
+	LoopLastVersionDesc  string // version description for tooltip, e.g. "AIM cycle 2 completed with decision: pivot."
 
 	// Strategic focus — north star and bets for at-a-glance context
 	NorthStarVision   string             // truncated vision statement
@@ -561,11 +564,21 @@ func betTrackDot(track string) string {
 	}
 }
 
+// strategyLoopWidgetHref returns the primary link target for the strategy loop widget.
+// Links to the latest version detail if available, otherwise to the AIM overview.
+func strategyLoopWidgetHref(data ExecutionData) string {
+	if data.LoopLastVersionID != "" {
+		return "/strategies/" + data.InstanceID + "/aim/versions/" + data.LoopLastVersionID
+	}
+	return "/strategies/" + data.InstanceID + "/aim"
+}
+
 // strategyLoopWidget renders a compact status card showing the current strategy loop state.
+// Links to the latest version detail when available, or to the AIM overview otherwise.
 templ strategyLoopWidget(data ExecutionData) {
 	<a
-		href={ templ.URL("/strategies/" + data.InstanceID + "/aim") }
-		hx-get={ "/strategies/" + data.InstanceID + "/aim" }
+		href={ templ.URL(strategyLoopWidgetHref(data)) }
+		hx-get={ strategyLoopWidgetHref(data) }
 		hx-target="#tab-content"
 		hx-swap="innerHTML"
 		hx-push-url="true"
@@ -592,10 +605,25 @@ templ strategyLoopWidget(data ExecutionData) {
 				</span>
 			}
 			if data.LoopLastVersion != "" {
-				<span class="flex items-center gap-1.5">
-					<span class="iconify lucide--history size-3"></span>
-					Last version: { data.LoopLastVersion }
-				</span>
+				if data.LoopLastVersionDesc != "" {
+					<span class="flex items-center gap-1.5 tooltip tooltip-bottom" data-tip={ data.LoopLastVersionDesc }>
+						<span class="iconify lucide--history size-3"></span>
+						if data.LoopLastVersionLabel != "" {
+							{ data.LoopLastVersionLabel } — { data.LoopLastVersion }
+						} else {
+							Last version: { data.LoopLastVersion }
+						}
+					</span>
+				} else {
+					<span class="flex items-center gap-1.5">
+						<span class="iconify lucide--history size-3"></span>
+						if data.LoopLastVersionLabel != "" {
+							{ data.LoopLastVersionLabel } — { data.LoopLastVersion }
+						} else {
+							Last version: { data.LoopLastVersion }
+						}
+					</span>
+				}
 			}
 		</div>
 		<span class="iconify lucide--arrow-right size-4 text-base-content/30 group-hover:text-primary shrink-0"></span>
