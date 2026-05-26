@@ -387,7 +387,7 @@ func TestValidateArtifactPayloads_SkipsUnknownKeys(t *testing.T) {
 func TestCorrectionPrompt_ContainsErrors(t *testing.T) {
 	original := "ORIGINAL PROMPT CONTENT"
 	errors := []string{"error one", "error two"}
-	result := correctionPrompt(original, errors)
+	result := correctionPrompt(original, errors, "")
 
 	if !strings.Contains(result, original) {
 		t.Error("correction prompt should contain original prompt")
@@ -400,6 +400,41 @@ func TestCorrectionPrompt_ContainsErrors(t *testing.T) {
 	}
 	if !strings.Contains(result, "CORRECTION REQUIRED") {
 		t.Error("correction prompt should contain CORRECTION REQUIRED header")
+	}
+}
+
+func TestCorrectionPrompt_IncludesPreviousOutput(t *testing.T) {
+	original := "ORIGINAL"
+	errors := []string{"bad JSON"}
+	prevOutput := `{"broken": true,}`
+
+	result := correctionPrompt(original, errors, prevOutput)
+	if !strings.Contains(result, "Your Previous (Invalid) Response") {
+		t.Error("should include previous output header")
+	}
+	if !strings.Contains(result, prevOutput) {
+		t.Error("should include the previous output content")
+	}
+}
+
+func TestCorrectionPrompt_TruncatesLongOutput(t *testing.T) {
+	original := "ORIGINAL"
+	errors := []string{"bad JSON"}
+	prevOutput := strings.Repeat("x", 5000)
+
+	result := correctionPrompt(original, errors, prevOutput)
+	if !strings.Contains(result, "... (truncated)") {
+		t.Error("should truncate output > 4000 chars")
+	}
+	if strings.Contains(result, prevOutput) {
+		t.Error("should NOT contain the full 5000-char output")
+	}
+}
+
+func TestCorrectionPrompt_NoPreviousOutput(t *testing.T) {
+	result := correctionPrompt("ORIGINAL", []string{"err"}, "")
+	if strings.Contains(result, "Previous") {
+		t.Error("should not include previous output section when empty")
 	}
 }
 
@@ -457,19 +492,26 @@ func TestCallWithValidation_SuccessOnFirstAttempt(t *testing.T) {
 	llm := &mockLLM{responses: []string{output}}
 	e := &Executor{llm: llm}
 
-	result, passed, err := e.callWithValidation(context.Background(), "test-skill", "prompt", nil)
+	cr, err := e.callWithValidation(context.Background(), "test-skill", "prompt", nil)
 	if err != nil {
 		t.Fatalf("expected success, got error: %v", err)
 	}
-	if result == nil {
-		t.Fatal("expected non-nil result")
+	if cr.Output == nil {
+		t.Fatal("expected non-nil output")
 	}
-	if !passed {
+	if !cr.Validated {
 		// No output schema provided → validationPassed = false is expected.
-		t.Log("validationPassed=false because no output schema provided (expected)")
+		t.Log("validated=false because no output schema provided (expected)")
 	}
 	if llm.calls != 1 {
 		t.Errorf("expected 1 LLM call, got %d", llm.calls)
+	}
+	// Token counts should be accumulated (1 call × 100 input + 50 output).
+	if cr.InputTokens != 100 {
+		t.Errorf("expected 100 input tokens, got %d", cr.InputTokens)
+	}
+	if cr.OutputTokens != 50 {
+		t.Errorf("expected 50 output tokens, got %d", cr.OutputTokens)
 	}
 }
 
@@ -481,12 +523,16 @@ func TestCallWithValidation_RetriesOnInvalidJSON(t *testing.T) {
 	llm := &mockLLM{responses: []string{"not json at all", validOutput}}
 	e := &Executor{llm: llm}
 
-	_, _, err := e.callWithValidation(context.Background(), "test-skill", "prompt", nil)
+	cr, err := e.callWithValidation(context.Background(), "test-skill", "prompt", nil)
 	if err != nil {
 		t.Fatalf("expected success after retry, got error: %v", err)
 	}
 	if llm.calls != 2 {
 		t.Errorf("expected 2 LLM calls, got %d", llm.calls)
+	}
+	// 2 calls × (100 input + 50 output) = 200 input, 100 output.
+	if cr.InputTokens != 200 {
+		t.Errorf("expected 200 input tokens (2 calls), got %d", cr.InputTokens)
 	}
 }
 
@@ -500,12 +546,17 @@ func TestCallWithValidation_FailsAfterMaxRetries(t *testing.T) {
 	llm := &mockLLM{responses: responses}
 	e := &Executor{llm: llm}
 
-	_, _, err := e.callWithValidation(context.Background(), "test-skill", "prompt", nil)
+	cr, err := e.callWithValidation(context.Background(), "test-skill", "prompt", nil)
 	if err == nil {
 		t.Fatal("expected error after max retries exhausted")
 	}
 	if llm.calls != maxValidationRetries+1 {
 		t.Errorf("expected %d LLM calls, got %d", maxValidationRetries+1, llm.calls)
+	}
+	// Tokens should still be accumulated even on failure.
+	expectedIn := (maxValidationRetries + 1) * 100
+	if cr.InputTokens != expectedIn {
+		t.Errorf("expected %d input tokens on failure, got %d", expectedIn, cr.InputTokens)
 	}
 }
 
@@ -523,15 +574,19 @@ func TestCallWithValidation_RetriesOnArtifactSchemaFailure(t *testing.T) {
 	llm := &mockLLM{responses: responses}
 	e := &Executor{llm: llm}
 
-	result, _, err := e.callWithValidation(context.Background(), "test-skill", "prompt", nil)
+	cr, err := e.callWithValidation(context.Background(), "test-skill", "prompt", nil)
 	if err != nil {
 		t.Fatalf("expected success after retry, got: %v", err)
 	}
-	if result == nil {
-		t.Fatal("expected non-nil result")
+	if cr.Output == nil {
+		t.Fatal("expected non-nil output")
 	}
 	if llm.calls != 2 {
 		t.Errorf("expected 2 LLM calls (1 retry), got %d", llm.calls)
+	}
+	// 2 calls × (100 input + 50 output) = 200 input, 100 output.
+	if cr.InputTokens != 200 {
+		t.Errorf("expected 200 input tokens (2 calls), got %d", cr.InputTokens)
 	}
 }
 
@@ -548,7 +603,7 @@ func TestCallWithValidationChunk_SuccessFirstAttempt(t *testing.T) {
 
 	cr, err := e.callWithValidationChunk(
 		context.Background(), "adapt-strategy", 1,
-		"strategy_formula", "strategy_formula", "prompt", uuid.Nil)
+		"strategy_formula", "strategy_formula", "prompt", uuid.Nil, nil)
 	if err != nil {
 		t.Fatalf("expected success, got: %v", err)
 	}
@@ -575,7 +630,7 @@ func TestCallWithValidationChunk_RetriesOnInvalidJSON(t *testing.T) {
 
 	_, err := e.callWithValidationChunk(
 		context.Background(), "adapt-strategy", 1,
-		"strategy_formula", "strategy_formula", "prompt", uuid.Nil)
+		"strategy_formula", "strategy_formula", "prompt", uuid.Nil, nil)
 	if err != nil {
 		t.Fatalf("expected success after retry, got: %v", err)
 	}
@@ -595,7 +650,7 @@ func TestCallWithValidationChunk_ExhaustsRetriesAndFails(t *testing.T) {
 
 	_, err := e.callWithValidationChunk(
 		context.Background(), "adapt-strategy", 2,
-		"roadmap_recipe", "roadmap_recipe", "prompt", uuid.Nil)
+		"roadmap_recipe", "roadmap_recipe", "prompt", uuid.Nil, nil)
 	if err == nil {
 		t.Fatal("expected error after retries exhausted")
 	}
@@ -615,7 +670,7 @@ func TestCallWithValidationChunk_EmitsRetryActivityEvent(t *testing.T) {
 
 	_, err := e.callWithValidationChunk(
 		context.Background(), "adapt-strategy", 1,
-		"strategy_formula", "strategy_formula", "prompt", uuid.New())
+		"strategy_formula", "strategy_formula", "prompt", uuid.New(), nil)
 	if err != nil {
 		t.Fatalf("expected success, got: %v", err)
 	}
@@ -642,12 +697,153 @@ func TestCallWithValidationChunk_NoArtifactTypeSkipsSchemaValidation(t *testing.
 
 	cr, err := e.callWithValidationChunk(
 		context.Background(), "adapt-strategy", 3,
-		"lra_evolution_entry", "", "prompt", uuid.Nil)
+		"lra_evolution_entry", "", "prompt", uuid.Nil, nil)
 	if err != nil {
 		t.Fatalf("expected success for empty artifactType, got: %v", err)
 	}
 	if cr == nil {
 		t.Fatal("expected non-nil result")
+	}
+}
+
+func TestCallWithValidationChunk_AutoWrapsFlat(t *testing.T) {
+	// Simulate the LLM producing a flat object without the wrapper keys.
+	// The auto-wrap logic should detect this and double-wrap:
+	//   flat fields → {"my_artifact": {"my_artifact": { ...fields... }}}
+	// We use an empty artifactType to skip schema validation (testing the
+	// wrapping logic, not schema compliance).
+	flat := `{
+		"field_a": "value_a",
+		"field_b": {"nested": true},
+		"change_summary": "- Updated field_a"
+	}`
+
+	llm := &mockLLM{responses: []string{flat}}
+	e := &Executor{llm: llm}
+
+	cr, err := e.callWithValidationChunk(
+		context.Background(), "adapt-foundations", 1,
+		"my_artifact", "", "prompt", uuid.Nil, nil)
+	if err != nil {
+		t.Fatalf("expected auto-wrap to succeed, got: %v", err)
+	}
+	if cr == nil {
+		t.Fatal("expected non-nil result")
+	}
+	// The output should have the artifact wrapper key.
+	outer, ok := cr.Output["my_artifact"]
+	if !ok {
+		t.Fatal("expected my_artifact key in output after auto-wrap")
+	}
+	// The inner value should also be a map with a "my_artifact" key (double-envelope).
+	outerMap, ok := outer.(map[string]any)
+	if !ok {
+		t.Fatalf("expected my_artifact value to be a map, got %T", outer)
+	}
+	inner, ok := outerMap["my_artifact"]
+	if !ok {
+		t.Fatal("expected inner my_artifact key (double-envelope) after auto-wrap")
+	}
+	innerMap, ok := inner.(map[string]any)
+	if !ok {
+		t.Fatalf("expected inner my_artifact to be a map, got %T", inner)
+	}
+	if innerMap["field_a"] != "value_a" {
+		t.Errorf("expected field_a='value_a' in inner payload, got %v", innerMap["field_a"])
+	}
+	// change_summary should be preserved as a sibling (not inside the double-envelope).
+	if _, ok := cr.Output["change_summary"]; !ok {
+		t.Error("expected change_summary to be preserved as sibling after auto-wrap")
+	}
+	// change_summary should NOT be inside the inner payload.
+	if _, ok := innerMap["change_summary"]; ok {
+		t.Error("change_summary should not be inside the inner artifact payload")
+	}
+}
+
+func TestCallWithValidationChunk_NoAutoWrapWhenKeyPresent(t *testing.T) {
+	// When the LLM correctly produces the wrapper key, no auto-wrap should happen.
+	sf := validStrategyFormulaJSON()
+	response := fmt.Sprintf(`{"strategy_formula": %s, "change_summary": "- updated positioning"}`, sf)
+
+	llm := &mockLLM{responses: []string{response}}
+	e := &Executor{llm: llm}
+
+	cr, err := e.callWithValidationChunk(
+		context.Background(), "adapt-strategy", 1,
+		"strategy_formula", "strategy_formula", "prompt", uuid.Nil, nil)
+	if err != nil {
+		t.Fatalf("expected success, got: %v", err)
+	}
+	// strategy_formula should be present directly (not double-wrapped).
+	sf2, ok := cr.Output["strategy_formula"]
+	if !ok {
+		t.Fatal("expected strategy_formula key in output")
+	}
+	// It should be a map (the artifact payload), not another wrapper.
+	if _, ok := sf2.(map[string]any); !ok {
+		t.Errorf("expected strategy_formula to be a map, got %T", sf2)
+	}
+}
+
+func TestInnerKeyFor_Overrides(t *testing.T) {
+	cases := []struct {
+		outputKey string
+		want      string
+	}{
+		{"strategy_formula", "strategy"},
+		{"roadmap_recipe", "roadmap"},
+		{"insight_opportunity", "opportunity"},
+		{"north_star", "north_star"},           // same
+		{"strategy_foundations", "strategy_foundations"}, // same
+		{"assessment_report", "assessment_report"},      // flat schema, no override
+	}
+	for _, tc := range cases {
+		got := innerKeyFor(tc.outputKey)
+		if got != tc.want {
+			t.Errorf("innerKeyFor(%q) = %q, want %q", tc.outputKey, got, tc.want)
+		}
+	}
+}
+
+func TestCallWithValidationChunk_SingleWrapFix(t *testing.T) {
+	// LLM produces single-wrapped output:
+	//   {"strategy_formula": {"id": "s1", "title": "T", ...}}
+	// The schema requires strategy_formula → strategy → { ... }.
+	// The single-wrap fix should detect that "strategy" is missing inside
+	// strategy_formula and re-wrap.
+	sf := validStrategyFormulaJSON()
+	// Parse the valid strategy_formula to get the "strategy" inner content.
+	var sfMap map[string]any
+	if err := json.Unmarshal([]byte(sf), &sfMap); err != nil {
+		t.Fatalf("invalid test fixture: %v", err)
+	}
+	// Extract the inner "strategy" content — that's what the LLM might
+	// produce directly under "strategy_formula" (single-wrapped).
+	strategyContent, ok := sfMap["strategy"]
+	if !ok {
+		t.Fatal("validStrategyFormulaJSON must have 'strategy' key")
+	}
+	singleWrapped, _ := json.Marshal(map[string]any{
+		"strategy_formula": strategyContent,
+	})
+
+	llm := &mockLLM{responses: []string{string(singleWrapped)}}
+	e := &Executor{llm: llm}
+
+	cr, err := e.callWithValidationChunk(
+		context.Background(), "adapt-strategy", 1,
+		"strategy_formula", "strategy_formula", "prompt", uuid.Nil, nil)
+	if err != nil {
+		t.Fatalf("expected single-wrap fix to produce valid output, got: %v", err)
+	}
+	// The output should now have strategy_formula → strategy → {...}.
+	outer, ok := cr.Output["strategy_formula"].(map[string]any)
+	if !ok {
+		t.Fatal("expected strategy_formula key in output")
+	}
+	if _, ok := outer["strategy"]; !ok {
+		t.Fatal("expected 'strategy' inner key after single-wrap fix")
 	}
 }
 
@@ -797,6 +993,143 @@ func TestKnownArtifactOutputKeys_CoversFoundationTypes(t *testing.T) {
 // ---------------------------------------------------------------------------
 // validStrategyFormulaJSON
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// cleanJSON tests
+// ---------------------------------------------------------------------------
+
+func TestCleanJSON(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "already valid",
+			input: `{"key": "value"}`,
+			want:  `{"key": "value"}`,
+		},
+		{
+			name:  "markdown json fence",
+			input: "```json\n{\"key\": \"value\"}\n```",
+			want:  `{"key": "value"}`,
+		},
+		{
+			name:  "markdown bare fence",
+			input: "```\n{\"key\": \"value\"}\n```",
+			want:  `{"key": "value"}`,
+		},
+		{
+			name:  "surrounding text",
+			input: "Here is the JSON:\n{\"key\": \"value\"}\nDone!",
+			want:  `{"key": "value"}`,
+		},
+		{
+			name:  "trailing comma before brace",
+			input: `{"items": ["a", "b",], "x": 1,}`,
+			want:  `{"items": ["a", "b"], "x": 1}`,
+		},
+		{
+			name:  "trailing comma with whitespace",
+			input: "{\"a\": 1 ,\n  }",
+			want:  "{\"a\": 1 \n  }",
+		},
+		{
+			name:  "comma inside string preserved",
+			input: `{"msg": "hello, world", "x": 1}`,
+			want:  `{"msg": "hello, world", "x": 1}`,
+		},
+		{
+			name:  "trailing comma inside string preserved",
+			input: `{"msg": "trailing,}", "x": 1}`,
+			want:  `{"msg": "trailing,}", "x": 1}`,
+		},
+		{
+			name:  "fence plus trailing commas",
+			input: "```json\n{\"items\": [1, 2, 3,],}\n```",
+			want:  `{"items": [1, 2, 3]}`,
+		},
+		{
+			name:  "empty input",
+			input: "",
+			want:  "",
+		},
+		{
+			name:  "whitespace only",
+			input: "   \n\t  ",
+			want:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := cleanJSON(tt.input)
+			if got != tt.want {
+				t.Errorf("cleanJSON() =\n  %q\nwant:\n  %q", got, tt.want)
+			}
+			// If we expect valid JSON, verify it parses.
+			if tt.want != "" {
+				var m map[string]any
+				if err := json.Unmarshal([]byte(got), &m); err != nil {
+					t.Errorf("cleaned output is not valid JSON: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestRemoveTrailingCommas(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "no commas",
+			input: `{"a": 1}`,
+			want:  `{"a": 1}`,
+		},
+		{
+			name:  "normal comma",
+			input: `{"a": 1, "b": 2}`,
+			want:  `{"a": 1, "b": 2}`,
+		},
+		{
+			name:  "trailing in object",
+			input: `{"a": 1,}`,
+			want:  `{"a": 1}`,
+		},
+		{
+			name:  "trailing in array",
+			input: `[1, 2, 3,]`,
+			want:  `[1, 2, 3]`,
+		},
+		{
+			name:  "nested trailing",
+			input: `{"a": [1,], "b": {"c": 2,},}`,
+			want:  `{"a": [1], "b": {"c": 2}}`,
+		},
+		{
+			name:  "comma in string not removed",
+			input: `{"s": "a,}"}`,
+			want:  `{"s": "a,}"}`,
+		},
+		{
+			name:  "escaped quote in string",
+			input: `{"s": "he said \"hi,\"", "x": 1,}`,
+			want:  `{"s": "he said \"hi,\"", "x": 1}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := removeTrailingCommas(tt.input)
+			if got != tt.want {
+				t.Errorf("removeTrailingCommas() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
 
 // validStrategyFormulaJSON returns a minimal valid strategy_formula as a JSON string.
 func validStrategyFormulaJSON() string {

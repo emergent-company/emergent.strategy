@@ -100,6 +100,10 @@ func StrategyShellPage(title string, currentPath string, sidebarGroups []layout.
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
+				templ_7745c5c3_Err = systemWarningBanner().Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<main id=\"main-content\" class=\"flex flex-col flex-1 min-w-0 overflow-hidden bg-base-200\"><div class=\"flex flex-col flex-1 min-h-0 overflow-y-auto\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -213,6 +217,10 @@ func InstanceShellPage(title string, currentPath string, sidebarGroups []layout.
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
+				templ_7745c5c3_Err = systemWarningBanner().Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<main id=\"main-content\" class=\"flex flex-col flex-1 min-w-0 overflow-hidden bg-base-200\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -292,7 +300,7 @@ func InstanceChrome(instanceName string, tabs []TabProps, currentPath string) te
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(instanceName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 68, Col: 19}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 70, Col: 19}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
@@ -364,7 +372,7 @@ func activityStreamSSE() templ.Component {
 			templ_7745c5c3_Var13 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<script>\n\t(function() {\n\t\t// Extract instance ID from URL: /strategies/:id/...\n\t\tvar m = window.location.pathname.match(/^\\/strategies\\/([0-9a-f-]{36})/);\n\t\tif (!m) return;\n\t\tvar instanceId = m[1];\n\n\t\tvar es = new EventSource('/strategies/' + instanceId + '/activity/stream');\n\n\t\t// Skill name → affected artifact CSS IDs (for toggling generating badges).\n\t\tvar skillArtifacts = {\n\t\t\t'adapt-strategy':     ['strategy_formula', 'roadmap_recipe'],\n\t\t\t'adapt-foundations':  ['north_star', 'strategy_foundations', 'insight_analyses', 'insight_opportunity'],\n\t\t\t'draft-north-star':   ['north_star'],\n\t\t\t'draft-insights':     ['insight_analyses'],\n\t\t\t'draft-foundations':  ['strategy_foundations'],\n\t\t\t'draft-opportunity':  ['insight_opportunity'],\n\t\t\t'draft-formula':      ['strategy_formula'],\n\t\t\t'draft-roadmap':      ['roadmap_recipe'],\n\t\t\t'align-portfolio':    ['strategy_formula', 'roadmap_recipe']\n\t\t};\n\t\t// Flat set of all artifact IDs that can have a generating badge.\n\t\tvar allBadgeIds = [];\n\t\tfor (var k in skillArtifacts) {\n\t\t\tskillArtifacts[k].forEach(function(id) {\n\t\t\t\tif (allBadgeIds.indexOf(id) === -1) allBadgeIds.push(id);\n\t\t\t});\n\t\t}\n\n\t\t// reconcileBadges checks the cascade endpoint and shows/hides generating\n\t\t// badges based on which skill runs are actually active right now.\n\t\t// This prevents stale badges when SSE events are missed (tab throttled,\n\t\t// connection dropped, user navigated back to an already-open tab).\n\t\tfunction reconcileBadges() {\n\t\t\tfetch('/strategies/' + instanceId + '/cascade')\n\t\t\t\t.then(function(r) { return r.text(); })\n\t\t\t\t.then(function(html) {\n\t\t\t\t\t// A row is actively running when the cascade shows a spinning loader.\n\t\t\t\t\tvar hasRunningRow = html.indexOf('animate-spin') !== -1 && html.indexOf('lucide--loader') !== -1;\n\n\t\t\t\t\t// Build set of artifact IDs that should be active.\n\t\t\t\t\t// Check each known skill name directly against the cascade HTML\n\t\t\t\t\t// (the cascade embeds the raw skill name as a data attribute or label).\n\t\t\t\t\tvar activeIds = {};\n\t\t\t\t\tif (hasRunningRow) {\n\t\t\t\t\t\tfor (var sk in skillArtifacts) {\n\t\t\t\t\t\t\t// Match raw skill name in the HTML (cascade renders it as label or data).\n\t\t\t\t\t\t\tif (html.indexOf(sk) !== -1) {\n\t\t\t\t\t\t\t\tskillArtifacts[sk].forEach(function(id) { activeIds[id] = true; });\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t\t// Apply: show active, hide inactive.\n\t\t\t\t\tallBadgeIds.forEach(function(id) {\n\t\t\t\t\t\tvar badge = document.getElementById('generating-' + id);\n\t\t\t\t\t\tif (!badge) return;\n\t\t\t\t\t\tif (activeIds[id]) {\n\t\t\t\t\t\t\tbadge.classList.remove('hidden');\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tbadge.classList.add('hidden');\n\t\t\t\t\t\t}\n\t\t\t\t\t});\n\t\t\t\t})\n\t\t\t\t.catch(function() { /* ignore network errors */ });\n\t\t}\n\n\t\t// Reconcile on page load — catches stale state from previous visits.\n\t\treconcileBadges();\n\n\t\t// Periodic reconciliation every 30s as a safety net for dropped SSE events.\n\t\tsetInterval(reconcileBadges, 30000);\n\n\t\tes.addEventListener('activity', function(e) {\n\t\t\ttry {\n\t\t\t\tvar evt = JSON.parse(e.data);\n\t\t\t\tvar payload = evt.payload || {};\n\t\t\t\tvar skillName = payload.skill_name || '';\n\t\t\t\tvar targets = skillArtifacts[skillName] || [];\n\n\t\t\t\tif (evt.event_type === 'skill.started') {\n\t\t\t\t\ttargets.forEach(function(t) {\n\t\t\t\t\t\tvar badge = document.getElementById('generating-' + t);\n\t\t\t\t\t\tif (badge) badge.classList.remove('hidden');\n\t\t\t\t\t});\n\t\t\t\t}\n\t\t\t\tif (evt.event_type === 'skill.completed' || evt.event_type === 'skill.failed') {\n\t\t\t\t\ttargets.forEach(function(t) {\n\t\t\t\t\t\tvar badge = document.getElementById('generating-' + t);\n\t\t\t\t\t\tif (badge) badge.classList.add('hidden');\n\t\t\t\t\t});\n\t\t\t\t\tif (evt.event_type === 'skill.completed' && payload.batch_id) {\n\t\t\t\t\t\tvar banner = document.getElementById('pending-draft-banner');\n\t\t\t\t\t\tif (banner) {\n\t\t\t\t\t\t\tbanner.classList.remove('hidden');\n\t\t\t\t\t\t\tvar link = banner.querySelector('a');\n\t\t\t\t\t\t\tif (link) link.href = '/strategies/' + instanceId + '/aim/draft-review/' + payload.batch_id;\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t} catch(err) { /* ignore parse errors */ }\n\t\t});\n\n\t\t// Close on navigation away (SPA-style).\n\t\twindow.addEventListener('beforeunload', function() { es.close(); });\n\t})();\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<script>\n\t(function() {\n\t\t// Extract instance ID from URL: /strategies/:id/...\n\t\tvar m = window.location.pathname.match(/^\\/strategies\\/([0-9a-f-]{36})/);\n\t\tif (!m) return;\n\t\tvar instanceId = m[1];\n\n\t\t// Skill name → affected artifact CSS IDs (for toggling generating badges).\n\t\tvar skillArtifacts = {\n\t\t\t'adapt-strategy':     ['strategy_formula', 'roadmap_recipe'],\n\t\t\t'adapt-foundations':  ['north_star', 'strategy_foundations', 'insight_analyses', 'insight_opportunity'],\n\t\t\t'draft-north-star':   ['north_star'],\n\t\t\t'draft-insights':     ['insight_analyses'],\n\t\t\t'draft-foundations':  ['strategy_foundations'],\n\t\t\t'draft-opportunity':  ['insight_opportunity'],\n\t\t\t'draft-formula':      ['strategy_formula'],\n\t\t\t'draft-roadmap':      ['roadmap_recipe'],\n\t\t\t'align-portfolio':    ['strategy_formula', 'roadmap_recipe']\n\t\t};\n\t\t// Flat set of all artifact IDs that can have a generating badge.\n\t\tvar allBadgeIds = [];\n\t\tfor (var k in skillArtifacts) {\n\t\t\tskillArtifacts[k].forEach(function(id) {\n\t\t\t\tif (allBadgeIds.indexOf(id) === -1) allBadgeIds.push(id);\n\t\t\t});\n\t\t}\n\n\t\t// reconcileBadges checks the cascade endpoint and shows/hides generating\n\t\t// badges based on which skill runs are actually active right now.\n\t\t// This prevents stale badges when SSE events are missed (tab throttled,\n\t\t// connection dropped, user navigated back to an already-open tab).\n\t\tfunction reconcileBadges() {\n\t\t\tfetch('/strategies/' + instanceId + '/cascade')\n\t\t\t\t.then(function(r) { return r.text(); })\n\t\t\t\t.then(function(html) {\n\t\t\t\t\t// A row is actively running when the cascade shows a spinning loader.\n\t\t\t\t\tvar hasRunningRow = html.indexOf('animate-spin') !== -1 && html.indexOf('lucide--loader') !== -1;\n\n\t\t\t\t\t// Build set of artifact IDs that should be active.\n\t\t\t\t\tvar activeIds = {};\n\t\t\t\t\tif (hasRunningRow) {\n\t\t\t\t\t\tfor (var sk in skillArtifacts) {\n\t\t\t\t\t\t\tif (html.indexOf(sk) !== -1) {\n\t\t\t\t\t\t\t\tskillArtifacts[sk].forEach(function(id) { activeIds[id] = true; });\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t\t// Apply: show active, hide inactive.\n\t\t\t\t\tallBadgeIds.forEach(function(id) {\n\t\t\t\t\t\tvar badge = document.getElementById('generating-' + id);\n\t\t\t\t\t\tif (!badge) return;\n\t\t\t\t\t\tif (activeIds[id]) {\n\t\t\t\t\t\t\tbadge.classList.remove('hidden');\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tbadge.classList.add('hidden');\n\t\t\t\t\t\t}\n\t\t\t\t\t});\n\t\t\t\t})\n\t\t\t\t.catch(function() { /* ignore network errors */ });\n\t\t}\n\n\t\t// --- SSE lifecycle management ---\n\t\t// Prevents UI freezes from zombie EventSource connections, runaway\n\t\t// reconnects, and background-tab resource drain.\n\t\tvar es = null;\n\t\tvar reconcileTimer = null;\n\t\tvar errorCount = 0;\n\t\tvar MAX_ERRORS = 5;        // close after 5 consecutive failures\n\t\tvar RECONCILE_MS = 30000;  // 30s polling fallback\n\n\t\tfunction onActivity(e) {\n\t\t\ttry {\n\t\t\t\tvar evt = JSON.parse(e.data);\n\t\t\t\tvar payload = evt.payload || {};\n\t\t\t\tvar skillName = payload.skill_name || '';\n\t\t\t\tvar targets = skillArtifacts[skillName] || [];\n\n\t\t\t\tif (evt.event_type === 'skill.started') {\n\t\t\t\t\ttargets.forEach(function(t) {\n\t\t\t\t\t\tvar badge = document.getElementById('generating-' + t);\n\t\t\t\t\t\tif (badge) badge.classList.remove('hidden');\n\t\t\t\t\t});\n\t\t\t\t}\n\t\t\t\tif (evt.event_type === 'skill.completed' || evt.event_type === 'skill.failed') {\n\t\t\t\t\ttargets.forEach(function(t) {\n\t\t\t\t\t\tvar badge = document.getElementById('generating-' + t);\n\t\t\t\t\t\tif (badge) badge.classList.add('hidden');\n\t\t\t\t\t});\n\t\t\t\t\tif (evt.event_type === 'skill.completed' && payload.batch_id) {\n\t\t\t\t\t\tvar banner = document.getElementById('pending-draft-banner');\n\t\t\t\t\t\tif (banner) {\n\t\t\t\t\t\t\tbanner.classList.remove('hidden');\n\t\t\t\t\t\t\tvar link = banner.querySelector('a');\n\t\t\t\t\t\t\tif (link) link.href = '/strategies/' + instanceId + '/aim/draft-review/' + payload.batch_id;\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t} catch(err) { /* ignore parse errors */ }\n\t\t}\n\n\t\tfunction connectSSE() {\n\t\t\tif (es) { es.close(); es = null; }\n\t\t\terrorCount = 0;\n\n\t\t\tes = new EventSource('/strategies/' + instanceId + '/activity/stream');\n\t\t\tes.addEventListener('activity', onActivity);\n\n\t\t\tes.onopen = function() {\n\t\t\t\t// Connection established — reset error counter.\n\t\t\t\terrorCount = 0;\n\t\t\t};\n\n\t\t\tes.onerror = function() {\n\t\t\t\terrorCount++;\n\t\t\t\tif (errorCount >= MAX_ERRORS) {\n\t\t\t\t\t// Too many consecutive failures — close to prevent runaway\n\t\t\t\t\t// reconnects from freezing the tab. The 30s reconcile interval\n\t\t\t\t\t// will keep badges accurate until the page is reloaded.\n\t\t\t\t\tes.close();\n\t\t\t\t\tes = null;\n\t\t\t\t}\n\t\t\t};\n\t\t}\n\n\t\tfunction disconnectSSE() {\n\t\t\tif (es) { es.close(); es = null; }\n\t\t}\n\n\t\tfunction startReconcile() {\n\t\t\tif (reconcileTimer) return;\n\t\t\treconcileBadges(); // immediate on start\n\t\t\treconcileTimer = setInterval(reconcileBadges, RECONCILE_MS);\n\t\t}\n\n\t\tfunction stopReconcile() {\n\t\t\tif (reconcileTimer) { clearInterval(reconcileTimer); reconcileTimer = null; }\n\t\t}\n\n\t\t// --- Page visibility handling ---\n\t\t// When the tab is backgrounded, close SSE and stop polling to avoid\n\t\t// resource drain. Reconnect when the tab returns to the foreground.\n\t\tdocument.addEventListener('visibilitychange', function() {\n\t\t\tif (document.hidden) {\n\t\t\t\tdisconnectSSE();\n\t\t\t\tstopReconcile();\n\t\t\t} else {\n\t\t\t\tconnectSSE();\n\t\t\t\tstartReconcile();\n\t\t\t}\n\t\t});\n\n\t\t// --- Initial setup ---\n\t\tconnectSSE();\n\t\tstartReconcile();\n\n\t\t// Close on navigation away.\n\t\twindow.addEventListener('beforeunload', function() {\n\t\t\tdisconnectSSE();\n\t\t\tstopReconcile();\n\t\t});\n\t})();\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -517,7 +525,7 @@ func StrategyTabs(tabs []TabProps, currentPath string) templ.Component {
 			var templ_7745c5c3_Var19 templ.SafeURL
 			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(tab.URL))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 231, Col: 29}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 289, Col: 29}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 			if templ_7745c5c3_Err != nil {
@@ -530,7 +538,7 @@ func StrategyTabs(tabs []TabProps, currentPath string) templ.Component {
 			var templ_7745c5c3_Var20 string
 			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue(tab.URL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 232, Col: 20}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 290, Col: 20}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 			if templ_7745c5c3_Err != nil {
@@ -580,7 +588,7 @@ func StrategyTabs(tabs []TabProps, currentPath string) templ.Component {
 			var templ_7745c5c3_Var24 string
 			templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(tab.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 242, Col: 15}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 300, Col: 15}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 			if templ_7745c5c3_Err != nil {
@@ -681,7 +689,7 @@ func TabRelatedPages(tabGroup string, instanceID string, currentPath string) tem
 			var templ_7745c5c3_Var27 templ.SafeURL
 			templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(landingHref))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 294, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 352, Col: 37}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 			if templ_7745c5c3_Err != nil {
@@ -694,7 +702,7 @@ func TabRelatedPages(tabGroup string, instanceID string, currentPath string) tem
 			var templ_7745c5c3_Var28 string
 			templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(templ.SafeURL(landingHref)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 295, Col: 47}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 353, Col: 47}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
 			if templ_7745c5c3_Err != nil {
@@ -742,7 +750,7 @@ func TabRelatedPages(tabGroup string, instanceID string, currentPath string) tem
 			var templ_7745c5c3_Var32 string
 			templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(meta.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 304, Col: 16}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 362, Col: 16}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 			if templ_7745c5c3_Err != nil {
@@ -767,7 +775,7 @@ func TabRelatedPages(tabGroup string, instanceID string, currentPath string) tem
 				var templ_7745c5c3_Var34 templ.SafeURL
 				templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(item.Href))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 309, Col: 36}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 367, Col: 36}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 				if templ_7745c5c3_Err != nil {
@@ -780,7 +788,7 @@ func TabRelatedPages(tabGroup string, instanceID string, currentPath string) tem
 				var templ_7745c5c3_Var35 string
 				templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(templ.SafeURL(item.Href)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 310, Col: 46}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 368, Col: 46}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var35)
 				if templ_7745c5c3_Err != nil {
@@ -828,7 +836,7 @@ func TabRelatedPages(tabGroup string, instanceID string, currentPath string) tem
 				var templ_7745c5c3_Var39 string
 				templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(item.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 319, Col: 17}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 377, Col: 17}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 				if templ_7745c5c3_Err != nil {
@@ -1057,8 +1065,9 @@ func InstanceChromeWithContent(instanceName string, tabs []TabProps, currentPath
 	})
 }
 
-// themeRestoreScript restores the saved theme from localStorage on page load.
-func themeRestoreScript() templ.Component {
+// systemWarningBanner renders a persistent warning when critical subsystems
+// (Memory) are not configured. Shown below the navbar on every page.
+func systemWarningBanner() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1079,7 +1088,39 @@ func themeRestoreScript() templ.Component {
 			templ_7745c5c3_Var45 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<script>\n\t\t(function() {\n\t\t\ttry {\n\t\t\t\tvar saved = localStorage.getItem('go-daisy-theme');\n\t\t\t\tif (saved) {\n\t\t\t\t\tdocument.documentElement.setAttribute('data-theme', saved);\n\t\t\t\t\tif (saved === 'dark') {\n\t\t\t\t\t\tvar sun = document.getElementById('theme-icon-sun');\n\t\t\t\t\t\tvar moon = document.getElementById('theme-icon-moon');\n\t\t\t\t\t\tif (sun) sun.style.display = 'none';\n\t\t\t\t\t\tif (moon) moon.style.display = '';\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t} catch(e) {}\n\t\t})();\n\t</script>")
+		if !GetSystemConfig().MemoryConfigured {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<div class=\"bg-warning/10 border-b border-warning/25 px-4 py-2 flex items-center gap-2 text-sm shrink-0\"><span class=\"iconify lucide--alert-triangle size-4 text-warning shrink-0\"></span> <span class=\"text-warning-content/80\"><strong>Memory not configured</strong> — semantic search, contradiction detection, and graph features are disabled.</span> <a href=\"/settings\" class=\"ml-auto text-xs font-medium text-warning-content/60 hover:text-warning-content underline\">Settings</a></div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		return nil
+	})
+}
+
+// themeRestoreScript restores the saved theme from localStorage on page load.
+func themeRestoreScript() templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var46 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var46 == nil {
+			templ_7745c5c3_Var46 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "<script>\n\t\t(function() {\n\t\t\ttry {\n\t\t\t\tvar saved = localStorage.getItem('go-daisy-theme');\n\t\t\t\tif (saved) {\n\t\t\t\t\tdocument.documentElement.setAttribute('data-theme', saved);\n\t\t\t\t\tif (saved === 'dark') {\n\t\t\t\t\t\tvar sun = document.getElementById('theme-icon-sun');\n\t\t\t\t\t\tvar moon = document.getElementById('theme-icon-moon');\n\t\t\t\t\t\tif (sun) sun.style.display = 'none';\n\t\t\t\t\t\tif (moon) moon.style.display = '';\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t} catch(e) {}\n\t\t})();\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

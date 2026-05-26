@@ -19,6 +19,7 @@ templ StrategyShellPage(title string, currentPath string, sidebarGroups []layout
 				@layout.Navbar("Emergent Strategy") {
 					@layout.ThemeToggle("nord", "dark")
 				}
+				@systemWarningBanner()
 				<main id="main-content" class="flex flex-col flex-1 min-w-0 overflow-hidden bg-base-200">
 					<div class="flex flex-col flex-1 min-h-0 overflow-y-auto">
 						{ children... }
@@ -42,6 +43,7 @@ templ InstanceShellPage(title string, currentPath string, sidebarGroups []layout
 				@layout.Navbar("Emergent Strategy") {
 					@layout.ThemeToggle("nord", "dark")
 				}
+			@systemWarningBanner()
 			<main id="main-content" class="flex flex-col flex-1 min-w-0 overflow-hidden bg-base-200">
 				@InstanceChrome(instanceName, tabs, currentPath) {
 					{ children... }
@@ -91,8 +93,6 @@ templ activityStreamSSE() {
 		if (!m) return;
 		var instanceId = m[1];
 
-		var es = new EventSource('/strategies/' + instanceId + '/activity/stream');
-
 		// Skill name → affected artifact CSS IDs (for toggling generating badges).
 		var skillArtifacts = {
 			'adapt-strategy':     ['strategy_formula', 'roadmap_recipe'],
@@ -125,12 +125,9 @@ templ activityStreamSSE() {
 					var hasRunningRow = html.indexOf('animate-spin') !== -1 && html.indexOf('lucide--loader') !== -1;
 
 					// Build set of artifact IDs that should be active.
-					// Check each known skill name directly against the cascade HTML
-					// (the cascade embeds the raw skill name as a data attribute or label).
 					var activeIds = {};
 					if (hasRunningRow) {
 						for (var sk in skillArtifacts) {
-							// Match raw skill name in the HTML (cascade renders it as label or data).
 							if (html.indexOf(sk) !== -1) {
 								skillArtifacts[sk].forEach(function(id) { activeIds[id] = true; });
 							}
@@ -150,13 +147,16 @@ templ activityStreamSSE() {
 				.catch(function() { /* ignore network errors */ });
 		}
 
-		// Reconcile on page load — catches stale state from previous visits.
-		reconcileBadges();
+		// --- SSE lifecycle management ---
+		// Prevents UI freezes from zombie EventSource connections, runaway
+		// reconnects, and background-tab resource drain.
+		var es = null;
+		var reconcileTimer = null;
+		var errorCount = 0;
+		var MAX_ERRORS = 5;        // close after 5 consecutive failures
+		var RECONCILE_MS = 30000;  // 30s polling fallback
 
-		// Periodic reconciliation every 30s as a safety net for dropped SSE events.
-		setInterval(reconcileBadges, 30000);
-
-		es.addEventListener('activity', function(e) {
+		function onActivity(e) {
 			try {
 				var evt = JSON.parse(e.data);
 				var payload = evt.payload || {};
@@ -184,10 +184,68 @@ templ activityStreamSSE() {
 					}
 				}
 			} catch(err) { /* ignore parse errors */ }
+		}
+
+		function connectSSE() {
+			if (es) { es.close(); es = null; }
+			errorCount = 0;
+
+			es = new EventSource('/strategies/' + instanceId + '/activity/stream');
+			es.addEventListener('activity', onActivity);
+
+			es.onopen = function() {
+				// Connection established — reset error counter.
+				errorCount = 0;
+			};
+
+			es.onerror = function() {
+				errorCount++;
+				if (errorCount >= MAX_ERRORS) {
+					// Too many consecutive failures — close to prevent runaway
+					// reconnects from freezing the tab. The 30s reconcile interval
+					// will keep badges accurate until the page is reloaded.
+					es.close();
+					es = null;
+				}
+			};
+		}
+
+		function disconnectSSE() {
+			if (es) { es.close(); es = null; }
+		}
+
+		function startReconcile() {
+			if (reconcileTimer) return;
+			reconcileBadges(); // immediate on start
+			reconcileTimer = setInterval(reconcileBadges, RECONCILE_MS);
+		}
+
+		function stopReconcile() {
+			if (reconcileTimer) { clearInterval(reconcileTimer); reconcileTimer = null; }
+		}
+
+		// --- Page visibility handling ---
+		// When the tab is backgrounded, close SSE and stop polling to avoid
+		// resource drain. Reconnect when the tab returns to the foreground.
+		document.addEventListener('visibilitychange', function() {
+			if (document.hidden) {
+				disconnectSSE();
+				stopReconcile();
+			} else {
+				connectSSE();
+				startReconcile();
+			}
 		});
 
-		// Close on navigation away (SPA-style).
-		window.addEventListener('beforeunload', function() { es.close(); });
+		// --- Initial setup ---
+		connectSSE();
+		startReconcile();
+
+		// Close on navigation away.
+		window.addEventListener('beforeunload', function() {
+			disconnectSSE();
+			stopReconcile();
+		});
 	})();
 	</script>
 }
@@ -422,6 +480,23 @@ templ InstancePhaseFullPage(title string, currentPath string, sidebarGroups []la
 templ InstanceChromeWithContent(instanceName string, tabs []TabProps, currentPath string, content templ.Component) {
 	@InstanceChrome(instanceName, tabs, currentPath) {
 		@content
+	}
+}
+
+// systemWarningBanner renders a persistent warning when critical subsystems
+// (Memory) are not configured. Shown below the navbar on every page.
+templ systemWarningBanner() {
+	if !GetSystemConfig().MemoryConfigured {
+		<div class="bg-warning/10 border-b border-warning/25 px-4 py-2 flex items-center gap-2 text-sm shrink-0">
+			<span class="iconify lucide--alert-triangle size-4 text-warning shrink-0"></span>
+			<span class="text-warning-content/80">
+				<strong>Memory not configured</strong> — semantic search, contradiction detection, and graph features are disabled.
+			</span>
+			<a
+				href="/settings"
+				class="ml-auto text-xs font-medium text-warning-content/60 hover:text-warning-content underline"
+			>Settings</a>
+		</div>
 	}
 }
 
