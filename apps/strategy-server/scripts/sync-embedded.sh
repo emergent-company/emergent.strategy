@@ -52,7 +52,8 @@ rm -rf \
     "$EMBEDDED_DIR/wizards" \
     "$EMBEDDED_DIR/outputs" \
     "$EMBEDDED_DIR/agents" \
-    "$EMBEDDED_DIR/skills"
+    "$EMBEDDED_DIR/skills" \
+    "$EMBEDDED_DIR/docs"
 
 mkdir -p \
     "$EMBEDDED_DIR/schemas" \
@@ -60,7 +61,9 @@ mkdir -p \
     "$EMBEDDED_DIR/wizards" \
     "$EMBEDDED_DIR/outputs" \
     "$EMBEDDED_DIR/agents" \
-    "$EMBEDDED_DIR/skills"
+    "$EMBEDDED_DIR/skills" \
+    "$EMBEDDED_DIR/docs" \
+    "$EMBEDDED_DIR/docs/guides"
 
 # --- Schemas ---
 echo "Copying schemas..."
@@ -148,6 +151,31 @@ for track_dir in strategy org_ops commercial; do
 done
 echo "  $DEFINITION_COUNT canonical definition files"
 
+# --- Documentation (white paper + guides) ---
+echo "Copying documentation..."
+DOC_COUNT=0
+if [ -f "$CANONICAL_EPF/docs/EPF_WHITE_PAPER.md" ]; then
+    cp "$CANONICAL_EPF/docs/EPF_WHITE_PAPER.md" "$EMBEDDED_DIR/docs/"
+    DOC_COUNT=$((DOC_COUNT + 1))
+fi
+if [ -d "$CANONICAL_EPF/docs/guides" ]; then
+    for guide_file in "$CANONICAL_EPF/docs/guides/"*.md; do
+        [ -f "$guide_file" ] || continue
+        cp "$guide_file" "$EMBEDDED_DIR/docs/guides/"
+        DOC_COUNT=$((DOC_COUNT + 1))
+    done
+    # Copy technical subdirectory if present
+    if [ -d "$CANONICAL_EPF/docs/guides/technical" ]; then
+        mkdir -p "$EMBEDDED_DIR/docs/guides/technical"
+        for tech_file in "$CANONICAL_EPF/docs/guides/technical/"*.md; do
+            [ -f "$tech_file" ] || continue
+            cp "$tech_file" "$EMBEDDED_DIR/docs/guides/technical/"
+            DOC_COUNT=$((DOC_COUNT + 1))
+        done
+    fi
+fi
+echo "  $DOC_COUNT documentation files"
+
 # --- VERSION ---
 if [ -f "$CANONICAL_EPF/VERSION" ]; then
     cp "$CANONICAL_EPF/VERSION" "$EMBEDDED_DIR/VERSION"
@@ -183,6 +211,9 @@ $(ls -1d "$EMBEDDED_DIR/agents/"*/ 2>/dev/null | xargs -I {} basename {} | sort)
 
 ## Skills
 $(ls -1d "$EMBEDDED_DIR/skills/"*/ 2>/dev/null | xargs -I {} basename {} | sort)
+
+## Documentation
+$(find "$EMBEDDED_DIR/docs" -type f -name "*.md" 2>/dev/null | sed "s|$EMBEDDED_DIR/docs/||" | sort)
 EOF
 
 echo ""
@@ -194,3 +225,4 @@ echo "  Generators: $GENERATOR_COUNT"
 echo "  Agents:     $AGENT_COUNT"
 echo "  Skills:     $SKILL_COUNT"
 echo "  Defs:       $DEFINITION_COUNT"
+echo "  Docs:       $DOC_COUNT"

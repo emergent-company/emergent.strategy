@@ -16,8 +16,11 @@ whichever app you are currently working in.
 
 ### Strategy Server Summary
 
-103 MCP tools, 14 migrations, multi-tenant org model, schema registry,
-strategy versioning, GitHub sync write-back, Memory semantic graph integration.
+141 MCP tools (organized into 13 categories with context-aware filtering),
+28 migrations, multi-tenant org model, schema registry, strategy versioning,
+GitHub sync write-back, ripple coherence engine, AIM orchestration with
+heartbeat-driven proposals, evidence ingestion pipeline, autonomous skill
+execution, Memory semantic graph integration.
 See `apps/strategy-server/AGENTS.md` for the full reference.
 
 ---
@@ -132,7 +135,7 @@ apps/strategy-server/
 ├── cmd_db.go                    # Migration runner
 ├── cmd_import.go                # Local EPF instance import
 ├── config/                      # Config struct (env vars, defaults)
-├── domain/                      # Pure domain logic (12 packages)
+├── domain/                      # Pure domain logic (20 packages)
 │   ├── workspace/               # Workspace CRUD
 │   ├── instance/                # Strategy instance lifecycle
 │   ├── strategy/                # Artifact CRUD, mutations, batches, export
@@ -144,10 +147,22 @@ apps/strategy-server/
 │   ├── user/                    # User identity
 │   ├── org/                     # Organisation management
 │   ├── pack/                    # Skill pack installation
-│   └── app/                     # Strategy app platform
+│   ├── app/                     # Strategy app platform
+│   ├── ripple/                  # Ripple coherence engine (signals, convergence)
+│   ├── aim/                     # AIM lifecycle (assessment, calibration, cycles)
+│   ├── heartbeat/               # Background trigger evaluation, cycle proposals
+│   ├── evidence/                # Evidence ingestion and management
+│   ├── skillexec/               # Autonomous skill execution engine
+│   ├── skillrun/                # Skill run ledger and LLM usage tracking
+│   ├── activity/                # Activity stream (event sourcing)
+│   └── watchdog/                # Instance health monitoring
 ├── internal/
-│   ├── mcpserver/               # 103 MCP tools (7 registration files)
-│   ├── database/                # DB connection, migrations (14), TestDB(t)
+│   ├── mcpserver/               # 141 MCP tools (13 registration files)
+│   ├── navigation/              # Navigation graph (screens, tabs, routes)
+│   ├── handler/                 # Web UI handlers (HTMX, templ rendering)
+│   ├── ui/                      # Templ components for web pages
+│   ├── pipeline/                # Post-commit pipeline (ripple, sync, validation)
+│   ├── database/                # DB connection, migrations (28), TestDB(t)
 │   ├── embedded/                # go:embed schemas, templates, agents, skills
 │   ├── github/                  # GitHub App client (JWT, Git tree API)
 │   ├── memory/                  # emergent.memory REST client

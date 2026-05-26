@@ -180,6 +180,7 @@ func (s *Server) buildHandlerRegistry() map[navigation.ScreenID]handlerEntry {
 	return map[navigation.ScreenID]handlerEntry{
 		// Root
 		navigation.GlobalDashboard: {GET: s.handleDashboard},
+		navigation.Settings:        {GET: s.handleSettings},
 
 		// Execution
 		navigation.ExecutionDashboard: {GET: s.handleExecutionDashboard},
@@ -216,6 +217,7 @@ func (s *Server) buildHandlerRegistry() map[navigation.ScreenID]handlerEntry {
 		navigation.Coherence:        {GET: s.handleCoherence},
 		navigation.AimVersions:      {GET: s.handleVersions},
 		navigation.AimProposals:     {GET: s.handleAimProposals},
+		navigation.AimCycleRuns:     {GET: s.handleListAIMRuns},
 		navigation.AimEvidence:      {GET: s.handleEvidencePage},
 	}
 }
@@ -247,8 +249,8 @@ func (s *Server) RegisterRoutes(e *echo.Echo) {
 		}
 	}
 
-	// Settings page — not in the navigation graph, registered separately.
-	e.GET("/settings", s.handleSettings)
+	// Settings page — registered via the nav graph loop (Settings screen).
+	// The POST endpoint for sync is registered separately.
 	e.POST("/settings/sync", s.handleSettingsSync)
 
 	// Signal action endpoints — HTMX POST, return the updated card fragment.
@@ -261,7 +263,7 @@ func (s *Server) RegisterRoutes(e *echo.Echo) {
 	e.POST("/strategies/:id/aim/versions/:versionID/restore", s.handleVersionRestore)
 
 	// Evidence endpoints — evidence collection and management.
-	e.GET("/strategies/:id/aim/evidence", s.handleEvidencePage)
+	// Note: GET /strategies/:id/aim/evidence is already registered via the nav graph loop.
 	e.GET("/strategies/:id/aim/evidence/interview", s.handleEvidenceInterviewPage)
 	e.POST("/strategies/:id/evidence/ingest", s.handleIngestEvidence)
 	e.POST("/strategies/:id/evidence/interview", s.handleSubmitInterview)
@@ -269,8 +271,8 @@ func (s *Server) RegisterRoutes(e *echo.Echo) {
 	// READY bootstrap draft actions — POST /strategies/:id/ready/draft-:key
 	e.POST("/strategies/:id/ready/draft-:key", s.handleReadyDraft)
 
-	// FIRE portfolio alignment — POST /strategies/:id/fire/align-portfolio
-	e.POST("/strategies/:id/fire/align-portfolio", s.handleAlignPortfolio)
+	// FIRE canonical definitions — POST /strategies/:id/fire/install-definitions
+	e.POST("/strategies/:id/fire/install-definitions", s.handleInstallDefinitions)
 
 	// AIM agent endpoints — AI-assisted draft generation and review.
 	e.POST("/strategies/:id/aim/publish", s.handlePublishVersion)
@@ -286,10 +288,13 @@ func (s *Server) RegisterRoutes(e *echo.Echo) {
 	e.POST("/strategies/:id/aim/runs", s.handleStartAIMRun)
 	e.GET("/strategies/:id/aim/runs/:runID", s.handleGetAIMRun)
 	e.GET("/strategies/:id/aim/runs/:runID/stream", s.handleAIMRunStream)
+	e.POST("/strategies/:id/aim/runs/:runID/abort", s.handleAbortAIMRun)
+	e.POST("/strategies/:id/aim/runs/:runID/retry", s.handleRetryAIMRun)
 
 	// Proposal action endpoints — HTMX POST, return the updated card fragment.
 	e.POST("/strategies/:id/aim/proposals/:proposalID/approve", s.handleProposalApprove)
 	e.POST("/strategies/:id/aim/proposals/:proposalID/defer", s.handleProposalDefer)
+	e.POST("/strategies/:id/aim/proposals/:proposalID/dismiss", s.handleProposalDismiss)
 
 	// Activity stream SSE — pushes JSON-encoded activity events to browser clients.
 	// Clients connect with EventSource: new EventSource("/strategies/:id/activity/stream")

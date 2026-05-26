@@ -59,7 +59,11 @@ const (
 	AimProposals     ScreenID = "aim-proposals"    // Cycle proposals inbox — human approval gate
 	AimDraftReview   ScreenID = "aim-draft-review" // AI draft review — hidden from sub-nav
 	AimRunPanel      ScreenID = "aim-run-panel"    // Orchestrated cycle run panel — hidden from sub-nav
-	AimEvidence      ScreenID = "aim-evidence"     // Evidence collection and management
+	AimCycleRuns     ScreenID = "aim-cycle-runs"   // Cycle runs listing — visible in sub-nav
+	AimEvidence          ScreenID = "aim-evidence"           // Evidence collection and management
+	AimEvidenceInterview ScreenID = "aim-evidence-interview" // Evidence interview wizard — hidden from sub-nav
+	VersionDetail        ScreenID = "aim-version-detail"     // Single version detail — hidden from sub-nav
+	Settings             ScreenID = "settings"               // Global settings page — not instance-scoped
 )
 
 // TabGroup identifies which instance tab a screen belongs to.

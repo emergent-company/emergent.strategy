@@ -12,10 +12,12 @@
 //	outputs/      — Generator definitions (legacy)
 //	agents/       — Agent definitions (agent.yaml + prompt.md per agent)
 //	skills/       — Skill definitions (skill.yaml + prompt.md per skill)
+//	docs/         — EPF white paper and framework guides (markdown)
 package embedded
 
 import (
 	"embed"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -44,6 +46,9 @@ var agentsFS embed.FS
 
 //go:embed skills
 var skillsFS embed.FS
+
+//go:embed docs
+var docsFS embed.FS
 
 //go:embed VERSION
 var Version string
@@ -83,6 +88,32 @@ func GetSchema(filename string) ([]byte, error) {
 // SchemaFS returns an fs.FS rooted at the schemas directory.
 func SchemaFS() (fs.FS, error) {
 	return fs.Sub(schemasFS, "schemas")
+}
+
+// SchemaAllowsProperty returns true if the schema for the given artifact type
+// defines the named property (i.e. it won't be rejected by additionalProperties: false).
+// Returns false for unknown artifact types or if the schema cannot be parsed.
+func SchemaAllowsProperty(artifactType, property string) bool {
+	filename, ok := artifactTypeToSchema[artifactType]
+	if !ok {
+		return false
+	}
+	data, err := GetSchema(filename)
+	if err != nil {
+		return false
+	}
+	// Quick JSON introspection — check if the property name appears in a
+	// "properties" object at the root level of the schema.
+	var schema map[string]any
+	if err := json.Unmarshal(data, &schema); err != nil {
+		return false
+	}
+	props, ok := schema["properties"].(map[string]any)
+	if !ok {
+		return false
+	}
+	_, exists := props[property]
+	return exists
 }
 
 // ---------------------------------------------------------------------------
@@ -418,6 +449,62 @@ func GetSkillOutputSchema(name string) ([]byte, error) {
 		return nil, fmt.Errorf("get skill output schema %q: %w", name, err)
 	}
 	return data, nil
+}
+
+// ---------------------------------------------------------------------------
+// Documentation (white paper + guides)
+// ---------------------------------------------------------------------------
+
+// GetWhitePaper returns the raw EPF white paper markdown.
+// Returns nil, nil if the white paper is not embedded.
+func GetWhitePaper() ([]byte, error) {
+	data, err := docsFS.ReadFile("docs/EPF_WHITE_PAPER.md")
+	if err != nil {
+		if isNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get white paper: %w", err)
+	}
+	return data, nil
+}
+
+// ListGuides returns the relative paths of all embedded guide markdown files.
+func ListGuides() ([]string, error) {
+	var guides []string
+	err := fs.WalkDir(docsFS, "docs/guides", func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if strings.HasSuffix(p, ".md") {
+			// Strip the "docs/guides/" prefix for a clean relative path.
+			rel := strings.TrimPrefix(p, "docs/guides/")
+			guides = append(guides, rel)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list guides: %w", err)
+	}
+	return guides, nil
+}
+
+// GetGuide returns the raw markdown bytes for the named guide.
+// Path is relative to docs/guides/ (e.g. "NORTH_STAR_GUIDE.md" or
+// "technical/EPF_SCHEMA_V2_QUALITY_SYSTEM.md").
+func GetGuide(relativePath string) ([]byte, error) {
+	data, err := docsFS.ReadFile(path.Join("docs/guides", relativePath))
+	if err != nil {
+		return nil, fmt.Errorf("get guide %q: %w", relativePath, err)
+	}
+	return data, nil
+}
+
+// DocsFS returns an fs.FS rooted at the docs/ directory.
+func DocsFS() (fs.FS, error) {
+	return fs.Sub(docsFS, "docs")
 }
 
 // ---------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 # Strategy-Server Embedded Artifacts Manifest
-# Generated: 2026-05-03T16:40:59Z
+# Generated: 2026-05-26T07:48:57Z
 # Source: /Users/nikolaifasting/code/epf-canonical
-# Version: 2.22.1
+# Version: 2.27.7
 
 ## Schemas
 _epf_anchor_schema.json
@@ -15,6 +15,7 @@ insight_analyses_schema.json
 insight_opportunity_schema.json
 living_reality_assessment_schema.json
 mappings_schema.json
+navigation_graph_schema.json
 north_star_schema.json
 org_ops_definition_schema.json
 product_portfolio_schema.json
@@ -167,6 +168,7 @@ FIRE/definitions/strategy/tactical-roadmap/sd-025-outcome-tracking.yaml
 FIRE/definitions/strategy/tactical-roadmap/sd-026-feedback-loops.yaml
 FIRE/definitions/strategy/tactical-roadmap/sd-027-refinement-protocols.yaml
 FIRE/mappings.yaml
+FIRE/navigation/navigation_graph.yaml
 FIRE/value_models/commercial.value_model.yaml
 FIRE/value_models/org_ops.value_model.yaml
 FIRE/value_models/product.value_model.yaml
@@ -220,15 +222,28 @@ start-epf
 synthesizer
 
 ## Skills
+adapt-foundations
+adapt-strategy
 aim-trigger-assessment
+align-portfolio
 balance-checker
 context-sheet
 development-brief
+draft-assessment
+draft-calibration
+draft-formula
+draft-foundations
+draft-insights
+draft-lra
+draft-north-star
+draft-opportunity
+draft-roadmap
 feature-definition
 feature-enrichment
 internal-mirror
 investor-memo
 market-mapper
+navigation-graph
 problem-detective
 roadmap-enrichment
 skattefunn-application
@@ -237,3 +252,25 @@ strategic-reality-check
 trend-scout
 value-model-preview
 value-model-review
+
+## Documentation
+EPF_WHITE_PAPER.md
+guides/ADOPTION_GUIDE.md
+guides/FEATURE_DEFINITION_GRANULARITY_GUIDE.md
+guides/FEATURE_DEFINITION_IMPLEMENTATION_GUIDE.md
+guides/HEALTH_CHECK_GUIDE.md
+guides/INSTANTIATION_GUIDE.md
+guides/NORTH_STAR_GUIDE.md
+guides/PRODUCT_PORTFOLIO_GUIDE.md
+guides/README.md
+guides/STRATEGY_FOUNDATIONS_GUIDE.md
+guides/technical/EPF_SCHEMA_V2_QUALITY_SYSTEM.md
+guides/technical/field-importance-methodology.md
+guides/technical/HEALTH_CHECK_ENHANCEMENT.md
+guides/technical/schema_enhancement_recommendations.md
+guides/TRACK_BASED_ARCHITECTURE.md
+guides/UNIVERSAL_TRL_FRAMEWORK.md
+guides/VALUE_MODEL_ANTI_PATTERNS_REFERENCE.md
+guides/VALUE_MODEL_BUSINESS_LANGUAGE_GUIDE.md
+guides/VALUE_MODEL_MATURITY_GUIDE.md
+guides/VERSION_MANAGEMENT_AUTOMATED.md

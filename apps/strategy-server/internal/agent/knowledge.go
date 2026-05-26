@@ -336,15 +336,23 @@ one atomic commit.`,
 		Topic: "Starting a session — orientation checklist",
 		Body: `When you start a new strategy-server session, orient yourself in this order:
 
-  1. list_workspaces — find available workspaces and their IDs.
-  2. list_instances(workspace_id) — find the active instance.
-  3. health_check(instance_id) — see artifact counts, standard pack status,
+  1. list_tool_categories — see available tool categories and their tool counts.
+     By default only ~13 core tools are visible. Call set_tool_filter to activate
+     the categories you need (e.g. ["features", "aim"]) or ["all"] to see everything.
+  2. list_workspaces — find available workspaces and their IDs.
+  3. list_instances(workspace_id) — find the active instance.
+  4. health_check(instance_id) — see artifact counts, standard pack status,
      any validation issues. Follow its recommendations before authoring.
-  4. get_product_vision(instance_id) — understand the north star before making
+  5. get_product_vision(instance_id) — understand the north star before making
      any changes.
 
-Do not start authoring or committing changes before completing steps 1–4.
-This prevents operating on the wrong instance or creating contradictory content.`,
+Do not start authoring or committing changes before completing steps 1–5.
+This prevents operating on the wrong instance or creating contradictory content.
+
+To create a brand new strategy from scratch, use scaffold_instance(workspace_id,
+name) — it pre-populates all READY-phase artifacts (north star, foundations,
+formula, roadmap, insights) as templates, giving users a starting point rather
+than a blank slate.`,
 	},
 	{
 		Topic: "Creating a new feature",
@@ -729,7 +737,21 @@ see and modify data within their own orgs.`,
 
 5. **Ignoring health_check recommendations**: health_check returns
    required_next_steps when the instance has issues. Follow them before starting
-   authoring work. Operating on a broken instance amplifies existing problems.`,
+   authoring work. Operating on a broken instance amplifies existing problems.
+
+6. **Not activating tool categories**: By default only ~13 core tools are visible.
+   If a tool you expect does not appear in tools/list, call list_tool_categories
+   to see available categories, then set_tool_filter to activate what you need.
+
+7. **Deleting instead of archiving**: delete_instance and delete_workspace are
+   irreversible — they remove all artifacts, mutations, versions, and history
+   permanently. Use archive_instance to hide an instance without data loss.
+   Use archive_feature to retire a feature while preserving its history.
+
+8. **Creating features without batch_create_artifacts**: When staging multiple
+   artifacts at once (e.g. bulk import), use batch_create_artifacts to stage
+   them all in a single batch. This is faster and produces a single commit
+   instead of many individual ones.`,
 	},
 	{
 		Topic: "Ripple coherence — the strategy graph is alive",
@@ -798,6 +820,276 @@ auto-publishes a version snapshot tagged with source='convergence'.
 - update_ripple_config: Adjust authority thresholds, equilibrium threshold,
   damping parameters, or natural tension baselines.`,
 	},
+	{
+		Topic: "Strategy versioning — snapshots, comparison, and restore",
+		Body: `Strategy versions are atomic snapshots of all artifacts and relationships at a
+point in time. They enable comparison, rollback, and audit trails.
+
+**Workflow:**
+  1. Mutate artifacts via write tools (create/update features, north star, etc.)
+  2. publish_version(instance_id, label?, description?) — snapshot all committed
+     artifacts and relationships into a named version. Returns the version_id.
+  3. list_versions(instance_id) — see version history with status (published,
+     superseded, restored), artifact counts, and timestamps.
+  4. diff_versions(instance_id, from_version_id, to_version_id) — compare two
+     versions. Returns which artifacts were added, removed, or changed.
+  5. get_version(instance_id, version_id) — retrieve the full artifact snapshot
+     from a specific version.
+  6. restore_version(instance_id, version_id) — revert to a previous version's
+     state. This creates a NEW version with the restored artifacts — it does not
+     delete history.
+
+**Automatic versioning:**
+Versions are also auto-published in two cases:
+  - When the convergence loop reaches equilibrium with changes (source='convergence')
+  - When an AIM calibration cycle completes (source='aim_cycle')
+
+Auto-published versions include metadata about what triggered them (equilibrium
+score, calibration decision, etc.).
+
+**When to publish manually:**
+  - After completing a significant round of authoring (new features, roadmap update)
+  - Before starting a potentially disruptive change (so you can restore if needed)
+  - At the end of a strategy cycle (quarterly snapshot)`,
+	},
+	{
+		Topic: "GitHub sync — pushing strategy to repositories",
+		Body: `strategy-server can export committed artifacts as YAML files to a GitHub
+repository via the GitHub App integration.
+
+**Prerequisites:**
+  - GitHub App installed on the target repository
+  - Server configured with GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY_PATH
+  - Instance must have github_repo set (e.g. "org/strategy-repo")
+
+**Workflow:**
+  1. sync_to_github(instance_id) — exports all committed artifacts as YAML in
+     EPF directory structure (READY/FIRE/AIM), creates a branch, commits the
+     files, and opens a pull request. Returns sync status with branch name and
+     PR URL.
+  2. get_sync_status(instance_id) — check sync history: last sync time, open
+     PRs, sync result (success/failure), and error details if any.
+
+The sync is one-directional: server → GitHub. Changes made directly in GitHub
+are not automatically pulled back into the server.
+
+If the GitHub App is not configured, both tools return a structured error
+indicating GitHub sync is unavailable.`,
+	},
+	{
+		Topic: "Evidence management — ingesting and linking strategic evidence",
+		Body: `Evidence items are first-class artifacts that capture real-world data supporting
+or challenging strategic assumptions. They complement the conceptual evidence
+framework described in EPF's epistemic standard.
+
+**Ingestion:**
+  - ingest_evidence(instance_id, source_name, source_type, content, ...) —
+    submit a new evidence item. Source types include: user_interview,
+    analytics_export, sales_call, competitive_report, support_ticket, metric.
+    Optional fields: summary, tags, source_confidence (high/medium/low),
+    source_url, linked_artifacts, collected_at.
+
+**Querying:**
+  - list_evidence(instance_id, tags?, source_name?, processing_status?,
+    linked_artifact?, since?) — filter evidence by tags (OR logic), source,
+    processing status (unprocessed/processed/archived), linked artifact, or
+    collection date.
+  - get_evidence(instance_id, artifact_key) — read a single evidence item.
+
+**Linking:**
+  - link_evidence(instance_id, evidence_key, target_key, relationship?) —
+    create a relationship between evidence and another artifact (feature, OKR,
+    assumption). Relationship types: supports, invalidates, validates, contradicts.
+  - update_evidence(instance_id, artifact_key, ...) — update tags, summary, or
+    linked artifacts on existing evidence.
+
+**Best practices:**
+  - Tag evidence for filtering: competitive, partner, technical, market,
+    narrative, metric, user-feedback, sales, support, engineering, internal.
+  - Link evidence to specific assumptions (tests_assumption) so AIM assessments
+    can reference concrete data points.
+  - Set source_confidence to indicate data reliability.`,
+	},
+	{
+		Topic: "Heartbeat and continuous strategy loop",
+		Body: `The heartbeat is a background process that continuously evaluates whether an
+AIM cycle is due. It checks trigger conditions (time elapsed since last cycle,
+evidence accumulation, signal severity) and creates proposals when thresholds
+are met.
+
+**Heartbeat signals:**
+  - list_heartbeat_signals(instance_id, include_acknowledged?) — see active
+    trigger events. Each signal records which trigger fired, when, and why.
+  - acknowledge_heartbeat(signal_id) — mark a signal as seen. Acknowledged
+    signals are excluded from future list results by default.
+
+**Cycle proposals:**
+When the heartbeat determines an AIM cycle is due, it creates a proposal rather
+than starting one automatically. Proposals require human approval.
+
+  - list_cycle_proposals(instance_id, status?) — see pending proposals.
+    Status filter: pending (default), approved, deferred, expired, or all.
+  - approve_cycle_proposal(proposal_id) — approve and immediately start an
+    orchestrated AIM cycle run.
+  - defer_cycle_proposal(proposal_id, snooze_days?) — snooze the proposal.
+    The heartbeat will not create a new proposal until the snooze expires.
+    Default snooze: 7 days.
+
+**Proposal lifecycle:**
+  pending → approved → (AIM cycle runs)
+  pending → deferred → (snooze expires) → expired → (heartbeat re-evaluates)
+  pending → expired (if not acted on within the expiry window)
+
+**When to use:**
+  - Check list_cycle_proposals during session orientation to see if an AIM
+    cycle has been recommended.
+  - Use defer_cycle_proposal when the team acknowledges the recommendation but
+    is not ready to act (e.g. mid-sprint).
+  - Use approve_cycle_proposal to kick off the full orchestrated AIM cycle.`,
+	},
+	{
+		Topic: "Observability — activity stream, skill runs, and LLM usage",
+		Body: `Four tools provide visibility into what the strategy-server is doing:
+
+**Activity stream:**
+  - list_activities(instance_id, limit?) — recent activity events for an
+    instance: proposal lifecycle events, cycle starts, evidence ingestion,
+    assessments committed, heartbeat triggers, skill execution results.
+    Returns newest events first (default limit 50).
+
+**Skill execution tracking:**
+  - list_skill_runs(instance_id, limit?, status?, trigger?) — see autonomous
+    skill execution history. Each run records: skill name, status (running,
+    completed, failed), timing, token counts, and trigger context (manual,
+    ripple, aim_cycle). Filter by status or trigger.
+  - get_skill_run(run_id) — full detail of a specific run including per-chunk
+    timing, token counts, validation errors, and trigger context.
+
+**Cost tracking:**
+  - get_llm_usage(instance_id, since?, until?) — aggregated LLM token usage
+    by skill name. Shows input/output token totals per skill. Use since/until
+    (ISO 8601 dates) to scope to a time window. Useful for cost budgeting and
+    identifying expensive operations.
+
+**When to use:**
+  - Check list_activities after a batch commit to see what downstream effects
+    occurred (ripple signals, skill runs triggered, etc.).
+  - Use list_skill_runs when investigating why an adapt-strategy or
+    adapt-foundations run failed.
+  - Use get_llm_usage to monitor costs before and after enabling autonomous
+    skill execution.`,
+	},
+	{
+		Topic: "Tool category filtering — managing context window",
+		Body: `strategy-server exposes 140+ MCP tools. To avoid overwhelming LLM clients with
+a massive tool list, tools are organized into 13 categories. By default, only
+the core category (~13 tools) is visible.
+
+**Meta-tools (always visible):**
+  - list_tool_categories — returns all categories with tool counts and short
+    descriptions. Use at session start to understand what is available.
+  - set_tool_filter(categories) — activate specific categories. Pass an array
+    of category names to show those tools. Pass ["all"] to see everything.
+    Core tools are always visible regardless of filter.
+
+**Categories:**
+  | Category      | Tools | Description                                    |
+  |---------------|-------|------------------------------------------------|
+  | core          | ~13   | Routing, instance lookup, batch, search         |
+  | strategy      | 12    | Vision, personas, competitive, roadmap          |
+  | features      | 16    | Feature CRUD, definitions, relationships        |
+  | authoring     | 6     | Foundation writes — north star, formula, roadmap|
+  | aim           | 13    | AIM lifecycle — LRA, assessment, calibration    |
+  | ripple        | 11    | Coherence engine — signals, equilibrium         |
+  | evidence      | 5     | Evidence ingestion and management               |
+  | semantic      | 6     | Contradictions, neighbors, scenarios            |
+  | validation    | 8     | Validation, export, readiness                   |
+  | admin         | 21    | Workspace/org/version/sync management           |
+  | knowledge     | 10    | Schemas, templates, agents, skills              |
+  | packs         | 11    | Skill packs, apps                               |
+  | observability | 9     | Activity, skill runs, heartbeat                 |
+
+**Typical activation patterns:**
+  - Strategy review: set_tool_filter(["strategy", "validation"])
+  - Feature authoring: set_tool_filter(["features", "authoring", "validation"])
+  - AIM cycle: set_tool_filter(["aim", "evidence", "observability"])
+  - Full access: set_tool_filter(["all"])
+
+The filter only affects tools/list (tool discovery). Direct tools/call always
+works regardless of filter — tools are still registered, just hidden from listing.`,
+	},
+	{
+		Topic: "Workspace and instance lifecycle",
+		Body: `Workspaces and instances have a defined lifecycle with creation, activation,
+and cleanup operations.
+
+**Workspace operations:**
+  - create_workspace(github_owner, org_id, display_name?) — create a new
+    workspace within an organisation. Every workspace must belong to an org.
+  - delete_workspace(workspace_id) — permanently delete a workspace and ALL
+    its strategy instances. **This is irreversible** — all instances, artifacts,
+    mutations, versions, and history are removed. Use only when a workspace is
+    completely abandoned.
+  - assign_workspace_to_org(workspace_id, org_id) — move a workspace to a
+    different organisation. Requires org_admin role on the target org.
+
+**Instance operations:**
+  - import_instance(workspace_id, name, github_repo?) — create an empty
+    instance. Does not fetch artifacts — use CLI import or manual authoring.
+  - scaffold_instance(workspace_id, name, github_repo?) — create a new
+    instance with template artifacts pre-populated. All READY-phase artifacts
+    (north star, foundations, formula, roadmap, insights) are seeded from
+    canonical templates. Preferred for new strategies.
+  - activate_instance(instance_id) — set an instance as the active one for
+    its workspace. Only one instance can be active per workspace.
+  - archive_instance(instance_id) — hide an instance without deleting data.
+    Archived instances can be reactivated later. Staged mutations are discarded.
+  - delete_instance(instance_id) — permanently delete an instance and all its
+    data. **This is irreversible.** Prefer archive_instance when possible.
+
+**Bulk operations:**
+  - batch_create_artifacts(instance_id, artifacts) — stage multiple new
+    artifacts in a single batch. Each item specifies artifact_type, artifact_key,
+    and payload. All mutations share one batch_id. Use for bulk imports or
+    multi-artifact creation.`,
+	},
+	{
+		Topic: "Pack management — installing and creating skill packs",
+		Body: `Skill packs are bundles of skills and apps that extend strategy-server with
+domain-specific LLM-driven capabilities.
+
+**Reading:**
+  - list_installed_skills(instance_id, source_filter?) — all skills available
+    to an instance. Use source_filter to narrow: installed, canonical, or all.
+  - get_installed_skill(instance_id, skill_name) — full skill definition
+    including prompt, source, and execution mode.
+  - list_packs(instance_id) — see which packs are installed and whether the
+    standard pack is up to date.
+  - get_pack(instance_id, pack_name) — full pack details including skill names
+    and apps.
+  - list_apps(instance_id) — see which apps are installed with display metadata.
+
+**Writing:**
+  - install_pack(instance_id, pack_yaml, skills?, force?) — install a skill
+    pack. Provide the pack manifest YAML and an array of skill definitions.
+    Use force=true to upgrade an existing pack.
+  - uninstall_pack(instance_id, pack_name) — remove a pack and all its skills
+    and apps from an instance.
+
+**Creating custom skills:**
+  - scaffold_skill(name, type, execution, description, ...) — generate a
+    schema-valid skill.yaml, prompt.md, and pack.yaml skeleton. Output is ready
+    to pass directly to install_pack.
+  - describe_pack_format — returns schemas and a complete example for the pack,
+    skill, and app YAML format.
+
+**Execution:**
+  - run_skill(instance_id, skill_name, mode?, params?) — execute a skill.
+    Mode: interactive (returns prompt for you to follow) or autonomous (calls
+    the LLM server-side and stages mutations).
+  - run_app(instance_id, app_name, params?) — invoke an installed app. The app
+    receives artifact context and returns a document or staged mutations.`,
+	},
 }
 
 // ServerInstructions returns a concise EPF persona statement suitable for
@@ -853,8 +1145,8 @@ workflow guidance.`
 func Format() string {
 	var b strings.Builder
 	b.WriteString("# strategy-server Domain Knowledge\n\n")
-	b.WriteString("This knowledge base has two sections:\n\n")
-	b.WriteString("**Section 1 — EPF framework**: What the Emergent Product Framework is,\n")
+	b.WriteString("This knowledge base has three sections:\n\n")
+	b.WriteString("**Section 1 — EPF framework overview**: What the Emergent Product Framework is,\n")
 	b.WriteString("how it reasons, its vocabulary, and what makes it distinct from generic\n")
 	b.WriteString("strategy approaches. Read this section to understand the reasoning frame\n")
 	b.WriteString("you must operate within. Do not default to generic strategy frameworks\n")
@@ -862,7 +1154,13 @@ func Format() string {
 	b.WriteString("within EPF's integrated four-track, hypothesis-driven model.\n\n")
 	b.WriteString("**Section 2 — Operational patterns**: Which tools to call, in what order,\n")
 	b.WriteString("the batch commit workflow, and common mistakes to avoid.\n\n")
-	b.WriteString("Read both sections before calling any tools.\n\n")
+	b.WriteString("**Section 3 — EPF Framework Reference**: The authoritative EPF white paper\n")
+	b.WriteString("and framework guides, auto-loaded from canonical EPF at build time.\n")
+	b.WriteString("These provide deep knowledge on EPF philosophy, principles, artifact\n")
+	b.WriteString("structures, adoption patterns, and differentiation from other frameworks.\n\n")
+	b.WriteString("Read sections 1 and 2 before calling any tools. Consult section 3 when\n")
+	b.WriteString("you need deep EPF framework knowledge for authoring, reasoning, or\n")
+	b.WriteString("explaining EPF concepts to users.\n\n")
 	b.WriteString("---\n\n")
 
 	for _, e := range KnowledgeBase {

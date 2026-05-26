@@ -147,8 +147,8 @@ Four-phase build order — do not start the next phase until the exit gate is me
 | Phase | Status | Description |
 |-------|--------|-------------|
 | Phase 1 | **Complete** | Foundation: scaffolding, day-one patterns, capability specs |
-| Phase 2 | **Complete** | MCP server — 103 tools, auth, semantic engine, versioning, GitHub sync |
-| Phase 3 | Not started | HTMX web UI — rendering layer on validated backend |
+| Phase 2 | **Complete** | MCP server — 141 tools, auth, semantic engine, versioning, GitHub sync |
+| Phase 3 | **In progress** | HTMX web UI — dashboard enrichment, AIM pipeline, tool filtering |
 | Phase 4 | Not started | Inline AI in web UI |
 
 ### Phase 2 status
@@ -157,16 +157,33 @@ Four-phase build order — do not start the next phase until the exit gate is me
   service wiring, async ingestion pipeline, dual-layer graph (artifact + decomposed)
 - **2b (Auth + multi-tenant):** Complete — Zitadel introspection, user/org model,
   auth middleware, org MCP tools
-- **2c (Tool parity):** Complete — 96 MCP tools, agent routing, knowledge base
+- **2c (Tool parity):** Complete — 141 MCP tools, agent routing, knowledge base
 - **2d (Integration tests):** In progress — E2E tests for semantic tools (mocked Memory),
   org lifecycle, ingest pipeline, full agent workflow. Remaining: multi-tenant isolation,
   documentation
 - **2e (Schema registry + versioning + GitHub sync):** Complete — schema registry with
   DB + embedded fallback, strategy versioning (publish/list/get/diff/restore), GitHub
-  App write-back (branch + commit + PR), decomposer field reconciliation. 103 MCP tools.
-- **AIM agent loop:** Complete — `domain/aim/` package, 4 MCP tools (`draft_aim_assessment`,
-  `draft_aim_calibration`, `apply_aim_calibration`, `list_aim_cycles`), web UI draft review
-  flow, cycle auto-snapshot on calibration commit. 111 MCP tools total.
+  App write-back (branch + commit + PR), decomposer field reconciliation.
+- **AIM lifecycle:** Complete — `domain/aim/` package (assessment, calibration, apply),
+  orchestrated AIM cycles with SSE progress streaming, heartbeat-driven cycle proposals,
+  evidence ingestion pipeline, autonomous skill execution.
+- **Ripple coherence:** Complete — signal detection, convergence loop, equilibrium
+  scoring, authority tiers, auto-versioning on equilibrium.
+- **Tool filtering:** Complete — 13 categories, default core-only visibility,
+  `list_tool_categories` and `set_tool_filter` meta-tools.
+
+### Phase 3 status
+
+- **Dashboard enrichment:** Complete — global dashboard cards show north star vision,
+  health indicators, coherence score, signal counts, evidence, versions.
+- **Execution dashboard:** Complete — strategic focus section with north star banner,
+  strategic bets, health summary sidebar.
+- **AIM pipeline UI:** Complete — cycle stepper, draft review flow, run panel with
+  SSE streaming, proposal cards with approve/defer/dismiss.
+- **FIRE phase UI:** Complete — track dashboards, feature detail, value model detail,
+  definition detail, canonical definition installer.
+- **READY phase UI:** Complete — artifact views for all 7 READY artifacts, bootstrap
+  draft actions with generating indicators.
 
 ## Tech Stack
 
@@ -176,7 +193,7 @@ Four-phase build order — do not start the next phase until the exit gate is me
 | Database | PostgreSQL 16 via `uptrace/bun` + `jackc/pgx/v5` |
 | HTTP | Echo v4 + `danielgtaylor/huma/v2` |
 | CLI/Config | `alexflint/go-arg` |
-| Migrations | `pressly/goose/v3` embedded SQL (14 migrations) |
+| Migrations | `pressly/goose/v3` embedded SQL (28 migrations) |
 | Logging | `log/slog` JSON |
 | UUIDs | `google/uuid` |
 | MCP | `mark3labs/mcp-go` |
@@ -269,16 +286,24 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 | `domain/aim/` | AI-assisted AIM cycle (trigger evaluation, draft assessment/calibration/apply, cycle snapshots, orchestrated cycle workflow) |
 | `domain/heartbeat/` | Background heartbeat ticker, trigger evaluation, cycle proposals (pending/approved/deferred/expired lifecycle) |
 | `domain/evidence/` | Evidence ingestion and management — first-class artifacts stored in strategy_artifacts + Memory |
+| `domain/skillexec/` | Autonomous skill execution engine (context building, LLM calls, chunk-based validation) |
+| `domain/skillrun/` | Skill run ledger — execution history and LLM token usage tracking |
+| `domain/activity/` | Activity stream — event sourcing for instance-level lifecycle events |
+| `domain/watchdog/` | Instance health monitoring (stale artifacts, orphans, coherence issues) |
 
 ### Internal packages
 
 | Package | Purpose |
 |---------|---------|
-| `internal/database/` | DB connection, migrations, `TestDB(t)` |
-| `internal/mcpserver/` | 111 MCP tools across 8 registration files |
+| `internal/database/` | DB connection, migrations (28), `TestDB(t)` |
+| `internal/mcpserver/` | 141 MCP tools across 13 registration files, tool category filter |
+| `internal/navigation/` | Navigation graph — screens, tabs, routes, breadcrumbs (single source of truth for web UI) |
+| `internal/handler/` | Web UI handlers — HTMX rendering, RenderTriple pattern, graph-driven route registration |
+| `internal/ui/` | Templ components for all web pages (dashboards, phases, AIM pipeline, evidence) |
+| `internal/pipeline/` | Post-commit pipeline (ripple analysis, Memory ingestion, validation) |
 | `internal/auth/` | Zitadel OIDC introspection + PostgreSQL cache |
 | `internal/memory/` | emergent.memory REST API client (7 files) |
-| `internal/agent/` | Task routing (`get_agent_for_task`) + knowledge base |
+| `internal/agent/` | Task routing (`get_agent_for_task`) + domain knowledge base (29 topics) |
 | `internal/embedded/` | go:embed EPF schemas, templates, agents, skills, field manifest |
 | `internal/github/` | GitHub App client (JWT, installation tokens, Git tree API) |
 | `internal/web/` | Auth + audit + lang middleware |
@@ -292,7 +317,7 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 
 ### Database migrations
 
-24 migrations in `internal/database/migrations/`:
+28 migrations in `internal/database/migrations/`:
 
 | Migration | Purpose |
 |-----------|---------|
@@ -320,32 +345,32 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 | `022_orchestration_runs.sql` | `orchestration_runs` table + index on (workflow_name, concurrency_key, status) |
 | `023_heartbeat_signals.sql` | `heartbeat_signals` table — persistent trigger events per instance |
 | `024_cycle_proposals.sql` | `cycle_proposals` table — AIM cycle proposals with status/snooze lifecycle |
+| `025_strategy_activities.sql` | Activity stream event log |
+| `026_skill_runs.sql` | Skill execution ledger + LLM token usage |
+| `027_proposal_dismissed_status.sql` | Add dismissed status to cycle proposals |
+| `028_mutation_staging_status.sql` | Staging status for mutations |
 
 ## MCP Server
 
-The server exposes 120 MCP tools at `/mcp`. Key categories:
+The server exposes 141 MCP tools at `/mcp`, organized into 13 categories with
+context-aware filtering. By default only ~13 core tools are visible; clients
+call `list_tool_categories` and `set_tool_filter` to activate additional categories.
 
 | Category | Count | Examples |
 |----------|-------|---------|
-| Workspace/Instance | 9 | `list_workspaces`, `import_instance`, `health_check` |
-| Strategy reads | 11 | `get_product_vision`, `list_features`, `get_feature` |
-| Mutation writes | 13 | `create_feature`, `update_north_star`, `commit_batch` |
-| Semantic graph | 7 | `search_strategy`, `detect_contradictions`, `run_scenario` |
-| Derived reads | 6 | `explain_value_path`, `get_coverage_analysis`, `get_assumptions` |
-| Validation | 5 | `validate_artifact`, `validate_with_plan`, `check_content_readiness` |
-| Embedded knowledge | 12 | `get_agent_for_task`, `list_schemas`, `get_agent`, `get_skill` |
-| Organisation | 5 | `create_org`, `invite_member`, `list_members` |
-| Skill packs/apps | 11 | `install_pack`, `run_skill`, `run_app` |
-| Relationship tools | 3 | `add_relationship`, `suggest_relationships`, `list_relationships` |
-| AIM lifecycle | 7 | `create_lra`, `validate_assumptions`, `stage_calibration` |
-| AIM agent loop | 4 | `draft_aim_assessment`, `draft_aim_calibration`, `apply_aim_calibration`, `list_aim_cycles` |
-| AIM orchestrator | 2 | `aim_start_cycle`, `aim_get_run` |
-| Ripple coherence | 11 | `coherence_check`, `list_signals`, `get_equilibrium_status`, `get_convergence_history` |
-| Export | 3 | `export_instance_yaml`, `export_report` |
-| Phase discovery | 4 | `get_phase_artifacts`, `list_definitions`, `get_definition` |
-| Strategy versions | 5 | `publish_version`, `list_versions`, `diff_versions`, `restore_version` |
-| GitHub sync | 2 | `sync_to_github`, `get_sync_status` |
-| Heartbeat/Continuous loop | 4 | `list_heartbeat_signals`, `acknowledge_heartbeat_signal`, `list_cycle_proposals`, `approve_cycle_proposal` |
+| core | ~13 | `get_agent_for_task`, `list_workspaces`, `health_check`, `commit_batch`, `search_strategy` |
+| strategy | 12 | `get_product_vision`, `get_personas`, `get_roadmap`, `get_coverage_analysis` |
+| features | 16 | `create_feature`, `update_feature`, `list_artifacts`, `add_relationship` |
+| authoring | 6 | `update_north_star`, `update_strategy_formula`, `update_roadmap` |
+| aim | 13 | `draft_aim_assessment`, `draft_aim_calibration`, `aim_start_cycle`, `list_aim_cycles` |
+| ripple | 11 | `coherence_check`, `list_signals`, `get_equilibrium_status`, `propose_change` |
+| evidence | 5 | `ingest_evidence`, `list_evidence`, `link_evidence` |
+| semantic | 6 | `detect_contradictions`, `get_neighbors`, `run_scenario` |
+| validation | 8 | `validate_artifact`, `validate_with_plan`, `export_report` |
+| admin | 21 | `scaffold_instance`, `publish_version`, `sync_to_github`, `create_org` |
+| knowledge | 10 | `list_schemas`, `get_template`, `get_agent`, `get_skill` |
+| packs | 11 | `install_pack`, `run_skill`, `run_app`, `scaffold_skill` |
+| observability | 9 | `list_activities`, `list_skill_runs`, `get_llm_usage`, `list_cycle_proposals` |
 | Evidence | 5 | `ingest_evidence`, `get_evidence`, `list_evidence`, `update_evidence`, `link_evidence` |
 
 ### Ripple Coherence Engine

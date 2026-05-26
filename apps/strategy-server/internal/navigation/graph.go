@@ -98,6 +98,9 @@ func DefaultGraph() *Graph {
 		{ID: AimProposals, Title: "Proposals", Parent: AimOverview,
 			WebRoute: true, URLPattern: "/aim/proposals", Icon: "lucide--inbox",
 			TabGroup: TabAim, RenderMode: RenderTabPage, InstanceScoped: true},
+		{ID: AimCycleRuns, Title: "Cycle Runs", Parent: AimOverview,
+			WebRoute: true, URLPattern: "/aim/runs", Icon: "lucide--play-circle",
+			TabGroup: TabAim, RenderMode: RenderTabPage, InstanceScoped: true},
 		{ID: AimEvidence, Title: "Evidence", Parent: AimOverview,
 			WebRoute: true, URLPattern: "/aim/evidence", Icon: "lucide--database",
 			TabGroup: TabAim, RenderMode: RenderTabPage, InstanceScoped: true},
@@ -115,10 +118,25 @@ func DefaultGraph() *Graph {
 		{ID: AimDraftReview, Title: "Draft Review", Parent: AimOverview,
 			WebRoute: false, URLPattern: "/aim/draft-review/:batchID", Icon: "lucide--sparkles",
 			TabGroup: TabAim, RenderMode: RenderTabPage, InstanceScoped: true, SubNavHidden: true},
-		// Orchestrated cycle run panel — reachable via POST redirect from aim/runs; not in sub-nav.
-		{ID: AimRunPanel, Title: "Run", Parent: AimOverview,
-			WebRoute: true, URLPattern: "/aim/runs/:runID", Icon: "lucide--play-circle",
+		// Orchestrated cycle run panel — reachable via redirect from aim/runs; not in sub-nav.
+		// WebRoute=false because the handler is registered manually (needs SSE stream endpoint).
+		{ID: AimRunPanel, Title: "Run", Parent: AimCycleRuns,
+			WebRoute: false, URLPattern: "/aim/runs/:runID", Icon: "lucide--play-circle",
 			TabGroup: TabAim, RenderMode: RenderTabPage, InstanceScoped: true, SubNavHidden: true},
+
+		// Evidence interview — wizard page for structured evidence collection.
+		{ID: AimEvidenceInterview, Title: "Evidence Interview", Parent: AimEvidence,
+			WebRoute: false, URLPattern: "/aim/evidence/interview", Icon: "lucide--clipboard-list",
+			TabGroup: TabAim, RenderMode: RenderTabPage, InstanceScoped: true, SubNavHidden: true},
+
+		// Version detail — single version view with artifact snapshot.
+		{ID: VersionDetail, Title: "Version Detail", Parent: AimVersions,
+			WebRoute: false, URLPattern: "/aim/versions/:versionID", Icon: "lucide--history",
+			TabGroup: TabAim, RenderMode: RenderTabPage, InstanceScoped: true, SubNavHidden: true},
+
+		// --- Global screens (not instance-scoped) ---
+		{ID: Settings, Title: "Settings", WebRoute: true, URLPattern: "/settings",
+			Icon: "lucide--settings", SidebarGroup: "System"},
 	}
 
 	return g
