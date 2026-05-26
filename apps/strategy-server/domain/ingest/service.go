@@ -576,14 +576,14 @@ func (s *Service) ingestRelationships(ctx context.Context, instanceID uuid.UUID,
 		return fmt.Errorf("load relationships: %w", err)
 	}
 
-	s.createRelationships(ctx, instanceID, rels)
+	s.upsertRelationships(ctx, instanceID, rels)
 	return nil
 }
 
-// createRelationships resolves object IDs by key (via API) and creates edges in Memory.
+// upsertRelationships resolves object IDs by key (via API) and upserts edges in Memory.
 // Used by ingestBatch for incremental updates.
-func (s *Service) createRelationships(ctx context.Context, instanceID uuid.UUID, rels []domain.StrategyRelationship) {
-	created, skipped := 0, 0
+func (s *Service) upsertRelationships(ctx context.Context, instanceID uuid.UUID, rels []domain.StrategyRelationship) {
+	upserted, skipped := 0, 0
 	for _, rel := range rels {
 		srcID := s.resolveObjectID(ctx, rel.SourceKey)
 		if srcID == "" {
@@ -596,7 +596,7 @@ func (s *Service) createRelationships(ctx context.Context, instanceID uuid.UUID,
 			continue
 		}
 
-		_, err := s.client.CreateRelationship(ctx, memory.CreateRelationshipRequest{
+		_, err := s.client.UpsertRelationship(ctx, memory.UpsertRelationshipRequest{
 			Type:   rel.Relationship,
 			FromID: srcID,
 			ToID:   tgtID,
@@ -605,24 +605,24 @@ func (s *Service) createRelationships(ctx context.Context, instanceID uuid.UUID,
 			},
 		})
 		if err != nil {
-			slog.Warn("ingest: create relationship failed",
+			slog.Warn("ingest: upsert relationship failed",
 				"type", rel.Relationship,
 				"source", rel.SourceKey,
 				"target", rel.TargetKey,
 				"err", err)
 		} else {
-			created++
+			upserted++
 		}
 	}
 	if len(rels) > 0 {
-		slog.Info("ingest: relationships processed", "total", len(rels), "created", created, "skipped", skipped)
+		slog.Info("ingest: relationships processed", "total", len(rels), "upserted", upserted, "skipped", skipped)
 	}
 }
 
-// createRelationshipsIndexed resolves object IDs using a pre-built local index
+// upsertRelationshipsIndexed resolves object IDs using a pre-built local index
 // (with prefix matching for short IDs). Used by ReingestInstance for bulk operations.
-func (s *Service) createRelationshipsIndexed(ctx context.Context, instanceID uuid.UUID, rels []domain.StrategyRelationship, idx *objectKeyIndex) {
-	created, skipped := 0, 0
+func (s *Service) upsertRelationshipsIndexed(ctx context.Context, instanceID uuid.UUID, rels []domain.StrategyRelationship, idx *objectKeyIndex) {
+	upserted, skipped := 0, 0
 	for _, rel := range rels {
 		srcID := idx.resolve(rel.SourceKey)
 		if srcID == "" {
@@ -635,7 +635,7 @@ func (s *Service) createRelationshipsIndexed(ctx context.Context, instanceID uui
 			continue
 		}
 
-		_, err := s.client.CreateRelationship(ctx, memory.CreateRelationshipRequest{
+		_, err := s.client.UpsertRelationship(ctx, memory.UpsertRelationshipRequest{
 			Type:   rel.Relationship,
 			FromID: srcID,
 			ToID:   tgtID,
@@ -644,17 +644,17 @@ func (s *Service) createRelationshipsIndexed(ctx context.Context, instanceID uui
 			},
 		})
 		if err != nil {
-			slog.Warn("ingest: create relationship failed",
+			slog.Warn("ingest: upsert relationship failed",
 				"type", rel.Relationship,
 				"source", rel.SourceKey,
 				"target", rel.TargetKey,
 				"err", err)
 		} else {
-			created++
+			upserted++
 		}
 	}
 	if len(rels) > 0 {
-		slog.Info("ingest: relationships processed", "total", len(rels), "created", created, "skipped", skipped)
+		slog.Info("ingest: relationships processed", "total", len(rels), "upserted", upserted, "skipped", skipped)
 	}
 }
 
@@ -725,7 +725,7 @@ func (s *Service) ReingestInstance(ctx context.Context, instanceID uuid.UUID) er
 	if err != nil {
 		return fmt.Errorf("load relationships: %w", err)
 	}
-	s.createRelationshipsIndexed(ctx, instanceID, rels, idx)
+	s.upsertRelationshipsIndexed(ctx, instanceID, rels, idx)
 
 	slog.Info("ingest: re-ingest complete", "instance_id", instanceID,
 		"artifacts", len(artifacts), "upserted", len(bulkResult.Objects), "relationships", len(rels))
@@ -881,7 +881,13 @@ func (s *Service) ReingestInstanceDecomposed(ctx context.Context, instanceID uui
 		"relationships", len(result.Relationships))
 
 	// Build upsert requests for all decomposed objects.
+	// Keys are scoped by instance ID to prevent cross-instance collisions —
+	// without this, instances sharing canonical templates (e.g. sd-001) would
+	// overwrite each other's decomposed objects.
+	instancePrefix := instanceID.String()[:8] // short prefix for readable keys
 	upsertReqs := make([]memory.UpsertObjectRequest, 0, len(result.Objects))
+	// Map original decomposer keys to instance-scoped keys for relationship wiring.
+	scopedKeys := make(map[string]string, len(result.Objects))
 	for _, obj := range result.Objects {
 		labels := append(obj.Labels, "layer:decomposed") //nolint:gocritic
 		props := obj.Properties
@@ -889,9 +895,11 @@ func (s *Service) ReingestInstanceDecomposed(ctx context.Context, instanceID uui
 			props = make(map[string]any)
 		}
 		props["instance_id"] = instanceID.String()
+		scopedKey := instancePrefix + "/" + obj.Key
+		scopedKeys[obj.Key] = scopedKey
 		upsertReqs = append(upsertReqs, memory.UpsertObjectRequest{
 			Type:       obj.Type,
-			Key:        obj.Key,
+			Key:        scopedKey,
 			Status:     obj.Status,
 			Labels:     labels,
 			Properties: props,
@@ -907,11 +915,15 @@ func (s *Service) ReingestInstanceDecomposed(ctx context.Context, instanceID uui
 			"instance_id", instanceID, "failed", bulkResult.Failed)
 	}
 
-	// Create relationships using the key→ID map from the bulk upsert.
-	relCreated, relSkipped := 0, 0
+	// Upsert relationships using the key→ID map from the bulk upsert.
+	// Relationship FromKey/ToKey use original decomposer keys — translate
+	// to instance-scoped keys for the lookup.
+	relUpserted, relSkipped := 0, 0
 	for _, rel := range result.Relationships {
-		fromID, ok1 := bulkResult.KeyToID[rel.FromKey]
-		toID, ok2 := bulkResult.KeyToID[rel.ToKey]
+		fromScoped := scopedKeys[rel.FromKey]
+		toScoped := scopedKeys[rel.ToKey]
+		fromID, ok1 := bulkResult.KeyToID[fromScoped]
+		toID, ok2 := bulkResult.KeyToID[toScoped]
 		if !ok1 || !ok2 {
 			relSkipped++
 			continue
@@ -921,7 +933,7 @@ func (s *Service) ReingestInstanceDecomposed(ctx context.Context, instanceID uui
 			props = map[string]any{}
 		}
 		props["instance_id"] = instanceID.String()
-		_, rErr := s.client.CreateRelationship(ctx, memory.CreateRelationshipRequest{
+		_, rErr := s.client.UpsertRelationship(ctx, memory.UpsertRelationshipRequest{
 			Type:       rel.Type,
 			FromID:     fromID,
 			ToID:       toID,
@@ -932,16 +944,16 @@ func (s *Service) ReingestInstanceDecomposed(ctx context.Context, instanceID uui
 				"type", rel.Type, "from", rel.FromKey, "to", rel.ToKey, "err", rErr)
 			continue
 		}
-		relCreated++
+		relUpserted++
 	}
 
 	slog.Info("ingest: decompose objects upserted",
 		"instance_id", instanceID,
 		"upserted", len(bulkResult.Objects),
-		"rel_created", relCreated,
+		"rel_upserted", relUpserted,
 		"rel_skipped", relSkipped)
 
-	return len(bulkResult.Objects), relCreated, nil
+	return len(bulkResult.Objects), relUpserted, nil
 }
 
 // extractSnippet builds a short text snippet from common artifact fields.

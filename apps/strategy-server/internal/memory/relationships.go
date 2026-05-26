@@ -25,6 +25,26 @@ func (c *Client) CreateRelationship(ctx context.Context, req CreateRelationshipR
 	return decodeJSON[*Relationship](data)
 }
 
+// UpsertRelationshipRequest creates or updates a relationship by (type, src_id, dst_id).
+type UpsertRelationshipRequest struct {
+	Type       string         `json:"type"`
+	FromID     string         `json:"src_id"`
+	ToID       string         `json:"dst_id"`
+	Properties map[string]any `json:"properties,omitempty"`
+}
+
+// UpsertRelationship creates or updates a directed edge by (type, src_id, dst_id).
+// Unlike CreateRelationship, this is idempotent — calling it multiple times with
+// the same (type, src_id, dst_id) will update the existing edge instead of
+// creating duplicates.
+func (c *Client) UpsertRelationship(ctx context.Context, req UpsertRelationshipRequest) (*Relationship, error) {
+	data, err := c.do(ctx, http.MethodPut, "/api/graph/relationships/upsert", req)
+	if err != nil {
+		return nil, fmt.Errorf("upsert relationship: %w", err)
+	}
+	return decodeJSON[*Relationship](data)
+}
+
 // GetRelationship retrieves a relationship by ID.
 func (c *Client) GetRelationship(ctx context.Context, id string) (*Relationship, error) {
 	data, err := c.do(ctx, http.MethodGet, "/api/graph/relationships/"+id, nil)

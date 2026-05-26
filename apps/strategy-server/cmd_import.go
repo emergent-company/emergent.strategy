@@ -477,7 +477,7 @@ func ingestDecomposed(ctx context.Context, client *memory.Client, instancePath, 
 		}
 		props["instance_id"] = instanceID
 
-		_, err := client.CreateRelationship(ctx, memory.CreateRelationshipRequest{
+		_, err := client.UpsertRelationship(ctx, memory.UpsertRelationshipRequest{
 			Type:       rel.Type,
 			FromID:     fromID,
 			ToID:       toID,
