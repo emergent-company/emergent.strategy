@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/heartbeat"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
@@ -321,12 +322,13 @@ func TestProposal_ExpireStale(t *testing.T) {
 	if len(proposals) == 0 {
 		t.Fatal("expected pending proposal")
 	}
-	if _, err := svc.DeferProposal(ctx, proposals[0].ID, time.Millisecond); err != nil {
+	if _, err := svc.DeferProposal(ctx, proposals[0].ID, 7*24*time.Hour); err != nil {
 		t.Fatalf("DeferProposal: %v", err)
 	}
 
-	// Sleep past the snooze window.
-	time.Sleep(10 * time.Millisecond)
+	// Force snooze_until into the past so expiry is deterministic —
+	// avoids flaky timing with real clocks and PostgreSQL now().
+	forceSnoozeIntoPast(t, db, proposals[0].ID)
 
 	// Expire stale — should transition deferred → expired.
 	n, err := svc.ExpireStaleProposals(ctx)
@@ -367,18 +369,17 @@ func TestProposal_ReproposesAfterExpiry(t *testing.T) {
 		t.Fatal("expected pending proposal after tick 1")
 	}
 
-	// Defer with 1ms snooze.
-	if _, err := svc.DeferProposal(ctx, proposals[0].ID, time.Millisecond); err != nil {
+	// Defer the proposal, then force snooze_until into the past so
+	// ExpireStaleProposals will deterministically expire it.
+	if _, err := svc.DeferProposal(ctx, proposals[0].ID, 7*24*time.Hour); err != nil {
 		t.Fatalf("DeferProposal: %v", err)
 	}
+	forceSnoozeIntoPast(t, db, proposals[0].ID)
 
 	// Acknowledge the heartbeat signal so tick 2 can re-fire the trigger.
 	if err := svc.Acknowledge(ctx, results1[0].Signal.ID); err != nil {
 		t.Fatalf("Acknowledge: %v", err)
 	}
-
-	// Sleep past snooze.
-	time.Sleep(10 * time.Millisecond)
 
 	// Tick 2 — EvaluateAll expires stale proposals, trigger fires again, new proposal created.
 	if _, err := svc.EvaluateAll(ctx); err != nil {
@@ -393,5 +394,21 @@ func TestProposal_ReproposesAfterExpiry(t *testing.T) {
 	expired, _ := svc.ListProposals(ctx, instID, "expired")
 	if len(expired) != 1 {
 		t.Errorf("expected 1 expired proposal, got %d", len(expired))
+	}
+}
+
+// forceSnoozeIntoPast sets a proposal's snooze_until to 1 hour ago, ensuring
+// ExpireStaleProposals will deterministically pick it up regardless of clock
+// granularity or PostgreSQL now() transaction-time semantics.
+func forceSnoozeIntoPast(t *testing.T, db *bun.DB, proposalID uuid.UUID) {
+	t.Helper()
+	pastTime := time.Now().UTC().Add(-1 * time.Hour)
+	_, err := db.NewUpdate().
+		TableExpr("cycle_proposals").
+		Set("snooze_until = ?", pastTime).
+		Where("id = ?", proposalID).
+		Exec(context.Background())
+	if err != nil {
+		t.Fatalf("forceSnoozeIntoPast: %v", err)
 	}
 }

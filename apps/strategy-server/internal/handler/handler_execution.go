@@ -148,6 +148,9 @@ func (s *Server) loadExecutionData(ctx context.Context, instanceID, instanceName
 	// Strategy loop widget data
 	s.loadStrategyLoopWidget(ctx, instanceID, &data)
 
+	// Strategic focus — north star, bets, coherence, evidence, versions
+	s.loadStrategicFocus(ctx, instanceID, &data)
+
 	for _, tm := range trackMeta {
 		trackData, ok := tracks[tm.key].(map[string]any)
 		if !ok {
@@ -562,4 +565,182 @@ func (s *Server) loadAssessmentKROutcomes(ctx context.Context, instanceID string
 	}
 
 	return outcomes, insights
+}
+
+// loadStrategicFocus populates north star, strategic bets, coherence, evidence,
+// and version counts for the execution dashboard's strategic focus section.
+func (s *Server) loadStrategicFocus(ctx context.Context, instanceID string, data *ui.ExecutionData) {
+	// North star vision + mission
+	var northStarPayload string
+	_ = s.db.NewSelect().
+		TableExpr("strategy_artifacts").
+		Column("payload").
+		Where("instance_id = ?", instanceID).
+		Where("artifact_type = ?", domain.ArtifactTypeNorthStar).
+		Limit(1).
+		Scan(ctx, &northStarPayload)
+	if northStarPayload != "" {
+		data.NorthStarVision = extractNorthStarVision(northStarPayload, 200)
+		data.NorthStarMission = extractNorthStarMission(northStarPayload, 200)
+	}
+
+	// Strategic bets from strategy formula
+	var formulaPayload string
+	_ = s.db.NewSelect().
+		TableExpr("strategy_artifacts").
+		Column("payload").
+		Where("instance_id = ?", instanceID).
+		Where("artifact_type = ?", domain.ArtifactTypeStrategyFormula).
+		Limit(1).
+		Scan(ctx, &formulaPayload)
+	if formulaPayload != "" {
+		data.StrategicBets = extractStrategicBets(formulaPayload)
+	}
+
+	// Coherence score
+	data.CoherenceScore = s.loadCoherenceScore(ctx, instanceID)
+
+	// Evidence count
+	evidenceCount, _ := s.db.NewSelect().
+		TableExpr("strategy_artifacts").
+		Where("instance_id = ?", instanceID).
+		Where("artifact_type = ?", domain.ArtifactTypeEvidence).
+		Count(ctx)
+	data.EvidenceCount = int(evidenceCount)
+
+	// Untested assumption count
+	total, tested := s.loadAssumptionSummary(ctx, instanceID)
+	data.UntestedCount = total - tested
+
+	// AIM cycle count
+	aimCycleCount, _ := s.db.NewSelect().
+		TableExpr("strategy_versions").
+		Where("instance_id = ?", instanceID).
+		Where("source = ?", "aim_cycle").
+		Count(ctx)
+	data.AIMCycleCount = int(aimCycleCount)
+
+	// Version count
+	versionCount, _ := s.db.NewSelect().
+		TableExpr("strategy_versions").
+		Where("instance_id = ?", instanceID).
+		Count(ctx)
+	data.VersionCount = int(versionCount)
+}
+
+// extractNorthStarMission extracts and truncates the mission/purpose from a north star payload.
+// Tries mission and purpose fields, which can be strings or objects with a statement key.
+func extractNorthStarMission(payloadStr string, maxLen int) string {
+	var p map[string]any
+	if json.Unmarshal([]byte(payloadStr), &p) != nil {
+		return ""
+	}
+	ns, _ := p["north_star"].(map[string]any)
+	if ns == nil {
+		ns = p
+	}
+	// Try purpose.statement first (most common for mission-like text)
+	if pObj, ok := ns["purpose"].(map[string]any); ok {
+		if v, ok := pObj["statement"].(string); ok && v != "" {
+			return truncateString(v, maxLen)
+		}
+	}
+	if v, ok := ns["purpose"].(string); ok && v != "" {
+		return truncateString(v, maxLen)
+	}
+	// Try mission as string or object
+	if v, ok := ns["mission"].(string); ok && v != "" {
+		return truncateString(v, maxLen)
+	}
+	if mObj, ok := ns["mission"].(map[string]any); ok {
+		if v, ok := mObj["statement"].(string); ok && v != "" {
+			return truncateString(v, maxLen)
+		}
+		if v, ok := mObj["mission_statement"].(string); ok && v != "" {
+			return truncateString(v, maxLen)
+		}
+	}
+	return ""
+}
+
+// extractStrategicBets extracts strategic bets/positioning from a strategy formula payload.
+// The formula structure varies — tries strategic_bets (array), then falls back to
+// title + positioning + trade_offs for strategic context.
+func extractStrategicBets(payloadStr string) []ui.StrategicBetInfo {
+	var p map[string]any
+	if json.Unmarshal([]byte(payloadStr), &p) != nil {
+		return nil
+	}
+
+	// Resolve the strategy object (could be under "strategy", "formula", or top-level)
+	strat, _ := p["strategy"].(map[string]any)
+	if strat == nil {
+		strat, _ = p["formula"].(map[string]any)
+	}
+	if strat == nil {
+		strat = p
+	}
+
+	// Try explicit strategic_bets array first
+	if betsRaw, ok := strat["strategic_bets"].([]any); ok && len(betsRaw) > 0 {
+		var bets []ui.StrategicBetInfo
+		for _, b := range betsRaw {
+			bMap, ok := b.(map[string]any)
+			if !ok {
+				continue
+			}
+			name, _ := bMap["name"].(string)
+			if name == "" {
+				name, _ = bMap["title"].(string)
+			}
+			hypothesis, _ := bMap["hypothesis"].(string)
+			track, _ := bMap["track"].(string)
+			if name != "" {
+				bets = append(bets, ui.StrategicBetInfo{
+					Name:       name,
+					Hypothesis: truncateString(hypothesis, 120),
+					Track:      track,
+				})
+			}
+		}
+		if len(bets) > 0 {
+			return bets
+		}
+	}
+
+	// Fallback: synthesize from trade_offs (each is a strategic bet in essence)
+	if tradeOffs, ok := strat["trade_offs"].([]any); ok && len(tradeOffs) > 0 {
+		var bets []ui.StrategicBetInfo
+		for _, to := range tradeOffs {
+			toMap, ok := to.(map[string]any)
+			if !ok {
+				continue
+			}
+			chosen, _ := toMap["decision"].(string)
+			if chosen == "" {
+				chosen, _ = toMap["chosen"].(string)
+			}
+			if chosen == "" {
+				chosen, _ = toMap["choice"].(string)
+			}
+			if chosen == "" {
+				chosen, _ = toMap["trade_off"].(string)
+			}
+			rationale, _ := toMap["rationale"].(string)
+			if rationale == "" {
+				rationale, _ = toMap["why"].(string)
+			}
+			if chosen != "" {
+				bets = append(bets, ui.StrategicBetInfo{
+					Name:       truncateString(chosen, 60),
+					Hypothesis: truncateString(rationale, 120),
+				})
+			}
+		}
+		if len(bets) > 0 {
+			return bets
+		}
+	}
+
+	return nil
 }

@@ -19,13 +19,29 @@ tasks:
       - task: build
 
   run:
-    desc: Run the server in development mode (sources .env.local if present)
+    desc: Build and run the server in development mode (sources .env.local, guards against double-process)
+    deps: [generate]
     cmds:
       - |
+        PORT="${PORT:-8090}"
+        # Kill any process already holding the port.
+        OLD_PID=$(lsof -ti tcp:${PORT} 2>/dev/null || true)
+        if [ -n "${OLD_PID}" ]; then
+          echo "==> Stopping stale server on port ${PORT} (PID ${OLD_PID})..."
+          kill ${OLD_PID} 2>/dev/null || true
+          sleep 1
+          STILL=$(lsof -ti tcp:${PORT} 2>/dev/null || true)
+          if [ -n "${STILL}" ]; then kill -9 ${STILL} 2>/dev/null || true; sleep 0.5; fi
+        fi
+        # Always rebuild so the binary matches current source.
+        echo "==> Building strategy-server..."
+        go build -o strategy-server . || { echo "Build failed"; exit 1; }
+        echo " ok Binary built"
+        # Source env and start.
         if [ -f .env.local ]; then
           set -a; source .env.local; set +a
         fi
-        go run . server
+        exec ./strategy-server server
 
   dev-up:
     desc: "Start full local dev environment (Postgres + server). Use -- --with-memory for semantic features."
@@ -148,8 +164,21 @@ tasks:
 
   generate:
     desc: Run all code generators (templ, etc.)
+    env:
+      PATH: "{{.HOME}}/go/bin:{{.PATH}}"
+    sources:
+      - "internal/ui/*.templ"
+    generates:
+      - "internal/ui/*_templ.go"
     cmds:
       - templ generate ./...
+
+  templ-watch:
+    desc: Watch .templ files and regenerate on change (keeps _templ.go in sync for LSP)
+    env:
+      PATH: "{{.HOME}}/go/bin:{{.PATH}}"
+    cmds:
+      - templ generate -watch ./...
 
   sync-embedded:
     desc: Sync canonical EPF content into internal/embedded/ for go:embed

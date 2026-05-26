@@ -134,6 +134,15 @@ func (c *mcpClient) call(id int, toolName string, args map[string]any) toolResul
 	}
 }
 
+// activateAllTools calls set_tool_filter with ["all"] so subsequent listTools
+// returns every registered tool (not just the default core set).
+func (c *mcpClient) activateAllTools() {
+	c.t.Helper()
+	c.call(9999, "set_tool_filter", map[string]any{
+		"categories": []string{"all"},
+	})
+}
+
 // listTools returns all tool names the server exposes.
 func (c *mcpClient) listTools() []string {
 	c.t.Helper()
@@ -309,6 +318,7 @@ func buildSvc(t *testing.T) mcpserver.Services {
 func TestMCP_ToolDiscovery(t *testing.T) {
 	svc := buildSvc(t)
 	c := newMCPClient(t, svc)
+	c.activateAllTools()
 
 	tools := c.listTools()
 
@@ -1099,21 +1109,18 @@ func TestMCP_SemanticToolsUnavailable(t *testing.T) {
 		"query":       "semantic propagation",
 	})
 	id++
-	// Either an error response or a graceful "unavailable" message — must not panic
-	if result.isError {
-		t.Logf("search_strategy: correctly returns error when Memory unconfigured: %s", result.text[:min(len(result.text), 100)])
-	} else {
-		t.Logf("search_strategy: returned non-error response: %s", result.text[:min(len(result.text), 100)])
+	// Memory is NOT configured → semantic tools must return isError=true.
+	if !result.isError {
+		t.Errorf("search_strategy: expected error response when Memory is not configured, got success: %s",
+			result.text[:min(len(result.text), 100)])
 	}
 
-	// detect_contradictions → same
+	// detect_contradictions → same expectation
 	result2 := c.call(id, "detect_contradictions", map[string]any{
 		"instance_id": instIDStr,
 	})
-	if result2.isError {
-		t.Logf("detect_contradictions: correctly returns error when Memory unconfigured")
-	} else {
-		t.Logf("detect_contradictions: returned non-error response")
+	if !result2.isError {
+		t.Errorf("detect_contradictions: expected error response when Memory is not configured, got success")
 	}
 }
 
@@ -3731,36 +3738,27 @@ func TestMCP_Scenario_SemanticSearch(t *testing.T) {
 	})
 	instIDStr := instID.String()
 
-	// Step 1 — search_strategy: Memory unavailable → tool-level error, not panic
+	// Step 1 — search_strategy: Memory unavailable → must return error, not panic
 	r1 := c.call(id, "search_strategy", map[string]any{
 		"instance_id": instIDStr,
 		"query":       "features targeting enterprise",
 	})
 	id++
-	// Graceful degradation: either an error result (Memory unconfigured) or empty
-	// results array. Both are acceptable; what is NOT acceptable is a 500 / panic.
-	if r1.isError {
-		t.Logf("Step 1 — search_strategy: correctly returns error when Memory unconfigured: %s",
+	// Memory is NOT configured → semantic tools must return isError=true.
+	if !r1.isError {
+		t.Errorf("Step 1 — search_strategy: expected error when Memory unconfigured, got success: %s",
 			r1.text[:min(len(r1.text), 120)])
-	} else {
-		var results []map[string]any
-		r1.decode(&results)
-		t.Logf("Step 1 — search_strategy: returned %d results (stub empty set)", len(results))
 	}
 
-	// Step 2 — get_neighbors: same graceful degradation
+	// Step 2 — get_neighbors: same expectation
 	r2 := c.call(id, "get_neighbors", map[string]any{
 		"instance_id": instIDStr,
 		"node_key":    "fd-001",
 	})
 	id++
-	if r2.isError {
-		t.Logf("Step 2 — get_neighbors: error as expected (Memory unconfigured): %s",
+	if !r2.isError {
+		t.Errorf("Step 2 — get_neighbors: expected error when Memory unconfigured, got success: %s",
 			r2.text[:min(len(r2.text), 120)])
-	} else {
-		var neighbors []map[string]any
-		r2.decode(&neighbors)
-		t.Logf("Step 2 — get_neighbors: returned %d neighbors (stub empty set)", len(neighbors))
 	}
 
 	// Step 3 — verify the server is still healthy after semantic errors
@@ -4239,6 +4237,7 @@ func buildSvcWithSync(t *testing.T, writer syncdom.RepoWriter) mcpserver.Service
 func TestMCP_GetSyncStatus_NotConfigured(t *testing.T) {
 	svc := buildSvc(t) // no Sync wired
 	c := newMCPClient(t, svc)
+	c.activateAllTools()
 
 	tools := c.listTools()
 	for _, name := range tools {
@@ -4257,6 +4256,7 @@ func TestMCP_SyncTools(t *testing.T) {
 	}
 	svc := buildSvcWithSync(t, mock)
 	c := newMCPClient(t, svc)
+	c.activateAllTools()
 	id := 1
 
 	// Seed workspace + instance directly so we can set github_repo at creation time.

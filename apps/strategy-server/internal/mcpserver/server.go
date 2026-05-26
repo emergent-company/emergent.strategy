@@ -110,6 +110,11 @@ type HeartbeatService interface {
 
 // New creates and registers all MCP tools, returning the StreamableHTTPServer
 // that can be mounted at any path as an http.Handler.
+//
+// Tool filtering: by default only "core" tools (~13) are visible to clients.
+// Clients call set_tool_filter to activate additional categories (e.g.
+// "features", "aim", "ripple") which triggers a tools/list_changed notification.
+// Call list_tool_categories to see all available categories and tool counts.
 func New(svc Services) http.Handler {
 	s := server.NewMCPServer(
 		"strategy-server",
@@ -117,8 +122,10 @@ func New(svc Services) http.Handler {
 		server.WithToolCapabilities(true),
 		server.WithPromptCapabilities(true),
 		server.WithInstructions(agent.ServerInstructions()),
+		server.WithToolFilter(toolCategoryFilter),
 	)
 
+	registerToolFilterTools(s)
 	registerWorkspaceReadTools(s, svc)
 	registerInstanceReadTools(s, svc)
 	registerArtifactContextTools(s, svc)
@@ -149,6 +156,82 @@ func New(svc Services) http.Handler {
 	registerKnowledgePrompt(s)
 
 	return server.NewStreamableHTTPServer(s)
+}
+
+// registerToolFilterTools registers the meta-tools for category-based tool filtering.
+func registerToolFilterTools(s *server.MCPServer) {
+	// list_tool_categories — shows all categories with tool counts and active status
+	s.AddTool(
+		mcp.NewTool("list_tool_categories",
+			mcp.WithDescription("USE FIRST to see which tool categories are available and active. Returns categories with tool counts. By default only 'core' tools are visible — use set_tool_filter to activate more."),
+		),
+		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			sessionID := ""
+			if session := server.ClientSessionFromContext(ctx); session != nil {
+				sessionID = session.SessionID()
+			}
+			categories := buildCategoryList(sessionID)
+			raw, err := json.Marshal(categories)
+			if err != nil {
+				return mcp.NewToolResultError("failed to marshal categories"), nil
+			}
+			return mcp.NewToolResultText(string(raw)), nil
+		},
+	)
+
+	// set_tool_filter — activates one or more tool categories for this session
+	s.AddTool(
+		mcp.NewTool("set_tool_filter",
+			mcp.WithDescription("USE WHEN you need tools from a specific category. Activates tool categories so they appear in tools/list. Pass category names from list_tool_categories. The 'core' category is always active. Pass 'all' to show every tool."),
+			mcp.WithArray("categories",
+				mcp.Required(),
+				mcp.Description("Category names to activate, e.g. [\"features\", \"aim\"]. Use [\"all\"] to show all tools."),
+				mcp.WithStringItems(),
+			),
+		),
+		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			session := server.ClientSessionFromContext(ctx)
+			if session == nil {
+				return mcp.NewToolResultText("Tool filter set (no session — filter applies to next request)."), nil
+			}
+
+			categoryNames := req.GetStringSlice("categories", nil)
+
+			// "all" expands to every category
+			for _, name := range categoryNames {
+				if name == "all" {
+					categoryNames = categoryNames[:0]
+					for _, cat := range categoryOrder {
+						categoryNames = append(categoryNames, cat)
+					}
+					break
+				}
+			}
+
+			filterState.setCategories(session.SessionID(), categoryNames)
+
+			activeCount := 0
+			for _, name := range categoryNames {
+				for _, cat := range toolCategories {
+					if cat == name {
+						activeCount++
+					}
+				}
+			}
+			// Always add core count
+			for _, cat := range toolCategories {
+				if cat == CategoryCore {
+					activeCount++
+				}
+			}
+
+			return mcp.NewToolResultText(fmt.Sprintf(
+				"Tool filter updated. %d categories active, ~%d tools now visible. Call tools/list to see them.",
+				len(categoryNames)+1, // +1 for core
+				activeCount,
+			)), nil
+		},
+	)
 }
 
 // registerKnowledgePrompt registers the strategy-server domain knowledge base

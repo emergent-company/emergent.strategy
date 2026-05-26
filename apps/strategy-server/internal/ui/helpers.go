@@ -10,6 +10,22 @@ import (
 	"github.com/emergent-company/go-daisy/components/layout"
 )
 
+// SystemConfig holds server-wide flags surfaced in the UI.
+// Set once at startup via SetSystemConfig.
+type SystemConfig struct {
+	MemoryConfigured bool // true when Memory connection settings are provided
+	LLMConfigured    bool // true when an LLM provider is wired
+}
+
+var sysConfig SystemConfig
+
+// SetSystemConfig sets server-wide flags for the UI layer.
+// Called once from the handler constructor at startup.
+func SetSystemConfig(cfg SystemConfig) { sysConfig = cfg }
+
+// GetSystemConfig returns the current system config.
+func GetSystemConfig() SystemConfig { return sysConfig }
+
 // InstanceSummary is the minimal data needed to render instance nav items.
 type InstanceSummary struct {
 	ID      string
@@ -121,6 +137,31 @@ func aimSubLabel(count, total int, label string) string {
 	return strconv.Itoa(count) + "/" + strconv.Itoa(total) + " " + label
 }
 
+// instanceCoherenceColor returns a CSS color class based on the coherence score string.
+func instanceCoherenceColor(score string) string {
+	if score == "" {
+		return "text-base-content/50"
+	}
+	// Simple parsing: "0.82" → check if first char after "0." is >= 8
+	if len(score) >= 4 && score[0] == '0' && score[1] == '.' {
+		digit := score[2] - '0'
+		if digit >= 8 {
+			return "text-success"
+		}
+		if digit >= 7 {
+			return "text-info"
+		}
+		if digit >= 5 {
+			return "text-warning"
+		}
+		return "text-error"
+	}
+	if len(score) >= 3 && score[0] == '1' {
+		return "text-success"
+	}
+	return "text-base-content/50"
+}
+
 // assumptionPercent calculates the percentage of tested assumptions.
 func assumptionPercent(tested, total int) int {
 	if total == 0 {
@@ -142,6 +183,20 @@ func calibrationDecisionLabel(decision string) string {
 		return "Pending assessment"
 	default:
 		return decision
+	}
+}
+
+// calibrationDecisionHint returns a short tooltip description for a calibration decision.
+func calibrationDecisionHint(decision string) string {
+	switch decision {
+	case "persevere":
+		return "Continue with current strategy direction"
+	case "pivot":
+		return "Significant change in strategy direction"
+	case "pull_the_plug":
+		return "Abandon this strategic direction"
+	default:
+		return ""
 	}
 }
 
@@ -465,6 +520,20 @@ func confidenceBadgeClass(level string) string {
 	}
 }
 
+// confidenceHint returns a human-readable tooltip for a confidence level.
+func confidenceHint(level string) string {
+	switch level {
+	case "high":
+		return "Strong evidence supports this assessment"
+	case "medium":
+		return "Some evidence, but further validation recommended"
+	case "low":
+		return "Limited evidence — treat as a hypothesis"
+	default:
+		return ""
+	}
+}
+
 // likelihoodDot returns the dot color class for a likelihood/impact level.
 func likelihoodDot(level string) string {
 	switch level {
@@ -605,6 +674,22 @@ func vmMaturityBadge(stage string) string {
 	}
 }
 
+// vmMaturityHint returns a tooltip description for a maturity stage.
+func vmMaturityHint(stage string) string {
+	switch stage {
+	case "hypothetical":
+		return "Unvalidated — needs testing before investment"
+	case "emerging":
+		return "Being developed and tested with early results"
+	case "proven":
+		return "Validated with demonstrated results"
+	case "scaled":
+		return "Operating at full scale"
+	default:
+		return ""
+	}
+}
+
 // countMissingVMLinks counts how many definitions in a slice are missing their
 // value model link (contributes_to). Used to show a gap badge in section headers.
 func countMissingVMLinks(defs []FireTrackDefinition) int {
@@ -658,6 +743,20 @@ func lifecycleStageBadge(stage string) string {
 		return "badge-warning"
 	default:
 		return "badge-ghost"
+	}
+}
+
+// lifecycleStageHint returns a tooltip description for a lifecycle stage.
+func lifecycleStageHint(stage string) string {
+	switch stage {
+	case "bootstrap":
+		return "Early stage — establishing foundational strategy elements"
+	case "maturing":
+		return "Growing stage — strategy elements becoming structured and measured"
+	case "evolved":
+		return "Advanced stage — strategy is optimised and self-correcting"
+	default:
+		return ""
 	}
 }
 
@@ -862,6 +961,16 @@ func criticalityDot(level string) string {
 	default:
 		return "bg-base-content/30"
 	}
+}
+
+// readinessHasIncomplete returns true if any readiness item is not done.
+func readinessHasIncomplete(items []ReadinessItem) bool {
+	for _, item := range items {
+		if !item.Done {
+			return true
+		}
+	}
+	return false
 }
 
 // roadmapHasAssumptions returns true if any track has assumptions.

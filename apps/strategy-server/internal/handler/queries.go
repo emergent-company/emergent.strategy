@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -73,7 +74,7 @@ func (s *Server) hasArtifactType(ctx context.Context, instanceID, artifactType s
 	return count > 0
 }
 
-// loadAllInstances loads non-test, non-archived instances with counts for the global dashboard.
+// loadAllInstances loads non-test, non-archived instances with enriched data for the global dashboard.
 func (s *Server) loadAllInstances(ctx context.Context) ([]ui.InstanceInfo, error) {
 	var rows []struct {
 		ID          string `bun:"id"`
@@ -101,28 +102,265 @@ func (s *Server) loadAllInstances(ctx context.Context) ([]ui.InstanceInfo, error
 
 	infos := make([]ui.InstanceInfo, len(rows))
 	for i, r := range rows {
-		featureCount, _ := s.db.NewSelect().
-			TableExpr("strategy_artifacts").
-			Where("instance_id = ?", r.ID).
-			Where("artifact_type = ?", domain.ArtifactTypeFeature).
-			Count(ctx)
-
-		artifactCount, _ := s.db.NewSelect().
-			TableExpr("strategy_artifacts").
-			Where("instance_id = ?", r.ID).
-			Count(ctx)
-
-		infos[i] = ui.InstanceInfo{
-			ID:            r.ID,
-			Name:          r.Name,
-			Status:        r.Status,
-			WorkspaceID:   r.WorkspaceID,
-			OrgName:       r.OrgName,
-			FeatureCount:  int(featureCount),
-			ArtifactCount: int(artifactCount),
-		}
+		infos[i] = s.loadInstanceInfo(ctx, r.ID, r.Name, r.Status, r.WorkspaceID, r.OrgName)
 	}
 	return infos, nil
+}
+
+// loadInstanceInfo loads the enriched data for a single instance card.
+func (s *Server) loadInstanceInfo(ctx context.Context, id, name, status, workspaceID, orgName string) ui.InstanceInfo {
+	info := ui.InstanceInfo{
+		ID:          id,
+		Name:        name,
+		Status:      status,
+		WorkspaceID: workspaceID,
+		OrgName:     orgName,
+	}
+
+	// Feature and artifact counts
+	featureCount, _ := s.db.NewSelect().
+		TableExpr("strategy_artifacts").
+		Where("instance_id = ?", id).
+		Where("artifact_type = ?", domain.ArtifactTypeFeature).
+		Count(ctx)
+	info.FeatureCount = int(featureCount)
+
+	artifactCount, _ := s.db.NewSelect().
+		TableExpr("strategy_artifacts").
+		Where("instance_id = ?", id).
+		Count(ctx)
+	info.ArtifactCount = int(artifactCount)
+
+	// North star vision snippet
+	var northStarPayload string
+	_ = s.db.NewSelect().
+		TableExpr("strategy_artifacts").
+		Column("payload").
+		Where("instance_id = ?", id).
+		Where("artifact_type = ?", domain.ArtifactTypeNorthStar).
+		Limit(1).
+		Scan(ctx, &northStarPayload)
+	if northStarPayload != "" {
+		info.NorthStarVision = extractNorthStarVision(northStarPayload, 120)
+	}
+
+	// Roadmap timeframe + cycle
+	var roadmapPayload string
+	_ = s.db.NewSelect().
+		TableExpr("strategy_artifacts").
+		Column("payload").
+		Where("instance_id = ?", id).
+		Where("artifact_type = ?", domain.ArtifactTypeRoadmap).
+		Limit(1).
+		Scan(ctx, &roadmapPayload)
+	if roadmapPayload != "" {
+		info.Timeframe, info.Cycle = extractRoadmapMeta(roadmapPayload)
+	}
+
+	// Signal severity counts
+	info.CriticalSignals, _ = s.db.NewSelect().
+		TableExpr("ripple_signals").
+		Where("instance_id = ?", id).
+		Where("status = ?", "active").
+		Where("severity = ?", "critical").
+		Count(ctx)
+	info.WarningSignals, _ = s.db.NewSelect().
+		TableExpr("ripple_signals").
+		Where("instance_id = ?", id).
+		Where("status = ?", "active").
+		Where("severity = ?", "warning").
+		Count(ctx)
+
+	// Coherence score
+	info.CoherenceScore = s.loadCoherenceScore(ctx, id)
+
+	// Evidence count
+	evidenceCount, _ := s.db.NewSelect().
+		TableExpr("strategy_artifacts").
+		Where("instance_id = ?", id).
+		Where("artifact_type = ?", domain.ArtifactTypeEvidence).
+		Count(ctx)
+	info.EvidenceCount = int(evidenceCount)
+
+	// Version count and last version date
+	info.VersionCount, info.LastVersionAt = s.loadVersionSummary(ctx, id)
+
+	// Assumption risk profile
+	info.AssumptionCount, info.TestedAssumptionCount = s.loadAssumptionSummary(ctx, id)
+
+	return info
+}
+
+// extractNorthStarVision extracts and truncates the vision from a north star payload.
+// The vision field can be either a string or an object with a vision_statement/statement key.
+func extractNorthStarVision(payloadStr string, maxLen int) string {
+	var p map[string]any
+	if json.Unmarshal([]byte(payloadStr), &p) != nil {
+		return ""
+	}
+	ns, _ := p["north_star"].(map[string]any)
+	if ns == nil {
+		ns = p // fall back to top-level keys
+	}
+	return extractVisionText(ns, maxLen)
+}
+
+// extractVisionText tries multiple paths to find a vision string.
+func extractVisionText(m map[string]any, maxLen int) string {
+	// Try vision as a string
+	if v, ok := m["vision"].(string); ok && v != "" {
+		return truncateString(v, maxLen)
+	}
+	// Try vision as an object with vision_statement or statement
+	if vObj, ok := m["vision"].(map[string]any); ok {
+		if v, ok := vObj["vision_statement"].(string); ok && v != "" {
+			return truncateString(v, maxLen)
+		}
+		if v, ok := vObj["statement"].(string); ok && v != "" {
+			return truncateString(v, maxLen)
+		}
+	}
+	// Try vision_statement at current level
+	if v, ok := m["vision_statement"].(string); ok && v != "" {
+		return truncateString(v, maxLen)
+	}
+	return ""
+}
+
+// extractRoadmapMeta extracts timeframe and cycle from a roadmap payload.
+func extractRoadmapMeta(payloadStr string) (string, string) {
+	var root map[string]any
+	if json.Unmarshal([]byte(payloadStr), &root) != nil {
+		return "", ""
+	}
+	roadmap, _ := root["roadmap"].(map[string]any)
+	if roadmap == nil {
+		return "", ""
+	}
+	tf, _ := roadmap["timeframe"].(string)
+	cycle := ""
+	if c, ok := roadmap["cycle"].(float64); ok {
+		cycle = fmt.Sprintf("Cycle %d", int(c))
+	}
+	return tf, cycle
+}
+
+// loadCoherenceScore loads the latest coherence/equilibrium score for an instance.
+func (s *Server) loadCoherenceScore(ctx context.Context, instanceID string) string {
+	var score float64
+	err := s.db.NewSelect().
+		TableExpr("ripple_convergence_runs").
+		ColumnExpr("equilibrium_score").
+		Where("instance_id = ?", instanceID).
+		OrderExpr("created_at DESC").
+		Limit(1).
+		Scan(ctx, &score)
+	if err != nil {
+		return ""
+	}
+	return fmt.Sprintf("%.2f", score)
+}
+
+// loadVersionSummary loads version count and last published date.
+func (s *Server) loadVersionSummary(ctx context.Context, instanceID string) (int, string) {
+	count, _ := s.db.NewSelect().
+		TableExpr("strategy_versions").
+		Where("instance_id = ?", instanceID).
+		Count(ctx)
+
+	var publishedAt time.Time
+	_ = s.db.NewSelect().
+		TableExpr("strategy_versions").
+		ColumnExpr("published_at").
+		Where("instance_id = ?", instanceID).
+		OrderExpr("published_at DESC").
+		Limit(1).
+		Scan(ctx, &publishedAt)
+
+	lastVersion := ""
+	if !publishedAt.IsZero() {
+		lastVersion = publishedAt.Format("2 Jan 15:04")
+	}
+	return int(count), lastVersion
+}
+
+// loadAssumptionSummary counts total assumptions and how many have testing features.
+func (s *Server) loadAssumptionSummary(ctx context.Context, instanceID string) (int, int) {
+	// Load roadmap to count assumptions
+	var payloadStr string
+	_ = s.db.NewSelect().
+		TableExpr("strategy_artifacts").
+		Column("payload").
+		Where("instance_id = ?", instanceID).
+		Where("artifact_type = ?", domain.ArtifactTypeRoadmap).
+		Limit(1).
+		Scan(ctx, &payloadStr)
+	if payloadStr == "" {
+		return 0, 0
+	}
+
+	var root map[string]any
+	if json.Unmarshal([]byte(payloadStr), &root) != nil {
+		return 0, 0
+	}
+	roadmap, _ := root["roadmap"].(map[string]any)
+	if roadmap == nil {
+		return 0, 0
+	}
+
+	// Count all assumptions across all tracks
+	assumptions := make(map[string]bool)
+	tracks, _ := roadmap["tracks"].(map[string]any)
+	for _, trackData := range tracks {
+		td, ok := trackData.(map[string]any)
+		if !ok {
+			continue
+		}
+		asms, ok := td["riskiest_assumptions"].([]any)
+		if !ok {
+			continue
+		}
+		for _, a := range asms {
+			aMap, ok := a.(map[string]any)
+			if !ok {
+				continue
+			}
+			if id, ok := aMap["id"].(string); ok {
+				assumptions[id] = true
+			}
+		}
+	}
+
+	total := len(assumptions)
+	if total == 0 {
+		return 0, 0
+	}
+
+	// Count how many assumptions have tests_assumption edges
+	var tested int
+	_ = s.db.NewSelect().
+		TableExpr("strategy_relationships").
+		ColumnExpr("COUNT(DISTINCT target_key)").
+		Where("instance_id = ?", instanceID).
+		Where("relationship_type = ?", "tests_assumption").
+		Scan(ctx, &tested)
+
+	return total, tested
+}
+
+// truncateString truncates a string to maxLen, adding "..." if truncated.
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	// Try to break at a word boundary
+	truncated := s[:maxLen]
+	for i := len(truncated) - 1; i > maxLen-20; i-- {
+		if truncated[i] == ' ' {
+			return truncated[:i] + "..."
+		}
+	}
+	return truncated + "..."
 }
 
 // loadWorkspaces loads non-test workspaces for the global dashboard.
@@ -198,6 +436,7 @@ func (s *Server) loadCascadeSkillRuns(ctx context.Context, instUUID uuid.UUID, d
 				DurationSec:       r.DurationSeconds(),
 				HasTruncation:     truncated,
 				DroppedFeatures:   dropped,
+				ArtifactTypes:     cascadeArtifactTypes(r.ChunkLog),
 			})
 		}
 	}
@@ -228,6 +467,7 @@ func cascadeSkillRunFromRecord(r skillrun.Run) ui.CascadeSkillRun {
 		DurationSec:       r.DurationSeconds(),
 		HasTruncation:     truncated,
 		DroppedFeatures:   dropped,
+		ArtifactTypes:     cascadeArtifactTypes(r.ChunkLog),
 	}
 	if r.BatchID != nil {
 		row.BatchID = r.BatchID.String()
@@ -236,6 +476,26 @@ func cascadeSkillRunFromRecord(r skillrun.Run) ui.CascadeSkillRun {
 		row.Error = *r.Error
 	}
 	return row
+}
+
+// cascadeArtifactTypes extracts deduplicated artifact types from chunk log entries.
+func cascadeArtifactTypes(chunkLogRaw json.RawMessage) []string {
+	if len(chunkLogRaw) == 0 {
+		return nil
+	}
+	var entries []skillrun.ChunkEntry
+	if err := json.Unmarshal(chunkLogRaw, &entries); err != nil {
+		return nil
+	}
+	seen := make(map[string]bool)
+	var types []string
+	for _, e := range entries {
+		if e.ArtifactType != "" && !seen[e.ArtifactType] {
+			seen[e.ArtifactType] = true
+			types = append(types, e.ArtifactType)
+		}
+	}
+	return types
 }
 
 // loadCascadeAIMRun populates ActiveAIMRun when an orchestrated AIM cycle is running.

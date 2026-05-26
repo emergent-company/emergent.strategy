@@ -20,7 +20,7 @@ type WorkspaceInfo struct {
 	GithubOwner string
 }
 
-// InstanceInfo is the minimal instance data for the dashboard.
+// InstanceInfo holds instance data for the global dashboard cards.
 type InstanceInfo struct {
 	ID            string
 	Name          string
@@ -29,6 +29,23 @@ type InstanceInfo struct {
 	OrgName       string
 	FeatureCount  int
 	ArtifactCount int
+
+	// Strategic context — at-a-glance state
+	NorthStarVision string // truncated vision statement
+	Timeframe       string // current roadmap timeframe, e.g. "Q2 2026 – Q4 2026"
+	Cycle           string // e.g. "Cycle 2"
+
+	// Health indicators
+	CriticalSignals int
+	WarningSignals  int
+	CoherenceScore  string // e.g. "0.82" or "" if unavailable
+	EvidenceCount   int
+	VersionCount    int
+	LastVersionAt   string // "2 Jan 15:04" or ""
+
+	// Assumption risk profile
+	AssumptionCount       int
+	TestedAssumptionCount int
 }
 
 // GlobalDashboardPage renders the full dashboard page with shell.
@@ -40,7 +57,7 @@ templ GlobalDashboardPage(currentPath string, sidebarGroups []layout.SidebarGrou
 
 // GlobalDashboardContent renders just the dashboard content (for HTMX partial).
 templ GlobalDashboardContent(data GlobalDashboardData) {
-	<div class="p-6">
+	<div class="p-6 pb-12">
 		<div class="mb-6">
 			<h1 class="text-2xl font-bold text-base-content">Strategy Dashboard</h1>
 			<p class="text-sm text-base-content/60 mt-1">Overview of your strategy instances</p>
@@ -56,7 +73,7 @@ templ GlobalDashboardContent(data GlobalDashboardData) {
 		if len(data.Instances) > 0 {
 			<div class="mt-6">
 				<h2 class="text-lg font-semibold text-base-content mb-3">Strategy Instances</h2>
-				<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+				<div class="grid gap-4 lg:grid-cols-2">
 					for _, inst := range data.Instances {
 						@instanceCard(inst)
 					}
@@ -75,26 +92,104 @@ templ instanceCard(inst InstanceInfo) {
 		hx-target="#main-content"
 		hx-swap="innerHTML"
 		hx-push-url="true"
-		class="card bg-base-100 border border-base-content/10 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+		class="card bg-base-100 border border-base-content/10 shadow-sm hover:shadow-md transition-all cursor-pointer group"
 	>
-		<div class="card-body p-4">
-			<div class="flex items-center gap-3">
-				<div class="rounded-xl bg-primary/10 p-2">
+		<div class="card-body p-5 space-y-3">
+			// ── Header: name, org, status ──
+			<div class="flex items-start gap-3">
+				<div class="rounded-xl bg-primary/10 p-2 shrink-0">
 					<span class="iconify lucide--layers size-5 text-primary"></span>
 				</div>
-				<div class="min-w-0">
-					<h3 class="font-semibold text-base-content truncate">{ inst.Name }</h3>
+				<div class="min-w-0 grow">
+					<div class="flex items-center justify-between gap-2">
+						<h3 class="font-semibold text-base-content truncate">{ inst.Name }</h3>
+						@statusBadge(inst.Status)
+					</div>
 					if inst.OrgName != "" {
 						<p class="text-xs text-base-content/50 truncate">{ inst.OrgName }</p>
 					}
-					<div class="flex items-center gap-2 mt-1">
-						@statusBadge(inst.Status)
-						<span class="text-xs text-base-content/50">{ strconv.Itoa(inst.FeatureCount) } features</span>
-					</div>
 				</div>
+			</div>
+
+			// ── Vision snippet ──
+			if inst.NorthStarVision != "" {
+				<p class="text-xs text-base-content/60 leading-relaxed line-clamp-2 italic">
+					{ inst.NorthStarVision }
+				</p>
+			}
+
+			// ── Current focus (timeframe + cycle) ──
+			if inst.Timeframe != "" || inst.Cycle != "" {
+				<div class="flex items-center gap-2 text-xs text-base-content/50">
+					<span class="iconify lucide--calendar size-3 shrink-0"></span>
+					if inst.Timeframe != "" {
+						<span class="font-medium text-base-content/70">{ inst.Timeframe }</span>
+					}
+					if inst.Cycle != "" {
+						<span class="badge badge-xs badge-ghost font-mono">{ inst.Cycle }</span>
+					}
+				</div>
+			}
+
+			// ── Health indicators row ──
+			<div class="flex items-center gap-3 flex-wrap text-xs">
+				// Coherence score
+				if inst.CoherenceScore != "" {
+					<span class="tooltip" data-tip="Coherence score">
+						<span class={ "inline-flex items-center gap-1 font-mono", instanceCoherenceColor(inst.CoherenceScore) }>
+							<span class="iconify lucide--shield-check size-3"></span>
+							{ inst.CoherenceScore }
+						</span>
+					</span>
+				}
+				// Signal health
+				if inst.CriticalSignals > 0 {
+					<span class="tooltip" data-tip="Critical coherence signals">
+						<span class="inline-flex items-center gap-1 text-error font-semibold">
+							<span class="iconify lucide--alert-circle size-3"></span>
+							{ strconv.Itoa(inst.CriticalSignals) }
+						</span>
+					</span>
+				}
+				if inst.WarningSignals > 0 {
+					<span class="tooltip" data-tip="Warning signals">
+						<span class="inline-flex items-center gap-1 text-warning font-semibold">
+							<span class="iconify lucide--alert-triangle size-3"></span>
+							{ strconv.Itoa(inst.WarningSignals) }
+						</span>
+					</span>
+				}
+				if inst.CriticalSignals == 0 && inst.WarningSignals == 0 && inst.CoherenceScore != "" {
+					<span class="inline-flex items-center gap-1 text-success">
+						<span class="iconify lucide--check-circle-2 size-3"></span>
+						Healthy
+					</span>
+				}
+			</div>
+
+			// ── Stats strip ──
+			<div class="flex items-center gap-1 flex-wrap pt-1 border-t border-base-content/5">
+				@instanceStatChip("lucide--file-text", strconv.Itoa(inst.FeatureCount), "features")
+				if inst.EvidenceCount > 0 {
+					@instanceStatChip("lucide--archive", strconv.Itoa(inst.EvidenceCount), "evidence")
+				}
+				if inst.AssumptionCount > 0 {
+					@instanceStatChip("lucide--flask-conical", strconv.Itoa(inst.TestedAssumptionCount) + "/" + strconv.Itoa(inst.AssumptionCount), "tested")
+				}
+				if inst.VersionCount > 0 {
+					@instanceStatChip("lucide--history", strconv.Itoa(inst.VersionCount), "versions")
+				}
 			</div>
 		</div>
 	</a>
+}
+
+templ instanceStatChip(icon string, value string, label string) {
+	<span class="inline-flex items-center gap-1 rounded-md bg-base-200/50 px-1.5 py-0.5 text-xs text-base-content/50">
+		<span class={ "iconify size-3 shrink-0", icon }></span>
+		<span class="font-semibold text-base-content/70">{ value }</span>
+		<span>{ label }</span>
+	</span>
 }
 
 templ statusBadge(status string) {
