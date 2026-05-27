@@ -32,4 +32,14 @@ type Backend interface {
 	// ActiveRun returns the single active run for a key, or nil if none.
 	// Active = status in (pending, running, awaiting_human).
 	ActiveRun(ctx context.Context, workflowName, concurrencyKey string) (*Run, error)
+
+	// Abort requests graceful cancellation of an active run.
+	// If the run is executing a step, the step's context is cancelled.
+	// If the run is awaiting human review, a discard signal is sent.
+	// No-op for runs already in a terminal state.
+	Abort(ctx context.Context, runID uuid.UUID) error
+
+	// Retry resets a failed run so the failed step is re-executed.
+	// Only valid when the run is in StatusFailed.
+	Retry(ctx context.Context, runID uuid.UUID) error
 }

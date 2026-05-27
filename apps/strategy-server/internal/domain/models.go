@@ -39,6 +39,8 @@ type StrategyInstance struct {
 	Description                 *string    `bun:"description"                        json:"description,omitempty"`
 	GithubRepo                  *string    `bun:"github_repo"                        json:"github_repo,omitempty"`
 	GithubBasePath              *string    `bun:"github_base_path"                   json:"github_base_path,omitempty"`
+	GithubCommitSHA             *string    `bun:"github_commit_sha"                  json:"github_commit_sha,omitempty"`
+	GithubBranch                *string    `bun:"github_branch"                      json:"github_branch,omitempty"`
 	Status                      string     `bun:"status,notnull,default:'draft'"     json:"status"`
 	StandardPackVersion         *string    `bun:"standard_pack_version"              json:"standard_pack_version,omitempty"`
 	SchemaVersion               *string    `bun:"schema_version"                     json:"schema_version,omitempty"`
@@ -140,7 +142,8 @@ const (
 
 // MutationStatus enumerates valid values for StrategyMutation.Status.
 const (
-	MutationStatusStaged    = "staged"
+	MutationStatusStaging   = "staging"   // being built by a chunked skill run — not yet reviewable
+	MutationStatusStaged    = "staged"    // ready for human review
 	MutationStatusCommitted = "committed"
 	MutationStatusDiscarded = "discarded"
 )
@@ -252,14 +255,15 @@ const (
 type User struct {
 	bun.BaseModel `bun:"table:users,alias:u"`
 
-	ID        uuid.UUID  `bun:"id,pk,type:uuid"                   json:"id"`
-	Sub       string     `bun:"sub,notnull"                        json:"sub"`
-	Email     string     `bun:"email,notnull"                      json:"email"`
-	Name      *string    `bun:"name"                               json:"name,omitempty"`
-	Status    string     `bun:"status,notnull,default:'active'"    json:"status"`
-	CreatedAt time.Time  `bun:"created_at,notnull,default:now()"   json:"created_at"`
-	UpdatedAt time.Time  `bun:"updated_at,notnull,default:now()"   json:"updated_at"`
-	DeletedAt *time.Time `bun:"deleted_at,soft_delete"             json:"deleted_at,omitempty"`
+	ID                uuid.UUID  `bun:"id,pk,type:uuid"                   json:"id"`
+	Sub               string     `bun:"sub,notnull"                        json:"sub"`
+	Email             string     `bun:"email,notnull"                      json:"email"`
+	Name              *string    `bun:"name"                               json:"name,omitempty"`
+	Status            string     `bun:"status,notnull,default:'active'"    json:"status"`
+	GithubAccessToken *string    `bun:"github_access_token"                json:"-"` // never serialised — contains OAuth token
+	CreatedAt         time.Time  `bun:"created_at,notnull,default:now()"   json:"created_at"`
+	UpdatedAt         time.Time  `bun:"updated_at,notnull,default:now()"   json:"updated_at"`
+	DeletedAt         *time.Time `bun:"deleted_at,soft_delete"             json:"deleted_at,omitempty"`
 }
 
 // UserStatus values.
@@ -374,6 +378,8 @@ type GithubSyncLog struct {
 	PRNumber      *int       `bun:"pr_number"                          json:"pr_number,omitempty"`
 	PRUrl         *string    `bun:"pr_url"                             json:"pr_url,omitempty"`
 	Status        string     `bun:"status,notnull,default:'pending'"   json:"status"`
+	Direction     string     `bun:"direction,notnull,default:'export'" json:"direction"`
+	Source        string     `bun:"source,notnull,default:'manual'"    json:"source"`
 	ArtifactCount int        `bun:"artifact_count,notnull"             json:"artifact_count"`
 	ErrorMessage  *string    `bun:"error_message"                      json:"error_message,omitempty"`
 	CreatedBy     *uuid.UUID `bun:"created_by,type:uuid"               json:"created_by,omitempty"`
@@ -386,7 +392,20 @@ const (
 	SyncStatusPushed    = "pushed"
 	SyncStatusPRCreated = "pr_created"
 	SyncStatusMerged    = "merged"
+	SyncStatusClosed    = "closed"
 	SyncStatusFailed    = "failed"
+)
+
+// SyncDirection enumerates valid values for GithubSyncLog.Direction.
+const (
+	SyncDirectionExport = "export"
+	SyncDirectionImport = "import"
+)
+
+// SyncSource enumerates valid values for GithubSyncLog.Source.
+const (
+	SyncSourceManual   = "manual"
+	SyncSourceAIMCycle = "aim_cycle"
 )
 
 // ---------------------------------------------------------------------------
@@ -491,10 +510,11 @@ type CycleProposal struct {
 
 // CycleProposalStatus enumerates proposal lifecycle states.
 const (
-	CycleProposalStatusPending  = "pending"
-	CycleProposalStatusApproved = "approved"
-	CycleProposalStatusDeferred = "deferred"
-	CycleProposalStatusExpired  = "expired"
+	CycleProposalStatusPending   = "pending"
+	CycleProposalStatusApproved  = "approved"
+	CycleProposalStatusDeferred  = "deferred"
+	CycleProposalStatusExpired   = "expired"
+	CycleProposalStatusDismissed = "dismissed"
 )
 
 // SchemaRegistryEntry stores a single JSON schema document in the runtime registry.

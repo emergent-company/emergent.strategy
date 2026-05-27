@@ -1,0 +1,549 @@
+package ui
+
+import (
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/emergent-company/go-daisy/components/layout"
+)
+
+// GithubConnectData bundles all data for the GitHub connect flow page.
+type GithubConnectData struct {
+	AppConfigured bool
+	AppInstallURL string               // link to install the GitHub App on an org (for push/sync)
+	Repos         []GithubRepoScanItem // all repos the user has access to (nil = not loaded)
+	ScanError     string               // non-empty when scan failed
+	Workspaces    []WorkspaceScanItem  // for the workspace assignment dropdown
+
+	// OAuth state
+	NeedsGithubAuth bool   // true when user has no stored GitHub token
+	OAuthConfigured bool   // true when GITHUB_OAUTH_CLIENT_ID is set
+	GithubUserLogin string // "nikf2001" — shown when user is connected
+
+	// ReposLoaded distinguishes "ready to show results" from "show async loading skeleton".
+	// When false, the repo list area renders an HTMX-triggered spinner instead of results.
+	ReposLoaded bool
+
+	// RateLimited is true when the scan was blocked by GitHub's API rate limit.
+	// RetryAfter is how long to wait before retrying (shown in the UI and used for auto-retry).
+	RateLimited bool
+	RetryAfter  time.Duration
+}
+
+// GithubRepoScanItem is one repository with EPF detection results.
+type GithubRepoScanItem struct {
+	Name              string
+	FullName          string
+	HTMLURL           string
+	DefaultBranch     string
+	Private           bool
+	HasEPF            bool
+	InstanceCount     int
+	DetectedInstances []GithubDetectedInstance
+	ScanTruncated     bool
+	ScanError         string
+	// HasAppInstall is true when the GitHub App is installed on this repo's owner.
+	// When false, read-only import works but write-back (sync to GitHub) is unavailable.
+	HasAppInstall bool
+	// UsedByRepos is the list of full repo names (owner/repo) that reference this
+	// repo as a git submodule. Shown on the card as an affiliation hint.
+	UsedByRepos []string
+}
+
+// GithubDetectedInstance is one EPF instance found within a repo.
+type GithubDetectedInstance struct {
+	BasePath    string
+	HasMetaFile bool
+}
+
+// WorkspaceScanItem is a workspace the user can assign an import into.
+type WorkspaceScanItem struct {
+	ID      string
+	Name    string
+	OrgName string
+}
+
+// GithubConnectPage renders the full connect flow page with shell.
+templ GithubConnectPage(currentPath string, sidebarGroups []layout.SidebarGroup, data GithubConnectData) {
+	@StrategyShellPage("Connect GitHub — Emergent Strategy", currentPath, sidebarGroups) {
+		@GithubConnectMainContent(data)
+	}
+}
+
+// GithubConnectMainContent is the tier-2 (sidebar nav) component: scroll wrapper + content.
+templ GithubConnectMainContent(data GithubConnectData) {
+	<div class="flex flex-col flex-1 min-h-0 overflow-y-auto">
+		@GithubConnectContent(data)
+	</div>
+}
+
+// GithubConnectContent renders the connect flow content (inner body, no shell).
+templ GithubConnectContent(data GithubConnectData) {
+	<div class="px-6 py-5 space-y-6 max-w-4xl">
+		<!-- Page header -->
+		<div class="flex items-start justify-between">
+			<div>
+				<h1 class="text-xl font-bold text-base-content">Connect GitHub</h1>
+				<p class="text-sm text-base-content/60 mt-0.5">
+					Discover repositories and link them to strategy instances for bidirectional sync.
+				</p>
+			</div>
+			if data.GithubUserLogin != "" {
+				<div class="flex items-center gap-2 text-sm text-base-content/60">
+					<span class="iconify lucide--github size-4"></span>
+					<span>Connected as <strong class="text-base-content">{ data.GithubUserLogin }</strong></span>
+					<a href="/github/connect/authorize" class="text-xs text-primary hover:underline ml-1">Reconnect</a>
+				</div>
+			}
+		</div>
+
+		if !data.AppConfigured {
+			@githubConnectNotConfigured()
+		} else if data.NeedsGithubAuth {
+			@githubConnectNeedsAuth(data.OAuthConfigured)
+		} else {
+			@githubConnectAppInstallInfo(data.AppInstallURL)
+			if data.ReposLoaded {
+				@GithubConnectRepoListFragment(data)
+			} else {
+				<!-- Async repo list: HTMX loads /github/connect/repos on page load -->
+				<div
+					id="github-repo-list"
+					hx-get="/github/connect/repos"
+					hx-trigger="load"
+					hx-swap="outerHTML"
+				>
+					@githubConnectRepoListLoading()
+				</div>
+			}
+		}
+	</div>
+}
+
+// githubConnectNeedsAuth renders the "connect your GitHub account" state.
+templ githubConnectNeedsAuth(oauthConfigured bool) {
+	<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden">
+		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/10">
+			<span class="iconify lucide--github size-5 text-base-content/60"></span>
+			<div class="grow">
+				<h2 class="text-sm font-bold text-base-content uppercase tracking-widest">Step 1 — Connect your GitHub account</h2>
+				<p class="text-xs text-base-content/50 mt-0.5">Authorize this platform to see which GitHub orgs you have access to</p>
+			</div>
+		</div>
+		<div class="px-5 py-6">
+			if oauthConfigured {
+				<div class="space-y-3">
+					<p class="text-sm text-base-content/70">
+						To discover repositories, authorize your GitHub account. This requests
+						<strong>repo</strong> and <strong>read:org</strong> scope.
+					</p>
+					<p class="text-sm text-base-content/50">
+						Public repos across all your orgs appear immediately. Private repos
+						require an org admin to approve this app — see the info card below.
+					</p>
+					<a href="/github/connect/authorize"
+						class="btn btn-primary btn-sm gap-2 inline-flex">
+						<span class="iconify lucide--github size-4"></span>
+						Connect GitHub account
+					</a>
+				</div>
+			} else {
+				<p class="text-sm text-base-content/50">
+					GitHub OAuth is not configured on this server. Set
+					<code class="bg-base-200 px-1 rounded">GITHUB_OAUTH_CLIENT_ID</code> and
+					<code class="bg-base-200 px-1 rounded">GITHUB_OAUTH_CLIENT_SECRET</code>
+					and restart.
+				</p>
+			}
+		</div>
+	</div>
+}
+
+// githubConnectNotConfigured renders the "App not configured" state.
+templ githubConnectNotConfigured() {
+	<div class="rounded-xl border border-warning/30 bg-warning/5 p-6 space-y-3">
+		<div class="flex items-center gap-2">
+			<span class="iconify lucide--triangle-alert size-5 text-warning"></span>
+			<h2 class="text-sm font-bold text-base-content">GitHub App not configured</h2>
+		</div>
+		<p class="text-sm text-base-content/70">
+			The GitHub App integration requires <code class="bg-base-200 px-1 rounded">GITHUB_APP_ID</code>
+			and <code class="bg-base-200 px-1 rounded">GITHUB_APP_PRIVATE_KEY_PATH</code> to be set.
+			Contact your server administrator.
+		</p>
+	</div>
+}
+
+// githubRepoListLoadingInner is the shared inner HTML for the loading skeleton.
+templ githubRepoListLoadingInner() {
+	<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/10">
+		<span class="iconify lucide--folder-git-2 size-5 text-base-content/60"></span>
+		<div class="grow">
+			<h2 class="text-sm font-bold text-base-content uppercase tracking-widest">Your repositories</h2>
+			<p class="text-xs text-base-content/50 mt-0.5">Scanning your GitHub repositories…</p>
+		</div>
+	</div>
+	<div class="px-5 py-8 flex flex-col items-center gap-3 text-base-content/50">
+		<span class="iconify lucide--loader-circle size-7 animate-spin text-primary"></span>
+		<p class="text-sm">Checking all your repos for EPF instances — this can take a moment for large orgs.</p>
+	</div>
+}
+
+// githubConnectRepoListLoading renders the initial loading skeleton (inside an hx-get wrapper).
+// Used on first page load — the outer div carries the HTMX trigger.
+templ githubConnectRepoListLoading() {
+	@githubRepoListLoadingInner()
+}
+
+// GithubConnectReposLoadingFragment is the exported version returned by POST /github/connect/scan.
+// It replaces #github-repo-list and immediately fires a fresh GET /github/connect/repos.
+templ GithubConnectReposLoadingFragment() {
+	<div
+		id="github-repo-list"
+		class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden"
+		hx-get="/github/connect/repos"
+		hx-trigger="load"
+		hx-swap="outerHTML"
+	>
+		@githubRepoListLoadingInner()
+	</div>
+}
+
+// GithubConnectRepoListFragment renders the repository list (result of async scan).
+// Returned by GET /github/connect/repos and swapped into #github-repo-list.
+templ GithubConnectRepoListFragment(data GithubConnectData) {
+	<div id="github-repo-list" class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden">
+		<!-- Header -->
+		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/10">
+			<span class="iconify lucide--folder-git-2 size-5 text-base-content/60"></span>
+			<div class="grow">
+				<h2 class="text-sm font-bold text-base-content uppercase tracking-widest">Your repositories</h2>
+				<p class="text-xs text-base-content/50 mt-0.5">All repos you have access to across your GitHub organizations</p>
+			</div>
+			<!-- Summary + refresh -->
+			if data.ScanError == "" {
+				@githubEPFCountBadge(data.Repos)
+			}
+			<button
+				class="btn btn-xs btn-ghost border border-base-content/20 gap-1"
+				hx-post="/github/connect/scan"
+				hx-target="#github-repo-list"
+				hx-swap="outerHTML"
+				hx-indicator="#github-repo-list"
+			>
+				<span class="iconify lucide--refresh-cw size-3"></span>
+				Refresh
+			</button>
+		</div>
+
+		if data.RateLimited {
+			@githubRateLimitedState(data.RetryAfter)
+		} else if data.ScanError != "" {
+			<div class="px-5 py-4 space-y-3">
+				<div class="rounded-lg bg-error/10 border border-error/20 px-4 py-3 flex items-start gap-2">
+					<span class="iconify lucide--alert-triangle size-4 text-error shrink-0 mt-0.5"></span>
+					<p class="text-sm text-error">{ data.ScanError }</p>
+				</div>
+				<button
+					class="btn btn-sm btn-ghost border border-base-content/20 gap-1.5"
+					hx-post="/github/connect/scan"
+					hx-target="#github-repo-list"
+					hx-swap="outerHTML"
+				>
+					<span class="iconify lucide--refresh-cw size-3.5"></span>
+					Retry scan
+				</button>
+			</div>
+		} else if len(data.Repos) == 0 {
+			<div class="px-5 py-4 text-sm text-base-content/50">
+				No repositories found. Make sure your GitHub account is connected and you have repo access.
+			</div>
+		} else {
+			<!-- EPF repos first -->
+			{{ hasEPF := false }}
+			for _, repo := range data.Repos {
+				if repo.HasEPF {
+					{{ hasEPF = true }}
+					@githubRepoRow(repo, data.Workspaces)
+				}
+			}
+			if !hasEPF {
+				<div class="px-5 py-4 text-sm text-base-content/50">
+					No EPF instances detected in your repositories. All { fmt.Sprintf("%d", len(data.Repos)) } repos scanned.
+				</div>
+			}
+			<!-- Non-EPF repos in a collapsed details element -->
+			{{ nonEPFCount := 0 }}
+			for _, repo := range data.Repos {
+				if !repo.HasEPF {
+					{{ nonEPFCount++ }}
+				}
+			}
+			if nonEPFCount > 0 {
+				<details class="border-t border-base-content/5">
+					<summary class="px-5 py-3 text-xs text-base-content/40 cursor-pointer hover:text-base-content/60 list-none flex items-center gap-2">
+						<span class="iconify lucide--chevron-right size-3.5 transition-transform details-open:rotate-90"></span>
+						Show { fmt.Sprintf("%d", nonEPFCount) } repos without EPF
+					</summary>
+					<div class="divide-y divide-base-content/5">
+						for _, repo := range data.Repos {
+							if !repo.HasEPF {
+								@githubRepoRow(repo, data.Workspaces)
+							}
+						}
+					</div>
+				</details>
+			}
+		}
+	</div>
+}
+
+// githubEPFCountBadge renders the EPF repo count badge.
+templ githubEPFCountBadge(repos []GithubRepoScanItem) {
+	{{ epfCount := 0 }}
+	for _, r := range repos {
+		if r.HasEPF {
+			{{ epfCount++ }}
+		}
+	}
+	<span class="badge badge-ghost badge-sm">
+		{ fmt.Sprintf("%d / %d repos with EPF", epfCount, len(repos)) }
+	</span>
+}
+
+// githubRepoRow renders a single repository row.
+templ githubRepoRow(repo GithubRepoScanItem, workspaces []WorkspaceScanItem) {
+	<div class="px-5 py-4">
+		<!-- Repo name + visibility + EPF badge -->
+		<div class="flex items-start gap-3">
+			<div class="grow min-w-0">
+				<div class="flex items-center gap-2 flex-wrap">
+					<a href={ templ.SafeURL(repo.HTMLURL) } target="_blank" rel="noopener"
+						class="text-sm font-semibold text-base-content hover:text-primary">
+						{ repo.Name }
+					</a>
+					if repo.Private {
+						<span class="badge badge-ghost badge-xs">Private</span>
+					}
+					@githubEPFBadge(repo)
+					@githubWritebackBadge(repo.HasAppInstall)
+				</div>
+				<p class="text-xs text-base-content/40 mt-0.5 font-mono">{ repo.FullName }</p>
+				if len(repo.UsedByRepos) > 0 {
+					@githubUsedByBadges(repo.UsedByRepos)
+				}
+			</div>
+		</div>
+
+		<!-- EPF instances: assign + import -->
+		if repo.HasEPF && len(repo.DetectedInstances) > 0 {
+			<div class="mt-3 space-y-2">
+				for _, inst := range repo.DetectedInstances {
+					@githubImportForm(repo, inst, workspaces)
+				}
+			</div>
+		} else if repo.ScanError != "" {
+			<p class="text-xs text-error mt-1">Scan error: { repo.ScanError }</p>
+		}
+	</div>
+}
+
+// githubWritebackBadge shows whether AIM auto-push is available for this repo.
+templ githubWritebackBadge(hasAppInstall bool) {
+	if hasAppInstall {
+		<span class="badge badge-success badge-xs gap-1" title="GitHub App installed — AIM auto-push enabled">
+			<span class="iconify lucide--zap size-3"></span>
+			Auto-push on
+		</span>
+	} else {
+		<span class="badge badge-ghost badge-xs gap-1 text-base-content/40" title="GitHub App not installed — AIM auto-push disabled. Manual import and push still work.">
+			<span class="iconify lucide--zap-off size-3"></span>
+			No auto-push
+		</span>
+	}
+}
+
+// githubEPFBadge renders the EPF detection badge for a repo.
+templ githubEPFBadge(repo GithubRepoScanItem) {
+	if repo.ScanError != "" {
+		<span class="badge badge-warning badge-xs">Scan error</span>
+	} else if repo.HasEPF {
+		if len(repo.DetectedInstances) > 1 {
+			<span class="badge badge-info badge-xs">
+				{ fmt.Sprintf("%d EPF instances", len(repo.DetectedInstances)) }
+			</span>
+		} else {
+			<span class="badge badge-success badge-xs">EPF found</span>
+		}
+		if repo.ScanTruncated {
+			<span class="badge badge-warning badge-xs" title="Large repo — scan results may be incomplete">Partial scan</span>
+		}
+	} else {
+		<span class="badge badge-ghost badge-xs text-base-content/30">No EPF</span>
+	}
+}
+
+// githubImportForm renders the per-instance assignment + import form.
+templ githubImportForm(repo GithubRepoScanItem, inst GithubDetectedInstance, workspaces []WorkspaceScanItem) {
+	<div class="rounded-lg border border-base-content/10 bg-base-200/40 px-4 py-3 space-y-3">
+		<!-- Only show base path when it's non-root (monorepo with multiple instances) -->
+		if inst.BasePath != "" {
+			<div class="flex items-center gap-2">
+				<span class="iconify lucide--folder size-3.5 text-base-content/40"></span>
+				<code class="text-xs text-base-content/70 font-mono bg-base-300/50 px-1.5 py-0.5 rounded">{ inst.BasePath }</code>
+			</div>
+		}
+
+		<!-- Assign to workspace + import -->
+		<form method="POST" action="/github/connect/import" class="flex items-center gap-3 flex-wrap">
+			<input type="hidden" name="github_repo" value={ repo.FullName }/>
+			<input type="hidden" name="github_base_path" value={ inst.BasePath }/>
+			<input type="hidden" name="branch" value={ repo.DefaultBranch }/>
+
+			if len(workspaces) == 0 {
+				<p class="text-xs text-base-content/50">No workspaces available. Create a workspace first.</p>
+			} else {
+				<select name="workspace_id" class="select select-xs select-bordered">
+					for _, ws := range workspaces {
+						<option value={ ws.ID }>
+							{ ws.OrgName } / { ws.Name }
+						</option>
+					}
+				</select>
+				<button type="submit" name="action" value="import" class="btn btn-xs btn-primary gap-1">
+					<span class="iconify lucide--download size-3"></span>
+					Import
+				</button>
+				<button type="submit" name="action" value="link" class="btn btn-xs btn-ghost border border-base-content/20 gap-1">
+					<span class="iconify lucide--link size-3"></span>
+					Link only
+				</button>
+			}
+		</form>
+	</div>
+}
+
+// githubConnectAppInstallInfo renders the GitHub access model explanation.
+templ githubConnectAppInstallInfo(appInstallURL string) {
+	<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden">
+		<div class="px-5 py-4 space-y-4">
+			<div class="flex items-center gap-2">
+				<span class="iconify lucide--info size-4 text-base-content/50 shrink-0"></span>
+				<p class="text-sm font-semibold text-base-content">How GitHub access works</p>
+			</div>
+			<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+				<!-- Public repos -->
+				<div class="rounded-lg bg-success/5 border border-success/20 px-4 py-3 space-y-1">
+					<div class="flex items-center gap-1.5">
+						<span class="iconify lucide--check-circle size-3.5 text-success"></span>
+						<p class="text-xs font-semibold text-base-content">Public repos</p>
+					</div>
+					<p class="text-xs text-base-content/60">
+						Work immediately. No admin setup required.
+					</p>
+				</div>
+				<!-- Private repos — OAuth App approval -->
+				<div class="rounded-lg bg-warning/5 border border-warning/20 px-4 py-3 space-y-1.5">
+					<div class="flex items-center gap-1.5">
+						<span class="iconify lucide--shield size-3.5 text-warning"></span>
+						<p class="text-xs font-semibold text-base-content">Private repos — import & push</p>
+					</div>
+					<p class="text-xs text-base-content/60">
+						Requires an org admin to approve this app in the org's
+						third-party access settings. One-time action per org.
+					</p>
+					<a href="https://github.com/settings/connections/applications/Ov23li4YmALzCozRwWgk"
+						target="_blank" rel="noopener"
+						class="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+						Request org access
+						<span class="iconify lucide--external-link size-3"></span>
+					</a>
+				</div>
+				<!-- AIM auto-push -->
+				<div class="rounded-lg bg-warning/5 border border-warning/20 px-4 py-3 space-y-1.5">
+					<div class="flex items-center gap-1.5">
+						<span class="iconify lucide--zap size-3.5 text-warning"></span>
+						<p class="text-xs font-semibold text-base-content">AIM auto-push</p>
+					</div>
+					<p class="text-xs text-base-content/60">
+						Background PRs after AIM cycles. Requires an org admin to
+						install the GitHub App on the org. One-time action per org.
+					</p>
+					if appInstallURL != "" {
+						<a href={ templ.SafeURL(appInstallURL) } target="_blank" rel="noopener"
+							class="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+							Install GitHub App
+							<span class="iconify lucide--external-link size-3"></span>
+						</a>
+					}
+				</div>
+			</div>
+			<p class="text-xs text-base-content/40">
+				Both actions are one-time per org. Once done, all users in the org can import and push without further setup.
+			</p>
+		</div>
+	</div>
+}
+
+// githubRateLimitedState renders the rate-limit waiting state with auto-retry.
+// When retryAfter > 0, the fragment auto-retries after that delay via HTMX.
+templ githubRateLimitedState(retryAfter time.Duration) {
+	{{ retrySeconds := int(retryAfter.Seconds()) + 5 }} // +5s buffer
+	<div
+		class="px-5 py-8 flex flex-col items-center gap-4 text-center"
+		if retrySeconds > 5 {
+			hx-get="/github/connect/repos"
+			hx-trigger={ fmt.Sprintf("load delay:%ds", retrySeconds) }
+			hx-target="#github-repo-list"
+			hx-swap="outerHTML"
+		}
+	>
+		<span class="iconify lucide--clock size-8 text-warning"></span>
+		<div class="space-y-1">
+			<p class="text-sm font-semibold text-base-content">GitHub API rate limit reached</p>
+			if retryAfter > 0 {
+				<p class="text-xs text-base-content/60">
+					Resets in { fmt.Sprintf("%d min %d sec", int(retryAfter.Minutes()), int(retryAfter.Seconds())%60) } — this page will retry automatically.
+				</p>
+			} else {
+				<p class="text-xs text-base-content/60">The limit has likely reset — try refreshing.</p>
+			}
+		</div>
+		<button
+			class="btn btn-sm btn-ghost border border-base-content/20 gap-1.5"
+			hx-post="/github/connect/scan"
+			hx-target="#github-repo-list"
+			hx-swap="outerHTML"
+		>
+			<span class="iconify lucide--refresh-cw size-3.5"></span>
+			Retry now
+		</button>
+	</div>
+}
+
+// githubUsedByBadges renders the "used by" subscriber affiliation for an EPF repo.
+// Shows which other repos in the scan reference this repo as a git submodule.
+templ githubUsedByBadges(usedBy []string) {
+	<div class="flex items-center gap-1.5 mt-1 flex-wrap">
+		<span class="text-xs text-base-content/40 flex items-center gap-1">
+			<span class="iconify lucide--git-branch size-3"></span>
+			Used by
+		</span>
+		for _, fullName := range usedBy {
+			{{ repoName := fullName }}
+			if _, after, ok := strings.Cut(fullName, "/"); ok {
+				{{ repoName = after }}
+			}
+			<a
+				href={ templ.SafeURL("https://github.com/" + fullName) }
+				target="_blank"
+				rel="noopener"
+				title={ fullName }
+				class="badge badge-ghost badge-xs hover:badge-primary transition-colors"
+			>
+				{ repoName }
+			</a>
+		}
+	</div>
+}

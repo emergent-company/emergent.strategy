@@ -1,0 +1,20 @@
+name: draft-calibration
+version: "1.0.0"
+type: generation
+phase: AIM
+execution: prompt
+description: "Generates the narrative reasoning for a calibration_memo artifact. Receives the pre-computed decision (persevere/pivot/pull_the_plug), OKR hit rate, invalidated assumption count, and formula-based reasoning as parameters. The skill writes 2-3 sentences of strategic explanation — it does NOT override the decision."
+
+capability:
+  class: balanced
+  context_budget: small
+
+requires:
+  artifacts:
+    - assessment_report
+
+output:
+  format: json
+  schema: output_schema.json
+  artifact_types:
+    - calibration_memo

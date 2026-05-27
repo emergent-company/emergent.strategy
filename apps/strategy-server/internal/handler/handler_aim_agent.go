@@ -3,14 +3,30 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 
+	"github.com/a-h/templ"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
+
+// isSkillRunning returns true when there is already an active (running) skill run
+// for the given instance. Used as a server-side concurrency guard to prevent
+// double-submit from starting multiple LLM calls in parallel.
+func (s *Server) isSkillRunning(ctx context.Context, instanceID uuid.UUID) bool {
+	if s.skillRunSvc == nil {
+		return false
+	}
+	active, _ := s.skillRunSvc.ActiveForInstance(ctx, instanceID)
+	return active != nil
+}
 
 // ---------------------------------------------------------------------------
 // POST /strategies/:id/aim/draft-assessment
@@ -28,6 +44,10 @@ func (s *Server) handleDraftAssessment(c echo.Context) error {
 	instID, err := uuid.Parse(instanceID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid instance ID")
+	}
+
+	if s.isSkillRunning(ctx, instID) {
+		return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim")
 	}
 
 	batchID, _, err := s.aimSvc.DraftAssessment(ctx, instID)
@@ -57,6 +77,10 @@ func (s *Server) handleDraftCalibration(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid instance ID")
 	}
 
+	if s.isSkillRunning(ctx, instID) {
+		return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim")
+	}
+
 	batchID, _, err := s.aimSvc.DraftCalibration(ctx, instID)
 	if err != nil {
 		s.log.Error("draft calibration failed", "instance_id", instanceID, "err", err)
@@ -79,6 +103,10 @@ func (s *Server) handleApplyCalibration(c echo.Context) error {
 	instID, err := uuid.Parse(instanceID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid instance ID")
+	}
+
+	if s.isSkillRunning(ctx, instID) {
+		return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim")
 	}
 
 	// Primary path: skill executor runs adapt-strategy chunked.
@@ -132,11 +160,12 @@ func (s *Server) handleDraftReview(c echo.Context) error {
 		Action           string          `bun:"action"`
 		BatchDescription *string         `bun:"batch_description"`
 		Payload          json.RawMessage `bun:"payload"`
+		BatchMetadata    json.RawMessage `bun:"batch_metadata"`
 	}
 	var rows []mutRow
 	err = s.db.NewSelect().
 		TableExpr("strategy_mutations").
-		ColumnExpr("artifact_type, artifact_key, action, batch_description, payload").
+		ColumnExpr("artifact_type, artifact_key, action, batch_description, payload, batch_metadata").
 		Where("batch_id = ?", batchID).
 		Where("status = ?", domain.MutationStatusStaged).
 		OrderExpr("created_at ASC").
@@ -155,13 +184,19 @@ func (s *Server) handleDraftReview(c echo.Context) error {
 		description = *rows[0].BatchDescription
 	}
 
-	items := make([]ui.AimDraftReviewItem, 0, len(rows))
+	// Extract per-artifact change summaries from batch_metadata (if present).
+	// The skill executor stores these as {"change_summaries": {"strategy_formula": "...", ...}}.
+	changeSummaries := make(map[string]string)
 	for _, r := range rows {
-		items = append(items, ui.AimDraftReviewItem{
-			ArtifactType: r.ArtifactType,
-			ArtifactKey:  r.ArtifactKey,
-			Action:       r.Action,
-		})
+		if len(r.BatchMetadata) > 0 {
+			var meta struct {
+				ChangeSummaries map[string]string `json:"change_summaries"`
+			}
+			if err := json.Unmarshal(r.BatchMetadata, &meta); err == nil && len(meta.ChangeSummaries) > 0 {
+				changeSummaries = meta.ChangeSummaries
+				break // same metadata on all mutations in the batch
+			}
+		}
 	}
 
 	navCtx := ui.NavContext{
@@ -171,40 +206,41 @@ func (s *Server) handleDraftReview(c echo.Context) error {
 		TabGroup:    "aim",
 	}
 
-	// Build rich previews for all previewable mutations in the batch (6.1–6.3).
-	// Each artifact type that has a bespoke renderer gets its own collapsible section.
-	var previews []ui.AimDraftPreview
+	// Build items with inline previews — a single unified list.
+	items := make([]ui.AimDraftReviewItem, 0, len(rows))
 	for _, r := range rows {
-		if len(r.Payload) == 0 {
-			continue
+		// Look up change summary by artifact_type first (the executor stores
+		// summaries keyed by artifact type), then fall back to the artifact key
+		// with dashes converted to underscores (for legacy batches).
+		summary := changeSummaries[r.ArtifactType]
+		if summary == "" {
+			summary = changeSummaries[strings.ReplaceAll(r.ArtifactKey, "-", "_")]
 		}
-		var payload map[string]any
-		if err := json.Unmarshal(r.Payload, &payload); err != nil {
-			continue
+
+		// Build bespoke preview for this item (if payload is available).
+		var preview templ.Component
+		if len(r.Payload) > 0 {
+			var payload map[string]any
+			if err := json.Unmarshal(r.Payload, &payload); err == nil {
+				preview = s.bespokeContent(ctx, instanceID, "", navCtx, r.ArtifactType, r.ArtifactKey, r.ArtifactKey, "staged", payload)
+			}
 		}
-		previewNavCtx := ui.NavContext{
-			InstanceID:  instanceID,
-			CurrentPath: currentPath,
-			ScreenID:    "aim-draft-review",
-			TabGroup:    "aim",
-		}
-		content := s.bespokeContent(ctx, instanceID, "", previewNavCtx, r.ArtifactType, r.ArtifactKey, r.ArtifactKey, "staged", payload)
-		if content != nil {
-			previews = append(previews, ui.AimDraftPreview{
-				ArtifactType: r.ArtifactType,
-				ArtifactKey:  r.ArtifactKey,
-				Content:      content,
-			})
-		}
+
+		items = append(items, ui.AimDraftReviewItem{
+			ArtifactType:  r.ArtifactType,
+			ArtifactKey:   r.ArtifactKey,
+			Action:        r.Action,
+			ChangeSummary: summary,
+			Preview:       preview,
+		})
 	}
 
 	data := ui.AimDraftReviewData{
-		NavContext:   navCtx,
-		InstanceID:   instanceID,
-		BatchID:      batchIDStr,
-		Description:  description,
-		Items:        items,
-		Previews:     previews,
+		NavContext:  navCtx,
+		InstanceID:  instanceID,
+		BatchID:     batchIDStr,
+		Description: description,
+		Items:       items,
 	}
 
 	content := ui.AimDraftReviewContent(data)
@@ -250,6 +286,15 @@ func (s *Server) handleDraftCommit(c echo.Context) error {
 
 	if s.strategySvc != nil {
 		if _, err = s.strategySvc.CommitBatch(ctx, batchID); err != nil {
+			// Treat "batch not found" as an idempotent success — the batch was
+			// already committed by a prior request (double-submit).
+			if errors.Is(err, apperror.ErrBatchNotFound) {
+				s.log.Info("draft batch already committed (double-submit)", "batch_id", batchIDStr)
+				// Still resume any orchestration run waiting on this batch —
+				// the original commit may have lost the resume signal.
+				s.resumeOrchestrationForBatch(context.Background(), batchIDStr, true)
+				return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim")
+			}
 			s.log.Error("failed to commit draft batch", "batch_id", batchIDStr, "err", err)
 			return echo.NewHTTPError(http.StatusInternalServerError, "commit failed")
 		}
@@ -267,30 +312,46 @@ func (s *Server) handleDraftCommit(c echo.Context) error {
 		}
 	}
 
-	// Run the shared post-commit pipeline: ripple analysis, convergence loop,
-	// adapt-foundations enqueue. This matches what MCP commit_batch does.
-	if s.postCommitPipeline != nil {
-		result := s.postCommitPipeline.Run(ctx, instID, batchID)
-		s.log.Info("postcommit: pipeline complete",
-			"instance_id", instanceID,
-			"batch_id", batchIDStr,
-			"new_signals", result.NewSignals,
-			"resolved_signals", result.ResolvedSignals,
-			"active_total", result.ActiveTotal,
-			"convergence_iters", result.ConvergenceIters,
-		)
-	}
-
-	// Look up any orchestration run waiting on this batch — if found, resume it
-	// and redirect back to the run panel so the user can watch the next step.
+	// Look up any orchestration run waiting on this batch and resume it
+	// immediately — the resume is just a channel signal, no I/O involved.
+	// Use a detached context so it works even if the HTTP client disconnected.
 	var orchestrationRunID string
 	if s.orchestrationEngine != nil {
-		run, err := s.orchestrationEngine.FindRunByBatch(ctx, batchIDStr)
-		if err == nil && run != nil {
+		run, findErr := s.orchestrationEngine.FindRunByBatch(context.Background(), batchIDStr)
+		if findErr == nil && run != nil {
 			orchestrationRunID = run.ID.String()
 		}
 	}
-	s.resumeOrchestrationForBatch(ctx, batchIDStr, true)
+	s.resumeOrchestrationForBatch(context.Background(), batchIDStr, true)
+
+	// Run the post-commit pipeline asynchronously. The commit is already
+	// persisted — no reason to block the HTTP response while ripple analysis,
+	// semantic classification, and convergence run (can take 5-30s).
+	if s.postCommitPipeline != nil {
+		pipeline := s.postCommitPipeline
+		log := s.log
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Error("postcommit: recovered panic in async pipeline",
+						"instance_id", instanceID,
+						"batch_id", batchIDStr,
+						"panic", fmt.Sprintf("%v", r),
+					)
+				}
+			}()
+
+			result := pipeline.Run(context.Background(), instID, batchID)
+			log.Info("postcommit: pipeline complete",
+				"instance_id", instanceID,
+				"batch_id", batchIDStr,
+				"new_signals", result.NewSignals,
+				"resolved_signals", result.ResolvedSignals,
+				"active_total", result.ActiveTotal,
+				"convergence_iters", result.ConvergenceIters,
+			)
+		}()
+	}
 
 	// If this commit was part of an orchestration run, return to the run panel.
 	if orchestrationRunID != "" {
@@ -407,16 +468,18 @@ func (s *Server) handleDraftDiscard(c echo.Context) error {
 	}
 
 	// Look up the run before resuming so we can redirect to it after abort.
+	// Use a detached context so the resume succeeds even if the HTTP client disconnected.
+	resumeCtx := context.Background()
 	var orchestrationRunID string
 	if s.orchestrationEngine != nil {
-		run, err := s.orchestrationEngine.FindRunByBatch(ctx, batchIDStr)
+		run, err := s.orchestrationEngine.FindRunByBatch(resumeCtx, batchIDStr)
 		if err == nil && run != nil {
 			orchestrationRunID = run.ID.String()
 		}
 	}
 
 	// Resume any orchestration run waiting on this batch (committed=false → abort).
-	s.resumeOrchestrationForBatch(ctx, batchIDStr, false)
+	s.resumeOrchestrationForBatch(resumeCtx, batchIDStr, false)
 
 	if orchestrationRunID != "" {
 		return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim/runs/"+orchestrationRunID)

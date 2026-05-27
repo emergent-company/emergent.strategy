@@ -83,9 +83,10 @@ type ReadyPhaseData struct {
 	// HasSkillExecutor — true when the LLM executor is configured, enables draft buttons.
 	HasSkillExecutor bool
 
-	// Readiness score (0–100) and blockers for the progress bar.
-	ReadinessScore   int
+	// Readiness score (0–100), blockers, and detailed breakdown for the progress bar.
+	ReadinessScore    int
 	ReadinessBlockers []string
+	ReadinessItems    []ReadinessItem // detailed breakdown for transparency
 
 	// VersionCount — number of published strategy versions; used to show
 	// "Publish first version" banner when score >= 80 and count == 0.
@@ -93,6 +94,15 @@ type ReadyPhaseData struct {
 
 	// Pending batches — AI-generated drafts touching READY artifacts awaiting human review.
 	PendingBatches []ReadyPendingBatch
+}
+
+// ReadinessItem represents one line item in the readiness breakdown.
+type ReadinessItem struct {
+	Label    string // e.g. "North Star", "Evidence loaded"
+	Done     bool   // true if this item is complete
+	Points   int    // points awarded (0 if not done)
+	MaxPts   int    // maximum points possible
+	HelpText string // what to do if not done
 }
 
 // ReadyPendingBatch represents a staged batch that touches one or more READY artifacts.
@@ -925,56 +935,99 @@ templ roadmapOKRSummary(tracks []TrackOKRSummary) {
 }
 
 // readyScoreBar renders a compact readiness progress bar in the READY dashboard header.
+// Shows the score, progress bar, and a collapsible breakdown of all scoring items.
 templ readyScoreBar(data ReadyPhaseData) {
-	<div class="flex items-center gap-3 mb-3">
-		<div class="flex-1">
-			<div class="flex items-center justify-between mb-1">
-				<span class="text-xs text-base-content/50">Foundation readiness</span>
-				<span class={ "text-xs font-semibold", templ.KV("text-success", data.ReadinessScore >= 80), templ.KV("text-warning", data.ReadinessScore >= 50 && data.ReadinessScore < 80), templ.KV("text-base-content/60", data.ReadinessScore < 50) }>
-					{ strconv.Itoa(data.ReadinessScore) }%
-				</span>
+	<div class="mb-3">
+		<div class="flex items-center gap-3">
+			<div class="flex-1">
+				<div class="flex items-center justify-between mb-1">
+					<span class="text-xs text-base-content/50">Foundation readiness</span>
+					<span class={ "text-xs font-semibold", templ.KV("text-success", data.ReadinessScore >= 80), templ.KV("text-warning", data.ReadinessScore >= 50 && data.ReadinessScore < 80), templ.KV("text-base-content/60", data.ReadinessScore < 50) }>
+						{ strconv.Itoa(data.ReadinessScore) }%
+					</span>
+				</div>
+				<div class="h-1.5 rounded-full bg-base-content/10 overflow-hidden">
+					<div
+						class={ "h-full rounded-full transition-all duration-500", templ.KV("bg-success", data.ReadinessScore >= 80), templ.KV("bg-warning", data.ReadinessScore >= 50 && data.ReadinessScore < 80), templ.KV("bg-base-content/30", data.ReadinessScore < 50) }
+						style={ "width: " + strconv.Itoa(data.ReadinessScore) + "%" }
+					></div>
+				</div>
 			</div>
-			<div class="h-1.5 rounded-full bg-base-content/10 overflow-hidden">
-				<div
-					class={ "h-full rounded-full transition-all duration-500", templ.KV("bg-success", data.ReadinessScore >= 80), templ.KV("bg-warning", data.ReadinessScore >= 50 && data.ReadinessScore < 80), templ.KV("bg-base-content/30", data.ReadinessScore < 50) }
-					style={ "width: " + strconv.Itoa(data.ReadinessScore) + "%" }
-				></div>
-			</div>
+			<span class="text-xs text-base-content/40 whitespace-nowrap shrink-0">
+				{ strconv.Itoa(data.CompletedArtifacts) } / { strconv.Itoa(data.TotalArtifacts) } artifacts
+			</span>
 		</div>
-		<span class="text-xs text-base-content/40 whitespace-nowrap shrink-0">
-			{ strconv.Itoa(data.CompletedArtifacts) } / { strconv.Itoa(data.TotalArtifacts) } artifacts
-		</span>
+		<!-- Readiness breakdown — always visible so users know what's missing -->
+		if len(data.ReadinessItems) > 0 {
+			@readyScoreBreakdown(data.ReadinessItems, data.ReadinessScore)
+		}
 	</div>
-	if data.ReadinessScore < 80 && len(data.ReadinessBlockers) > 0 {
-		<div class="flex flex-wrap gap-1.5 mb-3">
-			for _, blocker := range data.ReadinessBlockers {
-				<span class="inline-flex items-center gap-1 rounded-md bg-warning/10 border border-warning/20 px-2 py-0.5 text-xs text-warning">
-					<span class="iconify lucide--triangle-alert size-3"></span>
-					{ blocker }
-				</span>
+}
+
+// readyScoreBreakdown renders a detailed breakdown of all readiness items.
+// Incomplete items are shown prominently with help text.
+templ readyScoreBreakdown(items []ReadinessItem, score int) {
+	<!-- Show incomplete items prominently -->
+	if readinessHasIncomplete(items) {
+		<div class="flex flex-wrap gap-1.5 mt-2">
+			for _, item := range items {
+				if !item.Done {
+					<span class={ "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium", templ.KV("bg-base-content/8 border border-base-content/15 text-base-content/80", item.MaxPts > 0), templ.KV("bg-base-content/5 border border-base-content/10 text-base-content/40", item.MaxPts == 0) }>
+						<span class={ "iconify lucide--circle-dashed size-3.5", templ.KV("text-base-content/60", item.MaxPts > 0), templ.KV("text-base-content/30", item.MaxPts == 0) }></span>
+						{ item.Label }
+						if item.MaxPts > 0 {
+							<span class="text-base-content/50 font-normal">({ "+" + strconv.Itoa(item.MaxPts) + " pts" })</span>
+						} else {
+							<span class="text-base-content/30 font-normal">(optional)</span>
+						}
+					</span>
+				}
 			}
 		</div>
+		<!-- Help text for incomplete scored items -->
+		for _, item := range items {
+			if !item.Done && item.MaxPts > 0 && item.HelpText != "" {
+				<p class="text-xs text-base-content/50 mt-1.5 ml-0.5">
+					<span class="iconify lucide--arrow-right size-3 inline-block align-middle mr-1"></span>
+					{ item.HelpText }
+				</p>
+			}
+		}
 	}
 }
 
 // readyPublishBanner renders a "Publish first version" call-to-action banner.
 // Only shown when readiness >= 80 and no versions have been published yet.
 templ readyPublishBanner(instanceID string) {
-	<div class="alert alert-success shadow-sm mb-3 flex items-center justify-between">
-		<div class="flex items-center gap-2">
-			<span class="iconify lucide--rocket size-5 text-success"></span>
-			<div>
-				<p class="text-sm font-semibold">Your strategy is ready to publish</p>
-				<p class="text-xs opacity-80">Capture this as your initial version — it becomes the baseline for your first AIM cycle.</p>
+	<div class="card bg-success/5 border border-success/20 shadow-sm mb-3">
+		<div class="card-body p-4">
+			<div class="flex items-start justify-between gap-4">
+				<div class="flex items-start gap-3">
+					<span class="iconify lucide--rocket size-5 text-success mt-0.5 shrink-0"></span>
+					<div class="space-y-1.5">
+						<p class="text-sm font-semibold">Your strategy is ready to publish</p>
+						<p class="text-xs text-base-content/70 leading-relaxed max-w-lg">
+							Publishing creates a frozen snapshot of all your strategy artifacts and their
+							relationships as <strong>Version 1</strong>. Nothing changes in your current
+							workspace — it simply saves a point-in-time copy you can always return to.
+						</p>
+						<p class="text-xs text-base-content/50 leading-relaxed max-w-lg">
+							This version becomes the baseline for your first AIM cycle, where you will
+							assess progress against your OKRs, calibrate the strategy, and decide whether
+							to persevere, pivot, or pull the plug. You can compare, diff, and restore any
+							published version at any time from the version history.
+						</p>
+					</div>
+				</div>
+				<form method="POST" action={ templ.URL("/strategies/" + instanceID + "/aim/publish") } class="shrink-0 self-center">
+					<input type="hidden" name="label" value="Initial Strategy"/>
+					<input type="hidden" name="description" value="First strategy version — published from the READY dashboard."/>
+					<button type="submit" class="btn btn-sm btn-success">
+						<span class="iconify lucide--bookmark size-4"></span>
+						Publish initial version
+					</button>
+				</form>
 			</div>
 		</div>
-		<form method="POST" action={ templ.URL("/strategies/" + instanceID + "/aim/publish") } class="shrink-0">
-			<input type="hidden" name="label" value="Initial Strategy"/>
-			<input type="hidden" name="description" value="First strategy version — published from the READY dashboard."/>
-			<button type="submit" class="btn btn-sm btn-success">
-				<span class="iconify lucide--bookmark size-4"></span>
-				Publish initial version
-			</button>
-		</form>
 	</div>
 }

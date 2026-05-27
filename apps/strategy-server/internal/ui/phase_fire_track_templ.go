@@ -536,7 +536,7 @@ func FireTrackDashboardContent(data FireTrackDashboardData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if gaps := countMissingVMLinks(data.Definitions); gaps > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "<span class=\"inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold bg-error/10 text-error\" title=\"Definitions missing a value model link (contributes_to)\"><span class=\"iconify lucide--alert-triangle size-3\"></span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "<span class=\"tooltip\" data-tip=\"Definitions missing a value model link (contributes_to)\"><span class=\"inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold bg-error/10 text-error\"><span class=\"iconify lucide--alert-triangle size-3\"></span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -549,7 +549,7 @@ func FireTrackDashboardContent(data FireTrackDashboardData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "</span></span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -673,7 +673,7 @@ func FireTrackDashboardContent(data FireTrackDashboardData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else if len(data.Layers) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "<!-- Canonical track: single table, layer → component as divider rows, 5 unified columns --> <!-- Tier legend --> <div class=\"flex items-center gap-3 mb-2\"><span class=\"text-xs text-base-content/35\">Maturity tier:</span> <span class=\"inline-flex items-center gap-1 text-xs text-base-content/45\"><span class=\"badge badge-ghost badge-sm font-mono\">T1</span> Basic — minimum viable, founder-led</span> <span class=\"inline-flex items-center gap-1 text-xs text-base-content/45\"><span class=\"badge badge-ghost badge-sm font-mono\">T2</span> Structured — repeatable, documented</span> <span class=\"inline-flex items-center gap-1 text-xs text-base-content/45\"><span class=\"badge badge-ghost badge-sm font-mono\">T3</span> Advanced — measured, optimised</span></div><div class=\"overflow-x-auto rounded-lg border border-base-content/8\"><table class=\"table table-sm w-full\"><thead><tr class=\"text-xs text-base-content/40\"><th class=\"font-medium\">Definition</th><th class=\"w-24 font-medium\">Status</th><th class=\"font-medium\">Maturity</th><th class=\"font-medium\">Effort</th><th class=\"font-medium\">Owner</th></tr></thead> <tbody>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "<!-- Canonical track: single table, layer → component as divider rows, 5 unified columns --> <!-- Tier legend --> <div class=\"flex items-center gap-3 mb-2\"><span class=\"text-xs text-base-content/35\">Maturity tier:</span> <span class=\"inline-flex items-center gap-1 text-xs text-base-content/45\"><span class=\"tooltip\" data-tip=\"Maturity Tier 1\"><span class=\"badge badge-ghost badge-sm font-mono\">T1</span></span> Basic — minimum viable, founder-led</span> <span class=\"inline-flex items-center gap-1 text-xs text-base-content/45\"><span class=\"tooltip\" data-tip=\"Maturity Tier 2\"><span class=\"badge badge-ghost badge-sm font-mono\">T2</span></span> Structured — repeatable, documented</span> <span class=\"inline-flex items-center gap-1 text-xs text-base-content/45\"><span class=\"tooltip\" data-tip=\"Maturity Tier 3\"><span class=\"badge badge-ghost badge-sm font-mono\">T3</span></span> Advanced — measured, optimised</span></div><div class=\"overflow-x-auto rounded-lg border border-base-content/8\"><table class=\"table table-sm w-full\"><thead><tr class=\"text-xs text-base-content/40\"><th class=\"font-medium\">Definition</th><th class=\"w-24 font-medium\">Status</th><th class=\"font-medium\">Maturity</th><th class=\"font-medium\">Effort</th><th class=\"font-medium\">Owner</th></tr></thead> <tbody>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -978,7 +978,7 @@ func featureDefinitionRow(d FireTrackDefinition) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if d.MissingValueModelLink {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "<span class=\"iconify lucide--alert-triangle size-3 text-error shrink-0\" title=\"No value model path linked (contributes_to missing)\"></span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "<span class=\"tooltip\" data-tip=\"No value model path linked (contributes_to missing)\"><span class=\"iconify lucide--alert-triangle size-3 text-error shrink-0\"></span></span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1125,22 +1125,22 @@ func maturityStageBadge(stage string) templ.Component {
 		ctx = templ.ClearChildren(ctx)
 		switch stage {
 		case "scaled":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 110, "<span class=\"badge badge-sm badge-success gap-1\"><span class=\"iconify lucide--trending-up size-3\"></span> Scaled</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 110, "<div class=\"tooltip\" data-tip=\"Mature capability operating at full scale\"><span class=\"badge badge-sm badge-success gap-1\"><span class=\"iconify lucide--trending-up size-3\"></span> Scaled</span></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "proven":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 111, "<span class=\"badge badge-sm badge-info gap-1\"><span class=\"iconify lucide--check size-3\"></span> Proven</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 111, "<div class=\"tooltip\" data-tip=\"Validated capability with demonstrated results\"><span class=\"badge badge-sm badge-info gap-1\"><span class=\"iconify lucide--check size-3\"></span> Proven</span></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "emerging":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 112, "<span class=\"badge badge-sm badge-warning gap-1\"><span class=\"iconify lucide--sprout size-3\"></span> Emerging</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 112, "<div class=\"tooltip\" data-tip=\"Early-stage capability being developed and tested\"><span class=\"badge badge-sm badge-warning gap-1\"><span class=\"iconify lucide--sprout size-3\"></span> Emerging</span></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "hypothetical":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 113, "<span class=\"badge badge-sm badge-ghost gap-1\"><span class=\"iconify lucide--flask-conical size-3\"></span> Hypothetical</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 113, "<div class=\"tooltip\" data-tip=\"Unvalidated concept — needs testing before investment\"><span class=\"badge badge-sm badge-ghost gap-1\"><span class=\"iconify lucide--flask-conical size-3\"></span> Hypothetical</span></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

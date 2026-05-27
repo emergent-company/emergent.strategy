@@ -164,8 +164,13 @@ var toolCategories = map[string]string{
 	"get_version":              CategoryAdmin,
 	"diff_versions":            CategoryAdmin,
 	"restore_version":          CategoryAdmin,
-	"sync_to_github":           CategoryAdmin,
-	"get_sync_status":          CategoryAdmin,
+	"sync_to_github":              CategoryAdmin,
+	"get_sync_status":             CategoryAdmin,
+	"import_from_github":          CategoryAdmin,
+	"get_sync_state":              CategoryAdmin,
+	"update_instance":             CategoryAdmin,
+	"list_github_installations":   CategoryAdmin,
+	"scan_github_repos":           CategoryAdmin,
 
 	// ── Knowledge base ──────────────────────────────────────────────────
 	"list_schemas":   CategoryKnowledge,

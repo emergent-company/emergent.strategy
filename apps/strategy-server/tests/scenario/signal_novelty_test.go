@@ -80,7 +80,7 @@ func TestSignalNoveltyFilter_OldSignalsIgnored(t *testing.T) {
 		seedRippleSignalAt(t, ctx, db, instID, "critical", oldSignalAt)
 	}
 
-	state := aim.NewService(db, nil).EvaluateTriggers(ctx, instID)
+	state := aim.NewService(db).EvaluateTriggers(ctx, instID)
 
 	// Signal trigger must NOT fire — all signals are old (pre-assessment).
 	if state.Fired && state.Reason == "signals" {
@@ -117,7 +117,7 @@ func TestSignalNoveltyFilter_NewSignalsFire(t *testing.T) {
 		seededIDs = append(seededIDs, id)
 	}
 
-	state := aim.NewService(db, nil).EvaluateTriggers(ctx, instID)
+	state := aim.NewService(db).EvaluateTriggers(ctx, instID)
 
 	if !state.Fired {
 		t.Fatalf("expected trigger to fire for novel signals, got Fired=false")
@@ -169,7 +169,7 @@ func TestSignalNoveltyFilter_MixedSignals(t *testing.T) {
 		seedRippleSignalAt(t, ctx, db, instID, "critical", newSignalAt)
 	}
 
-	state := aim.NewService(db, nil).EvaluateTriggers(ctx, instID)
+	state := aim.NewService(db).EvaluateTriggers(ctx, instID)
 
 	if !state.Fired || state.Reason != "signals" {
 		t.Fatalf("expected signal trigger with 4 novel signals, got fired=%v reason=%q", state.Fired, state.Reason)
@@ -202,7 +202,7 @@ func TestSignalNoveltyFilter_BelowThreshold(t *testing.T) {
 		seedRippleSignalAt(t, ctx, db, instID, "critical", now.Add(-10*time.Minute))
 	}
 
-	state := aim.NewService(db, nil).EvaluateTriggers(ctx, instID)
+	state := aim.NewService(db).EvaluateTriggers(ctx, instID)
 
 	if state.Fired {
 		t.Errorf("expected no trigger (2 signals < threshold 3, recent assessment), got fired=true reason=%q: %q",
@@ -229,7 +229,7 @@ func TestSignalNoveltyFilter_NoAssessment_AllSignalsCount(t *testing.T) {
 			time.Now().UTC().Add(-time.Duration(i)*time.Minute))
 	}
 
-	state := aim.NewService(db, nil).EvaluateTriggers(ctx, instID)
+	state := aim.NewService(db).EvaluateTriggers(ctx, instID)
 
 	if !state.Fired {
 		t.Fatalf("expected trigger for first-cycle instance with 4 signals, got Fired=false")

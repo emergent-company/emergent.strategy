@@ -112,7 +112,7 @@ templ lraHero(data LRAViewData) {
 						<span class="iconify lucide--activity size-5 text-info"></span>
 						<span class="text-xs font-semibold uppercase tracking-widest text-info">Living Reality Assessment</span>
 						if data.LifecycleStage != "" {
-							<span class={ "badge badge-sm", lifecycleStageBadge(data.LifecycleStage) }>{ data.LifecycleStage }</span>
+							<span class="tooltip" data-tip={ lifecycleStageHint(data.LifecycleStage) }><span class={ "badge badge-sm", lifecycleStageBadge(data.LifecycleStage) }>{ data.LifecycleStage }</span></span>
 						}
 						if data.AdoptionLevel > 0 {
 							<span class="badge badge-sm badge-info">Level { strconv.Itoa(data.AdoptionLevel) }</span>

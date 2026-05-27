@@ -32,6 +32,29 @@ type ActivityRecorder interface {
 	Record(ctx context.Context, req ActivityEvent)
 }
 
+// InstanceConsistencyChecker is optionally implemented by domain/strategy.Service
+// to run instance health repairs during heartbeat ticks.
+// Using an interface avoids a direct import of domain/strategy from heartbeat.
+type InstanceConsistencyChecker interface {
+	// RunConsistencyCheckForAll runs checks across all non-archived instances.
+	RunConsistencyCheckForAll(ctx context.Context)
+}
+
+// MemoryDriftRepairer is optionally implemented by a service that can detect and
+// repair Memory graph drift (e.g. after Memory server restart wipes the graph).
+type MemoryDriftRepairer interface {
+	// RepairMemoryDrift checks if Memory is healthy and re-queues ingestion for
+	// any instance whose Memory objects appear to have been lost.
+	RepairMemoryDrift(ctx context.Context)
+}
+
+// ActiveRunChecker checks whether an orchestration run is already active for
+// a given instance. Used by the heartbeat to suppress proposal creation when
+// a cycle is already running.
+type ActiveRunChecker interface {
+	HasActiveRun(ctx context.Context, instanceID string) bool
+}
+
 // ActivityEvent is the minimal event shape accepted by the heartbeat package.
 // It mirrors activity.RecordRequest without importing that package.
 type ActivityEvent struct {
@@ -69,10 +92,13 @@ type TriggerResult struct {
 
 // Service runs periodic trigger evaluations across all active instances.
 type Service struct {
-	db        *bun.DB
-	evaluator TriggerEvaluator
-	evidence  EvidenceCounter  // optional — nil = evidence count not included in proposals
-	activity  ActivityRecorder // optional — nil = activity stream disabled
+	db                  *bun.DB
+	evaluator           TriggerEvaluator
+	evidence            EvidenceCounter            // optional — nil = evidence count not included in proposals
+	activity            ActivityRecorder           // optional — nil = activity stream disabled
+	consistencyChecker  InstanceConsistencyChecker // optional — nil = consistency checks disabled
+	memoryDriftRepairer MemoryDriftRepairer        // optional — nil = memory drift repair disabled
+	activeRunChecker    ActiveRunChecker           // optional — nil = active-run guard skipped
 }
 
 // NewService creates a new heartbeat Service.
@@ -90,6 +116,27 @@ func (s *Service) WithEvidenceCounter(e EvidenceCounter) *Service {
 // When set, significant proposal lifecycle events are recorded (Stage 5.7).
 func (s *Service) WithActivityRecorder(r ActivityRecorder) *Service {
 	s.activity = r
+	return s
+}
+
+// WithConsistencyChecker attaches a consistency checker that runs after each
+// trigger evaluation pass. If nil, consistency checks are skipped.
+func (s *Service) WithConsistencyChecker(c InstanceConsistencyChecker) *Service {
+	s.consistencyChecker = c
+	return s
+}
+
+// WithMemoryDriftRepairer attaches a memory drift repairer that runs after each
+// trigger evaluation pass. If nil, memory drift repair is skipped.
+func (s *Service) WithMemoryDriftRepairer(r MemoryDriftRepairer) *Service {
+	s.memoryDriftRepairer = r
+	return s
+}
+
+// WithActiveRunChecker attaches an active-run checker. When set,
+// maybeCreateProposal skips proposal creation if a cycle is already running.
+func (s *Service) WithActiveRunChecker(c ActiveRunChecker) *Service {
+	s.activeRunChecker = c
 	return s
 }
 

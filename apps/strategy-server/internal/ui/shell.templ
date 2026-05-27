@@ -82,9 +82,15 @@ templ InstanceChrome(instanceName string, tabs []TabProps, currentPath string) {
 
 // activityStreamSSE wires the SSE activity stream to drive live UI indicators
 // and the cascade tracker panel.
-// Extracts instance ID from the URL path and opens an EventSource to
+// Extracts instance ID from URL path and opens an EventSource to
 // /strategies/:id/activity/stream. Handles skill.started, skill.chunk_staged,
 // skill.completed, and skill.failed events.
+//
+// IMPORTANT: This script is re-executed on every HTMX sidebar navigation
+// (Tier 2 swap into #main-content). To prevent zombie EventSource connections,
+// runaway setInterval timers, and accumulated visibilitychange listeners from
+// freezing the browser, all state is stored on window.__activitySSE and torn
+// down before each re-initialization.
 templ activityStreamSSE() {
 	<script>
 	(function() {
@@ -92,6 +98,19 @@ templ activityStreamSSE() {
 		var m = window.location.pathname.match(/^\/strategies\/([0-9a-f-]{36})/);
 		if (!m) return;
 		var instanceId = m[1];
+
+		// --- Tear down previous instance's resources ---
+		// On HTMX Tier 2 swaps, the old <script> IIFE's closure is orphaned
+		// but its EventSource, setInterval, and document listeners survive.
+		// Clean them up before creating new ones.
+		var prev = window.__activitySSE;
+		if (prev) {
+			if (prev.es) { prev.es.close(); prev.es = null; }
+			if (prev.reconcileTimer) { clearInterval(prev.reconcileTimer); prev.reconcileTimer = null; }
+			if (prev.visHandler) {
+				document.removeEventListener('visibilitychange', prev.visHandler);
+			}
+		}
 
 		// Skill name → affected artifact CSS IDs (for toggling generating badges).
 		var skillArtifacts = {
@@ -113,18 +132,20 @@ templ activityStreamSSE() {
 			});
 		}
 
+		// --- Singleton state on window ---
+		var state = { es: null, reconcileTimer: null, errorCount: 0, visHandler: null };
+		window.__activitySSE = state;
+
+		var MAX_ERRORS = 5;        // close after 5 consecutive failures
+		var RECONCILE_MS = 30000;  // 30s polling fallback
+
 		// reconcileBadges checks the cascade endpoint and shows/hides generating
 		// badges based on which skill runs are actually active right now.
-		// This prevents stale badges when SSE events are missed (tab throttled,
-		// connection dropped, user navigated back to an already-open tab).
 		function reconcileBadges() {
 			fetch('/strategies/' + instanceId + '/cascade')
 				.then(function(r) { return r.text(); })
 				.then(function(html) {
-					// A row is actively running when the cascade shows a spinning loader.
 					var hasRunningRow = html.indexOf('animate-spin') !== -1 && html.indexOf('lucide--loader') !== -1;
-
-					// Build set of artifact IDs that should be active.
 					var activeIds = {};
 					if (hasRunningRow) {
 						for (var sk in skillArtifacts) {
@@ -133,7 +154,6 @@ templ activityStreamSSE() {
 							}
 						}
 					}
-					// Apply: show active, hide inactive.
 					allBadgeIds.forEach(function(id) {
 						var badge = document.getElementById('generating-' + id);
 						if (!badge) return;
@@ -146,15 +166,6 @@ templ activityStreamSSE() {
 				})
 				.catch(function() { /* ignore network errors */ });
 		}
-
-		// --- SSE lifecycle management ---
-		// Prevents UI freezes from zombie EventSource connections, runaway
-		// reconnects, and background-tab resource drain.
-		var es = null;
-		var reconcileTimer = null;
-		var errorCount = 0;
-		var MAX_ERRORS = 5;        // close after 5 consecutive failures
-		var RECONCILE_MS = 30000;  // 30s polling fallback
 
 		function onActivity(e) {
 			try {
@@ -187,47 +198,47 @@ templ activityStreamSSE() {
 		}
 
 		function connectSSE() {
-			if (es) { es.close(); es = null; }
-			errorCount = 0;
+			if (state.es) { state.es.close(); state.es = null; }
+			state.errorCount = 0;
 
-			es = new EventSource('/strategies/' + instanceId + '/activity/stream');
-			es.addEventListener('activity', onActivity);
+			state.es = new EventSource('/strategies/' + instanceId + '/activity/stream');
+			state.es.addEventListener('activity', onActivity);
 
-			es.onopen = function() {
-				// Connection established — reset error counter.
-				errorCount = 0;
+			state.es.onopen = function() {
+				state.errorCount = 0;
 			};
 
-			es.onerror = function() {
-				errorCount++;
-				if (errorCount >= MAX_ERRORS) {
-					// Too many consecutive failures — close to prevent runaway
-					// reconnects from freezing the tab. The 30s reconcile interval
-					// will keep badges accurate until the page is reloaded.
-					es.close();
-					es = null;
+			state.es.onerror = function() {
+				state.errorCount++;
+				if (state.errorCount >= MAX_ERRORS) {
+					state.es.close();
+					state.es = null;
 				}
 			};
 		}
 
 		function disconnectSSE() {
-			if (es) { es.close(); es = null; }
+			if (state.es) { state.es.close(); state.es = null; }
 		}
 
 		function startReconcile() {
-			if (reconcileTimer) return;
-			reconcileBadges(); // immediate on start
-			reconcileTimer = setInterval(reconcileBadges, RECONCILE_MS);
+			if (state.reconcileTimer) return;
+			reconcileBadges();
+			state.reconcileTimer = setInterval(reconcileBadges, RECONCILE_MS);
 		}
 
 		function stopReconcile() {
-			if (reconcileTimer) { clearInterval(reconcileTimer); reconcileTimer = null; }
+			if (state.reconcileTimer) { clearInterval(state.reconcileTimer); state.reconcileTimer = null; }
+		}
+
+		function teardown() {
+			disconnectSSE();
+			stopReconcile();
 		}
 
 		// --- Page visibility handling ---
-		// When the tab is backgrounded, close SSE and stop polling to avoid
-		// resource drain. Reconnect when the tab returns to the foreground.
-		document.addEventListener('visibilitychange', function() {
+		// Single named handler so we can remove it on teardown.
+		state.visHandler = function() {
 			if (document.hidden) {
 				disconnectSSE();
 				stopReconcile();
@@ -235,17 +246,15 @@ templ activityStreamSSE() {
 				connectSSE();
 				startReconcile();
 			}
-		});
+		};
+		document.addEventListener('visibilitychange', state.visHandler);
 
 		// --- Initial setup ---
 		connectSSE();
 		startReconcile();
 
-		// Close on navigation away.
-		window.addEventListener('beforeunload', function() {
-			disconnectSSE();
-			stopReconcile();
-		});
+		// Close on full page unload (refresh, hard navigation).
+		window.addEventListener('beforeunload', teardown);
 	})();
 	</script>
 }

@@ -22,6 +22,8 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/skillrun"
 	strategydom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
 	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
+	userdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/user"
+	ghclient "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/github"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/version"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/navigation"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
@@ -40,6 +42,7 @@ type Server struct {
 	strategySvc         *strategydom.Service  // required for index derivation on batch commit
 	versionSvc          *version.Service
 	syncSvc             *syncdom.Service      // nil when GitHub App not configured
+	userSvc             *userdom.Service      // for GitHub token storage
 	aimSvc              *aimdom.Service       // nil when AIM service not configured
 	heartbeatSvc        *heartbeat.Service    // nil when heartbeat not configured
 	orchestrationEngine *orchestration.Engine // nil when orchestration not configured
@@ -50,6 +53,8 @@ type Server struct {
 	evidenceSvc         *evidencedom.Service  // nil when evidence service not configured
 	postCommitPipeline  *PostCommitPipeline   // nil when ripple is not configured
 	llmEnabled          bool                  // true when an LLM provider is wired
+	githubAppInstallURL string                // set when GITHUB_APP_SLUG is configured
+	githubOAuth         *ghclient.OAuthConfig // nil when OAuth App not configured
 }
 
 // New creates a new web handler Server.
@@ -86,6 +91,24 @@ func (s *Server) WithVersion(svc *version.Service) *Server {
 // WithSync wires the sync service into the handler server (optional).
 func (s *Server) WithSync(svc *syncdom.Service) *Server {
 	s.syncSvc = svc
+	return s
+}
+
+// WithGithubAppInstallURL sets the GitHub App install URL for the connect flow.
+func (s *Server) WithGithubAppInstallURL(url string) *Server {
+	s.githubAppInstallURL = url
+	return s
+}
+
+// WithUserSvc wires the user service for GitHub token storage.
+func (s *Server) WithUserSvc(svc *userdom.Service) *Server {
+	s.userSvc = svc
+	return s
+}
+
+// WithGithubOAuth wires the GitHub OAuth App config for the user authorization flow.
+func (s *Server) WithGithubOAuth(cfg *ghclient.OAuthConfig) *Server {
+	s.githubOAuth = cfg
 	return s
 }
 
@@ -250,8 +273,17 @@ func (s *Server) RegisterRoutes(e *echo.Echo) {
 	}
 
 	// Settings page — registered via the nav graph loop (Settings screen).
-	// The POST endpoint for sync is registered separately.
+	// The POST endpoints for sync and import are registered separately.
 	e.POST("/settings/sync", s.handleSettingsSync)
+	e.POST("/settings/import", s.handleSettingsImport)
+
+	// GitHub connect flow — repo discovery and instance linking.
+	e.GET("/github/connect", s.handleGithubConnect)
+	e.GET("/github/connect/repos", s.handleGithubConnectRepos)
+	e.GET("/github/connect/authorize", s.handleGithubConnectAuthorize)
+	e.GET("/github/connect/callback", s.handleGithubConnectCallback)
+	e.POST("/github/connect/scan", s.handleGithubConnectScan)
+	e.POST("/github/connect/import", s.handleGithubImportNew)
 
 	// Signal action endpoints — HTMX POST, return the updated card fragment.
 	e.POST("/strategies/:id/aim/coherence/signals/:signalID/acknowledge", s.handleSignalAcknowledge)

@@ -82,16 +82,18 @@ func (s *pgStore) updateStatus(ctx context.Context, runID uuid.UUID, status orch
 	return err
 }
 
+// markStaleFailed marks pending and running runs as failed on startup.
+// awaiting_human runs are NOT killed — they survive restarts because their
+// state is fully persisted in the DB (batch commit/discard resumes them).
 func (s *pgStore) markStaleFailed(ctx context.Context) (int, error) {
 	res, err := s.db.NewUpdate().
 		TableExpr("orchestration_runs").
 		Set("status = ?", string(orchestration.StatusFailed)).
 		Set("error = ?", "server restart").
 		Set("updated_at = NOW()").
-		Where("status IN (?, ?, ?)",
+		Where("status IN (?, ?)",
 			string(orchestration.StatusPending),
 			string(orchestration.StatusRunning),
-			string(orchestration.StatusAwaitingHuman),
 		).
 		Exec(ctx)
 	if err != nil {
@@ -99,6 +101,21 @@ func (s *pgStore) markStaleFailed(ctx context.Context) (int, error) {
 	}
 	n, _ := res.RowsAffected()
 	return int(n), nil
+}
+
+// listAwaitingHuman returns all runs in awaiting_human status.
+// Used on startup to re-register resume channels for runs that survived a restart.
+func (s *pgStore) listAwaitingHuman(ctx context.Context) ([]uuid.UUID, error) {
+	var ids []uuid.UUID
+	err := s.db.NewSelect().
+		TableExpr("orchestration_runs").
+		ColumnExpr("id").
+		Where("status = ?", string(orchestration.StatusAwaitingHuman)).
+		Scan(ctx, &ids)
+	if err != nil {
+		return nil, err
+	}
+	return ids, nil
 }
 
 func (s *pgStore) getByID(ctx context.Context, runID uuid.UUID) (*orchestration.Run, error) {

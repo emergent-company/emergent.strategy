@@ -13,6 +13,24 @@ import (
 // WorkflowName is the canonical identifier for the AIM cycle workflow.
 const WorkflowName = "aim_cycle"
 
+// PortfolioAligner is the interface satisfied by domain/strategy.Service.
+// Using an interface here avoids a direct import of domain/strategy from domain/aim
+// (which would create a circular dependency through domain/aim → domain/strategy → ...).
+type PortfolioAligner interface {
+	AlignPortfolio(ctx context.Context, instanceID uuid.UUID) (PortfolioAlignResult, error)
+}
+
+// PortfolioAlignResult is the minimal result subset the workflow cares about.
+// It mirrors strategy.AlignPortfolioResult without importing that package.
+type PortfolioAlignResult struct {
+	TracksProcessed  int
+	TracksChanged    int
+	TotalActivated   int
+	TotalDeactivated int
+	KRsWithTargets   int
+	NoRoadmap        bool
+}
+
 // CycleWorkflow implements orchestration.Workflow for the AIM cycle.
 // It delegates each step to the existing aim.Service methods.
 // The Engine knows nothing about AIM; AIM knows about the Engine
@@ -20,12 +38,19 @@ const WorkflowName = "aim_cycle"
 type CycleWorkflow struct {
 	svc      *Service
 	executor *skillexec.Executor // optional — nil = legacy ApplyCalibration stub
+	aligner  PortfolioAligner    // optional — nil = align_portfolio step is a no-op
 }
 
 // NewCycleWorkflow creates a new AIM cycle workflow.
 // Pass a non-nil executor to use the unified skill executor for the adapt_strategy step.
 func NewCycleWorkflow(svc *Service, executor *skillexec.Executor) *CycleWorkflow {
 	return &CycleWorkflow{svc: svc, executor: executor}
+}
+
+// WithPortfolioAligner attaches a portfolio aligner to run the align_portfolio step.
+func (w *CycleWorkflow) WithPortfolioAligner(a PortfolioAligner) *CycleWorkflow {
+	w.aligner = a
+	return w
 }
 
 // Name returns the unique workflow name.
@@ -40,13 +65,14 @@ func (w *CycleWorkflow) ConcurrencyKey(run *orchestration.Run) string {
 	return ""
 }
 
-// Steps returns the five ordered steps of an AIM cycle.
+// Steps returns the six ordered steps of an AIM cycle.
 //
 //	1. draft_assessment  → human reviews assessment report
 //	2. draft_calibration → human reviews calibration memo + decision
 //	3. adapt_strategy    → human reviews execution-layer rewrites
 //	4. adapt_foundations → human reviews foundation-layer updates (auto-advances when empty)
-//	5. snapshot_cycle    → auto-publishes version snapshot
+//	5. align_portfolio   → deterministic value model activation (auto-commits, no human gate)
+//	6. snapshot_cycle    → auto-publishes version snapshot
 func (w *CycleWorkflow) Steps() []orchestration.Step {
 	return []orchestration.Step{
 		{
@@ -68,6 +94,11 @@ func (w *CycleWorkflow) Steps() []orchestration.Step {
 			Name:      "adapt_foundations",
 			Execute:   w.stepAdaptFoundations,
 			HumanGate: true,
+		},
+		{
+			Name:      "align_portfolio",
+			Execute:   w.stepAlignPortfolio,
+			HumanGate: false, // deterministic, auto-commits — no human review required
 		},
 		{
 			Name:      "snapshot_cycle",
@@ -154,6 +185,8 @@ func (w *CycleWorkflow) stepAdaptStrategy(ctx context.Context, run *orchestratio
 				"artifact_types":    result.ArtifactTypes,
 				"llm_used":          result.LLMUsed,
 				"validation_passed": result.ValidationPassed,
+				"input_tokens":      result.InputTokens,
+				"output_tokens":     result.OutputTokens,
 			},
 		}, nil
 	}
@@ -218,6 +251,49 @@ func (w *CycleWorkflow) stepAdaptFoundations(ctx context.Context, run *orchestra
 			"artifact_types":    result.ArtifactTypes,
 			"llm_used":          result.LLMUsed,
 			"validation_passed": result.ValidationPassed,
+			"input_tokens":      result.InputTokens,
+			"output_tokens":     result.OutputTokens,
+		},
+	}, nil
+}
+
+// stepAlignPortfolio runs deterministic portfolio alignment after adapt_strategy.
+// It reads committed roadmap KRs and syncs value model active flags to match.
+// All mutations are auto-committed. If no aligner is wired, the step is a no-op.
+func (w *CycleWorkflow) stepAlignPortfolio(ctx context.Context, run *orchestration.Run) (orchestration.StepResult, error) {
+	instanceID, err := runInstanceID(run)
+	if err != nil {
+		return orchestration.StepResult{}, err
+	}
+
+	if w.aligner == nil {
+		// No aligner wired — skip silently (useful in test and legacy modes).
+		return orchestration.StepResult{
+			Meta: map[string]any{"skipped": true, "reason": "no aligner configured"},
+		}, nil
+	}
+
+	result, err := w.aligner.AlignPortfolio(ctx, instanceID)
+	if err != nil {
+		// Alignment failures are non-fatal: log and continue to snapshot_cycle.
+		// The next heartbeat consistency check will correct any drift.
+		return orchestration.StepResult{
+			Meta: map[string]any{
+				"error":   err.Error(),
+				"skipped": true,
+			},
+		}, nil
+	}
+
+	return orchestration.StepResult{
+		// No BatchID: this step auto-commits and has no human review gate.
+		Meta: map[string]any{
+			"tracks_processed":  result.TracksProcessed,
+			"tracks_changed":    result.TracksChanged,
+			"total_activated":   result.TotalActivated,
+			"total_deactivated": result.TotalDeactivated,
+			"krs_with_targets":  result.KRsWithTargets,
+			"no_roadmap":        result.NoRoadmap,
 		},
 	}, nil
 }
@@ -228,23 +304,34 @@ func (w *CycleWorkflow) stepSnapshotCycle(ctx context.Context, run *orchestratio
 		return orchestration.StepResult{}, err
 	}
 
-	// Derive the calibration decision from the adapt_strategy step meta.
-	// The executor stores it in the context bundle from the calibration memo;
-	// the legacy fallback stores it explicitly as "decision" in the meta.
+	// Derive the calibration decision from step metadata.
+	// Sources (checked in priority order):
+	//   1. adapt_strategy/apply_calibration "decision" (legacy fallback path)
+	//   2. draft_calibration "suggested_decision" (executor path)
 	decision := ""
 	for _, sl := range run.Steps {
 		if sl.Name == "adapt_strategy" || sl.Name == "apply_calibration" {
-			if d, ok := sl.Meta["decision"].(string); ok {
+			if d, ok := sl.Meta["decision"].(string); ok && d != "" {
+				decision = d
+			}
+		}
+		if sl.Name == "draft_calibration" && decision == "" {
+			if d, ok := sl.Meta["suggested_decision"].(string); ok && d != "" {
 				decision = d
 			}
 		}
 	}
 
-	if err := w.svc.SnapshotCycle(ctx, instanceID, 0, decision); err != nil {
+	versionID, err := w.svc.SnapshotCycle(ctx, instanceID, 0, decision)
+	if err != nil {
 		return orchestration.StepResult{}, fmt.Errorf("snapshot cycle: %w", err)
 	}
 
-	return orchestration.StepResult{}, nil
+	return orchestration.StepResult{
+		Meta: map[string]any{
+			"version_id": versionID.String(),
+		},
+	}, nil
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────

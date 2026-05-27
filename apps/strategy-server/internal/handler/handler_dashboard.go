@@ -28,8 +28,9 @@ func (s *Server) handleDashboard(c echo.Context) error {
 	sidebarGroups := s.sidebarGroups(c)
 	currentPath := c.Request().URL.Path
 
-	render.RenderAuto(c.Response().Writer, c.Request(),
+	render.RenderTriple(c.Response().Writer, c.Request(),
 		ui.GlobalDashboardPage(currentPath, sidebarGroups, data),
+		ui.GlobalDashboardMainContent(data),
 		ui.GlobalDashboardContent(data),
 	)
 	return nil

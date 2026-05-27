@@ -42,6 +42,7 @@ import (
 	ghclient "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/github"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/handler"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/llm"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/mcpserver"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/skillrunner"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/web"
@@ -96,6 +97,10 @@ func runServer(cfg *config.Config) error {
 		if err := semanticSvc.VerifySchemas(context.Background()); err != nil {
 			log.Warn("semantic schema verification failed (non-fatal)", "err", err)
 		}
+	} else {
+		log.Warn("MEMORY NOT CONFIGURED — semantic search, contradiction detection, scenarios, and graph ingestion are disabled. "+
+			"Set EPF_MEMORY_URL, EPF_MEMORY_PROJECT, and EPF_MEMORY_TOKEN in .env.local or environment. "+
+			"Run 'task dev-up-full' for a complete local setup.")
 	}
 
 	// Ingestion pipeline: converts committed mutations into Memory graph objects.
@@ -141,12 +146,15 @@ func runServer(cfg *config.Config) error {
 		ghClient, ghErr := ghclient.NewClient(ghclient.Config{
 			AppID:          cfg.GithubAppID,
 			PrivateKeyPath: cfg.GithubAppPrivateKeyPath,
+			PrivateKeyPEM:  cfg.GithubAppPrivateKey,
 		})
 		if ghErr != nil {
 			log.Warn("github app client failed to initialize (sync disabled)", "err", ghErr)
 		} else {
 			syncSvc = syncdom.NewService(db, strategySvc, versionSvc, ghclient.NewRepoWriterAdapter(ghClient))
-			log.Info("github sync enabled", "app_id", cfg.GithubAppID)
+			syncSvc.WithReader(ghclient.NewRepoReaderAdapter(ghClient))
+			syncSvc.WithInstanceReimporter(instSvc)
+			log.Info("github sync enabled (read + write)", "app_id", cfg.GithubAppID)
 		}
 	} else {
 		log.Info("github sync disabled (GITHUB_APP_ID not configured)")
@@ -154,12 +162,12 @@ func runServer(cfg *config.Config) error {
 
 	wsSvc := workspace.NewService(db)
 
-	// AIM agent loop service — wraps the llmClient as an aim.LLMClient adapter.
-	var aimLLMClient aimdom.LLMClient
-	if llmClient != nil {
-		aimLLMClient = &aimLLMAdapter{client: llmClient}
+	// AIM agent loop service — delegates writing to canonical skills via SkillRunner.
+	aimSvc := aimdom.NewService(db).WithVersionPublisher(versionSvc)
+	// Wire GitHub auto-push: when syncSvc is configured, AIM cycles auto-push to GitHub.
+	if syncSvc != nil {
+		aimSvc = aimSvc.WithGitHubSyncer(syncSvc)
 	}
-	aimSvc := aimdom.NewService(db, aimLLMClient).WithVersionPublisher(versionSvc)
 
 	// Evidence service — created early so heartbeat can use it for proposal context.
 	evidenceSvc := evidencedom.NewService(db).WithMemoryEnqueue(ingestSvc)
@@ -170,7 +178,9 @@ func runServer(cfg *config.Config) error {
 	// Heartbeat — periodic trigger evaluation across all active instances.
 	heartbeatSvc := heartbeat.NewService(db, &aimHeartbeatAdapter{svc: aimSvc}).
 		WithEvidenceCounter(evidenceSvc).
-		WithActivityRecorder(&heartbeatActivityAdapter{svc: activitySvc})
+		WithActivityRecorder(&heartbeatActivityAdapter{svc: activitySvc}).
+		WithConsistencyChecker(strategySvc).
+		WithMemoryDriftRepairer(ingestSvc)
 	if cfg.HeartbeatInterval > 0 {
 		heartbeatCtx, heartbeatStop := context.WithCancel(context.Background())
 		defer heartbeatStop()
@@ -196,12 +206,13 @@ func runServer(cfg *config.Config) error {
 			BaseURL: cfg.LLMProviderURL,
 			APIKey:  cfg.LLMAPIKey,
 			Model:   cfg.LLMModel,
-			Timeout: 3 * time.Minute,
+			Timeout: 5 * time.Minute,
 		})
 		skillLLMAdapter := &skillexecLLMAdapter{client: skillLLMClient}
 		skillExecutor = skillexec.New(db, packSvc, skillLLMAdapter).
 			WithActivityRecorder(activitySvc).
-			WithRunLedger(skillRunLedger)
+			WithRunLedger(skillRunLedger).
+			WithModel(skillLLMClient.Model())
 		log.Info("skill executor enabled (autonomous mode)")
 	} else {
 		skillExecutor = skillexec.New(db, packSvc, nil). // skeleton mode
@@ -210,10 +221,28 @@ func runServer(cfg *config.Config) error {
 		log.Info("skill executor in skeleton mode (no LLM configured)")
 	}
 
-	orchEngine.Register(aimdom.NewCycleWorkflow(aimSvc, skillExecutor))
+	// Wire executor into AIM service so DraftAssessment/DraftCalibration route
+	// through canonical skills with full run tracking.
+	aimSvc.WithSkillRunner(&aimSkillRunnerAdapter{executor: skillExecutor})
+
+	orchEngine.Register(aimdom.NewCycleWorkflow(aimSvc, skillExecutor).
+		WithPortfolioAligner(&strategyPortfolioAlignerAdapter{svc: strategySvc}))
 	if err := orchEngine.Start(context.Background()); err != nil {
 		return fmt.Errorf("start orchestration engine: %w", err)
 	}
+
+	// Clean up zombie skill runs left over from a previous crash/restart.
+	// The orchestration engine already marks stale orchestration_runs as failed,
+	// but skill_runs are a separate table and need their own cleanup.
+	if staleCount, staleErr := skillRunSvc.MarkStaleRunsFailed(context.Background()); staleErr != nil {
+		log.Warn("failed to clean stale skill runs (non-fatal)", "err", staleErr)
+	} else if staleCount > 0 {
+		log.Warn("orchestration: marked stale runs as failed on startup", "count", staleCount)
+	}
+
+	// Wire active-run checker into heartbeat so it suppresses proposal creation
+	// when a cycle is already running for an instance.
+	heartbeatSvc.WithActiveRunChecker(&heartbeatActiveRunAdapter{engine: orchEngine})
 	defer func() {
 		stopCtx, stopCancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer stopCancel()
@@ -223,27 +252,28 @@ func runServer(cfg *config.Config) error {
 	}()
 
 	svc := mcpserver.Services{
-		Workspace:     wsSvc,
-		Instance:      instSvc,
-		Strategy:      strategySvc,
-		Pack:          packSvc,
-		App:           appdom.NewService(db),
-		Semantic:      semanticSvc,
-		Org:           orgSvc,
-		Schema:        schemaSvc,
-		Version:       versionSvc,
-		Sync:          syncSvc,
-		Ripple:        rippleSvc,
-		AIM:           aimSvc,
-		SkillExecutor: skillExecutor,
-		SkillRun:      skillRunSvc,
-		Heartbeat:     heartbeatSvc,
-		Resolver:      rippledom.NewLLMResolver(llmClient, db),
-		Ingest:        ingestSvc,
-		Orchestration: orchEngine,
-		Evidence:      evidenceSvc,
-		Activity:      activitySvc,
-		Watchdog:      watchdogdom.NewService(db),
+		Workspace:           wsSvc,
+		Instance:            instSvc,
+		Strategy:            strategySvc,
+		Pack:                packSvc,
+		App:                 appdom.NewService(db),
+		Semantic:            semanticSvc,
+		Org:                 orgSvc,
+		Schema:              schemaSvc,
+		Version:             versionSvc,
+		Sync:                syncSvc,
+		Ripple:              rippleSvc,
+		AIM:                 aimSvc,
+		SkillExecutor:       skillExecutor,
+		SkillRun:            skillRunSvc,
+		Heartbeat:           heartbeatSvc,
+		Resolver:            rippledom.NewLLMResolver(llmClient, db),
+		Ingest:              ingestSvc,
+		Orchestration:       orchEngine,
+		Evidence:            evidenceSvc,
+		Activity:            activitySvc,
+		Watchdog:            watchdogdom.NewService(db),
+		GithubAppInstallURL: cfg.GithubAppInstallURL(),
 	}
 
 	// Echo instance.
@@ -368,11 +398,62 @@ func runServer(cfg *config.Config) error {
 	// i18n locale middleware.
 	e.Use(web.LangMiddleware())
 
-	// Health endpoint.
+	// Health endpoint — reports postgres, memory, and LLM subsystem status.
+	// Returns 200 when all required systems are healthy, 503 when degraded.
 	e.GET("/health", func(c echo.Context) error {
-		return c.JSON(http.StatusOK, map[string]string{
-			"status":  "ok",
-			"service": "strategy-server",
+		ctx := c.Request().Context()
+
+		type subsystem struct {
+			Status  string `json:"status"`            // "ok" | "degraded" | "disabled"
+			Message string `json:"message,omitempty"` // human-readable detail
+		}
+		type healthResponse struct {
+			Status   string               `json:"status"`  // "ok" | "degraded"
+			Service  string               `json:"service"`
+			Systems  map[string]subsystem `json:"systems"`
+		}
+
+		systems := make(map[string]subsystem)
+		overallOK := true
+
+		// Postgres — ping via a lightweight DB call.
+		if pingErr := db.PingContext(ctx); pingErr != nil {
+			systems["postgres"] = subsystem{Status: "degraded", Message: pingErr.Error()}
+			overallOK = false
+		} else {
+			systems["postgres"] = subsystem{Status: "ok"}
+		}
+
+		// Memory — check if configured and reachable.
+		if semanticSvc.IsAvailable() {
+			if memErr := semanticSvc.Ping(ctx); memErr != nil {
+				systems["memory"] = subsystem{Status: "degraded", Message: memErr.Error()}
+				// Memory is optional — does not fail overall health.
+			} else {
+				systems["memory"] = subsystem{Status: "ok"}
+			}
+		} else {
+			systems["memory"] = subsystem{Status: "disabled", Message: "EPF_MEMORY_URL not configured"}
+		}
+
+		// LLM — configured or not.
+		if llmClient != nil {
+			systems["llm"] = subsystem{Status: "ok"}
+		} else {
+			systems["llm"] = subsystem{Status: "disabled", Message: "LLM_PROVIDER_URL not configured"}
+		}
+
+		status := "ok"
+		httpStatus := http.StatusOK
+		if !overallOK {
+			status = "degraded"
+			httpStatus = http.StatusServiceUnavailable
+		}
+
+		return c.JSON(httpStatus, healthResponse{
+			Status:  status,
+			Service: "strategy-server",
+			Systems: systems,
 		})
 	})
 
@@ -385,6 +466,24 @@ func runServer(cfg *config.Config) error {
 	e.GET("/static/*", echo.WrapHandler(web.StaticHandler()))
 
 	// Web UI routes.
+	// Set system-wide flags for the UI layer (persistent banners, degraded-mode indicators).
+	ui.SetSystemConfig(ui.SystemConfig{
+		MemoryConfigured: semanticSvc.IsAvailable(),
+		LLMConfigured:    llmClient != nil,
+	})
+
+	// GitHub OAuth App config — for user-scoped installation discovery.
+	var ghOAuthCfg *ghclient.OAuthConfig
+	if cfg.GithubOAuthConfigured() {
+		ghOAuthCfg = &ghclient.OAuthConfig{
+			ClientID:     cfg.EffectiveOAuthClientID(),
+			ClientSecret: cfg.EffectiveOAuthClientSecret(),
+			StateSecret:  cfg.EffectiveOAuthStateSecret(),
+			RedirectURL:  cfg.ServerURL + "/github/connect/callback",
+		}
+		log.Info("github oauth configured", "client_id", cfg.EffectiveOAuthClientID())
+	}
+
 	webHandler := handler.New(db, log, semanticSvc).
 		WithStrategy(strategySvc).
 		WithVersion(versionSvc).
@@ -396,15 +495,22 @@ func runServer(cfg *config.Config) error {
 		WithSkillRun(skillRunSvc).
 		WithSkillExecutor(skillExecutor).
 		WithEvidence(evidenceSvc).
-		WithLLMEnabled(llmClient != nil)
+		WithLLMEnabled(llmClient != nil).
+		WithSync(syncSvc).
+		WithUserSvc(userSvc).
+		WithGithubOAuth(ghOAuthCfg).
+		WithGithubAppInstallURL(cfg.GithubAppInstallURL())
 	webHandler.RegisterRoutes(e)
 
 	// Server timeouts.
+	// WriteTimeout is set to 15 minutes to accommodate the /github/connect/repos
+	// endpoint, which scans all of a user's GitHub repos and can take several
+	// minutes for large organisations. All other endpoints complete in <5 s.
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Port),
 		Handler:      e,
 		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 180 * time.Second,
+		WriteTimeout: 15 * time.Minute,
 		IdleTimeout:  120 * time.Second,
 	}
 
@@ -470,42 +576,6 @@ func (a *aimHeartbeatAdapter) EvaluateTriggers(ctx context.Context, instanceID u
 	}
 }
 
-// aimLLMAdapter adapts *llm.Client to the aim.LLMClient interface,
-// propagating token usage from llm.ChatResult.
-type aimLLMAdapter struct {
-	client *llm.Client
-}
-
-func (a *aimLLMAdapter) Complete(ctx context.Context, systemPrompt, userPrompt string) (aimdom.LLMResult, error) {
-	result, err := a.client.Chat(ctx, []llm.ChatMessage{
-		{Role: "system", Content: systemPrompt},
-		{Role: "user", Content: userPrompt},
-	}, 0.4)
-	if err != nil {
-		return aimdom.LLMResult{}, err
-	}
-	return aimdom.LLMResult{
-		Content:      result.Content,
-		InputTokens:  result.InputTokens,
-		OutputTokens: result.OutputTokens,
-	}, nil
-}
-
-func (a *aimLLMAdapter) CompleteJSON(ctx context.Context, systemPrompt, userPrompt string) (aimdom.LLMResult, error) {
-	result, err := a.client.ChatWithFormat(ctx, []llm.ChatMessage{
-		{Role: "system", Content: systemPrompt},
-		{Role: "user", Content: userPrompt},
-	}, 0.3, llm.FormatJSON)
-	if err != nil {
-		return aimdom.LLMResult{}, err
-	}
-	return aimdom.LLMResult{
-		Content:      result.Content,
-		InputTokens:  result.InputTokens,
-		OutputTokens: result.OutputTokens,
-	}, nil
-}
-
 // skillexecLLMAdapter adapts *llm.Client to the skillexec.LLMClient interface,
 // propagating token usage from llm.ChatResult.
 type skillexecLLMAdapter struct {
@@ -539,4 +609,56 @@ func (a *heartbeatActivityAdapter) Record(ctx context.Context, ev heartbeat.Acti
 		EventType:  ev.EventType,
 		Payload:    ev.Payload,
 	})
+}
+
+// aimSkillRunnerAdapter adapts *skillexec.Executor to the aim.SkillRunner interface.
+type aimSkillRunnerAdapter struct {
+	executor *skillexec.Executor
+}
+
+func (a *aimSkillRunnerAdapter) RunChunked(ctx context.Context, instanceID uuid.UUID, skillName string, params map[string]any) (aimdom.SkillRunResult, error) {
+	result, err := a.executor.RunChunked(ctx, instanceID, skillName, params)
+	if err != nil {
+		return aimdom.SkillRunResult{}, err
+	}
+	return aimdom.SkillRunResult{
+		BatchID:          result.BatchID,
+		ArtifactTypes:    result.ArtifactTypes,
+		LLMUsed:          result.LLMUsed,
+		ValidationPassed: result.ValidationPassed,
+		InputTokens:      result.InputTokens,
+		OutputTokens:     result.OutputTokens,
+	}, nil
+}
+
+// strategyPortfolioAlignerAdapter adapts *strategy.Service to the aim.PortfolioAligner interface.
+// It translates strategy.AlignPortfolioResult → aim.PortfolioAlignResult without
+// importing domain/strategy from domain/aim (avoids circular dependency).
+type strategyPortfolioAlignerAdapter struct {
+	svc *strategy.Service
+}
+
+func (a *strategyPortfolioAlignerAdapter) AlignPortfolio(ctx context.Context, instanceID uuid.UUID) (aimdom.PortfolioAlignResult, error) {
+	result, err := a.svc.AlignPortfolio(ctx, instanceID)
+	if err != nil {
+		return aimdom.PortfolioAlignResult{}, err
+	}
+	return aimdom.PortfolioAlignResult{
+		TracksProcessed:  result.TracksProcessed,
+		TracksChanged:    result.TracksChanged,
+		TotalActivated:   result.TotalActivated,
+		TotalDeactivated: result.TotalDeactivated,
+		KRsWithTargets:   result.KRsWithTargets,
+		NoRoadmap:        result.NoRoadmap,
+	}, nil
+}
+
+// heartbeatActiveRunAdapter adapts *orchestration.Engine to heartbeat.ActiveRunChecker.
+type heartbeatActiveRunAdapter struct {
+	engine *orchestration.Engine
+}
+
+func (a *heartbeatActiveRunAdapter) HasActiveRun(ctx context.Context, instanceID string) bool {
+	active, err := a.engine.ActiveRun(ctx, aimdom.WorkflowName, instanceID)
+	return err == nil && active != nil
 }

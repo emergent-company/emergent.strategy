@@ -9,14 +9,19 @@ import (
 
 // GithubSyncStatus represents the GitHub App sync state for a single instance.
 type GithubSyncStatus struct {
-	InstanceID   string
-	InstanceName string
-	Repo         string    // "owner/repo" or "" if not configured
-	Configured   bool      // GitHub App is configured server-side
-	RepoLinked   bool      // this instance has a github_repo set
-	LastSyncAt   *time.Time
-	LastSyncPR   string // PR URL of last sync (may be empty)
-	LastStatus   string // "pr_created" | "failed" | "pending" | ""
+	InstanceID    string
+	InstanceName  string
+	Repo          string     // "owner/repo" or "" if not configured
+	ActiveBranch  string     // non-empty when tracking a non-default branch (e.g. "dev")
+	SyncState     string     // "in_sync" | "server_ahead" | "github_ahead" | "diverged" | "unlinked" | ""
+	LocalSHA      string     // first 7 chars of the server's tracked commit SHA
+	RemoteSHA     string     // first 7 chars of the remote HEAD SHA
+	Configured    bool       // GitHub App is configured server-side
+	RepoLinked    bool       // this instance has a github_repo set
+	LastSyncAt    *time.Time
+	LastSyncPR    string     // PR URL of last sync (may be empty)
+	LastStatus    string     // "pr_created" | "failed" | "pending" | ""
+	LastDirection string     // "export" | "import" | ""
 }
 
 // MemoryHealthStatus represents the current connectivity to the Memory server.
@@ -54,11 +59,19 @@ type SettingsData struct {
 // SettingsPage renders the full settings page with shell.
 templ SettingsPage(currentPath string, sidebarGroups []layout.SidebarGroup, data SettingsData) {
 	@StrategyShellPage("Settings — Emergent Strategy", currentPath, sidebarGroups) {
-		@SettingsContent(data)
+		@SettingsMainContent(data)
 	}
 }
 
-// settingsContent renders the settings content (inner body, no shell).
+// SettingsMainContent is the tier-2 (sidebar nav) component: the scroll wrapper
+// + content without the outer HTML shell. Used by RenderTriple for sidebar navigation.
+templ SettingsMainContent(data SettingsData) {
+	<div class="flex flex-col flex-1 min-h-0 overflow-y-auto">
+		@SettingsContent(data)
+	</div>
+}
+
+// SettingsContent renders the settings content (inner body, no shell).
 templ SettingsContent(data SettingsData) {
 	<div class="px-6 py-5 space-y-6">
 		<!-- Page header -->
@@ -251,6 +264,10 @@ templ githubSyncCard(instances []GithubSyncStatus) {
 				<p class="text-xs text-base-content/50 mt-0.5">Strategy artifact write-back to GitHub repositories</p>
 			</div>
 			<span class="badge badge-ghost badge-sm">{ fmt.Sprintf("%d instances", len(instances)) }</span>
+			<a href="/github/connect" class="btn btn-xs btn-ghost border border-base-content/20 gap-1">
+				<span class="iconify lucide--plug size-3"></span>
+				Connect repo
+			</a>
 		</div>
 		<div class="divide-y divide-base-content/5">
 			for _, inst := range instances {
@@ -262,37 +279,141 @@ templ githubSyncCard(instances []GithubSyncStatus) {
 
 // githubSyncRow renders a single instance row in the GitHub sync table.
 templ githubSyncRow(inst GithubSyncStatus) {
-	<div class="flex items-center gap-4 px-5 py-3">
-		<!-- Instance name + repo -->
-		<div class="grow min-w-0">
-			<p class="text-sm font-medium text-base-content truncate">{ inst.InstanceName }</p>
-			if inst.RepoLinked {
-				<p class="text-xs text-base-content/50 font-mono">{ inst.Repo }</p>
-			} else {
-				<p class="text-xs text-base-content/40">No GitHub repo configured</p>
-			}
-			if inst.LastSyncAt != nil {
-				<p class="text-xs text-base-content/40 mt-0.5">synced { inst.LastSyncAt.Format("2 Jan 15:04") }</p>
-			}
-		</div>
-		<!-- PR link -->
-		if inst.LastSyncPR != "" {
-			<a href={ templ.SafeURL(inst.LastSyncPR) } target="_blank" rel="noopener"
-				class="text-xs text-primary hover:underline shrink-0 hidden sm:block">
-				View PR
-			</a>
-		}
-		<!-- Status badge -->
-		<div class="shrink-0">
-			@githubSyncStatusBadge(inst.LastStatus, inst.RepoLinked)
+	<div class="px-5 py-4 space-y-2">
+		<!-- Top row: instance name + state badge + action buttons -->
+		<div class="flex items-start gap-4">
+			<!-- Instance name + repo + branch -->
+			<div class="grow min-w-0">
+				<p class="text-sm font-semibold text-base-content truncate">{ inst.InstanceName }</p>
+				if inst.RepoLinked {
+					<div class="flex items-center gap-1.5 flex-wrap mt-0.5">
+						<a href={ templ.SafeURL("https://github.com/" + inst.Repo) } target="_blank" rel="noopener"
+							class="text-xs text-base-content/60 hover:text-primary font-mono">
+							{ inst.Repo }
+						</a>
+						if inst.ActiveBranch != "" {
+							<span class="inline-flex items-center gap-1 text-xs text-info font-mono bg-info/10 rounded px-1.5 py-0.5">
+								<span class="iconify lucide--git-branch size-3"></span>
+								{ inst.ActiveBranch }
+							</span>
+						}
+					</div>
+				} else {
+					<p class="text-xs text-base-content/40 mt-0.5">No GitHub repo configured</p>
+				}
+
+				<!-- SHA comparison row -->
+				if inst.LocalSHA != "" || inst.RemoteSHA != "" {
+					<div class="flex items-center gap-2 mt-1 text-xs text-base-content/40 font-mono">
+						if inst.LocalSHA != "" {
+							<span title="Server's last synced commit">server: { inst.LocalSHA }</span>
+						}
+						if inst.LocalSHA != "" && inst.RemoteSHA != "" {
+							<span>→</span>
+						}
+						if inst.RemoteSHA != "" {
+							<span title="Remote HEAD commit">remote: { inst.RemoteSHA }</span>
+						}
+					</div>
+				}
+
+				<!-- Last sync info -->
+				if inst.LastSyncAt != nil {
+					<p class="text-xs text-base-content/40 mt-0.5">
+						if inst.LastDirection == "import" {
+							imported { inst.LastSyncAt.Format("2 Jan 15:04") }
+						} else {
+							synced { inst.LastSyncAt.Format("2 Jan 15:04") }
+						}
+						if inst.LastSyncPR != "" {
+							· <a href={ templ.SafeURL(inst.LastSyncPR) } target="_blank" rel="noopener"
+								class="text-primary hover:underline">View PR</a>
+						}
+					</p>
+				}
+			</div>
+
+			<!-- Right: state badge + buttons -->
+			<div class="flex items-center gap-2 shrink-0">
+				@githubSyncStateBadge(inst.SyncState, inst.RepoLinked)
+				if inst.Configured && inst.RepoLinked {
+					<!-- Push to GitHub button -->
+					<form method="POST" action="/settings/sync" class="inline">
+						<input type="hidden" name="instance_id" value={ inst.InstanceID }/>
+						<button type="submit"
+							class="btn btn-xs btn-ghost border border-base-content/20 gap-1"
+							title="Push strategy artifacts to GitHub">
+							<span class="iconify lucide--upload size-3"></span>
+							Push
+						</button>
+					</form>
+					<!-- Import from GitHub button -->
+					<form method="POST" action="/settings/import" class="inline">
+						<input type="hidden" name="instance_id" value={ inst.InstanceID }/>
+						<button type="submit"
+							class={ "btn btn-xs gap-1 " + importButtonClass(inst.SyncState) }
+							title="Import EPF artifacts from GitHub">
+							<span class="iconify lucide--download size-3"></span>
+							Import
+						</button>
+					</form>
+				}
+			</div>
 		</div>
 	</div>
 }
 
-// githubSyncStatusBadge renders the sync status badge.
+// importButtonClass returns the DaisyUI button class for the import button based on sync state.
+func importButtonClass(state string) string {
+	switch state {
+	case "github_ahead":
+		return "btn-primary"
+	case "diverged":
+		return "btn-warning"
+	case "server_ahead":
+		return "btn-ghost border border-base-content/20"
+	default:
+		return "btn-ghost border border-base-content/20"
+	}
+}
+
+// githubSyncStateBadge renders the sync state badge (four-state matrix).
+templ githubSyncStateBadge(state string, repoLinked bool) {
+	switch state {
+		case "in_sync":
+			<span class="inline-flex items-center gap-1.5 badge badge-success badge-sm">
+				<span class="iconify lucide--check size-3"></span>
+				In sync
+			</span>
+		case "server_ahead":
+			<span class="inline-flex items-center gap-1.5 badge badge-info badge-sm" title="Server has unpushed enrichments">
+				<span class="iconify lucide--upload size-3"></span>
+				Server ahead
+			</span>
+		case "github_ahead":
+			<span class="inline-flex items-center gap-1.5 badge badge-warning badge-sm" title="GitHub has commits not yet imported">
+				<span class="iconify lucide--download size-3"></span>
+				GitHub ahead
+			</span>
+		case "diverged":
+			<span class="inline-flex items-center gap-1.5 badge badge-error badge-sm" title="Both sides changed — import will create a safety PR">
+				<span class="iconify lucide--git-merge size-3"></span>
+				Diverged
+			</span>
+		default:
+			if !repoLinked {
+				<span class="badge badge-ghost badge-sm text-base-content/40">Not linked</span>
+			} else {
+				<span class="badge badge-ghost badge-sm text-base-content/40">Never synced</span>
+			}
+	}
+}
+
+// githubSyncStatusBadge renders a simple status badge for the last sync log entry.
+// Used for non-state display (e.g. "PR Created").
 templ githubSyncStatusBadge(status string, repoLinked bool) {
 	switch status {
-		case "pr_created":
+		case "pr_created", "merged":
 			<span class="inline-flex items-center gap-1.5 badge badge-success badge-sm">
 				<span class="iconify lucide--git-pull-request size-3"></span>
 				PR Created

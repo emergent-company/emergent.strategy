@@ -659,11 +659,4 @@ After feature definition enrichment:
 
 ---
 
----
-
-## Canonical Schema Reference
-
-The following constraints are derived live from the canonical EPF feature schema.
-They take precedence over any field names, enums, or structure described elsewhere in this document.
-
-{{schemaConstraints "feature"}}
+**Questions?** See [feature_definition_schema.json](../schemas/feature_definition_schema.json) for complete v2.0 specification.

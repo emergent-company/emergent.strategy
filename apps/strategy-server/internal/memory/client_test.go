@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -88,14 +89,12 @@ func TestClient_APIError(t *testing.T) {
 		t.Fatal("expected error for 404 response")
 	}
 
-	apiErr, ok := err.(*APIError)
-	if !ok {
-		// APIError may be wrapped; check the underlying cause.
-		t.Logf("error type: %T, message: %v", err, err)
-	} else {
-		if apiErr.StatusCode != 404 {
-			t.Errorf("status = %d, want 404", apiErr.StatusCode)
-		}
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected *APIError in error chain, got %T: %v", err, err)
+	}
+	if apiErr.StatusCode != 404 {
+		t.Errorf("status = %d, want 404", apiErr.StatusCode)
 	}
 }
 

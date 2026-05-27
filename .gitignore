@@ -141,3 +141,4 @@ tui.json
 
 # OpenCode local config (contains Memory API token)
 opencode.json
+apps/strategy-server/private-key.pem

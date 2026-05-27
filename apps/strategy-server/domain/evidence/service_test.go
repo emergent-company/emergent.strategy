@@ -136,24 +136,30 @@ func TestList_FiltersWork(t *testing.T) {
 	svc := evidence.NewService(db)
 
 	// Seed 3 items with different tags and source names.
-	_, _ = svc.Ingest(ctx, evidence.IngestRequest{
+	if _, err := svc.Ingest(ctx, evidence.IngestRequest{
 		InstanceID: instID,
 		Source:     evidence.Source{Name: "Sales Call A", Type: "sales_call"},
 		Content:    "deal notes",
 		Tags:       []string{"sales", "competitive"},
-	})
-	_, _ = svc.Ingest(ctx, evidence.IngestRequest{
+	}); err != nil {
+		t.Fatalf("Ingest Sales Call A: %v", err)
+	}
+	if _, err := svc.Ingest(ctx, evidence.IngestRequest{
 		InstanceID: instID,
 		Source:     evidence.Source{Name: "Analytics Export", Type: "analytics"},
 		Content:    "funnel metrics",
 		Tags:       []string{"metric"},
-	})
-	_, _ = svc.Ingest(ctx, evidence.IngestRequest{
+	}); err != nil {
+		t.Fatalf("Ingest Analytics Export: %v", err)
+	}
+	if _, err := svc.Ingest(ctx, evidence.IngestRequest{
 		InstanceID: instID,
 		Source:     evidence.Source{Name: "Sales Call B", Type: "sales_call"},
 		Content:    "more deal notes",
 		Tags:       []string{"sales"},
-	})
+	}); err != nil {
+		t.Fatalf("Ingest Sales Call B: %v", err)
+	}
 
 	// -- Tag filter (OR) --
 	items, err := svc.List(ctx, instID, evidence.ListFilters{Tags: []string{"competitive"}})
@@ -203,11 +209,14 @@ func TestLink_CreatesRelationship(t *testing.T) {
 	instID := seedInstance(t, db)
 	svc := evidence.NewService(db)
 
-	key, _ := svc.Ingest(ctx, evidence.IngestRequest{
+	key, err := svc.Ingest(ctx, evidence.IngestRequest{
 		InstanceID: instID,
 		Source:     evidence.Source{Name: "User Interview", Type: "interview"},
 		Content:    "pain points discovered",
 	})
+	if err != nil {
+		t.Fatalf("Ingest: %v", err)
+	}
 
 	if err := svc.Link(ctx, instID, key, "fd-001", "supports"); err != nil {
 		t.Fatalf("Link: %v", err)
@@ -215,7 +224,7 @@ func TestLink_CreatesRelationship(t *testing.T) {
 
 	// Verify the relationship was stored.
 	var count int
-	err := db.NewSelect().
+	err = db.NewSelect().
 		TableExpr("strategy_relationships").
 		ColumnExpr("COUNT(*)").
 		Where("instance_id = ?", instID).
@@ -231,14 +240,19 @@ func TestLink_CreatesRelationship(t *testing.T) {
 	}
 
 	// Verify idempotency — second link should not duplicate.
-	_ = svc.Link(ctx, instID, key, "fd-001", "supports")
-	_ = db.NewSelect().
+	if err = svc.Link(ctx, instID, key, "fd-001", "supports"); err != nil {
+		t.Fatalf("idempotent Link: %v", err)
+	}
+	err = db.NewSelect().
 		TableExpr("strategy_relationships").
 		ColumnExpr("COUNT(*)").
 		Where("instance_id = ?", instID).
 		Where("source_key = ?", key).
 		Where("target_key = ?", "fd-001").
 		Scan(ctx, &count)
+	if err != nil {
+		t.Fatalf("count relationship after idempotent insert: %v", err)
+	}
 	if count != 1 {
 		t.Errorf("expected 1 relationship after idempotent insert, got %d", count)
 	}
@@ -255,29 +269,41 @@ func TestMarkProcessed_SetsStatus(t *testing.T) {
 	instID := seedInstance(t, db)
 	svc := evidence.NewService(db)
 
-	key1, _ := svc.Ingest(ctx, evidence.IngestRequest{
+	key1, err := svc.Ingest(ctx, evidence.IngestRequest{
 		InstanceID: instID,
 		Source:     evidence.Source{Name: "Interview A", Type: "interview"},
 		Content:    "notes",
 	})
-	key2, _ := svc.Ingest(ctx, evidence.IngestRequest{
+	if err != nil {
+		t.Fatalf("Ingest Interview A: %v", err)
+	}
+	key2, err := svc.Ingest(ctx, evidence.IngestRequest{
 		InstanceID: instID,
 		Source:     evidence.Source{Name: "Interview B", Type: "interview"},
 		Content:    "more notes",
 	})
+	if err != nil {
+		t.Fatalf("Ingest Interview B: %v", err)
+	}
 
 	if err := svc.MarkProcessed(ctx, instID, []string{key1, key2}, "assessment-2026-q1"); err != nil {
 		t.Fatalf("MarkProcessed: %v", err)
 	}
 
 	// Verify both items are processed.
-	items, _ := svc.List(ctx, instID, evidence.ListFilters{ProcessingStatus: "processed"})
+	items, err := svc.List(ctx, instID, evidence.ListFilters{ProcessingStatus: "processed"})
+	if err != nil {
+		t.Fatalf("List processed: %v", err)
+	}
 	if len(items) != 2 {
 		t.Errorf("expected 2 processed items, got %d", len(items))
 	}
 
 	// Unprocessed list should be empty.
-	items, _ = svc.List(ctx, instID, evidence.ListFilters{ProcessingStatus: "unprocessed"})
+	items, err = svc.List(ctx, instID, evidence.ListFilters{ProcessingStatus: "unprocessed"})
+	if err != nil {
+		t.Fatalf("List unprocessed: %v", err)
+	}
 	if len(items) != 0 {
 		t.Errorf("expected 0 unprocessed items after MarkProcessed, got %d", len(items))
 	}
@@ -294,15 +320,18 @@ func TestUpdate_ModifiesFields(t *testing.T) {
 	instID := seedInstance(t, db)
 	svc := evidence.NewService(db)
 
-	key, _ := svc.Ingest(ctx, evidence.IngestRequest{
+	key, err := svc.Ingest(ctx, evidence.IngestRequest{
 		InstanceID: instID,
 		Source:     evidence.Source{Name: "Competitor Analysis", Type: "research"},
 		Content:    "raw data",
 		Tags:       []string{"competitive"},
 	})
+	if err != nil {
+		t.Fatalf("Ingest: %v", err)
+	}
 
 	newSummary := "Acme launched new feature — direct competitor to fd-003"
-	err := svc.Update(ctx, instID, key, evidence.UpdateRequest{
+	err = svc.Update(ctx, instID, key, evidence.UpdateRequest{
 		Summary: &newSummary,
 		Tags:    []string{"competitive", "market"},
 	})
@@ -310,7 +339,10 @@ func TestUpdate_ModifiesFields(t *testing.T) {
 		t.Fatalf("Update: %v", err)
 	}
 
-	item, _ := svc.Get(ctx, instID, key)
+	item, err := svc.Get(ctx, instID, key)
+	if err != nil {
+		t.Fatalf("Get after Update: %v", err)
+	}
 	if item.Summary != newSummary {
 		t.Errorf("summary = %q, want %q", item.Summary, newSummary)
 	}
@@ -330,24 +362,31 @@ func TestCountUnprocessed(t *testing.T) {
 	instID := seedInstance(t, db)
 	svc := evidence.NewService(db)
 
-	_, _ = svc.Ingest(ctx, evidence.IngestRequest{
+	if _, err := svc.Ingest(ctx, evidence.IngestRequest{
 		InstanceID: instID,
 		Source:     evidence.Source{Name: "A", Type: "t"},
 		Content:    "x",
 		Tags:       []string{"sales"},
-	})
-	_, _ = svc.Ingest(ctx, evidence.IngestRequest{
+	}); err != nil {
+		t.Fatalf("Ingest A: %v", err)
+	}
+	if _, err := svc.Ingest(ctx, evidence.IngestRequest{
 		InstanceID: instID,
 		Source:     evidence.Source{Name: "B", Type: "t"},
 		Content:    "y",
 		Tags:       []string{"metric"},
-	})
-	k3, _ := svc.Ingest(ctx, evidence.IngestRequest{
+	}); err != nil {
+		t.Fatalf("Ingest B: %v", err)
+	}
+	k3, err := svc.Ingest(ctx, evidence.IngestRequest{
 		InstanceID: instID,
 		Source:     evidence.Source{Name: "C", Type: "t"},
 		Content:    "z",
 		Tags:       []string{"sales", "competitive"},
 	})
+	if err != nil {
+		t.Fatalf("Ingest C: %v", err)
+	}
 
 	// All 3 unprocessed.
 	count, err := svc.CountUnprocessed(ctx, instID, nil)
@@ -359,14 +398,22 @@ func TestCountUnprocessed(t *testing.T) {
 	}
 
 	// Only "sales" tagged items: 2.
-	count, _ = svc.CountUnprocessed(ctx, instID, []string{"sales"})
+	count, err = svc.CountUnprocessed(ctx, instID, []string{"sales"})
+	if err != nil {
+		t.Fatalf("CountUnprocessed with sales filter: %v", err)
+	}
 	if count != 2 {
 		t.Errorf("count with sales filter = %d, want 2", count)
 	}
 
 	// Mark one processed — now 2 unprocessed total.
-	_ = svc.MarkProcessed(ctx, instID, []string{k3}, "assessment-test")
-	count, _ = svc.CountUnprocessed(ctx, instID, nil)
+	if err = svc.MarkProcessed(ctx, instID, []string{k3}, "assessment-test"); err != nil {
+		t.Fatalf("MarkProcessed: %v", err)
+	}
+	count, err = svc.CountUnprocessed(ctx, instID, nil)
+	if err != nil {
+		t.Fatalf("CountUnprocessed after MarkProcessed: %v", err)
+	}
 	if count != 2 {
 		t.Errorf("count after MarkProcessed = %d, want 2", count)
 	}
@@ -426,11 +473,13 @@ func TestEvidenceTrigger_FiresWhenThresholdMet(t *testing.T) {
 
 	// Ingest items below threshold — trigger should NOT fire.
 	for i := 0; i < threshold-1; i++ {
-		_, _ = svc.Ingest(ctx, evidence.IngestRequest{
+		if _, err := svc.Ingest(ctx, evidence.IngestRequest{
 			InstanceID: instID,
 			Source:     evidence.Source{Name: "Source", Type: "interview"},
 			Content:    "data",
-		})
+		}); err != nil {
+			t.Fatalf("Ingest[%d]: %v", i, err)
+		}
 	}
 	count, err := svc.CountUnprocessed(ctx, instID, nil)
 	if err != nil {
@@ -441,11 +490,13 @@ func TestEvidenceTrigger_FiresWhenThresholdMet(t *testing.T) {
 	}
 
 	// Ingest one more to meet threshold — trigger should fire.
-	_, _ = svc.Ingest(ctx, evidence.IngestRequest{
+	if _, err := svc.Ingest(ctx, evidence.IngestRequest{
 		InstanceID: instID,
 		Source:     evidence.Source{Name: "Final", Type: "interview"},
 		Content:    "more data",
-	})
+	}); err != nil {
+		t.Fatalf("Ingest Final: %v", err)
+	}
 	count, err = svc.CountUnprocessed(ctx, instID, nil)
 	if err != nil {
 		t.Fatalf("CountUnprocessed: %v", err)
@@ -463,45 +514,66 @@ func TestEvidenceTrigger_TagFilter(t *testing.T) {
 	instID := seedInstance(t, db)
 	svc := evidence.NewService(db)
 
-	_, _ = svc.Ingest(ctx, evidence.IngestRequest{
+	if _, err := svc.Ingest(ctx, evidence.IngestRequest{
 		InstanceID: instID, Source: evidence.Source{Name: "A", Type: "t"},
 		Content: "x", Tags: []string{"sales"},
-	})
-	_, _ = svc.Ingest(ctx, evidence.IngestRequest{
+	}); err != nil {
+		t.Fatalf("Ingest A: %v", err)
+	}
+	if _, err := svc.Ingest(ctx, evidence.IngestRequest{
 		InstanceID: instID, Source: evidence.Source{Name: "B", Type: "t"},
 		Content: "y", Tags: []string{"engineering"},
-	})
-	_, _ = svc.Ingest(ctx, evidence.IngestRequest{
+	}); err != nil {
+		t.Fatalf("Ingest B: %v", err)
+	}
+	if _, err := svc.Ingest(ctx, evidence.IngestRequest{
 		InstanceID: instID, Source: evidence.Source{Name: "C", Type: "t"},
 		Content: "z", Tags: []string{"sales", "metric"},
-	})
+	}); err != nil {
+		t.Fatalf("Ingest C: %v", err)
+	}
 
 	// Count all: 3.
-	all, _ := svc.CountUnprocessed(ctx, instID, nil)
+	all, err := svc.CountUnprocessed(ctx, instID, nil)
+	if err != nil {
+		t.Fatalf("CountUnprocessed all: %v", err)
+	}
 	if all != 3 {
 		t.Errorf("total unprocessed = %d, want 3", all)
 	}
 
 	// Tag filter "sales": items A and C = 2.
-	salesCount, _ := svc.CountUnprocessed(ctx, instID, []string{"sales"})
+	salesCount, err := svc.CountUnprocessed(ctx, instID, []string{"sales"})
+	if err != nil {
+		t.Fatalf("CountUnprocessed sales: %v", err)
+	}
 	if salesCount != 2 {
 		t.Errorf("sales-tagged count = %d, want 2", salesCount)
 	}
 
 	// Tag filter "metric": item C only = 1.
-	metricCount, _ := svc.CountUnprocessed(ctx, instID, []string{"metric"})
+	metricCount, err := svc.CountUnprocessed(ctx, instID, []string{"metric"})
+	if err != nil {
+		t.Fatalf("CountUnprocessed metric: %v", err)
+	}
 	if metricCount != 1 {
 		t.Errorf("metric-tagged count = %d, want 1", metricCount)
 	}
 
 	// Tag filter "engineering" OR "metric": B + C = 2.
-	mixedCount, _ := svc.CountUnprocessed(ctx, instID, []string{"engineering", "metric"})
+	mixedCount, err := svc.CountUnprocessed(ctx, instID, []string{"engineering", "metric"})
+	if err != nil {
+		t.Fatalf("CountUnprocessed engineering|metric: %v", err)
+	}
 	if mixedCount != 2 {
 		t.Errorf("engineering|metric count = %d, want 2", mixedCount)
 	}
 
 	// Tag filter that matches nothing: 0.
-	zeroCount, _ := svc.CountUnprocessed(ctx, instID, []string{"nonexistent"})
+	zeroCount, err := svc.CountUnprocessed(ctx, instID, []string{"nonexistent"})
+	if err != nil {
+		t.Fatalf("CountUnprocessed nonexistent: %v", err)
+	}
 	if zeroCount != 0 {
 		t.Errorf("nonexistent tag count = %d, want 0", zeroCount)
 	}
@@ -560,18 +632,22 @@ func TestList_LinkedArtifactFilter(t *testing.T) {
 	instID := seedInstance(t, db)
 	svc := evidence.NewService(db)
 
-	_, _ = svc.Ingest(ctx, evidence.IngestRequest{
+	if _, err := svc.Ingest(ctx, evidence.IngestRequest{
 		InstanceID:      instID,
 		Source:          evidence.Source{Name: "Interview", Type: "interview"},
 		Content:         "pain points",
 		LinkedArtifacts: []string{"fd-042"},
-	})
-	_, _ = svc.Ingest(ctx, evidence.IngestRequest{
+	}); err != nil {
+		t.Fatalf("Ingest Interview: %v", err)
+	}
+	if _, err := svc.Ingest(ctx, evidence.IngestRequest{
 		InstanceID: instID,
 		Source:     evidence.Source{Name: "Survey", Type: "survey"},
 		Content:    "general feedback",
 		// No linked artifacts.
-	})
+	}); err != nil {
+		t.Fatalf("Ingest Survey: %v", err)
+	}
 
 	items, err := svc.List(ctx, instID, evidence.ListFilters{LinkedArtifact: "fd-042"})
 	if err != nil {

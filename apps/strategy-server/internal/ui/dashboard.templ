@@ -51,8 +51,15 @@ type InstanceInfo struct {
 // GlobalDashboardPage renders the full dashboard page with shell.
 templ GlobalDashboardPage(currentPath string, sidebarGroups []layout.SidebarGroup, data GlobalDashboardData) {
 	@StrategyShellPage("Dashboard — Emergent Strategy", currentPath, sidebarGroups) {
-		@GlobalDashboardContent(data)
+		@GlobalDashboardMainContent(data)
 	}
+}
+
+// GlobalDashboardMainContent is the tier-2 (sidebar nav) component: scroll wrapper + content.
+templ GlobalDashboardMainContent(data GlobalDashboardData) {
+	<div class="flex flex-col flex-1 min-h-0 overflow-y-auto">
+		@GlobalDashboardContent(data)
+	</div>
 }
 
 // GlobalDashboardContent renders just the dashboard content (for HTMX partial).

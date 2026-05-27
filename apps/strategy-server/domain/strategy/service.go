@@ -149,6 +149,10 @@ func (s *Service) ListMutations(ctx context.Context, instanceID uuid.UUID, artif
 	}
 	if !includeStaged {
 		q = q.Where("status = ?", domain.MutationStatusCommitted)
+	} else {
+		// Exclude "staging" mutations — they are being built by a chunked
+		// skill run and are not yet ready for review or commit.
+		q = q.Where("status != ?", domain.MutationStatusStaging)
 	}
 	// sinceMutationID: agent polling — return only mutations newer than the given ID
 	if sinceMutationID != "" {

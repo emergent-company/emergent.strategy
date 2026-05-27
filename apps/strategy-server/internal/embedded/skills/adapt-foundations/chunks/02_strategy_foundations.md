@@ -57,15 +57,32 @@ to the positioning section.
 
 ## Output Format
 
-Respond with a single valid JSON object containing ONLY the `strategy_foundations` key:
+Respond with a single valid JSON object. The `strategy_foundations` key uses a **double-envelope**
+structure: the outer key is the routing envelope, and the inner `strategy_foundations` key is
+part of the artifact payload format. Both levels are required — do NOT flatten fields to the root.
 
 ```json
 {
-  "strategy_foundations": { ... }
+  "strategy_foundations": {
+    "strategy_foundations": {
+      "version": "1.0.0",
+      "personas": [ { "id": "...", "name": "...", "role": "...", "goals": ["..."], "pain_points": ["..."] } ],
+      "icp": { "description": "...", "firmographics": {}, "behavioral_signals": ["..."] },
+      "positioning": { "statement": "...", "differentiators": ["..."], "competitive_alternatives": ["..."] }
+    }
+  },
+  "change_summary": "- bullet 1\n- bullet 2"
 }
 ```
 
-`strategy_foundations` is a FULL REPLACEMENT payload — include every field from the
+IMPORTANT: The outer `strategy_foundations` key is the routing envelope. The inner
+`strategy_foundations` key is part of the artifact payload format. Both are required.
+Do not flatten the fields to the root level.
+
+`change_summary` is a short human-readable summary (2-4 bullet points, each max 120 chars)
+listing what you changed in the strategy foundations and why. Use "- " prefixed lines.
+
+`strategy_foundations` (inner) is a FULL REPLACEMENT payload — include every field from the
 current version, modified where needed. Do not omit preserved fields.
 
 **Rules:**

@@ -275,7 +275,7 @@ layers:
         name: Supplier payments
         active: false
       - id: orgops-s-salary-calculation-and-payments
-        name: Salary calculation & payments
+        name: Salary calculation and payments
         active: false
     - id: orgops-c-intellectual-property-management
       name: Intellectual Property Management

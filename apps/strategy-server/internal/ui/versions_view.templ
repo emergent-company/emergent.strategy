@@ -22,7 +22,12 @@ type VersionRow struct {
 
 // VersionDiffEntry is a single artifact in a diff.
 type VersionDiffEntry struct {
-	ArtifactKey string
+	ArtifactKey   string
+	ArtifactType  string   // e.g. "north_star", "feature_definition"
+	Label         string   // human-readable, e.g. "North Star"
+	Href          string   // link to the artifact view page (empty if not linkable)
+	Category      string   // "READY", "FIRE", "AIM", or "Other"
+	ChangeDetails []string // human-readable field-level changes
 }
 
 // VersionDetailData holds data for the single-version detail view.
@@ -35,6 +40,17 @@ type VersionDetailData struct {
 	Changed       []VersionDiffEntry
 	DiffSummary   string
 	HasParent     bool
+
+	// Calibration context — extracted from calibration memo in snapshot.
+	CalibrationDecision string // persevere | pivot | pull_the_plug
+	CalibrationReasoning string
+	OKRHitRatePct       string // formatted, e.g. "0%"
+
+	// Strategic insights — from assessment report in snapshot.
+	StrategicInsights []string
+
+	// Cycle run link — the orchestration run that produced this version.
+	CycleRunID string // empty if not found
 }
 
 // VersionsViewData holds data for the version list screen.
@@ -61,29 +77,19 @@ templ VersionsContent(data VersionsViewData) {
 			<div class="text-center py-12">
 				<span class="iconify lucide--history size-12 text-base-content/20 mx-auto block mb-4"></span>
 				<p class="text-base font-medium text-base-content/60">No versions yet</p>
-				if data.HasRealCalibration {
-					<p class="text-sm text-base-content/40 mt-1 mb-6">
-						A calibration decision is ready — apply it to generate strategy patches, then publish a snapshot.
-					</p>
-					<div class="flex items-center justify-center gap-3">
-						<form method="POST" action={ templ.URL("/strategies/" + data.InstanceID + "/aim/apply-calibration") }>
-							<button type="submit" class="btn btn-primary gap-2">
-								<span class="iconify lucide--sparkles size-4"></span>
-								Apply calibration
-							</button>
-						</form>
-						<form method="POST" action={ templ.URL("/strategies/" + data.InstanceID + "/aim/publish") }>
-							<button type="submit" class="btn btn-outline gap-2">
-								<span class="iconify lucide--bookmark size-4"></span>
-								Publish snapshot
-							</button>
-						</form>
-					</div>
-				} else {
-					<p class="text-sm text-base-content/40 mt-1">
-						Complete the AIM cycle first, then publish a version snapshot to record this strategy state.
-					</p>
-				}
+				<p class="text-sm text-base-content/40 mt-1 mb-6 max-w-md mx-auto">
+					Versions are point-in-time snapshots of your strategy. A version is
+					automatically published when an AIM cycle completes, or you can publish
+					one manually.
+				</p>
+				<div class="flex items-center justify-center gap-3">
+					<form method="POST" action={ templ.URL("/strategies/" + data.InstanceID + "/aim/publish") }>
+						<button type="submit" class="btn btn-sm btn-outline gap-2">
+							<span class="iconify lucide--bookmark size-4"></span>
+							Publish snapshot now
+						</button>
+					</form>
+				</div>
 			</div>
 		} else {
 			<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden">
@@ -111,24 +117,30 @@ templ versionListRow(v VersionRow) {
 				}
 			@versionSourceBadge(v.Source)
 			if v.Source == "convergence" {
-				<a
-					href={ templ.URL("/strategies/" + v.InstanceID + "/activity") }
-					class="badge badge-xs badge-ghost gap-1 hover:badge-primary transition-colors"
-					onclick="event.stopPropagation()"
+				<span
+					hx-get={ "/strategies/" + v.InstanceID + "/activity" }
+					hx-target="#tab-content"
+					hx-swap="innerHTML"
+					hx-push-url="true"
+					onclick="event.preventDefault(); event.stopPropagation();"
+					class="badge badge-xs badge-ghost gap-1 hover:badge-primary transition-colors cursor-pointer"
 				>
 					<span class="iconify lucide--activity size-2.5"></span>
 					Activity
-				</a>
+				</span>
 			}
 			if v.Source == "aim_cycle" {
-				<a
-					href={ templ.URL("/strategies/" + v.InstanceID + "/aim") }
-					class="badge badge-xs badge-ghost gap-1 hover:badge-primary transition-colors"
-					onclick="event.stopPropagation()"
+				<span
+					hx-get={ "/strategies/" + v.InstanceID + "/aim" }
+					hx-target="#tab-content"
+					hx-swap="innerHTML"
+					hx-push-url="true"
+					onclick="event.preventDefault(); event.stopPropagation();"
+					class="badge badge-xs badge-ghost gap-1 hover:badge-primary transition-colors cursor-pointer"
 				>
 					<span class="iconify lucide--play-circle size-2.5"></span>
 					AIM cycle
-				</a>
+				</span>
 			}
 			if v.CalibrationDecision != "" {
 				@calibrationDecisionMini(v.CalibrationDecision)
@@ -145,7 +157,9 @@ templ versionListRow(v VersionRow) {
 		<div class="text-right shrink-0 hidden sm:block">
 			<p class="text-xs text-base-content/50">{ fmt.Sprintf("%d artifacts", v.ArtifactCount) }</p>
 			if v.EquilibScore != "" {
-				<p class="text-xs text-base-content/40">eq { v.EquilibScore }</p>
+				<div class="tooltip tooltip-left" data-tip="Equilibrium — how aligned the strategy artifacts are">
+					<p class="text-xs text-base-content/40">eq { v.EquilibScore }</p>
+				</div>
 			}
 		</div>
 
@@ -202,6 +216,62 @@ templ VersionDetailContent(data VersionDetailData) {
 			}
 		</div>
 
+		// ── Calibration context (AIM cycle versions only) ──
+		if data.CalibrationDecision != "" {
+			<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden">
+				<div class="px-5 py-4 border-b border-base-content/5 flex items-center gap-3">
+					<span class="iconify lucide--compass size-4 text-base-content/40"></span>
+					<h3 class="text-sm font-semibold text-base-content">Calibration Decision</h3>
+					<span class={ "badge badge-sm ml-auto", calibrationDecisionBadgeClass(data.CalibrationDecision) }>
+						{ calibrationDecisionLabel(data.CalibrationDecision) }
+					</span>
+					if data.OKRHitRatePct != "" {
+						<span class="text-xs text-base-content/50">OKR hit rate: { data.OKRHitRatePct }</span>
+					}
+				</div>
+				if data.CalibrationReasoning != "" {
+					<div class="px-5 py-3">
+						<p class="text-sm text-base-content/70 leading-relaxed">{ data.CalibrationReasoning }</p>
+					</div>
+				}
+			</div>
+		}
+
+		// ── Strategic insights (from assessment report) ──
+		if len(data.StrategicInsights) > 0 {
+			<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden">
+				<div class="px-5 py-4 border-b border-base-content/5 flex items-center gap-2">
+					<span class="iconify lucide--lightbulb size-4 text-base-content/40"></span>
+					<h3 class="text-sm font-semibold text-base-content">Strategic Insights</h3>
+				</div>
+				<div class="px-5 py-3 space-y-2">
+					for _, insight := range data.StrategicInsights {
+						<div class="flex items-start gap-2.5">
+							<span class="iconify lucide--arrow-right size-3 text-primary shrink-0 mt-1"></span>
+							<p class="text-sm text-base-content/70 leading-relaxed">{ insight }</p>
+						</div>
+					}
+				</div>
+			</div>
+		}
+
+		// ── Cycle run link ──
+		if data.CycleRunID != "" {
+			<div class="flex items-center gap-2">
+				<span class="iconify lucide--play-circle size-3.5 text-base-content/40"></span>
+				<a
+					href={ templ.URL("/strategies/" + data.InstanceID + "/aim/runs/" + data.CycleRunID) }
+					hx-get={ "/strategies/" + data.InstanceID + "/aim/runs/" + data.CycleRunID }
+					hx-target="#tab-content"
+					hx-swap="innerHTML"
+					hx-push-url="true"
+					class="text-xs text-primary hover:underline"
+				>
+					View the cycle run that produced this version
+				</a>
+			</div>
+		}
+
 		// ── Diff ──
 		if data.HasParent {
 			<div class="space-y-4">
@@ -239,9 +309,45 @@ templ diffSection(title string, entries []VersionDiffEntry, colorClass, iconClas
 		</div>
 		<div class="space-y-1">
 			for _, e := range entries {
-				<div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-base-200/40">
-					<span class="iconify lucide--file size-3.5 text-base-content/30 shrink-0"></span>
-					<span class="text-xs text-base-content/70 font-mono">{ e.ArtifactKey }</span>
+				<div class="rounded-lg bg-base-200/40 overflow-hidden">
+					if e.Href != "" {
+						<a
+							href={ templ.URL(e.Href) }
+							hx-get={ e.Href }
+							hx-target="#tab-content"
+							hx-swap="innerHTML"
+							hx-push-url="true"
+							class="flex items-center gap-2 px-3 py-2 hover:bg-base-200 transition-colors cursor-pointer group"
+						>
+							<span class="iconify lucide--file size-3.5 text-base-content/30 shrink-0"></span>
+							<span class="text-xs text-base-content/70 group-hover:text-primary font-medium grow">{ e.Label }</span>
+							if e.Category != "" {
+								<span class="text-[10px] text-base-content/30">{ e.Category }</span>
+							}
+							<span class="iconify lucide--arrow-right size-3 text-base-content/20 group-hover:text-primary shrink-0"></span>
+						</a>
+					} else {
+						<div class="flex items-center gap-2 px-3 py-2">
+							<span class="iconify lucide--file size-3.5 text-base-content/30 shrink-0"></span>
+							<span class="text-xs text-base-content/70 grow">
+								if e.Label != "" {
+									{ e.Label }
+								} else {
+									<span class="font-mono">{ e.ArtifactKey }</span>
+								}
+							</span>
+							if e.Category != "" {
+								<span class="text-[10px] text-base-content/30">{ e.Category }</span>
+							}
+						</div>
+					}
+					if len(e.ChangeDetails) > 0 {
+						<div class="px-3 pb-2 pt-0 space-y-0.5">
+							for _, detail := range e.ChangeDetails {
+								<p class="text-[11px] text-base-content/50 leading-snug pl-5">{ detail }</p>
+							}
+						</div>
+					}
 				</div>
 			}
 		</div>
@@ -259,42 +365,60 @@ templ versionStatCard(label, value, icon string) {
 templ versionSourceBadge(source string) {
 	switch source {
 		case "convergence":
-			<span class="badge badge-xs badge-success badge-outline gap-1">
-				<span class="iconify lucide--cpu size-2.5"></span>
-				Auto
-			</span>
+			<div class="tooltip" data-tip="Published automatically by convergence resolution">
+				<span class="badge badge-xs badge-success badge-outline gap-1">
+					<span class="iconify lucide--cpu size-2.5"></span>
+					Auto
+				</span>
+			</div>
 		case "aim_cycle":
-			<span class="badge badge-xs badge-primary badge-outline gap-1">
-				<span class="iconify lucide--sparkles size-2.5"></span>
-				AIM Cycle
-			</span>
+			<div class="tooltip" data-tip="Published as part of an AIM cycle run">
+				<span class="badge badge-xs badge-primary badge-outline gap-1">
+					<span class="iconify lucide--sparkles size-2.5"></span>
+					AIM Cycle
+				</span>
+			</div>
 		default:
-			<span class="badge badge-xs badge-ghost gap-1">
-				<span class="iconify lucide--user size-2.5"></span>
-				Manual
-			</span>
+			<div class="tooltip" data-tip="Published manually by a team member">
+				<span class="badge badge-xs badge-ghost gap-1">
+					<span class="iconify lucide--user size-2.5"></span>
+					Manual
+				</span>
+			</div>
 	}
 }
 
 templ calibrationDecisionMini(decision string) {
 	switch decision {
 		case "persevere":
-			<span class="badge badge-xs badge-success gap-1">Persevere</span>
+			<div class="tooltip" data-tip="Continue with current strategy direction">
+				<span class="badge badge-xs badge-success gap-1">Persevere</span>
+			</div>
 		case "pivot":
-			<span class="badge badge-xs badge-warning gap-1">Pivot</span>
+			<div class="tooltip" data-tip="Significant change in strategy direction">
+				<span class="badge badge-xs badge-warning gap-1">Pivot</span>
+			</div>
 		case "pull_the_plug":
-			<span class="badge badge-xs badge-error gap-1">Pull the plug</span>
+			<div class="tooltip" data-tip="Abandon this strategic direction">
+				<span class="badge badge-xs badge-error gap-1">Pull the plug</span>
+			</div>
 	}
 }
 
 templ versionStatusBadge(status string) {
 	switch status {
 		case "published":
-			<span class="badge badge-xs badge-primary">Current</span>
+			<div class="tooltip" data-tip="This is the active published version">
+				<span class="badge badge-xs badge-primary">Current</span>
+			</div>
 		case "restored":
-			<span class="badge badge-xs badge-info">Restored</span>
+			<div class="tooltip" data-tip="This version was restored from a previous snapshot">
+				<span class="badge badge-xs badge-info">Restored</span>
+			</div>
 		case "superseded":
-			<span class="badge badge-xs badge-ghost text-base-content/40">Superseded</span>
+			<div class="tooltip" data-tip="This version has been replaced by a newer one">
+				<span class="badge badge-xs badge-ghost text-base-content/40">Superseded</span>
+			</div>
 		default:
 			<span class="badge badge-xs badge-ghost">{ status }</span>
 	}

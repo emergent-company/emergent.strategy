@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"runtime/debug"
 	"time"
 
 	"github.com/google/uuid"
@@ -455,6 +456,16 @@ func (p *PostCommitPipeline) enqueueFoundationDraft(ctx context.Context, instanc
 		"cascade_generation", nextGen)
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("postcommit: recovered panic in adapt-foundations goroutine",
+					"instance_id", instanceID,
+					"panic", fmt.Sprintf("%v", r),
+					"stack", string(debug.Stack()),
+				)
+			}
+		}()
+
 		bgCtx := context.Background()
 		result, err := executor.RunChunkedWithSignals(bgCtx, instanceID, "adapt-foundations", params, triggeringSignalsMaps, batchDesc)
 		if err != nil {

@@ -233,14 +233,14 @@ func SkillRunsPageContent(data SkillRunsPageData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				if r.ChunkCount > 0 {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<span class=\"font-mono text-base-content/60\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<span class=\"tooltip\" data-tip=\"LLM processing segments completed\"><span class=\"font-mono text-base-content/60\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var11 string
 					templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(itoa(r.ChunksCompleted))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/skill_runs_page.templ`, Line: 129, Col: 80}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/skill_runs_page.templ`, Line: 129, Col: 147}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 					if templ_7745c5c3_Err != nil {
@@ -253,18 +253,18 @@ func SkillRunsPageContent(data SkillRunsPageData) templ.Component {
 					var templ_7745c5c3_Var12 string
 					templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(itoa(r.ChunkCount))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/skill_runs_page.templ`, Line: 129, Col: 103}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/skill_runs_page.templ`, Line: 129, Col: 170}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</span>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</span></span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</td><td class=\"text-right font-mono text-base-content/60\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</td><td class=\"text-right\"><span class=\"tooltip\" data-tip=\"Total language model tokens used\"><span class=\"font-mono text-base-content/60\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -272,14 +272,14 @@ func SkillRunsPageContent(data SkillRunsPageData) templ.Component {
 					var templ_7745c5c3_Var13 string
 					templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(formatTokens(r.TotalInputTokens + r.TotalOutputTokens))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/skill_runs_page.templ`, Line: 134, Col: 66}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/skill_runs_page.templ`, Line: 135, Col: 65}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</td><td class=\"text-right text-base-content/60\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</span></span></td><td class=\"text-right text-base-content/60\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -287,7 +287,7 @@ func SkillRunsPageContent(data SkillRunsPageData) templ.Component {
 					var templ_7745c5c3_Var14 string
 					templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(formatDuration(r.DurationSec))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/skill_runs_page.templ`, Line: 139, Col: 41}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/skill_runs_page.templ`, Line: 141, Col: 41}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 					if templ_7745c5c3_Err != nil {
@@ -301,7 +301,7 @@ func SkillRunsPageContent(data SkillRunsPageData) templ.Component {
 				var templ_7745c5c3_Var15 string
 				templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(r.StartedAt)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/skill_runs_page.templ`, Line: 142, Col: 54}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/skill_runs_page.templ`, Line: 144, Col: 54}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 				if templ_7745c5c3_Err != nil {
@@ -314,7 +314,7 @@ func SkillRunsPageContent(data SkillRunsPageData) templ.Component {
 				var templ_7745c5c3_Var16 templ.SafeURL
 				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/strategies/" + data.Nav.InstanceID + "/skill-runs/" + r.RunID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/skill_runs_page.templ`, Line: 145, Col: 91}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/skill_runs_page.templ`, Line: 147, Col: 91}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 				if templ_7745c5c3_Err != nil {
@@ -327,7 +327,7 @@ func SkillRunsPageContent(data SkillRunsPageData) templ.Component {
 				var templ_7745c5c3_Var17 string
 				templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.ResolveAttributeValue("/strategies/" + data.Nav.InstanceID + "/skill-runs/" + r.RunID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/skill_runs_page.templ`, Line: 146, Col: 82}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/skill_runs_page.templ`, Line: 148, Col: 82}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
 				if templ_7745c5c3_Err != nil {
@@ -401,7 +401,7 @@ func skillRunStatusBadge(status string) templ.Component {
 			var templ_7745c5c3_Var19 string
 			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(status)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/skill_runs_page.templ`, Line: 189, Col: 51}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/skill_runs_page.templ`, Line: 191, Col: 51}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 			if templ_7745c5c3_Err != nil {

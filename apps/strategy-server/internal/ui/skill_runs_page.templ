@@ -126,13 +126,15 @@ templ SkillRunsPageContent(data SkillRunsPageData) {
 								</td>
 								<td>
 									if r.ChunkCount > 0 {
-										<span class="font-mono text-base-content/60">{ itoa(r.ChunksCompleted) }/{ itoa(r.ChunkCount) }</span>
+										<span class="tooltip" data-tip="LLM processing segments completed"><span class="font-mono text-base-content/60">{ itoa(r.ChunksCompleted) }/{ itoa(r.ChunkCount) }</span></span>
 									}
 								</td>
-								<td class="text-right font-mono text-base-content/60">
-									if r.TotalInputTokens + r.TotalOutputTokens > 0 {
-										{ formatTokens(r.TotalInputTokens + r.TotalOutputTokens) }
-									}
+								<td class="text-right">
+								<span class="tooltip" data-tip="Total language model tokens used"><span class="font-mono text-base-content/60">
+								if r.TotalInputTokens + r.TotalOutputTokens > 0 {
+									{ formatTokens(r.TotalInputTokens + r.TotalOutputTokens) }
+								}
+								</span></span>
 								</td>
 								<td class="text-right text-base-content/60">
 									if r.DurationSec > 0 {

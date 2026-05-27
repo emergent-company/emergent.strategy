@@ -118,7 +118,7 @@ templ InsightAnalysesContent(data InsightAnalysesData) {
 							<span class="iconify lucide--search size-5 text-info"></span>
 							<span class="text-xs font-semibold uppercase tracking-widest text-info">Insight Analyses</span>
 							if data.Confidence != "" {
-								<span class={ "badge badge-sm", confidenceBadgeClass(data.Confidence) }>{ data.Confidence }</span>
+								<span class="tooltip" data-tip={ confidenceHint(data.Confidence) }><span class={ "badge badge-sm", confidenceBadgeClass(data.Confidence) }>{ data.Confidence }</span></span>
 							}
 						</div>
 						<h1 class="text-2xl font-bold text-base-content sm:text-3xl">{ data.Name }</h1>

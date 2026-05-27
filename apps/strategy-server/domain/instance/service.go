@@ -319,10 +319,10 @@ func (s *Service) ArchiveInstance(ctx context.Context, id uuid.UUID) error {
 			return apperror.ErrInstanceNotFound
 		}
 
-		// Discard all staged mutations for this instance.
+		// Discard all staged and staging mutations for this instance.
 		_, err = tx.NewUpdate().Model((*domain.StrategyMutation)(nil)).
 			Set("status = ?", domain.MutationStatusDiscarded).
-			Where("instance_id = ? AND status = ?", id, domain.MutationStatusStaged).
+			Where("instance_id = ? AND status IN (?, ?)", id, domain.MutationStatusStaged, domain.MutationStatusStaging).
 			Exec(ctx)
 		if err != nil {
 			return fmt.Errorf("discard staged mutations: %w", err)
@@ -369,6 +369,76 @@ func (s *Service) DeleteInstance(ctx context.Context, id uuid.UUID) error {
 		Action:     "delete",
 		Source:     audit.SourceFromContext(ctx),
 		ActorID:    actorID,
+	})
+
+	return nil
+}
+
+// UpdateSettingsParams controls GitHub settings updates on an instance.
+type UpdateSettingsParams struct {
+	GithubRepo     *string // nil = no change; empty string = clear
+	GithubBasePath *string // nil = no change; empty string = clear
+}
+
+// UpdateInstanceSettings updates the GitHub configuration of an existing instance.
+// Validates the repo slug format when provided.
+func (s *Service) UpdateInstanceSettings(ctx context.Context, id uuid.UUID, p UpdateSettingsParams) error {
+	actorID := audit.ActorFromContext(ctx)
+
+	// Validate repo slug if provided.
+	if p.GithubRepo != nil && *p.GithubRepo != "" {
+		parts := strings.SplitN(*p.GithubRepo, "/", 2)
+		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+			return apperror.ErrBadRequest.WithDetail("github_repo must be in the format owner/repo")
+		}
+	}
+
+	q := s.db.NewUpdate().
+		Model((*domain.StrategyInstance)(nil)).
+		Set("updated_at = NOW()").
+		Where("id = ? AND deleted_at IS NULL", id)
+
+	changed := false
+	if p.GithubRepo != nil {
+		if *p.GithubRepo == "" {
+			q = q.Set("github_repo = NULL")
+		} else {
+			q = q.Set("github_repo = ?", *p.GithubRepo)
+		}
+		changed = true
+	}
+	if p.GithubBasePath != nil {
+		if *p.GithubBasePath == "" {
+			q = q.Set("github_base_path = NULL")
+		} else {
+			q = q.Set("github_base_path = ?", *p.GithubBasePath)
+		}
+		changed = true
+	}
+
+	if !changed {
+		return nil
+	}
+
+	res, err := q.Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("update instance settings: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return apperror.ErrInstanceNotFound
+	}
+
+	audit.FromContext(ctx).Write(ctx, audit.Entry{
+		EntityType: "strategy_instance",
+		EntityID:   id,
+		Action:     "update_settings",
+		Source:     audit.SourceFromContext(ctx),
+		ActorID:    actorID,
+		Details: map[string]any{
+			"github_repo":      p.GithubRepo,
+			"github_base_path": p.GithubBasePath,
+		},
 	})
 
 	return nil

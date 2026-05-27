@@ -9,9 +9,8 @@ track: commercial
 status: ready
 
 contributes_to:
-  - Commercial.Analytics.content-analytics
-  - Commercial.Pipeline.optimization
-  - Commercial.Strategy.data-driven
+  - Commercial.Content Production & Management.content-performance-tracking
+  - Commercial.Campaign Execution.campaign-performance-analytics
 
 maturity:
   current_tier: 1

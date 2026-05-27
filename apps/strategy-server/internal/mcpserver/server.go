@@ -88,6 +88,11 @@ type Services struct {
 	Evidence      *evidencedom.Service     // optional — nil disables evidence MCP tools
 	Activity      *activitydom.Service     // optional — nil disables activity stream MCP tools
 	Watchdog      WatchdogRunner           // optional — nil disables watchdog health checks in health_check
+
+	// GithubAppInstallURL is the GitHub App installation URL, e.g.
+	// "https://github.com/apps/emergent-strategy/installations/new".
+	// Empty string when GITHUB_APP_SLUG is not configured.
+	GithubAppInstallURL string
 }
 
 // WatchdogRunner runs a watchdog health check for an instance.

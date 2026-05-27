@@ -26,7 +26,7 @@
       "description": "Assessment of each OKR's performance during the cycle. Includes KR outcomes, supporting data, and cross-functional insights. Focus on objective measurement and evidence.",
       "$comment": "OKR Assessments are the heart of Assessment Reports, documenting what was achieved (or not) at the strategic objective level. Each OKR gets one assessment covering all its Key Results. Structure your assessment narratively: What was the objective? What did we achieve? What evidence supports this? What surprised us? OKR Assessments feed directly into Calibration Memo reasoning by providing the performance data needed for strategic decisions. Good OKR assessments are: (1) Evidence-based - cite specific metrics and data, (2) Outcome-focused - measure results not activities, (3) Cross-functional - include insights from all contributing teams, (4) Trend-aware - compare to previous cycles, (5) Honest - document both successes and failures. Typical pattern: 1-5 OKR assessments per cycle, each with 2-5 Key Results. Early cycles may have fewer OKRs (exploration), later cycles may have more (execution scale).",
       "minItems": 1,
-      "maxItems": 10,
+      "maxItems": 30,
       "items": {
         "type": "object",
         "properties": {

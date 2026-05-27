@@ -119,6 +119,56 @@ func (s *Service) GetBySub(ctx context.Context, sub string) (*domain.User, error
 	return &user, nil
 }
 
+// StoreGithubToken persists the user's GitHub OAuth access token.
+// Called after a successful OAuth callback.
+func (s *Service) StoreGithubToken(ctx context.Context, userID uuid.UUID, token string) error {
+	_, err := s.db.NewUpdate().
+		TableExpr("users").
+		Set("github_access_token = ?", token).
+		Set("updated_at = NOW()").
+		Where("id = ?", userID).
+		Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("store github token: %w", err)
+	}
+	return nil
+}
+
+// ClearGithubToken removes the stored GitHub OAuth token for a user.
+// Called when the token is known to be revoked or invalid.
+func (s *Service) ClearGithubToken(ctx context.Context, userID uuid.UUID) error {
+	_, err := s.db.NewUpdate().
+		TableExpr("users").
+		Set("github_access_token = NULL").
+		Set("updated_at = NOW()").
+		Where("id = ?", userID).
+		Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("clear github token: %w", err)
+	}
+	return nil
+}
+
+// GetGithubToken returns the stored GitHub OAuth token for a user.
+// Returns ("", nil) when no token is stored.
+func (s *Service) GetGithubToken(ctx context.Context, userID uuid.UUID) (string, error) {
+	var row struct {
+		Token *string `bun:"github_access_token"`
+	}
+	err := s.db.NewSelect().
+		TableExpr("users").
+		ColumnExpr("github_access_token").
+		Where("id = ?", userID).
+		Scan(ctx, &row)
+	if err != nil {
+		return "", fmt.Errorf("get github token: %w", err)
+	}
+	if row.Token == nil {
+		return "", nil
+	}
+	return *row.Token, nil
+}
+
 // acceptPendingInvitations converts pending org invitations for the user's email
 // into memberships.
 func (s *Service) acceptPendingInvitations(ctx context.Context, user *domain.User) error {

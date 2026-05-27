@@ -99,10 +99,11 @@ func (s *Server) loadReadyPhaseData(ctx context.Context, instanceID string) ui.R
 	}
 
 	// Skill executor availability — enables draft buttons on READY cards.
-	data.HasSkillExecutor = s.skillExecutor != nil
+	// Only true when LLM is configured (not skeleton mode).
+	data.HasSkillExecutor = s.skillExecutor != nil && s.skillExecutor.HasLLM()
 
-	// Readiness score and blockers.
-	data.ReadinessScore, data.ReadinessBlockers = computeReadyReadiness(data)
+	// Readiness score, blockers, and detailed breakdown.
+	data.ReadinessScore, data.ReadinessBlockers, data.ReadinessItems = computeReadyReadiness(data)
 
 	// Version count — for publication banner.
 	data.VersionCount, _ = s.db.NewSelect().
@@ -184,7 +185,33 @@ func (s *Server) loadFirePhaseData(ctx context.Context, instanceID string) ui.Fi
 
 	// Bootstrap/alignment capabilities
 	data.HasRoadmap = s.hasArtifactType(ctx, instanceID, domain.ArtifactTypeRoadmap)
-	data.HasSkillExecutor = s.skillExecutor != nil
+	data.HasSkillExecutor = s.skillExecutor != nil && s.skillExecutor.HasLLM()
+
+	// Count tracks missing a value model (for contextual CTA copy).
+	for _, t := range data.FireTracks {
+		if !t.ValueModelExists {
+			data.MissingValueModels++
+		}
+	}
+
+	// Canonical definition coverage — count installed vs available.
+	data.CanonicalDefCount = 131 // 38 commercial + 54 org_ops + 39 strategy (from embedded templates)
+	trackDefCounts := map[string]int{
+		"strategy":   s.countByType(ctx, instanceID, "strategy_def"),
+		"org_ops":    s.countByType(ctx, instanceID, "org_ops_def"),
+		"commercial": s.countByType(ctx, instanceID, "commercial_def"),
+	}
+	for _, c := range trackDefCounts {
+		data.InstalledDefCount += c
+	}
+	trackLabels := map[string]string{
+		"strategy": "Strategy", "org_ops": "Org & Ops", "commercial": "Commercial",
+	}
+	for track, count := range trackDefCounts {
+		if count == 0 {
+			data.MissingDefTracks = append(data.MissingDefTracks, trackLabels[track])
+		}
+	}
 
 	return data
 }
@@ -1061,8 +1088,9 @@ func (s *Server) loadAimPhaseData(ctx context.Context, instanceID string) ui.Aim
 		})
 	}
 
-	// Skill executor availability — drives button label in Adapt step
-	data.HasSkillExecutor = s.skillExecutor != nil
+	// Skill executor availability — drives button label in Adapt step.
+	// Only true when LLM is configured (not skeleton mode).
+	data.HasSkillExecutor = s.skillExecutor != nil && s.skillExecutor.HasLLM()
 
 	// Foundation artifacts needed for LRA drafting
 	data.HasNorthStar = s.hasArtifactType(ctx, instanceID, domain.ArtifactTypeNorthStar)
@@ -1484,9 +1512,10 @@ func (s *Server) loadPipelineTimeline(ctx context.Context, instanceID string) []
 //   - Evidence loaded (>= 2 items): 8 points
 //   - No pending batches blocking review: 8 points
 //   Total max: 100
-func computeReadyReadiness(data ui.ReadyPhaseData) (int, []string) {
+func computeReadyReadiness(data ui.ReadyPhaseData) (int, []string, []ui.ReadinessItem) {
 	score := 0
 	var blockers []string
+	var items []ui.ReadinessItem
 
 	// Artifact presence (14 pts each × 6 = 84 pts max)
 	artifacts := []struct {
@@ -1501,33 +1530,80 @@ func computeReadyReadiness(data ui.ReadyPhaseData) (int, []string) {
 		{data.RoadmapExists, "Roadmap Recipe"},
 	}
 	for _, a := range artifacts {
+		pts := 0
 		if a.exists {
+			pts = 14
 			score += 14
 		} else {
 			blockers = append(blockers, "Missing: "+a.name)
 		}
+		items = append(items, ui.ReadinessItem{
+			Label:    a.name,
+			Done:     a.exists,
+			Points:   pts,
+			MaxPts:   14,
+			HelpText: "Create the " + a.name + " artifact to add 14 points",
+		})
 	}
+
+	// Product Portfolio (not scored, but tracked in artifact count)
+	portfolioExists := data.CompletedArtifacts > len(artifacts)
+	items = append(items, ui.ReadinessItem{
+		Label:    "Product Portfolio",
+		Done:     portfolioExists,
+		Points:   0,
+		MaxPts:   0,
+		HelpText: "Optional — define features and value models in the FIRE phase",
+	})
 
 	// Evidence loaded: 8 pts
-	if data.EvidenceCount >= 2 {
+	var evPts int
+	var evHelp string
+	switch {
+	case data.EvidenceCount >= 2:
+		evPts = 8
 		score += 8
-	} else if data.EvidenceCount == 1 {
+	case data.EvidenceCount == 1:
+		evPts = 4
 		score += 4
-	} else {
-		blockers = append(blockers, "No evidence loaded")
+		evHelp = "Add at least one more evidence item to reach full score"
+	default:
+		evHelp = "Load evidence (market data, user research, etc.) to inform AI drafts"
 	}
+	items = append(items, ui.ReadinessItem{
+		Label:    "Evidence loaded",
+		Done:     data.EvidenceCount >= 2,
+		Points:   evPts,
+		MaxPts:   8,
+		HelpText: evHelp,
+	})
 
 	// No pending draft batches: 8 pts (clear queue = stable foundation)
-	if len(data.PendingBatches) == 0 {
+	pendingClear := len(data.PendingBatches) == 0
+	if pendingClear {
 		score += 8
 	}
+	items = append(items, ui.ReadinessItem{
+		Label:    "No pending drafts",
+		Done:     pendingClear,
+		Points:   boolInt(pendingClear, 8),
+		MaxPts:   8,
+		HelpText: "Review and commit or discard pending AI-generated drafts",
+	})
 
 	// Cap at 100
 	if score > 100 {
 		score = 100
 	}
 
-	return score, blockers
+	return score, blockers, items
+}
+
+func boolInt(b bool, v int) int {
+	if b {
+		return v
+	}
+	return 0
 }
 
 // --- evidence sufficiency ---

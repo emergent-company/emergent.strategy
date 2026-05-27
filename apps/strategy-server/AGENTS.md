@@ -157,11 +157,11 @@ Four-phase build order — do not start the next phase until the exit gate is me
   service wiring, async ingestion pipeline, dual-layer graph (artifact + decomposed)
 - **2b (Auth + multi-tenant):** Complete — Zitadel introspection, user/org model,
   auth middleware, org MCP tools
-- **2c (Tool parity):** Complete — 141 MCP tools, agent routing, knowledge base
+- **2c (Tool parity):** Complete — 144 MCP tools, agent routing, knowledge base
 - **2d (Integration tests):** In progress — E2E tests for semantic tools (mocked Memory),
   org lifecycle, ingest pipeline, full agent workflow. Remaining: multi-tenant isolation,
   documentation
-- **2e (Schema registry + versioning + GitHub sync):** Complete — schema registry with
+  - **2e (Schema registry + versioning + GitHub sync + GitHub connect OAuth):** Complete — schema registry with
   DB + embedded fallback, strategy versioning (publish/list/get/diff/restore), GitHub
   App write-back (branch + commit + PR), decomposer field reconciliation.
 - **AIM lifecycle:** Complete — `domain/aim/` package (assessment, calibration, apply),
@@ -193,7 +193,7 @@ Four-phase build order — do not start the next phase until the exit gate is me
 | Database | PostgreSQL 16 via `uptrace/bun` + `jackc/pgx/v5` |
 | HTTP | Echo v4 + `danielgtaylor/huma/v2` |
 | CLI/Config | `alexflint/go-arg` |
-| Migrations | `pressly/goose/v3` embedded SQL (28 migrations) |
+| Migrations | `pressly/goose/v3` embedded SQL (31 migrations) |
 | Logging | `log/slog` JSON |
 | UUIDs | `google/uuid` |
 | MCP | `mark3labs/mcp-go` |
@@ -295,21 +295,22 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 
 | Package | Purpose |
 |---------|---------|
-| `internal/database/` | DB connection, migrations (28), `TestDB(t)` |
-| `internal/mcpserver/` | 141 MCP tools across 13 registration files, tool category filter |
+| `internal/database/` | DB connection, migrations (31), `TestDB(t)` |
+| `internal/mcpserver/` | 144 MCP tools across 13 registration files, tool category filter |
 | `internal/navigation/` | Navigation graph — screens, tabs, routes, breadcrumbs (single source of truth for web UI) |
 | `internal/handler/` | Web UI handlers — HTMX rendering, RenderTriple pattern, graph-driven route registration |
 | `internal/ui/` | Templ components for all web pages (dashboards, phases, AIM pipeline, evidence) |
 | `internal/pipeline/` | Post-commit pipeline (ripple analysis, Memory ingestion, validation) |
 | `internal/auth/` | Zitadel OIDC introspection + PostgreSQL cache |
 | `internal/memory/` | emergent.memory REST API client (7 files) |
-| `internal/agent/` | Task routing (`get_agent_for_task`) + domain knowledge base (29 topics) |
+| `internal/agent/` | Task routing (`get_agent_for_task`) + domain knowledge base (30 topics) |
 | `internal/embedded/` | go:embed EPF schemas, templates, agents, skills, field manifest |
 | `internal/github/` | GitHub App client (JWT, installation tokens, Git tree API) |
 | `internal/web/` | Auth + audit + lang middleware |
 | `internal/audit/` | Audit context contract |
 | `internal/langs/` | i18n translations |
 | `internal/skillrunner/` | Script skill subprocess execution |
+| `internal/epfimport/` | Shared YAML parsing pipeline (filesystem + in-memory); used by CLI import and GitHub import |
 | `pkg/orchestration/` | Interface-driven async workflow orchestrator (Engine, Backend, Workflow, SSE fanout) |
 | `pkg/orchestration/pg/` | PostgreSQL-backed orchestration backend with goroutine worker pool |
 | `internal/domain/` | Shared struct definitions with bun tags |
@@ -317,7 +318,7 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 
 ### Database migrations
 
-28 migrations in `internal/database/migrations/`:
+31 migrations in `internal/database/migrations/`:
 
 | Migration | Purpose |
 |-----------|---------|
@@ -349,10 +350,14 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 | `026_skill_runs.sql` | Skill execution ledger + LLM token usage |
 | `027_proposal_dismissed_status.sql` | Add dismissed status to cycle proposals |
 | `028_mutation_staging_status.sql` | Staging status for mutations |
+| `029_memory_content_hash.sql` | Content hash on instances for Memory ingest dedup |
+| `030_github_sync_tracking.sql` | `github_commit_sha` + `github_branch` on strategy_instances |
+| `031_github_sync_log_direction.sql` | `direction` + `source` columns on github_sync_log; adds `closed` status |
+| `032_github_user_token.sql` | `github_access_token` (nullable TEXT) on users — stores per-user GitHub OAuth token for connect flow |
 
 ## MCP Server
 
-The server exposes 141 MCP tools at `/mcp`, organized into 13 categories with
+The server exposes 144 MCP tools at `/mcp`, organized into 13 categories with
 context-aware filtering. By default only ~13 core tools are visible; clients
 call `list_tool_categories` and `set_tool_filter` to activate additional categories.
 
@@ -367,7 +372,7 @@ call `list_tool_categories` and `set_tool_filter` to activate additional categor
 | evidence | 5 | `ingest_evidence`, `list_evidence`, `link_evidence` |
 | semantic | 6 | `detect_contradictions`, `get_neighbors`, `run_scenario` |
 | validation | 8 | `validate_artifact`, `validate_with_plan`, `export_report` |
-| admin | 21 | `scaffold_instance`, `publish_version`, `sync_to_github`, `create_org` |
+| admin | 24 | `scaffold_instance`, `publish_version`, `sync_to_github`, `import_from_github`, `update_instance`, `get_sync_state`, `create_org` |
 | knowledge | 10 | `list_schemas`, `get_template`, `get_agent`, `get_skill` |
 | packs | 11 | `install_pack`, `run_skill`, `run_app`, `scaffold_skill` |
 | observability | 9 | `list_activities`, `list_skill_runs`, `get_llm_usage`, `list_cycle_proposals` |
@@ -470,15 +475,51 @@ Versions are also auto-published when the convergence loop reaches equilibrium
 with changes. Auto-published versions are tagged with `source='convergence'` and
 include the equilibrium score and convergence summary in their metadata.
 
-### GitHub Sync Workflow
+### GitHub Auth Model — READ THIS FIRST
 
-1. Ensure `github_repo` is set on the instance (e.g. `org/strategy-repo`)
-2. `sync_to_github` — exports artifacts as YAML, creates a branch + commit + PR
-3. `get_sync_status` — check sync history, open PRs, last sync result
+**See `docs/GITHUB_AUTH_MODEL.md` for the full reference.** Summary:
 
-Requires a GitHub App installation. Configure with `GITHUB_APP_ID` and
-`GITHUB_APP_PRIVATE_KEY_PATH` env vars. The App needs `contents: write` and
-`pull_requests: write` permissions.
+Strategy-server uses **two separate GitHub auth mechanisms**:
+
+| Mechanism | Env vars | Used for | App install required? |
+|-----------|----------|----------|----------------------|
+| GitHub App (JWT) | `GITHUB_APP_ID` + `GITHUB_APP_PRIVATE_KEY_PATH` | AIM auto-push, MCP sync tools | **Yes** — per org |
+| User OAuth token | `GITHUB_OAUTH_CLIENT_ID` + `GITHUB_OAUTH_CLIENT_SECRET` | Connect flow, user import/push | **No** |
+
+**The key insight:** Regular users connecting GitHub and doing import/push via the
+web UI use their own OAuth token — no admin App installation needed. App installation
+is only required for background server-initiated operations (AIM auto-push).
+
+**Using the GitHub App's own client ID for OAuth** (not a separate OAuth App).
+This produces `ghu_` tokens. Plain OAuth App `gho_` tokens cannot call
+`GET /user/installations` and will get 403.
+
+### GitHub Sync Workflow (Strategy-as-Code)
+
+Full bidirectional lifecycle. Three flows: **Genesis** (scaffold → push),
+**Connect** (user connects GitHub → browse repos → import → edit → push),
+**Ongoing** (import when remote changes, auto-push after AIM cycles).
+
+**User connect flow (web UI — no App install needed):**
+1. User visits `/github/connect` → clicks "Connect GitHub account"
+2. OAuth dance with `repo,read:user` scope → token stored in `users.github_access_token`
+3. All repos user has access to shown (across all orgs) — no App install required
+4. User picks repo → Import or Link → work in the UI → Push back
+
+**MCP tool flow (App installation required):**
+- `update_instance(instance_id, github_repo="org/repo")` to link
+- `import_from_github(instance_id, branch?)` — smart four-state import
+- `sync_to_github(instance_id, version_id?)` — YAML export, branch + commit + PR
+- `get_sync_state(instance_id)`, `get_sync_status(instance_id)` — status checks
+
+**AIM auto-push (App installation required):**
+Every AIM cycle snapshot triggers a GitHub PR automatically in the background.
+Failures are logged but never block the cycle. Requires App installed on target org.
+
+**Branch support:** EPF instances are documentation, not deployable code. In
+mature products, the instance lives on `dev` and never merges to `main/prod`.
+
+**App permissions needed:** `Contents: Read & write`, `Pull requests: Read & write`
 
 ### Schema Registry
 

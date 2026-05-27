@@ -106,6 +106,24 @@ func (s *Service) Fail(ctx context.Context, runID uuid.UUID, errMsg string) erro
 	return nil
 }
 
+// MarkStaleRunsFailed marks any skill runs still in "running" status as failed.
+// Called on server startup to clean up zombie runs from previous crashes.
+// Returns the number of runs cleaned up.
+func (s *Service) MarkStaleRunsFailed(ctx context.Context) (int, error) {
+	res, err := s.db.NewUpdate().
+		Model((*Run)(nil)).
+		Set("status = ?", StatusFailed).
+		Set("completed_at = NOW()").
+		Set("error = ?", "server restart — marked as failed during startup cleanup").
+		Where("status = ?", StatusRunning).
+		Exec(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("skillrun: mark stale failed: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return int(n), nil
+}
+
 // GetByID returns a single run by its UUID.
 func (s *Service) GetByID(ctx context.Context, runID uuid.UUID) (*Run, error) {
 	run := new(Run)

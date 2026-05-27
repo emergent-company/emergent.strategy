@@ -1,0 +1,452 @@
+{
+  "version": "1.2.0",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Navigation Graph Schema",
+  "description": "Defines the strategic topology of a product's user journey — the interaction contexts a user can inhabit and how they traverse between them. The navigation graph is medium-agnostic: contexts can manifest as web pages, CLI views, mobile screens, modals, or any other interaction surface. The graph defines the intended customer experience structure; implementations deliver against it.",
+  "$comment": "NAVIGATION GRAPH: A strategic FIRE-phase artifact that models the product's interaction surface as a directed graph with guarded edges. Complementary to the workflow schema: workflows model entity lifecycles (draft → approved), navigation graphs model user journeys (dashboard → settings → billing). Both share the same mathematical structure (directed graph with guarded transitions) and can be executed by the same state machine runner. Design principles: (1) Model the desired end state — what the product should be when fully delivered, (2) Keep it medium-agnostic — describe what contexts exist, not how they render, (3) Use guards to model access control and domain modes, not business rules, (4) Use groups to organize related contexts into navigable sections, (5) Use the properties escape hatch for implementation-specific metadata (URLs, icons, HTTP methods).",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Unique identifier for this navigation graph (kebab-case). Used to reference this graph in composition, tooling, and analytics.",
+      "minLength": 3,
+      "maxLength": 100,
+      "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"
+    },
+    "title": {
+      "type": "string",
+      "description": "Human-readable title for this navigation graph. Displayed in tooling, reports, and documentation.",
+      "minLength": 3,
+      "maxLength": 200
+    },
+    "description": {
+      "type": "string",
+      "description": "What product or service this navigation graph models and its strategic purpose.",
+      "maxLength": 2000
+    },
+    "entry_context": {
+      "type": "string",
+      "description": "The default starting context for users entering the product. Must reference a context ID defined in the contexts array. This is where users land when they first arrive — the 'front door' of the product experience.",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "contexts": {
+      "type": "array",
+      "description": "Named nodes representing meaningful places a user can be. Each context is a distinct interaction surface where the user accomplishes something specific. Contexts are medium-agnostic — they describe what the user does, not what technology delivers it.",
+      "$comment": "CONTEXT DESIGN: A well-designed context set is: (1) Mutually exclusive — each context represents a distinct place, (2) Collectively exhaustive — covers the entire intended interaction surface, (3) Strategically meaningful — each context exists for a reason traceable to value delivery, (4) Appropriately scoped — neither too granular (individual buttons) nor too broad (entire applications). Common context modes: 'default' (standard interaction surface), 'landing' (entry point for a group/section — exactly one per group), 'detail' (entity-specific view — typically scoped), 'modal' (overlay requiring action before proceeding), 'embedded' (content rendered within a parent context). Context count guidelines: Simple products 5-15 contexts, moderate products 15-40 contexts, complex multi-service products 40-100+ contexts (consider sub-graphs via composition).",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable string identifier, unique within the graph. Use kebab-case. This ID is referenced by transitions, guards, menus, and composition. Choose carefully — changing it breaks references.",
+            "minLength": 1,
+            "maxLength": 100,
+            "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"
+          },
+          "title": {
+            "type": "string",
+            "description": "Human-readable name for this context. What users would call this place in the product.",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "description": "What the user accomplishes in this context. Strategic intent, not implementation details.",
+            "maxLength": 2000
+          },
+          "parent": {
+            "type": "string",
+            "description": "Parent context ID for hierarchical structure. Defines breadcrumb chains, back-navigation paths, and section nesting. A context with no parent is a top-level entry point.",
+            "maxLength": 100
+          },
+          "group": {
+            "type": "string",
+            "description": "Reference to a group ID. Assigns this context to a logical section for navigation grouping.",
+            "maxLength": 100
+          },
+          "category": {
+            "type": "string",
+            "description": "Semantic domain classification for cross-cutting analysis. Examples: 'operations', 'reporting', 'governance', 'setup', 'onboarding', 'collaboration'.",
+            "maxLength": 100
+          },
+          "mode": {
+            "type": "string",
+            "description": "Presentation mode — the structural role this context plays in the interaction surface.",
+            "enum": ["default", "landing", "detail", "modal", "embedded"],
+            "default": "default"
+          },
+          "scoped": {
+            "type": "boolean",
+            "description": "Whether this context operates within a parent entity scope (e.g., a company-scoped context vs a global context). Scoped contexts require an entity to be selected before they can be entered.",
+            "default": false
+          },
+          "data_requirements": {
+            "type": "array",
+            "description": "Data this context needs to function. Each requirement specifies what category of data and any refinements. This is strategic documentation — it tells the implementation what data the context depends on.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "description": "What category of data is needed (e.g., 'shareholders', 'transactions', 'company-profile', 'user-preferences').",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "qualifier": {
+                  "type": "string",
+                  "description": "Refinement of the data requirement (e.g., 'current', 'all', 'active', 'summary', 'detailed').",
+                  "maxLength": 100
+                }
+              },
+              "required": ["type"]
+            },
+            "maxItems": 20
+          },
+          "implementation_hints": {
+            "type": "array",
+            "description": "Strategic guidance for implementation — characteristics and considerations that inform implementation direction. Not prescriptive technology choices, but strategic signals. Examples: 'high-data-density with real-time updates', 'requires offline capability', 'privacy-sensitive — must support data residency', 'computation-heavy — consider server-side rendering'.",
+            "items": {
+              "type": "string",
+              "maxLength": 500
+            },
+            "maxItems": 10
+          },
+          "contributes_to": {
+            "type": "array",
+            "description": "Value model paths this context contributes to. Links the navigation topology to the strategic value hierarchy — which value model components this interaction surface helps deliver. Uses the same path format as feature definitions: Track.Layer.Component (e.g., 'Product.CapTable.ShareManagement').",
+            "items": {
+              "type": "string",
+              "pattern": "^(Product|Commercial|Strategy|OrgOps)\\.[A-Za-z][A-Za-z0-9]*\\.[A-Za-z][A-Za-z0-9]*$",
+              "maxLength": 200
+            },
+            "maxItems": 5
+          },
+          "properties": {
+            "type": "object",
+            "description": "Open map for product-specific metadata. Medium-specific fields (URL patterns, icons, HTTP methods, component names, sidebar configuration) belong here, not in the core schema. The graph runner and validation tools ignore this map — it is for implementation consumption only.",
+            "additionalProperties": true
+          }
+        },
+        "required": ["id", "title"],
+        "additionalProperties": false
+      },
+      "minItems": 1,
+      "maxItems": 500
+    },
+    "transitions": {
+      "type": "array",
+      "description": "Directed edges between contexts representing how users move through the product. Each transition is a named path from one context to another, optionally guarded by a precondition.",
+      "$comment": "TRANSITION DESIGN: Transitions define the user journey topology — the paths users can take through the product. A well-designed transition set is: (1) Complete — every non-terminal context has at least one outgoing transition, (2) Intentional — each transition exists because users should be able to make that journey, (3) Guard-aware — sensitive transitions require appropriate preconditions. Transition categories: 'navigation' (moving between contexts), 'action' (performing an operation that leads to a new context), 'drill-down' (going deeper into a detail), 'modal' (opening an overlay), 'back' (returning to parent). Keep transition counts reasonable: most contexts should have 2-8 outgoing transitions.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique transition identifier within the graph.",
+            "minLength": 1,
+            "maxLength": 100,
+            "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"
+          },
+          "from": {
+            "type": "string",
+            "description": "Source context ID. Must reference a defined context.",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "to": {
+            "type": "string",
+            "description": "Target context ID. Must reference a defined context.",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "label": {
+            "type": "string",
+            "description": "Human-readable description of this path. What the user is doing when they take this transition.",
+            "maxLength": 200
+          },
+          "guard": {
+            "type": "string",
+            "description": "Guard ID reference. If set, this transition is only available when the guard passes. Empty or omitted means always available.",
+            "maxLength": 100
+          },
+          "category": {
+            "type": "string",
+            "description": "Transition intent classification.",
+            "enum": ["navigation", "action", "drill-down", "modal", "back", "portal"],
+            "default": "navigation"
+          }
+        },
+        "required": ["id", "from", "to"],
+        "additionalProperties": false
+      },
+      "minItems": 1,
+      "maxItems": 2000
+    },
+    "guards": {
+      "type": "array",
+      "description": "Named preconditions that govern transition access. Guards are declarative references — they describe what condition exists and why, not how to evaluate it. The runtime implementation maps guard IDs to actual checks.",
+      "$comment": "GUARD DESIGN: Guards model the conditions under which parts of the product are accessible. They capture strategic access patterns: (1) Role guards — who can access this (admin, member, viewer), (2) Tier guards — what plan level is required (free, pro, enterprise), (3) Entity-state guards — what must be true about the data (company has shareholders, project is active), (4) Domain-rule guards — contextual business requirements (audit is in progress, report is generated). Guard groups cluster related guards that collectively define a domain mode. For example, guards 'shares-allowed', 'share-classes-exist', and 'shares-issued' might all be in the 'shareholder-registry' group. When the group passes, the entire section of the product that depends on having a shareholder registry becomes accessible.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique guard identifier within the graph.",
+            "minLength": 1,
+            "maxLength": 100,
+            "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"
+          },
+          "description": {
+            "type": "string",
+            "description": "What this guard checks, in strategic terms. Should be understandable without reading code.",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "type": {
+            "type": "string",
+            "description": "Guard classification for tooling and analysis.",
+            "enum": ["role", "tier", "entity-state", "domain-rule", "feature-flag", "temporal"],
+            "default": "domain-rule"
+          },
+          "guard_group": {
+            "type": "string",
+            "description": "Optional grouping for guards that collectively define a domain mode. Guards in the same group are evaluated together — if the group passes, all guards in it pass.",
+            "maxLength": 100
+          },
+          "fallback": {
+            "type": "string",
+            "description": "Context ID to redirect to when this guard blocks access. If omitted, the transition is simply unavailable.",
+            "maxLength": 100
+          },
+          "message": {
+            "type": "string",
+            "description": "Explanation shown to the user when this guard blocks access. Should be actionable — tell the user what they need to do.",
+            "maxLength": 500
+          }
+        },
+        "required": ["id", "description"],
+        "additionalProperties": false
+      },
+      "maxItems": 200
+    },
+    "groups": {
+      "type": "array",
+      "description": "Logical groupings of contexts for navigation organization. Groups define the high-level sections of the product (e.g., 'Equity', 'Governance', 'Settings'). Each group must have exactly one landing context.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique group identifier within the graph.",
+            "minLength": 1,
+            "maxLength": 100,
+            "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"
+          },
+          "title": {
+            "type": "string",
+            "description": "Display title for this group. Used in navigation menus, sidebars, and breadcrumbs.",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "order": {
+            "type": "integer",
+            "description": "Display order for navigation rendering. Lower numbers appear first.",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "visibility_guard": {
+            "type": "string",
+            "description": "Guard ID. If set, this group is only visible/relevant when this guard passes. Used to conditionally show entire product sections.",
+            "maxLength": 100
+          }
+        },
+        "required": ["id", "title"],
+        "additionalProperties": false
+      },
+      "maxItems": 50
+    },
+    "menus": {
+      "type": "array",
+      "description": "Context-specific action sets. A menu defines what actions are available within a specific context — the things a user can do from 'here'. Menus are optional; contexts without explicit menus derive their actions from outbound transitions.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "context": {
+            "type": "string",
+            "description": "Context ID where these actions are available.",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "title": {
+            "type": "string",
+            "description": "Menu title (e.g., 'Actions', 'Quick Links', 'Tools').",
+            "maxLength": 200
+          },
+          "items": {
+            "type": "array",
+            "description": "Available actions within this menu.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "transition_id": {
+                  "type": "string",
+                  "description": "Reference to a defined transition ID. This action triggers that transition.",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "label": {
+                  "type": "string",
+                  "description": "Display label for this action.",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Brief description of what this action does.",
+                  "maxLength": 500
+                }
+              },
+              "required": ["transition_id", "label"],
+              "additionalProperties": false
+            },
+            "minItems": 1,
+            "maxItems": 20
+          }
+        },
+        "required": ["context", "items"],
+        "additionalProperties": false
+      },
+      "maxItems": 200
+    },
+    "imports": {
+      "type": "array",
+      "description": "Service sub-graph imports for multi-service composition. Each import references a navigation graph from another service, enabling product-wide topology across independently deployed services.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "service": {
+            "type": "string",
+            "description": "Service identifier. Used as a prefix in portal edge references (service:context-id).",
+            "minLength": 1,
+            "maxLength": 100,
+            "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"
+          },
+          "path": {
+            "type": "string",
+            "description": "File path to the service's navigation graph YAML, relative to that service's EPF instance root.",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        },
+        "required": ["service", "path"],
+        "additionalProperties": false
+      },
+      "maxItems": 20
+    },
+    "portal_edges": {
+      "type": "array",
+      "description": "Cross-service transitions for multi-service composition. Portal edges connect contexts across service boundaries, using service:context-id notation.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique portal edge identifier.",
+            "minLength": 1,
+            "maxLength": 100,
+            "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"
+          },
+          "source": {
+            "type": "string",
+            "description": "Source context in service:context-id notation (e.g., 'core-app:company-detail').",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "target": {
+            "type": "string",
+            "description": "Target context in service:context-id notation (e.g., 'cap-table:equity-overview').",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "guard": {
+            "type": "string",
+            "description": "Optional guard ID that must pass for this portal edge to be traversable.",
+            "maxLength": 100
+          },
+          "label": {
+            "type": "string",
+            "description": "Human-readable description of this cross-service path.",
+            "maxLength": 200
+          }
+        },
+        "required": ["id", "source", "target"],
+        "additionalProperties": false
+      },
+      "maxItems": 100
+    },
+    "journey_scenarios": {
+      "type": "array",
+      "description": "Scripted journey test cases that validate user flows through the navigation graph. Each scenario defines a sequence of transitions with a guard profile and expected outcome.",
+      "$comment": "Journey scenarios are the navigation graph's built-in test suite. They validate that personas can complete their key flows given the correct guard profile. Use them to catch broken paths, missing guards, and unreachable contexts before implementation.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Unique scenario identifier (kebab-case).",
+            "minLength": 1,
+            "maxLength": 100,
+            "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable description of what this journey tests.",
+            "maxLength": 500
+          },
+          "start_at": {
+            "type": "string",
+            "description": "Context ID to start at. Defaults to entry_context if omitted.",
+            "maxLength": 100
+          },
+          "steps": {
+            "type": "array",
+            "description": "Ordered list of transition IDs to traverse.",
+            "items": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "minItems": 1,
+            "maxItems": 50
+          },
+          "guards": {
+            "type": "array",
+            "description": "Guard IDs to enable for this scenario's guard profile.",
+            "items": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          "guard_groups": {
+            "type": "array",
+            "description": "Guard group IDs to enable for this scenario's guard profile.",
+            "items": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          "expected_end": {
+            "type": "string",
+            "description": "Context ID where the journey should end. If specified, the scenario fails if the runner ends at a different context.",
+            "maxLength": 100
+          }
+        },
+        "required": ["name", "steps"],
+        "additionalProperties": false
+      },
+      "maxItems": 50
+    }
+  },
+  "required": ["name", "title", "entry_context", "contexts", "transitions"],
+  "additionalProperties": false
+}

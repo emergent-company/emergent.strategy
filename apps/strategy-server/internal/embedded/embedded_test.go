@@ -123,7 +123,10 @@ func TestListTemplates_HasREADYPhase(t *testing.T) {
 }
 
 func TestGetTemplate_NorthStar(t *testing.T) {
-	paths, _ := embedded.ListTemplates()
+	paths, err := embedded.ListTemplates()
+	if err != nil {
+		t.Fatalf("ListTemplates: %v", err)
+	}
 	// Find the north_star template path
 	var nsPath string
 	for _, p := range paths {

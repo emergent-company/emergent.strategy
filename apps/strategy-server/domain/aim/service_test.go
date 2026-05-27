@@ -1,32 +1,8 @@
 package aim
 
 import (
-	"context"
 	"testing"
 )
-
-// ---------------------------------------------------------------------------
-// mockLLMClient — implements LLMClient for unit tests
-// ---------------------------------------------------------------------------
-
-type mockLLMClient struct {
-	completeFunc     func(ctx context.Context, system, user string) (LLMResult, error)
-	completeJSONFunc func(ctx context.Context, system, user string) (LLMResult, error)
-}
-
-func (m *mockLLMClient) Complete(ctx context.Context, system, user string) (LLMResult, error) {
-	if m.completeFunc != nil {
-		return m.completeFunc(ctx, system, user)
-	}
-	return LLMResult{Content: "mock narrative response", InputTokens: 50, OutputTokens: 20}, nil
-}
-
-func (m *mockLLMClient) CompleteJSON(ctx context.Context, system, user string) (LLMResult, error) {
-	if m.completeJSONFunc != nil {
-		return m.completeJSONFunc(ctx, system, user)
-	}
-	return LLMResult{Content: `{"reasoning":"mock structured reasoning"}`, InputTokens: 100, OutputTokens: 50}, nil
-}
 
 // ---------------------------------------------------------------------------
 // calibrationDecision — rule-based decision logic
@@ -393,74 +369,4 @@ func containsStr(s, substr string) bool {
 		}())
 }
 
-// ---------------------------------------------------------------------------
-// enrichCalibrationWithLLM — structured output path
-// ---------------------------------------------------------------------------
 
-// TestEnrichCalibrationWithLLM_StructuredJSON verifies that when CompleteJSON
-// returns a well-formed {"reasoning":"..."} object, the service uses that
-// reasoning and does NOT fall back to the formula-based text.
-func TestEnrichCalibrationWithLLM_StructuredJSON(t *testing.T) {
-	const wantReasoning = "Pivot is strongly indicated: OKR hit rate of 45% is well below threshold."
-	mock := &mockLLMClient{
-		completeJSONFunc: func(_ context.Context, _, _ string) (LLMResult, error) {
-			return LLMResult{Content: `{"reasoning":"` + wantReasoning + `"}`}, nil
-		},
-	}
-	svc := &Service{llm: mock}
-
-	got, err := svc.enrichCalibrationWithLLM(context.Background(), "pivot", map[string]any{
-		"decision": "pivot",
-	}, "fallback reasoning")
-	if err != nil {
-		t.Fatalf("enrichCalibrationWithLLM: %v", err)
-	}
-	if got != wantReasoning {
-		t.Errorf("reasoning=%q, want %q", got, wantReasoning)
-	}
-}
-
-// TestEnrichCalibrationWithLLM_FallsBackOnBadJSON verifies that when CompleteJSON
-// returns non-JSON or a missing "reasoning" field, the fallback reasoning is used.
-func TestEnrichCalibrationWithLLM_FallsBackOnBadJSON(t *testing.T) {
-	const fallback = "formula-based fallback reasoning"
-	for _, badResponse := range []string{
-		"this is not json",
-		`{"other_field":"something"}`,
-		`{}`,
-	} {
-		resp := badResponse
-		mock := &mockLLMClient{
-			completeJSONFunc: func(_ context.Context, _, _ string) (LLMResult, error) {
-				return LLMResult{Content: resp}, nil
-			},
-		}
-		svc := &Service{llm: mock}
-		got, err := svc.enrichCalibrationWithLLM(context.Background(), "persevere", nil, fallback)
-		if err != nil {
-			t.Fatalf("enrichCalibrationWithLLM(%q): %v", resp, err)
-		}
-		if got != fallback {
-			t.Errorf("response %q: reasoning=%q, want fallback %q", resp, got, fallback)
-		}
-	}
-}
-
-// TestEnrichCalibrationWithLLM_FallsBackOnError verifies that when CompleteJSON
-// returns an error, the fallback reasoning is used without propagating the error.
-func TestEnrichCalibrationWithLLM_FallsBackOnError(t *testing.T) {
-	const fallback = "formula reasoning"
-	mock := &mockLLMClient{
-		completeJSONFunc: func(_ context.Context, _, _ string) (LLMResult, error) {
-			return LLMResult{}, context.DeadlineExceeded
-		},
-	}
-	svc := &Service{llm: mock}
-	got, err := svc.enrichCalibrationWithLLM(context.Background(), "pivot", nil, fallback)
-	if err != nil {
-		t.Fatalf("expected nil error on LLM failure (graceful fallback), got: %v", err)
-	}
-	if got != fallback {
-		t.Errorf("reasoning=%q, want fallback %q", got, fallback)
-	}
-}

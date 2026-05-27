@@ -1,0 +1,227 @@
+package ui
+
+import "strconv"
+
+// ---------------------------------------------------------------------------
+// Cycle Runs listing — persistent AIM sub-nav page
+// ---------------------------------------------------------------------------
+
+// AimCycleRunsData is the view model for the cycle runs history page.
+type AimCycleRunsData struct {
+	InstanceID string
+	Runs       []AimCycleRunRow
+}
+
+// AimCycleRunRow is a summary row for a single orchestration run.
+type AimCycleRunRow struct {
+	RunID          string
+	InstanceID     string
+	Status         string // pending | running | awaiting_human | completed | aborted | failed
+	CurrentStep    string
+	TotalSteps     int
+	CompletedSteps int
+	TotalTokens    int
+	DurationSec    float64
+	ArtifactTypes  []string
+	LLMUsed        bool
+	CreatedAt      string // pre-formatted
+	Error          string
+
+	// High-level outcome metadata
+	CalibrationDecision string // persevere | pivot | pull_the_plug (from draft_calibration step)
+	OKRHitRatePct       float64
+	TracksChanged       int
+}
+
+// isActive returns true when the run is in a non-terminal state.
+func (r AimCycleRunRow) isActive() bool {
+	return r.Status == "pending" || r.Status == "running" || r.Status == "awaiting_human"
+}
+
+templ AimCycleRunsContent(data AimCycleRunsData) {
+	@TabRelatedPages("aim", data.InstanceID, "/strategies/"+data.InstanceID+"/aim/runs")
+	<div class="space-y-6">
+		// Header with Run cycle button
+		<div class="flex items-center justify-between">
+			<div>
+				<h2 class="text-xl font-bold text-base-content">Cycle Runs</h2>
+				<p class="text-sm text-base-content/60 mt-0.5">
+					History of orchestrated AIM cycle runs for this strategy.
+				</p>
+			</div>
+			@aimRunCycleButton(data)
+		</div>
+
+		if len(data.Runs) == 0 {
+			@aimRunsEmptyState(data)
+		} else {
+			<div class="space-y-3">
+				for _, run := range data.Runs {
+					@aimRunRow(run)
+				}
+			</div>
+		}
+	</div>
+}
+
+// aimRunCycleButton renders the Run cycle button, disabled when a cycle is active.
+templ aimRunCycleButton(data AimCycleRunsData) {
+	if aimRunsHasActive(data.Runs) {
+		<span class="tooltip" data-tip="A cycle is already running">
+			<button class="btn btn-sm btn-primary gap-2 btn-disabled" disabled>
+				<span class="iconify lucide--loader-2 size-3.5 animate-spin"></span>
+				Running...
+			</button>
+		</span>
+	} else {
+		<form method="POST" action={ templ.URL("/strategies/" + data.InstanceID + "/aim/runs") }>
+			<button type="submit" class="btn btn-sm btn-primary gap-2">
+				<span class="iconify lucide--play size-3.5"></span>
+				Run cycle
+			</button>
+		</form>
+	}
+}
+
+templ aimRunsEmptyState(data AimCycleRunsData) {
+	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card-body items-center text-center py-12">
+			<span class="iconify lucide--play-circle size-10 text-base-content/20 mb-3"></span>
+			<h3 class="text-base font-semibold text-base-content">No cycle runs yet</h3>
+			<p class="text-sm text-base-content/60 max-w-md mt-1">
+				AIM cycle runs execute the full Observe-Assess-Decide-Adapt loop.
+				Start your first cycle from the AIM overview or use the button above.
+			</p>
+		</div>
+	</div>
+}
+
+templ aimRunRow(run AimCycleRunRow) {
+	<a
+		href={ templ.URL("/strategies/" + run.InstanceID + "/aim/runs/" + run.RunID) }
+		hx-get={ "/strategies/" + run.InstanceID + "/aim/runs/" + run.RunID }
+		hx-target="#tab-content"
+		hx-swap="innerHTML"
+		hx-push-url="true"
+		class={ "block rounded-xl border px-5 py-4 transition-colors hover:bg-base-200/50 cursor-pointer group",
+			templ.KV("border-primary/30 bg-primary/5", run.isActive()),
+			templ.KV("border-base-content/10 bg-base-100 shadow-sm", !run.isActive()) }
+	>
+		<div class="flex items-center gap-4">
+			// Status icon
+			<div class={ "flex items-center justify-center size-9 rounded-full shrink-0", aimRunRowCircleClass(run.Status) }>
+				if run.Status == "completed" {
+					<span class="iconify lucide--check size-4"></span>
+				} else if run.Status == "failed" {
+					<span class="iconify lucide--x size-4"></span>
+				} else if run.Status == "aborted" {
+					<span class="iconify lucide--ban size-4"></span>
+				} else if run.Status == "running" {
+					<span class="iconify lucide--loader-2 size-4 animate-spin"></span>
+				} else if run.Status == "awaiting_human" {
+					<span class="iconify lucide--user-check size-4"></span>
+				} else {
+					<span class="iconify lucide--clock size-4"></span>
+				}
+			</div>
+
+			// Main content
+			<div class="grow min-w-0">
+				<div class="flex items-center gap-2 flex-wrap">
+					<p class="text-sm font-semibold text-base-content">
+						AIM Cycle
+					</p>
+					<span class={ "badge badge-sm", runStatusBadgeClass(run.Status) }>
+						{ runStatusLabel(run.Status) }
+					</span>
+					if run.isActive() && run.CurrentStep != "" {
+						<span class="text-xs text-base-content/50">
+							{ runStepLabel(run.CurrentStep) }
+						</span>
+					}
+					if run.CalibrationDecision != "" {
+						<span class={ "badge badge-xs", calibrationDecisionBadgeClass(run.CalibrationDecision) }>
+							{ calibrationDecisionLabel(run.CalibrationDecision) }
+						</span>
+					}
+					if run.LLMUsed {
+						<span class="badge badge-outline badge-xs gap-0.5 border-secondary/40 text-secondary">
+							<span class="iconify lucide--sparkles size-2.5"></span>
+							AI
+						</span>
+					}
+				</div>
+				// Summary line
+				<div class="flex items-center gap-3 mt-1 text-xs text-base-content/50 flex-wrap">
+					<span class="flex items-center gap-1">
+						<span class="iconify lucide--calendar size-3"></span>
+						{ run.CreatedAt }
+					</span>
+					if run.TotalSteps > 0 {
+						<span class="flex items-center gap-1">
+							<span class="iconify lucide--list-checks size-3"></span>
+							{ strconv.Itoa(run.CompletedSteps) }/{ strconv.Itoa(run.TotalSteps) } steps
+						</span>
+					}
+					if run.TotalTokens > 0 {
+						<span class="flex items-center gap-1">
+							<span class="iconify lucide--zap size-3"></span>
+							{ formatTokens(run.TotalTokens) } tokens
+						</span>
+					}
+					if run.DurationSec > 0 {
+						<span class="flex items-center gap-1">
+							<span class="iconify lucide--clock size-3"></span>
+							{ formatDuration(run.DurationSec) }
+						</span>
+					}
+					if len(run.ArtifactTypes) > 0 {
+						<span class="flex items-center gap-1">
+							<span class="iconify lucide--layers size-3"></span>
+							for i, at := range run.ArtifactTypes {
+								if i > 0 {
+									, 
+								}
+								{ artifactTypeLabel(at) }
+							}
+						</span>
+					}
+				</div>
+				if run.Status == "failed" && run.Error != "" {
+					<p class="text-xs text-error/70 mt-1 line-clamp-1">{ run.Error }</p>
+				}
+			</div>
+
+			// Arrow indicator
+			<span class="iconify lucide--chevron-right size-4 text-base-content/30 group-hover:text-primary shrink-0"></span>
+		</div>
+	</a>
+}
+
+// ── Style helpers ─────────────────────────────────────────────────────────────
+
+func aimRunRowCircleClass(status string) string {
+	switch status {
+	case "completed":
+		return "bg-success/10 text-success"
+	case "failed":
+		return "bg-error/10 text-error"
+	case "aborted":
+		return "bg-error/10 text-error"
+	case "running":
+		return "bg-primary/10 text-primary"
+	case "awaiting_human":
+		return "bg-warning/10 text-warning"
+	default:
+		return "bg-base-content/5 text-base-content/40"
+	}
+}
+
+func aimRunsHasActive(runs []AimCycleRunRow) bool {
+	for _, r := range runs {
+		if r.isActive() {
+			return true
+		}
+	}
+	return false
+}

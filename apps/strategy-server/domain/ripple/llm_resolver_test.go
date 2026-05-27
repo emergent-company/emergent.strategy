@@ -2,6 +2,7 @@ package ripple
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 )
 
@@ -132,6 +133,9 @@ func TestExtractJSON_Various(t *testing.T) {
 			}
 			if err := json.Unmarshal([]byte(tt.want), &wantObj); err != nil {
 				t.Fatalf("parse expected: %v", err)
+			}
+			if !reflect.DeepEqual(gotObj, wantObj) {
+				t.Errorf("extractJSON(%q) = %v, want %v", tt.input, gotObj, wantObj)
 			}
 		})
 	}

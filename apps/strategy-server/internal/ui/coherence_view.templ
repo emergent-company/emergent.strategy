@@ -138,9 +138,13 @@ templ CoherenceSignalCard(sig CoherenceSignal) {
 				<span class={ "iconify size-4 mt-0.5 shrink-0", signalSeverityIcon(sig.Severity), signalSeverityColor(sig.Severity) }></span>
 				<div class="grow min-w-0">
 					<div class="flex items-center gap-2 flex-wrap mb-1">
-						<span class={ "badge badge-xs", signalTypeBadgeClass(sig.SignalType) }>{ sig.SignalType }</span>
+						<span class="tooltip" data-tip={ signalTypeHint(sig.SignalType) }>
+							<span class={ "badge badge-xs", signalTypeBadgeClass(sig.SignalType) }>{ sig.SignalType }</span>
+						</span>
 						if sig.AuthorityTier != "" {
-							<span class={ "badge badge-xs", authorityTierBadge(sig.AuthorityTier) }>{ sig.AuthorityTier }</span>
+							<span class="tooltip" data-tip={ authorityTierHint(sig.AuthorityTier) }>
+								<span class={ "badge badge-xs", authorityTierBadge(sig.AuthorityTier) }>{ sig.AuthorityTier }</span>
+							</span>
 						}
 						if sig.CreatedAt != "" {
 							<span class="text-xs text-base-content/30 ml-auto">{ sig.CreatedAt }</span>
@@ -309,5 +313,37 @@ func authorityTierBadge(tier string) string {
 		return "badge-error badge-outline"
 	default:
 		return "badge-ghost"
+	}
+}
+
+func signalTypeHint(t string) string {
+	switch t {
+	case "drift":
+		return "Strategy element has drifted from its intended direction"
+	case "propagation":
+		return "A change in one artifact needs to propagate to related ones"
+	case "tension":
+		return "Conflicting goals or priorities detected between artifacts"
+	case "staleness":
+		return "Artifact has not been reviewed or updated recently"
+	case "clustering":
+		return "Multiple related signals indicate a systemic issue"
+	case "orphan":
+		return "Artifact is disconnected from the rest of the strategy"
+	default:
+		return t
+	}
+}
+
+func authorityTierHint(tier string) string {
+	switch tier {
+	case "autonomous":
+		return "Can be resolved automatically without human review"
+	case "gated":
+		return "Requires human approval before resolution"
+	case "escalated":
+		return "Requires senior review — significant strategic impact"
+	default:
+		return tier
 	}
 }

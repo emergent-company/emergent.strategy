@@ -8,7 +8,7 @@ track: commercial
 status: ready
 
 contributes_to:
-  - Commercial.Marketing Operations.ad-spend-optimization
+  - Commercial.Campaign Execution.ad-spend-optimization
 
 maturity:
   current_tier: 1

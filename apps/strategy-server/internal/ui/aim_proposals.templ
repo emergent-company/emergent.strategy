@@ -16,6 +16,7 @@ type AimProposalRow struct {
 	SignalCount     int
 	SnoozedUntil   *time.Time
 	ApprovedRunID  string // non-empty when approved
+	CycleActive    bool   // true when an AIM cycle is already running for this instance
 	CreatedAt      time.Time
 }
 
@@ -162,21 +163,28 @@ templ AimProposalCard(p AimProposalRow, instanceID string) {
 				</div>
 			}
 
-			// Action row — only for pending proposals
+			// Action row — pending proposals get approve/defer, resolved get dismiss
 			if p.Status == "pending" {
 				<div class="flex items-center gap-2 pt-3 border-t border-base-content/5">
-					// Approve → starts AIM cycle immediately
-					<button
-						hx-post={ "/strategies/" + instanceID + "/aim/proposals/" + p.ID + "/approve" }
-						hx-target={ "#proposal-" + p.ID }
-						hx-swap="outerHTML"
-						class="btn btn-sm btn-primary gap-2"
-					>
-						<span class="iconify lucide--play size-3.5"></span>
-						Approve &amp; start cycle
-					</button>
+					if p.CycleActive {
+						// Cycle already running — disable approve, show explanation
+						<span class="text-xs text-base-content/40 italic">
+							A cycle is already running — approve when it completes.
+						</span>
+					} else {
+						// Approve → starts AIM cycle immediately
+						<button
+							hx-post={ "/strategies/" + instanceID + "/aim/proposals/" + p.ID + "/approve" }
+							hx-target={ "#proposal-" + p.ID }
+							hx-swap="outerHTML"
+							class="btn btn-sm btn-primary gap-2"
+						>
+							<span class="iconify lucide--play size-3.5"></span>
+							Approve &amp; start cycle
+						</button>
+					}
 
-					// Defer options dropdown
+					// Defer options dropdown (always available)
 					<div class="dropdown dropdown-end">
 						<div tabindex="0" role="button" class="btn btn-sm btn-ghost gap-2">
 							<span class="iconify lucide--clock size-3.5"></span>
@@ -210,6 +218,20 @@ templ AimProposalCard(p AimProposalRow, instanceID string) {
 							</li>
 						</ul>
 					</div>
+				</div>
+			} else {
+				// Dismiss action for resolved proposals (approved, deferred, expired)
+				<div class="flex items-center gap-2 pt-3 border-t border-base-content/5">
+					<button
+						hx-post={ "/strategies/" + instanceID + "/aim/proposals/" + p.ID + "/dismiss" }
+						hx-target={ "#proposal-" + p.ID }
+						hx-swap="outerHTML"
+						hx-confirm="Dismiss this proposal? It will be hidden from the inbox."
+						class="btn btn-xs btn-ghost text-base-content/40 gap-1.5"
+					>
+						<span class="iconify lucide--x size-3"></span>
+						Dismiss
+					</button>
 				</div>
 			}
 		</div>

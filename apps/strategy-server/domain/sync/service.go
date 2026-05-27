@@ -1,6 +1,24 @@
 // Package sync provides domain logic for syncing strategy artifacts to external
 // repositories. It uses a RepoWriter interface to decouple from infrastructure
 // (GitHub client lives in internal/github/).
+//
+// # GitHub Auth Model
+//
+// This package uses TWO different auth mechanisms. See docs/GITHUB_AUTH_MODEL.md
+// for the full reference. Summary:
+//
+//   - GitHub App installation token (via RepoWriter/RepoReader): used for all
+//     server-initiated operations — AIM auto-push, MCP tool calls. Requires the
+//     App to be installed on the target org by an admin.
+//
+//   - User OAuth token (ghu_...): stored in users.github_access_token. Used by
+//     the web UI connect flow (ScanUserRepos). Allows users to browse/import/push
+//     to any repo they have access to, across all their orgs, without any App
+//     installation. NOT available to background jobs — user must be present.
+//
+// IMPORTANT: Never use App installation tokens for user-facing repo discovery.
+// Never use user OAuth tokens for background/server-initiated operations.
+// The split is intentional and matches GitHub's security model.
 package sync
 
 import (
@@ -9,6 +27,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	gosync "sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -48,12 +67,25 @@ type PRResult struct {
 	URL    string
 }
 
+// InstanceReimporter is satisfied by instance.Service.ReimportArtifacts.
+// Declared here to avoid an import cycle (instance → sync would be circular).
+type InstanceReimporter interface {
+	ReimportArtifacts(ctx context.Context, id uuid.UUID, payloads map[string]any) error
+}
+
 // Service manages strategy-to-GitHub sync operations.
 type Service struct {
 	db          *bun.DB
 	strategySvc *strategy.Service
 	versionSvc  *versiondom.Service
 	writer      RepoWriter // nil when GitHub App is not configured
+	reader      RepoReader // nil when GitHub App is not configured
+	instSvc     InstanceReimporter
+
+	// scanCacheStore holds in-memory EPF repo scan results (5-minute TTL, keyed by github_owner).
+	// Lazily initialised on first use via getScanCache().
+	scanCacheStore *scanCache
+	scanCacheMu    gosync.Mutex
 }
 
 // NewService creates a new sync Service.
@@ -64,6 +96,16 @@ func NewService(db *bun.DB, strategySvc *strategy.Service, versionSvc *versiondo
 		versionSvc:  versionSvc,
 		writer:      writer,
 	}
+}
+
+// WithReader sets the RepoReader (GitHub read client).
+func (s *Service) WithReader(reader RepoReader) {
+	s.reader = reader
+}
+
+// WithInstanceReimporter sets the instance service for reimporting artifacts.
+func (s *Service) WithInstanceReimporter(svc InstanceReimporter) {
+	s.instSvc = svc
 }
 
 // IsConfigured returns true when a RepoWriter is available.
@@ -239,6 +281,204 @@ func (s *Service) SyncToGithub(ctx context.Context, p SyncParams) (*SyncResult, 
 		ArtifactCount: artifactCount,
 		Status:        domain.SyncStatusPRCreated,
 	}, nil
+}
+
+// SyncAfterAIMCycle is called asynchronously after an AIM cycle publishes a version.
+// It creates a sync PR with context about the AIM cycle. Failures are logged and
+// recorded in the sync log — they never propagate back to the caller (the AIM cycle).
+// This satisfies the aim.GitHubSyncer interface.
+func (s *Service) SyncAfterAIMCycle(ctx context.Context, instanceID uuid.UUID, cycleNumber int, decision string, versionID uuid.UUID) {
+	if s.writer == nil {
+		return
+	}
+
+	slog.InfoContext(ctx, "aim auto-push: starting", "instance_id", instanceID, "cycle", cycleNumber)
+
+	inst, err := s.loadInstance(ctx, instanceID)
+	if err != nil || inst.GithubRepo == nil || *inst.GithubRepo == "" {
+		slog.InfoContext(ctx, "aim auto-push: skipped (no github_repo)", "instance_id", instanceID)
+		return
+	}
+
+	// Build a descriptive AIM cycle PR.
+	cycleSuffix := decisionBranchSuffix(decision)
+	sanitized := sanitizeInstanceName(inst.Name)
+	branchName := fmt.Sprintf("strategy-sync/%s/aim-cycle-%d-%s", sanitized, cycleNumber, cycleSuffix)
+
+	// Determine base branch: respect github_branch if set (long-lived dev branch support).
+	owner, repo, err := parseRepoSlug(*inst.GithubRepo)
+	if err != nil {
+		slog.WarnContext(ctx, "aim auto-push: invalid repo slug", "repo", *inst.GithubRepo, "err", err)
+		return
+	}
+
+	token, err := s.writer.GetInstallationToken(ctx, owner)
+	if err != nil {
+		slog.WarnContext(ctx, "aim auto-push: failed to get token", "err", err)
+		s.recordSyncFailure(ctx, instanceID, *inst.GithubRepo, branchName, versionID, cycleNumber, fmt.Sprintf("get token: %v", err))
+		return
+	}
+
+	baseBranch := ""
+	if inst.GithubBranch != nil && *inst.GithubBranch != "" {
+		baseBranch = *inst.GithubBranch
+	} else {
+		baseBranch, err = s.writer.GetDefaultBranch(ctx, token, owner, repo)
+		if err != nil {
+			slog.WarnContext(ctx, "aim auto-push: failed to get default branch", "err", err)
+			s.recordSyncFailure(ctx, instanceID, *inst.GithubRepo, branchName, versionID, cycleNumber, fmt.Sprintf("get default branch: %v", err))
+			return
+		}
+	}
+
+	exportResult, err := s.strategySvc.ExportInstance(ctx, instanceID)
+	if err != nil {
+		slog.WarnContext(ctx, "aim auto-push: export failed", "err", err)
+		s.recordSyncFailure(ctx, instanceID, *inst.GithubRepo, branchName, versionID, cycleNumber, fmt.Sprintf("export: %v", err))
+		return
+	}
+	files := exportEntriesToFiles(exportResult, inst.GithubBasePath)
+
+	if len(files) == 0 {
+		slog.InfoContext(ctx, "aim auto-push: no artifacts to push", "instance_id", instanceID)
+		return
+	}
+
+	if err := s.writer.CreateBranch(ctx, token, owner, repo, baseBranch, branchName); err != nil {
+		slog.WarnContext(ctx, "aim auto-push: create branch failed", "err", err)
+		s.recordSyncFailure(ctx, instanceID, *inst.GithubRepo, branchName, versionID, cycleNumber, fmt.Sprintf("create branch: %v", err))
+		return
+	}
+
+	commitMsg := fmt.Sprintf("strategy-sync: AIM cycle %d — %s (%s)", cycleNumber, calibrationDecisionLabel(decision), inst.Name)
+	if err := s.writer.CommitFiles(ctx, token, owner, repo, branchName, files, commitMsg); err != nil {
+		slog.WarnContext(ctx, "aim auto-push: commit failed", "err", err)
+		s.recordSyncFailure(ctx, instanceID, *inst.GithubRepo, branchName, versionID, cycleNumber, fmt.Sprintf("commit: %v", err))
+		return
+	}
+
+	prTitle := fmt.Sprintf("Strategy sync: AIM cycle %d — %s (%s)", cycleNumber, calibrationDecisionLabel(decision), inst.Name)
+	prBody := generateAIMPRBody(inst.Name, cycleNumber, decision, versionID, exportResult.ArtifactCount)
+
+	prResult, err := s.writer.CreatePullRequest(ctx, token, owner, repo, branchName, baseBranch, prTitle, prBody)
+	if err != nil {
+		slog.WarnContext(ctx, "aim auto-push: PR creation failed", "err", err)
+		s.recordSyncFailure(ctx, instanceID, *inst.GithubRepo, branchName, versionID, cycleNumber, fmt.Sprintf("create PR: %v", err))
+		return
+	}
+
+	// Record success.
+	actorID := (*uuid.UUID)(nil)
+	logEntry := &domain.GithubSyncLog{
+		ID:            uuid.New(),
+		InstanceID:    instanceID,
+		VersionID:     &versionID,
+		GithubRepo:    *inst.GithubRepo,
+		BranchName:    branchName,
+		PRNumber:      &prResult.Number,
+		PRUrl:         &prResult.URL,
+		Status:        domain.SyncStatusPRCreated,
+		Direction:     domain.SyncDirectionExport,
+		Source:        domain.SyncSourceAIMCycle,
+		ArtifactCount: exportResult.ArtifactCount,
+		CreatedBy:     actorID,
+	}
+	if _, logErr := s.db.NewInsert().Model(logEntry).Exec(ctx); logErr != nil {
+		slog.WarnContext(ctx, "aim auto-push: failed to record sync log", "err", logErr)
+	}
+
+	slog.InfoContext(ctx, "aim auto-push: complete",
+		"instance_id", instanceID, "cycle", cycleNumber,
+		"pr_url", prResult.URL, "artifacts", exportResult.ArtifactCount)
+}
+
+// recordSyncFailure logs an AIM auto-push failure in the sync log.
+func (s *Service) recordSyncFailure(ctx context.Context, instanceID uuid.UUID, githubRepo, branchName string, versionID uuid.UUID, cycleNumber int, errMsg string) {
+	errDetail := fmt.Sprintf("aim cycle %d: %s", cycleNumber, errMsg)
+	logEntry := &domain.GithubSyncLog{
+		ID:            uuid.New(),
+		InstanceID:    instanceID,
+		VersionID:     &versionID,
+		GithubRepo:    githubRepo,
+		BranchName:    branchName,
+		Status:        domain.SyncStatusFailed,
+		Direction:     domain.SyncDirectionExport,
+		Source:        domain.SyncSourceAIMCycle,
+		ArtifactCount: 0,
+		ErrorMessage:  &errDetail,
+	}
+	if _, logErr := s.db.NewInsert().Model(logEntry).Exec(ctx); logErr != nil {
+		slog.ErrorContext(ctx, "aim auto-push: failed to record failure in sync log", "err", logErr)
+	}
+}
+
+// decisionBranchSuffix returns a short lowercase suffix for the calibration decision.
+func decisionBranchSuffix(decision string) string {
+	switch decision {
+	case "persevere":
+		return "persevere"
+	case "pivot":
+		return "pivot"
+	case "pull_the_plug":
+		return "retire"
+	default:
+		if decision != "" {
+			return decision
+		}
+		return "cycle"
+	}
+}
+
+// calibrationDecisionLabel returns a human-readable label for a calibration decision.
+// Duplicated from aim package to avoid a circular import.
+func calibrationDecisionLabel(decision string) string {
+	switch decision {
+	case "persevere":
+		return "Persevere"
+	case "pivot":
+		return "Pivot"
+	case "pull_the_plug":
+		return "Pull the Plug"
+	default:
+		return decision
+	}
+}
+
+// sanitizeInstanceName makes an instance name safe for use in a branch name.
+func sanitizeInstanceName(name string) string {
+	return generateBranchSegment(name)
+}
+
+func generateBranchSegment(name string) string {
+	name = strings.ToLower(name)
+	name = strings.ReplaceAll(name, " ", "-")
+	result := strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+			return r
+		}
+		return -1
+	}, name)
+	if result == "" {
+		result = "instance"
+	}
+	if len(result) > 40 {
+		result = result[:40]
+	}
+	return result
+}
+
+func generateAIMPRBody(instanceName string, cycleNumber int, decision string, versionID uuid.UUID, artifactCount int) string {
+	var sb strings.Builder
+	sb.WriteString("## AIM Cycle Strategy Sync\n\n")
+	fmt.Fprintf(&sb, "**Instance:** %s\n", instanceName)
+	fmt.Fprintf(&sb, "**Cycle:** %d\n", cycleNumber)
+	fmt.Fprintf(&sb, "**Calibration decision:** %s\n", calibrationDecisionLabel(decision))
+	fmt.Fprintf(&sb, "**Artifacts:** %d files\n\n", artifactCount)
+	fmt.Fprintf(&sb, "Version ID: `%s`\n\n", versionID.String())
+	sb.WriteString("---\n\n")
+	sb.WriteString("This PR was automatically created by Emergent Strategy after an AIM cycle completed.\n")
+	sb.WriteString("Review the strategy updates and merge when ready.\n")
+	return sb.String()
 }
 
 // GetSyncHistory returns the sync log for an instance.

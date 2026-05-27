@@ -40,7 +40,7 @@ func (b *Backend) SetPublisher(pub Publisher) {
 	b.pool.setPublisher(pub)
 }
 
-// Start marks stale runs as failed (server restart) and launches workers.
+// Start marks stale runs as failed, recovers awaiting_human runs, and launches workers.
 func (b *Backend) Start(ctx context.Context, registry map[string]orchestration.Workflow) error {
 	n, err := b.store.markStaleFailed(ctx)
 	if err != nil {
@@ -53,6 +53,19 @@ func (b *Backend) Start(ctx context.Context, registry map[string]orchestration.W
 	}
 	b.pool.setRegistry(registry)
 	b.pool.start()
+
+	// Recover awaiting_human runs — these survive restarts because their
+	// state is fully persisted. Re-register resume channels and enqueue
+	// them so workers block on waitForResume until a batch commit/discard.
+	awaitingIDs, err := b.store.listAwaitingHuman(ctx)
+	if err != nil {
+		slog.WarnContext(ctx, "orchestration: failed to list awaiting_human runs for recovery", "err", err)
+	} else if len(awaitingIDs) > 0 {
+		b.pool.recoverAwaiting(awaitingIDs)
+		slog.InfoContext(ctx, "orchestration: recovered awaiting_human runs after restart",
+			"count", len(awaitingIDs),
+		)
+	}
 	return nil
 }
 
@@ -95,4 +108,14 @@ func (b *Backend) ActiveRun(ctx context.Context, workflowName, concurrencyKey st
 // Used by the batch commit/discard handler to identify which run to resume.
 func (b *Backend) FindRunByBatch(ctx context.Context, batchID string) (*orchestration.Run, error) {
 	return b.store.findAwaitingRunByBatch(ctx, batchID)
+}
+
+// Abort requests graceful cancellation of an active run.
+func (b *Backend) Abort(ctx context.Context, runID uuid.UUID) error {
+	return b.pool.abort(ctx, runID)
+}
+
+// Retry resets a failed run and re-enqueues it for execution.
+func (b *Backend) Retry(ctx context.Context, runID uuid.UUID) error {
+	return b.pool.retry(ctx, runID)
 }

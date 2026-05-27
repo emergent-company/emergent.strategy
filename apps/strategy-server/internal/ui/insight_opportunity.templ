@@ -95,7 +95,7 @@ templ opportunityHero(data InsightOpportunityData) {
 							@artifactStatusBadge(data.Status)
 						}
 						if data.ConfidenceLevel != "" {
-							<span class={ "badge badge-sm", confidenceBadgeClass(data.ConfidenceLevel) }>{ data.ConfidenceLevel } confidence</span>
+							<span class="tooltip" data-tip={ confidenceHint(data.ConfidenceLevel) }><span class={ "badge badge-sm", confidenceBadgeClass(data.ConfidenceLevel) }>{ data.ConfidenceLevel } confidence</span></span>
 						}
 					</div>
 					<h1 class="text-2xl font-bold text-base-content sm:text-3xl">{ data.Title }</h1>

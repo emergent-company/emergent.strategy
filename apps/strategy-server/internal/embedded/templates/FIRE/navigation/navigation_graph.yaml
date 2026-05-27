@@ -1,0 +1,101 @@
+# Navigation Graph — User Journey Topology
+#
+# This artifact defines the strategic topology of the product's interaction
+# surface. It models where users can be (contexts) and how they move between
+# those places (transitions), gated by preconditions (guards).
+#
+# The graph is medium-agnostic: a context can manifest as a web page, CLI view,
+# mobile screen, modal, or any other interaction surface. The graph defines
+# the strategic structure; implementations deliver against it.
+#
+# Phase: FIRE (Execution)
+# Validated against: navigation_graph_schema.json
+
+name: product-navigation
+title: "Product Navigation Graph"
+description: |
+  Defines the intended user journey topology for [product name].
+  This graph represents the desired end state — what the product's
+  interaction surface should look like when fully delivered.
+
+entry_context: dashboard
+
+# --- Contexts: Where users can be ---
+
+contexts:
+  - id: dashboard
+    title: "Dashboard"
+    description: "Primary landing context. Overview of key metrics and recent activity."
+    mode: landing
+    group: main
+    category: operations
+    data_requirements:
+      - type: metrics
+        qualifier: summary
+      - type: activity
+        qualifier: recent
+
+  - id: settings
+    title: "Settings"
+    description: "Product configuration and preferences."
+    mode: default
+    group: admin
+    category: setup
+
+  # Add more contexts as needed.
+  # Each context should represent a meaningful place where
+  # the user accomplishes something specific.
+
+# --- Transitions: How users move ---
+
+transitions:
+  - id: dashboard-to-settings
+    from: dashboard
+    to: settings
+    label: "Open settings"
+    category: navigation
+
+  - id: settings-to-dashboard
+    from: settings
+    to: dashboard
+    label: "Return to dashboard"
+    category: back
+
+  # Add transitions for every intended path between contexts.
+  # Include guards for transitions that require preconditions.
+
+# --- Guards: Access preconditions ---
+
+guards:
+  # - id: admin-role
+  #   description: "User must have administrator privileges"
+  #   type: role
+  #   message: "This area is restricted to administrators."
+  #   fallback: dashboard
+
+  # - id: premium-tier
+  #   description: "Requires a paid subscription"
+  #   type: tier
+  #   message: "Upgrade to a paid plan to access this feature."
+  #   guard_group: premium-features
+
+# --- Groups: Logical sections ---
+
+groups:
+  - id: main
+    title: "Main"
+    order: 0
+
+  - id: admin
+    title: "Administration"
+    order: 10
+
+# --- Menus: Context-specific actions (optional) ---
+
+# menus:
+#   - context: dashboard
+#     title: "Quick Actions"
+#     items:
+#       - transition_id: dashboard-to-settings
+#         label: "Settings"
+#         description: "Configure product settings"

@@ -78,11 +78,20 @@ type Config struct {
 	// GitHub App (for repo sync / write-back)
 	GithubAppID             int64  `arg:"env:GITHUB_APP_ID" help:"GitHub App ID for repo sync"`
 	GithubAppPrivateKeyPath string `arg:"env:GITHUB_APP_PRIVATE_KEY_PATH" help:"Path to GitHub App PEM private key file"`
+	GithubAppPrivateKey     string `arg:"env:GITHUB_APP_PRIVATE_KEY" help:"GitHub App PEM private key content (inline, alternative to GITHUB_APP_PRIVATE_KEY_PATH)"`
+	GithubAppSlug           string `arg:"env:GITHUB_APP_SLUG" help:"GitHub App slug (public name, e.g. 'emergent-strategy-app') — used to generate the installation URL"`
 
-	// GitHub OAuth (deprecated — kept for migration period)
-	GithubClientID     string `arg:"env:EPF_OAUTH_CLIENT_ID" help:"GitHub OAuth App client ID (deprecated)"`
-	GithubClientSecret string `arg:"env:EPF_OAUTH_CLIENT_SECRET" help:"GitHub OAuth App client secret (deprecated)"`
-	SessionSecret      string `arg:"env:EPF_SESSION_SECRET" help:"Session signing secret (deprecated)"`
+	// GitHub OAuth App (for user-scoped installation discovery in connect flow)
+	// Primary env vars: GITHUB_OAUTH_CLIENT_ID / GITHUB_OAUTH_CLIENT_SECRET
+	// Legacy aliases: EPF_OAUTH_CLIENT_ID / EPF_OAUTH_CLIENT_SECRET (kept for backward compat)
+	GithubOAuthClientID     string `arg:"env:GITHUB_OAUTH_CLIENT_ID" help:"GitHub OAuth App client ID for user-scoped installation discovery"`
+	GithubOAuthClientSecret string `arg:"env:GITHUB_OAUTH_CLIENT_SECRET" help:"GitHub OAuth App client secret"`
+	GithubOAuthStateSecret  string `arg:"env:GITHUB_OAUTH_STATE_SECRET" help:"HMAC secret for OAuth state cookie signing (falls back to EPF_SESSION_SECRET)"`
+
+	// Legacy OAuth fields — kept for backward compat, fall back when new vars not set
+	GithubClientID     string `arg:"env:EPF_OAUTH_CLIENT_ID" help:"GitHub OAuth App client ID (legacy — use GITHUB_OAUTH_CLIENT_ID)"`
+	GithubClientSecret string `arg:"env:EPF_OAUTH_CLIENT_SECRET" help:"GitHub OAuth App client secret (legacy — use GITHUB_OAUTH_CLIENT_SECRET)"`
+	SessionSecret      string `arg:"env:EPF_SESSION_SECRET" help:"Session signing secret (legacy)"`
 
 	// emergent.memory (semantic graph)
 	MemoryURL      string `arg:"env:EPF_MEMORY_URL" default:"http://localhost:3002" help:"emergent.memory base URL"`
@@ -141,5 +150,51 @@ func (c *Config) ZitadelConfigured() bool {
 
 // GithubAppConfigured returns true when GitHub App settings are provided.
 func (c *Config) GithubAppConfigured() bool {
-	return c.GithubAppID != 0 && c.GithubAppPrivateKeyPath != ""
+	return c.GithubAppID != 0 && (c.GithubAppPrivateKeyPath != "" || c.GithubAppPrivateKey != "")
 }
+
+// GithubAppInstallURL returns the GitHub App installation URL when the slug is configured.
+// Returns empty string when GITHUB_APP_SLUG is not set.
+func (c *Config) GithubAppInstallURL() string {
+	if c.GithubAppSlug == "" {
+		return ""
+	}
+	return fmt.Sprintf("https://github.com/apps/%s/installations/new", c.GithubAppSlug)
+}
+
+// GithubOAuthConfigured returns true when GitHub OAuth App credentials are available.
+// Checks new env vars first, falls back to legacy EPF_OAUTH_CLIENT_ID.
+func (c *Config) GithubOAuthConfigured() bool {
+	return c.effectiveOAuthClientID() != "" && c.effectiveOAuthClientSecret() != ""
+}
+
+// effectiveOAuthClientID returns the OAuth client ID, preferring new vars over legacy.
+func (c *Config) effectiveOAuthClientID() string {
+	if c.GithubOAuthClientID != "" {
+		return c.GithubOAuthClientID
+	}
+	return c.GithubClientID
+}
+
+// effectiveOAuthClientSecret returns the OAuth client secret, preferring new vars over legacy.
+func (c *Config) effectiveOAuthClientSecret() string {
+	if c.GithubOAuthClientSecret != "" {
+		return c.GithubOAuthClientSecret
+	}
+	return c.GithubClientSecret
+}
+
+// effectiveOAuthStateSecret returns the state HMAC secret.
+// Falls back to EPF_SESSION_SECRET if GITHUB_OAUTH_STATE_SECRET is not set.
+func (c *Config) EffectiveOAuthStateSecret() string {
+	if c.GithubOAuthStateSecret != "" {
+		return c.GithubOAuthStateSecret
+	}
+	return c.SessionSecret
+}
+
+// GithubOAuthClientID returns the effective OAuth App client ID.
+func (c *Config) EffectiveOAuthClientID() string { return c.effectiveOAuthClientID() }
+
+// EffectiveOAuthClientSecret returns the effective OAuth App client secret.
+func (c *Config) EffectiveOAuthClientSecret() string { return c.effectiveOAuthClientSecret() }

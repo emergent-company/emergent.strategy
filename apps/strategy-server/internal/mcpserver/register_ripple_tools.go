@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"runtime/debug"
 
 	"github.com/google/uuid"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -709,6 +710,16 @@ func enqueueFoundationDraft(ctx context.Context, svc Services, instanceID uuid.U
 
 	// Launch async — commit_batch must return immediately.
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("ripple: recovered panic in adapt-foundations goroutine",
+					"instance_id", instanceID,
+					"panic", fmt.Sprintf("%v", r),
+					"stack", string(debug.Stack()),
+				)
+			}
+		}()
+
 		// Use a background context so the HTTP request context cancellation
 		// doesn't abort the skill run mid-chunk.
 		bgCtx := context.Background()

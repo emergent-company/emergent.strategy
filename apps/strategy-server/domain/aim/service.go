@@ -20,23 +20,6 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
 
-// LLMResult carries the LLM response content together with token usage metrics.
-type LLMResult struct {
-	Content      string `json:"content"`
-	InputTokens  int    `json:"input_tokens"`
-	OutputTokens int    `json:"output_tokens"`
-}
-
-// LLMClient is the interface for calling an LLM to generate narrative content.
-// When nil, the service operates in skeleton mode (structure without narrative).
-type LLMClient interface {
-	// Complete calls the LLM and returns the response as plain text.
-	Complete(ctx context.Context, systemPrompt, userPrompt string) (LLMResult, error)
-	// CompleteJSON calls the LLM with json_object response_format and returns
-	// the raw JSON string. The caller is responsible for unmarshaling.
-	CompleteJSON(ctx context.Context, systemPrompt, userPrompt string) (LLMResult, error)
-}
-
 // TriggerState reports whether a new AIM cycle assessment is due.
 type TriggerState struct {
 	Fired             bool
@@ -103,23 +86,54 @@ func defaultTriggerConfig() TriggerConfig {
 	}
 }
 
+// SkillRunner is the minimal interface the Service needs to delegate writing
+// to the skill executor. Satisfied by *skillexec.Executor.
+type SkillRunner interface {
+	RunChunked(ctx context.Context, instanceID uuid.UUID, skillName string, params map[string]any) (SkillRunResult, error)
+}
+
+// SkillRunResult mirrors the fields of skillexec.SkillResult that the service needs.
+type SkillRunResult struct {
+	BatchID          uuid.UUID
+	ArtifactTypes    []string
+	LLMUsed          bool
+	ValidationPassed bool
+	InputTokens      int
+	OutputTokens     int
+}
+
 // Service implements the AIM agent loop.
 type Service struct {
 	db         *bun.DB
-	llm        LLMClient        // optional — nil = skeleton mode
+	executor   SkillRunner      // optional — nil = error on DraftAssessment/DraftCalibration
 	versionPub VersionPublisher // optional — nil = snapshot is no-op
+	ghSyncer   GitHubSyncer     // optional — nil = no auto-push after cycle
 }
 
 // NewService creates a new AIM service.
-// Pass nil for llm to operate in skeleton mode (structure without narrative).
-func NewService(db *bun.DB, llm LLMClient) *Service {
-	return &Service{db: db, llm: llm}
+func NewService(db *bun.DB) *Service {
+	return &Service{db: db}
 }
 
 // WithVersionPublisher wires the version publisher so SnapshotCycle can publish
 // AIM cycle versions. Must be called after NewService if cycle snapshots are needed.
 func (s *Service) WithVersionPublisher(vp VersionPublisher) *Service {
 	s.versionPub = vp
+	return s
+}
+
+// WithSkillRunner wires the skill executor so DraftAssessment and DraftCalibration
+// route through canonical skills with full run tracking. When set, the legacy
+// inline LLM path is bypassed.
+func (s *Service) WithSkillRunner(sr SkillRunner) *Service {
+	s.executor = sr
+	return s
+}
+
+// WithGitHubSyncer wires the sync service to auto-push strategy to GitHub
+// after each AIM cycle snapshot. Failures are logged but never block the cycle.
+func (s *Service) WithGitHubSyncer(gs GitHubSyncer) *Service {
+	s.ghSyncer = gs
 	return s
 }
 
@@ -260,29 +274,54 @@ func (s *Service) loadTriggerConfig(ctx context.Context, instanceID uuid.UUID) T
 // DraftAssessment
 // ---------------------------------------------------------------------------
 
-// DraftAssessment assembles a new assessment_report draft using:
-//  1. The roadmap OKRs and KR targets (structure)
-//  2. The last committed assessment report (prior actuals + assumption statuses)
-//  3. The LRA evolution log (narrative of what happened since the last cycle)
-//  4. Active ripple signals (system-detected misalignments)
-//  5. Unprocessed evidence items (Door 2 structured evidence + Door 1 metadata)
-//
-// If an LLM is configured, it enriches each OKR assessment using the above as
-// evidence. Otherwise it produces a skeleton with prior actuals carried forward.
+// DraftAssessment assembles a new assessment_report draft via the canonical
+// draft-assessment skill. Requires a SkillRunner (wired via WithSkillRunner).
 func (s *Service) DraftAssessment(ctx context.Context, instanceID uuid.UUID) (uuid.UUID, DraftSummary, error) {
-	// 1. Load roadmap_recipe payload (required — defines OKR structure).
-	roadmapPayload, err := s.loadArtifactPayload(ctx, instanceID, domain.ArtifactTypeRoadmap)
-	if err != nil {
-		return uuid.Nil, DraftSummary{}, apperror.ErrBadRequest.WithDetail("No roadmap found for instance")
+	if s.executor == nil {
+		return uuid.Nil, DraftSummary{}, fmt.Errorf("skill executor not configured — cannot draft assessment")
 	}
 
-	// 2. Load the last committed assessment report (optional — provides prior actuals).
+	params, err := s.AssembleAssessmentParams(ctx, instanceID)
+	if err != nil {
+		return uuid.Nil, DraftSummary{}, fmt.Errorf("assemble assessment params: %w", err)
+	}
+
+	result, err := s.executor.RunChunked(ctx, instanceID, "draft-assessment", params)
+	if err != nil {
+		return uuid.Nil, DraftSummary{}, fmt.Errorf("draft-assessment skill: %w", err)
+	}
+
+	okrSkeleton, _ := params["okr_skeleton"].([]map[string]any)
+	assumptionValidations, _ := params["assumption_validations"].([]map[string]any)
+	evidenceSummary, _ := params["evidence_summary"].([]map[string]any)
+
+	return result.BatchID, DraftSummary{
+		OKRCount:        len(okrSkeleton),
+		AssumptionCount: len(assumptionValidations),
+		EvidenceCount:   len(evidenceSummary),
+		LLMUsed:         result.LLMUsed,
+		InputTokens:     result.InputTokens,
+		OutputTokens:    result.OutputTokens,
+	}, nil
+}
+
+// AssembleAssessmentParams computes the deterministic context data needed by the
+// draft-assessment skill. The returned map is passed as skill parameters so the
+// prompt template can reference {{.Params.okr_skeleton}}, {{.Params.strategic_context}}, etc.
+func (s *Service) AssembleAssessmentParams(ctx context.Context, instanceID uuid.UUID) (map[string]any, error) {
+	// 1. Load roadmap (required — defines OKR structure).
+	roadmapPayload, err := s.loadArtifactPayload(ctx, instanceID, domain.ArtifactTypeRoadmap)
+	if err != nil {
+		return nil, apperror.ErrBadRequest.WithDetail("No roadmap found for instance")
+	}
+
+	// 2. Load prior assessment (optional — provides prior actuals).
 	priorAssessment, _ := s.loadArtifactPayload(ctx, instanceID, domain.ArtifactTypeAssessmentReport)
 
-	// 3. Load the LRA (optional — evolution log carries narrative progress).
+	// 3. Load LRA (optional — evolution log carries narrative progress).
 	lraPayload, _ := s.loadArtifactPayload(ctx, instanceID, domain.ArtifactTypeLRA)
 
-	// 4. Extract OKR skeleton from roadmap, seeded with prior actuals where available.
+	// 4. Extract OKR skeleton, seeded with prior actuals.
 	okrAssessments := s.extractOKRAssessments(ctx, instanceID, roadmapPayload)
 	if priorAssessment != nil {
 		seedFromPriorAssessment(okrAssessments, priorAssessment)
@@ -297,56 +336,65 @@ func (s *Service) DraftAssessment(ctx context.Context, instanceID uuid.UUID) (uu
 	// 6. Extract strategic insights from active critical ripple signals.
 	strategicInsights := s.extractStrategicInsights(ctx, instanceID)
 
-	// 6.5. Load unprocessed evidence items — both Door 2 (strategy_artifacts type=evidence)
-	// and Door 1 (ReferenceDocument metadata from memory). Evidence is included in the
-	// report as evidence_summary for human review and LLM context.
+	// 7. Load unprocessed evidence.
 	evidenceSummary := s.loadUnprocessedEvidenceSummary(ctx, instanceID)
 
-	// 7. Build the assessment_report payload.
-	report := map[string]any{
-		"name":                   "AI-Drafted Assessment Report",
-		"cycle":                  extractStringField(roadmapPayload, "roadmap.cycle"),
-		"okr_assessments":        okrAssessments,
-		"assumption_validations": assumptionValidations,
-		"strategic_insights":     strategicInsights,
-		"overall_status":         "pending",
-		"metadata": map[string]any{
-			"drafted_by":     "aim_agent",
-			"drafted_at":     time.Now().UTC().Format(time.RFC3339),
-			"llm_used":       false,
-			"instance_id":    instanceID.String(),
-			"evidence_count": len(evidenceSummary),
-		},
-	}
-	if len(evidenceSummary) > 0 {
-		report["evidence_summary"] = evidenceSummary
+	// 8. Build shared context strings.
+	strategicContext := s.loadStrategicContext(ctx, instanceID)
+	signalContext := s.loadSignalContext(ctx, instanceID)
+	lraContext := buildLRAContext(lraPayload)
+
+	// 9. Roadmap cycle for the report metadata.
+	cycle := extractStringField(roadmapPayload, "roadmap.cycle")
+
+	params := map[string]any{
+		"okr_skeleton":            okrAssessments,
+		"assumption_validations":  assumptionValidations,
+		"strategic_insights":      strategicInsights,
+		"evidence_summary":        evidenceSummary,
+		"strategic_context":       strategicContext,
+		"signal_context":          signalContext,
+		"lra_context":             lraContext,
+		"cycle":                   cycle,
+		"_trigger":                "aim_cycle",
 	}
 
-	llmUsed := false
-	if s.llm != nil {
-		enriched := s.enrichAssessmentWithLLM(ctx, report, okrAssessments, priorAssessment, lraPayload)
-		if enriched == 0 && len(okrAssessments) > 0 {
-			// All LLM calls failed (e.g. 429 spending cap). Staging an empty skeleton
-			// would be misleading — surface the error so the user can retry.
-			return uuid.Nil, DraftSummary{}, fmt.Errorf("LLM enrichment failed for all %d OKRs — check API key quota and retry", len(okrAssessments))
-		}
-		llmUsed = true
-		report["metadata"].(map[string]any)["llm_used"] = true
-	}
+	return params, nil
+}
 
-	// 8. Stage as a batch.
-	batchID, err := s.stageMutation(ctx, instanceID, domain.ArtifactTypeAssessmentReport, "assessment-draft-"+time.Now().Format("2006-01-02"), domain.MutationActionCreate, report)
+// AssembleCalibrationParams computes the deterministic calibration decision and
+// evidence data needed by the draft-calibration skill. The decision (persevere,
+// pivot, pull_the_plug) is computed by pure Go functions — it is NEVER delegated
+// to the LLM.
+func (s *Service) AssembleCalibrationParams(ctx context.Context, instanceID uuid.UUID) (map[string]any, error) {
+	// Load committed assessment report.
+	assessmentPayload, err := s.loadArtifactPayload(ctx, instanceID, domain.ArtifactTypeAssessmentReport)
 	if err != nil {
-		return uuid.Nil, DraftSummary{}, fmt.Errorf("stage assessment draft: %w", err)
+		return nil, apperror.ErrBadRequest.WithDetail("No committed assessment report found")
 	}
 
-	summary := DraftSummary{
-		OKRCount:        len(okrAssessments),
-		AssumptionCount: len(assumptionValidations),
-		EvidenceCount:   len(evidenceSummary),
-		LLMUsed:         llmUsed,
+	// Compute OKR hit rate.
+	hitRate, total, hitCount := computeOKRHitRate(assessmentPayload)
+
+	// Count invalidated assumptions.
+	invalidatedCount := countInvalidatedAssumptions(assessmentPayload)
+
+	// Determine decision (deterministic, rule-based).
+	decision := calibrationDecision(hitRate, invalidatedCount)
+
+	// Build formula-based reasoning (fallback if LLM fails).
+	formulaReasoning := buildReasoningSummary(decision, hitRate, total, hitCount, invalidatedCount)
+
+	params := map[string]any{
+		"decision":           decision,
+		"hit_rate_pct":       hitRate,
+		"invalidated_count":  invalidatedCount,
+		"formula_reasoning":  formulaReasoning,
+		"assessment_data":    assessmentPayload,
+		"_trigger":           "aim_cycle",
 	}
-	return batchID, summary, nil
+
+	return params, nil
 }
 
 // extractOKRAssessments walks the roadmap payload to find all OKRs and build
@@ -565,138 +613,6 @@ func (s *Service) extractStrategicInsights(ctx context.Context, instanceID uuid.
 	return insights
 }
 
-// enrichAssessmentWithLLM calls the LLM once per OKR to write a grounded assessment.
-// Evidence sources (in priority order):
-//  1. priorAssessment — last committed assessment report with real actuals + KR outcomes
-//  2. lraPayload — LRA evolution log entries (narrative of what happened this cycle)
-//  3. Active ripple signals (system-detected misalignments)
-//  4. Strategic context from north star and strategy foundations
-// enrichAssessmentWithLLM returns the number of OKRs successfully enriched.
-func (s *Service) enrichAssessmentWithLLM(ctx context.Context, report map[string]any, okrAssessments []map[string]any, priorAssessment, lraPayload map[string]any) int {
-	instanceID := s.instanceIDFromReport(report)
-
-	// Build shared context sections — loaded once, reused per OKR call.
-	strategicContext := s.loadStrategicContext(ctx, instanceID)
-	signals := s.loadSignalContext(ctx, instanceID)
-	lraContext := buildLRAContext(lraPayload)
-
-	systemPrompt := `You are a strategy assessment analyst writing a new cycle assessment report.
-
-Your job: for each OKR, write a 2-4 sentence assessment grounded in the evidence provided.
-
-Evidence priority:
-1. Prior assessment actuals (most important — real outcomes from the last cycle)
-2. LRA evolution log (what happened narratively since last cycle)
-3. Ripple signals (system-detected strategy misalignments)
-4. Strategic context (mission/vision — background only)
-
-Rules:
-- Use prior actuals and LRA narrative as your primary evidence. If both are present, synthesise them.
-- Do NOT fabricate numbers. If actual progress on a KR is unknown, say so and name what evidence is needed.
-- Reference specific KR IDs when assessing individual key results.
-- Set status: on_track | at_risk | missed | partially_met | pending
-- Be direct and actionable. No filler phrases like "it's important to note".`
-
-	// Run LLM calls concurrently — one goroutine per OKR.
-	type result struct {
-		idx        int
-		assessment string
-	}
-	resultCh := make(chan result, len(okrAssessments))
-
-	for i, okr := range okrAssessments {
-		objective, _ := okr["objective"].(string)
-		if objective == "" {
-			resultCh <- result{idx: i}
-			continue
-		}
-		okrID, _ := okr["okr_id"].(string)
-		track, _ := okr["track"].(string)
-
-		// Build KR section with targets AND prior actuals if available.
-		// kr_assessments may be []map[string]any (native) or []any (after JSON round-trip).
-		var krLines []string
-		toKRMap := func(v any) (map[string]any, bool) {
-			if m, ok := v.(map[string]any); ok {
-				return m, true
-			}
-			return nil, false
-		}
-		var krSlice []any
-		switch krs := okr["kr_assessments"].(type) {
-		case []map[string]any:
-			for _, m := range krs {
-				krSlice = append(krSlice, m)
-			}
-		case []any:
-			krSlice = krs
-		}
-		for _, raw := range krSlice {
-			kr, ok := toKRMap(raw)
-			if !ok {
-				continue
-			}
-			krID, _ := kr["kr_id"].(string)
-			target, _ := kr["target"].(string)
-			actual, _ := kr["actual"].(string)
-			status, _ := kr["status"].(string)
-			if krID == "" {
-				continue
-			}
-			line := fmt.Sprintf("  %s: target=%q", krID, target)
-			if actual != "" {
-				line += fmt.Sprintf(", actual=%q", actual)
-			}
-			if status != "" && status != "pending" && status != "not_started" {
-				line += fmt.Sprintf(", prior_status=%s", status)
-			}
-			krLines = append(krLines, line)
-		}
-		krSection := "  (no key results defined)"
-		if len(krLines) > 0 {
-			krSection = strings.Join(krLines, "\n")
-		}
-
-		userPrompt := fmt.Sprintf(`%s
-
-%s
-
-%s
----
-OKR to assess:
-Track: %s
-ID: %s
-Objective: %s
-Key Results (with prior actuals where available):
-%s
-
-Write 2-4 sentences assessing this OKR. Reference prior actuals and LRA narrative as primary evidence. Set a clear status at the start: [on_track] [at_risk] [missed] [partially_met] [pending]`,
-			strategicContext, lraContext, signals, track, okrID, objective, krSection)
-
-		go func(idx int, id, prompt string) {
-			res, err := s.llm.Complete(ctx, systemPrompt, prompt)
-			if err != nil {
-				slog.WarnContext(ctx, "aim: LLM assessment enrichment failed", "okr_id", id, "err", err)
-				resultCh <- result{idx: idx}
-				return
-			}
-			resultCh <- result{idx: idx, assessment: strings.TrimSpace(res.Content)}
-		}(i, okrID, userPrompt)
-	}
-
-	// Collect all results.
-	enriched := 0
-	for range okrAssessments {
-		r := <-resultCh
-		if r.assessment != "" {
-			okrAssessments[r.idx]["assessment"] = r.assessment
-			enriched++
-		}
-	}
-	report["okr_assessments"] = okrAssessments
-	return enriched
-}
-
 // seedFromPriorAssessment carries forward actuals and KR outcomes from the last
 // committed assessment into the new skeleton so the LLM has them as evidence.
 func seedFromPriorAssessment(okrAssessments []map[string]any, prior map[string]any) {
@@ -848,19 +764,6 @@ func buildLRAContext(lra map[string]any) string {
 	return "LRA context (what happened this cycle):\n" + strings.Join(lines, "\n")
 }
 
-// instanceIDFromReport extracts the instance UUID from the metadata section of a report map.
-// Returns uuid.Nil if not found — callers must guard against nil context.
-func (s *Service) instanceIDFromReport(report map[string]any) uuid.UUID {
-	if meta, ok := report["metadata"].(map[string]any); ok {
-		if idStr, ok := meta["instance_id"].(string); ok {
-			if id, err := uuid.Parse(idStr); err == nil {
-				return id
-			}
-		}
-	}
-	return uuid.Nil
-}
-
 // loadStrategicContext builds a compact strategic context string from the north star
 // and strategy foundations artifacts for the given instance.
 func (s *Service) loadStrategicContext(ctx context.Context, instanceID uuid.UUID) string {
@@ -939,66 +842,67 @@ func (s *Service) loadSignalContext(ctx context.Context, instanceID uuid.UUID) s
 // DraftCalibration
 // ---------------------------------------------------------------------------
 
-// DraftCalibration reads the committed assessment_report, computes hit rate and
-// assumption validation rate, and stages a calibration_memo draft.
+// DraftCalibration reads the committed assessment_report, computes the
+// calibration decision deterministically, and delegates narrative reasoning
+// to the canonical draft-calibration skill. If the skill fails, the
+// deterministic formula reasoning is used as fallback.
 func (s *Service) DraftCalibration(ctx context.Context, instanceID uuid.UUID) (uuid.UUID, CalibrationDraftSummary, error) {
-	// Load committed assessment report.
-	assessmentPayload, err := s.loadArtifactPayload(ctx, instanceID, domain.ArtifactTypeAssessmentReport)
-	if err != nil {
-		return uuid.Nil, CalibrationDraftSummary{}, apperror.ErrBadRequest.WithDetail("No committed assessment report found")
+	if s.executor == nil {
+		return uuid.Nil, CalibrationDraftSummary{}, fmt.Errorf("skill executor not configured — cannot draft calibration")
 	}
 
-	// Compute OKR hit rate.
-	hitRate, total, hitCount := computeOKRHitRate(assessmentPayload)
+	params, err := s.AssembleCalibrationParams(ctx, instanceID)
+	if err != nil {
+		return uuid.Nil, CalibrationDraftSummary{}, fmt.Errorf("assemble calibration params: %w", err)
+	}
 
-	// Count invalidated assumptions.
-	invalidatedCount := countInvalidatedAssumptions(assessmentPayload)
+	decision, _ := params["decision"].(string)
+	hitRate, _ := params["hit_rate_pct"].(int)
+	invalidatedCount, _ := params["invalidated_count"].(int)
+	formulaReasoning, _ := params["formula_reasoning"].(string)
 
-	// Determine decision.
-	decision := calibrationDecision(hitRate, invalidatedCount)
+	result, skillErr := s.executor.RunChunked(ctx, instanceID, "draft-calibration", params)
+	if skillErr != nil {
+		// Skill failed — fall back to formula reasoning. The decision is still
+		// valid because it was computed deterministically.
+		slog.WarnContext(ctx, "aim: draft-calibration skill failed, using formula reasoning",
+			"instance_id", instanceID, "err", skillErr)
 
-	// Build reasoning summary.
-	reasoning := buildReasoningSummary(decision, hitRate, total, hitCount, invalidatedCount)
-	llmUsed := false
-
-	if s.llm != nil {
-		llmUsed = true
-		narrative, err := s.enrichCalibrationWithLLM(ctx, decision, assessmentPayload, reasoning)
-		if err != nil {
-			slog.WarnContext(ctx, "aim: LLM calibration enrichment failed", "err", err)
-		} else {
-			reasoning = narrative
+		memo := map[string]any{
+			"name":                         "AI-Drafted Calibration Memo",
+			"decision":                     decision,
+			"reasoning":                    formulaReasoning,
+			"okr_hit_rate_pct":             hitRate,
+			"invalidated_assumption_count": invalidatedCount,
+			"metadata": map[string]any{
+				"drafted_by":   "aim_agent",
+				"drafted_at":   time.Now().UTC().Format(time.RFC3339),
+				"llm_used":     false,
+				"ai_suggested": true,
+			},
 		}
+		batchID, err := s.stageMutation(ctx, instanceID, "calibration_memo", "calibration-draft-"+time.Now().Format("2006-01-02"), domain.MutationActionCreate, memo)
+		if err != nil {
+			return uuid.Nil, CalibrationDraftSummary{}, fmt.Errorf("stage calibration draft: %w", err)
+		}
+		return batchID, CalibrationDraftSummary{
+			SuggestedDecision: decision,
+			OKRHitRate:        hitRate,
+			InvalidatedCount:  invalidatedCount,
+			ReasoningSummary:  formulaReasoning,
+			LLMUsed:           false,
+		}, nil
 	}
 
-	// Build calibration_memo payload.
-	memo := map[string]any{
-		"name":                         "AI-Drafted Calibration Memo",
-		"decision":                     decision,
-		"reasoning":                    reasoning,
-		"okr_hit_rate_pct":             hitRate,
-		"invalidated_assumption_count": invalidatedCount,
-		"metadata": map[string]any{
-			"drafted_by":   "aim_agent",
-			"drafted_at":   time.Now().UTC().Format(time.RFC3339),
-			"llm_used":     llmUsed,
-			"ai_suggested": true,
-		},
-	}
-
-	batchID, err := s.stageMutation(ctx, instanceID, "calibration_memo", "calibration-draft-"+time.Now().Format("2006-01-02"), domain.MutationActionCreate, memo)
-	if err != nil {
-		return uuid.Nil, CalibrationDraftSummary{}, fmt.Errorf("stage calibration draft: %w", err)
-	}
-
-	summary := CalibrationDraftSummary{
+	return result.BatchID, CalibrationDraftSummary{
 		SuggestedDecision: decision,
 		OKRHitRate:        hitRate,
 		InvalidatedCount:  invalidatedCount,
-		ReasoningSummary:  reasoning,
-		LLMUsed:           llmUsed,
-	}
-	return batchID, summary, nil
+		ReasoningSummary:  formulaReasoning,
+		LLMUsed:           result.LLMUsed,
+		InputTokens:       result.InputTokens,
+		OutputTokens:      result.OutputTokens,
+	}, nil
 }
 
 // computeOKRHitRate parses okr_assessments from an assessment payload.
@@ -1068,35 +972,6 @@ func buildReasoningSummary(decision string, hitRate, total, hit, invalidated int
 	default:
 		return "Calibration reasoning not available."
 	}
-}
-
-// enrichCalibrationWithLLM uses the LLM to generate narrative reasoning.
-// Uses structured json_object output to get a reliable {"reasoning": "..."} response.
-func (s *Service) enrichCalibrationWithLLM(ctx context.Context, decision string, assessmentPayload map[string]any, fallbackReasoning string) (string, error) {
-	assessmentJSON, _ := json.Marshal(assessmentPayload)
-	systemPrompt := `You are a strategy calibration assistant. Given assessment results and a recommended decision (persevere/pivot/pull_the_plug), produce a JSON object with a single "reasoning" field containing a concise 2-3 sentence strategic explanation of why this decision is recommended. Be direct and actionable.
-
-Response format (JSON only, no markdown):
-{"reasoning": "2-3 sentence explanation here"}`
-	userPrompt := fmt.Sprintf("Decision: %s\n\nAssessment data:\n%s\n\nDefault reasoning: %s",
-		decision, string(assessmentJSON), fallbackReasoning)
-
-	raw, err := s.llm.CompleteJSON(ctx, systemPrompt, userPrompt)
-	if err != nil {
-		// Fall back to the formula-based reasoning — LLM is optional.
-		return fallbackReasoning, nil //nolint:nilerr // fallback is intentional
-	}
-
-	// Parse the structured response.
-	var structured struct {
-		Reasoning string `json:"reasoning"`
-	}
-	if jsonErr := json.Unmarshal([]byte(raw.Content), &structured); jsonErr != nil || structured.Reasoning == "" {
-		slog.Warn("aim: calibration LLM response not structured, falling back",
-			"decision", decision, "raw_len", len(raw.Content), "err", jsonErr)
-		return fallbackReasoning, nil
-	}
-	return strings.TrimSpace(structured.Reasoning), nil
 }
 
 // ---------------------------------------------------------------------------
@@ -1218,16 +1093,23 @@ func (s *Service) flagStrategicBets(formulaPayload map[string]any, _ string) []s
 // VersionPublisher is the interface for publishing an AIM cycle version snapshot.
 // Satisfied by *domain/version.Service.
 type VersionPublisher interface {
-	PublishAIMCycle(ctx context.Context, instanceID uuid.UUID, label, description string) error
+	PublishAIMCycle(ctx context.Context, instanceID uuid.UUID, label, description string) (uuid.UUID, error)
 	CountAIMCycles(ctx context.Context, instanceID uuid.UUID) (int, error)
+}
+
+// GitHubSyncer is the interface for auto-pushing strategy to GitHub after an AIM cycle.
+// Satisfied by *domain/sync.Service.
+type GitHubSyncer interface {
+	SyncAfterAIMCycle(ctx context.Context, instanceID uuid.UUID, cycleNumber int, decision string, versionID uuid.UUID)
 }
 
 // SnapshotCycle publishes a named strategy version for a completed AIM cycle.
 // cycleNumber 0 means auto-number (count existing + 1).
-func (s *Service) SnapshotCycle(ctx context.Context, instanceID uuid.UUID, cycleNumber int, decision string) error {
+// Returns the published version ID.
+func (s *Service) SnapshotCycle(ctx context.Context, instanceID uuid.UUID, cycleNumber int, decision string) (uuid.UUID, error) {
 	if s.versionPub == nil {
 		slog.WarnContext(ctx, "aim: SnapshotCycle called but no VersionPublisher wired — skipping")
-		return nil
+		return uuid.Nil, nil
 	}
 
 	// Count existing aim_cycle versions for cycle numbering.
@@ -1238,11 +1120,19 @@ func (s *Service) SnapshotCycle(ctx context.Context, instanceID uuid.UUID, cycle
 	label := fmt.Sprintf("Cycle %d — %s", cycleNumber, calibrationDecisionLabel(decision))
 	description := fmt.Sprintf("AIM cycle %d completed with decision: %s. Auto-snapshot on cycle completion.", cycleNumber, decision)
 
-	if err := s.versionPub.PublishAIMCycle(ctx, instanceID, label, description); err != nil {
-		return fmt.Errorf("snapshot aim cycle: %w", err)
+	versionID, err := s.versionPub.PublishAIMCycle(ctx, instanceID, label, description)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("snapshot aim cycle: %w", err)
 	}
-	slog.InfoContext(ctx, "aim: cycle snapshot published", "instance_id", instanceID, "cycle", cycleNumber, "decision", decision)
-	return nil
+	slog.InfoContext(ctx, "aim: cycle snapshot published", "instance_id", instanceID, "version_id", versionID, "cycle", cycleNumber, "decision", decision)
+
+	// Auto-push to GitHub if configured. This is async (goroutine) so a GitHub
+	// failure never blocks the AIM cycle from completing.
+	if s.ghSyncer != nil {
+		go s.ghSyncer.SyncAfterAIMCycle(context.Background(), instanceID, cycleNumber, decision, versionID)
+	}
+
+	return versionID, nil
 }
 
 // nextCycleNumber counts existing aim_cycle versions (source column) + 1.

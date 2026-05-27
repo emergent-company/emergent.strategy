@@ -70,6 +70,13 @@ type CreateProposalParams struct {
 // exists for the instance. It is called from EvaluateAll after a trigger fires.
 // Returns true if a new proposal was created.
 func (s *Service) maybeCreateProposal(ctx context.Context, p CreateProposalParams) bool {
+	// Guard: skip if an AIM cycle run is already active for this instance.
+	if s.activeRunChecker != nil && s.activeRunChecker.HasActiveRun(ctx, p.InstanceID.String()) {
+		slog.DebugContext(ctx, "heartbeat: active cycle run exists — skipping proposal",
+			"instance_id", p.InstanceID)
+		return false
+	}
+
 	// Guard: skip if a pending proposal already exists.
 	if s.hasPendingProposal(ctx, p.InstanceID) {
 		slog.DebugContext(ctx, "heartbeat: pending proposal already exists — skipping",
@@ -283,6 +290,42 @@ func (s *Service) ExpireStaleProposals(ctx context.Context) (int, error) {
 }
 
 // ---------------------------------------------------------------------------
+// DismissProposal
+// ---------------------------------------------------------------------------
+
+// DismissProposal permanently hides a proposal from the inbox. Works for any
+// non-pending status (approved with failed run, deferred, expired). Pending
+// proposals should be deferred or approved instead.
+func (s *Service) DismissProposal(ctx context.Context, proposalID uuid.UUID) (*Proposal, error) {
+	var row domain.CycleProposal
+	if err := s.db.NewSelect().Model(&row).Where("id = ?", proposalID).Scan(ctx); err != nil {
+		return nil, ErrProposalNotFound
+	}
+	if row.Status == domain.CycleProposalStatusPending {
+		return nil, ErrProposalNotResolved
+	}
+
+	now := time.Now().UTC()
+	row.Status = domain.CycleProposalStatusDismissed
+	row.ResolvedAt = &now
+
+	if _, err := s.db.NewUpdate().
+		Model(&row).
+		Column("status", "resolved_at").
+		WherePK().
+		Exec(ctx); err != nil {
+		return nil, err
+	}
+
+	p := toProposal(row)
+	slog.InfoContext(ctx, "heartbeat: proposal dismissed",
+		"proposal_id", proposalID,
+		"instance_id", row.InstanceID,
+	)
+	return &p, nil
+}
+
+// ---------------------------------------------------------------------------
 // Guards
 // ---------------------------------------------------------------------------
 
@@ -321,6 +364,15 @@ type proposalNotPendingError struct{}
 
 func (e proposalNotPendingError) Error() string {
 	return "cycle proposal is not in pending state"
+}
+
+// ErrProposalNotResolved is returned when trying to dismiss a pending proposal.
+var ErrProposalNotResolved = proposalNotResolvedError{}
+
+type proposalNotResolvedError struct{}
+
+func (e proposalNotResolvedError) Error() string {
+	return "pending proposals cannot be dismissed — defer or approve them instead"
 }
 
 // ErrCycleAlreadyActive is returned when ApproveProposal fails because a run is already active.

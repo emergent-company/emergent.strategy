@@ -217,10 +217,10 @@ templ FireTrackDashboardContent(data FireTrackDashboardData) {
 						{ strconv.Itoa(len(data.Definitions)) }
 					</span>
 					if gaps := countMissingVMLinks(data.Definitions); gaps > 0 {
-						<span class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold bg-error/10 text-error" title="Definitions missing a value model link (contributes_to)">
+						<span class="tooltip" data-tip="Definitions missing a value model link (contributes_to)"><span class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold bg-error/10 text-error">
 							<span class="iconify lucide--alert-triangle size-3"></span>
 							{ strconv.Itoa(gaps) }
-						</span>
+						</span></span>
 					}
 				</div>
 			if len(data.ProductLines) > 0 {
@@ -295,13 +295,13 @@ templ FireTrackDashboardContent(data FireTrackDashboardData) {
 				<div class="flex items-center gap-3 mb-2">
 					<span class="text-xs text-base-content/35">Maturity tier:</span>
 					<span class="inline-flex items-center gap-1 text-xs text-base-content/45">
-						<span class="badge badge-ghost badge-sm font-mono">T1</span> Basic — minimum viable, founder-led
+						<span class="tooltip" data-tip="Maturity Tier 1"><span class="badge badge-ghost badge-sm font-mono">T1</span></span> Basic — minimum viable, founder-led
 					</span>
 					<span class="inline-flex items-center gap-1 text-xs text-base-content/45">
-						<span class="badge badge-ghost badge-sm font-mono">T2</span> Structured — repeatable, documented
+						<span class="tooltip" data-tip="Maturity Tier 2"><span class="badge badge-ghost badge-sm font-mono">T2</span></span> Structured — repeatable, documented
 					</span>
 					<span class="inline-flex items-center gap-1 text-xs text-base-content/45">
-						<span class="badge badge-ghost badge-sm font-mono">T3</span> Advanced — measured, optimised
+						<span class="tooltip" data-tip="Maturity Tier 3"><span class="badge badge-ghost badge-sm font-mono">T3</span></span> Advanced — measured, optimised
 					</span>
 				</div>
 				<div class="overflow-x-auto rounded-lg border border-base-content/8">
@@ -419,7 +419,7 @@ templ featureDefinitionRow(d FireTrackDefinition) {
 			<div class="flex items-center gap-1.5">
 				{ d.Name }
 				if d.MissingValueModelLink {
-					<span class="iconify lucide--alert-triangle size-3 text-error shrink-0" title="No value model path linked (contributes_to missing)"></span>
+					<span class="tooltip" data-tip="No value model path linked (contributes_to missing)"><span class="iconify lucide--alert-triangle size-3 text-error shrink-0"></span></span>
 				}
 			</div>
 		</td>
@@ -468,25 +468,25 @@ templ featureDefinitionRow(d FireTrackDefinition) {
 templ maturityStageBadge(stage string) {
 	switch stage {
 		case "scaled":
-			<span class="badge badge-sm badge-success gap-1">
+			<div class="tooltip" data-tip="Mature capability operating at full scale"><span class="badge badge-sm badge-success gap-1">
 				<span class="iconify lucide--trending-up size-3"></span>
 				Scaled
-			</span>
+			</span></div>
 		case "proven":
-			<span class="badge badge-sm badge-info gap-1">
+			<div class="tooltip" data-tip="Validated capability with demonstrated results"><span class="badge badge-sm badge-info gap-1">
 				<span class="iconify lucide--check size-3"></span>
 				Proven
-			</span>
+			</span></div>
 		case "emerging":
-			<span class="badge badge-sm badge-warning gap-1">
+			<div class="tooltip" data-tip="Early-stage capability being developed and tested"><span class="badge badge-sm badge-warning gap-1">
 				<span class="iconify lucide--sprout size-3"></span>
 				Emerging
-			</span>
+			</span></div>
 		case "hypothetical":
-			<span class="badge badge-sm badge-ghost gap-1">
+			<div class="tooltip" data-tip="Unvalidated concept — needs testing before investment"><span class="badge badge-sm badge-ghost gap-1">
 				<span class="iconify lucide--flask-conical size-3"></span>
 				Hypothetical
-			</span>
+			</span></div>
 		default:
 			<!-- empty — no badge when stage is unknown -->
 	}

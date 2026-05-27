@@ -68,15 +68,35 @@ definition — it is historical record of why this was pursued.
 
 ## Output Format
 
-Respond with a single valid JSON object containing ONLY the `insight_opportunity` key:
+Respond with a single valid JSON object. The `insight_opportunity` key uses a **double-envelope**
+structure: the outer key is the routing envelope, and the inner `insight_opportunity` key is
+part of the artifact payload format. Both levels are required — do NOT flatten fields to the root.
 
 ```json
 {
-  "insight_opportunity": { ... }
+  "insight_opportunity": {
+    "insight_opportunity": {
+      "version": "1.0.0",
+      "title": "...",
+      "problem_statement": "...",
+      "opportunity_definition": "...",
+      "urgency": { "driver": "...", "why_now": "..." },
+      "target_segment": "...",
+      "context": "..."
+    }
+  },
+  "change_summary": "- bullet 1\n- bullet 2"
 }
 ```
 
-`insight_opportunity` is a FULL REPLACEMENT payload — include every field from the
+IMPORTANT: The outer `insight_opportunity` key is the routing envelope. The inner
+`insight_opportunity` key is part of the artifact payload format. Both are required.
+Do not flatten the fields to the root level.
+
+`change_summary` is a short human-readable summary (2-4 bullet points, each max 120 chars)
+listing what you changed in the insight opportunity and why. Use "- " prefixed lines.
+
+`insight_opportunity` (inner) is a FULL REPLACEMENT payload — include every field from the
 current version, modified where needed. Do not omit preserved fields.
 
 **Rules:**

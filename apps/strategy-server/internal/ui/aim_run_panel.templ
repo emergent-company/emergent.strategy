@@ -1,5 +1,7 @@
 package ui
 
+import "fmt"
+
 // AimRunPanelData is the view model for an orchestrated AIM cycle run panel.
 type AimRunPanelData struct {
 	InstanceID   string
@@ -21,6 +23,44 @@ type AimRunStepRow struct {
 	BatchID string // non-empty when step is awaiting_human
 	Error   string
 	LLMUsed bool // true when this step was completed with LLM assistance
+
+	// Skill run enrichment (populated from the run ledger when available).
+	ChunksCompleted int
+	ChunkCount      int
+	TotalTokens     int      // input + output
+	DurationSec     float64  // elapsed wall time
+	ArtifactTypes   []string // artifact types produced by this step
+
+	// Artifact links — resolved by the handler for completed steps.
+	ArtifactLinks []ArtifactLink
+
+	// Step-specific metadata extracted from StepLog.Meta.
+	AutoAdvanced       bool   // true when step auto-advanced (no changes needed)
+	AutoAdvancedReason string // e.g. "no_foundation_changes_needed"
+
+	// draft_assessment metadata
+	OKRCount        int
+	AssumptionCount int
+
+	// draft_calibration metadata
+	SuggestedDecision string  // persevere | pivot | pull_the_plug
+	OKRHitRatePct     float64 // 0-100
+	InvalidatedCount  int
+
+	// align_portfolio metadata
+	TracksProcessed  int
+	TracksChanged    int
+	TotalActivated   int
+	TotalDeactivated int
+	Skipped          bool
+	SkippedReason    string
+}
+
+// ArtifactLink is a clickable link to an artifact produced by a step.
+type ArtifactLink struct {
+	Label string // e.g. "Assessment Report"
+	Href  string // e.g. "/strategies/:id/aim/assessment"
+	Icon  string // iconify class
 }
 
 // AimRunPanelContent renders the orchestrated AIM cycle run panel.
@@ -50,17 +90,40 @@ templ AimRunPanelContent(data AimRunPanelData) {
 				</div>
 				<div class="flex items-center gap-3">
 					<span class={ "badge", runStatusBadgeClass(data.Status) }>{ runStatusLabel(data.Status) }</span>
-					<a
-						href={ templ.URL("/strategies/" + data.InstanceID + "/aim") }
-						hx-get={ "/strategies/" + data.InstanceID + "/aim" }
-						hx-target="#tab-content"
-						hx-swap="innerHTML"
-						hx-push-url="true"
-						class="btn btn-xs btn-ghost"
-					>
-						Back to AIM
-						<span class="iconify lucide--arrow-right size-3"></span>
-					</a>
+					if data.Status == "running" || data.Status == "awaiting_human" || data.Status == "pending" {
+						<form
+							method="POST"
+							action={ templ.URL("/strategies/" + data.InstanceID + "/aim/runs/" + data.RunID + "/abort") }
+							onsubmit="return confirm('Abort this cycle run? This cannot be undone.')"
+						>
+							<button type="submit" class="btn btn-xs btn-error btn-outline gap-1.5">
+								<span class="iconify lucide--square size-3"></span>
+								Abort
+							</button>
+						</form>
+					}
+					if data.Status == "failed" {
+						<form
+							method="POST"
+							action={ templ.URL("/strategies/" + data.InstanceID + "/aim/runs/" + data.RunID + "/retry") }
+						>
+							<button type="submit" class="btn btn-xs btn-primary gap-1.5">
+								<span class="iconify lucide--refresh-cw size-3"></span>
+								Retry failed step
+							</button>
+						</form>
+					}
+				<a
+					href={ templ.URL("/strategies/" + data.InstanceID + "/aim/runs") }
+					hx-get={ "/strategies/" + data.InstanceID + "/aim/runs" }
+					hx-target="#tab-content"
+					hx-swap="innerHTML"
+					hx-push-url="true"
+					class="btn btn-xs btn-ghost"
+				>
+					All runs
+					<span class="iconify lucide--arrow-right size-3"></span>
+				</a>
 				</div>
 			</div>
 		</div>
@@ -76,22 +139,42 @@ templ AimRunPanelContent(data AimRunPanelData) {
 
 // aimRunSSEScript injects the EventSource listener that pushes server-rendered
 // HTML into #aim-run-timeline whenever the run state changes.
+// Stores the EventSource on window.__aimRunSSE so it can be torn down when
+// the user navigates away via HTMX (the panel DOM element is removed but the
+// EventSource would otherwise stay open).
 templ aimRunSSEScript() {
 	<script>
 		(function() {
+			// Tear down any previous AIM run SSE connection.
+			if (window.__aimRunSSE) {
+				window.__aimRunSSE.close();
+				window.__aimRunSSE = null;
+			}
+
 			var panel = document.getElementById('aim-run-panel');
 			if (!panel) return;
 			var url = panel.getAttribute('data-stream-url');
 			if (!url) return;
 			var es = new EventSource(url);
+			window.__aimRunSSE = es;
 			es.onmessage = function(e) {
+				// If the panel has been removed from the DOM (HTMX navigation),
+				// close this EventSource immediately.
+				if (!document.getElementById('aim-run-panel')) {
+					es.close();
+					window.__aimRunSSE = null;
+					return;
+				}
 				var target = document.getElementById('aim-run-timeline');
 				if (target && e.data) {
 					target.innerHTML = e.data;
 					if (window.htmx) htmx.process(target);
 				}
 			};
-			es.onerror = function() { es.close(); };
+			es.onerror = function() {
+				es.close();
+				window.__aimRunSSE = null;
+			};
 		})();
 	</script>
 }
@@ -104,15 +187,19 @@ templ AimRunTimeline(data AimRunPanelData) {
 			<div class="flex items-center justify-between mb-4">
 				<h3 class="text-sm font-semibold text-base-content/70 uppercase tracking-widest">Step Progress</h3>
 				if data.LLMMode {
+				<span class="tooltip" data-tip="This step used AI to generate draft artifacts">
 					<span class="badge badge-outline gap-1 text-xs border-secondary/40 text-secondary">
 						<span class="iconify lucide--sparkles size-3 animate-pulse"></span>
 						AI-assisted
 					</span>
+				</span>
 				} else {
+				<span class="tooltip" data-tip="This step created placeholder artifacts without AI content">
 					<span class="badge badge-ghost gap-1 text-xs text-base-content/40">
 						<span class="iconify lucide--pencil size-3"></span>
 						Skeleton mode
 					</span>
+				</span>
 				}
 			</div>
 			if len(data.Steps) == 0 {
@@ -153,19 +240,95 @@ templ aimRunStepRow(num int, step AimRunStepRow, instanceID string) {
 		<div class="grow min-w-0">
 			<div class="flex items-center gap-2">
 				<p class={ "text-sm font-semibold", runStepLabelClass(step.Status) }>{ runStepLabel(step.Name) }</p>
-				if step.LLMUsed {
+				if step.LLMUsed && step.Status == "done" {
+				<span class="tooltip" data-tip="AI-assisted step">
 					<span class="badge badge-outline badge-xs gap-1 border-secondary/40 text-secondary">
-						<span class="iconify lucide--sparkles size-2.5 animate-pulse"></span>
+						<span class="iconify lucide--sparkles size-2.5"></span>
 						AI
+					</span>
+				</span>
+				}
+				if step.AutoAdvanced {
+					<span class="tooltip" data-tip="No changes needed — auto-advanced">
+						<span class="badge badge-ghost badge-xs gap-1 text-base-content/50">
+							<span class="iconify lucide--fast-forward size-2.5"></span>
+							Auto
+						</span>
+					</span>
+				}
+				if step.Skipped {
+					<span class="tooltip" data-tip={ "Skipped: " + step.SkippedReason }>
+						<span class="badge badge-ghost badge-xs gap-1 text-base-content/40">
+							<span class="iconify lucide--skip-forward size-2.5"></span>
+							Skipped
+						</span>
 					</span>
 				}
 			</div>
-			if step.Status == "running" {
-				<p class="text-xs text-base-content/50 mt-0.5">In progress…</p>
+
+			// Description line — always shown, content varies by status
+			if step.Status == "pending" {
+				<p class="text-xs text-base-content/40 mt-0.5">{ runStepDescription(step.Name) }</p>
+			} else if step.Status == "running" {
+				if step.ChunkCount > 0 {
+					<div class="flex items-center gap-2 mt-1.5">
+						<div class="flex-1 h-1 rounded-full bg-base-content/10 overflow-hidden max-w-[200px]">
+							<div
+								class="h-1 rounded-full bg-primary transition-all"
+								style={ fmt.Sprintf("width: %.0f%%", cascadeProgress(step.ChunksCompleted, step.ChunkCount)) }
+							></div>
+						</div>
+						<span class="tooltip" data-tip="LLM processing segments completed">
+							<span class="text-xs text-base-content/50">
+								{ itoa(step.ChunksCompleted) }/{ itoa(step.ChunkCount) } chunks
+							</span>
+						</span>
+					</div>
+				} else {
+					<p class="text-xs text-base-content/50 mt-0.5">{ runStepDescription(step.Name) }</p>
+				}
 			} else if step.Status == "awaiting_human" && step.BatchID != "" {
 				<p class="text-xs text-base-content/60 mt-0.5">Review the AI draft before continuing</p>
 			} else if step.Status == "failed" && step.Error != "" {
 				<p class="text-xs text-error/70 mt-0.5">{ step.Error }</p>
+			} else if step.Status == "done" {
+				// Step-specific result summary
+				@aimRunStepMeta(step)
+				// Artifact links — view what was produced
+				if len(step.ArtifactLinks) > 0 {
+					<div class="flex items-center gap-2 mt-1.5 flex-wrap">
+						for _, link := range step.ArtifactLinks {
+							<a
+								href={ templ.URL(link.Href) }
+								hx-get={ link.Href }
+								hx-target="#tab-content"
+								hx-swap="innerHTML"
+								hx-push-url="true"
+								class="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 hover:underline transition-colors"
+							>
+								<span class={ "iconify size-3", link.Icon }></span>
+								{ link.Label }
+							</a>
+						}
+					</div>
+				}
+				// Common metrics row: tokens, duration
+				<div class="flex items-center gap-3 mt-1 text-xs text-base-content/50 flex-wrap">
+					if step.TotalTokens > 0 {
+						<span class="tooltip" data-tip="Total language model tokens used">
+							<span class="flex items-center gap-1">
+								<span class="iconify lucide--zap size-3"></span>
+								{ formatTokens(step.TotalTokens) } tokens
+							</span>
+						</span>
+					}
+					if step.DurationSec > 0 {
+						<span class="flex items-center gap-1">
+							<span class="iconify lucide--clock size-3"></span>
+							{ formatDuration(step.DurationSec) }
+						</span>
+					}
+				</div>
 			}
 		</div>
 
@@ -180,6 +343,76 @@ templ aimRunStepRow(num int, step AimRunStepRow, instanceID string) {
 			</a>
 		}
 	</div>
+}
+
+// aimRunStepMeta renders step-specific metadata for completed steps.
+templ aimRunStepMeta(step AimRunStepRow) {
+	switch step.Name {
+		case "draft_assessment":
+			if step.OKRCount > 0 || step.AssumptionCount > 0 {
+				<div class="flex items-center gap-3 mt-0.5 text-xs text-base-content/60 flex-wrap">
+					if step.OKRCount > 0 {
+						<span class="flex items-center gap-1">
+							<span class="iconify lucide--target size-3"></span>
+							{ itoa(step.OKRCount) } OKRs assessed
+						</span>
+					}
+					if step.AssumptionCount > 0 {
+						<span class="flex items-center gap-1">
+							<span class="iconify lucide--flask-conical size-3"></span>
+							{ itoa(step.AssumptionCount) } assumptions evaluated
+						</span>
+					}
+				</div>
+			}
+		case "draft_calibration":
+			if step.SuggestedDecision != "" {
+				<div class="flex items-center gap-3 mt-0.5 text-xs flex-wrap">
+					<span class={ "badge badge-xs", calibrationDecisionBadgeClass(step.SuggestedDecision) }>
+						{ calibrationDecisionLabel(step.SuggestedDecision) }
+					</span>
+					if step.OKRHitRatePct > 0 {
+						<span class="text-base-content/60 flex items-center gap-1">
+							<span class="iconify lucide--percent size-3"></span>
+							{ fmt.Sprintf("%.0f%%", step.OKRHitRatePct) } OKR hit rate
+						</span>
+					}
+					if step.InvalidatedCount > 0 {
+						<span class="text-warning flex items-center gap-1">
+							<span class="iconify lucide--alert-triangle size-3"></span>
+							{ itoa(step.InvalidatedCount) } invalidated
+						</span>
+					}
+				</div>
+			}
+		case "align_portfolio":
+			if !step.Skipped && step.TracksProcessed > 0 {
+				<div class="flex items-center gap-3 mt-0.5 text-xs text-base-content/60 flex-wrap">
+					<span class="flex items-center gap-1">
+						<span class="iconify lucide--git-branch size-3"></span>
+						{ itoa(step.TracksProcessed) } tracks processed
+					</span>
+					if step.TracksChanged > 0 {
+						<span class="flex items-center gap-1">
+							<span class="iconify lucide--refresh-cw size-3"></span>
+							{ itoa(step.TracksChanged) } changed
+						</span>
+					}
+					if step.TotalActivated > 0 {
+						<span class="text-success flex items-center gap-1">
+							<span class="iconify lucide--plus-circle size-3"></span>
+							{ itoa(step.TotalActivated) } activated
+						</span>
+					}
+					if step.TotalDeactivated > 0 {
+						<span class="text-warning flex items-center gap-1">
+							<span class="iconify lucide--minus-circle size-3"></span>
+							{ itoa(step.TotalDeactivated) } deactivated
+						</span>
+					}
+				</div>
+			}
+	}
 }
 
 // ── Style helpers ─────────────────────────────────────────────────────────────
@@ -260,6 +493,8 @@ func runStepLabel(name string) string {
 		return "Adapt Strategy"
 	case "adapt_foundations":
 		return "Align Foundations"
+	case "align_portfolio":
+		return "Align Portfolio"
 	case "snapshot_cycle":
 		return "Publish Version"
 	default:
@@ -309,5 +544,25 @@ func runStepLabelClass(status string) string {
 		return "text-error"
 	default:
 		return "text-base-content/40"
+	}
+}
+
+// runStepDescription returns a brief human-readable explanation of what a step does.
+func runStepDescription(name string) string {
+	switch name {
+	case "draft_assessment":
+		return "Evaluates OKR progress and assumption validity to produce an assessment report"
+	case "draft_calibration":
+		return "Analyses assessment results and recommends persevere, pivot, or pull-the-plug"
+	case "adapt_strategy":
+		return "Rewrites execution-layer artifacts (formula, roadmap) based on the calibration decision"
+	case "adapt_foundations":
+		return "Aligns foundation artifacts (north star, strategy foundations) with execution changes"
+	case "align_portfolio":
+		return "Syncs value model active flags to match committed roadmap key results"
+	case "snapshot_cycle":
+		return "Publishes a versioned snapshot of the complete strategy state"
+	default:
+		return ""
 	}
 }

@@ -28,11 +28,41 @@ func (s *Server) handleSettings(c echo.Context) error {
 	sidebarGroups := s.sidebarGroups(c)
 	currentPath := c.Request().URL.Path
 
-	render.RenderAuto(c.Response().Writer, c.Request(),
+	render.RenderTriple(c.Response().Writer, c.Request(),
 		ui.SettingsPage(currentPath, sidebarGroups, data),
+		ui.SettingsMainContent(data),
 		ui.SettingsContent(data),
 	)
 	return nil
+}
+
+// handleSettingsImport handles POST /settings/import — triggers a GitHub import
+// for a specific instance. Redirects back to settings with a flash message.
+func (s *Server) handleSettingsImport(c echo.Context) error {
+	if s.syncSvc == nil {
+		return c.String(http.StatusServiceUnavailable, "GitHub sync is not configured")
+	}
+
+	instanceIDStr := c.FormValue("instance_id")
+	if instanceIDStr == "" {
+		return c.String(http.StatusBadRequest, "instance_id required")
+	}
+	instanceID, err := uuid.Parse(instanceIDStr)
+	if err != nil {
+		return c.String(http.StatusBadRequest, "invalid instance_id")
+	}
+
+	branch := c.FormValue("branch") // optional
+
+	_, err = s.syncSvc.ImportFromGithub(c.Request().Context(), sync.ImportParams{
+		InstanceID: instanceID,
+		Branch:     branch,
+	})
+	if err != nil {
+		s.log.Error("manual github import failed", "instance_id", instanceIDStr, "err", err)
+	}
+
+	return c.Redirect(http.StatusSeeOther, "/settings")
 }
 
 // handleSettingsSync handles POST /settings/sync — triggers a manual GitHub sync
@@ -130,7 +160,7 @@ func (s *Server) probeMemoryHealth(ctx context.Context) ui.MemoryHealthStatus {
 	return status
 }
 
-// loadGithubSyncStatuses loads per-instance GitHub sync history from the sync log.
+// loadGithubSyncStatuses loads per-instance GitHub sync history and state from the sync log.
 // Returns nil when the sync service is not configured.
 func (s *Server) loadGithubSyncStatuses(ctx context.Context) []ui.GithubSyncStatus {
 	if s.syncSvc == nil {
@@ -138,16 +168,18 @@ func (s *Server) loadGithubSyncStatuses(ctx context.Context) []ui.GithubSyncStat
 	}
 
 	type instanceRow struct {
-		ID         string  `bun:"id"`
-		Name       string  `bun:"name"`
-		OrgName    string  `bun:"org_name"`
-		GithubRepo *string `bun:"github_repo"`
+		ID              string  `bun:"id"`
+		Name            string  `bun:"name"`
+		OrgName         string  `bun:"org_name"`
+		GithubRepo      *string `bun:"github_repo"`
+		GithubBranch    *string `bun:"github_branch"`
+		GithubCommitSHA *string `bun:"github_commit_sha"`
 	}
 
 	var instances []instanceRow
 	err := s.db.NewSelect().
 		TableExpr("strategy_instances AS si").
-		ColumnExpr("si.id, si.name, si.github_repo").
+		ColumnExpr("si.id, si.name, si.github_repo, si.github_branch, si.github_commit_sha").
 		ColumnExpr("o.name AS org_name").
 		Join("JOIN workspaces AS w ON w.id = si.workspace_id").
 		Join("JOIN orgs AS o ON o.id = w.org_id").
@@ -174,17 +206,41 @@ func (s *Server) loadGithubSyncStatuses(ctx context.Context) []ui.GithubSyncStat
 			status.RepoLinked = true
 			status.Repo = *inst.GithubRepo
 		}
+		if inst.GithubBranch != nil && *inst.GithubBranch != "" {
+			status.ActiveBranch = *inst.GithubBranch
+		}
+		if inst.GithubCommitSHA != nil && len(*inst.GithubCommitSHA) >= 7 {
+			status.LocalSHA = (*inst.GithubCommitSHA)[:7]
+		}
 
-		// Load last sync log entry for this instance.
 		instID, parseErr := uuid.Parse(inst.ID)
 		if parseErr == nil {
+			// Check and update PR statuses lazily.
+			s.syncSvc.CheckAndUpdateSyncStatus(ctx, instID)
+
+			// Load last sync log entry.
 			logs, histErr := s.syncSvc.GetSyncHistory(ctx, instID)
 			if histErr == nil && len(logs) > 0 {
 				last := logs[0]
 				status.LastStatus = last.Status
 				status.LastSyncAt = &last.CreatedAt
+				status.LastDirection = last.Direction
 				if last.PRUrl != nil {
 					status.LastSyncPR = *last.PRUrl
+				}
+			}
+
+			// Determine live sync state if GitHub App is configured and repo is linked.
+			// Use a short timeout so a slow GitHub API call doesn't hang the settings page.
+			if s.syncSvc.IsConfigured() && status.RepoLinked {
+				stateCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+				stateResult, stateErr := s.syncSvc.DetermineSyncState(stateCtx, instID, "")
+				cancel()
+				if stateErr == nil {
+					status.SyncState = string(stateResult.State)
+					if len(stateResult.RemoteSHA) >= 7 {
+						status.RemoteSHA = stateResult.RemoteSHA[:7]
+					}
 				}
 			}
 		}

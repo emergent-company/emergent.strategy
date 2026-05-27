@@ -853,28 +853,67 @@ score, calibration decision, etc.).
   - At the end of a strategy cycle (quarterly snapshot)`,
 	},
 	{
-		Topic: "GitHub sync — pushing strategy to repositories",
-		Body: `strategy-server can export committed artifacts as YAML files to a GitHub
-repository via the GitHub App integration.
+		Topic: "GitHub sync — complete strategy-as-code lifecycle",
+		Body: `strategy-server uses TWO separate GitHub auth mechanisms. Understanding
+which is used when is critical for correct operation and production deployment.
+See docs/GITHUB_AUTH_MODEL.md for the full reference.
 
-**Prerequisites:**
-  - GitHub App installed on the target repository
-  - Server configured with GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY_PATH
-  - Instance must have github_repo set (e.g. "org/strategy-repo")
+**GitHub App (GITHUB_APP_ID + GITHUB_APP_PRIVATE_KEY_PATH):**
+  Server-level credential. Used for background operations (AIM auto-push) and
+  MCP tool calls. Requires the App to be installed on the target org by an admin.
 
-**Workflow:**
-  1. sync_to_github(instance_id) — exports all committed artifacts as YAML in
-     EPF directory structure (READY/FIRE/AIM), creates a branch, commits the
-     files, and opens a pull request. Returns sync status with branch name and
-     PR URL.
-  2. get_sync_status(instance_id) — check sync history: last sync time, open
-     PRs, sync result (success/failure), and error details if any.
+**User OAuth token (GITHUB_OAUTH_CLIENT_ID + GITHUB_OAUTH_CLIENT_SECRET):**
+  Per-user credential. Stored in users.github_access_token after the user
+  connects their GitHub account via /github/connect. Uses repo scope. Allows
+  the user to browse and import/push to any repo they personally have access to,
+  across ALL their orgs — NO App installation required from org admins.
 
-The sync is one-directional: server → GitHub. Changes made directly in GitHub
-are not automatically pulled back into the server.
+**Auth decision by operation:**
+  - User browses repos / imports via web UI → user OAuth token (no App needed)
+  - User manually pushes via web UI → user OAuth token (no App needed)
+  - AIM auto-push (background) → App installation token (App install required)
+  - import_from_github MCP tool → App installation token (App install required)
+  - sync_to_github MCP tool → App installation token (App install required)
 
-If the GitHub App is not configured, both tools return a structured error
-indicating GitHub sync is unavailable.`,
+CRITICAL AUTH RULES — read docs/GITHUB_AUTH_MODEL.md for the full reference:
+
+1. Private repos ALWAYS require a one-time org admin action — either install
+   the GitHub App OR approve the OAuth App in the org's third-party settings.
+   There is no workaround. Public repos work without any admin action.
+
+2. Use a SEPARATE classic GitHub OAuth App (not the GitHub App) for the user
+   connect flow. GitHub App user tokens (ghu_) only see repos the App has
+   explicit installation access to. Classic OAuth App tokens (gho_) with repo
+   scope see repos based on user's personal access + org approval.
+
+3. Token types matter: ghu_ = GitHub App user token (limited to App installs),
+   gho_ = classic OAuth App token (based on user access + org approval).
+
+**Setup tools (MCP — require App installation):**
+  - update_instance(instance_id, github_repo, github_base_path?) — link an
+    instance to a GitHub repo. Required before MCP import or push.
+  - import_from_github(instance_id, branch?) — smart four-state import:
+    • in_sync → no-op  • server_ahead → refuses  • github_ahead → imports
+    • diverged → creates safety PR with server state, then imports
+  - get_sync_state(instance_id, branch?) — check state without action
+  - sync_to_github(instance_id, version_id?) — export as YAML, branch + PR
+  - get_sync_status(instance_id) — sync history
+
+**Web UI connect flow (no App installation needed for users):**
+  User visits /github/connect → connects GitHub (OAuth) → sees ALL repos they
+  have access to across all orgs → picks repo → import or link → work → push.
+  Repos show "Push available" badge when App is installed (enables auto-push),
+  "Import only" when App is not installed (manual push still works via user token).
+
+**Branch support (EPF as documentation):**
+  EPF instances are documentation, not deployable code. In mature products the
+  instance lives on a long-lived dev branch. Specify branch="dev" on
+  import_from_github to switch tracking permanently.
+
+**AIM auto-push (requires App installation on org):**
+  Every AIM cycle snapshot automatically creates a GitHub branch + PR.
+  Uses App installation token — no user token available in background job.
+  Failures are logged but never block the AIM cycle.`,
 	},
 	{
 		Topic: "Evidence management — ingesting and linking strategic evidence",

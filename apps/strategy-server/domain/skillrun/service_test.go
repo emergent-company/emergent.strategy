@@ -62,13 +62,16 @@ func TestUpdateChunk(t *testing.T) {
 	ctx := context.Background()
 
 	instID := seedInstance(t, db)
-	runID, _ := svc.Create(ctx, CreateParams{
+	runID, err := svc.Create(ctx, CreateParams{
 		InstanceID: instID,
 		SkillName:  "adapt-foundations",
 		ChunkCount: 4,
 	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
 
-	err := svc.UpdateChunk(ctx, runID, ChunkEntry{
+	err = svc.UpdateChunk(ctx, runID, ChunkEntry{
 		Chunk:        1,
 		OutputKey:    "north_star",
 		ArtifactType: "north_star",
@@ -84,7 +87,10 @@ func TestUpdateChunk(t *testing.T) {
 		t.Fatalf("UpdateChunk: %v", err)
 	}
 
-	run, _ := svc.GetByID(ctx, runID)
+	run, err := svc.GetByID(ctx, runID)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
 	if run.ChunksCompleted != 1 {
 		t.Errorf("ChunksCompleted = %d, want 1", run.ChunksCompleted)
 	}
@@ -119,16 +125,22 @@ func TestCompleteAndFail(t *testing.T) {
 	instID := seedInstance(t, db)
 
 	// Test Complete.
-	runID, _ := svc.Create(ctx, CreateParams{
+	runID, err := svc.Create(ctx, CreateParams{
 		InstanceID: instID,
 		SkillName:  "adapt-strategy",
 		ChunkCount: 1,
 	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
 	batchID := uuid.New()
 	if err := svc.Complete(ctx, runID, batchID); err != nil {
 		t.Fatalf("Complete: %v", err)
 	}
-	run, _ := svc.GetByID(ctx, runID)
+	run, err := svc.GetByID(ctx, runID)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
 	if run.Status != StatusCompleted {
 		t.Errorf("Status = %q, want completed", run.Status)
 	}
@@ -140,15 +152,21 @@ func TestCompleteAndFail(t *testing.T) {
 	}
 
 	// Test Fail.
-	runID2, _ := svc.Create(ctx, CreateParams{
+	runID2, err := svc.Create(ctx, CreateParams{
 		InstanceID: instID,
 		SkillName:  "adapt-foundations",
 		ChunkCount: 4,
 	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
 	if err := svc.Fail(ctx, runID2, "chunk 3 validation exhausted"); err != nil {
 		t.Fatalf("Fail: %v", err)
 	}
-	run2, _ := svc.GetByID(ctx, runID2)
+	run2, err := svc.GetByID(ctx, runID2)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
 	if run2.Status != StatusFailed {
 		t.Errorf("Status = %q, want failed", run2.Status)
 	}
@@ -165,11 +183,23 @@ func TestListByInstance(t *testing.T) {
 	instID := seedInstance(t, db)
 
 	// Create 3 runs with different statuses.
-	r1, _ := svc.Create(ctx, CreateParams{InstanceID: instID, SkillName: "adapt-strategy", ChunkCount: 4, Trigger: TriggerAIMCycle})
-	r2, _ := svc.Create(ctx, CreateParams{InstanceID: instID, SkillName: "adapt-foundations", ChunkCount: 4, Trigger: TriggerRipple})
-	svc.Complete(ctx, r1, uuid.New())
-	svc.Fail(ctx, r2, "test error")
-	svc.Create(ctx, CreateParams{InstanceID: instID, SkillName: "adapt-strategy", ChunkCount: 4, Trigger: TriggerManual})
+	r1, err := svc.Create(ctx, CreateParams{InstanceID: instID, SkillName: "adapt-strategy", ChunkCount: 4, Trigger: TriggerAIMCycle})
+	if err != nil {
+		t.Fatalf("Create r1: %v", err)
+	}
+	r2, err := svc.Create(ctx, CreateParams{InstanceID: instID, SkillName: "adapt-foundations", ChunkCount: 4, Trigger: TriggerRipple})
+	if err != nil {
+		t.Fatalf("Create r2: %v", err)
+	}
+	if err := svc.Complete(ctx, r1, uuid.New()); err != nil {
+		t.Fatalf("Complete: %v", err)
+	}
+	if err := svc.Fail(ctx, r2, "test error"); err != nil {
+		t.Fatalf("Fail: %v", err)
+	}
+	if _, err := svc.Create(ctx, CreateParams{InstanceID: instID, SkillName: "adapt-strategy", ChunkCount: 4, Trigger: TriggerManual}); err != nil {
+		t.Fatalf("Create r3: %v", err)
+	}
 
 	// List all.
 	runs, err := svc.ListByInstance(ctx, instID, ListParams{})
@@ -181,13 +211,19 @@ func TestListByInstance(t *testing.T) {
 	}
 
 	// Filter by status.
-	running, _ := svc.ListByInstance(ctx, instID, ListParams{Status: StatusRunning})
+	running, err := svc.ListByInstance(ctx, instID, ListParams{Status: StatusRunning})
+	if err != nil {
+		t.Fatalf("ListByInstance (status filter): %v", err)
+	}
 	if len(running) != 1 {
 		t.Errorf("running: got %d, want 1", len(running))
 	}
 
 	// Filter by trigger.
-	ripple, _ := svc.ListByInstance(ctx, instID, ListParams{Trigger: TriggerRipple})
+	ripple, err := svc.ListByInstance(ctx, instID, ListParams{Trigger: TriggerRipple})
+	if err != nil {
+		t.Fatalf("ListByInstance (trigger filter): %v", err)
+	}
 	if len(ripple) != 1 {
 		t.Errorf("ripple: got %d, want 1", len(ripple))
 	}
@@ -210,7 +246,9 @@ func TestActiveForInstance(t *testing.T) {
 	}
 
 	// Create a running run.
-	svc.Create(ctx, CreateParams{InstanceID: instID, SkillName: "adapt-strategy", ChunkCount: 4})
+	if _, err := svc.Create(ctx, CreateParams{InstanceID: instID, SkillName: "adapt-strategy", ChunkCount: 4}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
 
 	run, err = svc.ActiveForInstance(ctx, instID)
 	if err != nil {
@@ -229,13 +267,27 @@ func TestGetUsage(t *testing.T) {
 	instID := seedInstance(t, db)
 
 	// Create and complete two runs with tokens.
-	r1, _ := svc.Create(ctx, CreateParams{InstanceID: instID, SkillName: "adapt-strategy", ChunkCount: 1})
-	svc.UpdateChunk(ctx, r1, ChunkEntry{Chunk: 1, OutputKey: "sf", Status: "staged", InputTokens: 1000, OutputTokens: 500})
-	svc.Complete(ctx, r1, uuid.New())
+	r1, err := svc.Create(ctx, CreateParams{InstanceID: instID, SkillName: "adapt-strategy", ChunkCount: 1})
+	if err != nil {
+		t.Fatalf("Create r1: %v", err)
+	}
+	if err := svc.UpdateChunk(ctx, r1, ChunkEntry{Chunk: 1, OutputKey: "sf", Status: "staged", InputTokens: 1000, OutputTokens: 500}); err != nil {
+		t.Fatalf("UpdateChunk r1: %v", err)
+	}
+	if err := svc.Complete(ctx, r1, uuid.New()); err != nil {
+		t.Fatalf("Complete r1: %v", err)
+	}
 
-	r2, _ := svc.Create(ctx, CreateParams{InstanceID: instID, SkillName: "adapt-foundations", ChunkCount: 1})
-	svc.UpdateChunk(ctx, r2, ChunkEntry{Chunk: 1, OutputKey: "ns", Status: "staged", InputTokens: 2000, OutputTokens: 800})
-	svc.Complete(ctx, r2, uuid.New())
+	r2, err := svc.Create(ctx, CreateParams{InstanceID: instID, SkillName: "adapt-foundations", ChunkCount: 1})
+	if err != nil {
+		t.Fatalf("Create r2: %v", err)
+	}
+	if err := svc.UpdateChunk(ctx, r2, ChunkEntry{Chunk: 1, OutputKey: "ns", Status: "staged", InputTokens: 2000, OutputTokens: 800}); err != nil {
+		t.Fatalf("UpdateChunk r2: %v", err)
+	}
+	if err := svc.Complete(ctx, r2, uuid.New()); err != nil {
+		t.Fatalf("Complete r2: %v", err)
+	}
 
 	usage, err := svc.GetUsage(ctx, instID, nil, nil)
 	if err != nil {

@@ -22,16 +22,18 @@ type AimDraftPreview struct {
 
 // AimDraftReviewItem is a single staged mutation shown in the review screen.
 type AimDraftReviewItem struct {
-	ArtifactType string
-	ArtifactKey  string
-	Action       string // create | update | archive
+	ArtifactType  string
+	ArtifactKey   string
+	Action        string          // create | update | archive
+	ChangeSummary string          // AI-generated summary of what changed (bullet points)
+	Preview       templ.Component // optional: bespoke rendered preview of the draft artifact
 }
 
 // AimDraftReviewContent renders the AI draft review screen.
 templ AimDraftReviewContent(data AimDraftReviewData) {
 	@TabBackLink(data.TabGroup, data.InstanceID, data.CurrentPath)
 	<div class="space-y-6">
-		// Header card
+		// Header card with integrated actions
 		<div class="rounded-xl border border-primary/30 bg-primary/5 px-6 py-5">
 			<div class="flex items-start gap-4">
 				<span class="iconify lucide--sparkles size-6 text-primary mt-0.5 shrink-0"></span>
@@ -46,51 +48,53 @@ templ AimDraftReviewContent(data AimDraftReviewData) {
 					</p>
 				</div>
 			</div>
+			// Commit / Discard actions — always visible in the header
+			<div class="flex items-center justify-between gap-4 mt-4 pt-4 border-t border-primary/15">
+				<p class="text-xs text-base-content/50">
+					if len(data.Items) > 1 {
+						All { itemCountLabel(len(data.Items)) } will be committed or discarded together.
+					} else {
+						Committing applies this change to your strategy.
+					}
+				</p>
+				<div class="flex items-center gap-3 shrink-0">
+					<form method="POST" action={ templ.URL("/strategies/" + data.InstanceID + "/aim/draft-review/" + data.BatchID + "/discard") }>
+						<button type="submit" class="btn btn-sm btn-ghost text-error">
+							<span class="iconify lucide--trash-2 size-3.5"></span>
+							Discard all
+						</button>
+					</form>
+					<form method="POST" action={ templ.URL("/strategies/" + data.InstanceID + "/aim/draft-review/" + data.BatchID + "/commit") }>
+						<button type="submit" class="btn btn-sm btn-primary gap-2">
+							<span class="iconify lucide--check size-3.5"></span>
+							Commit all
+						</button>
+					</form>
+				</div>
+			</div>
 		</div>
 
-		// Staged items
-		<div class="card bg-base-100 border border-base-content/10 shadow-sm">
-			<div class="card-body p-5">
-				<h3 class="text-sm font-semibold text-base-content/70 uppercase tracking-widest mb-4">
-					Draft Contents ({ itemCountLabel(len(data.Items)) })
-				</h3>
-				if len(data.Items) == 0 {
+		// Unified list — each item shows its summary, change description, and
+		// an expandable preview. No separate sections.
+		if len(data.Items) == 0 {
+			<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+				<div class="card-body p-5">
 					<div class="text-center py-8">
 						<span class="iconify lucide--file-question size-10 text-base-content/30 mx-auto mb-3 block"></span>
 						<p class="text-sm text-base-content/60">No staged mutations found in this batch.</p>
 					</div>
-				} else {
-					<div class="space-y-2">
-						for _, item := range data.Items {
-							@aimDraftReviewItem(item)
-						}
-					</div>
+				</div>
+			</div>
+		} else {
+			<div class="space-y-3">
+				for _, item := range data.Items {
+					@aimDraftReviewItem(item)
 				}
 			</div>
-		</div>
+		}
 
-		// Rich preview of the draft artifact(s).
-		// Multi-artifact batches get one collapsible section per artifact.
-		// Legacy single-preview path: if Previews is empty, fall back to PreviewContent.
-		if len(data.Previews) > 0 {
-			for _, preview := range data.Previews {
-				<details class="group rounded-xl border border-base-content/10 bg-base-100 overflow-hidden" open>
-					<summary class="flex items-center justify-between gap-3 px-6 py-3 border-b border-base-content/10 bg-base-200/50 cursor-pointer select-none list-none">
-						<div class="flex items-center gap-2">
-							<span class="iconify lucide--file-text size-4 text-base-content/50"></span>
-							<p class="text-xs font-semibold uppercase tracking-widest text-base-content/50">
-								{ artifactTypeLabel(preview.ArtifactType) }
-							</p>
-							<span class="badge badge-ghost badge-xs font-mono opacity-60">{ preview.ArtifactKey }</span>
-						</div>
-						<span class="iconify lucide--chevron-down size-4 text-base-content/40 group-open:rotate-180 transition-transform shrink-0"></span>
-					</summary>
-					<div class="p-4">
-						@preview.Content
-					</div>
-				</details>
-			}
-		} else if data.PreviewContent != nil {
+		// Legacy single-preview fallback (when items don't carry inline previews).
+		if len(data.Previews) == 0 && data.PreviewContent != nil {
 			<div class="rounded-xl border border-base-content/10 bg-base-100 overflow-hidden">
 				<div class="px-6 py-3 border-b border-base-content/10 bg-base-200/50">
 					<p class="text-xs font-semibold uppercase tracking-widest text-base-content/50">Draft Preview</p>
@@ -100,39 +104,44 @@ templ AimDraftReviewContent(data AimDraftReviewData) {
 				</div>
 			</div>
 		}
-
-		// Commit / Discard actions
-		<div class="flex items-center justify-between gap-4 rounded-xl border border-base-content/10 bg-base-100 px-6 py-4">
-			<p class="text-xs text-base-content/50">
-				Committing applies these changes to your strategy. Discarding removes this draft permanently.
-			</p>
-			<div class="flex items-center gap-3 shrink-0">
-				<form method="POST" action={ templ.URL("/strategies/" + data.InstanceID + "/aim/draft-review/" + data.BatchID + "/discard") }>
-					<button type="submit" class="btn btn-sm btn-ghost text-error">
-						<span class="iconify lucide--trash-2 size-3.5"></span>
-						Discard
-					</button>
-				</form>
-				<form method="POST" action={ templ.URL("/strategies/" + data.InstanceID + "/aim/draft-review/" + data.BatchID + "/commit") }>
-					<button type="submit" class="btn btn-sm btn-primary gap-2">
-						<span class="iconify lucide--check size-3.5"></span>
-						Commit draft
-					</button>
-				</form>
-			</div>
-		</div>
 	</div>
 }
 
-// aimDraftReviewItem renders a single staged mutation summary.
+// aimDraftReviewItem renders a single staged mutation with change summary and
+// an inline expandable preview.
 templ aimDraftReviewItem(item AimDraftReviewItem) {
-	<div class="flex items-center gap-3 rounded-lg border border-base-content/10 px-4 py-3 bg-base-100">
-		<span class={ "iconify size-4 shrink-0", draftActionIcon(item.Action), draftActionColor(item.Action) }></span>
-		<div class="grow min-w-0">
-			<p class="text-sm font-medium text-base-content truncate">{ item.ArtifactKey }</p>
-			<p class="text-xs text-base-content/50">{ item.ArtifactType }</p>
+	<div class="rounded-xl border border-base-content/10 bg-base-100 overflow-hidden">
+		// Header row — artifact name, action badge
+		<div class="flex items-center gap-3 px-5 py-3">
+			<span class={ "iconify size-4 shrink-0", draftActionIcon(item.Action), draftActionColor(item.Action) }></span>
+			<div class="grow min-w-0">
+				<p class="text-sm font-semibold text-base-content">{ artifactTypeLabel(item.ArtifactType) }</p>
+			</div>
+			<span class="tooltip shrink-0" data-tip={ draftActionHint(item.Action) }><span class={ "badge badge-sm", draftActionBadgeClass(item.Action) }>{ item.Action }</span></span>
 		</div>
-		<span class={ "badge badge-sm shrink-0", draftActionBadgeClass(item.Action) }>{ item.Action }</span>
+		// Change summary — what the AI changed
+		if item.ChangeSummary != "" {
+			<div class="px-5 pb-3">
+				<div class="pl-7 border-l-2 border-primary/20">
+					<p class="text-xs text-base-content/70 whitespace-pre-line leading-relaxed">{ item.ChangeSummary }</p>
+				</div>
+			</div>
+		}
+		// Expandable full preview
+		if item.Preview != nil {
+			<details class="group">
+				<summary class="flex items-center justify-between gap-3 px-5 py-2.5 border-t border-base-content/5 bg-base-200/30 cursor-pointer select-none list-none text-xs text-base-content/50 hover:text-base-content/70">
+					<div class="flex items-center gap-2">
+						<span class="iconify lucide--eye size-3.5"></span>
+						<span>View full draft</span>
+					</div>
+					<span class="iconify lucide--chevron-down size-3.5 group-open:rotate-180 transition-transform"></span>
+				</summary>
+				<div class="border-t border-base-content/5 p-4">
+					@item.Preview
+				</div>
+			</details>
+		}
 	</div>
 }
 
@@ -159,6 +168,19 @@ func draftActionColor(action string) string {
 		return "text-warning"
 	default:
 		return "text-base-content/50"
+	}
+}
+
+func draftActionHint(action string) string {
+	switch action {
+	case "create":
+		return "New artifact will be created"
+	case "update":
+		return "Existing artifact will be updated with changes"
+	case "archive":
+		return "Artifact will be archived and no longer active"
+	default:
+		return action
 	}
 }
 

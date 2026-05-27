@@ -40,17 +40,18 @@ type CascadeAIMRun struct {
 type CascadeSkillRun struct {
 	RunID            string
 	SkillName        string
-	Status           string  // running | completed | failed
-	Trigger          string  // manual | ripple | aim_cycle
+	Status           string   // running | completed | failed
+	Trigger          string   // manual | ripple | aim_cycle
 	ChunksCompleted  int
 	ChunkCount       int
 	TotalInputTokens int
 	TotalOutputTokens int
 	DurationSec      float64
-	HasTruncation    bool   // any chunk had context_truncated=true
-	DroppedFeatures  int    // sum of dropped_features across chunks
-	BatchID          string // non-empty for completed runs
-	Error            string // non-empty for failed runs
+	HasTruncation    bool     // any chunk had context_truncated=true
+	DroppedFeatures  int      // sum of dropped_features across chunks
+	BatchID          string   // non-empty for completed runs
+	Error            string   // non-empty for failed runs
+	ArtifactTypes    []string // artifact types produced by this run
 }
 
 // CascadeBatch is a pending staged batch awaiting human review.
@@ -129,6 +130,19 @@ templ cascadeSkillRunCard(run CascadeSkillRun, instanceID string, isActive bool)
 					@cascadeTriggerBadge(run.Trigger)
 				</div>
 
+				// Affected artifacts (when available)
+				if len(run.ArtifactTypes) > 0 {
+					<div class="flex items-center gap-1 text-xs text-base-content/50">
+						<span class="iconify lucide--layers size-3 shrink-0"></span>
+						for i, at := range run.ArtifactTypes {
+							if i > 0 {
+								, 
+							}
+							{ artifactTypeLabel(at) }
+						}
+					</div>
+				}
+
 				// Progress row (active runs)
 				if isActive && run.ChunkCount > 0 {
 					<div class="flex items-center gap-2">
@@ -138,8 +152,10 @@ templ cascadeSkillRunCard(run CascadeSkillRun, instanceID string, isActive bool)
 								style={ fmt.Sprintf("width: %.0f%%", cascadeProgress(run.ChunksCompleted, run.ChunkCount)) }
 							></div>
 						</div>
-						<span class="text-xs text-base-content/50 shrink-0">
-							{ itoa(run.ChunksCompleted) }/{ itoa(run.ChunkCount) } chunks
+						<span class="tooltip" data-tip="LLM processing segments completed">
+							<span class="text-xs text-base-content/50 shrink-0">
+								{ itoa(run.ChunksCompleted) }/{ itoa(run.ChunkCount) } chunks
+							</span>
 						</span>
 					</div>
 				}
@@ -148,9 +164,11 @@ templ cascadeSkillRunCard(run CascadeSkillRun, instanceID string, isActive bool)
 				if !isActive && run.Status == "completed" {
 					<div class="flex items-center gap-3 text-xs text-base-content/50">
 						if run.TotalInputTokens+run.TotalOutputTokens > 0 {
-							<span class="flex items-center gap-1">
-								<span class="iconify lucide--zap size-3"></span>
-								{ formatTokens(run.TotalInputTokens + run.TotalOutputTokens) } tokens
+							<span class="tooltip" data-tip="Total language model tokens used">
+								<span class="flex items-center gap-1">
+									<span class="iconify lucide--zap size-3"></span>
+									{ formatTokens(run.TotalInputTokens + run.TotalOutputTokens) } tokens
+								</span>
 							</span>
 						}
 						if run.DurationSec > 0 {
@@ -166,9 +184,11 @@ templ cascadeSkillRunCard(run CascadeSkillRun, instanceID string, isActive bool)
 
 				// Context truncation warning
 				if run.HasTruncation && run.DroppedFeatures > 0 {
-					<div class="flex items-center gap-1.5 text-xs text-warning">
-						<span class="iconify lucide--alert-triangle size-3"></span>
-						{ itoa(run.DroppedFeatures) } features dropped from context due to token budget
+					<div class="tooltip tooltip-right" data-tip="Some features were excluded to fit within the LLM context window">
+						<div class="flex items-center gap-1.5 text-xs text-warning">
+							<span class="iconify lucide--alert-triangle size-3"></span>
+							{ itoa(run.DroppedFeatures) } features dropped from context due to token budget
+						</div>
 					</div>
 				}
 			</div>
@@ -263,7 +283,7 @@ func cascadeSkillLabel(name string) string {
 	case "adapt-strategy":
 		return "Adapt Strategy"
 	case "adapt-foundations":
-		return "Adapt Foundations"
+		return "Align Foundations"
 	case "draft-north-star":
 		return "Draft North Star"
 	case "draft-insights":
@@ -286,15 +306,17 @@ func cascadeSkillLabel(name string) string {
 func cascadeStepLabel(step string) string {
 	switch step {
 	case "draft_assessment":
-		return "Drafting assessment…"
+		return "Drafting Assessment…"
 	case "draft_calibration":
-		return "Drafting calibration…"
+		return "Drafting Calibration…"
 	case "adapt_strategy", "apply_calibration":
-		return "Adapting strategy…"
+		return "Adapting Strategy…"
 	case "adapt_foundations":
-		return "Aligning foundations…"
+		return "Aligning Foundations…"
+	case "align_portfolio":
+		return "Aligning Portfolio…"
 	case "snapshot_cycle":
-		return "Publishing version…"
+		return "Publishing Version…"
 	default:
 		return step
 	}
@@ -314,14 +336,18 @@ func cascadeProgress(done, total int) float64 {
 templ cascadeTriggerBadge(trigger string) {
 	switch trigger {
 	case "ripple":
-		<span class="badge badge-xs badge-ghost gap-1 text-base-content/50">
-			<span class="iconify lucide--waves size-2.5"></span>
-			ripple
+		<span class="tooltip" data-tip="Triggered by a coherence propagation from related artifacts">
+			<span class="badge badge-xs badge-ghost gap-1 text-base-content/50">
+				<span class="iconify lucide--waves size-2.5"></span>
+				ripple
+			</span>
 		</span>
 	case "aim_cycle":
-		<span class="badge badge-xs badge-ghost gap-1 text-base-content/50">
-			<span class="iconify lucide--rotate-ccw size-2.5"></span>
-			AIM
+		<span class="tooltip" data-tip="Triggered by an AIM cycle run">
+			<span class="badge badge-xs badge-ghost gap-1 text-base-content/50">
+				<span class="iconify lucide--rotate-ccw size-2.5"></span>
+				AIM
+			</span>
 		</span>
 	default:
 		<!-- manual: no badge to keep it quiet -->

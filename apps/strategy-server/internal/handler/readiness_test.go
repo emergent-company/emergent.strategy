@@ -12,14 +12,18 @@ import (
 
 func TestComputeReadyReadiness_Empty(t *testing.T) {
 	data := ui.ReadyPhaseData{}
-	score, blockers := computeReadyReadiness(data)
+	score, blockers, items := computeReadyReadiness(data)
 	// 0 artifacts = 0 pts; no evidence = 0 pts; no pending batches = +8 pts
 	if score != 8 {
 		t.Errorf("empty data: score=%d, want 8", score)
 	}
-	// Blockers: 6 missing artifacts + 1 no-evidence = 7
-	if len(blockers) < 7 {
-		t.Errorf("empty data: expected >=7 blockers, got %d: %v", len(blockers), blockers)
+	// Blockers: 6 missing artifacts
+	if len(blockers) != 6 {
+		t.Errorf("empty data: expected 6 blockers, got %d: %v", len(blockers), blockers)
+	}
+	// Items: 6 artifacts + product_portfolio + evidence + pending = 9
+	if len(items) != 9 {
+		t.Errorf("expected 9 readiness items, got %d", len(items))
 	}
 }
 
@@ -33,7 +37,7 @@ func TestComputeReadyReadiness_AllArtifacts(t *testing.T) {
 		RoadmapExists:     true,
 		EvidenceCount:     3,
 	}
-	score, blockers := computeReadyReadiness(data)
+	score, blockers, items := computeReadyReadiness(data)
 	// 6×14 = 84 + 8 (evidence) + 8 (no pending batches) = 100
 	if score != 100 {
 		t.Errorf("all artifacts + evidence: score=%d, want 100", score)
@@ -43,6 +47,13 @@ func TestComputeReadyReadiness_AllArtifacts(t *testing.T) {
 		t.Errorf("unexpected blocker: %q", b)
 	}
 	_ = blockers
+	// Items should reflect completion state
+	for _, item := range items {
+		if item.MaxPts > 0 && !item.Done {
+			t.Errorf("scored item %q should be done", item.Label)
+		}
+	}
+	_ = items
 }
 
 func TestComputeReadyReadiness_PartialArtifacts(t *testing.T) {
@@ -51,7 +62,7 @@ func TestComputeReadyReadiness_PartialArtifacts(t *testing.T) {
 		NorthStarExists: true,
 		EvidenceCount:   2,
 	}
-	score, blockers := computeReadyReadiness(data)
+	score, blockers, items := computeReadyReadiness(data)
 	// 1×14 + 8 (evidence) + 8 (no pending) = 30
 	if score != 30 {
 		t.Errorf("partial: score=%d, want 30", score)
@@ -66,6 +77,13 @@ func TestComputeReadyReadiness_PartialArtifacts(t *testing.T) {
 	if missingCount != 5 {
 		t.Errorf("expected 5 missing blockers, got %d", missingCount)
 	}
+	// Items: North Star should be done, others not
+	for _, item := range items {
+		if item.Label == "North Star" && !item.Done {
+			t.Error("North Star should be done")
+		}
+	}
+	_ = items
 }
 
 func TestComputeReadyReadiness_ReadinessThreshold(t *testing.T) {
@@ -78,7 +96,7 @@ func TestComputeReadyReadiness_ReadinessThreshold(t *testing.T) {
 		FormulaExists:    true,
 		EvidenceCount:    2,
 	}
-	score, _ := computeReadyReadiness(data)
+	score, _, _ := computeReadyReadiness(data)
 	// 5×14 + 8 + 8 = 86 — above 80
 	if score != 86 {
 		t.Errorf("5 artifacts + evidence: score=%d, want 86", score)
@@ -99,10 +117,16 @@ func TestComputeReadyReadiness_PendingBatchesDocked(t *testing.T) {
 		EvidenceCount:     3,
 		PendingBatches:    []ui.ReadyPendingBatch{{BatchID: "b1"}},
 	}
-	score, _ := computeReadyReadiness(data)
+	score, _, items := computeReadyReadiness(data)
 	// Without pending dock: 100; with dock: 92
 	if score != 92 {
 		t.Errorf("with pending batches: score=%d, want 92", score)
+	}
+	// "No pending drafts" item should not be done
+	for _, item := range items {
+		if item.Label == "No pending drafts" && item.Done {
+			t.Error("'No pending drafts' should not be done when batches are pending")
+		}
 	}
 }
 

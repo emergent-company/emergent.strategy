@@ -161,3 +161,42 @@ func (c *Client) Healthy(ctx context.Context) error {
 	_, err := c.do(ctx, http.MethodGet, "/health", nil)
 	return err
 }
+
+// HealthStatus holds parsed fields from the Memory server's /health response.
+type HealthStatus struct {
+	// StartedAt is the approximate time the Memory server last started.
+	// Computed as: response timestamp - uptime duration.
+	// Used to detect restarts that may have wiped the graph.
+	StartedAt time.Time
+}
+
+// Health fetches the /health endpoint and returns a parsed HealthStatus.
+// Returns an error if the server is unreachable or unhealthy.
+func (c *Client) Health(ctx context.Context) (HealthStatus, error) {
+	body, err := c.do(ctx, http.MethodGet, "/health", nil)
+	if err != nil {
+		return HealthStatus{}, err
+	}
+
+	var resp struct {
+		Timestamp string `json:"timestamp"` // RFC3339 — server's current time
+		Uptime    string `json:"uptime"`    // Go duration string, e.g. "27m45.7s"
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return HealthStatus{}, fmt.Errorf("memory: parse health response: %w", err)
+	}
+
+	ts, err := time.Parse(time.RFC3339, resp.Timestamp)
+	if err != nil {
+		return HealthStatus{}, fmt.Errorf("memory: parse health timestamp: %w", err)
+	}
+
+	uptime, err := time.ParseDuration(resp.Uptime)
+	if err != nil {
+		// Uptime field may have sub-second precision that Go can't parse directly.
+		// Trim to the first 'ms' or 's' suffix as fallback.
+		uptime = 0
+	}
+
+	return HealthStatus{StartedAt: ts.Add(-uptime)}, nil
+}

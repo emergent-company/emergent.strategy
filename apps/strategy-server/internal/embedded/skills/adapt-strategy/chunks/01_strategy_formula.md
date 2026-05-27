@@ -52,15 +52,34 @@ The strategy is fundamentally unviable. You must:
 
 ## Output Format
 
-Respond with a single valid JSON object containing ONLY the `strategy_formula` key:
+Respond with a single valid JSON object. The `strategy_formula` key uses a **double-envelope**
+structure: the outer key is the routing envelope, and the inner `strategy_formula` key is
+part of the artifact payload format. Both levels are required — do NOT flatten fields to the root.
 
 ```json
 {
-  "strategy_formula": { ... }
+  "strategy_formula": {
+    "strategy_formula": {
+      "version": "1.0.0",
+      "confidence_level": "medium",
+      "strategic_bets": [ { "id": "bet-1", "description": "...", "validated": false } ],
+      "okrs": [ { "id": "okr-1", "objective": "...", "key_results": ["..."], "calibration_note": "..." } ],
+      "riskiest_assumptions": [ { "id": "asm-s-001", "description": "...", "criticality": "high", "confidence": "low" } ]
+    }
+  },
+  "change_summary": "- bullet 1\n- bullet 2"
 }
 ```
 
-`strategy_formula` is a FULL REPLACEMENT payload — include every field from the
+IMPORTANT: The outer `strategy_formula` key is the routing envelope. The inner
+`strategy_formula` key is part of the artifact payload format. Both are required.
+Do not flatten the fields to the root level.
+
+`change_summary` is a short human-readable summary (2-4 bullet points, each max 120 chars)
+listing what you changed and why. Use "- " prefixed lines. Example:
+"- Replaced bet-2 (market expansion) with bet-2 (vertical deepening) based on pivot decision\n- Lowered OKR targets by 20% to reflect assessment hit rate\n- Added calibration_note to 3 revised OKRs"
+
+`strategy_formula` (inner) is a FULL REPLACEMENT payload — include every field from the
 current version, modified where needed. Do not omit preserved fields.
 
 **Rules:**

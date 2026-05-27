@@ -19,14 +19,15 @@ func TestCycleWorkflow_Name(t *testing.T) {
 	}
 }
 
-// TestCycleWorkflow_Steps verifies the five steps and their HumanGate settings.
+// TestCycleWorkflow_Steps verifies the six steps and their HumanGate settings.
 // The adapt_foundations step (step 4) auto-advances when no mutations are produced.
+// The align_portfolio step (step 5) is deterministic and auto-commits — no human gate.
 func TestCycleWorkflow_Steps(t *testing.T) {
 	wf := NewCycleWorkflow(nil, nil)
 	steps := wf.Steps()
 
-	if len(steps) != 5 {
-		t.Fatalf("want 5 steps, got %d", len(steps))
+	if len(steps) != 6 {
+		t.Fatalf("want 6 steps, got %d", len(steps))
 	}
 
 	expected := []struct {
@@ -37,6 +38,7 @@ func TestCycleWorkflow_Steps(t *testing.T) {
 		{"draft_calibration", true},
 		{"adapt_strategy", true},
 		{"adapt_foundations", true},
+		{"align_portfolio", false},
 		{"snapshot_cycle", false},
 	}
 

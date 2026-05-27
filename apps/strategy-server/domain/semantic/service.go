@@ -107,6 +107,15 @@ func (s *Service) IsAvailable() bool {
 	return s.client != nil
 }
 
+// Ping performs a live health check against the Memory server.
+// Returns an error if Memory is not configured or not reachable.
+func (s *Service) Ping(ctx context.Context) error {
+	if s.client == nil {
+		return apperror.ErrSemanticUnavailable.WithDetail("emergent.memory not configured")
+	}
+	return s.client.Healthy(ctx)
+}
+
 // requireClient returns ErrSemanticUnavailable if the client is nil.
 func (s *Service) requireClient() error {
 	if s.client == nil {

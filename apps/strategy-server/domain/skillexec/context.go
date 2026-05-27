@@ -140,13 +140,19 @@ func loadAllArtifacts(ctx context.Context, db *bun.DB, instanceID uuid.UUID) (ma
 	result := make(map[string]any)
 	seenSingleton := map[string]bool{} // take only the most-recent per type
 
-	var features []any
+	// Multi-instance artifact types: collected as []any slices rather than
+	// single entries, because multiple artifacts of the same type coexist.
+	multiTypes := map[string]bool{
+		domain.ArtifactTypeFeature:    true,
+		domain.ArtifactTypeValueModel: true,
+	}
+	multiCollections := map[string][]any{}
 
 	for _, r := range rows {
-		if r.ArtifactType == domain.ArtifactTypeFeature {
+		if multiTypes[r.ArtifactType] {
 			var p map[string]any
 			if err := json.Unmarshal(r.Payload, &p); err == nil {
-				features = append(features, p)
+				multiCollections[r.ArtifactType] = append(multiCollections[r.ArtifactType], p)
 			}
 			continue
 		}
@@ -163,8 +169,8 @@ func loadAllArtifacts(ctx context.Context, db *bun.DB, instanceID uuid.UUID) (ma
 		result[r.ArtifactType] = p
 	}
 
-	if len(features) > 0 {
-		result[domain.ArtifactTypeFeature] = features
+	for artType, items := range multiCollections {
+		result[artType] = items
 	}
 
 	return result, nil

@@ -67,15 +67,36 @@ The strategy is being wound down. Update the north_star to reflect the closure:
 
 ## Output Format
 
-Respond with a single valid JSON object containing ONLY the `north_star` key:
+Respond with a single valid JSON object. The `north_star` key uses a **double-envelope**
+structure: the outer key is the routing envelope, and the inner `north_star` key is part
+of the artifact payload format. Both levels are required — do NOT flatten fields to the root.
 
 ```json
 {
-  "north_star": { ... }
+  "north_star": {
+    "north_star": {
+      "version": "1.0.0",
+      "organization": "Your Org Name",
+      "purpose": { "statement": "...", "problem_we_solve": "...", "who_we_serve": "...", "why_we_exist": "..." },
+      "vision": { "vision_statement": "...", "timeframe": "2030", "success_looks_like": ["..."], "key_capabilities": ["..."] },
+      "mission": { "what_we_do": ["..."], "how_we_do_it": "...", "for_whom": "..." },
+      "values": [ { "name": "...", "definition": "...", "behaviors_we_reject": ["..."] } ],
+      "core_beliefs": { "about_customers": "...", "about_product": "...", "about_growth": "..." },
+      "alignment_checks": { "strategy_alignment": "...", "formula_alignment": "..." }
+    }
+  },
+  "change_summary": "- bullet 1\n- bullet 2"
 }
 ```
 
-`north_star` is a FULL REPLACEMENT payload — include every field from the current
+IMPORTANT: The outer `north_star` key is the routing envelope. The inner `north_star`
+key is part of the artifact payload format. Both are required. Do not flatten the fields
+to the root level.
+
+`change_summary` is a short human-readable summary (2-4 bullet points, each max 120 chars)
+listing what you changed in the north star and why. Use "- " prefixed lines.
+
+`north_star` (inner) is a FULL REPLACEMENT payload — include every field from the current
 version, modified where needed. Do not omit preserved fields.
 
 **Rules:**

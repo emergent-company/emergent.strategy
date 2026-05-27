@@ -8,7 +8,7 @@ track: commercial
 status: ready
 
 contributes_to:
-  - Commercial.Marketing Operations.campaign-performance-analytics
+  - Commercial.Campaign Execution.campaign-performance-analytics
 
 maturity:
   current_tier: 1

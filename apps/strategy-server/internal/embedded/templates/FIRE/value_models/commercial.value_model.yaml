@@ -185,7 +185,7 @@ layers:
         name: Logo and branding assets
         active: false
       - id: commercial-s-verbal-guidelines
-        name: Verbal guidelines (tone and voice)
+        name: Verbal guidelines
         active: false
     - id: commercial-c-market-differentiation
       name: Market Differentiation

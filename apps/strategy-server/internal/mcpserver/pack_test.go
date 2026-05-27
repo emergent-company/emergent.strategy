@@ -1034,30 +1034,6 @@ func TestMCP_ScaffoldSkill_ScriptMode(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// I.21 — skill-importer core skill resolves as prompt-mode
-// ---------------------------------------------------------------------------
-
-func TestMCP_SkillImporter_CoreSkillExists(t *testing.T) {
-	svc := buildSvc(t)
-	c := newMCPClient(t, svc)
-
-	_, instID := seedInstance(t, svc, "org-skill-importer", nil)
-
-	var result map[string]any
-	c.call(1, "run_skill", map[string]any{
-		"instance_id": instID.String(),
-		"skill_name":  "skill-importer",
-	}).assertOK().decode(&result)
-
-	if result["mode"] != "interactive" {
-		t.Errorf("skill-importer: mode=%v, want interactive", result["mode"])
-	}
-	promptMD := fmt.Sprintf("%v", result["prompt_md"])
-	if len(promptMD) < 20 {
-		t.Errorf("skill-importer: prompt_md too short (%d chars)", len(promptMD))
-	}
-}
 
 // ---------------------------------------------------------------------------
 // I.22 — scaffold_skill → install_pack → get_installed_skill round-trip

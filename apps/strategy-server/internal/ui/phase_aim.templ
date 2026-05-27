@@ -130,18 +130,27 @@ templ aimCycleStepper(data AimPhaseData) {
 			</div>
 			<div class="flex items-center gap-3">
 			if data.LatestCalibrationDecision != "" {
-				<span class={ "badge badge-sm shrink-0", calibrationDecisionBadgeClass(data.LatestCalibrationDecision) }>
-					{ calibrationDecisionLabel(data.LatestCalibrationDecision) }
-				</span>
+			<span class="tooltip shrink-0" data-tip={ calibrationDecisionHint(data.LatestCalibrationDecision) }><span class={ "badge badge-sm", calibrationDecisionBadgeClass(data.LatestCalibrationDecision) }>
+				{ calibrationDecisionLabel(data.LatestCalibrationDecision) }
+			</span></span>
 			}
 			// Run full cycle button — visible when LRA exists.
 			if data.HasLRA && !data.TriggerFired {
-				<form method="POST" action={ templ.URL("/strategies/" + data.InstanceID + "/aim/runs") }>
-					<button type="submit" class="btn btn-xs btn-primary gap-1.5">
-						<span class="iconify lucide--play size-3"></span>
-						Run cycle
-					</button>
-				</form>
+				if data.ActiveRunID != "" {
+					<span class="tooltip" data-tip="A cycle is already running">
+						<button class="btn btn-xs btn-primary gap-1.5 btn-disabled" disabled>
+							<span class="iconify lucide--loader-2 size-3 animate-spin"></span>
+							Running...
+						</button>
+					</span>
+				} else {
+					<form method="POST" action={ templ.URL("/strategies/" + data.InstanceID + "/aim/runs") }>
+						<button type="submit" class="btn btn-xs btn-primary gap-1.5">
+							<span class="iconify lucide--play size-3"></span>
+							Run cycle
+						</button>
+					</form>
+				}
 			}
 		</div>
 		</div>
@@ -526,7 +535,7 @@ templ aimSignalFeedCard(data AimPhaseData) {
 					<span class="iconify lucide--radio size-4 text-base-content/60"></span>
 					<h3 class="text-base font-semibold text-base-content">Signal Feed</h3>
 					if data.ActiveSignals > 0 {
-						<span class="badge badge-sm badge-error">{ strconv.Itoa(data.ActiveSignals) } active</span>
+						<span class="tooltip" data-tip="Coherence signals currently requiring attention"><span class="badge badge-sm badge-error">{ strconv.Itoa(data.ActiveSignals) } active</span></span>
 					}
 				</div>
 				<a
@@ -600,7 +609,7 @@ templ aimSignalRow(sig AimSignalRow) {
 			<span class={ "iconify size-3.5 mt-0.5 shrink-0", signalSeverityIcon(sig.Severity), signalSeverityColor(sig.Severity) }></span>
 			<div class="min-w-0 grow">
 				<div class="flex items-center gap-2 flex-wrap">
-					<span class={ "badge badge-xs", signalTypeBadgeClass(sig.SignalType) }>{ sig.SignalType }</span>
+					<span class="tooltip" data-tip={ signalTypeHint(sig.SignalType) }><span class={ "badge badge-xs", signalTypeBadgeClass(sig.SignalType) }>{ sig.SignalType }</span></span>
 					if sig.TargetKey != "" {
 						<span class="text-xs font-mono text-base-content/50 truncate">{ sig.TargetKey }</span>
 					}

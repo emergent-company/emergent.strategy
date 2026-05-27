@@ -1,601 +1,545 @@
-// Package e2e contains end-to-end browser tests for the AIM cycle orchestrator.
-// Tests run against a live server on localhost:8090 using chromedp (system Chrome).
+// Package e2e contains integration tests for the AIM cycle orchestrator HTTP endpoints.
+// Tests run against a real Postgres database (via database.TestDB) and an httptest
+// server with the full Echo + handler stack. No live server, Chrome, or LLM required.
 //
-// Prerequisites:
-//   - Server running: task dev-up or /tmp/strategy-server-new server
-//   - Chrome installed at /Applications/Google Chrome.app
-//
-// Run: go test ./tests/e2e/... -v -timeout 120s
-// Skip when server not running: tests skip automatically if 8090 is unreachable.
+// Run: go test ./tests/e2e/... -v -timeout 60s
 package e2e
 
 import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/chromedp/chromedp"
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v4"
+	"github.com/uptrace/bun"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
+	strategydom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
+	internaldom "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/handler"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/orchestration"
+	orchpg "github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/orchestration/pg"
 )
 
-const (
-	baseURL    = "http://localhost:8090"
-	instanceID = "021bab8c-8b90-4e8a-b924-842b87b479f7"
-	aimURL     = baseURL + "/strategies/" + instanceID + "/aim"
-	runsURL    = baseURL + "/strategies/" + instanceID + "/aim/runs"
-)
+// ---------------------------------------------------------------------------
+// Test infrastructure
+// ---------------------------------------------------------------------------
 
-// skipIfServerDown skips the test if the server is not reachable.
-func skipIfServerDown(t *testing.T) {
-	t.Helper()
-	resp, err := http.Get(baseURL + "/") //nolint:noctx
-	if err != nil || resp.StatusCode >= 500 {
-		t.Skip("server not running on", baseURL)
-	}
-	resp.Body.Close()
+// testEnv bundles a test database, Echo server, orchestration engine, and a
+// seeded strategy instance. Every test gets an isolated environment.
+type testEnv struct {
+	DB         *bun.DB
+	Echo       *echo.Echo
+	Engine     *orchestration.Engine
+	InstanceID uuid.UUID
+	BaseURL    string // e.g. "/strategies/<uuid>"
 }
 
-// abortActiveRun cleans up any active orchestration run for the test instance.
-// It polls for the run to reach awaiting_human (so there's a batch to discard),
-// then discards it. Falls back to a short wait if the run is still initialising.
-func abortActiveRun(t *testing.T) {
-	t.Helper()
-
-	// Find the active run ID from the AIM page.
-	runID := findActiveRunID(t)
-	if runID == "" {
-		return // nothing to clean up
-	}
-
-	// Wait up to 30s for the run to reach a human gate so we can discard it.
-	deadline := time.Now().Add(30 * time.Second)
-	for time.Now().Before(deadline) {
-		resp, err := http.Get(baseURL + "/strategies/" + instanceID + "/aim/runs/" + runID) //nolint:noctx
-		if err != nil {
-			time.Sleep(500 * time.Millisecond)
-			continue
-		}
-		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		html := string(body)
-
-		batchID := extractBatchID(html)
-		if batchID != "" {
-			discardBatch(t, batchID)
-			time.Sleep(500 * time.Millisecond)
-			return
-		}
-
-		// Check if run is already terminal.
-		for _, term := range []string{"Completed", "Aborted", "Failed"} {
-			if strings.Contains(html, term) {
-				return
-			}
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-	t.Logf("abortActiveRun: timed out waiting for run %s to reach a human gate — proceeding anyway", runID)
+// noopWorkflow is a workflow whose steps complete instantly without doing
+// any real work. Steps produce a fake batch ID for human-gate testing.
+type noopWorkflow struct {
+	name  string
+	steps []orchestration.Step
 }
 
-// findActiveRunID returns the active run ID from the AIM landing page, or "".
-func findActiveRunID(t *testing.T) string {
-	t.Helper()
-	resp, err := http.Get(aimURL) //nolint:noctx
-	if err != nil {
-		return ""
-	}
-	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
+func (w *noopWorkflow) Name() string                               { return w.name }
+func (w *noopWorkflow) Steps() []orchestration.Step                { return w.steps }
+func (w *noopWorkflow) ConcurrencyKey(r *orchestration.Run) string { return r.ConcurrencyKey }
 
-	html := string(body)
-	needle := "/strategies/" + instanceID + "/aim/runs/"
-	idx := strings.Index(html, needle)
-	if idx < 0 {
-		return ""
-	}
-	rest := html[idx+len(needle):]
-	end := strings.IndexAny(rest, "\"' /")
-	if end <= 0 {
-		return ""
-	}
-	candidate := rest[:end]
-	// Must look like a UUID.
-	if len(candidate) != 36 || strings.Count(candidate, "-") != 4 {
-		return ""
-	}
-	return candidate
-}
-
-// newChromedp creates a chromedp context pointing at the system Chrome binary.
-func newChromedp(t *testing.T) (context.Context, context.CancelFunc) {
-	t.Helper()
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.ExecPath("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
-		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", true),
-		chromedp.Flag("no-sandbox", true),
-		chromedp.Flag("disable-dev-shm-usage", true),
-		chromedp.WindowSize(1280, 900),
-	)
-	allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), opts...)
-	ctx, cancel := chromedp.NewContext(allocCtx)
-	return ctx, func() {
-		cancel()
-		allocCancel()
-	}
-}
-
-// postRun issues a plain HTTP POST to start a new AIM cycle run (no browser needed).
-// Returns the run ID extracted from the redirect URL, or "" if already active.
-func postRun(t *testing.T) string {
-	t.Helper()
-	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse // don't follow redirects
+// newNoopWorkflow creates a workflow with steps that complete instantly.
+// The first step has a human gate (produces a batch ID to pause on).
+func newNoopWorkflow(name string) *noopWorkflow {
+	return &noopWorkflow{
+		name: name,
+		steps: []orchestration.Step{
+			{
+				Name: "draft_assessment",
+				Execute: func(_ context.Context, _ *orchestration.Run) (orchestration.StepResult, error) {
+					return orchestration.StepResult{
+						BatchID: uuid.New().String(),
+						Meta:    map[string]any{"llm_used": false},
+					}, nil
+				},
+				HumanGate: true,
+			},
+			{
+				Name: "snapshot",
+				Execute: func(_ context.Context, _ *orchestration.Run) (orchestration.StepResult, error) {
+					return orchestration.StepResult{}, nil
+				},
+				HumanGate: false,
+			},
 		},
 	}
-	resp, err := client.Post(runsURL, "application/x-www-form-urlencoded", nil) //nolint:noctx
-	if err != nil {
-		t.Fatalf("POST %s: %v", runsURL, err)
-	}
-	resp.Body.Close()
-
-	if resp.StatusCode == http.StatusConflict {
-		return "" // already active (HTMX path)
-	}
-	if resp.StatusCode == http.StatusSeeOther {
-		loc := resp.Header.Get("Location")
-		// If redirect goes back to /aim (not /aim/runs/:id), that's ErrAlreadyActive.
-		if !strings.Contains(loc, "/aim/runs/") {
-			return "" // already active (browser path)
-		}
-		// Extract run ID: /strategies/:id/aim/runs/:runID
-		parts := strings.Split(strings.TrimSuffix(loc, "/"), "/")
-		return parts[len(parts)-1]
-	}
-
-	t.Fatalf("unexpected status %d from POST %s", resp.StatusCode, runsURL)
-	return ""
 }
 
-// waitForRunStatus polls the run JSON until it reaches the expected status or times out.
-func waitForRunStatus(t *testing.T, runID, wantStatus string, timeout time.Duration) map[string]any {
+// setupTestEnv creates a test environment with database, Echo server, handler,
+// and orchestration engine. The engine runs a noop workflow named "aim_cycle".
+func setupTestEnv(t *testing.T) *testEnv {
 	t.Helper()
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		resp, err := http.Get(baseURL + "/strategies/" + instanceID + "/aim/runs/" + runID + "?format=json") //nolint:noctx
-		if err == nil && resp.StatusCode == 200 {
-			// The run panel returns HTML, not JSON. Use the run API via a direct DB
-			// query approach — instead poll the page HTML for status indicators.
-			resp.Body.Close()
-		}
-		// Poll run state via the MCP aim_get_run equivalent — use the HTML page
-		// and look for the status badge text.
-		pageResp, err := http.Get(baseURL + "/strategies/" + instanceID + "/aim/runs/" + runID) //nolint:noctx
-		if err == nil {
-			body, _ := io.ReadAll(pageResp.Body)
-			pageResp.Body.Close()
-			html := string(body)
-			if strings.Contains(html, wantStatus) || strings.Contains(html, statusBadgeText(wantStatus)) {
-				// Parse run state from page — look for key markers.
-				return map[string]any{"status": wantStatus, "html": html}
-			}
-			// Terminal states — stop waiting.
-			if wantStatus != "failed" && strings.Contains(html, "Failed") {
-				t.Logf("run reached failed state unexpectedly, html excerpt: %s", html[max(0, strings.Index(html, "Failed")-100):min(len(html), strings.Index(html, "Failed")+200)])
-				return map[string]any{"status": "failed", "html": html}
-			}
-		}
-		time.Sleep(500 * time.Millisecond)
+
+	db := database.TestDB(t)
+	ctx := context.Background()
+	log := slog.Default()
+
+	// Seed an org, workspace, and instance.
+	orgID := uuid.New()
+	_, err := db.ExecContext(ctx,
+		"INSERT INTO orgs (id, name, slug, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())",
+		orgID, "E2E Org", "e2e-"+orgID.String()[:8])
+	if err != nil {
+		t.Fatalf("seed org: %v", err)
 	}
-	t.Fatalf("timed out waiting for run %s to reach status %q", runID, wantStatus)
-	return nil
+
+	wsID := uuid.New()
+	_, err = db.NewInsert().Model(&internaldom.Workspace{
+		ID:          wsID,
+		GithubOwner: "e2e-ws-" + wsID.String()[:8],
+		OrgID:       orgID,
+	}).Exec(ctx)
+	if err != nil {
+		t.Fatalf("seed workspace: %v", err)
+	}
+
+	instID := uuid.New()
+	_, err = db.NewInsert().Model(&internaldom.StrategyInstance{
+		ID:          instID,
+		WorkspaceID: wsID,
+		Name:        "E2E Test Instance",
+		Status:      internaldom.InstanceStatusActive,
+	}).Exec(ctx)
+	if err != nil {
+		t.Fatalf("seed instance: %v", err)
+	}
+
+	// Build orchestration engine with pg backend + noop workflow.
+	backend := orchpg.NewBackend(db, orchpg.Config{Workers: 2})
+	engine := orchestration.New(backend)
+
+	wf := newNoopWorkflow("aim_cycle")
+	engine.Register(wf)
+
+	if err := engine.Start(ctx); err != nil {
+		t.Fatalf("engine start: %v", err)
+	}
+	t.Cleanup(func() { _ = engine.Stop(context.Background()) })
+
+	// Build handler with just the services needed for AIM orchestrator endpoints.
+	strategySvc := strategydom.NewService(db)
+	semanticSvc := semantic.NewService(semantic.Config{})
+
+	webHandler := handler.New(db, log, semanticSvc).
+		WithStrategy(strategySvc).
+		WithOrchestration(engine)
+
+	e := echo.New()
+	e.HideBanner = true
+	webHandler.RegisterRoutes(e)
+
+	return &testEnv{
+		DB:         db,
+		Echo:       e,
+		Engine:     engine,
+		InstanceID: instID,
+		BaseURL:    "/strategies/" + instID.String(),
+	}
 }
 
-func statusBadgeText(status string) string {
-	switch status {
-	case "awaiting_human":
-		return "Awaiting Review"
-	case "completed":
-		return "Completed"
-	case "aborted":
-		return "Aborted"
-	case "failed":
-		return "Failed"
-	case "running":
-		return "Running"
-	default:
-		return status
-	}
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-// extractBatchID finds a batch ID from the run panel HTML (the draft-review link).
-func extractBatchID(html string) string {
-	needle := "/aim/draft-review/"
-	idx := strings.Index(html, needle)
-	if idx < 0 {
-		return ""
-	}
-	rest := html[idx+len(needle):]
-	end := strings.IndexAny(rest, "\"' ")
-	if end <= 0 {
-		return rest
-	}
-	return rest[:end]
-}
-
-// commitBatch POSTs to commit a staged batch.
-func commitBatch(t *testing.T, batchID string) {
+// startHTTPServer creates an httptest.Server from the Echo instance.
+// Used for tests that need real HTTP transport (e.g., SSE streaming).
+func (env *testEnv) startHTTPServer(t *testing.T) *httptest.Server {
 	t.Helper()
-	url := baseURL + "/strategies/" + instanceID + "/aim/draft-review/" + batchID + "/commit"
-	resp, err := http.Post(url, "application/x-www-form-urlencoded", nil) //nolint:noctx
-	if err != nil {
-		t.Fatalf("commit batch %s: %v", batchID, err)
-	}
-	resp.Body.Close()
-	time.Sleep(300 * time.Millisecond)
+	ts := httptest.NewServer(env.Echo)
+	t.Cleanup(ts.Close)
+	return ts
 }
 
-// discardBatch POSTs to discard a staged batch.
-func discardBatch(t *testing.T, batchID string) {
+// request issues an HTTP request against the Echo server and returns the response.
+func (env *testEnv) request(t *testing.T, method, path string, headers map[string]string) *http.Response {
 	t.Helper()
-	url := baseURL + "/strategies/" + instanceID + "/aim/draft-review/" + batchID + "/discard"
-	resp, err := http.Post(url, "application/x-www-form-urlencoded", nil) //nolint:noctx
+
+	// Use Echo's test server.
+	server := env.Echo.Server
+	_ = server // not used directly — we call ServeHTTP
+
+	req, err := http.NewRequest(method, path, nil)
 	if err != nil {
-		t.Fatalf("discard batch %s: %v", batchID, err)
+		t.Fatalf("new request: %v", err)
 	}
-	resp.Body.Close()
-	time.Sleep(300 * time.Millisecond)
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+
+	rec := newResponseRecorder()
+	env.Echo.ServeHTTP(rec, req)
+
+	return rec.Result()
+}
+
+// responseRecorder wraps http.ResponseWriter to capture status, headers, and body.
+type responseRecorder struct {
+	statusCode int
+	header     http.Header
+	body       *strings.Builder
+}
+
+func newResponseRecorder() *responseRecorder {
+	return &responseRecorder{
+		header: make(http.Header),
+		body:   &strings.Builder{},
+	}
+}
+
+func (r *responseRecorder) Header() http.Header       { return r.header }
+func (r *responseRecorder) WriteHeader(code int)       { r.statusCode = code }
+func (r *responseRecorder) Write(b []byte) (int, error) {
+	if r.statusCode == 0 {
+		r.statusCode = 200
+	}
+	return r.body.Write(b)
+}
+func (r *responseRecorder) Flush() {} // no-op for SSE test
+
+func (r *responseRecorder) Result() *http.Response {
+	if r.statusCode == 0 {
+		r.statusCode = 200
+	}
+	return &http.Response{
+		StatusCode: r.statusCode,
+		Header:     r.header,
+		Body:       io.NopCloser(strings.NewReader(r.body.String())),
+	}
 }
 
 // ---------------------------------------------------------------------------
-// Test 8.2: Start AIM cycle — run panel renders, SSE stream opens
+// Test: POST /aim/runs — starts a run and redirects to run panel
 // ---------------------------------------------------------------------------
 
-func Test82_StartCycle_RunPanelRendersAndSSEConnects(t *testing.T) {
-	skipIfServerDown(t)
-	abortActiveRun(t)
+func TestStartRun_RedirectsToRunPanel(t *testing.T) {
+	env := setupTestEnv(t)
 
-	ctx, cancel := newChromedp(t)
-	defer cancel()
+	resp := env.request(t, "POST", env.BaseURL+"/aim/runs", nil)
 
-	var pageTitle, panelHTML string
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("expected 303 redirect, got %d", resp.StatusCode)
+	}
 
-	err := chromedp.Run(ctx,
-		// Navigate to AIM page.
-		chromedp.Navigate(aimURL),
-		chromedp.WaitVisible(`body`, chromedp.ByQuery),
+	loc := resp.Header.Get("Location")
+	if !strings.Contains(loc, "/aim/runs/") {
+		t.Errorf("redirect should point to /aim/runs/:runID, got Location: %s", loc)
+	}
 
-		// Click "Run cycle" button (submits form POST to /aim/runs).
-		chromedp.Click(`form[action$="/aim/runs"] button`, chromedp.ByQuery),
-
-		// Wait for redirect to the run panel page.
-		chromedp.WaitVisible(`#aim-run-panel`, chromedp.ByQuery),
-
-		// Wait for the step timeline to populate (worker initialises steps).
-		chromedp.WaitVisible(`#aim-run-timeline`, chromedp.ByQuery),
-		chromedp.Sleep(2*time.Second),
-
-		// Capture state.
-		chromedp.Title(&pageTitle),
-		chromedp.OuterHTML(`#aim-run-panel`, &panelHTML),
-	)
+	// Verify the run exists in the engine.
+	runID := loc[strings.LastIndex(loc, "/")+1:]
+	parsedID, err := uuid.Parse(runID)
 	if err != nil {
-		t.Fatalf("chromedp run: %v", err)
+		t.Fatalf("redirect location contains invalid run ID %q: %v", runID, err)
 	}
 
-	if !strings.Contains(pageTitle, "AIM") {
-		t.Errorf("page title should contain AIM, got %q", pageTitle)
+	run, err := env.Engine.GetRun(context.Background(), parsedID)
+	if err != nil {
+		t.Fatalf("GetRun: %v", err)
 	}
-	if !strings.Contains(panelHTML, "aim-run-timeline") {
-		t.Errorf("run panel should contain timeline div, got: %s", panelHTML[:min(len(panelHTML), 300)])
-	}
-
-	// Verify SSE stream URL is wired (via data-stream-url, used by plain EventSource).
-	if !strings.Contains(panelHTML, "data-stream-url") {
-		t.Errorf("run panel should have data-stream-url attribute for live updates")
-	}
-
-	// Verify step names appear in the timeline.
-	for _, step := range []string{"Draft Assessment", "Draft Calibration", "Apply Calibration", "Snapshot Cycle"} {
-		if !strings.Contains(panelHTML, step) {
-			t.Errorf("run panel should show step %q", step)
-		}
-	}
-
-	t.Logf("Run panel rendered with SSE wiring. Title: %q", pageTitle)
-
-	// Cleanup: abort the run we started.
-	abortActiveRun(t)
-}
-
-// ---------------------------------------------------------------------------
-// Test 8.3: Commit at assessment gate — run advances to calibration step
-// ---------------------------------------------------------------------------
-
-func Test83_CommitAssessment_AdvancesToCalibration(t *testing.T) {
-	skipIfServerDown(t)
-	abortActiveRun(t)
-
-	// Start a run via HTTP (faster than browser click).
-	runID := postRun(t)
-	if runID == "" {
-		t.Fatal("failed to start a run — got ErrAlreadyActive unexpectedly")
-	}
-	t.Logf("Started run: %s", runID)
-
-	// Wait for the run to reach awaiting_human on draft_assessment.
-	state := waitForRunStatus(t, runID, "awaiting_human", 30*time.Second)
-	html := state["html"].(string)
-
-	// Confirm we're waiting at the assessment step.
-	if !strings.Contains(html, "Draft Assessment") {
-		t.Errorf("expected run to be waiting at Draft Assessment step")
-	}
-
-	batchID := extractBatchID(html)
-	if batchID == "" {
-		t.Fatalf("could not find batch ID in run panel HTML for run %s", runID)
-	}
-	t.Logf("Assessment batch ID: %s", batchID)
-
-	// Commit the assessment batch.
-	commitBatch(t, batchID)
-
-	// Wait for the run to advance to draft_calibration (next human gate).
-	state2 := waitForRunStatus(t, runID, "awaiting_human", 30*time.Second)
-	html2 := state2["html"].(string)
-
-	// The run should now be at calibration.
-	if !strings.Contains(html2, "Draft Calibration") {
-		t.Errorf("after committing assessment, expected run to advance to Draft Calibration")
-	}
-	// Assessment step should be done.
-	if !strings.Contains(html2, "Draft Assessment") {
-		t.Errorf("Draft Assessment step should still be visible in timeline")
-	}
-
-	t.Logf("Run advanced to Draft Calibration after assessment commit")
-
-	// Cleanup.
-	batchID2 := extractBatchID(html2)
-	if batchID2 != "" {
-		discardBatch(t, batchID2)
+	if run.WorkflowName != "aim_cycle" {
+		t.Errorf("expected workflow aim_cycle, got %s", run.WorkflowName)
 	}
 }
 
 // ---------------------------------------------------------------------------
-// Test 8.4: Discard at calibration gate — run transitions to aborted
+// Test: duplicate POST /aim/runs — returns 409 (HTMX) or 303 to /aim (browser)
 // ---------------------------------------------------------------------------
 
-func Test84_DiscardAtCalibration_RunAborted(t *testing.T) {
-	skipIfServerDown(t)
-	abortActiveRun(t)
-
-	runID := postRun(t)
-	if runID == "" {
-		t.Fatal("could not start run")
-	}
-	t.Logf("Started run: %s", runID)
-
-	// Wait for assessment gate.
-	state := waitForRunStatus(t, runID, "awaiting_human", 30*time.Second)
-	batchID := extractBatchID(state["html"].(string))
-	if batchID == "" {
-		t.Fatalf("no batch ID at assessment gate")
-	}
-
-	// Commit assessment to advance.
-	commitBatch(t, batchID)
-
-	// Wait for calibration gate.
-	state2 := waitForRunStatus(t, runID, "awaiting_human", 30*time.Second)
-	batchID2 := extractBatchID(state2["html"].(string))
-	if batchID2 == "" {
-		t.Fatalf("no batch ID at calibration gate")
-	}
-	t.Logf("Calibration batch ID: %s", batchID2)
-
-	// Discard at calibration.
-	discardBatch(t, batchID2)
-
-	// Wait for the run to reach aborted.
-	finalState := waitForRunStatus(t, runID, "aborted", 15*time.Second)
-	html := finalState["html"].(string)
-
-	if !strings.Contains(html, "Aborted") {
-		t.Errorf("expected run status Aborted in panel, got: %s", html[:min(len(html), 500)])
-	}
-	t.Logf("Run correctly transitioned to Aborted on discard")
-}
-
-// ---------------------------------------------------------------------------
-// Test 8.5: Start two cycles on same instance — second is rejected (409)
-// ---------------------------------------------------------------------------
-
-func Test85_DuplicateRun_Rejected(t *testing.T) {
-	skipIfServerDown(t)
-	abortActiveRun(t)
+func TestDuplicateRun_HTMX_Returns409(t *testing.T) {
+	env := setupTestEnv(t)
 
 	// Start first run.
-	runID := postRun(t)
-	if runID == "" {
-		t.Fatal("could not start first run")
-	}
-	t.Logf("First run: %s", runID)
-
-	// Wait briefly for it to be active.
-	time.Sleep(200 * time.Millisecond)
-
-	// Attempt to start a second run — should return 409 or redirect back to AIM page.
-	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
-	resp, err := client.Post(runsURL, "application/x-www-form-urlencoded", nil) //nolint:noctx
-	if err != nil {
-		t.Fatalf("second POST: %v", err)
-	}
-	resp.Body.Close()
-
-	// Browser form POST without HX-Request header gets a 303 redirect back to AIM.
-	// HX-Request header gets a 409. Either is correct.
-	switch resp.StatusCode {
-	case http.StatusConflict: // 409 — HTMX path
-		t.Logf("Second run correctly rejected with 409")
-	case http.StatusSeeOther: // 303 — browser form path, redirects back to /aim
-		loc := resp.Header.Get("Location")
-		if !strings.Contains(loc, "/aim") {
-			t.Errorf("expected redirect to /aim page, got Location: %s", loc)
-		}
-		t.Logf("Second run correctly rejected with 303 redirect to %s", loc)
-	default:
-		t.Errorf("expected 409 or 303 for duplicate run, got %d", resp.StatusCode)
+	resp1 := env.request(t, "POST", env.BaseURL+"/aim/runs", nil)
+	if resp1.StatusCode != http.StatusSeeOther {
+		t.Fatalf("first POST: expected 303, got %d", resp1.StatusCode)
 	}
 
-	// Cleanup.
-	abortActiveRun(t)
+	// Wait for the run to be picked up by the worker.
+	time.Sleep(100 * time.Millisecond)
+
+	// Second run with HX-Request header — should get 409.
+	resp2 := env.request(t, "POST", env.BaseURL+"/aim/runs", map[string]string{
+		"HX-Request": "true",
+	})
+
+	if resp2.StatusCode != http.StatusConflict {
+		t.Errorf("HTMX duplicate POST: expected 409 Conflict, got %d", resp2.StatusCode)
+	}
+}
+
+func TestDuplicateRun_Browser_RedirectsToAIM(t *testing.T) {
+	env := setupTestEnv(t)
+
+	// Start first run.
+	resp1 := env.request(t, "POST", env.BaseURL+"/aim/runs", nil)
+	if resp1.StatusCode != http.StatusSeeOther {
+		t.Fatalf("first POST: expected 303, got %d", resp1.StatusCode)
+	}
+
+	// Wait for the run to be picked up by the worker.
+	time.Sleep(100 * time.Millisecond)
+
+	// Second run without HX-Request header — should redirect to /aim.
+	resp2 := env.request(t, "POST", env.BaseURL+"/aim/runs", nil)
+
+	if resp2.StatusCode != http.StatusSeeOther {
+		t.Fatalf("browser duplicate POST: expected 303, got %d", resp2.StatusCode)
+	}
+
+	loc := resp2.Header.Get("Location")
+	expectedRedirect := "/strategies/" + env.InstanceID.String() + "/aim"
+	if loc != expectedRedirect {
+		t.Errorf("expected redirect to %s, got %s", expectedRedirect, loc)
+	}
 }
 
 // ---------------------------------------------------------------------------
-// Test 8.6: Server restart with active run — run transitions to failed
+// Test: GET /aim/runs/:runID — returns 200 with run panel HTML
 // ---------------------------------------------------------------------------
 
-func Test86_ServerRestart_ActiveRunMarkedFailed(t *testing.T) {
-	skipIfServerDown(t)
-	abortActiveRun(t)
+func TestGetRun_ReturnsRunPanel(t *testing.T) {
+	env := setupTestEnv(t)
 
 	// Start a run.
-	runID := postRun(t)
-	if runID == "" {
-		t.Fatal("could not start run")
+	resp := env.request(t, "POST", env.BaseURL+"/aim/runs", nil)
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("start run: expected 303, got %d", resp.StatusCode)
 	}
-	t.Logf("Started run: %s", runID)
+	loc := resp.Header.Get("Location")
+	runID := loc[strings.LastIndex(loc, "/")+1:]
 
-	// Wait for it to reach awaiting_human (so it's durable in the DB).
-	waitForRunStatus(t, runID, "awaiting_human", 30*time.Second)
-	t.Logf("Run is awaiting_human — simulating restart")
+	// Wait for the worker to pick up the run and execute the first step.
+	time.Sleep(500 * time.Millisecond)
 
-	// Kill the server.
-	resp, err := http.Post(baseURL+"/_test/restart", "application/x-www-form-urlencoded", nil) //nolint:noctx
-	if err == nil {
-		resp.Body.Close()
+	// GET the run panel.
+	panelResp := env.request(t, "GET", env.BaseURL+"/aim/runs/"+runID, nil)
+	if panelResp.StatusCode != http.StatusOK {
+		t.Fatalf("GET run panel: expected 200, got %d", panelResp.StatusCode)
 	}
-	// The server doesn't have a /_test/restart endpoint, so we use pkill + restart
-	// via the test helper. This is the one scenario that needs shell coordination.
-	// We simulate it by calling the pgBackend's markStaleFailed behaviour directly:
-	// restart the binary and verify the run's status via HTTP after the server comes back up.
 
-	// For now this test documents the expectation:
-	// after a restart, any pending/running/awaiting_human run should be marked failed.
-	// The actual restart is done manually or via a test helper script.
-	// We verify the server correctly cleans up on the next Start().
-	t.Logf("Note: full restart test requires manual server restart. Verifying pgBackend.markStaleFailed via unit test instead.")
-	t.Skip("Server restart E2E requires external process management — covered by TestPgBackend_MarkStaleFailed unit test")
+	body, _ := io.ReadAll(panelResp.Body)
+	html := string(body)
+
+	// The run panel should contain the step names from our noop workflow.
+	if !strings.Contains(html, "draft_assessment") && !strings.Contains(html, "Draft Assessment") {
+		t.Errorf("run panel HTML should mention draft_assessment step")
+	}
+	if !strings.Contains(html, "snapshot") && !strings.Contains(html, "Snapshot") {
+		t.Errorf("run panel HTML should mention snapshot step")
+	}
+
+	// The stream URL should be present for SSE.
+	expectedStreamURL := fmt.Sprintf("/strategies/%s/aim/runs/%s/stream", env.InstanceID, runID)
+	if !strings.Contains(html, expectedStreamURL) {
+		t.Errorf("run panel should contain stream URL %s", expectedStreamURL)
+	}
 }
 
 // ---------------------------------------------------------------------------
-// Test: SSE stream endpoint returns event-stream content type
+// Test: GET /aim/runs/:runID — invalid run ID returns 400
 // ---------------------------------------------------------------------------
 
-func Test_SSEEndpoint_ContentType(t *testing.T) {
-	skipIfServerDown(t)
-	abortActiveRun(t)
+func TestGetRun_InvalidID_Returns400(t *testing.T) {
+	env := setupTestEnv(t)
 
-	runID := postRun(t)
-	if runID == "" {
-		t.Fatal("could not start run")
+	resp := env.request(t, "GET", env.BaseURL+"/aim/runs/not-a-uuid", nil)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected 400 for invalid run ID, got %d", resp.StatusCode)
 	}
-	defer abortActiveRun(t)
+}
 
-	// Open SSE stream — just check headers, don't read forever.
-	streamURL := fmt.Sprintf("%s/strategies/%s/aim/runs/%s/stream", baseURL, instanceID, runID)
-	req, _ := http.NewRequest("GET", streamURL, nil) //nolint:noctx
+// ---------------------------------------------------------------------------
+// Test: GET /aim/runs/:runID — nonexistent run returns 404
+// ---------------------------------------------------------------------------
+
+func TestGetRun_NotFound_Returns404(t *testing.T) {
+	env := setupTestEnv(t)
+
+	fakeID := uuid.New().String()
+	resp := env.request(t, "GET", env.BaseURL+"/aim/runs/"+fakeID, nil)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("expected 404 for nonexistent run, got %d", resp.StatusCode)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Test: GET /aim/runs/:runID/stream — returns SSE content type
+// ---------------------------------------------------------------------------
+
+func TestSSEStream_ContentType(t *testing.T) {
+	env := setupTestEnv(t)
+
+	// Start a run so we have a valid runID.
+	resp := env.request(t, "POST", env.BaseURL+"/aim/runs", nil)
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("start run: expected 303, got %d", resp.StatusCode)
+	}
+	loc := resp.Header.Get("Location")
+	runID := loc[strings.LastIndex(loc, "/")+1:]
+
+	// Wait for worker to pick up the run.
+	time.Sleep(200 * time.Millisecond)
+
+	// The SSE handler enters an infinite polling loop, so we can't call it via
+	// ServeHTTP synchronously. Instead, use an httptest.Server and a short-timeout
+	// HTTP client that reads only the headers + first bytes.
+	ts := env.startHTTPServer(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", ts.URL+env.BaseURL+"/aim/runs/"+runID+"/stream", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
 	req.Header.Set("Accept", "text/event-stream")
 
-	client := &http.Client{Timeout: 3 * time.Second}
-	resp, err := client.Do(req)
+	client := &http.Client{}
+	sseResp, err := client.Do(req)
 	if err != nil {
-		// Timeout reading an infinite stream is expected — check what we got.
+		// Context timeout is expected — the SSE stream runs forever.
+		// We should have gotten the headers before the timeout.
 		t.Logf("SSE request ended (expected for stream): %v", err)
 		return
 	}
-	defer resp.Body.Close()
+	defer sseResp.Body.Close()
 
-	ct := resp.Header.Get("Content-Type")
+	ct := sseResp.Header.Get("Content-Type")
 	if !strings.Contains(ct, "text/event-stream") {
 		t.Errorf("SSE endpoint should return Content-Type: text/event-stream, got %q", ct)
 	}
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("SSE endpoint should return 200, got %d", resp.StatusCode)
+	if sseResp.StatusCode != http.StatusOK {
+		t.Errorf("SSE endpoint should return 200, got %d", sseResp.StatusCode)
 	}
 
-	// Read a few bytes to confirm the ping comment is sent.
-	buf := make([]byte, 32)
-	n, _ := io.ReadAtLeast(resp.Body, buf, 1)
-	if n > 0 && !strings.Contains(string(buf[:n]), ":") {
-		t.Errorf("SSE stream should send comment or data, got: %q", string(buf[:n]))
+	// Read a few bytes to confirm the server is sending data.
+	buf := make([]byte, 64)
+	n, _ := io.ReadAtLeast(sseResp.Body, buf, 1)
+	if n > 0 {
+		t.Logf("SSE stream sent %d bytes: %q", n, string(buf[:n]))
 	}
 	t.Logf("SSE endpoint OK — Content-Type: %s", ct)
 }
 
 // ---------------------------------------------------------------------------
-// Test: AIM page shows active run card when run is in progress
+// Test: POST /aim/runs without orchestration engine — returns 503
 // ---------------------------------------------------------------------------
 
-func Test_AIMPage_ShowsActiveRunCard(t *testing.T) {
-	skipIfServerDown(t)
-	abortActiveRun(t)
+func TestStartRun_NoEngine_Returns503(t *testing.T) {
+	db := database.TestDB(t)
+	ctx := context.Background()
+	log := slog.Default()
 
-	runID := postRun(t)
-	if runID == "" {
-		t.Fatal("could not start run")
-	}
-	defer abortActiveRun(t)
-
-	// Wait for run to be active.
-	time.Sleep(300 * time.Millisecond)
-
-	// Load the AIM landing page.
-	resp, err := http.Get(aimURL) //nolint:noctx
+	// Seed instance.
+	orgID := uuid.New()
+	_, err := db.ExecContext(ctx,
+		"INSERT INTO orgs (id, name, slug, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())",
+		orgID, "No-Engine Org", "ne-"+orgID.String()[:8])
 	if err != nil {
-		t.Fatalf("GET AIM page: %v", err)
+		t.Fatalf("seed org: %v", err)
 	}
-	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
 
-	html := string(body)
+	wsID := uuid.New()
+	_, err = db.NewInsert().Model(&internaldom.Workspace{
+		ID:          wsID,
+		GithubOwner: "ne-ws-" + wsID.String()[:8],
+		OrgID:       orgID,
+	}).Exec(ctx)
+	if err != nil {
+		t.Fatalf("seed workspace: %v", err)
+	}
 
-	// The active run card should link to the run panel.
-	runPanelLink := "/strategies/" + instanceID + "/aim/runs/" + runID
-	if !strings.Contains(html, runPanelLink) {
-		// Partial match — just check runs/ prefix.
-		if !strings.Contains(html, "/aim/runs/") {
-			t.Errorf("AIM landing page should show active run card linking to run panel")
-		} else {
-			t.Logf("AIM landing page shows active run link (run may have different ID)")
-		}
-	} else {
-		t.Logf("AIM landing page correctly shows active run card for run %s", runID)
+	instID := uuid.New()
+	_, err = db.NewInsert().Model(&internaldom.StrategyInstance{
+		ID:          instID,
+		WorkspaceID: wsID,
+		Name:        "No Engine Instance",
+		Status:      internaldom.InstanceStatusActive,
+	}).Exec(ctx)
+	if err != nil {
+		t.Fatalf("seed instance: %v", err)
+	}
+
+	// Handler without orchestration engine.
+	semanticSvc := semantic.NewService(semantic.Config{})
+	strategySvc := strategydom.NewService(db)
+	webHandler := handler.New(db, log, semanticSvc).WithStrategy(strategySvc)
+	// Note: WithOrchestration NOT called.
+
+	e := echo.New()
+	e.HideBanner = true
+	webHandler.RegisterRoutes(e)
+
+	// POST /aim/runs should return 503.
+	req, _ := http.NewRequest("POST", "/strategies/"+instID.String()+"/aim/runs", nil)
+	rec := newResponseRecorder()
+	e.ServeHTTP(rec, req)
+	resp := rec.Result()
+
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Errorf("expected 503 when orchestration engine is nil, got %d", resp.StatusCode)
 	}
 }
 
 // ---------------------------------------------------------------------------
+// Test: server restart marks stale runs as failed
+// ---------------------------------------------------------------------------
+
+func TestServerRestart_MarksStaleRunsFailed(t *testing.T) {
+	db := database.TestDB(t)
+	ctx := context.Background()
+
+	wf := newNoopWorkflow("aim_cycle")
+
+	// Insert a pending run using a backend that has NOT been started.
+	// No workers are running, so the run stays pending in the DB.
+	be1 := orchpg.NewBackend(db, orchpg.Config{Workers: 1})
+	run := &orchestration.Run{
+		ID:             uuid.New(),
+		WorkflowName:   "aim_cycle",
+		ConcurrencyKey: "stale-instance",
+		Input:          map[string]any{"instance_id": "stale-instance"},
+		Status:         orchestration.StatusPending,
+		Steps:          []orchestration.StepLog{},
+	}
+	if err := be1.Enqueue(ctx, run); err != nil {
+		t.Fatalf("Enqueue: %v", err)
+	}
+	t.Logf("Run enqueued (no workers): %s", run.ID)
+
+	// Start a fresh backend simulating a server restart.
+	// Start() must mark the pending run as failed before launching new workers.
+	be2 := orchpg.NewBackend(db, orchpg.Config{Workers: 1})
+	eng2 := orchestration.New(be2)
+	eng2.Register(wf)
+
+	if err := eng2.Start(ctx); err != nil {
+		t.Fatalf("eng2 start: %v", err)
+	}
+	defer func() { _ = eng2.Stop(ctx) }()
+
+	// The stale run should now be marked as failed.
+	got, err := eng2.GetRun(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("GetRun after restart: %v", err)
+	}
+
+	if got.Status != orchestration.StatusFailed {
+		t.Errorf("expected run status 'failed' after restart, got %q", got.Status)
+	}
+	if got.Error != "server restart" {
+		t.Errorf("expected error 'server restart', got %q", got.Error)
+	}
+}

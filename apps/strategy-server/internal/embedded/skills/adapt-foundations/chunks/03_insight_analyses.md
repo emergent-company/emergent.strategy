@@ -62,15 +62,39 @@ competitors that become relevant in the new direction.
 
 ## Output Format
 
-Respond with a single valid JSON object containing ONLY the `insight_analyses` key:
+Respond with a single valid JSON object. The `insight_analyses` key uses a **double-envelope**
+structure: the outer key is the routing envelope, and the inner `insight_analyses` key is
+part of the artifact payload format. Both levels are required — do NOT flatten fields to the root.
 
 ```json
 {
-  "insight_analyses": { ... }
+  "insight_analyses": {
+    "insight_analyses": {
+      "version": "1.0.0",
+      "last_updated": "YYYY-MM-DD",
+      "confidence_level": "high",
+      "competitive_landscape": [ { "id": "...", "competitor": "...", "threat_level": "...", "problem_severity": "...", "solution_feasibility": "..." } ],
+      "market_trends": [ { "id": "...", "trend": "...", "relevance": "...", "signal_strength": "..." } ]
+    }
+  },
+  "change_summary": "- bullet 1\n- bullet 2"
 }
 ```
 
-`insight_analyses` is a FULL REPLACEMENT payload — include every field from the
+IMPORTANT: The outer `insight_analyses` key is the routing envelope. The inner
+`insight_analyses` key is part of the artifact payload format. Both are required.
+Do not flatten the fields to the root level.
+
+IMPORTANT: The inner `insight_analyses` object MUST include these two required metadata fields:
+- `"last_updated"`: today's date in YYYY-MM-DD format
+- `"confidence_level"`: one of `"high"`, `"medium"`, or `"low"` — choose based on the strength
+  and recency of the evidence in the current analysis. Use `"high"` when competitive and trend
+  data is well-supported, `"medium"` when partially supported, `"low"` when speculative.
+
+`change_summary` is a short human-readable summary (2-4 bullet points, each max 120 chars)
+listing what you changed in the insight analyses and why. Use "- " prefixed lines.
+
+`insight_analyses` (inner) is a FULL REPLACEMENT payload — include every field from the
 current version, modified where needed. Do not omit preserved fields.
 
 **Rules:**

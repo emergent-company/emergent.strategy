@@ -246,7 +246,7 @@ templ valueModelSubRow(sub ValueModelSub) {
 		<span class={ "size-2 rounded-full shrink-0", vmSubDot(sub.Active) }></span>
 		<span class={ "text-xs grow", templ.KV("text-base-content/80", sub.Active), templ.KV("text-base-content/50", !sub.Active) }>{ sub.Name }</span>
 		if sub.Maturity != "" {
-			<span class={ "badge badge-xs", vmMaturityBadge(sub.Maturity) }>{ sub.Maturity }</span>
+			<span class="tooltip" data-tip={ vmMaturityHint(sub.Maturity) }><span class={ "badge badge-xs", vmMaturityBadge(sub.Maturity) }>{ sub.Maturity }</span></span>
 		}
 	</div>
 }

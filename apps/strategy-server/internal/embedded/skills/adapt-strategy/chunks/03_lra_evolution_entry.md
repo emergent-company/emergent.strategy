@@ -32,10 +32,12 @@ entry summarising the strategic changes made in this AIM cycle adaptation.
 
 ## Output Format
 
-Respond with a single valid JSON object containing ONLY the `lra_evolution_entry` key:
+Respond with a single valid JSON object containing the `lra_evolution_entry` key and a
+`change_summary` key:
 
 ```json
 {
+  "change_summary": "1-2 bullet points summarising the evolution log entry being added",
   "lra_evolution_entry": {
     "cycle_reference": "C<N>",
     "timestamp": "<ISO8601>",

@@ -9,9 +9,7 @@ track: commercial
 status: ready
 
 contributes_to:
-  - Commercial.Content Operations.content-creation-workflows
-  - Commercial.Pipeline.awareness
-  - Commercial.Brand.authority
+  - Commercial.Content Production & Management.content-creation-workflows
 
 maturity:
   current_tier: 1

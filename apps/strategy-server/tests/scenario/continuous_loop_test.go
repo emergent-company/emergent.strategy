@@ -166,7 +166,7 @@ func TestContinuousLoop_EvidenceToProposalToApproval(t *testing.T) {
 
 	// --- Step 2: Wire aim.Service as the trigger evaluator ---
 	// aim.Service will fire the time trigger (no prior assessment) on this fresh instance.
-	aimSvc := aim.NewService(db, nil) // no LLM needed for trigger evaluation
+	aimSvc := aim.NewService(db) // no LLM needed for trigger evaluation
 	hbSvc := heartbeat.NewService(db, &aimEvaluatorAdapter{svc: aimSvc}).WithEvidenceCounter(evSvc)
 
 	results, err := hbSvc.EvaluateAll(ctx)
@@ -240,7 +240,10 @@ func TestContinuousLoop_EvidenceToProposalToApproval(t *testing.T) {
 	t.Logf("Proposal approved: run_id=%s", runID)
 
 	// Confirm no pending proposals remain.
-	pending, _ := hbSvc.ListProposals(ctx, instID, "pending")
+	pending, err := hbSvc.ListProposals(ctx, instID, "pending")
+	if err != nil {
+		t.Fatalf("ListProposals (pending after approval): %v", err)
+	}
 	if len(pending) != 0 {
 		t.Errorf("expected 0 pending proposals after approval, got %d", len(pending))
 	}
@@ -300,7 +303,7 @@ func TestContinuousLoop_NoDuplicateProposal(t *testing.T) {
 	ctx := context.Background()
 	seedInstance(t, db)
 
-	aimSvc := aim.NewService(db, nil)
+	aimSvc := aim.NewService(db)
 	hbSvc := heartbeat.NewService(db, &aimEvaluatorAdapter{svc: aimSvc})
 
 	// Tick 1 — trigger fires, proposal created.
@@ -315,7 +318,9 @@ func TestContinuousLoop_NoDuplicateProposal(t *testing.T) {
 	}
 
 	var totalProposals int
-	_ = db.NewSelect().TableExpr("cycle_proposals").ColumnExpr("COUNT(*)").Scan(ctx, &totalProposals)
+	if err := db.NewSelect().TableExpr("cycle_proposals").ColumnExpr("COUNT(*)").Scan(ctx, &totalProposals); err != nil {
+		t.Fatalf("count cycle_proposals: %v", err)
+	}
 	if totalProposals != 1 {
 		t.Errorf("expected 1 total proposal across 2 ticks, got %d", totalProposals)
 	}
@@ -332,7 +337,7 @@ func TestContinuousLoop_DeferAndReproposeAfterExpiry(t *testing.T) {
 	ctx := context.Background()
 	instID := seedInstance(t, db)
 
-	aimSvc := aim.NewService(db, nil)
+	aimSvc := aim.NewService(db)
 	hbSvc := heartbeat.NewService(db, &aimEvaluatorAdapter{svc: aimSvc})
 
 	// Tick 1 → signal + proposal.
@@ -343,7 +348,10 @@ func TestContinuousLoop_DeferAndReproposeAfterExpiry(t *testing.T) {
 	if len(results1) == 0 {
 		t.Fatal("expected trigger result from tick 1")
 	}
-	proposals, _ := hbSvc.ListProposals(ctx, instID, "pending")
+	proposals, err := hbSvc.ListProposals(ctx, instID, "pending")
+	if err != nil {
+		t.Fatalf("ListProposals (pending after tick 1): %v", err)
+	}
 	if len(proposals) == 0 {
 		t.Fatal("expected pending proposal after tick 1")
 	}
@@ -365,12 +373,18 @@ func TestContinuousLoop_DeferAndReproposeAfterExpiry(t *testing.T) {
 		t.Fatalf("EvaluateAll #2: %v", err)
 	}
 
-	pending, _ := hbSvc.ListProposals(ctx, instID, "pending")
+	pending, err := hbSvc.ListProposals(ctx, instID, "pending")
+	if err != nil {
+		t.Fatalf("ListProposals (pending after snooze expiry): %v", err)
+	}
 	if len(pending) != 1 {
 		t.Errorf("expected 1 new pending proposal after snooze expired, got %d", len(pending))
 	}
 
-	expired, _ := hbSvc.ListProposals(ctx, instID, "expired")
+	expired, err := hbSvc.ListProposals(ctx, instID, "expired")
+	if err != nil {
+		t.Fatalf("ListProposals (expired after snooze expiry): %v", err)
+	}
 	if len(expired) != 1 {
 		t.Errorf("expected 1 expired proposal, got %d", len(expired))
 	}
@@ -432,10 +446,10 @@ func TestSnapshotCycle_PublishesVersionRow(t *testing.T) {
 
 	// Wire aim service with version publisher.
 	verSvc := version.NewService(db)
-	aimSvc := aim.NewService(db, nil).WithVersionPublisher(verSvc)
+	aimSvc := aim.NewService(db).WithVersionPublisher(verSvc)
 
 	// --- Call SnapshotCycle ---
-	if err := aimSvc.SnapshotCycle(ctx, inst.ID, 0, "persevere"); err != nil {
+	if _, err := aimSvc.SnapshotCycle(ctx, inst.ID, 0, "persevere"); err != nil {
 		t.Fatalf("SnapshotCycle: %v", err)
 	}
 
@@ -459,7 +473,7 @@ func TestSnapshotCycle_PublishesVersionRow(t *testing.T) {
 	t.Logf("Version published: id=%s label=%s source=%s", v.ID, *v.Label, v.Source)
 
 	// --- Second cycle increments the cycle number ---
-	if err := aimSvc.SnapshotCycle(ctx, inst.ID, 0, "pivot"); err != nil {
+	if _, err := aimSvc.SnapshotCycle(ctx, inst.ID, 0, "pivot"); err != nil {
 		t.Fatalf("SnapshotCycle #2: %v", err)
 	}
 

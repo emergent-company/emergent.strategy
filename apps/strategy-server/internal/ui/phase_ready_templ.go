@@ -91,9 +91,10 @@ type ReadyPhaseData struct {
 	// HasSkillExecutor — true when the LLM executor is configured, enables draft buttons.
 	HasSkillExecutor bool
 
-	// Readiness score (0–100) and blockers for the progress bar.
+	// Readiness score (0–100), blockers, and detailed breakdown for the progress bar.
 	ReadinessScore    int
 	ReadinessBlockers []string
+	ReadinessItems    []ReadinessItem // detailed breakdown for transparency
 
 	// VersionCount — number of published strategy versions; used to show
 	// "Publish first version" banner when score >= 80 and count == 0.
@@ -101,6 +102,15 @@ type ReadyPhaseData struct {
 
 	// Pending batches — AI-generated drafts touching READY artifacts awaiting human review.
 	PendingBatches []ReadyPendingBatch
+}
+
+// ReadinessItem represents one line item in the readiness breakdown.
+type ReadinessItem struct {
+	Label    string // e.g. "North Star", "Evidence loaded"
+	Done     bool   // true if this item is complete
+	Points   int    // points awarded (0 if not done)
+	MaxPts   int    // maximum points possible
+	HelpText string // what to do if not done
 }
 
 // ReadyPendingBatch represents a staged batch that touches one or more READY artifacts.
@@ -175,7 +185,7 @@ func ReadyPhaseContent(data ReadyPhaseData) templ.Component {
 			var templ_7745c5c3_Var2 templ.SafeURL
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/strategies/" + data.InstanceID + "/aim/evidence"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 137, Col: 76}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 147, Col: 76}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {
@@ -188,7 +198,7 @@ func ReadyPhaseContent(data ReadyPhaseData) templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(data.EvidenceCount))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 139, Col: 40}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 149, Col: 40}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -206,7 +216,7 @@ func ReadyPhaseContent(data ReadyPhaseData) templ.Component {
 			var templ_7745c5c3_Var4 templ.SafeURL
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/strategies/" + data.InstanceID + "/aim/evidence"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 142, Col: 76}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 152, Col: 76}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -491,7 +501,7 @@ func readyMapCard(p readyMapCardProps) templ.Component {
 		var templ_7745c5c3_Var7 templ.SafeURL
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(p.Href))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 335, Col: 26}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 345, Col: 26}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -504,7 +514,7 @@ func readyMapCard(p readyMapCardProps) templ.Component {
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(p.Href)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 336, Col: 17}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 346, Col: 17}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 		if templ_7745c5c3_Err != nil {
@@ -574,7 +584,7 @@ func readyMapCard(p readyMapCardProps) templ.Component {
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(p.Title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 350, Col: 81}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 360, Col: 81}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 		if templ_7745c5c3_Err != nil {
@@ -610,7 +620,7 @@ func readyMapCard(p readyMapCardProps) templ.Component {
 			var templ_7745c5c3_Var17 string
 			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(p.TierLabel)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 355, Col: 18}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 365, Col: 18}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 			if templ_7745c5c3_Err != nil {
@@ -628,7 +638,7 @@ func readyMapCard(p readyMapCardProps) templ.Component {
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(p.Subtitle)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 359, Col: 64}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 369, Col: 64}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 		if templ_7745c5c3_Err != nil {
@@ -666,7 +676,7 @@ func readyMapCard(p readyMapCardProps) templ.Component {
 				var templ_7745c5c3_Var19 string
 				templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(p.Line1)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 372, Col: 92}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 382, Col: 92}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 				if templ_7745c5c3_Err != nil {
@@ -685,7 +695,7 @@ func readyMapCard(p readyMapCardProps) templ.Component {
 				var templ_7745c5c3_Var20 string
 				templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(p.Line2)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 375, Col: 80}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 385, Col: 80}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 				if templ_7745c5c3_Err != nil {
@@ -742,7 +752,7 @@ func readyMapCard(p readyMapCardProps) templ.Component {
 				var templ_7745c5c3_Var23 string
 				templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(p.SufficiencyHint)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 388, Col: 25}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 398, Col: 25}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 				if templ_7745c5c3_Err != nil {
@@ -785,7 +795,7 @@ func readyMapCard(p readyMapCardProps) templ.Component {
 				var templ_7745c5c3_Var24 templ.SafeURL
 				templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(p.DraftURL))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 401, Col: 55}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 411, Col: 55}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 				if templ_7745c5c3_Err != nil {
@@ -798,7 +808,7 @@ func readyMapCard(p readyMapCardProps) templ.Component {
 				var templ_7745c5c3_Var25 string
 				templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(p.DraftLabel)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 404, Col: 21}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 414, Col: 21}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 				if templ_7745c5c3_Err != nil {
@@ -816,7 +826,7 @@ func readyMapCard(p readyMapCardProps) templ.Component {
 				var templ_7745c5c3_Var26 string
 				templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(p.DraftLabel)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 408, Col: 85}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 418, Col: 85}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 				if templ_7745c5c3_Err != nil {
@@ -876,7 +886,7 @@ func readyGapStrip(gaps []ReadyGap) templ.Component {
 				var templ_7745c5c3_Var28 string
 				templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(g.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 424, Col: 13}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 434, Col: 13}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 				if templ_7745c5c3_Err != nil {
@@ -894,7 +904,7 @@ func readyGapStrip(gaps []ReadyGap) templ.Component {
 				var templ_7745c5c3_Var29 string
 				templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.ResolveAttributeValue(g.Hint)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 427, Col: 155}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 437, Col: 155}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var29)
 				if templ_7745c5c3_Err != nil {
@@ -907,7 +917,7 @@ func readyGapStrip(gaps []ReadyGap) templ.Component {
 				var templ_7745c5c3_Var30 string
 				templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(g.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 429, Col: 14}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 439, Col: 14}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 				if templ_7745c5c3_Err != nil {
@@ -956,7 +966,7 @@ func readyInsightCard(data ReadyPhaseData) templ.Component {
 		var templ_7745c5c3_Var32 templ.SafeURL
 		templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/strategies/" + data.InstanceID + "/ready/insights"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 439, Col: 72}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 449, Col: 72}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 		if templ_7745c5c3_Err != nil {
@@ -969,7 +979,7 @@ func readyInsightCard(data ReadyPhaseData) templ.Component {
 		var templ_7745c5c3_Var33 string
 		templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.ResolveAttributeValue("/strategies/" + data.InstanceID + "/ready/insights")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 440, Col: 63}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 450, Col: 63}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var33)
 		if templ_7745c5c3_Err != nil {
@@ -1051,7 +1061,7 @@ func readyInsightCard(data ReadyPhaseData) templ.Component {
 				var templ_7745c5c3_Var38 string
 				templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(data.InsightFirstTrend)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 473, Col: 108}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 483, Col: 108}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 				if templ_7745c5c3_Err != nil {
@@ -1142,7 +1152,7 @@ func readyInsightCard(data ReadyPhaseData) templ.Component {
 				var templ_7745c5c3_Var41 string
 				templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(evidenceSufficiencyHint(s))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 503, Col: 34}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 513, Col: 34}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 				if templ_7745c5c3_Err != nil {
@@ -1161,7 +1171,7 @@ func readyInsightCard(data ReadyPhaseData) templ.Component {
 				var templ_7745c5c3_Var42 templ.SafeURL
 				templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(readyDraftURL(data.InstanceID, "insights")))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 508, Col: 88}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 518, Col: 88}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
 				if templ_7745c5c3_Err != nil {
@@ -1174,7 +1184,7 @@ func readyInsightCard(data ReadyPhaseData) templ.Component {
 				var templ_7745c5c3_Var43 string
 				templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(readyDraftLabel(s.Sufficient, true))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 511, Col: 45}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 521, Col: 45}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 				if templ_7745c5c3_Err != nil {
@@ -1253,7 +1263,7 @@ func detailGapBanner(gaps []ReadyGap) templ.Component {
 				var templ_7745c5c3_Var45 string
 				templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(g.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 548, Col: 14}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 558, Col: 14}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 				if templ_7745c5c3_Err != nil {
@@ -1276,7 +1286,7 @@ func detailGapBanner(gaps []ReadyGap) templ.Component {
 			var templ_7745c5c3_Var46 string
 			templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(missing))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 559, Col: 28}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 569, Col: 28}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
 			if templ_7745c5c3_Err != nil {
@@ -1290,7 +1300,7 @@ func detailGapBanner(gaps []ReadyGap) templ.Component {
 				var templ_7745c5c3_Var47 string
 				templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(" needs content")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 561, Col: 24}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 571, Col: 24}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
 				if templ_7745c5c3_Err != nil {
@@ -1300,7 +1310,7 @@ func detailGapBanner(gaps []ReadyGap) templ.Component {
 				var templ_7745c5c3_Var48 string
 				templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinStringErrs("s need content")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 563, Col: 24}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 573, Col: 24}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
 				if templ_7745c5c3_Err != nil {
@@ -1320,7 +1330,7 @@ func detailGapBanner(gaps []ReadyGap) templ.Component {
 					var templ_7745c5c3_Var49 string
 					templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.JoinStringErrs(g.Label)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 573, Col: 61}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 583, Col: 61}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var49))
 					if templ_7745c5c3_Err != nil {
@@ -1338,7 +1348,7 @@ func detailGapBanner(gaps []ReadyGap) templ.Component {
 						var templ_7745c5c3_Var50 string
 						templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(g.Hint)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 575, Col: 80}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 585, Col: 80}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 						if templ_7745c5c3_Err != nil {
@@ -1361,7 +1371,7 @@ func detailGapBanner(gaps []ReadyGap) templ.Component {
 					var templ_7745c5c3_Var51 string
 					templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(g.Label)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 581, Col: 59}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 591, Col: 59}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 					if templ_7745c5c3_Err != nil {
@@ -1432,7 +1442,7 @@ func insightChip(count, label, icon string) templ.Component {
 		var templ_7745c5c3_Var55 string
 		templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(count)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 593, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 603, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
 		if templ_7745c5c3_Err != nil {
@@ -1445,7 +1455,7 @@ func insightChip(count, label, icon string) templ.Component {
 		var templ_7745c5c3_Var56 string
 		templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 594, Col: 9}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 604, Col: 9}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
 		if templ_7745c5c3_Err != nil {
@@ -1488,7 +1498,7 @@ func readyMapNorthStar(data ReadyPhaseData) templ.Component {
 		var templ_7745c5c3_Var58 templ.SafeURL
 		templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/strategies/" + data.InstanceID + "/ready/north-star"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 601, Col: 74}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 611, Col: 74}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var58))
 		if templ_7745c5c3_Err != nil {
@@ -1501,7 +1511,7 @@ func readyMapNorthStar(data ReadyPhaseData) templ.Component {
 		var templ_7745c5c3_Var59 string
 		templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.ResolveAttributeValue("/strategies/" + data.InstanceID + "/ready/north-star")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 602, Col: 65}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 612, Col: 65}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var59)
 		if templ_7745c5c3_Err != nil {
@@ -1563,7 +1573,7 @@ func readyMapNorthStar(data ReadyPhaseData) templ.Component {
 			var templ_7745c5c3_Var64 string
 			templ_7745c5c3_Var64, templ_7745c5c3_Err = templ.JoinStringErrs(data.NorthStarPurpose)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 624, Col: 101}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 634, Col: 101}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var64))
 			if templ_7745c5c3_Err != nil {
@@ -1582,7 +1592,7 @@ func readyMapNorthStar(data ReadyPhaseData) templ.Component {
 			var templ_7745c5c3_Var65 string
 			templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.JoinStringErrs(data.NorthStarVision)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 627, Col: 86}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 637, Col: 86}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var65))
 			if templ_7745c5c3_Err != nil {
@@ -1620,7 +1630,7 @@ func readyMapNorthStar(data ReadyPhaseData) templ.Component {
 			var templ_7745c5c3_Var66 string
 			templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.JoinStringErrs(data.NorthStarOrg)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 639, Col: 85}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 649, Col: 85}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var66))
 			if templ_7745c5c3_Err != nil {
@@ -1673,7 +1683,7 @@ func readyMapNorthStar(data ReadyPhaseData) templ.Component {
 				var templ_7745c5c3_Var69 string
 				templ_7745c5c3_Var69, templ_7745c5c3_Err = templ.JoinStringErrs(evidenceSufficiencyHint(s))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 656, Col: 35}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 666, Col: 35}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var69))
 				if templ_7745c5c3_Err != nil {
@@ -1696,7 +1706,7 @@ func readyMapNorthStar(data ReadyPhaseData) templ.Component {
 				var templ_7745c5c3_Var70 templ.SafeURL
 				templ_7745c5c3_Var70, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(readyDraftURL(data.InstanceID, "north-star")))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 662, Col: 90}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 672, Col: 90}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var70))
 				if templ_7745c5c3_Err != nil {
@@ -1709,7 +1719,7 @@ func readyMapNorthStar(data ReadyPhaseData) templ.Component {
 				var templ_7745c5c3_Var71 string
 				templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.JoinStringErrs(readyDraftLabel(data.EvidenceSufficiency["north_star"].Sufficient, true))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 665, Col: 82}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 675, Col: 82}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var71))
 				if templ_7745c5c3_Err != nil {
@@ -1762,7 +1772,7 @@ func readyMapRoadmap(data ReadyPhaseData) templ.Component {
 		var templ_7745c5c3_Var73 templ.SafeURL
 		templ_7745c5c3_Var73, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/strategies/" + data.InstanceID + "/ready/roadmap"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 679, Col: 71}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 689, Col: 71}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var73))
 		if templ_7745c5c3_Err != nil {
@@ -1775,7 +1785,7 @@ func readyMapRoadmap(data ReadyPhaseData) templ.Component {
 		var templ_7745c5c3_Var74 string
 		templ_7745c5c3_Var74, templ_7745c5c3_Err = templ.ResolveAttributeValue("/strategies/" + data.InstanceID + "/ready/roadmap")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 680, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 690, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var74)
 		if templ_7745c5c3_Err != nil {
@@ -1837,7 +1847,7 @@ func readyMapRoadmap(data ReadyPhaseData) templ.Component {
 			var templ_7745c5c3_Var79 string
 			templ_7745c5c3_Var79, templ_7745c5c3_Err = templ.JoinStringErrs(data.RoadmapCycle)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 702, Col: 88}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 712, Col: 88}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var79))
 			if templ_7745c5c3_Err != nil {
@@ -1902,7 +1912,7 @@ func readyMapRoadmap(data ReadyPhaseData) templ.Component {
 				var templ_7745c5c3_Var82 string
 				templ_7745c5c3_Var82, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(t.KeyResults))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 717, Col: 111}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 727, Col: 111}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var82))
 				if templ_7745c5c3_Err != nil {
@@ -1937,7 +1947,7 @@ func readyMapRoadmap(data ReadyPhaseData) templ.Component {
 			var templ_7745c5c3_Var83 templ.SafeURL
 			templ_7745c5c3_Var83, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(readyDraftURL(data.InstanceID, "roadmap")))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 732, Col: 85}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 742, Col: 85}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var83))
 			if templ_7745c5c3_Err != nil {
@@ -1982,7 +1992,7 @@ func readyMapRoadmap(data ReadyPhaseData) templ.Component {
 			var templ_7745c5c3_Var86 string
 			templ_7745c5c3_Var86, templ_7745c5c3_Err = templ.JoinStringErrs(readyDraftLabel(data.EvidenceSufficiency["roadmap_recipe"].Sufficient, roadmapCanDraft))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 739, Col: 95}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 749, Col: 95}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var86))
 			if templ_7745c5c3_Err != nil {
@@ -2202,7 +2212,7 @@ func readyFireHandoff(data ReadyPhaseData) templ.Component {
 		var templ_7745c5c3_Var92 templ.SafeURL
 		templ_7745c5c3_Var92, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/strategies/" + data.InstanceID + "/fire"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 836, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 846, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var92))
 		if templ_7745c5c3_Err != nil {
@@ -2215,7 +2225,7 @@ func readyFireHandoff(data ReadyPhaseData) templ.Component {
 		var templ_7745c5c3_Var93 string
 		templ_7745c5c3_Var93, templ_7745c5c3_Err = templ.ResolveAttributeValue("/strategies/" + data.InstanceID + "/fire")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 837, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 847, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var93)
 		if templ_7745c5c3_Err != nil {
@@ -2260,7 +2270,7 @@ func readyFireHandoff(data ReadyPhaseData) templ.Component {
 				var templ_7745c5c3_Var96 string
 				templ_7745c5c3_Var96, templ_7745c5c3_Err = templ.JoinStringErrs(t.Track)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 867, Col: 80}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 877, Col: 80}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var96))
 				if templ_7745c5c3_Err != nil {
@@ -2273,7 +2283,7 @@ func readyFireHandoff(data ReadyPhaseData) templ.Component {
 				var templ_7745c5c3_Var97 string
 				templ_7745c5c3_Var97, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(t.Objectives))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 868, Col: 90}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 878, Col: 90}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var97))
 				if templ_7745c5c3_Err != nil {
@@ -2286,7 +2296,7 @@ func readyFireHandoff(data ReadyPhaseData) templ.Component {
 				var templ_7745c5c3_Var98 string
 				templ_7745c5c3_Var98, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(t.KeyResults))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 868, Col: 128}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 878, Col: 128}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var98))
 				if templ_7745c5c3_Err != nil {
@@ -2341,7 +2351,7 @@ func readyFireHandoff(data ReadyPhaseData) templ.Component {
 				var templ_7745c5c3_Var101 string
 				templ_7745c5c3_Var101, templ_7745c5c3_Err = templ.JoinStringErrs(track.name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 883, Col: 85}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 893, Col: 85}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var101))
 				if templ_7745c5c3_Err != nil {
@@ -2480,7 +2490,7 @@ func roadmapOKRSummary(tracks []TrackOKRSummary) templ.Component {
 			var templ_7745c5c3_Var107 string
 			templ_7745c5c3_Var107, templ_7745c5c3_Err = templ.JoinStringErrs(t.Track)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 917, Col: 65}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 927, Col: 65}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var107))
 			if templ_7745c5c3_Err != nil {
@@ -2493,7 +2503,7 @@ func roadmapOKRSummary(tracks []TrackOKRSummary) templ.Component {
 			var templ_7745c5c3_Var108 string
 			templ_7745c5c3_Var108, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(t.Objectives))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 918, Col: 75}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 928, Col: 75}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var108))
 			if templ_7745c5c3_Err != nil {
@@ -2506,7 +2516,7 @@ func roadmapOKRSummary(tracks []TrackOKRSummary) templ.Component {
 			var templ_7745c5c3_Var109 string
 			templ_7745c5c3_Var109, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(t.KeyResults))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 918, Col: 118}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 928, Col: 118}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var109))
 			if templ_7745c5c3_Err != nil {
@@ -2526,6 +2536,7 @@ func roadmapOKRSummary(tracks []TrackOKRSummary) templ.Component {
 }
 
 // readyScoreBar renders a compact readiness progress bar in the READY dashboard header.
+// Shows the score, progress bar, and a collapsible breakdown of all scoring items.
 func readyScoreBar(data ReadyPhaseData) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -2547,7 +2558,7 @@ func readyScoreBar(data ReadyPhaseData) templ.Component {
 			templ_7745c5c3_Var110 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 211, "<div class=\"flex items-center gap-3 mb-3\"><div class=\"flex-1\"><div class=\"flex items-center justify-between mb-1\"><span class=\"text-xs text-base-content/50\">Foundation readiness</span> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 211, "<div class=\"mb-3\"><div class=\"flex items-center gap-3\"><div class=\"flex-1\"><div class=\"flex items-center justify-between mb-1\"><span class=\"text-xs text-base-content/50\">Foundation readiness</span> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2576,7 +2587,7 @@ func readyScoreBar(data ReadyPhaseData) templ.Component {
 		var templ_7745c5c3_Var113 string
 		templ_7745c5c3_Var113, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(data.ReadinessScore))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 934, Col: 40}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 946, Col: 41}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var113))
 		if templ_7745c5c3_Err != nil {
@@ -2611,7 +2622,7 @@ func readyScoreBar(data ReadyPhaseData) templ.Component {
 		var templ_7745c5c3_Var116 string
 		templ_7745c5c3_Var116, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues("width: " + strconv.Itoa(data.ReadinessScore) + "%")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 940, Col: 64}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 952, Col: 65}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var116))
 		if templ_7745c5c3_Err != nil {
@@ -2624,7 +2635,7 @@ func readyScoreBar(data ReadyPhaseData) templ.Component {
 		var templ_7745c5c3_Var117 string
 		templ_7745c5c3_Var117, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(data.CompletedArtifacts))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 945, Col: 42}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 957, Col: 43}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var117))
 		if templ_7745c5c3_Err != nil {
@@ -2637,43 +2648,175 @@ func readyScoreBar(data ReadyPhaseData) templ.Component {
 		var templ_7745c5c3_Var118 string
 		templ_7745c5c3_Var118, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(data.TotalArtifacts))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 945, Col: 82}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 957, Col: 83}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var118))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 219, " artifacts</span></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 219, " artifacts</span></div><!-- Readiness breakdown — always visible so users know what's missing -->")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if data.ReadinessScore < 80 && len(data.ReadinessBlockers) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 220, "<div class=\"flex flex-wrap gap-1.5 mb-3\">")
+		if len(data.ReadinessItems) > 0 {
+			templ_7745c5c3_Err = readyScoreBreakdown(data.ReadinessItems, data.ReadinessScore).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			for _, blocker := range data.ReadinessBlockers {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 221, "<span class=\"inline-flex items-center gap-1 rounded-md bg-warning/10 border border-warning/20 px-2 py-0.5 text-xs text-warning\"><span class=\"iconify lucide--triangle-alert size-3\"></span> ")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 220, "</div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+// readyScoreBreakdown renders a detailed breakdown of all readiness items.
+// Incomplete items are shown prominently with help text.
+func readyScoreBreakdown(items []ReadinessItem, score int) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
 				}
-				var templ_7745c5c3_Var119 string
-				templ_7745c5c3_Var119, templ_7745c5c3_Err = templ.JoinStringErrs(blocker)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 953, Col: 14}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var119))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 222, "</span>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 223, "</div>")
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var119 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var119 == nil {
+			templ_7745c5c3_Var119 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 221, "<!-- Show incomplete items prominently -->")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if readinessHasIncomplete(items) {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 222, "<div class=\"flex flex-wrap gap-1.5 mt-2\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
+			}
+			for _, item := range items {
+				if !item.Done {
+					var templ_7745c5c3_Var120 = []any{"inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium", templ.KV("bg-base-content/8 border border-base-content/15 text-base-content/80", item.MaxPts > 0), templ.KV("bg-base-content/5 border border-base-content/10 text-base-content/40", item.MaxPts == 0)}
+					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var120...)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 223, "<span class=\"")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					var templ_7745c5c3_Var121 string
+					templ_7745c5c3_Var121, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var120).String())
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 1, Col: 0}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var121)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 224, "\">")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					var templ_7745c5c3_Var122 = []any{"iconify lucide--circle-dashed size-3.5", templ.KV("text-base-content/60", item.MaxPts > 0), templ.KV("text-base-content/30", item.MaxPts == 0)}
+					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var122...)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 225, "<span class=\"")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					var templ_7745c5c3_Var123 string
+					templ_7745c5c3_Var123, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var122).String())
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 1, Col: 0}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var123)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 226, "\"></span> ")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					var templ_7745c5c3_Var124 string
+					templ_7745c5c3_Var124, templ_7745c5c3_Err = templ.JoinStringErrs(item.Label)
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 977, Col: 18}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var124))
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 227, " ")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					if item.MaxPts > 0 {
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 228, "<span class=\"text-base-content/50 font-normal\">(")
+						if templ_7745c5c3_Err != nil {
+							return templ_7745c5c3_Err
+						}
+						var templ_7745c5c3_Var125 string
+						templ_7745c5c3_Var125, templ_7745c5c3_Err = templ.JoinStringErrs("+" + strconv.Itoa(item.MaxPts) + " pts")
+						if templ_7745c5c3_Err != nil {
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 979, Col: 97}
+						}
+						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var125))
+						if templ_7745c5c3_Err != nil {
+							return templ_7745c5c3_Err
+						}
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 229, ")</span>")
+						if templ_7745c5c3_Err != nil {
+							return templ_7745c5c3_Err
+						}
+					} else {
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 230, "<span class=\"text-base-content/30 font-normal\">(optional)</span>")
+						if templ_7745c5c3_Err != nil {
+							return templ_7745c5c3_Err
+						}
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 231, "</span>")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 232, "</div><!-- Help text for incomplete scored items -->")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			for _, item := range items {
+				if !item.Done && item.MaxPts > 0 && item.HelpText != "" {
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 233, "<p class=\"text-xs text-base-content/50 mt-1.5 ml-0.5\"><span class=\"iconify lucide--arrow-right size-3 inline-block align-middle mr-1\"></span> ")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					var templ_7745c5c3_Var126 string
+					templ_7745c5c3_Var126, templ_7745c5c3_Err = templ.JoinStringErrs(item.HelpText)
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 992, Col: 20}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var126))
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 234, "</p>")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				}
 			}
 		}
 		return nil
@@ -2698,25 +2841,25 @@ func readyPublishBanner(instanceID string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var120 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var120 == nil {
-			templ_7745c5c3_Var120 = templ.NopComponent
+		templ_7745c5c3_Var127 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var127 == nil {
+			templ_7745c5c3_Var127 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 224, "<div class=\"alert alert-success shadow-sm mb-3 flex items-center justify-between\"><div class=\"flex items-center gap-2\"><span class=\"iconify lucide--rocket size-5 text-success\"></span><div><p class=\"text-sm font-semibold\">Your strategy is ready to publish</p><p class=\"text-xs opacity-80\">Capture this as your initial version — it becomes the baseline for your first AIM cycle.</p></div></div><form method=\"POST\" action=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 235, "<div class=\"card bg-success/5 border border-success/20 shadow-sm mb-3\"><div class=\"card-body p-4\"><div class=\"flex items-start justify-between gap-4\"><div class=\"flex items-start gap-3\"><span class=\"iconify lucide--rocket size-5 text-success mt-0.5 shrink-0\"></span><div class=\"space-y-1.5\"><p class=\"text-sm font-semibold\">Your strategy is ready to publish</p><p class=\"text-xs text-base-content/70 leading-relaxed max-w-lg\">Publishing creates a frozen snapshot of all your strategy artifacts and their relationships as <strong>Version 1</strong>. Nothing changes in your current workspace — it simply saves a point-in-time copy you can always return to.</p><p class=\"text-xs text-base-content/50 leading-relaxed max-w-lg\">This version becomes the baseline for your first AIM cycle, where you will assess progress against your OKRs, calibrate the strategy, and decide whether to persevere, pivot, or pull the plug. You can compare, diff, and restore any published version at any time from the version history.</p></div></div><form method=\"POST\" action=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var121 templ.SafeURL
-		templ_7745c5c3_Var121, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/strategies/" + instanceID + "/aim/publish"))
+		var templ_7745c5c3_Var128 templ.SafeURL
+		templ_7745c5c3_Var128, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/strategies/" + instanceID + "/aim/publish"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 971, Col: 86}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_ready.templ`, Line: 1022, Col: 88}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var121))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var128))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 225, "\" class=\"shrink-0\"><input type=\"hidden\" name=\"label\" value=\"Initial Strategy\"> <input type=\"hidden\" name=\"description\" value=\"First strategy version — published from the READY dashboard.\"> <button type=\"submit\" class=\"btn btn-sm btn-success\"><span class=\"iconify lucide--bookmark size-4\"></span> Publish initial version</button></form></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 236, "\" class=\"shrink-0 self-center\"><input type=\"hidden\" name=\"label\" value=\"Initial Strategy\"> <input type=\"hidden\" name=\"description\" value=\"First strategy version — published from the READY dashboard.\"> <button type=\"submit\" class=\"btn btn-sm btn-success\"><span class=\"iconify lucide--bookmark size-4\"></span> Publish initial version</button></form></div></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

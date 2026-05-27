@@ -9,9 +9,8 @@ track: commercial
 status: ready
 
 contributes_to:
-  - Commercial.Content Operations.content-distribution
-  - Commercial.Pipeline.awareness
-  - Commercial.Brand.reach
+  - Commercial.Content Production & Management.content-distribution
+  - Commercial.Lead Generation.social-media-outreach
 
 maturity:
   current_tier: 1

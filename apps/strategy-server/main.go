@@ -10,6 +10,10 @@ import (
 )
 
 func main() {
+	// Load .env.local before arg parsing so env vars are available to go-arg.
+	// Existing env vars take precedence — .env.local only fills gaps.
+	loadEnvLocal()
+
 	var cfg config.Config
 	p := arg.MustParse(&cfg)
 

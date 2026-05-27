@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "draft-calibration output",
+  "type": "object",
+  "required": ["calibration_memo"],
+  "properties": {
+    "calibration_memo": {
+      "type": "object",
+      "required": ["name", "decision", "reasoning", "okr_hit_rate_pct", "invalidated_assumption_count", "metadata"],
+      "properties": {
+        "name": { "type": "string" },
+        "decision": { "type": "string", "enum": ["persevere", "pivot", "pull_the_plug"] },
+        "reasoning": { "type": "string", "minLength": 50, "maxLength": 500 },
+        "okr_hit_rate_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+        "invalidated_assumption_count": { "type": "integer", "minimum": 0 },
+        "metadata": { "type": "object" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

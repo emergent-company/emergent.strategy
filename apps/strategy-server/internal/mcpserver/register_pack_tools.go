@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"runtime/debug"
 	"strings"
 
 	"github.com/google/uuid"
@@ -129,6 +130,16 @@ func registerSkillResolutionTools(s *server.MCPServer, svc Services) { //nolint:
 
 			executor := svc.SkillExecutor
 			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						slog.Error("run_skill: recovered panic in autonomous execution",
+							"instance_id", id, "skill", skillName,
+							"panic", fmt.Sprintf("%v", r),
+							"stack", string(debug.Stack()),
+						)
+					}
+				}()
+
 				bgCtx := context.Background()
 				result, err := executor.RunChunked(bgCtx, id, skillName, paramsMap)
 				if err != nil {

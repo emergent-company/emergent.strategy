@@ -2,6 +2,10 @@ package github
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
 )
@@ -14,6 +18,188 @@ type RepoWriterAdapter struct {
 // NewRepoWriterAdapter wraps a Client as a sync.RepoWriter.
 func NewRepoWriterAdapter(c *Client) sync.RepoWriter {
 	return &RepoWriterAdapter{client: c}
+}
+
+// RepoReaderAdapter adapts *Client to the sync.RepoReader interface.
+type RepoReaderAdapter struct {
+	client *Client
+}
+
+// NewRepoReaderAdapter wraps a Client as a sync.RepoReader.
+func NewRepoReaderAdapter(c *Client) sync.RepoReader {
+	return &RepoReaderAdapter{client: c}
+}
+
+func (a *RepoReaderAdapter) GetInstallationToken(ctx context.Context, owner string) (string, error) {
+	return a.client.GetInstallationToken(ctx, owner)
+}
+
+func (a *RepoReaderAdapter) GetDefaultBranch(ctx context.Context, token, owner, repo string) (string, error) {
+	return a.client.GetDefaultBranch(ctx, token, owner, repo)
+}
+
+func (a *RepoReaderAdapter) GetHeadCommitSHA(ctx context.Context, token, owner, repo, branch string) (string, error) {
+	return a.client.GetHeadCommitSHA(ctx, token, owner, repo, branch)
+}
+
+// ListFiles returns paths of all YAML/YML files in the tree under basePath on the given branch.
+func (a *RepoReaderAdapter) ListFiles(ctx context.Context, token, owner, repo, branch, basePath string) ([]string, error) {
+	entries, err := a.client.GetTree(ctx, token, owner, repo, branch)
+	if err != nil {
+		return nil, err
+	}
+
+	var paths []string
+	for _, e := range entries {
+		if e.Type != "blob" {
+			continue
+		}
+		if !isYAML(e.Path) {
+			continue
+		}
+		if basePath != "" {
+			prefix := strings.TrimSuffix(basePath, "/") + "/"
+			if !strings.HasPrefix(e.Path, prefix) {
+				continue
+			}
+		}
+		paths = append(paths, e.Path)
+	}
+	return paths, nil
+}
+
+// GetFileContent fetches the raw bytes of a file by its tree path on a branch.
+func (a *RepoReaderAdapter) GetFileContent(ctx context.Context, token, owner, repo, branch, path string) ([]byte, error) {
+	// We need the blob SHA for the path. Get the tree again to resolve it.
+	// In production this is called per-file after ListFiles, so the tree is already fetched.
+	// A future optimisation could cache the tree within a single import operation.
+	entries, err := a.client.GetTree(ctx, token, owner, repo, branch)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, e := range entries {
+		if e.Path == path && e.Type == "blob" {
+			return a.client.GetBlob(ctx, token, owner, repo, e.SHA)
+		}
+	}
+	return nil, fmt.Errorf("file not found in tree: %s", path)
+}
+
+func (a *RepoReaderAdapter) GetPullRequestState(ctx context.Context, token, owner, repo string, prNumber int) (string, error) {
+	return a.client.GetPullRequestState(ctx, token, owner, repo, prNumber)
+}
+
+// ListUserRepos delegates to the user-token-scoped repo list (repo scope, all orgs).
+// Rate limit errors are translated to sync.RateLimitError so the handler can show
+// a clean retry UI without exposing raw GitHub API error messages.
+func (a *RepoReaderAdapter) ListUserRepos(ctx context.Context, userToken string) ([]sync.UserRepoInfo, error) {
+	repos, err := a.client.ListUserRepos(ctx, userToken)
+	if err != nil {
+		var rle *RateLimitError
+		if errors.As(err, &rle) {
+			return nil, &sync.RateLimitError{
+				RetryAfter: time.Until(rle.ResetAt).Round(time.Second),
+				Message:    rle.Error(),
+			}
+		}
+		return nil, err
+	}
+	out := make([]sync.UserRepoInfo, len(repos))
+	for i, r := range repos {
+		out[i] = sync.UserRepoInfo{
+			Name:          r.Name,
+			FullName:      r.FullName,
+			Owner:         r.Owner,
+			HTMLURL:       r.HTMLURL,
+			DefaultBranch: r.DefaultBranch,
+			Private:       r.Private,
+		}
+	}
+	return out, nil
+}
+
+// ListUserInstallations delegates to the user-token-scoped client method.
+func (a *RepoReaderAdapter) ListUserInstallations(ctx context.Context, userToken string) ([]sync.InstallationInfo, error) {
+	installs, err := a.client.ListUserInstallations(ctx, userToken)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]sync.InstallationInfo, len(installs))
+	for i, ins := range installs {
+		out[i] = sync.InstallationInfo{
+			ID:         ins.ID,
+			OwnerLogin: ins.OwnerLogin,
+			OwnerType:  ins.OwnerType,
+			HTMLURL:    ins.HTMLURL,
+		}
+	}
+	return out, nil
+}
+
+// ListInstallations delegates to the App-level client method (uses App JWT internally).
+func (a *RepoReaderAdapter) ListInstallations(ctx context.Context) ([]sync.InstallationInfo, error) {
+	installs, err := a.client.ListInstallations(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]sync.InstallationInfo, len(installs))
+	for i, ins := range installs {
+		out[i] = sync.InstallationInfo{
+			ID:         ins.ID,
+			OwnerLogin: ins.OwnerLogin,
+			OwnerType:  ins.OwnerType,
+			HTMLURL:    ins.HTMLURL,
+		}
+	}
+	return out, nil
+}
+
+// ListInstallationRepos delegates to the client using the provided installation token.
+func (a *RepoReaderAdapter) ListInstallationRepos(ctx context.Context, token string) ([]sync.RepoInfo, error) {
+	repos, err := a.client.ListInstallationRepos(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]sync.RepoInfo, len(repos))
+	for i, r := range repos {
+		out[i] = sync.RepoInfo{
+			Name:          r.Name,
+			FullName:      r.FullName,
+			HTMLURL:       r.HTMLURL,
+			DefaultBranch: r.DefaultBranch,
+			Private:       r.Private,
+		}
+	}
+	return out, nil
+}
+
+// DetectEPFInRepo delegates to the client's two-pass EPF detection.
+func (a *RepoReaderAdapter) DetectEPFInRepo(ctx context.Context, token, owner, repo, branch string) ([]sync.DetectedEPFInstance, []sync.SubmoduleRef, bool, error) {
+	detected, submodules, truncated, err := a.client.DetectEPFInRepo(ctx, token, owner, repo, branch)
+	if err != nil {
+		return nil, nil, false, err
+	}
+	out := make([]sync.DetectedEPFInstance, len(detected))
+	for i, d := range detected {
+		out[i] = sync.DetectedEPFInstance{
+			BasePath:    d.BasePath,
+			HasMetaFile: d.HasMetaFile,
+		}
+	}
+	refs := make([]sync.SubmoduleRef, len(submodules))
+	for i, s := range submodules {
+		refs[i] = sync.SubmoduleRef{
+			Path:     s.Path,
+			URL:      s.URL,
+			RepoSlug: s.RepoSlug,
+		}
+	}
+	return out, refs, truncated, nil
+}
+
+func isYAML(path string) bool {
+	return strings.HasSuffix(path, ".yaml") || strings.HasSuffix(path, ".yml")
 }
 
 func (a *RepoWriterAdapter) GetInstallationToken(ctx context.Context, owner string) (string, error) {

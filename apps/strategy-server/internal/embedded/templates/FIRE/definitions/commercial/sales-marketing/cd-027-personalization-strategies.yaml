@@ -8,7 +8,7 @@ track: commercial
 status: ready
 
 contributes_to:
-  - Commercial.Marketing Operations.personalization-strategies
+  - Commercial.Customer Retention.personalization-strategies
 
 maturity:
   current_tier: 1

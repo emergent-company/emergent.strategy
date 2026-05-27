@@ -3,8 +3,10 @@ package memory
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
+	"runtime/debug"
 	"strconv"
 	"sync"
 )
@@ -188,6 +190,17 @@ func (c *Client) BulkUpsertObjects(ctx context.Context, requests []UpsertObjectR
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			defer func() {
+				if r := recover(); r != nil {
+					slog.Error("memory: recovered panic in bulk upsert worker",
+						"panic", fmt.Sprintf("%v", r),
+						"stack", string(debug.Stack()),
+					)
+					mu.Lock()
+					failed++
+					mu.Unlock()
+				}
+			}()
 			for item := range work {
 				obj, err := c.UpsertObject(ctx, item.req)
 				mu.Lock()

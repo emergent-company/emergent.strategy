@@ -50,4 +50,15 @@ func (s *Service) runOnce(ctx context.Context) {
 	if len(results) > 0 {
 		slog.InfoContext(ctx, "heartbeat: new signals persisted", "count", len(results))
 	}
+
+	// Run consistency checks after trigger evaluation.
+	// Independent of whether any triggers fired — checks are idempotent.
+	if s.consistencyChecker != nil {
+		s.consistencyChecker.RunConsistencyCheckForAll(ctx)
+	}
+
+	// Repair Memory drift — re-queues ingestion for instances whose graph was wiped.
+	if s.memoryDriftRepairer != nil {
+		s.memoryDriftRepairer.RepairMemoryDrift(ctx)
+	}
 }

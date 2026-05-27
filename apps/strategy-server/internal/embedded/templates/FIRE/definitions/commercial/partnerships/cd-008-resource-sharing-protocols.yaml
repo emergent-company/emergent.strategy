@@ -8,7 +8,7 @@ track: commercial
 status: ready
 
 contributes_to:
-  - Commercial.Alliance Management.resource-sharing-protocols
+  - Commercial.Collaboration Models.resource-sharing-protocols
 
 maturity:
   current_tier: 1

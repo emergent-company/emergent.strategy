@@ -107,9 +107,9 @@ templ assumptionCard(a AssumptionRow, instanceID string) {
 				// ID + risk badge + validation status (small header row)
 				<div class="flex items-center gap-2 flex-wrap">
 					<span class="text-xs font-mono text-base-content/40">{ a.Key }</span>
-					<span class={ "badge badge-xs", assumptionRiskBadge(a.RiskLevel) }>{ assumptionRiskLabel(a.RiskLevel) }</span>
+					<span class="tooltip" data-tip={ assumptionRiskHint(a.RiskLevel) }><span class={ "badge badge-xs", assumptionRiskBadge(a.RiskLevel) }>{ assumptionRiskLabel(a.RiskLevel) }</span></span>
 					if a.ValidationStatus != "" {
-						<span class={ "badge badge-xs", assumptionStatusBadge(a.ValidationStatus) }>{ a.ValidationStatus }</span>
+						<span class="tooltip" data-tip={ assumptionStatusHint(a.ValidationStatus) }><span class={ "badge badge-xs", assumptionStatusBadge(a.ValidationStatus) }>{ a.ValidationStatus }</span></span>
 					}
 				</div>
 				// Statement — main title, always visible
@@ -209,6 +209,34 @@ func assumptionRiskLabel(risk string) string {
 		return "untested"
 	default:
 		return risk
+	}
+}
+
+func assumptionRiskHint(risk string) string {
+	switch risk {
+	case "well_tested":
+		return "Assumption has been validated through testing or evidence"
+	case "partially_tested":
+		return "Some evidence exists but more validation is needed"
+	case "untested":
+		return "No validation has been done — high uncertainty"
+	default:
+		return ""
+	}
+}
+
+func assumptionStatusHint(status string) string {
+	switch status {
+	case "validated":
+		return "Evidence confirms this assumption is correct"
+	case "invalidated":
+		return "Evidence shows this assumption was wrong"
+	case "inconclusive":
+		return "Evidence is mixed — neither confirmed nor denied"
+	case "pending":
+		return "Awaiting validation through testing or evidence"
+	default:
+		return ""
 	}
 }
 

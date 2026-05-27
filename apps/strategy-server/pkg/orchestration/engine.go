@@ -123,6 +123,28 @@ func (e *Engine) ActiveRun(ctx context.Context, workflowName, concurrencyKey str
 	return e.backend.ActiveRun(ctx, workflowName, concurrencyKey)
 }
 
+// Abort requests graceful cancellation of an active run.
+// If the run is executing a step, the step's context is cancelled.
+// If the run is awaiting human review, a discard signal is sent.
+// No-op for runs already in a terminal state.
+func (e *Engine) Abort(ctx context.Context, runID uuid.UUID) error {
+	if err := e.backend.Abort(ctx, runID); err != nil {
+		return fmt.Errorf("orchestration: abort run %s: %w", runID, err)
+	}
+	slog.InfoContext(ctx, "orchestration: run abort requested", "run_id", runID)
+	return nil
+}
+
+// Retry resets a failed run so the failed step is re-executed.
+// Returns an error if the run is not in StatusFailed.
+func (e *Engine) Retry(ctx context.Context, runID uuid.UUID) error {
+	if err := e.backend.Retry(ctx, runID); err != nil {
+		return fmt.Errorf("orchestration: retry run %s: %w", runID, err)
+	}
+	slog.InfoContext(ctx, "orchestration: run retry requested", "run_id", runID)
+	return nil
+}
+
 // Subscribe returns a channel that will receive Events for runID.
 // The caller must call Unsubscribe when the subscription is no longer needed.
 func (e *Engine) Subscribe(runID uuid.UUID) <-chan Event {

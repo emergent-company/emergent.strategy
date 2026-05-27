@@ -87,6 +87,24 @@ func (m *mockBackend) ActiveRun(_ context.Context, wfName, ck string) (*orchestr
 	return nil, nil
 }
 
+func (m *mockBackend) Abort(_ context.Context, runID uuid.UUID) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if r, ok := m.runs[runID]; ok {
+		r.Status = orchestration.StatusAborted
+	}
+	return nil
+}
+
+func (m *mockBackend) Retry(_ context.Context, runID uuid.UUID) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if r, ok := m.runs[runID]; ok && r.Status == orchestration.StatusFailed {
+		r.Status = orchestration.StatusPending
+	}
+	return nil
+}
+
 // ── mock Workflow ─────────────────────────────────────────────────────────────
 
 type mockWorkflow struct{ name string }

@@ -8,7 +8,7 @@ track: commercial
 status: ready
 
 contributes_to:
-  - Commercial.Financial Structuring.softfunding
+  - Commercial.Fundraising.softfunding
 
 maturity:
   current_tier: 1

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -61,19 +62,29 @@ func (s *Server) loadProposalsView(ctx context.Context, instanceID string) templ
 	}
 
 	// Check for active orchestrated AIM cycle run.
+	cycleActive := false
 	if s.orchestrationEngine != nil {
 		activeRun, runErr := s.orchestrationEngine.ActiveRun(ctx, aimdom.WorkflowName, instanceID)
 		if runErr == nil && activeRun != nil {
 			data.ActiveRunID = activeRun.ID.String()
 			data.ActiveRunStatus = string(activeRun.Status)
 			data.ActiveRunStep = activeRun.CurrentStep
+			cycleActive = true
+		}
+	}
+
+	// Propagate active-cycle flag to each proposal row so the template
+	// can disable the approve button when a cycle is already running.
+	if cycleActive {
+		for i := range data.Proposals {
+			data.Proposals[i].CycleActive = true
 		}
 	}
 
 	return ui.AimProposalsContent(data)
 }
 
-// loadAllProposals fetches proposals across all statuses and sorts them.
+// loadAllProposals fetches proposals across visible statuses (excludes dismissed).
 func loadAllProposals(ctx context.Context, svc *heartbeat.Service, instID uuid.UUID) []ui.AimProposalRow {
 	var rows []ui.AimProposalRow
 	for _, status := range []string{"pending", "deferred", "approved", "expired"} {
@@ -127,6 +138,9 @@ func (s *Server) handleProposalApprove(c echo.Context) error {
 
 	approved, err := s.heartbeatSvc.ApproveProposal(ctx, proposalID, starter, aimdom.WorkflowName)
 	if err != nil {
+		if errors.Is(err, orchestration.ErrAlreadyActive) {
+			return echo.NewHTTPError(http.StatusConflict, "an AIM cycle is already running for this instance")
+		}
 		s.log.Error("approve proposal failed", "proposal_id", proposalIDStr, "err", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("could not approve: %v", err))
 	}
@@ -167,6 +181,33 @@ func (s *Server) handleProposalDefer(c echo.Context) error {
 
 	row := proposalToRow(deferred)
 	return ui.AimProposalCard(row, instanceID).Render(ctx, c.Response().Writer)
+}
+
+// ---------------------------------------------------------------------------
+// POST /strategies/:id/aim/proposals/:proposalID/dismiss
+// HTMX: removes the card from the list (outerHTML swap with empty content)
+// ---------------------------------------------------------------------------
+
+func (s *Server) handleProposalDismiss(c echo.Context) error {
+	proposalIDStr := c.Param("proposalID")
+	ctx := c.Request().Context()
+
+	if s.heartbeatSvc == nil {
+		return echo.NewHTTPError(http.StatusServiceUnavailable, "heartbeat service not available")
+	}
+
+	proposalID, err := uuid.Parse(proposalIDStr)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid proposal ID")
+	}
+
+	if _, err := s.heartbeatSvc.DismissProposal(ctx, proposalID); err != nil {
+		s.log.Error("dismiss proposal failed", "proposal_id", proposalIDStr, "err", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("could not dismiss: %v", err))
+	}
+
+	// Return empty content — HTMX outerHTML swap removes the card.
+	return c.HTML(http.StatusOK, "")
 }
 
 // ---------------------------------------------------------------------------
