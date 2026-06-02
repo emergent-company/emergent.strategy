@@ -1,0 +1,68 @@
+schema: spec-driven
+
+# Project context injected into every OpenSpec artifact request.
+# Keep this to the durable essentials. Deep detail (EPF concepts, MCP tool
+# inventory, semantic engine, capability specs) lives in openspec/project.md,
+# AGENTS.md, and CONSTITUTION.md.
+context: |
+  # emergent-strategy — project context
+
+  ## What it is
+  Strategy tooling for the Emergent Product Framework (EPF). Two Go apps plus the
+  EPF framework content:
+  - apps/epf-cli — Go CLI + MCP server that validates/manages/generates EPF
+    artifacts. FROZEN: bug fixes only, no new features. Reference validator.
+  - apps/strategy-server — Go backend serving the live strategy platform
+    (Phase 2, in progress). 96 MCP tools, Zitadel auth, multi-tenant orgs,
+    optional semantic graph via emergent.memory.
+  - docs/EPF — framework docs, JSON schemas, templates, product instances.
+
+  ## Tech stack (authoritative: CONSTITUTION.md)
+  - Language: Go 1.26+. Standard go toolchain; tests via `go test ./...`.
+  - strategy-server DB: PostgreSQL 16 — uptrace/bun + jackc/pgx/v5.
+  - HTTP: Echo v4 + danielgtaylor/huma/v2. CLI/config: alexflint/go-arg.
+  - Migrations: pressly/goose/v3 embedded SQL. Logging: log/slog JSON.
+  - UUIDs: google/uuid. MCP: mark3labs/mcp-go. Auth: Zitadel OIDC introspection.
+  - Semantic: emergent.memory REST API (optional; graceful degradation).
+  - opencode-epf plugin: TypeScript (Bun) orchestration layer for OpenCode.
+  - EPF artifacts: YAML validated against JSON Schema (schema v2.0.0).
+
+  ## Architecture & conventions
+  - Three-layer AI integration: CLI binary (core logic) -> MCP server
+    (epf-cli serve: agents/skills/tools) -> opencode-epf plugin (persona
+    injection, guardrails). The MCP server works standalone.
+  - EPF instances are phased: READY (foundation) / FIRE (execution) /
+    AIM (assessment).
+  - strategy-server has its OWN internal/memory client; it cannot import
+    epf-cli's internal/ packages (Go visibility). Keep them separate.
+  - Day-one strategy-server patterns: i18n via langs.T(ctx,"key") (never
+    hard-code user-facing strings); audit.FromContext(ctx).Write(...) on every
+    write; web.UserFromContext(ctx) (never nil after middleware).
+  - Naming: kebab-case files/dirs, PascalCase Go types, camelCase Go funcs.
+
+  ## Go non-negotiables (full detail in go-microservice skill + CONSTITUTION.md)
+  - Never return nil when you have a non-nil error (nilerr anti-pattern).
+  - Wrap errors with fmt.Errorf("context: %w", err).
+  - log/slog only — never fmt.Println / log.Printf.
+  - No business logic in cmd/*.go; commands parse args and call internal packages.
+  - Never hand-edit internal/embedded/ — sync from canonical EPF
+    (make sync-embedded). JSON schemas are the source of truth; never invent Go
+    validation rules that contradict them.
+  - Never return raw Go errors to MCP clients — use structured error responses.
+
+  ## Testing
+  - Record a baseline first, compare after:
+    - epf-cli:         cd apps/epf-cli && go test ./...
+    - strategy-server: cd apps/strategy-server && go test ./... (needs Postgres;
+      `task dev-deps` first). Lint: `task lint`.
+  - Fix regressions before a task is done.
+
+  ## Git
+  - Main branch: main. Change branches match the OpenSpec change-id.
+  - Conventional/concise commit messages focused on "why". Commit only when asked.
+
+  ## More detail
+  - openspec/project.md — EPF domain concepts, strategy-server four-phase build
+    order, capability specs, constraints.
+  - AGENTS.md — full MCP tool inventory, semantic engine, tool-selection protocol.
+  - CONSTITUTION.md — authoritative tech stack, architecture, non-negotiables.

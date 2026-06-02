@@ -31,34 +31,23 @@ Follow this sequence for every task, no matter how small:
 ```
 
 For non-trivial tasks (new capability, breaking change, multi-package change):
-also read `openspec/AGENTS.md` and follow the OpenSpec proposal workflow before
-implementing.
+use the OpenSpec workflow before implementing (see section 3).
 
 ---
 
 ## 3. OpenSpec — When to Write a Proposal
 
-<!-- OPENSPEC:START -->
+This project uses OpenSpec (v1.4+) for spec-driven development. The workflow is
+driven by the OpenSpec CLI and agent skills (auto-loaded by the coding agent),
+not a static instructions file. Use OpenSpec when the request mentions planning,
+proposals, or specs; introduces new capabilities, breaking changes, or
+architecture shifts; or is ambiguous and needs the authoritative spec before
+coding. Skip a proposal for bug fixes, typos, formatting, non-breaking dependency
+bumps, and config changes.
 
-# OpenSpec Instructions
-
-These instructions are for AI assistants working in this project.
-
-Always open `@/openspec/AGENTS.md` when the request:
-
-- Mentions planning or proposals (words like proposal, spec, change, plan)
-- Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
-- Sounds ambiguous and you need the authoritative spec before coding
-
-Use `@/openspec/AGENTS.md` to learn:
-
-- How to create and apply change proposals
-- Spec format and conventions
-- Project structure and guidelines
-
-Keep this managed block so 'openspec update' can refresh the instructions.
-
-<!-- OPENSPEC:END -->
+CLI quick reference: `openspec list`, `openspec list --specs`,
+`openspec validate <id> --strict`, `openspec show <id>`. Project context lives in
+`openspec/project.md`.
 
 ---
 
@@ -323,4 +312,4 @@ export EPF_MEMORY_TOKEN="<project-token>"
 
 - **EPF Framework**: `docs/EPF/`
 - **Semantic Engine Spec**: `openspec/specs/epf-semantic-engine/spec.md`
-- **OpenSpec**: `openspec/AGENTS.md`
+- **OpenSpec**: see section 3 (CLI + skills); project context in `openspec/project.md`
