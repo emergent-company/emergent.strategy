@@ -87,6 +87,11 @@ func (sc *scanCache) invalidate(owner string) {
 	delete(sc.entries, owner)
 }
 
+// peek returns cached results without blocking, or (nil, false) when not ready.
+func (sc *scanCache) peek(key string) ([]RepoScanResult, bool) {
+	return sc.get(key)
+}
+
 // ---------------------------------------------------------------------------
 // Service methods
 // ---------------------------------------------------------------------------
@@ -221,6 +226,36 @@ func (s *Service) ScanUserRepos(ctx context.Context, userToken string) ([]RepoSc
 		"with_app_install", countAppInstall(results))
 
 	return results, nil
+}
+
+// StartScanUserRepos kicks off a background scan goroutine and returns immediately.
+// The caller should poll GetCachedUserRepos until results appear.
+// If a scan is already cached for this token, it is a no-op.
+func (s *Service) StartScanUserRepos(userToken string) {
+	cache := s.getScanCache()
+	cacheKey := "user:" + userToken[:min(16, len(userToken))]
+	if _, ok := cache.peek(cacheKey); ok {
+		return // already cached, no need to re-scan
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
+		// ScanUserRepos populates the cache internally on success.
+		if _, err := s.ScanUserRepos(ctx, userToken); err != nil {
+			slog.Warn("background scan failed", "err", err)
+		}
+	}()
+}
+
+// GetCachedUserRepos returns cached scan results for the user token, or (nil, false)
+// if the scan is still in progress.
+func (s *Service) GetCachedUserRepos(userToken string) ([]RepoScanResult, bool) {
+	if userToken == "" {
+		return nil, false
+	}
+	cache := s.getScanCache()
+	cacheKey := "user:" + userToken[:min(16, len(userToken))]
+	return cache.peek(cacheKey)
 }
 
 // ScanInstallationRepos is kept for backward compat with MCP tools.

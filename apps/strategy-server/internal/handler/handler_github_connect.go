@@ -2,10 +2,8 @@ package handler
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/emergent-company/go-daisy/render"
@@ -48,8 +46,12 @@ func (s *Server) handleGithubConnect(c echo.Context) error {
 	return s.renderConnectPage(c, data)
 }
 
-// handleGithubConnectRepos is the async HTMX endpoint that runs the repo scan.
+// handleGithubConnectRepos is the HTMX polling endpoint for the repo scan.
 // GET /github/connect/repos
+//
+// On first call: starts the background scan and returns a polling skeleton.
+// On subsequent calls: returns cached results when ready, or another polling skeleton.
+// This avoids holding the HTTP connection open for the full scan duration.
 func (s *Server) handleGithubConnectRepos(c echo.Context) error {
 	ctx := c.Request().Context()
 	user := web.UserFromContext(ctx)
@@ -59,52 +61,22 @@ func (s *Server) handleGithubConnectRepos(c echo.Context) error {
 		return c.Redirect(http.StatusFound, "/github/connect")
 	}
 
-	data := ui.GithubConnectData{
-		AppInstallURL: s.githubAppInstallURL,
-		ReposLoaded:   true,
-		Workspaces:    s.loadWorkspacesForAssignment(ctx),
-	}
-
-	// Use a background context with its own timeout so the scan is not
-	// cancelled by the HTTP write timeout (180 s). Large orgs with hundreds
-	// of repos can take several minutes to scan.
-	scanCtx, scanCancel := context.WithTimeout(context.Background(), 10*time.Minute)
-	defer scanCancel()
-
-	repos, err := s.syncSvc.ScanUserRepos(scanCtx, githubToken)
-	if err != nil {
-		// Rate limit — show clean retry UI, don't clear token.
-		var rle *syncdom.RateLimitError
-		if errors.As(err, &rle) {
-			s.log.Warn("github rate limit hit", "user_id", user.ID, "retry_after", rle.RetryAfter)
-			data.RateLimited = true
-			data.RetryAfter = rle.RetryAfter
-		} else {
-			errMsg := err.Error()
-			isAuthError := strings.Contains(errMsg, "401") ||
-				strings.Contains(errMsg, "Bad credentials") ||
-				strings.Contains(errMsg, "requires authentication")
-
-			if isAuthError {
-				s.log.Warn("github token invalid — clearing and redirecting", "user_id", user.ID, "err", err)
-				if s.userSvc != nil {
-					_ = s.userSvc.ClearGithubToken(ctx, user.ID)
-				}
-				// HX-Redirect sends the browser to the full page which shows the reconnect UI.
-				c.Response().Header().Set("HX-Redirect", "/github/connect")
-				c.Response().WriteHeader(http.StatusOK)
-				return nil
-			}
-
-			// Other non-auth error — show with retry button, keep token.
-			s.log.Warn("github scan failed", "user_id", user.ID, "err", err)
-			data.ScanError = langs.T(ctx, "error.github_scan_failed")
+	// Check if results are already cached.
+	if repos, ok := s.syncSvc.GetCachedUserRepos(githubToken); ok {
+		data := ui.GithubConnectData{
+			AppInstallURL: s.githubAppInstallURL,
+			ReposLoaded:   true,
+			Workspaces:    s.loadWorkspacesForAssignment(ctx),
+			Repos:         toUIRepoItems(repos),
 		}
-	} else {
-		data.Repos = toUIRepoItems(repos)
+		render.RenderPartial(c.Response().Writer, c.Request(), ui.GithubConnectRepoListFragment(data))
+		return nil
 	}
 
-	render.RenderPartial(c.Response().Writer, c.Request(), ui.GithubConnectRepoListFragment(data))
+	// Not cached yet — kick off the background scan (no-op if already running)
+	// and return a polling skeleton. HTMX will retry in 3 seconds.
+	s.syncSvc.StartScanUserRepos(githubToken)
+	render.RenderPartial(c.Response().Writer, c.Request(), ui.GithubConnectRepoPollingSkeleton())
 	return nil
 }
 

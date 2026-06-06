@@ -212,6 +212,20 @@ templ GithubConnectReposLoadingFragment() {
 	</div>
 }
 
+// GithubConnectRepoPollingSkeleton is returned while the background scan is still running.
+// It polls GET /github/connect/repos every 3 seconds until results are ready.
+templ GithubConnectRepoPollingSkeleton() {
+	<div
+		id="github-repo-list"
+		class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden"
+		hx-get="/github/connect/repos"
+		hx-trigger="every 3s"
+		hx-swap="outerHTML"
+	>
+		@githubRepoListLoadingInner()
+	</div>
+}
+
 // GithubConnectRepoListFragment renders the repository list (result of async scan).
 // Returned by GET /github/connect/repos and swapped into #github-repo-list.
 templ GithubConnectRepoListFragment(data GithubConnectData) {
