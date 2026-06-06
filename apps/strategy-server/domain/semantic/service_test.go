@@ -132,26 +132,20 @@ func TestGetNeighbors_Success(t *testing.T) {
 			}
 			_ = json.NewEncoder(w).Encode(resp)
 
-		case strings.HasSuffix(r.URL.Path, "/edges"):
-			// Memory API returns flat Relationship objects.
+		case r.URL.Path == "/api/graph/expand" && r.Method == http.MethodPost:
+			// Expand at depth 1 — returns the root node, its neighbors,
+			// and all relationships connecting them.
 			resp := map[string]any{
-				"incoming": []map[string]any{
-					{"id": "rel-1", "type": "contributes_to", "src_id": "obj-2", "dst_id": "obj-1"},
+				"objects": []map[string]any{
+					{"id": "obj-1", "type": "feature", "key": "fd-001"},
+					{"id": "obj-2", "type": "persona", "key": "user-researcher"},
+					{"id": "obj-3", "type": "feature", "key": "fd-002"},
 				},
-				"outgoing": []map[string]any{
+				"relationships": []map[string]any{
+					{"id": "rel-1", "type": "contributes_to", "src_id": "obj-2", "dst_id": "obj-1"},
 					{"id": "rel-2", "type": "depends_on", "src_id": "obj-1", "dst_id": "obj-3"},
 				},
 			}
-			_ = json.NewEncoder(w).Encode(resp)
-
-		case r.URL.Path == "/api/graph/objects/obj-2" && r.Method == http.MethodGet:
-			// Resolve connected object for incoming edge.
-			resp := map[string]any{"id": "obj-2", "type": "persona", "key": "user-researcher"}
-			_ = json.NewEncoder(w).Encode(resp)
-
-		case r.URL.Path == "/api/graph/objects/obj-3" && r.Method == http.MethodGet:
-			// Resolve connected object for outgoing edge.
-			resp := map[string]any{"id": "obj-3", "type": "feature", "key": "fd-002"}
 			_ = json.NewEncoder(w).Encode(resp)
 
 		default:

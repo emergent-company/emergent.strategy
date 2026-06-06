@@ -507,7 +507,9 @@ func (s *Service) deleteGraphObject(ctx context.Context, instanceID uuid.UUID, a
 	if obj == nil {
 		return nil // already gone
 	}
-	return s.client.DeleteObject(ctx, obj.StableID())
+	return s.client.DeleteObject(ctx, obj.StableID(), memory.DeleteObjectRequest{
+		Reason: fmt.Sprintf("artifact archived from instance %s", instanceID),
+	})
 }
 
 // objectKeyIndex caches artifact key → Memory object ID mappings to avoid

@@ -162,6 +162,8 @@ func (s *Service) SearchStrategy(ctx context.Context, instanceID, query string, 
 }
 
 // GetNeighbors returns the semantic graph neighbourhood of a node.
+// Uses a single Expand(depth=1) call to fetch all connected nodes and edges,
+// replacing the previous N+2 API call pattern (key lookup + edges + N GetObject).
 func (s *Service) GetNeighbors(ctx context.Context, instanceID, nodeKey string) ([]*Neighbor, error) {
 	if err := s.requireClient(); err != nil {
 		return nil, err
@@ -176,51 +178,46 @@ func (s *Service) GetNeighbors(ctx context.Context, instanceID, nodeKey string) 
 		return []*Neighbor{}, nil
 	}
 
-	// Get edges for this object.
-	edges, err := s.client.ObjectEdges(ctx, obj.StableID())
-	if err != nil {
-		return nil, fmt.Errorf("get neighbors: edges: %w", err)
-	}
-
-	// The edges endpoint returns flat Relationship objects (src_id/dst_id).
-	// Resolve connected object IDs to get their key and type.
+	// Single BFS expansion at depth 1 returns all connected objects and
+	// their relationships in one API call.
 	objectID := obj.StableID()
-	out := make([]*Neighbor, 0, len(edges.Outgoing)+len(edges.Incoming))
-
-	for _, rel := range edges.Outgoing {
-		// For outgoing edges, the connected node is the destination.
-		connectedID := rel.ToID
-		if connectedID == objectID {
-			connectedID = rel.FromID // shouldn't happen but be safe
-		}
-		connected, err := s.client.GetObject(ctx, connectedID)
-		if err != nil {
-			slog.Debug("get neighbors: resolve outgoing object failed", "id", connectedID, "err", err)
-			continue
-		}
-		out = append(out, &Neighbor{
-			NodeKey:  connected.Key,
-			NodeType: connected.Type,
-			EdgeType: rel.Type,
-			EdgeDir:  "outbound",
-		})
+	expanded, err := s.client.Expand(ctx, memory.ExpandRequest{
+		RootIDs:  []string{objectID},
+		MaxDepth: 1,
+		MaxNodes: 500,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("get neighbors: expand: %w", err)
 	}
-	for _, rel := range edges.Incoming {
-		// For incoming edges, the connected node is the source.
-		connectedID := rel.FromID
-		if connectedID == objectID {
+
+	// Index expanded objects by ID for fast lookup.
+	objByID := make(map[string]*memory.Object, len(expanded.Objects))
+	for i := range expanded.Objects {
+		o := &expanded.Objects[i]
+		objByID[o.StableID()] = o
+	}
+
+	out := make([]*Neighbor, 0, len(expanded.Relationships))
+	for _, rel := range expanded.Relationships {
+		var connectedID, dir string
+		if rel.FromID == objectID {
 			connectedID = rel.ToID
+			dir = "outbound"
+		} else if rel.ToID == objectID {
+			connectedID = rel.FromID
+			dir = "inbound"
+		} else {
+			continue // edge between two neighbors, not touching our root
 		}
-		connected, err := s.client.GetObject(ctx, connectedID)
-		if err != nil {
-			slog.Debug("get neighbors: resolve incoming object failed", "id", connectedID, "err", err)
+		connected, ok := objByID[connectedID]
+		if !ok {
 			continue
 		}
 		out = append(out, &Neighbor{
 			NodeKey:  connected.Key,
 			NodeType: connected.Type,
 			EdgeType: rel.Type,
-			EdgeDir:  "inbound",
+			EdgeDir:  dir,
 		})
 	}
 
@@ -229,17 +226,16 @@ func (s *Service) GetNeighbors(ctx context.Context, instanceID, nodeKey string) 
 
 // DetectContradictions runs a contradiction scan on the strategy graph.
 // This uses Memory's quality audit capabilities to find structural issues.
+// Uses Expand(depth=1) to detect orphaned nodes in a single API call,
+// replacing the previous 1+N pattern (ListObjects + per-object ObjectEdges).
 func (s *Service) DetectContradictions(ctx context.Context, instanceID string) ([]*Contradiction, error) {
 	if err := s.requireClient(); err != nil {
 		return nil, err
 	}
 
-	// Strategy: use graph traversal to find disconnected nodes and conflicting edges.
-	// For now, we detect contradictions by looking for orphaned nodes and
-	// conflicting relationship patterns.
-	//
 	// A full contradiction detection engine would use the propagation circuit
-	// from epf-cli. This implementation provides basic structural checks.
+	// from epf-cli. This implementation provides basic structural checks
+	// by detecting orphaned nodes (objects with zero relationships).
 
 	page, err := s.client.ListObjects(ctx, memory.ListObjectsOptions{
 		Limit: 200,
@@ -247,23 +243,47 @@ func (s *Service) DetectContradictions(ctx context.Context, instanceID string) (
 	if err != nil {
 		return nil, fmt.Errorf("detect contradictions: list objects: %w", err)
 	}
+	if len(page.Items) == 0 {
+		return nil, nil
+	}
 
+	// Collect all object IDs and expand at depth 1. The returned
+	// relationships tell us which objects are connected.
+	rootIDs := make([]string, 0, len(page.Items))
+	objByID := make(map[string]*memory.Object, len(page.Items))
+	for i := range page.Items {
+		id := page.Items[i].StableID()
+		rootIDs = append(rootIDs, id)
+		objByID[id] = &page.Items[i]
+	}
+
+	expanded, err := s.client.Expand(ctx, memory.ExpandRequest{
+		RootIDs:  rootIDs,
+		MaxDepth: 1,
+		MaxNodes: 1000,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("detect contradictions: expand: %w", err)
+	}
+
+	// Build set of IDs that appear in at least one relationship.
+	connected := make(map[string]bool, len(expanded.Relationships)*2)
+	for _, rel := range expanded.Relationships {
+		connected[rel.FromID] = true
+		connected[rel.ToID] = true
+	}
+
+	// Any root object not in the connected set is orphaned.
 	var contradictions []*Contradiction
-
-	// Check each object for disconnection (orphaned nodes).
-	for _, obj := range page.Items {
-		edges, err := s.client.ObjectEdges(ctx, obj.StableID())
-		if err != nil {
-			slog.Warn("detect contradictions: skip object edges",
-				"object_id", obj.StableID(), "err", err)
+	for _, id := range rootIDs {
+		if connected[id] {
 			continue
 		}
-		if len(edges.Incoming) == 0 && len(edges.Outgoing) == 0 {
-			contradictions = append(contradictions, &Contradiction{
-				Description: fmt.Sprintf("Orphaned node: %s (%s) has no relationships", obj.Key, obj.Type),
-				FixWith:     fmt.Sprintf("Add relationships connecting %s to other strategy artifacts", obj.Key),
-			})
-		}
+		obj := objByID[id]
+		contradictions = append(contradictions, &Contradiction{
+			Description: fmt.Sprintf("Orphaned node: %s (%s) has no relationships", obj.Key, obj.Type),
+			FixWith:     fmt.Sprintf("Add relationships connecting %s to other strategy artifacts", obj.Key),
+		})
 	}
 
 	return contradictions, nil

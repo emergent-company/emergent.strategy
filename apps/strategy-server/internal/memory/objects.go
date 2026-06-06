@@ -72,9 +72,20 @@ func (c *Client) UpdateObject(ctx context.Context, id string, req UpdateObjectRe
 	return decodeJSON[*Object](data)
 }
 
-// DeleteObject soft-deletes an object.
-func (c *Client) DeleteObject(ctx context.Context, id string) error {
-	_, err := c.do(ctx, http.MethodDelete, "/api/graph/objects/"+id, nil)
+// DeleteObjectRequest is the optional payload for soft-deleting an object.
+// When Reason is set, it is recorded as a tombstone audit trail (Memory v0.41.116+).
+type DeleteObjectRequest struct {
+	Reason string `json:"delete_reason,omitempty"`
+}
+
+// DeleteObject soft-deletes an object with an optional reason.
+// The reason is recorded as a tombstone in Memory for audit trails.
+func (c *Client) DeleteObject(ctx context.Context, id string, opts ...DeleteObjectRequest) error {
+	var body any
+	if len(opts) > 0 && opts[0].Reason != "" {
+		body = opts[0]
+	}
+	_, err := c.do(ctx, http.MethodDelete, "/api/graph/objects/"+id, body)
 	if err != nil {
 		return fmt.Errorf("delete object %s: %w", id, err)
 	}

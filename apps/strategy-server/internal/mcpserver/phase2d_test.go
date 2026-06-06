@@ -164,6 +164,49 @@ func memoryMux() *http.ServeMux {
 		_ = json.NewEncoder(w).Encode(resp)
 	})
 
+	// Expand endpoint — used by GetNeighbors and DetectContradictions.
+	// Returns objects and relationships reachable from the root IDs at depth 1.
+	mux.HandleFunc("/api/graph/expand", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			RootIDs []string `json:"root_ids"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+
+		// Build response: return relationships only for obj-100 (connected),
+		// and no relationships for obj-400 (orphaned).
+		rootSet := make(map[string]bool, len(req.RootIDs))
+		for _, id := range req.RootIDs {
+			rootSet[id] = true
+		}
+
+		var objects []map[string]any
+		var relationships []map[string]any
+
+		if rootSet["obj-100"] {
+			objects = append(objects,
+				map[string]any{"id": "obj-100", "type": "feature", "key": "fd-001_knowledge_graph_engine"},
+				map[string]any{"id": "obj-200", "type": "feature", "key": "fd-002_document_ingestion"},
+				map[string]any{"id": "obj-300", "type": "feature", "key": "fd-003_ai_native_chat"},
+			)
+			relationships = append(relationships,
+				map[string]any{"id": "rel-1", "type": "depends_on", "src_id": "obj-300", "dst_id": "obj-100"},
+				map[string]any{"id": "rel-2", "type": "enables", "src_id": "obj-100", "dst_id": "obj-200"},
+			)
+		}
+		if rootSet["obj-400"] {
+			objects = append(objects,
+				map[string]any{"id": "obj-400", "type": "feature", "key": "fd-orphaned"},
+			)
+			// No relationships for obj-400 — it is orphaned.
+		}
+
+		resp := map[string]any{
+			"objects":       objects,
+			"relationships": relationships,
+		}
+		_ = json.NewEncoder(w).Encode(resp)
+	})
+
 	// Branches for scenarios.
 	mux.HandleFunc("/api/graph/branches", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {

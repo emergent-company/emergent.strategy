@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -23,6 +22,12 @@ func (s *Server) handleSettings(c echo.Context) error {
 		Memory:     s.probeMemoryHealth(ctx),
 		Instances:  s.loadInstanceMemoryStatuses(ctx),
 		GithubSync: s.loadGithubSyncStatuses(ctx),
+		Github: ui.GithubConfigStatus{
+			// syncSvc is only constructed when the GitHub App is configured;
+			// githubOAuth is only set when OAuth App credentials are present.
+			AppConfigured:   s.syncSvc != nil,
+			OAuthConfigured: s.githubOAuth != nil,
+		},
 	}
 
 	sidebarGroups := s.sidebarGroups(c)
@@ -106,55 +111,31 @@ func (s *Server) probeMemoryHealth(ctx context.Context) ui.MemoryHealthStatus {
 		ProjectID:  cfg.Project,
 	}
 
-	// Fetch total artifact object count from Memory graph (best-effort).
-	if client := s.semanticSvc.Client(); client != nil {
-		if count, err := client.CountArtifactObjects(ctx); err == nil {
-			status.TotalGraphObjects = count
-		}
+	client := s.semanticSvc.Client()
+	if client == nil {
+		status.Error = "memory client not initialized"
+		return status
 	}
 
-	// Ping the Memory server health endpoint.
-	reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	// Fetch total artifact object count from Memory graph (best-effort).
+	if count, err := client.CountArtifactObjects(ctx); err == nil {
+		status.TotalGraphObjects = count
+	}
+
+	// Fetch detailed health from Memory server via the shared client.
+	// Uses the same auth mode, connection pool, and retry logic as all other calls.
+	healthCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, cfg.URL+"/api/health", nil)
+	detail, err := client.HealthDetailed(healthCtx)
 	if err != nil {
-		status.Error = fmt.Sprintf("build request: %v", err)
+		status.Error = fmt.Sprintf("health check failed: %v", err)
 		return status
 	}
-	req.Header.Set("X-API-Key", cfg.Token)
-	req.Header.Set("X-Project-ID", cfg.Project)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		status.Error = fmt.Sprintf("ping failed: %v", err)
-		return status
-	}
-	defer resp.Body.Close() //nolint:errcheck
-
-	if resp.StatusCode != http.StatusOK {
-		status.Error = fmt.Sprintf("server returned %d", resp.StatusCode)
-		return status
-	}
-
-	var body struct {
-		Version string `json:"version"`
-		Checks  map[string]struct {
-			Status string `json:"status"`
-		} `json:"checks"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err == nil {
-		status.Version = body.Version
-		// Healthy only when database subsystem is healthy.
-		if db, ok := body.Checks["database"]; ok && db.Status == "healthy" {
-			status.Healthy = true
-		} else {
-			status.Error = "database subsystem not healthy"
-		}
-	} else {
-		// If we can decode the response but the JSON is unexpected, still mark healthy
-		// (server responded 200).
-		status.Healthy = true
+	status.Version = detail.Version
+	status.Healthy = detail.Healthy
+	if !detail.Healthy {
+		status.Error = "database subsystem not healthy"
 	}
 
 	return status

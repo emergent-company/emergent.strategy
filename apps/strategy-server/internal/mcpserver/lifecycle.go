@@ -233,15 +233,36 @@ func enrichWithSemantics(ctx context.Context, client *memory.Client, signals *Li
 	}
 
 	// 4. Find orphaned nodes (nodes with 0 edges).
-	// Sample up to 50 objects and check their edge count.
+	// Sample up to 50 objects and use a single Expand(depth=1) to find
+	// which ones have relationships, replacing the previous 1+50 API call pattern.
 	samplePage, err := client.ListObjects(ctx, memory.ListObjectsOptions{Limit: 50})
-	if err == nil {
+	if err == nil && len(samplePage.Items) > 0 {
+		rootIDs := make([]string, 0, len(samplePage.Items))
+		idToKey := make(map[string]string, len(samplePage.Items))
 		for _, obj := range samplePage.Items {
-			edges, edgeErr := client.ObjectEdges(ctx, obj.StableID())
-			if edgeErr == nil && len(edges.Outgoing)+len(edges.Incoming) == 0 {
-				sem.OrphanedNodeCount++
-				if len(sem.OrphanedNodes) < 5 { // cap at 5 examples
-					sem.OrphanedNodes = append(sem.OrphanedNodes, obj.Key)
+			id := obj.StableID()
+			rootIDs = append(rootIDs, id)
+			idToKey[id] = obj.Key
+		}
+
+		expanded, expandErr := client.Expand(ctx, memory.ExpandRequest{
+			RootIDs:  rootIDs,
+			MaxDepth: 1,
+			MaxNodes: 500,
+		})
+		if expandErr == nil {
+			// Build set of IDs that appear in any relationship.
+			connected := make(map[string]bool, len(expanded.Relationships)*2)
+			for _, rel := range expanded.Relationships {
+				connected[rel.FromID] = true
+				connected[rel.ToID] = true
+			}
+			for _, id := range rootIDs {
+				if !connected[id] {
+					sem.OrphanedNodeCount++
+					if len(sem.OrphanedNodes) < 5 { // cap at 5 examples
+						sem.OrphanedNodes = append(sem.OrphanedNodes, idToKey[id])
+					}
 				}
 			}
 		}
