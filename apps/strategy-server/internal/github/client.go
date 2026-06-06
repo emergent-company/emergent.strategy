@@ -467,6 +467,8 @@ type UserRepo struct {
 	HTMLURL       string
 	DefaultBranch string
 	Private       bool
+	Description   string    // repo description (may be empty)
+	PushedAt      time.Time // time of last push (zero when not set)
 }
 
 // ListUserRepos returns all repositories the user has access to via their
@@ -496,6 +498,10 @@ func (c *Client) ListUserRepos(ctx context.Context, userToken string) ([]UserRep
 			return
 		}
 		seen[key] = true
+		var pushedAt time.Time
+		if t := r.GetPushedAt(); !t.IsZero() {
+			pushedAt = t.Time
+		}
 		all = append(all, UserRepo{
 			Name:          r.GetName(),
 			FullName:      r.GetFullName(),
@@ -503,6 +509,8 @@ func (c *Client) ListUserRepos(ctx context.Context, userToken string) ([]UserRep
 			HTMLURL:       r.GetHTMLURL(),
 			DefaultBranch: r.GetDefaultBranch(),
 			Private:       r.GetPrivate(),
+			Description:   r.GetDescription(),
+			PushedAt:      pushedAt,
 		})
 	}
 

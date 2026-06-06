@@ -61,13 +61,15 @@ type RepoReader interface {
 // HasAppInstall indicates whether the GitHub App is installed on the repo's owner org —
 // if false, read import works but write-back (sync to GitHub) is unavailable.
 type UserRepoInfo struct {
-	Name          string `json:"name"`
-	FullName      string `json:"full_name"`
-	Owner         string `json:"owner"`
-	HTMLURL       string `json:"html_url"`
-	DefaultBranch string `json:"default_branch"`
-	Private       bool   `json:"private"`
-	HasAppInstall bool   `json:"has_app_install"` // true when App is installed on this owner
+	Name          string    `json:"name"`
+	FullName      string    `json:"full_name"`
+	Owner         string    `json:"owner"`
+	HTMLURL       string    `json:"html_url"`
+	DefaultBranch string    `json:"default_branch"`
+	Private       bool      `json:"private"`
+	HasAppInstall bool      `json:"has_app_install"` // true when App is installed on this owner
+	Description   string    `json:"description,omitempty"`
+	PushedAt      time.Time `json:"pushed_at,omitempty"`
 }
 
 // InstallationInfo describes a GitHub App installation on an org or personal account.

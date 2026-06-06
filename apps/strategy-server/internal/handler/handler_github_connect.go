@@ -253,6 +253,8 @@ func toUIRepoItems(repos []syncdom.RepoScanResult) []ui.GithubRepoScanItem {
 			HTMLURL:       r.HTMLURL,
 			DefaultBranch: r.DefaultBranch,
 			Private:       r.Private,
+			Description:   r.Description,
+			PushedAt:      r.PushedAt,
 			HasEPF:        r.HasEPF,
 			InstanceCount: len(r.DetectedInstances),
 			ScanTruncated: r.ScanTruncated,

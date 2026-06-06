@@ -114,6 +114,8 @@ func (a *RepoReaderAdapter) ListUserRepos(ctx context.Context, userToken string)
 			HTMLURL:       r.HTMLURL,
 			DefaultBranch: r.DefaultBranch,
 			Private:       r.Private,
+			Description:   r.Description,
+			PushedAt:      r.PushedAt,
 		}
 	}
 	return out, nil

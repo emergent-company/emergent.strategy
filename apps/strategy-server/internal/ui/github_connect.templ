@@ -38,6 +38,8 @@ type GithubRepoScanItem struct {
 	HTMLURL           string
 	DefaultBranch     string
 	Private           bool
+	Description       string    // repo description from GitHub
+	PushedAt          time.Time // time of last push (zero when not set)
 	HasEPF            bool
 	InstanceCount     int
 	DetectedInstances []GithubDetectedInstance
@@ -329,7 +331,19 @@ templ githubRepoRow(repo GithubRepoScanItem, workspaces []WorkspaceScanItem) {
 					@githubEPFBadge(repo)
 					@githubWritebackBadge(repo.HasAppInstall)
 				</div>
-				<p class="text-xs text-base-content/40 mt-0.5 font-mono">{ repo.FullName }</p>
+				<!-- Full name + last pushed -->
+				<div class="flex items-center gap-3 mt-0.5 flex-wrap">
+					<p class="text-xs text-base-content/40 font-mono">{ repo.FullName }</p>
+					if !repo.PushedAt.IsZero() {
+						<span class="text-xs text-base-content/40 flex items-center gap-1">
+							<span class="iconify lucide--git-commit-horizontal size-3"></span>
+							{ githubRelativeTime(repo.PushedAt) }
+						</span>
+					}
+				</div>
+				if repo.Description != "" {
+					<p class="text-xs text-base-content/55 mt-1 leading-relaxed">{ repo.Description }</p>
+				}
 				if len(repo.UsedByRepos) > 0 {
 					@githubUsedByBadges(repo.UsedByRepos)
 				}
@@ -520,6 +534,25 @@ templ githubRateLimitedState(retryAfter time.Duration) {
 			Retry now
 		</button>
 	</div>
+}
+
+// githubRelativeTime returns a human-readable relative time string (e.g. "2 days ago").
+func githubRelativeTime(t time.Time) string {
+	d := time.Since(t)
+	switch {
+	case d < 2*time.Minute:
+		return "just now"
+	case d < 2*time.Hour:
+		return fmt.Sprintf("%d minutes ago", int(d.Minutes()))
+	case d < 48*time.Hour:
+		return fmt.Sprintf("%d hours ago", int(d.Hours()))
+	case d < 14*24*time.Hour:
+		return fmt.Sprintf("%d days ago", int(d.Hours()/24))
+	case d < 8*7*24*time.Hour:
+		return fmt.Sprintf("%d weeks ago", int(d.Hours()/(24*7)))
+	default:
+		return t.Format("Jan 2006")
+	}
 }
 
 // githubUsedByBadges renders the "used by" subscriber affiliation for an EPF repo.

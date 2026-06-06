@@ -24,6 +24,8 @@ type RepoScanResult struct {
 	HTMLURL           string                `json:"html_url"`
 	DefaultBranch     string                `json:"default_branch"`
 	Private           bool                  `json:"private"`
+	Description       string                `json:"description,omitempty"`
+	PushedAt          time.Time             `json:"pushed_at,omitempty"`
 	HasEPF            bool                  `json:"has_epf"`
 	DetectedInstances []DetectedEPFInstance `json:"detected_instances"`
 	ScanTruncated     bool                  `json:"scan_truncated,omitempty"`
@@ -168,6 +170,8 @@ func (s *Service) ScanUserRepos(ctx context.Context, userToken string) ([]RepoSc
 				HTMLURL:       r.HTMLURL,
 				DefaultBranch: r.DefaultBranch,
 				Private:       r.Private,
+				Description:   r.Description,
+				PushedAt:      r.PushedAt,
 				HasAppInstall: appInstallOwners[r.Owner],
 			}
 
